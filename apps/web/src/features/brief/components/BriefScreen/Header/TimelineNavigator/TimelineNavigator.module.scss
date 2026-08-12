@@ -66,37 +66,6 @@
     border: 0;
   }
 
-  .steps {
-    display: flex;
-    gap: functions.to-rem(7px);
-    margin-inline-start: functions.to-rem(4px);
-    list-style: none;
-
-    a {
-      display: block;
-      inline-size: 11px;
-      block-size: 11px;
-      border: 1px solid var(--faint);
-      border-radius: var(--radius-circle);
-
-      &[data-comparable] {
-        border-color: var(--blue);
-      }
-
-      &[data-state="active"] {
-        border-color: var(--text);
-        background: var(--text);
-        box-shadow: var(--shadow-ring-muted);
-      }
-    }
-  }
-
-  @container timeline (max-width: 480px) {
-    .steps {
-      display: none;
-    }
-  }
-
   @media (width <= 1120px) {
     .timeline {
       display: none;

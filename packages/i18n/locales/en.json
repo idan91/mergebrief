@@ -159,7 +159,7 @@
       "nextRevision": "Next revision, {{index}}",
       "nextNone": "Next revision (none)",
       "selectLabel": "Select PR revision",
-      "option": "Revision {{index}} · {{sha}}",
+      "option": "Revision {{index}} of {{total}} · {{sha}}",
       "optionBaseSuffix": "(base {{sha}})",
       "stepRevision": "Revision {{index}}"
     },
@@ -488,7 +488,7 @@
       "previousBrief": "Previous brief",
       "ariaLabelNav": "PR revision timeline",
       "viewingBrief": "Viewing Brief {{index}} of {{total}}",
-      "briefOptionSha": "Brief {{index}} · {{sha}}"
+      "briefOptionSha": "Brief {{index}} of {{total}} · {{sha}}"
     },
     "chunk": {
       "viewed": "Viewed",

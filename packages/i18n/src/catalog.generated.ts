@@ -42,7 +42,7 @@ export type Catalog = typeof en & {
     timeline: (typeof en)["pulls"]["timeline"] & {
       prevRevision: "Previous revision, {{index}}";
       nextRevision: "Next revision, {{index}}";
-      option: "Revision {{index}} · {{sha}}";
+      option: "Revision {{index}} of {{total}} · {{sha}}";
       optionBaseSuffix: "(base {{sha}})";
       stepRevision: "Revision {{index}}";
     };
@@ -126,7 +126,7 @@ export type Catalog = typeof en & {
     timeline: (typeof en)["brief"]["timeline"] & {
       briefOption: "Brief {{index}}";
       viewingBrief: "Viewing Brief {{index}} of {{total}}";
-      briefOptionSha: "Brief {{index}} · {{sha}}";
+      briefOptionSha: "Brief {{index}} of {{total}} · {{sha}}";
     };
     chunk: (typeof en)["brief"]["chunk"] & {
       drafts_one: "{{count}} draft";

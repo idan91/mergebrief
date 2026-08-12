@@ -78,10 +78,10 @@ describe("DbTimelineNavigator", () => {
       screen.getByLabelText<HTMLSelectElement>("Select PR revision");
     expect(select.value).toBe("1");
     expect(
-      screen.getByRole("option", { name: /Revision 1 · h1/ }),
+      screen.getByRole("option", { name: /Revision 1 of 3 · h1/ }),
     ).toBeDefined();
     expect(
-      screen.getByRole("option", { name: /Revision 3 · h3/ }),
+      screen.getByRole("option", { name: /Revision 3 of 3 · h3/ }),
     ).toBeDefined();
   });
 
@@ -122,7 +122,7 @@ describe("DbTimelineNavigator", () => {
       key: "ArrowLeft",
     });
     expect(onSelect).toHaveBeenLastCalledWith(POINTS[0]);
-    fireEvent.keyDown(screen.getByRole("button", { current: "step" }), {
+    fireEvent.keyDown(screen.getByLabelText("Select PR revision"), {
       key: "ArrowRight",
     });
     expect(onSelect).toHaveBeenLastCalledWith(POINTS[2]);
@@ -169,12 +169,6 @@ describe("DbTimelineNavigator", () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
-  it("keeps the stepper to a single tab stop, anchored on the selection", () => {
-    renderNav(1);
-    const steps = screen.getAllByRole("button", { name: /^Revision \d$/ });
-    expect(steps.map((s) => button(s).tabIndex)).toEqual([-1, 0, -1]);
-  });
-
   it("navigates to the previous/next revision point on arrow click", () => {
     const { onSelect } = renderNav(1);
     fireEvent.click(screen.getByLabelText("Previous revision, 1"));
@@ -211,13 +205,5 @@ describe("DbTimelineNavigator", () => {
       target: { value: "1" },
     });
     expect(onSelect).toHaveBeenCalledWith(duplicates[1]);
-  });
-
-  it("marks the selected step with aria-current and comparable points", () => {
-    renderNav(1);
-    const current = screen.getByRole("button", { current: "step" });
-    expect(current.querySelector(".sr-only")?.textContent).toContain(
-      "Revision 2",
-    );
   });
 });

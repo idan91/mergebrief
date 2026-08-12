@@ -81,7 +81,7 @@ test("the timeline navigates between the fixture's revisions", async ({
 }) => {
   await gotoBrief(page, `/briefs/${FIXTURE_BRIEF_REV2}`);
 
-  await page.getByRole("link", { name: "Brief 1", exact: true }).click();
+  await page.getByRole("link", { name: "Previous brief, 1" }).click();
   await expect(page).toHaveURL(new RegExp(`/briefs/${FIXTURE_BRIEF_REV1}`));
   await expect(
     page.getByRole("heading", {

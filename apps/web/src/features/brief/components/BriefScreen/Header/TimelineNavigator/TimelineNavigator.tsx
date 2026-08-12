@@ -144,6 +144,7 @@ export function TimelineNavigator({
               {t("brief.timeline.briefOptionSha", {
                 index: point.index,
                 sha: point.headSha.slice(0, 7),
+                total: timeline.points.length,
               })}
             </option>
           ))}
@@ -168,35 +169,6 @@ export function TimelineNavigator({
           →
         </span>
       )}
-      <ol className={styles["steps"]}>
-        {timeline.points
-          .slice(Math.max(0, currentIndex - 4), currentIndex + 5)
-          .map((point) => (
-            <li key={point.briefId}>
-              <Link
-                aria-current={
-                  point.briefId === selected.briefId ? "step" : undefined
-                }
-                data-comparable={
-                  point.comparisons.previousBrief ||
-                  point.comparisons.lastReview
-                    ? ""
-                    : undefined
-                }
-                data-state={
-                  point.briefId === selected.briefId ? "active" : undefined
-                }
-                params={{ briefId: point.briefId }}
-                search={(prev) => prev}
-                to="/briefs/$briefId"
-              >
-                <ScreenReaderOnly>
-                  {t("brief.timeline.briefOption", { index: point.index })}
-                </ScreenReaderOnly>
-              </Link>
-            </li>
-          ))}
-      </ol>
       <SegmentedControl
         className={styles["lens"]}
         density={SegmentedDensities.ROOMY}

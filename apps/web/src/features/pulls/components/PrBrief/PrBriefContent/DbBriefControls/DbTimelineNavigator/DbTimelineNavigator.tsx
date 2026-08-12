@@ -26,9 +26,6 @@ export interface DbTimelineNavigatorProps {
   onSelect: (point: DbTimelinePoint) => void;
 }
 
-/** Rendered dots either side of the selected point (the "capped" stepper). */
-const STEPPER_RADIUS = 4;
-
 /**
  * Identifies a control across the remount a selection causes — the brief
  * subtree is keyed by brief id, so these very nodes are destroyed and rebuilt
@@ -44,20 +41,8 @@ export const RevisionNavControls = {
   PICKER: "picker",
 } as const;
 
-/** A stepper dot's token. One builder, so producer and reader cannot drift. */
-export function revisionStepToken(position: number): string {
-  return `step-${String(position)}`;
-}
-
 function shortSha(sha: string): string {
   return sha.slice(0, 7);
-}
-
-function hasComparison(point: DbTimelinePoint): boolean {
-  return (
-    point.comparisons.previousBrief !== undefined ||
-    point.comparisons.lastReview !== undefined
-  );
 }
 
 /** `position:point` — unique per row even across duplicate heads. */
@@ -75,11 +60,6 @@ export function DbTimelineNavigator({
   const { t } = useTranslation();
   // Only a real timeline (more than one revision) earns a navigator.
   if (points.length < 2) return null;
-  const stepperStart = Math.max(0, selectedIndex - STEPPER_RADIUS);
-  const stepper = points.slice(
-    stepperStart,
-    selectedIndex + STEPPER_RADIUS + 1,
-  );
   // Duplicate heads render identical "Revision N · sha" labels; suffix the
   // base so a retarget re-brief's two rows are tellable apart in the picker.
   const headCounts = new Map<string, number>();
@@ -145,6 +125,7 @@ export function DbTimelineNavigator({
               {t("pulls.timeline.option", {
                 index: point.headIndex,
                 sha: shortSha(point.headSha),
+                total: points.length,
               })}
               {(headCounts.get(point.headSha) ?? 0) > 1
                 ? ` ${t("pulls.timeline.optionBaseSuffix", {
@@ -170,36 +151,6 @@ export function DbTimelineNavigator({
       >
         →
       </button>
-      <ol className={styles["steps"]}>
-        {stepper.map((point, offset) => {
-          const position = stepperStart + offset;
-          const isSelected = position === selectedIndex;
-          return (
-            <li key={pointKey(position, point)}>
-              <button
-                data-revnav={revisionStepToken(position)}
-                aria-current={isSelected ? "step" : undefined}
-                className={styles["step"]}
-                data-comparable={hasComparison(point) ? "" : undefined}
-                data-state={isSelected ? "active" : undefined}
-                // One tab stop; the arrows move, so it stays on the selection.
-                tabIndex={isSelected ? 0 : -1}
-                onClick={() => {
-                  if (!isSelected) onSelect(point);
-                }}
-                onKeyDown={stepFromNav}
-                type="button"
-              >
-                <ScreenReaderOnly>
-                  {t("pulls.timeline.stepRevision", {
-                    index: point.headIndex,
-                  })}
-                </ScreenReaderOnly>
-              </button>
-            </li>
-          );
-        })}
-      </ol>
     </nav>
   );
 }
