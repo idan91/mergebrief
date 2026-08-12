@@ -67,7 +67,7 @@ structurally cannot show the problem.
 
 ### PR 1 — synthesized large fixture + measurement harness
 
-Branch `perf/BRIEF-186/large-fixture`. Est. ~350–500 LOC. Model: **Opus 5,
+Branch `perf/BRIEF-186/large-fixture`. Est. ~350–500 LOC. Model: **Fable 5,
 medium effort, main thread** — mechanical scaling of an existing generator
 plus a timing harness; no design subtlety.
 
@@ -89,8 +89,8 @@ plus a timing harness; no design subtlety.
 ### PR 2 — lever 1: non-blocking revision fetch + pending treatment
 
 Branch `perf/BRIEF-186/revision-transition`, base = PR 1. Est. ~400–600
-LOC incl. tests + styles. Model: **Fable 5, high effort, main thread** —
-concurrent-React wiring and timing-sensitive UX; design-heavy.
+LOC incl. tests + styles. Model: **Fable 5, medium effort, main thread** —
+the spec is fully locked; tests + the impeccable audit are the backstop.
 
 1. Wrap revision navigation in `startTransition` (or `placeholderData` on
    the brief query — decide at implementation against how the suspense
@@ -112,8 +112,9 @@ concurrent-React wiring and timing-sensitive UX; design-heavy.
 ### PR 3 — lever 2: drop the key, explicit per-brief reset
 
 Branch `perf/BRIEF-186/drop-brief-key`, base = PR 2. Est. ~400–700 LOC.
-Model: **Fable 5, high effort, main thread** — the state-enumeration is the
-risk center of the whole ticket.
+Model: **Fable 5, HIGH effort, main thread** — the state-enumeration is a
+completeness problem and the risk center of the whole ticket; the one PR
+where high effort earns its cost.
 
 1. Enumerate per-brief state that currently resets ONLY via unmount:
    sweep everything under `<BriefView>` for `useState`/`useRef`/module
@@ -142,7 +143,8 @@ Branch `perf/BRIEF-186/lens-rerender`, base = PR 3. Opened ONLY if the
 fixture still shows lens lag after PR 3. Scope unknown until diagnosed —
 budget a diagnosis pass first (React profiler on the fixture), then cut
 re-render breadth (memo boundaries, selector granularity, plan recompute
-memoization). Model: **Fable 5, high effort, main thread**. If the fixture
+memoization). Model: **Fable 5, medium effort, main thread**; escalate to
+high only if the profiler shows something structural. If the fixture
 shows lens is fine, close the ticket at PR 3 and note the numbers.
 
 ## Invocation
