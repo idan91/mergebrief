@@ -205,6 +205,11 @@
 
 @layer layout {
   .main {
+    // The body is a column flexbox (footer pinning), where auto inline
+    // margins disable stretch: without an explicit inline-size the region
+    // shrinks to fit its CONTENT and the page width shifts whenever content
+    // changes (revision steps, live diff arriving). Fill, cap, center.
+    inline-size: 100%;
     max-inline-size: functions.to-rem(980px);
     padding-block: functions.to-rem(36px) functions.to-rem(140px);
     padding-inline: clamp(functions.to-rem(18px), 4vw, functions.to-rem(28px));
