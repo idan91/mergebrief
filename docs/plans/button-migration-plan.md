@@ -70,8 +70,8 @@ feature folder, never by "component now, call sites later".
 - **Mandatory specialist skills:** `typescript-eng` (const-map unions,
   Base+AsX pattern, strict TS), `web-accessibility` (aria-disabled model,
   min targets, roving tabindex), `impeccable` (per-PR + final audits).
-- **Model + invocation per PR:** PR 1 = Fable 5, high effort (pattern-setting:
-  types, disabled model, styling API). PRs 2–8 = Fable 5, medium effort —
-  mechanical migration against a locked spec. Sequential in the main thread
-  (each PR stacks on the previous); no parallel subagent implementation.
-  Reviewer gates run as subagents per branch.
+- **Model + invocation per PR:** all 8 PRs = Fable 5, medium effort — the spec
+  locks every design decision, so implementation is transcription + careful
+  call-site migration; reviewer gates catch slips. Sequential in the main
+  thread (each PR stacks on the previous); no parallel subagent
+  implementation. Reviewer gates run as subagents per branch.
