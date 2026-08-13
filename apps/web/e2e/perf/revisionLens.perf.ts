@@ -15,33 +15,9 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { gotoBrief } from "../support/page";
 import { PERF_FIXTURE_REV1_ID, PERF_FIXTURE_REV2_ID } from "./ids";
+import { report } from "./report";
 
 const SAMPLES = 5;
-
-interface MetricReport {
-  metric: string;
-  samples: number[];
-  medianMs: number;
-  minMs: number;
-  maxMs: number;
-}
-
-function report(metric: string, samples: number[]): void {
-  const sorted = [...samples].toSorted((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  const median =
-    sorted.length % 2 === 1
-      ? (sorted[mid] ?? 0)
-      : ((sorted[mid - 1] ?? 0) + (sorted[mid] ?? 0)) / 2;
-  const payload: MetricReport = {
-    metric,
-    samples: samples.map((sample) => Math.round(sample)),
-    medianMs: Math.round(median),
-    minMs: Math.round(sorted[0] ?? 0),
-    maxMs: Math.round(sorted[sorted.length - 1] ?? 0),
-  };
-  console.log(`PERF_RESULT ${JSON.stringify(payload)}`);
-}
 
 /** Rev-specific group heading: the fixture stamps (r1)/(r2) into titles. */
 const groupHeading = (page: Page, revTag: string) =>
