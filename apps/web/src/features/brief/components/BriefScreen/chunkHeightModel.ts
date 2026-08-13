@@ -18,8 +18,14 @@ export interface ChunkCardSizeInput {
   open: boolean;
 }
 
+/** The "diff unavailable" note a diff-less open card renders instead of rows. */
+export const EMPTY_DIFF_NOTE_PX = 40;
+
 export function estimateChunkCardHeight(input: ChunkCardSizeInput): number {
   if (!input.open) return COLLAPSED_CARD_HEIGHT_PX;
+  if (input.diffRowCount === 0) {
+    return CHUNK_CARD_OVERHEAD_PX + EMPTY_DIFF_NOTE_PX;
+  }
   return input.diffRowCount * DIFF_ROW_HEIGHT_PX + CHUNK_CARD_OVERHEAD_PX;
 }
 

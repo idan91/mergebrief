@@ -4,6 +4,7 @@ import {
   CHUNK_CARD_OVERHEAD_PX,
   COLLAPSED_CARD_HEIGHT_PX,
   DIFF_ROW_HEIGHT_PX,
+  EMPTY_DIFF_NOTE_PX,
   estimateChunkCardHeight,
   estimateNarrativeCardHeight,
   NARRATIVE_CARD_OVERHEAD_PX,
@@ -25,9 +26,11 @@ describe("estimateChunkCardHeight", () => {
     );
   });
 
-  it("prices a diff-less open card as chrome only", () => {
+  it("prices a diff-less open card as chrome plus the unavailable note", () => {
+    // 40% under-estimating these made briefs with missing diffs visibly
+    // reshuffle at first paint (every card renders the note, not rows).
     expect(estimateChunkCardHeight({ diffRowCount: 0, open: true })).toBe(
-      CHUNK_CARD_OVERHEAD_PX,
+      CHUNK_CARD_OVERHEAD_PX + EMPTY_DIFF_NOTE_PX,
     );
   });
 
