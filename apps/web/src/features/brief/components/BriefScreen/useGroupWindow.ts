@@ -15,6 +15,14 @@ export const SSR_VIEWPORT_RECT = {
 
 const DEFAULT_OVERSCAN = 4;
 
+/**
+ * The attribute every windowed card wrapper carries. The NAME is fixed by
+ * the virtualizer (its `indexAttribute` default drives measurement); the
+ * focus-pin tracking queries it too, so it is exported rather than a bare
+ * literal at the query site.
+ */
+export const CHUNK_WINDOW_INDEX_ATTR = "data-index";
+
 export interface GroupWindowOptions {
   /** Ordered file-qualified chunk keys (`file#chunkId`) of this group. */
   chunkKeys: readonly string[];
@@ -37,6 +45,11 @@ export interface GroupWindow {
   items: readonly VirtualItem[];
   /** Height the list container must occupy (latched while hidden). */
   totalSize: number;
+  /**
+   * The list's document offset. Item starts are document-relative, so a
+   * card's position within the list is `item.start - scrollMargin`.
+   */
+  scrollMargin: number;
   /** False while a `[hidden]` ancestor keeps this list unmeasurable. */
   active: boolean;
   /** Index of a chunk key in this group, -1 when absent. */
@@ -175,13 +188,17 @@ export function useGroupWindow(options: GroupWindowOptions): GroupWindow {
 
   const scrollToKey = useCallback(
     (key: string) => {
-      if (!active) return false;
+      // Live ref, not state: after an unhide the state is one render stale
+      // — a jump from the same gesture would read false and die.
+      if (!live.current.active) return false;
       const index = keyIndex.get(key);
       if (index === undefined) return false;
-      virtualizer.scrollToIndex(index, { align: "start" });
+      // "instant": measurement adjustments cancel in-flight smooth scrolls,
+      // and "auto" would defer to the page's smooth CSS.
+      virtualizer.scrollToIndex(index, { align: "start", behavior: "instant" });
       return true;
     },
-    [active, keyIndex, virtualizer],
+    [keyIndex, virtualizer],
   );
 
   return {
@@ -189,6 +206,7 @@ export function useGroupWindow(options: GroupWindowOptions): GroupWindow {
     measureElement,
     items: latchedItems.current,
     totalSize: latchedTotal.current,
+    scrollMargin,
     active,
     indexOfKey,
     scrollToKey,

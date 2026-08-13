@@ -8,11 +8,10 @@
 // correctly once far chunks stop being mounted, and the frame gaps bound how
 // much windowing is allowed to cost during scroll.
 //
-// The landing offset is nonzero on purpose: `content-visibility: auto` sizes
-// offscreen diffs by estimate, so a single computed scrollTo drifts as real
-// heights reveal en route. Recording the miss (instead of asserting arrival)
-// is the baseline; the virtualization work owns making it ~0 and flipping
-// these reports into asserts.
+// Landing offsets are ASSERTED, not just recorded: the windowed jump path
+// (instant scroll + settle-correction) owns landing within the correction
+// threshold, cold and warmed. Pre-virtualization these were report-only —
+// a cold far jump genuinely mis-landed (~250-580px of cv estimate drift).
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { gotoBrief } from "../support/page";
@@ -20,6 +19,9 @@ import { PERF_FIXTURE_REV1_ID } from "./ids";
 import { p95, report } from "./report";
 
 const SAMPLES = 5;
+/** Matches the scroller's correction threshold: a landing inside it is
+ * deliberately left uncorrected. */
+const LANDING_TOLERANCE_PX = 8;
 
 /** Toc lines carry the group name as their accessible name. */
 function tocButtons(page: Page): Locator {
@@ -91,7 +93,9 @@ test("jump to far chunk timing", async ({ page }) => {
   // auto` keeps the real size after first reveal) and land clean.
   await toc.last().click();
   await waitForScrollSettled(page);
-  report("jump-cold-landing-offset-px", [await landingOffset(lastTarget)]);
+  const coldOffset = await landingOffset(lastTarget);
+  report("jump-cold-landing-offset-px", [coldOffset]);
+  expect(coldOffset).toBeLessThanOrEqual(LANDING_TOLERANCE_PX);
   await toc.first().click();
   await waitForScrollSettled(page);
 
@@ -112,6 +116,8 @@ test("jump to far chunk timing", async ({ page }) => {
   }
   report("jump-far-chunk", times);
   report("jump-landing-offset-px", offsets);
+  for (const offset of offsets)
+    expect(offset).toBeLessThanOrEqual(LANDING_TOLERANCE_PX);
 });
 
 test("scroll frame gaps", async ({ page }) => {

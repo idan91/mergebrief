@@ -271,3 +271,6 @@ export function resolveRiskEvidence(
   if (kind === "chunk-reviewed") return { kind, chunkId };
   return note ? { kind, note } : { kind };
 }
+
+/** User inputs that abort an in-flight programmatic landing. */
+export const SCROLL_ABORT_EVENTS = ["wheel", "touchstart", "keydown"] as const;

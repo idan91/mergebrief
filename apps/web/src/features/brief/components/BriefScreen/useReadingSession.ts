@@ -35,6 +35,7 @@ import { summarizeProgress, type ProgressTotals } from "../../utils/progress";
 import type { Brief } from "../../types";
 import type { BriefViewModel, GroupView } from "../../utils/viewModel";
 import type { RepoConfigContext } from "../../utils/repoConfig";
+import type { ChunkWindowRegistry } from "./chunkWindows";
 import type { LayoutMode, ViewMode } from "./Header/Header";
 import {
   SupportingCollapseStates,
@@ -43,6 +44,7 @@ import {
 import {
   deriveBriefProgress,
   groupStartIndexes,
+  SCROLL_ABORT_EVENTS,
   toggleSetMember,
 } from "./utils";
 
@@ -88,9 +90,32 @@ interface PendingChunkScroll {
   timeout: number | null;
   firstFrame: number | null;
   secondFrame: number | null;
+  pollFrame: number | null;
+  /** Tears down the active settle poll AND its abort listeners. */
+  stopSettle: (() => void) | null;
 }
 
-function useChunkScroller(): (
+/** Frames to wait for a window-jumped chunk to mount and the scroll to
+ * settle before giving up (~1.5s at 60Hz — smooth long jumps take ~1s). */
+const MOUNT_POLL_FRAMES = 90;
+/** Below this landing miss, no correction — a nudge would read as jitter. */
+const CORRECTION_THRESHOLD_PX = 8;
+/** Consecutive still frames that count as "scroll stopped". */
+const SETTLE_FRAMES = 3;
+
+/** One instant nudge onto the real element after an estimate-guided jump. */
+function correctLanding(element: HTMLElement, align: ChunkScrollAlign): void {
+  if (element.closest("[hidden]") !== null) return;
+  const desiredTop = align === "top" ? focusScrollOffset() : 0;
+  const delta = element.getBoundingClientRect().top - desiredTop;
+  if (Math.abs(delta) <= CORRECTION_THRESHOLD_PX) return;
+  // "instant", not "auto" — "auto" defers to the page's smooth behavior.
+  window.scrollBy({ behavior: "instant", top: delta });
+}
+
+function useChunkScroller(
+  chunkWindows: ChunkWindowRegistry | null,
+): (
   chunkId: string,
   behavior?: ScrollBehavior,
   align?: ChunkScrollAlign,
@@ -99,10 +124,15 @@ function useChunkScroller(): (
     timeout: null,
     firstFrame: null,
     secondFrame: null,
+    pollFrame: null,
+    stopSettle: null,
   });
 
   const cancelPendingScroll = useCallback(() => {
     const current = pending.current;
+    // First: a stale settle poll's abort listeners must not survive into
+    // the next jump — one firing would kill the NEW jump's poll.
+    current.stopSettle?.();
     if (current.timeout !== null) {
       window.clearTimeout(current.timeout);
       current.timeout = null;
@@ -115,9 +145,67 @@ function useChunkScroller(): (
       window.cancelAnimationFrame(current.secondFrame);
       current.secondFrame = null;
     }
+    if (current.pollFrame !== null) {
+      window.cancelAnimationFrame(current.pollFrame);
+      current.pollFrame = null;
+    }
   }, []);
 
   useEffect(() => cancelPendingScroll, [cancelPendingScroll]);
+
+  // After a far jump: wait until the card mounts AND the scroll stops, then
+  // nudge once onto the real element. The user's own input aborts — a late
+  // correction would hijack a scroll they already took over.
+  const settleAndCorrect = useCallback(
+    (chunkId: string, align: ChunkScrollAlign) => {
+      const stop = () => {
+        if (pending.current.pollFrame !== null) {
+          window.cancelAnimationFrame(pending.current.pollFrame);
+          pending.current.pollFrame = null;
+        }
+        for (const type of SCROLL_ABORT_EVENTS) {
+          window.removeEventListener(type, stop);
+        }
+        pending.current.stopSettle = null;
+      };
+
+      let frames = 0;
+      let stableFrames = 0;
+      let lastY = window.scrollY;
+
+      const scrollHasSettled = () => {
+        stableFrames = window.scrollY === lastY ? stableFrames + 1 : 0;
+        lastY = window.scrollY;
+        return stableFrames >= SETTLE_FRAMES;
+      };
+
+      const poll = () => {
+        pending.current.pollFrame = null;
+        frames += 1;
+
+        const element = document.getElementById(chunkId);
+        const settled = scrollHasSettled();
+        if (element && settled) {
+          stop();
+          correctLanding(element, align);
+          return;
+        }
+
+        if (frames >= MOUNT_POLL_FRAMES) {
+          stop();
+          return;
+        }
+        pending.current.pollFrame = window.requestAnimationFrame(poll);
+      };
+
+      for (const type of SCROLL_ABORT_EVENTS) {
+        window.addEventListener(type, stop, { once: true, passive: true });
+      }
+      pending.current.stopSettle = stop;
+      pending.current.pollFrame = window.requestAnimationFrame(poll);
+    },
+    [],
+  );
 
   return useCallback(
     (
@@ -128,27 +216,51 @@ function useChunkScroller(): (
       cancelPendingScroll();
       pending.current.timeout = window.setTimeout(() => {
         pending.current.timeout = null;
-        const resolvedBehavior = prefersReducedMotion() ? "auto" : behavior;
+        // Far jumps are instant, never smooth: windowed lists mount and
+        // measure cards as the viewport passes, and every measurement
+        // scroll-adjustment CANCELS an in-flight smooth animation — a
+        // smooth far jump dies a few thousand px in. Near targets keep the
+        // smooth glide (short flight, no mount churn to cancel it).
+        const resolveJump = (align_: ChunkScrollAlign) => {
+          const element = document.getElementById(chunkId);
+          const farLimit = window.innerHeight * 3;
+          if (
+            element &&
+            Math.abs(element.getBoundingClientRect().top) <= farLimit
+          ) {
+            const resolvedBehavior = prefersReducedMotion() ? "auto" : behavior;
+            if (align_ === "top") scrollElementToTop(element, resolvedBehavior);
+            else
+              element.scrollIntoView({
+                behavior: resolvedBehavior,
+                block: "start",
+              });
+            return;
+          }
+          if (element) {
+            if (element.closest("[hidden]") !== null) return;
+            element.scrollIntoView({ behavior: "instant", block: "start" });
+          } else if (!chunkWindows?.scrollToChunk(chunkId)) {
+            // Unknown id or hidden pane: no-op, the pre-windowing contract
+            // for missing targets.
+            return;
+          }
+          settleAndCorrect(chunkId, align_);
+        };
         if (align === "top") {
           pending.current.firstFrame = window.requestAnimationFrame(() => {
             pending.current.firstFrame = null;
             pending.current.secondFrame = window.requestAnimationFrame(() => {
               pending.current.secondFrame = null;
-              const element = document.getElementById(chunkId);
-              if (element) scrollElementToTop(element, resolvedBehavior);
+              resolveJump("top");
             });
           });
           return;
         }
-        const element = document.getElementById(chunkId);
-        if (!element) return;
-        element.scrollIntoView({
-          behavior: resolvedBehavior,
-          block: "start",
-        });
+        resolveJump("native");
       }, 0);
     },
-    [cancelPendingScroll],
+    [cancelPendingScroll, chunkWindows, settleAndCorrect],
   );
 }
 
@@ -164,6 +276,8 @@ export interface UseReadingSessionInput {
    */
   ownDraftActive: boolean;
   repoConfig: RepoConfigContext | null | undefined;
+  /** Jump routing into windowed chunk lists; null = mounted DOM only. */
+  chunkWindows?: ChunkWindowRegistry | null | undefined;
 }
 
 export interface UseReadingSessionValue {
@@ -221,8 +335,15 @@ export interface UseReadingSessionValue {
 export function useReadingSession(
   input: UseReadingSessionInput,
 ): UseReadingSessionValue {
-  const { brief, briefId, compareViewFull, model, ownDraftActive, repoConfig } =
-    input;
+  const {
+    brief,
+    briefId,
+    compareViewFull,
+    model,
+    ownDraftActive,
+    repoConfig,
+    chunkWindows,
+  } = input;
   // Session/domain state lives in the per-brief Mind-Map store.
   const dispositions = useMindMap((state) => state.dispositions);
   const dominants = useMindMap((state) => state.dominants);
@@ -233,7 +354,7 @@ export function useReadingSession(
   const replyDrafts = useMindMap((state) => state.replyDrafts);
   const reviewOutcome = useMindMap((state) => state.reviewOutcome);
   const actions = useMindMapActions();
-  const scrollToChunk = useChunkScroller();
+  const scrollToChunk = useChunkScroller(chunkWindows ?? null);
   // RENDERED (grouped) order, not raw brief order — the StoryView lays chunks
   // out by group, so J/K must follow the same sequence.
   const readingOrderedChunks = useMemo(

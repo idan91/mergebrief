@@ -31,6 +31,7 @@ import {
 import { useLatestRef } from "@web/hooks/useLatestRef";
 import type { UnresolvedItem } from "@web/features/review/utils/state";
 import type { BriefSearchParams } from "../../comparison/compareState";
+import { ChunkWindowProvider, createChunkWindowRegistry } from "./chunkWindows";
 import type { MarkReadyAction } from "@web/features/pulls/transport/markReady";
 import {
   useInFlightPosts,
@@ -256,6 +257,9 @@ export function BriefScreen({
 
   // The reading session: per-brief Mind-Map store wiring, the progress/receipt
   // derivation, and the scroll/nav machinery — see the hook.
+  // One registry per screen: both lens trees' windowed lists register, and
+  // the jump paths resolve unmounted chunks through it.
+  const chunkWindowsRef = useRef(createChunkWindowRegistry());
   const session = useReadingSession({
     brief,
     briefId,
@@ -263,6 +267,7 @@ export function BriefScreen({
     model,
     ownDraftActive,
     repoConfig,
+    chunkWindows: chunkWindowsRef.current,
   });
   const {
     actions,
@@ -716,53 +721,56 @@ export function BriefScreen({
             (display:none — out of paint and the AT tree): the flip used to
             remount the alternate tree, and mounting 300 chunk cards is the
             entire lens lag. Kept warm only after first show, so a deep link
-            into one lens never pays for the other. */}
-        {changesEverShownRef.current ? (
-          <div hidden={!inChangesScope || undefined}>
-            <LensPane frozen={!inChangesScope}>
-              <ChangesOnlyView
-                key={`changes-${briefId}`}
-                compare={
-                  activeCompare === "last-review"
-                    ? "last-review"
-                    : "previous-brief"
-                }
-                brief={brief}
-                model={model}
-                narrative={narrative}
-                marks={marks}
-                skipReason={skipReason}
-                delta={delta}
-                rawSpanDiff={activeRawSpanDiff}
-              />
-            </LensPane>
-          </div>
-        ) : null}
-        {storyEverShownRef.current ? (
-          <div hidden={inChangesScope || viewMode !== "story" || undefined}>
-            <LensPane frozen={inChangesScope || viewMode !== "story"}>
-              <StoryView
-                brief={brief}
-                model={model}
-                comparison={comparison}
-                activeChunkId={activeChunkId}
-                focusMode={focusMode}
-                openDeltaLens={openDeltaLens}
-                sinceMarkers={sinceMarkers}
-                openChunks={session.openChunks}
-                addressedReviewComments={brief.reviewComments}
-                conversationByChunk={conversationWiring.conversationByChunk}
-                conversationComposer={conversationWiring.conversationComposer}
-                jumpToChunk={jumpToChunk}
-                markReviewed={session.markReviewed}
-                toggleChunk={session.toggleChunk}
-                {...(compareState.view === "full" && chunkIds.length > 0
-                  ? { startReadThrough: session.startReadThrough }
-                  : {})}
-              />
-            </LensPane>
-          </div>
-        ) : null}
+            into one lens never pays for the other. The window provider sits
+            here because only the lens trees' chunk lists window. */}
+        <ChunkWindowProvider registry={chunkWindowsRef.current}>
+          {changesEverShownRef.current ? (
+            <div hidden={!inChangesScope || undefined}>
+              <LensPane frozen={!inChangesScope}>
+                <ChangesOnlyView
+                  key={`changes-${briefId}`}
+                  compare={
+                    activeCompare === "last-review"
+                      ? "last-review"
+                      : "previous-brief"
+                  }
+                  brief={brief}
+                  model={model}
+                  narrative={narrative}
+                  marks={marks}
+                  skipReason={skipReason}
+                  delta={delta}
+                  rawSpanDiff={activeRawSpanDiff}
+                />
+              </LensPane>
+            </div>
+          ) : null}
+          {storyEverShownRef.current ? (
+            <div hidden={inChangesScope || viewMode !== "story" || undefined}>
+              <LensPane frozen={inChangesScope || viewMode !== "story"}>
+                <StoryView
+                  brief={brief}
+                  model={model}
+                  comparison={comparison}
+                  activeChunkId={activeChunkId}
+                  focusMode={focusMode}
+                  openDeltaLens={openDeltaLens}
+                  sinceMarkers={sinceMarkers}
+                  openChunks={session.openChunks}
+                  addressedReviewComments={brief.reviewComments}
+                  conversationByChunk={conversationWiring.conversationByChunk}
+                  conversationComposer={conversationWiring.conversationComposer}
+                  jumpToChunk={jumpToChunk}
+                  markReviewed={session.markReviewed}
+                  toggleChunk={session.toggleChunk}
+                  {...(compareState.view === "full" && chunkIds.length > 0
+                    ? { startReadThrough: session.startReadThrough }
+                    : {})}
+                />
+              </LensPane>
+            </div>
+          ) : null}
+        </ChunkWindowProvider>
         {!inChangesScope && viewMode !== "story" ? (
           <ConcernView brief={brief} model={model} jumpToChunk={jumpToChunk} />
         ) : null}

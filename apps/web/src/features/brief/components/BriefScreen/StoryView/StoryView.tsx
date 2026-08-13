@@ -1,16 +1,27 @@
 import { useTranslation } from "react-i18next";
-import { useId, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useState,
+  type FocusEvent,
+} from "react";
 
 import type { ComparisonOverlayState } from "../../../comparison/comparisonOverlay";
 import type { AddressedReviewComment, Brief } from "../../../types";
 import type { BriefViewModel, RiskFlag } from "../../../utils/viewModel";
 import type { DigestRow } from "@web/features/conversation/utils/digest";
 import type { ThreadComposerWiring } from "@web/features/conversation";
+import { useReviewFlow } from "@web/features/review/session";
 import { ChunkCard } from "./ChunkCard/ChunkCard";
 import { GroupCard } from "./GroupCard/GroupCard";
 import { RiskBadge } from "../RiskBadge/RiskBadge";
 import { RiskChipDisclosure } from "../RiskChipDisclosure/RiskChipDisclosure";
 import { RiskDetailList } from "../RiskDetailList/RiskDetailList";
+import { estimateChunkCardHeight } from "../chunkHeightModel";
+import { useChunkWindows } from "../chunkWindows";
+import { CHUNK_WINDOW_INDEX_ATTR, useGroupWindow } from "../useGroupWindow";
 import styles from "./StoryView.module.scss";
 
 const EMPTY_ADDRESSED_REVIEW_COMMENTS: AddressedReviewComment[] = [];
@@ -83,28 +94,38 @@ export function StoryView(props: StoryViewProps) {
                 : undefined
             }
           >
-            <div className="group-chunks">
-              {/* File-qualified key: a DIFFERENT file landing on a reused
-                  positional id remounts clean. Same file + same id keeps the
-                  card (the common revision step), so chunk-subtree local
-                  state MUST be thread-id-scoped or gesture-transient — a
-                  chunk-/flag-id-keyed useState here would alias silently. */}
-              {group.chunks.map((chunk) => (
-                <ChunkCard
-                  key={`${chunk.file}#${chunk.id}`}
-                  active={props.activeChunkId === chunk.id}
-                  chunk={chunk}
-                  riskMeta={props.model.riskMetaByChunk.get(chunk.id)}
-                  comparison={props.comparison}
-                  open={props.openChunks.has(chunk.id)}
-                  addressedReviewComments={addressedReviewComments}
-                  conversationComposer={props.conversationComposer}
-                  conversationRows={props.conversationByChunk?.get(chunk.id)}
-                  markReviewed={props.markReviewed}
-                  toggleChunk={props.toggleChunk}
-                />
-              ))}
-            </div>
+            {props.focusMode ? (
+              <div className="group-chunks">
+                {/* Focus mode isolates one card via display:none CSS — the
+                    windowing latch can't see CSS hiding (attribute-based),
+                    and a fixed-height column would leave a giant empty
+                    track. The plain list is the correct shape here, and only
+                    the ACTIVE group's (the others' sections are display:none
+                    whole) — mounting every group's cards would re-pay the
+                    full-tree cost windowing exists to remove. */}
+                {(isActiveFocusGroup ? group.chunks : []).map((chunk) => (
+                  <ChunkCard
+                    key={`${chunk.file}#${chunk.id}`}
+                    active={props.activeChunkId === chunk.id}
+                    chunk={chunk}
+                    riskMeta={props.model.riskMetaByChunk.get(chunk.id)}
+                    comparison={props.comparison}
+                    open={props.openChunks.has(chunk.id)}
+                    addressedReviewComments={addressedReviewComments}
+                    conversationComposer={props.conversationComposer}
+                    conversationRows={props.conversationByChunk?.get(chunk.id)}
+                    markReviewed={props.markReviewed}
+                    toggleChunk={props.toggleChunk}
+                  />
+                ))}
+              </div>
+            ) : (
+              <WindowedChunkList
+                addressedReviewComments={addressedReviewComments}
+                group={group}
+                view={props}
+              />
+            )}
             {props.focusMode ? (
               isActiveFocusGroup ? (
                 <FocusGroupRail
@@ -128,6 +149,154 @@ export function StoryView(props: StoryViewProps) {
               />
             )}
           </section>
+        );
+      })}
+    </div>
+  );
+}
+
+interface WindowedChunkListProps {
+  group: BriefViewModel["groups"][number];
+  view: StoryViewProps;
+  addressedReviewComments: AddressedReviewComment[];
+}
+
+/**
+ * The windowed chunk column: only viewport-adjacent cards mount; the column
+ * keeps its full estimated height so the page geometry (and the sticky
+ * GroupCard beside it) is unaffected. The card holding focus or the open
+ * composer is pinned mounted, and the list registers with the jump registry
+ * so anchors resolve to not-yet-mounted chunks.
+ */
+function WindowedChunkList({
+  group,
+  view,
+  addressedReviewComments,
+}: WindowedChunkListProps) {
+  const chunkKeys = useMemo(
+    () => group.chunks.map((chunk) => `${chunk.file}#${chunk.id}`),
+    [group.chunks],
+  );
+  const keyByChunkId = useMemo(
+    () =>
+      new Map(
+        group.chunks.map((chunk) => [chunk.id, `${chunk.file}#${chunk.id}`]),
+      ),
+    [group.chunks],
+  );
+
+  const composerAnchor = useReviewFlow((state) => state.composerAnchor);
+  const [focusedKey, setFocusedKey] = useState<string | null>(null);
+  const pinnedKeys = useMemo(() => {
+    const pinned = new Set<string>();
+    if (focusedKey !== null) pinned.add(focusedKey);
+    if (composerAnchor) {
+      const key = keyByChunkId.get(composerAnchor.chunkId);
+      if (key !== undefined) pinned.add(key);
+    }
+    return pinned.size > 0 ? pinned : undefined;
+  }, [composerAnchor, focusedKey, keyByChunkId]);
+
+  const { openChunks } = view;
+  const estimateChunk = useCallback(
+    (index: number) => {
+      const chunk = group.chunks[index];
+      if (!chunk) return 0;
+      return estimateChunkCardHeight({
+        diffRowCount: chunk.diff?.length ?? 0,
+        open: openChunks.has(chunk.id),
+      });
+    },
+    [group.chunks, openChunks],
+  );
+
+  const window = useGroupWindow({ chunkKeys, estimateChunk, pinnedKeys });
+  const { scrollToKey } = window;
+
+  const registry = useChunkWindows();
+  useEffect(() => {
+    if (!registry) return;
+    return registry.register({
+      scrollToChunk: (chunkId) => {
+        const key = keyByChunkId.get(chunkId);
+        return key !== undefined && scrollToKey(key);
+      },
+    });
+  }, [keyByChunkId, registry, scrollToKey]);
+
+  // Focus-pin bookkeeping: focusin bubbles, so the list container sees every
+  // focus landing inside a card; the pin lifts when focus leaves the list.
+  const handleFocus = (event: FocusEvent<HTMLDivElement>) => {
+    const target = event.target;
+    const holder =
+      target instanceof Element
+        ? target.closest(`[${CHUNK_WINDOW_INDEX_ATTR}]`)
+        : null;
+    const index = holder
+      ? Number(holder.getAttribute(CHUNK_WINDOW_INDEX_ATTR))
+      : Number.NaN;
+    setFocusedKey(Number.isInteger(index) ? (chunkKeys[index] ?? null) : null);
+  };
+  const handleBlur = (event: FocusEvent<HTMLDivElement>) => {
+    if (
+      event.relatedTarget instanceof Node &&
+      event.currentTarget.contains(event.relatedTarget)
+    )
+      return;
+    setFocusedKey(null);
+  };
+
+  return (
+    <div
+      className="group-chunks"
+      ref={window.listRef}
+      style={{
+        position: "relative",
+        blockSize: window.totalSize,
+        // Explicit: absolute cards give this column ZERO intrinsic width, so
+        // any content-sized ancestor (narrow flex uses align-items:start)
+        // would collapse it to 0.
+        inlineSize: "100%",
+      }}
+      onBlur={handleBlur}
+      onFocus={handleFocus}
+    >
+      {window.items.map((item) => {
+        const chunk = group.chunks[item.index];
+        if (!chunk) return null;
+        return (
+          <div
+            key={item.key}
+            data-index={item.index}
+            ref={window.measureElement}
+            style={{
+              position: "absolute",
+              // `top`, never `transform`: a transformed ancestor becomes the
+              // containing block for the card's sticky header, and Chromium
+              // leaves stale sticky paint behind after programmatic jumps —
+              // headers detach from their cards.
+              insetBlockStart: item.start - window.scrollMargin,
+              insetInlineStart: 0,
+              inlineSize: "100%",
+            }}
+          >
+            {/* File-qualified key: a DIFFERENT file landing on a reused
+                positional id remounts clean. Same file + same id keeps the
+                card (the common revision step), so chunk-subtree local
+                state MUST be thread-id-scoped or gesture-transient. */}
+            <ChunkCard
+              active={view.activeChunkId === chunk.id}
+              chunk={chunk}
+              riskMeta={view.model.riskMetaByChunk.get(chunk.id)}
+              comparison={view.comparison}
+              open={view.openChunks.has(chunk.id)}
+              addressedReviewComments={addressedReviewComments}
+              conversationComposer={view.conversationComposer}
+              conversationRows={view.conversationByChunk?.get(chunk.id)}
+              markReviewed={view.markReviewed}
+              toggleChunk={view.toggleChunk}
+            />
+          </div>
         );
       })}
     </div>

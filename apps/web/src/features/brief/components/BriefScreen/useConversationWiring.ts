@@ -29,7 +29,15 @@ import { useMentionPool } from "@web/features/conversation/hooks/useMentionPool"
 import { prefersReducedMotion } from "@web/utils/motion";
 import type { BriefViewModel } from "../../utils/viewModel";
 import type { BriefChunk } from "../../types";
-import { conversationGroupIds, disabledComparisonQuery } from "./utils";
+import {
+  conversationGroupIds,
+  disabledComparisonQuery,
+  SCROLL_ABORT_EVENTS,
+} from "./utils";
+
+/** Frames to await a landing target across a windowed jump's whole flight
+ * (mount happens as the smooth scroll approaches; ~1.5s at 60Hz). */
+const LANDING_POLL_FRAMES = 90;
 
 export interface UseConversationWiringInput {
   briefId: string;
@@ -269,25 +277,68 @@ export function useConversationWiring(
       };
     });
   }, []);
+  // One landing chain at a time: a fresh jump (or a brief switch — this
+  // hook's host no longer remounts per brief) cancels the previous poll, or
+  // a stale loop could steal focus onto a same-id element of the NEXT brief.
+  const landingFrameRef = useRef<number | null>(null);
+  const removeAbortRef = useRef<(() => void) | null>(null);
+  const cancelLanding = useCallback(() => {
+    if (landingFrameRef.current !== null) {
+      window.cancelAnimationFrame(landingFrameRef.current);
+      landingFrameRef.current = null;
+    }
+    // A stale landing's abort listeners must not survive into the next
+    // jump — one firing would cancel the NEW landing.
+    removeAbortRef.current?.();
+    removeAbortRef.current = null;
+  }, []);
+  useEffect(() => cancelLanding, [briefId, cancelLanding]);
+
   const jumpToChunkFromConversation = useCallback(
     (chunkId: string, target?: { rowId: string; threadId: number }) => {
-      const landOnChunk = () => {
+      cancelLanding();
+      // The user's own input aborts the landing — a late focus() would yank
+      // them away from wherever they moved.
+      for (const type of SCROLL_ABORT_EVENTS) {
+        window.addEventListener(type, cancelLanding, {
+          once: true,
+          passive: true,
+        });
+      }
+      removeAbortRef.current = () => {
+        for (const type of SCROLL_ABORT_EVENTS) {
+          window.removeEventListener(type, cancelLanding);
+        }
+      };
+      // A windowed list mounts the card only as the scroll approaches it, so
+      // both landings poll across the scroll's whole flight, not one frame.
+      const landOnChunk = (attemptsLeft: number) => {
+        landingFrameRef.current = null;
         const el = document.getElementById(chunkId);
-        if (!(el instanceof HTMLElement)) return;
+        if (!(el instanceof HTMLElement)) {
+          if (attemptsLeft > 0)
+            landingFrameRef.current = window.requestAnimationFrame(() => {
+              landOnChunk(attemptsLeft - 1);
+            });
+          return;
+        }
         el.focus({ preventScroll: true });
         flashConversationTarget(el);
       };
       if (target === undefined) {
         jumpToChunk(chunkId);
-        window.requestAnimationFrame(landOnChunk);
+        landingFrameRef.current = window.requestAnimationFrame(() => {
+          landOnChunk(LANDING_POLL_FRAMES);
+        });
         return;
       }
       // Instant coarse jump (expands the chunk), then settle on the row. The
-      // row renders only once the chunk is open, so poll a few frames before
+      // row renders only once the chunk is open and mounted, so poll before
       // conceding to the chunk top.
       jumpToChunk(chunkId, "auto");
-      let attempts = 8;
+      let attempts = LANDING_POLL_FRAMES;
       const landOnRow = () => {
+        landingFrameRef.current = null;
         const row = document.querySelector(
           `[data-conversation-thread="${target.threadId}"]`,
         );
@@ -303,12 +354,13 @@ export function useConversationWiring(
           return;
         }
         attempts -= 1;
-        if (attempts > 0) window.requestAnimationFrame(landOnRow);
-        else landOnChunk();
+        if (attempts > 0)
+          landingFrameRef.current = window.requestAnimationFrame(landOnRow);
+        else landOnChunk(0);
       };
-      window.requestAnimationFrame(landOnRow);
+      landingFrameRef.current = window.requestAnimationFrame(landOnRow);
     },
-    [flashConversationTarget, jumpToChunk],
+    [cancelLanding, flashConversationTarget, jumpToChunk],
   );
 
   return {
