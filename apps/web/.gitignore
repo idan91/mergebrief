@@ -11,6 +11,9 @@ dist/
 .env.*
 !.env.example
 
+# Generated perf fixture (pnpm perf:fixture)
+e2e/perf/generated/
+
 # Logs and caches
 *.log
 *.tsbuildinfo

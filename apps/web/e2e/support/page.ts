@@ -21,18 +21,25 @@ export function shortcutsDialog(page: Page): Locator {
  * is lost (nothing toggled, retry). The dialog is closed again before
  * returning, leaving the page in its arrival state.
  */
-export async function waitForInteractive(page: Page): Promise<void> {
+export async function waitForInteractive(
+  page: Page,
+  { timeout = 20_000 }: { timeout?: number } = {},
+): Promise<void> {
   const dialog = shortcutsDialog(page);
   await expect(async () => {
     await page.keyboard.press("Shift+Slash");
     await expect(dialog).toBeVisible({ timeout: 500 });
-  }).toPass({ timeout: 20_000 });
+  }).toPass({ timeout });
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
 }
 
 /** Navigate to a local-brief URL and wait for the page to be interactive. */
-export async function gotoBrief(page: Page, path: string): Promise<void> {
+export async function gotoBrief(
+  page: Page,
+  path: string,
+  options?: { timeout?: number },
+): Promise<void> {
   await page.goto(path);
-  await waitForInteractive(page);
+  await waitForInteractive(page, options);
 }
