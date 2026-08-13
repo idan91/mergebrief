@@ -79,8 +79,9 @@ previous. Effort per part as noted.
 
 ### PR 1 — `perf/BRIEF-188/harness` (~300 LOC, effort: medium)
 
-Extend the perf harness before touching product code, so every later PR
-measures against a committed baseline.
+**Plainly: measure first, change nothing.** Time the slow actions on a
+300-chunk and a 600-chunk brief, save today's numbers; every later PR is
+judged against them.
 
 - Generate + commit baseline numbers at 12×25 AND 12×50
   (`pnpm -C apps/web perf:fixture -- --groups 12 --chunks-per-group 50`);
@@ -96,7 +97,10 @@ measures against a committed baseline.
 
 ### PR 2 — `perf/BRIEF-188/thread-state-hoist` (~200 LOC, effort: medium)
 
-Make chunk unmount lossless before any unmounting exists.
+**Plainly: move one piece of state to safety.** The "thread expanded" flag
+lives inside the diff component; virtualization will destroy and recreate
+those as you scroll, so the flag moves to the store now. Nothing visible
+changes.
 
 - Move `expandedConversation` (inline thread open/closed per line) from
   DiffTable `useState` into the ephemeral flow store, keyed by chunk id;
@@ -108,8 +112,11 @@ Make chunk unmount lossless before any unmounting exists.
 
 ### PR 3 — `perf/BRIEF-188/window-hook` (~500 LOC, effort: high)
 
-The windowing core as a tested, unwired hook. This PR carries the design
-risk — take it slowly.
+**Plainly: build the engine, plug in nothing.** A hook that answers "which
+chunk cards are near the viewport?" — near ones render, far ones don't. It
+guesses card heights from row counts, never drops the card being typed in,
+and goes dormant when its lens is hidden. Unit-tested, used by nobody yet;
+the app looks identical. This PR carries the design risk — take it slowly.
 
 - Add `@tanstack/react-virtual`.
 - Extract the DiffTable `--diff-rows` height math into a shared height
@@ -129,9 +136,13 @@ risk — take it slowly.
 
 ### PR 4 — `perf/BRIEF-188/story-virtualize` (~800 LOC, effort: high)
 
-Wire StoryView + re-contract the anchors. Over the 500-LOC ideal because
-wiring and resolver are inseparable — windowed DOM without the resolver
-breaks every jump; justified in the PR body.
+**Plainly: plug the engine into the story lens — the speedup happens
+here.** The brief renders ~8 cards instead of 300. Far chunks no longer
+exist in the DOM, so everything that jumps to a chunk (toc, conversation
+links, scroll highlight) switches from DOM lookup to: ask the engine to
+scroll there → wait for the card to appear → finish the jump. Over the
+500-LOC ideal because wiring and resolver are inseparable — windowed DOM
+without the resolver breaks every jump; justified in the PR body.
 
 - StoryView chunk column → relative box at `totalSize`, absolute
   `ChunkCard` items; group sections, GroupCard, sticky rail, focus mode
@@ -150,7 +161,10 @@ breaks every jump; justified in the PR body.
 
 ### PR 5 — `perf/BRIEF-188/changes-virtualize` (~500 LOC, effort: high)
 
-Second tree + the cross-cutting behaviors that need both trees windowed.
+**Plainly: same plug-in for the changes lens, plus the leftovers that need
+both lenses done.** Revision prev/next jump gets its targets from data
+instead of the DOM; prove lens flips keep your position; publish the final
+before/after numbers.
 
 - ChangesOnlyView / `NarrativeChunkCard` wiring (same shape as PR 4).
 - Keep-warm latch proven end-to-end: lens flip preserves scroll + window
