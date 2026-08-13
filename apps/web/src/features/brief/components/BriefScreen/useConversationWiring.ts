@@ -51,6 +51,8 @@ export interface UseConversationWiringInput {
    * churn the plan identity the ChunkCard memos ride on. */
   conversationFilter: ConversationFilter | undefined;
   jumpToChunk: (chunkId: string, behavior?: ScrollBehavior) => void;
+  /** Conversation landings are row targets — rows only exist on open cards. */
+  ensureChunkOpen: (chunkId: string) => void;
   model: BriefViewModel;
   readingOrderedChunks: BriefChunk[];
   submittedReviewIds: number[];
@@ -99,6 +101,7 @@ export function useConversationWiring(
     conversationFocusThreadId,
     conversationFilter,
     jumpToChunk,
+    ensureChunkOpen,
     model,
     readingOrderedChunks,
     submittedReviewIds,
@@ -297,6 +300,8 @@ export function useConversationWiring(
   const jumpToChunkFromConversation = useCallback(
     (chunkId: string, target?: { rowId: string; threadId: number }) => {
       cancelLanding();
+      // Row target: the thread row only renders on an open card.
+      ensureChunkOpen(chunkId);
       // The user's own input aborts the landing — a late focus() would yank
       // them away from wherever they moved.
       for (const type of SCROLL_ABORT_EVENTS) {
@@ -360,7 +365,7 @@ export function useConversationWiring(
       };
       landingFrameRef.current = window.requestAnimationFrame(landOnRow);
     },
-    [cancelLanding, flashConversationTarget, jumpToChunk],
+    [cancelLanding, ensureChunkOpen, flashConversationTarget, jumpToChunk],
   );
 
   return {

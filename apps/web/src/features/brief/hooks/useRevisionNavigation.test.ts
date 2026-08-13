@@ -156,15 +156,20 @@ const ORDINALS = new Map([
   ["c3", 2],
 ]);
 
-function renderNavigation(scrollTowardChunk = vi.fn(() => true)) {
+function renderNavigation(
+  scrollTowardChunk = vi.fn(() => true),
+  ensureChunkOpen = vi.fn(),
+) {
   return {
     scrollTowardChunk,
+    ensureChunkOpen,
     ...renderHook(() =>
       useRevisionNavigation({
         targets: TARGETS,
         chunkOrdinals: ORDINALS,
         activeChunkId: null,
         scrollTowardChunk,
+        ensureChunkOpen,
       }),
     ),
   };
@@ -203,13 +208,16 @@ describe("useRevisionNavigation", () => {
     expect(document.activeElement).toBe(rails[1]);
   });
 
-  it("routes an unmounted target through the window scroll", () => {
+  it("routes an unmounted target through the window scroll, opening it first", () => {
     document.body.innerHTML = "<main></main>";
     const scrollTowardChunk = vi.fn(() => true);
-    const { result } = renderNavigation(scrollTowardChunk);
+    const ensureChunkOpen = vi.fn();
+    const { result } = renderNavigation(scrollTowardChunk, ensureChunkOpen);
 
     result.current.jumpNext();
 
+    // Rails are rows: a collapsed card has no rail to land on.
+    expect(ensureChunkOpen).toHaveBeenCalledWith("c1");
     expect(scrollTowardChunk).toHaveBeenCalledWith("c1");
   });
 
@@ -221,6 +229,7 @@ describe("useRevisionNavigation", () => {
         chunkOrdinals: new Map(),
         activeChunkId: null,
         scrollTowardChunk: vi.fn(() => true),
+        ensureChunkOpen: vi.fn(),
       }),
     );
     expect(() => {

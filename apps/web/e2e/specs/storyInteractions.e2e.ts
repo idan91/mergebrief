@@ -42,6 +42,17 @@ test("the risk-attrs disclosure jumps to the carrying group", async ({
 }) => {
   await gotoBrief(page, `/briefs/${FIXTURE_BRIEF_REV2}`);
 
+  // Collapse the target BEFORE opening the rail disclosure (an outside
+  // click would dismiss it): a risk-attr jump is wayfinding, and a
+  // wayfinding landing respects the user's collapse. Clicking the toggle
+  // scrolls c3 into view, so return to the top afterwards.
+  const targetToggle = page.locator("article#c3").getByTestId("chunk-toggle");
+  await targetToggle.click();
+  await expect(targetToggle).toHaveAttribute("aria-expanded", "false");
+  await page.evaluate(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  });
+
   // The label compresses to "Attrs" below 1280, so match either form.
   const rail = page.getByRole("button", { name: /attrs/i });
   await expect(rail).toHaveAttribute("aria-expanded", "false");
@@ -59,6 +70,7 @@ test("the risk-attrs disclosure jumps to the carrying group", async ({
   await jump.click();
 
   await expect(page.locator("article#c3")).toBeInViewport();
+  await expect(targetToggle).toHaveAttribute("aria-expanded", "false");
   await expect
     .poll(() =>
       page.evaluate(

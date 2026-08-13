@@ -325,6 +325,8 @@ export interface UseReadingSessionValue {
   ) => void;
   /** The keyboard-shortcut jump: align="top" while focus mode is on. */
   jumpToChunkFromShortcut: (chunkId: string) => void;
+  /** Ensure-open for row-target jumps; wayfinding jumps never call it. */
+  openChunk: (chunkId: string) => void;
   jumpToGroup: (groupId: string) => void;
   toggleFocusMode: () => void;
   startReadThrough: () => void;
@@ -578,6 +580,15 @@ export function useReadingSession(
     [actions, chunkIds, focusModeRef, reviewedChunksRef, scrollToChunk],
   );
 
+  /** Ensure-open, never a toggle — row-target jumps (conversation threads,
+   * revision rails, unresolved submit items) land INSIDE the diff, which
+   * only exists on an open card. */
+  const openChunk = useCallback((chunkId: string) => {
+    setOpenChunks((current) =>
+      current.has(chunkId) ? current : new Set(current).add(chunkId),
+    );
+  }, []);
+
   const jumpToChunk = useCallback(
     (
       chunkId: string,
@@ -585,11 +596,16 @@ export function useReadingSession(
       align: ChunkScrollAlign = "native",
     ) => {
       setViewMode("story");
-      setOpenChunks((current) => new Set(current).add(chunkId));
+      // Focus mode must open the target — every other card is display:none,
+      // so a collapsed landing would show nothing. Outside focus mode a
+      // collapsed card is the user's triage: wayfinding jumps (toc, group
+      // stepper, risk attrs) land on it WITHOUT re-expanding.
+      if (focusModeRef.current)
+        setOpenChunks((current) => new Set(current).add(chunkId));
       setActiveChunkId(chunkId);
       scrollToChunk(chunkId, behavior, align);
     },
-    [scrollToChunk],
+    [focusModeRef, scrollToChunk],
   );
   const jumpToChunkFromShortcut = useCallback(
     (chunkId: string) => {
@@ -614,9 +630,11 @@ export function useReadingSession(
     // focusScrollOffset() or the banner covers the chunk.
     const target = activeChunkIdRef.current ?? firstChunkId;
     if (!target) return;
+    // Focus mode reads the active card; a collapsed one would show nothing.
+    openChunk(target);
     setActiveChunkId(target);
     scrollToChunk(target, "smooth", "top");
-  }, [activeChunkIdRef, firstChunkId, focusModeRef, scrollToChunk]);
+  }, [activeChunkIdRef, firstChunkId, focusModeRef, openChunk, scrollToChunk]);
   const toggleShortcuts = useCallback(
     () => setShortcutsOpen((current) => !current),
     [],
@@ -629,9 +647,10 @@ export function useReadingSession(
     if (!firstChunkId) return;
     setViewMode("story");
     setFocusMode(true);
+    openChunk(firstChunkId);
     setActiveChunkId(firstChunkId);
     scrollToChunk(firstChunkId, "smooth", "top");
-  }, [firstChunkId, scrollToChunk]);
+  }, [firstChunkId, openChunk, scrollToChunk]);
 
   // The TOC bar jumps by Change-group; land on the group's first chunk.
   const jumpToGroup = useCallback(
@@ -685,6 +704,7 @@ export function useReadingSession(
     markReviewed,
     jumpToChunk,
     jumpToChunkFromShortcut,
+    openChunk,
     jumpToGroup,
     toggleFocusMode,
     startReadThrough,

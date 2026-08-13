@@ -133,6 +133,7 @@ function renderWiring(
         conversationFocusThreadId: undefined,
         conversationFilter,
         jumpToChunk: vi.fn(),
+        ensureChunkOpen: vi.fn(),
         model: buildBriefViewModel(brief),
         readingOrderedChunks: [chunk()],
         submittedReviewIds: [],

@@ -33,6 +33,9 @@ export interface UseRevisionNavigationInput {
    * landing and snap the viewport off the centered rail.
    */
   scrollTowardChunk: (chunkId: string) => boolean;
+  /** Rails are row targets — rows only exist on an open card, so a jump
+   * into a collapsed chunk must open it or the rail poll dies silently. */
+  ensureChunkOpen: (chunkId: string) => void;
 }
 
 const RAIL_POLL_FRAMES = 90;
@@ -99,7 +102,13 @@ function landOnRail(element: HTMLButtonElement): void {
 export function useRevisionNavigation(
   input: UseRevisionNavigationInput,
 ): RevisionNavigation {
-  const { targets, chunkOrdinals, activeChunkId, scrollTowardChunk } = input;
+  const {
+    targets,
+    chunkOrdinals,
+    activeChunkId,
+    scrollTowardChunk,
+    ensureChunkOpen,
+  } = input;
   const pollFrameRef = useRef<number | null>(null);
   const cancelPoll = useCallback(() => {
     if (pollFrameRef.current !== null) {
@@ -166,6 +175,7 @@ export function useRevisionNavigation(
         landOnRail(alreadyMounted.element);
         return;
       }
+      ensureChunkOpen(target.chunkId);
       if (!scrollTowardChunk(target.chunkId)) return;
       let frames = 0;
       const poll = () => {
@@ -183,7 +193,14 @@ export function useRevisionNavigation(
       };
       pollFrameRef.current = window.requestAnimationFrame(poll);
     },
-    [activeChunkId, cancelPoll, chunkOrdinals, scrollTowardChunk, targets],
+    [
+      activeChunkId,
+      cancelPoll,
+      chunkOrdinals,
+      ensureChunkOpen,
+      scrollTowardChunk,
+      targets,
+    ],
   );
 
   return {

@@ -406,6 +406,7 @@ export function BriefScreen({
     conversationFocusThreadId,
     conversationFilter,
     jumpToChunk,
+    ensureChunkOpen: session.openChunk,
     model,
     readingOrderedChunks,
     submittedReviewIds,
@@ -430,6 +431,7 @@ export function BriefScreen({
     activeChunkId,
     scrollTowardChunk: (chunkId) =>
       chunkWindowsRef.current.scrollToChunk(chunkId),
+    ensureChunkOpen: session.openChunk,
   });
   const submitFlow = useReviewSubmit({
     action: submitReview,
@@ -587,6 +589,8 @@ export function BriefScreen({
   const closeSummaryPreview = () => setSummaryPreviewOpen(false);
   const jumpToSubmitItem = (item: UnresolvedItem) => {
     setSubmitOpen(false);
+    // Resolving the item happens inside the card — a row-target jump.
+    session.openChunk(item.targetId);
     jumpToChunk(item.targetId);
   };
   const clearDrafts = () => {
