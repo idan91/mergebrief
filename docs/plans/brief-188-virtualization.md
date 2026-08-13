@@ -86,9 +86,13 @@ judged against them.
 - Generate + commit baseline numbers at 12×25 AND 12×50
   (`pnpm -C apps/web perf:fixture -- --groups 12 --chunks-per-group 50`);
   record the pre-virtualization scaling curve in the PR body.
-- New spec: `jump-far-chunk` — toc-jump to the last group's last chunk;
-  asserts target lands in viewport post-settle (≤1 correction) and reports
-  time as a `PERF_RESULT` metric.
+- New spec: `jump-far-chunk` — toc-jump to the far group (the toc lands on
+  a group's FIRST chunk by design); records landing time plus landing
+  offset, cold and warmed, as `PERF_RESULT` metrics. Recording, not
+  asserting: measured 2026-08-13, the cold far jump ALREADY mis-lands today
+  (~250–580px — cv estimate drift; remembered sizes make warmed jumps land
+  clean), so the in-viewport assert flips on in PR 4 once settle-correction
+  exists. The Measurement-gates section holds that obligation.
 - New spec: scroll smoke — synthetic fast scroll top→bottom, record p95
   rAF frame gap as a baseline metric (no hard gate yet).
 - Reuse `waitForInteractive` hydration gating everywhere (pre-hydration
