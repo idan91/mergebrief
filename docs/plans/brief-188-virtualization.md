@@ -171,11 +171,15 @@ instead of the DOM; prove lens flips keep your position; publish the final
 before/after numbers.
 
 - ChangesOnlyView / `NarrativeChunkCard` wiring (same shape as PR 4).
-- Keep-warm latch proven end-to-end: lens flip preserves scroll + window
-  (e2e assert); frozen pane's virtualizer stays latched, flip-back is
-  identical DOM.
-- `useRevisionNavigation` → model-derived target list routed through the
-  resolver (works for targets in unmounted chunks in either tree); adapt
+- Keep-warm latch proven end-to-end (AMENDED post-implementation): the
+  hidden pane retains its exact windowed DOM while hidden, and the flip
+  back renders a coherent window. "Preserves scroll" was unmeetable as
+  written — lens radios NAVIGATE (compare rides the URL), so the router
+  resets scroll to top on every flip, a pre-existing product behavior.
+  Per-lens scroll restoration is a filed follow-up, not this stack.
+- `useRevisionNavigation` → model-derived target list, resolved via the
+  window registry DIRECTLY (never the chunk-jump pipeline — its chunk-top
+  settle-correction races the rail landing); adapt
   `useRevisionNavigation.test.ts`.
 - Final numbers: full metric set at 12×25 and 12×50 in the PR body —
   the scale-flatness gate closes here.
@@ -190,11 +194,17 @@ before/after numbers.
   `lens-to-full` medians ≤ half of the pre-virtualization baseline
   (~720ms / ~919ms). `cold-load-rev1` recorded, not hard-gated (dev-server
   variance dominates).
-- **Behavior**: `jump-far-chunk` lands in viewport with ≤1 correction;
-  thread expansion survives scroll-away-and-back; lens flip preserves
-  scroll + window; e2e console gate stays clean (hydration mismatch,
-  dup-key). Scroll restoration lands approximately — known, asserted as
-  such.
+- **Behavior**: `jump-far-chunk` lands in viewport with ≤1 correction
+  (asserted in the perf spec since PR 4); thread expansion survives
+  unmount/remount (jsdom pin — the e2e leg needs conversation data the
+  local fixtures don't carry, deferred with the DB-route e2e work); lens
+  flip retains the hidden pane's windowed DOM (scroll reset on flip is
+  router-owned, pre-existing); e2e console gate stays clean (hydration
+  mismatch, dup-key).
+- **Scroll-spy deviation (PR 4)**: the spy stays DOM-based rather than
+  virtualizer-offset-derived — the reading-line chunk is always mounted,
+  so the DOM spy remains correct; its walk cost is part of the recorded
+  scroll frame-gap figure.
 - Numbers ride in PR bodies; the harness is a convention gate, not CI.
 
 ## Known gotchas carried from BRIEF-186
