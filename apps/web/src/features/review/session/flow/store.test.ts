@@ -148,6 +148,41 @@ describe("ReviewFlow store", () => {
     });
   });
 
+  describe("conversation thread expansion", () => {
+    const CHUNK_A = "src/a.ts#c1";
+    const CHUNK_B = "src/b.ts#c1";
+
+    it("toggles a thread in and out per chunk key", () => {
+      store.getState().actions.toggleConversationThread(CHUNK_A, 9001);
+      expect(
+        store.getState().expandedConversations.get(CHUNK_A)?.has(9001),
+      ).toBe(true);
+      store.getState().actions.toggleConversationThread(CHUNK_A, 9001);
+      expect(
+        store.getState().expandedConversations.get(CHUNK_A)?.has(9001) ?? false,
+      ).toBe(false);
+    });
+
+    it("keeps chunk keys independent — same thread id, different chunks", () => {
+      store.getState().actions.toggleConversationThread(CHUNK_A, 9001);
+      store.getState().actions.toggleConversationThread(CHUNK_B, 9001);
+      store.getState().actions.toggleConversationThread(CHUNK_B, 9001);
+      expect(
+        store.getState().expandedConversations.get(CHUNK_A)?.has(9001),
+      ).toBe(true);
+      expect(
+        store.getState().expandedConversations.get(CHUNK_B)?.has(9001) ?? false,
+      ).toBe(false);
+    });
+
+    it("leaves other chunks' set references untouched on a toggle", () => {
+      store.getState().actions.toggleConversationThread(CHUNK_A, 9001);
+      const before = store.getState().expandedConversations.get(CHUNK_A);
+      store.getState().actions.toggleConversationThread(CHUNK_B, 42);
+      expect(store.getState().expandedConversations.get(CHUNK_A)).toBe(before);
+    });
+  });
+
   describe("announce", () => {
     it("clears then sets, so a repeat message re-announces", () => {
       store.getState().actions.announce("Saved.");

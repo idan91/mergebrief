@@ -19,6 +19,7 @@ import {
   MindMapProvider,
   ReviewFlowProvider,
   type ReviewFlowState,
+  type ReviewFlowStore,
 } from "@web/features/review/session";
 import type { Brief, BriefChunk } from "../../../types";
 import { buildBriefViewModel } from "../../../utils/viewModel";
@@ -111,6 +112,7 @@ const providerBrief: Brief = {
 function renderTable(
   overrides: Partial<DiffTableProps> = {},
   flowState: Partial<ReviewFlowState> = {},
+  existingStore?: ReviewFlowStore,
 ) {
   const rows =
     buildInlineThreads({
@@ -118,22 +120,24 @@ function renderTable(
       chunks: [chunk()],
       ownThreadIds: new Set(),
     }).get("c1") ?? [];
-  const flowStore = createReviewFlowStore(
-    {
-      saveComment: vi.fn(),
-      updateComment: vi.fn(),
-      deleteComment: vi.fn(),
-      toggleComment: vi.fn(),
-    },
-    initialReviewFlowState({
-      composerDisabledReason: undefined,
-      flagsReadOnly: false,
-      postingCommentIds: new Set(),
-      postBlockedExternally: undefined,
-      postComment: undefined,
-    }),
-    appI18n.t,
-  );
+  const flowStore =
+    existingStore ??
+    createReviewFlowStore(
+      {
+        saveComment: vi.fn(),
+        updateComment: vi.fn(),
+        deleteComment: vi.fn(),
+        toggleComment: vi.fn(),
+      },
+      initialReviewFlowState({
+        composerDisabledReason: undefined,
+        flagsReadOnly: false,
+        postingCommentIds: new Set(),
+        postBlockedExternally: undefined,
+        postComment: undefined,
+      }),
+      appI18n.t,
+    );
   flowStore.setState(flowState);
   // Call-count observability for composer entry: wrap the real action.
   const openCommentComposer = vi.fn(flowStore.getState().actions.openComposer);
@@ -335,5 +339,20 @@ describe("DiffTable — row-level conversation threads", () => {
     expect(disclosure.getAttribute("aria-expanded")).toBe("true");
     // Row-level detail hides the jump — the row already is the destination.
     expect(screen.queryByRole("button", { name: /Jump to/ })).toBeNull();
+  });
+
+  it("keeps expansion across unmount/remount when the store is shared", () => {
+    // Virtualization unmounts far chunk cards; the expanded state must live
+    // in the flow store, not the component, to survive the round trip.
+    const first = renderTable();
+    const disclosure = () =>
+      screen.getByRole("button", { name: /This null check looks inverted/ });
+    fireEvent.click(disclosure());
+    expect(disclosure().getAttribute("aria-expanded")).toBe("true");
+    first.view.unmount();
+
+    const second = renderTable({}, {}, first.flowStore);
+    expect(disclosure().getAttribute("aria-expanded")).toBe("true");
+    second.view.unmount();
   });
 });

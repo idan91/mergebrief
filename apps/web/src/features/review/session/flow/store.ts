@@ -39,6 +39,11 @@ export interface ReviewFlowState extends ReviewFlowPosture {
   composerAnchor: CommentAnchor | null;
   dismissTarget: DismissTarget | null;
   evidenceTarget: EvidenceTarget | null;
+  /** Open inline conversation threads per file-qualified chunk key
+   * (`file#chunkId` — a bare chunk id can collide across diff sources).
+   * Store-owned, not card state: a virtualized card unmounts offscreen and
+   * its disclosure state must survive the round trip. */
+  expandedConversations: ReadonlyMap<string, ReadonlySet<number>>;
   /** The free-text review-comment draft: survives the submit modal closing,
    * deliberately not a reload. */
   reviewComment: string;
@@ -67,6 +72,8 @@ export interface ReviewFlowActions {
   updateComment: (commentId: string, body: string) => void;
   deleteComment: (commentId: string) => void;
   toggleComment: (commentId: string) => void;
+  /** @description Flip one inline thread's disclosure under its chunk key. */
+  toggleConversationThread: (chunkKey: string, threadId: number) => void;
   setDismissTarget: (target: DismissTarget | null) => void;
   setEvidenceTarget: (target: EvidenceTarget | null) => void;
   toggleRiskFlag: (flagId: string) => void;
@@ -115,6 +122,7 @@ export function initialReviewFlowState(
     composerAnchor: null,
     dismissTarget: null,
     evidenceTarget: null,
+    expandedConversations: new Map(),
     reviewComment: "",
     selectedRiskFlags: new Set(),
     toast: "",
@@ -193,6 +201,19 @@ export function createReviewFlowStore(
         },
         toggleComment(commentId) {
           session.toggleComment(commentId);
+        },
+        toggleConversationThread(chunkKey, threadId) {
+          set((state) => {
+            const next = new Map(state.expandedConversations);
+            next.set(
+              chunkKey,
+              toggleSet(
+                state.expandedConversations.get(chunkKey) ?? new Set(),
+                threadId,
+              ),
+            );
+            return { expandedConversations: next };
+          });
         },
         setDismissTarget(target) {
           set({ dismissTarget: target });

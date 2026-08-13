@@ -51,6 +51,7 @@ interface DiffViewportStyle extends CSSProperties {
 }
 
 const EMPTY_REVIEW_COMMENTS: never[] = [];
+const EMPTY_EXPANDED_THREADS: ReadonlySet<number> = new Set();
 
 export interface DiffTableProps {
   chunk: BriefChunk;
@@ -92,6 +93,7 @@ export function DiffTable({
     saveComment,
     deleteComment,
     toggleComment,
+    toggleConversationThread,
     updateComment,
   } = useReviewActions();
   const chunkComments = useChunkReviewComments(chunk.id);
@@ -149,10 +151,12 @@ export function DiffTable({
   // Instance-scoped id for the read-only reason the disabled rows point at
   // (declared before the no-diff early return — hooks order).
   const composerDisabledReasonId = `${useId()}-composer-disabled`;
-  // Declared with the other hooks, before the no-diff early return.
-  const [expandedConversation, setExpandedConversation] = useState<
-    ReadonlySet<number>
-  >(new Set());
+  // Store-owned so it survives this card unmounting offscreen; the key is
+  // file-qualified because a bare chunk id can collide across diff sources.
+  const chunkKey = `${chunk.file}#${chunk.id}`;
+  const expandedConversation =
+    useReviewFlow((state) => state.expandedConversations.get(chunkKey)) ??
+    EMPTY_EXPANDED_THREADS;
   const [dragCurrent, setDragCurrent] = useState<number | null>(null);
   const [railHover, setRailHover] = useState<{
     run: ComparisonRun;
@@ -199,13 +203,8 @@ export function DiffTable({
       ? []
       : rangeBetween(dragStart, dragCurrent);
   const activeRowIds = new Set(activeCommentAnchor?.rowIds ?? []);
-  const toggleConversationThread = (threadId: number) =>
-    setExpandedConversation((current) => {
-      const next = new Set(current);
-      if (next.has(threadId)) next.delete(threadId);
-      else next.add(threadId);
-      return next;
-    });
+  const handleToggleConversationThread = (threadId: number) =>
+    toggleConversationThread(chunkKey, threadId);
   const overlayActive = comparisonView.runs.length > 0;
   const metaColSpan = overlayActive ? 4 : 3;
 
@@ -458,7 +457,7 @@ export function DiffTable({
                             hideJump
                             jumpToChunk={noJump}
                             row={row}
-                            toggle={toggleConversationThread}
+                            toggle={handleToggleConversationThread}
                           />
                         </td>
                       </tr>

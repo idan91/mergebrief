@@ -85,6 +85,7 @@ describe("flow store in-place brief switch", () => {
     const store = result.current;
     act(() => {
       store.getState().actions.setReviewComment("carried text");
+      store.getState().actions.toggleConversationThread("src/a.ts#c1", 9001);
       store.setState({ toast: "old toast" });
     });
     expect(store.getState().reviewComment).toBe("carried text");
@@ -97,5 +98,6 @@ describe("flow store in-place brief switch", () => {
     expect(store.getState().dismissTarget).toBeNull();
     expect(store.getState().evidenceTarget).toBeNull();
     expect(store.getState().selectedRiskFlags.size).toBe(0);
+    expect(store.getState().expandedConversations.size).toBe(0);
   });
 });

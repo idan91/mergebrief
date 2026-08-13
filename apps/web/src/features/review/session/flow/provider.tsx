@@ -51,6 +51,7 @@ export function useCreateReviewFlowStore(
       composerAnchor: null,
       dismissTarget: null,
       evidenceTarget: null,
+      expandedConversations: new Map(),
       reviewComment: "",
       selectedRiskFlags: new Set(),
       toast: "",
