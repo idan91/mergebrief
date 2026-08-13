@@ -176,6 +176,48 @@ export function buildChunkComparisonView(
   return { marks: rowMarks, runs, runByRow };
 }
 
+/**
+ * The rail button's behavioral attribute: rendered by RevisionGutterCell,
+ * queried by revision navigation. Exported constant per the repo rule for
+ * runtime-queried attributes — never a bare literal at a query site.
+ */
+export const REVISION_JUMP_ATTR = "data-jump-target";
+
+/** Selector for one rail (by key) or all rails (no key). */
+export function revisionJumpSelector(railKey?: string): string {
+  if (railKey === undefined) return `[${REVISION_JUMP_ATTR}]`;
+  return `[${REVISION_JUMP_ATTR}="${CSS.escape(railKey)}"]`;
+}
+
+/** Stable identity for one rail button, shared by the DOM attribute the
+ * gutter renders and the model-derived jump-target list. */
+export function comparisonRunKey(run: ComparisonRun): string {
+  return `${run.file}#${run.chunkId}:${String(run.rowIndexes[0] ?? 0)}`;
+}
+
+export interface RevisionJumpTarget {
+  chunkId: string;
+  railKey: string;
+}
+
+/**
+ * Every rail in RENDERED order, derived from the model rather than the DOM:
+ * windowed chunk lists only mount viewport-adjacent cards, so a DOM
+ * enumeration silently skips every rail in an unmounted chunk.
+ */
+export function deriveRevisionJumpTargets(
+  chunks: readonly BriefChunk[],
+  marks: ComparisonMarkFiles | null,
+): RevisionJumpTarget[] {
+  if (!marks) return [];
+  return chunks.flatMap((chunk) =>
+    buildChunkComparisonView(chunk, marks).runs.map((run) => ({
+      chunkId: chunk.id,
+      railKey: comparisonRunKey(run),
+    })),
+  );
+}
+
 function runLines(
   run: ComparisonRun,
   chunk: BriefChunk,

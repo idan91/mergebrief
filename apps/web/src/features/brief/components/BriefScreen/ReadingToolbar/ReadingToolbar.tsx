@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import { useEffect, useRef } from "react";
 import type { ValueOf } from "types";
 
-import { useRevisionNavigation } from "../../../hooks/useRevisionNavigation";
+import type { RevisionNavigation } from "../../../hooks/useRevisionNavigation";
 import type { ComparisonOverlayState } from "../../../comparison/comparisonOverlay";
 import type { AttributeRail } from "../../../utils/viewModel";
 import {
@@ -54,6 +54,9 @@ export interface ReadingToolbarProps {
   groups: readonly GroupStepTarget[];
   activeGroupId: string | null;
   comparison: ComparisonOverlayState;
+  /** Screen-owned: the jump needs the model target list and the window
+   * registry, which live above this bar. */
+  revisionNav: RevisionNavigation;
 }
 
 /**
@@ -73,9 +76,10 @@ export function ReadingToolbar({
   groups,
   activeGroupId,
   comparison,
+  revisionNav,
 }: ReadingToolbarProps) {
   const { t } = useTranslation();
-  const { jumpPrev, jumpNext } = useRevisionNavigation();
+  const { jumpPrev, jumpNext } = revisionNav;
   const barRef = useRef<HTMLDivElement | null>(null);
 
   // Sticky chunk headers pin below the bar via the measured height; 0px

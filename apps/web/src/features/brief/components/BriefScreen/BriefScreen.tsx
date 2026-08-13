@@ -43,6 +43,8 @@ import {
 import { MarkReadyModal } from "@web/features/pulls/components/MarkReadyModal/MarkReadyModal";
 import type { Brief, LivePrState, LocalBriefSummary } from "../../types";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
+import { useRevisionNavigation } from "../../hooks/useRevisionNavigation";
+import { deriveRevisionJumpTargets } from "../../comparison/comparison";
 import type { buildBriefViewModel } from "../../utils/viewModel";
 import { buildAttributeRail } from "../../utils/viewModel";
 import type { RepoConfigContext } from "../../utils/repoConfig";
@@ -408,6 +410,27 @@ export function BriefScreen({
     readingOrderedChunks,
     submittedReviewIds,
   });
+  // Revision-change jumps navigate the MODEL's rail list — windowed chunk
+  // lists mount too little DOM for enumeration to be truthful.
+  // comparison.marks (the EFFECTIVE marks), not the raw overlay marks: rails
+  // only render while the overlay applies, and the model list must agree
+  // with the DOM by construction.
+  const revisionJumpTargets = useMemo(
+    () => deriveRevisionJumpTargets(readingOrderedChunks, comparison.marks),
+    [comparison.marks, readingOrderedChunks],
+  );
+  const chunkOrdinals = useMemo(
+    () =>
+      new Map(readingOrderedChunks.map((chunk, index) => [chunk.id, index])),
+    [readingOrderedChunks],
+  );
+  const revisionNav = useRevisionNavigation({
+    targets: revisionJumpTargets,
+    chunkOrdinals,
+    activeChunkId,
+    scrollTowardChunk: (chunkId) =>
+      chunkWindowsRef.current.scrollToChunk(chunkId),
+  });
   const submitFlow = useReviewSubmit({
     action: submitReview,
     briefId,
@@ -671,6 +694,7 @@ export function BriefScreen({
             variant={blocks.toolbar}
             activeGroupId={session.activeGroupId}
             comparison={comparison}
+            revisionNav={revisionNav}
             filter={
               conversation !== undefined &&
               onConversationFilterChange !== undefined &&

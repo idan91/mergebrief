@@ -1,5 +1,8 @@
 import { useTranslation } from "react-i18next";
+import { useCallback, useMemo } from "react";
 import { Markdown } from "@web/components/Markdown/Markdown";
+import { estimateNarrativeCardHeight } from "../chunkHeightModel";
+import { useGroupWindow } from "../useGroupWindow";
 import { categoryLabel } from "../../../utils/viewModel";
 import type { BriefViewModel } from "../../../utils/viewModel";
 import { buildBriefViewModel } from "../../../utils/viewModel";
@@ -170,9 +173,7 @@ function PreviousBriefChanges({
                 {categoryLabel(group.group.dominantCategory)}
               </span>
             </div>
-            {chunks.map((chunk) => (
-              <NarrativeChunkCard brief={brief} chunk={chunk} key={chunk.id} />
-            ))}
+            <WindowedNarrativeList brief={brief} chunks={chunks} />
           </section>
         );
       })}
@@ -183,11 +184,71 @@ function PreviousBriefChanges({
               {t("brief.changes.otherChanges")}
             </h3>
           </div>
-          {orphanChunks.map((chunk) => (
-            <NarrativeChunkCard brief={brief} chunk={chunk} key={chunk.id} />
-          ))}
+          <WindowedNarrativeList brief={brief} chunks={orphanChunks} />
         </section>
       ) : null}
+    </div>
+  );
+}
+
+interface WindowedNarrativeListProps {
+  brief: Brief;
+  chunks: readonly RevisionNarrativeChunk[];
+}
+
+/**
+ * Windowed narrative cards, same shape as the story lens's chunk column:
+ * absolute cards in a totalSize column, explicit inline-size (absolute cards
+ * have no intrinsic width). No jump registry — nothing navigates to a
+ * narrative card by id.
+ */
+function WindowedNarrativeList({ brief, chunks }: WindowedNarrativeListProps) {
+  const chunkKeys = useMemo(
+    () => chunks.map((chunk) => `${chunk.file}#${chunk.id}`),
+    [chunks],
+  );
+  const estimateChunk = useCallback(
+    (index: number) => {
+      const chunk = chunks[index];
+      if (!chunk) return 0;
+      return estimateNarrativeCardHeight({
+        addedRowCount: countLines(chunk.addedRanges),
+        hasRemovedNote: countLines(chunk.removedRanges) > 0,
+      });
+    },
+    [chunks],
+  );
+  const window = useGroupWindow({ chunkKeys, estimateChunk });
+  return (
+    <div
+      ref={window.listRef}
+      style={{
+        position: "relative",
+        blockSize: window.totalSize,
+        inlineSize: "100%",
+      }}
+    >
+      {window.items.map((item) => {
+        const chunk = chunks[item.index];
+        if (!chunk) return null;
+        return (
+          <div
+            key={item.key}
+            data-index={item.index}
+            ref={window.measureElement}
+            style={{
+              position: "absolute",
+              // `top`, never `transform` — see WindowedChunkList: transform
+              // ancestors break the cards' sticky headers.
+              insetBlockStart: item.start - window.scrollMargin,
+              insetInlineStart: 0,
+              inlineSize: "100%",
+            }}
+          >
+            <NarrativeChunkCard brief={brief} chunk={chunk} />
+          </div>
+        );
+      })}
     </div>
   );
 }

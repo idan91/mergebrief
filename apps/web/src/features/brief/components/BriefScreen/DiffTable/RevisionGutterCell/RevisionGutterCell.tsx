@@ -3,7 +3,11 @@
    (decorative); the accessible, labelled control is the jump button inside
    it, which exposes the same preview via onFocus. */
 import type { BriefChunk } from "../../../../types";
-import type { ComparisonRun } from "../../../../comparison/comparison";
+import {
+  comparisonRunKey,
+  REVISION_JUMP_ATTR,
+  type ComparisonRun,
+} from "../../../../comparison/comparison";
 import styles from "./RevisionGutterCell.module.scss";
 
 export interface RevisionGutterCellProps {
@@ -38,9 +42,11 @@ export function RevisionGutterCell({
         <button
           className={styles["railButton"]}
           // CSS-module classnames are hashed at build time, so jump-nav
-          // (`useRevisionNavigation`) targets this stable data attribute
-          // instead of a class selector.
-          data-jump-target=""
+          // (`useRevisionNavigation`) targets REVISION_JUMP_ATTR instead of
+          // a class selector. The VALUE is the run's model key: jumps to
+          // rails in unmounted chunks resolve by key after the window
+          // mounts the card.
+          {...{ [REVISION_JUMP_ATTR]: comparisonRunKey(run) }}
           type="button"
           aria-label={`${verb} this revision. ${count} line${count === 1 ? "" : "s"}.`}
           onFocus={(e) => onRailEnter(run, e.currentTarget)}

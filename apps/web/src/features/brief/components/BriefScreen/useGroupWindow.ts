@@ -129,10 +129,23 @@ export function useGroupWindow(options: GroupWindowOptions): GroupWindow {
     };
     update();
 
-    const observer = new ResizeObserver(update);
+    // Deferred one frame: a dozen instances measuring in one
+    // ResizeObserver cycle overflow its delivery budget.
+    let frame: number | null = null;
+    const observer = new ResizeObserver(() => {
+      frame ??= window.requestAnimationFrame(() => {
+        frame = null;
+        update();
+      });
+    });
     observer.observe(document.body);
 
-    return () => observer.disconnect();
+    return () => {
+      if (frame !== null) {
+        window.cancelAnimationFrame(frame);
+      }
+      observer.disconnect();
+    };
   }, [active, listEl]);
 
   const rangeExtractor = useCallback(

@@ -53,6 +53,7 @@ function renderToolbar(overrides: Partial<ReadingToolbarProps> = {}) {
     groups: [{ id: "g1" }, { id: "g2" }, { id: "g3" }],
     activeGroupId: null,
     comparison: comparisonState(0),
+    revisionNav: { jumpNext: () => {}, jumpPrev: () => {} },
     ...overrides,
   };
   return render(<ReadingToolbar {...props} />);

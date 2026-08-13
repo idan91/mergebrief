@@ -108,6 +108,60 @@ test("lens flip timing", async ({ page }) => {
   report("lens-to-full", toFull);
 });
 
+test("the hidden story pane keeps its windowed cards across a flip", async ({
+  page,
+}) => {
+  // Keep-warm latch proof. Lens radios NAVIGATE (compare rides the URL), so
+  // the router resets scroll to top on every flip — pre-existing product
+  // behavior, deliberately not asserted here. What the latch owns: while the
+  // story pane is hidden its windowed DOM must stay exactly as it was (no
+  // re-derive against hidden zero-rects), and the flip back must render a
+  // coherent window at the restored (top) scroll position.
+  await gotoBrief(page, `/briefs/${PERF_FIXTURE_REV2_ID}`, {
+    timeout: 90_000,
+  });
+  await settleOnRevision(page, "r2");
+  await page.evaluate(() => {
+    window.scrollTo({ top: 20_000, behavior: "instant" });
+  });
+  await page.waitForTimeout(800);
+  const firstVisible = () =>
+    page.evaluate(
+      () =>
+        [...document.querySelectorAll<HTMLElement>("main article[id]")].find(
+          (el) =>
+            el.closest("[hidden]") === null &&
+            el.getBoundingClientRect().bottom > 0,
+        )?.id ?? null,
+    );
+  const deepCard = await firstVisible();
+  expect(deepCard).not.toBeNull();
+
+  const changesRadio = page.getByText("Changes Only", { exact: true });
+  const fullRadio = page.getByText("Full brief", { exact: true });
+  const changesEyebrow = page.getByText(
+    "Changes Only · since the previous Brief",
+  );
+  await changesRadio.click();
+  await expect(changesEyebrow).toBeVisible({ timeout: 30_000 });
+
+  // The hidden pane still holds the deep window it was showing.
+  const hiddenIds = await page.evaluate(() =>
+    [
+      ...document.querySelectorAll<HTMLElement>("main [hidden] article[id]"),
+    ].map((el) => el.id),
+  );
+  expect(hiddenIds).toContain(deepCard);
+
+  await fullRadio.click();
+  await expect(changesEyebrow).toBeHidden({ timeout: 30_000 });
+  await page.waitForTimeout(500);
+
+  // Router reset scroll to top; the story window must cover the viewport
+  // there — a blank band here would mean the latch fed stale geometry.
+  expect(await firstVisible()).not.toBeNull();
+});
+
 test("cold load timing", async ({ page }) => {
   // Context for the interaction numbers: what a from-scratch render of the
   // large fixture costs. One warm navigation then timed reloads.

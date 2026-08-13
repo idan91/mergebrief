@@ -5,6 +5,8 @@ import {
   bindDeltaCallout,
   bindRevisionNarrativeCallout,
   buildChunkComparisonView,
+  comparisonRunKey,
+  deriveRevisionJumpTargets,
   groupComparisonRuns,
   markComparisonRows,
 } from "./comparison";
@@ -377,5 +379,25 @@ describe("bindComparisonCallout", () => {
         delta,
       }),
     ).toMatchObject({ available: true, groupTitle: "Typed state" });
+  });
+});
+
+describe("deriveRevisionJumpTargets", () => {
+  it("emits one target per run, in chunk order, keyed like the gutter", () => {
+    const targets = deriveRevisionJumpTargets([scenario], marks);
+    const { runs } = buildChunkComparisonView(scenario, marks);
+    expect(targets.length).toBe(runs.length);
+    expect(targets.map((target) => target.railKey)).toEqual(
+      runs.map(comparisonRunKey),
+    );
+    for (const target of targets) expect(target.chunkId).toBe("c1");
+  });
+
+  it("returns nothing for null marks or unmarked chunks", () => {
+    expect(deriveRevisionJumpTargets([scenario], null)).toEqual([]);
+    const untouched = chunk("src/other.ts", [
+      { kind: "ctx", content: "ctx", oldLine: 1, newLine: 1 },
+    ]);
+    expect(deriveRevisionJumpTargets([untouched], marks)).toEqual([]);
   });
 });

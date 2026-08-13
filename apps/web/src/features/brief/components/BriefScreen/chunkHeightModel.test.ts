@@ -5,6 +5,8 @@ import {
   COLLAPSED_CARD_HEIGHT_PX,
   DIFF_ROW_HEIGHT_PX,
   estimateChunkCardHeight,
+  estimateNarrativeCardHeight,
+  NARRATIVE_CARD_OVERHEAD_PX,
 } from "./chunkHeightModel";
 
 describe("estimateChunkCardHeight", () => {
@@ -34,5 +36,26 @@ describe("estimateChunkCardHeight", () => {
     expect(estimateChunkCardHeight(input)).toBe(
       estimateChunkCardHeight({ ...input }),
     );
+  });
+});
+
+describe("estimateNarrativeCardHeight", () => {
+  it("scales by added rows plus chrome", () => {
+    expect(
+      estimateNarrativeCardHeight({ addedRowCount: 10, hasRemovedNote: false }),
+    ).toBe(10 * DIFF_ROW_HEIGHT_PX + NARRATIVE_CARD_OVERHEAD_PX);
+  });
+
+  it("adds the removed-note line only when present", () => {
+    const withNote = estimateNarrativeCardHeight({
+      addedRowCount: 0,
+      hasRemovedNote: true,
+    });
+    const without = estimateNarrativeCardHeight({
+      addedRowCount: 0,
+      hasRemovedNote: false,
+    });
+    expect(withNote).toBeGreaterThan(without);
+    expect(without).toBe(NARRATIVE_CARD_OVERHEAD_PX);
   });
 });

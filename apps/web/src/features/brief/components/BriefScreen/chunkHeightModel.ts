@@ -22,3 +22,22 @@ export function estimateChunkCardHeight(input: ChunkCardSizeInput): number {
   if (!input.open) return COLLAPSED_CARD_HEIGHT_PX;
   return input.diffRowCount * DIFF_ROW_HEIGHT_PX + CHUNK_CARD_OVERHEAD_PX;
 }
+
+/** Narrative card chrome: file line, summary paragraph, margins. */
+export const NARRATIVE_CARD_OVERHEAD_PX = 140;
+
+export interface NarrativeCardSizeInput {
+  /** Added rows the readonly diff renders. */
+  addedRowCount: number;
+  hasRemovedNote: boolean;
+}
+
+export function estimateNarrativeCardHeight(
+  input: NarrativeCardSizeInput,
+): number {
+  return (
+    input.addedRowCount * DIFF_ROW_HEIGHT_PX +
+    NARRATIVE_CARD_OVERHEAD_PX +
+    (input.hasRemovedNote ? 24 : 0)
+  );
+}
