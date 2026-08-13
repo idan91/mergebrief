@@ -5,7 +5,12 @@
 // Composition only: the body switch, state cards, and plan assembly live in
 // `features/pulls`.
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  notFound,
+  redirect,
+  useRouterState,
+} from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { ApiError, ApiErrorCode } from "../data/apiFetch";
@@ -251,6 +256,9 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
 const BASE_DRIFT_REASON =
   "This brief was generated against a superseded base of the pull request. Switch to the latest revision to comment or submit a review.";
 
+/** Exactly a PR-brief page, never any other repos surface. */
+const PR_BRIEF_PATH_PATTERN = /^\/repos\/[^/]+\/pulls\/[^/]+$/;
+
 function PrBriefRoute() {
   // Route-level so BriefScreen itself stays renderable without a router.
   useUnsavedComposerBlocker();
@@ -259,6 +267,14 @@ function PrBriefRoute() {
   const prNumber = parsePrNumber(params.prNumber);
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
+  // Pending only while a navigation TARGETING a PR-brief page runs its
+  // loader (a revision select re-runs it via loaderDeps): leaving the page
+  // never dims the brief.
+  const revisionPending = useRouterState({
+    select: (state) =>
+      state.status === "pending" &&
+      PR_BRIEF_PATH_PATTERN.test(state.location.pathname),
+  });
   /** Which navigator control the reviewer was on when they stepped, if any. */
   const pendingNavFocus = useRef<PendingNavFocus | null>(null);
   // Memoized on the primitives: `state`/`pinnedSpan` identity chains hang off
@@ -564,6 +580,7 @@ function PrBriefRoute() {
       readOnly={readOnly}
       repoId={repoId}
       revisionJump={revisionJump}
+      revisionPending={revisionPending}
       searchParams={briefSearch}
       staleHead={staleHead}
       state={state}

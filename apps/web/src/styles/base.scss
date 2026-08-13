@@ -209,9 +209,16 @@
     padding-block: functions.to-rem(36px) functions.to-rem(140px);
     padding-inline: clamp(functions.to-rem(18px), 4vw, functions.to-rem(28px));
     margin-inline: auto;
+    transition: opacity 0.15s ease;
 
     &.split-main {
       max-inline-size: 1560px;
+    }
+
+    // A revision load outlasted the pending delay: the stale content dims
+    // but stays readable; `inert` on the element blocks interaction.
+    &[data-pending] {
+      opacity: 0.6;
     }
   }
 

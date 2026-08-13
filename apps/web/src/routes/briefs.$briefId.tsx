@@ -1,7 +1,11 @@
 import { useTranslation } from "react-i18next";
 import { useCallback } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  redirect,
+  useRouterState,
+} from "@tanstack/react-router";
 
 import { BriefPage } from "@web/features/brief";
 import {
@@ -18,6 +22,9 @@ import {
 } from "../features/brief/queries";
 import styles from "./routeShared.module.scss";
 import { useUnsavedComposerBlocker } from "@web/hooks/useUnsavedComposerGuard";
+
+/** Exactly a brief page (`/briefs/<id>`), never a subpath of one. */
+const BRIEF_PATH_PATTERN = /^\/briefs\/[^/]+$/;
 
 export const Route = createFileRoute("/briefs/$briefId")({
   // Unrecognized or absent keys are OMITTED, not defaulted, so the page can
@@ -65,6 +72,15 @@ function BriefRoute() {
   const searchParams = Route.useSearch();
   const artifacts = useSuspenseQuery(localBriefsQueryOptions()).data;
   const navigate = Route.useNavigate();
+  // Pending only while a navigation targeting another brief page runs its
+  // loader (revision links land on another briefId of the same route):
+  // leaving the page — including to the summary-preview subpath — never
+  // dims the brief.
+  const revisionPending = useRouterState({
+    select: (state) =>
+      state.status === "pending" &&
+      BRIEF_PATH_PATTERN.test(state.location.pathname),
+  });
   // Route-owned: the brief feature never touches the router.
   const exitChangesScope = useCallback(() => {
     void navigate({ search: (prev) => ({ ...prev, view: "full" as const }) });
@@ -75,6 +91,7 @@ function BriefRoute() {
       briefId={briefId}
       searchParams={searchParams}
       exitChangesScope={exitChangesScope}
+      revisionPending={revisionPending}
       key={briefId}
     />
   );

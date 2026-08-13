@@ -53,6 +53,8 @@ export interface PrBriefContentProps {
   /** Reviewer/verdict filter carried in the URL. */
   conversationFilter?: ConversationFilter | undefined;
   onConversationFilterChange?: ((next: ConversationFilter) => void) | undefined;
+  /** A revision navigation is in flight (router pending); route-owned. */
+  revisionPending?: boolean | undefined;
 }
 
 export function PrBriefContent({
@@ -71,6 +73,7 @@ export function PrBriefContent({
   conversationFocusThreadId,
   conversationFilter,
   onConversationFilterChange,
+  revisionPending,
 }: PrBriefContentProps) {
   const { t } = useTranslation();
   const brief = useSuspenseQuery(
@@ -207,6 +210,7 @@ export function PrBriefContent({
         exitChangesScope={exitChangesScope}
         ownDraft={ownDraft}
         readOnly={readOnly}
+        revisionPending={revisionPending}
         searchParams={searchParams}
         staleHead={staleHead}
         submitReview={submitAction}

@@ -110,6 +110,8 @@ export interface PrBriefBodyProps {
   /** Reviewer/verdict filter carried in the URL. */
   conversationFilter?: ConversationFilter | undefined;
   onConversationFilterChange?: ((next: ConversationFilter) => void) | undefined;
+  /** A revision navigation is in flight (router pending); route-owned. */
+  revisionPending?: boolean | undefined;
 }
 
 function PrBriefBodyState({
@@ -128,6 +130,7 @@ function PrBriefBodyState({
   conversationFocusThreadId,
   conversationFilter,
   onConversationFilterChange,
+  revisionPending,
 }: PrBriefBodyProps) {
   const { t } = useTranslation();
   const policyNotice = metaPolicyNotice(t, meta);
@@ -145,6 +148,7 @@ function PrBriefBodyState({
           readOnly={readOnly}
           repoId={repoId}
           revisionJump={revisionJump}
+          revisionPending={revisionPending}
           searchParams={searchParams}
           span={state.span}
           staleHead={staleHead}

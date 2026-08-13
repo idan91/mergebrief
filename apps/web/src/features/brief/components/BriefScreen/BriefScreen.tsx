@@ -56,6 +56,7 @@ import { ShortcutsModal } from "./ShortcutsModal/ShortcutsModal";
 import { StoryView } from "./StoryView/StoryView";
 import { SummaryPreviewDrawer } from "./SummaryPreviewDrawer/SummaryPreviewDrawer";
 import { SummarySection } from "./SummarySection/SummarySection";
+import { useDelayedPending } from "./useDelayedPending";
 import {
   useComparisonOverlay,
   type BriefComparisonPlan,
@@ -156,6 +157,12 @@ export interface BriefScreenProps {
    * the router; absent where no navigation is wired.
    */
   exitChangesScope?: (() => void) | undefined;
+  /**
+   * A revision navigation is in flight: the stale content stays visible but
+   * goes non-interactive (dim + inert, delayed so fast loads show nothing).
+   * The sticky header stays live — last click wins.
+   */
+  revisionPending?: boolean | undefined;
 }
 
 export function BriefScreen({
@@ -176,11 +183,13 @@ export function BriefScreen({
   exitChangesScope,
   ownDraft,
   readOnly,
+  revisionPending,
   staleHead,
   submitReview,
 }: BriefScreenProps) {
   const { t } = useTranslation();
   const attributeRail = useMemo(() => buildAttributeRail(model), [model]);
+  const pendingShown = useDelayedPending(revisionPending === true);
 
   // Comparison overlay: timeline, View/Compare resolution, and the active
   // baseline's marks/narrative/delta — see the hook.
@@ -460,13 +469,16 @@ export function BriefScreen({
 
   // Shortcuts stand down whenever an overlay holds focus (drawers/modals use
   // `inert`, which doesn't stop a window-level keydown listener on its own).
+  // Same hazard while a revision loads: the inert content region must not
+  // accept j/k or mark-viewed writes against the stale brief.
   const shortcutsDisabled =
     submitOpen ||
     summaryPreviewOpen ||
     markReady.gateOpen ||
     session.shortcutsOpen ||
     riskModalOpen ||
-    composerOpen;
+    composerOpen ||
+    pendingShown;
   useKeyboardShortcuts({
     chunkIds,
     groupBoundaries,
@@ -539,6 +551,7 @@ export function BriefScreen({
           comparisonPlan === undefined ? undefined : openSummaryPreview
         }
         controlsSlot={headerControls}
+        revisionPending={pendingShown}
         ownDraft={
           ownDraftActive
             ? {
@@ -558,6 +571,8 @@ export function BriefScreen({
           toggleFocusMode={toggleFocusMode}
         />
       ) : null}
+      {/* `inert`, not pointer-events: keyboard and AT must block too. The
+          header above stays live so the revision controls remain operable. */}
       <main
         className={
           session.layoutMode === "split" && viewMode === "story"
@@ -567,6 +582,9 @@ export function BriefScreen({
         id="main-content"
         tabIndex={-1}
         data-zen={focusMode ? "on" : undefined}
+        data-pending={pendingShown ? "" : undefined}
+        aria-busy={pendingShown || undefined}
+        inert={pendingShown || undefined}
       >
         {/* Region blocks render strictly off the legality derivation above —
             each block reads its own cell, nothing re-tests the axes. */}

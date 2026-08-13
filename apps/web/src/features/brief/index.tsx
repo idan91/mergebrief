@@ -22,6 +22,8 @@ export interface BriefPageProps {
   searchParams: BriefSearchParams;
   /** Navigates the Scope axis to `full`; route-owned. */
   exitChangesScope?: (() => void) | undefined;
+  /** A revision navigation is in flight (router pending); route-owned. */
+  revisionPending?: boolean | undefined;
 }
 
 /** Per-brief page over the LOCAL file-backed store: fetch, then render. */
@@ -30,6 +32,7 @@ export function BriefPage({
   briefId,
   searchParams,
   exitChangesScope,
+  revisionPending,
 }: BriefPageProps) {
   const brief = useSuspenseQuery(localBriefQueryOptions(briefId)).data;
   return (
@@ -39,6 +42,7 @@ export function BriefPage({
       briefId={briefId}
       searchParams={searchParams}
       exitChangesScope={exitChangesScope}
+      revisionPending={revisionPending}
     />
   );
 }

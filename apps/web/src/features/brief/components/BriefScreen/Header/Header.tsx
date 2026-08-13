@@ -98,6 +98,12 @@ export interface HeaderProps {
   controlsSlot?: ReactNode | undefined;
   /** Own-draft state; absent on every plain reviewer view. */
   ownDraft?: OwnDraftHeaderProps | undefined;
+  /**
+   * A revision load outlasted the pending delay: a small spinner rides next
+   * to the revision controls. Decorative — the content region's `aria-busy`
+   * carries the semantics.
+   */
+  revisionPending?: boolean | undefined;
 }
 
 // The product name — an identifier, never translated.
@@ -123,6 +129,7 @@ export function Header({
   openSummaryPreviewDrawer,
   controlsSlot,
   ownDraft,
+  revisionPending,
 }: HeaderProps) {
   const { t } = useTranslation();
   const headerRef = useRef<HTMLElement>(null);
@@ -305,6 +312,9 @@ export function Header({
             timeline={timeline}
           />
         )}
+        {revisionPending === true ? (
+          <span aria-hidden="true" className={styles["revisionSpinner"]} />
+        ) : null}
         {/* The three progress facts read as ONE object — hairline-divided
             cells instead of three floating text blocks. */}
         <div className={styles["detailsRegion"]}>

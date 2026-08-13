@@ -88,6 +88,12 @@ export interface BriefViewProps {
    * (local path, legacy rows, failed context fetch).
    */
   repoConfig?: RepoConfigContext | null | undefined;
+  /**
+   * A revision navigation is in flight: the content region dims and goes
+   * inert (delayed, so fast loads show nothing) while the header stays live.
+   * Route-owned; absent = never pending.
+   */
+  revisionPending?: boolean | undefined;
 }
 
 /**
@@ -112,6 +118,7 @@ export function BriefView({
   ownDraft,
   readOnly,
   repoConfig,
+  revisionPending,
   searchParams,
   staleHead,
   submitReview,
@@ -139,6 +146,7 @@ export function BriefView({
         exitChangesScope={exitChangesScope}
         ownDraft={ownDraft}
         readOnly={readOnly}
+        revisionPending={revisionPending}
         searchParams={searchParams}
         staleHead={staleHead}
         submitReview={submitReview}
