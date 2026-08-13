@@ -92,7 +92,6 @@ function BriefRoute() {
       searchParams={searchParams}
       exitChangesScope={exitChangesScope}
       revisionPending={revisionPending}
-      key={briefId}
     />
   );
 }

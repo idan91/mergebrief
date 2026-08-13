@@ -26,21 +26,6 @@ export interface DbTimelineNavigatorProps {
   onSelect: (point: DbTimelinePoint) => void;
 }
 
-/**
- * Identifies a control across the remount a selection causes — the brief
- * subtree is keyed by brief id, so these very nodes are destroyed and rebuilt
- * whenever the reviewer steps. Behavioral hook, not styling or test
- * selection; the route reads it to put focus back where the reviewer left it.
- */
-export const REVISION_NAV_CONTROL_ATTR = "data-revnav";
-
-/** The tokens `REVISION_NAV_CONTROL_ATTR` carries. */
-export const RevisionNavControls = {
-  PREVIOUS: "prev",
-  NEXT: "next",
-  PICKER: "picker",
-} as const;
-
 function shortSha(sha: string): string {
   return sha.slice(0, 7);
 }
@@ -93,7 +78,6 @@ export function DbTimelineNavigator({
       className={styles["timeline"]}
     >
       <button
-        data-revnav={RevisionNavControls.PREVIOUS}
         onKeyDown={stepFromNav}
         // Disabled state keeps a descriptive name — a bare arrow glyph is
         // meaningless to a screen reader.
@@ -112,7 +96,6 @@ export function DbTimelineNavigator({
       <label className={styles["picker"]}>
         <ScreenReaderOnly>{t("pulls.timeline.selectLabel")}</ScreenReaderOnly>
         <select
-          data-revnav={RevisionNavControls.PICKER}
           onKeyDown={stepFromNav}
           onChange={(event) => {
             const point = points[Number(event.target.value)];
@@ -137,7 +120,6 @@ export function DbTimelineNavigator({
         </select>
       </label>
       <button
-        data-revnav={RevisionNavControls.NEXT}
         onKeyDown={stepFromNav}
         aria-label={
           next

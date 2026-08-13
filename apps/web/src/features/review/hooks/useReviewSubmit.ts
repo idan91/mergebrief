@@ -3,6 +3,8 @@
 import { useTranslation } from "react-i18next";
 import { useCallback, useMemo, useRef, useState } from "react";
 
+import { useLatestRef } from "@web/hooks/useLatestRef";
+
 import type { ReviewComment } from "../utils/comments";
 import type { Receipt } from "../utils/receipt";
 import { markSnapshotCommentsSubmitted } from "../session";
@@ -135,6 +137,21 @@ export function useReviewSubmit(
   const [note, setNote] = useState<string | null>(null);
   // Synchronous double-click guard: state updates are async, a ref is not.
   const inFlight = useRef(false);
+  // The brief can change UNDER a live request now that the subtree survives
+  // revision steps: settle-time writes compare the click-time briefId against
+  // this live ref, and live-store/display writes stand down on a mismatch —
+  // ids collide across revisions, so an unguarded markSubmitted would flip
+  // the SUCCESSOR brief's colliding draft. The durable snapshot write is the
+  // originating brief's record and stays unconditional.
+  const currentBriefIdRef = useLatestRef(briefId);
+  // A previous revision's failure copy (or degradation note) must not render
+  // over the new one — same render-phase adjustment as the screen's resets.
+  const [displayBriefId, setDisplayBriefId] = useState(briefId);
+  if (displayBriefId !== briefId) {
+    setDisplayBriefId(briefId);
+    setError(null);
+    setNote(null);
+  }
 
   // The external block wins the display: it is transient, and the content
   // reasons re-surface once it clears.
@@ -172,8 +189,11 @@ export function useReviewSubmit(
     const reviewCommentAtClick = getReviewComment();
     // Failures land in the inline alert AND the page live region — the
     // drawer may be closed (inert) by the time the request settles.
+    const briefCurrent = () => currentBriefIdRef.current === briefId;
     const fail = (copy: string) => {
-      setError(copy);
+      // Announce regardless (the outcome concerns the reviewer wherever they
+      // are); render the inline copy only while the originating brief shows.
+      if (briefCurrent()) setError(copy);
       announce(copy);
     };
     void (async () => {
@@ -201,14 +221,19 @@ export function useReviewSubmit(
             // a comment-only review, never a repeat approval.
             const verdictDelivered = outcome !== "comment";
             try {
-              // Consume first: unlike the drafts (durable backstop below), a
-              // stale review-comment draft surviving a throw here would
-              // prefill the next submit with already-posted text.
-              consumeReviewComment(reviewCommentAtClick);
-              markSubmitted(draftIds);
-              recordSubmittedReview(result.reviewId);
-              if (verdictDelivered) {
-                resetOutcome();
+              // Live-store writes only while the store still holds the
+              // originating brief; after a switch the durable write below is
+              // the sole (and sufficient) record.
+              if (briefCurrent()) {
+                // Consume first: unlike the drafts (durable backstop below),
+                // a stale review-comment draft surviving a throw here would
+                // prefill the next submit with already-posted text.
+                consumeReviewComment(reviewCommentAtClick);
+                markSubmitted(draftIds);
+                recordSubmittedReview(result.reviewId);
+                if (verdictDelivered) {
+                  resetOutcome();
+                }
               }
               // Durable write too: the provider (and its persistence
               // subscriber) may have unmounted mid-flight, so live-store
@@ -229,7 +254,7 @@ export function useReviewSubmit(
             // their real threads.
             invalidateConversation?.();
             if (result.commentsDegraded) {
-              setNote(COPY.degradedNote);
+              if (briefCurrent()) setNote(COPY.degradedNote);
               announce(COPY.postedDegraded);
             } else {
               announce(COPY.posted);

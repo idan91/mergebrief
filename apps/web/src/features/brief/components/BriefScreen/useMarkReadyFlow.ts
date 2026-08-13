@@ -118,6 +118,15 @@ export function useMarkReadyFlow(
     current: number;
     total: number;
   } | null>(null);
+  // Brief switch without remount: the gate lists the OLD brief's flags and
+  // drafts — close it and drop the batch progress before the new brief paints.
+  const [gateBriefId, setGateBriefId] = useState(briefId);
+  if (gateBriefId !== briefId) {
+    setGateBriefId(briefId);
+    setMarkReadyGateOpen(false);
+    setPostDraftsOnReady(false);
+    setMarkReadyBatch(null);
+  }
 
   // Destructured because the hook returns a fresh object literal per render;
   // `markReady` and `pending` are the stable/primitive dep-safe members.

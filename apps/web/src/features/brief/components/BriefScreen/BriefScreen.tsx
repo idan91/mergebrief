@@ -299,6 +299,16 @@ export function BriefScreen({
   // Transient UI state stays local and colocated.
   const [submitOpen, setSubmitOpen] = useState(false);
   const [summaryPreviewOpen, setSummaryPreviewOpen] = useState(false);
+  // Brief switch without remount: screen-local overlay/jump state belongs to
+  // the old brief — adjust during render so the new brief never paints with
+  // an open submit surface or a queued jump against foreign ids.
+  const [screenBriefId, setScreenBriefId] = useState(briefId);
+  if (screenBriefId !== briefId) {
+    setScreenBriefId(briefId);
+    setSubmitOpen(false);
+    setSummaryPreviewOpen(false);
+    setPendingIntentJump(null);
+  }
 
   // The MODULE-LEVEL post-now registry's per-brief view. Module state, not
   // component state: a same-tab remount with the same briefId resets component
@@ -311,7 +321,7 @@ export function BriefScreen({
   // through chunk-/group-scoped selectors so the ChunkCard/GroupCard memo
   // boundaries keep their wins. Posture fields that affect first paint are
   // correct at creation; the late-derived rest syncs below the submit flow.
-  const flowStore = useCreateReviewFlowStore({
+  const flowStore = useCreateReviewFlowStore(briefId, {
     composerDisabledReason,
     flagsReadOnly: ownDraftActive,
     postingCommentIds,
@@ -595,6 +605,7 @@ export function BriefScreen({
                 it. */}
             {brief.intentCheck ? (
               <IntentBar
+                key={`intent-${briefId}`}
                 intentCheck={brief.intentCheck}
                 jumpToGroup={jumpToGroupFromIntentBar}
                 ref={intentBarRef}
@@ -605,6 +616,7 @@ export function BriefScreen({
 
         {blocks.groupToc ? (
           <GroupTocBar
+            key={`toc-${briefId}`}
             activeGroupId={session.activeGroupId}
             conversationGroupIds={conversationWiring.conversationGroupIds}
             groups={model.groups}
@@ -620,6 +632,7 @@ export function BriefScreen({
             trimmed variant (Filter + Risk attrs, chunk targets). */}
         {blocks.toolbar !== "none" ? (
           <ReadingToolbar
+            key={`toolbar-${briefId}`}
             variant={blocks.toolbar}
             activeGroupId={session.activeGroupId}
             comparison={comparison}
@@ -654,6 +667,7 @@ export function BriefScreen({
 
         {blocks.conversation && conversation !== undefined ? (
           <ConversationSection
+            key={`conversation-${briefId}`}
             briefId={briefId}
             chunks={readingOrderedChunks}
             filter={conversationFilter}
@@ -670,6 +684,7 @@ export function BriefScreen({
 
         {compareState.view === "changes" ? (
           <ChangesOnlyView
+            key={`changes-${briefId}`}
             compare={
               activeCompare === "last-review" ? "last-review" : "previous-brief"
             }

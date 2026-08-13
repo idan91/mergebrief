@@ -289,6 +289,18 @@ export function useReadingSession(
   const [activeChunkId, setActiveChunkId] = useState<string | null>(null);
   const [focusMode, setFocusMode] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  // Brief switch without remount: reading posture is per-brief and used to
+  // reset via the subtree remount — adjust during render so the new brief
+  // never paints with the old brief's open set, active chunk, or focus mode.
+  const [sessionBriefId, setSessionBriefId] = useState(briefId);
+  if (sessionBriefId !== briefId) {
+    setSessionBriefId(briefId);
+    setViewMode("story");
+    setOpenChunks(new Set(chunkIds));
+    setActiveChunkId(null);
+    setFocusMode(false);
+    setShortcutsOpen(false);
+  }
   const activeChunkIdRef = useLatestRef(activeChunkId);
   const focusModeRef = useLatestRef(focusMode);
   // markReviewed is a ChunkCard memo-boundary prop: reading reviewedChunks
@@ -392,6 +404,8 @@ export function useReadingSession(
       compareViewFull
       ? chunkIds
       : EMPTY_CHUNK_IDS,
+    undefined,
+    briefId,
   );
   useEffect(() => {
     if (scrollActiveChunkId) setActiveChunkId(scrollActiveChunkId);

@@ -248,13 +248,9 @@ describe("DB brief route — revision timeline", () => {
     await waitFor(() =>
       expect(searchRecord(router.state.location.search)["head"]).toBe("head-1"),
     );
-    // The subtree remounts, so focus must land on the REBUILT picker.
-    await waitFor(() =>
-      expect(document.activeElement?.getAttribute("data-revnav")).toBe(
-        "picker",
-      ),
-    );
-    expect(document.activeElement).not.toBe(picker);
+    // No remount: the subtree is no longer keyed by brief id, so the very
+    // node the reviewer operated keeps focus and stepping continues.
+    await waitFor(() => expect(document.activeElement).toBe(picker));
   });
 
   it("keeps focus on the arrow so a second press keeps stepping", async () => {
@@ -281,11 +277,8 @@ describe("DB brief route — revision timeline", () => {
     await waitFor(() =>
       expect(searchRecord(router.state.location.search)["head"]).toBe("head-2"),
     );
-    await waitFor(() =>
-      expect(document.activeElement?.getAttribute("data-revnav")).toBe("prev"),
-    );
-    expect(document.activeElement).not.toBe(prev);
-    // A different node, and pressing it again steps on.
+    // No remount: the same arrow keeps focus, and pressing it again steps on.
+    await waitFor(() => expect(document.activeElement).toBe(prev));
     fireEvent.click(
       screen.getByRole("button", { name: /previous revision, 1/i }),
     );
@@ -295,9 +288,10 @@ describe("DB brief route — revision timeline", () => {
     // Oldest revision: the arrow is aria-disabled, not hard-disabled, so
     // focus STAYS on it.
     await waitFor(() =>
-      expect(document.activeElement?.getAttribute("data-revnav")).toBe("prev"),
+      expect(document.activeElement?.getAttribute("aria-disabled")).toBe(
+        "true",
+      ),
     );
-    expect(document.activeElement?.getAttribute("aria-disabled")).toBe("true");
   });
 
   it("selects without resetting scroll — a revision is a lateral move", async () => {
@@ -565,7 +559,7 @@ describe("DB brief route — revision timeline", () => {
     });
 
     // ?head=&base= addresses the OLDER duplicate exactly…
-    await renderTimeline(
+    const router = await renderTimeline(
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=head-2&base=base-old`,
       metaValue,
     );
@@ -583,17 +577,15 @@ describe("DB brief route — revision timeline", () => {
     expect(
       screen.getAllByText(/generated against a superseded base/i).length,
     ).toBeGreaterThan(0);
-    // Same head, different base: the effect keys on the full span, and the
-    // subtree remounts, so focus lands on the REBUILT picker.
+    // Same head, different base: the selection resolves by full span, no
+    // remount — the operated picker keeps focus.
     picker.focus();
     expect(document.activeElement).toBe(picker);
     fireEvent.change(picker, { target: { value: "2" } });
     await waitFor(() =>
-      expect(document.activeElement?.getAttribute("data-revnav")).toBe(
-        "picker",
-      ),
+      expect(searchRecord(router.state.location.search)["base"]).toBeDefined(),
     );
-    expect(document.activeElement).not.toBe(picker);
+    expect(document.activeElement).toBe(picker);
     cleanup();
 
     // A BARE head resolves to the newest duplicate (backend at(-1) choice),

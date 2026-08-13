@@ -205,7 +205,6 @@ export function PrBriefContent({
         onConversationFilterChange={onConversationFilterChange}
         conversationFocusThreadId={conversationFocusThreadId}
         headerControls={headerControls}
-        key={briefId}
         openDeltaLens={openDeltaLens}
         exitChangesScope={exitChangesScope}
         ownDraft={ownDraft}

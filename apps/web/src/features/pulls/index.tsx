@@ -17,4 +17,3 @@ export {
   PullsSection,
   type PullsSectionProps,
 } from "./components/PullsSection/PullsSection";
-export { REVISION_NAV_CONTROL_ATTR } from "./components/PrBrief/PrBriefContent/DbBriefControls/DbTimelineNavigator/DbTimelineNavigator";

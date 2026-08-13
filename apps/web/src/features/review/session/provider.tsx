@@ -39,11 +39,23 @@ interface MindMapProviderProps {
   children: ReactNode;
 }
 
+/** The pending debounced persist write, reachable from the render-phase switch. */
+interface PendingPersist {
+  timer: number | undefined;
+}
+
 /**
  * Per-brief client runtime of the Mind-Map Space. The store is created once per
  * mount (never a module singleton), so it is SSR-safe and per-brief isolated,
  * mirroring the per-request queryClient. Hydration and persistence are the only
  * two effects that touch sessionStorage — client-only by construction.
+ *
+ * The provider is NOT remounted per brief: a revision change swaps `briefId`
+ * in place, and the render-phase switch below re-derives the store — flush the
+ * old brief's pending write, reset to the new model's derived state, hydrate
+ * the new brief's snapshot — before any child renders against the new model.
+ * An effect would be too late: one frame of the old brief's ids against the
+ * new model's flags/groups is a crash, not a flicker.
  */
 export function MindMapProvider({
   briefId,
@@ -54,29 +66,63 @@ export function MindMapProvider({
   const storeRef = useRef<MindMapStore | null>(null);
   storeRef.current ??= createMindMapStore(deriveInitialState(model));
   const store = storeRef.current;
+  const pendingPersist = useRef<PendingPersist>({ timer: undefined });
+  const mountedBriefId = useRef(briefId);
 
-  // Hydrate post-mount: the server render has no storage.
+  // Render-phase brief switch (guarded, so it runs once per change and never
+  // on the server, where briefId cannot change within the single render pass).
+  if (mountedBriefId.current !== briefId) {
+    const previousBriefId = mountedBriefId.current;
+    mountedBriefId.current = briefId;
+    // The old brief's last edit may still sit in the debounce window — flush
+    // it under the OLD id before the state below stops being that brief's.
+    if (pendingPersist.current.timer !== undefined) {
+      window.clearTimeout(pendingPersist.current.timer);
+      pendingPersist.current.timer = undefined;
+      writeSnapshot(serializeSnapshot(previousBriefId, store.getState()));
+    }
+    const persisted = snapshot ?? readSnapshot(briefId);
+    store.setState({
+      ...deriveInitialState(model),
+      ...(persisted ? snapshotToState(persisted) : {}),
+    });
+  }
+
+  // Hydrate post-mount: the server render has no storage. Also re-runs on a
+  // brief switch, where it re-applies what the render-phase switch already
+  // set — harmless, and it keeps first-mount hydration in one place.
   useEffect(() => {
     const persisted = snapshot ?? readSnapshot(briefId);
     if (persisted) store.setState(snapshotToState(persisted));
   }, [briefId, snapshot, store]);
 
   // One debounced effect persists the store to sessionStorage on every change.
+  // The timer handle lives in a ref so the render-phase switch above can flush
+  // a write the unmount cleanup would otherwise own.
   useEffect(() => {
-    let timer: number | undefined;
+    const pending = pendingPersist.current;
+    // Every write is gated on this closure's briefId still being current:
+    // the render-phase switch resets the store BEFORE this subscription is
+    // torn down, so an unguarded subscriber (or its cleanup flush) would
+    // persist the NEW brief's state under the OLD brief's key.
+    const current = () => mountedBriefId.current === briefId;
     const unsubscribe = store.subscribe((state) => {
-      window.clearTimeout(timer);
-      timer = window.setTimeout(
-        () => writeSnapshot(serializeSnapshot(briefId, state)),
-        PERSIST_DEBOUNCE_MS,
-      );
+      if (!current()) return;
+      window.clearTimeout(pending.timer);
+      pending.timer = window.setTimeout(() => {
+        pending.timer = undefined;
+        if (current()) writeSnapshot(serializeSnapshot(briefId, state));
+      }, PERSIST_DEBOUNCE_MS);
     });
     return () => {
       // Flush a pending debounced write so a last edit just before unmount
-      // (e.g. switching briefs, which remounts the provider) isn't dropped.
-      if (timer !== undefined) {
-        window.clearTimeout(timer);
-        writeSnapshot(serializeSnapshot(briefId, store.getState()));
+      // (leaving the brief page entirely) isn't dropped.
+      if (pending.timer !== undefined) {
+        window.clearTimeout(pending.timer);
+        pending.timer = undefined;
+        if (current()) {
+          writeSnapshot(serializeSnapshot(briefId, store.getState()));
+        }
       }
       unsubscribe();
     };

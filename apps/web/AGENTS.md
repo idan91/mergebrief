@@ -98,10 +98,10 @@ the DB-backed read + submit surface. Repo-wide TS rules live in the root
   `docs/plans/brief-84-px-to-rem.md`.
 - `data-testid` for test selection; `data-state`/`data-variant` for styling —
   CSS targets attributes, not toggled classes. Extracted components adopt
-  both at birth. A third category exists only where runtime behavior must
-  find a node across a remount (`data-revnav`): it carries an exported
-  constant and its own doc comment, never a bare literal, and never doubles
-  as a test or styling hook.
+  both at birth. A behavioral third category (an attribute runtime code
+  queries for) is allowed only with an exported constant and its own doc
+  comment, never a bare literal, and never doubling as a test or styling
+  hook — currently none exist.
 
 ## Async mutations against external systems (enforced)
 

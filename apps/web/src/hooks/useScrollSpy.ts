@@ -5,9 +5,15 @@ import { useEffect, useState } from "react";
  * reading line (default 150px from the top). Pass an empty list to disable.
  * Syncs with the scroll position — an external system — via one effect.
  */
-export function useScrollSpy(ids: string[], offset = 150): string | null {
+export function useScrollSpy(
+  ids: string[],
+  offset = 150,
+  resetKey = "",
+): string | null {
   const [activeId, setActiveId] = useState<string | null>(null);
-  const key = ids.join("\n");
+  // resetKey re-initialises the observer even when the id list is
+  // char-identical — positional ids (c1..cN) collide across brief revisions.
+  const key = `${resetKey}\n${ids.join("\n")}`;
 
   useEffect(() => {
     if (typeof window === "undefined" || ids.length === 0) return;

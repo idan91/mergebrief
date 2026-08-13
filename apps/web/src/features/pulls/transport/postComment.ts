@@ -75,7 +75,7 @@ function isPostedBody(
 // In-flight post registry — MODULE-LEVEL, keyed briefId × commentId.
 //
 // The in-flight window must outlive mounts: per-mount state resets on a
-// same-tab remount (BriefView is keyed by briefId) while the fetch closure
+// same-tab remount (e.g. a route re-entry) while the fetch closure
 // survives, so Submit review would ship the still-draft comment and the
 // settling 201 would flip it only afterwards — a duplicate on GitHub.
 // Components subscribe for re-render.

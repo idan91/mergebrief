@@ -84,9 +84,14 @@ export function StoryView(props: StoryViewProps) {
             }
           >
             <div className="group-chunks">
+              {/* File-qualified key: a DIFFERENT file landing on a reused
+                  positional id remounts clean. Same file + same id keeps the
+                  card (the common revision step), so chunk-subtree local
+                  state MUST be thread-id-scoped or gesture-transient — a
+                  chunk-/flag-id-keyed useState here would alias silently. */}
               {group.chunks.map((chunk) => (
                 <ChunkCard
-                  key={chunk.id}
+                  key={`${chunk.file}#${chunk.id}`}
                   active={props.activeChunkId === chunk.id}
                   chunk={chunk}
                   riskMeta={props.model.riskMetaByChunk.get(chunk.id)}
@@ -287,7 +292,7 @@ function FocusGroupRail({
                 <button
                   className={styles["railChunkButton"]}
                   data-current={chunk.id === activeChunkId ? "" : undefined}
-                  key={chunk.id}
+                  key={`${chunk.file}#${chunk.id}`}
                   type="button"
                   onClick={() => jumpToChunk(chunk.id)}
                 >

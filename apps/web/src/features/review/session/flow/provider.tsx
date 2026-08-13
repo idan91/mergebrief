@@ -28,6 +28,7 @@ const ReviewFlowContext = createContext<ReviewFlowStore | null>(null);
  * wiring) is only derivable AFTER hooks that need this store's `announce`.
  */
 export function useCreateReviewFlowStore(
+  briefId: string,
   initialPosture: ReviewFlowPosture,
 ): ReviewFlowStore {
   const sessionActions = useMindMapActions();
@@ -37,7 +38,25 @@ export function useCreateReviewFlowStore(
     initialPosture,
     (key) => appI18n.t(key),
   );
-  return storeRef.current;
+  const store = storeRef.current;
+  // Brief switch without remount: the ephemeral half (open composer, dismiss
+  // and evidence targets, submit note, flag selection, toast) is anchored to
+  // the OLD brief's ids and must not leak into the new one. Render-phase and
+  // guarded, like the MindMapProvider switch; the posture half re-syncs via
+  // useSyncReviewFlowPosture.
+  const mountedBriefId = useRef(briefId);
+  if (mountedBriefId.current !== briefId) {
+    mountedBriefId.current = briefId;
+    store.setState({
+      composerAnchor: null,
+      dismissTarget: null,
+      evidenceTarget: null,
+      reviewComment: "",
+      selectedRiskFlags: new Set(),
+      toast: "",
+    });
+  }
+  return store;
 }
 
 /**
