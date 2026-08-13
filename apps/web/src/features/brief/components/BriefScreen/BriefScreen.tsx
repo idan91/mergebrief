@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import type { TranslationKey } from "i18n";
 import {
+  memo,
   useCallback,
   useEffect,
   useMemo,
@@ -111,6 +112,25 @@ export interface OwnDraftPlan {
     anchor: CommentAnchor,
     body: string,
   ) => Promise<PostCommentResult>;
+}
+
+/**
+ * Render gate for a kept-warm lens tree: while `frozen`, the subtree is
+ * skipped entirely (stale DOM stays, display:none hides it), so a lens flip
+ * pays for ONE tree, not both. Store-subscribed descendants can still
+ * re-render themselves — the latches reset on a brief switch so a frozen
+ * pane never holds another brief's ids against a re-derived store.
+ */
+const LensPane = memo(
+  function LensPane({ children }: LensPaneProps) {
+    return children;
+  },
+  (_previous, next) => next.frozen,
+);
+
+export interface LensPaneProps {
+  frozen: boolean;
+  children: ReactNode;
 }
 
 export interface BriefScreenProps {
@@ -279,6 +299,12 @@ export function BriefScreen({
     null,
   );
   const inChangesScope = compareState.view === "changes";
+  // Monotonic first-show latches for the keep-warm lens trees below (ref
+  // mutation in render is safe here: idempotent, and never flips back).
+  const changesEverShownRef = useRef(false);
+  if (inChangesScope) changesEverShownRef.current = true;
+  const storyEverShownRef = useRef(false);
+  if (!inChangesScope && viewMode === "story") storyEverShownRef.current = true;
   useEffect(() => {
     if (pendingIntentJump === null || inChangesScope) return;
     jumpToGroup(pendingIntentJump);
@@ -308,6 +334,10 @@ export function BriefScreen({
     setSubmitOpen(false);
     setSummaryPreviewOpen(false);
     setPendingIntentJump(null);
+    // Keep-warm lens trees do NOT survive a brief switch: a frozen pane
+    // would hold the old brief's ids against the re-derived stores.
+    changesEverShownRef.current = false;
+    storyEverShownRef.current = false;
   }
 
   // The MODULE-LEVEL post-now registry's per-brief view. Module state, not
@@ -682,43 +712,60 @@ export function BriefScreen({
           />
         ) : null}
 
-        {compareState.view === "changes" ? (
-          <ChangesOnlyView
-            key={`changes-${briefId}`}
-            compare={
-              activeCompare === "last-review" ? "last-review" : "previous-brief"
-            }
-            brief={brief}
-            model={model}
-            narrative={narrative}
-            marks={marks}
-            skipReason={skipReason}
-            delta={delta}
-            rawSpanDiff={activeRawSpanDiff}
-          />
-        ) : viewMode === "story" ? (
-          <StoryView
-            brief={brief}
-            model={model}
-            comparison={comparison}
-            activeChunkId={activeChunkId}
-            focusMode={focusMode}
-            openDeltaLens={openDeltaLens}
-            sinceMarkers={sinceMarkers}
-            openChunks={session.openChunks}
-            addressedReviewComments={brief.reviewComments}
-            conversationByChunk={conversationWiring.conversationByChunk}
-            conversationComposer={conversationWiring.conversationComposer}
-            jumpToChunk={jumpToChunk}
-            markReviewed={session.markReviewed}
-            toggleChunk={session.toggleChunk}
-            {...(compareState.view === "full" && chunkIds.length > 0
-              ? { startReadThrough: session.startReadThrough }
-              : {})}
-          />
-        ) : (
+        {/* Lens trees stay MOUNTED once shown and toggle with `hidden`
+            (display:none — out of paint and the AT tree): the flip used to
+            remount the alternate tree, and mounting 300 chunk cards is the
+            entire lens lag. Kept warm only after first show, so a deep link
+            into one lens never pays for the other. */}
+        {changesEverShownRef.current ? (
+          <div hidden={!inChangesScope || undefined}>
+            <LensPane frozen={!inChangesScope}>
+              <ChangesOnlyView
+                key={`changes-${briefId}`}
+                compare={
+                  activeCompare === "last-review"
+                    ? "last-review"
+                    : "previous-brief"
+                }
+                brief={brief}
+                model={model}
+                narrative={narrative}
+                marks={marks}
+                skipReason={skipReason}
+                delta={delta}
+                rawSpanDiff={activeRawSpanDiff}
+              />
+            </LensPane>
+          </div>
+        ) : null}
+        {storyEverShownRef.current ? (
+          <div hidden={inChangesScope || viewMode !== "story" || undefined}>
+            <LensPane frozen={inChangesScope || viewMode !== "story"}>
+              <StoryView
+                brief={brief}
+                model={model}
+                comparison={comparison}
+                activeChunkId={activeChunkId}
+                focusMode={focusMode}
+                openDeltaLens={openDeltaLens}
+                sinceMarkers={sinceMarkers}
+                openChunks={session.openChunks}
+                addressedReviewComments={brief.reviewComments}
+                conversationByChunk={conversationWiring.conversationByChunk}
+                conversationComposer={conversationWiring.conversationComposer}
+                jumpToChunk={jumpToChunk}
+                markReviewed={session.markReviewed}
+                toggleChunk={session.toggleChunk}
+                {...(compareState.view === "full" && chunkIds.length > 0
+                  ? { startReadThrough: session.startReadThrough }
+                  : {})}
+              />
+            </LensPane>
+          </div>
+        ) : null}
+        {!inChangesScope && viewMode !== "story" ? (
           <ConcernView brief={brief} model={model} jumpToChunk={jumpToChunk} />
-        )}
+        ) : null}
       </main>
       {/* Submit-review machinery + receipt: HIDDEN (not broken) in the
           own-draft state, whose terminal action is mark-ready. None of these

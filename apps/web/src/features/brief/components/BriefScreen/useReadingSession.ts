@@ -70,6 +70,11 @@ function scrollElementToTop(
   element: HTMLElement,
   behavior: ScrollBehavior,
 ): void {
+  // A target inside a hidden kept-warm lens tree must no-op like
+  // scrollIntoView does natively on box-less elements — its zero rect would
+  // scroll to ~page top. Attribute check, not getClientRects: jsdom has no
+  // layout, so a rect check would also veto every legitimate test scroll.
+  if (element.closest("[hidden]") !== null) return;
   const top = Math.max(
     0,
     window.scrollY + element.getBoundingClientRect().top - focusScrollOffset(),

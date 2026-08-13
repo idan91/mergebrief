@@ -27,6 +27,7 @@ import { RiskChipDisclosure } from "../../RiskChipDisclosure/RiskChipDisclosure"
 import { RiskDetailList } from "../../RiskDetailList/RiskDetailList";
 import { SinceMarker } from "./SinceMarker/SinceMarker";
 import styles from "./GroupCard.module.scss";
+import { selectGroupReviewComments } from "./utils";
 
 const EMPTY_RISK_FLAGS: RiskFlag[] = [];
 
@@ -67,10 +68,40 @@ export const GroupCard = memo(function GroupCard({
   openDeltaLens,
 }: GroupCardProps) {
   const { t } = useTranslation();
-  const dispositions = useMindMap((state) => state.dispositions);
-  const dominants = useMindMap((state) => state.dominants);
-  const reclassifiedGroups = useMindMap((state) => state.reclassifiedGroups);
-  const reviewComments = useMindMap((state) => state.reviewComments);
+  const groupFlags = model.flagsByGroup.get(group.id) ?? EMPTY_RISK_FLAGS;
+  // GROUP-SCOPED store slices: whole-map subscriptions would re-render every
+  // card (in BOTH kept-warm lens trees) on any disposition/comment write
+  // anywhere in the brief. Each selector is primitive- or shallow-stable
+  // while this group's own slice is unchanged.
+  const dominant = useMindMap(
+    (state) => state.dominants[group.id] ?? group.group.dominantCategory,
+  );
+  const isReclassified = useMindMap((state) =>
+    state.reclassifiedGroups.has(group.id),
+  );
+  const groupDispositions = useMindMap(
+    useShallow((state) =>
+      groupFlags.map((flag) => state.dispositions[flag.id]),
+    ),
+  );
+  const dispositions = useMemo(() => {
+    const byId: Record<string, Disposition | undefined> = {};
+    groupFlags.forEach((flag, index) => {
+      byId[flag.id] = groupDispositions[index];
+    });
+    return byId;
+  }, [groupDispositions, groupFlags]);
+  // Evidence rendering needs comments this group can reference: anchored on
+  // its own chunks, plus any comment a flag's addressed evidence links.
+  const groupChunkIds = useMemo(
+    () => new Set(group.chunks.map((chunk) => chunk.id)),
+    [group.chunks],
+  );
+  const reviewComments = useMindMap(
+    useShallow((state) =>
+      selectGroupReviewComments(state, groupFlags, groupChunkIds),
+    ),
+  );
   const actions = useMindMapActions();
   const {
     announce,
@@ -84,8 +115,6 @@ export const GroupCard = memo(function GroupCard({
   // flags themselves stay fully visible.
   const flagsReadOnly = useReviewFlow((state) => state.flagsReadOnly);
 
-  const dominant = dominants[group.id] ?? group.group.dominantCategory;
-  const groupFlags = model.flagsByGroup.get(group.id) ?? EMPTY_RISK_FLAGS;
   // Selection-intersection subscription: this card re-renders only when the
   // selection WITHIN its own flags changes, not on any selection anywhere —
   // the GroupCard memo boundary's win.
@@ -102,7 +131,6 @@ export const GroupCard = memo(function GroupCard({
     () => new Set(selectedRiskFlags),
     [selectedRiskFlags],
   );
-  const isReclassified = reclassifiedGroups.has(group.id);
 
   function chooseDominant(category: Category) {
     actions.reclassifyGroup(group.id, category);
