@@ -13,6 +13,7 @@ import {
 import { useId, useState } from "react";
 
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
+import { ToolbarButton } from "@web/components/ToolbarButton/ToolbarButton";
 import {
   ConversationFilterPanel,
   type ConversationFilterPanelProps,
@@ -92,14 +93,12 @@ export function FilterDisclosure({
 
   return (
     <span className={styles["wrap"]}>
-      <button
+      <ToolbarButton
         aria-controls={open ? panelId : undefined}
         aria-expanded={open}
-        className={styles["trigger"]}
         data-state={active ? "active" : "inactive"}
         data-testid="conversation-filter-trigger"
         ref={refs.setReference}
-        type="button"
         {...getReferenceProps()}
       >
         {t("brief.toolbar.filterLabel")}
@@ -120,7 +119,7 @@ export function FilterDisclosure({
             ) : null}
           </span>
         ))}
-      </button>
+      </ToolbarButton>
       {open ? (
         /* Non-modal disclosure, not a dialog: focus stays on the trigger on
            open (initialFocus -1 — the default steals it into the panel), Tab

@@ -8,7 +8,9 @@ import {
   useState,
 } from "react";
 
+import { Chip } from "@web/components/Chip/Chip";
 import { ExpandableContent } from "@web/components/ExpandableContent/ExpandableContent";
+import { ToolbarButton } from "@web/components/ToolbarButton/ToolbarButton";
 import type { IntentCheck, IntentItem } from "../../../types";
 import styles from "./IntentBar.module.scss";
 
@@ -110,17 +112,16 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
           {item.groupIds.length > 0 ? (
             <span className={styles["jumps"]}>
               {item.groupIds.map((groupId) => (
-                <button
+                <Chip
                   className={styles["jump"]}
                   key={groupId}
-                  type="button"
                   onClick={() => jumpToGroup(groupId)}
                 >
                   {groupId}
                   <span aria-hidden="true" className={styles["jumpArrow"]}>
                     →
                   </span>
-                </button>
+                </Chip>
               ))}
             </span>
           ) : (
@@ -209,11 +210,10 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
 
     return (
       <section className={styles["bar"]} data-intent-bar="" ref={sectionRef}>
-        <button
+        <ToolbarButton
           aria-controls={panelId}
           aria-expanded={open}
           className={styles["toggle"]}
-          type="button"
           onClick={() => setOpen((value) => !value)}
         >
           <span
@@ -279,7 +279,7 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
               })}
             </span>
           )}
-        </button>
+        </ToolbarButton>
         <div className={styles["panel"]} hidden={!open} id={panelId}>
           <ExpandableContent
             collapseLabel={t("brief.intent.collapseLabel")}

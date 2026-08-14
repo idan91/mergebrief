@@ -23,6 +23,7 @@ import { estimateChunkCardHeight } from "../chunkHeightModel";
 import { useChunkWindows } from "../chunkWindows";
 import { CHUNK_WINDOW_INDEX_ATTR, useGroupWindow } from "../useGroupWindow";
 import { Button } from "@web/components/Button/Button";
+import { ToolbarButton } from "@web/components/ToolbarButton/ToolbarButton";
 import styles from "./StoryView.module.scss";
 
 const EMPTY_ADDRESSED_REVIEW_COMMENTS: AddressedReviewComment[] = [];
@@ -336,7 +337,7 @@ function FocusGroupRail({
       className={`${styles["focusRail"]} focus-group-rail`}
       data-state={open ? "open" : "collapsed"}
     >
-      <button
+      <ToolbarButton
         aria-controls={panelId}
         aria-expanded={open}
         aria-label={
@@ -345,7 +346,6 @@ function FocusGroupRail({
             : t("brief.story.ariaLabelExpandContext")
         }
         className={styles["railToggle"]}
-        type="button"
         onClick={() => setOpen(!open)}
       >
         <span className={styles["railToggleText"]}>
@@ -356,7 +356,7 @@ function FocusGroupRail({
         <span aria-hidden="true" className={styles["railToggleMark"]}>
           {open ? "−" : "+"}
         </span>
-      </button>
+      </ToolbarButton>
       {open ? (
         <div className={styles["railPanel"]} id={panelId}>
           {/* Fixed header: everything above the stats divider stays put;

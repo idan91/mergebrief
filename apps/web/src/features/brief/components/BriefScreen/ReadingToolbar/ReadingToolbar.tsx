@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import type { ValueOf } from "types";
 
 import { IconButton } from "@web/components/IconButton/IconButton";
+import { ToolbarButton } from "@web/components/ToolbarButton/ToolbarButton";
 import type { RevisionNavigation } from "../../../hooks/useRevisionNavigation";
 import type { ComparisonOverlayState } from "../../../comparison/comparisonOverlay";
 import type { AttributeRail } from "../../../utils/viewModel";
@@ -159,10 +160,8 @@ export function ReadingToolbar({
           wayfinding. */}
       {variant === "filter-and-attrs" ? null : (
         <div className={styles["navCluster"]}>
-          <button
+          <ToolbarButton
             aria-pressed={COLLAPSE_PRESSED[supportingCollapse]}
-            className={styles["tbtn"]}
-            type="button"
             onClick={toggleCollapseSupporting}
           >
             {/* CSS swaps which label renders; the accessible name follows
@@ -173,7 +172,7 @@ export function ReadingToolbar({
             <span className={styles["labelLong"]}>
               {t("brief.toolbar.collapseLong")}
             </span>
-          </button>
+          </ToolbarButton>
           {groups.length > 0 ? (
             <span
               aria-label={t("brief.toolbar.ariaLabelGroupStepper")}

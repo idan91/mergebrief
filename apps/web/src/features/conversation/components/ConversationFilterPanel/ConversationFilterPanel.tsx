@@ -14,6 +14,7 @@
 // lives in the URL, so this component is pure props.
 import { useTranslation } from "react-i18next";
 import { Button } from "@web/components/Button/Button";
+import { Chip } from "@web/components/Chip/Chip";
 import { Checkbox } from "@web/components/Checkbox/Checkbox";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import {
@@ -100,10 +101,8 @@ export function ConversationFilterPanel({
           <ul className={styles["chips"]}>
             {chips.map((facet) => (
               <li key={facet.state}>
-                <button
-                  aria-pressed={filter.verdicts.has(facet.state)}
-                  className={styles["chip"]}
-                  type="button"
+                <Chip
+                  pressed={filter.verdicts.has(facet.state)}
                   onClick={() =>
                     onChange(withVerdictSelection(filter, facet.state))
                   }
@@ -118,7 +117,7 @@ export function ConversationFilterPanel({
                   <ScreenReaderOnly>
                     {` — ${facet.humanCount} from people, ${facet.botCount} from bots; filters the conversation`}
                   </ScreenReaderOnly>
-                </button>
+                </Chip>
               </li>
             ))}
           </ul>
@@ -217,11 +216,10 @@ interface ReviewerChipProps {
 function ReviewerChip({ filter, reviewer, onChange }: ReviewerChipProps) {
   const { t } = useTranslation();
   return (
-    <button
-      aria-pressed={filter.reviewers.has(reviewer.login)}
+    <Chip
       className={styles["chip"]}
       data-bot={reviewer.isBot || undefined}
-      type="button"
+      pressed={filter.reviewers.has(reviewer.login)}
       onClick={() => onChange(withReviewerSelection(filter, reviewer.login))}
     >
       @{reviewer.login}
@@ -229,6 +227,6 @@ function ReviewerChip({ filter, reviewer, onChange }: ReviewerChipProps) {
         <span className={rowStyles["botTag"]}>{t("conversation.botTag")}</span>
       ) : null}
       <ScreenReaderOnly>{t("conversation.srFiltersToAuthor")}</ScreenReaderOnly>
-    </button>
+    </Chip>
   );
 }

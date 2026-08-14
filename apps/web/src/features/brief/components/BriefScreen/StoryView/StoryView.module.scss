@@ -45,11 +45,14 @@
     min-inline-size: 0;
   }
 
+  // Rail skin on ToolbarButton's box: bigger, filled, space-between.
   .railToggle {
     display: flex;
     flex: none;
     align-items: center;
     justify-content: space-between;
+    gap: 0;
+    white-space: normal;
     min-block-size: functions.to-rem(40px);
     padding-block: functions.to-rem(8px);
     padding-inline: functions.to-rem(10px);
@@ -65,9 +68,19 @@
       border-color 0.15s,
       color 0.15s;
 
-    &:hover {
+    &:hover,
+    &[aria-expanded="true"]:hover {
       border-color: color-mix(in srgb, var(--line2) 60%, var(--text));
+      background: var(--panel2);
       color: var(--text);
+    }
+
+    /* Re-pin at ToolbarButton's state-selector specificity: open keeps the
+       resting rail skin. */
+    &[aria-expanded="true"] {
+      border-color: var(--line2);
+      background: var(--panel2);
+      color: var(--dim);
     }
   }
 

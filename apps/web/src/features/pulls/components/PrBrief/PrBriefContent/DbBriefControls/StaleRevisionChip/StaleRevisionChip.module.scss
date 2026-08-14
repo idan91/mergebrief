@@ -13,36 +13,16 @@
     background: currentcolor;
   }
 
-  // Amber: blue is the SELECTED colour, so a notice in it competes.
+  // Header-slot deltas on Chip's warning chrome: tighter box, md radius,
+  // sans sm label.
   .chip {
-    display: inline-flex;
-    align-items: center;
-    gap: functions.to-rem(6px);
-    min-block-size: functions.to-rem(24px);
-    padding-block: functions.to-rem(3px);
+    min-height: functions.to-rem(24px);
     padding-inline: functions.to-rem(8px);
     border-radius: var(--radius-md);
-    background: color-mix(in srgb, var(--amber) 18%, transparent);
-    border: 1px solid color-mix(in srgb, var(--amber) 45%, transparent);
-    color: var(--text);
+    font-family: var(--sans);
     font-size: var(--font-size-sm);
+    letter-spacing: normal;
     white-space: nowrap;
-    cursor: pointer;
-
-    @include mixins.focus-visible;
-
-    &:hover {
-      background: color-mix(in srgb, var(--amber) 26%, transparent);
-    }
-
-    // No action, so it stops looking pressable.
-    &[data-static] {
-      cursor: default;
-
-      &:hover {
-        background: color-mix(in srgb, var(--amber) 18%, transparent);
-      }
-    }
   }
 
   .action {

@@ -1,0 +1,63 @@
+@use "functions";
+
+@layer components {
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: functions.to-rem(6px);
+    min-height: functions.to-rem(26px);
+    padding-block: functions.to-rem(3px);
+    padding-inline: functions.to-rem(10px);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-pill);
+    background: var(--color-surface-2);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: var(--font-size-md);
+    letter-spacing: 0.02em;
+
+    /* Only the button branch is pressable. */
+    &:is(button) {
+      cursor: pointer;
+
+      &:hover {
+        border-color: var(--color-text-4);
+      }
+    }
+
+    /* Accent-tinted fill plus a check glyph: surface-3 alone was nearly
+       indistinguishable from the resting chip. The glyph is decorative —
+       aria-pressed carries the state. */
+    &[aria-pressed="true"] {
+      border-color: var(--color-accent);
+      background: color-mix(
+        in srgb,
+        var(--color-accent) 18%,
+        var(--color-surface-2)
+      );
+      color: var(--text);
+
+      &::before {
+        content: "✓ ";
+        color: var(--color-accent);
+      }
+    }
+
+    /* Amber, not blue: blue is the SELECTED colour, so a notice in it
+       competes. Amber stays on the frame; the label keeps --text. */
+    &[data-tone="warning"] {
+      border-color: color-mix(in srgb, var(--amber) 45%, transparent);
+      background: color-mix(in srgb, var(--amber) 18%, transparent);
+
+      &:is(button):hover {
+        border-color: color-mix(in srgb, var(--amber) 45%, transparent);
+        background: color-mix(in srgb, var(--amber) 26%, transparent);
+      }
+    }
+
+    &[aria-disabled="true"] {
+      color: var(--dim);
+      cursor: default;
+    }
+  }
+}

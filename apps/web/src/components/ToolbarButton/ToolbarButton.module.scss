@@ -1,0 +1,51 @@
+@use "functions";
+
+@layer components {
+  .toolbarButton {
+    display: inline-flex;
+    align-items: center;
+    gap: functions.to-rem(7px);
+    min-block-size: functions.to-rem(24px);
+    padding-block: functions.to-rem(4px);
+    padding-inline: functions.to-rem(11px);
+    border: 1px solid var(--line);
+
+    /* Concentric with the toolbar: inner (sm 4) + inset (4) = outer (md 8). */
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--dim);
+    cursor: pointer;
+    font: inherit;
+    font-size: var(--font-size-md);
+    white-space: nowrap;
+
+    &:hover {
+      border-color: var(--line2);
+      color: var(--text);
+    }
+
+    &[aria-expanded="true"] {
+      border-color: var(--line2);
+      background: var(--panel);
+      color: var(--text);
+    }
+
+    /* Pressed/active = accent-tinted fill; a neutral --panel fill on the
+       --bg bar is near-invisible. The luminance shift survives greyscale,
+       so the cue is not colour-alone. */
+    &[aria-pressed="true"],
+    &[data-state="active"] {
+      border-color: color-mix(in srgb, var(--color-accent) 55%, var(--line));
+      background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+      color: var(--text);
+    }
+
+    /* Mixed: dashed border carries the state without colour. */
+    &[aria-pressed="mixed"] {
+      border-color: color-mix(in srgb, var(--color-accent) 55%, var(--line));
+      border-style: dashed;
+      background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+      color: var(--text);
+    }
+  }
+}

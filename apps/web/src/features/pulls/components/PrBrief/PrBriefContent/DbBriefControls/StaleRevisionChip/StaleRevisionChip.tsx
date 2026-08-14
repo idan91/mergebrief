@@ -2,6 +2,7 @@
 // survives scrolling; the banner it replaces did not.
 import { useTranslation } from "react-i18next";
 
+import { Chip } from "@web/components/Chip/Chip";
 import styles from "./StaleRevisionChip.module.scss";
 
 export interface StaleRevisionChipProps {
@@ -19,26 +20,27 @@ export function StaleRevisionChip({ onGoToNewest }: StaleRevisionChipProps) {
   );
   if (onGoToNewest === undefined) {
     return (
-      <span
+      <Chip
+        as="span"
         className={styles["chip"]}
-        data-static=""
         data-testid="stale-revision-chip"
         title={t("pulls.staleChip.title")}
+        tone="warning"
       >
         {label}
-      </span>
+      </Chip>
     );
   }
   return (
-    <button
+    <Chip
       className={styles["chip"]}
       data-testid="stale-revision-chip"
-      onClick={onGoToNewest}
       title={t("pulls.staleChip.title")}
-      type="button"
+      tone="warning"
+      onClick={onGoToNewest}
     >
       {label}
       <span className={styles["action"]}>{t("pulls.staleChip.action")}</span>
-    </button>
+    </Chip>
   );
 }

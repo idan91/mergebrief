@@ -32,33 +32,29 @@
 
   // Style-reset base: the warnings chip is a real button (it opens the
   // panel) wearing the amber pill's visuals.
-  .chipReset {
-    display: inline-flex;
-    flex: none;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    cursor: pointer;
-
-    @include mixins.focus-visible;
-  }
-
   // Fixed height + middle alignment so the chip can't inflate the identity
-  // row.
+  // row; amber label + quieter fill on Chip's warning chrome.
   .warningsChip {
-    display: inline-flex;
     flex: none;
-    align-items: center;
     gap: functions.to-rem(5px);
+    min-height: 0;
     block-size: functions.to-rem(20px);
+    padding-block: 0;
     padding-inline: functions.to-rem(9px);
-    border: 1px solid color-mix(in srgb, var(--amber) 40%, transparent);
-    border-radius: var(--radius-pill);
-    background: color-mix(in srgb, var(--amber) 8%, transparent);
     color: var(--amber);
+    font-family: var(--sans);
     font-size: var(--font-size-md);
+    letter-spacing: normal;
     vertical-align: middle;
     white-space: nowrap;
+
+    /* Re-pins at Chip's tone-selector specificity: the quieter 40/8 amber
+       is this chip's look, hover included (it never had one). */
+    &[data-tone="warning"],
+    &[data-tone="warning"]:is(button):hover {
+      border-color: color-mix(in srgb, var(--amber) 40%, transparent);
+      background: color-mix(in srgb, var(--amber) 8%, transparent);
+    }
   }
 
   .panel {

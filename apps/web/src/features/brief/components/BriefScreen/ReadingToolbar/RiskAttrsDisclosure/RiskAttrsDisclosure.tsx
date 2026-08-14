@@ -13,6 +13,7 @@ import {
 import { useId, useState } from "react";
 
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
+import { ToolbarButton } from "@web/components/ToolbarButton/ToolbarButton";
 import { RiskBadge } from "../../RiskBadge/RiskBadge";
 import type { AttributeRail } from "../../../../utils/viewModel";
 import styles from "./RiskAttrsDisclosure.module.scss";
@@ -76,12 +77,10 @@ export function RiskAttrsDisclosure({
 
   return (
     <span className={styles["wrap"]}>
-      <button
+      <ToolbarButton
         aria-controls={open ? panelId : undefined}
         aria-expanded={open}
-        className={styles["trigger"]}
         ref={refs.setReference}
-        type="button"
         {...getReferenceProps()}
       >
         {rail.floorFired ? (
@@ -104,7 +103,7 @@ export function RiskAttrsDisclosure({
         {rail.floorFired ? (
           <ScreenReaderOnly>{t("brief.toolbar.srFloorFired")}</ScreenReaderOnly>
         ) : null}
-      </button>
+      </ToolbarButton>
       {open ? (
         /* Non-modal disclosure, not a dialog: focus stays on the trigger on
            open (initialFocus -1 — the default steals it into the panel), Tab

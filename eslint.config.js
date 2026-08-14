@@ -166,6 +166,7 @@ export default [
               "variant",
               "size",
               "density",
+              "tone",
               "state",
               "side",
               "anchor",

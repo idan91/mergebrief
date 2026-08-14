@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { Callout } from "@web/components/Callout/Callout";
+import { Chip } from "@web/components/Chip/Chip";
 import { IconButton } from "@web/components/IconButton/IconButton";
 import type { Brief } from "../../../../types";
 import type { RepoConfigContext } from "../../../../utils/repoConfig";
@@ -160,20 +161,20 @@ export function BriefDetailsPanel({
         // Opens the SAME panel, landed on the warnings block. A landed-open
         // chip click closes again — a button announcing aria-expanded must
         // collapse on activation.
-        <button
+        <Chip
           aria-controls={open ? detailId : undefined}
           aria-expanded={open && landing === "warnings"}
-          className={`${styles["chipReset"]} ${styles["warningsChip"]}`}
+          className={styles["warningsChip"]}
           data-generation-warnings-chip=""
           ref={chipRef}
-          type="button"
+          tone="warning"
           onClick={() =>
             open && landing === "warnings" ? close() : openOnWarnings()
           }
         >
           <span aria-hidden="true">⚠</span>
           <span>{t("brief.details.warnings", { count: warnings.length })}</span>
-        </button>
+        </Chip>
       ) : null}
     </>
   );
