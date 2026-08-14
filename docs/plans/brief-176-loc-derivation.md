@@ -120,8 +120,12 @@ The A+C verdict, from the prototype recipes (ticket "Prototype verdict"):
   Prototype snapshot: scratchpad `brief-176-prototype.patch` +
   `UnattributedPrototype-ref/` (session 4a17dc2f).
 
+- **/impeccable audit rides this PR**: after the UI is render-proofed, the
+  agent runs the impeccable audit on the rendered header + banner (fixture
+  harness) and applies its findings to this branch before handoff.
 - Est. ~450–800 LOC. Model: **Fable 5, high** (UI polish + a11y). Skills:
-  `web-accessibility`, `verify` after merge-ready. Main thread, after PR 3.
+  `web-accessibility`, `impeccable`, `verify` after merge-ready. Main thread,
+  after PR 3.
 
 ## End-of-stack, pre-merge (optional, Idan-run)
 
@@ -132,7 +136,6 @@ The A+C verdict, from the prototype recipes (ticket "Prototype verdict"):
 
 ## Post-merge owes
 
-- **/impeccable audit** on the rendered header + banner (explicitly owed).
 - Eval rebaseline on main where the scoped runs legitimately moved.
 - Delete this plan's prototype snapshot from scratchpad once PR 4 lands.
 
