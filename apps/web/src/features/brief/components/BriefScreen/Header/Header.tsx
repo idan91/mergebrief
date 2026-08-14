@@ -21,6 +21,7 @@ import type { RepoConfigContext } from "../../../utils/repoConfig";
 import type { Brief, LivePrState } from "../../../types";
 import type { BriefViewModel } from "../../../utils/viewModel";
 import type { LensControlState, ViewMode } from "../modeLegality";
+import { AccessibleLink } from "@web/components/AccessibleLink/AccessibleLink";
 import { Button } from "@web/components/Button/Button";
 import { IconButton } from "@web/components/IconButton/IconButton";
 import { MenuItem } from "@web/components/MenuItem/MenuItem";
@@ -216,14 +217,13 @@ export function Header({
           <span className={styles["repoRef"]}>
             <b>{brief.pr.repo}</b>{" "}
             {prLink ? (
-              <a
+              <AccessibleLink
                 className={styles["ghlink"]}
                 href={prLink}
                 target="_blank"
-                rel="noreferrer"
               >
                 #{brief.pr.number} ↗
-              </a>
+              </AccessibleLink>
             ) : (
               <span>#{brief.pr.number}</span>
             )}
@@ -467,6 +467,7 @@ function SelfReviewChip() {
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
+        {/* eslint-disable-next-line no-restricted-syntax -- tooltip anchor (cursor: help, no onClick): not an action */}
         <button
           aria-describedby={tooltipId}
           aria-label={t("brief.header.ariaLabelAboutSelfReview")}
@@ -571,7 +572,7 @@ function HeaderMenu({
     // Coordination wrapper, not an interactive element itself: the handler
     // only closes/steers the menu; the interactive semantics live on the
     // trigger and the menuitems inside.
-    // eslint-disable-next-line jsx-a11y/no-static-element-interactions
+    // oxlint-disable-next-line jsx-a11y/no-static-element-interactions
     <div className={styles["menuWrap"]} ref={wrapRef} onKeyDown={onWrapKeyDown}>
       <IconButton
         aria-controls={open ? menuId : undefined}

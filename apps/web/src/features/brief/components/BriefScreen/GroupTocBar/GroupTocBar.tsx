@@ -124,6 +124,7 @@ export function GroupTocBar({
           hasConversation ? t("brief.toc.srHasConversation") : ""
         }`;
         return (
+          // eslint-disable-next-line no-restricted-syntax -- mini-map tick with a pseudo-element hit area
           <button
             data-conversation={hasConversation ? "" : undefined}
             key={group.id}

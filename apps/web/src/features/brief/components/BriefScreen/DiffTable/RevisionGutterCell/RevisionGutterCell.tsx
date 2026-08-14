@@ -1,4 +1,4 @@
-/* eslint-disable jsx-a11y/control-has-associated-label --
+/* oxlint-disable jsx-a11y/control-has-associated-label --
    The gutter <td> only carries mouse-hover handlers for the rail preview
    (decorative); the accessible, labelled control is the jump button inside
    it, which exposes the same preview via onFocus. */
@@ -39,6 +39,7 @@ export function RevisionGutterCell({
       onMouseEnter={(e) => onRailEnter(run, e.currentTarget)}
     >
       {isStart ? (
+        // eslint-disable-next-line no-restricted-syntax -- invisible gutter overlay: the hit area is not the visual element
         <button
           className={styles["railButton"]}
           // CSS-module classnames are hashed at build time, so jump-nav

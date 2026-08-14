@@ -202,17 +202,4 @@
     color: var(--error-text);
     font-size: var(--font-size-lg);
   }
-
-  .srOnly {
-    position: absolute;
-    overflow: hidden;
-    width: 1px;
-    height: 1px;
-    /* stylelint-disable-next-line declaration-property-value-allowed-list -- sr-only clip technique: the -1px margin must stay a physical pixel, never scale (matches base.scss) */
-    margin: -1px;
-    padding: 0;
-    border: 0;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
 }

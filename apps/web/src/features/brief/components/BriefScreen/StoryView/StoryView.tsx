@@ -459,6 +459,7 @@ function FocusGroupRail({
                 {t("brief.story.railChunks")}
               </div>
               {group.chunks.map((chunk) => (
+                // eslint-disable-next-line no-restricted-syntax -- multi-line card-as-button: arbitrary block content
                 <button
                   className={styles["railChunkButton"]}
                   data-current={chunk.id === activeChunkId ? "" : undefined}

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { renderHook } from "@testing-library/react";
+import { cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -177,6 +177,9 @@ function renderNavigation(
 
 describe("useRevisionNavigation", () => {
   afterEach(() => {
+    // Unmount first: the hook's rAF poll must stop before the environment
+    // tears down, or a leaked frame hits CSS.escape on a dead global.
+    cleanup();
     document.body.innerHTML = "";
   });
 

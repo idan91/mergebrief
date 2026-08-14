@@ -51,6 +51,7 @@ export function ConcernView({ brief, model, jumpToChunk }: ConcernViewProps) {
             <div className={styles["files"]}>
               {chunks.map((chunk) => (
                 <Fragment key={chunk.id}>
+                  {/* eslint-disable-next-line no-restricted-syntax -- whole-row jump target styled by the row: arbitrary block content */}
                   <button type="button" onClick={() => jumpToChunk(chunk.id)}>
                     {chunk.file}{" "}
                     <span className={styles["fileLoc"]}>

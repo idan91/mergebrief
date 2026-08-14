@@ -3,6 +3,7 @@
 // parent keys this component by the span descriptor, so switching compare lens
 // or revision resets it to off. The whole-PR diff is fetched lazily.
 import { useTranslation } from "react-i18next";
+import { ToolbarButton } from "@web/components/ToolbarButton/ToolbarButton";
 import type { TranslationKey } from "i18n";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState, type ReactNode } from "react";
@@ -82,14 +83,13 @@ export function RawSpanDiff({ query, children }: RawSpanDiffProps) {
       <div className={styles["toolbar"]}>
         {/* Toggle-button contract: the accessible NAME stays stable across
             presses; only aria-pressed flips. */}
-        <button
+        <ToolbarButton
           aria-pressed={raw.showRaw}
           className={styles["toggle"]}
           onClick={raw.toggle}
-          type="button"
         >
           {t("brief.diff.rawToggle")}
-        </button>
+        </ToolbarButton>
       </div>
       {raw.showRaw ? <RawSpanDiffBody state={raw} /> : children}
     </div>

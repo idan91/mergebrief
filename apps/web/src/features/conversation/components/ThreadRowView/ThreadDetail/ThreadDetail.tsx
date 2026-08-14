@@ -189,18 +189,10 @@ export function ThreadDetail({
           </Button>
         ) : null}
         <RevisionJumpAction jump={composer.revisionJump} thread={thread} />
+        {/* AccessibleLink under as="a" announces the new tab itself. */}
         {rootCommentUrl !== undefined ? (
-          <Button
-            as="a"
-            href={rootCommentUrl}
-            rel="noreferrer"
-            target="_blank"
-            variant="quiet"
-          >
+          <Button as="a" href={rootCommentUrl} target="_blank" variant="quiet">
             {t("conversation.viewOnGithub")}
-            <span className={rowStyles["srOnly"]}>
-              {t("conversation.srOpensNewTab")}
-            </span>
           </Button>
         ) : null}
       </div>

@@ -1,4 +1,7 @@
 {
+  "a11y": {
+    "opensInNewTab": " (opens in a new tab)"
+  },
   "errors": {
     "unauthorized": "unauthorized",
     "invalid-signature": "invalid signature",
@@ -741,7 +744,6 @@
     "longerThread": "Longer thread — the rest is on GitHub.",
     "jumpToComment": "Jump to comment",
     "viewOnGithub": "View on GitHub",
-    "srOpensNewTab": " (opens in a new tab)",
     "resolved": "resolved",
     "comments_one": "{{count}} comment",
     "comments_other": "{{count}} comments",

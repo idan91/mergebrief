@@ -142,7 +142,7 @@ export function ReplyComposer({
       }
     };
     // Mount/unmount only — the refs carry current values.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const persist = () => {
     if (dirtyRef.current && local !== draftRef.current) {

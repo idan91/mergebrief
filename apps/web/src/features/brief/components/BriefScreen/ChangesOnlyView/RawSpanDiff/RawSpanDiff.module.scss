@@ -11,19 +11,25 @@
     justify-content: flex-end;
   }
 
+  /* Raw-toggle deltas on ToolbarButton's box: filled, roomier, lg label —
+     re-pinned at the box's state-selector specificity. */
   .toggle {
     padding-block: functions.to-rem(6px);
     padding-inline: functions.to-rem(12px);
-    border: 1px solid var(--line);
     border-radius: var(--radius-md);
     background: var(--panel2);
-    color: var(--dim);
     font-size: var(--font-size-lg);
     font-weight: 500;
-    cursor: pointer;
+    white-space: normal;
 
-    &[aria-pressed="true"] {
+    &:hover {
+      background: var(--panel2);
+    }
+
+    &[aria-pressed="true"],
+    &[aria-pressed="true"]:hover {
       border-color: var(--accent);
+      background: var(--panel2);
       color: var(--text);
     }
   }

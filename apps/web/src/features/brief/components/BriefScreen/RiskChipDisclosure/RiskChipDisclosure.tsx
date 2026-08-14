@@ -59,6 +59,7 @@ export function RiskChipDisclosure({
         if (event.pointerType === "mouse") setAnchor(event.currentTarget);
       }}
     >
+      {/* eslint-disable-next-line no-restricted-syntax -- reset wrapper making the inner chip interactive: component chrome would double it */}
       <button
         aria-controls={anchor ? detailId : undefined}
         aria-describedby={anchor ? detailId : undefined}

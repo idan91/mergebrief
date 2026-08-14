@@ -101,7 +101,7 @@ export function Modal({
     >
       {/* The keydown is the dialog's Tab TRAP, not an interactive behavior:
           the box only steers focus among the real controls inside it. */}
-      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
+      {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
         className={clsx(styles["box"], boxClassName)}
         ref={boxRef}

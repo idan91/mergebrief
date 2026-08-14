@@ -128,7 +128,9 @@ describe("IntentBar", () => {
   it("links a valid http(s) source and attributes an empty sourceUrl to the PR description", () => {
     render(<IntentBar intentCheck={PRECISE} jumpToGroup={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
-    const link = screen.getAllByRole("link", { name: "source" })[0];
+    const link = screen.getAllByRole("link", {
+      name: /^source ?\(opens in a new tab\)$/,
+    })[0];
     expect(link?.getAttribute("href")).toBe("https://tracker.example/T-1");
     expect(link?.getAttribute("rel")).toContain("noreferrer");
     // doneButUnstated item sources from the diff — no ticket link, no attribution row.
@@ -154,7 +156,9 @@ describe("IntentBar", () => {
     };
     render(<IntentBar intentCheck={uncited} jumpToGroup={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
-    const link = screen.getByRole("link", { name: "source" });
+    const link = screen.getByRole("link", {
+      name: /^source ?\(opens in a new tab\)$/,
+    });
     expect(link.getAttribute("href")).toBe("https://tracker.example/T-9");
   });
 
@@ -180,7 +184,7 @@ describe("IntentBar", () => {
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
     // The quote renders as text; no link is produced for the bad scheme.
     expect(screen.getByText("click me")).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "source" })).toBeNull();
+    expect(screen.queryByRole("link", { name: /source/ })).toBeNull();
   });
 
   it("renders quotes as text-only (no markdown/HTML interpretation)", () => {

@@ -1,8 +1,8 @@
-/* eslint-disable jsx-a11y/no-autofocus --
+/* oxlint-disable jsx-a11y/no-autofocus --
    autoFocus is an opt-in prop: consumers that mount in response to an
    explicit user action (clicking a diff line opens the composer) pass it;
    nothing focuses on page load. */
-/* eslint-disable jsx-a11y/no-noninteractive-element-interactions --
+/* oxlint-disable jsx-a11y/no-noninteractive-element-interactions --
    The root group's keydown is a composite-widget shortcut scope
    (Cmd+Shift+P / Escape from the textarea, tabs, and focused preview
    panel alike); the wrapper itself is not focusable and traps nothing. */
@@ -247,6 +247,7 @@ export function MarkdownTextarea({
         onKeyDown={onTablistKeyDown}
       >
         {MODES.map((mode) => (
+          // eslint-disable-next-line no-restricted-syntax -- role=tab under the tablist's roving tabindex: singleton role plumbing no sibling models
           <button
             aria-controls={panelId(mode)}
             aria-selected={facade.mode === mode}
@@ -386,7 +387,7 @@ export function MarkdownTextarea({
         // Rendered markdown usually has no focusables — make the panel
         // itself the tab stop so keyboard users can reach and scroll it
         // (APG tabs pattern recommendation for content-only panels).
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+        // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex
         tabIndex={0}
       >
         {facade.mode === "preview" ? renderPreviewPanel() : null}

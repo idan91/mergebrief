@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 
+import { AccessibleLink } from "@web/components/AccessibleLink/AccessibleLink";
 import { Chip } from "@web/components/Chip/Chip";
 import { ExpandableContent } from "@web/components/ExpandableContent/ExpandableContent";
 import { ToolbarButton } from "@web/components/ToolbarButton/ToolbarButton";
@@ -153,14 +154,13 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
                     attributes to the PR description only alongside a real
                     ticket-side quote. */}
                 {linked ? (
-                  <a
+                  <AccessibleLink
                     className={styles["source"]}
                     href={item.sourceUrl}
-                    rel="noreferrer"
                     target="_blank"
                   >
                     {t("brief.intent.source")}
-                  </a>
+                  </AccessibleLink>
                 ) : item.sourceUrl === "" && item.quote !== "" ? (
                   <span className={styles["source"]}>
                     {t("brief.intent.prDescription")}

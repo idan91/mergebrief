@@ -1,4 +1,4 @@
-/* eslint-disable jsx-a11y/no-autofocus --
+/* oxlint-disable jsx-a11y/no-autofocus --
    Single deliberate use: the edit surface mounts in response to an explicit
    Edit click, so moving focus into the textarea is the expected next
    action — not a page-load focus steal. */

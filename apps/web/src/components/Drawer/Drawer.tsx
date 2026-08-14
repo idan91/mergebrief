@@ -29,6 +29,7 @@ export function Drawer({
 }: DrawerProps) {
   return (
     <>
+      {/* eslint-disable-next-line no-restricted-syntax -- full-viewport dismissal scrim: the hit area is the backdrop, not a visual control */}
       <button
         aria-label={closeLabel}
         className={styles["scrim"]}

@@ -38,6 +38,44 @@ const RELATIVE_TS_JS_EXTENSION = String.raw`/^\..*\.[cm]?[jt]sx?$/`;
 const EXTENSIONLESS_IMPORT_MESSAGE =
   "Import without the file extension (`./tenant`, not `./tenant.js`) — every package is bundler-resolved end to end. Extensions stay only on non-TS assets (.css, .scss, .json).";
 
+/**
+ * The house `no-restricted-syntax` entries shared by every tree; the
+ * apps/web JSX block below re-declares the rule (flat-config replacement,
+ * not merge), so both spreads read from here.
+ */
+const BASE_RESTRICTED_SYNTAX = [
+  {
+    selector: "TSEnumDeclaration",
+    message:
+      "No `enum`: use an `as const` map with SHOUT_CASE keys and kebab-case string values, plus `ValueOf<typeof Map>` for the union type.",
+  },
+  {
+    selector: `ImportDeclaration[source.value=${RELATIVE_TS_JS_EXTENSION}]`,
+    message: EXTENSIONLESS_IMPORT_MESSAGE,
+  },
+  {
+    selector: `ExportNamedDeclaration[source.value=${RELATIVE_TS_JS_EXTENSION}]`,
+    message: EXTENSIONLESS_IMPORT_MESSAGE,
+  },
+  {
+    selector: `ExportAllDeclaration[source.value=${RELATIVE_TS_JS_EXTENSION}]`,
+    message: EXTENSIONLESS_IMPORT_MESSAGE,
+  },
+  {
+    selector: `ImportExpression[source.value=${RELATIVE_TS_JS_EXTENSION}]`,
+    message: EXTENSIONLESS_IMPORT_MESSAGE,
+  },
+  {
+    // Type-position `typeof import("./x.js")` — the specifier sits
+    // inside a TSLiteralType wrapper, hence `argument.literal`.
+    selector: `TSImportType[argument.literal.value=${RELATIVE_TS_JS_EXTENSION}]`,
+    message: EXTENSIONLESS_IMPORT_MESSAGE,
+  },
+  // Known gap, accepted: a template-literal dynamic import
+  // (import(`./x.js`)) is invisible to esquery value matching. Static
+  // specifiers — the only shape the convention governs — are covered.
+];
+
 export default [
   {
     ignores: [
@@ -69,39 +107,7 @@ export default [
       reportUnusedDisableDirectives: "off",
     },
     rules: {
-      "no-restricted-syntax": [
-        "error",
-        {
-          selector: "TSEnumDeclaration",
-          message:
-            "No `enum`: use an `as const` map with SHOUT_CASE keys and kebab-case string values, plus `ValueOf<typeof Map>` for the union type.",
-        },
-        {
-          selector: `ImportDeclaration[source.value=${RELATIVE_TS_JS_EXTENSION}]`,
-          message: EXTENSIONLESS_IMPORT_MESSAGE,
-        },
-        {
-          selector: `ExportNamedDeclaration[source.value=${RELATIVE_TS_JS_EXTENSION}]`,
-          message: EXTENSIONLESS_IMPORT_MESSAGE,
-        },
-        {
-          selector: `ExportAllDeclaration[source.value=${RELATIVE_TS_JS_EXTENSION}]`,
-          message: EXTENSIONLESS_IMPORT_MESSAGE,
-        },
-        {
-          selector: `ImportExpression[source.value=${RELATIVE_TS_JS_EXTENSION}]`,
-          message: EXTENSIONLESS_IMPORT_MESSAGE,
-        },
-        {
-          // Type-position `typeof import("./x.js")` — the specifier sits
-          // inside a TSLiteralType wrapper, hence `argument.literal`.
-          selector: `TSImportType[argument.literal.value=${RELATIVE_TS_JS_EXTENSION}]`,
-          message: EXTENSIONLESS_IMPORT_MESSAGE,
-        },
-        // Known gap, accepted: a template-literal dynamic import
-        // (import(`./x.js`)) is invisible to esquery value matching. Static
-        // specifiers — the only shape the convention governs — are covered.
-      ],
+      "no-restricted-syntax": ["error", ...BASE_RESTRICTED_SYNTAX],
     },
   },
   {
@@ -189,6 +195,48 @@ export default [
               "^(chunk|group|last-review|previous-brief|step|reference|content|repo-policy|built-in|open|verdict|receipt|start)$",
             ],
           },
+        },
+      ],
+    },
+  },
+  {
+    // The shared-button enforcement (see docs/plans/button-migration-plan.md):
+    // raw `<button>` JSX and `target="_blank"` on a raw `<a>` are banned in
+    // apps/web source outside the shared components' own files. The bespoke
+    // sites carry `eslint-disable-next-line no-restricted-syntax` with a
+    // one-line reason — the disables ARE the allowlist — so inline config is
+    // enabled for exactly this tree. The absolutes above lose nothing:
+    // directives addressed to oxlint name rules ESLint never loads (inert),
+    // and a directive naming these rules is reviewed like any lint-disable.
+    files: ["apps/web/src/**/*.tsx"],
+    ignores: [
+      "apps/web/src/components/AccessibleLink/**",
+      "apps/web/src/components/Button/**",
+      "apps/web/src/components/Chip/**",
+      "apps/web/src/components/IconButton/**",
+      "apps/web/src/components/LinkButton/**",
+      "apps/web/src/components/MenuItem/**",
+      "apps/web/src/components/RowButton/**",
+      "apps/web/src/components/ToolbarButton/**",
+    ],
+    linterOptions: {
+      noInlineConfig: false,
+      reportUnusedDisableDirectives: "off",
+    },
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...BASE_RESTRICTED_SYNTAX,
+        {
+          selector: 'JSXOpeningElement[name.name="button"]',
+          message:
+            "Raw <button> is banned: use the shared Button/IconButton/RowButton/ToolbarButton/Chip/MenuItem/LinkButton. A deliberately-bespoke affordance carries an eslint-disable-next-line with its reason.",
+        },
+        {
+          selector:
+            'JSXOpeningElement[name.name="a"] > JSXAttribute[name.name="target"][value.value="_blank"]',
+          message:
+            'target="_blank" on a raw <a> is banned: use AccessibleLink, which defaults rel and announces the new tab.',
         },
       ],
     },

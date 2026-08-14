@@ -131,6 +131,18 @@ describe("Button", () => {
     expect(anchor.hasAttribute("type")).toBe(false);
   });
 
+  it("as=a with target=_blank defaults rel and announces the new tab", () => {
+    render(
+      <Button as="a" href="https://example.com" target="_blank">
+        View on GitHub
+      </Button>,
+    );
+    const anchor = screen.getByRole("link", {
+      name: /view on github ?\(opens in a new tab\)/i,
+    });
+    expect(anchor.getAttribute("rel")).toBe("noreferrer");
+  });
+
   it("as=a disabled prevents navigation and suppresses onClick", () => {
     const onClick = vi.fn();
     render(

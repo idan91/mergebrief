@@ -88,6 +88,7 @@ export function ReadThroughProgress({
       data-complete={complete ? "" : undefined}
     >
       {segments.map((segment) => (
+        // eslint-disable-next-line no-restricted-syntax -- progress segment as click target: the hit area is not a visual control
         <button
           aria-current={segment.isCurrent ? "step" : undefined}
           aria-label={t("brief.progress.segmentLabel", {

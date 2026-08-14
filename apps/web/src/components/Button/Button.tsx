@@ -2,6 +2,7 @@ import type { ComponentPropsWithRef, MouseEvent } from "react";
 import type { ValueOf } from "types";
 import clsx from "clsx";
 
+import { AccessibleLink } from "../AccessibleLink/AccessibleLink";
 import styles from "./Button.module.scss";
 
 export const BUTTON_ELEMENTS = {
@@ -95,8 +96,10 @@ function buttonAttributes<
 
 export function Button(props: ButtonProps) {
   if (isAnchorProps(props)) {
-    const { as: Tag, ...anchorProps } = props;
-    return <Tag {...buttonAttributes(anchorProps)} />;
+    const { as: element, ...anchorProps } = props;
+    void element;
+    // The announcement logic lives once — AccessibleLink owns the anchor.
+    return <AccessibleLink {...buttonAttributes(anchorProps)} />;
   }
   const { as: element, type = "button", ...buttonProps } = props;
   void element;

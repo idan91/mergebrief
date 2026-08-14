@@ -327,6 +327,7 @@ export const GroupCard = memo(function GroupCard({
                 them in the read-only mirror (nothing dangling). */}
             {flagsReadOnly ? null : (
               <span className={styles["riskInfo"]}>
+                {/* eslint-disable-next-line no-restricted-syntax -- tooltip anchor (cursor: help, no onClick): not an action */}
                 <button
                   aria-describedby={`${group.id}-risk-help`}
                   aria-label={t("brief.group.ariaLabelStatusMeanings")}
