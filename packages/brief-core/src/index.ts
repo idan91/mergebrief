@@ -105,6 +105,21 @@ export {
   validateTextLength,
   validateReadingOrder,
 } from "./generation/validate";
+// Mechanical LoC derivation: the model attributes ranges, code counts.
+export {
+  buildConcernView,
+  countLines,
+  crossCheckFileTotals,
+  deriveChunkLoc,
+  deriveUnattributed,
+  detectChunkOverlaps,
+  diffLocTotals,
+  intersectRanges,
+  subtractRanges,
+  unattributedTotals,
+  type LocCount,
+  type UnattributedFile,
+} from "./generation/loc";
 // The worker builds AnchorViewInput from its plan; renderAnchorView is
 // exported for tests/CLI.
 export { renderAnchorView, type AnchorViewInput } from "./generation/prompt";
