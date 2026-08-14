@@ -1,5 +1,4 @@
 @use "functions";
-@use "mixins";
 
 @layer components {
   .root {
@@ -7,20 +6,24 @@
     justify-self: end;
   }
 
+  // Header-slot deltas on Button's secondary chrome: filled, tighter, and
+  // a plain-weight label row.
   .trigger {
     display: flex;
     gap: functions.to-rem(8px);
     align-items: center;
     padding-block: functions.to-rem(6px);
     padding-inline: functions.to-rem(12px);
-    border: 1px solid var(--line2);
-    border-radius: var(--radius-md);
     background: var(--panel2);
-    color: var(--text);
-    font-size: var(--font-size-lg);
-    cursor: pointer;
+    font-weight: 400;
+    white-space: normal;
 
-    @include mixins.focus-visible;
+    /* Re-pin at Button's hover specificity: the header slot keeps its own
+       resting ground (it never had a hover). */
+    &:hover {
+      border-color: var(--line2);
+      background: var(--panel2);
+    }
   }
 
   .triggerLabel {
@@ -49,35 +52,8 @@
     box-shadow: var(--shadow-elevation-sm);
   }
 
-  .item {
-    display: flex;
-    gap: functions.to-rem(10px);
-    align-items: baseline;
-    justify-content: space-between;
-    padding-block: functions.to-rem(8px);
-    padding-inline: functions.to-rem(10px);
-    border: 0;
-    border-radius: var(--radius-md);
-    background: none;
-    color: var(--text);
-    font-size: var(--font-size-lg);
-    text-align: start;
-    cursor: pointer;
-
-    &:hover {
-      background: color-mix(in srgb, var(--line2) 40%, transparent);
-    }
-
-    @include mixins.focus-visible;
-
-    &[aria-checked="true"] .itemLogin {
-      font-weight: 650;
-    }
-
-    &:disabled {
-      opacity: 0.6;
-      cursor: default;
-    }
+  .item[aria-checked="true"] .itemLogin {
+    font-weight: 650;
   }
 
   .itemLogin {
@@ -91,27 +67,16 @@
     font-size: var(--font-size-sm);
   }
 
+  // Footer-row deltas on MenuItem's chrome: divider, packed run, muted md.
   .defaultToggle {
-    display: flex;
     gap: functions.to-rem(8px);
     align-items: center;
+    justify-content: flex-start;
     margin-block-start: functions.to-rem(4px);
-    padding-block: functions.to-rem(8px);
-    padding-inline: functions.to-rem(10px);
-    border: 0;
     border-block-start: 1px solid var(--line);
     border-radius: 0 0 var(--radius-md) var(--radius-md);
-    background: none;
     color: var(--dim);
     font-size: var(--font-size-md);
-    text-align: start;
-    cursor: pointer;
-
-    &:hover {
-      background: color-mix(in srgb, var(--line2) 40%, transparent);
-    }
-
-    @include mixins.focus-visible;
   }
 
   .checkmark {

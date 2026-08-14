@@ -23,6 +23,7 @@ import type { BriefViewModel } from "../../../utils/viewModel";
 import type { LensControlState, ViewMode } from "../modeLegality";
 import { Button } from "@web/components/Button/Button";
 import { IconButton } from "@web/components/IconButton/IconButton";
+import { MenuItem } from "@web/components/MenuItem/MenuItem";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import { CoreLinesDisclosure } from "../CoreLinesDisclosure/CoreLinesDisclosure";
 import { RiskChipDisclosure } from "../RiskChipDisclosure/RiskChipDisclosure";
@@ -616,10 +617,8 @@ function HeaderMenu({
               {t("brief.header.summaryPreview")}
             </Link>
           ) : (
-            <button
+            <MenuItem
               className={styles["menuItem"]}
-              role="menuitem"
-              type="button"
               onClick={() => {
                 // The drawer never claims focus, so return it to the
                 // trigger — otherwise the unmounting menuitem drops it
@@ -629,19 +628,17 @@ function HeaderMenu({
               }}
             >
               {t("brief.header.summaryPreview")}
-            </button>
+            </MenuItem>
           )}
-          <button
+          <MenuItem
             className={styles["menuItem"]}
-            role="menuitem"
-            type="button"
             onClick={() => {
               closeAndRefocus();
               clearDrafts();
             }}
           >
             {t("brief.header.clearDrafts")}
-          </button>
+          </MenuItem>
         </div>
       ) : null}
     </div>

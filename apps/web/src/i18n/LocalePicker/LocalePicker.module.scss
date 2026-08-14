@@ -1,29 +1,29 @@
 @use "functions";
-@use "mixins";
 
 @layer components {
   .root {
     position: relative;
   }
 
+  // Header-slot deltas on Button's secondary chrome: filled, sm label, the
+  // padding carrying the 24px WCAG target floor.
   .trigger {
     display: flex;
     gap: functions.to-rem(6px);
     align-items: center;
-
-    // 24px is the WCAG 2.2 AA target floor; the padding carries it without
-    // making the control heavier than the sibling header chrome.
     min-block-size: functions.to-rem(24px);
     padding-block: functions.to-rem(6px);
     padding-inline: functions.to-rem(10px);
-    border: 1px solid var(--line2);
-    border-radius: var(--radius-md);
     background: var(--panel2);
-    color: var(--text);
     font-size: var(--font-size-sm);
-    cursor: pointer;
+    font-weight: 400;
 
-    @include mixins.focus-visible;
+    /* Re-pin at Button's hover specificity: the header slot keeps its own
+       resting ground (it never had a hover). */
+    &:hover {
+      border-color: var(--line2);
+      background: var(--panel2);
+    }
   }
 
   .globe {
@@ -52,27 +52,11 @@
     box-shadow: var(--shadow-elevation-sm);
   }
 
+  // Compact deltas on MenuItem's chrome: centered 32px rows.
   .item {
-    display: flex;
-    gap: functions.to-rem(10px);
     align-items: center;
-    justify-content: space-between;
     min-block-size: functions.to-rem(32px);
     padding-block: functions.to-rem(6px);
-    padding-inline: functions.to-rem(10px);
-    border: 0;
-    border-radius: var(--radius-md);
-    background: none;
-    color: var(--text);
-    font-size: var(--font-size-lg);
-    text-align: start;
-    cursor: pointer;
-
-    &:hover {
-      background: color-mix(in srgb, var(--line2) 40%, transparent);
-    }
-
-    @include mixins.focus-visible;
 
     &[aria-checked="true"] .itemName {
       font-weight: 650;

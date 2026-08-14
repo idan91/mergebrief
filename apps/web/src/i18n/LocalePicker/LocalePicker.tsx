@@ -6,6 +6,8 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 
+import { Button } from "@web/components/Button/Button";
+import { MenuItem } from "@web/components/MenuItem/MenuItem";
 import { changeLocale } from "../I18nProvider";
 import styles from "./LocalePicker.module.scss";
 
@@ -92,7 +94,7 @@ export function LocalePicker() {
 
   return (
     <div className={styles["root"]} ref={rootRef}>
-      <button
+      <Button
         aria-controls={open ? menuId : undefined}
         aria-expanded={open}
         aria-haspopup="menu"
@@ -102,7 +104,6 @@ export function LocalePicker() {
         className={styles["trigger"]}
         data-testid="locale-picker-trigger"
         ref={triggerRef}
-        type="button"
         onClick={() => (open ? close(true) : setOpen(true))}
         onKeyDown={(event) => {
           if (event.key === "ArrowDown" && !open) {
@@ -136,7 +137,7 @@ export function LocalePicker() {
         >
           {activeOption?.nativeName}
         </span>
-      </button>
+      </Button>
       {open ? (
         <div
           aria-label={t("shell.localePicker.ariaLabelMenu")}
@@ -156,17 +157,16 @@ export function LocalePicker() {
           }}
         >
           {options.map((option, index) => (
-            <button
-              aria-checked={index === matchedIndex}
+            <MenuItem
+              checked={index === matchedIndex}
               className={styles["item"]}
               key={option.id}
               lang={option.id === PSEUDO_LOCALE ? undefined : option.id}
               ref={(element) => {
                 itemRefs.current[index] = element;
               }}
-              role="menuitemradio"
+              kind="menuitemradio"
               tabIndex={index === focusIndex ? 0 : -1}
-              type="button"
               onClick={() => {
                 void changeLocale(option.id);
                 close(true);
@@ -177,7 +177,7 @@ export function LocalePicker() {
               <span aria-hidden="true" className={styles["itemCheck"]}>
                 {index === matchedIndex ? "✓" : ""}
               </span>
-            </button>
+            </MenuItem>
           ))}
         </div>
       ) : null}

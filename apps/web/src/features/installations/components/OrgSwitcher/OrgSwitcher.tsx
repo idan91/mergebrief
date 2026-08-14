@@ -10,6 +10,8 @@ import {
   reloadToPicker,
   switchInstallation,
 } from "../../queries";
+import { Button } from "@web/components/Button/Button";
+import { MenuItem } from "@web/components/MenuItem/MenuItem";
 import styles from "./OrgSwitcher.module.scss";
 
 export interface OrgSwitcherProps {
@@ -98,7 +100,7 @@ export function OrgSwitcher({ enabled }: OrgSwitcherProps) {
 
   return (
     <div className={styles["root"]} ref={rootRef}>
-      <button
+      <Button
         aria-controls={menuId}
         aria-expanded={open}
         aria-haspopup="menu"
@@ -111,7 +113,6 @@ export function OrgSwitcher({ enabled }: OrgSwitcherProps) {
           }
         }}
         ref={triggerRef}
-        type="button"
       >
         <span className={styles["triggerLabel"]}>
           {t("installations.orgSwitcher.label")}
@@ -120,7 +121,7 @@ export function OrgSwitcher({ enabled }: OrgSwitcherProps) {
         <span aria-hidden="true" className={styles["caret"]}>
           ▾
         </span>
-      </button>
+      </Button>
       {open ? (
         <div
           aria-label={t("installations.orgSwitcher.menuLabel")}
@@ -136,11 +137,12 @@ export function OrgSwitcher({ enabled }: OrgSwitcherProps) {
           tabIndex={-1}
         >
           {items.map((item, index) => (
-            <button
-              aria-checked={item.isCurrent}
+            <MenuItem
+              checked={item.isCurrent}
               className={styles["item"]}
               disabled={switching.isPending}
               key={item.installationId}
+              kind="menuitemradio"
               onClick={() => {
                 if (item.isCurrent) {
                   close(true);
@@ -155,8 +157,6 @@ export function OrgSwitcher({ enabled }: OrgSwitcherProps) {
               ref={(el) => {
                 itemRefs.current[index] = el;
               }}
-              role="menuitemradio"
-              type="button"
             >
               <span className={styles["itemLogin"]}>{item.accountLogin}</span>
               <span className={styles["itemMeta"]}>
@@ -164,20 +164,19 @@ export function OrgSwitcher({ enabled }: OrgSwitcherProps) {
                 {item.isCurrent && item.isDefault ? " · " : ""}
                 {item.isDefault ? t("installations.orgSwitcher.default") : ""}
               </span>
-            </button>
+            </MenuItem>
           ))}
           {/* Menu-native checkbox item (never a form control inside role=menu)
               — part of the same roving-focus set as the org items. */}
-          <button
-            aria-checked={setDefault}
+          <MenuItem
+            checked={setDefault}
             className={styles["defaultToggle"]}
+            kind="menuitemcheckbox"
             onClick={() => setSetDefault((value) => !value)}
             onKeyDown={roamKeyDown(items.length)}
             ref={(el) => {
               itemRefs.current[items.length] = el;
             }}
-            role="menuitemcheckbox"
-            type="button"
           >
             <span
               aria-hidden="true"
@@ -187,7 +186,7 @@ export function OrgSwitcher({ enabled }: OrgSwitcherProps) {
               {setDefault ? "✓" : ""}
             </span>
             {t("installations.orgSwitcher.rememberDefault")}
-          </button>
+          </MenuItem>
           {switching.isError ? (
             <p className={styles["error"]} role="alert">
               {t("installations.orgSwitcher.switchFailed")}

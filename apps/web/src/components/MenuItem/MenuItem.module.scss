@@ -1,0 +1,29 @@
+@use "functions";
+
+@layer components {
+  .menuItem {
+    display: flex;
+    gap: functions.to-rem(10px);
+    align-items: baseline;
+    justify-content: space-between;
+    inline-size: 100%;
+    padding-block: functions.to-rem(8px);
+    padding-inline: functions.to-rem(10px);
+    border: 0;
+    border-radius: var(--radius-md);
+    background: none;
+    color: var(--text);
+    cursor: pointer;
+    font-size: var(--font-size-lg);
+    text-align: start;
+
+    &:hover {
+      background: color-mix(in srgb, var(--line2) 40%, transparent);
+    }
+
+    &[aria-disabled="true"] {
+      cursor: default;
+      opacity: 0.6;
+    }
+  }
+}
