@@ -5,6 +5,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import clsx from "clsx";
 
 import { Button } from "@web/components/Button/Button";
+import { RowButton } from "@web/components/RowButton/RowButton";
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea/MarkdownTextarea";
 import { Modal } from "@web/components/Modal/Modal";
 import modalStyles from "@web/components/Modal/Modal.module.scss";
@@ -172,15 +173,14 @@ export function SubmitModal({
           </p>
           <div className={modalStyles["unresolvedList"]}>
             {advisoryItems.map((item) => (
-              <button
-                className={modalStyles["unresolvedItem"]}
+              <RowButton
                 key={item.id}
-                type="button"
+                variant="card"
                 onClick={() => jumpToItem(item)}
               >
                 <span>{unresolvedKindLabel(t, item.kind)}</span>
                 <b>{item.label}</b>
-              </button>
+              </RowButton>
             ))}
           </div>
           <p className={styles["hint"]}>

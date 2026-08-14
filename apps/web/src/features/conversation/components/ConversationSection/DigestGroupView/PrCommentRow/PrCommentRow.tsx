@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Markdown } from "@web/components/Markdown/Markdown";
+import { RowButton } from "@web/components/RowButton/RowButton";
 import { deriveDigestLine } from "../../../../utils/digestLine";
 import { postdatesBrief } from "../../../../utils/postdate";
 import rowStyles from "../../../../rows.module.scss";
@@ -26,10 +27,8 @@ export function PrCommentRow({
   const { t } = useTranslation();
   return (
     <li className={rowStyles["row"]}>
-      <button
+      <RowButton
         aria-expanded={expanded}
-        className={rowStyles["rowButton"]}
-        type="button"
         onClick={() => toggle(comment.commentId)}
       >
         <span className={rowStyles["rowAuthor"]}>
@@ -48,7 +47,7 @@ export function PrCommentRow({
             {t("conversation.afterThisBrief")}
           </span>
         ) : null}
-      </button>
+      </RowButton>
       {expanded ? (
         <div className={rowStyles["detail"]}>
           <Markdown content={comment.body} renderSuggestions />

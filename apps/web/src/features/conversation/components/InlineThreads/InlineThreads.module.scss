@@ -36,23 +36,6 @@
     gap: functions.to-rem(4px);
   }
 
-  .botButton {
-    display: flex;
-    align-items: baseline;
-    gap: functions.to-rem(8px);
-    min-height: functions.to-rem(44px);
-    padding-block: functions.to-rem(8px);
-    padding-inline: functions.to-rem(10px);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-md);
-    background: var(--color-surface-2);
-    color: var(--text);
-    cursor: pointer;
-    font-size: var(--font-size-lg);
-    font-weight: 600;
-    text-align: start;
-  }
-
   .botTag {
     padding-inline: functions.to-rem(5px);
     border: 1px solid var(--line);

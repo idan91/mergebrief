@@ -96,7 +96,13 @@ export function CommentThread({
   if (comment.collapsed) {
     return (
       <div className={styles["thread"]} data-state="collapsed">
-        <button type="button" onClick={() => toggle(comment.id)}>
+        {/* Link-like toggle, not row chrome — LinkButton absorbs it in the
+            LinkButton PR; the disclosure state lands now. */}
+        <button
+          aria-expanded={false}
+          type="button"
+          onClick={() => toggle(comment.id)}
+        >
           {submitted ? t("review.comment.posted") : t("review.comment.draft")}{" "}
           {t("review.comment.commentOn")}
           {comment.anchor.side === "new" ? "+" : "-"}

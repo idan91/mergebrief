@@ -9,6 +9,7 @@
 // shows iff flags exist.
 import { useTranslation } from "react-i18next";
 import { Button } from "@web/components/Button/Button";
+import { RowButton } from "@web/components/RowButton/RowButton";
 import { Modal } from "@web/components/Modal/Modal";
 import type { RiskFlag } from "@web/features/brief/utils";
 import styles from "@web/components/Modal/Modal.module.scss";
@@ -99,11 +100,10 @@ export function MarkReadyModal({
           </p>
           <div className={styles["unresolvedList"]}>
             {flags.map((flag) => (
-              <button
-                className={styles["unresolvedItem"]}
-                key={flag.id}
-                type="button"
+              <RowButton
                 disabled={busy}
+                key={flag.id}
+                variant="card"
                 onClick={() => jumpToFlag(flag)}
               >
                 <span
@@ -134,7 +134,7 @@ export function MarkReadyModal({
                     ].join(" · ")}
                   </i>
                 ) : null}
-              </button>
+              </RowButton>
             ))}
           </div>
         </>

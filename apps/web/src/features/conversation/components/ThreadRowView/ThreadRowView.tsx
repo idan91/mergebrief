@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { RowButton } from "@web/components/RowButton/RowButton";
 import { threadStateChip } from "../../utils/chips";
 import type { DigestThreadRow } from "../../utils/digest";
 import rowStyles from "../../rows.module.scss";
@@ -60,12 +61,10 @@ export function ThreadRowView({
         hideJump ? undefined : thread.rootCommentId
       }
     >
-      <button
+      <RowButton
         aria-expanded={expanded}
-        className={rowStyles["rowButton"]}
         data-testid="thread-row"
-        data-variant={slim ? "slim" : "full"}
-        type="button"
+        density={slim ? "slim" : "full"}
         onClick={() => toggle(thread.rootCommentId)}
       >
         {slim ? (
@@ -123,7 +122,7 @@ export function ThreadRowView({
             </span>
           </>
         )}
-      </button>
+      </RowButton>
       {expanded ? (
         <ThreadDetail
           composer={composer}

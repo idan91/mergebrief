@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { RowButton } from "@web/components/RowButton/RowButton";
 import { botGroupChip } from "../../../../utils/chips";
 import type { DigestRow } from "../../../../utils/digest";
 import rowStyles from "../../../../rows.module.scss";
@@ -36,12 +37,7 @@ export function BotGroupRowView({
   const groupChip = botGroupChip(row);
   return (
     <li className={rowStyles["row"]}>
-      <button
-        aria-expanded={expanded}
-        className={rowStyles["rowButton"]}
-        type="button"
-        onClick={() => toggleGroup(key)}
-      >
+      <RowButton aria-expanded={expanded} onClick={() => toggleGroup(key)}>
         <span className={rowStyles["chip"]} data-state={groupChip}>
           {groupChip}
         </span>
@@ -57,7 +53,7 @@ export function BotGroupRowView({
             open: row.openCount,
           })}
         </span>
-      </button>
+      </RowButton>
       {expanded ? (
         <ul className={rowStyles["nested"]}>
           {row.threads.map((threadRow) => (

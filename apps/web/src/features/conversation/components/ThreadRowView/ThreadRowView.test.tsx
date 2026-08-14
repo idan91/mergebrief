@@ -174,7 +174,7 @@ describe("ThreadRowView — slim resolved rows", () => {
   it("renders a collapsed resolved thread as the slim variant", () => {
     const { view } = renderRow(threadRow({ isResolved: true, isOwn: true }));
     const row = screen.getByTestId("thread-row");
-    expect(row.getAttribute("data-variant")).toBe("slim");
+    expect(row.getAttribute("data-density")).toBe("slim");
     // The faint literal label, NOT the chip component (chips carry data-state).
     expect(view.container.querySelector("[data-state]")).toBeNull();
     // No own-tag and no revision label crowd the settled line.
@@ -189,7 +189,7 @@ describe("ThreadRowView — slim resolved rows", () => {
       threadRow({ isResolved: true, isOutdated: true, anchorLabel: "abc1234" }),
     );
     const row = screen.getByTestId("thread-row");
-    expect(row.getAttribute("data-variant")).toBe("full");
+    expect(row.getAttribute("data-density")).toBe("full");
     // threadStateChip truth is untouched: the chip reads outdated.
     expect(screen.getByText("outdated").getAttribute("data-state")).toBe(
       "outdated",
@@ -200,7 +200,7 @@ describe("ThreadRowView — slim resolved rows", () => {
   it("keeps an unresolved thread on the full row", () => {
     renderRow(threadRow({ isOwn: true }));
     const row = screen.getByTestId("thread-row");
-    expect(row.getAttribute("data-variant")).toBe("full");
+    expect(row.getAttribute("data-density")).toBe("full");
     expect(screen.getByText("open").getAttribute("data-state")).toBe("open");
     expect(screen.getByText("yours")).toBeDefined();
   });
@@ -208,7 +208,7 @@ describe("ThreadRowView — slim resolved rows", () => {
   it("restores the full row and detail when a resolved thread is expanded", () => {
     renderRow(threadRow({ isResolved: true }), true);
     const row = screen.getByTestId("thread-row");
-    expect(row.getAttribute("data-variant")).toBe("full");
+    expect(row.getAttribute("data-density")).toBe("full");
     expect(row.getAttribute("aria-expanded")).toBe("true");
     // The full ThreadDetail renders as it does for any expanded thread.
     expect(screen.getByLabelText(/Reply \(posts to GitHub/)).toBeDefined();
@@ -290,7 +290,7 @@ describe("ThreadRowView — slim resolved rows", () => {
         </MindMapProvider>
       </QueryClientProvider>,
     );
-    expect(screen.getByTestId("thread-row").getAttribute("data-variant")).toBe(
+    expect(screen.getByTestId("thread-row").getAttribute("data-density")).toBe(
       "slim",
     );
     expect(

@@ -6,6 +6,7 @@
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
 
+import { RowButton } from "@web/components/RowButton/RowButton";
 import { toggleSet } from "@web/utils/collections";
 import type { DigestRow } from "../../utils/digest";
 import type { ThreadComposerWiring } from "../../wiring";
@@ -54,10 +55,8 @@ export function InlineThreads({ rows, composer }: InlineThreadsProps) {
             />
           ) : (
             <li className={styles["row"]} key={row.author}>
-              <button
+              <RowButton
                 aria-expanded={expandedBots.has(row.author)}
-                className={styles["botButton"]}
-                type="button"
                 onClick={() => toggleBot(row.author)}
               >
                 @{row.author}
@@ -69,7 +68,7 @@ export function InlineThreads({ rows, composer }: InlineThreadsProps) {
                     count: row.threads.length,
                   })}
                 </span>
-              </button>
+              </RowButton>
               {expandedBots.has(row.author) ? (
                 <ul className={styles["rows"]}>
                   {row.threads.map((threadRow) => (

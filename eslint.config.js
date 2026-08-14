@@ -165,6 +165,7 @@ export default [
               "kind",
               "variant",
               "size",
+              "density",
               "state",
               "side",
               "anchor",
