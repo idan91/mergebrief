@@ -146,6 +146,12 @@ export type Catalog = typeof en & {
       intro_one: "The same {{count}} chunk, pivoted by artifact instead of intent.";
       intro_other: "The same {{count}} chunks, pivoted by artifact instead of intent.";
     };
+    unattributed: (typeof en)["brief"]["unattributed"] & {
+      calloutCaveat: "The brief attributed {{attributed}} of {{total}} changed lines. These lines belong to no chunk and appear in no group or concern.";
+      bannerRest_one: "changed lines in {{count}} file are not covered by any chunk.";
+      bannerRest_other: "changed lines in {{count}} files are not covered by any chunk.";
+      fileLines: "lines {{ranges}}";
+    };
   };
   review: (typeof en)["review"] & {
     summary: (typeof en)["review"]["summary"] & {

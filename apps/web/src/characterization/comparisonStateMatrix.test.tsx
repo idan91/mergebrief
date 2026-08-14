@@ -391,7 +391,7 @@ describe("comparison state matrix characterization", () => {
     );
     await waitFor(() => expect(screen.getByText(PR.title)).toBeTruthy());
 
-    const viewGroup = screen.getByRole("group", { name: "View" });
+    const viewGroup = screen.getByRole("group", { name: "Scope" });
     const compareGroup = screen.getByRole("group", { name: "Compare" });
     expect(viewGroup).toBeTruthy();
     expect(compareGroup).toBeTruthy();

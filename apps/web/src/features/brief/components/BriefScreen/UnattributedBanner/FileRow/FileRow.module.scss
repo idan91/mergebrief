@@ -1,0 +1,50 @@
+@use "functions";
+
+@layer components {
+  .fileRow {
+    display: grid;
+    gap: functions.to-rem(4px);
+  }
+
+  .fileToggle {
+    min-block-size: functions.to-rem(24px);
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--dim);
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: var(--font-size-md);
+    overflow-wrap: anywhere;
+    text-align: start;
+
+    &:hover {
+      color: var(--text);
+    }
+  }
+
+  .chevron {
+    display: inline-block;
+    margin-inline-end: functions.to-rem(6px);
+    color: var(--faint);
+    transition: transform 120ms ease;
+
+    &[data-open] {
+      transform: rotate(90deg);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .chevron {
+      transition: none;
+    }
+  }
+
+  .fileName {
+    overflow-wrap: anywhere;
+  }
+
+  .fileMeta {
+    color: var(--faint);
+  }
+}

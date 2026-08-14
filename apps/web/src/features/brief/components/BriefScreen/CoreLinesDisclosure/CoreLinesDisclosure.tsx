@@ -1,14 +1,14 @@
 import { useTranslation } from "react-i18next";
-import { useEffect, useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 import { Callout } from "@web/components/Callout/Callout";
 import styles from "./CoreLinesDisclosure.module.scss";
 
 export interface CoreLinesDisclosureProps {
-  /** Core-chunk adjusted-line sums at the trigger's scope. */
+  /** Core-chunk derived-line sums at the trigger's scope. */
   coreAdded: number;
   coreDeleted: number;
-  /** The matching all-chunks adjusted-line sums. */
+  /** The matching all-chunks derived-line sums. */
   allAdded: number;
   allDeleted: number;
   /** Visible trigger content — its text IS the button's accessible name. */
@@ -20,7 +20,7 @@ export interface CoreLinesDisclosureProps {
 }
 
 /**
- * The core-lines mini panel: both line scopes plus the approximation caveat,
+ * The core-lines mini panel: both line scopes plus the derivation caveat,
  * anchored to a real-button trigger in the RiskChipDisclosure grammar —
  * hover previews (mouse only), click is canonical for touch, keyboard focus
  * opens, Escape-at-capture dismisses without reaching page shortcuts.
@@ -36,6 +36,10 @@ export function CoreLinesDisclosure({
 }: CoreLinesDisclosureProps) {
   const { t } = useTranslation();
   const [anchor, setAnchor] = useState<Element | null>(null);
+  // Hover-open must anchor the BUTTON: in the header stats grid the wrapper
+  // span is display:contents (no box), so its rect would place the callout
+  // at the viewport origin.
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
   const detailId = useId();
   useEffect(() => {
     // Escape must dismiss a hover-opened panel too — focus may be anywhere,
@@ -68,11 +72,12 @@ export function CoreLinesDisclosure({
         // Touch browsers synthesize mouseenter before click — a hover-open
         // there would be immediately toggled shut by the click. Hover
         // preview is a MOUSE affordance; touch/pen go through click.
-        if (event.pointerType === "mouse") setAnchor(event.currentTarget);
+        if (event.pointerType === "mouse") setAnchor(triggerRef.current);
       }}
     >
       {/* eslint-disable-next-line no-restricted-syntax -- headless zero-specificity trigger wrapper: the child carries the visuals */}
       <button
+        ref={triggerRef}
         aria-controls={anchor ? detailId : undefined}
         aria-describedby={anchor ? detailId : undefined}
         aria-expanded={anchor !== null}
@@ -114,7 +119,7 @@ export function CoreLinesDisclosure({
                 <span className="green">+{coreAdded}</span>{" "}
                 <span className="red">−{coreDeleted}</span>
               </dd>
-              <dt>{t("brief.coreLines.allAdjusted")}</dt>
+              <dt>{t("brief.coreLines.allLines")}</dt>
               <dd>
                 <span className="green">+{allAdded}</span>{" "}
                 <span className="red">−{allDeleted}</span>

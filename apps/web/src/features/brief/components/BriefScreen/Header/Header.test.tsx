@@ -288,16 +288,51 @@ describe("Header menu and stats", () => {
     renderHeader();
     expect(screen.getByText("chunks").textContent).toContain("1/2");
     expect(screen.getByText("flags").textContent).toContain("0/1");
-    // The LOC cell is the core-lines disclosure trigger: a real button whose
-    // name carries the sr-only "approximately" for the ≈ glyph.
+    // The LOC cell is the core-lines disclosure trigger — a real button.
     const loc = screen.getByTestId("core-lines-disclosure");
     expect(loc.textContent).toContain("core lines");
-    expect(loc.textContent).toContain("approximately");
     expect(loc.textContent).toContain("+3");
     expect(loc.textContent).toContain("−1");
     fireEvent.click(loc);
-    expect(screen.getByText("all adjusted lines")).toBeTruthy();
-    expect(screen.getByText(/not the raw git count/)).toBeTruthy();
+    expect(screen.getByText("all lines")).toBeTruthy();
+    expect(screen.getByText(/derived from the diff/)).toBeTruthy();
+  });
+
+  it("shows the unattributed stat with the honest caveat when a remainder exists", () => {
+    const model = buildBriefViewModel({
+      ...brief,
+      unattributed: [
+        {
+          file: "src/orphan.ts",
+          addedRanges: [{ start: 1, end: 4 }],
+          removedRanges: [{ start: 2, end: 3 }],
+        },
+      ],
+    });
+    renderHeader({ model });
+    const stat = screen.getByTestId("unattributed-disclosure");
+    expect(stat.textContent).toContain("unattributed");
+    expect(stat.textContent).toContain("+4");
+    expect(stat.textContent).toContain("−2");
+    fireEvent.click(stat);
+    const total = model.totalAdded + model.totalDeleted;
+    const attributed = total - 6;
+    expect(
+      screen.getByText(
+        new RegExp(
+          `attributed ${String(attributed)} of ${String(total)} changed lines`,
+        ),
+      ),
+    ).toBeTruthy();
+  });
+
+  it("renders no unattributed stat without a remainder", () => {
+    renderHeader();
+    expect(screen.queryByTestId("unattributed-disclosure")).toBeNull();
+    renderHeader({
+      model: buildBriefViewModel({ ...brief, unattributed: [] }),
+    });
+    expect(screen.queryByTestId("unattributed-disclosure")).toBeNull();
   });
 
   it("keeps rare actions in a menu with menu-button semantics", () => {

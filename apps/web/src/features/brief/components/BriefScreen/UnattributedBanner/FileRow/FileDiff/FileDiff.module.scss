@@ -1,0 +1,13 @@
+@use "functions";
+
+@layer components {
+  .fileDiff {
+    margin-inline-start: functions.to-rem(18px);
+  }
+
+  .noDiff {
+    margin: 0 0 functions.to-rem(4px) functions.to-rem(18px);
+    color: var(--faint);
+    font-size: var(--font-size-md);
+  }
+}

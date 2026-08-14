@@ -159,10 +159,6 @@ export const GroupCard = memo(function GroupCard({
               coreAdded={group.coreAdded}
               coreDeleted={group.coreDeleted}
             >
-              <span aria-hidden="true">{"≈ "}</span>
-              <ScreenReaderOnly>
-                {t("brief.group.approximately")}
-              </ScreenReaderOnly>
               <span className="green">+{group.coreAdded}</span> /{" "}
               <span className="red">−{group.coreDeleted}</span>{" "}
               {t("brief.group.coreSuffix")} ·{" "}

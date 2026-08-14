@@ -13,7 +13,7 @@ export interface BriefDetailsPanelProps {
   /** Adjusted-line totals from the view model — the Artifact section's LOC line. */
   totalAdded: number;
   totalDeleted: number;
-  /** Core-chunk adjusted-line totals from the view model. */
+  /** Core-chunk derived-line totals from the view model. */
   totalCoreAdded: number;
   totalCoreDeleted: number;
   /** Repo-config snapshot; absent/null → the section reports "no config". */
@@ -252,7 +252,7 @@ function ArtifactSection({
             </dd>
           </>
         ) : null}
-        <dt>{t("brief.details.adjustedLines")}</dt>
+        <dt>{t("brief.details.changedLines")}</dt>
         <dd>
           <span className="green">+{totalAdded}</span>{" "}
           <span className="red">−{totalDeleted}</span>
@@ -264,8 +264,8 @@ function ArtifactSection({
         </dd>
       </dl>
       <p className={styles["caveat"]}>
-        <b>{t("brief.details.adjustedCaveatLead")}</b>{" "}
-        {t("brief.details.adjustedCaveatBody")}
+        <b>{t("brief.details.countsCaveatLead")}</b>{" "}
+        {t("brief.details.countsCaveatBody")}
       </p>
     </section>
   );

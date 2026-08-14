@@ -62,6 +62,7 @@ import { ShortcutsModal } from "./ShortcutsModal/ShortcutsModal";
 import { StoryView } from "./StoryView/StoryView";
 import { SummaryPreviewDrawer } from "./SummaryPreviewDrawer/SummaryPreviewDrawer";
 import { SummarySection } from "./SummarySection/SummarySection";
+import { UnattributedBanner } from "./UnattributedBanner/UnattributedBanner";
 import { useDelayedPending } from "./useDelayedPending";
 import {
   useComparisonOverlay,
@@ -676,6 +677,12 @@ export function BriefScreen({
               />
             ) : null}
           </>
+        ) : null}
+
+        {blocks.summary &&
+        model.unattributed !== undefined &&
+        model.unattributed.added + model.unattributed.deleted > 0 ? (
+          <UnattributedBanner view={model.unattributed} />
         ) : null}
 
         {blocks.groupToc ? (

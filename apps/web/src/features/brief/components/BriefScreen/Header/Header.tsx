@@ -25,10 +25,11 @@ import { AccessibleLink } from "@web/components/AccessibleLink/AccessibleLink";
 import { Button } from "@web/components/Button/Button";
 import { IconButton } from "@web/components/IconButton/IconButton";
 import { MenuItem } from "@web/components/MenuItem/MenuItem";
-import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import { CoreLinesDisclosure } from "../CoreLinesDisclosure/CoreLinesDisclosure";
+import { UnattributedDisclosure } from "../UnattributedDisclosure/UnattributedDisclosure";
 import { RiskChipDisclosure } from "../RiskChipDisclosure/RiskChipDisclosure";
 import { BriefDetailsPanel } from "./BriefDetailsPanel/BriefDetailsPanel";
+import { LensViewbar } from "./LensViewbar/LensViewbar";
 import { ProviderBadge } from "./ProviderBadge/ProviderBadge";
 import { StateBadge } from "./StateBadge/StateBadge";
 import { TimelineNavigator } from "./TimelineNavigator/TimelineNavigator";
@@ -189,8 +190,6 @@ export function Header({
   // A disabled control keeps its radios focusable and operable — the change
   // handler no-ops and announces the reason instead (controlled inputs snap
   // back on the same render).
-  const lensDisabled = lensControl.state === "disabled";
-  const lensReasonId = useId();
   const selectLens = (mode: ViewMode) => {
     if (lensControl.state === "disabled") {
       announce(lensControl.reason);
@@ -198,6 +197,16 @@ export function Header({
     }
     setViewMode(mode);
   };
+
+  // Rendered inside the lens cluster on BOTH control paths so the three
+  // labeled groups (Scope, Compare, View) share one container and gap.
+  const viewbar = (
+    <LensViewbar
+      lensControl={lensControl}
+      selectLens={selectLens}
+      viewMode={viewMode}
+    />
+  );
 
   return (
     <header className={styles["header"]} ref={headerRef}>
@@ -300,17 +309,21 @@ export function Header({
       </div>
       {/* Tier 2 — the lens toolbar: everything that changes WHAT is on
           screen, flattened to one wrappable line, plus the quiet stats group.
-          Story/Concerns organizes content rather than comparison, so it parks
-          at the far end. */}
+          Story/Concerns rides with the other lenses — same labeled-group
+          vocabulary as Compare; only the stats park at the far end. */}
       <div className={styles["lensRow"]}>
         {controlsSlot !== undefined ? (
-          controlsSlot
+          <div className={styles["lensCluster"]}>
+            {controlsSlot}
+            {viewbar}
+          </div>
         ) : (
           <TimelineNavigator
             availability={availability}
             briefId={briefId}
             compareState={compareState}
             timeline={timeline}
+            trailing={viewbar}
           />
         )}
         {revisionPending === true ? (
@@ -329,17 +342,19 @@ export function Header({
             >
               {t("brief.header.coreLines")}
               <b>
-                <span aria-hidden="true" className="faint">
-                  {"≈ "}
-                </span>
-                <ScreenReaderOnly>
-                  {t("brief.header.approximately")}
-                </ScreenReaderOnly>
                 <span className="green">+{model.totalCoreAdded}</span>{" "}
                 <span className="faint">/</span>{" "}
                 <span className="red">−{model.totalCoreDeleted}</span>
               </b>
             </CoreLinesDisclosure>
+            {model.unattributed !== undefined &&
+            model.unattributed.added + model.unattributed.deleted > 0 ? (
+              <UnattributedDisclosure
+                totalChanged={model.totalAdded + model.totalDeleted}
+                triggerClassName={`stat ${styles["stat"]}`}
+                view={model.unattributed}
+              />
+            ) : null}
             <div className={`stat ${styles["stat"]}`}>
               {t("brief.header.chunks")}
               <b>
@@ -360,50 +375,6 @@ export function Header({
               )}
             </div>
           </div>
-          <fieldset
-            className={styles["viewbar"]}
-            data-state={lensDisabled ? "disabled" : undefined}
-            title={lensDisabled ? lensControl.reason : undefined}
-          >
-            <ScreenReaderOnly as="legend">
-              {t("brief.header.viewLegend")}
-            </ScreenReaderOnly>
-            <label className={styles["viewOption"]}>
-              <input
-                aria-describedby={lensDisabled ? lensReasonId : undefined}
-                aria-disabled={lensDisabled || undefined}
-                checked={viewMode === "story"}
-                className={styles["viewControl"]}
-                name="review-view"
-                type="radio"
-                value="story"
-                onChange={() => selectLens("story")}
-              />
-              <span className={styles["viewLabel"]}>
-                {t("brief.header.viewStory")}
-              </span>
-            </label>
-            <label className={styles["viewOption"]}>
-              <input
-                aria-describedby={lensDisabled ? lensReasonId : undefined}
-                aria-disabled={lensDisabled || undefined}
-                checked={viewMode === "concerns"}
-                className={styles["viewControl"]}
-                name="review-view"
-                type="radio"
-                value="concerns"
-                onChange={() => selectLens("concerns")}
-              />
-              <span className={styles["viewLabel"]}>
-                {t("brief.header.viewConcerns")}
-              </span>
-            </label>
-            {lensDisabled ? (
-              <span className="sr-only" id={lensReasonId}>
-                {lensControl.reason}
-              </span>
-            ) : null}
-          </fieldset>
         </div>
       </div>
       {/* Decorative twin of the stats' numbers — hidden from the tree. */}

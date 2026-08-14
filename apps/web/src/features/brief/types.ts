@@ -122,6 +122,12 @@ export interface UnattributedFile {
   addedRanges: LineRange[];
   /** @description Old-side changed lines no chunk claims. */
   removedRanges: LineRange[];
+  /**
+   * @description Sliced diff rows for the unattributed ranges — attached
+   * where the diff is available (server sidecar / live diff), like
+   * `BriefChunk.diff`; never part of the stored artifact.
+   */
+  diff?: DiffLine[];
 }
 
 /**

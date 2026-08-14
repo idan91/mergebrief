@@ -12,7 +12,7 @@ import type { BriefChunk, DiffLine, LineRange } from "../types";
  */
 export function sliceChunkDiff(
   rows: DiffLine[],
-  chunk: BriefChunk,
+  chunk: Pick<BriefChunk, "addedRanges" | "removedRanges">,
 ): DiffLine[] {
   const changedRows = rows.filter((row) => {
     if (row.kind === "add") return lineInRanges(row.newLine, chunk.addedRanges);

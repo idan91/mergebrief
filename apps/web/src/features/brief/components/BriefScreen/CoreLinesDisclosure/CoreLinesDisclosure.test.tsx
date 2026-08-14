@@ -27,18 +27,18 @@ describe("CoreLinesDisclosure", () => {
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
   });
 
-  it("opens on click with both scopes and the approximation caveat", () => {
+  it("opens on click with both scopes and the derivation caveat", () => {
     renderDisclosure();
     const trigger = screen.getByRole("button", { name: "core lines" });
     fireEvent.click(trigger);
     expect(trigger.dataset["state"]).toBe("open");
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getByText("all adjusted lines")).toBeTruthy();
+    expect(screen.getByText("all lines")).toBeTruthy();
     expect(screen.getByText("+318")).toBeTruthy();
     expect(screen.getByText("−54")).toBeTruthy();
     expect(screen.getByText("+412")).toBeTruthy();
     expect(screen.getByText("−96")).toBeTruthy();
-    expect(screen.getByText(/not the raw git count/)).toBeTruthy();
+    expect(screen.getByText(/derived from the diff/)).toBeTruthy();
     // The panel describes the trigger while open.
     const panelId = trigger.getAttribute("aria-describedby");
     expect(panelId).toBeTruthy();
@@ -50,7 +50,7 @@ describe("CoreLinesDisclosure", () => {
     fireEvent.click(trigger);
     fireEvent.click(trigger);
     expect(trigger.dataset["state"]).toBe("closed");
-    expect(screen.queryByText(/not the raw git count/)).toBeNull();
+    expect(screen.queryByText(/derived from the diff/)).toBeNull();
   });
 
   it("Escape dismisses and the key never reaches page-level handlers", () => {

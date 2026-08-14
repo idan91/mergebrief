@@ -1,0 +1,98 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  // Same segmented vocabulary as the View/Compare groups, riding beside
+  // them in the lens cluster.
+  .viewbar {
+    // Concentric inner radius, matching SegmentedControl.
+    --segmented-inner-radius: calc(var(--radius-md) - 3px);
+
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: functions.to-rem(6px);
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  // Faint prefix label OUTSIDE the bordered group — same vocabulary as the
+  // Compare group's legend.
+  .viewbarLegend {
+    float: inline-start;
+    padding: 0;
+    color: var(--faint);
+    font-size: var(--font-size-sm);
+    white-space: nowrap;
+  }
+
+  .viewbarGroup {
+    display: inline-flex;
+    gap: functions.to-rem(2px);
+    padding: functions.to-rem(2px);
+    border: 1px solid var(--line2);
+    border-radius: var(--radius-md);
+  }
+
+  .viewOption {
+    position: relative;
+    display: inline-flex;
+    cursor: pointer;
+  }
+
+  .viewControl {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .viewLabel {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: functions.to-rem(24px);
+    padding-block: functions.to-rem(3px);
+    padding-inline: functions.to-rem(10px);
+    border-radius: var(--segmented-inner-radius);
+    background: transparent;
+    color: var(--dim);
+    font-size: var(--font-size-md);
+    transition:
+      background 0.15s,
+      color 0.15s,
+      outline-color 0.15s;
+  }
+
+  .viewControl:checked + .viewLabel {
+    background: color-mix(in srgb, var(--blue) 16%, transparent);
+    color: var(--text);
+  }
+
+  .viewControl:not(:checked):hover + .viewLabel {
+    color: var(--text);
+  }
+
+  .viewControl:focus-visible + .viewLabel {
+    @include mixins.focus-ring;
+  }
+
+  // Greyed like the disabled Compare options — muted throughout, checked
+  // pill drained, no hover invitation. The radios stay focusable.
+  .viewbar[data-state="disabled"] {
+    .viewLabel,
+    .viewControl:checked + .viewLabel {
+      background: transparent;
+      color: var(--faint);
+    }
+
+    .viewControl,
+    .viewOption {
+      cursor: not-allowed;
+    }
+
+    .viewControl:not(:checked):hover + .viewLabel {
+      color: var(--faint);
+    }
+  }
+}

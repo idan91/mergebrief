@@ -211,10 +211,9 @@
       "markingReady": "Marking ready…",
       "markReady": "Mark ready for review",
       "coreLines": "core lines",
-      "approximately": "approximately ",
       "chunks": "chunks",
       "flags": "flags",
-      "viewLegend": "Review view",
+      "viewLegend": "View",
       "viewStory": "Story",
       "viewConcerns": "Concerns",
       "selfReviewChip": "Self-review — your draft",
@@ -235,10 +234,10 @@
       "commits_other": "{{count}} commits",
       "fullShas": "full SHAs",
       "span": "span",
-      "adjustedLines": "adjusted lines",
+      "changedLines": "changed lines",
       "coreLines": "core lines",
-      "adjustedCaveatLead": "Adjusted ≈ git for this local brief.",
-      "adjustedCaveatBody": "Move detection is not in the current categorizer output, so moved/generated exclusions are not claimed yet. Core lines share the same approximation.",
+      "countsCaveatLead": "Counts are derived from the diff.",
+      "countsCaveatBody": "Chunk counts come from the model's attributed line ranges intersected with the diff's changed lines; lines outside every chunk are reported as unattributed.",
       "generationHeading": "Generation",
       "provider": "provider",
       "model": "model",
@@ -319,7 +318,6 @@
       "threadsInDiff_other": " threads in the diff"
     },
     "group": {
-      "approximately": "approximately ",
       "dominant": "dominant",
       "ariaLabelGroupRisks": "Risk-surface attributes in this group",
       "ariaLabelGroupRiskSurface": "{{title}} — risk surface",
@@ -487,7 +485,7 @@
     "timeline": {
       "selectLabel": "Select PR revision",
       "briefOption": "Brief {{index}}",
-      "viewLegend": "View",
+      "viewLegend": "Scope",
       "compareLegend": "Compare",
       "fullBrief": "Full brief",
       "changesOnly": "Changes Only",
@@ -516,8 +514,8 @@
     },
     "coreLines": {
       "core": "core lines",
-      "allAdjusted": "all adjusted lines",
-      "caveat": "Adjusted approximation — not the raw git count. Exact lines are on GitHub."
+      "allLines": "all lines",
+      "caveat": "Core sums the chunks holding each group's intent; counts are derived from the diff. Exact lines are on GitHub."
     },
     "focusBanner": {
       "lead": "Focus mode",
@@ -560,6 +558,18 @@
     },
     "stateBadge": {
       "pullRequest": "pull request "
+    },
+    "unattributed": {
+      "label": "unattributed",
+      "calloutTitle": "Changed lines no chunk covers",
+      "calloutCaveat": "The brief attributed {{attributed}} of {{total}} changed lines. These lines belong to no chunk and appear in no group or concern.",
+      "bannerRest_one": "changed lines in {{count}} file are not covered by any chunk.",
+      "bannerRest_other": "changed lines in {{count}} files are not covered by any chunk.",
+      "showLines": "Show lines",
+      "hideLines": "Hide lines",
+      "fileLines": "lines {{ranges}}",
+      "noDiff": "Diff lines are not available for this file.",
+      "readOnlyReason": "These lines belong to no chunk — review comments are disabled here."
     }
   },
   "review": {

@@ -18,6 +18,7 @@ import {
   type SegmentedOption,
 } from "@web/components/SegmentedControl/SegmentedControl";
 import type { BriefTimeline } from "../../../../utils/timeline";
+import type { ReactNode } from "react";
 import styles from "./TimelineNavigator.module.scss";
 
 export interface TimelineNavigatorProps {
@@ -27,6 +28,9 @@ export interface TimelineNavigatorProps {
   /** Resolved, normalized View/Compare state. */
   compareState: BriefSearch;
   timeline: BriefTimeline;
+  /** Rendered inside the lens cluster after Compare (the Story/Concerns
+      viewbar) so all three labeled groups share one container + gap. */
+  trailing?: ReactNode | undefined;
 }
 
 /**
@@ -42,6 +46,7 @@ export function TimelineNavigator({
   briefId,
   compareState,
   timeline,
+  trailing,
 }: TimelineNavigatorProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -96,7 +101,13 @@ export function TimelineNavigator({
     offOption,
   ];
 
-  if (!selected) return null;
+  // No selected timeline point = no revision nav, but the trailing viewbar
+  // is not timeline-owned — it must survive this path.
+  if (!selected) {
+    return trailing === undefined ? null : (
+      <div className={styles["lensRegion"]}>{trailing}</div>
+    );
+  }
   return (
     <>
       <nav
@@ -191,6 +202,7 @@ export function TimelineNavigator({
           showLegend
           value={compareState.compare ?? "off"}
         />
+        {trailing}
       </div>
     </>
   );

@@ -24,17 +24,31 @@ export function attachLiveDiffs(brief: Brief, diff: string): Brief {
     string,
     ReturnType<typeof parseUnifiedDiffPatch>
   >();
+  const rowsFor = (file: string) => {
+    const patch = files.get(file);
+    if (patch === undefined) return undefined;
+    let rows = parsedByFile.get(file);
+    if (rows === undefined) {
+      rows = parseUnifiedDiffPatch(patch);
+      parsedByFile.set(file, rows);
+    }
+    return rows;
+  };
   return {
     ...brief,
     chunks: brief.chunks.map((chunk) => {
-      const patch = files.get(chunk.file);
-      if (patch === undefined) return chunk;
-      let rows = parsedByFile.get(chunk.file);
-      if (rows === undefined) {
-        rows = parseUnifiedDiffPatch(patch);
-        parsedByFile.set(chunk.file, rows);
-      }
+      const rows = rowsFor(chunk.file);
+      if (rows === undefined) return chunk;
       return { ...chunk, diff: sliceChunkDiff(rows, chunk) };
     }),
+    ...(brief.unattributed === undefined
+      ? {}
+      : {
+          unattributed: brief.unattributed.map((entry) => {
+            const rows = rowsFor(entry.file);
+            if (rows === undefined) return entry;
+            return { ...entry, diff: sliceChunkDiff(rows, entry) };
+          }),
+        }),
   };
 }

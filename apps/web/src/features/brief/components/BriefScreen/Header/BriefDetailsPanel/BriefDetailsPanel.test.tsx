@@ -189,8 +189,8 @@ describe("BriefDetailsPanel sections — full brief", () => {
     expect(text).toContain("core lines");
     expect(text).toContain("+104");
     expect(text).toContain("−41");
-    expect(text).toContain("Adjusted ≈ git for this local brief.");
-    expect(text).toContain("Core lines share the same approximation.");
+    expect(text).toContain("Counts are derived from the diff.");
+    expect(text).toContain("reported as unattributed");
   });
 
   it("Generation: provider, model, effort, warnings text", () => {

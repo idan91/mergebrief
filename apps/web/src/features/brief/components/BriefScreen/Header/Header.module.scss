@@ -131,18 +131,34 @@
     flex: none;
     align-items: center;
     gap: clamp(functions.to-rem(10px), 1.5vw, functions.to-rem(18px));
+
+    // Inert while the lens row is one line (the controls' flex-1 absorbs
+    // the space) but keeps the stats parked at the END when the row wraps.
+    margin-inline-start: auto;
   }
 
+  // One grid for the whole stats group: shared label row + value row, each
+  // stat a row-subgrid, so every label and every value align by construction.
+  // Never `align-items: baseline` here — it inflates the rows.
   .statsGroup {
-    display: flex;
+    display: grid;
     flex: none;
-    align-items: stretch;
+    grid-auto-flow: column;
+    grid-template-rows: auto auto;
+  }
 
-    > * + * {
-      border-inline-start: 1px solid var(--line);
-      padding-inline-start: functions.to-rem(14px);
-      margin-inline-start: functions.to-rem(14px);
-    }
+  // A disclosure's classless wrapper span joins the grid transparently; its
+  // trigger button is the real stat cell.
+  .statsGroup > span:not([class]) {
+    display: contents;
+  }
+
+  .statsGroup > .stat,
+  .statsGroup > span:not([class]) > .stat {
+    display: grid;
+    grid-row: span 2;
+    grid-template-rows: subgrid;
+    justify-items: end;
   }
 
   .stat {
@@ -166,86 +182,26 @@
     }
   }
 
-  // Same segmented vocabulary as the View/Compare groups, parked at the
-  // row's far end.
-  .viewbar {
-    // Concentric inner radius, matching SegmentedControl.
-    --segmented-inner-radius: calc(var(--radius-md) - 3px);
-
-    display: inline-flex;
-    flex: none;
-    gap: functions.to-rem(2px);
-    margin: 0;
-
-    // Inert while the lens row is one line (the controls' flex-1 absorbs
-    // the space) but keeps Story/Concerns parked at the END when the row
-    // wraps and this lands on a line with the stats group.
-    margin-inline-start: auto;
-    padding: functions.to-rem(2px);
-    border: 1px solid var(--line2);
-    border-radius: var(--radius-md);
+  // Hairline dividers between the cells. Placed AFTER the `.stat` reset —
+  // its `border: 0` would swallow an earlier rule of equal specificity; the
+  // second selector reaches a divider-owed stat inside a contents wrapper.
+  .statsGroup > * + .stat,
+  .statsGroup > * + span:not([class]) > .stat {
+    border-inline-start: 1px solid var(--line);
+    padding-inline-start: functions.to-rem(14px);
+    margin-inline-start: functions.to-rem(14px);
   }
 
-  .viewOption {
-    position: relative;
-    display: inline-flex;
-    cursor: pointer;
-  }
-
-  .viewControl {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    cursor: pointer;
-  }
-
-  .viewLabel {
-    display: inline-flex;
+  // DB-path wrapper: the controls slot + viewbar share one flex container,
+  // mirroring the local TimelineNavigator's lens region.
+  .lensCluster {
+    display: flex;
+    flex: 1;
+    min-inline-size: 0;
     align-items: center;
-    min-block-size: functions.to-rem(24px);
-    padding-block: functions.to-rem(3px);
-    padding-inline: functions.to-rem(14px);
-    border-radius: var(--segmented-inner-radius);
-    background: transparent;
-    color: var(--dim);
-    font-size: var(--font-size-md);
-    font-weight: 500;
-    transition:
-      background 0.15s,
-      color 0.15s,
-      outline-color 0.15s;
-  }
-
-  .viewControl:checked + .viewLabel {
-    background: color-mix(in srgb, var(--blue) 16%, transparent);
-    color: var(--text);
-  }
-
-  .viewControl:not(:checked):hover + .viewLabel {
-    color: var(--text);
-  }
-
-  .viewControl:focus-visible + .viewLabel {
-    @include mixins.focus-ring;
-  }
-
-  // Greyed like the disabled Compare options — muted throughout, checked
-  // pill drained, no hover invitation. The radios stay focusable.
-  .viewbar[data-state="disabled"] {
-    .viewLabel,
-    .viewControl:checked + .viewLabel {
-      background: transparent;
-      color: var(--faint);
-    }
-
-    .viewControl,
-    .viewOption {
-      cursor: not-allowed;
-    }
-
-    .viewControl:not(:checked):hover + .viewLabel {
-      color: var(--faint);
-    }
+    flex-wrap: wrap;
+    gap: functions.to-rem(8px)
+      clamp(functions.to-rem(10px), 1.5vw, functions.to-rem(18px));
   }
 
   .menuWrap {

@@ -613,6 +613,15 @@ async function attachChunkDiffs(brief: Brief, briefId: string): Promise<Brief> {
         diff: sliceChunkDiff(fileDiff.rows, chunk),
       } satisfies BriefChunk;
     }),
+    ...(brief.unattributed === undefined
+      ? {}
+      : {
+          unattributed: brief.unattributed.map((entry) => {
+            const fileDiff = fileDiffs.get(entry.file);
+            if (!fileDiff) return entry;
+            return { ...entry, diff: sliceChunkDiff(fileDiff.rows, entry) };
+          }),
+        }),
   };
 }
 
