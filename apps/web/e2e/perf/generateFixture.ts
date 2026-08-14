@@ -160,6 +160,8 @@ function buildBrief(revision: 1 | 2, scale: Scale, chunks: ChunkSpec[]) {
     concernView: [
       { concern: "implementation", added: totalAdded, deleted: totalDeleted },
     ],
+    // Synthetic chunks claim every changed line — fully attributed.
+    unattributed: [],
     pr: {
       repo: "mergebrief/perf-fixture",
       number: 1,

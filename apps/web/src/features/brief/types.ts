@@ -113,6 +113,18 @@ export interface LineRange {
 }
 
 /**
+ * @description Changed lines no chunk claims, as per-file ranges —
+ * pipeline-derived, counts always derive from the ranges.
+ */
+export interface UnattributedFile {
+  file: string;
+  /** @description New-side changed lines no chunk claims. */
+  addedRanges: LineRange[];
+  /** @description Old-side changed lines no chunk claims. */
+  removedRanges: LineRange[];
+}
+
+/**
  * @description Mechanical prevHead→head changed lines for one file.
  */
 export interface RevisionChangeFile {
@@ -315,6 +327,17 @@ export interface Brief {
   changeGroups: ChangeGroup[];
   chunks: BriefChunk[];
   concernView: ConcernRollup[];
+  /**
+   * @description Changed lines no chunk claims — pipeline-derived (`[]` =
+   * fully attributed); absent on pre-feature briefs.
+   */
+  unattributed?: UnattributedFile[];
+  /**
+   * @description Whole-diff added/removed totals derived from the parsed
+   * diff — exact even when chunk overlaps double-count per-chunk sums.
+   * Absent on pre-feature briefs.
+   */
+  diffTotals?: ChunkLoc;
   index?: number;
   commitRange?: CommitRange;
   generation?: Generation;

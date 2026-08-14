@@ -153,5 +153,26 @@
     "provider": "anthropic",
     "model": "claude-opus-4-8",
     "effort": "medium"
-  }
+  },
+  "unattributed": [
+    {
+      "file": "apps/web/src/features/brief/components/BriefPage/BriefPage.tsx",
+      "addedRanges": [
+        {
+          "start": 598,
+          "end": 598
+        },
+        {
+          "start": 784,
+          "end": 784
+        }
+      ],
+      "removedRanges": [
+        {
+          "start": 263,
+          "end": 263
+        }
+      ]
+    }
+  ]
 }

@@ -16,9 +16,11 @@ import {
   type Category,
   type ChangeGroup,
   type Concern,
+  type LineRange,
   type ReadingOrderStep,
   type RiskSurfaceAttribute,
   type RiskToken,
+  type UnattributedFile,
 } from "../types";
 
 /**
@@ -42,7 +44,7 @@ export interface GroupView {
   supportingChunks: BriefChunk[];
   added: number;
   deleted: number;
-  /** Adjusted-line sums over the group's core chunks. */
+  /** Derived-line sums over the group's core chunks. */
   coreAdded: number;
   coreDeleted: number;
   headerRisk: GroupHeaderRisk;
@@ -77,16 +79,34 @@ export interface RiskFlag {
   note?: string;
 }
 
+/** One unattributed file with its counts derived from the ranges. */
+export interface UnattributedFileView extends UnattributedFile {
+  added: number;
+  deleted: number;
+}
+
+/** The brief's unattributed remainder with derived per-file + total counts. */
+export interface UnattributedView {
+  files: UnattributedFileView[];
+  added: number;
+  deleted: number;
+}
+
 export interface BriefViewModel {
   groups: GroupView[];
   flags: RiskFlag[];
   flagsById: Map<string, RiskFlag>;
   flagsByGroup: Map<string, RiskFlag[]>;
+  /** Whole-change totals: the brief's exact diff-derived numbers when
+      present, else chunk sums plus the unattributed remainder (which can
+      double-count inter-chunk overlap lines). */
   totalAdded: number;
   totalDeleted: number;
-  /** Adjusted-line sums over ALL core chunks. */
+  /** Derived-line sums over ALL core chunks. */
   totalCoreAdded: number;
   totalCoreDeleted: number;
+  /** Present only on briefs that carry the field (absent pre-feature). */
+  unattributed?: UnattributedView;
   concernChunks: Map<Concern, BriefChunk[]>;
   chunkToGroup: Map<string, string>;
   /** Per-chunk attribute display meta, keyed `chunkId` → `attr`. */
@@ -213,6 +233,7 @@ export function buildBriefViewModel(
   }
 
   const coreOnly = brief.chunks.filter((chunk) => chunk.role === Roles.CORE);
+  const unattributed = buildUnattributedView(brief.unattributed);
 
   const flags: RiskFlag[] = [];
   const flagsById = new Map<string, RiskFlag>();
@@ -258,10 +279,15 @@ export function buildBriefViewModel(
     flags,
     flagsById,
     flagsByGroup,
-    totalAdded: sumLoc(brief.chunks, "added"),
-    totalDeleted: sumLoc(brief.chunks, "deleted"),
+    totalAdded:
+      brief.diffTotals?.added ??
+      sumLoc(brief.chunks, "added") + (unattributed?.added ?? 0),
+    totalDeleted:
+      brief.diffTotals?.deleted ??
+      sumLoc(brief.chunks, "deleted") + (unattributed?.deleted ?? 0),
     totalCoreAdded: sumLoc(coreOnly, "added"),
     totalCoreDeleted: sumLoc(coreOnly, "deleted"),
+    ...(unattributed !== undefined ? { unattributed } : {}),
     concernChunks,
     chunkToGroup,
     riskMetaByChunk,
@@ -398,6 +424,30 @@ function orderGroupsByReadingOrder(
 
 function sumLoc(chunks: BriefChunk[], key: keyof BriefChunk["loc"]): number {
   return chunks.reduce((total, chunk) => total + chunk.loc[key], 0);
+}
+
+/** Ranges arrive engine-canonical (disjoint, ascending) — a plain sum counts. */
+function sumRanges(ranges: LineRange[]): number {
+  return ranges.reduce(
+    (total, range) => total + (range.end - range.start + 1),
+    0,
+  );
+}
+
+function buildUnattributedView(
+  files: UnattributedFile[] | undefined,
+): UnattributedView | undefined {
+  if (files === undefined) return undefined;
+  const fileViews = files.map((file) => ({
+    ...file,
+    added: sumRanges(file.addedRanges),
+    deleted: sumRanges(file.removedRanges),
+  }));
+  return {
+    files: fileViews,
+    added: fileViews.reduce((total, file) => total + file.added, 0),
+    deleted: fileViews.reduce((total, file) => total + file.deleted, 0),
+  };
 }
 
 /** One jump-rail entry: an attribute + its carrying groups. */

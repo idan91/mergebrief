@@ -23,6 +23,7 @@ import {
   type ReadingOrderStep,
   type Specificity,
   type RevisionChangeFile,
+  type UnattributedFile,
   type RevisionChanges,
   type RevisionNarrativeArtifact,
   type RevisionNarrativeChunk,
@@ -298,6 +299,48 @@ function parseRevisionChangeFile(value: unknown): Result<RevisionChangeFile> {
       removedRanges: removedRanges.value,
     },
   };
+}
+
+/**
+ * Optional warn-and-drop parse of the brief's `unattributed` field: absent
+ * stays absent (pre-feature brief); malformed drops with a warning rather
+ * than failing the whole brief.
+ */
+function parseUnattributed(
+  value: unknown,
+  warnSink?: ParseWarnSink,
+): UnattributedFile[] | undefined {
+  if (value === undefined) return undefined;
+  const parsed = parseArray(value, parseRevisionChangeFile, "unattributed");
+  if (!parsed.ok) {
+    warnSink?.warn(`unattributed dropped: ${parsed.error}`);
+    return undefined;
+  }
+  // The engine emits canonical ranges (1-based, ordered, disjoint); the view
+  // model counts with a plain sum, so a non-canonical artifact must drop
+  // here rather than produce negative or duplicated totals.
+  for (const entry of parsed.value) {
+    for (const ranges of [entry.addedRanges, entry.removedRanges]) {
+      if (!isCanonicalRanges(ranges)) {
+        warnSink?.warn(
+          `unattributed dropped: non-canonical ranges for ${entry.file}`,
+        );
+        return undefined;
+      }
+    }
+  }
+  return parsed.value;
+}
+
+/** 1-based, ordered, non-overlapping (ascending, gap-free of inversions). */
+function isCanonicalRanges(ranges: LineRange[]): boolean {
+  let previousEnd = 0;
+  for (const range of ranges) {
+    if (range.start < 1 || range.end < range.start) return false;
+    if (range.start <= previousEnd) return false;
+    previousEnd = range.end;
+  }
+  return true;
 }
 
 export function parseRevisionChanges(value: unknown): Result<RevisionChanges> {
@@ -995,12 +1038,16 @@ export function parseBrief(
     warnSink,
   );
   const intentCheck = parseIntentCheck(value["intentCheck"], warnSink);
+  const unattributed = parseUnattributed(value["unattributed"], warnSink);
+  const diffTotals = parseLoc(value["diffTotals"]);
   return {
     ok: true,
     value: {
       artifactKind: "brief",
       pr: pr.value,
       summary,
+      ...(unattributed !== undefined ? { unattributed } : {}),
+      ...(diffTotals.ok ? { diffTotals: diffTotals.value } : {}),
       ...(isInteger(index) ? { index } : {}),
       ...(commitRange ? { commitRange } : {}),
       ...(generation ? { generation } : {}),
@@ -1153,6 +1200,7 @@ function normalizeGroupsAndChunks(
   return { ok: true, value: { changeGroups, chunks: normalizedChunks } };
 }
 
+/** Vocabulary-order rollup — matches the pipeline's derived concernView. */
 function buildConcernView(chunks: BriefChunk[]): ConcernRollup[] {
   const byConcern = new Map<Concern, { added: number; deleted: number }>();
   for (const chunk of chunks) {
@@ -1161,9 +1209,9 @@ function buildConcernView(chunks: BriefChunk[]): ConcernRollup[] {
     current.deleted += chunk.loc.deleted;
     byConcern.set(chunk.concern, current);
   }
-  return [...byConcern.entries()].map(([concern, loc]) => ({
-    concern,
-    added: loc.added,
-    deleted: loc.deleted,
-  }));
+  return Object.values(Concerns).flatMap((concern) => {
+    const loc = byConcern.get(concern);
+    if (loc === undefined) return [];
+    return [{ concern, added: loc.added, deleted: loc.deleted }];
+  });
 }

@@ -48,10 +48,7 @@ export function countLines(ranges: LineRange[]): number {
 }
 
 /** Distinct lines present in both range lists, as canonical ranges. */
-export function intersectRanges(
-  a: LineRange[],
-  b: LineRange[],
-): LineRange[] {
+export function intersectRanges(a: LineRange[], b: LineRange[]): LineRange[] {
   const as = normalize(a);
   const bs = normalize(b);
   const out: LineRange[] = [];
@@ -241,7 +238,10 @@ export function crossCheckFileTotals(
   const derivedByFile = new Map(
     changedFiles.map((f) => [
       f.file,
-      { added: countLines(f.addedRanges), deleted: countLines(f.removedRanges) },
+      {
+        added: countLines(f.addedRanges),
+        deleted: countLines(f.removedRanges),
+      },
     ]),
   );
   const reportedPaths = new Set(prFiles.map((f) => f.path));

@@ -1125,7 +1125,9 @@ describe("categorize — mechanical LoC derivation", () => {
       { added: 2, deleted: 0 },
     ]);
     expect(
-      (brief.generationWarnings ?? []).some((w) => w.includes("counted in both")),
+      (brief.generationWarnings ?? []).some((w) =>
+        w.includes("counted in both"),
+      ),
     ).toBe(true);
   });
 
@@ -1174,12 +1176,12 @@ describe("categorize — anchored runs and unattributed", () => {
       },
       diff: realDiff,
     };
-    const previousBrief = (await categorize(
+    const previousBrief = await categorize(
       anchoredPr,
       1,
       commitRange,
       new FakeGenerator(twoGroupBriefGen),
-    ));
+    );
     // Model withholds frozen groups' chunks: emits nothing for frozen.ts.
     const brief = await categorize(
       anchoredPr,

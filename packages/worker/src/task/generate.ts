@@ -32,6 +32,7 @@ import {
   countChangedLines,
   fetchLinkedContext,
   isHugeSpan,
+  parseChangedRanges,
   revisionNarrativeConfig,
   toPrLifecycleState,
   type AnchorViewInput,
@@ -800,6 +801,7 @@ async function runGeneration(
           generated: brief,
           plan: anchorPlan,
           prFiles: files.map((file) => file.path),
+          changedFiles: parseChangedRanges(diff),
         });
         if (!stitched.ok) {
           throw new PermanentJobError(stitched.error.message);

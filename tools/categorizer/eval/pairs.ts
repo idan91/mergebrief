@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { z } from "zod/v4";
 import type { Result } from "types";
-import { AnchorStates, categorize } from "brief-core";
+import { AnchorStates, categorize, parseChangedRanges } from "brief-core";
 import type { Brief } from "brief-core/types";
 import type { Effort, Generator } from "generators";
 import { textLengthNotes } from "./length";
@@ -312,6 +312,7 @@ export async function runPairCase(
         generated,
         plan,
         prFiles: fixture.revised.pr.meta.files.map((file) => file.path),
+        changedFiles: parseChangedRanges(fixture.revised.pr.diff),
       });
       if (!stitched.ok) {
         throw new Error(`stitch failed: ${stitched.error.message}`);

@@ -74,6 +74,12 @@ function brief(
   };
 }
 
+/** Whole-PR changed lines covering the standard fixtures' chunk ranges. */
+const CHANGED_AB = [
+  { file: "a.ts", addedRanges: [{ start: 5, end: 8 }], removedRanges: [] },
+  { file: "b.ts", addedRanges: [{ start: 1, end: 3 }], removedRanges: [] },
+];
+
 /** Incremental diff touching only b.ts. */
 const DIFF_B = `diff --git a/b.ts b/b.ts
 --- a/b.ts
@@ -260,6 +266,7 @@ describe("stitchBrief", () => {
       generated,
       plan,
       prFiles: ["a.ts", "b.ts"],
+      changedFiles: CHANGED_AB,
     });
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
@@ -304,6 +311,7 @@ describe("stitchBrief", () => {
       generated,
       plan: planFor(),
       prFiles: ["a.ts", "b.ts"],
+      changedFiles: CHANGED_AB,
     });
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
@@ -349,7 +357,12 @@ describe("stitchBrief", () => {
         ],
       },
     );
-    const result = stitchBrief({ generated, plan, prFiles: ["a.ts", "b.ts"] });
+    const result = stitchBrief({
+      generated,
+      plan,
+      prFiles: ["a.ts", "b.ts"],
+      changedFiles: CHANGED_AB,
+    });
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value.brief.lengthViolations).toEqual([
@@ -388,6 +401,7 @@ describe("stitchBrief", () => {
       generated,
       plan: planFor(),
       prFiles: ["a.ts", "b.ts"],
+      changedFiles: CHANGED_AB,
     });
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
@@ -425,6 +439,7 @@ describe("stitchBrief", () => {
       generated,
       plan: planFor(),
       prFiles: ["a.ts", "b.ts"],
+      changedFiles: CHANGED_AB,
     });
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
@@ -462,6 +477,7 @@ describe("stitchBrief", () => {
       generated,
       plan: planFor(),
       prFiles: ["a.ts", "b.ts"],
+      changedFiles: CHANGED_AB,
     });
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
@@ -483,6 +499,7 @@ describe("stitchBrief", () => {
       generated,
       plan: planFor(),
       prFiles: ["a.ts", "b.ts"],
+      changedFiles: CHANGED_AB,
     });
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
@@ -500,6 +517,7 @@ describe("stitchBrief", () => {
       },
       plan: planFor(),
       prFiles: ["a.ts", "b.ts"],
+      changedFiles: CHANGED_AB,
     });
     expect(partial.ok).toBe(true);
     if (!partial.ok) throw new Error("unreachable");
@@ -515,6 +533,7 @@ describe("stitchBrief", () => {
       generated,
       plan: planFor(),
       prFiles: ["a.ts", "b.ts", "missing.ts"],
+      changedFiles: CHANGED_AB,
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
@@ -530,6 +549,7 @@ describe("stitchBrief", () => {
       generated,
       plan: planFor(),
       prFiles: ["a.ts", "b.ts"],
+      changedFiles: CHANGED_AB,
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
@@ -551,6 +571,7 @@ describe("stitchBrief", () => {
       generated,
       plan: planFor(),
       prFiles: ["a.ts", "b.ts", "c.ts"],
+      changedFiles: CHANGED_AB,
     });
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
@@ -582,6 +603,7 @@ describe("stitchBrief", () => {
       generated,
       plan: planFor(),
       prFiles: ["a.ts", "b.ts", "new.ts"],
+      changedFiles: CHANGED_AB,
     });
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
@@ -613,6 +635,7 @@ describe("stitchBrief", () => {
       generated,
       plan: planFor(),
       prFiles: ["a.ts", "b.ts"],
+      changedFiles: CHANGED_AB,
     });
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
@@ -642,6 +665,7 @@ describe("stitchBrief", () => {
       generated,
       plan: planFor(),
       prFiles: ["a.ts", "b.ts"],
+      changedFiles: CHANGED_AB,
     });
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
@@ -670,6 +694,7 @@ describe("stitchBrief", () => {
       generated,
       plan: planFor(),
       prFiles: ["a.ts", "b.ts"],
+      changedFiles: CHANGED_AB,
     });
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
@@ -712,6 +737,7 @@ describe("stitchBrief", () => {
       generated,
       plan,
       prFiles: ["a.ts", "b.ts", "c.ts"],
+      changedFiles: CHANGED_AB,
     });
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
@@ -734,6 +760,7 @@ describe("stitchBrief", () => {
       generated,
       plan: planFor(),
       prFiles: ["a.ts", "b.ts"],
+      changedFiles: CHANGED_AB,
     });
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
@@ -741,5 +768,183 @@ describe("stitchBrief", () => {
     expect(new Set(ids).size).toBe(2);
     const carried = result.value.brief.chunks.find((c) => c.file === "a.ts");
     expect(carried?.id).toBe("c1");
+  });
+});
+
+describe("stitchBrief — unattributed remainder", () => {
+  const previous = brief(
+    [group("g1", "alpha"), group("g2", "beta")],
+    [chunk("c1", "g1", "a.ts", 5, 8), chunk("c2", "g2", "b.ts", 1, 2)],
+  );
+
+  function planFor(): AnchorPlan {
+    return planAnchoredGeneration({
+      previousBrief: previous,
+      incrementalDiff: DIFF_B,
+      compareFiles: COMPARE_B,
+      baseShaMoved: false,
+    });
+  }
+
+  it("stamps an empty array when the merged chunks cover every changed line", () => {
+    const generated = brief(
+      [group("tmpB", "beta v2")],
+      [chunk("x2", "tmpB", "b.ts", 1, 3)],
+    );
+    const result = stitchBrief({
+      generated,
+      plan: planFor(),
+      prFiles: ["a.ts", "b.ts"],
+      changedFiles: CHANGED_AB,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value.brief.unattributed).toEqual([]);
+  });
+
+  it("derives the remainder over carried + regenerated chunks and warns", () => {
+    const generated = brief(
+      [group("tmpB", "beta v2")],
+      [chunk("x2", "tmpB", "b.ts", 1, 2)],
+    );
+    const result = stitchBrief({
+      generated,
+      plan: planFor(),
+      prFiles: ["a.ts", "b.ts"],
+      changedFiles: [
+        {
+          file: "a.ts",
+          addedRanges: [{ start: 5, end: 9 }],
+          removedRanges: [],
+        },
+        {
+          file: "b.ts",
+          addedRanges: [{ start: 1, end: 3 }],
+          removedRanges: [],
+        },
+      ],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    // carried a.ts covers 5-8 of 5-9; regenerated b.ts covers 1-2 of 1-3.
+    expect(result.value.brief.unattributed).toEqual([
+      { file: "a.ts", addedRanges: [{ start: 9, end: 9 }], removedRanges: [] },
+      { file: "b.ts", addedRanges: [{ start: 3, end: 3 }], removedRanges: [] },
+    ]);
+    expect(
+      result.value.brief.generationWarnings?.some(
+        (w) => w.includes("anchored stitch") && w.includes("unattributed"),
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("stitchBrief — overlap replacement discipline", () => {
+  it("re-derives overlap warnings over merged chunks and strips categorize's", () => {
+    const previous = brief(
+      [group("g1", "alpha"), group("g2", "beta")],
+      [chunk("c1", "g1", "a.ts", 5, 8), chunk("c2", "g2", "b.ts", 1, 2)],
+    );
+    const plan = planAnchoredGeneration({
+      previousBrief: previous,
+      incrementalDiff: DIFF_B,
+      compareFiles: COMPARE_B,
+      baseShaMoved: false,
+    });
+    // Two regenerated chunks overlap on b.ts; categorize's stale line rides in.
+    const generated = brief(
+      [group("tmpB", "beta v2")],
+      [chunk("x1", "tmpB", "b.ts", 1, 2), chunk("x2", "tmpB", "b.ts", 2, 3)],
+      {
+        generationWarnings: [
+          "⚠ loc overlap issues: chunks c1 and c2 (b.ts) both claim added line(s) 2 — counted in both",
+        ],
+      },
+    );
+    const result = stitchBrief({
+      generated,
+      plan,
+      prFiles: ["a.ts", "b.ts"],
+      changedFiles: CHANGED_AB,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    const lines = result.value.brief.generationWarnings ?? [];
+    // Stale categorize line (model tmp ids) gone; stitch line present with
+    // the persisted chunk ids.
+    expect(lines.some((l) => l.startsWith("⚠ loc overlap"))).toBe(false);
+    expect(
+      lines.some(
+        (l) =>
+          l.includes("anchored stitch") &&
+          l.includes("x1") &&
+          l.includes("x2") &&
+          l.includes("counted in both"),
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("stitchBrief — diffTotals", () => {
+  it("stamps whole-diff totals from changedFiles on the stitched brief", () => {
+    const previous = brief(
+      [group("g1", "alpha"), group("g2", "beta")],
+      [chunk("c1", "g1", "a.ts", 5, 8), chunk("c2", "g2", "b.ts", 1, 2)],
+    );
+    const plan = planAnchoredGeneration({
+      previousBrief: previous,
+      incrementalDiff: DIFF_B,
+      compareFiles: COMPARE_B,
+      baseShaMoved: false,
+    });
+    const generated = brief(
+      [group("tmpB", "beta v2")],
+      [chunk("x2", "tmpB", "b.ts", 1, 3)],
+    );
+    const result = stitchBrief({
+      generated,
+      plan,
+      prFiles: ["a.ts", "b.ts"],
+      changedFiles: CHANGED_AB,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    // CHANGED_AB: a.ts added 5-8 (4) + b.ts added 1-3 (3), no removals.
+    expect(result.value.brief.diffTotals).toEqual({ added: 7, deleted: 0 });
+  });
+});
+
+describe("stitchBrief — stale warning clearing", () => {
+  it("deletes generationWarnings when every filtered line has no replacement", () => {
+    const previous = brief(
+      [group("g1", "alpha"), group("g2", "beta")],
+      [chunk("c1", "g1", "a.ts", 5, 8), chunk("c2", "g2", "b.ts", 1, 2)],
+    );
+    const plan = planAnchoredGeneration({
+      previousBrief: previous,
+      incrementalDiff: DIFF_B,
+      compareFiles: COMPARE_B,
+      baseShaMoved: false,
+    });
+    // The model re-covered the frozen file with overlapping chunks; stitching
+    // drops them, so categorize's tmp-id overlap line must not survive.
+    const generated = brief(
+      [group("tmpB", "beta v2")],
+      [chunk("x2", "tmpB", "b.ts", 1, 3)],
+      {
+        generationWarnings: [
+          "⚠ loc overlap issues: chunks c9 and c10 (a.ts) both claim added line(s) 6 — counted in both",
+        ],
+      },
+    );
+    const result = stitchBrief({
+      generated,
+      plan,
+      prFiles: ["a.ts", "b.ts"],
+      changedFiles: CHANGED_AB,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect("generationWarnings" in result.value.brief).toBe(false);
   });
 });

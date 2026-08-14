@@ -5,15 +5,21 @@
 // model calls — `generate.ts` wires these around the categorize call.
 import {
   assignGroupIds,
+  buildConcernView,
+  deriveUnattributed,
+  detectChunkOverlaps,
+  diffLocTotals,
   GroupVerdicts,
   parseChangedRanges,
   partitionGroups,
   remapThroughPatch,
   RemapOutcomes,
   splitDiffByFile,
+  unattributedTotals,
   validatePartition,
   validateTextLength,
   type Brief,
+  type RevisionChangeFile,
 } from "brief-core";
 import type { CompareFiles } from "github";
 import type { Result } from "types";
@@ -213,6 +219,12 @@ export interface StitchArgs {
   readonly plan: AnchorPlan;
   /** Every changed file path of the PR — the coverage check's universe. */
   readonly prFiles: readonly string[];
+  /**
+   * The whole-PR diff's changed-line ranges — the universe `unattributed`
+   * derives against. categorize() skips the stamp on anchored runs (the model
+   * withholds frozen chunks), so the stitch owns it over the merged set.
+   */
+  readonly changedFiles: readonly RevisionChangeFile[];
 }
 
 export interface StitchResult {
@@ -457,19 +469,25 @@ export function stitchBrief(
   const mergedChunks: Chunk[] = [...carriedChunks, ...rewrittenChunks];
 
   // ---- mechanical concern rollup (the model's is stale after a stitch) ----
-  type Concern = Chunk["concern"];
-  const rollup = new Map<Concern, { added: number; deleted: number }>();
-  for (const chunk of mergedChunks) {
-    const entry = rollup.get(chunk.concern) ?? { added: 0, deleted: 0 };
-    entry.added += chunk.loc.added;
-    entry.deleted += chunk.loc.deleted;
-    rollup.set(chunk.concern, entry);
+  const concernView = buildConcernView(mergedChunks);
+
+  // ---- overlap report over the MERGED chunk set ---------------------------
+  // Replaces categorize()'s lines, which name model tmp chunk ids that the
+  // id re-mint above may have reassigned in the stored artifact.
+  for (const issue of detectChunkOverlaps(mergedChunks)) {
+    warnings.push(`anchored stitch: ${issue}`);
   }
-  const concernView = [...rollup.entries()].map(([concern, loc]) => ({
-    concern,
-    added: loc.added,
-    deleted: loc.deleted,
-  }));
+
+  // ---- unattributed remainder over the MERGED chunk set -------------------
+  // categorize() skips this on anchored runs; only the stitch sees carried +
+  // regenerated chunks together, so only it can derive an honest remainder.
+  const unattributed = deriveUnattributed(mergedChunks, [...args.changedFiles]);
+  if (unattributed.length > 0) {
+    const gap = unattributedTotals(unattributed);
+    warnings.push(
+      `anchored stitch: ${gap.added} added / ${gap.deleted} removed changed line(s) unattributed to any chunk across ${unattributed.length} file(s)`,
+    );
+  }
 
   // ---- reading order: rewrite ids, keep only an exact permutation ---------
   let readingOrder = generated.readingOrder;
@@ -588,11 +606,12 @@ export function stitchBrief(
     const id = descended.get(group.id);
     return id === undefined ? [] : [id];
   });
-  // The stitch's recomputed text-length lines REPLACE categorize()'s —
-  // those name the model's tmp group ids, which don't exist in the stored
-  // artifact (same replacement discipline as the lengthViolations stamp).
+  // The stitch's recomputed text-length and overlap lines REPLACE
+  // categorize()'s — those name the model's tmp ids, which don't exist in
+  // the stored artifact (same replacement discipline as lengthViolations).
   const priorWarnings = (generated.generationWarnings ?? []).filter(
-    (line) => !line.includes("text length issues"),
+    (line) =>
+      !line.includes("text length issues") && !line.includes("loc overlap"),
   );
   const mergedWarnings = [...priorWarnings, ...warnings];
   const brief: Brief = {
@@ -600,11 +619,12 @@ export function stitchBrief(
     changeGroups: mergedGroups,
     chunks: mergedChunks,
     concernView,
+    unattributed,
+    diffTotals: diffLocTotals([...args.changedFiles]),
     ...(readingOrder === undefined ? {} : { readingOrder }),
     ...(intentCheck === undefined ? {} : { intentCheck }),
-    ...(mergedWarnings.length > 0
-      ? { generationWarnings: mergedWarnings }
-      : {}),
+    // Always overwritten below: an empty merged set must DELETE the field,
+    // or the filtered-out originals survive via the `...generated` spread.
     anchoring: {
       carried: [...carriedGroupIds],
       regenerated: [...regeneratedGroupIds],
@@ -612,6 +632,11 @@ export function stitchBrief(
   };
   if (readingOrder === undefined) {
     delete brief.readingOrder;
+  }
+  if (mergedWarnings.length > 0) {
+    brief.generationWarnings = mergedWarnings;
+  } else {
+    delete brief.generationWarnings;
   }
   if (textLength.violations.length > 0) {
     brief.lengthViolations = textLength.violations;

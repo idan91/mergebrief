@@ -266,7 +266,8 @@ const ChunkLocSchema = z
 const buildChunkSchema = (riskToken: z.ZodType<string>) =>
   buildChunkGenerationSchema(riskToken).extend({ loc: ChunkLocSchema });
 
-export const ChunkGenerationSchema = buildChunkGenerationSchema(riskSurfaceEnum);
+export const ChunkGenerationSchema =
+  buildChunkGenerationSchema(riskSurfaceEnum);
 export const ChunkSchema = buildChunkSchema(riskSurfaceEnum);
 
 export const ChangeGroupSchema = z.object({

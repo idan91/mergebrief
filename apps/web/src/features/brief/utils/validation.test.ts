@@ -802,3 +802,155 @@ describe("risk tokens (widened vocabulary)", () => {
     expect(parseBrief(briefWith(riskSurface)).ok).toBe(false);
   });
 });
+
+describe("parseBrief — unattributed", () => {
+  const base = {
+    pr,
+    summary: "s",
+    changeGroups: [newShapeGroup],
+    chunks: [newShapeChunk],
+    concernView: [{ concern: "implementation", added: 7, deleted: 0 }],
+  };
+
+  it("carries the unattributed per-file ranges through", () => {
+    const parsed = parseBrief({
+      ...base,
+      unattributed: [
+        {
+          file: "src/extra.ts",
+          addedRanges: [{ start: 3, end: 5 }],
+          removedRanges: [],
+        },
+      ],
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.unattributed).toEqual([
+      {
+        file: "src/extra.ts",
+        addedRanges: [{ start: 3, end: 5 }],
+        removedRanges: [],
+      },
+    ]);
+  });
+
+  it("keeps an empty array (fully attributed) distinct from absent (pre-feature)", () => {
+    const withEmpty = parseBrief({ ...base, unattributed: [] });
+    expect(withEmpty.ok).toBe(true);
+    if (!withEmpty.ok) return;
+    expect(withEmpty.value.unattributed).toEqual([]);
+
+    const absent = parseBrief(base);
+    expect(absent.ok).toBe(true);
+    if (!absent.ok) return;
+    expect("unattributed" in absent.value).toBe(false);
+  });
+
+  it("drops a malformed unattributed field with a warning, keeping the brief", () => {
+    const warnings: string[] = [];
+    const parsed = parseBrief(
+      { ...base, unattributed: [{ file: 42 }] },
+      { warn: (msg) => warnings.push(msg) },
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect("unattributed" in parsed.value).toBe(false);
+    expect(warnings.some((w) => w.includes("unattributed"))).toBe(true);
+  });
+});
+
+describe("parseBrief — unattributed canonical-range guard", () => {
+  const base = {
+    pr,
+    summary: "s",
+    changeGroups: [newShapeGroup],
+    chunks: [newShapeChunk],
+    concernView: [{ concern: "implementation", added: 7, deleted: 0 }],
+  };
+
+  it("drops the field with a warning on an inverted range", () => {
+    const warnings: string[] = [];
+    const parsed = parseBrief(
+      {
+        ...base,
+        unattributed: [
+          {
+            file: "src/x.ts",
+            addedRanges: [{ start: 5, end: 3 }],
+            removedRanges: [],
+          },
+        ],
+      },
+      { warn: (msg) => warnings.push(msg) },
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect("unattributed" in parsed.value).toBe(false);
+    expect(warnings.some((w) => w.includes("unattributed"))).toBe(true);
+  });
+
+  it("drops the field on overlapping or unordered ranges", () => {
+    const warnings: string[] = [];
+    const parsed = parseBrief(
+      {
+        ...base,
+        unattributed: [
+          {
+            file: "src/x.ts",
+            addedRanges: [
+              { start: 1, end: 5 },
+              { start: 4, end: 8 },
+            ],
+            removedRanges: [],
+          },
+        ],
+      },
+      { warn: (msg) => warnings.push(msg) },
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect("unattributed" in parsed.value).toBe(false);
+    expect(warnings.length).toBeGreaterThan(0);
+  });
+
+  it("drops the field on a zero or negative start (1-based)", () => {
+    const parsed = parseBrief(
+      {
+        ...base,
+        unattributed: [
+          {
+            file: "src/x.ts",
+            addedRanges: [{ start: 0, end: 2 }],
+            removedRanges: [],
+          },
+        ],
+      },
+      { warn: () => {} },
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect("unattributed" in parsed.value).toBe(false);
+  });
+});
+
+describe("parseBrief — diffTotals", () => {
+  const base = {
+    pr,
+    summary: "s",
+    changeGroups: [newShapeGroup],
+    chunks: [newShapeChunk],
+    concernView: [{ concern: "implementation", added: 7, deleted: 0 }],
+  };
+
+  it("carries valid totals and drops malformed ones", () => {
+    const good = parseBrief({ ...base, diffTotals: { added: 9, deleted: 2 } });
+    expect(good.ok).toBe(true);
+    if (!good.ok) return;
+    expect(good.value.diffTotals).toEqual({ added: 9, deleted: 2 });
+
+    const bad = parseBrief({ ...base, diffTotals: { added: "9" } });
+    expect(bad.ok).toBe(true);
+    if (!bad.ok) return;
+    expect("diffTotals" in bad.value).toBe(false);
+  });
+});

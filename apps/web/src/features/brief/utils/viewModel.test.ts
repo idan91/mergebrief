@@ -484,3 +484,123 @@ describe("buildAttributeRail — jump-rail", () => {
     expect(rail.entries).toHaveLength(1);
   });
 });
+
+describe("buildBriefViewModel — unattributed", () => {
+  it("exposes per-file counts and totals, and folds them into the brief totals", () => {
+    const parsed = parseBrief({
+      ...twoGroupBrief(),
+      unattributed: [
+        {
+          file: "src/orphan.ts",
+          addedRanges: [
+            { start: 1, end: 3 },
+            { start: 10, end: 10 },
+          ],
+          removedRanges: [{ start: 2, end: 2 }],
+        },
+        {
+          file: "src/other.ts",
+          addedRanges: [],
+          removedRanges: [{ start: 5, end: 6 }],
+        },
+      ],
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+
+    const model = buildBriefViewModel(parsed.value);
+
+    expect(model.unattributed).toEqual({
+      files: [
+        {
+          file: "src/orphan.ts",
+          addedRanges: [
+            { start: 1, end: 3 },
+            { start: 10, end: 10 },
+          ],
+          removedRanges: [{ start: 2, end: 2 }],
+          added: 4,
+          deleted: 1,
+        },
+        {
+          file: "src/other.ts",
+          addedRanges: [],
+          removedRanges: [{ start: 5, end: 6 }],
+          added: 0,
+          deleted: 2,
+        },
+      ],
+      added: 4,
+      deleted: 3,
+    });
+    // Chunk sums (4/1 from twoGroupBrief's chunks) plus the remainder.
+    const chunkAdded = parsed.value.chunks.reduce(
+      (sum, chunk) => sum + chunk.loc.added,
+      0,
+    );
+    const chunkDeleted = parsed.value.chunks.reduce(
+      (sum, chunk) => sum + chunk.loc.deleted,
+      0,
+    );
+    expect(model.totalAdded).toBe(chunkAdded + 4);
+    expect(model.totalDeleted).toBe(chunkDeleted + 3);
+  });
+
+  it("exposes zero totals for an empty array and stays absent pre-feature", () => {
+    const withEmpty = parseBrief({ ...twoGroupBrief(), unattributed: [] });
+    expect(withEmpty.ok).toBe(true);
+    if (!withEmpty.ok) return;
+    expect(buildBriefViewModel(withEmpty.value).unattributed).toEqual({
+      files: [],
+      added: 0,
+      deleted: 0,
+    });
+
+    const absent = parseBrief(twoGroupBrief());
+    expect(absent.ok).toBe(true);
+    if (!absent.ok) return;
+    expect(buildBriefViewModel(absent.value).unattributed).toBeUndefined();
+  });
+});
+
+describe("buildBriefViewModel — exact totals under overlaps", () => {
+  it("prefers diffTotals over chunk sums (which double-count overlaps)", () => {
+    const parsed = parseBrief({
+      ...twoGroupBrief(),
+      diffTotals: { added: 10, deleted: 3 },
+      unattributed: [
+        {
+          file: "src/orphan.ts",
+          addedRanges: [{ start: 1, end: 2 }],
+          removedRanges: [],
+        },
+      ],
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    const model = buildBriefViewModel(parsed.value);
+    expect(model.totalAdded).toBe(10);
+    expect(model.totalDeleted).toBe(3);
+  });
+
+  it("falls back to chunk sums + remainder on pre-diffTotals briefs", () => {
+    const parsed = parseBrief({
+      ...twoGroupBrief(),
+      unattributed: [
+        {
+          file: "src/orphan.ts",
+          addedRanges: [{ start: 1, end: 2 }],
+          removedRanges: [],
+        },
+      ],
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    const model = buildBriefViewModel(parsed.value);
+    const chunkAdded = parsed.value.chunks.reduce(
+      (sum, chunk) => sum + chunk.loc.added,
+      0,
+    );
+    expect(model.totalAdded).toBe(chunkAdded + 2);
+  });
+});

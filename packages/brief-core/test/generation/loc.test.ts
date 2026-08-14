@@ -90,9 +90,9 @@ describe("subtractRanges", () => {
   });
 
   it("clips edges", () => {
-    expect(
-      subtractRanges(ranges([1, 10]), ranges([1, 2], [9, 12])),
-    ).toEqual(ranges([3, 8]));
+    expect(subtractRanges(ranges([1, 10]), ranges([1, 2], [9, 12]))).toEqual(
+      ranges([3, 8]),
+    );
   });
 });
 
@@ -104,7 +104,13 @@ describe("deriveChunkLoc", () => {
 
   it("counts the intersection of chunk ranges with the diff's changed lines", () => {
     const [chunk] = deriveChunkLoc(
-      [{ file: "a.ts", addedRanges: ranges([10, 14]), removedRanges: ranges([5, 6]) }],
+      [
+        {
+          file: "a.ts",
+          addedRanges: ranges([10, 14]),
+          removedRanges: ranges([5, 6]),
+        },
+      ],
       files,
     );
     expect(chunk?.loc).toEqual({ added: 5, deleted: 2 });
@@ -121,7 +127,13 @@ describe("deriveChunkLoc", () => {
 
   it("yields zero for a file absent from the diff", () => {
     const [chunk] = deriveChunkLoc(
-      [{ file: "ghost.ts", addedRanges: ranges([1, 5]), removedRanges: ranges([1, 5]) }],
+      [
+        {
+          file: "ghost.ts",
+          addedRanges: ranges([1, 5]),
+          removedRanges: ranges([1, 5]),
+        },
+      ],
       files,
     );
     expect(chunk?.loc).toEqual({ added: 0, deleted: 0 });
@@ -167,7 +179,11 @@ describe("deriveUnattributed", () => {
     expect(
       deriveUnattributed(
         [
-          { file: "a.ts", addedRanges: ranges([10, 19]), removedRanges: ranges([5, 8]) },
+          {
+            file: "a.ts",
+            addedRanges: ranges([10, 19]),
+            removedRanges: ranges([5, 8]),
+          },
           { file: "b.ts", addedRanges: ranges([1, 4]), removedRanges: [] },
         ],
         files,
@@ -217,7 +233,9 @@ describe("deriveUnattributed", () => {
         [{ file: "b.ts", addedRanges: ranges([100, 200]), removedRanges: [] }],
         [changed("b.ts", ranges([1, 2]))],
       ),
-    ).toEqual([{ file: "b.ts", addedRanges: ranges([1, 2]), removedRanges: [] }]);
+    ).toEqual([
+      { file: "b.ts", addedRanges: ranges([1, 2]), removedRanges: [] },
+    ]);
   });
 });
 
@@ -225,7 +243,11 @@ describe("unattributedTotals", () => {
   it("sums added and deleted lines across files", () => {
     expect(
       unattributedTotals([
-        { file: "a.ts", addedRanges: ranges([1, 5]), removedRanges: ranges([2, 2]) },
+        {
+          file: "a.ts",
+          addedRanges: ranges([1, 5]),
+          removedRanges: ranges([2, 2]),
+        },
         { file: "b.ts", addedRanges: ranges([10, 11]), removedRanges: [] },
       ]),
     ).toEqual({ added: 7, deleted: 1 });
@@ -234,7 +256,11 @@ describe("unattributedTotals", () => {
   it("collapses overlapping ranges within one file before counting", () => {
     expect(
       unattributedTotals([
-        { file: "a.ts", addedRanges: ranges([1, 5], [3, 8]), removedRanges: [] },
+        {
+          file: "a.ts",
+          addedRanges: ranges([1, 5], [3, 8]),
+          removedRanges: [],
+        },
       ]),
     ).toEqual({ added: 8, deleted: 0 });
   });
@@ -287,16 +313,36 @@ describe("detectChunkOverlaps", () => {
   it("returns empty when chunks are disjoint", () => {
     expect(
       detectChunkOverlaps([
-        { id: "c1", file: "a.ts", addedRanges: ranges([1, 5]), removedRanges: [] },
-        { id: "c2", file: "a.ts", addedRanges: ranges([6, 9]), removedRanges: [] },
+        {
+          id: "c1",
+          file: "a.ts",
+          addedRanges: ranges([1, 5]),
+          removedRanges: [],
+        },
+        {
+          id: "c2",
+          file: "a.ts",
+          addedRanges: ranges([6, 9]),
+          removedRanges: [],
+        },
       ]),
     ).toEqual([]);
   });
 
   it("reports same-file added-side overlaps with both chunk ids", () => {
     const issues = detectChunkOverlaps([
-      { id: "c1", file: "a.ts", addedRanges: ranges([1, 5]), removedRanges: [] },
-      { id: "c2", file: "a.ts", addedRanges: ranges([4, 9]), removedRanges: [] },
+      {
+        id: "c1",
+        file: "a.ts",
+        addedRanges: ranges([1, 5]),
+        removedRanges: [],
+      },
+      {
+        id: "c2",
+        file: "a.ts",
+        addedRanges: ranges([4, 9]),
+        removedRanges: [],
+      },
     ]);
     expect(issues).toHaveLength(1);
     expect(issues[0]).toContain("c1");
@@ -306,8 +352,18 @@ describe("detectChunkOverlaps", () => {
 
   it("reports removed-side overlaps independently", () => {
     const issues = detectChunkOverlaps([
-      { id: "c1", file: "a.ts", addedRanges: [], removedRanges: ranges([1, 5]) },
-      { id: "c2", file: "a.ts", addedRanges: [], removedRanges: ranges([5, 6]) },
+      {
+        id: "c1",
+        file: "a.ts",
+        addedRanges: [],
+        removedRanges: ranges([1, 5]),
+      },
+      {
+        id: "c2",
+        file: "a.ts",
+        addedRanges: [],
+        removedRanges: ranges([5, 6]),
+      },
     ]);
     expect(issues).toHaveLength(1);
   });
@@ -315,9 +371,24 @@ describe("detectChunkOverlaps", () => {
   it("ignores overlaps across different files or sides", () => {
     expect(
       detectChunkOverlaps([
-        { id: "c1", file: "a.ts", addedRanges: ranges([1, 5]), removedRanges: [] },
-        { id: "c2", file: "b.ts", addedRanges: ranges([1, 5]), removedRanges: [] },
-        { id: "c3", file: "a.ts", addedRanges: [], removedRanges: ranges([1, 5]) },
+        {
+          id: "c1",
+          file: "a.ts",
+          addedRanges: ranges([1, 5]),
+          removedRanges: [],
+        },
+        {
+          id: "c2",
+          file: "b.ts",
+          addedRanges: ranges([1, 5]),
+          removedRanges: [],
+        },
+        {
+          id: "c3",
+          file: "a.ts",
+          addedRanges: [],
+          removedRanges: ranges([1, 5]),
+        },
       ]),
     ).toEqual([]);
   });
@@ -355,15 +426,15 @@ describe("crossCheckFileTotals", () => {
 
   it("stays silent for a gh file with zero counts absent from the diff", () => {
     expect(
-      crossCheckFileTotals([], [{ path: "bin.png", additions: 0, deletions: 0 }]),
+      crossCheckFileTotals(
+        [],
+        [{ path: "bin.png", additions: 0, deletions: 0 }],
+      ),
     ).toEqual([]);
   });
 
   it("reports a diff file gh never listed", () => {
-    const issues = crossCheckFileTotals(
-      [changed("a.ts", ranges([1, 2]))],
-      [],
-    );
+    const issues = crossCheckFileTotals([changed("a.ts", ranges([1, 2]))], []);
     expect(issues).toHaveLength(1);
     expect(issues[0]).toContain("a.ts");
   });
