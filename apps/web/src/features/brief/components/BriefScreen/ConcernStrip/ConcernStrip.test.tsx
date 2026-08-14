@@ -1,0 +1,100 @@
+// @vitest-environment jsdom
+import { appI18n } from "../../../../../i18n/I18nProvider";
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
+
+import type { ConcernRollup } from "../../../types";
+import { ConcernStrip } from "./ConcernStrip";
+import { concernShares } from "./utils";
+
+afterEach(cleanup);
+
+const rollup: ConcernRollup[] = [
+  { concern: "implementation", added: 412, deleted: 118 },
+  { concern: "test", added: 186, deleted: 22 },
+  { concern: "doc", added: 38, deleted: 4 },
+];
+
+describe("ConcernStrip", () => {
+  it("renders nothing below two concerns", () => {
+    const { container: empty } = render(<ConcernStrip rollup={[]} />);
+    expect(empty.innerHTML).toBe("");
+    const { container: single } = render(
+      <ConcernStrip
+        rollup={[{ concern: "implementation", added: 412, deleted: 118 }]}
+      />,
+    );
+    expect(single.innerHTML).toBe("");
+  });
+
+  it("renders one segment per concern in vocabulary order", () => {
+    render(
+      <ConcernStrip
+        rollup={[
+          { concern: "doc", added: 38, deleted: 4 },
+          { concern: "implementation", added: 412, deleted: 118 },
+          { concern: "test", added: 186, deleted: 22 },
+        ]}
+      />,
+    );
+    const strip = screen.getByTestId("concern-strip");
+    const segments = [...strip.querySelectorAll("[data-concern]")].map(
+      (segment) => segment.getAttribute("data-concern"),
+    );
+    expect(segments).toEqual(["implementation", "test", "doc"]);
+  });
+
+  it("shows share percentages and LoC per concern", () => {
+    render(<ConcernStrip rollup={rollup} />);
+    const strip = screen.getByTestId("concern-strip");
+    const implementation = strip.querySelector(
+      '[data-concern="implementation"]',
+    );
+    // (412+118) / 780 = 67.9% → 68%
+    expect(implementation?.textContent).toContain("68%");
+    expect(implementation?.textContent).toContain("+412");
+    expect(implementation?.textContent).toContain("−118");
+    const doc = strip.querySelector('[data-concern="doc"]');
+    // (38+4) / 780 = 5.4% → 5%
+    expect(doc?.textContent).toContain("5%");
+  });
+
+  it("labels the group for assistive tech", () => {
+    render(<ConcernStrip rollup={rollup} />);
+    expect(screen.getByRole("group").getAttribute("aria-label")).toBe(
+      appI18n.t("brief.concernStrip.ariaLabel"),
+    );
+  });
+});
+
+describe("concernShares", () => {
+  it("computes shares of the attributed total", () => {
+    const shares = concernShares(rollup);
+    expect(shares.map((share) => share.percent)).toEqual([68, 27, 5]);
+    expect(shares[0]).toMatchObject({
+      concern: "implementation",
+      added: 412,
+      deleted: 118,
+    });
+  });
+
+  it("accumulates duplicate concern entries instead of dropping them", () => {
+    const shares = concernShares([
+      { concern: "implementation", added: 10, deleted: 0 },
+      { concern: "implementation", added: 90, deleted: 0 },
+      { concern: "test", added: 10, deleted: 0 },
+    ]);
+    expect(shares).toEqual([
+      { concern: "implementation", added: 100, deleted: 0, percent: 91 },
+      { concern: "test", added: 10, deleted: 0, percent: 9 },
+    ]);
+  });
+
+  it("survives an all-zero rollup without NaN", () => {
+    const shares = concernShares([
+      { concern: "implementation", added: 0, deleted: 0 },
+      { concern: "test", added: 0, deleted: 0 },
+    ]);
+    expect(shares.map((share) => share.percent)).toEqual([0, 0]);
+  });
+});

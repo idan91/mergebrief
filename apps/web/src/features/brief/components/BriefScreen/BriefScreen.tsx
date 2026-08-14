@@ -51,6 +51,7 @@ import type { buildBriefViewModel } from "../../utils/viewModel";
 import { buildAttributeRail } from "../../utils/viewModel";
 import type { RepoConfigContext } from "../../utils/repoConfig";
 import { ChangesOnlyView } from "./ChangesOnlyView/ChangesOnlyView";
+import { ConcernStrip } from "./ConcernStrip/ConcernStrip";
 import { ConcernView } from "./ConcernView/ConcernView";
 import { FocusBanner } from "./FocusBanner/FocusBanner";
 import { IntentBar, type IntentBarHandle } from "./IntentBar/IntentBar";
@@ -683,6 +684,12 @@ export function BriefScreen({
         model.unattributed !== undefined &&
         model.unattributed.added + model.unattributed.deleted > 0 ? (
           <UnattributedBanner view={model.unattributed} />
+        ) : null}
+
+        {/* Full-brief rollup always — never a scope cut, no delta treatment
+            under compare. */}
+        {blocks.summary && brief.concernView.length >= 2 ? (
+          <ConcernStrip rollup={brief.concernView} />
         ) : null}
 
         {blocks.groupToc ? (

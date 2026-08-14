@@ -539,6 +539,10 @@
       "changed_one": "{{count}} file changed since {{sha}}",
       "changed_other": "{{count}} files changed since {{sha}}"
     },
+    "concernStrip": {
+      "lead": "Split",
+      "ariaLabel": "Attention split by concern"
+    },
     "concern": {
       "eyebrow": "Attention split",
       "emptyConcerns": "empty concerns",

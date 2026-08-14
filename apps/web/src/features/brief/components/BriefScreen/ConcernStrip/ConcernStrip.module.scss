@@ -1,0 +1,89 @@
+@use "functions";
+
+@layer components {
+  .strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: functions.to-rem(6px) functions.to-rem(14px);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    margin-block-end: functions.to-rem(16px);
+    background: var(--panel);
+    gap: functions.to-rem(4px) functions.to-rem(20px);
+  }
+
+  .lead {
+    color: var(--faint);
+    font-size: var(--font-size-sm);
+  }
+
+  .segment {
+    display: inline-flex;
+    align-items: center;
+    gap: functions.to-rem(7px);
+  }
+
+  .dot {
+    flex: none;
+    inline-size: 6px;
+    block-size: 6px;
+    border-radius: var(--radius-circle);
+    background: var(--faint);
+  }
+
+  .name {
+    color: var(--dim);
+    font-size: var(--font-size-md);
+  }
+
+  .bar {
+    overflow: hidden;
+    flex: none;
+    inline-size: 48px;
+    block-size: 4px;
+    border-radius: var(--radius-xs);
+    background: var(--line2);
+
+    i {
+      display: block;
+
+      // Floor keeps a small share visible as a tick.
+      min-inline-size: 2px;
+      block-size: 100%;
+      background: var(--faint);
+    }
+  }
+
+  .percent {
+    font-family: var(--mono);
+    font-size: var(--font-size-md);
+    font-weight: 600;
+  }
+
+  .loc {
+    font-family: var(--mono);
+    font-size: var(--font-size-sm);
+  }
+
+  .segment[data-concern="implementation"] {
+    .dot,
+    .bar i {
+      background: var(--color-fill-bright);
+    }
+  }
+
+  .segment[data-concern="test"] {
+    .dot,
+    .bar i {
+      background: var(--blue);
+    }
+  }
+
+  .segment[data-concern="doc"] {
+    .dot,
+    .bar i {
+      background: var(--violet);
+    }
+  }
+}
