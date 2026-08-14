@@ -71,10 +71,12 @@ mentions (`prompt.ts:204/206/308-310/373`); wire derivation post-generation
 validator warnings: coverage gap + overlap (extend `validatePartition`
 coverage), gh mismatch. Grep "adjusted" strays. Brief-core fixture churn.
 
-- **Eval-gated surface**: scoped `pnpm -C tools/categorizer eval` runs
-  (`--case` per plausibly-moved case), report + selection justification in PR
-  body. Pair-case props (`eval/pair-cases/props.ts`) read post-derivation
-  briefs; rebaseline only where legitimately moved, on main.
+- **Eval-gated surface — deferred to end of stack**: no eval spend during
+  implementation. After PR 4 is up and before merging, an OPTIONAL scoped
+  `pnpm -C tools/categorizer eval` pass (`--case` per plausibly-moved case,
+  selection justified in the PR body) runs on Idan's go-ahead; report lands
+  in this PR's body. Pair-case props (`eval/pair-cases/props.ts`) read
+  post-derivation briefs; rebaseline only where legitimately moved, on main.
 - Est. ~500–900 LOC incl. fixtures. Model: **Fable 5, high**. Main thread,
   after PR 1.
 
@@ -119,6 +121,11 @@ The A+C verdict, from the prototype recipes (ticket "Prototype verdict"):
 
 - Est. ~450–800 LOC. Model: **Fable 5, high** (UI polish + a11y). Skills:
   `web-accessibility`, `verify` after merge-ready. Main thread, after PR 3.
+
+## End-of-stack, pre-merge (optional)
+
+- Scoped eval pass for PR 2's generation-surface change — on Idan's go-ahead
+  only (live API spend); report into the PR 2 body.
 
 ## Post-merge owes
 
