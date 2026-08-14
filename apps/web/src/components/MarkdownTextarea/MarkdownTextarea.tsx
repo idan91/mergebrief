@@ -15,6 +15,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { IconButton } from "../IconButton/IconButton";
 import { Markdown } from "../Markdown/Markdown";
 import { ScreenReaderOnly } from "../ScreenReaderOnly/ScreenReaderOnly";
 import { TOOLBAR_ICONS } from "./icons";
@@ -276,17 +277,16 @@ export function MarkdownTextarea({
           onKeyDown={onToolbarKeyDown}
         >
           {facade.toolbarActions.map((action, index) => (
-            <button
+            <IconButton
               aria-disabled={readOnly || undefined}
-              aria-label={action.label}
               key={action.icon}
+              label={action.label}
               tabIndex={index === toolbarTabStop ? 0 : -1}
               title={action.title}
-              type="button"
               onClick={action.run}
             >
               {TOOLBAR_ICONS[action.icon]}
-            </button>
+            </IconButton>
           ))}
         </div>
         <textarea

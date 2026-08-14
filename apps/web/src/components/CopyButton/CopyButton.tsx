@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 
-import { ScreenReaderOnly } from "../ScreenReaderOnly/ScreenReaderOnly";
+import { IconButton } from "../IconButton/IconButton";
 import styles from "./CopyButton.module.scss";
 
 type CopyState = "idle" | "copied" | "failed";
@@ -53,11 +53,11 @@ export function CopyButton({
   };
 
   return (
-    <button
+    <IconButton
       className={`${styles["copyButton"]}${className ? ` ${className}` : ""}`}
       data-state={state}
+      label={label}
       title={title ?? text}
-      type="button"
       onClick={() => void copy()}
     >
       <svg
@@ -78,7 +78,6 @@ export function CopyButton({
           </>
         )}
       </svg>
-      <ScreenReaderOnly>{label}</ScreenReaderOnly>
       {/* Announce the outcome without moving focus. */}
       <span aria-live="polite" className="sr-only">
         {state === "copied"
@@ -87,6 +86,6 @@ export function CopyButton({
             ? t("shell.copyFailed")
             : ""}
       </span>
-    </button>
+    </IconButton>
   );
 }

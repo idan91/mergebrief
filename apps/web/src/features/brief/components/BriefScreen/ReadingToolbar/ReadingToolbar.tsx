@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { useEffect, useRef } from "react";
 import type { ValueOf } from "types";
 
+import { IconButton } from "@web/components/IconButton/IconButton";
 import type { RevisionNavigation } from "../../../hooks/useRevisionNavigation";
 import type { ComparisonOverlayState } from "../../../comparison/comparisonOverlay";
 import type { AttributeRail } from "../../../utils/viewModel";
@@ -186,22 +187,20 @@ export function ReadingToolbar({
                   total: groups.length,
                 })}
               </span>
-              <button
-                aria-label={t("brief.toolbar.ariaLabelPreviousGroup")}
+              <IconButton
                 className={styles["stepBtn"]}
-                type="button"
+                label={t("brief.toolbar.ariaLabelPreviousGroup")}
                 onClick={() => stepGroup(-1)}
               >
                 ◂
-              </button>
-              <button
-                aria-label={t("brief.toolbar.ariaLabelNextGroup")}
+              </IconButton>
+              <IconButton
                 className={styles["stepBtn"]}
-                type="button"
+                label={t("brief.toolbar.ariaLabelNextGroup")}
                 onClick={() => stepGroup(1)}
               >
                 ▸
-              </button>
+              </IconButton>
             </span>
           ) : null}
           {comparison.available && comparison.runCount > 0 ? (
@@ -217,22 +216,20 @@ export function ReadingToolbar({
               <span className={styles["count"]}>
                 {t("brief.toolbar.changes", { count: comparison.runCount })}
               </span>
-              <button
-                aria-label={t("brief.toolbar.ariaLabelPreviousChange")}
+              <IconButton
                 className={styles["stepBtn"]}
-                type="button"
+                label={t("brief.toolbar.ariaLabelPreviousChange")}
                 onClick={jumpPrev}
               >
                 ◂
-              </button>
-              <button
-                aria-label={t("brief.toolbar.ariaLabelNextChange")}
+              </IconButton>
+              <IconButton
                 className={styles["stepBtn"]}
-                type="button"
+                label={t("brief.toolbar.ariaLabelNextChange")}
                 onClick={jumpNext}
               >
                 ▸
-              </button>
+              </IconButton>
             </span>
           ) : null}
         </div>

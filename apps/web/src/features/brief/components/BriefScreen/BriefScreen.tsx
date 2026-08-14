@@ -12,6 +12,7 @@ import {
 import { useStore } from "zustand";
 
 import { Button } from "@web/components/Button/Button";
+import { IconButton } from "@web/components/IconButton/IconButton";
 import type { CommentAnchor } from "@web/features/review/utils/comments";
 import {
   ConversationSection,
@@ -876,14 +877,15 @@ export function BriefScreen({
             {t("brief.screen.exitFocus")}
           </Button>
         ) : null}
-        <button
-          aria-label={t("brief.screen.ariaLabelShortcuts")}
+        <IconButton
           className={styles["shortcutsTrigger"]}
-          type="button"
+          label={t("brief.screen.ariaLabelShortcuts")}
+          size="lg"
+          variant="outlined"
           onClick={session.toggleShortcuts}
         >
           ?
-        </button>
+        </IconButton>
       </div>
       <div
         className={styles["toast"]}

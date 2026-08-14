@@ -253,33 +253,15 @@
     flex: none;
   }
 
+  // Glyph styling + open state on IconButton's outlined-lg circle.
   .menuTrigger {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    inline-size: functions.to-rem(34px);
-    block-size: functions.to-rem(34px);
-    padding: 0;
-    border: 1px solid var(--line2);
-    border-radius: var(--radius-md);
-    background: transparent;
-    color: var(--dim);
-    cursor: pointer;
     font-size: var(--font-size-2xl);
     line-height: 1;
-    transition:
-      background 0.15s,
-      border-color 0.15s,
-      color 0.15s;
 
-    &:hover,
     &[aria-expanded="true"] {
       border-color: color-mix(in srgb, var(--line2) 60%, var(--text));
-      background: color-mix(in srgb, var(--panel) 88%, var(--text));
       color: var(--text);
     }
-
-    @include mixins.focus-visible;
   }
 
   .menu {

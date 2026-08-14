@@ -1,0 +1,63 @@
+@use "functions";
+
+@layer components {
+  .iconButton {
+    display: grid;
+    flex: none;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--dim);
+    cursor: pointer;
+    place-items: center;
+    transition:
+      background 0.15s,
+      border-color 0.15s,
+      color 0.15s;
+
+    &:not([aria-disabled="true"]):hover {
+      border-color: var(--line2);
+      background: var(--color-surface-1);
+      color: var(--text);
+    }
+
+    &[data-size="sm"] {
+      inline-size: functions.to-rem(24px);
+      block-size: functions.to-rem(24px);
+    }
+
+    &[data-size="md"] {
+      inline-size: functions.to-rem(32px);
+      block-size: functions.to-rem(32px);
+    }
+
+    &[data-size="lg"] {
+      inline-size: functions.to-rem(34px);
+      block-size: functions.to-rem(34px);
+      border-radius: var(--radius-circle);
+    }
+
+    &[data-variant="outlined"] {
+      border-color: var(--line2);
+      background: var(--panel2);
+
+      &:not([aria-disabled="true"]):hover {
+        border-color: color-mix(in srgb, var(--line2) 60%, var(--text));
+        background: var(--panel2);
+        color: var(--text);
+      }
+    }
+
+    /* aria-disabled, never `disabled` — that drops focus at e.g. stepper
+       ends. Opacity dims the focus ring too, so undim it. */
+    &[aria-disabled="true"] {
+      cursor: not-allowed;
+      opacity: 0.35;
+
+      &:focus-visible {
+        opacity: 1;
+      }
+    }
+  }
+}

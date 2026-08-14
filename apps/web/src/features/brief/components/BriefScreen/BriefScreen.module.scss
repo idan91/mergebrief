@@ -35,22 +35,10 @@
     gap: functions.to-rem(8px);
   }
 
+  // Mono glyph styling on IconButton's outlined-lg circle.
   .shortcutsTrigger {
-    inline-size: functions.to-rem(34px);
-    block-size: functions.to-rem(34px);
-    padding: 0;
-    border: 1px solid var(--line2);
-    border-radius: var(--radius-circle);
-    background: var(--panel2);
-    color: var(--dim);
-    cursor: pointer;
     font-family: var(--mono);
     font-size: var(--font-size-xl);
     font-weight: 600;
-
-    &:hover {
-      border-color: color-mix(in srgb, var(--line2) 60%, var(--text));
-      color: var(--text);
-    }
   }
 }

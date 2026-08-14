@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { Callout } from "@web/components/Callout/Callout";
+import { IconButton } from "@web/components/IconButton/IconButton";
 import type { Brief } from "../../../../types";
 import type { RepoConfigContext } from "../../../../utils/repoConfig";
 import styles from "./BriefDetailsPanel.module.scss";
@@ -128,18 +129,17 @@ export function BriefDetailsPanel({
           if (event.pointerType === "mouse" && !open) openPlain();
         }}
       >
-        <button
+        <IconButton
           aria-controls={open ? detailId : undefined}
           aria-expanded={open}
-          aria-label={t("brief.details.ariaLabelTrigger")}
           className={styles["trigger"]}
           data-brief-details-trigger=""
+          label={t("brief.details.ariaLabelTrigger")}
           ref={setTriggerEl}
-          type="button"
           onClick={() => (open ? close() : openPlain())}
         >
           <span aria-hidden="true">i</span>
-        </button>
+        </IconButton>
         {open && triggerEl ? (
           <Callout anchor={triggerEl} fit onClose={close}>
             <span className={styles["panel"]} id={detailId}>

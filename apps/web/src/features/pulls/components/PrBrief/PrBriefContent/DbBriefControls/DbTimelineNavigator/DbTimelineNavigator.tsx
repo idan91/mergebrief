@@ -11,6 +11,7 @@
 // controls.
 import { type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { IconButton } from "@web/components/IconButton/IconButton";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import type { DbTimelinePoint } from "../../../../../utils/dbTimeline";
 import styles from "./DbTimelineNavigator.module.scss";
@@ -77,22 +78,23 @@ export function DbTimelineNavigator({
       aria-label={t("pulls.timeline.navLabel")}
       className={styles["timeline"]}
     >
-      <button
+      <IconButton
         onKeyDown={stepFromNav}
         // Disabled state keeps a descriptive name — a bare arrow glyph is
         // meaningless to a screen reader.
-        aria-label={
+        label={
           previous
             ? t("pulls.timeline.prevRevision", { index: previous.headIndex })
             : t("pulls.timeline.prevNone")
         }
         aria-disabled={previous === undefined || undefined}
         className={styles["arrow"]}
+        size="md"
+        variant="outlined"
         onClick={() => previous && onSelect(previous)}
-        type="button"
       >
         ←
-      </button>
+      </IconButton>
       <label className={styles["picker"]}>
         <ScreenReaderOnly>{t("pulls.timeline.selectLabel")}</ScreenReaderOnly>
         <select
@@ -119,20 +121,21 @@ export function DbTimelineNavigator({
           ))}
         </select>
       </label>
-      <button
+      <IconButton
         onKeyDown={stepFromNav}
-        aria-label={
+        label={
           next
             ? t("pulls.timeline.nextRevision", { index: next.headIndex })
             : t("pulls.timeline.nextNone")
         }
         aria-disabled={next === undefined || undefined}
         className={styles["arrow"]}
+        size="md"
+        variant="outlined"
         onClick={() => next && onSelect(next)}
-        type="button"
       >
         →
-      </button>
+      </IconButton>
     </nav>
   );
 }

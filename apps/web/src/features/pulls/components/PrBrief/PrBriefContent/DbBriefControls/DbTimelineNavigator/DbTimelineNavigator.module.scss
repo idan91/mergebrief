@@ -9,22 +9,24 @@
     gap: functions.to-rem(4px);
     min-inline-size: 0;
 
-    select,
-    .arrow {
+    select {
+      inline-size: 100%;
       min-block-size: functions.to-rem(32px);
+      min-inline-size: 0;
+      padding-inline: functions.to-rem(8px);
       border: 1px solid var(--line2);
       border-radius: var(--radius-md);
       background: var(--panel2);
-      color: var(--dim);
+      color: var(--text);
       font-family: var(--mono);
       font-size: var(--font-size-sm);
     }
 
-    select {
-      inline-size: 100%;
-      min-inline-size: 0;
-      padding-inline: functions.to-rem(8px);
+    // Mono glyph styling on IconButton's outlined-md chrome.
+    .arrow {
       color: var(--text);
+      font-family: var(--mono);
+      font-size: var(--font-size-sm);
     }
   }
 
@@ -32,29 +34,5 @@
     display: block;
     min-inline-size: 0;
     max-inline-size: functions.to-rem(230px);
-  }
-
-  .arrow {
-    display: grid;
-    inline-size: functions.to-rem(32px);
-    color: var(--text);
-    cursor: pointer;
-    place-items: center;
-
-    &:not([aria-disabled="true"]):hover {
-      border-color: color-mix(in srgb, var(--blue) 42%, var(--line2));
-      background: color-mix(in srgb, var(--panel2) 82%, var(--blue));
-    }
-
-    // aria-disabled, never `disabled`: that drops focus at the ends.
-    &[aria-disabled="true"] {
-      cursor: not-allowed;
-      opacity: 0.35;
-
-      // opacity dims the outline too, so undim the focus ring.
-      &:focus-visible {
-        opacity: 1;
-      }
-    }
   }
 }

@@ -139,6 +139,7 @@ export default [
               "labelledBy",
               "describedBy",
               "aria-hidden",
+              "aria-haspopup",
               "autoComplete",
               "rel",
               "target",

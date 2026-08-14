@@ -41,32 +41,6 @@
     padding: functions.to-rem(10px);
     border-block-start: 1px solid var(--line);
     background: var(--color-surface-2);
-
-    button {
-      display: grid;
-      place-items: center;
-      inline-size: functions.to-rem(26px);
-      block-size: functions.to-rem(26px);
-      padding: 0;
-      border: 1px solid transparent;
-      border-radius: var(--radius-sm);
-      background: transparent;
-      color: var(--dim);
-      cursor: pointer;
-
-      &:hover {
-        border-color: var(--line2);
-        background: var(--color-surface-1);
-        color: var(--text);
-      }
-
-      &[aria-disabled="true"] {
-        cursor: default;
-        opacity: 0.5;
-      }
-
-      @include mixins.focus-visible;
-    }
   }
 
   .textarea {

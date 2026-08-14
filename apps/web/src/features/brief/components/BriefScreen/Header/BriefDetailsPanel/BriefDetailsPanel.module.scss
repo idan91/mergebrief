@@ -12,29 +12,22 @@
 
   // The ⓘ trigger: meta-register icon button, badge-height discipline
   // (fixed box, middle-aligned, can't inflate the identity row).
+  // Mono glyph + circled-i shape + open state on IconButton's ghost-sm
+  // chrome; the 24px box fixes the old 18px min-target violation.
   .trigger {
-    display: inline-grid;
-    inline-size: 18px;
-    block-size: 18px;
-    padding: 0;
-    border: 1px solid var(--line2);
+    border-color: var(--line2);
     border-radius: var(--radius-pill);
-    background: transparent;
-    color: var(--dim);
-    cursor: pointer;
     font-family: var(--mono);
     font-size: var(--font-size-xs);
     line-height: 1;
-    place-items: center;
     vertical-align: middle;
 
-    &:hover,
-    &[aria-expanded="true"] {
+    /* :hover doubled in so the open affordance survives the hover-open. */
+    &[aria-expanded="true"],
+    &[aria-expanded="true"]:hover {
       border-color: color-mix(in srgb, var(--line2) 60%, var(--text));
       color: var(--text);
     }
-
-    @include mixins.focus-visible;
   }
 
   // Style-reset base: the warnings chip is a real button (it opens the

@@ -22,6 +22,7 @@ import type { Brief, LivePrState } from "../../../types";
 import type { BriefViewModel } from "../../../utils/viewModel";
 import type { LensControlState, ViewMode } from "../modeLegality";
 import { Button } from "@web/components/Button/Button";
+import { IconButton } from "@web/components/IconButton/IconButton";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import { CoreLinesDisclosure } from "../CoreLinesDisclosure/CoreLinesDisclosure";
 import { RiskChipDisclosure } from "../RiskChipDisclosure/RiskChipDisclosure";
@@ -571,21 +572,22 @@ function HeaderMenu({
     // trigger and the menuitems inside.
     // eslint-disable-next-line jsx-a11y/no-static-element-interactions
     <div className={styles["menuWrap"]} ref={wrapRef} onKeyDown={onWrapKeyDown}>
-      <button
+      <IconButton
         aria-controls={open ? menuId : undefined}
         aria-expanded={open}
         aria-haspopup="menu"
-        aria-label={t("brief.header.ariaLabelMoreActions")}
         className={styles["menuTrigger"]}
+        label={t("brief.header.ariaLabelMoreActions")}
         ref={triggerRef}
-        type="button"
+        size="lg"
+        variant="outlined"
         // Close via the refocus helper: WebKit/Firefox-macOS don't focus a
         // clicked button, so a plain toggle would unmount the focused
         // menuitem and drop focus to <body>.
         onClick={() => (open ? closeAndRefocus() : setOpen(true))}
       >
         <span aria-hidden="true">⋯</span>
-      </button>
+      </IconButton>
       {open ? (
         <div
           className={styles["menu"]}
