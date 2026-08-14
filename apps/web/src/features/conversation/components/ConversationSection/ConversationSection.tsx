@@ -32,6 +32,7 @@ import type {
 import { useMentionPool } from "../../hooks/useMentionPool";
 import type { ReplyResult } from "../../reply";
 import { Button } from "@web/components/Button/Button";
+import { LinkButton } from "@web/components/LinkButton/LinkButton";
 import rowStyles from "../../rows.module.scss";
 import type { ConversationReview } from "../../types";
 import type {
@@ -345,11 +346,10 @@ export function ConversationSection({
         {/* The heading IS the disclosure, and the C shortcut's focus target —
             a button is natively focusable. */}
         <h2 className={styles["heading"]}>
-          <button
+          <LinkButton
             aria-expanded={open}
             className={styles["headingToggle"]}
             id="conversation-heading"
-            type="button"
             onClick={onToggle}
           >
             <span
@@ -366,7 +366,7 @@ export function ConversationSection({
             {summary !== undefined ? (
               <span className={styles["headSummary"]}>{summary}</span>
             ) : null}
-          </button>
+          </LinkButton>
         </h2>
         {open ? (
           <Button

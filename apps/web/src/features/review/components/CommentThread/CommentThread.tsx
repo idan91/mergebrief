@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { useId, useState } from "react";
 
 import { Button } from "@web/components/Button/Button";
+import { LinkButton } from "@web/components/LinkButton/LinkButton";
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea/MarkdownTextarea";
 import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
 import { useUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
@@ -96,18 +97,16 @@ export function CommentThread({
   if (comment.collapsed) {
     return (
       <div className={styles["thread"]} data-state="collapsed">
-        {/* Link-like toggle, not row chrome — LinkButton absorbs it in the
-            LinkButton PR; the disclosure state lands now. */}
-        <button
+        <LinkButton
           aria-expanded={false}
-          type="button"
+          className={styles["collapsedToggle"]}
           onClick={() => toggle(comment.id)}
         >
           {submitted ? t("review.comment.posted") : t("review.comment.draft")}{" "}
           {t("review.comment.commentOn")}
           {comment.anchor.side === "new" ? "+" : "-"}
           {comment.anchor.startLine}
-        </button>
+        </LinkButton>
       </div>
     );
   }
@@ -162,9 +161,8 @@ export function CommentThread({
       <div className={styles["footer"]} data-thread-footer="">
         <div className={styles["threadActions"]}>
           {submitted ? null : (
-            <button
+            <LinkButton
               disabled={posting}
-              type="button"
               onClick={() => {
                 // Seed the editor from the current comment each time, so an edit
                 // never opens on a stale body if it changed since mount.
@@ -173,10 +171,9 @@ export function CommentThread({
               }}
             >
               {t("review.comment.edit")}
-            </button>
+            </LinkButton>
           )}
-          <button
-            type="button"
+          <LinkButton
             onClick={() => {
               // A confirmation must not resurface (and re-announce) on a
               // later expand without fresh intent.
@@ -185,15 +182,14 @@ export function CommentThread({
             }}
           >
             {t("review.comment.collapse")}
-          </button>
+          </LinkButton>
           {submitted ? null : (
-            <button
+            <LinkButton
               disabled={posting}
-              type="button"
               onClick={() => setConfirmingDelete(true)}
             >
               {t("review.comment.delete")}
-            </button>
+            </LinkButton>
           )}
         </div>
         {/* Inline two-step confirm: the page toast is a text-only live

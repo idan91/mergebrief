@@ -27,6 +27,7 @@ import { RiskChipDisclosure } from "../../RiskChipDisclosure/RiskChipDisclosure"
 import { RiskDetailList } from "../../RiskDetailList/RiskDetailList";
 import { SinceMarker } from "./SinceMarker/SinceMarker";
 import { Button } from "@web/components/Button/Button";
+import { LinkButton } from "@web/components/LinkButton/LinkButton";
 import styles from "./GroupCard.module.scss";
 import { selectGroupReviewComments } from "./utils";
 
@@ -470,13 +471,12 @@ export const GroupCard = memo(function GroupCard({
                               onChange={() => toggleRiskFlag(flag.id)}
                             />
                           )}
-                          <button
+                          <LinkButton
                             className={styles["fileButton"]}
-                            type="button"
                             onClick={() => jumpToChunk(flag.chunkId)}
                           >
                             {flag.file}
-                          </button>
+                          </LinkButton>
                           {isResolved ? (
                             <span className={styles["state"]}>{kind}</span>
                           ) : null}

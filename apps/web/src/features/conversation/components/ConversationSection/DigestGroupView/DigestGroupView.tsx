@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import type { DigestGroup } from "../../../utils/digest";
 import { Button } from "@web/components/Button/Button";
+import { LinkButton } from "@web/components/LinkButton/LinkButton";
 import rowStyles from "../../../rows.module.scss";
 import type { ThreadComposerWiring } from "../../../wiring";
 import { ThreadRowView } from "../../ThreadRowView/ThreadRowView";
@@ -58,15 +59,14 @@ export function DigestGroupView({
     <section aria-label={group.label} className={styles["group"]}>
       <h3 className={styles["groupLabel"]}>
         {group.kind === "chunk" && group.chunkId !== undefined ? (
-          <button
+          <LinkButton
             className={styles["groupJump"]}
-            type="button"
             onClick={() => {
               if (group.chunkId !== undefined) jumpToChunk(group.chunkId);
             }}
           >
             {group.label}
-          </button>
+          </LinkButton>
         ) : (
           group.label
         )}

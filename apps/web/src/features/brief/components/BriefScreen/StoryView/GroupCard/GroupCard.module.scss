@@ -367,16 +367,15 @@
     margin-block-end: functions.to-rem(5px);
   }
 
+  /* Mono file-path jump on LinkButton's grammar: underline on hover only —
+     an always-underlined mono path reads as noise in the flag list. */
   .fileButton {
-    border: 0;
     margin-inline-start: 0;
-    background: transparent;
     color: var(--faint);
-    cursor: pointer;
     font-family: var(--mono);
     font-size: var(--font-size-sm);
     overflow-wrap: anywhere;
-    text-align: start;
+    text-decoration: none;
     white-space: normal;
 
     &:hover {

@@ -186,7 +186,7 @@ export default [
             exclude: [
               "^[^a-zA-Z]*$",
               "^.$",
-              "^(chunk|group|last-review|previous-brief|step|reference|content|repo-policy|built-in|open|verdict|receipt)$",
+              "^(chunk|group|last-review|previous-brief|step|reference|content|repo-policy|built-in|open|verdict|receipt|start)$",
             ],
           },
         },

@@ -13,15 +13,13 @@
     &[data-state="collapsed"] {
       padding-block: functions.to-rem(9px);
       padding-inline: functions.to-rem(12px);
-
-      button {
-        border: 0;
-        background: transparent;
-        color: var(--faint);
-        cursor: pointer;
-        font-size: var(--font-size-md);
-      }
     }
+  }
+
+  /* The collapsed one-liner on LinkButton's grammar. */
+  .collapsedToggle {
+    color: var(--faint);
+    font-size: var(--font-size-md);
   }
 
   .head {
@@ -74,29 +72,12 @@
     padding-inline-end: functions.to-rem(12px);
   }
 
+  /* Secondary text actions on LinkButton's grammar: the run stays faint md;
+     rest underline is the shared affordance. */
   .threadActions {
     padding-block-start: 0;
-
-    button {
-      border: 0;
-      background: transparent;
-      color: var(--faint);
-      cursor: pointer;
-      font-size: var(--font-size-md);
-
-      &:hover {
-        color: var(--text);
-        text-decoration: underline;
-        text-underline-offset: functions.to-rem(3px);
-      }
-
-      &:disabled {
-        color: var(--faint);
-        cursor: default;
-        opacity: 0.55;
-        text-decoration: none;
-      }
-    }
+    color: var(--faint);
+    font-size: var(--font-size-md);
   }
 
   /* The recoverable why-not for a blocked Post. */

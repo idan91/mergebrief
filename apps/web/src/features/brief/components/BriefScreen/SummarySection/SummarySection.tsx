@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { useState } from "react";
 
 import { ExpandableContent } from "@web/components/ExpandableContent/ExpandableContent";
+import { LinkButton } from "@web/components/LinkButton/LinkButton";
 import { Markdown } from "@web/components/Markdown/Markdown";
 import type { Brief } from "../../../types";
 import { DeltaContext } from "../DeltaContext/DeltaContext";
@@ -38,16 +39,16 @@ export function SummarySection({ brief }: SummarySectionProps) {
           ) : null}
           {/* Nested inside the cap: the disclosure is part of the summary
               content, and focusing it expands the cap around it. */}
-          <button
+          <LinkButton
+            aria-expanded={descriptionOpen}
             className={styles["descriptionToggle"]}
             data-testid="pr-description-toggle"
-            type="button"
             onClick={() => setDescriptionOpen((current) => !current)}
           >
             {descriptionOpen
               ? t("brief.summarySection.hideDescription")
               : t("brief.summarySection.showDescription")}
-          </button>
+          </LinkButton>
           {descriptionOpen ? (
             <div className={styles["description"]} data-testid="pr-description">
               <div className={styles["eyebrow"]}>

@@ -13,20 +13,14 @@
     font-weight: 500;
   }
 
+  /* Description-toggle deltas on LinkButton's grammar; inline-block so the
+     vertical margin applies. */
   .descriptionToggle {
+    display: inline-block;
     margin-block-start: functions.to-rem(4px);
-    border: 0;
-    background: transparent;
     color: var(--dim);
-    cursor: pointer;
     font-size: var(--font-size-md);
     font-weight: 600;
-    text-decoration: underline;
-    text-underline-offset: functions.to-rem(3px);
-
-    &:hover {
-      color: var(--text);
-    }
   }
 
   .description {

@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 
+import { LinkButton } from "../LinkButton/LinkButton";
 import styles from "./ExpandableContent.module.scss";
 import { exceedsCap, parseCapPx } from "./utils";
 
@@ -120,12 +121,11 @@ export function ExpandableContent({
           {children}
         </div>
       </div>
-      <button
+      <LinkButton
         aria-controls={bodyId}
         aria-expanded={expanded}
         className={styles["toggle"]}
         data-testid={`${testId}-toggle`}
-        type="button"
         onClick={() => {
           if (expanded) {
             // Collapsing takes back everything the reader scrolled through, so
@@ -141,7 +141,7 @@ export function ExpandableContent({
       >
         {expanded ? collapseLabel : expandLabel}
         <span aria-hidden="true">{expanded ? "↑" : "↓"}</span>
-      </button>
+      </LinkButton>
     </div>
   );
 }

@@ -16,16 +16,8 @@
     }
   }
 
+  /* LinkButton's grammar; only the hover token differs. */
   .deltaLink {
-    padding: 0;
-    border: none;
-    background: none;
-    color: inherit;
-    font: inherit;
-    text-decoration: underline;
-    text-underline-offset: functions.to-rem(3px);
-    cursor: pointer;
-
     &:hover {
       color: var(--color-text);
     }

@@ -30,17 +30,15 @@
     line-height: 1.55;
   }
 
+  /* Heading disclosure on LinkButton's grammar; the twist glyph carries the
+     affordance, so no underline. */
   .headingToggle {
     display: inline-flex;
     align-items: baseline;
     gap: functions.to-rem(8px);
     min-height: functions.to-rem(24px);
-    padding: 0;
-    border: 0;
-    background: none;
     color: var(--text);
-    cursor: pointer;
-    font: inherit;
+    text-decoration: none;
 
     /* The C-shortcut scroll must clear the sticky app header — same offset
        every other top-aligned scroll compensates. */

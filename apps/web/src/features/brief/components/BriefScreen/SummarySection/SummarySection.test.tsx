@@ -89,9 +89,12 @@ describe("SummarySection expandable-content adoption", () => {
     expect(screen.queryByTestId("pr-description")).toBeNull();
   });
 
-  it("opens the description only through its own toggle", () => {
+  it("opens the description only through its own toggle, announcing the state", () => {
     render(<SummarySection brief={briefFixture} />);
-    fireEvent.click(screen.getByTestId("pr-description-toggle"));
+    const toggle = screen.getByTestId("pr-description-toggle");
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(toggle);
     expect(screen.getByTestId("pr-description")).toBeTruthy();
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
   });
 });

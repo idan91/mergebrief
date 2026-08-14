@@ -1,0 +1,28 @@
+@use "functions";
+
+@layer components {
+  /* Text that acts: context font and color, the underline carrying the
+     affordance (never colour alone). */
+  .linkButton {
+    display: inline;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    text-align: start;
+    text-decoration: underline;
+    text-underline-offset: functions.to-rem(3px);
+
+    &:hover {
+      color: var(--text);
+    }
+
+    &[aria-disabled="true"] {
+      color: var(--dim);
+      cursor: default;
+      text-decoration: none;
+    }
+  }
+}

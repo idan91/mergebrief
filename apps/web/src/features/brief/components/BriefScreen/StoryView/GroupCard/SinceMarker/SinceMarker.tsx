@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { LinkButton } from "@web/components/LinkButton/LinkButton";
 import styles from "./SinceMarker.module.scss";
 
 export interface SinceMarkerProps {
@@ -49,14 +50,13 @@ export function SinceMarker({
       {openDeltaLens === undefined ? (
         label
       ) : (
-        <button
+        <LinkButton
           className={styles["deltaLink"]}
           title={t("brief.sinceMarker.titleOpenDeltaLens")}
-          type="button"
           onClick={openDeltaLens}
         >
           {label}
-        </button>
+        </LinkButton>
       )}
     </span>
   );

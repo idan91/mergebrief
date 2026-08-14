@@ -9,6 +9,7 @@
 // shows iff flags exist.
 import { useTranslation } from "react-i18next";
 import { Button } from "@web/components/Button/Button";
+import { LinkButton } from "@web/components/LinkButton/LinkButton";
 import { RowButton } from "@web/components/RowButton/RowButton";
 import { Modal } from "@web/components/Modal/Modal";
 import type { RiskFlag } from "@web/features/brief/utils";
@@ -148,9 +149,9 @@ export function MarkReadyModal({
           missing (the caller gates it). */}
       {intentGapCount > 0 ? (
         <p className={styles["copy"]}>
-          <Button disabled={busy} onClick={jumpToIntentGaps}>
+          <LinkButton disabled={busy} onClick={jumpToIntentGaps}>
             {t("pulls.markReadyModal.statedAsks", { count: intentGapCount })}
-          </Button>
+          </LinkButton>
         </p>
       ) : null}
       {/* Second count-only line, same register and jump target as the gap
@@ -159,11 +160,11 @@ export function MarkReadyModal({
           moment they are deciding. */}
       {intentTensionCount > 0 ? (
         <p className={styles["copy"]}>
-          <Button disabled={busy} onClick={jumpToIntentGaps}>
+          <LinkButton disabled={busy} onClick={jumpToIntentGaps}>
             {t("pulls.markReadyModal.intentTensions", {
               count: intentTensionCount,
             })}
-          </Button>
+          </LinkButton>
         </p>
       ) : null}
       {unpostedDraftCount > 0 ? (
@@ -174,9 +175,9 @@ export function MarkReadyModal({
                 count: unpostedDraftCount,
               })}
             </span>{" "}
-            <Button disabled={busy} onClick={jumpToDrafts}>
+            <LinkButton disabled={busy} onClick={jumpToDrafts}>
               {t("pulls.markReadyModal.jumpToDrafts")}
-            </Button>
+            </LinkButton>
           </p>
           <label className={styles["postDraftsToggle"]}>
             <input

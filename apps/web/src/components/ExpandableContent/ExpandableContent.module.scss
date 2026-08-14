@@ -40,28 +40,17 @@
     max-block-size: var(--expandable-content-text-full, none);
   }
 
+  /* Cap-toggle deltas on LinkButton's grammar: dim lg run with a target
+     floor. */
   .toggle {
     display: inline-flex;
     align-items: center;
     gap: functions.to-rem(4px);
     min-block-size: functions.to-rem(24px);
     padding-block: functions.to-rem(2px);
-    padding-inline: 0;
-    border: 0;
     margin-block-start: functions.to-rem(6px);
-    background: none;
     color: var(--dim);
-    cursor: pointer;
-    font: inherit;
     font-size: var(--font-size-lg);
-    text-decoration: underline;
-    text-underline-offset: functions.to-rem(3px);
-
-    &:hover {
-      color: var(--text);
-    }
-
-    @include mixins.focus-visible;
   }
 
   .root[data-state="fits"] .toggle {

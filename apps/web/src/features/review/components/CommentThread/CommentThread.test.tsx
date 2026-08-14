@@ -195,17 +195,20 @@ describe("CommentThread", () => {
     postButton.click();
     expect(post).not.toHaveBeenCalled();
     expect(
-      (screen.getByRole("button", { name: "Edit" }) as HTMLButtonElement)
-        .disabled,
-    ).toBe(true);
+      screen
+        .getByRole("button", { name: "Edit" })
+        .getAttribute("aria-disabled"),
+    ).toBe("true");
     expect(
-      (screen.getByRole("button", { name: "Delete" }) as HTMLButtonElement)
-        .disabled,
-    ).toBe(true);
+      screen
+        .getByRole("button", { name: "Delete" })
+        .getAttribute("aria-disabled"),
+    ).toBe("true");
     expect(
-      (screen.getByRole("button", { name: "Collapse" }) as HTMLButtonElement)
-        .disabled,
-    ).toBe(false);
+      screen
+        .getByRole("button", { name: "Collapse" })
+        .getAttribute("aria-disabled"),
+    ).toBeNull();
   });
 
   it("blocks Post while the inline editor is open, re-enabling on cancel", async () => {
@@ -334,13 +337,15 @@ describe("CommentThread", () => {
     expect(screen.queryByRole("button", { name: /Post/ })).toBeNull();
     // …but the mutating controls stay locked while the request settles.
     expect(
-      (screen.getByRole("button", { name: "Edit" }) as HTMLButtonElement)
-        .disabled,
-    ).toBe(true);
+      screen
+        .getByRole("button", { name: "Edit" })
+        .getAttribute("aria-disabled"),
+    ).toBe("true");
     expect(
-      (screen.getByRole("button", { name: "Delete" }) as HTMLButtonElement)
-        .disabled,
-    ).toBe(true);
+      screen
+        .getByRole("button", { name: "Delete" })
+        .getAttribute("aria-disabled"),
+    ).toBe("true");
   });
 
   it("never offers Post on an already-submitted comment", () => {

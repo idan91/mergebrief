@@ -17,19 +17,15 @@
     line-height: 1.55;
   }
 
+  /* Heading-jump deltas on LinkButton's grammar: dim run with a real
+     target floor. */
   .groupJump {
     display: inline-flex;
     align-items: center;
     min-height: functions.to-rem(24px);
     padding-block: functions.to-rem(4px);
     padding-inline: functions.to-rem(2px);
-    border: 0;
-    background: none;
     color: var(--dim);
-    cursor: pointer;
-    font: inherit;
-    text-decoration: underline;
-    text-underline-offset: functions.to-rem(3px);
 
     &:hover,
     &:focus-visible {
