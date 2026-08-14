@@ -4,20 +4,21 @@
  * the diff's actual changed lines; whatever no chunk claims is the
  * unattributed remainder. Pure functions, no model calls.
  */
-import { Concerns, type Chunk, type ConcernRollup, type LineRange } from "../types";
+import {
+  Concerns,
+  type Chunk,
+  type ConcernRollup,
+  type LineRange,
+  type UnattributedFile,
+} from "../types";
 import type { RevisionChangeFile } from "../diff/revchanges";
 import type { PrFile } from "../github/types";
+
+export type { UnattributedFile };
 
 export interface LocCount {
   added: number;
   deleted: number;
-}
-
-/** Changed lines no chunk claims, as per-file ranges (counts derive from them). */
-export interface UnattributedFile {
-  file: string;
-  addedRanges: LineRange[];
-  removedRanges: LineRange[];
 }
 
 /**

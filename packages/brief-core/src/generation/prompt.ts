@@ -201,9 +201,8 @@ You will receive a PR's title, description, file list, and unified diff — and,
 ## What a brief contains
 
 - **summary**: Markdown, deliberately short — a **lede of 1-3 short sentences** stating what the PR does and why (plain text, no headings, no filler), then optionally a "## Changelog" section of **1-3 bullets** when the change warrants an itemized list. These are hard caps, never targets: a reviewer skips walls of text, and the change-group summaries below carry the detail — never restate it here. The lede is required; the changelog is not.
-- **chunks[]**: a chunk is a contiguous run of changed lines sharing ONE concern and ONE change-group — it is **sub-file**. One file commonly yields several chunks: the same file can split across multiple hunks, multiple concerns, or multiple change-groups, and each such run is its own chunk with its own stable id (c1, c2, …). **Do not assume one file = one chunk or one group.** A single file's changed lines may serve different intents — when they do, split them into separate chunks and attach each chunk to the change-group it actually serves, so a file's hunks can be distributed across several groups. **Each chunk belongs to exactly ONE change-group — set its \`changeGroupId\` to that group's id. A file appears in multiple groups only via *different* chunks, so a reviewer never reviews the same lines twice.** Record each chunk's \`changeGroupId\`, file, concern, role (core/supporting), git LoC (added/deleted), **line ranges** (see below), and risk-surface attributes.
+- **chunks[]**: a chunk is a contiguous run of changed lines sharing ONE concern and ONE change-group — it is **sub-file**. One file commonly yields several chunks: the same file can split across multiple hunks, multiple concerns, or multiple change-groups, and each such run is its own chunk with its own stable id (c1, c2, …). **Do not assume one file = one chunk or one group.** A single file's changed lines may serve different intents — when they do, split them into separate chunks and attach each chunk to the change-group it actually serves, so a file's hunks can be distributed across several groups. **Each chunk belongs to exactly ONE change-group — set its \`changeGroupId\` to that group's id. A file appears in multiple groups only via *different* chunks, so a reviewer never reviews the same lines twice.** Record each chunk's \`changeGroupId\`, file, concern, role (core/supporting), **line ranges** (see below), and risk-surface attributes.
 - **changeGroups[]**: one group = the largest chunk set expressible as ONE title + ONE summary + ONE dominant category. Give each a stable **id** (g1, g2, …) and a one-line **title**. The group does **not** list chunk ids — each chunk attaches to it via its \`changeGroupId\`. Every group must have at least one core chunk.
-- **concernView[]**: LoC rollup per concern present in the PR.
 - **readingOrder[]** (optional): a reasoned reading sequence over \`changeGroups\` — see "Reading order" below.
 - **intentCheck**: did this PR do what its stated intent asked? — see "Intent check" below.
 
@@ -305,10 +304,6 @@ The intent check is a fallible read, never a verdict: report what the sources st
 
 You never hide uncertainty. When your confidence on a group's dominant category is below threshold — the classic case is new-feature vs bugfix — set \`uncertain: true\` and list the categories in tension in \`uncertainBetween\`. Do not force a confident token you don't believe. When you are confident, set \`uncertain: false\` and leave \`uncertainBetween\` empty. The same rule shapes the intent check's \`specificity\`: when the sources don't define this change, say \`broad\` or \`none\` — never manufacture precise asks.
 
-## LoC
-
-Report git +added/−deleted per chunk. We treat git LoC as an approximation of adjusted LoC; if a chunk looks like a relocation, say so in the group summary rather than trying to net out moved lines. Roll the same git counts up per concern in \`concernView\`.
-
 ## Line ranges (per chunk)
 
 For each chunk give the **actual changed lines** by side, as inclusive 1-based ranges:
@@ -370,7 +365,7 @@ ${RISK_NOTES_RULE}
 
 ## Chunks are sub-file
 
-A chunk is a contiguous run of changed lines sharing ONE concern and ONE change-group. One file's changed lines may serve different intents — split them into separate chunks, each pointing at the one group it serves via \`changeGroupId\`; a file's hunks can be distributed across several groups. **Each chunk belongs to exactly ONE change-group (set \`changeGroupId\`). A file appears in multiple groups only via *different* chunks — so a reviewer never reviews the same lines twice.** Each chunk records \`changeGroupId\`, file, concern, role, git LoC, line ranges, and risk-surface attributes.
+A chunk is a contiguous run of changed lines sharing ONE concern and ONE change-group. One file's changed lines may serve different intents — split them into separate chunks, each pointing at the one group it serves via \`changeGroupId\`; a file's hunks can be distributed across several groups. **Each chunk belongs to exactly ONE change-group (set \`changeGroupId\`). A file appears in multiple groups only via *different* chunks — so a reviewer never reviews the same lines twice.** Each chunk records \`changeGroupId\`, file, concern, role, line ranges, and risk-surface attributes.
 
 ## Change-group rules
 

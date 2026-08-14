@@ -27,6 +27,20 @@ import {
 } from "./prompt";
 import { splitDiffByFile } from "../diff/diff";
 import {
+  changedRangesFromFileDiffs,
+  type RevisionChangeFile,
+} from "../diff/revchanges";
+import {
+  buildConcernView,
+  crossCheckFileTotals,
+  diffLocTotals,
+  deriveChunkLoc,
+  deriveUnattributed,
+  detectChunkOverlaps,
+  unattributedTotals,
+  type UnattributedFile,
+} from "./loc";
+import {
   fanOutIntentCheck,
   validateIntentCheck,
   validateMarksNarrativeCoverage,
@@ -39,7 +53,6 @@ import {
   validateRepoAttributeTokens,
   validateRiskAttributes,
 } from "./validate";
-import type { RevisionChangeFile } from "../diff/revchanges";
 import type {
   FetchedPr,
   LinkedContext,
@@ -67,7 +80,6 @@ const SALVAGE_FIELDS = [
   "uncertainBetween",
   "riskSurface",
   "riskNotes",
-  "concernView",
 ] as const;
 
 /**
@@ -234,6 +246,29 @@ export async function categorize(
     salvageFields: SALVAGE_FIELDS,
     log: collector.log,
   });
+  // Counts never come from the model: chunk loc = |ranges ∩ changed lines|,
+  // concernView rolls up from that, and the remainder no chunk claims is
+  // stamped as `unattributed`. All discrepancy signals are warn-only.
+  const fileDiffs = splitDiffByFile(pr.diff);
+  const changedFiles = changedRangesFromFileDiffs(fileDiffs);
+  const chunksWithLoc = deriveChunkLoc(generated.chunks, changedFiles);
+  warnIssues(detectChunkOverlaps(chunksWithLoc), collector.log, "loc overlap");
+  warnIssues(
+    crossCheckFileTotals(changedFiles, pr.meta.files),
+    collector.log,
+    "loc cross-check",
+  );
+  // On anchored runs the model deliberately withholds frozen groups' chunks,
+  // so a remainder computed here would mis-claim their lines as unattributed;
+  // the worker stitch derives it over the merged chunk set instead.
+  const unattributed =
+    anchor === undefined
+      ? deriveUnattributed(chunksWithLoc, changedFiles)
+      : undefined;
+  if (unattributed !== undefined) {
+    warnIssues(coverageIssues(unattributed), collector.log, "loc coverage");
+  }
+
   const { readingOrder, ...rest } = generated;
   // On anchored runs the model is told to reference frozen group ids, so the
   // validators must accept them rather than prune them as unknown; the stitch
@@ -276,17 +311,14 @@ export async function categorize(
   // risk validation on the survivors. Skipped entirely without repo context.
   const repoChecked =
     effectiveContext === undefined
-      ? { chunks: generated.chunks, issues: [] }
+      ? { chunks: chunksWithLoc, issues: [] }
       : validateRepoAttributeTokens(
-          generated.chunks,
+          chunksWithLoc,
           effectiveContext.customAttributes,
         );
   warnIssues(repoChecked.issues, collector.log, "repo attrs");
 
-  const trio = validateRiskAttributes(
-    repoChecked.chunks,
-    splitDiffByFile(pr.diff),
-  );
+  const trio = validateRiskAttributes(repoChecked.chunks, fileDiffs);
   warnIssues(trio.issues, collector.log, "risk attrs");
 
   // Warn-only length floor: the prompt carries the caps; this measures
@@ -297,6 +329,11 @@ export async function categorize(
   const partial = {
     ...rest,
     chunks: trio.chunks,
+    concernView: buildConcernView(trio.chunks),
+    // Exact whole-diff totals: per-chunk sums double-count overlap lines
+    // (by design), so header totals derive from the diff itself.
+    diffTotals: diffLocTotals(changedFiles),
+    ...(unattributed !== undefined ? { unattributed } : {}),
     intentCheck: intentChecked.intentCheck,
     ...(keepReadingOrder ? { readingOrder } : {}),
     pr: buildPrRef(pr.locator, pr.meta, commitRange.head),
@@ -317,6 +354,15 @@ export async function categorize(
       : {}),
   };
   return brief;
+}
+
+/** Warn line for a non-empty unattributed remainder (coverage gap). */
+function coverageIssues(unattributed: UnattributedFile[]): string[] {
+  if (unattributed.length === 0) return [];
+  const gap = unattributedTotals(unattributed);
+  return [
+    `${gap.added} added / ${gap.deleted} removed changed line(s) unattributed to any chunk across ${unattributed.length} file(s)`,
+  ];
 }
 
 /** Log-and-continue for warn-only validation issues (never a throw). */
@@ -437,10 +483,15 @@ export async function categorizeDelta(
     salvageFields: SALVAGE_FIELDS,
     log: collector.log,
   });
-  const trio = validateRiskAttributes(
+  // Delta chunk loc derives from the incremental diff — same discipline as
+  // the full brief; the delta artifact carries no concernView/unattributed.
+  const fileDiffs = splitDiffByFile(input.incrementalDiff);
+  const chunksWithLoc = deriveChunkLoc(
     generated.chunks,
-    splitDiffByFile(input.incrementalDiff),
+    changedRangesFromFileDiffs(fileDiffs),
   );
+  warnIssues(detectChunkOverlaps(chunksWithLoc), collector.log, "loc overlap");
+  const trio = validateRiskAttributes(chunksWithLoc, fileDiffs);
   warnIssues(trio.issues, collector.log, "risk attrs");
 
   // Warn-only length floor, same posture as the full brief.

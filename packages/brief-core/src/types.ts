@@ -209,7 +209,12 @@ function buildRiskNoteSchema(riskToken: z.ZodType<string>) {
 
 export const RiskNoteSchema = buildRiskNoteSchema(riskSurfaceEnum);
 
-const buildChunkSchema = (riskToken: z.ZodType<string>) =>
+/**
+ * The model-facing chunk shape: attribution only (concern, role, ranges) —
+ * no counts. `loc` is derived by the pipeline from the chunk's ranges
+ * intersected with the diff's changed lines, so the model never counts.
+ */
+const buildChunkGenerationSchema = (riskToken: z.ZodType<string>) =>
   z.object({
     id: z.string().describe("stable chunk id, e.g. c1, c2, …"),
     changeGroupId: z
@@ -224,14 +229,6 @@ const buildChunkSchema = (riskToken: z.ZodType<string>) =>
     role: roleEnum.describe(
       "core holds the group's intent — never 'most important' or largest; supporting serves it. Default from concern (implementation→core, else supporting); flip when a supporting artifact is itself the purpose (e.g. flaky-test fix). Type, context, and CSS/style files are core when they define the changed contract, state model, or visual behavior; supporting only when they merely accompany another core chunk.",
     ),
-    loc: z
-      .object({
-        added: z.number().int().describe("git lines added in this chunk"),
-        deleted: z.number().int().describe("git lines deleted in this chunk"),
-      })
-      .describe(
-        "approximation: git LoC ≈ adjusted LoC. Note likely moves in the group summary; we do not claim move-accurate LoC.",
-      ),
     addedRanges: z
       .array(LineRangeSchema)
       .describe(
@@ -255,6 +252,21 @@ const buildChunkSchema = (riskToken: z.ZodType<string>) =>
       ),
   });
 
+/** The derived per-chunk count the pipeline stamps post-generation. */
+const ChunkLocSchema = z
+  .object({
+    added: z.number().int().describe("lines added in this chunk"),
+    deleted: z.number().int().describe("lines deleted in this chunk"),
+  })
+  .describe(
+    "derived, never model-produced: |chunk ranges ∩ the diff's changed lines| per side",
+  );
+
+/** The stored chunk shape: the generation chunk plus the derived `loc`. */
+const buildChunkSchema = (riskToken: z.ZodType<string>) =>
+  buildChunkGenerationSchema(riskToken).extend({ loc: ChunkLocSchema });
+
+export const ChunkGenerationSchema = buildChunkGenerationSchema(riskSurfaceEnum);
 export const ChunkSchema = buildChunkSchema(riskSurfaceEnum);
 
 export const ChangeGroupSchema = z.object({
@@ -303,6 +315,33 @@ export const ReadingOrderStepSchema = z.object({
     .describe(
       "one comprehension-language line, at most ~15 words, on why this group comes next (e.g. 'establishes the schema the rest builds on'). Never importance/priority/severity language, never a score.",
     ),
+});
+
+/**
+ * Changed lines no chunk claims, as per-file ranges — counts always derive
+ * from the ranges. Pipeline-assigned, never model-produced.
+ */
+export const UnattributedFileSchema = z.object({
+  file: z.string().describe("file path with unattributed changed lines"),
+  addedRanges: z
+    .array(LineRangeSchema)
+    .describe("new-side changed lines no chunk claims"),
+  removedRanges: z
+    .array(LineRangeSchema)
+    .describe("old-side changed lines no chunk claims"),
+});
+
+/**
+ * Whole-diff changed-line totals derived from the parsed diff — exact even
+ * when inter-chunk overlaps double-count a line in the per-chunk sums.
+ * Pipeline-assigned, never model-produced.
+ */
+export const DiffTotalsSchema = z.object({
+  added: z.number().int().describe("total added lines across the whole diff"),
+  deleted: z
+    .number()
+    .int()
+    .describe("total removed lines across the whole diff"),
 });
 
 export const ConcernRollupSchema = z.object({
@@ -594,7 +633,18 @@ export const BriefSchema = z.object({
   chunks: z.array(ChunkSchema),
   concernView: z
     .array(ConcernRollupSchema)
-    .describe("LoC rollup per concern (one entry per concern present)"),
+    .describe(
+      "LoC rollup per concern (one entry per concern present). Derived from chunk loc post-generation, never model-produced.",
+    ),
+  unattributed: z
+    .array(UnattributedFileSchema)
+    .optional()
+    .describe(
+      "changed lines no chunk claims, as per-file ranges. Pipeline-assigned ([] when fully attributed); absent on pre-feature briefs.",
+    ),
+  diffTotals: DiffTotalsSchema.optional().describe(
+    "whole-diff added/removed totals derived from the parsed diff. Pipeline-assigned; absent on pre-feature briefs.",
+  ),
   readingOrder: z
     .array(ReadingOrderStepSchema)
     .optional()
@@ -611,7 +661,9 @@ export const BriefSchema = z.object({
  * metadata, filled in after generation so the model never echoes identifiers it
  * cannot know. `intentCheck` is REQUIRED here but optional on the stored
  * `BriefSchema` — older briefs have no intent bar — and uses the generation
- * shape (one tagged `items` array).
+ * shape (one tagged `items` array). Counts never ride the wire: chunks carry
+ * ranges only (no `loc`), and `concernView`/`unattributed` are derived
+ * post-generation.
  */
 export const BriefGenerationSchema = BriefSchema.omit({
   pr: true,
@@ -622,7 +674,11 @@ export const BriefGenerationSchema = BriefSchema.omit({
   anchor: true,
   anchoring: true,
   lengthViolations: true,
+  concernView: true,
+  unattributed: true,
+  diffTotals: true,
 }).extend({
+  chunks: z.array(ChunkGenerationSchema),
   intentCheck: IntentCheckGenerationSchema,
 });
 
@@ -641,7 +697,7 @@ export function briefGenerationSchemaWith(
     return BriefGenerationSchema;
   }
   return BriefGenerationSchema.extend({
-    chunks: z.array(buildChunkSchema(riskTokenEnum(customNames))),
+    chunks: z.array(buildChunkGenerationSchema(riskTokenEnum(customNames))),
   });
 }
 
@@ -650,7 +706,7 @@ export function briefGenerationSchemaWith(
  * summary and the review comment(s) this chunk resolves. The delta covers the
  * code-change narrative only — per-reviewer carry-over state is out of scope.
  */
-export const DeltaChunkSchema = ChunkSchema.extend({
+const DeltaChunkFields = {
   summary: z
     .string()
     .describe("one-line, what changed in this chunk (what, not why)"),
@@ -659,7 +715,13 @@ export const DeltaChunkSchema = ChunkSchema.extend({
     .describe(
       "ids of the review comments this chunk resolves (empty if it addresses none)",
     ),
-});
+};
+
+export const DeltaChunkSchema = ChunkSchema.extend(DeltaChunkFields);
+
+/** The model-facing delta chunk: same omission — no counts on the wire. */
+export const DeltaChunkGenerationSchema =
+  ChunkGenerationSchema.extend(DeltaChunkFields);
 
 export const DeltaBriefSchema = z.object({
   pr: PrRefSchema,
@@ -728,6 +790,10 @@ export const DeltaBriefGenerationSchema = DeltaBriefSchema.omit({
   generation: true,
   generationWarnings: true,
   lengthViolations: true,
+}).extend({
+  chunks: z
+    .array(DeltaChunkGenerationSchema)
+    .describe("chunks of the incremental change only"),
 });
 
 /**
@@ -837,6 +903,10 @@ export type IntentCheck = z.infer<typeof IntentCheckSchema>;
 export type LineRange = z.infer<typeof LineRangeSchema>;
 export type RiskNote = z.infer<typeof RiskNoteSchema>;
 export type Chunk = z.infer<typeof ChunkSchema>;
+export type ChunkGeneration = z.infer<typeof ChunkGenerationSchema>;
+export type DeltaChunkGeneration = z.infer<typeof DeltaChunkGenerationSchema>;
+export type UnattributedFile = z.infer<typeof UnattributedFileSchema>;
+export type DiffTotals = z.infer<typeof DiffTotalsSchema>;
 export type ChangeGroup = z.infer<typeof ChangeGroupSchema>;
 export type ReadingOrderStep = z.infer<typeof ReadingOrderStepSchema>;
 export type ConcernRollup = z.infer<typeof ConcernRollupSchema>;

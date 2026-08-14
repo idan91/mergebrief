@@ -33,7 +33,9 @@ const pr: FetchedPr = {
     sha: "deadbeef00000000",
     baseSha: "base0000000000000",
     commitCount: 1,
-    files: [{ path: "src/a.ts", additions: 5, deletions: 0 }],
+    // Zero counts: the header-only stub diff derives +0 -0, keeping the
+    // warn-only gh cross-check silent for tests not about derivation.
+    files: [{ path: "src/a.ts", additions: 0, deletions: 0 }],
   },
   diff: "diff --git a/src/a.ts b/src/a.ts\n",
   links: [],
@@ -82,7 +84,6 @@ const twoGroupBriefGen = {
       file: "src/schema.ts",
       concern: "implementation",
       role: "core",
-      loc: { added: 3, deleted: 0 },
       addedRanges: [{ start: 1, end: 3 }],
       removedRanges: [],
       riskSurface: [],
@@ -93,13 +94,11 @@ const twoGroupBriefGen = {
       file: "src/logic.ts",
       concern: "implementation",
       role: "core",
-      loc: { added: 2, deleted: 0 },
       addedRanges: [{ start: 1, end: 2 }],
       removedRanges: [],
       riskSurface: [],
     },
   ],
-  concernView: [{ concern: "implementation", added: 5, deleted: 0 }],
 };
 
 describe("categorize — PR lifecycle stamping", () => {
@@ -697,7 +696,6 @@ function repoBriefFixture(
         file: "services/billing/invoice.ts",
         concern: "implementation",
         role: "core",
-        loc: { added: 2, deleted: 0 },
         addedRanges: [{ start: 1, end: 2 }],
         removedRanges: [],
         riskSurface: firstChunkRisk,
@@ -715,13 +713,11 @@ function repoBriefFixture(
         file: "apps/web/page.tsx",
         concern: "implementation",
         role: "core",
-        loc: { added: 1, deleted: 0 },
         addedRanges: [{ start: 5, end: 5 }],
         removedRanges: [],
         riskSurface: secondChunkRisk,
       },
     ],
-    concernView: [{ concern: "implementation", added: 3, deleted: 0 }],
   };
 }
 
@@ -982,5 +978,305 @@ describe("categorize repo-context acceptance (codex r1 fixes)", () => {
       "## Repo instructions (semi-trusted, bounded)",
     );
     expect(request.user).not.toContain("repo_instructions");
+  });
+});
+
+describe("categorize — mechanical LoC derivation", () => {
+  const realDiff = [
+    "diff --git a/src/schema.ts b/src/schema.ts",
+    "@@ -0,0 +1,3 @@",
+    "+a",
+    "+b",
+    "+c",
+    "diff --git a/src/logic.ts b/src/logic.ts",
+    "@@ -1,3 +1,4 @@",
+    " ctx",
+    "-old",
+    "+new1",
+    "+new2",
+    " ctx2",
+    "",
+  ].join("\n");
+
+  const derivationPr: FetchedPr = {
+    ...pr,
+    meta: {
+      ...pr.meta,
+      files: [
+        { path: "src/schema.ts", additions: 3, deletions: 0 },
+        { path: "src/logic.ts", additions: 2, deletions: 1 },
+      ],
+    },
+    diff: realDiff,
+  };
+
+  const derivationGen = {
+    ...twoGroupBriefGen,
+    chunks: [
+      {
+        id: "c1",
+        changeGroupId: "g1",
+        file: "src/schema.ts",
+        concern: "implementation",
+        role: "core",
+        addedRanges: [{ start: 1, end: 3 }],
+        removedRanges: [],
+        riskSurface: [],
+      },
+      {
+        id: "c2",
+        changeGroupId: "g2",
+        file: "src/logic.ts",
+        concern: "test",
+        role: "core",
+        addedRanges: [{ start: 2, end: 3 }],
+        removedRanges: [{ start: 2, end: 2 }],
+        riskSurface: [],
+      },
+    ],
+  };
+
+  it("derives chunk loc from ranges clamped by the diff's changed lines", async () => {
+    const brief = await categorize(
+      derivationPr,
+      1,
+      commitRange,
+      new FakeGenerator(derivationGen),
+    );
+    expect(brief.chunks.map((c) => c.loc)).toEqual([
+      { added: 3, deleted: 0 },
+      { added: 2, deleted: 1 },
+    ]);
+  });
+
+  it("derives concernView from the chunks (never the model)", async () => {
+    const brief = await categorize(
+      derivationPr,
+      1,
+      commitRange,
+      new FakeGenerator({
+        ...derivationGen,
+        // model-supplied concernView must be ignored even if present
+        concernView: [{ concern: "doc", added: 99, deleted: 99 }],
+      }),
+    );
+    expect(brief.concernView).toEqual([
+      { concern: "implementation", added: 3, deleted: 0 },
+      { concern: "test", added: 2, deleted: 1 },
+    ]);
+  });
+
+  it("stamps an empty unattributed array when chunks cover everything", async () => {
+    const brief = await categorize(
+      derivationPr,
+      1,
+      commitRange,
+      new FakeGenerator(derivationGen),
+    );
+    expect(brief.unattributed).toEqual([]);
+    expect(brief.generationWarnings ?? []).toEqual([]);
+  });
+
+  it("stamps the unattributed remainder and warns on a coverage gap", async () => {
+    const gappy = {
+      ...derivationGen,
+      chunks: [derivationGen.chunks[0]],
+      changeGroups: [twoGroupBriefGen.changeGroups[0]],
+    };
+    const brief = await categorize(
+      derivationPr,
+      1,
+      commitRange,
+      new FakeGenerator(gappy),
+    );
+    expect(brief.unattributed).toEqual([
+      {
+        file: "src/logic.ts",
+        addedRanges: [{ start: 2, end: 3 }],
+        removedRanges: [{ start: 2, end: 2 }],
+      },
+    ]);
+    expect(
+      (brief.generationWarnings ?? []).some((w) => w.includes("unattributed")),
+    ).toBe(true);
+  });
+
+  it("warns on inter-chunk overlaps without deduping the counts", async () => {
+    const overlapping = {
+      ...derivationGen,
+      chunks: [
+        derivationGen.chunks[0],
+        {
+          ...derivationGen.chunks[1],
+          file: "src/schema.ts",
+          addedRanges: [{ start: 2, end: 3 }],
+          removedRanges: [],
+        },
+      ],
+    };
+    const brief = await categorize(
+      derivationPr,
+      1,
+      commitRange,
+      new FakeGenerator(overlapping),
+    );
+    expect(brief.chunks.map((c) => c.loc)).toEqual([
+      { added: 3, deleted: 0 },
+      { added: 2, deleted: 0 },
+    ]);
+    expect(
+      (brief.generationWarnings ?? []).some((w) => w.includes("counted in both")),
+    ).toBe(true);
+  });
+
+  it("warns when gh per-file counts disagree with the diff", async () => {
+    const skewed: FetchedPr = {
+      ...derivationPr,
+      meta: {
+        ...derivationPr.meta,
+        files: [
+          { path: "src/schema.ts", additions: 30, deletions: 0 },
+          { path: "src/logic.ts", additions: 2, deletions: 1 },
+        ],
+      },
+    };
+    const brief = await categorize(
+      skewed,
+      1,
+      commitRange,
+      new FakeGenerator(derivationGen),
+    );
+    expect(
+      (brief.generationWarnings ?? []).some(
+        (w) => w.includes("src/schema.ts") && w.includes("30"),
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("categorize — anchored runs and unattributed", () => {
+  it("does not stamp unattributed or a coverage warning on an anchored run", async () => {
+    const realDiff = [
+      "diff --git a/src/frozen.ts b/src/frozen.ts",
+      "@@ -0,0 +1,5 @@",
+      "+a",
+      "+b",
+      "+c",
+      "+d",
+      "+e",
+      "",
+    ].join("\n");
+    const anchoredPr: FetchedPr = {
+      ...pr,
+      meta: {
+        ...pr.meta,
+        files: [{ path: "src/frozen.ts", additions: 5, deletions: 0 }],
+      },
+      diff: realDiff,
+    };
+    const previousBrief = (await categorize(
+      anchoredPr,
+      1,
+      commitRange,
+      new FakeGenerator(twoGroupBriefGen),
+    ));
+    // Model withholds frozen groups' chunks: emits nothing for frozen.ts.
+    const brief = await categorize(
+      anchoredPr,
+      2,
+      commitRange,
+      new FakeGenerator(twoGroupBriefGen),
+      () => {},
+      undefined,
+      "medium",
+      { previousBrief, frozenGroupIds: ["g1"] },
+    );
+    expect(brief.unattributed).toBeUndefined();
+    expect(
+      (brief.generationWarnings ?? []).every(
+        (w) => !w.includes("loc coverage"),
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("categorize — diffTotals", () => {
+  it("stamps whole-diff totals that stay exact under chunk overlaps", async () => {
+    const realDiff = [
+      "diff --git a/src/a.ts b/src/a.ts",
+      "@@ -1,2 +1,5 @@",
+      "-old",
+      "+n1",
+      "+n2",
+      "+n3",
+      "+n4",
+      " ctx",
+      "",
+    ].join("\n");
+    const overlapPr: FetchedPr = {
+      ...pr,
+      meta: {
+        ...pr.meta,
+        files: [{ path: "src/a.ts", additions: 4, deletions: 1 }],
+      },
+      diff: realDiff,
+    };
+    const gen = {
+      ...twoGroupBriefGen,
+      chunks: [
+        {
+          id: "c1",
+          changeGroupId: "g1",
+          file: "src/a.ts",
+          concern: "implementation",
+          role: "core",
+          addedRanges: [{ start: 1, end: 3 }],
+          removedRanges: [{ start: 1, end: 1 }],
+          riskSurface: [],
+        },
+        {
+          id: "c2",
+          changeGroupId: "g2",
+          file: "src/a.ts",
+          concern: "implementation",
+          role: "core",
+          // overlaps c1 on lines 2-3 — counted in both chunks by design
+          addedRanges: [{ start: 2, end: 4 }],
+          removedRanges: [],
+          riskSurface: [],
+        },
+      ],
+    };
+    const brief = await categorize(
+      overlapPr,
+      1,
+      commitRange,
+      new FakeGenerator(gen),
+    );
+    // chunk sums double-count the overlap (3+3 added) — diffTotals must not.
+    expect(brief.diffTotals).toEqual({ added: 4, deleted: 1 });
+    expect(brief.unattributed).toEqual([]);
+  });
+
+  it("stamps diffTotals on anchored runs too (diff-derived, chunk-independent)", async () => {
+    const brief = await categorize(
+      pr,
+      2,
+      commitRange,
+      new FakeGenerator(twoGroupBriefGen),
+      () => {},
+      undefined,
+      "medium",
+      {
+        previousBrief: await categorize(
+          pr,
+          1,
+          commitRange,
+          new FakeGenerator(twoGroupBriefGen),
+        ),
+        frozenGroupIds: ["g1"],
+      },
+    );
+    expect(brief.diffTotals).toEqual({ added: 0, deleted: 0 });
   });
 });
