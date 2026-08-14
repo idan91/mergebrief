@@ -71,11 +71,12 @@ mentions (`prompt.ts:204/206/308-310/373`); wire derivation post-generation
 validator warnings: coverage gap + overlap (extend `validatePartition`
 coverage), gh mismatch. Grep "adjusted" strays. Brief-core fixture churn.
 
-- **Eval-gated surface — deferred to end of stack**: no eval spend during
-  implementation. After PR 4 is up and before merging, an OPTIONAL scoped
-  `pnpm -C tools/categorizer eval` pass (`--case` per plausibly-moved case,
-  selection justified in the PR body) runs on Idan's go-ahead; report lands
-  in this PR's body. Pair-case props (`eval/pair-cases/props.ts`) read
+- **Eval-gated surface — deferred to end of stack, Idan-run only**: the agent
+  NEVER runs evals. After PR 4 is up and before merging, the agent hands Idan
+  the scoped case selection (`--case` per plausibly-moved case, selection
+  justified) and the exact commands; Idan optionally runs
+  `pnpm -C tools/categorizer eval` himself and pastes the report into this
+  PR's body. Pair-case props (`eval/pair-cases/props.ts`) read
   post-derivation briefs; rebaseline only where legitimately moved, on main.
 - Est. ~500–900 LOC incl. fixtures. Model: **Fable 5, high**. Main thread,
   after PR 1.
@@ -122,10 +123,12 @@ The A+C verdict, from the prototype recipes (ticket "Prototype verdict"):
 - Est. ~450–800 LOC. Model: **Fable 5, high** (UI polish + a11y). Skills:
   `web-accessibility`, `verify` after merge-ready. Main thread, after PR 3.
 
-## End-of-stack, pre-merge (optional)
+## End-of-stack, pre-merge (optional, Idan-run)
 
-- Scoped eval pass for PR 2's generation-surface change — on Idan's go-ahead
-  only (live API spend); report into the PR 2 body.
+- Scoped eval pass for PR 2's generation-surface change — Idan runs it
+  himself if he chooses (live API spend; the agent never invokes the eval
+  harness). Agent's part: deliver the justified case selection + exact
+  commands; Idan pastes the report into the PR 2 body.
 
 ## Post-merge owes
 
