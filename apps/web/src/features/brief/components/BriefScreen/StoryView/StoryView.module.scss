@@ -15,24 +15,12 @@
   }
 
   // Read-through entry point: solid surface (never transparent over diff
-  // content), compact.
+  // content); chrome comes from Button sm.
   .readThrough {
     flex: none;
-    padding-block: functions.to-rem(5px);
-    padding-inline: functions.to-rem(12px);
-    border: 1px solid var(--line2);
-    border-radius: var(--radius-md);
     background: var(--panel2);
-    color: var(--text);
-    cursor: pointer;
-    font-size: var(--font-size-md);
-    font-weight: 600;
-    transition:
-      background 0.15s,
-      border-color 0.15s;
 
     &:hover {
-      border-color: color-mix(in srgb, var(--line2) 50%, var(--text));
       background: var(--panel);
     }
   }

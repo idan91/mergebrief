@@ -13,6 +13,7 @@ export type ButtonElement = ValueOf<typeof BUTTON_ELEMENTS>;
 export const BUTTON_VARIANTS = {
   PRIMARY: "primary",
   SECONDARY: "secondary",
+  QUIET: "quiet",
 } as const;
 export type ButtonVariant = ValueOf<typeof BUTTON_VARIANTS>;
 

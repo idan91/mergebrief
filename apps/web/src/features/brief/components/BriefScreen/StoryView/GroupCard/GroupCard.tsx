@@ -26,6 +26,7 @@ import { RiskBadge } from "../../RiskBadge/RiskBadge";
 import { RiskChipDisclosure } from "../../RiskChipDisclosure/RiskChipDisclosure";
 import { RiskDetailList } from "../../RiskDetailList/RiskDetailList";
 import { SinceMarker } from "./SinceMarker/SinceMarker";
+import { Button } from "@web/components/Button/Button";
 import styles from "./GroupCard.module.scss";
 import { selectGroupReviewComments } from "./utils";
 
@@ -295,14 +296,9 @@ export const GroupCard = memo(function GroupCard({
             </span>
             <span className={styles["pick"]}>
               {group.group.uncertainBetween.map((category) => (
-                <button
-                  className={styles["pickButton"]}
-                  key={category}
-                  type="button"
-                  onClick={() => chooseDominant(category)}
-                >
+                <Button key={category} onClick={() => chooseDominant(category)}>
                   {category}
-                </button>
+                </Button>
               ))}
             </span>
           </div>
@@ -404,11 +400,10 @@ export const GroupCard = memo(function GroupCard({
                   )}
                   {flagsReadOnly ? null : (
                     <div className={styles["riskBulkActions"]}>
-                      <button
-                        className={styles["button"]}
+                      <Button
                         disabled={!hasSelection}
+                        size="sm"
                         title={t("brief.group.titleMarkSelectedAddressed")}
-                        type="button"
                         onClick={() => {
                           setEvidenceTarget({
                             flagIds: openRiskFlagIds.filter((flagId) =>
@@ -422,12 +417,11 @@ export const GroupCard = memo(function GroupCard({
                         }}
                       >
                         {t("brief.group.addressSelected")}
-                      </button>
-                      <button
-                        className={styles["button"]}
+                      </Button>
+                      <Button
                         disabled={!hasSelection}
+                        size="sm"
                         title={t("brief.group.titleMarkSelectedDismissed")}
-                        type="button"
                         onClick={() => {
                           setDismissTarget({
                             flagIds: openRiskFlagIds.filter((flagId) =>
@@ -441,7 +435,7 @@ export const GroupCard = memo(function GroupCard({
                         }}
                       >
                         {t("brief.group.dismissSelected")}
-                      </button>
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -521,10 +515,9 @@ export const GroupCard = memo(function GroupCard({
                             ) : null}
                             {flagsReadOnly ? null : (
                               <div className={styles["flagActions"]}>
-                                <button
-                                  className={styles["button"]}
+                                <Button
+                                  size="sm"
                                   title={t("brief.group.titleMarkAddressed")}
-                                  type="button"
                                   onClick={() => {
                                     setEvidenceTarget({
                                       flagIds: [flag.id],
@@ -533,11 +526,10 @@ export const GroupCard = memo(function GroupCard({
                                   }}
                                 >
                                   {t("brief.group.addressed")}
-                                </button>
-                                <button
-                                  className={styles["button"]}
+                                </Button>
+                                <Button
+                                  size="sm"
                                   title={t("brief.group.titleMarkDismissed")}
-                                  type="button"
                                   onClick={() =>
                                     setDismissTarget({
                                       flagIds: [flag.id],
@@ -546,7 +538,7 @@ export const GroupCard = memo(function GroupCard({
                                   }
                                 >
                                   {t("brief.group.dismiss")}
-                                </button>
+                                </Button>
                               </div>
                             )}
                           </>

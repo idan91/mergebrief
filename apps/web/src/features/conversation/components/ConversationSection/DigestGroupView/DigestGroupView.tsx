@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import type { DigestGroup } from "../../../utils/digest";
+import { Button } from "@web/components/Button/Button";
 import rowStyles from "../../../rows.module.scss";
 import type { ThreadComposerWiring } from "../../../wiring";
 import { ThreadRowView } from "../../ThreadRowView/ThreadRowView";
@@ -97,13 +98,9 @@ export function DigestGroupView({
         )}
       </ul>
       {hidden > 0 ? (
-        <button
-          className={rowStyles["action"]}
-          type="button"
-          onClick={() => showAll(group.id)}
-        >
+        <Button variant="quiet" onClick={() => showAll(group.id)}>
           {t("conversation.showMore", { count: hidden })}
-        </button>
+        </Button>
       ) : null}
       {prComments.length > 0 ? (
         <ul className={rowStyles["rows"]}>
@@ -119,13 +116,9 @@ export function DigestGroupView({
         </ul>
       ) : null}
       {hiddenPrComments > 0 ? (
-        <button
-          className={rowStyles["action"]}
-          type="button"
-          onClick={() => showAll(group.id)}
-        >
+        <Button variant="quiet" onClick={() => showAll(group.id)}>
           {t("conversation.showMore", { count: hiddenPrComments })}
-        </button>
+        </Button>
       ) : null}
     </section>
   );

@@ -1,5 +1,6 @@
 import { useId } from "react";
 
+import { Button } from "@web/components/Button/Button";
 import rowStyles from "../../../../rows.module.scss";
 
 export interface ThreadResolveActionProps {
@@ -44,19 +45,18 @@ export function ThreadResolveAction({
   return (
     <>
       <div className={rowStyles["detailActions"]}>
-        <button
+        <Button
           aria-busy={pending || undefined}
           aria-describedby={error === null ? undefined : errorId}
           aria-disabled={pending || undefined}
-          className={rowStyles["action"]}
           data-state={resolved ? "resolved" : "open"}
           data-testid="thread-resolve"
           ref={exposeButton}
-          type="button"
+          variant="quiet"
           onClick={onToggle}
         >
           {label}
-        </button>
+        </Button>
       </div>
       {error === null ? null : (
         <p className={rowStyles["error"]} id={errorId} role="alert">

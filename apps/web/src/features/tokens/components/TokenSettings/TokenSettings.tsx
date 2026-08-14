@@ -188,19 +188,19 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
                   })}
             </span>
             {token.revokedAt === null ? (
-              <button
+              <Button
                 // Token-specific accessible name: multiple rows must be
                 // distinguishable when navigating by buttons.
                 aria-label={t("tokens.ariaLabelRevoke", { name: token.name })}
-                className={styles["revoke"]}
                 disabled={state.revokePendingId === token.id}
+                loading={state.revokePendingId === token.id}
+                size="sm"
                 onClick={() => state.revoke(token.id)}
-                type="button"
               >
                 {state.revokePendingId === token.id
                   ? t("tokens.revoking")
                   : t("tokens.revoke")}
-              </button>
+              </Button>
             ) : null}
           </div>
         ))}

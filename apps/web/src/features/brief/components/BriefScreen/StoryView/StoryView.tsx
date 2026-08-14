@@ -22,6 +22,7 @@ import { RiskDetailList } from "../RiskDetailList/RiskDetailList";
 import { estimateChunkCardHeight } from "../chunkHeightModel";
 import { useChunkWindows } from "../chunkWindows";
 import { CHUNK_WINDOW_INDEX_ATTR, useGroupWindow } from "../useGroupWindow";
+import { Button } from "@web/components/Button/Button";
 import styles from "./StoryView.module.scss";
 
 const EMPTY_ADDRESSED_REVIEW_COMMENTS: AddressedReviewComment[] = [];
@@ -68,13 +69,13 @@ export function StoryView(props: StoryViewProps) {
           with it. */}
       {props.startReadThrough && !props.focusMode ? (
         <div className={`${styles["entryRow"]} reveal`}>
-          <button
+          <Button
             className={styles["readThrough"]}
-            type="button"
+            size="sm"
             onClick={props.startReadThrough}
           >
             {t("brief.story.startReadThrough")}
-          </button>
+          </Button>
         </div>
       ) : null}
       {props.model.groups.map((group) => {

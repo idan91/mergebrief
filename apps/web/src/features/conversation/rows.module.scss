@@ -222,7 +222,7 @@
     color: var(--dim);
     font-size: var(--font-size-sm);
 
-    .action {
+    .quoteAction {
       margin-inline-start: auto;
     }
   }
@@ -243,34 +243,14 @@
 
   .detailActions {
     display: flex;
+    flex-wrap: wrap;
     gap: functions.to-rem(8px);
-  }
-
-  .action {
-    display: inline-flex;
-    align-items: center;
-    min-height: functions.to-rem(24px);
-    padding-block: functions.to-rem(4px);
-    padding-inline: functions.to-rem(10px);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-md);
-    background: none;
-    color: var(--text);
-    cursor: pointer;
-    font-size: var(--font-size-md);
-    text-decoration: none;
-
-    &:disabled {
-      color: var(--dim);
-      cursor: default;
-    }
   }
 
   /* The 44px AIM lands where fingers do; desktop keeps the compact 24px
      floor. Slim rows opt out EXPLICITLY (not by specificity): the ::before
      above already carries their target on every pointer type. */
   @media (pointer: coarse) {
-    .action,
     .rowButton:not([data-variant="slim"]) {
       min-height: functions.to-rem(44px);
     }

@@ -31,6 +31,7 @@ import type {
 } from "../../queries";
 import { useMentionPool } from "../../hooks/useMentionPool";
 import type { ReplyResult } from "../../reply";
+import { Button } from "@web/components/Button/Button";
 import rowStyles from "../../rows.module.scss";
 import type { ConversationReview } from "../../types";
 import type {
@@ -368,16 +369,16 @@ export function ConversationSection({
           </button>
         </h2>
         {open ? (
-          <button
-            className={rowStyles["action"]}
+          <Button
             disabled={query.isFetching}
-            type="button"
+            loading={query.isFetching}
+            variant="quiet"
             onClick={refresh}
           >
             {query.isFetching
               ? t("conversation.refreshing")
               : t("conversation.refresh")}
-          </button>
+          </Button>
         ) : null}
       </div>
       {afterBriefCount > 0 ? (

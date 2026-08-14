@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useId } from "react";
 
+import { Button } from "@web/components/Button/Button";
 import rowStyles from "../../../rows.module.scss";
 import type { ConversationThread } from "../../../types";
 import type { ThreadRevisionJump } from "../../../wiring";
@@ -36,25 +37,19 @@ export function RevisionJumpAction({ thread, jump }: RevisionJumpActionProps) {
   });
   if (jump.knownHeads.has(anchorSha)) {
     return (
-      <button
-        className={rowStyles["action"]}
+      <Button
+        variant="quiet"
         onClick={() => jump.onJump(anchorSha, thread.rootCommentId)}
-        type="button"
       >
         {label}
-      </button>
+      </Button>
     );
   }
   return (
     <>
-      <button
-        aria-describedby={reasonId}
-        aria-disabled="true"
-        className={rowStyles["action"]}
-        type="button"
-      >
+      <Button aria-describedby={reasonId} disabled variant="quiet">
         {label}
-      </button>
+      </Button>
       <span className={rowStyles["note"]} id={reasonId}>
         {t("conversation.revisionNeverBriefed")}
       </span>

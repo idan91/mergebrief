@@ -2,6 +2,7 @@ import type { TranslationKey } from "i18n";
 import { useTranslation } from "react-i18next";
 import { useEffect, useId, useRef, useState } from "react";
 
+import { Button } from "@web/components/Button/Button";
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea/MarkdownTextarea";
 import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
 import { appendQuote } from "../../../../utils/quote";
@@ -327,36 +328,34 @@ export function ReplyComposer({
         {/* Focusable-disabled: a hard `disabled` would drop keyboard/SR focus
             to <body> the moment posting starts, and strand it there on
             success. The click guard lives in submit(). */}
-        <button
+        <Button
           aria-busy={pendingAction === "reply" || undefined}
           aria-disabled={blocked || undefined}
-          className={rowStyles["action"]}
-          type="button"
+          variant="quiet"
           onClick={() => submit(false)}
         >
           {pendingAction === "reply"
             ? t("conversation.posting")
             : t("conversation.reply")}
-        </button>
+        </Button>
         {/* Only with text in the box: closing a thread you have nothing to say
             on is the standalone Resolve button's job. It stays mounted for its
             own run — a busy control that vanishes mid-request drops both the
             aria-busy state and the focus sitting on it. */}
         {resolveAfterPost !== undefined &&
         (local.trim() !== "" || pendingAction === "reply-and-resolve") ? (
-          <button
+          <Button
             aria-busy={pendingAction === "reply-and-resolve" || undefined}
             aria-disabled={blocked || undefined}
-            className={rowStyles["action"]}
             data-testid="reply-and-resolve"
             ref={comboButtonRef}
-            type="button"
+            variant="quiet"
             onClick={() => submit(true)}
           >
             {pendingAction === "reply-and-resolve"
               ? t("conversation.postingAndResolving")
               : t("conversation.replyAndResolve")}
-          </button>
+          </Button>
         ) : null}
       </div>
     </div>

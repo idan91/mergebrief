@@ -161,23 +161,6 @@
     gap: functions.to-rem(8px);
   }
 
-  .pickButton {
-    padding-block: functions.to-rem(7px);
-    padding-inline: functions.to-rem(16px);
-    border: 1px solid var(--line2);
-    border-radius: var(--radius-md);
-    background: transparent;
-    color: var(--text);
-    cursor: pointer;
-    font-size: var(--font-size-lg);
-    font-weight: 500;
-
-    &:hover {
-      border-color: color-mix(in srgb, var(--line2) 60%, var(--text));
-      background: var(--color-surface-3);
-    }
-  }
-
   .reclassNote {
     color: var(--faint);
     font-size: var(--font-size-lg);
@@ -326,6 +309,7 @@
   .riskBulkActions {
     display: flex;
     flex: none;
+    flex-wrap: wrap;
     gap: functions.to-rem(8px);
   }
 
@@ -412,38 +396,8 @@
 
   .flagActions {
     display: flex;
+    flex-wrap: wrap;
     gap: functions.to-rem(8px);
-  }
-
-  .button {
-    // Earned oddities: the flag button's hover fill and its disabled text;
-    // both faithful to the pre-sweep values.
-    --button-hover-fill: #16161a;
-    --button-disabled-text: #4c4c54;
-
-    padding-block: functions.to-rem(5px);
-    padding-inline: functions.to-rem(12px);
-    border: 1px solid var(--line2);
-    border-radius: var(--radius-md);
-    background: transparent;
-    color: var(--dim);
-    cursor: pointer;
-    font-size: var(--font-size-md);
-    font-weight: 500;
-
-    &:hover {
-      border-color: color-mix(in srgb, var(--line2) 60%, var(--text));
-      background: var(--button-hover-fill);
-      color: var(--text);
-    }
-
-    &:disabled,
-    &:disabled:hover {
-      border-color: var(--line);
-      background: transparent;
-      color: var(--button-disabled-text);
-      cursor: not-allowed;
-    }
   }
 
   .state {

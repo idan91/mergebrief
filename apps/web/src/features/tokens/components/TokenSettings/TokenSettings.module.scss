@@ -135,17 +135,4 @@
     color: var(--faint);
     font-size: var(--font-size-md);
   }
-
-  .revoke {
-    padding-block: functions.to-rem(4px);
-    padding-inline: functions.to-rem(10px);
-    border: 1px solid var(--line2);
-    border-radius: var(--radius-md);
-    background: transparent;
-    color: var(--text);
-    font-size: var(--font-size-md);
-    cursor: pointer;
-
-    @include mixins.focus-visible;
-  }
 }

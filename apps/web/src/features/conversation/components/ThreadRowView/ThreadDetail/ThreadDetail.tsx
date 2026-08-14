@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { Button } from "@web/components/Button/Button";
 import { Markdown } from "@web/components/Markdown/Markdown";
 import { formatDate, renderedLocale } from "@web/i18n/locale";
 import type { DigestThreadRow } from "../../../utils/digest";
@@ -116,6 +117,9 @@ export function ThreadDetail({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
+  // The parser guarantees a root comment; guard anyway rather than render a
+  // self-opening href="".
+  const rootCommentUrl = thread.comments[0]?.url;
   return (
     <div className={rowStyles["detail"]} ref={detailRef}>
       {thread.comments.map((comment) => (
@@ -153,16 +157,16 @@ export function ThreadDetail({
                 {t("conversation.afterThisBrief")}
               </span>
             ) : null}
-            <button
+            <Button
               aria-label={t("conversation.ariaLabelQuoteReply", {
                 login: comment.author.login,
               })}
-              className={rowStyles["action"]}
-              type="button"
+              className={rowStyles["quoteAction"]}
+              variant="quiet"
               onClick={() => pushQuote(selectionInsideDetail() ?? comment.body)}
             >
               {t("conversation.quoteReply")}
-            </button>
+            </Button>
           </header>
           <Markdown content={comment.body} renderSuggestions />
         </article>
@@ -172,9 +176,8 @@ export function ThreadDetail({
       ) : null}
       <div className={rowStyles["detailActions"]}>
         {placement.kind === "chunk" && !hideJump ? (
-          <button
-            className={rowStyles["action"]}
-            type="button"
+          <Button
+            variant="quiet"
             onClick={() =>
               jumpToChunk(placement.chunkId, {
                 rowId: placement.rowId,
@@ -183,20 +186,23 @@ export function ThreadDetail({
             }
           >
             {t("conversation.jumpToComment")}
-          </button>
+          </Button>
         ) : null}
         <RevisionJumpAction jump={composer.revisionJump} thread={thread} />
-        <a
-          className={rowStyles["action"]}
-          href={thread.comments[0]?.url}
-          rel="noreferrer"
-          target="_blank"
-        >
-          {t("conversation.viewOnGithub")}
-          <span className={rowStyles["srOnly"]}>
-            {t("conversation.srOpensNewTab")}
-          </span>
-        </a>
+        {rootCommentUrl !== undefined ? (
+          <Button
+            as="a"
+            href={rootCommentUrl}
+            rel="noreferrer"
+            target="_blank"
+            variant="quiet"
+          >
+            {t("conversation.viewOnGithub")}
+            <span className={rowStyles["srOnly"]}>
+              {t("conversation.srOpensNewTab")}
+            </span>
+          </Button>
+        ) : null}
       </div>
       <ReplyComposer
         briefId={composer.briefId}
