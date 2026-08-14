@@ -8,6 +8,7 @@
 // and records nothing. The zero-flag bypass lives in the caller: the modal
 // shows iff flags exist.
 import { useTranslation } from "react-i18next";
+import { Button } from "@web/components/Button/Button";
 import { Modal } from "@web/components/Modal/Modal";
 import type { RiskFlag } from "@web/features/brief/utils";
 import styles from "@web/components/Modal/Modal.module.scss";
@@ -147,14 +148,9 @@ export function MarkReadyModal({
           missing (the caller gates it). */}
       {intentGapCount > 0 ? (
         <p className={styles["copy"]}>
-          <button
-            className="btn"
-            type="button"
-            disabled={busy}
-            onClick={jumpToIntentGaps}
-          >
+          <Button disabled={busy} onClick={jumpToIntentGaps}>
             {t("pulls.markReadyModal.statedAsks", { count: intentGapCount })}
-          </button>
+          </Button>
         </p>
       ) : null}
       {/* Second count-only line, same register and jump target as the gap
@@ -163,16 +159,11 @@ export function MarkReadyModal({
           moment they are deciding. */}
       {intentTensionCount > 0 ? (
         <p className={styles["copy"]}>
-          <button
-            className="btn"
-            type="button"
-            disabled={busy}
-            onClick={jumpToIntentGaps}
-          >
+          <Button disabled={busy} onClick={jumpToIntentGaps}>
             {t("pulls.markReadyModal.intentTensions", {
               count: intentTensionCount,
             })}
-          </button>
+          </Button>
         </p>
       ) : null}
       {unpostedDraftCount > 0 ? (
@@ -183,14 +174,9 @@ export function MarkReadyModal({
                 count: unpostedDraftCount,
               })}
             </span>{" "}
-            <button
-              className="btn"
-              type="button"
-              disabled={busy}
-              onClick={jumpToDrafts}
-            >
+            <Button disabled={busy} onClick={jumpToDrafts}>
               {t("pulls.markReadyModal.jumpToDrafts")}
-            </button>
+            </Button>
           </p>
           <label className={styles["postDraftsToggle"]}>
             <input
@@ -204,23 +190,20 @@ export function MarkReadyModal({
         </>
       ) : null}
       <div className={styles["actions"]}>
-        <button className="btn" type="button" disabled={busy} onClick={close}>
+        <Button disabled={busy} onClick={close}>
           {t("pulls.markReadyModal.keepReviewing")}
-        </button>
-        {/* aria-disabled (never hard disabled) while the batch runs: a
-            disabled element dumps keyboard focus on <body> inside the modal's
-            trap, and the "Posting N of M…" relabel would go unannounced. The
-            click stays a no-op via the busy guard; the live region below
-            speaks the progress. */}
-        <button
-          aria-busy={busy || undefined}
-          aria-disabled={busy}
-          className="btn primary"
-          type="button"
-          onClick={busy ? undefined : markReadyAnyway}
+        </Button>
+        {/* disabled+loading while the batch runs (aria-only, focus survives):
+            the "Posting N of M…" relabel stays announced inside the modal's
+            trap; the live region below speaks the progress. */}
+        <Button
+          disabled={busy}
+          loading={busy}
+          variant="primary"
+          onClick={markReadyAnyway}
         >
           {busyLabel ?? t("pulls.markReadyModal.markReadyAnyway")}
-        </button>
+        </Button>
       </div>
       {/* Batch progress for screen readers: the confirm button's visual
           relabel is silent to AT, so each step is announced politely here. */}

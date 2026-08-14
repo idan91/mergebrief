@@ -21,6 +21,7 @@ import type { RepoConfigContext } from "../../../utils/repoConfig";
 import type { Brief, LivePrState } from "../../../types";
 import type { BriefViewModel } from "../../../utils/viewModel";
 import type { LensControlState, ViewMode } from "../modeLegality";
+import { Button } from "@web/components/Button/Button";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import { CoreLinesDisclosure } from "../CoreLinesDisclosure/CoreLinesDisclosure";
 import { RiskChipDisclosure } from "../RiskChipDisclosure/RiskChipDisclosure";
@@ -248,16 +249,15 @@ export function Header({
         {/* The terminal-action slot: Submit on a reviewer view, Mark ready for
             review in the own-draft state. */}
         {ownDraft !== undefined ? (
-          /* aria-disabled, never hard disabled, while pending: a disabled
-             element dumps keyboard focus on <body>; the click path is safe
-             regardless — the mark-ready flow's in-flight guard no-ops
-             repeats. */
-          <button
+          /* Caller-owned aria-disabled (not the `disabled` prop): the click
+             stays live so an unavailable/pending press ANNOUNCES its reason —
+             the mark-ready flow's in-flight guard no-ops repeats. */
+          <Button
+            aria-busy={ownDraft.pending || undefined}
             aria-disabled={ownDraft.pending || ownDraft.unavailable === true}
-            className="btn primary"
             data-terminal-slot=""
             ref={terminalSlotRef}
-            type="button"
+            variant="primary"
             onBlur={() => {
               terminalSlotFocused.current = false;
             }}
@@ -269,13 +269,12 @@ export function Header({
             {ownDraft.pending
               ? t("brief.header.markingReady")
               : t("brief.header.markReady")}
-          </button>
+          </Button>
         ) : (
-          <button
-            className="btn primary"
+          <Button
             data-terminal-slot=""
             ref={terminalSlotRef}
-            type="button"
+            variant="primary"
             onBlur={() => {
               terminalSlotFocused.current = false;
             }}
@@ -285,7 +284,7 @@ export function Header({
             onClick={openSubmit}
           >
             {t("brief.header.submitReviewCta")}
-          </button>
+          </Button>
         )}
         <LocalePicker />
         <HeaderMenu

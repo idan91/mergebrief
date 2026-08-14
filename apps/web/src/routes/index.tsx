@@ -3,6 +3,7 @@ import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 
+import { Button } from "@web/components/Button/Button";
 import { generateBrief } from "../features/brief/server/brief.functions";
 import {
   generateBriefViaApi,
@@ -96,9 +97,14 @@ function BriefPicker() {
             value={url}
             onChange={(event) => setUrl(event.target.value)}
           />
-          <button className="btn primary" disabled={pending} type="submit">
+          <Button
+            disabled={pending}
+            loading={pending}
+            type="submit"
+            variant="primary"
+          >
             {pending ? t("shell.generating") : t("shell.generate")}
-          </button>
+          </Button>
         </form>
         {error ? (
           <p className={styles["error"]} role="alert">

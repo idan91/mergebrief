@@ -87,7 +87,7 @@ describe("TokenSettings", () => {
   it("mirrors the deterministic 400: an empty name cannot submit", () => {
     renderSettings();
     const button = screen.getByRole("button", { name: /mint token/i });
-    expect(button.hasAttribute("disabled")).toBe(true);
+    expect(button.getAttribute("aria-disabled")).toBe("true");
     fireEvent.click(button);
     expect(mintMock).not.toHaveBeenCalled();
   });

@@ -6,6 +6,7 @@ import {
   ExpiryChoice,
   TOKEN_NAME_MAX,
 } from "../../hooks/useTokenSettings";
+import { Button } from "@web/components/Button/Button";
 import { formatDate, renderedLocale } from "../../../../i18n/locale";
 import styles from "./TokenSettings.module.scss";
 
@@ -102,13 +103,14 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
             <option value={ExpiryChoice.NONE}>{t("tokens.noExpiry")}</option>
           </select>
         </label>
-        <button
-          className="btn primary"
+        <Button
           disabled={state.mintPending || state.mintBlockedReason !== null}
+          loading={state.mintPending}
           type="submit"
+          variant="primary"
         >
           {state.mintPending ? t("tokens.minting") : t("tokens.mintToken")}
-        </button>
+        </Button>
         {state.mintBlockedReason !== null && state.name !== "" ? (
           <p className={styles["hint"]}>{state.mintBlockedReason}</p>
         ) : null}
@@ -138,13 +140,9 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
               i18nKey="tokens.disclaimer"
             />
           </p>
-          <button
-            className="btn"
-            onClick={state.dismissMintedToken}
-            type="button"
-          >
+          <Button onClick={state.dismissMintedToken}>
             {t("tokens.dismissMinted")}
-          </button>
+          </Button>
         </div>
       ) : null}
 

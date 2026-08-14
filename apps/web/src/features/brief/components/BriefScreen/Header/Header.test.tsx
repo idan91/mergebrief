@@ -546,6 +546,16 @@ describe("Header own-draft state", () => {
     expect(document.activeElement).toBe(cta);
   });
 
+  it("keeps the pending CTA's click live — the flow announces its own reason", () => {
+    // Caller-owned aria-disabled, not the Button `disabled` prop: a press
+    // while pending/unavailable must still reach markReady, whose guard
+    // no-ops repeats and announces why.
+    const markReady = vi.fn();
+    renderHeader({ ownDraft: { markReady, pending: true } });
+    fireEvent.click(screen.getByRole("button", { name: /marking ready/i }));
+    expect(markReady).toHaveBeenCalledTimes(1);
+  });
+
   it("moves focus to the swapped-in Receipt CTA when the own-draft state ends on the focused slot", () => {
     const { rerender } = render(
       <Header {...headerProps({ markReady: vi.fn(), pending: false })} />,

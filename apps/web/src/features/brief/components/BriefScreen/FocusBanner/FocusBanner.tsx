@@ -1,6 +1,7 @@
 import { Trans, useTranslation } from "react-i18next";
 import type { Ref } from "react";
 
+import { Button } from "@web/components/Button/Button";
 import type { BriefViewModel } from "../../../utils/viewModel";
 import { ReadThroughProgress } from "../ReadThroughProgress/ReadThroughProgress";
 import styles from "./FocusBanner.module.scss";
@@ -54,9 +55,7 @@ export function FocusBanner({
           groups={groups}
           jumpToChunk={jumpToChunk}
         />
-        <button className="btn" type="button" onClick={toggleFocusMode}>
-          {t("brief.focusBanner.exit")}
-        </button>
+        <Button onClick={toggleFocusMode}>{t("brief.focusBanner.exit")}</Button>
       </div>
     </div>
   );

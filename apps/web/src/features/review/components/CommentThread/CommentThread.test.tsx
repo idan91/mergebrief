@@ -162,7 +162,7 @@ describe("CommentThread", () => {
     );
     const button = screen.getByRole("button", { name: "Post" });
     // Primary-styled and tagged as the post CTA.
-    expect(button.className).toContain("primary");
+    expect(button.getAttribute("data-variant")).toBe("primary");
     expect(button.hasAttribute("data-post-cta")).toBe(true);
     // Lives inside the thread footer (the CTA slot), not loose in the DOM.
     const footer = button.closest("[data-thread-footer]");
@@ -191,7 +191,7 @@ describe("CommentThread", () => {
     const postButton = screen.getByRole("button", {
       name: "Posting…",
     }) as HTMLButtonElement;
-    expect(postButton.disabled).toBe(true);
+    expect(postButton.getAttribute("aria-disabled")).toBe("true");
     postButton.click();
     expect(post).not.toHaveBeenCalled();
     expect(
@@ -227,16 +227,17 @@ describe("CommentThread", () => {
     const postButton = screen.getByRole("button", {
       name: "Post",
     }) as HTMLButtonElement;
-    expect(postButton.disabled).toBe(true);
+    expect(postButton.getAttribute("aria-disabled")).toBe("true");
     fireEvent.click(postButton);
     expect(post).not.toHaveBeenCalled();
     expect(screen.getByText(/Save or cancel your edit first/)).toBeDefined();
 
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(
-      (screen.getByRole("button", { name: "Post" }) as HTMLButtonElement)
-        .disabled,
-    ).toBe(false);
+      screen
+        .getByRole("button", { name: "Post" })
+        .getAttribute("aria-disabled"),
+    ).toBeNull();
   });
 
   it("blocks Post with recoverable copy when the body exceeds the route cap", () => {
@@ -257,7 +258,7 @@ describe("CommentThread", () => {
     const postButton = screen.getByRole("button", {
       name: "Post",
     }) as HTMLButtonElement;
-    expect(postButton.disabled).toBe(true);
+    expect(postButton.getAttribute("aria-disabled")).toBe("true");
     postButton.click();
     expect(post).not.toHaveBeenCalled();
     expect(screen.getByText(/65,536-character limit/)).toBeDefined();
@@ -284,7 +285,7 @@ describe("CommentThread", () => {
     const postButton = screen.getByRole("button", {
       name: "Post",
     }) as HTMLButtonElement;
-    expect(postButton.disabled).toBe(true);
+    expect(postButton.getAttribute("aria-disabled")).toBe("true");
     fireEvent.click(postButton);
     expect(post).not.toHaveBeenCalled();
     expect(screen.getByText(/path is too long to post/)).toBeDefined();
@@ -309,7 +310,7 @@ describe("CommentThread", () => {
     const postButton = screen.getByRole("button", {
       name: "Post",
     }) as HTMLButtonElement;
-    expect(postButton.disabled).toBe(true);
+    expect(postButton.getAttribute("aria-disabled")).toBe("true");
     fireEvent.click(postButton);
     expect(post).not.toHaveBeenCalled();
     expect(screen.getByText(reason)).toBeDefined();

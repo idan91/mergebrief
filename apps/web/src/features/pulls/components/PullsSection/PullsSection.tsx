@@ -5,6 +5,7 @@
 // Entry uses.
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
+import { Button } from "@web/components/Button/Button";
 import type { GenerationSummary, PrSummary, PullsSession } from "../../types";
 import styles from "./PullsSection.module.scss";
 
@@ -57,9 +58,9 @@ export function PullsSection({ session }: PullsSectionProps) {
         </h2>
         <div className={styles["panel"]}>
           <p>{t("pulls.list.signInPrompt")}</p>
-          <a className="btn primary" href="/api/auth/github">
+          <Button as="a" href="/api/auth/github" variant="primary">
             {t("pulls.list.signIn")}
-          </a>
+          </Button>
         </div>
       </section>
     );

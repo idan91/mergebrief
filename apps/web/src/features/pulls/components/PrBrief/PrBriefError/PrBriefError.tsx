@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { Button } from "@web/components/Button/Button";
 import styles from "./PrBriefError.module.scss";
 import { prBriefErrorDetail, prBriefErrorNeedsSignIn } from "./utils";
 
@@ -17,9 +18,9 @@ export function PrBriefError({ error }: PrBriefErrorProps) {
             ApiError's message embeds the request path. */}
         <p>{prBriefErrorDetail(t, error)}</p>
         {prBriefErrorNeedsSignIn(error) ? (
-          <a className="btn primary" href="/api/auth/github">
+          <Button as="a" href="/api/auth/github" variant="primary">
             {t("pulls.errorBoundary.signIn")}
-          </a>
+          </Button>
         ) : null}
       </section>
     </main>

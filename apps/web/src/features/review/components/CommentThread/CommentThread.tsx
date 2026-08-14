@@ -5,6 +5,7 @@
 import { useTranslation } from "react-i18next";
 import { useId, useState } from "react";
 
+import { Button } from "@web/components/Button/Button";
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea/MarkdownTextarea";
 import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
 import { useUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
@@ -138,17 +139,10 @@ export function CommentThread({
             onSubmit={saveEdit}
           />
           <div className={styles["actions"]}>
-            <button
-              className="btn primary"
-              disabled={posting}
-              type="button"
-              onClick={saveEdit}
-            >
+            <Button disabled={posting} variant="primary" onClick={saveEdit}>
               {t("review.comment.save")}
-            </button>
-            <button className="btn" type="button" onClick={cancelEdit}>
-              {t("review.comment.cancel")}
-            </button>
+            </Button>
+            <Button onClick={cancelEdit}>{t("review.comment.cancel")}</Button>
           </div>
         </>
       ) : (
@@ -201,24 +195,18 @@ export function CommentThread({
         {confirmingDelete && !submitted ? (
           <div className={styles["deleteConfirm"]} role="alert">
             <span>{t("review.comment.deleteConfirm")}</span>
-            <button
-              className="btn"
+            <Button
               disabled={posting}
-              type="button"
               onClick={() => {
                 setConfirmingDelete(false);
                 deleteComment(comment.id);
               }}
             >
               {t("review.comment.deleteDraft")}
-            </button>
-            <button
-              className="btn"
-              type="button"
-              onClick={() => setConfirmingDelete(false)}
-            >
+            </Button>
+            <Button onClick={() => setConfirmingDelete(false)}>
               {t("review.comment.keep")}
-            </button>
+            </Button>
           </div>
         ) : null}
         {/* Post-now: own-draft state only — a submitted comment is already on
@@ -226,15 +214,15 @@ export function CommentThread({
             visible (pending label) but inert. */}
         {post !== undefined && !submitted ? (
           <div className={styles["postCta"]}>
-            <button
-              className="btn primary"
+            <Button
               data-post-cta=""
               disabled={posting || postBlocked !== undefined}
-              type="button"
+              loading={posting}
+              variant="primary"
               onClick={() => post(comment)}
             >
               {posting ? t("review.comment.posting") : t("review.comment.post")}
-            </button>
+            </Button>
           </div>
         ) : null}
       </div>

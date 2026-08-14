@@ -13,6 +13,7 @@
 // the panel, which is exactly the insertion screen readers skip. Selection
 // lives in the URL, so this component is pure props.
 import { useTranslation } from "react-i18next";
+import { Button } from "@web/components/Button/Button";
 import { Checkbox } from "@web/components/Checkbox/Checkbox";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import {
@@ -171,12 +172,10 @@ export function ConversationFilterPanel({
         <span className={styles["links"]}>
           {reviewers.length > 0 ? (
             <>
-              <button
-                aria-disabled={allSelected}
-                className="btn compact"
-                type="button"
+              <Button
+                disabled={allSelected}
+                size="sm"
                 onClick={() => {
-                  if (allSelected) return;
                   onChange(
                     withAllReviewers(
                       filter,
@@ -186,31 +185,23 @@ export function ConversationFilterPanel({
                 }}
               >
                 {t("conversation.filterAll")}
-              </button>
-              <button
-                aria-disabled={filter.reviewers.size === 0}
-                className="btn compact"
-                type="button"
-                onClick={() => {
-                  if (filter.reviewers.size === 0) return;
-                  onChange(withNoReviewers(filter));
-                }}
+              </Button>
+              <Button
+                disabled={filter.reviewers.size === 0}
+                size="sm"
+                onClick={() => onChange(withNoReviewers(filter))}
               >
                 {t("conversation.filterNone")}
-              </button>
+              </Button>
             </>
           ) : null}
-          <button
-            aria-disabled={!active}
-            className="btn compact"
-            type="button"
-            onClick={() => {
-              if (!active) return;
-              onChange(withNoFilters(filter));
-            }}
+          <Button
+            disabled={!active}
+            size="sm"
+            onClick={() => onChange(withNoFilters(filter))}
           >
             {t("conversation.filterClear")}
-          </button>
+          </Button>
         </span>
       </div>
     </div>

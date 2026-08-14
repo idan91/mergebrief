@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { Button } from "@web/components/Button/Button";
 import { Modal } from "@web/components/Modal/Modal";
 import type { DismissTarget } from "../../utils/state";
 import styles from "@web/components/Modal/Modal.module.scss";
@@ -44,14 +45,12 @@ export function DismissModal({
         </div>
       ) : null}
       <div className={styles["actions"]}>
-        <button className="btn" type="button" onClick={cancel}>
-          {t("review.dismiss.cancel")}
-        </button>
-        <button className="btn primary" type="button" onClick={confirm}>
+        <Button onClick={cancel}>{t("review.dismiss.cancel")}</Button>
+        <Button variant="primary" onClick={confirm}>
           {warned
             ? t("review.dismiss.dismissAnyway")
             : t("review.dismiss.dismissWithReason")}
-        </button>
+        </Button>
       </div>
     </Modal>
   );

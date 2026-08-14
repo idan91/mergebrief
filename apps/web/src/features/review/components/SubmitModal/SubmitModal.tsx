@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useEffect, useId, useRef, useState } from "react";
 import clsx from "clsx";
 
+import { Button } from "@web/components/Button/Button";
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea/MarkdownTextarea";
 import { Modal } from "@web/components/Modal/Modal";
 import modalStyles from "@web/components/Modal/Modal.module.scss";
@@ -186,16 +187,10 @@ export function SubmitModal({
             {t("review.submit.jumpClosesDialog")}
           </p>
           <div className={clsx(modalStyles["actions"], styles["actionsRow"])}>
-            <button className="btn" type="button" onClick={close}>
-              {t("review.submit.keepReviewing")}
-            </button>
-            <button
-              className="btn primary"
-              type="button"
-              onClick={() => setView("verdict")}
-            >
+            <Button onClick={close}>{t("review.submit.keepReviewing")}</Button>
+            <Button variant="primary" onClick={() => setView("verdict")}>
               {t("review.submit.continueAction")}
-            </button>
+            </Button>
           </div>
         </>
       ) : view === "verdict" ? (
@@ -257,28 +252,21 @@ export function SubmitModal({
             </div>
           ) : null}
           <div className={clsx(modalStyles["actions"], styles["actionsRow"])}>
-            <button
-              className="btn"
-              type="button"
-              onClick={() => setView("receipt")}
-            >
+            <Button onClick={() => setView("receipt")}>
               {t("review.submit.previewReceipt")}
-            </button>
-            <button className="btn" type="button" onClick={close}>
-              {t("review.submit.keepReviewing")}
-            </button>
-            <button
-              aria-busy={submitPending || undefined}
+            </Button>
+            <Button onClick={close}>{t("review.submit.keepReviewing")}</Button>
+            <Button
               aria-describedby={submitDescribedBy}
-              aria-disabled={submitDisabled || undefined}
-              className="btn primary"
-              type="button"
+              disabled={submitDisabled}
+              loading={submitPending}
+              variant="primary"
               onClick={attemptSubmit}
             >
               {submitPending
                 ? t("review.submit.submitting")
                 : t("review.submit.submitReview")}
-            </button>
+            </Button>
           </div>
           <p className={styles["note"]}>{t("review.submit.note")}</p>
           {blockedReason !== undefined ? (
@@ -319,16 +307,10 @@ export function SubmitModal({
           <p className={styles["sub"]}>{t("review.submit.receiptSub")}</p>
           <pre className={styles["receiptBody"]}>{receiptText(receipt)}</pre>
           <div className={clsx(modalStyles["actions"], styles["actionsRow"])}>
-            <button
-              className="btn"
-              type="button"
-              onClick={() => setView("verdict")}
-            >
+            <Button onClick={() => setView("verdict")}>
               {t("review.submit.backToVerdict")}
-            </button>
-            <button className="btn" type="button" onClick={close}>
-              {t("review.submit.keepReviewing")}
-            </button>
+            </Button>
+            <Button onClick={close}>{t("review.submit.keepReviewing")}</Button>
           </div>
         </>
       )}

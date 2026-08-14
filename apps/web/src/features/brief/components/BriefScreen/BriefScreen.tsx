@@ -11,6 +11,7 @@ import {
 } from "react";
 import { useStore } from "zustand";
 
+import { Button } from "@web/components/Button/Button";
 import type { CommentAnchor } from "@web/features/review/utils/comments";
 import {
   ConversationSection,
@@ -871,9 +872,9 @@ export function BriefScreen({
       />
       <div className={styles["kbdHint"]} data-testid="kbd-hint">
         {focusMode ? (
-          <button className="btn" type="button" onClick={toggleFocusMode}>
+          <Button onClick={toggleFocusMode}>
             {t("brief.screen.exitFocus")}
-          </button>
+          </Button>
         ) : null}
         <button
           aria-label={t("brief.screen.ariaLabelShortcuts")}

@@ -1,5 +1,6 @@
 import type { TranslationKey } from "i18n";
 import { useTranslation } from "react-i18next";
+import { Button } from "@web/components/Button/Button";
 import { Modal } from "@web/components/Modal/Modal";
 import styles from "./ShortcutsModal.module.scss";
 
@@ -44,9 +45,7 @@ export function ShortcutsModal({ open, close }: ShortcutsModalProps) {
           </div>
         ))}
       </dl>
-      <button className="btn" type="button" onClick={close}>
-        {t("brief.shortcuts.close")}
-      </button>
+      <Button onClick={close}>{t("brief.shortcuts.close")}</Button>
     </Modal>
   );
 }

@@ -5,6 +5,7 @@
 import { useTranslation } from "react-i18next";
 import { useEffect, useId } from "react";
 
+import { Button } from "@web/components/Button/Button";
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea/MarkdownTextarea";
 import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
 import { useUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
@@ -86,12 +87,10 @@ export function CommentComposer({
         </div>
       ) : null}
       <div className={styles["actions"]}>
-        <button className="btn primary" type="button" onClick={composer.submit}>
+        <Button variant="primary" onClick={composer.submit}>
           {reviewCommentSubmitLabel(t, existingReviewCommentCount)}
-        </button>
-        <button className="btn" type="button" onClick={cancel}>
-          {t("review.comment.cancel")}
-        </button>
+        </Button>
+        <Button onClick={cancel}>{t("review.comment.cancel")}</Button>
       </div>
     </div>
   );

@@ -177,21 +177,18 @@ describe("MarkReadyModal", () => {
     expect(confirm.getAttribute("aria-busy")).toBe("true");
     fireEvent.click(confirm);
     expect(markReadyAnyway).toHaveBeenCalledTimes(0);
-    // Nothing that could start a second batch is live.
-    expect(
-      (
-        screen.getByRole("button", {
-          name: "Keep self-reviewing",
-        }) as HTMLButtonElement
-      ).disabled,
-    ).toBe(true);
-    expect(
-      (
-        screen.getByRole("button", {
-          name: /jump to your drafts/i,
-        }) as HTMLButtonElement
-      ).disabled,
-    ).toBe(true);
+    // Nothing that could start a second batch is live. Buttons disable via
+    // aria-disabled + guard (focus-preserving), the checkbox stays native.
+    const keep = screen.getByRole("button", { name: "Keep self-reviewing" });
+    expect(keep.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(keep);
+    expect(close).toHaveBeenCalledTimes(0);
+    const drafts = screen.getByRole("button", {
+      name: /jump to your drafts/i,
+    });
+    expect(drafts.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(drafts);
+    expect(jumpToDrafts).toHaveBeenCalledTimes(0);
     expect(
       (
         screen.getByRole("checkbox", {
@@ -199,8 +196,6 @@ describe("MarkReadyModal", () => {
         }) as HTMLInputElement
       ).disabled,
     ).toBe(true);
-    void close;
-    void jumpToDrafts;
   });
 
   it("announces batch progress through a polite live region inside the modal", () => {
@@ -228,7 +223,7 @@ describe("MarkReadyModal", () => {
   it("aria-disabled confirm still acts when idle (no hard-disable regression)", () => {
     const { markReadyAnyway } = renderModal({ unpostedDraftCount: 2 });
     const confirm = screen.getByRole("button", { name: "Mark ready anyway" });
-    expect(confirm.getAttribute("aria-disabled")).toBe("false");
+    expect(confirm.getAttribute("aria-disabled")).toBeNull();
     fireEvent.click(confirm);
     expect(markReadyAnyway).toHaveBeenCalledTimes(1);
   });
@@ -272,7 +267,7 @@ describe("MarkReadyModal", () => {
       busyLabel: "Posting 1 of 3…",
     });
     const line = screen.getByText("2 stated asks not found in the diff");
-    expect(line).toHaveProperty("disabled", true);
+    expect(line.getAttribute("aria-disabled")).toBe("true");
     fireEvent.click(line);
     expect(jumpToIntentGaps).toHaveBeenCalledTimes(0);
   });
@@ -325,7 +320,7 @@ describe("MarkReadyModal", () => {
       busyLabel: "Posting 1 of 3…",
     });
     const line = screen.getByText("2 intent tensions flagged");
-    expect(line).toHaveProperty("disabled", true);
+    expect(line.getAttribute("aria-disabled")).toBe("true");
     fireEvent.click(line);
     expect(jumpToIntentGaps).toHaveBeenCalledTimes(0);
   });

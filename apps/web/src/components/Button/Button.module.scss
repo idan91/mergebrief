@@ -1,0 +1,58 @@
+@use "functions";
+
+@layer components {
+  .button {
+    padding-block: functions.to-rem(8px);
+    padding-inline: functions.to-rem(16px);
+    border: 1px solid var(--line2);
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    transition:
+      background 0.15s,
+      border-color 0.15s,
+      color 0.15s;
+    white-space: nowrap;
+
+    &:hover {
+      border-color: color-mix(in srgb, var(--line2) 60%, var(--text));
+      background: color-mix(in srgb, var(--panel) 88%, var(--text));
+    }
+
+    &[data-variant="primary"] {
+      border-color: var(--text);
+      background: var(--text);
+      color: var(--color-on-primary);
+
+      &:hover {
+        border-color: light-dark(var(--color-background), var(--color-inverse));
+        background: light-dark(var(--color-background), var(--color-inverse));
+      }
+    }
+
+    /* For in-flow control rows (filter bars, toolbars) rather than the modal
+       footers md is sized for: same grammar, tightened to sit beside chips. */
+    &[data-size="sm"] {
+      padding-block: functions.to-rem(4px);
+      padding-inline: functions.to-rem(10px);
+      border-radius: var(--radius-sm);
+      font-size: var(--font-size-md);
+      font-weight: 500;
+    }
+
+    /* Last so it beats the variant blocks on the shared specificity tier. */
+    &[aria-disabled="true"] {
+      border-color: var(--line);
+      color: var(--dim);
+      cursor: default;
+
+      &:hover {
+        border-color: var(--line);
+        background: transparent;
+      }
+    }
+  }
+}

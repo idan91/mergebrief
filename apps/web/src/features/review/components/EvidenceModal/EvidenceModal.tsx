@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
 
+import { Button } from "@web/components/Button/Button";
 import { Modal } from "@web/components/Modal/Modal";
 import type { ReviewComment } from "../../utils/comments";
 import {
@@ -135,19 +136,16 @@ function EvidenceForm({
         />
       ) : null}
       <div className={styles["actions"]}>
-        <button className="btn" type="button" onClick={cancel}>
-          {t("review.evidence.cancel")}
-        </button>
-        <button
-          className="btn primary"
+        <Button onClick={cancel}>{t("review.evidence.cancel")}</Button>
+        <Button
           disabled={linkedCommentDisabled}
-          type="button"
+          variant="primary"
           onClick={() =>
             confirm(kind, commentId || undefined, note.trim() || undefined)
           }
         >
           {t("review.evidence.confirm")}
-        </button>
+        </Button>
       </div>
     </>
   );
