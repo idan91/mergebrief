@@ -59,7 +59,6 @@ import { ReadingToolbar } from "./ReadingToolbar/ReadingToolbar";
 import { RiskFlagModals } from "./RiskFlagModals/RiskFlagModals";
 import { ShortcutsModal } from "./ShortcutsModal/ShortcutsModal";
 import { StoryView } from "./StoryView/StoryView";
-import { SummaryPreviewDrawer } from "./SummaryPreviewDrawer/SummaryPreviewDrawer";
 import { SummarySection } from "./SummarySection/SummarySection";
 import { UnattributedBanner } from "./UnattributedBanner/UnattributedBanner";
 import { useDelayedPending } from "./useDelayedPending";
@@ -293,7 +292,6 @@ export function BriefScreen({
     receipt,
     reviewComments,
     reviewOutcome,
-    snapshot,
     submittedReviewIds,
     toggleFocusMode,
   } = session;
@@ -339,7 +337,6 @@ export function BriefScreen({
 
   // Transient UI state stays local and colocated.
   const [submitOpen, setSubmitOpen] = useState(false);
-  const [summaryPreviewOpen, setSummaryPreviewOpen] = useState(false);
   // Brief switch without remount: screen-local overlay/jump state belongs to
   // the old brief — adjust during render so the new brief never paints with
   // an open submit surface or a queued jump against foreign ids.
@@ -347,7 +344,6 @@ export function BriefScreen({
   if (screenBriefId !== briefId) {
     setScreenBriefId(briefId);
     setSubmitOpen(false);
-    setSummaryPreviewOpen(false);
     setPendingIntentJump(null);
     // Keep-warm scope panes do NOT survive a brief switch: a frozen pane
     // would hold the old brief's ids against the re-derived stores.
@@ -405,7 +401,6 @@ export function BriefScreen({
 
   const openSubmit = () => setSubmitOpen(true);
   const closeSubmit = useCallback(() => setSubmitOpen(false), []);
-  const openSummaryPreview = () => setSummaryPreviewOpen(true);
   // The conversation glue (section open/landing state, shared query + digest,
   // composer wiring, digest→diff jump choreography) — see the hook.
   const conversationWiring = useConversationWiring({
@@ -490,10 +485,9 @@ export function BriefScreen({
   });
   // This render's reviewer-overlay-open snapshot + the entry reset the
   // mark-ready flow's own-draft entry/exit effect drives (see the hook).
-  const reviewerOverlayOpen = submitOpen || summaryPreviewOpen || riskModalOpen;
+  const reviewerOverlayOpen = submitOpen || riskModalOpen;
   const closeReviewerOverlays = useCallback(() => {
     setSubmitOpen(false);
-    setSummaryPreviewOpen(false);
     flowActions.setDismissTarget(null);
     flowActions.setEvidenceTarget(null);
   }, [flowActions]);
@@ -542,7 +536,6 @@ export function BriefScreen({
   // accept j/k or mark-viewed writes against the stale brief.
   const shortcutsDisabled =
     submitOpen ||
-    summaryPreviewOpen ||
     markReady.gateOpen ||
     session.shortcutsOpen ||
     riskModalOpen ||
@@ -585,7 +578,6 @@ export function BriefScreen({
     setSubmitOpen(false);
     announce(t("brief.screen.mockupSubmit"));
   };
-  const closeSummaryPreview = () => setSummaryPreviewOpen(false);
   const jumpToSubmitItem = (item: UnresolvedItem) => {
     setSubmitOpen(false);
     // Resolving the item happens inside the card — a row-target jump.
@@ -613,11 +605,6 @@ export function BriefScreen({
           clearDrafts={clearDrafts}
           availability={availability}
           compareState={compareState}
-          /* DB path (plan present): the standalone preview route only resolves
-           LOCAL brief ids — open the in-page drawer instead. */
-          openSummaryPreviewDrawer={
-            comparisonPlan === undefined ? undefined : openSummaryPreview
-          }
           controlsSlot={headerControls}
           revisionPending={pendingShown}
           ownDraft={
@@ -833,12 +820,6 @@ export function BriefScreen({
               }
               submitNote={liveSubmit ? submitFlow.note : null}
               staleHead={staleHead === true}
-            />
-            <SummaryPreviewDrawer
-              brief={brief}
-              open={summaryPreviewOpen}
-              snapshot={snapshot}
-              close={closeSummaryPreview}
             />
           </>
         )}

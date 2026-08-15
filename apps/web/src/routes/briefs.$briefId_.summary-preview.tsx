@@ -32,7 +32,7 @@ function SummaryPreviewRoute() {
 
   return (
     <>
-      <SummaryPreview brief={brief} snapshot={snapshot} standalone />
+      <SummaryPreview brief={brief} snapshot={snapshot} />
       <Link
         className={styles["summaryBack"]}
         params={{ briefId }}

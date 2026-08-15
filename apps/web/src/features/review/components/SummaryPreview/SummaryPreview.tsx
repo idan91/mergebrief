@@ -18,19 +18,9 @@ import styles from "./SummaryPreview.module.scss";
 export interface SummaryPreviewProps {
   brief: Brief;
   snapshot: SessionSnapshot;
-  /**
-   * True on the standalone route only: makes this <main> the root skip-link
-   * target (`#main-content`). Never set inside the drawer — the brief page
-   * already has its own `main-content`, and ids must stay unique.
-   */
-  standalone?: boolean;
 }
 
-export function SummaryPreview({
-  brief,
-  snapshot,
-  standalone = false,
-}: SummaryPreviewProps) {
+export function SummaryPreview({ brief, snapshot }: SummaryPreviewProps) {
   const { t } = useTranslation();
   const model = buildBriefViewModel(brief);
   const receipt = buildReceipt(t, snapshot, brief, model);
@@ -41,11 +31,7 @@ export function SummaryPreview({
   );
 
   return (
-    <main
-      className={styles["page"]}
-      id={standalone ? "main-content" : undefined}
-      tabIndex={standalone ? -1 : undefined}
-    >
+    <main className={styles["page"]} id="main-content" tabIndex={-1}>
       <section className={styles["shell"]}>
         <div className={styles["kicker"]}>{t("review.summary.kicker")}</div>
         <div className={styles["head"]}>

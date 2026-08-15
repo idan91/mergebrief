@@ -13,6 +13,7 @@ export {
   type BriefComparisonPlan,
   type BriefViewProps,
 } from "./components/BriefView/BriefView";
+export { DB_BRIEF_ID_PREFIX, isDbBriefId } from "./utils/briefIdentity";
 
 export interface BriefPageProps {
   artifacts: LocalBriefSummary[];

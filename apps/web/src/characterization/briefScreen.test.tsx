@@ -252,6 +252,21 @@ describe("brief screen characterization", () => {
     );
   });
 
+  it("keeps the skip-link target on the standalone summary-preview page", async () => {
+    const { router } = await renderBriefScreen();
+    await router.navigate({
+      to: "/briefs/$briefId/summary-preview",
+      params: { briefId: BRIEF_ID },
+    });
+    await waitFor(() => {
+      const main = document.getElementById("main-content");
+      expect(main?.tagName).toBe("MAIN");
+      expect(main?.getAttribute("tabindex")).toBe("-1");
+    });
+    // Still exactly one main landmark after the route switch.
+    expect(document.querySelectorAll("main").length).toBe(1);
+  });
+
   it("lists unique risk-attribute names in the toolbar's risk-attrs panel", async () => {
     // The panel stays closed until the trigger opens it — never auto-open,
     // even on floor fire.

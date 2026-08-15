@@ -1,4 +1,11 @@
 // @vitest-environment jsdom
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  RouterProvider,
+} from "@tanstack/react-router";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -50,7 +57,9 @@ const brief: Brief = {
   concernView: [],
 };
 
-/** A full prop set keyed on the own-draft state — for rerender-based tests. */
+/** A full prop set keyed on the own-draft state — for rerender-based tests.
+ * Router-less on purpose: safe only while the menu stays CLOSED (the
+ * summary-preview menu entry is a Link and needs the renderHeader harness). */
 function headerProps(ownDraft: HeaderProps["ownDraft"]): HeaderProps {
   return {
     brief,
@@ -68,14 +77,15 @@ function headerProps(ownDraft: HeaderProps["ownDraft"]): HeaderProps {
     clearDrafts: vi.fn(),
     availability: { previousBrief: false, lastReview: false },
     compareState: { view: "full", compare: "off" },
-    openSummaryPreviewDrawer: vi.fn(),
     ownDraft,
   };
 }
 
-function renderHeader(overrides: Partial<HeaderProps> = {}) {
+// The menu's summary-preview entry is a router Link, so the harness mounts a
+// two-route memory router: the header at "/" plus a stub preview route the
+// Link can resolve against.
+async function renderHeader(overrides: Partial<HeaderProps> = {}) {
   const clearDrafts = vi.fn();
-  const openSummaryPreviewDrawer = vi.fn();
   const openSubmit = vi.fn();
   const props: HeaderProps = {
     brief,
@@ -93,19 +103,32 @@ function renderHeader(overrides: Partial<HeaderProps> = {}) {
     clearDrafts,
     availability: { previousBrief: false, lastReview: false },
     compareState: { view: "full", compare: "off" },
-    // The drawer variant avoids a router dependency; the local Link variant
-    // is asserted in briefScreen.test.tsx, which mounts the real local route.
-    openSummaryPreviewDrawer,
     controlsSlot: <div data-testid="controls-slot" />,
     ...overrides,
   };
-  render(<Header {...props} />);
-  return { clearDrafts, openSummaryPreviewDrawer, openSubmit };
+  const rootRoute = createRootRoute();
+  const headerRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/",
+    component: () => <Header {...props} />,
+  });
+  const previewRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/briefs/$briefId/summary-preview",
+    component: () => null,
+  });
+  const router = createRouter({
+    routeTree: rootRoute.addChildren([headerRoute, previewRoute]),
+    history: createMemoryHistory({ initialEntries: ["/"] }),
+  });
+  await router.load();
+  render(<RouterProvider router={router} />);
+  return { clearDrafts, openSubmit };
 }
 
 describe("Header identity row", () => {
-  it("renders the one-line identity: wordmark, title, repo + PR link — no context line", () => {
-    renderHeader();
+  it("renders the one-line identity: wordmark, title, repo + PR link — no context line", async () => {
+    await renderHeader();
     expect(screen.getByText("MergeBrief").textContent).toBe("MergeBrief");
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
       "Tighten the cross-param leak",
@@ -121,8 +144,8 @@ describe("Header identity row", () => {
     expect(screen.queryByText(/basebase\.\.headhead/)).toBeNull();
   });
 
-  it("renders the keycap origin badge in the riders", () => {
-    renderHeader();
+  it("renders the keycap origin badge in the riders", async () => {
+    await renderHeader();
     // Full semantics are pinned in ProviderBadge.test.tsx; the header pins
     // only the wiring.
     const badge = document.querySelector("[data-provider-badge]");
@@ -139,13 +162,13 @@ describe("state badge", () => {
     merged: boolean,
   ) => ({ ...brief, pr: { ...brief.pr, state, draft, merged } });
 
-  it("renders no badge on a pre-stamping artifact (no state)", () => {
-    renderHeader();
+  it("renders no badge on a pre-stamping artifact (no state)", async () => {
+    await renderHeader();
     expect(document.querySelector("[data-state-badge]")).toBeNull();
   });
 
-  it("keeps the self-review chip adjacent to the Draft badge (own-draft)", () => {
-    renderHeader({
+  it("keeps the self-review chip adjacent to the Draft badge (own-draft)", async () => {
+    await renderHeader({
       brief: stamped("open", true, false),
       ownDraft: { markReady: vi.fn(), pending: false },
     });
@@ -168,8 +191,8 @@ describe("state badge", () => {
     ["closed", true, true, "merged", "Merged"],
   ] as const)(
     "state=%s draft=%s merged=%s → %s badge",
-    (state, draft, merged, variant, label) => {
-      renderHeader({ brief: stamped(state, draft, merged) });
+    async (state, draft, merged, variant, label) => {
+      await renderHeader({ brief: stamped(state, draft, merged) });
       const badge = document.querySelector("[data-state-badge]");
       expect(badge?.getAttribute("data-variant")).toBe(variant);
       // Visible text is the state word; SR text carries the prefix.
@@ -177,10 +200,10 @@ describe("state badge", () => {
     },
   );
 
-  it("renders from LIVE webhook state on an UNSTAMPED artifact (DB route)", () => {
+  it("renders from LIVE webhook state on an UNSTAMPED artifact (DB route)", async () => {
     // A DB brief generated before stamping has no pr.state — the badge must
     // come from the live pull-request row there.
-    renderHeader({ livePrState: { state: "open", draft: false } });
+    await renderHeader({ livePrState: { state: "open", draft: false } });
     const badge = document.querySelector("[data-state-badge]");
     expect(badge?.getAttribute("data-variant")).toBe("open");
   });
@@ -192,20 +215,23 @@ describe("state badge", () => {
     // The live DB vocabulary folds merged INTO the state.
     ["merged", false, "merged"],
     ["merged", true, "merged"],
-  ] as const)("live state=%s draft=%s → %s badge", (state, draft, variant) => {
-    renderHeader({ livePrState: { state, draft } });
-    expect(
-      document
-        .querySelector("[data-state-badge]")
-        ?.getAttribute("data-variant"),
-    ).toBe(variant);
-  });
+  ] as const)(
+    "live state=%s draft=%s → %s badge",
+    async (state, draft, variant) => {
+      await renderHeader({ livePrState: { state, draft } });
+      expect(
+        document
+          .querySelector("[data-state-badge]")
+          ?.getAttribute("data-variant"),
+      ).toBe(variant);
+    },
+  );
 
-  it("live state SUPERSEDES a stale artifact stamp", () => {
+  it("live state SUPERSEDES a stale artifact stamp", async () => {
     // Artifact stamped open at generation; the PR merged since. The DB
     // route shows live truth — staleness is only accepted on the local
     // file path, where no live source exists.
-    renderHeader({
+    await renderHeader({
       brief: stamped("open", false, false),
       livePrState: { state: "merged", draft: false },
     });
@@ -228,8 +254,8 @@ describe("generation warnings chip", () => {
     ],
   };
 
-  it("opens the Brief-details panel LANDED on the warnings text", () => {
-    renderHeader({ brief: warned });
+  it("opens the Brief-details panel LANDED on the warnings text", async () => {
+    await renderHeader({ brief: warned });
     const chip = screen.getByRole("button", {
       name: /2 generation warnings/,
     });
@@ -244,8 +270,8 @@ describe("generation warnings chip", () => {
     expect(document.activeElement).toBe(note);
   });
 
-  it("Escape closes the panel without reaching page shortcuts", () => {
-    renderHeader({ brief: warned });
+  it("Escape closes the panel without reaching page shortcuts", async () => {
+    await renderHeader({ brief: warned });
     const onWindowKeyDown = vi.fn();
     window.addEventListener("keydown", onWindowKeyDown);
     fireEvent.click(
@@ -258,8 +284,8 @@ describe("generation warnings chip", () => {
     window.removeEventListener("keydown", onWindowKeyDown);
   });
 
-  it("singularizes a single warning", () => {
-    renderHeader({
+  it("singularizes a single warning", async () => {
+    await renderHeader({
       brief: { ...brief, generationWarnings: ["⚠ salvaged brief"] },
     });
     expect(
@@ -267,8 +293,8 @@ describe("generation warnings chip", () => {
     ).toBeTruthy();
   });
 
-  it("renders no chip on a clean generation", () => {
-    renderHeader();
+  it("renders no chip on a clean generation", async () => {
+    await renderHeader();
     expect(
       document.querySelector("[data-generation-warnings-chip]"),
     ).toBeNull();
@@ -276,8 +302,8 @@ describe("generation warnings chip", () => {
 });
 
 describe("Header menu and stats", () => {
-  it("shows the progress facts on the lens row, LOC as the core-lines disclosure", () => {
-    renderHeader();
+  it("shows the progress facts on the lens row, LOC as the core-lines disclosure", async () => {
+    await renderHeader();
     expect(screen.getByText("chunks").textContent).toContain("1/2");
     expect(screen.getByText("flags").textContent).toContain("0/1");
     // The LOC cell is the core-lines disclosure trigger — a real button.
@@ -290,7 +316,7 @@ describe("Header menu and stats", () => {
     expect(screen.getByText(/derived from the diff/)).toBeTruthy();
   });
 
-  it("shows the unattributed stat with the honest caveat when a remainder exists", () => {
+  it("shows the unattributed stat with the honest caveat when a remainder exists", async () => {
     const model = buildBriefViewModel({
       ...brief,
       unattributed: [
@@ -301,7 +327,7 @@ describe("Header menu and stats", () => {
         },
       ],
     });
-    renderHeader({ model });
+    await renderHeader({ model });
     const stat = screen.getByTestId("unattributed-disclosure");
     expect(stat.textContent).toContain("unattributed");
     expect(stat.textContent).toContain("+4");
@@ -318,17 +344,17 @@ describe("Header menu and stats", () => {
     ).toBeTruthy();
   });
 
-  it("renders no unattributed stat without a remainder", () => {
-    renderHeader();
+  it("renders no unattributed stat without a remainder", async () => {
+    await renderHeader();
     expect(screen.queryByTestId("unattributed-disclosure")).toBeNull();
-    renderHeader({
+    await renderHeader({
       model: buildBriefViewModel({ ...brief, unattributed: [] }),
     });
     expect(screen.queryByTestId("unattributed-disclosure")).toBeNull();
   });
 
-  it("keeps rare actions in a menu with menu-button semantics", () => {
-    const { clearDrafts, openSummaryPreviewDrawer } = renderHeader();
+  it("keeps rare actions in a menu with menu-button semantics", async () => {
+    const { clearDrafts } = await renderHeader();
     // Not top-level buttons anymore.
     expect(
       screen.queryByRole("button", { name: /^summary preview$/i }),
@@ -344,11 +370,14 @@ describe("Header menu and stats", () => {
       "Summary preview",
       "Clear local drafts",
     ]);
+    // The local-path preview entry is a cross-route link.
+    expect(items[0]!.getAttribute("href")).toBe(
+      "/briefs/test-brief/summary-preview",
+    );
     // First item receives focus on open (menu-button pattern).
     expect(document.activeElement).toBe(items[0]);
 
     fireEvent.click(items[0]!);
-    expect(openSummaryPreviewDrawer).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("menu")).toBeNull();
 
     fireEvent.click(trigger);
@@ -356,8 +385,8 @@ describe("Header menu and stats", () => {
     expect(clearDrafts).toHaveBeenCalledTimes(1);
   });
 
-  it("closes the menu on Escape and returns focus to the trigger", () => {
-    renderHeader();
+  it("closes the menu on Escape and returns focus to the trigger", async () => {
+    await renderHeader();
     const trigger = screen.getByRole("button", { name: /more actions/i });
     fireEvent.click(trigger);
     const menu = screen.getByRole("menu");
@@ -366,8 +395,8 @@ describe("Header menu and stats", () => {
     expect(document.activeElement).toBe(trigger);
   });
 
-  it("Escape works from the trigger too and never reaches the page", () => {
-    renderHeader();
+  it("Escape works from the trigger too and never reaches the page", async () => {
+    await renderHeader();
     const trigger = screen.getByRole("button", { name: /more actions/i });
     const onWindowKeyDown = vi.fn();
     window.addEventListener("keydown", onWindowKeyDown);
@@ -381,8 +410,8 @@ describe("Header menu and stats", () => {
     window.removeEventListener("keydown", onWindowKeyDown);
   });
 
-  it("closes on Tab and stands page shortcuts down while open", () => {
-    renderHeader();
+  it("closes on Tab and stands page shortcuts down while open", async () => {
+    await renderHeader();
     const trigger = screen.getByRole("button", { name: /more actions/i });
     const onWindowKeyDown = vi.fn();
     window.addEventListener("keydown", onWindowKeyDown);
@@ -399,17 +428,19 @@ describe("Header menu and stats", () => {
     window.removeEventListener("keydown", onWindowKeyDown);
   });
 
-  it("returns focus to the trigger when opening the summary drawer", () => {
-    const { openSummaryPreviewDrawer } = renderHeader();
-    const trigger = screen.getByRole("button", { name: /more actions/i });
-    fireEvent.click(trigger);
-    fireEvent.click(screen.getByRole("menuitem", { name: /summary/i }));
-    expect(openSummaryPreviewDrawer).toHaveBeenCalledTimes(1);
-    expect(document.activeElement).toBe(trigger);
+  it("offers no summary-preview entry on a DB brief", async () => {
+    // The standalone preview route resolves through the local file store —
+    // a db: id gets no menu entry; the submit flow is its receipt surface.
+    await renderHeader({ briefId: "db:acme/widgets:7:base:head" });
+    fireEvent.click(screen.getByRole("button", { name: /more actions/i }));
+    const items = screen.getAllByRole("menuitem");
+    expect(items.map((item) => item.textContent)).toEqual([
+      "Clear local drafts",
+    ]);
   });
 
-  it("moves between items with arrow keys, wrapping", () => {
-    renderHeader();
+  it("moves between items with arrow keys, wrapping", async () => {
+    await renderHeader();
     fireEvent.click(screen.getByRole("button", { name: /more actions/i }));
     const menu = screen.getByRole("menu");
     const items = screen.getAllByRole("menuitem");
@@ -421,16 +452,16 @@ describe("Header menu and stats", () => {
     expect(document.activeElement).toBe(items[1]);
   });
 
-  it("closes on an outside pointerdown", () => {
-    renderHeader();
+  it("closes on an outside pointerdown", async () => {
+    await renderHeader();
     fireEvent.click(screen.getByRole("button", { name: /more actions/i }));
     expect(screen.getByRole("menu")).toBeTruthy();
     fireEvent.pointerDown(document.body);
     expect(screen.queryByRole("menu")).toBeNull();
   });
 
-  it("closing via the trigger returns focus to it", () => {
-    renderHeader();
+  it("closing via the trigger returns focus to it", async () => {
+    await renderHeader();
     const trigger = screen.getByRole("button", { name: /more actions/i });
     fireEvent.click(trigger);
     expect(screen.getByRole("menu")).toBeTruthy();
@@ -440,21 +471,21 @@ describe("Header menu and stats", () => {
     expect(document.activeElement).toBe(trigger);
   });
 
-  it("keeps the primary CTA top-level", () => {
-    const { openSubmit } = renderHeader();
+  it("keeps the primary CTA top-level", async () => {
+    const { openSubmit } = await renderHeader();
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
     expect(openSubmit).toHaveBeenCalledTimes(1);
   });
 });
 
 describe("Header own-draft state", () => {
-  it("renders no self-review chip outside the own-draft state", () => {
-    renderHeader();
+  it("renders no self-review chip outside the own-draft state", async () => {
+    await renderHeader();
     expect(screen.queryByText("Self-review — your draft")).toBeNull();
   });
 
-  it("renders the non-dismissible self-review chip with its tooltip", () => {
-    renderHeader({ ownDraft: { markReady: vi.fn(), pending: false } });
+  it("renders the non-dismissible self-review chip with its tooltip", async () => {
+    await renderHeader({ ownDraft: { markReady: vi.fn(), pending: false } });
     const chip = screen.getByText("Self-review — your draft");
     expect(chip).toBeTruthy();
     // Non-dismissible: the chip carries no close affordance.
@@ -473,8 +504,8 @@ describe("Header own-draft state", () => {
     );
   });
 
-  it("tooltip dismisses on Escape while focused without leaking the key, and re-arms (WCAG 1.4.13)", () => {
-    renderHeader({ ownDraft: { markReady: vi.fn(), pending: false } });
+  it("tooltip dismisses on Escape while focused without leaking the key, and re-arms (WCAG 1.4.13)", async () => {
+    await renderHeader({ ownDraft: { markReady: vi.fn(), pending: false } });
     const info = screen.getByRole("button", { name: "About self-review" });
     const wrap = info.parentElement;
     expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(false);
@@ -500,8 +531,8 @@ describe("Header own-draft state", () => {
     expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(false);
   });
 
-  it("Escape-dismissal sticks while EITHER hover or focus is still active", () => {
-    renderHeader({ ownDraft: { markReady: vi.fn(), pending: false } });
+  it("Escape-dismissal sticks while EITHER hover or focus is still active", async () => {
+    await renderHeader({ ownDraft: { markReady: vi.fn(), pending: false } });
     const info = screen.getByRole("button", { name: "About self-review" });
     const wrap = info.parentElement;
 
@@ -526,8 +557,8 @@ describe("Header own-draft state", () => {
     expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(false);
   });
 
-  it("tooltip dismisses on Escape while HOVERED without focus (WCAG 1.4.13)", () => {
-    renderHeader({ ownDraft: { markReady: vi.fn(), pending: false } });
+  it("tooltip dismisses on Escape while HOVERED without focus (WCAG 1.4.13)", async () => {
+    await renderHeader({ ownDraft: { markReady: vi.fn(), pending: false } });
     const info = screen.getByRole("button", { name: "About self-review" });
     const wrap = info.parentElement;
     expect(document.activeElement).toBe(document.body);
@@ -549,9 +580,9 @@ describe("Header own-draft state", () => {
     window.removeEventListener("keydown", onWindowKeyDown);
   });
 
-  it("swaps the terminal-action slot: Mark ready for review replaces Receipt", () => {
+  it("swaps the terminal-action slot: Mark ready for review replaces Receipt", async () => {
     const markReady = vi.fn();
-    const { openSubmit } = renderHeader({
+    const { openSubmit } = await renderHeader({
       ownDraft: { markReady, pending: false },
     });
     expect(screen.queryByRole("button", { name: "Submit" })).toBeNull();
@@ -562,8 +593,8 @@ describe("Header own-draft state", () => {
     expect(openSubmit).toHaveBeenCalledTimes(0);
   });
 
-  it("marks the CTA aria-disabled (never hard disabled) while pending — focus survives", () => {
-    renderHeader({ ownDraft: { markReady: vi.fn(), pending: true } });
+  it("marks the CTA aria-disabled (never hard disabled) while pending — focus survives", async () => {
+    await renderHeader({ ownDraft: { markReady: vi.fn(), pending: true } });
     const cta = screen.getByRole("button", { name: /marking ready/i });
     // Hard `disabled` would dump keyboard focus on <body> mid-mutation; the
     // mark-ready flow's in-flight guard already no-ops repeat clicks.
@@ -573,17 +604,17 @@ describe("Header own-draft state", () => {
     expect(document.activeElement).toBe(cta);
   });
 
-  it("keeps the pending CTA's click live — the flow announces its own reason", () => {
+  it("keeps the pending CTA's click live — the flow announces its own reason", async () => {
     // Caller-owned aria-disabled, not the Button `disabled` prop: a press
     // while pending/unavailable must still reach markReady, whose guard
     // no-ops repeats and announces why.
     const markReady = vi.fn();
-    renderHeader({ ownDraft: { markReady, pending: true } });
+    await renderHeader({ ownDraft: { markReady, pending: true } });
     fireEvent.click(screen.getByRole("button", { name: /marking ready/i }));
     expect(markReady).toHaveBeenCalledTimes(1);
   });
 
-  it("moves focus to the swapped-in Receipt CTA when the own-draft state ends on the focused slot", () => {
+  it("moves focus to the swapped-in Receipt CTA when the own-draft state ends on the focused slot", async () => {
     const { rerender } = render(
       <Header {...headerProps({ markReady: vi.fn(), pending: false })} />,
     );
@@ -599,7 +630,7 @@ describe("Header own-draft state", () => {
     );
   });
 
-  it("keeps slot focus continuity on the flip INTO own-draft too (symmetric)", () => {
+  it("keeps slot focus continuity on the flip INTO own-draft too (symmetric)", async () => {
     const { rerender } = render(<Header {...headerProps(undefined)} />);
     screen.getByRole("button", { name: "Submit" }).focus();
 
@@ -613,7 +644,7 @@ describe("Header own-draft state", () => {
     );
   });
 
-  it("a consumed slot-focus flag never goes stale: a later external flip must not steal focus", () => {
+  it("a consumed slot-focus flag never goes stale: a later external flip must not steal focus", async () => {
     const { rerender } = render(<Header {...headerProps(undefined)} />);
     // Focus Receipt, then flip INTO own-draft (slot continuity moves focus
     // onto the CTA and consumes the flag)…
@@ -633,7 +664,7 @@ describe("Header own-draft state", () => {
     );
   });
 
-  it("does NOT steal focus on the swap when the slot was not focused", () => {
+  it("does NOT steal focus on the swap when the slot was not focused", async () => {
     const { rerender } = render(
       <Header {...headerProps({ markReady: vi.fn(), pending: false })} />,
     );
@@ -642,16 +673,16 @@ describe("Header own-draft state", () => {
     expect(document.activeElement).toBe(document.body);
   });
 
-  it("shows a count-only flags stat (dispositions are unreachable in own-draft)", () => {
-    renderHeader({ ownDraft: { markReady: vi.fn(), pending: false } });
+  it("shows a count-only flags stat (dispositions are unreachable in own-draft)", async () => {
+    await renderHeader({ ownDraft: { markReady: vi.fn(), pending: false } });
     const stat = screen.getByText("flags");
     // No resolved/total fraction — it would sit at a permanent 0/N.
     expect(stat.textContent).toBe("flags1");
     expect(stat.textContent).not.toContain("/");
   });
 
-  it("drops the Summary preview item (submit machinery) from the menu", () => {
-    renderHeader({ ownDraft: { markReady: vi.fn(), pending: false } });
+  it("drops the Summary preview item (submit machinery) from the menu", async () => {
+    await renderHeader({ ownDraft: { markReady: vi.fn(), pending: false } });
     fireEvent.click(screen.getByRole("button", { name: /more actions/i }));
     const items = screen.getAllByRole("menuitem");
     expect(items.map((item) => item.textContent)).toEqual([
@@ -683,8 +714,8 @@ describe("repo-config origin chip", () => {
     policy: null,
   };
 
-  it("renders NO chip in the ok state — ok lives in the details panel", () => {
-    renderHeader({ repoConfig: APPLIED });
+  it("renders NO chip in the ok state — ok lives in the details panel", async () => {
+    await renderHeader({ repoConfig: APPLIED });
     expect(document.querySelector("[data-repo-config-chip]")).toBeNull();
     // The panel's Repo config section carries the ok-state instead.
     fireEvent.click(screen.getByRole("button", { name: "Brief details" }));
@@ -695,8 +726,8 @@ describe("repo-config origin chip", () => {
     expect(section?.textContent).toContain("applied");
   });
 
-  it("keeps the warning chip, with the applied sha in its label", () => {
-    renderHeader({
+  it("keeps the warning chip, with the applied sha in its label", async () => {
+    await renderHeader({
       repoConfig: {
         ...APPLIED,
         files: [
@@ -714,8 +745,8 @@ describe("repo-config origin chip", () => {
     expect(chip?.textContent).toContain("repo config @ a1b2c3d");
   });
 
-  it("flips to the warning state on any error outcome", () => {
-    renderHeader({
+  it("flips to the warning state on any error outcome", async () => {
+    await renderHeader({
       repoConfig: {
         ...APPLIED,
         files: [
@@ -736,8 +767,8 @@ describe("repo-config origin chip", () => {
     ).toBe("warning");
   });
 
-  it("renders NO chip when every file is absent and nothing collided", () => {
-    renderHeader({
+  it("renders NO chip when every file is absent and nothing collided", async () => {
+    await renderHeader({
       repoConfig: {
         files: APPLIED.files.map((file) => ({
           ...file,
@@ -751,15 +782,15 @@ describe("repo-config origin chip", () => {
     expect(document.querySelector("[data-repo-config-chip]")).toBeNull();
   });
 
-  it("renders no chip at all without a snapshot", () => {
-    renderHeader({});
+  it("renders no chip at all without a snapshot", async () => {
+    await renderHeader({});
     expect(document.querySelector("[data-repo-config-chip]")).toBeNull();
   });
 });
 
 describe("repo-config chip — applied-with-warning flips to warning state", () => {
-  it("a warning on an applied file is a config error the author must see", () => {
-    renderHeader({
+  it("a warning on an applied file is a config error the author must see", async () => {
+    await renderHeader({
       repoConfig: {
         files: [
           {

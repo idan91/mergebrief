@@ -537,7 +537,7 @@ describe("DB brief route", () => {
     expect(tooltip?.textContent).toMatch(/no submitted review checkpoint yet/i);
   });
 
-  it("Summary preview opens the in-page drawer (the standalone route can't resolve db: ids)", async () => {
+  it("offers no summary-preview menu entry (the standalone route can't resolve db: ids)", async () => {
     await renderRoute(
       meta({}),
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`,
@@ -545,19 +545,14 @@ describe("DB brief route", () => {
     await waitFor(() =>
       expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
     );
-    // Lives in the header's More-actions menu.
     fireEvent.click(screen.getByRole("button", { name: /more actions/i }));
-    // A BUTTON, not the local cross-route link.
-    const trigger = screen.getByRole("menuitem", {
-      name: /^summary preview$/i,
-    });
-    expect(trigger.getAttribute("href")).toBeNull();
-    fireEvent.click(trigger);
-    await waitFor(() =>
-      expect(
-        screen.getByRole("button", { name: /close summary preview/i }),
-      ).toBeTruthy(),
-    );
+    // The submit flow is the DB path's receipt surface — no preview entry.
+    expect(
+      screen.queryByRole("menuitem", { name: /^summary preview$/i }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("menuitem", { name: /clear local drafts/i }),
+    ).toBeTruthy();
   });
 
   it("offers head-advance navigation when pinned to an older span", async () => {

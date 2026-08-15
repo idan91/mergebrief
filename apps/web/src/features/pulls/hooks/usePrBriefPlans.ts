@@ -7,7 +7,10 @@ import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 
-import type { BriefComparisonPlan } from "@web/features/brief";
+import {
+  DB_BRIEF_ID_PREFIX,
+  type BriefComparisonPlan,
+} from "@web/features/brief";
 import {
   lastReviewUnavailableReasonTitle,
   type CompareOptionFlags,
@@ -243,7 +246,7 @@ export function usePrBriefPlans(
     [currentHead, markReadyAction, postCommentAction, ownDraftState],
   );
 
-  const briefId = `db:${repoId}:${String(prNumber)}:${span.base}:${span.head}`;
+  const briefId = `${DB_BRIEF_ID_PREFIX}${repoId}:${String(prNumber)}:${span.base}:${span.head}`;
   // The live-conversation plan is always fetched fresh per PR — resolution
   // flips and replies happen outside our generation cycle. The selected
   // revision's generation start is a primitive dep, so poll-tick timeline

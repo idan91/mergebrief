@@ -544,10 +544,6 @@
       "commentsAddressed": "Comments addressed",
       "wholePrImpact": "Whole-PR impact"
     },
-    "summaryPreviewDrawer": {
-      "label": "Summary preview",
-      "closeLabel": "Close summary preview"
-    },
     "stateBadge": {
       "pullRequest": "pull request "
     },

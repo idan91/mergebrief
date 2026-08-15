@@ -19,6 +19,7 @@ import type { ProgressTotals } from "../../../utils/progress";
 import type { BriefTimeline } from "../../../utils/timeline";
 import type { RepoConfigContext } from "../../../utils/repoConfig";
 import type { Brief, LivePrState } from "../../../types";
+import { isDbBriefId } from "../../../utils/briefIdentity";
 import type { BriefViewModel } from "../../../utils/viewModel";
 import { AccessibleLink } from "@web/components/AccessibleLink/AccessibleLink";
 import { Button } from "@web/components/Button/Button";
@@ -76,13 +77,6 @@ export interface HeaderProps {
   /** Resolved, normalized View/Compare state. */
   compareState: BriefSearch;
   /**
-   * DB-backed briefs open the summary preview as the IN-PAGE drawer via this
-   * callback: the standalone `/briefs/:id/summary-preview` route loads through
-   * the local file store and cannot resolve a `db:` id.
-   * Absent → the local cross-route link renders as before.
-   */
-  openSummaryPreviewDrawer?: (() => void) | undefined;
-  /**
    * The DB route's unified revision/compare controls: rendered in the local
    * TimelineNavigator's slot so BOTH paths keep their controls in the sticky
    * header — discoverable and never scrolled out of reach.
@@ -114,7 +108,6 @@ export function Header({
   clearDrafts,
   availability,
   compareState,
-  openSummaryPreviewDrawer,
   controlsSlot,
   ownDraft,
   revisionPending,
@@ -266,7 +259,6 @@ export function Header({
           /* Summary preview is submit machinery (review outcome + summary):
              hidden-not-broken in the own-draft state. */
           hideSummaryPreview={ownDraft !== undefined}
-          openSummaryPreviewDrawer={openSummaryPreviewDrawer}
         />
       </div>
       {/* Tier 2 — the lens toolbar: everything that changes WHAT is on
@@ -419,7 +411,6 @@ interface HeaderMenuProps {
   clearDrafts: () => void;
   /** Summary preview is submit machinery, hidden in the own-draft state. */
   hideSummaryPreview: boolean;
-  openSummaryPreviewDrawer?: (() => void) | undefined;
 }
 
 /**
@@ -431,7 +422,6 @@ function HeaderMenu({
   briefId,
   clearDrafts,
   hideSummaryPreview,
-  openSummaryPreviewDrawer,
 }: HeaderMenuProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -526,8 +516,10 @@ function HeaderMenu({
           aria-label={t("brief.header.ariaLabelMoreActions")}
           tabIndex={-1}
         >
-          {hideSummaryPreview ? null : openSummaryPreviewDrawer ===
-            undefined ? (
+          {/* Local briefs only: the standalone preview route resolves through
+              the local file store — DB briefs get their receipt surface in
+              the submit flow instead. */}
+          {hideSummaryPreview || isDbBriefId(briefId) ? null : (
             <Link
               className={styles["menuItem"]}
               params={{ briefId }}
@@ -545,19 +537,6 @@ function HeaderMenu({
             >
               {t("brief.header.summaryPreview")}
             </Link>
-          ) : (
-            <MenuItem
-              className={styles["menuItem"]}
-              onClick={() => {
-                // The drawer never claims focus, so return it to the
-                // trigger — otherwise the unmounting menuitem drops it
-                // on <body>.
-                closeAndRefocus();
-                openSummaryPreviewDrawer();
-              }}
-            >
-              {t("brief.header.summaryPreview")}
-            </MenuItem>
           )}
           <MenuItem
             className={styles["menuItem"]}

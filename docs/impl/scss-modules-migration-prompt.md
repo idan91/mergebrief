@@ -75,7 +75,7 @@ BEM-ish names, `classNames(styles.base, styles[variant])`). The in-repo referenc
 - Run `prettier --write`/`--check` on changed files.
 - **Per-component before/after screenshots** (use the `playwright-cli` skill) against
   `http://localhost:3000/briefs/Idan91-code-review-5_1_10f4acc2` and
-  `http://localhost:3000/briefs/Idan91-code-review-5_1_10f4acc2/summary-preview?mode=author`
+  `http://localhost:3000/briefs/Idan91-code-review-5_1_10f4acc2/summary-preview`
   (run `pnpm --dir apps/web dev` first). Compare images and investigate ANY visual change
   before continuing to the next component. Appearance must be preserved exactly.
 - SSR smoke: curl those routes, confirm no console errors and key elements render.
