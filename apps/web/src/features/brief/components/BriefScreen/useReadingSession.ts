@@ -621,16 +621,16 @@ export function useReadingSession(
     },
     [focusModeRef, scrollToChunk, setActivePosition],
   );
-  const jumpToChunkFromShortcut = useCallback(
-    (chunkId: string) => {
-      const focusActive =
-        document.getElementById("main-content")?.dataset["zen"] === "on";
-      jumpToChunk(chunkId, "auto", focusActive ? "top" : "native");
-    },
-    [jumpToChunk],
-  );
+  // Plain handlers from here down: no consumer memoizes on their identity
+  // (the memo boundaries live at ChunkCard/GroupCard, whose props stay the
+  // stable callbacks above). closeShortcuts is the one exception below.
+  const jumpToChunkFromShortcut = (chunkId: string) => {
+    const focusActive =
+      document.getElementById("main-content")?.dataset["zen"] === "on";
+    jumpToChunk(chunkId, "auto", focusActive ? "top" : "native");
+  };
 
-  const toggleFocusMode = useCallback(() => {
+  const toggleFocusMode = () => {
     const entering = !focusModeRef.current;
     setFocusMode(entering);
     if (!entering) return;
@@ -643,29 +643,22 @@ export function useReadingSession(
     openChunk(target);
     setActivePosition(target);
     scrollToChunk(target, "smooth", "top");
-  }, [
-    firstChunkId,
-    focusModeRef,
-    openChunk,
-    position,
-    scrollToChunk,
-    setActivePosition,
-  ]);
-  const toggleShortcuts = useCallback(
-    () => setShortcutsOpen((current) => !current),
-    [],
-  );
+  };
+  const toggleShortcuts = () => setShortcutsOpen((current) => !current);
+  // Stable: Modal's Escape-listener effect deps on `close` — an unstable
+  // identity would re-bind a document listener on every session render
+  // while the shortcuts modal is open.
   const closeShortcuts = useCallback(() => setShortcutsOpen(false), []);
 
   // Always starts at step 1, unlike Z/toggleFocus which re-anchors on the
   // active chunk. align="top": see toggleFocusMode.
-  const startReadThrough = useCallback(() => {
+  const startReadThrough = () => {
     if (!firstChunkId) return;
     setFocusMode(true);
     openChunk(firstChunkId);
     setActivePosition(firstChunkId);
     scrollToChunk(firstChunkId, "smooth", "top");
-  }, [firstChunkId, openChunk, scrollToChunk, setActivePosition]);
+  };
 
   // The TOC bar jumps by Change-group; land on the group's first chunk.
   const jumpToGroup = useCallback(

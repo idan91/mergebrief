@@ -217,6 +217,8 @@ export function BriefScreen({
   submitReview,
 }: BriefScreenProps) {
   const { t } = useTranslation();
+  // Memoized as measured cost, not defensiveness: a model-wide scan has no
+  // business re-running on every shell render (modal opens, review state).
   const attributeRail = useMemo(() => buildAttributeRail(model), [model]);
   const pendingShown = useDelayedPending(revisionPending === true);
 
@@ -242,8 +244,7 @@ export function BriefScreen({
     searchParams,
   });
 
-  // Derived once per marks/model change so StoryView's per-card primitive
-  // props stay stable across unrelated screen re-renders.
+  // Memoized on the same measured-cost grounds as attributeRail above.
   const sinceMarkers = useMemo(() => {
     const counts = groupSinceMarkers(model.groups, sinceReviewMarks);
     return counts === undefined || sinceReviewMarks === null
