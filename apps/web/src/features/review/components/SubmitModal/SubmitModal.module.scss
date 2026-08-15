@@ -133,23 +133,6 @@
     line-height: 1.5;
   }
 
-  .receiptBody {
-    // Off-scale: receipt body text sits between --color-text-muted and
-    // --color-text.
-    --body-text: #c9c9d0;
-
-    padding-block: functions.to-rem(18px);
-    padding-inline: functions.to-rem(20px);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-md);
-    background: var(--bg);
-    color: var(--body-text);
-    font-family: var(--mono);
-    font-size: var(--font-size-md);
-    line-height: 1.9;
-    white-space: pre-wrap;
-  }
-
   @media (width <= 720px) {
     .outcomes {
       flex-wrap: wrap;

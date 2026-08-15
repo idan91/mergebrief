@@ -157,6 +157,8 @@ export type Catalog = typeof en & {
       evidenceManualWithNote: "manually verified: {{note}}";
     };
     submit: (typeof en)["review"]["submit"] & {
+      receiptCommentsFold: "Inline comments ({{total}})";
+      receiptRiskFold: "Risk disposition — {{addressed}} addressed · {{dismissed}} dismissed · {{open}} open";
       tooManyComments: "A review can carry at most {{max}} comments. Trim {{excess}} draft(s), or submit in parts by deleting some drafts and re-adding them after this review posts.";
     };
     comment: (typeof en)["review"]["comment"] & {

@@ -190,6 +190,75 @@ export function buildReceipt(
 }
 
 /**
+ * `file:+start[-end]` — the shared on-screen anchor for a receipt comment
+ * (SummaryPreview, ReceiptAccordion). NOT the frozen artifact's shape, which
+ * prints no side sign.
+ */
+export function receiptCommentLabel(comment: ReceiptComment): string {
+  const sign = comment.side === "new" ? "+" : "-";
+  const range =
+    comment.startLine === comment.endLine
+      ? `${sign}${comment.startLine}`
+      : `${sign}${comment.startLine}-${comment.endLine}`;
+  return `${comment.file}:${range}`;
+}
+
+export interface ReceiptRiskRow {
+  /** The flag's own id — (attr, file) pairs repeat when two chunks in one
+   * file carry the same attribute. */
+  id: string;
+  attr: string;
+  file: string;
+  detail: string;
+}
+
+export interface ReceiptRiskGroup {
+  key: "addressed" | "dismissed" | "open";
+  title: string;
+  items: ReceiptRiskRow[];
+}
+
+/** The disposition lists as uniform display rows, shared by every receipt
+ * rendering so per-flag detail fallbacks cannot diverge between surfaces. */
+export function receiptRiskGroups(
+  t: TFunction,
+  receipt: Receipt,
+): ReceiptRiskGroup[] {
+  return [
+    {
+      key: "addressed",
+      title: t("review.summary.addressedRisks"),
+      items: receipt.addressed.map((flag) => ({
+        id: flag.id,
+        attr: flag.attr,
+        file: flag.file,
+        detail: flag.evidenceLabel ?? t("review.summary.noEvidenceLinked"),
+      })),
+    },
+    {
+      key: "dismissed",
+      title: t("review.summary.dismissedRisks"),
+      items: receipt.dismissed.map((flag) => ({
+        id: flag.id,
+        attr: flag.attr,
+        file: flag.file,
+        detail: flag.reason,
+      })),
+    },
+    {
+      key: "open",
+      title: t("review.summary.openRisks"),
+      items: receipt.open.map((flag) => ({
+        id: flag.id,
+        attr: flag.attr,
+        file: flag.file,
+        detail: t("review.summary.notAddressedNotDismissed"),
+      })),
+    },
+  ];
+}
+
+/**
  * The per-file table plus the de-emphasis tuning in effect at generation
  * time. Undefined when there was no surface at all, so the Receipt stays
  * byte-identical for repos without a `.mergebrief/`.

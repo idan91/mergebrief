@@ -11,6 +11,8 @@ import { Modal } from "@web/components/Modal/Modal";
 import modalStyles from "@web/components/Modal/Modal.module.scss";
 import { useReviewActions, useReviewFlow } from "../../session/flow/provider";
 import { RECEIPT_NOT_CHECKED, type Receipt } from "../../utils/receipt";
+import { ReceiptAccordion } from "./ReceiptAccordion/ReceiptAccordion";
+import { shortFile } from "./utils";
 import {
   reviewOutcomeLabel,
   type ReviewOutcome,
@@ -305,7 +307,11 @@ export function SubmitModal({
             </span>
           </div>
           <p className={styles["sub"]}>{t("review.submit.receiptSub")}</p>
-          <pre className={styles["receiptBody"]}>{receiptText(receipt)}</pre>
+          <ReceiptAccordion
+            outcome={outcome}
+            raw={receiptText(receipt)}
+            receipt={receipt}
+          />
           <div className={clsx(modalStyles["actions"], styles["actionsRow"])}>
             <Button onClick={() => setView("verdict")}>
               {t("review.submit.backToVerdict")}
@@ -376,9 +382,4 @@ ${
     : ""
 }
   not checked: ${RECEIPT_NOT_CHECKED.join(" · ")}`;
-}
-
-function shortFile(path: string): string {
-  const parts = path.split("/");
-  return parts.at(-1) ?? path;
 }

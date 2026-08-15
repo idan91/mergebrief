@@ -1,0 +1,35 @@
+import { useTranslation } from "react-i18next";
+
+import type { Receipt } from "../../../utils/receipt";
+import {
+  reviewOutcomeLabel,
+  summarySignatureLine,
+  type ReviewOutcome,
+} from "../../../utils/state";
+import styles from "./ReceiptAccordion.module.scss";
+
+export interface OutcomeCardProps {
+  receipt: Receipt;
+  outcome: ReviewOutcome;
+}
+
+export function OutcomeCard({ receipt, outcome }: OutcomeCardProps) {
+  const { t } = useTranslation();
+  return (
+    <section className={styles["card"]}>
+      <div className={styles["outcomeRow"]}>
+        <span>{t("review.summary.outcomeLabel")}</span>
+        <span className={styles["outcomeValue"]}>
+          {reviewOutcomeLabel(t, outcome)}
+        </span>
+      </div>
+      <div className={styles["signature"]}>
+        {summarySignatureLine(t, {
+          reviewedChunks: receipt.progress.reviewedChunks,
+          addressedRisks: receipt.counts.addressed,
+          dismissedRisks: receipt.counts.dismissed,
+        })}
+      </div>
+    </section>
+  );
+}

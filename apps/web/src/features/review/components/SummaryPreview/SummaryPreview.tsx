@@ -7,7 +7,9 @@ import { buildBriefViewModel } from "@web/features/brief/utils";
 import {
   buildReceipt,
   RECEIPT_NOT_CHECKED_KEYS,
-  type Receipt,
+  receiptCommentLabel,
+  receiptRiskGroups,
+  type ReceiptRiskRow,
 } from "../../utils/receipt";
 import type { SessionSnapshot } from "../../session";
 import { reviewOutcomeLabel, summarySignatureLine } from "../../utils/state";
@@ -118,7 +120,7 @@ export function SummaryPreview({
             ) : null}
             {receipt.comments.map((comment) => (
               <div className={styles["comment"]} key={comment.id}>
-                <span>{commentLabel(comment)}</span>
+                <span>{receiptCommentLabel(comment)}</span>
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {comment.firstLine}
                 </ReactMarkdown>
@@ -128,34 +130,13 @@ export function SummaryPreview({
 
           <div className={styles["card"]}>
             <h2>{t("review.summary.dispositionHeading")}</h2>
-            <RiskList
-              title={t("review.summary.addressedRisks")}
-              items={receipt.addressed.map((flag) => ({
-                id: flag.id,
-                attr: flag.attr,
-                file: flag.file,
-                detail:
-                  flag.evidenceLabel ?? t("review.summary.noEvidenceLinked"),
-              }))}
-            />
-            <RiskList
-              title={t("review.summary.dismissedRisks")}
-              items={receipt.dismissed.map((flag) => ({
-                id: flag.id,
-                attr: flag.attr,
-                file: flag.file,
-                detail: flag.reason,
-              }))}
-            />
-            <RiskList
-              title={t("review.summary.openRisks")}
-              items={receipt.open.map((flag) => ({
-                id: flag.id,
-                attr: flag.attr,
-                file: flag.file,
-                detail: t("review.summary.notAddressedNotDismissed"),
-              }))}
-            />
+            {receiptRiskGroups(t, receipt).map((group) => (
+              <RiskList
+                items={group.items}
+                key={group.key}
+                title={group.title}
+              />
+            ))}
           </div>
         </section>
 
@@ -170,26 +151,9 @@ export function SummaryPreview({
   );
 }
 
-function commentLabel(comment: Receipt["comments"][number]): string {
-  const sign = comment.side === "new" ? "+" : "-";
-  const range =
-    comment.startLine === comment.endLine
-      ? `${sign}${comment.startLine}`
-      : `${sign}${comment.startLine}-${comment.endLine}`;
-  return `${comment.file}:${range}`;
-}
-
-interface RiskListItem {
-  /** The flag's own id — (attr, file) pairs repeat when two chunks in one file carry the same attribute. */
-  id: string;
-  attr: string;
-  file: string;
-  detail: string;
-}
-
 interface RiskListProps {
   title: string;
-  items: RiskListItem[];
+  items: ReceiptRiskRow[];
 }
 
 function RiskList({ title, items }: RiskListProps) {

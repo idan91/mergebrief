@@ -1,0 +1,173 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .stack {
+    display: grid;
+    gap: functions.to-rem(10px);
+  }
+
+  .card {
+    padding: functions.to-rem(14px);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--panel2);
+  }
+
+  .outcomeRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: functions.to-rem(12px);
+  }
+
+  .outcomeValue {
+    padding-block: functions.to-rem(4px);
+    padding-inline: functions.to-rem(9px);
+    border: 1px solid var(--line2);
+    border-radius: var(--radius-md);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: var(--font-size-md);
+  }
+
+  .signature {
+    padding-block: functions.to-rem(9px);
+    padding-inline: functions.to-rem(11px);
+    border: 1px solid var(--line2);
+    border-radius: var(--radius-md);
+    margin-block-start: functions.to-rem(10px);
+    background: var(--bg);
+    color: var(--dim);
+    font-family: var(--mono);
+    font-size: var(--font-size-sm);
+    line-height: 1.5;
+  }
+
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: functions.to-rem(6px);
+
+    div {
+      padding: functions.to-rem(8px);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+    }
+
+    dt {
+      color: var(--faint);
+      font-size: var(--font-size-sm);
+    }
+
+    dd {
+      margin-block-start: functions.to-rem(3px);
+      color: var(--text);
+      font-family: var(--mono);
+    }
+  }
+
+  .fold {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--panel2);
+
+    summary {
+      padding-block: functions.to-rem(9px);
+      padding-inline: functions.to-rem(12px);
+      color: var(--dim);
+      font-size: var(--font-size-md);
+      cursor: pointer;
+      user-select: none;
+
+      // Custom marker: the UA marker's gap to the label is too tight and
+      // not stylable cross-browser.
+      list-style: none;
+
+      &::-webkit-details-marker {
+        display: none;
+      }
+
+      &::before {
+        content: "▸";
+        display: inline-block;
+        margin-inline-end: functions.to-rem(8px);
+        color: var(--faint);
+      }
+
+      @include mixins.focus-visible;
+    }
+
+    &[open] > summary::before {
+      content: "▾";
+    }
+
+    > div,
+    > dl,
+    > p,
+    > pre {
+      padding-block: 0 functions.to-rem(10px);
+      padding-inline: functions.to-rem(12px);
+    }
+  }
+
+  .itemRow {
+    padding-block: functions.to-rem(8px);
+    border-block-start: 1px solid var(--line);
+
+    span {
+      color: var(--dim);
+      font-family: var(--mono);
+      font-size: var(--font-size-sm);
+    }
+
+    small {
+      display: block;
+      margin-block-start: functions.to-rem(4px);
+      color: var(--faint);
+      font-size: var(--font-size-md);
+      line-height: 1.45;
+    }
+  }
+
+  .riskGroup {
+    h4 {
+      margin-block: functions.to-rem(10px) functions.to-rem(4px);
+      color: var(--dim);
+      font-size: var(--font-size-md);
+      font-weight: 700;
+    }
+  }
+
+  .empty {
+    color: var(--faint);
+    font-size: var(--font-size-md);
+  }
+
+  .notChecked {
+    display: flex;
+    flex-wrap: wrap;
+    gap: functions.to-rem(6px);
+
+    span {
+      padding-block: functions.to-rem(3px);
+      padding-inline: functions.to-rem(8px);
+      border: 1px solid var(--line2);
+      border-radius: var(--radius-pill);
+      color: var(--dim);
+      font-size: var(--font-size-sm);
+    }
+  }
+
+  .rawBody {
+    overflow-x: auto;
+    border-radius: var(--radius-md);
+    margin-block-start: functions.to-rem(4px);
+    background: var(--bg);
+    color: var(--faint);
+    font-family: var(--mono);
+    font-size: var(--font-size-sm);
+    line-height: 1.7;
+    white-space: pre-wrap;
+  }
+}
