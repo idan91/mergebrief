@@ -36,19 +36,12 @@ const COLLAPSE_PRESSED: Record<SupportingCollapseState, boolean | "mixed"> = {
 
 export interface ReadingToolbarProps {
   /**
-   * `full` = the Story bar; `filter-and-attrs` = the Concerns bar, which
-   * carries Filter + Risk attrs only and targets chunks instead of groups.
-   */
-  variant: "full" | "filter-and-attrs";
-  /**
    * The conversation filter's data + state. Absent (local path, facets not
    * yet resolved) = no filter surface at all.
    */
   filter?: FilterDisclosureProps | undefined;
   rail: AttributeRail;
   jumpToGroup: (groupId: string) => void;
-  /** The Concerns variant's risk-attr target — chunks, not groups. */
-  jumpToChunk: (chunkId: string) => void;
   /** Bulk status, never a lock — chunks stay individually expandable. */
   supportingCollapse: SupportingCollapseState;
   /** All collapsed → expand all; otherwise collapse all. */
@@ -68,11 +61,9 @@ export interface ReadingToolbarProps {
  * right = where you are. The right cluster may be legitimately empty.
  */
 export function ReadingToolbar({
-  variant,
   filter,
   rail,
   jumpToGroup,
-  jumpToChunk,
   supportingCollapse,
   toggleCollapseSupporting,
   groups,
@@ -146,93 +137,81 @@ export function ReadingToolbar({
         />
       ) : null}
       {rail.entries.length > 0 ? (
-        <RiskAttrsDisclosure
-          rail={rail}
-          targets={
-            variant === "filter-and-attrs"
-              ? { kind: "chunk", jump: jumpToChunk }
-              : { kind: "group", jump: jumpToGroup }
-          }
-        />
+        <RiskAttrsDisclosure jumpToGroup={jumpToGroup} rail={rail} />
       ) : null}
-      {/* The Concerns bar ends here: collapse-supporting reads `role`, which
-          ConcernView doesn't carry, and both position clusters are Story
-          wayfinding. */}
-      {variant === "filter-and-attrs" ? null : (
-        <div className={styles["navCluster"]}>
-          <ToolbarButton
-            aria-pressed={COLLAPSE_PRESSED[supportingCollapse]}
-            onClick={toggleCollapseSupporting}
-          >
-            {/* CSS swaps which label renders; the accessible name follows
+      <div className={styles["navCluster"]}>
+        <ToolbarButton
+          aria-pressed={COLLAPSE_PRESSED[supportingCollapse]}
+          onClick={toggleCollapseSupporting}
+        >
+          {/* CSS swaps which label renders; the accessible name follows
                 the visible one. */}
-            <span className={styles["labelShort"]}>
-              {t("brief.toolbar.collapseShort")}
+          <span className={styles["labelShort"]}>
+            {t("brief.toolbar.collapseShort")}
+          </span>
+          <span className={styles["labelLong"]}>
+            {t("brief.toolbar.collapseLong")}
+          </span>
+        </ToolbarButton>
+        {groups.length > 0 ? (
+          <span
+            aria-label={t("brief.toolbar.ariaLabelGroupStepper")}
+            className={styles["stepper"]}
+            data-stepper="group"
+            role="group"
+          >
+            <span className={styles["count"]}>
+              {t("brief.toolbar.groupCount", {
+                current: activeGroupIndex === -1 ? "–" : activeGroupIndex + 1,
+                total: groups.length,
+              })}
             </span>
-            <span className={styles["labelLong"]}>
-              {t("brief.toolbar.collapseLong")}
-            </span>
-          </ToolbarButton>
-          {groups.length > 0 ? (
-            <span
-              aria-label={t("brief.toolbar.ariaLabelGroupStepper")}
-              className={styles["stepper"]}
-              data-stepper="group"
-              role="group"
+            <IconButton
+              className={styles["stepBtn"]}
+              label={t("brief.toolbar.ariaLabelPreviousGroup")}
+              onClick={() => stepGroup(-1)}
             >
-              <span className={styles["count"]}>
-                {t("brief.toolbar.groupCount", {
-                  current: activeGroupIndex === -1 ? "–" : activeGroupIndex + 1,
-                  total: groups.length,
-                })}
-              </span>
-              <IconButton
-                className={styles["stepBtn"]}
-                label={t("brief.toolbar.ariaLabelPreviousGroup")}
-                onClick={() => stepGroup(-1)}
-              >
-                ◂
-              </IconButton>
-              <IconButton
-                className={styles["stepBtn"]}
-                label={t("brief.toolbar.ariaLabelNextGroup")}
-                onClick={() => stepGroup(1)}
-              >
-                ▸
-              </IconButton>
-            </span>
-          ) : null}
-          {comparison.available && comparison.runCount > 0 ? (
-            <span
-              aria-label={
-                comparison.compare === "last-review"
-                  ? t("brief.toolbar.ariaLabelChangeStepperLastReview")
-                  : t("brief.toolbar.ariaLabelChangeStepperRevision")
-              }
-              className={styles["stepper"]}
-              role="group"
+              ◂
+            </IconButton>
+            <IconButton
+              className={styles["stepBtn"]}
+              label={t("brief.toolbar.ariaLabelNextGroup")}
+              onClick={() => stepGroup(1)}
             >
-              <span className={styles["count"]}>
-                {t("brief.toolbar.changes", { count: comparison.runCount })}
-              </span>
-              <IconButton
-                className={styles["stepBtn"]}
-                label={t("brief.toolbar.ariaLabelPreviousChange")}
-                onClick={jumpPrev}
-              >
-                ◂
-              </IconButton>
-              <IconButton
-                className={styles["stepBtn"]}
-                label={t("brief.toolbar.ariaLabelNextChange")}
-                onClick={jumpNext}
-              >
-                ▸
-              </IconButton>
+              ▸
+            </IconButton>
+          </span>
+        ) : null}
+        {comparison.available && comparison.runCount > 0 ? (
+          <span
+            aria-label={
+              comparison.compare === "last-review"
+                ? t("brief.toolbar.ariaLabelChangeStepperLastReview")
+                : t("brief.toolbar.ariaLabelChangeStepperRevision")
+            }
+            className={styles["stepper"]}
+            role="group"
+          >
+            <span className={styles["count"]}>
+              {t("brief.toolbar.changes", { count: comparison.runCount })}
             </span>
-          ) : null}
-        </div>
-      )}
+            <IconButton
+              className={styles["stepBtn"]}
+              label={t("brief.toolbar.ariaLabelPreviousChange")}
+              onClick={jumpPrev}
+            >
+              ◂
+            </IconButton>
+            <IconButton
+              className={styles["stepBtn"]}
+              label={t("brief.toolbar.ariaLabelNextChange")}
+              onClick={jumpNext}
+            >
+              ▸
+            </IconButton>
+          </span>
+        ) : null}
+      </div>
     </div>
   );
 }

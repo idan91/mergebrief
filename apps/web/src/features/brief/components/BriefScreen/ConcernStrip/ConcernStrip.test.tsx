@@ -90,6 +90,26 @@ describe("concernShares", () => {
     ]);
   });
 
+  it("apportions rounded percents to sum to exactly 100", () => {
+    // Independently rounded this would show 49 + 22 + 30 = 101; largest
+    // remainder drops test to its floor instead.
+    const shares = concernShares([
+      { concern: "implementation", added: 423, deleted: 0 },
+      { concern: "test", added: 187, deleted: 0 },
+      { concern: "doc", added: 259, deleted: 0 },
+    ]);
+    expect(shares.map((share) => share.percent)).toEqual([49, 21, 30]);
+
+    const thirds = concernShares([
+      { concern: "implementation", added: 1, deleted: 0 },
+      { concern: "test", added: 1, deleted: 0 },
+      { concern: "doc", added: 1, deleted: 0 },
+    ]);
+    expect(
+      thirds.reduce((sum, share) => sum + share.percent, 0),
+    ).toBe(100);
+  });
+
   it("survives an all-zero rollup without NaN", () => {
     const shares = concernShares([
       { concern: "implementation", added: 0, deleted: 0 },

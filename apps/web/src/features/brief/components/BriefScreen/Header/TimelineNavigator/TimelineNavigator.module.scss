@@ -52,9 +52,8 @@
     }
   }
 
-  // Segmented lens groups, shared with DbCompareBar and the header's
-  // Story/Concerns viewbar: bordered wrapper, borderless options, tinted
-  // active state.
+  // Segmented lens groups, shared with DbCompareBar: bordered wrapper,
+  // borderless options, tinted active state.
   // SegmentedControl owns the bordered group; this only carries the metrics
   // this surface had before the control was shared.
   .lens {

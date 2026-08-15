@@ -197,7 +197,7 @@ interface WindowedNarrativeListProps {
 }
 
 /**
- * Windowed narrative cards, same shape as the story lens's chunk column:
+ * Windowed narrative cards, same shape as the story pane's chunk column:
  * absolute cards in a totalSize column, explicit inline-size (absolute cards
  * have no intrinsic width). No jump registry — nothing navigates to a
  * narrative card by id.

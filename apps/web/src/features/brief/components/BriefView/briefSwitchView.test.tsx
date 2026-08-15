@@ -9,8 +9,9 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { I18nProvider } from "../../../../i18n/I18nProvider";
+import type { BriefSearchParams } from "../../comparison/compareState";
 import { BriefView } from "./BriefView";
-import type { Brief } from "../../types";
+import type { Brief, LocalBriefSummary } from "../../types";
 import { briefFixture } from "../../utils/fixtures";
 
 afterEach(() => {
@@ -89,5 +90,81 @@ describe("in-place brief switch through the screen", () => {
     expect(modal()?.closest("[data-state]")).toMatchObject({
       dataset: { state: "closed" },
     });
+  });
+});
+
+/** One timeline summary granting brief-a a previous-brief comparison —
+ * a single point, so the router-dependent prev/next links never render. */
+const artifactSummaries: LocalBriefSummary[] = [
+  {
+    id: "brief-a",
+    artifactKind: "brief",
+    repo: briefFixture.pr.repo,
+    number: briefFixture.pr.number,
+    title: briefFixture.pr.title,
+    sha: briefFixture.pr.sha,
+    index: 1,
+    comparisons: {
+      previousBrief: {
+        marksId: "marks-a",
+        baselineSha: "0".repeat(40),
+        baselineIndex: 0,
+      },
+    },
+  },
+];
+
+describe("kept-warm scope panes", () => {
+  function renderScoped(searchParams: BriefSearchParams) {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const view = (id: string, value: Brief, params: BriefSearchParams) => (
+      <I18nProvider>
+        <QueryClientProvider client={queryClient}>
+          <BriefView
+            artifacts={artifactSummaries}
+            brief={value}
+            briefId={id}
+            searchParams={params}
+          />
+        </QueryClientProvider>
+      </I18nProvider>
+    );
+    const utils = render(view("brief-a", briefFixture, searchParams));
+    return {
+      rerenderWith: (id: string, value: Brief, params: BriefSearchParams) =>
+        utils.rerender(view(id, value, params)),
+    };
+  }
+
+  // The pane's marker: with no narrative fetchable in jsdom, the changes
+  // pane renders its unavailable empty state — presence in the DOM is what
+  // the keep-warm latch controls.
+  const changesPane = () => {
+    const lead = [...document.querySelectorAll("b")].find(
+      (node) => node.textContent === "Revision summary unavailable.",
+    );
+    return lead ?? null;
+  };
+
+  it("keeps the changes pane mounted but hidden after leaving Changes scope, and drops it on a brief switch", () => {
+    const { rerenderWith } = renderScoped({
+      view: "changes",
+      compare: "previous-brief",
+    });
+    expect(changesPane()).not.toBeNull();
+    expect(changesPane()?.closest("[hidden]")).toBeNull();
+
+    // Back to full scope: still in the DOM — the flip back must not pay a
+    // remount — but display:none'd out of paint and the AT tree.
+    rerenderWith("brief-a", briefFixture, {});
+    expect(changesPane()).not.toBeNull();
+    expect(changesPane()?.closest("[hidden]")).not.toBeNull();
+
+    // Latches reset on a brief switch: the hidden pane is unmounted, never
+    // kept against the re-derived stores.
+    rerenderWith("brief-b", briefB, {});
+    expect(changesPane()).toBeNull();
   });
 });

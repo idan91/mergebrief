@@ -18,18 +18,10 @@ import { RiskBadge } from "../../RiskBadge/RiskBadge";
 import type { AttributeRail } from "../../../../utils/viewModel";
 import styles from "./RiskAttrsDisclosure.module.scss";
 
-/**
- * The lens-dependent jump target: attribute chips carry both id sets; the
- * LENS picks which one a click walks — groups in Story, chunks in Concerns.
- */
-export interface RiskAttrsTargets {
-  kind: "group" | "chunk";
-  jump: (id: string) => void;
-}
-
 export interface RiskAttrsDisclosureProps {
   rail: AttributeRail;
-  targets: RiskAttrsTargets;
+  /** A chip click cycles through the attribute's carrying groups. */
+  jumpToGroup: (groupId: string) => void;
 }
 
 /**
@@ -48,7 +40,7 @@ export interface RiskAttrsDisclosureProps {
  */
 export function RiskAttrsDisclosure({
   rail,
-  targets,
+  jumpToGroup,
 }: RiskAttrsDisclosureProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -124,8 +116,7 @@ export function RiskAttrsDisclosure({
           >
             <div className={styles["chips"]} data-attribute-jump-rail="">
               {rail.entries.map((entry) => {
-                const ids =
-                  targets.kind === "chunk" ? entry.chunkIds : entry.groupIds;
+                const ids = entry.groupIds;
                 const position = cycle.get(entry.attr) ?? 0;
                 const target = ids[position % ids.length];
                 return (
@@ -137,7 +128,7 @@ export function RiskAttrsDisclosure({
                     type="button"
                     onClick={() => {
                       if (target === undefined) return;
-                      targets.jump(target);
+                      jumpToGroup(target);
                       setCycle((previous) => {
                         const next = new Map(previous);
                         next.set(entry.attr, position + 1);
@@ -154,7 +145,7 @@ export function RiskAttrsDisclosure({
                     >
                       {entry.attr} ×{ids.length}
                       <ScreenReaderOnly>
-                        {` — jump to carrying ${targets.kind} ${(position % ids.length) + 1} of ${ids.length}, story order`}
+                        {` — jump to carrying group ${(position % ids.length) + 1} of ${ids.length}, story order`}
                       </ScreenReaderOnly>
                     </RiskBadge>
                   </button>

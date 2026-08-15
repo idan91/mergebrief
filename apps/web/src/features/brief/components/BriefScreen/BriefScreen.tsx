@@ -52,7 +52,6 @@ import { buildAttributeRail } from "../../utils/viewModel";
 import type { RepoConfigContext } from "../../utils/repoConfig";
 import { ChangesOnlyView } from "./ChangesOnlyView/ChangesOnlyView";
 import { ConcernStrip } from "./ConcernStrip/ConcernStrip";
-import { ConcernView } from "./ConcernView/ConcernView";
 import { FocusBanner } from "./FocusBanner/FocusBanner";
 import { IntentBar, type IntentBarHandle } from "./IntentBar/IntentBar";
 import { GroupTocBar } from "./GroupTocBar/GroupTocBar";
@@ -122,8 +121,8 @@ export interface OwnDraftPlan {
 }
 
 /**
- * Render gate for a kept-warm lens tree: while `frozen`, the subtree is
- * skipped entirely (stale DOM stays, display:none hides it), so a lens flip
+ * Render gate for a kept-warm scope pane: while `frozen`, the subtree is
+ * skipped entirely (stale DOM stays, display:none hides it), so a scope flip
  * pays for ONE tree, not both. Store-subscribed descendants can still
  * re-render themselves — the latches reset on a brief switch so a frozen
  * pane never holds another brief's ids against a re-derived store.
@@ -263,7 +262,7 @@ export function BriefScreen({
 
   // The reading session: per-brief Mind-Map store wiring, the progress/receipt
   // derivation, and the scroll/nav machinery — see the hook.
-  // One registry per screen: both lens trees' windowed lists register, and
+  // One registry per screen: both scope panes' windowed lists register, and
   // the jump paths resolve unmounted chunks through it.
   const chunkWindowsRef = useRef(createChunkWindowRegistry());
   const session = useReadingSession({
@@ -290,13 +289,11 @@ export function BriefScreen({
     snapshot,
     submittedReviewIds,
     toggleFocusMode,
-    viewMode,
   } = session;
 
-  // Region block presence: ONE derivation over the three axes — no per-block
+  // Region block presence: ONE derivation over the two axes — no per-block
   // ad-hoc gating below.
   const blocks = deriveRegionBlocks({
-    lens: viewMode,
     scope: compareState.view,
     focus: focusMode,
   });
@@ -310,12 +307,12 @@ export function BriefScreen({
     null,
   );
   const inChangesScope = compareState.view === "changes";
-  // Monotonic first-show latches for the keep-warm lens trees below (ref
+  // Monotonic first-show latches for the keep-warm scope panes below (ref
   // mutation in render is safe here: idempotent, and never flips back).
   const changesEverShownRef = useRef(false);
   if (inChangesScope) changesEverShownRef.current = true;
   const storyEverShownRef = useRef(false);
-  if (!inChangesScope && viewMode === "story") storyEverShownRef.current = true;
+  if (!inChangesScope) storyEverShownRef.current = true;
   useEffect(() => {
     if (pendingIntentJump === null || inChangesScope) return;
     jumpToGroup(pendingIntentJump);
@@ -345,7 +342,7 @@ export function BriefScreen({
     setSubmitOpen(false);
     setSummaryPreviewOpen(false);
     setPendingIntentJump(null);
-    // Keep-warm lens trees do NOT survive a brief switch: a frozen pane
+    // Keep-warm scope panes do NOT survive a brief switch: a frozen pane
     // would hold the old brief's ids against the re-derived stores.
     changesEverShownRef.current = false;
     storyEverShownRef.current = false;
@@ -613,10 +610,6 @@ export function BriefScreen({
         model={model}
         totals={session.totals}
         progress={session.progress}
-        viewMode={viewMode}
-        setViewMode={session.setViewMode}
-        lensControl={blocks.lensControl}
-        announce={announce}
         openSubmit={openSubmit}
         clearDrafts={clearDrafts}
         availability={availability}
@@ -650,11 +643,7 @@ export function BriefScreen({
       {/* `inert`, not pointer-events: keyboard and AT must block too. The
           header above stays live so the revision controls remain operable. */}
       <main
-        className={
-          session.layoutMode === "split" && viewMode === "story"
-            ? "main split-main"
-            : "main"
-        }
+        className={session.layoutMode === "split" ? "main split-main" : "main"}
         id="main-content"
         tabIndex={-1}
         data-zen={focusMode ? "on" : undefined}
@@ -706,12 +695,10 @@ export function BriefScreen({
             everything it governs, and stays reachable while scrolling an
             expanded digest. The Filter disclosure is the ONLY filter surface:
             it governs the diff's inline threads and sits above the
-            collapsed-by-default section it filters. Concerns renders the
-            trimmed variant (Filter + Risk attrs, chunk targets). */}
-        {blocks.toolbar !== "none" ? (
+            collapsed-by-default section it filters. */}
+        {blocks.toolbar ? (
           <ReadingToolbar
             key={`toolbar-${briefId}`}
-            variant={blocks.toolbar}
             activeGroupId={session.activeGroupId}
             comparison={comparison}
             revisionNav={revisionNav}
@@ -736,7 +723,6 @@ export function BriefScreen({
                 : undefined
             }
             groups={model.groups}
-            jumpToChunk={jumpToChunk}
             jumpToGroup={jumpToGroup}
             rail={attributeRail}
             supportingCollapse={session.supportingCollapse}
@@ -761,12 +747,12 @@ export function BriefScreen({
           />
         ) : null}
 
-        {/* Lens trees stay MOUNTED once shown and toggle with `hidden`
+        {/* Scope panes stay MOUNTED once shown and toggle with `hidden`
             (display:none — out of paint and the AT tree): the flip used to
             remount the alternate tree, and mounting 300 chunk cards is the
-            entire lens lag. Kept warm only after first show, so a deep link
-            into one lens never pays for the other. The window provider sits
-            here because only the lens trees' chunk lists window. */}
+            entire flip lag. Kept warm only after first show, so a deep link
+            into one scope never pays for the other. The window provider sits
+            here because only the scope panes' chunk lists window. */}
         <ChunkWindowProvider registry={chunkWindowsRef.current}>
           {changesEverShownRef.current ? (
             <div hidden={!inChangesScope || undefined}>
@@ -790,8 +776,8 @@ export function BriefScreen({
             </div>
           ) : null}
           {storyEverShownRef.current ? (
-            <div hidden={inChangesScope || viewMode !== "story" || undefined}>
-              <LensPane frozen={inChangesScope || viewMode !== "story"}>
+            <div hidden={inChangesScope || undefined}>
+              <LensPane frozen={inChangesScope}>
                 <StoryView
                   brief={brief}
                   model={model}
@@ -815,9 +801,6 @@ export function BriefScreen({
             </div>
           ) : null}
         </ChunkWindowProvider>
-        {!inChangesScope && viewMode !== "story" ? (
-          <ConcernView brief={brief} model={model} jumpToChunk={jumpToChunk} />
-        ) : null}
       </main>
       {/* Submit-review machinery + receipt: HIDDEN (not broken) in the
           own-draft state, whose terminal action is mark-ready. None of these

@@ -36,7 +36,7 @@ import type { Brief } from "../../types";
 import type { BriefViewModel, GroupView } from "../../utils/viewModel";
 import type { RepoConfigContext } from "../../utils/repoConfig";
 import type { ChunkWindowRegistry } from "./chunkWindows";
-import type { LayoutMode, ViewMode } from "./Header/Header";
+import type { LayoutMode } from "./Header/Header";
 import {
   SupportingCollapseStates,
   type SupportingCollapseState,
@@ -72,7 +72,7 @@ function scrollElementToTop(
   element: HTMLElement,
   behavior: ScrollBehavior,
 ): void {
-  // A target inside a hidden kept-warm lens tree must no-op like
+  // A target inside a hidden kept-warm scope pane must no-op like
   // scrollIntoView does natively on box-less elements — its zero rect would
   // scroll to ~page top. Attribute check, not getClientRects: jsdom has no
   // layout, so a rect check would also veto every legitimate test scroll.
@@ -299,8 +299,6 @@ export interface UseReadingSessionValue {
   /** Index into `chunkIds` where each group starts (Shift+J/Shift+K). */
   groupBoundaries: number[];
   // — view / focus state —
-  viewMode: ViewMode;
-  setViewMode: (mode: ViewMode) => void;
   layoutMode: LayoutMode;
   focusMode: boolean;
   /** The focus banner strip's measurement target (publishes --focus-banner-h). */
@@ -375,7 +373,6 @@ export function useReadingSession(
   );
 
   // Transient UI state stays local and colocated.
-  const [viewMode, setViewMode] = useState<ViewMode>("story");
   const [layoutMode] = useState<LayoutMode>("split");
   const [openChunks, setOpenChunks] = useState<Set<string>>(
     () => new Set(chunkIds),
@@ -423,7 +420,6 @@ export function useReadingSession(
   const [sessionBriefId, setSessionBriefId] = useState(briefId);
   if (sessionBriefId !== briefId) {
     setSessionBriefId(briefId);
-    setViewMode("story");
     setOpenChunks(new Set(chunkIds));
     setActiveChunkId(null);
     setFocusMode(false);
@@ -524,12 +520,10 @@ export function useReadingSession(
   }, [briefId]);
 
   // activeChunkId has two write sources: scroll-spy (below) and explicit nav
-  // (toggleChunk/jumpToChunk). Scroll-spy only runs in the split story view.
+  // (toggleChunk/jumpToChunk). Scroll-spy only runs in the full-scope split
+  // view outside focus mode.
   const scrollActiveChunkId = useScrollSpy(
-    viewMode === "story" &&
-      layoutMode === "split" &&
-      !focusMode &&
-      compareViewFull
+    layoutMode === "split" && !focusMode && compareViewFull
       ? chunkIds
       : EMPTY_CHUNK_IDS,
     undefined,
@@ -595,7 +589,6 @@ export function useReadingSession(
       behavior: ScrollBehavior = "smooth",
       align: ChunkScrollAlign = "native",
     ) => {
-      setViewMode("story");
       // Focus mode must open the target — every other card is display:none,
       // so a collapsed landing would show nothing. Outside focus mode a
       // collapsed card is the user's triage: wayfinding jumps (toc, group
@@ -620,11 +613,6 @@ export function useReadingSession(
     const entering = !focusModeRef.current;
     setFocusMode(entering);
     if (!entering) return;
-    // Concerns+focus does not exist: focus implies Story. This snap is the
-    // entry half; the other half is the header lens control greying while
-    // focus is on (`modeLegality`'s CONCERNS_FOCUS_LENS_REASON), so the lens
-    // can never leave Story mid-focus.
-    setViewMode("story");
     // align="top" required: the focus banner only mounts once `focusMode`
     // flips true, so the scroll must pre-reserve its height via
     // focusScrollOffset() or the banner covers the chunk.
@@ -645,7 +633,6 @@ export function useReadingSession(
   // active chunk. align="top": see toggleFocusMode.
   const startReadThrough = useCallback(() => {
     if (!firstChunkId) return;
-    setViewMode("story");
     setFocusMode(true);
     openChunk(firstChunkId);
     setActiveChunkId(firstChunkId);
@@ -662,11 +649,10 @@ export function useReadingSession(
     [jumpToChunk, model.groups],
   );
 
-  // The intent bar lives in the full-compare story view, so leave focus mode
-  // and return to story first.
+  // The intent bar lives in the full-compare story view, so leave focus
+  // mode first.
   const exitToStoryView = useCallback(() => {
     setFocusMode(false);
-    setViewMode("story");
   }, []);
 
   // Active group derived from the active chunk — no second scroll listener.
@@ -687,8 +673,6 @@ export function useReadingSession(
     readingOrderedChunks,
     chunkIds,
     groupBoundaries,
-    viewMode,
-    setViewMode,
     layoutMode,
     focusMode,
     focusBannerRef,

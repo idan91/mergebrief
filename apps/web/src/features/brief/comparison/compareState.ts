@@ -4,9 +4,8 @@ import type { BriefTimelinePoint } from "../utils/timeline";
 
 /**
  * @description The **View** control: `full` renders the whole Brief; `changes`
- * renders only the selected comparison span. Deliberately distinct from
- * `ViewMode` (Story/Concerns display density) — this is the "Full Brief vs
- * Changes Only" axis.
+ * renders only the selected comparison span — the "Full Brief vs Changes
+ * Only" axis.
  */
 export type ViewParam = "full" | "changes";
 

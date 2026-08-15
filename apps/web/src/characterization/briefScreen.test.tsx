@@ -72,16 +72,11 @@ describe("brief screen characterization", () => {
     expect(screen.getByText(briefFixture.changeGroups[0]!.title)).toBeTruthy();
   });
 
-  it("enters story focus mode with a visible active chunk from concerns view", async () => {
+  it("enters focus mode with a visible active chunk", async () => {
     await renderBriefScreen();
-    fireEvent.click(screen.getByRole("radio", { name: "Concerns" }));
 
     fireEvent.keyDown(window, { key: "z" });
 
-    expect(
-      (screen.getByRole("radio", { name: "Story" }) as HTMLInputElement)
-        .checked,
-    ).toBe(true);
     await waitFor(() =>
       expect(
         document.querySelector(".story-group[data-active-group]"),
@@ -306,7 +301,7 @@ describe("brief screen characterization", () => {
     expect(summary.nextElementSibling).toBe(intentBar);
   });
 
-  it("focus mode empties the region: summary + toolbar leave, lens control greys", async () => {
+  it("focus mode empties the region: summary + toolbar leave", async () => {
     await renderBriefScreen();
     expect(screen.getByTestId("brief-summary")).toBeTruthy();
     expect(screen.getByTestId("reading-toolbar")).toBeTruthy();
@@ -317,48 +312,11 @@ describe("brief screen characterization", () => {
       expect(screen.queryByTestId("brief-summary")).toBeNull(),
     );
     expect(screen.queryByTestId("reading-toolbar")).toBeNull();
-    // Concerns+focus does not exist: the lens control greys with its reason
-    // instead of silently no-oping.
-    const concerns = screen.getByRole("radio", { name: "Concerns" });
-    expect(concerns.getAttribute("aria-disabled")).toBe("true");
-    fireEvent.click(concerns);
-    expect(
-      (screen.getByRole("radio", { name: "Story" }) as HTMLInputElement)
-        .checked,
-    ).toBe(true);
   });
 
-  // Changes-only's disabled lens is not reachable here: the single-artifact
-  // local fixture has no comparison baseline, so `changes` normalizes back to
-  // `full`. That cell is pinned by modeLegality.test + Header.test.
-
-  it("concerns renders the trimmed toolbar whose risk-attr chips target chunks", async () => {
-    await renderBriefScreen();
-    fireEvent.click(screen.getByRole("radio", { name: "Concerns" }));
-
-    // Trimmed bar: Filter (absent locally — no conversation) + Risk attrs
-    // only; Story's collapse toggle and position clusters leave.
-    const toolbar = await screen.findByTestId("reading-toolbar");
-    expect(toolbar).toBeTruthy();
-    expect(screen.getByTestId("brief-summary")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /Collapse/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Next group" })).toBeNull();
-
-    // Chips target CHUNKS under the Concerns lens: the jump lands on the
-    // carrying chunk, which pivots back to the story flow.
-    fireEvent.click(screen.getByRole("button", { name: /Risk attrs/ }));
-    const chip = document.querySelector<HTMLButtonElement>(
-      "[data-attribute-jump-rail] button",
-    );
-    expect(chip?.textContent).toContain("carrying chunk");
-    fireEvent.click(chip!);
-    await waitFor(() =>
-      expect(
-        (screen.getByRole("radio", { name: "Story" }) as HTMLInputElement)
-          .checked,
-      ).toBe(true),
-    );
-  });
+  // Changes-only's summary-only column is not reachable here: the
+  // single-artifact local fixture has no comparison baseline, so `changes`
+  // normalizes back to `full`. That cell is pinned by modeLegality.test.
 
   it("keeps the split-intent categories bolded inside the sentence", async () => {
     // One <Trans> sentence: a short components array would drop the <b> and

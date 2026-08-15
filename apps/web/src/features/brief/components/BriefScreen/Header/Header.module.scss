@@ -192,7 +192,7 @@
     margin-inline-start: functions.to-rem(14px);
   }
 
-  // DB-path wrapper: the controls slot + viewbar share one flex container,
+  // DB-path wrapper: the controls slot's groups share one flex container,
   // mirroring the local TimelineNavigator's lens region.
   .lensCluster {
     display: flex;

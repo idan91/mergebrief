@@ -72,7 +72,7 @@ export const GroupCard = memo(function GroupCard({
   const { t } = useTranslation();
   const groupFlags = model.flagsByGroup.get(group.id) ?? EMPTY_RISK_FLAGS;
   // GROUP-SCOPED store slices: whole-map subscriptions would re-render every
-  // card (in BOTH kept-warm lens trees) on any disposition/comment write
+  // card (in BOTH kept-warm scope panes) on any disposition/comment write
   // anywhere in the brief. Each selector is primitive- or shallow-stable
   // while this group's own slice is unchanged.
   const dominant = useMindMap(

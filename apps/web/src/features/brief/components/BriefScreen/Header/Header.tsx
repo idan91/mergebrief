@@ -20,7 +20,6 @@ import type { BriefTimeline } from "../../../utils/timeline";
 import type { RepoConfigContext } from "../../../utils/repoConfig";
 import type { Brief, LivePrState } from "../../../types";
 import type { BriefViewModel } from "../../../utils/viewModel";
-import type { LensControlState, ViewMode } from "../modeLegality";
 import { AccessibleLink } from "@web/components/AccessibleLink/AccessibleLink";
 import { Button } from "@web/components/Button/Button";
 import { IconButton } from "@web/components/IconButton/IconButton";
@@ -29,13 +28,11 @@ import { CoreLinesDisclosure } from "../CoreLinesDisclosure/CoreLinesDisclosure"
 import { UnattributedDisclosure } from "../UnattributedDisclosure/UnattributedDisclosure";
 import { RiskChipDisclosure } from "../RiskChipDisclosure/RiskChipDisclosure";
 import { BriefDetailsPanel } from "./BriefDetailsPanel/BriefDetailsPanel";
-import { LensViewbar } from "./LensViewbar/LensViewbar";
 import { ProviderBadge } from "./ProviderBadge/ProviderBadge";
 import { StateBadge } from "./StateBadge/StateBadge";
 import { TimelineNavigator } from "./TimelineNavigator/TimelineNavigator";
 import styles from "./Header.module.scss";
 
-export type { ViewMode } from "../modeLegality";
 export type LayoutMode = "stacked" | "split";
 
 /**
@@ -72,16 +69,6 @@ export interface HeaderProps {
   model: BriefViewModel;
   totals: ProgressTotals;
   progress: number;
-  viewMode: ViewMode;
-  setViewMode: (mode: ViewMode) => void;
-  /**
-   * `disabled` greys the Story/Concerns control — aria-disabled + no-op,
-   * never hard `disabled` (that dumps keyboard focus) — and carries the
-   * honest reason, never a silent override.
-   */
-  lensControl: LensControlState;
-  /** Voices the disabled lens reason on an attempted switch. */
-  announce: (message: string) => void;
   openSubmit: () => void;
   clearDrafts: () => void;
   /** Compare availability at the selected timeline point. */
@@ -123,10 +110,6 @@ export function Header({
   model,
   totals,
   progress,
-  viewMode,
-  setViewMode,
-  lensControl,
-  announce,
   openSubmit,
   clearDrafts,
   availability,
@@ -186,27 +169,6 @@ export function Header({
     "--progress-scale": `${progress / 100}`,
   };
   const prLink = isHttpUrl(brief.pr.url) ? brief.pr.url : null;
-
-  // A disabled control keeps its radios focusable and operable — the change
-  // handler no-ops and announces the reason instead (controlled inputs snap
-  // back on the same render).
-  const selectLens = (mode: ViewMode) => {
-    if (lensControl.state === "disabled") {
-      announce(lensControl.reason);
-      return;
-    }
-    setViewMode(mode);
-  };
-
-  // Rendered inside the lens cluster on BOTH control paths so the three
-  // labeled groups (Scope, Compare, View) share one container and gap.
-  const viewbar = (
-    <LensViewbar
-      lensControl={lensControl}
-      selectLens={selectLens}
-      viewMode={viewMode}
-    />
-  );
 
   return (
     <header className={styles["header"]} ref={headerRef}>
@@ -308,22 +270,17 @@ export function Header({
         />
       </div>
       {/* Tier 2 — the lens toolbar: everything that changes WHAT is on
-          screen, flattened to one wrappable line, plus the quiet stats group.
-          Story/Concerns rides with the other lenses — same labeled-group
-          vocabulary as Compare; only the stats park at the far end. */}
+          screen (Scope, Compare), flattened to one wrappable line, plus the
+          quiet stats group parked at the far end. */}
       <div className={styles["lensRow"]}>
         {controlsSlot !== undefined ? (
-          <div className={styles["lensCluster"]}>
-            {controlsSlot}
-            {viewbar}
-          </div>
+          <div className={styles["lensCluster"]}>{controlsSlot}</div>
         ) : (
           <TimelineNavigator
             availability={availability}
             briefId={briefId}
             compareState={compareState}
             timeline={timeline}
-            trailing={viewbar}
           />
         )}
         {revisionPending === true ? (

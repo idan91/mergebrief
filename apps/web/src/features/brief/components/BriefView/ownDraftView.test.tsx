@@ -285,7 +285,7 @@ describe("own-draft Brief view", () => {
     // intent line rides inside, proving the caller's computed intentGapCount
     // flows through. Clicking it dismisses the gate and, after
     // the deferred handle fires, lands the author on the EXPANDED intent bar —
-    // pinning the full jumpToIntentGapsFromGate glue (setViewMode/setFocusMode
+    // pinning the full jumpToIntentGapsFromGate glue (setFocusMode
     // + setTimeout → expandAndScrollTo), not just the close.
     vi.useFakeTimers();
     const scrollIntoView = vi.fn();

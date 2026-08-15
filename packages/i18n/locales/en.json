@@ -213,9 +213,6 @@
       "coreLines": "core lines",
       "chunks": "chunks",
       "flags": "flags",
-      "viewLegend": "View",
-      "viewStory": "Story",
-      "viewConcerns": "Concerns",
       "selfReviewChip": "Self-review — your draft",
       "ariaLabelAboutSelfReview": "About self-review",
       "selfReviewTooltip": "You're viewing your own draft PR. Review submission and the receipt unlock once it's marked ready for review.",
@@ -542,15 +539,6 @@
     "concernStrip": {
       "lead": "Split",
       "ariaLabel": "Attention split by concern"
-    },
-    "concern": {
-      "eyebrow": "Attention split",
-      "emptyConcerns": "empty concerns",
-      "emptyNote": "generated · spec · config may be absent from this local brief",
-      "riskDetails": "risk details",
-      "srRiskDetailsFor": " for {{file}}",
-      "intro_one": "The same {{count}} chunk, pivoted by artifact instead of intent.",
-      "intro_other": "The same {{count}} chunks, pivoted by artifact instead of intent."
     },
     "delta": {
       "commentsAddressed": "Comments addressed",

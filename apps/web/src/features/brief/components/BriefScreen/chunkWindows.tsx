@@ -6,9 +6,9 @@ import { createContext, useContext, type ReactNode } from "react";
  * scroll toward the chunk's estimated position; the card mounts en route and
  * the caller settle-corrects on the real element.
  *
- * Every group list (in every lens tree) registers; resolution tries each
+ * Every group list (in every scope pane) registers; resolution tries each
  * until one accepts. A hidden kept-warm pane refuses (`scrollToKey` is
- * false while inactive), so only the visible lens ever moves the page.
+ * false while inactive), so only the visible pane ever moves the page.
  */
 export interface ChunkWindowRegistration {
   /** True when this window owns the chunk AND accepted the scroll. */
