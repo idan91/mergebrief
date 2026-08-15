@@ -12,10 +12,12 @@ agent-complete-CLI premise has no enforcement.
 
 ## Scope boundaries
 
-- Migrates the **existing** operations only: audited 14 Product Queries + 10
+- Migrates the **existing** operations only: 13 Product Queries + 10
   Product Actions (7 review/GitHub actions; 3 credential/setup actions stay
   web-only, `agentAvailable: false`). The 17 Review Session actions register
-  later under BRIEF-197.
+  later under BRIEF-197. (The ticket's "14 queries" audit count could not be
+  reproduced from the registered surface — the only unregistered GET is
+  `/api/version`, which this plan itself excludes; 13 is the enforced count.)
 - Not Product Operations (never registered): OAuth callbacks, logout,
   webhooks, version checks, UI-only presentation state, CLI profile storage,
   bookkeeping automatically caused by review submission.
@@ -78,12 +80,13 @@ fixed the pattern).
 1. Wrap all existing domain routes in `packages/api/src/routes/` with the
    audited classification. Route files touched: pulls, repos, reads,
    conversation, review-submit, mark-ready, inline-comment, resolve-thread,
-   generate, collaborators, installations, tokens, auth (Product-Operation
-   subset only), pr-view.
+   generate, collaborators, installations, tokens. (auth registers only the
+   excluded OAuth/logout arms and pr-view registers no routes — neither is
+   wrapped.)
 2. Excluded routes (webhook, version, OAuth/logout arms) stay unwrapped.
 3. Per-route test updates only where the wrapper changes observable
    composition; no behavior changes.
-4. The audit list (14 + 10 with ids and classifications) is committed as the
+4. The audit list (13 + 10 with ids and classifications) is committed as the
    catalog itself — reviewable in one file-by-file diff.
 
 ### PR 3 — Manifests + CLI mapping + CI gate (~400–600 LOC)
@@ -117,7 +120,7 @@ surface.
 - CI fails on: unregistered domain route (manifest drift), unmapped operation,
   expired/undocumented gap.
 - `app.ts` composition unchanged in shape; zero behavior change to any route.
-- Catalog enumerates 24 operations with the audited classifications;
+- Catalog enumerates 23 operations with the audited classifications;
   3 credential/setup actions carry `agentAvailable: false`.
 - ADR 0039 on main.
 
