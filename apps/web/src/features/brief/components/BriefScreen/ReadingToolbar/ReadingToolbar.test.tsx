@@ -5,6 +5,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_CONVERSATION_FILTER } from "@web/features/conversation/utils/filter";
 import type { ComparisonOverlayState } from "../../../comparison/comparisonOverlay";
 import type { AttributeRail } from "../../../utils/viewModel";
+import {
+  createReadingPositionStore,
+  ReadingPositionProvider,
+} from "../readingPosition";
 import { ReadingToolbar, type ReadingToolbarProps } from "./ReadingToolbar";
 
 afterEach(cleanup);
@@ -40,19 +44,29 @@ function comparisonState(runCount: number): ComparisonOverlayState {
   };
 }
 
-function renderToolbar(overrides: Partial<ReadingToolbarProps> = {}) {
+function renderToolbar(
+  overrides: Partial<ReadingToolbarProps> = {},
+  activeGroupId: string | null = null,
+) {
   const props: ReadingToolbarProps = {
     rail: RAIL,
     jumpToGroup: () => {},
     supportingCollapse: "none",
     toggleCollapseSupporting: () => {},
     groups: [{ id: "g1" }, { id: "g2" }, { id: "g3" }],
-    activeGroupId: null,
     comparison: comparisonState(0),
     revisionNav: { jumpNext: () => {}, jumpPrev: () => {} },
     ...overrides,
   };
-  return render(<ReadingToolbar {...props} />);
+  const store = createReadingPositionStore();
+  if (activeGroupId !== null) {
+    store.getState().actions.setActive(`${activeGroupId}-c1`, activeGroupId);
+  }
+  return render(
+    <ReadingPositionProvider store={store}>
+      <ReadingToolbar {...props} />
+    </ReadingPositionProvider>,
+  );
 }
 
 describe("ReadingToolbar height publication", () => {
@@ -253,7 +267,7 @@ describe("ReadingToolbar risk-attrs disclosure", () => {
 describe("ReadingToolbar group stepper", () => {
   it("steps to the neighbouring group without wrapping", () => {
     const jump = vi.fn();
-    renderToolbar({ jumpToGroup: jump, activeGroupId: "g2" });
+    renderToolbar({ jumpToGroup: jump }, "g2");
     expect(screen.getByText("Group 2/3")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Previous group" }));
     expect(jump).toHaveBeenLastCalledWith("g1");
@@ -263,17 +277,17 @@ describe("ReadingToolbar group stepper", () => {
 
   it("clamps at the ends and lands on the first group when none is active", () => {
     const jump = vi.fn();
-    renderToolbar({ jumpToGroup: jump, activeGroupId: "g1" });
+    renderToolbar({ jumpToGroup: jump }, "g1");
     fireEvent.click(screen.getByRole("button", { name: "Previous group" }));
     expect(jump).toHaveBeenLastCalledWith("g1");
     cleanup();
     const jumpAtLast = vi.fn();
-    renderToolbar({ jumpToGroup: jumpAtLast, activeGroupId: "g3" });
+    renderToolbar({ jumpToGroup: jumpAtLast }, "g3");
     fireEvent.click(screen.getByRole("button", { name: "Next group" }));
     expect(jumpAtLast).toHaveBeenLastCalledWith("g3");
     cleanup();
     const jumpFromNone = vi.fn();
-    renderToolbar({ jumpToGroup: jumpFromNone, activeGroupId: null });
+    renderToolbar({ jumpToGroup: jumpFromNone }, null);
     expect(screen.getByText("Group –/3")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Next group" }));
     expect(jumpFromNone).toHaveBeenLastCalledWith("g1");

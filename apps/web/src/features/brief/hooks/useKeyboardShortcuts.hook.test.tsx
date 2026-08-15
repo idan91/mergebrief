@@ -17,7 +17,7 @@ function options(
   return {
     chunkIds: ["c1"],
     groupBoundaries: [0],
-    activeChunkId: null,
+    getActiveChunkId: () => null,
     disabled: false,
     focusModeActive: false,
     jumpToChunk: vi.fn(),
@@ -57,7 +57,11 @@ describe("useKeyboardShortcuts — click-input focus", () => {
     const markViewed = vi.fn();
     renderHook(() =>
       useKeyboardShortcuts(
-        options({ markViewed, focusModeActive: true, activeChunkId: "c1" }),
+        options({
+          markViewed,
+          focusModeActive: true,
+          getActiveChunkId: () => "c1",
+        }),
       ),
     );
     const checkbox = document.createElement("input");
@@ -73,6 +77,32 @@ describe("useKeyboardShortcuts — click-input focus", () => {
     );
     expect(markViewed).toHaveBeenCalledWith("c1");
     checkbox.remove();
+  });
+
+  it("reads the active chunk at keydown time, not at bind time", () => {
+    // The getter exists so a position change never re-renders the host —
+    // which only holds if the hook calls it per keystroke instead of
+    // capturing one value when the listener binds.
+    const jumpToChunk = vi.fn();
+    let active: string | null = null;
+    renderHook(() =>
+      useKeyboardShortcuts(
+        options({
+          jumpToChunk,
+          chunkIds: ["c1", "c2", "c3"],
+          getActiveChunkId: () => active,
+        }),
+      ),
+    );
+    const pressJ = () =>
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "j", cancelable: true }),
+      );
+    pressJ();
+    expect(jumpToChunk).toHaveBeenLastCalledWith("c1");
+    active = "c2";
+    pressJ();
+    expect(jumpToChunk).toHaveBeenLastCalledWith("c3");
   });
 
   it("keys from a text input still stand down", () => {

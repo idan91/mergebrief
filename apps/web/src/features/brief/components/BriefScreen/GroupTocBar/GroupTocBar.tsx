@@ -5,11 +5,11 @@ import { createPortal } from "react-dom";
 import { prefersReducedMotion } from "@web/utils/motion";
 import { categoryLabel } from "../../../utils/viewModel";
 import type { GroupView } from "../../../utils/viewModel";
+import { useReadingPosition } from "../readingPosition";
 import styles from "./GroupTocBar.module.scss";
 
 export interface GroupTocBarProps {
   groups: GroupView[];
-  activeGroupId: string | null;
   jumpToGroup: (groupId: string) => void;
   /** Groups carrying live conversation threads. */
   conversationGroupIds?: ReadonlySet<string> | undefined;
@@ -38,11 +38,11 @@ function magnitudeAt(distance: number): number {
  */
 export function GroupTocBar({
   groups,
-  activeGroupId,
   jumpToGroup,
   conversationGroupIds,
 }: GroupTocBarProps) {
   const { t } = useTranslation();
+  const activeGroupId = useReadingPosition((state) => state.activeGroupId);
   const navRef = useRef<HTMLElement>(null);
   const lineRefs = useRef(new Map<string, HTMLButtonElement>());
   const frameRef = useRef<number | null>(null);

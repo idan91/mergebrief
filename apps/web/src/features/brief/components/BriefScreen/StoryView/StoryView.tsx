@@ -21,6 +21,7 @@ import { RiskChipDisclosure } from "../RiskChipDisclosure/RiskChipDisclosure";
 import { RiskDetailList } from "../RiskDetailList/RiskDetailList";
 import { estimateChunkCardHeight } from "../chunkHeightModel";
 import { useChunkWindows } from "../chunkWindows";
+import { useReadingPosition } from "../readingPosition";
 import { CHUNK_WINDOW_INDEX_ATTR, useGroupWindow } from "../useGroupWindow";
 import { Button } from "@web/components/Button/Button";
 import { ToolbarButton } from "@web/components/ToolbarButton/ToolbarButton";
@@ -33,7 +34,6 @@ export interface StoryViewProps {
   brief: Brief;
   model: BriefViewModel;
   comparison: ComparisonOverlayState;
-  activeChunkId: string | null;
   focusMode: boolean;
   openChunks: Set<string>;
   addressedReviewComments: AddressedReviewComment[] | undefined;
@@ -61,6 +61,13 @@ export function StoryView(props: StoryViewProps) {
   const [focusRailOpen, setFocusRailOpen] = useState(true);
   const addressedReviewComments =
     props.addressedReviewComments ?? EMPTY_ADDRESSED_REVIEW_COMMENTS;
+  // Gated on focus mode: outside it the selector pins null, so scroll-spy
+  // ticks never re-render the whole story tree. In focus mode the spy is
+  // off — the group only moves on explicit navigation.
+  const { focusMode } = props;
+  const activeFocusGroupId = useReadingPosition((state) =>
+    focusMode ? state.activeGroupId : null,
+  );
   return (
     <div
       className={styles["storyView"]}
@@ -81,8 +88,7 @@ export function StoryView(props: StoryViewProps) {
       ) : null}
       {props.model.groups.map((group) => {
         const isActiveFocusGroup =
-          props.focusMode &&
-          group.chunks.some((chunk) => chunk.id === props.activeChunkId);
+          props.focusMode && group.id === activeFocusGroupId;
         return (
           <section
             className="story-group reveal"
@@ -108,7 +114,6 @@ export function StoryView(props: StoryViewProps) {
                 {(isActiveFocusGroup ? group.chunks : []).map((chunk) => (
                   <ChunkCard
                     key={`${chunk.file}#${chunk.id}`}
-                    active={props.activeChunkId === chunk.id}
                     chunk={chunk}
                     riskMeta={props.model.riskMetaByChunk.get(chunk.id)}
                     comparison={props.comparison}
@@ -131,7 +136,6 @@ export function StoryView(props: StoryViewProps) {
             {props.focusMode ? (
               isActiveFocusGroup ? (
                 <FocusGroupRail
-                  activeChunkId={props.activeChunkId}
                   group={group}
                   model={props.model}
                   open={focusRailOpen}
@@ -287,7 +291,6 @@ function WindowedChunkList({
                 card (the common revision step), so chunk-subtree local
                 state MUST be thread-id-scoped or gesture-transient. */}
             <ChunkCard
-              active={view.activeChunkId === chunk.id}
               chunk={chunk}
               riskMeta={view.model.riskMetaByChunk.get(chunk.id)}
               comparison={view.comparison}
@@ -306,7 +309,6 @@ function WindowedChunkList({
 }
 
 interface FocusGroupRailProps {
-  activeChunkId: string | null;
   group: BriefViewModel["groups"][number];
   model: BriefViewModel;
   open: boolean;
@@ -315,7 +317,6 @@ interface FocusGroupRailProps {
 }
 
 function FocusGroupRail({
-  activeChunkId,
   group,
   model,
   open,
@@ -323,6 +324,7 @@ function FocusGroupRail({
   jumpToChunk,
 }: FocusGroupRailProps) {
   const { t } = useTranslation();
+  const activeChunkId = useReadingPosition((state) => state.activeChunkId);
   const panelId = useId();
   const groupFlags = model.flagsByGroup.get(group.id) ?? EMPTY_RISK_FLAGS;
   const dominant = group.group.dominantCategory;

@@ -46,7 +46,6 @@ import { MarkReadyModal } from "@web/features/pulls/components/MarkReadyModal/Ma
 import type { Brief, LivePrState, LocalBriefSummary } from "../../types";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { useRevisionNavigation } from "../../hooks/useRevisionNavigation";
-import { deriveRevisionJumpTargets } from "../../comparison/comparison";
 import type { buildBriefViewModel } from "../../utils/viewModel";
 import { buildAttributeRail } from "../../utils/viewModel";
 import type { RepoConfigContext } from "../../utils/repoConfig";
@@ -72,6 +71,10 @@ import { useConversationWiring } from "./useConversationWiring";
 import { useMarkReadyFlow } from "./useMarkReadyFlow";
 import { POST_COMMENT_COPY_KEYS, useOwnDraftFlow } from "./useOwnDraftFlow";
 import { deriveRegionBlocks } from "./modeLegality";
+import {
+  ReadingPositionProvider,
+  useCreateReadingPositionStore,
+} from "./readingPosition";
 import { useReadingSession } from "./useReadingSession";
 import styles from "./BriefScreen.module.scss";
 
@@ -265,6 +268,9 @@ export function BriefScreen({
   // One registry per screen: both scope panes' windowed lists register, and
   // the jump paths resolve unmounted chunks through it.
   const chunkWindowsRef = useRef(createChunkWindowRegistry());
+  // Reading position lives in its own store so a scroll-spy tick re-renders
+  // only the position consumers — never this screen shell.
+  const readingPosition = useCreateReadingPositionStore(briefId);
   const session = useReadingSession({
     brief,
     briefId,
@@ -273,10 +279,10 @@ export function BriefScreen({
     ownDraftActive,
     repoConfig,
     chunkWindows: chunkWindowsRef.current,
+    position: readingPosition,
   });
   const {
     actions,
-    activeChunkId,
     chunkIds,
     focusMode,
     groupBoundaries,
@@ -417,19 +423,10 @@ export function BriefScreen({
   // comparison.marks (the EFFECTIVE marks), not the raw overlay marks: rails
   // only render while the overlay applies, and the model list must agree
   // with the DOM by construction.
-  const revisionJumpTargets = useMemo(
-    () => deriveRevisionJumpTargets(readingOrderedChunks, comparison.marks),
-    [comparison.marks, readingOrderedChunks],
-  );
-  const chunkOrdinals = useMemo(
-    () =>
-      new Map(readingOrderedChunks.map((chunk, index) => [chunk.id, index])),
-    [readingOrderedChunks],
-  );
   const revisionNav = useRevisionNavigation({
-    targets: revisionJumpTargets,
-    chunkOrdinals,
-    activeChunkId,
+    chunks: readingOrderedChunks,
+    marks: comparison.marks,
+    getActiveChunkId: () => readingPosition.getState().activeChunkId,
     scrollTowardChunk: (chunkId) =>
       chunkWindowsRef.current.scrollToChunk(chunkId),
     ensureChunkOpen: session.openChunk,
@@ -553,7 +550,7 @@ export function BriefScreen({
   useKeyboardShortcuts({
     chunkIds,
     groupBoundaries,
-    activeChunkId,
+    getActiveChunkId: () => readingPosition.getState().activeChunkId,
     disabled: shortcutsDisabled,
     focusModeActive: focusMode,
     jumpToChunk: session.jumpToChunkFromShortcut,
@@ -601,299 +598,306 @@ export function BriefScreen({
 
   return (
     <ReviewFlowProvider store={flowStore}>
-      <Header
-        brief={brief}
-        livePrState={livePrState}
-        repoConfig={repoConfig}
-        briefId={briefId}
-        timeline={timeline}
-        model={model}
-        totals={session.totals}
-        progress={session.progress}
-        openSubmit={openSubmit}
-        clearDrafts={clearDrafts}
-        availability={availability}
-        compareState={compareState}
-        /* DB path (plan present): the standalone preview route only resolves
+      <ReadingPositionProvider store={readingPosition}>
+        <Header
+          brief={brief}
+          livePrState={livePrState}
+          repoConfig={repoConfig}
+          briefId={briefId}
+          timeline={timeline}
+          model={model}
+          totals={session.totals}
+          progress={session.progress}
+          openSubmit={openSubmit}
+          clearDrafts={clearDrafts}
+          availability={availability}
+          compareState={compareState}
+          /* DB path (plan present): the standalone preview route only resolves
            LOCAL brief ids — open the in-page drawer instead. */
-        openSummaryPreviewDrawer={
-          comparisonPlan === undefined ? undefined : openSummaryPreview
-        }
-        controlsSlot={headerControls}
-        revisionPending={pendingShown}
-        ownDraft={
-          ownDraftActive
-            ? {
-                markReady: markReady.request,
-                pending: markReady.pending,
-                unavailable: !markReady.available,
-              }
-            : undefined
-        }
-      />
-      {focusMode ? (
-        <FocusBanner
-          activeChunkId={activeChunkId}
-          bannerRef={session.focusBannerRef}
-          groups={model.groups}
-          jumpToChunk={jumpToChunk}
-          toggleFocusMode={toggleFocusMode}
+          openSummaryPreviewDrawer={
+            comparisonPlan === undefined ? undefined : openSummaryPreview
+          }
+          controlsSlot={headerControls}
+          revisionPending={pendingShown}
+          ownDraft={
+            ownDraftActive
+              ? {
+                  markReady: markReady.request,
+                  pending: markReady.pending,
+                  unavailable: !markReady.available,
+                }
+              : undefined
+          }
         />
-      ) : null}
-      {/* `inert`, not pointer-events: keyboard and AT must block too. The
-          header above stays live so the revision controls remain operable. */}
-      <main
-        className={session.layoutMode === "split" ? "main split-main" : "main"}
-        id="main-content"
-        tabIndex={-1}
-        data-zen={focusMode ? "on" : undefined}
-        data-pending={pendingShown ? "" : undefined}
-        aria-busy={pendingShown || undefined}
-        inert={pendingShown || undefined}
-      >
-        {/* Region blocks render strictly off the legality derivation above —
-            each block reads its own cell, nothing re-tests the axes. */}
-        {blocks.summary ? (
-          <>
-            <SummarySection brief={brief} />
-            {/* Directly beneath the capped summary — one legality row with
-                it. */}
-            {brief.intentCheck ? (
-              <IntentBar
-                key={`intent-${briefId}`}
-                intentCheck={brief.intentCheck}
-                jumpToGroup={jumpToGroupFromIntentBar}
-                ref={intentBarRef}
-              />
-            ) : null}
-          </>
-        ) : null}
-
-        {blocks.summary &&
-        model.unattributed !== undefined &&
-        model.unattributed.added + model.unattributed.deleted > 0 ? (
-          <UnattributedBanner view={model.unattributed} />
-        ) : null}
-
-        {/* Full-brief rollup always — never a scope cut, no delta treatment
-            under compare. */}
-        {blocks.summary && brief.concernView.length >= 2 ? (
-          <ConcernStrip rollup={brief.concernView} />
-        ) : null}
-
-        {blocks.groupToc ? (
-          <GroupTocBar
-            key={`toc-${briefId}`}
-            activeGroupId={session.activeGroupId}
-            conversationGroupIds={conversationWiring.conversationGroupIds}
+        {focusMode ? (
+          <FocusBanner
+            bannerRef={session.focusBannerRef}
             groups={model.groups}
-            jumpToGroup={jumpToGroup}
+            jumpToChunk={jumpToChunk}
+            toggleFocusMode={toggleFocusMode}
           />
         ) : null}
+        {/* `inert`, not pointer-events: keyboard and AT must block too. The
+          header above stays live so the revision controls remain operable. */}
+        <main
+          className={
+            session.layoutMode === "split" ? "main split-main" : "main"
+          }
+          id="main-content"
+          tabIndex={-1}
+          data-zen={focusMode ? "on" : undefined}
+          data-pending={pendingShown ? "" : undefined}
+          aria-busy={pendingShown || undefined}
+          inert={pendingShown || undefined}
+        >
+          {/* Region blocks render strictly off the legality derivation above —
+            each block reads its own cell, nothing re-tests the axes. */}
+          {blocks.summary ? (
+            <>
+              <SummarySection brief={brief} />
+              {/* Directly beneath the capped summary — one legality row with
+                it. */}
+              {brief.intentCheck ? (
+                <IntentBar
+                  key={`intent-${briefId}`}
+                  intentCheck={brief.intentCheck}
+                  jumpToGroup={jumpToGroupFromIntentBar}
+                  ref={intentBarRef}
+                />
+              ) : null}
+            </>
+          ) : null}
 
-        {/* Sticky above the conversation slot — every control renders above
+          {blocks.summary &&
+          model.unattributed !== undefined &&
+          model.unattributed.added + model.unattributed.deleted > 0 ? (
+            <UnattributedBanner view={model.unattributed} />
+          ) : null}
+
+          {/* Full-brief rollup always — never a scope cut, no delta treatment
+            under compare. */}
+          {blocks.summary && brief.concernView.length >= 2 ? (
+            <ConcernStrip rollup={brief.concernView} />
+          ) : null}
+
+          {blocks.groupToc ? (
+            <GroupTocBar
+              key={`toc-${briefId}`}
+              conversationGroupIds={conversationWiring.conversationGroupIds}
+              groups={model.groups}
+              jumpToGroup={jumpToGroup}
+            />
+          ) : null}
+
+          {/* Sticky above the conversation slot — every control renders above
             everything it governs, and stays reachable while scrolling an
             expanded digest. The Filter disclosure is the ONLY filter surface:
             it governs the diff's inline threads and sits above the
             collapsed-by-default section it filters. */}
-        {blocks.toolbar ? (
-          <ReadingToolbar
-            key={`toolbar-${briefId}`}
-            activeGroupId={session.activeGroupId}
-            comparison={comparison}
-            revisionNav={revisionNav}
-            filter={
-              conversation !== undefined &&
-              onConversationFilterChange !== undefined &&
-              conversationWiring.conversationFilterFacets !== undefined
-                ? {
-                    /* The RECONCILED filter (facets.applied), not the
+          {blocks.toolbar ? (
+            <ReadingToolbar
+              key={`toolbar-${briefId}`}
+              comparison={comparison}
+              revisionNav={revisionNav}
+              filter={
+                conversation !== undefined &&
+                onConversationFilterChange !== undefined &&
+                conversationWiring.conversationFilterFacets !== undefined
+                  ? {
+                      /* The RECONCILED filter (facets.applied), not the
                        raw URL one: the trigger's receipt must never
                        count a selection that filters nothing. */
-                    filter: conversationWiring.conversationFilterFacets.applied,
-                    hiddenInlineThreads:
-                      conversationWiring.conversationFilterFacets
-                        .hiddenInlineThreads,
-                    reviewers:
-                      conversationWiring.conversationFilterFacets.reviewers,
-                    verdicts:
-                      conversationWiring.conversationFilterFacets.verdicts,
-                    onChange: onConversationFilterChange,
-                  }
-                : undefined
-            }
-            groups={model.groups}
-            jumpToGroup={jumpToGroup}
-            rail={attributeRail}
-            supportingCollapse={session.supportingCollapse}
-            toggleCollapseSupporting={session.toggleCollapseSupporting}
-          />
-        ) : null}
+                      filter:
+                        conversationWiring.conversationFilterFacets.applied,
+                      hiddenInlineThreads:
+                        conversationWiring.conversationFilterFacets
+                          .hiddenInlineThreads,
+                      reviewers:
+                        conversationWiring.conversationFilterFacets.reviewers,
+                      verdicts:
+                        conversationWiring.conversationFilterFacets.verdicts,
+                      onChange: onConversationFilterChange,
+                    }
+                  : undefined
+              }
+              groups={model.groups}
+              jumpToGroup={jumpToGroup}
+              rail={attributeRail}
+              supportingCollapse={session.supportingCollapse}
+              toggleCollapseSupporting={session.toggleCollapseSupporting}
+            />
+          ) : null}
 
-        {blocks.conversation && conversation !== undefined ? (
-          <ConversationSection
-            key={`conversation-${briefId}`}
-            briefId={briefId}
-            chunks={readingOrderedChunks}
-            filter={conversationFilter}
-            focusThreadId={conversationFocusThreadId}
-            jumpToChunk={conversationWiring.jumpToChunkFromConversation}
-            localComments={reviewComments}
-            markCommentsSubmitted={(ids) => actions.markCommentsSubmitted(ids)}
-            open={conversationWiring.open}
-            onToggle={conversationWiring.toggleOpen}
-            plan={conversation}
-            submittedReviewIds={submittedReviewIds}
-          />
-        ) : null}
+          {blocks.conversation && conversation !== undefined ? (
+            <ConversationSection
+              key={`conversation-${briefId}`}
+              briefId={briefId}
+              chunks={readingOrderedChunks}
+              filter={conversationFilter}
+              focusThreadId={conversationFocusThreadId}
+              jumpToChunk={conversationWiring.jumpToChunkFromConversation}
+              localComments={reviewComments}
+              markCommentsSubmitted={(ids) =>
+                actions.markCommentsSubmitted(ids)
+              }
+              open={conversationWiring.open}
+              onToggle={conversationWiring.toggleOpen}
+              plan={conversation}
+              submittedReviewIds={submittedReviewIds}
+            />
+          ) : null}
 
-        {/* Scope panes stay MOUNTED once shown and toggle with `hidden`
+          {/* Scope panes stay MOUNTED once shown and toggle with `hidden`
             (display:none — out of paint and the AT tree): the flip used to
             remount the alternate tree, and mounting 300 chunk cards is the
             entire flip lag. Kept warm only after first show, so a deep link
             into one scope never pays for the other. The window provider sits
             here because only the scope panes' chunk lists window. */}
-        <ChunkWindowProvider registry={chunkWindowsRef.current}>
-          {changesEverShownRef.current ? (
-            <div hidden={!inChangesScope || undefined}>
-              <LensPane frozen={!inChangesScope}>
-                <ChangesOnlyView
-                  key={`changes-${briefId}`}
-                  compare={
-                    activeCompare === "last-review"
-                      ? "last-review"
-                      : "previous-brief"
-                  }
-                  brief={brief}
-                  model={model}
-                  narrative={narrative}
-                  marks={marks}
-                  skipReason={skipReason}
-                  delta={delta}
-                  rawSpanDiff={activeRawSpanDiff}
-                />
-              </LensPane>
-            </div>
-          ) : null}
-          {storyEverShownRef.current ? (
-            <div hidden={inChangesScope || undefined}>
-              <LensPane frozen={inChangesScope}>
-                <StoryView
-                  brief={brief}
-                  model={model}
-                  comparison={comparison}
-                  activeChunkId={activeChunkId}
-                  focusMode={focusMode}
-                  openDeltaLens={openDeltaLens}
-                  sinceMarkers={sinceMarkers}
-                  openChunks={session.openChunks}
-                  addressedReviewComments={brief.reviewComments}
-                  conversationByChunk={conversationWiring.conversationByChunk}
-                  conversationComposer={conversationWiring.conversationComposer}
-                  jumpToChunk={jumpToChunk}
-                  markReviewed={session.markReviewed}
-                  toggleChunk={session.toggleChunk}
-                  {...(compareState.view === "full" && chunkIds.length > 0
-                    ? { startReadThrough: session.startReadThrough }
-                    : {})}
-                />
-              </LensPane>
-            </div>
-          ) : null}
-        </ChunkWindowProvider>
-      </main>
-      {/* Submit-review machinery + receipt: HIDDEN (not broken) in the
+          <ChunkWindowProvider registry={chunkWindowsRef.current}>
+            {changesEverShownRef.current ? (
+              <div hidden={!inChangesScope || undefined}>
+                <LensPane frozen={!inChangesScope}>
+                  <ChangesOnlyView
+                    key={`changes-${briefId}`}
+                    compare={
+                      activeCompare === "last-review"
+                        ? "last-review"
+                        : "previous-brief"
+                    }
+                    brief={brief}
+                    model={model}
+                    narrative={narrative}
+                    marks={marks}
+                    skipReason={skipReason}
+                    delta={delta}
+                    rawSpanDiff={activeRawSpanDiff}
+                  />
+                </LensPane>
+              </div>
+            ) : null}
+            {storyEverShownRef.current ? (
+              <div hidden={inChangesScope || undefined}>
+                <LensPane frozen={inChangesScope}>
+                  <StoryView
+                    brief={brief}
+                    model={model}
+                    comparison={comparison}
+                    focusMode={focusMode}
+                    openDeltaLens={openDeltaLens}
+                    sinceMarkers={sinceMarkers}
+                    openChunks={session.openChunks}
+                    addressedReviewComments={brief.reviewComments}
+                    conversationByChunk={conversationWiring.conversationByChunk}
+                    conversationComposer={
+                      conversationWiring.conversationComposer
+                    }
+                    jumpToChunk={jumpToChunk}
+                    markReviewed={session.markReviewed}
+                    toggleChunk={session.toggleChunk}
+                    {...(compareState.view === "full" && chunkIds.length > 0
+                      ? { startReadThrough: session.startReadThrough }
+                      : {})}
+                  />
+                </LensPane>
+              </div>
+            ) : null}
+          </ChunkWindowProvider>
+        </main>
+        {/* Submit-review machinery + receipt: HIDDEN (not broken) in the
           own-draft state, whose terminal action is mark-ready. None of these
           surfaces stays reachable: the Header CTA slot swaps, the menu drops
           Summary preview, and no keyboard shortcut opens any of them. */}
-      {ownDraftActive ? null : (
-        <>
-          <SubmitModal
-            receipt={receipt}
-            open={submitOpen}
-            close={closeSubmit}
-            outcome={reviewOutcome}
-            setOutcome={(outcome) => actions.setOutcome(outcome)}
-            submit={submitFromModal}
-            unresolvedItems={session.unresolvedItems}
-            jumpToItem={jumpToSubmitItem}
-            submitPending={
-              liveSubmit && readOnly === undefined ? submitFlow.pending : false
-            }
-            blockedReasonOverride={readOnly?.reason}
-            blockedReasonWith={
-              liveSubmit ? submitFlow.blockedReasonWith : undefined
-            }
-            submitError={
-              liveSubmit && readOnly === undefined ? submitFlow.error : null
-            }
-            submitNote={liveSubmit ? submitFlow.note : null}
-            staleHead={staleHead === true}
-          />
-          <SummaryPreviewDrawer
-            brief={brief}
-            open={summaryPreviewOpen}
-            snapshot={snapshot}
-            close={closeSummaryPreview}
-          />
-        </>
-      )}
-      {/* Flag-disposition machinery: unmounted with its controls — flags are
+        {ownDraftActive ? null : (
+          <>
+            <SubmitModal
+              receipt={receipt}
+              open={submitOpen}
+              close={closeSubmit}
+              outcome={reviewOutcome}
+              setOutcome={(outcome) => actions.setOutcome(outcome)}
+              submit={submitFromModal}
+              unresolvedItems={session.unresolvedItems}
+              jumpToItem={jumpToSubmitItem}
+              submitPending={
+                liveSubmit && readOnly === undefined
+                  ? submitFlow.pending
+                  : false
+              }
+              blockedReasonOverride={readOnly?.reason}
+              blockedReasonWith={
+                liveSubmit ? submitFlow.blockedReasonWith : undefined
+              }
+              submitError={
+                liveSubmit && readOnly === undefined ? submitFlow.error : null
+              }
+              submitNote={liveSubmit ? submitFlow.note : null}
+              staleHead={staleHead === true}
+            />
+            <SummaryPreviewDrawer
+              brief={brief}
+              open={summaryPreviewOpen}
+              snapshot={snapshot}
+              close={closeSummaryPreview}
+            />
+          </>
+        )}
+        {/* Flag-disposition machinery: unmounted with its controls — flags are
           a read-only mirror in the own-draft state (no author dispositions). */}
-      {ownDraftActive ? null : <RiskFlagModals flagsById={model.flagsById} />}
-      {/* The mark-ready soft gate: mounted only in the own-draft state, only
+        {ownDraftActive ? null : <RiskFlagModals flagsById={model.flagsById} />}
+        {/* The mark-ready soft gate: mounted only in the own-draft state, only
           while the action exists (current head in view), and only when there
           is something to gate ON — risk flags OR unposted drafts. Both zero
           skips the modal entirely and the CTA acts directly. */}
-      {ownDraftActive &&
-      markReady.available &&
-      (model.flags.length > 0 || markReady.unpostedDraftCount > 0) ? (
-        <MarkReadyModal
-          open={markReady.gateOpen}
-          flags={model.flags}
-          unpostedDraftCount={markReady.unpostedDraftCount}
-          close={markReady.closeGate}
-          markReadyAnyway={markReady.markReadyAnyway}
-          jumpToFlag={markReady.jumpToFlag}
-          jumpToDrafts={markReady.jumpToDrafts}
-          intentGapCount={markReady.intentGapCount}
-          intentTensionCount={markReady.intentTensionCount}
-          jumpToIntentGaps={markReady.jumpToIntentGaps}
-          postDrafts={markReady.postDraftsOnReady}
-          setPostDrafts={markReady.setPostDraftsOnReady}
-          busyLabel={markReady.batchBusyLabel}
-        />
-      ) : null}
-      <ShortcutsModal
-        open={session.shortcutsOpen}
-        close={session.closeShortcuts}
-      />
-      <div className={styles["kbdHint"]} data-testid="kbd-hint">
-        {focusMode ? (
-          <Button onClick={toggleFocusMode}>
-            {t("brief.screen.exitFocus")}
-          </Button>
+        {ownDraftActive &&
+        markReady.available &&
+        (model.flags.length > 0 || markReady.unpostedDraftCount > 0) ? (
+          <MarkReadyModal
+            open={markReady.gateOpen}
+            flags={model.flags}
+            unpostedDraftCount={markReady.unpostedDraftCount}
+            close={markReady.closeGate}
+            markReadyAnyway={markReady.markReadyAnyway}
+            jumpToFlag={markReady.jumpToFlag}
+            jumpToDrafts={markReady.jumpToDrafts}
+            intentGapCount={markReady.intentGapCount}
+            intentTensionCount={markReady.intentTensionCount}
+            jumpToIntentGaps={markReady.jumpToIntentGaps}
+            postDrafts={markReady.postDraftsOnReady}
+            setPostDrafts={markReady.setPostDraftsOnReady}
+            busyLabel={markReady.batchBusyLabel}
+          />
         ) : null}
-        <IconButton
-          className={styles["shortcutsTrigger"]}
-          label={t("brief.screen.ariaLabelShortcuts")}
-          size="lg"
-          variant="outlined"
-          onClick={session.toggleShortcuts}
+        <ShortcutsModal
+          open={session.shortcutsOpen}
+          close={session.closeShortcuts}
+        />
+        <div className={styles["kbdHint"]} data-testid="kbd-hint">
+          {focusMode ? (
+            <Button onClick={toggleFocusMode}>
+              {t("brief.screen.exitFocus")}
+            </Button>
+          ) : null}
+          <IconButton
+            className={styles["shortcutsTrigger"]}
+            label={t("brief.screen.ariaLabelShortcuts")}
+            size="lg"
+            variant="outlined"
+            onClick={session.toggleShortcuts}
+          >
+            ?
+          </IconButton>
+        </div>
+        <div
+          className={styles["toast"]}
+          data-testid="brief-toast"
+          data-state={toast ? "visible" : "hidden"}
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
         >
-          ?
-        </IconButton>
-      </div>
-      <div
-        className={styles["toast"]}
-        data-testid="brief-toast"
-        data-state={toast ? "visible" : "hidden"}
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-      >
-        {toast}
-      </div>
+          {toast}
+        </div>
+      </ReadingPositionProvider>
     </ReviewFlowProvider>
   );
 }

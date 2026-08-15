@@ -9,6 +9,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
+import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -19,6 +20,10 @@ import {
 import type { ComparisonOverlayState } from "../../../../comparison/comparisonOverlay";
 import type { Brief, BriefChunk } from "../../../../types";
 import { buildBriefViewModel } from "../../../../utils/viewModel";
+import {
+  createReadingPositionStore,
+  ReadingPositionProvider,
+} from "../../readingPosition";
 import { ChunkCard, type ChunkCardProps } from "./ChunkCard";
 
 afterEach(cleanup);
@@ -95,23 +100,25 @@ function renderCard(overrides: Partial<ChunkCardProps> = {}) {
   const props: ChunkCardProps = {
     chunk,
     comparison,
-    active: false,
     open: false,
     addressedReviewComments: [],
     toggleChunk,
     markReviewed: vi.fn(),
     ...overrides,
   };
+  const positionStore = createReadingPositionStore();
   render(
     <QueryClientProvider client={new QueryClient()}>
       <MindMapProvider briefId="test-brief" model={buildBriefViewModel(brief)}>
         <ReviewFlowProvider store={flowStore}>
-          <ChunkCard {...props} />
+          <ReadingPositionProvider store={positionStore}>
+            <ChunkCard {...props} />
+          </ReadingPositionProvider>
         </ReviewFlowProvider>
       </MindMapProvider>
     </QueryClientProvider>,
   );
-  return { toggleChunk };
+  return { toggleChunk, positionStore };
 }
 
 function selectFilePath(toggle: HTMLElement) {
@@ -274,5 +281,21 @@ describe("ChunkCard — selectable file path", () => {
     fireEvent.mouseDown(toggle);
     fireEvent.click(toggle, { detail: 1 });
     expect(toggleChunk).toHaveBeenCalledWith(chunk.id);
+  });
+});
+
+describe("ChunkCard — reading position", () => {
+  it("marks itself current from the position store, not a prop", () => {
+    const { positionStore } = renderCard();
+    const card = screen.getByTestId("brief-chunk");
+    expect(card.getAttribute("data-current")).toBeNull();
+    act(() => {
+      positionStore.getState().actions.setActive(chunk.id, "g1");
+    });
+    expect(card.getAttribute("data-current")).toBe("");
+    act(() => {
+      positionStore.getState().actions.setActive("other-chunk", "g1");
+    });
+    expect(card.getAttribute("data-current")).toBeNull();
   });
 });

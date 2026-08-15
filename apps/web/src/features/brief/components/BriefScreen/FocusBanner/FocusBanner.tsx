@@ -7,7 +7,6 @@ import { ReadThroughProgress } from "../ReadThroughProgress/ReadThroughProgress"
 import styles from "./FocusBanner.module.scss";
 
 export interface FocusBannerProps {
-  activeChunkId: string | null;
   groups: BriefViewModel["groups"];
   jumpToChunk: (chunkId: string) => void;
   toggleFocusMode: () => void;
@@ -22,7 +21,6 @@ export interface FocusBannerProps {
  * focusScrollOffset() must measure it whole, padding included.
  */
 export function FocusBanner({
-  activeChunkId,
   groups,
   jumpToChunk,
   toggleFocusMode,
@@ -50,11 +48,7 @@ export function FocusBanner({
             i18nKey="brief.focusBanner.hint"
           />
         </span>
-        <ReadThroughProgress
-          activeChunkId={activeChunkId}
-          groups={groups}
-          jumpToChunk={jumpToChunk}
-        />
+        <ReadThroughProgress groups={groups} jumpToChunk={jumpToChunk} />
         <Button onClick={toggleFocusMode}>{t("brief.focusBanner.exit")}</Button>
       </div>
     </div>

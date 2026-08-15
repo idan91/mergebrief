@@ -9,7 +9,9 @@ export interface KeyboardShortcutsOptions {
    * Shift+J/Shift+K jump to the next/prev group's first chunk via this list.
    */
   groupBoundaries: number[];
-  activeChunkId: string | null;
+  /** Read at keydown time (store `getState`) — a position change must never
+   * re-render the host screen just to keep this hook current. */
+  getActiveChunkId: () => string | null;
   /** True while a modal/drawer/composer holds focus — shortcuts stand down. */
   disabled: boolean;
   focusModeActive: boolean;
@@ -163,7 +165,7 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions): void {
         {
           chunkIds: o.chunkIds,
           groupBoundaries: o.groupBoundaries,
-          activeChunkId: o.activeChunkId,
+          activeChunkId: o.getActiveChunkId(),
           disabled: o.disabled,
           focusModeActive: o.focusModeActive,
         },

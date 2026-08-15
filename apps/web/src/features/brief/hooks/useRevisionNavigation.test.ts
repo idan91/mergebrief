@@ -2,6 +2,8 @@
 import { cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { ComparisonMarkFiles } from "../comparison/comparison";
+import type { BriefChunk, DiffLine } from "../types";
 import {
   pickRevisionTargetIndex,
   useRevisionNavigation,
@@ -145,16 +147,59 @@ function renderRails(): HTMLButtonElement[] {
   ];
 }
 
-const TARGETS = [
-  { chunkId: "c1", railKey: "src/a.ts#c1:0" },
-  { chunkId: "c2", railKey: "src/b.ts#c2:4" },
-  { chunkId: "c3", railKey: "src/c.ts#c3:2" },
+/** One marked run per chunk, its rail at diff-row `railRow` (rail keys are
+ * `file#chunkId:<firstRowIndex>` — matching the DOM fixture above). */
+function chunkWithRail(
+  id: string,
+  file: string,
+  railRow: number,
+  markedLine: number,
+): BriefChunk {
+  const diff: DiffLine[] = Array.from({ length: railRow }, (_, index) => ({
+    kind: "ctx",
+    content: "unchanged",
+    newLine: index + 1,
+  }));
+  diff.push({ kind: "add", content: "changed", newLine: markedLine });
+  return {
+    id,
+    changeGroupId: "g1",
+    file,
+    concern: "implementation",
+    role: "core",
+    loc: { added: 1, deleted: 0 },
+    addedRanges: [{ start: markedLine, end: markedLine }],
+    removedRanges: [],
+    riskSurface: [],
+    diff,
+  };
+}
+
+// Derives to rail keys src/a.ts#c1:0, src/b.ts#c2:4, src/c.ts#c3:2.
+const CHUNKS = [
+  chunkWithRail("c1", "src/a.ts", 0, 100),
+  chunkWithRail("c2", "src/b.ts", 4, 200),
+  chunkWithRail("c3", "src/c.ts", 2, 300),
 ];
-const ORDINALS = new Map([
-  ["c1", 0],
-  ["c2", 1],
-  ["c3", 2],
-]);
+const MARKS: ComparisonMarkFiles = {
+  files: [
+    {
+      file: "src/a.ts",
+      addedRanges: [{ start: 100, end: 100 }],
+      removedRanges: [],
+    },
+    {
+      file: "src/b.ts",
+      addedRanges: [{ start: 200, end: 200 }],
+      removedRanges: [],
+    },
+    {
+      file: "src/c.ts",
+      addedRanges: [{ start: 300, end: 300 }],
+      removedRanges: [],
+    },
+  ],
+};
 
 function renderNavigation(
   scrollTowardChunk = vi.fn(() => true),
@@ -165,9 +210,9 @@ function renderNavigation(
     ensureChunkOpen,
     ...renderHook(() =>
       useRevisionNavigation({
-        targets: TARGETS,
-        chunkOrdinals: ORDINALS,
-        activeChunkId: null,
+        chunks: CHUNKS,
+        marks: MARKS,
+        getActiveChunkId: () => null,
         scrollTowardChunk,
         ensureChunkOpen,
       }),
@@ -224,13 +269,35 @@ describe("useRevisionNavigation", () => {
     expect(scrollTowardChunk).toHaveBeenCalledWith("c1");
   });
 
+  it("reads the active chunk at jump time, not at bind time", () => {
+    // The getter exists so a position change never re-renders the host —
+    // which only holds if each jump reads it fresh for the fallback anchor.
+    document.body.innerHTML = "<main></main>";
+    const scrollTowardChunk = vi.fn(() => true);
+    let active: string | null = null;
+    const { result } = renderHook(() =>
+      useRevisionNavigation({
+        chunks: CHUNKS,
+        marks: MARKS,
+        getActiveChunkId: () => active,
+        scrollTowardChunk,
+        ensureChunkOpen: vi.fn(),
+      }),
+    );
+    result.current.jumpNext();
+    expect(scrollTowardChunk).toHaveBeenLastCalledWith("c1");
+    active = "c2";
+    result.current.jumpNext();
+    expect(scrollTowardChunk).toHaveBeenLastCalledWith("c3");
+  });
+
   it("does nothing when the model has no targets", () => {
     document.body.innerHTML = "<main></main>";
     const { result } = renderHook(() =>
       useRevisionNavigation({
-        targets: [],
-        chunkOrdinals: new Map(),
-        activeChunkId: null,
+        chunks: [],
+        marks: null,
+        getActiveChunkId: () => null,
         scrollTowardChunk: vi.fn(() => true),
         ensureChunkOpen: vi.fn(),
       }),

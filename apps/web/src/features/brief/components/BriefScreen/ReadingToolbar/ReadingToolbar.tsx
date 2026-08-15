@@ -11,6 +11,7 @@ import {
   FilterDisclosure,
   type FilterDisclosureProps,
 } from "./FilterDisclosure/FilterDisclosure";
+import { useReadingPosition } from "../readingPosition";
 import { RiskAttrsDisclosure } from "./RiskAttrsDisclosure/RiskAttrsDisclosure";
 import styles from "./ReadingToolbar.module.scss";
 
@@ -47,7 +48,6 @@ export interface ReadingToolbarProps {
   /** All collapsed → expand all; otherwise collapse all. */
   toggleCollapseSupporting: () => void;
   groups: readonly GroupStepTarget[];
-  activeGroupId: string | null;
   comparison: ComparisonOverlayState;
   /** Screen-owned: the jump needs the model target list and the window
    * registry, which live above this bar. */
@@ -67,11 +67,11 @@ export function ReadingToolbar({
   supportingCollapse,
   toggleCollapseSupporting,
   groups,
-  activeGroupId,
   comparison,
   revisionNav,
 }: ReadingToolbarProps) {
   const { t } = useTranslation();
+  const activeGroupId = useReadingPosition((state) => state.activeGroupId);
   const { jumpPrev, jumpNext } = revisionNav;
   const barRef = useRef<HTMLDivElement | null>(null);
 

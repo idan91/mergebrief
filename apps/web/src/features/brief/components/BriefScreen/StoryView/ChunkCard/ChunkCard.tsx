@@ -29,12 +29,12 @@ import {
 import { InlineThreads } from "@web/features/conversation";
 import type { ThreadComposerWiring } from "@web/features/conversation";
 import { DiffTable } from "../../DiffTable/DiffTable";
+import { useReadingPosition } from "../../readingPosition";
 import styles from "./ChunkCard.module.scss";
 
 export interface ChunkCardProps {
   chunk: BriefChunk;
   comparison: ComparisonOverlayState;
-  active: boolean;
   open: boolean;
   addressedReviewComments: AddressedReviewComment[];
   toggleChunk: (chunkId: string) => void;
@@ -112,7 +112,6 @@ function isSameSnapshot(
 export const ChunkCard = memo(function ChunkCard({
   chunk,
   comparison,
-  active,
   open,
   addressedReviewComments,
   toggleChunk,
@@ -123,6 +122,11 @@ export const ChunkCard = memo(function ChunkCard({
 }: ChunkCardProps) {
   const { t } = useTranslation();
   const reviewed = useMindMap((state) => state.reviewedChunks.has(chunk.id));
+  // Store-subscribed, not a prop: a reading-position tick re-renders the two
+  // affected cards, never the parent list (which would break the memo win).
+  const active = useReadingPosition(
+    (state) => state.activeChunkId === chunk.id,
+  );
   // Selection identity when the toggle gesture started — only a selection
   // CHANGED by this gesture suppresses the click. A stale selection that
   // survives the mousedown untouched (Firefox/Safari keep selections

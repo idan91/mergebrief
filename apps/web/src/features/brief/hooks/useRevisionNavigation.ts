@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef } from "react";
 
 import {
+  deriveRevisionJumpTargets,
   REVISION_JUMP_ATTR,
   revisionJumpSelector,
-  type RevisionJumpTarget,
+  type ComparisonMarkFiles,
 } from "../comparison/comparison";
+import type { BriefChunk } from "../types";
 
 /**
  * Revision-change navigation over the MODEL's target list. The DOM cannot
@@ -21,11 +23,14 @@ export interface RevisionNavigation {
 }
 
 export interface UseRevisionNavigationInput {
-  /** Every rail in rendered order (model-derived). */
-  targets: readonly RevisionJumpTarget[];
-  /** Rendered ordinal per chunk id — the coarse anchor when no rail is mounted. */
-  chunkOrdinals: ReadonlyMap<string, number>;
-  activeChunkId: string | null;
+  /** Chunks in RENDERED order — targets and ordinals derive from this at
+   * jump time (a gesture), so no per-render memo has to keep them cheap. */
+  chunks: readonly BriefChunk[];
+  /** The EFFECTIVE comparison marks (rails only render while they apply). */
+  marks: ComparisonMarkFiles | null;
+  /** Read at jump time (store `getState`) — a position change must never
+   * re-render the host screen just to keep this hook current. */
+  getActiveChunkId: () => string | null;
   /**
    * Scroll the windowed lists toward a chunk so its card mounts; false =
    * nowhere to go. Deliberately NOT the full chunk-jump pipeline: that arms
@@ -103,9 +108,9 @@ export function useRevisionNavigation(
   input: UseRevisionNavigationInput,
 ): RevisionNavigation {
   const {
-    targets,
-    chunkOrdinals,
-    activeChunkId,
+    chunks,
+    marks,
+    getActiveChunkId,
     scrollTowardChunk,
     ensureChunkOpen,
   } = input;
@@ -121,6 +126,12 @@ export function useRevisionNavigation(
   const jump = useCallback(
     (direction: 1 | -1) => {
       cancelPoll();
+      // Gesture-time derivation: a jump is rare and the lists are small, so
+      // deriving here beats keeping screen-level memos alive per render.
+      const targets = deriveRevisionJumpTargets(chunks, marks);
+      const chunkOrdinals = new Map(
+        chunks.map((chunk, index) => [chunk.id, index]),
+      );
       const keyToIndex = new Map(
         targets.map((target, index) => [target.railKey, index]),
       );
@@ -146,6 +157,7 @@ export function useRevisionNavigation(
 
       // Coarse anchor from the active chunk: the last target at or before it
       // in rendered order.
+      const activeChunkId = getActiveChunkId();
       const activeOrdinal =
         activeChunkId !== null ? (chunkOrdinals.get(activeChunkId) ?? -1) : -1;
       let fallbackAnchor = -1;
@@ -194,12 +206,12 @@ export function useRevisionNavigation(
       pollFrameRef.current = window.requestAnimationFrame(poll);
     },
     [
-      activeChunkId,
       cancelPoll,
-      chunkOrdinals,
+      chunks,
       ensureChunkOpen,
+      getActiveChunkId,
+      marks,
       scrollTowardChunk,
-      targets,
     ],
   );
 

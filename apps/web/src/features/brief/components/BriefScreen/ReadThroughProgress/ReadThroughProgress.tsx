@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import type { GroupView } from "../../../utils/viewModel";
+import { useReadingPosition } from "../readingPosition";
 import styles from "./ReadThroughProgress.module.scss";
 
 export interface ReadThroughSegment {
@@ -58,7 +59,6 @@ export function buildReadThroughSegments(
 
 export interface ReadThroughProgressProps {
   groups: GroupView[];
-  activeChunkId: string | null;
   jumpToChunk: (chunkId: string) => void;
 }
 
@@ -71,10 +71,10 @@ export interface ReadThroughProgressProps {
  */
 export function ReadThroughProgress({
   groups,
-  activeChunkId,
   jumpToChunk,
 }: ReadThroughProgressProps) {
   const { t } = useTranslation();
+  const activeChunkId = useReadingPosition((state) => state.activeChunkId);
   const segments = buildReadThroughSegments(groups, activeChunkId);
   if (segments.length === 0) return null;
   const complete =

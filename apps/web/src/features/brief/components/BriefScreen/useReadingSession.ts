@@ -36,6 +36,7 @@ import type { Brief } from "../../types";
 import type { BriefViewModel, GroupView } from "../../utils/viewModel";
 import type { RepoConfigContext } from "../../utils/repoConfig";
 import type { ChunkWindowRegistry } from "./chunkWindows";
+import type { ReadingPositionStore } from "./readingPosition";
 import type { LayoutMode } from "./Header/Header";
 import {
   SupportingCollapseStates,
@@ -278,6 +279,12 @@ export interface UseReadingSessionInput {
   repoConfig: RepoConfigContext | null | undefined;
   /** Jump routing into windowed chunk lists; null = mounted DOM only. */
   chunkWindows?: ChunkWindowRegistry | null | undefined;
+  /**
+   * The reading-position store this session WRITES (scroll-spy + explicit
+   * nav). Never subscribed here — position consumers subscribe themselves, so
+   * a spy tick re-renders them and not the screen shell hosting this hook.
+   */
+  position: ReadingPositionStore;
 }
 
 export interface UseReadingSessionValue {
@@ -303,9 +310,6 @@ export interface UseReadingSessionValue {
   focusMode: boolean;
   /** The focus banner strip's measurement target (publishes --focus-banner-h). */
   focusBannerRef: RefObject<HTMLDivElement | null>;
-  activeChunkId: string | null;
-  /** Active group derived from the active chunk — no second scroll listener. */
-  activeGroupId: string | null;
   openChunks: Set<string>;
   /** Bulk action over `openChunks`, never an override — derived state. */
   supportingCollapse: SupportingCollapseState;
@@ -343,6 +347,7 @@ export function useReadingSession(
     ownDraftActive,
     repoConfig,
     chunkWindows,
+    position,
   } = input;
   // Session/domain state lives in the per-brief Mind-Map store.
   const dispositions = useMindMap((state) => state.dispositions);
@@ -411,7 +416,6 @@ export function useReadingSession(
       return next;
     });
   }, [supportingChunkIds]);
-  const [activeChunkId, setActiveChunkId] = useState<string | null>(null);
   const [focusMode, setFocusMode] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   // Brief switch without remount: reading posture is per-brief and used to
@@ -421,12 +425,21 @@ export function useReadingSession(
   if (sessionBriefId !== briefId) {
     setSessionBriefId(briefId);
     setOpenChunks(new Set(chunkIds));
-    setActiveChunkId(null);
     setFocusMode(false);
     setShortcutsOpen(false);
   }
-  const activeChunkIdRef = useLatestRef(activeChunkId);
   const focusModeRef = useLatestRef(focusMode);
+  // The one write path into the reading-position store: chunk and derived
+  // group land together, so subscribers never see them disagree.
+  const chunkToGroup = model.chunkToGroup;
+  const setActivePosition = useCallback(
+    (chunkId: string) => {
+      position
+        .getState()
+        .actions.setActive(chunkId, chunkToGroup.get(chunkId) ?? null);
+    },
+    [chunkToGroup, position],
+  );
   // markReviewed is a ChunkCard memo-boundary prop: reading reviewedChunks
   // through a ref keeps its identity stable across review actions (a Set dep
   // would re-render every memoized card per click).
@@ -519,24 +532,25 @@ export function useReadingSession(
     document.getElementById("main-content")?.focus({ preventScroll: true });
   }, [briefId]);
 
-  // activeChunkId has two write sources: scroll-spy (below) and explicit nav
+  // The position has two write sources: scroll-spy (below) and explicit nav
   // (toggleChunk/jumpToChunk). Scroll-spy only runs in the full-scope split
   // view outside focus mode.
-  const scrollActiveChunkId = useScrollSpy(
+  useScrollSpy(
     layoutMode === "split" && !focusMode && compareViewFull
       ? chunkIds
       : EMPTY_CHUNK_IDS,
+    setActivePosition,
     undefined,
     briefId,
   );
-  useEffect(() => {
-    if (scrollActiveChunkId) setActiveChunkId(scrollActiveChunkId);
-  }, [scrollActiveChunkId]);
 
-  const toggleChunk = useCallback((chunkId: string) => {
-    setOpenChunks((current) => toggleSetMember(current, chunkId));
-    setActiveChunkId(chunkId);
-  }, []);
+  const toggleChunk = useCallback(
+    (chunkId: string) => {
+      setOpenChunks((current) => toggleSetMember(current, chunkId));
+      setActivePosition(chunkId);
+    },
+    [setActivePosition],
+  );
 
   const markReviewed = useCallback(
     (chunkId: string) => {
@@ -558,7 +572,7 @@ export function useReadingSession(
         const index = chunkIds.indexOf(chunkId);
         const next = index >= 0 ? chunkIds[index + 1] : undefined;
         if (next) {
-          setActiveChunkId(next);
+          setActivePosition(next);
           scrollToChunk(next, "smooth", "top");
         }
         return;
@@ -571,7 +585,14 @@ export function useReadingSession(
         return next;
       });
     },
-    [actions, chunkIds, focusModeRef, reviewedChunksRef, scrollToChunk],
+    [
+      actions,
+      chunkIds,
+      focusModeRef,
+      reviewedChunksRef,
+      scrollToChunk,
+      setActivePosition,
+    ],
   );
 
   /** Ensure-open, never a toggle — row-target jumps (conversation threads,
@@ -595,10 +616,10 @@ export function useReadingSession(
       // stepper, risk attrs) land on it WITHOUT re-expanding.
       if (focusModeRef.current)
         setOpenChunks((current) => new Set(current).add(chunkId));
-      setActiveChunkId(chunkId);
+      setActivePosition(chunkId);
       scrollToChunk(chunkId, behavior, align);
     },
-    [focusModeRef, scrollToChunk],
+    [focusModeRef, scrollToChunk, setActivePosition],
   );
   const jumpToChunkFromShortcut = useCallback(
     (chunkId: string) => {
@@ -616,13 +637,20 @@ export function useReadingSession(
     // align="top" required: the focus banner only mounts once `focusMode`
     // flips true, so the scroll must pre-reserve its height via
     // focusScrollOffset() or the banner covers the chunk.
-    const target = activeChunkIdRef.current ?? firstChunkId;
+    const target = position.getState().activeChunkId ?? firstChunkId;
     if (!target) return;
     // Focus mode reads the active card; a collapsed one would show nothing.
     openChunk(target);
-    setActiveChunkId(target);
+    setActivePosition(target);
     scrollToChunk(target, "smooth", "top");
-  }, [activeChunkIdRef, firstChunkId, focusModeRef, openChunk, scrollToChunk]);
+  }, [
+    firstChunkId,
+    focusModeRef,
+    openChunk,
+    position,
+    scrollToChunk,
+    setActivePosition,
+  ]);
   const toggleShortcuts = useCallback(
     () => setShortcutsOpen((current) => !current),
     [],
@@ -635,9 +663,9 @@ export function useReadingSession(
     if (!firstChunkId) return;
     setFocusMode(true);
     openChunk(firstChunkId);
-    setActiveChunkId(firstChunkId);
+    setActivePosition(firstChunkId);
     scrollToChunk(firstChunkId, "smooth", "top");
-  }, [firstChunkId, openChunk, scrollToChunk]);
+  }, [firstChunkId, openChunk, scrollToChunk, setActivePosition]);
 
   // The TOC bar jumps by Change-group; land on the group's first chunk.
   const jumpToGroup = useCallback(
@@ -655,11 +683,6 @@ export function useReadingSession(
     setFocusMode(false);
   }, []);
 
-  // Active group derived from the active chunk — no second scroll listener.
-  const activeGroupId = activeChunkId
-    ? (model.chunkToGroup.get(activeChunkId) ?? null)
-    : null;
-
   return {
     actions,
     reviewComments,
@@ -676,8 +699,6 @@ export function useReadingSession(
     layoutMode,
     focusMode,
     focusBannerRef,
-    activeChunkId,
-    activeGroupId,
     openChunks,
     supportingCollapse,
     toggleCollapseSupporting,
