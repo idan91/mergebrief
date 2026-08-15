@@ -36,7 +36,7 @@ Prototype (primary source): branch `prototype/brief-182-receipt-variants`
 
 ## PR1 — `[BRIEF-182] feat: accordion receipt view in SubmitModal` (~450 LOC)
 
-Model/effort: Fable 5, high — design-heavy UI + a11y surface.
+Model/effort: Fable 5, medium — main session.
 Invocation: main thread.
 
 1. New co-located component `SubmitModal/ReceiptAccordion/` (sub-components,
@@ -70,7 +70,7 @@ Invocation: main thread.
 
 ## PR2 — `[BRIEF-182] refactor: delete summary-preview drawer + Drawer` (~400 LOC, mostly deletions)
 
-Model/effort: Opus 5, high — mechanical deletion sweep with test updates.
+Model/effort: Fable 5, medium — main session.
 Invocation: main thread, after PR1 is up (stacked).
 
 1. Delete `BriefScreen/SummaryPreviewDrawer/` and `components/Drawer/*`
