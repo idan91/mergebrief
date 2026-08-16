@@ -11,7 +11,7 @@ import { Hono } from "hono";
 import { artifactStore, forTenant, generationProjection } from "persistence";
 import { z } from "zod";
 import { ApiErrorCode, errorJson } from "../error-response";
-import type { AuthRouteDeps } from "./auth";
+import type { AuthRouteDeps } from "./auth/session";
 import type { AllowedRepoResolver } from "./allowed-repos";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "./authz";
 import { buildPrView } from "./pr-view";
@@ -39,9 +39,9 @@ export function pullsRoute(
 ): Hono<AuthzEnv> {
   const app = new Hono<AuthzEnv>();
 
-  app.use("/api/pulls", sessionLayer(deps), accessStampLayer());
+  app.use("/", sessionLayer(deps), accessStampLayer());
 
-  app.get("/api/pulls", async (c) => {
+  app.get("/", async (c) => {
     const query = listQuerySchema.safeParse({
       limit: c.req.query("limit") ?? undefined,
     });

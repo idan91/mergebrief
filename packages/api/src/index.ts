@@ -21,18 +21,18 @@ export {
   principalFromSession,
   refreshSessionToken,
   RefreshErrorCode,
-} from "./routes/auth";
+} from "./routes/auth/session";
 export type {
   RefreshError,
   RefreshedSession,
   AuthRouteDeps,
-} from "./routes/auth";
+} from "./routes/auth/session";
 
 // Exported only for consumers that MIRROR this contract: `apps/web` hand-rolls
 // its own wire types and its drift pins assert against this source. No route
 // behavior depends on the re-export.
-export { LastReviewUnavailableReason } from "./routes/reads";
-export type { LastReviewComparisonView } from "./routes/reads";
+export { LastReviewUnavailableReason } from "./routes/repos/pr/reads";
+export type { LastReviewComparisonView } from "./routes/repos/pr/reads";
 
 // The wire error contract. `API_ERROR_ENGLISH`/`API_ERROR_STATUS` are
 // mirror-only: `packages/i18n` pins `errors.<code>` templates against them;

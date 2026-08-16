@@ -40,9 +40,9 @@ import {
 } from "persistence";
 import type { Result } from "types";
 import { z } from "zod";
-import { refreshSessionToken, type AuthRouteDeps } from "./auth";
-import { createAuthzMiddleware, type AuthzEnv } from "./authz";
-import { ApiErrorCode, errorJson } from "../error-response";
+import { refreshSessionToken, type AuthRouteDeps } from "../../auth/session";
+import type { AuthzEnv } from "../../authz";
+import { ApiErrorCode, errorJson } from "../../../error-response";
 
 const prNumberSchema = z.coerce.number().int().positive();
 
@@ -127,17 +127,13 @@ function markReadyMutationFailure(
 }
 
 /**
- * Mount the mark-ready route behind its own per-repo gate instance. Mounted
- * BEFORE `readsRoute` in `app.ts` (single-gate rule) so a POST here traverses
- * exactly one per-repo gate.
+ * Mount the mark-ready route behind the pr subtree's shared gate, so a POST
+ * here traverses exactly one per-repo gate.
  */
 export function markReadyRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
   const app = new Hono<AuthzEnv>();
-  const authz = createAuthzMiddleware(deps);
 
-  app.use("/api/repos/:repoId/pulls/:prNumber/ready", authz);
-
-  app.post("/api/repos/:repoId/pulls/:prNumber/ready", async (c) => {
+  app.post("/", async (c) => {
     const ctx = c.get("ctx");
     const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
     if (!parsedPr.success) {

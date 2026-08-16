@@ -16,7 +16,7 @@ import {
   refreshSessionToken,
   type AuthRouteDeps,
   type ViewerPrincipal,
-} from "./auth";
+} from "./auth/session";
 import { AUTHZ_CACHE_TTL_MS } from "./authz";
 import { createTtlCache } from "./ttl-cache";
 

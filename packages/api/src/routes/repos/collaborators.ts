@@ -13,11 +13,11 @@
 import { Hono, type Context } from "hono";
 import { GitHubApiErrorCode } from "github";
 import type { InstallationId, RepoId } from "persistence";
-import type { AuthRouteDeps } from "./auth";
-import { createAuthzMiddleware, type AuthzEnv } from "./authz";
-import type { InstallationGitHubPort } from "./github-port";
-import { createTtlCache } from "./ttl-cache";
-import { ApiErrorCode, errorJson } from "../error-response";
+import type { AuthRouteDeps } from "../auth/session";
+import { createAuthzMiddleware, type AuthzEnv } from "../authz";
+import type { InstallationGitHubPort } from "../github-port";
+import { createTtlCache } from "../ttl-cache";
+import { ApiErrorCode, errorJson } from "../../error-response";
 
 /** Positive TTL — same 60s staleness family as the other gated reads. */
 const COLLABORATORS_CACHE_TTL_MS = 60 * 1000;
@@ -60,9 +60,9 @@ export function collaboratorsRoute(
   // viewer — the point of the installation-token read).
   const cache = createTtlCache<string>(COLLABORATORS_CACHE_MAX_ENTRIES);
 
-  app.use("/api/repos/:repoId/collaborators", authz);
+  app.use("/", authz);
 
-  app.get("/api/repos/:repoId/collaborators", async (c) => {
+  app.get("/", async (c) => {
     // Push-gate BEFORE the cache: the cached roster is repo-shared, and a
     // read-only viewer must not be able to read it out of the cache either.
     if (!c.get("viewerCanPush")) {

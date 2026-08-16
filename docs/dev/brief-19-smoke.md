@@ -208,11 +208,11 @@ DB-backed `/repos/<repoId>/pulls/<N>` route, which v1 never reaches.
 - **Single installation:** just confirm the dropdown renders one entry and
   Escape returns focus to the trigger.
 
-Switch failure path (optional): `POST /api/auth/installation` with a bogus id
+Switch failure path (optional): `POST /api/auth/installations` with a bogus id
 from the console → **expect** 403 and no change:
 
 ```js
-await fetch("/api/auth/installation", { method: "POST",
+await fetch("/api/auth/installations", { method: "POST",
   headers: { "content-type": "application/json" },
   body: JSON.stringify({ installationId: "999999" }) })   // → 403
 ```

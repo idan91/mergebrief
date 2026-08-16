@@ -1,9 +1,9 @@
 // Multi-org session endpoints. Two session-gated routes let a reviewer who
 // spans installations see and switch which one their session is bound to:
-//   GET  /api/auth/installations  → the LIVE accessible set (id + account login)
+//   GET  /api/auth/installations → the LIVE accessible set (id + account login)
 //                               annotated with current (session) + default
 //                               (user_settings).
-//   POST /api/auth/installation   → { installationId, setDefault? } — rebind the
+//   POST /api/auth/installations → { installationId, setDefault? } — rebind the
 //                               session to a DIFFERENT installation.
 //
 // TRUST SHAPE (the whole point): the accessible set is ALWAYS re-derived from
@@ -40,9 +40,9 @@ import {
   refreshSessionToken,
   type AuthRouteDeps,
   type ViewerPrincipal,
-} from "./auth";
-import { accessStampLayer, sessionLayer, type AuthzEnv } from "./authz";
-import { ApiErrorCode, errorJson } from "../error-response";
+} from "./session";
+import { accessStampLayer, sessionLayer, type AuthzEnv } from "../authz";
+import { ApiErrorCode, errorJson } from "../../error-response";
 
 /** The switch body — `installationId` as a numeric string or JSON number. */
 const switchBodySchema = z.object({
@@ -126,11 +126,10 @@ export async function resolveAccessibleInstallations(
 export function installationsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
   const app = new Hono<AuthzEnv>();
 
-  app.use("/api/auth/installations", sessionLayer(deps), accessStampLayer());
-  app.use("/api/auth/installation", sessionLayer(deps), accessStampLayer());
+  app.use("/", sessionLayer(deps), accessStampLayer());
 
   // GET: the accessible set annotated with current (session) + default (settings).
-  app.get("/api/auth/installations", async (c) => {
+  app.get("/", async (c) => {
     const session = c.get("session");
     const resolved = await resolveAccessibleInstallations(
       deps,
@@ -167,7 +166,7 @@ export function installationsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
   });
 
   // POST: rebind the session to a different installation (validated live).
-  app.post("/api/auth/installation", async (c) => {
+  app.post("/", async (c) => {
     const raw: unknown = await c.req.json().catch(() => undefined);
     const parsed = switchBodySchema.safeParse(raw);
     if (!parsed.success) {

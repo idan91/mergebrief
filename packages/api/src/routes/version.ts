@@ -3,7 +3,7 @@
 // (both channels) like every `/api/*` surface — it doubles as the CLI's
 // cheapest authenticated liveness probe.
 import { Hono } from "hono";
-import type { AuthRouteDeps } from "./auth";
+import type { AuthRouteDeps } from "./auth/session";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "./authz";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
@@ -13,9 +13,7 @@ export function versionRoute(
   serverVersion: string,
 ): Hono<AuthzEnv> {
   const app = new Hono<AuthzEnv>();
-  app.use("/api/version", sessionLayer(deps), accessStampLayer());
-  app.get("/api/version", (c) =>
-    c.json({ version: serverVersion }, 200, NO_STORE),
-  );
+  app.use("/", sessionLayer(deps), accessStampLayer());
+  app.get("/", (c) => c.json({ version: serverVersion }, 200, NO_STORE));
   return app;
 }

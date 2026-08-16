@@ -58,7 +58,7 @@ import {
   sha256Hex,
   type AuthRouteDeps,
   type ViewerPrincipal,
-} from "./auth";
+} from "./auth/session";
 import { stampAccess, type RequestLogVariables } from "../request-logging";
 import { createTtlCache } from "./ttl-cache";
 import { ApiErrorCode, errorJson } from "../error-response";

@@ -37,9 +37,9 @@ import {
 } from "persistence";
 import type { Result } from "types";
 import { z } from "zod";
-import { refreshSessionToken, type AuthRouteDeps } from "./auth";
-import { createAuthzMiddleware, type AuthzEnv } from "./authz";
-import { ApiErrorCode, errorJson } from "../error-response";
+import { refreshSessionToken, type AuthRouteDeps } from "../../auth/session";
+import type { AuthzEnv } from "../../authz";
+import { ApiErrorCode, errorJson } from "../../../error-response";
 
 // ---------------------------------------------------------------------------
 // Boundary schemas — shape only (the server needs no chunk knowledge; the FE
@@ -222,7 +222,7 @@ async function resolveSessionToken(
 }
 
 /**
- * Mount the submit route behind its own per-repo gate instance.
+ * Mount the submit route behind the pr subtree's shared gate.
  * `evictConversation` is the conversation surface's cache hook: a submitted
  * review is a conversation write, so success drops the PR's cached
  * conversation.
@@ -236,11 +236,8 @@ export function reviewSubmitRoute(
   ) => void,
 ): Hono<AuthzEnv> {
   const app = new Hono<AuthzEnv>();
-  const authz = createAuthzMiddleware(deps);
 
-  app.use("/api/repos/:repoId/pulls/:prNumber/review", authz);
-
-  app.post("/api/repos/:repoId/pulls/:prNumber/review", async (c) => {
+  app.post("/", async (c) => {
     let rawBody: unknown;
     try {
       rawBody = await c.req.json();

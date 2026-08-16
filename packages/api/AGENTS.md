@@ -63,13 +63,15 @@ cause.
 
 ## Gated-route rules (enforced, don't weaken)
 
-- **One gate per request.** `readsRoute` guards `/api/repos/:repoId/*` with a
-  METHOD-AGNOSTIC `app.use`, so any route module mounted after it in
-  `app.ts` stacks a second authz gate in front of its own (double GitHub
-  access check cold; a transient failure on the second one 404s a
-  just-verified request). Mount new route modules BEFORE `readsRoute`, or
-  scope their middleware by method+path. The submit tests pin the
-  single-gate behavior (`counts.repositories`).
+- **One gate per request.** The per-PR subtree (`routes/repos/pr/index.ts`)
+  mounts ONE METHOD-AGNOSTIC `use("*", authz)` over everything under
+  `/:repoId/pulls/:prNumber`; leaf modules under it must NOT create a gate
+  of their own (a second gate means a double GitHub access check cold; a
+  transient failure on the second one 404s a just-verified request). A new
+  per-PR route mounts inside the subtree and inherits the gate; a per-repo
+  surface outside it (the collaborators leaf) carries its own gate
+  instance. The submit tests pin the single-gate behavior
+  (`counts.repositories`).
 - **Mutations re-resolve the repo fresh.** The gate's cached `repoFullName`
   is ≤60s stale — fine for reads, not for outward writes (a rename +
   name-reuse inside the window would target the wrong repo). A mutating
@@ -81,11 +83,11 @@ cause.
   hide, so the mutation-stage posture is a per-route judgment: where a
   FORBIDDEN carries a real, FE-actionable capability signal it surfaces as
   an honest 403 `github-permission` (mark-ready's App-permission gap,
-  resolve-thread's viewer capability); where it carries none it keeps
+  thread resolution's viewer capability); where it carries none it keeps
   collapsing to 404 (the reply POST — any repo reader may reply, so its 403
   is indistinguishable from gone). NOT_FOUND collapses to 404 everywhere.
 - **`no-store` on every response of a gated route** — error paths included;
-  it is all per-viewer state (`errorJson` in `review-submit.ts`).
+  it is all per-viewer state (`errorJson` in `repos/pr/review.ts`).
 - **One refresh-once budget per REQUEST**, shared across every GitHub call
   in the handler (`spendRefresh` closure) — the token can expire between
   calls, and per-call-site refresh logic either misses that or refreshes

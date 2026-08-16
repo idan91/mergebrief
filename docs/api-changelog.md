@@ -13,6 +13,16 @@ The contract discipline (ADR 0029): response shapes change additively
 within a major; removals/renames ship expand/contract — new field first,
 deprecation note here, removal only at a major.
 
+## dev (2026-08-16 — BRIEF-196)
+
+- **BREAKING** — the installation-switch endpoint renamed
+  `POST /api/auth/installation` → `POST /api/auth/installations`, so both
+  multi-org operations share one prefix (`GET /api/auth/installations` is
+  unchanged). The request body, response shape, status codes, and
+  cookie-only presentation rule are all unchanged — only the path moved.
+  The old singular path now 404s. Pre-OSS-cutover with zero adopters, so it
+  ships as a straight rename rather than expand/contract.
+
 ## dev (2026-08-03 — BRIEF-20)
 
 - **Added** `capped` to `generation.status` on the PR-view/list responses

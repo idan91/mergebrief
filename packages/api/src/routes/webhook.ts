@@ -385,7 +385,7 @@ async function readRawBodyWithinLimit(
 export function webhookRoute(deps: WebhookRouteDeps): Hono<RequestLogEnv> {
   const app = new Hono<RequestLogEnv>();
 
-  app.post("/api/webhooks/github", async (c) => {
+  app.post("/github", async (c) => {
     // GitHub's delivery id rides every webhook event line as a child binding —
     // the operator's join key back to the delivery record. The header lands
     // PRE-verify on a public endpoint, so anything outside GitHub's GUID

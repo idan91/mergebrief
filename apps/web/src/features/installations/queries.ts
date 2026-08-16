@@ -47,12 +47,12 @@ export function reloadToPicker(): void {
 export async function switchInstallation(
   input: SwitchInstallationInput,
 ): Promise<void> {
-  const response = await fetch("/api/auth/installation", {
+  const response = await fetch("/api/auth/installations", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(input),
   });
   if (!response.ok) {
-    throw await errorFromResponse(response, "/api/auth/installation");
+    throw await errorFromResponse(response, "/api/auth/installations");
   }
 }

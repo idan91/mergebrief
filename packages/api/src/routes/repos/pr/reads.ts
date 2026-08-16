@@ -39,12 +39,12 @@ import {
   type ValueOf,
 } from "persistence";
 import { z } from "zod";
-import { ApiErrorCode, errorJson } from "../error-response";
-import { DEFAULT_DRAFT_POLICY } from "../draft-policy";
-import { createAuthzMiddleware, type AuthzEnv } from "./authz";
-import { refreshSessionToken, type AuthRouteDeps } from "./auth";
-import { buildPrView } from "./pr-view";
-import { createTtlCache } from "./ttl-cache";
+import { ApiErrorCode, errorJson } from "../../../error-response";
+import { DEFAULT_DRAFT_POLICY } from "../../../draft-policy";
+import type { AuthzEnv } from "../../authz";
+import { refreshSessionToken, type AuthRouteDeps } from "../../auth/session";
+import { buildPrView } from "../../pr-view";
+import { createTtlCache } from "../../ttl-cache";
 
 // ---------------------------------------------------------------------------
 // Boundary schemas. A PR number is a positive int; a SHA is a non-empty token.
@@ -107,17 +107,13 @@ function splitRepoSlug(
 }
 
 /**
- * Mount the read API. The authz middleware AND the diff cache are created here —
- * once per `createApp` — so both are scoped to the app instance.
+ * Mount the read API behind the pr subtree's shared gate. The diff cache is
+ * created here — once per `createApp` — so it is scoped to the app instance.
  */
 export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
   const app = new Hono<AuthzEnv>();
-  const authz = createAuthzMiddleware(deps);
   // key `${sessionHash}:${repoId}:${prNumber}:${base}:${head}` → cached diff.
   const diffCache = createTtlCache<string>(DIFF_CACHE_MAX_ENTRIES);
-
-  // The gate guards every read under this prefix.
-  app.use("/api/repos/:repoId/*", authz);
 
   /**
    * Resolve `:prNumber` and the tenant PR row, or return the mapped error
@@ -149,7 +145,7 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
   // single poll target: render when `briefAvailable`, drive the wait UX from
   // `generation`, offer Compare only when `comparisons` carries a baseline
   // (fail closed — absent means not offered).
-  app.get("/api/repos/:repoId/pulls/:prNumber", async (c) => {
+  app.get("/", async (c) => {
     const ctx = c.get("ctx");
     const resolved = await resolvePr(
       ctx,
@@ -287,7 +283,7 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
   });
 
   // GET brief — the whole-PR span artifact for (base, head).
-  app.get("/api/repos/:repoId/pulls/:prNumber/brief", async (c) => {
+  app.get("/brief", async (c) => {
     const query = briefQuerySchema.safeParse({
       base: c.req.query("base"),
       head: c.req.query("head"),
@@ -324,7 +320,7 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
   // de-emphasis weights, and origin chip. A separate lean endpoint (never the
   // multi-hundred-KB body) so the `/brief` wire shape — which the CLI also
   // parses — stays untouched. `repoConfig` is null for older rows.
-  app.get("/api/repos/:repoId/pulls/:prNumber/brief-context", async (c) => {
+  app.get("/brief-context", async (c) => {
     const query = briefQuerySchema.safeParse({
       base: c.req.query("base"),
       head: c.req.query("head"),
@@ -358,7 +354,7 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
   });
 
   // GET marks — comparison marks (coordinates only) for (baseline, head).
-  app.get("/api/repos/:repoId/pulls/:prNumber/marks", async (c) => {
+  app.get("/marks", async (c) => {
     const query = marksQuerySchema.safeParse({
       baseline: c.req.query("baseline"),
       head: c.req.query("head"),
@@ -392,7 +388,7 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
   // GET delta — the pre-warmed reviewer-personal delta core for
   // (baseline = checkpoint SHA, head). Reviewer-agnostic artifact;
   // per-reviewer relevance is derived in PR-meta, not here.
-  app.get("/api/repos/:repoId/pulls/:prNumber/delta", async (c) => {
+  app.get("/delta", async (c) => {
     const query = deltaQuerySchema.safeParse({
       baseline: c.req.query("baseline"),
       head: c.req.query("head"),
@@ -425,7 +421,7 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
   });
 
   // GET narrative — the revision narrative for (prevHead, head).
-  app.get("/api/repos/:repoId/pulls/:prNumber/narrative", async (c) => {
+  app.get("/narrative", async (c) => {
     const query = narrativeQuerySchema.safeParse({
       prevHead: c.req.query("prevHead"),
       head: c.req.query("head"),
@@ -463,7 +459,7 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
   // GET diff — LIVE proxy of the requested `base...head` span diff (GitHub's
   // compare endpoint) with the viewer's token, cached per session (~60s).
   // Never persisted.
-  app.get("/api/repos/:repoId/pulls/:prNumber/diff", async (c) => {
+  app.get("/diff", async (c) => {
     const query = diffQuerySchema.safeParse({
       base: c.req.query("base"),
       head: c.req.query("head"),

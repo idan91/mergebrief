@@ -20,7 +20,7 @@ import {
   refreshSessionToken,
   type AuthRouteDeps,
   type ViewerPrincipal,
-} from "./auth";
+} from "./auth/session";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "./authz";
 import { ApiErrorCode, errorJson } from "../error-response";
 
@@ -139,9 +139,9 @@ export function generateRoute(
   const singleFlight =
     createSingleFlight<Result<GeneratedBriefRef, UrlBriefError>>();
 
-  app.use("/api/generate", sessionLayer(deps), accessStampLayer());
+  app.use("/", sessionLayer(deps), accessStampLayer());
 
-  app.post("/api/generate", async (c) => {
+  app.post("/", async (c) => {
     if (engine === undefined) {
       return errorJson(c, ApiErrorCode.GENERATION_UNAVAILABLE);
     }
