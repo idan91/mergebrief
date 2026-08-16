@@ -19,7 +19,8 @@
     "build": "tsup",
     "link-dev": "pnpm build && pnpm link --global",
     "docs:appendix": "tsx scripts/embed-help.ts",
-    "docs:check": "tsx scripts/embed-help.ts --check"
+    "docs:check": "tsx scripts/embed-help.ts --check",
+    "map:check": "tsx scripts/check-operations-map.ts"
   },
   "dependencies": {
     "commander": "^14.0.2",

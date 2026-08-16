@@ -1,0 +1,165 @@
+{
+  "operations": [
+    {
+      "id": "create-inline-comment",
+      "kind": "action",
+      "classification": "external-write",
+      "agentAvailable": true,
+      "endpoint": "POST /api/repos/:repoId/pulls/:prNumber/comments"
+    },
+    {
+      "id": "generate-brief",
+      "kind": "action",
+      "classification": "private-write",
+      "agentAvailable": true,
+      "endpoint": "POST /api/generate"
+    },
+    {
+      "id": "list-collaborators",
+      "kind": "query",
+      "classification": "read",
+      "agentAvailable": true,
+      "endpoint": "GET /api/repos/:repoId/collaborators"
+    },
+    {
+      "id": "list-installations",
+      "kind": "query",
+      "classification": "read",
+      "agentAvailable": true,
+      "endpoint": "GET /api/auth/installations"
+    },
+    {
+      "id": "list-pulls",
+      "kind": "query",
+      "classification": "read",
+      "agentAvailable": true,
+      "endpoint": "GET /api/pulls"
+    },
+    {
+      "id": "list-repos",
+      "kind": "query",
+      "classification": "read",
+      "agentAvailable": true,
+      "endpoint": "GET /api/repos"
+    },
+    {
+      "id": "list-tokens",
+      "kind": "query",
+      "classification": "read",
+      "agentAvailable": true,
+      "endpoint": "GET /api/auth/tokens"
+    },
+    {
+      "id": "mark-ready",
+      "kind": "action",
+      "classification": "external-write",
+      "agentAvailable": true,
+      "endpoint": "POST /api/repos/:repoId/pulls/:prNumber/ready"
+    },
+    {
+      "id": "mint-token",
+      "kind": "action",
+      "classification": "private-write",
+      "agentAvailable": false,
+      "endpoint": "POST /api/auth/tokens"
+    },
+    {
+      "id": "read-brief",
+      "kind": "query",
+      "classification": "read",
+      "agentAvailable": true,
+      "endpoint": "GET /api/repos/:repoId/pulls/:prNumber/brief"
+    },
+    {
+      "id": "read-brief-context",
+      "kind": "query",
+      "classification": "read",
+      "agentAvailable": true,
+      "endpoint": "GET /api/repos/:repoId/pulls/:prNumber/brief-context"
+    },
+    {
+      "id": "read-conversation",
+      "kind": "query",
+      "classification": "read",
+      "agentAvailable": true,
+      "endpoint": "GET /api/repos/:repoId/pulls/:prNumber/conversation"
+    },
+    {
+      "id": "read-delta",
+      "kind": "query",
+      "classification": "read",
+      "agentAvailable": true,
+      "endpoint": "GET /api/repos/:repoId/pulls/:prNumber/delta"
+    },
+    {
+      "id": "read-diff",
+      "kind": "query",
+      "classification": "read",
+      "agentAvailable": true,
+      "endpoint": "GET /api/repos/:repoId/pulls/:prNumber/diff"
+    },
+    {
+      "id": "read-marks",
+      "kind": "query",
+      "classification": "read",
+      "agentAvailable": true,
+      "endpoint": "GET /api/repos/:repoId/pulls/:prNumber/marks"
+    },
+    {
+      "id": "read-narrative",
+      "kind": "query",
+      "classification": "read",
+      "agentAvailable": true,
+      "endpoint": "GET /api/repos/:repoId/pulls/:prNumber/narrative"
+    },
+    {
+      "id": "read-pull",
+      "kind": "query",
+      "classification": "read",
+      "agentAvailable": true,
+      "endpoint": "GET /api/repos/:repoId/pulls/:prNumber"
+    },
+    {
+      "id": "reply-to-comment",
+      "kind": "action",
+      "classification": "external-write",
+      "agentAvailable": true,
+      "endpoint": "POST /api/repos/:repoId/pulls/:prNumber/comments/:commentId/replies"
+    },
+    {
+      "id": "resolve-thread",
+      "kind": "action",
+      "classification": "external-write",
+      "agentAvailable": true,
+      "endpoint": "POST /api/repos/:repoId/pulls/:prNumber/comments/:commentId/resolve"
+    },
+    {
+      "id": "revoke-token",
+      "kind": "action",
+      "classification": "private-write",
+      "agentAvailable": false,
+      "endpoint": "DELETE /api/auth/tokens/:id"
+    },
+    {
+      "id": "select-installation",
+      "kind": "action",
+      "classification": "private-write",
+      "agentAvailable": false,
+      "endpoint": "POST /api/auth/installations"
+    },
+    {
+      "id": "submit-review",
+      "kind": "action",
+      "classification": "external-write",
+      "agentAvailable": true,
+      "endpoint": "POST /api/repos/:repoId/pulls/:prNumber/review"
+    },
+    {
+      "id": "unresolve-thread",
+      "kind": "action",
+      "classification": "external-write",
+      "agentAvailable": true,
+      "endpoint": "POST /api/repos/:repoId/pulls/:prNumber/comments/:commentId/unresolve"
+    }
+  ]
+}

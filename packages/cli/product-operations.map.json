@@ -1,0 +1,117 @@
+{
+  "create-inline-comment": {
+    "gap": {
+      "reason": "No mergebrief command yet; inline-comment authoring ships with the Review Session CLI surface",
+      "owner": "idan",
+      "ticket": "BRIEF-197",
+      "expiry": "2026-12-31"
+    }
+  },
+  "generate-brief": {
+    "gap": {
+      "reason": "URL-box generation has no CLI equivalent; decide command vs web-only reclassification",
+      "owner": "idan",
+      "ticket": "BRIEF-201",
+      "expiry": "2026-12-31"
+    }
+  },
+  "list-collaborators": {
+    "gap": {
+      "reason": "No mergebrief command lists repo collaborators; decide command vs web-only reclassification",
+      "owner": "idan",
+      "ticket": "BRIEF-201",
+      "expiry": "2026-12-31"
+    }
+  },
+  "list-installations": {
+    "gap": {
+      "reason": "No mergebrief command lists installations; decide command vs web-only reclassification",
+      "owner": "idan",
+      "ticket": "BRIEF-201",
+      "expiry": "2026-12-31"
+    }
+  },
+  "list-pulls": {
+    "command": "mergebrief pr"
+  },
+  "list-repos": {
+    "command": "mergebrief repos"
+  },
+  "list-tokens": {
+    "gap": {
+      "reason": "No mergebrief command lists API tokens; decide command vs web-only reclassification",
+      "owner": "idan",
+      "ticket": "BRIEF-201",
+      "expiry": "2026-12-31"
+    }
+  },
+  "mark-ready": {
+    "gap": {
+      "reason": "No mergebrief command yet; mark-ready ships with the Review Session CLI surface",
+      "owner": "idan",
+      "ticket": "BRIEF-197",
+      "expiry": "2026-12-31"
+    }
+  },
+  "read-brief": {
+    "command": "mergebrief groups <number>"
+  },
+  "read-brief-context": {
+    "gap": {
+      "reason": "No mergebrief command yet; brief-context read ships with the Review Session CLI surface",
+      "owner": "idan",
+      "ticket": "BRIEF-197",
+      "expiry": "2026-12-31"
+    }
+  },
+  "read-conversation": {
+    "command": "mergebrief conversation <number>"
+  },
+  "read-delta": {
+    "command": "mergebrief delta <number>"
+  },
+  "read-diff": {
+    "command": "mergebrief diff <number>"
+  },
+  "read-marks": {
+    "gap": {
+      "reason": "No mergebrief command yet; marks read ships with the Review Session CLI surface",
+      "owner": "idan",
+      "ticket": "BRIEF-197",
+      "expiry": "2026-12-31"
+    }
+  },
+  "read-narrative": {
+    "gap": {
+      "reason": "No mergebrief command yet; narrative read ships with the Review Session CLI surface",
+      "owner": "idan",
+      "ticket": "BRIEF-197",
+      "expiry": "2026-12-31"
+    }
+  },
+  "read-pull": {
+    "command": "mergebrief pr <number>"
+  },
+  "reply-to-comment": {
+    "command": "mergebrief reply <commentId>"
+  },
+  "resolve-thread": {
+    "gap": {
+      "reason": "No mergebrief command yet; thread resolution ships with the Review Session CLI surface",
+      "owner": "idan",
+      "ticket": "BRIEF-197",
+      "expiry": "2026-12-31"
+    }
+  },
+  "submit-review": {
+    "command": "mergebrief submit <number>"
+  },
+  "unresolve-thread": {
+    "gap": {
+      "reason": "No mergebrief command yet; thread resolution ships with the Review Session CLI surface",
+      "owner": "idan",
+      "ticket": "BRIEF-197",
+      "expiry": "2026-12-31"
+    }
+  }
+}

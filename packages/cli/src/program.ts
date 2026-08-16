@@ -335,7 +335,7 @@ function parsePrNumber(raw: string): number {
 }
 
 /** Build the commander program over injected deps. */
-function buildProgram(deps: CliDeps): Command {
+export function buildProgram(deps: CliDeps): Command {
   const program = new Command("mergebrief");
   program
     .description(

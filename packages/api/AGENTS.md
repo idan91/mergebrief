@@ -99,6 +99,32 @@ cause.
   Corollary: validate that every ACCEPTED payload is representable by its
   own degradation path (the fold-budget refine).
 
+## Product Operation catalog
+
+Every domain route declares its operation through the product router —
+declaration and mounting are one statement, so an endpoint cannot exist
+without a catalog descriptor. Composing the app IS registering: the root
+commit stamps each declaration's full `METHOD /api/...` endpoint into the
+registry, and `product-operations.manifest.json` is that registry rendered.
+
+Adding or renaming an operation means regenerating the manifest
+(`pnpm -C packages/api manifest`) and committing it — `manifest:check` fails
+on drift. The root `dev` and `app:host` scripts run the write path before
+starting, so a local run leaves the change in the working tree ready to
+commit; `build` only verifies, because a build must never mutate a tracked
+source.
+
+The write path composes only when it must: it skips entirely while the
+committed manifest is strictly newer than every file under `src/`, `test/`,
+`scripts/`, and `package.json` (equal mtimes count as stale), so a normal dev
+start pays nothing. `--check` has no such shortcut — it always composes and
+judges by bytes, whatever the timestamps say.
+
+The manifest is also one half of a both-directions gate: an
+agent-available operation needs either a `mergebrief` command or a
+documented, expiring gap entry in `packages/cli/product-operations.map.json`,
+and a web-only one (`agentAvailable: false`) must be absent from that file.
+
 ## Conventions
 
 Mirrors `packages/persistence/AGENTS.md`: no `enum` (`as const` +
@@ -121,5 +147,6 @@ uses real graphile). Payloads are built inline (shapes cribbed from
 pnpm install                  # from repo root, to link workspace packages
 pnpm -C packages/api typecheck
 pnpm -C packages/api test
+pnpm -C packages/api manifest:check   # the operation manifest matches the composed app
 pnpm lint                     # repo-root oxlint --type-aware picks this package up
 ```

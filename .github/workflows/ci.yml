@@ -52,11 +52,45 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       # Unfiltered on purpose: `pnpm lint` is a whole-repo gate (oxlint,
-      # eslint, knip, `prettier --check .`, stylelint). Prettier and knip
-      # read files no package owns — docs, root config — so there is no
-      # change set that provably cannot break it.
+      # eslint, knip, `prettier --check .`, stylelint, and the product
+      # operation catalog gate — manifest drift + CLI-map exhaustiveness).
+      # Prettier and knip read files no package owns — docs, root config —
+      # so there is no change set that provably cannot break it.
       - name: Run lint
         run: pnpm lint
+
+  catalog:
+    name: Catalog gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Its own job, not a link in `pnpm lint`: this is a correctness gate
+      # (manifest drift, CLI-map exhaustiveness, and the only evaluation of a
+      # gap's expiry against the real date), and a style finding in an
+      # untouched file must not be what stops it from running. Unfiltered and
+      # deterministic — no network, a couple of seconds.
+      - name: Run the product operation catalog gate
+        run: pnpm check:catalog
 
   checks:
     name: ${{ matrix.check }}
@@ -298,6 +332,7 @@ jobs:
     if: always()
     needs:
       - lint
+      - catalog
       - checks
       - e2e
 

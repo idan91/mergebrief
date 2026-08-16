@@ -16,8 +16,9 @@
       // The CI/weekly workflows install browsers with `pnpm -C apps/web exec
       // playwright ...`. knip attributes a workflow's binaries to the root
       // workspace, which does not (and should not) depend on Playwright —
-      // apps/web owns it.
-      "ignoreBinaries": ["playwright"],
+      // apps/web owns it. `manifest` is likewise not a binary: the dev/build
+      // scripts invoke `pnpm -C packages/api manifest`, a package script.
+      "ignoreBinaries": ["playwright", "manifest"],
     },
     "apps/web": {
       // Routes are the app's entry surface; the feature `index.tsx` barrels
@@ -36,11 +37,19 @@
         "e2e/**/*.e2e.ts",
       ],
     },
-    "packages/api": { "entry": ["src/index.ts"] },
+    "packages/api": {
+      "entry": ["src/index.ts", "scripts/generate-manifest.ts"],
+    },
     "packages/brief-core": {
       "entry": ["src/index.ts", "src/types.ts", "src/cli/*.ts"],
     },
-    "packages/cli": { "entry": ["src/bin.ts", "scripts/embed-help.ts"] },
+    "packages/cli": {
+      "entry": [
+        "src/bin.ts",
+        "scripts/embed-help.ts",
+        "scripts/check-operations-map.ts",
+      ],
+    },
     "packages/generators": {
       // The `.cjs` shims are spawned as real child processes by the contract
       // suites (path reference, never imported).

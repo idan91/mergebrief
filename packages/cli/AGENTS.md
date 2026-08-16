@@ -27,8 +27,17 @@ src/
     config.ts         per-profile config.json (XDG, 0600, plaintext token v1)
     repos.ts          per-profile repo cache + self-healing slug resolution
 test/               runCli-level contract tests (stdout/stderr + exit code)
-scripts/            embed-help.ts — regenerates the README flag appendix
+scripts/          embed-help.ts        regenerates the README flag appendix
+                  check-operations-map.ts + operations-map-lib.ts +
+                  command-paths.ts     the product operation mapping gate
 ```
+
+`product-operations.map.json` (committed, package root) is the CLI half of
+that gate: one entry per agent-available operation in api's manifest, either
+a `command` — which must resolve against the REAL commander tree, so a
+renamed command fails the gate — or a `gap` carrying reason, owner, ticket,
+and an expiry date that eventually fails on its own. Operations the manifest
+marks web-only must be absent from the file.
 
 ## Invariants (enforced, don't weaken)
 
@@ -57,5 +66,6 @@ pnpm -C packages/cli typecheck
 pnpm -C packages/cli test
 pnpm -C packages/cli build        # tsup single-file bundle
 pnpm -C packages/cli docs:check   # README flag appendix current
+pnpm -C packages/cli map:check    # operation map exhaustive, commands real
 pnpm lint                         # repo-root oxlint --type-aware
 ```
