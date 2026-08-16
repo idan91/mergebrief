@@ -8,8 +8,13 @@
 //
 // Beneath it: the per-repo collaborators leaf and the per-PR subtree, each
 // behind its per-repo gate.
-import { Hono } from "hono";
 import { ApiErrorCode, errorJson } from "../../error-response";
+import { PRODUCT_QUERY_ID } from "../../product-operations/ids";
+import {
+  productRouter,
+  type ProductRouter,
+} from "../../product-operations/product-router";
+import { WRITE_CLASSIFICATION } from "../../product-operations/types";
 import type { AuthRouteDeps } from "../auth/session";
 import type { AllowedRepoResolver } from "../allowed-repos";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "../authz";
@@ -30,30 +35,38 @@ export interface ReposRouteDeps extends AuthRouteDeps {
 export function reposRoutes(
   deps: ReposRouteDeps,
   allowedRepos: AllowedRepoResolver,
-): Hono<AuthzEnv> {
-  const app = new Hono<AuthzEnv>();
+): ProductRouter<AuthzEnv> {
+  const app = productRouter<AuthzEnv>();
 
   app.use("/", sessionLayer(deps), accessStampLayer());
 
-  app.get("/", async (c) => {
-    const resolved = await allowedRepos.resolve(
-      c.get("session"),
-      c.get("logger"),
-    );
-    if (!resolved.ok) {
-      return errorJson(
-        c,
-        resolved.error.status === 401
-          ? ApiErrorCode.UNAUTHORIZED
-          : ApiErrorCode.GITHUB_UNAVAILABLE,
+  app.query(
+    {
+      id: PRODUCT_QUERY_ID.LIST_REPOS,
+      classification: WRITE_CLASSIFICATION.READ,
+      agentAvailable: true,
+    },
+    "/",
+    async (c) => {
+      const resolved = await allowedRepos.resolve(
+        c.get("session"),
+        c.get("logger"),
       );
-    }
-    // Deterministic order for humans and diffs: fullName ascending.
-    const repos = [...resolved.value.allowed.entries()]
-      .map(([repoId, fullName]) => ({ repoId: String(repoId), fullName }))
-      .toSorted((a, b) => a.fullName.localeCompare(b.fullName));
-    return c.json({ repos }, 200, NO_STORE);
-  });
+      if (!resolved.ok) {
+        return errorJson(
+          c,
+          resolved.error.status === 401
+            ? ApiErrorCode.UNAUTHORIZED
+            : ApiErrorCode.GITHUB_UNAVAILABLE,
+        );
+      }
+      // Deterministic order for humans and diffs: fullName ascending.
+      const repos = [...resolved.value.allowed.entries()]
+        .map(([repoId, fullName]) => ({ repoId: String(repoId), fullName }))
+        .toSorted((a, b) => a.fullName.localeCompare(b.fullName));
+      return c.json({ repos }, 200, NO_STORE);
+    },
+  );
 
   app.route("/:repoId/collaborators", collaboratorsRoute(deps));
   app.route("/:repoId/pulls/:prNumber", prRoutes(deps));

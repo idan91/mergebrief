@@ -44,19 +44,36 @@ compositions are not.
 `packages/api/src/product-operations/` owns the catalog (backend owns the
 vocabulary; consumers read a generated manifest, never import route code).
 
-Route files keep the existing factory convention untouched. Each operation
-is declared with one top-level call beside its factory —
-`registerProductQuery(descriptor)` / `registerProductAction(descriptor)` —
-which validates the descriptor and records it in the registry. The calls run
-at module load, so importing the route module is what registers it; a
-factory serving several operations makes one call per operation, one per
-line. Handlers stay colocated; `app.ts` composition, factory signatures, and
-factory bodies are unchanged.
+Route files keep the existing factory convention, but build on a
+`ProductRouter` — a wrapper over Hono where declaring an endpoint and
+registering its operation are ONE statement: `.query(descriptor, path,
+handler)` mounts a GET, `.action(descriptor, method, path, handler)` mounts a
+write, and there is no descriptor-less way to mount a domain route. Descriptor
+ids come from a typed vocabulary (`ids.ts`), so an unknown id or a
+kind/classification mismatch is a compile error before it is a runtime throw.
 
-Registration-seam failures — duplicate id and non-kebab id in the registry,
-kind/classification mismatch in the registrars — throw at load: they are
-programmer errors a test run surfaces immediately, not expected failures, so
-`Result` does not apply.
+Operation ↔ endpoint is 1:1: handler sub-steps never register (automatic
+bookkeeping is excluded from the taxonomy), and an endpoint that would serve
+two operations is split into two endpoints instead of multi-registering one.
+Each registered descriptor carries its endpoint (`METHOD /full/path`),
+assembled mechanically: `.route(prefix, child)` absorbs the child router's
+declarations under the mount prefix, and the composition root's `commit`
+stamps the accumulated full paths — including the top-level `/api` mount —
+into the registry. No full path is ever written by hand, and a derived
+backstop test pins the composed app's route table (minus the ADR-listed
+exempt endpoints) exactly against the registry's endpoint set.
+
+Registration therefore runs at route composition (`createApp`), not module
+load: composing the app is what fills the registry, and the manifest
+generator composes against stub dependencies without serving. Because tests
+compose many apps per process, re-registering an identical descriptor
+(endpoint included) is a no-op; the same id with a different descriptor
+still throws.
+
+Registration-seam failures — non-kebab id, conflicting descriptor,
+kind/classification mismatch, declaring on an already-mounted router — throw
+at composition: they are programmer errors a test run surfaces immediately,
+not expected failures, so `Result` does not apply.
 
 ### Manifests and CI gates
 
@@ -81,7 +98,7 @@ programmer errors a test run surfaces immediately, not expected failures, so
   coupling them to `packages/api` internals.
 - Route authors carry one new obligation: pick an id and a classification.
   Everything else (enumeration, mapping checks) is mechanical.
-- The registry is process-global and fills at module load; a second
-  `createApp` in one process re-registers nothing because registration rides
-  imports, not calls. Tests that need isolation build their own registry via
+- The registry is process-global and fills at route composition; a second
+  `createApp` in one process re-registers identical descriptors as no-ops.
+  Tests that need isolation build their own registry via
   `createProductOperationRegistry()`.

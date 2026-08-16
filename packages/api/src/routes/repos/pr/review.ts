@@ -12,7 +12,7 @@
 // every comment folded into the review body; nothing is silently dropped, and
 // the response carries `commentsDegraded`. An unknown-commit 422 fails CLOSED
 // (409, "reload") — never a retry at a different SHA.
-import { Hono, type Context } from "hono";
+import type { Context } from "hono";
 import {
   createPullRequestReview,
   createUserOctokit,
@@ -40,6 +40,12 @@ import { z } from "zod";
 import { refreshSessionToken, type AuthRouteDeps } from "../../auth/session";
 import type { AuthzEnv } from "../../authz";
 import { ApiErrorCode, errorJson } from "../../../error-response";
+import { PRODUCT_ACTION_ID } from "../../../product-operations/ids";
+import {
+  productRouter,
+  type ProductRouter,
+} from "../../../product-operations/product-router";
+import { WRITE_CLASSIFICATION } from "../../../product-operations/types";
 
 // ---------------------------------------------------------------------------
 // Boundary schemas — shape only (the server needs no chunk knowledge; the FE
@@ -234,190 +240,201 @@ export function reviewSubmitRoute(
     repoId: RepoId,
     prNumber: number,
   ) => void,
-): Hono<AuthzEnv> {
-  const app = new Hono<AuthzEnv>();
+): ProductRouter<AuthzEnv> {
+  const app = productRouter<AuthzEnv>();
 
-  app.post("/", async (c) => {
-    let rawBody: unknown;
-    try {
-      rawBody = await c.req.json();
-    } catch {
-      return errorJson(c, ApiErrorCode.INVALID_REQUEST);
-    }
-    const parsedBody = submitBodySchema.safeParse(rawBody);
-    if (!parsedBody.success) {
-      return errorJson(c, ApiErrorCode.INVALID_REQUEST);
-    }
-    const submitBody = parsedBody.data;
-
-    const ctx = c.get("ctx");
-    const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
-    if (!parsedPr.success) {
-      return errorJson(c, ApiErrorCode.INVALID_REQUEST);
-    }
-    const pr = await forTenant(deps.handle, ctx).pullRequests.getByNumber(
-      c.get("repoId"),
-      parsedPr.data,
-    );
-    if (pr === undefined) {
-      return errorJson(c, ApiErrorCode.NOT_FOUND);
-    }
-
-    // Viewer token: set by the gate on the verified path; on a positive-cache
-    // hit decrypt lazily (same pattern as the diff proxy).
-    let currentSession = c.get("session");
-    const resolvedToken =
-      c.get("accessToken") ?? (await resolveSessionToken(deps, currentSession));
-    if (resolvedToken === undefined) {
-      return errorJson(c, ApiErrorCode.UNAUTHORIZED);
-    }
-    // Plain `string` binding: the narrowing above doesn't survive into the
-    // closures below for a mutable `let` of union type.
-    let accessToken: string = resolvedToken;
-
-    // Expired ~8h access token mid-submit → serialized refresh, at most ONCE
-    // per request — shared across the fresh slug resolve, the anchored
-    // attempt, AND the degradation retry (the token can expire between any of
-    // them). Returns false when the budget is spent or the refresh hard-fails
-    // (the orchestrator already deleted the session); the caller's 401/final
-    // error mapping takes over.
-    let refreshSpent = false;
-    const spendRefresh = async (): Promise<boolean> => {
-      if (refreshSpent) {
-        return false;
+  app.action(
+    {
+      id: PRODUCT_ACTION_ID.SUBMIT_REVIEW,
+      classification: WRITE_CLASSIFICATION.EXTERNAL_WRITE,
+      agentAvailable: true,
+    },
+    "post",
+    "/",
+    async (c) => {
+      let rawBody: unknown;
+      try {
+        rawBody = await c.req.json();
+      } catch {
+        return errorJson(c, ApiErrorCode.INVALID_REQUEST);
       }
-      refreshSpent = true;
-      const refreshed = await refreshSessionToken(
-        deps,
-        currentSession,
-        c.get("logger"),
+      const parsedBody = submitBodySchema.safeParse(rawBody);
+      if (!parsedBody.success) {
+        return errorJson(c, ApiErrorCode.INVALID_REQUEST);
+      }
+      const submitBody = parsedBody.data;
+
+      const ctx = c.get("ctx");
+      const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
+      if (!parsedPr.success) {
+        return errorJson(c, ApiErrorCode.INVALID_REQUEST);
+      }
+      const pr = await forTenant(deps.handle, ctx).pullRequests.getByNumber(
+        c.get("repoId"),
+        parsedPr.data,
       );
-      if (!refreshed.ok) {
-        return false;
+      if (pr === undefined) {
+        return errorJson(c, ApiErrorCode.NOT_FOUND);
       }
-      currentSession = refreshed.value.session;
-      accessToken = refreshed.value.accessToken;
-      return true;
-    };
 
-    // Resolve the target `owner/name` FRESH by the numeric repo id, right
-    // before the mutating write. The gate's cached `repoFullName` may be up
-    // to 60s stale — tolerable for reads, but a rename + name-reuse inside
-    // that window would point a formal REVIEW at the wrong repository.
-    let repoInfo = await fetchRepositoryById(
-      createUserOctokit(accessToken),
-      c.get("repoId"),
-    );
-    if (
-      !repoInfo.ok &&
-      repoInfo.error.code === GitHubApiErrorCode.UNAUTHORIZED &&
-      (await spendRefresh())
-    ) {
-      repoInfo = await fetchRepositoryById(
+      // Viewer token: set by the gate on the verified path; on a positive-cache
+      // hit decrypt lazily (same pattern as the diff proxy).
+      let currentSession = c.get("session");
+      const resolvedToken =
+        c.get("accessToken") ??
+        (await resolveSessionToken(deps, currentSession));
+      if (resolvedToken === undefined) {
+        return errorJson(c, ApiErrorCode.UNAUTHORIZED);
+      }
+      // Plain `string` binding: the narrowing above doesn't survive into the
+      // closures below for a mutable `let` of union type.
+      let accessToken: string = resolvedToken;
+
+      // Expired ~8h access token mid-submit → serialized refresh, at most ONCE
+      // per request — shared across the fresh slug resolve, the anchored
+      // attempt, AND the degradation retry (the token can expire between any of
+      // them). Returns false when the budget is spent or the refresh hard-fails
+      // (the orchestrator already deleted the session); the caller's 401/final
+      // error mapping takes over.
+      let refreshSpent = false;
+      const spendRefresh = async (): Promise<boolean> => {
+        if (refreshSpent) {
+          return false;
+        }
+        refreshSpent = true;
+        const refreshed = await refreshSessionToken(
+          deps,
+          currentSession,
+          c.get("logger"),
+        );
+        if (!refreshed.ok) {
+          return false;
+        }
+        currentSession = refreshed.value.session;
+        accessToken = refreshed.value.accessToken;
+        return true;
+      };
+
+      // Resolve the target `owner/name` FRESH by the numeric repo id, right
+      // before the mutating write. The gate's cached `repoFullName` may be up
+      // to 60s stale — tolerable for reads, but a rename + name-reuse inside
+      // that window would point a formal REVIEW at the wrong repository.
+      let repoInfo = await fetchRepositoryById(
         createUserOctokit(accessToken),
         c.get("repoId"),
       );
-    }
-    if (!repoInfo.ok) {
-      if (repoInfo.error.code === GitHubApiErrorCode.UNAUTHORIZED) {
-        return errorJson(c, ApiErrorCode.UNAUTHORIZED);
-      }
-      // 403/404 both collapse to the gate's 404 posture: a viewer whose
-      // access was revoked inside the positive-cache TTL must see exactly
-      // what a cold gate denial shows — no existence leak, no distinguishable
-      // status. Rate-limit/transport failures stay an honest 502.
       if (
-        repoInfo.error.code === GitHubApiErrorCode.NOT_FOUND ||
-        repoInfo.error.code === GitHubApiErrorCode.FORBIDDEN
-      ) {
-        return errorJson(c, ApiErrorCode.NOT_FOUND);
-      }
-      return errorJson(c, ApiErrorCode.GITHUB_UNAVAILABLE);
-    }
-    const target = splitRepoSlug(repoInfo.value.fullName);
-    if (target === undefined) {
-      return errorJson(c, ApiErrorCode.NOT_FOUND);
-    }
-
-    const baseInput: Omit<CreatePullRequestReviewInput, "body" | "comments"> = {
-      owner: target.owner,
-      repo: target.repo,
-      prNumber: pr.prNumber,
-      commitId: submitBody.commitId,
-      event: OUTCOME_TO_EVENT[submitBody.outcome],
-    };
-    const anchoredInput: CreatePullRequestReviewInput = {
-      ...baseInput,
-      ...(submitBody.body === undefined ? {} : { body: submitBody.body }),
-      ...(submitBody.comments.length === 0
-        ? {}
-        : { comments: toPrimitiveComments(submitBody.comments) }),
-    };
-
-    // A 401'd POST created nothing, so a refreshed retry cannot double-post.
-    const createWithRefreshOnce = async (
-      input: CreatePullRequestReviewInput,
-    ): Promise<Result<{ readonly reviewId: bigint }, CreateReviewError>> => {
-      let result = await createPullRequestReview(
-        createUserOctokit(accessToken),
-        input,
-      );
-      if (
-        !result.ok &&
-        result.error.code === GitHubApiErrorCode.UNAUTHORIZED &&
+        !repoInfo.ok &&
+        repoInfo.error.code === GitHubApiErrorCode.UNAUTHORIZED &&
         (await spendRefresh())
       ) {
-        result = await createPullRequestReview(
+        repoInfo = await fetchRepositoryById(
+          createUserOctokit(accessToken),
+          c.get("repoId"),
+        );
+      }
+      if (!repoInfo.ok) {
+        if (repoInfo.error.code === GitHubApiErrorCode.UNAUTHORIZED) {
+          return errorJson(c, ApiErrorCode.UNAUTHORIZED);
+        }
+        // 403/404 both collapse to the gate's 404 posture: a viewer whose
+        // access was revoked inside the positive-cache TTL must see exactly
+        // what a cold gate denial shows — no existence leak, no distinguishable
+        // status. Rate-limit/transport failures stay an honest 502.
+        if (
+          repoInfo.error.code === GitHubApiErrorCode.NOT_FOUND ||
+          repoInfo.error.code === GitHubApiErrorCode.FORBIDDEN
+        ) {
+          return errorJson(c, ApiErrorCode.NOT_FOUND);
+        }
+        return errorJson(c, ApiErrorCode.GITHUB_UNAVAILABLE);
+      }
+      const target = splitRepoSlug(repoInfo.value.fullName);
+      if (target === undefined) {
+        return errorJson(c, ApiErrorCode.NOT_FOUND);
+      }
+
+      const baseInput: Omit<CreatePullRequestReviewInput, "body" | "comments"> =
+        {
+          owner: target.owner,
+          repo: target.repo,
+          prNumber: pr.prNumber,
+          commitId: submitBody.commitId,
+          event: OUTCOME_TO_EVENT[submitBody.outcome],
+        };
+      const anchoredInput: CreatePullRequestReviewInput = {
+        ...baseInput,
+        ...(submitBody.body === undefined ? {} : { body: submitBody.body }),
+        ...(submitBody.comments.length === 0
+          ? {}
+          : { comments: toPrimitiveComments(submitBody.comments) }),
+      };
+
+      // A 401'd POST created nothing, so a refreshed retry cannot double-post.
+      const createWithRefreshOnce = async (
+        input: CreatePullRequestReviewInput,
+      ): Promise<Result<{ readonly reviewId: bigint }, CreateReviewError>> => {
+        let result = await createPullRequestReview(
           createUserOctokit(accessToken),
           input,
         );
+        if (
+          !result.ok &&
+          result.error.code === GitHubApiErrorCode.UNAUTHORIZED &&
+          (await spendRefresh())
+        ) {
+          result = await createPullRequestReview(
+            createUserOctokit(accessToken),
+            input,
+          );
+        }
+        return result;
+      };
+
+      let created = await createWithRefreshOnce(anchoredInput);
+
+      // Anchoring 422 → ONE automatic degradation retry: all comments folded
+      // into the body, same commitId and event. Only when there were comments —
+      // a comment-free 422 has nothing to degrade.
+      let commentsDegraded = false;
+      if (
+        !created.ok &&
+        isValidation(created.error, ReviewValidationClass.INVALID_COMMENTS) &&
+        submitBody.comments.length > 0
+      ) {
+        commentsDegraded = true;
+        created = await createWithRefreshOnce({
+          ...baseInput,
+          body: foldCommentsIntoBody(submitBody.body, submitBody.comments),
+        });
       }
-      return result;
-    };
 
-    let created = await createWithRefreshOnce(anchoredInput);
+      if (!created.ok) {
+        return submitFailure(c, created.error);
+      }
 
-    // Anchoring 422 → ONE automatic degradation retry: all comments folded
-    // into the body, same commitId and event. Only when there were comments —
-    // a comment-free 422 has nothing to degrade.
-    let commentsDegraded = false;
-    if (
-      !created.ok &&
-      isValidation(created.error, ReviewValidationClass.INVALID_COMMENTS) &&
-      submitBody.comments.length > 0
-    ) {
-      commentsDegraded = true;
-      created = await createWithRefreshOnce({
-        ...baseInput,
-        body: foldCommentsIntoBody(submitBody.body, submitBody.comments),
+      // A submitted review is a conversation write — the cached conversation
+      // is stale the moment it lands.
+      evictConversation(ctx.installationId, c.get("repoId"), pr.prNumber);
+
+      // Audit the successful post (numeric-only; the checkpoint itself is the
+      // webhook's to write when the echo arrives).
+      await audit(deps.handle, {
+        installationId: ctx.installationId,
+        actorType: AuditActorType.REVIEWER,
+        actorId: currentSession.reviewerId,
+        action: AuditAction.SUBMIT,
+        targetType: "pull_request",
+        targetId: pr.id,
       });
-    }
 
-    if (!created.ok) {
-      return submitFailure(c, created.error);
-    }
-
-    // A submitted review is a conversation write — the cached conversation
-    // is stale the moment it lands.
-    evictConversation(ctx.installationId, c.get("repoId"), pr.prNumber);
-
-    // Audit the successful post (numeric-only; the checkpoint itself is the
-    // webhook's to write when the echo arrives).
-    await audit(deps.handle, {
-      installationId: ctx.installationId,
-      actorType: AuditActorType.REVIEWER,
-      actorId: currentSession.reviewerId,
-      action: AuditAction.SUBMIT,
-      targetType: "pull_request",
-      targetId: pr.id,
-    });
-
-    return c.json(
-      { reviewId: Number(created.value.reviewId), commentsDegraded },
-      201,
-      { "cache-control": "no-store" },
-    );
-  });
+      return c.json(
+        { reviewId: Number(created.value.reviewId), commentsDegraded },
+        201,
+        { "cache-control": "no-store" },
+      );
+    },
+  );
 
   return app;
 }

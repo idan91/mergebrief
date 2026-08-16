@@ -12,7 +12,7 @@
 // The installation octokit enters through `InstallationGitHubPort`
 // (injected by the startup wiring over the App-JWT client, substituted in
 // tests). This package never constructs App auth itself.
-import { Hono, type Context } from "hono";
+import type { Context } from "hono";
 import { GitHubApiErrorCode, type PrConversation } from "github";
 import { forTenant, type InstallationId, type RepoId } from "persistence";
 import { z } from "zod";
@@ -21,6 +21,12 @@ import type { AuthzEnv } from "../../authz";
 import type { InstallationGitHubPort } from "../../github-port";
 import { createTtlCache } from "../../ttl-cache";
 import { ApiErrorCode, errorJson } from "../../../error-response";
+import { PRODUCT_QUERY_ID } from "../../../product-operations/ids";
+import {
+  productRouter,
+  type ProductRouter,
+} from "../../../product-operations/product-router";
+import { WRITE_CLASSIFICATION } from "../../../product-operations/types";
 
 const prNumberSchema = z.coerce.number().int().positive();
 
@@ -68,7 +74,7 @@ export interface ConversationRouteDeps extends AuthRouteDeps {
 }
 
 export interface ConversationRoutes {
-  readonly app: Hono<AuthzEnv>;
+  readonly router: ProductRouter<AuthzEnv>;
   /**
    * Drop the PR's cached conversation. EVERY conversation write calls this —
    * the comments routes and the review-submit route's success paths — so a
@@ -85,64 +91,72 @@ export interface ConversationRoutes {
 export function conversationRoutes(
   deps: ConversationRouteDeps,
 ): ConversationRoutes {
-  const app = new Hono<AuthzEnv>();
+  const app = productRouter<AuthzEnv>();
   // Serialized response bodies, keyed installation:repo:pr (one entry per PR
   // shared across every viewer — the point of the installation-token read).
   const cache = createTtlCache<string>(CONVERSATION_CACHE_MAX_ENTRIES);
 
-  app.get("/", async (c) => {
-    const ctx = c.get("ctx");
-    const repoId = c.get("repoId");
-    const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
-    if (!parsedPr.success) {
-      return errorJson(c, ApiErrorCode.INVALID_REQUEST);
-    }
-    const pr = await forTenant(deps.handle, ctx).pullRequests.getByNumber(
-      repoId,
-      parsedPr.data,
-    );
-    if (pr === undefined) {
-      return errorJson(c, ApiErrorCode.NOT_FOUND);
-    }
-
-    const key = cacheKey(ctx.installationId, repoId, pr.prNumber);
-    const now = Date.now();
-    const cached = cache.get(key, now);
-    if (cached !== undefined) {
-      return conversationJson(c, cached);
-    }
-
-    // Fetch by the AUTHZ-VERIFIED full name (read posture — ≤60s staleness is
-    // the same budget as the gate's own positive cache).
-    const target = splitRepoSlug(c.get("repoFullName"));
-    if (target === undefined) {
-      return errorJson(c, ApiErrorCode.NOT_FOUND);
-    }
-    const fetched = await deps.github.fetchPullRequestConversation(
-      ctx.installationId,
-      {
-        owner: target.owner,
-        repo: target.repo,
-        prNumber: pr.prNumber,
-      },
-    );
-    if (!fetched.ok) {
-      // 404-collapse posture identical to the other reads; everything else is
-      // an honest upstream error (no REST fallback tier).
-      if (fetched.error.code === GitHubApiErrorCode.NOT_FOUND) {
+  app.query(
+    {
+      id: PRODUCT_QUERY_ID.READ_CONVERSATION,
+      classification: WRITE_CLASSIFICATION.READ,
+      agentAvailable: true,
+    },
+    "/",
+    async (c) => {
+      const ctx = c.get("ctx");
+      const repoId = c.get("repoId");
+      const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
+      if (!parsedPr.success) {
+        return errorJson(c, ApiErrorCode.INVALID_REQUEST);
+      }
+      const pr = await forTenant(deps.handle, ctx).pullRequests.getByNumber(
+        repoId,
+        parsedPr.data,
+      );
+      if (pr === undefined) {
         return errorJson(c, ApiErrorCode.NOT_FOUND);
       }
-      return errorJson(c, ApiErrorCode.GITHUB_UNAVAILABLE);
-    }
-    const body = JSON.stringify(
-      withoutEntryComment(fetched.value, pr.entryCommentId),
-    );
-    cache.set(key, body, now + CONVERSATION_CACHE_TTL_MS, now);
-    return conversationJson(c, body);
-  });
+
+      const key = cacheKey(ctx.installationId, repoId, pr.prNumber);
+      const now = Date.now();
+      const cached = cache.get(key, now);
+      if (cached !== undefined) {
+        return conversationJson(c, cached);
+      }
+
+      // Fetch by the AUTHZ-VERIFIED full name (read posture — ≤60s staleness is
+      // the same budget as the gate's own positive cache).
+      const target = splitRepoSlug(c.get("repoFullName"));
+      if (target === undefined) {
+        return errorJson(c, ApiErrorCode.NOT_FOUND);
+      }
+      const fetched = await deps.github.fetchPullRequestConversation(
+        ctx.installationId,
+        {
+          owner: target.owner,
+          repo: target.repo,
+          prNumber: pr.prNumber,
+        },
+      );
+      if (!fetched.ok) {
+        // 404-collapse posture identical to the other reads; everything else is
+        // an honest upstream error (no REST fallback tier).
+        if (fetched.error.code === GitHubApiErrorCode.NOT_FOUND) {
+          return errorJson(c, ApiErrorCode.NOT_FOUND);
+        }
+        return errorJson(c, ApiErrorCode.GITHUB_UNAVAILABLE);
+      }
+      const body = JSON.stringify(
+        withoutEntryComment(fetched.value, pr.entryCommentId),
+      );
+      cache.set(key, body, now + CONVERSATION_CACHE_TTL_MS, now);
+      return conversationJson(c, body);
+    },
+  );
 
   return {
-    app,
+    router: app,
     evictConversation(installationId, repoId, prNumber) {
       cache.delete(cacheKey(installationId, repoId, prNumber));
     },

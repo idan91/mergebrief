@@ -1,0 +1,46 @@
+// Composes the real app against a PGlite harness purely to run route
+// composition — that is what registers the catalog. Nothing is served and
+// the github ports throw if touched.
+import { randomBytes } from "node:crypto";
+import { envKeyProvider } from "persistence";
+import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
+
+export type { PgliteHarness };
+import { createApp, type ApiApp, type AuthDeps } from "../src/index";
+import { testLogger } from "./logging";
+
+const KEY_REF = "SESSION_KEY_V1";
+
+export interface ComposedCatalog {
+  readonly app: ApiApp;
+  readonly harness: PgliteHarness;
+}
+
+export async function composeCatalog(): Promise<ComposedCatalog> {
+  const harness = await createPgliteHarness();
+  const auth: AuthDeps = {
+    oauthClientId: "Iv1.test-client-id",
+    oauthClientSecret: "test-client-secret",
+    keyProvider: envKeyProvider({
+      [KEY_REF]: randomBytes(32).toString("base64"),
+    }),
+    sessionKeyRef: KEY_REF,
+    publicBaseUrl: "https://app.example.test",
+    cookieSecure: true,
+  };
+  const app = createApp({
+    logger: testLogger(),
+    handle: harness.handle,
+    webhookSecret: "test-webhook-secret",
+    auth,
+    github: {
+      fetchPullRequestConversation: async () => {
+        throw new Error("catalog composition must not call github");
+      },
+      listRepoCollaborators: async () => {
+        throw new Error("catalog composition must not call github");
+      },
+    },
+  });
+  return { app, harness };
+}

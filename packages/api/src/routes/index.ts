@@ -1,11 +1,14 @@
 // The `/api` router — composition only, no handlers. Every path inside a
 // route file is its LOCAL segment; `/api` itself exists in exactly one line
 // of app.ts.
-import { Hono } from "hono";
 import type { Logger } from "logging";
 import type { AppDatabase } from "persistence";
 import type { DraftPolicy } from "types";
 import type { RequestLogEnv } from "../request-logging";
+import {
+  productRouter,
+  type ProductRouter,
+} from "../product-operations/product-router";
 import { createAllowedRepoResolver } from "./allowed-repos";
 import { authRoutes } from "./auth";
 import type { AuthDeps } from "./auth/session";
@@ -34,8 +37,8 @@ export interface AppDeps {
 }
 
 /** Compose the `/api` router over injected deps. */
-export function apiRoutes(deps: AppDeps): Hono<RequestLogEnv> {
-  const app = new Hono<RequestLogEnv>();
+export function apiRoutes(deps: AppDeps): ProductRouter<RequestLogEnv> {
+  const app = productRouter<RequestLogEnv>();
   app.route("/webhooks", webhookRoute(deps));
   app.route("/auth", authRoutes(deps));
   // ONE resolver instance: /pulls and /repos share the allowed-set cache, so

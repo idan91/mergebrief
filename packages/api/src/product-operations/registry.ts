@@ -1,5 +1,5 @@
-// The catalog store. Registration happens at module load (route files wrap
-// their factories), so every failure here is a programmer error — throw, never
+// The catalog store. Registration happens at route composition (the router's
+// root commit), so every failure here is a programmer error — throw, never
 // Result. Enumeration feeds the committed manifest.
 import type { ProductOperationDescriptor } from "./types";
 
@@ -20,8 +20,21 @@ export function createProductOperationRegistry(): ProductOperationRegistry {
           `product operation id ${JSON.stringify(descriptor.id)} is not kebab-case`,
         );
       }
-      if (descriptors.has(descriptor.id)) {
-        throw new Error(`duplicate product operation id "${descriptor.id}"`);
+      const existing = descriptors.get(descriptor.id);
+      if (existing !== undefined) {
+        // Composition runs once per app instance; re-registering the same
+        // descriptor is a no-op, a different one under the same id is a bug.
+        if (
+          existing.kind === descriptor.kind &&
+          existing.classification === descriptor.classification &&
+          existing.agentAvailable === descriptor.agentAvailable &&
+          existing.endpoint === descriptor.endpoint
+        ) {
+          return;
+        }
+        throw new Error(
+          `conflicting registration for product operation id "${descriptor.id}"`,
+        );
       }
       descriptors.set(descriptor.id, descriptor);
     },
@@ -33,5 +46,5 @@ export function createProductOperationRegistry(): ProductOperationRegistry {
   };
 }
 
-/** The instance the route wrappers feed; the manifest enumerates from here. */
+/** The instance the app's root commit feeds; the manifest enumerates from here. */
 export const productOperationRegistry = createProductOperationRegistry();

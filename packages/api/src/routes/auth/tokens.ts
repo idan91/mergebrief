@@ -15,7 +15,6 @@
 //
 // Every response is per-viewer state → `no-store`, error paths included.
 import { randomBytes } from "node:crypto";
-import { Hono } from "hono";
 import {
   audit,
   AuditAction,
@@ -37,6 +36,15 @@ import {
 } from "../authz";
 import { resolveAccessibleInstallations } from "./installations";
 import { ApiErrorCode, errorJson } from "../../error-response";
+import {
+  PRODUCT_ACTION_ID,
+  PRODUCT_QUERY_ID,
+} from "../../product-operations/ids";
+import {
+  productRouter,
+  type ProductRouter,
+} from "../../product-operations/product-router";
+import { WRITE_CLASSIFICATION } from "../../product-operations/types";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
@@ -91,134 +99,160 @@ function parseTokenId(raw: string | undefined): ApiTokenRowId | undefined {
 }
 
 /** Mount the token-management surface over the cookie session gate. */
-export function tokensRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
-  const app = new Hono<AuthzEnv>();
+export function tokensRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
+  const app = productRouter<AuthzEnv>();
 
   app.use("/", sessionLayer(deps), accessStampLayer());
   app.use("/:id", sessionLayer(deps), accessStampLayer());
 
   // Mint. The ONE response that ever carries token material.
-  app.post("/", async (c) => {
-    const raw: unknown = await c.req.json().catch(() => undefined);
-    const parsed = mintBodySchema.safeParse(raw);
-    if (!parsed.success) {
-      return errorJson(c, ApiErrorCode.INVALID_REQUEST);
-    }
-    const session = c.get("session");
+  app.action(
+    {
+      id: PRODUCT_ACTION_ID.MINT_TOKEN,
+      classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
+      agentAvailable: false,
+    },
+    "post",
+    "/",
+    async (c) => {
+      const raw: unknown = await c.req.json().catch(() => undefined);
+      const parsed = mintBodySchema.safeParse(raw);
+      if (!parsed.success) {
+        return errorJson(c, ApiErrorCode.INVALID_REQUEST);
+      }
+      const session = c.get("session");
 
-    // Validate the requested installation against the LIVE accessible set —
-    // never the caller's word, never the session's current binding alone
-    // (same trust shape as POST /api/auth/installations).
-    const resolved = await resolveAccessibleInstallations(
-      deps,
-      session,
-      c.get("logger"),
-    );
-    if (!resolved.ok) {
-      return errorJson(
-        c,
-        resolved.error.status === 401
-          ? ApiErrorCode.UNAUTHORIZED
-          : ApiErrorCode.GITHUB_UNAVAILABLE,
+      // Validate the requested installation against the LIVE accessible set —
+      // never the caller's word, never the session's current binding alone
+      // (same trust shape as POST /api/auth/installations).
+      const resolved = await resolveAccessibleInstallations(
+        deps,
+        session,
+        c.get("logger"),
       );
-    }
-    const { installations, session: currentSession } = resolved.value;
-    const target = installations.find(
-      (installation) =>
-        String(installation.installationId) ===
-        String(parsed.data.installationId),
-    );
-    if (target === undefined) {
-      await audit(deps.handle, {
-        installationId: currentSession.installationId,
-        actorType: AuditActorType.REVIEWER,
-        actorId: currentSession.reviewerId,
-        action: AuditAction.AUTH,
-        targetType: "api_token",
-        metadata: {
-          [AuditMetadataKey.DECISION]: "403",
-          [AuditMetadataKey.KIND]: "mint",
-        },
+      if (!resolved.ok) {
+        return errorJson(
+          c,
+          resolved.error.status === 401
+            ? ApiErrorCode.UNAUTHORIZED
+            : ApiErrorCode.GITHUB_UNAVAILABLE,
+        );
+      }
+      const { installations, session: currentSession } = resolved.value;
+      const target = installations.find(
+        (installation) =>
+          String(installation.installationId) ===
+          String(parsed.data.installationId),
+      );
+      if (target === undefined) {
+        await audit(deps.handle, {
+          installationId: currentSession.installationId,
+          actorType: AuditActorType.REVIEWER,
+          actorId: currentSession.reviewerId,
+          action: AuditAction.AUTH,
+          targetType: "api_token",
+          metadata: {
+            [AuditMetadataKey.DECISION]: "403",
+            [AuditMetadataKey.KIND]: "mint",
+          },
+        });
+        return errorJson(c, ApiErrorCode.FORBIDDEN);
+      }
+
+      const expiresInDays = parsed.data.expiresInDays;
+      const expiresAt =
+        expiresInDays === null
+          ? null
+          : new Date(
+              Date.now() + (expiresInDays ?? DEFAULT_EXPIRY_DAYS) * MS_PER_DAY,
+            );
+
+      // The opaque secret: prefix + 32 random bytes; stored only as SHA-256.
+      const token = `${API_TOKEN_PREFIX}${randomBytes(TOKEN_BYTES).toString("base64url")}`;
+
+      // LINK the session's grant — never copy credential material: both channels
+      // share one physical pair, rotated through `grantAuth.refreshGrant`'s
+      // serialized CAS. The mint audit is emitted by persistence INSIDE this same
+      // transaction.
+      const minted = await tokenAuth(deps.handle).mintToken({
+        installationId: target.installationId,
+        userId: currentSession.reviewerId,
+        ...(currentSession.reviewerLogin === null
+          ? {}
+          : { userLogin: currentSession.reviewerLogin }),
+        name: parsed.data.name,
+        tokenHash: sha256Hex(token),
+        grantId: currentSession.grantId,
+        expiresAt,
       });
-      return errorJson(c, ApiErrorCode.FORBIDDEN);
-    }
 
-    const expiresInDays = parsed.data.expiresInDays;
-    const expiresAt =
-      expiresInDays === null
-        ? null
-        : new Date(
-            Date.now() + (expiresInDays ?? DEFAULT_EXPIRY_DAYS) * MS_PER_DAY,
-          );
-
-    // The opaque secret: prefix + 32 random bytes; stored only as SHA-256.
-    const token = `${API_TOKEN_PREFIX}${randomBytes(TOKEN_BYTES).toString("base64url")}`;
-
-    // LINK the session's grant — never copy credential material: both channels
-    // share one physical pair, rotated through `grantAuth.refreshGrant`'s
-    // serialized CAS. The mint audit is emitted by persistence INSIDE this same
-    // transaction.
-    const minted = await tokenAuth(deps.handle).mintToken({
-      installationId: target.installationId,
-      userId: currentSession.reviewerId,
-      ...(currentSession.reviewerLogin === null
-        ? {}
-        : { userLogin: currentSession.reviewerLogin }),
-      name: parsed.data.name,
-      tokenHash: sha256Hex(token),
-      grantId: currentSession.grantId,
-      expiresAt,
-    });
-
-    return c.json({ token, apiToken: tokenView(minted) }, 201, NO_STORE);
-  });
+      return c.json({ token, apiToken: tokenView(minted) }, 201, NO_STORE);
+    },
+  );
 
   // List — the viewer's tokens across installations, metadata only (the
   // secret-bearing columns are structurally absent from the row type).
-  app.get("/", async (c) => {
-    const session = c.get("session");
-    const rows = await tokenAuth(deps.handle).listForUser(session.reviewerId);
-    return c.json({ tokens: rows.map(tokenView) }, 200, NO_STORE);
-  });
+  app.query(
+    {
+      id: PRODUCT_QUERY_ID.LIST_TOKENS,
+      classification: WRITE_CLASSIFICATION.READ,
+      agentAvailable: true,
+    },
+    "/",
+    async (c) => {
+      const session = c.get("session");
+      const rows = await tokenAuth(deps.handle).listForUser(session.reviewerId);
+      return c.json({ tokens: rows.map(tokenView) }, 200, NO_STORE);
+    },
+  );
 
   // Revoke — owner-scoped; a foreign or unknown id is an indistinguishable
   // 404. Repeat revocation is an idempotent 200 (original revoked_at kept).
-  app.delete("/:id", async (c) => {
-    const tokenId = parseTokenId(c.req.param("id"));
-    if (tokenId === undefined) {
-      return errorJson(c, ApiErrorCode.NOT_FOUND);
-    }
-    const session = c.get("session");
-    const revoked = await tokenAuth(deps.handle).revokeToken(
-      session.reviewerId,
-      tokenId,
-      new Date(),
-    );
-    if (!revoked.ok) {
-      // NOT_FOUND is the only expected arm on this path.
-      if (revoked.error.code !== TokenAuthErrorCode.NOT_FOUND) {
-        throw new Error(`unexpected revoke failure: ${revoked.error.code}`);
+  app.action(
+    {
+      id: PRODUCT_ACTION_ID.REVOKE_TOKEN,
+      classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
+      agentAvailable: false,
+    },
+    "delete",
+    "/:id",
+    async (c) => {
+      const tokenId = parseTokenId(c.req.param("id"));
+      if (tokenId === undefined) {
+        return errorJson(c, ApiErrorCode.NOT_FOUND);
       }
-      return errorJson(c, ApiErrorCode.NOT_FOUND);
-    }
-    await audit(deps.handle, {
-      installationId: revoked.value.installationId,
-      actorType: AuditActorType.REVIEWER,
-      actorId: session.reviewerId,
-      action: AuditAction.AUTH,
-      targetType: "api_token",
-      targetId: tokenId,
-      metadata: {
-        [AuditMetadataKey.DECISION]: "200",
-        [AuditMetadataKey.KIND]: "revoke",
-      },
-    });
-    return c.json(
-      { ok: true, apiToken: tokenView(revoked.value) },
-      200,
-      NO_STORE,
-    );
-  });
+      const session = c.get("session");
+      const revoked = await tokenAuth(deps.handle).revokeToken(
+        session.reviewerId,
+        tokenId,
+        new Date(),
+      );
+      if (!revoked.ok) {
+        // NOT_FOUND is the only expected arm on this path.
+        if (revoked.error.code !== TokenAuthErrorCode.NOT_FOUND) {
+          throw new Error(`unexpected revoke failure: ${revoked.error.code}`);
+        }
+        return errorJson(c, ApiErrorCode.NOT_FOUND);
+      }
+      await audit(deps.handle, {
+        installationId: revoked.value.installationId,
+        actorType: AuditActorType.REVIEWER,
+        actorId: session.reviewerId,
+        action: AuditAction.AUTH,
+        targetType: "api_token",
+        targetId: tokenId,
+        metadata: {
+          [AuditMetadataKey.DECISION]: "200",
+          [AuditMetadataKey.KIND]: "revoke",
+        },
+      });
+      return c.json(
+        { ok: true, apiToken: tokenView(revoked.value) },
+        200,
+        NO_STORE,
+      );
+    },
+  );
 
   return app;
 }

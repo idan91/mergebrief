@@ -22,7 +22,7 @@
 //   - Stale redelivery regressing `draft=true` after the flip: accepted — a
 //     late `opened`/redelivered event can re-set draft; the pr-view poll
 //     self-heals. This route builds no ordering guard for it.
-import { Hono, type Context } from "hono";
+import type { Context } from "hono";
 import {
   createUserOctokit,
   fetchRepositoryById,
@@ -43,6 +43,12 @@ import { z } from "zod";
 import { refreshSessionToken, type AuthRouteDeps } from "../../auth/session";
 import type { AuthzEnv } from "../../authz";
 import { ApiErrorCode, errorJson } from "../../../error-response";
+import { PRODUCT_ACTION_ID } from "../../../product-operations/ids";
+import {
+  productRouter,
+  type ProductRouter,
+} from "../../../product-operations/product-router";
+import { WRITE_CLASSIFICATION } from "../../../product-operations/types";
 
 const prNumberSchema = z.coerce.number().int().positive();
 
@@ -130,101 +136,97 @@ function markReadyMutationFailure(
  * Mount the mark-ready route behind the pr subtree's shared gate, so a POST
  * here traverses exactly one per-repo gate.
  */
-export function markReadyRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
-  const app = new Hono<AuthzEnv>();
+export function markReadyRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
+  const app = productRouter<AuthzEnv>();
 
-  app.post("/", async (c) => {
-    const ctx = c.get("ctx");
-    const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
-    if (!parsedPr.success) {
-      return errorJson(c, ApiErrorCode.INVALID_REQUEST);
-    }
-    const pr = await forTenant(deps.handle, ctx).pullRequests.getByNumber(
-      c.get("repoId"),
-      parsedPr.data,
-    );
-    if (pr === undefined) {
-      return errorJson(c, ApiErrorCode.NOT_FOUND);
-    }
-
-    // Viewer token: set by the gate on the verified path; on a positive-cache
-    // hit decrypt lazily (same pattern as review-submit).
-    let currentSession = c.get("session");
-    const resolvedToken =
-      c.get("accessToken") ?? (await resolveSessionToken(deps, currentSession));
-    if (resolvedToken === undefined) {
-      return errorJson(c, ApiErrorCode.UNAUTHORIZED);
-    }
-    // Plain `string` binding: the narrowing above doesn't survive into the
-    // closures below for a mutable `let` of union type.
-    let accessToken: string = resolvedToken;
-
-    // One refresh-once budget for the WHOLE request, shared across the fresh
-    // slug resolve AND the mutation (the ~8h token can expire between them).
-    let refreshSpent = false;
-    const spendRefresh = async (): Promise<boolean> => {
-      if (refreshSpent) {
-        return false;
+  app.action(
+    {
+      id: PRODUCT_ACTION_ID.MARK_READY,
+      classification: WRITE_CLASSIFICATION.EXTERNAL_WRITE,
+      agentAvailable: true,
+    },
+    "post",
+    "/",
+    async (c) => {
+      const ctx = c.get("ctx");
+      const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
+      if (!parsedPr.success) {
+        return errorJson(c, ApiErrorCode.INVALID_REQUEST);
       }
-      refreshSpent = true;
-      const refreshed = await refreshSessionToken(
-        deps,
-        currentSession,
-        c.get("logger"),
+      const pr = await forTenant(deps.handle, ctx).pullRequests.getByNumber(
+        c.get("repoId"),
+        parsedPr.data,
       );
-      if (!refreshed.ok) {
-        return false;
+      if (pr === undefined) {
+        return errorJson(c, ApiErrorCode.NOT_FOUND);
       }
-      currentSession = refreshed.value.session;
-      accessToken = refreshed.value.accessToken;
-      return true;
-    };
 
-    // Resolve the target `owner/name` FRESH by numeric repo id, right before
-    // the mutating write. The gate's cached `repoFullName` may be up to 60s
-    // stale — a rename + name-reuse inside that window would target the wrong
-    // repository.
-    let repoInfo = await fetchRepositoryById(
-      createUserOctokit(accessToken),
-      c.get("repoId"),
-    );
-    if (
-      !repoInfo.ok &&
-      repoInfo.error.code === GitHubApiErrorCode.UNAUTHORIZED &&
-      (await spendRefresh())
-    ) {
-      repoInfo = await fetchRepositoryById(
+      // Viewer token: set by the gate on the verified path; on a positive-cache
+      // hit decrypt lazily (same pattern as review-submit).
+      let currentSession = c.get("session");
+      const resolvedToken =
+        c.get("accessToken") ??
+        (await resolveSessionToken(deps, currentSession));
+      if (resolvedToken === undefined) {
+        return errorJson(c, ApiErrorCode.UNAUTHORIZED);
+      }
+      // Plain `string` binding: the narrowing above doesn't survive into the
+      // closures below for a mutable `let` of union type.
+      let accessToken: string = resolvedToken;
+
+      // One refresh-once budget for the WHOLE request, shared across the fresh
+      // slug resolve AND the mutation (the ~8h token can expire between them).
+      let refreshSpent = false;
+      const spendRefresh = async (): Promise<boolean> => {
+        if (refreshSpent) {
+          return false;
+        }
+        refreshSpent = true;
+        const refreshed = await refreshSessionToken(
+          deps,
+          currentSession,
+          c.get("logger"),
+        );
+        if (!refreshed.ok) {
+          return false;
+        }
+        currentSession = refreshed.value.session;
+        accessToken = refreshed.value.accessToken;
+        return true;
+      };
+
+      // Resolve the target `owner/name` FRESH by numeric repo id, right before
+      // the mutating write. The gate's cached `repoFullName` may be up to 60s
+      // stale — a rename + name-reuse inside that window would target the wrong
+      // repository.
+      let repoInfo = await fetchRepositoryById(
         createUserOctokit(accessToken),
         c.get("repoId"),
       );
-    }
-    if (!repoInfo.ok) {
-      return resolveRepoFailure(c, repoInfo.error);
-    }
-    const target = splitRepoSlug(repoInfo.value.fullName);
-    if (target === undefined) {
-      return errorJson(c, ApiErrorCode.NOT_FOUND);
-    }
-
-    // A 401'd GraphQL call performed no write, so a refreshed retry cannot
-    // double-mark; the operation is idempotent regardless (converged states).
-    const markWithRefreshOnce = async (): Promise<
-      Result<MarkReadyResult, GitHubApiError>
-    > => {
-      let result = await markPullRequestReadyForReview(
-        createUserOctokit(accessToken),
-        {
-          owner: target.owner,
-          repo: target.repo,
-          prNumber: pr.prNumber,
-        },
-      );
       if (
-        !result.ok &&
-        result.error.code === GitHubApiErrorCode.UNAUTHORIZED &&
+        !repoInfo.ok &&
+        repoInfo.error.code === GitHubApiErrorCode.UNAUTHORIZED &&
         (await spendRefresh())
       ) {
-        result = await markPullRequestReadyForReview(
+        repoInfo = await fetchRepositoryById(
+          createUserOctokit(accessToken),
+          c.get("repoId"),
+        );
+      }
+      if (!repoInfo.ok) {
+        return resolveRepoFailure(c, repoInfo.error);
+      }
+      const target = splitRepoSlug(repoInfo.value.fullName);
+      if (target === undefined) {
+        return errorJson(c, ApiErrorCode.NOT_FOUND);
+      }
+
+      // A 401'd GraphQL call performed no write, so a refreshed retry cannot
+      // double-mark; the operation is idempotent regardless (converged states).
+      const markWithRefreshOnce = async (): Promise<
+        Result<MarkReadyResult, GitHubApiError>
+      > => {
+        let result = await markPullRequestReadyForReview(
           createUserOctokit(accessToken),
           {
             owner: target.owner,
@@ -232,35 +234,49 @@ export function markReadyRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
             prNumber: pr.prNumber,
           },
         );
+        if (
+          !result.ok &&
+          result.error.code === GitHubApiErrorCode.UNAUTHORIZED &&
+          (await spendRefresh())
+        ) {
+          result = await markPullRequestReadyForReview(
+            createUserOctokit(accessToken),
+            {
+              owner: target.owner,
+              repo: target.repo,
+              prNumber: pr.prNumber,
+            },
+          );
+        }
+        return result;
+      };
+
+      const marked = await markWithRefreshOnce();
+      if (!marked.ok) {
+        return markReadyMutationFailure(c, marked.error);
       }
-      return result;
-    };
 
-    const marked = await markWithRefreshOnce();
-    if (!marked.ok) {
-      return markReadyMutationFailure(c, marked.error);
-    }
+      // Success (fresh flip OR already-ready convergence): mirror `draft=false`
+      // locally so the FE's pr-view invalidation reflects it immediately. A
+      // NOT_FOUND here (PR deleted mid-request) is non-fatal — GitHub is the
+      // source of truth and the webhook reconciles; do not fail a converged
+      // GitHub state on a local mirror race.
+      await forTenant(deps.handle, ctx).pullRequests.setDraft(pr.id, false);
 
-    // Success (fresh flip OR already-ready convergence): mirror `draft=false`
-    // locally so the FE's pr-view invalidation reflects it immediately. A
-    // NOT_FOUND here (PR deleted mid-request) is non-fatal — GitHub is the
-    // source of truth and the webhook reconciles; do not fail a converged
-    // GitHub state on a local mirror race.
-    await forTenant(deps.handle, ctx).pullRequests.setDraft(pr.id, false);
+      // Audit the mark-ready (numeric-only; no metadata — the converged/fresh
+      // distinction is not worth recording).
+      await audit(deps.handle, {
+        installationId: ctx.installationId,
+        actorType: AuditActorType.REVIEWER,
+        actorId: currentSession.reviewerId,
+        action: AuditAction.MARK_READY,
+        targetType: "pull_request",
+        targetId: pr.id,
+      });
 
-    // Audit the mark-ready (numeric-only; no metadata — the converged/fresh
-    // distinction is not worth recording).
-    await audit(deps.handle, {
-      installationId: ctx.installationId,
-      actorType: AuditActorType.REVIEWER,
-      actorId: currentSession.reviewerId,
-      action: AuditAction.MARK_READY,
-      targetType: "pull_request",
-      targetId: pr.id,
-    });
-
-    return c.json({ draft: false }, 200, { "cache-control": "no-store" });
-  });
+      return c.json({ draft: false }, 200, { "cache-control": "no-store" });
+    },
+  );
 
   return app;
 }

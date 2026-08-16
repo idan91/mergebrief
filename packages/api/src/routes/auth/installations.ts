@@ -16,7 +16,6 @@
 // The session row's `installation_id` IS the tenant stamp, so the rebinding is
 // an atomic, ctx-safe `reviewer_session` UPDATE, and the switch emits an `auth`
 // audit row (numeric-only metadata).
-import { Hono } from "hono";
 import {
   GitHubApiErrorCode,
   listUserInstallations,
@@ -43,6 +42,15 @@ import {
 } from "./session";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "../authz";
 import { ApiErrorCode, errorJson } from "../../error-response";
+import {
+  PRODUCT_ACTION_ID,
+  PRODUCT_QUERY_ID,
+} from "../../product-operations/ids";
+import {
+  productRouter,
+  type ProductRouter,
+} from "../../product-operations/product-router";
+import { WRITE_CLASSIFICATION } from "../../product-operations/types";
 
 /** The switch body — `installationId` as a numeric string or JSON number. */
 const switchBodySchema = z.object({
@@ -123,135 +131,154 @@ export async function resolveAccessibleInstallations(
  * Mount the multi-org session endpoints over the session gate (no `:repoId`, so
  * `sessionLayer` alone — same composition as the PR list).
  */
-export function installationsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
-  const app = new Hono<AuthzEnv>();
+export function installationsRoute(
+  deps: AuthRouteDeps,
+): ProductRouter<AuthzEnv> {
+  const app = productRouter<AuthzEnv>();
 
   app.use("/", sessionLayer(deps), accessStampLayer());
 
   // GET: the accessible set annotated with current (session) + default (settings).
-  app.get("/", async (c) => {
-    const session = c.get("session");
-    const resolved = await resolveAccessibleInstallations(
-      deps,
-      session,
-      c.get("logger"),
-    );
-    if (!resolved.ok) {
-      return errorJson(
-        c,
-        resolved.error.status === 401
-          ? ApiErrorCode.UNAUTHORIZED
-          : ApiErrorCode.GITHUB_UNAVAILABLE,
+  app.query(
+    {
+      id: PRODUCT_QUERY_ID.LIST_INSTALLATIONS,
+      classification: WRITE_CLASSIFICATION.READ,
+      agentAvailable: true,
+    },
+    "/",
+    async (c) => {
+      const session = c.get("session");
+      const resolved = await resolveAccessibleInstallations(
+        deps,
+        session,
+        c.get("logger"),
       );
-    }
-    const { installations, session: currentSession } = resolved.value;
-    const settings = await userSettingsStore(deps.handle).get(
-      currentSession.reviewerId,
-    );
-    const defaultId = settings?.defaultInstallationId ?? null;
-    const currentId = currentSession.installationId;
+      if (!resolved.ok) {
+        return errorJson(
+          c,
+          resolved.error.status === 401
+            ? ApiErrorCode.UNAUTHORIZED
+            : ApiErrorCode.GITHUB_UNAVAILABLE,
+        );
+      }
+      const { installations, session: currentSession } = resolved.value;
+      const settings = await userSettingsStore(deps.handle).get(
+        currentSession.reviewerId,
+      );
+      const defaultId = settings?.defaultInstallationId ?? null;
+      const currentId = currentSession.installationId;
 
-    const body = {
-      installations: installations.map((installation) => ({
-        installationId: String(installation.installationId),
-        accountLogin: installation.accountLogin,
-        isCurrent: installation.installationId === currentId,
-        isDefault:
-          defaultId !== null && installation.installationId === defaultId,
-      })),
-      currentInstallationId: String(currentId),
-      defaultInstallationId: defaultId === null ? null : String(defaultId),
-    };
-    return c.json(body, 200, { "cache-control": "no-store" });
-  });
+      const body = {
+        installations: installations.map((installation) => ({
+          installationId: String(installation.installationId),
+          accountLogin: installation.accountLogin,
+          isCurrent: installation.installationId === currentId,
+          isDefault:
+            defaultId !== null && installation.installationId === defaultId,
+        })),
+        currentInstallationId: String(currentId),
+        defaultInstallationId: defaultId === null ? null : String(defaultId),
+      };
+      return c.json(body, 200, { "cache-control": "no-store" });
+    },
+  );
 
   // POST: rebind the session to a different installation (validated live).
-  app.post("/", async (c) => {
-    const raw: unknown = await c.req.json().catch(() => undefined);
-    const parsed = switchBodySchema.safeParse(raw);
-    if (!parsed.success) {
-      return errorJson(c, ApiErrorCode.INVALID_REQUEST);
-    }
-    const target = toInstallationId(parsed.data.installationId);
-    if (target === undefined) {
-      return errorJson(c, ApiErrorCode.INVALID_REQUEST);
-    }
+  app.action(
+    {
+      id: PRODUCT_ACTION_ID.SELECT_INSTALLATION,
+      classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
+      agentAvailable: false,
+    },
+    "post",
+    "/",
+    async (c) => {
+      const raw: unknown = await c.req.json().catch(() => undefined);
+      const parsed = switchBodySchema.safeParse(raw);
+      if (!parsed.success) {
+        return errorJson(c, ApiErrorCode.INVALID_REQUEST);
+      }
+      const target = toInstallationId(parsed.data.installationId);
+      if (target === undefined) {
+        return errorJson(c, ApiErrorCode.INVALID_REQUEST);
+      }
 
-    const session = c.get("session");
-    const resolved = await resolveAccessibleInstallations(
-      deps,
-      session,
-      c.get("logger"),
-    );
-    if (!resolved.ok) {
-      return errorJson(
-        c,
-        resolved.error.status === 401
-          ? ApiErrorCode.UNAUTHORIZED
-          : ApiErrorCode.GITHUB_UNAVAILABLE,
+      const session = c.get("session");
+      const resolved = await resolveAccessibleInstallations(
+        deps,
+        session,
+        c.get("logger"),
       );
-    }
-    const { installations, session: currentSession } = resolved.value;
+      if (!resolved.ok) {
+        return errorJson(
+          c,
+          resolved.error.status === 401
+            ? ApiErrorCode.UNAUTHORIZED
+            : ApiErrorCode.GITHUB_UNAVAILABLE,
+        );
+      }
+      const { installations, session: currentSession } = resolved.value;
 
-    // Validate against the LIVE set — never trust the caller's id. A target the
-    // viewer can no longer reach is a 403 + a denial audit, and NOTHING mutates.
-    if (
-      !installations.some(
-        (installation) => installation.installationId === target,
-      )
-    ) {
+      // Validate against the LIVE set — never trust the caller's id. A target the
+      // viewer can no longer reach is a 403 + a denial audit, and NOTHING mutates.
+      if (
+        !installations.some(
+          (installation) => installation.installationId === target,
+        )
+      ) {
+        await audit(deps.handle, {
+          installationId: currentSession.installationId,
+          actorType: AuditActorType.REVIEWER,
+          actorId: currentSession.reviewerId,
+          action: AuditAction.AUTH,
+          targetType: "installation",
+          targetId: target,
+          metadata: { [AuditMetadataKey.DECISION]: "403" },
+        });
+        return errorJson(c, ApiErrorCode.FORBIDDEN);
+      }
+
+      // Atomic, ctx-safe rebinding of the session's tenant stamp.
+      const rebound = await sessionAuth(deps.handle).rebindInstallation(
+        currentSession.sessionTokenHash,
+        target,
+      );
+      if (!rebound.ok) {
+        // The row vanished between resolve and rebind (logout / sweep) → re-login.
+        return errorJson(c, ApiErrorCode.UNAUTHORIZED);
+      }
+
+      let defaultId =
+        (await userSettingsStore(deps.handle).get(currentSession.reviewerId))
+          ?.defaultInstallationId ?? null;
+      if (parsed.data.setDefault === true) {
+        const updated = await userSettingsStore(
+          deps.handle,
+        ).setDefaultInstallation(currentSession.reviewerId, target);
+        defaultId = updated.defaultInstallationId;
+      }
+
+      // Record the successful switch (numeric-only metadata) under the NEW tenant.
       await audit(deps.handle, {
-        installationId: currentSession.installationId,
+        installationId: target,
         actorType: AuditActorType.REVIEWER,
         actorId: currentSession.reviewerId,
         action: AuditAction.AUTH,
         targetType: "installation",
         targetId: target,
-        metadata: { [AuditMetadataKey.DECISION]: "403" },
+        metadata: { [AuditMetadataKey.DECISION]: "200" },
       });
-      return errorJson(c, ApiErrorCode.FORBIDDEN);
-    }
 
-    // Atomic, ctx-safe rebinding of the session's tenant stamp.
-    const rebound = await sessionAuth(deps.handle).rebindInstallation(
-      currentSession.sessionTokenHash,
-      target,
-    );
-    if (!rebound.ok) {
-      // The row vanished between resolve and rebind (logout / sweep) → re-login.
-      return errorJson(c, ApiErrorCode.UNAUTHORIZED);
-    }
-
-    let defaultId =
-      (await userSettingsStore(deps.handle).get(currentSession.reviewerId))
-        ?.defaultInstallationId ?? null;
-    if (parsed.data.setDefault === true) {
-      const updated = await userSettingsStore(
-        deps.handle,
-      ).setDefaultInstallation(currentSession.reviewerId, target);
-      defaultId = updated.defaultInstallationId;
-    }
-
-    // Record the successful switch (numeric-only metadata) under the NEW tenant.
-    await audit(deps.handle, {
-      installationId: target,
-      actorType: AuditActorType.REVIEWER,
-      actorId: currentSession.reviewerId,
-      action: AuditAction.AUTH,
-      targetType: "installation",
-      targetId: target,
-      metadata: { [AuditMetadataKey.DECISION]: "200" },
-    });
-
-    return c.json(
-      {
-        currentInstallationId: String(target),
-        defaultInstallationId: defaultId === null ? null : String(defaultId),
-      },
-      200,
-      { "cache-control": "no-store" },
-    );
-  });
+      return c.json(
+        {
+          currentInstallationId: String(target),
+          defaultInstallationId: defaultId === null ? null : String(defaultId),
+        },
+        200,
+        { "cache-control": "no-store" },
+      );
+    },
+  );
 
   return app;
 }

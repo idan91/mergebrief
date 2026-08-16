@@ -10,7 +10,7 @@
 // push access; serving it on the installation token would otherwise leak
 // logins + names to any read-access viewer (on a public repo, anyone).
 // Non-push viewers get the gate's 404 posture BEFORE any GitHub call.
-import { Hono, type Context } from "hono";
+import type { Context } from "hono";
 import { GitHubApiErrorCode } from "github";
 import type { InstallationId, RepoId } from "persistence";
 import type { AuthRouteDeps } from "../auth/session";
@@ -18,6 +18,12 @@ import { createAuthzMiddleware, type AuthzEnv } from "../authz";
 import type { InstallationGitHubPort } from "../github-port";
 import { createTtlCache } from "../ttl-cache";
 import { ApiErrorCode, errorJson } from "../../error-response";
+import { PRODUCT_QUERY_ID } from "../../product-operations/ids";
+import {
+  productRouter,
+  type ProductRouter,
+} from "../../product-operations/product-router";
+import { WRITE_CLASSIFICATION } from "../../product-operations/types";
 
 /** Positive TTL — same 60s staleness family as the other gated reads. */
 const COLLABORATORS_CACHE_TTL_MS = 60 * 1000;
@@ -53,8 +59,8 @@ export interface CollaboratorsRouteDeps extends AuthRouteDeps {
 /** Mount the collaborators read behind its own per-repo gate instance. */
 export function collaboratorsRoute(
   deps: CollaboratorsRouteDeps,
-): Hono<AuthzEnv> {
-  const app = new Hono<AuthzEnv>();
+): ProductRouter<AuthzEnv> {
+  const app = productRouter<AuthzEnv>();
   const authz = createAuthzMiddleware(deps);
   // Serialized response bodies, keyed installation:repo (shared across every
   // viewer — the point of the installation-token read).
@@ -62,47 +68,55 @@ export function collaboratorsRoute(
 
   app.use("/", authz);
 
-  app.get("/", async (c) => {
-    // Push-gate BEFORE the cache: the cached roster is repo-shared, and a
-    // read-only viewer must not be able to read it out of the cache either.
-    if (!c.get("viewerCanPush")) {
-      return errorJson(c, ApiErrorCode.NOT_FOUND);
-    }
-
-    const ctx = c.get("ctx");
-    const repoId = c.get("repoId");
-    const key = cacheKey(ctx.installationId, repoId);
-    const now = Date.now();
-    const cached = cache.get(key, now);
-    if (cached !== undefined) {
-      return rosterJson(c, cached);
-    }
-
-    // Fetch by the AUTHZ-VERIFIED full name (read posture — ≤60s staleness is
-    // the same budget as the gate's own positive cache).
-    const target = splitRepoSlug(c.get("repoFullName"));
-    if (target === undefined) {
-      return errorJson(c, ApiErrorCode.NOT_FOUND);
-    }
-    const fetched = await deps.github.listRepoCollaborators(
-      ctx.installationId,
-      {
-        owner: target.owner,
-        repo: target.repo,
-      },
-    );
-    if (!fetched.ok) {
-      // 404-collapse posture identical to the other reads; everything else is
-      // an honest upstream error.
-      if (fetched.error.code === GitHubApiErrorCode.NOT_FOUND) {
+  app.query(
+    {
+      id: PRODUCT_QUERY_ID.LIST_COLLABORATORS,
+      classification: WRITE_CLASSIFICATION.READ,
+      agentAvailable: true,
+    },
+    "/",
+    async (c) => {
+      // Push-gate BEFORE the cache: the cached roster is repo-shared, and a
+      // read-only viewer must not be able to read it out of the cache either.
+      if (!c.get("viewerCanPush")) {
         return errorJson(c, ApiErrorCode.NOT_FOUND);
       }
-      return errorJson(c, ApiErrorCode.GITHUB_UNAVAILABLE);
-    }
-    const body = JSON.stringify(fetched.value);
-    cache.set(key, body, now + COLLABORATORS_CACHE_TTL_MS, now);
-    return rosterJson(c, body);
-  });
+
+      const ctx = c.get("ctx");
+      const repoId = c.get("repoId");
+      const key = cacheKey(ctx.installationId, repoId);
+      const now = Date.now();
+      const cached = cache.get(key, now);
+      if (cached !== undefined) {
+        return rosterJson(c, cached);
+      }
+
+      // Fetch by the AUTHZ-VERIFIED full name (read posture — ≤60s staleness is
+      // the same budget as the gate's own positive cache).
+      const target = splitRepoSlug(c.get("repoFullName"));
+      if (target === undefined) {
+        return errorJson(c, ApiErrorCode.NOT_FOUND);
+      }
+      const fetched = await deps.github.listRepoCollaborators(
+        ctx.installationId,
+        {
+          owner: target.owner,
+          repo: target.repo,
+        },
+      );
+      if (!fetched.ok) {
+        // 404-collapse posture identical to the other reads; everything else is
+        // an honest upstream error.
+        if (fetched.error.code === GitHubApiErrorCode.NOT_FOUND) {
+          return errorJson(c, ApiErrorCode.NOT_FOUND);
+        }
+        return errorJson(c, ApiErrorCode.GITHUB_UNAVAILABLE);
+      }
+      const body = JSON.stringify(fetched.value);
+      cache.set(key, body, now + COLLABORATORS_CACHE_TTL_MS, now);
+      return rosterJson(c, body);
+    },
+  );
 
   return app;
 }

@@ -12,7 +12,7 @@
 // crosses the port.
 import { sanitizeErrorDetail } from "logging";
 import { briefId, parsePrUrl, prStem, type PrLocator } from "brief-core";
-import { Hono, type Context } from "hono";
+import type { Context } from "hono";
 import type { Result, ValueOf } from "types";
 import { decryptToken } from "persistence";
 import { z } from "zod";
@@ -23,6 +23,12 @@ import {
 } from "./auth/session";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "./authz";
 import { ApiErrorCode, errorJson } from "../error-response";
+import { PRODUCT_ACTION_ID } from "../product-operations/ids";
+import {
+  productRouter,
+  type ProductRouter,
+} from "../product-operations/product-router";
+import { WRITE_CLASSIFICATION } from "../product-operations/types";
 
 // Deliberately NO "forbidden" kind: an engine implementation maps a GitHub
 // FORBIDDEN onto NOT_FOUND, so a viewer who cannot read a repo sees exactly
@@ -132,8 +138,8 @@ async function resolveSessionToken(
 export function generateRoute(
   deps: AuthRouteDeps,
   engine: UrlBriefEngine | undefined,
-): Hono<AuthzEnv> {
-  const app = new Hono<AuthzEnv>();
+): ProductRouter<AuthzEnv> {
+  const app = productRouter<AuthzEnv>();
   // Flights share the engine RESULT, never a Response: a Response body is
   // one-shot, so each joiner builds its own from the shared value.
   const singleFlight =
@@ -141,101 +147,111 @@ export function generateRoute(
 
   app.use("/", sessionLayer(deps), accessStampLayer());
 
-  app.post("/", async (c) => {
-    if (engine === undefined) {
-      return errorJson(c, ApiErrorCode.GENERATION_UNAVAILABLE);
-    }
-
-    const body = bodySchema.safeParse(
-      await c.req.json().catch(() => undefined),
-    );
-    if (!body.success) {
-      return errorJson(c, ApiErrorCode.INVALID_REQUEST);
-    }
-    let locator: PrLocator;
-    try {
-      locator = parsePrUrl(body.data.url);
-    } catch {
-      return errorJson(c, ApiErrorCode.NOT_A_PR_URL);
-    }
-
-    let currentSession = c.get("session");
-    let accessToken =
-      c.get("accessToken") ?? (await resolveSessionToken(deps, currentSession));
-    if (accessToken === undefined) {
-      return errorJson(c, ApiErrorCode.UNAUTHORIZED);
-    }
-
-    // One refresh-once budget per REQUEST, shared across every engine call:
-    // the token can expire between the head fetch and the generation's own
-    // reads.
-    let refreshSpent = false;
-    const spendRefresh = async (): Promise<boolean> => {
-      if (refreshSpent) {
-        return false;
+  app.action(
+    {
+      id: PRODUCT_ACTION_ID.GENERATE_BRIEF,
+      classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
+      agentAvailable: true,
+    },
+    "post",
+    "/",
+    async (c) => {
+      if (engine === undefined) {
+        return errorJson(c, ApiErrorCode.GENERATION_UNAVAILABLE);
       }
-      refreshSpent = true;
-      const refreshed = await refreshSessionToken(
-        deps,
-        currentSession,
-        c.get("logger"),
+
+      const body = bodySchema.safeParse(
+        await c.req.json().catch(() => undefined),
       );
-      if (!refreshed.ok) {
-        return false;
+      if (!body.success) {
+        return errorJson(c, ApiErrorCode.INVALID_REQUEST);
       }
-      currentSession = refreshed.value.session;
-      accessToken = refreshed.value.accessToken;
-      return true;
-    };
+      let locator: PrLocator;
+      try {
+        locator = parsePrUrl(body.data.url);
+      } catch {
+        return errorJson(c, ApiErrorCode.NOT_A_PR_URL);
+      }
 
-    let head = await engine.fetchHeadSha(locator, accessToken);
-    if (
-      !head.ok &&
-      head.error.kind === UrlBriefErrorKind.UNAUTHORIZED &&
-      (await spendRefresh())
-    ) {
-      head = await engine.fetchHeadSha(locator, accessToken);
-    }
-    if (!head.ok) {
-      return engineFailure(c, head.error);
-    }
+      let currentSession = c.get("session");
+      let accessToken =
+        c.get("accessToken") ??
+        (await resolveSessionToken(deps, currentSession));
+      if (accessToken === undefined) {
+        return errorJson(c, ApiErrorCode.UNAUTHORIZED);
+      }
 
-    const stem = prStem(`${locator.owner}/${locator.repo}`, locator.number);
-    const existing = await engine.lookupIndex(stem, head.value);
-    if (existing != null) {
-      return c.json({ briefId: briefId(stem, existing, head.value) }, 200, {
-        "cache-control": "no-store",
-      });
-    }
+      // One refresh-once budget per REQUEST, shared across every engine call:
+      // the token can expire between the head fetch and the generation's own
+      // reads.
+      let refreshSpent = false;
+      const spendRefresh = async (): Promise<boolean> => {
+        if (refreshSpent) {
+          return false;
+        }
+        refreshSpent = true;
+        const refreshed = await refreshSessionToken(
+          deps,
+          currentSession,
+          c.get("logger"),
+        );
+        if (!refreshed.ok) {
+          return false;
+        }
+        currentSession = refreshed.value.session;
+        accessToken = refreshed.value.accessToken;
+        return true;
+      };
 
-    // The refresh-once budget covers the generate stage too: the token can
-    // expire between the head fetch and the generation's own GitHub reads.
-    // A retry re-enters the flight under the same key — the failed flight
-    // already settled and freed it, so joiners share the retry run.
-    const token = accessToken;
-    let generated = await singleFlight(`${stem}@${head.value}`, () =>
-      engine.generate(body.data.url, token),
-    );
-    if (
-      !generated.ok &&
-      generated.error.kind === UrlBriefErrorKind.UNAUTHORIZED &&
-      (await spendRefresh())
-    ) {
-      const rotated = accessToken;
-      generated = await singleFlight(`${stem}@${head.value}`, () =>
-        engine.generate(body.data.url, rotated),
+      let head = await engine.fetchHeadSha(locator, accessToken);
+      if (
+        !head.ok &&
+        head.error.kind === UrlBriefErrorKind.UNAUTHORIZED &&
+        (await spendRefresh())
+      ) {
+        head = await engine.fetchHeadSha(locator, accessToken);
+      }
+      if (!head.ok) {
+        return engineFailure(c, head.error);
+      }
+
+      const stem = prStem(`${locator.owner}/${locator.repo}`, locator.number);
+      const existing = await engine.lookupIndex(stem, head.value);
+      if (existing != null) {
+        return c.json({ briefId: briefId(stem, existing, head.value) }, 200, {
+          "cache-control": "no-store",
+        });
+      }
+
+      // The refresh-once budget covers the generate stage too: the token can
+      // expire between the head fetch and the generation's own GitHub reads.
+      // A retry re-enters the flight under the same key — the failed flight
+      // already settled and freed it, so joiners share the retry run.
+      const token = accessToken;
+      let generated = await singleFlight(`${stem}@${head.value}`, () =>
+        engine.generate(body.data.url, token),
       );
-    }
-    if (!generated.ok) {
-      return engineFailure(c, generated.error);
-    }
-    const ref = generated.value;
-    return c.json(
-      { briefId: briefId(prStem(ref.repo, ref.number), ref.index, ref.head) },
-      200,
-      { "cache-control": "no-store" },
-    );
-  });
+      if (
+        !generated.ok &&
+        generated.error.kind === UrlBriefErrorKind.UNAUTHORIZED &&
+        (await spendRefresh())
+      ) {
+        const rotated = accessToken;
+        generated = await singleFlight(`${stem}@${head.value}`, () =>
+          engine.generate(body.data.url, rotated),
+        );
+      }
+      if (!generated.ok) {
+        return engineFailure(c, generated.error);
+      }
+      const ref = generated.value;
+      return c.json(
+        { briefId: briefId(prStem(ref.repo, ref.number), ref.index, ref.head) },
+        200,
+        { "cache-control": "no-store" },
+      );
+    },
+  );
 
   return app;
 }

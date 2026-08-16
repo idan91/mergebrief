@@ -3,8 +3,11 @@
 // subtree, unmatched methods/paths included, so every request under the
 // prefix traverses exactly one gate and an unauthorized probe meets the same
 // hint-free 404 posture everywhere.
-import { Hono } from "hono";
 import { createAuthzMiddleware, type AuthzEnv } from "../../authz";
+import {
+  productRouter,
+  type ProductRouter,
+} from "../../../product-operations/product-router";
 import { commentsRoute } from "./comments";
 import {
   conversationRoutes,
@@ -15,8 +18,8 @@ import { readsRoute } from "./reads";
 import { markReadyRoute } from "./ready";
 import { reviewSubmitRoute } from "./review";
 
-export function prRoutes(deps: ConversationRouteDeps): Hono<AuthzEnv> {
-  const app = new Hono<AuthzEnv>();
+export function prRoutes(deps: ConversationRouteDeps): ProductRouter<AuthzEnv> {
+  const app = productRouter<AuthzEnv>();
   const authz = createAuthzMiddleware(deps);
   app.use("*", authz);
 
@@ -34,6 +37,6 @@ export function prRoutes(deps: ConversationRouteDeps): Hono<AuthzEnv> {
   app.route("/review", reviewSubmitRoute(deps, evictConversation));
   app.route("/ready", markReadyRoute(deps));
   app.route("/comments", commentsRoute(deps, evictConversation));
-  app.route("/conversation", conversation.app);
+  app.route("/conversation", conversation.router);
   return app;
 }
