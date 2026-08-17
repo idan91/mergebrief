@@ -251,11 +251,27 @@ Model: Fable 5, high. impeccable + web-accessibility.
 
 ## Execution
 
-**Sequential, in the main thread.** Every PR depends on its predecessor's
-schema, types or routes, so there is nothing to parallelise: PR 3 needs PR 2's
-rename, PR 8 needs PR 6's function and PR 4's columns, the web PRs need the
-routes. Subagents are used only for the reviewer gates, which run per PR on
-the staged diff.
+**Sequential.** Every PR depends on its predecessor's schema, types or routes,
+so there is nothing to parallelise: PR 3 needs PR 2's rename, PR 8 needs PR
+6's function and PR 4's columns, the web PRs need the routes.
+
+**The driving session is an orchestrator, not an implementer.** 19 PRs of
+file reads, test loops and diffs would fill a 1M context around PR 12, and
+compaction is precisely where this stack's silent-failure invariants stop
+being verbatim. So:
+
+- The driving session holds the plan, the invariants and the stack status. It
+  does not read source files, run the test loop, or hold diffs.
+- **Each PR is implemented by a fresh subagent** which reads the spec section
+  it needs, writes the code, runs the gates, and reports back in **≤20 lines**:
+  what it changed, `git diff --stat` totals, gate results, and anything it
+  could not do. Its tool output never enters the driving context.
+- **Reviewer gates stay subagents**, as they already are.
+- **Three PRs get a design brief from the driving session first** — PR 3
+  (schema shape, which everything downstream keys off), PR 6 and PR 8 (the
+  carry-over core, whose failure mode is silent: a wrongly-placed anchor reads
+  as correct). The subagent implements to that brief rather than re-deriving
+  the design from the spec.
 
 **Model per PR** is named at each entry. The rule behind the choices: schema
 shape, the carry-over core, the scope gate, the submit rewire and every web
@@ -264,10 +280,16 @@ migration against an established template and mechanical route work do not.
 Per the runtime substitution above, Fable-5 entries execute on Opus 5 at high
 effort until quota returns.
 
+**No merging during the run.** Each branch bases on its predecessor; all 19
+push and open PRs against their predecessor branch, so every diff stays
+reviewable on its own. Idan reviews the whole stack at the end. The
+`rebase --onto` realignment mechanics (and `watch-pr-stack`) start only once
+he begins merging — nothing in this run rebases a pushed branch.
+
 **No mid-stack checkpoints.** Execution continues PR to PR until blocked or
 until a split trigger fires; a subtask boundary is not a reason to stop and
-ask. Idan merges each PR; the agent realigns the stack after each merge
-(`watch-pr-stack` covers the between-merge mechanics).
+ask. Blocked means a decision the spec does not answer, a gate that cannot go
+green, or a split trigger firing — not "this PR was interesting".
 
 ## Ticket housekeeping carried by this stack
 
