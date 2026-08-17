@@ -28,7 +28,7 @@ The commit SHA at which a given reviewer last *submitted* a review. The baseline
 _Avoid_: baseline (informal), last-seen, watermark
 
 **Session baseline**:
-The SHA a reviewer is *currently viewing* in an in-progress review, before they submit. A follow-up commit that lands mid-review is shown **in-tool** relative to this session baseline ("what changed since you opened") via the same delta machinery — **not** relative to the durable **Checkpoint**, which advances only on submit. Transient and per-session; the **Fast-lane** or full **Delta Brief** of a mid-review follow-up anchors here, and carry-over runs against the reviewer's *draft* comments rather than Settled flags.
+The SHA a reviewer is *currently viewing* in an in-progress review, before they submit. A follow-up commit that lands mid-review is shown **in-tool** relative to this session baseline ("what changed since you opened") via the same delta machinery — **not** relative to the durable **Checkpoint**, which advances only on submit. It is the **durable key of a Review Session** — the reviewer's unfinished work is stored against the **Brief** at this SHA, so a new Brief starts a new Review Session and the previous one becomes read-only. The **Fast-lane** or full **Delta Brief** of a mid-review follow-up anchors here, and carry-over runs against the reviewer's *draft* comments rather than Settled flags.
 _Avoid_: working SHA (informal), draft checkpoint
 
 **Comparison baseline**:
@@ -64,7 +64,7 @@ How a prior **Flag** is classified in a **Delta Brief** relative to this reviewe
 _Avoid_: still-resolved, cleared, gone, stale, resolved (as state names)
 
 **Comment anchoring**:
-How a prior comment is placed in a **Delta Brief** once head has moved. A shipped **Comment** (GitHub-native) carries GitHub's own position/outdated tracking — we read it, not recompute it. A **Flag** or an unshipped draft (**Mind-Map Space**) is anchored by us via the span's positional line-map: **moved** (relocated to a new line) or **orphaned** (its target line is gone). Ambiguous → orphaned / needs re-look, never silently dropped.
+How a prior comment is placed in a **Delta Brief** once head has moved. A shipped **Comment** (GitHub-native) carries GitHub's own position/outdated tracking — we read it, not recompute it. A **Flag** or an unshipped draft (**Review Session**) is anchored by us via the span's positional line-map: **moved** (relocated to a new line) or **orphaned** (its target line is gone). Ambiguous → orphaned / needs re-look, never silently dropped.
 _Avoid_: re-anchor (informal), outdated (GitHub's word, only for shipped comments)
 
 **Chunk**:
@@ -142,20 +142,20 @@ A single line appended to the native GitHub review ("Reviewed with [tool] — su
 _Avoid_: tool signature (informal), banner, badge
 
 **Review Summary**:
-A static, tool-hosted snapshot page produced when a reviewer submits, linked from the **Signature line**. Renders the **Receipt** plus the review's analysis context (which Change-groups, what was verified, dismissals with reasons). Static = frozen at submit time, per-submission permalink. The public face of the private **Mind-Map Space**'s output — the audit trail the author and org can open.
-_Avoid_: report, dashboard, public mind-map
+A static, tool-hosted snapshot page produced when a reviewer submits, linked from the **Signature line**. Renders the **Receipt** plus the review's analysis context (which Change-groups, what was verified, dismissals with reasons). Static = frozen at submit time, per-submission permalink. The public face of the private **Review Session**'s output — the audit trail the author and org can open.
+_Avoid_: report, dashboard, public review session
 
 **Analysis Layer**:
 The reviewer-agnostic core: Change-groups, Categorization, Playbooks, Risk Surface, Concern split, LoC. Consumed by the human **Engagement Layer** (v1); the same analysis could later be consumed by an org's own AI agent through a clean internal API (engineering, not a go-to-market lever). The product core. Defensibility is **not** the game (the project is OSS-only — see `docs/vision.md`): taxonomy + playbooks are deliberately open and reproducible, distributed as a community markdown commons rather than guarded as a moat.
 _Avoid_: engine, backend, core (informal)
 
 **Engagement Layer**:
-The human-reviewer workflow built on the **Analysis Layer**: no-AI-authored-text rule, Seeds, private Mind-Map Space, human-written Comments, Approval + Receipt. Human-only — does not apply to AI-agent reviewers. The v1 product surface.
+The human-reviewer workflow built on the **Analysis Layer**: no-AI-authored-text rule, Seeds, private Review Session, human-written Comments, Approval + Receipt. Human-only — does not apply to AI-agent reviewers. The v1 product surface.
 _Avoid_: UI layer, frontend, workflow (informal)
 
-**Mind-Map Space**:
-The private (per reviewer × PR) workspace inside the web app where the reviewer thinks, drafts, asks the agent questions, dismisses flags, and refines comments — without that work being visible on the PR thread.
-_Avoid_: workspace, scratchpad, draft space
+**Review Session**:
+The private (per reviewer × PR) workspace where the reviewer thinks, drafts, asks the agent questions, dismisses flags, and refines comments — without that work being visible on the PR thread. It is one reviewer's work on one PR, pinned to one **Session baseline** and stored on our own server: draft **Comments** and replies, per-**Chunk** read marks, **Change-group** reclassifications, **Dispositions**, and the chosen outcome. A new **Brief** starts a new Review Session and prior work is carried onto it; the previous session becomes read-only.
+_Avoid_: Mind-Map Space (retired 2026-08-17), workspace, scratchpad, draft space
 
 **Trigger**:
 What causes a **Brief** to compute: eager-on-push, debounced (~60s trailing), on PR-open (first push) and every subsequent push — including while the PR is a draft. No lazy "compute-on-first-click" gate; spend is bounded by debounce + **Triage** + skipping trivial/instantly-closed PRs, not by withholding compute. **Delta Briefs** are per-reviewer (from each reviewer's **Checkpoint**), not a push-triggered recompute.
@@ -232,17 +232,17 @@ _Avoid_: error kind, error message (for the identifier), status-derived kind
 - A full **Brief** at a given SHA is shared across all reviewers of that SHA. A **Delta Brief** spans the *reviewer's* last-reviewed SHA → current head, so two reviewers at different checkpoints receive different Delta Briefs over different commit spans. The full Brief is the shared, per-SHA artifact; the Delta Brief is selected per reviewer by their baseline. New pushes (debounced) move the head, after which a fresh full Brief and new Delta Briefs become available.
 - A **Comparison overlay** applies one **Comparison baseline** to the current **Brief**; **Previous Brief** uses shared **Revision changes** + **Revision narrative**, while **Checkpoint** uses the reviewer's personal **Delta Brief** and matching changed-line marks.
 - **Revision changes** and a **Revision narrative** both span the shared **Previous Brief** → current-head revision; the former marks lines mechanically, while the latter explains those marked changes.
-- Each (PR × Reviewer) pairing has one private **Mind-Map Space**.
+- Each (PR × Reviewer) pairing has one private **Review Session**.
 - A **Comment** belongs to a reviewer and ships to the PR. A **Seed** belongs to a chunk in the brief and never ships.
 - A reviewer records a **Disposition** on a **Flag**: **addressed** (a **Comment** targets it) or **dismissed** (with reason). Dispositions are frozen into the **Receipt** on **Submit**.
 - On submit, the review lands **natively on GitHub** (comments + approve/request-changes) authored by the reviewer. A **Signature line** links to the static **Review Summary**, which renders the **Receipt**. The review otherwise reads as a normal human review. Receipt aggregates across all reviewers when multi-reviewer.
 - A **Brief**'s **Trigger** (compute) is independent of its **Entry** (human reach): compute fires eagerly on every push; the reviewer **Entry** comment posts only when the PR is ready. **Draft-first** changes only the Entry timing, never the Trigger.
-- The **Analysis Layer** is reviewer-agnostic. A human reviewer consumes it through the **Engagement Layer** (v1). An AI-agent reviewer consumes it directly via API (v1.5+ headless) — the no-AI-text rule and Mind-Map Space are human-mode only and do not apply to agent-mode.
+- The **Analysis Layer** is reviewer-agnostic. A human reviewer consumes it through the **Engagement Layer** (v1). An AI-agent reviewer consumes it directly via API (v1.5+ headless) — the no-AI-text rule and Review Session are human-mode only and do not apply to agent-mode.
 
 ## Example dialogue
 
 > **PM:** "When the reviewer dismisses a **Flag**, does the **Author** see the agent's original reasoning?"
-> **Eng:** "No — only the **Dismissal** + the reviewer's stated reason show on the **Receipt**. The agent's challenge stays inside the **Mind-Map Space**. The receipt is the public surface, the mind-map is the private one."
+> **Eng:** "No — only the **Dismissal** + the reviewer's stated reason show on the **Receipt**. The agent's challenge stays inside the **Review Session**. The receipt is the public surface, the Review Session is the private one."
 
 > **PM:** "What if the **AI** is wrong about the **Category** for a chunk?"
 > **Eng:** "Reviewer reclassifies it in one click. The **Playbook** swaps automatically. The receipt notes 'N chunks reclassified by reviewer' — the tool stays honest about what it got and what the human corrected."

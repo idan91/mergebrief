@@ -1,5 +1,15 @@
 # Mind-Map Session Store (Client Runtime of the Mind-Map Space)
 
+> **Amended 2026-08-17 (BRIEF-197 → [ADR 0040](./0040-review-session-server-store.md)):**
+> the store stops being the source of truth. Review state lives on the server
+> in a **Review Session** row keyed `(installation, brief, reviewer)`; the
+> store keeps an optimistic local copy, writes one operation per user action,
+> and its `sessionStorage` persistence effect is **deleted** (existing browser
+> sessions are dropped, not migrated). The deferred **region-anchored keying**
+> of #4 is now live — a Disposition anchors by `(file, attribute, region)` and
+> takes its SHA from the session's Brief, so no row repeats one. **Mind-Map
+> Space** is retired as a term; `MindMap*` renames to `ReviewSession*`.
+
 The web app's per-(reviewer × brief) review state — flag **Dispositions**, draft **Comments**, reviewed **Chunks**, reclassifications, playbook progress, outcome — is consolidated into one client-side **session store**: the runtime embodiment of the **Mind-Map Space**. A flag's **Disposition** collapses from three parallel maps into a single discriminated union. The store keys Dispositions by **brief-local flag id** for now; **region-anchored** keying (ADR 0007) is explicitly **deferred** until push→regenerate and the persistence layer (ADR 0008) exist. This is a decision about *where review state lives and how a Disposition is identified*, not a UI restyle.
 
 ## Context

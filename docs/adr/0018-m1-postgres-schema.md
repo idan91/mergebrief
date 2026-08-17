@@ -186,6 +186,12 @@ audit_log
 
 - **No outbound FKs.** Audit must survive the target's deletion (you log a *delete*, then the target is gone); `installation_id` / `target_id` are loose numeric refs. This is what makes it a durable ledger.
 - **Numeric-only (D1) and never purged (D5).** No names, no transport detail — **no route/method/headers/IP** (headers + IP are PII/secrets in an un-erasable table). An immutable trail including "tenant X offboarded" is the SOC2 value.
+
+  **Amended (2026-08-17, BRIEF-197 → [ADR 0040](./0040-review-session-server-store.md)).** Three changes and one restated rationale.
+  1. **Columns.** `action`'s eight-value vocabulary is replaced by **`operation`** (the Product Operation descriptor id), joined by `classification`, `channel`, `credential_id`, `outcome`, `request_id`, `client`, and a **nullable `caller_ip`**. The row no longer carries an HTTP status.
+  2. **Coverage.** Every **action** plus **denials**, never a read, emitted from the single `productRouter.action()` choke point rather than hand-placed sites.
+  3. **Metadata rule inverts** to **open keys, closed values** (token, number, boolean). No bodies, no free text, no truncation — the value rules were always the protection; the closed key list only made every new emit a code change.
+  4. **Retention.** "Never purged" becomes a policy knob: `AUDIT_RETENTION_DAYS` (unset = keep forever = default, 30-day floor when set), swept by the system's first scheduled worker job. So the numeric-only rule no longer rests on un-erasability. It rests on **self-host grounds**: adopters will run the "never" setting, and `docs/self-host/operations.md` tells every adopter to `pg_dump` the volume it says holds this table — so anything stored here lands in every backup copy they keep. `AUDIT_PRIVATE_WRITES` (default on) can drop private writes; external writes and denials are never switchable. `caller_ip` is populated only under an operator PII flag, default off.
 - **`jsonb` metadata** (vs artifact bodies' `TEXT`, D6): audit detail is small + queried, so a queryable type fits.
 - **Append-only by convention in M1**; DB `REVOKE UPDATE/DELETE` from the app role is the hosted hardening step.
 - **M1 emits = the low-volume boundaries** — `generate` (worker write), `delete` (purge — ADR 0016 #11), `config`, and **auth *denials***. The **high-volume firehoses** (every-request auth-success, every-fetch `view`) are **excluded** — they'd make a never-purged table the largest one and never shrink; they belong in the **purgeable web access log** (route/method/status/latency — since BRIEF-51 the structured stdout `evt: "api.access"` line, renamed from `evt: "read"`; see [ADR 0034](./0034-observability-v1-logging-health.md)), which is also the better debugging tool. View sampling + retention revisited in the hosted program.
@@ -398,7 +404,7 @@ github_grant
 | `revision_narrative` | immutable artifact (inline `body`) | 1:1-optional with a `brief` row (FK, cascades); key `(…, prev_head_sha, head_sha)` (D12) |
 | `comparison_marks` | immutable artifact (inline `body`) | mechanical, coordinates-only, no origin; key `(…, baseline_sha, head_sha)` (D13) |
 | `checkpoint` | per-reviewer position | `last_submitted_sha`; webhook-driven |
-| `disposition` | anchored decision | table in M1, **rows written M2** |
+| `disposition` | anchored decision | table in M1, **rows written M2**; amended 2026-08-17 (BRIEF-197): session-linked, `decided_at_sha`/`pull_request_id`/`reviewer_id` dropped, carry-status columns added |
 | `generation` | mutable CQRS status projection | poll target; not a domain entity |
 | `audit_log` | append-only boundary | numeric-only, no FKs, never purged |
 | `user_settings` | per-user settings | NON-tenant-scoped (D14); keyed `gh_user_id`; typed columns only |
@@ -407,6 +413,24 @@ github_grant
 | `github_grant` | secret-bearing | the ONE encrypted-token table (D15); NON-tenant-scoped; dies with last referent |
 
 `graphile_worker.*` is owned and migrated by graphile-worker — not ours.
+
+**Added 2026-08-17 (BRIEF-197 → [ADR 0040](./0040-review-session-server-store.md)):**
+
+| Table | Kind | Notes |
+|---|---|---|
+| `review_session` | per-(reviewer × brief) workspace | key `(installation_id, brief_id, reviewer_id)`; FK `brief` cascades, so `pull_request` still reaches it; holds `review_outcome` only |
+| `review_draft_comment` | session-owned | file/side/line + body + `status` + `anchor_status` |
+| `review_draft_reply` | session-owned | keyed on a durable GitHub thread-root comment id |
+| `review_read_mark` | session-owned | `chunk_id` |
+| `review_group_reclassification` | session-owned | overrides only; Brief supplies defaults |
+| `review_submitted_review` | session-owned | GitHub review ids, for conversation reconciliation |
+| `hunk_span` | immutable artifact (coordinates only) | key `(installation_id, pull_request_id, baseline_sha, head_sha)` — the durable carry-over hop, written pre-model like `comparison_marks` |
+
+`brief` gains `carried_chunk_ids` (the frozen chunk ids `stitchBrief` already
+computes); `api_token` gains `scope` (`read` / `private-write` /
+`external-write`, CHECK-constrained, chosen at mint, immutable); and
+`reviewer_session` renames to `auth_session`, clearing the collision with the
+product term.
 
 **Deferred (additive migrations, zero rewrite):** `delta_overlay` (carry-over overlay → M2), a `repo` table (per-repo config → M3).
 

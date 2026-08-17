@@ -79,7 +79,14 @@ OTel are off-by-default or absent in every default self-host deploy.
    | `token.refresh.fail` | error | `reqId` or job bindings | yes |
    | `audit.fail` | error | `reqId`, artifact ids | yes (posted to GitHub, our audit write failed — data integrity) |
    | `spend.cap.trip` | warn | `repo`, `prId`, `headSha`, `cap`, `dayUtc` | yes (sustained rate — a capped instance is silently producing no briefs) |
-   | `api.access` | info | D9 fields (`method`, `path`, `status`, `durationMs`, `decision`, …) + `reqId` | no |
+   | `api.access` | info | D9 fields (`method`, `path`, `status`, `durationMs`, `decision`, …) + `reqId` + `operation` | no |
+
+   **Amendment (2026-08-17, BRIEF-197 →
+   [ADR 0040](./0040-review-session-server-store.md)):** `api.access` gains
+   the Product Operation `operation` id. The log and the `audit_log` table
+   stay **separate and both** — transport vs intent — joined on `reqId`: the
+   log answers "what crossed the wire", the table answers "what was done", it
+   records actions and denials only, and it carries no HTTP status.
 
    **Amendment (2026-08-03, BRIEF-20):** `spend.cap.trip` goes live at
    **`warn`, not the reserved `error`** — a tripped cap is the guardrail

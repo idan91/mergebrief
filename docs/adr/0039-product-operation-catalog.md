@@ -28,10 +28,22 @@ A **Product Operation** is one authenticated domain operation. Two kinds:
   (leaves the instance: GitHub reviews, comments, thread state).
 
 Each operation carries a stable kebab-case `id` (the join key across
-manifest and CLI map) and `agentAvailable`. Credential/setup flows an agent
+manifest and CLI map) ~~and `agentAvailable`. Credential/setup flows an agent
 must never drive (token mint/revoke, installation selection surfaces that
 exist to bootstrap credentials) ship `agentAvailable: false` and are exempt
-from CLI-mapping enforcement.
+from CLI-mapping enforcement.~~
+
+**Amended (2026-08-17, BRIEF-197 →
+[ADR 0040](./0040-review-session-server-store.md)):** `agentAvailable` is
+**deleted**. It enforced nothing — the real rule is the Bearer path test in
+the authz gate — and hand-typed at 23 sites it was already wrong for
+`list-tokens` and `list-installations` (both `/api/auth/*`, both 401 to every
+token, both parked as CLI gaps demanding an impossible command). The
+descriptor drops to four fields: `id`, `kind`, `classification`, `endpoint`.
+What a credential may do is its **scope** (`read` / `private-write` /
+`external-write`, cumulative) matched against the operation's existing write
+classification — the classification IS the permission, so a new operation
+cannot be added without declaring who may call it.
 
 Not Product Operations, never registered: OAuth callbacks, logout, webhook
 ingest, version checks, UI-only presentation state, CLI profile storage, and
@@ -83,13 +95,26 @@ not expected failures, so `Result` does not apply.
   manifest drift and fails CI.
 - `packages/cli/product-operations.map.json` — operation id → `mergebrief`
   command. A check script enforces exhaustiveness in both directions:
-  every `agentAvailable` operation maps to a command, every mapped id
-  exists in the manifest.
+  ~~every `agentAvailable` operation maps to a command~~ **(amended
+  2026-08-17, BRIEF-197)** every operation id appears in the map as exactly
+  one of `command`, a dated `gap`, or the new permanent `webOnly`
+  (`{reason, owner}`) — absence is an error for every id, where the old rule
+  *required* web-only ids to be absent — and every mapped id exists in the
+  manifest.
 - A temporary gap is an explicit entry `{ reason, owner, ticket, expiry }`;
   a missing or expired gap fails CI. The check runs inside `pnpm lint` and
   the CI workflow; it is deterministic and spends nothing.
 
 ## Consequences
+
+> **Amended (2026-08-17, BRIEF-197 →
+> [ADR 0040](./0040-review-session-server-store.md)):** descriptors are no
+> longer static metadata that "never touch a request". `.query()` and
+> `.action()` mount the **scope gate** themselves, reading the `classification`
+> already on the declaration they receive, so a route added later is enforced
+> whether or not its author thought about it. The **audit emit** rides the same
+> choke point, keyed on the descriptor's `id`. Authentication stays middleware;
+> only authorization-by-class and the audit emit move into the router.
 
 - Adding a domain route without a descriptor, or a descriptor without a CLI
   command, breaks CI instead of silently eroding the agent-complete premise.
