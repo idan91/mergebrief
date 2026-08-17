@@ -9,18 +9,47 @@ touches the generation surface (`prompt.ts`, the output schema, validators or
 salvage), so **no eval spend anywhere** — the worker changes are
 coordinate-persistence next to the model call, never inside it.
 
+**Shape confirmed 2026-08-17: one continuous stack.** All 19 PRs run as a
+single effort, executed without stopping at subtask seams. The split triggers
+at the foot of this document are the only sanctioned deviation; a stack this
+long rebasing under 19 squash-merges is the known risk, and `rebase --onto`
+with patch-id proof is the standing answer to it.
+
 ## Mandates
 
-- **git-eng** governs all git operations. Stacked PRs off main; squash-merge +
-  `rebase --onto` realignment; HTTPS + gh helper. Chunked commits per logical
-  unit. No AI-attribution in PR bodies.
-- **Reviewer gates per PR:** fable-reviewer on every branch diff;
+- **git-eng governs every git operation** — invoke it explicitly, never
+  hand-roll the commands. Requirements gathered 2026-08-17:
+  - Stacked PRs off `main`, one branch per PR, each based on its predecessor;
+    squash-merge, then `rebase --onto` realignment of the rest of the stack
+    with patch-id proof. HTTPS + the `gh` credential helper.
+  - **Chunked commits** — commit after each logical unit inside a PR, not one
+    squashed commit at the end.
+  - **No `Co-Authored-By` trailers and no AI-attribution anywhere** in commit
+    messages or PR bodies.
+  - PR titles `[BRIEF-197] prefix: Change Description In Title Case`; no PR
+    template exists in this repo, so bodies use Overview / Changelog /
+    Images & Videos, with screenshots on every web PR.
+  - **Idan merges.** The agent pushes, opens the PR, and reports; it never
+    merges and never force-pushes a branch under review without saying so.
+- **Reviewer gates per PR:** the branch-diff reviewer on every PR;
   security-reviewer additionally on PRs 2–5, 9, 13, 14; performance-reviewer
   additionally on PRs 8, 10, 16–19. Findings ≥80 confidence: fix, re-stage,
-  re-run until clean.
-- **Specialist skills:** `typescript-eng` everywhere; `web-accessibility` on
-  PRs 16–19; `impeccable` audit on PRs 18 and 19 (rendered UI, screenshots
-  measured before shipping).
+  re-run until clean. **Runtime substitution:** the Fable quota is spent, so
+  reviewer agents and the Fable-5-recommended PRs below run on **Opus 5 at
+  high effort**; the recommendations keep naming Fable 5 because that is the
+  right capability match when quota returns.
+- **Specialist skills (mandatory, confirmed 2026-08-17):**
+  - `typescript-eng` — every PR.
+  - `ponytail` — every PR. The laziest thing that works: reuse what exists
+    before adding, no speculative abstraction, no scaffolding for later. This
+    stack invents 12 operations and 7 tables; the discipline is what keeps it
+    from inventing 20 and 11.
+  - `tdd` — PRs 6 and 8 (the carry-over core). Both are pure logic whose
+    failure mode is silent and dangerous: a wrongly-placed anchor reads as
+    correct. Test first, red before green.
+  - `web-accessibility` — PRs 16–19.
+  - `impeccable` — PRs 18 and 19, on rendered UI, screenshots measured before
+    shipping.
 - **Verification per PR:** owning package `typecheck` + `test` + repo-root
   `pnpm lint`; `apps/web build` on any isomorphic/server-only web change;
   `pnpm -C packages/api manifest:check` on any descriptor change;
@@ -92,7 +121,9 @@ Model: Fable 5, high. Security-reviewer.
 Pure composition of a hop chain over `remapRanges`, range granularity, one
 call per anchor, all-or-nothing demotion preserved; an empty or missing hop in
 the chain demotes everything. Table-driven tests including force-push and
-retarget shapes. No I/O. Model: Fable 5, high (the correctness core).
+retarget shapes. No I/O. **`tdd` — tests first**: a wrongly-placed anchor
+reads as correct, so red-before-green is the only honest gate here.
+Model: Fable 5, high (the correctness core).
 
 ### PR 7 `feat(worker): persist hunk spans and the carried chunk set` (~400 LOC)
 `planAnchoredGeneration` writes the `hunk_span` row from the
@@ -110,8 +141,9 @@ rows with their verdict columns, apply the write. Read marks carry only
 against `carried_chunk_ids`; reclassifications only where the group id
 descended; the review outcome never carries; any untrustworthy span orphans
 every anchor. Freeze semantics: a session freezes when a newer one is
-materialized. Tests cover the multi-push chain (7 → 8 → 9 → 10 is one
-evaluation) and the concurrent-first-write race.
+materialized. **`tdd` — tests first**, covering the multi-push chain (7 → 8 → 9 → 10 is one
+evaluation) and the concurrent-first-write race before the transaction is
+written.
 Model: Fable 5, high. Performance-reviewer (the transaction is on the write
 path).
 
@@ -216,6 +248,26 @@ per draft (a disabled button, not a protocol).
 Model: Fable 5, high. impeccable + web-accessibility.
 
 ---
+
+## Execution
+
+**Sequential, in the main thread.** Every PR depends on its predecessor's
+schema, types or routes, so there is nothing to parallelise: PR 3 needs PR 2's
+rename, PR 8 needs PR 6's function and PR 4's columns, the web PRs need the
+routes. Subagents are used only for the reviewer gates, which run per PR on
+the staged diff.
+
+**Model per PR** is named at each entry. The rule behind the choices: schema
+shape, the carry-over core, the scope gate, the submit rewire and every web
+behaviour change get high-capability, high-effort runs; renames, route
+migration against an established template and mechanical route work do not.
+Per the runtime substitution above, Fable-5 entries execute on Opus 5 at high
+effort until quota returns.
+
+**No mid-stack checkpoints.** Execution continues PR to PR until blocked or
+until a split trigger fires; a subtask boundary is not a reason to stop and
+ask. Idan merges each PR; the agent realigns the stack after each merge
+(`watch-pr-stack` covers the between-merge mechanics).
 
 ## Ticket housekeeping carried by this stack
 
