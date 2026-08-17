@@ -1016,13 +1016,14 @@ Recorded so a later effort finds them, not deferred work inside this one.
 - **New CLI commands for the Review Session operations.** BRIEF-198 owns
   capability discovery; BRIEF-201 owns the remaining catalog commands. This
   spec decides the operations, not their commands.
-- **The autonomous reviewer that submits under a bot identity.** Parked
-  deliberately by BRIEF-122. The scope design must not paint it out, but it is
-  a different destination — and it is the only thing that would make agent
-  authorship separable (§5.7).
-- **A two-dot compare so anchors survive a force-push** (§3.8).
-- **Rate limiting on the write routes.** A real concern, but a general
-  API-hardening one that applies to every route.
+- **The autonomous reviewer that submits under a bot identity** (BRIEF-206).
+  Parked deliberately by BRIEF-122. The scope design must not paint it out,
+  but it is a different destination — and it is the only thing that would make
+  agent authorship separable (§5.7).
+- **A two-dot compare so anchors survive a force-push** (BRIEF-203, §3.8).
+- **Rate limiting on the write routes** (BRIEF-204). A real concern, but a
+  general API-hardening one that applies to every route.
 - **Mirroring per-Chunk read marks into GitHub's own per-file Viewed
-  checkbox.** GitHub exposes `markFileAsViewed` / `viewerViewedState`
-  (VIEWED / UNVIEWED / DISMISSED) through GraphQL. A plausible later nicety.
+  checkbox** (BRIEF-205). GitHub exposes `markFileAsViewed` /
+  `viewerViewedState` (VIEWED / UNVIEWED / DISMISSED) through GraphQL. A
+  plausible later nicety.
