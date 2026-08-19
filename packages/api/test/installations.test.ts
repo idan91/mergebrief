@@ -237,7 +237,7 @@ describe("GET + POST /api/auth/installations", () => {
 
   async function sessionInstallationId(): Promise<string> {
     const rows = await harness.raw(
-      "select installation_id from reviewer_session limit 1",
+      "select installation_id from auth_session limit 1",
     );
     return String(rows[0]?.["installation_id"]);
   }

@@ -1,4 +1,4 @@
-// The reviewer-session auth boundary. This is the PRE-TENANT resolver: nothing
+// The `auth_session` boundary. This is the PRE-TENANT resolver: nothing
 // here is bound to an `installation_id` and it CANNOT be — session resolution
 // PRECEDES tenant scoping. The globally UNIQUE `session_token_hash` (a
 // high-entropy random cookie token, stored only as its SHA-256) is the key,
@@ -11,8 +11,8 @@
 import { and, eq } from "drizzle-orm";
 import { type AppDatabase, internal } from "../db/handle";
 import { githubGrant } from "../schema/github-grant";
-import { reviewerSession } from "../schema/reviewer-session";
-import type { ReviewerSessionRow } from "../stores/tenant";
+import { authSession } from "../schema/auth-session";
+import type { AuthSessionRow } from "../stores/tenant";
 import type { InstallationId, Result, ValueOf } from "../types";
 import { type GithubGrantRow, deleteOrphanedGrants } from "./grant";
 
@@ -44,7 +44,7 @@ function fail(
 
 /** A resolved session with the grant it references (one JOINed query). */
 export interface SessionWithGrant {
-  readonly session: ReviewerSessionRow;
+  readonly session: AuthSessionRow;
   readonly grant: GithubGrantRow;
 }
 
@@ -80,7 +80,7 @@ export interface SessionAuth {
   rebindInstallation(
     sessionTokenHash: string,
     installationId: InstallationId,
-  ): Promise<Result<ReviewerSessionRow, SessionAuthError>>;
+  ): Promise<Result<AuthSessionRow, SessionAuthError>>;
 }
 
 /**
@@ -94,10 +94,10 @@ export function sessionAuth(handle: AppDatabase): SessionAuth {
   return {
     async findSession(sessionTokenHash) {
       const rows = await db
-        .select({ session: reviewerSession, grant: githubGrant })
-        .from(reviewerSession)
-        .innerJoin(githubGrant, eq(reviewerSession.grantId, githubGrant.id))
-        .where(eq(reviewerSession.sessionTokenHash, sessionTokenHash))
+        .select({ session: authSession, grant: githubGrant })
+        .from(authSession)
+        .innerJoin(githubGrant, eq(authSession.grantId, githubGrant.id))
+        .where(eq(authSession.sessionTokenHash, sessionTokenHash))
         .limit(1);
       return rows[0];
     },
@@ -105,9 +105,9 @@ export function sessionAuth(handle: AppDatabase): SessionAuth {
     async deleteSession(sessionTokenHash) {
       return db.transaction(async (tx) => {
         const rows = await tx
-          .delete(reviewerSession)
-          .where(eq(reviewerSession.sessionTokenHash, sessionTokenHash))
-          .returning({ grantId: reviewerSession.grantId });
+          .delete(authSession)
+          .where(eq(authSession.sessionTokenHash, sessionTokenHash))
+          .returning({ grantId: authSession.grantId });
         await deleteOrphanedGrants(
           tx,
           rows.map((row) => row.grantId),
@@ -118,10 +118,10 @@ export function sessionAuth(handle: AppDatabase): SessionAuth {
 
     async setExpiresAt(sessionTokenHash, expiresAt) {
       const rows = await db
-        .update(reviewerSession)
+        .update(authSession)
         .set({ expiresAt })
-        .where(eq(reviewerSession.sessionTokenHash, sessionTokenHash))
-        .returning({ id: reviewerSession.id });
+        .where(eq(authSession.sessionTokenHash, sessionTokenHash))
+        .returning({ id: authSession.id });
       return rows.length;
     },
 
@@ -131,15 +131,15 @@ export function sessionAuth(handle: AppDatabase): SessionAuth {
         // THIS session (both mutate the one row).
         const locked = await tx
           .select()
-          .from(reviewerSession)
-          .where(eq(reviewerSession.sessionTokenHash, sessionTokenHash))
+          .from(authSession)
+          .where(eq(authSession.sessionTokenHash, sessionTokenHash))
           .for("update")
           .limit(1);
         const row = locked[0];
         if (row === undefined) {
           return fail(
             SessionAuthErrorCode.NOT_FOUND,
-            "reviewer_session not found for the given token hash",
+            "auth_session not found for the given token hash",
           );
         }
 
@@ -147,18 +147,18 @@ export function sessionAuth(handle: AppDatabase): SessionAuth {
         // (+ id) — never by an unscoped caller argument, so a rebinding can only
         // move the tenant stamp of the row it already resolved.
         const updated = await tx
-          .update(reviewerSession)
+          .update(authSession)
           .set({ installationId })
           .where(
             and(
-              eq(reviewerSession.installationId, row.installationId),
-              eq(reviewerSession.id, row.id),
+              eq(authSession.installationId, row.installationId),
+              eq(authSession.id, row.id),
             ),
           )
           .returning();
         const updatedRow = updated[0];
         if (updatedRow === undefined) {
-          throw new Error("reviewer_session rebind update returned no row");
+          throw new Error("auth_session rebind update returned no row");
         }
         return { ok: true, value: updatedRow };
       });

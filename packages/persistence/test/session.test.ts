@@ -127,7 +127,7 @@ describe("sessionAuth.setExpiresAt", () => {
   });
 });
 
-describe("reviewer_session schema — no credential columns", () => {
+describe("auth_session schema — no credential columns", () => {
   it("the session table carries a grant FK and NO ciphertext columns", async () => {
     const { PGlite } = await import("@electric-sql/pglite");
     const { drizzle } = await import("drizzle-orm/pglite");
@@ -138,7 +138,7 @@ describe("reviewer_session schema — no credential columns", () => {
       migrationsFolder: fileURLToPath(new URL("../drizzle", import.meta.url)),
     });
     const result = await db.execute(
-      sql`select column_name from information_schema.columns where table_schema = 'public' and table_name = 'reviewer_session' order by column_name`,
+      sql`select column_name from information_schema.columns where table_schema = 'public' and table_name = 'auth_session' order by column_name`,
     );
     const names = result.rows
       .map((row) => row["column_name"])

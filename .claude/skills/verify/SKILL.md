@@ -34,9 +34,9 @@ Gotchas:
 - First request builds the app (runs migrations); a bad env fails loudly on
   that request, not at boot.
 
-## Seeding an authorized reviewer session (read-API verification)
+## Seeding an authorized auth session (read-API verification)
 
-No OAuth round-trip needed: seed a `reviewer_session` row whose access token is
+No OAuth round-trip needed: seed an `auth_session` row whose access token is
 the local `gh` CLI token (`gh auth token` — can read any repo the user owns).
 Write a throwaway `.mts` script INSIDE `apps/web` (workspace resolution;
 `.mts` because scratchpad/plain `.ts` is transpiled CJS and top-level await

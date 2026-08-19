@@ -15,7 +15,7 @@
 // `checkpoint`, `disposition`, `generation`) FKs `pull_request.id`
 // `ON DELETE CASCADE`, so deleting a `pull_request` row — or predicate-deleting
 // a set of them — cascades every child with no forgotten table. The only
-// non-PR tables a purge touches are `reviewer_session` and `api_token` (neither
+// non-PR tables a purge touches are `auth_session` and `api_token` (neither
 // FK'd); both are deleted explicitly on installation offboarding. `audit_log`
 // is RETAINED (numeric-only, never purged, no FK): a purge APPENDS a `delete`
 // entry to it and never removes from it.
@@ -36,7 +36,7 @@ import { insertAudit } from "./audit";
 import { type AppDatabase, internal } from "../db/handle";
 import { apiToken } from "../schema/api-token";
 import { pullRequest } from "../schema/pull-request";
-import { reviewerSession } from "../schema/reviewer-session";
+import { authSession } from "../schema/auth-session";
 import type { PullRequestRow, TenantContext } from "./tenant";
 import {
   AuditAction,
@@ -122,7 +122,7 @@ export interface PurgeRoutines {
   purgeRepos(repoIds: readonly RepoId[]): Promise<number>;
   /**
    * Offboard the whole tenant: predicate-delete ALL `pull_request` rows for ctx
-   * (children cascade) + explicit delete of the tenant's `reviewer_session`
+   * (children cascade) + explicit delete of the tenant's `auth_session`
    * and `api_token` rows (the non-PR secret-bearing tables — installation-bound
    * tokens must not outlive their tenant).
    * `audit_log` is retained untouched (numeric-only, never purged) — this
@@ -152,7 +152,7 @@ export interface PurgeRoutines {
    */
   sweepExpired(now: Date): Promise<number>;
   /**
-   * Session TTL sweep: delete every `reviewer_session` for ctx with
+   * Session TTL sweep: delete every `auth_session` for ctx with
    * `expires_at < now`. Returns the number deleted.
    */
   sweepExpiredSessions(now: Date): Promise<number>;
@@ -291,9 +291,9 @@ export function purgeRoutines(
           .where(eq(pullRequest.installationId, installationId))
           .returning({ id: pullRequest.id });
         const purgedSessions = await tx
-          .delete(reviewerSession)
-          .where(eq(reviewerSession.installationId, installationId))
-          .returning({ grantId: reviewerSession.grantId });
+          .delete(authSession)
+          .where(eq(authSession.installationId, installationId))
+          .returning({ grantId: authSession.grantId });
         const purgedTokens = await tx
           .delete(apiToken)
           .where(eq(apiToken.installationId, installationId))
@@ -391,14 +391,14 @@ export function purgeRoutines(
       // offboarding (`purgeInstallation`), which IS audited.
       return db.transaction(async (tx) => {
         const deleted = await tx
-          .delete(reviewerSession)
+          .delete(authSession)
           .where(
             and(
-              eq(reviewerSession.installationId, installationId),
-              lt(reviewerSession.expiresAt, now),
+              eq(authSession.installationId, installationId),
+              lt(authSession.expiresAt, now),
             ),
           )
-          .returning({ grantId: reviewerSession.grantId });
+          .returning({ grantId: authSession.grantId });
         // Orphan-clean the grants of the swept sessions, same tx.
         await deleteOrphanedGrants(
           tx,

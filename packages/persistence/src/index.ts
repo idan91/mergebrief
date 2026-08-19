@@ -59,7 +59,7 @@ export type {
   RepositoryError,
   PullRequestRow,
   CheckpointRow,
-  ReviewerSessionRow,
+  AuthSessionRow,
   PullRequestUpsertInput,
   PullRequestLifecycle,
   PullRequestStatePatch,
@@ -164,7 +164,7 @@ export type {
   GrantRefreshRejection,
 } from "./auth/grant";
 
-// The reviewer-session auth boundary — the PRE-TENANT, token-hash-keyed
+// The `auth_session` boundary — the PRE-TENANT, token-hash-keyed
 // session resolver (find / delete / expiry mirror). NOT ctx-bound: it PRODUCES
 // the tenant, so it precedes `forTenant` scoping.
 export { sessionAuth, SessionAuthErrorCode } from "./auth/session";

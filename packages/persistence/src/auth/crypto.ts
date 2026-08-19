@@ -1,4 +1,4 @@
-// GitHub OAuth token encryption for `reviewer_session.gh_token_ciphertext`.
+// GitHub OAuth token encryption for `auth_session.gh_token_ciphertext`.
 // AES-256-GCM (authenticated encryption) behind a key-provider interface.
 //
 // ENCRYPTION MODEL: DIRECT encryption with a provider-resolved key — NOT a
@@ -190,7 +190,7 @@ export async function encryptToken(
 
 /**
  * Decrypt a `v1.…` string produced by `encryptToken`, using the key named by
- * `keyRef` (the value stored on the `reviewer_session` row). Auth-tag failure
+ * `keyRef` (the value stored on the `auth_session` row). Auth-tag failure
  * (tampering / wrong key), malformed input, and an unknown version all return
  * a `Result` error whose message carries NO plaintext or key material.
  */

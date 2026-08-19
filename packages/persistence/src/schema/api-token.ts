@@ -2,7 +2,7 @@
 // CLI/agents, stored ONLY as its SHA-256 hex hash. The GitHub credential pair
 // lives on the `github_grant` row it references — mint LINKS the session's
 // grant, never copies. A token binds exactly ONE installation, chosen at mint.
-// Unlike `reviewer_session` it is long-lived and user-managed: named,
+// Unlike `auth_session` it is long-lived and user-managed: named,
 // listable, revocable (`revoked_at` soft flag so the settings list stays
 // honest after revocation), nullable `expires_at`, `last_used_at` tracking.
 // Deliberately NOT FK'd to `pull_request`; deleted explicitly on installation

@@ -1,5 +1,5 @@
 // The grant boundary. A `github_grant` row is the ONE holder of a GitHub
-// authorization's encrypted credential pair; `reviewer_session` and
+// authorization's encrypted credential pair; `auth_session` and
 // `api_token` reference it by FK, so rotation lives HERE and both
 // presentation channels (cookie, Bearer) converge on it. Like
 // `session.ts`/`token.ts` this is pre-tenant: a grant belongs to a GitHub
@@ -16,7 +16,7 @@ import { and, eq, inArray, notExists } from "drizzle-orm";
 import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
 import { apiToken } from "../schema/api-token";
 import { githubGrant } from "../schema/github-grant";
-import { reviewerSession } from "../schema/reviewer-session";
+import { authSession } from "../schema/auth-session";
 import type { GrantRowId, Result, ValueOf } from "../types";
 
 export type GithubGrantRow = typeof githubGrant.$inferSelect;
@@ -227,9 +227,9 @@ export async function deleteOrphanedGrants(
         inArray(githubGrant.id, unique),
         notExists(
           executor
-            .select({ one: reviewerSession.id })
-            .from(reviewerSession)
-            .where(eq(reviewerSession.grantId, githubGrant.id)),
+            .select({ one: authSession.id })
+            .from(authSession)
+            .where(eq(authSession.grantId, githubGrant.id)),
         ),
         notExists(
           executor

@@ -7,6 +7,7 @@ import { drizzle } from "drizzle-orm/pglite";
 import { describe, expect, it } from "vitest";
 import {
   auditLog,
+  authSession,
   brief,
   checkpoint,
   comparisonMarks,
@@ -16,7 +17,6 @@ import {
   generation,
   githubGrant,
   pullRequest,
-  reviewerSession,
   revisionNarrative,
 } from "../src/schema/index";
 import type {
@@ -221,7 +221,7 @@ async function seedFullGraph(
     .returning({ id: githubGrant.id });
   const grant = grants[0];
   if (grant === undefined) throw new Error("grant insert returned no row");
-  await db.insert(reviewerSession).values({
+  await db.insert(authSession).values({
     installationId: INSTALLATION,
     sessionTokenHash: "sha256:deadbeef",
     reviewerId: REVIEWER,
@@ -234,6 +234,7 @@ async function seedFullGraph(
 const M1_TABLES = [
   "api_token",
   "audit_log",
+  "auth_session",
   "brief",
   "checkpoint",
   "comparison_marks",
@@ -243,7 +244,6 @@ const M1_TABLES = [
   "generation",
   "github_grant",
   "pull_request",
-  "reviewer_session",
   "revision_narrative",
   "user_settings",
 ] as const;
@@ -257,9 +257,9 @@ describe("M1 schema migrations", () => {
     const names = result.rows
       .map((row) => row["table_name"])
       .filter((name): name is string => typeof name === "string");
-    for (const table of M1_TABLES) {
-      expect(names).toContain(table);
-    }
+    // Equality, not containment: a rename that created the new table without
+    // dropping the old one would pass a per-name check.
+    expect(names).toEqual([...M1_TABLES]);
   });
 
   it("creates the partial purge_after sweep index (raw-sql-hardening)", async () => {
@@ -301,7 +301,7 @@ describe("M1 schema migrations", () => {
     expect(isUniqueViolationOf(rejection, "brief_natural_key")).toBe(true);
   });
 
-  it("cascades a pull_request delete to every per-PR child but spares audit_log and reviewer_session", async () => {
+  it("cascades a pull_request delete to every per-PR child but spares audit_log and auth_session", async () => {
     const db = await freshDb();
     const pullRequestId = await insertPullRequest(db);
     await seedFullGraph(db, pullRequestId);
@@ -333,7 +333,7 @@ describe("M1 schema migrations", () => {
     // per-(installation, reviewer) session (not FK'd to pull_request).
     expect(await db.select({ id: auditLog.id }).from(auditLog)).toHaveLength(1);
     expect(
-      await db.select({ id: reviewerSession.id }).from(reviewerSession),
+      await db.select({ id: authSession.id }).from(authSession),
     ).toHaveLength(1);
   });
 
@@ -509,11 +509,11 @@ describe("schema additions (migration 0003)", () => {
     expect(rows[0]?.entryCommentId).toBeNull();
   });
 
-  it("rejects a reviewer_session insert omitting grant_id (NOT NULL)", async () => {
+  it("rejects an auth_session insert omitting grant_id (NOT NULL)", async () => {
     const db = await freshDb();
     await expectCheckViolation(
       db.execute(
-        sql`insert into reviewer_session (installation_id, session_token_hash, reviewer_id, expires_at) values (1000, 'h', 31337, now())`,
+        sql`insert into auth_session (installation_id, session_token_hash, reviewer_id, expires_at) values (1000, 'h', 31337, now())`,
       ),
       "grant_id",
     );

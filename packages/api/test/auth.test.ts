@@ -246,7 +246,7 @@ describe("reviewer auth routes", () => {
     );
     const setCookie = res.headers.get("set-cookie") ?? "";
     expect(setCookie).toContain("rs_oauth_state=");
-    expect(await countRows(harness, "reviewer_session")).toBe(0);
+    expect(await countRows(harness, "auth_session")).toBe(0);
   });
 
   it("happy callback → session row (both ciphertexts, refresh expiry) + rs_session cookie", async () => {
@@ -273,7 +273,7 @@ describe("reviewer auth routes", () => {
       expect(body).not.toContain(secret);
     }
 
-    const rows = await harness.raw("select * from reviewer_session");
+    const rows = await harness.raw("select * from auth_session");
     expect(rows).toHaveLength(1);
     const row = rows[0];
     expect(String(row?.["installation_id"])).toBe(String(INSTALLATION_ID));
@@ -311,7 +311,7 @@ describe("reviewer auth routes", () => {
     expect(((await res.json()) as { code?: string }).code).toBe(
       "app-not-installed",
     );
-    expect(await countRows(harness, "reviewer_session")).toBe(0);
+    expect(await countRows(harness, "auth_session")).toBe(0);
   });
 
   // Default-binding fallback matrix: the callback binds the session to the
@@ -327,7 +327,7 @@ describe("reviewer auth routes", () => {
     );
     expect(res.status).toBe(302);
     const rows = await harness.raw(
-      "select installation_id from reviewer_session limit 1",
+      "select installation_id from auth_session limit 1",
     );
     return String(rows[0]?.["installation_id"]);
   }
@@ -391,14 +391,14 @@ describe("reviewer auth routes", () => {
       grantId: grant.id,
       expiresAt: new Date("2027-01-01T00:00:00Z"),
     });
-    expect(await countRows(harness, "reviewer_session")).toBe(1);
+    expect(await countRows(harness, "auth_session")).toBe(1);
 
     const res = await app.request("/api/auth/logout", {
       method: "POST",
       headers: { Cookie: `rs_session=${token}` },
     });
     expect(res.status).toBe(200);
-    expect(await countRows(harness, "reviewer_session")).toBe(0);
+    expect(await countRows(harness, "auth_session")).toBe(0);
     // Last-referent lifecycle: the grant died with its only referent.
     expect(await countRows(harness, "github_grant")).toBe(0);
     const setCookie = res.headers.get("set-cookie") ?? "";
@@ -452,9 +452,7 @@ describe("reviewer auth routes", () => {
     if (!decryptedR.ok) throw new Error("unreachable");
     expect(decryptedR.value).toBe(ROTATED_REFRESH);
     // Session expiry mirrored forward to the new refresh-token expiry.
-    const sessionRow = await harness.raw(
-      "select expires_at from reviewer_session",
-    );
+    const sessionRow = await harness.raw("select expires_at from auth_session");
     expect(epochMs(sessionRow[0]?.["expires_at"])).toBeGreaterThan(Date.now());
   });
 
@@ -483,7 +481,7 @@ describe("reviewer auth routes", () => {
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     // Session burned → re-login required; the orphaned grant died with it.
-    expect(await countRows(harness, "reviewer_session")).toBe(0);
+    expect(await countRows(harness, "auth_session")).toBe(0);
     expect(await countRows(harness, "github_grant")).toBe(0);
     // The failure is operator-visible: one
     // token.refresh.fail error line, numeric ids only.
@@ -543,9 +541,7 @@ describe("reviewer auth routes", () => {
     expect(result.value.accessToken).toBe(ROTATED_ACCESS);
     // The mirror runs on the short-circuit path too — the rotation may have
     // been won by the Bearer channel, which never mirrors.
-    const sessionRow = await harness.raw(
-      "select expires_at from reviewer_session",
-    );
+    const sessionRow = await harness.raw("select expires_at from auth_session");
     expect(epochMs(sessionRow[0]?.["expires_at"])).toBe(
       rotatedExpiry.getTime(),
     );

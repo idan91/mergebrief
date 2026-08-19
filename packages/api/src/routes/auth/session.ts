@@ -20,11 +20,11 @@ import {
   sessionAuth,
   tokenAuth,
   type AppDatabase,
+  type AuthSessionRow,
   type GithubGrantRow,
   type GrantRefreshPatch,
   type GrantRefreshRejection,
   type KeyProvider,
-  type ReviewerSessionRow,
   type SessionWithGrant,
   type TokenWithGrant,
 } from "persistence";
@@ -102,7 +102,7 @@ export type AuthChannel = ValueOf<typeof AuthChannel>;
  * material): the ciphertext doubles as the refresh CAS seed — the value
  * observed BEFORE a failing GitHub call.
  */
-export type ViewerPrincipal = ReviewerSessionRow & {
+export type ViewerPrincipal = AuthSessionRow & {
   readonly channel: AuthChannel;
   readonly ghTokenCiphertext: string;
   readonly keyRef: string;

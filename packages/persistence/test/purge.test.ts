@@ -1,6 +1,6 @@
 // Purge + retention tests (PGlite). Prove the deletion boundary: a PR purge
 // cascades all 8 child tables while sparing the no-FK audit ledger
-// (an appended `delete` row proves survival) and the non-PR reviewer_session;
+// (an appended `delete` row proves survival) and the non-PR auth_session;
 // cross-tenant purge is a Result `notFound` with nothing deleted;
 // installation purge is tenant-isolated with audit_log retained; the retention
 // sweep removes only expired, non-null, in-tenant rows; `setRetention(null)`
@@ -17,6 +17,7 @@ import { type AppDatabase, fromDrizzle } from "../src/db/handle";
 import {
   apiToken,
   auditLog,
+  authSession,
   brief,
   checkpoint,
   comparisonMarks,
@@ -26,7 +27,6 @@ import {
   generation,
   githubGrant,
   pullRequest,
-  reviewerSession,
   revisionNarrative,
 } from "../src/schema/index";
 import * as schema from "../src/schema/index";
@@ -232,7 +232,7 @@ async function seedFullGraph(
     metadata: { kind: "brief" },
   });
   // The one non-PR table — must survive a PR-scoped purge.
-  await db.insert(reviewerSession).values({
+  await db.insert(authSession).values({
     installationId,
     sessionTokenHash: `sha256:${installationId}:${pullRequestId}`,
     reviewerId: REVIEWER,
@@ -297,7 +297,7 @@ describe("purgeRoutines.purgePullRequest — cascade + no-FK audit survival", ()
     await seedFullGraph(pair.raw, TENANT_A, prId);
   });
 
-  it("erases all 8 child tables, spares audit_log + reviewer_session, appends a delete row", async () => {
+  it("erases all 8 child tables, spares audit_log + auth_session, appends a delete row", async () => {
     expect(await countChildTables(pair.raw, prId)).toBe(8);
 
     const result = await purgeRoutines(pair.handle, CTX_A).purgePullRequest(
@@ -315,7 +315,7 @@ describe("purgeRoutines.purgePullRequest — cascade + no-FK audit survival", ()
 
     // Survivors: the non-PR session and the whole audit ledger.
     expect(
-      await pair.raw.select({ id: reviewerSession.id }).from(reviewerSession),
+      await pair.raw.select({ id: authSession.id }).from(authSession),
     ).toHaveLength(1);
 
     // The appended `delete` row EXISTS after the purge — proving audit_log has
@@ -469,10 +469,10 @@ describe("purgeRoutines.purgeInstallation — tenant-isolated offboarding", () =
     expect(prs.map((r) => r.id)).toEqual([bPr]);
     const sessions = await raw
       .select({
-        id: reviewerSession.id,
-        installationId: reviewerSession.installationId,
+        id: authSession.id,
+        installationId: authSession.installationId,
       })
-      .from(reviewerSession);
+      .from(authSession);
     expect(sessions).toHaveLength(1);
     expect(sessions[0]?.installationId).toBe(TENANT_B);
     const tokens = await raw
@@ -653,7 +653,7 @@ describe("purgeRoutines.sweepExpiredSessions — TTL sweep", () => {
       token: string,
       expiresAt: Date,
     ): Promise<void> {
-      await raw.insert(reviewerSession).values({
+      await raw.insert(authSession).values({
         installationId,
         sessionTokenHash: token,
         reviewerId: REVIEWER,
@@ -671,8 +671,8 @@ describe("purgeRoutines.sweepExpiredSessions — TTL sweep", () => {
     expect(deleted).toBe(1);
 
     const remaining = await raw
-      .select({ token: reviewerSession.sessionTokenHash })
-      .from(reviewerSession);
+      .select({ token: authSession.sessionTokenHash })
+      .from(authSession);
     expect(
       remaining.map((r) => r.token).toSorted((a, b) => a.localeCompare(b)),
     ).toEqual(["a-live", "b-expired"]);

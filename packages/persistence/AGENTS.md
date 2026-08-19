@@ -32,7 +32,7 @@ src/
     audit.ts            append-only audit emit + metadata allowlist
     user-settings.ts    per-user (non-tenant) settings
   auth/               PRE-tenant resolvers (they PRODUCE the tenant) + crypto
-    session.ts          reviewer-session resolver
+    session.ts          auth-session resolver
     token.ts            API-token resolver
     crypto.ts           AES-256-GCM token crypto behind the key-provider interface
 test/                 per-module suites (PGlite against checked-in migrations)

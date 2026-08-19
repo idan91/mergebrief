@@ -14,7 +14,7 @@
 // per-repo gate and the PR list.
 //
 // The session row's `installation_id` IS the tenant stamp, so the rebinding is
-// an atomic, ctx-safe `reviewer_session` UPDATE, and the switch emits an `auth`
+// an atomic, ctx-safe `auth_session` UPDATE, and the switch emits an `auth`
 // audit row (numeric-only metadata).
 import {
   GitHubApiErrorCode,

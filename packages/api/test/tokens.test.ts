@@ -348,7 +348,7 @@ describe("Bearer presentation on /api/*", () => {
       beforeToken[0]?.["expires_at"],
     );
     expect(
-      await harness.raw("select count(*)::int as n from reviewer_session"),
+      await harness.raw("select count(*)::int as n from auth_session"),
     ).toEqual([{ n: 0 }]);
   });
 
@@ -514,9 +514,7 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
     const grantRows = await harness.raw("select id from github_grant");
     expect(grantRows).toHaveLength(1);
     expect(String(rows[0]?.["grant_id"])).toBe(String(grantRows[0]?.["id"]));
-    const sessionRows = await harness.raw(
-      "select grant_id from reviewer_session",
-    );
+    const sessionRows = await harness.raw("select grant_id from auth_session");
     expect(String(sessionRows[0]?.["grant_id"])).toBe(
       String(grantRows[0]?.["id"]),
     );

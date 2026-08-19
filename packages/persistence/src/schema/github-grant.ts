@@ -1,5 +1,5 @@
 // `github_grant` — ONE row per GitHub user-to-server authorization, the ONLY
-// holder of the encrypted credential pair. `reviewer_session` and `api_token`
+// holder of the encrypted credential pair. `auth_session` and `api_token`
 // reference it by FK instead of carrying ciphertext copies: GitHub refresh
 // tokens are single-use, so two rows holding copies of one pair race each
 // other's rotation and the loser is stranded — one physical copy makes that

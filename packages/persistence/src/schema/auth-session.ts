@@ -1,4 +1,4 @@
-// `reviewer_session` — the cookie-channel session adapter. The credential
+// `auth_session` — the cookie-channel session adapter. The credential
 // itself lives on `github_grant` — this row only references it, so no
 // ciphertext copy can diverge from the pair. Per (installation, reviewer) —
 // deliberately NOT FK'd to `pull_request`. Cleared by TTL sweep, logout, and
@@ -9,8 +9,8 @@ import type { GrantRowId, ReviewerId } from "../types";
 import { githubGrant } from "./github-grant";
 import { stampColumns, tenantColumns } from "./columns";
 
-export const reviewerSession = pgTable(
-  "reviewer_session",
+export const authSession = pgTable(
+  "auth_session",
   {
     ...tenantColumns(),
     /** Cookie value stored only as a hash. */
@@ -30,7 +30,7 @@ export const reviewerSession = pgTable(
     ...stampColumns(),
   },
   (table) => [
-    index("reviewer_session_installation_reviewer_idx").on(
+    index("auth_session_installation_reviewer_idx").on(
       table.installationId,
       table.reviewerId,
     ),

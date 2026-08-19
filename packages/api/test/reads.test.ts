@@ -581,7 +581,7 @@ describe("reviewer read API + authz gate", () => {
     // The linked grant's access ciphertext rotated to the refreshed token —
     // decrypt and compare, an existence check alone proves nothing.
     const rows = await harness.raw(
-      "select g.gh_token_ciphertext from reviewer_session s join github_grant g on g.id = s.grant_id where s.session_token_hash = $1",
+      "select g.gh_token_ciphertext from auth_session s join github_grant g on g.id = s.grant_id where s.session_token_hash = $1",
       [hash],
     );
     expect(rows).toHaveLength(1);
@@ -662,7 +662,7 @@ describe("reviewer read API + authz gate", () => {
     });
     expect(res.status).toBe(401);
     const rows = await harness.raw(
-      "select count(*)::int as n from reviewer_session",
+      "select count(*)::int as n from auth_session",
     );
     expect(rows[0]?.["n"]).toBe(0);
   });
@@ -682,7 +682,7 @@ describe("reviewer read API + authz gate", () => {
     expect(counts.repositories).toBe(0);
     // The dead session is burned.
     const rows = await harness.raw(
-      "select count(*)::int as n from reviewer_session",
+      "select count(*)::int as n from auth_session",
     );
     expect(rows[0]?.["n"]).toBe(0);
   });

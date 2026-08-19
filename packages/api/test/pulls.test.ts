@@ -615,7 +615,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     const res = await get("/api/pulls", cookie);
     expect(res.status).toBe(401);
     const rows = await harness.raw(
-      "select count(*)::int as n from reviewer_session",
+      "select count(*)::int as n from auth_session",
     );
     expect(rows[0]?.["n"]).toBe(0);
   });

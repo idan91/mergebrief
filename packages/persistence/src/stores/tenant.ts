@@ -18,7 +18,7 @@ import { type AppDatabase, internal } from "../db/handle";
 import { deleteOrphanedGrants } from "../auth/grant";
 import { checkpoint } from "../schema/checkpoint";
 import { pullRequest } from "../schema/pull-request";
-import { reviewerSession } from "../schema/reviewer-session";
+import { authSession } from "../schema/auth-session";
 import {
   type GrantRowId,
   type InstallationId,
@@ -138,7 +138,7 @@ function fail(
 
 export type PullRequestRow = typeof pullRequest.$inferSelect;
 export type CheckpointRow = typeof checkpoint.$inferSelect;
-export type ReviewerSessionRow = typeof reviewerSession.$inferSelect;
+export type AuthSessionRow = typeof authSession.$inferSelect;
 
 /**
  * Lifecycle trio, discriminated on `state` so the type system forbids stale
@@ -305,12 +305,10 @@ export interface CheckpointRepository {
 }
 
 export interface SessionRepository {
-  /** Stamp the tenant and insert. `reviewer_session` has no PR parent. */
-  create(input: SessionCreateInput): Promise<ReviewerSessionRow>;
+  /** Stamp the tenant and insert. `auth_session` has no PR parent. */
+  create(input: SessionCreateInput): Promise<AuthSessionRow>;
   /** Scoped read by token hash; absence is a normal `undefined`. */
-  getByTokenHash(
-    sessionTokenHash: string,
-  ): Promise<ReviewerSessionRow | undefined>;
+  getByTokenHash(sessionTokenHash: string): Promise<AuthSessionRow | undefined>;
   /** TTL sweep within the tenant; returns the number deleted. */
   deleteExpired(now: Date): Promise<number>;
   /** Logout / reviewer offboarding within the tenant; returns number deleted. */
@@ -599,7 +597,7 @@ export function forTenant(
   const sessions: SessionRepository = {
     async create(input) {
       const rows = await db
-        .insert(reviewerSession)
+        .insert(authSession)
         .values({
           installationId,
           sessionTokenHash: input.sessionTokenHash,
@@ -611,7 +609,7 @@ export function forTenant(
         .returning();
       const row = rows[0];
       if (row === undefined) {
-        throw new Error("reviewer_session insert returned no row");
+        throw new Error("auth_session insert returned no row");
       }
       return row;
     },
@@ -619,11 +617,11 @@ export function forTenant(
     async getByTokenHash(sessionTokenHash) {
       const rows = await db
         .select()
-        .from(reviewerSession)
+        .from(authSession)
         .where(
           and(
-            eq(reviewerSession.installationId, installationId),
-            eq(reviewerSession.sessionTokenHash, sessionTokenHash),
+            eq(authSession.installationId, installationId),
+            eq(authSession.sessionTokenHash, sessionTokenHash),
           ),
         )
         .limit(1);
@@ -634,14 +632,14 @@ export function forTenant(
       // Orphan-clean the grants of the deleted sessions, same tx.
       return db.transaction(async (tx) => {
         const rows = await tx
-          .delete(reviewerSession)
+          .delete(authSession)
           .where(
             and(
-              eq(reviewerSession.installationId, installationId),
-              lt(reviewerSession.expiresAt, now),
+              eq(authSession.installationId, installationId),
+              lt(authSession.expiresAt, now),
             ),
           )
-          .returning({ grantId: reviewerSession.grantId });
+          .returning({ grantId: authSession.grantId });
         await deleteOrphanedGrants(
           tx,
           rows.map((row) => row.grantId),
@@ -654,14 +652,14 @@ export function forTenant(
       // Orphan-clean the grants of the deleted sessions, same tx.
       return db.transaction(async (tx) => {
         const rows = await tx
-          .delete(reviewerSession)
+          .delete(authSession)
           .where(
             and(
-              eq(reviewerSession.installationId, installationId),
-              eq(reviewerSession.reviewerId, reviewerId),
+              eq(authSession.installationId, installationId),
+              eq(authSession.reviewerId, reviewerId),
             ),
           )
-          .returning({ grantId: reviewerSession.grantId });
+          .returning({ grantId: authSession.grantId });
         await deleteOrphanedGrants(
           tx,
           rows.map((row) => row.grantId),

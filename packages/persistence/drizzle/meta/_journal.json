@@ -127,6 +127,13 @@
       "when": 1786428696297,
       "tag": "0017_generation-failure-codes",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1787005505205,
+      "tag": "0018_auth-session-rename",
+      "breakpoints": true
     }
   ]
 }
