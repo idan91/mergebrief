@@ -134,6 +134,13 @@
       "when": 1787005505205,
       "tag": "0018_auth-session-rename",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1787006646589,
+      "tag": "0019_review-session-tables",
+      "breakpoints": true
     }
   ]
 }

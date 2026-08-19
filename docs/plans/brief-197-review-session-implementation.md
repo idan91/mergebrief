@@ -84,9 +84,9 @@ Model: Opus 5, medium. Security-reviewer (auth path).
 
 ## Subtask 2 — Schema and stores
 
-### PR 3 `feat(persistence): review_session + the six owned tables` (~700 LOC)
+### PR 3 `feat(persistence): review_session + the four owned tables` (~700 LOC)
 Migration + drizzle schema for `review_session`, `review_draft_comment`,
-`review_draft_reply`, `review_read_mark`, `review_group_reclassification`,
+`review_read_mark`, `review_group_reclassification`,
 `review_submitted_review`; branded ids; the `review_outcome` CHECK vocabulary
 in lockstep (`as const` map + migration); ctx-bound store methods on
 `forTenant` (upsert-on-key create, per-subject upserts, session read); PGlite

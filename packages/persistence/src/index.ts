@@ -67,6 +67,27 @@ export type {
   SessionCreateInput,
 } from "./stores/tenant";
 
+// The Review Session surface. The factory itself is NOT exported — it is
+// reachable only as `forTenant(...).reviewSessions`, so a caller cannot hold
+// one without a ctx.
+export { ReviewSessionErrorCode } from "./stores/review-session";
+export type {
+  ReviewSessionRepository,
+  ReviewSessionError,
+  ReviewSessionKey,
+  ReviewSessionUpsertInput,
+  ReviewSessionSnapshot,
+  ReviewSessionRow,
+  ReviewDraftCommentRow,
+  ReviewReadMarkRow,
+  ReviewGroupReclassificationRow,
+  ReviewSubmittedReviewRow,
+  DraftCommentInput,
+  ReadMarkInput,
+  ReclassificationInput,
+  SubmittedReviewInput,
+} from "./stores/review-session";
+
 // The ArtifactStore interface — ctx-bound typed writes/reads for the five
 // artifact families. Same containment: built over the opaque handle, no raw
 // surface exposed.

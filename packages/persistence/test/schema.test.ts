@@ -36,7 +36,7 @@ import {
   isRepoId,
   isReviewerId,
 } from "../src/types";
-import { freshPglite } from "./helpers";
+import { expectCheckViolation, freshPglite } from "./helpers";
 
 /**
  * Drizzle wraps driver errors (DrizzleQueryError) — walk the `cause` chain
@@ -244,6 +244,11 @@ const M1_TABLES = [
   "generation",
   "github_grant",
   "pull_request",
+  "review_draft_comment",
+  "review_group_reclassification",
+  "review_read_mark",
+  "review_session",
+  "review_submitted_review",
   "revision_narrative",
   "user_settings",
 ] as const;
@@ -372,30 +377,6 @@ describe("M1 schema migrations", () => {
     expect(await db.select({ id: auditLog.id }).from(auditLog)).toHaveLength(1);
   });
 });
-
-/** Walk the `cause` chain for a Postgres error naming the given constraint. */
-async function expectCheckViolation(
-  run: Promise<unknown>,
-  constraint: string,
-): Promise<void> {
-  let thrown: unknown;
-  try {
-    await run;
-  } catch (error) {
-    thrown = error;
-  }
-  expect(thrown, `expected a rejection naming ${constraint}`).toBeDefined();
-  let current: unknown = thrown;
-  let found = false;
-  while (current instanceof Error) {
-    if (current.message.includes(constraint)) {
-      found = true;
-      break;
-    }
-    current = current.cause;
-  }
-  expect(found, `no error in the cause chain names ${constraint}`).toBe(true);
-}
 
 describe("closed-vocabulary + shape CHECK constraints", () => {
   it("rejects an out-of-vocabulary pull_request.state at the DB", async () => {

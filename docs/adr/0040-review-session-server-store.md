@@ -83,8 +83,8 @@ agent is involved.
 ## Decision
 
 1. **A Review Session is a row keyed `(installation_id, brief_id,
-   reviewer_id)`**, owning six tables — draft comments, draft replies, read
-   marks, reclassifications, `disposition` (reused, session-linked), submitted
+   reviewer_id)`**, owning five tables — draft comments, read marks,
+   reclassifications, `disposition` (reused, session-linked), submitted
    review ids. **The first write creates the session**; reads never create
    one. There is no Begin operation.
 2. **"Mind-Map Space" is retired; Review Session is the term.** `CONTEXT.md`'s
@@ -144,7 +144,7 @@ agent is involved.
     opt-out is one boolean (`AUDIT_PRIVATE_WRITES`, default on, external
     writes and denials never switchable), and caller IP is off by default
     behind an operator PII flag. **No read surface in v1.**
-11. **The surface is 35 operations** — 14 queries, 21 actions; 14 `read`, 15
+11. **The surface is 34 operations** — 14 queries, 20 actions; 14 `read`, 14
     `private-write`, 6 `external-write`. The "Clear local drafts" button is
     **deleted** and gets no operation; **`reopen-risk`** ships in its place.
 

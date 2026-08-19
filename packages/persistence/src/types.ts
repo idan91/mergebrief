@@ -17,6 +17,7 @@ export type PullRequestRowId = Brand<bigint, "PullRequestRowId">;
 export type BriefRowId = Brand<bigint, "BriefRowId">;
 export type ApiTokenRowId = Brand<bigint, "ApiTokenRowId">;
 export type GrantRowId = Brand<bigint, "GrantRowId">;
+export type ReviewSessionId = Brand<bigint, "ReviewSessionId">;
 
 /**
  * Type guards for branding raw bigints at boundaries (webhook payloads,
@@ -46,6 +47,9 @@ export function isApiTokenRowId(value: bigint): value is ApiTokenRowId {
   return isPositiveBigInt(value);
 }
 export function isGrantRowId(value: bigint): value is GrantRowId {
+  return isPositiveBigInt(value);
+}
+export function isReviewSessionId(value: bigint): value is ReviewSessionId {
   return isPositiveBigInt(value);
 }
 
@@ -176,3 +180,57 @@ export const AuditAction = {
   UNRESOLVE_THREAD: "unresolve-thread",
 } as const;
 export type AuditAction = ValueOf<typeof AuditAction>;
+
+/** `review_session.review_outcome` — the provisional submit verdict. */
+export const ReviewOutcome = {
+  COMMENT: "comment",
+  APPROVE: "approve",
+  REQUEST_CHANGES: "request-changes",
+} as const;
+export type ReviewOutcome = ValueOf<typeof ReviewOutcome>;
+
+/** `review_draft_comment.status`. */
+export const DraftCommentStatus = {
+  DRAFT: "draft",
+  SUBMITTED: "submitted",
+} as const;
+export type DraftCommentStatus = ValueOf<typeof DraftCommentStatus>;
+
+/**
+ * `review_draft_comment.side` — the diff side the coordinates address. The
+ * client's vocabulary, mapped to GitHub's LEFT/RIGHT only at submit.
+ */
+export const DraftCommentSide = {
+  OLD: "old",
+  NEW: "new",
+} as const;
+export type DraftCommentSide = ValueOf<typeof DraftCommentSide>;
+
+/**
+ * `review_draft_comment.anchor_status` — carry-over verdict on a comment's
+ * coordinates. NULL means the anchor still holds exactly.
+ */
+export const AnchorStatus = {
+  MOVED: "moved",
+  ORPHANED: "orphaned",
+} as const;
+export type AnchorStatus = ValueOf<typeof AnchorStatus>;
+
+/**
+ * `review_group_reclassification.category` — the Change-group intent
+ * vocabulary, wire-identical to brief-core's `Categories`. Mirrored here (not
+ * imported) so the schema package stays off brief-core's dependency graph;
+ * `test/review-session.test.ts` pins the mirror against the source AND
+ * against the DB CHECK, so all three move together.
+ */
+export const ChangeGroupCategory = {
+  BUGFIX: "bugfix",
+  LOGIC_REFACTOR: "logic-refactor",
+  MOVE_WITH_EDITS: "move-with-edits",
+  LIB_BUMP: "lib-bump",
+  PURE_MOVE: "pure-move",
+  NEW_FEATURE: "new-feature",
+  DEPENDENCY_UPDATE: "dependency-update",
+  SCHEMA_CHANGE: "schema-change",
+} as const;
+export type ChangeGroupCategory = ValueOf<typeof ChangeGroupCategory>;

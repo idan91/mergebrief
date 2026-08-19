@@ -22,7 +22,7 @@ Checkpoint, Receipt, Session baseline), with one change recorded in §1.
 ### 1.1 What a Review Session is
 
 A **Review Session** is one reviewer's private work on one PR, pinned to one
-**Session baseline**. It holds draft comments, draft replies, per-Chunk read
+**Session baseline**. It holds draft comments, per-Chunk read
 marks, Change-group reclassifications, Flag Dispositions, the chosen review
 outcome, and the ids of reviews already submitted from it.
 
@@ -111,9 +111,6 @@ review_draft_comment    review_session_id, file_path, side,
                         status (draft | submitted),
                         anchor_status (null | moved | orphaned),
                         carried_from_session_id (nullable)
-
-review_draft_reply      review_session_id, thread_root_comment_id, body
-                        thread root is a GitHub id — durable, needs no anchoring
 
 review_read_mark        review_session_id, chunk_id
 
@@ -233,9 +230,6 @@ reused; nothing is invented.
 - **Carry-over status — `New` / `Reopened` / `Settled` / `Dropped`.** Subject
   is a *decision about a risk*. Applies to Dispositions only, which is what
   the vocabulary was minted for.
-- Draft replies need neither: their coordinate is a GitHub thread-root comment
-  id, which is durable.
-
 Accepted cost: `Reopened` means two things depending on the reader — in a
 Delta Brief, "touched since you last submitted" (Checkpoint span); in a Review
 Session, "touched since your last session" (previous Brief → this Brief). The
@@ -303,7 +297,6 @@ the old session and nothing re-runs.
 | Carried thing | Rule |
 | --- | --- |
 | Draft comment | `remapRanges` through the composed hops → `moved` (silent) or `orphaned` (attention item) |
-| Draft reply | Always carries, silently — keyed on a durable GitHub thread-root id |
 | Disposition | Carry status per ADR 0007's ladder over the stated span; `Reopened` is an attention item, the rest are silent |
 | Read mark | Carries **only** if its chunk id is in the new Brief's `carried_chunk_ids`; otherwise resets silently (§3.6) |
 | Reclassification | Carries if the Change-group id survived descent (`packages/brief-core/src/diff/descent.ts:1-9`); otherwise dropped silently — the group it applied to is gone |
@@ -402,7 +395,7 @@ leaves exactly the condition the submit list already names (addressed with no
 proof). `carry_status` distinguishes carried from fresh; the displayed kind
 and the clearing action are identical.
 
-Everything else carries silently: `moved` anchors, draft replies, uncarried
+Everything else carries silently: `moved` anchors, uncarried
 read marks, undescended reclassifications.
 
 ### 4.4 The agent-facing shape
@@ -852,7 +845,7 @@ reader.
 
 ## 9. The operation surface
 
-**35 operations: 14 queries, 21 actions** — 14 `read`, 15 `private-write`,
+**34 operations: 14 queries, 20 actions** — 14 `read`, 14 `private-write`,
 6 `external-write`. Twelve are new, eleven of the existing 23 are unchanged,
 twelve take an amendment, none is deleted.
 
@@ -865,7 +858,6 @@ twelve take an amendment, none is deleted.
 | `update-draft-comment` | action | private-write | `review_draft_comment` | `PATCH …/session/comments/:draftId` | gap |
 | `reanchor-draft-comment` | action | private-write | `review_draft_comment` | `PUT …/session/comments/:draftId/anchor` | gap |
 | `delete-draft-comment` | action | private-write | `review_draft_comment` | `DELETE …/session/comments/:draftId` | gap |
-| `save-draft-reply` | action | private-write | `review_draft_reply` | `PUT …/session/replies/:threadRootCommentId` | gap |
 | `set-chunk-read` | action | private-write | `review_read_mark` | `PUT …/session/chunks/:chunkId/read` | gap |
 | `dismiss-risk` | action | private-write | `disposition` | `POST …/session/risks/dismiss` | gap |
 | `address-risk` | action | private-write | `disposition` | `POST …/session/risks/address` | gap |

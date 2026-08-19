@@ -27,6 +27,11 @@ import {
   generation,
   githubGrant,
   pullRequest,
+  reviewDraftComment,
+  reviewGroupReclassification,
+  reviewReadMark,
+  reviewSession,
+  reviewSubmittedReview,
   revisionNarrative,
 } from "../src/schema/index";
 import * as schema from "../src/schema/index";
@@ -35,6 +40,8 @@ import type { TenantContext } from "../src/stores/tenant";
 import {
   AuditAction,
   DispositionDecision,
+  ChangeGroupCategory,
+  DraftCommentSide,
   GenerationKind,
   GenerationStatus,
   isInstallationId,
@@ -163,6 +170,41 @@ async function seedFullGraph(
     throw new Error("brief insert returned no row");
   }
 
+  const sessionRows = await db
+    .insert(reviewSession)
+    .values({ installationId, briefId: briefRow.id, reviewerId: REVIEWER })
+    .returning({ id: reviewSession.id });
+  const sessionRow = sessionRows[0];
+  if (sessionRow === undefined) {
+    throw new Error("review_session insert returned no row");
+  }
+  const reviewSessionId = sessionRow.id;
+  await db.insert(reviewDraftComment).values({
+    installationId,
+    reviewSessionId,
+    filePath: "src/index.ts",
+    side: DraftCommentSide.NEW,
+    startLine: 10,
+    endLine: 12,
+    body: "free-text reviewer content",
+  });
+  await db.insert(reviewReadMark).values({
+    installationId,
+    reviewSessionId,
+    chunkId: "chunk-1",
+  });
+  await db.insert(reviewGroupReclassification).values({
+    installationId,
+    reviewSessionId,
+    changeGroupId: "group-1",
+    category: ChangeGroupCategory.BUGFIX,
+  });
+  await db.insert(reviewSubmittedReview).values({
+    installationId,
+    reviewSessionId,
+    githubReviewId: 909n,
+  });
+
   await db.insert(delta).values({
     installationId,
     pullRequestId,
@@ -271,6 +313,36 @@ async function countChildTables(
   return total;
 }
 
+/**
+ * The Review Session graph, which hangs off `brief` rather than off
+ * `pull_request` — so the PR cascade only reaches it through two hops.
+ * `review_draft_comment` is the only new table holding free-text content.
+ */
+async function countSessionTables(
+  db: Db,
+  installationId: InstallationId,
+): Promise<number> {
+  const tables = [
+    reviewSession,
+    reviewDraftComment,
+    reviewReadMark,
+    reviewGroupReclassification,
+    reviewSubmittedReview,
+  ];
+  const counts = await Promise.all(
+    tables.map(
+      async (table) =>
+        (
+          await db
+            .select({ id: table.id })
+            .from(table)
+            .where(eq(table.installationId, installationId))
+        ).length,
+    ),
+  );
+  return counts.reduce((total, count) => total + count, 0);
+}
+
 async function deleteAudits(db: Db, installationId: InstallationId) {
   return db
     .select({
@@ -299,6 +371,7 @@ describe("purgeRoutines.purgePullRequest — cascade + no-FK audit survival", ()
 
   it("erases all 8 child tables, spares audit_log + auth_session, appends a delete row", async () => {
     expect(await countChildTables(pair.raw, prId)).toBe(8);
+    expect(await countSessionTables(pair.raw, TENANT_A)).toBe(5);
 
     const result = await purgeRoutines(pair.handle, CTX_A).purgePullRequest(
       prId,
@@ -307,8 +380,10 @@ describe("purgeRoutines.purgePullRequest — cascade + no-FK audit survival", ()
     if (!result.ok) throw new Error("expected purge success");
     expect(result.value).toBe(1);
 
-    // Every per-PR child gone by FK cascade.
+    // Every per-PR child gone by FK cascade — including the Review Session
+    // graph, which the cascade reaches through `brief`.
     expect(await countChildTables(pair.raw, prId)).toBe(0);
+    expect(await countSessionTables(pair.raw, TENANT_A)).toBe(0);
     expect(
       await pair.raw.select({ id: pullRequest.id }).from(pullRequest),
     ).toHaveLength(0);
@@ -485,8 +560,10 @@ describe("purgeRoutines.purgeInstallation — tenant-isolated offboarding", () =
       await raw.select({ id: githubGrant.id }).from(githubGrant),
     ).toHaveLength(2);
 
-    // Tenant B's child graph is intact.
+    // Tenant B's child graph is intact; A's Review Session graph is gone.
     expect(await countChildTables(raw, bPr)).toBe(8);
+    expect(await countSessionTables(raw, TENANT_A)).toBe(0);
+    expect(await countSessionTables(raw, TENANT_B)).toBe(5);
 
     // audit_log retained: both pre-existing generate rows + the new A delete.
     expect(await raw.select({ id: auditLog.id }).from(auditLog)).toHaveLength(

@@ -3,7 +3,7 @@
 // wraps it as the opaque `AppDatabase` the repository consumes.
 import type { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
-import { onTestFinished } from "vitest";
+import { expect, onTestFinished } from "vitest";
 import { type AppDatabase, fromDrizzle } from "../src/db/handle";
 import { migratedPglite } from "../src/pglite-snapshot";
 import * as schema from "../src/schema/index";
@@ -38,4 +38,28 @@ export function brandWith<T extends bigint>(
     throw new Error(`test fixture id failed its brand guard: ${value}`);
   }
   return value;
+}
+
+/** Walk the `cause` chain for a Postgres error naming the given constraint. */
+export async function expectCheckViolation(
+  run: Promise<unknown>,
+  constraint: string,
+): Promise<void> {
+  let thrown: unknown;
+  try {
+    await run;
+  } catch (error) {
+    thrown = error;
+  }
+  expect(thrown, `expected a rejection naming ${constraint}`).toBeDefined();
+  let current: unknown = thrown;
+  let found = false;
+  while (current instanceof Error) {
+    if (current.message.includes(constraint)) {
+      found = true;
+      break;
+    }
+    current = current.cause;
+  }
+  expect(found, `no error in the cause chain names ${constraint}`).toBe(true);
 }

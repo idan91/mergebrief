@@ -20,6 +20,10 @@ import { checkpoint } from "../schema/checkpoint";
 import { pullRequest } from "../schema/pull-request";
 import { authSession } from "../schema/auth-session";
 import {
+  type ReviewSessionRepository,
+  reviewSessionRepository,
+} from "./review-session";
+import {
   type GrantRowId,
   type InstallationId,
   isInstallationId,
@@ -320,6 +324,8 @@ export interface TenantRepository {
   readonly pullRequests: PullRequestRepository;
   readonly checkpoints: CheckpointRepository;
   readonly sessions: SessionRepository;
+  /** The reviewer's Review Session work — see `stores/review-session.ts`. */
+  readonly reviewSessions: ReviewSessionRepository;
 }
 
 /**
@@ -674,5 +680,6 @@ export function forTenant(
     pullRequests,
     checkpoints,
     sessions,
+    reviewSessions: reviewSessionRepository(db, installationId),
   };
 }

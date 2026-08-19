@@ -420,7 +420,6 @@ github_grant
 |---|---|---|
 | `review_session` | per-(reviewer × brief) workspace | key `(installation_id, brief_id, reviewer_id)`; FK `brief` cascades, so `pull_request` still reaches it; holds `review_outcome` only |
 | `review_draft_comment` | session-owned | file/side/line + body + `status` + `anchor_status` |
-| `review_draft_reply` | session-owned | keyed on a durable GitHub thread-root comment id |
 | `review_read_mark` | session-owned | `chunk_id` |
 | `review_group_reclassification` | session-owned | overrides only; Brief supplies defaults |
 | `review_submitted_review` | session-owned | GitHub review ids, for conversation reconciliation |
