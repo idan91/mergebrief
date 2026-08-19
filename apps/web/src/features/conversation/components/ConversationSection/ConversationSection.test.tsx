@@ -22,11 +22,11 @@ import { buildBriefViewModel } from "@web/features/brief/utils";
 import type { ReviewComment } from "@web/features/review/utils/comments";
 import {
   createReviewFlowStore,
-  MindMapProvider,
+  ReviewSessionProvider,
   ReviewFlowProvider,
-  useMindMap,
-  useMindMapActions,
-  type MindMapActions,
+  useReviewSession,
+  useReviewSessionActions,
+  type ReviewSessionActions,
 } from "@web/features/review/session";
 import type { ConversationResult } from "../../queries";
 import type { PrConversation } from "../../types";
@@ -50,9 +50,10 @@ vi.mock("@web/features/review/session", async (importOriginal) => {
   };
 });
 
-// One ordered hook: cleanup() unmounts the MindMapProvider, whose teardown
-// FLUSHES a pending snapshot write — the storage clear must run after it, or
-// one test's drafts hydrate into the next (every test shares a briefId).
+// One ordered hook: cleanup() unmounts the ReviewSessionProvider, whose
+// teardown FLUSHES a pending snapshot write — the storage clear must run
+// after it, or one test's drafts hydrate into the next (every test shares a
+// briefId).
 afterEach(() => {
   cleanup();
   sessionStorage.clear();
@@ -187,13 +188,13 @@ const providerModel = buildBriefViewModel(providerBrief);
 
 /** Live handles into the session store the composer reads (drafts, actions). */
 interface SessionTap {
-  actions: MindMapActions | undefined;
+  actions: ReviewSessionActions | undefined;
   drafts: Readonly<Record<string, string>> | undefined;
 }
 
 function SessionTapProbe({ tap }: { tap: SessionTap }) {
-  tap.actions = useMindMapActions();
-  tap.drafts = useMindMap((state) => state.replyDrafts);
+  tap.actions = useReviewSessionActions();
+  tap.drafts = useReviewSession((state) => state.replyDrafts);
   return null;
 }
 
@@ -246,12 +247,12 @@ function renderSection(
   };
   const ui = (current: ConversationSectionProps) => (
     <QueryClientProvider client={client}>
-      <MindMapProvider briefId={current.briefId} model={providerModel}>
+      <ReviewSessionProvider briefId={current.briefId} model={providerModel}>
         <ReviewFlowProvider store={flowStore}>
           <SessionTapProbe tap={tap} />
           <ConversationSection {...current} />
         </ReviewFlowProvider>
-      </MindMapProvider>
+      </ReviewSessionProvider>
     </QueryClientProvider>
   );
   const view = render(ui(props));

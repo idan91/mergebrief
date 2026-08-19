@@ -8,7 +8,7 @@ import { useCallback, useState } from "react";
 import type { DismissTarget } from "@web/features/review";
 import type { EvidenceTarget } from "@web/features/review";
 import {
-  useMindMapActions,
+  useReviewSessionActions,
   useReviewActions,
   useReviewFlow,
 } from "@web/features/review/session";
@@ -51,7 +51,7 @@ export function useRiskFlagModalsFacade(
   input: UseRiskFlagModalsFacadeInput,
 ): UseRiskFlagModalsFacadeValue {
   const { flagsById } = input;
-  const sessionActions = useMindMapActions();
+  const sessionActions = useReviewSessionActions();
   const flowActions = useReviewActions();
   const dismissTarget = useReviewFlow((state) => state.dismissTarget);
   const evidenceTarget = useReviewFlow((state) => state.evidenceTarget);

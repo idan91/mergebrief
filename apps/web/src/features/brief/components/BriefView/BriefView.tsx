@@ -2,7 +2,7 @@ import { useMemo, type ReactNode } from "react";
 
 import type { ConversationPlan } from "@web/features/conversation";
 import type { ConversationFilter } from "@web/features/conversation/utils/filter";
-import { MindMapProvider } from "@web/features/review/session";
+import { ReviewSessionProvider } from "@web/features/review/session";
 import type { SubmitReviewAction } from "@web/features/review/utils/submit";
 import type { BriefSearchParams } from "../../comparison/compareState";
 import type { RepoConfigContext } from "../../utils/repoConfig";
@@ -98,7 +98,7 @@ export interface BriefViewProps {
 
 /**
  * Source-agnostic review screen: the caller supplies the Brief — local file
- * store or the DB read API. `briefId` keys the per-brief Mind-Map session
+ * store or the DB read API. `briefId` keys the per-brief Review Session
  * store; `artifacts` feeds the LOCAL timeline/comparisons and may be empty
  * (every comparison affordance then self-disables).
  */
@@ -128,7 +128,7 @@ export function BriefView({
     [brief, repoConfig],
   );
   return (
-    <MindMapProvider briefId={briefId} model={model}>
+    <ReviewSessionProvider briefId={briefId} model={model}>
       <BriefScreen
         livePrState={livePrState}
         artifacts={artifacts}
@@ -151,6 +151,6 @@ export function BriefView({
         staleHead={staleHead}
         submitReview={submitReview}
       />
-    </MindMapProvider>
+    </ReviewSessionProvider>
   );
 }

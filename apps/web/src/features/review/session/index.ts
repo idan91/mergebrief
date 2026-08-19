@@ -1,11 +1,11 @@
 export type { Disposition, BulkDisposition } from "./disposition";
 export {
-  createMindMapStore,
+  createReviewSessionStore,
   deriveInitialState,
-  type MindMapActions,
-  type MindMapState,
-  type MindMapStore,
-  type MindMapStoreValue,
+  type ReviewSessionActions,
+  type ReviewSessionState,
+  type ReviewSessionStore,
+  type ReviewSessionStoreValue,
 } from "./store";
 export {
   clearSnapshots,
@@ -18,10 +18,10 @@ export {
   type SessionSnapshot,
 } from "./snapshot";
 export {
-  MindMapProvider,
+  ReviewSessionProvider,
   useChunkReviewComments,
-  useMindMap,
-  useMindMapActions,
+  useReviewSession,
+  useReviewSessionActions,
 } from "./provider";
 export {
   createReviewFlowStore,

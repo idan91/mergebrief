@@ -12,7 +12,7 @@ import type { Brief, BriefChunk } from "@web/features/brief/types";
 import { buildBriefViewModel } from "@web/features/brief/utils";
 import {
   createReviewFlowStore,
-  MindMapProvider,
+  ReviewSessionProvider,
   ReviewFlowProvider,
 } from "@web/features/review/session";
 import { buildInlineThreads } from "../../utils/digest";
@@ -20,9 +20,10 @@ import type { ConversationThread, PrConversation } from "../../types";
 import type { ThreadComposerWiring } from "../../wiring";
 import { InlineThreads } from "./InlineThreads";
 
-// One ordered hook: cleanup() unmounts the MindMapProvider, whose teardown
-// FLUSHES a pending snapshot write — the storage clear must run after it, or
-// one test's drafts hydrate into the next (every test shares a briefId).
+// One ordered hook: cleanup() unmounts the ReviewSessionProvider, whose
+// teardown FLUSHES a pending snapshot write — the storage clear must run
+// after it, or one test's drafts hydrate into the next (every test shares a
+// briefId).
 afterEach(() => {
   cleanup();
   sessionStorage.clear();
@@ -150,14 +151,14 @@ function renderInline(threads: ConversationThread[]) {
   );
   return render(
     <QueryClientProvider client={new QueryClient()}>
-      <MindMapProvider
+      <ReviewSessionProvider
         briefId="db:42:7:base:head"
         model={buildBriefViewModel(providerBrief)}
       >
         <ReviewFlowProvider store={flowStore}>
           <InlineThreads composer={composer()} rows={rows} />
         </ReviewFlowProvider>
-      </MindMapProvider>
+      </ReviewSessionProvider>
     </QueryClientProvider>,
   );
 }

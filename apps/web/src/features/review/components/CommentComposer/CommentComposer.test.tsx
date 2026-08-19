@@ -9,7 +9,7 @@ import { hasUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
 import type { Brief } from "@web/features/brief/types";
 import { buildBriefViewModel } from "@web/features/brief/utils";
 import type { CommentAnchor, ReviewComment } from "../../utils/comments";
-import { MindMapProvider, type SessionSnapshot } from "../../session";
+import { ReviewSessionProvider, type SessionSnapshot } from "../../session";
 import { CommentComposer } from "./CommentComposer";
 
 afterEach(cleanup);
@@ -77,13 +77,13 @@ function snapshotWith(reviewComments: ReviewComment[]): SessionSnapshot {
 
 function renderComposer(reviewComments: ReviewComment[]) {
   render(
-    <MindMapProvider
+    <ReviewSessionProvider
       briefId="test-brief"
       model={buildBriefViewModel(brief)}
       snapshot={snapshotWith(reviewComments)}
     >
       <CommentComposer anchor={anchor} cancel={vi.fn()} save={vi.fn()} />
-    </MindMapProvider>,
+    </ReviewSessionProvider>,
   );
 }
 

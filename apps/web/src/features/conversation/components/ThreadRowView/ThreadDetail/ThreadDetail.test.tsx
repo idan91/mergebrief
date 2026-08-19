@@ -20,7 +20,7 @@ import type { Brief, BriefChunk } from "@web/features/brief/types";
 import { buildBriefViewModel } from "@web/features/brief/utils";
 import {
   createReviewFlowStore,
-  MindMapProvider,
+  ReviewSessionProvider,
   ReviewFlowProvider,
 } from "@web/features/review/session";
 import type { DigestThreadRow } from "../../../utils/digest";
@@ -196,7 +196,7 @@ function renderDetail(options: RenderOptions = {}) {
   });
   const view = render(
     <QueryClientProvider client={new QueryClient()}>
-      <MindMapProvider
+      <ReviewSessionProvider
         briefId={BRIEF_ID}
         model={buildBriefViewModel(providerBrief)}
       >
@@ -207,7 +207,7 @@ function renderDetail(options: RenderOptions = {}) {
             row={threadRow(options.isResolved ?? false)}
           />
         </ReviewFlowProvider>
-      </MindMapProvider>
+      </ReviewSessionProvider>
     </QueryClientProvider>,
   );
   const harness: Harness = {

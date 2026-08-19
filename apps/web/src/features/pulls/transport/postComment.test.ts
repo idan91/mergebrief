@@ -17,7 +17,7 @@ import { act, renderHook } from "@testing-library/react";
 import { apiFetch, ApiError } from "../../../data/apiFetch";
 import type { ReviewComment } from "../../review/utils/comments";
 import {
-  createMindMapStore,
+  createReviewSessionStore,
   readSnapshot,
   serializeSnapshot,
   snapshotToState,
@@ -260,7 +260,7 @@ describe("commitPostedComment + applySettledPosts", () => {
     const preFlip = persistedSnapshot(briefId, [draft("a")]);
     writeSnapshot(preFlip);
     // The remount hydrates BEFORE the settle — from the pre-flip state.
-    const store = createMindMapStore(snapshotToState(preFlip));
+    const store = createReviewSessionStore(snapshotToState(preFlip));
 
     // The surviving closure settles against the orphaned mount.
     commitPostedComment(briefId, "a", 777, "Comment posted to GitHub.");

@@ -9,7 +9,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { Brief } from "../../brief/types";
 import { buildBriefViewModel } from "@web/features/brief/utils";
 import type { CommentAnchor } from "../utils/comments";
-import { MindMapProvider, useChunkReviewComments, useMindMap } from ".";
+import {
+  ReviewSessionProvider,
+  useChunkReviewComments,
+  useReviewSession,
+} from ".";
 
 afterEach(cleanup);
 
@@ -76,15 +80,18 @@ function anchorFor(chunkId: string, line: number): CommentAnchor {
   };
 }
 
-export interface MindMapTestWrapperProps {
+export interface ReviewSessionTestWrapperProps {
   children: ReactNode;
 }
 
-function MindMapTestWrapper({ children }: MindMapTestWrapperProps) {
+function ReviewSessionTestWrapper({ children }: ReviewSessionTestWrapperProps) {
   return (
-    <MindMapProvider briefId="test-brief" model={buildBriefViewModel(brief)}>
+    <ReviewSessionProvider
+      briefId="test-brief"
+      model={buildBriefViewModel(brief)}
+    >
       {children}
-    </MindMapProvider>
+    </ReviewSessionProvider>
   );
 }
 
@@ -94,9 +101,9 @@ describe("useChunkReviewComments", () => {
       () => ({
         a: useChunkReviewComments("chunk-a"),
         b: useChunkReviewComments("chunk-b"),
-        actions: useMindMap((state) => state.actions),
+        actions: useReviewSession((state) => state.actions),
       }),
-      { wrapper: MindMapTestWrapper },
+      { wrapper: ReviewSessionTestWrapper },
     );
     // Baseline BEFORE the unrelated save, so identity churn during the save
     // fails here.
@@ -137,9 +144,9 @@ describe("useChunkReviewComments", () => {
       () => ({
         a: useChunkReviewComments("chunk-a"),
         b: useChunkReviewComments("chunk-b"),
-        actions: useMindMap((state) => state.actions),
+        actions: useReviewSession((state) => state.actions),
       }),
-      { wrapper: MindMapTestWrapper },
+      { wrapper: ReviewSessionTestWrapper },
     );
     act(() => {
       result.current.actions.saveComment({

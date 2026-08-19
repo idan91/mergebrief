@@ -14,7 +14,7 @@ import {
   reviewCommentSubmitLabel,
   type CommentAnchor,
 } from "../../utils/comments";
-import { useMindMap } from "../../session";
+import { useReviewSession } from "../../session";
 import { MarkdownPreview } from "../MarkdownPreview/MarkdownPreview";
 import { useCommentComposerFacade } from "./useCommentComposerFacade";
 import styles from "./CommentComposer.module.scss";
@@ -43,7 +43,7 @@ export function CommentComposer({
   // Selected here — the only consumer — so the count doesn't thread through
   // four component layers and bust every ChunkCard's memo on save/delete;
   // only a mounted (open) composer subscribes.
-  const existingReviewCommentCount = useMindMap(
+  const existingReviewCommentCount = useReviewSession(
     (state) => state.reviewComments.length,
   );
 

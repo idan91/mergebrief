@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { Brief } from "../../../brief/types";
 import { buildBriefViewModel } from "@web/features/brief/utils";
-import { MindMapProvider } from "..";
+import { ReviewSessionProvider } from "..";
 import { useCreateReviewFlowStore } from "./provider";
 
 afterEach(() => {
@@ -61,9 +61,9 @@ let currentBriefId = "brief-a";
 
 function Wrapper({ children }: { children?: ReactNode }) {
   return (
-    <MindMapProvider briefId={currentBriefId} model={model}>
+    <ReviewSessionProvider briefId={currentBriefId} model={model}>
       {children}
-    </MindMapProvider>
+    </ReviewSessionProvider>
   );
 }
 

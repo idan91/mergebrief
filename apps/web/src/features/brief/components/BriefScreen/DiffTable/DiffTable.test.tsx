@@ -16,7 +16,7 @@ import type {
 import {
   createReviewFlowStore,
   initialReviewFlowState,
-  MindMapProvider,
+  ReviewSessionProvider,
   ReviewFlowProvider,
   type ReviewFlowState,
   type ReviewFlowStore,
@@ -160,14 +160,14 @@ function renderTable(
   };
   const view = render(
     <QueryClientProvider client={new QueryClient()}>
-      <MindMapProvider
+      <ReviewSessionProvider
         briefId="test-brief"
         model={buildBriefViewModel(providerBrief)}
       >
         <ReviewFlowProvider store={flowStore}>
           <DiffTable {...props} />
         </ReviewFlowProvider>
-      </MindMapProvider>
+      </ReviewSessionProvider>
     </QueryClientProvider>,
   );
   return { view, openCommentComposer, flowStore };

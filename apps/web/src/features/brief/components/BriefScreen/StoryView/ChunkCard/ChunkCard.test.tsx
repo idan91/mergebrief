@@ -14,7 +14,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   createReviewFlowStore,
-  MindMapProvider,
+  ReviewSessionProvider,
   ReviewFlowProvider,
 } from "@web/features/review/session";
 import type { ComparisonOverlayState } from "../../../../comparison/comparisonOverlay";
@@ -109,13 +109,16 @@ function renderCard(overrides: Partial<ChunkCardProps> = {}) {
   const positionStore = createReadingPositionStore();
   render(
     <QueryClientProvider client={new QueryClient()}>
-      <MindMapProvider briefId="test-brief" model={buildBriefViewModel(brief)}>
+      <ReviewSessionProvider
+        briefId="test-brief"
+        model={buildBriefViewModel(brief)}
+      >
         <ReviewFlowProvider store={flowStore}>
           <ReadingPositionProvider store={positionStore}>
             <ChunkCard {...props} />
           </ReadingPositionProvider>
         </ReviewFlowProvider>
-      </MindMapProvider>
+      </ReviewSessionProvider>
     </QueryClientProvider>,
   );
   return { toggleChunk, positionStore };

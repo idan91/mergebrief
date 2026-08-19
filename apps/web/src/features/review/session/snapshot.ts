@@ -2,7 +2,7 @@ import type { Category } from "../../brief/types";
 import type { ReviewComment } from "../utils/comments";
 import type { ReviewOutcome } from "../utils/state";
 import type { Disposition } from "./disposition";
-import type { MindMapState } from "./store";
+import type { ReviewSessionState } from "./store";
 
 /**
  * The frozen, serializable session snapshot persisted per brief to
@@ -28,7 +28,7 @@ const MAX_SNAPSHOTS = 12;
 
 export function serializeSnapshot(
   briefId: string,
-  state: MindMapState,
+  state: ReviewSessionState,
 ): SessionSnapshot {
   return {
     briefId,
@@ -43,7 +43,7 @@ export function serializeSnapshot(
   };
 }
 
-export function snapshotToState(snapshot: SessionSnapshot): MindMapState {
+export function snapshotToState(snapshot: SessionSnapshot): ReviewSessionState {
   return {
     dispositions: snapshot.dispositions,
     dominants: snapshot.dominants,

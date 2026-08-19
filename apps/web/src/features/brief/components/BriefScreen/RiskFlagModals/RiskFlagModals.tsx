@@ -3,7 +3,7 @@
 // store; the commit/warn choreography lives in the colocated facade hook.
 import { DismissModal } from "@web/features/review";
 import { EvidenceModal } from "@web/features/review";
-import { useMindMap } from "@web/features/review/session";
+import { useReviewSession } from "@web/features/review/session";
 import type { RiskFlag } from "../../../utils/viewModel";
 import { useRiskFlagModalsFacade } from "./useRiskFlagModalsFacade";
 
@@ -14,7 +14,7 @@ export interface RiskFlagModalsProps {
 
 export function RiskFlagModals({ flagsById }: RiskFlagModalsProps) {
   // Draft/submitted review comments — the evidence modal's link candidates.
-  const comments = useMindMap((state) => state.reviewComments);
+  const comments = useReviewSession((state) => state.reviewComments);
   const facade = useRiskFlagModalsFacade({ flagsById });
   return (
     <>

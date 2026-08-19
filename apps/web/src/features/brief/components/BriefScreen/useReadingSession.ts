@@ -1,4 +1,4 @@
-// The reading-session facade hook: per-brief Mind-Map store wiring, the
+// The reading-session facade hook: per-brief Review Session store wiring, the
 // progress/receipt derivation, and the scroll/nav machinery (chunk scroller,
 // scroll-spy, focus mode, read-through). Exposes only the members the screen
 // (or a sibling flow hook) consumes.
@@ -19,9 +19,9 @@ import type { ReviewComment } from "@web/features/review/utils/comments";
 import { buildReceipt, type Receipt } from "@web/features/review/utils/receipt";
 import {
   serializeSnapshot,
-  useMindMap,
-  useMindMapActions,
-  type MindMapActions,
+  useReviewSession,
+  useReviewSessionActions,
+  type ReviewSessionActions,
   type SessionSnapshot,
 } from "@web/features/review/session";
 import {
@@ -289,7 +289,7 @@ export interface UseReadingSessionInput {
 
 export interface UseReadingSessionValue {
   // — store surface the screen still wires directly —
-  actions: MindMapActions;
+  actions: ReviewSessionActions;
   reviewComments: ReviewComment[];
   submittedReviewIds: number[];
   reviewOutcome: ReviewOutcome;
@@ -349,16 +349,20 @@ export function useReadingSession(
     chunkWindows,
     position,
   } = input;
-  // Session/domain state lives in the per-brief Mind-Map store.
-  const dispositions = useMindMap((state) => state.dispositions);
-  const dominants = useMindMap((state) => state.dominants);
-  const reclassifiedGroups = useMindMap((state) => state.reclassifiedGroups);
-  const reviewedChunks = useMindMap((state) => state.reviewedChunks);
-  const reviewComments = useMindMap((state) => state.reviewComments);
-  const submittedReviewIds = useMindMap((state) => state.submittedReviewIds);
-  const replyDrafts = useMindMap((state) => state.replyDrafts);
-  const reviewOutcome = useMindMap((state) => state.reviewOutcome);
-  const actions = useMindMapActions();
+  // Session/domain state lives in the per-brief Review Session store.
+  const dispositions = useReviewSession((state) => state.dispositions);
+  const dominants = useReviewSession((state) => state.dominants);
+  const reclassifiedGroups = useReviewSession(
+    (state) => state.reclassifiedGroups,
+  );
+  const reviewedChunks = useReviewSession((state) => state.reviewedChunks);
+  const reviewComments = useReviewSession((state) => state.reviewComments);
+  const submittedReviewIds = useReviewSession(
+    (state) => state.submittedReviewIds,
+  );
+  const replyDrafts = useReviewSession((state) => state.replyDrafts);
+  const reviewOutcome = useReviewSession((state) => state.reviewOutcome);
+  const actions = useReviewSessionActions();
   const scrollToChunk = useChunkScroller(chunkWindows ?? null);
   // RENDERED (grouped) order, not raw brief order — the StoryView lays chunks
   // out by group, so J/K must follow the same sequence.

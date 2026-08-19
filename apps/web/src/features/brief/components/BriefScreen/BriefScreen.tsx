@@ -27,7 +27,7 @@ import {
   deriveInitialState,
   ReviewFlowProvider,
   useCreateReviewFlowStore,
-  useMindMap,
+  useReviewSession,
   useSyncReviewFlowPosture,
 } from "@web/features/review/session";
 import { useLatestRef } from "@web/hooks/useLatestRef";
@@ -263,8 +263,8 @@ export function BriefScreen({
       ? t(OWN_DRAFT_STALE_COMPOSER_REASON_KEY)
       : undefined);
 
-  // The reading session: per-brief Mind-Map store wiring, the progress/receipt
-  // derivation, and the scroll/nav machinery — see the hook.
+  // The reading session: per-brief Review Session store wiring, the
+  // progress/receipt derivation, and the scroll/nav machinery — see the hook.
   // One registry per screen: both scope panes' windowed lists register, and
   // the jump paths resolve unmounted chunks through it.
   const chunkWindowsRef = useRef(createChunkWindowRegistry());
@@ -518,7 +518,7 @@ export function BriefScreen({
 
   // Pre-toggle state through a ref: markReviewed toggles, and the message
   // must name what the press DID.
-  const reviewedChunks = useMindMap((state) => state.reviewedChunks);
+  const reviewedChunks = useReviewSession((state) => state.reviewedChunks);
   const reviewedChunksRef = useLatestRef(reviewedChunks);
   const markViewedFromShortcut = (chunkId: string) => {
     const wasViewed = reviewedChunksRef.current.has(chunkId);

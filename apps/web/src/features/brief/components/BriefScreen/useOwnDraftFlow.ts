@@ -11,7 +11,7 @@ import type {
   ReviewComment,
 } from "@web/features/review/utils/comments";
 import { postCommentBlockedReason } from "@web/features/review/utils/comments";
-import type { MindMapActions } from "@web/features/review/session";
+import type { ReviewSessionActions } from "@web/features/review/session";
 import {
   applySettledPosts,
   beginInFlightPost,
@@ -59,7 +59,7 @@ export type PostDraftOutcome =
 
 export interface UseOwnDraftFlowInput {
   /** The live session store's actions — the drain flips through these. */
-  actions: MindMapActions;
+  actions: ReviewSessionActions;
   /** Page-level live-region channel (clear-then-set) for outcome copy. */
   announce: (message: string) => void;
   briefId: string;

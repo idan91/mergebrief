@@ -4,7 +4,7 @@ import { createStore, type StoreApi } from "zustand/vanilla";
 import { toggleSet } from "@web/utils/collections";
 import type { CommentAnchor, ReviewComment } from "../../utils/comments";
 import type { DismissTarget, EvidenceTarget } from "../../utils/state";
-import type { MindMapActions } from "../store";
+import type { ReviewSessionActions } from "../store";
 
 /** How long the announce clear tick holds before the message lands (two-tick
  * clear-then-set: an identical repeat still produces a DOM change, so the
@@ -33,7 +33,8 @@ export interface ReviewFlowPosture {
 /**
  * @description Ephemeral review-flow UI state: composer anchoring,
  * risk-disposition targets/selection, and the page toast. Deliberately
- * OUTSIDE the persisted Mind-Map snapshot — none of this survives a reload.
+ * OUTSIDE the persisted Review Session snapshot — none of this survives a
+ * reload.
  */
 export interface ReviewFlowState extends ReviewFlowPosture {
   composerAnchor: CommentAnchor | null;
@@ -110,7 +111,7 @@ export type ReviewFlowStore = StoreApi<ReviewFlowStoreValue>;
  * a narrow pick so the flow cannot reach dispositions or submit bookkeeping.
  */
 export type ReviewFlowSessionActions = Pick<
-  MindMapActions,
+  ReviewSessionActions,
   "saveComment" | "updateComment" | "deleteComment" | "toggleComment"
 >;
 
@@ -130,7 +131,7 @@ export function initialReviewFlowState(
 }
 
 /**
- * Ephemeral review-flow store (zustand-in-context, the MindMapProvider
+ * Ephemeral review-flow store (zustand-in-context, the ReviewSessionProvider
  * pattern): created once per screen mount, never a module singleton. The
  * comment CRUD actions delegate the durable half to the injected session
  * actions and keep the UI half (composer close, toast copy) here — one call

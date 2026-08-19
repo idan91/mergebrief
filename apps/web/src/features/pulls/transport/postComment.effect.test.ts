@@ -2,8 +2,8 @@
 // unposted-draft count the soft gate reminds on, and record the wrapping review
 // id so the refetched thread reconciles as "yours".
 //
-// This drives the REAL Mind-Map store through the exact action sequence the
-// own-draft `postDraftComment` handler applies on a `posted` result, and
+// This drives the REAL Review Session store through the exact action sequence
+// the own-draft `postDraftComment` handler applies on a `posted` result, and
 // asserts against the SAME `status === "draft"` predicate the MarkReadyModal
 // counts by — the store-level contract post-now depends on, not a re-test of a
 // single action in isolation.
@@ -12,10 +12,13 @@ import { describe, expect, it } from "vitest";
 import { briefFixture } from "@web/features/brief/utils/fixtures";
 import { buildBriefViewModel } from "@web/features/brief/utils";
 import type { CommentAnchor, ReviewComment } from "../../review/utils/comments";
-import { createMindMapStore, deriveInitialState } from "../../review/session";
+import {
+  createReviewSessionStore,
+  deriveInitialState,
+} from "../../review/session";
 
 function store() {
-  return createMindMapStore(
+  return createReviewSessionStore(
     deriveInitialState(buildBriefViewModel(briefFixture)),
   );
 }
@@ -35,7 +38,7 @@ const ANCHOR: CommentAnchor = {
   selectedText: "x",
 };
 
-describe("post-now success effect on the Mind-Map store", () => {
+describe("post-now success effect on the Review Session store", () => {
   it("drops the unposted-draft count and records the review id on a posted comment", () => {
     const s = store();
     const { actions } = s.getState();

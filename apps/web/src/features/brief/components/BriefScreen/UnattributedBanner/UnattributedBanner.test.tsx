@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createReviewFlowStore,
   initialReviewFlowState,
-  MindMapProvider,
+  ReviewSessionProvider,
   ReviewFlowProvider,
 } from "@web/features/review/session";
 import type { Brief } from "../../../types";
@@ -62,14 +62,14 @@ function renderBanner(view: UnattributedView) {
   );
   return render(
     <QueryClientProvider client={new QueryClient()}>
-      <MindMapProvider
+      <ReviewSessionProvider
         briefId="test-brief"
         model={buildBriefViewModel(providerBrief)}
       >
         <ReviewFlowProvider store={flowStore}>
           <UnattributedBanner view={view} />
         </ReviewFlowProvider>
-      </MindMapProvider>
+      </ReviewSessionProvider>
     </QueryClientProvider>,
   );
 }

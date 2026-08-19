@@ -5,9 +5,9 @@ import { buildBriefViewModel } from "@web/features/brief/utils";
 import type { ReviewComment } from "../utils/comments";
 import type { RiskEvidence } from "../utils/state";
 import {
-  createMindMapStore,
+  createReviewSessionStore,
   deriveInitialState,
-  type MindMapState,
+  type ReviewSessionState,
 } from "./store";
 import { serializeSnapshot, snapshotToState } from "./snapshot";
 
@@ -17,7 +17,7 @@ if (!firstFlag) throw new Error("Expected brief fixture to include risk flags");
 const flagId = firstFlag.id;
 
 function freshStore() {
-  return createMindMapStore(deriveInitialState(model));
+  return createReviewSessionStore(deriveInitialState(model));
 }
 
 describe("deriveInitialState", () => {
@@ -202,7 +202,7 @@ describe("snapshot round-trip", () => {
     expect(snapshot.reviewedChunkIds).toEqual(["chunk-a"]);
     expect(snapshot.reclassifiedGroupIds).toEqual(["g1"]);
 
-    const restored: MindMapState = snapshotToState(snapshot);
+    const restored: ReviewSessionState = snapshotToState(snapshot);
     expect(restored.reviewedChunks.has("chunk-a")).toBe(true);
     expect(restored.dispositions[flagId]).toEqual({
       kind: "dismissed",

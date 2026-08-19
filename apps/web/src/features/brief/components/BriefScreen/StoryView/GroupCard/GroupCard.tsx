@@ -7,8 +7,8 @@ import { useShallow } from "zustand/react/shallow";
 import type { ReviewComment } from "@web/features/review/utils/comments";
 import type { Disposition } from "@web/features/review/session";
 import {
-  useMindMap,
-  useMindMapActions,
+  useReviewSession,
+  useReviewSessionActions,
   useReviewActions,
   useReviewFlow,
 } from "@web/features/review/session";
@@ -75,13 +75,13 @@ export const GroupCard = memo(function GroupCard({
   // card (in BOTH kept-warm scope panes) on any disposition/comment write
   // anywhere in the brief. Each selector is primitive- or shallow-stable
   // while this group's own slice is unchanged.
-  const dominant = useMindMap(
+  const dominant = useReviewSession(
     (state) => state.dominants[group.id] ?? group.group.dominantCategory,
   );
-  const isReclassified = useMindMap((state) =>
+  const isReclassified = useReviewSession((state) =>
     state.reclassifiedGroups.has(group.id),
   );
-  const groupDispositions = useMindMap(
+  const groupDispositions = useReviewSession(
     useShallow((state) =>
       groupFlags.map((flag) => state.dispositions[flag.id]),
     ),
@@ -99,12 +99,12 @@ export const GroupCard = memo(function GroupCard({
     () => new Set(group.chunks.map((chunk) => chunk.id)),
     [group.chunks],
   );
-  const reviewComments = useMindMap(
+  const reviewComments = useReviewSession(
     useShallow((state) =>
       selectGroupReviewComments(state, groupFlags, groupChunkIds),
     ),
   );
-  const actions = useMindMapActions();
+  const actions = useReviewSessionActions();
   const {
     announce,
     setDismissTarget,

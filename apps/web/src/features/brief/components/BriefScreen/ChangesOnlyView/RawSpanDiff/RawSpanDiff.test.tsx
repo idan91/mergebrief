@@ -12,7 +12,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   createReviewFlowStore,
-  MindMapProvider,
+  ReviewSessionProvider,
   ReviewFlowProvider,
 } from "@web/features/review/session";
 import type { ComparisonQuery } from "../../../../comparison/comparisonQuery";
@@ -69,7 +69,7 @@ function renderRaw(query: ComparisonQuery<string>, client?: QueryClient) {
   );
   return render(
     <QueryClientProvider client={client}>
-      <MindMapProvider
+      <ReviewSessionProvider
         briefId="test-brief"
         model={buildBriefViewModel(briefFixture)}
       >
@@ -78,7 +78,7 @@ function renderRaw(query: ComparisonQuery<string>, client?: QueryClient) {
             <p>Changes Only summary</p>
           </RawSpanDiff>
         </ReviewFlowProvider>
-      </MindMapProvider>
+      </ReviewSessionProvider>
     </QueryClientProvider>,
   );
 }

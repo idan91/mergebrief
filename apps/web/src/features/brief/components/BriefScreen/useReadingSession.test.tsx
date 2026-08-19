@@ -5,7 +5,7 @@
 import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { MindMapProvider } from "@web/features/review/session";
+import { ReviewSessionProvider } from "@web/features/review/session";
 import { briefFixture } from "../../utils/fixtures";
 import { buildBriefViewModel } from "../../utils/viewModel";
 import {
@@ -64,9 +64,9 @@ describe("useReadingSession reading position", () => {
     const position = createReadingPositionStore();
     const onRender = vi.fn();
     render(
-      <MindMapProvider briefId="fixture-brief" model={model}>
+      <ReviewSessionProvider briefId="fixture-brief" model={model}>
         <SessionHost position={position} onRender={onRender} />
-      </MindMapProvider>,
+      </ReviewSessionProvider>,
     );
     // The spy's mount pass already reported the crossing chunk — with the
     // derived group riding along in the same write.

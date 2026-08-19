@@ -8,7 +8,7 @@ import {
 } from "react";
 import { useStore } from "zustand";
 
-import { useMindMapActions } from "../provider";
+import { useReviewSessionActions } from "../provider";
 import {
   createReviewFlowStore,
   type ReviewFlowActions,
@@ -31,7 +31,7 @@ export function useCreateReviewFlowStore(
   briefId: string,
   initialPosture: ReviewFlowPosture,
 ): ReviewFlowStore {
-  const sessionActions = useMindMapActions();
+  const sessionActions = useReviewSessionActions();
   const storeRef = useRef<ReviewFlowStore | null>(null);
   storeRef.current ??= createReviewFlowStore(
     sessionActions,
@@ -42,8 +42,8 @@ export function useCreateReviewFlowStore(
   // Brief switch without remount: the ephemeral half (open composer, dismiss
   // and evidence targets, submit note, flag selection, toast) is anchored to
   // the OLD brief's ids and must not leak into the new one. Render-phase and
-  // guarded, like the MindMapProvider switch; the posture half re-syncs via
-  // useSyncReviewFlowPosture.
+  // guarded, like the ReviewSessionProvider switch; the posture half re-syncs
+  // via useSyncReviewFlowPosture.
   const mountedBriefId = useRef(briefId);
   if (mountedBriefId.current !== briefId) {
     mountedBriefId.current = briefId;

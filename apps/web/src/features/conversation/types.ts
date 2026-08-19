@@ -5,8 +5,9 @@
 // parsed at the boundary, never cast.
 //
 // GitHub facts wear GitHub words — thread chips are open / resolved /
-// outdated; review states are GitHub's SHOUT literals. Mind-map dispositions
-// keep the product's words; `linked-comment` evidence is the bridge.
+// outdated; review states are GitHub's SHOUT literals. Review Session
+// dispositions keep the product's words; `linked-comment` evidence is the
+// bridge.
 import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
 import type { Result as SharedResult, ValueOf } from "types";
 

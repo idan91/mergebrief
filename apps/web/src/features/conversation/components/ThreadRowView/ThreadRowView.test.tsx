@@ -13,7 +13,7 @@ import type { Brief, BriefChunk } from "@web/features/brief/types";
 import { buildBriefViewModel } from "@web/features/brief/utils";
 import {
   createReviewFlowStore,
-  MindMapProvider,
+  ReviewSessionProvider,
   ReviewFlowProvider,
 } from "@web/features/review/session";
 import type { DigestThreadRow } from "../../utils/digest";
@@ -23,9 +23,10 @@ import { ThreadRowView } from "./ThreadRowView";
 
 const BRIEF_ID = "db:42:7:base:head";
 
-// One ordered hook: cleanup() unmounts the MindMapProvider, whose teardown
-// FLUSHES a pending snapshot write — the storage clear must run after it, or
-// one test's drafts hydrate into the next (every test shares a briefId).
+// One ordered hook: cleanup() unmounts the ReviewSessionProvider, whose
+// teardown FLUSHES a pending snapshot write — the storage clear must run
+// after it, or one test's drafts hydrate into the next (every test shares a
+// briefId).
 afterEach(() => {
   cleanup();
   sessionStorage.clear();
@@ -149,7 +150,7 @@ function renderRow(row: DigestThreadRow, expanded = false) {
   const toggle = vi.fn();
   const view = render(
     <QueryClientProvider client={new QueryClient()}>
-      <MindMapProvider
+      <ReviewSessionProvider
         briefId={BRIEF_ID}
         model={buildBriefViewModel(providerBrief)}
       >
@@ -164,7 +165,7 @@ function renderRow(row: DigestThreadRow, expanded = false) {
             />
           </ul>
         </ReviewFlowProvider>
-      </MindMapProvider>
+      </ReviewSessionProvider>
     </QueryClientProvider>,
   );
   return { view, toggle };
@@ -271,7 +272,7 @@ describe("ThreadRowView — slim resolved rows", () => {
     );
     const { container } = render(
       <QueryClientProvider client={new QueryClient()}>
-        <MindMapProvider
+        <ReviewSessionProvider
           briefId={BRIEF_ID}
           model={buildBriefViewModel(providerBrief)}
         >
@@ -287,7 +288,7 @@ describe("ThreadRowView — slim resolved rows", () => {
               />
             </ul>
           </ReviewFlowProvider>
-        </MindMapProvider>
+        </ReviewSessionProvider>
       </QueryClientProvider>,
     );
     expect(screen.getByTestId("thread-row").getAttribute("data-density")).toBe(

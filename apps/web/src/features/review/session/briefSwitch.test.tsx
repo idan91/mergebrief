@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Brief } from "../../brief/types";
 import { buildBriefViewModel } from "@web/features/brief/utils";
-import { MindMapProvider, useMindMap } from ".";
+import { ReviewSessionProvider, useReviewSession } from ".";
 import { readSnapshot } from "./snapshot";
 
 afterEach(() => {
@@ -74,12 +74,12 @@ let currentBriefId = "brief-a";
 
 function Wrapper({ children }: { children?: ReactNode }) {
   return (
-    <MindMapProvider
+    <ReviewSessionProvider
       briefId={currentBriefId}
       model={currentBriefId === "brief-a" ? modelA : modelB}
     >
       {children}
-    </MindMapProvider>
+    </ReviewSessionProvider>
   );
 }
 
@@ -89,10 +89,10 @@ function renderSession() {
     // Field-wise selectors: an object-literal selector would return a fresh
     // reference per call and loop useSyncExternalStore.
     () => ({
-      reviewedChunks: useMindMap((state) => state.reviewedChunks),
-      reviewComments: useMindMap((state) => state.reviewComments),
-      dispositions: useMindMap((state) => state.dispositions),
-      actions: useMindMap((state) => state.actions),
+      reviewedChunks: useReviewSession((state) => state.reviewedChunks),
+      reviewComments: useReviewSession((state) => state.reviewComments),
+      dispositions: useReviewSession((state) => state.dispositions),
+      actions: useReviewSession((state) => state.actions),
     }),
     { wrapper: Wrapper },
   );

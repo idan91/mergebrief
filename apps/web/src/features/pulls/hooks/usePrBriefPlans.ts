@@ -68,7 +68,7 @@ export interface OwnDraftPlanSlice {
 }
 
 export interface UsePrBriefPlansValue {
-  /** Keys the per-brief Mind-Map session store, exactly like a local brief id. */
+  /** Keys the per-brief Review Session store, exactly like a local brief id. */
   briefId: string;
   comparisonPlan: BriefComparisonPlan;
   availability: CompareOptionFlags;

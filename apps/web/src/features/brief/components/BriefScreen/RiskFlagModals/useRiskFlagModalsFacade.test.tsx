@@ -8,7 +8,7 @@ import type { ReactNode } from "react";
 
 import {
   createReviewFlowStore,
-  MindMapProvider,
+  ReviewSessionProvider,
   ReviewFlowProvider,
   type ReviewFlowStore,
 } from "@web/features/review/session";
@@ -38,9 +38,9 @@ function setup() {
     appI18n.t,
   );
   const wrapper = ({ children }: { children: ReactNode }) => (
-    <MindMapProvider briefId="test-brief" model={model}>
+    <ReviewSessionProvider briefId="test-brief" model={model}>
       <ReviewFlowProvider store={flowStore}>{children}</ReviewFlowProvider>
-    </MindMapProvider>
+    </ReviewSessionProvider>
   );
   const hook = renderHook(
     () => useRiskFlagModalsFacade({ flagsById: model.flagsById }),

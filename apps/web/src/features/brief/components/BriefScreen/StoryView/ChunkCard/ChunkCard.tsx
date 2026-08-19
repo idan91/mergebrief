@@ -14,7 +14,7 @@ import type { ComparisonOverlayState } from "../../../../comparison/comparisonOv
 import { AddressedComments, ReviewComments } from "@web/features/review";
 import {
   useChunkReviewComments,
-  useMindMap,
+  useReviewSession,
 } from "@web/features/review/session";
 import { riskChipView } from "../../../../utils/viewModel";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
@@ -121,7 +121,9 @@ export const ChunkCard = memo(function ChunkCard({
   riskMeta,
 }: ChunkCardProps) {
   const { t } = useTranslation();
-  const reviewed = useMindMap((state) => state.reviewedChunks.has(chunk.id));
+  const reviewed = useReviewSession((state) =>
+    state.reviewedChunks.has(chunk.id),
+  );
   // Store-subscribed, not a prop: a reading-position tick re-renders the two
   // affected cards, never the parent list (which would break the memo win).
   const active = useReadingPosition(

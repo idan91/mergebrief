@@ -8,8 +8,8 @@ import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMenti
 import { appendQuote } from "../../../../utils/quote";
 import {
   persistReplyDraft,
-  useMindMap,
-  useMindMapActions,
+  useReviewSession,
+  useReviewSessionActions,
   useReviewActions,
 } from "@web/features/review/session";
 import { MAX_REPLY_LENGTH, type ReplyResult } from "../../../../reply";
@@ -94,10 +94,10 @@ export function ReplyComposer({
   const { t } = useTranslation();
   // Draft reads/writes go straight to the session stores — no draft prop
   // chain through the digest tree.
-  const draft = useMindMap(
+  const draft = useReviewSession(
     (state) => state.replyDrafts[String(threadId)] ?? "",
   );
-  const { setReplyDraft } = useMindMapActions();
+  const { setReplyDraft } = useReviewSessionActions();
   const { announce } = useReviewActions();
   // WHICH action is running, not just whether one is: both buttons go busy
   // together (one draft, one request), but only the clicked one wears the

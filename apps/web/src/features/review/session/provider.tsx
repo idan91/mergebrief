@@ -11,11 +11,11 @@ import { useShallow } from "zustand/react/shallow";
 import type { BriefViewModel } from "@web/features/brief/utils";
 import type { ReviewComment } from "../utils/comments";
 import {
-  createMindMapStore,
+  createReviewSessionStore,
   deriveInitialState,
-  type MindMapActions,
-  type MindMapStore,
-  type MindMapStoreValue,
+  type ReviewSessionActions,
+  type ReviewSessionStore,
+  type ReviewSessionStoreValue,
 } from "./store";
 import {
   readSnapshot,
@@ -25,10 +25,10 @@ import {
   type SessionSnapshot,
 } from "./snapshot";
 
-const MindMapContext = createContext<MindMapStore | null>(null);
+const ReviewSessionContext = createContext<ReviewSessionStore | null>(null);
 const PERSIST_DEBOUNCE_MS = 250;
 
-interface MindMapProviderProps {
+interface ReviewSessionProviderProps {
   briefId: string;
   model: BriefViewModel;
   /**
@@ -45,7 +45,7 @@ interface PendingPersist {
 }
 
 /**
- * Per-brief client runtime of the Mind-Map Space. The store is created once per
+ * Per-brief client runtime of the Review Session. The store is created once per
  * mount (never a module singleton), so it is SSR-safe and per-brief isolated,
  * mirroring the per-request queryClient. Hydration and persistence are the only
  * two effects that touch sessionStorage — client-only by construction.
@@ -57,14 +57,14 @@ interface PendingPersist {
  * An effect would be too late: one frame of the old brief's ids against the
  * new model's flags/groups is a crash, not a flicker.
  */
-export function MindMapProvider({
+export function ReviewSessionProvider({
   briefId,
   model,
   snapshot,
   children,
-}: MindMapProviderProps) {
-  const storeRef = useRef<MindMapStore | null>(null);
-  storeRef.current ??= createMindMapStore(deriveInitialState(model));
+}: ReviewSessionProviderProps) {
+  const storeRef = useRef<ReviewSessionStore | null>(null);
+  storeRef.current ??= createReviewSessionStore(deriveInitialState(model));
   const store = storeRef.current;
   const pendingPersist = useRef<PendingPersist>({ timer: undefined });
   const mountedBriefId = useRef(briefId);
@@ -129,18 +129,22 @@ export function MindMapProvider({
   }, [briefId, store]);
 
   return (
-    <MindMapContext.Provider value={store}>{children}</MindMapContext.Provider>
+    <ReviewSessionContext.Provider value={store}>
+      {children}
+    </ReviewSessionContext.Provider>
   );
 }
 
-export function useMindMap<T>(selector: (state: MindMapStoreValue) => T): T {
-  const store = useContext(MindMapContext);
-  if (!store) throw new Error("MindMapProvider is missing");
+export function useReviewSession<T>(
+  selector: (state: ReviewSessionStoreValue) => T,
+): T {
+  const store = useContext(ReviewSessionContext);
+  if (!store) throw new Error("ReviewSessionProvider is missing");
   return useStore(store, selector);
 }
 
-export function useMindMapActions(): MindMapActions {
-  return useMindMap((state) => state.actions);
+export function useReviewSessionActions(): ReviewSessionActions {
+  return useReviewSession((state) => state.actions);
 }
 
 /**
@@ -150,7 +154,7 @@ export function useMindMapActions(): MindMapActions {
  * slice changes — not on every comment interaction elsewhere.
  */
 export function useChunkReviewComments(chunkId: string): ReviewComment[] {
-  return useMindMap(
+  return useReviewSession(
     useShallow((state) =>
       state.reviewComments.filter(
         (comment) => comment.anchor.chunkId === chunkId,

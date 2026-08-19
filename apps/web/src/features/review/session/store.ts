@@ -7,9 +7,9 @@ import type { ReviewOutcome, RiskEvidence } from "../utils/state";
 import type { BulkDisposition, Disposition } from "./disposition";
 
 /**
- * @description Session/domain state of the Mind-Map Space — the shared, persisted half.
+ * @description Session/domain state of the Review Session — the shared, persisted half.
  */
-export interface MindMapState {
+export interface ReviewSessionState {
   /**
    * @description Keyed by brief-local `flag.id`.
    * TODO: move to region@SHA.
@@ -32,7 +32,7 @@ export interface MindMapState {
   replyDrafts: Record<string, string>;
 }
 
-export interface MindMapActions {
+export interface ReviewSessionActions {
   /**
    * @description Toggle chunk membership in the reviewed set.
    * Collapse-on-review is wired in the component; see briefs route handler.
@@ -80,14 +80,14 @@ export interface MindMapActions {
    * @description Resets the whole session to a fresh state (the "Clear local
    * drafts" action), so the live store matches the now-empty storage.
    */
-  reset: (state: MindMapState) => void;
+  reset: (state: ReviewSessionState) => void;
 }
 
-export interface MindMapStoreValue extends MindMapState {
-  actions: MindMapActions;
+export interface ReviewSessionStoreValue extends ReviewSessionState {
+  actions: ReviewSessionActions;
 }
 
-export type MindMapStore = StoreApi<MindMapStoreValue>;
+export type ReviewSessionStore = StoreApi<ReviewSessionStoreValue>;
 
 function toggle<T>(set: ReadonlySet<T>, value: T): Set<T> {
   const next = new Set(set);
@@ -113,7 +113,7 @@ function getUniqueCommentId(
 }
 
 /** Initial session state derived from the brief view model (snapshot overrides). */
-export function deriveInitialState(model: BriefViewModel): MindMapState {
+export function deriveInitialState(model: BriefViewModel): ReviewSessionState {
   const dispositions: Record<string, Disposition> = {};
   for (const flag of model.flags) dispositions[flag.id] = { kind: "open" };
   const dominants: Record<string, Category> = {};
@@ -132,8 +132,10 @@ export function deriveInitialState(model: BriefViewModel): MindMapState {
   };
 }
 
-export function createMindMapStore(initial: MindMapState): MindMapStore {
-  return createStore<MindMapStoreValue>((set) => ({
+export function createReviewSessionStore(
+  initial: ReviewSessionState,
+): ReviewSessionStore {
+  return createStore<ReviewSessionStoreValue>((set) => ({
     ...initial,
     actions: {
       reviewChunk(chunkId) {
