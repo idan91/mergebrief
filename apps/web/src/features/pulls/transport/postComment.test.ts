@@ -92,6 +92,31 @@ describe("postInlineComment", () => {
     }
   });
 
+  it("maps every previously-swallowed coded failure deliberately", async () => {
+    for (const [code, kind] of [
+      // Deterministic 413: the body is too long; retrying as-is never clears
+      // it. `invalid` copy says edit the draft — the only honest advice.
+      ["request-too-large", "invalid"],
+      ["forbidden", "upstream"],
+      ["github-permission", "upstream"],
+      ["scope-exceeded", "upstream"],
+      ["human-only", "upstream"],
+      ["draft-limit-reached", "upstream"],
+      ["app-not-installed", "upstream"],
+      ["github-unavailable", "upstream"],
+      ["internal-error", "upstream"],
+    ] as const) {
+      apiFetchMock.mockResolvedValue(
+        new Response(JSON.stringify({ error: "refused", code }), {
+          status: 502,
+        }),
+      );
+      await expect(postInlineComment("42", 7, SPAN, PAYLOAD)).resolves.toEqual({
+        kind,
+      });
+    }
+  });
+
   it("throws typed on a malformed 2xx", async () => {
     apiFetchMock.mockResolvedValue(
       new Response(JSON.stringify({ nope: true }), { status: 201 }),

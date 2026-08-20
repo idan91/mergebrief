@@ -45,6 +45,39 @@ export type ResolveThreadResult =
   /** 502/anything else — GitHub rejected or is unreachable. */
   | { readonly kind: "upstream" };
 
+type ResolveFailureKind = Exclude<ResolveThreadResult["kind"], "done">;
+
+// Total over the wire vocabulary: a new ApiErrorCode member fails to compile
+// here instead of silently becoming "try again shortly". `forbidden` covers
+// the codeless-403 fallback for the github-permission kind.
+const KIND_FOR_CODE = {
+  [ApiErrorCode.UNAUTHORIZED]: "unauthorized",
+  [ApiErrorCode.INVALID_SIGNATURE]: "upstream",
+  [ApiErrorCode.FORBIDDEN]: "github-permission",
+  [ApiErrorCode.GITHUB_PERMISSION]: "github-permission",
+  [ApiErrorCode.SCOPE_EXCEEDED]: "upstream",
+  [ApiErrorCode.HUMAN_ONLY]: "upstream",
+  [ApiErrorCode.NOT_FOUND]: "not-found",
+  [ApiErrorCode.INVALID_REQUEST]: "invalid",
+  [ApiErrorCode.NOT_A_PR_URL]: "upstream",
+  [ApiErrorCode.SIGN_IN_FAILED]: "upstream",
+  [ApiErrorCode.REQUEST_TOO_LARGE]: "upstream",
+  [ApiErrorCode.DIFF_TOO_LARGE]: "upstream",
+  [ApiErrorCode.DRAFT_ALREADY_PUBLISHED]: "upstream",
+  [ApiErrorCode.DRAFT_ANCHOR_ORPHANED]: "upstream",
+  [ApiErrorCode.DRAFT_LIMIT_REACHED]: "upstream",
+  [ApiErrorCode.PR_CHANGED_SINCE_READ]: "upstream",
+  [ApiErrorCode.PR_REWRITTEN_SINCE_READ]: "upstream",
+  [ApiErrorCode.APP_NOT_INSTALLED]: "upstream",
+  [ApiErrorCode.GITHUB_UNAVAILABLE]: "upstream",
+  [ApiErrorCode.GENERATION_FAILED]: "upstream",
+  [ApiErrorCode.GENERATION_UNAVAILABLE]: "upstream",
+  [ApiErrorCode.GENERATION_CONFIG]: "upstream",
+  [ApiErrorCode.INTERNAL_ERROR]: "upstream",
+  // Web-local; never on the wire — errorFromResponse cannot produce it.
+  [ApiErrorCode.MALFORMED]: "upstream",
+} as const satisfies Record<ApiErrorCode, ResolveFailureKind>;
+
 function isResolutionBody(
   value: unknown,
 ): value is { resolved: boolean; alreadyInTargetState: boolean } {
@@ -72,17 +105,7 @@ export async function setThreadResolution(
   const response = await apiFetch(path, { method: "POST" });
   if (!response.ok) {
     const { code } = await errorFromResponse(response, path);
-    if (code === ApiErrorCode.UNAUTHORIZED) return { kind: "unauthorized" };
-    // forbidden covers the codeless-403 fallback.
-    if (
-      code === ApiErrorCode.GITHUB_PERMISSION ||
-      code === ApiErrorCode.FORBIDDEN
-    ) {
-      return { kind: "github-permission" };
-    }
-    if (code === ApiErrorCode.NOT_FOUND) return { kind: "not-found" };
-    if (code === ApiErrorCode.INVALID_REQUEST) return { kind: "invalid" };
-    return { kind: "upstream" };
+    return { kind: KIND_FOR_CODE[code] };
   }
   let parsed: unknown;
   try {

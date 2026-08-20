@@ -116,4 +116,25 @@ describe("submitReview", () => {
     await expect(run()).rejects.toBeInstanceOf(ApiError);
     await expect(run()).rejects.toMatchObject({ code: "malformed" });
   });
+
+  it("maps every previously-swallowed coded failure deliberately", async () => {
+    for (const [code, kind] of [
+      // Deterministic 413: an over-long review body; retry-as-is never clears.
+      ["request-too-large", "invalid"],
+      ["forbidden", "upstream"],
+      ["github-permission", "upstream"],
+      ["scope-exceeded", "upstream"],
+      ["human-only", "upstream"],
+      ["draft-already-published", "upstream"],
+      ["github-unavailable", "upstream"],
+      ["internal-error", "upstream"],
+    ] as const) {
+      apiFetchMock.mockResolvedValue(
+        new Response(JSON.stringify({ error: "refused", code }), {
+          status: 502,
+        }),
+      );
+      await expect(run()).resolves.toEqual({ kind });
+    }
+  });
 });

@@ -31,6 +31,43 @@ export type MarkReadyResult =
   | { kind: "github-permission" }
   | { kind: "upstream" };
 
+type MarkReadyFailureKind = Exclude<MarkReadyResult["kind"], "ready">;
+
+// Total over the wire vocabulary: a new ApiErrorCode member fails to compile
+// here instead of silently becoming "try again shortly". A 403 on this route
+// is ONLY the missing `contents: write` (the fresh-resolve denial collapses
+// to 404 server-side); `forbidden` covers the codeless-403 fallback. The
+// route's only 400 is a malformed :prNumber — unreachable from a valid UI
+// state — so invalid-request stays in the generic upstream bucket. Retrying
+// any kind is safe: the operation is idempotent server-side.
+const KIND_FOR_CODE = {
+  [ApiErrorCode.UNAUTHORIZED]: "unauthorized",
+  [ApiErrorCode.INVALID_SIGNATURE]: "upstream",
+  [ApiErrorCode.FORBIDDEN]: "github-permission",
+  [ApiErrorCode.GITHUB_PERMISSION]: "github-permission",
+  [ApiErrorCode.SCOPE_EXCEEDED]: "upstream",
+  [ApiErrorCode.HUMAN_ONLY]: "upstream",
+  [ApiErrorCode.NOT_FOUND]: "not-found",
+  [ApiErrorCode.INVALID_REQUEST]: "upstream",
+  [ApiErrorCode.NOT_A_PR_URL]: "upstream",
+  [ApiErrorCode.SIGN_IN_FAILED]: "upstream",
+  [ApiErrorCode.REQUEST_TOO_LARGE]: "upstream",
+  [ApiErrorCode.DIFF_TOO_LARGE]: "upstream",
+  [ApiErrorCode.DRAFT_ALREADY_PUBLISHED]: "upstream",
+  [ApiErrorCode.DRAFT_ANCHOR_ORPHANED]: "upstream",
+  [ApiErrorCode.DRAFT_LIMIT_REACHED]: "upstream",
+  [ApiErrorCode.PR_CHANGED_SINCE_READ]: "upstream",
+  [ApiErrorCode.PR_REWRITTEN_SINCE_READ]: "upstream",
+  [ApiErrorCode.APP_NOT_INSTALLED]: "upstream",
+  [ApiErrorCode.GITHUB_UNAVAILABLE]: "upstream",
+  [ApiErrorCode.GENERATION_FAILED]: "upstream",
+  [ApiErrorCode.GENERATION_UNAVAILABLE]: "upstream",
+  [ApiErrorCode.GENERATION_CONFIG]: "upstream",
+  [ApiErrorCode.INTERNAL_ERROR]: "upstream",
+  // Web-local; never on the wire — errorFromResponse cannot produce it.
+  [ApiErrorCode.MALFORMED]: "upstream",
+} as const satisfies Record<ApiErrorCode, MarkReadyFailureKind>;
+
 /** The route-injected action shape the Brief screen's own-draft flow calls. */
 export type MarkReadyAction = () => Promise<MarkReadyResult>;
 
@@ -51,18 +88,7 @@ export async function markPrReady(
   const response = await apiFetch(path, { method: "POST" });
   if (!response.ok) {
     const { code } = await errorFromResponse(response, path);
-    if (code === ApiErrorCode.UNAUTHORIZED) return { kind: "unauthorized" };
-    if (code === ApiErrorCode.NOT_FOUND) return { kind: "not-found" };
-    // A 403 here is ONLY the missing `contents: write` — the fresh-resolve
-    // denial collapses to 404 server-side. forbidden covers the codeless-403
-    // fallback.
-    if (
-      code === ApiErrorCode.GITHUB_PERMISSION ||
-      code === ApiErrorCode.FORBIDDEN
-    ) {
-      return { kind: "github-permission" };
-    }
-    return { kind: "upstream" };
+    return { kind: KIND_FOR_CODE[code] };
   }
   let body: unknown;
   try {

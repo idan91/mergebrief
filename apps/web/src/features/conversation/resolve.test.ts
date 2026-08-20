@@ -90,6 +90,26 @@ describe("setThreadResolution", () => {
     });
   });
 
+  it("maps every previously-swallowed coded failure deliberately", async () => {
+    for (const [code, kind] of [
+      ["scope-exceeded", "upstream"],
+      ["human-only", "upstream"],
+      ["pr-changed-since-read", "upstream"],
+      ["request-too-large", "upstream"],
+      ["github-unavailable", "upstream"],
+      ["internal-error", "upstream"],
+    ] as const) {
+      apiFetchMock.mockResolvedValue(
+        new Response(JSON.stringify({ error: "refused", code }), {
+          status: 502,
+        }),
+      );
+      await expect(setThreadResolution("42", 7, 9001, true)).resolves.toEqual({
+        kind,
+      });
+    }
+  });
+
   it("throws typed on a malformed 200", async () => {
     for (const shape of [
       { nope: true },

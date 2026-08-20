@@ -48,6 +48,29 @@ describe("postConversationReply", () => {
     }
   });
 
+  it("maps every previously-swallowed coded failure deliberately", async () => {
+    for (const [code, kind] of [
+      // Deterministic 413: an over-long reply body; retry-as-is never clears.
+      ["request-too-large", "invalid"],
+      ["forbidden", "upstream"],
+      ["github-permission", "upstream"],
+      ["scope-exceeded", "upstream"],
+      ["human-only", "upstream"],
+      ["pr-changed-since-read", "upstream"],
+      ["github-unavailable", "upstream"],
+      ["internal-error", "upstream"],
+    ] as const) {
+      apiFetchMock.mockResolvedValue(
+        new Response(JSON.stringify({ error: "refused", code }), {
+          status: 502,
+        }),
+      );
+      await expect(postConversationReply("42", 7, 1, "x")).resolves.toEqual({
+        kind,
+      });
+    }
+  });
+
   it("throws typed on a malformed 2xx", async () => {
     apiFetchMock.mockResolvedValue(
       new Response(JSON.stringify({ nope: true }), { status: 201 }),

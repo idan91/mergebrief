@@ -746,7 +746,7 @@
       "orphanedDraft": "One of your comments no longer points at any code in this revision — nothing was posted. Re-place it or delete it, then submit.",
       "unauthorized": "Your GitHub session expired — sign in again. Your drafts are saved locally.",
       "notFound": "This pull request is no longer accessible on GitHub.",
-      "invalid": "The review was rejected as invalid — reload and try again.",
+      "invalid": "The review couldn't be submitted as sent — edit it (or shorten it) and submit again.",
       "upstream": "GitHub rejected the review or is unreachable — try again shortly.",
       "ownPr": "GitHub rejected the review — note you can't approve or request changes on your own pull request. Try again, or switch the outcome to Comment.",
       "indeterminate": "Something went wrong submitting the review — it may or may not have posted. Check the pull request on GitHub before retrying."
@@ -826,7 +826,7 @@
       "posted": "Reply posted to GitHub under your account.",
       "unauthorized": "Your GitHub session expired — sign in again. Your reply draft is saved locally.",
       "notFound": "This thread is no longer on GitHub — it may have been deleted. Your draft is saved locally.",
-      "invalid": "The reply was rejected as invalid — reload and try again.",
+      "invalid": "The reply couldn't be posted as sent — edit it (or shorten it) and post again.",
       "upstream": "GitHub rejected the reply or is unreachable — try again shortly.",
       "failed": "Something went wrong posting the reply — it may or may not have posted. Check the thread on GitHub before retrying.",
       "both": "Reply posted and the thread resolved.",

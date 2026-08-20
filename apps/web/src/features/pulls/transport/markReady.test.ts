@@ -90,6 +90,25 @@ describe("markPrReady", () => {
     await expect(run()).resolves.toEqual({ kind: "upstream" });
   });
 
+  it("maps every previously-swallowed coded failure deliberately", async () => {
+    for (const [code, kind] of [
+      ["forbidden", "github-permission"],
+      ["invalid-request", "upstream"],
+      ["scope-exceeded", "upstream"],
+      ["human-only", "upstream"],
+      ["app-not-installed", "upstream"],
+      ["github-unavailable", "upstream"],
+      ["internal-error", "upstream"],
+    ] as const) {
+      apiFetchMock.mockResolvedValue(
+        new Response(JSON.stringify({ error: "refused", code }), {
+          status: 502,
+        }),
+      );
+      await expect(run()).resolves.toEqual({ kind });
+    }
+  });
+
   it("throws a typed malformed error on a 200 whose body is not { draft: false }", async () => {
     apiFetchMock.mockResolvedValue(
       new Response(JSON.stringify({ draft: true }), { status: 200 }),

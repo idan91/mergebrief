@@ -35,10 +35,46 @@ export type PostCommentResult =
   | { readonly kind: "orphaned-anchor" }
   /** 409 — the draft is already on GitHub; nothing posted twice. */
   | { readonly kind: "already-published" }
-  /** 400 — the route rejected the shape (mirrored client-side; programmer error). */
+  /** 400 (shape; mirrored client-side) or deterministic 413 — edit the body, retry-as-is never clears. */
   | { readonly kind: "invalid" }
   /** 502/anything else — GitHub rejected or is unreachable. */
   | { readonly kind: "upstream" };
+
+type PostCommentFailureKind = Exclude<PostCommentResult["kind"], "posted">;
+
+// Total over the wire vocabulary: a new ApiErrorCode member fails to compile
+// here instead of silently becoming "try again shortly". Each 409 is its own
+// outcome — a frozen session and a rewritten PR both mean the read went stale
+// (reload to re-anchor); an orphaned anchor and an already-published draft are
+// neither stale nor retryable. A 413 is deterministic (over-long body), so its
+// copy must say edit-the-draft, never retry-as-is.
+const KIND_FOR_CODE = {
+  [ApiErrorCode.UNAUTHORIZED]: "unauthorized",
+  [ApiErrorCode.INVALID_SIGNATURE]: "upstream",
+  [ApiErrorCode.FORBIDDEN]: "upstream",
+  [ApiErrorCode.GITHUB_PERMISSION]: "upstream",
+  [ApiErrorCode.SCOPE_EXCEEDED]: "upstream",
+  [ApiErrorCode.HUMAN_ONLY]: "upstream",
+  [ApiErrorCode.NOT_FOUND]: "not-found",
+  [ApiErrorCode.INVALID_REQUEST]: "invalid",
+  [ApiErrorCode.NOT_A_PR_URL]: "upstream",
+  [ApiErrorCode.SIGN_IN_FAILED]: "upstream",
+  [ApiErrorCode.REQUEST_TOO_LARGE]: "invalid",
+  [ApiErrorCode.DIFF_TOO_LARGE]: "upstream",
+  [ApiErrorCode.DRAFT_ALREADY_PUBLISHED]: "already-published",
+  [ApiErrorCode.DRAFT_ANCHOR_ORPHANED]: "orphaned-anchor",
+  [ApiErrorCode.DRAFT_LIMIT_REACHED]: "upstream",
+  [ApiErrorCode.PR_CHANGED_SINCE_READ]: "stale",
+  [ApiErrorCode.PR_REWRITTEN_SINCE_READ]: "stale",
+  [ApiErrorCode.APP_NOT_INSTALLED]: "upstream",
+  [ApiErrorCode.GITHUB_UNAVAILABLE]: "upstream",
+  [ApiErrorCode.GENERATION_FAILED]: "upstream",
+  [ApiErrorCode.GENERATION_UNAVAILABLE]: "upstream",
+  [ApiErrorCode.GENERATION_CONFIG]: "upstream",
+  [ApiErrorCode.INTERNAL_ERROR]: "upstream",
+  // Web-local; never on the wire — errorFromResponse cannot produce it.
+  [ApiErrorCode.MALFORMED]: "upstream",
+} as const satisfies Record<ApiErrorCode, PostCommentFailureKind>;
 
 /**
  * The route posts a draft the SESSION holds: the anchor and body are already
@@ -84,27 +120,7 @@ export async function postInlineComment(
   });
   if (!response.ok) {
     const { code } = await errorFromResponse(response, path);
-    if (code === ApiErrorCode.UNAUTHORIZED) return { kind: "unauthorized" };
-    if (code === ApiErrorCode.NOT_FOUND) return { kind: "not-found" };
-    // Each of this route's 409s is its own outcome. A frozen session and a
-    // rewritten PR both mean the read went stale (reload to re-anchor); an
-    // orphaned anchor and an already-published draft are neither stale nor
-    // retryable, and telling the reviewer "try again shortly" would invite a
-    // pointless re-post.
-    if (
-      code === ApiErrorCode.PR_CHANGED_SINCE_READ ||
-      code === ApiErrorCode.PR_REWRITTEN_SINCE_READ
-    ) {
-      return { kind: "stale" };
-    }
-    if (code === ApiErrorCode.DRAFT_ANCHOR_ORPHANED) {
-      return { kind: "orphaned-anchor" };
-    }
-    if (code === ApiErrorCode.DRAFT_ALREADY_PUBLISHED) {
-      return { kind: "already-published" };
-    }
-    if (code === ApiErrorCode.INVALID_REQUEST) return { kind: "invalid" };
-    return { kind: "upstream" };
+    return { kind: KIND_FOR_CODE[code] };
   }
   let parsed: unknown;
   try {

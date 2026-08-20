@@ -15,6 +15,42 @@ import type {
 
 export type { SubmitReviewResult } from "../../review/utils/submit";
 
+type SubmitFailureKind = Exclude<SubmitReviewResult["kind"], "submitted">;
+
+// Total over the wire vocabulary: a new ApiErrorCode member fails to compile
+// here instead of silently becoming "try again shortly". Three 409s reach
+// this route: the orphaned anchor is its own refusal; a frozen session
+// (pr-changed) and a fail-closed unknown commit (pr-rewritten) both mean the
+// read went stale — and pr-changed is what a codeless 409 synthesizes to. A
+// 413 is deterministic (over-long body): edit, never retry-as-is.
+const KIND_FOR_CODE = {
+  [ApiErrorCode.UNAUTHORIZED]: "unauthorized",
+  [ApiErrorCode.INVALID_SIGNATURE]: "upstream",
+  [ApiErrorCode.FORBIDDEN]: "upstream",
+  [ApiErrorCode.GITHUB_PERMISSION]: "upstream",
+  [ApiErrorCode.SCOPE_EXCEEDED]: "upstream",
+  [ApiErrorCode.HUMAN_ONLY]: "upstream",
+  [ApiErrorCode.NOT_FOUND]: "not-found",
+  [ApiErrorCode.INVALID_REQUEST]: "invalid",
+  [ApiErrorCode.NOT_A_PR_URL]: "upstream",
+  [ApiErrorCode.SIGN_IN_FAILED]: "upstream",
+  [ApiErrorCode.REQUEST_TOO_LARGE]: "invalid",
+  [ApiErrorCode.DIFF_TOO_LARGE]: "upstream",
+  [ApiErrorCode.DRAFT_ALREADY_PUBLISHED]: "upstream",
+  [ApiErrorCode.DRAFT_ANCHOR_ORPHANED]: "orphaned-draft",
+  [ApiErrorCode.DRAFT_LIMIT_REACHED]: "upstream",
+  [ApiErrorCode.PR_CHANGED_SINCE_READ]: "rewritten",
+  [ApiErrorCode.PR_REWRITTEN_SINCE_READ]: "rewritten",
+  [ApiErrorCode.APP_NOT_INSTALLED]: "upstream",
+  [ApiErrorCode.GITHUB_UNAVAILABLE]: "upstream",
+  [ApiErrorCode.GENERATION_FAILED]: "upstream",
+  [ApiErrorCode.GENERATION_UNAVAILABLE]: "upstream",
+  [ApiErrorCode.GENERATION_CONFIG]: "upstream",
+  [ApiErrorCode.INTERNAL_ERROR]: "upstream",
+  // Web-local; never on the wire — errorFromResponse cannot produce it.
+  [ApiErrorCode.MALFORMED]: "upstream",
+} as const satisfies Record<ApiErrorCode, SubmitFailureKind>;
+
 interface SubmittedBody {
   reviewId: number;
   commentsDegraded: boolean;
@@ -49,23 +85,7 @@ export async function submitReview(
   });
   if (!response.ok) {
     const { code } = await errorFromResponse(response, path);
-    // Three 409s reach here. The orphaned anchor is this route's own refusal;
-    // a frozen session (pr-changed) and a fail-closed unknown commit
-    // (pr-rewritten) both mean the read went stale, and pr-changed is what a
-    // codeless 409 synthesizes to as well.
-    if (code === ApiErrorCode.DRAFT_ANCHOR_ORPHANED) {
-      return { kind: "orphaned-draft" };
-    }
-    if (
-      code === ApiErrorCode.PR_REWRITTEN_SINCE_READ ||
-      code === ApiErrorCode.PR_CHANGED_SINCE_READ
-    ) {
-      return { kind: "rewritten" };
-    }
-    if (code === ApiErrorCode.UNAUTHORIZED) return { kind: "unauthorized" };
-    if (code === ApiErrorCode.NOT_FOUND) return { kind: "not-found" };
-    if (code === ApiErrorCode.INVALID_REQUEST) return { kind: "invalid" };
-    return { kind: "upstream" };
+    return { kind: KIND_FOR_CODE[code] };
   }
   let body: unknown;
   try {
