@@ -23,6 +23,13 @@ it, alongside a `CLAUDE.md` that points at it — a new package adds both.
   say "of what" instead of what you get. A function returning either a value
   or a refusal is `resolve*`, matching `resolveWrite`. Route factories keep
   the established `xxxRoute` / `xxxRoutes` shape.
+- **Zod schemas live beside their owner** — the route, operation, store, or
+  script that parses with them; never a generic `schemas.ts` grab-bag.
+  Duplicated wire bounds share one module at the closest common owner
+  (`packages/api`'s `routes/repos/pr/wire-bounds.ts`). Named exception:
+  `packages/brief-core/src/types.ts` IS the domain contract and keeps its
+  schemas. `packages/types` stays types-only, zero runtime — no schema may
+  move there.
 - **Package entry = `src/index.ts`** — a curated barrel, the package's
   `exports["."]` target. A package root conforms when every file is the entry,
   `types.ts`, or a small domain-cued support file (loose count ≤ ~5); a
