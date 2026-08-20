@@ -106,3 +106,55 @@ export function remapThroughPatch(
 ): RemapResult {
   return remapRanges(ranges, parseHunkSpans(patch));
 }
+
+/** One file's parsed `@@` spans inside a hop. */
+export interface FileHunkSpans {
+  readonly file: string;
+  readonly hunks: readonly HunkSpan[];
+}
+
+/**
+ * One push's durable hop: the spans of every file that push touched. A file
+ * with no entry is read as untouched, so the writer owes two things — a
+ * renamed file listed under its OLD path (zero hunks is enough), and `null`
+ * instead of a hop whose file list may be incomplete (truncated compare,
+ * force-push, retarget).
+ */
+export type Hop = readonly FileHunkSpans[];
+
+function demoted(reason: string): RemapResult {
+  return { outcome: RemapOutcomes.DEMOTED, reason };
+}
+
+/**
+ * Compose a chain of hops (oldest → newest) into one remap for ONE anchor's
+ * ranges — the reviewer may have missed several pushes. A hop carries no
+ * entry for files it did not touch, so those pass through unchanged; the
+ * first hop that demotes ends the chain. Deliberately more conservative than
+ * a direct prev→newest span: a range touched then reverted demotes.
+ */
+export function remapThroughHops(
+  file: string,
+  ranges: readonly LineRange[],
+  hops: readonly (Hop | null | undefined)[],
+): RemapResult {
+  if (hops.length === 0) return demoted("no hops: nothing places this anchor");
+
+  let current = ranges;
+  for (const hop of hops) {
+    // An empty parse is indistinguishable from a failed one, and an empty
+    // push from a missing hop row.
+    if (!hop || hop.length === 0) {
+      return demoted("missing or empty hop in the chain");
+    }
+    const entry = hop.find((candidate) => candidate.file === file);
+    if (entry === undefined) continue;
+    if (entry.hunks.length === 0) {
+      return demoted(`no spans parsed for ${file}: not evidence`);
+    }
+    const result = remapRanges(current, entry.hunks);
+    if (result.outcome === RemapOutcomes.DEMOTED) return result;
+    current = result.ranges;
+  }
+  return { outcome: RemapOutcomes.REMAPPED, ranges: current };
+}

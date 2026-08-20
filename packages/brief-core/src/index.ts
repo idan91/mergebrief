@@ -70,8 +70,11 @@ export {
 export {
   parseHunkSpans,
   remapRanges,
+  remapThroughHops,
   remapThroughPatch,
   RemapOutcomes,
+  type FileHunkSpans,
+  type Hop,
   type HunkSpan,
   type RemapOutcome,
   type RemapResult,

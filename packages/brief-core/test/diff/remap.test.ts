@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
+import type {
+  FileHunkSpans,
+  Hop,
+  RemapOutcome,
+  RemapResult,
+} from "../../src/diff/remap";
+import type { LineRange } from "../../src/types";
 import {
   parseHunkSpans,
+  remapThroughHops,
   remapRanges,
   remapThroughPatch,
   RemapOutcomes,
@@ -189,5 +197,137 @@ describe("remapThroughPatch", () => {
       outcome: RemapOutcomes.REMAPPED,
       ranges: [{ start: 43, end: 47 }],
     });
+  });
+});
+
+/** The remapped ranges, or undefined for a demotion — keeps assertions flat. */
+function rangesOf(result: RemapResult): readonly LineRange[] | undefined {
+  if (result.outcome === RemapOutcomes.REMAPPED) return result.ranges;
+  return undefined;
+}
+
+describe("remapThroughHops", () => {
+  const file = "src/a.ts";
+  const anchor: LineRange[] = [{ start: 20, end: 25 }];
+  /** One hunk on `file`: 3 old lines → 6 new, entirely before the anchor (+3). */
+  const growsBefore: FileHunkSpans = {
+    file,
+    hunks: [{ oldStart: 10, oldLines: 3, newStart: 10, newLines: 6 }],
+  };
+  /** Same shape on a different file — must not move `file`'s anchor. */
+  const otherFile: FileHunkSpans = { ...growsBefore, file: "src/b.ts" };
+  /** A hunk sitting on top of the anchor. */
+  const overlapsAnchor: FileHunkSpans = {
+    file,
+    hunks: [{ oldStart: 21, oldLines: 2, newStart: 21, newLines: 9 }],
+  };
+
+  /** Overlaps 23..28 only — misses the anchor unless hop 1's output is fed in. */
+  const overlapsShiftedAnchor: FileHunkSpans = {
+    file,
+    hunks: [{ oldStart: 26, oldLines: 2, newStart: 26, newLines: 9 }],
+  };
+
+  const cases: ReadonlyArray<{
+    readonly name: string;
+    readonly hops: readonly (Hop | null | undefined)[];
+    readonly expected: RemapOutcome;
+    readonly ranges?: readonly LineRange[];
+  }> = [
+    {
+      name: "identity: every hop touches other files only",
+      hops: [[otherFile], [otherFile]],
+      expected: RemapOutcomes.REMAPPED,
+      ranges: [{ start: 20, end: 25 }],
+    },
+    {
+      name: "a single hop moves the anchor by the hunk's size delta",
+      hops: [[growsBefore]],
+      expected: RemapOutcomes.REMAPPED,
+      ranges: [{ start: 23, end: 28 }],
+    },
+    {
+      name: "three hops compose into one evaluation (7 → 8 → 9 → 10)",
+      hops: [[growsBefore], [growsBefore, otherFile], [growsBefore]],
+      expected: RemapOutcomes.REMAPPED,
+      ranges: [{ start: 29, end: 34 }],
+    },
+    {
+      name: "a hop with no entry for the anchor's file passes through",
+      hops: [[otherFile], [growsBefore]],
+      expected: RemapOutcomes.REMAPPED,
+      ranges: [{ start: 23, end: 28 }],
+    },
+    {
+      name: "demotion in the first hop short-circuits the chain",
+      hops: [[overlapsAnchor], [growsBefore]],
+      expected: RemapOutcomes.DEMOTED,
+    },
+    {
+      name: "demotion in the last hop demotes the chain",
+      hops: [[growsBefore], [overlapsShiftedAnchor]],
+      expected: RemapOutcomes.DEMOTED,
+    },
+    {
+      name: "an empty chain demotes — no hops is no evidence",
+      hops: [],
+      expected: RemapOutcomes.DEMOTED,
+    },
+    {
+      name: "a missing hop mid-chain demotes (force-push, gc'd baseline)",
+      hops: [[growsBefore], null, [growsBefore]],
+      expected: RemapOutcomes.DEMOTED,
+    },
+    {
+      name: "an undefined hop demotes (retarget: no hop row was written)",
+      hops: [undefined],
+      expected: RemapOutcomes.DEMOTED,
+    },
+    {
+      name: "a hop with an entirely empty span list demotes",
+      hops: [[growsBefore], []],
+      expected: RemapOutcomes.DEMOTED,
+    },
+    {
+      name: "zero hunks for the anchor's file demotes",
+      hops: [[{ file, hunks: [] }]],
+      expected: RemapOutcomes.DEMOTED,
+    },
+    {
+      name: "zero hunks for the anchor's file demotes beside a touched sibling",
+      hops: [[{ file, hunks: [] }, otherFile]],
+      expected: RemapOutcomes.DEMOTED,
+    },
+  ];
+
+  it.each(cases)("$name", ({ hops, expected, ranges }) => {
+    const result = remapThroughHops(file, anchor, hops);
+    expect(result.outcome).toBe(expected);
+    expect(rangesOf(result)).toEqual(ranges);
+  });
+
+  it("names the first hop's overlap when it short-circuits the chain", () => {
+    const result = remapThroughHops(file, anchor, [
+      [overlapsAnchor],
+      [growsBefore],
+    ]);
+    expect(result).toMatchObject({
+      outcome: RemapOutcomes.DEMOTED,
+      reason: expect.stringContaining("-21,2"),
+    });
+  });
+
+  it("demotes on the touching hop even when the net span shows no change", () => {
+    // Deliberate conservatism: composing hop-by-hop demotes where a direct
+    // prev→newest span would have called the range unchanged. Safe direction.
+    const grow: Hop = [
+      {
+        file,
+        hunks: [{ oldStart: 20, oldLines: 6, newStart: 20, newLines: 9 }],
+      },
+    ];
+    expect(remapThroughHops(file, anchor, [grow]).outcome).toBe(
+      RemapOutcomes.DEMOTED,
+    );
   });
 });
