@@ -37,8 +37,12 @@ export const PRODUCT_ACTION_ID = {
   // the Attention List's `clearedBy` names them: the vocabulary is what a
   // client branches on, and an id it cannot resolve to a name is worse than
   // one whose endpoint lands a PR later.
+  CREATE_DRAFT_COMMENT: "create-draft-comment",
+  UPDATE_DRAFT_COMMENT: "update-draft-comment",
   REANCHOR_DRAFT_COMMENT: "reanchor-draft-comment",
   DELETE_DRAFT_COMMENT: "delete-draft-comment",
+  SET_CHUNK_READ: "set-chunk-read",
+  RECLASSIFY_GROUP: "reclassify-group",
   DISMISS_RISK: "dismiss-risk",
   ADDRESS_RISK: "address-risk",
 } as const;

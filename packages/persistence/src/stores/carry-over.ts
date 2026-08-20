@@ -70,6 +70,12 @@ export interface PreviousWork {
 }
 
 export interface PreviousDraftComment {
+  /**
+   * The row id in the PREVIOUS session. It survives the evaluation so the
+   * payload can address a verdict that is not a row here yet, and so
+   * materialization can map that id onto the copy it lands.
+   */
+  readonly id: bigint;
   readonly filePath: string;
   readonly side: DraftCommentSide;
   readonly startLine: number;

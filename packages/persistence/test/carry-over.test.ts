@@ -30,6 +30,7 @@ import {
   type PullRequestRowId,
   type RepoId,
   type ReviewerId,
+  type ReviewSessionId,
 } from "../src/types";
 import { brandWith, freshPglite } from "./helpers";
 
@@ -127,6 +128,27 @@ async function countRows(client: PGlite, table: string): Promise<number> {
   return result.rows[0]?.n ?? -1;
 }
 
+/**
+ * A session on `briefId`, created the only way one can be: a materializing
+ * write. The fixtures below then write its owned rows through the repository.
+ */
+async function openSession(
+  world: World,
+  briefId: BriefRowId,
+  reviewerId: ReviewerId = REVIEWER,
+): Promise<ReviewSessionId> {
+  const created = await forTenant(
+    world.handle,
+    CTX,
+  ).reviewSessions.writeToSession(
+    { briefId, reviewerId, brief: artifact([], []) },
+    async (writer) => writer.session.id,
+  );
+  if (!created.ok)
+    throw new Error(`session seed failed: ${created.error.code}`);
+  return created.value;
+}
+
 /** A previous session holding one draft comment on `src/app.ts:10-12`. */
 async function seedPreviousComment(
   world: World,
@@ -134,10 +156,9 @@ async function seedPreviousComment(
   reviewerId: ReviewerId = REVIEWER,
 ): Promise<void> {
   const repo = forTenant(world.handle, CTX);
-  const session = await repo.reviewSessions.upsert({ briefId, reviewerId });
-  if (!session.ok) throw new Error("previous session seed failed");
+  const sessionId = await openSession(world, briefId, reviewerId);
   const added = await repo.reviewSessions.addDraftComment({
-    reviewSessionId: session.value.id,
+    reviewSessionId: sessionId,
     filePath: "src/app.ts",
     side: DraftCommentSide.NEW,
     startLine: 10,
@@ -318,13 +339,11 @@ async function seedPreviousWork(
   chunkIds: readonly string[] = ["c5"],
 ): Promise<void> {
   const repo = forTenant(world.handle, CTX);
-  const session = await repo.reviewSessions.upsert({
-    briefId,
-    reviewerId: REVIEWER,
-    reviewOutcome: ReviewOutcome.APPROVE,
-  });
-  if (!session.ok) throw new Error("previous session seed failed");
-  const id = session.value.id;
+  const id = await openSession(world, briefId);
+  await repo.reviewSessions.writeToSession(
+    { briefId, reviewerId: REVIEWER, brief: artifact([], []) },
+    (writer) => writer.setReviewOutcome(ReviewOutcome.APPROVE),
+  );
   await repo.reviewSessions.addDraftComment({
     reviewSessionId: id,
     filePath: "src/app.ts",
@@ -365,17 +384,25 @@ async function seedDisposition(
   regionStart: number,
   regionEnd: number,
 ): Promise<void> {
-  const session = await forTenant(world.handle, CTX).reviewSessions.upsert({
-    briefId,
-    reviewerId: REVIEWER,
-  });
-  if (!session.ok) throw new Error("disposition seed failed");
+  // Seeded with SQL, like the disposition row below: the store's write path
+  // creates a session only as a side effect of a product write, and this
+  // helper wants the row without one.
+  const seeded = await world.client.query<{ id: string }>(
+    `insert into review_session (installation_id, brief_id, reviewer_id)
+     values ($1, $2, $3)
+     on conflict (installation_id, brief_id, reviewer_id) do update
+       set reviewer_id = excluded.reviewer_id
+     returning id`,
+    [TENANT.toString(), briefId.toString(), REVIEWER.toString()],
+  );
+  const sessionId = seeded.rows[0]?.id;
+  if (sessionId === undefined) throw new Error("disposition seed failed");
   await world.client.query(
     `insert into disposition
        (installation_id, review_session_id, file_path, attribute,
         region_start, region_end, decision, decided_at)
      values ($1, $2, 'src/app.ts', 'sql-injection', $3, $4, 'dismissed', now())`,
-    [TENANT.toString(), session.value.id.toString(), regionStart, regionEnd],
+    [TENANT.toString(), sessionId, regionStart, regionEnd],
   );
 }
 
@@ -592,13 +619,9 @@ describe("preview — the rules a multi-push chain must not loosen", () => {
     const current = await seedBrief(world, 2);
     // No hop row: nothing places anything, whichever side it sits on.
     const repo = forTenant(world.handle, CTX);
-    const session = await repo.reviewSessions.upsert({
-      briefId: previous,
-      reviewerId: REVIEWER,
-    });
-    if (!session.ok) throw new Error("session seed failed");
+    const sessionId = await openSession(world, previous);
     await repo.reviewSessions.addDraftComment({
-      reviewSessionId: session.value.id,
+      reviewSessionId: sessionId,
       filePath: "src/app.ts",
       side: DraftCommentSide.OLD,
       startLine: 10,
@@ -631,11 +654,7 @@ describe("preview — the rules a multi-push chain must not loosen", () => {
       },
     ]);
     const repo = forTenant(world.handle, CTX);
-    const session = await repo.reviewSessions.upsert({
-      briefId: previous,
-      reviewerId: REVIEWER,
-    });
-    if (!session.ok) throw new Error("session seed failed");
+    const sessionId = await openSession(world, previous);
     for (const [start, end] of [
       [30, 32],
       [55, 57],
@@ -645,7 +664,7 @@ describe("preview — the rules a multi-push chain must not loosen", () => {
            (installation_id, review_session_id, file_path, attribute,
             region_start, region_end, decision, decided_at)
          values ($1, $2, 'src/app.ts', 'sql-injection', $3, $4, 'dismissed', now())`,
-        [TENANT.toString(), session.value.id.toString(), start, end],
+        [TENANT.toString(), sessionId.toString(), start, end],
       );
     }
 
@@ -671,11 +690,7 @@ describe("preview — the rules a multi-push chain must not loosen", () => {
     await seedHop(world, 1, 2);
     await seedPreviousWork(world, previous);
     const repo = forTenant(world.handle, CTX);
-    const created = await repo.reviewSessions.upsert({
-      briefId: current,
-      reviewerId: REVIEWER,
-    });
-    if (!created.ok) throw new Error("session seed failed");
+    const createdId = await openSession(world, current);
 
     const view = await repo.reviewSessions.preview({
       briefId: current,
@@ -683,7 +698,7 @@ describe("preview — the rules a multi-push chain must not loosen", () => {
       brief: artifact(["g1"], FIRING),
     });
 
-    expect(view.session?.session.id).toBe(created.value.id);
+    expect(view.session?.session.id).toBe(createdId);
     expect(view.carried.draftComments).toEqual([]);
     expect(view.carried.readMarks).toEqual([]);
     // The source still reports: "carried in" outlives the evaluation, and the
@@ -695,11 +710,7 @@ describe("preview — the rules a multi-push chain must not loosen", () => {
     const world = await freshWorld();
     const only = await seedBrief(world, 1);
     const repo = forTenant(world.handle, CTX);
-    const created = await repo.reviewSessions.upsert({
-      briefId: only,
-      reviewerId: REVIEWER,
-    });
-    if (!created.ok) throw new Error("session seed failed");
+    const createdId = await openSession(world, only);
 
     const view = await repo.reviewSessions.preview({
       briefId: only,
@@ -707,7 +718,7 @@ describe("preview — the rules a multi-push chain must not loosen", () => {
       ...NO_ARTIFACT,
     });
 
-    expect(view.session?.session.id).toBe(created.value.id);
+    expect(view.session?.session.id).toBe(createdId);
     expect(view.carriedFrom).toBeUndefined();
   });
 
@@ -727,24 +738,23 @@ describe("preview — the rules a multi-push chain must not loosen", () => {
     // one holds its carry-over as rows — neither pays for the parse, and the
     // read runs on every page load.
     expect(firstEver.calls()).toBe(0);
+    // The write that creates a first-ever session pays nothing either: there
+    // is no predecessor, so the parse would be discarded.
     const materialized = createCountingArtifact();
     await repo.reviewSessions.writeToSession(
       { briefId: first, reviewerId: REVIEWER, brief: materialized.brief },
       (writer) => writer.putReadMark({ chunkId: "c1" }),
     );
-    expect(materialized.calls()).toBe(1);
     await repo.reviewSessions.writeToSession(
       { briefId: first, reviewerId: REVIEWER, brief: materialized.brief },
       (writer) => writer.putReadMark({ chunkId: "c2" }),
     );
-    const afterSecondWrite = materialized.calls();
     await repo.reviewSessions.preview({
       briefId: first,
       reviewerId: REVIEWER,
       brief: materialized.brief,
     });
-    expect(materialized.calls()).toBe(1);
-    expect(afterSecondWrite).toBe(1);
+    expect(materialized.calls()).toBe(0);
   });
 
   it("reads the Brief body exactly once when a carry-over is pending", async () => {
@@ -772,13 +782,9 @@ describe("old-side drafts against the PR base", () => {
     briefId: BriefRowId,
   ): Promise<void> {
     const repo = forTenant(world.handle, CTX);
-    const session = await repo.reviewSessions.upsert({
-      briefId,
-      reviewerId: REVIEWER,
-    });
-    if (!session.ok) throw new Error("session seed failed");
+    const sessionId = await openSession(world, briefId);
     const added = await repo.reviewSessions.addDraftComment({
-      reviewSessionId: session.value.id,
+      reviewSessionId: sessionId,
       filePath: "src/app.ts",
       side: DraftCommentSide.OLD,
       startLine: 10,
@@ -886,6 +892,38 @@ describe("writeToSession — the first write, one transaction", () => {
     );
     expect(snapshot?.dispositions.map((row) => row.carryStatus)).toEqual([
       "settled",
+    ]);
+  });
+
+  it("addresses a carried draft by the row it was copied from", async () => {
+    const { world, current } = await pending();
+    const repo = forTenant(world.handle, CTX);
+    const previewed = await repo.reviewSessions.preview({
+      briefId: current,
+      reviewerId: REVIEWER,
+      ...QUERY,
+    });
+    const sourceId = previewed.carried.draftComments[0]?.id;
+
+    // The id the read handed out, used AFTER a different write materialized —
+    // it still names the copy, because the copy points back at its source.
+    await repo.reviewSessions.writeToSession(
+      { briefId: current, reviewerId: REVIEWER, ...QUERY },
+      (writer) => writer.putReadMark({ chunkId: "c5" }),
+    );
+    const edited = await repo.reviewSessions.writeToSession(
+      { briefId: current, reviewerId: REVIEWER, ...QUERY },
+      (writer) =>
+        writer.updateDraftComment(sourceId ?? 0n, { body: "re-worded" }),
+    );
+
+    expect(edited.ok && edited.value?.body).toBe("re-worded");
+    const snapshot = await repo.reviewSessions.get({
+      briefId: current,
+      reviewerId: REVIEWER,
+    });
+    expect(snapshot?.draftComments.map((row) => row.body)).toEqual([
+      "re-worded",
     ]);
   });
 

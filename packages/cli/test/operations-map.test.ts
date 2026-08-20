@@ -299,7 +299,7 @@ describe("the committed catalog", () => {
     // The counts grow with each Review Session PR that lands operations.
     expect(result).toEqual({
       ok: true,
-      value: { commands: 9, gaps: 10, webOnly: 5 },
+      value: { commands: 9, gaps: 16, webOnly: 5 },
     });
   });
 });

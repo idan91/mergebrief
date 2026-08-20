@@ -1,7 +1,23 @@
 {
+  "create-draft-comment": {
+    "gap": {
+      "reason": "No mergebrief command drafts review comments; Review Session authoring ships with the CLI surface",
+      "owner": "idan",
+      "ticket": "BRIEF-201",
+      "expiry": "2026-12-31"
+    }
+  },
   "create-inline-comment": {
     "gap": {
       "reason": "No mergebrief command yet; inline-comment authoring ships with the Review Session CLI surface",
+      "owner": "idan",
+      "ticket": "BRIEF-201",
+      "expiry": "2026-12-31"
+    }
+  },
+  "delete-draft-comment": {
+    "gap": {
+      "reason": "No mergebrief command deletes a draft comment; Review Session authoring ships with the CLI surface",
       "owner": "idan",
       "ticket": "BRIEF-201",
       "expiry": "2026-12-31"
@@ -51,7 +67,7 @@
   },
   "mint-token": {
     "webOnly": {
-      "reason": "Minting a credential is a browser act — /api/auth/* ignores Bearer headers so a stolen token cannot mint another",
+      "reason": "Minting a credential is a browser act \u2014 /api/auth/* ignores Bearer headers so a stolen token cannot mint another",
       "owner": "idan"
     }
   },
@@ -102,6 +118,22 @@
       "expiry": "2026-12-31"
     }
   },
+  "reanchor-draft-comment": {
+    "gap": {
+      "reason": "No mergebrief command re-anchors an orphaned draft; Review Session authoring ships with the CLI surface",
+      "owner": "idan",
+      "ticket": "BRIEF-201",
+      "expiry": "2026-12-31"
+    }
+  },
+  "reclassify-group": {
+    "gap": {
+      "reason": "No mergebrief command reclassifies a Change group; Review Session authoring ships with the CLI surface",
+      "owner": "idan",
+      "ticket": "BRIEF-201",
+      "expiry": "2026-12-31"
+    }
+  },
   "reply-to-comment": {
     "command": "mergebrief reply <commentId>"
   },
@@ -125,12 +157,28 @@
       "owner": "idan"
     }
   },
+  "set-chunk-read": {
+    "gap": {
+      "reason": "No mergebrief command marks a Chunk read; Review Session authoring ships with the CLI surface",
+      "owner": "idan",
+      "ticket": "BRIEF-201",
+      "expiry": "2026-12-31"
+    }
+  },
   "submit-review": {
     "command": "mergebrief submit <number>"
   },
   "unresolve-thread": {
     "gap": {
       "reason": "No mergebrief command yet; thread resolution ships with the Review Session CLI surface",
+      "owner": "idan",
+      "ticket": "BRIEF-201",
+      "expiry": "2026-12-31"
+    }
+  },
+  "update-draft-comment": {
+    "gap": {
+      "reason": "No mergebrief command edits a draft comment; Review Session authoring ships with the CLI surface",
       "owner": "idan",
       "ticket": "BRIEF-201",
       "expiry": "2026-12-31"

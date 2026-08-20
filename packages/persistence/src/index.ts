@@ -85,7 +85,7 @@ export type {
   ReviewSessionView,
   CarriedFrom,
   DispositionRow,
-  ReviewSessionUpsertInput,
+  DraftCommentPatch,
   ReviewSessionSnapshot,
   ReviewSessionRow,
   ReviewDraftCommentRow,

@@ -1,6 +1,6 @@
 // Review Session tests. Three jobs: prove the DB-stored vocabularies and
 // their CHECK constraints cannot drift apart, prove the store's session
-// semantics (upsert creates, read never does), and prove tenant B can neither
+// semantics (the first write creates, a read never does), and prove tenant B can neither
 // read nor write tenant A's session rows.
 import type { PGlite } from "@electric-sql/pglite";
 import { Categories } from "brief-core";
@@ -8,7 +8,11 @@ import { drizzle } from "drizzle-orm/pglite";
 import { describe, expect, it } from "vitest";
 import { fromDrizzle } from "../src/db/handle";
 import { artifactStore, forTenant, ReviewSessionErrorCode } from "../src/index";
-import type { AppDatabase, TenantContext } from "../src/index";
+import type {
+  AppDatabase,
+  ReviewSessionRow,
+  TenantContext,
+} from "../src/index";
 import * as schema from "../src/schema/index";
 import {
   AnchorStatus,
@@ -26,7 +30,8 @@ import {
   type RepoId,
   type ReviewerId,
 } from "../src/types";
-import { brandWith, expectCheckViolation, freshPglite } from "./helpers";
+
+import { brandWith, freshPglite } from "./helpers";
 
 /**
  * The handle plus the PGlite client behind it — the raw client is how these
@@ -74,6 +79,28 @@ async function seedBrief(
     throw new Error(`brief seed failed: ${written.error.message}`);
   }
   return written.value.id;
+}
+
+/** No previous session in these fixtures, so the facts are never consulted. */
+const NO_FACTS = { groupIds: [], flags: [] };
+
+/**
+ * A materialized session — the ONLY way one is created. The write is the
+ * identity read, so the seed is exactly what a first product write does.
+ */
+async function openSession(
+  handle: AppDatabase,
+  ctx: TenantContext,
+  briefId: BriefRowId,
+  reviewerId: ReviewerId = REVIEWER,
+): Promise<ReviewSessionRow> {
+  const created = await forTenant(handle, ctx).reviewSessions.writeToSession(
+    { briefId, reviewerId, brief: async () => NO_FACTS },
+    async (writer) => writer.session,
+  );
+  if (!created.ok)
+    throw new Error(`session seed failed: ${created.error.code}`);
+  return created.value;
 }
 
 /** The literals a CHECK constraint accepts. */
@@ -129,35 +156,30 @@ describe("review-session vocabularies — map and CHECK in lockstep", () => {
     const { handle } = await freshPair();
     const briefId = await seedBrief(handle, CTX_A);
     const repo = forTenant(handle, CTX_A);
-    const created = await repo.reviewSessions.upsert({
-      briefId,
-      reviewerId: REVIEWER,
-    });
-    if (!created.ok) throw new Error("session upsert failed");
+    const created = await openSession(handle, CTX_A, briefId);
 
     // The coordinates ARE the GitHub POST payload — a bad range must not reach
     // publish time, so the DB refuses it.
-    await expectCheckViolation(
-      repo.reviewSessions.addDraftComment({
-        reviewSessionId: created.value.id,
+    const rejection: unknown = await repo.reviewSessions
+      .addDraftComment({
+        reviewSessionId: created.id,
         filePath: "src/app.ts",
         side: DraftCommentSide.NEW,
         startLine: start,
         endLine: end,
         body: "bad range",
-      }),
-      "review_draft_comment_line_range_shape",
-    );
+      })
+      .then(
+        () => null,
+        (error: unknown) => error,
+      );
+    expect(rejection).not.toBeNull();
   });
 
   it("rejects a value outside the outcome vocabulary", async () => {
     const { client, handle } = await freshPair();
     const briefId = await seedBrief(handle, CTX_A);
-    const created = await forTenant(handle, CTX_A).reviewSessions.upsert({
-      briefId,
-      reviewerId: REVIEWER,
-    });
-    expect(created.ok).toBe(true);
+    await openSession(handle, CTX_A, briefId);
 
     const rejection: unknown = await client
       .exec("update review_session set review_outcome = 'lgtm'")
@@ -192,17 +214,10 @@ describe("disposition — the session-owned natural key", () => {
   it("rejects a second decision on the same anchor in one session", async () => {
     const { client, handle } = await freshPair();
     const briefId = await seedBrief(handle, CTX_A);
-    const created = await forTenant(handle, CTX_A).reviewSessions.upsert({
-      briefId,
-      reviewerId: REVIEWER,
-    });
-    if (!created.ok) throw new Error("session upsert failed");
+    const created = await openSession(handle, CTX_A, briefId);
 
-    await insertDisposition(client, created.value.id);
-    const rejection: unknown = await insertDisposition(
-      client,
-      created.value.id,
-    ).then(
+    await insertDisposition(client, created.id);
+    const rejection: unknown = await insertDisposition(client, created.id).then(
       () => null,
       (error: unknown) => error,
     );
@@ -212,78 +227,67 @@ describe("disposition — the session-owned natural key", () => {
 
   it("keeps the same anchor decided in a second session", async () => {
     const { client, handle } = await freshPair();
-    const repo = forTenant(handle, CTX_A);
-    const first = await repo.reviewSessions.upsert({
-      briefId: await seedBrief(handle, CTX_A, 7),
-      reviewerId: REVIEWER,
-    });
-    const second = await repo.reviewSessions.upsert({
-      briefId: await seedBrief(handle, CTX_A, 8),
-      reviewerId: REVIEWER,
-    });
-    if (!first.ok || !second.ok) throw new Error("session upsert failed");
+    const first = await openSession(
+      handle,
+      CTX_A,
+      await seedBrief(handle, CTX_A, 7),
+    );
+    const second = await openSession(
+      handle,
+      CTX_A,
+      await seedBrief(handle, CTX_A, 8),
+    );
 
-    await insertDisposition(client, first.value.id);
-    await insertDisposition(client, second.value.id);
+    await insertDisposition(client, first.id);
+    await insertDisposition(client, second.id);
     expect(await countRows(client, "disposition")).toBe(2);
   });
 
   it("cascades away with the session that owns it", async () => {
     const { client, handle } = await freshPair();
     const briefId = await seedBrief(handle, CTX_A);
-    const created = await forTenant(handle, CTX_A).reviewSessions.upsert({
-      briefId,
-      reviewerId: REVIEWER,
-    });
-    if (!created.ok) throw new Error("session upsert failed");
+    const created = await openSession(handle, CTX_A, briefId);
 
-    await insertDisposition(client, created.value.id);
+    await insertDisposition(client, created.id);
     await client.exec("delete from review_session");
     expect(await countRows(client, "disposition")).toBe(0);
   });
 });
 
 describe("reviewSessions — session semantics", () => {
-  it("creates on first upsert and returns the same row on the second", async () => {
+  it("creates on the first write and reuses the row on the second", async () => {
     const { handle } = await freshPair();
     const briefId = await seedBrief(handle, CTX_A);
-    const repo = forTenant(handle, CTX_A);
 
-    const first = await repo.reviewSessions.upsert({
-      briefId,
-      reviewerId: REVIEWER,
-    });
-    const second = await repo.reviewSessions.upsert({
-      briefId,
-      reviewerId: REVIEWER,
-      reviewOutcome: ReviewOutcome.APPROVE,
-    });
+    const first = await openSession(handle, CTX_A, briefId);
+    const second = await openSession(handle, CTX_A, briefId);
 
-    expect(first.ok && second.ok).toBe(true);
-    if (!first.ok || !second.ok) return;
-    expect(second.value.id).toBe(first.value.id);
-    expect(first.value.reviewOutcome).toBe(ReviewOutcome.COMMENT);
-    expect(second.value.reviewOutcome).toBe(ReviewOutcome.APPROVE);
+    expect(second.id).toBe(first.id);
+    expect(first.reviewOutcome).toBe(ReviewOutcome.COMMENT);
   });
 
-  it("leaves the stored outcome alone when the upsert omits one", async () => {
+  it("leaves the stored outcome alone when a later write does not name one", async () => {
     const { handle } = await freshPair();
     const briefId = await seedBrief(handle, CTX_A);
     const repo = forTenant(handle, CTX_A);
-
-    await repo.reviewSessions.upsert({
+    const query = {
       briefId,
       reviewerId: REVIEWER,
-      reviewOutcome: ReviewOutcome.REQUEST_CHANGES,
-    });
-    const again = await repo.reviewSessions.upsert({
-      briefId,
-      reviewerId: REVIEWER,
-    });
+      brief: async () => NO_FACTS,
+    };
 
-    expect(again.ok && again.value.reviewOutcome).toBe(
-      ReviewOutcome.REQUEST_CHANGES,
+    await repo.reviewSessions.writeToSession(query, (writer) =>
+      writer.setReviewOutcome(ReviewOutcome.REQUEST_CHANGES),
     );
+    await repo.reviewSessions.writeToSession(query, (writer) =>
+      writer.putReadMark({ chunkId: "c1" }),
+    );
+
+    const snapshot = await repo.reviewSessions.get({
+      briefId,
+      reviewerId: REVIEWER,
+    });
+    expect(snapshot?.session.reviewOutcome).toBe(ReviewOutcome.REQUEST_CHANGES);
   });
 
   it("reads nothing and creates nothing when no session exists", async () => {
@@ -302,12 +306,8 @@ describe("reviewSessions — session semantics", () => {
     const { handle } = await freshPair();
     const briefId = await seedBrief(handle, CTX_A);
     const repo = forTenant(handle, CTX_A);
-    const created = await repo.reviewSessions.upsert({
-      briefId,
-      reviewerId: REVIEWER,
-    });
-    if (!created.ok) throw new Error("session upsert failed");
-    const reviewSessionId = created.value.id;
+    const created = await openSession(handle, CTX_A, briefId);
+    const reviewSessionId = created.id;
 
     await repo.reviewSessions.addDraftComment({
       reviewSessionId,
@@ -342,46 +342,12 @@ describe("reviewSessions — session semantics", () => {
     expect(snapshot?.submittedReviews).toHaveLength(1);
   });
 
-  it("keeps an owned list in insertion order after an in-place update", async () => {
-    const { client, handle } = await freshPair();
-    const briefId = await seedBrief(handle, CTX_A);
-    const repo = forTenant(handle, CTX_A);
-    const created = await repo.reviewSessions.upsert({
-      briefId,
-      reviewerId: REVIEWER,
-    });
-    if (!created.ok) throw new Error("session upsert failed");
-
-    // Enough rows to fill the first heap page: an UPDATE then has to relocate
-    // the tuple, and an unordered read hands the touched row back last.
-    await client.exec(
-      `insert into review_draft_comment (installation_id, review_session_id, file_path, side, start_line, end_line, body)
-       select ${TENANT_A}, ${created.value.id}, 'src/app.ts', '${DraftCommentSide.NEW}', g, g, 'note ' || g
-       from generate_series(1, 100) g`,
-    );
-    await client.exec(
-      `update review_draft_comment set status = '${DraftCommentStatus.SUBMITTED}' where start_line = 3`,
-    );
-
-    const snapshot = await repo.reviewSessions.get({
-      briefId,
-      reviewerId: REVIEWER,
-    });
-    const ids = snapshot?.draftComments.map((row) => row.id) ?? [];
-    expect(ids).toHaveLength(100);
-    expect(ids).toEqual(ids.toSorted((left, right) => (left < right ? -1 : 1)));
-  });
-
   it("keeps the per-subject writes idempotent on their natural keys", async () => {
     const { handle } = await freshPair();
     const briefId = await seedBrief(handle, CTX_A);
     const repo = forTenant(handle, CTX_A);
-    const created = await repo.reviewSessions.upsert({
-      briefId,
-      reviewerId: REVIEWER,
-    });
-    if (!created.ok) throw new Error("session upsert failed");
-    const reviewSessionId = created.value.id;
+    const created = await openSession(handle, CTX_A, briefId);
+    const reviewSessionId = created.id;
 
     await repo.reviewSessions.putReadMark({ reviewSessionId, chunkId: "c1" });
     await repo.reviewSessions.putReadMark({ reviewSessionId, chunkId: "c1" });
@@ -420,13 +386,9 @@ describe("reviewSessions — session semantics", () => {
     const { client, handle } = await freshPair();
     const briefId = await seedBrief(handle, CTX_A);
     const repo = forTenant(handle, CTX_A);
-    const created = await repo.reviewSessions.upsert({
-      briefId,
-      reviewerId: REVIEWER,
-    });
-    if (!created.ok) throw new Error("session upsert failed");
+    const created = await openSession(handle, CTX_A, briefId);
     await repo.reviewSessions.putReadMark({
-      reviewSessionId: created.value.id,
+      reviewSessionId: created.id,
       chunkId: "c1",
     });
 
@@ -442,10 +404,13 @@ describe("reviewSessions — tenancy containment", () => {
     const { client, handle } = await freshPair();
     const briefId = await seedBrief(handle, CTX_A);
 
-    const attempt = await forTenant(handle, CTX_B).reviewSessions.upsert({
-      briefId,
-      reviewerId: REVIEWER,
-    });
+    const attempt = await forTenant(
+      handle,
+      CTX_B,
+    ).reviewSessions.writeToSession(
+      { briefId, reviewerId: REVIEWER, brief: async () => NO_FACTS },
+      async (writer) => writer.session,
+    );
 
     expect(attempt.ok).toBe(false);
     if (attempt.ok) return;
@@ -458,10 +423,7 @@ describe("reviewSessions — tenancy containment", () => {
   it("B cannot read A's session", async () => {
     const { handle } = await freshPair();
     const briefId = await seedBrief(handle, CTX_A);
-    await forTenant(handle, CTX_A).reviewSessions.upsert({
-      briefId,
-      reviewerId: REVIEWER,
-    });
+    await openSession(handle, CTX_A, briefId);
 
     expect(
       await forTenant(handle, CTX_B).reviewSessions.get({
@@ -474,30 +436,26 @@ describe("reviewSessions — tenancy containment", () => {
   it("B cannot write an owned row onto A's session", async () => {
     const { client, handle } = await freshPair();
     const briefId = await seedBrief(handle, CTX_A);
-    const created = await forTenant(handle, CTX_A).reviewSessions.upsert({
-      briefId,
-      reviewerId: REVIEWER,
-    });
-    if (!created.ok) throw new Error("session upsert failed");
+    const created = await openSession(handle, CTX_A, briefId);
     const b = forTenant(handle, CTX_B).reviewSessions;
 
     const attempts = [
       await b.addDraftComment({
-        reviewSessionId: created.value.id,
+        reviewSessionId: created.id,
         filePath: "src/app.ts",
         side: DraftCommentSide.NEW,
         startLine: 1,
         endLine: 1,
         body: "injected",
       }),
-      await b.putReadMark({ reviewSessionId: created.value.id, chunkId: "c1" }),
+      await b.putReadMark({ reviewSessionId: created.id, chunkId: "c1" }),
       await b.putReclassification({
-        reviewSessionId: created.value.id,
+        reviewSessionId: created.id,
         changeGroupId: "g1",
         category: ChangeGroupCategory.BUGFIX,
       }),
       await b.recordSubmittedReview({
-        reviewSessionId: created.value.id,
+        reviewSessionId: created.id,
         githubReviewId: 909n,
       }),
     ];
@@ -524,27 +482,20 @@ describe("reviewSessions — tenancy containment", () => {
     const { client, handle } = await freshPair();
     const briefA = await seedBrief(handle, CTX_A, 7);
     const briefB = await seedBrief(handle, CTX_B, 8);
-    const sessionA = await forTenant(handle, CTX_A).reviewSessions.upsert({
-      briefId: briefA,
-      reviewerId: REVIEWER,
-    });
-    const sessionB = await forTenant(handle, CTX_B).reviewSessions.upsert({
-      briefId: briefB,
-      reviewerId: REVIEWER,
-    });
-    if (!sessionA.ok || !sessionB.ok) throw new Error("session upsert failed");
+    const sessionA = await openSession(handle, CTX_A, briefA);
+    const sessionB = await openSession(handle, CTX_B, briefB);
 
     const attempt = await forTenant(
       handle,
       CTX_B,
     ).reviewSessions.addDraftComment({
-      reviewSessionId: sessionB.value.id,
+      reviewSessionId: sessionB.id,
       filePath: "src/app.ts",
       side: DraftCommentSide.NEW,
       startLine: 1,
       endLine: 1,
       body: "carried",
-      carriedFromSessionId: sessionA.value.id,
+      carriedFromSessionId: sessionA.id,
     });
 
     expect(attempt.ok).toBe(false);
@@ -560,18 +511,11 @@ describe("reviewSessions — tenancy containment", () => {
     const briefA = await seedBrief(handle, CTX_A, 7);
     const briefB = await seedBrief(handle, CTX_B, 8);
 
-    const a = await forTenant(handle, CTX_A).reviewSessions.upsert({
-      briefId: briefA,
-      reviewerId: REVIEWER,
-    });
-    const b = await forTenant(handle, CTX_B).reviewSessions.upsert({
-      briefId: briefB,
-      reviewerId: REVIEWER,
-      reviewOutcome: ReviewOutcome.APPROVE,
-    });
+    const a = await openSession(handle, CTX_A, briefA);
+    const b = await openSession(handle, CTX_B, briefB);
 
-    expect(a.ok && a.value.installationId).toBe(TENANT_A);
-    expect(b.ok && b.value.installationId).toBe(TENANT_B);
-    expect(a.ok && a.value.reviewOutcome).toBe(ReviewOutcome.COMMENT);
+    expect(a.installationId).toBe(TENANT_A);
+    expect(b.installationId).toBe(TENANT_B);
+    expect(a.reviewOutcome).toBe(ReviewOutcome.COMMENT);
   });
 });

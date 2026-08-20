@@ -172,10 +172,10 @@ projection folded into its payload, and the second derivation in
 `clearedBy` is a non-empty list of operation ids. Model: Opus 5, high.
 Performance-reviewer.
 
-### PR 11 `feat(api): draft comments, replies, read marks, reclassification` (~700 LOC)
+### PR 11 `feat(api): draft comments, read marks, reclassification` (~700 LOC)
 `create-draft-comment`, `update-draft-comment`, `reanchor-draft-comment`,
-`delete-draft-comment`, `save-draft-reply`, `set-chunk-read` (one operation
-carrying a boolean), `reclassify-group`. Every write names its Brief
+`delete-draft-comment`, `set-chunk-read` (one operation carrying a boolean),
+`reclassify-group`. Every write names its Brief
 explicitly; every write can be the one that materialises carry-over.
 Model: Opus 5, high.
 

@@ -412,6 +412,16 @@ resolves to an operation in §9.
 There is **no `clearableBy` field** in v1. It is additive later and no client
 breaks, because the CLI branches on `clearedBy`.
 
+**The subject of a draft-comment item always carries an id**, on both sides of
+materialization — before it, the previous session's row, which exists. One
+addressing form (`:draftId`), no anchor-addressed second shape. Every copy
+records the row it was carried from, so a draft-addressed write reaches the
+session's own row or the copy of the row the id names, whichever it holds — the
+id the reviewer read stays good for the write that materializes and for every
+write after it, which is what makes an attention list of several items walkable.
+An id that matches neither is a 404. A disposition subject carries no id: every
+operation that clears one addresses it by its anchor.
+
 ### 4.5 Clearing is human-only
 
 Whatever scope was granted, clearing an attention item is a human action.
@@ -848,7 +858,7 @@ reader.
 ## 9. The operation surface
 
 **34 operations: 14 queries, 20 actions** — 14 `read`, 14 `private-write`,
-6 `external-write`. Twelve are new, eleven of the existing 23 are unchanged,
+6 `external-write`. Eleven are new, eleven of the existing 23 are unchanged,
 twelve take an amendment, none is deleted.
 
 ### 9.1 The twelve new operations
@@ -924,7 +934,6 @@ and has never had a caller — `useRiskFlagModalsFacade.ts:87`/`:120` pass only
 | `saveComment` | `create-draft-comment` |
 | `updateComment` | `update-draft-comment` |
 | `deleteComment` | `delete-draft-comment` |
-| `setReplyDraft` | `save-draft-reply` |
 | `setOutcome` | `set-review-outcome` |
 | `toggleComment` | none — local view state |
 | `markCommentsSubmitted`, `recordSubmittedReview` | none — server-side effects of `submit-review` |
@@ -960,7 +969,7 @@ and has never had a caller — `useRiskFlagModalsFacade.ts:87`/`:120` pass only
 
 ### 9.6 Final CLI-map shape
 
-**9 commands, 21 gaps, 5 web-only = 35.**
+**9 commands, 20 gaps, 5 web-only = 34.**
 
 - **Closed as corrections:** `list-tokens` and `list-installations` become
   `webOnly`. Both are `/api/auth/*`, both return 401 to every token, so their

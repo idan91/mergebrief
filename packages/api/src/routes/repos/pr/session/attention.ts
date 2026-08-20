@@ -20,7 +20,7 @@ import type { ValueOf } from "types";
 import {
   PRODUCT_ACTION_ID,
   type ProductActionId,
-} from "../../../product-operations/ids";
+} from "../../../../product-operations/ids";
 
 /**
  * The displayed kind. `MISSING_EVIDENCE` is the persistence vocabulary's own
@@ -61,7 +61,10 @@ const CLEARED_BY = {
 
 export interface AttentionSubject {
   readonly type: AttentionSubjectType;
-  /** `null` until the session materializes — a verdict in memory has no row. */
+  /**
+   * A draft comment always names one — the previous session's row until this
+   * one writes. `null` only for a disposition, addressed by its anchor.
+   */
   readonly id: string | null;
 }
 
@@ -78,9 +81,13 @@ export interface AttentionItem {
   readonly clearedBy: ClearedBy;
 }
 
-/** A draft comment as the projection reads it — a row, or a carried verdict. */
+/**
+ * A draft comment as the projection reads it — a row, or a carried verdict.
+ * Both name a row: a carried one names the previous session's, which is what
+ * makes the item's `clearedBy` operations addressable before materialization.
+ */
 export interface AttentionDraftComment {
-  readonly id?: bigint;
+  readonly id: bigint;
   readonly filePath: string;
   readonly startLine: number;
   readonly endLine: number;

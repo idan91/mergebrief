@@ -5,14 +5,13 @@
 // it.
 //
 // Two rules this file exists to enforce:
-//   (a) there is no Begin operation — `upsert` is idempotent on
-//       (installation_id, brief_id, reviewer_id), so the first write creates
-//       the session and `get` never creates anything;
+//   (a) there is no Begin operation — `writeToSession` creates the session on
+//       the first write and `get` never creates anything;
 //   (b) a write naming a parent (`brief` for the session, `review_session`
 //       for an owned row) resolves that parent within ctx's tenant in the
 //       SAME transaction — a parent in another tenant yields a Result error,
 //       never a DB write.
-import { and, asc, desc, eq, gt, gte, inArray, lt, lte } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, lt, lte, or } from "drizzle-orm";
 import type { Hop } from "brief-core/remap";
 import type { AppDrizzle } from "../db/handle";
 import { brief } from "../schema/brief";
@@ -91,11 +90,6 @@ export interface ReviewSessionKey {
   readonly reviewerId: ReviewerId;
 }
 
-export interface ReviewSessionUpsertInput extends ReviewSessionKey {
-  /** Omitted leaves the stored outcome (or the `comment` default) alone. */
-  readonly reviewOutcome?: ReviewOutcome;
-}
-
 export interface DraftCommentInput {
   readonly reviewSessionId: ReviewSessionId;
   readonly filePath: string;
@@ -106,6 +100,20 @@ export interface DraftCommentInput {
   readonly status?: DraftCommentStatus;
   readonly anchorStatus?: AnchorStatus | null;
   readonly carriedFromSessionId?: ReviewSessionId | null;
+}
+
+/**
+ * An edit to a stored draft — only the named fields move. A re-anchor names
+ * the coordinates AND clears `anchorStatus`: the human placed it, so the
+ * carry-over's verdict on it is settled.
+ */
+export interface DraftCommentPatch {
+  readonly body?: string;
+  readonly filePath?: string;
+  readonly side?: DraftCommentSide;
+  readonly startLine?: number;
+  readonly endLine?: number;
+  readonly anchorStatus?: AnchorStatus | null;
 }
 
 export interface ReadMarkInput {
@@ -207,9 +215,21 @@ export interface SessionWriter {
   addDraftComment(
     input: Omit<DraftCommentInput, "reviewSessionId" | "carriedFromSessionId">,
   ): Promise<ReviewDraftCommentRow>;
+  /**
+   * Edit a draft this session holds — its own row, or the copy of a carried
+   * one named by the id it was copied from. `undefined` when it holds neither.
+   */
+  updateDraftComment(
+    id: bigint,
+    patch: DraftCommentPatch,
+  ): Promise<ReviewDraftCommentRow | undefined>;
+  /** Drop such a draft, returning the row that went; `undefined` when none did. */
+  deleteDraftComment(id: bigint): Promise<bigint | undefined>;
   putReadMark(
     input: Omit<ReadMarkInput, "reviewSessionId">,
   ): Promise<ReviewReadMarkRow>;
+  /** Drop a Chunk's read mark, if any — the unread half of `set-chunk-read`. */
+  clearReadMark(chunkId: string): Promise<void>;
   putReclassification(
     input: Omit<ReclassificationInput, "reviewSessionId">,
   ): Promise<ReviewGroupReclassificationRow>;
@@ -223,15 +243,6 @@ export interface SessionWriter {
 }
 
 export interface ReviewSessionRepository {
-  /**
-   * Idempotent create-or-fetch on the session key. NOT the product write path:
-   * it creates the session WITHOUT carrying the previous one's work over and
-   * without the freeze check, and a session created this way can never receive
-   * that carry-over afterwards. Product operations go through `writeToSession`.
-   */
-  upsert(
-    input: ReviewSessionUpsertInput,
-  ): Promise<Result<ReviewSessionRow, ReviewSessionError>>;
   /** Read by key. Absence is a normal `undefined` — never a create. */
   get(key: ReviewSessionKey): Promise<ReviewSessionSnapshot | undefined>;
   /** Append a draft comment. Addressed by its row id thereafter. */
@@ -350,18 +361,6 @@ export function reviewSessionRepository(
   db: AppDrizzle,
   installationId: InstallationId,
 ): ReviewSessionRepository {
-  /** Rule (b) for the session itself: the Brief must be in ctx's tenant. */
-  async function briefInTenant(tx: Tx, briefId: BriefRowId): Promise<boolean> {
-    const rows = await tx
-      .select({ id: brief.id })
-      .from(brief)
-      .where(
-        and(eq(brief.installationId, installationId), eq(brief.id, briefId)),
-      )
-      .limit(1);
-    return rows[0] !== undefined;
-  }
-
   /**
    * Rule (b) for owned rows: every session id the write names — the owning
    * one and any `carried_from` reference — must be in ctx's tenant. Returns
@@ -520,6 +519,7 @@ export function reviewSessionRepository(
       await Promise.all([
         tx
           .select({
+            id: reviewDraftComment.id,
             filePath: reviewDraftComment.filePath,
             side: reviewDraftComment.side,
             startLine: reviewDraftComment.startLine,
@@ -619,7 +619,30 @@ export function reviewSessionRepository(
     });
   }
 
-  /** The owned inserts, bound to one open transaction and one session id. */
+  /**
+   * The row this session holds for `id` — its own, or the copy of the carried
+   * row `id` named. At most one matches: ids come from one sequence, so a
+   * source id is never also a row id here.
+   */
+  function addressedDraft(sessionId: ReviewSessionId, id: bigint) {
+    return and(
+      ownedBy(sessionId),
+      or(
+        eq(reviewDraftComment.id, id),
+        eq(reviewDraftComment.carriedFromCommentId, id),
+      ),
+    );
+  }
+
+  /** A stored draft is addressable only through the session that owns it. */
+  function ownedBy(sessionId: ReviewSessionId) {
+    return and(
+      eq(reviewDraftComment.installationId, installationId),
+      eq(reviewDraftComment.reviewSessionId, sessionId),
+    );
+  }
+
+  /** The owned writes, bound to one open transaction and one session id. */
   function insertsForSession(
     tx: Tx,
     sessionId: ReviewSessionId,
@@ -645,6 +668,21 @@ export function reviewSessionRepository(
           "review_draft_comment",
         );
       },
+      async updateDraftComment(id, patch) {
+        const rows = await tx
+          .update(reviewDraftComment)
+          .set(patch)
+          .where(addressedDraft(sessionId, id))
+          .returning();
+        return rows[0];
+      },
+      async deleteDraftComment(id) {
+        const rows = await tx
+          .delete(reviewDraftComment)
+          .where(addressedDraft(sessionId, id))
+          .returning({ id: reviewDraftComment.id });
+        return rows[0]?.id;
+      },
       async putReadMark(input) {
         return only(
           await tx
@@ -661,6 +699,19 @@ export function reviewSessionRepository(
             .returning(),
           "review_read_mark",
         );
+      },
+      async clearReadMark(chunkId) {
+        await tx
+          .delete(reviewReadMark)
+          .where(
+            and(
+              eq(reviewReadMark.chunkId, chunkId),
+              and(
+                eq(reviewReadMark.installationId, installationId),
+                eq(reviewReadMark.reviewSessionId, sessionId),
+              ),
+            ),
+          );
       },
       async putReclassification(input) {
         return only(
@@ -787,6 +838,9 @@ export function reviewSessionRepository(
             body: row.body,
             anchorStatus: row.anchorStatus,
             carriedFromSessionId,
+            // The source row, so a write naming the id the read handed out
+            // reaches this copy on every write, not just the first.
+            carriedFromCommentId: row.id,
           })),
         ),
       );
@@ -891,6 +945,25 @@ export function reviewSessionRepository(
     return rows[0];
   }
 
+  /**
+   * The Brief facts a materialization would evaluate against, or `undefined`
+   * when there is nothing to evaluate — the session already exists, or it is
+   * the reviewer's first on this PR. Both skip the Brief-body parse entirely.
+   */
+  async function carryFacts(
+    query: CarryOverQuery,
+  ): Promise<BriefCarryFacts | undefined> {
+    if ((await findSession(query)) !== undefined) {
+      return undefined;
+    }
+    const facts = await briefFacts(db, query.briefId);
+    if (facts === undefined) {
+      return undefined;
+    }
+    const previous = await previousSession(db, facts, query.reviewerId);
+    return previous === undefined ? undefined : query.brief();
+  }
+
   /** The session and everything it owns, or `undefined` — never a create. */
   async function snapshotFor(
     key: ReviewSessionKey,
@@ -968,61 +1041,17 @@ export function reviewSessionRepository(
   }
 
   return {
-    async upsert(input) {
-      return db.transaction(async (tx) => {
-        if (!(await briefInTenant(tx, input.briefId))) {
-          return fail(
-            ReviewSessionErrorCode.PARENT_NOT_IN_TENANT,
-            `brief ${input.briefId} not in tenant ${installationId}`,
-          );
-        }
-        const rows = await tx
-          .insert(reviewSession)
-          .values({
-            installationId,
-            briefId: input.briefId,
-            reviewerId: input.reviewerId,
-            ...(input.reviewOutcome === undefined
-              ? {}
-              : { reviewOutcome: input.reviewOutcome }),
-          })
-          .onConflictDoUpdate({
-            target: [
-              reviewSession.installationId,
-              reviewSession.briefId,
-              reviewSession.reviewerId,
-            ],
-            // An outcome-less upsert must still return the existing row, so
-            // the conflict path updates the key back onto itself.
-            set: {
-              reviewerId: input.reviewerId,
-              ...(input.reviewOutcome === undefined
-                ? {}
-                : { reviewOutcome: input.reviewOutcome }),
-            },
-          })
-          .returning();
-        const row = rows[0];
-        if (row === undefined) {
-          throw new Error("review_session upsert returned no row");
-        }
-        return { ok: true, value: row };
-      });
-    },
-
     async get(key) {
       return snapshotFor(key);
     },
 
     async writeToSession(query, write) {
-      // Resolved BEFORE the transaction opens, and only when there is no
-      // session yet: the thunk reads the Brief body through this same handle,
-      // which a read inside an open transaction would deadlock, and every
-      // write after the first has nothing to evaluate.
-      const artifact =
-        (await findSession(query)) === undefined
-          ? await query.brief()
-          : undefined;
+      // Resolved BEFORE the transaction opens: the thunk reads the Brief body
+      // through this same handle, which a read inside an open transaction
+      // would deadlock. `preview` pays the same probe for the same reason —
+      // a first-ever session has nothing to evaluate, so it must never pay
+      // for a multi-hundred-KB parse it would discard.
+      const artifact = await carryFacts(query);
       return db.transaction(async (tx) => {
         const facts = await briefFacts(tx, query.briefId);
         if (facts === undefined) {
@@ -1057,17 +1086,20 @@ export function reviewSessionRepository(
           .returning();
         const created = inserted[0];
         if (created !== undefined) {
-          if (artifact === undefined) {
-            // The pre-check saw a session that no longer exists. Nothing
-            // deletes one mid-flight, so this is infra: take the transaction
-            // down rather than writeToSession a carry-over against no artifact.
-            throw new Error("review_session vanished before its first write");
-          }
           // Re-read inside the transaction: the payload the read returned is
           // never trusted, which is what makes a late write to the previous
           // session safe with no lock and no version token.
           const previous = await previousSession(tx, facts, query.reviewerId);
           if (previous !== undefined) {
+            if (artifact === undefined) {
+              // The probe lost a race — a concurrent first write on an older
+              // Brief created this session. Failing is deliberate: carry-over
+              // cannot be re-evaluated inside the open transaction, and
+              // skipping it writes without the carried work for good.
+              throw new Error(
+                "previous review_session appeared before the first write",
+              );
+            }
             const carried = await evaluatePending(
               tx,
               facts,

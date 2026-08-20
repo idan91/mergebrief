@@ -12,9 +12,10 @@ import {
   deriveAttentionItems,
   type AttentionDisposition,
   type AttentionDraftComment,
-} from "../src/routes/repos/pr/attention";
+} from "../../src/routes/repos/pr/session/attention";
 
 const COMMENT: AttentionDraftComment = {
+  id: 41n,
   filePath: "src/app.ts",
   startLine: 10,
   endLine: 12,
@@ -50,7 +51,9 @@ describe("deriveAttentionItems", () => {
       "reanchor-draft-comment",
       "delete-draft-comment",
     ]);
-    expect(item?.subject).toEqual({ type: "draft-comment", id: null });
+    // Addressable whichever side of materialization it came from: a carried
+    // verdict names the previous session's row.
+    expect(item?.subject).toEqual({ type: "draft-comment", id: "41" });
   });
 
   it("stays silent on a moved anchor and on a published comment", () => {

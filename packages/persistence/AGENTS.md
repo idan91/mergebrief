@@ -74,8 +74,10 @@ drizzle/              generated SQL migrations — append-only
   their verdict columns and applies the write. That transaction re-reads the
   previous session's rows rather than trusting the read's payload, and only
   the writer that actually created the session copies, so a concurrent first
-  write cannot double the carried rows. A session freezes only once the
-  reviewer materializes a newer one — never because a newer Brief exists.
+  write cannot double the carried rows. A carried draft keeps its previous
+  row id all the way to the payload, and each copy stores the row it came
+  from, so the one addressing form works on both sides of materialization.
+  A session freezes only once the reviewer materializes a newer one — never because a newer Brief exists.
 - **Errors:** expected failures return `Result`, never throw. Error messages must not carry
   key material, tokens, credentials, or unsanitized upstream errors (`markFailed`
   sanitizes any failure `detail` itself via `logging`'s `sanitizeErrorDetail`).

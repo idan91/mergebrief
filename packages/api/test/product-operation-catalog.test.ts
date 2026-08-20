@@ -8,10 +8,23 @@ import { composeCatalog, type ComposedCatalog } from "./compose-catalog";
 
 const EXPECTED_CATALOG = [
   {
+    id: "create-draft-comment",
+    kind: "action",
+    classification: "private-write",
+    endpoint: "POST /api/repos/:repoId/pulls/:prNumber/session/comments",
+  },
+  {
     id: "create-inline-comment",
     kind: "action",
     classification: "external-write",
     endpoint: "POST /api/repos/:repoId/pulls/:prNumber/comments",
+  },
+  {
+    id: "delete-draft-comment",
+    kind: "action",
+    classification: "private-write",
+    endpoint:
+      "DELETE /api/repos/:repoId/pulls/:prNumber/session/comments/:draftId",
   },
   {
     id: "generate-brief",
@@ -116,6 +129,20 @@ const EXPECTED_CATALOG = [
     endpoint: "GET /api/repos/:repoId/pulls/:prNumber/session",
   },
   {
+    id: "reanchor-draft-comment",
+    kind: "action",
+    classification: "private-write",
+    endpoint:
+      "PUT /api/repos/:repoId/pulls/:prNumber/session/comments/:draftId/anchor",
+  },
+  {
+    id: "reclassify-group",
+    kind: "action",
+    classification: "private-write",
+    endpoint:
+      "PUT /api/repos/:repoId/pulls/:prNumber/session/groups/:groupId/classification",
+  },
+  {
     id: "reply-to-comment",
     kind: "action",
     classification: "external-write",
@@ -142,6 +169,13 @@ const EXPECTED_CATALOG = [
     endpoint: "POST /api/auth/installations",
   },
   {
+    id: "set-chunk-read",
+    kind: "action",
+    classification: "private-write",
+    endpoint:
+      "PUT /api/repos/:repoId/pulls/:prNumber/session/chunks/:chunkId/read",
+  },
+  {
     id: "submit-review",
     kind: "action",
     classification: "external-write",
@@ -153,6 +187,13 @@ const EXPECTED_CATALOG = [
     classification: "external-write",
     endpoint:
       "POST /api/repos/:repoId/pulls/:prNumber/comments/:commentId/unresolve",
+  },
+  {
+    id: "update-draft-comment",
+    kind: "action",
+    classification: "private-write",
+    endpoint:
+      "PATCH /api/repos/:repoId/pulls/:prNumber/session/comments/:draftId",
   },
 ] as const;
 

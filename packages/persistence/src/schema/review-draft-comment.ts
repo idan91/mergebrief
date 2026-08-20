@@ -32,6 +32,14 @@ export const reviewDraftComment = pgTable(
     carriedFromSessionId: bigint("carried_from_session_id", { mode: "bigint" })
       .$type<ReviewSessionId>()
       .references(() => reviewSession.id, { onDelete: "set null" }),
+    /**
+     * The row this one was copied from — how a write naming the id a
+     * pre-materialization read handed out reaches this copy. No FK: the source
+     * may be erased, and the id is never reissued.
+     */
+    carriedFromCommentId: bigint("carried_from_comment_id", {
+      mode: "bigint",
+    }),
     ...stampColumns(),
   },
   (table) => [

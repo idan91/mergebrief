@@ -1,0 +1,1 @@
+ALTER TABLE "review_draft_comment" ADD COLUMN "carried_from_comment_id" bigint;
