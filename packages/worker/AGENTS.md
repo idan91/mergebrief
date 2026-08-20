@@ -18,10 +18,10 @@ src/
   index.ts            ENTRY — sectioned re-exports = the public surface
   main.ts             startup wiring — the ONE place env is read + deps wired
   config.ts           Zod env config (DATABASE_URL, MERGEBRIEF_CONFIG,
-                      PUBLIC_BASE_URL, GitHub App creds)
+                      PUBLIC_BASE_URL, AUDIT_RETENTION_DAYS, GitHub App creds)
   runner.ts           boot order (app-schema → queue-schema migrations) +
                       the long-lived graphile-worker runner
-  task/               the `generate` task + its collaborators
+  task/               the `generate` task, the scheduled sweep, collaborators
     generate.ts         orchestration: payload → tenancy → idempotent skip →
                         brief/marks/narrative/delta cores → projection + errors
     payload.ts          GenerateJobPayload boundary (string ids → branded)
@@ -29,10 +29,13 @@ src/
                         in generate.ts)
     github-port.ts      the GitHub boundary: PR reads + repo-file read behind a
                         testable port
+    sweep-audit.ts      the audit-retention sweep — the ONE scheduled job
+                        (graphile cron), instance-wide rather than ctx-bound
     repo-config.ts      the `.mergebrief/` phase: fetch 3 default-
                         branch paths → validateRepoConfig → RepoContext +
                         origin/artifact serialization. NEVER fails the job
-test/                 generate.test.ts = integration via persistence/testing
+test/                 generate.test.ts + sweep-audit.test.ts = integration
+                      via persistence/testing
 ```
 
 ## Invariants (enforced, don't weaken)
@@ -79,6 +82,12 @@ test/                 generate.test.ts = integration via persistence/testing
   Its accuracy assumes the SINGLE-SLOT runner (`DEFAULT_CONCURRENCY = 1` in
   `runner.ts`): the gate reads and decides without a lock, so running at
   concurrency C admits up to `cap + C - 1` runs before the cap bites.
+- **One scheduled job, and it is not tenant-scoped**: `sweep-audit` runs on
+  graphile's cron (`SWEEP_AUDIT_CRONTAB`, daily) and calls persistence's
+  instance-wide `sweepAuditLog` — audit retention is an operator env setting,
+  so there is no ctx to bind it to. Unset retention runs the job and deletes
+  nothing; a window under the 30-day floor is refused, not widened. The sweep
+  stays worker-only: nothing on a request path may call it.
 - **Migrations at boot are idempotent** and ordered app-schema → queue-schema
   (`startWorker`); the `graphile_worker` schema stays graphile-owned.
 - **Logging goes through the `packages/logging` boundary**:
@@ -101,6 +110,9 @@ no `enum`, strict TS, no bare `as`, Zod at boundaries, named exports,
 extensionless relative imports, verb-first actions / noun factories.
 
 ## Tests
+
+`test/sweep-audit.test.ts` drives the scheduled sweep over the same PGlite
+harness, seeding aged rows through its raw window.
 
 `test/generate.test.ts` = integration via `persistence/testing`'s PGlite
 harness (real migrations + the graphile_worker stub), a stub `Generator`

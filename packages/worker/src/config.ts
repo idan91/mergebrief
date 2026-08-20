@@ -11,6 +11,8 @@
 //                            generation cap; absent → uncapped.
 //   PUBLIC_BASE_URL          required; the web deployment's public origin —
 //                            the Entry comment's deep-link base.
+//   AUDIT_RETENTION_DAYS     optional; validated by persistence's loader
+//                            (30-day floor). Unset → the sweep keeps forever.
 //
 //   GENERATOR_API_KEY_ENV    REMOVED. Setting it now refuses boot with a
 //                            migration hint — a stale deployment must not
@@ -36,6 +38,9 @@ export interface WorkerConfig {
   readonly databaseUrl: string;
   /** Apply migrations at boot vs check-only refusal (MERGEBRIEF_AUTO_MIGRATE). */
   readonly autoMigrate: boolean;
+  /** Audit retention window the scheduled sweep enforces; null = keep forever
+   * (the default). Validated — floor included — by persistence's loader. */
+  readonly auditRetentionDays: number | null;
   /** The validated generator block (instance config or zero-config default).
    * Key resolution + boot probes happen inside createGenerator. */
   readonly generator: GeneratorConfig;
@@ -137,6 +142,7 @@ export function loadConfig(
     value: {
       databaseUrl: persistence.value.databaseUrl,
       autoMigrate: persistence.value.autoMigrate,
+      auditRetentionDays: persistence.value.auditRetentionDays,
       generator: generatorConfig.value.generator,
       publicBaseUrl: baseUrlParsed.data,
       spend: generatorConfig.value.spend,

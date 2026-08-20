@@ -226,15 +226,20 @@ brief and confirm it renders.
 ## Retention (what grows, and what does not prune itself)
 
 Briefs and their sidecars accumulate per PR revision, so the database grows
-with review volume — and **nothing prunes it on a schedule today.** Closing
+with review volume — and **nothing prunes them on a schedule.** Closing
 or merging a PR records the terminal state and arms no retention window
 (the `purge_after` column exists and stays null; a `retention-grace-days`
-knob is designed, not built). Data is deleted only when you remove a repo
+knob is designed, not built). Brief data is deleted only when you remove a repo
 from the installation or uninstall the App, both of which purge that
-tenant's rows immediately. The audit log is append-only: nothing edits a row,
-and the only removal is the retention sweep, which keeps everything unless you
-set `AUDIT_RETENTION_DAYS` (minimum 30 — audit must outlive a review session).
-No schedule runs it yet.
+tenant's rows immediately.
+
+The audit log is the one exception. It is append-only — nothing edits a row —
+and its only removal is the retention sweep, which the worker runs once a day
+across every installation. The sweep keeps everything unless you set
+`AUDIT_RETENTION_DAYS` (minimum 30). Set it longer than your longest open PR:
+audit has to outlive a review session, and no floor can guarantee that for you.
+Nothing on the web tier can trigger the sweep — it exists only inside the
+worker process.
 
 ## The audit log
 
@@ -262,7 +267,7 @@ Three knobs, all instance environment variables:
 
 | Variable | Default | What it does |
 | --- | --- | --- |
-| `AUDIT_RETENTION_DAYS` | unset (keep forever) | How long the sweep keeps rows. Minimum 30. |
+| `AUDIT_RETENTION_DAYS` | unset (keep forever) | How long the daily sweep keeps rows. Minimum 30. |
 | `AUDIT_PRIVATE_WRITES` | `true` | Record writes that stay inside this instance. Writes that leave for GitHub, and every denial, are recorded either way — that is not configurable. |
 | `AUDIT_CALLER_IP` | `false` | Populate `caller_ip`. Off by default: in a self-host deployment the credential identifies the caller better than an address does, and the address costs the most privacy of any field. |
 

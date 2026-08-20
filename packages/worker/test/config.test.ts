@@ -36,6 +36,19 @@ describe("loadConfig", () => {
     expect(result.value.autoMigrate).toBe(true);
   });
 
+  it("carries the audit retention window, refusing one under the floor", () => {
+    const kept = loadConfig({ ...VALID_ENV, AUDIT_RETENTION_DAYS: "90" });
+    expect(kept.ok && kept.value.auditRetentionDays).toBe(90);
+    // Unset is the default posture: keep forever.
+    const unset = loadConfig(VALID_ENV);
+    expect(unset.ok && unset.value.auditRetentionDays).toBe(null);
+
+    const refused = loadConfig({ ...VALID_ENV, AUDIT_RETENTION_DAYS: "7" });
+    expect(refused.ok).toBe(false);
+    if (refused.ok) return;
+    expect(refused.error.issues.join("; ")).toMatch(/AUDIT_RETENTION_DAYS/);
+  });
+
   it("exposes MERGEBRIEF_AUTO_MIGRATE=false through persistence's loader", () => {
     const result = loadConfig({
       ...VALID_ENV,

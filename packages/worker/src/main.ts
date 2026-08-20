@@ -10,6 +10,11 @@ import { closeDb, createDb } from "persistence";
 import { loadConfig } from "./config";
 import { appGitHubPort } from "./task/github-port";
 import { createGenerateTask } from "./task/generate";
+import {
+  createSweepAuditTask,
+  SWEEP_AUDIT_CRONTAB,
+  SWEEP_AUDIT_TASK,
+} from "./task/sweep-audit";
 import { startWorker } from "./runner";
 
 /** Where failed-generation raw outputs are dumped for debugging (ephemeral). */
@@ -115,6 +120,12 @@ async function main(): Promise<void> {
     log: logger,
   });
 
+  const sweepAudit = createSweepAuditTask({
+    handle,
+    retentionDays: config.value.auditRetentionDays,
+    log: logger,
+  });
+
   const runner = await startWorker({
     databaseUrl: config.value.databaseUrl,
     // MERGEBRIEF_AUTO_MIGRATE=false → read-only schema check at boot.
@@ -123,11 +134,21 @@ async function main(): Promise<void> {
     // aborts an in-flight stream (job back to queue) instead of riding out the
     // kill grace into a stuck job lock. helpers.job carries the attempt counts
     // the failure events read.
-    taskList: { generate: (payload, helpers) => generate(payload, helpers) },
+    taskList: {
+      generate: (payload, helpers) => generate(payload, helpers),
+      // The one scheduled job. Instance-wide, not tenant-scoped: retention is
+      // an operator env setting, so there is no ctx to bind it to.
+      [SWEEP_AUDIT_TASK]: () => sweepAudit(),
+    },
+    // Unset retention → the job still runs and deletes nothing.
+    crontab: SWEEP_AUDIT_CRONTAB,
     // graphile's lifecycle logs flow through the logging boundary.
     logger: new GraphileLogger(createGraphileLogFactory(logger)),
   });
-  logger.info("worker: listening for generate jobs");
+  const retention = config.value.auditRetentionDays;
+  logger.info(
+    `worker: listening for generate jobs; audit retention ${retention === null ? "unset (rows kept forever)" : `${retention}d`}`,
+  );
 
   try {
     // Runs until a signal stops it; graphile owns the graceful part (stop

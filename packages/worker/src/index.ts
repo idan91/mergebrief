@@ -11,7 +11,7 @@ export type { WorkerConfig, ConfigError } from "./config";
 
 // Runner bootstrap: idempotent boot migrations (app + queue schema) + the
 // long-lived graphile-worker runner.
-export { startWorker } from "./runner";
+export { assertScheduledTasksRegistered, startWorker } from "./runner";
 export type { StartWorkerOptions } from "./runner";
 
 // --- task/ — the `generate` task + its collaborators -------------------------
@@ -19,6 +19,14 @@ export type { StartWorkerOptions } from "./runner";
 // The `generate` task — the drain side of the ingest→queue→worker pipeline.
 export { createGenerateTask } from "./task/generate";
 export type { GenerateTaskDeps, Logger } from "./task/generate";
+
+// The audit-retention sweep — the one scheduled job (graphile cron).
+export {
+  createSweepAuditTask,
+  SWEEP_AUDIT_CRONTAB,
+  SWEEP_AUDIT_TASK,
+} from "./task/sweep-audit";
+export type { SweepAuditTaskDeps } from "./task/sweep-audit";
 
 // Job-payload boundary (the shared `GenerateJobPayload` handshake).
 export { parseGeneratePayload } from "./task/payload";
