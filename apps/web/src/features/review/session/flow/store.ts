@@ -14,8 +14,8 @@ const ANNOUNCE_CLEAR_MS = 30;
 /**
  * @description Posture the screen syncs in every render-relevant change:
  * read-only reasons, own-draft mirror, and the post-now family. None of it is
- * owned here — the screen derives it from route plans and module registries;
- * the store is its distribution channel to the card tree.
+ * owned here — the screen derives it from route plans and its own in-flight
+ * gate; the store is its distribution channel to the card tree.
  */
 export interface ReviewFlowPosture {
   /** Read-only reason for the comment affordances; undefined = writable. */

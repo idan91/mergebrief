@@ -54,7 +54,7 @@ describe("post-now success effect on the Review Session store", () => {
     const draft = s.getState().reviewComments[0];
     if (draft === undefined) throw new Error("unreachable");
 
-    // Exactly what `applySettledPosts` drains into the live store on settle.
+    // Exactly what the post-now handler applies on a `posted` result.
     actions.markCommentsSubmitted([draft.id]);
     actions.recordSubmittedReview(555);
 

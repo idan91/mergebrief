@@ -94,6 +94,7 @@ export type Catalog = typeof en & {
       srDeEmphasizedList: ": {{attrs}} — de-emphasized by repo policy";
       flagsIn_one: "{{count}} flag in {{attr}}";
       flagsIn_other: "{{count}} flags in {{attr}}";
+      ariaLabelReopen: "Reopen the {{attr}} risk on {{file}}";
     };
     story: (typeof en)["brief"]["story"] & {
       stepLabel: "Step {{step}}";

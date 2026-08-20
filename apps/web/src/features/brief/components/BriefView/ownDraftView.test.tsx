@@ -43,6 +43,10 @@ afterEach(() => {
   seededDrafts = [];
 });
 
+function noop(): void {
+  return undefined;
+}
+
 /** The session the next render loads, seeded per test like the loader would. */
 let seededDrafts: ReviewSessionPayload["draftComments"] = [];
 
@@ -185,11 +189,9 @@ describe("own-draft Brief view", () => {
     expect(screen.queryByText(/review receipt/i)).toBeNull();
     // The advisory ("Before you submit") view is unmounted too.
     expect(screen.queryByText(/before you submit/i)).toBeNull();
-    // No menu path back into submit: Summary preview is gone.
-    fireEvent.click(screen.getByRole("button", { name: /more actions/i }));
-    expect(
-      screen.queryByRole("menuitem", { name: /summary preview/i }),
-    ).toBeNull();
+    // No menu path back into submit: Summary preview was the overflow menu's
+    // only entry, so the whole menu is gone.
+    expect(screen.queryByRole("button", { name: /more actions/i })).toBeNull();
   });
 
   it("renders risk flags as a read-only mirror — visible, no disposition controls", () => {
@@ -977,5 +979,83 @@ describe("own-draft Brief view", () => {
     // modal lazy-inits closed on the verdict view, so no advisory text).
     rerenderWith(undefined);
     expect(screen.queryByText("Before you submit")).toBeNull();
+  });
+
+  it("one in-flight post per draft: the button disables and a second click fires nothing", async () => {
+    // The replacement for the per-tab in-flight registry: a disabled button,
+    // not a protocol.
+    seedDrafts([comment("c1", "chunk-a", "draft")]);
+    let settle: (result: PostCommentResult) => void = noop;
+    const postComment = vi.fn(
+      (_draftId: string) =>
+        new Promise<PostCommentResult>((resolve) => {
+          settle = resolve;
+        }),
+    );
+    renderBriefView({ markReady: vi.fn(), postComment });
+    const post = (
+      await screen.findAllByRole("button", { name: /^post$/i })
+    )[0]!;
+
+    fireEvent.click(post);
+    await waitFor(() =>
+      expect(post.getAttribute("aria-disabled")).toBe("true"),
+    );
+    // Focusable and self-explaining: the reason rides aria-describedby.
+    const reasonId = post.getAttribute("aria-describedby");
+    expect(reasonId).toBeTruthy();
+    expect(document.getElementById(reasonId!)?.textContent).toBe(
+      appI18n.t("review.comment.postingReason"),
+    );
+
+    // The second click reaches nothing while the first is in flight.
+    fireEvent.click(post);
+    expect(postComment).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      settle({ kind: "posted", commentId: 1 });
+      await Promise.resolve();
+    });
+    // Settled: the comment is server-owned now, so Post is gone entirely.
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: /^post$/i })).toBeNull(),
+    );
+  });
+
+  it("a failed post releases the gate: the draft stays and Post works again", async () => {
+    // The gate must release on EVERY settle, not just success — a leak here
+    // reads as "Posting…" forever and blocks submit for the rest of the
+    // session.
+    seedDrafts([comment("c1", "chunk-a", "draft")]);
+    let settle: (result: PostCommentResult) => void = noop;
+    const postComment = vi.fn(
+      (_draftId: string) =>
+        new Promise<PostCommentResult>((resolve) => {
+          settle = resolve;
+        }),
+    );
+    renderBriefView({ markReady: vi.fn(), postComment });
+    const post = (
+      await screen.findAllByRole("button", { name: /^post$/i })
+    )[0]!;
+    fireEvent.click(post);
+    await waitFor(() =>
+      expect(post.getAttribute("aria-disabled")).toBe("true"),
+    );
+
+    await act(async () => {
+      settle({ kind: "upstream" });
+      await Promise.resolve();
+    });
+
+    // Indeterminate copy through the live region, draft kept, gate released.
+    expect(
+      await screen.findByText(appI18n.t(POST_COMMENT_COPY_KEYS.upstream)),
+    ).toBeTruthy();
+    await waitFor(() =>
+      expect(post.getAttribute("aria-disabled")).not.toBe("true"),
+    );
+    fireEvent.click(post);
+    expect(postComment).toHaveBeenCalledTimes(2);
   });
 });

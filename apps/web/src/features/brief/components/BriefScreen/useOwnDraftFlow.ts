@@ -1,22 +1,15 @@
 // The own-draft post-now facade hook: per-comment "post this draft NOW"
-// against GitHub, plus the module-registry choreography that makes it
-// remount-safe — the settled-post drain and the double-post guards in both
-// directions against a Submit review in flight.
+// against GitHub, with one in-flight request per draft and the double-post
+// guards in both directions against a Submit review in flight.
 import { useTranslation } from "react-i18next";
 import type { TranslationKey } from "i18n";
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 
 import type { ReviewComment } from "@web/features/review/utils/comments";
 import { postCommentBlockedReason } from "@web/features/review/utils/comments";
 import type { ReviewSessionActions } from "@web/features/review/session";
-import {
-  applySettledPosts,
-  beginInFlightPost,
-  commitPostedComment,
-  endInFlightPost,
-  recordFailedPost,
-  type PostCommentResult,
-} from "@web/features/pulls/transport/postComment";
+import type { PostCommentResult } from "@web/features/pulls/transport/postComment";
+import type { InFlightDraftPosts } from "./useInFlightDraftPosts";
 
 /** Toast keys for per-comment post-now: failures always keep the draft. */
 export const POST_COMMENT_COPY_KEYS = {
@@ -59,21 +52,47 @@ export type PostDraftOutcome =
   | "not-found"
   | "indeterminate";
 
+/** Every non-posted result kind: its copy and the outcome it reports. */
+const POST_FAILURES = {
+  unauthorized: {
+    copy: POST_COMMENT_COPY_KEYS.unauthorized,
+    outcome: "unauthorized",
+  },
+  "not-found": {
+    copy: POST_COMMENT_COPY_KEYS.notFound,
+    outcome: "not-found",
+  },
+  stale: { copy: POST_COMMENT_COPY_KEYS.stale, outcome: "stale" },
+  "orphaned-anchor": {
+    copy: POST_COMMENT_COPY_KEYS.orphanedAnchor,
+    outcome: "rejected",
+  },
+  "already-published": {
+    copy: POST_COMMENT_COPY_KEYS.alreadyPublished,
+    outcome: "rejected",
+  },
+  invalid: { copy: POST_COMMENT_COPY_KEYS.invalid, outcome: "rejected" },
+  // Indeterminate, not rejected: GitHub may have taken it before failing.
+  upstream: { copy: POST_COMMENT_COPY_KEYS.upstream, outcome: "indeterminate" },
+} as const satisfies Record<
+  Exclude<PostCommentResult["kind"], "posted">,
+  { copy: TranslationKey; outcome: PostDraftOutcome }
+>;
+
 export interface UseOwnDraftFlowInput {
-  /** The live session store's actions — the drain flips through these. */
+  /** The live session store's actions — a posted comment flips through these. */
   actions: ReviewSessionActions;
   /** Page-level live-region channel (clear-then-set) for outcome copy. */
   announce: (message: string) => void;
-  briefId: string;
   /**
    * Refetches the conversation after a posted inline comment (a conversation
    * write — the new thread must render). Absent on the local path.
    */
   invalidateConversation: (() => void) | undefined;
+  /** The screen's in-flight gate — one post per draft. */
+  inFlight: InFlightDraftPosts;
   /** The route's post-now transport (`ownDraft.postComment`); absent hides Post. */
   postComment: ((draftId: string) => Promise<PostCommentResult>) | undefined;
-  /** The module registry's per-brief in-flight view (screen-subscribed). */
-  postingCommentIds: ReadonlySet<string>;
   /** A Submit review in flight already captured the drafts — posting blocks. */
   submitPending: boolean;
 }
@@ -100,33 +119,16 @@ export function useOwnDraftFlow(
   const {
     actions,
     announce,
-    briefId,
+    inFlight,
     invalidateConversation,
     postComment,
-    postingCommentIds,
     submitPending,
   } = input;
 
-  // Drain settled posts into THIS mount: the settling closure captured the
-  // store/toast of the mount that STARTED the post — orphans after a same-tab
-  // remount — so flips and outcome copy must apply through whichever mount is
-  // live at settle time. The per-change re-run is critical: the flip must
-  // land before the store's next whole-state flush re-persists a stale
-  // snapshot — do not narrow the postingCommentIds dep.
-  useEffect(() => {
-    applySettledPosts(briefId, actions, announce);
-  }, [actions, announce, briefId, postingCommentIds]);
-
-  // Double-post guard: the module-level registry is the synchronous
-  // re-entrancy gate (survives the same-tab remount a ref/state pair dies
-  // with), keyed by comment id so distinct drafts still post concurrently.
-  // Per-TAB only — cross-tab dedupe would need a server-side idempotency key.
-  //
-  // EVERY outcome is RECORDED on the settled queue, never announced from this
-  // closure — after a remount-mid-flight this closure's announce targets the
-  // orphaned mount and the failure warning would be lost. With
-  // `batchOwnsMessaging`, entries queue a NULL copy so the batch's summary
-  // toast is deterministically the LAST live-region write.
+  // Double-post guard, keyed by comment id so distinct drafts still post
+  // concurrently. Per-TAB only — cross-tab dedupe would need a server-side
+  // idempotency key. With `batchOwnsMessaging` nothing announces here, so the
+  // batch's summary toast is the last live-region write.
   const postDraftComment = useCallback(
     async (
       comment: ReviewComment,
@@ -154,94 +156,45 @@ export function useOwnDraftFlow(
       }
       // A duplicate in-flight post's outcome is unknowable from here — a
       // batch must stop with the indeterminate summary.
-      if (!beginInFlightPost(briefId, comment.id)) return "indeterminate";
+      if (!inFlight.begin(comment.id)) return "indeterminate";
+      const say = (key: TranslationKey) => {
+        if (!batchOwnsMessaging) announce(t(key));
+      };
       try {
         const result = await postComment(comment.id);
-        switch (result.kind) {
-          case "posted": {
-            // DURABLE snapshot write + settled-queue entry happen here; the
-            // LIVE-store flip + announcement apply through the drain effect —
-            // always the mount live at settle time, never this closure's.
-            commitPostedComment(
-              briefId,
-              comment.id,
-              result.reviewId,
-              batchOwnsMessaging ? null : t(POST_COMMENT_COPY_KEYS.posted),
-            );
-            // Conversation write — refetch so the new thread renders. The
-            // query client is app-level, so this closure is remount-safe.
-            invalidateConversation?.();
-            return "posted";
+        if (result.kind === "posted") {
+          // The external write is the commit point: flip the posted comment
+          // to server-owned and record the wrapping review id (the "yours"
+          // join key), then announce.
+          actions.markCommentsSubmitted([comment.id]);
+          if (result.reviewId !== undefined) {
+            actions.recordSubmittedReview(result.reviewId);
           }
-          case "unauthorized":
-            recordFailedPost(
-              briefId,
-              comment.id,
-              batchOwnsMessaging
-                ? null
-                : t(POST_COMMENT_COPY_KEYS.unauthorized),
-            );
-            return "unauthorized";
-          case "not-found":
-            recordFailedPost(
-              briefId,
-              comment.id,
-              batchOwnsMessaging ? null : t(POST_COMMENT_COPY_KEYS.notFound),
-            );
-            return "not-found";
-          case "stale":
-            recordFailedPost(
-              briefId,
-              comment.id,
-              batchOwnsMessaging ? null : t(POST_COMMENT_COPY_KEYS.stale),
-            );
-            return "stale";
-          case "orphaned-anchor":
-            recordFailedPost(
-              briefId,
-              comment.id,
-              batchOwnsMessaging
-                ? null
-                : t(POST_COMMENT_COPY_KEYS.orphanedAnchor),
-            );
-            return "rejected";
-          case "already-published":
-            recordFailedPost(
-              briefId,
-              comment.id,
-              batchOwnsMessaging
-                ? null
-                : t(POST_COMMENT_COPY_KEYS.alreadyPublished),
-            );
-            return "rejected";
-          case "invalid":
-            recordFailedPost(
-              briefId,
-              comment.id,
-              batchOwnsMessaging ? null : t(POST_COMMENT_COPY_KEYS.invalid),
-            );
-            return "rejected";
-          case "upstream":
-            recordFailedPost(
-              briefId,
-              comment.id,
-              batchOwnsMessaging ? null : t(POST_COMMENT_COPY_KEYS.upstream),
-            );
-            return "indeterminate";
+          say(POST_COMMENT_COPY_KEYS.posted);
+          // Conversation write — refetch so the new thread renders.
+          invalidateConversation?.();
+          return "posted";
         }
+        const failure = POST_FAILURES[result.kind];
+        say(failure.copy);
+        return failure.outcome;
       } catch (error) {
         console.error("post-now failed", error);
-        recordFailedPost(
-          briefId,
-          comment.id,
-          batchOwnsMessaging ? null : t(POST_COMMENT_COPY_KEYS.failed),
-        );
+        say(POST_COMMENT_COPY_KEYS.failed);
         return "indeterminate";
       } finally {
-        endInFlightPost(briefId, comment.id);
+        inFlight.end(comment.id);
       }
     },
-    [announce, briefId, invalidateConversation, postComment, submitPending, t],
+    [
+      actions,
+      announce,
+      inFlight,
+      invalidateConversation,
+      postComment,
+      submitPending,
+      t,
+    ],
   );
 
   return { postDraftComment };

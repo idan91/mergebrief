@@ -84,11 +84,6 @@ export interface ReviewSessionActions {
    */
   recordSubmittedReview: (reviewId: number) => void;
   setOutcome: (outcome: ReviewOutcome) => void;
-  /**
-   * @description Resets the whole session to a fresh state (the "Clear local
-   * drafts" action), so the live store matches the now-empty storage.
-   */
-  reset: (state: ReviewSessionState) => void;
   /** Drops the pending failure copy once the screen has announced it. */
   clearWriteError: () => void;
 }
@@ -488,9 +483,6 @@ export function createReviewSessionStore(
                   : {},
               ),
           );
-        },
-        reset(next) {
-          set(next);
         },
         clearWriteError() {
           set({ writeError: null });

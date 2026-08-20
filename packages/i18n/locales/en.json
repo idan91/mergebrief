@@ -228,7 +228,6 @@
       "selfReviewTooltip": "You're viewing your own draft PR. Review submission and the receipt unlock once it's marked ready for review.",
       "ariaLabelMoreActions": "More actions",
       "summaryPreview": "Summary preview",
-      "clearDrafts": "Clear local drafts",
       "submitReviewCta": "Submit"
     },
     "details": {
@@ -359,7 +358,11 @@
       "flagsIn_one": "{{count}} flag in {{attr}}",
       "flagsIn_other": "{{count}} flags in {{attr}}",
       "addressed": "Addressed",
-      "dismiss": "Dismiss…"
+      "dismiss": "Dismiss…",
+      "reopen": "Reopen",
+      "titleReopen": "Put this risk back on the open list",
+      "ariaLabelReopen": "Reopen the {{attr}} risk on {{file}}",
+      "reopenAnnounce": "Risk reopened — it counts as unresolved again."
     },
     "risk": {
       "noTests": "Changed code path has no direct test coverage in the brief; verify behavior manually or ask for coverage.",
@@ -702,6 +705,7 @@
       "editLabel": "Edit comment",
       "deleteConfirm": "Delete this draft?",
       "posting": "Posting…",
+      "postingReason": "This draft is being posted — the button stays disabled until the request settles.",
       "post": "Post",
       "addressesComments": "addresses comments {{ids}}",
       "replyTo": "reply to {{id}}",

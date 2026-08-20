@@ -74,7 +74,6 @@ function headerProps(ownDraft: HeaderProps["ownDraft"]): HeaderProps {
     },
     progress: 50,
     openSubmit: vi.fn(),
-    clearDrafts: vi.fn(),
     availability: { previousBrief: false, lastReview: false },
     compareState: { view: "full", compare: "off" },
     ownDraft,
@@ -85,7 +84,6 @@ function headerProps(ownDraft: HeaderProps["ownDraft"]): HeaderProps {
 // two-route memory router: the header at "/" plus a stub preview route the
 // Link can resolve against.
 async function renderHeader(overrides: Partial<HeaderProps> = {}) {
-  const clearDrafts = vi.fn();
   const openSubmit = vi.fn();
   const props: HeaderProps = {
     brief,
@@ -100,7 +98,6 @@ async function renderHeader(overrides: Partial<HeaderProps> = {}) {
     },
     progress: 50,
     openSubmit,
-    clearDrafts,
     availability: { previousBrief: false, lastReview: false },
     compareState: { view: "full", compare: "off" },
     controlsSlot: <div data-testid="controls-slot" />,
@@ -123,7 +120,7 @@ async function renderHeader(overrides: Partial<HeaderProps> = {}) {
   });
   await router.load();
   render(<RouterProvider router={router} />);
-  return { clearDrafts, openSubmit };
+  return { openSubmit };
 }
 
 describe("Header identity row", () => {
@@ -354,7 +351,7 @@ describe("Header menu and stats", () => {
   });
 
   it("keeps rare actions in a menu with menu-button semantics", async () => {
-    const { clearDrafts } = await renderHeader();
+    await renderHeader();
     // Not top-level buttons anymore.
     expect(
       screen.queryByRole("button", { name: /^summary preview$/i }),
@@ -366,10 +363,7 @@ describe("Header menu and stats", () => {
     fireEvent.click(trigger);
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
     const items = screen.getAllByRole("menuitem");
-    expect(items.map((item) => item.textContent)).toEqual([
-      "Summary preview",
-      "Clear local drafts",
-    ]);
+    expect(items.map((item) => item.textContent)).toEqual(["Summary preview"]);
     // The local-path preview entry is a cross-route link.
     expect(items[0]!.getAttribute("href")).toBe(
       "/briefs/test-brief/summary-preview",
@@ -379,10 +373,6 @@ describe("Header menu and stats", () => {
 
     fireEvent.click(items[0]!);
     expect(screen.queryByRole("menu")).toBeNull();
-
-    fireEvent.click(trigger);
-    fireEvent.click(screen.getByRole("menuitem", { name: /clear local/i }));
-    expect(clearDrafts).toHaveBeenCalledTimes(1);
   });
 
   it("closes the menu on Escape and returns focus to the trigger", async () => {
@@ -432,24 +422,20 @@ describe("Header menu and stats", () => {
     // The standalone preview route resolves through the local file store —
     // a db: id gets no menu entry; the submit flow is its receipt surface.
     await renderHeader({ briefId: "db:acme/widgets:7:base:head" });
-    fireEvent.click(screen.getByRole("button", { name: /more actions/i }));
-    const items = screen.getAllByRole("menuitem");
-    expect(items.map((item) => item.textContent)).toEqual([
-      "Clear local drafts",
-    ]);
+    // Summary preview is the menu's only entry, so the trigger goes with it
+    // rather than opening an empty popup.
+    expect(screen.queryByRole("button", { name: /more actions/i })).toBeNull();
   });
 
-  it("moves between items with arrow keys, wrapping", async () => {
+  it("arrow keys wrap onto the single item, never off the menu", async () => {
     await renderHeader();
     fireEvent.click(screen.getByRole("button", { name: /more actions/i }));
     const menu = screen.getByRole("menu");
-    const items = screen.getAllByRole("menuitem");
+    const only = screen.getByRole("menuitem");
     fireEvent.keyDown(menu, { key: "ArrowDown" });
-    expect(document.activeElement).toBe(items[1]);
-    fireEvent.keyDown(menu, { key: "ArrowDown" });
-    expect(document.activeElement).toBe(items[0]);
+    expect(document.activeElement).toBe(only);
     fireEvent.keyDown(menu, { key: "ArrowUp" });
-    expect(document.activeElement).toBe(items[1]);
+    expect(document.activeElement).toBe(only);
   });
 
   it("closes on an outside pointerdown", async () => {
@@ -653,14 +639,14 @@ describe("Header own-draft state", () => {
       <Header {...headerProps({ markReady: vi.fn(), pending: false })} />,
     );
     // …then the user moves on and works elsewhere.
-    const elsewhere = screen.getByRole("button", { name: /more actions/i });
+    const elsewhere = screen.getByRole("button", { name: /^language:/i });
     elsewhere.focus();
 
     // A LATER external ready flip must leave the user's focus alone — a
     // stale `true` from the earlier swap would yank it onto Receipt.
     rerender(<Header {...headerProps(undefined)} />);
     expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: /more actions/i }),
+      screen.getByRole("button", { name: /^language:/i }),
     );
   });
 
@@ -681,13 +667,9 @@ describe("Header own-draft state", () => {
     expect(stat.textContent).not.toContain("/");
   });
 
-  it("drops the Summary preview item (submit machinery) from the menu", async () => {
+  it("drops the overflow menu whole (Summary preview was its only entry)", async () => {
     await renderHeader({ ownDraft: { markReady: vi.fn(), pending: false } });
-    fireEvent.click(screen.getByRole("button", { name: /more actions/i }));
-    const items = screen.getAllByRole("menuitem");
-    expect(items.map((item) => item.textContent)).toEqual([
-      "Clear local drafts",
-    ]);
+    expect(screen.queryByRole("button", { name: /more actions/i })).toBeNull();
   });
 });
 

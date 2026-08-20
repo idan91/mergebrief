@@ -545,14 +545,9 @@ describe("DB brief route", () => {
     await waitFor(() =>
       expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
     );
-    fireEvent.click(screen.getByRole("button", { name: /more actions/i }));
-    // The submit flow is the DB path's receipt surface — no preview entry.
-    expect(
-      screen.queryByRole("menuitem", { name: /^summary preview$/i }),
-    ).toBeNull();
-    expect(
-      screen.getByRole("menuitem", { name: /clear local drafts/i }),
-    ).toBeTruthy();
+    // The submit flow is the DB path's receipt surface — no preview entry,
+    // and it was the menu's only entry, so the trigger goes with it.
+    expect(screen.queryByRole("button", { name: /more actions/i })).toBeNull();
   });
 
   it("offers head-advance navigation when pinned to an older span", async () => {

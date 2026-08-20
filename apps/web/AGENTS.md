@@ -116,10 +116,13 @@ against GitHub (or any external system) follows them:
   throw AROUND the write gets INDETERMINATE copy ("may or may not have
   posted — check GitHub") — never "nothing happened", which invites a
   double-posting retry.
-- **Success must reach whichever screen is live.** A request can settle
-  after the provider that started it unmounted, so a settled outcome is
-  RECORDED (the settled queue in `postComment.ts`) and applied by the mount
-  that is up at drain time — never only through the store that started it.
+- **One in-flight request per draft — a disabled button, not a protocol.**
+  The server holds the drafts, so a POSTED one that settles after its mount
+  is gone still reconciles: the row flipped server-side and the next read
+  carries it. What does not survive is an AMBIGUOUS failure's warning — it
+  has no server trace, and a reviewer who left mid-post returns to a
+  re-enabled button. That window is accepted, not fixed by a per-tab queue;
+  never rebuild one.
 - **Result surfaces must outlive the request.** Failure copy also goes
   through a page-level live region (the toast); an inline `role="alert"`
   in a closable drawer is inert by the time a slow response lands. Repeat

@@ -14,6 +14,7 @@ import {
   postCommentBlockedReason,
   type ReviewComment,
 } from "../../utils/comments";
+import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import { MarkdownPreview } from "../MarkdownPreview/MarkdownPreview";
 import styles from "./CommentThread.module.scss";
 
@@ -93,6 +94,13 @@ export function CommentThread({
           ? t("review.comment.saveFirst")
           : postCommentBlockedReason(t, comment)))
       : undefined;
+  // A disabled control must say why: `aria-disabled` keeps it focusable, so
+  // the reason rides `aria-describedby`. An in-flight post is the live reason
+  // and is screen-reader-only (the label already reads "Posting…"); anything
+  // else keeps its visible paragraph as the description.
+  const postingReason = posting ? t("review.comment.postingReason") : undefined;
+  const postReasonId = useId();
+  const postDescribed = postingReason ?? postBlocked;
 
   if (comment.collapsed) {
     return (
@@ -156,7 +164,12 @@ export function CommentThread({
       {/* The recoverable why-not for a blocked Post, adjacent to the disabled
           control. */}
       {postBlocked !== undefined ? (
-        <p className={styles["postBlocked"]}>{postBlocked}</p>
+        <p
+          className={styles["postBlocked"]}
+          id={postingReason === undefined ? postReasonId : undefined}
+        >
+          {postBlocked}
+        </p>
       ) : null}
       <div className={styles["footer"]} data-thread-footer="">
         <div className={styles["threadActions"]}>
@@ -217,6 +230,9 @@ export function CommentThread({
         {post !== undefined && !submitted ? (
           <div className={styles["postCta"]}>
             <Button
+              aria-describedby={
+                postDescribed === undefined ? undefined : postReasonId
+              }
               data-post-cta=""
               disabled={posting || postBlocked !== undefined}
               loading={posting}
@@ -225,6 +241,11 @@ export function CommentThread({
             >
               {posting ? t("review.comment.posting") : t("review.comment.post")}
             </Button>
+            {postingReason === undefined ? null : (
+              <ScreenReaderOnly id={postReasonId}>
+                {postingReason}
+              </ScreenReaderOnly>
+            )}
           </div>
         ) : null}
       </div>

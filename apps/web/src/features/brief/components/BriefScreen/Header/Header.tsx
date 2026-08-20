@@ -24,7 +24,6 @@ import type { BriefViewModel } from "../../../utils/viewModel";
 import { AccessibleLink } from "@web/components/AccessibleLink/AccessibleLink";
 import { Button } from "@web/components/Button/Button";
 import { IconButton } from "@web/components/IconButton/IconButton";
-import { MenuItem } from "@web/components/MenuItem/MenuItem";
 import { CoreLinesDisclosure } from "../CoreLinesDisclosure/CoreLinesDisclosure";
 import { UnattributedDisclosure } from "../UnattributedDisclosure/UnattributedDisclosure";
 import { RiskChipDisclosure } from "../RiskChipDisclosure/RiskChipDisclosure";
@@ -71,7 +70,6 @@ export interface HeaderProps {
   totals: ProgressTotals;
   progress: number;
   openSubmit: () => void;
-  clearDrafts: () => void;
   /** Compare availability at the selected timeline point. */
   availability: CompareOptionFlags;
   /** Resolved, normalized View/Compare state. */
@@ -105,7 +103,6 @@ export function Header({
   totals,
   progress,
   openSubmit,
-  clearDrafts,
   availability,
   compareState,
   controlsSlot,
@@ -255,7 +252,6 @@ export function Header({
         <LocalePicker />
         <HeaderMenu
           briefId={briefId}
-          clearDrafts={clearDrafts}
           /* Summary preview is submit machinery (review outcome + summary):
              hidden-not-broken in the own-draft state. */
           hideSummaryPreview={ownDraft !== undefined}
@@ -408,7 +404,6 @@ function SelfReviewChip() {
 
 interface HeaderMenuProps {
   briefId: string;
-  clearDrafts: () => void;
   /** Summary preview is submit machinery, hidden in the own-draft state. */
   hideSummaryPreview: boolean;
 }
@@ -418,11 +413,7 @@ interface HeaderMenuProps {
  * Escape/outside-click close, focus returns to the trigger, arrow keys move
  * between items.
  */
-function HeaderMenu({
-  briefId,
-  clearDrafts,
-  hideSummaryPreview,
-}: HeaderMenuProps) {
+function HeaderMenu({ briefId, hideSummaryPreview }: HeaderMenuProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -449,6 +440,12 @@ function HeaderMenu({
     setOpen(false);
     triggerRef.current?.focus();
   };
+
+  // Summary preview is the menu's only entry: with it hidden there is nothing
+  // to overflow, so the trigger goes too rather than opening an empty popup.
+  // (Local briefs only — the standalone preview route resolves through the
+  // local file store, and DB briefs get their receipt in the submit flow.)
+  if (hideSummaryPreview || isDbBriefId(briefId)) return null;
 
   // On the wrapper, not the popup: Escape must also work when focus sits on
   // the trigger with the menu open, and it must never leak to the page-level
@@ -516,37 +513,23 @@ function HeaderMenu({
           aria-label={t("brief.header.ariaLabelMoreActions")}
           tabIndex={-1}
         >
-          {/* Local briefs only: the standalone preview route resolves through
-              the local file store — DB briefs get their receipt surface in
-              the submit flow instead. */}
-          {hideSummaryPreview || isDbBriefId(briefId) ? null : (
-            <Link
-              className={styles["menuItem"]}
-              params={{ briefId }}
-              role="menuitem"
-              tabIndex={0}
-              to="/briefs/$briefId/summary-preview"
-              onClick={() => setOpen(false)}
-              // Anchors activate on Enter only; menuitem promises Space too.
-              onKeyDown={(event) => {
-                if (event.key === " ") {
-                  event.preventDefault();
-                  event.currentTarget.click();
-                }
-              }}
-            >
-              {t("brief.header.summaryPreview")}
-            </Link>
-          )}
-          <MenuItem
+          <Link
             className={styles["menuItem"]}
-            onClick={() => {
-              closeAndRefocus();
-              clearDrafts();
+            params={{ briefId }}
+            role="menuitem"
+            tabIndex={0}
+            to="/briefs/$briefId/summary-preview"
+            onClick={() => setOpen(false)}
+            // Anchors activate on Enter only; menuitem promises Space too.
+            onKeyDown={(event) => {
+              if (event.key === " ") {
+                event.preventDefault();
+                event.currentTarget.click();
+              }
             }}
           >
-            {t("brief.header.clearDrafts")}
-          </MenuItem>
+            {t("brief.header.summaryPreview")}
+          </Link>
         </div>
       ) : null}
     </div>

@@ -399,6 +399,10 @@
     gap: functions.to-rem(8px);
   }
 
+  .reopen {
+    flex: none;
+  }
+
   .state {
     flex: none;
     padding-block: functions.to-rem(1px);

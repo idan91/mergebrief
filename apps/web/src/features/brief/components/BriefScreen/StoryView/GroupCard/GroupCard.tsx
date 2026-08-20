@@ -134,6 +134,13 @@ export const GroupCard = memo(function GroupCard({
     [selectedRiskFlags],
   );
 
+  // The narrow undo for a mis-dismissed risk: back to `open`, one flag at a
+  // time. No wide reset exists any more, so this is the only path back.
+  function reopenFlag(flag: RiskFlag) {
+    actions.disposeFlag([flag.id], { kind: "open" });
+    announce(t("brief.group.reopenAnnounce"));
+  }
+
   function chooseDominant(category: Category) {
     actions.reclassifyGroup(group.id, category);
     announce(t("brief.story.dominantAnnounce", { category }));
@@ -476,6 +483,21 @@ export const GroupCard = memo(function GroupCard({
                           </LinkButton>
                           {isResolved ? (
                             <span className={styles["state"]}>{kind}</span>
+                          ) : null}
+                          {kind === "dismissed" && !flagsReadOnly ? (
+                            <Button
+                              aria-label={t("brief.group.ariaLabelReopen", {
+                                attr: flag.attr,
+                                file: flag.file,
+                              })}
+                              className={styles["reopen"]}
+                              size="sm"
+                              variant="quiet"
+                              title={t("brief.group.titleReopen")}
+                              onClick={() => reopenFlag(flag)}
+                            >
+                              {t("brief.group.reopen")}
+                            </Button>
                           ) : null}
                         </div>
                         {!isResolved ? (

@@ -8,7 +8,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLatestRef } from "@web/hooks/useLatestRef";
 import type { ReviewComment } from "@web/features/review/utils/comments";
 import type { MarkReadyAction } from "@web/features/pulls/transport/markReady";
-import { recordPostNotice } from "@web/features/pulls/transport/postComment";
 import { useMarkReady } from "@web/features/pulls/hooks/useMarkReady";
 import type { IntentCheck } from "../../types";
 import type { RiskFlag } from "../../utils/viewModel";
@@ -264,14 +263,9 @@ export function useMarkReadyFlow(
           if (outcome !== "posted") {
             setMarkReadyBatch(null);
             setMarkReadyGateOpen(false);
-            // Batch entries drain silently; the summary rides the settled
-            // queue as a NOTICE, announced LAST by whichever mount is live —
-            // announcing from this closure would target the mount that
-            // STARTED the batch and a remount-mid-batch would drop it.
-            recordPostNotice(
-              briefId,
-              markReadyBatchFailureCopy(t, posted, total, outcome),
-            );
+            // Per-comment copy is suppressed for the batch, so this summary
+            // is the run's only live-region write.
+            announce(markReadyBatchFailureCopy(t, posted, total, outcome));
             // The closing modal may hold focus and NEITHER sibling rescue
             // fires here (no state exit, no head advance) — re-home dropped
             // or stranded focus onto the terminal-slot CTA after the close
@@ -301,7 +295,7 @@ export function useMarkReadyFlow(
         batchInFlight.current = false;
       }
     },
-    [briefId, markReady, postDraft, t],
+    [announce, markReady, postDraft, t],
   );
   const markReadyAnyway = useCallback(() => {
     if (postDraftsOnReady && unpostedDraftComments.length > 0) {

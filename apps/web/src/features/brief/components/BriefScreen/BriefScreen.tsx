@@ -22,7 +22,6 @@ import { SubmitModal } from "@web/features/review";
 import type { SubmitReviewAction } from "@web/features/review/utils/submit";
 import { useReviewSubmit } from "@web/features/review/hooks/useReviewSubmit";
 import {
-  deriveInitialState,
   ReviewFlowProvider,
   useCreateReviewFlowStore,
   useReviewSession,
@@ -34,10 +33,7 @@ import type { UnresolvedItem } from "@web/features/review/utils/state";
 import type { BriefSearchParams } from "../../comparison/compareState";
 import { ChunkWindowProvider, createChunkWindowRegistry } from "./chunkWindows";
 import type { MarkReadyAction } from "@web/features/pulls/transport/markReady";
-import {
-  useInFlightPosts,
-  type PostCommentResult,
-} from "@web/features/pulls/transport/postComment";
+import type { PostCommentResult } from "@web/features/pulls/transport/postComment";
 // Direct component import, not the pulls barrel: the barrel now exports the
 // PrBrief tree, which renders BriefView — importing it from here would close
 // a brief -> pulls -> brief module cycle.
@@ -67,6 +63,7 @@ import {
   type BriefComparisonPlan,
 } from "./useComparisonOverlay";
 import { useConversationWiring } from "./useConversationWiring";
+import { useInFlightDraftPosts } from "./useInFlightDraftPosts";
 import { useMarkReadyFlow } from "./useMarkReadyFlow";
 import { POST_COMMENT_COPY_KEYS, useOwnDraftFlow } from "./useOwnDraftFlow";
 import { deriveRegionBlocks } from "./modeLegality";
@@ -368,11 +365,10 @@ export function BriefScreen({
     storyEverShownRef.current = false;
   }
 
-  // The MODULE-LEVEL post-now registry's per-brief view. Module state, not
-  // component state: a same-tab remount with the same briefId resets component
-  // state while the fetch closure survives — the registry keeps the lockdown
-  // and the submit block alive across it.
-  const postingCommentIds = useInFlightPosts(briefId);
+  // One in-flight post-now request per draft: the button disables, and both
+  // the submit block and the post block read the same set.
+  const inFlight = useInFlightDraftPosts();
+  const postingCommentIds = inFlight.ids;
 
   // The ephemeral review-flow store (composer anchor, risk targets/selection,
   // page toast): screen-created and screen-provided; the card tree subscribes
@@ -489,15 +485,14 @@ export function BriefScreen({
   // — off the current head the composer is read-only, so no draft can be
   // staged to post.
   const postComment = ownDraft?.postComment;
-  // The own-draft post-now flow (registry choreography, settled-post drain,
-  // double-post guards in both directions) — see the hook.
+  // The own-draft post-now flow (in-flight gate, double-post guards in both
+  // directions) — see the hook.
   const { postDraftComment } = useOwnDraftFlow({
     actions,
     announce,
-    briefId,
+    inFlight,
     invalidateConversation: conversationWiring.invalidateConversation,
     postComment,
-    postingCommentIds,
     submitPending,
   });
   // The late-derived posture half: the post-now family exists only once the
@@ -619,10 +614,6 @@ export function BriefScreen({
     session.openChunk(item.targetId);
     jumpToChunk(item.targetId);
   };
-  const clearDrafts = () => {
-    actions.reset(deriveInitialState(model));
-  };
-
   // exactOptionalPropertyTypes: the prop must be absent, not explicitly
   // undefined, so it is spread in rather than passed as a value.
   const conversationReadOnly =
@@ -643,7 +634,6 @@ export function BriefScreen({
           totals={session.totals}
           progress={session.progress}
           openSubmit={openSubmit}
-          clearDrafts={clearDrafts}
           availability={availability}
           compareState={compareState}
           controlsSlot={headerControls}

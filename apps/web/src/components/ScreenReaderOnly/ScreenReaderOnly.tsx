@@ -4,6 +4,8 @@ export interface ScreenReaderOnlyProps {
   children: ReactNode;
   /** Element to render. Defaults to `span`. */
   as?: ElementType;
+  /** Set when the text is an `aria-describedby` target. */
+  id?: string;
 }
 
 /**
@@ -13,6 +15,11 @@ export interface ScreenReaderOnlyProps {
 export function ScreenReaderOnly({
   children,
   as: Tag = "span",
+  id,
 }: ScreenReaderOnlyProps) {
-  return <Tag className="sr-only">{children}</Tag>;
+  return (
+    <Tag className="sr-only" id={id}>
+      {children}
+    </Tag>
+  );
 }
