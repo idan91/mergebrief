@@ -39,6 +39,8 @@ export interface ChunkCardProps {
   addressedReviewComments: AddressedReviewComment[];
   toggleChunk: (chunkId: string) => void;
   markReviewed: (chunkId: string) => void;
+  /** No session to save a mark into: the toggle renders, disabled. */
+  marksDisabled?: boolean | undefined;
   /** Inline conversation threads at this chunk; absent = none. */
   conversationRows?: DigestRow[] | undefined;
   conversationComposer?: ThreadComposerWiring | undefined;
@@ -116,6 +118,7 @@ export const ChunkCard = memo(function ChunkCard({
   addressedReviewComments,
   toggleChunk,
   markReviewed,
+  marksDisabled,
   conversationRows,
   conversationComposer,
   riskMeta,
@@ -297,6 +300,7 @@ export const ChunkCard = memo(function ChunkCard({
           <input
             type="checkbox"
             checked={reviewed}
+            disabled={marksDisabled === true}
             onChange={() => markReviewed(chunk.id)}
           />
           <span>{t("brief.chunk.viewed")}</span>

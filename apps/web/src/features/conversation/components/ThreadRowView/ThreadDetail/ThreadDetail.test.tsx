@@ -166,7 +166,6 @@ function renderDetail(options: RenderOptions = {}) {
           refetchCapability,
         };
   const composer: ThreadComposerWiring = {
-    briefId: BRIEF_ID,
     post,
     onPosted: vi.fn(),
     ...(options.mentionPool === undefined

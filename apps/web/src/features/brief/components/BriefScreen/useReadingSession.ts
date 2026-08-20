@@ -360,7 +360,6 @@ export function useReadingSession(
   const submittedReviewIds = useReviewSession(
     (state) => state.submittedReviewIds,
   );
-  const replyDrafts = useReviewSession((state) => state.replyDrafts);
   const reviewOutcome = useReviewSession((state) => state.reviewOutcome);
   const actions = useReviewSessionActions();
   const scrollToChunk = useChunkScroller(chunkWindows ?? null);
@@ -502,7 +501,6 @@ export function useReadingSession(
         reviewComments,
         reviewOutcome,
         submittedReviewIds,
-        replyDrafts,
       }),
     [
       briefId,
@@ -510,7 +508,6 @@ export function useReadingSession(
       dominants,
       reclassifiedGroups,
       reviewComments,
-      replyDrafts,
       reviewOutcome,
       reviewedChunks,
       submittedReviewIds,

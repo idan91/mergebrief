@@ -23,7 +23,6 @@ import { SubmitModal } from "@web/features/review";
 import type { SubmitReviewAction } from "@web/features/review/utils/submit";
 import { useReviewSubmit } from "@web/features/review/hooks/useReviewSubmit";
 import {
-  clearSnapshots,
   deriveInitialState,
   ReviewFlowProvider,
   useCreateReviewFlowStore,
@@ -257,6 +256,10 @@ export function BriefScreen({
   // write path there and it exists only at the current head, so a stale-staged
   // draft would have no exit. Reviewer stale views stay writable — their exit
   // is batch Submit behind the receipt ack.
+  // Read-only is the WHOLE screen's posture, not the composer's: with no
+  // session in hand a read mark or a dismissal is a write against work the
+  // reviewer cannot see.
+  const writesDisabled = readOnly !== undefined;
   const composerDisabledReason =
     readOnly?.reason ??
     (ownDraftActive && staleHead === true
@@ -364,7 +367,7 @@ export function BriefScreen({
   // correct at creation; the late-derived rest syncs below the submit flow.
   const flowStore = useCreateReviewFlowStore(briefId, {
     composerDisabledReason,
-    flagsReadOnly: ownDraftActive,
+    flagsReadOnly: ownDraftActive || writesDisabled,
     postingCommentIds,
     postBlockedExternally: undefined,
     postComment: undefined,
@@ -476,7 +479,7 @@ export function BriefScreen({
   // submit flow and own-draft flow above are wired (both need `announce`).
   useSyncReviewFlowPosture(flowStore, {
     composerDisabledReason,
-    flagsReadOnly: ownDraftActive,
+    flagsReadOnly: ownDraftActive || writesDisabled,
     postingCommentIds,
     postBlockedExternally: submitPending
       ? t(POST_COMMENT_COPY_KEYS.postWhileSubmitting)
@@ -521,6 +524,10 @@ export function BriefScreen({
   const reviewedChunks = useReviewSession((state) => state.reviewedChunks);
   const reviewedChunksRef = useLatestRef(reviewedChunks);
   const markViewedFromShortcut = (chunkId: string) => {
+    if (writesDisabled) {
+      announce(readOnly.reason);
+      return;
+    }
     const wasViewed = reviewedChunksRef.current.has(chunkId);
     session.markReviewed(chunkId);
     announce(
@@ -585,9 +592,13 @@ export function BriefScreen({
     jumpToChunk(item.targetId);
   };
   const clearDrafts = () => {
-    clearSnapshots();
     actions.reset(deriveInitialState(model));
   };
+
+  // exactOptionalPropertyTypes: the prop must be absent, not explicitly
+  // undefined, so it is spread in rather than passed as a value.
+  const conversationReadOnly =
+    readOnly === undefined ? {} : { readOnlyReason: readOnly.reason };
 
   return (
     <ReviewFlowProvider store={flowStore}>
@@ -719,7 +730,7 @@ export function BriefScreen({
           {blocks.conversation && conversation !== undefined ? (
             <ConversationSection
               key={`conversation-${briefId}`}
-              briefId={briefId}
+              {...conversationReadOnly}
               chunks={readingOrderedChunks}
               filter={conversationFilter}
               focusThreadId={conversationFocusThreadId}
@@ -781,6 +792,7 @@ export function BriefScreen({
                     }
                     jumpToChunk={jumpToChunk}
                     markReviewed={session.markReviewed}
+                    marksDisabled={writesDisabled}
                     toggleChunk={session.toggleChunk}
                     {...(compareState.view === "full" && chunkIds.length > 0
                       ? { startReadThrough: session.startReadThrough }

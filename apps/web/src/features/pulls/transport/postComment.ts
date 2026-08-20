@@ -19,7 +19,6 @@ import {
   apiFetch,
   errorFromResponse,
 } from "../../../data/apiFetch";
-import { markSnapshotCommentsSubmitted } from "../../review/session";
 import type { WireSide } from "../../review/utils/submit";
 
 export type PostCommentResult =
@@ -221,16 +220,10 @@ function pushSettledPost(briefId: string, entry: SettledPost): void {
 }
 
 /**
- * Commit a confirmed post — the parts that must not depend on any mount:
- *
- * - durable snapshot: flip + review id written straight to sessionStorage, so
- *   success persists independent of component lifetime;
- * - settled queue: the live-store flip AND the success announcement are
- *   RECORDED, not applied — whichever BriefScreen is mounted at settle time
- *   drains them, so both land on the LIVE screen, never an orphan.
- *
- * Best-effort past the commit point: the comment IS on GitHub, so a local
- * persistence failure logs, never throws — and the queue push happens anyway.
+ * Commit a confirmed post — the parts that must not depend on any mount: the
+ * live-store flip AND the success announcement are RECORDED, not applied.
+ * Whichever BriefScreen is mounted at settle time drains them, so both land
+ * on the LIVE screen, never an orphan.
  *
  * `announceCopy: null` = the INITIATOR owns messaging (the mark-ready batch):
  * the drain applies the store flips but announces nothing, so the batch's
@@ -242,11 +235,6 @@ export function commitPostedComment(
   reviewId: number | undefined,
   announceCopy: string | null,
 ): void {
-  try {
-    markSnapshotCommentsSubmitted(briefId, [commentId], false, reviewId);
-  } catch (persistError) {
-    console.error("post-now: durable persistence failed", persistError);
-  }
   pushSettledPost(briefId, {
     kind: "posted",
     commentId,

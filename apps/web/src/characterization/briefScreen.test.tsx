@@ -24,8 +24,39 @@ import {
   briefSummaryFixture,
 } from "@web/features/brief/utils/fixtures";
 import { routeTree } from "../routeTree.gen";
+import { BriefView } from "../features/brief";
+import { emptySessionPayload } from "../features/review/session";
+import { I18nProvider } from "../i18n/I18nProvider";
 
 const BRIEF_ID = briefSummaryFixture.id;
+
+/**
+ * The same screen with a live session, rendered without the file route: the
+ * route's brief is read-only (no session exists for a file), so the write
+ * paths need a harness that has one.
+ */
+async function renderWritableScreen() {
+  render(
+    <I18nProvider>
+      <QueryClientProvider
+        client={
+          new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        }
+      >
+        <BriefView
+          artifacts={[briefSummaryFixture]}
+          brief={briefFixture}
+          briefId={BRIEF_ID}
+          searchParams={{}}
+          session={emptySessionPayload()}
+        />
+      </QueryClientProvider>
+    </I18nProvider>,
+  );
+  await waitFor(() =>
+    expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+  );
+}
 
 async function renderBriefScreen(brief = briefFixture) {
   const queryClient = new QueryClient({
@@ -188,7 +219,9 @@ describe("brief screen characterization", () => {
     );
   });
 
-  it("keeps J/K/Z working after leaving a comment composer via Escape", async () => {
+  it("offers no comment composer: a file-backed brief is read-only", async () => {
+    // No `brief` row, no installation, no reviewer — there is no session to
+    // save a comment into, so the gutter never opens one.
     await renderBriefScreen();
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
 
@@ -196,23 +229,9 @@ describe("brief screen characterization", () => {
     await screen.findByRole("complementary", {
       name: "Focused change-group context",
     });
+    expect(document.querySelector("[data-commentable]")).toBeNull();
 
-    // Leave the composer via Escape, not the Cancel button: Escape must clear
-    // `activeCommentAnchor` so J/K/Z come back. Composer entry is gutter-only
-    // — the code column is reserved for text selection.
-    const gutter = document.querySelector(
-      "[data-commentable] [data-line-number]",
-    );
-    expect(gutter).toBeTruthy();
-    fireEvent.mouseDown(gutter!);
-    fireEvent.mouseUp(gutter!);
-    await screen.findByPlaceholderText("Leave a comment");
-
-    fireEvent.keyDown(window, { key: "Escape" });
-    await waitFor(() =>
-      expect(screen.queryByPlaceholderText("Leave a comment")).toBeNull(),
-    );
-
+    // The keyboard walk still works — read-only is not inert.
     fireEvent.keyDown(window, { key: "j" });
     await waitFor(() =>
       expect(document.querySelector("article[data-current]")?.id).toBe(
@@ -230,7 +249,7 @@ describe("brief screen characterization", () => {
   });
 
   it("dismissing a flag advances the flags progress stat", async () => {
-    await renderBriefScreen();
+    await renderWritableScreen();
     const stat = () => statText("flags");
     expect(stat()).toBe("0/2");
     fireEvent.click(screen.getAllByText("Dismiss…")[0]!);
@@ -240,6 +259,14 @@ describe("brief screen characterization", () => {
     });
     fireEvent.click(screen.getByText("Dismiss with reason"));
     await waitFor(() => expect(stat()).toBe("1/2"));
+  });
+
+  it("offers no disposition controls: a file-backed brief is read-only", async () => {
+    // Same reason the composer never opens here — there is no session to
+    // record a dismissal in, so the affordance does not render at all.
+    await renderBriefScreen();
+    expect(statText("flags")).toBe("0/2");
+    expect(screen.queryByText("Dismiss…")).toBeNull();
   });
 
   it("links Summary preview from the header menu on the local path", async () => {
@@ -336,7 +363,7 @@ describe("brief screen characterization", () => {
   it("keeps the split-intent categories bolded inside the sentence", async () => {
     // One <Trans> sentence: a short components array would drop the <b> and
     // the category names with it, leaving the question with no candidates.
-    await renderBriefScreen();
+    await renderWritableScreen();
     const bolded = [...document.querySelectorAll("b")].map(
       (node) => node.textContent,
     );
@@ -349,7 +376,7 @@ describe("brief screen characterization", () => {
   });
 
   it("reclassifying an uncertain group records the override on the card", async () => {
-    await renderBriefScreen();
+    await renderWritableScreen();
     expect(screen.queryByText("set by you · recorded on receipt")).toBeNull();
     // The uncertain pick buttons offer the between-categories.
     fireEvent.click(screen.getByRole("button", { name: "logic-refactor" }));

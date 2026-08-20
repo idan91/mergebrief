@@ -123,7 +123,6 @@ function threadRow(overrides: RowOverrides = {}): DigestThreadRow {
 
 function composer(): ThreadComposerWiring {
   return {
-    briefId: BRIEF_ID,
     post: vi.fn(async () => ({ kind: "posted", commentId: 1 }) as const),
     onPosted: vi.fn(),
   };

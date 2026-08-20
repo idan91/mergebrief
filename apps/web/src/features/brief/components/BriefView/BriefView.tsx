@@ -2,7 +2,10 @@ import { useMemo, type ReactNode } from "react";
 
 import type { ConversationPlan } from "@web/features/conversation";
 import type { ConversationFilter } from "@web/features/conversation/utils/filter";
-import { ReviewSessionProvider } from "@web/features/review/session";
+import {
+  ReviewSessionProvider,
+  type ReviewSessionPayload,
+} from "@web/features/review/session";
 import type { SubmitReviewAction } from "@web/features/review/utils/submit";
 import type { BriefSearchParams } from "../../comparison/compareState";
 import type { RepoConfigContext } from "../../utils/repoConfig";
@@ -89,6 +92,12 @@ export interface BriefViewProps {
    */
   repoConfig?: RepoConfigContext | null | undefined;
   /**
+   * The server-held Review Session, read by the route loader. Absent on the
+   * file path (no session exists) and on a failed read, where the screen is
+   * read-only.
+   */
+  session?: ReviewSessionPayload | undefined;
+  /**
    * A revision navigation is in flight: the content region dims and goes
    * inert (delayed, so fast loads show nothing) while the header stays live.
    * Route-owned; absent = never pending.
@@ -120,6 +129,7 @@ export function BriefView({
   repoConfig,
   revisionPending,
   searchParams,
+  session,
   staleHead,
   submitReview,
 }: BriefViewProps) {
@@ -128,7 +138,7 @@ export function BriefView({
     [brief, repoConfig],
   );
   return (
-    <ReviewSessionProvider briefId={briefId} model={model}>
+    <ReviewSessionProvider briefId={briefId} model={model} session={session}>
       <BriefScreen
         livePrState={livePrState}
         artifacts={artifacts}

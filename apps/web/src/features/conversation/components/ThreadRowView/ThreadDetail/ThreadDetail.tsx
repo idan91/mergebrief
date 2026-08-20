@@ -197,7 +197,7 @@ export function ThreadDetail({
         ) : null}
       </div>
       <ReplyComposer
-        briefId={composer.briefId}
+        readOnlyReason={composer.readOnlyReason}
         mentionCandidates={mergeMentionCandidates(
           mentionCandidatesFromThread(thread),
           composer.mentionPool ?? [],

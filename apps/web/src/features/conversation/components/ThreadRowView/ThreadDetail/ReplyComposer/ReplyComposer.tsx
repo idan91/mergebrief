@@ -6,14 +6,10 @@ import { Button } from "@web/components/Button/Button";
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea/MarkdownTextarea";
 import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
 import { appendQuote } from "../../../../utils/quote";
-import {
-  persistReplyDraft,
-  useReviewSession,
-  useReviewSessionActions,
-  useReviewActions,
-} from "@web/features/review/session";
+import { useReviewActions } from "@web/features/review/session";
 import { MAX_REPLY_LENGTH, type ReplyResult } from "../../../../reply";
 import type { ResolveAttempt } from "../useThreadResolution";
+import { readReplyDraft, writeReplyDraft } from "./utils";
 import rowStyles from "../../../../rows.module.scss";
 import styles from "./ReplyComposer.module.scss";
 
@@ -55,7 +51,8 @@ const COMBO_KEYS = {
 } as const satisfies Record<string, TranslationKey>;
 
 export interface ReplyComposerProps {
-  briefId: string;
+  /** Writes are off: the box takes no text and the actions refuse. */
+  readOnlyReason?: string | undefined;
   threadId: number;
   post: (rootCommentId: number, body: string) => Promise<ReplyResult>;
   onPosted: () => void;
@@ -82,7 +79,7 @@ export interface ReplyComposerProps {
 }
 
 export function ReplyComposer({
-  briefId,
+  readOnlyReason,
   threadId,
   post,
   onPosted,
@@ -92,12 +89,6 @@ export function ReplyComposer({
   focusResolveAction,
 }: ReplyComposerProps) {
   const { t } = useTranslation();
-  // Draft reads/writes go straight to the session stores — no draft prop
-  // chain through the digest tree.
-  const draft = useReviewSession(
-    (state) => state.replyDrafts[String(threadId)] ?? "",
-  );
-  const { setReplyDraft } = useReviewSessionActions();
   const { announce } = useReviewActions();
   // WHICH action is running, not just whether one is: both buttons go busy
   // together (one draft, one request), but only the clicked one wears the
@@ -111,51 +102,23 @@ export function ReplyComposer({
   // Synchronous double-click guard: state updates are async, a ref is not —
   // aria-disabled does not block the click event.
   const inFlight = useRef(false);
-  // Typing stays LOCAL: a per-keystroke store write would re-render the whole
-  // digest. The store draft syncs on blur, unmount, and post.
-  const [local, setLocal] = useState(draft);
+  // The box and its durable copy move together: sessionStorage is the only
+  // place unsent reply text lives, so an edit writes straight through.
+  const [local, setLocal] = useState(() => readReplyDraft(threadId));
   const localRef = useRef(local);
   localRef.current = local;
-  // Only a composer the user actually EDITED may sync outward: with the
-  // same thread rendered inline and in the section, an untouched twin's
-  // unmount/blur must never clobber the draft the edited one saved.
-  const dirtyRef = useRef(false);
-  // Mirrors the STORE's current value, not "what this composer last wrote":
-  // comparing against it stops an external reset from silently un-persisting
-  // text the user still sees.
-  const draftRef = useRef(draft);
-  draftRef.current = draft;
-  const setDraftRef = useRef(setReplyDraft);
-  setDraftRef.current = setReplyDraft;
-  useEffect(() => {
-    return () => {
-      if (dirtyRef.current && localRef.current !== draftRef.current) {
-        setDraftRef.current(threadId, localRef.current);
-        // The live-store write can race the provider's debounced
-        // sessionStorage flush on full navigation — write durably too,
-        // best-effort like every direct snapshot write.
-        try {
-          persistReplyDraft(briefId, threadId, localRef.current);
-        } catch (persistError) {
-          console.error("reply draft: durable write failed", persistError);
-        }
-      }
-    };
-    // Mount/unmount only — the refs carry current values.
-    // oxlint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  const persist = () => {
-    if (dirtyRef.current && local !== draftRef.current) {
-      draftRef.current = local;
-      setReplyDraft(threadId, local);
-    }
+  const edit = (body: string) => {
+    setLocal(body);
+    localRef.current = body;
+    writeReplyDraft(threadId, body);
   };
   // Instance-scoped id: the same thread can render TWO composers (inline at
   // its chunk AND in the section) — a thread-derived id would duplicate and
   // break label/error association.
   const inputId = `${useId()}-reply`;
   const overCap = local.length > MAX_REPLY_LENGTH;
-  const blocked = pending || local.trim() === "" || overCap;
+  const blocked =
+    pending || local.trim() === "" || overCap || readOnlyReason !== undefined;
 
   // Quote-reply prefill appends to the LOCAL draft only, same persistence
   // path as typing. Skipped while a post is in flight: the composer is
@@ -168,8 +131,7 @@ export function ReplyComposer({
     }
     consumedQuoteNonce.current = quote.nonce;
     if (inFlight.current) return;
-    dirtyRef.current = true;
-    setLocal((current) => appendQuote(current, quote.block));
+    edit(appendQuote(localRef.current, quote.block));
     window.setTimeout(() => {
       const element = textareaElement.current;
       if (element === null) return;
@@ -207,9 +169,6 @@ export function ReplyComposer({
     setError(null);
     // Captured at click time — edits mid-flight never count as sent.
     const body = local;
-    // The in-flight body is durable too (a navigation mid-post keeps it).
-    draftRef.current = body;
-    setReplyDraft(threadId, body);
     const fail = (copy: string) => {
       setError(copy);
       announce(copy);
@@ -235,18 +194,7 @@ export function ReplyComposer({
         }
         // The external write is the commit point: clear the draft (the
         // reply is GitHub's record now) and let the caller refetch.
-        setLocal("");
-        localRef.current = "";
-        draftRef.current = "";
-        dirtyRef.current = false;
-        setReplyDraft(threadId, "");
-        // The provider may have unmounted while the POST was in flight —
-        // clear the DURABLE draft directly too.
-        try {
-          persistReplyDraft(briefId, threadId, "");
-        } catch (persistError) {
-          console.error("reply draft: durable clear failed", persistError);
-        }
+        edit("");
         if (resolveLeg === undefined) {
           announce(t(REPLY_KEYS.posted));
           onPosted();
@@ -299,13 +247,9 @@ export function ReplyComposer({
         }}
         labelVisible
         mentionCandidates={mentionCandidates}
-        readOnly={pending}
+        readOnly={pending || readOnlyReason !== undefined}
         value={local}
-        onBlur={persist}
-        onChange={(value) => {
-          dirtyRef.current = true;
-          setLocal(value);
-        }}
+        onChange={edit}
         // Escape blurs the reply (the blur persists the draft); the text
         // itself is never cleared — the draft is the recovery path.
         onEscape={() => {
@@ -317,6 +261,9 @@ export function ReplyComposer({
         // outward write is never implicit.
         onSubmit={() => submit(false)}
       />
+      {readOnlyReason !== undefined ? (
+        <p className={rowStyles["error"]}>{readOnlyReason}</p>
+      ) : null}
       {overCap || error !== null ? (
         <p className={rowStyles["error"]} id={`${inputId}-error`} role="alert">
           {overCap

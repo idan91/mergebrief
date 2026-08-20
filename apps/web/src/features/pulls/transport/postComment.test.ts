@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
 // Inline post-now transport: expected failure statuses are result kinds the
 // own-draft flow renders — never throws for those; a malformed 2xx throws typed
-// (contract violation). jsdom is for the commitPostedComment suite below
-// (sessionStorage).
-import { beforeEach, describe, expect, it, vi } from "vitest";
+// (contract violation). jsdom is for the settled-queue suite below.
+import { describe, expect, it, vi } from "vitest";
 
 import type * as ApiFetchModule from "../../../data/apiFetch";
 
@@ -16,14 +15,7 @@ import { act, renderHook } from "@testing-library/react";
 
 import { apiFetch, ApiError } from "../../../data/apiFetch";
 import type { ReviewComment } from "../../review/utils/comments";
-import {
-  createReviewSessionStore,
-  readSnapshot,
-  serializeSnapshot,
-  snapshotToState,
-  writeSnapshot,
-  type SessionSnapshot,
-} from "../../review/session";
+import { createReviewSessionStore } from "../../review/session";
 import {
   applySettledPosts,
   beginInFlightPost,
@@ -138,43 +130,13 @@ function draft(id: string): ReviewComment {
   };
 }
 
-function persistedSnapshot(
-  briefId: string,
-  comments: ReviewComment[],
-): SessionSnapshot {
-  return {
-    briefId,
-    dispositions: {},
-    dominants: {},
-    reclassifiedGroupIds: [],
-    reviewedChunkIds: [],
-    reviewComments: comments,
-    reviewOutcome: "comment",
-    submittedReviewIds: [],
-    replyDrafts: {},
-  };
-}
-
 describe("commitPostedComment + applySettledPosts", () => {
-  beforeEach(() => {
-    window.sessionStorage.clear();
-  });
-
-  it("writes the durable snapshot at commit; the drain applies flip + announce once", () => {
-    // The durable write happens at commit (independent of any mount); the LIVE
-    // flip and the announcement go through the settled queue so both land on
-    // whichever mount is live at settle time — and, with the closure
+  it("the drain applies flip + announce exactly once", () => {
+    // The LIVE flip and the announcement go through the settled queue so both
+    // land on whichever mount is live at settle time — and, with the closure
     // announcing nothing directly, the no-remount case announces EXACTLY once.
     const briefId = "db:commit:7:base:head";
-    writeSnapshot(persistedSnapshot(briefId, [draft("a"), draft("b")]));
     commitPostedComment(briefId, "a", 555, "Comment posted to GitHub.");
-
-    const stored = readSnapshot(briefId);
-    expect(stored?.reviewComments.map((c) => c.status)).toEqual([
-      "submitted",
-      "draft",
-    ]);
-    expect(stored?.submittedReviewIds).toContain(555);
 
     const markCommentsSubmitted = vi.fn();
     const recordSubmittedReview = vi.fn();
@@ -204,10 +166,7 @@ describe("commitPostedComment + applySettledPosts", () => {
 
   it("commits without a review id (GitHub assigned none)", () => {
     const briefId = "db:noreview:7:base:head";
-    writeSnapshot(persistedSnapshot(briefId, [draft("a")]));
     commitPostedComment(briefId, "a", undefined, "posted");
-    expect(readSnapshot(briefId)?.reviewComments[0]?.status).toBe("submitted");
-    expect(readSnapshot(briefId)?.submittedReviewIds).toEqual([]);
 
     const recordSubmittedReview = vi.fn();
     applySettledPosts(
@@ -252,15 +211,19 @@ describe("commitPostedComment + applySettledPosts", () => {
 
   it("settle-after-remount: the drain flips the FRESH store and the next flush keeps the flip", () => {
     // The settling closure captured the ORPHANED old store. The remounted
-    // store hydrated from the PRE-flip snapshot; without the drain it would
-    // still say draft — its next whole-state flush would clobber the durable
-    // snapshot flip, Submit would re-ship the comment, and the Post button
-    // would re-enable on it (double-post).
+    // store loaded the session BEFORE the settle, so without the drain it
+    // would still say draft — Submit would re-ship the comment, and the Post
+    // button would re-enable on it (double-post).
     const briefId = "db:remount-settle:7:base:head";
-    const preFlip = persistedSnapshot(briefId, [draft("a")]);
-    writeSnapshot(preFlip);
-    // The remount hydrates BEFORE the settle — from the pre-flip state.
-    const store = createReviewSessionStore(snapshotToState(preFlip));
+    const store = createReviewSessionStore({
+      dispositions: {},
+      dominants: {},
+      reclassifiedGroups: new Set(),
+      reviewedChunks: new Set(),
+      reviewComments: [draft("a")],
+      reviewOutcome: "comment",
+      submittedReviewIds: [],
+    });
 
     // The surviving closure settles against the orphaned mount.
     commitPostedComment(briefId, "a", 777, "Comment posted to GitHub.");
@@ -286,21 +249,12 @@ describe("commitPostedComment + applySettledPosts", () => {
     expect(announce).toHaveBeenCalledExactlyOnceWith(
       "Comment posted to GitHub.",
     );
-
-    // The provider's next WHOLE-STATE flush now carries the flip instead of
-    // clobbering the durable one.
-    writeSnapshot(serializeSnapshot(briefId, store.getState()));
-    const flushed = readSnapshot(briefId);
-    expect(flushed?.reviewComments[0]?.status).toBe("submitted");
-    expect(flushed?.submittedReviewIds).toContain(777);
   });
 
-  it("drain is best-effort: a throwing store never propagates, durable flip intact", () => {
-    // The durable write landed at commit; a live-store failure in the drain
-    // logs and never surfaces as an error (the comment IS on GitHub) — and the
-    // announcement still goes out.
+  it("drain is best-effort: a throwing store never propagates", () => {
+    // A live-store failure in the drain logs and never surfaces as an error
+    // (the comment IS on GitHub) — and the announcement still goes out.
     const briefId = "db:throw:7:base:head";
-    writeSnapshot(persistedSnapshot(briefId, [draft("a")]));
     commitPostedComment(briefId, "a", 555, "posted");
     const consoleError = vi
       .spyOn(console, "error")
@@ -320,9 +274,6 @@ describe("commitPostedComment + applySettledPosts", () => {
     ).not.toThrow();
     expect(consoleError).toHaveBeenCalled();
     expect(announce).toHaveBeenCalledWith("posted");
-    const stored = readSnapshot(briefId);
-    expect(stored?.reviewComments[0]?.status).toBe("submitted");
-    expect(stored?.submittedReviewIds).toContain(555);
     consoleError.mockRestore();
   });
 
@@ -331,7 +282,6 @@ describe("commitPostedComment + applySettledPosts", () => {
     // store flip (durable + live) but announces nothing, so the batch's summary
     // toast stays the last live-region write.
     const briefId = "db:batch-silent:7:base:head";
-    writeSnapshot(persistedSnapshot(briefId, [draft("a"), draft("b")]));
     commitPostedComment(briefId, "a", 222, null);
     recordFailedPost(briefId, "b", null);
 
@@ -343,10 +293,9 @@ describe("commitPostedComment + applySettledPosts", () => {
       { markCommentsSubmitted, recordSubmittedReview },
       announce,
     );
-    // The flips still land (durable snapshot + live store)…
+    // The flips still land…
     expect(markCommentsSubmitted).toHaveBeenCalledWith(["a"]);
     expect(recordSubmittedReview).toHaveBeenCalledWith(222);
-    expect(readSnapshot(briefId)?.reviewComments[0]?.status).toBe("submitted");
     // …but the drain announces nothing: the batch owns messaging.
     expect(announce).not.toHaveBeenCalled();
   });
@@ -357,7 +306,6 @@ describe("commitPostedComment + applySettledPosts", () => {
     // orders it after every per-comment entry, making it the live-region write
     // that survives.
     const briefId = "db:batch-notice:7:base:head";
-    writeSnapshot(persistedSnapshot(briefId, [draft("a"), draft("b")]));
     const summary =
       "Posted 1 of 3. One comment may or may not have posted — check GitHub before retrying. The PR was NOT marked ready.";
     commitPostedComment(briefId, "a", 333, null);
@@ -414,7 +362,6 @@ describe("commitPostedComment + applySettledPosts", () => {
     // co-settling success. Recorded success-first to prove reordering, not
     // arrival order, decides.
     const briefId = "db:concurrent:9:base:head";
-    writeSnapshot(persistedSnapshot(briefId, [draft("a"), draft("b")]));
     const failedCopy =
       "Something went wrong posting this comment — it may or may not have posted. Check the pull request on GitHub before retrying.";
     commitPostedComment(briefId, "a", 111, "Comment posted to GitHub.");

@@ -9,7 +9,7 @@ import {
   deriveInitialState,
   type ReviewSessionState,
 } from "./store";
-import { serializeSnapshot, snapshotToState } from "./snapshot";
+import { serializeSnapshot } from "./snapshot";
 
 const model = buildBriefViewModel(briefFixture);
 const firstFlag = model.flags[0];
@@ -189,8 +189,8 @@ describe("comments + outcome", () => {
   });
 });
 
-describe("snapshot round-trip", () => {
-  it("serializes Sets to arrays and restores them losslessly", () => {
+describe("the Receipt's snapshot", () => {
+  it("flattens the Sets the builder cannot read", () => {
     const store = freshStore();
     const actions = store.getState().actions;
     actions.reviewChunk("chunk-a");
@@ -201,14 +201,11 @@ describe("snapshot round-trip", () => {
     const snapshot = serializeSnapshot("fixture-brief-1", store.getState());
     expect(snapshot.reviewedChunkIds).toEqual(["chunk-a"]);
     expect(snapshot.reclassifiedGroupIds).toEqual(["g1"]);
-
-    const restored: ReviewSessionState = snapshotToState(snapshot);
-    expect(restored.reviewedChunks.has("chunk-a")).toBe(true);
-    expect(restored.dispositions[flagId]).toEqual({
+    expect(snapshot.dispositions[flagId]).toEqual({
       kind: "dismissed",
       reason: "n/a here",
     });
-    expect(restored.reviewOutcome).toBe("request-changes");
+    expect(snapshot.reviewOutcome).toBe("request-changes");
   });
 });
 
@@ -221,15 +218,5 @@ describe("recordSubmittedReview", () => {
     expect(store.getState().submittedReviewIds).toEqual([
       4_647_663_464, 4_700_000_000,
     ]);
-  });
-});
-
-describe("setReplyDraft", () => {
-  it("persists a draft per thread and clears on empty", () => {
-    const store = freshStore();
-    store.getState().actions.setReplyDraft(9001, "half a thought");
-    expect(store.getState().replyDrafts).toEqual({ "9001": "half a thought" });
-    store.getState().actions.setReplyDraft(9001, "");
-    expect(store.getState().replyDrafts).toEqual({});
   });
 });

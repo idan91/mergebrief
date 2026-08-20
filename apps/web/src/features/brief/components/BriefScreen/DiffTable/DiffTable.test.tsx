@@ -15,11 +15,13 @@ import type {
 } from "@web/features/conversation/types";
 import {
   createReviewFlowStore,
+  emptySessionPayload,
   initialReviewFlowState,
   ReviewSessionProvider,
   ReviewFlowProvider,
   type ReviewFlowState,
   type ReviewFlowStore,
+  type ReviewSessionPayload,
 } from "@web/features/review/session";
 import type { Brief, BriefChunk } from "../../../types";
 import { buildBriefViewModel } from "../../../utils/viewModel";
@@ -43,6 +45,12 @@ function chunk(): BriefChunk {
       { kind: "add", content: "b", newLine: 10 },
     ],
   } as BriefChunk;
+}
+
+/** A stored chunk: rows attach client-side, never from the artifact. */
+function getDifflessChunks(one: BriefChunk): BriefChunk {
+  const { diff: _rows, ...rest } = one;
+  return rest;
 }
 
 function conversation(): PrConversation {
@@ -77,7 +85,6 @@ function conversation(): PrConversation {
 
 function composer(): ThreadComposerWiring {
   return {
-    briefId: "db:42:7:base:head",
     post: vi.fn(async () => ({ kind: "posted", commentId: 1 }) as const),
     onPosted: vi.fn(),
   };
@@ -105,7 +112,9 @@ const providerBrief: Brief = {
       uncertainBetween: [],
     },
   ],
-  chunks: [chunk()],
+  // Diff-less, like every stored artifact: rows attach client-side AFTER the
+  // session store is built from this model.
+  chunks: [getDifflessChunks(chunk())],
   concernView: [],
 };
 
@@ -113,6 +122,7 @@ function renderTable(
   overrides: Partial<DiffTableProps> = {},
   flowState: Partial<ReviewFlowState> = {},
   existingStore?: ReviewFlowStore,
+  session?: ReviewSessionPayload,
 ) {
   const rows =
     buildInlineThreads({
@@ -163,6 +173,7 @@ function renderTable(
       <ReviewSessionProvider
         briefId="test-brief"
         model={buildBriefViewModel(providerBrief)}
+        session={session}
       >
         <ReviewFlowProvider store={flowStore}>
           <DiffTable {...props} />
@@ -172,6 +183,30 @@ function renderTable(
   );
   return { view, openCommentComposer, flowStore };
 }
+
+describe("DiffTable — a draft restored from the server", () => {
+  it("renders on the row its coordinates name, with no row ids to go on", () => {
+    // The session read lands BEFORE the diff does, so a restored draft carries
+    // coordinates and no row ids. Matching on ids alone would hide it, and a
+    // draft the reviewer cannot see is one they write again.
+    const session: ReviewSessionPayload = {
+      ...emptySessionPayload(),
+      draftComments: [
+        {
+          id: "41",
+          filePath: "src/a.ts",
+          side: "new",
+          startLine: 10,
+          endLine: 10,
+          body: "restored from the session",
+          status: "draft",
+        },
+      ],
+    };
+    const { view } = renderTable({}, {}, undefined, session);
+    expect(view.getByText("restored from the session")).toBeTruthy();
+  });
+});
 
 describe("DiffTable — read-only comment affordances", () => {
   const REASON = "You're viewing an earlier revision.";

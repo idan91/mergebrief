@@ -1,11 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
-  createMemoryHistory,
-  createRouter,
-  RouterProvider,
-} from "@tanstack/react-router";
-import {
   cleanup,
   fireEvent,
   render,
@@ -21,13 +16,11 @@ import {
   type Brief,
   type LocalBriefSummary,
 } from "../features/brief/types";
-import {
-  localBriefQueryOptions,
-  localBriefsQueryOptions,
-  localRevisionChangesQueryOptions,
-} from "../features/brief/queries";
-import { clearSnapshots } from "../features/review/session";
-import { routeTree } from "../routeTree.gen";
+import { BriefView } from "../features/brief";
+import { emptySessionPayload } from "../features/review/session";
+import { I18nProvider } from "../i18n/I18nProvider";
+
+const emptySession = emptySessionPayload();
 
 /**
  * Two groups of two chunks each — the minimal shape that exercises
@@ -129,39 +122,32 @@ const summaryFixture: LocalBriefSummary = {
   index: 1,
 };
 
+/**
+ * The screen with a live session, rendered directly rather than through the
+ * file route: a file-backed brief has no session and is read-only, so the
+ * route harness could only pin refusals. Read-through IS the write path.
+ */
 async function renderReadThroughScreen() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  queryClient.setQueryData(
-    localBriefQueryOptions(summaryFixture.id).queryKey,
-    readThroughFixture,
-  );
-  queryClient.setQueryData(localBriefsQueryOptions().queryKey, [
-    summaryFixture,
-  ]);
-  queryClient.setQueryData(
-    localRevisionChangesQueryOptions(summaryFixture.id).queryKey,
-    null,
-  );
-
-  const router = createRouter({
-    routeTree,
-    context: { queryClient },
-    history: createMemoryHistory({
-      initialEntries: [`/briefs/${summaryFixture.id}`],
-    }),
-  });
-  await router.load();
   render(
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>,
+    <I18nProvider>
+      <QueryClientProvider client={queryClient}>
+        <BriefView
+          artifacts={[summaryFixture]}
+          brief={readThroughFixture}
+          briefId={summaryFixture.id}
+          searchParams={{}}
+          session={emptySession}
+        />
+      </QueryClientProvider>
+    </I18nProvider>,
   );
   await waitFor(() =>
     expect(screen.getByText(readThroughFixture.pr.title)).toBeTruthy(),
   );
-  return { queryClient, router };
+  return { queryClient };
 }
 
 function activeChunkId(): string | undefined {
@@ -179,10 +165,7 @@ function viewedCheckboxFor(chunkId: string): HTMLInputElement {
 }
 
 describe("Read-through progress + auto-advance", () => {
-  afterEach(() => {
-    cleanup();
-    clearSnapshots();
-  });
+  afterEach(cleanup);
 
   it("renders one progress segment per group, current segment marked with aria-current", async () => {
     await renderReadThroughScreen();

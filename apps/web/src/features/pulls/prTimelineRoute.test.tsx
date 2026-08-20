@@ -30,7 +30,9 @@ import {
   dbComparisonMarksQueryOptions,
   prDiffQueryOptions,
   prMetaQueryOptions,
+  sessionQueryOptions,
 } from "./queries";
+import { emptySessionPayload } from "@web/features/review/session";
 import type { PrSummary, RevisionSummary } from "./types";
 
 const REPO_ID = "424242";
@@ -111,6 +113,11 @@ async function renderTimeline(
       prDiffQueryOptions(REPO_ID, PR_NUMBER, rev.baseSha, rev.headSha).queryKey,
       "",
     );
+    queryClient.setQueryData(
+      sessionQueryOptions(REPO_ID, PR_NUMBER, rev.baseSha, rev.headSha)
+        .queryKey,
+      emptySessionPayload(),
+    );
   }
   const router = createRouter({
     routeTree,
@@ -151,7 +158,7 @@ describe("DB brief route — revision timeline", () => {
     expect(screen.queryByText(/viewing an earlier revision/i)).toBeNull();
     expect(screen.getByText(/^viewing revision 1 of 2\.$/i)).toBeTruthy();
     // …and the receipt carries the stale-submit ack instead.
-    fireEvent.click(screen.getByRole("button", { name: /^submit$/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /^submit$/i }));
     // The advisory view fronts the modal when unresolved items exist;
     // Continue reaches the verdict view, which carries the ack.
     fireEvent.click(screen.getByRole("button", { name: /^continue$/i }));
@@ -346,7 +353,7 @@ describe("DB brief route — revision timeline", () => {
     );
     expect(picker.value).toBe("1");
     expect(screen.getByText(/^viewing revision 2 of 2\.$/i)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /^submit$/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /^submit$/i }));
     // The advisory view fronts the modal when unresolved items exist;
     // Continue reaches the verdict view, which carries the ack.
     fireEvent.click(screen.getByRole("button", { name: /^continue$/i }));

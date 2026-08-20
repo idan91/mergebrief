@@ -14,7 +14,6 @@ import { prefersReducedMotion } from "@web/utils/motion";
 import { toggleSet } from "@web/utils/collections";
 import type { BriefChunk } from "@web/features/brief/types";
 import type { ReviewComment } from "@web/features/review/utils/comments";
-import { markSnapshotCommentsSubmitted } from "@web/features/review/session";
 import { buildConversationDigest } from "../../utils/digest";
 import {
   applyConversationFilter,
@@ -71,7 +70,8 @@ export interface ConversationPlan {
 
 export interface ConversationSectionProps {
   plan: ConversationPlan;
-  briefId: string;
+  /** Writes are off (no session): the reply composers refuse. */
+  readOnlyReason?: string | undefined;
   chunks: readonly BriefChunk[];
   localComments: readonly ReviewComment[];
   submittedReviewIds: readonly number[];
@@ -119,7 +119,7 @@ const VERDICT_LABEL: Record<ConversationReview["state"], string> = {
  */
 export function ConversationSection({
   plan,
-  briefId,
+  readOnlyReason,
   chunks,
   localComments,
   submittedReviewIds,
@@ -171,15 +171,9 @@ export function ConversationSection({
     );
     if (ids.length === 0) return;
     for (const id of ids) flippedRef.current.add(id);
-    // These drafts ARE on GitHub: live flip plus a durable write, since the
-    // provider may outlive neither.
+    // These drafts ARE on GitHub.
     markCommentsSubmitted(ids);
-    try {
-      markSnapshotCommentsSubmitted(briefId, ids);
-    } catch (persistError) {
-      console.error("conversation: durable flip failed", persistError);
-    }
-  }, [briefId, markCommentsSubmitted, reconciliation]);
+  }, [markCommentsSubmitted, reconciliation]);
 
   // The filter as it applies to THIS conversation: logins nobody matches are
   // dropped, so a stale shared link loosens instead of emptying the section.
@@ -303,7 +297,7 @@ export function ConversationSection({
   // the reply visible in-section. Draft reads/writes and announce copy live
   // inside ReplyComposer — only the transport rides here.
   const composer: ThreadComposerWiring = {
-    briefId,
+    ...(readOnlyReason === undefined ? {} : { readOnlyReason }),
     post: plan.postReply,
     onPosted: refresh,
     mentionPool,

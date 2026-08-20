@@ -4,7 +4,7 @@
 // render trigger is artifact EXISTS — status only flavors the wait state.
 // Composition only: the body switch, state cards, and plan assembly live in
 // `features/pulls`.
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQuery, type QueryClient } from "@tanstack/react-query";
 import {
   createFileRoute,
   notFound,
@@ -29,6 +29,7 @@ import { PrBriefBody, PrBriefError } from "@web/features/pulls";
 import {
   dbBriefQueryOptions,
   prMetaQueryOptions,
+  sessionQueryOptions,
 } from "../features/pulls/queries";
 import {
   resolveDbTimeline,
@@ -114,6 +115,23 @@ function mapLoaderError(error: unknown): never {
   throw error;
 }
 
+/**
+ * The Review Session, read alongside the Brief artifact so the first paint is
+ * already marked. It DEGRADES: a failed read leaves an error in the cache,
+ * which the screen renders as an unavailable session with writes off — it
+ * never fails the route. The read creates nothing.
+ */
+function prefetchSession(
+  queryClient: QueryClient,
+  repoId: string,
+  prNumber: number,
+  span: Span,
+): Promise<void> {
+  return queryClient.prefetchQuery(
+    sessionQueryOptions(repoId, prNumber, span.base, span.head),
+  );
+}
+
 export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
   validateSearch: (search: Record<string, unknown>): PrBriefSearch => {
     const base = search["base"];
@@ -159,6 +177,7 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
           context.queryClient.ensureQueryData(
             dbBriefQueryOptions(repoId, prNumber, explicit.base, explicit.head),
           ),
+          prefetchSession(context.queryClient, repoId, prNumber, explicit),
         ]);
         if (metaResult.status === "rejected") {
           mapLoaderError(metaResult.reason);
@@ -194,26 +213,31 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
       // An unknown head degrades to latest — never a 404.
       const timeline = resolveDbTimeline(meta.revisions, deps.head, deps.base);
       if (timeline !== undefined) {
-        await context.queryClient.ensureQueryData(
-          dbBriefQueryOptions(
-            repoId,
-            prNumber,
-            timeline.selected.baseSha,
-            timeline.selected.headSha,
+        const span = {
+          base: timeline.selected.baseSha,
+          head: timeline.selected.headSha,
+        };
+        await Promise.all([
+          context.queryClient.ensureQueryData(
+            dbBriefQueryOptions(repoId, prNumber, span.base, span.head),
           ),
-        );
+          prefetchSession(context.queryClient, repoId, prNumber, span),
+        ]);
         return;
       }
       const state = deriveBriefRouteState(meta, undefined);
       if (state.kind === "render") {
-        await context.queryClient.ensureQueryData(
-          dbBriefQueryOptions(
-            repoId,
-            prNumber,
-            state.span.base,
-            state.span.head,
+        await Promise.all([
+          context.queryClient.ensureQueryData(
+            dbBriefQueryOptions(
+              repoId,
+              prNumber,
+              state.span.base,
+              state.span.head,
+            ),
           ),
-        );
+          prefetchSession(context.queryClient, repoId, prNumber, state.span),
+        ]);
       }
     } catch (error) {
       mapLoaderError(error);

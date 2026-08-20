@@ -22,6 +22,10 @@ import {
   parseRevisionNarrativeArtifact,
 } from "../brief/utils/validation";
 import {
+  parseReviewSessionPayload,
+  type ReviewSessionPayload,
+} from "../review/session";
+import {
   parseBriefContext,
   type RepoConfigContext,
 } from "../brief/utils/repoConfig";
@@ -144,6 +148,44 @@ export function dbBriefContextQueryOptions(
     },
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: 10 * 60 * 1000,
+    retry: false,
+  });
+}
+
+/**
+ * The reviewer's Review Session on this Brief — read in the route loader so
+ * the first paint already carries marks, drafts and dispositions. The read is
+ * PURE: it never creates the session row. Live rather than immutable (a CLI
+ * write lands in the same session), so it holds only briefly.
+ */
+export function sessionQueryOptions(
+  repoId: string,
+  prNumber: number,
+  base: string,
+  head: string,
+) {
+  return queryOptions({
+    queryKey: ["review-session", repoId, prNumber, base, head],
+    queryFn: async (): Promise<ReviewSessionPayload> => {
+      const path = `${prPath(repoId, prNumber)}/session?${spanQuery(base, head)}`;
+      const body = await apiFetchJson(path);
+      const parsed = parseReviewSessionPayload(body);
+      if (!parsed.ok) {
+        // This runs during route-loader SSR prefetch, where the rejection is
+        // absorbed into cache state and the UI quietly degrades to read-only.
+        // The server side is the only one with an operator to tell.
+        (await getSsrWarnSink())?.warn(
+          `malformed review-session payload: ${parsed.error}`,
+        );
+        throw new ApiError(ApiErrorCode.MALFORMED, 200, path);
+      }
+      return parsed.value;
+    },
+    // A refetch REPLACES the store (the provider re-derives on a changed
+    // payload), so while the store is the only home of the reviewer's work
+    // nothing may refetch it — mount, focus and reconnect all fire on a stale
+    // query. The moment every action writes through, this comes down.
+    staleTime: Number.POSITIVE_INFINITY,
     retry: false,
   });
 }

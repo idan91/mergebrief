@@ -27,8 +27,7 @@ import { appI18n, I18nProvider } from "../../../../i18n/I18nProvider";
 const MARK_READY_COPY = {
   upstream: appI18n.t("pulls.markReady.upstream"),
 };
-import type { ReviewComment } from "../../../review/utils/comments";
-import { writeSnapshot } from "../../../review/session";
+import type { ReviewSessionPayload } from "../../../review/session";
 import type { OwnDraftPlan } from "./BriefView";
 import { BriefView } from "./BriefView";
 import {
@@ -41,8 +40,26 @@ import { briefFixture } from "../../utils/fixtures";
 
 afterEach(() => {
   cleanup();
-  window.sessionStorage.clear();
+  seededDrafts = [];
 });
+
+/** The session the next render loads, seeded per test like the loader would. */
+let seededDrafts: ReviewSessionPayload["draftComments"] = [];
+
+function seedDrafts(drafts: ReviewSessionPayload["draftComments"]): void {
+  seededDrafts = drafts;
+}
+
+function buildSessionPayload(): ReviewSessionPayload {
+  return {
+    reviewOutcome: "comment",
+    draftComments: seededDrafts,
+    readMarks: [],
+    reclassifications: [],
+    dispositions: [],
+    submittedReviewIds: [],
+  };
+}
 
 const CHIP_COPY = "Self-review — your draft";
 
@@ -62,25 +79,24 @@ function markReadyCta(): HTMLButtonElement {
 }
 
 /** A review comment anchored on `chunkId` — session-store seeding shape. */
+/** One draft on a fixture chunk, addressed the way the wire addresses it. */
 function comment(
   id: string,
-  chunkId: string,
-  status: ReviewComment["status"],
-): ReviewComment {
+  chunkId: "chunk-a" | "chunk-b",
+  status: "draft" | "submitted",
+): ReviewSessionPayload["draftComments"][number] {
+  const anchor =
+    chunkId === "chunk-a"
+      ? { filePath: "src/leak.ts", startLine: 10 }
+      : { filePath: "src/leak.test.ts", startLine: 1 };
   return {
     id,
-    anchor: {
-      chunkId,
-      file: "src/x.ts",
-      side: "new",
-      startLine: 1,
-      endLine: 1,
-      rowIds: [],
-      selectedText: "",
-    },
+    filePath: anchor.filePath,
+    side: "new",
+    startLine: anchor.startLine,
+    endLine: anchor.startLine,
     body: `${id} body`,
     status,
-    collapsed: false,
   };
 }
 
@@ -106,6 +122,7 @@ function renderBriefView(
           brief={brief}
           briefId="own-draft-test"
           searchParams={{}}
+          session={buildSessionPayload()}
           ownDraft={plan}
           staleHead={staleHead}
         />
@@ -423,18 +440,10 @@ describe("own-draft Brief view", () => {
     // A flags-only bypass would skip the gate on a zero-flag brief, leaving
     // the post-my-drafts checkbox unreachable — drafts silently stay local
     // while the PR goes ready. Drafts alone must open the gate.
-    writeSnapshot({
-      briefId: "own-draft-test",
-      dispositions: {},
-      dominants: {},
-      reclassifiedGroupIds: [],
-      reviewedChunkIds: [],
-      reviewComments: [
-        comment("c1", "chunk-a", "draft"),
-        comment("c2", "chunk-b", "draft"),
-      ],
-      reviewOutcome: "comment",
-    });
+    seedDrafts([
+      comment("c1", "chunk-a", "draft"),
+      comment("c2", "chunk-b", "draft"),
+    ]);
     const markReady = vi.fn(() =>
       Promise.resolve<MarkReadyResult>({ kind: "ready" }),
     );
@@ -505,19 +514,11 @@ describe("own-draft Brief view", () => {
   it("soft gate: counts only unposted drafts; the jump link closes the gate and lands on the first draft's chunk", async () => {
     // Seed the persisted session for THIS briefId: two drafts + one already
     // posted — only the drafts may count.
-    writeSnapshot({
-      briefId: "own-draft-test",
-      dispositions: {},
-      dominants: {},
-      reclassifiedGroupIds: [],
-      reviewedChunkIds: [],
-      reviewComments: [
-        comment("c1", "chunk-b", "draft"),
-        comment("c2", "chunk-a", "draft"),
-        comment("c3", "chunk-a", "submitted"),
-      ],
-      reviewOutcome: "comment",
-    });
+    seedDrafts([
+      comment("c1", "chunk-b", "draft"),
+      comment("c2", "chunk-a", "draft"),
+      comment("c3", "chunk-a", "submitted"),
+    ]);
     renderBriefView({ markReady: vi.fn() });
     fireEvent.click(
       screen.getByRole("button", { name: "Mark ready for review" }),
@@ -540,18 +541,10 @@ describe("own-draft Brief view", () => {
   });
 
   it("batch (checked, all succeed): posts every draft, THEN marks ready", async () => {
-    writeSnapshot({
-      briefId: "own-draft-test",
-      dispositions: {},
-      dominants: {},
-      reclassifiedGroupIds: [],
-      reviewedChunkIds: [],
-      reviewComments: [
-        comment("c1", "chunk-a", "draft"),
-        comment("c2", "chunk-b", "draft"),
-      ],
-      reviewOutcome: "comment",
-    });
+    seedDrafts([
+      comment("c1", "chunk-a", "draft"),
+      comment("c2", "chunk-b", "draft"),
+    ]);
     const markReady = vi.fn(() =>
       Promise.resolve<MarkReadyResult>({ kind: "ready" }),
     );
@@ -576,19 +569,11 @@ describe("own-draft Brief view", () => {
   });
 
   it("batch (checked, one fails midway): posts STOP, mark-ready NOT called, honest-counts toast", async () => {
-    writeSnapshot({
-      briefId: "own-draft-test",
-      dispositions: {},
-      dominants: {},
-      reclassifiedGroupIds: [],
-      reviewedChunkIds: [],
-      reviewComments: [
-        comment("c1", "chunk-a", "draft"),
-        comment("c2", "chunk-b", "draft"),
-        comment("c3", "chunk-a", "draft"),
-      ],
-      reviewOutcome: "comment",
-    });
+    seedDrafts([
+      comment("c1", "chunk-a", "draft"),
+      comment("c2", "chunk-b", "draft"),
+      comment("c3", "chunk-a", "draft"),
+    ]);
     const markReady = vi.fn(() =>
       Promise.resolve<MarkReadyResult>({ kind: "ready" }),
     );
@@ -637,18 +622,10 @@ describe("own-draft Brief view", () => {
     // An `invalid` route reject is deterministic — the comment definitively
     // did NOT post, so the summary must be actionable ("edit the draft"),
     // never the indeterminate check-GitHub warning.
-    writeSnapshot({
-      briefId: "own-draft-test",
-      dispositions: {},
-      dominants: {},
-      reclassifiedGroupIds: [],
-      reviewedChunkIds: [],
-      reviewComments: [
-        comment("c1", "chunk-a", "draft"),
-        comment("c2", "chunk-b", "draft"),
-      ],
-      reviewOutcome: "comment",
-    });
+    seedDrafts([
+      comment("c1", "chunk-a", "draft"),
+      comment("c2", "chunk-b", "draft"),
+    ]);
     const markReady = vi.fn(() =>
       Promise.resolve<MarkReadyResult>({ kind: "ready" }),
     );
@@ -685,18 +662,10 @@ describe("own-draft Brief view", () => {
     // A guard-path rejection (over-cap body — the deterministic-400 mirror)
     // inside a batch must not announce its blocked reason before the summary;
     // the summary carries the stop-cause.
-    writeSnapshot({
-      briefId: "own-draft-test",
-      dispositions: {},
-      dominants: {},
-      reclassifiedGroupIds: [],
-      reviewedChunkIds: [],
-      reviewComments: [
-        comment("c1", "chunk-a", "draft"),
-        { ...comment("c2", "chunk-b", "draft"), body: "x".repeat(65_537) },
-      ],
-      reviewOutcome: "comment",
-    });
+    seedDrafts([
+      comment("c1", "chunk-a", "draft"),
+      { ...comment("c2", "chunk-b", "draft"), body: "x".repeat(65_537) },
+    ]);
     const markReady = vi.fn(() =>
       Promise.resolve<MarkReadyResult>({ kind: "ready" }),
     );
@@ -749,15 +718,7 @@ describe("own-draft Brief view", () => {
     for (const { kind, copy } of cases) {
       cleanup();
       window.sessionStorage.clear();
-      writeSnapshot({
-        briefId: "own-draft-test",
-        dispositions: {},
-        dominants: {},
-        reclassifiedGroupIds: [],
-        reviewedChunkIds: [],
-        reviewComments: [comment("c1", "chunk-a", "draft")],
-        reviewOutcome: "comment",
-      });
+      seedDrafts([comment("c1", "chunk-a", "draft")]);
       const markReady = vi.fn(() =>
         Promise.resolve<MarkReadyResult>({ kind: "ready" }),
       );
@@ -793,18 +754,10 @@ describe("own-draft Brief view", () => {
     // The failure branch closes the gate while the modal holds focus (the
     // confirm CTA) — the box goes inert and focus drops with NEITHER sibling
     // rescue firing (state didn't exit, head didn't advance).
-    writeSnapshot({
-      briefId: "own-draft-test",
-      dispositions: {},
-      dominants: {},
-      reclassifiedGroupIds: [],
-      reviewedChunkIds: [],
-      reviewComments: [
-        comment("c1", "chunk-a", "draft"),
-        comment("c2", "chunk-b", "draft"),
-      ],
-      reviewOutcome: "comment",
-    });
+    seedDrafts([
+      comment("c1", "chunk-a", "draft"),
+      comment("c2", "chunk-b", "draft"),
+    ]);
     const markReady = vi.fn(() =>
       Promise.resolve<MarkReadyResult>({ kind: "ready" }),
     );
@@ -840,18 +793,10 @@ describe("own-draft Brief view", () => {
     // Modal wires Escape to close only when a handler is provided — mid-batch
     // the gate withholds it, matching the disabled controls, so progress
     // feedback cannot vanish while writes continue.
-    writeSnapshot({
-      briefId: "own-draft-test",
-      dispositions: {},
-      dominants: {},
-      reclassifiedGroupIds: [],
-      reviewedChunkIds: [],
-      reviewComments: [
-        comment("c1", "chunk-a", "draft"),
-        comment("c2", "chunk-b", "draft"),
-      ],
-      reviewOutcome: "comment",
-    });
+    seedDrafts([
+      comment("c1", "chunk-a", "draft"),
+      comment("c2", "chunk-b", "draft"),
+    ]);
     const markReady = vi.fn(() =>
       Promise.resolve<MarkReadyResult>({ kind: "ready" }),
     );
@@ -885,18 +830,10 @@ describe("own-draft Brief view", () => {
   });
 
   it("batch (unchecked): marks ready WITHOUT posting anything (existing behavior)", async () => {
-    writeSnapshot({
-      briefId: "own-draft-test",
-      dispositions: {},
-      dominants: {},
-      reclassifiedGroupIds: [],
-      reviewedChunkIds: [],
-      reviewComments: [
-        comment("c1", "chunk-a", "draft"),
-        comment("c2", "chunk-b", "draft"),
-      ],
-      reviewOutcome: "comment",
-    });
+    seedDrafts([
+      comment("c1", "chunk-a", "draft"),
+      comment("c2", "chunk-b", "draft"),
+    ]);
     const markReady = vi.fn(() =>
       Promise.resolve<MarkReadyResult>({ kind: "ready" }),
     );

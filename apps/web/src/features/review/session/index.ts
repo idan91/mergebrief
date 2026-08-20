@@ -7,16 +7,13 @@ export {
   type ReviewSessionStore,
   type ReviewSessionStoreValue,
 } from "./store";
+export { serializeSnapshot, type SessionSnapshot } from "./snapshot";
 export {
-  clearSnapshots,
-  markSnapshotCommentsSubmitted,
-  persistReplyDraft,
-  readSnapshot,
-  serializeSnapshot,
-  snapshotToState,
-  writeSnapshot,
-  type SessionSnapshot,
-} from "./snapshot";
+  emptySessionPayload,
+  parseReviewSessionPayload,
+  sessionInitialState,
+  type ReviewSessionPayload,
+} from "./serverState";
 export {
   ReviewSessionProvider,
   useChunkReviewComments,

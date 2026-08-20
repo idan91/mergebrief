@@ -5,20 +5,10 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import type * as SessionModule from "../session";
-
-vi.mock("../session", async (importOriginal) => {
-  const actual = await importOriginal<typeof SessionModule>();
-  return { ...actual, markSnapshotCommentsSubmitted: vi.fn() };
-});
-
 import type { CommentAnchor, ReviewComment } from "../utils/comments";
 import type { Receipt } from "../utils/receipt";
-import { markSnapshotCommentsSubmitted } from "../session";
 import type { SubmitReviewResult } from "../utils/submit";
 import { useReviewSubmit, type UseReviewSubmitInput } from "./useReviewSubmit";
-
-const durableFlipMock = vi.mocked(markSnapshotCommentsSubmitted);
 
 const RECEIPT: Receipt = {
   subject: { repo: "octo/hello", number: 7, sha: "c".repeat(40) },
@@ -157,14 +147,6 @@ describe("useReviewSubmit", () => {
       comments: [draft("a")],
     });
     expect(markSubmitted).toHaveBeenCalledWith(["a"]);
-    // Durable flip too — the provider may already be unmounted by now; the
-    // approve verdict is spent, so the durable write also resets the outcome.
-    expect(durableFlipMock).toHaveBeenCalledWith(
-      "db:1:7:base:head",
-      ["a"],
-      true,
-      5,
-    );
     expect(recordSubmittedReview).toHaveBeenCalledWith(5);
     expect(closeSubmit).toHaveBeenCalledTimes(1);
     // The review is live: the conversation refetches so the posted comments
@@ -267,37 +249,6 @@ describe("useReviewSubmit", () => {
     act(() => rendered.result.current.submit());
     await waitFor(() => expect(rendered.result.current.pending).toBe(false));
     expect(resetOutcome).not.toHaveBeenCalled();
-    expect(durableFlipMock).toHaveBeenLastCalledWith(
-      "db:1:7:base:head",
-      ["a"],
-      false,
-      5,
-    );
-  });
-
-  it("still reports success when local persistence throws (review IS posted)", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-    const { rendered, action, announce, closeSubmit } = setup();
-    action.mockResolvedValue({
-      kind: "submitted",
-      reviewId: 5,
-      commentsDegraded: false,
-    });
-    durableFlipMock.mockImplementationOnce(() => {
-      throw new Error("QuotaExceededError");
-    });
-
-    act(() => rendered.result.current.submit());
-    await waitFor(() => expect(rendered.result.current.pending).toBe(false));
-
-    // GitHub created the review — a sessionStorage failure must not render
-    // the "nothing was posted" retry prompt.
-    expect(rendered.result.current.error).toBeNull();
-    expect(announce).toHaveBeenCalledWith(expect.stringMatching(/posted/i));
-    expect(closeSubmit).toHaveBeenCalledTimes(1);
-    consoleError.mockRestore();
   });
 
   it("does not spend the verdict on failure", async () => {

@@ -41,6 +41,16 @@ export interface DiffRowView {
   showComposer: boolean;
 }
 
+/**
+ * Does this row carry the draft's last line? The fallback for a draft that
+ * came from the server: row ids belong to the render that created them, and a
+ * session read lands before the diff does, so the coordinates are all it has.
+ */
+function anchorEndsOnRow(anchor: CommentAnchor, line: DiffLine): boolean {
+  const value = anchor.side === "old" ? line.oldLine : line.newLine;
+  return value === anchor.endLine;
+}
+
 /** Derives everything a commentable diff row needs to render. Pure — no DOM, no React. */
 export function getDiffRowView({
   line,
@@ -60,8 +70,10 @@ export function getDiffRowView({
   const revMark = overlayActive ? comparisonView.marks.get(index) : undefined;
   const isRevStart = revRun !== undefined && revRun.rowIndexes[0] === index;
   const isRevEnd = revRun !== undefined && revRun.rowIndexes.at(-1) === index;
-  const rowComments = comments.filter(
-    (comment) => comment.anchor.rowIds.at(-1) === id,
+  const rowComments = comments.filter((comment) =>
+    comment.anchor.rowIds.length === 0
+      ? anchorEndsOnRow(comment.anchor, line)
+      : comment.anchor.rowIds.at(-1) === id,
   );
   const rowAddressedComments = addressedComments.filter((comment) =>
     reviewCommentMatchesDiffLine(comment, chunk.file, line, chunk.diff),

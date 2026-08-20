@@ -449,6 +449,8 @@
       "noDescription": "_No PR description provided._"
     },
     "screen": {
+      "sessionUnavailable": "Your review session couldn't be loaded, so this brief is read-only. Reload to try again — commenting here would risk duplicating drafts you already have.",
+      "fileBriefReadOnly": "This brief was loaded from a file, so there is no review session to save work to. It is read-only.",
       "staleRevisionReason": "This isn't the pull request's current revision. Switch to the latest revision to comment.",
       "mockupSubmit": "Mockup flow — submit posts your review natively to GitHub with one signature line linking this receipt.",
       "exitFocus": "Exit focus (Z)",

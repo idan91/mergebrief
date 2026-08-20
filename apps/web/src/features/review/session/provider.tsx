@@ -1,10 +1,4 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useRef,
-  type ReactNode,
-} from "react";
+import { createContext, useContext, useRef, type ReactNode } from "react";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 
@@ -12,121 +6,68 @@ import type { BriefViewModel } from "@web/features/brief/utils";
 import type { ReviewComment } from "../utils/comments";
 import {
   createReviewSessionStore,
-  deriveInitialState,
   type ReviewSessionActions,
   type ReviewSessionStore,
   type ReviewSessionStoreValue,
 } from "./store";
-import {
-  readSnapshot,
-  serializeSnapshot,
-  snapshotToState,
-  writeSnapshot,
-  type SessionSnapshot,
-} from "./snapshot";
+import { sessionInitialState, type ReviewSessionPayload } from "./serverState";
 
 const ReviewSessionContext = createContext<ReviewSessionStore | null>(null);
-const PERSIST_DEBOUNCE_MS = 250;
 
 interface ReviewSessionProviderProps {
   briefId: string;
   model: BriefViewModel;
   /**
-   * @description Explicit snapshot injection for tests and summary routes.
-   * Otherwise, the provider reads from storage.
+   * The server-held session, read by the route loader. Absent = no session to
+   * show (a file-backed Brief, or a read that failed), and the screen is
+   * read-only.
    */
-  snapshot?: SessionSnapshot;
+  session?: ReviewSessionPayload | undefined;
   children: ReactNode;
 }
 
-/** The pending debounced persist write, reachable from the render-phase switch. */
-interface PendingPersist {
-  timer: number | undefined;
-}
-
 /**
- * Per-brief client runtime of the Review Session. The store is created once per
- * mount (never a module singleton), so it is SSR-safe and per-brief isolated,
- * mirroring the per-request queryClient. Hydration and persistence are the only
- * two effects that touch sessionStorage — client-only by construction.
+ * Per-brief client runtime of the Review Session. The store is created once
+ * per mount (never a module singleton), so it is SSR-safe and per-brief
+ * isolated, mirroring the per-request queryClient. Its contents are the
+ * server's: the loader read them, and every action writes them back.
  *
  * The provider is NOT remounted per brief: a revision change swaps `briefId`
- * in place, and the render-phase switch below re-derives the store — flush the
- * old brief's pending write, reset to the new model's derived state, hydrate
- * the new brief's snapshot — before any child renders against the new model.
- * An effect would be too late: one frame of the old brief's ids against the
- * new model's flags/groups is a crash, not a flicker.
+ * in place, and the render-phase switch below re-derives the store before any
+ * child renders against the new model. An effect would be too late: one frame
+ * of the old brief's ids against the new model's flags/groups is a crash, not
+ * a flicker.
  */
 export function ReviewSessionProvider({
   briefId,
   model,
-  snapshot,
+  session,
   children,
 }: ReviewSessionProviderProps) {
   const storeRef = useRef<ReviewSessionStore | null>(null);
-  storeRef.current ??= createReviewSessionStore(deriveInitialState(model));
+  storeRef.current ??= createReviewSessionStore(
+    sessionInitialState(model, session),
+  );
   const store = storeRef.current;
-  const pendingPersist = useRef<PendingPersist>({ timer: undefined });
   const mountedBriefId = useRef(briefId);
+  const appliedSession = useRef(session);
 
-  // Render-phase brief switch (guarded, so it runs once per change and never
-  // on the server, where briefId cannot change within the single render pass).
-  if (mountedBriefId.current !== briefId) {
-    const previousBriefId = mountedBriefId.current;
+  // Render-phase re-derive (guarded, so it runs once per change and never on
+  // the server, where neither input can change within the single render pass).
+  // The session is re-applied on IDENTITY change, not just on a brief switch:
+  // a read that lands after the first paint — the degraded route recovering —
+  // must reach the store, or writes would come back on over a screen still
+  // showing none of the reviewer's earlier work. react-query's structural
+  // sharing keeps the reference stable while the payload is unchanged, so an
+  // unchanged refetch re-derives nothing.
+  if (
+    mountedBriefId.current !== briefId ||
+    appliedSession.current !== session
+  ) {
     mountedBriefId.current = briefId;
-    // The old brief's last edit may still sit in the debounce window — flush
-    // it under the OLD id before the state below stops being that brief's.
-    if (pendingPersist.current.timer !== undefined) {
-      window.clearTimeout(pendingPersist.current.timer);
-      pendingPersist.current.timer = undefined;
-      writeSnapshot(serializeSnapshot(previousBriefId, store.getState()));
-    }
-    const persisted = snapshot ?? readSnapshot(briefId);
-    store.setState({
-      ...deriveInitialState(model),
-      ...(persisted ? snapshotToState(persisted) : {}),
-    });
+    appliedSession.current = session;
+    store.setState(sessionInitialState(model, session));
   }
-
-  // Hydrate post-mount: the server render has no storage. Also re-runs on a
-  // brief switch, where it re-applies what the render-phase switch already
-  // set — harmless, and it keeps first-mount hydration in one place.
-  useEffect(() => {
-    const persisted = snapshot ?? readSnapshot(briefId);
-    if (persisted) store.setState(snapshotToState(persisted));
-  }, [briefId, snapshot, store]);
-
-  // One debounced effect persists the store to sessionStorage on every change.
-  // The timer handle lives in a ref so the render-phase switch above can flush
-  // a write the unmount cleanup would otherwise own.
-  useEffect(() => {
-    const pending = pendingPersist.current;
-    // Every write is gated on this closure's briefId still being current:
-    // the render-phase switch resets the store BEFORE this subscription is
-    // torn down, so an unguarded subscriber (or its cleanup flush) would
-    // persist the NEW brief's state under the OLD brief's key.
-    const current = () => mountedBriefId.current === briefId;
-    const unsubscribe = store.subscribe((state) => {
-      if (!current()) return;
-      window.clearTimeout(pending.timer);
-      pending.timer = window.setTimeout(() => {
-        pending.timer = undefined;
-        if (current()) writeSnapshot(serializeSnapshot(briefId, state));
-      }, PERSIST_DEBOUNCE_MS);
-    });
-    return () => {
-      // Flush a pending debounced write so a last edit just before unmount
-      // (leaving the brief page entirely) isn't dropped.
-      if (pending.timer !== undefined) {
-        window.clearTimeout(pending.timer);
-        pending.timer = undefined;
-        if (current()) {
-          writeSnapshot(serializeSnapshot(briefId, store.getState()));
-        }
-      }
-      unsubscribe();
-    };
-  }, [briefId, store]);
 
   return (
     <ReviewSessionContext.Provider value={store}>

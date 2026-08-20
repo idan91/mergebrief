@@ -28,6 +28,7 @@ import {
   dbBriefContextQueryOptions,
   dbBriefQueryOptions,
   prDiffQueryOptions,
+  sessionQueryOptions,
 } from "../../../queries";
 import type { PrSummary } from "../../../types";
 import { DbBriefControls } from "./DbBriefControls/DbBriefControls";
@@ -89,6 +90,20 @@ export function PrBriefContent({
   const diff = useQuery(
     prDiffQueryOptions(repoId, prNumber, span.base, span.head),
   );
+  // The Review Session, prefetched by the route loader so the FIRST paint
+  // already carries marks, drafts and dispositions. A failed read degrades:
+  // the Brief renders, and the screen goes read-only — a reviewer typing into
+  // a screen hiding their earlier drafts writes the same comment twice.
+  const session = useQuery(
+    sessionQueryOptions(repoId, prNumber, span.base, span.head),
+  );
+  // No session in hand = writes off, whether the read failed or has not
+  // landed. A failed BACKGROUND refetch keeps the session that is already
+  // rendered — only an absent one closes the screen.
+  const sessionReadOnly =
+    session.data === undefined
+      ? { reason: t("brief.screen.sessionUnavailable") }
+      : undefined;
   const assembled = useMemo(
     () => (diff.data === undefined ? brief : attachLiveDiffs(brief, diff.data)),
     [brief, diff.data],
@@ -176,7 +191,7 @@ export function PrBriefContent({
         timeline?.degraded ? t("pulls.content.revisionLinkGone") : undefined
       }
       onSelectRevision={onSelectRevision}
-      readOnly={readOnly !== undefined}
+      readOnly={(readOnly ?? sessionReadOnly) !== undefined}
       staleHead={staleHead}
       timeline={timeline}
       {...(onGoToNewest ? { onGoToNewest } : {})}
@@ -208,8 +223,9 @@ export function PrBriefContent({
         openDeltaLens={openDeltaLens}
         exitChangesScope={exitChangesScope}
         ownDraft={ownDraft}
-        readOnly={readOnly}
+        readOnly={readOnly ?? sessionReadOnly}
         revisionPending={revisionPending}
+        session={session.data}
         searchParams={searchParams}
         staleHead={staleHead}
         submitReview={submitAction}

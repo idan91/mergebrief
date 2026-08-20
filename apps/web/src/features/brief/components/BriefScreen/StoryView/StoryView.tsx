@@ -41,6 +41,8 @@ export interface StoryViewProps {
   /** Enters Read-through at step 1; absent when unavailable (comparing, no chunks). */
   startReadThrough?: () => void;
   markReviewed: (chunkId: string) => void;
+  /** Writes are off (no session): the Viewed toggles disable. */
+  marksDisabled?: boolean;
   toggleChunk: (chunkId: string) => void;
   /** Inline conversation threads per chunk; absent on the local path. */
   conversationByChunk?: ReadonlyMap<string, DigestRow[]> | undefined;
@@ -122,6 +124,7 @@ export function StoryView(props: StoryViewProps) {
                     conversationComposer={props.conversationComposer}
                     conversationRows={props.conversationByChunk?.get(chunk.id)}
                     markReviewed={props.markReviewed}
+                    marksDisabled={props.marksDisabled}
                     toggleChunk={props.toggleChunk}
                   />
                 ))}
@@ -299,6 +302,7 @@ function WindowedChunkList({
               conversationComposer={view.conversationComposer}
               conversationRows={view.conversationByChunk?.get(chunk.id)}
               markReviewed={view.markReviewed}
+              marksDisabled={view.marksDisabled}
               toggleChunk={view.toggleChunk}
             />
           </div>

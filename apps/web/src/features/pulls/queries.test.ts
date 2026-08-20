@@ -21,6 +21,7 @@ import {
   dbDeltaQueryOptions,
   prMetaQueryOptions,
   pullsSessionQueryOptions,
+  sessionQueryOptions,
 } from "./queries";
 
 const apiFetchMock = vi.mocked(apiFetch);
@@ -171,6 +172,13 @@ function runBrief(): Promise<unknown> {
   return (queryFn as () => Promise<unknown>)();
 }
 
+function runSession(): Promise<unknown> {
+  const options = sessionQueryOptions("424242", 7, "base-1", "head-1");
+  const queryFn = options.queryFn;
+  if (typeof queryFn !== "function") throw new Error("expected a queryFn");
+  return (queryFn as () => Promise<unknown>)();
+}
+
 function runDelta(): Promise<unknown> {
   const options = dbDeltaQueryOptions("424242", 7, "cp-1", "head-1");
   const queryFn = options.queryFn;
@@ -277,6 +285,26 @@ describe("dbBriefQueryOptions queryFn — warn sink", () => {
     expect(warn.mock.calls[0]?.[0]).toContain(
       "parseBrief: dropping readingOrder",
     );
+  });
+
+  it("routes a malformed session payload to the SSR sink before it throws", async () => {
+    // Route-loader prefetch absorbs the rejection into cache state and the UI
+    // degrades to read-only — without this line nothing tells the operator.
+    const warn = vi.fn();
+    getSsrWarnSinkMock.mockResolvedValue({ warn });
+    apiFetchJsonMock.mockResolvedValue({ reviewOutcome: "nonsense" });
+
+    await expect(runSession()).rejects.toBeInstanceOf(ApiError);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]?.[0]).toContain(
+      "malformed review-session payload",
+    );
+  });
+
+  it("throws typed with no sink in the browser", async () => {
+    getSsrWarnSinkMock.mockResolvedValue(undefined);
+    apiFetchJsonMock.mockResolvedValue({ reviewOutcome: "nonsense" });
+    await expect(runSession()).rejects.toBeInstanceOf(ApiError);
   });
 
   it("parses fine when the sink is absent (the browser refetch)", async () => {

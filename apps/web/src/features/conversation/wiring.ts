@@ -67,7 +67,8 @@ export interface ThreadResolutionWiring extends ConversationResolutionPlan {
  * section render and the inline (at-chunk) render, so only they ride here.
  */
 export interface ThreadComposerWiring {
-  readonly briefId: string;
+  /** Why replying is off (the screen is read-only); absent = writable. */
+  readonly readOnlyReason?: string | undefined;
   readonly post: (rootCommentId: number, body: string) => Promise<ReplyResult>;
   /** Refetch after a posted reply — every conversation write evicts server-side. */
   readonly onPosted: () => void;

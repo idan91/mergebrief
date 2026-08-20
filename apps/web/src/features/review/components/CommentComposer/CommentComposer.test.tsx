@@ -8,8 +8,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { hasUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
 import type { Brief } from "@web/features/brief/types";
 import { buildBriefViewModel } from "@web/features/brief/utils";
-import type { CommentAnchor, ReviewComment } from "../../utils/comments";
-import { ReviewSessionProvider, type SessionSnapshot } from "../../session";
+import type { CommentAnchor } from "../../utils/comments";
+import {
+  ReviewSessionProvider,
+  type ReviewSessionPayload,
+} from "../../session";
 import { CommentComposer } from "./CommentComposer";
 
 afterEach(cleanup);
@@ -63,24 +66,25 @@ const anchor: CommentAnchor = {
   selectedText: "a();",
 };
 
-function snapshotWith(reviewComments: ReviewComment[]): SessionSnapshot {
+function sessionWith(
+  draftComments: ReviewSessionPayload["draftComments"],
+): ReviewSessionPayload {
   return {
-    briefId: "test-brief",
-    dispositions: {},
-    dominants: {},
-    reclassifiedGroupIds: [],
-    reviewedChunkIds: [],
-    reviewComments,
     reviewOutcome: "comment",
+    draftComments,
+    readMarks: [],
+    reclassifications: [],
+    dispositions: [],
+    submittedReviewIds: [],
   };
 }
 
-function renderComposer(reviewComments: ReviewComment[]) {
+function renderComposer(draftComments: ReviewSessionPayload["draftComments"]) {
   render(
     <ReviewSessionProvider
       briefId="test-brief"
       model={buildBriefViewModel(brief)}
-      snapshot={snapshotWith(reviewComments)}
+      session={sessionWith(draftComments)}
     >
       <CommentComposer anchor={anchor} cancel={vi.fn()} save={vi.fn()} />
     </ReviewSessionProvider>,
@@ -96,11 +100,13 @@ describe("CommentComposer — store-backed submit label", () => {
   it('reads "Add review comment" once the store holds a comment', () => {
     renderComposer([
       {
-        id: "chunk-a-new-11-11-1",
-        anchor,
+        id: "41",
+        filePath: "src/a.ts",
+        side: "new",
+        startLine: 11,
+        endLine: 11,
         body: "existing",
         status: "draft",
-        collapsed: false,
       },
     ]);
     expect(

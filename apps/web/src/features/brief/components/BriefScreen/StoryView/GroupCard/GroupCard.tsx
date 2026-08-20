@@ -277,7 +277,7 @@ export const GroupCard = memo(function GroupCard({
             ) : null}
           </div>
         ) : null}
-        {group.group.uncertain && !isReclassified ? (
+        {group.group.uncertain && !isReclassified && !flagsReadOnly ? (
           <div className={styles["uncertainPanel"]}>
             <span className={styles["question"]}>
               <Trans

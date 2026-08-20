@@ -116,10 +116,10 @@ against GitHub (or any external system) follows them:
   throw AROUND the write gets INDETERMINATE copy ("may or may not have
   posted — check GitHub") — never "nothing happened", which invites a
   double-posting retry.
-- **Success must persist independent of component lifetime.** A request can
-  settle after the provider (and its sessionStorage persistence subscriber)
-  unmounted — durable transitions are written directly
-  (`markSnapshotCommentsSubmitted`), not only through the live store.
+- **Success must reach whichever screen is live.** A request can settle
+  after the provider that started it unmounted, so a settled outcome is
+  RECORDED (the settled queue in `postComment.ts`) and applied by the mount
+  that is up at drain time — never only through the store that started it.
 - **Result surfaces must outlive the request.** Failure copy also goes
   through a page-level live region (the toast); an inline `role="alert"`
   in a closable drawer is inert by the time a slow response lands. Repeat

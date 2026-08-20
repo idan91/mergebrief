@@ -7,7 +7,6 @@ import { useLatestRef } from "@web/hooks/useLatestRef";
 
 import type { ReviewComment } from "../utils/comments";
 import type { Receipt } from "../utils/receipt";
-import { markSnapshotCommentsSubmitted } from "../session";
 import type { ReviewOutcome } from "../utils/state";
 import {
   buildReviewBody,
@@ -221,34 +220,17 @@ export function useReviewSubmit(
             // A delivered verdict is spent: the follow-up submit defaults to
             // a comment-only review, never a repeat approval.
             const verdictDelivered = outcome !== "comment";
-            try {
-              // Live-store writes only while the store still holds the
-              // originating brief; after a switch the durable write below is
-              // the sole (and sufficient) record.
-              if (briefCurrent()) {
-                // Consume first: unlike the drafts (durable backstop below),
-                // a stale review-comment draft surviving a throw here would
-                // prefill the next submit with already-posted text.
-                consumeReviewComment(reviewCommentAtClick);
-                markSubmitted(draftIds);
-                recordSubmittedReview(result.reviewId);
-                if (verdictDelivered) {
-                  resetOutcome();
-                }
+            // Live-store writes only while the store still holds the
+            // originating brief.
+            if (briefCurrent()) {
+              // Consume first: a stale review-comment draft surviving here
+              // would prefill the next submit with already-posted text.
+              consumeReviewComment(reviewCommentAtClick);
+              markSubmitted(draftIds);
+              recordSubmittedReview(result.reviewId);
+              if (verdictDelivered) {
+                resetOutcome();
               }
-              // Durable write too: the provider (and its persistence
-              // subscriber) may have unmounted mid-flight, so live-store
-              // changes alone would never reach sessionStorage.
-              markSnapshotCommentsSubmitted(
-                briefId,
-                draftIds,
-                verdictDelivered,
-                result.reviewId,
-              );
-            } catch (persistError) {
-              // Best-effort: the review IS on GitHub, so the success copy
-              // must not turn into a retry prompt.
-              console.error("submit: local persistence failed", persistError);
             }
             closeSubmit();
             // Live on GitHub now — refetch so posted comments render as

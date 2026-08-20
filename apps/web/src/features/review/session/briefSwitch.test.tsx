@@ -1,11 +1,10 @@
 // @vitest-environment jsdom
 // The in-place brief switch: the provider is no longer remounted per brief
-// (the subtree key is gone), so swapping `briefId`+`model` must do everything
-// the unmount used to do — flush the old brief's pending persist write under
-// the OLD id, re-derive the store from the NEW model, and hydrate the new
-// brief's own snapshot. Chunk/flag ids collide across briefs by construction
-// (positional c1..cN), so a missed reset silently reads as the wrong brief's
-// session — every pin here uses colliding ids on purpose.
+// (the subtree key is gone), so swapping `briefId`+`model` must re-derive the
+// store from the NEW model and the NEW brief's session. Chunk/flag ids collide
+// across briefs by construction (positional c1..cN), so a missed reset
+// silently reads as the wrong brief's session — every pin here uses colliding
+// ids on purpose.
 import { act, cleanup, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -13,12 +12,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Brief } from "../../brief/types";
 import { buildBriefViewModel } from "@web/features/brief/utils";
 import { ReviewSessionProvider, useReviewSession } from ".";
-import { readSnapshot } from "./snapshot";
+import type { ReviewSessionPayload } from "./serverState";
 
-afterEach(() => {
-  cleanup();
-  window.sessionStorage.clear();
-});
+afterEach(cleanup);
+
+/** An otherwise-empty session carrying one read mark. */
+function sessionWithReadMark(chunkId: string): ReviewSessionPayload {
+  return {
+    reviewOutcome: "comment",
+    draftComments: [],
+    readMarks: [chunkId],
+    reclassifications: [],
+    dispositions: [],
+    submittedReviewIds: [],
+  };
+}
 
 function makeBrief(sha: string, file: string): Brief {
   return {
@@ -71,20 +79,23 @@ const modelB = buildBriefViewModel(briefB);
 // callback), so the provider's briefId is driven through this holder and
 // switched via `switchTo` below.
 let currentBriefId = "brief-a";
+let currentSession: ReviewSessionPayload | undefined = undefined;
 
 function Wrapper({ children }: { children?: ReactNode }) {
   return (
     <ReviewSessionProvider
       briefId={currentBriefId}
       model={currentBriefId === "brief-a" ? modelA : modelB}
+      session={currentSession}
     >
       {children}
     </ReviewSessionProvider>
   );
 }
 
-function renderSession() {
+function renderSession(initial?: ReviewSessionPayload) {
   currentBriefId = "brief-a";
+  currentSession = initial;
   const utils = renderHook(
     // Field-wise selectors: an object-literal selector would return a fresh
     // reference per call and loop useSyncExternalStore.
@@ -98,8 +109,13 @@ function renderSession() {
   );
   return {
     ...utils,
-    switchTo: (briefId: string) => {
+    rerenderWith: (next: ReviewSessionPayload) => {
+      currentSession = next;
+      utils.rerender();
+    },
+    switchTo: (briefId: string, next?: ReviewSessionPayload) => {
       currentBriefId = briefId;
+      currentSession = next;
       utils.rerender();
     },
   };
@@ -130,50 +146,41 @@ describe("in-place brief switch", () => {
     );
   });
 
-  it("flushes the old brief's pending write under the OLD id on switch", () => {
-    const { result, switchTo } = renderSession();
-    act(() => {
-      result.current.actions.reviewChunk("c1");
-    });
-    // Still inside the debounce window — nothing persisted yet.
-    expect(readSnapshot("brief-a")).toBeUndefined();
+  it("takes the NEW brief's session on switch, never the old brief's", () => {
+    const { result, switchTo } = renderSession(sessionWithReadMark("c1"));
+    expect(result.current.reviewedChunks.has("c1")).toBe(true);
 
+    // B's own session is empty — A's mark must not survive the switch.
     switchTo("brief-b");
-    const flushed = readSnapshot("brief-a");
-    expect(flushed?.reviewedChunkIds).toEqual(["c1"]);
-    // And nothing was written under B's id by the flush.
-    expect(readSnapshot("brief-b")).toBeUndefined();
-  });
-
-  it("hydrates the NEW brief's snapshot after the switch", () => {
-    const { result, switchTo } = renderSession();
-    // Visit B once, review a chunk, let the debounce persist it.
-    switchTo("brief-b");
-    act(() => {
-      result.current.actions.reviewChunk("c1");
-    });
-    act(() => {
-      vi.advanceTimersByTime(300);
-    });
-    expect(readSnapshot("brief-b")?.reviewedChunkIds).toEqual(["c1"]);
-
-    // Away and back: B's own session returns; it is not A's empty state.
-    switchTo("brief-a");
     expect(result.current.reviewedChunks.has("c1")).toBe(false);
-    switchTo("brief-b");
+
+    // Back on A, with A's session again: the mark returns from the server's
+    // copy, not from anything the client kept.
+    switchTo("brief-a", sessionWithReadMark("c1"));
     expect(result.current.reviewedChunks.has("c1")).toBe(true);
   });
 
-  it("persists post-switch edits under the NEW id only", () => {
+  it("a session that lands after the first paint still reaches the store", () => {
+    // The degraded route recovering: writes come back on when the payload
+    // arrives, so the work it carries has to arrive with them.
+    const { result, rerenderWith } = renderSession();
+    expect(result.current.reviewedChunks.has("c1")).toBe(false);
+    rerenderWith(sessionWithReadMark("c1"));
+    expect(result.current.reviewedChunks.has("c1")).toBe(true);
+  });
+
+  it("writes nothing to sessionStorage", () => {
     const { result, switchTo } = renderSession();
-    switchTo("brief-b");
     act(() => {
       result.current.actions.reviewChunk("c1");
     });
     act(() => {
-      vi.advanceTimersByTime(300);
+      vi.advanceTimersByTime(1000);
     });
-    expect(readSnapshot("brief-b")?.reviewedChunkIds).toEqual(["c1"]);
-    expect(readSnapshot("brief-a")).toBeUndefined();
+    switchTo("brief-b");
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(window.sessionStorage.length).toBe(0);
   });
 });

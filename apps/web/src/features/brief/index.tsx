@@ -1,4 +1,5 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 import type { BriefSearchParams } from "./comparison/compareState";
 import { localBriefQueryOptions } from "./queries";
@@ -35,12 +36,17 @@ export function BriefPage({
   exitChangesScope,
   revisionPending,
 }: BriefPageProps) {
+  const { t } = useTranslation();
   const brief = useSuspenseQuery(localBriefQueryOptions(briefId)).data;
+  // A file-backed Brief has no `brief` row, no installation and no reviewer,
+  // so it carries no Review Session — and with nowhere to keep the work, the
+  // screen reads rather than writes.
   return (
     <BriefView
       artifacts={artifacts}
       brief={brief}
       briefId={briefId}
+      readOnly={{ reason: t("brief.screen.fileBriefReadOnly") }}
       searchParams={searchParams}
       exitChangesScope={exitChangesScope}
       revisionPending={revisionPending}
