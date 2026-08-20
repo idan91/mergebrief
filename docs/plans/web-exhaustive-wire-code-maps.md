@@ -1,5 +1,24 @@
 # Exhaustive wire-code maps in web transports (BRIEF-214)
 
+## In short
+
+The problem: five places in the web app translate server error codes into
+messages for the reviewer, and each one ends with a catch-all that turns
+anything it doesn't recognise into "try again shortly". When the server grows
+a new error code, that advice is usually wrong and sometimes harmful. It
+already happened once, a reviewer was told to retry an error that no retry
+could ever fix.
+
+The goal: make it impossible for a new error code to slip through silently.
+Adding one should break the build until someone decides what each of the five
+places says for it.
+
+The main idea: replace each catch-all chain with a lookup table that must
+cover every known error code, which TypeScript enforces at compile time.
+Behaviour today stays exactly the same. The only change is that every code now
+has a deliberate, visible answer, and a new code forces five explicit
+decisions instead of zero.
+
 ## Context
 
 Five web transports map `ApiErrorCode` → result kind with an `if`-chain that
