@@ -2,7 +2,7 @@
 // planAnchoredGeneration (partition + remap-as-invariant + shared-file
 // exclusivity) and stitchBrief (carry + drop + id descent + coverage).
 import { describe, expect, it } from "vitest";
-import type { Brief } from "brief-core";
+import { remapThroughHops, type Brief } from "brief-core";
 import {
   planAnchoredGeneration,
   stitchBrief,
@@ -237,6 +237,105 @@ describe("planAnchoredGeneration", () => {
     expect(plan.frozen[0]?.chunks[0]?.addedRanges).toEqual([
       { start: 5, end: 8 },
     ]);
+  });
+});
+
+describe("planAnchoredGeneration — the durable hop", () => {
+  const previous = brief(
+    [group("g1", "alpha"), group("g2", "beta")],
+    [chunk("c1", "g1", "a.ts", 5, 8), chunk("c2", "g2", "b.ts", 1, 2)],
+  );
+
+  it("carries the touched file's parsed spans", () => {
+    const plan = planAnchoredGeneration({
+      previousBrief: previous,
+      incrementalDiff: DIFF_B,
+      compareFiles: COMPARE_B,
+      baseShaMoved: false,
+    });
+    expect(plan.hunkSpans).toEqual([
+      {
+        file: "b.ts",
+        hunks: [{ oldStart: 1, oldLines: 2, newStart: 1, newLines: 3 }],
+      },
+    ]);
+  });
+
+  it("demotes an anchor on a rename's previous path, even when that path is re-added", () => {
+    // The dangerous shape: a.ts is renamed to new.ts AND a fresh a.ts appears.
+    // Without the old path winning, the anchor would settle on brand-new code.
+    const diff = [
+      DIFF_B.replaceAll("b.ts", "new.ts"),
+      "diff --git a/a.ts b/a.ts",
+      "--- /dev/null",
+      "+++ b/a.ts",
+      "@@ -0,0 +1,50 @@",
+      "+fresh",
+    ].join("\n");
+    const plan = planAnchoredGeneration({
+      previousBrief: previous,
+      incrementalDiff: diff,
+      compareFiles: {
+        files: [
+          { filename: "a.ts", status: "added" },
+          { filename: "new.ts", status: "renamed", previousFilename: "a.ts" },
+        ],
+        complete: true,
+        status: "ahead",
+      },
+      baseShaMoved: false,
+    });
+    expect(plan.hunkSpans).toContainEqual({ file: "a.ts", hunks: [] });
+    expect(
+      plan.hunkSpans?.filter((entry) => entry.file === "a.ts"),
+    ).toHaveLength(1);
+    expect(
+      remapThroughHops("a.ts", [{ start: 5, end: 8 }], [plan.hunkSpans]),
+    ).toMatchObject({ outcome: "demoted" });
+  });
+
+  it("emits no hop at all when the compare file list may be truncated", () => {
+    const plan = planAnchoredGeneration({
+      previousBrief: previous,
+      incrementalDiff: DIFF_B,
+      compareFiles: { ...COMPARE_B, complete: false },
+      baseShaMoved: false,
+    });
+    expect(plan.hunkSpans).toBeUndefined();
+  });
+
+  it("emits no hop when the span itself is untrustworthy", () => {
+    for (const args of [
+      { incrementalDiff: DIFF_B, compareFiles: COMPARE_B, baseShaMoved: true },
+      { compareFiles: COMPARE_B, baseShaMoved: false },
+      { incrementalDiff: DIFF_B, baseShaMoved: false },
+      {
+        incrementalDiff: DIFF_B,
+        compareFiles: { ...COMPARE_B, status: "diverged" },
+        baseShaMoved: false,
+      },
+    ]) {
+      expect(
+        planAnchoredGeneration({ previousBrief: previous, ...args }).hunkSpans,
+      ).toBeUndefined();
+    }
+  });
+
+  it("gives a listed file with no parsable patch zero hunks (demote, never pass through)", () => {
+    const plan = planAnchoredGeneration({
+      previousBrief: previous,
+      incrementalDiff: DIFF_B,
+      compareFiles: {
+        files: [
+          { filename: "b.ts", status: "modified" },
+          { filename: "bin.png", status: "modified" },
+        ],
+        complete: true,
+        status: "ahead",
+      },
+      baseShaMoved: false,
+    });
+    expect(plan.hunkSpans).toContainEqual({ file: "bin.png", hunks: [] });
   });
 });
 
@@ -946,5 +1045,73 @@ describe("stitchBrief — stale warning clearing", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect("generationWarnings" in result.value.brief).toBe(false);
+  });
+});
+
+describe("stitchBrief — the carried chunk set", () => {
+  const previous = brief(
+    [group("g1", "alpha"), group("g2", "beta")],
+    [chunk("c1", "g1", "a.ts", 5, 8), chunk("c2", "g2", "b.ts", 1, 2)],
+  );
+
+  function planFor(): AnchorPlan {
+    return planAnchoredGeneration({
+      previousBrief: previous,
+      incrementalDiff: DIFF_B,
+      compareFiles: COMPARE_B,
+      baseShaMoved: false,
+    });
+  }
+
+  it("reports exactly the chunks that carried — not the re-minted ones", () => {
+    // The model re-emits b.ts under a colliding chunk id: the mint moves it,
+    // and a carried set naming it would mark unopened code as read.
+    const generated = brief(
+      [group("tmpB", "beta v2")],
+      [chunk("c1", "tmpB", "b.ts", 1, 3)],
+    );
+    const result = stitchBrief({
+      generated,
+      plan: planFor(),
+      prFiles: ["a.ts", "b.ts"],
+      changedFiles: CHANGED_AB,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value.carriedChunkIds).toEqual(["c1"]);
+    const carriedChunk = result.value.brief.chunks.find((c) => c.id === "c1");
+    expect(carriedChunk?.file).toBe("a.ts");
+    expect(
+      result.value.brief.chunks.find((c) => c.file === "b.ts")?.id,
+    ).not.toBe("c1");
+  });
+
+  it("is empty when a claim cancels the only carry", () => {
+    // A claimed group unfreezes: its chunks are the model's, not carried.
+    const generated = brief(
+      [group("g1", "alpha claimed"), group("tmpB", "beta v2")],
+      [
+        chunk("x1", "g1", "a.ts", 5, 8),
+        chunk("x3", "g1", "b.ts", 1, 3),
+        chunk("x2", "tmpB", "z.ts", 1, 2),
+      ],
+    );
+    const result = stitchBrief({
+      generated,
+      plan: planFor(),
+      prFiles: ["a.ts", "b.ts", "z.ts"],
+      changedFiles: [
+        ...CHANGED_AB,
+        {
+          file: "z.ts",
+          addedRanges: [{ start: 1, end: 2 }],
+          removedRanges: [],
+        },
+      ],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value.carriedGroupIds).toEqual([]);
+    expect(result.value.carriedChunkIds).toEqual([]);
   });
 });

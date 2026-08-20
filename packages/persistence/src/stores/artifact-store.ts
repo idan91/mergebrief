@@ -390,7 +390,11 @@ export interface HunkSpanStore {
    * the read, and they are small. Ordered by row id for determinism, which is
    * insertion order and NOT chain order — a re-generated span keeps its
    * original id. A caller assembling a chain links `baseline_sha → head_sha`;
-   * ordinal position is never the link.
+   * ordinal position is never the link. Rows can also FORK on a shared
+   * baseline — a head whose generation failed still left its hop — so a chain
+   * follows consecutive brief heads, never every row that matches a baseline.
+   * A pair with no row enters the chain as `undefined`, never skipped:
+   * skipping it passes anchors through onto post-push line numbers.
    */
   listForPullRequest(pullRequestId: PullRequestRowId): Promise<HunkSpanRow[]>;
 }

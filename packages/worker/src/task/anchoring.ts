@@ -11,6 +11,7 @@ import {
   diffLocTotals,
   GroupVerdicts,
   parseChangedRanges,
+  parseHunkSpans,
   partitionGroups,
   remapThroughPatch,
   RemapOutcomes,
@@ -19,6 +20,8 @@ import {
   validatePartition,
   validateTextLength,
   type Brief,
+  type Hop,
+  type HunkSpan,
   type RevisionChangeFile,
 } from "brief-core";
 import type { CompareFiles } from "github";
@@ -59,6 +62,12 @@ export interface AnchorPlan {
   readonly frozenFiles: ReadonlySet<string>;
   readonly reLook: readonly ReLookEntry[];
   readonly previousGroupIds: readonly string[];
+  /**
+   * The durable carry-over hop for this push — every file the span touched,
+   * coordinates only. Absent whenever the file list may be incomplete, since
+   * a missing hop demotes an anchor while a partial one misplaces it.
+   */
+  readonly hunkSpans?: Hop;
 }
 
 /** Files per previous group, from its chunks (order-stable, deduped). */
@@ -83,6 +92,34 @@ function allReLook(brief: Brief, reason: string): AnchorPlan {
     })),
     previousGroupIds: brief.changeGroups.map((group) => group.id),
   };
+}
+
+/**
+ * The hop for this push: one entry per path the push touched, its `@@`
+ * coordinates parsed from that path's patch. Keyed by path, and zero hunks
+ * always wins a collision — an anchor entering the hop sits on the pre-push
+ * tree, so a path that was renamed away (or that the patch and the compare
+ * list disagree about) must demote rather than settle on unrelated new code.
+ */
+function buildHop(
+  compareFiles: CompareFiles,
+  patches: ReadonlyMap<string, string>,
+): Hop {
+  const byPath = new Map<string, readonly HunkSpan[]>();
+  for (const file of compareFiles.files) {
+    byPath.set(file.filename, parseHunkSpans(patches.get(file.filename) ?? ""));
+  }
+  // A path the raw diff touched but the compare list omits is a disagreement
+  // between two views of the same push, not evidence that it is untouched.
+  for (const file of patches.keys()) {
+    if (!byPath.has(file)) byPath.set(file, []);
+  }
+  for (const file of compareFiles.files) {
+    if (file.previousFilename !== undefined) {
+      byPath.set(file.previousFilename, []);
+    }
+  }
+  return [...byPath].map(([file, hunks]) => ({ file, hunks }));
 }
 
 /**
@@ -210,6 +247,9 @@ export function planAnchoredGeneration(args: AnchorPlanArgs): AnchorPlan {
     frozenFiles,
     reLook,
     previousGroupIds: previousBrief.changeGroups.map((group) => group.id),
+    ...(compareFiles.complete
+      ? { hunkSpans: buildHop(compareFiles, patches) }
+      : {}),
   };
 }
 
@@ -230,6 +270,11 @@ export interface StitchArgs {
 export interface StitchResult {
   readonly brief: Brief;
   readonly carriedGroupIds: readonly string[];
+  /**
+   * The ids of the chunks that carried verbatim. Chunk ids get a collision
+   * guard, not descent, so a read mark may only carry against this exact set.
+   */
+  readonly carriedChunkIds: readonly string[];
   readonly regeneratedGroupIds: readonly string[];
 }
 
@@ -643,5 +688,13 @@ export function stitchBrief(
   } else {
     delete brief.lengthViolations;
   }
-  return { ok: true, value: { brief, carriedGroupIds, regeneratedGroupIds } };
+  return {
+    ok: true,
+    value: {
+      brief,
+      carriedGroupIds,
+      carriedChunkIds: carriedChunks.map((chunk) => chunk.id),
+      regeneratedGroupIds,
+    },
+  };
 }

@@ -2,9 +2,10 @@
 
 The long-lived background worker. Drains graphile-worker's `generate` jobs —
 the ones `persistence`'s `ingestRoutines` enqueues — and produces the PR's
-artifacts: shared Brief, comparison marks, revision narrative, and pre-warmed
-delta cores (one per distinct checkpoint SHA, huge-span skip honored). The
-generation engine is `brief-core`, reused as-is behind its `Generator` port.
+artifacts: shared Brief, comparison marks, carry-over hunk spans, revision
+narrative, and pre-warmed delta cores (one per distinct checkpoint SHA,
+huge-span skip honored). The generation engine is `brief-core`, reused as-is
+behind its `Generator` port.
 
 ## Map
 

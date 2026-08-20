@@ -769,6 +769,22 @@ async function runGeneration(
             log.info(
               `generate: anchored generation — ${anchorPlan.frozen.length} frozen, ${anchorPlan.reLook.length} re-look group(s)`,
             );
+            // The hop lands BEFORE the model call, like comparison marks: a
+            // failed generation still leaves the coordinates a later session
+            // needs. Coordinates only, so no snapshot gate.
+            if (anchorPlan.hunkSpans !== undefined) {
+              const hopWritten = await store.hunkSpans.write({
+                pullRequestId,
+                baselineSha: prevBrief.headSha,
+                headSha,
+                spans: anchorPlan.hunkSpans,
+              });
+              // Both failure codes are deterministic writer defects against a
+              // fixed shape and a resolved parent — no retry can fix either.
+              if (!hopWritten.ok) {
+                throw new PermanentJobError(hopWritten.error.message);
+              }
+            }
           }
         }
       }
@@ -797,6 +813,7 @@ async function runGeneration(
       // rewrite ids by descent, enforce coverage. A coverage failure is a
       // pipeline error — permanent, never salvage.
       let finalBrief = brief;
+      let carriedChunkIds: readonly string[] = [];
       if (anchorPlan !== undefined) {
         const stitched = stitchBrief({
           generated: brief,
@@ -808,6 +825,7 @@ async function runGeneration(
           throw new PermanentJobError(stitched.error.message);
         }
         finalBrief = stitched.value.brief;
+        carriedChunkIds = stitched.value.carriedChunkIds;
       }
       const stamped: Brief = { ...finalBrief, anchor };
       const written = await store.briefs.write({
@@ -819,6 +837,7 @@ async function runGeneration(
         ...originOf(brief.generation),
         body: JSON.stringify(stamped),
         ...anchorColumnsOf(anchor),
+        carriedChunkIds,
         ...(repoConfig === undefined
           ? {}
           : {

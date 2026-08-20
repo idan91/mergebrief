@@ -1481,6 +1481,8 @@ describe("generate task — anchored generation", () => {
       complete: boolean;
       status?: string;
     };
+    /** Make the second revision's model call fail (the hop must survive). */
+    rev2FailWith?: unknown;
   }) {
     const first = await trigger(HEAD_1);
     const generator = stubGenerator();
@@ -1534,7 +1536,12 @@ describe("generate task — anchored generation", () => {
       });
     }
     const second = await trigger(HEAD_2);
-    await task(second.payload);
+    if (options.rev2FailWith !== undefined) {
+      generator.failNextWith = options.rev2FailWith;
+      await expect(task(second.payload)).rejects.toThrow();
+    } else {
+      await task(second.payload);
+    }
     return { pr: second.pr, generator, github };
   }
 
@@ -1562,6 +1569,48 @@ describe("generate task — anchored generation", () => {
     );
     const carried = body.chunks?.find((c) => c.file === "a.ts");
     expect(carried?.changeGroupId).toBe("gA");
+  });
+
+  it("persists the hop and the carried chunk set alongside the brief", async () => {
+    const { pr } = await runTwoRevisions({});
+    const store = artifactStore(harness.handle, ctx);
+    const hops = await store.hunkSpans.listForPullRequest(pr.id);
+    expect(hops).toHaveLength(1);
+    expect(hops[0]?.baselineSha).toBe(HEAD_1);
+    expect(hops[0]?.headSha).toBe(HEAD_2);
+    expect(JSON.parse(hops[0]?.spans ?? "[]")).toEqual([
+      { file: "b.ts", hunks: [expect.objectContaining({ oldStart: 1 })] },
+    ]);
+    const row = await store.briefs.get(pr.id, BASE, HEAD_2);
+    const body = JSON.parse(row?.body ?? "{}") as {
+      chunks?: { id: string; file: string }[];
+    };
+    // Exactly the carried chunks: the a.ts chunk froze, b.ts was regenerated.
+    const carriedIds = (body.chunks ?? [])
+      .filter((c) => c.file === "a.ts")
+      .map((c) => c.id);
+    expect(JSON.parse(row?.carriedChunkIds ?? "null")).toEqual(carriedIds);
+    expect(carriedIds).toHaveLength(1);
+  });
+
+  it("leaves the hop behind when the model call fails", async () => {
+    const { pr } = await runTwoRevisions({
+      rev2FailWith: new APIConnectionError({}),
+    });
+    const store = artifactStore(harness.handle, ctx);
+    // No brief for the failed head, but the hop is durable: the next session
+    // can still place its anchors across the push.
+    expect(await store.briefs.get(pr.id, BASE, HEAD_2)).toBeUndefined();
+    expect(await store.hunkSpans.listForPullRequest(pr.id)).toHaveLength(1);
+  });
+
+  it("writes an empty carried set when nothing anchors", async () => {
+    const { pr } = await runTwoRevisions({ fullRegeneration: "always" });
+    const store = artifactStore(harness.handle, ctx);
+    const row = await store.briefs.get(pr.id, BASE, HEAD_2);
+    expect(row?.anchorState).toBe("none");
+    expect(row?.carriedChunkIds).toBe("[]");
+    expect(await store.hunkSpans.listForPullRequest(pr.id)).toHaveLength(0);
   });
 
   it("`always` bypasses anchoring entirely — fresh output, ids untouched, stamp none", async () => {
