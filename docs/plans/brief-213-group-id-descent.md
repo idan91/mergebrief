@@ -102,11 +102,19 @@ Invocation: sequential in the main thread — the layers depend on each other.
 6. Worker write: `stitchBrief` returns `usedGroupIds` alongside
    `carriedChunkIds` — the incoming chain union ∪ the stitched brief's final
    group ids.
-7. `generate.ts`: pass `chainGroupIds: prevRow.usedGroupIds` into
-   `planAnchoredGeneration` (prevRow is already in hand at :725); pass
-   `usedGroupIds` into `store.briefs.write`. **The fresh path writes it too** —
-   `anchorPlan === undefined` still unions the previous row's chain set with the
-   fresh brief's ids, so the chain never has a gap.
+7. `generate.ts`: parse `prevRow.usedGroupIds` (NULL-tolerant, per the store
+   schema) and pass it as `chainGroupIds` into `planAnchoredGeneration` (prevRow
+   is already in hand at :725); pass `usedGroupIds` into `store.briefs.write`.
+   Two seams that decide whether the chain ever heals:
+   - **NULL heals forward**: when `prevRow.usedGroupIds` is NULL (row predates
+     the column), seed the union from `previousBody.changeGroups` ids — already
+     in hand — instead of the empty set. The written row then starts a valid
+     chain even though its ancestors never had one.
+   - **The fresh path writes it too**: `anchorPlan === undefined` (fresh
+     restart, model swap, degradation) still unions the previous row's chain
+     set (or the NULL fallback) with the fresh brief's raw ids. A first brief
+     with no prevRow writes its own ids. The column is monotone from its first
+     appearance on — no gaps.
 8. Tests: `packages/persistence/test/artifact-store.test.ts` round-trip
    (write → read → NULL-tolerant parse); `packages/worker/test/generate.test.ts`
    asserts the column is written on both the anchored and fresh paths.
@@ -136,20 +144,30 @@ Invocation: sequential, after PR 1 merges (stacked; realign with `git-eng`).
 PR 1 stops id *resurrection*. It does not make id presence mean descent across a
 brief that never descended anything. A `fresh-restart` or `none` brief in the
 chain breaks the guarantee outright, so the reclassification must drop the way a
-read mark already does.
+read mark already does. This is right even without an id collision: a
+non-anchored brief re-derives its groups from scratch, so id equality there is
+numbering coincidence, never identity.
 
 ### Steps
 
 1. **(TDD, red first)** `packages/persistence/test/carry-over.test.ts` — a
    reclassification made before a `fresh-restart` brief does not carry, even
-   when the id is present in the new Brief.
+   when the id is present in the new Brief. Second case: a NULL `anchorState`
+   (row predating the stamp) also drops.
 2. `chainBriefs` (`review-session.ts:443`) selects `anchorState` into
-   `ChainBrief`.
+   `ChainBrief`. The descent test mirrors `carriedThroughChain`'s bounds
+   exactly: skip `headIndex <= fromHeadIndex` — the previous session's own
+   brief's anchor state describes how it relates to ITS predecessor, which is
+   outside the span being carried across. Only briefs strictly after it must
+   all be `anchored` (`AnchorStates` imports from brief-core, as
+   `carry-over.ts` already imports `brief-core/remap`).
 3. `CarryOverContext` gains a field naming whether the chain descended end to
    end (e.g. `groupIdsDescended: boolean`); `evaluateCarryOver`'s
-   reclassification filter returns `[]` when it is false. Document it in the
-   same voice as the `carriedChunkIds` comment: an id that never descended is
-   not the group the reviewer judged.
+   reclassification filter returns `[]` when it is false. NULL anchor state
+   counts as not-descended — every ambiguity biases to dropping, same stance
+   as the disposition ladder. Document it in the same voice as the
+   `carriedChunkIds` comment: an id that never descended is not the group the
+   reviewer judged.
 4. The read path and the materialization path both compute it — carry-over is
    evaluated twice (once on read, once inside the transaction against re-read
    rows); both call sites must pass it or the two disagree.
