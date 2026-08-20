@@ -1,6 +1,6 @@
-// The `ArtifactStore` interface: the typed write/read surface for the five
+// The `ArtifactStore` interface: the typed write/read surface for the six
 // immutable artifact families — `brief`, `delta`, `diff_snapshot`,
-// `revision_narrative`, `comparison_marks`. Like `forTenant` it is bound to one
+// `revision_narrative`, `comparison_marks`, `hunk_span`. Like `forTenant` it is bound to one
 // tenant `ctx` and is the ONLY way this package writes those tables. It unwraps
 // the opaque `AppDatabase` with the in-package `internal()` (never
 // re-exported), so consumers still cannot reach a raw query handle.
@@ -14,11 +14,12 @@
 //       another tenant yields a Result error, never a DB write;
 //   (c) for `revision_narrative` additionally resolves the named `brief` row by
 //       (ctx, same PR, id) in-transaction — the anchoring rule;
-//   (d) for `comparison_marks` Zod-validates the coordinates-only body and
-//       REJECTS any `baselineLabel` / `baselineIndex` / per-line content key.
+//   (d) for `comparison_marks` and `hunk_span` Zod-validates the
+//       coordinates-only body and REJECTS any `baselineLabel` /
+//       `baselineIndex` / per-line content key.
 // Origin columns (`provider`/`model`/`effort`) are written for
-// `brief`/`delta`/`revision_narrative` only — `diff_snapshot` and
-// `comparison_marks` are mechanical, not LLM output.
+// `brief`/`delta`/`revision_narrative` only — `diff_snapshot`,
+// `comparison_marks` and `hunk_span` are mechanical, not LLM output.
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
@@ -26,6 +27,7 @@ import { brief } from "../schema/brief";
 import { comparisonMarks } from "../schema/comparison-marks";
 import { delta } from "../schema/delta";
 import { diffSnapshot } from "../schema/diff-snapshot";
+import { hunkSpan } from "../schema/hunk-span";
 import { pullRequest } from "../schema/pull-request";
 import { revisionNarrative } from "../schema/revision-narrative";
 import type { TenantContext } from "./tenant";
@@ -45,7 +47,7 @@ export const ArtifactErrorCode = {
   PARENT_NOT_IN_TENANT: "parent-not-in-tenant",
   /** A `revision_narrative` write named a `brief` not in (ctx, same PR). */
   BRIEF_NOT_ANCHORED: "brief-not-anchored",
-  /** A `comparison_marks` body failed the coordinates-only Zod schema. */
+  /** A `comparison_marks` or `hunk_span` body failed its coordinates-only Zod schema. */
   INVALID_BODY: "invalid-body",
 } as const;
 export type ArtifactErrorCode = ValueOf<typeof ArtifactErrorCode>;
@@ -110,6 +112,33 @@ export const ComparisonMarksBodySchema = z
 export type ComparisonMarksBody = z.infer<typeof ComparisonMarksBodySchema>;
 
 // ---------------------------------------------------------------------------
+// hunk_span body — the paired `@@` coordinates, one entry per file.
+// ---------------------------------------------------------------------------
+
+/**
+ * One `@@ -old,+new @@` header, both sides as (start, line count). Zero is
+ * legal on either side — a created file reads `@@ -0,0 +1,n @@`.
+ */
+const hunkSchema = z
+  .object({
+    oldStart: z.number().int().nonnegative(),
+    oldLines: z.number().int().nonnegative(),
+    newStart: z.number().int().nonnegative(),
+    newLines: z.number().int().nonnegative(),
+  })
+  .strict();
+
+/**
+ * The persisted `hunk_span` body. `.strict()` at every level is what keeps the
+ * hop coordinates-only: a per-line content key cannot be smuggled in, which is
+ * why the table needs no `persist_baseline_snapshot` gate.
+ */
+export const HunkSpansSchema = z.array(
+  z.object({ file: z.string(), hunks: z.array(hunkSchema) }).strict(),
+);
+export type HunkSpans = z.infer<typeof HunkSpansSchema>;
+
+// ---------------------------------------------------------------------------
 // Row + write-input shapes.
 // ---------------------------------------------------------------------------
 
@@ -147,6 +176,7 @@ export type DeltaRow = typeof delta.$inferSelect;
 export type DiffSnapshotRow = typeof diffSnapshot.$inferSelect;
 export type RevisionNarrativeRow = typeof revisionNarrative.$inferSelect;
 export type ComparisonMarksRow = typeof comparisonMarks.$inferSelect;
+export type HunkSpanRow = typeof hunkSpan.$inferSelect;
 
 /** Origin trio surfaced on the Receipt. */
 export interface Origin {
@@ -177,6 +207,11 @@ export interface BriefWriteInput extends Origin {
   readonly anchorState?: string;
   /** Fresh-restart reason ('model-swap'); only with anchorState 'fresh-restart'. */
   readonly anchorReason?: string;
+  /**
+   * The chunk ids carried from the previous Brief — stored as JSON. Empty for
+   * a fresh restart; omit only for writers predating the stamp.
+   */
+  readonly carriedChunkIds?: readonly string[];
 }
 
 export interface DeltaWriteInput extends Origin {
@@ -202,6 +237,18 @@ export interface RevisionNarrativeWriteInput extends Origin {
   readonly prevHeadSha: string;
   readonly headSha: string;
   readonly body: string;
+}
+
+export interface HunkSpanWriteInput {
+  readonly pullRequestId: PullRequestRowId;
+  /** The previous Brief's head. */
+  readonly baselineSha: string;
+  readonly headSha: string;
+  /**
+   * The `@@` coordinates — validated with `HunkSpansSchema`. Typed `unknown`
+   * because this is the boundary that rejects anything content-bearing.
+   */
+  readonly spans: unknown;
 }
 
 export interface ComparisonMarksWriteInput {
@@ -336,6 +383,18 @@ export interface ComparisonMarksStore {
   ): Promise<ComparisonSpanRow[]>;
 }
 
+export interface HunkSpanStore {
+  write(input: HunkSpanWriteInput): Promise<Result<HunkSpanRow, ArtifactError>>;
+  /**
+   * Every hop recorded on a PR. Full rows: the coordinates ARE the point of
+   * the read, and they are small. Ordered by row id for determinism, which is
+   * insertion order and NOT chain order — a re-generated span keeps its
+   * original id. A caller assembling a chain links `baseline_sha → head_sha`;
+   * ordinal position is never the link.
+   */
+  listForPullRequest(pullRequestId: PullRequestRowId): Promise<HunkSpanRow[]>;
+}
+
 export interface ArtifactStore {
   readonly ctx: TenantContext;
   readonly briefs: BriefStore;
@@ -343,6 +402,7 @@ export interface ArtifactStore {
   readonly diffSnapshots: DiffSnapshotStore;
   readonly revisionNarratives: RevisionNarrativeStore;
   readonly comparisonMarks: ComparisonMarksStore;
+  readonly hunkSpans: HunkSpanStore;
 }
 
 // ---------------------------------------------------------------------------
@@ -387,6 +447,10 @@ export function artifactStore(
 
   const briefs: BriefStore = {
     async write(input) {
+      const serializedChunkIds =
+        input.carriedChunkIds === undefined
+          ? null
+          : JSON.stringify(input.carriedChunkIds);
       return db.transaction(async (tx) => {
         if (!(await parentInTenant(tx, input.pullRequestId))) {
           return fail(
@@ -411,6 +475,7 @@ export function artifactStore(
             repoConfig: input.repoConfig ?? null,
             anchorState: input.anchorState ?? null,
             anchorReason: input.anchorReason ?? null,
+            carriedChunkIds: serializedChunkIds,
           })
           .onConflictDoUpdate({
             target: [
@@ -430,6 +495,7 @@ export function artifactStore(
               repoConfig: input.repoConfig ?? null,
               anchorState: input.anchorState ?? null,
               anchorReason: input.anchorReason ?? null,
+              carriedChunkIds: serializedChunkIds,
             },
           })
           .returning();
@@ -885,6 +951,61 @@ export function artifactStore(
     },
   };
 
+  const hunkSpans: HunkSpanStore = {
+    async write(input) {
+      const parsed = HunkSpansSchema.safeParse(input.spans);
+      if (!parsed.success) {
+        return fail(ArtifactErrorCode.INVALID_BODY, parsed.error.message);
+      }
+      const serialized = JSON.stringify(parsed.data);
+      return db.transaction(async (tx) => {
+        if (!(await parentInTenant(tx, input.pullRequestId))) {
+          return fail(
+            ArtifactErrorCode.PARENT_NOT_IN_TENANT,
+            `pull_request ${input.pullRequestId} not in tenant ${installationId}`,
+          );
+        }
+        const rows = await tx
+          .insert(hunkSpan)
+          .values({
+            installationId,
+            pullRequestId: input.pullRequestId,
+            baselineSha: input.baselineSha,
+            headSha: input.headSha,
+            spans: serialized,
+          })
+          .onConflictDoUpdate({
+            target: [
+              hunkSpan.installationId,
+              hunkSpan.pullRequestId,
+              hunkSpan.baselineSha,
+              hunkSpan.headSha,
+            ],
+            set: { spans: serialized },
+          })
+          .returning();
+        const row = rows[0];
+        if (row === undefined) {
+          throw new Error("hunk_span write returned no row");
+        }
+        return { ok: true, value: row };
+      });
+    },
+
+    async listForPullRequest(pullRequestId) {
+      return db
+        .select()
+        .from(hunkSpan)
+        .where(
+          and(
+            eq(hunkSpan.installationId, installationId),
+            eq(hunkSpan.pullRequestId, pullRequestId),
+          ),
+        )
+        .orderBy(asc(hunkSpan.id));
+    },
+  };
+
   return {
     ctx,
     briefs,
@@ -892,5 +1013,6 @@ export function artifactStore(
     diffSnapshots,
     revisionNarratives,
     comparisonMarks: comparisonMarksStore,
+    hunkSpans,
   };
 }

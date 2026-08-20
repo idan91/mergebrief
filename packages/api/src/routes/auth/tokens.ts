@@ -181,6 +181,9 @@ export function tokensRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
           ? {}
           : { userLogin: currentSession.reviewerLogin }),
         name: parsed.data.name,
+        // PR 9 lets the caller choose; until then a mint keeps the reach every
+        // existing token has.
+        scope: WRITE_CLASSIFICATION.EXTERNAL_WRITE,
         tokenHash: sha256Hex(token),
         grantId: currentSession.grantId,
         expiresAt,

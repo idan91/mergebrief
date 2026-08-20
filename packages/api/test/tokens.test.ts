@@ -20,6 +20,7 @@ import {
   isReviewerId,
   PrState,
   tokenAuth,
+  WriteClassification,
   type AppDatabase,
   type KeyProvider,
   type ReviewerId,
@@ -187,6 +188,7 @@ async function seedApiToken(
     refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
   });
   const minted = await tokenAuth(handle).mintToken({
+    scope: WriteClassification.EXTERNAL_WRITE,
     installationId: CTX.installationId,
     userId: REVIEWER,
     userLogin: "octocat",

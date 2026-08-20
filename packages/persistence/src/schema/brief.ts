@@ -45,6 +45,13 @@ export const brief = pgTable(
      * non-null exactly when `anchor_state = 'fresh-restart'` (CHECK).
      */
     anchorReason: text("anchor_reason"),
+    /**
+     * JSON `string[]` — the chunk ids carried from the previous Brief, which
+     * is what makes a read mark carry with no line math. Empty for
+     * `anchor_state` 'fresh-restart' | 'none'; nullable for rows predating
+     * the column.
+     */
+    carriedChunkIds: text("carried_chunk_ids"),
     ...artifactColumns(),
   },
   (table) => [

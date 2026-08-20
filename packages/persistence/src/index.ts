@@ -88,13 +88,14 @@ export type {
   SubmittedReviewInput,
 } from "./stores/review-session";
 
-// The ArtifactStore interface — ctx-bound typed writes/reads for the five
+// The ArtifactStore interface — ctx-bound typed writes/reads for the six
 // artifact families. Same containment: built over the opaque handle, no raw
 // surface exposed.
 export {
   artifactStore,
   ArtifactErrorCode,
   ComparisonMarksBodySchema,
+  HunkSpansSchema,
 } from "./stores/artifact-store";
 export type {
   ArtifactStore,
@@ -104,6 +105,7 @@ export type {
   DiffSnapshotStore,
   RevisionNarrativeStore,
   ComparisonMarksStore,
+  HunkSpanStore,
   Origin,
   BriefWriteInput,
   DeltaWriteInput,
@@ -111,6 +113,8 @@ export type {
   RevisionNarrativeWriteInput,
   ComparisonMarksWriteInput,
   ComparisonMarksBody,
+  HunkSpanWriteInput,
+  HunkSpans,
   BriefRow,
   BriefSpanRow,
   ComparisonSpanRow,
@@ -119,6 +123,7 @@ export type {
   DiffSnapshotRow,
   RevisionNarrativeRow,
   ComparisonMarksRow,
+  HunkSpanRow,
 } from "./stores/artifact-store";
 
 // The `generation` status-projection write helpers.

@@ -21,6 +21,7 @@ import {
   isReviewerId,
   PrState,
   tokenAuth,
+  WriteClassification,
   type KeyProvider,
   type ReviewerId,
   type TenantContext,
@@ -205,6 +206,7 @@ describe("write commands over the real api app", () => {
       refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
     });
     await tokenAuth(harness.handle).mintToken({
+      scope: WriteClassification.EXTERNAL_WRITE,
       installationId: CTX.installationId,
       userId: REVIEWER,
       name: "ci-token",

@@ -1,5 +1,5 @@
 // Purge + retention tests (PGlite). Prove the deletion boundary: a PR purge
-// cascades all 8 child tables while sparing the no-FK audit ledger
+// cascades all 8 per-PR child tables while sparing the no-FK audit ledger
 // (an appended `delete` row proves survival) and the non-PR auth_session;
 // cross-tenant purge is a Result `notFound` with nothing deleted;
 // installation purge is tenant-isolated with audit_log retained; the retention
@@ -26,6 +26,7 @@ import {
   disposition,
   generation,
   githubGrant,
+  hunkSpan,
   pullRequest,
   reviewDraftComment,
   reviewGroupReclassification,
@@ -48,6 +49,7 @@ import {
   isRepoId,
   isReviewerId,
   PrState,
+  WriteClassification,
   type GrantRowId,
   type InstallationId,
   type PullRequestRowId,
@@ -204,6 +206,17 @@ async function seedFullGraph(
     reviewSessionId,
     githubReviewId: 909n,
   });
+  await db.insert(disposition).values({
+    installationId,
+    reviewSessionId,
+    filePath: "src/index.ts",
+    attribute: "sql-injection",
+    regionStart: 10,
+    regionEnd: 20,
+    decision: DispositionDecision.DISMISSED,
+    reason: "false positive",
+    decidedAt: new Date(),
+  });
 
   await db.insert(delta).values({
     installationId,
@@ -243,18 +256,12 @@ async function seedFullGraph(
     lastSubmittedSha: CHECKPOINT_SHA,
     submittedAt: new Date(),
   });
-  await db.insert(disposition).values({
+  await db.insert(hunkSpan).values({
     installationId,
     pullRequestId,
-    reviewerId: REVIEWER,
-    filePath: "src/index.ts",
-    attribute: "sql-injection",
-    regionStart: 10,
-    regionEnd: 20,
-    decidedAtSha: HEAD_SHA,
-    decision: DispositionDecision.DISMISSED,
-    reason: "false positive",
-    decidedAt: new Date(),
+    baselineSha: PREV_HEAD_SHA,
+    headSha: HEAD_SHA,
+    spans: "[]",
   });
   await db.insert(generation).values({
     installationId,
@@ -294,6 +301,7 @@ async function countChildTables(
     diffSnapshot,
     revisionNarrative,
     comparisonMarks,
+    hunkSpan,
   ];
   let total = 0;
   for (const table of tables) {
@@ -303,7 +311,7 @@ async function countChildTables(
       .where(eq(table.pullRequestId, pullRequestId));
     total += rows.length;
   }
-  for (const table of [checkpoint, disposition, generation]) {
+  for (const table of [checkpoint, generation]) {
     const rows = await db
       .select({ id: table.id })
       .from(table)
@@ -328,6 +336,7 @@ async function countSessionTables(
     reviewReadMark,
     reviewGroupReclassification,
     reviewSubmittedReview,
+    disposition,
   ];
   const counts = await Promise.all(
     tables.map(
@@ -369,9 +378,9 @@ describe("purgeRoutines.purgePullRequest — cascade + no-FK audit survival", ()
     await seedFullGraph(pair.raw, TENANT_A, prId);
   });
 
-  it("erases all 8 child tables, spares audit_log + auth_session, appends a delete row", async () => {
+  it("erases all 8 per-PR child tables, spares audit_log + auth_session, appends a delete row", async () => {
     expect(await countChildTables(pair.raw, prId)).toBe(8);
-    expect(await countSessionTables(pair.raw, TENANT_A)).toBe(5);
+    expect(await countSessionTables(pair.raw, TENANT_A)).toBe(6);
 
     const result = await purgeRoutines(pair.handle, CTX_A).purgePullRequest(
       prId,
@@ -531,6 +540,7 @@ describe("purgeRoutines.purgeInstallation — tenant-isolated offboarding", () =
         tokenHash: hash,
         userId: REVIEWER,
         name: "ci-token",
+        scope: WriteClassification.EXTERNAL_WRITE,
         grantId: await insertGrant(raw),
         expiresAt: null,
       });
@@ -563,7 +573,7 @@ describe("purgeRoutines.purgeInstallation — tenant-isolated offboarding", () =
     // Tenant B's child graph is intact; A's Review Session graph is gone.
     expect(await countChildTables(raw, bPr)).toBe(8);
     expect(await countSessionTables(raw, TENANT_A)).toBe(0);
-    expect(await countSessionTables(raw, TENANT_B)).toBe(5);
+    expect(await countSessionTables(raw, TENANT_B)).toBe(6);
 
     // audit_log retained: both pre-existing generate rows + the new A delete.
     expect(await raw.select({ id: auditLog.id }).from(auditLog)).toHaveLength(

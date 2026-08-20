@@ -14,6 +14,7 @@ import {
   isInstallationId,
   isReviewerId,
   tokenAuth,
+  WriteClassification,
   type KeyProvider,
   type ReviewerId,
   type TenantContext,
@@ -149,6 +150,7 @@ describe("mergebrief repos command + cache", () => {
       refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
     });
     await tokenAuth(harness.handle).mintToken({
+      scope: WriteClassification.EXTERNAL_WRITE,
       installationId: CTX.installationId,
       userId: REVIEWER,
       userLogin: "octocat",

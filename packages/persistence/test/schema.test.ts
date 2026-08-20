@@ -16,7 +16,9 @@ import {
   disposition,
   generation,
   githubGrant,
+  hunkSpan,
   pullRequest,
+  reviewSession,
   revisionNarrative,
 } from "../src/schema/index";
 import type {
@@ -178,18 +180,37 @@ async function seedFullGraph(
     submittedAt: new Date(),
   });
 
+  const sessionRows = await db
+    .insert(reviewSession)
+    .values({
+      installationId: INSTALLATION,
+      briefId: briefRow.id,
+      reviewerId: REVIEWER,
+    })
+    .returning({ id: reviewSession.id });
+  const sessionRow = sessionRows[0];
+  if (sessionRow === undefined) {
+    throw new Error("review_session insert returned no row");
+  }
+
   await db.insert(disposition).values({
     installationId: INSTALLATION,
-    pullRequestId,
-    reviewerId: REVIEWER,
+    reviewSessionId: sessionRow.id,
     filePath: "src/index.ts",
     attribute: "sql-injection",
     regionStart: 10,
     regionEnd: 20,
-    decidedAtSha: HEAD_SHA,
     decision: DispositionDecision.DISMISSED,
     reason: "false positive",
     decidedAt: new Date(),
+  });
+
+  await db.insert(hunkSpan).values({
+    installationId: INSTALLATION,
+    pullRequestId,
+    baselineSha: PREV_HEAD_SHA,
+    headSha: HEAD_SHA,
+    spans: "[]",
   });
 
   await db.insert(generation).values({
@@ -243,6 +264,7 @@ const M1_TABLES = [
   "disposition",
   "generation",
   "github_grant",
+  "hunk_span",
   "pull_request",
   "review_draft_comment",
   "review_group_reclassification",
@@ -324,6 +346,7 @@ describe("M1 schema migrations", () => {
     expect(
       await db.select({ id: comparisonMarks.id }).from(comparisonMarks),
     ).toHaveLength(0);
+    expect(await db.select({ id: hunkSpan.id }).from(hunkSpan)).toHaveLength(0);
     expect(
       await db.select({ id: checkpoint.id }).from(checkpoint),
     ).toHaveLength(0);

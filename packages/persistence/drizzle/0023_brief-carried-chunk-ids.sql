@@ -1,0 +1,1 @@
+ALTER TABLE "brief" ADD COLUMN "carried_chunk_ids" text;

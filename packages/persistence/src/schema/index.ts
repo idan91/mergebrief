@@ -11,6 +11,7 @@ export { diffSnapshot } from "./diff-snapshot";
 export { disposition } from "./disposition";
 export { generation } from "./generation";
 export { githubGrant } from "./github-grant";
+export { hunkSpan } from "./hunk-span";
 export { pullRequest } from "./pull-request";
 export { revisionNarrative } from "./revision-narrative";
 export { reviewDraftComment } from "./review-draft-comment";

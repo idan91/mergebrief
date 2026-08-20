@@ -25,6 +25,7 @@ import {
 import {
   isInstallationId,
   isReviewerId,
+  WriteClassification,
   type InstallationId,
   type ReviewerId,
 } from "../src/types";
@@ -53,6 +54,7 @@ const API_TOKEN_COLUMNS = [
   "last_used_at",
   "name",
   "revoked_at",
+  "scope",
   "token_hash",
   "user_id",
   "user_login",
@@ -81,14 +83,14 @@ describe("api_token schema", () => {
       values ('ct', 'rct', 'K', now() + interval '6 months')
     `);
     await db.execute(sql`
-      insert into api_token (installation_id, token_hash, user_id, name, grant_id)
-      values (4242, ${tokenHash}, 777, 'ci-token', (select id from github_grant limit 1))
+      insert into api_token (installation_id, token_hash, user_id, name, scope, grant_id)
+      values (4242, ${tokenHash}, 777, 'ci-token', 'external-write', (select id from github_grant limit 1))
     `);
     let thrown: unknown;
     try {
       await db.execute(sql`
-        insert into api_token (installation_id, token_hash, user_id, name, grant_id)
-        values (9999, ${tokenHash}, 888, 'other', (select id from github_grant limit 1))
+        insert into api_token (installation_id, token_hash, user_id, name, scope, grant_id)
+        values (9999, ${tokenHash}, 888, 'other', 'external-write', (select id from github_grant limit 1))
       `);
     } catch (error) {
       thrown = error;
@@ -151,6 +153,7 @@ function mintInput(
     userId: USER,
     userLogin: "octocat",
     name: "ci-token",
+    scope: WriteClassification.EXTERNAL_WRITE,
     tokenHash: HASH,
     grantId: grant.id,
     expiresAt: FUTURE,
@@ -172,6 +175,8 @@ describe("tokenAuth mint / resolve / touch", () => {
     expect(String(minted.installationId)).toBe(String(INSTALLATION));
     expect(minted.revokedAt).toBeNull();
     expect(minted.lastUsedAt).toBeNull();
+    // Chosen at mint, and on the metadata projection the settings list reads.
+    expect(minted.scope).toBe(WriteClassification.EXTERNAL_WRITE);
 
     const resolved = await auth.resolveByHash(HASH, NOW);
     expect(resolved.ok).toBe(true);

@@ -28,6 +28,7 @@ import {
   type Result,
   type ReviewerId,
   type ValueOf,
+  type WriteClassification,
 } from "../types";
 import type { GithubGrantRow } from "./grant";
 
@@ -49,6 +50,7 @@ const metadataColumns = {
   userId: apiToken.userId,
   userLogin: apiToken.userLogin,
   name: apiToken.name,
+  scope: apiToken.scope,
   expiresAt: apiToken.expiresAt,
   lastUsedAt: apiToken.lastUsedAt,
   revokedAt: apiToken.revokedAt,
@@ -117,6 +119,8 @@ export interface TokenMintInput {
   /** Purgeable display label. */
   readonly userLogin?: string;
   readonly name: string;
+  /** Immutable for the token's life — there is no re-scope operation. */
+  readonly scope: WriteClassification;
   readonly tokenHash: string;
   /** The minting session's grant — LINKED, never copied. */
   readonly grantId: GrantRowId;
@@ -191,6 +195,7 @@ export function tokenAuth(handle: AppDatabase): TokenAuth {
             userId: input.userId,
             userLogin: input.userLogin,
             name: input.name,
+            scope: input.scope,
             tokenHash: input.tokenHash,
             grantId: input.grantId,
             expiresAt: input.expiresAt,

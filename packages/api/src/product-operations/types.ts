@@ -1,3 +1,5 @@
+import { WriteClassification } from "persistence";
+
 // The Product Operation taxonomy: every authenticated domain operation is a
 // query (read-only) or an action (state-changing), classified by where its
 // write lands. Descriptors are static metadata — they never touch a request.
@@ -6,11 +8,13 @@ export const OPERATION_KIND = {
   ACTION: "action",
 } as const;
 
-export const WRITE_CLASSIFICATION = {
-  READ: "read",
-  PRIVATE_WRITE: "private-write",
-  EXTERNAL_WRITE: "external-write",
-} as const;
+/**
+ * Where a write lands — and, unchanged, the `api_token.scope` vocabulary. One
+ * map for both keeps the scope check a lookup rather than a mapping, and the
+ * CHECK constraint that pins it lives with the column, so `persistence` owns
+ * the declaration and this is the api-side name for it.
+ */
+export const WRITE_CLASSIFICATION = WriteClassification;
 
 /** A write that leaves the instance (GitHub reviews, comments, thread state). */
 export type ExternalWriteClassification =

@@ -16,6 +16,7 @@ import {
   isReviewerId,
   sessionAuth,
   tokenAuth,
+  WriteClassification,
   userSettingsStore,
   type AppDatabase,
   type InstallationId,
@@ -559,6 +560,7 @@ describe("reviewer auth routes", () => {
     // A minted token shares the grant, so the grant SURVIVES the logout and
     // the rotation proceeds — only the session-expiry mirror can notice.
     await tokenAuth(harness.handle).mintToken({
+      scope: WriteClassification.EXTERNAL_WRITE,
       installationId: brandInstallation(BigInt(INSTALLATION_ID)),
       userId: brandReviewer(BigInt(REVIEWER_ID)),
       name: "shares-the-grant",
@@ -604,6 +606,7 @@ describe("reviewer auth routes", () => {
     });
     const bearerHash = sha256Hex(randomBytes(32).toString("base64url"));
     const minted = await tokenAuth(harness.handle).mintToken({
+      scope: WriteClassification.EXTERNAL_WRITE,
       installationId: brandInstallation(BigInt(INSTALLATION_ID)),
       userId: brandReviewer(BigInt(REVIEWER_ID)),
       name: "revoked-mid-flight",

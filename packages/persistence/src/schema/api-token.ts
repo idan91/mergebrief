@@ -8,7 +8,12 @@
 // Deliberately NOT FK'd to `pull_request`; deleted explicitly on installation
 // offboarding.
 import { bigint, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
-import type { ApiTokenRowId, GrantRowId, ReviewerId } from "../types";
+import type {
+  ApiTokenRowId,
+  GrantRowId,
+  ReviewerId,
+  WriteClassification,
+} from "../types";
 import { githubGrant } from "./github-grant";
 import { stampColumns, tenantColumns } from "./columns";
 
@@ -24,6 +29,11 @@ export const apiToken = pgTable(
     userLogin: text("user_login"),
     /** User-chosen label shown in the settings list. */
     name: text("name").notNull(),
+    /**
+     * How far this credential's writes may reach — chosen at mint, immutable
+     * thereafter. CHECK-constrained in lockstep with the `as const` map.
+     */
+    scope: text("scope").$type<WriteClassification>().notNull(),
     /** The GitHub credential pair lives on the grant row. */
     grantId: bigint("grant_id", { mode: "bigint" })
       .$type<GrantRowId>()

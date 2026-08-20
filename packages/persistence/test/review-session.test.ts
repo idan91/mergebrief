@@ -13,6 +13,8 @@ import * as schema from "../src/schema/index";
 import {
   AnchorStatus,
   ChangeGroupCategory,
+  DispositionCarryStatus,
+  DispositionEvidenceStatus,
   DraftCommentSide,
   DraftCommentStatus,
   isInstallationId,
@@ -105,6 +107,8 @@ describe("review-session vocabularies — map and CHECK in lockstep", () => {
     ["review_draft_comment_side_check", DraftCommentSide],
     ["review_draft_comment_anchor_status_check", AnchorStatus],
     ["review_group_reclassification_category_check", ChangeGroupCategory],
+    ["disposition_carry_status_check", DispositionCarryStatus],
+    ["disposition_evidence_status_check", DispositionEvidenceStatus],
   ])("%s accepts exactly its `as const` map", async (name, map) => {
     const { client } = await freshPair();
     expect((await checkValues(client, name)).toSorted()).toEqual(
@@ -162,6 +166,80 @@ describe("review-session vocabularies — map and CHECK in lockstep", () => {
         (error: unknown) => error,
       );
     expect(rejection).not.toBeNull();
+  });
+});
+
+/**
+ * `disposition` has no store yet — the carry-over writer arrives with the
+ * evaluation transaction. What must hold now is the amended key: a decision is
+ * unique per (session, file, attribute, region), and the SAME coordinates in a
+ * second session are a second row rather than a conflict.
+ */
+describe("disposition — the session-owned natural key", () => {
+  async function insertDisposition(
+    client: PGlite,
+    sessionId: bigint,
+  ): Promise<void> {
+    await client.query(
+      `insert into disposition
+         (installation_id, review_session_id, file_path, attribute,
+          region_start, region_end, decision, decided_at)
+       values ($1, $2, 'src/app.ts', 'sql-injection', 10, 20, 'dismissed', now())`,
+      [TENANT_A.toString(), sessionId.toString()],
+    );
+  }
+
+  it("rejects a second decision on the same anchor in one session", async () => {
+    const { client, handle } = await freshPair();
+    const briefId = await seedBrief(handle, CTX_A);
+    const created = await forTenant(handle, CTX_A).reviewSessions.upsert({
+      briefId,
+      reviewerId: REVIEWER,
+    });
+    if (!created.ok) throw new Error("session upsert failed");
+
+    await insertDisposition(client, created.value.id);
+    const rejection: unknown = await insertDisposition(
+      client,
+      created.value.id,
+    ).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    expect(rejection).not.toBeNull();
+    expect(await countRows(client, "disposition")).toBe(1);
+  });
+
+  it("keeps the same anchor decided in a second session", async () => {
+    const { client, handle } = await freshPair();
+    const repo = forTenant(handle, CTX_A);
+    const first = await repo.reviewSessions.upsert({
+      briefId: await seedBrief(handle, CTX_A, 7),
+      reviewerId: REVIEWER,
+    });
+    const second = await repo.reviewSessions.upsert({
+      briefId: await seedBrief(handle, CTX_A, 8),
+      reviewerId: REVIEWER,
+    });
+    if (!first.ok || !second.ok) throw new Error("session upsert failed");
+
+    await insertDisposition(client, first.value.id);
+    await insertDisposition(client, second.value.id);
+    expect(await countRows(client, "disposition")).toBe(2);
+  });
+
+  it("cascades away with the session that owns it", async () => {
+    const { client, handle } = await freshPair();
+    const briefId = await seedBrief(handle, CTX_A);
+    const created = await forTenant(handle, CTX_A).reviewSessions.upsert({
+      briefId,
+      reviewerId: REVIEWER,
+    });
+    if (!created.ok) throw new Error("session upsert failed");
+
+    await insertDisposition(client, created.value.id);
+    await client.exec("delete from review_session");
+    expect(await countRows(client, "disposition")).toBe(0);
   });
 });
 

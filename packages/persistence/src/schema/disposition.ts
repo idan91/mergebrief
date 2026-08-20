@@ -1,7 +1,9 @@
-// `disposition` — an anchored reviewer decision on a risk-surface flag.
-// Anchored by content coordinates (file/attribute/region/sha), never a
-// brief-local id — those dangle on regeneration. Current shape covers only
-// region-anchored flags (region NOT NULL).
+// `disposition` — an anchored reviewer decision on a risk-surface flag, owned
+// by the Review Session it was made in. Anchored by content coordinates
+// (file/attribute/region), never a brief-local id — those dangle on
+// regeneration. Current shape covers only region-anchored flags (region NOT
+// NULL). No `decided_at_sha`, `pull_request_id` or `reviewer_id`: the session
+// carries all three, and the erasure cascade reaches `pull_request` through it.
 import {
   bigint,
   integer,
@@ -11,47 +13,44 @@ import {
   unique,
 } from "drizzle-orm/pg-core";
 import type {
+  DispositionCarryStatus,
   DispositionDecision,
-  PullRequestRowId,
-  ReviewerId,
+  DispositionEvidenceStatus,
+  ReviewSessionId,
 } from "../types";
 import { tenantColumns } from "./columns";
-import { pullRequest } from "./pull-request";
+import { reviewSession } from "./review-session";
 
 export const disposition = pgTable(
   "disposition",
   {
     ...tenantColumns(),
-    pullRequestId: bigint("pull_request_id", { mode: "bigint" })
-      .$type<PullRequestRowId>()
+    reviewSessionId: bigint("review_session_id", { mode: "bigint" })
+      .$type<ReviewSessionId>()
       .notNull()
-      .references(() => pullRequest.id, { onDelete: "cascade" }),
-    reviewerId: bigint("reviewer_id", { mode: "bigint" })
-      .$type<ReviewerId>()
-      .notNull(),
+      .references(() => reviewSession.id, { onDelete: "cascade" }),
     /** Canonical within an artifact; not rename-stable. */
     filePath: text("file_path").notNull(),
     /** The risk-surface attribute token — the Flag's identity. */
     attribute: text("attribute").notNull(),
     regionStart: integer("region_start").notNull(),
     regionEnd: integer("region_end").notNull(),
-    /** SHA the region coordinates are anchored at. */
-    decidedAtSha: text("decided_at_sha").notNull(),
     decision: text("decision").$type<DispositionDecision>().notNull(),
+    /** How the row reached this session; null = decided here. CHECK-constrained. */
+    carryStatus: text("carry_status").$type<DispositionCarryStatus>(),
+    /** Null = the evidence the decision claimed still stands. CHECK-constrained. */
+    evidenceStatus: text("evidence_status").$type<DispositionEvidenceStatus>(),
     /** Dismissal reason, verbatim on the Receipt; null if addressed. */
     reason: text("reason"),
     decidedAt: timestamp("decided_at", { withTimezone: true }).notNull(),
   },
   (table) => [
     unique("disposition_natural_key").on(
-      table.installationId,
-      table.pullRequestId,
-      table.reviewerId,
+      table.reviewSessionId,
       table.filePath,
       table.attribute,
       table.regionStart,
       table.regionEnd,
-      table.decidedAtSha,
     ),
   ],
 );

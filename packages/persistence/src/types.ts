@@ -75,6 +75,43 @@ export const DispositionDecision = {
 } as const;
 export type DispositionDecision = ValueOf<typeof DispositionDecision>;
 
+/**
+ * `disposition.carry_status` — how this row reached the session it sits in.
+ * Nullable in the DB: a decision made in this session carries no status.
+ */
+export const DispositionCarryStatus = {
+  NEW: "new",
+  REOPENED: "reopened",
+  SETTLED: "settled",
+  DROPPED: "dropped",
+} as const;
+export type DispositionCarryStatus = ValueOf<typeof DispositionCarryStatus>;
+
+/**
+ * `disposition.evidence_status` — a one-value vocabulary today; nullable
+ * means the evidence the decision claimed is still present.
+ */
+export const DispositionEvidenceStatus = {
+  MISSING_EVIDENCE: "missing-evidence",
+} as const;
+export type DispositionEvidenceStatus = ValueOf<
+  typeof DispositionEvidenceStatus
+>;
+
+/**
+ * `api_token.scope` — and the same three rungs the Product Operation catalog
+ * classifies every operation by, cumulative left to right. One vocabulary for
+ * both is what keeps the scope check a lookup rather than a mapping, so
+ * `packages/api` re-exports this map rather than declaring its own. Chosen at
+ * mint, immutable for the token's life.
+ */
+export const WriteClassification = {
+  READ: "read",
+  PRIVATE_WRITE: "private-write",
+  EXTERNAL_WRITE: "external-write",
+} as const;
+export type WriteClassification = ValueOf<typeof WriteClassification>;
+
 /** `generation.kind`. */
 export const GenerationKind = {
   BRIEF: "brief",

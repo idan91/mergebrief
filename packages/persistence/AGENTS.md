@@ -25,7 +25,7 @@ src/
   schema/             drizzle table definitions (one file per table)
   stores/             ctx-bound + projection data access
     tenant.ts           forTenant — THE tenant-scoped repository
-    artifact-store.ts   the five artifact families
+    artifact-store.ts   the six artifact families
     generation.ts       generation status projection
     ingest.ts           transactional webhook→upsert→enqueue boundary
     review-session.ts   the reviewer's Review Session + its five owned tables
@@ -49,8 +49,9 @@ drizzle/              generated SQL migrations — append-only
   `pull_request` belongs to the tenant inside the same transaction. Type-level containment
   tests in `test/tenant.test.ts` guard this — keep them passing.
 - **Artifacts:** idempotent `ON CONFLICT (natural key) DO UPDATE` writes; natural keys
-  lead with `installation_id`. `comparison_marks` bodies are coordinates-only (strict Zod;
-  no `baselineLabel`/`baselineIndex`/line content). `revision_narrative` writes verify
+  lead with `installation_id`. `comparison_marks` and `hunk_span` bodies are coordinates-only
+  (strict Zod; no `baselineLabel`/`baselineIndex`/line content), which is why
+  neither is gated on `PERSIST_BASELINE_SNAPSHOT`. `revision_narrative` writes verify
   brief anchoring.
 - **Audit:** append-only, numeric-only, no outbound FKs, never purged. Metadata is a
   closed key allowlist (`src/stores/audit.ts`) — that allowlist IS the PII enforcement for an
@@ -68,13 +69,17 @@ drizzle/              generated SQL migrations — append-only
   kebab-case** (`PurgeErrorCode.NOT_FOUND` → `"not-found"`). The doc example in
   `src/types.ts` demonstrates it. DB-stored vocabularies (state, kind, status, phase,
   decision, actor_type, action, generation error_code, review_outcome, draft-comment
-  status/side/anchor_status, reclassification category) are also CHECK-constrained
-  (migrations 0002, 0017 and 0019) — **adding a value needs a code change AND a
+  status/side/anchor_status, reclassification category, disposition
+  carry_status/evidence_status, api_token scope) are also CHECK-constrained
+  (migrations 0002, 0017, 0019, 0021 and 0024) — **adding a value needs a code change AND a
   migration**, in lockstep. The Review Session vocabularies prove that lockstep in
   `test/review-session.test.ts`, by reading `pg_get_constraintdef` back and comparing
   it to the `as const` map; `category` additionally pins against brief-core's
   `Categories`, which it mirrors rather than forks (brief-core is a devDependency
-  only — this package's runtime graph must stay off it).
+  only — this package's runtime graph must stay off it). `WriteClassification`
+  is the one vocabulary shared outward: it is `api_token.scope` AND the
+  classification `packages/api` sorts every operation by, which re-exports this
+  map rather than declaring a second one.
 - **`GenerationFailureCode` is the widest of those locksteps.** It is the
   DB-stored failure vocabulary (distinct from the store-internal
   `GenerationErrorCode`), so a new code needs FOUR changes together: the

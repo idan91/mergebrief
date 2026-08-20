@@ -1,7 +1,7 @@
 // ArtifactStore tests (PGlite): idempotent content-addressed writes (same
 // span → one row, body updated in place), cross-tenant rejection without a DB
 // write, brief-anchoring for revision_narrative, and the coordinates-only Zod
-// guard on comparison_marks.
+// guard on comparison_marks and hunk_span.
 import { describe, expect, it } from "vitest";
 import {
   artifactStore,
@@ -229,6 +229,53 @@ describe("artifactStore.briefs — anchor origin columns", () => {
         anchorReason: "model-swap",
       }),
     ).rejects.toThrow(/anchor/);
+  });
+});
+
+describe("artifactStore.briefs — carried chunk ids", () => {
+  it("stores the carried set as JSON, null when the writer omits it", async () => {
+    const handle = await freshDatabase();
+    const store = artifactStore(handle, CTX_A);
+    const pr = await forTenant(handle, CTX_A).pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 11,
+      state: PrState.OPEN,
+    });
+    const span = {
+      pullRequestId: pr.id,
+      baseSha: "base",
+      headSha: "head",
+      headIndex: 0,
+      commitCount: 1,
+      ...PROV,
+    };
+
+    const legacy = await store.briefs.write({ ...span, body: "v1" });
+    if (!legacy.ok) throw new Error("expected success");
+    expect(legacy.value.carriedChunkIds).toBeNull();
+
+    const carried = await store.briefs.write({
+      ...span,
+      body: "v2",
+      anchorState: "anchored",
+      carriedChunkIds: ["chunk-a", "chunk-b"],
+    });
+    if (!carried.ok) throw new Error("expected success");
+    expect(JSON.parse(carried.value.carriedChunkIds ?? "null")).toEqual([
+      "chunk-a",
+      "chunk-b",
+    ]);
+
+    // A fresh restart carries nothing — an empty list, not a null.
+    const restarted = await store.briefs.write({
+      ...span,
+      body: "v3",
+      anchorState: "fresh-restart",
+      anchorReason: "model-swap",
+      carriedChunkIds: [],
+    });
+    if (!restarted.ok) throw new Error("expected success");
+    expect(restarted.value.carriedChunkIds).toBe("[]");
   });
 });
 
@@ -552,5 +599,119 @@ describe("artifactStore.comparisonMarks — coordinates-only guard", () => {
     });
     if (!again.ok) throw new Error("expected success");
     expect(again.value.id).toBe(result.value.id);
+  });
+});
+
+describe("artifactStore.hunkSpans — the carry-over hop", () => {
+  const HOP = [
+    {
+      file: "src/a.ts",
+      hunks: [{ oldStart: 10, oldLines: 3, newStart: 10, newLines: 5 }],
+    },
+  ];
+
+  it("upserts one row per SHA pair and lists them in insertion order", async () => {
+    const handle = await freshDatabase();
+    const store = artifactStore(handle, CTX_A);
+    const pr = await forTenant(handle, CTX_A).pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 7,
+      state: PrState.OPEN,
+    });
+
+    const first = await store.hunkSpans.write({
+      pullRequestId: pr.id,
+      baselineSha: "head-1",
+      headSha: "head-2",
+      spans: HOP,
+    });
+    if (!first.ok) throw new Error("expected success");
+    expect(JSON.parse(first.value.spans)).toEqual(HOP);
+
+    // Same pair rewritten in place; a later pair is a second hop.
+    const rewritten = await store.hunkSpans.write({
+      pullRequestId: pr.id,
+      baselineSha: "head-1",
+      headSha: "head-2",
+      spans: [],
+    });
+    if (!rewritten.ok) throw new Error("expected success");
+    expect(rewritten.value.id).toBe(first.value.id);
+    expect(JSON.parse(rewritten.value.spans)).toEqual([]);
+
+    await store.hunkSpans.write({
+      pullRequestId: pr.id,
+      baselineSha: "head-2",
+      headSha: "head-3",
+      spans: HOP,
+    });
+
+    // Insertion order, not chain order — a caller links the SHA pairs.
+    const chain = await store.hunkSpans.listForPullRequest(pr.id);
+    expect(chain.map((row) => [row.baselineSha, row.headSha])).toEqual([
+      ["head-1", "head-2"],
+      ["head-2", "head-3"],
+    ]);
+  });
+
+  it("rejects a hunk carrying line content", async () => {
+    const handle = await freshDatabase();
+    const store = artifactStore(handle, CTX_A);
+    const pr = await forTenant(handle, CTX_A).pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 7,
+      state: PrState.OPEN,
+    });
+
+    const result = await store.hunkSpans.write({
+      pullRequestId: pr.id,
+      baselineSha: "head-1",
+      headSha: "head-2",
+      spans: [
+        {
+          file: "src/a.ts",
+          hunks: [
+            {
+              oldStart: 1,
+              oldLines: 1,
+              newStart: 1,
+              newLines: 2,
+              lines: ["+const x = 1;"],
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected rejection");
+    expect(result.error.code).toBe(ArtifactErrorCode.INVALID_BODY);
+    expect(await store.hunkSpans.listForPullRequest(pr.id)).toHaveLength(0);
+  });
+
+  it("refuses a hop on another tenant's pull request, and writes nothing", async () => {
+    const handle = await freshDatabase();
+    const pr = await forTenant(handle, CTX_A).pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 7,
+      state: PrState.OPEN,
+    });
+
+    const result = await artifactStore(handle, CTX_B).hunkSpans.write({
+      pullRequestId: pr.id,
+      baselineSha: "head-1",
+      headSha: "head-2",
+      spans: HOP,
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected rejection");
+    expect(result.error.code).toBe(ArtifactErrorCode.PARENT_NOT_IN_TENANT);
+    expect(
+      await artifactStore(handle, CTX_A).hunkSpans.listForPullRequest(pr.id),
+    ).toHaveLength(0);
+    expect(
+      await artifactStore(handle, CTX_B).hunkSpans.listForPullRequest(pr.id),
+    ).toHaveLength(0);
   });
 });

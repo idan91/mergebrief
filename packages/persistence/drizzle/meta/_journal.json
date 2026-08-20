@@ -141,6 +141,41 @@
       "when": 1787006646589,
       "tag": "0019_review-session-tables",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1787008108146,
+      "tag": "0020_disposition-drop-legacy-anchors",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1787008132760,
+      "tag": "0021_disposition-session-anchors",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1787008370797,
+      "tag": "0022_hunk-span",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1787008468562,
+      "tag": "0023_brief-carried-chunk-ids",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1787008533523,
+      "tag": "0024_api-token-scope",
+      "breakpoints": true
     }
   ]
 }

@@ -18,6 +18,7 @@ import {
   PrState,
   sessionAuth,
   tokenAuth,
+  WriteClassification,
   type AppDatabase,
   type InstallationId,
   type KeyProvider,
@@ -615,6 +616,7 @@ describe("reviewer read API + authz gate", () => {
     if (resolved === undefined) throw new Error("seeded session not found");
     const bearer = `mergebrief_${randomBytes(32).toString("base64url")}`;
     await tokenAuth(harness.handle).mintToken({
+      scope: WriteClassification.EXTERNAL_WRITE,
       installationId: brandInstallation(BigInt(INSTALLATION_ID)),
       userId: brandReviewer(BigInt(REVIEWER_ID)),
       name: "cli-agent",

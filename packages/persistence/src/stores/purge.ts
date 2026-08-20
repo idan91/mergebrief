@@ -12,9 +12,11 @@
 //
 // Erasure completeness is the DB's job, not ours: every per-PR child table
 // (`brief`, `delta`, `diff_snapshot`, `revision_narrative`, `comparison_marks`,
-// `checkpoint`, `disposition`, `generation`) FKs `pull_request.id`
+// `hunk_span`, `checkpoint`, `generation`) FKs `pull_request.id`
 // `ON DELETE CASCADE`, so deleting a `pull_request` row — or predicate-deleting
-// a set of them — cascades every child with no forgotten table. The only
+// a set of them — cascades every child with no forgotten table. The Review
+// Session graph — `review_session` and the six tables it owns, `disposition`
+// among them — is reached through `brief`, two hops rather than one. The only
 // non-PR tables a purge touches are `auth_session` and `api_token` (neither
 // FK'd); both are deleted explicitly on installation offboarding. `audit_log`
 // is RETAINED (numeric-only, never purged, no FK): a purge APPENDS a `delete`
