@@ -44,8 +44,13 @@ export async function submitReview(
   });
   if (!response.ok) {
     const { code } = await errorFromResponse(response, path);
-    // Either 409 code maps to rewritten: this route only ever emits
-    // pr-rewritten-since-read; pr-changed is the codeless-409 fallback.
+    // Three 409s reach here. The orphaned anchor is this route's own refusal;
+    // a frozen session (pr-changed) and a fail-closed unknown commit
+    // (pr-rewritten) both mean the read went stale, and pr-changed is what a
+    // codeless 409 synthesizes to as well.
+    if (code === ApiErrorCode.DRAFT_ANCHOR_ORPHANED) {
+      return { kind: "orphaned-draft" };
+    }
     if (
       code === ApiErrorCode.PR_REWRITTEN_SINCE_READ ||
       code === ApiErrorCode.PR_CHANGED_SINCE_READ

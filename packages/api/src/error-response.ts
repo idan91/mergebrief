@@ -20,6 +20,9 @@ export const ApiErrorCode = {
   SIGN_IN_FAILED: "sign-in-failed",
   REQUEST_TOO_LARGE: "request-too-large",
   DIFF_TOO_LARGE: "diff-too-large",
+  DRAFT_ALREADY_PUBLISHED: "draft-already-published",
+  DRAFT_ANCHOR_ORPHANED: "draft-anchor-orphaned",
+  DRAFT_LIMIT_REACHED: "draft-limit-reached",
   PR_CHANGED_SINCE_READ: "pr-changed-since-read",
   PR_REWRITTEN_SINCE_READ: "pr-rewritten-since-read",
   APP_NOT_INSTALLED: "app-not-installed",
@@ -69,6 +72,9 @@ export const API_ERROR_STATUS = {
   [ApiErrorCode.SIGN_IN_FAILED]: 400,
   [ApiErrorCode.REQUEST_TOO_LARGE]: 413,
   [ApiErrorCode.DIFF_TOO_LARGE]: 413,
+  [ApiErrorCode.DRAFT_ALREADY_PUBLISHED]: 409,
+  [ApiErrorCode.DRAFT_ANCHOR_ORPHANED]: 409,
+  [ApiErrorCode.DRAFT_LIMIT_REACHED]: 409,
   [ApiErrorCode.PR_CHANGED_SINCE_READ]: 409,
   [ApiErrorCode.PR_REWRITTEN_SINCE_READ]: 409,
   [ApiErrorCode.APP_NOT_INSTALLED]: 403,
@@ -98,6 +104,12 @@ export const API_ERROR_ENGLISH = {
   [ApiErrorCode.SIGN_IN_FAILED]: "sign-in failed",
   [ApiErrorCode.REQUEST_TOO_LARGE]: "request body too large",
   [ApiErrorCode.DIFF_TOO_LARGE]: "diff too large to render",
+  [ApiErrorCode.DRAFT_ALREADY_PUBLISHED]:
+    "this draft has already been published to github",
+  [ApiErrorCode.DRAFT_ANCHOR_ORPHANED]:
+    "this review holds a comment whose anchor no longer points at any code",
+  [ApiErrorCode.DRAFT_LIMIT_REACHED]:
+    "this review already holds as many unposted comments as it can carry",
   [ApiErrorCode.PR_CHANGED_SINCE_READ]:
     "pull request changed since it was read",
   [ApiErrorCode.PR_REWRITTEN_SINCE_READ]:

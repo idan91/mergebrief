@@ -23,8 +23,10 @@
 import type { Context } from "hono";
 import {
   DispositionDecision,
+  DraftCommentStatus,
   forTenant,
   type DispositionAnchor,
+  type ReviewDraftCommentRow,
   type SessionWriter,
 } from "persistence";
 import { ApiErrorCode, errorJson } from "../../../../error-response";
@@ -63,6 +65,49 @@ import {
 import { mapWriteFailure, resolveWrite } from "./write-resolve";
 
 const NO_STORE = { "cache-control": "no-store" };
+
+/**
+ * How many unposted drafts one session may hold. It bounds what a single
+ * submit posts to GitHub, so it belongs to the session rather than to any
+ * one request — the 101st is refused when it is written, not at submit,
+ * where the reviewer would have nowhere to put it.
+ */
+const MAX_SESSION_DRAFTS = 100;
+
+/**
+ * The draft this session holds under `id` — its own row, or the copy of the
+ * carried row `id` named, exactly as the store addresses one.
+ */
+function heldDraft(
+  drafts: readonly ReviewDraftCommentRow[],
+  id: bigint,
+): ReviewDraftCommentRow | undefined {
+  return drafts.find((row) => row.id === id || row.carriedFromCommentId === id);
+}
+
+/**
+ * The two answers a write against a named draft owes before it edits: a draft
+ * this session does not hold is the subtree's hint-free 404, and one already
+ * on GitHub is a 409 — its body is what the audit trail points at, so it can
+ * no longer move.
+ */
+function resolveWritableDraft(
+  c: Context<AuthzEnv>,
+  draft: ReviewDraftCommentRow | undefined,
+):
+  | { readonly ok: true; readonly draft: ReviewDraftCommentRow }
+  | { readonly ok: false; readonly response: Response } {
+  if (draft === undefined) {
+    return { ok: false, response: errorJson(c, ApiErrorCode.NOT_FOUND) };
+  }
+  if (draft.status === DraftCommentStatus.SUBMITTED) {
+    return {
+      ok: false,
+      response: errorJson(c, ApiErrorCode.DRAFT_ALREADY_PUBLISHED),
+    };
+  }
+  return { ok: true, draft };
+}
 
 /**
  * THE human-only predicate — one site, covering every clearing operation:
@@ -183,11 +228,21 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
       if (!resolved.ok) {
         return resolved.response;
       }
-      const written = await resolved.run((writer) =>
-        writer.addDraftComment(parsed.data),
-      );
+      const written = await resolved.run(async (writer) => {
+        const held = await writer.draftComments();
+        const unposted = held.filter(
+          (row) => row.status === DraftCommentStatus.DRAFT,
+        );
+        if (unposted.length >= MAX_SESSION_DRAFTS) {
+          return undefined;
+        }
+        return await writer.addDraftComment(parsed.data);
+      });
       if (!written.ok) {
         return mapWriteFailure(c, written.error);
+      }
+      if (written.value === undefined) {
+        return errorJson(c, ApiErrorCode.DRAFT_LIMIT_REACHED);
       }
       return c.json({ draftId: String(written.value.id) }, 201, NO_STORE);
     },
@@ -210,20 +265,26 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
       if (!resolved.ok) {
         return resolved.response;
       }
-      const written = await resolved.run((writer) =>
-        writer.updateDraftComment(draftId.data, {
+      const written = await resolved.run(async (writer) => {
+        const held = heldDraft(await writer.draftComments(), draftId.data);
+        if (
+          held === undefined ||
+          held.status === DraftCommentStatus.SUBMITTED
+        ) {
+          return held;
+        }
+        return await writer.updateDraftComment(draftId.data, {
           body: parsed.data.body,
-        }),
-      );
+        });
+      });
       if (!written.ok) {
         return mapWriteFailure(c, written.error);
       }
-      // A draft this session does not hold is indistinguishable from one that
-      // never existed — the same 404 either way.
-      if (written.value === undefined) {
-        return errorJson(c, ApiErrorCode.NOT_FOUND);
+      const outcome = resolveWritableDraft(c, written.value);
+      if (!outcome.ok) {
+        return outcome.response;
       }
-      return c.json({ draftId: String(written.value.id) }, 200, NO_STORE);
+      return c.json({ draftId: String(outcome.draft.id) }, 200, NO_STORE);
     },
   );
 
@@ -247,20 +308,28 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
       if (!resolved.ok) {
         return resolved.response;
       }
-      const written = await resolved.run((writer) =>
+      const written = await resolved.run(async (writer) => {
+        const held = heldDraft(await writer.draftComments(), draftId.data);
+        if (
+          held === undefined ||
+          held.status === DraftCommentStatus.SUBMITTED
+        ) {
+          return held;
+        }
         // The human placed it, so the carry-over's verdict is settled.
-        writer.updateDraftComment(draftId.data, {
+        return await writer.updateDraftComment(draftId.data, {
           ...parsed.data,
           anchorStatus: null,
-        }),
-      );
+        });
+      });
       if (!written.ok) {
         return mapWriteFailure(c, written.error);
       }
-      if (written.value === undefined) {
-        return errorJson(c, ApiErrorCode.NOT_FOUND);
+      const outcome = resolveWritableDraft(c, written.value);
+      if (!outcome.ok) {
+        return outcome.response;
       }
-      return c.json({ draftId: String(written.value.id) }, 200, NO_STORE);
+      return c.json({ draftId: String(outcome.draft.id) }, 200, NO_STORE);
     },
   );
 
@@ -283,18 +352,27 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
       if (!resolved.ok) {
         return resolved.response;
       }
-      const written = await resolved.run((writer) =>
-        writer.deleteDraftComment(draftId.data),
-      );
+      const written = await resolved.run(async (writer) => {
+        const held = heldDraft(await writer.draftComments(), draftId.data);
+        if (
+          held === undefined ||
+          held.status === DraftCommentStatus.SUBMITTED
+        ) {
+          return held;
+        }
+        await writer.deleteDraftComment(draftId.data);
+        return held;
+      });
       if (!written.ok) {
         return mapWriteFailure(c, written.error);
       }
-      if (written.value === undefined) {
-        return errorJson(c, ApiErrorCode.NOT_FOUND);
+      const outcome = resolveWritableDraft(c, written.value);
+      if (!outcome.ok) {
+        return outcome.response;
       }
       // The row that went, not the id that named it: a carried id names the
       // previous session's row, which the copy's deletion leaves alive.
-      return c.json({ draftId: String(written.value) }, 200, NO_STORE);
+      return c.json({ draftId: String(outcome.draft.id) }, 200, NO_STORE);
     },
   );
 

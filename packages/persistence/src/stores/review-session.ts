@@ -31,6 +31,7 @@ import {
   type PreviousWork,
 } from "./carry-over";
 import { ChunkIdsSchema } from "./carry-over";
+import { DraftCommentStatus } from "../types";
 import type {
   AnchorStatus,
   BriefRowId,
@@ -38,7 +39,6 @@ import type {
   DispositionDecision,
   DispositionEvidence,
   DraftCommentSide,
-  DraftCommentStatus,
   InstallationId,
   PullRequestRowId,
   ReviewOutcome,
@@ -234,6 +234,10 @@ export interface SessionWriter {
   ): Promise<ReviewDraftCommentRow | undefined>;
   /** Drop such a draft, returning the row that went; `undefined` when none did. */
   deleteDraftComment(id: bigint): Promise<bigint | undefined>;
+  /** Every draft this session holds, published ones included, oldest first. */
+  draftComments(): Promise<readonly ReviewDraftCommentRow[]>;
+  /** Flip drafts to `submitted` — what publishing them to GitHub records here. */
+  publishDraftComments(ids: readonly bigint[]): Promise<void>;
   putReadMark(
     input: Omit<ReadMarkInput, "reviewSessionId">,
   ): Promise<ReviewReadMarkRow>;
@@ -259,22 +263,6 @@ export interface SessionWriter {
 export interface ReviewSessionRepository {
   /** Read by key. Absence is a normal `undefined` — never a create. */
   get(key: ReviewSessionKey): Promise<ReviewSessionSnapshot | undefined>;
-  /** Append a draft comment. Addressed by its row id thereafter. */
-  addDraftComment(
-    input: DraftCommentInput,
-  ): Promise<Result<ReviewDraftCommentRow, ReviewSessionError>>;
-  /** Mark a Chunk read; idempotent on (session, chunk). */
-  putReadMark(
-    input: ReadMarkInput,
-  ): Promise<Result<ReviewReadMarkRow, ReviewSessionError>>;
-  /** Override a Change group's category; idempotent on (session, group). */
-  putReclassification(
-    input: ReclassificationInput,
-  ): Promise<Result<ReviewGroupReclassificationRow, ReviewSessionError>>;
-  /** Record a submitted GitHub review id; idempotent on (session, review). */
-  recordSubmittedReview(
-    input: SubmittedReviewInput,
-  ): Promise<Result<ReviewSubmittedReviewRow, ReviewSessionError>>;
   /**
    * Run `write` as the session's write — materializing the session and its
    * carry-over first if this is the first one, all in ONE transaction. Any
@@ -375,51 +363,6 @@ export function reviewSessionRepository(
   db: AppDrizzle,
   installationId: InstallationId,
 ): ReviewSessionRepository {
-  /**
-   * Rule (b) for owned rows: every session id the write names — the owning
-   * one and any `carried_from` reference — must be in ctx's tenant. Returns
-   * the first that is not.
-   */
-  async function foreignSession(
-    tx: Tx,
-    ids: readonly ReviewSessionId[],
-  ): Promise<ReviewSessionId | undefined> {
-    const rows = await tx
-      .select({ id: reviewSession.id })
-      .from(reviewSession)
-      .where(
-        and(
-          eq(reviewSession.installationId, installationId),
-          inArray(reviewSession.id, [...ids]),
-        ),
-      );
-    const inTenant = new Set(rows.map((row) => row.id));
-    return ids.find((id) => !inTenant.has(id));
-  }
-
-  /** Every owned write shares this shape: verify the parents, then write. */
-  async function writeOwned<TRow>(
-    sessionIds: readonly ReviewSessionId[],
-    write: (tx: Tx) => Promise<TRow[]>,
-    subject: string,
-  ): Promise<Result<TRow, ReviewSessionError>> {
-    return db.transaction(async (tx) => {
-      const foreign = await foreignSession(tx, sessionIds);
-      if (foreign !== undefined) {
-        return fail(
-          ReviewSessionErrorCode.PARENT_NOT_IN_TENANT,
-          `review_session ${foreign} not in tenant ${installationId}`,
-        );
-      }
-      const rows = await write(tx);
-      const row = rows[0];
-      if (row === undefined) {
-        throw new Error(`${subject} write returned no row`);
-      }
-      return { ok: true, value: row };
-    });
-  }
-
   /** The current Brief's own contribution to an evaluation. */
   async function briefFacts(
     tx: Reader,
@@ -707,6 +650,22 @@ export function reviewSessionRepository(
           .where(addressedDraft(sessionId, id))
           .returning({ id: reviewDraftComment.id });
         return rows[0]?.id;
+      },
+      async draftComments() {
+        return await tx
+          .select()
+          .from(reviewDraftComment)
+          .where(ownedBy(sessionId))
+          .orderBy(asc(reviewDraftComment.id));
+      },
+      async publishDraftComments(ids) {
+        if (ids.length === 0) return;
+        await tx
+          .update(reviewDraftComment)
+          .set({ status: DraftCommentStatus.SUBMITTED })
+          .where(
+            and(ownedBy(sessionId), inArray(reviewDraftComment.id, [...ids])),
+          );
       },
       async putReadMark(input) {
         return only(
@@ -1203,57 +1162,6 @@ export function reviewSessionRepository(
         evaluatePending(tx, facts, previous, artifact),
       );
       return { session: undefined, carried, carriedFrom };
-    },
-
-    async addDraftComment(input) {
-      const carriedFrom = input.carriedFromSessionId ?? null;
-      return writeOwned(
-        carriedFrom === null
-          ? [input.reviewSessionId]
-          : [input.reviewSessionId, carriedFrom],
-        async (tx) => [
-          await insertsForSession(tx, input.reviewSessionId).addDraftComment(
-            input,
-          ),
-        ],
-        "review_draft_comment",
-      );
-    },
-
-    async putReadMark(input) {
-      return writeOwned(
-        [input.reviewSessionId],
-        async (tx) => [
-          await insertsForSession(tx, input.reviewSessionId).putReadMark(input),
-        ],
-        "review_read_mark",
-      );
-    },
-
-    async putReclassification(input) {
-      return writeOwned(
-        [input.reviewSessionId],
-        async (tx) => [
-          await insertsForSession(
-            tx,
-            input.reviewSessionId,
-          ).putReclassification(input),
-        ],
-        "review_group_reclassification",
-      );
-    },
-
-    async recordSubmittedReview(input) {
-      return writeOwned(
-        [input.reviewSessionId],
-        async (tx) => [
-          await insertsForSession(
-            tx,
-            input.reviewSessionId,
-          ).recordSubmittedReview(input),
-        ],
-        "review_submitted_review",
-      );
     },
   };
 }

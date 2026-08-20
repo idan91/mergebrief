@@ -105,6 +105,7 @@ export function useReviewSubmit(
       postedDegraded: t("review.submitResult.postedDegraded"),
       degradedNote: t("review.submitResult.anchorsFolded"),
       rewritten: t("review.submitResult.rewritten"),
+      orphanedDraft: t("review.submitResult.orphanedDraft"),
       unauthorized: t("review.submitResult.unauthorized"),
       notFound: t("review.submitResult.notFound"),
       invalid: t("review.submitResult.invalid"),
@@ -263,6 +264,10 @@ export function useReviewSubmit(
           }
           case "rewritten": {
             fail(COPY.rewritten);
+            break;
+          }
+          case "orphaned-draft": {
+            fail(COPY.orphanedDraft);
             break;
           }
           case "unauthorized": {

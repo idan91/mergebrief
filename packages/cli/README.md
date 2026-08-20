@@ -93,8 +93,8 @@ show a rename.
 ### `pr [n]`
 
 No argument: your PR list, verbatim (`{"pulls":[...]}`). With a number: the
-PR's metadata. Critical fields: **`headSha`** — the `commitId` your
-`submit` must pin (never auto-fetched); `briefAvailable` — generation is
+PR's metadata. Critical fields: **`baseSha`/`headSha`** — the brief span
+your `submit` must name (never auto-fetched); `briefAvailable` — generation is
 webhook-driven, poll with backoff, nothing client-side triggers it;
 `comparisons.lastReview` — what `delta` resolves.
 
@@ -147,12 +147,14 @@ Receipt verbatim: `{"commentId":990011}`.
 
 ### `submit <n>`
 
-Submit a review. Full payload via `-F <file>` / `-F -` (stdin), or the
-convenience flags (`--outcome comment|approve|request-changes`, `--body`,
-`--commit`) for a comment-less review — the two forms are mutually
-exclusive. **`commitId` is required and never auto-fetched** (exit 2
-without it): pin the `headSha` you actually reviewed and carry it through
-from `pr <n>`. Receipt verbatim:
+Submit a review of the brief span you name; the comments are the drafts
+the server holds for it (drafting them has no CLI command yet, so a
+CLI-only submit posts a body-only review today). Payload via `-F <file>` /
+`-F -` (stdin), or the
+convenience flags (`--outcome comment|approve|request-changes`, `--body`)
+— the two forms are mutually exclusive. **`--base` and `--head` are
+required and never auto-fetched** (exit 2 without them): carry the span
+through from `pr <n>`. Receipt verbatim:
 
 ```json
 {"reviewId":990012,"commentsDegraded":false}
@@ -220,8 +222,8 @@ Commands:
                                machine format)
   reply [options] <commentId>  reply to a review comment (the viewer's own
                                voice)
-  submit [options] <number>    submit a review (commitId is required and never
-                               auto-fetched)
+  submit [options] <number>    submit a review of the brief span you name (its
+                               saved drafts go with it)
   delta [options] <number>     what changed since your last review (union:
                                available | not)
   help [command]               display help for command
@@ -359,7 +361,7 @@ Options:
 ```
 Usage: mergebrief submit [options] <number>
 
-submit a review (commitId is required and never auto-fetched)
+submit a review of the brief span you name (its saved drafts go with it)
 
 Arguments:
   number               PR number
@@ -368,7 +370,8 @@ Options:
   -F, --file <path>    full JSON payload from a file, or "-" for stdin
   --outcome <outcome>  comment | approve | request-changes (flag form)
   --body <text>        review body (flag form)
-  --commit <sha>       the commitId you reviewed (flag form)
+  --base <sha>         span base of the brief you reviewed
+  --head <sha>         span head of the brief you reviewed
   -h, --help           display help for command
 ```
 

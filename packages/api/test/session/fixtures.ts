@@ -292,19 +292,17 @@ export async function seedOrphanedDraft(
   briefId: BriefRowId,
 ): Promise<void> {
   const repo = forTenant(handle, CTX);
-  const previous = await repo.reviewSessions.get({
-    briefId,
-    reviewerId: REVIEWER,
-  });
-  if (previous === undefined) throw new Error("previous session missing");
-  const added = await repo.reviewSessions.addDraftComment({
-    reviewSessionId: previous.session.id,
-    filePath: "src/other.ts",
-    side: DraftCommentSide.NEW,
-    startLine: 10,
-    endLine: 12,
-    body: "and this one too",
-  });
+  const added = await repo.reviewSessions.writeToSession(
+    { briefId, reviewerId: REVIEWER, brief: async () => NO_ARTIFACT },
+    (writer) =>
+      writer.addDraftComment({
+        filePath: "src/other.ts",
+        side: DraftCommentSide.NEW,
+        startLine: 10,
+        endLine: 12,
+        body: "and this one too",
+      }),
+  );
   if (!added.ok) throw new Error("second draft comment seed failed");
 }
 
@@ -320,24 +318,21 @@ export async function seedPreviousWork(
   const repo = forTenant(handle, CTX);
   const opened = await repo.reviewSessions.writeToSession(
     { briefId, reviewerId: REVIEWER, brief: async () => NO_ARTIFACT },
-    async (writer) => writer.session.id,
+    async (writer) => {
+      await writer.addDraftComment({
+        filePath: "src/app.ts",
+        side: DraftCommentSide.NEW,
+        startLine: 10,
+        endLine: 12,
+        body: "this allocation is unbounded",
+      });
+      await writer.putReclassification({
+        changeGroupId: "g1",
+        category: ChangeGroupCategory.LOGIC_REFACTOR,
+      });
+    },
   );
   if (!opened.ok) throw new Error("previous session seed failed");
-  const sessionId = opened.value;
-  const added = await repo.reviewSessions.addDraftComment({
-    reviewSessionId: sessionId,
-    filePath: "src/app.ts",
-    side: DraftCommentSide.NEW,
-    startLine: 10,
-    endLine: 12,
-    body: "this allocation is unbounded",
-  });
-  if (!added.ok) throw new Error("previous draft comment seed failed");
-  await repo.reviewSessions.putReclassification({
-    reviewSessionId: sessionId,
-    changeGroupId: "g1",
-    category: ChangeGroupCategory.LOGIC_REFACTOR,
-  });
   await repo.reviewSessions.writeToSession(
     { briefId, reviewerId: REVIEWER, brief: async () => NO_ARTIFACT },
     (writer) =>

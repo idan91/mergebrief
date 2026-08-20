@@ -1,7 +1,12 @@
 // POST /api/repos/:repoId/pulls/:prNumber/review — the review-submit route.
 // Behind the FULL per-repo gate; posts ONE grouped formal review with the
 // VIEWER's token (the reviewer authors their own review, never the App),
-// pinned to the commitId the reviewer actually read.
+// carrying the drafts the SESSION holds and pinned to the head of the Brief
+// the request names — the revision the reviewer read.
+//
+// The request carries no comments: they were saved as they were written, so
+// sending them back would make two copies and a which-wins rule. On success
+// the published drafts flip to `submitted` and the review id is recorded.
 //
 // Deliberately NOT here: the checkpoint write. The `pull_request_review`
 // webhook — including the echo of this very submit — is the ONLY checkpoint
@@ -26,14 +31,18 @@ import {
   type ReviewCommentInput,
 } from "github";
 import {
+  AnchorStatus,
   audit,
   AuditAction,
   AuditOutcome,
   AuditActorType,
   decryptToken,
+  DraftCommentSide,
+  DraftCommentStatus,
   forTenant,
   type InstallationId,
   type RepoId,
+  type ReviewDraftCommentRow,
   type ValueOf,
 } from "persistence";
 import type { Result } from "types";
@@ -47,11 +56,14 @@ import {
   type ProductRouter,
 } from "../../../product-operations/product-router";
 import { WRITE_CLASSIFICATION } from "../../../product-operations/types";
+import {
+  mapWriteFailure as sessionFailure,
+  resolveWrite,
+} from "./session/write-resolve";
 
 // ---------------------------------------------------------------------------
-// Boundary schemas — shape only (the server needs no chunk knowledge; the FE
-// already maps anchors to GitHub's wire shape). Length/count caps bound the
-// payload; cross-field content rules are the ones GitHub would 422 anyway.
+// Boundary schema — the outcome and the review body. The comments come off
+// the session, and the commit off the named Brief's head.
 // ---------------------------------------------------------------------------
 
 /** The FE's outcome vocabulary → GitHub's review event (1:1, never inferred). */
@@ -68,35 +80,11 @@ const OUTCOME_TO_EVENT: Readonly<Record<ReviewOutcome, ReviewEvent>> = {
   [ReviewOutcome.REQUEST_CHANGES]: ReviewEvent.REQUEST_CHANGES,
 };
 
-const MAX_COMMENTS = 100;
 const MAX_BODY_LENGTH = 65_536;
-const MAX_PATH_LENGTH = 1_024;
-const MAX_SELECTED_TEXT_LENGTH = 4_000;
 
 const shaSchema = z
   .string()
-  .regex(/^[0-9a-f]{40}$/, "commitId must be a 40-hex SHA");
-const sideSchema = z.union([
-  z.literal(ReviewCommentSide.LEFT),
-  z.literal(ReviewCommentSide.RIGHT),
-]);
-
-const commentSchema = z
-  .object({
-    path: z.string().min(1).max(MAX_PATH_LENGTH),
-    line: z.number().int().positive(),
-    side: sideSchema,
-    startLine: z.number().int().positive().optional(),
-    startSide: sideSchema.optional(),
-    body: z.string().min(1).max(MAX_BODY_LENGTH),
-    /** The anchored source text — only used for the degradation fold's quote. */
-    selectedText: z.string().max(MAX_SELECTED_TEXT_LENGTH).optional(),
-  })
-  .refine(
-    (comment) =>
-      comment.startLine === undefined || comment.startLine < comment.line,
-    { message: "startLine must be strictly before line" },
-  );
+  .regex(/^[0-9a-f]{40}$/, "the brief's head must be a 40-hex SHA");
 
 const submitBodySchema = z
   .object({
@@ -105,47 +93,48 @@ const submitBodySchema = z
       z.literal(ReviewOutcome.APPROVE),
       z.literal(ReviewOutcome.REQUEST_CHANGES),
     ]),
-    commitId: shaSchema,
     body: z.string().max(MAX_BODY_LENGTH).optional(),
-    comments: z.array(commentSchema).max(MAX_COMMENTS).default([]),
   })
-  .refine(
-    (submit) =>
-      submit.outcome !== ReviewOutcome.COMMENT ||
-      submit.comments.length > 0 ||
-      (submit.body !== undefined && submit.body.trim() !== ""),
-    {
-      message: "a neutral comment review needs at least one comment or a body",
-    },
-  )
   .refine(
     // GitHub documents `body` as REQUIRED for the REQUEST_CHANGES event —
     // reject deterministically here instead of surfacing GitHub's unclassified
-    // 422 as a retry-looking 502. (The FE always sends its signature line as
-    // the body, so this only bites direct API callers.)
+    // 422 as a retry-looking 502.
     (submit) =>
       submit.outcome !== ReviewOutcome.REQUEST_CHANGES ||
       (submit.body !== undefined && submit.body.trim() !== ""),
     { message: "a request-changes review needs a body" },
-  )
-  .refine(
-    // Every accepted request must be representable by the degradation fold:
-    // if the anchors 422, ALL comments move into the one review body, so the
-    // folded rendering has to fit GitHub's body cap. Checked exactly (same
-    // fold function) and up front — a deterministic 400 before any upstream
-    // side effect, never a 502 halfway through a degraded retry.
-    (submit) =>
-      submit.comments.length === 0 ||
-      foldCommentsIntoBody(submit.body, submit.comments).length <=
-        MAX_BODY_LENGTH,
-    { message: "comments are too large to fold into a single review body" },
   );
 
-// Derived from `commentSchema` (not the outer schema) so the fold-budget
-// refine can reference `foldCommentsIntoBody` without a circular inference.
-type SubmitComment = z.infer<typeof commentSchema>;
-
 const prNumberSchema = z.coerce.number().int().positive();
+
+/** The stored side vocabulary as GitHub names it. */
+const SIDE_ON_GITHUB: Readonly<Record<DraftCommentSide, ReviewCommentSide>> = {
+  [DraftCommentSide.OLD]: ReviewCommentSide.LEFT,
+  [DraftCommentSide.NEW]: ReviewCommentSide.RIGHT,
+};
+
+/** One held draft as the review's comment payload. */
+interface SubmitComment {
+  readonly path: string;
+  readonly line: number;
+  readonly side: ReviewCommentSide;
+  readonly startLine?: number;
+  readonly startSide?: ReviewCommentSide;
+  readonly body: string;
+}
+
+function shapeSubmitComment(draft: ReviewDraftCommentRow): SubmitComment {
+  const side = SIDE_ON_GITHUB[draft.side];
+  return {
+    path: draft.filePath,
+    line: draft.endLine,
+    side,
+    ...(draft.startLine < draft.endLine
+      ? { startLine: draft.startLine, startSide: side }
+      : {}),
+    body: draft.body,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Degradation fold: every comment becomes a quoted block in the review body.
@@ -156,13 +145,7 @@ function foldedCommentBlock(comment: SubmitComment): string {
     comment.startLine === undefined
       ? String(comment.line)
       : `${comment.startLine}-${comment.line}`;
-  const quote =
-    comment.selectedText === undefined
-      ? []
-      : comment.selectedText.split("\n").map((line) => `> ${line}`);
-  return [`**\`${comment.path}:${range}\`**`, ...quote, "", comment.body].join(
-    "\n",
-  );
+  return [`**\`${comment.path}:${range}\`**`, "", comment.body].join("\n");
 }
 
 /** The review body with every anchored comment folded in as a quoted block. */
@@ -252,29 +235,68 @@ export function reviewSubmitRoute(
     "post",
     "/",
     async (c) => {
-      let rawBody: unknown;
-      try {
-        rawBody = await c.req.json();
-      } catch {
-        return errorJson(c, ApiErrorCode.INVALID_REQUEST);
-      }
-      const parsedBody = submitBodySchema.safeParse(rawBody);
-      if (!parsedBody.success) {
+      const parsedBody = submitBodySchema.safeParse(
+        await c.req.json().catch(() => undefined),
+      );
+      const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
+      if (!parsedBody.success || !parsedPr.success) {
         return errorJson(c, ApiErrorCode.INVALID_REQUEST);
       }
       const submitBody = parsedBody.data;
 
       const ctx = c.get("ctx");
-      const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
-      if (!parsedPr.success) {
-        return errorJson(c, ApiErrorCode.INVALID_REQUEST);
-      }
       const pr = await forTenant(deps.handle, ctx).pullRequests.getByNumber(
         c.get("repoId"),
         parsedPr.data,
       );
       if (pr === undefined) {
         return errorJson(c, ApiErrorCode.NOT_FOUND);
+      }
+
+      // The session answers before a GitHub call is spent: a frozen tab is
+      // refused here, and the drafts to publish are read off its rows.
+      const resolved = await resolveWrite(deps, c);
+      if (!resolved.ok) {
+        return resolved.response;
+      }
+      const commitId = shaSchema.safeParse(resolved.head);
+      if (!commitId.success) {
+        return errorJson(c, ApiErrorCode.INVALID_REQUEST);
+      }
+      const held = await resolved.run(async (writer) =>
+        (await writer.draftComments()).filter(
+          (row) => row.status === DraftCommentStatus.DRAFT,
+        ),
+      );
+      if (!held.ok) {
+        return sessionFailure(c, held.error);
+      }
+      const drafts = held.value;
+      // Posting an orphaned anchor lands the comment on unrelated lines;
+      // dropping it reports feedback that never landed. Refused before any
+      // GitHub call; re-anchoring or deleting the draft clears it.
+      if (drafts.some((row) => row.anchorStatus === AnchorStatus.ORPHANED)) {
+        return errorJson(c, ApiErrorCode.DRAFT_ANCHOR_ORPHANED);
+      }
+      const comments = drafts.map(shapeSubmitComment);
+      // A neutral review with nothing in it says nothing; GitHub takes it and
+      // the reviewer sees an empty review they cannot undo.
+      if (
+        submitBody.outcome === ReviewOutcome.COMMENT &&
+        comments.length === 0 &&
+        (submitBody.body ?? "").trim() === ""
+      ) {
+        return errorJson(c, ApiErrorCode.INVALID_REQUEST);
+      }
+      // Every accepted submit must be representable by its own degradation
+      // path: if the anchors 422, ALL comments move into the one review body,
+      // so the folded rendering has to fit GitHub's cap. Checked with the same
+      // fold function, before any upstream side effect.
+      if (
+        comments.length > 0 &&
+        foldCommentsIntoBody(submitBody.body, comments).length > MAX_BODY_LENGTH
+      ) {
+        return errorJson(c, ApiErrorCode.INVALID_REQUEST);
       }
 
       // Viewer token: set by the gate on the verified path; on a positive-cache
@@ -359,15 +381,15 @@ export function reviewSubmitRoute(
           owner: target.owner,
           repo: target.repo,
           prNumber: pr.prNumber,
-          commitId: submitBody.commitId,
+          commitId: commitId.data,
           event: OUTCOME_TO_EVENT[submitBody.outcome],
         };
       const anchoredInput: CreatePullRequestReviewInput = {
         ...baseInput,
         ...(submitBody.body === undefined ? {} : { body: submitBody.body }),
-        ...(submitBody.comments.length === 0
+        ...(comments.length === 0
           ? {}
-          : { comments: toPrimitiveComments(submitBody.comments) }),
+          : { comments: toPrimitiveComments(comments) }),
       };
 
       // A 401'd POST created nothing, so a refreshed retry cannot double-post.
@@ -400,12 +422,12 @@ export function reviewSubmitRoute(
       if (
         !created.ok &&
         isValidation(created.error, ReviewValidationClass.INVALID_COMMENTS) &&
-        submitBody.comments.length > 0
+        comments.length > 0
       ) {
         commentsDegraded = true;
         created = await createWithRefreshOnce({
           ...baseInput,
-          body: foldCommentsIntoBody(submitBody.body, submitBody.comments),
+          body: foldCommentsIntoBody(submitBody.body, comments),
         });
       }
 
@@ -413,21 +435,58 @@ export function reviewSubmitRoute(
         return submitFailure(c, created.error);
       }
 
+      // The review is on GitHub: the drafts it carried are published, and the
+      // review id is what the session's own comments join on. A failure here
+      // leaves drafts that are already posted — logged, never an error
+      // response, which would invite a second review.
+      // Nothing past this line may reach the error path: the review is live,
+      // and an error response would invite a retry that posts it twice.
+      // Two failure classes, never one catch: the session's own bookkeeping
+      // and the audit row are different things going wrong, and only the
+      // second is what `audit.fail` names.
+      try {
+        const recorded = await resolved.run(async (writer) => {
+          await writer.publishDraftComments(drafts.map((row) => row.id));
+          await writer.recordSubmittedReview({
+            githubReviewId: created.value.reviewId,
+          });
+        });
+        if (!recorded.ok) {
+          throw new Error(recorded.error.code);
+        }
+      } catch (bookkeepingError) {
+        c.get("logger").error("session unrecorded after a submitted review", {
+          reviewId: String(created.value.reviewId),
+          err: bookkeepingError,
+        });
+      }
+
+      // Audit the successful post (the checkpoint itself is the webhook's to
+      // write when the echo arrives).
+      try {
+        await audit(deps.handle, {
+          installationId: ctx.installationId,
+          actorType: AuditActorType.REVIEWER,
+          actorId: currentSession.reviewerId,
+          operation: AuditAction.SUBMIT,
+          outcome: AuditOutcome.OK,
+          targetType: "pull_request",
+          targetId: pr.id,
+        });
+      } catch (auditError) {
+        // Submitted to GitHub, our audit write failed — a data-integrity
+        // signal the operator alerts on.
+        c.get("logger").error("submit audit failed after a submitted review", {
+          evt: "audit.fail",
+          operation: AuditAction.SUBMIT,
+          reviewId: String(created.value.reviewId),
+          err: auditError,
+        });
+      }
+
       // A submitted review is a conversation write — the cached conversation
       // is stale the moment it lands.
       evictConversation(ctx.installationId, c.get("repoId"), pr.prNumber);
-
-      // Audit the successful post (the checkpoint itself is the
-      // webhook's to write when the echo arrives).
-      await audit(deps.handle, {
-        installationId: ctx.installationId,
-        actorType: AuditActorType.REVIEWER,
-        actorId: currentSession.reviewerId,
-        operation: AuditAction.SUBMIT,
-        outcome: AuditOutcome.OK,
-        targetType: "pull_request",
-        targetId: pr.id,
-      });
 
       return c.json(
         { reviewId: Number(created.value.reviewId), commentsDegraded },

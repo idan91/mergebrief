@@ -1,6 +1,6 @@
 // Write-command tests: payload plumbing (file / stdin / flags, with the
-// mutual-exclusion rule pinned), the ONE client-side shape check (commitId,
-// exit 2), receipt passthrough byte-fidelity against the real app, the
+// mutual-exclusion rule pinned), the ONE client-side shape check (the brief
+// span, exit 2), receipt passthrough byte-fidelity against the real app, the
 // commentsDegraded warning in both modes, and the exit-5 self-correction path
 // against REAL server validation.
 //
@@ -12,6 +12,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createApp, type AuthDeps } from "api";
 import {
+  artifactStore,
   encryptToken,
   envKeyProvider,
   forTenant,
@@ -29,7 +30,7 @@ import {
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ExitCode } from "../src/exit";
-import { buildSubmitPayload } from "../src/commands/write";
+import { buildSubmitPayload, requireSpan } from "../src/commands/write";
 import { runCli, type CliDeps } from "../src/program";
 import { testLogger } from "./logging";
 
@@ -39,6 +40,8 @@ const REVIEWER_ID = 555;
 const REPO_A = 42001;
 const BASE_URL = "https://mb.example";
 const COMMIT = "c".repeat(40);
+const BASE = "d".repeat(40);
+const SPAN = ["--base", BASE, "--head", COMMIT];
 
 function brand<T extends bigint>(
   guard: (v: bigint) => v is T,
@@ -64,45 +67,44 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 describe("buildSubmitPayload plumbing", () => {
-  it("-F payload with commitId passes through untouched", () => {
-    const payload = { outcome: "comment", commitId: COMMIT, comments: [] };
+  it("-F payload passes through untouched", () => {
+    const payload = { outcome: "comment", body: "looks fine" };
     expect(buildSubmitPayload({ payload })).toBe(payload);
   });
 
-  it("missing commitId in the payload is the ONE client-side shape check (exit 2)", () => {
-    for (const payload of [
-      {},
-      { commitId: "" },
-      { commitId: 7 },
-      "not-an-object",
+  it("flags build the outcome and body; the comments are the server's", () => {
+    expect(buildSubmitPayload({ outcome: "approve", body: "lgtm" })).toEqual({
+      outcome: "approve",
+      body: "lgtm",
+    });
+    expect(buildSubmitPayload({})).toEqual({ outcome: "comment" });
+  });
+
+  it("the brief span is the ONE client-side shape check (exit 2)", () => {
+    for (const [base, head] of [
+      [undefined, undefined],
+      [BASE, undefined],
+      [undefined, COMMIT],
+      ["", COMMIT],
     ]) {
       let thrown: unknown;
       try {
-        buildSubmitPayload({ payload });
+        requireSpan(base, head);
       } catch (error) {
         thrown = error;
       }
-      expect(thrown).toBeDefined();
       expect(
         thrown !== null && typeof thrown === "object" && "code" in thrown
           ? (thrown as { code: number }).code
           : undefined,
       ).toBe(ExitCode.USAGE);
     }
-  });
-
-  it("flags build a comment-less review; --commit is required", () => {
-    expect(
-      buildSubmitPayload({ outcome: "approve", body: "lgtm", commit: COMMIT }),
-    ).toEqual({ outcome: "approve", commitId: COMMIT, body: "lgtm" });
-    expect(() => buildSubmitPayload({ outcome: "approve" })).toThrowError(
-      /--commit is required/,
-    );
+    expect(requireSpan(BASE, COMMIT)).toEqual({ base: BASE, head: COMMIT });
   });
 
   it("-F and flags are mutually exclusive (defined precedence over silent merge)", () => {
     expect(() =>
-      buildSubmitPayload({ payload: { commitId: COMMIT }, body: "x" }),
+      buildSubmitPayload({ payload: { outcome: "comment" }, body: "x" }),
     ).toThrowError(/mutually exclusive/);
   });
 });
@@ -217,14 +219,41 @@ describe("write commands over the real api app", () => {
     return plaintext;
   }
 
+  /**
+   * The PR and the brief the submit names.
+   */
   async function seedPr(): Promise<void> {
-    await forTenant(harness.handle, CTX).pullRequests.upsert({
+    const repo = forTenant(harness.handle, CTX);
+    await repo.pullRequests.upsert({
       repoId: brand(isRepoId, REPO_A),
       prNumber: 7,
       repoSlug: "octo/hello",
       title: "PR 7",
       state: PrState.OPEN,
     });
+    const pr = await repo.pullRequests.getByNumber(brand(isRepoId, REPO_A), 7);
+    if (pr === undefined) throw new Error("seedPr: pr missing");
+    const brief = await artifactStore(harness.handle, CTX).briefs.write({
+      pullRequestId: pr.id,
+      baseSha: BASE,
+      headSha: COMMIT,
+      headIndex: 1,
+      commitCount: 1,
+      provider: "anthropic",
+      model: "claude",
+      effort: "high",
+      body: "{}",
+    });
+    if (!brief.ok) throw new Error("seedPr: brief write failed");
+    const written = await repo.reviewSessions.writeToSession(
+      {
+        briefId: brief.value.id,
+        reviewerId: REVIEWER,
+        brief: async () => ({ groupIds: [], flags: [] }),
+      },
+      () => Promise.resolve(),
+    );
+    if (!written.ok) throw new Error("seedPr: session seed failed");
   }
 
   interface Run {
@@ -275,13 +304,11 @@ describe("write commands over the real api app", () => {
   it("submit -F - (stdin) posts and passes the receipt through verbatim", async () => {
     await seedPr();
     await login();
-    const payload = JSON.stringify({
-      outcome: "comment",
-      commitId: COMMIT,
-      body: "looks fine",
-      comments: [],
-    });
-    const result = await run(["submit", "7", "-F", "-", "--json"], payload);
+    const payload = JSON.stringify({ outcome: "comment", body: "looks fine" });
+    const result = await run(
+      ["submit", "7", "-F", "-", ...SPAN, "--json"],
+      payload,
+    );
     expect(result.err).toEqual([]);
     expect(result.code).toBe(ExitCode.OK);
     expect(JSON.parse(result.out)).toEqual({
@@ -297,11 +324,8 @@ describe("write commands over the real api app", () => {
       mkdtempSync(join(tmpdir(), "mb-payload-")),
       "review.json",
     );
-    writeFileSync(
-      path,
-      JSON.stringify({ outcome: "comment", commitId: COMMIT, body: "ok" }),
-    );
-    const result = await run(["submit", "7", "-F", path, "--json"]);
+    writeFileSync(path, JSON.stringify({ outcome: "comment", body: "ok" }));
+    const result = await run(["submit", "7", "-F", path, ...SPAN, "--json"]);
     expect(result.code).toBe(ExitCode.OK);
   });
 
@@ -315,8 +339,7 @@ describe("write commands over the real api app", () => {
       "approve",
       "--body",
       "lgtm",
-      "--commit",
-      COMMIT,
+      ...SPAN,
       "--json",
     ]);
     expect(result.code).toBe(ExitCode.OK);
@@ -326,19 +349,7 @@ describe("write commands over the real api app", () => {
     });
   });
 
-  it("missing commitId is a usage error before any request (exit 2)", async () => {
-    await seedPr();
-    await login();
-    const result = await run(
-      ["submit", "7", "-F", "-", "--json"],
-      '{"outcome":"comment"}',
-    );
-    expect(result.code).toBe(ExitCode.USAGE);
-    expect(result.out).toBe("");
-    expect(result.err[0]).toContain("commitId");
-  });
-
-  it("missing --commit exits 2 before target resolution, even from a non-covered repo", async () => {
+  it("a missing span exits 2 before target resolution, even from a non-covered repo", async () => {
     await login();
     const token = await seedToken();
     const requested: string[] = [];
@@ -369,7 +380,7 @@ describe("write commands over the real api app", () => {
     expect(code).toBe(ExitCode.USAGE);
     expect(out.join("")).toBe("");
     expect(err).toHaveLength(1);
-    expect(err[0]).toContain("commit");
+    expect(err[0]).toContain("--base and --head");
     expect(requested.filter((url) => url.includes("/api/repos"))).toEqual([]);
   });
 
@@ -391,8 +402,7 @@ describe("write commands over the real api app", () => {
         "comment",
         "--body",
         "x",
-        "--commit",
-        "c0ffee",
+        ...SPAN,
         "--json",
       ],
       {
@@ -425,8 +435,7 @@ describe("write commands over the real api app", () => {
       "7",
       "--outcome",
       "request-changes",
-      "--commit",
-      COMMIT,
+      ...SPAN,
       "--json",
     ]);
     expect(result.code).toBe(ExitCode.SERVER_REJECTED);

@@ -1,5 +1,5 @@
 // The /comments family, behind the pr subtree's shared per-repo gate:
-//   POST /                                  — the inline post-now comment
+//   POST /                                  — publish one held draft comment
 //   POST /:commentId/replies                — reply to a review comment
 //   POST /:commentId/{resolve,unresolve}    — flip a thread's state
 //
@@ -27,14 +27,18 @@ import {
   type SetReviewThreadResolutionResult,
 } from "github";
 import {
+  AnchorStatus,
   audit,
   AuditAction,
   AuditOutcome,
   AuditActorType,
   decryptToken,
+  DraftCommentSide,
+  DraftCommentStatus,
   forTenant,
   type InstallationId,
   type RepoId,
+  type ReviewDraftCommentRow,
 } from "persistence";
 import type { Result } from "types";
 import { z } from "zod";
@@ -47,49 +51,35 @@ import {
   type ProductRouter,
 } from "../../../product-operations/product-router";
 import { WRITE_CLASSIFICATION } from "../../../product-operations/types";
+import {
+  mapWriteFailure as sessionFailure,
+  resolveWrite,
+} from "./session/write-resolve";
 
 // ---------------------------------------------------------------------------
-// Boundary schema — shape only. Each deterministic reject below MUST stay
-// mirrored client-side, or the UI resubmits the same state in an unrecoverable
-// loop:
-//   - commitId must be a 40-hex SHA — the FE always sends the viewed head;
-//   - body 1..65536 — the composer blocks an empty body at save time, and the
-//     Post affordance blocks an over-cap body with recoverable copy
-//     (`postCommentBlockedReason` in apps/web features/review/comments — keep
-//     in lockstep with MAX_BODY_LENGTH here);
-//   - startLine < line — set only on a true multi-line range;
-//   - startSide requires startLine — GitHub 422s a dangling start_side, which
-//     would misclassify as a stale-anchor 409 ("reload") and trap a direct API
-//     client in an unfixable retry loop.
+// Boundary schemas — both routes NAME a draft the server holds; neither
+// carries a body. The body, the anchor and the commit all come off rows the
+// session already stores, so there is no second copy to reconcile.
+//
+// The commit is the named Brief's head — the revision the reviewer read.
+// A Brief whose head is not a commit sha has nothing GitHub can anchor to,
+// which is a deterministic 400 rather than an upstream 422.
 // ---------------------------------------------------------------------------
-
-const MAX_BODY_LENGTH = 65_536;
-const MAX_PATH_LENGTH = 1_024;
 
 const shaSchema = z
   .string()
-  .regex(/^[0-9a-f]{40}$/, "commitId must be a 40-hex SHA");
-const sideSchema = z.union([
-  z.literal(ReviewCommentSide.LEFT),
-  z.literal(ReviewCommentSide.RIGHT),
-]);
+  .regex(/^[0-9a-f]{40}$/, "the brief's head must be a 40-hex SHA");
 
-const commentBodySchema = z
-  .object({
-    commitId: shaSchema,
-    path: z.string().min(1).max(MAX_PATH_LENGTH),
-    line: z.number().int().positive(),
-    side: sideSchema,
-    startLine: z.number().int().positive().optional(),
-    startSide: sideSchema.optional(),
-    body: z.string().min(1).max(MAX_BODY_LENGTH),
-  })
-  .refine((c) => c.startLine === undefined || c.startLine < c.line, {
-    message: "startLine must be strictly before line",
-  })
-  .refine((c) => c.startSide === undefined || c.startLine !== undefined, {
-    message: "startSide requires startLine",
-  });
+/** A bigint row id on the wire: digits, and inside `int8` — past it Postgres
+ * raises rather than returning no rows. */
+const MAX_ROW_ID = 9_223_372_036_854_775_807n;
+const publishDraftSchema = z.object({
+  draftId: z
+    .string()
+    .regex(/^[0-9]{1,19}$/, "draftId must be a row id")
+    .transform((value) => BigInt(value))
+    .refine((value) => value <= MAX_ROW_ID, { message: "id out of range" }),
+});
 
 const prNumberSchema = z.coerce.number().int().positive();
 /** A reply/thread target id is a REST comment id — bounded by JS integer precision. */
@@ -104,6 +94,35 @@ const MAX_REPLY_BODY_LENGTH = 65_536;
 const replyBodySchema = z.object({
   body: z.string().min(1).max(MAX_REPLY_BODY_LENGTH),
 });
+
+/** The stored side vocabulary as GitHub names it. */
+const SIDE_ON_GITHUB: Readonly<Record<DraftCommentSide, ReviewCommentSide>> = {
+  [DraftCommentSide.OLD]: ReviewCommentSide.LEFT,
+  [DraftCommentSide.NEW]: ReviewCommentSide.RIGHT,
+};
+
+/** A stored draft as GitHub's inline-comment coordinates. */
+function readDraftAnchor(draft: ReviewDraftCommentRow): {
+  path: string;
+  line: number;
+  side: ReviewCommentSide;
+  startLine?: number;
+  startSide?: ReviewCommentSide;
+} {
+  const side = SIDE_ON_GITHUB[draft.side];
+  const multiLine = draft.startLine < draft.endLine;
+  return {
+    path: draft.filePath,
+    line: draft.endLine,
+    side,
+    ...(multiLine ? { startLine: draft.startLine, startSide: side } : {}),
+  };
+}
+
+/** The request body, or `undefined` when it is not JSON at all. */
+async function jsonBody(c: Context<AuthzEnv>): Promise<unknown> {
+  return c.req.json().catch(() => undefined);
+}
 
 /** Split the gate's verified `owner/name`; `undefined` on a non-slug shape. */
 function splitRepoSlug(
@@ -225,30 +244,54 @@ export function commentsRoute(
     "post",
     "/",
     async (c) => {
-      let rawBody: unknown;
-      try {
-        rawBody = await c.req.json();
-      } catch {
+      const parsedBody = publishDraftSchema.safeParse(await jsonBody(c));
+      const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
+      if (!parsedBody.success || !parsedPr.success) {
         return errorJson(c, ApiErrorCode.INVALID_REQUEST);
       }
-      const parsedBody = commentBodySchema.safeParse(rawBody);
-      if (!parsedBody.success) {
-        return errorJson(c, ApiErrorCode.INVALID_REQUEST);
-      }
-      const commentInput = parsedBody.data;
+      const draftId = parsedBody.data.draftId;
 
       const ctx = c.get("ctx");
       const repoId = c.get("repoId");
-      const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
-      if (!parsedPr.success) {
-        return errorJson(c, ApiErrorCode.INVALID_REQUEST);
-      }
       const pr = await forTenant(deps.handle, ctx).pullRequests.getByNumber(
         repoId,
         parsedPr.data,
       );
       if (pr === undefined) {
         return errorJson(c, ApiErrorCode.NOT_FOUND);
+      }
+
+      // The session answers first, and it answers with no GitHub call spent:
+      // a frozen tab, an unknown draft and one already published are all
+      // decided off rows this server holds.
+      const resolved = await resolveWrite(deps, c);
+      if (!resolved.ok) {
+        return resolved.response;
+      }
+      const commitId = shaSchema.safeParse(resolved.head);
+      if (!commitId.success) {
+        return errorJson(c, ApiErrorCode.INVALID_REQUEST);
+      }
+      const held = await resolved.run(async (writer) =>
+        (await writer.draftComments()).find(
+          (row) => row.id === draftId || row.carriedFromCommentId === draftId,
+        ),
+      );
+      if (!held.ok) {
+        return sessionFailure(c, held.error);
+      }
+      const draft = held.value;
+      if (draft === undefined) {
+        return errorJson(c, ApiErrorCode.NOT_FOUND);
+      }
+      if (draft.status === DraftCommentStatus.SUBMITTED) {
+        return errorJson(c, ApiErrorCode.DRAFT_ALREADY_PUBLISHED);
+      }
+      // Same refusal the submit makes, for the same reason: an orphaned anchor
+      // would land the comment on unrelated lines, and posting one at a time
+      // has no degradation fold to catch it. Re-anchor or delete to clear it.
+      if (draft.anchorStatus === AnchorStatus.ORPHANED) {
+        return errorJson(c, ApiErrorCode.DRAFT_ANCHOR_ORPHANED);
       }
 
       // Viewer token: set by the gate on the verified path; on a positive-cache
@@ -313,17 +356,9 @@ export function commentsRoute(
         owner: target.owner,
         repo: target.repo,
         prNumber: pr.prNumber,
-        commitId: commentInput.commitId,
-        path: commentInput.path,
-        line: commentInput.line,
-        side: commentInput.side,
-        ...(commentInput.startLine === undefined
-          ? {}
-          : { startLine: commentInput.startLine }),
-        ...(commentInput.startSide === undefined
-          ? {}
-          : { startSide: commentInput.startSide }),
-        body: commentInput.body,
+        commitId: commitId.data,
+        ...readDraftAnchor(draft),
+        body: draft.body,
       };
 
       // A 401'd POST created nothing, so a refreshed retry cannot double-post.
@@ -350,6 +385,28 @@ export function commentsRoute(
       const posted = await postWithRefreshOnce();
       if (!posted.ok) {
         return writeFailure(c, posted.error);
+      }
+
+      // The GitHub write is the commit point; flipping the row is how the
+      // session records it. A failure here leaves a draft that is on GitHub —
+      // logged, never an error response, which would invite a second post.
+      try {
+        const flipped = await resolved.run((writer) =>
+          writer.publishDraftComments([draft.id]),
+        );
+        if (!flipped.ok) {
+          throw new Error(flipped.error.code);
+        }
+      } catch (flipError) {
+        // NOT `audit.fail`: that name is the audit ROW failing to persist,
+        // and this is the session's own publication flip.
+        c.get("logger").error(
+          "draft stayed unpublished after a posted comment",
+          {
+            commentId: String(posted.value.commentId),
+            err: flipError,
+          },
+        );
       }
 
       // The write happened: the cached conversation is stale — drop it so the

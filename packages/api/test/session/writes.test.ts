@@ -7,6 +7,7 @@
 // and the router's scope gate stands in front of all of them.
 import {
   ChangeGroupCategory,
+  DraftCommentSide,
   forTenant,
   WriteClassification,
 } from "persistence";
@@ -38,6 +39,11 @@ import {
 
 function pathFor(suffix: string, head: string): string {
   return `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/session${suffix}?base=base&head=${head}`;
+}
+
+/** The wire code an error response carries. */
+async function readWireCode(res: Response): Promise<string> {
+  return z.object({ code: z.string() }).parse(await res.json()).code;
 }
 
 /** The created draft's row id, as the write route reports it. */
@@ -474,6 +480,72 @@ describe("the Review Session writes", () => {
     // The write still materialized: the session row and its copies stand, and
     // the older Brief is frozen from here whatever the response said.
     expect(await countOf("review_session")).toBe(2);
+  });
+
+  it("409s an edit or a delete against a draft already published", async () => {
+    const briefId = await seedBrief(harness.handle, 1);
+    const draftId = await draftIdOf(
+      await write("POST", "/comments", "head-1", DRAFT),
+    );
+    // The publish itself is submit's job; here it is the state the edit meets.
+    await forTenant(harness.handle, CTX).reviewSessions.writeToSession(
+      { briefId, reviewerId: REVIEWER, brief: async () => NO_ARTIFACT },
+      (writer) => writer.publishDraftComments([BigInt(draftId)]),
+    );
+
+    const refusals = await Promise.all([
+      write("PATCH", `/comments/${draftId}`, "head-1", { body: "edited" }),
+      write("PUT", `/comments/${draftId}/anchor`, "head-1", {
+        filePath: "src/app.ts",
+        side: "new",
+        startLine: 40,
+        endLine: 41,
+      }),
+      write("DELETE", `/comments/${draftId}`, "head-1"),
+    ]);
+
+    expect(refusals.map((res) => res.status)).toEqual([409, 409, 409]);
+    for (const res of refusals) {
+      expect(await readWireCode(res)).toBe("draft-already-published");
+    }
+    // The body the audit trail points at never moved.
+    const rows = await harness.raw(
+      "select body from review_draft_comment order by id",
+    );
+    expect(rows[0]?.["body"]).toBe(DRAFT.body);
+  });
+
+  it("refuses the 101st unposted draft the session would hold", async () => {
+    const briefId = await seedBrief(harness.handle, 1);
+    const repo = forTenant(harness.handle, CTX);
+    await repo.reviewSessions.writeToSession(
+      { briefId, reviewerId: REVIEWER, brief: async () => NO_ARTIFACT },
+      async (writer) => {
+        for (let i = 0; i < 100; i++) {
+          await writer.addDraftComment({
+            ...DRAFT,
+            side: DraftCommentSide.NEW,
+          });
+        }
+      },
+    );
+
+    const refused = await write("POST", "/comments", "head-1", DRAFT);
+    expect(refused.status).toBe(409);
+    expect(await readWireCode(refused)).toBe("draft-limit-reached");
+
+    // Publishing one frees a slot: the cap counts what a submit would post.
+    const rows = await harness.raw(
+      "select id from review_draft_comment order by id limit 1",
+    );
+    await repo.reviewSessions.writeToSession(
+      { briefId, reviewerId: REVIEWER, brief: async () => NO_ARTIFACT },
+      (writer) =>
+        writer.publishDraftComments([BigInt(String(rows[0]?.["id"]))]),
+    );
+    expect((await write("POST", "/comments", "head-1", DRAFT)).status).toBe(
+      201,
+    );
   });
 
   it("400s a malformed payload and 404s an unknown span, writing nothing", async () => {

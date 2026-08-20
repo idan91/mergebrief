@@ -104,6 +104,8 @@ export type SubmitReviewResult =
   | { kind: "rewritten" }
   | { kind: "unauthorized" }
   | { kind: "not-found" }
+  /** 409 — a held draft's anchor no longer points at code; re-place or drop it. */
+  | { kind: "orphaned-draft" }
   /** 400 — the route rejected the shape (programmer error on our side). */
   | { kind: "invalid" }
   /** 502/anything else — GitHub rejected or is unreachable. */

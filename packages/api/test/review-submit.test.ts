@@ -4,6 +4,9 @@
 // is its only writer.
 import { createHash, randomBytes } from "node:crypto";
 import {
+  AnchorStatus,
+  artifactStore,
+  DraftCommentSide,
   encryptToken,
   envKeyProvider,
   forTenant,
@@ -13,6 +16,7 @@ import {
   isReviewerId,
   PrState,
   type AppDatabase,
+  type BriefRowId,
   type InstallationId,
   type KeyProvider,
   type RepoId,
@@ -20,8 +24,9 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 import { createApp, type ApiApp, type AuthDeps } from "../src/index";
-import { testLogger } from "./logging";
+import { testLogger, testLogging } from "./logging";
 
 // POST /pulls/{n}/reviews is on octokit's `triggersNotification` list, so the
 // throttling plugin spaces consecutive create-review calls ~3s apart through
@@ -39,6 +44,7 @@ const REPO_ID = 424242;
 const REPO_SLUG = "octo/hello";
 const PR_NUMBER = 7;
 const COMMIT_ID = "c".repeat(40);
+const BASE_SHA = "d".repeat(40);
 
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
 const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
@@ -233,30 +239,89 @@ async function seedPullRequest(handle: AppDatabase): Promise<void> {
   });
 }
 
+/**
+ * The Brief the submit names, plus the drafts the session holds — one
+ * single-line anchor and one multi-line range on the old side. They ARE the
+ * review's comments; nothing about them rides on the request.
+ */
+async function seedSessionDrafts(
+  handle: AppDatabase,
+  bodies: readonly string[] = ["anchored note", "multi-line note"],
+): Promise<BriefRowId> {
+  const repo = forTenant(handle, CTX);
+  const pr = await repo.pullRequests.getByNumber(
+    brandRepo(BigInt(REPO_ID)),
+    PR_NUMBER,
+  );
+  if (pr === undefined) throw new Error("seed: pr missing");
+  const brief = await artifactStore(handle, CTX).briefs.write({
+    pullRequestId: pr.id,
+    baseSha: BASE_SHA,
+    headSha: COMMIT_ID,
+    headIndex: 1,
+    commitCount: 1,
+    provider: "anthropic",
+    model: "claude",
+    effort: "high",
+    body: "{}",
+  });
+  if (!brief.ok) throw new Error("seed: brief write failed");
+  const anchors = [
+    {
+      filePath: "src/a.ts",
+      side: DraftCommentSide.NEW,
+      startLine: 12,
+      endLine: 12,
+    },
+    {
+      filePath: "src/b.ts",
+      side: DraftCommentSide.OLD,
+      startLine: 25,
+      endLine: 30,
+    },
+  ];
+  const written = await repo.reviewSessions.writeToSession(
+    {
+      briefId: brief.value.id,
+      reviewerId: brandReviewer(BigInt(REVIEWER_ID)),
+      brief: async () => ({ groupIds: [], flags: [] }),
+    },
+    async (writer) => {
+      for (const [index, body] of bodies.entries()) {
+        const anchor = anchors[index % anchors.length];
+        if (anchor === undefined) throw new Error("seed: no anchor");
+        await writer.addDraftComment({ ...anchor, body });
+      }
+    },
+  );
+  if (!written.ok) throw new Error("seed: drafts failed");
+  return brief.value.id;
+}
+
 // ---------------------------------------------------------------------------
 // Request helpers.
 // ---------------------------------------------------------------------------
 
-const SUBMIT_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/review`;
+const SUBMIT_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/review?base=${BASE_SHA}&head=${COMMIT_ID}`;
 
 function validBody(): Record<string, unknown> {
-  return {
-    outcome: "request-changes",
-    commitId: COMMIT_ID,
-    body: "overall verdict",
-    comments: [
-      { path: "src/a.ts", line: 12, side: "RIGHT", body: "anchored note" },
-      {
-        path: "src/b.ts",
-        line: 30,
-        side: "LEFT",
-        startLine: 25,
-        startSide: "LEFT",
-        body: "multi-line note",
-        selectedText: "const x = 1;\nconst y = 2;",
-      },
-    ],
-  };
+  return { outcome: "request-changes", body: "overall verdict" };
+}
+
+/** The wire code an error response carries. */
+async function readWireCode(res: Response): Promise<string> {
+  const body: unknown = await res.json();
+  if (typeof body !== "object" || body === null || !("code" in body)) {
+    throw new Error("no wire code on the response");
+  }
+  return String(body.code);
+}
+
+async function draftStatuses(harness: PgliteHarness): Promise<string[]> {
+  const rows = await harness.raw(
+    "select status from review_draft_comment order by id",
+  );
+  return rows.map((row) => String(row["status"]));
 }
 
 async function submit(
@@ -272,6 +337,72 @@ async function submit(
       ...(cookie === undefined ? {} : { cookie: `rs_session=${cookie}` }),
     },
     body: JSON.stringify(body),
+  });
+}
+
+/**
+ * One more draft on the same session, carrying a carry-over verdict on its
+ * coordinates. `orphaned` is the one the submit refuses; `moved` still posts.
+ */
+async function seedCarriedDraft(
+  handle: AppDatabase,
+  briefId: BriefRowId,
+  anchorStatus: AnchorStatus,
+  body = "carried note",
+): Promise<string> {
+  const written = await forTenant(handle, CTX).reviewSessions.writeToSession(
+    {
+      briefId,
+      reviewerId: brandReviewer(BigInt(REVIEWER_ID)),
+      brief: async () => ({ groupIds: [], flags: [] }),
+    },
+    async (writer) =>
+      await writer.addDraftComment({
+        filePath: "src/c.ts",
+        side: DraftCommentSide.NEW,
+        startLine: 40,
+        endLine: 40,
+        body,
+        anchorStatus,
+      }),
+  );
+  if (!written.ok) throw new Error("seed: carried draft failed");
+  return String(written.value.id);
+}
+
+function sessionPath(suffix: string): string {
+  return `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/session${suffix}?base=${BASE_SHA}&head=${COMMIT_ID}`;
+}
+
+/** The two operations the attention list names, over HTTP. */
+async function reanchorDraft(
+  app: ApiApp,
+  cookie: string,
+  draftId: string,
+): Promise<Response> {
+  return await app.request(sessionPath(`/comments/${draftId}/anchor`), {
+    method: "PUT",
+    headers: {
+      "content-type": "application/json",
+      cookie: `rs_session=${cookie}`,
+    },
+    body: JSON.stringify({
+      filePath: "src/c.ts",
+      side: "new",
+      startLine: 5,
+      endLine: 5,
+    }),
+  });
+}
+
+async function deleteDraft(
+  app: ApiApp,
+  cookie: string,
+  draftId: string,
+): Promise<Response> {
+  return await app.request(sessionPath(`/comments/${draftId}`), {
+    method: "DELETE",
+    headers: { cookie: `rs_session=${cookie}` },
   });
 }
 
@@ -333,75 +464,156 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     stubGitHub({ repositories: () => repoStatus(403) });
     await seedPullRequest(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
+    await seedSessionDrafts(harness.handle);
     const res = await submit(app, cookie, validBody());
     expect(res.status).toBe(404);
   });
 
-  it("400 on an ill-shaped body (bad outcome / non-SHA commitId / bad side)", async () => {
+  it("400 on an ill-shaped body (bad outcome, missing outcome, non-JSON)", async () => {
     stubGitHub({ repositories: () => repoOk() });
     await seedPullRequest(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
+    await seedSessionDrafts(harness.handle);
 
-    for (const bad of [
-      { ...validBody(), outcome: "ship-it" },
-      { ...validBody(), commitId: "main" },
-      {
-        ...validBody(),
-        comments: [{ path: "a", line: 1, side: "old", body: "x" }],
-      },
-      {
-        ...validBody(),
-        comments: [{ path: "a", line: 0, side: "RIGHT", body: "x" }],
-      },
-    ]) {
+    for (const bad of [{ outcome: "ship-it" }, { body: "no outcome" }, {}]) {
       const res = await submit(app, cookie, bad);
       expect(res.status).toBe(400);
       expect(res.headers.get("cache-control")).toBe("no-store");
     }
   });
 
-  it("400 on a neutral comment submit with no content", async () => {
-    stubGitHub({ repositories: () => repoOk() });
+  it("400 on a neutral comment submit the session has nothing for", async () => {
+    const counts = stubGitHub({ repositories: () => repoOk() });
     await seedPullRequest(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
-    const res = await submit(app, cookie, {
-      outcome: "comment",
-      commitId: COMMIT_ID,
-      comments: [],
-    });
+    await seedSessionDrafts(harness.handle, []);
+    const res = await submit(app, cookie, { outcome: "comment" });
     expect(res.status).toBe(400);
+    expect(counts.createReview).toBe(0);
   });
 
   it("400 on request-changes without a body (GitHub requires one) — no GitHub call", async () => {
     const counts = stubGitHub({ repositories: () => repoOk() });
     await seedPullRequest(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
-    const res = await submit(app, cookie, {
-      outcome: "request-changes",
-      commitId: COMMIT_ID,
-      comments: [{ path: "src/a.ts", line: 1, side: "RIGHT", body: "x" }],
-    });
+    await seedSessionDrafts(harness.handle);
+    const res = await submit(app, cookie, { outcome: "request-changes" });
     expect(res.status).toBe(400);
     expect(counts.createReview).toBe(0);
   });
 
-  it("400 when the comments could not be folded within the body budget (no GitHub call)", async () => {
-    // Every accepted request must be representable by the degradation fold:
-    // individually-valid comments whose FOLDED body would exceed GitHub's cap
+  it("400 when the held drafts could not be folded within the body budget (no GitHub call)", async () => {
+    // Every accepted submit must be representable by the degradation fold:
+    // individually-valid drafts whose FOLDED body would exceed GitHub's cap
     // are rejected deterministically before any upstream side effect.
     const counts = stubGitHub({ repositories: () => repoOk() });
     await seedPullRequest(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
-    const res = await submit(app, cookie, {
-      outcome: "comment",
-      commitId: COMMIT_ID,
-      comments: [
-        { path: "src/a.ts", line: 1, side: "RIGHT", body: "x".repeat(40_000) },
-        { path: "src/b.ts", line: 2, side: "RIGHT", body: "y".repeat(40_000) },
-      ],
-    });
+    await seedSessionDrafts(harness.handle, [
+      "x".repeat(40_000),
+      "y".repeat(40_000),
+    ]);
+    const res = await submit(app, cookie, { outcome: "comment" });
     expect(res.status).toBe(400);
     expect(counts.createReview).toBe(0);
+  });
+
+  it("409 draft-anchor-orphaned when the session holds an orphaned draft (no GitHub call)", async () => {
+    const counts = stubGitHub({ repositories: () => repoOk() });
+    await seedPullRequest(harness.handle);
+    const { cookie } = await seedSession(harness.handle, kp);
+    const briefId = await seedSessionDrafts(harness.handle);
+    await seedCarriedDraft(harness.handle, briefId, AnchorStatus.ORPHANED);
+
+    const res = await submit(app, cookie, validBody());
+    expect(res.status).toBe(409);
+    expect(await readWireCode(res)).toBe("draft-anchor-orphaned");
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    // Refused before the mutating write's fresh slug resolve, and long before
+    // the review POST: the gate's own lookup is the only upstream call made.
+    expect(counts.repositories).toBe(1);
+    expect(counts.createReview).toBe(0);
+    // Nothing is deleted for the reviewer: every draft is still held.
+    expect(await draftStatuses(harness)).toEqual(["draft", "draft", "draft"]);
+  });
+
+  it("a moved anchor is not orphaned — the submit posts it at its carried coordinates", async () => {
+    const counts = stubGitHub({
+      repositories: () => repoOk(),
+      createReview: () => reviewCreated(987001),
+    });
+    await seedPullRequest(harness.handle);
+    const { cookie } = await seedSession(harness.handle, kp);
+    const briefId = await seedSessionDrafts(harness.handle);
+    await seedCarriedDraft(
+      harness.handle,
+      briefId,
+      AnchorStatus.MOVED,
+      "moved note",
+    );
+
+    const res = await submit(app, cookie, validBody());
+    expect(res.status).toBe(201);
+    expect(counts.createReview).toBe(1);
+    const posted = z
+      .object({ comments: z.array(z.object({ body: z.string() })) })
+      .parse(counts.reviewBodies[0]);
+    expect(posted.comments.map((row) => row.body)).toEqual([
+      "anchored note",
+      "multi-line note",
+      "moved note",
+    ]);
+  });
+
+  it("re-anchoring the orphaned draft clears the refusal", async () => {
+    const counts = stubGitHub({
+      repositories: () => repoOk(),
+      createReview: () => reviewCreated(987001),
+    });
+    await seedPullRequest(harness.handle);
+    const { cookie } = await seedSession(harness.handle, kp);
+    const briefId = await seedSessionDrafts(harness.handle);
+    const draftId = await seedCarriedDraft(
+      harness.handle,
+      briefId,
+      AnchorStatus.ORPHANED,
+    );
+    expect((await submit(app, cookie, validBody())).status).toBe(409);
+
+    expect((await reanchorDraft(app, cookie, draftId)).status).toBe(200);
+
+    const res = await submit(app, cookie, validBody());
+    expect(res.status).toBe(201);
+    expect(counts.createReview).toBe(1);
+    // Re-placed, then published — the draft the reviewer wrote still lands.
+    expect(await draftStatuses(harness)).toEqual([
+      "submitted",
+      "submitted",
+      "submitted",
+    ]);
+  });
+
+  it("deleting the orphaned draft clears the refusal", async () => {
+    const counts = stubGitHub({
+      repositories: () => repoOk(),
+      createReview: () => reviewCreated(987001),
+    });
+    await seedPullRequest(harness.handle);
+    const { cookie } = await seedSession(harness.handle, kp);
+    const briefId = await seedSessionDrafts(harness.handle);
+    const draftId = await seedCarriedDraft(
+      harness.handle,
+      briefId,
+      AnchorStatus.ORPHANED,
+    );
+    expect((await submit(app, cookie, validBody())).status).toBe(409);
+
+    expect((await deleteDraft(app, cookie, draftId)).status).toBe(200);
+
+    const res = await submit(app, cookie, validBody());
+    expect(res.status).toBe(201);
+    expect(counts.createReview).toBe(1);
+    expect(await draftStatuses(harness)).toEqual(["submitted", "submitted"]);
   });
 
   it("404 when the PR row does not exist in the tenant", async () => {
@@ -418,6 +630,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     });
     await seedPullRequest(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
+    await seedSessionDrafts(harness.handle);
 
     const res = await submit(app, cookie, validBody());
     expect(res.status).toBe(201);
@@ -457,6 +670,153 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     expect(checkpoints[0]?.["n"]).toBe(0);
   });
 
+  it("publishes exactly the held drafts and records the review id", async () => {
+    const counts = stubGitHub({
+      repositories: () => repoOk(),
+      createReview: () => reviewCreated(987001),
+    });
+    await seedPullRequest(harness.handle);
+    const { cookie } = await seedSession(harness.handle, kp);
+    const briefId = await seedSessionDrafts(harness.handle);
+    // One draft is already on GitHub: it is not the submit's to post again.
+    await forTenant(harness.handle, CTX).reviewSessions.writeToSession(
+      {
+        briefId,
+        reviewerId: brandReviewer(BigInt(REVIEWER_ID)),
+        brief: async () => ({ groupIds: [], flags: [] }),
+      },
+      async (writer) => {
+        const first = (await writer.draftComments())[0];
+        if (first === undefined) throw new Error("no draft to publish");
+        await writer.publishDraftComments([first.id]);
+      },
+    );
+
+    const res = await submit(app, cookie, validBody());
+    expect(res.status).toBe(201);
+    const posted = z
+      .object({ comments: z.array(z.object({ body: z.string() })) })
+      .parse(counts.reviewBodies[0]);
+    expect(posted.comments.map((row) => row.body)).toEqual(["multi-line note"]);
+    expect(await draftStatuses(harness)).toEqual(["submitted", "submitted"]);
+    const recorded = await harness.raw(
+      "select github_review_id from review_submitted_review",
+    );
+    expect(recorded.map((row) => String(row["github_review_id"]))).toEqual([
+      "987001",
+    ]);
+  });
+
+  /** A capture-logging app over the same harness, for the two post-write logs. */
+  function capturingApp(): {
+    capture: ReturnType<typeof testLogging>;
+    app: ApiApp;
+  } {
+    const capture = testLogging();
+    return {
+      capture,
+      app: createApp({
+        logger: capture.logger,
+        handle: harness.handle,
+        webhookSecret: SECRET,
+        auth: authDeps(kp),
+        github: unusedConversationPort,
+      }),
+    };
+  }
+
+  it("keeps the 201 and logs a plain error when the bookkeeping dies after the post", async () => {
+    // The GitHub write is the commit point: a local failure after it must
+    // never read as "nothing was submitted", which would invite a second
+    // review. `audit.fail` is NOT this failure — it names an audit ROW that
+    // would not persist, and raising it here alerts on the wrong thing.
+    const { capture, app: captureApp } = capturingApp();
+    stubGitHub({
+      repositories: () => repoOk(),
+      createReview: () => reviewCreated(987001),
+    });
+    await seedPullRequest(harness.handle);
+    const { cookie } = await seedSession(harness.handle, kp);
+    await seedSessionDrafts(harness.handle);
+    await harness.raw(
+      "alter table review_submitted_review rename to review_submitted_review_poisoned",
+    );
+
+    const res = await submit(captureApp, cookie, validBody());
+    expect(res.status).toBe(201);
+    const line = capture
+      .lines()
+      .find((l) => l["msg"] === "session unrecorded after a submitted review");
+    expect(line?.["level"]).toBe("error");
+    expect(line?.["evt"]).toBeUndefined();
+    expect(line?.["reviewId"]).toBe("987001");
+    expect(capture.lines().some((l) => l["evt"] === "audit.fail")).toBe(false);
+  });
+
+  it("keeps the 201 and logs audit.fail when the audit row will not persist", async () => {
+    const { capture, app: captureApp } = capturingApp();
+    stubGitHub({
+      repositories: () => repoOk(),
+      createReview: () => reviewCreated(987002),
+    });
+    await seedPullRequest(harness.handle);
+    const { cookie } = await seedSession(harness.handle, kp);
+    await seedSessionDrafts(harness.handle);
+    await harness.raw("alter table audit_log rename to audit_log_poisoned");
+
+    const res = await submit(captureApp, cookie, validBody());
+    expect(res.status).toBe(201);
+    const line = capture.lines().find((l) => l["evt"] === "audit.fail");
+    expect(line?.["level"]).toBe("error");
+    expect(line?.["operation"]).toBe("submit");
+    expect(line?.["reviewId"]).toBe("987002");
+    await harness.raw("alter table audit_log_poisoned rename to audit_log");
+  });
+
+  it("409s a frozen session before spending a GitHub write", async () => {
+    const counts = stubGitHub({
+      repositories: () => repoOk(),
+      createReview: () => reviewCreated(),
+    });
+    await seedPullRequest(harness.handle);
+    const { cookie } = await seedSession(harness.handle, kp);
+    await seedSessionDrafts(harness.handle);
+    // A session on a NEWER Brief of the same PR freezes the one being read.
+    const pr = await forTenant(harness.handle, CTX).pullRequests.getByNumber(
+      brandRepo(BigInt(REPO_ID)),
+      PR_NUMBER,
+    );
+    if (pr === undefined) throw new Error("pr missing");
+    const newer = await artifactStore(harness.handle, CTX).briefs.write({
+      pullRequestId: pr.id,
+      baseSha: BASE_SHA,
+      headSha: "e".repeat(40),
+      headIndex: 2,
+      commitCount: 2,
+      provider: "anthropic",
+      model: "claude",
+      effort: "high",
+      body: "{}",
+    });
+    if (!newer.ok) throw new Error("newer brief write failed");
+    await forTenant(harness.handle, CTX).reviewSessions.writeToSession(
+      {
+        briefId: newer.value.id,
+        reviewerId: brandReviewer(BigInt(REVIEWER_ID)),
+        brief: async () => ({ groupIds: [], flags: [] }),
+      },
+      (writer) => writer.putReadMark({ chunkId: "c1" }),
+    );
+
+    const res = await submit(app, cookie, validBody());
+    expect(res.status).toBe(409);
+    expect(await readWireCode(res)).toBe("pr-changed-since-read");
+    expect(counts.createReview).toBe(0);
+    // Only the gate's own access check ran — the route never re-resolved.
+    expect(counts.repositories).toBe(1);
+    expect(await draftStatuses(harness)).not.toContain("submitted");
+  });
+
   it("posts to the FRESHLY resolved repo slug, never the gate's cached name", async () => {
     // A mutating write must not trust the gate's positive-cache slug (≤60s
     // stale after a rename + name-reuse): the route re-resolves owner/name by
@@ -474,6 +834,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     });
     await seedPullRequest(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
+    await seedSessionDrafts(harness.handle);
 
     const res = await submit(app, cookie, validBody());
     expect(res.status).toBe(201);
@@ -492,6 +853,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     });
     await seedPullRequest(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
+    await seedSessionDrafts(harness.handle);
 
     const res = await submit(app, cookie, validBody());
     expect(res.status).toBe(404);
@@ -507,6 +869,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     });
     await seedPullRequest(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
+    await seedSessionDrafts(harness.handle);
 
     const res = await submit(app, cookie, validBody());
     expect(res.status).toBe(201);
@@ -523,6 +886,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     });
     await seedPullRequest(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
+    await seedSessionDrafts(harness.handle);
 
     const res = await submit(app, cookie, validBody());
     expect(res.status).toBe(201);
@@ -544,7 +908,6 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     expect(body).toContain("src/b.ts:25-30");
     expect(body).toContain("anchored note");
     expect(body).toContain("multi-line note");
-    expect(body).toContain("const x = 1;");
     expect(await submitAuditCount(harness)).toBe(1);
   });
 
@@ -563,6 +926,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     });
     await seedPullRequest(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
+    await seedSessionDrafts(harness.handle);
 
     const res = await submit(app, cookie, validBody());
     expect(res.status).toBe(201);
@@ -579,6 +943,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     });
     await seedPullRequest(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
+    await seedSessionDrafts(harness.handle);
 
     const res = await submit(app, cookie, validBody());
     expect(res.status).toBe(502);
@@ -594,6 +959,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     });
     await seedPullRequest(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
+    await seedSessionDrafts(harness.handle);
 
     const res = await submit(app, cookie, validBody());
     expect(res.status).toBe(409);
@@ -612,6 +978,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     });
     await seedPullRequest(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
+    await seedSessionDrafts(harness.handle);
 
     const first = await submit(app, cookie, validBody());
     const second = await submit(app, cookie, validBody());

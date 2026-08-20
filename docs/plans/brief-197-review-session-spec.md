@@ -721,6 +721,22 @@ new `draft-already-published` at **409**. A success for a call that wrote
 nothing would record a phantom post, and a specific "already published"
 message does not invite the manual re-post a generic failure would.
 
+**A submit refuses while the session holds an orphaned draft comment**:
+`draft-anchor-orphaned` at **409**, checked alongside the frozen-session check
+and before any GitHub call. An orphaned anchor no longer points at any code in
+the revision, so posting it would attach the comment to unrelated lines under
+the reviewer's name, and dropping it would report feedback that never landed —
+both leave something settled that is not. The refusal names no rows: an
+orphaned draft is already an attention item, and its `clearedBy` operations
+(`reanchor-draft-comment`, `delete-draft-comment`) are what clear it. A `moved`
+anchor is not affected and posts at its carried coordinates. Nothing is deleted
+on the reviewer's behalf; the submit only declines to publish.
+
+**Posting one draft on its own refuses the same way**: `create-inline-comment`
+checks the named draft's anchor before any GitHub call and returns the same
+`draft-anchor-orphaned`. The harm is identical one route over, and the
+post-now path has no degradation fold that would catch a stale anchor later.
+
 ---
 
 ## 8. The audit trail
@@ -971,7 +987,9 @@ and has never had a caller — `useRiskFlagModalsFacade.ts:87`/`:120` pass only
   records the review id. The 100-comment cap moves to the session.
 - `create-inline-comment`, `reply-to-comment` — name a draft the server holds;
   a repeat naming an already-published draft is refused with
-  `draft-already-published` (409).
+  `draft-already-published` (409). `create-inline-comment` also refuses a draft
+  whose anchor is orphaned with `draft-anchor-orphaned` (409); a reply carries
+  no coordinates, so it has no anchor to orphan.
 - `resolve-thread`, `unresolve-thread`, `mark-ready` — unchanged behaviour,
   but they join the scope check and the audit emit at the router seam.
 - `generate-brief` — unchanged; a draft-scope token can call it, and that
@@ -1011,6 +1029,7 @@ template, the identical `errors.<code>` template in `packages/i18n`, the
 | --- | --- | --- |
 | `scope-exceeded` | 403 | The credential's scope does not reach this operation's class. |
 | `draft-already-published` | 409 | The named draft has already been published to GitHub. |
+| `draft-anchor-orphaned` | 409 | A publish was called on a draft whose anchor no longer points at any code — the submit while the session holds one, the post-now on the draft itself. |
 | `human-only` | 403 | A clearing operation was called with a credential that is not a signed-in reviewer. |
 
 Reused, not minted: `pr-changed-since-read` (409) for a write against a frozen

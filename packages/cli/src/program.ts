@@ -25,6 +25,7 @@ import { loadRepos, resolveRepoId, type RepoCacheDeps } from "./profile/repos";
 import { AGENTS_GUIDE } from "./agents-guide";
 import {
   buildSubmitPayload,
+  requireSpan,
   runReply,
   runSubmit,
   type SubmitInput,
@@ -499,7 +500,7 @@ export function buildProgram(deps: CliDeps): Command {
   program
     .command("submit")
     .description(
-      "submit a review (commitId is required and never auto-fetched)",
+      "submit a review of the brief span you name (its saved drafts go with it)",
     )
     .argument("<number>", "PR number")
     .option(
@@ -511,7 +512,8 @@ export function buildProgram(deps: CliDeps): Command {
       "comment | approve | request-changes (flag form)",
     )
     .option("--body <text>", "review body (flag form)")
-    .option("--commit <sha>", "the commitId you reviewed (flag form)")
+    .option("--base <sha>", "span base of the brief you reviewed")
+    .option("--head <sha>", "span head of the brief you reviewed")
     .action(
       async (
         raw: string,
@@ -519,7 +521,8 @@ export function buildProgram(deps: CliDeps): Command {
           file?: string;
           outcome?: string;
           body?: string;
-          commit?: string;
+          base?: string;
+          head?: string;
         },
       ) => {
         const global = globals();
@@ -533,18 +536,19 @@ export function buildProgram(deps: CliDeps): Command {
               }),
           outcome: options.outcome,
           body: options.body,
-          commit: options.commit,
         };
         // Usage validation BEFORE any network work: a malformed PR number or
-        // a missing --commit must exit 2 even when target resolution would
-        // fail with exit 4.
+        // a missing span must exit 2 even when target resolution would fail
+        // with exit 4.
         const prNumber = parsePrNumber(raw);
+        const span = requireSpan(options.base, options.head);
         const payload = buildSubmitPayload(input);
         const { client, repoId } = await resolveTarget(deps, global);
         await runSubmit(
           client,
           repoId,
           prNumber,
+          span,
           payload,
           readIo(deps, global),
         );

@@ -11,6 +11,7 @@ import { artifactStore, forTenant, ReviewSessionErrorCode } from "../src/index";
 import type {
   AppDatabase,
   ReviewSessionRow,
+  SessionWriter,
   TenantContext,
 } from "../src/index";
 import * as schema from "../src/schema/index";
@@ -104,6 +105,21 @@ async function openSession(
   return created.value;
 }
 
+/** Run one owned write the only way there is: through the session's writer. */
+async function write<T>(
+  handle: AppDatabase,
+  ctx: TenantContext,
+  briefId: BriefRowId,
+  body: (writer: SessionWriter) => Promise<T>,
+): Promise<T> {
+  const written = await forTenant(handle, ctx).reviewSessions.writeToSession(
+    { briefId, reviewerId: REVIEWER, brief: async () => NO_FACTS },
+    body,
+  );
+  if (!written.ok) throw new Error(`write failed: ${written.error.code}`);
+  return written.value;
+}
+
 /** The literals a CHECK constraint accepts. */
 async function checkValues(
   client: PGlite,
@@ -157,24 +173,22 @@ describe("review-session vocabularies — map and CHECK in lockstep", () => {
   ])("rejects a draft comment with a %s", async (_name, start, end) => {
     const { handle } = await freshPair();
     const briefId = await seedBrief(handle, CTX_A);
-    const repo = forTenant(handle, CTX_A);
-    const created = await openSession(handle, CTX_A, briefId);
+    await openSession(handle, CTX_A, briefId);
 
     // The coordinates ARE the GitHub POST payload — a bad range must not reach
     // publish time, so the DB refuses it.
-    const rejection: unknown = await repo.reviewSessions
-      .addDraftComment({
-        reviewSessionId: created.id,
+    const rejection: unknown = await write(handle, CTX_A, briefId, (writer) =>
+      writer.addDraftComment({
         filePath: "src/app.ts",
         side: DraftCommentSide.NEW,
         startLine: start,
         endLine: end,
         body: "bad range",
-      })
-      .then(
-        () => null,
-        (error: unknown) => error,
-      );
+      }),
+    ).then(
+      () => null,
+      (error: unknown) => error,
+    );
     expect(rejection).not.toBeNull();
   });
 
@@ -311,24 +325,21 @@ describe("reviewSessions — session semantics", () => {
     const created = await openSession(handle, CTX_A, briefId);
     const reviewSessionId = created.id;
 
-    await repo.reviewSessions.addDraftComment({
-      reviewSessionId,
-      filePath: "src/app.ts",
-      side: DraftCommentSide.NEW,
-      startLine: 10,
-      endLine: 12,
-      body: "this leaks",
-      anchorStatus: AnchorStatus.MOVED,
-    });
-    await repo.reviewSessions.putReadMark({ reviewSessionId, chunkId: "c1" });
-    await repo.reviewSessions.putReclassification({
-      reviewSessionId,
-      changeGroupId: "g1",
-      category: ChangeGroupCategory.BUGFIX,
-    });
-    await repo.reviewSessions.recordSubmittedReview({
-      reviewSessionId,
-      githubReviewId: 909n,
+    await write(handle, CTX_A, briefId, async (writer) => {
+      await writer.addDraftComment({
+        filePath: "src/app.ts",
+        side: DraftCommentSide.NEW,
+        startLine: 10,
+        endLine: 12,
+        body: "this leaks",
+        anchorStatus: AnchorStatus.MOVED,
+      });
+      await writer.putReadMark({ chunkId: "c1" });
+      await writer.putReclassification({
+        changeGroupId: "g1",
+        category: ChangeGroupCategory.BUGFIX,
+      });
+      await writer.recordSubmittedReview({ githubReviewId: 909n });
     });
 
     const snapshot = await repo.reviewSessions.get({
@@ -348,28 +359,21 @@ describe("reviewSessions — session semantics", () => {
     const { handle } = await freshPair();
     const briefId = await seedBrief(handle, CTX_A);
     const repo = forTenant(handle, CTX_A);
-    const created = await openSession(handle, CTX_A, briefId);
-    const reviewSessionId = created.id;
+    await openSession(handle, CTX_A, briefId);
 
-    await repo.reviewSessions.putReadMark({ reviewSessionId, chunkId: "c1" });
-    await repo.reviewSessions.putReadMark({ reviewSessionId, chunkId: "c1" });
-    await repo.reviewSessions.putReclassification({
-      reviewSessionId,
-      changeGroupId: "g1",
-      category: ChangeGroupCategory.BUGFIX,
-    });
-    await repo.reviewSessions.putReclassification({
-      reviewSessionId,
-      changeGroupId: "g1",
-      category: ChangeGroupCategory.NEW_FEATURE,
-    });
-    await repo.reviewSessions.recordSubmittedReview({
-      reviewSessionId,
-      githubReviewId: 909n,
-    });
-    await repo.reviewSessions.recordSubmittedReview({
-      reviewSessionId,
-      githubReviewId: 909n,
+    await write(handle, CTX_A, briefId, async (writer) => {
+      await writer.putReadMark({ chunkId: "c1" });
+      await writer.putReadMark({ chunkId: "c1" });
+      await writer.putReclassification({
+        changeGroupId: "g1",
+        category: ChangeGroupCategory.BUGFIX,
+      });
+      await writer.putReclassification({
+        changeGroupId: "g1",
+        category: ChangeGroupCategory.NEW_FEATURE,
+      });
+      await writer.recordSubmittedReview({ githubReviewId: 909n });
+      await writer.recordSubmittedReview({ githubReviewId: 909n });
     });
 
     const snapshot = await repo.reviewSessions.get({
@@ -384,15 +388,47 @@ describe("reviewSessions — session semantics", () => {
     expect(snapshot?.submittedReviews).toHaveLength(1);
   });
 
+  it("publishing flips the named drafts and leaves the rest alone", async () => {
+    const { handle } = await freshPair();
+    const briefId = await seedBrief(handle, CTX_A);
+    const repo = forTenant(handle, CTX_A);
+    await openSession(handle, CTX_A, briefId);
+
+    const published = await write(handle, CTX_A, briefId, async (writer) => {
+      const first = await writer.addDraftComment({
+        filePath: "src/app.ts",
+        side: DraftCommentSide.NEW,
+        startLine: 1,
+        endLine: 1,
+        body: "publish me",
+      });
+      await writer.addDraftComment({
+        filePath: "src/app.ts",
+        side: DraftCommentSide.NEW,
+        startLine: 2,
+        endLine: 2,
+        body: "leave me",
+      });
+      await writer.publishDraftComments([first.id]);
+      return first.id;
+    });
+
+    const snapshot = await repo.reviewSessions.get({
+      briefId,
+      reviewerId: REVIEWER,
+    });
+    const flipped = snapshot?.draftComments.filter(
+      (row) => row.status === DraftCommentStatus.SUBMITTED,
+    );
+    expect(flipped?.map((row) => row.id)).toEqual([published]);
+  });
+
   it("cascades the session and its owned rows away with the brief", async () => {
     const { client, handle } = await freshPair();
     const briefId = await seedBrief(handle, CTX_A);
-    const repo = forTenant(handle, CTX_A);
-    const created = await openSession(handle, CTX_A, briefId);
-    await repo.reviewSessions.putReadMark({
-      reviewSessionId: created.id,
-      chunkId: "c1",
-    });
+    await write(handle, CTX_A, briefId, (writer) =>
+      writer.putReadMark({ chunkId: "c1" }),
+    );
 
     await client.exec("delete from brief");
 
@@ -433,79 +469,6 @@ describe("reviewSessions — tenancy containment", () => {
         reviewerId: REVIEWER,
       }),
     ).toBeUndefined();
-  });
-
-  it("B cannot write an owned row onto A's session", async () => {
-    const { client, handle } = await freshPair();
-    const briefId = await seedBrief(handle, CTX_A);
-    const created = await openSession(handle, CTX_A, briefId);
-    const b = forTenant(handle, CTX_B).reviewSessions;
-
-    const attempts = [
-      await b.addDraftComment({
-        reviewSessionId: created.id,
-        filePath: "src/app.ts",
-        side: DraftCommentSide.NEW,
-        startLine: 1,
-        endLine: 1,
-        body: "injected",
-      }),
-      await b.putReadMark({ reviewSessionId: created.id, chunkId: "c1" }),
-      await b.putReclassification({
-        reviewSessionId: created.id,
-        changeGroupId: "g1",
-        category: ChangeGroupCategory.BUGFIX,
-      }),
-      await b.recordSubmittedReview({
-        reviewSessionId: created.id,
-        githubReviewId: 909n,
-      }),
-    ];
-
-    expect(attempts.map((attempt) => attempt.ok)).toEqual([
-      false,
-      false,
-      false,
-      false,
-    ]);
-    const owned = [
-      "review_draft_comment",
-      "review_read_mark",
-      "review_group_reclassification",
-      "review_submitted_review",
-    ];
-    const counts = await Promise.all(
-      owned.map((table) => countRows(client, table)),
-    );
-    expect(counts).toEqual([0, 0, 0, 0]);
-  });
-
-  it("B cannot cite A's session as a draft comment's carry-over source", async () => {
-    const { client, handle } = await freshPair();
-    const briefA = await seedBrief(handle, CTX_A, 7);
-    const briefB = await seedBrief(handle, CTX_B, 8);
-    const sessionA = await openSession(handle, CTX_A, briefA);
-    const sessionB = await openSession(handle, CTX_B, briefB);
-
-    const attempt = await forTenant(
-      handle,
-      CTX_B,
-    ).reviewSessions.addDraftComment({
-      reviewSessionId: sessionB.id,
-      filePath: "src/app.ts",
-      side: DraftCommentSide.NEW,
-      startLine: 1,
-      endLine: 1,
-      body: "carried",
-      carriedFromSessionId: sessionA.id,
-    });
-
-    expect(attempt.ok).toBe(false);
-    if (attempt.ok) return;
-    expect(attempt.error.code).toBe(
-      ReviewSessionErrorCode.PARENT_NOT_IN_TENANT,
-    );
-    expect(await countRows(client, "review_draft_comment")).toBe(0);
   });
 
   it("keeps A's and B's sessions independent on their own briefs", async () => {

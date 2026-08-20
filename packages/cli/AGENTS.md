@@ -47,7 +47,7 @@ reason and an owner, for a browser-only operation no command will ever cover.
   public surface — additive-only, never renumbered.
 - **Passthrough by default:** response bodies relay VERBATIM; the CLI
   synthesizes shapes only where documented (e.g. `delta`).
-- **One client-side shape check** on writes (`commitId` present → exit 2);
+- **One client-side shape check** on writes (the brief span → exit 2);
   everything else relays the server's locked validation (4xx → exit 5).
 - **Single-file bundle:** workspace runtime deps are limited to `i18n`
   (the string catalog — tsup bundles it in; the bundle stays one file)

@@ -79,6 +79,22 @@ describe("submitReview", () => {
     await expect(run()).resolves.toEqual({ kind: "rewritten" });
   });
 
+  it("maps draft-anchor-orphaned to its own state, never upstream", async () => {
+    // "upstream" copy would tell the reviewer GitHub rejected the review and
+    // to retry shortly; GitHub was never called and a retry cannot succeed.
+    apiFetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error:
+            "this review holds a comment whose anchor no longer points at any code",
+          code: "draft-anchor-orphaned",
+        }),
+        { status: 409 },
+      ),
+    );
+    await expect(run()).resolves.toEqual({ kind: "orphaned-draft" });
+  });
+
   it("maps 401 to unauthorized (clean re-login)", async () => {
     apiFetchMock.mockResolvedValue(new Response("{}", { status: 401 }));
     await expect(run()).resolves.toEqual({ kind: "unauthorized" });

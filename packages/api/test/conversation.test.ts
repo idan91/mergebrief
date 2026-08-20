@@ -6,6 +6,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { FetchPullRequestConversationInput, PrConversation } from "github";
 import {
+  artifactStore,
   encryptToken,
   envKeyProvider,
   forTenant,
@@ -44,6 +45,8 @@ const REPO_ID = 424242;
 const REPO_SLUG = "octo/hello";
 const PR_NUMBER = 7;
 const ROOT_COMMENT_ID = 3_538_588_388;
+const BASE_SHA = "b".repeat(40);
+const HEAD_SHA = "a".repeat(40);
 const REPLY_ID = 3_600_000_001;
 
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
@@ -360,6 +363,37 @@ const CONVERSATION_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/conversation
 
 function replyPath(commentId: number | string = ROOT_COMMENT_ID): string {
   return `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/comments/${commentId}/replies`;
+}
+
+/** The brief the submit names, and the session opened against it. */
+async function seedBriefSession(handle: AppDatabase): Promise<void> {
+  const repo = forTenant(handle, CTX);
+  const pr = await repo.pullRequests.getByNumber(
+    brandRepo(BigInt(REPO_ID)),
+    PR_NUMBER,
+  );
+  if (pr === undefined) throw new Error("seedBriefSession: pr missing");
+  const brief = await artifactStore(handle, CTX).briefs.write({
+    pullRequestId: pr.id,
+    baseSha: BASE_SHA,
+    headSha: HEAD_SHA,
+    headIndex: 1,
+    commitCount: 1,
+    provider: "anthropic",
+    model: "claude",
+    effort: "high",
+    body: "{}",
+  });
+  if (!brief.ok) throw new Error("seedBriefSession: brief write failed");
+  const written = await repo.reviewSessions.writeToSession(
+    {
+      briefId: brief.value.id,
+      reviewerId: brandReviewer(BigInt(REVIEWER_ID)),
+      brief: async () => ({ groupIds: [], flags: [] }),
+    },
+    (writer) => writer.putReadMark({ chunkId: "c1" }),
+  );
+  if (!written.ok) throw new Error("seedBriefSession: session seed failed");
 }
 
 async function getConversation(
@@ -812,21 +846,19 @@ describe("conversation surface", () => {
       });
       const { cookie } = await seedSession(harness.handle, kp);
       await seedPullRequest(harness.handle);
+      await seedBriefSession(harness.handle);
       const app = makeApp(port);
       await getConversation(app, cookie);
       expect(log.calls).toHaveLength(1);
       const submitted = await app.request(
-        `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/review`,
+        `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/review?base=${BASE_SHA}&head=${HEAD_SHA}`,
         {
           method: "POST",
           headers: {
             "content-type": "application/json",
             cookie: `rs_session=${cookie}`,
           },
-          body: JSON.stringify({
-            outcome: "approve",
-            commitId: "c".repeat(40),
-          }),
+          body: JSON.stringify({ outcome: "approve" }),
         },
       );
       expect(submitted.status).toBe(201);

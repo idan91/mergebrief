@@ -33,7 +33,13 @@ export type SessionWrite = <T>(
 ) => Promise<Result<T, WriteError>>;
 
 export type ResolvedWrite =
-  | { readonly ok: true; readonly run: SessionWrite }
+  | {
+      readonly ok: true;
+      readonly run: SessionWrite;
+      /** The named Brief's head — the commit the reviewer read, and the one a
+       * GitHub write pins to. */
+      readonly head: string;
+    }
   | { readonly ok: false; readonly response: Response };
 
 /**
@@ -66,6 +72,7 @@ export async function resolveWrite(
   const logger = c.get("logger");
   return {
     ok: true,
+    head: span.data.head,
     run: async (write) => {
       try {
         return await forTenant(deps.handle, ctx).reviewSessions.writeToSession(

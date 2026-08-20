@@ -1,8 +1,10 @@
-// `reply` and `submit` — thin POSTs over the server's locked validation. The
-// CLI performs exactly ONE client-side shape check (`commitId` present,
-// exit 2) and relays everything else: a 4xx validation rejection maps to
-// exit 5, which is what makes an agent's submit loop self-correcting without
-// stderr parsing. Receipts pass through VERBATIM.
+// `reply` and `submit` — thin POSTs over the server's locked validation.
+// `reply` carries the text it posts; `submit` PUBLISHES the comments the
+// server already holds and NAMES the brief span it reviewed (`--base`/
+// `--head`, the ONE client-side shape check, exit 2). Everything else is
+// relayed: a 4xx validation rejection maps to exit 5, which is what makes an
+// agent's submit loop self-correcting without stderr parsing. Receipts pass
+// through VERBATIM.
 import { CliError, ExitCode } from "../exit";
 import type { ApiClient } from "../client";
 
@@ -19,6 +21,30 @@ export interface WriteIo {
 export interface ReplyOptions {
   readonly pr: number;
   readonly body: string;
+}
+
+/** The brief a write names — the same span every session call takes. */
+export interface BriefSpan {
+  readonly base: string;
+  readonly head: string;
+}
+
+/** The ONE client-side shape check; the server owns every other rule. */
+export function requireSpan(
+  base: string | undefined,
+  head: string | undefined,
+): BriefSpan {
+  if (base === undefined || base === "" || head === undefined || head === "") {
+    throw new CliError(
+      ExitCode.USAGE,
+      "--base and --head are required — name the brief span you reviewed (see `mergebrief pr <n>` baseSha/headSha); it is never auto-fetched",
+    );
+  }
+  return { base, head };
+}
+
+function spanQuery(span: BriefSpan): string {
+  return `?base=${encodeURIComponent(span.base)}&head=${encodeURIComponent(span.head)}`;
 }
 
 /** POST one reply under a review comment; the receipt is passthrough. */
@@ -50,7 +76,6 @@ export interface SubmitInput {
   readonly payload?: unknown;
   readonly outcome?: string | undefined;
   readonly body?: string | undefined;
-  readonly commit?: string | undefined;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -59,50 +84,23 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 /**
  * Assemble the submit payload. `-F` (file/stdin) and the convenience flags
- * are mutually exclusive — a defined precedence beats a silent merge. The ONE
- * client-side shape check: `commitId` must be present (exit 2) and is never
- * auto-fetched — the reviewer pins the commit they actually read. The server
- * owns every other rule.
+ * are mutually exclusive — a defined precedence beats a silent merge. The
+ * payload carries the outcome and the review body; the comments are the
+ * drafts the server holds, so there is nothing here to send them in.
  */
 export function buildSubmitPayload(input: SubmitInput): unknown {
-  const hasFlags =
-    input.outcome !== undefined ||
-    input.body !== undefined ||
-    input.commit !== undefined;
+  const hasFlags = input.outcome !== undefined || input.body !== undefined;
   if (input.payload !== undefined && hasFlags) {
     throw new CliError(
       ExitCode.USAGE,
-      "-F and the convenience flags (--outcome/--body/--commit) are mutually exclusive",
+      "-F and the convenience flags (--outcome/--body) are mutually exclusive",
     );
   }
-
   if (input.payload !== undefined) {
-    // The ONE client-side shape check: commitId must be present — everything
-    // else, including a payload the server would reject wholesale, flows
-    // through to server validation (exit 5, the self-correcting arm).
-    if (
-      !isRecord(input.payload) ||
-      typeof input.payload["commitId"] !== "string" ||
-      input.payload["commitId"] === ""
-    ) {
-      throw new CliError(
-        ExitCode.USAGE,
-        "the payload must carry commitId — pin the head you actually reviewed (see `mergebrief pr <n>` headSha); it is never auto-fetched",
-      );
-    }
     return input.payload;
-  }
-
-  // Convenience flags: a comment-less review.
-  if (input.commit === undefined || input.commit === "") {
-    throw new CliError(
-      ExitCode.USAGE,
-      "--commit is required — pin the head you actually reviewed (see `mergebrief pr <n>` headSha); it is never auto-fetched",
-    );
   }
   return {
     outcome: input.outcome ?? "comment",
-    commitId: input.commit,
     ...(input.body === undefined ? {} : { body: input.body }),
   };
 }
@@ -117,12 +115,13 @@ export async function runSubmit(
   client: ApiClient,
   repoId: string,
   prNumber: number,
+  span: BriefSpan,
   payload: unknown,
   io: WriteIo,
 ): Promise<void> {
   const response = await client.request({
     method: "POST",
-    path: `/api/repos/${repoId}/pulls/${prNumber}/review`,
+    path: `/api/repos/${repoId}/pulls/${prNumber}/review${spanQuery(span)}`,
     body: payload,
   });
 

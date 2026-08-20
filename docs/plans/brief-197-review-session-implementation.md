@@ -189,8 +189,11 @@ here as **one predicate in the handler layer**. Model: Opus 5, high.
 `submit-review` wire becomes `{briefId, outcome, body}`; the handler publishes
 the drafts the server holds, flips their status and records the review id; the
 100-comment cap moves from the request to the session; `create-inline-comment`
-and `reply-to-comment` name a server-held draft; new
-`draft-already-published` (409) through the full wire-error recipe.
+names a server-held draft (`reply-to-comment` does not — a reply is a plain
+external write and carries its own body); new
+`draft-already-published` (409) and `draft-anchor-orphaned` (409) through the
+full wire-error recipe, the latter carrying its own submit-result state in
+`apps/web` so a refusal never reads as an upstream failure.
 Model: Fable 5, high. Security-reviewer (external write path).
 
 ### PR 14 `feat(api): audit emit at the router choke point` (~500 LOC)

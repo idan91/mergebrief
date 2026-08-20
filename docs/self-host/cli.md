@@ -96,5 +96,6 @@ loops. A two-line `AGENTS.md` snippet for adopting repos:
 
 ```markdown
 Reviews here run on MergeBrief. Run `mergebrief --agents` once and follow
-that guide; always use `--json`, and pin `commitId` from `pr <n>`'s headSha.
+that guide; always use `--json`, and name the brief span (`--base`/`--head`
+from `pr <n>`'s baseSha/headSha) on every write.
 ```

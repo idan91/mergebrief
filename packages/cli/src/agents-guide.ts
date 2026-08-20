@@ -37,8 +37,9 @@ Read this whole guide once; the invariants make unattended loops safe.
 ## The reviewer loop
 
 1. \`mergebrief pr --json\` — pick a PR (or you were given one).
-2. \`mergebrief pr <n> --json\` — read the meta. **Record \`headSha\`** — it
-   is the \`commitId\` your submit must pin. If \`briefAvailable\` is false,
+2. \`mergebrief pr <n> --json\` — read the meta. **Record \`baseSha\` and
+   \`headSha\`** — they name the brief span every write takes. If
+   \`briefAvailable\` is false,
    generation is webhook-driven: poll \`pr <n>\` with backoff; never try to
    trigger it.
 3. \`mergebrief groups <n> --json\` — the brief: change groups, chunks,
@@ -47,9 +48,12 @@ Read this whole guide once; the invariants make unattended loops safe.
    (raw diff on stdout). Review group by group.
 5. \`mergebrief conversation <n> --json\` — existing threads;
    \`mergebrief reply <commentId> --pr <n> --body-file -\` to answer.
-6. \`mergebrief submit <n> -F -\` with a JSON payload:
-   \`{"outcome":"comment"|"approve"|"request-changes","commitId":"<the headSha you reviewed>","body":"...","comments":[...]}\`.
-   \`commitId\` is REQUIRED and never auto-fetched — pin what you read.
+6. \`mergebrief submit <n> --base <baseSha> --head <headSha> -F -\` with a JSON
+   payload: \`{"outcome":"comment"|"approve"|"request-changes","body":"..."}\`.
+   The comments are the drafts the server already holds for that span, and
+   the span is REQUIRED and never auto-fetched — name what you read.
+   Drafting inline comments has no CLI command yet, so a CLI-only submit
+   posts a body-only review today.
    Exit 5 means the server told you exactly what to fix; exit 0 returns
    \`{reviewId, commentsDegraded}\`. If \`commentsDegraded\` is true your
    inline comments were folded into the review body (anchors rejected

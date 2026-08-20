@@ -13,6 +13,7 @@ import type {
   AppDatabase,
   BriefCarryFacts,
   FlagKey,
+  SessionWriter,
   TenantContext,
 } from "../src/index";
 import * as schema from "../src/schema/index";
@@ -149,23 +150,44 @@ async function openSession(
   return created.value;
 }
 
+/** Run one owned write the only way there is: through the session's writer. */
+async function write<T>(
+  world: World,
+  briefId: BriefRowId,
+  body: (writer: SessionWriter) => Promise<T>,
+  reviewerId: ReviewerId = REVIEWER,
+): Promise<T> {
+  const written = await forTenant(
+    world.handle,
+    CTX,
+  ).reviewSessions.writeToSession(
+    { briefId, reviewerId, brief: artifact([], []) },
+    body,
+  );
+  if (!written.ok) throw new Error(`write failed: ${written.error.code}`);
+  return written.value;
+}
+
 /** A previous session holding one draft comment on `src/app.ts:10-12`. */
 async function seedPreviousComment(
   world: World,
   briefId: BriefRowId,
   reviewerId: ReviewerId = REVIEWER,
 ): Promise<void> {
-  const repo = forTenant(world.handle, CTX);
-  const sessionId = await openSession(world, briefId, reviewerId);
-  const added = await repo.reviewSessions.addDraftComment({
-    reviewSessionId: sessionId,
-    filePath: "src/app.ts",
-    side: DraftCommentSide.NEW,
-    startLine: 10,
-    endLine: 12,
-    body: "this allocation is unbounded",
-  });
-  if (!added.ok) throw new Error("previous draft comment seed failed");
+  await openSession(world, briefId, reviewerId);
+  await write(
+    world,
+    briefId,
+    (writer) =>
+      writer.addDraftComment({
+        filePath: "src/app.ts",
+        side: DraftCommentSide.NEW,
+        startLine: 10,
+        endLine: 12,
+        body: "this allocation is unbounded",
+      }),
+    reviewerId,
+  );
 }
 
 /** The Brief facts thunk the query takes; `artifact` builds a non-empty one. */
@@ -338,41 +360,35 @@ async function seedPreviousWork(
   briefId: BriefRowId,
   chunkIds: readonly string[] = ["c5"],
 ): Promise<void> {
-  const repo = forTenant(world.handle, CTX);
   const id = await openSession(world, briefId);
-  await repo.reviewSessions.writeToSession(
-    { briefId, reviewerId: REVIEWER, brief: artifact([], []) },
-    (writer) => writer.setReviewOutcome(ReviewOutcome.APPROVE),
-  );
-  await repo.reviewSessions.addDraftComment({
-    reviewSessionId: id,
-    filePath: "src/app.ts",
-    side: DraftCommentSide.NEW,
-    startLine: 10,
-    endLine: 12,
-    body: "draft",
-  });
-  await repo.reviewSessions.addDraftComment({
-    reviewSessionId: id,
-    filePath: "src/app.ts",
-    side: DraftCommentSide.NEW,
-    startLine: 40,
-    endLine: 41,
-    body: "already on GitHub",
-    status: DraftCommentStatus.SUBMITTED,
-  });
-  for (const chunkId of chunkIds) {
-    await repo.reviewSessions.putReadMark({ reviewSessionId: id, chunkId });
-  }
-  await repo.reviewSessions.putReclassification({
-    reviewSessionId: id,
-    changeGroupId: "g1",
-    category: ChangeGroupCategory.BUGFIX,
-  });
-  await repo.reviewSessions.putReclassification({
-    reviewSessionId: id,
-    changeGroupId: "g9",
-    category: ChangeGroupCategory.BUGFIX,
+  await write(world, briefId, async (writer) => {
+    await writer.setReviewOutcome(ReviewOutcome.APPROVE);
+    await writer.addDraftComment({
+      filePath: "src/app.ts",
+      side: DraftCommentSide.NEW,
+      startLine: 10,
+      endLine: 12,
+      body: "draft",
+    });
+    await writer.addDraftComment({
+      filePath: "src/app.ts",
+      side: DraftCommentSide.NEW,
+      startLine: 40,
+      endLine: 41,
+      body: "already on GitHub",
+      status: DraftCommentStatus.SUBMITTED,
+    });
+    for (const chunkId of chunkIds) {
+      await writer.putReadMark({ chunkId });
+    }
+    await writer.putReclassification({
+      changeGroupId: "g1",
+      category: ChangeGroupCategory.BUGFIX,
+    });
+    await writer.putReclassification({
+      changeGroupId: "g9",
+      category: ChangeGroupCategory.BUGFIX,
+    });
   });
   await seedDisposition(world, briefId, 30, 32);
 }
@@ -407,13 +423,13 @@ describe("preview — what carries, per subject", () => {
   async function twoBriefs(
     carriedChunkIds: readonly string[],
     previousChunkIds: readonly string[] = ["c5"],
-  ): Promise<{ world: World; current: BriefRowId }> {
+  ): Promise<{ world: World; previous: BriefRowId; current: BriefRowId }> {
     const world = await freshWorld();
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(world, 2, carriedChunkIds);
     await seedHop(world, 1, 2);
     await seedPreviousWork(world, previous, previousChunkIds);
-    return { world, current };
+    return { world, previous, current };
   }
 
   it("carries a read mark whose chunk id is in the new Brief's carried set", async () => {
@@ -691,15 +707,16 @@ describe("preview — the rules a multi-push chain must not loosen", () => {
     const current = await seedBrief(world, 2);
     // No hop row: nothing places anything, whichever side it sits on.
     const repo = forTenant(world.handle, CTX);
-    const sessionId = await openSession(world, previous);
-    await repo.reviewSessions.addDraftComment({
-      reviewSessionId: sessionId,
-      filePath: "src/app.ts",
-      side: DraftCommentSide.OLD,
-      startLine: 10,
-      endLine: 12,
-      body: "on the removed side",
-    });
+    await openSession(world, previous);
+    await write(world, previous, (writer) =>
+      writer.addDraftComment({
+        filePath: "src/app.ts",
+        side: DraftCommentSide.OLD,
+        startLine: 10,
+        endLine: 12,
+        body: "on the removed side",
+      }),
+    );
 
     const view = await repo.reviewSessions.preview({
       briefId: current,
@@ -853,17 +870,16 @@ describe("old-side drafts against the PR base", () => {
     world: World,
     briefId: BriefRowId,
   ): Promise<void> {
-    const repo = forTenant(world.handle, CTX);
-    const sessionId = await openSession(world, briefId);
-    const added = await repo.reviewSessions.addDraftComment({
-      reviewSessionId: sessionId,
-      filePath: "src/app.ts",
-      side: DraftCommentSide.OLD,
-      startLine: 10,
-      endLine: 12,
-      body: "on the removed side",
-    });
-    if (!added.ok) throw new Error("draft seed failed");
+    await openSession(world, briefId);
+    await write(world, briefId, (writer) =>
+      writer.addDraftComment({
+        filePath: "src/app.ts",
+        side: DraftCommentSide.OLD,
+        startLine: 10,
+        endLine: 12,
+        body: "on the removed side",
+      }),
+    );
   }
 
   it("keeps an old-side draft exact while the base holds still", async () => {
@@ -1056,19 +1072,15 @@ describe("writeToSession — the first write, one transaction", () => {
     // The read happened; the reviewer's other tab keeps typing on the old
     // Brief; then the write lands. The late row must still carry.
     await repo.reviewSessions.preview(key);
-    const previousSnapshot = await repo.reviewSessions.get({
-      briefId: await briefIdFor(world, 1),
-      reviewerId: REVIEWER,
-    });
-    if (previousSnapshot === undefined) throw new Error("no previous session");
-    await repo.reviewSessions.addDraftComment({
-      reviewSessionId: previousSnapshot.session.id,
-      filePath: "src/app.ts",
-      side: DraftCommentSide.NEW,
-      startLine: 20,
-      endLine: 20,
-      body: "typed after the read",
-    });
+    await write(world, await briefIdFor(world, 1), (writer) =>
+      writer.addDraftComment({
+        filePath: "src/app.ts",
+        side: DraftCommentSide.NEW,
+        startLine: 20,
+        endLine: 20,
+        body: "typed after the read",
+      }),
+    );
 
     await repo.reviewSessions.writeToSession(key, (writer) =>
       writer.putReadMark({ chunkId: "c8" }),

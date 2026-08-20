@@ -205,6 +205,23 @@ describe("useReviewSubmit", () => {
     expect(closeSubmit).not.toHaveBeenCalled();
   });
 
+  it("renders the re-place copy on an orphaned draft, drafts untouched", async () => {
+    const { rendered, action, markSubmitted, closeSubmit } = setup();
+    action.mockResolvedValue({ kind: "orphaned-draft" });
+
+    act(() => rendered.result.current.submit());
+    await waitFor(() => expect(rendered.result.current.pending).toBe(false));
+
+    // An unhandled kind leaves `error` null and the reviewer with no message
+    // at all — the failure this pins is silence, not the wrong words.
+    expect(rendered.result.current.error).toMatch(
+      /no longer points at any code/i,
+    );
+    expect(rendered.result.current.error).toMatch(/nothing was posted/i);
+    expect(markSubmitted).not.toHaveBeenCalled();
+    expect(closeSubmit).not.toHaveBeenCalled();
+  });
+
   it("ignores a second click while pending (double-post guard)", async () => {
     const { rendered, action } = setup();
     let release: ((value: SubmitReviewResult) => void) | undefined;

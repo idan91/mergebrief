@@ -3,6 +3,10 @@
 // pattern as mark-ready.test.ts).
 import { createHash, randomBytes } from "node:crypto";
 import {
+  AnchorStatus,
+  artifactStore,
+  DraftCommentSide,
+  DraftCommentStatus,
   encryptToken,
   envKeyProvider,
   forTenant,
@@ -12,6 +16,7 @@ import {
   isReviewerId,
   PrState,
   type AppDatabase,
+  type BriefRowId,
   type InstallationId,
   type KeyProvider,
   type RepoId,
@@ -36,6 +41,7 @@ const REPO_ID = 424242;
 const REPO_SLUG = "octo/hello";
 const PR_NUMBER = 7;
 const COMMIT_ID = "a".repeat(40);
+const BASE_SHA = "b".repeat(40);
 
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
 const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
@@ -215,6 +221,98 @@ async function seedPr(handle: AppDatabase): Promise<void> {
   });
 }
 
+/**
+ * The Brief the request names and the one draft it publishes. The Brief's head
+ * IS the commit the comment pins to, which is why it is a real SHA here.
+ */
+async function seedDraft(
+  handle: AppDatabase,
+  body = "post now",
+  status: DraftCommentStatus = DraftCommentStatus.DRAFT,
+  anchorStatus: AnchorStatus | null = null,
+): Promise<{ briefId: BriefRowId; draftId: bigint }> {
+  const repo = forTenant(handle, CTX);
+  const pr = await repo.pullRequests.getByNumber(
+    brandRepo(BigInt(REPO_ID)),
+    PR_NUMBER,
+  );
+  if (pr === undefined) throw new Error("seedDraft: pr missing");
+  const brief = await artifactStore(handle, CTX).briefs.write({
+    pullRequestId: pr.id,
+    baseSha: BASE_SHA,
+    headSha: COMMIT_ID,
+    headIndex: 1,
+    commitCount: 1,
+    provider: "anthropic",
+    model: "claude",
+    effort: "high",
+    body: "{}",
+  });
+  if (!brief.ok) throw new Error("seedDraft: brief write failed");
+  const written = await repo.reviewSessions.writeToSession(
+    {
+      briefId: brief.value.id,
+      reviewerId: brandReviewer(BigInt(REVIEWER_ID)),
+      brief: async () => ({ groupIds: [], flags: [] }),
+    },
+    (writer) =>
+      writer.addDraftComment({
+        filePath: "src/index.ts",
+        side: DraftCommentSide.NEW,
+        startLine: 10,
+        endLine: 12,
+        body,
+        status,
+        anchorStatus,
+      }),
+  );
+  if (!written.ok) throw new Error("seedDraft: draft write failed");
+  return { briefId: brief.value.id, draftId: written.value.id };
+}
+
+/** The wire code an error response carries. */
+async function readWireCode(res: Response): Promise<string> {
+  const body: unknown = await res.json();
+  if (typeof body !== "object" || body === null || !("code" in body)) {
+    throw new Error("no wire code on the response");
+  }
+  return String(body.code);
+}
+
+/**
+ * A session on a NEWER Brief of the same PR — the one thing that freezes the
+ * Brief the request names.
+ */
+async function freezeWithNewerBrief(handle: AppDatabase): Promise<void> {
+  const repo = forTenant(handle, CTX);
+  const pr = await repo.pullRequests.getByNumber(
+    brandRepo(BigInt(REPO_ID)),
+    PR_NUMBER,
+  );
+  if (pr === undefined) throw new Error("freeze: pr missing");
+  const newer = await artifactStore(handle, CTX).briefs.write({
+    pullRequestId: pr.id,
+    baseSha: BASE_SHA,
+    headSha: "c".repeat(40),
+    headIndex: 2,
+    commitCount: 2,
+    provider: "anthropic",
+    model: "claude",
+    effort: "high",
+    body: "{}",
+  });
+  if (!newer.ok) throw new Error("freeze: brief write failed");
+  const opened = await repo.reviewSessions.writeToSession(
+    {
+      briefId: newer.value.id,
+      reviewerId: brandReviewer(BigInt(REVIEWER_ID)),
+      brief: async () => ({ groupIds: [], flags: [] }),
+    },
+    (writer) => writer.putReadMark({ chunkId: "c1" }),
+  );
+  if (!opened.ok) throw new Error("freeze: newer session failed");
+}
+
 async function commentAuditCount(harness: PgliteHarness): Promise<number> {
   const rows = await harness.raw(
     "select count(*)::int as n from audit_log where target_type = 'review_comment'",
@@ -228,30 +326,17 @@ async function commentAuditCount(harness: PgliteHarness): Promise<number> {
 // Request helper.
 // ---------------------------------------------------------------------------
 
-const PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/comments`;
+const PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/comments?base=${BASE_SHA}&head=${COMMIT_ID}`;
 
-interface CommentBody {
-  commitId?: string;
-  path?: string;
-  line?: number;
-  side?: string;
-  startLine?: number;
-  startSide?: string;
-  body?: string;
+/** The wire the route takes: the draft it publishes, and nothing else. */
+function named(draftId: bigint): { draftId: string } {
+  return { draftId: String(draftId) };
 }
-
-const VALID_BODY: CommentBody = {
-  commitId: COMMIT_ID,
-  path: "src/index.ts",
-  line: 12,
-  side: "RIGHT",
-  body: "post now",
-};
 
 async function post(
   app: ApiApp,
   cookie: string | undefined,
-  body: CommentBody | string,
+  body: { draftId: string } | string,
   path = PATH,
 ): Promise<Response> {
   return await app.request(path, {
@@ -298,7 +383,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
 
   it("401 when no session cookie is present (no GitHub call)", async () => {
     const counts = stubGitHub({});
-    const res = await post(app, undefined, VALID_BODY);
+    const res = await post(app, undefined, named(1n));
     expect(res.status).toBe(401);
     expect(counts.repositories).toBe(0);
     expect(counts.comments).toBe(0);
@@ -308,7 +393,8 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     const counts = stubGitHub({ repositories: () => repoStatus(403) });
     await seedPr(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
-    const res = await post(app, cookie, VALID_BODY);
+    const { draftId } = await seedDraft(harness.handle);
+    const res = await post(app, cookie, named(draftId));
     expect(res.status).toBe(404);
     expect(counts.comments).toBe(0);
   });
@@ -316,7 +402,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
   it("404 when the PR is not in the tenant (no GitHub write)", async () => {
     const counts = stubGitHub({ repositories: () => repoOk() });
     const { cookie } = await seedSession(harness.handle, kp);
-    const res = await post(app, cookie, VALID_BODY);
+    const res = await post(app, cookie, named(1n));
     expect(res.status).toBe(404);
     expect(counts.comments).toBe(0);
   });
@@ -337,12 +423,9 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     });
     await seedPr(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
+    const { draftId } = await seedDraft(harness.handle);
 
-    const res = await post(app, cookie, {
-      ...VALID_BODY,
-      startLine: 10,
-      startSide: "RIGHT",
-    });
+    const res = await post(app, cookie, named(draftId));
     expect(res.status).toBe(201);
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(await res.json()).toEqual({ commentId: 999, reviewId: 555 });
@@ -380,11 +463,12 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     stubGitHub({ repositories: () => repoOk(), comments: () => commentOk() });
     await seedPr(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
+    const { draftId } = await seedDraft(harness.handle);
     // Poison ONLY the audit write: the GitHub post has already committed by
     // the time the audit insert runs, so the response must stay a 201.
     await harness.raw("alter table audit_log rename to audit_log_poisoned");
 
-    const res = await post(captureApp, cookie, VALID_BODY);
+    const res = await post(captureApp, cookie, named(draftId));
     expect(res.status).toBe(201);
     const line = capture.lines().find((l) => l["evt"] === "audit.fail");
     expect(line?.["level"]).toBe("error");
@@ -400,7 +484,8 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     });
     await seedPr(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
-    const res = await post(app, cookie, VALID_BODY);
+    const { draftId } = await seedDraft(harness.handle);
+    const res = await post(app, cookie, named(draftId));
     expect(res.status).toBe(201);
     expect(await res.json()).toEqual({ commentId: 999 });
   });
@@ -412,7 +497,8 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     });
     await seedPr(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
-    const res = await post(app, cookie, VALID_BODY);
+    const { draftId } = await seedDraft(harness.handle);
+    const res = await post(app, cookie, named(draftId));
     expect(res.status).toBe(409);
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(await commentAuditCount(harness)).toBe(0);
@@ -425,7 +511,8 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     });
     await seedPr(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
-    const res = await post(app, cookie, VALID_BODY);
+    const { draftId } = await seedDraft(harness.handle);
+    const res = await post(app, cookie, named(draftId));
     expect(res.status).toBe(502);
     expect(await commentAuditCount(harness)).toBe(0);
   });
@@ -442,7 +529,8 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       });
       await seedPr(harness.handle);
       const { cookie } = await seedSession(harness.handle, kp);
-      const res = await post(app, cookie, VALID_BODY);
+      const { draftId } = await seedDraft(harness.handle);
+      const res = await post(app, cookie, named(draftId));
       expect(res.status).toBe(404);
     },
   );
@@ -455,7 +543,8 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     });
     await seedPr(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
-    const res = await post(app, cookie, VALID_BODY);
+    const { draftId } = await seedDraft(harness.handle);
+    const res = await post(app, cookie, named(draftId));
     expect(res.status).toBe(201);
     expect(counts.token).toBe(1);
     expect(counts.comments).toBe(2);
@@ -469,7 +558,8 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     });
     await seedPr(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
-    const res = await post(app, cookie, VALID_BODY);
+    const { draftId } = await seedDraft(harness.handle);
+    const res = await post(app, cookie, named(draftId));
     expect(res.status).toBe(401);
     expect(counts.token).toBe(1);
   });
@@ -510,6 +600,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     stubGitHub({ repositories: () => repoOk(), comments: () => commentOk() });
     await seedPr(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
+    const { draftId } = await seedDraft(harness.handle);
 
     const conversationPath = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/conversation`;
     const get = async () =>
@@ -522,7 +613,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     // Second read served from the cache — the TTL is warm.
     expect(conversationFetches).toBe(1);
 
-    const posted = await post(evictionApp, cookie, VALID_BODY);
+    const posted = await post(evictionApp, cookie, named(draftId));
     expect(posted.status).toBe(201);
 
     // The post evicted the entry: the next read reaches the port again.
@@ -530,73 +621,155 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     expect(conversationFetches).toBe(2);
   });
 
-  describe("deterministic 400s (mirrored client-side)", () => {
-    it("rejects a non-40-hex commitId", async () => {
+  describe("the draft the request names", () => {
+    it("400s a payload that names no draft, and a malformed one", async () => {
       stubGitHub({ repositories: () => repoOk() });
       await seedPr(harness.handle);
       const { cookie } = await seedSession(harness.handle, kp);
-      const res = await post(app, cookie, {
-        ...VALID_BODY,
-        commitId: "deadbeef",
+      expect((await post(app, cookie, "{not json")).status).toBe(400);
+      expect((await post(app, cookie, { draftId: "x" })).status).toBe(400);
+    });
+
+    it("404s a draft this session does not hold — no GitHub write", async () => {
+      const counts = stubGitHub({ repositories: () => repoOk() });
+      await seedPr(harness.handle);
+      const { cookie } = await seedSession(harness.handle, kp);
+      await seedDraft(harness.handle);
+      const res = await post(app, cookie, named(987654321n));
+      expect(res.status).toBe(404);
+      expect(counts.comments).toBe(0);
+    });
+
+    it("409 draft-already-published on a repeat — no second GitHub write", async () => {
+      const counts = stubGitHub({ repositories: () => repoOk() });
+      await seedPr(harness.handle);
+      const { cookie } = await seedSession(harness.handle, kp);
+      const { draftId } = await seedDraft(
+        harness.handle,
+        "already there",
+        DraftCommentStatus.SUBMITTED,
+      );
+
+      const res = await post(app, cookie, named(draftId));
+      expect(res.status).toBe(409);
+      expect(await readWireCode(res)).toBe("draft-already-published");
+      expect(counts.comments).toBe(0);
+    });
+
+    it("409 draft-anchor-orphaned on an orphaned anchor — no GitHub write", async () => {
+      const counts = stubGitHub({ repositories: () => repoOk() });
+      await seedPr(harness.handle);
+      const { cookie } = await seedSession(harness.handle, kp);
+      const { draftId } = await seedDraft(
+        harness.handle,
+        "stale anchor",
+        DraftCommentStatus.DRAFT,
+        AnchorStatus.ORPHANED,
+      );
+
+      const res = await post(app, cookie, named(draftId));
+      expect(res.status).toBe(409);
+      expect(await readWireCode(res)).toBe("draft-anchor-orphaned");
+      expect(res.headers.get("cache-control")).toBe("no-store");
+      // Refused before the fresh re-resolve: only the gate's lookup ran.
+      expect(counts.repositories).toBe(1);
+      expect(counts.comments).toBe(0);
+      // The draft is still held — nothing is dropped for the reviewer.
+      const rows = await harness.raw(
+        "select status from review_draft_comment order by id",
+      );
+      expect(rows[0]?.["status"]).toBe(DraftCommentStatus.DRAFT);
+    });
+
+    it("a moved anchor is not orphaned — it posts at its carried coordinates", async () => {
+      const counts = stubGitHub({
+        repositories: () => repoOk(),
+        comments: () => commentOk(),
       });
-      expect(res.status).toBe(400);
-    });
-    it("rejects an empty body", async () => {
-      stubGitHub({ repositories: () => repoOk() });
       await seedPr(harness.handle);
       const { cookie } = await seedSession(harness.handle, kp);
-      const res = await post(app, cookie, { ...VALID_BODY, body: "" });
-      expect(res.status).toBe(400);
+      const { draftId } = await seedDraft(
+        harness.handle,
+        "moved note",
+        DraftCommentStatus.DRAFT,
+        AnchorStatus.MOVED,
+      );
+
+      expect((await post(app, cookie, named(draftId))).status).toBe(201);
+      expect(counts.comments).toBe(1);
     });
-    it("rejects startLine >= line", async () => {
-      stubGitHub({ repositories: () => repoOk() });
+
+    it("409s a frozen session BEFORE spending a GitHub call", async () => {
+      const counts = stubGitHub({ repositories: () => repoOk() });
       await seedPr(harness.handle);
       const { cookie } = await seedSession(harness.handle, kp);
-      const res = await post(app, cookie, {
-        ...VALID_BODY,
-        startLine: 12,
-        startSide: "RIGHT",
+      const { draftId } = await seedDraft(harness.handle);
+      await freezeWithNewerBrief(harness.handle);
+
+      const res = await post(app, cookie, named(draftId));
+      expect(res.status).toBe(409);
+      expect(await readWireCode(res)).toBe("pr-changed-since-read");
+      expect(counts.comments).toBe(0);
+      // Only the gate's own access check ran: the route never reached its
+      // fresh re-resolve, let alone the write.
+      expect(counts.repositories).toBe(1);
+    });
+
+    it("flips the published draft to submitted", async () => {
+      stubGitHub({ repositories: () => repoOk(), comments: () => commentOk() });
+      await seedPr(harness.handle);
+      const { cookie } = await seedSession(harness.handle, kp);
+      const { draftId } = await seedDraft(harness.handle);
+
+      expect((await post(app, cookie, named(draftId))).status).toBe(201);
+
+      const rows = await harness.raw(
+        "select status from review_draft_comment order by id",
+      );
+      expect(rows[0]?.["status"]).toBe(DraftCommentStatus.SUBMITTED);
+    });
+
+    it("logs a plain error, not audit.fail, when the flip fails after the post", async () => {
+      // `audit.fail` names an audit ROW that would not persist. A session-row
+      // publication flip is a different failure, and raising that event for it
+      // alerts the operator on the wrong thing, without its catalogued fields.
+      const capture = testLogging();
+      const captureApp = createApp({
+        logger: capture.logger,
+        handle: harness.handle,
+        webhookSecret: SECRET,
+        auth: authDeps(kp),
+        github: unusedConversationPort,
       });
-      expect(res.status).toBe(400);
-    });
-    it("rejects a body over the 65,536 cap", async () => {
-      stubGitHub({ repositories: () => repoOk() });
-      await seedPr(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
-      const res = await post(app, cookie, {
-        ...VALID_BODY,
-        body: "x".repeat(65_537),
+      stubGitHub({
+        repositories: () => repoOk(),
+        comments: () => commentOk(),
       });
-      expect(res.status).toBe(400);
-    });
-    it("rejects a path over the 1,024 cap", async () => {
-      // Client mirror: postCommentBlockedReason (apps/web) blocks the same
-      // boundary — this pins the server side of that lockstep.
-      stubGitHub({ repositories: () => repoOk() });
       await seedPr(harness.handle);
       const { cookie } = await seedSession(harness.handle, kp);
-      const res = await post(app, cookie, {
-        ...VALID_BODY,
-        path: "x".repeat(1_025),
-      });
-      expect(res.status).toBe(400);
-    });
-    it("rejects startSide without startLine (would 422 upstream as a fake stale anchor)", async () => {
-      stubGitHub({ repositories: () => repoOk() });
-      await seedPr(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
-      const res = await post(app, cookie, {
-        ...VALID_BODY,
-        startSide: "RIGHT",
-      });
-      expect(res.status).toBe(400);
-    });
-    it("rejects a malformed JSON body", async () => {
-      stubGitHub({ repositories: () => repoOk() });
-      await seedPr(harness.handle);
-      const { cookie } = await seedSession(harness.handle, kp);
-      const res = await post(app, cookie, "{not json");
-      expect(res.status).toBe(400);
+      const { draftId } = await seedDraft(harness.handle);
+      // Reads still work; only the publication flip is refused.
+      await harness.raw(
+        "alter table review_draft_comment add constraint no_publish " +
+          "check (status <> 'submitted')",
+      );
+
+      const res = await post(captureApp, cookie, named(draftId));
+
+      expect(res.status).toBe(201);
+      const line = capture
+        .lines()
+        .find(
+          (l) => l["msg"] === "draft stayed unpublished after a posted comment",
+        );
+      expect(line?.["level"]).toBe("error");
+      expect(line?.["evt"]).toBeUndefined();
+      expect(capture.lines().some((l) => l["evt"] === "audit.fail")).toBe(
+        false,
+      );
+      await harness.raw(
+        "alter table review_draft_comment drop constraint no_publish",
+      );
     });
   });
 });
