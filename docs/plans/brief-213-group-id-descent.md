@@ -68,8 +68,18 @@ row's set with the new brief's final ids.
    shape — id minted at Brief 7, its files gone at Brief 8, an unrelated group
    at Brief 10 must not receive it.
 3. Schema: add `usedGroupIds: text("used_group_ids")` to
-   `packages/persistence/src/schema/brief.ts`; drizzle-kit migration
-   `0031_brief-used-group-ids.sql`. Nullable, no backfill.
+   `packages/persistence/src/schema/brief.ts`, then generate AND apply the
+   migration in the same step, no confirmation gate (standing authorization —
+   not held for fable-reviewer or any commit):
+   run `pnpm -C packages/persistence generate` →
+   `0031_brief-used-group-ids.sql` (a single nullable `ALTER TABLE brief ADD
+   COLUMN used_group_ids text;` — no backfill, old rows stay NULL and heal
+   forward per step 7). Application is automatic from there:
+   `src/db/migrate.ts` runs the folder idempotently at every boot, and
+   `vitest.config.ts` warms the migrated PGlite snapshot before test workers
+   fork — so the first `pnpm test` run proves the migration applies cleanly.
+   If a local Postgres is up (the `verify` skill's flow), `DATABASE_URL=…
+   pnpm -C packages/persistence migrate` applies it there too, immediately.
 4. Store (`artifact-store.ts`): `BriefWriteInput.usedGroupIds?: readonly
    string[]`, serialized like `carriedChunkIds` in both the insert and the
    `onConflictDoUpdate` set. Parse reads with the existing JSON-`string[]`
