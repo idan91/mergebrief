@@ -1,189 +1,133 @@
-# BRIEF-213 — Reclassifications carry on "id present", not "id survived descent"
+# BRIEF-213 — group ids: reserve the chain, drop across restarts
 
-## Problem (verified in code)
+Ticket: [Reclassifications carry on "id present", not "id survived descent"](https://app.notion.com/p/3c25e9400eeb81f2b23af1b750066cd8)
 
-`assignGroupIds` reserves only the immediately previous Brief's ids:
+Two stacked PRs. PR 1 stops retired group ids from being re-minted. PR 2 drops
+reclassifications when the Brief chain contains a brief that never descended.
+Both are needed: PR 1 kills resurrection, PR 2 kills the coincidence case where
+a fresh brief's raw ids collide with history.
 
-- `packages/worker/src/task/anchoring.ts:249` — `previousGroupIds: previousBrief.changeGroups.map((g) => g.id)`
-- `packages/worker/src/task/anchoring.ts:448` — `reservedIds: [...carriedIds, ...plan.previousGroupIds]`
-- `packages/brief-core/src/diff/descent.ts` — the mint counter skips only `reservedIds ∪ previous`
+## Verified facts
 
-A group id retired two revisions ago is therefore re-mintable for an unrelated
-group. Carry-over then hands the reviewer's override to it, because its test is
-bare id presence:
+Read these sites before editing; every step below assumes them.
 
-- `packages/persistence/src/stores/carry-over.ts` — `reclassifications: previous.reclassifications.filter((row) => groups.has(row.changeGroupId))`
+- `packages/worker/src/task/anchoring.ts:249` and `:93` — `previousGroupIds`
+  holds only the immediately previous Brief's ids.
+- `packages/worker/src/task/anchoring.ts:448` — `reservedIds:
+  [...carriedIds, ...plan.previousGroupIds]`; the mint counter in
+  `packages/brief-core/src/diff/descent.ts` skips only this set, so an id
+  retired two revisions back is re-mintable. `descent.ts`'s `reservedIds` doc
+  already asks for the full chain.
+- `packages/persistence/src/stores/carry-over.ts` (`evaluateCarryOver`) —
+  reclassifications carry on bare membership: `groups.has(row.changeGroupId)`.
+- `packages/worker/src/task/generate.ts:818` — fresh path (`anchorPlan ===
+  undefined`: fresh restart, model swap, any anchoring degradation) writes the
+  model's raw ids, no descent, no reservation. Collisions with historical ids
+  are near-certain here.
+- Prior art: read marks are immune because `carriedThroughChain`
+  (`packages/persistence/src/stores/review-session.ts:326`) intersects
+  `carried_chunk_ids` per hop; `chainBriefs` at `:443` is the chain query.
+  Copy this pattern, do not invent a new one.
+- Group ids exist only inside `brief.body` (no group table in
+  `packages/persistence/src/schema/brief.ts`), and bodies are
+  multi-hundred-KB. This is why the fix is a column, not a chain walk:
+  `store.briefs.get(prev)` already runs at `generate.ts:725`, so a column read
+  is free. A per-brief descended-set intersected per hop was also rejected —
+  it patches only this reader and leaves resurrection live for every other
+  consumer.
 
-Read marks do not have this hole: they gate on `brief.carried_chunk_ids`,
-intersected per hop by `carriedThroughChain` (`packages/persistence/src/stores/review-session.ts:326`).
-Reclassifications have no equivalent.
+## Rules — all PRs
 
-`descent.ts`'s own `reservedIds` doc already asks for the fix: "pass every id the
-PR's brief chain has ever used where available".
+- All git operations go through the `git-eng` skill. Session decisions:
+  chunked commits, `performance-reviewer` on the staged diff before every
+  commit (fix ≥80-confidence findings before committing), no Co-Authored-By,
+  no AI attribution. Idan merges.
+- `tdd`: each PR opens with its named test, watched red, before any fix.
+- `typescript-eng` and `ponytail` govern the code; `fable-reviewer` reviews
+  the branch diff before each PR goes up.
+- PR 2 stacks on PR 1's branch; realign after PR 1's squash-merge via
+  `git-eng`.
+- No eval harness — the generation surface is untouched.
+- Done means: new tests green, `pnpm test` (floors ride inside), `pnpm lint`,
+  `pnpm typecheck` all clean, run locally across every touched package plus
+  `packages/api` (consumes the session view).
 
-### Second door: the fresh path
+## PR 1 — reserve every id the chain has used
 
-When `anchorPlan === undefined` (fresh restart, model swap, or any anchoring
-degradation) `generate.ts:818` writes the model's raw group ids with no descent
-and no reservation. Those ids collide with historical ids by construction, so a
-reclassification from an earlier session lands on an unrelated group at 100%
-rate — the same bug through a wider door. Read marks are safe here only because
-`carriedChunkIds` is empty on that path.
+Branch `feature/BRIEF-213/reserve-chain-group-ids`. ~350 LOC.
+Fable 5 high (Opus 5 high on quota fallback), sequential in the main thread.
 
-## Storage decision
+New column `brief.used_group_ids`: JSON `string[]`, the union of every group
+id the PR's Brief chain has used. Mirrors `carried_chunk_ids` in shape,
+nullability, and comment voice. Monotone: each write unions the previous
+row's set with the new brief's final ids.
 
-**`brief.used_group_ids`** — JSON `string[]`, the union of every group id the PR's
-Brief chain has used, mirroring `carried_chunk_ids` in the same table.
-
-Rejected: querying the chain at generation time. Group ids live only inside
-`brief.body` (`packages/persistence/src/schema/brief.ts` has no change-group
-table) and bodies are multi-hundred-KB — the walk would load every prior body on
-every generation. `store.briefs.get(prev)` is *already* called at
-`generate.ts:725`, so reading the column costs nothing extra.
-
-Rejected: a per-brief `descended_group_ids` set intersected through the chain
-(the read-mark twin). Correct, but it patches the read side and leaves id
-resurrection live for every other consumer of group ids.
-
-## Git requirements
-
-`git-eng` is **mandatory** for all git operations during implementation — no raw
-git/gh outside it.
-
-- Branch off `main`: `feature/BRIEF-213/reserve-chain-group-ids` (PR 1),
-  `feature/BRIEF-213/restart-drops-reclassifications` (PR 2, stacked on PR 1).
-- Commits: **chunked** — one per logical unit, listed per PR below.
-- Pre-commit gate: dispatch `performance-reviewer` on `git diff --cached` before
-  every commit. Findings at confidence >= 80 are fixed and re-staged before the
-  commit lands.
-- No `Co-Authored-By` trailers. No AI-attribution anywhere in commits or PR bodies.
-- PR title: `[BRIEF-213] fix: <Change Description In Title Case>`.
-- No PR template exists in this repo — use the default Overview / Changelog
-  structure. No Images section (backend PRs).
-- Idan merges. Reviewer agents never push to a branch they did not create.
-
-## Mandatory skills
-
-- **`tdd`** — the skipped-revision test is the point of the work; it is written
-  first and must fail before the fix.
-- **`typescript-eng`** — strict TS, no `any`, no bare `as`; Zod at the JSON column
-  boundary.
-- **`ponytail`** — laziest shape that holds (active session-wide).
-- **`fable-reviewer`** — adversarial branch-diff review before each PR goes up.
-
-## PR 1 — Reserve every group id the Brief chain has used
-
-Est. ~350 LOC. Model: Fable 5 (Opus 5 high on quota fallback), high effort.
-Invocation: sequential in the main thread — the layers depend on each other.
-
-### Steps
-
-1. **(TDD, red first)** `packages/brief-core/test/diff/descent.test.ts` — a
-   retired id passed in `reservedIds` is never re-minted, even though it is
-   absent from `previous`. Assert the minted id skips past it.
-2. **(TDD, red first)** `packages/worker/test/anchoring.test.ts` — the
-   multi-push shape end to end: group id minted at Brief 7, its files gone at
-   Brief 8, an unrelated group at Brief 9/10 must NOT receive that id.
+1. Red test, `packages/brief-core/test/diff/descent.test.ts`: an id in
+   `reservedIds` but absent from `previous` is never minted.
+2. Red test, `packages/worker/test/anchoring.test.ts`: the ticket's multi-push
+   shape — id minted at Brief 7, its files gone at Brief 8, an unrelated group
+   at Brief 10 must not receive it.
 3. Schema: add `usedGroupIds: text("used_group_ids")` to
-   `packages/persistence/src/schema/brief.ts` with a comment matching
-   `carried_chunk_ids`' shape. Generate the migration via drizzle-kit
-   (`packages/persistence/drizzle/0031_brief-used-group-ids.sql`). Nullable — no
-   backfill; NULL is read as "chain unknown", which degrades to today's
-   previous-brief-only reservation.
-4. Store: `BriefWriteInput.usedGroupIds?: readonly string[]` in
-   `packages/persistence/src/stores/artifact-store.ts`, serialized exactly as
-   `carriedChunkIds` is (both the insert and the `onConflictDoUpdate` set).
-   Parse on read with the existing `ChunkIdsSchema` shape — if it is reused
-   verbatim, rename it to something id-neutral rather than minting a duplicate.
-5. Worker read: `AnchorPlanArgs` gains `chainGroupIds?: readonly string[]`;
-   `planAnchoredGeneration` folds it into `previousGroupIds` as a de-duplicated
-   union (both the normal path at `anchoring.ts:249` and `allReLook` at :93).
-   `assignGroupIds`' `reservedIds` then needs no change.
-6. Worker write: `stitchBrief` returns `usedGroupIds` alongside
-   `carriedChunkIds` — the incoming chain union ∪ the stitched brief's final
-   group ids.
-7. `generate.ts`: parse `prevRow.usedGroupIds` (NULL-tolerant, per the store
-   schema) and pass it as `chainGroupIds` into `planAnchoredGeneration` (prevRow
-   is already in hand at :725); pass `usedGroupIds` into `store.briefs.write`.
-   Two seams that decide whether the chain ever heals:
-   - **NULL heals forward**: when `prevRow.usedGroupIds` is NULL (row predates
-     the column), seed the union from `previousBody.changeGroups` ids — already
-     in hand — instead of the empty set. The written row then starts a valid
-     chain even though its ancestors never had one.
-   - **The fresh path writes it too**: `anchorPlan === undefined` (fresh
-     restart, model swap, degradation) still unions the previous row's chain
-     set (or the NULL fallback) with the fresh brief's raw ids. A first brief
-     with no prevRow writes its own ids. The column is monotone from its first
-     appearance on — no gaps.
-8. Tests: `packages/persistence/test/artifact-store.test.ts` round-trip
-   (write → read → NULL-tolerant parse); `packages/worker/test/generate.test.ts`
-   asserts the column is written on both the anchored and fresh paths.
-9. Gates: `pnpm test` (coverage floors ride inside it), `pnpm lint`,
-   `pnpm typecheck`. `packages/worker` and `packages/persistence` are both
-   touched — CI's changed-package filter covers both, but run the full local
-   suite before pushing anyway.
+   `packages/persistence/src/schema/brief.ts`; drizzle-kit migration
+   `0031_brief-used-group-ids.sql`. Nullable, no backfill.
+4. Store (`artifact-store.ts`): `BriefWriteInput.usedGroupIds?: readonly
+   string[]`, serialized like `carriedChunkIds` in both the insert and the
+   `onConflictDoUpdate` set. Parse reads with the existing JSON-`string[]`
+   schema from `carry-over.ts`; if reused verbatim, rename it id-neutral
+   instead of duplicating it.
+5. Worker read: `AnchorPlanArgs.chainGroupIds?: readonly string[]`;
+   `planAnchoredGeneration` unions it into `previousGroupIds` on both the
+   normal path (`anchoring.ts:249`) and `allReLook` (`:93`). `reservedIds`
+   at `:448` then needs no change.
+6. Worker write: `stitchBrief` returns `usedGroupIds` — incoming chain set ∪
+   the stitched brief's final ids.
+7. `generate.ts` wiring, two seams that decide whether the chain heals:
+   - NULL heals forward: `prevRow.usedGroupIds` NULL (pre-column row) →
+     seed from `previousBody.changeGroups` ids, already in hand — never the
+     empty set.
+   - The fresh path writes too: `anchorPlan === undefined` still unions the
+     previous row's set (or the NULL fallback) with the fresh brief's raw
+     ids. First brief, no prevRow → its own ids. No gaps from first write on.
+8. Tests: `artifact-store.test.ts` round-trip incl. NULL; `generate.test.ts`
+   asserts the column on both the anchored and fresh paths.
 
-### Commit chunks
+Commits: (1) red tests, (2) schema + migration + store, (3) worker
+reservation + stitch, (4) generate wiring, (5) round-trip + wiring tests.
 
-1. `test:` failing descent + anchoring multi-push tests
-2. `feat(persistence):` schema column + migration + store write/read
-3. `fix(worker):` chain union into reservedIds, stitch emits usedGroupIds
-4. `fix(worker):` generate.ts wiring on both anchored and fresh paths
-5. `test:` store round-trip + generate wiring tests
+## PR 2 — a restart in the chain drops reclassifications
 
-### Not in scope for PR 1
+Branch `feature/BRIEF-213/restart-drops-reclassifications`, on PR 1. ~200 LOC.
+Same model, sequential, after PR 1.
 
-No eval-harness run — nothing under `packages/brief-core/src/generation/` is
-touched, so the generation surface has not moved.
+PR 1 cannot make id presence mean descent across a brief that descended
+nothing. A non-`anchored` brief re-derives groups from scratch, so id equality
+there is numbering coincidence, never identity — the reclassification drops,
+exactly as a read mark already does.
 
-## PR 2 — A restart in the chain drops reclassifications
-
-Est. ~200 LOC. Model: Fable 5 (Opus 5 high on fallback), high effort.
-Invocation: sequential, after PR 1 merges (stacked; realign with `git-eng`).
-
-PR 1 stops id *resurrection*. It does not make id presence mean descent across a
-brief that never descended anything. A `fresh-restart` or `none` brief in the
-chain breaks the guarantee outright, so the reclassification must drop the way a
-read mark already does. This is right even without an id collision: a
-non-anchored brief re-derives its groups from scratch, so id equality there is
-numbering coincidence, never identity.
-
-### Steps
-
-1. **(TDD, red first)** `packages/persistence/test/carry-over.test.ts` — a
-   reclassification made before a `fresh-restart` brief does not carry, even
-   when the id is present in the new Brief. Second case: a NULL `anchorState`
-   (row predating the stamp) also drops.
+1. Red tests, `packages/persistence/test/carry-over.test.ts`: a
+   reclassification made before a `fresh-restart` brief does not carry even
+   though its id is present; a NULL `anchorState` (pre-stamp row) also drops.
 2. `chainBriefs` (`review-session.ts:443`) selects `anchorState` into
-   `ChainBrief`. The descent test mirrors `carriedThroughChain`'s bounds
-   exactly: skip `headIndex <= fromHeadIndex` — the previous session's own
-   brief's anchor state describes how it relates to ITS predecessor, which is
-   outside the span being carried across. Only briefs strictly after it must
-   all be `anchored` (`AnchorStates` imports from brief-core, as
-   `carry-over.ts` already imports `brief-core/remap`).
-3. `CarryOverContext` gains a field naming whether the chain descended end to
-   end (e.g. `groupIdsDescended: boolean`); `evaluateCarryOver`'s
-   reclassification filter returns `[]` when it is false. NULL anchor state
-   counts as not-descended — every ambiguity biases to dropping, same stance
-   as the disposition ladder. Document it in the same voice as the
-   `carriedChunkIds` comment: an id that never descended is not the group the
-   reviewer judged.
-4. The read path and the materialization path both compute it — carry-over is
-   evaluated twice (once on read, once inside the transaction against re-read
-   rows); both call sites must pass it or the two disagree.
-5. Gates: same as PR 1. `packages/api` consumes the session view — the local
-   run must include it.
+   `ChainBrief`. Import `AnchorStates` from brief-core (`carry-over.ts`
+   already imports `brief-core/remap`).
+3. Bounds mirror `carriedThroughChain` exactly: skip `headIndex <=
+   fromHeadIndex`. The previous session's own brief describes its relation to
+   ITS predecessor — outside the carried span; including it wrongly drops
+   carries whenever that session sat on a fresh-restart brief.
+4. `CarryOverContext.groupIdsDescended: boolean`; `evaluateCarryOver` returns
+   `[]` for reclassifications when false. NULL anchor state counts as
+   not-descended — ambiguity biases to drop, the disposition ladder's stance.
+   Comment in the `carriedChunkIds` voice: an id that never descended is not
+   the group the reviewer judged.
+5. Both evaluation sites pass it — preview and the materialization
+   transaction (`review-session.ts:598` re-reads and re-evaluates); if only
+   one does, read and write disagree.
 
-### Commit chunks
-
-1. `test:` failing restart-in-chain carry test
-2. `fix(persistence):` anchorState in the chain read
-3. `fix(persistence):` reclassification gate in evaluateCarryOver + both call sites
+Commits: (1) red tests, (2) anchorState in the chain read, (3) gate in
+`evaluateCarryOver` + both call sites.
 
 ## Open risk
 
-`used_group_ids` grows with revision count. A 100-revision PR holds a few
-hundred short ids — a few KB of JSON next to a multi-hundred-KB body. No
-trimming, no TTL. If a pathological PR ever makes this hot, the shape to reach
-for is a numeric high-water mark per PR rather than a set, since minting is a
-monotone counter anyway.
+`used_group_ids` grows with revision count — a few KB of JSON on a
+100-revision PR, beside a multi-hundred-KB body. If it ever goes hot, replace
+the set with a per-PR numeric high-water mark; minting is a monotone counter.
