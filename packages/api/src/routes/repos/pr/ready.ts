@@ -34,6 +34,7 @@ import {
 import {
   audit,
   AuditAction,
+  AuditOutcome,
   AuditActorType,
   decryptToken,
   forTenant,
@@ -263,13 +264,14 @@ export function markReadyRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
       // GitHub state on a local mirror race.
       await forTenant(deps.handle, ctx).pullRequests.setDraft(pr.id, false);
 
-      // Audit the mark-ready (numeric-only; no metadata — the converged/fresh
+      // Audit the mark-ready (no metadata — the converged/fresh
       // distinction is not worth recording).
       await audit(deps.handle, {
         installationId: ctx.installationId,
         actorType: AuditActorType.REVIEWER,
         actorId: currentSession.reviewerId,
-        action: AuditAction.MARK_READY,
+        operation: AuditAction.MARK_READY,
+        outcome: AuditOutcome.OK,
         targetType: "pull_request",
         targetId: pr.id,
       });

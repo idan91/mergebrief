@@ -277,7 +277,7 @@ async function submit(
 
 async function submitAuditCount(harness: PgliteHarness): Promise<number> {
   const rows = await harness.raw(
-    "select count(*)::int as n from audit_log where action = 'submit'",
+    "select count(*)::int as n from audit_log where operation = 'submit'",
   );
   const n = rows[0]?.["n"];
   if (typeof n !== "number") throw new Error("unexpected count result");

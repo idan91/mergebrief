@@ -332,7 +332,8 @@ describe("tokenAuth.mintToken audit atomicity", () => {
     const { auditLog } = await import("../src/schema/audit-log");
     const rows = await internal(handle).select().from(auditLog);
     expect(rows).toHaveLength(1);
-    expect(rows[0]?.action).toBe("auth");
+    expect(rows[0]?.operation).toBe("auth");
+    expect(rows[0]?.outcome).toBe("ok");
     expect(rows[0]?.targetType).toBe("api_token");
     expect(rows[0]?.metadata).toEqual({ decision: "200", kind: "mint" });
     expect(String(rows[0]?.installationId)).toBe(String(INSTALLATION));

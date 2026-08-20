@@ -61,6 +61,7 @@ import {
   artifactStore,
   audit,
   AuditAction,
+  AuditOutcome,
   AuditActorType,
   AuditMetadataKey,
   forTenant,
@@ -835,7 +836,8 @@ async function runGeneration(
       await audit(handle, {
         installationId: ctx.installationId,
         actorType: AuditActorType.SYSTEM,
-        action: AuditAction.GENERATE,
+        operation: AuditAction.GENERATE,
+        outcome: AuditOutcome.OK,
         targetType: "brief",
         targetId: briefRef.id,
         metadata: { [AuditMetadataKey.KIND]: GenerationKind.BRIEF },
@@ -941,7 +943,8 @@ async function runGeneration(
       await audit(handle, {
         installationId: ctx.installationId,
         actorType: AuditActorType.SYSTEM,
-        action: AuditAction.GENERATE,
+        operation: AuditAction.GENERATE,
+        outcome: AuditOutcome.OK,
         targetType: "pull_request",
         targetId: pullRequestId,
         metadata: {

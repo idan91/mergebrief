@@ -231,8 +231,10 @@ or merging a PR records the terminal state and arms no retention window
 (the `purge_after` column exists and stays null; a `retention-grace-days`
 knob is designed, not built). Data is deleted only when you remove a repo
 from the installation or uninstall the App, both of which purge that
-tenant's rows immediately. The audit log is append-only and never purged by
-design.
+tenant's rows immediately. The audit log is append-only: nothing edits a row,
+and the only removal is the retention sweep, which keeps everything unless you
+set `AUDIT_RETENTION_DAYS` (minimum 30 — audit must outlive a review session).
+No schedule runs it yet.
 
 If disk becomes a concern, `brief` and `delta` are the tables to look at —
 they hold the generated JSON:

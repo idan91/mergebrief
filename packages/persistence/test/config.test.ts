@@ -39,6 +39,57 @@ describe("config — loadConfig", () => {
     expect(config.storeDisplayNames).toBe(true);
   });
 
+  it("keeps audit history forever and collects no caller IP by default", () => {
+    const config = ok(loadConfig({ DATABASE_URL: VALID_URL }));
+    expect(config.auditRetentionDays).toBeNull();
+    expect(config.auditPrivateWrites).toBe(true);
+    expect(config.auditCallerIp).toBe(false);
+  });
+
+  it("accepts an audit retention window at or above the floor", () => {
+    expect(
+      ok(loadConfig({ DATABASE_URL: VALID_URL, AUDIT_RETENTION_DAYS: "30" }))
+        .auditRetentionDays,
+    ).toBe(30);
+    expect(
+      ok(loadConfig({ DATABASE_URL: VALID_URL, AUDIT_RETENTION_DAYS: "365" }))
+        .auditRetentionDays,
+    ).toBe(365);
+  });
+
+  it("refuses a retention window below the floor rather than clamping it", () => {
+    const error = err(
+      loadConfig({ DATABASE_URL: VALID_URL, AUDIT_RETENTION_DAYS: "7" }),
+    );
+    expect(error.code).toBe(ConfigErrorCode.INVALID);
+    expect(error.issues.join("; ")).toMatch(/AUDIT_RETENTION_DAYS/);
+  });
+
+  it("refuses a non-integer or unparseable retention window", () => {
+    expect(
+      err(
+        loadConfig({ DATABASE_URL: VALID_URL, AUDIT_RETENTION_DAYS: "30.5" }),
+      ).issues.join("; "),
+    ).toMatch(/whole number/);
+    expect(
+      err(
+        loadConfig({ DATABASE_URL: VALID_URL, AUDIT_RETENTION_DAYS: "soon" }),
+      ).issues.join("; "),
+    ).toMatch(/AUDIT_RETENTION_DAYS/);
+  });
+
+  it("takes the audit opt-outs as boolean tokens", () => {
+    const config = ok(
+      loadConfig({
+        DATABASE_URL: VALID_URL,
+        AUDIT_PRIVATE_WRITES: "off",
+        AUDIT_CALLER_IP: "yes",
+      }),
+    );
+    expect(config.auditPrivateWrites).toBe(false);
+    expect(config.auditCallerIp).toBe(true);
+  });
+
   it("accepts the postgresql:// scheme", () => {
     expect(loadConfig({ DATABASE_URL: "postgresql://localhost/app" }).ok).toBe(
       true,

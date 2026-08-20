@@ -29,6 +29,7 @@ import type {
 } from "../src/types";
 import {
   AuditAction,
+  AuditOutcome,
   AuditActorType,
   DispositionDecision,
   GenerationKind,
@@ -225,7 +226,8 @@ async function seedFullGraph(
   await db.insert(auditLog).values({
     installationId: INSTALLATION,
     actorType: AuditActorType.APP,
-    action: AuditAction.GENERATE,
+    operation: AuditAction.GENERATE,
+    outcome: AuditOutcome.OK,
     targetType: "pull_request",
     targetId: pullRequestId,
     metadata: { kind: "brief" },
@@ -392,7 +394,8 @@ describe("M1 schema migrations", () => {
     await db.insert(auditLog).values({
       installationId: INSTALLATION,
       actorType: AuditActorType.SYSTEM,
-      action: AuditAction.DELETE,
+      operation: AuditAction.DELETE,
+      outcome: AuditOutcome.OK,
       targetType: "pull_request",
       targetId: 999_999_999n,
       metadata: { reason: "retention sweep" },
@@ -455,13 +458,13 @@ describe("closed-vocabulary + shape CHECK constraints", () => {
     const db = await freshDb();
     await expectCheckViolation(
       db.execute(
-        sql`insert into audit_log (installation_id, actor_type, action, target_type) values (1000, 'system', 'delete', 'repos/acme/widgets')`,
+        sql`insert into audit_log (installation_id, actor_type, operation, outcome, target_type) values (1000, 'system', 'delete', 'ok', 'repos/acme/widgets')`,
       ),
       "audit_log_target_type_shape",
     );
   });
 
-  it("rejects out-of-vocabulary generation.status and audit_log.action", async () => {
+  it("rejects out-of-vocabulary generation.status and audit_log.outcome", async () => {
     const db = await freshDb();
     const prId = await insertPullRequest(db);
     await expectCheckViolation(
@@ -472,19 +475,42 @@ describe("closed-vocabulary + shape CHECK constraints", () => {
     );
     await expectCheckViolation(
       db.execute(
-        sql`insert into audit_log (installation_id, actor_type, action) values (1000, 'system', 'view')`,
+        sql`insert into audit_log (installation_id, actor_type, operation, outcome) values (1000, 'system', 'read-brief', 'viewed')`,
       ),
-      "audit_log_action_check",
+      "audit_log_outcome_check",
     );
   });
 
-  it("accepts audit_log.action 'submit' after the 0007 vocab swap", async () => {
+  it("accepts an audit_log operation token and its outcome vocabulary", async () => {
     const db = await freshDb();
     await db.execute(
-      sql`insert into audit_log (installation_id, actor_type, action) values (1000, 'reviewer', 'submit')`,
+      sql`insert into audit_log (installation_id, actor_type, operation, outcome) values (1000, 'reviewer', 'submit-review', 'ok')`,
     );
-    const rows = await db.select({ action: auditLog.action }).from(auditLog);
-    expect(rows[0]?.action).toBe(AuditAction.SUBMIT);
+    const rows = await db
+      .select({ operation: auditLog.operation, outcome: auditLog.outcome })
+      .from(auditLog);
+    expect(rows[0]?.operation).toBe("submit-review");
+    expect(rows[0]?.outcome).toBe(AuditOutcome.OK);
+  });
+
+  it("rejects an audit_log operation that is not a kebab-case token", async () => {
+    const db = await freshDb();
+    await expectCheckViolation(
+      db.execute(
+        sql`insert into audit_log (installation_id, actor_type, operation, outcome) values (1000, 'reviewer', 'repos/acme/widgets', 'ok')`,
+      ),
+      "audit_log_operation_shape",
+    );
+  });
+
+  it("rejects an audit_log caller_ip that is not an address", async () => {
+    const db = await freshDb();
+    await expectCheckViolation(
+      db.execute(
+        sql`insert into audit_log (installation_id, actor_type, operation, outcome, caller_ip) values (1000, 'reviewer', 'mark-ready', 'ok', 'user@example.com')`,
+      ),
+      "audit_log_caller_ip_shape",
+    );
   });
 
   it("accepts generation.status 'superseded' after the 0003 vocab swap", async () => {

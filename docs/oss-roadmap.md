@@ -390,7 +390,7 @@ should start without it firing:
   schema (ADR 0018 as amended 2026-07-04 — `activated_at` dropped per ADR 0020;
   `revision_narrative` + `comparison_marks` added per ADR 0024), tenant repo behind an opaque
   handle (D2b), ArtifactStore with idempotent span writes, generation projection, audit emit
-  (closed metadata allowlist + shaped `target_type`), purge/retention routines, session-token
+  (shaped `target_type` + closed metadata value types), purge/retention routines, session-token
   crypto, docker-compose Postgres. 85 PGlite tests against the checked-in migrations; review
   hardening added vocab/shape CHECK constraints (vocab additions now need code + migration in
   lockstep). Work tracked as BRIEF-x tickets on the Notion board (link in

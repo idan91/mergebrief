@@ -258,7 +258,7 @@ async function readDraft(handle: AppDatabase): Promise<boolean | undefined> {
 
 async function markReadyAuditCount(harness: PgliteHarness): Promise<number> {
   const rows = await harness.raw(
-    "select count(*)::int as n from audit_log where action = 'mark-ready'",
+    "select count(*)::int as n from audit_log where operation = 'mark-ready' and outcome = 'ok'",
   );
   const n = rows[0]?.["n"];
   if (typeof n !== "number") throw new Error("unexpected count result");

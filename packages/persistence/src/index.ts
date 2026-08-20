@@ -32,7 +32,11 @@ export type { SchemaCheckError, EnsureAppSchemaOptions } from "./db/migrate";
 // Persistence env config (Zod-parsed; injectable env — never reads process.env).
 // `LoadConfigOptions` carries the DATABASE_URL_FILE reader + warning sink —
 // composition roots pass their logger's `warn`.
-export { loadConfig, ConfigErrorCode } from "./db/config";
+export {
+  AUDIT_RETENTION_FLOOR_DAYS,
+  ConfigErrorCode,
+  loadConfig,
+} from "./db/config";
 export type {
   PersistenceConfig,
   ConfigError,
@@ -135,13 +139,15 @@ export type {
   GenerationRow,
 } from "./stores/generation";
 
-// The append-only audit emit. `AuditMetadataKey` is the closed metadata-key
-// allowlist — the PII enforcement for the un-erasable ledger. `insertAudit`
-// (the tx-capable variant) stays in-package — not re-exported.
+// The append-only audit emit. `AuditMetadataSchema` is the value enforcement
+// for a ledger an operator may keep forever; `AuditMetadataKey` names the
+// conventional keys without restricting them. `insertAudit` (the tx-capable
+// variant) stays in-package — not re-exported.
 export {
   audit,
   AuditMetadataKey,
   AuditMetadataSchema,
+  AuditOperationSchema,
   AuditTargetTypeSchema,
 } from "./stores/audit";
 export type { AuditEntry, AuditMetadata, AuditLogRow } from "./stores/audit";
@@ -158,8 +164,9 @@ export type {
   TriggerGenerationInput,
 } from "./stores/ingest";
 
-// Purge + retention routines — the tenant-scoped deletion boundary.
-export { purgeRoutines, PurgeErrorCode } from "./stores/purge";
+// Purge + retention routines — the tenant-scoped deletion boundary, plus the
+// instance-wide audit sweep (an operator setting, so it has no ctx to bind to).
+export { purgeRoutines, PurgeErrorCode, sweepAuditLog } from "./stores/purge";
 export type {
   PurgeRoutines,
   PurgeError,

@@ -18,6 +18,7 @@ import { randomBytes } from "node:crypto";
 import {
   audit,
   AuditAction,
+  AuditOutcome,
   AuditActorType,
   AuditMetadataKey,
   isApiTokenRowId,
@@ -149,7 +150,8 @@ export function tokensRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
           installationId: currentSession.installationId,
           actorType: AuditActorType.REVIEWER,
           actorId: currentSession.reviewerId,
-          action: AuditAction.AUTH,
+          operation: AuditAction.AUTH,
+          outcome: AuditOutcome.DENIED,
           targetType: "api_token",
           metadata: {
             [AuditMetadataKey.DECISION]: "403",
@@ -241,7 +243,8 @@ export function tokensRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
         installationId: revoked.value.installationId,
         actorType: AuditActorType.REVIEWER,
         actorId: session.reviewerId,
-        action: AuditAction.AUTH,
+        operation: AuditAction.AUTH,
+        outcome: AuditOutcome.OK,
         targetType: "api_token",
         targetId: tokenId,
         metadata: {

@@ -15,7 +15,7 @@
 //
 // The session row's `installation_id` IS the tenant stamp, so the rebinding is
 // an atomic, ctx-safe `auth_session` UPDATE, and the switch emits an `auth`
-// audit row (numeric-only metadata).
+// audit row.
 import {
   GitHubApiErrorCode,
   listUserInstallations,
@@ -25,6 +25,7 @@ import type { Logger } from "logging";
 import {
   audit,
   AuditAction,
+  AuditOutcome,
   AuditActorType,
   AuditMetadataKey,
   decryptToken,
@@ -230,7 +231,8 @@ export function installationsRoute(
           installationId: currentSession.installationId,
           actorType: AuditActorType.REVIEWER,
           actorId: currentSession.reviewerId,
-          action: AuditAction.AUTH,
+          operation: AuditAction.AUTH,
+          outcome: AuditOutcome.DENIED,
           targetType: "installation",
           targetId: target,
           metadata: { [AuditMetadataKey.DECISION]: "403" },
@@ -258,12 +260,13 @@ export function installationsRoute(
         defaultId = updated.defaultInstallationId;
       }
 
-      // Record the successful switch (numeric-only metadata) under the NEW tenant.
+      // Record the successful switch under the NEW tenant.
       await audit(deps.handle, {
         installationId: target,
         actorType: AuditActorType.REVIEWER,
         actorId: currentSession.reviewerId,
-        action: AuditAction.AUTH,
+        operation: AuditAction.AUTH,
+        outcome: AuditOutcome.OK,
         targetType: "installation",
         targetId: target,
         metadata: { [AuditMetadataKey.DECISION]: "200" },

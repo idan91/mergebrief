@@ -267,7 +267,7 @@ async function auditCount(
   action: string,
 ): Promise<number> {
   const rows = await harness.raw(
-    `select count(*)::int as n from audit_log where action = '${action}'`,
+    `select count(*)::int as n from audit_log where operation = '${action}'`,
   );
   const n = rows[0]?.["n"];
   if (typeof n !== "number") throw new Error("unexpected count result");

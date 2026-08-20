@@ -202,9 +202,35 @@ export const AuditActorType = {
 } as const;
 export type AuditActorType = ValueOf<typeof AuditActorType>;
 
+/** `audit_log.classification` — where the audited write landed. The same
+ * vocabulary `api_token.scope` uses, minus `read`: reads are never audited. */
+export type AuditClassification = Exclude<
+  WriteClassification,
+  typeof WriteClassification.READ
+>;
+
+/** `audit_log.channel` — the credential surface the call arrived on. */
+export const AuditChannel = {
+  COOKIE: "cookie",
+  BEARER: "bearer",
+  WEBHOOK: "webhook",
+  WORKER: "worker",
+} as const;
+export type AuditChannel = ValueOf<typeof AuditChannel>;
+
+/** `audit_log.outcome` — how the audited action ended. */
+export const AuditOutcome = {
+  OK: "ok",
+  DENIED: "denied",
+  FAILED: "failed",
+} as const;
+export type AuditOutcome = ValueOf<typeof AuditOutcome>;
+
 /**
- * `audit_log.action`. CHECK-constrained in the DB — adding a value needs a
- * code change AND a migration, in lockstep.
+ * The hand-placed emits' operation vocabulary, written to
+ * `audit_log.operation` until the choke-point emit replaces those call sites.
+ * `operation` itself is an open token column — a Product Operation descriptor
+ * id — so this map is no longer CHECK-backed.
  */
 export const AuditAction = {
   GENERATE: "generate",

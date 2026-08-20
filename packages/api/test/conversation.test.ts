@@ -390,7 +390,7 @@ async function postReply(
 
 async function replyAuditCount(harness: PgliteHarness): Promise<number> {
   const rows = await harness.raw(
-    "select count(*)::int as n from audit_log where action = 'submit' and target_type = 'review_comment'",
+    "select count(*)::int as n from audit_log where operation = 'submit' and target_type = 'review_comment'",
   );
   const n = rows[0]?.["n"];
   if (typeof n !== "number") throw new Error("unexpected count result");

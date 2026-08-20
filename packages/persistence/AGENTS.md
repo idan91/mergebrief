@@ -20,7 +20,7 @@ src/
   db/                 the opaque handle + its lifecycle
     handle.ts           AppDatabase + createDb/closeDb; internal() unwrap
                         (module-private — the tenancy containment lives here)
-    config.ts           Zod env config (DATABASE_URL + minimization knobs)
+    config.ts           Zod env config (DATABASE_URL + minimization/audit knobs)
     migrate.ts          programmatic app-schema migration
   schema/             drizzle table definitions (one file per table)
   stores/             ctx-bound + projection data access
@@ -29,8 +29,8 @@ src/
     generation.ts       generation status projection
     ingest.ts           transactional webhook→upsert→enqueue boundary
     review-session.ts   the reviewer's Review Session + its five owned tables
-    purge.ts            purge + retention routines
-    audit.ts            append-only audit emit + metadata allowlist
+    purge.ts            purge + retention routines, incl. the audit sweep
+    audit.ts            append-only audit emit + metadata value rules
     user-settings.ts    per-user (non-tenant) settings
   auth/               PRE-tenant resolvers (they PRODUCE the tenant) + crypto
     session.ts          auth-session resolver
@@ -53,9 +53,17 @@ drizzle/              generated SQL migrations — append-only
   (strict Zod; no `baselineLabel`/`baselineIndex`/line content), which is why
   neither is gated on `PERSIST_BASELINE_SNAPSHOT`. `revision_narrative` writes verify
   brief anchoring.
-- **Audit:** append-only, numeric-only, no outbound FKs, never purged. Metadata is a
-  closed key allowlist (`src/stores/audit.ts`) — that allowlist IS the PII enforcement for an
-  un-erasable ledger; widen it only with a matching decision-record note.
+- **Audit:** append-only, no outbound FKs — no update or delete helpers exist, and
+  the only removal is the instance-wide retention sweep in `src/stores/purge.ts`
+  (`sweepAuditLog`), which is unset by default and refuses a window under the
+  30-day floor. A row holds ids, tokens and numbers: never a body, never free text.
+  `caller_ip` is the one identifying column, nullable so collecting it stays a
+  config change and never a migration, and populated only under the operator flag.
+  Metadata takes OPEN keys and CLOSED values (`src/stores/audit.ts`) — a token, a
+  finite number, or a boolean, nothing else; the value rules are the PII
+  enforcement, so weakening them needs a matching decision-record note.
+  `operation` and `target_type` are open token vocabularies (the descriptors
+  belong to `packages/api`), shape-checked in code and by a DB CHECK.
 - **Errors:** expected failures return `Result`, never throw. Error messages must not carry
   key material, tokens, credentials, or unsanitized upstream errors (`markFailed`
   sanitizes any failure `detail` itself via `logging`'s `sanitizeErrorDetail`).
@@ -68,10 +76,10 @@ drizzle/              generated SQL migrations — append-only
 - **No `enum`:** `as const` maps + `ValueOf<T>`. **Keys SHOUT_CASE, string values
   kebab-case** (`PurgeErrorCode.NOT_FOUND` → `"not-found"`). The doc example in
   `src/types.ts` demonstrates it. DB-stored vocabularies (state, kind, status, phase,
-  decision, actor_type, action, generation error_code, review_outcome, draft-comment
-  status/side/anchor_status, reclassification category, disposition
-  carry_status/evidence_status, api_token scope) are also CHECK-constrained
-  (migrations 0002, 0017, 0019, 0021 and 0024) — **adding a value needs a code change AND a
+  decision, actor_type, generation error_code, audit outcome/classification/channel,
+  review_outcome, draft-comment status/side/anchor_status, reclassification
+  category, disposition carry_status/evidence_status, api_token scope) are also
+  CHECK-constrained (migrations 0002, 0017, 0019, 0021, 0024 and 0025) — **adding a value needs a code change AND a
   migration**, in lockstep. The Review Session vocabularies prove that lockstep in
   `test/review-session.test.ts`, by reading `pg_get_constraintdef` back and comparing
   it to the `as const` map; `category` additionally pins against brief-core's
@@ -79,7 +87,8 @@ drizzle/              generated SQL migrations — append-only
   only — this package's runtime graph must stay off it). `WriteClassification`
   is the one vocabulary shared outward: it is `api_token.scope` AND the
   classification `packages/api` sorts every operation by, which re-exports this
-  map rather than declaring a second one.
+  map rather than declaring a second one. `audit_log.classification` narrows
+  the same map (`read` is never audited) instead of forking it.
 - **`GenerationFailureCode` is the widest of those locksteps.** It is the
   DB-stored failure vocabulary (distinct from the store-internal
   `GenerationErrorCode`), so a new code needs FOUR changes together: the

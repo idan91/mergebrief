@@ -406,9 +406,12 @@ describe("generate task", () => {
     expect(row?.errorCode).toBeNull();
 
     const audits = await harness.raw(
-      "select action, target_type from audit_log",
+      "select operation, target_type from audit_log",
     );
-    expect(audits).toContainEqual({ action: "generate", target_type: "brief" });
+    expect(audits).toContainEqual({
+      operation: "generate",
+      target_type: "brief",
+    });
     expect(generator.calls).toEqual(["brief"]);
   });
 

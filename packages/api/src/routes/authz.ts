@@ -40,6 +40,7 @@ import { createUserOctokit, fetchRepositoryById } from "github";
 import {
   audit,
   AuditAction,
+  AuditOutcome,
   AuditActorType,
   AuditMetadataKey,
   decryptToken,
@@ -344,7 +345,8 @@ export function repoAuthzLayer(
         installationId: c.get("ctx").installationId,
         actorType: AuditActorType.REVIEWER,
         actorId: currentSession.reviewerId,
-        action: AuditAction.AUTH,
+        operation: AuditAction.AUTH,
+        outcome: AuditOutcome.DENIED,
         targetType: "repo",
         targetId: repoId,
         metadata: { [AuditMetadataKey.DECISION]: "404" },

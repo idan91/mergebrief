@@ -40,6 +40,7 @@ import { PurgeErrorCode, purgeRoutines } from "../src/stores/purge";
 import type { TenantContext } from "../src/stores/tenant";
 import {
   AuditAction,
+  AuditOutcome,
   DispositionDecision,
   ChangeGroupCategory,
   DraftCommentSide,
@@ -275,7 +276,8 @@ async function seedFullGraph(
   await db.insert(auditLog).values({
     installationId,
     actorType: "app",
-    action: AuditAction.GENERATE,
+    operation: AuditAction.GENERATE,
+    outcome: AuditOutcome.OK,
     targetType: "pull_request",
     targetId: pullRequestId,
     metadata: { kind: "brief" },
@@ -363,7 +365,7 @@ async function deleteAudits(db: Db, installationId: InstallationId) {
     .where(
       and(
         eq(auditLog.installationId, installationId),
-        eq(auditLog.action, AuditAction.DELETE),
+        eq(auditLog.operation, AuditAction.DELETE),
       ),
     );
 }

@@ -28,6 +28,7 @@ import {
 import {
   audit,
   AuditAction,
+  AuditOutcome,
   AuditActorType,
   decryptToken,
   forTenant,
@@ -417,13 +418,14 @@ export function reviewSubmitRoute(
       // is stale the moment it lands.
       evictConversation(ctx.installationId, c.get("repoId"), pr.prNumber);
 
-      // Audit the successful post (numeric-only; the checkpoint itself is the
+      // Audit the successful post (the checkpoint itself is the
       // webhook's to write when the echo arrives).
       await audit(deps.handle, {
         installationId: ctx.installationId,
         actorType: AuditActorType.REVIEWER,
         actorId: currentSession.reviewerId,
-        action: AuditAction.SUBMIT,
+        operation: AuditAction.SUBMIT,
+        outcome: AuditOutcome.OK,
         targetType: "pull_request",
         targetId: pr.id,
       });

@@ -176,6 +176,20 @@
       "when": 1787008533523,
       "tag": "0024_api-token-scope",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1787018078660,
+      "tag": "0025_audit-operation-columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1787018109201,
+      "tag": "0026_audit-drop-action",
+      "breakpoints": true
     }
   ]
 }

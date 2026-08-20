@@ -743,7 +743,7 @@ describe("POST /api/webhooks/github", () => {
 
     expect(await countRows(harness, "pull_request")).toBe(0);
     const audits = await harness.raw(
-      "select action, target_type, installation_id from audit_log where action = 'delete'",
+      "select operation, target_type, installation_id from audit_log where operation = 'delete'",
     );
     expect(audits).toHaveLength(1);
     expect(audits[0]?.["target_type"]).toBe("installation");
@@ -783,7 +783,7 @@ describe("POST /api/webhooks/github", () => {
     expect(String(remaining[0]?.["repo_id"])).toBe(String(OTHER_REPO_ID));
     // The repo purge emitted its own delete audit entry.
     const audits = await harness.raw(
-      "select target_type from audit_log where action = 'delete'",
+      "select target_type from audit_log where operation = 'delete'",
     );
     expect(audits).toHaveLength(1);
     expect(audits[0]?.["target_type"]).toBe("repo");

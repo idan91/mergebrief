@@ -21,6 +21,7 @@ import { apiToken } from "../schema/api-token";
 import { githubGrant } from "../schema/github-grant";
 import {
   AuditAction,
+  AuditOutcome,
   AuditActorType,
   type ApiTokenRowId,
   type GrantRowId,
@@ -209,7 +210,8 @@ export function tokenAuth(handle: AppDatabase): TokenAuth {
           installationId: input.installationId,
           actorType: AuditActorType.REVIEWER,
           actorId: input.userId,
-          action: AuditAction.AUTH,
+          operation: AuditAction.AUTH,
+          outcome: AuditOutcome.OK,
           targetType: "api_token",
           targetId: row.id,
           metadata: { decision: "200", kind: "mint" },

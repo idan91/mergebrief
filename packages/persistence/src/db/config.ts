@@ -9,6 +9,14 @@
 //                            injected sink; see `dsn.ts`.
 //   PERSIST_BASELINE_SNAPSHOT bool, default TRUE.
 //   STORE_DISPLAY_NAMES       bool, default TRUE.
+//   AUDIT_RETENTION_DAYS      int days, UNSET = keep forever (the default).
+//                            Refused below a 30-day floor: audit must outlive
+//                            a review session.
+//   AUDIT_PRIVATE_WRITES      bool, default TRUE. External writes and denials
+//                            are recorded regardless — not switchable.
+//   AUDIT_CALLER_IP           bool, default FALSE. The socket address is the
+//                            highest-privacy-cost field and the credential
+//                            already identifies the caller.
 //   MERGEBRIEF_AUTO_MIGRATE   bool, default TRUE — apply migrations at boot;
 //                             false = check-only, for a runtime role without
 //                             DDL; see db/migrate.ts.
@@ -34,6 +42,12 @@ export interface PersistenceConfig {
   /** Apply migrations at boot (default) vs check-only refusal — the posture
    * for a runtime role without DDL. */
   readonly autoMigrate: boolean;
+  /** Days of audit history the sweep keeps; `null` = keep forever. */
+  readonly auditRetentionDays: number | null;
+  /** Record private writes in the audit log. Self-host: ON. */
+  readonly auditPrivateWrites: boolean;
+  /** Populate `audit_log.caller_ip`. Self-host: OFF. */
+  readonly auditCallerIp: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -88,6 +102,27 @@ function envBool(
   }, z.boolean());
 }
 
+/** Audit history must outlive a review session, so a shorter window is a
+ * misconfiguration to refuse, not a value to silently widen. */
+export const AUDIT_RETENTION_FLOOR_DAYS = 30;
+
+/**
+ * Optional retention window in days. Absent → `null` (keep forever), which is
+ * the default posture. A present value must be a whole number of days at or
+ * above the floor; anything else fails validation like every sibling knob.
+ */
+const auditRetentionDaysSchema = z.preprocess(
+  (value) => (value === undefined || value === "" ? null : value),
+  z.coerce
+    .number({ invalid_type_error: "AUDIT_RETENTION_DAYS must be a number" })
+    .int("AUDIT_RETENTION_DAYS must be a whole number of days")
+    .min(
+      AUDIT_RETENTION_FLOOR_DAYS,
+      `AUDIT_RETENTION_DAYS must be at least ${AUDIT_RETENTION_FLOOR_DAYS} days`,
+    )
+    .nullable(),
+);
+
 /** Postgres connection URL: a parseable URL whose scheme is postgres(ql). */
 const databaseUrlSchema = z
   .string({ required_error: "DATABASE_URL is required" })
@@ -111,6 +146,9 @@ const ConfigSchema = z.object({
   PERSIST_BASELINE_SNAPSHOT: envBool(true),
   STORE_DISPLAY_NAMES: envBool(true),
   MERGEBRIEF_AUTO_MIGRATE: envBool(true),
+  AUDIT_RETENTION_DAYS: auditRetentionDaysSchema,
+  AUDIT_PRIVATE_WRITES: envBool(true),
+  AUDIT_CALLER_IP: envBool(false),
 });
 
 // ---------------------------------------------------------------------------
@@ -181,6 +219,9 @@ export function loadConfig(
       persistBaselineSnapshot: parsed.data.PERSIST_BASELINE_SNAPSHOT,
       storeDisplayNames: parsed.data.STORE_DISPLAY_NAMES,
       autoMigrate: parsed.data.MERGEBRIEF_AUTO_MIGRATE,
+      auditRetentionDays: parsed.data.AUDIT_RETENTION_DAYS,
+      auditPrivateWrites: parsed.data.AUDIT_PRIVATE_WRITES,
+      auditCallerIp: parsed.data.AUDIT_CALLER_IP,
     },
   };
 }

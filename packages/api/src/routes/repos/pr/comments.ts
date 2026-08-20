@@ -29,6 +29,7 @@ import {
 import {
   audit,
   AuditAction,
+  AuditOutcome,
   AuditActorType,
   decryptToken,
   forTenant,
@@ -356,7 +357,6 @@ export function commentsRoute(
       // FE's post-write refetch reflects the new thread inside the TTL.
       evictConversation(ctx.installationId, repoId, pr.prNumber);
 
-      // Audit posture consistent with the conversation reply (numeric-only).
       // The GitHub write above is the COMMIT POINT: a local audit failure must
       // never turn a posted comment into an error response (that would invite a
       // double-posting retry). Best-effort — log and keep the 201.
@@ -365,7 +365,8 @@ export function commentsRoute(
           installationId: ctx.installationId,
           actorType: AuditActorType.REVIEWER,
           actorId: currentSession.reviewerId,
-          action: AuditAction.SUBMIT,
+          operation: AuditAction.SUBMIT,
+          outcome: AuditOutcome.OK,
           targetType: "review_comment",
           targetId: posted.value.commentId,
         });
@@ -524,7 +525,7 @@ export function commentsRoute(
       // FE's post-reply refetch reflects the reply inside the TTL.
       evictConversation(ctx.installationId, repoId, pr.prNumber);
 
-      // Audit posture consistent with submit (numeric-only) — but the GitHub
+      // Audit posture consistent with submit — but the GitHub
       // write above is the COMMIT POINT: a local audit failure must never turn
       // a posted reply into an error response (the composer's upstream copy
       // invites a retry, which would double-post). Best-effort: log and keep
@@ -534,7 +535,8 @@ export function commentsRoute(
           installationId: ctx.installationId,
           actorType: AuditActorType.REVIEWER,
           actorId: currentSession.reviewerId,
-          action: AuditAction.SUBMIT,
+          operation: AuditAction.SUBMIT,
+          outcome: AuditOutcome.OK,
           targetType: "review_comment",
           targetId: BigInt(created.value.commentId),
         });
@@ -690,7 +692,7 @@ export function commentsRoute(
     // the slim-row transition immediately.
     evictConversation(ctx.installationId, repoId, pr.prNumber);
 
-    // Audit with the direction's own action (numeric-only). The GitHub write
+    // Audit with the direction's own operation. The GitHub write
     // above is the commit point — never turn a landed flip into an error
     // response over a local audit failure (the FE would invite a retry of a
     // done action).
@@ -699,9 +701,10 @@ export function commentsRoute(
         installationId: ctx.installationId,
         actorType: AuditActorType.REVIEWER,
         actorId: currentSession.reviewerId,
-        action: resolved
+        operation: resolved
           ? AuditAction.RESOLVE_THREAD
           : AuditAction.UNRESOLVE_THREAD,
+        outcome: AuditOutcome.OK,
         targetType: "review_comment",
         targetId: BigInt(parsedComment.data),
       });

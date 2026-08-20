@@ -382,12 +382,13 @@ describe("reviewer read API + authz gate", () => {
     });
     expect(first.status).toBe(404);
 
-    // The denial audit row exists (numeric-only, decision="404").
+    // The denial audit row exists, and says it WAS a denial.
     const auditRows = await harness.raw(
-      "select action, target_type, target_id, actor_id, metadata->>'decision' as decision from audit_log",
+      "select operation, outcome, target_type, target_id, actor_id, metadata->>'decision' as decision from audit_log",
     );
     expect(auditRows).toHaveLength(1);
-    expect(auditRows[0]?.["action"]).toBe("auth");
+    expect(auditRows[0]?.["operation"]).toBe("auth");
+    expect(auditRows[0]?.["outcome"]).toBe("denied");
     expect(auditRows[0]?.["target_type"]).toBe("repo");
     expect(String(auditRows[0]?.["target_id"])).toBe(String(REPO_ID));
     expect(String(auditRows[0]?.["actor_id"])).toBe(String(REVIEWER_ID));

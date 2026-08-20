@@ -1,22 +1,23 @@
-// The `audit(...)` emit: one immutable, tenant-scoped append per boundary —
-// `generate` (worker write), `delete` (purge), `config`, and auth *denials*
-// (action `auth` + a decision in metadata). High-volume firehoses (every-request
-// auth-success, every-fetch `view`) are excluded — they belong in the purgeable
-// web access log, not this never-purged ledger.
+// The `audit(...)` emit: one immutable, tenant-scoped append per boundary.
+// There are no update/delete helpers — this table is append-only, and only the
+// instance-wide retention sweep removes from it.
 //
-// NUMERIC-ONLY: the entry carries no name/login/route/method/header/IP —
-// nothing identifying, because the log cannot be purged. The only string fields
-// are `action` (closed vocabulary) and the open-ended `target_type`.
-// `metadata` is guarded by a CLOSED KEY ALLOWLIST — that allowlist (plus the
-// short/printable/no-"@" value rules) IS the PII enforcement, not a convention:
-// an un-erasable table cannot rely on callers' judgment. There are no
-// update/delete helpers — this table is append-only.
+// IDS, TOKENS AND NUMBERS: an entry says what was DONE; a body is what was
+// SAID, and every body already lives in the row the entry points at. The only
+// identifying field is `caller_ip`, written solely under the operator PII
+// flag.
+//
+// `metadata` takes ANY key and CLOSED values — a token, a finite number, or a
+// boolean. The value rules are the enforcement; the key list they replaced only
+// made every new emit a code change in this package.
 import { z } from "zod";
 import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
 import { auditLog } from "../schema/audit-log";
 import type {
-  AuditAction,
   AuditActorType,
+  AuditChannel,
+  AuditClassification,
+  AuditOutcome,
   InstallationId,
   ValueOf,
 } from "../types";
@@ -24,52 +25,44 @@ import type {
 export type AuditLogRow = typeof auditLog.$inferSelect;
 
 /**
- * The closed metadata-key allowlist. Extending it is a deliberate code change
- * reviewed against the numeric-only rule, never a runtime decision.
+ * Conventional metadata key names. Naming only — keys are open; the value
+ * rules below are what protects the ledger.
  */
 export const AuditMetadataKey = {
   DECISION: "decision",
   KIND: "kind",
-  REASON_CODE: "reason-code",
   COUNT: "count",
-  CONFIG_KEY: "config-key",
-  TARGET_KIND: "target-kind",
 } as const;
 export type AuditMetadataKey = ValueOf<typeof AuditMetadataKey>;
 
-const metadataKeySchema = z.union([
-  z.literal(AuditMetadataKey.DECISION),
-  z.literal(AuditMetadataKey.KIND),
-  z.literal(AuditMetadataKey.REASON_CODE),
-  z.literal(AuditMetadataKey.COUNT),
-  z.literal(AuditMetadataKey.CONFIG_KEY),
-  z.literal(AuditMetadataKey.TARGET_KIND),
-]);
-
-/**
- * String values: short, printable ASCII, and never containing "@" — a cheap
- * email guard (this ledger holds numeric ids only; no legitimate metadata
- * value contains an "@").
- */
-const metadataStringSchema = z
+/** Any snake_case token. */
+const metadataKeySchema = z
   .string()
   .max(64)
-  .regex(/^[\x20-\x7E]*$/, "printable ASCII only")
-  .refine((value) => !value.includes("@"), { message: 'must not contain "@"' });
+  .regex(/^[a-z][a-z0-9_]*$/, "metadata keys must be snake_case tokens");
 
 /**
- * Small, queryable, non-PII detail (e.g. `{"decision":"403"}`). Keys are
- * restricted to the closed `AuditMetadataKey` allowlist — the enforcement,
- * not a convention; values are constrained scalars, never nested objects
- * that could smuggle identifying transport detail into an un-erasable table.
+ * String values are enum TOKENS — lowercase kebab-case, never free text: a
+ * token cannot carry a name, a route, an address or a body into a ledger an
+ * operator may keep forever.
  */
+const metadataTokenSchema = z
+  .string()
+  .max(64)
+  .regex(/^[a-z0-9][a-z0-9-]*$/, "string values must be kebab-case tokens");
+
 /** Finite only: `Infinity` survives `z.number()` but JSON-serializes to `null`
  * in the jsonb column, silently corrupting a count. */
 const metadataNumberSchema = z.number().finite();
 
+/**
+ * Small, queryable, non-PII detail (e.g. `{"decision":"403"}`): open keys,
+ * closed values — token, finite number, or boolean. Nothing else, so no
+ * nested object or array can smuggle identifying transport detail in.
+ */
 export const AuditMetadataSchema = z.record(
   metadataKeySchema,
-  z.union([metadataStringSchema, metadataNumberSchema, z.boolean()]),
+  z.union([metadataTokenSchema, metadataNumberSchema, z.boolean()]),
 );
 
 /**
@@ -87,31 +80,83 @@ export const AuditTargetTypeSchema = z
     "targetType must be a lowercase snake_case class token",
   );
 /**
- * Declared as a partial record (any subset of the allowlisted keys) — zod v3's
- * `z.record` with a literal key schema would infer every key as required,
- * which is not the runtime contract.
+ * `operation` is an open descriptor-id vocabulary, so it is shape-checked
+ * rather than value-checked: a kebab-case token carries no route or address
+ * into a ledger the operator may keep forever. CHECK-backstopped in the DB.
  */
-export type AuditMetadata = Partial<
-  Record<AuditMetadataKey, string | number | boolean>
->;
+export const AuditOperationSchema = z
+  .string()
+  .max(64)
+  .regex(
+    /^[a-z][a-z0-9-]*$/,
+    "operation must be a kebab-case descriptor id token",
+  );
 
 /**
- * An audit entry. Compile-time numeric-only guarantee: no string *name* fields
- * beyond the closed `action` and the open `targetType`. `installationId` is the
- * numeric tenant scope (a plain column, NOT an FK); the caller passes
- * `ctx.installationId`.
+ * The forensic call-shape strings, mirroring their DB CHECKs so validation is
+ * never the database's alone. All three are tokens, never free text: a
+ * correlation id, a `product/version` label nothing may branch on, and an
+ * address. The caller sets the user-agent `client` derives from, so a raw
+ * header carrying a name or an email must fail here rather than land in a
+ * ledger the operator may keep forever.
+ */
+const AuditRequestIdSchema = z
+  .string()
+  .regex(/^[A-Za-z0-9_-]{1,64}$/, "requestId must be a correlation token");
+const AuditClientSchema = z
+  .string()
+  .regex(
+    /^[A-Za-z0-9][A-Za-z0-9._/-]{0,63}$/,
+    "client must be a product/version token",
+  );
+const AuditCallerIpSchema = z
+  .string()
+  .regex(/^[0-9a-fA-F.:]{1,45}$/, "callerIp must be an IP address");
+
+/** Open keys, closed value types — the schema is the runtime enforcement. */
+export type AuditMetadata = Readonly<Record<string, string | number | boolean>>;
+
+/**
+ * An audit entry. Every string field is a bounded token — `operation`,
+ * `targetType` and the metadata values are shape-checked here and again by a
+ * DB CHECK. `installationId` is the numeric tenant scope (a plain column, NOT
+ * an FK); the caller passes `ctx.installationId`.
  */
 export interface AuditEntry {
   readonly installationId: InstallationId;
   readonly actorType: AuditActorType;
   /** GitHub user id for a reviewer; omit for app/system. Loose numeric ref. */
   readonly actorId?: bigint;
-  readonly action: AuditAction;
+  /**
+   * Product Operation descriptor id. Open vocabulary (the descriptors live in
+   * the api package), shape-checked as a kebab-case token here and in the DB.
+   */
+  readonly operation: string;
+  readonly outcome: AuditOutcome;
+  /** Where the write landed. Omitted off the HTTP path. */
+  readonly classification?: AuditClassification;
+  /** The credential surface the call arrived on. Omitted off the HTTP path. */
+  readonly channel?: AuditChannel;
+  /** `api_token.id` or `auth_session.id`. Loose numeric ref, not an FK. */
+  readonly credentialId?: bigint;
+  /** Joins the `api.access` transport line. */
+  readonly requestId?: string;
+  /** User-agent-derived, forensic only — never branch on it. */
+  readonly client?: string;
+  /** Socket address; supplied only under the operator PII flag. */
+  readonly callerIp?: string;
   /** Open-ended target class, e.g. `pull_request` | `brief` | `installation`. */
   readonly targetType?: string;
   /** Loose numeric ref to the target row — deliberately not an FK. */
   readonly targetId?: bigint;
   readonly metadata?: AuditMetadata;
+}
+
+function parseOptional(
+  schema: z.ZodType<string>,
+  value: string | undefined,
+): string | undefined {
+  return value === undefined ? undefined : schema.parse(value);
 }
 
 /**
@@ -141,7 +186,14 @@ export async function insertAudit(
       installationId: entry.installationId,
       actorType: entry.actorType,
       actorId: entry.actorId,
-      action: entry.action,
+      operation: AuditOperationSchema.parse(entry.operation),
+      outcome: entry.outcome,
+      classification: entry.classification,
+      channel: entry.channel,
+      credentialId: entry.credentialId,
+      requestId: parseOptional(AuditRequestIdSchema, entry.requestId),
+      client: parseOptional(AuditClientSchema, entry.client),
+      callerIp: parseOptional(AuditCallerIpSchema, entry.callerIp),
       targetType,
       targetId: entry.targetId,
       metadata,

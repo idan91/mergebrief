@@ -19,8 +19,9 @@
 // among them — is reached through `brief`, two hops rather than one. The only
 // non-PR tables a purge touches are `auth_session` and `api_token` (neither
 // FK'd); both are deleted explicitly on installation offboarding. `audit_log`
-// is RETAINED (numeric-only, never purged, no FK): a purge APPENDS a `delete`
-// entry to it and never removes from it.
+// is RETAINED by every tenant-scoped purge (no FK): a purge APPENDS a `delete`
+// entry to it and never removes from it. Only `sweepAuditLog` — instance-wide,
+// off by default — deletes from that table.
 //
 // AUDIT ORDERING: every routine's deletes and its `delete` audit emit run in
 // ONE transaction, so they commit atomically. `purgePullRequest` emits BEFORE
@@ -32,17 +33,20 @@
 // `purgeRepo`, `purgeInstallation`) are `app`; the automated retention sweep
 // (`sweepExpired`) is `system`. `sweepExpiredSessions` emits NO audit entry —
 // see its doc comment.
-import { and, eq, inArray, isNotNull, lt } from "drizzle-orm";
+import { and, count as countOf, eq, inArray, isNotNull, lt } from "drizzle-orm";
 import { deleteOrphanedGrants } from "../auth/grant";
 import { insertAudit } from "./audit";
 import { type AppDatabase, internal } from "../db/handle";
 import { apiToken } from "../schema/api-token";
+import { auditLog } from "../schema/audit-log";
+import { AUDIT_RETENTION_FLOOR_DAYS } from "../db/config";
 import { pullRequest } from "../schema/pull-request";
 import { authSession } from "../schema/auth-session";
 import type { PullRequestRow, TenantContext } from "./tenant";
 import {
   AuditAction,
   AuditActorType,
+  AuditOutcome,
   type PrState,
   type PullRequestRowId,
   type RepoId,
@@ -56,6 +60,7 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const AUDIT_TARGET_PULL_REQUEST = "pull_request";
 const AUDIT_TARGET_REPO = "repo";
 const AUDIT_TARGET_INSTALLATION = "installation";
+const AUDIT_TARGET_AUDIT_LOG = "audit_log";
 
 // ---------------------------------------------------------------------------
 // Errors — expected failures. Programmer errors still `throw`.
@@ -127,7 +132,7 @@ export interface PurgeRoutines {
    * (children cascade) + explicit delete of the tenant's `auth_session`
    * and `api_token` rows (the non-PR secret-bearing tables — installation-bound
    * tokens must not outlive their tenant).
-   * `audit_log` is retained untouched (numeric-only, never purged) — this
+   * `audit_log` is retained untouched by this routine — this
    * APPENDS an `installation` `delete` entry. Returns all three row counts.
    */
   purgeInstallation(): Promise<InstallationPurgeCounts>;
@@ -203,7 +208,8 @@ export function purgeRoutines(
         await insertAudit(tx, {
           installationId,
           actorType: AuditActorType.APP,
-          action: AuditAction.DELETE,
+          operation: AuditAction.DELETE,
+          outcome: AuditOutcome.OK,
           targetType: AUDIT_TARGET_PULL_REQUEST,
           targetId: prRowId,
         });
@@ -235,7 +241,8 @@ export function purgeRoutines(
         await insertAudit(tx, {
           installationId,
           actorType: AuditActorType.APP,
-          action: AuditAction.DELETE,
+          operation: AuditAction.DELETE,
+          outcome: AuditOutcome.OK,
           targetType: AUDIT_TARGET_REPO,
           targetId: repoId,
           metadata: { count },
@@ -276,7 +283,8 @@ export function purgeRoutines(
           await insertAudit(tx, {
             installationId,
             actorType: AuditActorType.APP,
-            action: AuditAction.DELETE,
+            operation: AuditAction.DELETE,
+            outcome: AuditOutcome.OK,
             targetType: AUDIT_TARGET_REPO,
             targetId: repoId,
             metadata: { count },
@@ -308,7 +316,8 @@ export function purgeRoutines(
         await insertAudit(tx, {
           installationId,
           actorType: AuditActorType.APP,
-          action: AuditAction.DELETE,
+          operation: AuditAction.DELETE,
+          outcome: AuditOutcome.OK,
           targetType: AUDIT_TARGET_INSTALLATION,
           targetId: installationId,
           metadata: { count: purgedPrs.length },
@@ -377,7 +386,8 @@ export function purgeRoutines(
           await insertAudit(tx, {
             installationId,
             actorType: AuditActorType.SYSTEM,
-            action: AuditAction.DELETE,
+            operation: AuditAction.DELETE,
+            outcome: AuditOutcome.OK,
             targetType: AUDIT_TARGET_PULL_REQUEST,
             metadata: { count },
           });
@@ -410,4 +420,72 @@ export function purgeRoutines(
       });
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// Audit retention — the one purge that is NOT tenant-scoped.
+// ---------------------------------------------------------------------------
+
+/**
+ * Sweep audit rows older than the operator's retention window, across every
+ * installation. Instance-wide on purpose: retention is an env setting owned by
+ * whoever operates the instance, not a per-installation policy, so there is no
+ * ctx to bind to. `retentionDays === null` (the default) keeps everything and
+ * runs no query.
+ *
+ * The sweep records itself: one `delete` entry per installation whose rows it
+ * erased, carrying the count, in the SAME transaction as the deletes. Nothing
+ * schedules this here.
+ */
+export async function sweepAuditLog(
+  handle: AppDatabase,
+  retentionDays: number | null,
+  now: Date,
+): Promise<number> {
+  if (retentionDays === null) {
+    return 0;
+  }
+  // Guard the primitive itself: a short or fractional window reaching this far
+  // would erase history the operator never agreed to lose.
+  if (
+    !Number.isInteger(retentionDays) ||
+    retentionDays < AUDIT_RETENTION_FLOOR_DAYS
+  ) {
+    throw new Error(
+      `audit retention must be a whole number of days >= ${AUDIT_RETENTION_FLOOR_DAYS}, got ${retentionDays}`,
+    );
+  }
+  const cutoff = new Date(now.getTime() - retentionDays * MS_PER_DAY);
+  return internal(handle).transaction(async (tx) => {
+    // Count in the DB, not in JS: this is the one table designed to grow
+    // unbounded, so `returning` every erased row would materialize a year of
+    // history just to sum it. Under READ COMMITTED the delete can erase a row
+    // committed after this count, so the recorded count is a floor — and rows
+    // that young cannot be past a 30-day cutoff anyway.
+    const counted = await tx
+      .select({
+        installationId: auditLog.installationId,
+        count: countOf(auditLog.id),
+      })
+      .from(auditLog)
+      .where(lt(auditLog.occurredAt, cutoff))
+      .groupBy(auditLog.installationId);
+    if (counted.length === 0) {
+      return 0;
+    }
+    await tx.delete(auditLog).where(lt(auditLog.occurredAt, cutoff));
+    let total = 0;
+    for (const { installationId, count } of counted) {
+      total += count;
+      await insertAudit(tx, {
+        installationId,
+        actorType: AuditActorType.SYSTEM,
+        operation: AuditAction.DELETE,
+        outcome: AuditOutcome.OK,
+        targetType: AUDIT_TARGET_AUDIT_LOG,
+        metadata: { count },
+      });
+    }
+    return total;
+  });
 }
