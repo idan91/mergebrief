@@ -37,7 +37,6 @@ const SAMPLE: ProductOperationDescriptor = {
   id: "probe-op",
   kind: "query",
   classification: "read",
-  agentAvailable: true,
   endpoint: "GET /api/probe",
 };
 

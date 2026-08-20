@@ -22,6 +22,7 @@ export const ApiErrorCode = {
   INVALID_SIGNATURE: "invalid-signature",
   FORBIDDEN: "forbidden",
   GITHUB_PERMISSION: "github-permission",
+  SCOPE_EXCEEDED: "scope-exceeded",
   NOT_FOUND: "not-found",
   INVALID_REQUEST: "invalid-request",
   NOT_A_PR_URL: "not-a-pr-url",

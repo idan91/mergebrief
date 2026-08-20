@@ -155,7 +155,6 @@ export function readsRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
     {
       id: PRODUCT_QUERY_ID.READ_PULL,
       classification: WRITE_CLASSIFICATION.READ,
-      agentAvailable: true,
     },
     "/",
     async (c) => {
@@ -301,7 +300,6 @@ export function readsRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
     {
       id: PRODUCT_QUERY_ID.READ_BRIEF,
       classification: WRITE_CLASSIFICATION.READ,
-      agentAvailable: true,
     },
     "/brief",
     async (c) => {
@@ -346,7 +344,6 @@ export function readsRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
     {
       id: PRODUCT_QUERY_ID.READ_BRIEF_CONTEXT,
       classification: WRITE_CLASSIFICATION.READ,
-      agentAvailable: true,
     },
     "/brief-context",
     async (c) => {
@@ -388,7 +385,6 @@ export function readsRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
     {
       id: PRODUCT_QUERY_ID.READ_MARKS,
       classification: WRITE_CLASSIFICATION.READ,
-      agentAvailable: true,
     },
     "/marks",
     async (c) => {
@@ -434,7 +430,6 @@ export function readsRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
     {
       id: PRODUCT_QUERY_ID.READ_DELTA,
       classification: WRITE_CLASSIFICATION.READ,
-      agentAvailable: true,
     },
     "/delta",
     async (c) => {
@@ -475,7 +470,6 @@ export function readsRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
     {
       id: PRODUCT_QUERY_ID.READ_NARRATIVE,
       classification: WRITE_CLASSIFICATION.READ,
-      agentAvailable: true,
     },
     "/narrative",
     async (c) => {
@@ -521,7 +515,6 @@ export function readsRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
     {
       id: PRODUCT_QUERY_ID.READ_DIFF,
       classification: WRITE_CLASSIFICATION.READ,
-      agentAvailable: true,
     },
     "/diff",
     async (c) => {

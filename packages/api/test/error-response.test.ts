@@ -45,7 +45,7 @@ describe("errorJson", () => {
 
   it("maps every code to exactly one status and one template", () => {
     const codes = Object.values(ApiErrorCode);
-    expect(codes).toHaveLength(18);
+    expect(codes).toHaveLength(19);
     for (const code of codes) {
       expect(API_ERROR_STATUS[code]).toBeGreaterThanOrEqual(400);
       expect(API_ERROR_ENGLISH[code]).toBeTruthy();
@@ -58,6 +58,7 @@ describe("errorJson", () => {
       "invalid-signature": 401,
       forbidden: 403,
       "github-permission": 403,
+      "scope-exceeded": 403,
       "not-found": 404,
       "invalid-request": 400,
       "not-a-pr-url": 400,

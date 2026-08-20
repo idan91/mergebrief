@@ -115,8 +115,11 @@ agent is involved.
    unlimited. **`agentAvailable` is deleted** from the descriptor; the CLI map
    gains a permanent `webOnly` variant and absence from the map becomes an
    error for every id. **Existing tokens backfill to full.**
-7. **The scope check runs inside `productRouter.action()`/`.query()`**, off
-   the class already on the declaration. Authentication stays middleware.
+7. **The scope check runs inside `productRouter.action()`**, off the class
+   already on the declaration. `.query()` needs none: the ladder is
+   cumulative and `read` is its bottom rung, so every scope reaches every
+   query — and the router already refuses to declare a query as anything
+   else. Authentication stays middleware.
    A write names its Brief explicitly; a read derives the newest. Insufficient
    scope is `scope-exceeded` (403); a write against a frozen session reuses
    `pr-changed-since-read` (409).
@@ -189,7 +192,7 @@ way nine hand-placed emits did.
   its `sessionStorage` snapshot is deleted; the deferred region-anchored
   keying is now live, keyed through the session's Brief.
 - **Amends ADR 0039** — descriptors *do* touch a request: the scope check runs
-  inside `productRouter.action()`/`.query()`. `agentAvailable` leaves the
+  inside `productRouter.action()`. `agentAvailable` leaves the
   descriptor, and the CLI-map gate inverts (every id must appear; `webOnly` is
   a map entry, not a manifest-derived absence).
 - **Amends ADR 0034** — `api.access` gains an `operation` field, and the two

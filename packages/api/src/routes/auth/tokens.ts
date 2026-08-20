@@ -60,9 +60,19 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 /**
  * Mint body. `expiresInDays` is a whole number of days, `null` = NO expiry
  * (the adopter's call for self-host CI), omitted = the 90-day default.
+ * `scope` is immutable for the token's life — narrowing later is a new token.
  */
 const mintBodySchema = z.object({
   name: z.string().min(1).max(100),
+  // REQUIRED, no default. A fallback mints reach the caller never chose:
+  // widen and every browser token is external-write; narrow and the token
+  // silently lacks what its owner expects, surfacing as an unexplained 403.
+  // The mint form asks, and the list shows what was asked for.
+  scope: z.enum([
+    WRITE_CLASSIFICATION.READ,
+    WRITE_CLASSIFICATION.PRIVATE_WRITE,
+    WRITE_CLASSIFICATION.EXTERNAL_WRITE,
+  ]),
   installationId: z.union([
     z.string().regex(/^\d+$/),
     z.number().int().positive(),
@@ -83,6 +93,7 @@ function tokenView(row: ApiTokenMetadataRow): Record<string, string | null> {
     name: row.name,
     installationId: String(row.installationId),
     userLogin: row.userLogin,
+    scope: row.scope,
     expiresAt: row.expiresAt === null ? null : row.expiresAt.toISOString(),
     lastUsedAt: row.lastUsedAt === null ? null : row.lastUsedAt.toISOString(),
     revokedAt: row.revokedAt === null ? null : row.revokedAt.toISOString(),
@@ -111,7 +122,6 @@ export function tokensRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
     {
       id: PRODUCT_ACTION_ID.MINT_TOKEN,
       classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
-      agentAvailable: false,
     },
     "post",
     "/",
@@ -183,9 +193,7 @@ export function tokensRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
           ? {}
           : { userLogin: currentSession.reviewerLogin }),
         name: parsed.data.name,
-        // PR 9 lets the caller choose; until then a mint keeps the reach every
-        // existing token has.
-        scope: WRITE_CLASSIFICATION.EXTERNAL_WRITE,
+        scope: parsed.data.scope,
         tokenHash: sha256Hex(token),
         grantId: currentSession.grantId,
         expiresAt,
@@ -201,7 +209,6 @@ export function tokensRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
     {
       id: PRODUCT_QUERY_ID.LIST_TOKENS,
       classification: WRITE_CLASSIFICATION.READ,
-      agentAvailable: true,
     },
     "/",
     async (c) => {
@@ -217,7 +224,6 @@ export function tokensRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
     {
       id: PRODUCT_ACTION_ID.REVOKE_TOKEN,
       classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
-      agentAvailable: false,
     },
     "delete",
     "/:id",

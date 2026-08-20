@@ -33,11 +33,12 @@ scripts/          embed-help.ts        regenerates the README flag appendix
 ```
 
 `product-operations.map.json` (committed, package root) is the CLI half of
-that gate: one entry per agent-available operation in api's manifest, either
-a `command` — which must resolve against the REAL commander tree, so a
-renamed command fails the gate — or a `gap` carrying reason, owner, ticket,
-and an expiry date that eventually fails on its own. Operations the manifest
-marks web-only must be absent from the file.
+that gate: EVERY operation in api's manifest carries exactly one entry —
+absence is an error — and the entry is one of three shapes: a `command`,
+which must resolve against the REAL commander tree, so a renamed command
+fails the gate; a `gap` carrying reason, owner, ticket, and an expiry date
+that eventually fails on its own; or a `webOnly` carrying a permanent written
+reason and an owner, for a browser-only operation no command will ever cover.
 
 ## Invariants (enforced, don't weaken)
 

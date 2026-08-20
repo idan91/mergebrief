@@ -1,12 +1,29 @@
 // Shapes + boundary guards for the /api/auth/tokens endpoints.
-import type { Result as SharedResult } from "types";
+import type { Result as SharedResult, ValueOf } from "types";
 
 type Result<T> = SharedResult<T, string>;
+
+/**
+ * The reach a token carries, mirroring the api's write classification. Three
+ * rungs, widening: read only, this instance's own state, and writes that leave
+ * the instance for GitHub. Immutable for the token's life.
+ */
+export const TokenScope = {
+  READ: "read",
+  PRIVATE_WRITE: "private-write",
+  EXTERNAL_WRITE: "external-write",
+} as const;
+export type TokenScope = ValueOf<typeof TokenScope>;
+
+function isTokenScope(value: unknown): value is TokenScope {
+  return Object.values(TokenScope).some((known) => known === value);
+}
 
 /** One token as the settings list shows it — metadata only, never material. */
 export interface ApiTokenView {
   readonly id: string;
   readonly name: string;
+  readonly scope: TokenScope;
   readonly installationId: string;
   readonly userLogin: string | null;
   /** ISO timestamp, or null for a no-expiry token. */
@@ -42,6 +59,9 @@ function parseToken(value: unknown): Result<ApiTokenView> {
   if (typeof value["name"] !== "string") {
     return { ok: false, error: "name must be a string" };
   }
+  if (!isTokenScope(value["scope"])) {
+    return { ok: false, error: "scope must be a known token scope" };
+  }
   if (typeof value["installationId"] !== "string") {
     return { ok: false, error: "installationId must be a string" };
   }
@@ -63,6 +83,7 @@ function parseToken(value: unknown): Result<ApiTokenView> {
     value: {
       id: value["id"],
       name: value["name"],
+      scope: value["scope"],
       installationId: value["installationId"],
       userLogin: value["userLogin"],
       expiresAt: value["expiresAt"],

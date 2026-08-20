@@ -2,6 +2,8 @@
 // programmer error = throw; identical re-registration = no-op) and the product
 // router — declaration and mounting as one statement, endpoints stamped from
 // the mount prefixes at the root commit.
+import type { Env, Hono, MiddlewareHandler } from "hono";
+import type { WriteClassification } from "persistence";
 import { describe, expect, it } from "vitest";
 import { createProductOperationRegistry } from "../src/product-operations/registry";
 import {
@@ -21,14 +23,12 @@ describe("product operation registry", () => {
       id: "list-pulls",
       kind: OPERATION_KIND.QUERY,
       classification: WRITE_CLASSIFICATION.READ,
-      agentAvailable: true,
       endpoint: "GET /api/pulls",
     });
     registry.register({
       id: "generate-brief",
       kind: OPERATION_KIND.ACTION,
       classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
-      agentAvailable: true,
       endpoint: "POST /api/generate",
     });
     expect(registry.list().map((d) => d.id)).toEqual([
@@ -43,7 +43,6 @@ describe("product operation registry", () => {
       id: "mint-token",
       kind: OPERATION_KIND.ACTION,
       classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
-      agentAvailable: false,
       endpoint: "POST /api/auth/tokens",
     });
     expect(registry.list()).toEqual([
@@ -51,7 +50,6 @@ describe("product operation registry", () => {
         id: "mint-token",
         kind: "action",
         classification: "private-write",
-        agentAvailable: false,
         endpoint: "POST /api/auth/tokens",
       },
     ]);
@@ -63,7 +61,6 @@ describe("product operation registry", () => {
       id: "list-pulls",
       kind: OPERATION_KIND.QUERY,
       classification: WRITE_CLASSIFICATION.READ,
-      agentAvailable: true,
       endpoint: "GET /api/pulls",
     } as const;
     registry.register(descriptor);
@@ -77,7 +74,6 @@ describe("product operation registry", () => {
       id: "list-pulls",
       kind: OPERATION_KIND.QUERY,
       classification: WRITE_CLASSIFICATION.READ,
-      agentAvailable: true,
       endpoint: "GET /api/pulls",
     } as const;
     registry.register(descriptor);
@@ -85,7 +81,11 @@ describe("product operation registry", () => {
       registry.register({ ...descriptor, endpoint: "GET /api/other" }),
     ).toThrowError(/list-pulls/);
     expect(() =>
-      registry.register({ ...descriptor, agentAvailable: false }),
+      registry.register({
+        ...descriptor,
+        kind: OPERATION_KIND.ACTION,
+        classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
+      }),
     ).toThrowError(/list-pulls/);
   });
 
@@ -98,7 +98,6 @@ describe("product operation registry", () => {
           id,
           kind: OPERATION_KIND.QUERY,
           classification: WRITE_CLASSIFICATION.READ,
-          agentAvailable: true,
           endpoint: "GET /api/probe",
         }),
       ).toThrowError(/kebab-case/);
@@ -111,7 +110,6 @@ describe("product operation registry", () => {
       id: "read-pull",
       kind: OPERATION_KIND.QUERY,
       classification: WRITE_CLASSIFICATION.READ,
-      agentAvailable: true,
       endpoint: "GET /api/a",
     });
     const snapshot = registry.list();
@@ -119,7 +117,6 @@ describe("product operation registry", () => {
       id: "read-brief",
       kind: OPERATION_KIND.QUERY,
       classification: WRITE_CLASSIFICATION.READ,
-      agentAvailable: true,
       endpoint: "GET /api/b",
     });
     expect(snapshot).toHaveLength(1);
@@ -129,13 +126,26 @@ describe("product operation registry", () => {
 const QUERY = {
   id: PRODUCT_QUERY_ID.LIST_PULLS,
   classification: WRITE_CLASSIFICATION.READ,
-  agentAvailable: true,
 } as const;
 const ACTION = {
   id: PRODUCT_ACTION_ID.SUBMIT_REVIEW,
   classification: WRITE_CLASSIFICATION.EXTERNAL_WRITE,
-  agentAvailable: true,
 } as const;
+
+/** What the auth middleware contributes, as far as the scope check cares. */
+interface SessionEnv {
+  Variables: { session: { scope: string } };
+}
+
+/** Stand in for the auth middleware: put a principal carrying `scope` in ctx. */
+function scopeSetter(
+  scope: WriteClassification,
+): MiddlewareHandler<SessionEnv> {
+  return async (c, next) => {
+    c.set("session", { scope });
+    await next();
+  };
+}
 
 describe("product router", () => {
   it("query mounts a GET the underlying app serves", async () => {
@@ -147,13 +157,13 @@ describe("product router", () => {
   });
 
   it("action mounts each declared method", async () => {
-    const router = productRouter();
+    const router = productRouter<SessionEnv>();
+    router.use(scopeSetter(WRITE_CLASSIFICATION.EXTERNAL_WRITE));
     router.action(ACTION, "post", "/review", (c) => c.json({ ok: true }));
     router.action(
       {
         id: PRODUCT_ACTION_ID.REVOKE_TOKEN,
         classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
-        agentAvailable: false,
       },
       "delete",
       "/tokens/:id",
@@ -175,7 +185,6 @@ describe("product router", () => {
       {
         id: PRODUCT_QUERY_ID.READ_CONVERSATION,
         classification: WRITE_CLASSIFICATION.READ,
-        agentAvailable: true,
       },
       "/conversation",
       (c) => c.body(null, 204),
@@ -186,7 +195,6 @@ describe("product router", () => {
       {
         id: PRODUCT_QUERY_ID.LIST_REPOS,
         classification: WRITE_CLASSIFICATION.READ,
-        agentAvailable: true,
       },
       "/",
       (c) => c.body(null, 204),
@@ -250,7 +258,6 @@ describe("product router", () => {
           id: PRODUCT_QUERY_ID.LIST_PULLS,
           // @ts-expect-error — a query must declare READ, not a write classification
           classification: WRITE_CLASSIFICATION.EXTERNAL_WRITE,
-          agentAvailable: true,
         },
         "/pulls",
         (c) => c.body(null, 204),
@@ -262,7 +269,6 @@ describe("product router", () => {
           id: PRODUCT_ACTION_ID.SUBMIT_REVIEW,
           // @ts-expect-error — an action must declare a write classification, not READ
           classification: WRITE_CLASSIFICATION.READ,
-          agentAvailable: true,
         },
         "post",
         "/review",
@@ -279,7 +285,6 @@ describe("product router", () => {
         // @ts-expect-error — a query id must come from PRODUCT_QUERY_ID
         id: "not-in-the-vocabulary",
         classification: WRITE_CLASSIFICATION.READ,
-        agentAvailable: true,
       },
       "/probe",
       (c) => c.body(null, 204),
@@ -289,7 +294,6 @@ describe("product router", () => {
         // @ts-expect-error — an action id must come from PRODUCT_ACTION_ID
         id: PRODUCT_QUERY_ID.LIST_PULLS,
         classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
-        agentAvailable: true,
       },
       "post",
       "/probe",
@@ -370,7 +374,6 @@ describe("product router", () => {
         {
           id: PRODUCT_QUERY_ID.LIST_REPOS,
           classification: WRITE_CLASSIFICATION.READ,
-          agentAvailable: true,
         },
         "/repos",
         (c) => c.body(null, 204),
@@ -472,3 +475,75 @@ function productRouterWrapping(
   wrapper.route(prefix, child);
   return wrapper;
 }
+
+async function post<E extends Env>(
+  app: Hono<E>,
+  path: string,
+): Promise<Response> {
+  return app.request(path, { method: "POST" });
+}
+
+describe("the scope check at the router seam", () => {
+  function actionApp(scope: WriteClassification | undefined) {
+    const router = productRouter<SessionEnv>();
+    if (scope !== undefined) {
+      router.use(scopeSetter(scope));
+    }
+    router.action(ACTION, "post", "/review", (c) => c.json({ ok: true }));
+    router.action(
+      {
+        id: PRODUCT_ACTION_ID.GENERATE_BRIEF,
+        classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
+      },
+      "post",
+      "/generate",
+      (c) => c.json({ ok: true }),
+    );
+    router.query(QUERY, "/pulls", (c) => c.json({ ok: true }));
+    return router.app;
+  }
+
+  it("refuses a read-scoped credential on either write class", async () => {
+    const app = actionApp(WRITE_CLASSIFICATION.READ);
+    for (const path of ["/generate", "/review"]) {
+      const res = await post(app, path);
+      expect(res.status).toBe(403);
+      expect(await res.json()).toMatchObject({ code: "scope-exceeded" });
+    }
+  });
+
+  it("lets a read-scoped credential read", async () => {
+    const res = await actionApp(WRITE_CLASSIFICATION.READ).request("/pulls");
+    expect(res.status).toBe(200);
+  });
+
+  it("stops a private-write credential at the instance boundary", async () => {
+    const app = actionApp(WRITE_CLASSIFICATION.PRIVATE_WRITE);
+    expect((await post(app, "/generate")).status).toBe(200);
+    const external = await post(app, "/review");
+    expect(external.status).toBe(403);
+    expect(await external.json()).toMatchObject({ code: "scope-exceeded" });
+  });
+
+  it("lets an external-write credential through everywhere", async () => {
+    const app = actionApp(WRITE_CLASSIFICATION.EXTERNAL_WRITE);
+    expect((await post(app, "/generate")).status).toBe(200);
+    expect((await post(app, "/review")).status).toBe(200);
+  });
+
+  it("fails closed when no principal reached the handler", async () => {
+    const res = await post(actionApp(undefined), "/review");
+    expect(res.status).toBe(401);
+    expect(await res.json()).toMatchObject({ code: "unauthorized" });
+  });
+
+  it("fails closed on a principal whose scope is not the vocabulary", async () => {
+    const router = productRouter<SessionEnv>();
+    router.use(async (c, next) => {
+      c.set("session", { scope: "admin" });
+      await next();
+    });
+    router.action(ACTION, "post", "/review", (c) => c.json({ ok: true }));
+    expect((await post(router.app, "/review")).status).toBe(401);
+  });
+});

@@ -151,7 +151,6 @@ export function generateRoute(
     {
       id: PRODUCT_ACTION_ID.GENERATE_BRIEF,
       classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
-      agentAvailable: true,
     },
     "post",
     "/",

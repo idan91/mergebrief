@@ -7,6 +7,7 @@ import { parseMintedToken, parseTokensView } from "./types";
 const WIRE_TOKEN = {
   id: "3",
   name: "ci-token",
+  scope: "private-write",
   installationId: "987654",
   userLogin: "octocat",
   expiresAt: "2026-10-07T00:00:00.000Z",
@@ -16,6 +17,13 @@ const WIRE_TOKEN = {
 };
 
 describe("parseTokensView", () => {
+  it("rejects a token whose scope is not one of the three rungs", () => {
+    const parsed = parseTokensView({
+      tokens: [{ ...WIRE_TOKEN, scope: "admin" }],
+    });
+    expect(parsed.ok).toBe(false);
+  });
+
   it("parses the /api/auth/tokens list body", () => {
     const parsed = parseTokensView({ tokens: [WIRE_TOKEN] });
     expect(parsed.ok).toBe(true);

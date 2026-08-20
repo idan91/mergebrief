@@ -4,8 +4,11 @@ import { Trans, useTranslation } from "react-i18next";
 import {
   useTokenSettings,
   ExpiryChoice,
+  SCOPE_UNCHOSEN,
   TOKEN_NAME_MAX,
+  type ScopeChoice,
 } from "../../hooks/useTokenSettings";
+import { TokenScope } from "../../types";
 import { Button } from "@web/components/Button/Button";
 import { formatDate, renderedLocale } from "../../../../i18n/locale";
 import styles from "./TokenSettings.module.scss";
@@ -28,6 +31,25 @@ function formatWhen(iso: string | null, locale: string, never: string): string {
 // be a broken instruction.
 const CLI_BINARY = "mergebrief";
 const CHMOD_COMMAND = "chmod 600";
+
+/** Catalog key per rung — the same label in the picker and in the list. */
+const SCOPE_LABEL_KEY = {
+  [TokenScope.READ]: "tokens.scopeRead",
+  [TokenScope.PRIVATE_WRITE]: "tokens.scopePrivateWrite",
+  [TokenScope.EXTERNAL_WRITE]: "tokens.scopeExternalWrite",
+} as const;
+
+/** Narrowest first: the list reads as a ladder, not an unordered set. */
+const SCOPE_ORDER = [
+  TokenScope.READ,
+  TokenScope.PRIVATE_WRITE,
+  TokenScope.EXTERNAL_WRITE,
+] as const;
+
+function toScopeChoice(value: string): ScopeChoice | undefined {
+  if (value === SCOPE_UNCHOSEN) return SCOPE_UNCHOSEN;
+  return SCOPE_ORDER.find((scope) => scope === value);
+}
 
 export function TokenSettings({ enabled }: TokenSettingsProps) {
   const { i18n, t } = useTranslation();
@@ -79,6 +101,30 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
             ))}
           </select>
         </label>
+        <label className={styles["field"]}>
+          <span>{t("tokens.scopeLabel")}</span>
+          {/* No pre-selection: a token's reach is stated, never inherited —
+              the server refuses a mint that names none. */}
+          <select
+            aria-describedby="token-scope-hint"
+            onChange={(event) => {
+              const choice = toScopeChoice(event.target.value);
+              if (choice !== undefined) state.setScope(choice);
+            }}
+            required
+            value={state.scope}
+          >
+            <option value={SCOPE_UNCHOSEN}>{t("tokens.scopeChoose")}</option>
+            {SCOPE_ORDER.map((scope) => (
+              <option key={scope} value={scope}>
+                {t(SCOPE_LABEL_KEY[scope])}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p className={styles["hint"]} id="token-scope-hint">
+          {t("tokens.scopeHint")}
+        </p>
         <label className={styles["field"]}>
           <span>{t("tokens.expiresLabel")}</span>
           <select
@@ -162,6 +208,9 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
             key={token.id}
           >
             <span className={styles["rowName"]}>{token.name}</span>
+            <span className={styles["rowScope"]}>
+              {t(SCOPE_LABEL_KEY[token.scope])}
+            </span>
             <span className={styles["rowMeta"]}>
               {token.revokedAt !== null
                 ? t("tokens.rowRevoked", {

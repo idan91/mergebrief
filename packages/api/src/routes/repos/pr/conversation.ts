@@ -100,7 +100,6 @@ export function conversationRoutes(
     {
       id: PRODUCT_QUERY_ID.READ_CONVERSATION,
       classification: WRITE_CLASSIFICATION.READ,
-      agentAvailable: true,
     },
     "/",
     async (c) => {

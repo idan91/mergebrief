@@ -44,7 +44,6 @@ export function reposRoutes(
     {
       id: PRODUCT_QUERY_ID.LIST_REPOS,
       classification: WRITE_CLASSIFICATION.READ,
-      agentAvailable: true,
     },
     "/",
     async (c) => {

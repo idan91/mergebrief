@@ -109,10 +109,12 @@ not expected failures, so `Result` does not apply.
 
 > **Amended (2026-08-17, BRIEF-197 →
 > [ADR 0040](./0040-review-session-server-store.md)):** descriptors are no
-> longer static metadata that "never touch a request". `.query()` and
-> `.action()` mount the **scope gate** themselves, reading the `classification`
-> already on the declaration they receive, so a route added later is enforced
-> whether or not its author thought about it. The **audit emit** rides the same
+> longer static metadata that "never touch a request". `.action()` mounts the
+> **scope gate** itself, reading the `classification` already on the
+> declaration it receives, so a route added later is enforced whether or not
+> its author thought about it. `.query()` mounts none: the ladder is
+> cumulative and `read` is its bottom rung, so every scope reaches every
+> query. The **audit emit** rides the same
 > choke point, keyed on the descriptor's `id`. Authentication stays middleware;
 > only authorization-by-class and the audit emit move into the router.
 

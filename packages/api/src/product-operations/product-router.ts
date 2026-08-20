@@ -7,17 +7,22 @@
 // the mount prefix (the child is sealed — declare before mounting), and the
 // composition root's `commit` stamps `METHOD /full/path` and registers.
 import { Hono } from "hono";
+import { every } from "hono/combine";
 import type { Env, H, MiddlewareHandler } from "hono/types";
+import type { WriteClassification } from "persistence";
 import type { ValueOf } from "types";
 import type { ProductActionId, ProductQueryId } from "./ids";
 import type { ProductOperationRegistry } from "./registry";
 import {
+  isWriteClassification,
   OPERATION_KIND,
+  scopeReaches,
   WRITE_CLASSIFICATION,
   type ActionClassification,
   type ProductActionDescriptor,
   type ProductQueryDescriptor,
 } from "./types";
+import { ApiErrorCode, errorJson } from "../error-response";
 
 export const ACTION_METHOD = {
   POST: "post",
@@ -31,14 +36,12 @@ export type ActionMethod = ValueOf<typeof ACTION_METHOD>;
 export interface ProductQueryDeclaration {
   readonly id: ProductQueryId;
   readonly classification: typeof WRITE_CLASSIFICATION.READ;
-  readonly agentAvailable: boolean;
 }
 
 /** An action declaration — id from the action vocabulary, a write class. */
 export interface ProductActionDeclaration {
   readonly id: ProductActionId;
   readonly classification: ActionClassification;
-  readonly agentAvailable: boolean;
 }
 
 type PendingDescriptor =
@@ -92,6 +95,52 @@ const SEAL_CAUSE: Readonly<Record<SealReason, string>> = {
   [SEAL_REASON.MOUNTED]: "mounted into a parent",
   [SEAL_REASON.COMMITTED]: "committed",
 };
+
+function hasKey<K extends string>(
+  value: unknown,
+  key: K,
+): value is Record<K, unknown> {
+  return typeof value === "object" && value !== null && key in value;
+}
+
+/**
+ * The credential's scope, read out of the context's variable bag. Structural
+ * on purpose: this module is generic over the Hono Env, so the bag arrives as
+ * `unknown` and is narrowed here — routes keep their own typed
+ * `AuthzVariables` view of the same variable.
+ */
+function principalScope(variables: unknown): WriteClassification | undefined {
+  if (!hasKey(variables, "session") || !hasKey(variables.session, "scope")) {
+    return undefined;
+  }
+  const scope: unknown = variables.session.scope;
+  return isWriteClassification(scope) ? scope : undefined;
+}
+
+/**
+ * The scope check, standardised at the seam so a route added next year is
+ * enforced whether or not its author thought about it. Only actions carry it:
+ * `read` is the bottom rung, so every scope reaches every query, and the
+ * router already refuses to declare a query as anything else.
+ *
+ * No principal means no credential to read a scope from — that is a route
+ * mounted without its gate, so it fails closed rather than fails open.
+ */
+function scopeGate<E extends Env>(
+  classification: ActionClassification,
+): MiddlewareHandler<E> {
+  return async (c, next) => {
+    const scope = principalScope(c.var);
+    if (scope === undefined) {
+      return errorJson(c, ApiErrorCode.UNAUTHORIZED);
+    }
+    if (!scopeReaches(scope, classification)) {
+      return errorJson(c, ApiErrorCode.SCOPE_EXCEEDED);
+    }
+    await next();
+    return undefined;
+  };
+}
 
 function isActionClassification(value: string): value is ActionClassification {
   return (
@@ -178,7 +227,11 @@ export function productRouter<E extends Env = Env>(): ProductRouter<E> {
         method: method.toUpperCase(),
         path,
       });
-      mountAction(app, method, path, handlers);
+      // ONE composed handler, not a prepended one: Hono records a route-table
+      // entry per handler, and a doubled entry would read as a double mount.
+      mountAction(app, method, path, [
+        every(scopeGate(descriptor.classification), ...handlers),
+      ]);
     },
     route(prefix, child) {
       assertOpen(`cannot mount "${prefix}"`);

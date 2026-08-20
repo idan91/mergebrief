@@ -1,8 +1,8 @@
 // The mapping gate's logic, pure so the suite can drive it: parse the api
 // manifest and the CLI map, then enforce exhaustiveness in both directions —
-// every agent-available operation carries a command that EXISTS in the CLI's
-// command tree or an unexpired, fully-documented gap; web-only operations stay
-// out of the map; every map key exists in the manifest. Expected failures
+// every operation carries exactly one entry (a command that EXISTS in the
+// CLI's command tree, an unexpired fully-documented gap, or a reasoned
+// web-only note); every map key exists in the manifest. Expected failures
 // return Result; the bin boundary owns exit codes.
 import type { Result } from "types";
 import { z } from "zod";
@@ -16,7 +16,6 @@ const manifestSchema = z.object({
         id: z.string().min(1),
         kind: z.enum(["query", "action"]),
         classification: z.enum(["read", "private-write", "external-write"]),
-        agentAvailable: z.boolean(),
         endpoint: z.string().regex(/^(GET|POST|DELETE|PATCH|PUT) \/api\//),
       }),
     )
@@ -47,9 +46,15 @@ const gapSchema = z
   })
   .strict();
 
+/** Permanent, browser-only: a written reason and an owner, no expiry. */
+const webOnlySchema = z
+  .object({ reason: z.string().min(1), owner: z.string().min(1) })
+  .strict();
+
 const entrySchema = z.union([
   z.object({ command: z.string().min(1) }).strict(),
   z.object({ gap: gapSchema }).strict(),
+  z.object({ webOnly: webOnlySchema }).strict(),
 ]);
 
 const mapSchema = z.record(z.string(), entrySchema);
@@ -219,19 +224,14 @@ export function checkOperationsMap({
 
   for (const operation of manifest.data.operations) {
     const entry = entries.get(operation.id);
-    if (!operation.agentAvailable) {
-      webOnly += 1;
-      if (entry !== undefined) {
-        errors.push(
-          `"${operation.id}" is web-only (agentAvailable: false) and must not appear in the map`,
-        );
-      }
-      continue;
-    }
     if (entry === undefined) {
       errors.push(
-        `"${operation.id}" has no CLI command and no documented gap entry`,
+        `"${operation.id}" has no CLI command, documented gap, or web-only entry`,
       );
+      continue;
+    }
+    if ("webOnly" in entry) {
+      webOnly += 1;
       continue;
     }
     if ("command" in entry) {

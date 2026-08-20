@@ -50,7 +50,6 @@ export function pullsRoute(
     {
       id: PRODUCT_QUERY_ID.LIST_PULLS,
       classification: WRITE_CLASSIFICATION.READ,
-      agentAvailable: true,
     },
     "/",
     async (c) => {

@@ -27,7 +27,6 @@ export function renderManifest(
     id: operation.id,
     kind: operation.kind,
     classification: operation.classification,
-    agentAvailable: operation.agentAvailable,
     endpoint: operation.endpoint,
   }));
   return `${JSON.stringify({ operations: normalized }, null, 2)}\n`;

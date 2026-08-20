@@ -14,6 +14,7 @@ import {
   parseTokensView,
   type MintedToken,
   type TokensView,
+  type TokenScope,
 } from "./types";
 
 export function tokensQueryOptions() {
@@ -35,6 +36,8 @@ export function tokensQueryOptions() {
 
 export interface MintTokenInput {
   readonly name: string;
+  /** REQUIRED — the server refuses a mint that names no reach. */
+  readonly scope: TokenScope;
   readonly installationId: string;
   /** Whole days, or null for NO expiry; omitted = the server's 90d default. */
   readonly expiresInDays?: number | null;

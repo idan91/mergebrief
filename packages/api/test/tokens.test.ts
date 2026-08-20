@@ -174,7 +174,11 @@ function sha256Hex(value: string): string {
 async function seedApiToken(
   handle: AppDatabase,
   kp: KeyProvider,
-  overrides: { expiresAt?: Date | null; revoke?: boolean } = {},
+  overrides: {
+    expiresAt?: Date | null;
+    revoke?: boolean;
+    scope?: WriteClassification;
+  } = {},
 ): Promise<string> {
   const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
   const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
@@ -188,7 +192,7 @@ async function seedApiToken(
     refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
   });
   const minted = await tokenAuth(handle).mintToken({
-    scope: WriteClassification.EXTERNAL_WRITE,
+    scope: overrides.scope ?? WriteClassification.EXTERNAL_WRITE,
     installationId: CTX.installationId,
     userId: REVIEWER,
     userLogin: "octocat",
@@ -276,6 +280,34 @@ describe("Bearer presentation on /api/*", () => {
     const body = (await res.json()) as { pulls: Array<{ prNumber: number }> };
     expect(body.pulls).toHaveLength(1);
     expect(body.pulls[0]?.prNumber).toBe(7);
+  });
+
+  it("carries the token's scope to the router gate: a read token cannot write", async () => {
+    stubGitHub({
+      installationRepos: () =>
+        installationReposOk([{ id: REPO_A, full_name: "octo/hello" }]),
+    });
+    await seedPr(harness.handle);
+    const readOnly = await seedApiToken(harness.handle, kp, {
+      scope: WriteClassification.READ,
+    });
+
+    // The same credential reads fine…
+    expect((await getWithBearer("/api/pulls", readOnly)).status).toBe(200);
+    // …and is refused at the private-write rung, before the handler runs.
+    const res = await app.request("/api/generate", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${readOnly}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ url: "https://github.com/octo/hello/pull/7" }),
+    });
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({
+      error: "this credential's scope does not allow this operation",
+      code: "scope-exceeded",
+    });
   });
 
   it("401s garbage, unknown, expired, and revoked tokens with the same hint-free body", async () => {
@@ -496,7 +528,11 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
     const cookie = await seedSession();
 
     const res = await mint(
-      { name: "ci-token", installationId: INSTALLATION_ID },
+      {
+        name: "ci-token",
+        installationId: INSTALLATION_ID,
+        scope: "external-write",
+      },
       cookie,
     );
     expect(res.status).toBe(201);
@@ -558,7 +594,12 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
     });
     const cookie = await seedSession();
     const res = await mint(
-      { name: "forever", installationId: INSTALLATION_ID, expiresInDays: null },
+      {
+        name: "forever",
+        installationId: INSTALLATION_ID,
+        scope: "external-write",
+        expiresInDays: null,
+      },
       cookie,
     );
     expect(res.status).toBe(201);
@@ -572,7 +613,10 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
         userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
     });
     const cookie = await seedSession();
-    const res = await mint({ name: "sneaky", installationId: 424242 }, cookie);
+    const res = await mint(
+      { name: "sneaky", installationId: 424242, scope: "external-write" },
+      cookie,
+    );
     expect(res.status).toBe(403);
     expect(
       await harness.raw("select count(*)::int as n from api_token"),
@@ -585,7 +629,11 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
     });
     const cookie = await seedSession();
     const res = await mint(
-      { name: "blocked", installationId: INSTALLATION_ID },
+      {
+        name: "blocked",
+        installationId: INSTALLATION_ID,
+        scope: "external-write",
+      },
       cookie,
     );
     expect(res.status).toBe(502);
@@ -604,7 +652,13 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
     const bearer = await seedApiToken(harness.handle, kp);
 
     expect(
-      (await mint({ name: "x", installationId: INSTALLATION_ID })).status,
+      (
+        await mint({
+          name: "x",
+          installationId: INSTALLATION_ID,
+          scope: "external-write",
+        })
+      ).status,
     ).toBe(401);
     const viaBearerMint = await app.request("/api/auth/tokens", {
       method: "POST",
@@ -612,7 +666,11 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
         "content-type": "application/json",
         Authorization: `Bearer ${bearer}`,
       },
-      body: JSON.stringify({ name: "x", installationId: INSTALLATION_ID }),
+      body: JSON.stringify({
+        name: "x",
+        installationId: INSTALLATION_ID,
+        scope: "external-write",
+      }),
     });
     expect(viaBearerMint.status).toBe(401);
     const viaBearerList = await app.request("/api/auth/tokens", {
@@ -625,16 +683,79 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
     ).toEqual([{ n: 1 }]);
   });
 
+  it("mints at the chosen scope, and refuses a mint that names none", async () => {
+    stubGitHub({
+      userInstallations: () =>
+        userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
+    });
+    const cookie = await seedSession();
+
+    const narrowed = await mint(
+      { name: "read-only", installationId: INSTALLATION_ID, scope: "read" },
+      cookie,
+    );
+    expect(narrowed.status).toBe(201);
+    expect(await narrowed.json()).toMatchObject({
+      apiToken: { scope: "read" },
+    });
+
+    const widest = await mint(
+      {
+        name: "full",
+        installationId: INSTALLATION_ID,
+        scope: "external-write",
+      },
+      cookie,
+    );
+    expect(widest.status).toBe(201);
+    expect(await widest.json()).toMatchObject({
+      apiToken: { scope: "external-write" },
+    });
+
+    // No scope is NOT a default — the reach a token carries is always chosen.
+    const unchosen = await mint(
+      { name: "unstated", installationId: INSTALLATION_ID },
+      cookie,
+    );
+    expect(unchosen.status).toBe(400);
+
+    // The list surface shows it too — the scope is how a reader tells the two
+    // credentials apart.
+    const list = await app.request("/api/auth/tokens", {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
+    const listed = (await list.json()) as {
+      tokens: Array<Record<string, unknown>>;
+    };
+    expect(
+      listed.tokens
+        .map((token) => String(token["scope"]))
+        .toSorted((a, b) => a.localeCompare(b)),
+    ).toEqual(["external-write", "read"]);
+  });
+
   it("rejects malformed bodies deterministically", async () => {
     stubGitHub({});
     const cookie = await seedSession();
     for (const bad of [
       {},
-      { name: "", installationId: INSTALLATION_ID },
-      { name: "x".repeat(101), installationId: INSTALLATION_ID },
-      { name: "ok", installationId: "not-a-number" },
-      { name: "ok", installationId: INSTALLATION_ID, expiresInDays: 0 },
-      { name: "ok", installationId: INSTALLATION_ID, expiresInDays: -3 },
+      { name: "ok", installationId: INSTALLATION_ID },
+      { name: "", installationId: INSTALLATION_ID, scope: "read" },
+      { name: "x".repeat(101), installationId: INSTALLATION_ID, scope: "read" },
+      { name: "ok", installationId: "not-a-number", scope: "read" },
+      {
+        name: "ok",
+        installationId: INSTALLATION_ID,
+        scope: "read",
+        expiresInDays: 0,
+      },
+      {
+        name: "ok",
+        installationId: INSTALLATION_ID,
+        scope: "read",
+        expiresInDays: -3,
+      },
+      { name: "ok", installationId: INSTALLATION_ID, scope: "admin" },
     ]) {
       const res = await mint(bad, cookie);
       expect(res.status).toBe(400);
@@ -651,7 +772,14 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
     await seedPr(harness.handle);
     const cookie = await seedSession();
     const minted = (await (
-      await mint({ name: "doomed", installationId: INSTALLATION_ID }, cookie)
+      await mint(
+        {
+          name: "doomed",
+          installationId: INSTALLATION_ID,
+          scope: "external-write",
+        },
+        cookie,
+      )
     ).json()) as MintedBody;
 
     // Works before revocation.

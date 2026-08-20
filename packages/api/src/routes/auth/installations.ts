@@ -144,7 +144,6 @@ export function installationsRoute(
     {
       id: PRODUCT_QUERY_ID.LIST_INSTALLATIONS,
       classification: WRITE_CLASSIFICATION.READ,
-      agentAvailable: true,
     },
     "/",
     async (c) => {
@@ -189,7 +188,6 @@ export function installationsRoute(
     {
       id: PRODUCT_ACTION_ID.SELECT_INSTALLATION,
       classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
-      agentAvailable: false,
     },
     "post",
     "/",

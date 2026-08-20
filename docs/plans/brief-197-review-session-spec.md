@@ -528,8 +528,10 @@ enforcement is a separate and real check.
 ### 5.6 Where the check runs
 
 **Authentication stays middleware. The scope check moves into
-`productRouter.action()` and `.query()`**, reading the write class already on
-the declaration they receive. A route added next year is enforced whether or
+`productRouter.action()`**, reading the write class already on the declaration
+it receives. `.query()` carries none — `read` is the ladder's bottom rung, so
+every scope reaches every query, and the router already refuses to declare a
+query as anything else. A route added next year is enforced whether or
 not its author thought about it. This takes ADR 0039's "descriptors never
 touch a request" amendment.
 

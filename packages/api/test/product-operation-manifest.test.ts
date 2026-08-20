@@ -25,7 +25,6 @@ describe("product operation manifest", () => {
         id: "probe-op",
         kind: "query",
         classification: "read",
-        agentAvailable: true,
         endpoint: "GET /api/probe",
       },
     ]);
@@ -37,7 +36,6 @@ describe("product operation manifest", () => {
               id: "probe-op",
               kind: "query",
               classification: "read",
-              agentAvailable: true,
               endpoint: "GET /api/probe",
             },
           ],

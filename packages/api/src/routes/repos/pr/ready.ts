@@ -144,7 +144,6 @@ export function markReadyRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
     {
       id: PRODUCT_ACTION_ID.MARK_READY,
       classification: WRITE_CLASSIFICATION.EXTERNAL_WRITE,
-      agentAvailable: true,
     },
     "post",
     "/",

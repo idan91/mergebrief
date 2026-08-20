@@ -248,7 +248,6 @@ export function reviewSubmitRoute(
     {
       id: PRODUCT_ACTION_ID.SUBMIT_REVIEW,
       classification: WRITE_CLASSIFICATION.EXTERNAL_WRITE,
-      agentAvailable: true,
     },
     "post",
     "/",

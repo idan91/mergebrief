@@ -13,7 +13,7 @@ import { useState } from "react";
 import { ApiError, ApiErrorCode } from "../../../data/apiFetch";
 import { installationsQueryOptions } from "../../installations/queries";
 import { mintToken, revokeToken, tokensQueryOptions } from "../queries";
-import type { ApiTokenView, MintedToken } from "../types";
+import type { ApiTokenView, MintedToken, TokenScope } from "../types";
 
 /** The server's name cap (mirrored — see the mint route's Zod schema). */
 export const TOKEN_NAME_MAX = 100;
@@ -26,6 +26,10 @@ export const ExpiryChoice = {
   NONE: "none",
 } as const;
 export type ExpiryChoice = (typeof ExpiryChoice)[keyof typeof ExpiryChoice];
+
+/** No pre-selection: the scope a token carries is always a stated choice. */
+export const SCOPE_UNCHOSEN = "";
+export type ScopeChoice = TokenScope | typeof SCOPE_UNCHOSEN;
 
 export interface TokenSettingsState {
   /** The viewer's tokens, newest first (server order). */
@@ -40,6 +44,8 @@ export interface TokenSettingsState {
   readonly setInstallationId: (value: string) => void;
   readonly expiry: ExpiryChoice;
   readonly setExpiry: (value: ExpiryChoice) => void;
+  readonly scope: ScopeChoice;
+  readonly setScope: (value: ScopeChoice) => void;
   /** The deterministic-400 mirror: why the form cannot submit, or null. */
   readonly mintBlockedReason: string | null;
   readonly mintPending: boolean;
@@ -68,6 +74,7 @@ export function useTokenSettings(enabled: boolean): TokenSettingsState {
   const [name, setName] = useState("");
   const [installationId, setInstallationId] = useState("");
   const [expiry, setExpiry] = useState<ExpiryChoice>(ExpiryChoice.NINETY_DAYS);
+  const [scope, setScope] = useState<ScopeChoice>(SCOPE_UNCHOSEN);
   const [mintedToken, setMintedToken] = useState<MintedToken | null>(null);
 
   const installations = (installationsQuery.data?.installations ?? []).map(
@@ -103,19 +110,23 @@ export function useTokenSettings(enabled: boolean): TokenSettingsState {
   });
 
   const trimmedName = name.trim();
-  const mintBlockedReason =
-    trimmedName.length === 0
-      ? t("tokens.nameRequired")
-      : trimmedName.length > TOKEN_NAME_MAX
-        ? t("tokens.nameTooLong", { max: TOKEN_NAME_MAX })
-        : effectiveInstallationId === ""
-          ? t("tokens.organizationRequired")
-          : null;
+  const blockedReason = (): string | null => {
+    if (trimmedName.length === 0) return t("tokens.nameRequired");
+    if (trimmedName.length > TOKEN_NAME_MAX) {
+      return t("tokens.nameTooLong", { max: TOKEN_NAME_MAX });
+    }
+    if (effectiveInstallationId === "") return t("tokens.organizationRequired");
+    if (scope === SCOPE_UNCHOSEN) return t("tokens.scopeRequired");
+    return null;
+  };
+  const mintBlockedReason = blockedReason();
 
   const submitMint = (): void => {
     if (mintBlockedReason !== null || minting.isPending) return;
+    if (scope === SCOPE_UNCHOSEN) return;
     minting.mutate({
       name: trimmedName,
+      scope,
       installationId: effectiveInstallationId,
       expiresInDays: expiry === ExpiryChoice.NONE ? null : Number(expiry),
     });
@@ -145,6 +156,8 @@ export function useTokenSettings(enabled: boolean): TokenSettingsState {
     setInstallationId,
     expiry,
     setExpiry,
+    scope,
+    setScope,
     mintBlockedReason,
     mintPending: minting.isPending,
     mintError,

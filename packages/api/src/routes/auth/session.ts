@@ -19,6 +19,7 @@ import {
   GrantAuthErrorCode,
   sessionAuth,
   tokenAuth,
+  WriteClassification,
   type AppDatabase,
   type AuthSessionRow,
   type GithubGrantRow,
@@ -106,6 +107,8 @@ export type ViewerPrincipal = AuthSessionRow & {
   readonly channel: AuthChannel;
   readonly ghTokenCiphertext: string;
   readonly keyRef: string;
+  /** What this credential may reach — the router's scope check reads it here. */
+  readonly scope: WriteClassification;
 };
 
 /** Shape a resolved cookie session (+ its grant) into the principal. */
@@ -116,6 +119,9 @@ export function principalFromSession(
     ...resolved.session,
     ghTokenCiphertext: resolved.grant.ghTokenCiphertext,
     keyRef: resolved.grant.keyRef,
+    // A cookie has no row to hold a limit and the person is at the keyboard:
+    // the browser is unlimited by construction, not by a stored value.
+    scope: WriteClassification.EXTERNAL_WRITE,
     channel: AuthChannel.COOKIE,
   };
 }
@@ -143,6 +149,7 @@ export function principalFromApiToken({
     keyRef: grant.keyRef,
     expiresAt: token.expiresAt ?? NO_EXPIRY_SENTINEL,
     createdAt: token.createdAt,
+    scope: token.scope,
     channel: AuthChannel.BEARER,
   };
 }

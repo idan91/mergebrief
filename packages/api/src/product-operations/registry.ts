@@ -27,7 +27,6 @@ export function createProductOperationRegistry(): ProductOperationRegistry {
         if (
           existing.kind === descriptor.kind &&
           existing.classification === descriptor.classification &&
-          existing.agentAvailable === descriptor.agentAvailable &&
           existing.endpoint === descriptor.endpoint
         ) {
           return;

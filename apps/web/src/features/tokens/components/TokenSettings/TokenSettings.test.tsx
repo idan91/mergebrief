@@ -52,6 +52,7 @@ const INSTALLATIONS: InstallationsView = {
 const LIVE_TOKEN: ApiTokenView = {
   id: "3",
   name: "ci-token",
+  scope: "external-write",
   installationId: "111",
   userLogin: "octocat",
   expiresAt: "2026-10-07T00:00:00.000Z",
@@ -92,6 +93,37 @@ describe("TokenSettings", () => {
     expect(mintMock).not.toHaveBeenCalled();
   });
 
+  it("will not mint until a scope is chosen — there is no default reach", () => {
+    renderSettings();
+    fireEvent.change(screen.getByLabelText(/token name/i), {
+      target: { value: "ci-token" },
+    });
+
+    const button = screen.getByRole("button", { name: /mint token/i });
+    expect(button.getAttribute("aria-disabled")).toBe("true");
+    expect(screen.getByText(/pick what the token is allowed to do/i)).not.toBe(
+      null,
+    );
+    fireEvent.click(button);
+    expect(mintMock).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText(/scope/i), {
+      target: { value: "read" },
+    });
+    expect(
+      screen
+        .getByRole("button", { name: /mint token/i })
+        .getAttribute("aria-disabled"),
+    ).not.toBe("true");
+  });
+
+  it("shows each token's scope in the list", () => {
+    renderSettings({ tokens: [LIVE_TOKEN] });
+    // The picker offers the same labels, so scope the query to the row.
+    const row = screen.getByText("ci-token").parentElement;
+    expect(row?.textContent).toMatch(/read, review, and post to github/i);
+  });
+
   it("mints with the picked installation and expiry, then shows the token ONCE", async () => {
     mintMock.mockResolvedValue({ token: SECRET, apiToken: LIVE_TOKEN });
     renderSettings();
@@ -105,12 +137,20 @@ describe("TokenSettings", () => {
     fireEvent.change(screen.getByLabelText(/expires/i), {
       target: { value: "none" },
     });
+    fireEvent.change(screen.getByLabelText(/scope/i), {
+      target: { value: "private-write" },
+    });
     fireEvent.click(screen.getByRole("button", { name: /mint token/i }));
 
     await waitFor(() =>
       // react-query v5 passes its mutation context as a second argument.
       expect(mintMock).toHaveBeenCalledWith(
-        { name: "ci-token", installationId: "222", expiresInDays: null },
+        {
+          name: "ci-token",
+          scope: "private-write",
+          installationId: "222",
+          expiresInDays: null,
+        },
         expect.anything(),
       ),
     );
@@ -142,6 +182,9 @@ describe("TokenSettings", () => {
     fireEvent.change(screen.getByLabelText(/token name/i), {
       target: { value: "ci-token" },
     });
+    fireEvent.change(screen.getByLabelText(/scope/i), {
+      target: { value: "read" },
+    });
     fireEvent.click(screen.getByRole("button", { name: /mint token/i }));
     await screen.findByRole("status");
 
@@ -163,6 +206,9 @@ describe("TokenSettings", () => {
 
     fireEvent.change(screen.getByLabelText(/token name/i), {
       target: { value: "ci-token" },
+    });
+    fireEvent.change(screen.getByLabelText(/scope/i), {
+      target: { value: "read" },
     });
     fireEvent.click(screen.getByRole("button", { name: /mint token/i }));
 

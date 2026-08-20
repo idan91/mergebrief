@@ -72,7 +72,6 @@ export function collaboratorsRoute(
     {
       id: PRODUCT_QUERY_ID.LIST_COLLABORATORS,
       classification: WRITE_CLASSIFICATION.READ,
-      agentAvailable: true,
     },
     "/",
     async (c) => {

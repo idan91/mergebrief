@@ -3,6 +3,13 @@
 Implementation plan. Source of truth for scope: BRIEF-196 ticket + BRIEF-122
 locked decisions and 2026-08-15 round-2 settlement.
 
+**Amended by BRIEF-197 (spec §5.4/§5.5):** the `agentAvailable` descriptor
+field described below is deleted — it enforced nothing (the Bearer-path test
+in the authz gate is the real rule) and was hand-typed wrong twice. The
+descriptor is `id`, `kind`, `classification`, `endpoint`; web-only is now a
+reasoned `webOnly` entry in the CLI map, where every operation carries exactly
+one entry.
+
 ## Goal
 
 Every authenticated domain operation enumerable, classified, and mechanically

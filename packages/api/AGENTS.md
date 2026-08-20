@@ -51,7 +51,11 @@ hand-roll `c.json({ error })`.
    run that suite for an api-only edit: run
    `pnpm -C packages/i18n test` locally.
 3. Mirror the code in `apps/web`'s hand-rolled `ApiErrorCode` (its Equals
-   pin fails to compile otherwise).
+   pin fails to compile otherwise), and add the matching
+   `pulls.briefError.<code>` copy — that lookup is total by a
+   template-literal key type, so a missing entry breaks `apps/web`'s
+   typecheck. The two catalog blocks are different copy: `errors.<code>` is
+   the wire line, `pulls.briefError.<code>` is what a reader sees.
 4. A param value must never carry free-form upstream text unless
    pre-sanitized (`sanitizeErrorDetail` from `logging`).
 
@@ -86,6 +90,17 @@ cause.
   thread resolution's viewer capability); where it carries none it keeps
   collapsing to 404 (the reply POST — any repo reader may reply, so its 403
   is indistinguishable from gone). NOT_FOUND collapses to 404 everywhere.
+- **Scope is checked at the router seam, not in routes.** Authentication
+  stays middleware; `productRouter.action()` composes the scope check in
+  front of every action's handlers off the declaration's classification, so
+  a route added later is enforced whether or not its author thought about
+  it. The ladder `read < private-write < external-write` is cumulative, so
+  queries need no check. A credential that does not reach the class gets
+  403 `scope-exceeded`; a handler reached with no principal at all fails
+  closed with 401. Cookie principals are unlimited by construction — there
+  is no row to hold a limit and the person is at the keyboard — while a
+  Bearer principal carries `api_token.scope`, chosen at mint and immutable
+  for the token's life.
 - **`no-store` on every response of a gated route** — error paths included;
   it is all per-viewer state (`errorJson` in `repos/pr/review.ts`).
 - **One refresh-once budget per REQUEST**, shared across every GitHub call
@@ -120,10 +135,10 @@ committed manifest is strictly newer than every file under `src/`, `test/`,
 start pays nothing. `--check` has no such shortcut — it always composes and
 judges by bytes, whatever the timestamps say.
 
-The manifest is also one half of a both-directions gate: an
-agent-available operation needs either a `mergebrief` command or a
-documented, expiring gap entry in `packages/cli/product-operations.map.json`,
-and a web-only one (`agentAvailable: false`) must be absent from that file.
+The manifest is also one half of a both-directions gate: EVERY operation
+needs exactly one entry in `packages/cli/product-operations.map.json` — a
+`mergebrief` command, a documented expiring gap, or a reasoned `webOnly` note
+— and every entry there must name an operation the manifest carries.
 
 ## Conventions
 

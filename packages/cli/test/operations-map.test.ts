@@ -1,8 +1,7 @@
-// The CLI-mapping gate: every agent-available operation maps to a command the
-// real program registers, or to an unexpired, fully-documented gap; every map
-// key exists in the manifest; web-only operations stay out of the map. The
-// last tests run the REAL committed files and the REAL command tree through
-// the same check the lint gate uses.
+// The CLI-mapping gate: every operation maps to a command the real program
+// registers, an unexpired fully-documented gap, or a reasoned web-only note;
+// every map key exists in the manifest. The last tests run the REAL committed
+// files and the REAL command tree through the same check the lint gate uses.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -42,15 +41,17 @@ const QUERY = {
   id: "read-thing",
   kind: "query",
   classification: "read",
-  agentAvailable: true,
   endpoint: "GET /api/thing",
 };
-const WEB_ONLY = {
+const WEB_ONLY_OPERATION = {
   id: "mint-secret",
   kind: "action",
   classification: "private-write",
-  agentAvailable: false,
   endpoint: "POST /api/secrets",
+};
+const WEB_ONLY = {
+  reason: "credential minting is a browser act",
+  owner: "idan",
 };
 const GAP = {
   reason: "no command yet",
@@ -76,7 +77,7 @@ describe("checkOperationsMap", () => {
     expect(result.ok).toBe(true);
   });
 
-  it("rejects an agent-available operation with no entry", () => {
+  it("rejects an operation with no entry", () => {
     const result = check({ manifestRaw: manifestOf([QUERY]), mapRaw: "{}" });
     expect(result.ok).toBe(false);
     expect(errorsOf(result)).toMatch(/read-thing/);
@@ -134,20 +135,32 @@ describe("checkOperationsMap", () => {
     expect(errorsOf(result)).toMatch(/ghost-op/);
   });
 
-  it("rejects a web-only operation appearing in the map", () => {
+  it("accepts a reasoned web-only entry", () => {
     const result = check({
-      manifestRaw: manifestOf([WEB_ONLY]),
-      mapRaw: JSON.stringify({
-        "mint-secret": { command: "mergebrief thing" },
-      }),
+      manifestRaw: manifestOf([WEB_ONLY_OPERATION]),
+      mapRaw: JSON.stringify({ "mint-secret": { webOnly: WEB_ONLY } }),
+    });
+    expect(result).toEqual({
+      ok: true,
+      value: { commands: 0, gaps: 0, webOnly: 1 },
+    });
+  });
+
+  it("rejects a web-only operation with no entry", () => {
+    const result = check({
+      manifestRaw: manifestOf([WEB_ONLY_OPERATION]),
+      mapRaw: "{}",
     });
     expect(result.ok).toBe(false);
     expect(errorsOf(result)).toMatch(/mint-secret/);
   });
 
-  it("web-only operations need no entry", () => {
-    const result = check({ manifestRaw: manifestOf([WEB_ONLY]), mapRaw: "{}" });
-    expect(result.ok).toBe(true);
+  it("rejects a web-only entry missing its reason", () => {
+    const result = check({
+      manifestRaw: manifestOf([WEB_ONLY_OPERATION]),
+      mapRaw: JSON.stringify({ "mint-secret": { webOnly: { owner: "idan" } } }),
+    });
+    expect(result.ok).toBe(false);
   });
 
   it("rejects a manifest endpoint that is not `METHOD /api/...`", () => {
@@ -188,7 +201,7 @@ describe("checkOperationsMap", () => {
     });
     expect(result.ok).toBe(false);
     expect(errorsOf(result)).toMatch(
-      /"constructor" has no CLI command and no documented gap entry/,
+      /"constructor" has no CLI command, documented gap, or web-only entry/,
     );
   });
 
@@ -283,6 +296,10 @@ describe("the committed catalog", () => {
       today: "2026-08-16",
       commandPaths: cliCommandPaths(),
     });
-    expect(result).toEqual({ ok: true, value: expect.anything() });
+    // The counts grow with each Review Session PR that lands operations.
+    expect(result).toEqual({
+      ok: true,
+      value: { commands: 9, gaps: 9, webOnly: 5 },
+    });
   });
 });

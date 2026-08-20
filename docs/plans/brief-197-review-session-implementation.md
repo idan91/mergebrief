@@ -153,7 +153,8 @@ path).
 
 ### PR 9 `feat(api): credential scope, router gate, agentAvailable deleted` (~700 LOC)
 Scope vocabulary and mint-time selection; the scope check inside
-`productRouter.action()`/`.query()` off the declaration's classification;
+`productRouter.action()` off the declaration's classification (a query is
+`read`, the bottom rung, so it needs none);
 `scope-exceeded` (403) through the full wire-error recipe (api code + status +
 English, `errors.scope-exceeded` in i18n, the `apps/web` mirror); delete
 `agentAvailable` from the descriptor, both declaration interfaces, all 23

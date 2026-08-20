@@ -221,7 +221,6 @@ export function commentsRoute(
     {
       id: PRODUCT_ACTION_ID.CREATE_INLINE_COMMENT,
       classification: WRITE_CLASSIFICATION.EXTERNAL_WRITE,
-      agentAvailable: true,
     },
     "post",
     "/",
@@ -397,7 +396,6 @@ export function commentsRoute(
     {
       id: PRODUCT_ACTION_ID.REPLY_TO_COMMENT,
       classification: WRITE_CLASSIFICATION.EXTERNAL_WRITE,
-      agentAvailable: true,
     },
     "post",
     "/:commentId/replies",
@@ -560,7 +558,6 @@ export function commentsRoute(
     {
       id: PRODUCT_ACTION_ID.RESOLVE_THREAD,
       classification: WRITE_CLASSIFICATION.EXTERNAL_WRITE,
-      agentAvailable: true,
     },
     "post",
     "/:commentId/resolve",
@@ -570,7 +567,6 @@ export function commentsRoute(
     {
       id: PRODUCT_ACTION_ID.UNRESOLVE_THREAD,
       classification: WRITE_CLASSIFICATION.EXTERNAL_WRITE,
-      agentAvailable: true,
     },
     "post",
     "/:commentId/unresolve",
