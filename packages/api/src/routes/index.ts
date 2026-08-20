@@ -5,6 +5,7 @@ import type { Logger } from "logging";
 import type { AppDatabase } from "persistence";
 import type { DraftPolicy } from "types";
 import type { RequestLogEnv } from "../request-logging";
+import type { AuditEmitConfig } from "../product-operations/audit";
 import {
   productRouter,
   type ProductRouter,
@@ -32,6 +33,9 @@ export interface AppDeps {
   readonly serverVersion?: string;
   /** Instance draft-PR policy; omitted = zero-config default. */
   readonly draftPolicy?: DraftPolicy;
+  /** Audit knobs from persistence config; omitted = private writes on,
+   * caller ip off. */
+  readonly audit?: AuditEmitConfig;
   /** Omitted (worker-less / test deployments) ⇒ POST /api/generate answers a curated 503. */
   readonly urlBriefEngine?: UrlBriefEngine;
 }

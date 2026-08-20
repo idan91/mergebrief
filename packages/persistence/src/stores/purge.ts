@@ -44,7 +44,6 @@ import { pullRequest } from "../schema/pull-request";
 import { authSession } from "../schema/auth-session";
 import type { PullRequestRow, TenantContext } from "./tenant";
 import {
-  AuditAction,
   AuditActorType,
   AuditOutcome,
   type PrState,
@@ -55,6 +54,10 @@ import {
 } from "../types";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+// The sweeps' own `audit_log.operation` token — these routines are not
+// Product Operations, so they name themselves.
+const AUDIT_OPERATION_DELETE = "delete";
 
 // Open-ended `audit_log.target_type` classes.
 const AUDIT_TARGET_PULL_REQUEST = "pull_request";
@@ -208,7 +211,7 @@ export function purgeRoutines(
         await insertAudit(tx, {
           installationId,
           actorType: AuditActorType.APP,
-          operation: AuditAction.DELETE,
+          operation: AUDIT_OPERATION_DELETE,
           outcome: AuditOutcome.OK,
           targetType: AUDIT_TARGET_PULL_REQUEST,
           targetId: prRowId,
@@ -241,7 +244,7 @@ export function purgeRoutines(
         await insertAudit(tx, {
           installationId,
           actorType: AuditActorType.APP,
-          operation: AuditAction.DELETE,
+          operation: AUDIT_OPERATION_DELETE,
           outcome: AuditOutcome.OK,
           targetType: AUDIT_TARGET_REPO,
           targetId: repoId,
@@ -283,7 +286,7 @@ export function purgeRoutines(
           await insertAudit(tx, {
             installationId,
             actorType: AuditActorType.APP,
-            operation: AuditAction.DELETE,
+            operation: AUDIT_OPERATION_DELETE,
             outcome: AuditOutcome.OK,
             targetType: AUDIT_TARGET_REPO,
             targetId: repoId,
@@ -316,7 +319,7 @@ export function purgeRoutines(
         await insertAudit(tx, {
           installationId,
           actorType: AuditActorType.APP,
-          operation: AuditAction.DELETE,
+          operation: AUDIT_OPERATION_DELETE,
           outcome: AuditOutcome.OK,
           targetType: AUDIT_TARGET_INSTALLATION,
           targetId: installationId,
@@ -386,7 +389,7 @@ export function purgeRoutines(
           await insertAudit(tx, {
             installationId,
             actorType: AuditActorType.SYSTEM,
-            operation: AuditAction.DELETE,
+            operation: AUDIT_OPERATION_DELETE,
             outcome: AuditOutcome.OK,
             targetType: AUDIT_TARGET_PULL_REQUEST,
             metadata: { count },
@@ -480,7 +483,7 @@ export async function sweepAuditLog(
       await insertAudit(tx, {
         installationId,
         actorType: AuditActorType.SYSTEM,
-        operation: AuditAction.DELETE,
+        operation: AUDIT_OPERATION_DELETE,
         outcome: AuditOutcome.OK,
         targetType: AUDIT_TARGET_AUDIT_LOG,
         metadata: { count },

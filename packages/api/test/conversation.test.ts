@@ -424,7 +424,7 @@ async function postReply(
 
 async function replyAuditCount(harness: PgliteHarness): Promise<number> {
   const rows = await harness.raw(
-    "select count(*)::int as n from audit_log where operation = 'submit' and target_type = 'review_comment'",
+    "select count(*)::int as n from audit_log where operation = 'reply-to-comment' and outcome = 'ok'",
   );
   const n = rows[0]?.["n"];
   if (typeof n !== "number") throw new Error("unexpected count result");
@@ -770,11 +770,11 @@ describe("conversation surface", () => {
         });
         expect(res.status).toBe(201);
         expect(await res.json()).toEqual({ commentId: REPLY_ID });
-        // The integrity failure is operator-visible: one
-        // audit.fail error line carrying the posted artifact's id.
+        // The integrity failure is operator-visible: one audit.fail error
+        // line naming the operation whose row never landed.
         const line = capture.lines().find((l) => l["evt"] === "audit.fail");
         expect(line?.["level"]).toBe("error");
-        expect(line?.["commentId"]).toBe(String(REPLY_ID));
+        expect(line?.["operation"]).toBe("reply-to-comment");
         expect(line?.["err"]).toBeDefined();
       } finally {
         await harness.raw("alter table audit_log_hidden rename to audit_log");

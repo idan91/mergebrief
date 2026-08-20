@@ -7,8 +7,8 @@
 //   `repoAuthzLayer` — parse+brand `:repoId`, verify the viewer's GitHub access
 //                      to the repo by its NUMERIC id (`GET /repositories/{id}`
 //                      with the viewer's own token — rename-proof); any non-2xx
-//                      collapses to 404 (no existence leak) and emits the
-//                      `auth` denial audit row; on success shapes the request
+//                      collapses to 404 (no existence leak) and names the
+//                      denial for the audit choke point; on success shapes the request
 //                      context (`repoId`, `repoFullName`, `accessToken`).
 // `createAuthzMiddleware` = the composition of both — the per-repo gate in
 // front of every read under `/api/repos/:repoId/*`.
@@ -38,11 +38,6 @@ import { every } from "hono/combine";
 import { getCookie } from "hono/cookie";
 import { createUserOctokit, fetchRepositoryById } from "github";
 import {
-  audit,
-  AuditAction,
-  AuditOutcome,
-  AuditActorType,
-  AuditMetadataKey,
   decryptToken,
   isRepoId,
   sessionAuth,
@@ -60,6 +55,11 @@ import {
   type AuthRouteDeps,
   type ViewerPrincipal,
 } from "./auth/session";
+import {
+  AUDIT_REASON_NO_REPO_ACCESS,
+  stampAuditReason,
+  stampAuditTarget,
+} from "../product-operations/audit";
 import { stampAccess, type RequestLogVariables } from "../request-logging";
 import { createTtlCache } from "./ttl-cache";
 import { ApiErrorCode, errorJson } from "../error-response";
@@ -341,16 +341,11 @@ export function repoAuthzLayer(
     // Any other non-2xx (403/404/5xx), or a retry that is still non-2xx →
     // collapse to 404 (no existence leak) AND emit the denial. Never cached.
     if (!repo.ok) {
-      await audit(deps.handle, {
-        installationId: c.get("ctx").installationId,
-        actorType: AuditActorType.REVIEWER,
-        actorId: currentSession.reviewerId,
-        operation: AuditAction.AUTH,
-        outcome: AuditOutcome.DENIED,
-        targetType: "repo",
-        targetId: repoId,
-        metadata: { [AuditMetadataKey.DECISION]: "404" },
-      });
+      // The ledger names the real reason; the RESPONSE stays the uniform 404.
+      // The row itself is written at the audit choke point — for an action;
+      // a read is never audited, and this gate cannot tell them apart.
+      stampAuditReason(c, AUDIT_REASON_NO_REPO_ACCESS);
+      stampAuditTarget(c, "repo", repoId);
       stampAccess(c, "404", { repoId, reviewerId: currentSession.reviewerId });
       return errorJson(c, ApiErrorCode.NOT_FOUND);
     }

@@ -20,7 +20,6 @@ import { type AppDatabase, internal } from "../db/handle";
 import { apiToken } from "../schema/api-token";
 import { githubGrant } from "../schema/github-grant";
 import {
-  AuditAction,
   AuditOutcome,
   AuditActorType,
   type ApiTokenRowId,
@@ -32,6 +31,11 @@ import {
   type WriteClassification,
 } from "../types";
 import type { GithubGrantRow } from "./grant";
+
+// The issuance row this store writes INSIDE the mint transaction — a mint that
+// commits always has a ledger entry. Named apart from the `mint-token`
+// descriptor id the request path records, so neither double-counts the other.
+const AUDIT_OPERATION_MINT = "issue-api-token";
 
 export type ApiTokenRow = typeof apiToken.$inferSelect;
 
@@ -210,7 +214,7 @@ export function tokenAuth(handle: AppDatabase): TokenAuth {
           installationId: input.installationId,
           actorType: AuditActorType.REVIEWER,
           actorId: input.userId,
-          operation: AuditAction.AUTH,
+          operation: AUDIT_OPERATION_MINT,
           outcome: AuditOutcome.OK,
           targetType: "api_token",
           targetId: row.id,

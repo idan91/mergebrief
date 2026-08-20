@@ -28,10 +28,6 @@ import {
 } from "github";
 import {
   AnchorStatus,
-  audit,
-  AuditAction,
-  AuditOutcome,
-  AuditActorType,
   decryptToken,
   DraftCommentSide,
   DraftCommentStatus,
@@ -45,6 +41,7 @@ import { z } from "zod";
 import { refreshSessionToken, type AuthRouteDeps } from "../../auth/session";
 import type { AuthzEnv } from "../../authz";
 import { ApiErrorCode, errorJson } from "../../../error-response";
+import { stampAuditTarget } from "../../../product-operations/audit";
 import { PRODUCT_ACTION_ID } from "../../../product-operations/ids";
 import {
   productRouter,
@@ -413,28 +410,7 @@ export function commentsRoute(
       // FE's post-write refetch reflects the new thread inside the TTL.
       evictConversation(ctx.installationId, repoId, pr.prNumber);
 
-      // The GitHub write above is the COMMIT POINT: a local audit failure must
-      // never turn a posted comment into an error response (that would invite a
-      // double-posting retry). Best-effort — log and keep the 201.
-      try {
-        await audit(deps.handle, {
-          installationId: ctx.installationId,
-          actorType: AuditActorType.REVIEWER,
-          actorId: currentSession.reviewerId,
-          operation: AuditAction.SUBMIT,
-          outcome: AuditOutcome.OK,
-          targetType: "review_comment",
-          targetId: posted.value.commentId,
-        });
-      } catch (auditError) {
-        // Posted to GitHub, our audit write failed — a data-integrity signal
-        // the operator alerts on.
-        c.get("logger").error("post-now audit failed after posted comment", {
-          evt: "audit.fail",
-          commentId: String(posted.value.commentId),
-          err: auditError,
-        });
-      }
+      stampAuditTarget(c, "review_comment", posted.value.commentId);
 
       return c.json(
         {
@@ -580,30 +556,7 @@ export function commentsRoute(
       // FE's post-reply refetch reflects the reply inside the TTL.
       evictConversation(ctx.installationId, repoId, pr.prNumber);
 
-      // Audit posture consistent with submit — but the GitHub
-      // write above is the COMMIT POINT: a local audit failure must never turn
-      // a posted reply into an error response (the composer's upstream copy
-      // invites a retry, which would double-post). Best-effort: log and keep
-      // the 201.
-      try {
-        await audit(deps.handle, {
-          installationId: ctx.installationId,
-          actorType: AuditActorType.REVIEWER,
-          actorId: currentSession.reviewerId,
-          operation: AuditAction.SUBMIT,
-          outcome: AuditOutcome.OK,
-          targetType: "review_comment",
-          targetId: BigInt(created.value.commentId),
-        });
-      } catch (auditError) {
-        // Posted to GitHub, our audit write failed — a data-integrity signal
-        // the operator alerts on.
-        c.get("logger").error("reply audit failed after posted reply", {
-          evt: "audit.fail",
-          commentId: String(created.value.commentId),
-          err: auditError,
-        });
-      }
+      stampAuditTarget(c, "review_comment", BigInt(created.value.commentId));
 
       return c.json({ commentId: created.value.commentId }, 201, {
         "cache-control": "no-store",
@@ -745,32 +698,7 @@ export function commentsRoute(
     // the slim-row transition immediately.
     evictConversation(ctx.installationId, repoId, pr.prNumber);
 
-    // Audit with the direction's own operation. The GitHub write
-    // above is the commit point — never turn a landed flip into an error
-    // response over a local audit failure (the FE would invite a retry of a
-    // done action).
-    try {
-      await audit(deps.handle, {
-        installationId: ctx.installationId,
-        actorType: AuditActorType.REVIEWER,
-        actorId: currentSession.reviewerId,
-        operation: resolved
-          ? AuditAction.RESOLVE_THREAD
-          : AuditAction.UNRESOLVE_THREAD,
-        outcome: AuditOutcome.OK,
-        targetType: "review_comment",
-        targetId: BigInt(parsedComment.data),
-      });
-    } catch (auditError) {
-      c.get("logger").error(
-        "thread-resolution audit failed after landed flip",
-        {
-          evt: "audit.fail",
-          commentId: String(parsedComment.data),
-          err: auditError,
-        },
-      );
-    }
+    stampAuditTarget(c, "review_comment", BigInt(parsedComment.data));
 
     return c.json(
       { resolved, alreadyInTargetState: outcome.value.alreadyInTargetState },

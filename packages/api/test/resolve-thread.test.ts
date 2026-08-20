@@ -267,7 +267,9 @@ async function auditCount(
   action: string,
 ): Promise<number> {
   const rows = await harness.raw(
-    `select count(*)::int as n from audit_log where operation = '${action}'`,
+    // Successful flips only: the choke point also records refusals, and what
+    // these cases pin is whether the flip itself was recorded.
+    `select count(*)::int as n from audit_log where operation = '${action}' and outcome = 'ok'`,
   );
   const n = rows[0]?.["n"];
   if (typeof n !== "number") throw new Error("unexpected count result");
@@ -531,7 +533,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments/:commentId/{resolve,u
     });
     const line = capture.lines().find((l) => l["evt"] === "audit.fail");
     expect(line?.["level"]).toBe("error");
-    expect(line?.["commentId"]).toBe(String(ROOT_COMMENT_ID));
+    expect(line?.["operation"]).toBe("resolve-thread");
     expect(line?.["err"]).toBeDefined();
   });
 

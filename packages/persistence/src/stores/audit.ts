@@ -32,6 +32,7 @@ export const AuditMetadataKey = {
   DECISION: "decision",
   KIND: "kind",
   COUNT: "count",
+  REASON: "reason",
 } as const;
 export type AuditMetadataKey = ValueOf<typeof AuditMetadataKey>;
 
@@ -103,7 +104,7 @@ export const AuditOperationSchema = z
 const AuditRequestIdSchema = z
   .string()
   .regex(/^[A-Za-z0-9_-]{1,64}$/, "requestId must be a correlation token");
-const AuditClientSchema = z
+export const AuditClientSchema = z
   .string()
   .regex(
     /^[A-Za-z0-9][A-Za-z0-9._/-]{0,63}$/,

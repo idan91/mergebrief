@@ -163,6 +163,7 @@ export type {
 // variant) stays in-package — not re-exported.
 export {
   audit,
+  AuditClientSchema,
   AuditMetadataKey,
   AuditMetadataSchema,
   AuditOperationSchema,

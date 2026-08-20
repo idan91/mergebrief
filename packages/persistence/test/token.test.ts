@@ -324,7 +324,7 @@ describe("tokenAuth list / revoke", () => {
 });
 
 describe("tokenAuth.mintToken audit atomicity", () => {
-  it("mint emits its auth audit row in the same transaction", async () => {
+  it("mint emits its issuance audit row in the same transaction", async () => {
     const handle = await freshDatabase();
     const grant = await seedGrant(handle);
     await tokenAuth(handle).mintToken(mintInput(grant));
@@ -332,7 +332,7 @@ describe("tokenAuth.mintToken audit atomicity", () => {
     const { auditLog } = await import("../src/schema/audit-log");
     const rows = await internal(handle).select().from(auditLog);
     expect(rows).toHaveLength(1);
-    expect(rows[0]?.operation).toBe("auth");
+    expect(rows[0]?.operation).toBe("issue-api-token");
     expect(rows[0]?.outcome).toBe("ok");
     expect(rows[0]?.targetType).toBe("api_token");
     expect(rows[0]?.metadata).toEqual({ decision: "200", kind: "mint" });

@@ -408,7 +408,9 @@ async function deleteDraft(
 
 async function submitAuditCount(harness: PgliteHarness): Promise<number> {
   const rows = await harness.raw(
-    "select count(*)::int as n from audit_log where operation = 'submit'",
+    // The choke point records every submit attempt; a SUCCESSFUL submit is
+    // the one this suite counts.
+    "select count(*)::int as n from audit_log where operation = 'submit-review' and outcome = 'ok'",
   );
   const n = rows[0]?.["n"];
   if (typeof n !== "number") throw new Error("unexpected count result");
@@ -754,6 +756,8 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
   });
 
   it("keeps the 201 and logs audit.fail when the audit row will not persist", async () => {
+    // The emit is the router choke point's, so the line names the operation
+    // by its descriptor id rather than the route's own bookkeeping.
     const { capture, app: captureApp } = capturingApp();
     stubGitHub({
       repositories: () => repoOk(),
@@ -768,8 +772,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     expect(res.status).toBe(201);
     const line = capture.lines().find((l) => l["evt"] === "audit.fail");
     expect(line?.["level"]).toBe("error");
-    expect(line?.["operation"]).toBe("submit");
-    expect(line?.["reviewId"]).toBe("987002");
+    expect(line?.["operation"]).toBe("submit-review");
     await harness.raw("alter table audit_log_poisoned rename to audit_log");
   });
 

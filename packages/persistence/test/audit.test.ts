@@ -11,7 +11,6 @@ import {
 import { internal } from "../src/db/handle";
 import { auditLog } from "../src/schema/audit-log";
 import {
-  AuditAction,
   AuditChannel,
   WriteClassification,
   AuditOutcome,
@@ -29,7 +28,7 @@ describe("audit — append-only emit", () => {
     const entry: AuditEntry = {
       installationId: TENANT,
       actorType: AuditActorType.APP,
-      operation: AuditAction.GENERATE,
+      operation: "generate",
       outcome: AuditOutcome.OK,
       targetType: "brief",
       targetId: 424242n, // no such brief row — audit has NO outbound FK
@@ -38,7 +37,7 @@ describe("audit — append-only emit", () => {
 
     const row = await audit(handle, entry);
     expect(row.installationId).toBe(TENANT);
-    expect(row.operation).toBe(AuditAction.GENERATE);
+    expect(row.operation).toBe("generate");
     expect(row.targetId).toBe(424242n);
     expect(row.occurredAt).toBeInstanceOf(Date);
   });
@@ -49,11 +48,11 @@ describe("audit — append-only emit", () => {
       installationId: TENANT,
       actorType: AuditActorType.REVIEWER,
       actorId: 31337n,
-      operation: AuditAction.AUTH,
+      operation: "auth",
       outcome: AuditOutcome.OK,
       metadata: { decision: "403" },
     });
-    expect(row.operation).toBe(AuditAction.AUTH);
+    expect(row.operation).toBe("auth");
     expect(row.metadata).toEqual({ decision: "403" });
     expect(row.targetType).toBeNull();
   });
@@ -64,12 +63,12 @@ describe("audit — append-only emit", () => {
       installationId: TENANT,
       actorType: AuditActorType.REVIEWER,
       actorId: 31337n,
-      operation: AuditAction.SUBMIT,
+      operation: "submit",
       outcome: AuditOutcome.OK,
       targetType: "pull_request",
       targetId: 7n,
     });
-    expect(row.operation).toBe(AuditAction.SUBMIT);
+    expect(row.operation).toBe("submit");
     expect(row.operation).toBe("submit");
   });
 
@@ -79,7 +78,7 @@ describe("audit — append-only emit", () => {
       installationId: TENANT,
       actorType: AuditActorType.REVIEWER,
       actorId: 31337n,
-      operation: AuditAction.RESOLVE_THREAD,
+      operation: "resolve-thread",
       outcome: AuditOutcome.OK,
       targetType: "review_comment",
       targetId: 12345n,
@@ -89,7 +88,7 @@ describe("audit — append-only emit", () => {
       installationId: TENANT,
       actorType: AuditActorType.REVIEWER,
       actorId: 31337n,
-      operation: AuditAction.UNRESOLVE_THREAD,
+      operation: "unresolve-thread",
       outcome: AuditOutcome.OK,
       targetType: "review_comment",
       targetId: 12345n,
@@ -178,7 +177,7 @@ describe("audit — append-only emit", () => {
     const entry: AuditEntry = {
       installationId: TENANT,
       actorType: AuditActorType.SYSTEM,
-      operation: AuditAction.DELETE,
+      operation: "delete",
       outcome: AuditOutcome.OK,
       targetType: "repos/acme/widgets",
       targetId: 1n,
@@ -203,7 +202,7 @@ async function seedAged(
   await internal(handle).insert(auditLog).values({
     installationId,
     actorType: AuditActorType.SYSTEM,
-    operation: AuditAction.GENERATE,
+    operation: "generate",
     outcome: AuditOutcome.OK,
     occurredAt,
   });
@@ -278,9 +277,7 @@ describe("sweepAuditLog — instance-wide retention", () => {
     const remaining = await internal(handle).select().from(auditLog);
     // The kept row, plus one `delete` entry per installation swept.
     expect(remaining).toHaveLength(3);
-    const sweeps = remaining.filter(
-      (row) => row.operation === AuditAction.DELETE,
-    );
+    const sweeps = remaining.filter((row) => row.operation === "delete");
     expect(sweeps).toHaveLength(2);
     const sweptCounts = new Map(
       sweeps.map((row) => [String(row.installationId), row.metadata]),

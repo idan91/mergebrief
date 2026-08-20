@@ -64,7 +64,10 @@ drizzle/              generated SQL migrations — append-only
   finite number, or a boolean, nothing else; the value rules are the PII
   enforcement, so weakening them needs a matching decision-record note.
   `operation` and `target_type` are open token vocabularies (the descriptors
-  belong to `packages/api`), shape-checked in code and by a DB CHECK.
+  belong to `packages/api`, whose choke point writes every request-path row),
+  shape-checked in code and by a DB CHECK. The rows this package writes itself
+  — the purge sweeps, the mint transaction — name their own operation token,
+  apart from any descriptor id, so neither double-counts the other.
 - **Carry-over:** evaluated on read — in memory, creating nothing. A read mark
   carries only against `brief.carried_chunk_ids` (never a bare chunk-id match,
   which would mark a Chunk the reviewer never opened as read), and a hop chain

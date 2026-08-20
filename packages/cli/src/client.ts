@@ -10,6 +10,15 @@ import { CliError, ExitCode, exitCodeForStatus } from "./exit";
 // One instance for the process — resources are baked in, init is sync.
 const i18n = createI18n();
 
+/**
+ * This CLI's version, sent as the user-agent so an audit row can say which
+ * client did something. Pinned to `package.json` by a test — the bundle has no
+ * package.json to read at runtime. Purely forensic: the server must never
+ * branch on it.
+ */
+export const CLI_VERSION = "0.1.0";
+const USER_AGENT = `mergebrief/${CLI_VERSION}`;
+
 /** `fetch`-compatible; `app.request` satisfies it in tests. */
 export type FetchLike = (
   input: string,
@@ -96,6 +105,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     async request(req) {
       const headers: Record<string, string> = {
         accept: "application/json, text/plain",
+        "user-agent": USER_AGENT,
         ...options.headers,
       };
       if (options.token !== undefined) {

@@ -114,6 +114,37 @@ cause.
   Corollary: validate that every ACCEPTED payload is representable by its
   own degradation path (the fold-budget refine).
 
+## Audit (enforced, don't weaken)
+
+**One emit, at the choke point.** `src/product-operations/audit.ts` is
+mounted once at the composition root, ahead of the routes, and writes the
+audit row for every Product Action and every refusal of one. It sits at the
+root rather than inside `action()` because the per-repo gate refuses before
+any route handler runs — only a middleware wrapping the gates sees that
+denial — and it names the operation from the descriptor the router stamped,
+so a route added next year is audited whether or not its author thought
+about it. **Never hand-place an emit in a route.**
+
+- **A read is never audited**, denied reads included. Queries fire on every
+  render and already produce an `api.access` line.
+- **Ids, tokens and numbers only** — no bodies, no free text. A route that
+  knows the row it acted on calls `stampAuditTarget`; a route whose wire code
+  is a deliberate collapse (the gate's uniform 404) calls `stampAuditReason`
+  so the ledger can say `no-repo-access` while the response still says 404.
+  Otherwise the denial reason is the wire code, stamped by `errorJson`.
+- **HTTP status stays out of the row.** `outcome` plus a reason token is the
+  vocabulary; a status would re-introduce the existence leak the collapse
+  exists to prevent.
+- `client` is matched against this project's own CLI name — never a
+  `product/version` SHAPE, which would let a caller write their own address
+  into the ledger. Forensic: **nothing may ever branch on it**, and a derived
+  value must stay inside persistence's `AuditClientSchema`, since a value the
+  store rejects throws inside the emit and loses the whole row.
+- `caller_ip` is the socket address, written only under the operator flag.
+- **A row is keyed on the acting credential's tenant**, never the target's,
+  and a refusal that resolved no credential is not recorded at all — the
+  tenant column cannot be null. Both are documented in `docs/self-host/operations.md`.
+
 ## Product Operation catalog
 
 Every domain route declares its operation through the product router —

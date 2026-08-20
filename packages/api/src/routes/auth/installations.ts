@@ -23,11 +23,6 @@ import {
 } from "github";
 import type { Logger } from "logging";
 import {
-  audit,
-  AuditAction,
-  AuditOutcome,
-  AuditActorType,
-  AuditMetadataKey,
   decryptToken,
   isInstallationId,
   sessionAuth,
@@ -43,6 +38,7 @@ import {
 } from "./session";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "../authz";
 import { ApiErrorCode, errorJson } from "../../error-response";
+import { stampAuditTarget } from "../../product-operations/audit";
 import {
   PRODUCT_ACTION_ID,
   PRODUCT_QUERY_ID,
@@ -201,6 +197,9 @@ export function installationsRoute(
       if (target === undefined) {
         return errorJson(c, ApiErrorCode.INVALID_REQUEST);
       }
+      // The audit row is written at the choke point under the credential's
+      // tenant — the one that authorized the switch, not the one it lands on.
+      stampAuditTarget(c, "installation", target);
 
       const session = c.get("session");
       const resolved = await resolveAccessibleInstallations(
@@ -225,16 +224,6 @@ export function installationsRoute(
           (installation) => installation.installationId === target,
         )
       ) {
-        await audit(deps.handle, {
-          installationId: currentSession.installationId,
-          actorType: AuditActorType.REVIEWER,
-          actorId: currentSession.reviewerId,
-          operation: AuditAction.AUTH,
-          outcome: AuditOutcome.DENIED,
-          targetType: "installation",
-          targetId: target,
-          metadata: { [AuditMetadataKey.DECISION]: "403" },
-        });
         return errorJson(c, ApiErrorCode.FORBIDDEN);
       }
 
@@ -257,18 +246,6 @@ export function installationsRoute(
         ).setDefaultInstallation(currentSession.reviewerId, target);
         defaultId = updated.defaultInstallationId;
       }
-
-      // Record the successful switch under the NEW tenant.
-      await audit(deps.handle, {
-        installationId: target,
-        actorType: AuditActorType.REVIEWER,
-        actorId: currentSession.reviewerId,
-        operation: AuditAction.AUTH,
-        outcome: AuditOutcome.OK,
-        targetType: "installation",
-        targetId: target,
-        metadata: { [AuditMetadataKey.DECISION]: "200" },
-      });
 
       return c.json(
         {

@@ -43,14 +43,17 @@ changes get a breaking-change entry in
 | `job.retries.exhausted` | error | worker | `prId`, `headSha`, `attempt` | **THE worker alert** — the queue gave up on this job |
 | `provider.error` | error | worker | `provider`, `status`, `kind`, job bindings | 401/403 = credentials/config broken, alert now; sustained 429/5xx = provider degraded |
 | `token.refresh.fail` | error | web | `reqId`, `reviewerId` | yes — a reviewer session or API token could not rotate its GitHub credentials |
-| `audit.fail` | error | web | `reqId`, `commentId` | yes — content posted to GitHub but the local audit write failed (data integrity) |
+| `audit.fail` | error | web | `reqId`, `operation` | yes — the action completed but its audit row never landed (data integrity) |
 | `spend.cap.trip` | warn | worker | `repo`, `prId`, `headSha`, `cap`, `dayUtc` | on **sustained rate** — the cap is working as configured, but a repo stuck at it produces no briefs all day |
-| `api.access` | info | web | `method`, `path`, `status`, `durationMs`, `decision`, `repoId`, `reviewerId`, `reqId` | no — this is the access log |
+| `api.access` | info | web | `method`, `path`, `status`, `durationMs`, `decision`, `operation`, `repoId`, `reviewerId`, `reqId` | no — this is the access log |
 
 `api.access` is the per-request access line (numeric ids only, never a
 token or cookie). `decision` is the auth gate's outcome; `status` is what
 the handler returned — they differ when a handler fails after the gate
-allowed the request.
+allowed the request. `operation` names the domain operation the request
+routed to, and is what joins this line to the audit row that request wrote
+(the audit ledger is a separate, never-purged store; see
+[operations.md](./operations.md)).
 
 ## Correlation
 

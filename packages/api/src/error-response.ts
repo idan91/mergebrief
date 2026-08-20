@@ -7,6 +7,14 @@
 import type { Context } from "hono";
 import type { ValueOf } from "types";
 
+declare module "hono" {
+  interface ContextVariableMap {
+    /** The wire code of the error this request answered with — the audit
+     * emit's default denial reason. Set here so no route has to remember. */
+    apiErrorCode?: string;
+  }
+}
+
 export const ApiErrorCode = {
   UNAUTHORIZED: "unauthorized",
   INVALID_SIGNATURE: "invalid-signature",
@@ -155,5 +163,6 @@ export function errorJson(
     code,
     ...(params === undefined ? {} : { params }),
   };
+  c.set("apiErrorCode", code);
   return c.json(body, API_ERROR_STATUS[code], NO_STORE);
 }

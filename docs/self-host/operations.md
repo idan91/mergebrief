@@ -236,6 +236,67 @@ and the only removal is the retention sweep, which keeps everything unless you
 set `AUDIT_RETENTION_DAYS` (minimum 30 — audit must outlive a review session).
 No schedule runs it yet.
 
+## The audit log
+
+Every action a credential takes is recorded — and every refusal of one. Reads
+are not: they fire on every render, they already produce an `api.access` line,
+and recording them would bury the actions. The consequence is worth stating
+plainly: the log answers *what was done*, never *what was seen*.
+
+A row holds ids, tokens and numbers — never a request body, never free text.
+The operation is the same id the API's operation manifest lists, so a row and
+a request log line join on `request_id`.
+
+Two things to know before you write a query against it:
+
+- **A row is filed under the tenant of the credential that acted**, not the
+  tenant of the thing it acted on. A reviewer signed into one installation can
+  revoke a token belonging to another, or switch between them; the row lands
+  in the acting session's installation either way.
+- **A refusal that never resolved a credential is not in this table.** An
+  unknown cookie, a revoked API token, an expired session — the tenant column
+  cannot be null, and there is no tenant to write. Those refusals appear as
+  `api.access` lines with a 401, and that is where to look for them.
+
+Three knobs, all instance environment variables:
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `AUDIT_RETENTION_DAYS` | unset (keep forever) | How long the sweep keeps rows. Minimum 30. |
+| `AUDIT_PRIVATE_WRITES` | `true` | Record writes that stay inside this instance. Writes that leave for GitHub, and every denial, are recorded either way — that is not configurable. |
+| `AUDIT_CALLER_IP` | `false` | Populate `caller_ip`. Off by default: in a self-host deployment the credential identifies the caller better than an address does, and the address costs the most privacy of any field. |
+
+**`caller_ip` records nothing in the Docker deployment.** The address has to
+come from the serving adapter, and the web tier's server entry does not hand
+one to the API. Turning the flag on there is honest but empty; the column
+fills only where the app is served by a Node adapter that exposes the socket.
+
+**When it does record, `caller_ip` is the SOCKET address.** Behind a reverse proxy that is the
+proxy's address, not the visitor's — this instance does not read
+`X-Forwarded-For`, because a header the client can set is not evidence, and
+deciding which proxy to trust is a separate decision nobody has made here. If
+your web tier is fronted by a proxy, expect one address for everyone, and read
+the credential columns instead.
+
+Erasing one person's rows is a query, not a feature:
+
+```sh
+docker compose exec postgres \
+  sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+  -c "delete from audit_log where actor_id = 12345;"'
+```
+
+There is no in-app reader. `psql` is the interface:
+
+```sh
+docker compose exec postgres \
+  sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "
+    select occurred_at, operation, outcome, channel, client
+    from audit_log
+    where classification = '\''external-write'\''
+    order by occurred_at desc limit 50;"'
+```
+
 If disk becomes a concern, `brief` and `delta` are the tables to look at —
 they hold the generated JSON:
 

@@ -472,7 +472,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     expect(res.status).toBe(201);
     const line = capture.lines().find((l) => l["evt"] === "audit.fail");
     expect(line?.["level"]).toBe("error");
-    expect(line?.["commentId"]).toBe("999");
+    expect(line?.["operation"]).toBe("create-inline-comment");
     expect(line?.["err"]).toBeDefined();
   });
 

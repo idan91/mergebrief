@@ -15,7 +15,8 @@ against the REAL api Hono app via its fetch-shaped `app.request`).
 src/
   bin.ts            ENTRY — bundle entry; the one place real deps are wired
   program.ts        runCli — the whole command surface (commander wiring)
-  client.ts         the API-client boundary (injected fetch; CliError mapping)
+  client.ts         the API-client boundary (injected fetch; CliError mapping;
+                    the `mergebrief/<version>` user-agent, pinned by a test)
   exit.ts           the 6-code exit contract — PUBLIC, additive-only,
                     never renumbered
   agents-guide.ts   the packaged --agents guide (constant; zero file reads)

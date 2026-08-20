@@ -28,7 +28,6 @@ import type {
   ReviewerId,
 } from "../src/types";
 import {
-  AuditAction,
   AuditOutcome,
   AuditActorType,
   DispositionDecision,
@@ -226,7 +225,7 @@ async function seedFullGraph(
   await db.insert(auditLog).values({
     installationId: INSTALLATION,
     actorType: AuditActorType.APP,
-    operation: AuditAction.GENERATE,
+    operation: "generate",
     outcome: AuditOutcome.OK,
     targetType: "pull_request",
     targetId: pullRequestId,
@@ -394,7 +393,7 @@ describe("M1 schema migrations", () => {
     await db.insert(auditLog).values({
       installationId: INSTALLATION,
       actorType: AuditActorType.SYSTEM,
-      operation: AuditAction.DELETE,
+      operation: "delete",
       outcome: AuditOutcome.OK,
       targetType: "pull_request",
       targetId: 999_999_999n,

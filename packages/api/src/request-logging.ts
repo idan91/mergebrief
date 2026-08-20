@@ -67,6 +67,7 @@ export function requestLogging(
     c.set("logger", logger.child({ reqId: c.get("requestId") }));
     await next();
     const access = c.get("access");
+    const operation = c.get("operation");
     const fields: LogFields = {
       evt: "api.access",
       method: c.req.method,
@@ -74,6 +75,9 @@ export function requestLogging(
       status: c.res.status,
       durationMs: Date.now() - startedAt,
       decision: access?.decision ?? String(c.res.status),
+      // Transport (this line) and intent (the audit row) stay separate logs,
+      // joined on `reqId`; `operation` is what makes the join readable.
+      ...(operation === undefined ? {} : { operation }),
       ...(access?.repoId === undefined ? {} : { repoId: access.repoId }),
       ...(access?.reviewerId === undefined
         ? {}

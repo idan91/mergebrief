@@ -2,6 +2,7 @@
 // constructs a DB.
 import type { Hono } from "hono";
 import { requestId } from "hono/request-id";
+import { createAuditMiddleware } from "./product-operations/audit";
 import { productRouter } from "./product-operations/product-router";
 import { productOperationRegistry } from "./product-operations/registry";
 import { requestLogging, type RequestLogEnv } from "./request-logging";
@@ -20,6 +21,15 @@ export function createApp(deps: AppDeps): ApiApp {
   // its child logger from context.
   root.use(requestId());
   root.use(requestLogging(deps.logger));
+  // Ahead of the routes so it wraps the auth gates: a denial that never
+  // reached a handler is still an audited action.
+  root.use(
+    createAuditMiddleware({
+      handle: deps.handle,
+      registry: productOperationRegistry,
+      ...(deps.audit === undefined ? {} : { audit: deps.audit }),
+    }),
+  );
   root.route("/api", apiRoutes(deps));
   // Composing IS registering: the root commit stamps every declared
   // operation's full endpoint into the shared catalog registry.

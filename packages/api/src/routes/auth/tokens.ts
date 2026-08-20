@@ -16,11 +16,6 @@
 // Every response is per-viewer state → `no-store`, error paths included.
 import { randomBytes } from "node:crypto";
 import {
-  audit,
-  AuditAction,
-  AuditOutcome,
-  AuditActorType,
-  AuditMetadataKey,
   isApiTokenRowId,
   tokenAuth,
   TokenAuthErrorCode,
@@ -37,6 +32,7 @@ import {
 } from "../authz";
 import { resolveAccessibleInstallations } from "./installations";
 import { ApiErrorCode, errorJson } from "../../error-response";
+import { stampAuditTarget } from "../../product-operations/audit";
 import {
   PRODUCT_ACTION_ID,
   PRODUCT_QUERY_ID,
@@ -156,18 +152,7 @@ export function tokensRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
           String(parsed.data.installationId),
       );
       if (target === undefined) {
-        await audit(deps.handle, {
-          installationId: currentSession.installationId,
-          actorType: AuditActorType.REVIEWER,
-          actorId: currentSession.reviewerId,
-          operation: AuditAction.AUTH,
-          outcome: AuditOutcome.DENIED,
-          targetType: "api_token",
-          metadata: {
-            [AuditMetadataKey.DECISION]: "403",
-            [AuditMetadataKey.KIND]: "mint",
-          },
-        });
+        stampAuditTarget(c, "api_token");
         return errorJson(c, ApiErrorCode.FORBIDDEN);
       }
 
@@ -245,19 +230,7 @@ export function tokensRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
         }
         return errorJson(c, ApiErrorCode.NOT_FOUND);
       }
-      await audit(deps.handle, {
-        installationId: revoked.value.installationId,
-        actorType: AuditActorType.REVIEWER,
-        actorId: session.reviewerId,
-        operation: AuditAction.AUTH,
-        outcome: AuditOutcome.OK,
-        targetType: "api_token",
-        targetId: tokenId,
-        metadata: {
-          [AuditMetadataKey.DECISION]: "200",
-          [AuditMetadataKey.KIND]: "revoke",
-        },
-      });
+      stampAuditTarget(c, "api_token", tokenId);
       return c.json(
         { ok: true, apiToken: tokenView(revoked.value) },
         200,

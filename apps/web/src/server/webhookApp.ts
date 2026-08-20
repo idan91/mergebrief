@@ -131,6 +131,12 @@ async function buildWebhookApp(): Promise<WebhookComposition> {
     logger,
     // Enforced at the enqueue path.
     draftPolicy: instancePolicy.value.draftPolicy,
+    // The audit knobs: private writes on by default, caller ip off. External
+    // writes and denials are recorded regardless of either.
+    audit: {
+      privateWrites: persistenceConfig.value.auditPrivateWrites,
+      callerIp: persistenceConfig.value.auditCallerIp,
+    },
     // Skew visibility: surfaced by GET /api/version and the CLI's `auth
     // status`; the api changelog is keyed to it.
     serverVersion: process.env["SERVER_VERSION"] ?? "dev",

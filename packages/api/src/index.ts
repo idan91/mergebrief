@@ -1,6 +1,8 @@
 // Package entry point — routes are internal wiring, never exported.
 export { createApp } from "./app";
 export type { ApiApp, AppDeps, AuthDeps } from "./app";
+// The audit knobs the composition root reads from persistence config.
+export type { AuditEmitConfig } from "./product-operations/audit";
 // Generate-from-URL port: the error vocabulary is part of the port contract.
 export { UrlBriefErrorKind } from "./routes/generate";
 export type {

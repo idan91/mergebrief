@@ -60,7 +60,6 @@ import { planAnchoredGeneration, stitchBrief } from "./anchoring";
 import {
   artifactStore,
   audit,
-  AuditAction,
   AuditOutcome,
   AuditActorType,
   AuditMetadataKey,
@@ -107,6 +106,10 @@ import {
   buildRepoConfigArtifact,
   buildRepoConfigOrigin,
 } from "./repo-config";
+
+// The worker's own `audit_log.operation` token: the job runs off the request
+// path, so it names itself rather than a Product Operation descriptor.
+const AUDIT_OPERATION_GENERATE = "generate";
 
 // Re-exported for the worker's internal modules and `index.ts`.
 export type { Logger };
@@ -855,7 +858,7 @@ async function runGeneration(
       await audit(handle, {
         installationId: ctx.installationId,
         actorType: AuditActorType.SYSTEM,
-        operation: AuditAction.GENERATE,
+        operation: AUDIT_OPERATION_GENERATE,
         outcome: AuditOutcome.OK,
         targetType: "brief",
         targetId: briefRef.id,
@@ -962,7 +965,7 @@ async function runGeneration(
       await audit(handle, {
         installationId: ctx.installationId,
         actorType: AuditActorType.SYSTEM,
-        operation: AuditAction.GENERATE,
+        operation: AUDIT_OPERATION_GENERATE,
         outcome: AuditOutcome.OK,
         targetType: "pull_request",
         targetId: pullRequestId,

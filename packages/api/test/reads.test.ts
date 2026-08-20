@@ -372,7 +372,7 @@ describe("reviewer read API + authz gate", () => {
     expect(counts.repositories).toBe(0);
   });
 
-  it("404 with no repo access → auth audit row, and the negative is NOT cached", async () => {
+  it("404 with no repo access → NO audit row for a read, and the negative is NOT cached", async () => {
     const counts = stubGitHub({ repositories: () => repoStatus(404) });
     const { cookie } = await seedSession(harness.handle, kp);
     await seedPullRequest(harness.handle);
@@ -382,17 +382,10 @@ describe("reviewer read API + authz gate", () => {
     });
     expect(first.status).toBe(404);
 
-    // The denial audit row exists, and says it WAS a denial.
-    const auditRows = await harness.raw(
-      "select operation, outcome, target_type, target_id, actor_id, metadata->>'decision' as decision from audit_log",
-    );
-    expect(auditRows).toHaveLength(1);
-    expect(auditRows[0]?.["operation"]).toBe("auth");
-    expect(auditRows[0]?.["outcome"]).toBe("denied");
-    expect(auditRows[0]?.["target_type"]).toBe("repo");
-    expect(String(auditRows[0]?.["target_id"])).toBe(String(REPO_ID));
-    expect(String(auditRows[0]?.["actor_id"])).toBe(String(REVIEWER_ID));
-    expect(auditRows[0]?.["decision"]).toBe("404");
+    // Reads are never audited — a denied one included. The refusal is
+    // visible on the `api.access` line, not in the ledger.
+    const auditRows = await harness.raw("select operation from audit_log");
+    expect(auditRows).toHaveLength(0);
 
     // Negative is not cached: a second request calls GitHub again.
     const second = await app.request(briefPath("b", "h"), {

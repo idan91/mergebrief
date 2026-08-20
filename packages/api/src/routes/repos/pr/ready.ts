@@ -31,19 +31,13 @@ import {
   type GitHubApiError,
   type MarkReadyResult,
 } from "github";
-import {
-  audit,
-  AuditAction,
-  AuditOutcome,
-  AuditActorType,
-  decryptToken,
-  forTenant,
-} from "persistence";
+import { decryptToken, forTenant } from "persistence";
 import type { Result } from "types";
 import { z } from "zod";
 import { refreshSessionToken, type AuthRouteDeps } from "../../auth/session";
 import type { AuthzEnv } from "../../authz";
 import { ApiErrorCode, errorJson } from "../../../error-response";
+import { stampAuditTarget } from "../../../product-operations/audit";
 import { PRODUCT_ACTION_ID } from "../../../product-operations/ids";
 import {
   productRouter,
@@ -263,17 +257,7 @@ export function markReadyRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
       // GitHub state on a local mirror race.
       await forTenant(deps.handle, ctx).pullRequests.setDraft(pr.id, false);
 
-      // Audit the mark-ready (no metadata — the converged/fresh
-      // distinction is not worth recording).
-      await audit(deps.handle, {
-        installationId: ctx.installationId,
-        actorType: AuditActorType.REVIEWER,
-        actorId: currentSession.reviewerId,
-        operation: AuditAction.MARK_READY,
-        outcome: AuditOutcome.OK,
-        targetType: "pull_request",
-        targetId: pr.id,
-      });
+      stampAuditTarget(c, "pull_request", pr.id);
 
       return c.json({ draft: false }, 200, { "cache-control": "no-store" });
     },

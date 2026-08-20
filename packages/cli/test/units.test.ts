@@ -2,7 +2,8 @@
 // (additive-only, never renumbered), profile resolution order (locked),
 // origin-URL parsing, and the client's proxy/IdP detection.
 import { describe, expect, it } from "vitest";
-import { createApiClient } from "../src/client";
+import pkg from "../package.json" with { type: "json" };
+import { CLI_VERSION, createApiClient } from "../src/client";
 import {
   fullNameFromOriginUrl,
   ownerFromOriginUrl,
@@ -141,6 +142,28 @@ function clientWith(response: Response) {
     token: "mergebrief_x",
   });
 }
+
+describe("client user-agent", () => {
+  it("sends mergebrief/<version>, pinned to package.json", async () => {
+    const seen: { agent: string | undefined } = { agent: undefined };
+    const client = createApiClient({
+      fetch: async (_input, init) => {
+        seen.agent = init?.headers?.["user-agent"];
+        return new Response("{}", {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+      baseUrl: "https://mb.example",
+      token: "mergebrief_x",
+    });
+    await client.request({ path: "/api/version" });
+    expect(seen.agent).toBe(`mergebrief/${CLI_VERSION}`);
+    // A drifting version would still be a valid token, and the server never
+    // branches on it — so the pin is here rather than at the boundary.
+    expect(CLI_VERSION).toBe(pkg.version);
+  });
+});
 
 describe("client proxy/IdP detection", () => {
   it("a redirect is surfaced as the IdP hint, not followed", async () => {

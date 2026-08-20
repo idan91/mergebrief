@@ -246,24 +246,6 @@ export const AuditOutcome = {
 } as const;
 export type AuditOutcome = ValueOf<typeof AuditOutcome>;
 
-/**
- * The hand-placed emits' operation vocabulary, written to
- * `audit_log.operation` until the choke-point emit replaces those call sites.
- * `operation` itself is an open token column — a Product Operation descriptor
- * id — so this map is no longer CHECK-backed.
- */
-export const AuditAction = {
-  GENERATE: "generate",
-  DELETE: "delete",
-  CONFIG: "config",
-  AUTH: "auth",
-  SUBMIT: "submit",
-  MARK_READY: "mark-ready",
-  RESOLVE_THREAD: "resolve-thread",
-  UNRESOLVE_THREAD: "unresolve-thread",
-} as const;
-export type AuditAction = ValueOf<typeof AuditAction>;
-
 /** `review_session.review_outcome` — the provisional submit verdict. */
 export const ReviewOutcome = {
   COMMENT: "comment",

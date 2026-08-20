@@ -32,10 +32,6 @@ import {
 } from "github";
 import {
   AnchorStatus,
-  audit,
-  AuditAction,
-  AuditOutcome,
-  AuditActorType,
   decryptToken,
   DraftCommentSide,
   DraftCommentStatus,
@@ -50,6 +46,7 @@ import { z } from "zod";
 import { refreshSessionToken, type AuthRouteDeps } from "../../auth/session";
 import type { AuthzEnv } from "../../authz";
 import { ApiErrorCode, errorJson } from "../../../error-response";
+import { stampAuditTarget } from "../../../product-operations/audit";
 import { PRODUCT_ACTION_ID } from "../../../product-operations/ids";
 import {
   productRouter,
@@ -441,9 +438,7 @@ export function reviewSubmitRoute(
       // response, which would invite a second review.
       // Nothing past this line may reach the error path: the review is live,
       // and an error response would invite a retry that posts it twice.
-      // Two failure classes, never one catch: the session's own bookkeeping
-      // and the audit row are different things going wrong, and only the
-      // second is what `audit.fail` names.
+      stampAuditTarget(c, "pull_request", pr.id);
       try {
         const recorded = await resolved.run(async (writer) => {
           await writer.publishDraftComments(drafts.map((row) => row.id));
@@ -455,32 +450,12 @@ export function reviewSubmitRoute(
           throw new Error(recorded.error.code);
         }
       } catch (bookkeepingError) {
+        // Submitted to GitHub, our own record of it failed. NOT `audit.fail`:
+        // the audit row is the choke point's to write, and raising that event
+        // for the session's bookkeeping alerts on the wrong failure.
         c.get("logger").error("session unrecorded after a submitted review", {
           reviewId: String(created.value.reviewId),
           err: bookkeepingError,
-        });
-      }
-
-      // Audit the successful post (the checkpoint itself is the webhook's to
-      // write when the echo arrives).
-      try {
-        await audit(deps.handle, {
-          installationId: ctx.installationId,
-          actorType: AuditActorType.REVIEWER,
-          actorId: currentSession.reviewerId,
-          operation: AuditAction.SUBMIT,
-          outcome: AuditOutcome.OK,
-          targetType: "pull_request",
-          targetId: pr.id,
-        });
-      } catch (auditError) {
-        // Submitted to GitHub, our audit write failed — a data-integrity
-        // signal the operator alerts on.
-        c.get("logger").error("submit audit failed after a submitted review", {
-          evt: "audit.fail",
-          operation: AuditAction.SUBMIT,
-          reviewId: String(created.value.reviewId),
-          err: auditError,
         });
       }
 
