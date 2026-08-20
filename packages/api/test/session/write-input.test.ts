@@ -10,8 +10,8 @@ import {
   categorySchema,
   createDraftSchema,
   readSchema,
-  rowIdSchema,
 } from "../../src/routes/repos/pr/session/write-input";
+import { rowIdSchema } from "../../src/routes/repos/pr/wire-bounds";
 
 const ANCHOR = {
   filePath: "src/app.ts",

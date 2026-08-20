@@ -57,6 +57,7 @@ import {
   mapWriteFailure as sessionFailure,
   resolveWrite,
 } from "./session/write-resolve";
+import { commitShaSchema, MAX_BODY_LENGTH } from "./wire-bounds";
 
 // ---------------------------------------------------------------------------
 // Boundary schema — the outcome and the review body. The comments come off
@@ -76,12 +77,6 @@ const OUTCOME_TO_EVENT: Readonly<Record<ReviewOutcome, ReviewEvent>> = {
   [ReviewOutcome.APPROVE]: ReviewEvent.APPROVE,
   [ReviewOutcome.REQUEST_CHANGES]: ReviewEvent.REQUEST_CHANGES,
 };
-
-const MAX_BODY_LENGTH = 65_536;
-
-const shaSchema = z
-  .string()
-  .regex(/^[0-9a-f]{40}$/, "the brief's head must be a 40-hex SHA");
 
 const submitBodySchema = z
   .object({
@@ -256,7 +251,7 @@ export function reviewSubmitRoute(
       if (!resolved.ok) {
         return resolved.response;
       }
-      const commitId = shaSchema.safeParse(resolved.head);
+      const commitId = commitShaSchema.safeParse(resolved.head);
       if (!commitId.success) {
         return errorJson(c, ApiErrorCode.INVALID_REQUEST);
       }

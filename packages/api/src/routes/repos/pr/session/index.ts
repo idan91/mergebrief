@@ -60,8 +60,8 @@ import {
   outcomeSchema,
   readSchema,
   reopenSchema,
-  rowIdSchema,
 } from "./write-input";
+import { rowIdSchema } from "../wire-bounds";
 import { mapWriteFailure, resolveWrite } from "./write-resolve";
 
 const NO_STORE = { "cache-control": "no-store" };

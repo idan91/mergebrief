@@ -52,6 +52,7 @@ import {
   mapWriteFailure as sessionFailure,
   resolveWrite,
 } from "./session/write-resolve";
+import { commitShaSchema, MAX_BODY_LENGTH, rowIdSchema } from "./wire-bounds";
 
 // ---------------------------------------------------------------------------
 // Boundary schemas — both routes NAME a draft the server holds; neither
@@ -63,20 +64,7 @@ import {
 // which is a deterministic 400 rather than an upstream 422.
 // ---------------------------------------------------------------------------
 
-const shaSchema = z
-  .string()
-  .regex(/^[0-9a-f]{40}$/, "the brief's head must be a 40-hex SHA");
-
-/** A bigint row id on the wire: digits, and inside `int8` — past it Postgres
- * raises rather than returning no rows. */
-const MAX_ROW_ID = 9_223_372_036_854_775_807n;
-const publishDraftSchema = z.object({
-  draftId: z
-    .string()
-    .regex(/^[0-9]{1,19}$/, "draftId must be a row id")
-    .transform((value) => BigInt(value))
-    .refine((value) => value <= MAX_ROW_ID, { message: "id out of range" }),
-});
+const publishDraftSchema = z.object({ draftId: rowIdSchema });
 
 const prNumberSchema = z.coerce.number().int().positive();
 /** A reply/thread target id is a REST comment id — bounded by JS integer precision. */
@@ -86,10 +74,8 @@ const commentIdSchema = z.coerce
   .positive()
   .refine((value) => Number.isSafeInteger(value));
 
-/** Same cap GitHub enforces on comment bodies (and the submit route mirrors). */
-const MAX_REPLY_BODY_LENGTH = 65_536;
 const replyBodySchema = z.object({
-  body: z.string().min(1).max(MAX_REPLY_BODY_LENGTH),
+  body: z.string().min(1).max(MAX_BODY_LENGTH),
 });
 
 /** The stored side vocabulary as GitHub names it. */
@@ -265,7 +251,7 @@ export function commentsRoute(
       if (!resolved.ok) {
         return resolved.response;
       }
-      const commitId = shaSchema.safeParse(resolved.head);
+      const commitId = commitShaSchema.safeParse(resolved.head);
       if (!commitId.success) {
         return errorJson(c, ApiErrorCode.INVALID_REQUEST);
       }

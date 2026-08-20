@@ -9,24 +9,14 @@ import {
   type DispositionEvidence,
 } from "persistence";
 import { z } from "zod";
+import {
+  MAX_BODY_LENGTH,
+  MAX_ID_LENGTH,
+  MAX_INT4,
+  MAX_PATH_LENGTH,
+} from "../wire-bounds";
 
-const MAX_BODY_LENGTH = 65_536;
-const MAX_PATH_LENGTH = 1_024;
-/** Brief-local ids (chunk, change group) are short opaque tokens. */
-const MAX_ID_LENGTH = 256;
-/** A line or region coordinate on the wire: inside `int4`, past which Postgres
- * raises inside the transaction rather than refusing at the boundary. */
-const MAX_INT4 = 2_147_483_647;
 const coordinateSchema = z.number().int().positive().max(MAX_INT4);
-/** A bigint row id on the wire: digits, and inside `int8` — past it Postgres
- * raises rather than returning no rows. */
-const MAX_ROW_ID = 9_223_372_036_854_775_807n;
-
-export const rowIdSchema = z
-  .string()
-  .regex(/^[0-9]{1,19}$/, "id must be a row id")
-  .transform((value) => BigInt(value))
-  .refine((value) => value <= MAX_ROW_ID, { message: "id out of range" });
 
 /** A chunk or change-group id as the Brief spells it. */
 export const briefLocalIdSchema = z.string().min(1).max(MAX_ID_LENGTH);
