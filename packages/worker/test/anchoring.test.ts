@@ -339,6 +339,72 @@ describe("planAnchoredGeneration — the durable hop", () => {
   });
 });
 
+describe("planAnchoredGeneration — chain id reservation", () => {
+  const previous = brief(
+    [group("g1", "alpha"), group("g2", "beta")],
+    [chunk("c1", "g1", "a.ts", 5, 8), chunk("c2", "g2", "b.ts", 1, 2)],
+  );
+
+  it("folds chain ids into previousGroupIds, deduped", () => {
+    const plan = planAnchoredGeneration({
+      previousBrief: previous,
+      incrementalDiff: DIFF_B,
+      compareFiles: COMPARE_B,
+      baseShaMoved: false,
+      chainGroupIds: ["g2", "g9"],
+    });
+    expect(plan.previousGroupIds).toEqual(["g1", "g2", "g9"]);
+  });
+
+  it("keeps chain ids reserved on a full re-look", () => {
+    const plan = planAnchoredGeneration({
+      previousBrief: previous,
+      baseShaMoved: true,
+      chainGroupIds: ["g9"],
+    });
+    expect(plan.previousGroupIds).toEqual(["g1", "g2", "g9"]);
+  });
+});
+
+describe("stitchBrief — chain id reservation", () => {
+  it("never re-mints an id the chain retired", () => {
+    // g3 was minted at an earlier revision and retired since: absent from the
+    // previous brief, present in the chain. A brand-new group must skip it.
+    const previous = brief(
+      [group("g1", "alpha"), group("g2", "beta")],
+      [chunk("c1", "g1", "a.ts", 5, 8), chunk("c2", "g2", "b.ts", 1, 2)],
+    );
+    const plan = planAnchoredGeneration({
+      previousBrief: previous,
+      incrementalDiff: DIFF_B,
+      compareFiles: COMPARE_B,
+      baseShaMoved: false,
+      chainGroupIds: ["g1", "g2", "g3"],
+    });
+    const generated = brief(
+      [group("tmpB", "beta v2"), group("tmpZ", "brand new")],
+      [chunk("x2", "tmpB", "b.ts", 1, 3), chunk("x3", "tmpZ", "z.ts", 1, 2)],
+    );
+    const result = stitchBrief({
+      generated,
+      plan,
+      prFiles: ["a.ts", "b.ts", "z.ts"],
+      changedFiles: [
+        ...CHANGED_AB,
+        {
+          file: "z.ts",
+          addedRanges: [{ start: 1, end: 2 }],
+          removedRanges: [],
+        },
+      ],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    const ids = result.value.brief.changeGroups.map((g) => g.id).toSorted();
+    expect(ids).toEqual(["g1", "g2", "g4"]);
+  });
+});
+
 describe("stitchBrief", () => {
   const previous = brief(
     [group("g1", "alpha"), group("g2", "beta")],

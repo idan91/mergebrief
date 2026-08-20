@@ -1,0 +1,1 @@
+ALTER TABLE "brief" ADD COLUMN "used_group_ids" text;

@@ -18,20 +18,7 @@ import {
   type DispositionEvidence,
   type ChangeGroupCategory,
 } from "../types";
-import { z } from "zod";
 import { HunkSpansSchema } from "./artifact-store";
-
-/** `brief.carried_chunk_ids` as stored — JSON, or NULL on rows predating it. */
-export const ChunkIdsSchema = z
-  .string()
-  .transform((raw): unknown => {
-    try {
-      return JSON.parse(raw);
-    } catch {
-      return undefined;
-    }
-  })
-  .pipe(z.array(z.string()));
 
 /**
  * A risk-surface flag's identity — file, attribute, AND the region it fires
@@ -52,6 +39,13 @@ export interface CarryOverContext {
   readonly carriedChunkIds: readonly string[];
   /** Change-group ids the new Brief emits — a reclassification needs its id here. */
   readonly groupIds: readonly string[];
+  /**
+   * True only when every Brief between the previous session's and this one
+   * descended its ids (`anchor_state = 'anchored'`). A restart re-derives
+   * groups from scratch, so an id present there is numbering coincidence —
+   * not the group the reviewer judged — and every reclassification drops.
+   */
+  readonly groupIdsDescended: boolean;
   /** Flags the new Brief emits; an absent one drops its disposition. */
   readonly flags: readonly FlagKey[];
   /**
@@ -425,9 +419,11 @@ export function evaluateCarryOver(
     readMarks: previous.readMarks.filter((chunkId) =>
       carriedChunks.has(chunkId),
     ),
-    reclassifications: previous.reclassifications.filter((row) =>
-      groups.has(row.changeGroupId),
-    ),
+    reclassifications: context.groupIdsDescended
+      ? previous.reclassifications.filter((row) =>
+          groups.has(row.changeGroupId),
+        )
+      : [],
     dispositions: mergeOnAnchor(
       previous.dispositions.map((row) =>
         carryDisposition(row, context, firing, surviving),

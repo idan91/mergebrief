@@ -118,6 +118,7 @@ export {
   ArtifactErrorCode,
   ComparisonMarksBodySchema,
   HunkSpansSchema,
+  StoredIdsSchema,
 } from "./stores/artifact-store";
 export type {
   ArtifactStore,

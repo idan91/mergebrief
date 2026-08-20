@@ -52,6 +52,14 @@ export const brief = pgTable(
      * the column.
      */
     carriedChunkIds: text("carried_chunk_ids"),
+    /**
+     * JSON `string[]` — every group id this PR's Brief chain has used, union
+     * of the previous row's set and this Brief's groups. Reserved during id
+     * descent so a retired id is never re-minted for an unrelated group.
+     * Nullable for rows predating the column; the next generation heals the
+     * chain from the previous Brief's body.
+     */
+    usedGroupIds: text("used_group_ids"),
     ...artifactColumns(),
   },
   (table) => [

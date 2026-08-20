@@ -1593,6 +1593,129 @@ describe("generate task — anchored generation", () => {
     expect(carriedIds).toHaveLength(1);
   });
 
+  it("accumulates the chain's used group ids on the anchored path", async () => {
+    const { pr } = await runTwoRevisions({});
+    const store = artifactStore(harness.handle, ctx);
+    const rev1 = await store.briefs.get(pr.id, BASE, HEAD_1);
+    expect(JSON.parse(rev1?.usedGroupIds ?? "null")).toEqual(["gA", "gB"]);
+    // Rev 2's groups descend back onto gA/gB — the union gains nothing.
+    const rev2 = await store.briefs.get(pr.id, BASE, HEAD_2);
+    expect(JSON.parse(rev2?.usedGroupIds ?? "null")).toEqual(["gA", "gB"]);
+  });
+
+  it("a fresh restart still accumulates the chain's used ids", async () => {
+    // `always` writes the model's raw ids — the chain set must still union
+    // them with history, or the next descent could resurrect gA/gB.
+    const { pr } = await runTwoRevisions({ fullRegeneration: "always" });
+    const store = artifactStore(harness.handle, ctx);
+    const row = await store.briefs.get(pr.id, BASE, HEAD_2);
+    expect(JSON.parse(row?.usedGroupIds ?? "null")).toEqual([
+      "gA",
+      "gB",
+      "tmpA",
+      "tmpB",
+    ]);
+  });
+
+  it("a same-head base retarget keeps the chain's used ids", async () => {
+    // One briefed head, then the base retargets under it: `prevBrief` (a
+    // DIFFERENT head) is undefined, so the chain must read off the newest
+    // row itself. `gZ` lives only in the stored column, in no body — the
+    // assertion fails if the read falls back to the body or resets.
+    const first = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    generator.outputs["brief"] = twoGroupBriefOutput(
+      "gA",
+      "alpha",
+      "gB",
+      "beta",
+    );
+    const github = stubGitHub(HEAD_1);
+    github.files = [
+      { path: "a.ts", additions: 4, deletions: 0 },
+      { path: "b.ts", additions: 2, deletions: 0 },
+    ];
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github,
+    });
+    await task(first.payload);
+    await harness.raw(
+      `update brief set used_group_ids = '["gA","gB","gZ"]' where head_sha = '${HEAD_1}'`,
+    );
+
+    const BASE_2 = "d".repeat(40);
+    github.info = { ...github.info, baseSha: BASE_2 };
+    generator.outputs["brief"] = twoGroupBriefOutput(
+      "tmpA",
+      "alpha again",
+      "tmpB",
+      "beta again",
+    );
+    const again = await trigger(HEAD_1);
+    await task(again.payload);
+
+    const store = artifactStore(harness.handle, ctx);
+    const row = await store.briefs.get(again.pr.id, BASE_2, HEAD_1);
+    expect(JSON.parse(row?.usedGroupIds ?? "null")).toEqual([
+      "gA",
+      "gB",
+      "gZ",
+      "tmpA",
+      "tmpB",
+    ]);
+  });
+
+  it("heals a NULL chain column from the previous body", async () => {
+    // Rev 1 predates the column (NULL): the fresh rev-2 union must still
+    // hold rev 1's ids, seeded from the recovered body.
+    const first = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    generator.outputs["brief"] = twoGroupBriefOutput(
+      "gA",
+      "alpha",
+      "gB",
+      "beta",
+    );
+    const github = stubGitHub(HEAD_1);
+    github.files = [
+      { path: "a.ts", additions: 4, deletions: 0 },
+      { path: "b.ts", additions: 2, deletions: 0 },
+    ];
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github,
+      fullRegeneration: "always",
+    });
+    await task(first.payload);
+    await harness.raw(
+      `update brief set used_group_ids = null where head_sha = '${HEAD_1}'`,
+    );
+
+    github.info = { ...github.info, headSha: HEAD_2 };
+    generator.outputs["brief"] = twoGroupBriefOutput(
+      "tmpA",
+      "alpha v2",
+      "tmpB",
+      "beta v2",
+    );
+    const second = await trigger(HEAD_2);
+    await task(second.payload);
+
+    const store = artifactStore(harness.handle, ctx);
+    const row = await store.briefs.get(second.pr.id, BASE, HEAD_2);
+    expect(JSON.parse(row?.usedGroupIds ?? "null")).toEqual([
+      "gA",
+      "gB",
+      "tmpA",
+      "tmpB",
+    ]);
+  });
+
   it("leaves the hop behind when the model call fails", async () => {
     const { pr } = await runTwoRevisions({
       rev2FailWith: new APIConnectionError({}),

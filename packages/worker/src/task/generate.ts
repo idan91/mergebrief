@@ -70,6 +70,7 @@ import {
   GenerationPhase,
   GenerationStatus,
   PrState,
+  StoredIdsSchema,
   type AppDatabase,
   type ArtifactStore,
   type BriefRowId,
@@ -719,12 +720,40 @@ async function runGeneration(
       let anchor: Anchor = { state: AnchorStates.NONE };
       let anchorPlan: ReturnType<typeof planAnchoredGeneration> | undefined;
       let anchorView: AnchorViewInput | undefined;
-      if (prevBrief !== undefined && policy !== FullRegenerations.ALWAYS) {
-        const prevRow = await store.briefs.get(
+      // The chain's used-id set rides ahead of the anchoring decision: even a
+      // fresh restart keeps history reserved, or descent could resurrect a
+      // retired id for an unrelated group.
+      const prevRow =
+        prevBrief === undefined
+          ? undefined
+          : await store.briefs.get(
+              pullRequestId,
+              prevBrief.baseSha,
+              prevBrief.headSha,
+            );
+      const previousBody =
+        prevRow === undefined ? undefined : recoverBrief(prevRow.body, log);
+      // The chain reads off the NEWEST prior row, not `prevBrief` — that
+      // lookup skips same-head rows, so after a base retarget (same head,
+      // new base) it would drop the retargeted row's history for good.
+      const chainSource = priorBriefs.at(-1);
+      let chainRow = prevRow;
+      let chainBody = previousBody;
+      if (
+        chainSource !== undefined &&
+        (chainSource.headSha !== prevBrief?.headSha ||
+          chainSource.baseSha !== prevBrief.baseSha)
+      ) {
+        chainRow = await store.briefs.get(
           pullRequestId,
-          prevBrief.baseSha,
-          prevBrief.headSha,
+          chainSource.baseSha,
+          chainSource.headSha,
         );
+        chainBody =
+          chainRow === undefined ? undefined : recoverBrief(chainRow.body, log);
+      }
+      const chainGroupIds = resolveChainGroupIds(chainRow, chainBody);
+      if (prevBrief !== undefined && policy !== FullRegenerations.ALWAYS) {
         const current = deps.generator.origin(deps.effort ?? "medium");
         if (
           policy === FullRegenerations.ON_MODEL_SWAP &&
@@ -740,8 +769,6 @@ async function runGeneration(
             `generate: fresh restart — model swapped (${prevRow.provider}/${prevRow.model} → ${current.provider}/${current.model})`,
           );
         } else {
-          const previousBody =
-            prevRow === undefined ? undefined : recoverBrief(prevRow.body, log);
           if (previousBody !== undefined) {
             const compareFilesResult = await source.fetchCompareFiles(
               prevBrief.headSha,
@@ -754,6 +781,7 @@ async function runGeneration(
             }
             anchorPlan = planAnchoredGeneration({
               previousBrief: previousBody,
+              chainGroupIds,
               ...(prevSpanFetch?.ok === true
                 ? { incrementalDiff: prevSpanFetch.value }
                 : {}),
@@ -841,6 +869,12 @@ async function runGeneration(
         body: JSON.stringify(stamped),
         ...getAnchorColumns(anchor),
         carriedChunkIds,
+        usedGroupIds: [
+          ...new Set([
+            ...chainGroupIds,
+            ...stamped.changeGroups.map((group) => group.id),
+          ]),
+        ],
         ...(repoConfig === undefined
           ? {}
           : {
@@ -1121,6 +1155,22 @@ function isBrief(value: unknown): value is Brief {
     typeof candidate["generation"] === "object" &&
     candidate["generation"] !== null
   );
+}
+
+/**
+ * Every group id the PR's chain has used, read off the previous row. NULL
+ * (a row predating the column) heals from the recovered body's groups —
+ * never the empty set while a previous brief exists.
+ */
+function resolveChainGroupIds(
+  prevRow: { usedGroupIds: string | null } | undefined,
+  previousBody: Brief | undefined,
+): readonly string[] {
+  if (prevRow !== undefined && prevRow.usedGroupIds !== null) {
+    const parsed = StoredIdsSchema.safeParse(prevRow.usedGroupIds);
+    if (parsed.success) return parsed.data;
+  }
+  return previousBody?.changeGroups.map((group) => group.id) ?? [];
 }
 
 /** Parse a stored brief body back into a `Brief`, or undefined (logged). */

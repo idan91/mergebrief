@@ -228,6 +228,9 @@ export async function seedBrief(
     effort: "high",
     body,
     carriedChunkIds,
+    // The carry suite's chain must read as descended, or reclassifications
+    // (correctly) drop across the seeded span.
+    anchorState: "anchored",
   });
   if (!written.ok) throw new Error(`seedBrief: ${written.error.code}`);
   return written.value.id;

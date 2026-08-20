@@ -67,17 +67,23 @@ async function freshWorld(): Promise<World> {
   return { client, handle, pullRequestId: pr.id };
 }
 
-/** One Brief of the PR at `headIndex`, head SHA `head-<headIndex>`. */
+/**
+ * One Brief of the PR at `headIndex`, head SHA `head-<headIndex>`. Stamped
+ * `anchored` unless a test says otherwise — an unstamped chain drops every
+ * reclassification, which is its own test, not this suite's default.
+ */
 async function seedBrief(
   world: World,
   headIndex: number,
   carriedChunkIds: readonly string[] = [],
   baseSha = "base",
+  anchorState: string | null = "anchored",
+  headSha = "",
 ): Promise<BriefRowId> {
   const written = await artifactStore(world.handle, CTX).briefs.write({
     pullRequestId: world.pullRequestId,
     baseSha,
-    headSha: `head-${headIndex}`,
+    headSha: headSha === "" ? `head-${headIndex}` : headSha,
     headIndex,
     commitCount: headIndex,
     provider: "anthropic",
@@ -85,6 +91,8 @@ async function seedBrief(
     effort: "high",
     body: '{"brief":true}',
     carriedChunkIds,
+    ...(anchorState === null ? {} : { anchorState }),
+    ...(anchorState === "fresh-restart" ? { anchorReason: "model-swap" } : {}),
   });
   if (!written.ok)
     throw new Error(`brief seed failed: ${written.error.message}`);
@@ -471,6 +479,108 @@ describe("preview — what carries, per subject", () => {
     expect(
       view.carried.reclassifications.map((row) => row.changeGroupId),
     ).toEqual(["g1"]);
+  });
+
+  it("does NOT carry a reclassification across a fresh-restart brief", async () => {
+    // The current Brief re-derived its groups from scratch: `g1` being
+    // present again is numbering coincidence, not the group the reviewer
+    // judged — the override must drop, exactly as a read mark would.
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 1);
+    const current = await seedBrief(world, 2, [], "base", "fresh-restart");
+    await seedHop(world, 1, 2);
+    await seedPreviousWork(world, previous, ["c5"]);
+
+    const view = await forTenant(world.handle, CTX).reviewSessions.preview({
+      briefId: current,
+      reviewerId: REVIEWER,
+      brief: artifact(["g1"], FIRING),
+    });
+
+    expect(view.carried.reclassifications).toEqual([]);
+  });
+
+  it("does NOT carry a reclassification across a brief with no anchor stamp", async () => {
+    // NULL anchor state (a row predating the stamp) is not proof of descent —
+    // ambiguity biases to dropping.
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 1);
+    const current = await seedBrief(world, 2, [], "base", null);
+    await seedHop(world, 1, 2);
+    await seedPreviousWork(world, previous, ["c5"]);
+
+    const view = await forTenant(world.handle, CTX).reviewSessions.preview({
+      briefId: current,
+      reviewerId: REVIEWER,
+      brief: artifact(["g1"], FIRING),
+    });
+
+    expect(view.carried.reclassifications).toEqual([]);
+  });
+
+  it("does NOT carry a reclassification when the restart sits mid-chain", async () => {
+    // Brief 2 re-derived from scratch; brief 3 descending from IT proves
+    // nothing about brief 1's groups — the whole span must have descended.
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 1);
+    await seedBrief(world, 2, [], "base", "fresh-restart");
+    const current = await seedBrief(world, 3);
+    await seedHop(world, 1, 2);
+    await seedHop(world, 2, 3);
+    await seedPreviousWork(world, previous, ["c5"]);
+
+    const view = await forTenant(world.handle, CTX).reviewSessions.preview({
+      briefId: current,
+      reviewerId: REVIEWER,
+      brief: artifact(["g1"], FIRING),
+    });
+
+    expect(view.carried.reclassifications).toEqual([]);
+  });
+
+  it("carries when only the previous session's OWN brief was a restart", async () => {
+    // That brief's stamp describes the hop BEFORE the carried span — the
+    // reviewer judged its groups directly, so it must not gate the carry.
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 1, [], "base", "fresh-restart");
+    const current = await seedBrief(world, 2, []);
+    await seedHop(world, 1, 2);
+    await seedPreviousWork(world, previous, ["c5"]);
+
+    const view = await forTenant(world.handle, CTX).reviewSessions.preview({
+      briefId: current,
+      reviewerId: REVIEWER,
+      brief: artifact(["g1"], FIRING),
+    });
+
+    expect(
+      view.carried.reclassifications.map((row) => row.changeGroupId),
+    ).toEqual(["g1"]);
+  });
+
+  it("does NOT carry a reclassification across a same-head retarget hop", async () => {
+    // A base retarget re-briefs the same head: the generation anchors to the
+    // nearest DIFFERENT head, skipping the chain-adjacent brief, so its
+    // `anchored` stamp says nothing about the groups the reviewer judged.
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 1);
+    const current = await seedBrief(
+      world,
+      2,
+      [],
+      "base-2",
+      "anchored",
+      "head-1",
+    );
+    await seedPreviousWork(world, previous, ["c5"]);
+
+    const view = await forTenant(world.handle, CTX).reviewSessions.preview({
+      briefId: current,
+      reviewerId: REVIEWER,
+      brief: artifact(["g1"], FIRING),
+    });
+
+    expect(view.carried.reclassifications).toEqual([]);
   });
 
   it("carries a draft but never a submitted comment", async () => {

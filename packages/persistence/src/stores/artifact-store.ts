@@ -138,6 +138,22 @@ export const HunkSpansSchema = z.array(
 );
 export type HunkSpans = z.infer<typeof HunkSpansSchema>;
 
+/**
+ * A JSON `string[]` id column as stored (`carried_chunk_ids`,
+ * `used_group_ids`) — rows predating a column are NULL, and garbage fails
+ * the parse rather than passing through.
+ */
+export const StoredIdsSchema = z
+  .string()
+  .transform((raw): unknown => {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return undefined;
+    }
+  })
+  .pipe(z.array(z.string()));
+
 // ---------------------------------------------------------------------------
 // Row + write-input shapes.
 // ---------------------------------------------------------------------------
@@ -212,6 +228,11 @@ export interface BriefWriteInput extends Origin {
    * a fresh restart; omit only for writers predating the stamp.
    */
   readonly carriedChunkIds?: readonly string[];
+  /**
+   * Every group id the PR's Brief chain has used, this Brief included —
+   * stored as JSON. Omit only for writers predating the stamp.
+   */
+  readonly usedGroupIds?: readonly string[];
 }
 
 export interface DeltaWriteInput extends Origin {
@@ -455,6 +476,10 @@ export function artifactStore(
         input.carriedChunkIds === undefined
           ? null
           : JSON.stringify(input.carriedChunkIds);
+      const serializedGroupIds =
+        input.usedGroupIds === undefined
+          ? null
+          : JSON.stringify(input.usedGroupIds);
       return db.transaction(async (tx) => {
         if (!(await parentInTenant(tx, input.pullRequestId))) {
           return fail(
@@ -480,6 +505,7 @@ export function artifactStore(
             anchorState: input.anchorState ?? null,
             anchorReason: input.anchorReason ?? null,
             carriedChunkIds: serializedChunkIds,
+            usedGroupIds: serializedGroupIds,
           })
           .onConflictDoUpdate({
             target: [
@@ -500,6 +526,7 @@ export function artifactStore(
               anchorState: input.anchorState ?? null,
               anchorReason: input.anchorReason ?? null,
               carriedChunkIds: serializedChunkIds,
+              usedGroupIds: serializedGroupIds,
             },
           })
           .returning();

@@ -42,6 +42,12 @@ export interface AnchorPlanArgs {
    * re-looks BEFORE the partition even runs.
    */
   readonly baseShaMoved: boolean;
+  /**
+   * Every group id the PR's Brief chain has used (`brief.used_group_ids`) —
+   * folded into `previousGroupIds` so descent never re-mints a retired id
+   * for an unrelated group. Absent degrades to previous-brief-only.
+   */
+  readonly chainGroupIds?: readonly string[];
 }
 
 /** One frozen group carried verbatim: its definition + (remapped) chunks. */
@@ -81,7 +87,11 @@ function getGroupFiles(brief: Brief, groupId: string): string[] {
   return files;
 }
 
-function allReLook(brief: Brief, reason: string): AnchorPlan {
+function allReLook(
+  brief: Brief,
+  reason: string,
+  chainGroupIds: readonly string[] = [],
+): AnchorPlan {
   return {
     frozen: [],
     frozenFiles: new Set(),
@@ -90,8 +100,21 @@ function allReLook(brief: Brief, reason: string): AnchorPlan {
       files: getGroupFiles(brief, group.id),
       reason,
     })),
-    previousGroupIds: brief.changeGroups.map((group) => group.id),
+    previousGroupIds: reserveIds(brief, chainGroupIds),
   };
+}
+
+/** Previous-brief ids ∪ the chain's — deduped, previous first. */
+function reserveIds(
+  brief: Brief,
+  chainGroupIds: readonly string[],
+): string[] {
+  return [
+    ...new Set([
+      ...brief.changeGroups.map((group) => group.id),
+      ...chainGroupIds,
+    ]),
+  ];
 }
 
 /**
@@ -131,17 +154,27 @@ function buildHop(
  */
 export function planAnchoredGeneration(args: AnchorPlanArgs): AnchorPlan {
   const { previousBrief, incrementalDiff, compareFiles, baseShaMoved } = args;
+  const chainGroupIds = args.chainGroupIds ?? [];
   if (baseShaMoved) {
     return allReLook(
       previousBrief,
       "base SHA moved (rebase/base-advance) — three-dot span data untrusted",
+      chainGroupIds,
     );
   }
   if (incrementalDiff === undefined) {
-    return allReLook(previousBrief, "incremental span diff unavailable");
+    return allReLook(
+      previousBrief,
+      "incremental span diff unavailable",
+      chainGroupIds,
+    );
   }
   if (compareFiles === undefined) {
-    return allReLook(previousBrief, "compare file metadata unavailable");
+    return allReLook(
+      previousBrief,
+      "compare file metadata unavailable",
+      chainGroupIds,
+    );
   }
   if (compareFiles.status !== "ahead") {
     // A same-base force-push (amend/squash/drop) never moves the base SHA but
@@ -151,6 +184,7 @@ export function planAnchoredGeneration(args: AnchorPlanArgs): AnchorPlan {
     return allReLook(
       previousBrief,
       `compare span status '${compareFiles.status ?? "unknown"}' — not a fast-forward push`,
+      chainGroupIds,
     );
   }
 
@@ -246,7 +280,7 @@ export function planAnchoredGeneration(args: AnchorPlanArgs): AnchorPlan {
     frozen,
     frozenFiles,
     reLook,
-    previousGroupIds: previousBrief.changeGroups.map((group) => group.id),
+    previousGroupIds: reserveIds(previousBrief, chainGroupIds),
     ...(compareFiles.complete
       ? { hunkSpans: buildHop(compareFiles, patches) }
       : {}),

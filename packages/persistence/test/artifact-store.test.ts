@@ -276,6 +276,17 @@ describe("artifactStore.briefs — carried chunk ids", () => {
     });
     if (!restarted.ok) throw new Error("expected success");
     expect(restarted.value.carriedChunkIds).toBe("[]");
+
+    // used_group_ids rides the same discipline: omitted → NULL (legacy
+    // writer), present → JSON on both insert and the conflict update.
+    expect(legacy.value.usedGroupIds).toBeNull();
+    const used = await store.briefs.write({
+      ...span,
+      body: "v4",
+      usedGroupIds: ["g1", "g2"],
+    });
+    if (!used.ok) throw new Error("expected success");
+    expect(JSON.parse(used.value.usedGroupIds ?? "null")).toEqual(["g1", "g2"]);
   });
 });
 

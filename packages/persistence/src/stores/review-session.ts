@@ -30,7 +30,8 @@ import {
   type FlagKey,
   type PreviousWork,
 } from "./carry-over";
-import { ChunkIdsSchema } from "./carry-over";
+import { AnchorStates } from "brief-core";
+import { StoredIdsSchema } from "./artifact-store";
 import { DraftCommentStatus } from "../types";
 import type {
   AnchorStatus,
@@ -315,6 +316,7 @@ interface ChainBrief {
   readonly headSha: string;
   readonly headIndex: number;
   readonly carriedChunkIds: string | null;
+  readonly anchorState: string | null;
 }
 
 /**
@@ -331,7 +333,7 @@ function carriedThroughChain(
   let survivors: Set<string> | undefined;
   for (const step of chain) {
     if (step.headIndex <= fromHeadIndex) continue;
-    const parsed = ChunkIdsSchema.safeParse(step.carriedChunkIds);
+    const parsed = StoredIdsSchema.safeParse(step.carriedChunkIds);
     const carried = new Set(parsed.success ? parsed.data : []);
     survivors =
       survivors === undefined
@@ -339,6 +341,30 @@ function carriedThroughChain(
         : new Set([...survivors].filter((id) => carried.has(id)));
   }
   return survivors === undefined ? [] : [...survivors];
+}
+
+/**
+ * True only when every step past `fromHeadIndex` descended its group ids
+ * from the chain-adjacent Brief. The previous session's own Brief is outside
+ * the carried span — its stamp describes how it relates to ITS predecessor —
+ * so it is skipped, exactly as `carriedThroughChain` skips it. NULL (a
+ * pre-stamp row) is not proof. Nor is `anchored` on a step sharing its
+ * predecessor's head: a base retarget re-briefs the same head and anchors to
+ * the nearest DIFFERENT head, skipping the row the reviewer judged.
+ */
+function descendedThroughChain(
+  chain: readonly ChainBrief[],
+  fromHeadIndex: number,
+): boolean {
+  for (let index = 1; index < chain.length; index++) {
+    const step = chain[index];
+    const adjacent = chain[index - 1];
+    if (step === undefined || adjacent === undefined) return false;
+    if (step.headIndex <= fromHeadIndex) continue;
+    if (step.anchorState !== AnchorStates.ANCHORED) return false;
+    if (step.headSha === adjacent.headSha) return false;
+  }
+  return true;
 }
 
 /** The reviewer's previous session and the Brief it sat on. */
@@ -446,6 +472,7 @@ export function reviewSessionRepository(
         headSha: brief.headSha,
         headIndex: brief.headIndex,
         carriedChunkIds: brief.carriedChunkIds,
+        anchorState: brief.anchorState,
       })
       .from(brief)
       .where(
@@ -603,6 +630,7 @@ export function reviewSessionRepository(
     ]);
     return evaluateCarryOver(work, {
       carriedChunkIds: carriedThroughChain(chain, previous.headIndex),
+      groupIdsDescended: descendedThroughChain(chain, previous.headIndex),
       groupIds: artifact.groupIds,
       flags: artifact.flags,
       hops,
