@@ -66,6 +66,12 @@ export interface AttentionSubject {
    * one writes. `null` only for a disposition, addressed by its anchor.
    */
   readonly id: string | null;
+  /**
+   * The flag's attribute, on a disposition only. It is the one part of that
+   * anchor `location` does not carry, and without it two flags on one region
+   * make two items nothing can tell apart — let alone act on.
+   */
+  readonly attribute: string | null;
 }
 
 export interface AttentionLocation {
@@ -96,8 +102,8 @@ export interface AttentionDraftComment {
 }
 
 export interface AttentionDisposition {
-  readonly id?: bigint;
   readonly filePath: string;
+  readonly attribute: string;
   readonly regionStart: number;
   readonly regionEnd: number;
   readonly decision: DispositionDecision;
@@ -112,16 +118,10 @@ export interface AttentionInput {
 
 function item(
   kind: AttentionItemKind,
-  type: AttentionSubjectType,
-  id: bigint | undefined,
+  subject: AttentionSubject,
   location: AttentionLocation,
 ): AttentionItem {
-  return {
-    kind,
-    subject: { type, id: id === undefined ? null : String(id) },
-    location,
-    clearedBy: CLEARED_BY[kind],
-  };
+  return { kind, subject, location, clearedBy: CLEARED_BY[kind] };
 }
 
 /** A disposition's kind, or `undefined` when it carried silently. */
@@ -157,8 +157,11 @@ export function deriveAttentionItems(input: AttentionInput): AttentionItem[] {
     items.push(
       item(
         ATTENTION_ITEM_KIND.ORPHANED_ANCHOR,
-        ATTENTION_SUBJECT_TYPE.DRAFT_COMMENT,
-        comment.id,
+        {
+          type: ATTENTION_SUBJECT_TYPE.DRAFT_COMMENT,
+          id: String(comment.id),
+          attribute: null,
+        },
         {
           filePath: comment.filePath,
           startLine: comment.startLine,
@@ -171,11 +174,22 @@ export function deriveAttentionItems(input: AttentionInput): AttentionItem[] {
     const kind = classifyDisposition(row);
     if (kind === undefined) continue;
     items.push(
-      item(kind, ATTENTION_SUBJECT_TYPE.DISPOSITION, row.id, {
-        filePath: row.filePath,
-        startLine: row.regionStart,
-        endLine: row.regionEnd,
-      }),
+      // No id, on either side of materialization: every operation that
+      // clears a disposition addresses it by its anchor, which is the
+      // attribute plus the region `location` states.
+      item(
+        kind,
+        {
+          type: ATTENTION_SUBJECT_TYPE.DISPOSITION,
+          id: null,
+          attribute: row.attribute,
+        },
+        {
+          filePath: row.filePath,
+          startLine: row.regionStart,
+          endLine: row.regionEnd,
+        },
+      ),
     );
   }
   return items;

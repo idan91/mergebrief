@@ -232,6 +232,58 @@ export async function seedBrief(
 }
 
 /**
+ * The durable hop between two Brief heads. Its one hunk sits above every
+ * anchor the fixtures place, so the chain links and nothing moves — which is
+ * what lets a carried decision settle rather than reopen.
+ */
+export async function seedHop(
+  handle: AppDatabase,
+  fromIndex: number,
+  toIndex: number,
+): Promise<void> {
+  await writeHop(handle, fromIndex, toIndex, [
+    {
+      file: "src/app.ts",
+      hunks: [{ oldStart: 1, oldLines: 1, newStart: 1, newLines: 1 }],
+    },
+  ]);
+}
+
+async function writeHop(
+  handle: AppDatabase,
+  fromIndex: number,
+  toIndex: number,
+  spans: unknown,
+): Promise<void> {
+  const pr = await forTenant(handle, CTX).pullRequests.getByNumber(
+    brandRepo(BigInt(REPO_ID)),
+    PR_NUMBER,
+  );
+  if (pr === undefined) throw new Error("seedHop: pr missing");
+  const written = await artifactStore(handle, CTX).hunkSpans.write({
+    pullRequestId: pr.id,
+    baselineSha: `head-${fromIndex}`,
+    headSha: `head-${toIndex}`,
+    spans,
+  });
+  if (!written.ok) throw new Error(`seedHop: ${written.error.code}`);
+}
+
+/** A hop whose hunk lands inside the flagged region, so a decision reopens. */
+export async function seedHopInsideFlaggedRegion(
+  handle: AppDatabase,
+  fromIndex: number,
+  toIndex: number,
+): Promise<void> {
+  await writeHop(handle, fromIndex, toIndex, [
+    {
+      file: "src/app.ts",
+      hunks: [{ oldStart: 10, oldLines: 3, newStart: 10, newLines: 3 }],
+    },
+  ]);
+}
+
+/**
  * A second draft on the previous session, orphaning the same way the first
  * does — an attention list with more than one item to walk.
  */

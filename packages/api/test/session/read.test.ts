@@ -151,13 +151,18 @@ describe("read-review-session", () => {
     expect(body.attention).toEqual([
       {
         kind: "orphaned-anchor",
-        subject: { type: "draft-comment", id: expect.stringMatching(/^\d+$/) },
+        subject: {
+          type: "draft-comment",
+          id: expect.stringMatching(/^\d+$/),
+          attribute: null,
+        },
         location: { filePath: "src/app.ts", startLine: 10, endLine: 12 },
         clearedBy: ["reanchor-draft-comment", "delete-draft-comment"],
       },
       {
         kind: "reopened-disposition",
-        subject: { type: "disposition", id: null },
+        // The attribute is the half of the anchor `location` cannot state.
+        subject: { type: "disposition", id: null, attribute: "no-tests" },
         location: { filePath: "src/app.ts", startLine: 10, endLine: 12 },
         clearedBy: ["address-risk", "dismiss-risk"],
       },
@@ -202,7 +207,11 @@ describe("read-review-session", () => {
     expect(body.attention).toEqual([
       {
         kind: "orphaned-anchor",
-        subject: { type: "draft-comment", id: expect.stringMatching(/^\d+$/) },
+        subject: {
+          type: "draft-comment",
+          id: expect.stringMatching(/^\d+$/),
+          attribute: null,
+        },
         location: { filePath: "src/app.ts", startLine: 10, endLine: 12 },
         clearedBy: ["reanchor-draft-comment", "delete-draft-comment"],
       },

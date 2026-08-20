@@ -97,6 +97,7 @@ export type {
   ReclassificationInput,
   SubmittedReviewInput,
   DispositionInput,
+  DispositionAnchor,
 } from "./stores/review-session";
 
 // The carry-over verdicts a read returns — evaluated in memory, materialized

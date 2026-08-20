@@ -45,5 +45,7 @@ export const PRODUCT_ACTION_ID = {
   RECLASSIFY_GROUP: "reclassify-group",
   DISMISS_RISK: "dismiss-risk",
   ADDRESS_RISK: "address-risk",
+  REOPEN_RISK: "reopen-risk",
+  SET_REVIEW_OUTCOME: "set-review-outcome",
 } as const;
 export type ProductActionId = ValueOf<typeof PRODUCT_ACTION_ID>;

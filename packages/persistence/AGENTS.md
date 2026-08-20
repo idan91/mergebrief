@@ -92,8 +92,9 @@ drizzle/              generated SQL migrations — append-only
   `src/types.ts` demonstrates it. DB-stored vocabularies (state, kind, status, phase,
   decision, actor_type, generation error_code, audit outcome/classification/channel,
   review_outcome, draft-comment status/side/anchor_status, reclassification
-  category, disposition carry_status/evidence_status, api_token scope) are also
-  CHECK-constrained (migrations 0002, 0017, 0019, 0021, 0024 and 0025) — **adding a value needs a code change AND a
+  category, disposition carry_status/evidence_status/evidence_kind, api_token
+  scope) are also CHECK-constrained (migrations 0002, 0017, 0019, 0021, 0024,
+  0025 and 0029) — **adding a value needs a code change AND a
   migration**, in lockstep. The Review Session vocabularies prove that lockstep in
   `test/review-session.test.ts`, by reading `pg_get_constraintdef` back and comparing
   it to the `as const` map; `category` additionally pins against brief-core's

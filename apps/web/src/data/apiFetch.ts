@@ -23,6 +23,7 @@ export const ApiErrorCode = {
   FORBIDDEN: "forbidden",
   GITHUB_PERMISSION: "github-permission",
   SCOPE_EXCEEDED: "scope-exceeded",
+  HUMAN_ONLY: "human-only",
   NOT_FOUND: "not-found",
   INVALID_REQUEST: "invalid-request",
   NOT_A_PR_URL: "not-a-pr-url",

@@ -40,6 +40,7 @@ const CARRIED: CarriedWork = {
       body: "this leaks",
       status: DraftCommentStatus.DRAFT,
       anchorStatus: AnchorStatus.ORPHANED,
+      carriedFromCommentId: null,
     },
   ],
   readMarks: ["chunk-a", "chunk-b"],
@@ -55,6 +56,7 @@ const CARRIED: CarriedWork = {
       decision: DispositionDecision.DISMISSED,
       reason: "covered by the gate",
       evidenceStatus: null,
+      evidence: null,
       decidedAt: DECIDED_AT,
       carryStatus: DispositionCarryStatus.REOPENED,
     },
@@ -116,13 +118,13 @@ describe("buildSessionPayload", () => {
     expect(buildSessionPayload(CARRIED_VIEW, 5).attention).toEqual([
       {
         kind: "orphaned-anchor",
-        subject: { type: "draft-comment", id: "71" },
+        subject: { type: "draft-comment", id: "71", attribute: null },
         location: { filePath: "src/app.ts", startLine: 10, endLine: 12 },
         clearedBy: ["reanchor-draft-comment", "delete-draft-comment"],
       },
       {
         kind: "reopened-disposition",
-        subject: { type: "disposition", id: null },
+        subject: { type: "disposition", id: null, attribute: "auth" },
         location: { filePath: "src/app.ts", startLine: 4, endLine: 20 },
         clearedBy: ["address-risk", "dismiss-risk"],
       },

@@ -36,6 +36,7 @@ import type {
   BriefRowId,
   ChangeGroupCategory,
   DispositionDecision,
+  DispositionEvidence,
   DraftCommentSide,
   DraftCommentStatus,
   InstallationId,
@@ -141,7 +142,15 @@ export interface DispositionInput {
   readonly decision: DispositionDecision;
   /** Verbatim on the Receipt; null when the flag was addressed rather than dismissed. */
   readonly reason?: string | null;
+  /** What an addressing decision points at; null on a dismissal. */
+  readonly evidence?: DispositionEvidence | null;
 }
+
+/** A disposition's anchor — the only way a clearing operation names one. */
+export type DispositionAnchor = Pick<
+  DispositionInput,
+  "filePath" | "attribute" | "regionStart" | "regionEnd"
+>;
 
 /**
  * The session and everything it owns — one read, no writes. Every list is
@@ -238,6 +247,11 @@ export interface SessionWriter {
   ): Promise<ReviewSubmittedReviewRow>;
   /** Record a decision on a risk flag; idempotent on its anchor. */
   putDisposition(input: DispositionInput): Promise<DispositionRow>;
+  /**
+   * Undo a decision — the flag goes back to undecided, which is a row that
+   * does not exist. `false` when this session held none. Idempotent.
+   */
+  deleteDisposition(anchor: DispositionAnchor): Promise<boolean>;
   /** The provisional submit verdict. Never carried — a new session starts over. */
   setReviewOutcome(outcome: ReviewOutcome): Promise<ReviewSessionRow>;
 }
@@ -526,6 +540,7 @@ export function reviewSessionRepository(
             endLine: reviewDraftComment.endLine,
             body: reviewDraftComment.body,
             status: reviewDraftComment.status,
+            carriedFromCommentId: reviewDraftComment.carriedFromCommentId,
           })
           .from(reviewDraftComment)
           .where(
@@ -567,6 +582,8 @@ export function reviewSessionRepository(
             decision: disposition.decision,
             reason: disposition.reason,
             evidenceStatus: disposition.evidenceStatus,
+            evidenceKind: disposition.evidenceKind,
+            evidenceRef: disposition.evidenceRef,
             decidedAt: disposition.decidedAt,
           })
           .from(disposition)
@@ -582,7 +599,15 @@ export function reviewSessionRepository(
       draftComments: comments,
       readMarks: marks.map((mark) => mark.chunkId),
       reclassifications,
-      dispositions,
+      dispositions: dispositions.map(
+        ({ evidenceKind, evidenceRef, ...row }) => ({
+          ...row,
+          evidence:
+            evidenceKind === null
+              ? null
+              : { kind: evidenceKind, ref: evidenceRef },
+        }),
+      ),
     };
   }
 
@@ -747,6 +772,8 @@ export function reviewSessionRepository(
               regionEnd: input.regionEnd,
               decision: input.decision,
               reason: input.reason ?? null,
+              evidenceKind: input.evidence?.kind ?? null,
+              evidenceRef: input.evidence?.ref ?? null,
               decidedAt: new Date(),
             })
             .onConflictDoUpdate({
@@ -760,14 +787,34 @@ export function reviewSessionRepository(
               set: {
                 decision: input.decision,
                 reason: input.reason ?? null,
-                // Deciding here settles the question the carry brought over.
+                evidenceKind: input.evidence?.kind ?? null,
+                evidenceRef: input.evidence?.ref ?? null,
+                // Deciding here settles both questions the carry brought over
+                // — the re-look AND the evidence the old decision lost.
                 carryStatus: null,
+                evidenceStatus: null,
                 decidedAt: new Date(),
               },
             })
             .returning(),
           "disposition",
         );
+      },
+      async deleteDisposition(anchor) {
+        const gone = await tx
+          .delete(disposition)
+          .where(
+            and(
+              eq(disposition.installationId, installationId),
+              eq(disposition.reviewSessionId, sessionId),
+              eq(disposition.filePath, anchor.filePath),
+              eq(disposition.attribute, anchor.attribute),
+              eq(disposition.regionStart, anchor.regionStart),
+              eq(disposition.regionEnd, anchor.regionEnd),
+            ),
+          )
+          .returning({ id: disposition.id });
+        return gone.length > 0;
       },
       async setReviewOutcome(outcome) {
         return only(
@@ -874,6 +921,8 @@ export function reviewSessionRepository(
             reason: row.reason,
             carryStatus: row.carryStatus,
             evidenceStatus: row.evidenceStatus,
+            evidenceKind: row.evidence?.kind ?? null,
+            evidenceRef: row.evidence?.ref ?? null,
             decidedAt: row.decidedAt,
           })),
         ),

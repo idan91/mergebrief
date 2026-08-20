@@ -25,12 +25,16 @@ const COMMENT: AttentionDraftComment = {
 
 const DISPOSITION: AttentionDisposition = {
   filePath: "src/app.ts",
+  attribute: "no-tests",
   regionStart: 10,
   regionEnd: 12,
   decision: DispositionDecision.DISMISSED,
   carryStatus: DispositionCarryStatus.SETTLED,
   evidenceStatus: null,
 };
+
+/** Two flags on ONE region: the pair an item must be able to tell apart. */
+const SECOND_FLAG = { ...DISPOSITION, attribute: "no-error-path" };
 
 function kinds(
   draftComments: readonly AttentionDraftComment[],
@@ -53,7 +57,11 @@ describe("deriveAttentionItems", () => {
     ]);
     // Addressable whichever side of materialization it came from: a carried
     // verdict names the previous session's row.
-    expect(item?.subject).toEqual({ type: "draft-comment", id: "41" });
+    expect(item?.subject).toEqual({
+      type: "draft-comment",
+      id: "41",
+      attribute: null,
+    });
   });
 
   it("stays silent on a moved anchor and on a published comment", () => {
@@ -106,6 +114,23 @@ describe("deriveAttentionItems", () => {
         ],
       ),
     ).toEqual(["missing-evidence"]);
+  });
+
+  it("names the attribute, so two flags on one region are two acts", () => {
+    const items = deriveAttentionItems({
+      draftComments: [],
+      dispositions: [
+        { ...DISPOSITION, carryStatus: DispositionCarryStatus.REOPENED },
+        { ...SECOND_FLAG, carryStatus: DispositionCarryStatus.REOPENED },
+      ],
+    });
+
+    // Same location, same kind — the attribute is the whole difference, and
+    // the operations that clear them need it in the payload.
+    expect(items.map((row) => row.subject)).toEqual([
+      { type: "disposition", id: null, attribute: "no-tests" },
+      { type: "disposition", id: null, attribute: "no-error-path" },
+    ]);
   });
 
   it("asks once when a row is both reopened and missing its evidence", () => {

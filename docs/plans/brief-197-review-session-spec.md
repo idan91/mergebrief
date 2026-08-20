@@ -142,6 +142,9 @@ disposition
   + review_session_id      FK review_session (cascade)
   + carry_status           null | new | reopened | settled | dropped
   + evidence_status        null | missing-evidence
+  + evidence_kind          null | linked-comment | chunk-reviewed | manual-note
+  + evidence_ref           what the kind points at: a draft row id, a chunk
+                           id, or the note itself
   − decided_at_sha         redundant under the anchor rule
   − pull_request_id        derivable through the session
   − reviewer_id            derivable through the session
@@ -430,6 +433,14 @@ name. The guard is **one predicate in the operation handler layer**, covering
 the clearing operations, so a later per-row rule flips one check rather than
 several call sites. An agent still writes its own drafts freely under `draft`
 scope; it just cannot be the actor that says a reopened risk is fine now.
+
+**The guarded set is the three disposition operations** — `dismiss-risk`,
+`address-risk`, `reopen-risk`. `reanchor-draft-comment` and
+`delete-draft-comment` clear the orphaned-anchor kind and are deliberately
+NOT guarded: repairing a draft is authoring it, and an agent that could not
+re-place or withdraw its own draft could not author at all. A per-row rule
+that guards only someone else's draft is the additive version, and it flips
+this one predicate.
 
 Authorship is deliberately inseparable in v1 (§5.7): `actor_type`/`actor_id`
 cannot tell a human from their agent, and no `author` column is added.
@@ -896,8 +907,12 @@ is a projection of status columns on rows the session read already returns.
   booleans, so mark-vs-unmark stays legible in the log without a second id.
 - **Dispositions are three operations, not one.** `dismiss-risk` (a reason),
   `address-risk` (per-flag evidence) and `reopen-risk` (a bare undo) carry
-  materially different payloads and record different judgments. All take an id
-  array, matching the bulk shape the store already uses.
+  materially different payloads and record different judgments. All take an
+  array of flag ANCHORS — brief-local flag ids dangle on regeneration, so the
+  anchor is the identity — matching the bulk shape the store already uses.
+  **The array is
+  capped at 200 flags per call** — a deterministic 400 past it, so the web
+  app mirrors the number rather than resubmitting the same state forever.
 - **`toggleComment` gets no id.** Per-comment collapse was dropped from the
   persisted set; it is local view state.
 - **No `save-submit-note` operation.** The submit wire carries `body`; the
@@ -988,7 +1003,7 @@ and has never had a caller — `useRiskFlagModalsFacade.ts:87`/`:120` pass only
 
 ## 10. New wire error codes
 
-Both follow `packages/api/AGENTS.md`'s recipe (code + status + English
+All follow `packages/api/AGENTS.md`'s recipe (code + status + English
 template, the identical `errors.<code>` template in `packages/i18n`, the
 `apps/web` mirror).
 
@@ -996,6 +1011,7 @@ template, the identical `errors.<code>` template in `packages/i18n`, the
 | --- | --- | --- |
 | `scope-exceeded` | 403 | The credential's scope does not reach this operation's class. |
 | `draft-already-published` | 409 | The named draft has already been published to GitHub. |
+| `human-only` | 403 | A clearing operation was called with a credential that is not a signed-in reviewer. |
 
 Reused, not minted: `pr-changed-since-read` (409) for a write against a frozen
 session.

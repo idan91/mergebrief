@@ -9,6 +9,8 @@ import {
   type ChangeGroupCategory,
   type DispositionCarryStatus,
   type DispositionDecision,
+  type DispositionEvidence,
+  type DispositionEvidenceKind,
   type DispositionEvidenceStatus,
   type DraftCommentSide,
   type DraftCommentStatus,
@@ -68,7 +70,17 @@ interface DispositionPayload {
   readonly reason: string | null;
   readonly carryStatus: DispositionCarryStatus | null;
   readonly evidenceStatus: DispositionEvidenceStatus | null;
+  /** What the decision stands on; null on a dismissal or once it was lost. */
+  readonly evidence: DispositionEvidence | null;
   readonly decidedAt: string;
+}
+
+/** The stored columns as the one shape the wire and the evaluation share. */
+function shapeEvidence(
+  kind: DispositionEvidenceKind | null,
+  ref: string | null,
+): DispositionEvidence | null {
+  return kind === null ? null : { kind, ref };
 }
 
 /** The lists a payload carries, before materialization is accounted for. */
@@ -97,6 +109,7 @@ function shapeStoredWork(snapshot: ReviewSessionSnapshot): SessionWork {
     })),
     dispositions: snapshot.dispositions.map((row) => ({
       id: String(row.id),
+      evidence: shapeEvidence(row.evidenceKind, row.evidenceRef),
       filePath: row.filePath,
       attribute: row.attribute,
       regionStart: row.regionStart,
@@ -148,6 +161,7 @@ function shapeCarriedWork(carried: CarriedWork): SessionWork {
       reason: row.reason,
       carryStatus: row.carryStatus,
       evidenceStatus: row.evidenceStatus,
+      evidence: row.evidence,
       decidedAt: row.decidedAt.toISOString(),
     })),
     submittedReviewIds: [],

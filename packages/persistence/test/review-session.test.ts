@@ -18,6 +18,7 @@ import {
   AnchorStatus,
   ChangeGroupCategory,
   DispositionCarryStatus,
+  DispositionEvidenceKind,
   DispositionEvidenceStatus,
   DraftCommentSide,
   DraftCommentStatus,
@@ -136,6 +137,7 @@ describe("review-session vocabularies — map and CHECK in lockstep", () => {
     ["review_group_reclassification_category_check", ChangeGroupCategory],
     ["disposition_carry_status_check", DispositionCarryStatus],
     ["disposition_evidence_status_check", DispositionEvidenceStatus],
+    ["disposition_evidence_kind_check", DispositionEvidenceKind],
   ])("%s accepts exactly its `as const` map", async (name, map) => {
     const { client } = await freshPair();
     expect((await checkValues(client, name)).toSorted()).toEqual(

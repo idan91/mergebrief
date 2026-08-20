@@ -296,10 +296,10 @@ describe("the committed catalog", () => {
       today: "2026-08-16",
       commandPaths: cliCommandPaths(),
     });
-    // The counts grow with each Review Session PR that lands operations.
+    // The catalog's final shape: 34 operations, and every one accounted for.
     expect(result).toEqual({
       ok: true,
-      value: { commands: 9, gaps: 16, webOnly: 5 },
+      value: { commands: 9, gaps: 20, webOnly: 5 },
     });
   });
 });

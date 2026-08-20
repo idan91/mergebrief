@@ -15,6 +15,7 @@ import {
 import type {
   DispositionCarryStatus,
   DispositionDecision,
+  DispositionEvidenceKind,
   DispositionEvidenceStatus,
   ReviewSessionId,
 } from "../types";
@@ -40,6 +41,10 @@ export const disposition = pgTable(
     carryStatus: text("carry_status").$type<DispositionCarryStatus>(),
     /** Null = the evidence the decision claimed still stands. CHECK-constrained. */
     evidenceStatus: text("evidence_status").$type<DispositionEvidenceStatus>(),
+    /** What an addressing decision points at; null on a dismissal. CHECK-constrained. */
+    evidenceKind: text("evidence_kind").$type<DispositionEvidenceKind>(),
+    /** Reads per `evidence_kind`: a draft row id, a Chunk id, or the note. */
+    evidenceRef: text("evidence_ref"),
     /** Dismissal reason, verbatim on the Receipt; null if addressed. */
     reason: text("reason"),
     decidedAt: timestamp("decided_at", { withTimezone: true }).notNull(),

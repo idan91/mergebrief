@@ -13,6 +13,7 @@ export const ApiErrorCode = {
   FORBIDDEN: "forbidden",
   GITHUB_PERMISSION: "github-permission",
   SCOPE_EXCEEDED: "scope-exceeded",
+  HUMAN_ONLY: "human-only",
   NOT_FOUND: "not-found",
   INVALID_REQUEST: "invalid-request",
   NOT_A_PR_URL: "not-a-pr-url",
@@ -61,6 +62,7 @@ export const API_ERROR_STATUS = {
   [ApiErrorCode.FORBIDDEN]: 403,
   [ApiErrorCode.GITHUB_PERMISSION]: 403,
   [ApiErrorCode.SCOPE_EXCEEDED]: 403,
+  [ApiErrorCode.HUMAN_ONLY]: 403,
   [ApiErrorCode.NOT_FOUND]: 404,
   [ApiErrorCode.INVALID_REQUEST]: 400,
   [ApiErrorCode.NOT_A_PR_URL]: 400,
@@ -89,6 +91,7 @@ export const API_ERROR_ENGLISH = {
   [ApiErrorCode.GITHUB_PERMISSION]: "github-permission",
   [ApiErrorCode.SCOPE_EXCEEDED]:
     "this credential's scope does not allow this operation",
+  [ApiErrorCode.HUMAN_ONLY]: "only a signed-in reviewer can clear this",
   [ApiErrorCode.NOT_FOUND]: "not found",
   [ApiErrorCode.INVALID_REQUEST]: "invalid request",
   [ApiErrorCode.NOT_A_PR_URL]: "not a pr url",

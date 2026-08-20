@@ -99,6 +99,26 @@ export type DispositionEvidenceStatus = ValueOf<
 >;
 
 /**
+ * `disposition.evidence_kind` — what an addressing decision points at. The
+ * kind is what makes `evidence_ref` readable: a draft comment's row id, a
+ * Chunk id, or the reviewer's own words. Null on a dismissal, which carries
+ * its `reason` instead.
+ */
+export const DispositionEvidenceKind = {
+  LINKED_COMMENT: "linked-comment",
+  CHUNK_REVIEWED: "chunk-reviewed",
+  MANUAL_NOTE: "manual-note",
+} as const;
+export type DispositionEvidenceKind = ValueOf<typeof DispositionEvidenceKind>;
+
+/** The evidence an `address-risk` claims; `ref` reads per `kind`. */
+export interface DispositionEvidence {
+  readonly kind: DispositionEvidenceKind;
+  /** A draft-comment row id, a Chunk id, or the note itself; null when empty. */
+  readonly ref: string | null;
+}
+
+/**
  * `api_token.scope` — and the same three rungs the Product Operation catalog
  * classifies every operation by, cumulative left to right. One vocabulary for
  * both is what keeps the scope check a lookup rather than a mapping, so

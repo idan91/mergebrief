@@ -384,25 +384,13 @@ async function seedDisposition(
   regionStart: number,
   regionEnd: number,
 ): Promise<void> {
-  // Seeded with SQL, like the disposition row below: the store's write path
-  // creates a session only as a side effect of a product write, and this
-  // helper wants the row without one.
-  const seeded = await world.client.query<{ id: string }>(
-    `insert into review_session (installation_id, brief_id, reviewer_id)
-     values ($1, $2, $3)
-     on conflict (installation_id, brief_id, reviewer_id) do update
-       set reviewer_id = excluded.reviewer_id
-     returning id`,
-    [TENANT.toString(), briefId.toString(), REVIEWER.toString()],
-  );
-  const sessionId = seeded.rows[0]?.id;
-  if (sessionId === undefined) throw new Error("disposition seed failed");
+  const id = await openSession(world, briefId);
   await world.client.query(
     `insert into disposition
        (installation_id, review_session_id, file_path, attribute,
         region_start, region_end, decision, decided_at)
      values ($1, $2, 'src/app.ts', 'sql-injection', $3, $4, 'dismissed', now())`,
-    [TENANT.toString(), sessionId, regionStart, regionEnd],
+    [TENANT.toString(), id.toString(), regionStart, regionEnd],
   );
 }
 
@@ -553,6 +541,90 @@ describe("preview — what carries, per subject", () => {
     ).toEqual([
       [33, "settled"],
       [63, "dropped"],
+    ]);
+  });
+
+  it("clears a dangling evidence pointer and reports missing evidence", async () => {
+    // `c9` is not in the new Brief's carried set, so the Chunk the decision
+    // pointed at is gone: the decision reads as addressed with no proof.
+    const { world, current } = await twoBriefs(["c5"]);
+    await world.client.query(
+      `update disposition set decision = 'addressed', evidence_kind =
+         'chunk-reviewed', evidence_ref = 'c9'`,
+    );
+
+    const view = await forTenant(world.handle, CTX).reviewSessions.preview({
+      briefId: current,
+      reviewerId: REVIEWER,
+      brief: artifact([], FIRING),
+    });
+
+    expect(view.carried.dispositions).toEqual([
+      expect.objectContaining({
+        carryStatus: "settled",
+        evidenceStatus: "missing-evidence",
+        evidence: null,
+      }),
+    ]);
+  });
+
+  it("keeps evidence that still stands, and a note that points at nothing", async () => {
+    const { world, current } = await twoBriefs(["c5"]);
+    await world.client.query(
+      `update disposition set decision = 'addressed', evidence_kind =
+         'chunk-reviewed', evidence_ref = 'c5'`,
+    );
+
+    const held = await forTenant(world.handle, CTX).reviewSessions.preview({
+      briefId: current,
+      reviewerId: REVIEWER,
+      brief: artifact([], FIRING),
+    });
+    expect(held.carried.dispositions).toEqual([
+      expect.objectContaining({
+        evidenceStatus: null,
+        evidence: { kind: "chunk-reviewed", ref: "c5" },
+      }),
+    ]);
+
+    // A note is the reviewer's own words — there is nothing for it to dangle
+    // against, whatever the new Brief dropped.
+    await world.client.query(
+      `update disposition set evidence_kind = 'manual-note', evidence_ref =
+         'checked by hand'`,
+    );
+    const note = await forTenant(world.handle, CTX).reviewSessions.preview({
+      briefId: current,
+      reviewerId: REVIEWER,
+      brief: artifact([], FIRING),
+    });
+    expect(note.carried.dispositions).toEqual([
+      expect.objectContaining({ evidenceStatus: null }),
+    ]);
+  });
+
+  it("keeps evidence naming a comment the reviewer published", async () => {
+    // The submitted comment does not carry — GitHub holds it now — but the
+    // proof it stands for is firmer than a draft's, not gone.
+    const { world, current } = await twoBriefs(["c5"]);
+    const submitted = await world.client.query<{ id: string }>(
+      `select id::text as id from review_draft_comment
+         where status = 'submitted'`,
+    );
+    await world.client.query(
+      `update disposition set decision = 'addressed', evidence_kind =
+         'linked-comment', evidence_ref = $1`,
+      [submitted.rows[0]?.id],
+    );
+
+    const view = await forTenant(world.handle, CTX).reviewSessions.preview({
+      briefId: current,
+      reviewerId: REVIEWER,
+      brief: artifact([], FIRING),
+    });
+
+    expect(view.carried.dispositions).toEqual([
+      expect.objectContaining({ evidenceStatus: null }),
     ]);
   });
 
@@ -1188,5 +1260,41 @@ describe("the session writer covers every product write", () => {
         carryStatus: null,
       }),
     ]);
+  });
+
+  it("deletes a disposition by its anchor, and says so when none was held", async () => {
+    const world = await freshWorld();
+    const briefId = await seedBrief(world, 1);
+    const repo = forTenant(world.handle, CTX);
+    const anchor = {
+      filePath: "src/app.ts",
+      attribute: "sql-injection",
+      regionStart: 10,
+      regionEnd: 20,
+    };
+
+    const undone = await repo.reviewSessions.writeToSession(
+      { briefId, reviewerId: REVIEWER, brief: artifact([], []) },
+      async (writer) => {
+        await writer.putDisposition({
+          ...anchor,
+          decision: DispositionDecision.DISMISSED,
+          reason: "test-only path",
+        });
+        // Undoing twice is the same undo: an undecided flag is a row that
+        // does not exist, so the repeat has nothing left to remove.
+        return [
+          await writer.deleteDisposition(anchor),
+          await writer.deleteDisposition(anchor),
+        ];
+      },
+    );
+
+    expect(undone).toEqual({ ok: true, value: [true, false] });
+    const snapshot = await repo.reviewSessions.get({
+      briefId,
+      reviewerId: REVIEWER,
+    });
+    expect(snapshot?.dispositions).toEqual([]);
   });
 });

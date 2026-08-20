@@ -8,6 +8,12 @@ import { composeCatalog, type ComposedCatalog } from "./compose-catalog";
 
 const EXPECTED_CATALOG = [
   {
+    id: "address-risk",
+    kind: "action",
+    classification: "private-write",
+    endpoint: "POST /api/repos/:repoId/pulls/:prNumber/session/risks/address",
+  },
+  {
     id: "create-draft-comment",
     kind: "action",
     classification: "private-write",
@@ -25,6 +31,12 @@ const EXPECTED_CATALOG = [
     classification: "private-write",
     endpoint:
       "DELETE /api/repos/:repoId/pulls/:prNumber/session/comments/:draftId",
+  },
+  {
+    id: "dismiss-risk",
+    kind: "action",
+    classification: "private-write",
+    endpoint: "POST /api/repos/:repoId/pulls/:prNumber/session/risks/dismiss",
   },
   {
     id: "generate-brief",
@@ -143,6 +155,12 @@ const EXPECTED_CATALOG = [
       "PUT /api/repos/:repoId/pulls/:prNumber/session/groups/:groupId/classification",
   },
   {
+    id: "reopen-risk",
+    kind: "action",
+    classification: "private-write",
+    endpoint: "POST /api/repos/:repoId/pulls/:prNumber/session/risks/reopen",
+  },
+  {
     id: "reply-to-comment",
     kind: "action",
     classification: "external-write",
@@ -174,6 +192,12 @@ const EXPECTED_CATALOG = [
     classification: "private-write",
     endpoint:
       "PUT /api/repos/:repoId/pulls/:prNumber/session/chunks/:chunkId/read",
+  },
+  {
+    id: "set-review-outcome",
+    kind: "action",
+    classification: "private-write",
+    endpoint: "PUT /api/repos/:repoId/pulls/:prNumber/session/outcome",
   },
   {
     id: "submit-review",

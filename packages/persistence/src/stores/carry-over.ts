@@ -11,9 +11,11 @@ import {
   AnchorStatus,
   DispositionCarryStatus,
   DraftCommentSide,
+  DispositionEvidenceKind,
+  DispositionEvidenceStatus,
   DraftCommentStatus,
   type DispositionDecision,
-  type DispositionEvidenceStatus,
+  type DispositionEvidence,
   type ChangeGroupCategory,
 } from "../types";
 import { z } from "zod";
@@ -82,6 +84,8 @@ export interface PreviousDraftComment {
   readonly endLine: number;
   readonly body: string;
   readonly status: DraftCommentStatus;
+  /** The row this one was copied from, one session back; null if authored here. */
+  readonly carriedFromCommentId: bigint | null;
 }
 
 export interface PreviousReclassification {
@@ -93,6 +97,8 @@ export interface PreviousDisposition extends FlagKey {
   readonly decision: DispositionDecision;
   readonly reason: string | null;
   readonly evidenceStatus: DispositionEvidenceStatus | null;
+  /** What an addressing decision pointed at; null on a dismissal. */
+  readonly evidence: DispositionEvidence | null;
   readonly decidedAt: Date;
 }
 
@@ -236,7 +242,12 @@ function carryDisposition(
   row: PreviousDisposition,
   context: CarryOverContext,
   firing: ReadonlyMap<string, readonly FlagKey[]>,
+  survivingEvidence: SurvivingEvidence,
 ): CarriedDisposition {
+  // The pointer advances on EVERY hop, whatever the ladder says. A ref that
+  // only moved when the decision settled would be two generations stale after
+  // two reopens, and then read as gone against work that never went away.
+  const carried = { ...row, ...carryEvidence(row, survivingEvidence) };
   const occurrences = firing.get(attributeKey(row));
   const placed = replace(context, row.filePath, row.regionStart, row.regionEnd);
   if (placed === undefined) {
@@ -247,9 +258,13 @@ function carryDisposition(
       occurrences === undefined
         ? DispositionCarryStatus.DROPPED
         : DispositionCarryStatus.REOPENED;
-    return { ...row, carryStatus: unplaceable };
+    return { ...carried, carryStatus: unplaceable };
   }
-  const located = { ...row, regionStart: placed.start, regionEnd: placed.end };
+  const located = {
+    ...carried,
+    regionStart: placed.start,
+    regionEnd: placed.end,
+  };
   if (occurrences === undefined) {
     return { ...located, carryStatus: DispositionCarryStatus.DROPPED };
   }
@@ -261,7 +276,65 @@ function carryDisposition(
   if (!stillFiring) {
     return { ...located, carryStatus: DispositionCarryStatus.DROPPED };
   }
-  return { ...located, carryStatus: DispositionCarryStatus.SETTLED };
+  return {
+    ...located,
+    carryStatus: DispositionCarryStatus.SETTLED,
+  };
+}
+
+/** What a carried decision's evidence may still point at on the new Brief. */
+/** A live comment: the id it answers to now, and whether GitHub holds it. */
+interface SurvivingComment {
+  readonly id: string;
+  readonly published: boolean;
+}
+
+interface SurvivingEvidence {
+  /**
+   * Every id a live comment answers to → the id it answers to NOW. A copy
+   * gets a fresh row id each hop, so the id the reviewer cited goes stale
+   * unless the pointer is re-normalized forward the way draft addressing is.
+   */
+  readonly draftComments: ReadonlyMap<string, SurvivingComment>;
+  readonly chunkIds: ReadonlySet<string>;
+}
+
+/**
+ * A dangling pointer is CLEARED rather than carried: the decision then reads
+ * as addressed with no proof — exactly the `missing-evidence` condition the
+ * submit list already names, so the attention list mints no new kind for it.
+ * A note points at nothing, so it can never dangle.
+ */
+function carryEvidence(
+  row: PreviousDisposition,
+  surviving: SurvivingEvidence,
+): Pick<PreviousDisposition, "evidence" | "evidenceStatus"> {
+  if (row.evidence === null || row.evidence.ref === null) {
+    return { evidence: row.evidence, evidenceStatus: row.evidenceStatus };
+  }
+  const kept = { evidence: row.evidence, evidenceStatus: row.evidenceStatus };
+  if (row.evidence.kind === DispositionEvidenceKind.MANUAL_NOTE) return kept;
+  if (row.evidence.kind === DispositionEvidenceKind.LINKED_COMMENT) {
+    const now = surviving.draftComments.get(row.evidence.ref);
+    if (now !== undefined) {
+      return {
+        // A published comment leaves the session for GitHub, so the next hop
+        // has no row to point at. The proof is the firmest there is and must
+        // not decay: drop the pointer and the claim stands on its own.
+        evidence: {
+          kind: row.evidence.kind,
+          ref: now.published ? null : now.id,
+        },
+        evidenceStatus: row.evidenceStatus,
+      };
+    }
+  } else if (surviving.chunkIds.has(row.evidence.ref)) {
+    return kept;
+  }
+  return {
+    evidence: null,
+    evidenceStatus: DispositionEvidenceStatus.MISSING_EVIDENCE,
+  };
 }
 
 /**
@@ -319,10 +392,33 @@ export function evaluateCarryOver(
   const carriedChunks = new Set(context.carriedChunkIds);
   const groups = new Set(context.groupIds);
   const firing = firingOccurrences(context.flags);
+  const draftComments = previous.draftComments
+    .filter((comment) => comment.status === DraftCommentStatus.DRAFT)
+    .map((comment) => carryComment(comment, context));
+  const surviving: SurvivingEvidence = {
+    // Every comment the previous session held, not only the ones that
+    // carried: a comment the reviewer PUBLISHED is firmer proof than a draft,
+    // so it must not read as gone. Only a deleted one leaves no row at all.
+    // Both of a row's ids map to it, exactly as draft addressing resolves —
+    // the id a reviewer cited stays good however many hops it has ridden.
+    draftComments: new Map(
+      previous.draftComments.flatMap((row) => {
+        const now: SurvivingComment = {
+          id: String(row.id),
+          published: row.status === DraftCommentStatus.SUBMITTED,
+        };
+        const carried = row.carriedFromCommentId;
+        const pairs: [string, SurvivingComment][] = [[now.id, now]];
+        if (carried !== null) pairs.push([String(carried), now]);
+        return pairs;
+      }),
+    ),
+    // A chunk is proof only on the terms a read mark is: the persisted
+    // carried set, never a bare id match against a re-minted chunk.
+    chunkIds: carriedChunks,
+  };
   return {
-    draftComments: previous.draftComments
-      .filter((comment) => comment.status === DraftCommentStatus.DRAFT)
-      .map((comment) => carryComment(comment, context)),
+    draftComments,
     // A bare chunk-id match is forbidden: ids get a collision guard, not
     // descent, so a match against the previous Brief's full id set would mark
     // a Chunk the reviewer never opened as read.
@@ -334,7 +430,7 @@ export function evaluateCarryOver(
     ),
     dispositions: mergeOnAnchor(
       previous.dispositions.map((row) =>
-        carryDisposition(row, context, firing),
+        carryDisposition(row, context, firing, surviving),
       ),
     ),
   };

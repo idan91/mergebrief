@@ -27,6 +27,8 @@ import {
   SECRET,
   seedApiToken,
   seedBrief,
+  seedHop,
+  seedHopInsideFlaggedRegion,
   seedOrphanedDraft,
   seedPreviousWork,
   seedPullRequest,
@@ -69,6 +71,20 @@ function draftSubjectIds(body: unknown): string[] {
     .parse(body)
     .attention.filter((row) => row.subject.type === "draft-comment")
     .map((row) => z.string().parse(row.subject.id));
+}
+
+/** The flag the fixture Brief fires on, by the anchor every risk write names. */
+const FLAG = {
+  filePath: "src/app.ts",
+  attribute: "no-tests",
+  regionStart: 10,
+  regionEnd: 12,
+};
+
+/** The review outcome the session read reports. */
+async function readOutcome(res: Response): Promise<string> {
+  return z.object({ reviewOutcome: z.string() }).parse(await res.json())
+    .reviewOutcome;
 }
 
 const DRAFT = {
@@ -240,10 +256,19 @@ describe("the Review Session writes", () => {
       write("PUT", "/groups/g1/classification", "head-1", {
         category: ChangeGroupCategory.BUGFIX,
       }),
+      write("POST", "/risks/dismiss", "head-1", {
+        flags: [FLAG],
+        reason: "not on this path",
+      }),
+      write("POST", "/risks/address", "head-1", {
+        flags: [{ ...FLAG, evidence: { kind: "manual-note", ref: "checked" } }],
+      }),
+      write("POST", "/risks/reopen", "head-1", { flags: [FLAG] }),
+      write("PUT", "/outcome", "head-1", { outcome: "approve" }),
     ]);
 
     expect(refusals.map((res) => res.status)).toEqual([
-      409, 409, 409, 409, 409, 409,
+      409, 409, 409, 409, 409, 409, 409, 409, 409, 409,
     ]);
     expect(await refusals[0]!.json()).toEqual({
       error: expect.any(String),
@@ -522,6 +547,309 @@ describe("the Review Session writes", () => {
 
     expect((await asToken(writer)).status).toBe(200);
     expect(await countOf("review_read_mark")).toBe(1);
+  });
+
+  it("dismisses, addresses and reopens a whole array of flags in one call", async () => {
+    const briefId = await seedBrief(harness.handle, 1);
+    const second = { ...FLAG, attribute: "no-error-path" };
+
+    const dismissed = await write("POST", "/risks/dismiss", "head-1", {
+      flags: [FLAG, second],
+      reason: "both are covered by the integration suite",
+    });
+
+    expect(dismissed.status).toBe(200);
+    expect(await dismissed.json()).toEqual({ flags: 2 });
+    expect(await countOf("disposition")).toBe(2);
+
+    // A different payload recording a different judgment on the same anchor:
+    // the upsert re-decides the row rather than adding a second one.
+    const addressed = await write("POST", "/risks/address", "head-1", {
+      flags: [
+        { ...FLAG, evidence: { kind: "linked-comment", ref: "41" } },
+        {
+          ...second,
+          evidence: { kind: "manual-note", ref: "checked by hand" },
+        },
+      ],
+    });
+    expect(addressed.status).toBe(200);
+    expect(await countOf("disposition")).toBe(2);
+    expect(
+      await harness.raw(
+        `select decision, reason, evidence_kind, evidence_ref
+           from disposition order by attribute`,
+      ),
+    ).toEqual([
+      {
+        decision: "addressed",
+        reason: null,
+        evidence_kind: "manual-note",
+        evidence_ref: "checked by hand",
+      },
+      {
+        decision: "addressed",
+        reason: null,
+        evidence_kind: "linked-comment",
+        evidence_ref: "41",
+      },
+    ]);
+
+    // The bare undo: an undecided flag is a row that does not exist.
+    const reopened = await write("POST", "/risks/reopen", "head-1", {
+      flags: [FLAG, second],
+    });
+    expect(reopened.status).toBe(200);
+    expect(await countOf("disposition")).toBe(0);
+    // Repeating the undo is the same undo — and says it changed nothing.
+    const again = await write("POST", "/risks/reopen", "head-1", {
+      flags: [FLAG],
+    });
+    expect(again.status).toBe(200);
+    expect(await again.json()).toEqual({ flags: 0 });
+
+    const snapshot = await forTenant(harness.handle, CTX).reviewSessions.get({
+      briefId,
+      reviewerId: REVIEWER,
+    });
+    expect(snapshot?.dispositions).toEqual([]);
+  });
+
+  it("400s a risk write with an empty array or a pointer to nothing", async () => {
+    await seedBrief(harness.handle, 1);
+
+    const refused = await Promise.all([
+      write("POST", "/risks/dismiss", "head-1", { flags: [], reason: "x" }),
+      write("POST", "/risks/dismiss", "head-1", { flags: [FLAG], reason: "" }),
+      write("POST", "/risks/reopen", "head-1", {
+        flags: [{ ...FLAG, regionStart: 13 }],
+      }),
+      // Past `int4`: refused at the boundary rather than raised by Postgres
+      // inside the transaction, which would escape as a bare 500.
+      write("POST", "/risks/reopen", "head-1", {
+        flags: [
+          { ...FLAG, regionStart: 3_000_000_000, regionEnd: 3_000_000_000 },
+        ],
+      }),
+      // The cap the web app mirrors — a deterministic 400 past it.
+      write("POST", "/risks/reopen", "head-1", {
+        flags: Array.from({ length: 201 }, () => FLAG),
+      }),
+      // A pointer kind with nothing to point at would store its own
+      // `missing-evidence` on the way in.
+      write("POST", "/risks/address", "head-1", {
+        flags: [{ ...FLAG, evidence: { kind: "chunk-reviewed" } }],
+      }),
+      // A note is the reviewer's own words, so it has to have words.
+      write("POST", "/risks/address", "head-1", {
+        flags: [{ ...FLAG, evidence: { kind: "manual-note", ref: "" } }],
+      }),
+    ]);
+
+    expect(refused.map((res) => res.status)).toEqual([
+      400, 400, 400, 400, 400, 400, 400,
+    ]);
+    expect(await countOf("review_session")).toBe(0);
+  });
+
+  it("keeps clearing human-only whatever the granted scope, and lets the same token author", async () => {
+    await seedBrief(harness.handle, 1);
+    const bearer = await seedApiToken(
+      harness.handle,
+      kp,
+      // The widest scope there is: this refusal is not about scope.
+      WriteClassification.EXTERNAL_WRITE,
+    );
+
+    async function asAgent(
+      suffix: string,
+      body?: unknown,
+      method = "POST",
+    ): Promise<Response> {
+      return app.request(pathFor(suffix, "head-1"), {
+        method,
+        headers: {
+          Authorization: `Bearer ${bearer}`,
+          "content-type": "application/json",
+        },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      });
+    }
+
+    // All FIVE clearing operations, not just the three risk ones:
+    // re-anchoring and deleting a draft are what an orphaned anchor's
+    // `clearedBy` names, and rows carry no per-author ownership.
+    const refused = await Promise.all([
+      asAgent("/risks/dismiss", { flags: [FLAG], reason: "looks fine" }),
+      asAgent("/risks/address", {
+        flags: [{ ...FLAG, evidence: { kind: "manual-note", ref: "read it" } }],
+      }),
+      asAgent("/risks/reopen", { flags: [FLAG] }),
+      asAgent(
+        "/comments/1/anchor",
+        { filePath: "src/app.ts", side: "new", startLine: 1, endLine: 2 },
+        "PUT",
+      ),
+      asAgent("/comments/1", undefined, "DELETE"),
+    ]);
+
+    expect(refused.map((res) => res.status)).toEqual([403, 403, 403, 403, 403]);
+    expect(await refused[0]!.json()).toEqual({
+      error: expect.any(String),
+      code: "human-only",
+    });
+    expect(await countOf("disposition")).toBe(0);
+    // Nothing was written at all — the refusal lands before the session is
+    // materialized, so a refused clear cannot freeze an older Brief.
+    expect(await countOf("review_session")).toBe(0);
+
+    // The SAME credential authors its own drafts freely: this restricts
+    // clearing, never authoring.
+    expect((await asAgent("/comments", DRAFT)).status).toBe(201);
+  });
+
+  it("round-trips the review outcome, and never carries it to the next Brief", async () => {
+    await seedBrief(harness.handle, 1);
+
+    const picked = await write("PUT", "/outcome", "head-1", {
+      outcome: "request-changes",
+    });
+    expect(picked.status).toBe(200);
+    // Read back off the row: the picker is server-authoritative.
+    expect(await picked.json()).toEqual({ outcome: "request-changes" });
+    expect(await readOutcome(await read("head-1"))).toBe("request-changes");
+    expect(
+      (await write("PUT", "/outcome", "head-1", { outcome: "sideways" }))
+        .status,
+    ).toBe(400);
+
+    // An approve picked against old code is the one carry that does damage:
+    // the next Brief starts at `comment` again.
+    await seedBrief(harness.handle, 2);
+    expect(await readOutcome(await read("head-2"))).toBe("comment");
+  });
+
+  it("lists a carried decision whose evidence is gone, cleared by either operation", async () => {
+    const previous = await seedBrief(harness.handle, 1);
+    await seedPreviousWork(harness.handle, previous);
+    // The decision points at a Chunk the next Brief did not carry.
+    await forTenant(harness.handle, CTX).reviewSessions.writeToSession(
+      {
+        briefId: previous,
+        reviewerId: REVIEWER,
+        brief: async () => NO_ARTIFACT,
+      },
+      (writer) =>
+        writer.putDisposition({
+          ...FLAG,
+          decision: "addressed",
+          evidence: { kind: "chunk-reviewed", ref: "c9" },
+        }),
+    );
+    await seedBrief(harness.handle, 2);
+    await seedHop(harness.handle, 1, 2);
+
+    const body: unknown = await (await read("head-2")).json();
+    const items = z
+      .object({
+        attention: z.array(
+          z.object({
+            kind: z.string(),
+            subject: z.object({ type: z.string() }),
+            clearedBy: z.array(z.string()),
+          }),
+        ),
+      })
+      .parse(body)
+      .attention.filter((item) => item.subject.type === "disposition");
+
+    // The region was untouched, so the decision itself settled: what needs a
+    // re-look is the proof it claimed, and either operation supplies one.
+    expect(items).toEqual([
+      {
+        kind: "missing-evidence",
+        subject: { type: "disposition" },
+        clearedBy: ["address-risk", "dismiss-risk"],
+      },
+    ]);
+  });
+
+  it("keeps a linked-comment evidence pointer good across two carries", async () => {
+    // The id the reviewer cites is the one the READ handed out — the previous
+    // session's row. Every carry re-keys the copy, so a pointer that is not
+    // re-normalized forward reports missing evidence on work that is alive.
+    await seedBrief(harness.handle, 1);
+    const draftId = await draftIdOf(
+      await write("POST", "/comments", "head-1", DRAFT),
+    );
+    await write("POST", "/risks/address", "head-1", {
+      flags: [{ ...FLAG, evidence: { kind: "linked-comment", ref: draftId } }],
+    });
+
+    for (const head of [2, 3]) {
+      await seedBrief(harness.handle, head);
+      await seedHop(harness.handle, head - 1, head);
+      // Any write writes; the carry rides with it.
+      const carried = await write("PUT", "/chunks/c1/read", `head-${head}`, {
+        read: true,
+      });
+      expect(carried.status).toBe(200);
+    }
+
+    // Still proof, and the pointer resolves WITHIN the newest session — the
+    // only scope a write can address. A ref left pointing at an older
+    // session's row still exists somewhere, and is exactly as good as gone.
+    expect(
+      await harness.raw(
+        `select d.evidence_status,
+                exists (select 1 from review_draft_comment c
+                          where c.review_session_id = d.review_session_id
+                            and (c.id::text = d.evidence_ref
+                                 or c.carried_from_comment_id::text
+                                      = d.evidence_ref))
+                  as resolves
+           from disposition d order by d.id desc limit 1`,
+      ),
+    ).toEqual([{ evidence_status: null, resolves: true }]);
+  });
+
+  it("advances the evidence pointer across a hop that reopened the flag", async () => {
+    // The pointer must move on EVERY hop: a ref that only advanced when the
+    // decision settled would be two generations stale after two reopens, and
+    // then read as gone against a comment that never went away.
+    await seedBrief(harness.handle, 1);
+    const draftId = await draftIdOf(
+      await write("POST", "/comments", "head-1", DRAFT),
+    );
+    await write("POST", "/risks/address", "head-1", {
+      flags: [{ ...FLAG, evidence: { kind: "linked-comment", ref: draftId } }],
+    });
+
+    // Two pushes that land inside the flagged region: both reopen it, and
+    // the reviewer answers neither.
+    for (const head of [2, 3]) {
+      await seedBrief(harness.handle, head);
+      await seedHopInsideFlaggedRegion(harness.handle, head - 1, head);
+      await write("PUT", "/chunks/c1/read", `head-${head}`, { read: true });
+    }
+    // A push that leaves the region alone: the decision settles again, and
+    // the proof it named has to still be its proof.
+    await seedBrief(harness.handle, 4);
+    await seedHop(harness.handle, 3, 4);
+    await write("PUT", "/chunks/c1/read", "head-4", { read: true });
+
+    expect(
+      await harness.raw(
+        `select d.evidence_status,
+                exists (select 1 from review_draft_comment c
+                          where c.review_session_id = d.review_session_id
+                            and (c.id::text = d.evidence_ref
+                                 or c.carried_from_comment_id::text
+                                      = d.evidence_ref))
+                  as resolves
+           from disposition d order by d.id desc limit 1`,
+      ),
+    ).toEqual([{ evidence_status: null, resolves: true }]);
   });
 
   it("401s without a credential", async () => {

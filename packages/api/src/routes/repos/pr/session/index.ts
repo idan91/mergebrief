@@ -21,7 +21,12 @@
 //   - A frozen session — the reviewer has already written against a newer
 //     Brief — refuses every write with `pr-changed-since-read` (409).
 import type { Context } from "hono";
-import { forTenant } from "persistence";
+import {
+  DispositionDecision,
+  forTenant,
+  type DispositionAnchor,
+  type SessionWriter,
+} from "persistence";
 import { ApiErrorCode, errorJson } from "../../../../error-response";
 import {
   PRODUCT_ACTION_ID,
@@ -33,7 +38,7 @@ import {
 } from "../../../../product-operations/product-router";
 import { WRITE_CLASSIFICATION } from "../../../../product-operations/types";
 import type { AuthzEnv } from "../../../authz";
-import type { AuthRouteDeps } from "../../../auth/session";
+import { AuthChannel, type AuthRouteDeps } from "../../../auth/session";
 import {
   loadCarryFacts,
   prNumberSchema,
@@ -43,17 +48,66 @@ import {
 import { UnreadableBriefError } from "./carry-facts";
 import { buildSessionPayload } from "./payload";
 import {
+  addressSchema,
   anchorSchema,
   briefLocalIdSchema,
   categorySchema,
   createDraftSchema,
+  dismissSchema,
   draftBodySchema,
+  outcomeSchema,
   readSchema,
+  reopenSchema,
   rowIdSchema,
 } from "./write-input";
 import { mapWriteFailure, resolveWrite } from "./write-resolve";
 
 const NO_STORE = { "cache-control": "no-store" };
+
+/**
+ * THE human-only predicate — one site, covering every clearing operation:
+ * the three risk decisions AND re-anchoring or deleting a draft, which are
+ * exactly what an orphaned anchor's `clearedBy` names.
+ *
+ * Clearing an attention item is a judgment the Receipt attributes to the
+ * reviewer by name, so an agent clearing one rubber-stamps under the human's
+ * signature — whatever scope was granted. Rows carry no per-author ownership,
+ * so without this a bearer token clears the human reviewer's carried work.
+ * The channel is the only thing asked for: authorship is inseparable in v1
+ * (a token's `actor_id` IS its owner's), and a later per-row rule flips this
+ * check rather than several call sites. Authoring is untouched — a token
+ * writes and edits its own drafts freely.
+ */
+function isHuman(c: Context<AuthzEnv>): boolean {
+  return c.get("session").channel === AuthChannel.COOKIE;
+}
+
+/**
+ * Run one risk operation's whole array as ONE session write — the array is
+ * the operation, so a half-applied bulk is not a state the reviewer asked
+ * for. The writes go out together; the transaction is what makes them atomic.
+ * The reply counts the rows that changed, which an undo can undershoot.
+ */
+async function decide(
+  c: Context<AuthzEnv>,
+  deps: AuthRouteDeps,
+  writes: (writer: SessionWriter) => Promise<unknown>[],
+): Promise<Response> {
+  const resolved = await resolveWrite(deps, c);
+  if (!resolved.ok) {
+    return resolved.response;
+  }
+  const written = await resolved.run(async (writer) => {
+    const applied = await Promise.all(writes(writer));
+    // Rows the call actually changed: an upsert always returns one, an undo
+    // returns nothing when this session held no such decision.
+    return applied.filter(Boolean).length;
+  });
+  if (!written.ok) {
+    return mapWriteFailure(c, written.error);
+  }
+  return c.json({ flags: written.value }, 200, NO_STORE);
+}
 
 /** The request body, or `undefined` when it is not JSON at all. */
 async function readJsonBody(c: Context<AuthzEnv>): Promise<unknown> {
@@ -186,6 +240,9 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
       if (!draftId.success || !parsed.success) {
         return errorJson(c, ApiErrorCode.INVALID_REQUEST);
       }
+      if (!isHuman(c)) {
+        return errorJson(c, ApiErrorCode.HUMAN_ONLY);
+      }
       const resolved = await resolveWrite(deps, c);
       if (!resolved.ok) {
         return resolved.response;
@@ -218,6 +275,9 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
       const draftId = rowIdSchema.safeParse(c.req.param("draftId"));
       if (!draftId.success) {
         return errorJson(c, ApiErrorCode.INVALID_REQUEST);
+      }
+      if (!isHuman(c)) {
+        return errorJson(c, ApiErrorCode.HUMAN_ONLY);
       }
       const resolved = await resolveWrite(deps, c);
       if (!resolved.ok) {
@@ -305,6 +365,120 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
         200,
         NO_STORE,
       );
+    },
+  );
+
+  // The three risk operations. Three, not one carrying a mode: a reason, a
+  // per-flag evidence claim and a bare undo are different payloads recording
+  // different judgments. Each takes an ARRAY — bulk is one call, which is the
+  // operation's shape and not batching.
+  app.action(
+    {
+      id: PRODUCT_ACTION_ID.DISMISS_RISK,
+      classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
+    },
+    "post",
+    "/risks/dismiss",
+    async (c) => {
+      const parsed = dismissSchema.safeParse(await readJsonBody(c));
+      if (!parsed.success) {
+        return errorJson(c, ApiErrorCode.INVALID_REQUEST);
+      }
+      if (!isHuman(c)) {
+        return errorJson(c, ApiErrorCode.HUMAN_ONLY);
+      }
+      const flags = parsed.data.flags;
+      const reason = parsed.data.reason;
+      return decide(c, deps, (writer) =>
+        flags.map((flag) =>
+          writer.putDisposition({
+            ...flag,
+            decision: DispositionDecision.DISMISSED,
+            reason,
+          }),
+        ),
+      );
+    },
+  );
+
+  app.action(
+    {
+      id: PRODUCT_ACTION_ID.ADDRESS_RISK,
+      classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
+    },
+    "post",
+    "/risks/address",
+    async (c) => {
+      const parsed = addressSchema.safeParse(await readJsonBody(c));
+      if (!parsed.success) {
+        return errorJson(c, ApiErrorCode.INVALID_REQUEST);
+      }
+      if (!isHuman(c)) {
+        return errorJson(c, ApiErrorCode.HUMAN_ONLY);
+      }
+      const flags = parsed.data.flags;
+      return decide(c, deps, (writer) =>
+        flags.map(({ evidence, ...anchor }) =>
+          // Deciding again also settles the evidence question a carry raised:
+          // the reviewer just named what this decision stands on.
+          writer.putDisposition({
+            ...anchor,
+            decision: DispositionDecision.ADDRESSED,
+            evidence,
+          }),
+        ),
+      );
+    },
+  );
+
+  app.action(
+    {
+      id: PRODUCT_ACTION_ID.REOPEN_RISK,
+      classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
+    },
+    "post",
+    "/risks/reopen",
+    async (c) => {
+      const parsed = reopenSchema.safeParse(await readJsonBody(c));
+      if (!parsed.success) {
+        return errorJson(c, ApiErrorCode.INVALID_REQUEST);
+      }
+      if (!isHuman(c)) {
+        return errorJson(c, ApiErrorCode.HUMAN_ONLY);
+      }
+      const flags: DispositionAnchor[] = parsed.data.flags;
+      return decide(c, deps, (writer) =>
+        flags.map((flag) => writer.deleteDisposition(flag)),
+      );
+    },
+  );
+
+  app.action(
+    {
+      id: PRODUCT_ACTION_ID.SET_REVIEW_OUTCOME,
+      classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
+    },
+    "put",
+    "/outcome",
+    async (c) => {
+      const parsed = outcomeSchema.safeParse(await readJsonBody(c));
+      if (!parsed.success) {
+        return errorJson(c, ApiErrorCode.INVALID_REQUEST);
+      }
+      const resolved = await resolveWrite(deps, c);
+      if (!resolved.ok) {
+        return resolved.response;
+      }
+      const outcome = parsed.data.outcome;
+      const written = await resolved.run((writer) =>
+        writer.setReviewOutcome(outcome),
+      );
+      if (!written.ok) {
+        return mapWriteFailure(c, written.error);
+      }
+      // Read back off the row, not the request: the picker is server-
+      // authoritative, and a new session starts at `comment` regardless.
+      return c.json({ outcome: written.value.reviewOutcome }, 200, NO_STORE);
     },
   );
 
