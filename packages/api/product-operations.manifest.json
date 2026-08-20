@@ -103,6 +103,12 @@
       "endpoint": "GET /api/repos/:repoId/pulls/:prNumber"
     },
     {
+      "id": "read-review-session",
+      "kind": "query",
+      "classification": "read",
+      "endpoint": "GET /api/repos/:repoId/pulls/:prNumber/session"
+    },
+    {
       "id": "reply-to-comment",
       "kind": "action",
       "classification": "external-write",

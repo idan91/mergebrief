@@ -1,4 +1,4 @@
-// Carry-over: the read-side evaluation and the writeToSession-on-first-write
+// Carry-over: the read-side evaluation and the write-on-first-write
 // transaction, exercised through the ctx-bound store — the only surface the
 // API layer gets. The dangerous failure here is silent (a wrongly-placed
 // anchor reads as correct), so every carry rule gets its own case, including
@@ -9,7 +9,12 @@ import { drizzle } from "drizzle-orm/pglite";
 import { describe, expect, it } from "vitest";
 import { fromDrizzle } from "../src/db/handle";
 import { artifactStore, forTenant, ReviewSessionErrorCode } from "../src/index";
-import type { AppDatabase, TenantContext } from "../src/index";
+import type {
+  AppDatabase,
+  BriefCarryFacts,
+  FlagKey,
+  TenantContext,
+} from "../src/index";
 import * as schema from "../src/schema/index";
 import {
   ChangeGroupCategory,
@@ -142,7 +147,30 @@ async function seedPreviousComment(
   if (!added.ok) throw new Error("previous draft comment seed failed");
 }
 
-const NO_ARTIFACT = { groupIds: [], flags: [] } as const;
+/** The Brief facts thunk the query takes; `artifact` builds a non-empty one. */
+function artifact(
+  groupIds: readonly string[],
+  flags: readonly FlagKey[],
+): () => Promise<BriefCarryFacts> {
+  return async () => ({ groupIds, flags });
+}
+
+const NO_ARTIFACT = { brief: artifact([], []) } as const;
+
+/** A thunk that records whether the Brief body was ever asked for. */
+function createCountingArtifact(): {
+  brief: () => Promise<BriefCarryFacts>;
+  calls: () => number;
+} {
+  let calls = 0;
+  return {
+    brief: async () => {
+      calls++;
+      return { groupIds: [], flags: [] };
+    },
+    calls: () => calls,
+  };
+}
 
 describe("preview — the read-side evaluation creates nothing", () => {
   it("carries nothing when the reviewer has no earlier session", async () => {
@@ -156,7 +184,7 @@ describe("preview — the read-side evaluation creates nothing", () => {
     });
 
     expect(view.session).toBeUndefined();
-    expect(view.carriedFromSessionId).toBeUndefined();
+    expect(view.carriedFrom).toBeUndefined();
     expect(view.carried.draftComments).toEqual([]);
     expect(await countRows(world.client, "review_session")).toBe(0);
   });
@@ -379,8 +407,7 @@ describe("preview — what carries, per subject", () => {
     const view = await forTenant(world.handle, CTX).reviewSessions.preview({
       briefId: current,
       reviewerId: REVIEWER,
-      groupIds: ["g1"],
-      flags: FIRING,
+      brief: artifact(["g1"], FIRING),
     });
 
     expect(view.carried.readMarks).toEqual(["c5"]);
@@ -395,8 +422,7 @@ describe("preview — what carries, per subject", () => {
     const view = await forTenant(world.handle, CTX).reviewSessions.preview({
       briefId: current,
       reviewerId: REVIEWER,
-      groupIds: ["g1"],
-      flags: FIRING,
+      brief: artifact(["g1"], FIRING),
     });
 
     expect(view.carried.readMarks).toEqual([]);
@@ -408,8 +434,7 @@ describe("preview — what carries, per subject", () => {
     const view = await forTenant(world.handle, CTX).reviewSessions.preview({
       briefId: current,
       reviewerId: REVIEWER,
-      groupIds: ["g1"],
-      flags: FIRING,
+      brief: artifact(["g1"], FIRING),
     });
 
     expect(
@@ -423,8 +448,7 @@ describe("preview — what carries, per subject", () => {
     const view = await forTenant(world.handle, CTX).reviewSessions.preview({
       briefId: current,
       reviewerId: REVIEWER,
-      groupIds: ["g1"],
-      flags: FIRING,
+      brief: artifact(["g1"], FIRING),
     });
 
     expect(view.carried.draftComments.map((row) => row.body)).toEqual([
@@ -438,8 +462,7 @@ describe("preview — what carries, per subject", () => {
     const settled = await forTenant(world.handle, CTX).reviewSessions.preview({
       briefId: current,
       reviewerId: REVIEWER,
-      groupIds: [],
-      flags: FIRING,
+      brief: artifact([], FIRING),
     });
     expect(settled.carried.dispositions).toEqual([
       expect.objectContaining({
@@ -464,8 +487,7 @@ describe("preview — what carries, per subject", () => {
     const view = await forTenant(touched.handle, CTX).reviewSessions.preview({
       briefId: currentTouched,
       reviewerId: REVIEWER,
-      groupIds: [],
-      flags: FIRING,
+      brief: artifact([], FIRING),
     });
     expect(view.carried.dispositions).toEqual([
       expect.objectContaining({
@@ -490,8 +512,7 @@ describe("preview — what carries, per subject", () => {
     const view = await forTenant(world.handle, CTX).reviewSessions.preview({
       briefId: current,
       reviewerId: REVIEWER,
-      groupIds: [],
-      flags: FIRING,
+      brief: artifact([], FIRING),
     });
 
     // Row order is the previous session's insertion order: 30-32, then 60-62.
@@ -514,8 +535,7 @@ describe("preview — what carries, per subject", () => {
     const view = await forTenant(world.handle, CTX).reviewSessions.preview({
       briefId: current,
       reviewerId: REVIEWER,
-      groupIds: [],
-      flags: [],
+      brief: artifact([], []),
     });
 
     expect(view.carried.dispositions).toEqual([
@@ -542,8 +562,7 @@ describe("preview — the rules a multi-push chain must not loosen", () => {
     const view = await forTenant(world.handle, CTX).reviewSessions.preview({
       briefId: await briefIdFor(world, 10),
       reviewerId: REVIEWER,
-      groupIds: [],
-      flags: FIRING,
+      brief: artifact([], FIRING),
     });
 
     expect(view.carried.readMarks).toEqual([]);
@@ -561,8 +580,7 @@ describe("preview — the rules a multi-push chain must not loosen", () => {
     const view = await forTenant(world.handle, CTX).reviewSessions.preview({
       briefId: await briefIdFor(world, 10),
       reviewerId: REVIEWER,
-      groupIds: [],
-      flags: FIRING,
+      brief: artifact([], FIRING),
     });
 
     expect(view.carried.readMarks).toEqual(["c5"]);
@@ -634,8 +652,7 @@ describe("preview — the rules a multi-push chain must not loosen", () => {
     const view = await repo.reviewSessions.preview({
       briefId: current,
       reviewerId: REVIEWER,
-      groupIds: [],
-      flags: FIRING,
+      brief: artifact([], FIRING),
     });
 
     expect(view.carried.dispositions).toEqual([
@@ -663,14 +680,88 @@ describe("preview — the rules a multi-push chain must not loosen", () => {
     const view = await repo.reviewSessions.preview({
       briefId: current,
       reviewerId: REVIEWER,
-      groupIds: ["g1"],
-      flags: FIRING,
+      brief: artifact(["g1"], FIRING),
     });
 
     expect(view.session?.session.id).toBe(created.value.id);
     expect(view.carried.draftComments).toEqual([]);
     expect(view.carried.readMarks).toEqual([]);
-    expect(view.carriedFromSessionId).toBeUndefined();
+    // The source still reports: "carried in" outlives the evaluation, and the
+    // reviewer's row has to survive the write that materialized the session.
+    expect(view.carriedFrom).toBeDefined();
+  });
+
+  it("reports no source for a materialized first-ever session", async () => {
+    const world = await freshWorld();
+    const only = await seedBrief(world, 1);
+    const repo = forTenant(world.handle, CTX);
+    const created = await repo.reviewSessions.upsert({
+      briefId: only,
+      reviewerId: REVIEWER,
+    });
+    if (!created.ok) throw new Error("session seed failed");
+
+    const view = await repo.reviewSessions.preview({
+      briefId: only,
+      reviewerId: REVIEWER,
+      ...NO_ARTIFACT,
+    });
+
+    expect(view.session?.session.id).toBe(created.value.id);
+    expect(view.carriedFrom).toBeUndefined();
+  });
+
+  it("never reads the Brief body when there is nothing to evaluate", async () => {
+    const world = await freshWorld();
+    const first = await seedBrief(world, 1);
+    const repo = forTenant(world.handle, CTX);
+    const firstEver = createCountingArtifact();
+
+    await repo.reviewSessions.preview({
+      briefId: first,
+      reviewerId: REVIEWER,
+      brief: firstEver.brief,
+    });
+
+    // A first-ever session has no predecessor to place, and a materialized
+    // one holds its carry-over as rows — neither pays for the parse, and the
+    // read runs on every page load.
+    expect(firstEver.calls()).toBe(0);
+    const materialized = createCountingArtifact();
+    await repo.reviewSessions.writeToSession(
+      { briefId: first, reviewerId: REVIEWER, brief: materialized.brief },
+      (writer) => writer.putReadMark({ chunkId: "c1" }),
+    );
+    expect(materialized.calls()).toBe(1);
+    await repo.reviewSessions.writeToSession(
+      { briefId: first, reviewerId: REVIEWER, brief: materialized.brief },
+      (writer) => writer.putReadMark({ chunkId: "c2" }),
+    );
+    const afterSecondWrite = materialized.calls();
+    await repo.reviewSessions.preview({
+      briefId: first,
+      reviewerId: REVIEWER,
+      brief: materialized.brief,
+    });
+    expect(materialized.calls()).toBe(1);
+    expect(afterSecondWrite).toBe(1);
+  });
+
+  it("reads the Brief body exactly once when a carry-over is pending", async () => {
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 1);
+    const current = await seedBrief(world, 2);
+    await seedHop(world, 1, 2);
+    await seedPreviousComment(world, previous);
+    const pending = createCountingArtifact();
+
+    await forTenant(world.handle, CTX).reviewSessions.preview({
+      briefId: current,
+      reviewerId: REVIEWER,
+      brief: pending.brief,
+    });
+
+    expect(pending.calls()).toBe(1);
   });
 });
 
@@ -756,7 +847,7 @@ describe("writeToSession — the first write, one transaction", () => {
     return { world, current };
   }
 
-  const QUERY = { groupIds: ["g1"], flags: FIRING } as const;
+  const QUERY = { brief: artifact(["g1"], FIRING) } as const;
 
   it("creates the session, copies the carried rows, and applies the write", async () => {
     const { world, current } = await pending();
@@ -923,7 +1014,7 @@ describe("freeze — a session freezes only when a newer one is materialized", (
       world.handle,
       CTX,
     ).reviewSessions.writeToSession(
-      { briefId: first, reviewerId: REVIEWER, groupIds: [], flags: [] },
+      { briefId: first, reviewerId: REVIEWER, brief: artifact([], []) },
       (writer) => writer.putReadMark({ chunkId: "c1" }),
     );
 
@@ -939,15 +1030,14 @@ describe("freeze — a session freezes only when a newer one is materialized", (
     const older = {
       briefId: first,
       reviewerId: REVIEWER,
-      groupIds: [],
-      flags: [],
+      brief: artifact([], []),
     };
 
     await repo.reviewSessions.writeToSession(older, (writer) =>
       writer.putReadMark({ chunkId: "c1" }),
     );
     await repo.reviewSessions.writeToSession(
-      { briefId: second, reviewerId: REVIEWER, groupIds: [], flags: [] },
+      { briefId: second, reviewerId: REVIEWER, brief: artifact([], []) },
       (writer) => writer.putReadMark({ chunkId: "c2" }),
     );
 
@@ -973,11 +1063,11 @@ describe("freeze — a session freezes only when a newer one is materialized", (
     const repo = forTenant(world.handle, CTX);
 
     await repo.reviewSessions.writeToSession(
-      { briefId: second, reviewerId: OTHER_REVIEWER, groupIds: [], flags: [] },
+      { briefId: second, reviewerId: OTHER_REVIEWER, brief: artifact([], []) },
       (writer) => writer.putReadMark({ chunkId: "c2" }),
     );
     const written = await repo.reviewSessions.writeToSession(
-      { briefId: first, reviewerId: REVIEWER, groupIds: [], flags: [] },
+      { briefId: first, reviewerId: REVIEWER, brief: artifact([], []) },
       (writer) => writer.putReadMark({ chunkId: "c1" }),
     );
 
@@ -992,7 +1082,7 @@ describe("the session writer covers every product write", () => {
     const repo = forTenant(world.handle, CTX);
 
     const written = await repo.reviewSessions.writeToSession(
-      { briefId, reviewerId: REVIEWER, groupIds: [], flags: [] },
+      { briefId, reviewerId: REVIEWER, brief: artifact([], []) },
       async (writer) => {
         await writer.putDisposition({
           filePath: "src/app.ts",
@@ -1032,8 +1122,7 @@ describe("the session writer covers every product write", () => {
     const key = {
       briefId: current,
       reviewerId: REVIEWER,
-      groupIds: [],
-      flags: FIRING,
+      brief: artifact([], FIRING),
     };
 
     await repo.reviewSessions.writeToSession(key, (writer) =>

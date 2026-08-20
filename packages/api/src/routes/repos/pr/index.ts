@@ -17,6 +17,7 @@ import {
 import { readsRoute } from "./reads";
 import { markReadyRoute } from "./ready";
 import { reviewSubmitRoute } from "./review";
+import { sessionRoute } from "./session";
 
 export function prRoutes(deps: ConversationRouteDeps): ProductRouter<AuthzEnv> {
   const app = productRouter<AuthzEnv>();
@@ -32,8 +33,9 @@ export function prRoutes(deps: ConversationRouteDeps): ProductRouter<AuthzEnv> {
     prNumber,
   ) => conversation.evictConversation(installationId, repoId, prNumber);
   // Root mount: the reads leaf owns the subtree root plus six siblings that
-  // share no deeper prefix.
+  // share no deeper prefix; the session leaf owns its own sibling path.
   app.route("/", readsRoute(deps));
+  app.route("/", sessionRoute(deps));
   app.route("/review", reviewSubmitRoute(deps, evictConversation));
   app.route("/ready", markReadyRoute(deps));
   app.route("/comments", commentsRoute(deps, evictConversation));

@@ -73,6 +73,9 @@ export interface ReviewSessionError {
 
 type Tx = Parameters<Parameters<AppDrizzle["transaction"]>[0]>[0];
 
+/** A read that works inside a transaction or straight off the handle. */
+type Reader = Tx | AppDrizzle;
+
 export type ReviewSessionRow = typeof reviewSession.$inferSelect;
 export type ReviewDraftCommentRow = typeof reviewDraftComment.$inferSelect;
 export type ReviewReadMarkRow = typeof reviewReadMark.$inferSelect;
@@ -146,17 +149,30 @@ export interface ReviewSessionSnapshot {
   readonly dispositions: readonly DispositionRow[];
 }
 
-/**
- * A session read, plus what the reviewer's previous session would contribute
- * if they wrote. `groupIds` and `flags` come from the Brief artifact, which
- * this layer stores opaquely — the caller reads them off the body it already
- * has.
- */
-export interface CarryOverQuery extends ReviewSessionKey {
+/** What the current Brief's artifact body contributes to an evaluation. */
+export interface BriefCarryFacts {
   /** Change-group ids the current Brief emits. */
   readonly groupIds: readonly string[];
   /** Risk-surface flags the current Brief emits. */
   readonly flags: readonly FlagKey[];
+}
+
+/**
+ * A session read, plus what the reviewer's previous session would contribute
+ * if they wrote. The Brief facts arrive as a thunk, not a value: this layer
+ * stores the artifact opaquely, so the caller parses a multi-hundred-KB body
+ * to produce them, and only an evaluation that found a previous session ever
+ * needs them.
+ */
+export interface CarryOverQuery extends ReviewSessionKey {
+  readonly brief: () => Promise<BriefCarryFacts>;
+}
+
+/** The session a read carried in from, and the Brief it sat on. */
+export interface CarriedFrom {
+  readonly sessionId: ReviewSessionId;
+  readonly headSha: string;
+  readonly headIndex: number;
 }
 
 export interface ReviewSessionView {
@@ -164,7 +180,15 @@ export interface ReviewSessionView {
   readonly session: ReviewSessionSnapshot | undefined;
   /** Evaluated in memory — nothing here exists as a row yet. */
   readonly carried: CarriedWork;
-  readonly carriedFromSessionId: ReviewSessionId | undefined;
+  /**
+   * Where the work came from, on both sides of materialization: `undefined`
+   * is a first-ever session and nothing else. After materialization it is
+   * re-resolved rather than read off the carried rows — only comments and
+   * dispositions carry a marker column, so a session that carried read marks
+   * alone would otherwise report itself as first-ever. The Brief it names is
+   * the near end of the span the carry-over row states.
+   */
+  readonly carriedFrom: CarriedFrom | undefined;
 }
 
 /**
@@ -229,7 +253,7 @@ export interface ReviewSessionRepository {
   /**
    * Run `write` as the session's write — materializing the session and its
    * carry-over first if this is the first one, all in ONE transaction. Any
-   * write operation can be the one that materializes; no read ever is.
+   * write operation can be the one that writes; no read ever is.
    * `sessionFrozen` when the reviewer already works on a newer Brief.
    */
   writeToSession<T>(
@@ -286,6 +310,7 @@ function carriedThroughChain(
 interface PreviousSession {
   readonly id: ReviewSessionId;
   readonly baseSha: string;
+  readonly headSha: string;
   readonly headIndex: number;
 }
 
@@ -302,11 +327,6 @@ interface SessionInserts extends Omit<
     input: Omit<DraftCommentInput, "reviewSessionId">,
   ): Promise<ReviewDraftCommentRow>;
 }
-
-const NOTHING_PENDING = {
-  carried: NOTHING_CARRIED,
-  carriedFromSessionId: undefined,
-} as const;
 
 /** The one row a `.returning()` insert owes; its absence is an infra error. */
 function only<TRow>(rows: TRow[], subject: string): TRow {
@@ -389,7 +409,7 @@ export function reviewSessionRepository(
 
   /** The current Brief's own contribution to an evaluation. */
   async function briefFacts(
-    tx: Tx,
+    tx: Reader,
     briefId: BriefRowId,
   ): Promise<BriefFacts | undefined> {
     const rows = await tx
@@ -408,7 +428,7 @@ export function reviewSessionRepository(
 
   /** The reviewer's newest session on an OLDER Brief of the same PR. */
   async function previousSession(
-    tx: Tx,
+    tx: Reader,
     facts: BriefFacts,
     reviewerId: ReviewerId,
   ): Promise<PreviousSession | undefined> {
@@ -416,6 +436,7 @@ export function reviewSessionRepository(
       .select({
         id: reviewSession.id,
         baseSha: brief.baseSha,
+        headSha: brief.headSha,
         headIndex: brief.headIndex,
       })
       .from(reviewSession)
@@ -438,7 +459,7 @@ export function reviewSessionRepository(
    * first — the chain both the hops and the carried chunk set are read off.
    */
   async function chainBriefs(
-    tx: Tx,
+    tx: Reader,
     facts: BriefFacts,
     fromHeadIndex: number,
   ): Promise<ChainBrief[]> {
@@ -467,7 +488,7 @@ export function reviewSessionRepository(
    * the exact pairing is `assembleHops`'s.
    */
   async function hopChain(
-    tx: Tx,
+    tx: Reader,
     facts: BriefFacts,
     heads: readonly string[],
   ): Promise<Hop[] | null> {
@@ -492,7 +513,7 @@ export function reviewSessionRepository(
 
   /** The previous session's rows, reduced to what the evaluation reads. */
   async function previousWork(
-    tx: Tx,
+    tx: Reader,
     sessionId: ReviewSessionId,
   ): Promise<PreviousWork> {
     const [comments, marks, reclassifications, dispositions] =
@@ -570,36 +591,35 @@ export function reviewSessionRepository(
    * AND again inside the materialization transaction — the payload a read
    * returned is never trusted, which is what makes the late write to the old
    * session safe with no lock and no version token.
+   *
+   * `previous` and `artifact` both arrive resolved: the caller has to probe
+   * for a previous session anyway to know whether an evaluation is owed, and
+   * the thunk behind `artifact` reads the Brief body through the same handle,
+   * which a read inside an open transaction would deadlock on a
+   * single-connection database.
    */
   async function evaluatePending(
-    tx: Tx,
+    tx: Reader,
     facts: BriefFacts,
-    query: CarryOverQuery,
-  ): Promise<{
-    carried: CarriedWork;
-    carriedFromSessionId: ReviewSessionId | undefined;
-  }> {
-    const previous = await previousSession(tx, facts, query.reviewerId);
-    if (previous === undefined) return NOTHING_PENDING;
+    previous: PreviousSession,
+    artifact: BriefCarryFacts,
+  ): Promise<CarriedWork> {
     const chain = await chainBriefs(tx, facts, previous.headIndex);
     const heads = chain.map((row) => row.headSha);
     const [work, hops] = await Promise.all([
       previousWork(tx, previous.id),
       hopChain(tx, facts, heads),
     ]);
-    return {
-      carried: evaluateCarryOver(work, {
-        carriedChunkIds: carriedThroughChain(chain, previous.headIndex),
-        groupIds: query.groupIds,
-        flags: query.flags,
-        hops,
-        baseShaMoved: previous.baseSha !== facts.baseSha,
-      }),
-      carriedFromSessionId: previous.id,
-    };
+    return evaluateCarryOver(work, {
+      carriedChunkIds: carriedThroughChain(chain, previous.headIndex),
+      groupIds: artifact.groupIds,
+      flags: artifact.flags,
+      hops,
+      baseShaMoved: previous.baseSha !== facts.baseSha,
+    });
   }
 
-  /** Inserts for the tables a session owns, bound to one transaction and one session. */
+  /** The owned inserts, bound to one open transaction and one session id. */
   function insertsForSession(
     tx: Tx,
     sessionId: ReviewSessionId,
@@ -995,6 +1015,14 @@ export function reviewSessionRepository(
     },
 
     async writeToSession(query, write) {
+      // Resolved BEFORE the transaction opens, and only when there is no
+      // session yet: the thunk reads the Brief body through this same handle,
+      // which a read inside an open transaction would deadlock, and every
+      // write after the first has nothing to evaluate.
+      const artifact =
+        (await findSession(query)) === undefined
+          ? await query.brief()
+          : undefined;
       return db.transaction(async (tx) => {
         const facts = await briefFacts(tx, query.briefId);
         if (facts === undefined) {
@@ -1029,17 +1057,24 @@ export function reviewSessionRepository(
           .returning();
         const created = inserted[0];
         if (created !== undefined) {
+          if (artifact === undefined) {
+            // The pre-check saw a session that no longer exists. Nothing
+            // deletes one mid-flight, so this is infra: take the transaction
+            // down rather than writeToSession a carry-over against no artifact.
+            throw new Error("review_session vanished before its first write");
+          }
           // Re-read inside the transaction: the payload the read returned is
           // never trusted, which is what makes a late write to the previous
           // session safe with no lock and no version token.
-          const pending = await evaluatePending(tx, facts, query);
-          if (pending.carriedFromSessionId !== undefined) {
-            await copyCarried(
+          const previous = await previousSession(tx, facts, query.reviewerId);
+          if (previous !== undefined) {
+            const carried = await evaluatePending(
               tx,
-              created,
-              pending.carried,
-              pending.carriedFromSessionId,
+              facts,
+              previous,
+              artifact,
             );
+            await copyCarried(tx, created, carried, previous.id);
           }
         }
         const session = created ?? (await sessionInTx(tx, query));
@@ -1048,21 +1083,45 @@ export function reviewSessionRepository(
     },
 
     async preview(query) {
-      const snapshot = await snapshotFor(query);
-      if (snapshot !== undefined) {
-        // Materialized: the carry-over already sits in the session's own rows.
+      // The session and the Brief are independent reads, so they go together;
+      // the previous-session probe then answers BOTH "did work carry in" and
+      // "is there anything to evaluate", so a first-ever session — and every
+      // session that already materialized — never pays for the body parse.
+      const [snapshot, facts] = await Promise.all([
+        snapshotFor(query),
+        briefFacts(db, query.briefId),
+      ]);
+      if (facts === undefined) {
         return {
           session: snapshot,
           carried: NOTHING_CARRIED,
-          carriedFromSessionId: undefined,
+          carriedFrom: undefined,
         };
       }
-      const pending = await db.transaction(async (tx) => {
-        const facts = await briefFacts(tx, query.briefId);
-        if (facts === undefined) return NOTHING_PENDING;
-        return evaluatePending(tx, facts, query);
-      });
-      return { session: undefined, ...pending };
+      const previous = await previousSession(db, facts, query.reviewerId);
+      const carriedFrom =
+        previous === undefined
+          ? undefined
+          : {
+              sessionId: previous.id,
+              headSha: previous.headSha,
+              headIndex: previous.headIndex,
+            };
+      if (snapshot !== undefined || previous === undefined) {
+        // Materialized: the carry-over already sits in the session's own rows,
+        // so only its source is still worth reporting.
+        return { session: snapshot, carried: NOTHING_CARRIED, carriedFrom };
+      }
+      // The thunk resolves BEFORE the transaction opens — its Brief-body read
+      // goes through this same handle, which a read inside an open
+      // transaction deadlocks on a single-connection database. The evaluation
+      // itself keeps its snapshot: the previous session stays writable until
+      // a newer one is materialized, so its rows must be read together.
+      const artifact = await query.brief();
+      const carried = await db.transaction((tx) =>
+        evaluatePending(tx, facts, previous, artifact),
+      );
+      return { session: undefined, carried, carriedFrom };
     },
 
     async addDraftComment(input) {

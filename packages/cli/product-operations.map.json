@@ -94,6 +94,14 @@
   "read-pull": {
     "command": "mergebrief pr <number>"
   },
+  "read-review-session": {
+    "gap": {
+      "reason": "No mergebrief command yet; the session read ships with the Review Session CLI surface",
+      "owner": "idan",
+      "ticket": "BRIEF-201",
+      "expiry": "2026-12-31"
+    }
+  },
   "reply-to-comment": {
     "command": "mergebrief reply <commentId>"
   },
