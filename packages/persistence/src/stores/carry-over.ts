@@ -1,0 +1,334 @@
+// Carry-over evaluation — pure, in memory, writes nothing. Given the previous
+// session's rows and what the new Brief offers, it says where each piece of
+// work lands. The store calls it twice: once on read (nothing is created) and
+// once inside the materialization transaction, against rows re-read there.
+//
+// The asymmetry it exists to keep: an item that cannot be placed orphans, and
+// orphaned work is never deleted, only unplaced. Nothing here may ever settle
+// or mark-read on a guess.
+import { RemapOutcomes, remapThroughHops, type Hop } from "brief-core/remap";
+import {
+  AnchorStatus,
+  DispositionCarryStatus,
+  DraftCommentSide,
+  DraftCommentStatus,
+  type DispositionEvidenceStatus,
+  type ChangeGroupCategory,
+} from "../types";
+import { z } from "zod";
+import { HunkSpansSchema } from "./artifact-store";
+
+/** `brief.carried_chunk_ids` as stored — JSON, or NULL on rows predating it. */
+export const ChunkIdsSchema = z
+  .string()
+  .transform((raw): unknown => {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return undefined;
+    }
+  })
+  .pipe(z.array(z.string()));
+
+/**
+ * A risk-surface flag's identity — file, attribute, AND the region it fires
+ * over. Region is part of the identity because a disposition is anchored to
+ * one occurrence: the same attribute firing twice in a file is two decisions,
+ * and dropping one must not be masked by the other surviving.
+ */
+export interface FlagKey {
+  readonly filePath: string;
+  readonly attribute: string;
+  readonly regionStart: number;
+  readonly regionEnd: number;
+}
+
+/** What the NEW Brief offers the evaluation — everything outside the reviewer's rows. */
+export interface CarryOverContext {
+  /** `brief.carried_chunk_ids`: the ONLY thing a read mark may carry against. */
+  readonly carriedChunkIds: readonly string[];
+  /** Change-group ids the new Brief emits — a reclassification needs its id here. */
+  readonly groupIds: readonly string[];
+  /** Flags the new Brief emits; an absent one drops its disposition. */
+  readonly flags: readonly FlagKey[];
+  /**
+   * Previous head → current head, oldest first. `null` = the chain could not
+   * be linked end to end, which orphans every anchor rather than guessing.
+   */
+  readonly hops: readonly Hop[] | null;
+  /** A retarget: old-side coordinates stop meaning anything. */
+  readonly baseShaMoved: boolean;
+}
+
+/** The previous session's work, as read. */
+export interface PreviousWork {
+  readonly draftComments: readonly PreviousDraftComment[];
+  readonly readMarks: readonly string[];
+  readonly reclassifications: readonly PreviousReclassification[];
+  readonly dispositions: readonly PreviousDisposition[];
+}
+
+export interface PreviousDraftComment {
+  readonly filePath: string;
+  readonly side: DraftCommentSide;
+  readonly startLine: number;
+  readonly endLine: number;
+  readonly body: string;
+  readonly status: DraftCommentStatus;
+}
+
+export interface PreviousReclassification {
+  readonly changeGroupId: string;
+  readonly category: ChangeGroupCategory;
+}
+
+export interface PreviousDisposition extends FlagKey {
+  readonly decision: string;
+  readonly reason: string | null;
+  readonly evidenceStatus: DispositionEvidenceStatus | null;
+  readonly decidedAt: Date;
+}
+
+export interface CarriedDraftComment extends PreviousDraftComment {
+  /** NULL = the anchor still holds exactly. */
+  readonly anchorStatus: AnchorStatus | null;
+}
+
+export interface CarriedDisposition extends PreviousDisposition {
+  readonly carryStatus: DispositionCarryStatus;
+}
+
+/** Where every piece of the previous session's work lands on the new Brief. */
+export interface CarriedWork {
+  readonly draftComments: readonly CarriedDraftComment[];
+  /** Only the marks whose chunk id is in the new Brief's carried set. */
+  readonly readMarks: readonly string[];
+  readonly reclassifications: readonly PreviousReclassification[];
+  readonly dispositions: readonly CarriedDisposition[];
+}
+
+export const NOTHING_CARRIED: CarriedWork = {
+  draftComments: [],
+  readMarks: [],
+  reclassifications: [],
+  dispositions: [],
+};
+
+/** One stored hop row, reduced to what the chain needs. */
+export interface HopRow {
+  readonly baselineSha: string;
+  readonly headSha: string;
+  readonly spans: string;
+}
+
+/**
+ * Link the stored hops into one chain by SHA, oldest first — `heads` is the
+ * consecutive Brief heads from the previous session's Brief to the current
+ * one. Row order is insertion order and never chain order, and rows fork on a
+ * shared baseline, so the pair is the only link. A missing or unparseable
+ * link returns `null`: a partial chain places anchors on post-push line
+ * numbers, which is the one outcome worse than orphaning them.
+ */
+export function assembleHops(
+  heads: readonly string[],
+  rows: readonly HopRow[],
+): Hop[] | null {
+  const byPair = new Map(
+    rows.map((row) => [hopKey(row.baselineSha, row.headSha), row]),
+  );
+  const chain: Hop[] = [];
+  for (let index = 1; index < heads.length; index++) {
+    const row = byPair.get(hopKey(heads[index - 1], heads[index]));
+    if (row === undefined) return null;
+    const parsed = HunkSpansSchema.safeParse(readJson(row.spans));
+    if (!parsed.success) return null;
+    chain.push(parsed.data);
+  }
+  return chain;
+}
+
+function hopKey(
+  baselineSha: string | undefined,
+  headSha: string | undefined,
+): string {
+  return `${baselineSha}\u0000${headSha}`;
+}
+
+function readJson(raw: string): unknown {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return undefined;
+  }
+}
+
+/** Remap one anchor's single range, or `undefined` when it cannot be placed. */
+function replace(
+  context: CarryOverContext,
+  filePath: string,
+  start: number,
+  end: number,
+): { start: number; end: number } | undefined {
+  if (context.hops === null) return undefined;
+  const result = remapThroughHops(filePath, [{ start, end }], context.hops);
+  if (result.outcome === RemapOutcomes.DEMOTED) return undefined;
+  const range = result.ranges[0];
+  return range === undefined ? undefined : range;
+}
+
+function carryComment(
+  comment: PreviousDraftComment,
+  context: CarryOverContext,
+): CarriedDraftComment {
+  // Old-side coordinates live against the PR base, which the hops say nothing
+  // about, so a base that held still leaves them exact. A moved base or a
+  // chain that cannot be trusted still orphans them: an untrustworthy span
+  // orphans every anchor it covers, whichever side it sits on.
+  if (comment.side === DraftCommentSide.OLD) {
+    const unplaceable = context.baseShaMoved || context.hops === null;
+    return {
+      ...comment,
+      anchorStatus: unplaceable ? AnchorStatus.ORPHANED : null,
+    };
+  }
+  const placed = replace(
+    context,
+    comment.filePath,
+    comment.startLine,
+    comment.endLine,
+  );
+  if (placed === undefined) {
+    return { ...comment, anchorStatus: AnchorStatus.ORPHANED };
+  }
+  if (placed.start === comment.startLine && placed.end === comment.endLine) {
+    return { ...comment, anchorStatus: null };
+  }
+  return {
+    ...comment,
+    startLine: placed.start,
+    endLine: placed.end,
+    anchorStatus: AnchorStatus.MOVED,
+  };
+}
+
+/**
+ * The ladder over the previous-Brief → current-Brief span: the region was
+ * touched, or cannot be placed → reopened; the attribute stopped firing in the
+ * file, or stopped firing over THIS occurrence's region → dropped; otherwise
+ * the decision still holds → settled. Reopen is purely positional and every
+ * ambiguity biases to it — a false settled is the silent rubber-stamp the
+ * vocabulary exists to prevent.
+ *
+ * The remap runs FIRST and its result is written on every verdict that has
+ * one. The stored region is in the previous Brief's coordinates and everything
+ * downstream — the occurrence test here, and the web's join of a decision onto
+ * the flags it covers — reads it against the CURRENT Brief, so a row shipped
+ * on old coordinates lands on whatever now occupies those lines.
+ */
+function carryDisposition(
+  row: PreviousDisposition,
+  context: CarryOverContext,
+  firing: ReadonlyMap<string, readonly FlagKey[]>,
+): CarriedDisposition {
+  const occurrences = firing.get(attributeKey(row));
+  const placed = replace(context, row.filePath, row.regionStart, row.regionEnd);
+  if (placed === undefined) {
+    // Nowhere to put it. An attribute that stopped firing altogether is still
+    // dropped; anything else asks for a re-look on its old coordinates, the
+    // only ones it has.
+    const unplaceable =
+      occurrences === undefined
+        ? DispositionCarryStatus.DROPPED
+        : DispositionCarryStatus.REOPENED;
+    return { ...row, carryStatus: unplaceable };
+  }
+  const located = { ...row, regionStart: placed.start, regionEnd: placed.end };
+  if (occurrences === undefined) {
+    return { ...located, carryStatus: DispositionCarryStatus.DROPPED };
+  }
+  // Overlap, not equality — the region is remapped and chunk bounds are
+  // re-derived per Brief, so an exact-region rule would drop live decisions.
+  const stillFiring = occurrences.some(
+    (flag) => flag.regionStart <= placed.end && flag.regionEnd >= placed.start,
+  );
+  if (!stillFiring) {
+    return { ...located, carryStatus: DispositionCarryStatus.DROPPED };
+  }
+  return { ...located, carryStatus: DispositionCarryStatus.SETTLED };
+}
+
+/**
+ * A remap can land two decisions on ONE anchor — one shifted onto the other's
+ * region. The anchor is a unique key, so the pair must become a single row;
+ * the survivor is the one that asks for a re-look, never the one that settles.
+ */
+function mergeOnAnchor(
+  rows: readonly CarriedDisposition[],
+): CarriedDisposition[] {
+  const byAnchor = new Map<string, CarriedDisposition>();
+  for (const row of rows) {
+    const key = `${attributeKey(row)}\u0000${row.regionStart}-${row.regionEnd}`;
+    const held = byAnchor.get(key);
+    if (held === undefined) {
+      byAnchor.set(key, row);
+      continue;
+    }
+    if (held.carryStatus !== DispositionCarryStatus.REOPENED) {
+      byAnchor.set(key, row);
+    }
+  }
+  return [...byAnchor.values()];
+}
+
+function attributeKey(flag: { filePath: string; attribute: string }): string {
+  return `${flag.filePath}\u0000${flag.attribute}`;
+}
+
+/** The new Brief's flags, grouped so one occurrence can be tested at a time. */
+function firingOccurrences(flags: readonly FlagKey[]): Map<string, FlagKey[]> {
+  const byAttribute = new Map<string, FlagKey[]>();
+  for (const flag of flags) {
+    const key = attributeKey(flag);
+    const held = byAttribute.get(key);
+    if (held === undefined) {
+      byAttribute.set(key, [flag]);
+      continue;
+    }
+    held.push(flag);
+  }
+  return byAttribute;
+}
+
+/**
+ * Place the previous session's work on the new Brief: read marks carry
+ * ONLY against the persisted carried chunk set, reclassifications carry only
+ * where the group id descended, and the review outcome never carries at all —
+ * an `approve` picked against old code is the one carry that does damage.
+ */
+export function evaluateCarryOver(
+  previous: PreviousWork,
+  context: CarryOverContext,
+): CarriedWork {
+  const carriedChunks = new Set(context.carriedChunkIds);
+  const groups = new Set(context.groupIds);
+  const firing = firingOccurrences(context.flags);
+  return {
+    draftComments: previous.draftComments
+      .filter((comment) => comment.status === DraftCommentStatus.DRAFT)
+      .map((comment) => carryComment(comment, context)),
+    // A bare chunk-id match is forbidden: ids get a collision guard, not
+    // descent, so a match against the previous Brief's full id set would mark
+    // a Chunk the reviewer never opened as read.
+    readMarks: previous.readMarks.filter((chunkId) =>
+      carriedChunks.has(chunkId),
+    ),
+    reclassifications: previous.reclassifications.filter((row) =>
+      groups.has(row.changeGroupId),
+    ),
+    dispositions: mergeOnAnchor(
+      previous.dispositions.map((row) =>
+        carryDisposition(row, context, firing),
+      ),
+    ),
+  };
+}

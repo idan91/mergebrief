@@ -29,6 +29,7 @@ src/
     generation.ts       generation status projection
     ingest.ts           transactional webhook→upsert→enqueue boundary
     review-session.ts   the reviewer's Review Session + its five owned tables
+    carry-over.ts       pure carry-over evaluation (hop chain + per-subject verdicts)
     purge.ts            purge + retention routines, incl. the audit sweep
     audit.ts            append-only audit emit + metadata value rules
     user-settings.ts    per-user (non-tenant) settings
@@ -64,6 +65,11 @@ drizzle/              generated SQL migrations — append-only
   enforcement, so weakening them needs a matching decision-record note.
   `operation` and `target_type` are open token vocabularies (the descriptors
   belong to `packages/api`), shape-checked in code and by a DB CHECK.
+- **Carry-over:** evaluated on read — in memory, creating nothing. A read mark
+  carries only against `brief.carried_chunk_ids` (never a bare chunk-id match,
+  which would mark a Chunk the reviewer never opened as read), and a hop chain
+  that cannot be linked end to end orphans every anchor rather than placing it.
+  Orphaned work is unplaced, never deleted.
 - **Errors:** expected failures return `Result`, never throw. Error messages must not carry
   key material, tokens, credentials, or unsanitized upstream errors (`markFailed`
   sanitizes any failure `detail` itself via `logging`'s `sanitizeErrorDetail`).
@@ -83,8 +89,11 @@ drizzle/              generated SQL migrations — append-only
   migration**, in lockstep. The Review Session vocabularies prove that lockstep in
   `test/review-session.test.ts`, by reading `pg_get_constraintdef` back and comparing
   it to the `as const` map; `category` additionally pins against brief-core's
-  `Categories`, which it mirrors rather than forks (brief-core is a devDependency
-  only — this package's runtime graph must stay off it). `WriteClassification`
+  `Categories`, which it mirrors rather than forks. The vocabulary stays a
+  mirror even though the runtime graph now touches brief-core: the ONLY edge is
+  the `brief-core/remap` subpath (the deterministic remapper carry-over
+  composes), deliberately not the barrel, so the generation graph and its model
+  SDKs stay out of this package. `WriteClassification`
   is the one vocabulary shared outward: it is `api_token.scope` AND the
   classification `packages/api` sorts every operation by, which re-exports this
   map rather than declaring a second one. `audit_log.classification` narrows

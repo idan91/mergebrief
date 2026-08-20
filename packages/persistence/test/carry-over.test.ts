@@ -1,0 +1,745 @@
+// Carry-over: the read-side evaluation and the materialize-on-first-write
+// transaction, exercised through the ctx-bound store — the only surface the
+// API layer gets. The dangerous failure here is silent (a wrongly-placed
+// anchor reads as correct), so every carry rule gets its own case, including
+// the one that must NOT happen: a read mark carrying on a chunk id that was
+// merely re-used.
+import type { PGlite } from "@electric-sql/pglite";
+import { drizzle } from "drizzle-orm/pglite";
+import { describe, expect, it } from "vitest";
+import { fromDrizzle } from "../src/db/handle";
+import { artifactStore, forTenant } from "../src/index";
+import type { AppDatabase, TenantContext } from "../src/index";
+import * as schema from "../src/schema/index";
+import {
+  ChangeGroupCategory,
+  DraftCommentSide,
+  DraftCommentStatus,
+  ReviewOutcome,
+  isInstallationId,
+  isRepoId,
+  isReviewerId,
+  type BriefRowId,
+  type InstallationId,
+  type PullRequestRowId,
+  type RepoId,
+  type ReviewerId,
+} from "../src/types";
+import { brandWith, freshPglite } from "./helpers";
+
+const TENANT: InstallationId = brandWith(isInstallationId, 1000n);
+const REPO: RepoId = brandWith(isRepoId, 777n);
+const REVIEWER: ReviewerId = brandWith(isReviewerId, 31337n);
+const OTHER_REVIEWER: ReviewerId = brandWith(isReviewerId, 42n);
+const CTX: TenantContext = { installationId: TENANT };
+
+/** A hop shifting everything after line 1 down by three. */
+const SHIFT_BY_THREE = [
+  {
+    file: "src/app.ts",
+    hunks: [{ oldStart: 1, oldLines: 1, newStart: 1, newLines: 4 }],
+  },
+];
+
+interface World {
+  readonly client: PGlite;
+  readonly handle: AppDatabase;
+  readonly pullRequestId: PullRequestRowId;
+}
+
+async function freshWorld(): Promise<World> {
+  const client = await freshPglite();
+  const handle = fromDrizzle(drizzle(client, { schema }));
+  const pr = await forTenant(handle, CTX).pullRequests.upsert({
+    repoId: REPO,
+    prNumber: 7,
+    repoSlug: "acme/widgets",
+    state: "open",
+  });
+  return { client, handle, pullRequestId: pr.id };
+}
+
+/** One Brief of the PR at `headIndex`, head SHA `head-<headIndex>`. */
+async function seedBrief(
+  world: World,
+  headIndex: number,
+  carriedChunkIds: readonly string[] = [],
+  baseSha = "base",
+): Promise<BriefRowId> {
+  const written = await artifactStore(world.handle, CTX).briefs.write({
+    pullRequestId: world.pullRequestId,
+    baseSha,
+    headSha: `head-${headIndex}`,
+    headIndex,
+    commitCount: headIndex,
+    provider: "anthropic",
+    model: "test",
+    effort: "high",
+    body: '{"brief":true}',
+    carriedChunkIds,
+  });
+  if (!written.ok)
+    throw new Error(`brief seed failed: ${written.error.message}`);
+  return written.value.id;
+}
+
+/** The durable hop between two consecutive Brief heads. */
+async function seedHop(
+  world: World,
+  fromIndex: number,
+  toIndex: number,
+  spans: unknown = SHIFT_BY_THREE,
+): Promise<void> {
+  const written = await artifactStore(world.handle, CTX).hunkSpans.write({
+    pullRequestId: world.pullRequestId,
+    baselineSha: `head-${fromIndex}`,
+    headSha: `head-${toIndex}`,
+    spans,
+  });
+  if (!written.ok) throw new Error(`hop seed failed: ${written.error.message}`);
+}
+
+/** The Brief row id at a head index. */
+async function briefIdFor(
+  world: World,
+  headIndex: number,
+): Promise<BriefRowId> {
+  const row = await artifactStore(world.handle, CTX).briefs.get(
+    world.pullRequestId,
+    "base",
+    `head-${headIndex}`,
+  );
+  if (row === undefined) throw new Error(`no brief at head-${headIndex}`);
+  return row.id;
+}
+
+/** One integer count, for the "nothing was written" assertions. */
+async function countRows(client: PGlite, table: string): Promise<number> {
+  const result = await client.query<{ n: number }>(
+    `select count(*)::int as n from ${table}`,
+  );
+  return result.rows[0]?.n ?? -1;
+}
+
+/** A previous session holding one draft comment on `src/app.ts:10-12`. */
+async function seedPreviousComment(
+  world: World,
+  briefId: BriefRowId,
+  reviewerId: ReviewerId = REVIEWER,
+): Promise<void> {
+  const repo = forTenant(world.handle, CTX);
+  const session = await repo.reviewSessions.upsert({ briefId, reviewerId });
+  if (!session.ok) throw new Error("previous session seed failed");
+  const added = await repo.reviewSessions.addDraftComment({
+    reviewSessionId: session.value.id,
+    filePath: "src/app.ts",
+    side: DraftCommentSide.NEW,
+    startLine: 10,
+    endLine: 12,
+    body: "this allocation is unbounded",
+  });
+  if (!added.ok) throw new Error("previous draft comment seed failed");
+}
+
+const NO_ARTIFACT = { groupIds: [], flags: [] } as const;
+
+describe("preview — the read-side evaluation creates nothing", () => {
+  it("carries nothing when the reviewer has no earlier session", async () => {
+    const world = await freshWorld();
+    const briefId = await seedBrief(world, 1);
+
+    const view = await forTenant(world.handle, CTX).reviewSessions.preview({
+      briefId,
+      reviewerId: REVIEWER,
+      ...NO_ARTIFACT,
+    });
+
+    expect(view.session).toBeUndefined();
+    expect(view.carriedFromSessionId).toBeUndefined();
+    expect(view.carried.draftComments).toEqual([]);
+    expect(await countRows(world.client, "review_session")).toBe(0);
+  });
+
+  it("moves a draft comment through one hop without writing a row", async () => {
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 1);
+    const current = await seedBrief(world, 2);
+    await seedHop(world, 1, 2);
+    await seedPreviousComment(world, previous);
+    const before = await countRows(world.client, "review_session");
+
+    const view = await forTenant(world.handle, CTX).reviewSessions.preview({
+      briefId: current,
+      reviewerId: REVIEWER,
+      ...NO_ARTIFACT,
+    });
+
+    expect(view.session).toBeUndefined();
+    expect(view.carried.draftComments).toEqual([
+      expect.objectContaining({
+        filePath: "src/app.ts",
+        startLine: 13,
+        endLine: 15,
+        anchorStatus: "moved",
+        body: "this allocation is unbounded",
+      }),
+    ]);
+    expect(await countRows(world.client, "review_session")).toBe(before);
+  });
+
+  it("ignores another reviewer's earlier session", async () => {
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 1);
+    const current = await seedBrief(world, 2);
+    await seedHop(world, 1, 2);
+    await seedPreviousComment(world, previous, OTHER_REVIEWER);
+
+    const view = await forTenant(world.handle, CTX).reviewSessions.preview({
+      briefId: current,
+      reviewerId: REVIEWER,
+      ...NO_ARTIFACT,
+    });
+
+    expect(view.carried.draftComments).toEqual([]);
+  });
+});
+
+describe("preview — several pushes are ONE evaluation", () => {
+  it("composes 7 → 8 → 9 → 10 into a single remap", async () => {
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 7);
+    for (const index of [8, 9, 10]) await seedBrief(world, index);
+    await seedHop(world, 7, 8);
+    await seedHop(world, 8, 9);
+    await seedHop(world, 9, 10);
+    await seedPreviousComment(world, previous);
+
+    const view = await forTenant(world.handle, CTX).reviewSessions.preview({
+      briefId: await briefIdFor(world, 10),
+      reviewerId: REVIEWER,
+      ...NO_ARTIFACT,
+    });
+
+    // Three hops of +3 each, composed once — never three lists summed.
+    expect(view.carried.draftComments).toEqual([
+      expect.objectContaining({
+        startLine: 19,
+        endLine: 21,
+        anchorStatus: "moved",
+      }),
+    ]);
+  });
+
+  it("orphans every anchor when one hop of the chain is missing", async () => {
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 7);
+    for (const index of [8, 9]) await seedBrief(world, index);
+    await seedHop(world, 7, 8);
+    // The 8 → 9 hop never landed: the chain cannot be linked end to end.
+    await seedPreviousComment(world, previous);
+
+    const view = await forTenant(world.handle, CTX).reviewSessions.preview({
+      briefId: await briefIdFor(world, 9),
+      reviewerId: REVIEWER,
+      ...NO_ARTIFACT,
+    });
+
+    expect(view.carried.draftComments).toEqual([
+      expect.objectContaining({
+        startLine: 10,
+        endLine: 12,
+        anchorStatus: "orphaned",
+      }),
+    ]);
+  });
+
+  it("never links hops by insertion order", async () => {
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 7);
+    await seedBrief(world, 8);
+    await seedBrief(world, 9);
+    // A hop written LAST but belonging FIRST in the chain, plus a fork off the
+    // shared baseline from a generation that failed — ordinal position is not
+    // chain position.
+    await seedHop(world, 8, 9);
+    await seedHop(world, 7, 8);
+    await seedHop(world, 7, 99);
+    await seedPreviousComment(world, previous);
+
+    const view = await forTenant(world.handle, CTX).reviewSessions.preview({
+      briefId: await briefIdFor(world, 9),
+      reviewerId: REVIEWER,
+      ...NO_ARTIFACT,
+    });
+
+    expect(view.carried.draftComments).toEqual([
+      expect.objectContaining({
+        startLine: 16,
+        endLine: 18,
+        anchorStatus: "moved",
+      }),
+    ]);
+  });
+});
+
+/** The previous session, holding one row of every kind that can carry. */
+async function seedPreviousWork(
+  world: World,
+  briefId: BriefRowId,
+  chunkIds: readonly string[] = ["c5"],
+): Promise<void> {
+  const repo = forTenant(world.handle, CTX);
+  const session = await repo.reviewSessions.upsert({
+    briefId,
+    reviewerId: REVIEWER,
+    reviewOutcome: ReviewOutcome.APPROVE,
+  });
+  if (!session.ok) throw new Error("previous session seed failed");
+  const id = session.value.id;
+  await repo.reviewSessions.addDraftComment({
+    reviewSessionId: id,
+    filePath: "src/app.ts",
+    side: DraftCommentSide.NEW,
+    startLine: 10,
+    endLine: 12,
+    body: "draft",
+  });
+  await repo.reviewSessions.addDraftComment({
+    reviewSessionId: id,
+    filePath: "src/app.ts",
+    side: DraftCommentSide.NEW,
+    startLine: 40,
+    endLine: 41,
+    body: "already on GitHub",
+    status: DraftCommentStatus.SUBMITTED,
+  });
+  for (const chunkId of chunkIds) {
+    await repo.reviewSessions.putReadMark({ reviewSessionId: id, chunkId });
+  }
+  await repo.reviewSessions.putReclassification({
+    reviewSessionId: id,
+    changeGroupId: "g1",
+    category: ChangeGroupCategory.BUGFIX,
+  });
+  await repo.reviewSessions.putReclassification({
+    reviewSessionId: id,
+    changeGroupId: "g9",
+    category: ChangeGroupCategory.BUGFIX,
+  });
+  await seedDisposition(world, briefId, 30, 32);
+}
+
+/** One `sql-injection` decision on `src/app.ts` over the given region. */
+async function seedDisposition(
+  world: World,
+  briefId: BriefRowId,
+  regionStart: number,
+  regionEnd: number,
+): Promise<void> {
+  const session = await forTenant(world.handle, CTX).reviewSessions.upsert({
+    briefId,
+    reviewerId: REVIEWER,
+  });
+  if (!session.ok) throw new Error("disposition seed failed");
+  await world.client.query(
+    `insert into disposition
+       (installation_id, review_session_id, file_path, attribute,
+        region_start, region_end, decision, decided_at)
+     values ($1, $2, 'src/app.ts', 'sql-injection', $3, $4, 'dismissed', now())`,
+    [TENANT.toString(), session.value.id.toString(), regionStart, regionEnd],
+  );
+}
+
+const FIRING = [
+  {
+    filePath: "src/app.ts",
+    attribute: "sql-injection",
+    regionStart: 30,
+    regionEnd: 40,
+  },
+];
+
+describe("preview — what carries, per subject", () => {
+  async function twoBriefs(
+    carriedChunkIds: readonly string[],
+    previousChunkIds: readonly string[] = ["c5"],
+  ): Promise<{ world: World; current: BriefRowId }> {
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 1);
+    const current = await seedBrief(world, 2, carriedChunkIds);
+    await seedHop(world, 1, 2);
+    await seedPreviousWork(world, previous, previousChunkIds);
+    return { world, current };
+  }
+
+  it("carries a read mark whose chunk id is in the new Brief's carried set", async () => {
+    const { world, current } = await twoBriefs(["c5"]);
+
+    const view = await forTenant(world.handle, CTX).reviewSessions.preview({
+      briefId: current,
+      reviewerId: REVIEWER,
+      groupIds: ["g1"],
+      flags: FIRING,
+    });
+
+    expect(view.carried.readMarks).toEqual(["c5"]);
+  });
+
+  it("does NOT carry a read mark onto a re-minted chunk that merely shares its id", async () => {
+    // `c5` exists in the new Brief but was NOT carried — chunk ids get a
+    // collision guard, not descent, so this is a Chunk the reviewer never
+    // opened. Marking it read would be a silent rubber-stamp.
+    const { world, current } = await twoBriefs([]);
+
+    const view = await forTenant(world.handle, CTX).reviewSessions.preview({
+      briefId: current,
+      reviewerId: REVIEWER,
+      groupIds: ["g1"],
+      flags: FIRING,
+    });
+
+    expect(view.carried.readMarks).toEqual([]);
+  });
+
+  it("carries a reclassification only where the group id survived descent", async () => {
+    const { world, current } = await twoBriefs(["c5"]);
+
+    const view = await forTenant(world.handle, CTX).reviewSessions.preview({
+      briefId: current,
+      reviewerId: REVIEWER,
+      groupIds: ["g1"],
+      flags: FIRING,
+    });
+
+    expect(
+      view.carried.reclassifications.map((row) => row.changeGroupId),
+    ).toEqual(["g1"]);
+  });
+
+  it("carries a draft but never a submitted comment", async () => {
+    const { world, current } = await twoBriefs(["c5"]);
+
+    const view = await forTenant(world.handle, CTX).reviewSessions.preview({
+      briefId: current,
+      reviewerId: REVIEWER,
+      groupIds: ["g1"],
+      flags: FIRING,
+    });
+
+    expect(view.carried.draftComments.map((row) => row.body)).toEqual([
+      "draft",
+    ]);
+  });
+
+  it("settles an untouched disposition and reopens a touched one", async () => {
+    const { world, current } = await twoBriefs(["c5"]);
+
+    const settled = await forTenant(world.handle, CTX).reviewSessions.preview({
+      briefId: current,
+      reviewerId: REVIEWER,
+      groupIds: [],
+      flags: FIRING,
+    });
+    expect(settled.carried.dispositions).toEqual([
+      expect.objectContaining({
+        carryStatus: "settled",
+        regionStart: 33,
+        regionEnd: 35,
+      }),
+    ]);
+
+    // A hop landing inside the flagged region: any touch reopens.
+    const touched = await freshWorld();
+    const previous = await seedBrief(touched, 1);
+    const currentTouched = await seedBrief(touched, 2);
+    await seedHop(touched, 1, 2, [
+      {
+        file: "src/app.ts",
+        hunks: [{ oldStart: 31, oldLines: 1, newStart: 31, newLines: 4 }],
+      },
+    ]);
+    await seedPreviousWork(touched, previous);
+
+    const view = await forTenant(touched.handle, CTX).reviewSessions.preview({
+      briefId: currentTouched,
+      reviewerId: REVIEWER,
+      groupIds: [],
+      flags: FIRING,
+    });
+    expect(view.carried.dispositions).toEqual([
+      expect.objectContaining({
+        carryStatus: "reopened",
+        regionStart: 30,
+        regionEnd: 32,
+      }),
+    ]);
+  });
+
+  it("drops the occurrence that vanished and keeps the surviving one live", async () => {
+    // ONE attribute, TWO regions, one decision each. The new Brief still fires
+    // it over the first region only: conflating the two would keep the removed
+    // occurrence's decision alive and settle it under the survivor.
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 1);
+    const current = await seedBrief(world, 2);
+    await seedHop(world, 1, 2);
+    await seedPreviousWork(world, previous);
+    await seedDisposition(world, previous, 60, 62);
+
+    const view = await forTenant(world.handle, CTX).reviewSessions.preview({
+      briefId: current,
+      reviewerId: REVIEWER,
+      groupIds: [],
+      flags: FIRING,
+    });
+
+    // Row order is the previous session's insertion order: 30-32, then 60-62.
+    // Both are remapped — a dropped row ships on current coordinates too, or
+    // whatever now occupies its old lines reads as already decided.
+    expect(
+      view.carried.dispositions.map((row) => [
+        row.regionStart,
+        row.carryStatus,
+      ]),
+    ).toEqual([
+      [33, "settled"],
+      [63, "dropped"],
+    ]);
+  });
+
+  it("drops a disposition whose flag no longer fires", async () => {
+    const { world, current } = await twoBriefs(["c5"]);
+
+    const view = await forTenant(world.handle, CTX).reviewSessions.preview({
+      briefId: current,
+      reviewerId: REVIEWER,
+      groupIds: [],
+      flags: [],
+    });
+
+    expect(view.carried.dispositions).toEqual([
+      expect.objectContaining({ carryStatus: "dropped" }),
+    ]);
+  });
+});
+
+describe("preview — the rules a multi-push chain must not loosen", () => {
+  it("does NOT carry a read mark that any step of the chain dropped", async () => {
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 7);
+    // Brief 8 still carries c5; Brief 9 re-mints it for unrelated content and
+    // Brief 10 carries THAT one forward. Reading only the newest Brief's
+    // carried set would rubber-stamp a Chunk the reviewer never opened.
+    await seedBrief(world, 8, ["c5"]);
+    await seedBrief(world, 9, []);
+    await seedBrief(world, 10, ["c5"]);
+    await seedHop(world, 7, 8);
+    await seedHop(world, 8, 9);
+    await seedHop(world, 9, 10);
+    await seedPreviousWork(world, previous);
+
+    const view = await forTenant(world.handle, CTX).reviewSessions.preview({
+      briefId: await briefIdFor(world, 10),
+      reviewerId: REVIEWER,
+      groupIds: [],
+      flags: FIRING,
+    });
+
+    expect(view.carried.readMarks).toEqual([]);
+  });
+
+  it("carries a read mark that survived every step", async () => {
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 7);
+    for (const index of [8, 9, 10]) await seedBrief(world, index, ["c5"]);
+    await seedHop(world, 7, 8);
+    await seedHop(world, 8, 9);
+    await seedHop(world, 9, 10);
+    await seedPreviousWork(world, previous);
+
+    const view = await forTenant(world.handle, CTX).reviewSessions.preview({
+      briefId: await briefIdFor(world, 10),
+      reviewerId: REVIEWER,
+      groupIds: [],
+      flags: FIRING,
+    });
+
+    expect(view.carried.readMarks).toEqual(["c5"]);
+  });
+
+  it("orphans an old-side draft when the chain cannot be trusted", async () => {
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 1);
+    const current = await seedBrief(world, 2);
+    // No hop row: nothing places anything, whichever side it sits on.
+    const repo = forTenant(world.handle, CTX);
+    const session = await repo.reviewSessions.upsert({
+      briefId: previous,
+      reviewerId: REVIEWER,
+    });
+    if (!session.ok) throw new Error("session seed failed");
+    await repo.reviewSessions.addDraftComment({
+      reviewSessionId: session.value.id,
+      filePath: "src/app.ts",
+      side: DraftCommentSide.OLD,
+      startLine: 10,
+      endLine: 12,
+      body: "on the removed side",
+    });
+
+    const view = await repo.reviewSessions.preview({
+      briefId: current,
+      reviewerId: REVIEWER,
+      ...NO_ARTIFACT,
+    });
+
+    expect(view.carried.draftComments).toEqual([
+      expect.objectContaining({ startLine: 10, anchorStatus: "orphaned" }),
+    ]);
+  });
+
+  it("merges two decisions that remap onto one anchor, keeping the re-look", async () => {
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 1);
+    const current = await seedBrief(world, 2);
+    // The hunk covers 30-32 (reopened, stays put) and shifts 50-52 back onto
+    // 30-32 (settled). One anchor, one row — and the anchor is a unique key,
+    // so a second row would abort the whole materialization.
+    await seedHop(world, 1, 2, [
+      {
+        file: "src/app.ts",
+        hunks: [{ oldStart: 30, oldLines: 25, newStart: 30, newLines: 0 }],
+      },
+    ]);
+    const repo = forTenant(world.handle, CTX);
+    const session = await repo.reviewSessions.upsert({
+      briefId: previous,
+      reviewerId: REVIEWER,
+    });
+    if (!session.ok) throw new Error("session seed failed");
+    for (const [start, end] of [
+      [30, 32],
+      [55, 57],
+    ]) {
+      await world.client.query(
+        `insert into disposition
+           (installation_id, review_session_id, file_path, attribute,
+            region_start, region_end, decision, decided_at)
+         values ($1, $2, 'src/app.ts', 'sql-injection', $3, $4, 'dismissed', now())`,
+        [TENANT.toString(), session.value.id.toString(), start, end],
+      );
+    }
+
+    const view = await repo.reviewSessions.preview({
+      briefId: current,
+      reviewerId: REVIEWER,
+      groupIds: [],
+      flags: FIRING,
+    });
+
+    expect(view.carried.dispositions).toEqual([
+      expect.objectContaining({
+        regionStart: 30,
+        regionEnd: 32,
+        carryStatus: "reopened",
+      }),
+    ]);
+  });
+
+  it("returns the session and no carry-over once one exists", async () => {
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 1);
+    const current = await seedBrief(world, 2, ["c5"]);
+    await seedHop(world, 1, 2);
+    await seedPreviousWork(world, previous);
+    const repo = forTenant(world.handle, CTX);
+    const created = await repo.reviewSessions.upsert({
+      briefId: current,
+      reviewerId: REVIEWER,
+    });
+    if (!created.ok) throw new Error("session seed failed");
+
+    const view = await repo.reviewSessions.preview({
+      briefId: current,
+      reviewerId: REVIEWER,
+      groupIds: ["g1"],
+      flags: FIRING,
+    });
+
+    expect(view.session?.session.id).toBe(created.value.id);
+    expect(view.carried.draftComments).toEqual([]);
+    expect(view.carried.readMarks).toEqual([]);
+    expect(view.carriedFromSessionId).toBeUndefined();
+  });
+});
+
+describe("old-side drafts against the PR base", () => {
+  /** A previous session holding one old-side draft on `src/app.ts:10-12`. */
+  async function seedOldSideDraft(
+    world: World,
+    briefId: BriefRowId,
+  ): Promise<void> {
+    const repo = forTenant(world.handle, CTX);
+    const session = await repo.reviewSessions.upsert({
+      briefId,
+      reviewerId: REVIEWER,
+    });
+    if (!session.ok) throw new Error("session seed failed");
+    const added = await repo.reviewSessions.addDraftComment({
+      reviewSessionId: session.value.id,
+      filePath: "src/app.ts",
+      side: DraftCommentSide.OLD,
+      startLine: 10,
+      endLine: 12,
+      body: "on the removed side",
+    });
+    if (!added.ok) throw new Error("draft seed failed");
+  }
+
+  it("keeps an old-side draft exact while the base holds still", async () => {
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 1);
+    const current = await seedBrief(world, 2);
+    await seedHop(world, 1, 2);
+    await seedOldSideDraft(world, previous);
+
+    const view = await forTenant(world.handle, CTX).reviewSessions.preview({
+      briefId: current,
+      reviewerId: REVIEWER,
+      ...NO_ARTIFACT,
+    });
+
+    // The hops say nothing about the base, and the base did not move.
+    expect(view.carried.draftComments).toEqual([
+      expect.objectContaining({
+        startLine: 10,
+        endLine: 12,
+        anchorStatus: null,
+      }),
+    ]);
+  });
+
+  it("orphans an old-side draft when the PR is retargeted", async () => {
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 1);
+    // A retarget: the head chain still links, but the coordinates the draft
+    // was written against belong to a base that is no longer the PR's.
+    const current = await seedBrief(world, 2, [], "other-base");
+    await seedHop(world, 1, 2);
+    await seedOldSideDraft(world, previous);
+
+    const view = await forTenant(world.handle, CTX).reviewSessions.preview({
+      briefId: current,
+      reviewerId: REVIEWER,
+      ...NO_ARTIFACT,
+    });
+
+    expect(view.carried.draftComments).toEqual([
+      expect.objectContaining({
+        startLine: 10,
+        endLine: 12,
+        anchorStatus: "orphaned",
+      }),
+    ]);
+  });
+});
