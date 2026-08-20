@@ -136,6 +136,20 @@ exactly as a read mark already does.
 Commits: (1) red tests, (2) anchorState in the chain read, (3) gate in
 `evaluateCarryOver` + both call sites.
 
+## Executed — deviations from the steps above
+
+Both PRs are up (#381, #382). Three deviations, each found during
+implementation or pre-merge review:
+
+- `stitchBrief` returns nothing new: the write site unions chain ∪ final ids
+  directly, which covers the stitched case with less plumbing.
+- The chain reads off the NEWEST prior row, not `prevBrief` — that lookup
+  skips same-head rows, so a base retarget would have dropped the retargeted
+  row's history from the union permanently.
+- `descendedThroughChain` also rejects a step sharing its predecessor's head
+  SHA: the same-head retarget shape, where the producer anchored past the
+  chain-adjacent brief and the `anchored` stamp proves nothing about it.
+
 ## Open risk
 
 `used_group_ids` grows with revision count — a few KB of JSON on a
