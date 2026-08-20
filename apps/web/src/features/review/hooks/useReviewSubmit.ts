@@ -209,7 +209,6 @@ export function useReviewSubmit(
               reviewCommentAtClick,
               buildSignatureLine(receipt, drafts.length),
             ),
-            comments,
           });
         } catch {
           fail(COPY.failed);

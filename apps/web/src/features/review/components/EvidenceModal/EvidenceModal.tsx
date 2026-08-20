@@ -75,7 +75,12 @@ function EvidenceForm({
   const [commentId, setCommentId] = useState(comments[0]?.id ?? "");
   const [note, setNote] = useState("");
 
-  const linkedCommentDisabled = kind === "linked-comment" && !commentId;
+  // Every evidence claim needs something behind it: a pointer to nothing and
+  // a note that is no words are both refused at the route, so neither can be
+  // confirmed here.
+  const evidenceIncomplete =
+    (kind === "linked-comment" && !commentId) ||
+    (kind === "manual-note" && note.trim() === "");
   return (
     <>
       <h3 id="evidence-modal-heading">{t("review.evidence.heading")}</h3>
@@ -138,7 +143,7 @@ function EvidenceForm({
       <div className={styles["actions"]}>
         <Button onClick={cancel}>{t("review.evidence.cancel")}</Button>
         <Button
-          disabled={linkedCommentDisabled}
+          disabled={evidenceIncomplete}
           variant="primary"
           onClick={() =>
             confirm(kind, commentId || undefined, note.trim() || undefined)

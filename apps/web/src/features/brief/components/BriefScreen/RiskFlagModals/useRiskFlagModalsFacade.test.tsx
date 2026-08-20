@@ -23,7 +23,7 @@ const model = buildBriefViewModel(briefFixture);
 function setup() {
   const flowStore: ReviewFlowStore = createReviewFlowStore(
     {
-      saveComment: () => undefined,
+      saveComment: () => Promise.resolve(true),
       updateComment: () => undefined,
       deleteComment: () => undefined,
       toggleComment: () => undefined,

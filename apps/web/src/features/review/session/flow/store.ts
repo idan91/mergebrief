@@ -38,6 +38,12 @@ export interface ReviewFlowPosture {
  */
 export interface ReviewFlowState extends ReviewFlowPosture {
   composerAnchor: CommentAnchor | null;
+  /**
+   * A staged-draft write is in flight. The composer closes on write SUCCESS,
+   * not on click: that buys one "Saving…" round trip and costs no
+   * unsaved-marker state, no retry button and no half-applied draft.
+   */
+  composerSaving: boolean;
   dismissTarget: DismissTarget | null;
   evidenceTarget: EvidenceTarget | null;
   /** Open inline conversation threads per file-qualified chunk key
@@ -67,7 +73,8 @@ export interface ReviewFlowActions {
   cancelComposer: () => void;
   /**
    * @description Trim-and-save a draft at the anchor; an empty body announces
-   * and keeps the composer open. Success closes the composer.
+   * and keeps the composer open. The composer closes when the WRITE lands —
+   * a failure leaves it open holding its text, with the same Save available.
    */
   saveComment: (anchor: CommentAnchor, body: string) => void;
   updateComment: (commentId: string, body: string) => void;
@@ -121,6 +128,7 @@ export function initialReviewFlowState(
   return {
     ...posture,
     composerAnchor: null,
+    composerSaving: false,
     dismissTarget: null,
     evidenceTarget: null,
     expandedConversations: new Map(),
@@ -170,7 +178,7 @@ export function createReviewFlowStore(
           set({ composerAnchor: anchor });
         },
         cancelComposer() {
-          set({ composerAnchor: null });
+          set({ composerAnchor: null, composerSaving: false });
         },
         saveComment(anchor, body) {
           const trimmed = body.trim();
@@ -178,14 +186,26 @@ export function createReviewFlowStore(
             announce(translate("review.announce.commentEmpty"));
             return;
           }
-          session.saveComment({
-            anchor,
-            body: trimmed,
-            status: "draft",
-            collapsed: false,
-          });
-          set({ composerAnchor: null });
-          announce(translate("review.announce.commentAdded"));
+          // One in-flight save per composer — a disabled control, not a
+          // protocol: a second click while the first is unresolved could
+          // stage the same draft twice.
+          if (get().composerSaving) return;
+          set({ composerSaving: true });
+          void session
+            .saveComment({
+              anchor,
+              body: trimmed,
+              status: "draft",
+              collapsed: false,
+            })
+            .then((saved) => {
+              if (saved) {
+                set({ composerAnchor: null });
+                announce(translate("review.announce.commentAdded"));
+              }
+              return saved;
+            })
+            .finally(() => set({ composerSaving: false }));
         },
         updateComment(commentId, body) {
           const trimmed = body.trim();

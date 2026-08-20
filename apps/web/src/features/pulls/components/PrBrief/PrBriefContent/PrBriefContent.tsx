@@ -6,6 +6,7 @@ import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 
 import { BriefView } from "@web/features/brief";
+import { createSessionWrites } from "@web/features/review/session";
 import type {
   BriefSearch,
   BriefSearchParams,
@@ -104,6 +105,18 @@ export function PrBriefContent({
     session.data === undefined
       ? { reason: t("brief.screen.sessionUnavailable") }
       : undefined;
+  // One transport per span, so every store action fires exactly one
+  // operation against the Brief it was read from.
+  const writes = useMemo(
+    () =>
+      createSessionWrites({
+        repoId,
+        prNumber,
+        base: span.base,
+        head: span.head,
+      }),
+    [prNumber, repoId, span.base, span.head],
+  );
   const assembled = useMemo(
     () => (diff.data === undefined ? brief : attachLiveDiffs(brief, diff.data)),
     [brief, diff.data],
@@ -226,6 +239,7 @@ export function PrBriefContent({
         readOnly={readOnly ?? sessionReadOnly}
         revisionPending={revisionPending}
         session={session.data}
+        writes={session.data === undefined ? undefined : writes}
         searchParams={searchParams}
         staleHead={staleHead}
         submitReview={submitAction}

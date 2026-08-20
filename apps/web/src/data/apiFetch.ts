@@ -159,7 +159,7 @@ interface DispatchableApp {
  * accepts.
  */
 export interface ApiFetchInit {
-  readonly method?: "GET" | "POST";
+  readonly method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   readonly headers?: Readonly<Record<string, string>>;
   readonly body?: string;
 }

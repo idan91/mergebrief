@@ -32,7 +32,7 @@ function writablePosture(): ReviewFlowPosture {
 
 function sessionMock(): ReviewFlowSessionActions {
   return {
-    saveComment: vi.fn(),
+    saveComment: vi.fn(() => Promise.resolve(true)),
     updateComment: vi.fn(),
     deleteComment: vi.fn(),
     toggleComment: vi.fn(),
@@ -70,7 +70,7 @@ describe("ReviewFlow store", () => {
       expect(store.getState().toast).toBe("Historical revision.");
     });
 
-    it("saves a trimmed draft, closes the composer, and announces", () => {
+    it("closes the composer on write SUCCESS, not on click", async () => {
       store.getState().actions.openComposer(anchor);
       store.getState().actions.saveComment(anchor, "  looks wrong  ");
       expect(session.saveComment).toHaveBeenCalledWith({
@@ -79,11 +79,34 @@ describe("ReviewFlow store", () => {
         status: "draft",
         collapsed: false,
       });
+      // Still open, and saying so, while the write is in flight.
+      expect(store.getState().composerAnchor).toEqual(anchor);
+      expect(store.getState().composerSaving).toBe(true);
+      await vi.runAllTimersAsync();
       expect(store.getState().composerAnchor).toBeNull();
+      expect(store.getState().composerSaving).toBe(false);
       flushAnnounce();
       expect(store.getState().toast).toBe(
         "Draft comment added to this review.",
       );
+    });
+
+    it("leaves the composer open when the write fails — Save is available again", async () => {
+      session.saveComment = vi.fn(() => Promise.resolve(false));
+      store = createReviewFlowStore(session, writablePosture(), appI18n.t);
+      store.getState().actions.openComposer(anchor);
+      store.getState().actions.saveComment(anchor, "looks wrong");
+      await vi.runAllTimersAsync();
+      expect(store.getState().composerAnchor).toEqual(anchor);
+      expect(store.getState().composerSaving).toBe(false);
+    });
+
+    it("refuses a second save while one is in flight", async () => {
+      store.getState().actions.openComposer(anchor);
+      store.getState().actions.saveComment(anchor, "one");
+      store.getState().actions.saveComment(anchor, "two");
+      expect(session.saveComment).toHaveBeenCalledTimes(1);
+      await vi.runAllTimersAsync();
     });
 
     it("rejects an empty body and keeps the composer open", () => {

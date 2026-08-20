@@ -34,9 +34,14 @@ function isSubmittedBody(value: unknown): value is SubmittedBody {
 export async function submitReview(
   repoId: string,
   prNumber: number,
+  span: { base: string; head: string },
   payload: SubmitPayload,
 ): Promise<SubmitReviewResult> {
-  const path = `/api/repos/${encodeURIComponent(repoId)}/pulls/${String(prNumber)}/review`;
+  // The write NAMES its Brief, exactly as the session read did: resolving
+  // "the newest Brief" would submit a stale tab against a revision it has
+  // never seen.
+  const query = `base=${encodeURIComponent(span.base)}&head=${encodeURIComponent(span.head)}`;
+  const path = `/api/repos/${encodeURIComponent(repoId)}/pulls/${String(prNumber)}/review?${query}`;
   const response = await apiFetch(path, {
     method: "POST",
     headers: { "content-type": "application/json" },

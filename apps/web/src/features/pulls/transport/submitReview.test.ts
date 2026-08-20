@@ -16,15 +16,14 @@ import { submitReview } from "./submitReview";
 
 const apiFetchMock = vi.mocked(apiFetch);
 
+const SPAN = { base: "b".repeat(40), head: "c".repeat(40) };
 const PAYLOAD: SubmitPayload = {
   outcome: "approve",
-  commitId: "c".repeat(40),
   body: "Reviewed with MergeBrief — signature",
-  comments: [],
 };
 
 function run(): ReturnType<typeof submitReview> {
-  return submitReview("424242", 7, PAYLOAD);
+  return submitReview("424242", 7, SPAN, PAYLOAD);
 }
 
 describe("submitReview", () => {
@@ -43,7 +42,7 @@ describe("submitReview", () => {
       commentsDegraded: false,
     });
     expect(apiFetchMock).toHaveBeenCalledWith(
-      "/api/repos/424242/pulls/7/review",
+      `/api/repos/424242/pulls/7/review?base=${SPAN.base}&head=${SPAN.head}`,
       {
         method: "POST",
         headers: { "content-type": "application/json" },

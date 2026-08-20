@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { briefFixture } from "@web/features/brief/utils/fixtures";
 import { buildBriefViewModel } from "@web/features/brief/utils";
@@ -10,6 +10,8 @@ import {
   type ReviewSessionState,
 } from "./store";
 import { serializeSnapshot } from "./snapshot";
+import type { SessionWriteGateway } from "./writeGateway";
+import type { SessionWriteResult } from "./writes";
 
 const model = buildBriefViewModel(briefFixture);
 const firstFlag = model.flags[0];
@@ -117,7 +119,7 @@ describe("comments + outcome", () => {
       collapsed: false,
     };
     const commentId = "chunk-a-new-10-10-1";
-    store.getState().actions.saveComment(comment);
+    void store.getState().actions.saveComment(comment);
     expect(store.getState().reviewComments).toHaveLength(1);
     expect(store.getState().reviewComments[0]?.id).toBe(commentId);
     store.getState().actions.updateComment(commentId, "second");
@@ -146,7 +148,7 @@ describe("comments + outcome", () => {
       status: "draft",
       collapsed: false,
     };
-    store.getState().actions.saveComment(comment);
+    void store.getState().actions.saveComment(comment);
     const id = store.getState().reviewComments[0]?.id;
     if (id === undefined) throw new Error("expected a saved comment");
     store.getState().actions.markCommentsSubmitted([id]);
@@ -175,13 +177,15 @@ describe("comments + outcome", () => {
       status: "draft",
       collapsed: false,
     };
-    store.getState().actions.saveComment(comment);
+    void store.getState().actions.saveComment(comment);
     const submittedId = store.getState().reviewComments[0]?.id;
     if (submittedId === undefined) throw new Error("expected a saved comment");
 
     // A draft added AFTER the submit was captured (mid-flight edit) must NOT
     // flip — it was never posted.
-    store.getState().actions.saveComment({ ...comment, body: "mid-flight" });
+    void store
+      .getState()
+      .actions.saveComment({ ...comment, body: "mid-flight" });
     store.getState().actions.markCommentsSubmitted([submittedId]);
 
     const statuses = store.getState().reviewComments.map((c) => c.status);
@@ -218,5 +222,135 @@ describe("recordSubmittedReview", () => {
     expect(store.getState().submittedReviewIds).toEqual([
       4_647_663_464, 4_700_000_000,
     ]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Per-action writes: one operation per action, and a failure that returns the
+// UI to the state where that same action is still available.
+// ---------------------------------------------------------------------------
+
+function anchorFor(chunkId: string): ReviewComment["anchor"] {
+  return {
+    chunkId,
+    file: "src/leak.ts",
+    side: "new",
+    startLine: 10,
+    endLine: 10,
+    rowIds: [`${chunkId}:1`],
+    selectedText: "validate(a);",
+  };
+}
+
+const OK: SessionWriteResult = { ok: true, value: undefined };
+const FAILED: SessionWriteResult = {
+  ok: false,
+  failure: { frozen: false, copy: "review.writeError.failed" },
+};
+const FROZEN: SessionWriteResult = {
+  ok: false,
+  failure: { frozen: true, copy: "review.writeError.frozen" },
+};
+
+function gatewayMock(result: SessionWriteResult = OK) {
+  const calls: string[] = [];
+  const record = (name: string) => (): Promise<SessionWriteResult> => {
+    calls.push(name);
+    return Promise.resolve(result);
+  };
+  const gateway: SessionWriteGateway = {
+    setRead: record("setRead"),
+    dispose: record("dispose"),
+    address: record("address"),
+    reclassify: record("reclassify"),
+    createComment: () => {
+      calls.push("createComment");
+      return Promise.resolve(
+        result.ok ? { ok: true as const, value: "9001" } : result,
+      );
+    },
+    updateComment: record("updateComment"),
+    deleteComment: record("deleteComment"),
+    setOutcome: record("setOutcome"),
+  };
+  return {
+    calls,
+    store: createReviewSessionStore(deriveInitialState(model), () => gateway),
+  };
+}
+
+describe("per-action writes", () => {
+  it("fires exactly ONE operation per action", async () => {
+    const { calls, store } = gatewayMock();
+    store.getState().actions.reviewChunk("c1");
+    store.getState().actions.setOutcome("approve");
+    store.getState().actions.disposeFlag([flagId], { kind: "open" });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(calls).toEqual(["setRead", "setOutcome", "dispose"]);
+  });
+
+  it("un-ticks the checkbox when the read mark fails to save", async () => {
+    const { store } = gatewayMock(FAILED);
+    store.getState().actions.reviewChunk("c1");
+    expect(store.getState().reviewedChunks.has("c1")).toBe(true);
+    await vi.waitFor(() =>
+      expect(store.getState().reviewedChunks.has("c1")).toBe(false),
+    );
+    expect(store.getState().writeError).toBe("review.writeError.failed");
+  });
+
+  it("puts a dismissed risk back to open when the write fails", async () => {
+    const { store } = gatewayMock(FAILED);
+    store
+      .getState()
+      .actions.disposeFlag([flagId], { kind: "dismissed", reason: "no" });
+    expect(store.getState().dispositions[flagId]).toEqual({
+      kind: "dismissed",
+      reason: "no",
+    });
+    await vi.waitFor(() =>
+      expect(store.getState().dispositions[flagId]).toEqual({ kind: "open" }),
+    );
+  });
+
+  it("answers saveComment with the write's outcome and adopts the server id", async () => {
+    const { store } = gatewayMock();
+    const saved = await store.getState().actions.saveComment({
+      anchor: anchorFor("c1"),
+      body: "look here",
+      status: "draft",
+      collapsed: false,
+    });
+    expect(saved).toBe(true);
+    expect(store.getState().reviewComments[0]?.id).toBe("9001");
+  });
+
+  it("never stages the draft when the write fails", async () => {
+    const { store } = gatewayMock(FAILED);
+    const saved = await store.getState().actions.saveComment({
+      anchor: anchorFor("c1"),
+      body: "look here",
+      status: "draft",
+      collapsed: false,
+    });
+    expect(saved).toBe(false);
+    expect(store.getState().reviewComments).toHaveLength(0);
+  });
+
+  it("freezes the whole screen on a 409, rather than failing one action", async () => {
+    const { store } = gatewayMock(FROZEN);
+    store.getState().actions.reviewChunk("c1");
+    await vi.waitFor(() => expect(store.getState().frozen).toBe(true));
+    expect(store.getState().reviewedChunks.has("c1")).toBe(false);
+    expect(store.getState().writeError).toBe("review.writeError.frozen");
+  });
+
+  it("keeps every action local when no writes are wired", async () => {
+    const store = freshStore();
+    store.getState().actions.reviewChunk("c1");
+    expect(store.getState().reviewedChunks.has("c1")).toBe(true);
+    store.getState().actions.setOutcome("approve");
+    expect(store.getState().reviewOutcome).toBe("approve");
   });
 });

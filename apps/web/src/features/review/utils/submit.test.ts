@@ -11,7 +11,6 @@ import {
   submitBlockedReason,
 } from "./submit";
 
-const COMMIT_ID = "c".repeat(40);
 const t = createI18n().t;
 
 function anchor(overrides: Partial<CommentAnchor> = {}): CommentAnchor {
@@ -78,57 +77,22 @@ describe("mapAnchorToWire", () => {
 });
 
 describe("buildSubmitPayload", () => {
-  it("assembles outcome, commitId, and mapped comments", () => {
-    const payload = buildSubmitPayload({
+  it("carries the outcome and the body — never the drafts, which the session holds", () => {
+    expect(
+      buildSubmitPayload({
+        outcome: "request-changes",
+        body: "Reviewed with MergeBrief — signature",
+      }),
+    ).toEqual({
       outcome: "request-changes",
-      commitId: COMMIT_ID,
       body: "Reviewed with MergeBrief — signature",
-      comments: [
-        comment("a", { side: "new", startLine: 12, endLine: 12 }, "first"),
-        comment(
-          "b",
-          { file: "src/b.ts", side: "old", startLine: 3, endLine: 7 },
-          "second",
-        ),
-      ],
-    });
-    expect(payload).toEqual({
-      outcome: "request-changes",
-      commitId: COMMIT_ID,
-      body: "Reviewed with MergeBrief — signature",
-      comments: [
-        {
-          path: "src/a.ts",
-          line: 12,
-          side: "RIGHT",
-          selectedText: "const x = 1;",
-          body: "first",
-        },
-        {
-          path: "src/b.ts",
-          line: 7,
-          side: "LEFT",
-          startLine: 3,
-          startSide: "LEFT",
-          selectedText: "const x = 1;",
-          body: "second",
-        },
-      ],
     });
   });
 
-  it("only submits draft comments — already-submitted ones stay behind", () => {
-    const submitted: ReviewComment = {
-      ...comment("old-one"),
-      status: "submitted",
-    };
-    const payload = buildSubmitPayload({
+  it("omits an absent body rather than sending undefined", () => {
+    expect(buildSubmitPayload({ outcome: "comment" })).toEqual({
       outcome: "comment",
-      commitId: COMMIT_ID,
-      comments: [submitted, comment("new-one", {}, "fresh")],
     });
-    expect(payload.comments).toHaveLength(1);
-    expect(payload.comments[0]?.body).toBe("fresh");
   });
 });
 

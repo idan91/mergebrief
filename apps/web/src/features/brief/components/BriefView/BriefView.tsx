@@ -5,6 +5,7 @@ import type { ConversationFilter } from "@web/features/conversation/utils/filter
 import {
   ReviewSessionProvider,
   type ReviewSessionPayload,
+  type SessionWrites,
 } from "@web/features/review/session";
 import type { SubmitReviewAction } from "@web/features/review/utils/submit";
 import type { BriefSearchParams } from "../../comparison/compareState";
@@ -98,6 +99,11 @@ export interface BriefViewProps {
    */
   session?: ReviewSessionPayload | undefined;
   /**
+   * The session write transport, bound to this Brief's span. Absent on the
+   * local path, where every action stays in the browser.
+   */
+  writes?: SessionWrites | undefined;
+  /**
    * A revision navigation is in flight: the content region dims and goes
    * inert (delayed, so fast loads show nothing) while the header stays live.
    * Route-owned; absent = never pending.
@@ -132,13 +138,19 @@ export function BriefView({
   session,
   staleHead,
   submitReview,
+  writes,
 }: BriefViewProps) {
   const model = useMemo(
     () => buildBriefViewModel(brief, repoConfig),
     [brief, repoConfig],
   );
   return (
-    <ReviewSessionProvider briefId={briefId} model={model} session={session}>
+    <ReviewSessionProvider
+      briefId={briefId}
+      model={model}
+      session={session}
+      writes={writes}
+    >
       <BriefScreen
         livePrState={livePrState}
         artifacts={artifacts}

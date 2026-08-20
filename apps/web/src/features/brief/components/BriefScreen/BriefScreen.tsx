@@ -13,7 +13,6 @@ import { useStore } from "zustand";
 
 import { Button } from "@web/components/Button/Button";
 import { IconButton } from "@web/components/IconButton/IconButton";
-import type { CommentAnchor } from "@web/features/review/utils/comments";
 import {
   ConversationSection,
   type ConversationPlan,
@@ -110,15 +109,12 @@ export interface OwnDraftPlan {
   readonly markReady?: MarkReadyAction;
   /**
    * Posts a staged draft comment NOW as a standalone inline review comment.
-   * Anchors from the comment's chunk-region data; `commit_id` is pinned to the
-   * viewed head by the route. ABSENT on the same terms as `markReady` — only
-   * while the CURRENT head is in view, since a historical/advanced span would
-   * pin a stale commit; its absence hides the Post affordance.
+   * It names the DRAFT: the session holds the text and the anchor, and the
+   * commit is the named Brief's head. ABSENT on the same terms as
+   * `markReady` — only while the CURRENT head is in view; its absence hides
+   * the Post affordance.
    */
-  readonly postComment?: (
-    anchor: CommentAnchor,
-    body: string,
-  ) => Promise<PostCommentResult>;
+  readonly postComment?: (draftId: string) => Promise<PostCommentResult>;
 }
 
 /**
@@ -259,9 +255,19 @@ export function BriefScreen({
   // Read-only is the WHOLE screen's posture, not the composer's: with no
   // session in hand a read mark or a dismissal is a write against work the
   // reviewer cannot see.
-  const writesDisabled = readOnly !== undefined;
+  // A frozen session is TERMINAL for this screen, not a per-action failure:
+  // the reviewer has written against a newer Brief, so every retry fails
+  // identically. Nothing drafts locally behind it — unsaved text stays
+  // visible to copy, and the revision banner is the way out.
+  const sessionFrozen = useReviewSession((state) => state.frozen);
+  const frozenReason = sessionFrozen
+    ? t("brief.screen.sessionFrozen")
+    : undefined;
+  /** Why every write is off right now; undefined = the screen is writable. */
+  const writesDisabledReason = readOnly?.reason ?? frozenReason;
+  const writesDisabled = writesDisabledReason !== undefined;
   const composerDisabledReason =
-    readOnly?.reason ??
+    writesDisabledReason ??
     (ownDraftActive && staleHead === true
       ? t(OWN_DRAFT_STALE_COMPOSER_REASON_KEY)
       : undefined);
@@ -402,6 +408,17 @@ export function BriefScreen({
     return () => window.clearTimeout(timer);
   }, [flowActions, toast]);
 
+  // A failed write reverted its own state change; the reviewer still has to
+  // be TOLD, and the page live region is the surface that outlives whatever
+  // drawer or composer started it.
+  const writeError = useReviewSession((state) => state.writeError);
+  const clearWriteError = actions.clearWriteError;
+  useEffect(() => {
+    if (writeError === null) return;
+    announce(t(writeError));
+    clearWriteError();
+  }, [announce, clearWriteError, t, writeError]);
+
   const openSubmit = () => setSubmitOpen(true);
   const closeSubmit = useCallback(() => setSubmitOpen(false), []);
   // The conversation glue (section open/landing state, shared query + digest,
@@ -524,8 +541,8 @@ export function BriefScreen({
   const reviewedChunks = useReviewSession((state) => state.reviewedChunks);
   const reviewedChunksRef = useLatestRef(reviewedChunks);
   const markViewedFromShortcut = (chunkId: string) => {
-    if (writesDisabled) {
-      announce(readOnly.reason);
+    if (writesDisabledReason !== undefined) {
+      announce(writesDisabledReason);
       return;
     }
     const wasViewed = reviewedChunksRef.current.has(chunkId);
@@ -574,8 +591,8 @@ export function BriefScreen({
   const submitFromModal = () => {
     // Read-only posture: the submit control disables focusably with the reason
     // (below) — this guards the click path itself.
-    if (readOnly !== undefined) {
-      announce(readOnly.reason);
+    if (writesDisabledReason !== undefined) {
+      announce(writesDisabledReason);
       return;
     }
     if (liveSubmit) {
@@ -598,7 +615,9 @@ export function BriefScreen({
   // exactOptionalPropertyTypes: the prop must be absent, not explicitly
   // undefined, so it is spread in rather than passed as a value.
   const conversationReadOnly =
-    readOnly === undefined ? {} : { readOnlyReason: readOnly.reason };
+    writesDisabledReason === undefined
+      ? {}
+      : { readOnlyReason: writesDisabledReason };
 
   return (
     <ReviewFlowProvider store={flowStore}>
@@ -814,21 +833,27 @@ export function BriefScreen({
               open={submitOpen}
               close={closeSubmit}
               outcome={reviewOutcome}
-              setOutcome={(outcome) => actions.setOutcome(outcome)}
+              setOutcome={(outcome) => {
+                // The picker is a write like any other: a read-only or frozen
+                // screen states the reason instead of firing one that 409s.
+                if (writesDisabledReason !== undefined) {
+                  announce(writesDisabledReason);
+                  return;
+                }
+                actions.setOutcome(outcome);
+              }}
               submit={submitFromModal}
               unresolvedItems={session.unresolvedItems}
               jumpToItem={jumpToSubmitItem}
               submitPending={
-                liveSubmit && readOnly === undefined
-                  ? submitFlow.pending
-                  : false
+                liveSubmit && !writesDisabled ? submitFlow.pending : false
               }
-              blockedReasonOverride={readOnly?.reason}
+              blockedReasonOverride={writesDisabledReason}
               blockedReasonWith={
                 liveSubmit ? submitFlow.blockedReasonWith : undefined
               }
               submitError={
-                liveSubmit && readOnly === undefined ? submitFlow.error : null
+                liveSubmit && !writesDisabled ? submitFlow.error : null
               }
               submitNote={liveSubmit ? submitFlow.note : null}
               staleHead={staleHead === true}

@@ -144,7 +144,6 @@ describe("useReviewSubmit", () => {
     expect(action).toHaveBeenCalledWith({
       outcome: "approve",
       body: expect.stringContaining("Reviewed with MergeBrief"),
-      comments: [draft("a")],
     });
     expect(markSubmitted).toHaveBeenCalledWith(["a"]);
     expect(recordSubmittedReview).toHaveBeenCalledWith(5);

@@ -127,9 +127,14 @@ function prefetchSession(
   prNumber: number,
   span: Span,
 ): Promise<void> {
-  return queryClient.prefetchQuery(
-    sessionQueryOptions(repoId, prNumber, span.base, span.head),
-  );
+  // The descriptor is stale-immediately so a window-focus refetch picks up a
+  // CLI write; the LOADER wants the opposite. Without this override every
+  // same-route search write (a filter chip, a View/Compare toggle) would block
+  // the router on a session round-trip and dim the screen behind it.
+  return queryClient.prefetchQuery({
+    ...sessionQueryOptions(repoId, prNumber, span.base, span.head),
+    staleTime: 30_000,
+  });
 }
 
 export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({

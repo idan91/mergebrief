@@ -131,9 +131,19 @@ against GitHub (or any external system) follows them:
   (outcome resets to `comment`).
 - **Mirror every deterministic API rejection with recoverable copy.** The
   UI resubmits the same state, so an unmirrored deterministic 400 is an
-  unrecoverable loop. `submitBlockedReason` mirrors the submit route's caps
-  and budgets — keep the mirrors in lockstep with
-  `packages/api/src/routes/review-submit.ts` when either side changes.
+  unrecoverable loop. `submitBlockedReason` mirrors the caps the submit route
+  applies to the drafts the session holds (count, path length, the
+  degradation fold's budget) — keep it in lockstep with
+  `packages/api/src/routes/repos/pr/review.ts` when either side changes.
+- **One operation per user action, and a failure reverts.** Every session
+  write is its own request naming its Brief (`?base=&head=`); there is no
+  snapshot PUT, no batching, no network debounce and no retry machinery — a
+  retry is the action again. A failed write puts the UI back where that same
+  action is still available (the checkbox un-ticks, the composer stays open
+  holding its text), which is why the composer closes on write SUCCESS
+  rather than on click. A `pr-changed-since-read` 409 is terminal for the
+  screen, not a per-action failure: it goes read-only behind the revision
+  banner, and nothing drafts locally behind it.
 
 ## Test gotchas
 

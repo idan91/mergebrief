@@ -117,6 +117,7 @@ export function DiffTable({
       : allComments.filter((comment) => !demoted.has(comment.id));
   }, [allComments, ownChunkThreads]);
   // Anchor-match selector: null (stable) unless the composer is on THIS chunk.
+  const composerSaving = useReviewFlow((state) => state.composerSaving);
   const anchorForChunk = useReviewFlow((state) =>
     state.composerAnchor?.chunkId === chunk.id ? state.composerAnchor : null,
   );
@@ -417,6 +418,7 @@ export function DiffTable({
                         <CommentComposer
                           anchor={activeCommentAnchor}
                           cancel={cancelComposer}
+                          saving={composerSaving}
                           mentionCandidates={conversationComposer?.mentionPool}
                           save={saveComment}
                         />

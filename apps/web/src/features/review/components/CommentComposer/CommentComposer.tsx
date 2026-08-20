@@ -25,6 +25,8 @@ export interface CommentComposerProps {
   /** Mention-autocomplete pool (repo collaborators); absent on the local path. */
   mentionCandidates?: readonly MentionCandidate[] | undefined;
   save: (anchor: CommentAnchor, body: string) => void;
+  /** The staged-draft write is in flight; the composer closes when it lands. */
+  saving?: boolean | undefined;
 }
 
 export function CommentComposer({
@@ -32,6 +34,7 @@ export function CommentComposer({
   cancel,
   mentionCandidates,
   save,
+  saving = false,
 }: CommentComposerProps) {
   const { t } = useTranslation();
   const composer = useCommentComposerFacade(anchor, save);
@@ -67,6 +70,7 @@ export function CommentComposer({
         </span>
       </div>
       <MarkdownTextarea
+        ariaBusy={saving}
         ariaInvalid={composer.error !== ""}
         autoFocus
         describedBy={composer.error !== "" ? errorId : undefined}
@@ -76,6 +80,7 @@ export function CommentComposer({
         renderPreview={(body) => (
           <MarkdownPreview anchor={anchor} body={body} />
         )}
+        readOnly={saving}
         suggestionSeed={anchor.selectedText}
         value={composer.body}
         onChange={composer.onBodyChange}
@@ -87,8 +92,18 @@ export function CommentComposer({
         </div>
       ) : null}
       <div className={styles["actions"]}>
-        <Button variant="primary" onClick={composer.submit}>
-          {reviewCommentSubmitLabel(t, existingReviewCommentCount)}
+        {/* Focusable-disabled: a hard `disabled` would drop keyboard/SR focus
+            to <body> the moment saving starts. The click guard is in the
+            store's one-in-flight rule. */}
+        <Button
+          aria-busy={saving || undefined}
+          aria-disabled={saving || undefined}
+          variant="primary"
+          onClick={composer.submit}
+        >
+          {saving
+            ? t("review.comment.saving")
+            : reviewCommentSubmitLabel(t, existingReviewCommentCount)}
         </Button>
         <Button onClick={cancel}>{t("review.comment.cancel")}</Button>
       </div>

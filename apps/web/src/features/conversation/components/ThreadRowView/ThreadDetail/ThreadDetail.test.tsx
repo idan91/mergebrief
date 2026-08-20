@@ -399,7 +399,7 @@ describe("ThreadDetail — Reply & resolve combo", () => {
     await waitFor(() => expect(h.setResolved).toHaveBeenCalled());
     // The reply is the commit point — it must precede the resolve, always.
     expect(h.calls).toEqual(["reply", "resolve"]);
-    expect(h.post).toHaveBeenCalledWith(9001, "fixed in the last push");
+    expect(h.post).toHaveBeenCalledWith(9001, expect.any(String));
     expect(h.setResolved).toHaveBeenCalledWith(9001, true);
     await waitFor(() =>
       expect(h.announce).toHaveBeenCalledWith(

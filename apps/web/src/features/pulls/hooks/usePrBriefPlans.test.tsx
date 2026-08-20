@@ -9,7 +9,6 @@ import type { ReactNode } from "react";
 
 import type * as PostCommentModule from "../transport/postComment";
 
-import type { CommentAnchor } from "../../review/utils/comments";
 import type { Span } from "../utils/briefRouteState";
 import type { PrSummary } from "../types";
 import { usePrBriefPlans } from "./usePrBriefPlans";
@@ -87,48 +86,38 @@ function renderPlans(overrides: {
   );
 }
 
-const anchor: CommentAnchor = {
-  chunkId: "c1",
-  file: "src/a.ts",
-  side: "new",
-  startLine: 10,
-  endLine: 10,
-  rowIds: ["c1:1"],
-  selectedText: "b",
-};
-
 describe("usePrBriefPlans", () => {
   it("keys the session store like a local brief id", () => {
     const { result } = renderPlans({});
     expect(result.current.briefId).toBe("db:424242:7:base-2:head-2");
   });
 
-  it("pins the submit commit_id to the RENDERED span's head, never meta's", async () => {
+  it("names the RENDERED span on the submit write, never meta's head", async () => {
     const { submitReview } = vi.mocked(
       await import("../transport/submitReview"),
     );
     const { result } = renderPlans({ span: historicalSpan });
-    void result.current.submitAction({
+    void result.current.submitAction({ outcome: "comment", body: "signature" });
+    expect(submitReview.mock.calls[0]?.[2]).toMatchObject({ head: "head-1" });
+    expect(submitReview.mock.calls[0]?.[3]).toEqual({
       outcome: "comment",
       body: "signature",
-      comments: [],
     });
-    const payload = submitReview.mock.calls[0]?.[2];
-    expect(payload).toMatchObject({ commitId: "head-1" });
   });
 
-  it("pins the post-now commit_id to the rendered span's head", async () => {
+  it("posts a draft BY ID against the rendered span", async () => {
     const { postInlineComment } = vi.mocked(
       await import("../transport/postComment"),
     );
     const { result } = renderPlans({
       meta: meta({ draft: true, viewerIsAuthor: true }),
     });
-    void result.current.ownDraft?.postComment?.(anchor, "a body");
+    void result.current.ownDraft?.postComment?.("9001");
     expect(postInlineComment).toHaveBeenCalledWith(
       "424242",
       7,
-      expect.objectContaining({ commitId: "head-2", body: "a body" }),
+      expect.objectContaining({ head: "head-2" }),
+      { draftId: "9001" },
     );
   });
 

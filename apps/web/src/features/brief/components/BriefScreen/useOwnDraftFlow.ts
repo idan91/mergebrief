@@ -6,10 +6,7 @@ import { useTranslation } from "react-i18next";
 import type { TranslationKey } from "i18n";
 import { useCallback, useEffect } from "react";
 
-import type {
-  CommentAnchor,
-  ReviewComment,
-} from "@web/features/review/utils/comments";
+import type { ReviewComment } from "@web/features/review/utils/comments";
 import { postCommentBlockedReason } from "@web/features/review/utils/comments";
 import type { ReviewSessionActions } from "@web/features/review/session";
 import {
@@ -30,6 +27,11 @@ export const POST_COMMENT_COPY_KEYS = {
   // Deterministic route reject: retrying the SAME draft can never succeed
   // (unlike `upstream`) — ask for an edit, never a plain retry.
   invalid: "brief.postComment.invalid",
+  // Deterministic 409s of their own: neither is stale, and neither becomes
+  // postable by retrying — "try again shortly" would invite a pointless
+  // re-post.
+  orphanedAnchor: "brief.postComment.orphanedAnchor",
+  alreadyPublished: "brief.postComment.alreadyPublished",
   upstream: "brief.postComment.upstream",
   // Deliberately INDETERMINATE: the catch can land AFTER the POST reached
   // GitHub — a confident retry prompt could double-post.
@@ -69,9 +71,7 @@ export interface UseOwnDraftFlowInput {
    */
   invalidateConversation: (() => void) | undefined;
   /** The route's post-now transport (`ownDraft.postComment`); absent hides Post. */
-  postComment:
-    | ((anchor: CommentAnchor, body: string) => Promise<PostCommentResult>)
-    | undefined;
+  postComment: ((draftId: string) => Promise<PostCommentResult>) | undefined;
   /** The module registry's per-brief in-flight view (screen-subscribed). */
   postingCommentIds: ReadonlySet<string>;
   /** A Submit review in flight already captured the drafts — posting blocks. */
@@ -156,7 +156,7 @@ export function useOwnDraftFlow(
       // batch must stop with the indeterminate summary.
       if (!beginInFlightPost(briefId, comment.id)) return "indeterminate";
       try {
-        const result = await postComment(comment.anchor, comment.body);
+        const result = await postComment(comment.id);
         switch (result.kind) {
           case "posted": {
             // DURABLE snapshot write + settled-queue entry happen here; the
@@ -196,6 +196,24 @@ export function useOwnDraftFlow(
               batchOwnsMessaging ? null : t(POST_COMMENT_COPY_KEYS.stale),
             );
             return "stale";
+          case "orphaned-anchor":
+            recordFailedPost(
+              briefId,
+              comment.id,
+              batchOwnsMessaging
+                ? null
+                : t(POST_COMMENT_COPY_KEYS.orphanedAnchor),
+            );
+            return "rejected";
+          case "already-published":
+            recordFailedPost(
+              briefId,
+              comment.id,
+              batchOwnsMessaging
+                ? null
+                : t(POST_COMMENT_COPY_KEYS.alreadyPublished),
+            );
+            return "rejected";
           case "invalid":
             recordFailedPost(
               briefId,

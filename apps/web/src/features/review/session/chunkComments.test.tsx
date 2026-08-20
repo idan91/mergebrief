@@ -109,7 +109,7 @@ describe("useChunkReviewComments", () => {
     // fails here.
     const bBeforeSave = result.current.b;
     act(() => {
-      result.current.actions.saveComment({
+      void result.current.actions.saveComment({
         anchor: anchorFor("chunk-a", 11),
         body: "first",
         collapsed: false,
@@ -149,13 +149,13 @@ describe("useChunkReviewComments", () => {
       { wrapper: ReviewSessionTestWrapper },
     );
     act(() => {
-      result.current.actions.saveComment({
+      void result.current.actions.saveComment({
         anchor: anchorFor("chunk-a", 11),
         body: "on a",
         collapsed: false,
         status: "draft",
       });
-      result.current.actions.saveComment({
+      void result.current.actions.saveComment({
         anchor: anchorFor("chunk-b", 21),
         body: "on b",
         collapsed: false,

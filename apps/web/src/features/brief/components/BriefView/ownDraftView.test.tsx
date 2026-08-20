@@ -447,7 +447,7 @@ describe("own-draft Brief view", () => {
     const markReady = vi.fn(() =>
       Promise.resolve<MarkReadyResult>({ kind: "ready" }),
     );
-    const postComment = vi.fn((_anchor, _body) =>
+    const postComment = vi.fn((_draftId: string) =>
       Promise.resolve<PostCommentResult>({ kind: "posted", commentId: 1 }),
     );
     renderBriefView({ markReady, postComment }, flaglessBrief);
@@ -548,7 +548,7 @@ describe("own-draft Brief view", () => {
     const markReady = vi.fn(() =>
       Promise.resolve<MarkReadyResult>({ kind: "ready" }),
     );
-    const postComment = vi.fn((_anchor, _body) =>
+    const postComment = vi.fn((_draftId: string) =>
       Promise.resolve<PostCommentResult>({ kind: "posted", commentId: 1 }),
     );
     renderBriefView({ markReady, postComment });
@@ -578,7 +578,7 @@ describe("own-draft Brief view", () => {
       Promise.resolve<MarkReadyResult>({ kind: "ready" }),
     );
     let call = 0;
-    const postComment = vi.fn((_anchor, _body) => {
+    const postComment = vi.fn((_draftId: string) => {
       call += 1;
       // The second post fails — the batch must stop before the third.
       return Promise.resolve<PostCommentResult>(
@@ -630,7 +630,7 @@ describe("own-draft Brief view", () => {
       Promise.resolve<MarkReadyResult>({ kind: "ready" }),
     );
     let call = 0;
-    const postComment = vi.fn((_anchor, _body) => {
+    const postComment = vi.fn((_draftId: string) => {
       call += 1;
       return Promise.resolve<PostCommentResult>(
         call === 2 ? { kind: "invalid" } : { kind: "posted", commentId: call },
@@ -669,7 +669,7 @@ describe("own-draft Brief view", () => {
     const markReady = vi.fn(() =>
       Promise.resolve<MarkReadyResult>({ kind: "ready" }),
     );
-    const postComment = vi.fn((_anchor, _body) =>
+    const postComment = vi.fn((_draftId: string) =>
       Promise.resolve<PostCommentResult>({ kind: "posted", commentId: 1 }),
     );
     renderBriefView({ markReady, postComment });
@@ -722,7 +722,7 @@ describe("own-draft Brief view", () => {
       const markReady = vi.fn(() =>
         Promise.resolve<MarkReadyResult>({ kind: "ready" }),
       );
-      const postComment = vi.fn((_anchor, _body) =>
+      const postComment = vi.fn((_draftId: string) =>
         Promise.resolve<PostCommentResult>({ kind }),
       );
       renderBriefView({ markReady, postComment });
@@ -761,7 +761,7 @@ describe("own-draft Brief view", () => {
     const markReady = vi.fn(() =>
       Promise.resolve<MarkReadyResult>({ kind: "ready" }),
     );
-    const postComment = vi.fn((_anchor, _body) =>
+    const postComment = vi.fn((_draftId: string) =>
       Promise.resolve<PostCommentResult>({ kind: "upstream" }),
     );
     renderBriefView({ markReady, postComment });
@@ -802,7 +802,7 @@ describe("own-draft Brief view", () => {
     );
     // A post that never settles: the batch stays running while we hit Escape.
     const postComment = vi.fn(
-      (_anchor, _body) => new Promise<PostCommentResult>(() => {}),
+      (_draftId: string) => new Promise<PostCommentResult>(() => {}),
     );
     renderBriefView({ markReady, postComment });
     fireEvent.click(
@@ -837,7 +837,7 @@ describe("own-draft Brief view", () => {
     const markReady = vi.fn(() =>
       Promise.resolve<MarkReadyResult>({ kind: "ready" }),
     );
-    const postComment = vi.fn((_anchor, _body) =>
+    const postComment = vi.fn((_draftId: string) =>
       Promise.resolve<PostCommentResult>({ kind: "posted", commentId: 1 }),
     );
     renderBriefView({ markReady, postComment });

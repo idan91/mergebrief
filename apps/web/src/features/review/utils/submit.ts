@@ -24,20 +24,20 @@ export interface WireComment {
   body?: string;
 }
 
+/**
+ * The submit route's body. It carries NO comments: the session already holds
+ * every draft, so sending them back would make two copies and a which-wins
+ * rule. The commit comes off the Brief the request names.
+ */
 export interface SubmitPayload {
   outcome: ReviewOutcome;
-  commitId: string;
   body?: string;
-  comments: (WireComment & { body: string })[];
 }
 
 export interface BuildSubmitPayloadInput {
   outcome: ReviewOutcome;
-  /** The viewed head — the SHA the anchors were read against. */
-  commitId: string;
   /** The review body — the receipt's one-line signature on the DB path. */
   body?: string;
-  comments: ReviewComment[];
 }
 
 const SIDE_TO_WIRE: Record<CommentAnchor["side"], WireSide> = {
@@ -73,23 +73,15 @@ export function mapAnchorToWire(anchor: CommentAnchor): WireComment {
 }
 
 /**
- * The submit route's body. Only DRAFT comments ship — a re-submit adds the
- * new drafts as a new review (documented-allowed) and never re-posts what an
- * earlier submit already delivered.
+ * The submit route's body. The drafts are NOT in it: the session holds them
+ * already, so a re-submit ships exactly the rows GitHub never saw.
  */
 export function buildSubmitPayload(
   input: BuildSubmitPayloadInput,
 ): SubmitPayload {
   return {
     outcome: input.outcome,
-    commitId: input.commitId,
     ...(input.body === undefined ? {} : { body: input.body }),
-    comments: input.comments
-      .filter((comment) => comment.status === "draft")
-      .map((comment) => ({
-        ...mapAnchorToWire(comment.anchor),
-        body: comment.body,
-      })),
   };
 }
 
@@ -111,11 +103,10 @@ export type SubmitReviewResult =
   /** 502/anything else — GitHub rejected or is unreachable. */
   | { kind: "upstream" };
 
-/** What the review screen hands the transport; commitId is the caller's. */
+/** What the review screen hands the transport. The drafts are already saved. */
 export interface SubmitDraftInput {
   outcome: ReviewOutcome;
   body: string;
-  comments: ReviewComment[];
 }
 
 /** The DB route's submit action, injected into the review screen. */

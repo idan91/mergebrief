@@ -1,4 +1,10 @@
-import { createContext, useContext, useRef, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useMemo,
+  useRef,
+  type ReactNode,
+} from "react";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 
@@ -11,6 +17,11 @@ import {
   type ReviewSessionStoreValue,
 } from "./store";
 import { sessionInitialState, type ReviewSessionPayload } from "./serverState";
+import {
+  createSessionWriteGateway,
+  type SessionWriteGateway,
+} from "./writeGateway";
+import type { SessionWrites } from "./writes";
 
 const ReviewSessionContext = createContext<ReviewSessionStore | null>(null);
 
@@ -23,6 +34,11 @@ interface ReviewSessionProviderProps {
    * read-only.
    */
   session?: ReviewSessionPayload | undefined;
+  /**
+   * The session write transport. Absent = no writes wired (the local
+   * file-backed path), where the store's actions stay purely local.
+   */
+  writes?: SessionWrites | undefined;
   children: ReactNode;
 }
 
@@ -42,11 +58,23 @@ export function ReviewSessionProvider({
   briefId,
   model,
   session,
+  writes,
   children,
 }: ReviewSessionProviderProps) {
+  // The gateway is rebuilt whenever the model behind its anchor mapping
+  // changes; the store reads it through a ref so a revision switch never
+  // recreates the store itself.
+  const gateway = useMemo(
+    () =>
+      writes === undefined ? null : createSessionWriteGateway(model, writes),
+    [model, writes],
+  );
+  const gatewayRef = useRef<SessionWriteGateway | null>(gateway);
+  gatewayRef.current = gateway;
   const storeRef = useRef<ReviewSessionStore | null>(null);
   storeRef.current ??= createReviewSessionStore(
     sessionInitialState(model, session),
+    () => gatewayRef.current,
   );
   const store = storeRef.current;
   const mountedBriefId = useRef(briefId);
@@ -64,9 +92,17 @@ export function ReviewSessionProvider({
     mountedBriefId.current !== briefId ||
     appliedSession.current !== session
   ) {
+    // A different Brief is a different session: the frozen posture and any
+    // pending failure copy belong to the one that was left behind. A refetch
+    // of the SAME brief keeps them — the server session is still frozen, and
+    // un-freezing would hand back controls whose every write fails.
+    const switched = mountedBriefId.current !== briefId;
     mountedBriefId.current = briefId;
     appliedSession.current = session;
-    store.setState(sessionInitialState(model, session));
+    store.setState({
+      ...sessionInitialState(model, session),
+      ...(switched ? { frozen: false, writeError: null } : {}),
+    });
   }
 
   return (

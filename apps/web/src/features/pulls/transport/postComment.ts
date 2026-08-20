@@ -19,7 +19,6 @@ import {
   apiFetch,
   errorFromResponse,
 } from "../../../data/apiFetch";
-import type { WireSide } from "../../review/utils/submit";
 
 export type PostCommentResult =
   /** 201 — posted; `reviewId` is the wrapping review id when GitHub assigns one. */
@@ -34,20 +33,22 @@ export type PostCommentResult =
   | { readonly kind: "not-found" }
   /** 409 — the head advanced under the pinned commit; reload to re-anchor. */
   | { readonly kind: "stale" }
+  /** 409 — the draft's anchor points at no code; re-place or delete it. */
+  | { readonly kind: "orphaned-anchor" }
+  /** 409 — the draft is already on GitHub; nothing posted twice. */
+  | { readonly kind: "already-published" }
   /** 400 — the route rejected the shape (mirrored client-side; programmer error). */
   | { readonly kind: "invalid" }
   /** 502/anything else — GitHub rejected or is unreachable. */
   | { readonly kind: "upstream" };
 
+/**
+ * The route posts a draft the SESSION holds: the anchor and body are already
+ * stored, and the commit comes off the named Brief's head. All this carries
+ * is which draft.
+ */
 export interface PostCommentPayload {
-  /** The head the anchor was read against — pins the comment to that diff. */
-  readonly commitId: string;
-  readonly path: string;
-  readonly line: number;
-  readonly side: WireSide;
-  readonly startLine?: number;
-  readonly startSide?: WireSide;
-  readonly body: string;
+  readonly draftId: string;
 }
 
 function isPostedBody(
@@ -328,9 +329,11 @@ export function applySettledPosts(
 export async function postInlineComment(
   repoId: string,
   prNumber: number,
+  span: { base: string; head: string },
   payload: PostCommentPayload,
 ): Promise<PostCommentResult> {
-  const path = `/api/repos/${encodeURIComponent(repoId)}/pulls/${String(prNumber)}/comments`;
+  const query = `base=${encodeURIComponent(span.base)}&head=${encodeURIComponent(span.head)}`;
+  const path = `/api/repos/${encodeURIComponent(repoId)}/pulls/${String(prNumber)}/comments?${query}`;
   const response = await apiFetch(path, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -340,14 +343,22 @@ export async function postInlineComment(
     const { code } = await errorFromResponse(response, path);
     if (code === ApiErrorCode.UNAUTHORIZED) return { kind: "unauthorized" };
     if (code === ApiErrorCode.NOT_FOUND) return { kind: "not-found" };
-    // Either 409 code maps to stale: this route only ever emits
-    // pr-changed-since-read, so a rewritten code here is the codeless-409
-    // fallback ambiguity, and reload-to-re-anchor is right for both.
+    // Each of this route's 409s is its own outcome. A frozen session and a
+    // rewritten PR both mean the read went stale (reload to re-anchor); an
+    // orphaned anchor and an already-published draft are neither stale nor
+    // retryable, and telling the reviewer "try again shortly" would invite a
+    // pointless re-post.
     if (
       code === ApiErrorCode.PR_CHANGED_SINCE_READ ||
       code === ApiErrorCode.PR_REWRITTEN_SINCE_READ
     ) {
       return { kind: "stale" };
+    }
+    if (code === ApiErrorCode.DRAFT_ANCHOR_ORPHANED) {
+      return { kind: "orphaned-anchor" };
+    }
+    if (code === ApiErrorCode.DRAFT_ALREADY_PUBLISHED) {
+      return { kind: "already-published" };
     }
     if (code === ApiErrorCode.INVALID_REQUEST) return { kind: "invalid" };
     return { kind: "upstream" };

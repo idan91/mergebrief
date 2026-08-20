@@ -454,7 +454,8 @@
       "staleRevisionReason": "This isn't the pull request's current revision. Switch to the latest revision to comment.",
       "mockupSubmit": "Mockup flow — submit posts your review natively to GitHub with one signature line linking this receipt.",
       "exitFocus": "Exit focus (Z)",
-      "ariaLabelShortcuts": "Keyboard shortcuts"
+      "ariaLabelShortcuts": "Keyboard shortcuts",
+      "sessionFrozen": "This brief is superseded and read-only — your review carried to the newest one."
     },
     "postComment": {
       "posted": "Comment posted to GitHub.",
@@ -465,7 +466,9 @@
       "upstream": "GitHub rejected the request or is unreachable — your draft is kept, try again shortly.",
       "failed": "Something went wrong posting this comment — it may or may not have posted. Check the pull request on GitHub before retrying.",
       "submitWhilePosting": "A comment is still posting to GitHub — wait for it to finish before submitting the review.",
-      "postWhileSubmitting": "A review is being submitted — wait for it to finish before posting this comment."
+      "postWhileSubmitting": "A review is being submitted — wait for it to finish before posting this comment.",
+      "orphanedAnchor": "This draft's anchor no longer points at any code — re-place or delete it before posting.",
+      "alreadyPublished": "This comment is already on GitHub — nothing was posted twice."
     },
     "markReadyBatch": {
       "counts": "Posted {{posted}} of {{total}}.",
@@ -697,7 +700,8 @@
       "startReview": "Start review",
       "addReviewComment": "Add review comment",
       "tooLongToPost": "This comment is longer than GitHub's {{max, number}}-character limit — shorten it to post.",
-      "pathTooLongToPost": "This comment is anchored to a file whose path is too long to post. Delete the draft to continue."
+      "pathTooLongToPost": "This comment is anchored to a file whose path is too long to post. Delete the draft to continue.",
+      "saving": "Saving…"
     },
     "announce": {
       "commentEmpty": "Comment cannot be empty.",
@@ -717,6 +721,15 @@
       "upstream": "GitHub rejected the review or is unreachable — try again shortly.",
       "ownPr": "GitHub rejected the review — note you can't approve or request changes on your own pull request. Try again, or switch the outcome to Comment.",
       "indeterminate": "Something went wrong submitting the review — it may or may not have posted. Check the pull request on GitHub before retrying."
+    },
+    "writeError": {
+      "frozen": "This pull request has new commits and your review moved to the newer brief — this view is read-only now. Open the newest brief to carry on.",
+      "failed": "That change wasn't saved — it may or may not have reached the server. Try the same action again.",
+      "draftLimit": "This review already holds as many unposted comments as it can carry — submit or delete one before adding another.",
+      "alreadyPublished": "This comment is already on GitHub, so it can no longer be edited or deleted here.",
+      "humanOnly": "Only a signed-in reviewer can clear this — an access token cannot.",
+      "unauthorized": "Your session expired — sign in again, then repeat that action.",
+      "unresolvedRisk": "That decision couldn't be saved — the risk it names is no longer in this brief, or the evidence has nothing behind it. Re-open it and decide again."
     }
   },
   "conversation": {

@@ -4,13 +4,24 @@
 // Brief still renders, with writes off. Flat at the feature root for the same
 // reason as its sibling route suites: a .test file under src/routes would
 // trip route generation.
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  focusManager,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
 import {
   createMemoryHistory,
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { briefFixture } from "@web/features/brief/utils/fixtures";
@@ -115,6 +126,7 @@ async function renderRoute() {
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
+  return queryClient;
 }
 
 function viewedCheckboxes(): HTMLInputElement[] {
@@ -177,5 +189,92 @@ describe("the session read in the route loader", () => {
     expect(
       (await screen.findAllByText(/review session couldn't be loaded/i)).length,
     ).toBeGreaterThan(0);
+  });
+});
+
+describe("per-action writes through the route", () => {
+  it("fires exactly ONE operation when a chunk is marked viewed", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(emptySessionPayload()), { status: 200 }),
+    );
+    await renderRoute();
+    const before = fetchMock.mock.calls.length;
+    fireEvent.click(viewedCheckboxes()[0] as HTMLInputElement);
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.length).toBeGreaterThan(before),
+    );
+    const writes = fetchMock.mock.calls
+      .slice(before)
+      .filter(([, init]) => init?.method !== undefined);
+    expect(writes).toHaveLength(1);
+    expect(writes[0]?.[0]).toBe(
+      `/api/repos/${REPO_ID}/pulls/${String(PR_NUMBER)}/session/chunks/chunk-a/read?base=${SPAN.base}&head=${SPAN.head}`,
+    );
+    expect(writes[0]?.[1]?.method).toBe("PUT");
+    expect(writes[0]?.[1]?.body).toBe(JSON.stringify({ read: true }));
+  });
+
+  it("a frozen 409 closes the SCREEN, not just the one action", async () => {
+    fetchMock.mockImplementation((input) => {
+      const path = input instanceof Request ? input.url : input.toString();
+      if (path.includes("/session/")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              error: "conflict",
+              code: "pr-changed-since-read",
+            }),
+            { status: 409 },
+          ),
+        );
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify(emptySessionPayload()), { status: 200 }),
+      );
+    });
+    await renderRoute();
+    expect(viewedCheckboxes().every((box) => box.disabled)).toBe(false);
+    fireEvent.click(viewedCheckboxes()[0] as HTMLInputElement);
+    // The mark reverts AND every other control goes read-only with it.
+    await waitFor(() =>
+      expect(viewedCheckboxes().every((box) => box.disabled)).toBe(true),
+    );
+    expect(viewedCheckboxes()[0]?.checked).toBe(false);
+    // …and it SAYS why through the page live region — a control that
+    // disables without explanation is worse than one that refuses loudly.
+    expect(
+      (await screen.findAllByText(/superseded and read-only/i)).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("refetches on window focus and replaces the store with what came back", async () => {
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify(emptySessionPayload()), { status: 200 }),
+      ),
+    );
+    const qc = await renderRoute();
+    // The loader's read (and the router's mount re-run of it) must settle
+    // first: react-query dedupes a focus refetch into a request in flight.
+    await waitFor(() => expect(qc.isFetching()).toBe(0));
+    expect(viewedCheckboxes()[0]?.checked).toBe(false);
+    // A CLI write landed while the tab was in the background. A fresh
+    // Response per call: a Response body reads exactly once.
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify(workedSession()), { status: 200 }),
+      ),
+    );
+    const before = fetchMock.mock.calls.length;
+    act(() => {
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+    });
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.length).toBeGreaterThan(before),
+    );
+    await waitFor(() => expect(viewedCheckboxes()[0]?.checked).toBe(true));
+    expect(screen.getByText("the draft I already wrote")).toBeTruthy();
+    focusManager.setFocused(undefined);
   });
 });

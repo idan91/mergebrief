@@ -15,6 +15,17 @@ export {
   type ReviewSessionPayload,
 } from "./serverState";
 export {
+  createSessionWrites,
+  hasPendingSessionWrite,
+  sessionWritePath,
+  type SessionWriteResult,
+  type SessionWrites,
+} from "./writes";
+export {
+  createSessionWriteGateway,
+  type SessionWriteGateway,
+} from "./writeGateway";
+export {
   ReviewSessionProvider,
   useChunkReviewComments,
   useReviewSession,

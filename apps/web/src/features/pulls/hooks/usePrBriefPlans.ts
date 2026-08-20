@@ -15,10 +15,8 @@ import {
   lastReviewUnavailableReasonTitle,
   type CompareOptionFlags,
 } from "../../brief/comparison/compareState";
-import type { CommentAnchor } from "../../review/utils/comments";
 import {
   buildSubmitPayload,
-  mapAnchorToWire,
   type SubmitDraftInput,
   type SubmitReviewAction,
 } from "../../review/utils/submit";
@@ -61,10 +59,7 @@ export interface UsePrBriefPlansInput {
 
 export interface OwnDraftPlanSlice {
   markReady?: ReturnType<typeof createMarkReadyAction>;
-  postComment?: (
-    anchor: CommentAnchor,
-    body: string,
-  ) => ReturnType<typeof postInlineComment>;
+  postComment?: (draftId: string) => ReturnType<typeof postInlineComment>;
 }
 
 export interface UsePrBriefPlansValue {
@@ -195,14 +190,19 @@ export function usePrBriefPlans(
   // Anchors were read against THIS span's head, so the review pins
   // commit_id = span.head — never meta.headSha, which may have advanced while
   // reading.
+  // The SHAs ride as primitives: `span` is rebuilt on every PR-meta poll tick,
+  // and these actions feed memoized cards.
+  const spanBase = span.base;
+  const spanHead = span.head;
   const submitAction = useCallback<SubmitReviewAction>(
     (draft: SubmitDraftInput) =>
       submitReview(
         repoId,
         prNumber,
-        buildSubmitPayload({ ...draft, commitId: span.head }),
+        { base: spanBase, head: spanHead },
+        buildSubmitPayload(draft),
       ),
-    [prNumber, repoId, span.head],
+    [prNumber, repoId, spanBase, spanHead],
   );
 
   // Own-draft state is derived at read time from the PrView booleans — never
@@ -219,17 +219,14 @@ export function usePrBriefPlans(
   // which may have advanced while drafting. Only wired into `ownDraft` at the
   // current head (below), so a stale-head post cannot be offered.
   const postCommentAction = useCallback(
-    (anchor: CommentAnchor, body: string) => {
-      // selectedText is a submit-only degradation quote the post-now route
-      // does not take.
-      const { selectedText: _drop, ...wire } = mapAnchorToWire(anchor);
-      return postInlineComment(repoId, prNumber, {
-        ...wire,
-        commitId: span.head,
-        body,
-      });
-    },
-    [prNumber, repoId, span.head],
+    (draftId: string) =>
+      postInlineComment(
+        repoId,
+        prNumber,
+        { base: spanBase, head: spanHead },
+        { draftId },
+      ),
+    [prNumber, repoId, spanBase, spanHead],
   );
   // The mark-ready ACTION (and its soft gate) rides the plan only while the
   // CURRENT head is in view: the gate lists the rendered Brief's flags and the
@@ -282,6 +279,8 @@ export function usePrBriefPlans(
       queryClient,
       repoId,
       revisionJump,
+      spanBase,
+      spanHead,
       viewerCanResolve,
     ],
   );

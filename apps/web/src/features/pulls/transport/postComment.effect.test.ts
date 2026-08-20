@@ -42,7 +42,7 @@ describe("post-now success effect on the Review Session store", () => {
   it("drops the unposted-draft count and records the review id on a posted comment", () => {
     const s = store();
     const { actions } = s.getState();
-    actions.saveComment({
+    void actions.saveComment({
       anchor: ANCHOR,
       body: "post me now",
       status: "draft",
@@ -69,13 +69,13 @@ describe("post-now success effect on the Review Session store", () => {
   it("only clears the posted draft — other staged drafts still count", () => {
     const s = store();
     const { actions } = s.getState();
-    actions.saveComment({
+    void actions.saveComment({
       anchor: ANCHOR,
       body: "first",
       status: "draft",
       collapsed: false,
     });
-    actions.saveComment({
+    void actions.saveComment({
       anchor: { ...ANCHOR, startLine: 9, endLine: 9, rowIds: ["chunk-a:6"] },
       body: "second",
       status: "draft",

@@ -22,6 +22,7 @@ import {
   parseRevisionNarrativeArtifact,
 } from "../brief/utils/validation";
 import {
+  hasPendingSessionWrite,
   parseReviewSessionPayload,
   type ReviewSessionPayload,
 } from "../review/session";
@@ -181,11 +182,20 @@ export function sessionQueryOptions(
       }
       return parsed.value;
     },
-    // A refetch REPLACES the store (the provider re-derives on a changed
-    // payload), so while the store is the only home of the reviewer's work
-    // nothing may refetch it — mount, focus and reconnect all fire on a stale
-    // query. The moment every action writes through, this comes down.
-    staleTime: Number.POSITIVE_INFINITY,
+    // Refetch on window focus, so a CLI write made while the tab was in the
+    // background appears when the reviewer comes back. No polling and no live
+    // channel: the payload scales with reviewer actions, not PR size. The
+    // refetch REPLACES the store, which is safe because every action already
+    // wrote through — composer text is component state and survives it.
+    staleTime: 0,
+    // Suppressed while this tab has a write in flight: the refetch replaces
+    // the store, and a payload computed before that write lands would take
+    // the reviewer's own action back off the screen.
+    refetchOnWindowFocus: () => !hasPendingSessionWrite(),
+    // A remount re-reads: the loader's read can be up to its own freshness
+    // window old, and the store is derived from the payload, so a cached one
+    // would drop everything written since.
+    refetchOnMount: "always",
     retry: false,
   });
 }

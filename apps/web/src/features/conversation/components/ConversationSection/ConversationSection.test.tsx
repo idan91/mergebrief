@@ -639,6 +639,7 @@ describe("ReplyComposer", () => {
     const textarea = screen.getByLabelText(/Reply \(posts to GitHub/);
     expect((textarea as HTMLTextAreaElement).value).toBe("a follow-up");
     fireEvent.click(screen.getByRole("button", { name: "Reply" }));
+    // The body rides the request: one external write, no draft behind it.
     await waitFor(() =>
       expect(props.plan.postReply).toHaveBeenCalledWith(9001, "a follow-up"),
     );

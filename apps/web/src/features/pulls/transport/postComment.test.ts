@@ -30,13 +30,9 @@ import {
 
 const apiFetchMock = vi.mocked(apiFetch);
 
-const PAYLOAD: PostCommentPayload = {
-  commitId: "a".repeat(40),
-  path: "src/index.ts",
-  line: 12,
-  side: "RIGHT",
-  body: "post now",
-};
+const SPAN = { base: "b".repeat(40), head: "a".repeat(40) };
+const PAYLOAD: PostCommentPayload = { draftId: "9001" };
+const PATH = `/api/repos/42/pulls/7/comments?base=${SPAN.base}&head=${SPAN.head}`;
 
 describe("postInlineComment", () => {
   it("posts the payload to the PR comments endpoint and returns both ids", async () => {
@@ -45,26 +41,23 @@ describe("postInlineComment", () => {
         status: 201,
       }),
     );
-    await expect(postInlineComment("42", 7, PAYLOAD)).resolves.toEqual({
+    await expect(postInlineComment("42", 7, SPAN, PAYLOAD)).resolves.toEqual({
       kind: "posted",
       commentId: 3_600_000_001,
       reviewId: 42,
     });
-    expect(apiFetchMock).toHaveBeenCalledWith(
-      "/api/repos/42/pulls/7/comments",
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(PAYLOAD),
-      },
-    );
+    expect(apiFetchMock).toHaveBeenCalledWith(PATH, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(PAYLOAD),
+    });
   });
 
   it("returns posted without reviewId when GitHub assigned none", async () => {
     apiFetchMock.mockResolvedValue(
       new Response(JSON.stringify({ commentId: 5 }), { status: 201 }),
     );
-    await expect(postInlineComment("42", 7, PAYLOAD)).resolves.toEqual({
+    await expect(postInlineComment("42", 7, SPAN, PAYLOAD)).resolves.toEqual({
       kind: "posted",
       commentId: 5,
     });
@@ -79,7 +72,23 @@ describe("postInlineComment", () => {
       [502, "upstream"],
     ] as const) {
       apiFetchMock.mockResolvedValue(new Response("{}", { status }));
-      await expect(postInlineComment("42", 7, PAYLOAD)).resolves.toEqual({
+      await expect(postInlineComment("42", 7, SPAN, PAYLOAD)).resolves.toEqual({
+        kind,
+      });
+    }
+  });
+
+  it("gives each newly reachable 409 code its own kind, never stale", async () => {
+    for (const [code, kind] of [
+      ["draft-anchor-orphaned", "orphaned-anchor"],
+      ["draft-already-published", "already-published"],
+    ] as const) {
+      apiFetchMock.mockResolvedValue(
+        new Response(JSON.stringify({ error: "conflict", code }), {
+          status: 409,
+        }),
+      );
+      await expect(postInlineComment("42", 7, SPAN, PAYLOAD)).resolves.toEqual({
         kind,
       });
     }
@@ -92,7 +101,7 @@ describe("postInlineComment", () => {
           status: 409,
         }),
       );
-      await expect(postInlineComment("42", 7, PAYLOAD)).resolves.toEqual({
+      await expect(postInlineComment("42", 7, SPAN, PAYLOAD)).resolves.toEqual({
         kind: "stale",
       });
     }
@@ -102,9 +111,9 @@ describe("postInlineComment", () => {
     apiFetchMock.mockResolvedValue(
       new Response(JSON.stringify({ nope: true }), { status: 201 }),
     );
-    await expect(postInlineComment("42", 7, PAYLOAD)).rejects.toBeInstanceOf(
-      ApiError,
-    );
+    await expect(
+      postInlineComment("42", 7, SPAN, PAYLOAD),
+    ).rejects.toBeInstanceOf(ApiError);
   });
 });
 
