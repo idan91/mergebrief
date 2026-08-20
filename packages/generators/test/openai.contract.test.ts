@@ -37,7 +37,7 @@ interface RecordedRequest {
   messages: { role: string; content: string }[];
 }
 
-function urlOf(input: Parameters<typeof fetch>[0]): string {
+function getRequestUrl(input: Parameters<typeof fetch>[0]): string {
   if (typeof input === "string") return input;
   return input instanceof URL ? input.href : input.url;
 }
@@ -53,7 +53,7 @@ function isRecordedMessage(
   );
 }
 
-function bodyOf(init: RequestInit | undefined): string {
+function getRequestBody(init: RequestInit | undefined): string {
   const body = init?.body;
   if (typeof body !== "string")
     throw new Error("expected a string request body");
@@ -83,14 +83,14 @@ function makeOpenAiHarness(): GeneratorContractHarness {
 
       let served = 0;
       const fixtureFetch: typeof fetch = async (input, init) => {
-        const url = urlOf(input);
+        const url = getRequestUrl(input);
         if (url.endsWith("/models/gpt-test-1")) {
           return new Response(JSON.stringify({ id: "gpt-test-1" }), {
             status: 200,
             headers: { "content-type": "application/json" },
           });
         }
-        const body: unknown = JSON.parse(bodyOf(init));
+        const body: unknown = JSON.parse(getRequestBody(init));
         if (typeof body === "object" && body !== null) {
           const messages = Reflect.get(body, "messages");
           recorded.push({

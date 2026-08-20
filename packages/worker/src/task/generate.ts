@@ -285,7 +285,7 @@ function isTransientGenerationError(error: unknown): boolean {
  * null for adapters without an effort knob; the store column is a plain
  * string, so null normalizes to the honest "none".
  */
-function originOf(generation: Brief["generation"]): {
+function getGenerationOrigin(generation: Brief["generation"]): {
   provider: string;
   model: string;
   effort: string;
@@ -298,7 +298,7 @@ function originOf(generation: Brief["generation"]): {
 }
 
 /** Anchor stamp → brief row columns; `reason` exists exactly on fresh-restart. */
-function anchorColumnsOf(anchor: Anchor): {
+function getAnchorColumns(anchor: Anchor): {
   anchorState: Anchor["state"];
   anchorReason?: string;
 } {
@@ -837,9 +837,9 @@ async function runGeneration(
         headSha,
         headIndex,
         commitCount: info.commitCount,
-        ...originOf(brief.generation),
+        ...getGenerationOrigin(brief.generation),
         body: JSON.stringify(stamped),
-        ...anchorColumnsOf(anchor),
+        ...getAnchorColumns(anchor),
         carriedChunkIds,
         ...(repoConfig === undefined
           ? {}
@@ -1279,7 +1279,7 @@ async function writeRevisionArtifacts(
       briefId: briefRef.id,
       prevHeadSha,
       headSha,
-      ...originOf(origin),
+      ...getGenerationOrigin(origin),
       body,
     });
     if (!written.ok) {
@@ -1475,7 +1475,7 @@ async function warmDeltaCores(
       pullRequestId,
       baselineSha,
       headSha,
-      ...originOf(delta.generation),
+      ...getGenerationOrigin(delta.generation),
       body: JSON.stringify(delta),
     });
     if (!written.ok) {

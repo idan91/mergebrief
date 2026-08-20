@@ -86,11 +86,11 @@ const HUGE_DIFF = `diff --git a/b.ts b/b.ts
 @@ -1,8 +1,8 @@
 ${"+x\n".repeat(8)}`;
 
-function repoIdOf(value: bigint): RepoId {
+function makeRepoId(value: bigint): RepoId {
   if (!isRepoId(value)) throw new Error("bad repo id");
   return value;
 }
-function reviewerIdOf(value: bigint): ReviewerId {
+function makeReviewerId(value: bigint): ReviewerId {
   if (!isReviewerId(value)) throw new Error("bad reviewer id");
   return value;
 }
@@ -339,7 +339,7 @@ async function trigger(
 ): Promise<{ pr: PullRequestRow; payload: unknown }> {
   const outcome = await ingestRoutines(harness.handle, ctx).triggerGeneration({
     pullRequest: {
-      repoId: repoIdOf(7n),
+      repoId: makeRepoId(7n),
       prNumber: 7,
       repoSlug: "acme/widget",
       state: PrState.OPEN,
@@ -973,7 +973,7 @@ describe("generate task", () => {
     for (const reviewer of [100n, 200n]) {
       const written = await repo.checkpoints.upsertOnSubmit({
         pullRequestId: first.pr.id,
-        reviewerId: reviewerIdOf(reviewer),
+        reviewerId: makeReviewerId(reviewer),
         lastSubmittedSha: HEAD_1,
         submittedAt: new Date(),
       });
@@ -1025,7 +1025,7 @@ describe("generate task", () => {
       ctx,
     ).checkpoints.upsertOnSubmit({
       pullRequestId: first.pr.id,
-      reviewerId: reviewerIdOf(100n),
+      reviewerId: makeReviewerId(100n),
       lastSubmittedSha: HEAD_1,
       submittedAt: new Date(),
     });
@@ -1174,7 +1174,7 @@ describe("generate task", () => {
       ctx,
     ).checkpoints.upsertOnSubmit({
       pullRequestId: pr.id,
-      reviewerId: reviewerIdOf(100n),
+      reviewerId: makeReviewerId(100n),
       lastSubmittedSha: "d".repeat(40),
       submittedAt: new Date(),
     });
@@ -1381,7 +1381,7 @@ describe("generate task", () => {
 // Repo-config phase.
 // ---------------------------------------------------------------------------
 
-function fileOf(content: string, blobSha: string): RepoFileResult {
+function buildRepoFile(content: string, blobSha: string): RepoFileResult {
   return {
     kind: "file",
     content,
@@ -1831,13 +1831,16 @@ deEmphasize:
     const github = stubGitHub(HEAD_1);
     github.repoFiles.set(
       RepoConfigPaths.INSTRUCTIONS,
-      fileOf(INSTRUCTIONS_MD, "sha-i"),
+      buildRepoFile(INSTRUCTIONS_MD, "sha-i"),
     );
     github.repoFiles.set(
       RepoConfigPaths.SETTINGS,
-      fileOf(SETTINGS_YAML, "sha-s"),
+      buildRepoFile(SETTINGS_YAML, "sha-s"),
     );
-    github.repoFiles.set(RepoConfigPaths.POLICY, fileOf(POLICY_YAML, "sha-p"));
+    github.repoFiles.set(
+      RepoConfigPaths.POLICY,
+      buildRepoFile(POLICY_YAML, "sha-p"),
+    );
     const task = createGenerateTask({
       handle: harness.handle,
       publicBaseUrl: PUBLIC_URL,
@@ -1918,11 +1921,11 @@ deEmphasize:
     const github = stubGitHub(HEAD_1);
     github.repoFiles.set(
       RepoConfigPaths.SETTINGS,
-      fileOf("version: 2\n", "sha-bad"),
+      buildRepoFile("version: 2\n", "sha-bad"),
     );
     github.repoFiles.set(
       RepoConfigPaths.INSTRUCTIONS,
-      fileOf(INSTRUCTIONS_MD, "sha-i"),
+      buildRepoFile(INSTRUCTIONS_MD, "sha-i"),
     );
     const task = createGenerateTask({
       handle: harness.handle,
@@ -1956,7 +1959,7 @@ deEmphasize:
     });
     github.repoFiles.set(
       RepoConfigPaths.SETTINGS,
-      fileOf(SETTINGS_YAML, "sha-s"),
+      buildRepoFile(SETTINGS_YAML, "sha-s"),
     );
     const task = createGenerateTask({
       handle: harness.handle,
@@ -2010,7 +2013,10 @@ deEmphasize:
     const generator = stubGenerator();
     generator.outputs["brief"] = FIRING_BRIEF;
     const github = stubGitHub(HEAD_1);
-    github.repoFiles.set(RepoConfigPaths.POLICY, fileOf(POLICY_YAML, "sha-p"));
+    github.repoFiles.set(
+      RepoConfigPaths.POLICY,
+      buildRepoFile(POLICY_YAML, "sha-p"),
+    );
     const task = createGenerateTask({
       handle: harness.handle,
       publicBaseUrl: PUBLIC_URL,
@@ -2243,7 +2249,7 @@ describe("generate task — entry-comment draft gate", () => {
     const row = await generationProjection(harness.handle, ctx).get(
       target(
         (await forTenant(harness.handle, ctx).pullRequests.getByNumber(
-          repoIdOf(7n),
+          makeRepoId(7n),
           7,
         ))!,
         HEAD_1,

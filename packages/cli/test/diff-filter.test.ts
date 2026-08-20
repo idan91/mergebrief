@@ -9,7 +9,7 @@ import {
   type ChunkSpan,
 } from "../src/commands/diff-filter";
 
-function diffOf(...sections: string[]): string {
+function buildDiff(...sections: string[]): string {
   return sections.join("");
 }
 
@@ -45,7 +45,7 @@ const CHUNK_A: ChunkSpan = {
 
 describe("filterDiffByChunks", () => {
   it("keeps a whole hunk whose new side intersects an addedRange", () => {
-    const input = diffOf(
+    const input = buildDiff(
       fileSection("src/a.ts", [
         hunk(8, 3, 8, 5, [" ctx", "+added one", "+added two", " ctx", " ctx"]),
         hunk(40, 2, 42, 2, [" ctx", " ctx"]),
@@ -80,7 +80,7 @@ describe("filterDiffByChunks", () => {
   });
 
   it("drops whole files with no intersecting hunk and never trims a kept hunk", () => {
-    const input = diffOf(
+    const input = buildDiff(
       fileSection("src/a.ts", [
         hunk(9, 4, 9, 4, [" ctx", "-old", "+new", " ctx"]),
       ]),
@@ -103,7 +103,7 @@ describe("filterDiffByChunks", () => {
         removedRanges: [],
       },
     ];
-    const input = diffOf(
+    const input = buildDiff(
       fileSection("src/a.ts", [hunk(10, 1, 10, 2, [" ctx", "+in-range"])]),
       fileSection("src/c.ts", [hunk(1, 1, 1, 2, [" ctx", "+also"])]),
     );

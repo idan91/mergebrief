@@ -104,7 +104,7 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-function urlOf(input: string | URL | Request): string {
+function getRequestUrl(input: string | URL | Request): string {
   if (typeof input === "string") return input;
   return input instanceof URL ? input.href : input.url;
 }
@@ -114,7 +114,7 @@ export function stubGitHub(): void {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: string | URL | Request): Promise<Response> => {
-      const url = urlOf(input);
+      const url = getRequestUrl(input);
       if (url.includes("/repositories/")) {
         return jsonResponse({
           id: REPO_ID,

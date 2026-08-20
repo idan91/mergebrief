@@ -65,7 +65,7 @@ function transientFailure(cause: unknown): GenerationFailure {
   return { code: GenerationFailureCode.PROVIDER_UNAVAILABLE };
 }
 
-function detailOf(error: unknown): string {
+function getErrorDetail(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
@@ -130,6 +130,6 @@ export function classifyFailure(error: unknown): GenerationFailure {
   }
   return {
     code: GenerationFailureCode.UNKNOWN,
-    params: { detail: detailOf(unwrapped) },
+    params: { detail: getErrorDetail(unwrapped) },
   };
 }

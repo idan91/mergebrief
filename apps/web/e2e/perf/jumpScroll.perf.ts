@@ -29,7 +29,7 @@ function tocButtons(page: Page): Locator {
 }
 
 /** First chunk card of a story-group section (GroupCard is outside `.group-chunks`). */
-function firstChunkOf(section: Locator): Locator {
+function getFirstChunk(section: Locator): Locator {
   return section.locator(".group-chunks article[id]").first();
 }
 
@@ -84,8 +84,8 @@ test("jump to far chunk timing", async ({ page }) => {
   const toc = tocButtons(page);
   expect(await toc.count()).toBeGreaterThan(1);
 
-  const firstTarget = firstChunkOf(sections.first());
-  const lastTarget = firstChunkOf(sections.last());
+  const firstTarget = getFirstChunk(sections.first());
+  const lastTarget = getFirstChunk(sections.last());
 
   // The very first far jump navigates over never-revealed diffs whose
   // heights are still estimates — its miss distance is the honest cold

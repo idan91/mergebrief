@@ -56,12 +56,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function urlOf(input: Parameters<typeof fetch>[0]): string {
+function getRequestUrl(input: Parameters<typeof fetch>[0]): string {
   if (typeof input === "string") return input;
   return input instanceof URL ? input.href : input.url;
 }
 
-function bodyOf(init: RequestInit | undefined): string {
+function getRequestBody(init: RequestInit | undefined): string {
   const body = init?.body;
   if (typeof body !== "string")
     throw new Error("expected a string request body");
@@ -69,7 +69,7 @@ function bodyOf(init: RequestInit | undefined): string {
 }
 
 function fetchWith(models: (url: string) => Response): typeof fetch {
-  return async (input) => models(urlOf(input));
+  return async (input) => models(getRequestUrl(input));
 }
 
 function modelsOk(url: string): Response | null {
@@ -95,9 +95,9 @@ async function coreWith(
 }> {
   const recorded: Recorded = { bodies: [] };
   const fixtureFetch: typeof fetch = async (input, init) => {
-    const models = modelsOk(urlOf(input));
+    const models = modelsOk(getRequestUrl(input));
     if (models) return models;
-    const parsed: unknown = JSON.parse(bodyOf(init));
+    const parsed: unknown = JSON.parse(getRequestBody(init));
     if (!isRecord(parsed)) {
       throw new Error("unexpected request body");
     }
@@ -241,7 +241,7 @@ describe("OpenAiCompatibleCore mid-stream abort", () => {
     // abort demonstrably lands while generate() is consuming.
     const controller = new AbortController();
     const fixtureFetch: typeof fetch = async (input) => {
-      const models = modelsOk(urlOf(input));
+      const models = modelsOk(getRequestUrl(input));
       if (models) return models;
       let pulls = 0;
       const stream = new ReadableStream<Uint8Array>({
@@ -305,7 +305,7 @@ describe("OpenAiCompatibleCore truncated streams", () => {
     // failed attempt (retry), never a completed generation.
     let calls = 0;
     const fixtureFetch: typeof fetch = async (input) => {
-      const models = modelsOk(urlOf(input));
+      const models = modelsOk(getRequestUrl(input));
       if (models) return models;
       calls += 1;
       if (calls === 1) {
@@ -340,7 +340,7 @@ describe("OpenAiCompatibleCore truncated streams", () => {
     });
     let calls = 0;
     const fixtureFetch: typeof fetch = async (input) => {
-      const models = modelsOk(urlOf(input));
+      const models = modelsOk(getRequestUrl(input));
       if (models) return models;
       calls += 1;
       const payload =
@@ -385,7 +385,7 @@ describe("OpenAiCompatibleCore truncated streams", () => {
       // must fail the attempt (retry), never complete the generation.
       let calls = 0;
       const fixtureFetch: typeof fetch = async (input) => {
-        const models = modelsOk(urlOf(input));
+        const models = modelsOk(getRequestUrl(input));
         if (models) return models;
         calls += 1;
         if (calls === 1) {
@@ -458,7 +458,7 @@ describe("OpenAiCompatibleCore statusless cause hygiene", () => {
       "connect failed to https://user:SENTINELPASS@proxy.internal",
     );
     const fixtureFetch: typeof fetch = async (input) => {
-      const models = modelsOk(urlOf(input));
+      const models = modelsOk(getRequestUrl(input));
       if (models) return models;
       throw Object.assign(new TypeError("fetch failed"), { cause: nested });
     };

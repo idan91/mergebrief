@@ -38,12 +38,12 @@ afterEach(() => {
   }
 });
 
-function urlOf(input: Parameters<typeof fetch>[0]): string {
+function getRequestUrl(input: Parameters<typeof fetch>[0]): string {
   if (typeof input === "string") return input;
   return input instanceof URL ? input.href : input.url;
 }
 
-function bodyOf(init: RequestInit | undefined): string {
+function getRequestBody(init: RequestInit | undefined): string {
   const body = init?.body;
   if (typeof body !== "string")
     throw new Error("expected a string request body");
@@ -99,8 +99,9 @@ function scriptedFetch(
 ): Scripted {
   const bodies: Record<string, unknown>[] = [];
   const fixture: typeof fetch = async (input, init) => {
-    if (urlOf(input).endsWith("/models")) return modelsResponse(supported);
-    const parsed: unknown = JSON.parse(bodyOf(init));
+    if (getRequestUrl(input).endsWith("/models"))
+      return modelsResponse(supported);
+    const parsed: unknown = JSON.parse(getRequestBody(init));
     if (!isRecord(parsed)) throw new Error("unexpected request body");
     bodies.push(parsed);
     return respond(parsed, bodies.length);
@@ -405,7 +406,7 @@ describe("OpenRouter preflight", () => {
       model: SLUG,
       failureDir: tempDir("openrouter-nostructured-"),
       fetch: async (input) =>
-        urlOf(input).endsWith("/models")
+        getRequestUrl(input).endsWith("/models")
           ? modelsResponse(["tools"])
           : new Response("{}", { status: 500 }),
     });
@@ -548,10 +549,10 @@ function makeOpenRouterHarness(): GeneratorContractHarness {
       const wantsAbort = turns.some((turn) => "abort" in turn);
       let served = 0;
       const fixture: typeof fetch = async (input, init) => {
-        if (urlOf(input).endsWith("/models")) {
+        if (getRequestUrl(input).endsWith("/models")) {
           return modelsResponse(["structured_outputs", "reasoning"]);
         }
-        const parsed: unknown = JSON.parse(bodyOf(init));
+        const parsed: unknown = JSON.parse(getRequestBody(init));
         if (isRecord(parsed)) {
           const messages = Reflect.get(parsed, "messages");
           recorded.push({

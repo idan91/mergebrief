@@ -46,7 +46,7 @@ interface SessionBody {
   }[];
 }
 
-async function bodyOf(res: Response): Promise<SessionBody> {
+async function readBody(res: Response): Promise<SessionBody> {
   return (await res.json()) as SessionBody;
 }
 
@@ -108,7 +108,7 @@ describe("read-review-session", () => {
 
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
-    const body = await bodyOf(res);
+    const body = await readBody(res);
     expect(body.materialized).toBe(false);
     // Null here is what tells a first-ever session from one that carried and
     // has nothing pending — two different rows in the UI.
@@ -126,7 +126,7 @@ describe("read-review-session", () => {
     const res = await read("head-2");
 
     expect(res.status).toBe(200);
-    const body = await bodyOf(res);
+    const body = await readBody(res);
     expect(body.materialized).toBe(false);
     // The span the carry-over row states: where the work came from, and how
     // many pushes since.
@@ -201,7 +201,7 @@ describe("read-review-session", () => {
 
     const res = await read("head-2");
 
-    const body = await bodyOf(res);
+    const body = await readBody(res);
     expect(body.materialized).toBe(true);
     expect(body.readMarks).toEqual(["c1"]);
     expect(body.submittedReviewIds).toEqual(["7700"]);
@@ -247,7 +247,7 @@ describe("read-review-session", () => {
       (writer) => writer.putReadMark({ chunkId: "c1" }),
     );
 
-    const pending = await bodyOf(await read("head-2"));
+    const pending = await readBody(await read("head-2"));
     expect(pending.materialized).toBe(false);
     expect(pending.readMarks).toEqual(["c1"]);
     expect(pending.carriedFrom?.items).toBe(1);
@@ -262,7 +262,7 @@ describe("read-review-session", () => {
       (writer) => writer.setReviewOutcome(ReviewOutcome.COMMENT),
     );
 
-    const settled = await bodyOf(await read("head-2"));
+    const settled = await readBody(await read("head-2"));
     expect(settled.materialized).toBe(true);
     expect(settled.carriedFrom?.items).toBe(1);
 
@@ -277,7 +277,7 @@ describe("read-review-session", () => {
       (writer) => writer.clearReadMark("c1"),
     );
 
-    const cleared = await bodyOf(await read("head-2"));
+    const cleared = await readBody(await read("head-2"));
     expect(cleared.readMarks).toEqual([]);
     expect(cleared.carriedFrom?.items).toBe(1);
   });

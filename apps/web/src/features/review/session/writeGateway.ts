@@ -86,7 +86,7 @@ export function createSessionWriteGateway(
   writes: SessionWrites,
 ): SessionWriteGateway {
   const anchors = flagAnchors(model);
-  const anchorsOf = (flagIds: Iterable<string>): FlagAnchorWire[] =>
+  const buildFlagAnchors = (flagIds: Iterable<string>): FlagAnchorWire[] =>
     [...flagIds].flatMap((id) => {
       const anchor = anchors.get(id);
       return anchor === undefined ? [] : [anchor];
@@ -95,7 +95,7 @@ export function createSessionWriteGateway(
   return {
     setRead: (chunkId, read) => writes.setRead(chunkId, read),
     dispose(flagIds, disposition) {
-      const flags = anchorsOf(flagIds);
+      const flags = buildFlagAnchors(flagIds);
       if (flags.length !== flagIds.length) return Promise.resolve(UNRESOLVED);
       return disposition.kind === "open"
         ? writes.reopenRisks(flags)

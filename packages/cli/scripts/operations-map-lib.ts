@@ -167,7 +167,7 @@ function duplicateKeyErrors(raw: string, label: string): readonly string[] {
 }
 
 /** `mergebrief auth login <x>` → `auth login`; a placeholder ends the path. */
-function commandPathOf(command: string): string | undefined {
+function parseCommandPath(command: string): string | undefined {
   const [bin, ...rest] = command.trim().split(/\s+/);
   if (bin !== BIN_NAME) {
     return undefined;
@@ -236,7 +236,7 @@ export function checkOperationsMap({
     }
     if ("command" in entry) {
       commands += 1;
-      const path = commandPathOf(entry.command);
+      const path = parseCommandPath(entry.command);
       if (path === undefined) {
         errors.push(
           `"${operation.id}" command "${entry.command}" must start with "${BIN_NAME}"`,

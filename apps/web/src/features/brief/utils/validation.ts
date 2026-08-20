@@ -84,7 +84,7 @@ function isNullableString(value: unknown): value is string | null {
   return value === null || isString(value);
 }
 
-function oneOf<T extends Record<string, string>>(
+function isOneOf<T extends Record<string, string>>(
   values: T,
   value: unknown,
 ): value is ValueOf<T> {
@@ -102,7 +102,7 @@ function categoryArray(value: unknown): Result<Category[]> {
   const parsed = stringArray(value);
   if (!parsed.ok) return parsed;
   if (
-    !parsed.value.every((item): item is Category => oneOf(Categories, item))
+    !parsed.value.every((item): item is Category => isOneOf(Categories, item))
   ) {
     return { ok: false, error: "Expected an array of known categories" };
   }
@@ -385,7 +385,7 @@ export function parseComparisonMarksSummary(
   if (
     !isString(baselineSha) ||
     !isString(headSha) ||
-    !oneOf(ComparisonBaselineLabels, baselineLabel) ||
+    !isOneOf(ComparisonBaselineLabels, baselineLabel) ||
     !isNullableInteger(baselineIndex)
   ) {
     return {
@@ -503,7 +503,7 @@ export function parseRevisionNarrativeArtifact(
 
   if (artifactKind === "revisionNarrativeSkipped") {
     const skipped = value["skipped"];
-    if (!oneOf(RevisionNarrativeSkipReasons, skipped)) {
+    if (!isOneOf(RevisionNarrativeSkipReasons, skipped)) {
       return {
         ok: false,
         error: "Expected narrative skipped reason to be a known value",
@@ -599,8 +599,8 @@ function parseChunk(value: unknown): Result<ParsedChunk> {
   if (
     !isString(id) ||
     !isString(file) ||
-    !oneOf(Concerns, concern) ||
-    !oneOf(Roles, role)
+    !isOneOf(Concerns, concern) ||
+    !isOneOf(Roles, role)
   ) {
     return { ok: false, error: "Expected chunk id, file, concern, and role" };
   }
@@ -656,7 +656,7 @@ function parseChangeGroup(value: unknown): Result<ParsedChangeGroup> {
   if (
     !isString(title) ||
     !isString(summary) ||
-    !oneOf(Categories, dominantCategory) ||
+    !isOneOf(Categories, dominantCategory) ||
     typeof uncertain !== "boolean"
   ) {
     return {
@@ -890,7 +890,7 @@ function parseConcernRollup(value: unknown): Result<ConcernRollup> {
   const concern = value["concern"];
   const added = value["added"];
   const deleted = value["deleted"];
-  if (!oneOf(Concerns, concern) || !isInteger(added) || !isInteger(deleted)) {
+  if (!isOneOf(Concerns, concern) || !isInteger(added) || !isInteger(deleted)) {
     return {
       ok: false,
       error: "Expected concern rollup concern, added, and deleted",

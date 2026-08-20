@@ -635,7 +635,7 @@ describe("parseBrief", () => {
 
 describe("parseRevisionNarrativeArtifact — reason narrowing", () => {
   it("narrows the skip reason without a cast", () => {
-    // `oneOf` is a type predicate, so the parsed stub's `skipped` is already
+    // `isOneOf` is a type predicate, so the parsed stub's `skipped` is already
     // the union — this asserts the value survives the guard unchanged.
     const parsed = parseRevisionNarrativeArtifact({
       artifactKind: "revisionNarrativeSkipped",

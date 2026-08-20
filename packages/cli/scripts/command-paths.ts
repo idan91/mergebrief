@@ -21,7 +21,7 @@ const INERT_DEPS: CliDeps = {
 };
 
 /** Every registered path, subcommands included: `pr`, `auth`, `auth login`. */
-export function commandPathsOf(command: Command): ReadonlySet<string> {
+export function collectCommandPaths(command: Command): ReadonlySet<string> {
   const paths = new Set<string>();
   const walk = (parent: Command, prefix: readonly string[]): void => {
     for (const child of parent.commands) {
@@ -35,5 +35,5 @@ export function commandPathsOf(command: Command): ReadonlySet<string> {
 }
 
 export function cliCommandPaths(): ReadonlySet<string> {
-  return commandPathsOf(buildProgram(INERT_DEPS));
+  return collectCommandPaths(buildProgram(INERT_DEPS));
 }

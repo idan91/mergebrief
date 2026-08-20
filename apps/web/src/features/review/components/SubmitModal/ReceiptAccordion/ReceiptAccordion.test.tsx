@@ -68,7 +68,7 @@ function renderAccordion(overrides: Partial<Receipt> = {}) {
   );
 }
 
-function foldOf(summaryText: RegExp): HTMLDetailsElement | null {
+function findFold(summaryText: RegExp): HTMLDetailsElement | null {
   const summary = screen.getByText(summaryText);
   return summary.closest("details");
 }
@@ -85,11 +85,11 @@ describe("ReceiptAccordion", () => {
 
   it("opens coverage by default and keeps every other fold collapsed", () => {
     renderAccordion();
-    expect(foldOf(/what the reviewer covered/i)?.open).toBe(true);
-    expect(foldOf(/inline comments \(2\)/i)?.open).toBe(false);
-    expect(foldOf(/risk disposition/i)?.open).toBe(false);
-    expect(foldOf(/^not checked$/i)?.open).toBe(false);
-    expect(foldOf(/show raw receipt/i)?.open).toBe(false);
+    expect(findFold(/what the reviewer covered/i)?.open).toBe(true);
+    expect(findFold(/inline comments \(2\)/i)?.open).toBe(false);
+    expect(findFold(/risk disposition/i)?.open).toBe(false);
+    expect(findFold(/^not checked$/i)?.open).toBe(false);
+    expect(findFold(/show raw receipt/i)?.open).toBe(false);
   });
 
   it("renders coverage metrics from the receipt", () => {
@@ -131,7 +131,7 @@ describe("ReceiptAccordion", () => {
 
   it("keeps the frozen artifact verbatim inside the raw disclosure", () => {
     renderAccordion();
-    const fold = foldOf(/show raw receipt \(as posted to github\)/i);
+    const fold = findFold(/show raw receipt \(as posted to github\)/i);
     expect(fold?.querySelector("pre")?.textContent).toBe(RAW);
   });
 });

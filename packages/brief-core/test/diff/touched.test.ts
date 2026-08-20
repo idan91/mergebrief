@@ -36,7 +36,7 @@ function input(overrides: Partial<PartitionInput>): PartitionInput {
   };
 }
 
-function verdictOf(
+function findVerdict(
   result: ReturnType<typeof partitionGroups>,
   id: string,
 ): string | undefined {
@@ -46,8 +46,8 @@ function verdictOf(
 describe("partitionGroups", () => {
   it("freezes every group when the incremental diff touches nothing", () => {
     const result = partitionGroups(input({}));
-    expect(verdictOf(result, "g1")).toBe(GroupVerdicts.FROZEN);
-    expect(verdictOf(result, "g2")).toBe(GroupVerdicts.FROZEN);
+    expect(findVerdict(result, "g1")).toBe(GroupVerdicts.FROZEN);
+    expect(findVerdict(result, "g2")).toBe(GroupVerdicts.FROZEN);
   });
 
   it("re-looks exactly the groups whose files carry incremental hunks", () => {
@@ -57,8 +57,8 @@ describe("partitionGroups", () => {
         compareFiles: [{ file: "src/b.ts", status: "modified" }],
       }),
     );
-    expect(verdictOf(result, "g1")).toBe(GroupVerdicts.FROZEN);
-    expect(verdictOf(result, "g2")).toBe(GroupVerdicts.RE_LOOK);
+    expect(findVerdict(result, "g1")).toBe(GroupVerdicts.FROZEN);
+    expect(findVerdict(result, "g2")).toBe(GroupVerdicts.RE_LOOK);
   });
 
   it("a compare entry without hunks (binary / mode-only) still re-looks its group", () => {
@@ -68,8 +68,8 @@ describe("partitionGroups", () => {
         compareFiles: [{ file: "src/a.ts", status: "modified" }],
       }),
     );
-    expect(verdictOf(result, "g1")).toBe(GroupVerdicts.RE_LOOK);
-    expect(verdictOf(result, "g2")).toBe(GroupVerdicts.FROZEN);
+    expect(findVerdict(result, "g1")).toBe(GroupVerdicts.RE_LOOK);
+    expect(findVerdict(result, "g2")).toBe(GroupVerdicts.FROZEN);
   });
 
   it("a rename re-looks the group owning the OLD path via previousFile", () => {
@@ -80,8 +80,8 @@ describe("partitionGroups", () => {
         ],
       }),
     );
-    expect(verdictOf(result, "g1")).toBe(GroupVerdicts.RE_LOOK);
-    expect(verdictOf(result, "g2")).toBe(GroupVerdicts.FROZEN);
+    expect(findVerdict(result, "g1")).toBe(GroupVerdicts.RE_LOOK);
+    expect(findVerdict(result, "g2")).toBe(GroupVerdicts.FROZEN);
   });
 
   it("an added file touches no previous group", () => {
@@ -91,20 +91,20 @@ describe("partitionGroups", () => {
         compareFiles: [{ file: "src/new.ts", status: "added" }],
       }),
     );
-    expect(verdictOf(result, "g1")).toBe(GroupVerdicts.FROZEN);
-    expect(verdictOf(result, "g2")).toBe(GroupVerdicts.FROZEN);
+    expect(findVerdict(result, "g1")).toBe(GroupVerdicts.FROZEN);
+    expect(findVerdict(result, "g2")).toBe(GroupVerdicts.FROZEN);
   });
 
   it("missing compare metadata re-looks everything (nothing is confirmable)", () => {
     const result = partitionGroups(input({ compareFiles: undefined }));
-    expect(verdictOf(result, "g1")).toBe(GroupVerdicts.RE_LOOK);
-    expect(verdictOf(result, "g2")).toBe(GroupVerdicts.RE_LOOK);
+    expect(findVerdict(result, "g1")).toBe(GroupVerdicts.RE_LOOK);
+    expect(findVerdict(result, "g2")).toBe(GroupVerdicts.RE_LOOK);
   });
 
   it("a possibly-truncated compare file list re-looks everything", () => {
     const result = partitionGroups(input({ compareComplete: false }));
-    expect(verdictOf(result, "g1")).toBe(GroupVerdicts.RE_LOOK);
-    expect(verdictOf(result, "g2")).toBe(GroupVerdicts.RE_LOOK);
+    expect(findVerdict(result, "g1")).toBe(GroupVerdicts.RE_LOOK);
+    expect(findVerdict(result, "g2")).toBe(GroupVerdicts.RE_LOOK);
   });
 
   it("an unrecognized compare status is conservative — touched", () => {
@@ -113,7 +113,7 @@ describe("partitionGroups", () => {
         compareFiles: [{ file: "src/c.ts", status: "quantum-entangled" }],
       }),
     );
-    expect(verdictOf(result, "g2")).toBe(GroupVerdicts.RE_LOOK);
+    expect(findVerdict(result, "g2")).toBe(GroupVerdicts.RE_LOOK);
   });
 
   it("preserves previous-group order and reports a reason for every re-look", () => {

@@ -101,7 +101,7 @@ function prComment(commentId: number, login: string): PrLevelComment {
   };
 }
 
-function conversationOf(
+function buildConversation(
   parts: Partial<
     Pick<PrConversation, "threads" | "reviews" | "prComments">
   > = {},
@@ -215,7 +215,7 @@ describe("latestReviewPerAuthor", () => {
 });
 
 describe("applyConversationFilter", () => {
-  const conversation = conversationOf({
+  const conversation = buildConversation({
     reviews: [
       review(1, "alice", "APPROVED"),
       review(2, "bob", "CHANGES_REQUESTED"),
@@ -265,7 +265,7 @@ describe("applyConversationFilter", () => {
   });
 
   it("applies all three axes together, reducing before filtering", () => {
-    const repeated = conversationOf({
+    const repeated = buildConversation({
       reviews: [
         review(1, "alice", "APPROVED", { submittedAt: "2026-08-01T00:00:00Z" }),
         review(2, "alice", "CHANGES_REQUESTED", {
@@ -304,7 +304,7 @@ describe("applyConversationFilter", () => {
   });
 
   it("reduces to the latest review per author before filtering", () => {
-    const repeated = conversationOf({
+    const repeated = buildConversation({
       reviews: [
         review(1, "alice", "APPROVED"),
         review(2, "alice", "CHANGES_REQUESTED"),
@@ -333,7 +333,7 @@ describe("applyConversationFilter", () => {
 });
 
 describe("verdictFacets", () => {
-  const conversation = conversationOf({
+  const conversation = buildConversation({
     reviews: [
       review(1, "alice", "APPROVED"),
       review(2, "bob", "APPROVED"),
@@ -365,7 +365,7 @@ describe("verdictFacets", () => {
   });
 
   it("emits a bot-only state as a chip with a zero human count", () => {
-    const botOnly = conversationOf({
+    const botOnly = buildConversation({
       reviews: [review(1, "botty", "COMMENTED", { isBot: true })],
     });
     expect(verdictFacets(botOnly, DEFAULT_CONVERSATION_FILTER)).toEqual([
@@ -382,7 +382,7 @@ describe("verdictFacets", () => {
   });
 
   it("counts under the recency reduction", () => {
-    const repeated = conversationOf({
+    const repeated = buildConversation({
       reviews: [
         review(1, "alice", "APPROVED"),
         review(2, "alice", "CHANGES_REQUESTED"),
@@ -402,7 +402,7 @@ describe("verdictFacets", () => {
 
 describe("reviewerFacets", () => {
   it("lists every activity author once, humans before bots, alphabetically", () => {
-    const conversation = conversationOf({
+    const conversation = buildConversation({
       reviews: [
         review(1, "zoe", "APPROVED"),
         review(2, "botty", "COMMENTED", { isBot: true }),
@@ -421,7 +421,7 @@ describe("reviewerFacets", () => {
   it("keeps an author whose only review is an inline-comment envelope", () => {
     // The chip list is activity-wide, not verdict-derived: alice still has
     // threads to filter to even with nothing stated.
-    const conversation = conversationOf({
+    const conversation = buildConversation({
       reviews: [review(1, "alice", "COMMENTED", { body: "" })],
       threads: [thread(10, "alice")],
     });
@@ -435,7 +435,7 @@ describe("countHiddenInlineThreads", () => {
   const chunks = [chunkFixture()];
 
   it("counts the inline threads the reviewer selection removes", () => {
-    const conversation = conversationOf({
+    const conversation = buildConversation({
       threads: [thread(10, "alice"), thread(11, "bob"), thread(12, "carol")],
     });
     expect(
@@ -457,7 +457,7 @@ describe("countHiddenInlineThreads", () => {
   it("ignores threads that never render in the diff", () => {
     // Outdated threads are digest-only, so hiding them costs the diff
     // nothing — warning about them would train the reader to ignore the pill.
-    const conversation = conversationOf({
+    const conversation = buildConversation({
       threads: [
         thread(10, "alice"),
         thread(11, "bob", false, { isOutdated: true }),
@@ -474,7 +474,7 @@ describe("countHiddenInlineThreads", () => {
   });
 
   it("counts a bot's inline threads too", () => {
-    const conversation = conversationOf({
+    const conversation = buildConversation({
       threads: [thread(10, "alice"), thread(11, "botty", true)],
     });
     expect(
@@ -487,7 +487,7 @@ describe("countHiddenInlineThreads", () => {
   });
 
   it("is unaffected by the verdict family, which never filters threads", () => {
-    const conversation = conversationOf({ threads: [thread(10, "alice")] });
+    const conversation = buildConversation({ threads: [thread(10, "alice")] });
     expect(
       countHiddenInlineThreads(
         conversation,
@@ -513,7 +513,7 @@ describe("isStatedVerdict", () => {
   });
 
   it("keeps a standing approval when the author later comments inline", () => {
-    const conversation = conversationOf({
+    const conversation = buildConversation({
       reviews: [
         review(1, "alice", "APPROVED", { submittedAt: "2026-08-01T00:00:00Z" }),
         review(2, "alice", "COMMENTED", {
@@ -534,7 +534,7 @@ describe("isStatedVerdict", () => {
 });
 
 describe("reconcileReviewers", () => {
-  const conversation = conversationOf({
+  const conversation = buildConversation({
     reviews: [review(1, "alice", "APPROVED")],
     threads: [thread(10, "bob")],
   });

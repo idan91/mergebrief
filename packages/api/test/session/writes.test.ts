@@ -47,7 +47,7 @@ async function readWireCode(res: Response): Promise<string> {
 }
 
 /** The created draft's row id, as the write route reports it. */
-async function draftIdOf(res: Response): Promise<string> {
+async function readDraftId(res: Response): Promise<string> {
   const body: unknown = await res.json();
   if (
     typeof body !== "object" ||
@@ -157,7 +157,7 @@ describe("the Review Session writes", () => {
     });
   }
 
-  async function countOf(table: string): Promise<number> {
+  async function countRows(table: string): Promise<number> {
     const rows = await harness.raw(`select count(*)::int as n from ${table}`);
     return Number(rows[0]?.["n"] ?? -1);
   }
@@ -167,7 +167,7 @@ describe("the Review Session writes", () => {
     const current = await seedBrief(harness.handle, 2);
     await seedPreviousWork(harness.handle, previous);
     // One session — the previous one — and nothing on the new Brief yet.
-    expect(await countOf("review_session")).toBe(1);
+    expect(await countRows("review_session")).toBe(1);
 
     // A read mark owns none of the carried subjects and still creates the
     // session and copies the carried work: materialization belongs to no
@@ -176,7 +176,7 @@ describe("the Review Session writes", () => {
 
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
-    expect(await countOf("review_session")).toBe(2);
+    expect(await countRows("review_session")).toBe(2);
     const snapshot = await forTenant(harness.handle, CTX).reviewSessions.get({
       briefId: current,
       reviewerId: REVIEWER,
@@ -193,20 +193,20 @@ describe("the Review Session writes", () => {
     const previous = await seedBrief(harness.handle, 1);
     await seedBrief(harness.handle, 2, "{ not json");
     await seedPreviousWork(harness.handle, previous);
-    expect(await countOf("review_session")).toBe(1);
+    expect(await countRows("review_session")).toBe(1);
 
     const res = await write("PUT", "/chunks/c1/read", "head-2", { read: true });
 
     expect(res.status).toBe(500);
     expect(await res.json()).toMatchObject({ code: "internal-error" });
-    expect(await countOf("review_session")).toBe(1);
+    expect(await countRows("review_session")).toBe(1);
   });
 
   it("applies the copy and the write together, or neither", async () => {
     const previous = await seedBrief(harness.handle, 1);
     const current = await seedBrief(harness.handle, 2);
     await seedPreviousWork(harness.handle, previous);
-    const carriedBefore = await countOf("review_draft_comment");
+    const carriedBefore = await countRows("review_draft_comment");
 
     // A write that throws takes the whole materialization down with it — the
     // session and the copied rows go back with the transaction.
@@ -222,14 +222,14 @@ describe("the Review Session writes", () => {
     );
     await expect(failed).rejects.toThrow("the write failed after the copy");
 
-    expect(await countOf("review_session")).toBe(1);
-    expect(await countOf("review_draft_comment")).toBe(carriedBefore);
+    expect(await countRows("review_session")).toBe(1);
+    expect(await countRows("review_draft_comment")).toBe(carriedBefore);
   });
 
   it("refuses every write to a frozen session with 409", async () => {
     await seedBrief(harness.handle, 1);
     // A draft on the older Brief, addressable by row id once it is frozen.
-    const draftId = await draftIdOf(
+    const draftId = await readDraftId(
       await write("POST", "/comments", "head-1", DRAFT),
     );
     const current = await seedBrief(harness.handle, 2);
@@ -291,7 +291,7 @@ describe("the Review Session writes", () => {
     expect(
       (await write("PUT", "/chunks/c1/read", "head-1", { read: true })).status,
     ).toBe(200);
-    expect(await countOf("review_read_mark")).toBe(1);
+    expect(await countRows("review_read_mark")).toBe(1);
 
     // The unread half is the same operation carrying `false`, and repeating it
     // is just as safe.
@@ -301,12 +301,12 @@ describe("the Review Session writes", () => {
     expect(
       (await write("PUT", "/chunks/c1/read", "head-1", { read: false })).status,
     ).toBe(200);
-    expect(await countOf("review_read_mark")).toBe(0);
+    expect(await countRows("review_read_mark")).toBe(0);
   });
 
   it("edits, re-anchors and deletes a draft through the session that owns it", async () => {
     const briefId = await seedBrief(harness.handle, 1);
-    const draftId = await draftIdOf(
+    const draftId = await readDraftId(
       await write("POST", "/comments", "head-1", DRAFT),
     );
 
@@ -336,7 +336,7 @@ describe("the Review Session writes", () => {
     expect(
       (await write("DELETE", `/comments/${draftId}`, "head-1")).status,
     ).toBe(200);
-    expect(await countOf("review_draft_comment")).toBe(0);
+    expect(await countRows("review_draft_comment")).toBe(0);
     // A second delete has nothing left to name.
     expect(
       (await write("DELETE", `/comments/${draftId}`, "head-1")).status,
@@ -354,7 +354,7 @@ describe("the Review Session writes", () => {
     });
 
     expect(res.status).toBe(200);
-    expect(await countOf("review_group_reclassification")).toBe(1);
+    expect(await countRows("review_group_reclassification")).toBe(1);
     const snapshot = await forTenant(harness.handle, CTX).reviewSessions.get({
       briefId,
       reviewerId: REVIEWER,
@@ -366,7 +366,7 @@ describe("the Review Session writes", () => {
 
   it("resolves a carried draft id on every write, not only the one that writes", async () => {
     await seedBrief(harness.handle, 1);
-    const draftId = await draftIdOf(
+    const draftId = await readDraftId(
       await write("POST", "/comments", "head-1", DRAFT),
     );
     await seedBrief(harness.handle, 2);
@@ -392,7 +392,7 @@ describe("the Review Session writes", () => {
     expect(deleted.status).toBe(200);
     // The row that went is the copy; the id that named it is still the
     // previous session's row, which survives.
-    expect(await draftIdOf(deleted)).not.toBe(draftId);
+    expect(await readDraftId(deleted)).not.toBe(draftId);
     expect(
       await harness.raw("select id::text as id from review_draft_comment"),
     ).toEqual([{ id: draftId }]);
@@ -421,7 +421,7 @@ describe("the Review Session writes", () => {
     });
 
     expect(res.status).toBe(200);
-    expect(await countOf("review_session")).toBe(2);
+    expect(await countRows("review_session")).toBe(2);
     const rows = await harness.raw(
       "select id::text as id, start_line, anchor_status from review_draft_comment order by id",
     );
@@ -430,7 +430,7 @@ describe("the Review Session writes", () => {
       { id: draftId, start_line: 10, anchor_status: null },
       { id: expect.any(String), start_line: 40, anchor_status: null },
     ]);
-    expect(await draftIdOf(res)).not.toBe(draftId);
+    expect(await readDraftId(res)).not.toBe(draftId);
   });
 
   it("clears every carried anchor one read listed, materializing on the first", async () => {
@@ -455,7 +455,7 @@ describe("the Review Session writes", () => {
     ];
 
     expect(cleared.map((res) => res.status)).toEqual([200, 200]);
-    expect(await countOf("review_session")).toBe(2);
+    expect(await countRows("review_session")).toBe(2);
     // The previous session keeps both its rows; of the two copies, one was
     // deleted and one re-placed.
     expect(
@@ -479,12 +479,12 @@ describe("the Review Session writes", () => {
     ).toBe(404);
     // The write still materialized: the session row and its copies stand, and
     // the older Brief is frozen from here whatever the response said.
-    expect(await countOf("review_session")).toBe(2);
+    expect(await countRows("review_session")).toBe(2);
   });
 
   it("409s an edit or a delete against a draft already published", async () => {
     const briefId = await seedBrief(harness.handle, 1);
-    const draftId = await draftIdOf(
+    const draftId = await readDraftId(
       await write("POST", "/comments", "head-1", DRAFT),
     );
     // The publish itself is submit's job; here it is the state the edit meets.
@@ -581,7 +581,7 @@ describe("the Review Session writes", () => {
       },
     );
     expect(noHead.status).toBe(400);
-    expect(await countOf("review_session")).toBe(0);
+    expect(await countRows("review_session")).toBe(0);
   });
 
   it("gates the writes on the credential's scope", async () => {
@@ -615,10 +615,10 @@ describe("the Review Session writes", () => {
       code: "scope-exceeded",
     });
     // Refused before the handler ran: nothing was created.
-    expect(await countOf("review_session")).toBe(0);
+    expect(await countRows("review_session")).toBe(0);
 
     expect((await asToken(writer)).status).toBe(200);
-    expect(await countOf("review_read_mark")).toBe(1);
+    expect(await countRows("review_read_mark")).toBe(1);
   });
 
   it("dismisses, addresses and reopens a whole array of flags in one call", async () => {
@@ -632,7 +632,7 @@ describe("the Review Session writes", () => {
 
     expect(dismissed.status).toBe(200);
     expect(await dismissed.json()).toEqual({ flags: 2 });
-    expect(await countOf("disposition")).toBe(2);
+    expect(await countRows("disposition")).toBe(2);
 
     // A different payload recording a different judgment on the same anchor:
     // the upsert re-decides the row rather than adding a second one.
@@ -646,7 +646,7 @@ describe("the Review Session writes", () => {
       ],
     });
     expect(addressed.status).toBe(200);
-    expect(await countOf("disposition")).toBe(2);
+    expect(await countRows("disposition")).toBe(2);
     expect(
       await harness.raw(
         `select decision, reason, evidence_kind, evidence_ref
@@ -672,7 +672,7 @@ describe("the Review Session writes", () => {
       flags: [FLAG, second],
     });
     expect(reopened.status).toBe(200);
-    expect(await countOf("disposition")).toBe(0);
+    expect(await countRows("disposition")).toBe(0);
     // Repeating the undo is the same undo — and says it changed nothing.
     const again = await write("POST", "/risks/reopen", "head-1", {
       flags: [FLAG],
@@ -721,7 +721,7 @@ describe("the Review Session writes", () => {
     expect(refused.map((res) => res.status)).toEqual([
       400, 400, 400, 400, 400, 400, 400,
     ]);
-    expect(await countOf("review_session")).toBe(0);
+    expect(await countRows("review_session")).toBe(0);
   });
 
   it("keeps clearing human-only whatever the granted scope, and lets the same token author", async () => {
@@ -770,10 +770,10 @@ describe("the Review Session writes", () => {
       error: expect.any(String),
       code: "human-only",
     });
-    expect(await countOf("disposition")).toBe(0);
+    expect(await countRows("disposition")).toBe(0);
     // Nothing was written at all — the refusal lands before the session is
     // materialized, so a refused clear cannot freeze an older Brief.
-    expect(await countOf("review_session")).toBe(0);
+    expect(await countRows("review_session")).toBe(0);
 
     // The SAME credential authors its own drafts freely: this restricts
     // clearing, never authoring.
@@ -851,7 +851,7 @@ describe("the Review Session writes", () => {
     // session's row. Every carry re-keys the copy, so a pointer that is not
     // re-normalized forward reports missing evidence on work that is alive.
     await seedBrief(harness.handle, 1);
-    const draftId = await draftIdOf(
+    const draftId = await readDraftId(
       await write("POST", "/comments", "head-1", DRAFT),
     );
     await write("POST", "/risks/address", "head-1", {
@@ -890,7 +890,7 @@ describe("the Review Session writes", () => {
     // decision settled would be two generations stale after two reopens, and
     // then read as gone against a comment that never went away.
     await seedBrief(harness.handle, 1);
-    const draftId = await draftIdOf(
+    const draftId = await readDraftId(
       await write("POST", "/comments", "head-1", DRAFT),
     );
     await write("POST", "/risks/address", "head-1", {
@@ -932,6 +932,6 @@ describe("the Review Session writes", () => {
       body: JSON.stringify({ read: true }),
     });
     expect(res.status).toBe(401);
-    expect(await countOf("review_session")).toBe(0);
+    expect(await countRows("review_session")).toBe(0);
   });
 });

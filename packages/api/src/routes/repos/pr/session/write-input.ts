@@ -93,11 +93,11 @@ const flagSchema = riskAnchorObject.refine(ORDERED_REGION.check, {
 
 /** Bulk is ONE call carrying an array — the operation's shape, not batching. */
 const MAX_FLAGS_PER_CALL = 200;
-function flagsOf<T extends z.ZodTypeAny>(flag: T) {
+function buildFlagsSchema<T extends z.ZodTypeAny>(flag: T) {
   return z.object({ flags: z.array(flag).min(1).max(MAX_FLAGS_PER_CALL) });
 }
 
-export const dismissSchema = flagsOf(flagSchema).extend({
+export const dismissSchema = buildFlagsSchema(flagSchema).extend({
   reason: z.string().min(1).max(MAX_BODY_LENGTH),
 });
 
@@ -130,13 +130,13 @@ const evidenceSchema = z
     }),
   );
 
-export const addressSchema = flagsOf(
+export const addressSchema = buildFlagsSchema(
   riskAnchorObject
     .extend({ evidence: evidenceSchema })
     .refine(ORDERED_REGION.check, { message: ORDERED_REGION.message }),
 );
 
-export const reopenSchema = flagsOf(flagSchema);
+export const reopenSchema = buildFlagsSchema(flagSchema);
 
 export const outcomeSchema = z.object({
   outcome: z.union([

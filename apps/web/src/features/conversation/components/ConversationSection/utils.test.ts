@@ -54,7 +54,7 @@ function prComment(commentId: number): PrLevelComment {
   };
 }
 
-function conversationOf(
+function buildConversation(
   parts: Partial<
     Pick<PrConversation, "threads" | "reviews" | "prComments">
   > = {},
@@ -71,18 +71,18 @@ function conversationOf(
 
 describe("headSummary", () => {
   it("returns nothing for an empty conversation", () => {
-    expect(headSummary(conversationOf())).toBeUndefined();
+    expect(headSummary(buildConversation())).toBeUndefined();
   });
 
   it("omits zero parts — a body-only review never reads 0 threads", () => {
-    const conversation = conversationOf({
+    const conversation = buildConversation({
       reviews: [review(1, "COMMENTED", "LGTM")],
     });
     expect(headSummary(conversation)).toBe("1 review");
   });
 
   it("ignores empty-bodied COMMENTED envelopes", () => {
-    const conversation = conversationOf({
+    const conversation = buildConversation({
       reviews: [review(1, "COMMENTED", "  ")],
       threads: [thread(11, true)],
     });
@@ -90,14 +90,14 @@ describe("headSummary", () => {
   });
 
   it("threads carry the open count", () => {
-    const conversation = conversationOf({
+    const conversation = buildConversation({
       threads: [thread(11), thread(12, true)],
     });
     expect(headSummary(conversation)).toBe("2 threads · 1 open");
   });
 
   it("joins all present kinds with pluralization", () => {
-    const conversation = conversationOf({
+    const conversation = buildConversation({
       reviews: [review(1, "APPROVED"), review(2, "CHANGES_REQUESTED")],
       prComments: [prComment(21)],
       threads: [thread(11)],

@@ -80,7 +80,7 @@ function parseThreadParam(value: unknown): number | undefined {
 }
 
 /** Full-span identity: duplicate-head revisions differ only by base. */
-function spanKeyOf(baseSha: string, headSha: string): string {
+function buildSpanKey(baseSha: string, headSha: string): string {
   return `${baseSha} ${headSha}`;
 }
 
@@ -310,7 +310,7 @@ function PrBriefRoute() {
   const selectedSpanKey =
     timeline === undefined
       ? undefined
-      : spanKeyOf(timeline.selected.baseSha, timeline.selected.headSha);
+      : buildSpanKey(timeline.selected.baseSha, timeline.selected.headSha);
 
   const state = useMemo(
     () =>

@@ -71,7 +71,7 @@ export interface AnchorPlan {
 }
 
 /** Files per previous group, from its chunks (order-stable, deduped). */
-function filesOf(brief: Brief, groupId: string): string[] {
+function getGroupFiles(brief: Brief, groupId: string): string[] {
   const files: string[] = [];
   for (const chunk of brief.chunks) {
     if (chunk.changeGroupId === groupId && !files.includes(chunk.file)) {
@@ -87,7 +87,7 @@ function allReLook(brief: Brief, reason: string): AnchorPlan {
     frozenFiles: new Set(),
     reLook: brief.changeGroups.map((group) => ({
       id: group.id,
-      files: filesOf(brief, group.id),
+      files: getGroupFiles(brief, group.id),
       reason,
     })),
     previousGroupIds: brief.changeGroups.map((group) => group.id),
@@ -156,7 +156,7 @@ export function planAnchoredGeneration(args: AnchorPlanArgs): AnchorPlan {
 
   const groupFiles = previousBrief.changeGroups.map((group) => ({
     id: group.id,
-    files: filesOf(previousBrief, group.id),
+    files: getGroupFiles(previousBrief, group.id),
   }));
 
   // Coverage exclusivity: a file owned by two previous groups can only be

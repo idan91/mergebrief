@@ -33,7 +33,14 @@
 // `purgeRepo`, `purgeInstallation`) are `app`; the automated retention sweep
 // (`sweepExpired`) is `system`. `sweepExpiredSessions` emits NO audit entry —
 // see its doc comment.
-import { and, count as countOf, eq, inArray, isNotNull, lt } from "drizzle-orm";
+import {
+  and,
+  count as countRows,
+  eq,
+  inArray,
+  isNotNull,
+  lt,
+} from "drizzle-orm";
 import { deleteOrphanedGrants } from "../auth/grant";
 import { insertAudit } from "./audit";
 import { type AppDatabase, internal } from "../db/handle";
@@ -468,7 +475,7 @@ export async function sweepAuditLog(
     const counted = await tx
       .select({
         installationId: auditLog.installationId,
-        count: countOf(auditLog.id),
+        count: countRows(auditLog.id),
       })
       .from(auditLog)
       .where(lt(auditLog.occurredAt, cutoff))

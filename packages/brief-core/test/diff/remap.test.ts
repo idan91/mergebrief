@@ -201,7 +201,7 @@ describe("remapThroughPatch", () => {
 });
 
 /** The remapped ranges, or undefined for a demotion — keeps assertions flat. */
-function rangesOf(result: RemapResult): readonly LineRange[] | undefined {
+function getRanges(result: RemapResult): readonly LineRange[] | undefined {
   if (result.outcome === RemapOutcomes.REMAPPED) return result.ranges;
   return undefined;
 }
@@ -303,7 +303,7 @@ describe("remapThroughHops", () => {
   it.each(cases)("$name", ({ hops, expected, ranges }) => {
     const result = remapThroughHops(file, anchor, hops);
     expect(result.outcome).toBe(expected);
-    expect(rangesOf(result)).toEqual(ranges);
+    expect(getRanges(result)).toEqual(ranges);
   });
 
   it("names the first hop's overlap when it short-circuits the chain", () => {

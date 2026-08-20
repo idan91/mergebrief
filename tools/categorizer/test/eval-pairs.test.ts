@@ -582,7 +582,7 @@ function briefWith(
   };
 }
 
-function pairOf(base: Brief, revised: Brief): RevisionPair {
+function buildRevisionPair(base: Brief, revised: Brief): RevisionPair {
   return {
     base,
     revised,
@@ -603,45 +603,45 @@ describe("shared pair properties fail against broken pairs (vacuous-pass evidenc
 
   it("untouchedGroupSurvives: passes on identical carry, fails on a rewrite", () => {
     const survives = untouchedGroupSurvives("a.ts");
-    expect(survives.check(pairOf(base, base))).toBe(true);
+    expect(survives.check(buildRevisionPair(base, base))).toBe(true);
     const rewritten = briefWith([
       { id: "g1", file: "a.ts", attrs: ["touches-auth"], summary: "REWRITTEN" },
       { id: "g2", file: "b.ts" },
     ]);
-    expect(survives.check(pairOf(base, rewritten))).toBe(false);
+    expect(survives.check(buildRevisionPair(base, rewritten))).toBe(false);
   });
 
   it("frozenAttrsNeverChange: fails when an attribute drifts on the frozen file", () => {
     const property = frozenAttrsNeverChange("a.ts");
-    expect(property.check(pairOf(base, base))).toBe(true);
+    expect(property.check(buildRevisionPair(base, base))).toBe(true);
     const drifted = briefWith([
       { id: "g1", file: "a.ts", attrs: [] },
       { id: "g2", file: "b.ts" },
     ]);
-    expect(property.check(pairOf(base, drifted))).toBe(false);
+    expect(property.check(buildRevisionPair(base, drifted))).toBe(false);
   });
 
   it("coverage: fails on an uncovered file and on a double-owned file", () => {
     const property = coverage(["a.ts", "b.ts"]);
-    expect(property.check(pairOf(base, base))).toBe(true);
+    expect(property.check(buildRevisionPair(base, base))).toBe(true);
     const missing = briefWith([{ id: "g1", file: "a.ts" }]);
-    expect(property.check(pairOf(base, missing))).toBe(false);
+    expect(property.check(buildRevisionPair(base, missing))).toBe(false);
     const doubled = briefWith([
       { id: "g1", file: "a.ts" },
       { id: "g2", file: "a.ts" },
       { id: "g3", file: "b.ts" },
     ]);
-    expect(property.check(pairOf(base, doubled))).toBe(false);
+    expect(property.check(buildRevisionPair(base, doubled))).toBe(false);
   });
 
   it("idCarried: fails when the owner id was reminted", () => {
     const property = idCarried("b.ts");
-    expect(property.check(pairOf(base, base))).toBe(true);
+    expect(property.check(buildRevisionPair(base, base))).toBe(true);
     const reminted = briefWith([
       { id: "g1", file: "a.ts", attrs: ["touches-auth"] },
       { id: "g9", file: "b.ts" },
     ]);
-    expect(property.check(pairOf(base, reminted))).toBe(false);
+    expect(property.check(buildRevisionPair(base, reminted))).toBe(false);
   });
 
   it("survivorOrderStable: fails on reordered or re-ranged chunks and on an absent file", () => {
@@ -653,12 +653,16 @@ describe("shared pair properties fail against broken pairs (vacuous-pass evidenc
       ],
     };
     const property = survivorOrderStable("a.ts");
-    expect(property.check(pairOf(twoChunkBase, twoChunkBase))).toBe(true);
+    expect(property.check(buildRevisionPair(twoChunkBase, twoChunkBase))).toBe(
+      true,
+    );
     const reordered: Brief = {
       ...twoChunkBase,
       chunks: [...twoChunkBase.chunks].toReversed(),
     };
-    expect(property.check(pairOf(twoChunkBase, reordered))).toBe(false);
+    expect(property.check(buildRevisionPair(twoChunkBase, reordered))).toBe(
+      false,
+    );
     const reranged: Brief = {
       ...twoChunkBase,
       chunks: [
@@ -666,10 +670,12 @@ describe("shared pair properties fail against broken pairs (vacuous-pass evidenc
         { ...twoChunkBase.chunks[1]!, addedRanges: [{ start: 20, end: 21 }] },
       ],
     };
-    expect(property.check(pairOf(twoChunkBase, reranged))).toBe(false);
+    expect(property.check(buildRevisionPair(twoChunkBase, reranged))).toBe(
+      false,
+    );
     // No chunks on the watched file at all → fail, never a vacuous pass.
     const gone: Brief = { ...twoChunkBase, chunks: [] };
-    expect(property.check(pairOf(twoChunkBase, gone))).toBe(false);
+    expect(property.check(buildRevisionPair(twoChunkBase, gone))).toBe(false);
   });
 
   it("anchoredStamp: fails on a missing stamp and on the wrong carried shape", () => {
@@ -678,8 +684,14 @@ describe("shared pair properties fail against broken pairs (vacuous-pass evidenc
       anchor: { state: "anchored" },
       anchoring: { carried: ["g1"], regenerated: ["g2"] },
     };
-    expect(anchoredStamp(true).check(pairOf(base, stamped))).toBe(true);
-    expect(anchoredStamp(false).check(pairOf(base, stamped))).toBe(false);
-    expect(anchoredStamp(true).check(pairOf(base, base))).toBe(false);
+    expect(anchoredStamp(true).check(buildRevisionPair(base, stamped))).toBe(
+      true,
+    );
+    expect(anchoredStamp(false).check(buildRevisionPair(base, stamped))).toBe(
+      false,
+    );
+    expect(anchoredStamp(true).check(buildRevisionPair(base, base))).toBe(
+      false,
+    );
   });
 });
