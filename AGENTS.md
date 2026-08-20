@@ -15,6 +15,14 @@ it, alongside a `CLAUDE.md` that points at it — a new package adds both.
 - Expected failures return `Result`; `throw` is for programmer/infra errors.
   Error messages never carry secrets, tokens, or connection strings.
 - Named exports only (default exports only where a framework requires them).
+- **Function names start with a verb and name what comes back.**
+  `getSocketAddress`, `isAuditRowWritten`, `buildEndpointIndex`,
+  `deriveAttentionItems`, `shapeSubmitComment`, `resolveWritableDraft`,
+  `readCarryFacts`, `collectChunks`. Not `socketAddress`, not `commentOf`,
+  not `withoutDiffRows` — a bare noun, an `xOf` suffix and a preposition all
+  say "of what" instead of what you get. A function returning either a value
+  or a refusal is `resolve*`, matching `resolveWrite`. Route factories keep
+  the established `xxxRoute` / `xxxRoutes` shape.
 - **Package entry = `src/index.ts`** — a curated barrel, the package's
   `exports["."]` target. A package root conforms when every file is the entry,
   `types.ts`, or a small domain-cued support file (loose count ≤ ~5); a
