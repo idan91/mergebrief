@@ -69,7 +69,13 @@ drizzle/              generated SQL migrations — append-only
   carries only against `brief.carried_chunk_ids` (never a bare chunk-id match,
   which would mark a Chunk the reviewer never opened as read), and a hop chain
   that cannot be linked end to end orphans every anchor rather than placing it.
-  Orphaned work is unplaced, never deleted.
+  Orphaned work is unplaced, never deleted. It is MATERIALIZED by the first
+  write: one transaction creates the session, copies the carried rows with
+  their verdict columns and applies the write. That transaction re-reads the
+  previous session's rows rather than trusting the read's payload, and only
+  the writer that actually created the session copies, so a concurrent first
+  write cannot double the carried rows. A session freezes only once the
+  reviewer materializes a newer one — never because a newer Brief exists.
 - **Errors:** expected failures return `Result`, never throw. Error messages must not carry
   key material, tokens, credentials, or unsanitized upstream errors (`markFailed`
   sanitizes any failure `detail` itself via `logging`'s `sanitizeErrorDetail`).

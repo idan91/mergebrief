@@ -12,6 +12,7 @@ import {
   DispositionCarryStatus,
   DraftCommentSide,
   DraftCommentStatus,
+  type DispositionDecision,
   type DispositionEvidenceStatus,
   type ChangeGroupCategory,
 } from "../types";
@@ -83,7 +84,7 @@ export interface PreviousReclassification {
 }
 
 export interface PreviousDisposition extends FlagKey {
-  readonly decision: string;
+  readonly decision: DispositionDecision;
   readonly reason: string | null;
   readonly evidenceStatus: DispositionEvidenceStatus | null;
   readonly decidedAt: Date;

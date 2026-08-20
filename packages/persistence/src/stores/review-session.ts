@@ -12,7 +12,7 @@
 //       for an owned row) resolves that parent within ctx's tenant in the
 //       SAME transaction — a parent in another tenant yields a Result error,
 //       never a DB write.
-import { and, asc, desc, eq, gte, inArray, lt, lte } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, lt, lte } from "drizzle-orm";
 import type { Hop } from "brief-core/remap";
 import type { AppDrizzle } from "../db/handle";
 import { brief } from "../schema/brief";
@@ -36,6 +36,7 @@ import type {
   AnchorStatus,
   BriefRowId,
   ChangeGroupCategory,
+  DispositionDecision,
   DraftCommentSide,
   DraftCommentStatus,
   InstallationId,
@@ -55,6 +56,13 @@ import type {
 export const ReviewSessionErrorCode = {
   /** A write named a `brief` or `review_session` outside ctx's tenant. */
   PARENT_NOT_IN_TENANT: "parent-not-in-tenant",
+  /**
+   * The reviewer has already materialized a session on a NEWER Brief of this
+   * PR, so this one is frozen. A newer Brief on its own never freezes
+   * anything — that would reject writes mid-sentence every time the worker
+   * generated one. Surfaces as the existing `pr-changed-since-read` (409).
+   */
+  SESSION_FROZEN: "session-frozen",
 } as const;
 export type ReviewSessionErrorCode = ValueOf<typeof ReviewSessionErrorCode>;
 
@@ -113,6 +121,17 @@ export interface SubmittedReviewInput {
   readonly githubReviewId: bigint;
 }
 
+/** A decision on one risk flag, anchored by content coordinates. */
+export interface DispositionInput {
+  readonly filePath: string;
+  readonly attribute: string;
+  readonly regionStart: number;
+  readonly regionEnd: number;
+  readonly decision: DispositionDecision;
+  /** Verbatim on the Receipt; null when the flag was addressed rather than dismissed. */
+  readonly reason?: string | null;
+}
+
 /**
  * The session and everything it owns — one read, no writes. Every list is
  * insertion-ordered by row id: an in-place UPDATE rewrites the heap tuple, so
@@ -148,11 +167,43 @@ export interface ReviewSessionView {
   readonly carriedFromSessionId: ReviewSessionId | undefined;
 }
 
+/**
+ * The owned writes, bound to one session inside the materialization
+ * transaction. They throw rather than return `Result`: the parents are
+ * already resolved and the transaction is open, so a failure here is an infra
+ * error and must take the whole transaction down with it.
+ */
+export interface SessionWriter {
+  readonly session: ReviewSessionRow;
+  /**
+   * The carry-over source is NOT the caller's to name: the copy sets it from
+   * the session it read, which is tenant-filtered. Accepting it here would
+   * take an unchecked `review_session` id inside an open transaction.
+   */
+  addDraftComment(
+    input: Omit<DraftCommentInput, "reviewSessionId" | "carriedFromSessionId">,
+  ): Promise<ReviewDraftCommentRow>;
+  putReadMark(
+    input: Omit<ReadMarkInput, "reviewSessionId">,
+  ): Promise<ReviewReadMarkRow>;
+  putReclassification(
+    input: Omit<ReclassificationInput, "reviewSessionId">,
+  ): Promise<ReviewGroupReclassificationRow>;
+  recordSubmittedReview(
+    input: Omit<SubmittedReviewInput, "reviewSessionId">,
+  ): Promise<ReviewSubmittedReviewRow>;
+  /** Record a decision on a risk flag; idempotent on its anchor. */
+  putDisposition(input: DispositionInput): Promise<DispositionRow>;
+  /** The provisional submit verdict. Never carried — a new session starts over. */
+  setReviewOutcome(outcome: ReviewOutcome): Promise<ReviewSessionRow>;
+}
+
 export interface ReviewSessionRepository {
   /**
-   * Idempotent create-or-fetch on the session key — the first write of a
-   * session, since there is no explicit Begin. `parentNotInTenant` when the
-   * named `brief` is not in ctx's tenant.
+   * Idempotent create-or-fetch on the session key. NOT the product write path:
+   * it creates the session WITHOUT carrying the previous one's work over and
+   * without the freeze check, and a session created this way can never receive
+   * that carry-over afterwards. Product operations go through `writeToSession`.
    */
   upsert(
     input: ReviewSessionUpsertInput,
@@ -175,6 +226,16 @@ export interface ReviewSessionRepository {
   recordSubmittedReview(
     input: SubmittedReviewInput,
   ): Promise<Result<ReviewSubmittedReviewRow, ReviewSessionError>>;
+  /**
+   * Run `write` as the session's write — materializing the session and its
+   * carry-over first if this is the first one, all in ONE transaction. Any
+   * write operation can be the one that materializes; no read ever is.
+   * `sessionFrozen` when the reviewer already works on a newer Brief.
+   */
+  writeToSession<T>(
+    query: CarryOverQuery,
+    write: (writer: SessionWriter) => Promise<T>,
+  ): Promise<Result<T, ReviewSessionError>>;
   /**
    * The session as it stands plus, while it does not exist yet, the previous
    * session's work re-placed onto this Brief. Creates NOTHING — the verdicts
@@ -228,10 +289,31 @@ interface PreviousSession {
   readonly headIndex: number;
 }
 
+/**
+ * The inserts as the repository itself uses them — it may name a carry-over
+ * source because it resolves that session in the same transaction first. The
+ * public `SessionWriter` narrows the field away.
+ */
+interface SessionInserts extends Omit<
+  SessionWriter,
+  "session" | "addDraftComment"
+> {
+  addDraftComment(
+    input: Omit<DraftCommentInput, "reviewSessionId">,
+  ): Promise<ReviewDraftCommentRow>;
+}
+
 const NOTHING_PENDING = {
   carried: NOTHING_CARRIED,
   carriedFromSessionId: undefined,
 } as const;
+
+/** The one row a `.returning()` insert owes; its absence is an infra error. */
+function only<TRow>(rows: TRow[], subject: string): TRow {
+  const row = rows[0];
+  if (row === undefined) throw new Error(`${subject} write returned no row`);
+  return row;
+}
 
 function fail(
   code: ReviewSessionErrorCode,
@@ -491,13 +573,12 @@ export function reviewSessionRepository(
    */
   async function evaluatePending(
     tx: Tx,
+    facts: BriefFacts,
     query: CarryOverQuery,
   ): Promise<{
     carried: CarriedWork;
     carriedFromSessionId: ReviewSessionId | undefined;
   }> {
-    const facts = await briefFacts(tx, query.briefId);
-    if (facts === undefined) return NOTHING_PENDING;
     const previous = await previousSession(tx, facts, query.reviewerId);
     if (previous === undefined) return NOTHING_PENDING;
     const chain = await chainBriefs(tx, facts, previous.headIndex);
@@ -516,6 +597,260 @@ export function reviewSessionRepository(
       }),
       carriedFromSessionId: previous.id,
     };
+  }
+
+  /** Inserts for the tables a session owns, bound to one transaction and one session. */
+  function insertsForSession(
+    tx: Tx,
+    sessionId: ReviewSessionId,
+  ): SessionInserts {
+    return {
+      async addDraftComment(input) {
+        return only(
+          await tx
+            .insert(reviewDraftComment)
+            .values({
+              installationId,
+              reviewSessionId: sessionId,
+              filePath: input.filePath,
+              side: input.side,
+              startLine: input.startLine,
+              endLine: input.endLine,
+              body: input.body,
+              ...(input.status === undefined ? {} : { status: input.status }),
+              anchorStatus: input.anchorStatus ?? null,
+              carriedFromSessionId: input.carriedFromSessionId ?? null,
+            })
+            .returning(),
+          "review_draft_comment",
+        );
+      },
+      async putReadMark(input) {
+        return only(
+          await tx
+            .insert(reviewReadMark)
+            .values({
+              installationId,
+              reviewSessionId: sessionId,
+              chunkId: input.chunkId,
+            })
+            .onConflictDoUpdate({
+              target: [reviewReadMark.reviewSessionId, reviewReadMark.chunkId],
+              set: { chunkId: input.chunkId },
+            })
+            .returning(),
+          "review_read_mark",
+        );
+      },
+      async putReclassification(input) {
+        return only(
+          await tx
+            .insert(reviewGroupReclassification)
+            .values({
+              installationId,
+              reviewSessionId: sessionId,
+              changeGroupId: input.changeGroupId,
+              category: input.category,
+            })
+            .onConflictDoUpdate({
+              target: [
+                reviewGroupReclassification.reviewSessionId,
+                reviewGroupReclassification.changeGroupId,
+              ],
+              set: { category: input.category },
+            })
+            .returning(),
+          "review_group_reclassification",
+        );
+      },
+      async putDisposition(input) {
+        return only(
+          await tx
+            .insert(disposition)
+            .values({
+              installationId,
+              reviewSessionId: sessionId,
+              filePath: input.filePath,
+              attribute: input.attribute,
+              regionStart: input.regionStart,
+              regionEnd: input.regionEnd,
+              decision: input.decision,
+              reason: input.reason ?? null,
+              decidedAt: new Date(),
+            })
+            .onConflictDoUpdate({
+              target: [
+                disposition.reviewSessionId,
+                disposition.filePath,
+                disposition.attribute,
+                disposition.regionStart,
+                disposition.regionEnd,
+              ],
+              set: {
+                decision: input.decision,
+                reason: input.reason ?? null,
+                // Deciding here settles the question the carry brought over.
+                carryStatus: null,
+                decidedAt: new Date(),
+              },
+            })
+            .returning(),
+          "disposition",
+        );
+      },
+      async setReviewOutcome(outcome) {
+        return only(
+          await tx
+            .update(reviewSession)
+            .set({ reviewOutcome: outcome })
+            .where(
+              and(
+                eq(reviewSession.installationId, installationId),
+                eq(reviewSession.id, sessionId),
+              ),
+            )
+            .returning(),
+          "review_session",
+        );
+      },
+      async recordSubmittedReview(input) {
+        return only(
+          await tx
+            .insert(reviewSubmittedReview)
+            .values({
+              installationId,
+              reviewSessionId: sessionId,
+              githubReviewId: input.githubReviewId,
+            })
+            .onConflictDoUpdate({
+              target: [
+                reviewSubmittedReview.reviewSessionId,
+                reviewSubmittedReview.githubReviewId,
+              ],
+              set: { githubReviewId: input.githubReviewId },
+            })
+            .returning(),
+          "review_submitted_review",
+        );
+      },
+    };
+  }
+
+  /** The materialization transaction's writer: the inserts plus its session. */
+  function sessionWriter(tx: Tx, session: ReviewSessionRow): SessionWriter {
+    return { session, ...insertsForSession(tx, session.id) };
+  }
+
+  /**
+   * Copy the evaluated work onto the new session — one statement per table.
+   * Carry-over COPIES; it never points at the old rows. An orphan keeps its
+   * last known file and line: the CHECK leaves no sentinel to write, and a
+   * violation would throw and take the whole materialization down.
+   */
+  async function copyCarried(
+    tx: Tx,
+    session: ReviewSessionRow,
+    carried: CarriedWork,
+    carriedFromSessionId: ReviewSessionId,
+  ): Promise<void> {
+    const owned = { installationId, reviewSessionId: session.id };
+    const writes: Promise<unknown>[] = [];
+    if (carried.draftComments.length > 0) {
+      writes.push(
+        tx.insert(reviewDraftComment).values(
+          carried.draftComments.map((row) => ({
+            ...owned,
+            filePath: row.filePath,
+            side: row.side,
+            startLine: row.startLine,
+            endLine: row.endLine,
+            body: row.body,
+            anchorStatus: row.anchorStatus,
+            carriedFromSessionId,
+          })),
+        ),
+      );
+    }
+    if (carried.readMarks.length > 0) {
+      writes.push(
+        tx
+          .insert(reviewReadMark)
+          .values(carried.readMarks.map((chunkId) => ({ ...owned, chunkId }))),
+      );
+    }
+    if (carried.reclassifications.length > 0) {
+      writes.push(
+        tx
+          .insert(reviewGroupReclassification)
+          .values(
+            carried.reclassifications.map((row) => ({ ...owned, ...row })),
+          ),
+      );
+    }
+    if (carried.dispositions.length > 0) {
+      writes.push(
+        tx.insert(disposition).values(
+          carried.dispositions.map((row) => ({
+            ...owned,
+            filePath: row.filePath,
+            attribute: row.attribute,
+            regionStart: row.regionStart,
+            regionEnd: row.regionEnd,
+            decision: row.decision,
+            reason: row.reason,
+            carryStatus: row.carryStatus,
+            evidenceStatus: row.evidenceStatus,
+            decidedAt: row.decidedAt,
+          })),
+        ),
+      );
+    }
+    await Promise.all(writes);
+  }
+
+  /** True once the reviewer has a session on a NEWER Brief of the same PR. */
+  async function hasNewerSession(
+    tx: Tx,
+    facts: BriefFacts,
+    reviewerId: ReviewerId,
+  ): Promise<boolean> {
+    const rows = await tx
+      .select({ id: reviewSession.id })
+      .from(reviewSession)
+      .innerJoin(brief, eq(reviewSession.briefId, brief.id))
+      .where(
+        and(
+          eq(reviewSession.installationId, installationId),
+          eq(reviewSession.reviewerId, reviewerId),
+          eq(brief.pullRequestId, facts.pullRequestId),
+          gt(brief.headIndex, facts.headIndex),
+        ),
+      )
+      .limit(1);
+    return rows[0] !== undefined;
+  }
+
+  /** The session row inside an open transaction; its existence is settled. */
+  async function sessionInTx(
+    tx: Tx,
+    key: ReviewSessionKey,
+  ): Promise<ReviewSessionRow> {
+    const rows = await tx
+      .select()
+      .from(reviewSession)
+      .where(
+        and(
+          eq(reviewSession.installationId, installationId),
+          eq(reviewSession.briefId, key.briefId),
+          eq(reviewSession.reviewerId, key.reviewerId),
+        ),
+      )
+      .limit(1);
+    const row = rows[0];
+    if (row === undefined) {
+      throw new Error("review_session vanished inside its own transaction");
+    }
+    return row;
   }
 
   /** The session row for a key, or `undefined` — never a create. */
@@ -659,6 +994,59 @@ export function reviewSessionRepository(
       return snapshotFor(key);
     },
 
+    async writeToSession(query, write) {
+      return db.transaction(async (tx) => {
+        const facts = await briefFacts(tx, query.briefId);
+        if (facts === undefined) {
+          return fail(
+            ReviewSessionErrorCode.PARENT_NOT_IN_TENANT,
+            `brief ${query.briefId} not in tenant ${installationId}`,
+          );
+        }
+        if (await hasNewerSession(tx, facts, query.reviewerId)) {
+          return fail(
+            ReviewSessionErrorCode.SESSION_FROZEN,
+            `reviewer ${query.reviewerId} already works on a newer brief of pull_request ${facts.pullRequestId}`,
+          );
+        }
+        // DO NOTHING is the creation detector: a second concurrent first-write
+        // gets no row back, skips the copy and goes straight to its own write.
+        // Only the creating writer copies, so carried rows never double.
+        const inserted = await tx
+          .insert(reviewSession)
+          .values({
+            installationId,
+            briefId: query.briefId,
+            reviewerId: query.reviewerId,
+          })
+          .onConflictDoNothing({
+            target: [
+              reviewSession.installationId,
+              reviewSession.briefId,
+              reviewSession.reviewerId,
+            ],
+          })
+          .returning();
+        const created = inserted[0];
+        if (created !== undefined) {
+          // Re-read inside the transaction: the payload the read returned is
+          // never trusted, which is what makes a late write to the previous
+          // session safe with no lock and no version token.
+          const pending = await evaluatePending(tx, facts, query);
+          if (pending.carriedFromSessionId !== undefined) {
+            await copyCarried(
+              tx,
+              created,
+              pending.carried,
+              pending.carriedFromSessionId,
+            );
+          }
+        }
+        const session = created ?? (await sessionInTx(tx, query));
+        return { ok: true, value: await write(sessionWriter(tx, session)) };
+      });
+    },
+
     async preview(query) {
       const snapshot = await snapshotFor(query);
       if (snapshot !== undefined) {
@@ -669,7 +1057,11 @@ export function reviewSessionRepository(
           carriedFromSessionId: undefined,
         };
       }
-      const pending = await db.transaction((tx) => evaluatePending(tx, query));
+      const pending = await db.transaction(async (tx) => {
+        const facts = await briefFacts(tx, query.briefId);
+        if (facts === undefined) return NOTHING_PENDING;
+        return evaluatePending(tx, facts, query);
+      });
       return { session: undefined, ...pending };
     },
 
@@ -679,22 +1071,11 @@ export function reviewSessionRepository(
         carriedFrom === null
           ? [input.reviewSessionId]
           : [input.reviewSessionId, carriedFrom],
-        (tx) =>
-          tx
-            .insert(reviewDraftComment)
-            .values({
-              installationId,
-              reviewSessionId: input.reviewSessionId,
-              filePath: input.filePath,
-              side: input.side,
-              startLine: input.startLine,
-              endLine: input.endLine,
-              body: input.body,
-              ...(input.status === undefined ? {} : { status: input.status }),
-              anchorStatus: input.anchorStatus ?? null,
-              carriedFromSessionId: carriedFrom,
-            })
-            .returning(),
+        async (tx) => [
+          await insertsForSession(tx, input.reviewSessionId).addDraftComment(
+            input,
+          ),
+        ],
         "review_draft_comment",
       );
     },
@@ -702,19 +1083,9 @@ export function reviewSessionRepository(
     async putReadMark(input) {
       return writeOwned(
         [input.reviewSessionId],
-        (tx) =>
-          tx
-            .insert(reviewReadMark)
-            .values({
-              installationId,
-              reviewSessionId: input.reviewSessionId,
-              chunkId: input.chunkId,
-            })
-            .onConflictDoUpdate({
-              target: [reviewReadMark.reviewSessionId, reviewReadMark.chunkId],
-              set: { chunkId: input.chunkId },
-            })
-            .returning(),
+        async (tx) => [
+          await insertsForSession(tx, input.reviewSessionId).putReadMark(input),
+        ],
         "review_read_mark",
       );
     },
@@ -722,23 +1093,12 @@ export function reviewSessionRepository(
     async putReclassification(input) {
       return writeOwned(
         [input.reviewSessionId],
-        (tx) =>
-          tx
-            .insert(reviewGroupReclassification)
-            .values({
-              installationId,
-              reviewSessionId: input.reviewSessionId,
-              changeGroupId: input.changeGroupId,
-              category: input.category,
-            })
-            .onConflictDoUpdate({
-              target: [
-                reviewGroupReclassification.reviewSessionId,
-                reviewGroupReclassification.changeGroupId,
-              ],
-              set: { category: input.category },
-            })
-            .returning(),
+        async (tx) => [
+          await insertsForSession(
+            tx,
+            input.reviewSessionId,
+          ).putReclassification(input),
+        ],
         "review_group_reclassification",
       );
     },
@@ -746,22 +1106,12 @@ export function reviewSessionRepository(
     async recordSubmittedReview(input) {
       return writeOwned(
         [input.reviewSessionId],
-        (tx) =>
-          tx
-            .insert(reviewSubmittedReview)
-            .values({
-              installationId,
-              reviewSessionId: input.reviewSessionId,
-              githubReviewId: input.githubReviewId,
-            })
-            .onConflictDoUpdate({
-              target: [
-                reviewSubmittedReview.reviewSessionId,
-                reviewSubmittedReview.githubReviewId,
-              ],
-              set: { githubReviewId: input.githubReviewId },
-            })
-            .returning(),
+        async (tx) => [
+          await insertsForSession(
+            tx,
+            input.reviewSessionId,
+          ).recordSubmittedReview(input),
+        ],
         "review_submitted_review",
       );
     },

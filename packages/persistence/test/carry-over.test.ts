@@ -1,4 +1,4 @@
-// Carry-over: the read-side evaluation and the materialize-on-first-write
+// Carry-over: the read-side evaluation and the writeToSession-on-first-write
 // transaction, exercised through the ctx-bound store — the only surface the
 // API layer gets. The dangerous failure here is silent (a wrongly-placed
 // anchor reads as correct), so every carry rule gets its own case, including
@@ -8,11 +8,12 @@ import type { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { describe, expect, it } from "vitest";
 import { fromDrizzle } from "../src/db/handle";
-import { artifactStore, forTenant } from "../src/index";
+import { artifactStore, forTenant, ReviewSessionErrorCode } from "../src/index";
 import type { AppDatabase, TenantContext } from "../src/index";
 import * as schema from "../src/schema/index";
 import {
   ChangeGroupCategory,
+  DispositionDecision,
   DraftCommentSide,
   DraftCommentStatus,
   ReviewOutcome,
@@ -739,6 +740,325 @@ describe("old-side drafts against the PR base", () => {
         startLine: 10,
         endLine: 12,
         anchorStatus: "orphaned",
+      }),
+    ]);
+  });
+});
+
+describe("writeToSession — the first write, one transaction", () => {
+  /** Brief 1 carries work; brief 2 is where the reviewer writes next. */
+  async function pending(): Promise<{ world: World; current: BriefRowId }> {
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 1);
+    const current = await seedBrief(world, 2, ["c5"]);
+    await seedHop(world, 1, 2);
+    await seedPreviousWork(world, previous);
+    return { world, current };
+  }
+
+  const QUERY = { groupIds: ["g1"], flags: FIRING } as const;
+
+  it("creates the session, copies the carried rows, and applies the write", async () => {
+    const { world, current } = await pending();
+
+    const written = await forTenant(
+      world.handle,
+      CTX,
+    ).reviewSessions.writeToSession(
+      { briefId: current, reviewerId: REVIEWER, ...QUERY },
+      (writer) =>
+        writer.addDraftComment({
+          filePath: "src/other.ts",
+          side: DraftCommentSide.NEW,
+          startLine: 1,
+          endLine: 2,
+          body: "the triggering write",
+        }),
+    );
+
+    expect(written.ok).toBe(true);
+    const snapshot = await forTenant(world.handle, CTX).reviewSessions.get({
+      briefId: current,
+      reviewerId: REVIEWER,
+    });
+    expect(snapshot?.draftComments.map((row) => row.body)).toEqual([
+      "draft",
+      "the triggering write",
+    ]);
+    const carried = snapshot?.draftComments[0];
+    expect(carried?.startLine).toBe(13);
+    expect(carried?.anchorStatus).toBe("moved");
+    expect(carried?.carriedFromSessionId).not.toBeNull();
+    expect(snapshot?.readMarks.map((row) => row.chunkId)).toEqual(["c5"]);
+    expect(snapshot?.reclassifications.map((row) => row.changeGroupId)).toEqual(
+      ["g1"],
+    );
+    expect(snapshot?.dispositions.map((row) => row.carryStatus)).toEqual([
+      "settled",
+    ]);
+  });
+
+  it("never carries the review outcome", async () => {
+    const { world, current } = await pending();
+
+    await forTenant(world.handle, CTX).reviewSessions.writeToSession(
+      { briefId: current, reviewerId: REVIEWER, ...QUERY },
+      (writer) => writer.putReadMark({ chunkId: "c9" }),
+    );
+
+    const snapshot = await forTenant(world.handle, CTX).reviewSessions.get({
+      briefId: current,
+      reviewerId: REVIEWER,
+    });
+    // The previous session approved; an approve riding onto new commits is the
+    // one carry that does real damage.
+    expect(snapshot?.session.reviewOutcome).toBe(ReviewOutcome.COMMENT);
+  });
+
+  // PGlite serializes transactions on one connection, so these two calls
+  // cannot overlap here — what this pins is the mechanism that makes an
+  // overlap safe: whichever writer loses the session insert never copies.
+  it("copies each carried row once when a second first-write follows", async () => {
+    const { world, current } = await pending();
+    const repo = forTenant(world.handle, CTX);
+    const key = { briefId: current, reviewerId: REVIEWER, ...QUERY };
+
+    const [first, second] = await Promise.all([
+      repo.reviewSessions.writeToSession(key, (writer) =>
+        writer.putReadMark({ chunkId: "c8" }),
+      ),
+      repo.reviewSessions.writeToSession(key, (writer) =>
+        writer.putReadMark({ chunkId: "c9" }),
+      ),
+    ]);
+
+    expect(first.ok && second.ok).toBe(true);
+    // Both writes landed; only one of them brought the carried rows.
+    const snapshot = await repo.reviewSessions.get({
+      briefId: current,
+      reviewerId: REVIEWER,
+    });
+    // Only the creating writer copies; the loser goes straight to its write.
+    expect(snapshot?.draftComments).toHaveLength(1);
+    expect(snapshot?.readMarks.map((row) => row.chunkId).toSorted()).toEqual([
+      "c5",
+      "c8",
+      "c9",
+    ]);
+  });
+
+  it("re-reads the previous session inside the transaction", async () => {
+    const { world, current } = await pending();
+    const repo = forTenant(world.handle, CTX);
+    const key = { briefId: current, reviewerId: REVIEWER, ...QUERY };
+
+    // The read happened; the reviewer's other tab keeps typing on the old
+    // Brief; then the write lands. The late row must still carry.
+    await repo.reviewSessions.preview(key);
+    const previousSnapshot = await repo.reviewSessions.get({
+      briefId: await briefIdFor(world, 1),
+      reviewerId: REVIEWER,
+    });
+    if (previousSnapshot === undefined) throw new Error("no previous session");
+    await repo.reviewSessions.addDraftComment({
+      reviewSessionId: previousSnapshot.session.id,
+      filePath: "src/app.ts",
+      side: DraftCommentSide.NEW,
+      startLine: 20,
+      endLine: 20,
+      body: "typed after the read",
+    });
+
+    await repo.reviewSessions.writeToSession(key, (writer) =>
+      writer.putReadMark({ chunkId: "c8" }),
+    );
+
+    const snapshot = await repo.reviewSessions.get({
+      briefId: current,
+      reviewerId: REVIEWER,
+    });
+    expect(snapshot?.draftComments.map((row) => row.body)).toEqual([
+      "draft",
+      "typed after the read",
+    ]);
+  });
+
+  it("keeps an orphaned draft's last known coordinates", async () => {
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 1);
+    const current = await seedBrief(world, 2, ["c5"]);
+    // No hop row at all: the chain is untrustworthy, so every anchor orphans.
+    await seedPreviousWork(world, previous);
+
+    await forTenant(world.handle, CTX).reviewSessions.writeToSession(
+      { briefId: current, reviewerId: REVIEWER, ...QUERY },
+      (writer) => writer.putReadMark({ chunkId: "c8" }),
+    );
+
+    const snapshot = await forTenant(world.handle, CTX).reviewSessions.get({
+      briefId: current,
+      reviewerId: REVIEWER,
+    });
+    // There is no sentinel for "unplaced" — the CHECK forbids one — so the
+    // row keeps the file and line it was last placed at.
+    expect(snapshot?.draftComments[0]).toEqual(
+      expect.objectContaining({
+        filePath: "src/app.ts",
+        startLine: 10,
+        endLine: 12,
+        anchorStatus: "orphaned",
+      }),
+    );
+  });
+});
+
+describe("freeze — a session freezes only when a newer one is materialized", () => {
+  it("accepts a write while a newer Brief merely exists", async () => {
+    const world = await freshWorld();
+    const first = await seedBrief(world, 1);
+    await seedBrief(world, 2);
+    await seedHop(world, 1, 2);
+
+    const written = await forTenant(
+      world.handle,
+      CTX,
+    ).reviewSessions.writeToSession(
+      { briefId: first, reviewerId: REVIEWER, groupIds: [], flags: [] },
+      (writer) => writer.putReadMark({ chunkId: "c1" }),
+    );
+
+    expect(written.ok).toBe(true);
+  });
+
+  it("refuses a write once the reviewer materialized a newer session", async () => {
+    const world = await freshWorld();
+    const first = await seedBrief(world, 1);
+    const second = await seedBrief(world, 2);
+    await seedHop(world, 1, 2);
+    const repo = forTenant(world.handle, CTX);
+    const older = {
+      briefId: first,
+      reviewerId: REVIEWER,
+      groupIds: [],
+      flags: [],
+    };
+
+    await repo.reviewSessions.writeToSession(older, (writer) =>
+      writer.putReadMark({ chunkId: "c1" }),
+    );
+    await repo.reviewSessions.writeToSession(
+      { briefId: second, reviewerId: REVIEWER, groupIds: [], flags: [] },
+      (writer) => writer.putReadMark({ chunkId: "c2" }),
+    );
+
+    const refused = await repo.reviewSessions.writeToSession(older, (writer) =>
+      writer.putReadMark({ chunkId: "c3" }),
+    );
+
+    expect(refused.ok).toBe(false);
+    if (refused.ok) return;
+    expect(refused.error.code).toBe(ReviewSessionErrorCode.SESSION_FROZEN);
+    const snapshot = await repo.reviewSessions.get({
+      briefId: first,
+      reviewerId: REVIEWER,
+    });
+    expect(snapshot?.readMarks.map((row) => row.chunkId)).toEqual(["c1"]);
+  });
+
+  it("leaves another reviewer's newer session out of it", async () => {
+    const world = await freshWorld();
+    const first = await seedBrief(world, 1);
+    const second = await seedBrief(world, 2);
+    await seedHop(world, 1, 2);
+    const repo = forTenant(world.handle, CTX);
+
+    await repo.reviewSessions.writeToSession(
+      { briefId: second, reviewerId: OTHER_REVIEWER, groupIds: [], flags: [] },
+      (writer) => writer.putReadMark({ chunkId: "c2" }),
+    );
+    const written = await repo.reviewSessions.writeToSession(
+      { briefId: first, reviewerId: REVIEWER, groupIds: [], flags: [] },
+      (writer) => writer.putReadMark({ chunkId: "c1" }),
+    );
+
+    expect(written.ok).toBe(true);
+  });
+});
+
+describe("the session writer covers every product write", () => {
+  it("records a disposition and sets the outcome inside the transaction", async () => {
+    const world = await freshWorld();
+    const briefId = await seedBrief(world, 1);
+    const repo = forTenant(world.handle, CTX);
+
+    const written = await repo.reviewSessions.writeToSession(
+      { briefId, reviewerId: REVIEWER, groupIds: [], flags: [] },
+      async (writer) => {
+        await writer.putDisposition({
+          filePath: "src/app.ts",
+          attribute: "sql-injection",
+          regionStart: 10,
+          regionEnd: 20,
+          decision: DispositionDecision.DISMISSED,
+          reason: "test-only path",
+        });
+        return writer.setReviewOutcome(ReviewOutcome.APPROVE);
+      },
+    );
+
+    expect(written.ok).toBe(true);
+    const snapshot = await repo.reviewSessions.get({
+      briefId,
+      reviewerId: REVIEWER,
+    });
+    expect(snapshot?.session.reviewOutcome).toBe(ReviewOutcome.APPROVE);
+    expect(snapshot?.dispositions).toEqual([
+      expect.objectContaining({
+        attribute: "sql-injection",
+        decision: DispositionDecision.DISMISSED,
+        reason: "test-only path",
+        carryStatus: null,
+      }),
+    ]);
+  });
+
+  it("clears the carried status when the reviewer decides again", async () => {
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 1);
+    const current = await seedBrief(world, 2, ["c5"]);
+    await seedHop(world, 1, 2);
+    await seedPreviousWork(world, previous);
+    const repo = forTenant(world.handle, CTX);
+    const key = {
+      briefId: current,
+      reviewerId: REVIEWER,
+      groupIds: [],
+      flags: FIRING,
+    };
+
+    await repo.reviewSessions.writeToSession(key, (writer) =>
+      writer.putReadMark({ chunkId: "c8" }),
+    );
+    // The carried row sits at the remapped anchor; deciding on it again is an
+    // upsert, not a second row.
+    await repo.reviewSessions.writeToSession(key, (writer) =>
+      writer.putDisposition({
+        filePath: "src/app.ts",
+        attribute: "sql-injection",
+        regionStart: 33,
+        regionEnd: 35,
+        decision: DispositionDecision.ADDRESSED,
+      }),
+    );
+
+    const snapshot = await repo.reviewSessions.get({
+      briefId: current,
+      reviewerId: REVIEWER,
+    });
+    expect(snapshot?.dispositions).toEqual([
+      expect.objectContaining({
+        decision: DispositionDecision.ADDRESSED,
+        carryStatus: null,
       }),
     ]);
   });

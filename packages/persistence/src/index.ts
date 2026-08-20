@@ -79,6 +79,10 @@ export type {
   ReviewSessionRepository,
   ReviewSessionError,
   ReviewSessionKey,
+  SessionWriter,
+  CarryOverQuery,
+  ReviewSessionView,
+  DispositionRow,
   ReviewSessionUpsertInput,
   ReviewSessionSnapshot,
   ReviewSessionRow,
@@ -90,7 +94,18 @@ export type {
   ReadMarkInput,
   ReclassificationInput,
   SubmittedReviewInput,
+  DispositionInput,
 } from "./stores/review-session";
+
+// The carry-over verdicts a read returns — evaluated in memory, materialized
+// by the first write. The evaluation itself is not exported: it runs inside
+// the store, including inside the materialization transaction.
+export type {
+  CarriedWork,
+  CarriedDraftComment,
+  CarriedDisposition,
+  FlagKey,
+} from "./stores/carry-over";
 
 // The ArtifactStore interface — ctx-bound typed writes/reads for the six
 // artifact families. Same containment: built over the opaque handle, no raw
