@@ -57,6 +57,7 @@ function renderRaw(query: ComparisonQuery<string>, client?: QueryClient) {
       updateComment: vi.fn(),
       deleteComment: vi.fn(),
       toggleComment: vi.fn(),
+      reanchorComment: vi.fn(),
     },
     {
       composerDisabledReason: undefined,

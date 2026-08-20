@@ -1,0 +1,21 @@
+@use "functions";
+
+@layer components {
+  .row {
+    padding: functions.to-rem(8px) functions.to-rem(14px);
+    border: 1px solid var(--line);
+    border-inline-start: 2px solid var(--accent);
+    border-radius: var(--radius-md);
+    margin-block-end: functions.to-rem(16px);
+    background: var(--panel2);
+
+    &[data-state="pending"] {
+      border-inline-start-color: var(--amber);
+    }
+  }
+
+  .summary {
+    margin: 0;
+    color: var(--dim);
+  }
+}

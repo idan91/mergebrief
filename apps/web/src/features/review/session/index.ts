@@ -8,6 +8,7 @@ export {
   type ReviewSessionStoreValue,
 } from "./store";
 export { serializeSnapshot, type SessionSnapshot } from "./snapshot";
+export type { AttentionItemKind } from "./attention";
 export {
   emptySessionPayload,
   parseReviewSessionPayload,

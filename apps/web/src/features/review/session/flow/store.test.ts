@@ -36,6 +36,7 @@ function sessionMock(): ReviewFlowSessionActions {
     updateComment: vi.fn(),
     deleteComment: vi.fn(),
     toggleComment: vi.fn(),
+    reanchorComment: vi.fn(),
   };
 }
 

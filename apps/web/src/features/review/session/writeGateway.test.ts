@@ -21,6 +21,7 @@ function writesMock(): SessionWrites {
       Promise.resolve({ ok: true as const, value: "1" }),
     ),
     updateDraft: vi.fn(() => Promise.resolve(OK)),
+    reanchorDraft: vi.fn(() => Promise.resolve(OK)),
     deleteDraft: vi.fn(() => Promise.resolve(OK)),
     dismissRisks: vi.fn(() => Promise.resolve(OK)),
     addressRisks: vi.fn(() => Promise.resolve(OK)),

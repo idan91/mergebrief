@@ -136,6 +136,7 @@ function renderRow(row: DigestThreadRow, expanded = false) {
       updateComment: vi.fn(),
       deleteComment: vi.fn(),
       toggleComment: vi.fn(),
+      reanchorComment: vi.fn(),
     },
     {
       composerDisabledReason: undefined,
@@ -259,6 +260,7 @@ describe("ThreadRowView — slim resolved rows", () => {
         updateComment: vi.fn(),
         deleteComment: vi.fn(),
         toggleComment: vi.fn(),
+        reanchorComment: vi.fn(),
       },
       {
         composerDisabledReason: undefined,

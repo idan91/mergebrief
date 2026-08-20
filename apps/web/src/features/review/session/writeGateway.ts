@@ -4,10 +4,10 @@
 // the read resolved back.
 import type { BriefViewModel } from "@web/features/brief/utils";
 import type { Category } from "../../brief/types";
-import type { ReviewComment } from "../utils/comments";
+import type { CommentAnchor, ReviewComment } from "../utils/comments";
 import type { ReviewOutcome, RiskEvidence } from "../utils/state";
 import type { BulkDisposition } from "./disposition";
-import { chunkRegion } from "./serverState";
+import { getChunkRegion } from "../utils/state";
 import type {
   EvidenceWire,
   FlagAnchorWire,
@@ -30,6 +30,10 @@ export interface SessionWriteGateway {
     comment: Omit<ReviewComment, "id">,
   ): Promise<SessionWriteResult<string>>;
   updateComment(id: string, body: string): Promise<SessionWriteResult>;
+  reanchorComment(
+    id: string,
+    anchor: CommentAnchor,
+  ): Promise<SessionWriteResult>;
   deleteComment(id: string): Promise<SessionWriteResult>;
   setOutcome(outcome: ReviewOutcome): Promise<SessionWriteResult>;
 }
@@ -50,7 +54,7 @@ function flagAnchors(model: BriefViewModel): Map<string, FlagAnchorWire> {
   const regions = new Map(
     model.groups
       .flatMap((group) => group.chunks)
-      .map((chunk) => [chunk.id, chunkRegion(chunk)]),
+      .map((chunk) => [chunk.id, getChunkRegion(chunk)]),
   );
   const anchors = new Map<string, FlagAnchorWire>();
   for (const flag of model.flags) {
@@ -123,6 +127,13 @@ export function createSessionWriteGateway(
         body: comment.body,
       }),
     updateComment: (id, body) => writes.updateDraft(id, body),
+    reanchorComment: (id, anchor) =>
+      writes.reanchorDraft(id, {
+        filePath: anchor.file,
+        side: anchor.side,
+        startLine: anchor.startLine,
+        endLine: anchor.endLine,
+      }),
     deleteComment: (id) => writes.deleteDraft(id),
     setOutcome: (outcome) => writes.setOutcome(outcome),
   };

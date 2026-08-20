@@ -138,6 +138,7 @@ function renderTable(
         updateComment: vi.fn(),
         deleteComment: vi.fn(),
         toggleComment: vi.fn(),
+        reanchorComment: vi.fn(),
       },
       initialReviewFlowState({
         composerDisabledReason: undefined,
@@ -205,6 +206,37 @@ describe("DiffTable — a draft restored from the server", () => {
     };
     const { view } = renderTable({}, {}, undefined, session);
     expect(view.getByText("restored from the session")).toBeTruthy();
+  });
+
+  it("renders one whose line falls between the chunk's hunks", () => {
+    // A chunk's OUTER span covers the gap between its hunks, so this draft
+    // attaches to the chunk and then matches no rendered row. It used to
+    // render nowhere at all, which is the same failure as a lost anchor.
+    const multiHunk: BriefChunk = {
+      ...chunk(),
+      diff: [
+        { kind: "ctx", content: "a", oldLine: 9, newLine: 9 },
+        { kind: "add", content: "b", newLine: 10 },
+        { kind: "hunk", content: "@@ -40,2 +40,2 @@" },
+        { kind: "ctx", content: "c", oldLine: 40, newLine: 40 },
+      ],
+    };
+    const session: ReviewSessionPayload = {
+      ...emptySessionPayload(),
+      draftComments: [
+        {
+          id: "42",
+          filePath: "src/a.ts",
+          side: "new",
+          startLine: 25,
+          endLine: 25,
+          body: "stranded between hunks",
+          status: "draft",
+        },
+      ],
+    };
+    const { view } = renderTable({ chunk: multiHunk }, {}, undefined, session);
+    expect(view.getByText("stranded between hunks")).toBeTruthy();
   });
 });
 

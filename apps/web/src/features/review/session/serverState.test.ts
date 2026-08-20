@@ -107,6 +107,7 @@ describe("sessionInitialState", () => {
             decision: "dismissed",
             reason: "not in this PR",
             evidence: null,
+            carryStatus: null,
           },
           // Right file and attribute, a region no chunk carries: dropped.
           {
@@ -117,6 +118,7 @@ describe("sessionInitialState", () => {
             decision: "addressed",
             reason: null,
             evidence: { kind: "manual-note", ref: "elsewhere" },
+            carryStatus: null,
           },
         ],
       }),

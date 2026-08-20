@@ -39,6 +39,11 @@ export interface ReviewFlowPosture {
 export interface ReviewFlowState extends ReviewFlowPosture {
   composerAnchor: CommentAnchor | null;
   /**
+   * A carried draft is waiting for its new home: the next row the reviewer
+   * picks re-anchors THAT draft instead of opening a fresh composer.
+   */
+  reanchorDraftId: string | null;
+  /**
    * A staged-draft write is in flight. The composer closes on write SUCCESS,
    * not on click: that buys one "Saving…" round trip and costs no
    * unsaved-marker state, no retry button and no half-applied draft.
@@ -71,6 +76,8 @@ export interface ReviewFlowActions {
    */
   openComposer: (anchor: CommentAnchor) => void;
   cancelComposer: () => void;
+  /** Arms re-anchoring for a carried draft; the next picked row places it. */
+  startReanchor: (draftId: string) => void;
   /**
    * @description Trim-and-save a draft at the anchor; an empty body announces
    * and keeps the composer open. The composer closes when the WRITE lands —
@@ -119,7 +126,11 @@ export type ReviewFlowStore = StoreApi<ReviewFlowStoreValue>;
  */
 export type ReviewFlowSessionActions = Pick<
   ReviewSessionActions,
-  "saveComment" | "updateComment" | "deleteComment" | "toggleComment"
+  | "saveComment"
+  | "updateComment"
+  | "deleteComment"
+  | "toggleComment"
+  | "reanchorComment"
 >;
 
 export function initialReviewFlowState(
@@ -129,6 +140,7 @@ export function initialReviewFlowState(
     ...posture,
     composerAnchor: null,
     composerSaving: false,
+    reanchorDraftId: null,
     dismissTarget: null,
     evidenceTarget: null,
     expandedConversations: new Map(),
@@ -175,10 +187,44 @@ export function createReviewFlowStore(
             announce(reason);
             return;
           }
+          // Placement branches HERE, not at the call sites: every gesture that
+          // picks rows already ends in this one action.
+          const reanchoring = get().reanchorDraftId;
+          if (reanchoring !== null) {
+            set({ reanchorDraftId: null });
+            // A draft deleted while placement was armed leaves nothing to
+            // move: the gesture falls through to a fresh composer rather than
+            // announcing a placement that never happened.
+            if (session.reanchorComment(reanchoring, anchor)) {
+              announce(translate("review.announce.commentReanchored"));
+              return;
+            }
+          }
           set({ composerAnchor: anchor });
         },
         cancelComposer() {
-          set({ composerAnchor: null, composerSaving: false });
+          set({
+            composerAnchor: null,
+            composerSaving: false,
+            reanchorDraftId: null,
+          });
+        },
+        startReanchor(draftId) {
+          // Armed twice on the same draft = disarmed: the control is a toggle,
+          // so an armed state the reviewer changed their mind about has a way
+          // out that is not "pick a row you did not mean".
+          if (get().reanchorDraftId === draftId) {
+            set({ reanchorDraftId: null });
+            announce(translate("review.announce.reanchorCancelled"));
+            return;
+          }
+          const reason = get().composerDisabledReason;
+          if (reason !== undefined) {
+            announce(reason);
+            return;
+          }
+          set({ composerAnchor: null, reanchorDraftId: draftId });
+          announce(translate("review.announce.reanchorArmed"));
         },
         saveComment(anchor, body) {
           const trimmed = body.trim();

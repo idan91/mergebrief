@@ -573,6 +573,28 @@
       "fileLines": "lines {{ranges}}",
       "noDiff": "Diff lines are not available for this file.",
       "readOnlyReason": "These lines belong to no chunk — review comments are disabled here."
+    },
+    "carryOver": {
+      "regionLabel": "Carried-over review work",
+      "receipt_one": "Your review carried forward · {{count}} item · {{span}} · {{verdict}}",
+      "receipt_other": "Your review carried forward · {{count}} items · {{span}} · {{verdict}}",
+      "span": "{{from}} → {{to}}",
+      "spanRevisions_one": "{{from}} → {{to}} · {{count}} revision",
+      "spanRevisions_other": "{{from}} → {{to}} · {{count}} revisions",
+      "clean": "nothing needs a re-look",
+      "pending_one": "{{count}} item needs a re-look",
+      "pending_other": "{{count}} items need a re-look",
+      "listLabel": "Carried items needing a re-look",
+      "kindOrphanedAnchor": "Draft comment lost its lines",
+      "kindReopenedDisposition": "Flagged region changed again",
+      "kindMissingEvidence": "Evidence for this decision is gone",
+      "actionReanchor": "Re-anchor",
+      "actionDeleteDraft": "Delete draft",
+      "actionAddress": "Address",
+      "actionDismiss": "Dismiss",
+      "fileGone": "This file is no longer in the brief — the draft can only be deleted.",
+      "actionReanchorArmed": "Cancel re-anchor",
+      "reanchorHint": "Pick the lines this draft belongs on."
     }
   },
   "review": {
@@ -707,7 +729,10 @@
       "commentEmpty": "Comment cannot be empty.",
       "commentAdded": "Draft comment added to this review.",
       "commentUpdated": "Draft comment updated.",
-      "commentDeleted": "Draft comment deleted."
+      "commentDeleted": "Draft comment deleted.",
+      "reanchorArmed": "Pick the lines this draft belongs on.",
+      "commentReanchored": "Draft comment re-anchored.",
+      "reanchorCancelled": "Re-anchoring cancelled."
     },
     "submitResult": {
       "posted": "Review posted to GitHub under your account.",

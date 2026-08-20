@@ -1,0 +1,44 @@
+@use "functions";
+
+@layer components {
+  .list {
+    display: grid;
+    padding: 0;
+    margin: functions.to-rem(10px) 0 0;
+    gap: functions.to-rem(6px);
+    list-style: none;
+  }
+
+  .item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: functions.to-rem(6px) functions.to-rem(10px);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    gap: functions.to-rem(8px);
+    background: var(--panel);
+  }
+
+  .kind {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .location {
+    font-family: var(--mono);
+  }
+
+  .actions {
+    display: flex;
+    margin-inline-start: auto;
+    gap: functions.to-rem(6px);
+  }
+
+  .note {
+    flex-basis: 100%;
+    margin: 0;
+    color: var(--dim);
+    font-size: var(--font-size-sm);
+  }
+}

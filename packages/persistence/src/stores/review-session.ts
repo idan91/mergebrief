@@ -185,11 +185,33 @@ export interface CarryOverQuery extends ReviewSessionKey {
   readonly brief: () => Promise<BriefCarryFacts>;
 }
 
+/** The receipt's count before materialization — every evaluated subject. */
+function countPendingCarriedItems(carried: CarriedWork): number {
+  return (
+    carried.draftComments.length +
+    carried.readMarks.length +
+    carried.reclassifications.length +
+    carried.dispositions.length
+  );
+}
+
 /** The session a read carried in from, and the Brief it sat on. */
 export interface CarriedFrom {
   readonly sessionId: ReviewSessionId;
   readonly headSha: string;
   readonly headIndex: number;
+  /**
+   * How much of that session's work is present here — the receipt's count,
+   * and the thing that tells a session that carried nothing (no row) from one
+   * that carried and has nothing pending (the clean receipt).
+   *
+   * All four subjects count. Drafts and dispositions carry a marker column;
+   * read marks and reclassifications do not, so after materialization they
+   * are derived by intersecting with the previous session's own rows, which
+   * are never deleted. Leaving them out reports zero for a session whose only
+   * carried work was a read mark, and the receipt then renders as nothing.
+   */
+  readonly items: number;
 }
 
 export interface ReviewSessionView {
@@ -468,6 +490,7 @@ export function reviewSessionRepository(
   }
 
   /** The previous session's rows, reduced to what the evaluation reads. */
+
   async function previousWork(
     tx: Reader,
     sessionId: ReviewSessionId,
@@ -1115,6 +1138,13 @@ export function reviewSessionRepository(
               artifact,
             );
             await copyCarried(tx, created, carried, previous.id);
+            // Stamped here and never recomputed: the receipt states what came
+            // across, and every marker it could be re-derived from is one the
+            // reviewer's own later work clears.
+            await tx
+              .update(reviewSession)
+              .set({ carriedItemCount: countPendingCarriedItems(carried) })
+              .where(eq(reviewSession.id, created.id));
           }
         }
         const session = created ?? (await sessionInTx(tx, query));
@@ -1139,18 +1169,29 @@ export function reviewSessionRepository(
         };
       }
       const previous = await previousSession(db, facts, query.reviewerId);
-      const carriedFrom =
-        previous === undefined
-          ? undefined
-          : {
-              sessionId: previous.id,
-              headSha: previous.headSha,
-              headIndex: previous.headIndex,
-            };
-      if (snapshot !== undefined || previous === undefined) {
+      if (previous === undefined) {
+        return {
+          session: snapshot,
+          carried: NOTHING_CARRIED,
+          carriedFrom: undefined,
+        };
+      }
+      const from = {
+        sessionId: previous.id,
+        headSha: previous.headSha,
+        headIndex: previous.headIndex,
+      };
+      if (snapshot !== undefined) {
         // Materialized: the carry-over already sits in the session's own rows,
-        // so only its source is still worth reporting.
-        return { session: snapshot, carried: NOTHING_CARRIED, carriedFrom };
+        // so only its source and its size are still worth reporting.
+        return {
+          session: snapshot,
+          carried: NOTHING_CARRIED,
+          carriedFrom: {
+            ...from,
+            items: snapshot.session.carriedItemCount,
+          },
+        };
       }
       // The thunk resolves BEFORE the transaction opens — its Brief-body read
       // goes through this same handle, which a read inside an open
@@ -1161,7 +1202,11 @@ export function reviewSessionRepository(
       const carried = await db.transaction((tx) =>
         evaluatePending(tx, facts, previous, artifact),
       );
-      return { session: undefined, carried, carriedFrom };
+      return {
+        session: undefined,
+        carried,
+        carriedFrom: { ...from, items: countPendingCarriedItems(carried) },
+      };
     },
   };
 }

@@ -5,7 +5,14 @@
 //
 // No `submit_note` (the submit wire carries the body) and no `granted_scope`
 // (a human and their agent share this row; scope lives on the credential).
-import { bigint, pgTable, text, timestamp, unique } from "drizzle-orm/pg-core";
+import {
+  bigint,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+} from "drizzle-orm/pg-core";
 import type { BriefRowId, ReviewSessionId, ReviewerId } from "../types";
 import { ReviewOutcome } from "../types";
 import { brief } from "./brief";
@@ -27,6 +34,15 @@ export const reviewSession = pgTable(
       .$type<ReviewOutcome>()
       .notNull()
       .default(ReviewOutcome.COMMENT),
+    /**
+     * How much of the previous session's work this one materialized with.
+     * Stamped ONCE, inside the materialization transaction, because it is the
+     * receipt's count: every other way of deriving it reads markers the
+     * reviewer's own later work mutates, so the number would shrink as they
+     * cleared items and the carry-over row would vanish mid-session.
+     * 0 is a first-ever session, or a previous one that carried nothing.
+     */
+    carriedItemCount: integer("carried_item_count").notNull().default(0),
     begunAt: timestamp("begun_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

@@ -1,0 +1,1 @@
+ALTER TABLE "review_session" ADD COLUMN "carried_item_count" integer DEFAULT 0 NOT NULL;

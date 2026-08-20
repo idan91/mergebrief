@@ -50,6 +50,7 @@ function renderBanner(view: UnattributedView) {
       updateComment: vi.fn(),
       deleteComment: vi.fn(),
       toggleComment: vi.fn(),
+      reanchorComment: vi.fn(),
     },
     initialReviewFlowState({
       composerDisabledReason: undefined,

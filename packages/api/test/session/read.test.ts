@@ -2,13 +2,14 @@
 // sides of materialization, projects the Attention List off the rows it
 // returns, and — the invariant the suite exists for — CREATES NOTHING. Every
 // case asserts the `review_session` row count across the call.
-import { AnchorStatus, forTenant } from "persistence";
+import { AnchorStatus, forTenant, ReviewOutcome } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../../src/index";
 import { testLogger } from "../logging";
 import {
   authDeps,
+  BRIEF_BODY,
   CTX,
   keyProvider,
   NO_ARTIFACT,
@@ -31,6 +32,7 @@ interface SessionBody {
     readonly sessionId: string;
     readonly headSha: string;
     readonly revisions: number;
+    readonly items: number;
   } | null;
   readonly readMarks: readonly string[];
   readonly draftComments: readonly Record<string, unknown>[];
@@ -132,6 +134,10 @@ describe("read-review-session", () => {
       sessionId: expect.any(String),
       headSha: "head-1",
       revisions: 1,
+      // What CARRIED, so the row's receipt can state it — the draft, the
+      // disposition AND the reclassification, and the same number after the
+      // write that writes this session.
+      items: 3,
     });
     // Silent carry: the reclassification's group still exists on the new
     // Brief.
@@ -201,6 +207,11 @@ describe("read-review-session", () => {
     expect(body.submittedReviewIds).toEqual(["7700"]);
     // Carried in, and it still says so after the write that materialized it.
     expect(body.carriedFrom?.headSha).toBe("head-1");
+    // The count is what CARRIED, stamped at materialization — the read mark
+    // this session wrote itself must never inflate a receipt that claims to
+    // state what came across, and it is the same number the pre-materialized
+    // read returned.
+    expect(body.carriedFrom?.items).toBe(2);
     // The same list, now off the session's own rows — the subject has an id
     // to act on. The carried disposition dropped: the write that materialized
     // this session named no flags, so it is silent rather than unclearable.
@@ -217,6 +228,58 @@ describe("read-review-session", () => {
       },
     ]);
     expect(await sessionRows()).toBe(before);
+  });
+
+  it("counts a read mark as carried, so a clean carry still has a receipt", async () => {
+    // Read marks and reclassifications have no marker column. Leaving them
+    // out of the count reports zero, the carry-over row renders nothing, and
+    // a carried session looks first-ever — the one collapse the row forbids.
+    // Both sides of materialization, because the row must not vanish mid-use.
+    const previous = await seedBrief(harness.handle, 1);
+    // `c1` is in the new Brief's persisted carried set, so the mark carries.
+    const current = await seedBrief(harness.handle, 2, BRIEF_BODY, ["c1"]);
+    await forTenant(harness.handle, CTX).reviewSessions.writeToSession(
+      {
+        briefId: previous,
+        reviewerId: REVIEWER,
+        brief: async () => NO_ARTIFACT,
+      },
+      (writer) => writer.putReadMark({ chunkId: "c1" }),
+    );
+
+    const pending = await bodyOf(await read("head-2"));
+    expect(pending.materialized).toBe(false);
+    expect(pending.readMarks).toEqual(["c1"]);
+    expect(pending.carriedFrom?.items).toBe(1);
+
+    // The write that writes it must not turn the receipt into nothing.
+    await forTenant(harness.handle, CTX).reviewSessions.writeToSession(
+      {
+        briefId: current,
+        reviewerId: REVIEWER,
+        brief: async () => NO_ARTIFACT,
+      },
+      (writer) => writer.setReviewOutcome(ReviewOutcome.COMMENT),
+    );
+
+    const settled = await bodyOf(await read("head-2"));
+    expect(settled.materialized).toBe(true);
+    expect(settled.carriedFrom?.items).toBe(1);
+
+    // And clearing the carried work does not shrink it: the count states what
+    // came across, so the receipt survives the reviewer acting on every item.
+    await forTenant(harness.handle, CTX).reviewSessions.writeToSession(
+      {
+        briefId: current,
+        reviewerId: REVIEWER,
+        brief: async () => NO_ARTIFACT,
+      },
+      (writer) => writer.clearReadMark("c1"),
+    );
+
+    const cleared = await bodyOf(await read("head-2"));
+    expect(cleared.readMarks).toEqual([]);
+    expect(cleared.carriedFrom?.items).toBe(1);
   });
 
   it("fails the read rather than dropping decisions on an unreadable Brief", async () => {

@@ -27,6 +27,7 @@ import {
   useCreateReviewFlowStore,
   useReviewSession,
   useSyncReviewFlowPosture,
+  type ReviewSessionPayload,
 } from "@web/features/review/session";
 import { useLatestRef } from "@web/hooks/useLatestRef";
 import type { UnresolvedItem } from "@web/features/review/utils/state";
@@ -52,6 +53,7 @@ import { ConcernStrip } from "./ConcernStrip/ConcernStrip";
 import { FocusBanner } from "./FocusBanner/FocusBanner";
 import { IntentBar, type IntentBarHandle } from "./IntentBar/IntentBar";
 import { GroupTocBar } from "./GroupTocBar/GroupTocBar";
+import { CarryOver } from "./CarryOver/CarryOver";
 import { Header } from "./Header/Header";
 import { ReadingToolbar } from "./ReadingToolbar/ReadingToolbar";
 import { RiskFlagModals } from "./RiskFlagModals/RiskFlagModals";
@@ -154,6 +156,11 @@ export interface BriefScreenProps {
   conversation?: ConversationPlan | undefined;
   readOnly?: { reason: string } | undefined;
   /**
+   * The server-held session read. Absent on the file path, where there is no
+   * carry-over to state.
+   */
+  reviewSession?: ReviewSessionPayload | undefined;
+  /**
    * The `?thread=` landing target: opens the conversation section and lands on
    * that thread. Absent → no auto-open.
    */
@@ -206,6 +213,7 @@ export function BriefScreen({
   exitChangesScope,
   ownDraft,
   readOnly,
+  reviewSession,
   revisionPending,
   staleHead,
   submitReview,
@@ -602,7 +610,10 @@ export function BriefScreen({
     setSubmitOpen(false);
     announce(t("brief.screen.mockupSubmit"));
   };
-  const jumpToSubmitItem = (item: UnresolvedItem) => {
+  // Both lists jump the same way, and neither needs more than the target: the
+  // submit list's items and the carried ones share the mechanic, not a type.
+  const jumpToSubmitItem = (item: Pick<UnresolvedItem, "targetId">) => {
+    if (item.targetId === "") return;
     setSubmitOpen(false);
     // Resolving the item happens inside the card — a row-target jump.
     session.openChunk(item.targetId);
@@ -668,6 +679,15 @@ export function BriefScreen({
           aria-busy={pendingShown || undefined}
           inert={pendingShown || undefined}
         >
+          {reviewSession !== undefined ? (
+            <CarryOver
+              headSha={brief.pr.sha}
+              jumpToItem={jumpToSubmitItem}
+              model={model}
+              session={reviewSession}
+            />
+          ) : null}
+
           {/* Region blocks render strictly off the legality derivation above —
             each block reads its own cell, nothing re-tests the axes. */}
           {blocks.summary ? (

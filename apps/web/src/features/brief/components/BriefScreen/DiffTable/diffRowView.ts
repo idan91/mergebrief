@@ -26,6 +26,8 @@ export interface DiffRowViewParams {
   dragIndexes: number[];
   activeRowIds: Set<string>;
   activeCommentAnchor: CommentAnchor | null;
+  /** Rows adopted by drafts that land on no rendered line — see below. */
+  strandedRowIds: ReadonlyMap<string, string>;
 }
 
 export interface DiffRowView {
@@ -47,8 +49,42 @@ export interface DiffRowView {
  * session read lands before the diff does, so the coordinates are all it has.
  */
 function anchorEndsOnRow(anchor: CommentAnchor, line: DiffLine): boolean {
-  const value = anchor.side === "old" ? line.oldLine : line.newLine;
-  return value === anchor.endLine;
+  return resolveSideLine(line, anchor) === anchor.endLine;
+}
+
+function resolveSideLine(
+  line: DiffLine,
+  anchor: CommentAnchor,
+): number | undefined {
+  return anchor.side === "old" ? line.oldLine : line.newLine;
+}
+
+/**
+ * A last-resort home for a draft whose lines this render shows nowhere: a
+ * chunk's outer span covers the gaps BETWEEN its hunks, so a draft can attach
+ * to the chunk and then match no row at all — invisible to the reviewer, and
+ * an invisible draft is the same failure as a misplaced one. It adopts the
+ * last row at or before its end line, or the chunk's first row.
+ */
+export function resolveStrandedRows(
+  chunk: BriefChunk,
+  comments: ReviewComment[],
+): Map<string, string> {
+  const rows = chunk.diff ?? [];
+  const stranded = new Map<string, string>();
+  if (rows.length === 0) return stranded;
+  for (const comment of comments) {
+    const anchor = comment.anchor;
+    if (anchor.rowIds.length > 0) continue;
+    if (rows.some((line) => anchorEndsOnRow(anchor, line))) continue;
+    let adopted = 0;
+    for (const [index, line] of rows.entries()) {
+      const value = resolveSideLine(line, anchor);
+      if (value !== undefined && value <= anchor.endLine) adopted = index;
+    }
+    stranded.set(comment.id, rowId(chunk.id, adopted));
+  }
+  return stranded;
 }
 
 /** Derives everything a commentable diff row needs to render. Pure — no DOM, no React. */
@@ -63,6 +99,7 @@ export function getDiffRowView({
   dragIndexes,
   activeRowIds,
   activeCommentAnchor,
+  strandedRowIds,
 }: DiffRowViewParams): DiffRowView {
   const sign = line.kind === "add" ? "+" : line.kind === "del" ? "−" : " ";
   const id = rowId(chunk.id, index);
@@ -70,11 +107,13 @@ export function getDiffRowView({
   const revMark = overlayActive ? comparisonView.marks.get(index) : undefined;
   const isRevStart = revRun !== undefined && revRun.rowIndexes[0] === index;
   const isRevEnd = revRun !== undefined && revRun.rowIndexes.at(-1) === index;
-  const rowComments = comments.filter((comment) =>
-    comment.anchor.rowIds.length === 0
-      ? anchorEndsOnRow(comment.anchor, line)
-      : comment.anchor.rowIds.at(-1) === id,
-  );
+  const rowComments = comments.filter((comment) => {
+    if (comment.anchor.rowIds.length > 0) {
+      return comment.anchor.rowIds.at(-1) === id;
+    }
+    if (anchorEndsOnRow(comment.anchor, line)) return true;
+    return strandedRowIds.get(comment.id) === id;
+  });
   const rowAddressedComments = addressedComments.filter((comment) =>
     reviewCommentMatchesDiffLine(comment, chunk.file, line, chunk.diff),
   );

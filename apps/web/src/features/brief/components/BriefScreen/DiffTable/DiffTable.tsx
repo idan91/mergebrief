@@ -41,7 +41,7 @@ import type {
 import { ComparisonCallout } from "./ComparisonCallout/ComparisonCallout";
 import { RevisionGutterCell } from "./RevisionGutterCell/RevisionGutterCell";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
-import { getDiffRowView } from "./diffRowView";
+import { getDiffRowView, resolveStrandedRows } from "./diffRowView";
 import styles from "./DiffTable.module.scss";
 
 // csstype's CSSProperties has no `--*` index; a typed extension keeps the
@@ -204,6 +204,7 @@ export function DiffTable({
       ? []
       : rangeBetween(dragStart, dragCurrent);
   const activeRowIds = new Set(activeCommentAnchor?.rowIds ?? []);
+  const strandedRowIds = resolveStrandedRows(chunk, comments);
   const handleToggleConversationThread = (threadId: number) =>
     toggleConversationThread(chunkKey, threadId);
   const overlayActive = comparisonView.runs.length > 0;
@@ -292,6 +293,7 @@ export function DiffTable({
                 dragIndexes,
                 activeRowIds,
                 activeCommentAnchor,
+                strandedRowIds,
               });
               return (
                 <Fragment key={`${line.kind}-${index}`}>

@@ -6,8 +6,8 @@ import {
   ReviewOutcome,
   type AnchorStatus,
   type CarriedWork,
-  type ChangeGroupCategory,
   type DispositionCarryStatus,
+  type ChangeGroupCategory,
   type DispositionDecision,
   type DispositionEvidence,
   type DispositionEvidenceKind,
@@ -28,6 +28,13 @@ interface CarriedFromPayload {
   readonly headSha: string;
   /** Pushes between that Brief and this one; at least 1. */
   readonly revisions: number;
+  /**
+   * How much work carried, counted by the store off the carry markers and the
+   * previous session's own rows — never off this session's row totals, which
+   * the reviewer's later work would inflate. Zero is a previous session that
+   * carried nothing, and the one case with no row to render.
+   */
+  readonly items: number;
 }
 
 export interface SessionPayload {
@@ -187,6 +194,7 @@ export function buildSessionPayload(
             sessionId: String(from.sessionId),
             headSha: from.headSha,
             revisions: headIndex - from.headIndex,
+            items: from.items,
           },
     ...(view.session === undefined
       ? shapeCarriedWork(view.carried)

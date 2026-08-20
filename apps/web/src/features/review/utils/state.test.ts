@@ -4,10 +4,17 @@ import { describe, expect, it } from "vitest";
 import { Roles, type BriefChunk } from "../../brief/types";
 import type { RiskFlag } from "@web/features/brief/utils";
 import type { ReviewComment } from "./comments";
+import type {
+  AttentionItemKind,
+  SessionAttentionItem,
+} from "../session/attention";
+import type { Disposition } from "../session/disposition";
 import {
+  deriveCarriedItems,
   deriveUnresolvedItems,
   riskEvidenceLabel,
   summarySignatureLine,
+  type CarriedInput,
 } from "./state";
 
 const coreChunk = {
@@ -174,5 +181,161 @@ describe("summarySignatureLine", () => {
     ).toBe(
       "Reviewed with MergeBrief / review — summary: 7 chunks read, 5 risks addressed, 1 dismissed.",
     );
+  });
+});
+
+const carriedChunk = {
+  ...coreChunk,
+  addedRanges: [{ start: 10, end: 13 }],
+  riskSurface: ["no-tests"],
+} satisfies BriefChunk;
+
+function buildOrphanItem(): SessionAttentionItem {
+  return {
+    kind: "orphaned-anchor",
+    subject: { type: "draft-comment", id: "comment-1", attribute: null },
+    location: { filePath: "src/a.ts", startLine: 12, endLine: 12 },
+    clearedBy: ["reanchor-draft-comment", "delete-draft-comment"],
+  };
+}
+
+function buildDispositionItem(kind: AttentionItemKind): SessionAttentionItem {
+  return {
+    kind,
+    subject: { type: "disposition", id: null, attribute: "no-tests" },
+    location: { filePath: "src/a.ts", startLine: 10, endLine: 13 },
+    clearedBy: ["address-risk", "dismiss-risk"],
+  };
+}
+
+function buildCarriedInput(
+  attention: SessionAttentionItem[],
+  overrides: Partial<CarriedInput> = {},
+): CarriedInput {
+  return {
+    attention,
+    chunks: [carriedChunk],
+    flags: [riskFlag],
+    dispositions: {},
+    comments: [reviewComment],
+    deletedMissingDrafts: new Set<string>(),
+    ...overrides,
+  };
+}
+
+describe("deriveCarriedItems", () => {
+  it("carries the server's clearing operations through untouched", () => {
+    const [item] = deriveCarriedItems(buildCarriedInput([buildOrphanItem()]));
+    expect(item?.clearedBy).toEqual([
+      "reanchor-draft-comment",
+      "delete-draft-comment",
+    ]);
+    expect(item?.targetId).toBe("chunk-a");
+    expect(item?.actionTargetId).toBe("comment-1");
+  });
+
+  it("clears an orphaned anchor when the draft is deleted or re-placed", () => {
+    expect(
+      deriveCarriedItems(
+        buildCarriedInput([buildOrphanItem()], { comments: [] }),
+      ),
+    ).toEqual([]);
+    const moved = {
+      ...reviewComment,
+      anchor: { ...reviewComment.anchor, startLine: 40, endLine: 40 },
+    };
+    expect(
+      deriveCarriedItems(
+        buildCarriedInput([buildOrphanItem()], { comments: [moved] }),
+      ),
+    ).toEqual([]);
+  });
+
+  it("keeps an orphan the Brief renders no file for, and marks it unplaceable", () => {
+    const items = deriveCarriedItems(
+      buildCarriedInput([buildOrphanItem()], {
+        comments: [],
+        chunks: [supportingChunk],
+      }),
+    );
+    expect(items).toHaveLength(1);
+    expect(items[0]?.unplaceable).toBe(true);
+    expect(items[0]?.targetId).toBe("");
+  });
+
+  it("clears an unplaceable orphan once the reviewer deletes it", () => {
+    const gone = buildCarriedInput([buildOrphanItem()], {
+      comments: [],
+      chunks: [supportingChunk],
+    });
+    expect(deriveCarriedItems(gone)).toHaveLength(1);
+    expect(
+      deriveCarriedItems({
+        ...gone,
+        deletedMissingDrafts: new Set(["comment-1"]),
+      }),
+    ).toEqual([]);
+  });
+
+  it("matches a carried decision whose region no longer lines up exactly", () => {
+    // Chunk boundaries are re-derived per Brief, so an exact-region match
+    // would drop a decision the server still holds.
+    const item = buildDispositionItem("reopened-disposition");
+    const shifted: SessionAttentionItem = {
+      ...item,
+      location: { filePath: "src/a.ts", startLine: 12, endLine: 30 },
+    };
+    expect(deriveCarriedItems(buildCarriedInput([shifted]))).toHaveLength(1);
+  });
+
+  it("clears a reopened disposition once the flag is addressed or dismissed", () => {
+    const item = buildDispositionItem("reopened-disposition");
+    const open = deriveCarriedItems(buildCarriedInput([item]));
+    expect(open).toHaveLength(1);
+    expect(open[0]?.actionTargetId).toBe(riskFlag.id);
+    for (const disposition of [
+      { kind: "addressed", evidence: { kind: "manual-note", note: "n" } },
+      { kind: "dismissed", reason: "not a risk here" },
+    ] satisfies Disposition[]) {
+      expect(
+        deriveCarriedItems(
+          buildCarriedInput([item], {
+            dispositions: { [riskFlag.id]: disposition },
+          }),
+        ),
+      ).toEqual([]);
+    }
+  });
+
+  it("clears missing evidence once evidence lands or the flag is dismissed", () => {
+    const item = buildDispositionItem("missing-evidence");
+    const pending = deriveCarriedItems(
+      buildCarriedInput([item], {
+        dispositions: { [riskFlag.id]: { kind: "addressed" } },
+      }),
+    );
+    expect(pending).toHaveLength(1);
+    for (const disposition of [
+      { kind: "addressed", evidence: { kind: "manual-note", note: "n" } },
+      { kind: "dismissed", reason: "not a risk here" },
+    ] satisfies Disposition[]) {
+      expect(
+        deriveCarriedItems(
+          buildCarriedInput([item], {
+            dispositions: { [riskFlag.id]: disposition },
+          }),
+        ),
+      ).toEqual([]);
+    }
+  });
+
+  it("drops a disposition item whose flag this Brief no longer raises", () => {
+    expect(
+      deriveCarriedItems(
+        buildCarriedInput([buildDispositionItem("reopened-disposition")], {
+          flags: [],
+        }),
+      ),
+    ).toEqual([]);
   });
 });

@@ -101,7 +101,13 @@ export function ReviewSessionProvider({
     appliedSession.current = session;
     store.setState({
       ...sessionInitialState(model, session),
-      ...(switched ? { frozen: false, writeError: null } : {}),
+      ...(switched
+        ? {
+            frozen: false,
+            writeError: null,
+            deletedMissingDrafts: new Set<string>(),
+          }
+        : {}),
     });
   }
 

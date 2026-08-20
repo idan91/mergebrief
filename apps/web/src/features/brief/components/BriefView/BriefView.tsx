@@ -168,6 +168,7 @@ export function BriefView({
         exitChangesScope={exitChangesScope}
         ownDraft={ownDraft}
         readOnly={readOnly}
+        reviewSession={session}
         revisionPending={revisionPending}
         searchParams={searchParams}
         staleHead={staleHead}

@@ -70,6 +70,7 @@ const CARRIED_VIEW: ReviewSessionView = {
     sessionId: sessionId(9n),
     headSha: "aaa111",
     headIndex: 3,
+    items: 2,
   },
 };
 
@@ -86,6 +87,7 @@ describe("buildSessionPayload", () => {
       sessionId: "9",
       headSha: "aaa111",
       revisions: 2,
+      items: 2,
     });
   });
 

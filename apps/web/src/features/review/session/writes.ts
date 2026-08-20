@@ -87,6 +87,10 @@ export interface SessionWrites {
     draft: DraftAnchorWire & { body: string },
   ): Promise<SessionWriteResult<string>>;
   updateDraft(draftId: string, body: string): Promise<SessionWriteResult>;
+  reanchorDraft(
+    draftId: string,
+    anchor: DraftAnchorWire,
+  ): Promise<SessionWriteResult>;
   deleteDraft(draftId: string): Promise<SessionWriteResult>;
   dismissRisks(
     flags: readonly FlagAnchorWire[],
@@ -213,6 +217,14 @@ export function createSessionWrites(target: SessionWriteTarget): SessionWrites {
         `/comments/${encodeURIComponent(id)}`,
         "PATCH",
         { body },
+        ignore,
+      ),
+    reanchorDraft: (id, anchor) =>
+      send(
+        target,
+        `/comments/${encodeURIComponent(id)}/anchor`,
+        "PUT",
+        anchor,
         ignore,
       ),
     deleteDraft: (id) =>

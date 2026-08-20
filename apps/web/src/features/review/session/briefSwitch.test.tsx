@@ -19,6 +19,9 @@ afterEach(cleanup);
 /** An otherwise-empty session carrying one read mark. */
 function sessionWithReadMark(chunkId: string): ReviewSessionPayload {
   return {
+    materialized: false,
+    carriedFrom: null,
+    attention: [],
     reviewOutcome: "comment",
     draftComments: [],
     readMarks: [chunkId],

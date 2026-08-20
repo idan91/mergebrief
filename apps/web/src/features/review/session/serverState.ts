@@ -11,8 +11,15 @@ import type { Result } from "types";
 import type { BriefViewModel } from "@web/features/brief/utils";
 import type { CommentSide, ReviewComment } from "../utils/comments";
 import { rowId } from "../utils/comments";
+import { getChunkRegion, isFlagUnderAnchor } from "../utils/state";
 import type { ReviewOutcome, RiskEvidence } from "../utils/state";
 import type { Disposition } from "./disposition";
+import {
+  isAttentionItem,
+  isCarryStatus,
+  type DispositionCarryStatus,
+  type SessionAttentionItem,
+} from "./attention";
 import { deriveInitialState, type ReviewSessionState } from "./store";
 
 export interface SessionDraftComment {
@@ -33,6 +40,8 @@ export interface SessionDisposition {
   decision: "addressed" | "dismissed";
   reason: string | null;
   evidence: { kind: RiskEvidence["kind"]; ref: string | null } | null;
+  /** The carry-over verdict on this row; null on a fresh decision. */
+  carryStatus: DispositionCarryStatus | null;
 }
 
 export interface SessionReclassification {
@@ -40,8 +49,25 @@ export interface SessionReclassification {
   category: Category;
 }
 
+/**
+ * The span the carry-over row states. Null is a first-ever session and
+ * nothing else — the row itself does not render.
+ */
+export interface SessionCarriedFrom {
+  sessionId: string;
+  headSha: string;
+  /** Pushes between that Brief and this one; at least 1. */
+  revisions: number;
+  /** How much work carried — the receipt's count, never the session's total. */
+  items: number;
+}
+
 /** The slice of the session read this bundle renders. */
 export interface ReviewSessionPayload {
+  /** False = no session row exists yet; every list is an in-memory verdict. */
+  materialized: boolean;
+  carriedFrom: SessionCarriedFrom | null;
+  attention: SessionAttentionItem[];
   reviewOutcome: ReviewOutcome;
   draftComments: SessionDraftComment[];
   readMarks: string[];
@@ -53,25 +79,15 @@ export interface ReviewSessionPayload {
 /** A session with no work in it — the shape a first-ever read returns. */
 export function emptySessionPayload(): ReviewSessionPayload {
   return {
+    materialized: false,
+    carriedFrom: null,
+    attention: [],
     reviewOutcome: "comment",
     draftComments: [],
     readMarks: [],
     reclassifications: [],
     dispositions: [],
     submittedReviewIds: [],
-  };
-}
-
-/** The chunk region a flag's disposition anchors on — its whole diff span. */
-export function chunkRegion(chunk: BriefChunk): {
-  start: number;
-  end: number;
-} {
-  const bounds = [...chunk.addedRanges, ...chunk.removedRanges];
-  if (bounds.length === 0) return { start: 1, end: 1 };
-  return {
-    start: Math.min(...bounds.map((range) => range.start)),
-    end: Math.max(...bounds.map((range) => range.end)),
   };
 }
 
@@ -85,10 +101,10 @@ function lineOnSide(row: DiffLine, side: CommentSide): number | undefined {
 
 /**
  * The chunk a draft's coordinates land in: same file, region covering the
- * start line. A file with exactly one chunk takes the draft anyway — the
- * ranges name changed lines, and a comment may sit on context. With several,
- * an uncovered line is ambiguous and the draft is dropped rather than pinned
- * to whichever chunk sorts first.
+ * start line. An uncovered line takes the nearest chunk in the file rather
+ * than nothing — the ranges name changed lines, a comment may sit on context,
+ * and a draft that resolves to no chunk renders nowhere at all. A file this
+ * Brief does not show has no home, and the attention list says so.
  */
 function chunkForDraft(
   chunks: BriefChunk[],
@@ -96,11 +112,14 @@ function chunkForDraft(
 ): BriefChunk | undefined {
   const inFile = chunks.filter((chunk) => chunk.file === draft.filePath);
   const covering = inFile.find((chunk) => {
-    const region = chunkRegion(chunk);
+    const region = getChunkRegion(chunk);
     return draft.startLine >= region.start && draft.startLine <= region.end;
   });
   if (covering !== undefined) return covering;
-  return inFile.length === 1 ? inFile[0] : undefined;
+  const preceding = inFile.filter(
+    (chunk) => getChunkRegion(chunk).start <= draft.startLine,
+  );
+  return preceding.at(-1) ?? inFile[0];
 }
 
 /**
@@ -168,7 +187,13 @@ function toEvidence(
   return { kind: evidence.kind, note: ref };
 }
 
+/**
+ * A reopened carried decision reads as OPEN: the region it stood on was
+ * touched, so the flag needs deciding again, and rendering it as still
+ * decided would hide the one thing the attention list is asking for.
+ */
 function toDisposition(row: SessionDisposition): Disposition {
+  if (row.carryStatus === "reopened") return { kind: "open" };
   if (row.decision === "dismissed") {
     return { kind: "dismissed", reason: row.reason ?? "" };
   }
@@ -187,16 +212,18 @@ function toDispositions(
   base: Record<string, Disposition>,
 ): Record<string, Disposition> {
   const regions = new Map(
-    collectChunks(model).map((chunk) => [chunk.id, chunkRegion(chunk)]),
+    collectChunks(model).map((chunk) => [chunk.id, getChunkRegion(chunk)]),
   );
   const resolved = { ...base };
   for (const row of payload.dispositions) {
     for (const flag of model.flags) {
-      const region = regions.get(flag.chunkId);
-      if (flag.file !== row.filePath || flag.attr !== row.attribute) continue;
-      if (region?.start !== row.regionStart || region.end !== row.regionEnd) {
-        continue;
-      }
+      const anchor = {
+        filePath: row.filePath,
+        attribute: row.attribute,
+        startLine: row.regionStart,
+        endLine: row.regionEnd,
+      };
+      if (!isFlagUnderAnchor(flag, regions.get(flag.chunkId), anchor)) continue;
       resolved[flag.id] = toDisposition(row);
     }
   }
@@ -295,7 +322,22 @@ function isDisposition(value: unknown): value is SessionDisposition {
     typeof value["decision"] === "string" &&
     DECISIONS.has(value["decision"]) &&
     (value["reason"] === null || typeof value["reason"] === "string") &&
+    (value["carryStatus"] === null || isCarryStatus(value["carryStatus"])) &&
     isEvidence(value["evidence"])
+  );
+}
+
+function isCarriedFrom(value: unknown): value is SessionCarriedFrom {
+  return (
+    isObject(value) &&
+    typeof value["sessionId"] === "string" &&
+    typeof value["headSha"] === "string" &&
+    typeof value["revisions"] === "number" &&
+    Number.isInteger(value["revisions"]) &&
+    value["revisions"] >= 1 &&
+    typeof value["items"] === "number" &&
+    Number.isInteger(value["items"]) &&
+    value["items"] >= 0
   );
 }
 
@@ -328,12 +370,24 @@ export function parseReviewSessionPayload(
   body: unknown,
 ): Result<ReviewSessionPayload, string> {
   if (!isObject(body)) return { ok: false, error: "session: not an object" };
+  const materialized = body["materialized"];
+  const carriedFrom = body["carriedFrom"];
+  const attention = body["attention"];
   const reviewOutcome = body["reviewOutcome"];
   const draftComments = body["draftComments"];
   const readMarks = body["readMarks"];
   const reclassifications = body["reclassifications"];
   const dispositions = body["dispositions"];
   const submittedReviewIds = body["submittedReviewIds"];
+  if (typeof materialized !== "boolean") {
+    return { ok: false, error: "session: materialized" };
+  }
+  if (carriedFrom !== null && !isCarriedFrom(carriedFrom)) {
+    return { ok: false, error: "session: carriedFrom" };
+  }
+  if (!isArrayOf(attention, isAttentionItem)) {
+    return { ok: false, error: "session: attention" };
+  }
   if (!isReviewOutcome(reviewOutcome)) {
     return { ok: false, error: "session: reviewOutcome" };
   }
@@ -355,6 +409,9 @@ export function parseReviewSessionPayload(
   return {
     ok: true,
     value: {
+      materialized,
+      carriedFrom,
+      attention,
       reviewOutcome,
       draftComments,
       readMarks,

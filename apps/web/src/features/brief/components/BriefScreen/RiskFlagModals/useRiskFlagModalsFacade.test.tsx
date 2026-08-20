@@ -27,6 +27,7 @@ function setup() {
       updateComment: () => undefined,
       deleteComment: () => undefined,
       toggleComment: () => undefined,
+      reanchorComment: () => true,
     },
     {
       composerDisabledReason: undefined,

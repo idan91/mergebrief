@@ -270,6 +270,7 @@ function gatewayMock(result: SessionWriteResult = OK) {
       );
     },
     updateComment: record("updateComment"),
+    reanchorComment: record("reanchorComment"),
     deleteComment: record("deleteComment"),
     setOutcome: record("setOutcome"),
   };
@@ -352,5 +353,26 @@ describe("per-action writes", () => {
     expect(store.getState().reviewedChunks.has("c1")).toBe(true);
     store.getState().actions.setOutcome("approve");
     expect(store.getState().reviewOutcome).toBe("approve");
+  });
+});
+
+describe("deleteMissingDraft", () => {
+  it("writes for a carried draft the Brief renders nowhere", async () => {
+    // The store never held it — no chunk covers its file — so the ordinary
+    // delete has nothing to act on and the attention item could never clear.
+    const { calls, store } = gatewayMock();
+    store.getState().actions.deleteMissingDraft("4001");
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(calls).toEqual(["deleteComment"]);
+    expect(store.getState().deletedMissingDrafts.has("4001")).toBe(true);
+  });
+
+  it("takes the deletion back when the write fails", async () => {
+    const { store } = gatewayMock(FROZEN);
+    store.getState().actions.deleteMissingDraft("4001");
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(store.getState().deletedMissingDrafts.has("4001")).toBe(false);
   });
 });

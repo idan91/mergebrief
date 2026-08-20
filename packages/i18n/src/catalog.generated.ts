@@ -147,6 +147,15 @@ export type Catalog = typeof en & {
       bannerRest_other: "changed lines in {{count}} files are not covered by any chunk.";
       fileLines: "lines {{ranges}}";
     };
+    carryOver: (typeof en)["brief"]["carryOver"] & {
+      receipt_one: "Your review carried forward · {{count}} item · {{span}} · {{verdict}}";
+      receipt_other: "Your review carried forward · {{count}} items · {{span}} · {{verdict}}";
+      span: "{{from}} → {{to}}";
+      spanRevisions_one: "{{from}} → {{to}} · {{count}} revision";
+      spanRevisions_other: "{{from}} → {{to}} · {{count}} revisions";
+      pending_one: "{{count}} item needs a re-look";
+      pending_other: "{{count}} items need a re-look";
+    };
   };
   review: (typeof en)["review"] & {
     summary: (typeof en)["review"]["summary"] & {

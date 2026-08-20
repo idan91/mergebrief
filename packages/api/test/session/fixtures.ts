@@ -210,6 +210,7 @@ export async function seedBrief(
   handle: AppDatabase,
   headIndex: number,
   body: string = BRIEF_BODY,
+  carriedChunkIds: readonly string[] = [],
 ): Promise<BriefRowId> {
   const pr = await forTenant(handle, CTX).pullRequests.getByNumber(
     brandRepo(BigInt(REPO_ID)),
@@ -226,6 +227,7 @@ export async function seedBrief(
     model: "claude",
     effort: "high",
     body,
+    carriedChunkIds,
   });
   if (!written.ok) throw new Error(`seedBrief: ${written.error.code}`);
   return written.value.id;

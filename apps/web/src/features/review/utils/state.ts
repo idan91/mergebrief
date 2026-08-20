@@ -3,6 +3,11 @@ import { Roles, type BriefChunk } from "../../brief/types";
 import type { RiskFlag } from "@web/features/brief/utils";
 import type { ReviewComment } from "./comments";
 import type { Disposition } from "../session/disposition";
+import type {
+  AttentionItemKind,
+  SessionAttentionItem,
+} from "../session/attention";
+import { ATTENTION_ITEM_KIND } from "../session/attention";
 
 export type ReviewOutcome = "comment" | "approve" | "request-changes";
 export type RiskEvidenceKind =
@@ -64,6 +69,21 @@ export interface RiskDispositionCounts {
   addressed: number;
   dismissed: number;
   open: number;
+}
+
+/** A chunk's whole diff span — the region a flag's disposition anchors on. */
+export interface ChunkRegion {
+  start: number;
+  end: number;
+}
+
+export function getChunkRegion(chunk: BriefChunk): ChunkRegion {
+  const bounds = [...chunk.addedRanges, ...chunk.removedRanges];
+  if (bounds.length === 0) return { start: 1, end: 1 };
+  return {
+    start: Math.min(...bounds.map((range) => range.start)),
+    end: Math.max(...bounds.map((range) => range.end)),
+  };
 }
 
 export function riskEvidenceLabel(
@@ -150,6 +170,180 @@ export function deriveUnresolvedItems(
   }
 
   return items;
+}
+
+/**
+ * A carried item: the submit list's shape plus what the server said about it.
+ * `clearedBy` is carried verbatim — the operations that clear an item are the
+ * server's answer, never a table the client keeps.
+ */
+export interface CarriedItem extends Omit<UnresolvedItem, "kind"> {
+  /** The three carried kinds — never the submit list's own. */
+  kind: AttentionItemKind;
+  clearedBy: readonly string[];
+  /**
+   * What a clearing operation acts on here: the draft row's id, or the
+   * brief-local flag id whose disposition the item is about.
+   */
+  actionTargetId: string;
+  /** This Brief renders nothing for the item's file — there is no jump. */
+  unplaceable: boolean;
+}
+
+export interface CarriedInput {
+  attention: readonly SessionAttentionItem[];
+  chunks: BriefChunk[];
+  flags: RiskFlag[];
+  dispositions: Record<string, Disposition>;
+  comments: ReviewComment[];
+  /** Carried drafts deleted from the list that no chunk could hold. */
+  deletedMissingDrafts: ReadonlySet<string>;
+}
+
+/** The anchor a stored disposition keys on, as both resolutions read it. */
+export interface FlagAnchor {
+  filePath: string;
+  attribute: string | null;
+  startLine: number;
+  endLine: number;
+}
+
+/**
+ * Does this flag sit under that anchor? OVERLAP, not equality: a carried
+ * decision is remapped to the lines it landed on, and chunk boundaries are
+ * re-derived per Brief, so demanding an exact region would silently drop a
+ * decision the server still holds. ONE predicate for both resolutions — the
+ * store's and the attention list's — or the row claims nothing needs a
+ * re-look while the server's list says otherwise.
+ */
+export function isFlagUnderAnchor(
+  flag: RiskFlag,
+  region: ChunkRegion | undefined,
+  anchor: FlagAnchor,
+): boolean {
+  if (flag.file !== anchor.filePath || flag.attr !== anchor.attribute) {
+    return false;
+  }
+  if (region === undefined) return false;
+  return region.start <= anchor.endLine && region.end >= anchor.startLine;
+}
+
+/** The flags an attention item's anchor covers — file, attribute, region. */
+function getFlagsAtAnchor(
+  input: CarriedInput,
+  item: SessionAttentionItem,
+  regions: ReadonlyMap<string, ChunkRegion>,
+): RiskFlag[] {
+  return input.flags.filter((flag) =>
+    isFlagUnderAnchor(flag, regions.get(flag.chunkId), {
+      filePath: item.location.filePath,
+      attribute: item.subject.attribute,
+      startLine: item.location.startLine,
+      endLine: item.location.endLine,
+    }),
+  );
+}
+
+/** Is a disposition item still asking for the decision it was raised for? */
+function isDispositionPending(
+  kind: AttentionItemKind,
+  disposition: Disposition,
+): boolean {
+  if (kind === ATTENTION_ITEM_KIND.REOPENED_DISPOSITION) {
+    return disposition.kind === "open";
+  }
+  return disposition.kind === "addressed" && disposition.evidence === undefined;
+}
+
+function buildCarriedDraftItem(
+  input: CarriedInput,
+  item: SessionAttentionItem,
+): CarriedItem | undefined {
+  const id = item.subject.id;
+  if (id === null) return undefined;
+  const live = input.comments.find(
+    (comment) => comment.id === id && comment.status === "draft",
+  );
+  if (live !== undefined) {
+    // Re-anchored: the draft the reviewer re-placed no longer sits where the
+    // carry-over left it, and the item is what asked them to move it.
+    if (
+      live.anchor.startLine !== item.location.startLine ||
+      live.anchor.endLine !== item.location.endLine
+    ) {
+      return undefined;
+    }
+    return {
+      id: `carried:${id}`,
+      kind: ATTENTION_ITEM_KIND.ORPHANED_ANCHOR,
+      label: commentLocation(live),
+      targetId: live.anchor.chunkId,
+      clearedBy: item.clearedBy,
+      actionTargetId: id,
+      unplaceable: false,
+    };
+  }
+  // No live draft: deleted (cleared) unless this Brief never had a row to put
+  // it on, which is the case the item exists to surface.
+  const renders = input.chunks.some(
+    (chunk) => chunk.file === item.location.filePath,
+  );
+  if (renders || input.deletedMissingDrafts.has(id)) return undefined;
+  return {
+    id: `carried:${id}`,
+    kind: ATTENTION_ITEM_KIND.ORPHANED_ANCHOR,
+    label: `${item.location.filePath}:${String(item.location.startLine)}`,
+    targetId: "",
+    clearedBy: item.clearedBy,
+    actionTargetId: id,
+    unplaceable: true,
+  };
+}
+
+function buildCarriedDispositionItem(
+  input: CarriedInput,
+  item: SessionAttentionItem,
+  regions: ReadonlyMap<string, ChunkRegion>,
+): CarriedItem | undefined {
+  const pending = getFlagsAtAnchor(input, item, regions).find((flag) =>
+    isDispositionPending(
+      item.kind,
+      input.dispositions[flag.id] ?? { kind: "open" },
+    ),
+  );
+  if (pending === undefined) return undefined;
+  return {
+    id: `carried:${item.kind}:${pending.id}`,
+    kind: item.kind,
+    label: `${pending.attr} @ ${pending.file}`,
+    targetId: pending.chunkId,
+    clearedBy: item.clearedBy,
+    actionTargetId: pending.id,
+    unplaceable: false,
+  };
+}
+
+/**
+ * The attention list: the server's carried verdicts, minus the ones the
+ * reviewer has since cleared in this tab.
+ *
+ * A SECOND derivation, never a merge with {@link deriveUnresolvedItems}:
+ * every kind that one raises fires on a first-ever review, so a merged list
+ * would make the carry-over row claim work that never carried. Clearing is
+ * read off live state rather than tracked, so a write that fails and reverts
+ * puts its item straight back.
+ */
+export function deriveCarriedItems(input: CarriedInput): CarriedItem[] {
+  const regions = new Map(
+    input.chunks.map((chunk) => [chunk.id, getChunkRegion(chunk)]),
+  );
+  return input.attention.flatMap((item) => {
+    const derived =
+      item.kind === ATTENTION_ITEM_KIND.ORPHANED_ANCHOR
+        ? buildCarriedDraftItem(input, item)
+        : buildCarriedDispositionItem(input, item, regions);
+    return derived === undefined ? [] : [derived];
+  });
 }
 
 /** Display label for a review outcome (SubmitModal picker, SummaryPreview). */

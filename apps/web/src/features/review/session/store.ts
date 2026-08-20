@@ -56,6 +56,16 @@ export interface ReviewSessionActions {
    */
   saveComment: (comment: Omit<ReviewComment, "id">) => Promise<boolean>;
   updateComment: (id: string, body: string) => void;
+  /**
+   * Re-places a carried draft the reviewer picked a new home for. The human
+   * placing it IS the carry-over verdict, so nothing is inferred here.
+   */
+  reanchorComment: (id: string, anchor: CommentAnchor) => boolean;
+  /**
+   * Deletes a carried draft this Brief renders nowhere. It is not in
+   * `reviewComments`, so the ordinary delete has nothing to act on.
+   */
+  deleteMissingDraft: (id: string) => void;
   deleteComment: (id: string) => void;
   /**
    * @description Toggles a draft comment's collapsed flag as part of its persisted lifecycle.
@@ -93,6 +103,12 @@ export interface ReviewSessionStoreValue extends ReviewSessionState {
   frozen: boolean;
   /** The last failed write's copy, for the screen to announce; null = none. */
   writeError: TranslationKey | null;
+  /**
+   * Carried drafts deleted from the attention list whose file this Brief
+   * renders nowhere: the store never held them, so their absence cannot say
+   * whether the reviewer acted. Not session data — this tab's own action.
+   */
+  deletedMissingDrafts: Set<string>;
   actions: ReviewSessionActions;
 }
 
@@ -208,6 +224,7 @@ export function createReviewSessionStore(
       ...initial,
       frozen: false,
       writeError: null,
+      deletedMissingDrafts: new Set(),
       actions: {
         reviewChunk(chunkId) {
           const wasRead = get().reviewedChunks.has(chunkId);
@@ -368,6 +385,44 @@ export function createReviewSessionStore(
                   comment.id === id && comment.body === body ? before : comment,
                 ),
               })),
+          );
+        },
+        reanchorComment(id, anchor) {
+          const before = get().reviewComments.find(
+            (comment) => comment.id === id && comment.status === "draft",
+          );
+          if (before === undefined) return false;
+          set((state) => ({
+            reviewComments: state.reviewComments.map((comment) =>
+              comment.id === id && comment.status === "draft"
+                ? { ...comment, anchor, collapsed: false }
+                : comment,
+            ),
+          }));
+          void landed(
+            (gateway) => gateway.reanchorComment(id, anchor),
+            () =>
+              set((state) => ({
+                reviewComments: state.reviewComments.map((comment) =>
+                  comment.id === id ? before : comment,
+                ),
+              })),
+          );
+          return true;
+        },
+        deleteMissingDraft(id) {
+          if (get().deletedMissingDrafts.has(id)) return;
+          set((state) => ({
+            deletedMissingDrafts: new Set([...state.deletedMissingDrafts, id]),
+          }));
+          void landed(
+            (gateway) => gateway.deleteComment(id),
+            () =>
+              set((state) => {
+                const next = new Set(state.deletedMissingDrafts);
+                next.delete(id);
+                return { deletedMissingDrafts: next };
+              }),
           );
         },
         deleteComment(id) {

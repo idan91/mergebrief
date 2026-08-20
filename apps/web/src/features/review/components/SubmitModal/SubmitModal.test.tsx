@@ -34,6 +34,7 @@ function flowStore(): ReviewFlowStore {
       updateComment: vi.fn(),
       deleteComment: vi.fn(),
       toggleComment: vi.fn(),
+      reanchorComment: vi.fn(),
     },
     {
       composerDisabledReason: undefined,

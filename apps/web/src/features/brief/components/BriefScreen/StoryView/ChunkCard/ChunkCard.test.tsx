@@ -87,6 +87,7 @@ function renderCard(overrides: Partial<ChunkCardProps> = {}) {
       updateComment: vi.fn(),
       deleteComment: vi.fn(),
       toggleComment: vi.fn(),
+      reanchorComment: vi.fn(),
     },
     {
       composerDisabledReason: undefined,
