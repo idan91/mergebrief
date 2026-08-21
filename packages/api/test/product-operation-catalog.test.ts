@@ -99,6 +99,12 @@ const EXPECTED_CATALOG = [
     endpoint: "GET /api/repos/:repoId/pulls/:prNumber/brief-context",
   },
   {
+    id: "read-capabilities",
+    kind: "query",
+    classification: "read",
+    endpoint: "GET /api/capabilities",
+  },
+  {
     id: "read-conversation",
     kind: "query",
     classification: "read",

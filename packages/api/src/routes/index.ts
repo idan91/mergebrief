@@ -15,6 +15,7 @@ import { authRoutes } from "./auth";
 import type { AuthDeps } from "./auth/session";
 import { generateRoute, type UrlBriefEngine } from "./generate";
 import type { InstallationGitHubPort } from "./github-port";
+import { capabilitiesRoute } from "./capabilities";
 import { pullsRoute } from "./pulls";
 import { reposRoutes } from "./repos";
 import { versionRoute } from "./version";
@@ -49,6 +50,7 @@ export function apiRoutes(deps: AppDeps): ProductRouter<RequestLogEnv> {
   // one GitHub fetch serves both inside the TTL.
   const allowedRepos = createAllowedRepoResolver(deps);
   app.route("/version", versionRoute(deps, deps.serverVersion ?? "dev"));
+  app.route("/capabilities", capabilitiesRoute(deps));
   app.route("/pulls", pullsRoute(deps, allowedRepos));
   app.route("/repos", reposRoutes(deps, allowedRepos));
   // Session-gated only: the pasted URL's repo is outside the installation

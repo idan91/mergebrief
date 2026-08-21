@@ -1,5 +1,11 @@
 # CLI Output Contract — Passthrough, Additive-Only, Exit-Code Invariant
 
+> **Amended 2026-08-21 — capability discovery.** `capabilities` joins `delta`
+> and `auth status` as the third sanctioned CLI-synthesized shape, exit code
+> **6 = INCOMPATIBLE** is appended to the table, and the skew-visibility
+> clause (#8) gains the fail-closed discovery check. Everything else —
+> passthrough, additive-only, the stream/exit invariant — is untouched.
+
 The `mergebrief` CLI's machine output is a public contract consumed by
 user-owned agent scripts — nothing of ours can migrate them. This ADR fixes
 what is promised, and how the contract evolves without breaking consumers
@@ -14,13 +20,19 @@ what is promised, and how the contract evolves without breaking consumers
    `conversation` = `PrConversation`; write receipts verbatim
    (`{reviewId, commentsDegraded}`, `{commentId}`); `repos` = the
    `GET /api/repos` response.
-2. **Exactly two CLI-synthesized shapes; all else passthrough.**
+2. **Exactly three CLI-synthesized shapes; all else passthrough.**
    (a) `delta` — a discriminated union on both arms:
    `{available: true, baselineSha, headSha, artifact: <verbatim body>}` /
    `{available: false, reason}`; `baselineSha` records the checkpoint
    resolution the CLI itself performed. (b) `auth status` — CLI-owned by
    necessity (no single server response backs it); MUST include the server
-   version. Any other command inventing its own shape is a boundary violation.
+   version. (c) `capabilities` — a join no single party can produce: the
+   server's `GET /api/capabilities` response (its registered operations plus
+   `catalogFingerprint`) merged with what only the binary knows —
+   `cliVersion`, its committed command map, its baked fingerprint. Server
+   fields pass through verbatim inside it; the join is additive-only like
+   every synthesized shape. Any other command inventing its own shape is a
+   boundary violation.
 3. **Stability promise: additive-only from day one** — fields are never
    removed, renamed, or retyped within a major; new fields may appear any
    release; consumers tolerant-read. Holds explicitly even pre-1.0. The
@@ -41,7 +53,10 @@ what is promised, and how the contract evolves without breaking consumers
    flags, `--group` with a custom span, malformed submit JSON shape) ·
    3 auth (401 — re-mint) · 4 not found (404, incl. unmodeled delta 404) ·
    5 server rejected payload (4xx validation — makes an agent's submit loop
-   self-correcting without stderr parsing).
+   self-correcting without stderr parsing) ·
+   6 incompatible (`capabilities --require` found a required operation the
+   server does not register or this binary maps to no command — stop before
+   driving it).
 7. **`--json` is an explicit flag** (gh posture). TTY default is human
    rendering, explicitly NON-contractual — it may change any release and
    must never be parsed. No pipe auto-detection: output shape follows the
@@ -50,7 +65,12 @@ what is promised, and how the contract evolves without breaking consumers
    diff is its machine format; no JSON arm exists.
 8. **Skew visibility, not negotiation.** The server exposes its version;
    `auth status` surfaces it; the API changelog is keyed to it. No
-   version-negotiation protocol in v1.
+   version-negotiation protocol in v1. Discovery keeps that posture:
+   `GET /api/capabilities` plus `mergebrief capabilities --require` is a
+   **fail-closed compatibility check** — required operations either all pass
+   or the command exits 6 before anything runs — never a negotiation, and a
+   catalog-fingerprint mismatch alone is one stderr warning line, never a
+   gate.
 
 ## Considered Options
 

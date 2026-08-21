@@ -19,6 +19,7 @@ export const PRODUCT_QUERY_ID = {
   READ_NARRATIVE: "read-narrative",
   READ_DIFF: "read-diff",
   READ_REVIEW_SESSION: "read-review-session",
+  READ_CAPABILITIES: "read-capabilities",
 } as const;
 export type ProductQueryId = ValueOf<typeof PRODUCT_QUERY_ID>;
 

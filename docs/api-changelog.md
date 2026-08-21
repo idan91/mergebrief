@@ -13,6 +13,17 @@ The contract discipline (ADR 0029): response shapes change additively
 within a major; removals/renames ship expand/contract — new field first,
 deprecation note here, removal only at a major.
 
+## dev (2026-08-21 — BRIEF-198)
+
+- **Added** `GET /api/capabilities` → `{operations:[{id, kind,
+  classification, endpoint}], catalogFingerprint}` — the registered
+  product-operation catalog served as data (id-sorted, `no-store`,
+  session-gated on both presentation channels). `catalogFingerprint` is the
+  sha256 hex of the committed `product-operations.manifest.json` bytes, so
+  a client can detect catalog skew without diffing descriptor lists. Backs
+  the `mergebrief capabilities` fail-closed compatibility check (ADR 0029
+  as amended: exit 6).
+
 ## dev (2026-08-16 — BRIEF-196)
 
 - **BREAKING** — the installation-switch endpoint renamed

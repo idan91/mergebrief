@@ -1,6 +1,7 @@
 // Renders the committed manifest — the machine-readable capability surface
 // consumers read instead of importing route code. Byte-stable: pretty JSON,
 // trailing newline, operations in the registry's sorted order.
+import { createHash } from "node:crypto";
 import type { ProductOperationDescriptor } from "./types";
 
 /**
@@ -30,4 +31,11 @@ export function renderManifest(
     endpoint: operation.endpoint,
   }));
   return `${JSON.stringify({ operations: normalized }, null, 2)}\n`;
+}
+
+/** Identity of the rendered manifest bytes — the CLI's drift-detection key. */
+export function computeCatalogFingerprint(
+  operations: readonly ProductOperationDescriptor[],
+): string {
+  return createHash("sha256").update(renderManifest(operations)).digest("hex");
 }
