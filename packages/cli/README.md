@@ -138,6 +138,27 @@ shapes — a discriminated union, both arms exit 0:
 `delta-not-generated`. `--baseline/--head` (together) skip checkpoint
 resolution; an artifact missing for an explicit span is exit 4.
 
+### `session <n> --base <sha> --head <sha>`
+
+Your review session on the brief span you name, verbatim. The span is
+required and never auto-fetched (exit 2 without it) — the same
+`baseSha`/`headSha` pair `pr <n>` reports.
+
+### `marks <n> --baseline <sha> --head <sha>`
+
+Comparison marks (coordinates only) for a `baseline..head` span, verbatim.
+Both flags required (exit 2).
+
+### `narrative <n> --prev-head <sha> --head <sha>`
+
+The revision narrative for a `prevHead..head` hop, verbatim. Both flags
+required (exit 2).
+
+### `context <n> --base <sha> --head <sha>`
+
+The brief's repo-config snapshot (`{"repoConfig":…}`), verbatim. Same span
+rule as `session`.
+
 ### `conversation <n>`
 
 The PR's review conversation, verbatim (threads, reviews, PR comments).
@@ -217,34 +238,40 @@ Usage: mergebrief [options] [command]
 MergeBrief — PR briefs for humans and agents, over your deployment's API
 
 Options:
-  --json                       machine output: the documented JSON contract
-                               (default: false)
-  --agents                     print the packaged agent guide and exit (default:
-                               false)
-  --profile <name>             config profile (default: owners match, then the
-                               default profile)
-  -R, --repo <owner/name>      target repository (default: the origin remote)
-  -h, --help                   display help for command
+  --json                        machine output: the documented JSON contract
+                                (default: false)
+  --agents                      print the packaged agent guide and exit
+                                (default: false)
+  --profile <name>              config profile (default: owners match, then the
+                                default profile)
+  -R, --repo <owner/name>       target repository (default: the origin remote)
+  -h, --help                    display help for command
 
 Commands:
-  auth                         authentication against your deployment
-  repos [options]              repositories visible to the profile's token
-                               (cached; see --refresh)
-  pr [number]                  your PRs (no argument), or one PR's metadata
-  groups <number>              the PR's brief — change groups over the current
-                               span
-  conversation <number>        the PR's review conversation
-  diff [options] <number>      the PR's unified diff (its raw text IS the
-                               machine format)
-  reply [options] <commentId>  reply to a review comment (the viewer's own
-                               voice)
-  submit [options] <number>    submit a review of the brief span you name (its
-                               saved drafts go with it)
-  capabilities [options]       what this server+CLI pair can run; --require
-                               makes it a fail-closed check
-  delta [options] <number>     what changed since your last review (union:
-                               available | not)
-  help [command]               display help for command
+  auth                          authentication against your deployment
+  repos [options]               repositories visible to the profile's token
+                                (cached; see --refresh)
+  pr [number]                   your PRs (no argument), or one PR's metadata
+  groups <number>               the PR's brief — change groups over the current
+                                span
+  conversation <number>         the PR's review conversation
+  diff [options] <number>       the PR's unified diff (its raw text IS the
+                                machine format)
+  reply [options] <commentId>   reply to a review comment (the viewer's own
+                                voice)
+  submit [options] <number>     submit a review of the brief span you name (its
+                                saved drafts go with it)
+  session [options] <number>    your review session on the brief span you name
+  marks [options] <number>      comparison marks (coordinates only) for a
+                                baseline..head span
+  narrative [options] <number>  the revision narrative for a prevHead..head hop
+  context [options] <number>    the brief's repo-config snapshot for the span
+                                you name
+  capabilities [options]        what this server+CLI pair can run; --require
+                                makes it a fail-closed check
+  delta [options] <number>      what changed since your last review (union:
+                                available | not)
+  help [command]                display help for command
 ```
 
 ### `mergebrief auth login`
@@ -355,6 +382,70 @@ Options:
   --baseline <sha>  override the checkpoint baseline (with --head)
   --head <sha>      override the head (with --baseline)
   -h, --help        display help for command
+```
+
+### `mergebrief session`
+
+```
+Usage: mergebrief session [options] <number>
+
+your review session on the brief span you name
+
+Arguments:
+  number        PR number
+
+Options:
+  --base <sha>  span base of the brief (required)
+  --head <sha>  span head of the brief (required)
+  -h, --help    display help for command
+```
+
+### `mergebrief marks`
+
+```
+Usage: mergebrief marks [options] <number>
+
+comparison marks (coordinates only) for a baseline..head span
+
+Arguments:
+  number            PR number
+
+Options:
+  --baseline <sha>  comparison baseline (required)
+  --head <sha>      comparison head (required)
+  -h, --help        display help for command
+```
+
+### `mergebrief narrative`
+
+```
+Usage: mergebrief narrative [options] <number>
+
+the revision narrative for a prevHead..head hop
+
+Arguments:
+  number             PR number
+
+Options:
+  --prev-head <sha>  prior briefed head (required)
+  --head <sha>       revision head (required)
+  -h, --help         display help for command
+```
+
+### `mergebrief context`
+
+```
+Usage: mergebrief context [options] <number>
+
+the brief's repo-config snapshot for the span you name
+
+Arguments:
+  number        PR number
+
+Options:
+  --base <sha>  span base of the brief (required)
+  --head <sha>  span head of the brief (required)
+  -h, --help    display help for command
 ```
 
 ### `mergebrief capabilities`

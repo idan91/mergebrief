@@ -34,7 +34,7 @@ export function requireSpan(
   base: string | undefined,
   head: string | undefined,
 ): BriefSpan {
-  if (base === undefined || base === "" || head === undefined || head === "") {
+  if (!base || !head) {
     throw new CliError(
       ExitCode.USAGE,
       "--base and --head are required — name the brief span you reviewed (see `mergebrief pr <n>` baseSha/headSha); it is never auto-fetched",

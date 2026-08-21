@@ -11,7 +11,10 @@ const README = join(fileURLToPath(new URL("..", import.meta.url)), "README.md");
 const BEGIN = "<!-- BEGIN GENERATED FLAG APPENDIX (pnpm docs:appendix) -->";
 const END = "<!-- END GENERATED FLAG APPENDIX -->";
 
-const COMMANDS: string[][] = [
+/** One help screen's argv: the command path tokens, then `--help`. */
+type HelpArgv = [...path: string[], help: "--help"];
+
+const COMMANDS: readonly HelpArgv[] = [
   ["--help"],
   ["auth", "login", "--help"],
   ["auth", "status", "--help"],
@@ -21,6 +24,10 @@ const COMMANDS: string[][] = [
   ["conversation", "--help"],
   ["diff", "--help"],
   ["delta", "--help"],
+  ["session", "--help"],
+  ["marks", "--help"],
+  ["narrative", "--help"],
+  ["context", "--help"],
   ["capabilities", "--help"],
   ["reply", "--help"],
   ["submit", "--help"],

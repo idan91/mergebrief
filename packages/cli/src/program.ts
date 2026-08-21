@@ -38,6 +38,14 @@ import {
   runSubmit,
   type SubmitInput,
 } from "./commands/write";
+import {
+  requireComparisonSpan,
+  requireNarrativeSpan,
+  runContext,
+  runMarks,
+  runNarrative,
+  runSession,
+} from "./commands/session-read";
 
 export interface CliDeps {
   readonly fetch: FetchLike;
@@ -562,6 +570,72 @@ export function buildProgram(deps: CliDeps): Command {
         );
       },
     );
+
+  program
+    .command("session")
+    .description("your review session on the brief span you name")
+    .argument("<number>", "PR number")
+    .option("--base <sha>", "span base of the brief (required)")
+    .option("--head <sha>", "span head of the brief (required)")
+    .action(async (raw: string, options: { base?: string; head?: string }) => {
+      const global = globals();
+      const prNumber = parsePrNumber(raw);
+      const span = requireSpan(options.base, options.head);
+      const { client, repoId } = await resolveTarget(deps, global);
+      await runSession(client, repoId, prNumber, span, readIo(deps, global));
+    });
+
+  program
+    .command("marks")
+    .description("comparison marks (coordinates only) for a baseline..head span")
+    .argument("<number>", "PR number")
+    .option("--baseline <sha>", "comparison baseline (required)")
+    .option("--head <sha>", "comparison head (required)")
+    .action(
+      async (raw: string, options: { baseline?: string; head?: string }) => {
+        const global = globals();
+        const prNumber = parsePrNumber(raw);
+        const span = requireComparisonSpan(options.baseline, options.head);
+        const { client, repoId } = await resolveTarget(deps, global);
+        await runMarks(client, repoId, prNumber, span, readIo(deps, global));
+      },
+    );
+
+  program
+    .command("narrative")
+    .description("the revision narrative for a prevHead..head hop")
+    .argument("<number>", "PR number")
+    .option("--prev-head <sha>", "prior briefed head (required)")
+    .option("--head <sha>", "revision head (required)")
+    .action(
+      async (raw: string, options: { prevHead?: string; head?: string }) => {
+        const global = globals();
+        const prNumber = parsePrNumber(raw);
+        const span = requireNarrativeSpan(options.prevHead, options.head);
+        const { client, repoId } = await resolveTarget(deps, global);
+        await runNarrative(
+          client,
+          repoId,
+          prNumber,
+          span,
+          readIo(deps, global),
+        );
+      },
+    );
+
+  program
+    .command("context")
+    .description("the brief's repo-config snapshot for the span you name")
+    .argument("<number>", "PR number")
+    .option("--base <sha>", "span base of the brief (required)")
+    .option("--head <sha>", "span head of the brief (required)")
+    .action(async (raw: string, options: { base?: string; head?: string }) => {
+      const global = globals();
+      const prNumber = parsePrNumber(raw);
+      const span = requireSpan(options.base, options.head);
+      const { client, repoId } = await resolveTarget(deps, global);
+      await runContext(client, repoId, prNumber, span, readIo(deps, global));
+    });
 
   program
     .command("capabilities")

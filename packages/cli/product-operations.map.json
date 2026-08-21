@@ -83,7 +83,7 @@
   },
   "mint-token": {
     "webOnly": {
-      "reason": "Minting a credential is a browser act — /api/auth/* ignores Bearer headers so a stolen token cannot mint another",
+      "reason": "Minting a credential is a browser act \u2014 /api/auth/* ignores Bearer headers so a stolen token cannot mint another",
       "owner": "idan"
     }
   },
@@ -91,12 +91,7 @@
     "command": "mergebrief groups <number>"
   },
   "read-brief-context": {
-    "gap": {
-      "reason": "No mergebrief command yet; brief-context read ships with the Review Session CLI surface",
-      "owner": "idan",
-      "ticket": "BRIEF-201",
-      "expiry": "2026-12-31"
-    }
+    "command": "mergebrief context <number>"
   },
   "read-capabilities": {
     "command": "mergebrief capabilities"
@@ -111,31 +106,16 @@
     "command": "mergebrief diff <number>"
   },
   "read-marks": {
-    "gap": {
-      "reason": "No mergebrief command yet; marks read ships with the Review Session CLI surface",
-      "owner": "idan",
-      "ticket": "BRIEF-201",
-      "expiry": "2026-12-31"
-    }
+    "command": "mergebrief marks <number>"
   },
   "read-narrative": {
-    "gap": {
-      "reason": "No mergebrief command yet; narrative read ships with the Review Session CLI surface",
-      "owner": "idan",
-      "ticket": "BRIEF-201",
-      "expiry": "2026-12-31"
-    }
+    "command": "mergebrief narrative <number>"
   },
   "read-pull": {
     "command": "mergebrief pr <number>"
   },
   "read-review-session": {
-    "gap": {
-      "reason": "No mergebrief command yet; the session read ships with the Review Session CLI surface",
-      "owner": "idan",
-      "ticket": "BRIEF-201",
-      "expiry": "2026-12-31"
-    }
+    "command": "mergebrief session <number>"
   },
   "reanchor-draft-comment": {
     "gap": {
