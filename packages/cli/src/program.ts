@@ -34,8 +34,10 @@ import { CLI_CATALOG_FINGERPRINT } from "./generated-catalog-fingerprint";
 import {
   buildSubmitPayload,
   requireSpan,
+  runReady,
   runReply,
   runSubmit,
+  runThreadResolution,
   type SubmitInput,
 } from "./commands/write";
 import {
@@ -49,6 +51,7 @@ import {
 import {
   buildCreateDraftPayload,
   buildReanchorPayload,
+  buildRiskPayload,
   buildUpdateDraftPayload,
   resolveReadFlag,
   runSessionWrite,
@@ -860,6 +863,168 @@ export function buildProgram(deps: CliDeps): Command {
         );
       },
     );
+
+  const risk = program
+    .command("risk")
+    .description("disposition the brief's risk flags in your session");
+  const riskAction =
+    (subpath: string, takesReason: boolean) =>
+    async (
+      raw: string,
+      options: {
+        payload?: string;
+        reason?: string;
+        base?: string;
+        head?: string;
+      },
+    ) => {
+      const global = globals();
+      const prNumber = parsePrNumber(raw);
+      const span = requireSpan(options.base, options.head);
+      const payload = buildRiskPayload(
+        options.payload === undefined
+          ? undefined
+          : parsePayloadSource(await readSource(deps, options.payload)),
+        takesReason ? options.reason : undefined,
+      );
+      const { client, repoId } = await resolveTarget(deps, global);
+      await runSessionWrite(
+        client,
+        { method: "POST", repoId, prNumber, subpath, span, payload },
+        readIo(deps, global),
+      );
+    };
+  risk
+    .command("dismiss")
+    .description("dismiss risk flags (the payload's flags array names them)")
+    .argument("<number>", "PR number")
+    .option("-F, --payload <path>", 'JSON payload from a file, or "-" for stdin (required)')
+    .option("--reason <text>", "dismissal reason (unless the payload carries one)")
+    .option("--base <sha>", "span base of the brief (required)")
+    .option("--head <sha>", "span head of the brief (required)")
+    .action(riskAction("/risks/dismiss", true));
+  risk
+    .command("address")
+    .description("mark risk flags addressed (each flag carries its evidence)")
+    .argument("<number>", "PR number")
+    .option("-F, --payload <path>", 'JSON payload from a file, or "-" for stdin (required)')
+    .option("--base <sha>", "span base of the brief (required)")
+    .option("--head <sha>", "span head of the brief (required)")
+    .action(riskAction("/risks/address", false));
+  risk
+    .command("reopen")
+    .description("undo dispositions on risk flags")
+    .argument("<number>", "PR number")
+    .option("-F, --payload <path>", 'JSON payload from a file, or "-" for stdin (required)')
+    .option("--base <sha>", "span base of the brief (required)")
+    .option("--head <sha>", "span head of the brief (required)")
+    .action(riskAction("/risks/reopen", false));
+
+  program
+    .command("reclassify")
+    .description("override a change group's category in your session")
+    .argument("<number>", "PR number")
+    .argument("<groupId>", "the change group id (see `groups <n>`)")
+    .requiredOption("--category <category>", "the category to record")
+    .option("--base <sha>", "span base of the brief (required)")
+    .option("--head <sha>", "span head of the brief (required)")
+    .action(
+      async (
+        raw: string,
+        groupId: string,
+        options: { category: string; base?: string; head?: string },
+      ) => {
+        const global = globals();
+        const prNumber = parsePrNumber(raw);
+        const span = requireSpan(options.base, options.head);
+        const { client, repoId } = await resolveTarget(deps, global);
+        await runSessionWrite(
+          client,
+          {
+            method: "PUT",
+            repoId,
+            prNumber,
+            subpath: `/groups/${encodeURIComponent(groupId)}/classification`,
+            span,
+            payload: { category: options.category },
+          },
+          readIo(deps, global),
+        );
+      },
+    );
+
+  program
+    .command("outcome")
+    .description("set your session's review intent (publishing is `submit`)")
+    .argument("<number>", "PR number")
+    .argument("<outcome>", "comment | approve | request-changes")
+    .option("--base <sha>", "span base of the brief (required)")
+    .option("--head <sha>", "span head of the brief (required)")
+    .action(
+      async (
+        raw: string,
+        outcome: string,
+        options: { base?: string; head?: string },
+      ) => {
+        const global = globals();
+        const prNumber = parsePrNumber(raw);
+        const span = requireSpan(options.base, options.head);
+        const { client, repoId } = await resolveTarget(deps, global);
+        await runSessionWrite(
+          client,
+          {
+            method: "PUT",
+            repoId,
+            prNumber,
+            subpath: "/outcome",
+            span,
+            payload: { outcome },
+          },
+          readIo(deps, global),
+        );
+      },
+    );
+
+  const thread = program
+    .command("thread")
+    .description("review-thread state on GitHub (the viewer's own act)");
+  const threadAction =
+    (resolved: boolean) => async (raw: string, commentId: string) => {
+      const global = globals();
+      const prNumber = parsePrNumber(raw);
+      const { client, repoId } = await resolveTarget(deps, global);
+      await runThreadResolution(
+        client,
+        repoId,
+        prNumber,
+        commentId,
+        resolved,
+        readIo(deps, global),
+      );
+    };
+  thread
+    .command("resolve")
+    .description("resolve the thread rooted at a review comment")
+    .argument("<number>", "PR number")
+    .argument("<commentId>", "the thread's root review comment id")
+    .action(threadAction(true));
+  thread
+    .command("unresolve")
+    .description("reopen the thread rooted at a review comment")
+    .argument("<number>", "PR number")
+    .argument("<commentId>", "the thread's root review comment id")
+    .action(threadAction(false));
+
+  program
+    .command("ready")
+    .description("mark a draft PR ready for review (GitHub-enforced authorship)")
+    .argument("<number>", "PR number")
+    .action(async (raw: string) => {
+      const global = globals();
+      const prNumber = parsePrNumber(raw);
+      const { client, repoId } = await resolveTarget(deps, global);
+      await runReady(client, repoId, prNumber, readIo(deps, global));
+    });
 
   program
     .command("capabilities")

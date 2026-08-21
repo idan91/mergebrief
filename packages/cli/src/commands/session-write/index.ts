@@ -11,6 +11,7 @@ import { spanQuery, type BriefSpan } from "../write";
 export {
   buildCreateDraftPayload,
   buildReanchorPayload,
+  buildRiskPayload,
   buildUpdateDraftPayload,
   resolveReadFlag,
 } from "./utils";

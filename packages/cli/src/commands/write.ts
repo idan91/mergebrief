@@ -68,6 +68,48 @@ export async function runReply(
 }
 
 // ---------------------------------------------------------------------------
+// thread resolution + ready — span-less GitHub-backed writes
+// ---------------------------------------------------------------------------
+
+/** POST resolve/unresolve on a thread's root comment; receipt passthrough. */
+export async function runThreadResolution(
+  client: ApiClient,
+  repoId: string,
+  prNumber: number,
+  commentId: string,
+  resolved: boolean,
+  io: WriteIo,
+): Promise<void> {
+  const response = await client.request({
+    method: "POST",
+    path: `/api/repos/${repoId}/pulls/${prNumber}/comments/${encodeURIComponent(commentId)}/${resolved ? "resolve" : "unresolve"}`,
+  });
+  if (io.json) {
+    io.stdout(response.bodyText); // verbatim receipt
+    return;
+  }
+  io.stdout(`${response.bodyText}\n`);
+}
+
+/** POST mark-ready; receipt passthrough ({draft:false}). */
+export async function runReady(
+  client: ApiClient,
+  repoId: string,
+  prNumber: number,
+  io: WriteIo,
+): Promise<void> {
+  const response = await client.request({
+    method: "POST",
+    path: `/api/repos/${repoId}/pulls/${prNumber}/ready`,
+  });
+  if (io.json) {
+    io.stdout(response.bodyText); // verbatim receipt
+    return;
+  }
+  io.stdout(`${response.bodyText}\n`);
+}
+
+// ---------------------------------------------------------------------------
 // submit
 // ---------------------------------------------------------------------------
 

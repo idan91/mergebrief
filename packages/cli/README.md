@@ -180,6 +180,35 @@ mutually exclusive (exit 2):
 Mark a brief chunk read (`--unread` clears; the flags are mutually
 exclusive). Span required. Receipt: `{"chunkId":"chunk-1","read":true}`.
 
+### `risk dismiss|address|reopen <n> -F <file>`
+
+Disposition the brief's risk flags. `-F` is **required** — the payload's
+`flags` array names each flag by anchor (`filePath`, `attribute`,
+`regionStart`, `regionEnd`), copied through from `session --json`.
+`dismiss` adds `--reason <text>` as a convenience, mutually exclusive with
+a `reason` in the payload (exit 2). Span required. Server-gated to
+signed-in reviewers (a token gets the relayed 403 → exit 5).
+
+### `reclassify <n> <groupId> --category <category>`
+
+Override a change group's category in your session. Span required.
+Receipt: `{"changeGroupId":"grp-1","category":"bugfix"}`.
+
+### `outcome <n> <comment|approve|request-changes>`
+
+Set your session's review intent — `submit` is what publishes. Span
+required. Receipt: `{"outcome":"approve"}`.
+
+### `thread resolve|unresolve <n> <commentId>`
+
+Flip the review thread rooted at a comment, on GitHub, as you. No span.
+Receipt: `{"resolved":true,"alreadyInTargetState":false}`.
+
+### `ready <n>`
+
+Mark a draft PR ready for review (GitHub enforces who may). No span.
+Receipt: `{"draft":false}`.
+
 ### `conversation <n>`
 
 The PR's review conversation, verbatim (threads, reviews, PR comments).
@@ -280,6 +309,11 @@ Commands:
   context [options] <number>               the brief's repo-config snapshot for the span you name
   draft                                    draft review comments in your session (posted at submit)
   chunk-read [options] <number> <chunkId>  mark a brief chunk read (--unread clears the mark)
+  risk                                     disposition the brief's risk flags in your session
+  reclassify [options] <number> <groupId>  override a change group's category in your session
+  outcome [options] <number> <outcome>     set your session's review intent (publishing is `submit`)
+  thread                                   review-thread state on GitHub (the viewer's own act)
+  ready <number>                           mark a draft PR ready for review (GitHub-enforced authorship)
   capabilities [options]                   what this server+CLI pair can run; --require makes it a fail-closed check
   delta [options] <number>                 what changed since your last review (union: available | not)
   help [command]                           display help for command
@@ -556,6 +590,137 @@ Options:
   --base <sha>  span base of the brief (required)
   --head <sha>  span head of the brief (required)
   -h, --help    display help for command
+```
+
+### `mergebrief risk dismiss`
+
+```
+Usage: mergebrief risk dismiss [options] <number>
+
+dismiss risk flags (the payload's flags array names them)
+
+Arguments:
+  number                PR number
+
+Options:
+  -F, --payload <path>  JSON payload from a file, or "-" for stdin (required)
+  --reason <text>       dismissal reason (unless the payload carries one)
+  --base <sha>          span base of the brief (required)
+  --head <sha>          span head of the brief (required)
+  -h, --help            display help for command
+```
+
+### `mergebrief risk address`
+
+```
+Usage: mergebrief risk address [options] <number>
+
+mark risk flags addressed (each flag carries its evidence)
+
+Arguments:
+  number                PR number
+
+Options:
+  -F, --payload <path>  JSON payload from a file, or "-" for stdin (required)
+  --base <sha>          span base of the brief (required)
+  --head <sha>          span head of the brief (required)
+  -h, --help            display help for command
+```
+
+### `mergebrief risk reopen`
+
+```
+Usage: mergebrief risk reopen [options] <number>
+
+undo dispositions on risk flags
+
+Arguments:
+  number                PR number
+
+Options:
+  -F, --payload <path>  JSON payload from a file, or "-" for stdin (required)
+  --base <sha>          span base of the brief (required)
+  --head <sha>          span head of the brief (required)
+  -h, --help            display help for command
+```
+
+### `mergebrief reclassify`
+
+```
+Usage: mergebrief reclassify [options] <number> <groupId>
+
+override a change group's category in your session
+
+Arguments:
+  number                 PR number
+  groupId                the change group id (see `groups <n>`)
+
+Options:
+  --category <category>  the category to record
+  --base <sha>           span base of the brief (required)
+  --head <sha>           span head of the brief (required)
+  -h, --help             display help for command
+```
+
+### `mergebrief outcome`
+
+```
+Usage: mergebrief outcome [options] <number> <outcome>
+
+set your session's review intent (publishing is `submit`)
+
+Arguments:
+  number        PR number
+  outcome       comment | approve | request-changes
+
+Options:
+  --base <sha>  span base of the brief (required)
+  --head <sha>  span head of the brief (required)
+  -h, --help    display help for command
+```
+
+### `mergebrief thread resolve`
+
+```
+Usage: mergebrief thread resolve [options] <number> <commentId>
+
+resolve the thread rooted at a review comment
+
+Arguments:
+  number      PR number
+  commentId   the thread's root review comment id
+
+Options:
+  -h, --help  display help for command
+```
+
+### `mergebrief thread unresolve`
+
+```
+Usage: mergebrief thread unresolve [options] <number> <commentId>
+
+reopen the thread rooted at a review comment
+
+Arguments:
+  number      PR number
+  commentId   the thread's root review comment id
+
+Options:
+  -h, --help  display help for command
+```
+
+### `mergebrief ready`
+
+```
+Usage: mergebrief ready [options] <number>
+
+mark a draft PR ready for review (GitHub-enforced authorship)
+
+Arguments:
+  number      PR number
+
+Options:
+  -h, --help  display help for command
 ```
 
 ### `mergebrief capabilities`

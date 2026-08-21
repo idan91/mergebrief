@@ -84,6 +84,46 @@ export function buildReanchorPayload(input: ReanchorInput): unknown {
   return anchorFromFlags(input);
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+/**
+ * A risk operation's payload: `-F` is REQUIRED — the flags array names its
+ * anchors verbatim from `session --json`, which no flag form can carry.
+ * `dismiss` takes a `--reason` convenience, refused when the payload already
+ * carries one (a defined precedence beats a silent overwrite).
+ */
+export function buildRiskPayload(
+  payload: unknown,
+  reason?: string,
+): unknown {
+  if (payload === undefined) {
+    throw new CliError(
+      ExitCode.USAGE,
+      "-F is required — risk operations take a JSON payload with the flags array (anchors copy through from `session --json`)",
+    );
+  }
+  if (reason === undefined) {
+    return payload;
+  }
+  // Merging --reason needs a JSON object to merge into; anything else would
+  // put bytes on the wire the user never wrote.
+  if (!isRecord(payload) || Array.isArray(payload)) {
+    throw new CliError(
+      ExitCode.USAGE,
+      "--reason needs a JSON object payload to merge into — send {\"flags\":[…]} (or put reason in the payload)",
+    );
+  }
+  if (payload["reason"] !== undefined) {
+    throw new CliError(
+      ExitCode.USAGE,
+      "--reason and a reason in the -F payload are mutually exclusive — provide it once",
+    );
+  }
+  return { ...payload, reason };
+}
+
 /** `chunk-read`'s boolean: `--read` (the default) XOR `--unread`. */
 export function resolveReadFlag(
   read: boolean | undefined,
