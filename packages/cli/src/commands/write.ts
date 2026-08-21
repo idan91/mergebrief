@@ -43,7 +43,7 @@ export function requireSpan(
   return { base, head };
 }
 
-function spanQuery(span: BriefSpan): string {
+export function spanQuery(span: BriefSpan): string {
   return `?base=${encodeURIComponent(span.base)}&head=${encodeURIComponent(span.head)}`;
 }
 

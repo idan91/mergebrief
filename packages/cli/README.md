@@ -159,6 +159,27 @@ required (exit 2).
 The brief's repo-config snapshot (`{"repoConfig":…}`), verbatim. Same span
 rule as `session`.
 
+### `draft create|update|reanchor|delete <n> [draftId]`
+
+Draft inline comments in your session — they post at `submit`. Every draft
+command names the brief span (`--base/--head`, exit 2 without them).
+Payload via `-F <file>` / `-F -` (stdin), or the convenience flags —
+mutually exclusive (exit 2):
+
+- `create <n> --file <path> --start <line> --end <line> --body <text>`
+  (`--side old|new`, default `new` — `old` only for deleted lines).
+  Receipt: `{"draftId":"41"}`.
+- `update <n> <draftId> --body <text>` — edit a held draft's body.
+- `reanchor <n> <draftId> --file --start --end [--side]` — move a held
+  draft's anchor. Server-gated to signed-in reviewers (a token gets the
+  relayed 403 → exit 5).
+- `delete <n> <draftId>` — no payload. Same signed-in-reviewer gate.
+
+### `chunk-read <n> <chunkId>`
+
+Mark a brief chunk read (`--unread` clears; the flags are mutually
+exclusive). Span required. Receipt: `{"chunkId":"chunk-1","read":true}`.
+
 ### `conversation <n>`
 
 The PR's review conversation, verbatim (threads, reviews, PR comments).
@@ -238,40 +259,30 @@ Usage: mergebrief [options] [command]
 MergeBrief — PR briefs for humans and agents, over your deployment's API
 
 Options:
-  --json                        machine output: the documented JSON contract
-                                (default: false)
-  --agents                      print the packaged agent guide and exit
-                                (default: false)
-  --profile <name>              config profile (default: owners match, then the
-                                default profile)
-  -R, --repo <owner/name>       target repository (default: the origin remote)
-  -h, --help                    display help for command
+  --json                                   machine output: the documented JSON contract (default: false)
+  --agents                                 print the packaged agent guide and exit (default: false)
+  --profile <name>                         config profile (default: owners match, then the default profile)
+  -R, --repo <owner/name>                  target repository (default: the origin remote)
+  -h, --help                               display help for command
 
 Commands:
-  auth                          authentication against your deployment
-  repos [options]               repositories visible to the profile's token
-                                (cached; see --refresh)
-  pr [number]                   your PRs (no argument), or one PR's metadata
-  groups <number>               the PR's brief — change groups over the current
-                                span
-  conversation <number>         the PR's review conversation
-  diff [options] <number>       the PR's unified diff (its raw text IS the
-                                machine format)
-  reply [options] <commentId>   reply to a review comment (the viewer's own
-                                voice)
-  submit [options] <number>     submit a review of the brief span you name (its
-                                saved drafts go with it)
-  session [options] <number>    your review session on the brief span you name
-  marks [options] <number>      comparison marks (coordinates only) for a
-                                baseline..head span
-  narrative [options] <number>  the revision narrative for a prevHead..head hop
-  context [options] <number>    the brief's repo-config snapshot for the span
-                                you name
-  capabilities [options]        what this server+CLI pair can run; --require
-                                makes it a fail-closed check
-  delta [options] <number>      what changed since your last review (union:
-                                available | not)
-  help [command]                display help for command
+  auth                                     authentication against your deployment
+  repos [options]                          repositories visible to the profile's token (cached; see --refresh)
+  pr [number]                              your PRs (no argument), or one PR's metadata
+  groups <number>                          the PR's brief — change groups over the current span
+  conversation <number>                    the PR's review conversation
+  diff [options] <number>                  the PR's unified diff (its raw text IS the machine format)
+  reply [options] <commentId>              reply to a review comment (the viewer's own voice)
+  submit [options] <number>                submit a review of the brief span you name (its saved drafts go with it)
+  session [options] <number>               your review session on the brief span you name
+  marks [options] <number>                 comparison marks (coordinates only) for a baseline..head span
+  narrative [options] <number>             the revision narrative for a prevHead..head hop
+  context [options] <number>               the brief's repo-config snapshot for the span you name
+  draft                                    draft review comments in your session (posted at submit)
+  chunk-read [options] <number> <chunkId>  mark a brief chunk read (--unread clears the mark)
+  capabilities [options]                   what this server+CLI pair can run; --require makes it a fail-closed check
+  delta [options] <number>                 what changed since your last review (union: available | not)
+  help [command]                           display help for command
 ```
 
 ### `mergebrief auth login`
@@ -443,6 +454,105 @@ Arguments:
   number        PR number
 
 Options:
+  --base <sha>  span base of the brief (required)
+  --head <sha>  span head of the brief (required)
+  -h, --help    display help for command
+```
+
+### `mergebrief draft create`
+
+```
+Usage: mergebrief draft create [options] <number>
+
+draft a new inline comment on the brief span you name
+
+Arguments:
+  number                PR number
+
+Options:
+  -F, --payload <path>  full JSON payload from a file, or "-" for stdin
+  --file <path>         anchor file path (flag form)
+  --side <side>         old | new (flag form; default: new)
+  --start <line>        anchor start line (flag form)
+  --end <line>          anchor end line (flag form)
+  --body <text>         comment body (flag form)
+  --base <sha>          span base of the brief (required)
+  --head <sha>          span head of the brief (required)
+  -h, --help            display help for command
+```
+
+### `mergebrief draft update`
+
+```
+Usage: mergebrief draft update [options] <number> <draftId>
+
+edit a held draft's body
+
+Arguments:
+  number                PR number
+  draftId               the draft id (see `session <n>`)
+
+Options:
+  -F, --payload <path>  full JSON payload from a file, or "-" for stdin
+  --body <text>         new comment body (flag form)
+  --base <sha>          span base of the brief (required)
+  --head <sha>          span head of the brief (required)
+  -h, --help            display help for command
+```
+
+### `mergebrief draft reanchor`
+
+```
+Usage: mergebrief draft reanchor [options] <number> <draftId>
+
+move a held draft's anchor (settles a carried orphan)
+
+Arguments:
+  number                PR number
+  draftId               the draft id (see `session <n>`)
+
+Options:
+  -F, --payload <path>  full JSON payload from a file, or "-" for stdin
+  --file <path>         anchor file path (flag form)
+  --side <side>         old | new (flag form; default: new)
+  --start <line>        anchor start line (flag form)
+  --end <line>          anchor end line (flag form)
+  --base <sha>          span base of the brief (required)
+  --head <sha>          span head of the brief (required)
+  -h, --help            display help for command
+```
+
+### `mergebrief draft delete`
+
+```
+Usage: mergebrief draft delete [options] <number> <draftId>
+
+delete a held draft
+
+Arguments:
+  number        PR number
+  draftId       the draft id (see `session <n>`)
+
+Options:
+  --base <sha>  span base of the brief (required)
+  --head <sha>  span head of the brief (required)
+  -h, --help    display help for command
+```
+
+### `mergebrief chunk-read`
+
+```
+Usage: mergebrief chunk-read [options] <number> <chunkId>
+
+mark a brief chunk read (--unread clears the mark)
+
+Arguments:
+  number        PR number
+  chunkId       the chunk id as the brief spells it
+
+Options:
+  --read        mark read (the default)
+  --unread      clear the read mark
   --base <sha>  span base of the brief (required)
   --head <sha>  span head of the brief (required)
   -h, --help    display help for command

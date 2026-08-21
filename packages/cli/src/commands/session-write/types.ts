@@ -1,0 +1,37 @@
+// The shapes the session-write payload builders speak.
+
+/**
+ * The anchor flags `draft create`/`draft reanchor` share. The explicit
+ * `| undefined` is for `exactOptionalPropertyTypes`: callers assign
+ * commander's `string | undefined` option values directly.
+ */
+export interface AnchorFlags {
+  readonly file?: string | undefined;
+  readonly side?: string | undefined;
+  readonly start?: string | undefined;
+  readonly end?: string | undefined;
+}
+
+/** The flag-built draft anchor as the wire carries it. */
+export interface FlagAnchor {
+  filePath?: string;
+  side: string;
+  startLine?: number;
+  endLine?: number;
+  body?: string;
+}
+
+export interface CreateDraftInput extends AnchorFlags {
+  /** Parsed `-F` payload, if one was given. */
+  readonly payload?: unknown;
+  readonly body?: string | undefined;
+}
+
+export interface UpdateDraftInput {
+  readonly payload?: unknown;
+  readonly body?: string | undefined;
+}
+
+export interface ReanchorInput extends AnchorFlags {
+  readonly payload?: unknown;
+}

@@ -46,6 +46,14 @@ import {
   runNarrative,
   runSession,
 } from "./commands/session-read";
+import {
+  buildCreateDraftPayload,
+  buildReanchorPayload,
+  buildUpdateDraftPayload,
+  resolveReadFlag,
+  runSessionWrite,
+  type AnchorFlags,
+} from "./commands/session-write";
 
 export interface CliDeps {
   readonly fetch: FetchLike;
@@ -369,6 +377,9 @@ export function buildProgram(deps: CliDeps): Command {
       "target repository (default: the origin remote)",
     )
     .exitOverride()
+    // Fixed help width: the README appendix embeds this output, so wrapping
+    // must not depend on the generating terminal.
+    .configureHelp({ helpWidth: 80 })
     .configureOutput({
       writeOut: (str) => deps.stdout(str),
       writeErr: (str) => deps.stderr(str.trimEnd()),
@@ -636,6 +647,219 @@ export function buildProgram(deps: CliDeps): Command {
       const { client, repoId } = await resolveTarget(deps, global);
       await runContext(client, repoId, prNumber, span, readIo(deps, global));
     });
+
+  const draft = program
+    .command("draft")
+    .description("draft review comments in your session (posted at submit)");
+  draft
+    .command("create")
+    .description("draft a new inline comment on the brief span you name")
+    .argument("<number>", "PR number")
+    .option("-F, --payload <path>", 'full JSON payload from a file, or "-" for stdin')
+    .option("--file <path>", "anchor file path (flag form)")
+    .option("--side <side>", "old | new (flag form; default: new)")
+    .option("--start <line>", "anchor start line (flag form)")
+    .option("--end <line>", "anchor end line (flag form)")
+    .option("--body <text>", "comment body (flag form)")
+    .option("--base <sha>", "span base of the brief (required)")
+    .option("--head <sha>", "span head of the brief (required)")
+    .action(
+      async (
+        raw: string,
+        options: AnchorFlags & {
+          payload?: string;
+          body?: string;
+          base?: string;
+          head?: string;
+        },
+      ) => {
+        const global = globals();
+        const prNumber = parsePrNumber(raw);
+        const span = requireSpan(options.base, options.head);
+        const payload = buildCreateDraftPayload({
+          ...(options.payload === undefined
+            ? {}
+            : {
+                payload: parsePayloadSource(
+                  await readSource(deps, options.payload),
+                ),
+              }),
+          file: options.file,
+          side: options.side,
+          start: options.start,
+          end: options.end,
+          body: options.body,
+        });
+        const { client, repoId } = await resolveTarget(deps, global);
+        await runSessionWrite(
+          client,
+          { method: "POST", repoId, prNumber, subpath: "/comments", span, payload },
+          readIo(deps, global),
+        );
+      },
+    );
+  draft
+    .command("update")
+    .description("edit a held draft's body")
+    .argument("<number>", "PR number")
+    .argument("<draftId>", "the draft id (see `session <n>`)")
+    .option("-F, --payload <path>", 'full JSON payload from a file, or "-" for stdin')
+    .option("--body <text>", "new comment body (flag form)")
+    .option("--base <sha>", "span base of the brief (required)")
+    .option("--head <sha>", "span head of the brief (required)")
+    .action(
+      async (
+        raw: string,
+        draftId: string,
+        options: { payload?: string; body?: string; base?: string; head?: string },
+      ) => {
+        const global = globals();
+        const prNumber = parsePrNumber(raw);
+        const span = requireSpan(options.base, options.head);
+        const payload = buildUpdateDraftPayload({
+          ...(options.payload === undefined
+            ? {}
+            : {
+                payload: parsePayloadSource(
+                  await readSource(deps, options.payload),
+                ),
+              }),
+          body: options.body,
+        });
+        const { client, repoId } = await resolveTarget(deps, global);
+        await runSessionWrite(
+          client,
+          {
+            method: "PATCH",
+            repoId,
+            prNumber,
+            subpath: `/comments/${encodeURIComponent(draftId)}`,
+            span,
+            payload,
+          },
+          readIo(deps, global),
+        );
+      },
+    );
+  draft
+    .command("reanchor")
+    .description("move a held draft's anchor (settles a carried orphan)")
+    .argument("<number>", "PR number")
+    .argument("<draftId>", "the draft id (see `session <n>`)")
+    .option("-F, --payload <path>", 'full JSON payload from a file, or "-" for stdin')
+    .option("--file <path>", "anchor file path (flag form)")
+    .option("--side <side>", "old | new (flag form; default: new)")
+    .option("--start <line>", "anchor start line (flag form)")
+    .option("--end <line>", "anchor end line (flag form)")
+    .option("--base <sha>", "span base of the brief (required)")
+    .option("--head <sha>", "span head of the brief (required)")
+    .action(
+      async (
+        raw: string,
+        draftId: string,
+        options: AnchorFlags & { payload?: string; base?: string; head?: string },
+      ) => {
+        const global = globals();
+        const prNumber = parsePrNumber(raw);
+        const span = requireSpan(options.base, options.head);
+        const payload = buildReanchorPayload({
+          ...(options.payload === undefined
+            ? {}
+            : {
+                payload: parsePayloadSource(
+                  await readSource(deps, options.payload),
+                ),
+              }),
+          file: options.file,
+          side: options.side,
+          start: options.start,
+          end: options.end,
+        });
+        const { client, repoId } = await resolveTarget(deps, global);
+        await runSessionWrite(
+          client,
+          {
+            method: "PUT",
+            repoId,
+            prNumber,
+            subpath: `/comments/${encodeURIComponent(draftId)}/anchor`,
+            span,
+            payload,
+          },
+          readIo(deps, global),
+        );
+      },
+    );
+  draft
+    .command("delete")
+    .description("delete a held draft")
+    .argument("<number>", "PR number")
+    .argument("<draftId>", "the draft id (see `session <n>`)")
+    .option("--base <sha>", "span base of the brief (required)")
+    .option("--head <sha>", "span head of the brief (required)")
+    .action(
+      async (
+        raw: string,
+        draftId: string,
+        options: { base?: string; head?: string },
+      ) => {
+        const global = globals();
+        const prNumber = parsePrNumber(raw);
+        const span = requireSpan(options.base, options.head);
+        const { client, repoId } = await resolveTarget(deps, global);
+        await runSessionWrite(
+          client,
+          {
+            method: "DELETE",
+            repoId,
+            prNumber,
+            subpath: `/comments/${encodeURIComponent(draftId)}`,
+            span,
+          },
+          readIo(deps, global),
+        );
+      },
+    );
+
+  program
+    .command("chunk-read")
+    .description("mark a brief chunk read (--unread clears the mark)")
+    .argument("<number>", "PR number")
+    .argument("<chunkId>", "the chunk id as the brief spells it")
+    .option("--read", "mark read (the default)")
+    .option("--unread", "clear the read mark")
+    .option("--base <sha>", "span base of the brief (required)")
+    .option("--head <sha>", "span head of the brief (required)")
+    .action(
+      async (
+        raw: string,
+        chunkId: string,
+        options: {
+          read?: boolean;
+          unread?: boolean;
+          base?: string;
+          head?: string;
+        },
+      ) => {
+        const global = globals();
+        const prNumber = parsePrNumber(raw);
+        const span = requireSpan(options.base, options.head);
+        const read = resolveReadFlag(options.read, options.unread);
+        const { client, repoId } = await resolveTarget(deps, global);
+        await runSessionWrite(
+          client,
+          {
+            method: "PUT",
+            repoId,
+            prNumber,
+            subpath: `/chunks/${encodeURIComponent(chunkId)}/read`,
+            span,
+            payload: { read },
+          },
+          readIo(deps, global),
+        );
+      },
+    );
 
   program
     .command("capabilities")

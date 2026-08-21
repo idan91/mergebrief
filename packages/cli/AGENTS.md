@@ -25,6 +25,9 @@ src/
     capabilities.ts   the capabilities join + fail-closed --require preflight
     capabilities-map.ts  the map-entry vocabulary + join arm + boundary parse
     write.ts          reply / submit (thin POSTs over server validation)
+    session-read.ts   session / marks / narrative / context (passthrough GETs)
+    session-write/    draft create|update|reanchor|delete / chunk-read
+                      (index.ts runner, utils.ts builders, types.ts shapes)
     diff-filter.ts    the --group whole-hunk filter (output stays a valid diff)
   profile/          which server/token/repos the CLI points at
     config.ts         per-profile config.json (XDG, 0600, plaintext token v1)

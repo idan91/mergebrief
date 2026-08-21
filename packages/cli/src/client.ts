@@ -39,7 +39,7 @@ export interface ApiClientOptions {
 }
 
 export interface ApiRequest {
-  readonly method?: "GET" | "POST" | "DELETE";
+  readonly method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   readonly path: string;
   readonly body?: unknown;
 }

@@ -8,12 +8,7 @@
     }
   },
   "create-draft-comment": {
-    "gap": {
-      "reason": "No mergebrief command drafts review comments; Review Session authoring ships with the CLI surface",
-      "owner": "idan",
-      "ticket": "BRIEF-201",
-      "expiry": "2026-12-31"
-    }
+    "command": "mergebrief draft create <number>"
   },
   "create-inline-comment": {
     "gap": {
@@ -24,12 +19,7 @@
     }
   },
   "delete-draft-comment": {
-    "gap": {
-      "reason": "No mergebrief command deletes a draft comment; Review Session authoring ships with the CLI surface",
-      "owner": "idan",
-      "ticket": "BRIEF-201",
-      "expiry": "2026-12-31"
-    }
+    "command": "mergebrief draft delete <number>"
   },
   "dismiss-risk": {
     "gap": {
@@ -83,7 +73,7 @@
   },
   "mint-token": {
     "webOnly": {
-      "reason": "Minting a credential is a browser act \u2014 /api/auth/* ignores Bearer headers so a stolen token cannot mint another",
+      "reason": "Minting a credential is a browser act — /api/auth/* ignores Bearer headers so a stolen token cannot mint another",
       "owner": "idan"
     }
   },
@@ -118,12 +108,7 @@
     "command": "mergebrief session <number>"
   },
   "reanchor-draft-comment": {
-    "gap": {
-      "reason": "No mergebrief command re-anchors an orphaned draft; Review Session authoring ships with the CLI surface",
-      "owner": "idan",
-      "ticket": "BRIEF-201",
-      "expiry": "2026-12-31"
-    }
+    "command": "mergebrief draft reanchor <number>"
   },
   "reclassify-group": {
     "gap": {
@@ -165,12 +150,7 @@
     }
   },
   "set-chunk-read": {
-    "gap": {
-      "reason": "No mergebrief command marks a Chunk read; Review Session authoring ships with the CLI surface",
-      "owner": "idan",
-      "ticket": "BRIEF-201",
-      "expiry": "2026-12-31"
-    }
+    "command": "mergebrief chunk-read <number>"
   },
   "set-review-outcome": {
     "gap": {
@@ -192,11 +172,6 @@
     }
   },
   "update-draft-comment": {
-    "gap": {
-      "reason": "No mergebrief command edits a draft comment; Review Session authoring ships with the CLI surface",
-      "owner": "idan",
-      "ticket": "BRIEF-201",
-      "expiry": "2026-12-31"
-    }
+    "command": "mergebrief draft update <number>"
   }
 }
