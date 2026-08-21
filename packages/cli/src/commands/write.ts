@@ -109,6 +109,27 @@ export async function runReady(
   io.stdout(`${response.bodyText}\n`);
 }
 
+/**
+ * POST /api/generate — URL-box generation, no confirm prompt (the operator's
+ * own key, mirroring the web URL box). Receipt passthrough ({briefId}).
+ */
+export async function runGenerate(
+  client: ApiClient,
+  url: string,
+  io: WriteIo,
+): Promise<void> {
+  const response = await client.request({
+    method: "POST",
+    path: "/api/generate",
+    body: { url },
+  });
+  if (io.json) {
+    io.stdout(response.bodyText); // verbatim receipt
+    return;
+  }
+  io.stdout(`${response.bodyText}\n`);
+}
+
 // ---------------------------------------------------------------------------
 // submit
 // ---------------------------------------------------------------------------

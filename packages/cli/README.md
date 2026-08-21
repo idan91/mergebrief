@@ -209,6 +209,16 @@ Receipt: `{"resolved":true,"alreadyInTargetState":false}`.
 Mark a draft PR ready for review (GitHub enforces who may). No span.
 Receipt: `{"draft":false}`.
 
+### `generate <url>`
+
+Generate a brief for a PR URL on demand — no confirm prompt (your own
+key, mirroring the web URL box). Receipt: `{"briefId":"octo-hello-7_1_4c0a…"}`.
+
+### `collaborators`
+
+The target repo's collaborator roster, verbatim (`-R`/origin addressing).
+Requires push access — a read-only viewer gets the 404 posture.
+
 ### `conversation <n>`
 
 The PR's review conversation, verbatim (threads, reviews, PR comments).
@@ -314,6 +324,8 @@ Commands:
   outcome [options] <number> <outcome>     set your session's review intent (publishing is `submit`)
   thread                                   review-thread state on GitHub (the viewer's own act)
   ready <number>                           mark a draft PR ready for review (GitHub-enforced authorship)
+  generate <url>                           generate a brief for a PR URL (no confirm; your own key)
+  collaborators                            the target repo's collaborator roster (push access required)
   capabilities [options]                   what this server+CLI pair can run; --require makes it a fail-closed check
   delta [options] <number>                 what changed since your last review (union: available | not)
   help [command]                           display help for command
@@ -718,6 +730,31 @@ mark a draft PR ready for review (GitHub-enforced authorship)
 
 Arguments:
   number      PR number
+
+Options:
+  -h, --help  display help for command
+```
+
+### `mergebrief generate`
+
+```
+Usage: mergebrief generate [options] <url>
+
+generate a brief for a PR URL (no confirm; your own key)
+
+Arguments:
+  url         the PR's GitHub URL
+
+Options:
+  -h, --help  display help for command
+```
+
+### `mergebrief collaborators`
+
+```
+Usage: mergebrief collaborators [options]
+
+the target repo's collaborator roster (push access required)
 
 Options:
   -h, --help  display help for command

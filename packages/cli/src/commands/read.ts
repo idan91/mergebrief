@@ -332,6 +332,22 @@ export async function runDelta(
   );
 }
 
+/** `collaborators`: the target repo's push-gated roster, verbatim. */
+export async function runCollaborators(
+  client: ApiClient,
+  repoId: string,
+  io: ReadIo,
+): Promise<void> {
+  const response = await client.request({
+    path: `/api/repos/${repoId}/collaborators`,
+  });
+  if (io.json) {
+    io.stdout(response.bodyText); // verbatim
+    return;
+  }
+  io.stdout(`${response.bodyText}\n`);
+}
+
 // ---------------------------------------------------------------------------
 // Minimal TTY renderings — explicitly NON-contractual.
 // ---------------------------------------------------------------------------

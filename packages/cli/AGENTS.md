@@ -53,8 +53,10 @@ reason and an owner, for a browser-only operation no command will ever cover.
   public surface — additive-only, never renumbered.
 - **Passthrough by default:** response bodies relay VERBATIM; the CLI
   synthesizes shapes only where documented (e.g. `delta`).
-- **One client-side shape check** on writes (the brief span → exit 2);
-  everything else relays the server's locked validation (4xx → exit 5).
+- **One client-side shape check family**: the span flags every
+  span-addressed command requires (exit 2), plus flag XOR `-F` payload
+  exclusivity; everything else relays the server's locked validation
+  (4xx → exit 5).
 - **Single-file bundle:** workspace runtime deps are limited to `i18n`
   (the string catalog — tsup bundles it in; the bundle stays one file)
   plus compile-time `types`; assets ship as constants, never file reads.

@@ -302,7 +302,7 @@ describe("the committed catalog", () => {
     // The catalog's final shape: 35 operations, and every one accounted for.
     expect(result).toEqual({
       ok: true,
-      value: { commands: 27, gaps: 3, webOnly: 5 },
+      value: { commands: 29, gaps: 0, webOnly: 6 },
     });
   });
 });

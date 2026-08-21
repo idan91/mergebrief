@@ -6,11 +6,9 @@
     "command": "mergebrief draft create <number>"
   },
   "create-inline-comment": {
-    "gap": {
-      "reason": "No mergebrief command yet; inline-comment authoring ships with the Review Session CLI surface",
-      "owner": "idan",
-      "ticket": "BRIEF-201",
-      "expiry": "2026-12-31"
+    "webOnly": {
+      "reason": "Deliberately no command: an agent drives the draft flow (draft create → submit) so inline comments ride a reviewed submit; direct inline posting is the web's affordance",
+      "owner": "idan"
     }
   },
   "delete-draft-comment": {
@@ -20,20 +18,10 @@
     "command": "mergebrief risk dismiss <number>"
   },
   "generate-brief": {
-    "gap": {
-      "reason": "URL-box generation has no CLI equivalent; decide command vs web-only reclassification",
-      "owner": "idan",
-      "ticket": "BRIEF-201",
-      "expiry": "2026-12-31"
-    }
+    "command": "mergebrief generate <url>"
   },
   "list-collaborators": {
-    "gap": {
-      "reason": "No mergebrief command lists repo collaborators; decide command vs web-only reclassification",
-      "owner": "idan",
-      "ticket": "BRIEF-201",
-      "expiry": "2026-12-31"
-    }
+    "command": "mergebrief collaborators"
   },
   "list-installations": {
     "webOnly": {

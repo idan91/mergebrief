@@ -41,6 +41,8 @@ const COMMANDS: readonly HelpArgv[] = [
   ["thread", "resolve", "--help"],
   ["thread", "unresolve", "--help"],
   ["ready", "--help"],
+  ["generate", "--help"],
+  ["collaborators", "--help"],
   ["capabilities", "--help"],
   ["reply", "--help"],
   ["submit", "--help"],

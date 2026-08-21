@@ -19,6 +19,7 @@ import {
 } from "./profile/config";
 import { CliError, ExitCode } from "./exit";
 import {
+  runCollaborators,
   runConversation,
   runDelta,
   runDiff,
@@ -34,6 +35,7 @@ import { CLI_CATALOG_FINGERPRINT } from "./generated-catalog-fingerprint";
 import {
   buildSubmitPayload,
   requireSpan,
+  runGenerate,
   runReady,
   runReply,
   runSubmit,
@@ -1024,6 +1026,25 @@ export function buildProgram(deps: CliDeps): Command {
       const prNumber = parsePrNumber(raw);
       const { client, repoId } = await resolveTarget(deps, global);
       await runReady(client, repoId, prNumber, readIo(deps, global));
+    });
+
+  program
+    .command("generate")
+    .description("generate a brief for a PR URL (no confirm; your own key)")
+    .argument("<url>", "the PR's GitHub URL")
+    .action(async (url: string) => {
+      const global = globals();
+      const resolved = resolveFromDisk(deps, global.profile);
+      await runGenerate(clientFor(deps, resolved), url, readIo(deps, global));
+    });
+
+  program
+    .command("collaborators")
+    .description("the target repo's collaborator roster (push access required)")
+    .action(async () => {
+      const global = globals();
+      const { client, repoId } = await resolveTarget(deps, global);
+      await runCollaborators(client, repoId, readIo(deps, global));
     });
 
   program
