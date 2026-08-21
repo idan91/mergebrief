@@ -17,11 +17,13 @@ src/
   program.ts        runCli — the whole command surface (commander wiring)
   client.ts         the API-client boundary (injected fetch; CliError mapping;
                     the `mergebrief/<version>` user-agent, pinned by a test)
-  exit.ts           the 6-code exit contract — PUBLIC, additive-only,
+  exit.ts           the exit-code contract — PUBLIC, additive-only,
                     never renumbered
   agents-guide.ts   the packaged --agents guide (constant; zero file reads)
   commands/         command implementations
     read.ts           pr / groups / conversation / diff / delta
+    capabilities.ts   the capabilities join + fail-closed --require preflight
+    capabilities-map.ts  the map-entry vocabulary + join arm + boundary parse
     write.ts          reply / submit (thin POSTs over server validation)
     diff-filter.ts    the --group whole-hunk filter (output stays a valid diff)
   profile/          which server/token/repos the CLI points at
@@ -44,7 +46,7 @@ reason and an owner, for a browser-only operation no command will ever cover.
 ## Invariants (enforced, don't weaken)
 
 - **Stream/exit contract:** exit 0 ⇒ stdout is documented
-  JSON; exit ≠ 0 ⇒ empty stdout, ONE stderr line. The 6 exit codes are a
+  JSON; exit ≠ 0 ⇒ empty stdout, ONE stderr line. The exit codes are a
   public surface — additive-only, never renumbered.
 - **Passthrough by default:** response bodies relay VERBATIM; the CLI
   synthesizes shapes only where documented (e.g. `delta`).

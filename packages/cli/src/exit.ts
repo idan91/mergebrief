@@ -1,6 +1,7 @@
-// The 6-code exit contract — a PUBLIC surface: additive-only, never
+// The exit-code contract — a PUBLIC surface: additive-only, never
 // renumbered. These codes are what make unattended agent loops safe:
-// 3 → re-mint, 4 → wrong target, 5 → fix the payload and retry.
+// 3 → re-mint, 4 → wrong target, 5 → fix the payload and retry,
+// 6 → the server/CLI pair cannot run the required operation.
 import type { ValueOf } from "types";
 
 export const ExitCode = {
@@ -16,6 +17,8 @@ export const ExitCode = {
   NOT_FOUND: 4,
   /** Server rejected the payload (4xx validation) — self-correcting loops. */
   SERVER_REJECTED: 5,
+  /** `capabilities --require` failed — stop before driving the operation. */
+  INCOMPATIBLE: 6,
 } as const;
 export type ExitCode = ValueOf<typeof ExitCode>;
 

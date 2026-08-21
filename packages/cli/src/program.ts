@@ -2,7 +2,13 @@
 // run it against the REAL api Hono app and assert the contract surface:
 // exit 0 ⇒ stdout is documented JSON; exit ≠ 0 ⇒ empty stdout, ONE stderr line.
 import { Command } from "commander";
-import { createApiClient, type ApiClient, type FetchLike } from "./client";
+import operationsMap from "../product-operations.map.json";
+import {
+  CLI_VERSION,
+  createApiClient,
+  type ApiClient,
+  type FetchLike,
+} from "./client";
 import {
   fullNameFromOriginUrl,
   loadConfig,
@@ -23,6 +29,8 @@ import {
 } from "./commands/read";
 import { loadRepos, resolveRepoId, type RepoCacheDeps } from "./profile/repos";
 import { AGENTS_GUIDE } from "./agents-guide";
+import { runCapabilities } from "./commands/capabilities";
+import { CLI_CATALOG_FINGERPRINT } from "./generated-catalog-fingerprint";
 import {
   buildSubmitPayload,
   requireSpan,
@@ -554,6 +562,28 @@ export function buildProgram(deps: CliDeps): Command {
         );
       },
     );
+
+  program
+    .command("capabilities")
+    .description(
+      "what this server+CLI pair can run; --require makes it a fail-closed check",
+    )
+    .option(
+      "--require <ids...>",
+      "operation ids that must be runnable here (any failure → exit 6)",
+    )
+    .action(async (options: { require?: string[] }) => {
+      const global = globals();
+      const resolved = resolveFromDisk(deps, global.profile);
+      await runCapabilities({
+        client: clientFor(deps, resolved),
+        cliVersion: CLI_VERSION,
+        cliCatalogFingerprint: CLI_CATALOG_FINGERPRINT,
+        operationsMapRaw: operationsMap,
+        requireIds: options.require ?? [],
+        io: readIo(deps, global),
+      });
+    });
 
   program
     .command("delta")

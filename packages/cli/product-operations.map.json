@@ -99,12 +99,7 @@
     }
   },
   "read-capabilities": {
-    "gap": {
-      "reason": "No mergebrief command yet; the capabilities command ships with the discovery CLI surface, the endpoint lands first so it has something to discover",
-      "owner": "idan",
-      "ticket": "BRIEF-198",
-      "expiry": "2026-09-30"
-    }
+    "command": "mergebrief capabilities"
   },
   "read-conversation": {
     "command": "mergebrief conversation <number>"

@@ -1,5 +1,5 @@
 // The read commands: `pr [n]`, `groups`, `conversation`, `diff` (+ `--group`
-// hunk filter), `delta`. Passthrough by default; `delta` is one of the two
+// hunk filter), `delta`. Passthrough by default; `delta` is one of the
 // CLI-synthesized shapes. One command may make two API reads (`delta` =
 // pr-meta → delta; `diff --group` = brief + diff).
 import { z } from "zod";
@@ -270,7 +270,7 @@ export interface DeltaOptions {
   readonly head?: string | undefined;
 }
 
-/** The `delta` union — one of the two CLI-synthesized shapes. */
+/** The `delta` union — one of the CLI-synthesized shapes. */
 export async function runDelta(
   client: ApiClient,
   repoId: string,

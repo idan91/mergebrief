@@ -12,8 +12,11 @@ version (`auth status` → `server.version`).
 - Initial surface: `auth login`, `auth status`, `repos`, `pr [n]`,
   `groups <n>`, `conversation <n>`, `diff <n>` (`--base/--head`,
   `--group <id>`), `delta <n>` (`--baseline/--head`),
-  `reply <commentId> --pr <n>`, `submit <n>` (`-F` | convenience flags).
-- The 6-code exit contract and the stream/exit invariant (ADR 0029).
+  `reply <commentId> --pr <n>`, `submit <n>` (`-F` | convenience flags),
+  `capabilities` (`--require <ids...>` fail-closed preflight, exit 6
+  INCOMPATIBLE).
+- The exit-code contract (0-6, additive-only) and the stream/exit
+  invariant (ADR 0029).
 - Per-profile config (`~/.config/mergebrief`, 0600) with `owners:` routing,
   `MERGEBRIEF_PROFILE` / `MERGEBRIEF_TOKEN` overrides, per-profile static
   headers; per-profile no-TTL repos cache (`~/.cache/mergebrief`).

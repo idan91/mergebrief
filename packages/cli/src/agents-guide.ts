@@ -16,8 +16,8 @@ Read this whole guide once; the invariants make unattended loops safe.
   any release.
 - **Passthrough by default:** \`pr\`, \`groups\`, \`conversation\`, \`repos\`
   and the write receipts are the server's response bytes, verbatim.
-  Exactly two shapes are CLI-synthesized: the \`delta\` union and
-  \`auth status\`.
+  Exactly three shapes are CLI-synthesized: the \`delta\` union,
+  \`auth status\`, and \`capabilities\`.
 - **Additive-only:** fields are never removed, renamed, or retyped within a
   major. Tolerant-read: ignore fields you do not recognize.
 - **\`diff\` rejects \`--json\`** (exit 2). Its raw unified-diff output IS
@@ -33,6 +33,26 @@ Read this whole guide once; the invariants make unattended loops safe.
 | 3 | Auth (401) | The token is dead — a human must re-mint at \`<baseUrl>/settings\` |
 | 4 | Not found | Wrong repo/PR/group/span — re-derive from \`repos\`/\`pr\`/\`groups\` |
 | 5 | Server rejected the payload (4xx validation) | Read stderr, fix the payload, retry — this loop is self-correcting |
+| 6 | Incompatible: a required operation cannot run on this server+CLI pair | Do NOT drive the operation — surface the mismatch (upgrade the CLI or the server) |
+
+## Preflight: discover before you drive
+
+Before driving a workflow, check that every operation it needs is runnable
+on THIS server+CLI pair — fail-closed, not mid-loop:
+
+    mergebrief capabilities --json --require read-brief read-delta submit-review
+
+Exit 0 means every required operation is registered on the server AND this
+binary has a command for it — proceed. Exit 6 means at least one is not;
+stderr names each failing id and which side is missing. Never retry exit 6
+as-is: it is a deployment mismatch, not a transient.
+
+Without \`--require\` the command is a report: each server operation joined
+with this binary's map — \`cli.command\` (runnable), \`cli.gap\` (no
+command yet), \`cli.webOnly\` (browser-only by design), or
+\`cli.unknownToCli\` (the server is newer than this CLI). A
+\`fingerprintMatch: false\` with a stderr warning means catalog skew —
+additive skew is fine; exit 6 is the only hard stop.
 
 ## The reviewer loop
 

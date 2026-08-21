@@ -21,6 +21,7 @@ const COMMANDS: string[][] = [
   ["conversation", "--help"],
   ["diff", "--help"],
   ["delta", "--help"],
+  ["capabilities", "--help"],
   ["reply", "--help"],
   ["submit", "--help"],
 ];

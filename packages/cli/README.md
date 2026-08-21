@@ -56,8 +56,9 @@ author loops.
   client-side usage and network/proxy failures explain themselves without
   one.
 - **Passthrough by default:** most commands emit the server response
-  verbatim — one canonical shape across web, API, and CLI. Exactly two
-  shapes are CLI-synthesized: the `delta` union and `auth status`.
+  verbatim — one canonical shape across web, API, and CLI. Exactly three
+  shapes are CLI-synthesized: the `delta` union, `auth status`, and
+  `capabilities`.
 - **Additive-only, even pre-1.0:** fields are never removed, renamed, or
   retyped within a major; new fields may appear any release — read
   tolerantly. Breaking changes ship expand/contract with a deprecation
@@ -74,6 +75,7 @@ author loops.
 | 3 | Auth (401) — re-mint the token |
 | 4 | Not found (repo/PR/group/span; incl. an unmodeled delta 404) |
 | 5 | Server rejected the payload (4xx validation) — fix and retry; agent submit loops self-correct on this code |
+| 6 | Incompatible: a `--require`d operation is not runnable on this server+CLI pair — do not drive it |
 
 ## Commands
 
@@ -121,7 +123,7 @@ diff the command fails loud (exit 1) rather than silently under-showing.
 
 ### `delta <n>`
 
-What changed since **your** last review. One of the two CLI-synthesized
+What changed since **your** last review. One of the CLI-synthesized
 shapes — a discriminated union, both arms exit 0:
 
 ```json
@@ -165,6 +167,20 @@ comments were folded into the review body — the review **did** post (a
 stderr warning fires in both output modes; do not re-submit). GitHub
 rejects `approve`/`request-changes` on your own PR (`comment` passes) —
 that relays as a server error; don't retry-loop it.
+
+### `capabilities`
+
+The server's operation catalog joined with this binary's committed command
+map — the third CLI-synthesized shape. Each server operation gains a `cli`
+arm: `{command}` (runnable here), `{gap}` (no command yet), `{webOnly}`
+(browser-only by design), or `{unknownToCli: true}` (the server is newer).
+The shape also carries `cliVersion`, both catalog fingerprints, and
+`fingerprintMatch`; a mismatch alone is one stderr warning, never a gate.
+
+`--require <ids...>` turns the report into a fail-closed preflight: every
+named operation must be registered on the server AND mapped to a command in
+this binary, or the command exits 6 with one stderr line naming each
+failure. Agents run this before driving a workflow.
 
 ### `auth login` / `auth status`
 
@@ -224,6 +240,8 @@ Commands:
                                voice)
   submit [options] <number>    submit a review of the brief span you name (its
                                saved drafts go with it)
+  capabilities [options]       what this server+CLI pair can run; --require
+                               makes it a fail-closed check
   delta [options] <number>     what changed since your last review (union:
                                available | not)
   help [command]               display help for command
@@ -337,6 +355,19 @@ Options:
   --baseline <sha>  override the checkpoint baseline (with --head)
   --head <sha>      override the head (with --baseline)
   -h, --help        display help for command
+```
+
+### `mergebrief capabilities`
+
+```
+Usage: mergebrief capabilities [options]
+
+what this server+CLI pair can run; --require makes it a fail-closed check
+
+Options:
+  --require <ids...>  operation ids that must be runnable here (any failure →
+                      exit 6)
+  -h, --help          display help for command
 ```
 
 ### `mergebrief reply`

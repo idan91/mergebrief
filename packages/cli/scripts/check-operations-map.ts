@@ -1,10 +1,13 @@
 // The lint-gate bin over `checkOperationsMap`: reads the committed api
 // manifest and the CLI map, judges by exit code.
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { cliCommandPaths } from "./command-paths";
-import { checkOperationsMap } from "./operations-map-lib";
+import {
+  checkOperationsMap,
+  renderCatalogFingerprintModule,
+} from "./operations-map-lib";
 
 const PKG_ROOT = fileURLToPath(new URL("..", import.meta.url));
 const MANIFEST = join(
@@ -14,9 +17,16 @@ const MANIFEST = join(
   "product-operations.manifest.json",
 );
 const MAP = join(PKG_ROOT, "product-operations.map.json");
+const FINGERPRINT_MODULE = join(
+  PKG_ROOT,
+  "src",
+  "generated-catalog-fingerprint.ts",
+);
+
+const manifestRaw = readFileSync(MANIFEST, "utf8");
 
 const result = checkOperationsMap({
-  manifestRaw: readFileSync(MANIFEST, "utf8"),
+  manifestRaw,
   mapRaw: readFileSync(MAP, "utf8"),
   today: new Date().toISOString().slice(0, 10),
   commandPaths: cliCommandPaths(),
@@ -31,6 +41,24 @@ if (!result.ok) {
   );
   process.exit(1);
 }
+const rendered = renderCatalogFingerprintModule(manifestRaw);
+if (process.argv.includes("--write")) {
+  writeFileSync(FINGERPRINT_MODULE, rendered);
+} else {
+  let committed: string | undefined;
+  try {
+    committed = readFileSync(FINGERPRINT_MODULE, "utf8");
+  } catch {
+    committed = undefined;
+  }
+  if (committed !== rendered) {
+    process.stderr.write(
+      "baked catalog fingerprint is stale — run: pnpm -C packages/cli map:check --write\n",
+    );
+    process.exit(1);
+  }
+}
+
 process.stdout.write(
   `product-operations map is exhaustive: ${result.value.commands} commands, ${result.value.gaps} gaps, ${result.value.webOnly} web-only.\n`,
 );

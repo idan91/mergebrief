@@ -1,4 +1,4 @@
-// Pure-unit coverage for the contract surfaces: the 6-code exit mapping table
+// Pure-unit coverage for the contract surfaces: the exit-code mapping table
 // (additive-only, never renumbered), profile resolution order (locked),
 // origin-URL parsing, and the client's proxy/IdP detection.
 import { describe, expect, it } from "vitest";
@@ -35,6 +35,7 @@ describe("exit-code mapping (the contract table)", () => {
       AUTH: 3,
       NOT_FOUND: 4,
       SERVER_REJECTED: 5,
+      INCOMPATIBLE: 6,
     });
   });
 });

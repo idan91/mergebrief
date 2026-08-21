@@ -1,6 +1,6 @@
 // The client boundary. Takes an injected fetch-compatible function, so command
 // tests run against the REAL api Hono app (`app.request` is fetch-shaped) with
-// zero network. Every non-2xx becomes a `CliError` carrying the 6-code mapping
+// zero network. Every non-2xx becomes a `CliError` carrying the exit-code mapping
 // and ONE stderr-ready line: a known wire `code` renders its catalog
 // template + HTTP status; anything else relays the server's `error` text
 // verbatim. Success bodies pass through VERBATIM — never re-shaped.
