@@ -127,12 +127,14 @@ function fakeEngine(
   };
 }
 
-function stubTokenEndpoint(): void {
+function stubTokenEndpoint(): { token: number } {
+  const counts = { token: 0 };
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: unknown) => {
       const url = String(input instanceof Request ? input.url : input);
       if (url.includes("/login/oauth/access_token")) {
+        counts.token++;
         return new Response(
           JSON.stringify({
             access_token: ROTATED_ACCESS,
@@ -154,6 +156,7 @@ function stubTokenEndpoint(): void {
       throw new Error(`unexpected fetch in generate suite: ${url}`);
     }),
   );
+  return counts;
 }
 
 async function post(
@@ -369,6 +372,32 @@ describe("POST /api/generate", () => {
     expect(res.status).toBe(200);
     expect(generate).toHaveBeenCalledTimes(2);
     expect(generate).toHaveBeenLastCalledWith(PR_URL, ROTATED_ACCESS);
+  });
+
+  it("401 when the generate stage is still unauthorized after the head fetch spent the one refresh", async () => {
+    // The refresh budget is per REQUEST, shared across both engine stages: the
+    // head fetch spends it, so a second UNAUTHORIZED at the generate stage
+    // must surface without another token-endpoint call or a generate retry.
+    const counts = stubTokenEndpoint();
+    const fetchHeadSha = vi
+      .fn<UrlBriefEngine["fetchHeadSha"]>()
+      .mockResolvedValueOnce({
+        ok: false as const,
+        error: { kind: UrlBriefErrorKind.UNAUTHORIZED, message: "x" },
+      })
+      .mockResolvedValueOnce({ ok: true as const, value: HEAD });
+    const generate = vi.fn<UrlBriefEngine["generate"]>().mockResolvedValue({
+      ok: false as const,
+      error: { kind: UrlBriefErrorKind.UNAUTHORIZED, message: "x" },
+    });
+    const engine = fakeEngine({ fetchHeadSha, generate });
+    const app = buildApp(engine);
+    const cookie = await seedSession(harness.handle, kp);
+    const res = await post(app, cookie, PR_URL);
+    expect(res.status).toBe(401);
+    expect(counts.token).toBe(1);
+    expect(fetchHeadSha).toHaveBeenCalledTimes(2);
+    expect(generate).toHaveBeenCalledTimes(1);
   });
 
   it("single-flights concurrent generations for the same PR-head", async () => {

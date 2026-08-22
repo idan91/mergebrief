@@ -15,6 +15,7 @@ import { createApp, type ApiApp, type AuditEmitConfig } from "../src/index";
 import { testLogger } from "./logging";
 import {
   authDeps,
+  INSTALLATION_ID,
   keyProvider,
   PR_NUMBER,
   REPO_ID,
@@ -32,6 +33,7 @@ vi.setConfig({ testTimeout: 20_000 });
 interface AuditRow {
   readonly operation: string;
   readonly outcome: string;
+  readonly installation_id: string | null;
   readonly classification: string | null;
   readonly channel: string | null;
   readonly credential_id: string | null;
@@ -47,9 +49,9 @@ interface AuditRow {
  * inside the mint transaction — not a request, so not this suite's subject. */
 async function auditRows(harness: PgliteHarness): Promise<AuditRow[]> {
   const rows = await harness.raw(
-    `select operation, outcome, classification, channel, credential_id,
-            request_id, client, caller_ip, actor_id, target_type,
-            metadata->>'reason' as reason
+    `select operation, outcome, installation_id, classification, channel,
+            credential_id, request_id, client, caller_ip, actor_id,
+            target_type, metadata->>'reason' as reason
        from audit_log
       where operation <> 'issue-api-token'
       order by id`,
@@ -57,6 +59,7 @@ async function auditRows(harness: PgliteHarness): Promise<AuditRow[]> {
   return rows.map((row) => ({
     operation: String(row["operation"]),
     outcome: String(row["outcome"]),
+    installation_id: stringOrNull(row["installation_id"]),
     classification: stringOrNull(row["classification"]),
     channel: stringOrNull(row["channel"]),
     credential_id: stringOrNull(row["credential_id"]),
@@ -153,6 +156,8 @@ describe("the audit choke point", () => {
     expect(rows[0]).toMatchObject({
       operation: "set-chunk-read",
       outcome: "ok",
+      // The acting credential's tenant keys the row.
+      installation_id: String(INSTALLATION_ID),
       classification: WriteClassification.PRIVATE_WRITE,
       channel: "cookie",
       client: CLI_AGENT,
@@ -220,6 +225,9 @@ describe("the audit choke point", () => {
       outcome: "denied",
       reason: "no-repo-access",
       target_type: "repo",
+      // Even a denial keys on the ACTING credential's tenant — the target
+      // repo resolved to nothing, so no other tenant is available to leak.
+      installation_id: String(INSTALLATION_ID),
     });
   });
 

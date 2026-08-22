@@ -409,6 +409,25 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     expect(counts.comments).toBe(0);
   });
 
+  it("404 collapse when the IN-ROUTE fresh repo resolve is denied (gate passed)", async () => {
+    // The gate's access check (call 0) passes; the route's own fresh
+    // fetchRepositoryById (call 1) is denied — a viewer whose access was
+    // revoked inside the positive-cache TTL. Must collapse to the gate's 404
+    // posture and post nothing.
+    const counts = stubGitHub({
+      repositories: (i) => (i === 0 ? repoOk() : repoStatus(403)),
+      comments: () => commentOk(),
+    });
+    await seedPr(harness.handle);
+    const { cookie } = await seedSession(harness.handle, kp);
+    const { draftId } = await seedDraft(harness.handle);
+    const res = await post(app, cookie, named(draftId));
+    expect(res.status).toBe(404);
+    expect(counts.repositories).toBe(2);
+    expect(counts.comments).toBe(0);
+    expect(await commentAuditCount(harness)).toBe(0);
+  });
+
   it("201 happy path: posts to the FRESH slug, returns ids, audits, no-store", async () => {
     const counts = stubGitHub({
       // Gate caches octo/hello; the route's own fresh resolve renames it —
