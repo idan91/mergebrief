@@ -221,6 +221,10 @@ _Avoid_: risk ranking, hotspot list
 The stable kebab-case identifier a non-2xx API response carries, alongside optional typed params and a composed English error line. A public, additive-only vocabulary: one code per distinct meaning — same code unless a translator would write a different sentence or a user would take a different action — never one per call site or per HTTP status. Distinct from the internal error vocabularies (GitHub, port, and auth codes), which never ride the wire and are translated to wire codes at the response boundary. Consumers render a wire code through the shared string catalog, falling back to the English error line when the code is unknown.
 _Avoid_: error kind, error message (for the identifier), status-derived kind
 
+**Failure** (vs **Error**):
+A failure is an expected outcome a caller must judge — it rides the failure side of a `Result` and is named `XxxFailure`. An error is thrown — programmer/infra faults and, at the HTTP layer, the `ApiError` classes — and is named `XxxError`. The suffix carries the contract: a `Failure` type in a signature means the caller unwraps and judges; an `Error` type means it propagates to a boundary handler.
+_Avoid_: using the two words interchangeably; Error-suffixed types on the Result side (in new code)
+
 ## Relationships
 
 - A **PR** has at most one **Brief** per commit SHA. The brief is **shared** across reviewers.
