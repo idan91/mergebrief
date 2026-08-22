@@ -165,6 +165,7 @@ export type {
 export {
   audit,
   AuditClientSchema,
+  AuditRequestIdSchema,
   AuditMetadataKey,
   AuditMetadataSchema,
   AuditOperationSchema,

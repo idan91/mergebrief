@@ -101,7 +101,7 @@ export const AuditOperationSchema = z
  * header carrying a name or an email must fail here rather than land in a
  * ledger the operator may keep forever.
  */
-const AuditRequestIdSchema = z
+export const AuditRequestIdSchema = z
   .string()
   .regex(/^[A-Za-z0-9_-]{1,64}$/, "requestId must be a correlation token");
 export const AuditClientSchema = z

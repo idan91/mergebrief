@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   isAuditRowWritten,
   deriveClient,
+  deriveRequestId,
 } from "../src/product-operations/audit";
 import { createApp, type ApiApp, type AuditEmitConfig } from "../src/index";
 import { testLogger } from "./logging";
@@ -252,6 +253,20 @@ describe("the audit choke point", () => {
     expect(res.status).toBe(200);
     expect((await auditRows(harness))[0]?.client).toBeNull();
   });
+
+  it("still writes the row when a caller forces an unusable X-Request-Id", async () => {
+    // A ledger-rejecting X-Request-Id must not throw the emit and blind the row.
+    const res = await readMark(appWith(), {
+      Cookie: `rs_session=${cookie}`,
+      "X-Request-Id": `${"a".repeat(80)}=`,
+    });
+
+    expect(res.status).toBe(200);
+    const rows = await auditRows(harness);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.operation).toBe("set-chunk-read");
+    expect(rows[0]?.request_id).toBeNull();
+  });
 });
 
 describe("the emit's two pure rules", () => {
@@ -280,6 +295,15 @@ describe("the emit's two pure rules", () => {
       .filter((value) => value !== undefined)
       .map((value) => AuditClientSchema.safeParse(value).success);
     expect(accepted).toEqual([true, true]);
+  });
+
+  it("keeps a conforming correlation id and drops one the ledger would reject", () => {
+    // Drops what the ledger schema rejects (65+ chars, `=`), keeps a valid id.
+    const kept = "01HXABC-req_9";
+    expect(deriveRequestId(kept)).toBe(kept);
+    expect(deriveRequestId("a".repeat(65))).toBeUndefined();
+    expect(deriveRequestId("abc=def")).toBeUndefined();
+    expect(deriveRequestId(undefined)).toBeUndefined();
   });
 
   it("switches private writes only, and only when they succeeded", () => {

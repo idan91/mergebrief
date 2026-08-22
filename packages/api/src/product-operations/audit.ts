@@ -15,6 +15,7 @@ import {
   AuditMetadataKey,
   AuditChannel,
   AuditOutcome,
+  AuditRequestIdSchema,
   isInstallationId,
   WriteClassification,
   type AppDatabase,
@@ -127,6 +128,16 @@ export function deriveClient(
   const first = userAgent?.trim().split(/\s+/)[0];
   return first !== undefined && MERGEBRIEF_CLIENT.test(first)
     ? first
+    : undefined;
+}
+
+// A caller-settable id the ledger rejects would throw the emit and lose the row.
+export function deriveRequestId(
+  requestId: string | undefined,
+): string | undefined {
+  return requestId !== undefined &&
+    AuditRequestIdSchema.safeParse(requestId).success
+    ? requestId
     : undefined;
 }
 
@@ -288,6 +299,7 @@ export function createAuditMiddleware(
     const target = c.get("auditTarget");
     const client = deriveClient(c.req.header("user-agent"));
     const callerIp = config.callerIp ? getSocketAddress(c) : undefined;
+    const requestId = deriveRequestId(c.get("requestId"));
     const reason = c.get("auditReason") ?? c.get("apiErrorCode");
     try {
       await audit(deps.handle, {
@@ -301,7 +313,7 @@ export function createAuditMiddleware(
         classification: descriptor.classification,
         channel: principal.channel,
         credentialId: principal.credentialId,
-        requestId: c.get("requestId"),
+        ...(requestId === undefined ? {} : { requestId }),
         ...(client === undefined ? {} : { client }),
         ...(callerIp === undefined ? {} : { callerIp }),
         ...(target === undefined ? {} : { targetType: target.type }),
