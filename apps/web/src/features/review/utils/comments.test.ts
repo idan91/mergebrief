@@ -46,17 +46,74 @@ describe("createCommentAnchor", () => {
     });
   });
 
-  it("rejects hunk rows and mixed old/new selections", () => {
+  it("rejects hunk rows", () => {
     expect(
       createCommentAnchor("chunk-1", "src/a.ts", diffRows, [0]),
     ).toBeNull();
+  });
+
+  it("anchors a mixed selection across sides — del start, add end", () => {
     expect(
       createCommentAnchor("chunk-1", "src/a.ts", diffRows, [2, 3]),
-    ).toBeNull();
+    ).toEqual({
+      chunkId: "chunk-1",
+      file: "src/a.ts",
+      side: "new",
+      startSide: "old",
+      startLine: 11,
+      endLine: 11,
+      rowIds: ["chunk-1:2", "chunk-1:3"],
+      selectedText: "const label = 'old';\nconst label = 'new';",
+    });
+  });
+
+  it("collapses ctx-bounded selections to single-side, dels in between", () => {
+    // Endpoints agree on the new side; the removed row rides along in the
+    // selection without forcing a cross-side anchor.
+    expect(
+      createCommentAnchor("chunk-1", "src/a.ts", diffRows, [1, 2, 3, 4, 5]),
+    ).toMatchObject({
+      side: "new",
+      startLine: 10,
+      endLine: 13,
+    });
+    expect(
+      createCommentAnchor("chunk-1", "src/a.ts", diffRows, [1, 2, 3, 4, 5]),
+    ).not.toHaveProperty("startSide");
+  });
+
+  it("anchors a mixed selection ending on the old side", () => {
+    expect(
+      createCommentAnchor("chunk-1", "src/a.ts", diffRows, [1, 2]),
+    ).toMatchObject({
+      side: "old",
+      startSide: "new",
+      startLine: 10,
+      endLine: 11,
+    });
   });
 });
 
 describe("buildSuggestionDiffRows", () => {
+  it("suppresses gutter numbers on a crossing anchor", () => {
+    const rows = buildSuggestionDiffRows(
+      {
+        chunkId: "chunk-1",
+        file: "src/a.ts",
+        side: "new",
+        startSide: "old",
+        startLine: 11,
+        endLine: 13,
+        rowIds: [],
+        selectedText: "a\nb",
+      },
+      "c",
+    );
+    expect(
+      rows.every((row) => !("oldLine" in row) && !("newLine" in row)),
+    ).toBe(true);
+  });
+
   it("renders suggestion previews with diff gutters anchored to the selected lines", () => {
     expect(
       buildSuggestionDiffRows(

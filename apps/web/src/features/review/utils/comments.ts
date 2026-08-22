@@ -1,9 +1,14 @@
 import type { TFunction } from "i18next";
 
 import type { SuggestionDiffRow } from "@web/components/Markdown/utils";
-import type { DiffLine } from "../../brief/types";
+import type { ValueOf } from "types";
+import { DiffLineKinds, type DiffLine } from "../../brief/types";
 
-export type CommentSide = "old" | "new";
+export const CommentSides = {
+  OLD: "old",
+  NEW: "new",
+} as const;
+export type CommentSide = ValueOf<typeof CommentSides>;
 
 export interface CommentAnchor {
   chunkId: string;
@@ -40,27 +45,27 @@ export function createCommentAnchor(
   const selectedRows = orderedIndexes.map((index) => rows[index]);
   if (
     selectedRows.some(
-      (row) => !row || row.kind === "hunk" || row.kind === "note",
+      (row) =>
+        !row ||
+        row.kind === DiffLineKinds.HUNK ||
+        row.kind === DiffLineKinds.NOTE,
     )
   )
     return null;
 
-  const hasAdd = selectedRows.some((row) => row?.kind === "add");
-  const hasDel = selectedRows.some((row) => row?.kind === "del");
-  if (hasAdd && hasDel) return null;
-
-  const side: CommentSide = hasDel ? "old" : "new";
-  const lineNumbers = selectedRows.map((row) => lineForSide(row, side));
-  if (lineNumbers.some((line) => typeof line !== "number")) return null;
-
-  const concreteLines = lineNumbers.filter(
-    (line): line is number => typeof line === "number",
-  );
-  const startLine = concreteLines[0];
-  const endLine = concreteLines.at(-1);
+  // Each endpoint anchors on its own side: a removed row against the old
+  // file, anything else against the new. A selection whose endpoints agree
+  // is the single-side shape; endpoints on different sides cross.
+  const first = selectedRows[0];
+  const last = selectedRows.at(-1);
+  if (first === undefined || last === undefined) return null;
+  const startSide = getRowSide(first);
+  const side = getRowSide(last);
+  const startLine = lineForSide(first, startSide);
+  const endLine = lineForSide(last, side);
   if (typeof startLine !== "number" || typeof endLine !== "number") return null;
 
-  return {
+  const anchor: CommentAnchor = {
     chunkId,
     file,
     side,
@@ -69,6 +74,14 @@ export function createCommentAnchor(
     rowIds: orderedIndexes.map((index) => rowId(chunkId, index)),
     selectedText: selectedRows.map((row) => row?.content ?? "").join("\n"),
   };
+  if (startSide !== side) {
+    anchor.startSide = startSide;
+  }
+  return anchor;
+}
+
+function getRowSide(row: DiffLine): CommentSide {
+  return row.kind === DiffLineKinds.DEL ? CommentSides.OLD : CommentSides.NEW;
 }
 
 export function rowId(chunkId: string, rowIndex: number): string {
@@ -139,7 +152,7 @@ export function reviewCommentSubmitLabel(
 }
 
 function getSignForSide(side: CommentSide): string {
-  return side === "new" ? "+" : "-";
+  return side === CommentSides.NEW ? "+" : "-";
 }
 
 export function commentAnchorLabel(
@@ -167,7 +180,7 @@ function lineForSide(
   side: CommentSide,
 ): number | undefined {
   if (!row) return undefined;
-  return side === "old" ? row.oldLine : row.newLine;
+  return side === CommentSides.OLD ? row.oldLine : row.newLine;
 }
 
 function isContinuous(indexes: number[]): boolean {
@@ -182,8 +195,15 @@ function suggestionLineNumber(
   anchor: CommentAnchor,
   lineOffset: number,
 ): Pick<SuggestionDiffRow, "oldLine" | "newLine"> {
+  // A crossing range has no single side to number from — counting from
+  // startLine on `side` would put one side's numbers in the other's gutter.
+  if (anchor.startSide !== undefined && anchor.startSide !== anchor.side) {
+    return {};
+  }
   const line = anchor.startLine + lineOffset;
-  return anchor.side === "old" ? { oldLine: line } : { newLine: line };
+  return anchor.side === CommentSides.OLD
+    ? { oldLine: line }
+    : { newLine: line };
 }
 
 function splitDiffText(text: string): string[] {

@@ -157,7 +157,14 @@ export interface RevisionChanges {
   files: RevisionChangeFile[];
 }
 
-export type DiffLineKind = "hunk" | "add" | "del" | "ctx" | "note";
+export const DiffLineKinds = {
+  HUNK: "hunk",
+  ADD: "add",
+  DEL: "del",
+  CTX: "ctx",
+  NOTE: "note",
+} as const;
+export type DiffLineKind = ValueOf<typeof DiffLineKinds>;
 
 export interface DiffLine {
   kind: DiffLineKind;

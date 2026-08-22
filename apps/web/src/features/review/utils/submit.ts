@@ -62,14 +62,23 @@ const FOLD_BUDGET = 63_000;
 /** Map one anchor to GitHub's path/line/side (+ start for multi-line). */
 export function mapAnchorToWire(anchor: CommentAnchor): WireComment {
   const side = SIDE_TO_WIRE[anchor.side];
-  const multiLine = anchor.startLine !== anchor.endLine;
-  return {
+  const crossing =
+    anchor.startSide !== undefined && anchor.startSide !== anchor.side;
+  // A crossing range is multi-line even when the two sides' numbers agree.
+  const multiLine = crossing || anchor.startLine !== anchor.endLine;
+  const wire: WireComment = {
     path: anchor.file,
     line: anchor.endLine,
     side,
-    ...(multiLine ? { startLine: anchor.startLine, startSide: side } : {}),
     selectedText: anchor.selectedText.slice(0, MAX_SELECTED_TEXT_LENGTH),
   };
+  if (multiLine) {
+    wire.startLine = anchor.startLine;
+    wire.startSide = crossing
+      ? SIDE_TO_WIRE[anchor.startSide ?? anchor.side]
+      : side;
+  }
+  return wire;
 }
 
 /**
@@ -177,7 +186,11 @@ function foldedLengthEstimate(drafts: readonly ReviewComment[]): number {
         ? 0
         : wire.selectedText.length +
           2 * (wire.selectedText.split("\n").length + 1);
-    return total + wire.path.length + 32 + quoted + comment.body.length + 8;
+    // 48 covers the marker's decorations plus a two-side range with both
+    // sides spelled out (`LEFT n-RIGHT n`), which outgrows the bare numbers.
+    const commentCost =
+      wire.path.length + 48 + quoted + comment.body.length + 8;
+    return total + commentCost;
   }, 0);
 }
 

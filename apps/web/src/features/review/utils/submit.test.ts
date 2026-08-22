@@ -53,6 +53,20 @@ describe("mapAnchorToWire", () => {
     });
   });
 
+  it("maps a crossing anchor with its own start side, even on equal lines", () => {
+    const wire = mapAnchorToWire(
+      anchor({ side: "new", startSide: "old", startLine: 10, endLine: 10 }),
+    );
+    expect(wire).toEqual({
+      path: "src/a.ts",
+      line: 10,
+      side: "RIGHT",
+      startLine: 10,
+      startSide: "LEFT",
+      selectedText: "const x = 1;",
+    });
+  });
+
   it("maps an old-side anchor to LEFT", () => {
     const wire = mapAnchorToWire(
       anchor({ side: "old", startLine: 5, endLine: 5 }),
