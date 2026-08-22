@@ -230,6 +230,7 @@ async function seedDraft(
   body = "post now",
   status: DraftCommentStatus = DraftCommentStatus.DRAFT,
   anchorStatus: AnchorStatus | null = null,
+  startSide: DraftCommentSide | null = null,
 ): Promise<{ briefId: BriefRowId; draftId: bigint }> {
   const repo = forTenant(handle, CTX);
   const pr = await repo.pullRequests.getByNumber(
@@ -259,6 +260,7 @@ async function seedDraft(
       writer.addDraftComment({
         filePath: "src/index.ts",
         side: DraftCommentSide.NEW,
+        startSide,
         startLine: 10,
         endLine: 12,
         body,
@@ -449,6 +451,33 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       body: "post now",
     });
     expect(await commentAuditCount(harness)).toBe(1);
+  });
+
+  it("maps a two-side draft's start leg to GitHub's LEFT", async () => {
+    const counts = stubGitHub({
+      repositories: () => repoOk(),
+      comments: () => commentOk(),
+    });
+    await seedPr(harness.handle);
+    const { cookie } = await seedSession(harness.handle, kp);
+    const { draftId } = await seedDraft(
+      harness.handle,
+      "spans both sides",
+      DraftCommentStatus.DRAFT,
+      null,
+      DraftCommentSide.OLD,
+    );
+
+    const res = await post(app, cookie, named(draftId));
+    expect(res.status).toBe(201);
+    expect(counts.commentBodies[0]).toMatchObject({
+      path: "src/index.ts",
+      line: 12,
+      side: "RIGHT",
+      start_line: 10,
+      start_side: "LEFT",
+      body: "spans both sides",
+    });
   });
 
   it("201 kept and audit.fail logged when the audit write fails after the posted comment", async () => {

@@ -96,6 +96,8 @@ export interface DraftCommentInput {
   readonly reviewSessionId: ReviewSessionId;
   readonly filePath: string;
   readonly side: DraftCommentSide;
+  /** Non-null only when the range genuinely crosses sides. */
+  readonly startSide?: DraftCommentSide | null;
   readonly startLine: number;
   readonly endLine: number;
   readonly body: string;
@@ -113,6 +115,7 @@ export interface DraftCommentPatch {
   readonly body?: string;
   readonly filePath?: string;
   readonly side?: DraftCommentSide;
+  readonly startSide?: DraftCommentSide | null;
   readonly startLine?: number;
   readonly endLine?: number;
   readonly anchorStatus?: AnchorStatus | null;
@@ -529,6 +532,7 @@ export function reviewSessionRepository(
             id: reviewDraftComment.id,
             filePath: reviewDraftComment.filePath,
             side: reviewDraftComment.side,
+            startSide: reviewDraftComment.startSide,
             startLine: reviewDraftComment.startLine,
             endLine: reviewDraftComment.endLine,
             body: reviewDraftComment.body,
@@ -676,6 +680,7 @@ export function reviewSessionRepository(
               reviewSessionId: sessionId,
               filePath: input.filePath,
               side: input.side,
+              startSide: input.startSide ?? null,
               startLine: input.startLine,
               endLine: input.endLine,
               body: input.body,
@@ -890,6 +895,7 @@ export function reviewSessionRepository(
             ...owned,
             filePath: row.filePath,
             side: row.side,
+            startSide: row.startSide,
             startLine: row.startLine,
             endLine: row.endLine,
             body: row.body,

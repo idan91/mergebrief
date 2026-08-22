@@ -1040,6 +1040,190 @@ describe("old-side drafts against the PR base", () => {
   });
 });
 
+describe("two-side drafts — both legs or orphan", () => {
+  /** One two-side draft; direction picked by which side holds the start. */
+  async function seedTwoSideDraft(
+    world: World,
+    briefId: BriefRowId,
+    anchor: {
+      startSide: DraftCommentSide;
+      side: DraftCommentSide;
+      startLine: number;
+      endLine: number;
+    },
+  ): Promise<void> {
+    await openSession(world, briefId);
+    await write(world, briefId, (writer) =>
+      writer.addDraftComment({
+        filePath: "src/app.ts",
+        ...anchor,
+        body: "spans both sides",
+      }),
+    );
+  }
+
+  async function previewCurrent(world: World, current: BriefRowId) {
+    return await forTenant(world.handle, CTX).reviewSessions.preview({
+      briefId: current,
+      reviewerId: REVIEWER,
+      ...NO_ARTIFACT,
+    });
+  }
+
+  it("moves only the new leg through the hop (old\u2192new)", async () => {
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 1);
+    const current = await seedBrief(world, 2);
+    await seedHop(world, 1, 2);
+    await seedTwoSideDraft(world, previous, {
+      startSide: DraftCommentSide.OLD,
+      side: DraftCommentSide.NEW,
+      startLine: 10,
+      endLine: 12,
+    });
+
+    const view = await previewCurrent(world, current);
+
+    // The old leg rides the base, which held; the new leg shifts by three.
+    expect(view.carried.draftComments).toEqual([
+      expect.objectContaining({
+        startSide: DraftCommentSide.OLD,
+        startLine: 10,
+        endLine: 15,
+        anchorStatus: "moved",
+      }),
+    ]);
+  });
+
+  it("moves only the new leg through the hop (new\u2192old)", async () => {
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 1);
+    const current = await seedBrief(world, 2);
+    await seedHop(world, 1, 2);
+    await seedTwoSideDraft(world, previous, {
+      startSide: DraftCommentSide.NEW,
+      side: DraftCommentSide.OLD,
+      startLine: 10,
+      endLine: 20,
+    });
+
+    const view = await previewCurrent(world, current);
+
+    expect(view.carried.draftComments).toEqual([
+      expect.objectContaining({
+        startSide: DraftCommentSide.NEW,
+        startLine: 13,
+        endLine: 20,
+        anchorStatus: "moved",
+      }),
+    ]);
+  });
+
+  it("keeps a two-side draft exact when the push touched another file", async () => {
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 1);
+    const current = await seedBrief(world, 2);
+    await seedHop(world, 1, 2, [
+      {
+        file: "src/other.ts",
+        hunks: [{ oldStart: 1, oldLines: 1, newStart: 1, newLines: 4 }],
+      },
+    ]);
+    await seedTwoSideDraft(world, previous, {
+      startSide: DraftCommentSide.OLD,
+      side: DraftCommentSide.NEW,
+      startLine: 10,
+      endLine: 12,
+    });
+
+    const view = await previewCurrent(world, current);
+
+    expect(view.carried.draftComments).toEqual([
+      expect.objectContaining({
+        startSide: DraftCommentSide.OLD,
+        startLine: 10,
+        endLine: 12,
+        anchorStatus: null,
+      }),
+    ]);
+  });
+
+  it("orphans the whole draft when the push rewrote the new leg's line", async () => {
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 1);
+    const current = await seedBrief(world, 2);
+    // The hunk overlaps line 12 itself: the new leg demotes, and the intact
+    // old leg must not shrink the range to single-side.
+    await seedHop(world, 1, 2, [
+      {
+        file: "src/app.ts",
+        hunks: [{ oldStart: 12, oldLines: 1, newStart: 12, newLines: 2 }],
+      },
+    ]);
+    await seedTwoSideDraft(world, previous, {
+      startSide: DraftCommentSide.OLD,
+      side: DraftCommentSide.NEW,
+      startLine: 10,
+      endLine: 12,
+    });
+
+    const view = await previewCurrent(world, current);
+
+    expect(view.carried.draftComments).toEqual([
+      expect.objectContaining({
+        startSide: DraftCommentSide.OLD,
+        startLine: 10,
+        endLine: 12,
+        anchorStatus: "orphaned",
+      }),
+    ]);
+  });
+
+  it("orphans the whole draft on a retarget, even with the hop intact", async () => {
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 1);
+    const current = await seedBrief(world, 2, [], "other-base");
+    await seedHop(world, 1, 2);
+    await seedTwoSideDraft(world, previous, {
+      startSide: DraftCommentSide.NEW,
+      side: DraftCommentSide.OLD,
+      startLine: 10,
+      endLine: 20,
+    });
+
+    const view = await previewCurrent(world, current);
+
+    // The old leg lost its base; the placeable new leg must not survive alone.
+    expect(view.carried.draftComments).toEqual([
+      expect.objectContaining({
+        startSide: DraftCommentSide.NEW,
+        startLine: 10,
+        endLine: 20,
+        anchorStatus: "orphaned",
+      }),
+    ]);
+  });
+
+  it("orphans the whole draft when the hop chain cannot be linked", async () => {
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 1);
+    const current = await seedBrief(world, 2);
+    // No hop row at all.
+    await seedTwoSideDraft(world, previous, {
+      startSide: DraftCommentSide.OLD,
+      side: DraftCommentSide.NEW,
+      startLine: 10,
+      endLine: 12,
+    });
+
+    const view = await previewCurrent(world, current);
+
+    expect(view.carried.draftComments).toEqual([
+      expect.objectContaining({ anchorStatus: "orphaned" }),
+    ]);
+  });
+});
+
 describe("writeToSession — the first write, one transaction", () => {
   /** Brief 1 carries work; brief 2 is where the reviewer writes next. */
   async function pending(): Promise<{ world: World; current: BriefRowId }> {

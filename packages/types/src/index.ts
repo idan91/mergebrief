@@ -13,6 +13,9 @@
  */
 export type ValueOf<T> = T[keyof T];
 
+/** Strip readonly, for building a readonly-interface value field by field. */
+export type Mutable<T> = { -readonly [K in keyof T]: T[K] };
+
 /** Exact key-set equality — both directions, so a renamed key is caught. */
 type SameKeys<A, B> = [keyof A] extends [keyof B]
   ? [keyof B] extends [keyof A]

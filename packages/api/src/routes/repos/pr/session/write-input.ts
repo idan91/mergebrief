@@ -30,18 +30,43 @@ const sideSchema = z.union([
 const anchorShape = {
   filePath: z.string().min(1).max(MAX_PATH_LENGTH),
   side: sideSchema,
+  /** GitHub `start_side`; absent defaults to `side`. */
+  startSide: sideSchema.optional(),
   startLine: coordinateSchema,
   endLine: coordinateSchema,
 };
+// Cross-side line numbers are not comparable; ordering binds same-side only.
 const ORDERED_LINES = {
-  check: (anchor: { startLine: number; endLine: number }) =>
+  check: (anchor: {
+    side: DraftCommentSide;
+    startSide?: DraftCommentSide | undefined;
+    startLine: number;
+    endLine: number;
+  }) =>
+    (anchor.startSide !== undefined && anchor.startSide !== anchor.side) ||
     anchor.startLine <= anchor.endLine,
   message: "startLine must not follow endLine",
 };
 
+/**
+ * `startSide` equal to `side` is the single-side shape in disguise — stored
+ * and echoed as null, so non-null means genuinely two-side everywhere.
+ */
+function normalizeStartSide<
+  T extends { side: DraftCommentSide; startSide?: DraftCommentSide | undefined },
+>(anchor: T): Omit<T, "startSide"> & { startSide: DraftCommentSide | null } {
+  const { startSide, ...rest } = anchor;
+  return {
+    ...rest,
+    startSide:
+      startSide === undefined || startSide === anchor.side ? null : startSide,
+  };
+}
+
 export const anchorSchema = z
   .object(anchorShape)
-  .refine(ORDERED_LINES.check, { message: ORDERED_LINES.message });
+  .refine(ORDERED_LINES.check, { message: ORDERED_LINES.message })
+  .transform(normalizeStartSide);
 
 export const draftBodySchema = z.object({
   body: z.string().min(1).max(MAX_BODY_LENGTH),
@@ -49,7 +74,8 @@ export const draftBodySchema = z.object({
 
 export const createDraftSchema = z
   .object({ ...anchorShape, body: z.string().min(1).max(MAX_BODY_LENGTH) })
-  .refine(ORDERED_LINES.check, { message: ORDERED_LINES.message });
+  .refine(ORDERED_LINES.check, { message: ORDERED_LINES.message })
+  .transform(normalizeStartSide);
 
 export const readSchema = z.object({ read: z.boolean() });
 

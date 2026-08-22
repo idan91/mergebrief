@@ -41,7 +41,7 @@ import {
   type ReviewDraftCommentRow,
   type ValueOf,
 } from "persistence";
-import type { Result } from "types";
+import type { Mutable, Result } from "types";
 import { z } from "zod";
 import { refreshSessionToken, type AuthRouteDeps } from "../../auth/session";
 import type { AuthzEnv } from "../../authz";
@@ -116,16 +116,19 @@ interface SubmitComment {
 }
 
 function shapeSubmitComment(draft: ReviewDraftCommentRow): SubmitComment {
-  const side = SIDE_ON_GITHUB[draft.side];
-  return {
+  const comment: Mutable<SubmitComment> = {
     path: draft.filePath,
     line: draft.endLine,
-    side,
-    ...(draft.startLine < draft.endLine
-      ? { startLine: draft.startLine, startSide: side }
-      : {}),
+    side: SIDE_ON_GITHUB[draft.side],
     body: draft.body,
   };
+  // A two-side range is multi-line by definition; same-side needs the span.
+  const multiLine = draft.startSide !== null || draft.startLine < draft.endLine;
+  if (multiLine) {
+    comment.startLine = draft.startLine;
+    comment.startSide = SIDE_ON_GITHUB[draft.startSide ?? draft.side];
+  }
+  return comment;
 }
 
 // ---------------------------------------------------------------------------
@@ -133,10 +136,15 @@ function shapeSubmitComment(draft: ReviewDraftCommentRow): SubmitComment {
 // ---------------------------------------------------------------------------
 
 function foldedCommentBlock(comment: SubmitComment): string {
-  const range =
-    comment.startLine === undefined
-      ? String(comment.line)
-      : `${comment.startLine}-${comment.line}`;
+  const twoSide =
+    comment.startSide !== undefined && comment.startSide !== comment.side;
+  let range = String(comment.line);
+  if (twoSide) {
+    // Cross-side line numbers need their sides spelled out to mean anything.
+    range = `${comment.startSide} ${comment.startLine}-${comment.side} ${comment.line}`;
+  } else if (comment.startLine !== undefined) {
+    range = `${comment.startLine}-${comment.line}`;
+  }
   return [`**\`${comment.path}:${range}\`**`, "", comment.body].join("\n");
 }
 

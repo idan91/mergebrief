@@ -149,6 +149,7 @@ describe("review-session vocabularies — map and CHECK in lockstep", () => {
     ["review_session_review_outcome_check", ReviewOutcome],
     ["review_draft_comment_status_check", DraftCommentStatus],
     ["review_draft_comment_side_check", DraftCommentSide],
+    ["review_draft_comment_start_side_check", DraftCommentSide],
     ["review_draft_comment_anchor_status_check", AnchorStatus],
     ["review_group_reclassification_category_check", ChangeGroupCategory],
     ["disposition_carry_status_check", DispositionCarryStatus],
@@ -184,6 +185,60 @@ describe("review-session vocabularies — map and CHECK in lockstep", () => {
         startLine: start,
         endLine: end,
         body: "bad range",
+      }),
+    ).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    expect(rejection).not.toBeNull();
+  });
+
+  it("round-trips a two-side draft and lets its lines invert", async () => {
+    const { handle } = await freshPair();
+    const briefId = await seedBrief(handle, CTX_A);
+    await openSession(handle, CTX_A, briefId);
+
+    // new\u2192old across blocks: the start line is higher than the end line,
+    // which only the conditional range CHECK permits.
+    const written = await write(handle, CTX_A, briefId, (writer) =>
+      writer.addDraftComment({
+        filePath: "src/app.ts",
+        side: DraftCommentSide.OLD,
+        startSide: DraftCommentSide.NEW,
+        startLine: 10,
+        endLine: 20,
+        body: "crosses sides",
+      }),
+    );
+    expect(written.startSide).toBe(DraftCommentSide.NEW);
+
+    const inverted = await write(handle, CTX_A, briefId, (writer) =>
+      writer.addDraftComment({
+        filePath: "src/app.ts",
+        side: DraftCommentSide.NEW,
+        startSide: DraftCommentSide.OLD,
+        startLine: 25,
+        endLine: 3,
+        body: "old start after new end",
+      }),
+    );
+    expect(inverted.startLine).toBe(25);
+    expect(inverted.endLine).toBe(3);
+  });
+
+  it("rejects a start_side equal to side — normalization is the store's contract", async () => {
+    const { handle } = await freshPair();
+    const briefId = await seedBrief(handle, CTX_A);
+    await openSession(handle, CTX_A, briefId);
+
+    const rejection: unknown = await write(handle, CTX_A, briefId, (writer) =>
+      writer.addDraftComment({
+        filePath: "src/app.ts",
+        side: DraftCommentSide.NEW,
+        startSide: DraftCommentSide.NEW,
+        startLine: 1,
+        endLine: 2,
+        body: "not genuinely two-side",
       }),
     ).then(
       () => null,

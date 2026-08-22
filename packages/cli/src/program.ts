@@ -667,6 +667,10 @@ export function buildProgram(deps: CliDeps): Command {
     )
     .option("--file <path>", "anchor file path (flag form)")
     .option("--side <side>", "old | new (flag form; default: new)")
+    .option(
+      "--start-side <side>",
+      "old | new — side of --start when the range crosses sides (flag form)",
+    )
     .option("--start <line>", "anchor start line (flag form)")
     .option("--end <line>", "anchor end line (flag form)")
     .option("--body <text>", "comment body (flag form)")
@@ -695,6 +699,7 @@ export function buildProgram(deps: CliDeps): Command {
               }),
           file: options.file,
           side: options.side,
+          startSide: options.startSide,
           start: options.start,
           end: options.end,
           body: options.body,
@@ -776,6 +781,10 @@ export function buildProgram(deps: CliDeps): Command {
     )
     .option("--file <path>", "anchor file path (flag form)")
     .option("--side <side>", "old | new (flag form; default: new)")
+    .option(
+      "--start-side <side>",
+      "old | new — side of --start when the range crosses sides (flag form)",
+    )
     .option("--start <line>", "anchor start line (flag form)")
     .option("--end <line>", "anchor end line (flag form)")
     .option("--base <sha>", "span base of the brief (required)")
@@ -803,6 +812,7 @@ export function buildProgram(deps: CliDeps): Command {
               }),
           file: options.file,
           side: options.side,
+          startSide: options.startSide,
           start: options.start,
           end: options.end,
         });

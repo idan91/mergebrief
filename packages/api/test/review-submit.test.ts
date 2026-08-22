@@ -370,6 +370,31 @@ async function seedCarriedDraft(
   return String(written.value.id);
 }
 
+/** One two-side draft (old\u2192new) on the session — start leg on the base. */
+async function seedTwoSideDraft(
+  handle: AppDatabase,
+  briefId: BriefRowId,
+  body = "crosses sides",
+): Promise<void> {
+  const written = await forTenant(handle, CTX).reviewSessions.writeToSession(
+    {
+      briefId,
+      reviewerId: brandReviewer(BigInt(REVIEWER_ID)),
+      brief: async () => ({ groupIds: [], flags: [] }),
+    },
+    async (writer) =>
+      await writer.addDraftComment({
+        filePath: "src/c.ts",
+        side: DraftCommentSide.NEW,
+        startSide: DraftCommentSide.OLD,
+        startLine: 10,
+        endLine: 12,
+        body,
+      }),
+  );
+  if (!written.ok) throw new Error("seed: two-side draft failed");
+}
+
 function sessionPath(suffix: string): string {
   return `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/session${suffix}?base=${BASE_SHA}&head=${COMMIT_ID}`;
 }
@@ -670,6 +695,54 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
       "select count(*)::int as n from checkpoint",
     );
     expect(checkpoints[0]?.["n"]).toBe(0);
+  });
+
+  it("maps a two-side draft to GitHub's start_side on the grouped POST", async () => {
+    const counts = stubGitHub({
+      repositories: () => repoOk(),
+      createReview: () => reviewCreated(987003),
+    });
+    await seedPullRequest(harness.handle);
+    const { cookie } = await seedSession(harness.handle, kp);
+    const briefId = await seedSessionDrafts(harness.handle, []);
+    await seedTwoSideDraft(harness.handle, briefId);
+
+    const res = await submit(app, cookie, validBody());
+    expect(res.status).toBe(201);
+    const posted = z
+      .object({ comments: z.array(z.record(z.string(), z.unknown())) })
+      .parse(counts.reviewBodies[0]);
+    expect(posted.comments).toEqual([
+      {
+        path: "src/c.ts",
+        line: 12,
+        side: "RIGHT",
+        start_line: 10,
+        start_side: "LEFT",
+        body: "crosses sides",
+      },
+    ]);
+  });
+
+  it("folds a two-side range with both sides spelled out", async () => {
+    const counts = stubGitHub({
+      repositories: () => repoOk(),
+      createReview: (call) =>
+        call === 0 ? anchoring422() : reviewCreated(987004),
+    });
+    await seedPullRequest(harness.handle);
+    const { cookie } = await seedSession(harness.handle, kp);
+    const briefId = await seedSessionDrafts(harness.handle, []);
+    await seedTwoSideDraft(harness.handle, briefId);
+
+    const res = await submit(app, cookie, validBody());
+    expect(res.status).toBe(201);
+    const retry = z
+      .object({ body: z.string() })
+      .parse(counts.reviewBodies[1]);
+    // Cross-side line numbers mean nothing without their sides.
+    expect(retry.body).toContain("src/c.ts:LEFT 10-RIGHT 12");
+    expect(retry.body).toContain("crosses sides");
   });
 
   it("publishes exactly the held drafts and records the review id", async () => {

@@ -34,6 +34,9 @@ function anchorFromFlags(flags: AnchorFlags): FlagAnchor {
   if (flags.file !== undefined) {
     anchor.filePath = flags.file;
   }
+  if (flags.startSide !== undefined) {
+    anchor.startSide = flags.startSide;
+  }
   if (flags.start !== undefined) {
     anchor.startLine = parseLine("--start", flags.start);
   }
@@ -44,7 +47,7 @@ function anchorFromFlags(flags: AnchorFlags): FlagAnchor {
 }
 
 function hasAnchorFlags(flags: AnchorFlags): boolean {
-  return [flags.file, flags.side, flags.start, flags.end].some(
+  return [flags.file, flags.side, flags.startSide, flags.start, flags.end].some(
     (flag) => flag !== undefined,
   );
 }

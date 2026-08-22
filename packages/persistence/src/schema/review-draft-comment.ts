@@ -19,6 +19,8 @@ export const reviewDraftComment = pgTable(
     /** Canonical within the Brief's artifact; not rename-stable. */
     filePath: text("file_path").notNull(),
     side: text("side").$type<DraftCommentSide>().notNull(),
+    /** Non-null only when the range genuinely crosses sides (GitHub `start_side`). */
+    startSide: text("start_side").$type<DraftCommentSide>(),
     startLine: integer("start_line").notNull(),
     endLine: integer("end_line").notNull(),
     body: text("body").notNull(),

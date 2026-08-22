@@ -92,14 +92,18 @@ function readDraftAnchor(draft: ReviewDraftCommentRow): {
   startLine?: number;
   startSide?: ReviewCommentSide;
 } {
-  const side = SIDE_ON_GITHUB[draft.side];
-  const multiLine = draft.startLine < draft.endLine;
-  return {
+  const anchor: ReturnType<typeof readDraftAnchor> = {
     path: draft.filePath,
     line: draft.endLine,
-    side,
-    ...(multiLine ? { startLine: draft.startLine, startSide: side } : {}),
+    side: SIDE_ON_GITHUB[draft.side],
   };
+  // A two-side range is multi-line by definition; same-side needs the span.
+  const multiLine = draft.startSide !== null || draft.startLine < draft.endLine;
+  if (multiLine) {
+    anchor.startLine = draft.startLine;
+    anchor.startSide = SIDE_ON_GITHUB[draft.startSide ?? draft.side];
+  }
+  return anchor;
 }
 
 /** The request body, or `undefined` when it is not JSON at all. */

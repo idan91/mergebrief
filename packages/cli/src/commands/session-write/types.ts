@@ -8,6 +8,7 @@
 export interface AnchorFlags {
   readonly file?: string | undefined;
   readonly side?: string | undefined;
+  readonly startSide?: string | undefined;
   readonly start?: string | undefined;
   readonly end?: string | undefined;
 }
@@ -16,6 +17,7 @@ export interface AnchorFlags {
 export interface FlagAnchor {
   filePath?: string;
   side: string;
+  startSide?: string;
   startLine?: number;
   endLine?: number;
   body?: string;

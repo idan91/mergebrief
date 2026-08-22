@@ -28,6 +28,7 @@ import {
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ExitCode } from "../src/exit";
+import { buildReanchorPayload } from "../src/commands/session-write/utils";
 import { runCli, type CliDeps } from "../src/program";
 import { testLogger } from "./logging";
 
@@ -286,6 +287,61 @@ describe("session write commands over the real api app", () => {
     expect(draftIdOf(result.out)).toMatch(/^\d+$/);
   });
 
+  it("draft create --start-side crosses sides; the session echoes it", async () => {
+    await seedSessionedPr(harness.handle);
+    await login();
+    const result = await run([
+      "draft",
+      "create",
+      "7",
+      "--file",
+      "src/a.ts",
+      "--start-side",
+      "old",
+      "--start",
+      "10",
+      "--end",
+      "12",
+      "--body",
+      "spans both sides",
+      ...SPAN,
+      "--json",
+    ]);
+    expect(result.err).toEqual([]);
+    expect(result.code).toBe(ExitCode.OK);
+    const session = await run(["session", "7", ...SPAN, "--json"]);
+    expect(session.out).toContain('"startSide":"old"');
+  });
+
+  it("draft create rejects -F mixed with --start-side (exit 2)", async () => {
+    await seedSessionedPr(harness.handle);
+    await login();
+    const result = await run(
+      ["draft", "create", "7", "-F", "-", "--start-side", "old", ...SPAN],
+      JSON.stringify({}),
+    );
+    expect(result.code).toBe(ExitCode.USAGE);
+    expect(result.err.join("")).toContain("mutually exclusive");
+  });
+
+  it("buildReanchorPayload carries --start-side (reanchor itself is human-only)", () => {
+    expect(
+      buildReanchorPayload({
+        file: "src/a.ts",
+        side: "new",
+        startSide: "old",
+        start: "10",
+        end: "12",
+      }),
+    ).toEqual({
+      filePath: "src/a.ts",
+      side: "new",
+      startSide: "old",
+      startLine: 10,
+      endLine: 12,
+    });
+  });
+
   it("draft create -F - takes the full payload from stdin", async () => {
     await seedSessionedPr(harness.handle);
     await login();
@@ -501,7 +557,18 @@ describe("session write commands over the real api app", () => {
     await seedSessionedPr(harness.handle);
     await login();
     const result = await run(
-      ["draft", "update", "7", "1", "-F", "-", "--body", "x", ...SPAN, "--json"],
+      [
+        "draft",
+        "update",
+        "7",
+        "1",
+        "-F",
+        "-",
+        "--body",
+        "x",
+        ...SPAN,
+        "--json",
+      ],
       "{}",
     );
     expect(result.code).toBe(ExitCode.USAGE);
@@ -570,13 +637,7 @@ describe("session write commands over the real api app", () => {
   it("chunk-read marks read by default and --unread flips it; receipts verbatim", async () => {
     await seedSessionedPr(harness.handle);
     await login();
-    const marked = await run([
-      "chunk-read",
-      "7",
-      "chunk-1",
-      ...SPAN,
-      "--json",
-    ]);
+    const marked = await run(["chunk-read", "7", "chunk-1", ...SPAN, "--json"]);
     expect(marked.err).toEqual([]);
     expect(marked.code).toBe(ExitCode.OK);
     expect(JSON.parse(marked.out)).toEqual({ chunkId: "chunk-1", read: true });
@@ -618,7 +679,20 @@ describe("session write commands over the real api app", () => {
     for (const argv of [
       ["draft", "create", "x", ...CREATE_FLAGS, ...SPAN, "--json"],
       ["draft", "update", "x", "1", "--body", "b", ...SPAN, "--json"],
-      ["draft", "reanchor", "x", "1", "--file", "f", "--start", "1", "--end", "2", ...SPAN, "--json"],
+      [
+        "draft",
+        "reanchor",
+        "x",
+        "1",
+        "--file",
+        "f",
+        "--start",
+        "1",
+        "--end",
+        "2",
+        ...SPAN,
+        "--json",
+      ],
       ["draft", "delete", "x", "1", ...SPAN, "--json"],
       ["chunk-read", "x", "chunk-1", ...SPAN, "--json"],
     ]) {

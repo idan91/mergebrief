@@ -35,6 +35,7 @@ const CARRIED: CarriedWork = {
       id: 71n,
       filePath: "src/app.ts",
       side: DraftCommentSide.NEW,
+      startSide: null,
       startLine: 10,
       endLine: 12,
       body: "this leaks",

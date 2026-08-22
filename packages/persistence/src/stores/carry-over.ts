@@ -74,6 +74,8 @@ export interface PreviousDraftComment {
   readonly id: bigint;
   readonly filePath: string;
   readonly side: DraftCommentSide;
+  /** Non-null only when the range genuinely crosses sides. */
+  readonly startSide: DraftCommentSide | null;
   readonly startLine: number;
   readonly endLine: number;
   readonly body: string;
@@ -183,10 +185,41 @@ function replace(
   return range === undefined ? undefined : range;
 }
 
+/**
+ * A two-side range is one anchor with a leg on each side: the old leg holds
+ * only while the PR base does, and the new leg rides the hops. Both-or-orphan
+ * — a range that lost either endpoint never shrinks to single-side.
+ */
+function carryTwoSideComment(
+  comment: PreviousDraftComment,
+  context: CarryOverContext,
+): CarriedDraftComment {
+  if (context.baseShaMoved || context.hops === null) {
+    return { ...comment, anchorStatus: AnchorStatus.ORPHANED };
+  }
+  const newLine =
+    comment.startSide === DraftCommentSide.NEW
+      ? comment.startLine
+      : comment.endLine;
+  const placed = replace(context, comment.filePath, newLine, newLine);
+  if (placed === undefined) {
+    return { ...comment, anchorStatus: AnchorStatus.ORPHANED };
+  }
+  if (placed.start === newLine) {
+    return { ...comment, anchorStatus: null };
+  }
+  return comment.startSide === DraftCommentSide.NEW
+    ? { ...comment, startLine: placed.start, anchorStatus: AnchorStatus.MOVED }
+    : { ...comment, endLine: placed.start, anchorStatus: AnchorStatus.MOVED };
+}
+
 function carryComment(
   comment: PreviousDraftComment,
   context: CarryOverContext,
 ): CarriedDraftComment {
+  if (comment.startSide !== null) {
+    return carryTwoSideComment(comment, context);
+  }
   // Old-side coordinates live against the PR base, which the hops say nothing
   // about, so a base that held still leaves them exact. A moved base or a
   // chain that cannot be trusted still orphans them: an untrustworthy span

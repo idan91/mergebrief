@@ -71,6 +71,7 @@ describe("anchorSchema", () => {
 
   it.each([
     ["an unknown side", { side: "both" }],
+    ["an unknown startSide", { startSide: "both" }],
     ["a zero line", { startLine: 0 }],
     ["a fractional line", { endLine: 12.5 }],
     ["an empty path", { filePath: "" }],
@@ -80,12 +81,71 @@ describe("anchorSchema", () => {
   });
 });
 
+describe("anchorSchema — two-side ranges", () => {
+  it("accepts old\u2192new and keeps the crossing startSide", () => {
+    const parsed = anchorSchema.parse({
+      ...ANCHOR,
+      startSide: DraftCommentSide.OLD,
+    });
+    expect(parsed.startSide).toBe(DraftCommentSide.OLD);
+  });
+
+  it("accepts new\u2192old with lines out of order — cross-side is unordered", () => {
+    const parsed = anchorSchema.parse({
+      ...ANCHOR,
+      side: DraftCommentSide.OLD,
+      startSide: DraftCommentSide.NEW,
+      startLine: 25,
+      endLine: 3,
+    });
+    expect(parsed).toMatchObject({
+      side: DraftCommentSide.OLD,
+      startSide: DraftCommentSide.NEW,
+      startLine: 25,
+      endLine: 3,
+    });
+  });
+
+  it("normalizes a startSide equal to side to null", () => {
+    expect(
+      anchorSchema.parse({ ...ANCHOR, startSide: DraftCommentSide.NEW })
+        .startSide,
+    ).toBe(null);
+  });
+
+  it("defaults an absent startSide to null", () => {
+    expect(anchorSchema.parse(ANCHOR).startSide).toBe(null);
+  });
+
+  it("still rejects an inverted range once startSide collapses to side", () => {
+    expect(
+      anchorSchema.safeParse({
+        ...ANCHOR,
+        startSide: DraftCommentSide.NEW,
+        startLine: 12,
+        endLine: 10,
+      }).success,
+    ).toBe(false);
+  });
+});
+
 describe("createDraftSchema", () => {
   it("carries the anchor and the body together", () => {
     expect(createDraftSchema.parse({ ...ANCHOR, body: "hi" })).toEqual({
       ...ANCHOR,
+      startSide: null,
       body: "hi",
     });
+  });
+
+  it("normalizes a startSide equal to side, same as the bare anchor", () => {
+    expect(
+      createDraftSchema.parse({
+        ...ANCHOR,
+        startSide: DraftCommentSide.NEW,
+        body: "hi",
+      }).startSide,
+    ).toBe(null);
   });
 
   it("holds the anchor's line ordering too", () => {

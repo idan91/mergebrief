@@ -17,6 +17,7 @@ import {
   type ReviewSessionSnapshot,
   type ReviewSessionView,
 } from "persistence";
+import type { Mutable } from "types";
 import { deriveAttentionItems, type AttentionItem } from "./attention";
 
 /**
@@ -55,6 +56,8 @@ interface DraftCommentPayload {
   readonly id: string;
   readonly filePath: string;
   readonly side: DraftCommentSide;
+  /** Present only when the range genuinely crosses sides. */
+  readonly startSide?: DraftCommentSide;
   readonly startLine: number;
   readonly endLine: number;
   readonly body: string;
@@ -82,6 +85,36 @@ interface DispositionPayload {
   readonly decidedAt: string;
 }
 
+/** The row fields a draft payload is shaped from, either side of materialization. */
+interface DraftCommentSource {
+  readonly id: bigint;
+  readonly filePath: string;
+  readonly side: DraftCommentSide;
+  readonly startSide: DraftCommentSide | null;
+  readonly startLine: number;
+  readonly endLine: number;
+  readonly body: string;
+  readonly status: DraftCommentStatus;
+  readonly anchorStatus: AnchorStatus | null;
+}
+
+function shapeDraftComment(row: DraftCommentSource): DraftCommentPayload {
+  const comment: Mutable<DraftCommentPayload> = {
+    id: String(row.id),
+    filePath: row.filePath,
+    side: row.side,
+    startLine: row.startLine,
+    endLine: row.endLine,
+    body: row.body,
+    status: row.status,
+    anchorStatus: row.anchorStatus,
+  };
+  if (row.startSide !== null) {
+    comment.startSide = row.startSide;
+  }
+  return comment;
+}
+
 /** The stored columns as the one shape the wire and the evaluation share. */
 function shapeEvidence(
   kind: DispositionEvidenceKind | null,
@@ -99,16 +132,7 @@ type SessionWork = Omit<
 function shapeStoredWork(snapshot: ReviewSessionSnapshot): SessionWork {
   return {
     reviewOutcome: snapshot.session.reviewOutcome,
-    draftComments: snapshot.draftComments.map((row) => ({
-      id: String(row.id),
-      filePath: row.filePath,
-      side: row.side,
-      startLine: row.startLine,
-      endLine: row.endLine,
-      body: row.body,
-      status: row.status,
-      anchorStatus: row.anchorStatus,
-    })),
+    draftComments: snapshot.draftComments.map(shapeDraftComment),
     readMarks: snapshot.readMarks.map((row) => row.chunkId),
     reclassifications: snapshot.reclassifications.map((row) => ({
       changeGroupId: row.changeGroupId,
@@ -143,16 +167,7 @@ function shapeCarriedWork(carried: CarriedWork): SessionWork {
     // No row means no stored verdict; the column's default is what a first
     // write would land on.
     reviewOutcome: ReviewOutcome.COMMENT,
-    draftComments: carried.draftComments.map((row) => ({
-      id: String(row.id),
-      filePath: row.filePath,
-      side: row.side,
-      startLine: row.startLine,
-      endLine: row.endLine,
-      body: row.body,
-      status: row.status,
-      anchorStatus: row.anchorStatus,
-    })),
+    draftComments: carried.draftComments.map(shapeDraftComment),
     readMarks: [...carried.readMarks],
     reclassifications: carried.reclassifications.map((row) => ({
       changeGroupId: row.changeGroupId,
