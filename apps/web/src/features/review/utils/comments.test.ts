@@ -111,7 +111,7 @@ describe("postCommentBlockedReason", () => {
 describe("commentAnchorLabel", () => {
   it("includes the file and selected line range", () => {
     expect(
-      commentAnchorLabel({
+      commentAnchorLabel(t, {
         chunkId: "c1",
         file: "src/a.ts",
         side: "new",
@@ -122,7 +122,7 @@ describe("commentAnchorLabel", () => {
       }),
     ).toBe("src/a.ts · +11-13");
     expect(
-      commentAnchorLabel({
+      commentAnchorLabel(t, {
         chunkId: "c1",
         file: "src/a.ts",
         side: "old",
@@ -132,5 +132,32 @@ describe("commentAnchorLabel", () => {
         selectedText: "",
       }),
     ).toBe("src/a.ts · -7");
+  });
+
+  it("spells both signs on a range that crosses sides", () => {
+    expect(
+      commentAnchorLabel(t, {
+        chunkId: "c1",
+        file: "src/a.ts",
+        side: "new",
+        startSide: "old",
+        startLine: 10,
+        endLine: 12,
+        rowIds: [],
+        selectedText: "",
+      }),
+    ).toBe("src/a.ts · -10 → +12");
+    expect(
+      commentAnchorLabel(t, {
+        chunkId: "c1",
+        file: "src/a.ts",
+        side: "old",
+        startSide: "new",
+        startLine: 10,
+        endLine: 20,
+        rowIds: [],
+        selectedText: "",
+      }),
+    ).toBe("src/a.ts · +10 → -20");
   });
 });

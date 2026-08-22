@@ -64,7 +64,7 @@ export function CommentComposer({
   return (
     <div className={styles["composer"]}>
       <div className={styles["meta"]}>
-        <span>{commentAnchorLabel(anchor)}</span>
+        <span>{commentAnchorLabel(t, anchor)}</span>
         <span>
           {t("review.comment.lines", { count: anchor.rowIds.length })}
         </span>

@@ -35,6 +35,7 @@ export type {
 // behavior depends on the re-export.
 export { LastReviewUnavailableReason } from "./routes/repos/pr/reads";
 export type { LastReviewComparisonView } from "./routes/repos/pr/reads";
+export type { SessionPayload } from "./routes/repos/pr/session/payload";
 
 // The wire error contract. `API_ERROR_ENGLISH`/`API_ERROR_STATUS` are
 // mirror-only: `packages/i18n` pins `errors.<code>` templates against them;

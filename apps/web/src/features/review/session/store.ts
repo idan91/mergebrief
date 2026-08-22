@@ -125,7 +125,11 @@ function getUniqueCommentId(
   anchor: CommentAnchor,
   existing: ReviewComment[],
 ): string {
-  const base = `${anchor.chunkId}-${anchor.side}-${anchor.startLine}-${anchor.endLine}`;
+  const crossing =
+    anchor.startSide !== undefined && anchor.startSide !== anchor.side
+      ? `${anchor.startSide}-`
+      : "";
+  const base = `${anchor.chunkId}-${crossing}${anchor.side}-${anchor.startLine}-${anchor.endLine}`;
   const taken = new Set(existing.map((comment) => comment.id));
   let n = 1;
   while (taken.has(`${base}-${n}`)) n += 1;

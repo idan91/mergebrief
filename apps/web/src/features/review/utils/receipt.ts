@@ -57,6 +57,8 @@ export interface ReceiptComment {
   id: string;
   file: string;
   side: CommentSide;
+  /** Present only when the range genuinely crosses sides. */
+  startSide?: CommentSide;
   startLine: number;
   endLine: number;
   firstLine: string;
@@ -156,6 +158,9 @@ export function buildReceipt(
     id: comment.id,
     file: comment.anchor.file,
     side: comment.anchor.side,
+    ...(comment.anchor.startSide === undefined
+      ? {}
+      : { startSide: comment.anchor.startSide }),
     startLine: comment.anchor.startLine,
     endLine: comment.anchor.endLine,
     firstLine: comment.body.split("\n")[0] ?? "",
@@ -196,6 +201,10 @@ export function buildReceipt(
  */
 export function receiptCommentLabel(comment: ReceiptComment): string {
   const sign = comment.side === "new" ? "+" : "-";
+  if (comment.startSide !== undefined && comment.startSide !== comment.side) {
+    const startSign = comment.startSide === "new" ? "+" : "-";
+    return `${comment.file}:${startSign}${comment.startLine}→${sign}${comment.endLine}`;
+  }
   const range =
     comment.startLine === comment.endLine
       ? `${sign}${comment.startLine}`

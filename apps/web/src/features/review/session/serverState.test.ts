@@ -3,6 +3,8 @@
 // rather than guessed at.
 import { describe, expect, it } from "vitest";
 
+import type { SessionPayload as ApiSessionPayload } from "api";
+import type { Equals } from "types";
 import { briefFixture } from "@web/features/brief/utils/fixtures";
 import { buildBriefViewModel } from "@web/features/brief/utils";
 import {
@@ -10,7 +12,23 @@ import {
   parseReviewSessionPayload,
   sessionInitialState,
   type ReviewSessionPayload,
+  type SessionDraftComment,
 } from "./serverState";
+
+type Mutable<T> = { -readonly [K in keyof T]: T[K] };
+/** The api route's draft payload, minus `anchorStatus` — the one field this
+ * mirror deliberately drops (the attention list renders it instead). */
+type SourceDraftComment = Mutable<
+  Omit<ApiSessionPayload["draftComments"][number], "anchorStatus">
+>;
+/**
+ * Lockstep pin: the mirror is hand-rolled and CI is path-filtered per
+ * package, so a field added or retyped in the api payload would otherwise
+ * ship green while this bundle's guard rejects the whole session read.
+ * `Equals` is exact — it fails when the optional `startSide` half drifts.
+ */
+const draftCommentPin: Equals<SessionDraftComment, SourceDraftComment> = true;
+void draftCommentPin;
 
 const model = buildBriefViewModel(briefFixture);
 const firstFlag = model.flags[0];
@@ -131,6 +149,155 @@ describe("sessionInitialState", () => {
     expect(
       others.every((one) => state.dispositions[one.id]?.kind === "open"),
     ).toBe(true);
+  });
+
+  it("spans a two-side draft from its old start row to its new end row", () => {
+    const cross = structuredClone(briefFixture);
+    const chunk = cross.chunks[0];
+    if (chunk === undefined) throw new Error("fixture has no chunk");
+    chunk.addedRanges = [{ start: 10, end: 12 }];
+    chunk.removedRanges = [{ start: 10, end: 11 }];
+    chunk.diff = [
+      { kind: "hunk", content: "@@ -9,3 +9,4 @@" },
+      { kind: "ctx", content: "const a = 1;", oldLine: 9, newLine: 9 },
+      { kind: "del", content: "old ten", oldLine: 10 },
+      { kind: "del", content: "old eleven", oldLine: 11 },
+      { kind: "add", content: "new ten", newLine: 10 },
+      { kind: "add", content: "new eleven", newLine: 11 },
+      { kind: "add", content: "new twelve", newLine: 12 },
+    ];
+    const crossModel = buildBriefViewModel(cross);
+    const state = sessionInitialState(
+      crossModel,
+      payload({
+        draftComments: [
+          {
+            id: "51",
+            filePath: chunk.file,
+            side: "new",
+            startSide: "old",
+            startLine: 10,
+            endLine: 12,
+            body: "spans both sides",
+            status: "draft",
+          },
+        ],
+      }),
+    );
+    const anchor = state.reviewComments[0]?.anchor;
+    expect(anchor?.startSide).toBe("old");
+    // Every row from the del at old 10 through the add at new 12.
+    expect(anchor?.rowIds).toEqual(
+      [2, 3, 4, 5, 6].map((i) => `${chunk.id}:${i}`),
+    );
+    expect(anchor?.selectedText).toBe(
+      ["old ten", "old eleven", "new ten", "new eleven", "new twelve"].join(
+        "\n",
+      ),
+    );
+  });
+
+  it("spans new\u2192old across hunks, skipping the header row", () => {
+    const cross = structuredClone(briefFixture);
+    const chunk = cross.chunks[0];
+    if (chunk === undefined) throw new Error("fixture has no chunk");
+    chunk.addedRanges = [{ start: 10, end: 10 }];
+    chunk.removedRanges = [{ start: 20, end: 20 }];
+    chunk.diff = [
+      { kind: "hunk", content: "@@ -10,1 +10,1 @@" },
+      { kind: "add", content: "new ten", newLine: 10 },
+      { kind: "hunk", content: "@@ -19,2 +20,1 @@" },
+      { kind: "ctx", content: "line nineteen", oldLine: 19, newLine: 20 },
+      { kind: "del", content: "old twenty", oldLine: 20 },
+    ];
+    const crossModel = buildBriefViewModel(cross);
+    const state = sessionInitialState(
+      crossModel,
+      payload({
+        draftComments: [
+          {
+            id: "53",
+            filePath: chunk.file,
+            side: "old",
+            startSide: "new",
+            startLine: 10,
+            endLine: 20,
+            body: "backwards across blocks",
+            status: "draft",
+          },
+        ],
+      }),
+    );
+    const anchor = state.reviewComments[0]?.anchor;
+    // The second hunk's header sits inside the span; it must not ride along.
+    expect(anchor?.rowIds).toEqual([1, 3, 4].map((i) => `${chunk.id}:${i}`));
+    expect(anchor?.selectedText).toBe(
+      ["new ten", "line nineteen", "old twenty"].join("\n"),
+    );
+  });
+
+  it("falls back to no rows when a two-side endpoint is not rendered", () => {
+    const state = sessionInitialState(
+      model,
+      payload({
+        draftComments: [
+          {
+            id: "52",
+            filePath: firstChunk?.file ?? "",
+            side: "new",
+            startSide: "old",
+            // No rendered row carries old line 5: the start anchor cannot
+            // resolve, and a guessed span would attach to the wrong rows.
+            startLine: 5,
+            endLine: 10,
+            body: "unresolvable start",
+            status: "draft",
+          },
+        ],
+      }),
+    );
+    const anchor = state.reviewComments[0]?.anchor;
+    expect(anchor?.startSide).toBe("old");
+    expect(anchor?.rowIds).toEqual([]);
+    expect(anchor?.selectedText).toBe("");
+  });
+
+  it("accepts a payload draft carrying startSide", () => {
+    const parsed = parseReviewSessionPayload({
+      ...emptySessionPayload(),
+      draftComments: [
+        {
+          id: "1",
+          filePath: "a.ts",
+          side: "new",
+          startSide: "old",
+          startLine: 10,
+          endLine: 12,
+          body: "x",
+          status: "draft",
+        },
+      ],
+    });
+    expect(parsed.ok).toBe(true);
+  });
+
+  it("rejects a draft whose startSide is outside the vocabulary", () => {
+    const parsed = parseReviewSessionPayload({
+      ...emptySessionPayload(),
+      draftComments: [
+        {
+          id: "1",
+          filePath: "a.ts",
+          side: "new",
+          startSide: "sideways",
+          startLine: 10,
+          endLine: 12,
+          body: "x",
+          status: "draft",
+        },
+      ],
+    });
+    expect(parsed.ok).toBe(false);
   });
 
   it("fails whole rather than dropping a malformed draft", () => {

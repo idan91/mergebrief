@@ -132,6 +132,33 @@ describe("comments + outcome", () => {
     expect(store.getState().reviewOutcome).toBe("approve");
   });
 
+  it("a two-side anchor gets its own id — no collision with same-side", () => {
+    const store = freshStore();
+    const anchor = {
+      chunkId: "chunk-a",
+      file: "src/leak.ts",
+      side: "new" as const,
+      startLine: 10,
+      endLine: 12,
+      rowIds: [],
+      selectedText: "",
+    };
+    void store.getState().actions.saveComment({
+      anchor,
+      body: "same-side",
+      status: "draft",
+      collapsed: false,
+    });
+    void store.getState().actions.saveComment({
+      anchor: { ...anchor, startSide: "old" as const },
+      body: "two-side",
+      status: "draft",
+      collapsed: false,
+    });
+    const ids = store.getState().reviewComments.map((comment) => comment.id);
+    expect(ids).toEqual(["chunk-a-new-10-12-1", "chunk-a-old-new-10-12-1"]);
+  });
+
   it("submitted comments are immutable — update/delete no-op", () => {
     const store = freshStore();
     const comment: Omit<ReviewComment, "id"> = {

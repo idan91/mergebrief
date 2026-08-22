@@ -699,6 +699,7 @@
     },
     "comment": {
       "saveFirst": "Save or cancel your edit first — posting sends the last saved text.",
+      "anchorCross": "{{start}} → {{end}}",
       "posted": "Posted",
       "draft": "Draft",
       "commentOn": "comment on ",

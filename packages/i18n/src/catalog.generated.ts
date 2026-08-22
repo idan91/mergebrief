@@ -172,6 +172,7 @@ export type Catalog = typeof en & {
       tooManyComments: "A review can carry at most {{max}} comments. Trim {{excess}} draft(s), or submit in parts by deleting some drafts and re-adding them after this review posts.";
     };
     comment: (typeof en)["review"]["comment"] & {
+      anchorCross: "{{start}} → {{end}}";
       addressesComments: "addresses comments {{ids}}";
       replyTo: "reply to {{id}}";
       lines_one: "{{count}} line";

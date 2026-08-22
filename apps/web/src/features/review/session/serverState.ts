@@ -5,27 +5,41 @@
 // the view model here. An anchor that resolves to nothing is DROPPED: it
 // belongs to a chunk this Brief no longer renders, and the attention list is
 // what tells the reviewer about it.
-import { Categories } from "../../brief/types";
 import type { BriefChunk, Category, DiffLine } from "../../brief/types";
 import type { Result } from "types";
 import type { BriefViewModel } from "@web/features/brief/utils";
-import type { CommentSide, ReviewComment } from "../utils/comments";
+import type {
+  CommentAnchor,
+  CommentSide,
+  ReviewComment,
+} from "../utils/comments";
 import { rowId } from "../utils/comments";
 import { getChunkRegion, isFlagUnderAnchor } from "../utils/state";
 import type { ReviewOutcome, RiskEvidence } from "../utils/state";
 import type { Disposition } from "./disposition";
 import {
   isAttentionItem,
-  isCarryStatus,
   type DispositionCarryStatus,
   type SessionAttentionItem,
 } from "./attention";
+import { isRecord } from "@web/utils/typeGuards";
+import {
+  isArrayOf,
+  isCarriedFrom,
+  isDisposition,
+  isDraftComment,
+  isReclassification,
+  isReviewOutcome,
+  isStringArray,
+} from "./payloadGuards";
 import { deriveInitialState, type ReviewSessionState } from "./store";
 
 export interface SessionDraftComment {
   id: string;
   filePath: string;
   side: CommentSide;
+  /** Present only when the range genuinely crosses sides. */
+  startSide?: CommentSide;
   startLine: number;
   endLine: number;
   body: string;
@@ -122,6 +136,60 @@ function chunkForDraft(
   return preceding.at(-1) ?? inFile[0];
 }
 
+interface CoveredRow {
+  index: number;
+  content: string;
+}
+
+/** Same-side: every row whose line on the draft's side is inside the range. */
+function collectSameSideRows(
+  rows: DiffLine[],
+  draft: SessionDraftComment,
+): CoveredRow[] {
+  const covered: CoveredRow[] = [];
+
+  for (const [index, row] of rows.entries()) {
+    const line = lineOnSide(row, draft.side);
+    if (line === undefined) continue;
+    if (line < draft.startLine || line > draft.endLine) continue;
+    covered.push({ index, content: row.content });
+  }
+
+  return covered;
+}
+
+/**
+ * Cross-side: the contiguous render span from the start anchor to the end
+ * anchor. Cross-side line numbers are not comparable, but the render order
+ * is one sequence, so the span is positional.
+ */
+function collectCrossSideRows(
+  rows: DiffLine[],
+  draft: SessionDraftComment,
+  startSide: CommentSide,
+): CoveredRow[] {
+  const startIndex = rows.findIndex(
+    (row) => lineOnSide(row, startSide) === draft.startLine,
+  );
+  const endIndex = rows.findLastIndex(
+    (row) => lineOnSide(row, draft.side) === draft.endLine,
+  );
+  if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) return [];
+
+  const covered: CoveredRow[] = [];
+
+  for (let index = startIndex; index <= endIndex; index++) {
+    const row = rows[index];
+    if (row === undefined) continue;
+    // Hunk headers and notes carry no line on either side; a span crossing a
+    // hunk boundary must not sweep them into the comment.
+    if (row.oldLine === undefined && row.newLine === undefined) continue;
+    covered.push({ index, content: row.content });
+  }
+
+  return covered;
+}
+
 /**
  * The rendered rows the draft covers. Rebuilt from the diff rather than
  * stored: the wire carries GitHub's coordinates, which are the durable
@@ -134,12 +202,13 @@ function rowsForDraft(
   draft: SessionDraftComment,
 ): { rowIds: string[]; selectedText: string } {
   const rows = chunk.diff ?? [];
-  const covered = rows.flatMap((row, index) => {
-    const line = lineOnSide(row, draft.side);
-    if (line === undefined) return [];
-    if (line < draft.startLine || line > draft.endLine) return [];
-    return [{ index, content: row.content }];
-  });
+  const startSide = draft.startSide ?? draft.side;
+
+  const covered =
+    startSide === draft.side
+      ? collectSameSideRows(rows, draft)
+      : collectCrossSideRows(rows, draft, startSide);
+
   return {
     rowIds: covered.map((row) => rowId(chunk.id, row.index)),
     selectedText: covered.map((row) => row.content).join("\n"),
@@ -153,17 +222,25 @@ function toReviewComments(
   return payload.draftComments.flatMap((draft) => {
     const chunk = chunkForDraft(chunks, draft);
     if (chunk === undefined) return [];
+
+    const { rowIds, selectedText } = rowsForDraft(chunk, draft);
+    const anchor: CommentAnchor = {
+      chunkId: chunk.id,
+      file: draft.filePath,
+      side: draft.side,
+      startLine: draft.startLine,
+      endLine: draft.endLine,
+      rowIds,
+      selectedText,
+    };
+    if (draft.startSide !== undefined) {
+      anchor.startSide = draft.startSide;
+    }
+
     return [
       {
         id: draft.id,
-        anchor: {
-          chunkId: chunk.id,
-          file: draft.filePath,
-          side: draft.side,
-          startLine: draft.startLine,
-          endLine: draft.endLine,
-          ...rowsForDraft(chunk, draft),
-        },
+        anchor,
         body: draft.body,
         status: draft.status,
         collapsed: false,
@@ -263,104 +340,6 @@ export function sessionInitialState(
   };
 }
 
-const DRAFT_STATUSES = new Set<string>(["draft", "submitted"]);
-const SIDES = new Set<string>(["old", "new"] satisfies CommentSide[]);
-const DECISIONS = new Set<string>(["addressed", "dismissed"]);
-const EVIDENCE_KINDS = new Set<string>([
-  "linked-comment",
-  "chunk-reviewed",
-  "manual-note",
-]);
-const CATEGORIES = new Set<string>(Object.values(Categories));
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function isLine(value: unknown): value is number {
-  return typeof value === "number" && Number.isInteger(value) && value > 0;
-}
-
-function isReviewOutcome(value: unknown): value is ReviewOutcome {
-  return (
-    value === "comment" || value === "approve" || value === "request-changes"
-  );
-}
-
-function isDraftComment(value: unknown): value is SessionDraftComment {
-  return (
-    isObject(value) &&
-    typeof value["id"] === "string" &&
-    typeof value["filePath"] === "string" &&
-    typeof value["body"] === "string" &&
-    typeof value["side"] === "string" &&
-    SIDES.has(value["side"]) &&
-    typeof value["status"] === "string" &&
-    DRAFT_STATUSES.has(value["status"]) &&
-    isLine(value["startLine"]) &&
-    isLine(value["endLine"])
-  );
-}
-
-function isEvidence(value: unknown): boolean {
-  return (
-    value === null ||
-    (isObject(value) &&
-      typeof value["kind"] === "string" &&
-      EVIDENCE_KINDS.has(value["kind"]) &&
-      (value["ref"] === null || typeof value["ref"] === "string"))
-  );
-}
-
-function isDisposition(value: unknown): value is SessionDisposition {
-  return (
-    isObject(value) &&
-    typeof value["filePath"] === "string" &&
-    typeof value["attribute"] === "string" &&
-    isLine(value["regionStart"]) &&
-    isLine(value["regionEnd"]) &&
-    typeof value["decision"] === "string" &&
-    DECISIONS.has(value["decision"]) &&
-    (value["reason"] === null || typeof value["reason"] === "string") &&
-    (value["carryStatus"] === null || isCarryStatus(value["carryStatus"])) &&
-    isEvidence(value["evidence"])
-  );
-}
-
-function isCarriedFrom(value: unknown): value is SessionCarriedFrom {
-  return (
-    isObject(value) &&
-    typeof value["sessionId"] === "string" &&
-    typeof value["headSha"] === "string" &&
-    typeof value["revisions"] === "number" &&
-    Number.isInteger(value["revisions"]) &&
-    value["revisions"] >= 1 &&
-    typeof value["items"] === "number" &&
-    Number.isInteger(value["items"]) &&
-    value["items"] >= 0
-  );
-}
-
-function isReclassification(value: unknown): value is SessionReclassification {
-  return (
-    isObject(value) &&
-    typeof value["changeGroupId"] === "string" &&
-    typeof value["category"] === "string" &&
-    CATEGORIES.has(value["category"])
-  );
-}
-
-function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((it) => typeof it === "string");
-}
-
-function isArrayOf<T>(
-  value: unknown,
-  guard: (item: unknown) => item is T,
-): value is T[] {
-  return Array.isArray(value) && value.every((item) => guard(item));
-}
-
 /**
  * Boundary guard for the session read. A malformed payload FAILS rather than
  * degrading item-by-item: a silently dropped draft is a comment the reviewer
@@ -369,7 +348,7 @@ function isArrayOf<T>(
 export function parseReviewSessionPayload(
   body: unknown,
 ): Result<ReviewSessionPayload, string> {
-  if (!isObject(body)) return { ok: false, error: "session: not an object" };
+  if (!isRecord(body)) return { ok: false, error: "session: not an object" };
   const materialized = body["materialized"];
   const carriedFrom = body["carriedFrom"];
   const attention = body["attention"];

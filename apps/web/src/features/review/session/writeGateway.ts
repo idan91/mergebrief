@@ -9,6 +9,7 @@ import type { ReviewOutcome, RiskEvidence } from "../utils/state";
 import type { BulkDisposition } from "./disposition";
 import { getChunkRegion } from "../utils/state";
 import type {
+  DraftAnchorWire,
   EvidenceWire,
   FlagAnchorWire,
   SessionWriteResult,
@@ -118,22 +119,32 @@ export function createSessionWriteGateway(
       return writes.addressRisks(flags);
     },
     reclassify: (groupId, category) => writes.reclassify(groupId, category),
-    createComment: (comment) =>
-      writes.createDraft({
+    createComment: (comment) => {
+      const draft: DraftAnchorWire & { body: string } = {
         filePath: comment.anchor.file,
         side: comment.anchor.side,
         startLine: comment.anchor.startLine,
         endLine: comment.anchor.endLine,
         body: comment.body,
-      }),
+      };
+      if (comment.anchor.startSide !== undefined) {
+        draft.startSide = comment.anchor.startSide;
+      }
+      return writes.createDraft(draft);
+    },
     updateComment: (id, body) => writes.updateDraft(id, body),
-    reanchorComment: (id, anchor) =>
-      writes.reanchorDraft(id, {
+    reanchorComment: (id, anchor) => {
+      const wire: DraftAnchorWire = {
         filePath: anchor.file,
         side: anchor.side,
         startLine: anchor.startLine,
         endLine: anchor.endLine,
-      }),
+      };
+      if (anchor.startSide !== undefined) {
+        wire.startSide = anchor.startSide;
+      }
+      return writes.reanchorDraft(id, wire);
+    },
     deleteComment: (id) => writes.deleteDraft(id),
     setOutcome: (outcome) => writes.setOutcome(outcome),
   };

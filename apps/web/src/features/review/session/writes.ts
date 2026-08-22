@@ -63,6 +63,8 @@ const UNKNOWN: SessionWriteFailure = {
 export interface DraftAnchorWire {
   filePath: string;
   side: CommentSide;
+  /** Present only when the range genuinely crosses sides. */
+  startSide?: CommentSide;
   startLine: number;
   endLine: number;
 }

@@ -96,7 +96,7 @@ export function riskEvidenceLabel(
     const comment = comments.find((item) => item.id === evidence.commentId);
     if (!comment) return t("review.summary.evidenceLinkedCommentMissing");
     return t("review.summary.evidenceLinkedComment", {
-      location: `${comment.anchor.file}:${comment.anchor.side === "new" ? "+" : "-"}${comment.anchor.startLine}`,
+      location: `${comment.anchor.file}:${(comment.anchor.startSide ?? comment.anchor.side) === "new" ? "+" : "-"}${comment.anchor.startLine}`,
     });
   }
   if (evidence.kind === "chunk-reviewed") {
@@ -392,10 +392,15 @@ export function isThinReason(reason: string): boolean {
 }
 
 export function commentLocation(comment: ReviewComment): string {
-  const sign = comment.anchor.side === "new" ? "+" : "-";
+  const { anchor } = comment;
+  const sign = anchor.side === "new" ? "+" : "-";
+  if (anchor.startSide !== undefined && anchor.startSide !== anchor.side) {
+    const startSign = anchor.startSide === "new" ? "+" : "-";
+    return `${anchor.file}:${startSign}${anchor.startLine}→${sign}${anchor.endLine}`;
+  }
   const range =
-    comment.anchor.startLine === comment.anchor.endLine
-      ? `${sign}${comment.anchor.startLine}`
-      : `${sign}${comment.anchor.startLine}-${comment.anchor.endLine}`;
-  return `${comment.anchor.file}:${range}`;
+    anchor.startLine === anchor.endLine
+      ? `${sign}${anchor.startLine}`
+      : `${sign}${anchor.startLine}-${anchor.endLine}`;
+  return `${anchor.file}:${range}`;
 }

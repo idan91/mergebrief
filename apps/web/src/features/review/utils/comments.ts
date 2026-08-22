@@ -9,6 +9,8 @@ export interface CommentAnchor {
   chunkId: string;
   file: string;
   side: CommentSide;
+  /** Present only when the range genuinely crosses sides. */
+  startSide?: CommentSide;
   startLine: number;
   endLine: number;
   rowIds: string[];
@@ -136,8 +138,23 @@ export function reviewCommentSubmitLabel(
     : t("review.comment.addReviewComment");
 }
 
-export function commentAnchorLabel(anchor: CommentAnchor): string {
-  const sign = anchor.side === "new" ? "+" : "-";
+function getSignForSide(side: CommentSide): string {
+  return side === "new" ? "+" : "-";
+}
+
+export function commentAnchorLabel(
+  t: TFunction,
+  anchor: CommentAnchor,
+): string {
+  const sign = getSignForSide(anchor.side);
+  if (anchor.startSide !== undefined && anchor.startSide !== anchor.side) {
+    // Each endpoint carries its own sign; bare numbers would lie about sides.
+    const range = t("review.comment.anchorCross", {
+      start: `${getSignForSide(anchor.startSide)}${anchor.startLine}`,
+      end: `${sign}${anchor.endLine}`,
+    });
+    return `${anchor.file} · ${range}`;
+  }
   const range =
     anchor.startLine === anchor.endLine
       ? `${sign}${anchor.startLine}`

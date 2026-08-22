@@ -14,6 +14,7 @@ import {
   postCommentBlockedReason,
   type ReviewComment,
 } from "../../utils/comments";
+import { commentLocation } from "../../utils/state";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import { MarkdownPreview } from "../MarkdownPreview/MarkdownPreview";
 import styles from "./CommentThread.module.scss";
@@ -112,7 +113,9 @@ export function CommentThread({
         >
           {submitted ? t("review.comment.posted") : t("review.comment.draft")}{" "}
           {t("review.comment.commentOn")}
-          {comment.anchor.side === "new" ? "+" : "-"}
+          {(comment.anchor.startSide ?? comment.anchor.side) === "new"
+            ? "+"
+            : "-"}
           {comment.anchor.startLine}
         </LinkButton>
       </div>
@@ -127,12 +130,7 @@ export function CommentThread({
             ? t("review.comment.postedToGithub")
             : t("review.comment.pending")}
         </span>
-        <span>
-          {comment.anchor.file}:{comment.anchor.startLine}
-          {comment.anchor.endLine !== comment.anchor.startLine
-            ? `-${comment.anchor.endLine}`
-            : ""}
-        </span>
+        <span>{commentLocation(comment)}</span>
       </div>
       {/* An open editor dies with the draft: if a submit lands while the
           textarea is up, the posted record renders read-only regardless. */}
