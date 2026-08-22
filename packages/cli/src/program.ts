@@ -29,7 +29,6 @@ import {
   type ReadIo,
 } from "./commands/read";
 import { loadRepos, resolveRepoId, type RepoCacheDeps } from "./profile/repos";
-import { AGENTS_GUIDE } from "./agents-guide";
 import { runCapabilities } from "./commands/capabilities";
 import { CLI_CATALOG_FINGERPRINT } from "./generated-catalog-fingerprint";
 import {
@@ -372,7 +371,7 @@ export function buildProgram(deps: CliDeps): Command {
       "MergeBrief — PR briefs for humans and agents, over your deployment's API",
     )
     .option("--json", "machine output: the documented JSON contract", false)
-    .option("--agents", "print the packaged agent guide and exit", false)
+    .option("--agents", "deprecated: prints where the agent guide moved", false)
     .option(
       "--profile <name>",
       "config profile (default: owners match, then the default profile)",
@@ -603,7 +602,9 @@ export function buildProgram(deps: CliDeps): Command {
 
   program
     .command("marks")
-    .description("comparison marks (coordinates only) for a baseline..head span")
+    .description(
+      "comparison marks (coordinates only) for a baseline..head span",
+    )
     .argument("<number>", "PR number")
     .option("--baseline <sha>", "comparison baseline (required)")
     .option("--head <sha>", "comparison head (required)")
@@ -660,7 +661,10 @@ export function buildProgram(deps: CliDeps): Command {
     .command("create")
     .description("draft a new inline comment on the brief span you name")
     .argument("<number>", "PR number")
-    .option("-F, --payload <path>", 'full JSON payload from a file, or "-" for stdin')
+    .option(
+      "-F, --payload <path>",
+      'full JSON payload from a file, or "-" for stdin',
+    )
     .option("--file <path>", "anchor file path (flag form)")
     .option("--side <side>", "old | new (flag form; default: new)")
     .option("--start <line>", "anchor start line (flag form)")
@@ -698,7 +702,14 @@ export function buildProgram(deps: CliDeps): Command {
         const { client, repoId } = await resolveTarget(deps, global);
         await runSessionWrite(
           client,
-          { method: "POST", repoId, prNumber, subpath: "/comments", span, payload },
+          {
+            method: "POST",
+            repoId,
+            prNumber,
+            subpath: "/comments",
+            span,
+            payload,
+          },
           readIo(deps, global),
         );
       },
@@ -708,7 +719,10 @@ export function buildProgram(deps: CliDeps): Command {
     .description("edit a held draft's body")
     .argument("<number>", "PR number")
     .argument("<draftId>", "the draft id (see `session <n>`)")
-    .option("-F, --payload <path>", 'full JSON payload from a file, or "-" for stdin')
+    .option(
+      "-F, --payload <path>",
+      'full JSON payload from a file, or "-" for stdin',
+    )
     .option("--body <text>", "new comment body (flag form)")
     .option("--base <sha>", "span base of the brief (required)")
     .option("--head <sha>", "span head of the brief (required)")
@@ -716,7 +730,12 @@ export function buildProgram(deps: CliDeps): Command {
       async (
         raw: string,
         draftId: string,
-        options: { payload?: string; body?: string; base?: string; head?: string },
+        options: {
+          payload?: string;
+          body?: string;
+          base?: string;
+          head?: string;
+        },
       ) => {
         const global = globals();
         const prNumber = parsePrNumber(raw);
@@ -751,7 +770,10 @@ export function buildProgram(deps: CliDeps): Command {
     .description("move a held draft's anchor (settles a carried orphan)")
     .argument("<number>", "PR number")
     .argument("<draftId>", "the draft id (see `session <n>`)")
-    .option("-F, --payload <path>", 'full JSON payload from a file, or "-" for stdin')
+    .option(
+      "-F, --payload <path>",
+      'full JSON payload from a file, or "-" for stdin',
+    )
     .option("--file <path>", "anchor file path (flag form)")
     .option("--side <side>", "old | new (flag form; default: new)")
     .option("--start <line>", "anchor start line (flag form)")
@@ -762,7 +784,11 @@ export function buildProgram(deps: CliDeps): Command {
       async (
         raw: string,
         draftId: string,
-        options: AnchorFlags & { payload?: string; base?: string; head?: string },
+        options: AnchorFlags & {
+          payload?: string;
+          base?: string;
+          head?: string;
+        },
       ) => {
         const global = globals();
         const prNumber = parsePrNumber(raw);
@@ -900,8 +926,14 @@ export function buildProgram(deps: CliDeps): Command {
     .command("dismiss")
     .description("dismiss risk flags (the payload's flags array names them)")
     .argument("<number>", "PR number")
-    .option("-F, --payload <path>", 'JSON payload from a file, or "-" for stdin (required)')
-    .option("--reason <text>", "dismissal reason (unless the payload carries one)")
+    .option(
+      "-F, --payload <path>",
+      'JSON payload from a file, or "-" for stdin (required)',
+    )
+    .option(
+      "--reason <text>",
+      "dismissal reason (unless the payload carries one)",
+    )
     .option("--base <sha>", "span base of the brief (required)")
     .option("--head <sha>", "span head of the brief (required)")
     .action(riskAction("/risks/dismiss", true));
@@ -909,7 +941,10 @@ export function buildProgram(deps: CliDeps): Command {
     .command("address")
     .description("mark risk flags addressed (each flag carries its evidence)")
     .argument("<number>", "PR number")
-    .option("-F, --payload <path>", 'JSON payload from a file, or "-" for stdin (required)')
+    .option(
+      "-F, --payload <path>",
+      'JSON payload from a file, or "-" for stdin (required)',
+    )
     .option("--base <sha>", "span base of the brief (required)")
     .option("--head <sha>", "span head of the brief (required)")
     .action(riskAction("/risks/address", false));
@@ -917,7 +952,10 @@ export function buildProgram(deps: CliDeps): Command {
     .command("reopen")
     .description("undo dispositions on risk flags")
     .argument("<number>", "PR number")
-    .option("-F, --payload <path>", 'JSON payload from a file, or "-" for stdin (required)')
+    .option(
+      "-F, --payload <path>",
+      'JSON payload from a file, or "-" for stdin (required)',
+    )
     .option("--base <sha>", "span base of the brief (required)")
     .option("--head <sha>", "span head of the brief (required)")
     .action(riskAction("/risks/reopen", false));
@@ -1019,7 +1057,9 @@ export function buildProgram(deps: CliDeps): Command {
 
   program
     .command("ready")
-    .description("mark a draft PR ready for review (GitHub-enforced authorship)")
+    .description(
+      "mark a draft PR ready for review (GitHub-enforced authorship)",
+    )
     .argument("<number>", "PR number")
     .action(async (raw: string) => {
       const global = globals();
@@ -1095,6 +1135,17 @@ export function buildProgram(deps: CliDeps): Command {
   return program;
 }
 
+const AGENTS_MOVED = `The packaged agent guide moved: it now ships as the \`mergebrief\`
+agent skill, alongside the CLI in its repository (skills/mergebrief).
+Install it into your agent with skills.sh:
+
+    npx skills add <owner>/<repo> --skill mergebrief -a <your-agent>
+
+The MergeBrief repository README carries the install command; substitute
+your deployment's <owner>/<repo>. With the skill installed, your agent
+needs nothing from this flag.
+`;
+
 /**
  * Run the CLI: parse + execute + map every failure to the stream/exit
  * invariant. Returns the process exit code; never throws.
@@ -1103,9 +1154,8 @@ export async function runCli(
   argv: readonly string[],
   deps: CliDeps,
 ): Promise<number> {
-  // Print and exit before any parsing side effects — agents read this first.
   if (argv.includes("--agents")) {
-    deps.stdout(AGENTS_GUIDE);
+    deps.stdout(AGENTS_MOVED);
     return ExitCode.OK;
   }
   try {

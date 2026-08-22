@@ -1,7 +1,6 @@
 // Surface-closeout tests: `generate` (URL-box generation over an injected
 // engine stub) and `collaborators` (push-gated roster passthrough) against
-// the REAL api app, plus the guide pin — every command the operations map
-// ships must appear in the packaged --agents guide.
+// the REAL api app.
 import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -21,8 +20,6 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import operationsMap from "../product-operations.map.json";
-import { AGENTS_GUIDE } from "../src/agents-guide";
 import { ExitCode } from "../src/exit";
 import { runCli, type CliDeps } from "../src/program";
 import { testLogger } from "./logging";
@@ -256,30 +253,5 @@ describe("generate + collaborators over the real api app", () => {
     expect(result.err).toEqual([]);
     expect(result.code).toBe(ExitCode.OK);
     expect(JSON.parse(result.out)).toEqual(ROSTER);
-  });
-});
-
-describe("the packaged agent guide covers the shipped surface", () => {
-  it("names every command the operations map ships", () => {
-    const commands = Object.values(operationsMap)
-      .map((entry) =>
-        "command" in entry ? entry.command.replace(/^mergebrief /, "") : "",
-      )
-      .filter((command) => command !== "")
-      .map((command) => command.replace(/ <.*$/, ""));
-    for (const command of new Set(commands)) {
-      // A noun group may be documented as `risk dismiss|address|reopen`, so
-      // the tokens only need to appear in order on one line.
-      const inOrder = new RegExp(
-        command
-          .split(" ")
-          .map((token) => `\\b${token}\\b`)
-          .join("[^\\n]*"),
-      );
-      expect(
-        inOrder.test(AGENTS_GUIDE),
-        `guide is missing \`${command}\``,
-      ).toBe(true);
-    }
   });
 });

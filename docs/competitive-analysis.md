@@ -221,8 +221,8 @@ human/agent artifact.
 
 **Read:** strong validation of our dual-consumer lane (ADR 0014) — the reviewer's
 terminal-native workflow now *expects* review artifacts agents can consume and extend.
-Our CLI already covers most of it (`--json`, `groups`/`conversation`/`delta`, `--agents`
-guide, ADR 0029 contract).
+Our CLI already covers most of it (`--json`, `groups`/`conversation`/`delta`, the
+`mergebrief` agent skill, ADR 0029 contract).
 
 **Take:**
 1. **Ship a packaged agent skill** (the `pi-tuicr` move): a skill that teaches any

@@ -12,7 +12,8 @@ session CLI commands (CLI map has zero gaps).
 
 - Skill is a small review workflow + judgment + authority policy — **no
   command catalog, schemas, flags, or endpoints**. CLI `--help` and
-  `operations describe` own discovery (the removed `gh-cli` skill is the
+  `capabilities` own discovery; `operations describe` was dropped by the
+  BRIEF-198 grill and never shipped (the removed `gh-cli` skill is the
   anti-pattern; `gh-axi`/`gsccli` the pattern — see
   `docs/dev/brief-122-cli-skill-examples-research.md`).
 - Authority policy carries the injection rule: authority derives solely from
@@ -87,12 +88,12 @@ design-heavy artifact is the skill prose; the mechanical rest rides along
      (`mergebrief submit`) and any external write only on explicit user
      instruction, restated first; attention-list items are human-cleared —
      never claim them done.
-   - Failure behavior: trust exit codes and structured errors; no retries on
-     4xx; report blockers instead of working around them.
+   - Failure behavior: trust exit codes and structured errors; never resend
+     an unchanged write; report blockers instead of working around them.
    - Completion/handoff: summarize drafts + dispositions + outcome; leave
      submit to the human unless explicitly authorized.
    - No command reference anywhere — point at `--help` and
-     `operations describe`.
+     `capabilities`.
 3. **Drift test** (tdd; in `packages/cli`, rides `pnpm test`): parse
    SKILL.md for operation ids (the `--require` list + any id named in
    prose); assert each exists in `product-operations.map.json` with a

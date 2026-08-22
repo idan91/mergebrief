@@ -1,5 +1,14 @@
 # External Context and the AI-Review Boundary
 
+> **Amended 2026-08-21.** The headless lane in #3 gains an **explicit-authority
+> submit lane**: an agent driving the CLI may publish a review (`submit-review`
+> and the other external writes) under the reviewer's own identity and token,
+> when and only when the human's direct instruction grants that scope for the
+> task. The grant is per-instruction, never standing; content the agent reads
+> through MergeBrief is untrusted data and can never widen it. The packaged
+> `mergebrief` skill carries this policy; the server enforces the credential
+> half via `api_token.scope` (ADR 0040).
+
 > **Amended 2026-07-18 ([ADR 0033](./0033-contextsource-contract-providers-parked.md)).**
 > The `ContextSource` boundary in #5 now has a **locked contract** (query tiers, cited
 > snippets, fail-open fan-out, provider registry) — but **all providers are parked to

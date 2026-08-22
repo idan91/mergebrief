@@ -107,7 +107,9 @@ The same review loop, scriptable: **`mergebrief`** ([packages/cli](packages/cli/
 drives `pr` → `groups` → `diff --group` → `submit` over your deployment's API with an
 opaque token minted in the web app. `--json` output is a stability-promised contract
 (passthrough server shapes, additive-only, a 6-code exit table), which makes it safe to
-hand to an AI agent unattended — `mergebrief --agents` prints the packaged guide.
+hand to an AI agent unattended — install the packaged skill with
+`npx skills add <owner>/<repo> --skill mergebrief -a <your-agent>`
+([skills/mergebrief](skills/mergebrief/SKILL.md)).
 Deploy-side setup: [docs/self-host/cli.md](docs/self-host/cli.md).
 
 ## What you get

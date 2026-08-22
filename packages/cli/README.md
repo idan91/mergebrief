@@ -44,9 +44,13 @@ compatibility.
    PR-addressed commands (`pr <n>`, `groups <n>`, `diff <n>`, …) pick the
    repo from the clone's `origin` remote; `-R owner/name` overrides.
 
-Driving an agent? `mergebrief --agents` prints the packaged guide —
-contract invariants, the exit table with next-moves, and the reviewer and
-author loops.
+Driving an agent? Install the `mergebrief` skill
+([skills/mergebrief](../../skills/mergebrief/SKILL.md)) — the review
+workflow, the authority policy, and the wire contract:
+
+```sh
+npx skills add <owner>/<repo> --skill mergebrief -a <your-agent>
+```
 
 ## The output contract (what scripts may rely on)
 
@@ -299,7 +303,7 @@ MergeBrief — PR briefs for humans and agents, over your deployment's API
 
 Options:
   --json                                   machine output: the documented JSON contract (default: false)
-  --agents                                 print the packaged agent guide and exit (default: false)
+  --agents                                 deprecated: prints where the agent guide moved (default: false)
   --profile <name>                         config profile (default: owners match, then the default profile)
   -R, --repo <owner/name>                  target repository (default: the origin remote)
   -h, --help                               display help for command

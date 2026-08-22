@@ -91,8 +91,9 @@ what is promised, and how the contract evolves without breaking consumers
 - Server response-shape changes are now governed: additive freely; removals
   and renames only via expand/contract with a changelog entry
   (`docs/api-changelog.md`, keyed to the server version).
-- The 6-code exit table and the invariant lead the agent-facing docs
-  (`--agents` guide) — they are what make unattended agent loops safe.
+- The 6-code exit table and the invariant lead the agent-facing docs (the
+  `mergebrief` skill's contract reference) — they are what make unattended
+  agent loops safe.
 - The TTY rendering layer is free to improve without ceremony.
 
 Implementation plan: `docs/plans/brief-17-mergebrief-cli.md`.

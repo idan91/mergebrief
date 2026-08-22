@@ -19,7 +19,6 @@ src/
                     the `mergebrief/<version>` user-agent, pinned by a test)
   exit.ts           the exit-code contract — PUBLIC, additive-only,
                     never renumbered
-  agents-guide.ts   the packaged --agents guide (constant; zero file reads)
   commands/         command implementations
     read.ts           pr / groups / conversation / diff / delta
     capabilities.ts   the capabilities join + fail-closed --require preflight

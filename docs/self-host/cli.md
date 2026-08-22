@@ -90,12 +90,13 @@ lives in a secret store, not on disk.
 
 ## Agents
 
-Point your agent at `mergebrief --agents` — the packaged guide carries the
-output contract, the exit table with next-moves, and the reviewer/author
-loops. A two-line `AGENTS.md` snippet for adopting repos:
+The agent guide ships as the `mergebrief` skill (`skills/mergebrief` in the
+repository). Install it into a coding agent with skills.sh:
 
-```markdown
-Reviews here run on MergeBrief. Run `mergebrief --agents` once and follow
-that guide; always use `--json`, and name the brief span (`--base`/`--head`
-from `pr <n>`'s baseSha/headSha) on every write.
+```bash
+npx skills add <owner>/<repo> --skill mergebrief -a <your-agent>
 ```
+
+The skill carries the review workflow, the authority policy, and the wire
+contract; the CLI's `--help` owns flags and payloads. `mergebrief --agents`
+now only prints where the guide moved.
