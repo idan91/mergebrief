@@ -1,5 +1,5 @@
 // The Review Session surface — the reviewer's private work on one Brief.
-// Reached through `forTenant(db, ctx).reviewSessions`, so it obeys the same
+// Reached through `createTenantRepository(db, ctx).reviewSessions`, so it obeys the same
 // containment rules as every other store: `ctx` is the one place an
 // `installation_id` enters, every read filters on it and every write stamps
 // it.
@@ -408,9 +408,9 @@ function fail(
 
 /**
  * Build the Review Session repository. Not exported from `index.ts` on its
- * own — `forTenant` composes it, so a caller cannot reach it without a ctx.
+ * own — `createTenantRepository` composes it, so a caller cannot reach it without a ctx.
  */
-export function reviewSessionRepository(
+export function createReviewSessionRepository(
   db: AppDrizzle,
   installationId: InstallationId,
 ): ReviewSessionRepository {

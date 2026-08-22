@@ -1,4 +1,4 @@
-// The `audit(...)` emit: one immutable, tenant-scoped append per boundary.
+// The `writeAudit(...)` emit: one immutable, tenant-scoped append per boundary.
 // There are no update/delete helpers — this table is append-only, and only the
 // instance-wide retention sweep removes from it.
 //
@@ -212,7 +212,7 @@ export async function insertAudit(
  * in-package so no raw handle escapes. Convenience over `insertAudit` for
  * single-shot, non-transactional emits.
  */
-export async function audit(
+export async function writeAudit(
   handle: AppDatabase,
   entry: AuditEntry,
 ): Promise<AuditLogRow> {

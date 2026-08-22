@@ -71,7 +71,7 @@ type EnvSource = Record<string, string | undefined>;
  * value is base64-encoded 32 bytes. Missing / non-base64 / wrong-length all
  * yield a `KeyError` (never a throw).
  */
-export function envKeyProvider(env: EnvSource = process.env): KeyProvider {
+export function createEnvKeyProvider(env: EnvSource = process.env): KeyProvider {
   return {
     resolveKey(keyRef: string): Result<Buffer, KeyError> {
       const raw = env[keyRef];

@@ -2,7 +2,7 @@
 // by GitHub's numeric user id (the same id sessions carry as `reviewer_id`)
 // because a person spans installations, so the row cannot key on
 // `installation_id`. Reads/writes go through the dedicated
-// `userSettingsStore` boundary, NOT `forTenant`.
+// `createUserSettingsStore` boundary, NOT `createTenantRepository`.
 //
 // TYPED COLUMNS ONLY, never a JSON preferences blob: every new setting is a
 // column + migration, so the table cannot rot into a preferences dump. No FK

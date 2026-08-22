@@ -7,7 +7,7 @@
 // filters `installation_id = ctx AND repo_id IN (allowed)`. A GitHub failure
 // fails the list (401/502) — NEVER a DB-only listing, which would leak rows the
 // viewer can no longer see.
-import { artifactStore, forTenant, generationProjection } from "persistence";
+import { createArtifactStore, createTenantRepository, createGenerationProjection } from "persistence";
 import { z } from "zod";
 import { ApiErrorCode, errorJson } from "../error-response";
 import { PRODUCT_QUERY_ID } from "../product-operations/ids";
@@ -75,15 +75,15 @@ export function pullsRoute(
       }
       const allowed = resolved.value.allowed;
 
-      const tenant = forTenant(deps.handle, ctx);
+      const tenant = createTenantRepository(deps.handle, ctx);
       const rows = await tenant.pullRequests.listForRepos(
         [...allowed.keys()],
         query.data.limit,
       );
       const ids = rows.map((row) => row.id);
       const [latestBriefs, latestGenerations] = await Promise.all([
-        artifactStore(deps.handle, ctx).briefs.latestForPullRequests(ids),
-        generationProjection(deps.handle, ctx).latestBriefForPullRequests(ids),
+        createArtifactStore(deps.handle, ctx).briefs.latestForPullRequests(ids),
+        createGenerationProjection(deps.handle, ctx).latestBriefForPullRequests(ids),
       ]);
 
       const viewerLogin = c.get("session").reviewerLogin;

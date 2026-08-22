@@ -6,9 +6,9 @@
 // display label, same class as `repo_slug`).
 import { describe, expect, it } from "vitest";
 import {
-  artifactStore,
-  forTenant,
-  generationProjection,
+  createArtifactStore,
+  createTenantRepository,
+  createGenerationProjection,
   type TenantContext,
 } from "../src/index";
 import {
@@ -34,7 +34,7 @@ const ORIGIN = { provider: "anthropic", model: "claude", effort: "high" };
 describe("pull_request title persistence", () => {
   it("round-trips title on upsert and refreshes it on conflict", async () => {
     const handle = await freshDatabase();
-    const repo = forTenant(handle, CTX_A);
+    const repo = createTenantRepository(handle, CTX_A);
 
     const first = await repo.pullRequests.upsert({
       repoId: REPO_1,
@@ -58,7 +58,7 @@ describe("pull_request title persistence", () => {
 describe("pull_request base_sha persistence", () => {
   it("persists baseSha, refreshes it when provided, preserves it when omitted", async () => {
     const handle = await freshDatabase();
-    const repo = forTenant(handle, CTX_A);
+    const repo = createTenantRepository(handle, CTX_A);
 
     const first = await repo.pullRequests.upsert({
       repoId: REPO_1,
@@ -90,8 +90,8 @@ describe("pull_request base_sha persistence", () => {
 describe("pullRequests.listForRepos", () => {
   it("returns only ctx-tenant rows in the allowed repo set, newest first, capped", async () => {
     const handle = await freshDatabase();
-    const a = forTenant(handle, CTX_A);
-    const b = forTenant(handle, CTX_B);
+    const a = createTenantRepository(handle, CTX_A);
+    const b = createTenantRepository(handle, CTX_B);
 
     // Tenant A: two PRs in repo 1 (distinct updated_at), one in repo 2.
     await a.pullRequests.upsert({
@@ -136,8 +136,8 @@ describe("pullRequests.listForRepos", () => {
 describe("briefs.latestForPullRequests", () => {
   it("returns the highest-index brief per PR; PRs without briefs are absent", async () => {
     const handle = await freshDatabase();
-    const repo = forTenant(handle, CTX_A);
-    const store = artifactStore(handle, CTX_A);
+    const repo = createTenantRepository(handle, CTX_A);
+    const store = createArtifactStore(handle, CTX_A);
     const pr1 = await repo.pullRequests.upsert({
       repoId: REPO_1,
       prNumber: 1,
@@ -176,13 +176,13 @@ describe("briefs.latestForPullRequests", () => {
 
   it("never returns another tenant's briefs", async () => {
     const handle = await freshDatabase();
-    const b = forTenant(handle, CTX_B);
+    const b = createTenantRepository(handle, CTX_B);
     const bPr = await b.pullRequests.upsert({
       repoId: REPO_1,
       prNumber: 1,
       state: PrState.OPEN,
     });
-    await artifactStore(handle, CTX_B).briefs.write({
+    await createArtifactStore(handle, CTX_B).briefs.write({
       pullRequestId: bPr.id,
       baseSha: "base",
       headSha: "head",
@@ -192,7 +192,7 @@ describe("briefs.latestForPullRequests", () => {
       ...ORIGIN,
     });
 
-    const latest = await artifactStore(
+    const latest = await createArtifactStore(
       handle,
       CTX_A,
     ).briefs.latestForPullRequests([bPr.id]);
@@ -203,8 +203,8 @@ describe("briefs.latestForPullRequests", () => {
 describe("comparison existence seams", () => {
   it("comparisonMarks.existsForSpan / revisionNarratives.existsForSpan reflect writes, lean", async () => {
     const handle = await freshDatabase();
-    const repo = forTenant(handle, CTX_A);
-    const store = artifactStore(handle, CTX_A);
+    const repo = createTenantRepository(handle, CTX_A);
+    const store = createArtifactStore(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
       repoId: REPO_1,
       prNumber: 1,
@@ -262,8 +262,8 @@ describe("comparison existence seams", () => {
 
   it("deltas.existsForSpan reflects writes, lean", async () => {
     const handle = await freshDatabase();
-    const repo = forTenant(handle, CTX_A);
-    const store = artifactStore(handle, CTX_A);
+    const repo = createTenantRepository(handle, CTX_A);
+    const store = createArtifactStore(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
       repoId: REPO_1,
       prNumber: 1,
@@ -292,8 +292,8 @@ describe("comparison existence seams", () => {
 
   it("never sees another tenant's marks/narratives/deltas", async () => {
     const handle = await freshDatabase();
-    const b = forTenant(handle, CTX_B);
-    const bStore = artifactStore(handle, CTX_B);
+    const b = createTenantRepository(handle, CTX_B);
+    const bStore = createArtifactStore(handle, CTX_B);
     const bPr = await b.pullRequests.upsert({
       repoId: REPO_1,
       prNumber: 1,
@@ -323,7 +323,7 @@ describe("comparison existence seams", () => {
     });
     if (!bDelta.ok) throw new Error("delta write failed");
 
-    const aStore = artifactStore(handle, CTX_A);
+    const aStore = createArtifactStore(handle, CTX_A);
     expect(
       await aStore.comparisonMarks.existsForSpan(bPr.id, "head-1", "head-2"),
     ).toBe(false);
@@ -339,8 +339,8 @@ describe("comparison existence seams", () => {
 describe("batched span listings — per-revision joins", () => {
   it("briefs.listForPullRequest carries createdAt and orders by headIndex, lean", async () => {
     const handle = await freshDatabase();
-    const repo = forTenant(handle, CTX_A);
-    const store = artifactStore(handle, CTX_A);
+    const repo = createTenantRepository(handle, CTX_A);
+    const store = createArtifactStore(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
       repoId: REPO_1,
       prNumber: 1,
@@ -377,8 +377,8 @@ describe("batched span listings — per-revision joins", () => {
 
   it("marks/deltas/narratives listForPullRequest return lean SHA pairs, tenant-scoped", async () => {
     const handle = await freshDatabase();
-    const repo = forTenant(handle, CTX_A);
-    const store = artifactStore(handle, CTX_A);
+    const repo = createTenantRepository(handle, CTX_A);
+    const store = createArtifactStore(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
       repoId: REPO_1,
       prNumber: 1,
@@ -436,7 +436,7 @@ describe("batched span listings — per-revision joins", () => {
     ]);
 
     // Another tenant sees none of these spans.
-    const aStore = artifactStore(handle, CTX_B);
+    const aStore = createArtifactStore(handle, CTX_B);
     expect(await aStore.comparisonMarks.listForPullRequest(pr.id)).toEqual([]);
     expect(await aStore.deltas.listForPullRequest(pr.id)).toEqual([]);
     expect(await aStore.revisionNarratives.listForPullRequest(pr.id)).toEqual(
@@ -448,8 +448,8 @@ describe("batched span listings — per-revision joins", () => {
 describe("generation.latestBriefForPullRequests", () => {
   it("returns the newest brief-kind projection per PR, ignoring span kinds", async () => {
     const handle = await freshDatabase();
-    const repo = forTenant(handle, CTX_A);
-    const gen = generationProjection(handle, CTX_A);
+    const repo = createTenantRepository(handle, CTX_A);
+    const gen = createGenerationProjection(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
       repoId: REPO_1,
       prNumber: 1,
@@ -487,20 +487,20 @@ describe("generation.latestBriefForPullRequests", () => {
 
   it("never returns another tenant's projections", async () => {
     const handle = await freshDatabase();
-    const b = forTenant(handle, CTX_B);
+    const b = createTenantRepository(handle, CTX_B);
     const bPr = await b.pullRequests.upsert({
       repoId: REPO_1,
       prNumber: 1,
       state: PrState.OPEN,
     });
-    await generationProjection(handle, CTX_B).upsertQueued({
+    await createGenerationProjection(handle, CTX_B).upsertQueued({
       pullRequestId: bPr.id,
       kind: GenerationKind.BRIEF,
       headSha: "head",
       baselineSha: null,
     });
 
-    const latest = await generationProjection(
+    const latest = await createGenerationProjection(
       handle,
       CTX_A,
     ).latestBriefForPullRequests([bPr.id]);

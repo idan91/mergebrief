@@ -14,7 +14,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, onTestFinished } from "vitest";
-import { snapshotKey } from "../src/pglite-snapshot";
+import { deriveSnapshotKey } from "../src/pglite-snapshot";
 
 const REAL_MIGRATIONS = fileURLToPath(new URL("../drizzle", import.meta.url));
 
@@ -26,29 +26,29 @@ async function migrationsCopy(): Promise<string> {
   return dir;
 }
 
-describe("snapshotKey", () => {
+describe("deriveSnapshotKey", () => {
   it("is stable and content-addressed, not path-addressed", async () => {
     const dir = await migrationsCopy();
-    expect(await snapshotKey(dir)).toBe(await snapshotKey(dir));
-    expect(await snapshotKey(dir)).toBe(await snapshotKey(REAL_MIGRATIONS));
+    expect(await deriveSnapshotKey(dir)).toBe(await deriveSnapshotKey(dir));
+    expect(await deriveSnapshotKey(dir)).toBe(await deriveSnapshotKey(REAL_MIGRATIONS));
   });
 
   it("changes when a migration SQL file changes", async () => {
     const dir = await migrationsCopy();
-    const baseline = await snapshotKey(dir);
+    const baseline = await deriveSnapshotKey(dir);
     const firstSql = (await readdir(dir)).find((n) => n.endsWith(".sql"));
     if (firstSql === undefined) throw new Error("no migrations in copy");
     const path = join(dir, firstSql);
     await writeFile(path, `${await readFile(path, "utf8")}\n-- key probe`);
-    expect(await snapshotKey(dir)).not.toBe(baseline);
+    expect(await deriveSnapshotKey(dir)).not.toBe(baseline);
   });
 
   it("changes on a journal-only change with byte-identical SQL", async () => {
     const dir = await migrationsCopy();
-    const baseline = await snapshotKey(dir);
+    const baseline = await deriveSnapshotKey(dir);
     const journalPath = join(dir, "meta", "_journal.json");
     const journal = await readFile(journalPath, "utf8");
     await writeFile(journalPath, journal.replace(/}\s*$/, " }"));
-    expect(await snapshotKey(dir)).not.toBe(baseline);
+    expect(await deriveSnapshotKey(dir)).not.toBe(baseline);
   });
 });

@@ -225,7 +225,7 @@ export interface GenerationProjection {
 // ---------------------------------------------------------------------------
 
 /** Build a tenant-scoped `generation` projection over the opaque handle. */
-export function generationProjection(
+export function createGenerationProjection(
   handle: AppDatabase,
   ctx: TenantContext,
 ): GenerationProjection {

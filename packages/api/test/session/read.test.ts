@@ -2,7 +2,7 @@
 // sides of materialization, projects the Attention List off the rows it
 // returns, and — the invariant the suite exists for — CREATES NOTHING. Every
 // case asserts the `review_session` row count across the call.
-import { AnchorStatus, forTenant, ReviewOutcome } from "persistence";
+import { AnchorStatus, createTenantRepository, ReviewOutcome } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../../src/index";
@@ -182,7 +182,7 @@ describe("read-review-session", () => {
     const previous = await seedBrief(harness.handle, 1);
     const current = await seedBrief(harness.handle, 2);
     await seedPreviousWork(harness.handle, previous);
-    const written = await forTenant(
+    const written = await createTenantRepository(
       harness.handle,
       CTX,
     ).reviewSessions.writeToSession(
@@ -238,7 +238,7 @@ describe("read-review-session", () => {
     const previous = await seedBrief(harness.handle, 1);
     // `c1` is in the new Brief's persisted carried set, so the mark carries.
     const current = await seedBrief(harness.handle, 2, BRIEF_BODY, ["c1"]);
-    await forTenant(harness.handle, CTX).reviewSessions.writeToSession(
+    await createTenantRepository(harness.handle, CTX).reviewSessions.writeToSession(
       {
         briefId: previous,
         reviewerId: REVIEWER,
@@ -253,7 +253,7 @@ describe("read-review-session", () => {
     expect(pending.carriedFrom?.items).toBe(1);
 
     // The write that writes it must not turn the receipt into nothing.
-    await forTenant(harness.handle, CTX).reviewSessions.writeToSession(
+    await createTenantRepository(harness.handle, CTX).reviewSessions.writeToSession(
       {
         briefId: current,
         reviewerId: REVIEWER,
@@ -268,7 +268,7 @@ describe("read-review-session", () => {
 
     // And clearing the carried work does not shrink it: the count states what
     // came across, so the receipt survives the reviewer acting on every item.
-    await forTenant(harness.handle, CTX).reviewSessions.writeToSession(
+    await createTenantRepository(harness.handle, CTX).reviewSessions.writeToSession(
       {
         briefId: current,
         reviewerId: REVIEWER,

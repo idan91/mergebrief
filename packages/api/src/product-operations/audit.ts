@@ -10,7 +10,7 @@
 import type { Context, MiddlewareHandler } from "hono";
 import { matchedRoutes } from "hono/route";
 import {
-  audit,
+  writeAudit,
   AuditActorType,
   AuditMetadataKey,
   AuditChannel,
@@ -302,7 +302,7 @@ export function createAuditMiddleware(
     const requestId = deriveRequestId(c.get("requestId"));
     const reason = c.get("auditReason") ?? c.get("apiErrorCode");
     try {
-      await audit(deps.handle, {
+      await writeAudit(deps.handle, {
         // The ACTING credential's tenant, never the target's: a reviewer can
         // revoke a token, or switch to an installation, outside this one.
         installationId,

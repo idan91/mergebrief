@@ -38,7 +38,7 @@ const CACHE_DIR = join(tmpdir(), "mergebrief-pglite-snapshots");
  * exists for the key-completeness test only — production callers always
  * digest the checked-in migrations.
  */
-export async function snapshotKey(
+export async function deriveSnapshotKey(
   migrationsFolder: string = MIGRATIONS_FOLDER,
 ): Promise<string> {
   const digest = createHash("sha256");
@@ -83,7 +83,7 @@ async function buildSnapshot(): Promise<Uint8Array> {
 
 /** Path of the cached snapshot, migrating and writing it if it is missing. */
 async function snapshotFile(): Promise<string> {
-  const file = join(CACHE_DIR, `${await snapshotKey()}.tar`);
+  const file = join(CACHE_DIR, `${await deriveSnapshotKey()}.tar`);
   const cached = await access(file).then(
     () => true,
     () => false,
@@ -125,6 +125,6 @@ function migratedSnapshot(): Promise<Blob> {
 }
 
 /** A fresh, isolated, fully migrated in-memory PGlite. */
-export async function migratedPglite(): Promise<PGlite> {
+export async function createMigratedPglite(): Promise<PGlite> {
   return PGlite.create({ loadDataDir: await migratedSnapshot() });
 }

@@ -8,15 +8,15 @@ import {
   DraftCommentSide,
   ChangeGroupCategory,
   PrState,
-  artifactStore,
+  createArtifactStore,
   encryptToken,
-  envKeyProvider,
-  forTenant,
-  grantAuth,
+  createEnvKeyProvider,
+  createTenantRepository,
+  createGrantAuth,
   isInstallationId,
   isRepoId,
   isReviewerId,
-  tokenAuth,
+  createTokenAuth,
   type AppDatabase,
   type BriefRowId,
   type InstallationId,
@@ -80,7 +80,7 @@ export const CTX: TenantContext = {
 export const REVIEWER = brandReviewer(BigInt(REVIEWER_ID));
 
 export function keyProvider(): KeyProvider {
-  return envKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
+  return createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
 }
 
 export function authDeps(kp: KeyProvider): AuthDeps {
@@ -146,7 +146,7 @@ export async function seedSession(
 ): Promise<string> {
   const cookie = randomBytes(32).toString("base64url");
   const grantId = await seedGrant(handle, kp);
-  await forTenant(handle, CTX).sessions.create({
+  await createTenantRepository(handle, CTX).sessions.create({
     sessionTokenHash: createHash("sha256").update(cookie).digest("hex"),
     reviewerId: REVIEWER,
     reviewerLogin: "octocat",
@@ -163,7 +163,7 @@ export async function seedApiToken(
   scope: WriteClassification,
 ): Promise<string> {
   const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
-  await tokenAuth(handle).mintToken({
+  await createTokenAuth(handle).mintToken({
     scope,
     installationId: CTX.installationId,
     userId: REVIEWER,
@@ -180,14 +180,14 @@ async function seedGrant(
   handle: AppDatabase,
   kp: KeyProvider,
 ): Promise<
-  Awaited<ReturnType<ReturnType<typeof grantAuth>["createGrant"]>>["id"]
+  Awaited<ReturnType<ReturnType<typeof createGrantAuth>["createGrant"]>>["id"]
 > {
   const sealedAccess = await encryptToken(kp, KEY_REF, "ghu_ACCESS");
   const sealedRefresh = await encryptToken(kp, KEY_REF, "ghr_REFRESH");
   if (!sealedAccess.ok || !sealedRefresh.ok) {
     throw new Error("seed encrypt failed");
   }
-  const grant = await grantAuth(handle).createGrant({
+  const grant = await createGrantAuth(handle).createGrant({
     ghTokenCiphertext: sealedAccess.value,
     ghRefreshTokenCiphertext: sealedRefresh.value,
     keyRef: KEY_REF,
@@ -197,7 +197,7 @@ async function seedGrant(
 }
 
 export async function seedPullRequest(handle: AppDatabase): Promise<void> {
-  await forTenant(handle, CTX).pullRequests.upsert({
+  await createTenantRepository(handle, CTX).pullRequests.upsert({
     repoId: brandRepo(BigInt(REPO_ID)),
     prNumber: PR_NUMBER,
     repoSlug: REPO_SLUG,
@@ -212,12 +212,12 @@ export async function seedBrief(
   body: string = BRIEF_BODY,
   carriedChunkIds: readonly string[] = [],
 ): Promise<BriefRowId> {
-  const pr = await forTenant(handle, CTX).pullRequests.getByNumber(
+  const pr = await createTenantRepository(handle, CTX).pullRequests.getByNumber(
     brandRepo(BigInt(REPO_ID)),
     PR_NUMBER,
   );
   if (pr === undefined) throw new Error("seedBrief: pr missing");
-  const written = await artifactStore(handle, CTX).briefs.write({
+  const written = await createArtifactStore(handle, CTX).briefs.write({
     pullRequestId: pr.id,
     baseSha: "base",
     headSha: `head-${headIndex}`,
@@ -260,12 +260,12 @@ async function writeHop(
   toIndex: number,
   spans: unknown,
 ): Promise<void> {
-  const pr = await forTenant(handle, CTX).pullRequests.getByNumber(
+  const pr = await createTenantRepository(handle, CTX).pullRequests.getByNumber(
     brandRepo(BigInt(REPO_ID)),
     PR_NUMBER,
   );
   if (pr === undefined) throw new Error("seedHop: pr missing");
-  const written = await artifactStore(handle, CTX).hunkSpans.write({
+  const written = await createArtifactStore(handle, CTX).hunkSpans.write({
     pullRequestId: pr.id,
     baselineSha: `head-${fromIndex}`,
     headSha: `head-${toIndex}`,
@@ -296,7 +296,7 @@ export async function seedOrphanedDraft(
   handle: AppDatabase,
   briefId: BriefRowId,
 ): Promise<void> {
-  const repo = forTenant(handle, CTX);
+  const repo = createTenantRepository(handle, CTX);
   const added = await repo.reviewSessions.writeToSession(
     { briefId, reviewerId: REVIEWER, brief: async () => NO_ARTIFACT },
     (writer) =>
@@ -320,7 +320,7 @@ export async function seedPreviousWork(
   handle: AppDatabase,
   briefId: BriefRowId,
 ): Promise<void> {
-  const repo = forTenant(handle, CTX);
+  const repo = createTenantRepository(handle, CTX);
   const opened = await repo.reviewSessions.writeToSession(
     { briefId, reviewerId: REVIEWER, brief: async () => NO_ARTIFACT },
     async (writer) => {

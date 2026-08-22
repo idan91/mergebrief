@@ -9,7 +9,7 @@ import {
   KeyErrorCode,
   decryptToken,
   encryptToken,
-  envKeyProvider,
+  createEnvKeyProvider,
   type CryptoError,
   type KeyProvider,
 } from "../src/auth/crypto";
@@ -26,7 +26,7 @@ function freshKeyB64(): string {
 
 /** Env-backed provider with the given key vars set. */
 function providerWith(vars: Record<string, string>): KeyProvider {
-  return envKeyProvider(vars);
+  return createEnvKeyProvider(vars);
 }
 
 /** Unwrap a successful encrypt or fail the test loudly. */
@@ -50,7 +50,7 @@ function decryptError(result: Result<string, CryptoError>): CryptoError {
   return result.error;
 }
 
-describe("crypto — key provider (envKeyProvider)", () => {
+describe("crypto — key provider (createEnvKeyProvider)", () => {
   it("resolves a valid base64 32-byte key", async () => {
     const result = await providerWith({ [KEY_REF]: freshKeyB64() }).resolveKey(
       KEY_REF,

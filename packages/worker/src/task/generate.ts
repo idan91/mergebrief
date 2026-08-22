@@ -58,14 +58,14 @@ import {
 } from "generators";
 import { planAnchoredGeneration, stitchBrief } from "./anchoring";
 import {
-  artifactStore,
-  audit,
+  createArtifactStore,
+  writeAudit,
   AuditOutcome,
   AuditActorType,
   AuditMetadataKey,
-  forTenant,
+  createTenantRepository,
   GenerationFailureCode,
-  generationProjection,
+  createGenerationProjection,
   GenerationKind,
   GenerationPhase,
   GenerationStatus,
@@ -367,7 +367,7 @@ export function createGenerateTask(
       prId: String(payload.pullRequestId),
       headSha: payload.headSha,
     });
-    const projection = generationProjection(deps.handle, payload.ctx);
+    const projection = createGenerationProjection(deps.handle, payload.ctx);
     const target = briefTarget(payload);
 
     try {
@@ -487,9 +487,9 @@ async function runGeneration(
 ): Promise<void> {
   const { handle, github } = deps;
   const { ctx, pullRequestId, headSha } = payload;
-  const repo = forTenant(handle, ctx);
-  const projection = generationProjection(handle, ctx);
-  const store = artifactStore(handle, ctx);
+  const repo = createTenantRepository(handle, ctx);
+  const projection = createGenerationProjection(handle, ctx);
+  const store = createArtifactStore(handle, ctx);
 
   const pr = await repo.pullRequests.getById(pullRequestId);
   if (pr === undefined) {
@@ -889,7 +889,7 @@ async function runGeneration(
       }
       briefRef = { id: written.value.id, headIndex: written.value.headIndex };
       generatedBrief = stamped;
-      await audit(handle, {
+      await writeAudit(handle, {
         installationId: ctx.installationId,
         actorType: AuditActorType.SYSTEM,
         operation: AUDIT_OPERATION_GENERATE,
@@ -996,7 +996,7 @@ async function runGeneration(
       log,
     });
     if (deltaCount > 0) {
-      await audit(handle, {
+      await writeAudit(handle, {
         installationId: ctx.installationId,
         actorType: AuditActorType.SYSTEM,
         operation: AUDIT_OPERATION_GENERATE,

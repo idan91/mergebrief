@@ -2,7 +2,7 @@
 // (non-FK) targets and validates metadata.
 import { describe, expect, it } from "vitest";
 import {
-  audit,
+  writeAudit,
   AuditMetadataSchema,
   AuditTargetTypeSchema,
   sweepAuditLog,
@@ -22,7 +22,7 @@ import { brandWith, freshDatabase } from "./helpers";
 
 const TENANT: InstallationId = brandWith(isInstallationId, 1000n);
 
-describe("audit — append-only emit", () => {
+describe("writeAudit — append-only emit", () => {
   it("inserts a generate emit with a dangling numeric target (no FK)", async () => {
     const handle = await freshDatabase();
     const entry: AuditEntry = {
@@ -35,7 +35,7 @@ describe("audit — append-only emit", () => {
       metadata: { kind: "brief" },
     };
 
-    const row = await audit(handle, entry);
+    const row = await writeAudit(handle, entry);
     expect(row.installationId).toBe(TENANT);
     expect(row.operation).toBe("generate");
     expect(row.targetId).toBe(424242n);
@@ -44,7 +44,7 @@ describe("audit — append-only emit", () => {
 
   it("records an auth denial as action=auth with a decision in metadata", async () => {
     const handle = await freshDatabase();
-    const row = await audit(handle, {
+    const row = await writeAudit(handle, {
       installationId: TENANT,
       actorType: AuditActorType.REVIEWER,
       actorId: 31337n,
@@ -59,7 +59,7 @@ describe("audit — append-only emit", () => {
 
   it("records a review submit as action=submit against the CHECK vocabulary", async () => {
     const handle = await freshDatabase();
-    const row = await audit(handle, {
+    const row = await writeAudit(handle, {
       installationId: TENANT,
       actorType: AuditActorType.REVIEWER,
       actorId: 31337n,
@@ -74,7 +74,7 @@ describe("audit — append-only emit", () => {
 
   it("records both thread resolution directions as their own operation", async () => {
     const handle = await freshDatabase();
-    const resolved = await audit(handle, {
+    const resolved = await writeAudit(handle, {
       installationId: TENANT,
       actorType: AuditActorType.REVIEWER,
       actorId: 31337n,
@@ -84,7 +84,7 @@ describe("audit — append-only emit", () => {
       targetId: 12345n,
     });
     expect(resolved.operation).toBe("resolve-thread");
-    const unresolved = await audit(handle, {
+    const unresolved = await writeAudit(handle, {
       installationId: TENANT,
       actorType: AuditActorType.REVIEWER,
       actorId: 31337n,
@@ -97,7 +97,7 @@ describe("audit — append-only emit", () => {
   });
 
   it("metadata keys are open — any snake_case token is accepted", () => {
-    // `audit()` runs this same schema with `.parse()`, so these throw there.
+    // `writeAudit()` runs this same schema with `.parse()`, so these throw there.
     expect(
       AuditMetadataSchema.safeParse({ carry_status: "settled" }).success,
     ).toBe(true);
@@ -172,7 +172,7 @@ describe("audit — append-only emit", () => {
     expect(AuditTargetTypeSchema.safeParse("PullRequest").success).toBe(false);
     expect(AuditTargetTypeSchema.safeParse("a".repeat(65)).success).toBe(false);
 
-    // audit() enforces it (throws — programmer error, same as metadata).
+    // writeAudit() enforces it (throws — programmer error, same as metadata).
     const handle = await freshDatabase();
     const entry: AuditEntry = {
       installationId: TENANT,
@@ -182,7 +182,7 @@ describe("audit — append-only emit", () => {
       targetType: "repos/acme/widgets",
       targetId: 1n,
     };
-    await expect(audit(handle, entry)).rejects.toThrow(/class token/);
+    await expect(writeAudit(handle, entry)).rejects.toThrow(/class token/);
   });
 });
 
@@ -208,7 +208,7 @@ async function seedAged(
   });
 }
 
-describe("audit — the forensic call-shape fields", () => {
+describe("writeAudit — the forensic call-shape fields", () => {
   it("rejects a request id, client or caller IP that is not its own shape", async () => {
     const handle = await freshDatabase();
     const base: AuditEntry = {
@@ -218,22 +218,22 @@ describe("audit — the forensic call-shape fields", () => {
       outcome: AuditOutcome.OK,
     };
     await expect(
-      audit(handle, { ...base, requestId: "req 1/2" }),
+      writeAudit(handle, { ...base, requestId: "req 1/2" }),
     ).rejects.toThrow(/correlation token/);
     await expect(
-      audit(handle, { ...base, client: "idan reviewing acme/widgets" }),
+      writeAudit(handle, { ...base, client: "idan reviewing acme/widgets" }),
     ).rejects.toThrow(/product\/version token/);
     await expect(
-      audit(handle, { ...base, client: "user@example.com" }),
+      writeAudit(handle, { ...base, client: "user@example.com" }),
     ).rejects.toThrow(/product\/version token/);
     await expect(
-      audit(handle, { ...base, callerIp: "user@example.com" }),
+      writeAudit(handle, { ...base, callerIp: "user@example.com" }),
     ).rejects.toThrow(/IP address/);
 
     // Anything the Zod shapes accept must clear the DB CHECKs too: a mismatch
     // would throw inside the caller's transaction, rolling back the action the
     // row was meant to record.
-    const widest = await audit(handle, {
+    const widest = await writeAudit(handle, {
       ...base,
       requestId: "r".repeat(64),
       client: "mergebrief-cli/10.20.30-rc.1",
@@ -241,7 +241,7 @@ describe("audit — the forensic call-shape fields", () => {
     });
     expect(widest.requestId).toHaveLength(64);
 
-    const row = await audit(handle, {
+    const row = await writeAudit(handle, {
       ...base,
       requestId: "01JABCDEF",
       client: "mergebrief/0.1.0",

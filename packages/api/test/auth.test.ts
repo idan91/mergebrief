@@ -9,15 +9,15 @@ import { createHash } from "node:crypto";
 import {
   decryptToken,
   encryptToken,
-  envKeyProvider,
-  forTenant,
-  grantAuth,
+  createEnvKeyProvider,
+  createTenantRepository,
+  createGrantAuth,
   isInstallationId,
   isReviewerId,
-  sessionAuth,
-  tokenAuth,
+  createSessionAuth,
+  createTokenAuth,
   WriteClassification,
-  userSettingsStore,
+  createUserSettingsStore,
   type AppDatabase,
   type InstallationId,
   type KeyProvider,
@@ -27,8 +27,8 @@ import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createApp,
-  principalFromApiToken,
-  principalFromSession,
+  derivePrincipalFromApiToken,
+  derivePrincipalFromSession,
   refreshSessionToken,
   type ApiApp,
   type AuthDeps,
@@ -52,7 +52,7 @@ const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
 const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 
 function keyProvider(): KeyProvider {
-  return envKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
+  return createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
 }
 
 function authDeps(kp: KeyProvider): AuthDeps {
@@ -167,13 +167,13 @@ async function seedSession(
   const sealedRefresh = await encryptToken(kp, KEY_REF, input.refreshPlaintext);
   if (!sealedAccess.ok || !sealedRefresh.ok)
     throw new Error("seed encrypt failed");
-  const grant = await grantAuth(handle).createGrant({
+  const grant = await createGrantAuth(handle).createGrant({
     ghTokenCiphertext: sealedAccess.value,
     ghRefreshTokenCiphertext: sealedRefresh.value,
     keyRef: KEY_REF,
     refreshExpiresAt: input.expiresAt,
   });
-  await forTenant(handle, {
+  await createTenantRepository(handle, {
     installationId: brandInstallation(BigInt(INSTALLATION_ID)),
   }).sessions.create({
     sessionTokenHash: hash,
@@ -338,7 +338,7 @@ describe("reviewer auth routes", () => {
       token: tokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN),
       installations: [{ id: INSTALLATION_ID }, { id: OTHER_INSTALLATION_ID }],
     });
-    await userSettingsStore(harness.handle).setDefaultInstallation(
+    await createUserSettingsStore(harness.handle).setDefaultInstallation(
       brandReviewer(BigInt(REVIEWER_ID)),
       brandInstallation(BigInt(OTHER_INSTALLATION_ID)),
     );
@@ -352,7 +352,7 @@ describe("reviewer auth routes", () => {
       token: tokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN),
       installations: [{ id: INSTALLATION_ID }], // OTHER not in the live set
     });
-    await userSettingsStore(harness.handle).setDefaultInstallation(
+    await createUserSettingsStore(harness.handle).setDefaultInstallation(
       brandReviewer(BigInt(REVIEWER_ID)),
       brandInstallation(BigInt(OTHER_INSTALLATION_ID)),
     );
@@ -377,13 +377,13 @@ describe("reviewer auth routes", () => {
     const sealed = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
     const sealedR = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
     if (!sealed.ok || !sealedR.ok) throw new Error("seed failed");
-    const grant = await grantAuth(harness.handle).createGrant({
+    const grant = await createGrantAuth(harness.handle).createGrant({
       ghTokenCiphertext: sealed.value,
       ghRefreshTokenCiphertext: sealedR.value,
       keyRef: KEY_REF,
       refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
     });
-    await forTenant(harness.handle, {
+    await createTenantRepository(harness.handle, {
       installationId: brandInstallation(BigInt(INSTALLATION_ID)),
     }).sessions.create({
       sessionTokenHash: hash,
@@ -421,11 +421,11 @@ describe("reviewer auth routes", () => {
     );
     const beforeCipher = String(before[0]?.["gh_token_ciphertext"]);
 
-    const resolved = await sessionAuth(harness.handle).findSession(hash);
+    const resolved = await createSessionAuth(harness.handle).findSession(hash);
     if (resolved === undefined) throw new Error("seeded session not found");
     const result = await refreshSessionToken(
       { handle: harness.handle, auth: authDeps(kp) },
-      principalFromSession(resolved),
+      derivePrincipalFromSession(resolved),
       testLogger(),
     );
     expect(result.ok).toBe(true);
@@ -471,12 +471,12 @@ describe("reviewer auth routes", () => {
       refreshPlaintext: REFRESH_TOKEN,
     });
 
-    const resolved = await sessionAuth(harness.handle).findSession(hash);
+    const resolved = await createSessionAuth(harness.handle).findSession(hash);
     if (resolved === undefined) throw new Error("seeded session not found");
     const capture = testLogging();
     const result = await refreshSessionToken(
       { handle: harness.handle, auth: authDeps(kp) },
-      principalFromSession(resolved),
+      derivePrincipalFromSession(resolved),
       capture.logger,
     );
     expect(result.ok).toBe(false);
@@ -506,7 +506,7 @@ describe("reviewer auth routes", () => {
       accessPlaintext: ACCESS_TOKEN,
       refreshPlaintext: REFRESH_TOKEN,
     });
-    const stale = await sessionAuth(harness.handle).findSession(hash);
+    const stale = await createSessionAuth(harness.handle).findSession(hash);
     if (stale === undefined) throw new Error("seeded session not found");
 
     // Another channel wins the rotation while our principal is in flight.
@@ -515,7 +515,7 @@ describe("reviewer auth routes", () => {
     const sealedRefresh = await encryptToken(kp, KEY_REF, ROTATED_REFRESH);
     if (!sealedAccess.ok || !sealedRefresh.ok)
       throw new Error("seed encrypt failed");
-    const rotated = await grantAuth(harness.handle).refreshGrant(
+    const rotated = await createGrantAuth(harness.handle).refreshGrant(
       stale.grant.id,
       stale.grant.ghTokenCiphertext,
       () =>
@@ -533,7 +533,7 @@ describe("reviewer auth routes", () => {
 
     const result = await refreshSessionToken(
       { handle: harness.handle, auth: authDeps(kp) },
-      principalFromSession(stale), // still carries the PRE-rotation ciphertext
+      derivePrincipalFromSession(stale), // still carries the PRE-rotation ciphertext
       testLogger(),
     );
     expect(result.ok).toBe(true);
@@ -555,11 +555,11 @@ describe("reviewer auth routes", () => {
       accessPlaintext: ACCESS_TOKEN,
       refreshPlaintext: REFRESH_TOKEN,
     });
-    const resolved = await sessionAuth(harness.handle).findSession(hash);
+    const resolved = await createSessionAuth(harness.handle).findSession(hash);
     if (resolved === undefined) throw new Error("seeded session not found");
     // A minted token shares the grant, so the grant SURVIVES the logout and
     // the rotation proceeds — only the session-expiry mirror can notice.
-    await tokenAuth(harness.handle).mintToken({
+    await createTokenAuth(harness.handle).mintToken({
       scope: WriteClassification.EXTERNAL_WRITE,
       installationId: brandInstallation(BigInt(INSTALLATION_ID)),
       userId: brandReviewer(BigInt(REVIEWER_ID)),
@@ -569,11 +569,11 @@ describe("reviewer auth routes", () => {
       expiresAt: null,
     });
     // Logout lands between resolution and refresh.
-    await sessionAuth(harness.handle).deleteSession(hash);
+    await createSessionAuth(harness.handle).deleteSession(hash);
 
     const result = await refreshSessionToken(
       { handle: harness.handle, auth: authDeps(kp) },
-      principalFromSession(resolved),
+      derivePrincipalFromSession(resolved),
       testLogger(),
     );
     expect(result.ok).toBe(false);
@@ -598,14 +598,14 @@ describe("reviewer auth routes", () => {
     const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
     if (!sealedAccess.ok || !sealedRefresh.ok)
       throw new Error("seed encrypt failed");
-    const grant = await grantAuth(harness.handle).createGrant({
+    const grant = await createGrantAuth(harness.handle).createGrant({
       ghTokenCiphertext: sealedAccess.value,
       ghRefreshTokenCiphertext: sealedRefresh.value,
       keyRef: KEY_REF,
       refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
     });
     const bearerHash = sha256Hex(randomBytes(32).toString("base64url"));
-    const minted = await tokenAuth(harness.handle).mintToken({
+    const minted = await createTokenAuth(harness.handle).mintToken({
       scope: WriteClassification.EXTERNAL_WRITE,
       installationId: brandInstallation(BigInt(INSTALLATION_ID)),
       userId: brandReviewer(BigInt(REVIEWER_ID)),
@@ -614,14 +614,14 @@ describe("reviewer auth routes", () => {
       grantId: grant.id,
       expiresAt: null,
     });
-    const live = await tokenAuth(harness.handle).resolveByHash(
+    const live = await createTokenAuth(harness.handle).resolveByHash(
       bearerHash,
       new Date(),
     );
     if (!live.ok) throw new Error("seeded token did not resolve");
-    const principal = principalFromApiToken(live.value);
+    const principal = derivePrincipalFromApiToken(live.value);
     // The owner revokes while the request is in flight.
-    const revoked = await tokenAuth(harness.handle).revokeToken(
+    const revoked = await createTokenAuth(harness.handle).revokeToken(
       brandReviewer(BigInt(REVIEWER_ID)),
       minted.id,
       new Date(),

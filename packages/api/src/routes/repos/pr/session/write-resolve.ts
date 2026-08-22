@@ -2,7 +2,7 @@
 // request names, and map the store's expected failures onto the wire.
 import type { Context } from "hono";
 import {
-  forTenant,
+  createTenantRepository,
   ReviewSessionErrorCode,
   type ReviewSessionError,
   type SessionWriter,
@@ -75,7 +75,7 @@ export async function resolveWrite(
     head: span.data.head,
     run: async (write) => {
       try {
-        return await forTenant(deps.handle, ctx).reviewSessions.writeToSession(
+        return await createTenantRepository(deps.handle, ctx).reviewSessions.writeToSession(
           {
             briefId: target.briefId,
             reviewerId: c.get("session").reviewerId,

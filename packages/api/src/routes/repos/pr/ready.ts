@@ -31,7 +31,7 @@ import {
   type GitHubApiError,
   type MarkReadyResult,
 } from "github";
-import { decryptToken, forTenant } from "persistence";
+import { decryptToken, createTenantRepository } from "persistence";
 import type { Result } from "types";
 import { z } from "zod";
 import { refreshSessionToken, type AuthRouteDeps } from "../../auth/session";
@@ -147,7 +147,7 @@ export function markReadyRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
       if (!parsedPr.success) {
         return errorJson(c, ApiErrorCode.INVALID_REQUEST);
       }
-      const pr = await forTenant(deps.handle, ctx).pullRequests.getByNumber(
+      const pr = await createTenantRepository(deps.handle, ctx).pullRequests.getByNumber(
         c.get("repoId"),
         parsedPr.data,
       );
@@ -255,7 +255,7 @@ export function markReadyRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
       // NOT_FOUND here (PR deleted mid-request) is non-fatal — GitHub is the
       // source of truth and the webhook reconciles; do not fail a converged
       // GitHub state on a local mirror race.
-      await forTenant(deps.handle, ctx).pullRequests.setDraft(pr.id, false);
+      await createTenantRepository(deps.handle, ctx).pullRequests.setDraft(pr.id, false);
 
       stampAuditTarget(c, "pull_request", pr.id);
 

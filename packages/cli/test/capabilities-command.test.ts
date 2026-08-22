@@ -6,11 +6,11 @@ import { createHash, randomBytes } from "node:crypto";
 import { createApp } from "api";
 import {
   encryptToken,
-  envKeyProvider,
-  grantAuth,
+  createEnvKeyProvider,
+  createGrantAuth,
   isInstallationId,
   isReviewerId,
-  tokenAuth,
+  createTokenAuth,
   WriteClassification,
 } from "persistence";
 import { createPgliteHarness } from "persistence/testing";
@@ -291,7 +291,7 @@ describe("mergebrief capabilities against the real api app", () => {
   it("exit 0 with fingerprintMatch true — the wire-shape drift tripwire", async () => {
     const harness = await createPgliteHarness();
     try {
-      const kp = envKeyProvider({
+      const kp = createEnvKeyProvider({
         SESSION_KEY_V1: randomBytes(32).toString("base64"),
       });
       const app = createApp({
@@ -324,14 +324,14 @@ describe("mergebrief capabilities against the real api app", () => {
       const sealedRefresh = await encryptToken(kp, "SESSION_KEY_V1", "ghr_R");
       if (!sealedAccess.ok || !sealedRefresh.ok)
         throw new Error("seed encrypt failed");
-      const grant = await grantAuth(harness.handle).createGrant({
+      const grant = await createGrantAuth(harness.handle).createGrant({
         ghTokenCiphertext: sealedAccess.value,
         ghRefreshTokenCiphertext: sealedRefresh.value,
         keyRef: "SESSION_KEY_V1",
         refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
       });
       const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
-      await tokenAuth(harness.handle).mintToken({
+      await createTokenAuth(harness.handle).mintToken({
         scope: WriteClassification.READ,
         installationId,
         userId: reviewerId,

@@ -31,7 +31,7 @@ import {
   decryptToken,
   DraftCommentSide,
   DraftCommentStatus,
-  forTenant,
+  createTenantRepository,
   type InstallationId,
   type RepoId,
   type ReviewDraftCommentRow,
@@ -240,7 +240,7 @@ export function commentsRoute(
 
       const ctx = c.get("ctx");
       const repoId = c.get("repoId");
-      const pr = await forTenant(deps.handle, ctx).pullRequests.getByNumber(
+      const pr = await createTenantRepository(deps.handle, ctx).pullRequests.getByNumber(
         repoId,
         parsedPr.data,
       );
@@ -441,7 +441,7 @@ export function commentsRoute(
 
       const ctx = c.get("ctx");
       const repoId = c.get("repoId");
-      const pr = await forTenant(deps.handle, ctx).pullRequests.getByNumber(
+      const pr = await createTenantRepository(deps.handle, ctx).pullRequests.getByNumber(
         repoId,
         parsedPr.data,
       );
@@ -585,7 +585,7 @@ export function commentsRoute(
 
     const ctx = c.get("ctx");
     const repoId = c.get("repoId");
-    const pr = await forTenant(deps.handle, ctx).pullRequests.getByNumber(
+    const pr = await createTenantRepository(deps.handle, ctx).pullRequests.getByNumber(
       repoId,
       parsedPr.data,
     );

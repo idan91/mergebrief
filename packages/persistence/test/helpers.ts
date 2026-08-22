@@ -5,7 +5,7 @@ import type { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { expect, onTestFinished } from "vitest";
 import { type AppDatabase, fromDrizzle } from "../src/db/handle";
-import { migratedPglite } from "../src/pglite-snapshot";
+import { createMigratedPglite } from "../src/pglite-snapshot";
 import * as schema from "../src/schema/index";
 
 /**
@@ -17,7 +17,7 @@ import * as schema from "../src/schema/index";
  * cleanup here rather than in each suite means no caller can forget it.
  */
 export async function freshPglite(): Promise<PGlite> {
-  const client = await migratedPglite();
+  const client = await createMigratedPglite();
   onTestFinished(async () => {
     if (!client.closed) await client.close();
   });

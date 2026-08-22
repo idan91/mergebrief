@@ -8,7 +8,7 @@
 import {
   ChangeGroupCategory,
   DraftCommentSide,
-  forTenant,
+  createTenantRepository,
   WriteClassification,
 } from "persistence";
 import type { KeyProvider } from "persistence";
@@ -177,7 +177,7 @@ describe("the Review Session writes", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(await countRows("review_session")).toBe(2);
-    const snapshot = await forTenant(harness.handle, CTX).reviewSessions.get({
+    const snapshot = await createTenantRepository(harness.handle, CTX).reviewSessions.get({
       briefId: current,
       reviewerId: REVIEWER,
     });
@@ -210,7 +210,7 @@ describe("the Review Session writes", () => {
 
     // A write that throws takes the whole materialization down with it — the
     // session and the copied rows go back with the transaction.
-    const failed = forTenant(harness.handle, CTX).reviewSessions.writeToSession(
+    const failed = createTenantRepository(harness.handle, CTX).reviewSessions.writeToSession(
       {
         briefId: current,
         reviewerId: REVIEWER,
@@ -235,7 +235,7 @@ describe("the Review Session writes", () => {
     const current = await seedBrief(harness.handle, 2);
     // The reviewer writes the NEWER Brief's session — that, and only
     // that, freezes the older one.
-    const opened = await forTenant(
+    const opened = await createTenantRepository(
       harness.handle,
       CTX,
     ).reviewSessions.writeToSession(
@@ -321,7 +321,7 @@ describe("the Review Session writes", () => {
     );
     expect([edited.status, reanchored.status]).toEqual([200, 200]);
 
-    const snapshot = await forTenant(harness.handle, CTX).reviewSessions.get({
+    const snapshot = await createTenantRepository(harness.handle, CTX).reviewSessions.get({
       briefId,
       reviewerId: REVIEWER,
     });
@@ -355,7 +355,7 @@ describe("the Review Session writes", () => {
 
     expect(res.status).toBe(200);
     expect(await countRows("review_group_reclassification")).toBe(1);
-    const snapshot = await forTenant(harness.handle, CTX).reviewSessions.get({
+    const snapshot = await createTenantRepository(harness.handle, CTX).reviewSessions.get({
       briefId,
       reviewerId: REVIEWER,
     });
@@ -488,7 +488,7 @@ describe("the Review Session writes", () => {
       await write("POST", "/comments", "head-1", DRAFT),
     );
     // The publish itself is submit's job; here it is the state the edit meets.
-    await forTenant(harness.handle, CTX).reviewSessions.writeToSession(
+    await createTenantRepository(harness.handle, CTX).reviewSessions.writeToSession(
       { briefId, reviewerId: REVIEWER, brief: async () => NO_ARTIFACT },
       (writer) => writer.publishDraftComments([BigInt(draftId)]),
     );
@@ -517,7 +517,7 @@ describe("the Review Session writes", () => {
 
   it("refuses the 101st unposted draft the session would hold", async () => {
     const briefId = await seedBrief(harness.handle, 1);
-    const repo = forTenant(harness.handle, CTX);
+    const repo = createTenantRepository(harness.handle, CTX);
     await repo.reviewSessions.writeToSession(
       { briefId, reviewerId: REVIEWER, brief: async () => NO_ARTIFACT },
       async (writer) => {
@@ -680,7 +680,7 @@ describe("the Review Session writes", () => {
     expect(again.status).toBe(200);
     expect(await again.json()).toEqual({ flags: 0 });
 
-    const snapshot = await forTenant(harness.handle, CTX).reviewSessions.get({
+    const snapshot = await createTenantRepository(harness.handle, CTX).reviewSessions.get({
       briefId,
       reviewerId: REVIEWER,
     });
@@ -805,7 +805,7 @@ describe("the Review Session writes", () => {
     const previous = await seedBrief(harness.handle, 1);
     await seedPreviousWork(harness.handle, previous);
     // The decision points at a Chunk the next Brief did not carry.
-    await forTenant(harness.handle, CTX).reviewSessions.writeToSession(
+    await createTenantRepository(harness.handle, CTX).reviewSessions.writeToSession(
       {
         briefId: previous,
         reviewerId: REVIEWER,

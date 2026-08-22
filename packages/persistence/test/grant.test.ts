@@ -1,4 +1,4 @@
-// Grant boundary tests. Exercises `grantAuth` against real migrations on
+// Grant boundary tests. Exercises `createGrantAuth` against real migrations on
 // PGlite: create, the serialized `refreshGrant` CAS in all
 // four branches — (a) refresh applies the patch, (b) compare-and-swap
 // short-circuit when the seen token ciphertext no longer matches (callback
@@ -14,13 +14,13 @@
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  grantAuth,
+  createGrantAuth,
   GrantAuthErrorCode,
   type GrantRefreshPatch,
   type GrantRefreshRejection,
 } from "../src/auth/grant";
-import { sessionAuth } from "../src/auth/session";
-import { forTenant } from "../src/stores/tenant";
+import { createSessionAuth } from "../src/auth/session";
+import { createTenantRepository } from "../src/stores/tenant";
 import { internal, type AppDatabase } from "../src/db/handle";
 import { githubGrant } from "../src/schema/github-grant";
 import {
@@ -52,14 +52,14 @@ const NEVER_CALLED = (): Promise<
   throw new Error("refresh callback must not be called");
 };
 
-describe("grantAuth.createGrant / refreshGrant", () => {
+describe("createGrantAuth.createGrant / refreshGrant", () => {
   let handle: AppDatabase;
   beforeEach(async () => {
     handle = await freshDatabase();
   });
 
   it("creates a grant row holding the sealed pair", async () => {
-    const grant = await grantAuth(handle).createGrant(createInput());
+    const grant = await createGrantAuth(handle).createGrant(createInput());
     expect(grant.ghTokenCiphertext).toBe("v1.enc-access");
     expect(grant.ghRefreshTokenCiphertext).toBe("v1.enc-refresh");
     expect(grant.keyRef).toBe("SESSION_KEY_V1");
@@ -67,7 +67,7 @@ describe("grantAuth.createGrant / refreshGrant", () => {
   });
 
   it("(a) applies the patch and returns the updated row when stale", async () => {
-    const auth = grantAuth(handle);
+    const auth = createGrantAuth(handle);
     const grant = await auth.createGrant(createInput());
     const patch: GrantRefreshPatch = {
       ghTokenCiphertext: "v1.rotated-access",
@@ -99,7 +99,7 @@ describe("grantAuth.createGrant / refreshGrant", () => {
   });
 
   it("(b) short-circuits when the pair was already rotated under the lock (no callback)", async () => {
-    const auth = grantAuth(handle);
+    const auth = createGrantAuth(handle);
     const grant = await auth.createGrant(createInput());
 
     const result = await auth.refreshGrant(
@@ -115,7 +115,7 @@ describe("grantAuth.createGrant / refreshGrant", () => {
   });
 
   it("(c) leaves the row untouched and returns REFRESH_REJECTED on rejection", async () => {
-    const auth = grantAuth(handle);
+    const auth = createGrantAuth(handle);
     const grant = await auth.createGrant(createInput());
     const refresh = vi.fn().mockResolvedValue({
       ok: false,
@@ -135,7 +135,7 @@ describe("grantAuth.createGrant / refreshGrant", () => {
   });
 
   it("(d) returns NOT_FOUND for an absent grant id", async () => {
-    const auth = grantAuth(handle);
+    const auth = createGrantAuth(handle);
     const grant = await auth.createGrant(createInput());
     await auth.deleteIfOrphaned(grant.id);
     const result = await auth.refreshGrant(
@@ -156,7 +156,7 @@ describe("grant lifecycle — deleteIfOrphaned", () => {
   });
 
   it("deletes an unreferenced grant (login compensation path)", async () => {
-    const auth = grantAuth(handle);
+    const auth = createGrantAuth(handle);
     const grant = await auth.createGrant(createInput());
     expect(await auth.deleteIfOrphaned(grant.id)).toBe(1);
     // Idempotent: an already-gone id is a clean 0.
@@ -164,9 +164,9 @@ describe("grant lifecycle — deleteIfOrphaned", () => {
   });
 
   it("is a no-op on a grant that still has a referent", async () => {
-    const auth = grantAuth(handle);
+    const auth = createGrantAuth(handle);
     const grant = await auth.createGrant(createInput());
-    await forTenant(handle, { installationId: INSTALLATION }).sessions.create({
+    await createTenantRepository(handle, { installationId: INSTALLATION }).sessions.create({
       sessionTokenHash: "a".repeat(64),
       reviewerId: REVIEWER,
       reviewerLogin: "octocat",
@@ -175,7 +175,7 @@ describe("grant lifecycle — deleteIfOrphaned", () => {
     });
     expect(await auth.deleteIfOrphaned(grant.id)).toBe(0);
     // The referent still resolves with its grant.
-    const resolved = await sessionAuth(handle).findSession("a".repeat(64));
+    const resolved = await createSessionAuth(handle).findSession("a".repeat(64));
     expect(resolved?.grant.id).toBe(grant.id);
   });
 });

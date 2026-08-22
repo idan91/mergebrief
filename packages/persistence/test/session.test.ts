@@ -8,9 +8,9 @@
 // production writes them.
 import { sql } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
-import { grantAuth, type GithubGrantRow } from "../src/auth/grant";
-import { sessionAuth } from "../src/auth/session";
-import { forTenant } from "../src/stores/tenant";
+import { createGrantAuth, type GithubGrantRow } from "../src/auth/grant";
+import { createSessionAuth } from "../src/auth/session";
+import { createTenantRepository } from "../src/stores/tenant";
 import { internal, type AppDatabase } from "../src/db/handle";
 import { githubGrant } from "../src/schema/github-grant";
 import {
@@ -34,13 +34,13 @@ async function seedSession(
 ): Promise<GithubGrantRow> {
   const grant =
     input.grant ??
-    (await grantAuth(handle).createGrant({
+    (await createGrantAuth(handle).createGrant({
       ghTokenCiphertext: "v1.enc-access",
       ghRefreshTokenCiphertext: "v1.enc-refresh",
       keyRef: "SESSION_KEY_V1",
       refreshExpiresAt: input.expiresAt ?? EXPIRY,
     }));
-  await forTenant(handle, { installationId: INSTALLATION_ID }).sessions.create({
+  await createTenantRepository(handle, { installationId: INSTALLATION_ID }).sessions.create({
     sessionTokenHash: input.hash ?? HASH,
     reviewerId: REVIEWER_ID,
     reviewerLogin: "octocat",
@@ -56,7 +56,7 @@ async function grantCount(handle: AppDatabase): Promise<number> {
   ).length;
 }
 
-describe("sessionAuth.findSession", () => {
+describe("createSessionAuth.findSession", () => {
   let handle: AppDatabase;
   beforeEach(async () => {
     handle = await freshDatabase();
@@ -64,7 +64,7 @@ describe("sessionAuth.findSession", () => {
 
   it("finds a session by its globally-unique hash, JOINed to its grant", async () => {
     const grant = await seedSession(handle, {});
-    const resolved = await sessionAuth(handle).findSession(HASH);
+    const resolved = await createSessionAuth(handle).findSession(HASH);
     expect(resolved).toBeDefined();
     expect(resolved?.session.sessionTokenHash).toBe(HASH);
     expect(String(resolved?.session.installationId)).toBe(
@@ -78,11 +78,11 @@ describe("sessionAuth.findSession", () => {
   });
 
   it("returns undefined for an unknown hash", async () => {
-    expect(await sessionAuth(handle).findSession(OTHER_HASH)).toBeUndefined();
+    expect(await createSessionAuth(handle).findSession(OTHER_HASH)).toBeUndefined();
   });
 });
 
-describe("sessionAuth.deleteSession — last-referent lifecycle", () => {
+describe("createSessionAuth.deleteSession — last-referent lifecycle", () => {
   let handle: AppDatabase;
   beforeEach(async () => {
     handle = await freshDatabase();
@@ -91,26 +91,26 @@ describe("sessionAuth.deleteSession — last-referent lifecycle", () => {
   it("deletes by hash and orphan-cleans the grant in the same transaction", async () => {
     await seedSession(handle, {});
     expect(await grantCount(handle)).toBe(1);
-    expect(await sessionAuth(handle).deleteSession(HASH)).toBe(1);
-    expect(await sessionAuth(handle).findSession(HASH)).toBeUndefined();
+    expect(await createSessionAuth(handle).deleteSession(HASH)).toBe(1);
+    expect(await createSessionAuth(handle).findSession(HASH)).toBeUndefined();
     // Last referent gone → the grant died with it.
     expect(await grantCount(handle)).toBe(0);
     // Idempotent: deleting an already-gone hash is a clean 0.
-    expect(await sessionAuth(handle).deleteSession(HASH)).toBe(0);
+    expect(await createSessionAuth(handle).deleteSession(HASH)).toBe(0);
   });
 
   it("keeps a grant that another referent still shares", async () => {
     const grant = await seedSession(handle, {});
     await seedSession(handle, { hash: OTHER_HASH, grant });
-    expect(await sessionAuth(handle).deleteSession(HASH)).toBe(1);
+    expect(await createSessionAuth(handle).deleteSession(HASH)).toBe(1);
     // The sibling still holds the grant.
     expect(await grantCount(handle)).toBe(1);
-    const resolved = await sessionAuth(handle).findSession(OTHER_HASH);
+    const resolved = await createSessionAuth(handle).findSession(OTHER_HASH);
     expect(resolved?.grant.id).toBe(grant.id);
   });
 });
 
-describe("sessionAuth.setExpiresAt", () => {
+describe("createSessionAuth.setExpiresAt", () => {
   let handle: AppDatabase;
   beforeEach(async () => {
     handle = await freshDatabase();
@@ -119,11 +119,11 @@ describe("sessionAuth.setExpiresAt", () => {
   it("mirrors a rotated refresh-token lifetime onto the session row", async () => {
     await seedSession(handle, {});
     const rotated = new Date("2027-06-01T00:00:00Z");
-    expect(await sessionAuth(handle).setExpiresAt(HASH, rotated)).toBe(1);
-    const resolved = await sessionAuth(handle).findSession(HASH);
+    expect(await createSessionAuth(handle).setExpiresAt(HASH, rotated)).toBe(1);
+    const resolved = await createSessionAuth(handle).findSession(HASH);
     expect(resolved?.session.expiresAt).toEqual(rotated);
     // Unknown hash is a clean 0, not an error.
-    expect(await sessionAuth(handle).setExpiresAt(OTHER_HASH, rotated)).toBe(0);
+    expect(await createSessionAuth(handle).setExpiresAt(OTHER_HASH, rotated)).toBe(0);
   });
 });
 

@@ -4,9 +4,9 @@
 // guard on comparison_marks and hunk_span.
 import { describe, expect, it } from "vitest";
 import {
-  artifactStore,
+  createArtifactStore,
   ArtifactErrorCode,
-  forTenant,
+  createTenantRepository,
   type ArtifactStore,
   type TenantContext,
 } from "../src/index";
@@ -41,11 +41,11 @@ function validMarks(baselineSha: string, headSha: string) {
   };
 }
 
-describe("artifactStore.briefs — idempotent content-addressed write", () => {
+describe("createArtifactStore.briefs — idempotent content-addressed write", () => {
   it("rewrites the same span in place — one row, body updated", async () => {
     const handle = await freshDatabase();
-    const repo = forTenant(handle, CTX_A);
-    const store: ArtifactStore = artifactStore(handle, CTX_A);
+    const repo = createTenantRepository(handle, CTX_A);
+    const store: ArtifactStore = createArtifactStore(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
@@ -84,8 +84,8 @@ describe("artifactStore.briefs — idempotent content-addressed write", () => {
 
   it("round-trips the repo-config origin column, clearing it when a rewrite omits it", async () => {
     const handle = await freshDatabase();
-    const repo = forTenant(handle, CTX_A);
-    const store: ArtifactStore = artifactStore(handle, CTX_A);
+    const repo = createTenantRepository(handle, CTX_A);
+    const store: ArtifactStore = createArtifactStore(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 8,
@@ -128,11 +128,11 @@ describe("artifactStore.briefs — idempotent content-addressed write", () => {
   });
 });
 
-describe("artifactStore.briefs — anchor origin columns", () => {
+describe("createArtifactStore.briefs — anchor origin columns", () => {
   it("round-trips anchor state + reason and updates them on rewrite", async () => {
     const handle = await freshDatabase();
-    const repo = forTenant(handle, CTX_A);
-    const store: ArtifactStore = artifactStore(handle, CTX_A);
+    const repo = createTenantRepository(handle, CTX_A);
+    const store: ArtifactStore = createArtifactStore(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 9,
@@ -177,8 +177,8 @@ describe("artifactStore.briefs — anchor origin columns", () => {
 
   it("stores null anchor columns when the writer omits them (pre-feature shape)", async () => {
     const handle = await freshDatabase();
-    const repo = forTenant(handle, CTX_A);
-    const store: ArtifactStore = artifactStore(handle, CTX_A);
+    const repo = createTenantRepository(handle, CTX_A);
+    const store: ArtifactStore = createArtifactStore(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 10,
@@ -202,8 +202,8 @@ describe("artifactStore.briefs — anchor origin columns", () => {
 
   it("DB rejects out-of-vocabulary anchor state and reason-without-fresh-restart (CHECKs)", async () => {
     const handle = await freshDatabase();
-    const repo = forTenant(handle, CTX_A);
-    const store: ArtifactStore = artifactStore(handle, CTX_A);
+    const repo = createTenantRepository(handle, CTX_A);
+    const store: ArtifactStore = createArtifactStore(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 11,
@@ -232,11 +232,11 @@ describe("artifactStore.briefs — anchor origin columns", () => {
   });
 });
 
-describe("artifactStore.briefs — carried chunk ids", () => {
+describe("createArtifactStore.briefs — carried chunk ids", () => {
   it("stores the carried set as JSON, null when the writer omits it", async () => {
     const handle = await freshDatabase();
-    const store = artifactStore(handle, CTX_A);
-    const pr = await forTenant(handle, CTX_A).pullRequests.upsert({
+    const store = createArtifactStore(handle, CTX_A);
+    const pr = await createTenantRepository(handle, CTX_A).pullRequests.upsert({
       repoId: REPO,
       prNumber: 11,
       state: PrState.OPEN,
@@ -290,12 +290,12 @@ describe("artifactStore.briefs — carried chunk ids", () => {
   });
 });
 
-describe("artifactStore.deltas / diffSnapshots — same write discipline", () => {
+describe("createArtifactStore.deltas / diffSnapshots — same write discipline", () => {
   it("delta: idempotent span rewrite, origin written, cross-tenant rejected", async () => {
     const handle = await freshDatabase();
-    const a = forTenant(handle, CTX_A);
-    const aStore = artifactStore(handle, CTX_A);
-    const bStore = artifactStore(handle, CTX_B);
+    const a = createTenantRepository(handle, CTX_A);
+    const aStore = createArtifactStore(handle, CTX_A);
+    const bStore = createArtifactStore(handle, CTX_B);
     const pr = await a.pullRequests.upsert({
       repoId: REPO,
       prNumber: 9,
@@ -337,9 +337,9 @@ describe("artifactStore.deltas / diffSnapshots — same write discipline", () =>
 
   it("diff_snapshot: idempotent per-sha rewrite, no origin, cross-tenant rejected", async () => {
     const handle = await freshDatabase();
-    const a = forTenant(handle, CTX_A);
-    const aStore = artifactStore(handle, CTX_A);
-    const bStore = artifactStore(handle, CTX_B);
+    const a = createTenantRepository(handle, CTX_A);
+    const aStore = createArtifactStore(handle, CTX_A);
+    const bStore = createArtifactStore(handle, CTX_B);
     const pr = await a.pullRequests.upsert({
       repoId: REPO,
       prNumber: 11,
@@ -376,12 +376,12 @@ describe("artifactStore.deltas / diffSnapshots — same write discipline", () =>
   });
 });
 
-describe("artifactStore — cross-tenant write is rejected without a DB write", () => {
+describe("createArtifactStore — cross-tenant write is rejected without a DB write", () => {
   it("rejects a brief whose pull_request belongs to another tenant", async () => {
     const handle = await freshDatabase();
-    const b = forTenant(handle, CTX_B);
-    const aStore = artifactStore(handle, CTX_A);
-    const bStore = artifactStore(handle, CTX_B);
+    const b = createTenantRepository(handle, CTX_B);
+    const aStore = createArtifactStore(handle, CTX_A);
+    const bStore = createArtifactStore(handle, CTX_B);
 
     const bPr = await b.pullRequests.upsert({
       repoId: REPO,
@@ -409,13 +409,13 @@ describe("artifactStore — cross-tenant write is rejected without a DB write", 
   });
 });
 
-describe("artifactStore.revisionNarratives — brief anchoring", () => {
+describe("createArtifactStore.revisionNarratives — brief anchoring", () => {
   it("rejects a briefId that belongs to another PR/tenant, no row written", async () => {
     const handle = await freshDatabase();
-    const a = forTenant(handle, CTX_A);
-    const b = forTenant(handle, CTX_B);
-    const aStore = artifactStore(handle, CTX_A);
-    const bStore = artifactStore(handle, CTX_B);
+    const a = createTenantRepository(handle, CTX_A);
+    const b = createTenantRepository(handle, CTX_B);
+    const aStore = createArtifactStore(handle, CTX_A);
+    const bStore = createArtifactStore(handle, CTX_B);
 
     // A brief owned by tenant B.
     const bPr = await b.pullRequests.upsert({
@@ -459,8 +459,8 @@ describe("artifactStore.revisionNarratives — brief anchoring", () => {
 
   it("accepts a narrative anchored to a brief in the same (ctx, PR)", async () => {
     const handle = await freshDatabase();
-    const a = forTenant(handle, CTX_A);
-    const store = artifactStore(handle, CTX_A);
+    const a = createTenantRepository(handle, CTX_A);
+    const store = createArtifactStore(handle, CTX_A);
     const pr = await a.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
@@ -491,11 +491,11 @@ describe("artifactStore.revisionNarratives — brief anchoring", () => {
   });
 });
 
-describe("artifactStore.comparisonMarks — coordinates-only guard", () => {
+describe("createArtifactStore.comparisonMarks — coordinates-only guard", () => {
   it("rejects a body carrying baselineLabel (extra key)", async () => {
     const handle = await freshDatabase();
-    const a = forTenant(handle, CTX_A);
-    const store = artifactStore(handle, CTX_A);
+    const a = createTenantRepository(handle, CTX_A);
+    const store = createArtifactStore(handle, CTX_A);
     const pr = await a.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
@@ -521,8 +521,8 @@ describe("artifactStore.comparisonMarks — coordinates-only guard", () => {
 
   it("rejects a per-line content key smuggled into a range", async () => {
     const handle = await freshDatabase();
-    const a = forTenant(handle, CTX_A);
-    const store = artifactStore(handle, CTX_A);
+    const a = createTenantRepository(handle, CTX_A);
+    const store = createArtifactStore(handle, CTX_A);
     const pr = await a.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
@@ -551,8 +551,8 @@ describe("artifactStore.comparisonMarks — coordinates-only guard", () => {
 
   it("rejects impossible line ranges (inverted, zero, negative)", async () => {
     const handle = await freshDatabase();
-    const a = forTenant(handle, CTX_A);
-    const store = artifactStore(handle, CTX_A);
+    const a = createTenantRepository(handle, CTX_A);
+    const store = createArtifactStore(handle, CTX_A);
     const pr = await a.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
@@ -583,8 +583,8 @@ describe("artifactStore.comparisonMarks — coordinates-only guard", () => {
 
   it("accepts a valid coordinates-only body and stores exactly the SHA-pair body", async () => {
     const handle = await freshDatabase();
-    const a = forTenant(handle, CTX_A);
-    const store = artifactStore(handle, CTX_A);
+    const a = createTenantRepository(handle, CTX_A);
+    const store = createArtifactStore(handle, CTX_A);
     const pr = await a.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
@@ -613,7 +613,7 @@ describe("artifactStore.comparisonMarks — coordinates-only guard", () => {
   });
 });
 
-describe("artifactStore.hunkSpans — the carry-over hop", () => {
+describe("createArtifactStore.hunkSpans — the carry-over hop", () => {
   const HOP = [
     {
       file: "src/a.ts",
@@ -623,8 +623,8 @@ describe("artifactStore.hunkSpans — the carry-over hop", () => {
 
   it("upserts one row per SHA pair and lists them in insertion order", async () => {
     const handle = await freshDatabase();
-    const store = artifactStore(handle, CTX_A);
-    const pr = await forTenant(handle, CTX_A).pullRequests.upsert({
+    const store = createArtifactStore(handle, CTX_A);
+    const pr = await createTenantRepository(handle, CTX_A).pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
       state: PrState.OPEN,
@@ -667,8 +667,8 @@ describe("artifactStore.hunkSpans — the carry-over hop", () => {
 
   it("rejects a hunk carrying line content", async () => {
     const handle = await freshDatabase();
-    const store = artifactStore(handle, CTX_A);
-    const pr = await forTenant(handle, CTX_A).pullRequests.upsert({
+    const store = createArtifactStore(handle, CTX_A);
+    const pr = await createTenantRepository(handle, CTX_A).pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
       state: PrState.OPEN,
@@ -702,13 +702,13 @@ describe("artifactStore.hunkSpans — the carry-over hop", () => {
 
   it("refuses a hop on another tenant's pull request, and writes nothing", async () => {
     const handle = await freshDatabase();
-    const pr = await forTenant(handle, CTX_A).pullRequests.upsert({
+    const pr = await createTenantRepository(handle, CTX_A).pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
       state: PrState.OPEN,
     });
 
-    const result = await artifactStore(handle, CTX_B).hunkSpans.write({
+    const result = await createArtifactStore(handle, CTX_B).hunkSpans.write({
       pullRequestId: pr.id,
       baselineSha: "head-1",
       headSha: "head-2",
@@ -719,10 +719,10 @@ describe("artifactStore.hunkSpans — the carry-over hop", () => {
     if (result.ok) throw new Error("expected rejection");
     expect(result.error.code).toBe(ArtifactErrorCode.PARENT_NOT_IN_TENANT);
     expect(
-      await artifactStore(handle, CTX_A).hunkSpans.listForPullRequest(pr.id),
+      await createArtifactStore(handle, CTX_A).hunkSpans.listForPullRequest(pr.id),
     ).toHaveLength(0);
     expect(
-      await artifactStore(handle, CTX_B).hunkSpans.listForPullRequest(pr.id),
+      await createArtifactStore(handle, CTX_B).hunkSpans.listForPullRequest(pr.id),
     ).toHaveLength(0);
   });
 });

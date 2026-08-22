@@ -10,7 +10,7 @@ import {
   listInstallationRepositoriesForUser,
 } from "github";
 import type { Logger } from "logging";
-import { decryptToken, sessionAuth, type RepoId } from "persistence";
+import { decryptToken, createSessionAuth, type RepoId } from "persistence";
 import type { Result } from "types";
 import {
   refreshSessionToken,
@@ -78,7 +78,7 @@ export function createAllowedRepoResolver(
         // Unreadable token burns the session — same posture as the repo gate.
         // (On the Bearer channel this delete is a no-op by hash namespace;
         // the api_token row stays for its owner to see and revoke.)
-        await sessionAuth(deps.handle).deleteSession(session.sessionTokenHash);
+        await createSessionAuth(deps.handle).deleteSession(session.sessionTokenHash);
         return { ok: false, error: { status: 401 } };
       }
       let currentSession = session;

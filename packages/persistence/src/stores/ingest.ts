@@ -26,7 +26,7 @@ import { generation } from "../schema/generation";
 import { pullRequest } from "../schema/pull-request";
 import type { GenerationRow } from "./generation";
 import {
-  lifecycleColumns,
+  buildLifecycleColumns,
   type PullRequestRow,
   type PullRequestUpsertInput,
   type TenantContext,
@@ -93,7 +93,7 @@ async function upsertPullRequestRow(
   input: PullRequestUpsertInput,
   preserveTerminal: boolean,
 ): Promise<PullRequestRow> {
-  const lifecycle = lifecycleColumns(input);
+  const lifecycle = buildLifecycleColumns(input);
   const rows = await executor
     .insert(pullRequest)
     .values({
@@ -217,7 +217,7 @@ export interface IngestRoutines {
 // ---------------------------------------------------------------------------
 
 /** Build the tenant-scoped ingest boundary over the opaque handle. */
-export function ingestRoutines(
+export function createIngestRoutines(
   handle: AppDatabase,
   ctx: TenantContext,
 ): IngestRoutines {

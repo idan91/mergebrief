@@ -4,8 +4,8 @@
 // step calls by name.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { IngestOutcome } from "../src/stores/ingest";
-import { ingestRoutines } from "../src/stores/ingest";
-import { forTenant, parseTenantContext } from "../src/stores/tenant";
+import { createIngestRoutines } from "../src/stores/ingest";
+import { createTenantRepository, parseTenantContext } from "../src/stores/tenant";
 import { createPgliteHarness, type PgliteHarness } from "../src/testing";
 import {
   GenerationKind,
@@ -50,7 +50,7 @@ function epochMs(cell: unknown): number {
   throw new Error(`expected a timestamp cell, got ${typeof cell}`);
 }
 
-describe("ingestRoutines.triggerGeneration", () => {
+describe("createIngestRoutines.triggerGeneration", () => {
   let harness: PgliteHarness;
 
   beforeEach(async () => {
@@ -68,7 +68,7 @@ describe("ingestRoutines.triggerGeneration", () => {
     baseSha?: string;
     headSha?: string;
   }): Promise<Result<IngestOutcome, { code: string; message: string }>> {
-    return ingestRoutines(harness.handle, CTX).triggerGeneration({
+    return createIngestRoutines(harness.handle, CTX).triggerGeneration({
       pullRequest: {
         repoId: REPO_ID,
         prNumber: 7,
@@ -94,7 +94,7 @@ describe("ingestRoutines.triggerGeneration", () => {
 
   /** Close the PR out-of-band, as the `pull_request.closed` handler would. */
   async function closePr(): Promise<void> {
-    await forTenant(harness.handle, CTX).pullRequests.upsert({
+    await createTenantRepository(harness.handle, CTX).pullRequests.upsert({
       repoId: REPO_ID,
       prNumber: 7,
       repoSlug: "acme/widgets",
@@ -260,7 +260,7 @@ describe("ingestRoutines.triggerGeneration", () => {
   // projection or scheduling work.
   describe("recordState", () => {
     it("upserts the PR row without a generation row or job", async () => {
-      const row = await ingestRoutines(harness.handle, CTX).recordState({
+      const row = await createIngestRoutines(harness.handle, CTX).recordState({
         repoId: REPO_ID,
         prNumber: 7,
         repoSlug: "acme/widgets",
@@ -284,7 +284,7 @@ describe("ingestRoutines.triggerGeneration", () => {
         "select status, attempts from generation",
       );
 
-      await ingestRoutines(harness.handle, CTX).recordState({
+      await createIngestRoutines(harness.handle, CTX).recordState({
         repoId: REPO_ID,
         prNumber: 7,
         repoSlug: "acme/widgets",
@@ -305,7 +305,7 @@ describe("ingestRoutines.triggerGeneration", () => {
       unwrap(await trigger());
       await closePr();
 
-      const row = await ingestRoutines(harness.handle, CTX).recordState({
+      const row = await createIngestRoutines(harness.handle, CTX).recordState({
         repoId: REPO_ID,
         prNumber: 7,
         repoSlug: "acme/widgets",

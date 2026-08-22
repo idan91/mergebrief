@@ -14,7 +14,7 @@
 // tests). This package never constructs App auth itself.
 import type { Context } from "hono";
 import { GitHubApiErrorCode, type PrConversation } from "github";
-import { forTenant, type InstallationId, type RepoId } from "persistence";
+import { createTenantRepository, type InstallationId, type RepoId } from "persistence";
 import { z } from "zod";
 import type { AuthRouteDeps } from "../../auth/session";
 import type { AuthzEnv } from "../../authz";
@@ -109,7 +109,7 @@ export function conversationRoutes(
       if (!parsedPr.success) {
         return errorJson(c, ApiErrorCode.INVALID_REQUEST);
       }
-      const pr = await forTenant(deps.handle, ctx).pullRequests.getByNumber(
+      const pr = await createTenantRepository(deps.handle, ctx).pullRequests.getByNumber(
         repoId,
         parsedPr.data,
       );

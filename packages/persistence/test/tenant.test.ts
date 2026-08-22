@@ -6,8 +6,8 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   createDb,
-  forTenant,
-  grantAuth,
+  createTenantRepository,
+  createGrantAuth,
   parseTenantContext,
   RepositoryErrorCode,
   safeParseTenantContext,
@@ -47,11 +47,11 @@ function upsertInput(
   return { repoId: REPO, prNumber, repoSlug: "acme/widgets", ...lifecycle };
 }
 
-describe("forTenant — tenant isolation on reads", () => {
+describe("createTenantRepository — tenant isolation on reads", () => {
   it("A cannot read a pull_request written under B (same repo + number)", async () => {
     const handle = await freshDatabase();
-    const a = forTenant(handle, CTX_A);
-    const b = forTenant(handle, CTX_B);
+    const a = createTenantRepository(handle, CTX_A);
+    const b = createTenantRepository(handle, CTX_B);
 
     await b.pullRequests.upsert(upsertInput(7));
 
@@ -64,8 +64,8 @@ describe("forTenant — tenant isolation on reads", () => {
 
   it("A and B keep independent rows under the same natural key", async () => {
     const handle = await freshDatabase();
-    const a = forTenant(handle, CTX_A);
-    const b = forTenant(handle, CTX_B);
+    const a = createTenantRepository(handle, CTX_A);
+    const b = createTenantRepository(handle, CTX_B);
 
     await a.pullRequests.upsert(upsertInput(7, { state: PrState.OPEN }));
     await b.pullRequests.upsert(
@@ -86,8 +86,8 @@ describe("forTenant — tenant isolation on reads", () => {
 
   it("A cannot read a checkpoint written under B", async () => {
     const handle = await freshDatabase();
-    const a = forTenant(handle, CTX_A);
-    const b = forTenant(handle, CTX_B);
+    const a = createTenantRepository(handle, CTX_A);
+    const b = createTenantRepository(handle, CTX_B);
 
     const bPr = await b.pullRequests.upsert(upsertInput(7));
     const submit = await b.checkpoints.upsertOnSubmit({
@@ -103,11 +103,11 @@ describe("forTenant — tenant isolation on reads", () => {
   });
 });
 
-describe("forTenant — cross-tenant child writes are rejected without a DB write", () => {
+describe("createTenantRepository — cross-tenant child writes are rejected without a DB write", () => {
   it("rejects a checkpoint whose pull_request belongs to another tenant", async () => {
     const handle = await freshDatabase();
-    const a = forTenant(handle, CTX_A);
-    const b = forTenant(handle, CTX_B);
+    const a = createTenantRepository(handle, CTX_A);
+    const b = createTenantRepository(handle, CTX_B);
 
     // Parent PR lives under B.
     const bPr = await b.pullRequests.upsert(upsertInput(7));
@@ -133,8 +133,8 @@ describe("forTenant — cross-tenant child writes are rejected without a DB writ
 
   it("setState on a PR outside the tenant returns notFound", async () => {
     const handle = await freshDatabase();
-    const a = forTenant(handle, CTX_A);
-    const b = forTenant(handle, CTX_B);
+    const a = createTenantRepository(handle, CTX_A);
+    const b = createTenantRepository(handle, CTX_B);
 
     const bPr = await b.pullRequests.upsert(upsertInput(7));
     const result = await a.pullRequests.setState(bPr.id, {
@@ -156,8 +156,8 @@ describe("forTenant — cross-tenant child writes are rejected without a DB writ
 
   it("setEntryComment on a PR outside the tenant returns notFound", async () => {
     const handle = await freshDatabase();
-    const a = forTenant(handle, CTX_A);
-    const b = forTenant(handle, CTX_B);
+    const a = createTenantRepository(handle, CTX_A);
+    const b = createTenantRepository(handle, CTX_B);
 
     const bPr = await b.pullRequests.upsert(upsertInput(7));
     const result = await a.pullRequests.setEntryComment(bPr.id, 9001n);
@@ -174,10 +174,10 @@ describe("forTenant — cross-tenant child writes are rejected without a DB writ
   });
 });
 
-describe("forTenant — entry comment rotation (delete+repost)", () => {
+describe("createTenantRepository — entry comment rotation (delete+repost)", () => {
   it("setEntryComment stores and rotates the comment id", async () => {
     const handle = await freshDatabase();
-    const a = forTenant(handle, CTX_A);
+    const a = createTenantRepository(handle, CTX_A);
 
     const pr = await a.pullRequests.upsert(upsertInput(7));
     expect(pr.entryCommentId).toBeNull();
@@ -196,10 +196,10 @@ describe("forTenant — entry comment rotation (delete+repost)", () => {
   });
 });
 
-describe("forTenant — setDraft (mark-ready flip)", () => {
+describe("createTenantRepository — setDraft (mark-ready flip)", () => {
   it("flips draft=true to false in place and is idempotent", async () => {
     const handle = await freshDatabase();
-    const a = forTenant(handle, CTX_A);
+    const a = createTenantRepository(handle, CTX_A);
 
     const pr = await a.pullRequests.upsert({ ...upsertInput(7), draft: true });
     expect(pr.draft).toBe(true);
@@ -219,8 +219,8 @@ describe("forTenant — setDraft (mark-ready flip)", () => {
 
   it("setDraft on a PR outside the tenant returns notFound and touches nothing", async () => {
     const handle = await freshDatabase();
-    const a = forTenant(handle, CTX_A);
-    const b = forTenant(handle, CTX_B);
+    const a = createTenantRepository(handle, CTX_A);
+    const b = createTenantRepository(handle, CTX_B);
 
     const bPr = await b.pullRequests.upsert({ ...upsertInput(7), draft: true });
     const result = await a.pullRequests.setDraft(bPr.id, false);
@@ -233,10 +233,10 @@ describe("forTenant — setDraft (mark-ready flip)", () => {
   });
 });
 
-describe("forTenant — idempotent upserts", () => {
+describe("createTenantRepository — idempotent upserts", () => {
   it("pull_request upsert is idempotent and mutates state in place", async () => {
     const handle = await freshDatabase();
-    const a = forTenant(handle, CTX_A);
+    const a = createTenantRepository(handle, CTX_A);
 
     const first = await a.pullRequests.upsert(
       upsertInput(7, { state: PrState.OPEN }),
@@ -255,7 +255,7 @@ describe("forTenant — idempotent upserts", () => {
 
   it("reopening a closed PR disarms retention", async () => {
     const handle = await freshDatabase();
-    const a = forTenant(handle, CTX_A);
+    const a = createTenantRepository(handle, CTX_A);
 
     const closed = await a.pullRequests.upsert(
       upsertInput(7, {
@@ -289,7 +289,7 @@ describe("forTenant — idempotent upserts", () => {
 
   it("checkpoint upsertOnSubmit is idempotent and advances the sha", async () => {
     const handle = await freshDatabase();
-    const a = forTenant(handle, CTX_A);
+    const a = createTenantRepository(handle, CTX_A);
     const pr = await a.pullRequests.upsert(upsertInput(7));
 
     const first = await a.checkpoints.upsertOnSubmit({
@@ -315,7 +315,7 @@ describe("forTenant — idempotent upserts", () => {
 
   it("checkpoint upsertOnSubmit is monotonic — an older submitted_at never regresses the row", async () => {
     const handle = await freshDatabase();
-    const a = forTenant(handle, CTX_A);
+    const a = createTenantRepository(handle, CTX_A);
     const pr = await a.pullRequests.upsert(upsertInput(7));
 
     const newer = await a.checkpoints.upsertOnSubmit({
@@ -345,7 +345,7 @@ describe("forTenant — idempotent upserts", () => {
 
   it("checkpoint upsertOnSubmit with an equal submitted_at re-applies (idempotent redelivery)", async () => {
     const handle = await freshDatabase();
-    const a = forTenant(handle, CTX_A);
+    const a = createTenantRepository(handle, CTX_A);
     const pr = await a.pullRequests.upsert(upsertInput(7));
     const at = new Date("2026-07-07T12:00:00Z");
 
@@ -369,10 +369,10 @@ describe("forTenant — idempotent upserts", () => {
 
   it("sessions honour tenant scope on lookup and delete", async () => {
     const handle = await freshDatabase();
-    const a = forTenant(handle, CTX_A);
-    const b = forTenant(handle, CTX_B);
+    const a = createTenantRepository(handle, CTX_A);
+    const b = createTenantRepository(handle, CTX_B);
 
-    const grant = await grantAuth(handle).createGrant({
+    const grant = await createGrantAuth(handle).createGrant({
       ghTokenCiphertext: "cipher",
       ghRefreshTokenCiphertext: "refresh-cipher",
       keyRef: "env:K1",
@@ -399,7 +399,7 @@ describe("forTenant — idempotent upserts", () => {
     // A's delete-by-reviewer removes the row AND orphan-cleans its grant
     // in the same transaction (last-referent lifecycle).
     expect(await a.sessions.deleteByReviewer(REVIEWER)).toBe(1);
-    expect(await grantAuth(handle).deleteIfOrphaned(grant.id)).toBe(0); // already gone
+    expect(await createGrantAuth(handle).deleteIfOrphaned(grant.id)).toBe(0); // already gone
     const grantRows = await internal(handle)
       .select({ id: githubGrant.id })
       .from(githubGrant);
@@ -435,7 +435,7 @@ describe("parseTenantContext — boundary validation", () => {
 describe("compile-time containment", () => {
   it("the opaque AppDatabase exposes no queryable surface", () => {
     // A live handle carries none of drizzle's query methods — the only thing
-    // a consumer can do with it is pass it to forTenant.
+    // a consumer can do with it is pass it to createTenantRepository.
     expectTypeOf<AppDatabase>().not.toHaveProperty("insert");
     expectTypeOf<AppDatabase>().not.toHaveProperty("select");
     expectTypeOf<AppDatabase>().not.toHaveProperty("update");
@@ -460,7 +460,7 @@ describe("compile-time containment", () => {
   });
 
   it("the non-tenant userSettings seam leaks no query surface either", () => {
-    // Treated like `audit`/`sessionAuth`: a NON-tenant surface that takes the
+    // Treated like `writeAudit`/`createSessionAuth`: a NON-tenant surface that takes the
     // opaque handle and unwraps in-package — never a raw drizzle handle. It is
     // NOT reachable through TenantRepository (it is keyed by user id, not ctx).
     expectTypeOf<TenantRepository>().not.toHaveProperty("userSettings");

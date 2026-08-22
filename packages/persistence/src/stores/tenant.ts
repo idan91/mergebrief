@@ -1,5 +1,5 @@
 // The tenant-scoped repository — the ONLY database surface this package
-// exposes to callers. `forTenant(db, ctx)` binds an `installation_id` once;
+// exposes to callers. `createTenantRepository(db, ctx)` binds an `installation_id` once;
 // every method then filters (reads) or stamps (writes) that same id, so a
 // caller can never address another tenant's rows per call.
 //
@@ -21,7 +21,7 @@ import { pullRequest } from "../schema/pull-request";
 import { authSession } from "../schema/auth-session";
 import {
   type ReviewSessionRepository,
-  reviewSessionRepository,
+  createReviewSessionRepository,
 } from "./review-session";
 import {
   type GrantRowId,
@@ -149,7 +149,7 @@ export type AuthSessionRow = typeof authSession.$inferSelect;
  * retention fields: an OPEN patch must explicitly null `closed_at` and
  * `purge_after` (a reopened PR must never stay armed for the sweep), and a
  * terminal patch must carry `closedAt`. `purgeAfter` stays caller-supplied
- * here; grace math lives in `purgeRoutines.setRetention`.
+ * here; grace math lives in `createPurgeRoutines.setRetention`.
  */
 interface OpenLifecycle {
   readonly state: typeof PrState.OPEN;
@@ -204,7 +204,7 @@ export type PullRequestStatePatch = PullRequestLifecycle;
  * Exported for IN-PACKAGE reuse only (`ingest.ts` replicates the upsert
  * inside its transaction); `index.ts` never re-exports it.
  */
-export function lifecycleColumns(lc: PullRequestLifecycle): {
+export function buildLifecycleColumns(lc: PullRequestLifecycle): {
   state: PrState;
   closedAt: Date | null;
   purgeAfter: Date | null;
@@ -332,7 +332,7 @@ export interface TenantRepository {
  * Build a tenant-scoped repository over an opaque `AppDatabase`. `ctx` is the
  * one place an `installation_id` enters; no method accepts another.
  */
-export function forTenant(
+export function createTenantRepository(
   handle: AppDatabase,
   ctx: TenantContext,
 ): TenantRepository {
@@ -341,7 +341,7 @@ export function forTenant(
 
   const pullRequests: PullRequestRepository = {
     async upsert(input) {
-      const lifecycle = lifecycleColumns(input);
+      const lifecycle = buildLifecycleColumns(input);
       const rows = await db
         .insert(pullRequest)
         .values({
@@ -435,7 +435,7 @@ export function forTenant(
       const rows = await db
         .update(pullRequest)
         .set({
-          ...lifecycleColumns(patch),
+          ...buildLifecycleColumns(patch),
           updatedAt: new Date(),
         })
         .where(
@@ -680,6 +680,6 @@ export function forTenant(
     pullRequests,
     checkpoints,
     sessions,
-    reviewSessions: reviewSessionRepository(db, installationId),
+    reviewSessions: createReviewSessionRepository(db, installationId),
   };
 }

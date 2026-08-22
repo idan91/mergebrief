@@ -4,7 +4,7 @@ The Hono HTTP surface for the self-host backend. Its **webhook trust
 boundary** — `POST /api/webhooks/github` — verifies the HMAC over the raw
 body, parses the event through `github`'s Zod boundary, and maps it,
 transactionally, to `persistence`'s tenant-scoped writes plus one debounced
-graphile `generate` job (`ingestRoutines`).
+graphile `generate` job (`createIngestRoutines`).
 
 Deliberately NOT here: the `apps/web` catch-all mount, real-Postgres/graphile
 startup wiring, and any worker/LLM code.
@@ -17,8 +17,8 @@ startup wiring, and any worker/LLM code.
 - **Tenant from the signed payload.** `TenantContext` derives from the
   payload's `installation.id` (branded by `github`'s parser, revalidated via
   `parseTenantContext`) — never from a spoofable header. All writes go
-  through persistence's ctx-bound interfaces (`forTenant`, `ingestRoutines`,
-  `purgeRoutines`); this package never sees a raw DB handle.
+  through persistence's ctx-bound interfaces (`createTenantRepository`, `createIngestRoutines`,
+  `createPurgeRoutines`); this package never sees a raw DB handle.
 - **Fast 200, no compute.** The webhook handler only upserts rows and
   enqueues one job — no LLM calls, no GitHub API calls, no generation.
   Handled and ignored events alike return 200 quickly.
@@ -176,7 +176,7 @@ needs exactly one entry in `packages/cli/product-operations.map.json` — a
 Mirrors `packages/persistence/AGENTS.md`: no `enum` (`as const` +
 `ValueOf`, SHOUT_CASE keys / kebab-case values); strict TS, no `any`, no bare
 `as` (Zod/guards at boundaries); named exports; extensionless relative
-imports (`moduleResolution: "bundler"`); verb-first actions, noun factories.
+imports (`moduleResolution: "bundler"`); verb-first function names.
 
 ## Tests
 

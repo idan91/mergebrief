@@ -2,8 +2,8 @@
 // files — the read and the writes — resolve through here, so a stale tab
 // lands on the same Brief whichever verb it uses.
 import {
-  artifactStore,
-  forTenant,
+  createArtifactStore,
+  createTenantRepository,
   type BriefRowId,
   type PullRequestRowId,
   type RepoId,
@@ -40,7 +40,7 @@ export async function resolveSessionTarget(
   prNumber: number,
   span: BriefSpan,
 ): Promise<SessionTarget | undefined> {
-  const pr = await forTenant(deps.handle, ctx).pullRequests.getByNumber(
+  const pr = await createTenantRepository(deps.handle, ctx).pullRequests.getByNumber(
     repoId,
     prNumber,
   );
@@ -49,7 +49,7 @@ export async function resolveSessionTarget(
   }
   // Lean span listing, never `briefs.get`: the row id is all the session
   // needs, and the body is the one column worth not loading.
-  const briefs = await artifactStore(
+  const briefs = await createArtifactStore(
     deps.handle,
     ctx,
   ).briefs.listForPullRequest(pr.id);
@@ -78,7 +78,7 @@ export async function loadCarryFacts(
   target: SessionTarget,
   span: BriefSpan,
 ): Promise<CarryFacts> {
-  const row = await artifactStore(deps.handle, ctx).briefs.get(
+  const row = await createArtifactStore(deps.handle, ctx).briefs.get(
     target.pullRequestId,
     span.base,
     span.head,

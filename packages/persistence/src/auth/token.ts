@@ -2,11 +2,11 @@
 // for the SECOND presentation channel (CLI/agent Bearer tokens). Nothing here
 // is bound to an `installation_id` — resolution by the globally UNIQUE
 // `token_hash` (the opaque token, stored only as its SHA-256) is what PRODUCES
-// the tenant, so it precedes `forTenant` scoping.
+// the tenant, so it precedes `createTenantRepository` scoping.
 //
 // The token row carries NO credential material — mint LINKS the minting
 // session's `github_grant` row (never copies), and rotation lives in
-// `grantAuth.refreshGrant`. Resolution JOINs the grant; the soft revoke keeps
+// `createGrantAuth.refreshGrant`. Resolution JOINs the grant; the soft revoke keeps
 // the grant reference (a revoked token stays listable), so only the
 // installation-purge hard delete orphan-cleans.
 //
@@ -184,7 +184,7 @@ export interface TokenAuth {
  * `AppDatabase`. Uses the in-package `internal()` unwrap; never exposes a raw
  * query surface, and is intentionally NOT ctx-bound (see the file header).
  */
-export function tokenAuth(handle: AppDatabase): TokenAuth {
+export function createTokenAuth(handle: AppDatabase): TokenAuth {
   const db = internal(handle);
 
   return {

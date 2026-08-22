@@ -4,9 +4,9 @@
 import { createHash, randomBytes } from "node:crypto";
 import {
   encryptToken,
-  envKeyProvider,
-  forTenant,
-  grantAuth,
+  createEnvKeyProvider,
+  createTenantRepository,
+  createGrantAuth,
   isInstallationId,
   isRepoId,
   isReviewerId,
@@ -48,7 +48,7 @@ const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
 const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 
 function keyProvider(): KeyProvider {
-  return envKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
+  return createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
 }
 
 function authDeps(kp: KeyProvider): AuthDeps {
@@ -237,13 +237,13 @@ async function seedSession(
   const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
   if (!sealedAccess.ok || !sealedRefresh.ok)
     throw new Error("seed encrypt failed");
-  const grant = await grantAuth(handle).createGrant({
+  const grant = await createGrantAuth(handle).createGrant({
     ghTokenCiphertext: sealedAccess.value,
     ghRefreshTokenCiphertext: sealedRefresh.value,
     keyRef: KEY_REF,
     refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
   });
-  await forTenant(handle, CTX).sessions.create({
+  await createTenantRepository(handle, CTX).sessions.create({
     sessionTokenHash: sha256Hex(cookie),
     reviewerId: brandReviewer(BigInt(REVIEWER_ID)),
     reviewerLogin: "octocat",
@@ -254,7 +254,7 @@ async function seedSession(
 }
 
 async function seedPr(handle: AppDatabase): Promise<void> {
-  await forTenant(handle, CTX).pullRequests.upsert({
+  await createTenantRepository(handle, CTX).pullRequests.upsert({
     repoId: brandRepo(BigInt(REPO_ID)),
     prNumber: PR_NUMBER,
     repoSlug: REPO_SLUG,

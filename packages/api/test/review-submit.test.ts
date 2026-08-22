@@ -5,12 +5,12 @@
 import { createHash, randomBytes } from "node:crypto";
 import {
   AnchorStatus,
-  artifactStore,
+  createArtifactStore,
   DraftCommentSide,
   encryptToken,
-  envKeyProvider,
-  forTenant,
-  grantAuth,
+  createEnvKeyProvider,
+  createTenantRepository,
+  createGrantAuth,
   isInstallationId,
   isRepoId,
   isReviewerId,
@@ -52,7 +52,7 @@ const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
 const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 
 function keyProvider(): KeyProvider {
-  return envKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
+  return createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
 }
 
 function authDeps(kp: KeyProvider): AuthDeps {
@@ -214,13 +214,13 @@ async function seedSession(
   const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
   if (!sealedAccess.ok || !sealedRefresh.ok)
     throw new Error("seed encrypt failed");
-  const grant = await grantAuth(handle).createGrant({
+  const grant = await createGrantAuth(handle).createGrant({
     ghTokenCiphertext: sealedAccess.value,
     ghRefreshTokenCiphertext: sealedRefresh.value,
     keyRef: KEY_REF,
     refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
   });
-  await forTenant(handle, CTX).sessions.create({
+  await createTenantRepository(handle, CTX).sessions.create({
     sessionTokenHash: sha256Hex(cookie),
     reviewerId: brandReviewer(BigInt(REVIEWER_ID)),
     reviewerLogin: "octocat",
@@ -231,7 +231,7 @@ async function seedSession(
 }
 
 async function seedPullRequest(handle: AppDatabase): Promise<void> {
-  await forTenant(handle, CTX).pullRequests.upsert({
+  await createTenantRepository(handle, CTX).pullRequests.upsert({
     repoId: brandRepo(BigInt(REPO_ID)),
     prNumber: PR_NUMBER,
     repoSlug: REPO_SLUG,
@@ -248,13 +248,13 @@ async function seedSessionDrafts(
   handle: AppDatabase,
   bodies: readonly string[] = ["anchored note", "multi-line note"],
 ): Promise<BriefRowId> {
-  const repo = forTenant(handle, CTX);
+  const repo = createTenantRepository(handle, CTX);
   const pr = await repo.pullRequests.getByNumber(
     brandRepo(BigInt(REPO_ID)),
     PR_NUMBER,
   );
   if (pr === undefined) throw new Error("seed: pr missing");
-  const brief = await artifactStore(handle, CTX).briefs.write({
+  const brief = await createArtifactStore(handle, CTX).briefs.write({
     pullRequestId: pr.id,
     baseSha: BASE_SHA,
     headSha: COMMIT_ID,
@@ -350,7 +350,7 @@ async function seedCarriedDraft(
   anchorStatus: AnchorStatus,
   body = "carried note",
 ): Promise<string> {
-  const written = await forTenant(handle, CTX).reviewSessions.writeToSession(
+  const written = await createTenantRepository(handle, CTX).reviewSessions.writeToSession(
     {
       briefId,
       reviewerId: brandReviewer(BigInt(REVIEWER_ID)),
@@ -376,7 +376,7 @@ async function seedTwoSideDraft(
   briefId: BriefRowId,
   body = "crosses sides",
 ): Promise<void> {
-  const written = await forTenant(handle, CTX).reviewSessions.writeToSession(
+  const written = await createTenantRepository(handle, CTX).reviewSessions.writeToSession(
     {
       briefId,
       reviewerId: brandReviewer(BigInt(REVIEWER_ID)),
@@ -754,7 +754,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     const { cookie } = await seedSession(harness.handle, kp);
     const briefId = await seedSessionDrafts(harness.handle);
     // One draft is already on GitHub: it is not the submit's to post again.
-    await forTenant(harness.handle, CTX).reviewSessions.writeToSession(
+    await createTenantRepository(harness.handle, CTX).reviewSessions.writeToSession(
       {
         briefId,
         reviewerId: brandReviewer(BigInt(REVIEWER_ID)),
@@ -858,12 +858,12 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     const { cookie } = await seedSession(harness.handle, kp);
     await seedSessionDrafts(harness.handle);
     // A session on a NEWER Brief of the same PR freezes the one being read.
-    const pr = await forTenant(harness.handle, CTX).pullRequests.getByNumber(
+    const pr = await createTenantRepository(harness.handle, CTX).pullRequests.getByNumber(
       brandRepo(BigInt(REPO_ID)),
       PR_NUMBER,
     );
     if (pr === undefined) throw new Error("pr missing");
-    const newer = await artifactStore(harness.handle, CTX).briefs.write({
+    const newer = await createArtifactStore(harness.handle, CTX).briefs.write({
       pullRequestId: pr.id,
       baseSha: BASE_SHA,
       headSha: "e".repeat(40),
@@ -875,7 +875,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
       body: "{}",
     });
     if (!newer.ok) throw new Error("newer brief write failed");
-    await forTenant(harness.handle, CTX).reviewSessions.writeToSession(
+    await createTenantRepository(harness.handle, CTX).reviewSessions.writeToSession(
       {
         briefId: newer.value.id,
         reviewerId: brandReviewer(BigInt(REVIEWER_ID)),

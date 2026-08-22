@@ -25,8 +25,8 @@ import type { Logger } from "logging";
 import {
   decryptToken,
   isInstallationId,
-  sessionAuth,
-  userSettingsStore,
+  createSessionAuth,
+  createUserSettingsStore,
   type InstallationId,
 } from "persistence";
 import type { Result } from "types";
@@ -96,7 +96,7 @@ export async function resolveAccessibleInstallations(
   );
   if (!decrypted.ok) {
     // Unreadable token burns the session — same posture as the repo gate / list.
-    await sessionAuth(deps.handle).deleteSession(session.sessionTokenHash);
+    await createSessionAuth(deps.handle).deleteSession(session.sessionTokenHash);
     return { ok: false, error: { status: 401 } };
   }
 
@@ -158,7 +158,7 @@ export function installationsRoute(
         );
       }
       const { installations, session: currentSession } = resolved.value;
-      const settings = await userSettingsStore(deps.handle).get(
+      const settings = await createUserSettingsStore(deps.handle).get(
         currentSession.reviewerId,
       );
       const defaultId = settings?.defaultInstallationId ?? null;
@@ -228,7 +228,7 @@ export function installationsRoute(
       }
 
       // Atomic, ctx-safe rebinding of the session's tenant stamp.
-      const rebound = await sessionAuth(deps.handle).rebindInstallation(
+      const rebound = await createSessionAuth(deps.handle).rebindInstallation(
         currentSession.sessionTokenHash,
         target,
       );
@@ -238,10 +238,10 @@ export function installationsRoute(
       }
 
       let defaultId =
-        (await userSettingsStore(deps.handle).get(currentSession.reviewerId))
+        (await createUserSettingsStore(deps.handle).get(currentSession.reviewerId))
           ?.defaultInstallationId ?? null;
       if (parsed.data.setDefault === true) {
-        const updated = await userSettingsStore(
+        const updated = await createUserSettingsStore(
           deps.handle,
         ).setDefaultInstallation(currentSession.reviewerId, target);
         defaultId = updated.defaultInstallationId;

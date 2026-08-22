@@ -112,7 +112,7 @@ export interface GrantAuth {
  * Build the grant boundary over the opaque `AppDatabase`. Uses the in-package
  * `internal()` unwrap; never exposes a raw query surface.
  */
-export function grantAuth(handle: AppDatabase): GrantAuth {
+export function createGrantAuth(handle: AppDatabase): GrantAuth {
   const db = internal(handle);
 
   return {

@@ -1,6 +1,6 @@
-// The per-user settings boundary. Like `sessionAuth` and `audit`, this is a
+// The per-user settings boundary. Like `createSessionAuth` and `audit`, this is a
 // NON-tenant surface: deliberately NOT ctx-bound and NOT reachable through
-// `forTenant`, because `user_settings` is keyed by GitHub user id, not
+// `createTenantRepository`, because `user_settings` is keyed by GitHub user id, not
 // `installation_id` (a person spans installations). It still takes the opaque
 // `AppDatabase`, unwraps via the in-package `internal()`, and exposes no raw
 // query surface.
@@ -38,7 +38,7 @@ export interface UserSettingsStore {
  * `AppDatabase`. Uses the in-package `internal()` unwrap; never exposes a raw
  * query surface, and is intentionally NOT ctx-bound (see the file header).
  */
-export function userSettingsStore(handle: AppDatabase): UserSettingsStore {
+export function createUserSettingsStore(handle: AppDatabase): UserSettingsStore {
   const db = internal(handle);
 
   return {

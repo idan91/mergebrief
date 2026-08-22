@@ -35,7 +35,7 @@ import {
   decryptToken,
   DraftCommentSide,
   DraftCommentStatus,
-  forTenant,
+  createTenantRepository,
   type InstallationId,
   type RepoId,
   type ReviewDraftCommentRow,
@@ -245,7 +245,7 @@ export function reviewSubmitRoute(
       const submitBody = parsedBody.data;
 
       const ctx = c.get("ctx");
-      const pr = await forTenant(deps.handle, ctx).pullRequests.getByNumber(
+      const pr = await createTenantRepository(deps.handle, ctx).pullRequests.getByNumber(
         c.get("repoId"),
         parsedPr.data,
       );

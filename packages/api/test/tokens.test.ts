@@ -1,6 +1,6 @@
 // API tokens as a second presentation channel. Two surfaces, one auth model:
 //   1. Bearer presentation: `Authorization: Bearer mergebrief_...` resolves
-//      through `tokenAuth` into the SAME principal shape a cookie session
+//      through `createTokenAuth` into the SAME principal shape a cookie session
 //      yields, on `/api/*` only. Miss/expired/revoked/garbage → hint-free 401.
 //      Refresh-once mid-request rides the same spendRefresh machinery; the
 //      token's own expiry never moves.
@@ -12,14 +12,14 @@
 import { createHash, randomBytes } from "node:crypto";
 import {
   encryptToken,
-  envKeyProvider,
-  forTenant,
-  grantAuth,
+  createEnvKeyProvider,
+  createTenantRepository,
+  createGrantAuth,
   isInstallationId,
   isRepoId,
   isReviewerId,
   PrState,
-  tokenAuth,
+  createTokenAuth,
   WriteClassification,
   type AppDatabase,
   type KeyProvider,
@@ -57,7 +57,7 @@ const CTX: TenantContext = {
 const REVIEWER: ReviewerId = brand(isReviewerId, REVIEWER_ID);
 
 function keyProvider(): KeyProvider {
-  return envKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
+  return createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
 }
 
 function authDeps(kp: KeyProvider): AuthDeps {
@@ -185,13 +185,13 @@ async function seedApiToken(
   const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
   if (!sealedAccess.ok || !sealedRefresh.ok)
     throw new Error("seed encrypt failed");
-  const grant = await grantAuth(handle).createGrant({
+  const grant = await createGrantAuth(handle).createGrant({
     ghTokenCiphertext: sealedAccess.value,
     ghRefreshTokenCiphertext: sealedRefresh.value,
     keyRef: KEY_REF,
     refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
   });
-  const minted = await tokenAuth(handle).mintToken({
+  const minted = await createTokenAuth(handle).mintToken({
     scope: overrides.scope ?? WriteClassification.EXTERNAL_WRITE,
     installationId: CTX.installationId,
     userId: REVIEWER,
@@ -205,7 +205,7 @@ async function seedApiToken(
         : overrides.expiresAt,
   });
   if (overrides.revoke === true) {
-    const revoked = await tokenAuth(handle).revokeToken(
+    const revoked = await createTokenAuth(handle).revokeToken(
       REVIEWER,
       minted.id,
       new Date(),
@@ -216,7 +216,7 @@ async function seedApiToken(
 }
 
 async function seedPr(handle: AppDatabase): Promise<void> {
-  await forTenant(handle, CTX).pullRequests.upsert({
+  await createTenantRepository(handle, CTX).pullRequests.upsert({
     repoId: brand(isRepoId, REPO_A),
     prNumber: 7,
     repoSlug: "octo/hello",
@@ -482,13 +482,13 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
     const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
     if (!sealedAccess.ok || !sealedRefresh.ok)
       throw new Error("seed encrypt failed");
-    const grant = await grantAuth(harness.handle).createGrant({
+    const grant = await createGrantAuth(harness.handle).createGrant({
       ghTokenCiphertext: sealedAccess.value,
       ghRefreshTokenCiphertext: sealedRefresh.value,
       keyRef: KEY_REF,
       refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
     });
-    await forTenant(harness.handle, CTX).sessions.create({
+    await createTenantRepository(harness.handle, CTX).sessions.create({
       sessionTokenHash: sha256Hex(cookie),
       reviewerId: REVIEWER,
       reviewerLogin: "octocat",

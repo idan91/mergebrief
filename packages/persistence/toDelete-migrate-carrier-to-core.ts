@@ -147,7 +147,7 @@ async function main(): Promise<void> {
     console.info("no DATABASE_URL resolved — DB pass skipped");
     return;
   }
-  // Raw Pool on purpose: whole-DB one-off, exempt from the forTenant surface.
+  // Raw Pool on purpose: whole-DB one-off, exempt from the createTenantRepository surface.
   const pool = new Pool({ connectionString: dsn.value });
   try {
     for (const table of ARTIFACT_TABLES) {

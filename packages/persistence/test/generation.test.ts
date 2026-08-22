@@ -4,10 +4,10 @@
 // on the natural key rather than inserting a second row.
 import { describe, expect, it, onTestFinished } from "vitest";
 import {
-  forTenant,
-  generationProjection,
+  createTenantRepository,
+  createGenerationProjection,
   GenerationErrorCode,
-  ingestRoutines,
+  createIngestRoutines,
   GenerationFailureCode,
   type TenantContext,
 } from "../src/index";
@@ -33,11 +33,11 @@ const REPO: RepoId = brandWith(isRepoId, 777n);
 const CTX_A: TenantContext = { installationId: TENANT_A };
 const CTX_B: TenantContext = { installationId: TENANT_B };
 
-describe("generationProjection — status transitions", () => {
+describe("createGenerationProjection — status transitions", () => {
   it("queued → running → succeeded, attempts stable, updated_at advances", async () => {
     const handle = await freshDatabase();
-    const repo = forTenant(handle, CTX_A);
-    const gen = generationProjection(handle, CTX_A);
+    const repo = createTenantRepository(handle, CTX_A);
+    const gen = createGenerationProjection(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
@@ -75,8 +75,8 @@ describe("generationProjection — status transitions", () => {
 
   it("re-queue increments attempts and resets phase/error", async () => {
     const handle = await freshDatabase();
-    const repo = forTenant(handle, CTX_A);
-    const gen = generationProjection(handle, CTX_A);
+    const repo = createTenantRepository(handle, CTX_A);
+    const gen = createGenerationProjection(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
@@ -106,8 +106,8 @@ describe("generationProjection — status transitions", () => {
 
   it("brief-kind (null baseline_sha) upsert conflicts — NULLS NOT DISTINCT proof", async () => {
     const handle = await freshDatabase();
-    const repo = forTenant(handle, CTX_A);
-    const gen = generationProjection(handle, CTX_A);
+    const repo = createTenantRepository(handle, CTX_A);
+    const gen = createGenerationProjection(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
@@ -132,8 +132,8 @@ describe("generationProjection — status transitions", () => {
 
   it("rejects upsertQueued whose pull_request is in another tenant", async () => {
     const handle = await freshDatabase();
-    const b = forTenant(handle, CTX_B);
-    const genA = generationProjection(handle, CTX_A);
+    const b = createTenantRepository(handle, CTX_B);
+    const genA = createGenerationProjection(handle, CTX_A);
     const bPr = await b.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
@@ -153,8 +153,8 @@ describe("generationProjection — status transitions", () => {
 
   it("markFailed stores the typed code and sanitizes the detail param", async () => {
     const handle = await freshDatabase();
-    const repo = forTenant(handle, CTX_A);
-    const gen = generationProjection(handle, CTX_A);
+    const repo = createTenantRepository(handle, CTX_A);
+    const gen = createGenerationProjection(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
@@ -190,8 +190,8 @@ describe("generationProjection — status transitions", () => {
 
   it("markFailed stores a paramless code with null params", async () => {
     const handle = await freshDatabase();
-    const repo = forTenant(handle, CTX_A);
-    const gen = generationProjection(handle, CTX_A);
+    const repo = createTenantRepository(handle, CTX_A);
+    const gen = createGenerationProjection(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 8,
@@ -216,8 +216,8 @@ describe("generationProjection — status transitions", () => {
 
   it("drops an empty sanitized detail to null params — readers fall back to the code", async () => {
     const handle = await freshDatabase();
-    const repo = forTenant(handle, CTX_A);
-    const gen = generationProjection(handle, CTX_A);
+    const repo = createTenantRepository(handle, CTX_A);
+    const gen = createGenerationProjection(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 10,
@@ -242,7 +242,7 @@ describe("generationProjection — status transitions", () => {
   it("the CHECK constraint rejects a code outside the vocabulary", async () => {
     const client = await freshPglite();
     const handle = fromDrizzle(drizzle(client, { schema }));
-    const repo = forTenant(handle, CTX_A);
+    const repo = createTenantRepository(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 9,
@@ -258,8 +258,8 @@ describe("generationProjection — status transitions", () => {
 
   it("markSuperseded is terminal, leaves attempts, clears error", async () => {
     const handle = await freshDatabase();
-    const repo = forTenant(handle, CTX_A);
-    const gen = generationProjection(handle, CTX_A);
+    const repo = createTenantRepository(handle, CTX_A);
+    const gen = createGenerationProjection(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
@@ -296,8 +296,8 @@ describe("generationProjection — status transitions", () => {
 
   it("supersedeStaleBriefs terminalizes stale non-terminal briefs and clears their phase", async () => {
     const handle = await freshDatabase();
-    const repo = forTenant(handle, CTX_A);
-    const gen = generationProjection(handle, CTX_A);
+    const repo = createTenantRepository(handle, CTX_A);
+    const gen = createGenerationProjection(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
@@ -338,8 +338,8 @@ describe("generationProjection — status transitions", () => {
     // current head, or PR-meta reports superseded forever and the wait UX
     // spins on a push that will never finish.
     const handle = await freshDatabase();
-    const repo = forTenant(handle, CTX_A);
-    const gen = generationProjection(handle, CTX_A);
+    const repo = createTenantRepository(handle, CTX_A);
+    const gen = createGenerationProjection(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
@@ -373,8 +373,8 @@ describe("generationProjection — status transitions", () => {
 
   it("listBriefsForPullRequest: brief-kind rows only, tenant-scoped, created_at survives a re-queue", async () => {
     const handle = await freshDatabase();
-    const repo = forTenant(handle, CTX_A);
-    const gen = generationProjection(handle, CTX_A);
+    const repo = createTenantRepository(handle, CTX_A);
+    const gen = createGenerationProjection(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
@@ -413,14 +413,14 @@ describe("generationProjection — status transitions", () => {
 
     // Another tenant sees nothing.
     expect(
-      await generationProjection(handle, CTX_B).listBriefsForPullRequest(pr.id),
+      await createGenerationProjection(handle, CTX_B).listBriefsForPullRequest(pr.id),
     ).toEqual([]);
   });
 
   it("a transition on a missing projection row returns notFound", async () => {
     const handle = await freshDatabase();
-    const repo = forTenant(handle, CTX_A);
-    const gen = generationProjection(handle, CTX_A);
+    const repo = createTenantRepository(handle, CTX_A);
+    const gen = createGenerationProjection(handle, CTX_A);
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
@@ -448,7 +448,7 @@ describe("repo-config origin on the generation row", () => {
     const ctx: TenantContext = {
       installationId: brandWith(isInstallationId, 4200n),
     };
-    const ingest = ingestRoutines(handle, ctx);
+    const ingest = createIngestRoutines(handle, ctx);
     const first = await ingest.triggerGeneration({
       pullRequest: {
         repoId: brandWith(isRepoId, 900n),
@@ -459,7 +459,7 @@ describe("repo-config origin on the generation row", () => {
       debounceSeconds: 0,
     });
     if (!first.ok) throw new Error(first.error.message);
-    const projection = generationProjection(handle, ctx);
+    const projection = createGenerationProjection(handle, ctx);
     const target = {
       pullRequestId: first.value.pullRequest.id,
       kind: GenerationKind.BRIEF,

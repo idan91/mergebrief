@@ -17,7 +17,7 @@
 import { randomBytes } from "node:crypto";
 import {
   isApiTokenRowId,
-  tokenAuth,
+  createTokenAuth,
   TokenAuthErrorCode,
   type ApiTokenMetadataRow,
   type ApiTokenRowId,
@@ -168,10 +168,10 @@ export function tokensRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
       const token = `${API_TOKEN_PREFIX}${randomBytes(TOKEN_BYTES).toString("base64url")}`;
 
       // LINK the session's grant — never copy credential material: both channels
-      // share one physical pair, rotated through `grantAuth.refreshGrant`'s
+      // share one physical pair, rotated through `createGrantAuth.refreshGrant`'s
       // serialized CAS. The mint audit is emitted by persistence INSIDE this same
       // transaction.
-      const minted = await tokenAuth(deps.handle).mintToken({
+      const minted = await createTokenAuth(deps.handle).mintToken({
         installationId: target.installationId,
         userId: currentSession.reviewerId,
         ...(currentSession.reviewerLogin === null
@@ -198,7 +198,7 @@ export function tokensRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
     "/",
     async (c) => {
       const session = c.get("session");
-      const rows = await tokenAuth(deps.handle).listForUser(session.reviewerId);
+      const rows = await createTokenAuth(deps.handle).listForUser(session.reviewerId);
       return c.json({ tokens: rows.map(tokenView) }, 200, NO_STORE);
     },
   );
@@ -218,7 +218,7 @@ export function tokensRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
         return errorJson(c, ApiErrorCode.NOT_FOUND);
       }
       const session = c.get("session");
-      const revoked = await tokenAuth(deps.handle).revokeToken(
+      const revoked = await createTokenAuth(deps.handle).revokeToken(
         session.reviewerId,
         tokenId,
         new Date(),

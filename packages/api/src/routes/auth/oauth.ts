@@ -22,9 +22,9 @@ import {
 } from "github";
 import {
   encryptToken,
-  forTenant,
-  grantAuth,
-  userSettingsStore,
+  createTenantRepository,
+  createGrantAuth,
+  createUserSettingsStore,
 } from "persistence";
 import { z } from "zod";
 import { ApiErrorCode, errorJson } from "../../error-response";
@@ -119,7 +119,7 @@ export function oauthRoute(deps: AuthRouteDeps): Hono {
     // NEVER trusted as an id on its own — a dangling default degrades to the
     // first accessible installation rather than binding to something GitHub no
     // longer grants.
-    const settings = await userSettingsStore(deps.handle).get(
+    const settings = await createUserSettingsStore(deps.handle).get(
       user.value.reviewerId,
     );
     const preferredDefault = settings?.defaultInstallationId ?? undefined;
@@ -149,7 +149,7 @@ export function oauthRoute(deps: AuthRouteDeps): Hono {
     // The credential pair lands on a fresh grant row; the session LINKS it.
     // Session lifetime = refresh-token lifetime; access-token freshness is
     // handled by lazy refresh on a 401.
-    const grants = grantAuth(deps.handle);
+    const grants = createGrantAuth(deps.handle);
     const grant = await grants.createGrant({
       ghTokenCiphertext: sealedAccess.value,
       ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -157,7 +157,7 @@ export function oauthRoute(deps: AuthRouteDeps): Hono {
       refreshExpiresAt: tokens.value.refreshTokenExpiresAt,
     });
     try {
-      await forTenant(deps.handle, { installationId }).sessions.create({
+      await createTenantRepository(deps.handle, { installationId }).sessions.create({
         sessionTokenHash,
         reviewerId: user.value.reviewerId,
         reviewerLogin: user.value.reviewerLogin,

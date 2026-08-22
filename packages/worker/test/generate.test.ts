@@ -3,16 +3,16 @@
 // Generator (no model calls), and an in-memory GitHub port (no network). The
 // FIRST test drives the full enqueue→drain handshake: the payload the task
 // consumes is read back from the stubbed jobs table exactly as
-// `ingestRoutines.triggerGeneration` wrote it — pinning both sides of the
+// `createIngestRoutines.triggerGeneration` wrote it — pinning both sides of the
 // contract in one place.
 import { beforeEach, describe, expect, it } from "vitest";
 import {
-  artifactStore,
-  forTenant,
-  generationProjection,
+  createArtifactStore,
+  createTenantRepository,
+  createGenerationProjection,
   GenerationKind,
   GenerationStatus,
-  ingestRoutines,
+  createIngestRoutines,
   isPullRequestRowId,
   isRepoId,
   isReviewerId,
@@ -337,7 +337,7 @@ beforeEach(async () => {
 async function trigger(
   headSha: string,
 ): Promise<{ pr: PullRequestRow; payload: unknown }> {
-  const outcome = await ingestRoutines(harness.handle, ctx).triggerGeneration({
+  const outcome = await createIngestRoutines(harness.handle, ctx).triggerGeneration({
     pullRequest: {
       repoId: makeRepoId(7n),
       prNumber: 7,
@@ -383,7 +383,7 @@ describe("generate task", () => {
 
     await task(payload);
 
-    const brief = await artifactStore(harness.handle, ctx).briefs.get(
+    const brief = await createArtifactStore(harness.handle, ctx).briefs.get(
       pr.id,
       BASE,
       HEAD_1,
@@ -399,7 +399,7 @@ describe("generate task", () => {
       pr: { state: "open", draft: false, merged: false },
     });
 
-    const row = await generationProjection(harness.handle, ctx).get(
+    const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
     expect(row?.status).toBe(GenerationStatus.SUCCEEDED);
@@ -429,7 +429,7 @@ describe("generate task", () => {
 
     await task(payload);
 
-    const brief = await artifactStore(harness.handle, ctx).briefs.get(
+    const brief = await createArtifactStore(harness.handle, ctx).briefs.get(
       pr.id,
       BASE,
       HEAD_1,
@@ -453,7 +453,7 @@ describe("generate task", () => {
 
     await task(payload);
 
-    const brief = await artifactStore(harness.handle, ctx).briefs.get(
+    const brief = await createArtifactStore(harness.handle, ctx).briefs.get(
       pr.id,
       BASE,
       HEAD_1,
@@ -484,7 +484,7 @@ describe("generate task", () => {
       `${PUBLIC_URL}/repos/7/pulls/7?base=${BASE}&head=${HEAD_1}`,
     );
 
-    const row = await forTenant(harness.handle, ctx).pullRequests.getById(
+    const row = await createTenantRepository(harness.handle, ctx).pullRequests.getById(
       pr.id,
     );
     expect(row?.entryCommentId).toBe(commentId);
@@ -528,7 +528,7 @@ describe("generate task", () => {
     const [readyId, readyBody] = [...github.comments.entries()][0] ?? [];
     expect(readyBody).toContain("Read the brief");
     expect(readyBody).not.toContain("generating");
-    const row = await forTenant(harness.handle, ctx).pullRequests.getById(
+    const row = await createTenantRepository(harness.handle, ctx).pullRequests.getById(
       pr.id,
     );
     expect(row?.entryCommentId).toBe(readyId);
@@ -693,7 +693,7 @@ describe("generate task", () => {
     expect(body).toContain(`head=${HEAD_2}`);
     expect(github.commentCalls).toContain(`delete:${firstId}`);
 
-    const row = await forTenant(harness.handle, ctx).pullRequests.getById(
+    const row = await createTenantRepository(harness.handle, ctx).pullRequests.getById(
       second.pr.id,
     );
     expect(row?.entryCommentId).toBe(secondId);
@@ -737,12 +737,12 @@ describe("generate task", () => {
 
     await task(payload);
 
-    const row = await generationProjection(harness.handle, ctx).get(
+    const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
     expect(row?.status).toBe(GenerationStatus.SUCCEEDED);
     expect(
-      (await forTenant(harness.handle, ctx).pullRequests.getById(pr.id))
+      (await createTenantRepository(harness.handle, ctx).pullRequests.getById(pr.id))
         ?.entryCommentId,
     ).toBeNull();
     expect(
@@ -818,12 +818,12 @@ describe("generate task", () => {
 
     // The old comment survives alone; no second comment was posted past it.
     expect([...github.comments.keys()]).toEqual([firstId]);
-    const row = await forTenant(harness.handle, ctx).pullRequests.getById(
+    const row = await createTenantRepository(harness.handle, ctx).pullRequests.getById(
       second.pr.id,
     );
     expect(row?.entryCommentId).toBe(firstId);
     // The job itself still succeeded.
-    const projection = await generationProjection(harness.handle, ctx).get(
+    const projection = await createGenerationProjection(harness.handle, ctx).get(
       target(second.pr, HEAD_2),
     );
     expect(projection?.status).toBe(GenerationStatus.SUCCEEDED);
@@ -840,7 +840,7 @@ describe("generate task", () => {
       github,
     });
 
-    const projection = generationProjection(harness.handle, ctx);
+    const projection = createGenerationProjection(harness.handle, ctx);
     const before = await projection.get(target(pr, HEAD_1));
 
     await task(payload);
@@ -853,7 +853,7 @@ describe("generate task", () => {
 
   it("marks superseded for a PR that went terminal after enqueue", async () => {
     const { pr, payload } = await trigger(HEAD_1);
-    const setState = await forTenant(harness.handle, ctx).pullRequests.setState(
+    const setState = await createTenantRepository(harness.handle, ctx).pullRequests.setState(
       pr.id,
       {
         state: PrState.CLOSED,
@@ -872,7 +872,7 @@ describe("generate task", () => {
 
     await task(payload);
 
-    const row = await generationProjection(harness.handle, ctx).get(
+    const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
     expect(row?.status).toBe(GenerationStatus.SUPERSEDED);
@@ -914,7 +914,7 @@ describe("generate task", () => {
     const second = await trigger(HEAD_2);
     await task(second.payload);
 
-    const store = artifactStore(harness.handle, ctx);
+    const store = createArtifactStore(harness.handle, ctx);
     const brief2 = await store.briefs.get(second.pr.id, BASE, HEAD_2);
     expect(brief2?.headIndex).toBe(2);
 
@@ -969,7 +969,7 @@ describe("generate task", () => {
     await task(first.payload);
 
     // Two reviewers sharing one checkpoint SHA → ONE delta core.
-    const repo = forTenant(harness.handle, ctx);
+    const repo = createTenantRepository(harness.handle, ctx);
     for (const reviewer of [100n, 200n]) {
       const written = await repo.checkpoints.upsertOnSubmit({
         pullRequestId: first.pr.id,
@@ -984,7 +984,7 @@ describe("generate task", () => {
     const second = await trigger(HEAD_2);
     await task(second.payload);
 
-    const store = artifactStore(harness.handle, ctx);
+    const store = createArtifactStore(harness.handle, ctx);
     const delta = await store.deltas.get(second.pr.id, HEAD_1, HEAD_2);
     expect(delta).toBeDefined();
     expect(JSON.parse(delta?.body ?? "{}")).toMatchObject({
@@ -1020,7 +1020,7 @@ describe("generate task", () => {
     });
     await task(first.payload);
 
-    const written = await forTenant(
+    const written = await createTenantRepository(
       harness.handle,
       ctx,
     ).checkpoints.upsertOnSubmit({
@@ -1036,7 +1036,7 @@ describe("generate task", () => {
     const second = await trigger(HEAD_2);
     await task(second.payload);
 
-    const store = artifactStore(harness.handle, ctx);
+    const store = createArtifactStore(harness.handle, ctx);
     expect(
       await store.deltas.get(second.pr.id, HEAD_1, HEAD_2),
     ).toBeUndefined();
@@ -1080,7 +1080,7 @@ describe("generate task", () => {
 
     await expect(task(payload)).resolves.toBeUndefined();
 
-    const row = await generationProjection(harness.handle, ctx).get(
+    const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
     expect(row?.status).toBe(GenerationStatus.FAILED);
@@ -1106,7 +1106,7 @@ describe("generate task", () => {
 
     await expect(task(payload)).rejects.toThrow("502");
 
-    const row = await generationProjection(harness.handle, ctx).get(
+    const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
     expect(row?.status).toBe(GenerationStatus.FAILED);
@@ -1153,7 +1153,7 @@ describe("generate task", () => {
       headPollIntervalMs: 5,
     });
 
-    const projection = generationProjection(harness.handle, ctx);
+    const projection = createGenerationProjection(harness.handle, ctx);
     const before = await projection.get(target(pr, HEAD_1));
 
     await expect(task(payload)).resolves.toBeUndefined(); // abort is NOT a job failure
@@ -1163,13 +1163,13 @@ describe("generate task", () => {
     expect(after?.attempts).toBe(before?.attempts);
     expect(after?.errorCode).toBeNull();
     expect(
-      await artifactStore(harness.handle, ctx).briefs.get(pr.id, BASE, HEAD_1),
+      await createArtifactStore(harness.handle, ctx).briefs.get(pr.id, BASE, HEAD_1),
     ).toBeUndefined();
   });
 
   it("supersedes before a delta spend when the head moves between artifact calls", async () => {
     const { pr, payload } = await trigger(HEAD_1);
-    const written = await forTenant(
+    const written = await createTenantRepository(
       harness.handle,
       ctx,
     ).checkpoints.upsertOnSubmit({
@@ -1197,10 +1197,10 @@ describe("generate task", () => {
     // The brief (already generated and written) survives; the delta was
     // never spent; the projection ends superseded.
     expect(
-      await artifactStore(harness.handle, ctx).briefs.get(pr.id, BASE, HEAD_1),
+      await createArtifactStore(harness.handle, ctx).briefs.get(pr.id, BASE, HEAD_1),
     ).toBeDefined();
     expect(generator.calls).toEqual(["brief"]);
-    const row = await generationProjection(harness.handle, ctx).get(
+    const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
     expect(row?.status).toBe(GenerationStatus.SUPERSEDED);
@@ -1221,7 +1221,7 @@ describe("generate task", () => {
     generator.failNextWith = new APIConnectionError({});
     await expect(task(payload)).rejects.toThrow("Connection error");
 
-    const row = await generationProjection(harness.handle, ctx).get(
+    const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
     expect(row?.status).toBe(GenerationStatus.FAILED);
@@ -1266,7 +1266,7 @@ describe("generate task", () => {
       task(payload, { abortSignal: shutdown.signal }),
     ).rejects.toThrow("aborted");
 
-    const row = await generationProjection(harness.handle, ctx).get(
+    const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
     expect(row?.status).toBe(GenerationStatus.RUNNING);
@@ -1298,7 +1298,7 @@ describe("generate task", () => {
     };
     await task(second.payload);
 
-    const store = artifactStore(harness.handle, ctx);
+    const store = createArtifactStore(harness.handle, ctx);
     expect(
       await store.revisionNarratives.get(second.pr.id, HEAD_1, HEAD_2),
     ).toBeUndefined();
@@ -1339,7 +1339,7 @@ describe("generate task", () => {
     });
     await task(second.payload);
 
-    const projection = generationProjection(harness.handle, ctx);
+    const projection = createGenerationProjection(harness.handle, ctx);
     const stale = await projection.get(target(first.pr, HEAD_1));
     expect(stale?.status).toBe(GenerationStatus.SUPERSEDED);
     const current = await projection.get(target(second.pr, HEAD_2));
@@ -1360,14 +1360,14 @@ describe("generate task", () => {
     const overloaded = Object.assign(new Error("Overloaded"), { status: 529 });
     generator.failNextWith = overloaded;
     await expect(task(payload)).rejects.toThrow("Overloaded");
-    let row = await generationProjection(harness.handle, ctx).get(
+    let row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
     expect(row?.status).toBe(GenerationStatus.FAILED);
 
     generator.failNextWith = new Error("Model refused to produce the brief.");
     await expect(task(payload)).resolves.toBeUndefined();
-    row = await generationProjection(harness.handle, ctx).get(
+    row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
     expect(row?.status).toBe(GenerationStatus.FAILED);
@@ -1547,7 +1547,7 @@ describe("generate task — anchored generation", () => {
 
   it("carries frozen groups verbatim and stamps anchored origin", async () => {
     const { pr } = await runTwoRevisions({});
-    const store = artifactStore(harness.handle, ctx);
+    const store = createArtifactStore(harness.handle, ctx);
     const row = await store.briefs.get(pr.id, BASE, HEAD_2);
     expect(row?.anchorState).toBe("anchored");
     expect(row?.anchorReason).toBeNull();
@@ -1573,7 +1573,7 @@ describe("generate task — anchored generation", () => {
 
   it("persists the hop and the carried chunk set alongside the brief", async () => {
     const { pr } = await runTwoRevisions({});
-    const store = artifactStore(harness.handle, ctx);
+    const store = createArtifactStore(harness.handle, ctx);
     const hops = await store.hunkSpans.listForPullRequest(pr.id);
     expect(hops).toHaveLength(1);
     expect(hops[0]?.baselineSha).toBe(HEAD_1);
@@ -1595,7 +1595,7 @@ describe("generate task — anchored generation", () => {
 
   it("accumulates the chain's used group ids on the anchored path", async () => {
     const { pr } = await runTwoRevisions({});
-    const store = artifactStore(harness.handle, ctx);
+    const store = createArtifactStore(harness.handle, ctx);
     const rev1 = await store.briefs.get(pr.id, BASE, HEAD_1);
     expect(JSON.parse(rev1?.usedGroupIds ?? "null")).toEqual(["gA", "gB"]);
     // Rev 2's groups descend back onto gA/gB — the union gains nothing.
@@ -1607,7 +1607,7 @@ describe("generate task — anchored generation", () => {
     // `always` writes the model's raw ids — the chain set must still union
     // them with history, or the next descent could resurrect gA/gB.
     const { pr } = await runTwoRevisions({ fullRegeneration: "always" });
-    const store = artifactStore(harness.handle, ctx);
+    const store = createArtifactStore(harness.handle, ctx);
     const row = await store.briefs.get(pr.id, BASE, HEAD_2);
     expect(JSON.parse(row?.usedGroupIds ?? "null")).toEqual([
       "gA",
@@ -1657,7 +1657,7 @@ describe("generate task — anchored generation", () => {
     const again = await trigger(HEAD_1);
     await task(again.payload);
 
-    const store = artifactStore(harness.handle, ctx);
+    const store = createArtifactStore(harness.handle, ctx);
     const row = await store.briefs.get(again.pr.id, BASE_2, HEAD_1);
     expect(JSON.parse(row?.usedGroupIds ?? "null")).toEqual([
       "gA",
@@ -1706,7 +1706,7 @@ describe("generate task — anchored generation", () => {
     const second = await trigger(HEAD_2);
     await task(second.payload);
 
-    const store = artifactStore(harness.handle, ctx);
+    const store = createArtifactStore(harness.handle, ctx);
     const row = await store.briefs.get(second.pr.id, BASE, HEAD_2);
     expect(JSON.parse(row?.usedGroupIds ?? "null")).toEqual([
       "gA",
@@ -1720,7 +1720,7 @@ describe("generate task — anchored generation", () => {
     const { pr } = await runTwoRevisions({
       rev2FailWith: new APIConnectionError({}),
     });
-    const store = artifactStore(harness.handle, ctx);
+    const store = createArtifactStore(harness.handle, ctx);
     // No brief for the failed head, but the hop is durable: the next session
     // can still place its anchors across the push.
     expect(await store.briefs.get(pr.id, BASE, HEAD_2)).toBeUndefined();
@@ -1729,7 +1729,7 @@ describe("generate task — anchored generation", () => {
 
   it("writes an empty carried set when nothing anchors", async () => {
     const { pr } = await runTwoRevisions({ fullRegeneration: "always" });
-    const store = artifactStore(harness.handle, ctx);
+    const store = createArtifactStore(harness.handle, ctx);
     const row = await store.briefs.get(pr.id, BASE, HEAD_2);
     expect(row?.anchorState).toBe("none");
     expect(row?.carriedChunkIds).toBe("[]");
@@ -1738,7 +1738,7 @@ describe("generate task — anchored generation", () => {
 
   it("`always` bypasses anchoring entirely — fresh output, ids untouched, stamp none", async () => {
     const { pr } = await runTwoRevisions({ fullRegeneration: "always" });
-    const store = artifactStore(harness.handle, ctx);
+    const store = createArtifactStore(harness.handle, ctx);
     const row = await store.briefs.get(pr.id, BASE, HEAD_2);
     expect(row?.anchorState).toBe("none");
     const body = JSON.parse(row?.body ?? "{}") as {
@@ -1756,7 +1756,7 @@ describe("generate task — anchored generation", () => {
       fullRegeneration: "on-model-swap",
       rev2Model: "stub-model-2",
     });
-    const store = artifactStore(harness.handle, ctx);
+    const store = createArtifactStore(harness.handle, ctx);
     const row = await store.briefs.get(pr.id, BASE, HEAD_2);
     expect(row?.anchorState).toBe("fresh-restart");
     expect(row?.anchorReason).toBe("model-swap");
@@ -1773,7 +1773,7 @@ describe("generate task — anchored generation", () => {
 
   it("`on-model-swap` with an unchanged model anchors normally", async () => {
     const { pr } = await runTwoRevisions({ fullRegeneration: "on-model-swap" });
-    const row = await artifactStore(harness.handle, ctx).briefs.get(
+    const row = await createArtifactStore(harness.handle, ctx).briefs.get(
       pr.id,
       BASE,
       HEAD_2,
@@ -1784,7 +1784,7 @@ describe("generate task — anchored generation", () => {
   it("a base-SHA move (rebase) re-looks everything but ids still descend", async () => {
     const BASE_2 = "d".repeat(40);
     const { pr } = await runTwoRevisions({ rev2BaseSha: BASE_2 });
-    const store = artifactStore(harness.handle, ctx);
+    const store = createArtifactStore(harness.handle, ctx);
     const row = await store.briefs.get(pr.id, BASE_2, HEAD_2);
     expect(row?.anchorState).toBe("anchored");
     const body = JSON.parse(row?.body ?? "{}") as {
@@ -1823,7 +1823,7 @@ describe("generate task — anchored generation", () => {
         status: "diverged",
       },
     });
-    const row = await artifactStore(harness.handle, ctx).briefs.get(
+    const row = await createArtifactStore(harness.handle, ctx).briefs.get(
       pr.id,
       BASE,
       HEAD_2,
@@ -1872,14 +1872,14 @@ describe("generate task — anchored generation", () => {
       concernView: [{ concern: "implementation", added: 4, deleted: 0 }],
     };
     const { pr } = await runTwoRevisions({ rev2Output });
-    const row = await generationProjection(harness.handle, ctx).get(
+    const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_2),
     );
     expect(row?.status).toBe(GenerationStatus.FAILED);
     expect(row?.errorCode).toBe("unknown");
     expect(row?.errorParams?.detail).toContain("coverage");
     // No brief row was written for the failed span.
-    const brief = await artifactStore(harness.handle, ctx).briefs.get(
+    const brief = await createArtifactStore(harness.handle, ctx).briefs.get(
       pr.id,
       BASE,
       HEAD_2,
@@ -1937,7 +1937,7 @@ deEmphasize:
   };
 
   async function storedRepoConfig(pr: PullRequestRow, headSha: string) {
-    const brief = await artifactStore(harness.handle, ctx).briefs.get(
+    const brief = await createArtifactStore(harness.handle, ctx).briefs.get(
       pr.id,
       BASE,
       headSha,
@@ -2065,7 +2065,7 @@ deEmphasize:
     expect(byPath.get(RepoConfigPaths.SETTINGS)?.blobSha).toBe("sha-bad");
     expect(byPath.get(RepoConfigPaths.INSTRUCTIONS)?.outcome).toBe("applied");
     // Job still succeeds — repo-config problems never fail a generation.
-    const row = await generationProjection(harness.handle, ctx).get(
+    const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
     expect(row?.status).toBe(GenerationStatus.SUCCEEDED);
@@ -2097,7 +2097,7 @@ deEmphasize:
     const byPath = new Map(artifact.files.map((f) => [f.path, f]));
     expect(byPath.get(RepoConfigPaths.POLICY)?.outcome).toBe("fetch-failed");
     expect(byPath.get(RepoConfigPaths.SETTINGS)?.outcome).toBe("applied");
-    const row = await generationProjection(harness.handle, ctx).get(
+    const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
     expect(row?.status).toBe(GenerationStatus.SUCCEEDED);
@@ -2190,7 +2190,7 @@ describe("generate task — repo-config origin on the generation record", () => 
 
     await task(payload);
 
-    const row = await generationProjection(harness.handle, ctx).get(
+    const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
     expect(row?.status).toBe(GenerationStatus.FAILED);
@@ -2202,7 +2202,7 @@ describe("generate task — repo-config origin on the generation record", () => 
     expect(byPath.get(RepoConfigPaths.INSTRUCTIONS)?.outcome).toBe("absent");
     // No brief artifact exists — the generation record is the only witness.
     expect(
-      await artifactStore(harness.handle, ctx).briefs.get(pr.id, BASE, HEAD_1),
+      await createArtifactStore(harness.handle, ctx).briefs.get(pr.id, BASE, HEAD_1),
     ).toBeUndefined();
   });
 
@@ -2219,7 +2219,7 @@ describe("generate task — repo-config origin on the generation record", () => 
 
     await task(payload);
 
-    const row = await generationProjection(harness.handle, ctx).get(
+    const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
     const origin = repoConfigOriginSchema.parse(
@@ -2253,13 +2253,13 @@ describe("generate task — entry-comment draft gate", () => {
 
     expect(github.commentCalls).toEqual([]);
     expect(github.comments.size).toBe(0);
-    const brief = await artifactStore(harness.handle, ctx).briefs.get(
+    const brief = await createArtifactStore(harness.handle, ctx).briefs.get(
       pr.id,
       BASE,
       HEAD_1,
     );
     expect(brief).toBeDefined();
-    const row = await generationProjection(harness.handle, ctx).get(
+    const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
     expect(row?.status).toBe(GenerationStatus.SUCCEEDED);
@@ -2369,9 +2369,9 @@ describe("generate task — entry-comment draft gate", () => {
     await task(payload);
 
     expect(github.comments.size).toBe(0);
-    const row = await generationProjection(harness.handle, ctx).get(
+    const row = await createGenerationProjection(harness.handle, ctx).get(
       target(
-        (await forTenant(harness.handle, ctx).pullRequests.getByNumber(
+        (await createTenantRepository(harness.handle, ctx).pullRequests.getByNumber(
           makeRepoId(7n),
           7,
         ))!,
@@ -2401,7 +2401,7 @@ describe("generate task — entry-comment draft gate", () => {
     await task(second.payload);
 
     expect(github.comments.size).toBe(0);
-    const brief2 = await artifactStore(harness.handle, ctx).briefs.get(
+    const brief2 = await createArtifactStore(harness.handle, ctx).briefs.get(
       second.pr.id,
       BASE,
       HEAD_2,
@@ -2690,7 +2690,7 @@ describe("generate task — daily generation cap", () => {
     await task(payload);
 
     expect(generator.calls).toEqual(["brief"]);
-    const row = await generationProjection(harness.handle, ctx).get(
+    const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
     expect(row?.status).toBe(GenerationStatus.SUCCEEDED);
@@ -2709,7 +2709,7 @@ describe("generate task — daily generation cap", () => {
 
     expect(generator.calls).toEqual(["brief"]);
     expect(
-      (await generationProjection(harness.handle, ctx).get(target(pr, HEAD_1)))
+      (await createGenerationProjection(harness.handle, ctx).get(target(pr, HEAD_1)))
         ?.status,
     ).toBe(GenerationStatus.SUCCEEDED);
   });
@@ -2734,10 +2734,10 @@ describe("generate task — daily generation cap", () => {
     // No provider call, and no brief for the capped head.
     expect(generator.calls).toEqual([]);
     expect(
-      await artifactStore(harness.handle, ctx).briefs.get(pr.id, BASE, HEAD_2),
+      await createArtifactStore(harness.handle, ctx).briefs.get(pr.id, BASE, HEAD_2),
     ).toBeUndefined();
 
-    const row = await generationProjection(harness.handle, ctx).get(
+    const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_2),
     );
     expect(row?.status).toBe(GenerationStatus.CAPPED);
@@ -2761,7 +2761,7 @@ describe("generate task — daily generation cap", () => {
     await burnOneRun();
     const { pr, payload } = await trigger(HEAD_2);
     const github = stubGitHub(HEAD_2);
-    const prRow = await forTenant(harness.handle, ctx).pullRequests.getById(
+    const prRow = await createTenantRepository(harness.handle, ctx).pullRequests.getById(
       pr.id,
     );
     // Re-seed the live comment the first run posted into this run's stub.
@@ -2791,7 +2791,7 @@ describe("generate task — daily generation cap", () => {
     const { pr, payload } = await trigger(HEAD_2);
     const github = stubGitHub(HEAD_2);
     // Clear the tracked comment: this PR has none on the thread.
-    await forTenant(harness.handle, ctx).pullRequests.setEntryComment(
+    await createTenantRepository(harness.handle, ctx).pullRequests.setEntryComment(
       pr.id,
       null,
     );
@@ -2829,7 +2829,7 @@ describe("generate task — daily generation cap", () => {
 
     expect(generator.calls).toEqual([]);
     expect(
-      (await generationProjection(harness.handle, ctx).get(target(pr, HEAD_2)))
+      (await createGenerationProjection(harness.handle, ctx).get(target(pr, HEAD_2)))
         ?.status,
     ).toBe(GenerationStatus.CAPPED);
   });
@@ -2849,7 +2849,7 @@ describe("generate task — daily generation cap", () => {
         github: stubGitHub(HEAD_2),
       })(payload),
     ).rejects.toThrow("Connection error");
-    const failed = await generationProjection(harness.handle, ctx).get(
+    const failed = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_2),
     );
     expect(failed?.status).toBe(GenerationStatus.FAILED);
@@ -2866,7 +2866,7 @@ describe("generate task — daily generation cap", () => {
     })(payload);
 
     expect(generator.calls).toEqual([]);
-    const afterRetry = await generationProjection(harness.handle, ctx).get(
+    const afterRetry = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_2),
     );
     expect(afterRetry?.status).toBe(GenerationStatus.FAILED);
@@ -2888,7 +2888,7 @@ describe("generate task — daily generation cap", () => {
 
     expect(generator.calls).toContain("brief");
     expect(
-      (await generationProjection(harness.handle, ctx).get(target(pr, HEAD_2)))
+      (await createGenerationProjection(harness.handle, ctx).get(target(pr, HEAD_2)))
         ?.status,
     ).toBe(GenerationStatus.SUCCEEDED);
   });
@@ -2906,7 +2906,7 @@ describe("generate task — daily generation cap", () => {
 
     expect(generator.calls).toContain("brief");
     expect(
-      (await generationProjection(harness.handle, ctx).get(target(pr, HEAD_2)))
+      (await createGenerationProjection(harness.handle, ctx).get(target(pr, HEAD_2)))
         ?.status,
     ).toBe(GenerationStatus.SUCCEEDED);
   });

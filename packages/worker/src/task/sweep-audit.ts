@@ -3,7 +3,7 @@
 //
 // The sweep is INSTANCE-WIDE, not ctx-bound: retention is an env setting owned
 // by whoever operates the instance, so there is no tenant to bind to — the one
-// deletion in `persistence` that takes a bare handle rather than `forTenant`.
+// deletion in `persistence` that takes a bare handle rather than `createTenantRepository`.
 //
 // Unset retention keeps everything: the task still runs (and does nothing), so
 // an upgrade never starts erasing an adopter's history on its own.

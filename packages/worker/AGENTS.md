@@ -1,7 +1,7 @@
 # packages/worker — agent notes
 
 The long-lived background worker. Drains graphile-worker's `generate` jobs —
-the ones `persistence`'s `ingestRoutines` enqueues — and produces the PR's
+the ones `persistence`'s `createIngestRoutines` enqueues — and produces the PR's
 artifacts: shared Brief, comparison marks, carry-over hunk spans, revision
 narrative, and pre-warmed delta cores (one per distinct checkpoint SHA,
 huge-span skip honored). The generation engine is `brief-core`, reused as-is
@@ -45,7 +45,7 @@ test/                 generate.test.ts + sweep-audit.test.ts = integration
   (ingest serializer, `src/task/payload.ts` parser) plus their tests move in
   lockstep; the compile-time pin in `payload.ts` breaks the build on drift.
 - **Tenancy:** everything goes through persistence's ctx-bound interfaces
-  (`forTenant`, `artifactStore`, `generationProjection`); the installation id
+  (`createTenantRepository`, `createArtifactStore`, `createGenerationProjection`); the installation id
   enters ONLY via the validated payload — never a spoofable source.
 - **Abort is not a failure**: supersession → terminal
   `superseded`, `attempts` untouched, NO graphile retry, no salvage/dump.
@@ -107,7 +107,7 @@ test/                 generate.test.ts + sweep-audit.test.ts = integration
 
 Mirrors the sibling packages (see root `CLAUDE.md` + `persistence/AGENTS.md`):
 no `enum`, strict TS, no bare `as`, Zod at boundaries, named exports,
-extensionless relative imports, verb-first actions / noun factories.
+extensionless relative imports, verb-first function names.
 
 ## Tests
 
@@ -118,7 +118,7 @@ harness, seeding aged rows through its raw window.
 harness (real migrations + the graphile_worker stub), a stub `Generator`
 (canned outputs parsed through the request's own schema — no model calls),
 and an in-memory GitHub port (no network). The first test drives the real
-`ingestRoutines` enqueue and feeds the task the payload read back from the
+`createIngestRoutines` enqueue and feeds the task the payload read back from the
 stubbed jobs table — the contract test for the handshake.
 
 ## Verification

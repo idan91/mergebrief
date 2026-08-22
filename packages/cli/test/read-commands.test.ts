@@ -9,16 +9,16 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createApp, type AuthDeps } from "api";
 import {
-  artifactStore,
+  createArtifactStore,
   encryptToken,
-  envKeyProvider,
-  forTenant,
-  grantAuth,
+  createEnvKeyProvider,
+  createTenantRepository,
+  createGrantAuth,
   isInstallationId,
   isRepoId,
   isReviewerId,
   PrState,
-  tokenAuth,
+  createTokenAuth,
   WriteClassification,
   type AppDatabase,
   type KeyProvider,
@@ -160,7 +160,7 @@ describe("read commands over the real api app", () => {
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
-    kp = envKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
+    kp = createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
     const auth: AuthDeps = {
       oauthClientId: "Iv1.test-client-id",
       oauthClientSecret: "test-client-secret",
@@ -204,13 +204,13 @@ describe("read commands over the real api app", () => {
     const sealedRefresh = await encryptToken(kp, KEY_REF, "ghr_REFRESH");
     if (!sealedAccess.ok || !sealedRefresh.ok)
       throw new Error("seed encrypt failed");
-    const grant = await grantAuth(harness.handle).createGrant({
+    const grant = await createGrantAuth(harness.handle).createGrant({
       ghTokenCiphertext: sealedAccess.value,
       ghRefreshTokenCiphertext: sealedRefresh.value,
       keyRef: KEY_REF,
       refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
     });
-    await tokenAuth(harness.handle).mintToken({
+    await createTokenAuth(harness.handle).mintToken({
       scope: WriteClassification.EXTERNAL_WRITE,
       installationId: CTX.installationId,
       userId: REVIEWER,
@@ -224,7 +224,7 @@ describe("read commands over the real api app", () => {
 
   /** PR row + brief artifact + generation projection (briefAvailable=true). */
   async function seedBriefedPr(handle: AppDatabase): Promise<void> {
-    const pr = await forTenant(handle, CTX).pullRequests.upsert({
+    const pr = await createTenantRepository(handle, CTX).pullRequests.upsert({
       repoId: brand(isRepoId, REPO_A),
       prNumber: 7,
       repoSlug: "octo/hello",
@@ -232,7 +232,7 @@ describe("read commands over the real api app", () => {
       baseSha: BASE_SHA,
       state: PrState.OPEN,
     });
-    const write = await artifactStore(handle, CTX).briefs.write({
+    const write = await createArtifactStore(handle, CTX).briefs.write({
       pullRequestId: pr.id,
       baseSha: BASE_SHA,
       headSha: HEAD_SHA,
@@ -330,7 +330,7 @@ describe("read commands over the real api app", () => {
   });
 
   it("groups exits 4 with an honest line while the brief is not generated", async () => {
-    await forTenant(harness.handle, CTX).pullRequests.upsert({
+    await createTenantRepository(harness.handle, CTX).pullRequests.upsert({
       repoId: brand(isRepoId, REPO_A),
       prNumber: 7,
       repoSlug: "octo/hello",
@@ -400,12 +400,12 @@ describe("read commands over the real api app", () => {
   it("delta with explicit --baseline/--head wraps the artifact verbatim; unmodeled 404 exits 4", async () => {
     await seedBriefedPr(harness.handle);
     const deltaBody = '{"artifactKind":"delta","changedGroups":[]}';
-    const prRow = await forTenant(harness.handle, CTX).pullRequests.getByNumber(
+    const prRow = await createTenantRepository(harness.handle, CTX).pullRequests.getByNumber(
       brand(isRepoId, REPO_A),
       7,
     );
     if (prRow === undefined) throw new Error("seed missing");
-    const write = await artifactStore(harness.handle, CTX).deltas.write({
+    const write = await createArtifactStore(harness.handle, CTX).deltas.write({
       pullRequestId: prRow.id,
       baselineSha: BASE_SHA,
       headSha: HEAD_SHA,

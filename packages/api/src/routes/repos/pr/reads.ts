@@ -23,10 +23,10 @@ import {
   GitHubApiErrorCode,
 } from "github";
 import {
-  artifactStore,
+  createArtifactStore,
   decryptToken,
-  forTenant,
-  generationProjection,
+  createTenantRepository,
+  createGenerationProjection,
   GenerationKind,
   GenerationStatus,
   type BriefSpanRow,
@@ -136,7 +136,7 @@ export function readsRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
     if (!parsed.success) {
       return { ok: false, status: 400 };
     }
-    const pr = await forTenant(deps.handle, ctx).pullRequests.getByNumber(
+    const pr = await createTenantRepository(deps.handle, ctx).pullRequests.getByNumber(
       repoId,
       parsed.data,
     );
@@ -172,11 +172,11 @@ export function readsRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
             : ApiErrorCode.NOT_FOUND,
         );
       }
-      const store = artifactStore(deps.handle, ctx);
+      const store = createArtifactStore(deps.handle, ctx);
       const ids = [resolved.pr.id];
       const [latestBriefs, latestGenerations] = await Promise.all([
         store.briefs.latestForPullRequests(ids),
-        generationProjection(deps.handle, ctx).latestBriefForPullRequests(ids),
+        createGenerationProjection(deps.handle, ctx).latestBriefForPullRequests(ids),
       ]);
       const view = buildPrView(
         resolved.pr,
@@ -214,11 +214,11 @@ export function readsRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
           store.comparisonMarks.listForPullRequest(pullRequestId),
           store.deltas.listForPullRequest(pullRequestId),
           store.revisionNarratives.listForPullRequest(pullRequestId),
-          forTenant(deps.handle, ctx).checkpoints.get(
+          createTenantRepository(deps.handle, ctx).checkpoints.get(
             pullRequestId,
             c.get("session").reviewerId,
           ),
-          generationProjection(deps.handle, ctx).listBriefsForPullRequest(
+          createGenerationProjection(deps.handle, ctx).listBriefsForPullRequest(
             pullRequestId,
           ),
         ]);
@@ -323,7 +323,7 @@ export function readsRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
             : ApiErrorCode.NOT_FOUND,
         );
       }
-      const row = await artifactStore(deps.handle, c.get("ctx")).briefs.get(
+      const row = await createArtifactStore(deps.handle, c.get("ctx")).briefs.get(
         resolved.pr.id,
         query.data.base,
         query.data.head,
@@ -367,7 +367,7 @@ export function readsRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
             : ApiErrorCode.NOT_FOUND,
         );
       }
-      const repoConfig = await artifactStore(
+      const repoConfig = await createArtifactStore(
         deps.handle,
         c.get("ctx"),
       ).briefs.getRepoConfig(resolved.pr.id, query.data.base, query.data.head);
@@ -408,7 +408,7 @@ export function readsRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
             : ApiErrorCode.NOT_FOUND,
         );
       }
-      const row = await artifactStore(
+      const row = await createArtifactStore(
         deps.handle,
         c.get("ctx"),
       ).comparisonMarks.get(
@@ -453,7 +453,7 @@ export function readsRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
             : ApiErrorCode.NOT_FOUND,
         );
       }
-      const row = await artifactStore(deps.handle, c.get("ctx")).deltas.get(
+      const row = await createArtifactStore(deps.handle, c.get("ctx")).deltas.get(
         resolved.pr.id,
         query.data.baseline,
         query.data.head,
@@ -493,7 +493,7 @@ export function readsRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
             : ApiErrorCode.NOT_FOUND,
         );
       }
-      const row = await artifactStore(
+      const row = await createArtifactStore(
         deps.handle,
         c.get("ctx"),
       ).revisionNarratives.get(
@@ -777,7 +777,7 @@ function makeLatestPendingProbe(
       if (briefGenPending) {
         return true;
       }
-      const deltaGeneration = await generationProjection(deps.handle, ctx).get({
+      const deltaGeneration = await createGenerationProjection(deps.handle, ctx).get({
         pullRequestId,
         kind: GenerationKind.DELTA,
         headSha,

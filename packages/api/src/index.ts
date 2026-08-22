@@ -19,8 +19,8 @@ export type { InstallationGitHubPort } from "./routes/github-port";
 // The serialized token-refresh orchestrator: called by the authz middleware
 // on a GitHub 401.
 export {
-  principalFromApiToken,
-  principalFromSession,
+  derivePrincipalFromApiToken,
+  derivePrincipalFromSession,
   refreshSessionToken,
   RefreshErrorCode,
 } from "./routes/auth/session";

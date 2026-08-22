@@ -14,7 +14,7 @@
 // never sees this module (dev-only subpath, PGlite is a devDependency).
 import { drizzle } from "drizzle-orm/pglite";
 import { type AppDatabase, fromDrizzle } from "./db/handle";
-import { migratedPglite } from "./pglite-snapshot";
+import { createMigratedPglite } from "./pglite-snapshot";
 import * as schema from "./schema/index";
 
 // For consumers' vitest `globalSetup`: builds the migrated snapshot once,
@@ -48,7 +48,7 @@ $$;
 `;
 
 export interface PgliteHarness {
-  /** Opaque handle — feed it to `forTenant`/`ingestRoutines`/`purgeRoutines`. */
+  /** Opaque handle — feed it to `createTenantRepository`/`createIngestRoutines`/`createPurgeRoutines`. */
   readonly handle: AppDatabase;
   /** Unscoped raw query FOR TEST ASSERTIONS ONLY; returns the result rows. */
   raw(query: string, params?: unknown[]): Promise<Record<string, unknown>[]>;
@@ -62,7 +62,7 @@ export interface PgliteHarness {
 export async function createPgliteHarness(): Promise<PgliteHarness> {
   // Applied per instance rather than baked into the snapshot (~0ms next to the
   // ~120ms restore), keeping the snapshot the migrated app schema alone.
-  const client = await migratedPglite();
+  const client = await createMigratedPglite();
   await client.exec(GRAPHILE_WORKER_STUB_SQL);
   return {
     handle: fromDrizzle(drizzle(client, { schema })),

@@ -8,8 +8,8 @@ import { describe, expect, it } from "vitest";
 import { fromDrizzle, type AppDatabase } from "../src/db/handle";
 import * as schema from "../src/schema/index";
 import {
-  forTenant,
-  generationProjection,
+  createTenantRepository,
+  createGenerationProjection,
   type TenantContext,
 } from "../src/index";
 import {
@@ -52,14 +52,14 @@ async function harness(): Promise<
 > {
   const client = await freshPglite();
   const handle = fromDrizzle(drizzle(client, { schema }));
-  const repo = forTenant(handle, CTX);
+  const repo = createTenantRepository(handle, CTX);
   const pr = await repo.pullRequests.upsert({
     repoId: REPO,
     prNumber: 7,
     state: PrState.OPEN,
     repoSlug: SLUG,
   });
-  const projection = generationProjection(handle, CTX);
+  const projection = createGenerationProjection(handle, CTX);
   return {
     handle,
     pullRequestId: pr.id,
@@ -127,7 +127,7 @@ describe("countStartedRunsForRepo", () => {
       createdAt: inside,
     });
 
-    const count = await generationProjection(
+    const count = await createGenerationProjection(
       handle,
       CTX,
     ).countStartedRunsForRepo({
@@ -159,7 +159,7 @@ describe("countStartedRunsForRepo", () => {
       createdAt: inside,
     });
 
-    const count = await generationProjection(
+    const count = await createGenerationProjection(
       handle,
       CTX,
     ).countStartedRunsForRepo({
@@ -188,7 +188,7 @@ describe("countStartedRunsForRepo", () => {
       attempts: 9,
     });
 
-    const count = await generationProjection(
+    const count = await createGenerationProjection(
       handle,
       CTX,
     ).countStartedRunsForRepo({
@@ -226,7 +226,7 @@ describe("countStartedRunsForRepo", () => {
       createdAt: new Date("2026-08-02T23:59:59.999Z"),
     });
 
-    const count = await generationProjection(
+    const count = await createGenerationProjection(
       handle,
       CTX,
     ).countStartedRunsForRepo({
@@ -248,7 +248,7 @@ describe("countStartedRunsForRepo", () => {
     });
 
     // Same tenant, a different repo.
-    const sibling = await forTenant(handle, CTX).pullRequests.upsert({
+    const sibling = await createTenantRepository(handle, CTX).pullRequests.upsert({
       repoId: OTHER_REPO,
       prNumber: 9,
       state: PrState.OPEN,
@@ -263,13 +263,13 @@ describe("countStartedRunsForRepo", () => {
 
     // Another tenant that sees the SAME repo (same numeric id).
     const otherCtx: TenantContext = { installationId: OTHER_TENANT };
-    const foreignPr = await forTenant(handle, otherCtx).pullRequests.upsert({
+    const foreignPr = await createTenantRepository(handle, otherCtx).pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
       state: PrState.OPEN,
       repoSlug: SLUG,
     });
-    const foreign = generationProjection(handle, otherCtx);
+    const foreign = createGenerationProjection(handle, otherCtx);
     const foreignTarget = {
       pullRequestId: foreignPr.id,
       kind: GenerationKind.BRIEF,
@@ -280,7 +280,7 @@ describe("countStartedRunsForRepo", () => {
     if (!queued.ok) throw new Error(queued.error.message);
     await foreign.markSucceeded(foreignTarget);
 
-    const count = await generationProjection(
+    const count = await createGenerationProjection(
       handle,
       CTX,
     ).countStartedRunsForRepo({
@@ -295,7 +295,7 @@ describe("countStartedRunsForRepo", () => {
 describe("markCapped", () => {
   it("is terminal, consumes no attempt, and carries no error", async () => {
     const { handle, pullRequestId } = await harness();
-    const projection = generationProjection(handle, CTX);
+    const projection = createGenerationProjection(handle, CTX);
     const target = {
       pullRequestId,
       kind: GenerationKind.BRIEF,

@@ -10,16 +10,16 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createApp, type AuthDeps } from "api";
 import {
-  artifactStore,
+  createArtifactStore,
   encryptToken,
-  envKeyProvider,
-  forTenant,
-  grantAuth,
+  createEnvKeyProvider,
+  createTenantRepository,
+  createGrantAuth,
   isInstallationId,
   isRepoId,
   isReviewerId,
   PrState,
-  tokenAuth,
+  createTokenAuth,
   WriteClassification,
   type AppDatabase,
   type KeyProvider,
@@ -109,7 +109,7 @@ describe("session read commands over the real api app", () => {
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
-    kp = envKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
+    kp = createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
     const auth: AuthDeps = {
       oauthClientId: "Iv1.test-client-id",
       oauthClientSecret: "test-client-secret",
@@ -152,13 +152,13 @@ describe("session read commands over the real api app", () => {
     const sealedRefresh = await encryptToken(kp, KEY_REF, "ghr_REFRESH");
     if (!sealedAccess.ok || !sealedRefresh.ok)
       throw new Error("seed encrypt failed");
-    const grant = await grantAuth(harness.handle).createGrant({
+    const grant = await createGrantAuth(harness.handle).createGrant({
       ghTokenCiphertext: sealedAccess.value,
       ghRefreshTokenCiphertext: sealedRefresh.value,
       keyRef: KEY_REF,
       refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
     });
-    await tokenAuth(harness.handle).mintToken({
+    await createTokenAuth(harness.handle).mintToken({
       scope: WriteClassification.EXTERNAL_WRITE,
       installationId: CTX.installationId,
       userId: REVIEWER,
@@ -176,7 +176,7 @@ describe("session read commands over the real api app", () => {
    * artifacts the flat reads serve.
    */
   async function seedSessionedPr(handle: AppDatabase): Promise<void> {
-    const repo = forTenant(handle, CTX);
+    const repo = createTenantRepository(handle, CTX);
     const pr = await repo.pullRequests.upsert({
       repoId: brand(isRepoId, REPO_A),
       prNumber: 7,
@@ -185,7 +185,7 @@ describe("session read commands over the real api app", () => {
       baseSha: BASE_SHA,
       state: PrState.OPEN,
     });
-    const store = artifactStore(handle, CTX);
+    const store = createArtifactStore(handle, CTX);
     const brief = await store.briefs.write({
       pullRequestId: pr.id,
       baseSha: BASE_SHA,

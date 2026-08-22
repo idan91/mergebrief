@@ -1,6 +1,6 @@
 // The `ArtifactStore` interface: the typed write/read surface for the six
 // immutable artifact families — `brief`, `delta`, `diff_snapshot`,
-// `revision_narrative`, `comparison_marks`, `hunk_span`. Like `forTenant` it is bound to one
+// `revision_narrative`, `comparison_marks`, `hunk_span`. Like `createTenantRepository` it is bound to one
 // tenant `ctx` and is the ONLY way this package writes those tables. It unwraps
 // the opaque `AppDatabase` with the in-package `internal()` (never
 // re-exported), so consumers still cannot reach a raw query handle.
@@ -442,10 +442,10 @@ type Tx = Parameters<Parameters<AppDrizzle["transaction"]>[0]>[0];
 
 /**
  * Build a tenant-scoped `ArtifactStore` over the opaque `AppDatabase`.
- * Constructed alongside `forTenant`; same containment rules — `ctx` is the one
+ * Constructed alongside `createTenantRepository`; same containment rules — `ctx` is the one
  * place an `installation_id` enters.
  */
-export function artifactStore(
+export function createArtifactStore(
   handle: AppDatabase,
   ctx: TenantContext,
 ): ArtifactStore {

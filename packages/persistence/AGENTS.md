@@ -24,7 +24,7 @@ src/
     migrate.ts          programmatic app-schema migration
   schema/             drizzle table definitions (one file per table)
   stores/             ctx-bound + projection data access
-    tenant.ts           forTenant — THE tenant-scoped repository
+    tenant.ts           createTenantRepository — THE tenant-scoped repository
     artifact-store.ts   the six artifact families
     generation.ts       generation status projection
     ingest.ts           transactional webhook→upsert→enqueue boundary
@@ -43,7 +43,7 @@ drizzle/              generated SQL migrations — append-only
 
 ## Invariants (enforced, don't weaken)
 
-- **Tenancy:** `forTenant(db, ctx)` is the only DB surface. The raw drizzle handle is
+- **Tenancy:** `createTenantRepository(db, ctx)` is the only DB surface. The raw drizzle handle is
   hidden behind the opaque `AppDatabase` (module-private symbol in `src/db/handle.ts`); `internal()`
   is the in-package unwrap and must never be re-exported from `index.ts`. Every read filters
   and every write stamps `installation_id` from ctx; per-PR child writes verify the parent
@@ -120,10 +120,11 @@ drizzle/              generated SQL migrations — append-only
   failing the view — so a half-done addition degrades quietly instead of
   breaking loudly. `markFailed` sanitizes any `detail` param itself; callers
   cannot bypass it.
-- **Naming grammar:** verb-first for anything that acts or has effects (`loadConfig`,
-  `encryptToken`, `resolveKey`); noun factories for pure returns-a-thing constructors in
-  builder/DSL position (`tenantColumns()`, `artifactStore()`, `purgeRoutines()`,
-  `envKeyProvider()`), matching Drizzle's own `bigint()`/`text()` register.
+- **Naming grammar:** verb-first for every function, constructors included — the verb
+  names what comes back (`loadConfig`, `encryptToken`, `resolveKey`,
+  `createArtifactStore`, `createPurgeRoutines`, `createEnvKeyProvider`). One scoped
+  exception: Drizzle column-DSL helpers (`tenantColumns()`) stay noun-named, matching
+  Drizzle's own `bigint()`/`text()` register.
 - Strict TS everywhere: no `any`, no bare `as` (branded ids are constructed via type
   guards), interfaces for shapes, named exports, Zod at boundaries.
 - **Extensionless relative imports** (`from "./tenant"`, never `"./tenant.js"`) — this

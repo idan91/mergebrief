@@ -8,11 +8,11 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   encryptToken,
-  envKeyProvider,
-  grantAuth,
+  createEnvKeyProvider,
+  createGrantAuth,
   isInstallationId,
   isReviewerId,
-  tokenAuth,
+  createTokenAuth,
   WriteClassification,
   type KeyProvider,
   type TenantContext,
@@ -59,7 +59,7 @@ describe("GET /api/capabilities", () => {
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
-    kp = envKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
+    kp = createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
     const auth: AuthDeps = {
       oauthClientId: "Iv1.test-client-id",
       oauthClientSecret: "test-client-secret",
@@ -94,13 +94,13 @@ describe("GET /api/capabilities", () => {
     const sealedRefresh = await encryptToken(kp, KEY_REF, "ghr_REFRESH");
     if (!sealedAccess.ok || !sealedRefresh.ok)
       throw new Error("seed encrypt failed");
-    const grant = await grantAuth(harness.handle).createGrant({
+    const grant = await createGrantAuth(harness.handle).createGrant({
       ghTokenCiphertext: sealedAccess.value,
       ghRefreshTokenCiphertext: sealedRefresh.value,
       keyRef: KEY_REF,
       refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
     });
-    await tokenAuth(harness.handle).mintToken({
+    await createTokenAuth(harness.handle).mintToken({
       scope: WriteClassification.READ,
       installationId: CTX.installationId,
       userId: brand(isReviewerId, 555),

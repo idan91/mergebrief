@@ -11,7 +11,7 @@ import { createAppClient, loadConfig as loadGitHubConfig } from "github";
 import {
   createDb,
   ensureAppSchema,
-  envKeyProvider,
+  createEnvKeyProvider,
   loadConfig as loadPersistenceConfig,
   pingDb,
   type AppDatabase,
@@ -96,7 +96,7 @@ async function buildWebhookApp(): Promise<WebhookComposition> {
   // every stored ciphertext undecryptable (the gate reads that as a burned
   // session — mass logout). The resolved bytes are discarded; the provider
   // re-resolves per seal.
-  const keyProvider = envKeyProvider(env);
+  const keyProvider = createEnvKeyProvider(env);
   const sessionKey = await keyProvider.resolveKey(SESSION_KEY_REF);
   if (!sessionKey.ok) {
     throw new Error(

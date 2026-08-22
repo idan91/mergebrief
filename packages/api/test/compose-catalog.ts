@@ -2,7 +2,7 @@
 // composition — that is what registers the catalog. Nothing is served and
 // the github ports throw if touched.
 import { randomBytes } from "node:crypto";
-import { envKeyProvider } from "persistence";
+import { createEnvKeyProvider } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 
 export type { PgliteHarness };
@@ -21,7 +21,7 @@ export async function composeCatalog(): Promise<ComposedCatalog> {
   const auth: AuthDeps = {
     oauthClientId: "Iv1.test-client-id",
     oauthClientSecret: "test-client-secret",
-    keyProvider: envKeyProvider({
+    keyProvider: createEnvKeyProvider({
       [KEY_REF]: randomBytes(32).toString("base64"),
     }),
     sessionKeyRef: KEY_REF,

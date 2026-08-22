@@ -7,15 +7,15 @@
 // (leaky) listing.
 import { randomBytes } from "node:crypto";
 import {
-  artifactStore,
+  createArtifactStore,
   encryptToken,
-  envKeyProvider,
-  forTenant,
-  generationProjection,
+  createEnvKeyProvider,
+  createTenantRepository,
+  createGenerationProjection,
   GenerationFailureCode,
   GenerationKind,
   GenerationStatus,
-  grantAuth,
+  createGrantAuth,
   isInstallationId,
   isRepoId,
   isReviewerId,
@@ -59,7 +59,7 @@ const OTHER_CTX: TenantContext = {
 };
 
 function keyProvider(): KeyProvider {
-  return envKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
+  return createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
 }
 
 function authDeps(kp: KeyProvider): AuthDeps {
@@ -146,13 +146,13 @@ async function seedSession(
   const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
   if (!sealedAccess.ok || !sealedRefresh.ok)
     throw new Error("seed encrypt failed");
-  const grant = await grantAuth(handle).createGrant({
+  const grant = await createGrantAuth(handle).createGrant({
     ghTokenCiphertext: sealedAccess.value,
     ghRefreshTokenCiphertext: sealedRefresh.value,
     keyRef: KEY_REF,
     refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
   });
-  await forTenant(handle, CTX).sessions.create({
+  await createTenantRepository(handle, CTX).sessions.create({
     sessionTokenHash: hash,
     reviewerId: brand(isReviewerId, REVIEWER_ID),
     reviewerLogin: "octocat",
@@ -175,7 +175,7 @@ interface SeedPrInput {
 
 async function seedPr(handle: AppDatabase, input: SeedPrInput) {
   const ctx = input.ctx ?? CTX;
-  return forTenant(handle, ctx).pullRequests.upsert({
+  return createTenantRepository(handle, ctx).pullRequests.upsert({
     repoId: brand(isRepoId, input.repoId),
     prNumber: input.prNumber,
     repoSlug: input.slug ?? "octo/hello",
@@ -427,8 +427,8 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     });
     const cookie = await seedSession(harness.handle, kp);
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 1 });
-    const gen = generationProjection(harness.handle, CTX);
-    const store = artifactStore(harness.handle, CTX);
+    const gen = createGenerationProjection(harness.handle, CTX);
+    const store = createArtifactStore(harness.handle, CTX);
 
     // Brief generated for head-1, then a new push queued head-2 → the CURRENT
     // span has no brief yet: briefAvailable=false, headSha=head-2, base=null.
@@ -664,7 +664,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
       title: "the pr",
       baseSha: "base-1",
     });
-    const gen = generationProjection(harness.handle, CTX);
+    const gen = createGenerationProjection(harness.handle, CTX);
     await gen.upsertQueued({
       pullRequestId: pr.id,
       kind: GenerationKind.BRIEF,
@@ -689,7 +689,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
       generation: { status: GenerationStatus.QUEUED, attempts: 0 },
     });
 
-    await artifactStore(harness.handle, CTX).briefs.write({
+    await createArtifactStore(harness.handle, CTX).briefs.write({
       pullRequestId: pr.id,
       baseSha: "base-1",
       headSha: "head-1",
@@ -872,7 +872,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     stubGitHub({ repositories: () => repoOk() });
     const cookie = await seedSession(harness.handle, kp);
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
-    const store = artifactStore(harness.handle, CTX);
+    const store = createArtifactStore(harness.handle, CTX);
     const write = async (head: string, index: number) => {
       const result = await store.briefs.write({
         pullRequestId: pr.id,
@@ -964,13 +964,13 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
 
   async function seedCheckpoint(
     pullRequestId: Parameters<
-      ReturnType<typeof forTenant>["checkpoints"]["get"]
+      ReturnType<typeof createTenantRepository>["checkpoints"]["get"]
     >[0],
     reviewerId: number,
     lastSubmittedSha: string,
     ctx: TenantContext = CTX,
   ): Promise<void> {
-    const result = await forTenant(
+    const result = await createTenantRepository(
       harness.handle,
       ctx,
     ).checkpoints.upsertOnSubmit({
@@ -985,10 +985,10 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
 
   async function seedBriefs(pr: {
     id: Parameters<
-      ReturnType<typeof artifactStore>["briefs"]["listForPullRequest"]
+      ReturnType<typeof createArtifactStore>["briefs"]["listForPullRequest"]
     >[0];
   }): Promise<void> {
-    const store = artifactStore(harness.handle, CTX);
+    const store = createArtifactStore(harness.handle, CTX);
     for (const [head, index] of [
       ["head-1", 1],
       ["head-2", 2],
@@ -1027,7 +1027,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
     await seedBriefs(pr);
     await seedCheckpoint(pr.id, REVIEWER_ID, "head-1");
-    const store = artifactStore(harness.handle, CTX);
+    const store = createArtifactStore(harness.handle, CTX);
 
     const marks = await store.comparisonMarks.write({
       pullRequestId: pr.id,
@@ -1083,7 +1083,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     });
 
     // A non-terminal delta generation for the exact span flips it to pending.
-    const gen = generationProjection(harness.handle, CTX);
+    const gen = createGenerationProjection(harness.handle, CTX);
     const queued = await gen.upsertQueued({
       pullRequestId: pr.id,
       kind: GenerationKind.DELTA,
@@ -1122,7 +1122,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     await seedBriefs(pr);
     await seedCheckpoint(pr.id, REVIEWER_ID, "head-1");
 
-    const gen = generationProjection(harness.handle, CTX);
+    const gen = createGenerationProjection(harness.handle, CTX);
     const queued = await gen.upsertQueued({
       pullRequestId: pr.id,
       kind: GenerationKind.BRIEF,
@@ -1184,13 +1184,13 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
   /** Write a brief with its OWN base (base drift across revisions). */
   async function writeBrief(
     prId: Parameters<
-      ReturnType<typeof artifactStore>["briefs"]["listForPullRequest"]
+      ReturnType<typeof createArtifactStore>["briefs"]["listForPullRequest"]
     >[0],
     base: string,
     head: string,
     index: number,
   ): Promise<void> {
-    const result = await artifactStore(harness.handle, CTX).briefs.write({
+    const result = await createArtifactStore(harness.handle, CTX).briefs.write({
       pullRequestId: prId,
       baseSha: base,
       headSha: head,
@@ -1210,7 +1210,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
 
     // No brief yet → no revisions key at all.
-    const gen = generationProjection(harness.handle, CTX);
+    const gen = createGenerationProjection(harness.handle, CTX);
     await gen.upsertQueued({
       pullRequestId: pr.id,
       kind: GenerationKind.BRIEF,
@@ -1263,7 +1263,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     stubGitHub({ repositories: () => repoOk() });
     const cookie = await seedSession(harness.handle, kp);
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
-    const store = artifactStore(harness.handle, CTX);
+    const store = createArtifactStore(harness.handle, CTX);
     await writeBrief(pr.id, "base", "head-1", 1);
     await writeBrief(pr.id, "base", "head-2", 2);
     await writeBrief(pr.id, "base", "head-3", 3);
@@ -1303,7 +1303,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     stubGitHub({ repositories: () => repoOk() });
     const cookie = await seedSession(harness.handle, kp);
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
-    const store = artifactStore(harness.handle, CTX);
+    const store = createArtifactStore(harness.handle, CTX);
     await writeBrief(pr.id, "base", "head-1", 1);
     await writeBrief(pr.id, "base", "head-2", 2);
     await writeBrief(pr.id, "base", "head-3", 3);
@@ -1348,7 +1348,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     stubGitHub({ repositories: () => repoOk() });
     const cookie = await seedSession(harness.handle, kp);
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
-    const store = artifactStore(harness.handle, CTX);
+    const store = createArtifactStore(harness.handle, CTX);
     await writeBrief(pr.id, "base", "head-1", 1);
     await writeBrief(pr.id, "base", "head-2", 2);
     await seedCheckpoint(pr.id, REVIEWER_ID, "head-1");
@@ -1392,7 +1392,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     stubGitHub({ repositories: () => repoOk() });
     const cookie = await seedSession(harness.handle, kp);
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
-    const store = artifactStore(harness.handle, CTX);
+    const store = createArtifactStore(harness.handle, CTX);
 
     // head-2 briefed (idx 1), head-3 briefed (idx 2), then a base retarget
     // re-briefs the SAME head-2 under a new base (idx 3) — two revision rows
@@ -1451,7 +1451,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     stubGitHub({ repositories: () => repoOk() });
     const cookie = await seedSession(harness.handle, kp);
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
-    const store = artifactStore(harness.handle, CTX);
+    const store = createArtifactStore(harness.handle, CTX);
 
     await writeBrief(pr.id, "base-a", "head-2", 1);
     await writeBrief(pr.id, "base-a", "head-3", 2);
@@ -1504,7 +1504,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     // Checkpoint SHA with no marks anywhere; the current head's BRIEF
     // generation is still warming (marks land before it succeeds).
     await seedCheckpoint(pr.id, REVIEWER_ID, "gone-sha");
-    const gen = generationProjection(harness.handle, CTX);
+    const gen = createGenerationProjection(harness.handle, CTX);
     const queued = await gen.upsertQueued({
       pullRequestId: pr.id,
       kind: GenerationKind.BRIEF,
@@ -1555,7 +1555,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
       repoId: REPO_A,
       prNumber: 7,
     });
-    const otherWrite = await artifactStore(
+    const otherWrite = await createArtifactStore(
       harness.handle,
       OTHER_CTX,
     ).briefs.write({

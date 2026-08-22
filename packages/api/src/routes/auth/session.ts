@@ -4,7 +4,7 @@
 //
 // TRUST SHAPE: a session cookie carries a high-entropy RANDOM token; the DB
 // stores only its SHA-256 (globally unique). Session resolution PRECEDES tenant
-// scoping — `sessionAuth(handle)` is not ctx-bound — so it is what tells us the
+// scoping — `createSessionAuth(handle)` is not ctx-bound — so it is what tells us the
 // installation.
 //
 // SECURITY DISCIPLINE: NO token, code, or secret is ever logged or placed in a
@@ -15,10 +15,10 @@ import { createOAuthApp, refreshUserToken, type GitHubOAuthApp } from "github";
 import {
   decryptToken,
   encryptToken,
-  grantAuth,
+  createGrantAuth,
   GrantAuthErrorCode,
-  sessionAuth,
-  tokenAuth,
+  createSessionAuth,
+  createTokenAuth,
   WriteClassification,
   type AppDatabase,
   type AuthSessionRow,
@@ -83,7 +83,7 @@ export function sha256Hex(value: string): string {
 // ---------------------------------------------------------------------------
 // The viewer principal — ONE shape for both presentation channels. A cookie
 // session resolves to its row; a Bearer `mergebrief_...` token resolves through
-// `tokenAuth` and is SYNTHESIZED into the same shape, so every gated route
+// `createTokenAuth` and is SYNTHESIZED into the same shape, so every gated route
 // works unchanged on either channel. `channel` is what `refreshSessionToken`
 // dispatches on — the ONLY behavioral fork.
 // ---------------------------------------------------------------------------
@@ -112,7 +112,7 @@ export type ViewerPrincipal = AuthSessionRow & {
 };
 
 /** Shape a resolved cookie session (+ its grant) into the principal. */
-export function principalFromSession(
+export function derivePrincipalFromSession(
   resolved: SessionWithGrant,
 ): ViewerPrincipal {
   return {
@@ -128,13 +128,13 @@ export function principalFromSession(
 
 /**
  * Sentinel expiry for a no-expiry token's synthesized principal. The gate's
- * expiry decision already happened inside `tokenAuth.resolveByHash`; nothing
+ * expiry decision already happened inside `createTokenAuth.resolveByHash`; nothing
  * downstream reads `expiresAt` — this only satisfies the row shape.
  */
 const NO_EXPIRY_SENTINEL = new Date(8_640_000_000_000_000);
 
 /** Shape a resolved `api_token` (+ its grant) into the channel-agnostic principal. */
-export function principalFromApiToken({
+export function derivePrincipalFromApiToken({
   token,
   grant,
 }: TokenWithGrant): ViewerPrincipal {
@@ -238,7 +238,7 @@ async function rotateGitHubTokens(
  * presentation channels, anchored on the grant row. The caller passes the
  * principal it ALREADY resolved, so `principal.ghTokenCiphertext` is the
  * correct compare-and-swap seed: the ciphertext observed BEFORE the failing
- * GitHub call. `grantAuth.refreshGrant` takes the grant row lock and, if that
+ * GitHub call. `createGrantAuth.refreshGrant` takes the grant row lock and, if that
  * ciphertext no longer matches, another request (EITHER channel) already
  * rotated → the short-circuit returns the stored (now fresh) access token
  * WITHOUT a GitHub call (no double-spend of the single-use refresh token).
@@ -267,7 +267,7 @@ export async function refreshSessionToken(
     message: string,
   ): Promise<Result<RefreshedSession, RefreshError>> => {
     if (isCookie) {
-      await sessionAuth(deps.handle).deleteSession(session.sessionTokenHash);
+      await createSessionAuth(deps.handle).deleteSession(session.sessionTokenHash);
     }
     log.error(isCookie ? `${message}; session deleted` : message, {
       evt: "token.refresh.fail",
@@ -286,7 +286,7 @@ export async function refreshSessionToken(
   // access token without re-decrypting what we just sealed.
   let rotatedAccessToken: string | undefined;
 
-  const refreshed = await grantAuth(deps.handle).refreshGrant(
+  const refreshed = await createGrantAuth(deps.handle).refreshGrant(
     session.grantId,
     session.ghTokenCiphertext,
     async (locked) => {
@@ -321,7 +321,7 @@ export async function refreshSessionToken(
   if (isCookie) {
     // The expiry mirror doubles as the liveness check: 0 rows touched means
     // the session vanished while we rotated → re-login, nothing to delete.
-    const touched = await sessionAuth(deps.handle).setExpiresAt(
+    const touched = await createSessionAuth(deps.handle).setExpiresAt(
       session.sessionTokenHash,
       grant.refreshExpiresAt,
     );
@@ -335,7 +335,7 @@ export async function refreshSessionToken(
       };
     }
   } else {
-    const live = await tokenAuth(deps.handle).resolveByHash(
+    const live = await createTokenAuth(deps.handle).resolveByHash(
       session.sessionTokenHash,
       new Date(),
     );

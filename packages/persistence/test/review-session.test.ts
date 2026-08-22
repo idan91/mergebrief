@@ -7,7 +7,7 @@ import { Categories } from "brief-core";
 import { drizzle } from "drizzle-orm/pglite";
 import { describe, expect, it } from "vitest";
 import { fromDrizzle } from "../src/db/handle";
-import { artifactStore, forTenant, ReviewSessionErrorCode } from "../src/index";
+import { createArtifactStore, createTenantRepository, ReviewSessionErrorCode } from "../src/index";
 import type {
   AppDatabase,
   ReviewSessionRow,
@@ -59,14 +59,14 @@ async function seedBrief(
   ctx: TenantContext,
   prNumber = 7,
 ): Promise<BriefRowId> {
-  const repo = forTenant(handle, ctx);
+  const repo = createTenantRepository(handle, ctx);
   const pr = await repo.pullRequests.upsert({
     repoId: REPO,
     prNumber,
     repoSlug: "acme/widgets",
     state: "open",
   });
-  const written = await artifactStore(handle, ctx).briefs.write({
+  const written = await createArtifactStore(handle, ctx).briefs.write({
     pullRequestId: pr.id,
     baseSha: "base",
     headSha: `head-${prNumber}`,
@@ -96,7 +96,7 @@ async function openSession(
   briefId: BriefRowId,
   reviewerId: ReviewerId = REVIEWER,
 ): Promise<ReviewSessionRow> {
-  const created = await forTenant(handle, ctx).reviewSessions.writeToSession(
+  const created = await createTenantRepository(handle, ctx).reviewSessions.writeToSession(
     { briefId, reviewerId, brief: async () => NO_FACTS },
     async (writer) => writer.session,
   );
@@ -112,7 +112,7 @@ async function write<T>(
   briefId: BriefRowId,
   body: (writer: SessionWriter) => Promise<T>,
 ): Promise<T> {
-  const written = await forTenant(handle, ctx).reviewSessions.writeToSession(
+  const written = await createTenantRepository(handle, ctx).reviewSessions.writeToSession(
     { briefId, reviewerId: REVIEWER, brief: async () => NO_FACTS },
     body,
   );
@@ -340,7 +340,7 @@ describe("reviewSessions — session semantics", () => {
   it("leaves the stored outcome alone when a later write does not name one", async () => {
     const { handle } = await freshPair();
     const briefId = await seedBrief(handle, CTX_A);
-    const repo = forTenant(handle, CTX_A);
+    const repo = createTenantRepository(handle, CTX_A);
     const query = {
       briefId,
       reviewerId: REVIEWER,
@@ -364,7 +364,7 @@ describe("reviewSessions — session semantics", () => {
   it("reads nothing and creates nothing when no session exists", async () => {
     const { client, handle } = await freshPair();
     const briefId = await seedBrief(handle, CTX_A);
-    const repo = forTenant(handle, CTX_A);
+    const repo = createTenantRepository(handle, CTX_A);
 
     expect(
       await repo.reviewSessions.get({ briefId, reviewerId: REVIEWER }),
@@ -376,7 +376,7 @@ describe("reviewSessions — session semantics", () => {
   it("returns the session with everything it owns", async () => {
     const { handle } = await freshPair();
     const briefId = await seedBrief(handle, CTX_A);
-    const repo = forTenant(handle, CTX_A);
+    const repo = createTenantRepository(handle, CTX_A);
     const created = await openSession(handle, CTX_A, briefId);
     const reviewSessionId = created.id;
 
@@ -413,7 +413,7 @@ describe("reviewSessions — session semantics", () => {
   it("keeps the per-subject writes idempotent on their natural keys", async () => {
     const { handle } = await freshPair();
     const briefId = await seedBrief(handle, CTX_A);
-    const repo = forTenant(handle, CTX_A);
+    const repo = createTenantRepository(handle, CTX_A);
     await openSession(handle, CTX_A, briefId);
 
     await write(handle, CTX_A, briefId, async (writer) => {
@@ -446,7 +446,7 @@ describe("reviewSessions — session semantics", () => {
   it("publishing flips the named drafts and leaves the rest alone", async () => {
     const { handle } = await freshPair();
     const briefId = await seedBrief(handle, CTX_A);
-    const repo = forTenant(handle, CTX_A);
+    const repo = createTenantRepository(handle, CTX_A);
     await openSession(handle, CTX_A, briefId);
 
     const published = await write(handle, CTX_A, briefId, async (writer) => {
@@ -497,7 +497,7 @@ describe("reviewSessions — tenancy containment", () => {
     const { client, handle } = await freshPair();
     const briefId = await seedBrief(handle, CTX_A);
 
-    const attempt = await forTenant(
+    const attempt = await createTenantRepository(
       handle,
       CTX_B,
     ).reviewSessions.writeToSession(
@@ -519,7 +519,7 @@ describe("reviewSessions — tenancy containment", () => {
     await openSession(handle, CTX_A, briefId);
 
     expect(
-      await forTenant(handle, CTX_B).reviewSessions.get({
+      await createTenantRepository(handle, CTX_B).reviewSessions.get({
         briefId,
         reviewerId: REVIEWER,
       }),

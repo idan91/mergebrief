@@ -6,7 +6,7 @@
 //
 // The session row carries NO credential material — the GitHub pair lives on
 // the `github_grant` row it references, and rotation lives in
-// `grantAuth.refreshGrant`. Resolution therefore JOINS the grant; deletes
+// `createGrantAuth.refreshGrant`. Resolution therefore JOINS the grant; deletes
 // orphan-clean the grant in the same transaction.
 import { and, eq } from "drizzle-orm";
 import { type AppDatabase, internal } from "../db/handle";
@@ -88,7 +88,7 @@ export interface SessionAuth {
  * `AppDatabase`. Uses the in-package `internal()` unwrap; never exposes a raw
  * query surface, and is intentionally NOT ctx-bound (see the file header).
  */
-export function sessionAuth(handle: AppDatabase): SessionAuth {
+export function createSessionAuth(handle: AppDatabase): SessionAuth {
   const db = internal(handle);
 
   return {

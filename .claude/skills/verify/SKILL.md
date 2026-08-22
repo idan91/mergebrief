@@ -40,8 +40,8 @@ No OAuth round-trip needed: seed an `auth_session` row whose access token is
 the local `gh` CLI token (`gh auth token` — can read any repo the user owns).
 Write a throwaway `.mts` script INSIDE `apps/web` (workspace resolution;
 `.mts` because scratchpad/plain `.ts` is transpiled CJS and top-level await
-fails), using `persistence`'s `migrateApp`, `encryptToken`, `envKeyProvider`,
-`forTenant(...).sessions.create` / `pullRequests.upsert`, `artifactStore`.
+fails), using `persistence`'s `migrateApp`, `encryptToken`, `createEnvKeyProvider`,
+`createTenantRepository(...).sessions.create` / `pullRequests.upsert`, `createArtifactStore`.
 Pass the token via env var; print only the cookie value. Use a sentinel
 `installation_id` (e.g. 777001) so cleanup can be tenant-scoped deletes.
 Run with `pnpm -C apps/web exec tsx <script>`; delete the script after.

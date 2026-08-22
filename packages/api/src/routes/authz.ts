@@ -40,15 +40,15 @@ import { createUserOctokit, fetchRepositoryById } from "github";
 import {
   decryptToken,
   isRepoId,
-  sessionAuth,
-  tokenAuth,
+  createSessionAuth,
+  createTokenAuth,
   type InstallationId,
   type RepoId,
   type TenantContext,
 } from "persistence";
 import {
-  principalFromApiToken,
-  principalFromSession,
+  derivePrincipalFromApiToken,
+  derivePrincipalFromSession,
   refreshSessionToken,
   SESSION_COOKIE,
   sha256Hex,
@@ -183,7 +183,7 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
         return errorJson(c, ApiErrorCode.UNAUTHORIZED);
       }
       const tokenHash = sha256Hex(bearer);
-      const resolved = await tokenAuth(deps.handle).resolveByHash(
+      const resolved = await createTokenAuth(deps.handle).resolveByHash(
         tokenHash,
         new Date(startedAt),
       );
@@ -191,7 +191,7 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
         stampAccess(c, "401", {});
         return errorJson(c, ApiErrorCode.UNAUTHORIZED);
       }
-      const principal = principalFromApiToken(resolved.value);
+      const principal = derivePrincipalFromApiToken(resolved.value);
 
       // Throttled usage stamp — visibility, not auth state; the write is
       // skipped entirely while the window holds and never awaited on the
@@ -199,7 +199,7 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
       if (touchThrottle.get(tokenHash) === undefined) {
         touchThrottle.set(tokenHash, true, startedAt + TOKEN_TOUCH_THROTTLE_MS);
         const log = c.get("logger");
-        void tokenAuth(deps.handle)
+        void createTokenAuth(deps.handle)
           .touchLastUsed(tokenHash, new Date(startedAt))
           .catch((error: unknown) => {
             // Visibility metadata only — degraded, not operator-actionable.
@@ -221,7 +221,7 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
       return errorJson(c, ApiErrorCode.UNAUTHORIZED);
     }
     const sessionTokenHash = sha256Hex(cookie);
-    const resolved = await sessionAuth(deps.handle).findSession(
+    const resolved = await createSessionAuth(deps.handle).findSession(
       sessionTokenHash,
     );
     if (resolved === undefined) {
@@ -235,13 +235,13 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
     // ~8h ACCESS token is different — it still flows through the 401→refresh path
     // in `repoAuthzLayer`.)
     if (resolved.session.expiresAt.getTime() <= startedAt) {
-      await sessionAuth(deps.handle).deleteSession(sessionTokenHash);
+      await createSessionAuth(deps.handle).deleteSession(sessionTokenHash);
       stampAccess(c, "401", { reviewerId: resolved.session.reviewerId });
       return errorJson(c, ApiErrorCode.UNAUTHORIZED);
     }
 
     c.set("ctx", { installationId: resolved.session.installationId });
-    c.set("session", principalFromSession(resolved));
+    c.set("session", derivePrincipalFromSession(resolved));
     await next();
     return;
   };
@@ -304,7 +304,7 @@ export function repoAuthzLayer(
       session.ghTokenCiphertext,
     );
     if (!decrypted.ok) {
-      await sessionAuth(deps.handle).deleteSession(session.sessionTokenHash);
+      await createSessionAuth(deps.handle).deleteSession(session.sessionTokenHash);
       stampAccess(c, "401", { repoId, reviewerId: session.reviewerId });
       return errorJson(c, ApiErrorCode.UNAUTHORIZED);
     }

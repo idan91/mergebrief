@@ -48,7 +48,7 @@ export type {
 // The tenant-scoped repository + the context boundary (web + worker validate
 // into `TenantContext` with the exported Zod schema / parse functions).
 export {
-  forTenant,
+  createTenantRepository,
   parseTenantContext,
   safeParseTenantContext,
   TenantContextSchema,
@@ -72,7 +72,7 @@ export type {
 } from "./stores/tenant";
 
 // The Review Session surface. The factory itself is NOT exported — it is
-// reachable only as `forTenant(...).reviewSessions`, so a caller cannot hold
+// reachable only as `createTenantRepository(...).reviewSessions`, so a caller cannot hold
 // one without a ctx.
 export { ReviewSessionErrorCode } from "./stores/review-session";
 export type {
@@ -114,7 +114,7 @@ export type {
 // artifact families. Same containment: built over the opaque handle, no raw
 // surface exposed.
 export {
-  artifactStore,
+  createArtifactStore,
   ArtifactErrorCode,
   ComparisonMarksBodySchema,
   HunkSpansSchema,
@@ -150,7 +150,7 @@ export type {
 } from "./stores/artifact-store";
 
 // The `generation` status-projection write helpers.
-export { generationProjection, GenerationErrorCode } from "./stores/generation";
+export { createGenerationProjection, GenerationErrorCode } from "./stores/generation";
 export type {
   GenerationProjection,
   GenerationError,
@@ -163,7 +163,7 @@ export type {
 // conventional keys without restricting them. `insertAudit` (the tx-capable
 // variant) stays in-package — not re-exported.
 export {
-  audit,
+  writeAudit,
   AuditClientSchema,
   AuditRequestIdSchema,
   AuditMetadataKey,
@@ -177,7 +177,7 @@ export type { AuditEntry, AuditMetadata, AuditLogRow } from "./stores/audit";
 // `generation` projection + debounced graphile `generate` job, in ONE
 // transaction. Calls `graphile_worker.add_job` by name — no graphile-worker
 // npm dependency here.
-export { ingestRoutines, IngestErrorCode } from "./stores/ingest";
+export { createIngestRoutines, IngestErrorCode } from "./stores/ingest";
 export type {
   IngestRoutines,
   IngestError,
@@ -187,7 +187,7 @@ export type {
 
 // Purge + retention routines — the tenant-scoped deletion boundary, plus the
 // instance-wide audit sweep (an operator setting, so it has no ctx to bind to).
-export { purgeRoutines, PurgeErrorCode, sweepAuditLog } from "./stores/purge";
+export { createPurgeRoutines, PurgeErrorCode, sweepAuditLog } from "./stores/purge";
 export type {
   PurgeRoutines,
   PurgeError,
@@ -195,9 +195,9 @@ export type {
 } from "./stores/purge";
 
 // The per-user settings boundary — the second non-tenant surface after
-// `audit`. Keyed by GitHub user id (a person spans installations), so it is
-// NOT ctx-bound and NOT reachable through `forTenant`.
-export { userSettingsStore } from "./stores/user-settings";
+// `writeAudit`. Keyed by GitHub user id (a person spans installations), so it is
+// NOT ctx-bound and NOT reachable through `createTenantRepository`.
+export { createUserSettingsStore } from "./stores/user-settings";
 export type {
   UserSettingsStore,
   UserSettingsRow,
@@ -208,7 +208,7 @@ export type {
 // The grant boundary — ONE `github_grant` row per GitHub authorization holds
 // the encrypted pair; BOTH presentation channels rotate through
 // `refreshGrant`'s serialized CAS. Pre-tenant like its referents.
-export { grantAuth, GrantAuthErrorCode } from "./auth/grant";
+export { createGrantAuth, GrantAuthErrorCode } from "./auth/grant";
 export type {
   GithubGrantRow,
   GrantAuth,
@@ -220,8 +220,8 @@ export type {
 
 // The `auth_session` boundary — the PRE-TENANT, token-hash-keyed
 // session resolver (find / delete / expiry mirror). NOT ctx-bound: it PRODUCES
-// the tenant, so it precedes `forTenant` scoping.
-export { sessionAuth, SessionAuthErrorCode } from "./auth/session";
+// the tenant, so it precedes `createTenantRepository` scoping.
+export { createSessionAuth, SessionAuthErrorCode } from "./auth/session";
 export type {
   SessionAuth,
   SessionAuthError,
@@ -229,9 +229,9 @@ export type {
 } from "./auth/session";
 
 // The API-token auth boundary — the second presentation channel's PRE-TENANT,
-// hash-keyed resolver. Like `sessionAuth` it PRODUCES the tenant, so it
-// precedes `forTenant` scoping.
-export { tokenAuth, TokenAuthErrorCode } from "./auth/token";
+// hash-keyed resolver. Like `createSessionAuth` it PRODUCES the tenant, so it
+// precedes `createTenantRepository` scoping.
+export { createTokenAuth, TokenAuthErrorCode } from "./auth/token";
 export type {
   TokenAuth,
   TokenAuthError,
@@ -245,7 +245,7 @@ export type {
 export {
   encryptToken,
   decryptToken,
-  envKeyProvider,
+  createEnvKeyProvider,
   KeyErrorCode,
   CryptoErrorCode,
 } from "./auth/crypto";

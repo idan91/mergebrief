@@ -8,9 +8,9 @@ import { createHash, randomBytes } from "node:crypto";
 import type { ListRepoCollaboratorsInput, RepoCollaborators } from "github";
 import {
   encryptToken,
-  envKeyProvider,
-  forTenant,
-  grantAuth,
+  createEnvKeyProvider,
+  createTenantRepository,
+  createGrantAuth,
   isInstallationId,
   isReviewerId,
   type AppDatabase,
@@ -36,7 +36,7 @@ const REPO_SLUG = "octo/hello";
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
 
 function keyProvider(): KeyProvider {
-  return envKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
+  return createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
 }
 
 function authDeps(kp: KeyProvider): AuthDeps {
@@ -178,7 +178,7 @@ async function seedSession(
   );
   if (!sealedAccess.ok || !sealedRefresh.ok)
     throw new Error("seed encrypt failed");
-  const grant = await grantAuth(handle).createGrant({
+  const grant = await createGrantAuth(handle).createGrant({
     ghTokenCiphertext: sealedAccess.value,
     ghRefreshTokenCiphertext: sealedRefresh.value,
     keyRef: KEY_REF,
@@ -186,7 +186,7 @@ async function seedSession(
   });
   const reviewerId = BigInt(reviewer.id);
   if (!isReviewerId(reviewerId)) throw new Error("bad reviewer id");
-  await forTenant(handle, CTX).sessions.create({
+  await createTenantRepository(handle, CTX).sessions.create({
     sessionTokenHash: sha256Hex(cookie),
     reviewerId,
     reviewerLogin: reviewer.login,

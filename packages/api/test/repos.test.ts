@@ -7,14 +7,14 @@
 import { createHash, randomBytes } from "node:crypto";
 import {
   encryptToken,
-  envKeyProvider,
-  forTenant,
-  grantAuth,
+  createEnvKeyProvider,
+  createTenantRepository,
+  createGrantAuth,
   isInstallationId,
   isRepoId,
   isReviewerId,
   PrState,
-  tokenAuth,
+  createTokenAuth,
   WriteClassification,
   type KeyProvider,
   type ReviewerId,
@@ -50,7 +50,7 @@ const CTX: TenantContext = {
 const REVIEWER: ReviewerId = brand(isReviewerId, REVIEWER_ID);
 
 function keyProvider(): KeyProvider {
-  return envKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
+  return createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
 }
 
 function authDeps(kp: KeyProvider): AuthDeps {
@@ -155,13 +155,13 @@ describe("GET /api/repos", () => {
     const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
     if (!sealedAccess.ok || !sealedRefresh.ok)
       throw new Error("seed encrypt failed");
-    const grant = await grantAuth(harness.handle).createGrant({
+    const grant = await createGrantAuth(harness.handle).createGrant({
       ghTokenCiphertext: sealedAccess.value,
       ghRefreshTokenCiphertext: sealedRefresh.value,
       keyRef: KEY_REF,
       refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
     });
-    await forTenant(harness.handle, CTX).sessions.create({
+    await createTenantRepository(harness.handle, CTX).sessions.create({
       sessionTokenHash: sha256Hex(cookie),
       reviewerId: REVIEWER,
       reviewerLogin: "octocat",
@@ -177,13 +177,13 @@ describe("GET /api/repos", () => {
     const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
     if (!sealedAccess.ok || !sealedRefresh.ok)
       throw new Error("seed encrypt failed");
-    const grant = await grantAuth(harness.handle).createGrant({
+    const grant = await createGrantAuth(harness.handle).createGrant({
       ghTokenCiphertext: sealedAccess.value,
       ghRefreshTokenCiphertext: sealedRefresh.value,
       keyRef: KEY_REF,
       refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
     });
-    await tokenAuth(harness.handle).mintToken({
+    await createTokenAuth(harness.handle).mintToken({
       scope: WriteClassification.EXTERNAL_WRITE,
       installationId: CTX.installationId,
       userId: REVIEWER,
@@ -266,7 +266,7 @@ describe("GET /api/repos", () => {
         installationRepos: () => jsonResponse({ message: "kaboom" }, 500),
       });
       // Rows in the DB that a leaky fallback would surface.
-      await forTenant(harness.handle, CTX).pullRequests.upsert({
+      await createTenantRepository(harness.handle, CTX).pullRequests.upsert({
         repoId: brand(isRepoId, REPO_A),
         prNumber: 7,
         repoSlug: "octo/hello",

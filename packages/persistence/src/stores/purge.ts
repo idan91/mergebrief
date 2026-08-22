@@ -184,7 +184,7 @@ export interface PurgeRoutines {
  * `ctx` is the one place an `installation_id` enters; every routine filters or
  * stamps that same id, so a caller can never erase another tenant's rows.
  */
-export function purgeRoutines(
+export function createPurgeRoutines(
   handle: AppDatabase,
   ctx: TenantContext,
 ): PurgeRoutines {

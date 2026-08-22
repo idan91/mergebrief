@@ -1,12 +1,12 @@
 // API-token boundary tests. Exercises the `api_token` schema and the
 // PRE-TENANT,
-// hash-keyed `tokenAuth` resolver against real migrations on PGlite,
+// hash-keyed `createTokenAuth` resolver against real migrations on PGlite,
 // mirroring `session.test.ts`. Credential rotation lives on the grant boundary —
 // see grant.test.ts.
 //
 // The hash-only-storage assertion is structural: the table's exact column set
 // is pinned so a plaintext-token (or ciphertext) column cannot be added
-// silently, and the `tokenAuth` surface itself never accepts plaintext (mint
+// silently, and the `createTokenAuth` surface itself never accepts plaintext (mint
 // takes `tokenHash` + the session's `grantId`).
 import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
@@ -16,9 +16,9 @@ import { migrate } from "drizzle-orm/pglite/migrator";
 import { beforeEach, describe, expect, it } from "vitest";
 import { apiToken } from "../src/schema/api-token";
 
-import { grantAuth, type GithubGrantRow } from "../src/auth/grant";
+import { createGrantAuth, type GithubGrantRow } from "../src/auth/grant";
 import {
-  tokenAuth,
+  createTokenAuth,
   TokenAuthErrorCode,
   type TokenMintInput,
 } from "../src/auth/token";
@@ -121,7 +121,7 @@ describe("api_token schema", () => {
 });
 
 // ---------------------------------------------------------------------------
-// tokenAuth — the PRE-TENANT, hash-keyed resolver (mirrors sessionAuth).
+// createTokenAuth — the PRE-TENANT, hash-keyed resolver (mirrors createSessionAuth).
 // ---------------------------------------------------------------------------
 
 const INSTALLATION: InstallationId = brandWith(isInstallationId, 4242n);
@@ -136,7 +136,7 @@ const PAST = new Date("2026-01-01T00:00:00Z");
 const FUTURE = new Date("2026-10-07T00:00:00Z");
 
 async function seedGrant(handle: AppDatabase): Promise<GithubGrantRow> {
-  return grantAuth(handle).createGrant({
+  return createGrantAuth(handle).createGrant({
     ghTokenCiphertext: "v1.enc-access",
     ghRefreshTokenCiphertext: "v1.enc-refresh",
     keyRef: "SESSION_KEY_V1",
@@ -161,7 +161,7 @@ function mintInput(
   };
 }
 
-describe("tokenAuth mint / resolve / touch", () => {
+describe("createTokenAuth mint / resolve / touch", () => {
   let handle: AppDatabase;
   let grant: GithubGrantRow;
   beforeEach(async () => {
@@ -170,7 +170,7 @@ describe("tokenAuth mint / resolve / touch", () => {
   });
 
   it("mints a token row linking the grant and resolves it by hash", async () => {
-    const auth = tokenAuth(handle);
+    const auth = createTokenAuth(handle);
     const minted = await auth.mintToken(mintInput(grant));
     expect(String(minted.installationId)).toBe(String(INSTALLATION));
     expect(minted.revokedAt).toBeNull();
@@ -190,7 +190,7 @@ describe("tokenAuth mint / resolve / touch", () => {
   });
 
   it("settings-facing results carry NO secret-bearing columns", async () => {
-    const auth = tokenAuth(handle);
+    const auth = createTokenAuth(handle);
     const minted = await auth.mintToken(mintInput(grant));
     const listed = await auth.listForUser(USER);
     const revoked = await auth.revokeToken(USER, minted.id, NOW);
@@ -207,7 +207,7 @@ describe("tokenAuth mint / resolve / touch", () => {
   });
 
   it("resolves a no-expiry token (expires_at null never expires)", async () => {
-    const auth = tokenAuth(handle);
+    const auth = createTokenAuth(handle);
     await auth.mintToken(mintInput(grant, { expiresAt: null }));
     const resolved = await auth.resolveByHash(
       HASH,
@@ -217,14 +217,14 @@ describe("tokenAuth mint / resolve / touch", () => {
   });
 
   it("returns NOT_FOUND for an unknown hash", async () => {
-    const resolved = await tokenAuth(handle).resolveByHash(OTHER_HASH, NOW);
+    const resolved = await createTokenAuth(handle).resolveByHash(OTHER_HASH, NOW);
     expect(resolved.ok).toBe(false);
     if (resolved.ok) throw new Error("unreachable");
     expect(resolved.error.code).toBe(TokenAuthErrorCode.NOT_FOUND);
   });
 
   it("returns EXPIRED for a token past its expiry", async () => {
-    const auth = tokenAuth(handle);
+    const auth = createTokenAuth(handle);
     await auth.mintToken(mintInput(grant, { expiresAt: PAST }));
     const resolved = await auth.resolveByHash(HASH, NOW);
     expect(resolved.ok).toBe(false);
@@ -233,7 +233,7 @@ describe("tokenAuth mint / resolve / touch", () => {
   });
 
   it("touches last_used_at by hash", async () => {
-    const auth = tokenAuth(handle);
+    const auth = createTokenAuth(handle);
     await auth.mintToken(mintInput(grant));
     expect(await auth.touchLastUsed(HASH, NOW)).toBe(1);
     const resolved = await auth.resolveByHash(HASH, NOW);
@@ -244,7 +244,7 @@ describe("tokenAuth mint / resolve / touch", () => {
   });
 });
 
-describe("tokenAuth list / revoke", () => {
+describe("createTokenAuth list / revoke", () => {
   let handle: AppDatabase;
   let grant: GithubGrantRow;
   beforeEach(async () => {
@@ -253,7 +253,7 @@ describe("tokenAuth list / revoke", () => {
   });
 
   it("lists a user's tokens across installations, not other users'", async () => {
-    const auth = tokenAuth(handle);
+    const auth = createTokenAuth(handle);
     await auth.mintToken(mintInput(grant));
     await auth.mintToken(
       mintInput(grant, {
@@ -279,7 +279,7 @@ describe("tokenAuth list / revoke", () => {
   });
 
   it("revokes an owned token; a revoked token stays listable but never resolves", async () => {
-    const auth = tokenAuth(handle);
+    const auth = createTokenAuth(handle);
     const minted = await auth.mintToken(mintInput(grant));
 
     const revoked = await auth.revokeToken(USER, minted.id, NOW);
@@ -301,7 +301,7 @@ describe("tokenAuth list / revoke", () => {
   });
 
   it("revocation is idempotent — the original revoked_at is preserved", async () => {
-    const auth = tokenAuth(handle);
+    const auth = createTokenAuth(handle);
     const minted = await auth.mintToken(mintInput(grant));
     await auth.revokeToken(USER, minted.id, PAST);
     const again = await auth.revokeToken(USER, minted.id, NOW);
@@ -311,7 +311,7 @@ describe("tokenAuth list / revoke", () => {
   });
 
   it("returns NOT_FOUND revoking a token the user does not own", async () => {
-    const auth = tokenAuth(handle);
+    const auth = createTokenAuth(handle);
     const minted = await auth.mintToken(mintInput(grant));
     const result = await auth.revokeToken(OTHER_USER, minted.id, NOW);
     expect(result.ok).toBe(false);
@@ -323,11 +323,11 @@ describe("tokenAuth list / revoke", () => {
   });
 });
 
-describe("tokenAuth.mintToken audit atomicity", () => {
+describe("createTokenAuth.mintToken audit atomicity", () => {
   it("mint emits its issuance audit row in the same transaction", async () => {
     const handle = await freshDatabase();
     const grant = await seedGrant(handle);
-    await tokenAuth(handle).mintToken(mintInput(grant));
+    await createTokenAuth(handle).mintToken(mintInput(grant));
     const { internal } = await import("../src/db/handle");
     const { auditLog } = await import("../src/schema/audit-log");
     const rows = await internal(handle).select().from(auditLog);

@@ -6,8 +6,8 @@
 // no LLM, no real Postgres.
 import { sign } from "@octokit/webhooks-methods";
 import {
-  envKeyProvider,
-  forTenant,
+  createEnvKeyProvider,
+  createTenantRepository,
   isRepoId,
   parseTenantContext,
   PrState,
@@ -27,7 +27,7 @@ const SECRET = "test-webhook-secret";
 const DUMMY_AUTH: AuthDeps = {
   oauthClientId: "test-client-id",
   oauthClientSecret: "test-client-secret",
-  keyProvider: envKeyProvider({
+  keyProvider: createEnvKeyProvider({
     SESSION_KEY_V1: Buffer.alloc(32).toString("base64"),
   }),
   sessionKeyRef: "SESSION_KEY_V1",
@@ -173,7 +173,7 @@ async function seedPullRequest(
   prNumber: number,
 ): Promise<void> {
   const ctx = parseTenantContext({ installationId: INSTALLATION_ID });
-  await forTenant(harness.handle, ctx).pullRequests.upsert({
+  await createTenantRepository(harness.handle, ctx).pullRequests.upsert({
     repoId: brandRepoId(repoId),
     prNumber,
     repoSlug: "acme/widgets",

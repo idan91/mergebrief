@@ -6,18 +6,18 @@
 // endpoint (refresh). Call counts assert the positive cache + diff cache.
 import { createHash, randomBytes } from "node:crypto";
 import {
-  artifactStore,
+  createArtifactStore,
   encryptToken,
-  envKeyProvider,
+  createEnvKeyProvider,
   decryptToken,
-  forTenant,
-  grantAuth,
+  createTenantRepository,
+  createGrantAuth,
   isInstallationId,
   isRepoId,
   isReviewerId,
   PrState,
-  sessionAuth,
-  tokenAuth,
+  createSessionAuth,
+  createTokenAuth,
   WriteClassification,
   type AppDatabase,
   type InstallationId,
@@ -51,7 +51,7 @@ const BRIEF_BODY = JSON.stringify({ summary: "the brief", findings: [] });
 const DIFF_TEXT = "diff --git a/f b/f\n@@ -1 +1 @@\n-old\n+new\n";
 
 function keyProvider(): KeyProvider {
-  return envKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
+  return createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
 }
 
 function authDeps(kp: KeyProvider): AuthDeps {
@@ -213,13 +213,13 @@ async function seedSession(
   if (!sealedAccess.ok || !sealedRefresh.ok)
     throw new Error("seed encrypt failed");
   const expiresAt = opts?.expiresAt ?? new Date("2027-01-01T00:00:00Z");
-  const grant = await grantAuth(handle).createGrant({
+  const grant = await createGrantAuth(handle).createGrant({
     ghTokenCiphertext: sealedAccess.value,
     ghRefreshTokenCiphertext: sealedRefresh.value,
     keyRef: KEY_REF,
     refreshExpiresAt: expiresAt,
   });
-  await forTenant(handle, CTX).sessions.create({
+  await createTenantRepository(handle, CTX).sessions.create({
     sessionTokenHash: hash,
     reviewerId: brandReviewer(BigInt(REVIEWER_ID)),
     reviewerLogin: "octocat",
@@ -231,7 +231,7 @@ async function seedSession(
 
 /** Seed the tenant PR row; returns its branded row id. */
 async function seedPullRequest(handle: AppDatabase): Promise<void> {
-  await forTenant(handle, CTX).pullRequests.upsert({
+  await createTenantRepository(handle, CTX).pullRequests.upsert({
     repoId: brandRepo(BigInt(REPO_ID)),
     prNumber: PR_NUMBER,
     repoSlug: REPO_SLUG,
@@ -245,12 +245,12 @@ async function seedBrief(
   head: string,
   repoConfig?: string,
 ): Promise<void> {
-  const pr = await forTenant(handle, CTX).pullRequests.getByNumber(
+  const pr = await createTenantRepository(handle, CTX).pullRequests.getByNumber(
     brandRepo(BigInt(REPO_ID)),
     PR_NUMBER,
   );
   if (pr === undefined) throw new Error("seedBrief: pr missing");
-  const written = await artifactStore(handle, CTX).briefs.write({
+  const written = await createArtifactStore(handle, CTX).briefs.write({
     pullRequestId: pr.id,
     baseSha: base,
     headSha: head,
@@ -277,12 +277,12 @@ async function seedDelta(
   baseline: string,
   head: string,
 ): Promise<void> {
-  const pr = await forTenant(handle, CTX).pullRequests.getByNumber(
+  const pr = await createTenantRepository(handle, CTX).pullRequests.getByNumber(
     brandRepo(BigInt(REPO_ID)),
     PR_NUMBER,
   );
   if (pr === undefined) throw new Error("seedDelta: pr missing");
-  const written = await artifactStore(handle, CTX).deltas.write({
+  const written = await createArtifactStore(handle, CTX).deltas.write({
     pullRequestId: pr.id,
     baselineSha: baseline,
     headSha: head,
@@ -606,10 +606,10 @@ describe("reviewer read API + authz gate", () => {
 
     // Mint a Bearer token LINKED to the session's grant — the route's exact
     // link-never-copy semantics (tokens.ts passes currentSession.grantId).
-    const resolved = await sessionAuth(harness.handle).findSession(hash);
+    const resolved = await createSessionAuth(harness.handle).findSession(hash);
     if (resolved === undefined) throw new Error("seeded session not found");
     const bearer = `mergebrief_${randomBytes(32).toString("base64url")}`;
-    await tokenAuth(harness.handle).mintToken({
+    await createTokenAuth(harness.handle).mintToken({
       scope: WriteClassification.EXTERNAL_WRITE,
       installationId: brandInstallation(BigInt(INSTALLATION_ID)),
       userId: brandReviewer(BigInt(REVIEWER_ID)),

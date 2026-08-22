@@ -6,14 +6,14 @@
 import { randomBytes, createHash } from "node:crypto";
 import {
   encryptToken,
-  envKeyProvider,
-  forTenant,
-  grantAuth,
+  createEnvKeyProvider,
+  createTenantRepository,
+  createGrantAuth,
   isInstallationId,
   isRepoId,
   isReviewerId,
   PrState,
-  userSettingsStore,
+  createUserSettingsStore,
   type AppDatabase,
   type KeyProvider,
   type ReviewerId,
@@ -51,7 +51,7 @@ const CTX: TenantContext = {
 const REVIEWER: ReviewerId = brand(isReviewerId, REVIEWER_ID);
 
 function keyProvider(): KeyProvider {
-  return envKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
+  return createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
 }
 
 function authDeps(kp: KeyProvider): AuthDeps {
@@ -155,13 +155,13 @@ async function seedSession(
   const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
   if (!sealedAccess.ok || !sealedRefresh.ok)
     throw new Error("seed encrypt failed");
-  const grant = await grantAuth(handle).createGrant({
+  const grant = await createGrantAuth(handle).createGrant({
     ghTokenCiphertext: sealedAccess.value,
     ghRefreshTokenCiphertext: sealedRefresh.value,
     keyRef: KEY_REF,
     refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
   });
-  await forTenant(handle, CTX).sessions.create({
+  await createTenantRepository(handle, CTX).sessions.create({
     sessionTokenHash: hash,
     reviewerId: REVIEWER,
     reviewerLogin: "octocat",
@@ -261,7 +261,7 @@ describe("GET + POST /api/auth/installations", () => {
     });
     const cookie = await seedSession(harness.handle, kp);
     // A stored default pointing at the OTHER installation.
-    await userSettingsStore(harness.handle).setDefaultInstallation(
+    await createUserSettingsStore(harness.handle).setDefaultInstallation(
       REVIEWER,
       brand(isInstallationId, OTHER_INSTALLATION_ID),
     );
@@ -343,7 +343,7 @@ describe("GET + POST /api/auth/installations", () => {
     });
     const cookie = await seedSession(harness.handle, kp);
     // One PR per tenant; each visible only through its own installation.
-    await forTenant(harness.handle, CTX).pullRequests.upsert({
+    await createTenantRepository(harness.handle, CTX).pullRequests.upsert({
       repoId: brand(isRepoId, REPO_A),
       prNumber: 1,
       title: "tenant-a-pr",
@@ -352,7 +352,7 @@ describe("GET + POST /api/auth/installations", () => {
     const otherCtx: TenantContext = {
       installationId: brand(isInstallationId, OTHER_INSTALLATION_ID),
     };
-    await forTenant(harness.handle, otherCtx).pullRequests.upsert({
+    await createTenantRepository(harness.handle, otherCtx).pullRequests.upsert({
       repoId: brand(isRepoId, REPO_B),
       prNumber: 2,
       title: "tenant-b-pr",
@@ -407,7 +407,7 @@ describe("GET + POST /api/auth/installations", () => {
     const body = (await res.json()) as { defaultInstallationId: string | null };
     expect(body.defaultInstallationId).toBe(String(OTHER_INSTALLATION_ID));
 
-    const settings = await userSettingsStore(harness.handle).get(REVIEWER);
+    const settings = await createUserSettingsStore(harness.handle).get(REVIEWER);
     expect(String(settings?.defaultInstallationId)).toBe(
       String(OTHER_INSTALLATION_ID),
     );
@@ -430,7 +430,7 @@ describe("GET + POST /api/auth/installations", () => {
     expect(await sessionInstallationId()).toBe(String(INSTALLATION_ID));
     // No default written despite setDefault:true — validation precedes any write.
     expect(
-      await userSettingsStore(harness.handle).get(REVIEWER),
+      await createUserSettingsStore(harness.handle).get(REVIEWER),
     ).toBeUndefined();
   });
 

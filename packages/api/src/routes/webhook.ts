@@ -35,10 +35,10 @@ import {
 } from "github";
 import {
   PrState,
-  forTenant,
-  ingestRoutines,
+  createTenantRepository,
+  createIngestRoutines,
   parseTenantContext,
-  purgeRoutines,
+  createPurgeRoutines,
   type AppDatabase,
   type TenantContext,
   type TriggerGenerationInput,
@@ -94,7 +94,7 @@ async function handlePullRequest(
   if (event.action === PullRequestAction.CLOSED) {
     // Terminal state write, NO enqueue. `purgeAfter: null` = "never sweep":
     // the retention window is unconfigured, so closing arms nothing.
-    await forTenant(handle, ctx).pullRequests.upsert({
+    await createTenantRepository(handle, ctx).pullRequests.upsert({
       repoId: event.repoId,
       prNumber: event.prNumber,
       repoSlug: event.repoFullName,
@@ -116,7 +116,7 @@ async function handlePullRequest(
     // re-triggering the worker's skip-path is not a no-op (Entry-comment repost
     // ping, compare-diff spend, phantom `queued` status, and a full LLM re-run
     // if the head's last generation failed).
-    await ingestRoutines(handle, ctx).recordState({
+    await createIngestRoutines(handle, ctx).recordState({
       repoId: event.repoId,
       prNumber: event.prNumber,
       repoSlug: event.repoFullName,
@@ -138,7 +138,7 @@ async function handlePullRequest(
       // trigger path and produces the FIRST generation. A `reopened` draft
       // must still leave the terminal state here (the reopen flag), or the
       // row wedges closed forever — no later event carries the reopen intent.
-      await ingestRoutines(handle, ctx).recordState(
+      await createIngestRoutines(handle, ctx).recordState(
         {
           repoId: event.repoId,
           prNumber: event.prNumber,
@@ -201,7 +201,7 @@ async function handlePullRequestReview(
   // closed PRs), so it is skipped: if we missed the PR's own events, the next
   // `pull_request` delivery ingests it properly. On a KNOWN terminal PR the
   // ingest guard preserves the lifecycle and skips the enqueue.
-  const tenant = forTenant(handle, ctx);
+  const tenant = createTenantRepository(handle, ctx);
   const known = await tenant.pullRequests.getByNumber(
     event.repoId,
     event.prNumber,
@@ -256,7 +256,7 @@ async function triggerGeneration(
   // not resurrect a since-closed PR (a review CAN be submitted on a closed one).
   const reopen =
     "action" in event && event.action === PullRequestAction.REOPENED;
-  const result = await ingestRoutines(handle, ctx).triggerGeneration({
+  const result = await createIngestRoutines(handle, ctx).triggerGeneration({
     pullRequest: {
       repoId: event.repoId,
       prNumber: event.prNumber,
@@ -290,10 +290,10 @@ async function handleInstallation(
   event: ParsedInstallationEvent,
 ): Promise<void> {
   if (event.action === InstallationAction.DELETED) {
-    // App uninstalled → the tenant offboards: purgeRoutines deletes all PR
+    // App uninstalled → the tenant offboards: createPurgeRoutines deletes all PR
     // aggregates (children cascade) + sessions and emits its own `delete`
     // audit entry, in one transaction.
-    await purgeRoutines(handle, ctx).purgeInstallation();
+    await createPurgeRoutines(handle, ctx).purgeInstallation();
   }
   // `created` is a no-op: rows appear lazily when the first PR event lands.
 }
@@ -309,7 +309,7 @@ async function handleInstallationRepositories(
   // ONE set-based transaction (not a per-repo Promise.all, which would open N
   // concurrent pool connections and could starve the webhook's fast 200 on a
   // large deselection). Per-repo audit granularity is preserved inside it.
-  await purgeRoutines(handle, ctx).purgeRepos(event.repoIdsRemoved);
+  await createPurgeRoutines(handle, ctx).purgeRepos(event.repoIdsRemoved);
 }
 
 async function dispatch(

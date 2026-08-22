@@ -2,7 +2,7 @@
 // the ONLY way to obtain a live handle, and it returns the OPAQUE `AppDatabase`
 // wrapper, never the raw drizzle instance. The wrapper's sole public shape is
 // a module-private symbol, so an external caller cannot reach the drizzle query
-// methods; all they can do with an `AppDatabase` is hand it to `forTenant`.
+// methods; all they can do with an `AppDatabase` is hand it to `createTenantRepository`.
 // `internal()` (the unwrap) is for the package's own tenant-scoped surface and
 // must NEVER be re-exported from `index.ts`.
 import { Pool } from "pg";

@@ -8,7 +8,7 @@
 // emits NO audit entry.
 //
 // Seeds via a RAW drizzle handle (so tables with no store — e.g. disposition —
-// can be populated) over the SAME PGlite the ctx-bound `purgeRoutines` runs on
+// can be populated) over the SAME PGlite the ctx-bound `createPurgeRoutines` runs on
 // (`fromDrizzle` wraps it as the opaque handle).
 import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
@@ -36,7 +36,7 @@ import {
   revisionNarrative,
 } from "../src/schema/index";
 import * as schema from "../src/schema/index";
-import { PurgeErrorCode, purgeRoutines } from "../src/stores/purge";
+import { PurgeErrorCode, createPurgeRoutines } from "../src/stores/purge";
 import type { TenantContext } from "../src/stores/tenant";
 import {
   AuditOutcome,
@@ -369,7 +369,7 @@ async function deleteAudits(db: Db, installationId: InstallationId) {
     );
 }
 
-describe("purgeRoutines.purgePullRequest — cascade + no-FK audit survival", () => {
+describe("createPurgeRoutines.purgePullRequest — cascade + no-FK audit survival", () => {
   let pair: Pair;
   let prId: PullRequestRowId;
 
@@ -383,7 +383,7 @@ describe("purgeRoutines.purgePullRequest — cascade + no-FK audit survival", ()
     expect(await countChildTables(pair.raw, prId)).toBe(8);
     expect(await countSessionTables(pair.raw, TENANT_A)).toBe(6);
 
-    const result = await purgeRoutines(pair.handle, CTX_A).purgePullRequest(
+    const result = await createPurgeRoutines(pair.handle, CTX_A).purgePullRequest(
       prId,
     );
     expect(result.ok).toBe(true);
@@ -417,7 +417,7 @@ describe("purgeRoutines.purgePullRequest — cascade + no-FK audit survival", ()
 
   it("rejects a cross-tenant PR with notFound and deletes nothing", async () => {
     // Tenant B calls purge on tenant A's PR.
-    const result = await purgeRoutines(pair.handle, {
+    const result = await createPurgeRoutines(pair.handle, {
       installationId: TENANT_B,
     }).purgePullRequest(prId);
     expect(result.ok).toBe(false);
@@ -434,7 +434,7 @@ describe("purgeRoutines.purgePullRequest — cascade + no-FK audit survival", ()
   });
 });
 
-describe("purgeRoutines.purgeRepo — scoped predicate-delete", () => {
+describe("createPurgeRoutines.purgeRepo — scoped predicate-delete", () => {
   it("purges only the named repo's PRs and returns the count", async () => {
     const { raw, handle } = await freshPair();
     const pr1 = await insertPr(raw, {
@@ -454,7 +454,7 @@ describe("purgeRoutines.purgeRepo — scoped predicate-delete", () => {
     });
     await seedFullGraph(raw, TENANT_A, pr1);
 
-    const count = await purgeRoutines(handle, CTX_A).purgeRepo(REPO);
+    const count = await createPurgeRoutines(handle, CTX_A).purgeRepo(REPO);
     expect(count).toBe(2);
 
     const remaining = await raw
@@ -471,7 +471,7 @@ describe("purgeRoutines.purgeRepo — scoped predicate-delete", () => {
   });
 });
 
-describe("purgeRoutines.purgeRepos — set-based multi-repo purge", () => {
+describe("createPurgeRoutines.purgeRepos — set-based multi-repo purge", () => {
   it("purges every named repo in one tx, one audit entry per repo, count-0 included", async () => {
     const { raw, handle } = await freshPair();
     const a1 = await insertPr(raw, {
@@ -494,7 +494,7 @@ describe("purgeRoutines.purgeRepos — set-based multi-repo purge", () => {
     // REPO holds two PRs; a third repo (never seeded) contributes a count-0
     // audit entry, matching purgeRepo's emit-even-on-zero behavior.
     const emptyRepo: RepoId = brandWith(isRepoId, 999n);
-    const count = await purgeRoutines(handle, CTX_A).purgeRepos([
+    const count = await createPurgeRoutines(handle, CTX_A).purgeRepos([
       REPO,
       emptyRepo,
       REPO,
@@ -517,13 +517,13 @@ describe("purgeRoutines.purgeRepos — set-based multi-repo purge", () => {
 
   it("empty repo list is a no-op with no transaction and no audit", async () => {
     const { raw, handle } = await freshPair();
-    const count = await purgeRoutines(handle, CTX_A).purgeRepos([]);
+    const count = await createPurgeRoutines(handle, CTX_A).purgeRepos([]);
     expect(count).toBe(0);
     expect(await deleteAudits(raw, TENANT_A)).toHaveLength(0);
   });
 });
 
-describe("purgeRoutines.purgeInstallation — tenant-isolated offboarding", () => {
+describe("createPurgeRoutines.purgeInstallation — tenant-isolated offboarding", () => {
   it("removes tenant A's PRs + sessions + api tokens only; B untouched; audit_log retained", async () => {
     const { raw, handle } = await freshPair();
     const aPr = await insertPr(raw, { installationId: TENANT_A, prNumber: 1 });
@@ -547,7 +547,7 @@ describe("purgeRoutines.purgeInstallation — tenant-isolated offboarding", () =
       });
     }
 
-    const counts = await purgeRoutines(handle, CTX_A).purgeInstallation();
+    const counts = await createPurgeRoutines(handle, CTX_A).purgeInstallation();
     expect(counts).toEqual({ pullRequests: 1, sessions: 1, apiTokens: 1 });
 
     // Tenant A fully erased (PR + session + token).
@@ -588,7 +588,7 @@ describe("purgeRoutines.purgeInstallation — tenant-isolated offboarding", () =
   });
 });
 
-describe("purgeRoutines.sweepExpired — retention sweep", () => {
+describe("createPurgeRoutines.sweepExpired — retention sweep", () => {
   it("removes only expired, non-null, in-tenant rows and audits the count", async () => {
     const { raw, handle } = await freshPair();
     const now = new Date("2026-07-04T00:00:00Z");
@@ -617,7 +617,7 @@ describe("purgeRoutines.sweepExpired — retention sweep", () => {
       purgeAfter: past,
     });
 
-    const purged = await purgeRoutines(handle, CTX_A).sweepExpired(now);
+    const purged = await createPurgeRoutines(handle, CTX_A).sweepExpired(now);
     expect(purged).toBe(1);
 
     const remaining = await raw
@@ -640,20 +640,20 @@ describe("purgeRoutines.sweepExpired — retention sweep", () => {
   it("emits no audit entry when the sweep erases nothing", async () => {
     const { raw, handle } = await freshPair();
     await insertPr(raw, { installationId: TENANT_A, prNumber: 1 }); // null purge_after
-    const purged = await purgeRoutines(handle, CTX_A).sweepExpired(new Date());
+    const purged = await createPurgeRoutines(handle, CTX_A).sweepExpired(new Date());
     expect(purged).toBe(0);
     expect(await deleteAudits(raw, TENANT_A)).toHaveLength(0);
   });
 });
 
-describe("purgeRoutines.setRetention — purge_after semantics", () => {
+describe("createPurgeRoutines.setRetention — purge_after semantics", () => {
   it("sets purge_after = closedAt + grace and stamps closed_at", async () => {
     const { raw, handle } = await freshPair();
     const closedAt = new Date("2026-07-01T00:00:00Z");
     // Seeded OPEN: setRetention itself performs the terminal transition.
     const prId = await insertPr(raw, { installationId: TENANT_A });
 
-    const result = await purgeRoutines(handle, CTX_A).setRetention(
+    const result = await createPurgeRoutines(handle, CTX_A).setRetention(
       prId,
       PrState.CLOSED,
       closedAt,
@@ -669,7 +669,7 @@ describe("purgeRoutines.setRetention — purge_after semantics", () => {
 
   it("rejects negative and non-finite graceDays without writing", async () => {
     const { raw, handle } = await freshPair();
-    const routines = purgeRoutines(handle, CTX_A);
+    const routines = createPurgeRoutines(handle, CTX_A);
     const prId = await insertPr(raw, { installationId: TENANT_A });
     const closedAt = new Date("2026-07-01T00:00:00Z");
 
@@ -694,7 +694,7 @@ describe("purgeRoutines.setRetention — purge_after semantics", () => {
 
   it("null grace disables retention — the row is never swept", async () => {
     const { raw, handle } = await freshPair();
-    const routines = purgeRoutines(handle, CTX_A);
+    const routines = createPurgeRoutines(handle, CTX_A);
     const prId = await insertPr(raw, { installationId: TENANT_A });
 
     const result = await routines.setRetention(
@@ -720,7 +720,7 @@ describe("purgeRoutines.setRetention — purge_after semantics", () => {
   it("returns notFound for a PR outside the tenant", async () => {
     const { raw, handle } = await freshPair();
     const prId = await insertPr(raw, { installationId: TENANT_A });
-    const result = await purgeRoutines(handle, {
+    const result = await createPurgeRoutines(handle, {
       installationId: TENANT_B,
     }).setRetention(prId, PrState.CLOSED, new Date(), 3);
     expect(result.ok).toBe(false);
@@ -729,7 +729,7 @@ describe("purgeRoutines.setRetention — purge_after semantics", () => {
   });
 });
 
-describe("purgeRoutines.sweepExpiredSessions — TTL sweep", () => {
+describe("createPurgeRoutines.sweepExpiredSessions — TTL sweep", () => {
   it("removes only in-tenant expired sessions and emits no audit entry", async () => {
     const { raw, handle } = await freshPair();
     const now = new Date("2026-07-04T00:00:00Z");
@@ -753,7 +753,7 @@ describe("purgeRoutines.sweepExpiredSessions — TTL sweep", () => {
     await session(TENANT_A, "a-live", live);
     await session(TENANT_B, "b-expired", expired);
 
-    const deleted = await purgeRoutines(handle, CTX_A).sweepExpiredSessions(
+    const deleted = await createPurgeRoutines(handle, CTX_A).sweepExpiredSessions(
       now,
     );
     expect(deleted).toBe(1);
