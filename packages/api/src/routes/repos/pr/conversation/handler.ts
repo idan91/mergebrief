@@ -1,7 +1,6 @@
 import type { Context } from "hono";
 import { GitHubApiErrorCode } from "github";
 import { createTenantRepository, type AppDatabase } from "persistence";
-import { ApiErrorCode } from "../../../../error-response";
 import {
   BadGateway,
   BadRequest,
@@ -15,6 +14,7 @@ import { prNumberSchema } from "../wire-bounds";
 import conversationController from "./controller";
 import { CONVERSATION_CACHE_TTL_MS } from "./consts";
 import { buildConversationCacheKey } from "./utils";
+import { ApiErrorCodes } from "../../../../error-response";
 
 /** A cached/serialized conversation body, per-viewer gated — `no-store`. */
 function conversationJson(c: Context<AuthzEnv>, body: string): Response {
@@ -35,14 +35,14 @@ export default function createHandlers(
       const repoId = c.get("repoId");
       const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
       if (!parsedPr.success) {
-        throw new BadRequest(ApiErrorCode.INVALID_REQUEST);
+        throw new BadRequest();
       }
       const pr = await createTenantRepository(
         handle,
         ctx,
       ).pullRequests.getByNumber(repoId, parsedPr.data);
       if (pr === undefined) {
-        throw new NotFound(ApiErrorCode.NOT_FOUND);
+        throw new NotFound();
       }
 
       const key = buildConversationCacheKey(
@@ -60,7 +60,7 @@ export default function createHandlers(
       // the same budget as the gate's own positive cache).
       const target = parseOwnerAndName(c.get("repoFullName"));
       if (target === undefined) {
-        throw new NotFound(ApiErrorCode.NOT_FOUND);
+        throw new NotFound();
       }
       const fetched = await conversationController.readConversation(
         { github },
@@ -76,9 +76,9 @@ export default function createHandlers(
         // 404-collapse posture identical to the other reads; everything else is
         // an honest upstream error (no REST fallback tier).
         if (fetched.error.error.code === GitHubApiErrorCode.NOT_FOUND) {
-          throw new NotFound(ApiErrorCode.NOT_FOUND);
+          throw new NotFound();
         }
-        throw new BadGateway(ApiErrorCode.GITHUB_UNAVAILABLE);
+        throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
       }
       cache.set(key, fetched.value, now + CONVERSATION_CACHE_TTL_MS, now);
       return conversationJson(c, fetched.value);

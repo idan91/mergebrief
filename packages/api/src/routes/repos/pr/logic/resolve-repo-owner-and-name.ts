@@ -12,8 +12,8 @@ import {
 } from "github";
 import type { RepoId } from "persistence";
 import type { Result } from "types";
+import { ApiErrorCodes } from "../../../../error-response";
 import { buildGitHubDeniedResult } from "../../../../shared-errors/failures";
-import { ApiErrorCode } from "../../../../error-response";
 import {
   BadGateway,
   NotFound,
@@ -53,23 +53,23 @@ export async function resolveRepoOwnerAndName(
   }
   const ownerAndName = parseOwnerAndName(repoInfo.value.fullName);
   if (ownerAndName === undefined) {
-    throw new NotFound(ApiErrorCode.NOT_FOUND);
+    throw new NotFound();
   }
   return { ok: true, value: ownerAndName };
 }
 
 export function throwRepoResolveFailure(failure: RepoResolveFailure): never {
   if (failure.kind === "token-unreadable") {
-    throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
+    throw new Unauthorized();
   }
   if (failure.error.code === GitHubApiErrorCode.UNAUTHORIZED) {
-    throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
+    throw new Unauthorized();
   }
   if (
     failure.error.code === GitHubApiErrorCode.NOT_FOUND ||
     failure.error.code === GitHubApiErrorCode.FORBIDDEN
   ) {
-    throw new NotFound(ApiErrorCode.NOT_FOUND);
+    throw new NotFound();
   }
-  throw new BadGateway(ApiErrorCode.GITHUB_UNAVAILABLE);
+  throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
 }

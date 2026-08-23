@@ -43,7 +43,7 @@ import {
   type TenantContext,
   type TriggerGenerationInput,
 } from "persistence";
-import { ApiErrorCode } from "../error-response";
+import { ApiErrorCodes } from "../error-response";
 import {
   BadRequest,
   InternalError,
@@ -421,7 +421,7 @@ export function webhookRoute(deps: WebhookRouteDeps): Hono<RequestLogEnv> {
     // GitHub signed, never a JSON re-encode.
     const rawBody = await readRawBodyWithinLimit(c.req.raw);
     if (!rawBody.ok) {
-      throw new PayloadTooLarge(ApiErrorCode.REQUEST_TOO_LARGE);
+      throw new PayloadTooLarge(ApiErrorCodes.REQUEST_TOO_LARGE);
     }
     const raw = rawBody.value;
     const signature = c.req.header("x-hub-signature-256");
@@ -438,7 +438,7 @@ export function webhookRoute(deps: WebhookRouteDeps): Hono<RequestLogEnv> {
       log.warn("webhook signature verification failed", {
         evt: "webhook.verify.fail",
       });
-      throw new Unauthorized(ApiErrorCode.INVALID_SIGNATURE);
+      throw new Unauthorized(ApiErrorCodes.INVALID_SIGNATURE);
     }
 
     // Signed, so now worth parsing. Bad JSON from a signer is still a 400.
@@ -446,13 +446,13 @@ export function webhookRoute(deps: WebhookRouteDeps): Hono<RequestLogEnv> {
     try {
       payload = JSON.parse(raw);
     } catch {
-      throw new BadRequest(ApiErrorCode.INVALID_REQUEST);
+      throw new BadRequest();
     }
 
     // Zod boundary: malformed-but-signed handled payload → 400.
     const parsed = parseWebhookEvent({ eventName, payload });
     if (!parsed.ok) {
-      throw new BadRequest(ApiErrorCode.INVALID_REQUEST);
+      throw new BadRequest();
     }
 
     // Map the event to tenant-scoped writes. Unexpected throw → 500 with a
@@ -468,7 +468,7 @@ export function webhookRoute(deps: WebhookRouteDeps): Hono<RequestLogEnv> {
         evt: "webhook.dispatch.fail",
         err: error,
       });
-      throw new InternalError(ApiErrorCode.INTERNAL_ERROR);
+      throw new InternalError();
     }
     return c.json({ ok: true }, 200);
   });

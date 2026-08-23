@@ -10,11 +10,11 @@ import {
 } from "../../../product-operations/product-router";
 import { commentWriteRoutes } from "./comments";
 import {
-  conversationRoutes,
+  conversationRoute,
   type ConversationRouteDeps,
   type ConversationRoutes,
 } from "./conversation";
-import { readsRoute } from "./reads";
+import { readsRoutes } from "./reads";
 import { markReadyRoute } from "./ready";
 import { reviewSubmitRoute } from "./review";
 import { sessionRoutes } from "./session";
@@ -26,14 +26,14 @@ export function prRoutes(deps: ConversationRouteDeps): ProductRouter<AuthzEnv> {
 
   // Conversation built first: it owns the conversation cache, and the write
   // routes evict a PR's entry on their success paths.
-  const conversation = conversationRoutes(deps);
+  const conversation = conversationRoute(deps);
   const evictConversation: ConversationRoutes["evictConversation"] = (
     installationId,
     repoId,
     prNumber,
   ) => conversation.evictConversation(installationId, repoId, prNumber);
   // Rooted, not prefixed: the reads leaf's paths share no common prefix.
-  app.route("/", readsRoute(deps));
+  app.route("/", readsRoutes(deps));
   app.route("/session", sessionRoutes(deps));
   app.route("/review", reviewSubmitRoute(deps, evictConversation));
   app.route("/ready", markReadyRoute(deps));

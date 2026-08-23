@@ -22,7 +22,7 @@ import {
   type ProductActionDescriptor,
   type ProductQueryDescriptor,
 } from "./types";
-import { ApiErrorCode, buildErrorResponse } from "../error-response";
+import { ApiErrorCodes, buildErrorResponse } from "../error-response";
 import { ApiError, Forbidden, Unauthorized } from "../shared-errors/api-error";
 
 export const ACTION_METHOD = {
@@ -133,10 +133,10 @@ function scopeGate<E extends Env>(
   return async (c, next) => {
     const scope = principalScope(c.var);
     if (scope === undefined) {
-      throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
+      throw new Unauthorized();
     }
     if (!scopeReaches(scope, classification)) {
-      throw new Forbidden(ApiErrorCode.SCOPE_EXCEEDED);
+      throw new Forbidden(ApiErrorCodes.SCOPE_EXCEEDED);
     }
     await next();
     return undefined;

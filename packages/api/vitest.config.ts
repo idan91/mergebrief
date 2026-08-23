@@ -13,7 +13,7 @@ export default defineConfig({
       include: ["src/**"],
       exclude: coverageExclude,
       reporter: coverageReporter,
-      thresholds: { lines: 75 },
+      thresholds: { lines: 85 },
     },
   },
 });

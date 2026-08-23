@@ -4,7 +4,7 @@ import {
   DraftCommentStatus,
   createTenantRepository,
 } from "persistence";
-import { ApiErrorCode } from "../../../../error-response";
+import { ApiErrorCodes } from "../../../../error-response";
 import {
   BadRequest,
   Conflict,
@@ -66,16 +66,16 @@ async function resolvePublishableDraft(
   }
   const draft = held.value;
   if (draft === undefined) {
-    throw new NotFound(ApiErrorCode.NOT_FOUND);
+    throw new NotFound();
   }
   if (draft.status === DraftCommentStatus.SUBMITTED) {
-    throw new Conflict(ApiErrorCode.DRAFT_ALREADY_PUBLISHED);
+    throw new Conflict(ApiErrorCodes.DRAFT_ALREADY_PUBLISHED);
   }
   // Same refusal the submit makes, for the same reason: an orphaned anchor
   // would land the comment on unrelated lines, and posting one at a time
   // has no degradation fold to catch it. Re-anchor or delete to clear it.
   if (draft.anchorStatus === AnchorStatus.ORPHANED) {
-    throw new Conflict(ApiErrorCode.DRAFT_ANCHOR_ORPHANED);
+    throw new Conflict(ApiErrorCodes.DRAFT_ANCHOR_ORPHANED);
   }
   return draft;
 }
@@ -120,7 +120,7 @@ export default function createHandlers(
     const parsedBody = publishDraftSchema.safeParse(await readJsonBody(c));
     const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
     if (!parsedBody.success || !parsedPr.success) {
-      throw new BadRequest(ApiErrorCode.INVALID_REQUEST);
+      throw new BadRequest();
     }
     const draftId = parsedBody.data.draftId;
 
@@ -131,7 +131,7 @@ export default function createHandlers(
       ctx,
     ).pullRequests.getByNumber(repoId, parsedPr.data);
     if (pr === undefined) {
-      throw new NotFound(ApiErrorCode.NOT_FOUND);
+      throw new NotFound();
     }
 
     // The session answers first, and it answers with no GitHub call spent:
@@ -140,7 +140,7 @@ export default function createHandlers(
     const resolved = await resolveSessionWrite(deps, c);
     const commitId = commitShaSchema.safeParse(resolved.head);
     if (!commitId.success) {
-      throw new BadRequest(ApiErrorCode.INVALID_REQUEST);
+      throw new BadRequest();
     }
     const draft = await resolvePublishableDraft(c, resolved, draftId);
 
@@ -198,16 +198,16 @@ export default function createHandlers(
     try {
       rawBody = await c.req.json();
     } catch {
-      throw new BadRequest(ApiErrorCode.INVALID_REQUEST);
+      throw new BadRequest();
     }
     const parsedBody = replyBodySchema.safeParse(rawBody);
     if (!parsedBody.success) {
-      throw new BadRequest(ApiErrorCode.INVALID_REQUEST);
+      throw new BadRequest();
     }
     const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
     const parsedComment = commentIdSchema.safeParse(c.req.param("commentId"));
     if (!parsedPr.success || !parsedComment.success) {
-      throw new BadRequest(ApiErrorCode.INVALID_REQUEST);
+      throw new BadRequest();
     }
 
     const ctx = c.get("ctx");
@@ -217,7 +217,7 @@ export default function createHandlers(
       ctx,
     ).pullRequests.getByNumber(repoId, parsedPr.data);
     if (pr === undefined) {
-      throw new NotFound(ApiErrorCode.NOT_FOUND);
+      throw new NotFound();
     }
 
     // One refresh budget per REQUEST, shared across both GitHub calls.
@@ -272,7 +272,7 @@ function setThreadResolution(
     const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
     const parsedComment = commentIdSchema.safeParse(c.req.param("commentId"));
     if (!parsedPr.success || !parsedComment.success) {
-      throw new BadRequest(ApiErrorCode.INVALID_REQUEST);
+      throw new BadRequest();
     }
 
     const ctx = c.get("ctx");
@@ -282,7 +282,7 @@ function setThreadResolution(
       ctx,
     ).pullRequests.getByNumber(repoId, parsedPr.data);
     if (pr === undefined) {
-      throw new NotFound(ApiErrorCode.NOT_FOUND);
+      throw new NotFound();
     }
 
     // One refresh-once budget per REQUEST, shared across every GitHub call.

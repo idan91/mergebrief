@@ -1,9 +1,10 @@
-// The HTTP seam the session writes share: parse the named span, bind the
-// write through the controller, and map its refusals onto the wire. The
-// comments and review-submit handlers reach the same session through here.
+// The shared session write seam: the session op handlers plus the comments
+// and review-submit handlers all reach the same session through these two
+// functions — resolve the write target, and map the store's refusals onto
+// the wire as throws.
 import type { Context } from "hono";
 import { ReviewSessionErrorCode } from "persistence";
-import { ApiErrorCode } from "../../../../../error-response";
+import { ApiErrorCodes } from "../../../../../error-response";
 import {
   BadRequest,
   Conflict,
@@ -32,7 +33,7 @@ export async function resolveSessionWrite(
   });
   const prNumber = prNumberSchema.safeParse(c.req.param("prNumber"));
   if (!span.success || !prNumber.success) {
-    throw new BadRequest(ApiErrorCode.INVALID_REQUEST);
+    throw new BadRequest();
   }
   const resolved = await sessionController.resolveWrite(deps, {
     ctx: c.get("ctx"),
@@ -43,7 +44,7 @@ export async function resolveSessionWrite(
     log: c.get("logger"),
   });
   if (!resolved.ok) {
-    throw new NotFound(ApiErrorCode.NOT_FOUND);
+    throw new NotFound();
   }
   return resolved.value;
 }
@@ -51,10 +52,10 @@ export async function resolveSessionWrite(
 /** The store's expected refusals, mapped to the wire. */
 export function throwSessionWriteFailure(failure: SessionWriteFailure): never {
   if (failure.kind === "unreadable-brief") {
-    throw new InternalError(ApiErrorCode.INTERNAL_ERROR);
+    throw new InternalError();
   }
   if (failure.error.code === ReviewSessionErrorCode.SESSION_FROZEN) {
-    throw new Conflict(ApiErrorCode.PR_CHANGED_SINCE_READ);
+    throw new Conflict(ApiErrorCodes.PR_CHANGED_SINCE_READ);
   }
-  throw new NotFound(ApiErrorCode.NOT_FOUND);
+  throw new NotFound();
 }

@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { API_ERROR_STATUS, ApiErrorCode } from "../error-response";
+import { API_ERROR_STATUS, ApiErrorCodes } from "../error-response";
 import {
   ApiError,
   BadGateway,
@@ -16,36 +16,36 @@ import {
 
 describe("ApiError classes", () => {
   const instances: readonly ApiError[] = [
-    new BadRequest(ApiErrorCode.INVALID_REQUEST),
-    new BadRequest(ApiErrorCode.NOT_A_PR_URL),
-    new BadRequest(ApiErrorCode.SIGN_IN_FAILED),
-    new Unauthorized(ApiErrorCode.UNAUTHORIZED),
-    new Unauthorized(ApiErrorCode.INVALID_SIGNATURE),
-    new Forbidden(ApiErrorCode.FORBIDDEN),
-    new Forbidden(ApiErrorCode.GITHUB_PERMISSION),
-    new Forbidden(ApiErrorCode.SCOPE_EXCEEDED),
-    new Forbidden(ApiErrorCode.HUMAN_ONLY),
-    new Forbidden(ApiErrorCode.APP_NOT_INSTALLED),
-    new NotFound(ApiErrorCode.NOT_FOUND),
-    new Conflict(ApiErrorCode.DRAFT_ALREADY_PUBLISHED),
-    new Conflict(ApiErrorCode.DRAFT_ANCHOR_ORPHANED),
-    new Conflict(ApiErrorCode.DRAFT_LIMIT_REACHED),
-    new Conflict(ApiErrorCode.PR_CHANGED_SINCE_READ),
-    new Conflict(ApiErrorCode.PR_REWRITTEN_SINCE_READ),
-    new PayloadTooLarge(ApiErrorCode.REQUEST_TOO_LARGE),
-    new PayloadTooLarge(ApiErrorCode.DIFF_TOO_LARGE),
-    new InternalError(ApiErrorCode.INTERNAL_ERROR),
-    new BadGateway(ApiErrorCode.GITHUB_UNAVAILABLE),
-    new BadGateway(ApiErrorCode.GENERATION_FAILED),
-    new ServiceUnavailable(ApiErrorCode.GENERATION_UNAVAILABLE),
-    new ServiceUnavailable(ApiErrorCode.GENERATION_CONFIG, {
+    new BadRequest(),
+    new BadRequest(ApiErrorCodes.NOT_A_PR_URL),
+    new BadRequest(ApiErrorCodes.SIGN_IN_FAILED),
+    new Unauthorized(),
+    new Unauthorized(ApiErrorCodes.INVALID_SIGNATURE),
+    new Forbidden(),
+    new Forbidden(ApiErrorCodes.GITHUB_PERMISSION),
+    new Forbidden(ApiErrorCodes.SCOPE_EXCEEDED),
+    new Forbidden(ApiErrorCodes.HUMAN_ONLY),
+    new Forbidden(ApiErrorCodes.APP_NOT_INSTALLED),
+    new NotFound(),
+    new Conflict(ApiErrorCodes.DRAFT_ALREADY_PUBLISHED),
+    new Conflict(ApiErrorCodes.DRAFT_ANCHOR_ORPHANED),
+    new Conflict(ApiErrorCodes.DRAFT_LIMIT_REACHED),
+    new Conflict(ApiErrorCodes.PR_CHANGED_SINCE_READ),
+    new Conflict(ApiErrorCodes.PR_REWRITTEN_SINCE_READ),
+    new PayloadTooLarge(ApiErrorCodes.REQUEST_TOO_LARGE),
+    new PayloadTooLarge(ApiErrorCodes.DIFF_TOO_LARGE),
+    new InternalError(),
+    new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE),
+    new BadGateway(ApiErrorCodes.GENERATION_FAILED),
+    new ServiceUnavailable(ApiErrorCodes.GENERATION_UNAVAILABLE),
+    new ServiceUnavailable(ApiErrorCodes.GENERATION_CONFIG, {
       detail: "missing key",
     }),
   ];
 
   it("covers every code with exactly one class instance", () => {
     const codes = instances.map((e) => e.code).toSorted();
-    expect(codes).toEqual(Object.values(ApiErrorCode).toSorted());
+    expect(codes).toEqual(Object.values(ApiErrorCodes).toSorted());
   });
 
   it("every instance's status matches the code's pinned status", () => {
@@ -57,17 +57,17 @@ describe("ApiError classes", () => {
   });
 
   it("message is the code, name is the class", () => {
-    const err = new NotFound(ApiErrorCode.NOT_FOUND);
+    const err = new NotFound();
     expect(err.message).toBe("not-found");
     expect(err.name).toBe("NotFound");
   });
 
   it("carries params when the code takes them, undefined otherwise", () => {
-    const withParams = new ServiceUnavailable(ApiErrorCode.GENERATION_CONFIG, {
+    const withParams = new ServiceUnavailable(ApiErrorCodes.GENERATION_CONFIG, {
       detail: "missing key",
     });
     expect(withParams.params).toEqual({ detail: "missing key" });
-    expect(new NotFound(ApiErrorCode.NOT_FOUND).params).toBeUndefined();
+    expect(new NotFound().params).toBeUndefined();
   });
 
   it("CodeFor pins class-code agreement at the type level", () => {
@@ -76,10 +76,10 @@ describe("ApiError classes", () => {
       "unauthorized" | "invalid-signature"
     >();
     // @ts-expect-error — a 403 code cannot construct a NotFound
-    void new NotFound(ApiErrorCode.FORBIDDEN);
+    void new NotFound(ApiErrorCodes.FORBIDDEN);
     // @ts-expect-error — a paramful code requires its params
-    void new ServiceUnavailable(ApiErrorCode.GENERATION_CONFIG);
+    void new ServiceUnavailable(ApiErrorCodes.GENERATION_CONFIG);
     // @ts-expect-error — a paramless code takes no params
-    void new NotFound(ApiErrorCode.NOT_FOUND, { detail: "x" });
+    void new NotFound(ApiErrorCodes.NOT_FOUND, { detail: "x" });
   });
 });

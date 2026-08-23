@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { describe, expect, it } from "vitest";
-import { ApiErrorCode } from "../../../../error-response";
+import { ApiErrorCodes } from "../../../../error-response";
 import { BadRequest } from "../../../../shared-errors/api-error";
 import type { AuthzEnv } from "../../../authz";
 import { parseQuery, parsePrNumber } from "./utils";
@@ -44,7 +44,7 @@ describe("parseQuery", () => {
     await app.request("/probe?base=a");
     expect(thrown).toBeInstanceOf(BadRequest);
     expect(thrown instanceof BadRequest && thrown.code).toBe(
-      ApiErrorCode.INVALID_REQUEST,
+      ApiErrorCodes.INVALID_REQUEST,
     );
   });
 });
@@ -70,7 +70,7 @@ describe("parsePrNumber", () => {
     await app.request("/not-a-number");
     expect(thrown).toBeInstanceOf(BadRequest);
     expect(thrown instanceof BadRequest && thrown.code).toBe(
-      ApiErrorCode.INVALID_REQUEST,
+      ApiErrorCodes.INVALID_REQUEST,
     );
   });
 });

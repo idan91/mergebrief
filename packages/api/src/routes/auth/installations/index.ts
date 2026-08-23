@@ -16,7 +16,7 @@ import type { AuthRouteDeps } from "../session";
 import createInstallationsHandlers from "./handler";
 
 /** Mount over the session gate (no `:repoId` — same composition as the PR list). */
-export function installationsRoute(
+export function installationsRoutes(
   deps: AuthRouteDeps,
 ): ProductRouter<AuthzEnv> {
   const app = productRouter<AuthzEnv>();

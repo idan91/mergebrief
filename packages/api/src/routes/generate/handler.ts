@@ -1,7 +1,7 @@
 import { parsePrUrl, type PrLocator } from "brief-core";
 import type { Context } from "hono";
 import { sanitizeErrorDetail } from "logging";
-import { ApiErrorCode } from "../../error-response";
+import { ApiErrorCodes } from "../../error-response";
 import {
   BadGateway,
   BadRequest,
@@ -35,17 +35,17 @@ function clampConfigMessage(message: string): string {
 /** Map an engine failure to the sanitized posture (uniform-404 note in index). */
 function throwEngineFailure(error: UrlBriefError): never {
   if (error.kind === UrlBriefErrorKind.UNAUTHORIZED) {
-    throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
+    throw new Unauthorized();
   }
   if (error.kind === UrlBriefErrorKind.NOT_FOUND) {
-    throw new NotFound(ApiErrorCode.NOT_FOUND);
+    throw new NotFound();
   }
   if (error.kind === UrlBriefErrorKind.CONFIG) {
-    throw new ServiceUnavailable(ApiErrorCode.GENERATION_CONFIG, {
+    throw new ServiceUnavailable(ApiErrorCodes.GENERATION_CONFIG, {
       detail: clampConfigMessage(error.message),
     });
   }
-  throw new BadGateway(ApiErrorCode.GENERATION_FAILED);
+  throw new BadGateway(ApiErrorCodes.GENERATION_FAILED);
 }
 
 export default function createHandlers(
@@ -56,20 +56,20 @@ export default function createHandlers(
   return {
     generateBrief: async (c: Context<AuthzEnv>) => {
       if (engine === undefined) {
-        throw new ServiceUnavailable(ApiErrorCode.GENERATION_UNAVAILABLE);
+        throw new ServiceUnavailable(ApiErrorCodes.GENERATION_UNAVAILABLE);
       }
 
       const body = bodySchema.safeParse(
         await c.req.json().catch(() => undefined),
       );
       if (!body.success) {
-        throw new BadRequest(ApiErrorCode.INVALID_REQUEST);
+        throw new BadRequest();
       }
       let locator: PrLocator;
       try {
         locator = parsePrUrl(body.data.url);
       } catch {
-        throw new BadRequest(ApiErrorCode.NOT_A_PR_URL);
+        throw new BadRequest(ApiErrorCodes.NOT_A_PR_URL);
       }
 
       const github = createReviewerGitHubClient(
@@ -83,7 +83,7 @@ export default function createHandlers(
       );
       if (!result.ok) {
         if (result.error.kind === "token-unreadable") {
-          throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
+          throw new Unauthorized();
         }
         throwEngineFailure(result.error.error);
       }

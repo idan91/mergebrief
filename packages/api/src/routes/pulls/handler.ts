@@ -4,7 +4,6 @@ import {
   createGenerationProjection,
   createTenantRepository,
 } from "persistence";
-import { ApiErrorCode } from "../../error-response";
 import {
   BadGateway,
   BadRequest,
@@ -15,6 +14,7 @@ import type { AllowedRepoResolver } from "../allowed-repos";
 import type { AuthzEnv } from "../authz";
 import pullsController from "./controller";
 import { listQuerySchema } from "./schemas";
+import { ApiErrorCodes } from "../../error-response";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
@@ -29,7 +29,7 @@ export default function createHandlers(
         limit: c.req.query("limit") ?? undefined,
       });
       if (!query.success) {
-        throw new BadRequest(ApiErrorCode.INVALID_REQUEST);
+        throw new BadRequest();
       }
       const ctx = c.get("ctx");
 
@@ -39,9 +39,9 @@ export default function createHandlers(
       );
       if (!resolved.ok) {
         if (resolved.error.status === 401) {
-          throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
+          throw new Unauthorized();
         }
-        throw new BadGateway(ApiErrorCode.GITHUB_UNAVAILABLE);
+        throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
       }
 
       const body = await pullsController.listPulls(

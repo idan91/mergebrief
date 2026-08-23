@@ -4,7 +4,7 @@
 // rendered response, so audit emit and the access line survive throws.
 import type { Context } from "hono";
 import type { Logger } from "logging";
-import { ApiErrorCode, buildErrorResponse } from "../error-response";
+import { ApiErrorCodes, buildErrorResponse } from "../error-response";
 import type { RequestLogEnv } from "../request-logging";
 import { ApiError } from "./api-error";
 
@@ -19,6 +19,6 @@ export function createErrorHandler<E extends RequestLogEnv>(
     }
     const log: Logger | undefined = c.get("logger");
     (log ?? fallback).error("unhandled route error", { err });
-    return buildErrorResponse(c, ApiErrorCode.INTERNAL_ERROR, undefined);
+    return buildErrorResponse(c, ApiErrorCodes.INTERNAL_ERROR, undefined);
   };
 }

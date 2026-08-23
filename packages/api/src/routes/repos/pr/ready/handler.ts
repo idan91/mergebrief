@@ -1,6 +1,5 @@
 import type { Context } from "hono";
 import { createTenantRepository } from "persistence";
-import { ApiErrorCode } from "../../../../error-response";
 import { BadRequest, NotFound } from "../../../../shared-errors/api-error";
 import { stampAuditTarget } from "../../../../product-operations/audit";
 import { createReviewerGitHubClient } from "../../../auth/reviewer-github-client";
@@ -21,7 +20,7 @@ export default function createHandlers(deps: AuthRouteDeps) {
     const ctx = c.get("ctx");
     const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
     if (!parsedPr.success) {
-      throw new BadRequest(ApiErrorCode.INVALID_REQUEST);
+      throw new BadRequest();
     }
     const tenant = createTenantRepository(deps.handle, ctx);
     const pr = await tenant.pullRequests.getByNumber(
@@ -29,7 +28,7 @@ export default function createHandlers(deps: AuthRouteDeps) {
       parsedPr.data,
     );
     if (pr === undefined) {
-      throw new NotFound(ApiErrorCode.NOT_FOUND);
+      throw new NotFound();
     }
 
     // One refresh-once budget for the WHOLE request, shared across the fresh

@@ -4,7 +4,7 @@ import {
   DraftCommentStatus,
   createTenantRepository,
 } from "persistence";
-import { ApiErrorCode } from "../../../../error-response";
+import { ApiErrorCodes } from "../../../../error-response";
 import {
   BadRequest,
   Conflict,
@@ -63,7 +63,7 @@ async function resolveSubmittableDrafts(
   // dropping it reports feedback that never landed. Re-anchoring or
   // deleting the draft clears it.
   if (drafts.some((row) => row.anchorStatus === AnchorStatus.ORPHANED)) {
-    throw new Conflict(ApiErrorCode.DRAFT_ANCHOR_ORPHANED);
+    throw new Conflict(ApiErrorCodes.DRAFT_ANCHOR_ORPHANED);
   }
   return drafts;
 }
@@ -82,13 +82,13 @@ function assertSubmitRepresentable(
     comments.length === 0 &&
     (submitBody.body ?? "").trim() === ""
   ) {
-    throw new BadRequest(ApiErrorCode.INVALID_REQUEST);
+    throw new BadRequest();
   }
   if (
     comments.length > 0 &&
     foldCommentsIntoBody(submitBody.body, comments).length > MAX_BODY_LENGTH
   ) {
-    throw new BadRequest(ApiErrorCode.INVALID_REQUEST);
+    throw new BadRequest();
   }
 }
 
@@ -135,7 +135,7 @@ export default function createHandlers(
     );
     const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
     if (!parsedBody.success || !parsedPr.success) {
-      throw new BadRequest(ApiErrorCode.INVALID_REQUEST);
+      throw new BadRequest();
     }
     const submitBody = parsedBody.data;
 
@@ -145,7 +145,7 @@ export default function createHandlers(
       ctx,
     ).pullRequests.getByNumber(c.get("repoId"), parsedPr.data);
     if (pr === undefined) {
-      throw new NotFound(ApiErrorCode.NOT_FOUND);
+      throw new NotFound();
     }
 
     // The session answers before a GitHub call is spent: a frozen tab is
@@ -153,7 +153,7 @@ export default function createHandlers(
     const resolved = await resolveSessionWrite(deps, c);
     const commitId = commitShaSchema.safeParse(resolved.head);
     if (!commitId.success) {
-      throw new BadRequest(ApiErrorCode.INVALID_REQUEST);
+      throw new BadRequest();
     }
     const drafts = await resolveSubmittableDrafts(c, resolved);
     const comments = drafts.map(shapeSubmitComment);

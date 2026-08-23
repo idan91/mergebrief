@@ -1,9 +1,11 @@
 // The ONE producer of error-response bodies: every expected failure on the
-// HTTP surface exits through `errorJson`, so the wire shape
+// HTTP surface exits as a thrown `ApiError` class and renders through
+// `buildErrorResponse` (the `onError` seam), so the wire shape
 // `{ error, code, params? }`, the code→status pairing, and the `no-store`
 // posture cannot drift per route. Security collapses (uniform-404, single
-// invalid-request bucket) happen at the per-route mappers BEFORE this module
-// — a code here is already the public posture, never the internal cause.
+// invalid-request bucket) happen at the per-route handlers BEFORE this
+// module — a code here is already the public posture, never the internal
+// cause. `errorJson` survives only for the wire suite that pins the shape.
 import type { Context } from "hono";
 import type { ValueOf } from "types";
 
@@ -15,7 +17,7 @@ declare module "hono" {
   }
 }
 
-export const ApiErrorCode = {
+export const ApiErrorCodes = {
   UNAUTHORIZED: "unauthorized",
   INVALID_SIGNATURE: "invalid-signature",
   FORBIDDEN: "forbidden",
@@ -40,7 +42,10 @@ export const ApiErrorCode = {
   GENERATION_CONFIG: "generation-config",
   INTERNAL_ERROR: "internal-error",
 } as const;
-export type ApiErrorCode = ValueOf<typeof ApiErrorCode>;
+export type ApiErrorCode = ValueOf<typeof ApiErrorCodes>;
+
+/** Frozen-suite alias — dies with the wire-pin shims. */
+export const ApiErrorCode = ApiErrorCodes;
 
 /**
  * Codes that carry interpolation params, typed per code. Adding params to a
@@ -48,7 +53,7 @@ export type ApiErrorCode = ValueOf<typeof ApiErrorCode>;
  * pre-sanitized (`sanitizeErrorDetail`) by the producing route.
  */
 export interface ApiErrorParams {
-  [ApiErrorCode.GENERATION_CONFIG]: { readonly detail: string };
+  [ApiErrorCodes.GENERATION_CONFIG]: { readonly detail: string };
 }
 
 type ParamCode = keyof ApiErrorParams;
@@ -68,29 +73,29 @@ export type ApiErrorBody =
 // 1:1 — a code needing two statuses is two codes. `app-not-installed` is 403
 // from its one login site; a future non-403 site mints a new code.
 export const API_ERROR_STATUS = {
-  [ApiErrorCode.UNAUTHORIZED]: 401,
-  [ApiErrorCode.INVALID_SIGNATURE]: 401,
-  [ApiErrorCode.FORBIDDEN]: 403,
-  [ApiErrorCode.GITHUB_PERMISSION]: 403,
-  [ApiErrorCode.SCOPE_EXCEEDED]: 403,
-  [ApiErrorCode.HUMAN_ONLY]: 403,
-  [ApiErrorCode.NOT_FOUND]: 404,
-  [ApiErrorCode.INVALID_REQUEST]: 400,
-  [ApiErrorCode.NOT_A_PR_URL]: 400,
-  [ApiErrorCode.SIGN_IN_FAILED]: 400,
-  [ApiErrorCode.REQUEST_TOO_LARGE]: 413,
-  [ApiErrorCode.DIFF_TOO_LARGE]: 413,
-  [ApiErrorCode.DRAFT_ALREADY_PUBLISHED]: 409,
-  [ApiErrorCode.DRAFT_ANCHOR_ORPHANED]: 409,
-  [ApiErrorCode.DRAFT_LIMIT_REACHED]: 409,
-  [ApiErrorCode.PR_CHANGED_SINCE_READ]: 409,
-  [ApiErrorCode.PR_REWRITTEN_SINCE_READ]: 409,
-  [ApiErrorCode.APP_NOT_INSTALLED]: 403,
-  [ApiErrorCode.GITHUB_UNAVAILABLE]: 502,
-  [ApiErrorCode.GENERATION_FAILED]: 502,
-  [ApiErrorCode.GENERATION_UNAVAILABLE]: 503,
-  [ApiErrorCode.GENERATION_CONFIG]: 503,
-  [ApiErrorCode.INTERNAL_ERROR]: 500,
+  [ApiErrorCodes.UNAUTHORIZED]: 401,
+  [ApiErrorCodes.INVALID_SIGNATURE]: 401,
+  [ApiErrorCodes.FORBIDDEN]: 403,
+  [ApiErrorCodes.GITHUB_PERMISSION]: 403,
+  [ApiErrorCodes.SCOPE_EXCEEDED]: 403,
+  [ApiErrorCodes.HUMAN_ONLY]: 403,
+  [ApiErrorCodes.NOT_FOUND]: 404,
+  [ApiErrorCodes.INVALID_REQUEST]: 400,
+  [ApiErrorCodes.NOT_A_PR_URL]: 400,
+  [ApiErrorCodes.SIGN_IN_FAILED]: 400,
+  [ApiErrorCodes.REQUEST_TOO_LARGE]: 413,
+  [ApiErrorCodes.DIFF_TOO_LARGE]: 413,
+  [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]: 409,
+  [ApiErrorCodes.DRAFT_ANCHOR_ORPHANED]: 409,
+  [ApiErrorCodes.DRAFT_LIMIT_REACHED]: 409,
+  [ApiErrorCodes.PR_CHANGED_SINCE_READ]: 409,
+  [ApiErrorCodes.PR_REWRITTEN_SINCE_READ]: 409,
+  [ApiErrorCodes.APP_NOT_INSTALLED]: 403,
+  [ApiErrorCodes.GITHUB_UNAVAILABLE]: 502,
+  [ApiErrorCodes.GENERATION_FAILED]: 502,
+  [ApiErrorCodes.GENERATION_UNAVAILABLE]: 503,
+  [ApiErrorCodes.GENERATION_CONFIG]: 503,
+  [ApiErrorCodes.INTERNAL_ERROR]: 500,
 } as const satisfies Record<ApiErrorCode, number>;
 
 /**
@@ -99,35 +104,36 @@ export const API_ERROR_STATUS = {
  * it; no route behavior may depend on the export.
  */
 export const API_ERROR_ENGLISH = {
-  [ApiErrorCode.UNAUTHORIZED]: "unauthorized",
-  [ApiErrorCode.INVALID_SIGNATURE]: "invalid signature",
-  [ApiErrorCode.FORBIDDEN]: "forbidden",
-  [ApiErrorCode.GITHUB_PERMISSION]: "github-permission",
-  [ApiErrorCode.SCOPE_EXCEEDED]:
+  [ApiErrorCodes.UNAUTHORIZED]: "unauthorized",
+  [ApiErrorCodes.INVALID_SIGNATURE]: "invalid signature",
+  [ApiErrorCodes.FORBIDDEN]: "forbidden",
+  [ApiErrorCodes.GITHUB_PERMISSION]: "github-permission",
+  [ApiErrorCodes.SCOPE_EXCEEDED]:
     "this credential's scope does not allow this operation",
-  [ApiErrorCode.HUMAN_ONLY]: "only a signed-in reviewer can clear this",
-  [ApiErrorCode.NOT_FOUND]: "not found",
-  [ApiErrorCode.INVALID_REQUEST]: "invalid request",
-  [ApiErrorCode.NOT_A_PR_URL]: "not a pr url",
-  [ApiErrorCode.SIGN_IN_FAILED]: "sign-in failed",
-  [ApiErrorCode.REQUEST_TOO_LARGE]: "request body too large",
-  [ApiErrorCode.DIFF_TOO_LARGE]: "diff too large to render",
-  [ApiErrorCode.DRAFT_ALREADY_PUBLISHED]:
+  [ApiErrorCodes.HUMAN_ONLY]: "only a signed-in reviewer can clear this",
+  [ApiErrorCodes.NOT_FOUND]: "not found",
+  [ApiErrorCodes.INVALID_REQUEST]: "invalid request",
+  [ApiErrorCodes.NOT_A_PR_URL]: "not a pr url",
+  [ApiErrorCodes.SIGN_IN_FAILED]: "sign-in failed",
+  [ApiErrorCodes.REQUEST_TOO_LARGE]: "request body too large",
+  [ApiErrorCodes.DIFF_TOO_LARGE]: "diff too large to render",
+  [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]:
     "this draft has already been published to github",
-  [ApiErrorCode.DRAFT_ANCHOR_ORPHANED]:
+  [ApiErrorCodes.DRAFT_ANCHOR_ORPHANED]:
     "this review holds a comment whose anchor no longer points at any code",
-  [ApiErrorCode.DRAFT_LIMIT_REACHED]:
+  [ApiErrorCodes.DRAFT_LIMIT_REACHED]:
     "this review already holds as many unposted comments as it can carry",
-  [ApiErrorCode.PR_CHANGED_SINCE_READ]:
+  [ApiErrorCodes.PR_CHANGED_SINCE_READ]:
     "pull request changed since it was read",
-  [ApiErrorCode.PR_REWRITTEN_SINCE_READ]:
+  [ApiErrorCodes.PR_REWRITTEN_SINCE_READ]:
     "pull request was rewritten since it was read",
-  [ApiErrorCode.APP_NOT_INSTALLED]: "the app is not installed for this account",
-  [ApiErrorCode.GITHUB_UNAVAILABLE]: "upstream error",
-  [ApiErrorCode.GENERATION_FAILED]: "generation failed",
-  [ApiErrorCode.GENERATION_UNAVAILABLE]: "url generation unavailable",
-  [ApiErrorCode.GENERATION_CONFIG]: "{{detail}}",
-  [ApiErrorCode.INTERNAL_ERROR]: "internal error",
+  [ApiErrorCodes.APP_NOT_INSTALLED]:
+    "the app is not installed for this account",
+  [ApiErrorCodes.GITHUB_UNAVAILABLE]: "upstream error",
+  [ApiErrorCodes.GENERATION_FAILED]: "generation failed",
+  [ApiErrorCodes.GENERATION_UNAVAILABLE]: "url generation unavailable",
+  [ApiErrorCodes.GENERATION_CONFIG]: "{{detail}}",
+  [ApiErrorCodes.INTERNAL_ERROR]: "internal error",
 } as const satisfies Record<ApiErrorCode, string>;
 
 /** Compose the server-side English line from the template + params. */
@@ -162,8 +168,8 @@ export function errorJson(
 }
 
 /**
- * Loose-signature twin for `app.onError`, where an `ApiError` class has
- * already proven the code/params pairing. Routes call the typed `errorJson`.
+ * The producing seam `app.onError` calls — an `ApiError` class has already
+ * proven the code/params pairing by construction.
  */
 export function buildErrorResponse(
   c: Context,

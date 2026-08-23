@@ -60,7 +60,6 @@ import {
 } from "../product-operations/audit";
 import { stampAccess, type RequestLogVariables } from "../request-logging";
 import { createTtlCache } from "./ttl-cache";
-import { ApiErrorCode } from "../error-response";
 import { NotFound, Unauthorized } from "../shared-errors/api-error";
 import { createReviewerGitHubClient } from "./auth/reviewer-github-client";
 
@@ -180,7 +179,7 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
       // Wrong prefix / miss / expired / revoked — the SAME hint-free 401.
       if (!bearer.startsWith(API_TOKEN_PREFIX)) {
         stampAccess(c, "401", {});
-        throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
+        throw new Unauthorized();
       }
       const tokenHash = sha256Hex(bearer);
       const resolved = await createTokenAuth(deps.handle).resolveByHash(
@@ -189,7 +188,7 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
       );
       if (!resolved.ok) {
         stampAccess(c, "401", {});
-        throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
+        throw new Unauthorized();
       }
       const principal = derivePrincipalFromApiToken(resolved.value);
 
@@ -218,7 +217,7 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
     const cookie = getCookie(c, SESSION_COOKIE);
     if (cookie === undefined) {
       stampAccess(c, "401", {});
-      throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
+      throw new Unauthorized();
     }
     const sessionTokenHash = sha256Hex(cookie);
     const resolved = await createSessionAuth(deps.handle).findSession(
@@ -226,7 +225,7 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
     );
     if (resolved === undefined) {
       stampAccess(c, "401", {});
-      throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
+      throw new Unauthorized();
     }
     // `findSession` is a plain resolver (it doesn't filter on expiry), so expiry
     // is enforced HERE, at the auth decision point. `expires_at` tracks the ~6mo
@@ -237,7 +236,7 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
     if (resolved.session.expiresAt.getTime() <= startedAt) {
       await createSessionAuth(deps.handle).deleteSession(sessionTokenHash);
       stampAccess(c, "401", { reviewerId: resolved.session.reviewerId });
-      throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
+      throw new Unauthorized();
     }
 
     c.set("ctx", { installationId: resolved.session.installationId });
@@ -274,7 +273,7 @@ export function repoAuthzLayer(
     const repoId = parseRepoId(c.req.param("repoId"));
     if (repoId === undefined) {
       stampAccess(c, "404", { reviewerId: session.reviewerId });
-      throw new NotFound(ApiErrorCode.NOT_FOUND);
+      throw new NotFound();
     }
 
     // Positive-cache hit → already authorized within the TTL; skip GitHub
@@ -315,7 +314,7 @@ export function repoAuthzLayer(
           session.sessionTokenHash,
         );
         stampAccess(c, "401", { repoId, reviewerId: session.reviewerId });
-        throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
+        throw new Unauthorized();
       }
       // A 401 with no retry spent means the refresh itself failed — the
       // orchestrator already deleted the session; clean 401 → re-login.
@@ -324,7 +323,7 @@ export function repoAuthzLayer(
           repoId,
           reviewerId: client.session().reviewerId,
         });
-        throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
+        throw new Unauthorized();
       }
       // Any other non-2xx (403/404/5xx), or a retry that is still non-2xx →
       // collapse to 404 (no existence leak) AND emit the denial. Never
@@ -338,7 +337,7 @@ export function repoAuthzLayer(
         repoId,
         reviewerId: client.session().reviewerId,
       });
-      throw new NotFound(ApiErrorCode.NOT_FOUND);
+      throw new NotFound();
     }
 
     // 2xx → authorized. Cache the verified full name, hand the token to the

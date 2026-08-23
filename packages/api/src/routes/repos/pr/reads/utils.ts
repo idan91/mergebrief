@@ -2,7 +2,6 @@
 // deterministic 400 (`invalid-request`), never a schema-shaped hint.
 import type { Context } from "hono";
 import type { z } from "zod";
-import { ApiErrorCode } from "../../../../error-response";
 import { BadRequest } from "../../../../shared-errors/api-error";
 import type { AuthzEnv } from "../../../authz";
 import { prNumberSchema } from "./schemas";
@@ -18,7 +17,7 @@ export function parseQuery<S extends z.ZodTypeAny>(
   }
   const parsed = schema.safeParse(raw);
   if (!parsed.success) {
-    throw new BadRequest(ApiErrorCode.INVALID_REQUEST);
+    throw new BadRequest();
   }
   return parsed.data;
 }
@@ -26,7 +25,7 @@ export function parseQuery<S extends z.ZodTypeAny>(
 export function parsePrNumber(c: Context<AuthzEnv>): number {
   const parsed = prNumberSchema.safeParse(c.req.param("prNumber"));
   if (!parsed.success) {
-    throw new BadRequest(ApiErrorCode.INVALID_REQUEST);
+    throw new BadRequest();
   }
   return parsed.data;
 }

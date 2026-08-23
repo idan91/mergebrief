@@ -7,7 +7,7 @@ import {
 } from "persistence";
 import type { AppDatabase } from "persistence";
 import { DEFAULT_DRAFT_POLICY } from "../../../../draft-policy";
-import { ApiErrorCode } from "../../../../error-response";
+import { ApiErrorCodes } from "../../../../error-response";
 import {
   BadGateway,
   NotFound,
@@ -148,7 +148,7 @@ export default function createHandlers(
     // than the numeric id the gate authorized.
     const target = parseOwnerAndName(c.get("repoFullName"));
     if (target === undefined) {
-      throw new NotFound(ApiErrorCode.NOT_FOUND);
+      throw new NotFound();
     }
     const session = c.get("session");
     const result = await readsController.readDiff(
@@ -169,14 +169,14 @@ export default function createHandlers(
     );
     if (!result.ok) {
       if (result.error.kind === "token-unreadable") {
-        throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
+        throw new Unauthorized();
       }
       const denied = result.error;
       // 406 = GitHub refuses to render the diff (too large: >300 files/20k
       // lines) — a PERMANENT condition for this span, so surface it as 413
       // rather than a retryable-looking 502.
       if (denied.error.status === 406) {
-        throw new PayloadTooLarge(ApiErrorCode.DIFF_TOO_LARGE);
+        throw new PayloadTooLarge(ApiErrorCodes.DIFF_TOO_LARGE);
       }
       // A 401 with the refresh spent and no retry is the refresh-failed
       // re-login prompt; a retried-still-401 is an upstream error like any
@@ -185,12 +185,12 @@ export default function createHandlers(
         denied.error.code === GitHubApiErrorCode.UNAUTHORIZED &&
         !denied.retried
       ) {
-        throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
+        throw new Unauthorized();
       }
       if (denied.error.code === GitHubApiErrorCode.NOT_FOUND) {
-        throw new NotFound(ApiErrorCode.NOT_FOUND);
+        throw new NotFound();
       }
-      throw new BadGateway(ApiErrorCode.GITHUB_UNAVAILABLE);
+      throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
     }
     return c.body(result.body, 200, {
       "content-type": "text/plain; charset=utf-8",

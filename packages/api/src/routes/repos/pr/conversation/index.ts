@@ -42,7 +42,7 @@ export interface ConversationRoutes {
 }
 
 /** Mount the conversation read behind the pr subtree's shared gate. */
-export function conversationRoutes(
+export function conversationRoute(
   deps: ConversationRouteDeps,
 ): ConversationRoutes {
   const app = productRouter<AuthzEnv>();

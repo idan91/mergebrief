@@ -60,7 +60,7 @@ Result-side, `Error` = thrown (CONTEXT.md glossary).
 
 **Adding a new error code** (the recipe):
 
-1. Add the kebab-case code to `ApiErrorCode`, its status to
+1. Add the kebab-case code to `ApiErrorCodes`, its status to
    `API_ERROR_STATUS` (1:1 — a code needing two statuses is two codes), and
    its English template to `API_ERROR_ENGLISH` (i18next `{{param}}` syntax
    for any params, typed in `ApiErrorParams`). The status places the code in

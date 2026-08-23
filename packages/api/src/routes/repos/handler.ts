@@ -1,9 +1,9 @@
 import type { Context } from "hono";
-import { ApiErrorCode } from "../../error-response";
 import { BadGateway, Unauthorized } from "../../shared-errors/api-error";
 import type { AllowedRepoResolver } from "../allowed-repos";
 import type { AuthzEnv } from "../authz";
 import reposController from "./controller";
+import { ApiErrorCodes } from "../../error-response";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
@@ -17,9 +17,9 @@ export default function createHandlers(allowedRepos: AllowedRepoResolver) {
       );
       if (!resolved.ok) {
         if (resolved.error.status === 401) {
-          throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
+          throw new Unauthorized();
         }
-        throw new BadGateway(ApiErrorCode.GITHUB_UNAVAILABLE);
+        throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
       }
       const body = reposController.listRepos(resolved.value.allowed);
       return c.json(body, 200, NO_STORE);

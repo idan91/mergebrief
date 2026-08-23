@@ -4,7 +4,7 @@ import {
   ReviewValidationClass,
   type CreateReviewError,
 } from "github";
-import { ApiErrorCode } from "../../../../../error-response";
+import { ApiErrorCodes } from "../../../../../error-response";
 import {
   BadGateway,
   Conflict,
@@ -23,21 +23,21 @@ function isValidation(
 /** Map a final create-review failure to the sanitized response posture. */
 export function throwSubmitFailure(failure: SubmitFailure): never {
   if (failure.kind === "token-unreadable") {
-    throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
+    throw new Unauthorized();
   }
   const error = failure.error;
   // Unknown commit → the PR was rewritten since it was read. Fail closed;
   // the FE tells the reviewer to reload (drafts survive via sessionStorage).
   if (isValidation(error, ReviewValidationClass.UNKNOWN_COMMIT)) {
-    throw new Conflict(ApiErrorCode.PR_REWRITTEN_SINCE_READ);
+    throw new Conflict(ApiErrorCodes.PR_REWRITTEN_SINCE_READ);
   }
   // A still-unauthorized final result (refresh budget spent or hard-failed)
   // is a clean re-login prompt, not an upstream error.
   if (error.code === GitHubApiErrorCode.UNAUTHORIZED) {
-    throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
+    throw new Unauthorized();
   }
   if (error.code === GitHubApiErrorCode.NOT_FOUND) {
-    throw new NotFound(ApiErrorCode.NOT_FOUND);
+    throw new NotFound();
   }
-  throw new BadGateway(ApiErrorCode.GITHUB_UNAVAILABLE);
+  throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
 }

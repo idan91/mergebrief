@@ -28,7 +28,7 @@ import {
   createUserSettingsStore,
 } from "persistence";
 import { z } from "zod";
-import { ApiErrorCode } from "../../error-response";
+import { ApiErrorCodes } from "../../error-response";
 import {
   BadGateway,
   BadRequest,
@@ -87,11 +87,11 @@ export function oauthRoute(deps: AuthRouteDeps): Hono {
       state: c.req.query("state"),
     });
     if (!query.success) {
-      throw new BadRequest(ApiErrorCode.SIGN_IN_FAILED);
+      throw new BadRequest(ApiErrorCodes.SIGN_IN_FAILED);
     }
     // CSRF: the returned state must match the cookie set on the login redirect.
     if (stateCookie === undefined || stateCookie !== query.data.state) {
-      throw new BadRequest(ApiErrorCode.SIGN_IN_FAILED);
+      throw new BadRequest(ApiErrorCodes.SIGN_IN_FAILED);
     }
 
     const tokens = await exchangeWebFlowCode(oauthApp, {
@@ -99,7 +99,7 @@ export function oauthRoute(deps: AuthRouteDeps): Hono {
       state: query.data.state,
     });
     if (!tokens.ok) {
-      throw new BadRequest(ApiErrorCode.SIGN_IN_FAILED);
+      throw new BadRequest(ApiErrorCodes.SIGN_IN_FAILED);
     }
 
     // Independent of each other (both need only the access token) → run
@@ -109,17 +109,17 @@ export function oauthRoute(deps: AuthRouteDeps): Hono {
       listAppInstallationsForUser(tokens.value.accessToken),
     ]);
     if (!user.ok) {
-      throw new BadGateway(ApiErrorCode.GITHUB_UNAVAILABLE);
+      throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
     }
     if (!installations.ok) {
-      throw new BadGateway(ApiErrorCode.GITHUB_UNAVAILABLE);
+      throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
     }
     const accessible = installations.value;
     const firstAccessible = accessible[0];
     if (firstAccessible === undefined) {
       // No accessible installation → the app isn't installed where this
       // reviewer can reach it, so they aren't authorized to log in.
-      throw new Forbidden(ApiErrorCode.APP_NOT_INSTALLED);
+      throw new Forbidden(ApiErrorCodes.APP_NOT_INSTALLED);
     }
     // Bind the session to the user's DEFAULT installation when it is still in
     // their LIVE accessible set, else the first accessible one. The default is
@@ -150,7 +150,7 @@ export function oauthRoute(deps: AuthRouteDeps): Hono {
       tokens.value.refreshToken,
     );
     if (!sealedAccess.ok || !sealedRefresh.ok) {
-      throw new InternalError(ApiErrorCode.INTERNAL_ERROR);
+      throw new InternalError();
     }
 
     // The credential pair lands on a fresh grant row; the session LINKS it.

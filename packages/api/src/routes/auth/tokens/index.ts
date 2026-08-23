@@ -16,7 +16,7 @@ import type { AuthRouteDeps } from "../session";
 import createTokensHandlers from "./handler";
 
 /** Mount the token-management surface over the cookie session gate. */
-export function tokensRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
+export function tokensRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   const app = productRouter<AuthzEnv>();
   const handlers = createTokensHandlers(deps);
   app.use("/", sessionLayer(deps), accessStampLayer());

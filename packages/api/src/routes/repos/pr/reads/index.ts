@@ -15,7 +15,7 @@ import { createTtlCache } from "../../../ttl-cache";
 import { DIFF_CACHE_MAX_ENTRIES } from "./consts";
 import createReadsHandlers from "./handler";
 
-export function readsRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
+export function readsRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   const app = productRouter<AuthzEnv>();
   // key `${sessionHash}:${repoId}:${prNumber}:${base}:${head}` → cached diff.
   const diffCache = createTtlCache<string>(DIFF_CACHE_MAX_ENTRIES);

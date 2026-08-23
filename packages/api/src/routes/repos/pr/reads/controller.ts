@@ -4,7 +4,6 @@
 import { createUserOctokit, fetchCompareDiff } from "github";
 import type { GenerationProjection, RepoId, ReviewerId } from "persistence";
 import type { DraftPolicy } from "types";
-import { ApiErrorCode } from "../../../../error-response";
 import { NotFound } from "../../../../shared-errors/api-error";
 import type { ReviewerGitHubClient } from "../../../auth/reviewer-github-client";
 import { buildPrView } from "../../../pr-view";
@@ -35,7 +34,7 @@ async function resolvePullRequestId(
     input.prNumber,
   );
   if (pr === undefined) {
-    throw new NotFound(ApiErrorCode.NOT_FOUND);
+    throw new NotFound();
   }
   return pr.id;
 }
@@ -57,7 +56,7 @@ export default {
       input.head,
     );
     if (row === undefined) {
-      throw new NotFound(ApiErrorCode.NOT_FOUND);
+      throw new NotFound();
     }
     return row.body;
   },
@@ -74,7 +73,7 @@ export default {
       input.head,
     );
     if (row === undefined) {
-      throw new NotFound(ApiErrorCode.NOT_FOUND);
+      throw new NotFound();
     }
     return row.body;
   },
@@ -91,7 +90,7 @@ export default {
       input.head,
     );
     if (row === undefined) {
-      throw new NotFound(ApiErrorCode.NOT_FOUND);
+      throw new NotFound();
     }
     return row.body;
   },
@@ -108,7 +107,7 @@ export default {
       input.head,
     );
     if (row === undefined) {
-      throw new NotFound(ApiErrorCode.NOT_FOUND);
+      throw new NotFound();
     }
     return row.body;
   },
@@ -129,7 +128,7 @@ export default {
       input.head,
     );
     if (repoConfig === undefined) {
-      throw new NotFound(ApiErrorCode.NOT_FOUND);
+      throw new NotFound();
     }
     return composeBriefContextBody(repoConfig);
   },
@@ -156,7 +155,7 @@ export default {
       input.prNumber,
     );
     if (pr === undefined) {
-      throw new NotFound(ApiErrorCode.NOT_FOUND);
+      throw new NotFound();
     }
     const ids = [pr.id];
     const [latestBriefs, latestGenerations] = await Promise.all([
@@ -266,7 +265,7 @@ export default {
       input.prNumber,
     );
     if (pr === undefined) {
-      throw new NotFound(ApiErrorCode.NOT_FOUND);
+      throw new NotFound();
     }
     const cacheKey = buildDiffCacheKey({
       sessionTokenHash: input.sessionTokenHash,

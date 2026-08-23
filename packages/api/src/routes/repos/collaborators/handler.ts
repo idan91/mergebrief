@@ -1,7 +1,6 @@
 import type { Context } from "hono";
 import { GitHubApiErrorCode } from "github";
 import type { InstallationId, RepoId } from "persistence";
-import { ApiErrorCode } from "../../../error-response";
 import { BadGateway, NotFound } from "../../../shared-errors/api-error";
 import type { AuthzEnv } from "../../authz";
 import type { InstallationGitHubPort } from "../../github-port";
@@ -9,6 +8,7 @@ import type { TtlCache } from "../../ttl-cache";
 import collaboratorsController from "./controller";
 import { COLLABORATORS_CACHE_TTL_MS } from "./consts";
 import { parseOwnerAndName } from "../utils";
+import { ApiErrorCodes } from "../../../error-response";
 
 function cacheKey(installationId: InstallationId, repoId: RepoId): string {
   return `${String(installationId)}:${String(repoId)}`;
@@ -32,7 +32,7 @@ export default function createHandlers(
       // Push-gate BEFORE the cache: the cached roster is repo-shared, and a
       // read-only viewer must not be able to read it out of the cache either.
       if (!c.get("viewerCanPush")) {
-        throw new NotFound(ApiErrorCode.NOT_FOUND);
+        throw new NotFound();
       }
 
       const ctx = c.get("ctx");
@@ -48,7 +48,7 @@ export default function createHandlers(
       // the same budget as the gate's own positive cache).
       const target = parseOwnerAndName(c.get("repoFullName"));
       if (target === undefined) {
-        throw new NotFound(ApiErrorCode.NOT_FOUND);
+        throw new NotFound();
       }
       const fetched = await collaboratorsController.listCollaborators(
         { github },
@@ -62,9 +62,9 @@ export default function createHandlers(
         // 404-collapse posture identical to the other reads; everything else is
         // an honest upstream error.
         if (fetched.error.error.code === GitHubApiErrorCode.NOT_FOUND) {
-          throw new NotFound(ApiErrorCode.NOT_FOUND);
+          throw new NotFound();
         }
-        throw new BadGateway(ApiErrorCode.GITHUB_UNAVAILABLE);
+        throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
       }
       const body = JSON.stringify(fetched.value);
       cache.set(key, body, now + COLLABORATORS_CACHE_TTL_MS, now);

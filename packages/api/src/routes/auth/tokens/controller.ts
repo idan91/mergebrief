@@ -3,7 +3,6 @@
 // session's grant, never copies credential material. The handler owns wire
 // posture and audit stamps.
 import { randomBytes } from "node:crypto";
-import type { Logger } from "logging";
 import {
   createTokenAuth,
   TokenAuthErrorCode,
@@ -12,25 +11,20 @@ import {
 } from "persistence";
 import type { Result } from "types";
 import { resolveAccessibleInstallations } from "../accessible-installations";
-import {
-  sha256Hex,
-  type AuthRouteDeps,
-  type ViewerPrincipal,
-} from "../session";
+import { sha256Hex } from "../session";
 import { DEFAULT_EXPIRY_DAYS, MS_PER_DAY, TOKEN_BYTES } from "./consts";
-import type { MintInput, RevokeFailure, TokensFailure } from "./types";
+import type {
+  MintInput,
+  RevokeFailure,
+  TokensControllerDeps,
+  TokensFailure,
+} from "./types";
 
 type MintResult = Result<
   { readonly token: string; readonly row: ApiTokenMetadataRow },
   TokensFailure
 >;
 type RevokeResult = Result<ApiTokenMetadataRow, RevokeFailure>;
-
-interface TokensControllerDeps {
-  readonly deps: AuthRouteDeps;
-  readonly session: ViewerPrincipal;
-  readonly log: Logger;
-}
 
 export default {
   async mintToken(

@@ -17,6 +17,7 @@ import {
   resolveSessionTarget,
 } from "./logic/brief-target";
 import { UnreadableBriefError } from "./logic/carry-over-inputs";
+import { buildSessionPayload, type SessionPayload } from "./logic/payload";
 import type { SessionWriteFailure } from "./types";
 
 /** A write bound to the named Brief and reviewer; it writes if needed. */
@@ -43,6 +44,11 @@ interface ResolveWriteInput {
 type ResolveWriteResult = Result<
   ResolvedSessionWrite,
   { readonly kind: "target-not-found" }
+>;
+
+type PreviewSessionResult = Result<
+  SessionPayload,
+  { readonly kind: "target-not-found" } | { readonly kind: "unreadable-brief" }
 >;
 
 /**
@@ -87,6 +93,53 @@ function bindSessionWriter(
 }
 
 export default {
+  /**
+   * The session read — PURE: it NEVER creates a session. Before the first
+   * write the payload carries the carry-over verdicts evaluated in memory
+   * (`preview`), still writing nothing.
+   */
+  async previewSession(deps: AuthRouteDeps, input: ResolveWriteInput) {
+    const target = await resolveSessionTarget(
+      deps,
+      input.ctx,
+      input.repoId,
+      input.prNumber,
+      input.span,
+    );
+
+    if (target === undefined) {
+      return {
+        ok: false,
+        error: { kind: "target-not-found" },
+      } satisfies PreviewSessionResult;
+    }
+
+    try {
+      const view = await createTenantRepository(
+        deps.handle,
+        input.ctx,
+      ).reviewSessions.preview({
+        briefId: target.briefId,
+        reviewerId: input.reviewerId,
+        brief: () => loadCarryOverInputs(deps, input.ctx, target, input.span),
+      });
+      return {
+        ok: true,
+        value: buildSessionPayload(view, target.headIndex),
+      } satisfies PreviewSessionResult;
+    } catch (error) {
+      if (!(error instanceof UnreadableBriefError)) throw error;
+      input.log.error("brief artifact unreadable — carry-over not evaluated", {
+        briefId: String(target.briefId),
+        head: input.span.head,
+      });
+      return {
+        ok: false,
+        error: { kind: "unreadable-brief" },
+      } satisfies PreviewSessionResult;
+    }
+  },
+
   /**
    * Resolve the PR and the Brief the request names, and bind the write to
    * them. An unknown PR/Brief is `target-not-found` — the subtree's

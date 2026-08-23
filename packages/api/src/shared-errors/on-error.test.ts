@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { describe, expect, it, vi } from "vitest";
 import type { Logger } from "logging";
-import { ApiErrorCode } from "../error-response";
+import { ApiErrorCodes } from "../error-response";
 import type { RequestLogEnv } from "../request-logging";
 import { NotFound, ServiceUnavailable } from "./api-error";
 import { createErrorHandler } from "./on-error";
@@ -25,10 +25,10 @@ function buildApp(): {
   });
   app.onError(createErrorHandler(logger));
   app.get("/api-error", () => {
-    throw new NotFound(ApiErrorCode.NOT_FOUND);
+    throw new NotFound();
   });
   app.get("/api-error-params", () => {
-    throw new ServiceUnavailable(ApiErrorCode.GENERATION_CONFIG, {
+    throw new ServiceUnavailable(ApiErrorCodes.GENERATION_CONFIG, {
       detail: "missing ANTHROPIC_API_KEY",
     });
   });

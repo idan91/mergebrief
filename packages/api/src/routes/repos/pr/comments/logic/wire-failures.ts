@@ -2,7 +2,7 @@
 // on the wire with the gated-route posture (uniform-404 collapse; distinct
 // 409 only where the FE has a recovery action).
 import { GitHubApiErrorCode, type InlineReviewCommentError } from "github";
-import { ApiErrorCode } from "../../../../../error-response";
+import { ApiErrorCodes } from "../../../../../error-response";
 import {
   BadGateway,
   Conflict,
@@ -15,7 +15,7 @@ import type { PublishFailure, ReplyFailure, ResolutionFailure } from "../types";
 /** Map a final create-comment failure to the sanitized response posture. */
 export function throwPublishFailure(failure: PublishFailure): never {
   if (failure.kind === "token-unreadable") {
-    throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
+    throw new Unauthorized();
   }
   const error: InlineReviewCommentError = failure.error;
   // A 422 means the anchor no longer sits on the pinned commit's diff — the
@@ -23,19 +23,19 @@ export function throwPublishFailure(failure: PublishFailure): never {
   // tells the author to reload (the draft survives locally), never a
   // retry-looking 502.
   if (error.staleAnchor === true) {
-    throw new Conflict(ApiErrorCode.PR_CHANGED_SINCE_READ);
+    throw new Conflict(ApiErrorCodes.PR_CHANGED_SINCE_READ);
   }
   if (error.code === GitHubApiErrorCode.UNAUTHORIZED) {
-    throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
+    throw new Unauthorized();
   }
   // 403/404 collapse to the gate's 404 posture — no existence leak.
   if (
     error.code === GitHubApiErrorCode.NOT_FOUND ||
     error.code === GitHubApiErrorCode.FORBIDDEN
   ) {
-    throw new NotFound(ApiErrorCode.NOT_FOUND);
+    throw new NotFound();
   }
-  throw new BadGateway(ApiErrorCode.GITHUB_UNAVAILABLE);
+  throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
 }
 
 /**
@@ -45,18 +45,18 @@ export function throwPublishFailure(failure: PublishFailure): never {
  */
 export function throwReplyFailure(failure: ReplyFailure): never {
   if (failure.kind === "token-unreadable") {
-    throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
+    throw new Unauthorized();
   }
   if (failure.error.code === GitHubApiErrorCode.UNAUTHORIZED) {
-    throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
+    throw new Unauthorized();
   }
   if (
     failure.error.code === GitHubApiErrorCode.NOT_FOUND ||
     failure.error.code === GitHubApiErrorCode.FORBIDDEN
   ) {
-    throw new NotFound(ApiErrorCode.NOT_FOUND);
+    throw new NotFound();
   }
-  throw new BadGateway(ApiErrorCode.GITHUB_UNAVAILABLE);
+  throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
 }
 
 /**
@@ -68,16 +68,16 @@ export function throwReplyFailure(failure: ReplyFailure): never {
  */
 export function throwResolutionFailure(failure: ResolutionFailure): never {
   if (failure.kind === "token-unreadable") {
-    throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
+    throw new Unauthorized();
   }
   if (failure.error.code === GitHubApiErrorCode.UNAUTHORIZED) {
-    throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
+    throw new Unauthorized();
   }
   if (failure.error.code === GitHubApiErrorCode.FORBIDDEN) {
-    throw new Forbidden(ApiErrorCode.GITHUB_PERMISSION);
+    throw new Forbidden(ApiErrorCodes.GITHUB_PERMISSION);
   }
   if (failure.error.code === GitHubApiErrorCode.NOT_FOUND) {
-    throw new NotFound(ApiErrorCode.NOT_FOUND);
+    throw new NotFound();
   }
-  throw new BadGateway(ApiErrorCode.GITHUB_UNAVAILABLE);
+  throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
 }
