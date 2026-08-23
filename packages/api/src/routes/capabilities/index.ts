@@ -1,0 +1,29 @@
+// `GET /api/capabilities` — itself a registered Product Query: the endpoint
+// appears in its own output. Composition only.
+import { PRODUCT_QUERY_ID } from "../../product-operations/ids";
+import { productOperationRegistry } from "../../product-operations/registry";
+import {
+  productRouter,
+  type ProductRouter,
+} from "../../product-operations/product-router";
+import { WRITE_CLASSIFICATION } from "../../product-operations/types";
+import type { AuthRouteDeps } from "../auth/session";
+import { accessStampLayer, sessionLayer, type AuthzEnv } from "../authz";
+import createCapabilitiesHandlers from "./handler";
+
+export function capabilitiesRoute(
+  deps: AuthRouteDeps,
+): ProductRouter<AuthzEnv> {
+  const app = productRouter<AuthzEnv>();
+  const handlers = createCapabilitiesHandlers(productOperationRegistry);
+  app.use("/", sessionLayer(deps), accessStampLayer());
+  app.query(
+    {
+      id: PRODUCT_QUERY_ID.READ_CAPABILITIES,
+      classification: WRITE_CLASSIFICATION.READ,
+    },
+    "/",
+    handlers.readCapabilities,
+  );
+  return app;
+}

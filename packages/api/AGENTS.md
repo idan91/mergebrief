@@ -89,10 +89,13 @@ Every catalog domain is a folder with a closed role set at root — new
 endpoints follow it, no exceptions:
 
 - `index.ts` — the `xxxRoute` factory; composition only.
-- `handler.ts` — parse/validate (Zod), call the controller, judge posture,
+- `handler.ts` — a `createHandlers(deps)` factory, the module's DEFAULT
+  export, returning the domain's handlers object (import sites bind it as
+  `createXxxHandlers`); members parse/validate (Zod), call the controller, judge posture,
   throw `ApiError` subclasses; success = plain `c.json(...)`. Derives the
   tenant and passes `tenant: TenantRepository` down.
-- `controller.ts` — a single exported `xxxController` object; op functions
+- `controller.ts` — a single `xxxController` object, the module's DEFAULT
+  export (the one carve-out from named-exports-only); op functions
   module-private, verb-first, 1:1 with handlers. Hono-free.
 - `schemas.ts` / `utils.ts` (generic only) / `consts.ts` / `types.ts`
   (incl. the domain's `XxxControllerDeps` — narrow slices, never `AppDeps`;

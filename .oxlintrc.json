@@ -99,6 +99,17 @@
       }
     },
     {
+      // Domain controllers and handler factories are single-export modules,
+      // default-exported by convention (packages/api AGENTS.md domain layout).
+      "files": [
+        "packages/api/src/routes/**/controller.ts",
+        "packages/api/src/routes/**/handler.ts"
+      ],
+      "rules": {
+        "import/no-default-export": "off"
+      }
+    },
+    {
       // Framework-required default exports: vite/tsup/drizzle read the
       // default export of their config, ESLint's flat config is the default
       // export of `eslint.config.js`, and TanStack Start's server entry is
