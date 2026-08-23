@@ -23,6 +23,10 @@ export type ReplyFailure =
   | TokenUnreadableFailure
   | GitHubDeniedFailure<GitHubApiError>;
 
+export type ResolutionFailure =
+  | TokenUnreadableFailure
+  | GitHubDeniedFailure<GitHubApiError>;
+
 export interface RepoTarget {
   readonly owner: string;
   readonly repo: string;

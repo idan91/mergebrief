@@ -26,6 +26,7 @@ import {
   throwPublishFailure,
   throwReplyFailure,
   throwRepoResolveFailure,
+  throwResolutionFailure,
 } from "./logic/wire-failures";
 import type { EvictConversation } from "./types";
 import {
@@ -260,5 +261,76 @@ export default function createHandlers(
     return c.json({ commentId: created.value.commentId }, 201, NO_STORE);
   };
 
-  return { publishInlineComment, replyToComment };
+  return {
+    publishInlineComment,
+    replyToComment,
+    resolveThread: setThreadResolution(deps, evictConversation, true),
+    unresolveThread: setThreadResolution(deps, evictConversation, false),
+  };
+}
+
+/** Flip a thread's resolution state with the VIEWER's token. */
+function setThreadResolution(
+  deps: AuthRouteDeps,
+  evictConversation: EvictConversation,
+  resolved: boolean,
+) {
+  return async (c: Context<AuthzEnv>) => {
+    const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
+    const parsedComment = commentIdSchema.safeParse(c.req.param("commentId"));
+    if (!parsedPr.success || !parsedComment.success) {
+      throw new BadRequest(ApiErrorCode.INVALID_REQUEST);
+    }
+
+    const ctx = c.get("ctx");
+    const repoId = c.get("repoId");
+    const pr = await createTenantRepository(
+      deps.handle,
+      ctx,
+    ).pullRequests.getByNumber(repoId, parsedPr.data);
+    if (pr === undefined) {
+      throw new NotFound(ApiErrorCode.NOT_FOUND);
+    }
+
+    // One refresh-once budget per REQUEST, shared across every GitHub call.
+    const github = createReviewerGitHubClient(
+      deps,
+      c.get("session"),
+      c.get("logger"),
+    );
+    const target = await commentsController.resolveFreshRepoTarget(
+      { github },
+      repoId,
+    );
+    if (!target.ok) {
+      throwRepoResolveFailure(target.error);
+    }
+
+    const outcome = await commentsController.setThreadResolution(
+      { github },
+      {
+        owner: target.value.owner,
+        repo: target.value.repo,
+        prNumber: pr.prNumber,
+        rootCommentId: parsedComment.data,
+        resolved,
+      },
+    );
+    if (!outcome.ok) {
+      throwResolutionFailure(outcome.error);
+    }
+
+    // The thread state changed (or was confirmed) on GitHub: the cached
+    // conversation is stale either way — drop it so the FE's refetch shows
+    // the slim-row transition immediately.
+    evictConversation(ctx.installationId, repoId, pr.prNumber);
+
+    stampAuditTarget(c, "review_comment", BigInt(parsedComment.data));
+
+    return c.json(
+      { resolved, alreadyInTargetState: outcome.value.alreadyInTargetState },
+      200,
+      NO_STORE,
+    );
+  };
 }

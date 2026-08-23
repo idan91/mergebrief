@@ -5,6 +5,7 @@ import {
   createReviewCommentReply,
   createUserOctokit,
   fetchRepositoryById,
+  setReviewThreadResolution,
 } from "github";
 import { buildGitHubDeniedResult } from "../../../../shared-errors/failures";
 import type { RepoId } from "persistence";
@@ -68,5 +69,21 @@ export default {
       return buildGitHubDeniedResult(created.error, "mutation");
     }
     return created;
+  },
+
+  /** Flip a thread's resolution state. A 401'd walk/mutation performed no
+   * write we care about re-running; the op is idempotent regardless
+   * (converged states), so the client's one refreshed retry is safe. */
+  async setThreadResolution(
+    deps: CommentsControllerDeps,
+    input: Parameters<typeof setReviewThreadResolution>[1],
+  ) {
+    const outcome = await deps.github.run((token) =>
+      setReviewThreadResolution(createUserOctokit(token), input),
+    );
+    if (!outcome.ok) {
+      return buildGitHubDeniedResult(outcome.error, "mutation");
+    }
+    return outcome;
   },
 };

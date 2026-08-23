@@ -6,6 +6,7 @@ import { ApiErrorCode } from "../../../../../error-response";
 import {
   BadGateway,
   Conflict,
+  Forbidden,
   NotFound,
   Unauthorized,
 } from "../../../../../shared-errors/api-error";
@@ -13,6 +14,7 @@ import type {
   PublishFailure,
   RepoResolveFailure,
   ReplyFailure,
+  ResolutionFailure,
 } from "../types";
 
 /**
@@ -78,6 +80,29 @@ export function throwReplyFailure(failure: ReplyFailure): never {
     failure.error.code === GitHubApiErrorCode.NOT_FOUND ||
     failure.error.code === GitHubApiErrorCode.FORBIDDEN
   ) {
+    throw new NotFound(ApiErrorCode.NOT_FOUND);
+  }
+  throw new BadGateway(ApiErrorCode.GITHUB_UNAVAILABLE);
+}
+
+/**
+ * Map a thread-flip MUTATION-stage failure: runs AFTER the gate and the
+ * fresh re-resolve both succeeded, so there is no existence to hide.
+ * FORBIDDEN is a genuine permission gap (read-only viewer / raced
+ * revocation) → an honest, FE-actionable 403. NOT_FOUND covers the PR
+ * vanishing AND a `commentId` matching no thread → 404.
+ */
+export function throwResolutionFailure(failure: ResolutionFailure): never {
+  if (failure.kind === "token-unreadable") {
+    throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
+  }
+  if (failure.error.code === GitHubApiErrorCode.UNAUTHORIZED) {
+    throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
+  }
+  if (failure.error.code === GitHubApiErrorCode.FORBIDDEN) {
+    throw new Forbidden(ApiErrorCode.GITHUB_PERMISSION);
+  }
+  if (failure.error.code === GitHubApiErrorCode.NOT_FOUND) {
     throw new NotFound(ApiErrorCode.NOT_FOUND);
   }
   throw new BadGateway(ApiErrorCode.GITHUB_UNAVAILABLE);
