@@ -7,7 +7,8 @@
 // never from a caller-supplied value.
 //
 // SECURITY DISCIPLINE (mirrors the webhook route): all query parsing via Zod;
-// expected failures return sanitized status bodies; NO token, code, or secret
+// expected failures throw ApiError subclasses (sanitized bodies via
+// `app.onError`); NO token, code, or secret
 // is ever logged or placed in a response beyond the opaque session cookie.
 import { randomBytes } from "node:crypto";
 import { Hono } from "hono";
@@ -27,7 +28,13 @@ import {
   createUserSettingsStore,
 } from "persistence";
 import { z } from "zod";
-import { ApiErrorCode, errorJson } from "../../error-response";
+import { ApiErrorCode } from "../../error-response";
+import {
+  BadGateway,
+  BadRequest,
+  Forbidden,
+  InternalError,
+} from "../../shared-errors/api-error";
 import { SESSION_COOKIE, sha256Hex, type AuthRouteDeps } from "./session";
 
 const STATE_COOKIE = "rs_oauth_state";
@@ -80,11 +87,11 @@ export function oauthRoute(deps: AuthRouteDeps): Hono {
       state: c.req.query("state"),
     });
     if (!query.success) {
-      return errorJson(c, ApiErrorCode.SIGN_IN_FAILED);
+      throw new BadRequest(ApiErrorCode.SIGN_IN_FAILED);
     }
     // CSRF: the returned state must match the cookie set on the login redirect.
     if (stateCookie === undefined || stateCookie !== query.data.state) {
-      return errorJson(c, ApiErrorCode.SIGN_IN_FAILED);
+      throw new BadRequest(ApiErrorCode.SIGN_IN_FAILED);
     }
 
     const tokens = await exchangeWebFlowCode(oauthApp, {
@@ -92,7 +99,7 @@ export function oauthRoute(deps: AuthRouteDeps): Hono {
       state: query.data.state,
     });
     if (!tokens.ok) {
-      return errorJson(c, ApiErrorCode.SIGN_IN_FAILED);
+      throw new BadRequest(ApiErrorCode.SIGN_IN_FAILED);
     }
 
     // Independent of each other (both need only the access token) → run
@@ -102,17 +109,17 @@ export function oauthRoute(deps: AuthRouteDeps): Hono {
       listAppInstallationsForUser(tokens.value.accessToken),
     ]);
     if (!user.ok) {
-      return errorJson(c, ApiErrorCode.GITHUB_UNAVAILABLE);
+      throw new BadGateway(ApiErrorCode.GITHUB_UNAVAILABLE);
     }
     if (!installations.ok) {
-      return errorJson(c, ApiErrorCode.GITHUB_UNAVAILABLE);
+      throw new BadGateway(ApiErrorCode.GITHUB_UNAVAILABLE);
     }
     const accessible = installations.value;
     const firstAccessible = accessible[0];
     if (firstAccessible === undefined) {
       // No accessible installation → the app isn't installed where this
       // reviewer can reach it, so they aren't authorized to log in.
-      return errorJson(c, ApiErrorCode.APP_NOT_INSTALLED);
+      throw new Forbidden(ApiErrorCode.APP_NOT_INSTALLED);
     }
     // Bind the session to the user's DEFAULT installation when it is still in
     // their LIVE accessible set, else the first accessible one. The default is
@@ -143,7 +150,7 @@ export function oauthRoute(deps: AuthRouteDeps): Hono {
       tokens.value.refreshToken,
     );
     if (!sealedAccess.ok || !sealedRefresh.ok) {
-      return errorJson(c, ApiErrorCode.INTERNAL_ERROR);
+      throw new InternalError(ApiErrorCode.INTERNAL_ERROR);
     }
 
     // The credential pair lands on a fresh grant row; the session LINKS it.
