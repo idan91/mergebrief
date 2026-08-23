@@ -27,7 +27,8 @@ import {
   narrativeQuerySchema,
 } from "./schemas";
 import type { ReadsControllerDeps } from "./types";
-import { parseQuery, parsePrNumber, splitRepoSlug } from "./utils";
+import { splitRepoSlug } from "../../utils";
+import { parseQuery, parsePrNumber } from "./utils";
 
 /**
  * Return a stored artifact `body` verbatim as JSON. The body is ALREADY a

@@ -1,8 +1,8 @@
 // Boundary schemas for the read surface. A PR number is a positive int; a
 // SHA is a non-empty token.
 import { z } from "zod";
+export { prNumberSchema } from "../wire-bounds";
 
-export const prNumberSchema = z.coerce.number().int().positive();
 export const shaSchema = z.string().min(1);
 
 export const briefQuerySchema = z.object({ base: shaSchema, head: shaSchema });

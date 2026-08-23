@@ -30,24 +30,3 @@ export function parsePrNumber(c: Context<AuthzEnv>): number {
   }
   return parsed.data;
 }
-
-/**
- * Split a GitHub-verified `owner/repo` full name. Defensive only — a
- * malformed shape must never reach a GitHub call.
- */
-export function splitRepoSlug(
-  slug: string,
-): { owner: string; repo: string } | undefined {
-  const parts = slug.split("/");
-  const [owner, repo] = parts;
-  if (
-    parts.length !== 2 ||
-    owner === undefined ||
-    repo === undefined ||
-    owner === "" ||
-    repo === ""
-  ) {
-    return undefined;
-  }
-  return { owner, repo };
-}

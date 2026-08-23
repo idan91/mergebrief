@@ -8,7 +8,7 @@ import type { InstallationGitHubPort } from "../../github-port";
 import type { TtlCache } from "../../ttl-cache";
 import collaboratorsController from "./controller";
 import { COLLABORATORS_CACHE_TTL_MS } from "./consts";
-import { splitRepoSlug } from "./utils";
+import { splitRepoSlug } from "../utils";
 
 function cacheKey(installationId: InstallationId, repoId: RepoId): string {
   return `${String(installationId)}:${String(repoId)}`;

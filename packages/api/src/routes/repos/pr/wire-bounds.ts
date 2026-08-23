@@ -24,3 +24,5 @@ export const rowIdSchema = z
 export const commitShaSchema = z
   .string()
   .regex(/^[0-9a-f]{40}$/, "the brief's head must be a 40-hex SHA");
+
+export const prNumberSchema = z.coerce.number().int().positive();
