@@ -49,13 +49,16 @@ export function stampAccess(
   decision: string,
   fields: { repoId?: bigint; reviewerId?: bigint } = {},
 ): void {
-  c.set("access", {
+  const access: { decision: string; repoId?: string; reviewerId?: string } = {
     decision,
-    ...(fields.repoId === undefined ? {} : { repoId: String(fields.repoId) }),
-    ...(fields.reviewerId === undefined
-      ? {}
-      : { reviewerId: String(fields.reviewerId) }),
-  });
+  };
+  if (fields.repoId !== undefined) {
+    access.repoId = String(fields.repoId);
+  }
+  if (fields.reviewerId !== undefined) {
+    access.reviewerId = String(fields.reviewerId);
+  }
+  c.set("access", access);
 }
 
 /** The one place the `api.access` line is emitted; `info` = terse operational signal. */
@@ -75,14 +78,18 @@ export function requestLogging(
       status: c.res.status,
       durationMs: Date.now() - startedAt,
       decision: access?.decision ?? String(c.res.status),
-      // Transport (this line) and intent (the audit row) stay separate logs,
-      // joined on `reqId`; `operation` is what makes the join readable.
-      ...(operation === undefined ? {} : { operation }),
-      ...(access?.repoId === undefined ? {} : { repoId: access.repoId }),
-      ...(access?.reviewerId === undefined
-        ? {}
-        : { reviewerId: access.reviewerId }),
     };
+    // Transport (this line) and intent (the audit row) stay separate logs,
+    // joined on `reqId`; `operation` is what makes the join readable.
+    if (operation !== undefined) {
+      fields["operation"] = operation;
+    }
+    if (access?.repoId !== undefined) {
+      fields["repoId"] = access.repoId;
+    }
+    if (access?.reviewerId !== undefined) {
+      fields["reviewerId"] = access.reviewerId;
+    }
     c.get("logger").info("request", fields);
   };
 }

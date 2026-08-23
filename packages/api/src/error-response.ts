@@ -170,11 +170,8 @@ export function buildErrorResponse(
   code: ApiErrorCode,
   params: ApiErrorParams[ParamCode] | undefined,
 ): Response {
-  const body = {
-    error: composeEnglish(code, params),
-    code,
-    ...(params === undefined ? {} : { params }),
-  };
+  const base = { error: composeEnglish(code, params), code };
+  const body = params === undefined ? base : { ...base, params };
   c.set("apiErrorCode", code);
   return c.json(body, API_ERROR_STATUS[code], NO_STORE);
 }

@@ -1,3 +1,4 @@
+import type { Mutable } from "types";
 // Dependencies are INJECTED: this module never reads `process.env` and never
 // constructs a DB.
 import type { Hono } from "hono";
@@ -28,13 +29,14 @@ export function createApp(deps: AppDeps): ApiApp {
   root.use(requestLogging(deps.logger));
   // Ahead of the routes so it wraps the auth gates: a denial that never
   // reached a handler is still an audited action.
-  root.use(
-    createAuditMiddleware({
-      handle: deps.handle,
-      registry: productOperationRegistry,
-      ...(deps.audit === undefined ? {} : { audit: deps.audit }),
-    }),
-  );
+  const auditDeps: Mutable<Parameters<typeof createAuditMiddleware>[0]> = {
+    handle: deps.handle,
+    registry: productOperationRegistry,
+  };
+  if (deps.audit !== undefined) {
+    auditDeps.audit = deps.audit;
+  }
+  root.use(createAuditMiddleware(auditDeps));
   root.route("/api", apiRoutes(deps));
   // Composing IS registering: the root commit stamps every declared
   // operation's full endpoint into the shared catalog registry.

@@ -1,0 +1,35 @@
+// POST /api/repos/:repoId/pulls/:prNumber/review — the review-submit route,
+// behind the pr subtree's shared gate. Posts ONE grouped formal review with
+// the VIEWER's token, carrying the drafts the SESSION holds and pinned to
+// the head of the Brief the request names. The request carries no comments:
+// they were saved as they were written. Deliberately NOT here: the
+// checkpoint write — the `pull_request_review` webhook (including the echo
+// of this very submit) is the ONLY checkpoint writer.
+import { PRODUCT_ACTION_ID } from "../../../../product-operations/ids";
+import {
+  productRouter,
+  type ProductRouter,
+} from "../../../../product-operations/product-router";
+import { WRITE_CLASSIFICATION } from "../../../../product-operations/types";
+import type { AuthRouteDeps } from "../../../auth/session";
+import type { AuthzEnv } from "../../../authz";
+import createReviewHandlers from "./handler";
+import type { EvictConversation } from "./types";
+
+export function reviewSubmitRoute(
+  deps: AuthRouteDeps,
+  evictConversation: EvictConversation,
+): ProductRouter<AuthzEnv> {
+  const app = productRouter<AuthzEnv>();
+  const handlers = createReviewHandlers(deps, evictConversation);
+  app.action(
+    {
+      id: PRODUCT_ACTION_ID.SUBMIT_REVIEW,
+      classification: WRITE_CLASSIFICATION.EXTERNAL_WRITE,
+    },
+    "post",
+    "/",
+    handlers.submitReview,
+  );
+  return app;
+}

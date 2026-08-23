@@ -18,7 +18,7 @@
 //   500 — unexpected throw (sanitized body; internals stay in the log)
 import { Hono } from "hono";
 import { type RequestLogEnv } from "../request-logging";
-import type { DraftPolicy, Result } from "types";
+import type { Mutable, DraftPolicy, Result } from "types";
 import { DEFAULT_DRAFT_POLICY } from "../draft-policy";
 import {
   InstallationAction,
@@ -262,22 +262,32 @@ async function triggerGeneration(
   // not resurrect a since-closed PR (a review CAN be submitted on a closed one).
   const reopen =
     "action" in event && event.action === PullRequestAction.REOPENED;
+  type IngestPullRequest = Parameters<
+    ReturnType<typeof createIngestRoutines>["triggerGeneration"]
+  >[0]["pullRequest"];
+  const pullRequest: Mutable<IngestPullRequest> = {
+    repoId: event.repoId,
+    prNumber: event.prNumber,
+    repoSlug: event.repoFullName,
+    title: event.title,
+    state: PrState.OPEN,
+  };
+  // Review events carry no base SHA; omission preserves the stored one.
+  if ("baseSha" in event) {
+    pullRequest.baseSha = event.baseSha;
+  }
+
+  // Draft + author ride pull_request events only; a review omits both, so
+  // omission preserves the stored values (same as base_sha).
+  if ("draft" in event) {
+    pullRequest.draft = event.draft;
+  }
+
+  if ("authorLogin" in event && event.authorLogin !== undefined) {
+    pullRequest.authorLogin = event.authorLogin;
+  }
   const result = await createIngestRoutines(handle, ctx).triggerGeneration({
-    pullRequest: {
-      repoId: event.repoId,
-      prNumber: event.prNumber,
-      repoSlug: event.repoFullName,
-      title: event.title,
-      // Review events carry no base SHA; omission preserves the stored one.
-      ...("baseSha" in event ? { baseSha: event.baseSha } : {}),
-      // Draft + author ride pull_request events only; a review omits both, so
-      // omission preserves the stored values (same as base_sha).
-      ...("draft" in event ? { draft: event.draft } : {}),
-      ...("authorLogin" in event && event.authorLogin !== undefined
-        ? { authorLogin: event.authorLogin }
-        : {}),
-      state: PrState.OPEN,
-    },
+    pullRequest,
     headSha: event.headSha,
     reopen,
     ...overrides,

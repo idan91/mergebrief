@@ -1,3 +1,4 @@
+import type { Mutable } from "types";
 // ONE emit for every Product Action and every denial of one.
 //
 // Mounted at the ROOT, not inside `action()`: the per-repo gate refuses
@@ -75,7 +76,11 @@ export function stampAuditTarget(
   type: string,
   id?: bigint,
 ): void {
-  c.set("auditTarget", { type, ...(id === undefined ? {} : { id }) });
+  const auditTarget: { type: string; id?: bigint } = { type };
+  if (id !== undefined) {
+    auditTarget.id = id;
+  }
+  c.set("auditTarget", auditTarget);
 }
 
 /** Name a denial whose wire code is a deliberate collapse. */
@@ -301,27 +306,38 @@ export function createAuditMiddleware(
     const callerIp = config.callerIp ? getSocketAddress(c) : undefined;
     const requestId = deriveRequestId(c.get("requestId"));
     const reason = c.get("auditReason") ?? c.get("apiErrorCode");
+    // The ACTING credential's tenant, never the target's: a reviewer can
+    // revoke a token, or switch to an installation, outside this one.
+    const row: Mutable<Parameters<typeof writeAudit>[1]> = {
+      installationId,
+      actorType: AuditActorType.REVIEWER,
+      actorId: principal.reviewerId,
+      operation: descriptor.id,
+      outcome,
+      classification: descriptor.classification,
+      channel: principal.channel,
+      credentialId: principal.credentialId,
+    };
+    if (requestId !== undefined) {
+      row.requestId = requestId;
+    }
+    if (client !== undefined) {
+      row.client = client;
+    }
+    if (callerIp !== undefined) {
+      row.callerIp = callerIp;
+    }
+    if (target !== undefined) {
+      row.targetType = target.type;
+    }
+    if (target?.id !== undefined) {
+      row.targetId = target.id;
+    }
+    if (reason !== undefined) {
+      row.metadata = { [AuditMetadataKey.REASON]: reason };
+    }
     try {
-      await writeAudit(deps.handle, {
-        // The ACTING credential's tenant, never the target's: a reviewer can
-        // revoke a token, or switch to an installation, outside this one.
-        installationId,
-        actorType: AuditActorType.REVIEWER,
-        actorId: principal.reviewerId,
-        operation: descriptor.id,
-        outcome,
-        classification: descriptor.classification,
-        channel: principal.channel,
-        credentialId: principal.credentialId,
-        ...(requestId === undefined ? {} : { requestId }),
-        ...(client === undefined ? {} : { client }),
-        ...(callerIp === undefined ? {} : { callerIp }),
-        ...(target === undefined ? {} : { targetType: target.type }),
-        ...(target?.id === undefined ? {} : { targetId: target.id }),
-        ...(reason === undefined
-          ? {}
-          : { metadata: { [AuditMetadataKey.REASON]: reason } }),
-      });
+      await writeAudit(deps.handle, row);
     } catch (error) {
       // The action already happened — an external write may already have left
       // the instance. Never turn a landed action into an error response over

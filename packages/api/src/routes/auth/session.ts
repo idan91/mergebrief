@@ -30,7 +30,7 @@ import {
   type TokenWithGrant,
 } from "persistence";
 import type { Logger } from "logging";
-import type { DraftPolicy, Result, ValueOf } from "types";
+import type { Mutable, DraftPolicy, Result, ValueOf } from "types";
 
 // ---------------------------------------------------------------------------
 // Injected deps.
@@ -357,12 +357,14 @@ export async function refreshSessionToken(
       };
     }
   }
-  const principal: ViewerPrincipal = {
+  const principal: Mutable<ViewerPrincipal> = {
     ...session,
     ghTokenCiphertext: grant.ghTokenCiphertext,
     keyRef: grant.keyRef,
-    ...(isCookie ? { expiresAt: grant.refreshExpiresAt } : {}),
   };
+  if (isCookie) {
+    principal.expiresAt = grant.refreshExpiresAt;
+  }
 
   if (rotatedAccessToken !== undefined) {
     return {

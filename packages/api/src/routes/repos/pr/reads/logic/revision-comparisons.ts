@@ -215,11 +215,11 @@ export async function deriveLastReviewComparison(
     const baselineIndex = briefs.find(
       (row) => row.headSha === baselineSha,
     )?.headIndex;
-    return {
+    const base = {
       deltaAvailable: deltaSpans.has(spanKey(baselineSha, headSha)),
       baselineSha,
-      ...(baselineIndex === undefined ? {} : { baselineIndex }),
     };
+    return baselineIndex === undefined ? base : { ...base, baselineIndex };
   }
   const pending =
     pendingProbe !== undefined && (await pendingProbe(baselineSha));
