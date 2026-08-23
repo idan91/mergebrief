@@ -24,7 +24,9 @@ it, alongside a `CLAUDE.md` that points at it — a new package adds both.
   or a refusal is `resolve*`, matching `resolveWrite`. Route factories keep
   the established `xxxRoute` / `xxxRoutes` shape.
 - **Zod schemas live beside their owner** — the route, operation, store, or
-  script that parses with them; never a generic `schemas.ts` grab-bag.
+  script that parses with them; never a cross-owner `schemas.ts` grab-bag
+  (a domain folder's own `schemas.ts` is fine — the ban is on schemas that
+  serve more than one owner).
   Duplicated wire bounds share one module at the closest common owner
   (`packages/api`'s `routes/repos/pr/wire-bounds.ts`). Named exception:
   `packages/brief-core/src/types.ts` IS the domain contract and keeps its
