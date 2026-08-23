@@ -10,13 +10,10 @@ import {
   listInstallationRepositoriesForUser,
 } from "github";
 import type { Logger } from "logging";
-import { decryptToken, createSessionAuth, type RepoId } from "persistence";
+import { createSessionAuth, type RepoId } from "persistence";
 import type { Result } from "types";
-import {
-  refreshSessionToken,
-  type AuthRouteDeps,
-  type ViewerPrincipal,
-} from "./auth/session";
+import type { AuthRouteDeps, ViewerPrincipal } from "./auth/session";
+import { createReviewerGitHubClient } from "./auth/reviewer-github-client";
 import { AUTHZ_CACHE_TTL_MS } from "./authz";
 import { createTtlCache } from "./ttl-cache";
 
@@ -69,38 +66,26 @@ export function createAllowedRepoResolver(
         return { ok: true, value: { allowed: cached, session } };
       }
 
-      const decrypted = await decryptToken(
-        deps.auth.keyProvider,
-        session.keyRef,
-        session.ghTokenCiphertext,
+      // The per-request client: lazy single decrypt, expired ~8h access token
+      // → serialized refresh, retry ONCE.
+      const client = createReviewerGitHubClient(deps, session, log);
+      const repos = await client.run((accessToken) =>
+        listInstallationRepositoriesForUser(
+          createUserOctokit(accessToken),
+          client.session().installationId,
+        ),
       );
-      if (!decrypted.ok) {
-        // Unreadable token burns the session — same posture as the repo gate.
-        // (On the Bearer channel this delete is a no-op by hash namespace;
-        // the api_token row stays for its owner to see and revoke.)
-        await createSessionAuth(deps.handle).deleteSession(session.sessionTokenHash);
-        return { ok: false, error: { status: 401 } };
-      }
-      let currentSession = session;
-      let accessToken = decrypted.value;
-      let repos = await listInstallationRepositoriesForUser(
-        createUserOctokit(accessToken),
-        currentSession.installationId,
-      );
-      if (!repos.ok && repos.error.code === GitHubApiErrorCode.UNAUTHORIZED) {
-        // Expired ~8h access token → serialized refresh, retry ONCE.
-        const refreshed = await refreshSessionToken(deps, currentSession, log);
-        if (!refreshed.ok) {
+      if (!repos.ok) {
+        if ("kind" in repos.error) {
+          // Unreadable token burns the session — same posture as the repo
+          // gate. (On the Bearer channel this delete is a no-op by hash
+          // namespace; the api_token row stays for its owner to see and
+          // revoke.)
+          await createSessionAuth(deps.handle).deleteSession(
+            session.sessionTokenHash,
+          );
           return { ok: false, error: { status: 401 } };
         }
-        currentSession = refreshed.value.session;
-        accessToken = refreshed.value.accessToken;
-        repos = await listInstallationRepositoriesForUser(
-          createUserOctokit(accessToken),
-          currentSession.installationId,
-        );
-      }
-      if (!repos.ok) {
         // Fail closed — a DB-only fallback would leak rows.
         const status =
           repos.error.code === GitHubApiErrorCode.UNAUTHORIZED ? 401 : 502;
@@ -109,7 +94,7 @@ export function createAllowedRepoResolver(
       cache.set(cacheKey, repos.value, Date.now() + AUTHZ_CACHE_TTL_MS);
       return {
         ok: true,
-        value: { allowed: repos.value, session: currentSession },
+        value: { allowed: repos.value, session: client.session() },
       };
     },
   };

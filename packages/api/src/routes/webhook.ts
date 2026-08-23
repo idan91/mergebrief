@@ -43,7 +43,13 @@ import {
   type TenantContext,
   type TriggerGenerationInput,
 } from "persistence";
-import { ApiErrorCode, errorJson } from "../error-response";
+import { ApiErrorCode } from "../error-response";
+import {
+  BadRequest,
+  InternalError,
+  PayloadTooLarge,
+  Unauthorized,
+} from "../shared-errors/api-error";
 
 export interface WebhookRouteDeps {
   readonly handle: AppDatabase;
@@ -405,7 +411,7 @@ export function webhookRoute(deps: WebhookRouteDeps): Hono<RequestLogEnv> {
     // GitHub signed, never a JSON re-encode.
     const rawBody = await readRawBodyWithinLimit(c.req.raw);
     if (!rawBody.ok) {
-      return errorJson(c, ApiErrorCode.REQUEST_TOO_LARGE);
+      throw new PayloadTooLarge(ApiErrorCode.REQUEST_TOO_LARGE);
     }
     const raw = rawBody.value;
     const signature = c.req.header("x-hub-signature-256");
@@ -422,7 +428,7 @@ export function webhookRoute(deps: WebhookRouteDeps): Hono<RequestLogEnv> {
       log.warn("webhook signature verification failed", {
         evt: "webhook.verify.fail",
       });
-      return errorJson(c, ApiErrorCode.INVALID_SIGNATURE);
+      throw new Unauthorized(ApiErrorCode.INVALID_SIGNATURE);
     }
 
     // Signed, so now worth parsing. Bad JSON from a signer is still a 400.
@@ -430,13 +436,13 @@ export function webhookRoute(deps: WebhookRouteDeps): Hono<RequestLogEnv> {
     try {
       payload = JSON.parse(raw);
     } catch {
-      return errorJson(c, ApiErrorCode.INVALID_REQUEST);
+      throw new BadRequest(ApiErrorCode.INVALID_REQUEST);
     }
 
     // Zod boundary: malformed-but-signed handled payload → 400.
     const parsed = parseWebhookEvent({ eventName, payload });
     if (!parsed.ok) {
-      return errorJson(c, ApiErrorCode.INVALID_REQUEST);
+      throw new BadRequest(ApiErrorCode.INVALID_REQUEST);
     }
 
     // Map the event to tenant-scoped writes. Unexpected throw → 500 with a
@@ -452,7 +458,7 @@ export function webhookRoute(deps: WebhookRouteDeps): Hono<RequestLogEnv> {
         evt: "webhook.dispatch.fail",
         err: error,
       });
-      return errorJson(c, ApiErrorCode.INTERNAL_ERROR);
+      throw new InternalError(ApiErrorCode.INTERNAL_ERROR);
     }
     return c.json({ ok: true }, 200);
   });

@@ -22,7 +22,8 @@ import {
   type ProductActionDescriptor,
   type ProductQueryDescriptor,
 } from "./types";
-import { ApiErrorCode, errorJson } from "../error-response";
+import { ApiErrorCode, buildErrorResponse } from "../error-response";
+import { ApiError, Forbidden, Unauthorized } from "../shared-errors/api-error";
 
 export const ACTION_METHOD = {
   POST: "post",
@@ -132,10 +133,10 @@ function scopeGate<E extends Env>(
   return async (c, next) => {
     const scope = principalScope(c.var);
     if (scope === undefined) {
-      return errorJson(c, ApiErrorCode.UNAUTHORIZED);
+      throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
     }
     if (!scopeReaches(scope, classification)) {
-      return errorJson(c, ApiErrorCode.SCOPE_EXCEEDED);
+      throw new Forbidden(ApiErrorCode.SCOPE_EXCEEDED);
     }
     await next();
     return undefined;
@@ -179,6 +180,16 @@ export interface ProductRouter<E extends Env> {
 
 export function productRouter<E extends Env = Env>(): ProductRouter<E> {
   const app = new Hono<E>();
+  // Hono wraps a mounted sub-app's copied handlers with its custom onError,
+  // so this seam renders ApiError throws for composed AND standalone
+  // routers (same producer as the root); anything else propagates to the
+  // root's sanitized-500 renderer.
+  app.onError((err, c) => {
+    if (err instanceof ApiError) {
+      return buildErrorResponse(c, err.code, err.params);
+    }
+    throw err;
+  });
   const pending: PendingOperation[] = [];
   let sealedBy: SealReason | undefined;
 

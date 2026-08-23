@@ -20,8 +20,8 @@
 // per `repoAuthzLayer`, so tests get a fresh cache per `createApp`.
 //
 // REFRESH: a 401 from GitHub means the viewer's ~8h access token expired; the
-// layer runs the serialized `refreshSessionToken` orchestrator and retries the
-// access check ONCE with the rotated token. A refresh failure has already
+// layer's `ReviewerGitHubClient` spends its one serialized refresh and retries
+// the access check ONCE with the rotated token. A refresh failure has already
 // deleted the session, so it is a clean 401 → re-login.
 //
 // LOGGING: each request gets ONE structured access line (method/path/status/
@@ -38,7 +38,6 @@ import { every } from "hono/combine";
 import { getCookie } from "hono/cookie";
 import { createUserOctokit, fetchRepositoryById } from "github";
 import {
-  decryptToken,
   isRepoId,
   createSessionAuth,
   createTokenAuth,
@@ -49,7 +48,6 @@ import {
 import {
   derivePrincipalFromApiToken,
   derivePrincipalFromSession,
-  refreshSessionToken,
   SESSION_COOKIE,
   sha256Hex,
   type AuthRouteDeps,
@@ -62,7 +60,9 @@ import {
 } from "../product-operations/audit";
 import { stampAccess, type RequestLogVariables } from "../request-logging";
 import { createTtlCache } from "./ttl-cache";
-import { ApiErrorCode, errorJson } from "../error-response";
+import { ApiErrorCode } from "../error-response";
+import { NotFound, Unauthorized } from "../shared-errors/api-error";
+import { createReviewerGitHubClient } from "./auth/reviewer-github-client";
 
 // ---------------------------------------------------------------------------
 // Typed Hono context vars. Handlers read these safely (no `any`): `ctx`/
@@ -180,7 +180,7 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
       // Wrong prefix / miss / expired / revoked — the SAME hint-free 401.
       if (!bearer.startsWith(API_TOKEN_PREFIX)) {
         stampAccess(c, "401", {});
-        return errorJson(c, ApiErrorCode.UNAUTHORIZED);
+        throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
       }
       const tokenHash = sha256Hex(bearer);
       const resolved = await createTokenAuth(deps.handle).resolveByHash(
@@ -189,7 +189,7 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
       );
       if (!resolved.ok) {
         stampAccess(c, "401", {});
-        return errorJson(c, ApiErrorCode.UNAUTHORIZED);
+        throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
       }
       const principal = derivePrincipalFromApiToken(resolved.value);
 
@@ -218,7 +218,7 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
     const cookie = getCookie(c, SESSION_COOKIE);
     if (cookie === undefined) {
       stampAccess(c, "401", {});
-      return errorJson(c, ApiErrorCode.UNAUTHORIZED);
+      throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
     }
     const sessionTokenHash = sha256Hex(cookie);
     const resolved = await createSessionAuth(deps.handle).findSession(
@@ -226,7 +226,7 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
     );
     if (resolved === undefined) {
       stampAccess(c, "401", {});
-      return errorJson(c, ApiErrorCode.UNAUTHORIZED);
+      throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
     }
     // `findSession` is a plain resolver (it doesn't filter on expiry), so expiry
     // is enforced HERE, at the auth decision point. `expires_at` tracks the ~6mo
@@ -237,7 +237,7 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
     if (resolved.session.expiresAt.getTime() <= startedAt) {
       await createSessionAuth(deps.handle).deleteSession(sessionTokenHash);
       stampAccess(c, "401", { reviewerId: resolved.session.reviewerId });
-      return errorJson(c, ApiErrorCode.UNAUTHORIZED);
+      throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
     }
 
     c.set("ctx", { installationId: resolved.session.installationId });
@@ -274,7 +274,7 @@ export function repoAuthzLayer(
     const repoId = parseRepoId(c.req.param("repoId"));
     if (repoId === undefined) {
       stampAccess(c, "404", { reviewerId: session.reviewerId });
-      return errorJson(c, ApiErrorCode.NOT_FOUND);
+      throw new NotFound(ApiErrorCode.NOT_FOUND);
     }
 
     // Positive-cache hit → already authorized within the TTL; skip GitHub
@@ -296,58 +296,49 @@ export function repoAuthzLayer(
       return;
     }
 
-    // Cache miss → verify GitHub access with the viewer's token. Decrypt the
-    // stored access token first; an unreadable token burns the session (401).
-    const decrypted = await decryptToken(
-      deps.auth.keyProvider,
-      session.keyRef,
-      session.ghTokenCiphertext,
-    );
-    if (!decrypted.ok) {
-      await createSessionAuth(deps.handle).deleteSession(session.sessionTokenHash);
-      stampAccess(c, "401", { repoId, reviewerId: session.reviewerId });
-      return errorJson(c, ApiErrorCode.UNAUTHORIZED);
-    }
+    // Cache miss → verify GitHub access with the viewer's token through the
+    // per-request client: lazy single decrypt, refresh-once on a 401, retry
+    // once with the rotated token.
+    const client = createReviewerGitHubClient(deps, session, c.get("logger"));
+    let attempts = 0;
+    let accessToken = "";
+    const repo = await client.run((token) => {
+      attempts += 1;
+      accessToken = token;
+      return fetchRepositoryById(createUserOctokit(token), repoId);
+    });
 
-    // The session/token we carry forward — updated if a refresh rotates them.
-    let currentSession = session;
-    let accessToken = decrypted.value;
-    let repo = await fetchRepositoryById(
-      createUserOctokit(accessToken),
-      repoId,
-    );
-
-    // 401 from GitHub → the ~8h access token expired. Refresh (serialized) and
-    // retry the access check ONCE with the rotated token.
-    if (!repo.ok && repo.error.status === 401) {
-      const refreshed = await refreshSessionToken(
-        deps,
-        currentSession,
-        c.get("logger"),
-      );
-      if (!refreshed.ok) {
-        // The orchestrator already deleted the session on a hard failure.
+    if (!repo.ok) {
+      // An unreadable stored token burns the session (401).
+      if ("kind" in repo.error) {
+        await createSessionAuth(deps.handle).deleteSession(
+          session.sessionTokenHash,
+        );
+        stampAccess(c, "401", { repoId, reviewerId: session.reviewerId });
+        throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
+      }
+      // A 401 with no retry spent means the refresh itself failed — the
+      // orchestrator already deleted the session; clean 401 → re-login.
+      if (repo.error.status === 401 && attempts === 1) {
         stampAccess(c, "401", {
           repoId,
-          reviewerId: currentSession.reviewerId,
+          reviewerId: client.session().reviewerId,
         });
-        return errorJson(c, ApiErrorCode.UNAUTHORIZED);
+        throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
       }
-      currentSession = refreshed.value.session;
-      accessToken = refreshed.value.accessToken;
-      repo = await fetchRepositoryById(createUserOctokit(accessToken), repoId);
-    }
-
-    // Any other non-2xx (403/404/5xx), or a retry that is still non-2xx →
-    // collapse to 404 (no existence leak) AND emit the denial. Never cached.
-    if (!repo.ok) {
-      // The ledger names the real reason; the RESPONSE stays the uniform 404.
-      // The row itself is written at the audit choke point — for an action;
-      // a read is never audited, and this gate cannot tell them apart.
+      // Any other non-2xx (403/404/5xx), or a retry that is still non-2xx →
+      // collapse to 404 (no existence leak) AND emit the denial. Never
+      // cached. The ledger names the real reason; the RESPONSE stays the
+      // uniform 404. The row itself is written at the audit choke point —
+      // for an action; a read is never audited, and this gate cannot tell
+      // them apart.
       stampAuditReason(c, AUDIT_REASON_NO_REPO_ACCESS);
       stampAuditTarget(c, "repo", repoId);
-      stampAccess(c, "404", { repoId, reviewerId: currentSession.reviewerId });
-      return errorJson(c, ApiErrorCode.NOT_FOUND);
+      stampAccess(c, "404", {
+        repoId,
+        reviewerId: client.session().reviewerId,
+      });
+      throw new NotFound(ApiErrorCode.NOT_FOUND);
     }
 
     // 2xx → authorized. Cache the verified full name, hand the token to the
@@ -360,6 +351,7 @@ export function repoAuthzLayer(
       },
       Date.now() + AUTHZ_CACHE_TTL_MS,
     );
+    const currentSession = client.session();
     c.set("session", currentSession);
     c.set("repoId", repoId);
     c.set("repoFullName", repo.value.fullName);

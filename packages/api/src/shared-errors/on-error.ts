@@ -10,9 +10,9 @@ import { ApiError } from "./api-error";
 
 /** Build the `app.onError` handler. `fallback` covers a throw that happens
  * before `requestLogging` binds the per-request child logger. */
-export function createErrorHandler(
+export function createErrorHandler<E extends RequestLogEnv>(
   fallback: Logger,
-): (err: Error, c: Context<RequestLogEnv>) => Response {
+): (err: Error, c: Context<E>) => Response {
   return (err, c) => {
     if (err instanceof ApiError) {
       return buildErrorResponse(c, err.code, err.params);
