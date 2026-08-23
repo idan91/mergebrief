@@ -9,6 +9,7 @@ import {
   type ProductRouter,
 } from "../../../product-operations/product-router";
 import { commentsRoute } from "./comments";
+import { commentWriteRoutes } from "./comments/index";
 import {
   conversationRoutes,
   type ConversationRouteDeps,
@@ -37,6 +38,7 @@ export function prRoutes(deps: ConversationRouteDeps): ProductRouter<AuthzEnv> {
   app.route("/session", sessionRoutes(deps));
   app.route("/review", reviewSubmitRoute(deps, evictConversation));
   app.route("/ready", markReadyRoute(deps));
+  app.route("/comments", commentWriteRoutes(deps, evictConversation));
   app.route("/comments", commentsRoute(deps, evictConversation));
   app.route("/conversation", conversation.router);
   return app;

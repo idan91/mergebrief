@@ -5,6 +5,7 @@
 // between calls, and per-call-site refresh logic either misses that or
 // refreshes more than once. Hand-rolled refresh locals are banned.
 import { GitHubApiErrorCode } from "github";
+import type { TokenUnreadableFailure } from "../../shared-errors/failures";
 import type { Logger } from "logging";
 import { decryptToken } from "persistence";
 import type { Result } from "types";
@@ -17,10 +18,9 @@ import {
 } from "./session";
 
 /** The stored ciphertext could not be decrypted — re-auth territory; the
- * caller owns the posture (burn the session, 401, …). */
-export interface ReviewerTokenFailure {
-  readonly kind: "token-unreadable";
-}
+ * caller owns the posture (burn the session, 401, …). One shape with the
+ * shared failure vocabulary so the two can never drift. */
+export type ReviewerTokenFailure = TokenUnreadableFailure;
 
 export interface ReviewerGitHubClient {
   /**

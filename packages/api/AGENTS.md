@@ -50,8 +50,10 @@ Layering: controllers are Hono-free and return
 `Result<T, XxxFailure>` for anything the handler must judge; they THROW
 only terminal, posture-free failures — never `Forbidden`/`NotFound` for a
 GitHub denial (that bypasses the uniform-404 collapse). Handlers own
-posture and the failure→throw mapping (inline switch on `failure.kind`;
-extract a shared mapper only on second use). Shared failure members wrap
+posture and the failure→throw mapping — the domain's
+`logic/wire-failures.ts` module (a single trivial switch may stay inline).
+Controllers shape `ReviewerGitHubClient.run` refusals with the shared
+`buildGitHubDeniedResult` helper (`shared-errors/failures.ts`). Shared failure members wrap
 lower-layer errors whole (`github-denied { phase, error }`,
 `session-rejected { error }`) — no translating at the boundary. `Failure` =
 Result-side, `Error` = thrown (CONTEXT.md glossary).
