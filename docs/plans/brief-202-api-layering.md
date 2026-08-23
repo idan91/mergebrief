@@ -72,10 +72,15 @@ from this table.
 
 | Part | Model + effort | Invocation |
 |---|---|---|
-| PRs 1-3 (foundations, auth, authz — pattern-setting, security-adjacent) | Fable 5, high | Main thread, sequential |
-| PRs 4-9 (mechanical domain conversions) | Fable 5, high (Opus 5 high fallback on quota, noted per PR) | Main thread, sequential (stack dependency) |
-| PRs 10-11 (session dissolution — subtle carry-over machinery) | Fable 5, high | Main thread, sequential |
+| PR 1 (foundations — `CodeFor<status>` type design everything copies) | Fable 5, high | Main thread |
+| PRs 2-9 (locked-design conversions; gates + invariant pins do the guarding) | Fable 5, medium (Opus 5 fallback on quota, noted per PR) | Main thread, sequential (stack dependency) |
+| PR 10 (session machinery dissolve — subtlest code, partly outside wire pins) | Fable 5, high | Main thread |
+| PR 11 (session ops + ratchet) | Fable 5, medium | Main thread |
 | Reviews | fable-reviewer (Fable 5) per PR | Subagent, after each push |
+
+Medium-effort rule: a judgment call not covered by a pin (an unpinned
+posture site, an ambiguous failure mapping) stops the run — never
+improvised at medium.
 
 ## Per-PR verification (all must pass before push)
 
