@@ -1,21 +1,15 @@
-// The reviewer read API. Four GETs, ALL behind the authz gate, that return the
-// tenant-scoped artifacts a reviewer's client renders:
-//   brief / marks / narrative  → the stored artifact `body` verbatim (already
-//                                 JSON — returned as-is, never re-parsed);
-//   diff                        → a LIVE proxy of GitHub's unified diff, fetched
-//                                 with the VIEWER's token and cached per session.
+// The remaining reviewer reads awaiting conversion (PR meta, brief-context,
+// and the LIVE diff proxy), behind the authz gate. The stored-artifact reads
+// (brief / marks / delta / narrative) live in `./reads/`.
 //
-// TENANCY: the gate resolves `ctx` from the session; every read filters through
-// persistence's ctx-bound interfaces. This module never sees a raw handle and
-// never trusts a caller-supplied installation id.
-//
-// DIFF PROXY: the diff is NEVER persisted — it is proxied live and held only in
-// an ephemeral, per-session in-memory cache (~60s TTL) keyed by
+// DIFF PROXY: the diff is NEVER persisted — it is proxied live and held only
+// in an ephemeral, per-session in-memory cache (~60s TTL) keyed by
 // `(sessionHash, repoId, prNumber, base, head)`.
 //
-// VALIDATION: params/queries are Zod-validated → 400 on a bad shape; a missing
-// PR / artifact is a 404; GitHub fetch failures are sanitized to 404/502. No
-// upstream error text, token, or header ever reaches a response body.
+// VALIDATION: params/queries are Zod-validated → 400 on a bad shape; a
+// missing PR / artifact is a 404; GitHub fetch failures are sanitized to
+// 404/502. No upstream error text, token, or header ever reaches a response
+// body.
 import type { Context } from "hono";
 import {
   createUserOctokit,
@@ -27,18 +21,10 @@ import {
   decryptToken,
   createTenantRepository,
   createGenerationProjection,
-  GenerationKind,
-  GenerationStatus,
-  type BriefSpanRow,
-  type ComparisonSpanRow,
-  type GenerationRow,
-  type NarrativeSpanRow,
   type PullRequestRow,
   type RepoId,
   type TenantContext,
-  type ValueOf,
 } from "persistence";
-import { z } from "zod";
 import { ApiErrorCode, errorJson } from "../../../error-response";
 import { DEFAULT_DRAFT_POLICY } from "../../../draft-policy";
 import { PRODUCT_QUERY_ID } from "../../../product-operations/ids";
@@ -51,31 +37,24 @@ import type { AuthzEnv } from "../../authz";
 import { refreshSessionToken, type AuthRouteDeps } from "../../auth/session";
 import { buildPrView } from "../../pr-view";
 import { createTtlCache } from "../../ttl-cache";
-
-// ---------------------------------------------------------------------------
-// Boundary schemas. A PR number is a positive int; a SHA is a non-empty token.
-// ---------------------------------------------------------------------------
-
-const prNumberSchema = z.coerce.number().int().positive();
-const shaSchema = z.string().min(1);
-
-const briefQuerySchema = z.object({ base: shaSchema, head: shaSchema });
-const marksQuerySchema = z.object({ baseline: shaSchema, head: shaSchema });
-const narrativeQuerySchema = z.object({ prevHead: shaSchema, head: shaSchema });
-/**
- * Diff span refs must NOT contain a `:` — GitHub's compare endpoint reads
- * `owner:ref` as a CROSS-REPO selector, which would let a caller redirect the
- * diff proxy at a fork outside the `repoId` the authz gate approved.
- */
-const diffRefSchema = shaSchema.refine((value) => !value.includes(":"), {
-  message: "diff ref must not select a cross-repo owner:ref span",
-});
-const diffQuerySchema = z.object({ base: diffRefSchema, head: diffRefSchema });
-/** Same no-`:` rule as the diff route, though this read never reaches GitHub. */
-const deltaQuerySchema = z.object({
-  baseline: diffRefSchema,
-  head: diffRefSchema,
-});
+import {
+  briefQuerySchema,
+  diffQuerySchema,
+  prNumberSchema,
+} from "./reads/schemas";
+import {
+  comparisonSpanSet,
+  deriveLastReviewComparison,
+  derivePreviousBriefComparison,
+  makeLatestPendingProbe,
+  narrativeSpanSet,
+  type RevisionComparisons,
+  type RevisionView,
+} from "./reads/logic/revision-comparisons";
+export {
+  LastReviewUnavailableReason,
+  type LastReviewComparisonView,
+} from "./reads/logic/revision-comparisons";
 
 /** Per-session diff cache TTL — short; the diff is live, this only debounces. */
 const DIFF_CACHE_TTL_MS = 60 * 1000;
@@ -136,10 +115,10 @@ export function readsRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
     if (!parsed.success) {
       return { ok: false, status: 400 };
     }
-    const pr = await createTenantRepository(deps.handle, ctx).pullRequests.getByNumber(
-      repoId,
-      parsed.data,
-    );
+    const pr = await createTenantRepository(
+      deps.handle,
+      ctx,
+    ).pullRequests.getByNumber(repoId, parsed.data);
     if (pr === undefined) {
       return { ok: false, status: 404 };
     }
@@ -176,7 +155,9 @@ export function readsRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
       const ids = [resolved.pr.id];
       const [latestBriefs, latestGenerations] = await Promise.all([
         store.briefs.latestForPullRequests(ids),
-        createGenerationProjection(deps.handle, ctx).latestBriefForPullRequests(ids),
+        createGenerationProjection(deps.handle, ctx).latestBriefForPullRequests(
+          ids,
+        ),
       ]);
       const view = buildPrView(
         resolved.pr,
@@ -295,46 +276,6 @@ export function readsRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
     },
   );
 
-  // GET brief — the whole-PR span artifact for (base, head).
-  app.query(
-    {
-      id: PRODUCT_QUERY_ID.READ_BRIEF,
-      classification: WRITE_CLASSIFICATION.READ,
-    },
-    "/brief",
-    async (c) => {
-      const query = briefQuerySchema.safeParse({
-        base: c.req.query("base"),
-        head: c.req.query("head"),
-      });
-      if (!query.success) {
-        return errorJson(c, ApiErrorCode.INVALID_REQUEST);
-      }
-      const resolved = await resolvePr(
-        c.get("ctx"),
-        c.get("repoId"),
-        c.req.param("prNumber"),
-      );
-      if (!resolved.ok) {
-        return errorJson(
-          c,
-          resolved.status === 400
-            ? ApiErrorCode.INVALID_REQUEST
-            : ApiErrorCode.NOT_FOUND,
-        );
-      }
-      const row = await createArtifactStore(deps.handle, c.get("ctx")).briefs.get(
-        resolved.pr.id,
-        query.data.base,
-        query.data.head,
-      );
-      if (row === undefined) {
-        return errorJson(c, ApiErrorCode.NOT_FOUND);
-      }
-      return artifactJson(c, row.body);
-    },
-  );
-
   // GET brief-context — the brief's repo-config snapshot: per-file outcome
   // table + collisions + policy snapshot, for the FE's source markers,
   // de-emphasis weights, and origin chip. A separate lean endpoint (never the
@@ -377,134 +318,6 @@ export function readsRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
       // The column already holds validated JSON — compose the envelope as a
       // string so the snapshot is never re-parsed per request.
       return artifactJson(c, `{"repoConfig":${repoConfig ?? "null"}}`);
-    },
-  );
-
-  // GET marks — comparison marks (coordinates only) for (baseline, head).
-  app.query(
-    {
-      id: PRODUCT_QUERY_ID.READ_MARKS,
-      classification: WRITE_CLASSIFICATION.READ,
-    },
-    "/marks",
-    async (c) => {
-      const query = marksQuerySchema.safeParse({
-        baseline: c.req.query("baseline"),
-        head: c.req.query("head"),
-      });
-      if (!query.success) {
-        return errorJson(c, ApiErrorCode.INVALID_REQUEST);
-      }
-      const resolved = await resolvePr(
-        c.get("ctx"),
-        c.get("repoId"),
-        c.req.param("prNumber"),
-      );
-      if (!resolved.ok) {
-        return errorJson(
-          c,
-          resolved.status === 400
-            ? ApiErrorCode.INVALID_REQUEST
-            : ApiErrorCode.NOT_FOUND,
-        );
-      }
-      const row = await createArtifactStore(
-        deps.handle,
-        c.get("ctx"),
-      ).comparisonMarks.get(
-        resolved.pr.id,
-        query.data.baseline,
-        query.data.head,
-      );
-      if (row === undefined) {
-        return errorJson(c, ApiErrorCode.NOT_FOUND);
-      }
-      return artifactJson(c, row.body);
-    },
-  );
-
-  // GET delta — the pre-warmed reviewer-personal delta core for
-  // (baseline = checkpoint SHA, head). Reviewer-agnostic artifact;
-  // per-reviewer relevance is derived in PR-meta, not here.
-  app.query(
-    {
-      id: PRODUCT_QUERY_ID.READ_DELTA,
-      classification: WRITE_CLASSIFICATION.READ,
-    },
-    "/delta",
-    async (c) => {
-      const query = deltaQuerySchema.safeParse({
-        baseline: c.req.query("baseline"),
-        head: c.req.query("head"),
-      });
-      if (!query.success) {
-        return errorJson(c, ApiErrorCode.INVALID_REQUEST);
-      }
-      const resolved = await resolvePr(
-        c.get("ctx"),
-        c.get("repoId"),
-        c.req.param("prNumber"),
-      );
-      if (!resolved.ok) {
-        return errorJson(
-          c,
-          resolved.status === 400
-            ? ApiErrorCode.INVALID_REQUEST
-            : ApiErrorCode.NOT_FOUND,
-        );
-      }
-      const row = await createArtifactStore(deps.handle, c.get("ctx")).deltas.get(
-        resolved.pr.id,
-        query.data.baseline,
-        query.data.head,
-      );
-      if (row === undefined) {
-        return errorJson(c, ApiErrorCode.NOT_FOUND);
-      }
-      return artifactJson(c, row.body);
-    },
-  );
-
-  // GET narrative — the revision narrative for (prevHead, head).
-  app.query(
-    {
-      id: PRODUCT_QUERY_ID.READ_NARRATIVE,
-      classification: WRITE_CLASSIFICATION.READ,
-    },
-    "/narrative",
-    async (c) => {
-      const query = narrativeQuerySchema.safeParse({
-        prevHead: c.req.query("prevHead"),
-        head: c.req.query("head"),
-      });
-      if (!query.success) {
-        return errorJson(c, ApiErrorCode.INVALID_REQUEST);
-      }
-      const resolved = await resolvePr(
-        c.get("ctx"),
-        c.get("repoId"),
-        c.req.param("prNumber"),
-      );
-      if (!resolved.ok) {
-        return errorJson(
-          c,
-          resolved.status === 400
-            ? ApiErrorCode.INVALID_REQUEST
-            : ApiErrorCode.NOT_FOUND,
-        );
-      }
-      const row = await createArtifactStore(
-        deps.handle,
-        c.get("ctx"),
-      ).revisionNarratives.get(
-        resolved.pr.id,
-        query.data.prevHead,
-        query.data.head,
-      );
-      if (row === undefined) {
-        return errorJson(c, ApiErrorCode.NOT_FOUND);
-      }
-      return artifactJson(c, row.body);
     },
   );
 
@@ -617,224 +430,6 @@ export function readsRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
 // ---------------------------------------------------------------------------
 // Helpers.
 // ---------------------------------------------------------------------------
-
-interface PreviousBriefComparisonView {
-  readonly baselineSha: string;
-  readonly baselineIndex: number;
-  readonly narrativeAvailable: boolean;
-}
-
-/** One revision's Compare availability envelope; mirrors the top-level shape. */
-interface RevisionComparisons {
-  readonly previousBrief?: PreviousBriefComparisonView;
-  readonly lastReview?: LastReviewComparisonView;
-}
-
-/**
- * A browsable Brief revision. `baseSha` is PER-ENTRY and critical: the base
- * drifts across revisions (base-branch advance / retarget) and the brief GET is
- * an exact `(pr, base, head)` lookup, so a consumer must never derive base from
- * the top-level view. Ordered by `headIndex`.
- */
-interface RevisionView {
-  readonly headSha: string;
-  readonly baseSha: string;
-  readonly headIndex: number;
-  readonly createdAt: string;
-  /**
-   * When this revision's brief generation STARTED — the conversation cutoff:
-   * comments newer than this postdate the brief. Falls back to `createdAt` (the
-   * artifact write, strictly later) when the projection row is gone.
-   */
-  readonly generatedAt: string;
-  readonly comparisons: RevisionComparisons;
-}
-
-// Span-existence joins: a `Set` of packed keys turns per-revision availability
-// into an in-memory lookup (space separator — SHAs are hex, never contain it).
-const SPAN_KEY_SEP = " ";
-function spanKey(baseline: string, head: string): string {
-  return `${baseline}${SPAN_KEY_SEP}${head}`;
-}
-function comparisonSpanSet(
-  rows: readonly ComparisonSpanRow[],
-): ReadonlySet<string> {
-  return new Set(rows.map((row) => spanKey(row.baselineSha, row.headSha)));
-}
-function narrativeSpanSet(
-  rows: readonly NarrativeSpanRow[],
-): ReadonlySet<string> {
-  return new Set(rows.map((row) => spanKey(row.prevHeadSha, row.headSha)));
-}
-
-/**
- * Previous-brief comparison availability for a GIVEN briefed head: the
- * highest-index brief BELOW this one whose head differs (the worker's own
- * baseline rule) — restricting to a lower index is what makes this correct for
- * a HISTORICAL head, not only the latest. Offered only when the mechanical
- * marks row exists (marks are the sole highlight truth); a missing narrative
- * only downgrades `narrativeAvailable`.
- */
-function derivePreviousBriefComparison(
-  target: BriefSpanRow,
-  briefs: readonly BriefSpanRow[],
-  markSpans: ReadonlySet<string>,
-  narrativeSpans: ReadonlySet<string>,
-): PreviousBriefComparisonView | undefined {
-  // `briefs` is ordered by headIndex ascending → the last lower-index match is
-  // the highest-index previous briefed head.
-  let previous: BriefSpanRow | undefined;
-  for (const row of briefs) {
-    if (row.headIndex < target.headIndex && row.headSha !== target.headSha) {
-      previous = row;
-    }
-  }
-  if (previous === undefined) {
-    return undefined;
-  }
-  if (!markSpans.has(spanKey(previous.headSha, target.headSha))) {
-    return undefined;
-  }
-  return {
-    baselineSha: previous.headSha,
-    baselineIndex: previous.headIndex,
-    narrativeAvailable: narrativeSpans.has(
-      spanKey(previous.headSha, target.headSha),
-    ),
-  };
-}
-
-function isNonTerminal(status: GenerationStatus): boolean {
-  return (
-    status === GenerationStatus.QUEUED || status === GenerationStatus.RUNNING
-  );
-}
-
-/**
- * Why `lastReview` is unavailable despite a recorded checkpoint. API-response
- * vocabulary only — never stored, so no DB CHECK/migration.
- */
-export const LastReviewUnavailableReason = {
-  /** No marks and no live generation — GC'd baseline / rewritten history. */
-  BASELINE_UNAVAILABLE: "baseline-unavailable",
-  /** No marks yet, but a delta generation for the span is still non-terminal. */
-  PENDING: "pending",
-} as const;
-export type LastReviewUnavailableReason = ValueOf<
-  typeof LastReviewUnavailableReason
->;
-
-/**
- * The PR-meta `comparisons.lastReview` union: the reviewer-personal "since MY
- * last review" comparison. Marks existence IS the offer; the delta core is
- * optional richness (`deltaAvailable` — the worker skips it on huge spans).
- * Structurally compatible with the local path's shape.
- */
-export type LastReviewComparisonView =
-  | {
-      readonly deltaAvailable: boolean;
-      readonly baselineSha: string;
-      /** The baseline's brief index when the checkpoint SHA was a briefed head. */
-      readonly baselineIndex?: number;
-    }
-  | { readonly unavailable: LastReviewUnavailableReason };
-
-/** The requesting reviewer's checkpoint slice `deriveLastReviewComparison` needs. */
-interface CheckpointBaseline {
-  readonly lastSubmittedSha: string;
-}
-
-/**
- * Probe whether a still-absent `(baseline → head)` marks span is PENDING vs
- * permanently BASELINE_UNAVAILABLE — the one DB read the `lastReview`
- * derivation may need. Wired for the LATEST head only (history is never
- * actively warming) and MEMOIZED per baseline, so at most one generation query
- * per request. Two pending signals, because production writes NO delta-kind
- * projection rows today (delta warming runs inside the brief job): (a) the
- * current head's BRIEF generation is still non-terminal — marks land before it
- * succeeds, so its warming window IS the delta's; (b) a non-terminal
- * delta-kind row for the exact span, kept for when delta generation gets its
- * own projection.
- */
-function makeLatestPendingProbe(
-  deps: AuthRouteDeps,
-  ctx: TenantContext,
-  pullRequestId: PullRequestRow["id"],
-  headSha: string,
-  latestBriefGeneration: GenerationRow | undefined,
-): (baselineSha: string) => Promise<boolean> {
-  const memo = new Map<string, Promise<boolean>>();
-  return (baselineSha) => {
-    const hit = memo.get(baselineSha);
-    if (hit !== undefined) {
-      return hit;
-    }
-    const result = (async (): Promise<boolean> => {
-      const briefGenPending =
-        latestBriefGeneration !== undefined &&
-        latestBriefGeneration.headSha === headSha &&
-        isNonTerminal(latestBriefGeneration.status);
-      if (briefGenPending) {
-        return true;
-      }
-      const deltaGeneration = await createGenerationProjection(deps.handle, ctx).get({
-        pullRequestId,
-        kind: GenerationKind.DELTA,
-        headSha,
-        baselineSha,
-      });
-      return (
-        deltaGeneration !== undefined && isNonTerminal(deltaGeneration.status)
-      );
-    })();
-    memo.set(baselineSha, result);
-    return result;
-  };
-}
-
-/**
- * Derive `lastReview` at a GIVEN head from the REQUESTING reviewer's checkpoint.
- * Absent when there is nothing to explain: no checkpoint, or the checkpoint IS
- * this head (empty span). Marks existence IS the offer; row existence also
- * encodes DIRECTION — the worker only warms forward spans, so a checkpoint
- * newer than this head simply has no marks and offers nothing.
- *
- * `pendingProbe` is supplied for the latest head only; for a historical head a
- * missing marks span is BASELINE_UNAVAILABLE outright.
- */
-async function deriveLastReviewComparison(
-  headSha: string,
-  checkpoint: CheckpointBaseline | undefined,
-  briefs: readonly BriefSpanRow[],
-  markSpans: ReadonlySet<string>,
-  deltaSpans: ReadonlySet<string>,
-  pendingProbe: ((baselineSha: string) => Promise<boolean>) | undefined,
-): Promise<LastReviewComparisonView | undefined> {
-  if (checkpoint === undefined || checkpoint.lastSubmittedSha === headSha) {
-    return undefined;
-  }
-  const baselineSha = checkpoint.lastSubmittedSha;
-  if (markSpans.has(spanKey(baselineSha, headSha))) {
-    // Deterministic: `briefs` is headIndex-ascending, so `find` resolves the
-    // LOWEST index when duplicate rows share the checkpoint SHA (a retarget
-    // re-brief) — either duplicate labels the same commit.
-    const baselineIndex = briefs.find(
-      (row) => row.headSha === baselineSha,
-    )?.headIndex;
-    return {
-      deltaAvailable: deltaSpans.has(spanKey(baselineSha, headSha)),
-      baselineSha,
-      ...(baselineIndex === undefined ? {} : { baselineIndex }),
-    };
-  }
-  const pending =
-    pendingProbe !== undefined && (await pendingProbe(baselineSha));
-  return {
-    unavailable: pending
-      ? LastReviewUnavailableReason.PENDING
-      : LastReviewUnavailableReason.BASELINE_UNAVAILABLE,
-  };
-}
 
 /**
  * Return a stored artifact `body` verbatim as JSON. The body is ALREADY a JSON
