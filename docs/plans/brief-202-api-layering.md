@@ -37,13 +37,12 @@ suite edit is wrong — stop and re-derive.
 - PR titles: `[BRIEF-202] refactor: <Title Case>`; bodies get an unslop
   pass; no template in repo — Overview/Changelog shape.
 
-## Specialist skills (mandatory during implementation)
+## Specialist skills (mandatory during implementation — user-confirmed)
 
-`typescript-eng` (all parts). `verify` for a final end-to-end runtime pass
-after the last stack. TDD not adopted: the wire suites are the tests and
-they must NOT change; new unit tests colocate per ADR. *(Skill adoption and
-commit strategy filled from Idan's recorded leans — flagged for morning
-review rather than blocking the overnight run.)*
+`typescript-eng` (all parts). `tdd` for the new colocated unit tier:
+controller and `logic/` tests are written test-first (red-green) as each
+domain converts — the wire suites are NOT part of the TDD loop and must not
+change. `verify` for a final end-to-end runtime pass after the last stack.
 
 ## Sequencing — 11 PRs, one chain
 
