@@ -81,7 +81,7 @@ export type {
   ReviewSessionKey,
   SessionWriter,
   CarryOverQuery,
-  BriefCarryFacts,
+  CarryOverInputs,
   ReviewSessionView,
   CarriedFrom,
   DispositionRow,
@@ -150,7 +150,10 @@ export type {
 } from "./stores/artifact-store";
 
 // The `generation` status-projection write helpers.
-export { createGenerationProjection, GenerationErrorCode } from "./stores/generation";
+export {
+  createGenerationProjection,
+  GenerationErrorCode,
+} from "./stores/generation";
 export type {
   GenerationProjection,
   GenerationError,
@@ -187,7 +190,11 @@ export type {
 
 // Purge + retention routines — the tenant-scoped deletion boundary, plus the
 // instance-wide audit sweep (an operator setting, so it has no ctx to bind to).
-export { createPurgeRoutines, PurgeErrorCode, sweepAuditLog } from "./stores/purge";
+export {
+  createPurgeRoutines,
+  PurgeErrorCode,
+  sweepAuditLog,
+} from "./stores/purge";
 export type {
   PurgeRoutines,
   PurgeError,

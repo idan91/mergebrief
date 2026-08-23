@@ -42,13 +42,11 @@ import { WRITE_CLASSIFICATION } from "../../../../product-operations/types";
 import type { AuthzEnv } from "../../../authz";
 import { AuthChannel, type AuthRouteDeps } from "../../../auth/session";
 import {
-  loadCarryFacts,
-  prNumberSchema,
+  loadCarryOverInputs,
   resolveSessionTarget,
-  spanQuerySchema,
-} from "./brief-target";
-import { UnreadableBriefError } from "./carry-facts";
-import { buildSessionPayload } from "./payload";
+} from "./logic/brief-target";
+import { UnreadableBriefError } from "./logic/carry-over-inputs";
+import { buildSessionPayload } from "./logic/payload";
 import {
   addressSchema,
   anchorSchema,
@@ -58,11 +56,16 @@ import {
   dismissSchema,
   draftBodySchema,
   outcomeSchema,
+  prNumberSchema,
   readSchema,
   reopenSchema,
-} from "./write-input";
+  spanQuerySchema,
+} from "./schemas";
 import { rowIdSchema } from "../wire-bounds";
-import { mapWriteFailure, resolveWrite } from "./write-resolve";
+import {
+  resolveSessionWrite,
+  throwSessionWriteFailure,
+} from "./logic/write-seam";
 
 const NO_STORE = { "cache-control": "no-store" };
 
@@ -138,10 +141,7 @@ async function decide(
   deps: AuthRouteDeps,
   writes: (writer: SessionWriter) => Promise<unknown>[],
 ): Promise<Response> {
-  const resolved = await resolveWrite(deps, c);
-  if (!resolved.ok) {
-    return resolved.response;
-  }
+  const resolved = await resolveSessionWrite(deps, c);
   const written = await resolved.run(async (writer) => {
     const applied = await Promise.all(writes(writer));
     // Rows the call actually changed: an upsert always returns one, an undo
@@ -149,7 +149,7 @@ async function decide(
     return applied.filter(Boolean).length;
   });
   if (!written.ok) {
-    return mapWriteFailure(c, written.error);
+    throwSessionWriteFailure(written.error);
   }
   return c.json({ flags: written.value }, 200, NO_STORE);
 }
@@ -199,7 +199,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
         ).reviewSessions.preview({
           briefId: target.briefId,
           reviewerId: c.get("session").reviewerId,
-          brief: () => loadCarryFacts(deps, ctx, target, span.data),
+          brief: () => loadCarryOverInputs(deps, ctx, target, span.data),
         });
       } catch (error) {
         if (!(error instanceof UnreadableBriefError)) throw error;
@@ -227,10 +227,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
       if (!parsed.success) {
         return errorJson(c, ApiErrorCode.INVALID_REQUEST);
       }
-      const resolved = await resolveWrite(deps, c);
-      if (!resolved.ok) {
-        return resolved.response;
-      }
+      const resolved = await resolveSessionWrite(deps, c);
       const written = await resolved.run(async (writer) => {
         const held = await writer.draftComments();
         const unposted = held.filter(
@@ -242,7 +239,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
         return await writer.addDraftComment(parsed.data);
       });
       if (!written.ok) {
-        return mapWriteFailure(c, written.error);
+        throwSessionWriteFailure(written.error);
       }
       if (written.value === undefined) {
         return errorJson(c, ApiErrorCode.DRAFT_LIMIT_REACHED);
@@ -264,10 +261,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
       if (!draftId.success || !parsed.success) {
         return errorJson(c, ApiErrorCode.INVALID_REQUEST);
       }
-      const resolved = await resolveWrite(deps, c);
-      if (!resolved.ok) {
-        return resolved.response;
-      }
+      const resolved = await resolveSessionWrite(deps, c);
       const written = await resolved.run(async (writer) => {
         const held = heldDraft(await writer.draftComments(), draftId.data);
         if (
@@ -281,7 +275,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
         });
       });
       if (!written.ok) {
-        return mapWriteFailure(c, written.error);
+        throwSessionWriteFailure(written.error);
       }
       const outcome = resolveWritableDraft(c, written.value);
       if (!outcome.ok) {
@@ -307,10 +301,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
       if (!isHuman(c)) {
         return errorJson(c, ApiErrorCode.HUMAN_ONLY);
       }
-      const resolved = await resolveWrite(deps, c);
-      if (!resolved.ok) {
-        return resolved.response;
-      }
+      const resolved = await resolveSessionWrite(deps, c);
       const written = await resolved.run(async (writer) => {
         const held = heldDraft(await writer.draftComments(), draftId.data);
         if (
@@ -326,7 +317,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
         });
       });
       if (!written.ok) {
-        return mapWriteFailure(c, written.error);
+        throwSessionWriteFailure(written.error);
       }
       const outcome = resolveWritableDraft(c, written.value);
       if (!outcome.ok) {
@@ -351,10 +342,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
       if (!isHuman(c)) {
         return errorJson(c, ApiErrorCode.HUMAN_ONLY);
       }
-      const resolved = await resolveWrite(deps, c);
-      if (!resolved.ok) {
-        return resolved.response;
-      }
+      const resolved = await resolveSessionWrite(deps, c);
       const written = await resolved.run(async (writer) => {
         const held = heldDraft(await writer.draftComments(), draftId.data);
         if (
@@ -367,7 +355,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
         return held;
       });
       if (!written.ok) {
-        return mapWriteFailure(c, written.error);
+        throwSessionWriteFailure(written.error);
       }
       const outcome = resolveWritableDraft(c, written.value);
       if (!outcome.ok) {
@@ -392,10 +380,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
       if (!chunkId.success || !parsed.success) {
         return errorJson(c, ApiErrorCode.INVALID_REQUEST);
       }
-      const resolved = await resolveWrite(deps, c);
-      if (!resolved.ok) {
-        return resolved.response;
-      }
+      const resolved = await resolveSessionWrite(deps, c);
       // ONE operation carrying a boolean, not a mark/unmark pair: a retry is
       // the same action again, and both halves are idempotent.
       const read = parsed.data.read;
@@ -407,7 +392,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
         await writer.clearReadMark(chunkId.data);
       });
       if (!written.ok) {
-        return mapWriteFailure(c, written.error);
+        throwSessionWriteFailure(written.error);
       }
       return c.json({ chunkId: chunkId.data, read }, 200, NO_STORE);
     },
@@ -426,10 +411,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
       if (!groupId.success || !parsed.success) {
         return errorJson(c, ApiErrorCode.INVALID_REQUEST);
       }
-      const resolved = await resolveWrite(deps, c);
-      if (!resolved.ok) {
-        return resolved.response;
-      }
+      const resolved = await resolveSessionWrite(deps, c);
       // Overrides only — the Brief supplies every default, so an unchanged
       // group never reaches this route.
       const written = await resolved.run((writer) =>
@@ -439,7 +421,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
         }),
       );
       if (!written.ok) {
-        return mapWriteFailure(c, written.error);
+        throwSessionWriteFailure(written.error);
       }
       return c.json(
         { changeGroupId: groupId.data, category: parsed.data.category },
@@ -546,16 +528,13 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
       if (!parsed.success) {
         return errorJson(c, ApiErrorCode.INVALID_REQUEST);
       }
-      const resolved = await resolveWrite(deps, c);
-      if (!resolved.ok) {
-        return resolved.response;
-      }
+      const resolved = await resolveSessionWrite(deps, c);
       const outcome = parsed.data.outcome;
       const written = await resolved.run((writer) =>
         writer.setReviewOutcome(outcome),
       );
       if (!written.ok) {
-        return mapWriteFailure(c, written.error);
+        throwSessionWriteFailure(written.error);
       }
       // Read back off the row, not the request: the picker is server-
       // authoritative, and a new session starts at `comment` regardless.

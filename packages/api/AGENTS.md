@@ -151,7 +151,8 @@ whether the file imports `app.request`.
   Bearer principal carries `api_token.scope`, chosen at mint and immutable
   for the token's life.
 - **`no-store` on every response of a gated route** — error paths included;
-  it is all per-viewer state (`errorJson` in `repos/pr/review.ts`).
+  it is all per-viewer state (success responses set it explicitly; every
+  error path inherits it from the `renderErrorResponse` producer).
 - **The token refreshes at most once per REQUEST**, shared across every
   GitHub call in the handler (`ReviewerGitHubClient.run`) — the token can
   expire between calls, and per-call-site refresh logic either misses that

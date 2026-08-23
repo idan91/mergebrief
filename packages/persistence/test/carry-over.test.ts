@@ -8,10 +8,14 @@ import type { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { describe, expect, it } from "vitest";
 import { fromDrizzle } from "../src/db/handle";
-import { createArtifactStore, createTenantRepository, ReviewSessionErrorCode } from "../src/index";
+import {
+  createArtifactStore,
+  createTenantRepository,
+  ReviewSessionErrorCode,
+} from "../src/index";
 import type {
   AppDatabase,
-  BriefCarryFacts,
+  CarryOverInputs,
   FlagKey,
   SessionWriter,
   TenantContext,
@@ -202,7 +206,7 @@ async function seedPreviousComment(
 function artifact(
   groupIds: readonly string[],
   flags: readonly FlagKey[],
-): () => Promise<BriefCarryFacts> {
+): () => Promise<CarryOverInputs> {
   return async () => ({ groupIds, flags });
 }
 
@@ -210,7 +214,7 @@ const NO_ARTIFACT = { brief: artifact([], []) } as const;
 
 /** A thunk that records whether the Brief body was ever asked for. */
 function createCountingArtifact(): {
-  brief: () => Promise<BriefCarryFacts>;
+  brief: () => Promise<CarryOverInputs>;
   calls: () => number;
 } {
   let calls = 0;
@@ -228,7 +232,10 @@ describe("preview — the read-side evaluation creates nothing", () => {
     const world = await freshWorld();
     const briefId = await seedBrief(world, 1);
 
-    const view = await createTenantRepository(world.handle, CTX).reviewSessions.preview({
+    const view = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.preview({
       briefId,
       reviewerId: REVIEWER,
       ...NO_ARTIFACT,
@@ -248,7 +255,10 @@ describe("preview — the read-side evaluation creates nothing", () => {
     await seedPreviousComment(world, previous);
     const before = await countRows(world.client, "review_session");
 
-    const view = await createTenantRepository(world.handle, CTX).reviewSessions.preview({
+    const view = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.preview({
       briefId: current,
       reviewerId: REVIEWER,
       ...NO_ARTIFACT,
@@ -274,7 +284,10 @@ describe("preview — the read-side evaluation creates nothing", () => {
     await seedHop(world, 1, 2);
     await seedPreviousComment(world, previous, OTHER_REVIEWER);
 
-    const view = await createTenantRepository(world.handle, CTX).reviewSessions.preview({
+    const view = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.preview({
       briefId: current,
       reviewerId: REVIEWER,
       ...NO_ARTIFACT,
@@ -294,7 +307,10 @@ describe("preview — several pushes are ONE evaluation", () => {
     await seedHop(world, 9, 10);
     await seedPreviousComment(world, previous);
 
-    const view = await createTenantRepository(world.handle, CTX).reviewSessions.preview({
+    const view = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.preview({
       briefId: await briefIdFor(world, 10),
       reviewerId: REVIEWER,
       ...NO_ARTIFACT,
@@ -318,7 +334,10 @@ describe("preview — several pushes are ONE evaluation", () => {
     // The 8 → 9 hop never landed: the chain cannot be linked end to end.
     await seedPreviousComment(world, previous);
 
-    const view = await createTenantRepository(world.handle, CTX).reviewSessions.preview({
+    const view = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.preview({
       briefId: await briefIdFor(world, 9),
       reviewerId: REVIEWER,
       ...NO_ARTIFACT,
@@ -346,7 +365,10 @@ describe("preview — several pushes are ONE evaluation", () => {
     await seedHop(world, 7, 99);
     await seedPreviousComment(world, previous);
 
-    const view = await createTenantRepository(world.handle, CTX).reviewSessions.preview({
+    const view = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.preview({
       briefId: await briefIdFor(world, 9),
       reviewerId: REVIEWER,
       ...NO_ARTIFACT,
@@ -368,7 +390,7 @@ async function seedPreviousWork(
   briefId: BriefRowId,
   chunkIds: readonly string[] = ["c5"],
 ): Promise<void> {
-  const id = await openSession(world, briefId);
+  await openSession(world, briefId);
   await write(world, briefId, async (writer) => {
     await writer.setReviewOutcome(ReviewOutcome.APPROVE);
     await writer.addDraftComment({
@@ -443,7 +465,10 @@ describe("preview — what carries, per subject", () => {
   it("carries a read mark whose chunk id is in the new Brief's carried set", async () => {
     const { world, current } = await twoBriefs(["c5"]);
 
-    const view = await createTenantRepository(world.handle, CTX).reviewSessions.preview({
+    const view = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.preview({
       briefId: current,
       reviewerId: REVIEWER,
       brief: artifact(["g1"], FIRING),
@@ -458,7 +483,10 @@ describe("preview — what carries, per subject", () => {
     // opened. Marking it read would be a silent rubber-stamp.
     const { world, current } = await twoBriefs([]);
 
-    const view = await createTenantRepository(world.handle, CTX).reviewSessions.preview({
+    const view = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.preview({
       briefId: current,
       reviewerId: REVIEWER,
       brief: artifact(["g1"], FIRING),
@@ -470,7 +498,10 @@ describe("preview — what carries, per subject", () => {
   it("carries a reclassification only where the group id survived descent", async () => {
     const { world, current } = await twoBriefs(["c5"]);
 
-    const view = await createTenantRepository(world.handle, CTX).reviewSessions.preview({
+    const view = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.preview({
       briefId: current,
       reviewerId: REVIEWER,
       brief: artifact(["g1"], FIRING),
@@ -491,7 +522,10 @@ describe("preview — what carries, per subject", () => {
     await seedHop(world, 1, 2);
     await seedPreviousWork(world, previous, ["c5"]);
 
-    const view = await createTenantRepository(world.handle, CTX).reviewSessions.preview({
+    const view = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.preview({
       briefId: current,
       reviewerId: REVIEWER,
       brief: artifact(["g1"], FIRING),
@@ -509,7 +543,10 @@ describe("preview — what carries, per subject", () => {
     await seedHop(world, 1, 2);
     await seedPreviousWork(world, previous, ["c5"]);
 
-    const view = await createTenantRepository(world.handle, CTX).reviewSessions.preview({
+    const view = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.preview({
       briefId: current,
       reviewerId: REVIEWER,
       brief: artifact(["g1"], FIRING),
@@ -529,7 +566,10 @@ describe("preview — what carries, per subject", () => {
     await seedHop(world, 2, 3);
     await seedPreviousWork(world, previous, ["c5"]);
 
-    const view = await createTenantRepository(world.handle, CTX).reviewSessions.preview({
+    const view = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.preview({
       briefId: current,
       reviewerId: REVIEWER,
       brief: artifact(["g1"], FIRING),
@@ -547,7 +587,10 @@ describe("preview — what carries, per subject", () => {
     await seedHop(world, 1, 2);
     await seedPreviousWork(world, previous, ["c5"]);
 
-    const view = await createTenantRepository(world.handle, CTX).reviewSessions.preview({
+    const view = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.preview({
       briefId: current,
       reviewerId: REVIEWER,
       brief: artifact(["g1"], FIRING),
@@ -574,7 +617,10 @@ describe("preview — what carries, per subject", () => {
     );
     await seedPreviousWork(world, previous, ["c5"]);
 
-    const view = await createTenantRepository(world.handle, CTX).reviewSessions.preview({
+    const view = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.preview({
       briefId: current,
       reviewerId: REVIEWER,
       brief: artifact(["g1"], FIRING),
@@ -586,7 +632,10 @@ describe("preview — what carries, per subject", () => {
   it("carries a draft but never a submitted comment", async () => {
     const { world, current } = await twoBriefs(["c5"]);
 
-    const view = await createTenantRepository(world.handle, CTX).reviewSessions.preview({
+    const view = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.preview({
       briefId: current,
       reviewerId: REVIEWER,
       brief: artifact(["g1"], FIRING),
@@ -600,7 +649,10 @@ describe("preview — what carries, per subject", () => {
   it("settles an untouched disposition and reopens a touched one", async () => {
     const { world, current } = await twoBriefs(["c5"]);
 
-    const settled = await createTenantRepository(world.handle, CTX).reviewSessions.preview({
+    const settled = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.preview({
       briefId: current,
       reviewerId: REVIEWER,
       brief: artifact([], FIRING),
@@ -625,7 +677,10 @@ describe("preview — what carries, per subject", () => {
     ]);
     await seedPreviousWork(touched, previous);
 
-    const view = await createTenantRepository(touched.handle, CTX).reviewSessions.preview({
+    const view = await createTenantRepository(
+      touched.handle,
+      CTX,
+    ).reviewSessions.preview({
       briefId: currentTouched,
       reviewerId: REVIEWER,
       brief: artifact([], FIRING),
@@ -650,7 +705,10 @@ describe("preview — what carries, per subject", () => {
     await seedPreviousWork(world, previous);
     await seedDisposition(world, previous, 60, 62);
 
-    const view = await createTenantRepository(world.handle, CTX).reviewSessions.preview({
+    const view = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.preview({
       briefId: current,
       reviewerId: REVIEWER,
       brief: artifact([], FIRING),
@@ -679,7 +737,10 @@ describe("preview — what carries, per subject", () => {
          'chunk-reviewed', evidence_ref = 'c9'`,
     );
 
-    const view = await createTenantRepository(world.handle, CTX).reviewSessions.preview({
+    const view = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.preview({
       briefId: current,
       reviewerId: REVIEWER,
       brief: artifact([], FIRING),
@@ -701,7 +762,10 @@ describe("preview — what carries, per subject", () => {
          'chunk-reviewed', evidence_ref = 'c5'`,
     );
 
-    const held = await createTenantRepository(world.handle, CTX).reviewSessions.preview({
+    const held = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.preview({
       briefId: current,
       reviewerId: REVIEWER,
       brief: artifact([], FIRING),
@@ -719,7 +783,10 @@ describe("preview — what carries, per subject", () => {
       `update disposition set evidence_kind = 'manual-note', evidence_ref =
          'checked by hand'`,
     );
-    const note = await createTenantRepository(world.handle, CTX).reviewSessions.preview({
+    const note = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.preview({
       briefId: current,
       reviewerId: REVIEWER,
       brief: artifact([], FIRING),
@@ -743,7 +810,10 @@ describe("preview — what carries, per subject", () => {
       [submitted.rows[0]?.id],
     );
 
-    const view = await createTenantRepository(world.handle, CTX).reviewSessions.preview({
+    const view = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.preview({
       briefId: current,
       reviewerId: REVIEWER,
       brief: artifact([], FIRING),
@@ -757,7 +827,10 @@ describe("preview — what carries, per subject", () => {
   it("drops a disposition whose flag no longer fires", async () => {
     const { world, current } = await twoBriefs(["c5"]);
 
-    const view = await createTenantRepository(world.handle, CTX).reviewSessions.preview({
+    const view = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.preview({
       briefId: current,
       reviewerId: REVIEWER,
       brief: artifact([], []),
@@ -784,7 +857,10 @@ describe("preview — the rules a multi-push chain must not loosen", () => {
     await seedHop(world, 9, 10);
     await seedPreviousWork(world, previous);
 
-    const view = await createTenantRepository(world.handle, CTX).reviewSessions.preview({
+    const view = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.preview({
       briefId: await briefIdFor(world, 10),
       reviewerId: REVIEWER,
       brief: artifact([], FIRING),
@@ -802,7 +878,10 @@ describe("preview — the rules a multi-push chain must not loosen", () => {
     await seedHop(world, 9, 10);
     await seedPreviousWork(world, previous);
 
-    const view = await createTenantRepository(world.handle, CTX).reviewSessions.preview({
+    const view = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.preview({
       briefId: await briefIdFor(world, 10),
       reviewerId: REVIEWER,
       brief: artifact([], FIRING),
@@ -999,7 +1078,10 @@ describe("old-side drafts against the PR base", () => {
     await seedHop(world, 1, 2);
     await seedOldSideDraft(world, previous);
 
-    const view = await createTenantRepository(world.handle, CTX).reviewSessions.preview({
+    const view = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.preview({
       briefId: current,
       reviewerId: REVIEWER,
       ...NO_ARTIFACT,
@@ -1024,7 +1106,10 @@ describe("old-side drafts against the PR base", () => {
     await seedHop(world, 1, 2);
     await seedOldSideDraft(world, previous);
 
-    const view = await createTenantRepository(world.handle, CTX).reviewSessions.preview({
+    const view = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.preview({
       briefId: current,
       reviewerId: REVIEWER,
       ...NO_ARTIFACT,
@@ -1063,7 +1148,10 @@ describe("two-side drafts — both legs or orphan", () => {
   }
 
   async function previewCurrent(world: World, current: BriefRowId) {
-    return await createTenantRepository(world.handle, CTX).reviewSessions.preview({
+    return await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.preview({
       briefId: current,
       reviewerId: REVIEWER,
       ...NO_ARTIFACT,
@@ -1256,7 +1344,10 @@ describe("writeToSession — the first write, one transaction", () => {
     );
 
     expect(written.ok).toBe(true);
-    const snapshot = await createTenantRepository(world.handle, CTX).reviewSessions.get({
+    const snapshot = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.get({
       briefId: current,
       reviewerId: REVIEWER,
     });
@@ -1312,12 +1403,18 @@ describe("writeToSession — the first write, one transaction", () => {
   it("never carries the review outcome", async () => {
     const { world, current } = await pending();
 
-    await createTenantRepository(world.handle, CTX).reviewSessions.writeToSession(
+    await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.writeToSession(
       { briefId: current, reviewerId: REVIEWER, ...QUERY },
       (writer) => writer.putReadMark({ chunkId: "c9" }),
     );
 
-    const snapshot = await createTenantRepository(world.handle, CTX).reviewSessions.get({
+    const snapshot = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.get({
       briefId: current,
       reviewerId: REVIEWER,
     });
@@ -1397,12 +1494,18 @@ describe("writeToSession — the first write, one transaction", () => {
     // No hop row at all: the chain is untrustworthy, so every anchor orphans.
     await seedPreviousWork(world, previous);
 
-    await createTenantRepository(world.handle, CTX).reviewSessions.writeToSession(
+    await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.writeToSession(
       { briefId: current, reviewerId: REVIEWER, ...QUERY },
       (writer) => writer.putReadMark({ chunkId: "c8" }),
     );
 
-    const snapshot = await createTenantRepository(world.handle, CTX).reviewSessions.get({
+    const snapshot = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.get({
       briefId: current,
       reviewerId: REVIEWER,
     });

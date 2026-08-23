@@ -17,10 +17,9 @@ import type { AuthzEnv } from "../../../authz";
 import { prNumberSchema } from "../wire-bounds";
 import { commitShaSchema } from "../wire-bounds";
 import {
-  mapWriteFailure,
-  resolveWrite,
-  type ResolvedWrite,
-} from "../session/write-resolve";
+  resolveSessionWrite,
+  throwSessionWriteFailure,
+} from "../session/logic/write-seam";
 import commentsController from "./controller";
 import {
   throwPublishFailure,
@@ -50,11 +49,11 @@ async function readJsonBody(c: Context<AuthzEnv>) {
  * The draft this session holds under `draftId`, already proven publishable:
  * unknown -> the subtree's hint-free 404, published -> 409, orphaned anchor
  * -> the distinct 409 the submit path uses. A session refusal renders via
- * `mapWriteFailure` and comes back as the ready Response.
+ * a session-store refusal maps through `throwSessionWriteFailure`.
  */
 async function resolvePublishableDraft(
   c: Context<AuthzEnv>,
-  resolved: Extract<ResolvedWrite, { ok: true }>,
+  resolved: Awaited<ReturnType<typeof resolveSessionWrite>>,
   draftId: bigint,
 ) {
   const held = await resolved.run(async (writer) =>
@@ -63,7 +62,7 @@ async function resolvePublishableDraft(
     ),
   );
   if (!held.ok) {
-    return mapWriteFailure(c, held.error);
+    throwSessionWriteFailure(held.error);
   }
   const draft = held.value;
   if (draft === undefined) {
@@ -88,7 +87,7 @@ async function resolvePublishableDraft(
  */
 async function recordPublishedDraft(
   c: Context<AuthzEnv>,
-  resolved: Extract<ResolvedWrite, { ok: true }>,
+  resolved: Awaited<ReturnType<typeof resolveSessionWrite>>,
   draftRowId: bigint,
   commentId: bigint,
 ) {
@@ -97,7 +96,10 @@ async function recordPublishedDraft(
       writer.publishDraftComments([draftRowId]),
     );
     if (!flipped.ok) {
-      throw new Error(flipped.error.code);
+      if (flipped.error.kind === "session-rejected") {
+        throw new Error(flipped.error.error.code);
+      }
+      throw new Error(flipped.error.kind);
     }
   } catch (flipError) {
     // NOT `audit.fail`: that name is the audit ROW failing to persist,
@@ -135,18 +137,12 @@ export default function createHandlers(
     // The session answers first, and it answers with no GitHub call spent:
     // a frozen tab, an unknown draft and one already published are all
     // decided off rows this server holds.
-    const resolved = await resolveWrite(deps, c);
-    if (!resolved.ok) {
-      return resolved.response;
-    }
+    const resolved = await resolveSessionWrite(deps, c);
     const commitId = commitShaSchema.safeParse(resolved.head);
     if (!commitId.success) {
       throw new BadRequest(ApiErrorCode.INVALID_REQUEST);
     }
     const draft = await resolvePublishableDraft(c, resolved, draftId);
-    if (draft instanceof Response) {
-      return draft;
-    }
 
     // ONE client instance: the refresh budget spans the fresh slug resolve
     // AND the write.

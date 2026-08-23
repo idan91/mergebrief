@@ -17,6 +17,12 @@ export interface TokenUnreadableFailure {
   readonly kind: "token-unreadable";
 }
 
+/** A session-store refusal riding the Result whole (freeze, unknown rows). */
+export interface SessionRejectedFailure<E> {
+  readonly kind: "session-rejected";
+  readonly error: E;
+}
+
 export function isTokenUnreadableFailure(
   error: object,
 ): error is TokenUnreadableFailure {

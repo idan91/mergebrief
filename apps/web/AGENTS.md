@@ -137,7 +137,7 @@ against GitHub (or any external system) follows them:
   unrecoverable loop. `submitBlockedReason` mirrors the caps the submit route
   applies to the drafts the session holds (count, path length, the
   degradation fold's budget) — keep it in lockstep with
-  `packages/api/src/routes/repos/pr/review.ts` when either side changes.
+  `packages/api/src/routes/repos/pr/review/` when either side changes.
 - **One operation per user action, and a failure reverts.** Every session
   write is its own request naming its Brief (`?base=&head=`); there is no
   snapshot PUT, no batching, no network debounce and no retry machinery — a

@@ -1,6 +1,6 @@
-// Which Brief a session request names, and the facts read off it. Both route
-// files — the read and the writes — resolve through here, so a stale tab
-// lands on the same Brief whichever verb it uses.
+// Which Brief a session request names, and the facts read off it. The read
+// and the writes both resolve through here, so a stale tab lands on the same
+// Brief whichever verb it uses.
 import {
   createArtifactStore,
   createTenantRepository,
@@ -9,18 +9,13 @@ import {
   type RepoId,
   type TenantContext,
 } from "persistence";
-import { z } from "zod";
-import type { AuthRouteDeps } from "../../../auth/session";
+import type { AuthRouteDeps } from "../../../../auth/session";
+import type { BriefSpan } from "../schemas";
 import {
-  readCarryFacts,
+  readCarryOverInputs,
   UnreadableBriefError,
-  type CarryFacts,
-} from "./carry-facts";
-
-export const prNumberSchema = z.coerce.number().int().positive();
-const shaSchema = z.string().min(1);
-export const spanQuerySchema = z.object({ base: shaSchema, head: shaSchema });
-export type BriefSpan = z.infer<typeof spanQuerySchema>;
+  type CarryOverInputs,
+} from "./carry-over-inputs";
 
 /**
  * The PR and the Brief a request names — never "the newest Brief". The write
@@ -72,12 +67,12 @@ export async function resolveSessionTarget(
  * same hazard as an unparseable one, because empty facts read as "nothing
  * fires any more".
  */
-export async function loadCarryFacts(
+export async function loadCarryOverInputs(
   deps: AuthRouteDeps,
   ctx: TenantContext,
   target: SessionTarget,
   span: BriefSpan,
-): Promise<CarryFacts> {
+): Promise<CarryOverInputs> {
   const row = await createArtifactStore(deps.handle, ctx).briefs.get(
     target.pullRequestId,
     span.base,
@@ -88,5 +83,5 @@ export async function loadCarryFacts(
   if (row === undefined || row.id !== target.briefId) {
     throw new UnreadableBriefError("brief row vanished between reads");
   }
-  return readCarryFacts(row.body);
+  return readCarryOverInputs(row.body);
 }

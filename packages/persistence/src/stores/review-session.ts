@@ -171,7 +171,7 @@ export interface ReviewSessionSnapshot {
 }
 
 /** What the current Brief's artifact body contributes to an evaluation. */
-export interface BriefCarryFacts {
+export interface CarryOverInputs {
   /** Change-group ids the current Brief emits. */
   readonly groupIds: readonly string[];
   /** Risk-surface flags the current Brief emits. */
@@ -186,7 +186,7 @@ export interface BriefCarryFacts {
  * needs them.
  */
 export interface CarryOverQuery extends ReviewSessionKey {
-  readonly brief: () => Promise<BriefCarryFacts>;
+  readonly brief: () => Promise<CarryOverInputs>;
 }
 
 /** The receipt's count before materialization — every evaluated subject. */
@@ -415,7 +415,7 @@ export function createReviewSessionRepository(
   installationId: InstallationId,
 ): ReviewSessionRepository {
   /** The current Brief's own contribution to an evaluation. */
-  async function briefFacts(
+  async function readBriefCarrySlice(
     tx: Reader,
     briefId: BriefRowId,
   ): Promise<BriefFacts | undefined> {
@@ -624,7 +624,7 @@ export function createReviewSessionRepository(
     tx: Reader,
     facts: BriefFacts,
     previous: PreviousSession,
-    artifact: BriefCarryFacts,
+    artifact: CarryOverInputs,
   ): Promise<CarriedWork> {
     const chain = await chainBriefs(tx, facts, previous.headIndex);
     const heads = chain.map((row) => row.headSha);
@@ -1015,13 +1015,13 @@ export function createReviewSessionRepository(
    * when there is nothing to evaluate — the session already exists, or it is
    * the reviewer's first on this PR. Both skip the Brief-body parse entirely.
    */
-  async function carryFacts(
+  async function deriveCarryOverInputs(
     query: CarryOverQuery,
-  ): Promise<BriefCarryFacts | undefined> {
+  ): Promise<CarryOverInputs | undefined> {
     if ((await findSession(query)) !== undefined) {
       return undefined;
     }
-    const facts = await briefFacts(db, query.briefId);
+    const facts = await readBriefCarrySlice(db, query.briefId);
     if (facts === undefined) {
       return undefined;
     }
@@ -1116,9 +1116,9 @@ export function createReviewSessionRepository(
       // would deadlock. `preview` pays the same probe for the same reason —
       // a first-ever session has nothing to evaluate, so it must never pay
       // for a multi-hundred-KB parse it would discard.
-      const artifact = await carryFacts(query);
+      const artifact = await deriveCarryOverInputs(query);
       return db.transaction(async (tx) => {
-        const facts = await briefFacts(tx, query.briefId);
+        const facts = await readBriefCarrySlice(tx, query.briefId);
         if (facts === undefined) {
           return fail(
             ReviewSessionErrorCode.PARENT_NOT_IN_TENANT,
@@ -1193,7 +1193,7 @@ export function createReviewSessionRepository(
       // session that already materialized — never pays for the body parse.
       const [snapshot, facts] = await Promise.all([
         snapshotFor(query),
-        briefFacts(db, query.briefId),
+        readBriefCarrySlice(db, query.briefId),
       ]);
       if (facts === undefined) {
         return {

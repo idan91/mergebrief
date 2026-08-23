@@ -19,10 +19,9 @@ import {
   throwRepoResolveFailure,
 } from "../logic/resolve-repo-owner-and-name";
 import {
-  mapWriteFailure as sessionFailure,
-  resolveWrite,
-  type ResolvedWrite,
-} from "../session/write-resolve";
+  resolveSessionWrite,
+  throwSessionWriteFailure,
+} from "../session/logic/write-seam";
 import {
   commitShaSchema,
   prNumberSchema,
@@ -44,12 +43,12 @@ const NO_STORE = { "cache-control": "no-store" } as const;
 
 /**
  * The session's unposted drafts, refused before any GitHub call is spent:
- * an orphaned anchor is the same 409 the publish path uses. A session-store
- * refusal renders via `sessionFailure` and comes back as the ready Response.
+ * an orphaned anchor is the same 409 the publish path uses; a session-store
+ * refusal maps through `throwSessionWriteFailure`.
  */
 async function resolveSubmittableDrafts(
   c: Context<AuthzEnv>,
-  resolved: Extract<ResolvedWrite, { ok: true }>,
+  resolved: Awaited<ReturnType<typeof resolveSessionWrite>>,
 ) {
   const held = await resolved.run(async (writer) =>
     (await writer.draftComments()).filter(
@@ -57,7 +56,7 @@ async function resolveSubmittableDrafts(
     ),
   );
   if (!held.ok) {
-    return sessionFailure(c, held.error);
+    throwSessionWriteFailure(held.error);
   }
   const drafts = held.value;
   // Posting an orphaned anchor lands the comment on unrelated lines;
@@ -100,7 +99,7 @@ function assertSubmitRepresentable(
  */
 async function recordSubmittedDrafts(
   c: Context<AuthzEnv>,
-  resolved: Extract<ResolvedWrite, { ok: true }>,
+  resolved: Awaited<ReturnType<typeof resolveSessionWrite>>,
   drafts: readonly { id: bigint }[],
   reviewId: bigint,
 ) {
@@ -110,7 +109,10 @@ async function recordSubmittedDrafts(
       await writer.recordSubmittedReview({ githubReviewId: reviewId });
     });
     if (!recorded.ok) {
-      throw new Error(recorded.error.code);
+      if (recorded.error.kind === "session-rejected") {
+        throw new Error(recorded.error.error.code);
+      }
+      throw new Error(recorded.error.kind);
     }
   } catch (bookkeepingError) {
     // NOT `audit.fail`: the audit row is the choke point's to write, and
@@ -148,18 +150,12 @@ export default function createHandlers(
 
     // The session answers before a GitHub call is spent: a frozen tab is
     // refused here, and the drafts to publish are read off its rows.
-    const resolved = await resolveWrite(deps, c);
-    if (!resolved.ok) {
-      return resolved.response;
-    }
+    const resolved = await resolveSessionWrite(deps, c);
     const commitId = commitShaSchema.safeParse(resolved.head);
     if (!commitId.success) {
       throw new BadRequest(ApiErrorCode.INVALID_REQUEST);
     }
     const drafts = await resolveSubmittableDrafts(c, resolved);
-    if (drafts instanceof Response) {
-      return drafts;
-    }
     const comments = drafts.map(shapeSubmitComment);
     assertSubmitRepresentable(submitBody, comments);
 
