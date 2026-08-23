@@ -181,7 +181,7 @@ function toPrimitiveComments(
 }
 
 /** Split the gate's verified `owner/name`; `undefined` on a non-slug shape. */
-function splitRepoSlug(
+function parseOwnerAndName(
   fullName: string,
 ): { owner: string; repo: string } | undefined {
   const parts = fullName.split("/");
@@ -245,7 +245,8 @@ export function reviewSubmitRoute(
       const submitBody = parsedBody.data;
 
       const ctx = c.get("ctx");
-      const pr = await createTenantRepository(deps.handle, ctx).pullRequests.getByNumber(
+      const tenant = createTenantRepository(deps.handle, ctx);
+      const pr = await tenant.pullRequests.getByNumber(
         c.get("repoId"),
         parsedPr.data,
       );
@@ -371,7 +372,7 @@ export function reviewSubmitRoute(
         }
         return errorJson(c, ApiErrorCode.GITHUB_UNAVAILABLE);
       }
-      const target = splitRepoSlug(repoInfo.value.fullName);
+      const target = parseOwnerAndName(repoInfo.value.fullName);
       if (target === undefined) {
         return errorJson(c, ApiErrorCode.NOT_FOUND);
       }

@@ -53,7 +53,10 @@ const ORDERED_LINES = {
  * and echoed as null, so non-null means genuinely two-side everywhere.
  */
 function normalizeStartSide<
-  T extends { side: DraftCommentSide; startSide?: DraftCommentSide | undefined },
+  T extends {
+    side: DraftCommentSide;
+    startSide?: DraftCommentSide | undefined;
+  },
 >(anchor: T): Omit<T, "startSide"> & { startSide: DraftCommentSide | null } {
   const { startSide, ...rest } = anchor;
   return {

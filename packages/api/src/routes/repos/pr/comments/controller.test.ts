@@ -3,7 +3,6 @@ import {
   GitHubApiErrorCode,
   createInlineReviewComment,
   createReviewCommentReply,
-  fetchRepositoryById,
 } from "github";
 import type * as githubModule from "github";
 import type { Logger } from "logging";
@@ -12,7 +11,6 @@ import {
   encryptToken,
   isGrantRowId,
   isInstallationId,
-  isRepoId,
   isReviewerId,
   WriteClassification,
 } from "persistence";
@@ -37,7 +35,6 @@ import commentsController from "./controller";
 
 vi.mock("github", async (importOriginal) => ({
   ...(await importOriginal<typeof githubModule>()),
-  fetchRepositoryById: vi.fn(),
   createInlineReviewComment: vi.fn(),
   createReviewCommentReply: vi.fn(),
 }));
@@ -106,14 +103,6 @@ async function buildClient(ciphertextOverride?: string) {
   return createReviewerGitHubClient(deps, session, log);
 }
 
-const REPO_ID = (() => {
-  const value = 4321n;
-  if (!isRepoId(value)) {
-    throw new Error("unbrandable repo id");
-  }
-  return value;
-})();
-
 function buildGitHubError(
   code: githubModule.GitHubApiErrorCode,
 ): Result<never, githubModule.GitHubApiError> {
@@ -121,62 +110,11 @@ function buildGitHubError(
 }
 
 beforeEach(() => {
-  vi.mocked(fetchRepositoryById).mockReset();
   vi.mocked(createInlineReviewComment).mockReset();
   vi.mocked(createReviewCommentReply).mockReset();
 });
 
 describe("commentsController", () => {
-  it("wraps a fresh-resolve denial whole with phase resolve", async () => {
-    vi.mocked(fetchRepositoryById).mockResolvedValue(
-      buildGitHubError(GitHubApiErrorCode.FORBIDDEN),
-    );
-    const result = await commentsController.resolveFreshRepoTarget(
-      { github: await buildClient() },
-      REPO_ID,
-    );
-    expect(result).toMatchObject({
-      ok: false,
-      error: {
-        kind: "github-denied",
-        phase: "resolve",
-        error: { code: GitHubApiErrorCode.FORBIDDEN },
-      },
-    });
-  });
-
-  it("reports an unreadable stored token before any GitHub call", async () => {
-    const result = await commentsController.resolveFreshRepoTarget(
-      { github: await buildClient("not-a-ciphertext") },
-      REPO_ID,
-    );
-    expect(result).toEqual({
-      ok: false,
-      error: { kind: "token-unreadable" },
-    });
-    expect(fetchRepositoryById).not.toHaveBeenCalled();
-  });
-
-  it("splits the verified full name on success", async () => {
-    vi.mocked(fetchRepositoryById).mockResolvedValue({
-      ok: true,
-      value: {
-        repoId: REPO_ID,
-        fullName: "acme/app",
-        private: false,
-        viewerCanPush: true,
-      },
-    });
-    const result = await commentsController.resolveFreshRepoTarget(
-      { github: await buildClient() },
-      REPO_ID,
-    );
-    expect(result).toEqual({
-      ok: true,
-      value: { owner: "acme", repo: "app" },
-    });
-  });
-
   it("wraps a publish denial whole with phase mutation", async () => {
     vi.mocked(createInlineReviewComment).mockResolvedValue({
       ok: false,

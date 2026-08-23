@@ -75,7 +75,10 @@ export async function resolveWrite(
     head: span.data.head,
     run: async (write) => {
       try {
-        return await createTenantRepository(deps.handle, ctx).reviewSessions.writeToSession(
+        return await createTenantRepository(
+          deps.handle,
+          ctx,
+        ).reviewSessions.writeToSession(
           {
             briefId: target.briefId,
             reviewerId: c.get("session").reviewerId,

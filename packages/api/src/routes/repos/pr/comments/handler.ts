@@ -25,7 +25,6 @@ import commentsController from "./controller";
 import {
   throwPublishFailure,
   throwReplyFailure,
-  throwRepoResolveFailure,
   throwResolutionFailure,
 } from "./logic/wire-failures";
 import type { EvictConversation } from "./types";
@@ -34,6 +33,10 @@ import {
   commentIdSchema,
   replyBodySchema,
 } from "./schemas";
+import {
+  resolveRepoOwnerAndName,
+  throwRepoResolveFailure,
+} from "../logic/resolve-repo-owner-and-name";
 import { readDraftAnchor } from "./logic/draft-anchor";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
@@ -152,19 +155,16 @@ export default function createHandlers(
       c.get("session"),
       c.get("logger"),
     );
-    const target = await commentsController.resolveFreshRepoTarget(
-      { github },
-      repoId,
-    );
-    if (!target.ok) {
-      throwRepoResolveFailure(target.error);
+    const resolvedName = await resolveRepoOwnerAndName({ github }, repoId);
+    if (!resolvedName.ok) {
+      throwRepoResolveFailure(resolvedName.error);
     }
 
     const posted = await commentsController.postInlineComment(
       { github },
       {
-        owner: target.value.owner,
-        repo: target.value.repo,
+        owner: resolvedName.value.owner,
+        repo: resolvedName.value.repo,
         prNumber: pr.prNumber,
         commitId: commitId.data,
         ...readDraftAnchor(draft),
@@ -230,19 +230,16 @@ export default function createHandlers(
       c.get("session"),
       c.get("logger"),
     );
-    const target = await commentsController.resolveFreshRepoTarget(
-      { github },
-      repoId,
-    );
-    if (!target.ok) {
-      throwRepoResolveFailure(target.error);
+    const resolvedName = await resolveRepoOwnerAndName({ github }, repoId);
+    if (!resolvedName.ok) {
+      throwRepoResolveFailure(resolvedName.error);
     }
 
     const created = await commentsController.postReply(
       { github },
       {
-        owner: target.value.owner,
-        repo: target.value.repo,
+        owner: resolvedName.value.owner,
+        repo: resolvedName.value.repo,
         prNumber: pr.prNumber,
         commentId: parsedComment.data,
         body: parsedBody.data.body,
@@ -298,19 +295,16 @@ function setThreadResolution(
       c.get("session"),
       c.get("logger"),
     );
-    const target = await commentsController.resolveFreshRepoTarget(
-      { github },
-      repoId,
-    );
-    if (!target.ok) {
-      throwRepoResolveFailure(target.error);
+    const resolvedName = await resolveRepoOwnerAndName({ github }, repoId);
+    if (!resolvedName.ok) {
+      throwRepoResolveFailure(resolvedName.error);
     }
 
     const outcome = await commentsController.setThreadResolution(
       { github },
       {
-        owner: target.value.owner,
-        repo: target.value.repo,
+        owner: resolvedName.value.owner,
+        repo: resolvedName.value.repo,
         prNumber: pr.prNumber,
         rootCommentId: parsedComment.data,
         resolved,

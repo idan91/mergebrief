@@ -267,7 +267,9 @@ export async function refreshSessionToken(
     message: string,
   ): Promise<Result<RefreshedSession, RefreshError>> => {
     if (isCookie) {
-      await createSessionAuth(deps.handle).deleteSession(session.sessionTokenHash);
+      await createSessionAuth(deps.handle).deleteSession(
+        session.sessionTokenHash,
+      );
     }
     log.error(isCookie ? `${message}; session deleted` : message, {
       evt: "token.refresh.fail",

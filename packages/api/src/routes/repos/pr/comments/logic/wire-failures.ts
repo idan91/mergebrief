@@ -10,33 +10,7 @@ import {
   NotFound,
   Unauthorized,
 } from "../../../../../shared-errors/api-error";
-import type {
-  PublishFailure,
-  RepoResolveFailure,
-  ReplyFailure,
-  ResolutionFailure,
-} from "../types";
-
-/**
- * Map a resolve-phase failure (not a write yet — BEFORE the viewer has
- * re-proven access this request): 403/404 both collapse to the gate's 404
- * posture; a still-unauthorized answer is a clean re-login 401.
- */
-export function throwRepoResolveFailure(failure: RepoResolveFailure): never {
-  if (failure.kind === "token-unreadable") {
-    throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
-  }
-  if (failure.error.code === GitHubApiErrorCode.UNAUTHORIZED) {
-    throw new Unauthorized(ApiErrorCode.UNAUTHORIZED);
-  }
-  if (
-    failure.error.code === GitHubApiErrorCode.NOT_FOUND ||
-    failure.error.code === GitHubApiErrorCode.FORBIDDEN
-  ) {
-    throw new NotFound(ApiErrorCode.NOT_FOUND);
-  }
-  throw new BadGateway(ApiErrorCode.GITHUB_UNAVAILABLE);
-}
+import type { PublishFailure, ReplyFailure, ResolutionFailure } from "../types";
 
 /** Map a final create-comment failure to the sanitized response posture. */
 export function throwPublishFailure(failure: PublishFailure): never {

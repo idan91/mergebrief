@@ -3,7 +3,7 @@
  * malformed shape must never reach a GitHub call. Shared by every consumer
  * of the gate's verified slug and the mutating routes' fresh re-resolve.
  */
-export function splitRepoSlug(
+export function parseOwnerAndName(
   slug: string,
 ): { owner: string; repo: string } | undefined {
   const parts = slug.split("/");

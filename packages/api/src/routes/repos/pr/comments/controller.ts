@@ -4,44 +4,12 @@ import {
   createInlineReviewComment,
   createReviewCommentReply,
   createUserOctokit,
-  fetchRepositoryById,
   setReviewThreadResolution,
 } from "github";
 import { buildGitHubDeniedResult } from "../../../../shared-errors/failures";
-import type { RepoId } from "persistence";
-import type { Result } from "types";
-import { ApiErrorCode } from "../../../../error-response";
-import { NotFound } from "../../../../shared-errors/api-error";
-import { splitRepoSlug } from "../../utils";
-import type {
-  CommentsControllerDeps,
-  RepoResolveFailure,
-  RepoTarget,
-} from "./types";
-
-type ResolveTargetResult = Result<RepoTarget, RepoResolveFailure>;
+import type { CommentsControllerDeps } from "./types";
 
 export default {
-  /**
-   * Resolve the target `owner/name` FRESH by numeric repo id, right before a
-   * mutating write (gated-route rule): the gate's cached slug may be up to
-   * 60s stale, and a rename + name-reuse inside that window would point the
-   * write at the wrong repository.
-   */
-  async resolveFreshRepoTarget(deps: CommentsControllerDeps, repoId: RepoId) {
-    const repoInfo = await deps.github.run((token) =>
-      fetchRepositoryById(createUserOctokit(token), repoId),
-    );
-    if (!repoInfo.ok) {
-      return buildGitHubDeniedResult(repoInfo.error, "resolve");
-    }
-    const target = splitRepoSlug(repoInfo.value.fullName);
-    if (target === undefined) {
-      throw new NotFound(ApiErrorCode.NOT_FOUND);
-    }
-    return { ok: true, value: target } satisfies ResolveTargetResult;
-  },
-
   /** POST one held draft as an inline review comment. A 401'd POST created
    * nothing, so the client's refreshed retry cannot double-post. */
   async postInlineComment(

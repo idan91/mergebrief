@@ -164,7 +164,9 @@ export function oauthRoute(deps: AuthRouteDeps): Hono {
       refreshExpiresAt: tokens.value.refreshTokenExpiresAt,
     });
     try {
-      await createTenantRepository(deps.handle, { installationId }).sessions.create({
+      await createTenantRepository(deps.handle, {
+        installationId,
+      }).sessions.create({
         sessionTokenHash,
         reviewerId: user.value.reviewerId,
         reviewerLogin: user.value.reviewerLogin,

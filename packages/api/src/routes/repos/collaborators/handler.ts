@@ -8,7 +8,7 @@ import type { InstallationGitHubPort } from "../../github-port";
 import type { TtlCache } from "../../ttl-cache";
 import collaboratorsController from "./controller";
 import { COLLABORATORS_CACHE_TTL_MS } from "./consts";
-import { splitRepoSlug } from "../utils";
+import { parseOwnerAndName } from "../utils";
 
 function cacheKey(installationId: InstallationId, repoId: RepoId): string {
   return `${String(installationId)}:${String(repoId)}`;
@@ -46,7 +46,7 @@ export default function createHandlers(
 
       // Fetch by the AUTHZ-VERIFIED full name (read posture — ≤60s staleness is
       // the same budget as the gate's own positive cache).
-      const target = splitRepoSlug(c.get("repoFullName"));
+      const target = parseOwnerAndName(c.get("repoFullName"));
       if (target === undefined) {
         throw new NotFound(ApiErrorCode.NOT_FOUND);
       }

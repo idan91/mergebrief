@@ -27,7 +27,7 @@ import {
   narrativeQuerySchema,
 } from "./schemas";
 import type { ReadsControllerDeps } from "./types";
-import { splitRepoSlug } from "../../utils";
+import { parseOwnerAndName } from "../../utils";
 import { parseQuery, parsePrNumber } from "./utils";
 
 /**
@@ -146,7 +146,7 @@ export default function createHandlers(
     // access check / positive cache), never the row's stored repo_slug — a
     // rename + name-reuse could point the stored slug at a different repo
     // than the numeric id the gate authorized.
-    const target = splitRepoSlug(c.get("repoFullName"));
+    const target = parseOwnerAndName(c.get("repoFullName"));
     if (target === undefined) {
       throw new NotFound(ApiErrorCode.NOT_FOUND);
     }

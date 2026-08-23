@@ -193,7 +193,10 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
       }
       let view;
       try {
-        view = await createTenantRepository(deps.handle, ctx).reviewSessions.preview({
+        view = await createTenantRepository(
+          deps.handle,
+          ctx,
+        ).reviewSessions.preview({
           briefId: target.briefId,
           reviewerId: c.get("session").reviewerId,
           brief: () => loadCarryFacts(deps, ctx, target, span.data),

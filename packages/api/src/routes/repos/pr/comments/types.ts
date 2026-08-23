@@ -11,10 +11,6 @@ export interface CommentsControllerDeps {
   readonly github: ReviewerGitHubClient;
 }
 
-export type RepoResolveFailure =
-  | TokenUnreadableFailure
-  | GitHubDeniedFailure<GitHubApiError>;
-
 export type PublishFailure =
   | TokenUnreadableFailure
   | GitHubDeniedFailure<InlineReviewCommentError>;
@@ -26,11 +22,6 @@ export type ReplyFailure =
 export type ResolutionFailure =
   | TokenUnreadableFailure
   | GitHubDeniedFailure<GitHubApiError>;
-
-export interface RepoTarget {
-  readonly owner: string;
-  readonly repo: string;
-}
 
 export type EvictConversation = (
   installationId: InstallationId,

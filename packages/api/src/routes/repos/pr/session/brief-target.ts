@@ -40,10 +40,10 @@ export async function resolveSessionTarget(
   prNumber: number,
   span: BriefSpan,
 ): Promise<SessionTarget | undefined> {
-  const pr = await createTenantRepository(deps.handle, ctx).pullRequests.getByNumber(
-    repoId,
-    prNumber,
-  );
+  const pr = await createTenantRepository(
+    deps.handle,
+    ctx,
+  ).pullRequests.getByNumber(repoId, prNumber);
   if (pr === undefined) {
     return undefined;
   }
