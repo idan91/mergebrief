@@ -158,6 +158,18 @@ export function errorJson(
   code: ApiErrorCode,
   params?: ApiErrorParams[ParamCode],
 ): Response {
+  return buildErrorResponse(c, code, params);
+}
+
+/**
+ * Loose-signature twin for `app.onError`, where an `ApiError` class has
+ * already proven the code/params pairing. Routes call the typed `errorJson`.
+ */
+export function buildErrorResponse(
+  c: Context,
+  code: ApiErrorCode,
+  params: ApiErrorParams[ParamCode] | undefined,
+): Response {
   const body = {
     error: composeEnglish(code, params),
     code,
