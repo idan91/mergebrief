@@ -13,7 +13,8 @@ import {
 import { createAllowedRepoResolver } from "./allowed-repos";
 import { authRoutes } from "./auth";
 import type { AuthDeps } from "./auth/session";
-import { generateRoute, type UrlBriefEngine } from "./generate";
+import { generateRoute } from "./generate";
+import type { UrlBriefEngine } from "./generate/types";
 import type { InstallationGitHubPort } from "./github-port";
 import { capabilitiesRoute } from "./capabilities";
 import { pullsRoute } from "./pulls";
