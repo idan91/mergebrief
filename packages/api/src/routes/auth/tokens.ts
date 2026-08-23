@@ -30,7 +30,7 @@ import {
   sessionLayer,
   type AuthzEnv,
 } from "../authz";
-import { resolveAccessibleInstallations } from "./installations";
+import { resolveAccessibleInstallations } from "./accessible-installations";
 import { ApiErrorCode, errorJson } from "../../error-response";
 import { stampAuditTarget } from "../../product-operations/audit";
 import {
@@ -140,7 +140,7 @@ export function tokensRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
       if (!resolved.ok) {
         return errorJson(
           c,
-          resolved.error.status === 401
+          resolved.error.kind === "auth-dead"
             ? ApiErrorCode.UNAUTHORIZED
             : ApiErrorCode.GITHUB_UNAVAILABLE,
         );
