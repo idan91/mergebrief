@@ -14,7 +14,9 @@ it, alongside a `CLAUDE.md` that points at it — a new package adds both.
 - Strict TS: no `any`, no bare `as` — Zod or type guards at boundaries.
 - Expected failures return `Result`; `throw` is for programmer/infra errors.
   Error messages never carry secrets, tokens, or connection strings.
-- Named exports only (default exports only where a framework requires them).
+- Named exports only (default exports where a framework requires them, plus
+  one convention carve-out: a `packages/api` domain `controller.ts` default-
+  exports its single `xxxController` object).
 - **Function names start with a verb and name what comes back.**
   `getSocketAddress`, `isAuditRowWritten`, `buildEndpointIndex`,
   `deriveAttentionItems`, `shapeSubmitComment`, `resolveWritableDraft`,
