@@ -33,8 +33,8 @@ export type {
 // Exported only for consumers that MIRROR this contract: `apps/web` hand-rolls
 // its own wire types and its drift pins assert against this source. No route
 // behavior depends on the re-export.
-export { LastReviewUnavailableReason } from "./routes/repos/pr/reads";
-export type { LastReviewComparisonView } from "./routes/repos/pr/reads";
+export { LastReviewUnavailableReason } from "./routes/repos/pr/reads/logic/revision-comparisons";
+export type { LastReviewComparisonView } from "./routes/repos/pr/reads/logic/revision-comparisons";
 export type { SessionPayload } from "./routes/repos/pr/session/payload";
 
 // The wire error contract. `API_ERROR_ENGLISH`/`API_ERROR_STATUS` are

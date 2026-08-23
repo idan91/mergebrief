@@ -2,18 +2,16 @@
 // previous-brief / last-review derivations. Pure over lean listing rows —
 // the one DB probe (generation pending) is injected.
 import {
-  createGenerationProjection,
   GenerationKind,
   GenerationStatus,
   type BriefSpanRow,
   type ComparisonSpanRow,
+  type GenerationProjection,
   type GenerationRow,
   type NarrativeSpanRow,
   type PullRequestRow,
-  type TenantContext,
   type ValueOf,
 } from "persistence";
-import type { AuthRouteDeps } from "../../../../auth/session";
 
 export interface PreviousBriefComparisonView {
   readonly baselineSha: string;
@@ -154,8 +152,7 @@ export interface CheckpointBaseline {
  * own projection.
  */
 export function makeLatestPendingProbe(
-  deps: AuthRouteDeps,
-  ctx: TenantContext,
+  generations: GenerationProjection,
   pullRequestId: PullRequestRow["id"],
   headSha: string,
   latestBriefGeneration: GenerationRow | undefined,
@@ -174,10 +171,7 @@ export function makeLatestPendingProbe(
       if (briefGenPending) {
         return true;
       }
-      const deltaGeneration = await createGenerationProjection(
-        deps.handle,
-        ctx,
-      ).get({
+      const deltaGeneration = await generations.get({
         pullRequestId,
         kind: GenerationKind.DELTA,
         headSha,

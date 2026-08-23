@@ -15,7 +15,6 @@ import {
   type ConversationRoutes,
 } from "./conversation";
 import { readsRoute } from "./reads";
-import { artifactReadsRoute } from "./reads/index";
 import { markReadyRoute } from "./ready";
 import { reviewSubmitRoute } from "./review";
 import { sessionRoutes } from "./session";
@@ -33,9 +32,8 @@ export function prRoutes(deps: ConversationRouteDeps): ProductRouter<AuthzEnv> {
     repoId,
     prNumber,
   ) => conversation.evictConversation(installationId, repoId, prNumber);
-  // Rooted, not prefixed: the reads leaves' paths share no common prefix.
+  // Rooted, not prefixed: the reads leaf's paths share no common prefix.
   app.route("/", readsRoute(deps));
-  app.route("/", artifactReadsRoute(deps.handle));
   app.route("/session", sessionRoutes(deps));
   app.route("/review", reviewSubmitRoute(deps, evictConversation));
   app.route("/ready", markReadyRoute(deps));
