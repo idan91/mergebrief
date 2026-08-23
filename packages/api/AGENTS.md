@@ -28,23 +28,41 @@ startup wiring, and any worker/LLM code.
 - **Deps are injected.** `createApp({ handle, webhookSecret })` — nothing in
   this package reads `process.env` or constructs a database; composition
   roots do.
-- **Errors:** expected failures return early with sanitized status bodies
-  (401/400); unexpected throws map to a sanitized 500 (internals go to the
-  log, never the response). No secrets/tokens in messages or responses.
+- **Errors:** expected failures throw `ApiError` subclasses (sanitized
+  401/400 bodies via `onError`); unexpected throws map to a sanitized 500
+  (internals go to the log, never the response). No secrets/tokens in
+  messages or responses.
 
 ## Wire error contract (enforced, don't weaken)
 
-Every expected failure exits through `errorJson(c, code, params?)` from
-`src/error-response.ts` — the one producer of `{ error, code, params? }`
-bodies, the 1:1 code→status map, and the uniform `no-store` posture. Never
-hand-roll `c.json({ error })`.
+Every expected failure exits as a THROW of an `ApiError` subclass
+(`src/shared-errors/`): abstract `ApiError(code, params?)` + exactly one
+class per HTTP status (`BadRequest`, `Unauthorized`, `Forbidden`,
+`NotFound`, `Conflict`, `PayloadTooLarge`, `InternalError`, `BadGateway`,
+`ServiceUnavailable`). `CodeFor<status>` constrains each class to codes of
+its status, so class/status/code cannot disagree. `app.onError` is the ONE
+producer of `{ error, code, params? }` bodies, the 1:1 code→status map, the
+i18n line, and the uniform `no-store` posture (`errorJson` survives only
+inside it). Never hand-roll `c.json({ error })`, never call `errorJson`
+from a route or middleware. Non-`ApiError` throws render as sanitized 500s.
+
+Layering: controllers are Hono-free and return
+`Result<T, XxxFailure>` for anything the handler must judge; they THROW
+only terminal, posture-free failures — never `Forbidden`/`NotFound` for a
+GitHub denial (that bypasses the uniform-404 collapse). Handlers own
+posture and the failure→throw mapping (inline switch on `failure.kind`;
+extract a shared mapper only on second use). Shared failure members wrap
+lower-layer errors whole (`github-denied { phase, error }`,
+`session-rejected { error }`) — no translating at the boundary. `Failure` =
+Result-side, `Error` = thrown (CONTEXT.md glossary).
 
 **Adding a new error code** (the recipe):
 
 1. Add the kebab-case code to `ApiErrorCode`, its status to
    `API_ERROR_STATUS` (1:1 — a code needing two statuses is two codes), and
    its English template to `API_ERROR_ENGLISH` (i18next `{{param}}` syntax
-   for any params, typed in `ApiErrorParams`).
+   for any params, typed in `ApiErrorParams`). The status places the code in
+   its class's `CodeFor<status>` automatically — throw it via that class.
 2. Add the identical template as `errors.<code>` in
    `packages/i18n/locales/en.json` — the i18n suite pins completeness and
    wording equality against the exported maps. CI's path filter will NOT
@@ -59,11 +77,37 @@ hand-roll `c.json({ error })`.
 4. A param value must never carry free-form upstream text unless
    pre-sanitized (`sanitizeErrorDetail` from `logging`).
 
-Security collapses stay at the per-route `…Failure` mappers, BEFORE the
-contract module: internal enums (`GitHubApiErrorCode`, `UrlBriefErrorKind`,
-`RefreshErrorCode`) translate to wire codes there, keeping the uniform-404
+Security collapses stay at the per-domain handlers, BEFORE the wire:
+internal enums (`GitHubApiErrorCode`, `UrlBriefErrorKind`,
+`RefreshErrorCode`) map to thrown classes there, keeping the uniform-404
 posture. A wire code is already the public posture, never the internal
 cause.
+
+## Domain layout (enforced, don't weaken)
+
+Every catalog domain is a folder with a closed role set at root — new
+endpoints follow it, no exceptions:
+
+- `index.ts` — the `xxxRoute` factory; composition only.
+- `handler.ts` — parse/validate (Zod), call the controller, judge posture,
+  throw `ApiError` subclasses; success = plain `c.json(...)`. Derives the
+  tenant and passes `tenant: TenantRepository` down.
+- `controller.ts` — a single exported `xxxController` object; op functions
+  module-private, verb-first, 1:1 with handlers. Hono-free.
+- `schemas.ts` / `utils.ts` (generic only) / `consts.ts` / `types.ts`
+  (incl. the domain's `XxxControllerDeps` — narrow slices, never `AppDeps`;
+  `log: Logger` rides deps).
+- `logic/` — domain business logic; never at root, never in `utils.ts`.
+
+No per-domain repository files — persistence's tenant-scoped stores are
+called directly. Reviewer-identity GitHub calls go through the per-request
+`ReviewerGitHubClient` (`createReviewerGitHubClient`, factory beside
+`refreshSessionToken`): its `run(call, isExpired?)` refreshes the token at
+most once per request and re-runs; hand-rolled refresh locals are banned.
+
+Tests: full-URL wire suites stay in `test/` (the byte-identity proof); unit
+tests colocate (`controller.test.ts`, `logic/x.test.ts`). The tell is
+whether the file imports `app.request`.
 
 ## Gated-route rules (enforced, don't weaken)
 
@@ -103,10 +147,10 @@ cause.
   for the token's life.
 - **`no-store` on every response of a gated route** — error paths included;
   it is all per-viewer state (`errorJson` in `repos/pr/review.ts`).
-- **One refresh-once budget per REQUEST**, shared across every GitHub call
-  in the handler (`spendRefresh` closure) — the token can expire between
-  calls, and per-call-site refresh logic either misses that or refreshes
-  more than once.
+- **The token refreshes at most once per REQUEST**, shared across every
+  GitHub call in the handler (`ReviewerGitHubClient.run`) — the token can
+  expire between calls, and per-call-site refresh logic either misses that
+  or refreshes more than once.
 - **Deterministic 400s are an FE contract.** Anything a route rejects
   deterministically (caps, shape refines) must be mirrored client-side with
   recoverable copy — the FE resubmits the same state, so an unmirrored
