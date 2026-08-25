@@ -30,11 +30,13 @@ export const revisionNarrative = pgTable(
     ...artifactColumns(),
   },
   (table) => [
-    unique("revision_narrative_natural_key").on(
-      table.installationId,
-      table.pullRequestId,
-      table.prevHeadSha,
-      table.headSha,
-    ),
+    unique("revision_narrative_natural_key")
+      .on(
+        table.installationId,
+        table.pullRequestId,
+        table.prevHeadSha,
+        table.headSha,
+      )
+      .nullsNotDistinct(),
   ],
 );

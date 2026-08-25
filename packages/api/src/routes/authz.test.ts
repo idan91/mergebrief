@@ -107,7 +107,7 @@ async function buildGateApp(): Promise<Hono<AuthzEnv>> {
   app.onError(createErrorHandler<AuthzEnv>(log));
   app.use(async (c, next) => {
     c.set("logger", log);
-    c.set("ctx", { installationId: session.installationId });
+    c.set("ctx", { installationId: brand(10n, isInstallationId) });
     c.set("session", session);
     await next();
   });

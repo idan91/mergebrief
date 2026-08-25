@@ -27,11 +27,13 @@ export const hunkSpan = pgTable(
     ...stampColumns(),
   },
   (table) => [
-    unique("hunk_span_natural_key").on(
-      table.installationId,
-      table.pullRequestId,
-      table.baselineSha,
-      table.headSha,
-    ),
+    unique("hunk_span_natural_key")
+      .on(
+        table.installationId,
+        table.pullRequestId,
+        table.baselineSha,
+        table.headSha,
+      )
+      .nullsNotDistinct(),
   ],
 );

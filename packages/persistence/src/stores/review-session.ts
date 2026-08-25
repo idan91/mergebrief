@@ -32,6 +32,7 @@ import {
 } from "./carry-over";
 import { AnchorStates } from "brief-core";
 import { StoredIdsSchema } from "./artifact-store";
+import type { RowScope } from "./scope";
 import { DraftCommentStatus } from "../types";
 import type {
   AnchorStatus,
@@ -40,7 +41,6 @@ import type {
   DispositionDecision,
   DispositionEvidence,
   DraftCommentSide,
-  InstallationId,
   PullRequestRowId,
   ReviewOutcome,
   ReviewSessionId,
@@ -412,7 +412,7 @@ function fail(
  */
 export function createReviewSessionRepository(
   db: AppDrizzle,
-  installationId: InstallationId,
+  scope: RowScope,
 ): ReviewSessionRepository {
   /** The current Brief's own contribution to an evaluation. */
   async function readBriefCarrySlice(
@@ -427,7 +427,10 @@ export function createReviewSessionRepository(
       })
       .from(brief)
       .where(
-        and(eq(brief.installationId, installationId), eq(brief.id, briefId)),
+        and(
+          scope.matchesChild(brief.installationId, brief.pullRequestId),
+          eq(brief.id, briefId),
+        ),
       )
       .limit(1);
     return rows[0];
@@ -450,7 +453,7 @@ export function createReviewSessionRepository(
       .innerJoin(brief, eq(reviewSession.briefId, brief.id))
       .where(
         and(
-          eq(reviewSession.installationId, installationId),
+          scope.matchesWorld(reviewSession.installationId),
           eq(reviewSession.reviewerId, reviewerId),
           eq(brief.pullRequestId, facts.pullRequestId),
           lt(brief.headIndex, facts.headIndex),
@@ -480,7 +483,7 @@ export function createReviewSessionRepository(
       .from(brief)
       .where(
         and(
-          eq(brief.installationId, installationId),
+          scope.matchesChild(brief.installationId, brief.pullRequestId),
           eq(brief.pullRequestId, facts.pullRequestId),
           gte(brief.headIndex, fromHeadIndex),
           lte(brief.headIndex, facts.headIndex),
@@ -510,7 +513,7 @@ export function createReviewSessionRepository(
       .from(hunkSpan)
       .where(
         and(
-          eq(hunkSpan.installationId, installationId),
+          scope.matchesChild(hunkSpan.installationId, hunkSpan.pullRequestId),
           eq(hunkSpan.pullRequestId, facts.pullRequestId),
           inArray(hunkSpan.baselineSha, heads.slice(0, -1)),
           inArray(hunkSpan.headSha, heads.slice(1)),
@@ -542,7 +545,7 @@ export function createReviewSessionRepository(
           .from(reviewDraftComment)
           .where(
             and(
-              eq(reviewDraftComment.installationId, installationId),
+              scope.matchesWorld(reviewDraftComment.installationId),
               eq(reviewDraftComment.reviewSessionId, sessionId),
             ),
           )
@@ -552,7 +555,7 @@ export function createReviewSessionRepository(
           .from(reviewReadMark)
           .where(
             and(
-              eq(reviewReadMark.installationId, installationId),
+              scope.matchesWorld(reviewReadMark.installationId),
               eq(reviewReadMark.reviewSessionId, sessionId),
             ),
           )
@@ -565,7 +568,7 @@ export function createReviewSessionRepository(
           .from(reviewGroupReclassification)
           .where(
             and(
-              eq(reviewGroupReclassification.installationId, installationId),
+              scope.matchesWorld(reviewGroupReclassification.installationId),
               eq(reviewGroupReclassification.reviewSessionId, sessionId),
             ),
           )
@@ -586,7 +589,7 @@ export function createReviewSessionRepository(
           .from(disposition)
           .where(
             and(
-              eq(disposition.installationId, installationId),
+              scope.matchesWorld(disposition.installationId),
               eq(disposition.reviewSessionId, sessionId),
             ),
           )
@@ -660,7 +663,7 @@ export function createReviewSessionRepository(
   /** A stored draft is addressable only through the session that owns it. */
   function ownedBy(sessionId: ReviewSessionId) {
     return and(
-      eq(reviewDraftComment.installationId, installationId),
+      scope.matchesWorld(reviewDraftComment.installationId),
       eq(reviewDraftComment.reviewSessionId, sessionId),
     );
   }
@@ -676,7 +679,7 @@ export function createReviewSessionRepository(
           await tx
             .insert(reviewDraftComment)
             .values({
-              installationId,
+              installationId: scope.installationId,
               reviewSessionId: sessionId,
               filePath: input.filePath,
               side: input.side,
@@ -728,7 +731,7 @@ export function createReviewSessionRepository(
           await tx
             .insert(reviewReadMark)
             .values({
-              installationId,
+              installationId: scope.installationId,
               reviewSessionId: sessionId,
               chunkId: input.chunkId,
             })
@@ -747,7 +750,7 @@ export function createReviewSessionRepository(
             and(
               eq(reviewReadMark.chunkId, chunkId),
               and(
-                eq(reviewReadMark.installationId, installationId),
+                scope.matchesWorld(reviewReadMark.installationId),
                 eq(reviewReadMark.reviewSessionId, sessionId),
               ),
             ),
@@ -758,7 +761,7 @@ export function createReviewSessionRepository(
           await tx
             .insert(reviewGroupReclassification)
             .values({
-              installationId,
+              installationId: scope.installationId,
               reviewSessionId: sessionId,
               changeGroupId: input.changeGroupId,
               category: input.category,
@@ -779,7 +782,7 @@ export function createReviewSessionRepository(
           await tx
             .insert(disposition)
             .values({
-              installationId,
+              installationId: scope.installationId,
               reviewSessionId: sessionId,
               filePath: input.filePath,
               attribute: input.attribute,
@@ -820,7 +823,7 @@ export function createReviewSessionRepository(
           .delete(disposition)
           .where(
             and(
-              eq(disposition.installationId, installationId),
+              scope.matchesWorld(disposition.installationId),
               eq(disposition.reviewSessionId, sessionId),
               eq(disposition.filePath, anchor.filePath),
               eq(disposition.attribute, anchor.attribute),
@@ -838,7 +841,7 @@ export function createReviewSessionRepository(
             .set({ reviewOutcome: outcome })
             .where(
               and(
-                eq(reviewSession.installationId, installationId),
+                scope.matchesWorld(reviewSession.installationId),
                 eq(reviewSession.id, sessionId),
               ),
             )
@@ -851,7 +854,7 @@ export function createReviewSessionRepository(
           await tx
             .insert(reviewSubmittedReview)
             .values({
-              installationId,
+              installationId: scope.installationId,
               reviewSessionId: sessionId,
               githubReviewId: input.githubReviewId,
             })
@@ -886,7 +889,10 @@ export function createReviewSessionRepository(
     carried: CarriedWork,
     carriedFromSessionId: ReviewSessionId,
   ): Promise<void> {
-    const owned = { installationId, reviewSessionId: session.id };
+    const owned = {
+      installationId: scope.installationId,
+      reviewSessionId: session.id,
+    };
     const writes: Promise<unknown>[] = [];
     if (carried.draftComments.length > 0) {
       writes.push(
@@ -959,7 +965,7 @@ export function createReviewSessionRepository(
       .innerJoin(brief, eq(reviewSession.briefId, brief.id))
       .where(
         and(
-          eq(reviewSession.installationId, installationId),
+          scope.matchesWorld(reviewSession.installationId),
           eq(reviewSession.reviewerId, reviewerId),
           eq(brief.pullRequestId, facts.pullRequestId),
           gt(brief.headIndex, facts.headIndex),
@@ -979,7 +985,7 @@ export function createReviewSessionRepository(
       .from(reviewSession)
       .where(
         and(
-          eq(reviewSession.installationId, installationId),
+          scope.matchesWorld(reviewSession.installationId),
           eq(reviewSession.briefId, key.briefId),
           eq(reviewSession.reviewerId, key.reviewerId),
         ),
@@ -992,22 +998,29 @@ export function createReviewSessionRepository(
     return row;
   }
 
-  /** The session row for a key, or `undefined` — never a create. */
+  /**
+   * The session row for a key, or `undefined` — never a create. Joins the
+   * anchoring `brief` through the scope's child predicate: the world mark
+   * alone cannot separate two owners, so brief ownership is what keeps a
+   * guessed (briefId, reviewerId) pair from reading across owners.
+   */
   async function findSession(
     key: ReviewSessionKey,
   ): Promise<ReviewSessionRow | undefined> {
     const rows = await db
-      .select()
+      .select({ session: reviewSession })
       .from(reviewSession)
+      .innerJoin(brief, eq(reviewSession.briefId, brief.id))
       .where(
         and(
-          eq(reviewSession.installationId, installationId),
+          scope.matchesWorld(reviewSession.installationId),
+          scope.matchesChild(brief.installationId, brief.pullRequestId),
           eq(reviewSession.briefId, key.briefId),
           eq(reviewSession.reviewerId, key.reviewerId),
         ),
       )
       .limit(1);
-    return rows[0];
+    return rows[0]?.session;
   }
 
   /**
@@ -1049,7 +1062,7 @@ export function createReviewSessionRepository(
         .from(reviewDraftComment)
         .where(
           and(
-            eq(reviewDraftComment.installationId, installationId),
+            scope.matchesWorld(reviewDraftComment.installationId),
             eq(reviewDraftComment.reviewSessionId, session.id),
           ),
         )
@@ -1059,7 +1072,7 @@ export function createReviewSessionRepository(
         .from(reviewReadMark)
         .where(
           and(
-            eq(reviewReadMark.installationId, installationId),
+            scope.matchesWorld(reviewReadMark.installationId),
             eq(reviewReadMark.reviewSessionId, session.id),
           ),
         )
@@ -1069,7 +1082,7 @@ export function createReviewSessionRepository(
         .from(reviewGroupReclassification)
         .where(
           and(
-            eq(reviewGroupReclassification.installationId, installationId),
+            scope.matchesWorld(reviewGroupReclassification.installationId),
             eq(reviewGroupReclassification.reviewSessionId, session.id),
           ),
         )
@@ -1079,7 +1092,7 @@ export function createReviewSessionRepository(
         .from(reviewSubmittedReview)
         .where(
           and(
-            eq(reviewSubmittedReview.installationId, installationId),
+            scope.matchesWorld(reviewSubmittedReview.installationId),
             eq(reviewSubmittedReview.reviewSessionId, session.id),
           ),
         )
@@ -1089,7 +1102,7 @@ export function createReviewSessionRepository(
         .from(disposition)
         .where(
           and(
-            eq(disposition.installationId, installationId),
+            scope.matchesWorld(disposition.installationId),
             eq(disposition.reviewSessionId, session.id),
           ),
         )
@@ -1122,7 +1135,7 @@ export function createReviewSessionRepository(
         if (facts === undefined) {
           return fail(
             ReviewSessionErrorCode.PARENT_NOT_IN_TENANT,
-            `brief ${query.briefId} not in tenant ${installationId}`,
+            `brief ${query.briefId} not in ${scope.label}`,
           );
         }
         if (await hasNewerSession(tx, facts, query.reviewerId)) {
@@ -1137,7 +1150,7 @@ export function createReviewSessionRepository(
         const inserted = await tx
           .insert(reviewSession)
           .values({
-            installationId,
+            installationId: scope.installationId,
             briefId: query.briefId,
             reviewerId: query.reviewerId,
           })

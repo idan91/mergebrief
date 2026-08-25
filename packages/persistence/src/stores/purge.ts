@@ -49,10 +49,14 @@ import { auditLog } from "../schema/audit-log";
 import { AUDIT_RETENTION_FLOOR_DAYS } from "../db/config";
 import { pullRequest } from "../schema/pull-request";
 import { authSession } from "../schema/auth-session";
-import type { PullRequestRow, TenantContext } from "./tenant";
+import type { PullRequestRow } from "./tenant";
+import { resolveScope } from "./scope";
+import type { ScopeContext } from "./scope-context";
 import {
   AuditActorType,
   AuditOutcome,
+  PullRequestSources,
+  type InstallationId,
   type PrState,
   type PullRequestRowId,
   type RepoId,
@@ -108,7 +112,7 @@ export interface InstallationPurgeCounts {
 // ---------------------------------------------------------------------------
 
 export interface PurgeRoutines {
-  readonly ctx: TenantContext;
+  readonly ctx: ScopeContext;
   /**
    * Erase one PR: verify it belongs to ctx, emit a `delete` audit entry, then
    * delete the `pull_request` row (all 8 child tables die by FK cascade — the
@@ -186,10 +190,19 @@ export interface PurgeRoutines {
  */
 export function createPurgeRoutines(
   handle: AppDatabase,
-  ctx: TenantContext,
+  ctx: ScopeContext,
 ): PurgeRoutines {
   const db = internal(handle);
-  const { installationId } = ctx;
+  const scope = resolveScope(ctx);
+
+  // The webhook-driven, whole-tenant routines have no owner-world meaning;
+  // reaching one from an owner scope is a programmer error.
+  function requireInstallation(routine: string): InstallationId {
+    if (scope.installationId === null) {
+      throw new Error(`${routine} is installation-scoped`);
+    }
+    return scope.installationId;
+  }
 
   return {
     ctx,
@@ -200,23 +213,19 @@ export function createPurgeRoutines(
         const parents = await tx
           .select({ id: pullRequest.id })
           .from(pullRequest)
-          .where(
-            and(
-              eq(pullRequest.installationId, installationId),
-              eq(pullRequest.id, prRowId),
-            ),
-          )
+          .where(and(scope.matchesPullRequest(), eq(pullRequest.id, prRowId)))
           .limit(1);
         if (parents[0] === undefined) {
           return fail(
             PurgeErrorCode.NOT_FOUND,
-            `pull_request ${prRowId} not found in tenant ${installationId}`,
+            `pull_request ${prRowId} not found in ${scope.label}`,
           );
         }
         // Emit the audit BEFORE the delete lands — same tx, so it survives the
         // cascade it records (audit_log has no FK to pull_request).
         await insertAudit(tx, {
-          installationId,
+          installationId: scope.installationId,
+          source: scope.source,
           actorType: AuditActorType.APP,
           operation: AUDIT_OPERATION_DELETE,
           outcome: AuditOutcome.OK,
@@ -225,12 +234,7 @@ export function createPurgeRoutines(
         });
         const deleted = await tx
           .delete(pullRequest)
-          .where(
-            and(
-              eq(pullRequest.installationId, installationId),
-              eq(pullRequest.id, prRowId),
-            ),
-          )
+          .where(and(scope.matchesPullRequest(), eq(pullRequest.id, prRowId)))
           .returning({ id: pullRequest.id });
         return { ok: true, value: deleted.length };
       });
@@ -241,15 +245,13 @@ export function createPurgeRoutines(
         const deleted = await tx
           .delete(pullRequest)
           .where(
-            and(
-              eq(pullRequest.installationId, installationId),
-              eq(pullRequest.repoId, repoId),
-            ),
+            and(scope.matchesPullRequest(), eq(pullRequest.repoId, repoId)),
           )
           .returning({ id: pullRequest.id });
         const count = deleted.length;
         await insertAudit(tx, {
-          installationId,
+          installationId: scope.installationId,
+          source: scope.source,
           actorType: AuditActorType.APP,
           operation: AUDIT_OPERATION_DELETE,
           outcome: AuditOutcome.OK,
@@ -276,7 +278,7 @@ export function createPurgeRoutines(
           .delete(pullRequest)
           .where(
             and(
-              eq(pullRequest.installationId, installationId),
+              scope.matchesPullRequest(),
               inArray(pullRequest.repoId, uniqueRepoIds),
             ),
           )
@@ -291,7 +293,8 @@ export function createPurgeRoutines(
         // One `delete` audit entry per repo, same tx.
         for (const [repoId, count] of countByRepo) {
           await insertAudit(tx, {
-            installationId,
+            installationId: scope.installationId,
+            source: scope.source,
             actorType: AuditActorType.APP,
             operation: AUDIT_OPERATION_DELETE,
             outcome: AuditOutcome.OK,
@@ -305,14 +308,15 @@ export function createPurgeRoutines(
     },
 
     async purgeInstallation() {
+      const installationId = requireInstallation("purgeInstallation");
       return db.transaction(async (tx) => {
         const purgedPrs = await tx
           .delete(pullRequest)
-          .where(eq(pullRequest.installationId, installationId))
+          .where(scope.matchesPullRequest())
           .returning({ id: pullRequest.id });
         const purgedSessions = await tx
           .delete(authSession)
-          .where(eq(authSession.installationId, installationId))
+          .where(scope.matchesWorld(authSession.installationId))
           .returning({ grantId: authSession.grantId });
         const purgedTokens = await tx
           .delete(apiToken)
@@ -324,7 +328,8 @@ export function createPurgeRoutines(
           ...purgedTokens.map((row) => row.grantId),
         ]);
         await insertAudit(tx, {
-          installationId,
+          installationId: scope.installationId,
+          source: scope.source,
           actorType: AuditActorType.APP,
           operation: AUDIT_OPERATION_DELETE,
           outcome: AuditOutcome.OK,
@@ -360,18 +365,13 @@ export function createPurgeRoutines(
       const rows = await db
         .update(pullRequest)
         .set({ state, closedAt, purgeAfter, updatedAt: new Date() })
-        .where(
-          and(
-            eq(pullRequest.installationId, installationId),
-            eq(pullRequest.id, prRowId),
-          ),
-        )
+        .where(and(scope.matchesPullRequest(), eq(pullRequest.id, prRowId)))
         .returning();
       const row = rows[0];
       if (row === undefined) {
         return fail(
           PurgeErrorCode.NOT_FOUND,
-          `pull_request ${prRowId} not found in tenant ${installationId}`,
+          `pull_request ${prRowId} not found in ${scope.label}`,
         );
       }
       return { ok: true, value: row };
@@ -383,7 +383,7 @@ export function createPurgeRoutines(
           .delete(pullRequest)
           .where(
             and(
-              eq(pullRequest.installationId, installationId),
+              scope.matchesPullRequest(),
               isNotNull(pullRequest.purgeAfter),
               lt(pullRequest.purgeAfter, now),
             ),
@@ -394,7 +394,8 @@ export function createPurgeRoutines(
         // an empty sweep is not a boundary event.
         if (count > 0) {
           await insertAudit(tx, {
-            installationId,
+            installationId: scope.installationId,
+            source: scope.source,
             actorType: AuditActorType.SYSTEM,
             operation: AUDIT_OPERATION_DELETE,
             outcome: AuditOutcome.OK,
@@ -412,14 +413,18 @@ export function createPurgeRoutines(
       // low-signal noise. Session erasure of record happens at installation
       // offboarding (`purgeInstallation`), which IS audited.
       return db.transaction(async (tx) => {
+        // The world mark alone cannot separate owners; the owner world
+        // narrows to the owner's own sessions.
+        const conditions = [
+          scope.matchesWorld(authSession.installationId),
+          lt(authSession.expiresAt, now),
+        ];
+        if (scope.ownerUserId !== null) {
+          conditions.push(eq(authSession.reviewerId, scope.ownerUserId));
+        }
         const deleted = await tx
           .delete(authSession)
-          .where(
-            and(
-              eq(authSession.installationId, installationId),
-              lt(authSession.expiresAt, now),
-            ),
-          )
+          .where(and(...conditions))
           .returning({ grantId: authSession.grantId });
         // Orphan-clean the grants of the swept sessions, same tx.
         await deleteOrphanedGrants(
@@ -489,6 +494,10 @@ export async function sweepAuditLog(
       total += count;
       await insertAudit(tx, {
         installationId,
+        source:
+          installationId === null
+            ? PullRequestSources.URL_BOX
+            : PullRequestSources.APP_INSTALLATION,
         actorType: AuditActorType.SYSTEM,
         operation: AUDIT_OPERATION_DELETE,
         outcome: AuditOutcome.OK,

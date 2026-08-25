@@ -19,10 +19,8 @@ export const diffSnapshot = pgTable(
     ...artifactColumns(),
   },
   (table) => [
-    unique("diff_snapshot_natural_key").on(
-      table.installationId,
-      table.pullRequestId,
-      table.sha,
-    ),
+    unique("diff_snapshot_natural_key")
+      .on(table.installationId, table.pullRequestId, table.sha)
+      .nullsNotDistinct(),
   ],
 );

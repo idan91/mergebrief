@@ -1,17 +1,19 @@
 // The `ArtifactStore` interface: the typed write/read surface for the six
 // immutable artifact families — `brief`, `delta`, `diff_snapshot`,
 // `revision_narrative`, `comparison_marks`, `hunk_span`. Like `createTenantRepository` it is bound to one
-// tenant `ctx` and is the ONLY way this package writes those tables. It unwraps
-// the opaque `AppDatabase` with the in-package `internal()` (never
-// re-exported), so consumers still cannot reach a raw query handle.
+// scope `ctx` (installation tenant OR url-box owner — see `./scope`) and is
+// the ONLY way this package writes those tables. It unwraps the opaque
+// `AppDatabase` with the in-package `internal()` (never re-exported), so
+// consumers still cannot reach a raw query handle.
 //
 // Every write:
 //   (a) is content-addressed — `ON CONFLICT (natural_key) DO UPDATE` makes a
 //       re-write of the same span rewrite the one row in place; the natural
-//       UNIQUE key IS the content key, and it leads with `installation_id`;
-//   (b) stamps `installation_id` from ctx AND resolves the parent
-//       `pull_request` by (ctx, id) in the SAME transaction — a parent in
-//       another tenant yields a Result error, never a DB write;
+//       UNIQUE key IS the content key, and it leads with `installation_id`
+//       (NULLS NOT DISTINCT, so owner-world rows conflict too);
+//   (b) stamps the scope's world mark AND resolves the parent
+//       `pull_request` within the scope in the SAME transaction — a parent in
+//       another scope yields a Result error, never a DB write;
 //   (c) for `revision_narrative` additionally resolves the named `brief` row by
 //       (ctx, same PR, id) in-transaction — the anchoring rule;
 //   (d) for `comparison_marks` and `hunk_span` Zod-validates the
@@ -30,7 +32,8 @@ import { diffSnapshot } from "../schema/diff-snapshot";
 import { hunkSpan } from "../schema/hunk-span";
 import { pullRequest } from "../schema/pull-request";
 import { revisionNarrative } from "../schema/revision-narrative";
-import type { TenantContext } from "./tenant";
+import { resolveScope } from "./scope";
+import type { ScopeContext } from "./scope-context";
 import {
   type BriefRowId,
   type PullRequestRowId,
@@ -421,7 +424,7 @@ export interface HunkSpanStore {
 }
 
 export interface ArtifactStore {
-  readonly ctx: TenantContext;
+  readonly ctx: ScopeContext;
   readonly briefs: BriefStore;
   readonly deltas: DeltaStore;
   readonly diffSnapshots: DiffSnapshotStore;
@@ -447,10 +450,10 @@ type Tx = Parameters<Parameters<AppDrizzle["transaction"]>[0]>[0];
  */
 export function createArtifactStore(
   handle: AppDatabase,
-  ctx: TenantContext,
+  ctx: ScopeContext,
 ): ArtifactStore {
   const db = internal(handle);
-  const { installationId } = ctx;
+  const scope = resolveScope(ctx);
 
   /** Invariant (a): parent PR resolved within ctx's tenant BEFORE any write. */
   async function parentInTenant(
@@ -460,12 +463,7 @@ export function createArtifactStore(
     const rows = await tx
       .select({ id: pullRequest.id })
       .from(pullRequest)
-      .where(
-        and(
-          eq(pullRequest.installationId, installationId),
-          eq(pullRequest.id, pullRequestId),
-        ),
-      )
+      .where(and(scope.matchesPullRequest(), eq(pullRequest.id, pullRequestId)))
       .limit(1);
     return rows[0] !== undefined;
   }
@@ -484,13 +482,13 @@ export function createArtifactStore(
         if (!(await parentInTenant(tx, input.pullRequestId))) {
           return fail(
             ArtifactErrorCode.PARENT_NOT_IN_TENANT,
-            `pull_request ${input.pullRequestId} not in tenant ${installationId}`,
+            `pull_request ${input.pullRequestId} not in ${scope.label}`,
           );
         }
         const rows = await tx
           .insert(brief)
           .values({
-            installationId,
+            installationId: scope.installationId,
             pullRequestId: input.pullRequestId,
             baseSha: input.baseSha,
             headSha: input.headSha,
@@ -544,7 +542,7 @@ export function createArtifactStore(
         .from(brief)
         .where(
           and(
-            eq(brief.installationId, installationId),
+            scope.matchesChild(brief.installationId, brief.pullRequestId),
             eq(brief.pullRequestId, pullRequestId),
             eq(brief.baseSha, baseSha),
             eq(brief.headSha, headSha),
@@ -560,7 +558,7 @@ export function createArtifactStore(
         .from(brief)
         .where(
           and(
-            eq(brief.installationId, installationId),
+            scope.matchesChild(brief.installationId, brief.pullRequestId),
             eq(brief.pullRequestId, pullRequestId),
             eq(brief.baseSha, baseSha),
             eq(brief.headSha, headSha),
@@ -583,7 +581,7 @@ export function createArtifactStore(
         .from(brief)
         .where(
           and(
-            eq(brief.installationId, installationId),
+            scope.matchesChild(brief.installationId, brief.pullRequestId),
             eq(brief.pullRequestId, pullRequestId),
           ),
         )
@@ -608,7 +606,7 @@ export function createArtifactStore(
         .from(brief)
         .where(
           and(
-            eq(brief.installationId, installationId),
+            scope.matchesChild(brief.installationId, brief.pullRequestId),
             inArray(brief.pullRequestId, [...pullRequestIds]),
           ),
         )
@@ -634,13 +632,13 @@ export function createArtifactStore(
         if (!(await parentInTenant(tx, input.pullRequestId))) {
           return fail(
             ArtifactErrorCode.PARENT_NOT_IN_TENANT,
-            `pull_request ${input.pullRequestId} not in tenant ${installationId}`,
+            `pull_request ${input.pullRequestId} not in ${scope.label}`,
           );
         }
         const rows = await tx
           .insert(delta)
           .values({
-            installationId,
+            installationId: scope.installationId,
             pullRequestId: input.pullRequestId,
             baselineSha: input.baselineSha,
             headSha: input.headSha,
@@ -680,7 +678,7 @@ export function createArtifactStore(
         .from(delta)
         .where(
           and(
-            eq(delta.installationId, installationId),
+            scope.matchesChild(delta.installationId, delta.pullRequestId),
             eq(delta.pullRequestId, pullRequestId),
             eq(delta.baselineSha, baselineSha),
             eq(delta.headSha, headSha),
@@ -696,7 +694,7 @@ export function createArtifactStore(
         .from(delta)
         .where(
           and(
-            eq(delta.installationId, installationId),
+            scope.matchesChild(delta.installationId, delta.pullRequestId),
             eq(delta.pullRequestId, pullRequestId),
             eq(delta.baselineSha, baselineSha),
             eq(delta.headSha, headSha),
@@ -712,7 +710,7 @@ export function createArtifactStore(
         .from(delta)
         .where(
           and(
-            eq(delta.installationId, installationId),
+            scope.matchesChild(delta.installationId, delta.pullRequestId),
             eq(delta.pullRequestId, pullRequestId),
           ),
         );
@@ -725,13 +723,13 @@ export function createArtifactStore(
         if (!(await parentInTenant(tx, input.pullRequestId))) {
           return fail(
             ArtifactErrorCode.PARENT_NOT_IN_TENANT,
-            `pull_request ${input.pullRequestId} not in tenant ${installationId}`,
+            `pull_request ${input.pullRequestId} not in ${scope.label}`,
           );
         }
         const rows = await tx
           .insert(diffSnapshot)
           .values({
-            installationId,
+            installationId: scope.installationId,
             pullRequestId: input.pullRequestId,
             sha: input.sha,
             body: input.body,
@@ -763,7 +761,10 @@ export function createArtifactStore(
         .from(diffSnapshot)
         .where(
           and(
-            eq(diffSnapshot.installationId, installationId),
+            scope.matchesChild(
+              diffSnapshot.installationId,
+              diffSnapshot.pullRequestId,
+            ),
             eq(diffSnapshot.pullRequestId, pullRequestId),
             eq(diffSnapshot.sha, sha),
           ),
@@ -779,7 +780,7 @@ export function createArtifactStore(
         if (!(await parentInTenant(tx, input.pullRequestId))) {
           return fail(
             ArtifactErrorCode.PARENT_NOT_IN_TENANT,
-            `pull_request ${input.pullRequestId} not in tenant ${installationId}`,
+            `pull_request ${input.pullRequestId} not in ${scope.label}`,
           );
         }
         // Anchoring: the brief must belong to (ctx, same PR).
@@ -788,7 +789,7 @@ export function createArtifactStore(
           .from(brief)
           .where(
             and(
-              eq(brief.installationId, installationId),
+              scope.matchesChild(brief.installationId, brief.pullRequestId),
               eq(brief.id, input.briefId),
               eq(brief.pullRequestId, input.pullRequestId),
             ),
@@ -797,13 +798,13 @@ export function createArtifactStore(
         if (anchors[0] === undefined) {
           return fail(
             ArtifactErrorCode.BRIEF_NOT_ANCHORED,
-            `brief ${input.briefId} not in tenant ${installationId} on pull_request ${input.pullRequestId}`,
+            `brief ${input.briefId} not in ${scope.label} on pull_request ${input.pullRequestId}`,
           );
         }
         const rows = await tx
           .insert(revisionNarrative)
           .values({
-            installationId,
+            installationId: scope.installationId,
             pullRequestId: input.pullRequestId,
             briefId: input.briefId,
             prevHeadSha: input.prevHeadSha,
@@ -845,7 +846,10 @@ export function createArtifactStore(
         .from(revisionNarrative)
         .where(
           and(
-            eq(revisionNarrative.installationId, installationId),
+            scope.matchesChild(
+              revisionNarrative.installationId,
+              revisionNarrative.pullRequestId,
+            ),
             eq(revisionNarrative.pullRequestId, pullRequestId),
             eq(revisionNarrative.prevHeadSha, prevHeadSha),
             eq(revisionNarrative.headSha, headSha),
@@ -861,7 +865,10 @@ export function createArtifactStore(
         .from(revisionNarrative)
         .where(
           and(
-            eq(revisionNarrative.installationId, installationId),
+            scope.matchesChild(
+              revisionNarrative.installationId,
+              revisionNarrative.pullRequestId,
+            ),
             eq(revisionNarrative.pullRequestId, pullRequestId),
             eq(revisionNarrative.prevHeadSha, prevHeadSha),
             eq(revisionNarrative.headSha, headSha),
@@ -880,7 +887,10 @@ export function createArtifactStore(
         .from(revisionNarrative)
         .where(
           and(
-            eq(revisionNarrative.installationId, installationId),
+            scope.matchesChild(
+              revisionNarrative.installationId,
+              revisionNarrative.pullRequestId,
+            ),
             eq(revisionNarrative.pullRequestId, pullRequestId),
           ),
         );
@@ -900,13 +910,13 @@ export function createArtifactStore(
         if (!(await parentInTenant(tx, input.pullRequestId))) {
           return fail(
             ArtifactErrorCode.PARENT_NOT_IN_TENANT,
-            `pull_request ${input.pullRequestId} not in tenant ${installationId}`,
+            `pull_request ${input.pullRequestId} not in ${scope.label}`,
           );
         }
         const rows = await tx
           .insert(comparisonMarks)
           .values({
-            installationId,
+            installationId: scope.installationId,
             pullRequestId: input.pullRequestId,
             baselineSha: marks.baselineSha,
             headSha: marks.headSha,
@@ -940,7 +950,10 @@ export function createArtifactStore(
         .from(comparisonMarks)
         .where(
           and(
-            eq(comparisonMarks.installationId, installationId),
+            scope.matchesChild(
+              comparisonMarks.installationId,
+              comparisonMarks.pullRequestId,
+            ),
             eq(comparisonMarks.pullRequestId, pullRequestId),
             eq(comparisonMarks.baselineSha, baselineSha),
             eq(comparisonMarks.headSha, headSha),
@@ -956,7 +969,10 @@ export function createArtifactStore(
         .from(comparisonMarks)
         .where(
           and(
-            eq(comparisonMarks.installationId, installationId),
+            scope.matchesChild(
+              comparisonMarks.installationId,
+              comparisonMarks.pullRequestId,
+            ),
             eq(comparisonMarks.pullRequestId, pullRequestId),
             eq(comparisonMarks.baselineSha, baselineSha),
             eq(comparisonMarks.headSha, headSha),
@@ -975,7 +991,10 @@ export function createArtifactStore(
         .from(comparisonMarks)
         .where(
           and(
-            eq(comparisonMarks.installationId, installationId),
+            scope.matchesChild(
+              comparisonMarks.installationId,
+              comparisonMarks.pullRequestId,
+            ),
             eq(comparisonMarks.pullRequestId, pullRequestId),
           ),
         );
@@ -993,13 +1012,13 @@ export function createArtifactStore(
         if (!(await parentInTenant(tx, input.pullRequestId))) {
           return fail(
             ArtifactErrorCode.PARENT_NOT_IN_TENANT,
-            `pull_request ${input.pullRequestId} not in tenant ${installationId}`,
+            `pull_request ${input.pullRequestId} not in ${scope.label}`,
           );
         }
         const rows = await tx
           .insert(hunkSpan)
           .values({
-            installationId,
+            installationId: scope.installationId,
             pullRequestId: input.pullRequestId,
             baselineSha: input.baselineSha,
             headSha: input.headSha,
@@ -1029,7 +1048,7 @@ export function createArtifactStore(
         .from(hunkSpan)
         .where(
           and(
-            eq(hunkSpan.installationId, installationId),
+            scope.matchesChild(hunkSpan.installationId, hunkSpan.pullRequestId),
             eq(hunkSpan.pullRequestId, pullRequestId),
           ),
         )

@@ -13,13 +13,15 @@
 import { z } from "zod";
 import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
 import { auditLog } from "../schema/audit-log";
-import type {
-  AuditActorType,
-  AuditChannel,
-  AuditClassification,
-  AuditOutcome,
-  InstallationId,
-  ValueOf,
+import {
+  PullRequestSources,
+  type PullRequestSource,
+  type AuditActorType,
+  type AuditChannel,
+  type AuditClassification,
+  type AuditOutcome,
+  type InstallationId,
+  type ValueOf,
 } from "../types";
 
 export type AuditLogRow = typeof auditLog.$inferSelect;
@@ -124,7 +126,10 @@ export type AuditMetadata = Readonly<Record<string, string | number | boolean>>;
  * an FK); the caller passes `ctx.installationId`.
  */
 export interface AuditEntry {
-  readonly installationId: InstallationId;
+  /** NULL for owner-world (url-box) entries — `source` marks the world. */
+  readonly installationId: InstallationId | null;
+  /** Which world the entry belongs to; defaults to `app-installation`. */
+  readonly source?: PullRequestSource;
   readonly actorType: AuditActorType;
   /** GitHub user id for a reviewer; omit for app/system. Loose numeric ref. */
   readonly actorId?: bigint;
@@ -185,6 +190,7 @@ export async function insertAudit(
     .insert(auditLog)
     .values({
       installationId: entry.installationId,
+      source: entry.source ?? PullRequestSources.APP_INSTALLATION,
       actorType: entry.actorType,
       actorId: entry.actorId,
       operation: AuditOperationSchema.parse(entry.operation),

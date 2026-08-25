@@ -23,11 +23,13 @@ export const delta = pgTable(
     ...artifactColumns(),
   },
   (table) => [
-    unique("delta_natural_key").on(
-      table.installationId,
-      table.pullRequestId,
-      table.baselineSha,
-      table.headSha,
-    ),
+    unique("delta_natural_key")
+      .on(
+        table.installationId,
+        table.pullRequestId,
+        table.baselineSha,
+        table.headSha,
+      )
+      .nullsNotDistinct(),
   ],
 );

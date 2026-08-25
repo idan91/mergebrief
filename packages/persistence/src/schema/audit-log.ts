@@ -9,20 +9,27 @@
 // `target_type` and `operation` are intentionally NOT closed vocabularies —
 // `operation` is a Product Operation descriptor id, owned by the api package.
 import { bigint, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
-import type {
-  AuditActorType,
-  AuditChannel,
-  AuditClassification,
-  AuditOutcome,
-  InstallationId,
+import {
+  PullRequestSources,
+  type PullRequestSource,
+  type AuditActorType,
+  type AuditChannel,
+  type AuditClassification,
+  type AuditOutcome,
+  type InstallationId,
 } from "../types";
 
 export const auditLog = pgTable("audit_log", {
   id: bigint("id", { mode: "bigint" }).generatedAlwaysAsIdentity().primaryKey(),
-  /** Tenant scope; plain column, NOT an FK. */
-  installationId: bigint("installation_id", { mode: "bigint" })
-    .$type<InstallationId>()
-    .notNull(),
+  /** Tenant scope; plain column, NOT an FK. NULL for owner-world entries. */
+  installationId: bigint("installation_id", {
+    mode: "bigint",
+  }).$type<InstallationId>(),
+  /** Which world the entry belongs to (mirrors `pull_request.source`). */
+  source: text("source")
+    .$type<PullRequestSource>()
+    .notNull()
+    .default(PullRequestSources.APP_INSTALLATION),
   occurredAt: timestamp("occurred_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

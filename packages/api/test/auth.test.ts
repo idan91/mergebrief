@@ -52,7 +52,9 @@ const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
 const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 
 function keyProvider(): KeyProvider {
-  return createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
+  return createEnvKeyProvider({
+    [KEY_REF]: randomBytes(32).toString("base64"),
+  });
 }
 
 function authDeps(kp: KeyProvider): AuthDeps {
@@ -219,6 +221,35 @@ describe("reviewer auth routes", () => {
   afterEach(async () => {
     vi.unstubAllGlobals();
     await harness.close();
+  });
+
+  it("a session with no installation is refused at the gate (401), never 500", async () => {
+    const token = randomBytes(32).toString("base64url");
+    const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
+    const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
+    if (!sealedAccess.ok || !sealedRefresh.ok)
+      throw new Error("seed encrypt failed");
+    const grant = await createGrantAuth(harness.handle).createGrant({
+      ghTokenCiphertext: sealedAccess.value,
+      ghRefreshTokenCiphertext: sealedRefresh.value,
+      keyRef: KEY_REF,
+      refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
+    });
+    // Owner-world (url-box) session: installation_id NULL by construction.
+    await createTenantRepository(harness.handle, {
+      ownerUserId: brandReviewer(BigInt(REVIEWER_ID)),
+    }).sessions.create({
+      sessionTokenHash: sha256Hex(token),
+      reviewerId: brandReviewer(BigInt(REVIEWER_ID)),
+      reviewerLogin: "octocat",
+      grantId: grant.id,
+      expiresAt: new Date("2027-01-01T00:00:00Z"),
+    });
+
+    const res = await app.request("/api/pulls", {
+      headers: { cookie: `rs_session=${token}` },
+    });
+    expect(res.status).toBe(401);
   });
 
   it("GET /api/auth/github → 302 to GitHub with an HttpOnly state cookie", async () => {

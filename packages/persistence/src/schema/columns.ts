@@ -9,8 +9,11 @@ import type { InstallationId } from "../types";
 
 /**
  * Tenant group: surrogate `bigint generated always as identity` PK + the
- * mandatory `installation_id` tenant scope. `TId` brands the PK for tables
- * whose surrogate id is critical (e.g. `PullRequestRowId`).
+ * `installation_id` tenant scope. NULLABLE since the url-box world:
+ * a NULL marks a row in the owner-scoped world, whose scope anchor is
+ * `pull_request.owner_user_id` (children reach it through their PR parent).
+ * `TId` brands the PK for tables whose surrogate id is critical
+ * (e.g. `PullRequestRowId`).
  */
 export function tenantColumns<TId extends bigint = bigint>() {
   return {
@@ -18,9 +21,9 @@ export function tenantColumns<TId extends bigint = bigint>() {
       .$type<TId>()
       .generatedAlwaysAsIdentity()
       .primaryKey(),
-    installationId: bigint("installation_id", { mode: "bigint" })
-      .$type<InstallationId>()
-      .notNull(),
+    installationId: bigint("installation_id", {
+      mode: "bigint",
+    }).$type<InstallationId>(),
   };
 }
 

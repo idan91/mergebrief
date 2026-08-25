@@ -24,10 +24,8 @@ export const checkpoint = pgTable(
     submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull(),
   },
   (table) => [
-    unique("checkpoint_natural_key").on(
-      table.installationId,
-      table.pullRequestId,
-      table.reviewerId,
-    ),
+    unique("checkpoint_natural_key")
+      .on(table.installationId, table.pullRequestId, table.reviewerId)
+      .nullsNotDistinct(),
   ],
 );

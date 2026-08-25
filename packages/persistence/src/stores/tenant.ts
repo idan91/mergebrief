@@ -1,19 +1,20 @@
-// The tenant-scoped repository — the ONLY database surface this package
-// exposes to callers. `createTenantRepository(db, ctx)` binds an `installation_id` once;
-// every method then filters (reads) or stamps (writes) that same id, so a
-// caller can never address another tenant's rows per call.
+// The scope-bound repository — the ONLY database surface this package
+// exposes to callers. `createTenantRepository(db, ctx)` resolves its ctx
+// (installation tenant OR url-box owner — see `./scope`) once; every method
+// then filters (reads) or stamps (writes) through that one `RowScope`, so a
+// caller can never address another scope's rows per call.
 //
-// CRITICAL INVARIANT: the DB does NOT tie a child row's `installation_id` to
-// its parent `pull_request`'s. This repository is the enforcement point:
-//   (a) every per-PR child WRITE stamps `installation_id` from ctx AND resolves
-//       the parent `pull_request` by (ctx.installationId, id) in the same
-//       transaction — a parent belonging to another tenant yields a Result
-//       error, never a DB write;
-//   (b) every READ filters by ctx.installationId on the queried table's own
-//       column, which is safe precisely because (a) guarantees a child's own
-//       `installation_id` matches its parent's.
+// CRITICAL INVARIANT: the DB does NOT tie a child row's scope to its parent
+// `pull_request`'s. This repository is the enforcement point:
+//   (a) every per-PR child WRITE stamps the scope's world mark AND resolves
+//       the parent `pull_request` within the scope in the same transaction —
+//       a parent belonging to another scope yields a Result error, never a
+//       DB write;
+//   (b) every READ filters through the scope on the queried table's own
+//       columns (`matchesChild` adds the owner world's PR semi-join), which
+//       is safe precisely because (a) guarantees a child's world mark
+//       matches its parent's.
 import { and, desc, eq, inArray, lt, sql } from "drizzle-orm";
-import { z } from "zod";
 import { type AppDatabase, internal } from "../db/handle";
 import { deleteOrphanedGrants } from "../auth/grant";
 import { checkpoint } from "../schema/checkpoint";
@@ -23,10 +24,10 @@ import {
   type ReviewSessionRepository,
   createReviewSessionRepository,
 } from "./review-session";
+import { resolveScope } from "./scope";
+import type { ScopeContext } from "./scope-context";
 import {
   type GrantRowId,
-  type InstallationId,
-  isInstallationId,
   PrState,
   type PullRequestRowId,
   type Result,
@@ -35,82 +36,22 @@ import {
   type ValueOf,
 } from "../types";
 
-// ---------------------------------------------------------------------------
-// Tenant context — the shape shared by the web (authz middleware) and worker
-// (job payload) boundaries. Both validate untrusted input into it with Zod.
-// ---------------------------------------------------------------------------
-
-/** Bound tenant identity. Extensible (repo/reviewer scope may join later). */
-export interface TenantContext {
-  readonly installationId: InstallationId;
-}
-
-/** Coerce a JSON-ish scalar to a bigint; `undefined` when it isn't integral. */
-function coerceBigInt(value: unknown): bigint | undefined {
-  if (typeof value === "bigint") {
-    return value;
-  }
-  if (typeof value === "number" && Number.isSafeInteger(value)) {
-    return BigInt(value);
-  }
-  if (typeof value === "string" && /^-?\d+$/.test(value)) {
-    return BigInt(value);
-  }
-  return undefined;
-}
-
-/** Zod schema for a branded `InstallationId` (bigint isn't JSON-native). */
-const installationIdSchema = z
-  .unknown()
-  .transform((value, ctx): InstallationId => {
-    const big = coerceBigInt(value);
-    if (big === undefined || !isInstallationId(big)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "installationId must be a positive integer",
-      });
-      return z.NEVER;
-    }
-    return big;
-  });
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-/** Normalize snake_case (worker payload) / camelCase (web) into one shape. */
-function normalizeContext(raw: unknown): unknown {
-  if (!isRecord(raw)) {
-    return raw;
-  }
-  return { installationId: raw["installationId"] ?? raw["installation_id"] };
-}
-
-/**
- * Validates untrusted input (job payload / request context) into a
- * `TenantContext`. Accepts `installationId` or `installation_id`, as a bigint,
- * an integer number, or a numeric string.
- */
-export const TenantContextSchema = z.preprocess(
-  normalizeContext,
-  z.object({ installationId: installationIdSchema }),
-);
-
-/** Parse into a `TenantContext`, throwing `ZodError` on invalid input. */
-export function parseTenantContext(input: unknown): TenantContext {
-  return TenantContextSchema.parse(input);
-}
-
-/** Non-throwing parse for callers that prefer a Result at their boundary. */
-export function safeParseTenantContext(
-  input: unknown,
-): Result<TenantContext, string> {
-  const parsed = TenantContextSchema.safeParse(input);
-  if (parsed.success) {
-    return { ok: true, value: parsed.data };
-  }
-  return { ok: false, error: parsed.error.message };
-}
+// The context boundary lives in `./scope`; re-exported here so the package
+// surface (`index.ts`) and existing imports stay stable.
+export {
+  parseScopeContext,
+  parseTenantContext,
+  safeParseScopeContext,
+  safeParseTenantContext,
+  isOwnerContext,
+  ScopeContextSchema,
+  TenantContextSchema,
+} from "./scope-context";
+export type {
+  OwnerContext,
+  ScopeContext,
+  TenantContext,
+} from "./scope-context";
 
 // ---------------------------------------------------------------------------
 // Repository errors — expected failures. Programmer errors still `throw`.
@@ -204,6 +145,13 @@ export type PullRequestStatePatch = PullRequestLifecycle;
  * Exported for IN-PACKAGE reuse only (`ingest.ts` replicates the upsert
  * inside its transaction); `index.ts` never re-exports it.
  */
+/**
+ * The columns an upsert's conflict branch may name. Partial by design: a key
+ * left off is a column drizzle does not touch, which is how an omitted input
+ * field preserves the stored value.
+ */
+export type PullRequestUpdateSet = Partial<typeof pullRequest.$inferInsert>;
+
 export function buildLifecycleColumns(lc: PullRequestLifecycle): {
   state: PrState;
   closedAt: Date | null;
@@ -320,7 +268,7 @@ export interface SessionRepository {
 }
 
 export interface TenantRepository {
-  readonly ctx: TenantContext;
+  readonly ctx: ScopeContext;
   readonly pullRequests: PullRequestRepository;
   readonly checkpoints: CheckpointRepository;
   readonly sessions: SessionRepository;
@@ -329,53 +277,75 @@ export interface TenantRepository {
 }
 
 /**
- * Build a tenant-scoped repository over an opaque `AppDatabase`. `ctx` is the
- * one place an `installation_id` enters; no method accepts another.
+ * Build a scope-bound repository over an opaque `AppDatabase`. `ctx` is the
+ * one place a scope identity enters; no method accepts another.
  */
 export function createTenantRepository(
   handle: AppDatabase,
-  ctx: TenantContext,
+  ctx: ScopeContext,
 ): TenantRepository {
   const db = internal(handle);
-  const { installationId } = ctx;
+  const scope = resolveScope(ctx);
 
   const pullRequests: PullRequestRepository = {
     async upsert(input) {
       const lifecycle = buildLifecycleColumns(input);
-      const rows = await db
-        .insert(pullRequest)
-        .values({
-          installationId,
-          repoId: input.repoId,
-          prNumber: input.prNumber,
-          repoSlug: input.repoSlug,
-          title: input.title,
-          baseSha: input.baseSha,
-          draft: input.draft,
-          authorLogin: input.authorLogin,
-          ...lifecycle,
-          updatedAt: new Date(),
-        })
-        .onConflictDoUpdate({
-          target: [
-            pullRequest.installationId,
-            pullRequest.repoId,
-            pullRequest.prNumber,
-          ],
-          set: {
-            repoSlug: input.repoSlug,
-            title: input.title,
-            // Omitted (review events) preserves the stored value.
-            ...(input.baseSha === undefined ? {} : { baseSha: input.baseSha }),
-            ...(input.draft === undefined ? {} : { draft: input.draft }),
-            ...(input.authorLogin === undefined
-              ? {}
-              : { authorLogin: input.authorLogin }),
-            ...lifecycle,
-            updatedAt: new Date(),
-          },
-        })
-        .returning();
+      const set: PullRequestUpdateSet = {
+        repoSlug: input.repoSlug,
+        title: input.title,
+        ...lifecycle,
+        updatedAt: new Date(),
+      };
+      // Omitted (review events) preserves the stored value — drizzle skips an
+      // absent key, so the column is only ever named when the input carries it.
+      if (input.baseSha !== undefined) {
+        set.baseSha = input.baseSha;
+      }
+      if (input.draft !== undefined) {
+        set.draft = input.draft;
+      }
+      if (input.authorLogin !== undefined) {
+        set.authorLogin = input.authorLogin;
+      }
+      const insert = db.insert(pullRequest).values({
+        installationId: scope.installationId,
+        ownerUserId: scope.ownerUserId,
+        source: scope.source,
+        repoId: input.repoId,
+        prNumber: input.prNumber,
+        repoSlug: input.repoSlug,
+        title: input.title,
+        baseSha: input.baseSha,
+        draft: input.draft,
+        authorLogin: input.authorLogin,
+        ...lifecycle,
+        updatedAt: new Date(),
+      });
+      // Each world conflicts on ITS natural key: the tenant unique constraint,
+      // or the owner partial index (targetWhere must mirror its predicate).
+      const rows =
+        scope.ownerUserId === null
+          ? await insert
+              .onConflictDoUpdate({
+                target: [
+                  pullRequest.installationId,
+                  pullRequest.repoId,
+                  pullRequest.prNumber,
+                ],
+                set,
+              })
+              .returning()
+          : await insert
+              .onConflictDoUpdate({
+                target: [
+                  pullRequest.ownerUserId,
+                  pullRequest.repoId,
+                  pullRequest.prNumber,
+                ],
+                targetWhere: sql`${pullRequest.installationId} is null`,
+                set,
+              })
+              .returning();
       const row = rows[0];
       if (row === undefined) {
         throw new Error("pull_request upsert returned no row");
@@ -389,7 +359,7 @@ export function createTenantRepository(
         .from(pullRequest)
         .where(
           and(
-            eq(pullRequest.installationId, installationId),
+            scope.matchesPullRequest(),
             eq(pullRequest.repoId, repoId),
             eq(pullRequest.prNumber, prNumber),
           ),
@@ -409,7 +379,7 @@ export function createTenantRepository(
         .from(pullRequest)
         .where(
           and(
-            eq(pullRequest.installationId, installationId),
+            scope.matchesPullRequest(),
             inArray(pullRequest.repoId, [...repoIds]),
           ),
         )
@@ -422,10 +392,7 @@ export function createTenantRepository(
         .select()
         .from(pullRequest)
         .where(
-          and(
-            eq(pullRequest.installationId, installationId),
-            eq(pullRequest.id, pullRequestId),
-          ),
+          and(scope.matchesPullRequest(), eq(pullRequest.id, pullRequestId)),
         )
         .limit(1);
       return rows[0];
@@ -439,17 +406,14 @@ export function createTenantRepository(
           updatedAt: new Date(),
         })
         .where(
-          and(
-            eq(pullRequest.installationId, installationId),
-            eq(pullRequest.id, pullRequestId),
-          ),
+          and(scope.matchesPullRequest(), eq(pullRequest.id, pullRequestId)),
         )
         .returning();
       const row = rows[0];
       if (row === undefined) {
         return fail(
           RepositoryErrorCode.NOT_FOUND,
-          `pull_request ${pullRequestId} not found in tenant ${installationId}`,
+          `pull_request ${pullRequestId} not found in ${scope.label}`,
         );
       }
       return { ok: true, value: row };
@@ -460,17 +424,14 @@ export function createTenantRepository(
         .update(pullRequest)
         .set({ entryCommentId, updatedAt: new Date() })
         .where(
-          and(
-            eq(pullRequest.installationId, installationId),
-            eq(pullRequest.id, pullRequestId),
-          ),
+          and(scope.matchesPullRequest(), eq(pullRequest.id, pullRequestId)),
         )
         .returning();
       const row = rows[0];
       if (row === undefined) {
         return fail(
           RepositoryErrorCode.NOT_FOUND,
-          `pull_request ${pullRequestId} not found in tenant ${installationId}`,
+          `pull_request ${pullRequestId} not found in ${scope.label}`,
         );
       }
       return { ok: true, value: row };
@@ -481,17 +442,14 @@ export function createTenantRepository(
         .update(pullRequest)
         .set({ draft, updatedAt: new Date() })
         .where(
-          and(
-            eq(pullRequest.installationId, installationId),
-            eq(pullRequest.id, pullRequestId),
-          ),
+          and(scope.matchesPullRequest(), eq(pullRequest.id, pullRequestId)),
         )
         .returning();
       const row = rows[0];
       if (row === undefined) {
         return fail(
           RepositoryErrorCode.NOT_FOUND,
-          `pull_request ${pullRequestId} not found in tenant ${installationId}`,
+          `pull_request ${pullRequestId} not found in ${scope.label}`,
         );
       }
       return { ok: true, value: row };
@@ -501,13 +459,13 @@ export function createTenantRepository(
   const checkpoints: CheckpointRepository = {
     async upsertOnSubmit(input) {
       return db.transaction(async (tx) => {
-        // Invariant (a): resolve the parent within ctx's tenant BEFORE writing.
+        // Invariant (a): resolve the parent within ctx's scope BEFORE writing.
         const parents = await tx
           .select({ id: pullRequest.id })
           .from(pullRequest)
           .where(
             and(
-              eq(pullRequest.installationId, installationId),
+              scope.matchesPullRequest(),
               eq(pullRequest.id, input.pullRequestId),
             ),
           )
@@ -516,13 +474,13 @@ export function createTenantRepository(
           // Nothing written; the (empty) tx commits cleanly.
           return fail(
             RepositoryErrorCode.PARENT_NOT_IN_TENANT,
-            `pull_request ${input.pullRequestId} not in tenant ${installationId}`,
+            `pull_request ${input.pullRequestId} not in ${scope.label}`,
           );
         }
         const rows = await tx
           .insert(checkpoint)
           .values({
-            installationId,
+            installationId: scope.installationId,
             pullRequestId: input.pullRequestId,
             reviewerId: input.reviewerId,
             reviewerLogin: input.reviewerLogin,
@@ -556,7 +514,10 @@ export function createTenantRepository(
             .from(checkpoint)
             .where(
               and(
-                eq(checkpoint.installationId, installationId),
+                scope.matchesChild(
+                  checkpoint.installationId,
+                  checkpoint.pullRequestId,
+                ),
                 eq(checkpoint.pullRequestId, input.pullRequestId),
                 eq(checkpoint.reviewerId, input.reviewerId),
               ),
@@ -578,7 +539,10 @@ export function createTenantRepository(
         .from(checkpoint)
         .where(
           and(
-            eq(checkpoint.installationId, installationId),
+            scope.matchesChild(
+              checkpoint.installationId,
+              checkpoint.pullRequestId,
+            ),
             eq(checkpoint.pullRequestId, pullRequestId),
             eq(checkpoint.reviewerId, reviewerId),
           ),
@@ -593,7 +557,10 @@ export function createTenantRepository(
         .from(checkpoint)
         .where(
           and(
-            eq(checkpoint.installationId, installationId),
+            scope.matchesChild(
+              checkpoint.installationId,
+              checkpoint.pullRequestId,
+            ),
             eq(checkpoint.pullRequestId, pullRequestId),
           ),
         );
@@ -605,7 +572,7 @@ export function createTenantRepository(
       const rows = await db
         .insert(authSession)
         .values({
-          installationId,
+          installationId: scope.installationId,
           sessionTokenHash: input.sessionTokenHash,
           reviewerId: input.reviewerId,
           reviewerLogin: input.reviewerLogin,
@@ -626,7 +593,7 @@ export function createTenantRepository(
         .from(authSession)
         .where(
           and(
-            eq(authSession.installationId, installationId),
+            scope.matchesWorld(authSession.installationId),
             eq(authSession.sessionTokenHash, sessionTokenHash),
           ),
         )
@@ -635,16 +602,20 @@ export function createTenantRepository(
     },
 
     async deleteExpired(now) {
-      // Orphan-clean the grants of the deleted sessions, same tx.
+      // Orphan-clean the grants of the deleted sessions, same tx. The world
+      // mark alone cannot separate owners, so the owner world narrows to the
+      // owner's own sessions.
+      const conditions = [
+        scope.matchesWorld(authSession.installationId),
+        lt(authSession.expiresAt, now),
+      ];
+      if (scope.ownerUserId !== null) {
+        conditions.push(eq(authSession.reviewerId, scope.ownerUserId));
+      }
       return db.transaction(async (tx) => {
         const rows = await tx
           .delete(authSession)
-          .where(
-            and(
-              eq(authSession.installationId, installationId),
-              lt(authSession.expiresAt, now),
-            ),
-          )
+          .where(and(...conditions))
           .returning({ grantId: authSession.grantId });
         await deleteOrphanedGrants(
           tx,
@@ -655,13 +626,18 @@ export function createTenantRepository(
     },
 
     async deleteByReviewer(reviewerId) {
+      // Owner world: only the owner's own sessions are addressable — a
+      // foreign reviewer id is a no-op, never a cross-owner delete.
+      if (scope.ownerUserId !== null && reviewerId !== scope.ownerUserId) {
+        return 0;
+      }
       // Orphan-clean the grants of the deleted sessions, same tx.
       return db.transaction(async (tx) => {
         const rows = await tx
           .delete(authSession)
           .where(
             and(
-              eq(authSession.installationId, installationId),
+              scope.matchesWorld(authSession.installationId),
               eq(authSession.reviewerId, reviewerId),
             ),
           )
@@ -680,6 +656,6 @@ export function createTenantRepository(
     pullRequests,
     checkpoints,
     sessions,
-    reviewSessions: createReviewSessionRepository(db, installationId),
+    reviewSessions: createReviewSessionRepository(db, scope),
   };
 }

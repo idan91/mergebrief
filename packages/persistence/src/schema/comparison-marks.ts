@@ -22,11 +22,13 @@ export const comparisonMarks = pgTable(
     ...artifactColumns(),
   },
   (table) => [
-    unique("comparison_marks_natural_key").on(
-      table.installationId,
-      table.pullRequestId,
-      table.baselineSha,
-      table.headSha,
-    ),
+    unique("comparison_marks_natural_key")
+      .on(
+        table.installationId,
+        table.pullRequestId,
+        table.baselineSha,
+        table.headSha,
+      )
+      .nullsNotDistinct(),
   ],
 );

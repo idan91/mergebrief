@@ -51,11 +51,17 @@ export {
   createTenantRepository,
   parseTenantContext,
   safeParseTenantContext,
+  parseScopeContext,
+  safeParseScopeContext,
+  isOwnerContext,
   TenantContextSchema,
+  ScopeContextSchema,
   RepositoryErrorCode,
 } from "./stores/tenant";
 export type {
   TenantContext,
+  OwnerContext,
+  ScopeContext,
   TenantRepository,
   PullRequestRepository,
   CheckpointRepository,

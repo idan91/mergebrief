@@ -48,10 +48,8 @@ export const reviewSession = pgTable(
       .defaultNow(),
   },
   (table) => [
-    unique("review_session_natural_key").on(
-      table.installationId,
-      table.briefId,
-      table.reviewerId,
-    ),
+    unique("review_session_natural_key")
+      .on(table.installationId, table.briefId, table.reviewerId)
+      .nullsNotDistinct(),
   ],
 );

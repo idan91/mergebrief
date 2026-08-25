@@ -26,7 +26,8 @@ import {
 import { type AppDatabase, internal } from "../db/handle";
 import { generation } from "../schema/generation";
 import { pullRequest } from "../schema/pull-request";
-import type { TenantContext } from "./tenant";
+import { resolveScope } from "./scope";
+import type { ScopeContext } from "./scope-context";
 import { sanitizeErrorDetail } from "logging";
 import {
   GenerationKind,
@@ -102,7 +103,7 @@ export type GenerationTarget = BriefGenerationTarget | SpanGenerationTarget;
 // ---------------------------------------------------------------------------
 
 export interface GenerationProjection {
-  readonly ctx: TenantContext;
+  readonly ctx: ScopeContext;
   /**
    * Project a job as `queued`. First call inserts (`attempts = 0`); a re-queue
    * of the same key conflicts (NULLS NOT DISTINCT) and increments `attempts`,
@@ -178,7 +179,9 @@ export interface GenerationProjection {
    * `superseded` and `failed` DO count: they reached a provider call and spent.
    *
    * Scoped by `repo_id`, GitHub's immutable numeric id, not the slug — a repo
-   * rename must not silently reset the day's count.
+   * rename must not silently reset the day's count. Deliberately counts
+   * ACROSS scope worlds: one repo has one daily budget no matter which door
+   * (installation or url-box owner) spends it.
    */
   countStartedRunsForRepo(input: {
     readonly repoId: RepoId;
@@ -227,15 +230,15 @@ export interface GenerationProjection {
 /** Build a tenant-scoped `generation` projection over the opaque handle. */
 export function createGenerationProjection(
   handle: AppDatabase,
-  ctx: TenantContext,
+  ctx: ScopeContext,
 ): GenerationProjection {
   const db = internal(handle);
-  const { installationId } = ctx;
+  const scope = resolveScope(ctx);
 
   /** Full natural-key predicate; `baseline_sha` matched with IS NULL when null. */
   function keyWhere(target: GenerationTarget) {
     return and(
-      eq(generation.installationId, installationId),
+      scope.matchesChild(generation.installationId, generation.pullRequestId),
       eq(generation.pullRequestId, target.pullRequestId),
       eq(generation.kind, target.kind),
       eq(generation.headSha, target.headSha),
@@ -258,7 +261,7 @@ export function createGenerationProjection(
     if (row === undefined) {
       return fail(
         GenerationErrorCode.NOT_FOUND,
-        `generation ${target.kind}@${target.headSha} not found in tenant ${installationId}`,
+        `generation ${target.kind}@${target.headSha} not found in ${scope.label}`,
       );
     }
     return { ok: true, value: row };
@@ -274,7 +277,7 @@ export function createGenerationProjection(
           .from(pullRequest)
           .where(
             and(
-              eq(pullRequest.installationId, installationId),
+              scope.matchesPullRequest(),
               eq(pullRequest.id, target.pullRequestId),
             ),
           )
@@ -282,13 +285,13 @@ export function createGenerationProjection(
         if (parents[0] === undefined) {
           return fail(
             GenerationErrorCode.PARENT_NOT_IN_TENANT,
-            `pull_request ${target.pullRequestId} not in tenant ${installationId}`,
+            `pull_request ${target.pullRequestId} not in ${scope.label}`,
           );
         }
         const rows = await tx
           .insert(generation)
           .values({
-            installationId,
+            installationId: scope.installationId,
             pullRequestId: target.pullRequestId,
             kind: target.kind,
             headSha: target.headSha,
@@ -392,6 +395,12 @@ export function createGenerationProjection(
       const rows = await db
         // GREATEST(attempts, 1): a first run carries attempts = 0 but is one
         // paid run; every increment past that is another one.
+        //
+        // Deliberately UNSCOPED — the one cross-world aggregate in this
+        // store. The daily cap is spend protection for a REPO: every started
+        // run for `repo_id` counts, whichever door paid for it, so N
+        // signed-in viewers cannot each spend a full budget on one repo.
+        // Only a count leaves the query; no row data crosses scopes.
         .select({
           total: sql<number>`coalesce(sum(greatest(${generation.attempts}, 1)), 0)::int`,
         })
@@ -399,8 +408,6 @@ export function createGenerationProjection(
         .innerJoin(pullRequest, eq(pullRequest.id, generation.pullRequestId))
         .where(
           and(
-            eq(generation.installationId, installationId),
-            eq(pullRequest.installationId, installationId),
             eq(pullRequest.repoId, repoId),
             eq(generation.kind, GenerationKind.BRIEF),
             notInArray(generation.status, [
@@ -428,7 +435,10 @@ export function createGenerationProjection(
         .from(generation)
         .where(
           and(
-            eq(generation.installationId, installationId),
+            scope.matchesChild(
+              generation.installationId,
+              generation.pullRequestId,
+            ),
             eq(generation.kind, GenerationKind.BRIEF),
             inArray(generation.pullRequestId, [...pullRequestIds]),
           ),
@@ -448,7 +458,10 @@ export function createGenerationProjection(
         .from(generation)
         .where(
           and(
-            eq(generation.installationId, installationId),
+            scope.matchesChild(
+              generation.installationId,
+              generation.pullRequestId,
+            ),
             eq(generation.kind, GenerationKind.BRIEF),
             eq(generation.pullRequestId, pullRequestId),
           ),
@@ -468,7 +481,10 @@ export function createGenerationProjection(
         })
         .where(
           and(
-            eq(generation.installationId, installationId),
+            scope.matchesChild(
+              generation.installationId,
+              generation.pullRequestId,
+            ),
             eq(generation.pullRequestId, pullRequestId),
             eq(generation.kind, GenerationKind.BRIEF),
             ne(generation.headSha, currentHeadSha),

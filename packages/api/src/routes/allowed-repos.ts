@@ -60,19 +60,26 @@ export function createAllowedRepoResolver(
       // Key includes the installation: an org switch rebinds the session row
       // without rotating the cookie, and the pre-switch allowed set must
       // never serve the new tenant.
-      const cacheKey = `${session.sessionTokenHash}:${String(session.installationId)}`;
+      const { installationId } = session;
+      if (installationId === null) {
+        // No installation → the installation∩viewer intersection is empty.
+        // Fail closed with no GitHub call rather than probing a non-tenant.
+        return { ok: true, value: { allowed: new Map(), session } };
+      }
+      const cacheKey = `${session.sessionTokenHash}:${String(installationId)}`;
       const cached = cache.get(cacheKey);
       if (cached !== undefined) {
         return { ok: true, value: { allowed: cached, session } };
       }
 
       // The per-request client: lazy single decrypt, expired ~8h access token
-      // → serialized refresh, retry ONCE.
+      // → serialized refresh, retry ONCE. The installation is the one this
+      // request authorized — a concurrent rebind must not swap it mid-call.
       const client = createReviewerGitHubClient(deps, session, log);
       const repos = await client.run((accessToken) =>
         listInstallationRepositoriesForUser(
           createUserOctokit(accessToken),
-          client.session().installationId,
+          installationId,
         ),
       );
       if (!repos.ok) {

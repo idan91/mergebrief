@@ -37,6 +37,8 @@ const DAY_END = new Date("2026-08-04T00:00:00.000Z");
 
 interface Harness {
   readonly handle: AppDatabase;
+  /** Backdate one projection row's created_at (raw; nothing public sets it). */
+  backdate(rowId: bigint, createdAt: Date): Promise<void>;
   /** Project a brief run at `status`, stamped `createdAt` (and `attempts`). */
   run(input: {
     pullRequestId: PullRequestRowId;
@@ -63,6 +65,12 @@ async function harness(): Promise<
   return {
     handle,
     pullRequestId: pr.id,
+    async backdate(rowId, createdAt) {
+      await client.query(
+        "update generation set created_at = $1 where id = $2",
+        [createdAt.toISOString(), rowId],
+      );
+    },
     async run({ pullRequestId, headSha, status, createdAt, attempts = 0 }) {
       const target = {
         pullRequestId,
@@ -237,8 +245,8 @@ describe("countStartedRunsForRepo", () => {
     expect(count).toBe(2);
   });
 
-  it("counts per repo and per tenant, never across either", async () => {
-    const { handle, pullRequestId, run } = await harness();
+  it("counts per repo — one shared pool across tenants and worlds", async () => {
+    const { handle, pullRequestId, run, backdate } = await harness();
     const inside = new Date("2026-08-03T09:00:00.000Z");
     await run({
       pullRequestId,
@@ -247,8 +255,11 @@ describe("countStartedRunsForRepo", () => {
       createdAt: inside,
     });
 
-    // Same tenant, a different repo.
-    const sibling = await createTenantRepository(handle, CTX).pullRequests.upsert({
+    // Same tenant, a different repo — never counted into REPO's pool.
+    const sibling = await createTenantRepository(
+      handle,
+      CTX,
+    ).pullRequests.upsert({
       repoId: OTHER_REPO,
       prNumber: 9,
       state: PrState.OPEN,
@@ -261,9 +272,13 @@ describe("countStartedRunsForRepo", () => {
       createdAt: inside,
     });
 
-    // Another tenant that sees the SAME repo (same numeric id).
+    // Another tenant that sees the SAME repo (same numeric id): the cap is
+    // the REPO's budget, so this run DOES count into the shared pool.
     const otherCtx: TenantContext = { installationId: OTHER_TENANT };
-    const foreignPr = await createTenantRepository(handle, otherCtx).pullRequests.upsert({
+    const foreignPr = await createTenantRepository(
+      handle,
+      otherCtx,
+    ).pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
       state: PrState.OPEN,
@@ -279,6 +294,7 @@ describe("countStartedRunsForRepo", () => {
     const queued = await foreign.upsertQueued(foreignTarget);
     if (!queued.ok) throw new Error(queued.error.message);
     await foreign.markSucceeded(foreignTarget);
+    await backdate(queued.value.id, inside);
 
     const count = await createGenerationProjection(
       handle,
@@ -288,7 +304,7 @@ describe("countStartedRunsForRepo", () => {
       from: DAY_START,
       to: DAY_END,
     });
-    expect(count).toBe(1);
+    expect(count).toBe(2);
   });
 });
 

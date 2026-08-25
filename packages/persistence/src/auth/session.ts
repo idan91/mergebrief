@@ -8,7 +8,7 @@
 // the `github_grant` row it references, and rotation lives in
 // `createGrantAuth.refreshGrant`. Resolution therefore JOINS the grant; deletes
 // orphan-clean the grant in the same transaction.
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { type AppDatabase, internal } from "../db/handle";
 import { githubGrant } from "../schema/github-grant";
 import { authSession } from "../schema/auth-session";
@@ -146,15 +146,14 @@ export function createSessionAuth(handle: AppDatabase): SessionAuth {
         // The UPDATE is gated by the locked row's OWN current installation_id
         // (+ id) — never by an unscoped caller argument, so a rebinding can only
         // move the tenant stamp of the row it already resolved.
+        const currentStamp =
+          row.installationId === null
+            ? isNull(authSession.installationId)
+            : eq(authSession.installationId, row.installationId);
         const updated = await tx
           .update(authSession)
           .set({ installationId })
-          .where(
-            and(
-              eq(authSession.installationId, row.installationId),
-              eq(authSession.id, row.id),
-            ),
-          )
+          .where(and(currentStamp, eq(authSession.id, row.id)))
           .returning();
         const updatedRow = updated[0];
         if (updatedRow === undefined) {

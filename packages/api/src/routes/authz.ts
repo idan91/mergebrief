@@ -130,7 +130,7 @@ const TOUCH_THROTTLE_MAX_ENTRIES = 50_000;
  */
 function positiveCacheKey(
   sessionTokenHash: string,
-  installationId: InstallationId,
+  installationId: InstallationId | null,
   repoId: RepoId,
 ): string {
   return `${sessionTokenHash}:${String(installationId)}:${String(repoId)}`;
@@ -206,6 +206,11 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
           });
       }
 
+      if (principal.installationId === null) {
+        // API tokens are installation-bound; a NULL stamp cannot authorize.
+        stampAccess(c, "401");
+        throw new Unauthorized();
+      }
       c.set("ctx", { installationId: principal.installationId });
       c.set("session", principal);
       await next();
@@ -239,7 +244,13 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
       throw new Unauthorized();
     }
 
-    c.set("ctx", { installationId: resolved.session.installationId });
+    const { installationId } = resolved.session;
+    if (installationId === null) {
+      // An installation-less session cannot address the tenant-scoped surface.
+      stampAccess(c, "401", { reviewerId: resolved.session.reviewerId });
+      throw new Unauthorized();
+    }
+    c.set("ctx", { installationId });
     c.set("session", derivePrincipalFromSession(resolved));
     await next();
     return;

@@ -1,6 +1,7 @@
 // `pull_request` — the mutable aggregate root. Parent of every immutable
 // per-PR artifact; the retention/cascade anchor. The partial index on
 // `purge_after` (the sweep target) is raw SQL in the hardening migration.
+import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
@@ -9,14 +10,36 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
-import type { PrState, PullRequestRowId, RepoId } from "../types";
+import {
+  PullRequestSources,
+  type PullRequestSource,
+  type PrState,
+  type PullRequestRowId,
+  type RepoId,
+  type ReviewerId,
+} from "../types";
 import { tenantColumns } from "./columns";
 
 export const pullRequest = pgTable(
   "pull_request",
   {
     ...tenantColumns<PullRequestRowId>(),
+    /**
+     * The owning GitHub user for a url-box row; NULL for App-installation
+     * rows. Exactly one of `installation_id`/`owner_user_id` is set — the
+     * `pull_request_owner_shape` CHECK (raw SQL migration) pairs each with
+     * its `source` value.
+     */
+    ownerUserId: bigint("owner_user_id", {
+      mode: "bigint",
+    }).$type<ReviewerId>(),
+    /** Which door created the row; CHECK-paired with the scope columns. */
+    source: text("source")
+      .$type<PullRequestSource>()
+      .notNull()
+      .default(PullRequestSources.APP_INSTALLATION),
     repoId: bigint("repo_id", { mode: "bigint" }).$type<RepoId>().notNull(),
     prNumber: integer("pr_number").notNull(),
     /** Purgeable display label, refreshed on webhook. */
@@ -71,5 +94,11 @@ export const pullRequest = pgTable(
       table.repoId,
       table.prNumber,
     ),
+    // Owner-world natural key: partial, so the two worlds keep independent
+    // rows for the same (repo, number). Owner upserts conflict-target THIS
+    // index (`targetWhere` must match its predicate).
+    uniqueIndex("pull_request_owner_natural_key")
+      .on(table.ownerUserId, table.repoId, table.prNumber)
+      .where(sql`${table.installationId} is null`),
   ],
 );

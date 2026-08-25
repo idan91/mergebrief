@@ -24,7 +24,9 @@ src/
     migrate.ts          programmatic app-schema migration
   schema/             drizzle table definitions (one file per table)
   stores/             ctx-bound + projection data access
-    tenant.ts           createTenantRepository — THE tenant-scoped repository
+    scope.ts            the two scope worlds (installation tenant / url-box owner):
+                        ScopeContext + resolveScope, the in-package RowScope seam
+    tenant.ts           createTenantRepository — THE scope-bound repository
     artifact-store.ts   the six artifact families
     generation.ts       generation status projection
     ingest.ts           transactional webhook→upsert→enqueue boundary
@@ -45,10 +47,15 @@ drizzle/              generated SQL migrations — append-only
 
 - **Tenancy:** `createTenantRepository(db, ctx)` is the only DB surface. The raw drizzle handle is
   hidden behind the opaque `AppDatabase` (module-private symbol in `src/db/handle.ts`); `internal()`
-  is the in-package unwrap and must never be re-exported from `index.ts`. Every read filters
-  and every write stamps `installation_id` from ctx; per-PR child writes verify the parent
-  `pull_request` belongs to the tenant inside the same transaction. Type-level containment
-  tests in `test/tenant.test.ts` guard this — keep them passing.
+  is the in-package unwrap and must never be re-exported from `index.ts`. Two scope worlds exist
+  (`src/stores/scope.ts`): the installation tenant (`installation_id`) and the url-box owner
+  (`pull_request.owner_user_id`, children marked by a NULL `installation_id`). Every read filters
+  and every write stamps through the resolved `RowScope`; per-PR child writes verify the parent
+  `pull_request` belongs to the scope inside the same transaction, and owner-world child reads
+  add a `pull_request` semi-join for owner isolation. Exactly one of
+  `installation_id`/`owner_user_id` is set on `pull_request`, CHECK-paired with `source`.
+  Type-level containment tests in `test/tenant.test.ts` and `test/owner-scope.test.ts` guard
+  this — keep them passing.
 - **Artifacts:** idempotent `ON CONFLICT (natural key) DO UPDATE` writes; natural keys
   lead with `installation_id`. `comparison_marks` and `hunk_span` bodies are coordinates-only
   (strict Zod; no `baselineLabel`/`baselineIndex`/line content), which is why

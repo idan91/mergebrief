@@ -63,11 +63,13 @@ export const brief = pgTable(
     ...artifactColumns(),
   },
   (table) => [
-    unique("brief_natural_key").on(
-      table.installationId,
-      table.pullRequestId,
-      table.baseSha,
-      table.headSha,
-    ),
+    unique("brief_natural_key")
+      .on(
+        table.installationId,
+        table.pullRequestId,
+        table.baseSha,
+        table.headSha,
+      )
+      .nullsNotDistinct(),
   ],
 );
