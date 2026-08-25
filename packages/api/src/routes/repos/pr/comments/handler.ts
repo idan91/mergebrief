@@ -154,7 +154,7 @@ export default function createHandlers(
     );
     const resolvedName = await resolveRepoOwnerAndName({ github }, repoId);
     if (!resolvedName.ok) {
-      throwRepoResolveFailure(resolvedName.error);
+      throwRepoResolveFailure(resolvedName.error, c.get("urlBoxOnly") === true);
     }
 
     const posted = await commentsController.postInlineComment(
@@ -229,7 +229,7 @@ export default function createHandlers(
     );
     const resolvedName = await resolveRepoOwnerAndName({ github }, repoId);
     if (!resolvedName.ok) {
-      throwRepoResolveFailure(resolvedName.error);
+      throwRepoResolveFailure(resolvedName.error, c.get("urlBoxOnly") === true);
     }
 
     const created = await commentsController.postReply(
@@ -294,7 +294,7 @@ function setThreadResolution(
     );
     const resolvedName = await resolveRepoOwnerAndName({ github }, repoId);
     if (!resolvedName.ok) {
-      throwRepoResolveFailure(resolvedName.error);
+      throwRepoResolveFailure(resolvedName.error, c.get("urlBoxOnly") === true);
     }
 
     const outcome = await commentsController.setThreadResolution(

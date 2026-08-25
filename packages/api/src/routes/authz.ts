@@ -17,7 +17,11 @@
 // the GitHub round-trip on repeat authorized reads. NEGATIVES ARE NEVER CACHED
 // — a revoked grant must re-deny on the very next request; a granted-then-
 // revoked viewer is stale for at most 60s. The cache is a closure created ONCE
-// per `repoAuthzLayer`, so tests get a fresh cache per `createApp`.
+// per `repoAuthzLayer`, so tests get a fresh cache per `createApp`. One
+// entry is a RESTRICTED positive rather than a plain one: the operator-PAT
+// rung caches a read-only, owner-pinned pass keyed to its own PR, so a
+// reader stays on that footing for the TTL even if the installation lands
+// mid-window.
 //
 // REFRESH: a 401 from GitHub means the viewer's ~8h access token expired; the
 // layer's `ReviewerGitHubClient` spends its one serialized refresh and retries
@@ -33,17 +37,23 @@
 // last layer in a composition stamps the allowed path after the handler. A
 // session-only composition appends `accessStampLayer` so its line carries the
 // reviewer id.
-import type { MiddlewareHandler } from "hono";
+import type { Context, MiddlewareHandler } from "hono";
 import { every } from "hono/combine";
 import { getCookie } from "hono/cookie";
-import { createUserOctokit, fetchRepositoryById } from "github";
+import {
+  createUserOctokit,
+  fetchRepositoryById,
+  type GitHubApiError,
+} from "github";
 import {
   isOwnerContext,
   isRepoId,
   createSessionAuth,
+  createTenantRepository,
   createTokenAuth,
   type InstallationId,
   type RepoId,
+  type ReviewerId,
   type ScopeContext,
 } from "persistence";
 import {
@@ -62,6 +72,7 @@ import {
 import { stampAccess, type RequestLogVariables } from "../request-logging";
 import { createTtlCache } from "./ttl-cache";
 import { NotFound, Unauthorized } from "../shared-errors/api-error";
+import { isGitHubDenial } from "../shared-errors/failures";
 import { createReviewerGitHubClient } from "./auth/reviewer-github-client";
 
 // ---------------------------------------------------------------------------
@@ -73,7 +84,18 @@ import { createReviewerGitHubClient } from "./auth/reviewer-github-client";
 // ---------------------------------------------------------------------------
 
 export interface AuthzVariables extends RequestLogVariables {
+  /**
+   * The ACTING CREDENTIAL's scope, and only that — the audit ledger keys its
+   * rows on it. The world a PR ROW lives in is a separate question answered
+   * by `resolvePrScope`; never overwrite this to steer a row lookup.
+   */
   readonly ctx: ScopeContext;
+  /**
+   * The gate let this request through on the operator PAT, not the reader's
+   * own token. Per-PR routes must then read the reader's OWN url-box world —
+   * nothing the installation owns was proven readable to them.
+   */
+  readonly urlBoxOnly?: boolean;
   readonly session: ViewerPrincipal;
   readonly repoId: RepoId;
   /**
@@ -157,6 +179,52 @@ function parseRepoId(raw: string | undefined): RepoId | undefined {
   }
   const value = BigInt(raw);
   return isRepoId(value) ? value : undefined;
+}
+
+/** The `:prNumber` path segment, or undefined off the per-PR subtree. */
+function resolvePrNumberParam(raw: string | undefined): number | undefined {
+  if (raw === undefined || !/^\d+$/.test(raw)) {
+    return undefined;
+  }
+  const value = Number(raw);
+  return Number.isSafeInteger(value) && value > 0 ? value : undefined;
+}
+
+/**
+ * The gate's second rung. Answers with the repo ONLY when every condition
+ * holds: the denial is a 404/403 (not upstream trouble), an operator PAT is
+ * configured, the request names a PR, that PR exists in the reader's OWN
+ * url-box world, and the PAT can read the repo. Otherwise `undefined` and
+ * the caller collapses to the uniform 404 exactly as before.
+ */
+async function resolveRepoUnderFallback(
+  deps: AuthRouteDeps,
+  c: Context<AuthzEnv>,
+  repoId: RepoId,
+  reviewerId: ReviewerId,
+  error: GitHubApiError,
+): Promise<
+  { readonly fullName: string; readonly prNumber: number } | undefined
+> {
+  const fallbackToken = deps.urlBoxFallbackToken;
+  if (fallbackToken === undefined || !isGitHubDenial(error)) {
+    return undefined;
+  }
+  const prNumber = resolvePrNumberParam(c.req.param("prNumber"));
+  if (prNumber === undefined) {
+    return undefined;
+  }
+  const owned = await createTenantRepository(deps.handle, {
+    ownerUserId: reviewerId,
+  }).pullRequests.getByNumber(repoId, prNumber);
+  if (owned === undefined) {
+    return undefined;
+  }
+  const repo = await fetchRepositoryById(
+    createUserOctokit(fallbackToken),
+    repoId,
+  );
+  return repo.ok ? { fullName: repo.value.fullName, prNumber } : undefined;
 }
 
 // Gate outcomes reach the access line via `stampAccess` — numeric ids only,
@@ -290,6 +358,13 @@ export function repoAuthzLayer(
   const positiveCache = createTtlCache<{
     readonly fullName: string;
     readonly viewerCanPush: boolean;
+    /**
+     * The PR whose owned url-box row earned this entry on the operator-PAT
+     * rung, or undefined for an ordinary pass. The cache key is per-repo, so
+     * without it one PAT-carried pass would clear the gate for every PR in
+     * the repo until the TTL expired.
+     */
+    readonly ownerPinnedPr: number | undefined;
   }>(POSITIVE_CACHE_MAX_ENTRIES);
 
   return async (c, next) => {
@@ -312,8 +387,18 @@ export function repoAuthzLayer(
       session.installationId,
       repoId,
     );
-    const cachedEntry = positiveCache.get(cacheKey);
+    const cached = positiveCache.get(cacheKey);
+    // A PAT-carried entry serves ONLY the PR it was granted for; any other
+    // PR under the repo re-runs the whole ladder.
+    const cachedEntry =
+      cached?.ownerPinnedPr !== undefined &&
+      cached.ownerPinnedPr !== resolvePrNumberParam(c.req.param("prNumber"))
+        ? undefined
+        : cached;
     if (cachedEntry !== undefined) {
+      if (cachedEntry.ownerPinnedPr !== undefined) {
+        c.set("urlBoxOnly", true);
+      }
       c.set("repoId", repoId);
       c.set("repoFullName", cachedEntry.fullName);
       c.set("viewerCanPush", cachedEntry.viewerCanPush);
@@ -352,6 +437,37 @@ export function repoAuthzLayer(
         });
         throw new Unauthorized();
       }
+      // Second rung: the url-box door generates behind the operator PAT, so
+      // without it a reader holds briefs they cannot open. Narrowed to a PR
+      // this reader owns in the url-box world — never an App-world PR.
+      const fallbackRepo = await resolveRepoUnderFallback(
+        deps,
+        c,
+        repoId,
+        client.session().reviewerId,
+        repo.error,
+      );
+      if (fallbackRepo !== undefined) {
+        // The PAT's push right is not the reader's: no write affordance.
+        const entry = {
+          fullName: fallbackRepo.fullName,
+          viewerCanPush: false,
+          ownerPinnedPr: fallbackRepo.prNumber,
+        };
+        positiveCache.set(cacheKey, entry, Date.now() + AUTHZ_CACHE_TTL_MS);
+        const fallbackSession = client.session();
+        c.set("session", fallbackSession);
+        c.set("urlBoxOnly", true);
+        c.set("repoId", repoId);
+        c.set("repoFullName", entry.fullName);
+        c.set("viewerCanPush", false);
+        await next();
+        stampAccess(c, "200-url-box", {
+          repoId,
+          reviewerId: fallbackSession.reviewerId,
+        });
+        return;
+      }
       // Any other non-2xx (403/404/5xx), or a retry that is still non-2xx →
       // collapse to 404 (no existence leak) AND emit the denial. Never
       // cached. The ledger names the real reason; the RESPONSE stays the
@@ -374,6 +490,7 @@ export function repoAuthzLayer(
       {
         fullName: repo.value.fullName,
         viewerCanPush: repo.value.viewerCanPush,
+        ownerPinnedPr: undefined,
       },
       Date.now() + AUTHZ_CACHE_TTL_MS,
     );
@@ -413,4 +530,17 @@ export function accessStampLayer(): MiddlewareHandler<AuthzEnv> {
       reviewerId: c.get("session").reviewerId,
     });
   };
+}
+
+/**
+ * The operator PAT, but only for a request the gate passed on it — a read
+ * behind such a pass has to reach GitHub the same way the gate did, or the
+ * page opens onto empty diffs and conversations. `undefined` everywhere
+ * else, so an ordinary request can never borrow the operator's reach.
+ */
+export function readFallbackTokenFor(
+  c: Context<AuthzEnv>,
+  deps: AuthRouteDeps,
+): string | undefined {
+  return c.get("urlBoxOnly") === true ? deps.urlBoxFallbackToken : undefined;
 }

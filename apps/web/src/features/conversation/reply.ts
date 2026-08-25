@@ -17,6 +17,12 @@ export type ReplyResult =
   | { readonly kind: "not-found" }
   /** 400 (shape; mirrored client-side) or deterministic 413 — edit the body, retry-as-is never clears. */
   | { readonly kind: "invalid" }
+  /**
+   * 403 — the reader is on a url-box brief for a repo their own GitHub
+   * account cannot write to. Never a retry: it clears by installing the App
+   * on that repository, not by trying again.
+   */
+  | { readonly kind: "no-write-access" }
   /** 502/anything else — GitHub rejected or is unreachable. */
   | { readonly kind: "upstream" };
 
@@ -35,6 +41,7 @@ const KIND_FOR_CODE = {
   [ApiErrorCode.GITHUB_PERMISSION]: "upstream",
   [ApiErrorCode.SCOPE_EXCEEDED]: "upstream",
   [ApiErrorCode.HUMAN_ONLY]: "upstream",
+  [ApiErrorCode.NO_REPO_WRITE_ACCESS]: "no-write-access",
   [ApiErrorCode.NOT_FOUND]: "not-found",
   [ApiErrorCode.INVALID_REQUEST]: "invalid",
   [ApiErrorCode.NOT_A_PR_URL]: "upstream",

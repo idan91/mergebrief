@@ -43,6 +43,11 @@ export type ResolveThreadResult =
   /** 400 — the route rejected the shape (unreachable from valid UI state). */
   | { readonly kind: "invalid" }
   /** 502/anything else — GitHub rejected or is unreachable. */
+  /**
+   * 403 — a url-box brief for a repo the reader's own GitHub account cannot
+   * write to. Never a retry: it clears by installing the App there.
+   */
+  | { readonly kind: "no-write-access" }
   | { readonly kind: "upstream" };
 
 type ResolveFailureKind = Exclude<ResolveThreadResult["kind"], "done">;
@@ -57,6 +62,7 @@ const KIND_FOR_CODE = {
   [ApiErrorCode.GITHUB_PERMISSION]: "github-permission",
   [ApiErrorCode.SCOPE_EXCEEDED]: "upstream",
   [ApiErrorCode.HUMAN_ONLY]: "upstream",
+  [ApiErrorCode.NO_REPO_WRITE_ACCESS]: "no-write-access",
   [ApiErrorCode.NOT_FOUND]: "not-found",
   [ApiErrorCode.INVALID_REQUEST]: "invalid",
   [ApiErrorCode.NOT_A_PR_URL]: "upstream",

@@ -16,7 +16,7 @@ import {
 } from "../../../../shared-errors/api-error";
 import { createReviewerGitHubClient } from "../../../auth/reviewer-github-client";
 import type { AuthRouteDeps } from "../../../auth/session";
-import type { AuthzEnv } from "../../../authz";
+import { readFallbackTokenFor, type AuthzEnv } from "../../../authz";
 import type { TtlCache } from "../../../ttl-cache";
 import readsController from "./controller";
 import {
@@ -174,7 +174,12 @@ export default function createHandlers(
     const result = await readsController.readDiff(
       {
         ...(await buildDeps(c, deps.handle, prNumber)),
-        github: createReviewerGitHubClient(deps, session, c.get("logger")),
+        github: createReviewerGitHubClient(
+          deps,
+          session,
+          c.get("logger"),
+          readFallbackTokenFor(c, deps),
+        ),
         diffCache,
       },
       {

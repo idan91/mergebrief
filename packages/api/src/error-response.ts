@@ -24,6 +24,7 @@ export const ApiErrorCodes = {
   GITHUB_PERMISSION: "github-permission",
   SCOPE_EXCEEDED: "scope-exceeded",
   HUMAN_ONLY: "human-only",
+  NO_REPO_WRITE_ACCESS: "no-repo-write-access",
   NOT_FOUND: "not-found",
   INVALID_REQUEST: "invalid-request",
   NOT_A_PR_URL: "not-a-pr-url",
@@ -79,6 +80,7 @@ export const API_ERROR_STATUS = {
   [ApiErrorCodes.GITHUB_PERMISSION]: 403,
   [ApiErrorCodes.SCOPE_EXCEEDED]: 403,
   [ApiErrorCodes.HUMAN_ONLY]: 403,
+  [ApiErrorCodes.NO_REPO_WRITE_ACCESS]: 403,
   [ApiErrorCodes.NOT_FOUND]: 404,
   [ApiErrorCodes.INVALID_REQUEST]: 400,
   [ApiErrorCodes.NOT_A_PR_URL]: 400,
@@ -111,6 +113,8 @@ export const API_ERROR_ENGLISH = {
   [ApiErrorCodes.SCOPE_EXCEEDED]:
     "this credential's scope does not allow this operation",
   [ApiErrorCodes.HUMAN_ONLY]: "only a signed-in reviewer can clear this",
+  [ApiErrorCodes.NO_REPO_WRITE_ACCESS]:
+    "your GitHub account cannot write to this repository",
   [ApiErrorCodes.NOT_FOUND]: "not found",
   [ApiErrorCodes.INVALID_REQUEST]: "invalid request",
   [ApiErrorCodes.NOT_A_PR_URL]: "not a pr url",

@@ -24,6 +24,7 @@ export const ApiErrorCode = {
   GITHUB_PERMISSION: "github-permission",
   SCOPE_EXCEEDED: "scope-exceeded",
   HUMAN_ONLY: "human-only",
+  NO_REPO_WRITE_ACCESS: "no-repo-write-access",
   NOT_FOUND: "not-found",
   INVALID_REQUEST: "invalid-request",
   NOT_A_PR_URL: "not-a-pr-url",

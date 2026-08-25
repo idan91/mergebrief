@@ -1,3 +1,5 @@
+import { GitHubApiErrorCode, type GitHubApiError } from "github";
+
 // Shared Result-side failure members. They wrap lower-layer errors WHOLE —
 // the handler maps them to posture; nothing translates at the boundary.
 /**
@@ -45,4 +47,18 @@ export function buildGitHubDeniedResult<E extends object>(
     ok: false,
     error: { kind: "github-denied", phase, error },
   } as const;
+}
+
+/**
+ * A denial the caller may answer with a second credential: GitHub says the
+ * resource is absent or forbidden, which for an installation-scoped reviewer
+ * token is the same answer for "does not exist" and "not in your
+ * installation". Anything else (a 5xx, a rate limit) is upstream trouble and
+ * a retry under another token would only repeat it.
+ */
+export function isGitHubDenial(error: GitHubApiError): boolean {
+  return (
+    error.code === GitHubApiErrorCode.NOT_FOUND ||
+    error.code === GitHubApiErrorCode.FORBIDDEN
+  );
 }

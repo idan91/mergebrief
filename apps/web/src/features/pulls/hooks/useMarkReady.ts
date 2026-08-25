@@ -51,6 +51,10 @@ export function useMarkReady(input: UseMarkReadyInput): UseMarkReadyValue {
             announce(t("pulls.markReady.notFound"));
             break;
           }
+          case "no-write-access": {
+            announce(t("pulls.briefError.no-repo-write-access"));
+            break;
+          }
           case "github-permission": {
             announce(t("pulls.markReady.githubPermission"));
             break;

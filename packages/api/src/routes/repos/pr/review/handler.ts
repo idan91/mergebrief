@@ -169,7 +169,7 @@ export default function createHandlers(
     );
     const target = await resolveRepoOwnerAndName({ github }, c.get("repoId"));
     if (!target.ok) {
-      throwRepoResolveFailure(target.error);
+      throwRepoResolveFailure(target.error, c.get("urlBoxOnly") === true);
     }
 
     const created = await reviewController.submitReview(

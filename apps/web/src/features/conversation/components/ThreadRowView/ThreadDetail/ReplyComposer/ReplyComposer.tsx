@@ -18,6 +18,7 @@ const REPLY_KEYS = {
   unauthorized: "conversation.replyResult.unauthorized",
   "not-found": "conversation.replyResult.notFound",
   invalid: "conversation.replyResult.invalid",
+  "no-write-access": "pulls.briefError.no-repo-write-access",
   upstream: "conversation.replyResult.upstream",
   // INDETERMINATE: a throw can land after the POST reached GitHub — never
   // claim "nothing was posted".
@@ -32,6 +33,7 @@ const REPLY_FAILURE_KEYS: Record<
   unauthorized: REPLY_KEYS.unauthorized,
   "not-found": REPLY_KEYS["not-found"],
   invalid: REPLY_KEYS.invalid,
+  "no-write-access": REPLY_KEYS["no-write-access"],
   upstream: REPLY_KEYS.upstream,
 };
 

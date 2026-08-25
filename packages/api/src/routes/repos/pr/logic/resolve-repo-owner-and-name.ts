@@ -16,6 +16,7 @@ import { ApiErrorCodes } from "../../../../error-response";
 import { buildGitHubDeniedResult } from "../../../../shared-errors/failures";
 import {
   BadGateway,
+  Forbidden,
   NotFound,
   Unauthorized,
 } from "../../../../shared-errors/api-error";
@@ -58,7 +59,18 @@ export async function resolveRepoOwnerAndName(
   return { ok: true, value: ownerAndName };
 }
 
-export function throwRepoResolveFailure(failure: RepoResolveFailure): never {
+/**
+ * `urlBoxOnly` says the gate passed this request on the operator PAT, so the
+ * reader is already looking at the brief, the title and the diff — there is
+ * no existence left for the uniform 404 to hide, and collapsing to it would
+ * send them hunting for a deleted pull request. The write still cannot
+ * happen (posting under the operator's token would misattribute their
+ * words), so the refusal is honest instead: this account cannot write here.
+ */
+export function throwRepoResolveFailure(
+  failure: RepoResolveFailure,
+  urlBoxOnly = false,
+): never {
   if (failure.kind === "token-unreadable") {
     throw new Unauthorized();
   }
@@ -69,6 +81,9 @@ export function throwRepoResolveFailure(failure: RepoResolveFailure): never {
     failure.error.code === GitHubApiErrorCode.NOT_FOUND ||
     failure.error.code === GitHubApiErrorCode.FORBIDDEN
   ) {
+    if (urlBoxOnly) {
+      throw new Forbidden(ApiErrorCodes.NO_REPO_WRITE_ACCESS);
+    }
     throw new NotFound();
   }
   throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);

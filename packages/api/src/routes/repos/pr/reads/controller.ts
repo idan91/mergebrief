@@ -5,6 +5,7 @@ import { createUserOctokit, fetchCompareDiff } from "github";
 import type { GenerationProjection, RepoId, ReviewerId } from "persistence";
 import type { DraftPolicy } from "types";
 import { NotFound } from "../../../../shared-errors/api-error";
+import { isGitHubDenial } from "../../../../shared-errors/failures";
 import type { ReviewerGitHubClient } from "../../../auth/reviewer-github-client";
 import { buildPrView } from "../../../pr-view";
 import type { TtlCache } from "../../../ttl-cache";
@@ -288,10 +289,10 @@ export default {
       head: input.head,
     };
     let attempts = 0;
-    const diff = await deps.github.run((token) => {
+    const diff = await deps.github.runRead((token) => {
       attempts += 1;
       return fetchCompareDiff(createUserOctokit(token), span);
-    });
+    }, isGitHubDenial);
     if (!diff.ok) {
       if ("kind" in diff.error) {
         return {

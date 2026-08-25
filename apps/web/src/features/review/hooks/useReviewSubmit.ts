@@ -107,6 +107,7 @@ export function useReviewSubmit(
       orphanedDraft: t("review.submitResult.orphanedDraft"),
       unauthorized: t("review.submitResult.unauthorized"),
       notFound: t("review.submitResult.notFound"),
+      noWriteAccess: t("pulls.briefError.no-repo-write-access"),
       invalid: t("review.submitResult.invalid"),
       upstreamNeutral: t("review.submitResult.upstream"),
       upstreamVerdict: t("review.submitResult.ownPr"),
@@ -257,6 +258,10 @@ export function useReviewSubmit(
           }
           case "not-found": {
             fail(COPY.notFound);
+            break;
+          }
+          case "no-write-access": {
+            fail(COPY.noWriteAccess);
             break;
           }
           case "invalid": {

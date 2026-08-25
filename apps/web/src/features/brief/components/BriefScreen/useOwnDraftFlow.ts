@@ -72,6 +72,12 @@ const POST_FAILURES = {
     outcome: "rejected",
   },
   invalid: { copy: POST_COMMENT_COPY_KEYS.invalid, outcome: "rejected" },
+  // Definitively not posted, and not a retry: the reader's own account has
+  // no write access to this repository.
+  "no-write-access": {
+    copy: "pulls.briefError.no-repo-write-access",
+    outcome: "rejected",
+  },
   // Indeterminate, not rejected: GitHub may have taken it before failing.
   upstream: { copy: POST_COMMENT_COPY_KEYS.upstream, outcome: "indeterminate" },
 } as const satisfies Record<

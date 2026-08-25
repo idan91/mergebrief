@@ -8,6 +8,7 @@ import {
   fetchPullRequestConversation,
   type PrConversation,
 } from "github";
+import { isGitHubDenial } from "../../../../shared-errors/failures";
 import type { ReviewerGitHubClient } from "../../../auth/reviewer-github-client";
 import { stripEntryComment } from "./logic/entry-comment";
 import type {
@@ -51,12 +52,14 @@ export default {
     deps: { readonly github: ReviewerGitHubClient },
     input: Omit<ReadConversationInput, "installationId">,
   ): Promise<ReadConversationResult> {
-    const fetched = await deps.github.run((token) =>
-      fetchPullRequestConversation(createUserOctokit(token), {
-        owner: input.owner,
-        repo: input.repo,
-        prNumber: input.prNumber,
-      }),
+    const fetched = await deps.github.runRead(
+      (token) =>
+        fetchPullRequestConversation(createUserOctokit(token), {
+          owner: input.owner,
+          repo: input.repo,
+          prNumber: input.prNumber,
+        }),
+      isGitHubDenial,
     );
 
     if (!fetched.ok) {

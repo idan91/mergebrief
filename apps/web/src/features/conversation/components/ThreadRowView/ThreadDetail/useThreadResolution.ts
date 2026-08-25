@@ -29,6 +29,7 @@ export const RESOLVE_KEYS = {
   // read-only collaborator), not an existence miss.
   githubPermission: "conversation.resolve.githubPermission",
   invalid: "conversation.resolve.invalid",
+  "no-write-access": "pulls.briefError.no-repo-write-access",
   upstream: "conversation.resolve.upstream",
   // INDETERMINATE: a throw can land after the POST reached GitHub. Both
   // directions are idempotent, so retrying is safe — but the copy must not
@@ -44,6 +45,7 @@ const FAILURE_KEYS: Record<
   "github-permission": RESOLVE_KEYS.githubPermission,
   "not-found": RESOLVE_KEYS.notFound,
   invalid: RESOLVE_KEYS.invalid,
+  "no-write-access": RESOLVE_KEYS["no-write-access"],
   upstream: RESOLVE_KEYS.upstream,
 };
 

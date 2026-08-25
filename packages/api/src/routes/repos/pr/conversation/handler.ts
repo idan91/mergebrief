@@ -14,7 +14,7 @@ import {
 import { isTokenUnreadableFailure } from "../../../../shared-errors/failures";
 import { createReviewerGitHubClient } from "../../../auth/reviewer-github-client";
 import type { AuthRouteDeps } from "../../../auth/session";
-import type { AuthzEnv } from "../../../authz";
+import { readFallbackTokenFor, type AuthzEnv } from "../../../authz";
 import type { InstallationGitHubPort } from "../../../github-port";
 import type { TtlCache } from "../../../ttl-cache";
 import { parseOwnerAndName } from "../../utils";
@@ -86,6 +86,7 @@ export default function createHandlers(
           deps,
           c.get("session"),
           c.get("logger"),
+          readFallbackTokenFor(c, deps),
         );
         fetched = await conversationController.readConversationAsViewer(
           { github: viewer },

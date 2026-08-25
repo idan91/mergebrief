@@ -5,7 +5,10 @@
 // between calls, and per-call-site refresh logic either misses that or
 // refreshes more than once. Hand-rolled refresh locals are banned.
 import { GitHubApiErrorCode } from "github";
-import type { TokenUnreadableFailure } from "../../shared-errors/failures";
+import {
+  isTokenUnreadableFailure,
+  type TokenUnreadableFailure,
+} from "../../shared-errors/failures";
 import type { Logger } from "logging";
 import { decryptToken } from "persistence";
 import type { Result } from "types";
@@ -33,8 +36,28 @@ export interface ReviewerGitHubClient {
     call: (accessToken: string) => Promise<Result<T, E>>,
     isExpired?: (error: E) => boolean,
   ): Promise<Result<T, E | ReviewerTokenFailure>>;
+  /**
+   * `run` for a READ, with the operator PAT as a second rung when the gate
+   * passed this request on that PAT (the client is built with the token only
+   * then). Reads only: a write must never leave GitHub attributing the
+   * operator for something a reader did.
+   */
+  runRead<T, E>(
+    call: (accessToken: string) => Promise<Result<T, E>>,
+    isDenied: (error: E) => boolean,
+    isExpired?: (error: E) => boolean,
+  ): Promise<Result<T, E | ReviewerTokenFailure>>;
   /** The possibly-rotated session (refresh CAS seed, cache keys, audit ids). */
   session(): ViewerPrincipal;
+}
+
+/** The client's own failure member, told apart from the call's error type. */
+function isOwnTokenFailure(error: unknown): error is ReviewerTokenFailure {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    isTokenUnreadableFailure(error)
+  );
 }
 
 function isUnauthorizedCode(error: unknown): boolean {
@@ -55,6 +78,8 @@ export function createReviewerGitHubClient(
   deps: AuthRouteDeps,
   session: ViewerPrincipal,
   log: Logger,
+  /** Present only when the gate passed this request on the operator PAT. */
+  readFallbackToken?: string,
 ): ReviewerGitHubClient {
   let currentSession = session;
   let accessToken: string | undefined;
@@ -105,6 +130,30 @@ export function createReviewerGitHubClient(
         return result;
       }
       return call(accessToken);
+    },
+    async runRead<T, E>(
+      call: (token: string) => Promise<Result<T, E>>,
+      isDenied: (error: E) => boolean,
+      isExpired: (error: E) => boolean = isUnauthorizedCode,
+    ): Promise<Result<T, E | ReviewerTokenFailure>> {
+      const own = await this.run(call, isExpired);
+      if (own.ok || readFallbackToken === undefined) {
+        return own;
+      }
+      if (isOwnTokenFailure(own.error) || !isDenied(own.error)) {
+        return own;
+      }
+      const fallback = await call(readFallbackToken);
+      if (fallback.ok || !isExpired(fallback.error)) {
+        return fallback;
+      }
+      // The OPERATOR's key is what GitHub rejected. Returning its 401 would
+      // send the reader to re-authenticate, which cannot repair a credential
+      // that is not theirs — the reader's own denial is the honest answer.
+      log.warn(
+        "url-box fallback token rejected by GitHub — check the operator PAT",
+      );
+      return own;
     },
     session(): ViewerPrincipal {
       return currentSession;

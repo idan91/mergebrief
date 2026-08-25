@@ -29,6 +29,11 @@ export type MarkReadyResult =
    * proved repo access, so this is not an existence miss.
    */
   | { kind: "github-permission" }
+  /**
+   * 403 — a url-box brief for a repo the reader's own GitHub account cannot
+   * write to. Never a retry: it clears by installing the App there.
+   */
+  | { kind: "no-write-access" }
   | { kind: "upstream" };
 
 type MarkReadyFailureKind = Exclude<MarkReadyResult["kind"], "ready">;
@@ -47,6 +52,7 @@ const KIND_FOR_CODE = {
   [ApiErrorCode.GITHUB_PERMISSION]: "github-permission",
   [ApiErrorCode.SCOPE_EXCEEDED]: "upstream",
   [ApiErrorCode.HUMAN_ONLY]: "upstream",
+  [ApiErrorCode.NO_REPO_WRITE_ACCESS]: "no-write-access",
   [ApiErrorCode.NOT_FOUND]: "not-found",
   [ApiErrorCode.INVALID_REQUEST]: "upstream",
   [ApiErrorCode.NOT_A_PR_URL]: "upstream",

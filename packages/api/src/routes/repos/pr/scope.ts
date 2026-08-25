@@ -48,12 +48,19 @@ export async function resolvePrScope(
   return ownerUserId === undefined ? ctx : { ownerUserId };
 }
 
-/** The same resolution off the Hono variable bag. */
+/**
+ * The same resolution off the Hono variable bag. A request the gate passed on
+ * the operator PAT skips the tenant probe entirely: the reader proved access
+ * to nothing, so only their own url-box world is theirs to read.
+ */
 export async function resolvePrScopeFrom(
   c: Context<AuthzEnv>,
   handle: AppDatabase,
   prNumber: number,
 ): Promise<ScopeContext> {
+  if (c.get("urlBoxOnly") === true) {
+    return { ownerUserId: c.get("session").reviewerId };
+  }
   return resolvePrScope(
     handle,
     c.get("ctx"),

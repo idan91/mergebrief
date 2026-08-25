@@ -16,6 +16,7 @@ import {
   type ReviewerId,
 } from "persistence";
 import type { Result } from "types";
+import { isGitHubDenial } from "../../shared-errors/failures";
 import type { ReviewerTokenFailure } from "../auth/reviewer-github-client";
 import type {
   GenerateControllerDeps,
@@ -33,13 +34,6 @@ type GenerateBriefResult = Result<GenerateOutcome, GenerateFailure>;
 
 interface GenerateBriefInput {
   readonly locator: PrLocator;
-}
-
-function isDenied(error: GitHubApiError): boolean {
-  return (
-    error.code === GitHubApiErrorCode.NOT_FOUND ||
-    error.code === GitHubApiErrorCode.FORBIDDEN
-  );
 }
 
 /**
@@ -82,7 +76,7 @@ async function resolveUnderFallback(
   if (viewer.ok || fallbackToken === undefined) {
     return viewer;
   }
-  if ("kind" in viewer.error || !isDenied(viewer.error)) {
+  if ("kind" in viewer.error || !isGitHubDenial(viewer.error)) {
     return viewer;
   }
   const fallback = await fetchPullRequest(
@@ -120,7 +114,7 @@ export default {
       if (resolved.error.code === GitHubApiErrorCode.UNAUTHORIZED) {
         return { ok: false, error: { kind: "unauthorized" } };
       }
-      if (isDenied(resolved.error)) {
+      if (isGitHubDenial(resolved.error)) {
         return { ok: false, error: { kind: "not-found" } };
       }
       return { ok: false, error: { kind: "github-unavailable" } };

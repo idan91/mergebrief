@@ -30,6 +30,7 @@ const KIND_FOR_CODE = {
   [ApiErrorCode.GITHUB_PERMISSION]: "upstream",
   [ApiErrorCode.SCOPE_EXCEEDED]: "upstream",
   [ApiErrorCode.HUMAN_ONLY]: "upstream",
+  [ApiErrorCode.NO_REPO_WRITE_ACCESS]: "no-write-access",
   [ApiErrorCode.NOT_FOUND]: "not-found",
   [ApiErrorCode.INVALID_REQUEST]: "invalid",
   [ApiErrorCode.NOT_A_PR_URL]: "upstream",

@@ -25,6 +25,7 @@ describe("ApiError classes", () => {
     new Forbidden(ApiErrorCodes.GITHUB_PERMISSION),
     new Forbidden(ApiErrorCodes.SCOPE_EXCEEDED),
     new Forbidden(ApiErrorCodes.HUMAN_ONLY),
+    new Forbidden(ApiErrorCodes.NO_REPO_WRITE_ACCESS),
     new Forbidden(ApiErrorCodes.APP_NOT_INSTALLED),
     new NotFound(),
     new Conflict(ApiErrorCodes.DRAFT_ALREADY_PUBLISHED),

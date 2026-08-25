@@ -60,6 +60,12 @@ export interface AuthRouteDeps {
   readonly auth: AuthDeps;
   /** Instance draft-PR policy; echoed on PR-meta for FE copy. */
   readonly draftPolicy?: DraftPolicy;
+  /**
+   * Operator PAT backstop (`MERGEBRIEF_URL_BOX_TOKEN`). The url-box door
+   * generates behind it, so the per-repo gate needs it to open what the door
+   * already granted. Absent disables the fallback everywhere.
+   */
+  readonly urlBoxFallbackToken?: string | undefined;
 }
 
 // ---------------------------------------------------------------------------

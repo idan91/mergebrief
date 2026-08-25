@@ -107,6 +107,32 @@ const expired: GitHubApiError = {
   message: "unauthorized",
 };
 
+const denied: GitHubApiError = {
+  code: GitHubApiErrorCode.NOT_FOUND,
+  status: 404,
+  message: "not found",
+};
+
+const upstreamTrouble: GitHubApiError = {
+  code: GitHubApiErrorCode.RATE_LIMITED,
+  status: 403,
+  message: "rate limited",
+};
+
+function isDeniedError(error: GitHubApiError): boolean {
+  return error.code === GitHubApiErrorCode.NOT_FOUND;
+}
+
+/** Answers 200 for the PAT alone — a repo outside the App installation. */
+function patOnlyCall() {
+  return vi.fn(
+    async (token: string): Promise<Result<string, GitHubApiError>> =>
+      token === "operator-pat"
+        ? { ok: true, value: "body" }
+        : { ok: false, error: denied },
+  );
+}
+
 function okCall<T>(value: T) {
   return vi.fn(
     async (_token: string): Promise<Result<T, GitHubApiError>> => ({
@@ -306,5 +332,125 @@ describe("createReviewerGitHubClient", () => {
     );
     const result = await client.run(call, (error) => error.status === 401);
     expect(result).toEqual({ ok: true, value: "done" });
+  });
+
+  // `runRead` is the ladder behind a gate pass carried by the operator PAT.
+  // It exists for READS: a write on that footing would leave GitHub
+  // attributing the operator for something a reader did.
+  it("runRead retries a denied read with the operator PAT", async () => {
+    const { deps, session } = await setup("reader-token");
+    const client = createReviewerGitHubClient(
+      deps,
+      session,
+      log,
+      "operator-pat",
+    );
+    const call = patOnlyCall();
+
+    const result = await client.runRead(call, isDeniedError);
+
+    expect(result).toEqual({ ok: true, value: "body" });
+    expect(call.mock.calls.map(([token]) => token)).toEqual([
+      "reader-token",
+      "operator-pat",
+    ]);
+  });
+
+  it("runRead spends nothing extra when the reader's own token works", async () => {
+    const { deps, session } = await setup("reader-token");
+    const client = createReviewerGitHubClient(
+      deps,
+      session,
+      log,
+      "operator-pat",
+    );
+    const call = okCall("body");
+
+    await client.runRead(call, isDeniedError);
+
+    expect(call).toHaveBeenCalledTimes(1);
+    expect(call).toHaveBeenCalledWith("reader-token");
+  });
+
+  // A 401 from the OPERATOR's key is not the reader's problem to fix: mapping
+  // it to the viewer path would tell them to sign in again, which cannot
+  // repair a credential that is not theirs.
+  it("runRead keeps the reader's own denial when the PAT itself is rejected", async () => {
+    const { deps, session } = await setup("reader-token");
+    const client = createReviewerGitHubClient(
+      deps,
+      session,
+      log,
+      "stale-operator-pat",
+    );
+    const call = vi.fn(
+      async (token: string): Promise<Result<string, GitHubApiError>> =>
+        token === "reader-token"
+          ? { ok: false, error: denied }
+          : {
+              ok: false,
+              error: {
+                code: GitHubApiErrorCode.UNAUTHORIZED,
+                status: 401,
+                message: "bad credentials",
+              },
+            },
+    );
+
+    const result = await client.runRead(call, isDeniedError);
+
+    expect(result).toEqual({ ok: false, error: denied });
+    expect(call.mock.calls.map(([token]) => token)).toEqual([
+      "reader-token",
+      "stale-operator-pat",
+    ]);
+  });
+
+  it("runRead has no second rung without a fallback token", async () => {
+    const { deps, session } = await setup("reader-token");
+    const client = createReviewerGitHubClient(deps, session, log);
+    const call = patOnlyCall();
+
+    const result = await client.runRead(call, isDeniedError);
+
+    expect(result).toEqual({ ok: false, error: denied });
+    expect(call).toHaveBeenCalledTimes(1);
+  });
+
+  it("runRead does not burn the PAT on upstream trouble", async () => {
+    const { deps, session } = await setup("reader-token");
+    const client = createReviewerGitHubClient(
+      deps,
+      session,
+      log,
+      "operator-pat",
+    );
+    const call = vi.fn(
+      async (_token: string): Promise<Result<string, GitHubApiError>> => ({
+        ok: false,
+        error: upstreamTrouble,
+      }),
+    );
+
+    const result = await client.runRead(call, isDeniedError);
+
+    expect(result).toEqual({ ok: false, error: upstreamTrouble });
+    expect(call).toHaveBeenCalledTimes(1);
+  });
+
+  it("runRead returns token-unreadable without reaching the PAT", async () => {
+    const { deps, session } = await setup();
+    const client = createReviewerGitHubClient(
+      deps,
+      { ...session, ghTokenCiphertext: "not-a-ciphertext" },
+      log,
+      "operator-pat",
+    );
+    const call = patOnlyCall();
+
+    const result = await client.runRead(call, isDeniedError);
+
+    expect(result).toEqual({ ok: false, error: { kind: "token-unreadable" } });
+    expect(call).not.toHaveBeenCalled();
   });
 });

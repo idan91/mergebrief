@@ -125,6 +125,27 @@ whether the file imports `app.request`.
   surface outside it (the collaborators leaf) carries its own gate
   instance. The submit tests pin the single-gate behavior
   (`counts.repositories`).
+- **The gate's second rung is the operator PAT, and it is narrow.** A url-box
+  brief is generated behind a two-key ladder (reviewer token, then
+  `MERGEBRIEF_URL_BOX_TOKEN`), so the gate runs the same ladder or a reader
+  holds briefs they cannot open. It retries ONLY when all of: the denial is
+  404/403, a PAT is configured, the path names a PR, and that PR exists in
+  the READER'S OWN url-box world. A PAT-carried pass sets `viewerCanPush`
+  false (the operator's push right is not the reader's) and stamps
+  `urlBoxOnly`, which sends `resolvePrScope` straight to the reader's own
+  world — the tenant-first probe would otherwise hand them the
+  installation's rows for the same coordinates. The positive cache carries
+  that stamp AND the PR it was granted for: the key is per-repo, so without
+  the PR one pass would clear the gate for every PR in the repo until the
+  TTL expired. `ctx` stays the ACTING CREDENTIAL's scope throughout — the
+  ledger keys on it, and a url-box read does not make an installation-bound
+  session owner-world.
+  The rung does not stop at the gate: a route that fetches from GitHub
+  itself (the span diff, the owner-world conversation) reaches it through
+  `ReviewerGitHubClient.runRead` with `readFallbackTokenFor`, or the page
+  opens onto empty panes. `runRead` is READS ONLY — a write must never leave
+  GitHub attributing the operator for something a reader did, so `run` has
+  no second rung and every mutation keeps using it.
 - **Mutations re-resolve the repo fresh.** The gate's cached `repoFullName`
   is ≤60s stale — fine for reads, not for outward writes (a rename +
   name-reuse inside the window would target the wrong repo). A mutating

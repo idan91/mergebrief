@@ -110,6 +110,11 @@ export type SubmitReviewResult =
   /** 400 (shape; programmer error) or deterministic 413 — edit the body, retry-as-is never clears. */
   | { kind: "invalid" }
   /** 502/anything else — GitHub rejected or is unreachable. */
+  /**
+   * 403 — a url-box brief for a repo the reader's own GitHub account cannot
+   * write to. Never a retry: it clears by installing the App there.
+   */
+  | { kind: "no-write-access" }
   | { kind: "upstream" };
 
 /** What the review screen hands the transport. The drafts are already saved. */

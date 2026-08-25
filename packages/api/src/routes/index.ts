@@ -39,9 +39,9 @@ export interface AppDeps {
    * caller ip off. */
   readonly audit?: AuditEmitConfig;
   /**
-   * Operator PAT backstop for the url-box door's viewer-token resolve
-   * (`MERGEBRIEF_URL_BOX_TOKEN`); the worker holds the same backstop for the
-   * generation reads. Absent disables the fallback.
+   * Operator PAT backstop (`MERGEBRIEF_URL_BOX_TOKEN`) for the url-box door's
+   * viewer-token resolve, the per-repo gate's second rung, and — in the
+   * worker — the generation reads. Absent disables the fallback.
    */
   readonly urlBoxFallbackToken?: string | undefined;
 }

@@ -45,7 +45,7 @@ describe("errorJson", () => {
 
   it("maps every code to exactly one status and one template", () => {
     const codes = Object.values(ApiErrorCode);
-    expect(codes).toHaveLength(23);
+    expect(codes).toHaveLength(24);
     for (const code of codes) {
       expect(API_ERROR_STATUS[code]).toBeGreaterThanOrEqual(400);
       expect(API_ERROR_ENGLISH[code]).toBeTruthy();
@@ -60,6 +60,7 @@ describe("errorJson", () => {
       "github-permission": 403,
       "scope-exceeded": 403,
       "human-only": 403,
+      "no-repo-write-access": 403,
       "not-found": 404,
       "invalid-request": 400,
       "not-a-pr-url": 400,

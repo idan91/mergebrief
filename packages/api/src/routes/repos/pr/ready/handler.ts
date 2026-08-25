@@ -44,7 +44,7 @@ export default function createHandlers(deps: AuthRouteDeps) {
       c.get("repoId"),
     );
     if (!resolvedName.ok) {
-      throwRepoResolveFailure(resolvedName.error);
+      throwRepoResolveFailure(resolvedName.error, c.get("urlBoxOnly") === true);
     }
 
     const marked = await readyController.markPullRequestReady(
