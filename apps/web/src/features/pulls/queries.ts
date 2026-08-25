@@ -13,6 +13,7 @@ import {
   apiFetchJson,
   apiFetchText,
   apiJsonFromResponse,
+  errorFromResponse,
 } from "../../data/apiFetch";
 import { getSsrWarnSink } from "../../data/ssrWarnSink";
 import {
@@ -78,6 +79,46 @@ export function pullsSessionQueryOptions() {
     staleTime: 15_000,
     retry: false,
   });
+}
+
+/**
+ * The viewer's own url-box briefs — the "your briefs" home list. Same
+ * expected-state envelope as the pulls list; rows are the same wire shape.
+ */
+export function urlBriefsQueryOptions() {
+  return queryOptions({
+    queryKey: ["briefs", "url-box"],
+    queryFn: async (): Promise<PullsSession> => {
+      const path = "/api/briefs";
+      const response = await apiFetch(path);
+      if (response.status === 401) {
+        return { kind: "logged-out" };
+      }
+      if (response.status === 502 || response.status === 503) {
+        return { kind: "unavailable" };
+      }
+      const body = await apiJsonFromResponse(response, path);
+      const parsed = parsePullsList(body);
+      if (!parsed.ok) {
+        throw new ApiError(ApiErrorCode.MALFORMED, response.status, path);
+      }
+      return { kind: "ready", pulls: parsed.value };
+    },
+    staleTime: 15_000,
+    retry: false,
+  });
+}
+
+/** DELETE = owner-scoped erase; mutations use a plain client-only fetch. */
+export async function deleteUrlBrief(
+  repoId: string,
+  prNumber: number,
+): Promise<void> {
+  const path = `/api/briefs/${encodeURIComponent(repoId)}/${String(prNumber)}`;
+  const response = await fetch(path, { method: "DELETE" });
+  if (!response.ok) {
+    throw await errorFromResponse(response, path);
+  }
 }
 
 /** PR meta — the single generation-status poll target. */

@@ -1,18 +1,18 @@
-import { Trans, useTranslation } from "react-i18next";
+import { useTranslation } from "react-i18next";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 
 import { Button } from "@web/components/Button/Button";
-import {
-  generateBriefViaApi,
-  localBriefsQueryOptions,
-} from "../features/brief/queries";
+import { generateBriefViaApi } from "../features/brief/queries";
 import { briefErrorDetail } from "@web/features/brief/utils/briefErrors";
 import { OrgSwitcher } from "@web/features/installations";
 import { LocalePicker } from "../i18n/LocalePicker/LocalePicker";
-import { PullsSection } from "@web/features/pulls";
-import { pullsSessionQueryOptions } from "../features/pulls/queries";
+import { PullsSection, YourBriefsSection } from "@web/features/pulls";
+import {
+  pullsSessionQueryOptions,
+  urlBriefsQueryOptions,
+} from "../features/pulls/queries";
 import sharedStyles from "./routeShared.module.scss";
 import styles from "./index.module.scss";
 
@@ -21,15 +21,12 @@ export const Route = createFileRoute("/")({
   // in-process apiFetch interface (same authz gate), never a client waterfall.
   loader: ({ context }) =>
     Promise.all([
-      context.queryClient.ensureQueryData(localBriefsQueryOptions()),
+      context.queryClient.ensureQueryData(urlBriefsQueryOptions()),
       context.queryClient.ensureQueryData(pullsSessionQueryOptions()),
     ]),
   component: BriefPicker,
   errorComponent: BriefPickerError,
 });
-
-// A command the reader copies verbatim — an identifier, not copy.
-const CLI_COMMAND = "pnpm categorize <pr-url>";
 
 // The product name — an identifier, never translated.
 const PRODUCT_NAME = "MergeBrief";
@@ -37,7 +34,7 @@ const PRODUCT_SUFFIX = " / review";
 
 function BriefPicker() {
   const { t } = useTranslation();
-  const briefs = useSuspenseQuery(localBriefsQueryOptions()).data;
+  const yourBriefs = useSuspenseQuery(urlBriefsQueryOptions()).data;
   const session = useSuspenseQuery(pullsSessionQueryOptions()).data;
   const navigate = useNavigate();
   const [url, setUrl] = useState("");
@@ -116,53 +113,8 @@ function BriefPicker() {
           </p>
         ) : null}
         <OrgSwitcher enabled={session.kind === "ready"} />
+        <YourBriefsSection session={yourBriefs} />
         <PullsSection session={session} />
-        {briefs.length === 0 ? (
-          <div className={styles["empty"]}>
-            <p>{t("shell.noBriefs")}</p>
-            <p>
-              <Trans
-                components={[<code key="command">{CLI_COMMAND}</code>]}
-                i18nKey="shell.cliHint"
-              />
-            </p>
-          </div>
-        ) : (
-          <>
-            <h2 className={styles["listLabel"]}>{t("shell.localBriefs")}</h2>
-            <ul className={styles["list"]}>
-              {briefs.map((brief) => (
-                <li key={brief.id}>
-                  <Link
-                    className={styles["link"]}
-                    params={{ briefId: brief.id }}
-                    to="/briefs/$briefId"
-                  >
-                    <span className={styles["linkTitle"]}>
-                      <span
-                        className={styles["artifactPill"]}
-                        data-kind={brief.artifactKind}
-                      >
-                        {brief.artifactKind === "delta"
-                          ? t("shell.artifactDelta")
-                          : t("shell.artifactBrief")}
-                      </span>
-                      {brief.title}
-                    </span>
-                    <span className={styles["meta"]}>
-                      {brief.repo} #{brief.number} · {brief.id} ·{" "}
-                      {brief.artifactKind === "delta" &&
-                      brief.baselineSha &&
-                      brief.headSha
-                        ? `${brief.baselineSha.slice(0, 7)} → ${brief.headSha.slice(0, 7)}`
-                        : brief.sha.slice(0, 7)}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
       </section>
     </main>
   );

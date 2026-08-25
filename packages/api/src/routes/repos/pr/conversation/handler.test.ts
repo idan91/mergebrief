@@ -1,7 +1,9 @@
 import { Hono } from "hono";
 import { GitHubApiErrorCode, type GitHubApiError } from "github";
+import type * as GitHubModule from "github";
 import type { Logger } from "logging";
 import {
+  createEnvKeyProvider,
   createTenantRepository,
   isInstallationId,
   isRepoId,
@@ -111,7 +113,17 @@ function buildApp(
   app.get(
     "/:prNumber/conversation",
     createConversationHandlers(
-      harness.handle,
+      {
+        handle: harness.handle,
+        auth: {
+          oauthClientId: "Iv1.test-client-id",
+          oauthClientSecret: "test-client-secret",
+          keyProvider: createEnvKeyProvider({}),
+          sessionKeyRef: "SESSION_KEY_V1",
+          publicBaseUrl: "https://example.test",
+          cookieSecure: true,
+        },
+      },
       github,
       createTtlCache<string>(10),
     ).readConversation,
@@ -169,5 +181,177 @@ describe("conversation handler wire posture", () => {
     ).request(`/${PR_NUMBER}/conversation`);
     expect(upstream.status).toBe(502);
     expect(await upstream.json()).toMatchObject({ code: "github-unavailable" });
+  });
+});
+
+describe("readConversation — installation-path 401 stays an upstream error", () => {
+  it("an App-credential 401 is a 502, never a sign-in prompt", async () => {
+    const app = buildApp(
+      vi.fn(async () => ({
+        ok: false as const,
+        error: {
+          code: GitHubApiErrorCode.UNAUTHORIZED,
+          message: "bad app credentials",
+        },
+      })),
+    );
+    const res = await app.request(`/${PR_NUMBER}/conversation`);
+    expect(res.status).toBe(502);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Owner-world branch: the conversation reads with the VIEWER's token.
+// ---------------------------------------------------------------------------
+vi.mock("github", async (importOriginal) => ({
+  ...(await importOriginal<typeof GitHubModule>()),
+  createUserOctokit: vi.fn(),
+  fetchPullRequestConversation: vi.fn(),
+}));
+
+describe("readConversation — owner world (viewer token)", () => {
+  async function buildOwnerApp(input: {
+    plaintext: string | undefined;
+    fetchResult: Result<typeof EMPTY_CONVERSATION, GitHubApiError>;
+  }): Promise<{
+    app: Hono<AuthzEnv>;
+    port: ReturnType<typeof vi.fn>;
+    viewerFetch: ReturnType<typeof vi.fn>;
+    tokensSeen: string[];
+  }> {
+    const { createUserOctokit, fetchPullRequestConversation, encryptToken } =
+      await import("github").then(async (github) => ({
+        createUserOctokit: vi.mocked(github.createUserOctokit),
+        fetchPullRequestConversation: vi.mocked(
+          github.fetchPullRequestConversation,
+        ),
+        encryptToken: (await import("persistence")).encryptToken,
+      }));
+    const ownerId = brand(555n, isReviewerId);
+    const ownerHarness = await createPgliteHarness();
+    const ownerRepoId = brand(9911n, isRepoId);
+    const pr = await createTenantRepository(ownerHarness.handle, {
+      ownerUserId: ownerId,
+    }).pullRequests.upsert({
+      repoId: ownerRepoId,
+      prNumber: PR_NUMBER,
+      repoSlug: "acme/own",
+      state: PrState.OPEN,
+    });
+    void pr;
+
+    const keyRef = "SESSION_KEY_V1";
+    const kp = createEnvKeyProvider({
+      [keyRef]: Buffer.alloc(32, 7).toString("base64"),
+    });
+    let ciphertext = "undecryptable";
+    if (input.plaintext !== undefined) {
+      const sealed = await encryptToken(kp, keyRef, input.plaintext);
+      if (!sealed.ok) throw new Error("seal failed");
+      ciphertext = sealed.value;
+    }
+    const session: ViewerPrincipal = {
+      id: 1n,
+      installationId: null,
+      sessionTokenHash: "hash-owner-conversation",
+      reviewerId: ownerId,
+      reviewerLogin: "octocat",
+      grantId: brand(7n, isGrantRowId),
+      expiresAt: new Date(Date.now() + 60_000),
+      createdAt: new Date(),
+      ghTokenCiphertext: ciphertext,
+      keyRef,
+      scope: WriteClassification.EXTERNAL_WRITE,
+      channel: AuthChannel.COOKIE,
+    };
+
+    const tokensSeen: string[] = [];
+    createUserOctokit.mockReset();
+    fetchPullRequestConversation.mockReset();
+    createUserOctokit.mockImplementation((token: string) => {
+      tokensSeen.push(token);
+      return {} as ReturnType<typeof createUserOctokit>;
+    });
+    fetchPullRequestConversation.mockResolvedValue(input.fetchResult);
+
+    const installationFetch = vi.fn(async () => {
+      throw new Error("installation port must not serve an owner row");
+    });
+    const app = new Hono<AuthzEnv>();
+    app.onError(createErrorHandler<AuthzEnv>(log));
+    app.use(async (c, next) => {
+      c.set("logger", log);
+      c.set("ctx", { ownerUserId: ownerId });
+      c.set("session", session);
+      c.set("repoId", ownerRepoId);
+      c.set("repoFullName", "acme/own");
+      c.set("viewerCanPush", true);
+      await next();
+    });
+    app.get(
+      "/:prNumber/conversation",
+      createConversationHandlers(
+        {
+          handle: ownerHarness.handle,
+          auth: {
+            oauthClientId: "Iv1.test-client-id",
+            oauthClientSecret: "test-client-secret",
+            keyProvider: kp,
+            sessionKeyRef: keyRef,
+            publicBaseUrl: "https://example.test",
+            cookieSecure: true,
+          },
+        },
+        {
+          listRepoCollaborators: vi.fn(async () => {
+            throw new Error("not exercised");
+          }),
+          fetchPullRequestConversation: installationFetch,
+        },
+        createTtlCache<string>(10),
+      ).readConversation,
+    );
+    return {
+      app,
+      port: installationFetch,
+      viewerFetch: fetchPullRequestConversation,
+      tokensSeen,
+    };
+  }
+
+  it("fetches with the viewer's decrypted token, never the installation port", async () => {
+    const built = await buildOwnerApp({
+      plaintext: "ghu_viewer_token",
+      fetchResult: { ok: true, value: EMPTY_CONVERSATION },
+    });
+    const res = await built.app.request(`/${PR_NUMBER}/conversation`);
+    expect(res.status).toBe(200);
+    expect(built.port).not.toHaveBeenCalled();
+    expect(built.tokensSeen).toEqual(["ghu_viewer_token"]);
+  });
+
+  it("an unreadable stored token is re-auth territory (401), never a 404", async () => {
+    const built = await buildOwnerApp({
+      plaintext: undefined,
+      fetchResult: { ok: true, value: EMPTY_CONVERSATION },
+    });
+    const res = await built.app.request(`/${PR_NUMBER}/conversation`);
+    expect(res.status).toBe(401);
+    expect(built.viewerFetch).not.toHaveBeenCalled();
+  });
+
+  it("an upstream 401 prompts sign-in instead of a retry-looking 502", async () => {
+    const built = await buildOwnerApp({
+      plaintext: "ghu_viewer_token",
+      fetchResult: {
+        ok: false,
+        error: {
+          code: GitHubApiErrorCode.UNAUTHORIZED,
+          message: "bad credentials",
+        },
+      },
+    });
+    const res = await built.app.request(`/${PR_NUMBER}/conversation`);
+    expect(res.status).toBe(401);
   });
 });

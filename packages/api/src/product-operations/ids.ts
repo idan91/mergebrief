@@ -6,6 +6,7 @@ import type { ValueOf } from "types";
 
 export const PRODUCT_QUERY_ID = {
   LIST_PULLS: "list-pulls",
+  LIST_URL_BRIEFS: "list-url-briefs",
   LIST_REPOS: "list-repos",
   LIST_INSTALLATIONS: "list-installations",
   LIST_TOKENS: "list-tokens",

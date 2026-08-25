@@ -45,7 +45,7 @@
       "heading": "Pull requests",
       "signInPrompt": "Sign in with GitHub to read Briefs for the repositories where the App is installed.",
       "signIn": "Sign in with GitHub",
-      "unavailable": "The PR list is unavailable right now (GitHub or the backend could not be reached). Local Briefs below still work — try again shortly.",
+      "unavailable": "The PR list is unavailable right now (GitHub or the backend could not be reached) — try again shortly.",
       "empty": "No pull requests yet. Push to a pull request in a repository where the App is installed and its Brief generates automatically.",
       "fallbackTitle": "PR #{{number}}"
     },
@@ -58,6 +58,11 @@
       "superseded": "newer push on the way",
       "capped": "daily cap reached",
       "warmingChip": "comparisons warming…"
+    },
+    "state": {
+      "open": "open",
+      "closed": "closed",
+      "merged": "merged"
     },
     "wait": {
       "queued": "Queued — the brief will start generating shortly.",
@@ -203,6 +208,14 @@
       "label": "Newer commits",
       "action": "Go to newest",
       "title": "This pull request has new commits since the revision you are reading. Comments will anchor to the revision you reviewed."
+    },
+    "yourBriefs": {
+      "heading": "Your briefs",
+      "empty": "Nothing here yet — paste a pull request URL above to generate your first brief.",
+      "delete": "Delete",
+      "deleting": "Deleting…",
+      "deleteFailed": "Deleting the brief failed. Try again.",
+      "ariaDelete": "Delete the brief for {{repo}} #{{number}}"
     }
   },
   "installations": {

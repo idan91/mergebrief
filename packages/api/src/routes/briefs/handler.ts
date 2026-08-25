@@ -5,7 +5,8 @@ import { stampAuditTarget } from "../../product-operations/audit";
 import type { AuthRouteDeps } from "../auth/session";
 import type { AuthzEnv } from "../authz";
 import { prNumberSchema } from "../repos/pr/wire-bounds";
-import deleteController from "./controller";
+import urlBriefsController from "./controller";
+import { listQuerySchema } from "./schemas";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
@@ -20,6 +21,27 @@ function parseRepoIdParam(raw: string | undefined) {
 
 export default function createHandlers(deps: AuthRouteDeps) {
   return {
+    listUrlBriefs: async (c: Context<AuthzEnv>) => {
+      const query = listQuerySchema.safeParse({
+        limit: c.req.query("limit") ?? undefined,
+      });
+      if (!query.success) {
+        throw new BadRequest();
+      }
+      const session = c.get("session");
+      const body = await urlBriefsController.listUrlBriefs(
+        { handle: deps.handle },
+        {
+          // The list is the OWNER world's, whichever world the session ctx
+          // resolved: an installation-bound viewer owns url-box rows too.
+          ownerUserId: session.reviewerId,
+          viewerLogin: session.reviewerLogin,
+          limit: query.data.limit,
+        },
+      );
+      return c.json(body, 200, NO_STORE);
+    },
+
     deleteUrlBrief: async (c: Context<AuthzEnv>) => {
       const repoId = parseRepoIdParam(c.req.param("repoId"));
       if (repoId === undefined) {
@@ -29,7 +51,7 @@ export default function createHandlers(deps: AuthRouteDeps) {
       if (!prNumber.success) {
         throw new BadRequest();
       }
-      const deleted = await deleteController.deleteUrlBrief(
+      const deleted = await urlBriefsController.deleteUrlBrief(
         { handle: deps.handle },
         {
           // Ownership derives from the CREDENTIAL, never a caller value:

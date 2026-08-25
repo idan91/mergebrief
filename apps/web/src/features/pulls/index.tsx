@@ -17,3 +17,7 @@ export {
   PullsSection,
   type PullsSectionProps,
 } from "./components/PullsSection/PullsSection";
+export {
+  YourBriefsSection,
+  type YourBriefsSectionProps,
+} from "./components/YourBriefsSection/YourBriefsSection";

@@ -46,7 +46,7 @@ export function conversationRoute(
   // shared across every viewer — the point of the installation-token read).
   const cache = createTtlCache<string>(CONVERSATION_CACHE_MAX_ENTRIES);
 
-  const handlers = createConversationHandlers(deps.handle, deps.github, cache);
+  const handlers = createConversationHandlers(deps, deps.github, cache);
   app.query(
     {
       id: PRODUCT_QUERY_ID.READ_CONVERSATION,

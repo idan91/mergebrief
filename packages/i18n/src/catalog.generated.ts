@@ -51,6 +51,9 @@ export type Catalog = typeof en & {
       windowMinutes_one: "about {{count}} minute";
       windowMinutes_other: "about {{count}} minutes";
     };
+    yourBriefs: (typeof en)["pulls"]["yourBriefs"] & {
+      ariaDelete: "Delete the brief for {{repo}} #{{number}}";
+    };
   };
   brief: (typeof en)["brief"] & {
     details: (typeof en)["brief"]["details"] & {

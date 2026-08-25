@@ -47,6 +47,12 @@
       "owner": "idan"
     }
   },
+  "list-url-briefs": {
+    "webOnly": {
+      "reason": "The your-briefs home list is a web discovery surface; the CLI's listing is the installation-scoped pulls list",
+      "owner": "idan"
+    }
+  },
   "mark-ready": {
     "command": "mergebrief ready <number>"
   },

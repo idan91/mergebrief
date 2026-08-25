@@ -80,6 +80,13 @@ const EXPECTED_CATALOG = [
     classification: "read",
     endpoint: "GET /api/auth/tokens",
   },
+
+  {
+    id: "list-url-briefs",
+    kind: "query",
+    classification: "read",
+    endpoint: "GET /api/briefs",
+  },
   {
     id: "mark-ready",
     kind: "action",

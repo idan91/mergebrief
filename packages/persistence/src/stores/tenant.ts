@@ -206,6 +206,13 @@ export interface PullRequestRepository {
   ): Promise<PullRequestRow[]>;
   /** Tenant-scoped read by row id (the worker's job-payload entry point). */
   getById(pullRequestId: PullRequestRowId): Promise<PullRequestRow | undefined>;
+  /**
+   * The OWNER world's rows, newest `updated_at` first, capped at `limit` —
+   * the "your briefs" home list. Owner scope only: the installation world's
+   * listing is `listForRepos` over the fail-closed allowed set, and an
+   * unfiltered tenant listing must not exist.
+   */
+  listOwned(limit: number): Promise<PullRequestRow[]>;
   /** Scoped lifecycle mutation; `notFound` if no row in ctx's tenant. */
   setState(
     pullRequestId: PullRequestRowId,
@@ -385,6 +392,19 @@ export function createTenantRepository(
             inArray(pullRequest.repoId, [...repoIds]),
           ),
         )
+        .orderBy(desc(pullRequest.updatedAt), desc(pullRequest.id))
+        .limit(limit);
+    },
+
+    async listOwned(limit) {
+      if (scope.ownerUserId === null) {
+        // Programmer error: see the interface note.
+        throw new Error("listOwned is an owner-scope surface");
+      }
+      return db
+        .select()
+        .from(pullRequest)
+        .where(scope.matchesPullRequest())
         .orderBy(desc(pullRequest.updatedAt), desc(pullRequest.id))
         .limit(limit);
     },

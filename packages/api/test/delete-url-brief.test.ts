@@ -201,6 +201,33 @@ describe("DELETE /api/briefs/:repoId/:prNumber", () => {
     });
   });
 
+  it("GET /api/briefs lists the viewer's own rows, newest first, and nothing foreign", async () => {
+    await seedBriefedPr(harness.handle, OWNER_CTX);
+    await seedBriefedPr(harness.handle, TENANT_CTX);
+    const cookie = await seedOwnerSession(harness.handle, kp);
+
+    const res = await app.request("/api/briefs", {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
+    expect(res.status).toBe(200);
+    const body: unknown = await res.json();
+    expect(body).toMatchObject({
+      pulls: [
+        {
+          repoId: String(REPO_ID_NUM),
+          prNumber: 7,
+          repoSlug: "o/r",
+          briefAvailable: true,
+        },
+      ],
+    });
+  });
+
+  it("GET /api/briefs is empty for a signed-out viewer's world (401)", async () => {
+    const res = await app.request("/api/briefs");
+    expect(res.status).toBe(401);
+  });
+
   it("a tenant-world row at the same coordinates is an indistinguishable 404", async () => {
     await seedBriefedPr(harness.handle, TENANT_CTX);
     const cookie = await seedOwnerSession(harness.handle, kp);

@@ -535,3 +535,24 @@ describe("url-box instance visibility", () => {
     expect(await resolveUrlBoxOwner(handle, REPO, 11, OWNER_A)).toBeUndefined();
   });
 });
+
+describe("listOwned — the your-briefs home list", () => {
+  it("lists only the owner's rows, newest first; installation scope refuses", async () => {
+    const handle = await freshDatabase();
+    const a = createTenantRepository(handle, CTX_A);
+    const b = createTenantRepository(handle, CTX_B);
+    const t = createTenantRepository(handle, TENANT_CTX);
+
+    await a.pullRequests.upsert(upsertInput(1));
+    await a.pullRequests.upsert(upsertInput(2));
+    await b.pullRequests.upsert(upsertInput(3));
+    await t.pullRequests.upsert(upsertInput(4));
+
+    const owned = await a.pullRequests.listOwned(10);
+    expect(owned.map((row) => row.prNumber)).toEqual([2, 1]);
+
+    await expect(t.pullRequests.listOwned(10)).rejects.toThrow(
+      "owner-scope surface",
+    );
+  });
+});

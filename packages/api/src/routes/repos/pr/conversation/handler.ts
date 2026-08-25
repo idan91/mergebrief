@@ -1,17 +1,26 @@
 import type { Context } from "hono";
 import { GitHubApiErrorCode } from "github";
-import { createTenantRepository, type AppDatabase } from "persistence";
+import {
+  createTenantRepository,
+  isOwnerContext,
+  type AppDatabase,
+} from "persistence";
 import {
   BadGateway,
   BadRequest,
   NotFound,
+  Unauthorized,
 } from "../../../../shared-errors/api-error";
-import { requireInstallationScope, type AuthzEnv } from "../../../authz";
+import { isTokenUnreadableFailure } from "../../../../shared-errors/failures";
+import { createReviewerGitHubClient } from "../../../auth/reviewer-github-client";
+import type { AuthRouteDeps } from "../../../auth/session";
+import type { AuthzEnv } from "../../../authz";
 import type { InstallationGitHubPort } from "../../../github-port";
 import type { TtlCache } from "../../../ttl-cache";
 import { parseOwnerAndName } from "../../utils";
 import { prNumberSchema } from "../wire-bounds";
 import conversationController from "./controller";
+import type { ReadConversationResult } from "./types";
 import { CONVERSATION_CACHE_TTL_MS } from "./consts";
 import { buildConversationCacheKey } from "./utils";
 import { ApiErrorCodes } from "../../../../error-response";
@@ -26,10 +35,11 @@ function conversationJson(c: Context<AuthzEnv>, body: string): Response {
 }
 
 export default function createHandlers(
-  handle: AppDatabase,
+  deps: AuthRouteDeps,
   github: InstallationGitHubPort,
   cache: TtlCache<string>,
 ) {
+  const handle: AppDatabase = deps.handle;
   return {
     readConversation: async (c: Context<AuthzEnv>) => {
       const repoId = c.get("repoId");
@@ -59,18 +69,50 @@ export default function createHandlers(
       if (target === undefined) {
         throw new NotFound();
       }
-      // Installation-world fetch: the conversation port is App-scoped.
-      const fetched = await conversationController.readConversation(
-        { github },
-        {
-          installationId: requireInstallationScope(ctx),
-          owner: target.owner,
-          repo: target.repo,
-          prNumber: pr.prNumber,
-          entryCommentId: pr.entryCommentId,
-        },
-      );
+      // Installation rows fetch as the App (one rate budget, one cache
+      // entry per PR); owner-world rows have no installation, so the
+      // conversation reads with the VIEWER's own token instead.
+      const ownerWorld = isOwnerContext(ctx);
+      const conversation = {
+        owner: target.owner,
+        repo: target.repo,
+        prNumber: pr.prNumber,
+        entryCommentId: pr.entryCommentId,
+      };
+
+      let fetched: ReadConversationResult;
+      if (ownerWorld) {
+        const viewer = createReviewerGitHubClient(
+          deps,
+          c.get("session"),
+          c.get("logger"),
+        );
+        fetched = await conversationController.readConversationAsViewer(
+          { github: viewer },
+          conversation,
+        );
+      } else {
+        fetched = await conversationController.readConversation(
+          { github },
+          { installationId: ctx.installationId, ...conversation },
+        );
+      }
+
       if (!fetched.ok) {
+        // Re-auth territory, same as every sibling viewer-token read: an
+        // unreadable stored token or an upstream 401 prompts sign-in, never
+        // a retry-looking 502 or a phantom 404. VIEWER path only — on the
+        // App branch a 401 means the App's own credential failed, which
+        // re-auth cannot fix, so it stays an honest upstream error.
+        if (isTokenUnreadableFailure(fetched.error)) {
+          throw new Unauthorized();
+        }
+        if (
+          ownerWorld &&
+          fetched.error.error.code === GitHubApiErrorCode.UNAUTHORIZED
+        ) {
+          throw new Unauthorized();
+        }
         // 404-collapse posture identical to the other reads; everything else is
         // an honest upstream error (no REST fallback tier).
         if (fetched.error.error.code === GitHubApiErrorCode.NOT_FOUND) {
