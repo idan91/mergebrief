@@ -16,3 +16,21 @@ export function extractConfigFlag(
     rest: [...args.slice(0, index), ...args.slice(index + 2)],
   };
 }
+
+/**
+ * Pull `--out <dir>` out of the argv, the same shape as `--config`: absent is
+ * `null` (the caller's default), a flag-shaped or missing value is `null` for
+ * the whole parse so the CLI prints usage rather than writing somewhere odd.
+ */
+export function extractOutFlag(
+  args: string[],
+): { outDir: string | null; rest: string[] } | null {
+  const index = args.indexOf("--out");
+  if (index === -1) return { outDir: null, rest: args };
+  const outDir = args[index + 1];
+  if (outDir === undefined || outDir.startsWith("-")) return null;
+  return {
+    outDir,
+    rest: [...args.slice(0, index), ...args.slice(index + 2)],
+  };
+}

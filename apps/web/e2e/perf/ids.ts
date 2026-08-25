@@ -1,7 +1,7 @@
 // Identities of the GENERATED perf fixture set (`pnpm perf:fixture`).
-// Mirrors `../fixtures/ids.ts`: the generator writes these names, the perf
-// specs navigate to them, and `brief.server.ts` derives availability from
-// exactly this grammar (`<stem>_<index>_<head8>`).
+// Mirrors `../fixtures/ids.ts`: the generator writes these names in the
+// ingest tool's filename grammar (`<stem>_<index>_<head8>`) and the perf
+// specs navigate to the seeded rows.
 export const PERF_FIXTURE_STEM = "mergebrief-perf-fixture-1";
 
 export const PERF_SHA_REV1 = "aaaaaaaa1111bbbb2222cccc3333dddd4444eeee";

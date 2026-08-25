@@ -1,8 +1,8 @@
 @use "functions";
 
 @layer components {
-  // Header-slot idiom matching the local TimelineNavigator: 32px mono
-  // controls on --panel2, one flat row inside the lens toolbar.
+  // Header-slot idiom: 32px mono controls on --panel2, one flat row
+  // inside the lens toolbar.
   .timeline {
     display: flex;
     align-items: center;

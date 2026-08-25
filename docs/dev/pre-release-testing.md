@@ -129,10 +129,10 @@ release` — stated once here.
       GitHub App — no hermetic surface can mint one.`
 - [ ] Deep link in a fresh private window → auth redirect → brief; SSR first
       paint; `cache-control: no-store`; malformed spans → 404 / normalized.
-      `manual-until: BRIEF-118` — E2E v1 covers first paint and View/Compare
-      normalization on the LOCAL-brief route (`/briefs/<id>`, no auth); the
-      auth redirect, the DB loader and the `no-store` header on that route
-      all wait for the seeded-session slice.
+      `manual-until: BRIEF-118` — the seeded E2E suite covers first paint
+      and View/Compare normalization on the repo route with a seeded
+      session; the auth redirect and the `no-store` header still wait for
+      the seeded-session slice.
 - [ ] Second revision → compare bar: Previous Brief highlights via
       marks/narrative endpoints; head-advance banner never auto-swaps the
       page (BRIEF-19/21). `manual-until: BRIEF-118` (E2E v2 slice — v1's

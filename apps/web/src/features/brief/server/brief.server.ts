@@ -4,7 +4,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 
 // ONE artifact store: the workspace-root-anchored dir generation writes to.
-import { OUT_DIR } from "./generate.server";
+import { requireLocalBriefsDir } from "./outDir.server";
 import { parseUnifiedDiffPatch, sliceChunkDiff } from "../utils/diffSlicing";
 import type {
   AddressedReviewComment,
@@ -103,7 +103,7 @@ interface LocalComparisonMarksEntry extends ComparisonMarksSummary {
 async function readLocalBriefSummaries(): Promise<LocalBriefSummary[]> {
   let entries: string[];
   try {
-    entries = await readdir(OUT_DIR);
+    entries = await readdir(requireLocalBriefsDir());
   } catch (error) {
     // No out dir yet — a fresh checkout/container that never ran the local
     // generator. Zero local briefs, not a 500.
@@ -210,7 +210,10 @@ async function readLocalRevisionChangesEntries(
       const id = entry.slice(0, -REVISION_CHANGES_SUFFIX.length);
       let parsedJson: unknown;
       try {
-        const raw = await readFile(resolve(OUT_DIR, entry), "utf8");
+        const raw = await readFile(
+          resolve(requireLocalBriefsDir(), entry),
+          "utf8",
+        );
         parsedJson = JSON.parse(raw);
       } catch (error) {
         logger.warn(
@@ -255,7 +258,10 @@ async function readLocalComparisonMarksEntries(
       const id = entry.slice(0, -COMPARISON_MARKS_SUFFIX.length);
       let parsedJson: unknown;
       try {
-        const raw = await readFile(resolve(OUT_DIR, entry), "utf8");
+        const raw = await readFile(
+          resolve(requireLocalBriefsDir(), entry),
+          "utf8",
+        );
         parsedJson = JSON.parse(raw);
       } catch (error) {
         logger.warn(
@@ -387,7 +393,7 @@ export async function readRevisionChanges(
   let raw: string;
   try {
     raw = await readFile(
-      resolve(OUT_DIR, `${briefId}${REVISION_CHANGES_SUFFIX}`),
+      resolve(requireLocalBriefsDir(), `${briefId}${REVISION_CHANGES_SUFFIX}`),
       "utf8",
     );
   } catch (error) {
@@ -429,7 +435,7 @@ export async function readComparisonMarks(
   let raw: string;
   try {
     raw = await readFile(
-      resolve(OUT_DIR, `${marksId}${COMPARISON_MARKS_SUFFIX}`),
+      resolve(requireLocalBriefsDir(), `${marksId}${COMPARISON_MARKS_SUFFIX}`),
       "utf8",
     );
   } catch (error) {
@@ -496,7 +502,10 @@ export async function readRevisionNarrative(
   let raw: string;
   try {
     raw = await readFile(
-      resolve(OUT_DIR, `${narrativeId}${REVISION_NARRATIVE_SUFFIX}`),
+      resolve(
+        requireLocalBriefsDir(),
+        `${narrativeId}${REVISION_NARRATIVE_SUFFIX}`,
+      ),
       "utf8",
     );
   } catch (error) {
@@ -528,7 +537,7 @@ async function readBriefFile(briefId: string): Promise<Brief> {
   assertValidBriefId(briefId);
   try {
     const raw = await readFile(
-      resolve(OUT_DIR, `${briefId}.brief.json`),
+      resolve(requireLocalBriefsDir(), `${briefId}.brief.json`),
       "utf8",
     );
     const parsedJson: unknown = JSON.parse(raw);
@@ -554,7 +563,10 @@ async function readBriefFile(briefId: string): Promise<Brief> {
 
   let raw: string;
   try {
-    raw = await readFile(resolve(OUT_DIR, `${briefId}.delta.json`), "utf8");
+    raw = await readFile(
+      resolve(requireLocalBriefsDir(), `${briefId}.delta.json`),
+      "utf8",
+    );
   } catch (error) {
     // Neither artifact exists: a plain not-found, NOT the raw ENOENT whose
     // message names the container's absolute out-dir path.
@@ -645,7 +657,10 @@ async function readReviewComments(
     artifactKind === "delta" ? ".delta.comments.json" : ".comments.json";
   let raw: string;
   try {
-    raw = await readFile(resolve(OUT_DIR, `${briefId}${suffix}`), "utf8");
+    raw = await readFile(
+      resolve(requireLocalBriefsDir(), `${briefId}${suffix}`),
+      "utf8",
+    );
   } catch (error) {
     if (isNodeError(error) && error.code === "ENOENT") return undefined;
     return failRead(
@@ -682,7 +697,10 @@ async function readFileDiffs(
   const suffix = artifactKind === "delta" ? ".delta.diffs.json" : ".diffs.json";
   let raw: string;
   try {
-    raw = await readFile(resolve(OUT_DIR, `${briefId}${suffix}`), "utf8");
+    raw = await readFile(
+      resolve(requireLocalBriefsDir(), `${briefId}${suffix}`),
+      "utf8",
+    );
   } catch (error) {
     // The diffs sidecar is written with the brief; a missing one is a broken
     // artifact set, not a missing brief — but either way the browser must not

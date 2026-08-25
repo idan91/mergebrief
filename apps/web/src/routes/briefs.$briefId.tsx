@@ -3,6 +3,7 @@ import { useCallback } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
   createFileRoute,
+  notFound,
   redirect,
   useRouterState,
 } from "@tanstack/react-router";
@@ -40,6 +41,12 @@ export const Route = createFileRoute("/briefs/$briefId")({
   // A Delta artifact id is no longer a route target. Redirect before the
   // loader runs so the old URL never renders the superseded shape.
   beforeLoad: async ({ context, params }) => {
+    // The file surface is development-only. A production build refuses at the
+    // route rather than letting the readers throw, so the answer is an
+    // ordinary 404 and not a 500 that looks like a broken deployment.
+    if (import.meta.env.PROD) {
+      throw notFound();
+    }
     const artifacts = await context.queryClient.ensureQueryData(
       localBriefsQueryOptions(),
     );

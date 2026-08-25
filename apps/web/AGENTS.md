@@ -1,7 +1,7 @@
 # apps/web — agent notes
 
-The TanStack Start front end: local file-backed Briefs (the demo path) and
-the DB-backed read + submit surface. Repo-wide TS rules live in the root
+The TanStack Start front end: the DB-backed read + submit surface, fed by
+`packages/api` for both App-installation and URL-box briefs. Repo-wide TS rules live in the root
 `CLAUDE.md`; feature context lives in `docs/adr/` and `docs/plans/`.
 
 ## Conventions
@@ -12,25 +12,15 @@ the DB-backed read + submit surface. Repo-wide TS rules live in the root
 - Server data crosses `data/apiFetch` only (isomorphic: SSR dispatches
   in-process through the SAME authz gate). Never reach persistence from a
   server function — that would be a second enforcement path.
-- **A server function's rejection is a client-visible string**: TanStack
-  serializes the Error's
-  message — and walks non-enumerable own props, so `{ cause }` ships too.
-  Every `createServerFn` handler therefore ends at a curation boundary: the
-  raw reason is logged server-side (as a FIELD — `msg` bypasses the boundary's
-  redaction) and replaced with copy from a closed allowlist.
-  `features/brief/utils/briefErrors.ts` is the template allowlist;
-  `briefHandlers.server.ts` holds the wrapped handler BODIES and
-  `brief.functions.ts` stays validators + one-line delegation (a
-  `createServerFn` wrapper cannot be invoked without the Start server
-  runtime, so logic inline there is logic nothing can test). Two suites pin
-  it: `briefHandlers.server.test` drives real failures,
-  `briefHandlers.backstop.server.test` mocks the readers into throwing raw
-  Node errors — deleting a wrapper fails the latter. Error components render
-  a curated mapper (`briefErrorDetail` / `prBriefErrorDetail`), NEVER
-  `error.message` — not even an `ApiError`'s, which embeds the request path.
-  Node errors are the specific hazard: `readFile` on a missing artifact
-  discloses the deployment's absolute paths. Messages that reflect caller
-  input (a pasted URL) are curated too — they land in a `role="alert"`.
+- **Error components render a curated mapper** (`briefErrorDetail` /
+  `prBriefErrorDetail`), NEVER `error.message` — not even an `ApiError`'s,
+  which embeds the request path. Messages that reflect caller input (a
+  pasted URL) are curated too — they land in a `role="alert"`. If a
+  `createServerFn` ever returns to this app, its rejection is a
+  client-visible string (TanStack serializes the Error's message and walks
+  non-enumerable own props, so `{ cause }` ships too) — every handler must
+  end at a curation boundary that logs the raw reason server-side as a
+  FIELD and throws a CODE from a closed allowlist.
 - **User-facing copy lives in the `packages/i18n` catalog, never in a
   component.** Module-local `COPY` maps are dead: a component reads
   `useTranslation()`; a pure helper takes a `TFunction` first parameter; a
@@ -43,10 +33,10 @@ the DB-backed read + submit surface. Repo-wide TS rules live in the root
   Three things stay English on purpose: text written INTO GitHub (the review
   signature, the receipt `<pre>`'s frozen artifact format), repo-authored
   strings passed through verbatim (`criteria`/`implication`), and parse-error
-  messages the callers discard. A server function throws a CODE
-  (`briefErrors.ts`), never a sentence — the client renders it from the
-  catalog, so the cross-boundary allowlist stays an identity check on a
-  stable token.
+  messages the callers discard. The wire carries a CODE, never a sentence —
+  the client renders it from the catalog (`briefErrors.ts` is the URL box's
+  mapper), so the cross-boundary check stays an identity test on a stable
+  token.
 - Isomorphic and shared client/server modules INJECT their log sink (a narrow
   `{ warn }`/`{ error }` interface the `packages/logging` `Logger` satisfies);
   they never import `server/logger`, which is `server-only`. No sink passed =
@@ -56,6 +46,23 @@ the DB-backed read + submit surface. Repo-wide TS rules live in the root
   `data/ssrWarnSink`'s `getSsrWarnSink()` is the resolver for call sites that
   run on both sides (queryFns reached by route loaders). Forgetting it is
   silent by construction, so it is a review checkpoint, not a lint error.
+
+- **The file-backed brief surface is DEVELOPMENT-ONLY.** `/briefs/$briefId`
+  (and its summary preview) read artifacts from `MERGEBRIEF_OUT_DIR` —
+  absolute, or relative to the checkout root, defaulting to
+  `tools/categorizer/out` — and render them with no database and no review
+  session, which is why they are read-only. It exists so CLI-generated briefs
+  can be opened while iterating; the product path reads rows.
+  The boundary is `localBriefsDir()` returning `undefined` under
+  `import.meta.env.PROD`, checked inside `requireLocalBriefsDir()` which
+  EVERY reader calls before touching the filesystem — so a direct
+  server-function call cannot bypass it. The route-level `beforeLoad` guards
+  are UX only: they turn the throw into a clean 404. Note the polarity:
+  `PROD`, never `!DEV`, because vitest runs in mode `test` and the readers
+  must behave there as they do in dev. Brief ids are charset-gated
+  (`BRIEF_ID_PATTERN`, no path separators) before being joined, and every
+  refusal crosses the wire as a CODE — a raw Node error would print the
+  deployment's absolute paths into a `role="alert"`.
 
 ## Placement and styling (full rules + rationale live in `docs/adr/`)
 
@@ -70,10 +77,10 @@ the DB-backed read + submit surface. Repo-wide TS rules live in the root
 - Server-code split: `src/server/` = app-wide infrastructure only (logger,
   webhook composition, health); a feature's server code lives in that
   feature's `server/` (dependency cap — feature knowledge never sits in the
-  global layer). The real API surface is `packages/api`; web server functions
-  stay the thin demo/SSR residue. Inventory when needed: `**/*.server.ts` +
-  `**/*.functions.ts`. TanStack enforces the boundary by file suffix +
-  import-protection, not folder location.
+  global layer). The real API surface is `packages/api`; web server code is
+  composition + SSR plumbing only, never business logic. Inventory when
+  needed: `**/*.server.ts` + `**/*.functions.ts`. TanStack enforces the
+  boundary by file suffix + import-protection, not folder location.
 - Barrels are entry-level only: feature `index.tsx` + folder `index.ts`
   where it clarifies outside imports; no per-component barrels. Curated —
   NEVER re-export anything touching `server/` (import-protection breaks the

@@ -20,7 +20,7 @@ import {
   loadGeneratorConfigFile,
   type Generator,
 } from "generators";
-import { extractConfigFlag } from "./config";
+import { extractConfigFlag, extractOutFlag } from "./config";
 import { splitDiffByFile } from "../diff/diff";
 import { assignBriefIndex, lookupBriefShaByIndex } from "../artifacts/manifest";
 import { countChangedLines, type RevisionChanges } from "../diff/revchanges";
@@ -43,7 +43,8 @@ import type {
   RevisionNarrativeSkipped,
 } from "../types";
 
-const OUT_DIR = "out";
+/** Where artifacts land when `--out` is absent: `out` under the invoking cwd. */
+const DEFAULT_OUT_DIR = "out";
 
 /** An explicit base..head span for a brief, instead of the whole PR at head. */
 export interface Range {
@@ -335,8 +336,9 @@ async function generateAndWriteRevisionNarrative(args: {
   }
 }
 
-/** CLI wrapper: generate one brief into the CLI's fixed OUT_DIR, tagged log lines. */
+/** CLI wrapper: generate one brief into `outDir`, tagged log lines. */
 async function runOne(
+  outDir: string,
   url: string,
   range: Range | undefined,
   generator: Generator,
@@ -344,7 +346,7 @@ async function runOne(
 ): Promise<Brief> {
   const tag = prTag(url);
   const log = (msg: string): void => console.error(`[${tag}] ${msg}`);
-  return generateAndWrite(OUT_DIR, url, range, generator, log, effort);
+  return generateAndWrite(outDir, url, range, generator, log, effort);
 }
 
 /**
@@ -372,11 +374,15 @@ function parseArgs(
 
 async function main(): Promise<void> {
   const flagged = extractConfigFlag(process.argv.slice(2));
-  const parsed = flagged ? parseArgs(flagged.rest) : null;
-  if (!flagged || !parsed) {
+  const outFlag = flagged ? extractOutFlag(flagged.rest) : null;
+  const parsed = outFlag ? parseArgs(outFlag.rest) : null;
+  const outDir = outFlag?.outDir ?? DEFAULT_OUT_DIR;
+  if (!flagged || !outFlag || !parsed) {
     console.error(
-      "usage: pnpm categorize [--config <mergebrief.config.yaml>] <pr-url> [<pr-url> …]\n" +
-        "       pnpm categorize [--config <path>] <pr-url> <base-sha> <head-sha>   (explicit span)",
+      "usage: pnpm categorize [--config <mergebrief.config.yaml>] [--out <dir>] <pr-url> [<pr-url> …]\n" +
+        "       pnpm categorize [--config <path>] [--out <dir>] <pr-url> <base-sha> <head-sha>   (explicit span)\n" +
+        "       --out defaults to `out` under the working directory; point it at\n" +
+        "       MERGEBRIEF_OUT_DIR to view the result in the dev brief viewer.",
     );
     process.exit(1);
   }
@@ -394,7 +400,7 @@ async function main(): Promise<void> {
   }
   const constructed = await createGenerator(loaded.value.generator, {
     env: process.env,
-    failureDir: OUT_DIR,
+    failureDir: outDir,
   });
   if (!constructed.ok) {
     console.error(
@@ -403,7 +409,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  await mkdir(OUT_DIR, { recursive: true });
+  await mkdir(outDir, { recursive: true });
 
   // PRs are independent — run them in parallel, sharing one generator so the
   // SDK's connection pool is reused. A single bad URL must not kill the batch.
@@ -419,7 +425,7 @@ async function main(): Promise<void> {
         try {
           return {
             url,
-            brief: await runOne(url, parsed.range, generator, effort),
+            brief: await runOne(outDir, url, parsed.range, generator, effort),
           };
         } catch (error) {
           return { url, error };

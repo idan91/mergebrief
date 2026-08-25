@@ -537,19 +537,6 @@ describe("DB brief route", () => {
     expect(tooltip?.textContent).toMatch(/no submitted review checkpoint yet/i);
   });
 
-  it("offers no summary-preview menu entry (the standalone route can't resolve db: ids)", async () => {
-    await renderRoute(
-      meta({}),
-      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`,
-    );
-    await waitFor(() =>
-      expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
-    );
-    // The submit flow is the DB path's receipt surface — no preview entry,
-    // and it was the menu's only entry, so the trigger goes with it.
-    expect(screen.queryByRole("button", { name: /more actions/i })).toBeNull();
-  });
-
   it("offers head-advance navigation when pinned to an older span", async () => {
     await renderRoute(
       meta({ headSha: "head-9", baseSha: "base-9" }),

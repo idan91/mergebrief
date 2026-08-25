@@ -38,21 +38,6 @@ describe("slot-bearing keys", () => {
     expect(document.body.textContent).toContain("to manage API tokens.");
   });
 
-  it("shell.cliHint keeps the command in a code element", () => {
-    renderTrans(
-      <Trans
-        components={[<code key="command">pnpm categorize &lt;pr-url&gt;</code>]}
-        i18nKey="shell.cliHint"
-      />,
-    );
-    // The command carries angle brackets. It rides as the component's own
-    // children, NOT as a {{param}}: Trans parses an interpolated value as
-    // HTML, which would render the brackets escaped and visible.
-    expect(document.querySelector("code")?.textContent).toBe(
-      "pnpm categorize <pr-url>",
-    );
-  });
-
   it("drops the element AND its content when the components arity is short", () => {
     // The regression this file exists to catch, pinned against the real key.
     renderTrans(<Trans components={[]} i18nKey="shell.signInPrompt" />);

@@ -1,6 +1,5 @@
-// The DB-path Brief revision navigator over PR-meta's `revisions[]`. Unlike
-// the local TimelineNavigator (a path param), this one drives the route's
-// search params through `onSelect`.
+// The Brief revision navigator over PR-meta's `revisions[]`: drives the
+// route's search params through `onSelect`.
 //
 // Selection identity is the POINT (its array position), never a head SHA
 // alone — a retarget re-brief yields two revisions with the same head and

@@ -42,16 +42,13 @@ services:
     # pairs with sslmode=verify-full&sslrootcert=/etc/ssl/certs/provider-ca.pem.
     # secrets:
     #   - database-url
-    volumes:
-      # URL-box/demo brief artifacts — same mount as the default
-      # compose; host-persisted so recreates never wipe generated briefs.
-      - ./tools/categorizer/out:/app/tools/categorizer/out
-      # CA bundle for sslmode=verify-full against a provider whose CA is not
-      # in the system store (e.g. RDS):
-      # - ./secrets/provider-ca.pem:/etc/ssl/certs/provider-ca.pem:ro
-      # Instance config (mergebrief.config.yaml) — uncomment here AND in the
-      # worker service; both read the same file.
-      # - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
+    # CA bundle for sslmode=verify-full against a provider whose CA is not
+    # in the system store (e.g. RDS). Instance config
+    # (mergebrief.config.yaml) — uncomment here AND in the worker service;
+    # both read the same file.
+    # volumes:
+    #   - ./secrets/provider-ca.pem:/etc/ssl/certs/provider-ca.pem:ro
+    #   - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
     # Liveness only: /healthz is static — never /readyz here,
     # or a DB blip would trigger web restart churn.
     healthcheck:

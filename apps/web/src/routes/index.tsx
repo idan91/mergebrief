@@ -4,8 +4,12 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 
 import { Button } from "@web/components/Button/Button";
-import { generateBriefViaApi } from "../features/brief/queries";
+import {
+  generateBriefViaApi,
+  localBriefsQueryOptions,
+} from "../features/brief/queries";
 import { briefErrorDetail } from "@web/features/brief/utils/briefErrors";
+import { LocalBriefsSection } from "@web/features/brief";
 import { OrgSwitcher } from "@web/features/installations";
 import { LocalePicker } from "../i18n/LocalePicker/LocalePicker";
 import { PullsSection, YourBriefsSection } from "@web/features/pulls";
@@ -19,11 +23,23 @@ import styles from "./index.module.scss";
 export const Route = createFileRoute("/")({
   // Both lists prefetch in parallel — the session list SSRs through the
   // in-process apiFetch interface (same authz gate), never a client waterfall.
-  loader: ({ context }) =>
-    Promise.all([
+  loader: async ({ context }) => {
+    const prefetches: Promise<unknown>[] = [
       context.queryClient.ensureQueryData(urlBriefsQueryOptions()),
       context.queryClient.ensureQueryData(pullsSessionQueryOptions()),
-    ]),
+    ];
+    // The DEV file surface, and never allowed to fail the page: an unset
+    // MERGEBRIEF_OUT_DIR refuses and the list simply does not render. The
+    // `if` is a build-time constant, so production keeps the original two.
+    if (!import.meta.env.PROD) {
+      prefetches.push(
+        context.queryClient
+          .ensureQueryData(localBriefsQueryOptions())
+          .catch(() => undefined),
+      );
+    }
+    await Promise.all(prefetches);
+  },
   component: BriefPicker,
   errorComponent: BriefPickerError,
 });
@@ -115,6 +131,7 @@ function BriefPicker() {
         <OrgSwitcher enabled={session.kind === "ready"} />
         <YourBriefsSection session={yourBriefs} />
         <PullsSection session={session} />
+        {import.meta.env.PROD ? null : <LocalBriefsSection />}
       </section>
     </main>
   );

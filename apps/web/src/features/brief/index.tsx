@@ -15,6 +15,7 @@ export {
   type BriefViewProps,
 } from "./components/BriefView/BriefView";
 export { DB_BRIEF_ID_PREFIX, isDbBriefId } from "./utils/briefIdentity";
+export { LocalBriefsSection } from "./components/LocalBriefsSection/LocalBriefsSection";
 
 export interface BriefPageProps {
   artifacts: LocalBriefSummary[];

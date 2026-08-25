@@ -195,8 +195,8 @@ export function buildReceipt(
 }
 
 /**
- * `file:+start[-end]` — the shared on-screen anchor for a receipt comment
- * (SummaryPreview, ReceiptAccordion). NOT the frozen artifact's shape, which
+ * `file:+start[-end]` — the on-screen anchor for a receipt comment
+ * (ReceiptAccordion). NOT the frozen artifact's shape, which
  * prints no side sign.
  */
 export function receiptCommentLabel(comment: ReceiptComment): string {

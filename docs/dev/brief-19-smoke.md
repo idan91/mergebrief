@@ -116,7 +116,7 @@ On `/` while signed in, **expect per row**: PR title (new rows only —
 pre-migration rows say `PR #N` until their next webhook refreshes the title),
 `owner/repo #N · state · short-sha`, a status pill (`brief ready` /
 `queued` / `generating…` / `no brief yet`), and the row links to
-`/repos/<repoId>/pulls/<N>`. The Local Briefs section still works below.
+`/repos/<repoId>/pulls/<N>`.
 
 ## 5. Fresh generation + wait UX (live transition)
 
@@ -149,10 +149,9 @@ webhook delivered (ngrok 4040) and the web log for the enqueue.
 
 ## 6. Deep link + SSR
 
-`manual-until: BRIEF-118`. E2E v1 covers the equivalent arms on the
-unauthenticated `/briefs/<id>` route only — first paint, and View/Compare
-params that are unrecognized or unavailable; every step below is on the
-DB-backed `/repos/<repoId>/pulls/<N>` route, which v1 never reaches.
+`manual-until: BRIEF-118`. The seeded E2E suite covers first paint and
+View/Compare params that are unrecognized or unavailable on the DB-backed
+`/repos/<repoId>/pulls/<N>` route; the auth redirect arm stays manual.
 
 1. Entry comment posting ships in BRIEF-22 (PR #43): after a settled push,
    **expect exactly one** branded App comment at the bottom of the PR thread,

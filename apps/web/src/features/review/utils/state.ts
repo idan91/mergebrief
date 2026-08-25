@@ -346,7 +346,7 @@ export function deriveCarriedItems(input: CarriedInput): CarriedItem[] {
   });
 }
 
-/** Display label for a review outcome (SubmitModal picker, SummaryPreview). */
+/** Display label for a review outcome (the SubmitModal picker). */
 export function reviewOutcomeLabel(
   t: TFunction,
   outcome: ReviewOutcome,

@@ -223,7 +223,6 @@ export function PrBriefContent({
         // Live webhook state — the badge never shows the artifact's stale
         // snapshot.
         livePrState={{ state: meta.state, draft: meta.draft }}
-        artifacts={[]}
         brief={assembled}
         repoConfig={repoConfig.data ?? null}
         briefId={briefId}

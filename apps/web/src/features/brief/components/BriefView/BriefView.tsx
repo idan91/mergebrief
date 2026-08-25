@@ -30,7 +30,12 @@ export interface BriefViewProps {
    * path.
    */
   livePrState?: LivePrState | undefined;
-  artifacts: LocalBriefSummary[];
+  /**
+   * The LOCAL file surface's sibling artifacts — they drive its timeline and
+   * comparison affordances. Absent on the DB path, which resolves those from
+   * rows instead.
+   */
+  artifacts?: LocalBriefSummary[] | undefined;
   briefId: string;
   /** Raw View/Compare URL params; undefined keys mean "nothing chosen yet",
    * resolved against comparison availability in BriefScreen's comparison
@@ -119,7 +124,7 @@ export interface BriefViewProps {
  */
 export function BriefView({
   livePrState,
-  artifacts,
+  artifacts = [],
   brief,
   briefId,
   comparisonPlan,
