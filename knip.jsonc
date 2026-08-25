@@ -78,6 +78,7 @@
     "packages/repo-config": { "entry": ["src/index.ts"] },
     "packages/types": { "entry": ["src/index.ts"] },
     "packages/worker": { "entry": ["src/index.ts", "src/main.ts"] },
+    "tools/ingest-briefs": { "entry": ["src/index.ts", "src/main.ts"] },
     "tools/categorizer": {
       // Each eval case's `expected.ts` is dynamically imported by absolute
       // path from the case loader (BRIEF-59), so it is an entry too.
