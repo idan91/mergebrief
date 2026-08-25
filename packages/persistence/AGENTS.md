@@ -55,7 +55,11 @@ drizzle/              generated SQL migrations — append-only
   add a `pull_request` semi-join for owner isolation. Exactly one of
   `installation_id`/`owner_user_id` is set on `pull_request`, CHECK-paired with `source`.
   Type-level containment tests in `test/tenant.test.ts` and `test/owner-scope.test.ts` guard
-  this — keep them passing.
+  this — keep them passing. ONE unscoped read exists, `resolveUrlBoxOwner`
+  (`src/stores/url-box.ts`): url-box rows are instance-visible, so it answers
+  "which owner holds this PR" for a caller that then binds a ctx to that owner.
+  It returns an owner id, never a row, and reaches no installation row — every
+  later read still goes through the scope boundary. Do not add a second one.
 - **Artifacts:** idempotent `ON CONFLICT (natural key) DO UPDATE` writes; natural keys
   lead with `installation_id`. `comparison_marks` and `hunk_span` bodies are coordinates-only
   (strict Zod; no `baselineLabel`/`baselineIndex`/line content), which is why

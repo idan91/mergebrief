@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import { GenerateErrorCode } from "../utils/briefErrors";
 import { briefHandlers } from "./briefHandlers.server";
 
 // The RPC surface: validators plus one-line delegation to `briefHandlers`,
@@ -42,30 +41,6 @@ function parseArtifactIdRequest(value: unknown): ArtifactIdRequest {
   return { id: value.id };
 }
 
-interface GenerateBriefRequest {
-  url: string;
-}
-
-/** Same cap the api route applies (`z.string().min(1).max(500)`). */
-const MAX_URL_LENGTH = 500;
-
-function parseGenerateBriefRequest(value: unknown): GenerateBriefRequest {
-  if (
-    typeof value !== "object" ||
-    value === null ||
-    !("url" in value) ||
-    typeof value.url !== "string" ||
-    value.url.length === 0
-  ) {
-    throw new Error("Expected url");
-  }
-  // Bound the input before anything downstream can echo a fragment of it.
-  if (value.url.length > MAX_URL_LENGTH) {
-    throw new Error(GenerateErrorCode.URL_TOO_LONG);
-  }
-  return { url: value.url };
-}
-
 export const getLocalBrief = createServerFn({ method: "GET" })
   .validator(parseLocalBriefRequest)
   .handler(async ({ data }) => briefHandlers.getLocalBrief(data.briefId));
@@ -89,7 +64,3 @@ export const getLocalRevisionNarrative = createServerFn({ method: "GET" })
   .handler(async ({ data }) =>
     briefHandlers.getLocalRevisionNarrative(data.id),
   );
-
-export const generateBrief = createServerFn({ method: "POST" })
-  .validator(parseGenerateBriefRequest)
-  .handler(async ({ data }) => briefHandlers.generateBrief(data.url));

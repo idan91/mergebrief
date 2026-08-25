@@ -6,7 +6,7 @@ import {
   type RepoId,
   type ReviewerId,
   type SessionWriter,
-  type TenantContext,
+  type ScopeContext,
 } from "persistence";
 import type { Logger } from "logging";
 import type { Result } from "types";
@@ -33,7 +33,7 @@ export interface ResolvedSessionWrite {
 }
 
 interface ResolveWriteInput {
-  readonly ctx: TenantContext;
+  readonly ctx: ScopeContext;
   readonly repoId: RepoId;
   readonly prNumber: number;
   readonly span: BriefSpan;

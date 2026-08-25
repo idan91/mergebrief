@@ -6,7 +6,7 @@ import {
   BadRequest,
   NotFound,
 } from "../../../../shared-errors/api-error";
-import type { AuthzEnv } from "../../../authz";
+import { requireInstallationScope, type AuthzEnv } from "../../../authz";
 import type { InstallationGitHubPort } from "../../../github-port";
 import type { TtlCache } from "../../../ttl-cache";
 import { parseOwnerAndName } from "../../utils";
@@ -15,6 +15,7 @@ import conversationController from "./controller";
 import { CONVERSATION_CACHE_TTL_MS } from "./consts";
 import { buildConversationCacheKey } from "./utils";
 import { ApiErrorCodes } from "../../../../error-response";
+import { resolvePrScopeFrom } from "../scope";
 
 /** A cached/serialized conversation body, per-viewer gated — `no-store`. */
 function conversationJson(c: Context<AuthzEnv>, body: string): Response {
@@ -31,12 +32,12 @@ export default function createHandlers(
 ) {
   return {
     readConversation: async (c: Context<AuthzEnv>) => {
-      const ctx = c.get("ctx");
       const repoId = c.get("repoId");
       const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
       if (!parsedPr.success) {
         throw new BadRequest();
       }
+      const ctx = await resolvePrScopeFrom(c, handle, parsedPr.data);
       const pr = await createTenantRepository(
         handle,
         ctx,
@@ -45,11 +46,7 @@ export default function createHandlers(
         throw new NotFound();
       }
 
-      const key = buildConversationCacheKey(
-        ctx.installationId,
-        repoId,
-        pr.prNumber,
-      );
+      const key = buildConversationCacheKey(ctx, repoId, pr.prNumber);
       const now = Date.now();
       const cached = cache.get(key, now);
       if (cached !== undefined) {
@@ -62,10 +59,11 @@ export default function createHandlers(
       if (target === undefined) {
         throw new NotFound();
       }
+      // Installation-world fetch: the conversation port is App-scoped.
       const fetched = await conversationController.readConversation(
         { github },
         {
-          installationId: ctx.installationId,
+          installationId: requireInstallationScope(ctx),
           owner: target.owner,
           repo: target.repo,
           prNumber: pr.prNumber,

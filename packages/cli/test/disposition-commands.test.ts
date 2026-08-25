@@ -141,7 +141,9 @@ describe("disposition commands over the real api app", () => {
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
-    kp = createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
+    kp = createEnvKeyProvider({
+      [KEY_REF]: randomBytes(32).toString("base64"),
+    });
     const auth: AuthDeps = {
       oauthClientId: "Iv1.test-client-id",
       oauthClientSecret: "test-client-secret",
@@ -318,7 +320,17 @@ describe("disposition commands over the real api app", () => {
       reason: "already here",
     });
     const result = await run(
-      ["risk", "dismiss", "7", "-F", "-", "--reason", "twice", ...SPAN, "--json"],
+      [
+        "risk",
+        "dismiss",
+        "7",
+        "-F",
+        "-",
+        "--reason",
+        "twice",
+        ...SPAN,
+        "--json",
+      ],
       withReason,
     );
     expect(result.code).toBe(ExitCode.USAGE);
@@ -339,7 +351,17 @@ describe("disposition commands over the real api app", () => {
       },
     ]);
     const result = await run(
-      ["risk", "dismiss", "7", "-F", "-", "--reason", "nope", ...SPAN, "--json"],
+      [
+        "risk",
+        "dismiss",
+        "7",
+        "-F",
+        "-",
+        "--reason",
+        "nope",
+        ...SPAN,
+        "--json",
+      ],
       bareArray,
     );
     expect(result.code).toBe(ExitCode.USAGE);

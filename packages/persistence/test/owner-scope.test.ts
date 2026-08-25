@@ -11,6 +11,7 @@ import {
   createPurgeRoutines,
   createTenantRepository,
   parseScopeContext,
+  resolveUrlBoxOwner,
   safeParseScopeContext,
   PullRequestSources,
   RepositoryErrorCode,
@@ -504,5 +505,33 @@ describe("owner-scoped sessions", () => {
     ).toBe(0);
     expect(await a.sessions.getByTokenHash("hash-owner")).toBeDefined();
     expect(await a.sessions.deleteByReviewer(OWNER_A)).toBe(1);
+  });
+});
+
+describe("url-box instance visibility", () => {
+  it("returns the preferred owner's row first, then the oldest", async () => {
+    const handle = await freshDatabase();
+    // B pastes first, A second: age alone would pick B.
+    await createTenantRepository(handle, CTX_B).pullRequests.upsert(
+      upsertInput(9),
+    );
+    await createTenantRepository(handle, CTX_A).pullRequests.upsert(
+      upsertInput(9),
+    );
+
+    expect(await resolveUrlBoxOwner(handle, REPO, 9, OWNER_A)).toBe(OWNER_A);
+    expect(await resolveUrlBoxOwner(handle, REPO, 9, OWNER_B)).toBe(OWNER_B);
+    // A third reader owns neither row and gets the oldest, deterministically.
+    const stranger = brandWith(isReviewerId, 999n);
+    expect(await resolveUrlBoxOwner(handle, REPO, 9, stranger)).toBe(OWNER_B);
+  });
+
+  it("never reaches an installation row", async () => {
+    const handle = await freshDatabase();
+    await createTenantRepository(handle, TENANT_CTX).pullRequests.upsert(
+      upsertInput(11),
+    );
+
+    expect(await resolveUrlBoxOwner(handle, REPO, 11, OWNER_A)).toBeUndefined();
   });
 });

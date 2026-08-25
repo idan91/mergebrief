@@ -8,7 +8,7 @@
 // This module OWNS the conversation cache: the returned `evictConversation`
 // hook is how every conversation write (review submit, the comments routes)
 // drops the PR's entry on its success path.
-import type { InstallationId, RepoId } from "persistence";
+import type { RepoId, ScopeContext } from "persistence";
 import { PRODUCT_QUERY_ID } from "../../../../product-operations/ids";
 import {
   productRouter,
@@ -34,11 +34,7 @@ export interface ConversationRoutes {
    * the comments routes and the review-submit route's success paths — so a
    * post-write refetch reflects the write inside the 60s TTL.
    */
-  evictConversation(
-    installationId: InstallationId,
-    repoId: RepoId,
-    prNumber: number,
-  ): void;
+  evictConversation(ctx: ScopeContext, repoId: RepoId, prNumber: number): void;
 }
 
 /** Mount the conversation read behind the pr subtree's shared gate. */
@@ -62,8 +58,8 @@ export function conversationRoute(
 
   return {
     router: app,
-    evictConversation(installationId, repoId, prNumber) {
-      cache.delete(buildConversationCacheKey(installationId, repoId, prNumber));
+    evictConversation(ctx, repoId, prNumber) {
+      cache.delete(buildConversationCacheKey(ctx, repoId, prNumber));
     },
   };
 }

@@ -24,6 +24,7 @@ import {
 import {
   encryptToken,
   createTenantRepository,
+  type ScopeContext,
   createGrantAuth,
   createUserSettingsStore,
 } from "persistence";
@@ -32,7 +33,6 @@ import { ApiErrorCodes } from "../../error-response";
 import {
   BadGateway,
   BadRequest,
-  Forbidden,
   InternalError,
 } from "../../shared-errors/api-error";
 import { SESSION_COOKIE, sha256Hex, type AuthRouteDeps } from "./session";
@@ -116,16 +116,13 @@ export function oauthRoute(deps: AuthRouteDeps): Hono {
     }
     const accessible = installations.value;
     const firstAccessible = accessible[0];
-    if (firstAccessible === undefined) {
-      // No accessible installation → the app isn't installed where this
-      // reviewer can reach it, so they aren't authorized to log in.
-      throw new Forbidden(ApiErrorCodes.APP_NOT_INSTALLED);
-    }
     // Bind the session to the user's DEFAULT installation when it is still in
     // their LIVE accessible set, else the first accessible one. The default is
     // NEVER trusted as an id on its own — a dangling default degrades to the
     // first accessible installation rather than binding to something GitHub no
-    // longer grants.
+    // longer grants. No accessible installation at all is a LEGAL login since
+    // the url-box world: the session binds to the owner scope (their GitHub
+    // user id) instead of a tenant.
     const settings = await createUserSettingsStore(deps.handle).get(
       user.value.reviewerId,
     );
@@ -135,6 +132,10 @@ export function oauthRoute(deps: AuthRouteDeps): Hono {
       accessible.some((id) => id === preferredDefault)
         ? preferredDefault
         : firstAccessible;
+    const sessionCtx: ScopeContext =
+      installationId === undefined
+        ? { ownerUserId: user.value.reviewerId }
+        : { installationId };
 
     const sessionToken = randomBytes(SESSION_TOKEN_BYTES).toString("base64url");
     const sessionTokenHash = sha256Hex(sessionToken);
@@ -164,9 +165,7 @@ export function oauthRoute(deps: AuthRouteDeps): Hono {
       refreshExpiresAt: tokens.value.refreshTokenExpiresAt,
     });
     try {
-      await createTenantRepository(deps.handle, {
-        installationId,
-      }).sessions.create({
+      await createTenantRepository(deps.handle, sessionCtx).sessions.create({
         sessionTokenHash,
         reviewerId: user.value.reviewerId,
         reviewerLogin: user.value.reviewerLogin,

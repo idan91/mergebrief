@@ -1,64 +1,39 @@
 import { parsePrUrl, type PrLocator } from "brief-core";
 import type { Context } from "hono";
-import { sanitizeErrorDetail } from "logging";
 import { ApiErrorCodes } from "../../error-response";
 import {
   BadGateway,
   BadRequest,
   NotFound,
-  ServiceUnavailable,
   Unauthorized,
 } from "../../shared-errors/api-error";
+import { stampAuditTarget } from "../../product-operations/audit";
 import { createReviewerGitHubClient } from "../auth/reviewer-github-client";
 import type { AuthRouteDeps } from "../auth/session";
 import type { AuthzEnv } from "../authz";
 import generateController from "./controller";
 import { bodySchema } from "./schemas";
-import {
-  UrlBriefErrorKind,
-  type UrlBriefEngine,
-  type UrlBriefError,
-} from "./types";
-import type { SingleFlight } from "./utils";
+import type { GenerateFailure } from "./types";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
-// Runtime clamp on the ONE engine-authored string that reaches a response
-// body. The port contract says config messages carry env-var NAMES only, but
-// the engine is an injected, swappable implementation — a TS comment is not a
-// trust boundary; this route is.
-function clampConfigMessage(message: string): string {
-  const clamped = sanitizeErrorDetail(message);
-  return clamped === "" ? "generator configuration invalid" : clamped;
-}
-
-/** Map an engine failure to the sanitized posture (uniform-404 note in index). */
-function throwEngineFailure(error: UrlBriefError): never {
-  if (error.kind === UrlBriefErrorKind.UNAUTHORIZED) {
+/** Failure → posture. NOT_FOUND covers FORBIDDEN too (uniform 404). */
+function throwGenerateFailure(failure: GenerateFailure): never {
+  if (failure.kind === "token-unreadable" || failure.kind === "unauthorized") {
     throw new Unauthorized();
   }
-  if (error.kind === UrlBriefErrorKind.NOT_FOUND) {
+  if (failure.kind === "not-found") {
     throw new NotFound();
   }
-  if (error.kind === UrlBriefErrorKind.CONFIG) {
-    throw new ServiceUnavailable(ApiErrorCodes.GENERATION_CONFIG, {
-      detail: clampConfigMessage(error.message),
-    });
-  }
-  throw new BadGateway(ApiErrorCodes.GENERATION_FAILED);
+  throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
 }
 
 export default function createHandlers(
   deps: AuthRouteDeps,
-  engine: UrlBriefEngine | undefined,
-  singleFlight: SingleFlight<Awaited<ReturnType<UrlBriefEngine["generate"]>>>,
+  fallbackToken: string | undefined,
 ) {
   return {
     generateBrief: async (c: Context<AuthzEnv>) => {
-      if (engine === undefined) {
-        throw new ServiceUnavailable(ApiErrorCodes.GENERATION_UNAVAILABLE);
-      }
-
       const body = bodySchema.safeParse(
         await c.req.json().catch(() => undefined),
       );
@@ -77,17 +52,20 @@ export default function createHandlers(
         c.get("session"),
         c.get("logger"),
       );
-      const result = await generateController.generateBrief(
-        { engine, github, singleFlight },
-        { url: body.data.url, locator },
-      );
+      const log = c.get("logger");
+      const controllerDeps =
+        fallbackToken === undefined
+          ? { handle: deps.handle, github, log }
+          : { handle: deps.handle, github, fallbackToken, log };
+      const result = await generateController.generateBrief(controllerDeps, {
+        locator,
+      });
       if (!result.ok) {
-        if (result.error.kind === "token-unreadable") {
-          throw new Unauthorized();
-        }
-        throwEngineFailure(result.error.error);
+        throwGenerateFailure(result.error);
       }
-      return c.json(result.value, 200, NO_STORE);
+      stampAuditTarget(c, "pull_request", result.value.pullRequestId);
+      const { repoId, prNumber } = result.value;
+      return c.json({ repoId, prNumber }, 200, NO_STORE);
     },
   };
 }

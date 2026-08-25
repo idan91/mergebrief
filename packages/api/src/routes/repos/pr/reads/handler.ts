@@ -28,6 +28,7 @@ import {
 } from "./schemas";
 import type { ReadsControllerDeps } from "./types";
 import { parseOwnerAndName } from "../../utils";
+import { resolvePrScopeFrom } from "../scope";
 import { parseQuery, parsePrNumber } from "./utils";
 
 /**
@@ -42,11 +43,14 @@ function artifactJson(c: Context<AuthzEnv>, body: string): Response {
   });
 }
 
-function buildDeps(
+async function buildDeps(
   c: Context<AuthzEnv>,
   handle: AppDatabase,
-): ReadsControllerDeps {
-  const ctx = c.get("ctx");
+  prNumber: number,
+): Promise<ReadsControllerDeps> {
+  // Per-row world resolution: an installation-bound viewer still reads the
+  // url-box briefs they own (see ../scope.ts).
+  const ctx = await resolvePrScopeFrom(c, handle, prNumber);
   return {
     tenant: createTenantRepository(handle, ctx),
     artifacts: createArtifactStore(handle, ctx),
@@ -61,69 +65,85 @@ export default function createHandlers(
   const readBrief = async (c: Context<AuthzEnv>) => {
     const query = parseQuery(c, briefQuerySchema, ["base", "head"]);
     const prNumber = parsePrNumber(c);
-    const body = await readsController.readBrief(buildDeps(c, handle), {
-      repoId: c.get("repoId"),
-      prNumber,
-      base: query.base,
-      head: query.head,
-    });
+    const body = await readsController.readBrief(
+      await buildDeps(c, handle, prNumber),
+      {
+        repoId: c.get("repoId"),
+        prNumber,
+        base: query.base,
+        head: query.head,
+      },
+    );
     return artifactJson(c, body);
   };
 
   const readMarks = async (c: Context<AuthzEnv>) => {
     const query = parseQuery(c, marksQuerySchema, ["baseline", "head"]);
     const prNumber = parsePrNumber(c);
-    const body = await readsController.readMarks(buildDeps(c, handle), {
-      repoId: c.get("repoId"),
-      prNumber,
-      baseline: query.baseline,
-      head: query.head,
-    });
+    const body = await readsController.readMarks(
+      await buildDeps(c, handle, prNumber),
+      {
+        repoId: c.get("repoId"),
+        prNumber,
+        baseline: query.baseline,
+        head: query.head,
+      },
+    );
     return artifactJson(c, body);
   };
 
   const readDelta = async (c: Context<AuthzEnv>) => {
     const query = parseQuery(c, deltaQuerySchema, ["baseline", "head"]);
     const prNumber = parsePrNumber(c);
-    const body = await readsController.readDelta(buildDeps(c, handle), {
-      repoId: c.get("repoId"),
-      prNumber,
-      baseline: query.baseline,
-      head: query.head,
-    });
+    const body = await readsController.readDelta(
+      await buildDeps(c, handle, prNumber),
+      {
+        repoId: c.get("repoId"),
+        prNumber,
+        baseline: query.baseline,
+        head: query.head,
+      },
+    );
     return artifactJson(c, body);
   };
 
   const readNarrative = async (c: Context<AuthzEnv>) => {
     const query = parseQuery(c, narrativeQuerySchema, ["prevHead", "head"]);
     const prNumber = parsePrNumber(c);
-    const body = await readsController.readNarrative(buildDeps(c, handle), {
-      repoId: c.get("repoId"),
-      prNumber,
-      prevHead: query.prevHead,
-      head: query.head,
-    });
+    const body = await readsController.readNarrative(
+      await buildDeps(c, handle, prNumber),
+      {
+        repoId: c.get("repoId"),
+        prNumber,
+        prevHead: query.prevHead,
+        head: query.head,
+      },
+    );
     return artifactJson(c, body);
   };
 
   const readBriefContext = async (c: Context<AuthzEnv>) => {
     const query = parseQuery(c, briefQuerySchema, ["base", "head"]);
     const prNumber = parsePrNumber(c);
-    const body = await readsController.readBriefContext(buildDeps(c, handle), {
-      repoId: c.get("repoId"),
-      prNumber,
-      base: query.base,
-      head: query.head,
-    });
+    const body = await readsController.readBriefContext(
+      await buildDeps(c, handle, prNumber),
+      {
+        repoId: c.get("repoId"),
+        prNumber,
+        base: query.base,
+        head: query.head,
+      },
+    );
     return artifactJson(c, body);
   };
 
   const readPull = async (c: Context<AuthzEnv>) => {
     const prNumber = parsePrNumber(c);
-    const ctx = c.get("ctx");
+    const ctx = await resolvePrScopeFrom(c, deps.handle, prNumber);
     const body = await readsController.readPullMeta(
       {
-        ...buildDeps(c, deps.handle),
+        tenant: createTenantRepository(deps.handle, ctx),
+        artifacts: createArtifactStore(deps.handle, ctx),
         generations: createGenerationProjection(deps.handle, ctx),
       },
       {
@@ -153,7 +173,7 @@ export default function createHandlers(
     const session = c.get("session");
     const result = await readsController.readDiff(
       {
-        ...buildDeps(c, deps.handle),
+        ...(await buildDeps(c, deps.handle, prNumber)),
         github: createReviewerGitHubClient(deps, session, c.get("logger")),
         diffCache,
       },

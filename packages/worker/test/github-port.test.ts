@@ -13,7 +13,9 @@ import {
   createGrantAuth,
   encryptToken,
   isGrantRowId,
+  isRepoId,
   type GrantRowId,
+  type RepoId,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -25,6 +27,11 @@ vi.mock("github", async (importOriginal) => ({
   createUserOctokit: vi.fn(),
   fetchPullRequest: vi.fn(),
 }));
+
+function brandRepoId(value: bigint): RepoId {
+  if (!isRepoId(value)) throw new Error("bad repo id");
+  return value;
+}
 
 const KEY_REF = "SESSION_KEY_TEST";
 const keyProvider = createEnvKeyProvider({
@@ -42,6 +49,8 @@ const unusedApp = new Proxy(
 ) as githubModule.AppClient;
 
 const INFO: githubModule.PullRequestInfo = {
+  repoId: brandRepoId(7n),
+  repoFullName: "acme/widget",
   headSha: "a".repeat(40),
   baseSha: "c".repeat(40),
   state: "open",
@@ -51,6 +60,8 @@ const INFO: githubModule.PullRequestInfo = {
   body: "",
   htmlUrl: "https://github.com/acme/widget/pull/7",
   commitCount: 1,
+  authorLogin: "octocat",
+  closedAt: null,
 };
 
 /** Track which token each minted octokit carries. */

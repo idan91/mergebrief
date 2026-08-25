@@ -2,12 +2,14 @@
 // uses the `application/vnd.github.diff` media type, which returns the raw
 // diff as a string body. Failures are sanitized via `mapRequestError`.
 import type { Octokit } from "octokit";
+import type { RepoId } from "persistence";
 import { z } from "zod";
 import {
   mapRequestError,
   unexpectedResponseError,
   type GitHubApiError,
 } from "../errors";
+import { repoIdSchema } from "../ids";
 import type { Result } from "../types";
 
 export interface PullRequestRef {
@@ -25,6 +27,10 @@ export interface CompareDiffRef {
 }
 
 export interface PullRequestInfo {
+  /** The base repo's immutable numeric id — the row key the doors upsert by. */
+  readonly repoId: RepoId;
+  /** The base repo's `owner/name` as GitHub verified it (rename-proof-ish). */
+  readonly repoFullName: string;
   readonly headSha: string;
   readonly baseSha: string;
   /** GitHub PR state (`open` / `closed`). */
@@ -39,6 +45,10 @@ export interface PullRequestInfo {
   readonly htmlUrl: string;
   /** Number of commits on the PR at this head. */
   readonly commitCount: number;
+  /** PR author login; null when the account is gone. */
+  readonly authorLogin: string | null;
+  /** When the PR closed/merged; null while open. */
+  readonly closedAt: Date | null;
 }
 
 /** One changed file's path + churn, as the generation inputs need it. */
@@ -60,9 +70,18 @@ export async function fetchPullRequest(
       pull_number: ref.prNumber,
     });
     const data = response.data;
+    const repoId = repoIdSchema.safeParse(data.base.repo.id);
+    if (!repoId.success) {
+      return {
+        ok: false,
+        error: unexpectedResponseError("fetch pull request"),
+      };
+    }
     return {
       ok: true,
       value: {
+        repoId: repoId.data,
+        repoFullName: data.base.repo.full_name,
         headSha: data.head.sha,
         baseSha: data.base.sha,
         state: data.state,
@@ -72,6 +91,8 @@ export async function fetchPullRequest(
         body: data.body ?? "",
         htmlUrl: data.html_url,
         commitCount: data.commits,
+        authorLogin: data.user?.login ?? null,
+        closedAt: data.closed_at === null ? null : new Date(data.closed_at),
       },
     };
   } catch (error) {

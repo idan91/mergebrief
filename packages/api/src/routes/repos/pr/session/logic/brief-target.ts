@@ -7,7 +7,7 @@ import {
   type BriefRowId,
   type PullRequestRowId,
   type RepoId,
-  type TenantContext,
+  type ScopeContext,
 } from "persistence";
 import type { AuthRouteDeps } from "../../../../auth/session";
 import type { BriefSpan } from "../schemas";
@@ -30,7 +30,7 @@ export interface SessionTarget {
 
 export async function resolveSessionTarget(
   deps: AuthRouteDeps,
-  ctx: TenantContext,
+  ctx: ScopeContext,
   repoId: RepoId,
   prNumber: number,
   span: BriefSpan,
@@ -69,7 +69,7 @@ export async function resolveSessionTarget(
  */
 export async function loadCarryOverInputs(
   deps: AuthRouteDeps,
-  ctx: TenantContext,
+  ctx: ScopeContext,
   target: SessionTarget,
   span: BriefSpan,
 ): Promise<CarryOverInputs> {

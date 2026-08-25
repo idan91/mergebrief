@@ -100,7 +100,9 @@ describe("mergebrief repos command + cache", () => {
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
-    kp = createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
+    kp = createEnvKeyProvider({
+      [KEY_REF]: randomBytes(32).toString("base64"),
+    });
     const auth: AuthDeps = {
       oauthClientId: "Iv1.test-client-id",
       oauthClientSecret: "test-client-secret",

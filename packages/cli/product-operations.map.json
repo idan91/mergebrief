@@ -7,12 +7,18 @@
   },
   "create-inline-comment": {
     "webOnly": {
-      "reason": "Deliberately no command: an agent drives the draft flow (draft create → submit) so inline comments ride a reviewed submit; direct inline posting is the web's affordance",
+      "reason": "Deliberately no command: an agent drives the draft flow (draft create \u2192 submit) so inline comments ride a reviewed submit; direct inline posting is the web's affordance",
       "owner": "idan"
     }
   },
   "delete-draft-comment": {
     "command": "mergebrief draft delete <number>"
+  },
+  "delete-url-brief": {
+    "webOnly": {
+      "reason": "Deleting an owned url-box brief is the web list's affordance; the CLI has no owner-brief surface",
+      "owner": "idan"
+    }
   },
   "dismiss-risk": {
     "command": "mergebrief risk dismiss <number>"
@@ -46,7 +52,7 @@
   },
   "mint-token": {
     "webOnly": {
-      "reason": "Minting a credential is a browser act — /api/auth/* ignores Bearer headers so a stolen token cannot mint another",
+      "reason": "Minting a credential is a browser act \u2014 /api/auth/* ignores Bearer headers so a stolen token cannot mint another",
       "owner": "idan"
     }
   },

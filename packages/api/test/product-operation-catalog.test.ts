@@ -33,6 +33,12 @@ const EXPECTED_CATALOG = [
       "DELETE /api/repos/:repoId/pulls/:prNumber/session/comments/:draftId",
   },
   {
+    id: "delete-url-brief",
+    kind: "action",
+    classification: "private-write",
+    endpoint: "DELETE /api/briefs/:repoId/:prNumber",
+  },
+  {
     id: "dismiss-risk",
     kind: "action",
     classification: "private-write",

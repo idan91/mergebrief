@@ -1,86 +1,171 @@
 // Hono-free. URL validation and posture live in the handler; this op owns
-// dedupe-by-head, the single-flight join, and the shared refresh budget
-// (one client instance across head fetch + generation).
-import { briefId, prStem, type PrLocator } from "brief-core";
-import type { Result } from "types";
+// the viewer-token resolve (with the PAT backstop), the owner-scoped upsert,
+// and the enqueue — the worker does the generation.
+import type { PrLocator } from "brief-core";
 import {
-  UrlBriefErrorKind,
-  type GenerateControllerDeps,
-  type GenerateFailure,
+  createUserOctokit,
+  fetchPullRequest,
+  GitHubApiErrorCode,
+  type GitHubApiError,
+  type PullRequestInfo,
+} from "github";
+import {
+  createIngestRoutines,
+  PrState,
+  type PullRequestLifecycle,
+  type ReviewerId,
+} from "persistence";
+import type { Result } from "types";
+import type { ReviewerTokenFailure } from "../auth/reviewer-github-client";
+import type {
+  GenerateControllerDeps,
+  GenerateFailure,
+  GenerateOutcome,
 } from "./types";
 
-type GenerateBriefResult = Result<
-  { readonly briefId: string },
-  GenerateFailure
->;
+// A paste is deliberate human intent, so it takes the App door's short
+// intent window (ready_for_review), not its 60s push-storm window. Zero is
+// wrong: job_key replaces a PENDING job only, so a re-paste that lands after
+// the worker claimed the first one buys a second full generation.
+const PASTE_DEBOUNCE_SECONDS = 10;
+
+type GenerateBriefResult = Result<GenerateOutcome, GenerateFailure>;
 
 interface GenerateBriefInput {
-  readonly url: string;
   readonly locator: PrLocator;
 }
 
-function isEngineUnauthorized(error: { kind: string }): boolean {
-  return error.kind === UrlBriefErrorKind.UNAUTHORIZED;
+function isDenied(error: GitHubApiError): boolean {
+  return (
+    error.code === GitHubApiErrorCode.NOT_FOUND ||
+    error.code === GitHubApiErrorCode.FORBIDDEN
+  );
+}
+
+/**
+ * The PR lifecycle as the live GitHub read reports it. Unlike the webhook
+ * door, terminal states are first-class here — briefing a merged PR is the
+ * url-box's primary use.
+ */
+function buildLifecycle(info: PullRequestInfo): PullRequestLifecycle {
+  if (info.merged) {
+    return {
+      state: PrState.MERGED,
+      closedAt: info.closedAt ?? new Date(),
+      purgeAfter: null,
+    };
+  }
+  if (info.state === "closed") {
+    return {
+      state: PrState.CLOSED,
+      closedAt: info.closedAt ?? new Date(),
+      purgeAfter: null,
+    };
+  }
+  return { state: PrState.OPEN };
+}
+
+/**
+ * The PAT backstop covers the one case a GitHub App user token structurally
+ * cannot: a private repo with no App installation. Tried once, only after the
+ * viewer is denied, and deliberately OUTSIDE `run` — a 401 from the operator's
+ * key is not the viewer's expiry, and letting `run` see it would spend the
+ * request's one refresh and then tell the reader to sign in again. On that
+ * rejection the viewer's own denial stands, matching `runRead`.
+ */
+async function resolveUnderFallback(
+  deps: GenerateControllerDeps,
+  ref: { owner: string; repo: string; prNumber: number },
+  viewer: Result<PullRequestInfo, GitHubApiError | ReviewerTokenFailure>,
+): Promise<Result<PullRequestInfo, GitHubApiError | ReviewerTokenFailure>> {
+  const fallbackToken = deps.fallbackToken;
+  if (viewer.ok || fallbackToken === undefined) {
+    return viewer;
+  }
+  if ("kind" in viewer.error || !isDenied(viewer.error)) {
+    return viewer;
+  }
+  const fallback = await fetchPullRequest(
+    createUserOctokit(fallbackToken),
+    ref,
+  );
+  if (fallback.ok || fallback.error.code !== GitHubApiErrorCode.UNAUTHORIZED) {
+    return fallback;
+  }
+  deps.log.warn(
+    "url-box fallback token rejected by GitHub — check the operator PAT",
+  );
+  return viewer;
 }
 
 export default {
-  async generateBrief(deps: GenerateControllerDeps, input: GenerateBriefInput) {
-    const head = await deps.github.run(
-      (token) => deps.engine.fetchHeadSha(input.locator, token),
-      isEngineUnauthorized,
+  async generateBrief(
+    deps: GenerateControllerDeps,
+    input: GenerateBriefInput,
+  ): Promise<GenerateBriefResult> {
+    const ref = {
+      owner: input.locator.owner,
+      repo: input.locator.repo,
+      prNumber: input.locator.number,
+    };
+    // The viewer-token read IS the access check.
+    const viewer = await deps.github.run(async (token) =>
+      fetchPullRequest(createUserOctokit(token), ref),
     );
-    if (!head.ok) {
-      if (head.error.kind === "token-unreadable") {
-        return {
-          ok: false,
-          error: { kind: "token-unreadable" },
-        } satisfies GenerateBriefResult;
+    const resolved = await resolveUnderFallback(deps, ref, viewer);
+    if (!resolved.ok) {
+      if ("kind" in resolved.error) {
+        return { ok: false, error: { kind: "token-unreadable" } };
       }
-      return {
-        ok: false,
-        error: { kind: "engine-failed", error: head.error },
-      } satisfies GenerateBriefResult;
-    }
-
-    const stem = prStem(
-      `${input.locator.owner}/${input.locator.repo}`,
-      input.locator.number,
-    );
-    const existing = await deps.engine.lookupIndex(stem, head.value);
-    if (existing != null) {
-      return {
-        ok: true,
-        value: { briefId: briefId(stem, existing, head.value) },
-      } satisfies GenerateBriefResult;
-    }
-
-    // A retry re-enters the flight under the same key — the failed flight
-    // already settled and freed it, so joiners share the retry run.
-    const generated = await deps.github.run(
-      (token) =>
-        deps.singleFlight(`${stem}@${head.value}`, () =>
-          deps.engine.generate(input.url, token),
-        ),
-      isEngineUnauthorized,
-    );
-    if (!generated.ok) {
-      if (generated.error.kind === "token-unreadable") {
-        return {
-          ok: false,
-          error: { kind: "token-unreadable" },
-        } satisfies GenerateBriefResult;
+      if (resolved.error.code === GitHubApiErrorCode.UNAUTHORIZED) {
+        return { ok: false, error: { kind: "unauthorized" } };
       }
-      return {
-        ok: false,
-        error: { kind: "engine-failed", error: generated.error },
-      } satisfies GenerateBriefResult;
+      if (isDenied(resolved.error)) {
+        return { ok: false, error: { kind: "not-found" } };
+      }
+      return { ok: false, error: { kind: "github-unavailable" } };
     }
-    const ref = generated.value;
+    const info = resolved.value;
+
+    // The owner scope and the grant come from the SAME authenticated session
+    // — the binding the worker cannot verify is minted here, nowhere else.
+    const principal = deps.github.session();
+    const ownerUserId: ReviewerId = principal.reviewerId;
+    const prFields = {
+      repoId: info.repoId,
+      prNumber: input.locator.number,
+      repoSlug: info.repoFullName,
+      title: info.title,
+      baseSha: info.baseSha,
+      draft: info.draft,
+    };
+    const pullRequestInput =
+      info.authorLogin === null
+        ? { ...prFields, ...buildLifecycle(info) }
+        : {
+            ...prFields,
+            authorLogin: info.authorLogin,
+            ...buildLifecycle(info),
+          };
+    const outcome = await createIngestRoutines(deps.handle, {
+      ownerUserId,
+    }).triggerGeneration({
+      pullRequest: pullRequestInput,
+      headSha: info.headSha,
+      debounceSeconds: PASTE_DEBOUNCE_SECONDS,
+      grantId: principal.grantId,
+    });
+    if (!outcome.ok) {
+      // The only expected failure is an invalid debounce — ours is constant.
+      throw new Error(outcome.error.message);
+    }
     return {
       ok: true,
       value: {
-        briefId: briefId(prStem(ref.repo, ref.number), ref.index, ref.head),
+        repoId: String(outcome.value.pullRequest.repoId),
+        prNumber: outcome.value.pullRequest.prNumber,
+        pullRequestId: outcome.value.pullRequest.id,
       },
-    } satisfies GenerateBriefResult;
+    };
   },
 };

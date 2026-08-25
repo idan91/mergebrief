@@ -16,7 +16,6 @@ import {
   pingDb,
   type AppDatabase,
 } from "persistence";
-import { createUrlBriefEngine } from "../features/brief/server/urlBriefEngine.server";
 import { getServerLogger } from "./logger";
 
 /** The env var name the reviewer session tokens seal under. */
@@ -144,10 +143,9 @@ async function buildWebhookApp(): Promise<WebhookComposition> {
     // token: one rate budget and one cache entry per PR, gate-authorized per
     // viewer.
     github: appInstallationPort(createAppClient(githubConfig.value)),
-    // The octokit-PrSource pipeline over the VIEWER's token. Composition-root
-    // wiring — the one place feature server code legitimately meets the global
-    // layer.
-    urlBriefEngine: createUrlBriefEngine(),
+    // The url-box door's operator PAT backstop for its viewer-token resolve;
+    // the worker holds the same backstop for the generation reads.
+    urlBoxFallbackToken: process.env["MERGEBRIEF_URL_BOX_TOKEN"] || undefined,
     // OAuth creds from the GitHub config, the env-backed key provider for
     // token sealing (validated eagerly above), and the cookie/redirect policy.
     auth: {

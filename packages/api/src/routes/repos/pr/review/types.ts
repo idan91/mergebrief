@@ -1,5 +1,5 @@
 import type { ValueOf } from "persistence";
-import type { InstallationId, RepoId } from "persistence";
+import type { RepoId, ScopeContext } from "persistence";
 import type { CreateReviewError } from "github";
 import type {
   GitHubDeniedFailure,
@@ -17,7 +17,7 @@ export type SubmitFailure =
   | GitHubDeniedFailure<CreateReviewError>;
 
 export type EvictConversation = (
-  installationId: InstallationId,
+  ctx: ScopeContext,
   repoId: RepoId,
   prNumber: number,
 ) => void;

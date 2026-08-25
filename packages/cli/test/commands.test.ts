@@ -99,7 +99,9 @@ describe("mergebrief commands over the real api app", () => {
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
-    kp = createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
+    kp = createEnvKeyProvider({
+      [KEY_REF]: randomBytes(32).toString("base64"),
+    });
     const auth: AuthDeps = {
       oauthClientId: "Iv1.test-client-id",
       oauthClientSecret: "test-client-secret",
@@ -270,7 +272,9 @@ describe("auth login profile selection + verification", () => {
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
-    kp = createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
+    kp = createEnvKeyProvider({
+      [KEY_REF]: randomBytes(32).toString("base64"),
+    });
     const app = createApp({
       logger: testLogger(),
       handle: harness.handle,

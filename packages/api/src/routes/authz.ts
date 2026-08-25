@@ -38,12 +38,13 @@ import { every } from "hono/combine";
 import { getCookie } from "hono/cookie";
 import { createUserOctokit, fetchRepositoryById } from "github";
 import {
+  isOwnerContext,
   isRepoId,
   createSessionAuth,
   createTokenAuth,
   type InstallationId,
   type RepoId,
-  type TenantContext,
+  type ScopeContext,
 } from "persistence";
 import {
   derivePrincipalFromApiToken,
@@ -72,7 +73,7 @@ import { createReviewerGitHubClient } from "./auth/reviewer-github-client";
 // ---------------------------------------------------------------------------
 
 export interface AuthzVariables extends RequestLogVariables {
-  readonly ctx: TenantContext;
+  readonly ctx: ScopeContext;
   readonly session: ViewerPrincipal;
   readonly repoId: RepoId;
   /**
@@ -134,6 +135,19 @@ function positiveCacheKey(
   repoId: RepoId,
 ): string {
   return `${sessionTokenHash}:${String(installationId)}:${String(repoId)}`;
+}
+
+/**
+ * The installation the ctx addresses, for routes whose surface exists only
+ * in the App world (installation-port GitHub calls, per-tenant caches). An
+ * owner-scoped viewer gets the uniform 404 — the resource genuinely does not
+ * exist in their world.
+ */
+export function requireInstallationScope(ctx: ScopeContext): InstallationId {
+  if (isOwnerContext(ctx)) {
+    throw new NotFound();
+  }
+  return ctx.installationId;
 }
 
 /** Brand a `:repoId` path segment; `undefined` when it isn't a positive int. */
@@ -244,13 +258,15 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
       throw new Unauthorized();
     }
 
+    // The credential's own stamp IS the scope: an installation-bound session
+    // addresses its tenant; an installation-less one (url-box-only viewer)
+    // addresses the owner world keyed by their GitHub user id.
     const { installationId } = resolved.session;
     if (installationId === null) {
-      // An installation-less session cannot address the tenant-scoped surface.
-      stampAccess(c, "401", { reviewerId: resolved.session.reviewerId });
-      throw new Unauthorized();
+      c.set("ctx", { ownerUserId: resolved.session.reviewerId });
+    } else {
+      c.set("ctx", { installationId });
     }
-    c.set("ctx", { installationId });
     c.set("session", derivePrincipalFromSession(resolved));
     await next();
     return;

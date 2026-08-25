@@ -20,7 +20,8 @@
 // Everything else — DB down, missing `graphile_worker` schema — is an
 // infra/programmer error and throws, rolling the whole transaction back (no
 // partial writes, no orphaned job).
-import { sql } from "drizzle-orm";
+import { and, eq, sql, type SQL } from "drizzle-orm";
+import type { PgColumn } from "drizzle-orm/pg-core";
 import { type AppDatabase, internal } from "../db/handle";
 import { generation } from "../schema/generation";
 import { pullRequest } from "../schema/pull-request";
@@ -28,15 +29,17 @@ import type { GenerationRow } from "./generation";
 import {
   buildLifecycleColumns,
   type PullRequestRow,
+  type PullRequestUpdateSet,
   type PullRequestUpsertInput,
-  type TenantContext,
 } from "./tenant";
-import type { GenerateJobPayload } from "types";
+import { resolveScope, type RowScope } from "./scope";
+import type { ScopeContext } from "./scope-context";
+import type { GenerateJobPayload, Mutable } from "types";
 import {
   GenerationKind,
   GenerationStatus,
   PrState,
-  type InstallationId,
+  type GrantRowId,
   type Result,
   type ValueOf,
 } from "../types";
@@ -49,6 +52,21 @@ const DEFAULT_DEBOUNCE_SECONDS = 60;
  */
 function existingPrIsTerminal() {
   return sql`${pullRequest.state} in (${PrState.CLOSED}, ${PrState.MERGED})`;
+}
+
+/**
+ * Builds the per-column chooser the lifecycle columns share: with
+ * `preserveTerminal`, a column keeps its STORED value when the existing row is
+ * already terminal; without it, the fresh value always wins.
+ */
+function buildTerminalKeeper(
+  preserveTerminal: boolean,
+): <T>(stored: PgColumn, fresh: T) => T | SQL {
+  if (!preserveTerminal) {
+    return (_stored, fresh) => fresh;
+  }
+  return (stored, fresh) =>
+    sql`case when ${existingPrIsTerminal()} then ${stored} else ${fresh} end`;
 }
 
 const GENERATE_TASK_IDENTIFIER = "generate";
@@ -89,58 +107,97 @@ type IngestExecutor = Pick<ReturnType<typeof internal>, "insert">;
  */
 async function upsertPullRequestRow(
   executor: IngestExecutor,
-  installationId: InstallationId,
+  scope: RowScope,
   input: PullRequestUpsertInput,
   preserveTerminal: boolean,
 ): Promise<PullRequestRow> {
   const lifecycle = buildLifecycleColumns(input);
-  const rows = await executor
-    .insert(pullRequest)
-    .values({
-      installationId,
-      repoId: input.repoId,
-      prNumber: input.prNumber,
-      repoSlug: input.repoSlug,
-      title: input.title,
-      baseSha: input.baseSha,
-      draft: input.draft,
-      authorLogin: input.authorLogin,
-      ...lifecycle,
-      updatedAt: new Date(),
-    })
-    .onConflictDoUpdate({
-      target: [
-        pullRequest.installationId,
-        pullRequest.repoId,
-        pullRequest.prNumber,
-      ],
-      set: {
-        repoSlug: input.repoSlug,
-        title: input.title,
-        // Omitted (review events) preserves the stored value.
-        ...(input.baseSha === undefined ? {} : { baseSha: input.baseSha }),
-        ...(input.draft === undefined ? {} : { draft: input.draft }),
-        ...(input.authorLogin === undefined
-          ? {}
-          : { authorLogin: input.authorLogin }),
-        state: preserveTerminal
-          ? sql`case when ${existingPrIsTerminal()} then ${pullRequest.state} else ${lifecycle.state} end`
-          : lifecycle.state,
-        closedAt: preserveTerminal
-          ? sql`case when ${existingPrIsTerminal()} then ${pullRequest.closedAt} else ${lifecycle.closedAt} end`
-          : lifecycle.closedAt,
-        purgeAfter: preserveTerminal
-          ? sql`case when ${existingPrIsTerminal()} then ${pullRequest.purgeAfter} else ${lifecycle.purgeAfter} end`
-          : lifecycle.purgeAfter,
-        updatedAt: new Date(),
-      },
-    })
-    .returning();
+  const keepTerminal = buildTerminalKeeper(preserveTerminal);
+  const set: PullRequestUpdateSet = {
+    repoSlug: input.repoSlug,
+    title: input.title,
+    state: keepTerminal(pullRequest.state, lifecycle.state),
+    closedAt: keepTerminal(pullRequest.closedAt, lifecycle.closedAt),
+    purgeAfter: keepTerminal(pullRequest.purgeAfter, lifecycle.purgeAfter),
+    updatedAt: new Date(),
+  };
+  // Omitted (review events) preserves the stored value — an absent key is a
+  // column drizzle does not touch.
+  if (input.baseSha !== undefined) {
+    set.baseSha = input.baseSha;
+  }
+  if (input.draft !== undefined) {
+    set.draft = input.draft;
+  }
+  if (input.authorLogin !== undefined) {
+    set.authorLogin = input.authorLogin;
+  }
+  const insert = executor.insert(pullRequest).values({
+    installationId: scope.installationId,
+    ownerUserId: scope.ownerUserId,
+    source: scope.source,
+    repoId: input.repoId,
+    prNumber: input.prNumber,
+    repoSlug: input.repoSlug,
+    title: input.title,
+    baseSha: input.baseSha,
+    draft: input.draft,
+    authorLogin: input.authorLogin,
+    ...lifecycle,
+    updatedAt: new Date(),
+  });
+  // Each world conflicts on ITS natural key (see tenant.ts#upsert).
+  const isOwnerWorld = scope.ownerUserId !== null;
+  const worldKey = isOwnerWorld
+    ? pullRequest.ownerUserId
+    : pullRequest.installationId;
+  const conflict: Mutable<Parameters<typeof insert.onConflictDoUpdate>[0]> = {
+    target: [worldKey, pullRequest.repoId, pullRequest.prNumber],
+    set,
+  };
+  if (isOwnerWorld) {
+    conflict.targetWhere = sql`${pullRequest.installationId} is null`;
+  }
+
+  const rows = await insert.onConflictDoUpdate(conflict).returning();
   const row = rows[0];
   if (row === undefined) {
     throw new Error("pull_request upsert returned no row");
   }
   return row;
+}
+
+/** The world-discriminated job payload; ids cross as STRINGS (JSON bigint). */
+function buildJobPayload(
+  scope: RowScope,
+  grantId: GrantRowId | undefined,
+  pullRequestId: bigint,
+  headSha: string,
+): GenerateJobPayload {
+  if (scope.ownerUserId !== null) {
+    if (grantId === undefined) {
+      // Programmer error: an owner-scoped trigger with no credential reference
+      // would enqueue a job the worker can only fail.
+      throw new Error("owner-scoped triggerGeneration requires grantId");
+    }
+
+    return {
+      owner_user_id: String(scope.ownerUserId),
+      grant_id: String(grantId),
+      pull_request_id: String(pullRequestId),
+      head_sha: headSha,
+    } satisfies GenerateJobPayload;
+  }
+
+  if (scope.installationId === null) {
+    throw new Error("scope carries neither world");
+  }
+
+  return {
+    installation_id: String(scope.installationId),
+    pull_request_id: String(pullRequestId),
+    head_sha: headSha,
+  } satisfies GenerateJobPayload;
 }
 
 // ---------------------------------------------------------------------------
@@ -163,6 +220,14 @@ export interface TriggerGenerationInput {
    */
   readonly regenerationDebounceSeconds?: number;
   /**
+   * The url-box job's credential REFERENCE — REQUIRED under an owner scope
+   * (the worker resolves and decrypts it), forbidden under an installation
+   * scope. Must come from the SAME authenticated session as the owner id:
+   * the grant row carries no owner column, so this binding is the door's to
+   * uphold.
+   */
+  readonly grantId?: GrantRowId;
+  /**
    * True ONLY for a `reopened` event, which deliberately transitions a
    * closed/merged PR back to open. Every other trigger (`opened`,
    * `synchronize`, `ready_for_review`, `review_requested`, a submitted review)
@@ -184,7 +249,7 @@ export interface IngestOutcome {
 }
 
 export interface IngestRoutines {
-  readonly ctx: TenantContext;
+  readonly ctx: ScopeContext;
   /**
    * Atomically upsert the PR row, project the brief generation as `queued`,
    * and enqueue/replace the debounced `generate` job. See the module header
@@ -216,13 +281,13 @@ export interface IngestRoutines {
 // Factory.
 // ---------------------------------------------------------------------------
 
-/** Build the tenant-scoped ingest boundary over the opaque handle. */
+/** Build the scope-bound ingest boundary over the opaque handle. */
 export function createIngestRoutines(
   handle: AppDatabase,
-  ctx: TenantContext,
+  ctx: ScopeContext,
 ): IngestRoutines {
   const db = internal(handle);
-  const { installationId } = ctx;
+  const scope = resolveScope(ctx);
 
   return {
     ctx,
@@ -252,10 +317,15 @@ export function createIngestRoutines(
         // `state: open` too and must not resurrect a closed/merged PR, so on
         // conflict the stored terminal lifecycle is kept via a CASE keyed on
         // the EXISTING row's state. `reopened` bypasses the guard.
-        const preserveTerminal = input.reopen !== true;
+        // The owner (url-box) world never preserves or suppresses on a
+        // terminal lifecycle: the state comes from a LIVE GitHub read at the
+        // door (no stale redeliveries exist), and briefing a merged/closed PR
+        // is that door's primary use.
+        const preserveTerminal =
+          scope.ownerUserId === null && input.reopen !== true;
         const prRow = await upsertPullRequestRow(
           tx,
-          installationId,
+          scope,
           input.pullRequest,
           preserveTerminal,
         );
@@ -281,10 +351,15 @@ export function createIngestRoutines(
             .select({ id: generation.id })
             .from(generation)
             .where(
-              sql`${generation.installationId} = ${installationId}
-                and ${generation.pullRequestId} = ${prRow.id}
-                and ${generation.kind} = ${GenerationKind.BRIEF}
-                and ${generation.status} = ${GenerationStatus.SUCCEEDED}`,
+              and(
+                scope.matchesChild(
+                  generation.installationId,
+                  generation.pullRequestId,
+                ),
+                eq(generation.pullRequestId, prRow.id),
+                eq(generation.kind, GenerationKind.BRIEF),
+                eq(generation.status, GenerationStatus.SUCCEEDED),
+              ),
             )
             .limit(1);
           if (prior.length > 0) {
@@ -299,7 +374,7 @@ export function createIngestRoutines(
         const genRows = await tx
           .insert(generation)
           .values({
-            installationId,
+            installationId: scope.installationId,
             pullRequestId: prRow.id,
             kind: GenerationKind.BRIEF,
             headSha: input.headSha,
@@ -337,11 +412,12 @@ export function createIngestRoutines(
         // matter). Ids cross as STRINGS — JSON cannot carry bigint; the worker
         // re-brands them through `TenantContextSchema`.
         const jobKey = `generate:${prRow.id}`;
-        const payload = {
-          installation_id: String(installationId),
-          pull_request_id: String(prRow.id),
-          head_sha: input.headSha,
-        } satisfies GenerateJobPayload;
+        const payload = buildJobPayload(
+          scope,
+          input.grantId,
+          prRow.id,
+          input.headSha,
+        );
         const payloadJson = JSON.stringify(payload);
         await tx.execute(sql`
           select graphile_worker.add_job(
@@ -360,12 +436,7 @@ export function createIngestRoutines(
     async recordState(input, options) {
       // One statement — atomic on its own, no tx needed. Terminal-preserving
       // unless the caller explicitly marks a reopen (see the interface doc).
-      return upsertPullRequestRow(
-        db,
-        installationId,
-        input,
-        options?.reopen !== true,
-      );
+      return upsertPullRequestRow(db, scope, input, options?.reopen !== true);
     },
   };
 }

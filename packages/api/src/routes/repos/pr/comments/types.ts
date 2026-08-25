@@ -1,4 +1,4 @@
-import type { InstallationId, RepoId } from "persistence";
+import type { RepoId, ScopeContext } from "persistence";
 import type { GitHubApiError, InlineReviewCommentError } from "github";
 import type {
   GitHubDeniedFailure,
@@ -24,7 +24,7 @@ export type ResolutionFailure =
   | GitHubDeniedFailure<GitHubApiError>;
 
 export type EvictConversation = (
-  installationId: InstallationId,
+  ctx: ScopeContext,
   repoId: RepoId,
   prNumber: number,
 ) => void;

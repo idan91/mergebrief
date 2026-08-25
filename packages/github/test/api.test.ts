@@ -467,7 +467,7 @@ describe("fetchPullRequest / fetchDiff", () => {
     const pullsGet = vi.fn().mockResolvedValue({
       data: {
         head: { sha: "head-sha" },
-        base: { sha: "base-sha" },
+        base: { sha: "base-sha", repo: { id: 424242, full_name: "o/r" } },
         state: "open",
         draft: false,
         merged: false,
@@ -475,6 +475,8 @@ describe("fetchPullRequest / fetchDiff", () => {
         body: "does a thing",
         html_url: "https://github.com/o/r/pull/3",
         commits: 4,
+        user: { login: "octocat" },
+        closed_at: null,
       },
     });
     const octokit = mockOctokit({ pullsGet });
@@ -486,6 +488,8 @@ describe("fetchPullRequest / fetchDiff", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value).toEqual({
+      repoId: 424242n,
+      repoFullName: "o/r",
       headSha: "head-sha",
       baseSha: "base-sha",
       state: "open",
@@ -495,6 +499,8 @@ describe("fetchPullRequest / fetchDiff", () => {
       body: "does a thing",
       htmlUrl: "https://github.com/o/r/pull/3",
       commitCount: 4,
+      authorLogin: "octocat",
+      closedAt: null,
     });
   });
 
@@ -502,7 +508,7 @@ describe("fetchPullRequest / fetchDiff", () => {
     const pullsGet = vi.fn().mockResolvedValue({
       data: {
         head: { sha: "head-sha" },
-        base: { sha: "base-sha" },
+        base: { sha: "base-sha", repo: { id: 424242, full_name: "o/r" } },
         state: "closed",
         draft: false,
         merged: true,
@@ -510,6 +516,8 @@ describe("fetchPullRequest / fetchDiff", () => {
         body: "",
         html_url: "https://github.com/o/r/pull/4",
         commits: 2,
+        user: { login: "octocat" },
+        closed_at: "2026-08-01T00:00:00Z",
       },
     });
     const octokit = mockOctokit({ pullsGet });
@@ -528,7 +536,7 @@ describe("fetchPullRequest / fetchDiff", () => {
     const pullsGet = vi.fn().mockResolvedValue({
       data: {
         head: { sha: "head-sha" },
-        base: { sha: "base-sha" },
+        base: { sha: "base-sha", repo: { id: 424242, full_name: "o/r" } },
         state: "open",
         draft: false,
         merged: false,
@@ -536,6 +544,8 @@ describe("fetchPullRequest / fetchDiff", () => {
         body: null,
         html_url: "https://github.com/o/r/pull/3",
         commits: 1,
+        user: { login: "octocat" },
+        closed_at: null,
       },
     });
     const octokit = mockOctokit({ pullsGet });

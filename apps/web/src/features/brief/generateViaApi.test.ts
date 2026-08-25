@@ -28,13 +28,13 @@ function jsonResponse(body: unknown, status: number): Response {
 }
 
 describe("generateBriefViaApi", () => {
-  it("posts the url and returns the briefId", async () => {
+  it("posts the url and returns the repo-route coords", async () => {
     apiFetch.mockResolvedValue(
-      jsonResponse({ briefId: "o-r-7_1_aaaa1111" }, 200),
+      jsonResponse({ repoId: "424242", prNumber: 7 }, 200),
     );
     await expect(
       generateBriefViaApi("https://github.com/o/r/pull/7"),
-    ).resolves.toBe("o-r-7_1_aaaa1111");
+    ).resolves.toEqual({ repoId: "424242", prNumber: 7 });
     expect(apiFetch).toHaveBeenCalledWith("/api/generate", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -46,29 +46,12 @@ describe("generateBriefViaApi", () => {
     [400, "not-a-pr-url"],
     [401, "unauthorized"],
     [404, "not-found"],
-    [502, "generation-failed"],
+    [502, "github-unavailable"],
   ])("preserves wire code %s as a typed error", async (status, code) => {
     apiFetch.mockResolvedValue(jsonResponse({ error: "x", code }, status));
     await expect(generateBriefViaApi("u")).rejects.toMatchObject({
       status,
       code,
-    });
-  });
-
-  it("surfaces the server-authored 503 config copy", async () => {
-    apiFetch.mockResolvedValue(
-      jsonResponse(
-        {
-          error: "ANTHROPIC_API_KEY is required",
-          code: "generation-config",
-          params: { detail: "ANTHROPIC_API_KEY is required" },
-        },
-        503,
-      ),
-    );
-    await expect(generateBriefViaApi("u")).rejects.toMatchObject({
-      code: "generation-config",
-      params: { detail: "ANTHROPIC_API_KEY is required" },
     });
   });
 

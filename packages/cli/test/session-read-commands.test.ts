@@ -109,7 +109,9 @@ describe("session read commands over the real api app", () => {
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
-    kp = createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
+    kp = createEnvKeyProvider({
+      [KEY_REF]: randomBytes(32).toString("base64"),
+    });
     const auth: AuthDeps = {
       oauthClientId: "Iv1.test-client-id",
       oauthClientSecret: "test-client-secret",
@@ -436,7 +438,15 @@ describe("session read commands over the real api app", () => {
     for (const argv of [
       ["session", "x", ...SPAN, "--json"],
       ["marks", "x", "--baseline", PREV_HEAD_SHA, "--head", HEAD_SHA, "--json"],
-      ["narrative", "x", "--prev-head", PREV_HEAD_SHA, "--head", HEAD_SHA, "--json"],
+      [
+        "narrative",
+        "x",
+        "--prev-head",
+        PREV_HEAD_SHA,
+        "--head",
+        HEAD_SHA,
+        "--json",
+      ],
       ["context", "x", ...SPAN, "--json"],
     ]) {
       const result = await run(argv);

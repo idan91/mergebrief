@@ -18,9 +18,12 @@ import {
   AuditOutcome,
   AuditRequestIdSchema,
   isInstallationId,
+  isReviewerId,
+  PullRequestSources,
   WriteClassification,
   type AppDatabase,
   type InstallationId,
+  type PullRequestSource,
 } from "persistence";
 import type { RequestLogEnv } from "../request-logging";
 import type { ProductOperationRegistry } from "./registry";
@@ -217,19 +220,45 @@ function readAuditPrincipal(value: unknown): AuditPrincipal | undefined {
   return { reviewerId, credentialId: id, channel };
 }
 
-function readInstallationId(value: unknown): InstallationId | undefined {
-  if (
-    typeof value !== "object" ||
-    value === null ||
-    !("installationId" in value)
-  ) {
+interface AuditScope {
+  readonly installationId: InstallationId | null;
+  readonly source: PullRequestSource;
+}
+
+function readInstallationScope(value: unknown): AuditScope | undefined {
+  if (typeof value !== "bigint" || !isInstallationId(value)) {
     return undefined;
   }
-  const installationId: unknown = value.installationId;
-  if (typeof installationId !== "bigint" || !isInstallationId(installationId)) {
+
+  return {
+    installationId: value,
+    source: PullRequestSources.APP_INSTALLATION,
+  };
+}
+
+function readOwnerScope(value: unknown): AuditScope | undefined {
+  if (typeof value !== "bigint" || !isReviewerId(value)) {
     return undefined;
   }
-  return installationId;
+
+  return { installationId: null, source: PullRequestSources.URL_BOX };
+}
+
+/** The acting credential's scope: tenant, or the url-box owner world. */
+function readAuditScope(value: unknown): AuditScope | undefined {
+  if (typeof value !== "object" || value === null) {
+    return undefined;
+  }
+
+  if ("installationId" in value) {
+    return readInstallationScope(value.installationId);
+  }
+
+  if ("ownerUserId" in value) {
+    return readOwnerScope(value.ownerUserId);
+  }
+
+  return undefined;
 }
 
 /** `METHOD /full/path` → descriptor, built once off the committed registry. */
@@ -294,11 +323,11 @@ export function createAuditMiddleware(
     // `ctx` and `session` belong to the auth layers, so they are read out of
     // the variable bag and narrowed here rather than declared on this module.
     const variables: unknown = c.var;
-    const installationId = readInstallationId(readVar(variables, "ctx"));
+    const scope = readAuditScope(readVar(variables, "ctx"));
     const principal = readAuditPrincipal(readVar(variables, "session"));
-    if (installationId === undefined || principal === undefined) {
-      // `installation_id` is NOT NULL: a credential that resolves to no
-      // tenant cannot be recorded, and leaves only its `api.access` line.
+    if (scope === undefined || principal === undefined) {
+      // A credential that resolves to no scope at all cannot be recorded,
+      // and leaves only its `api.access` line.
       return;
     }
     const target = c.get("auditTarget");
@@ -309,7 +338,8 @@ export function createAuditMiddleware(
     // The ACTING credential's tenant, never the target's: a reviewer can
     // revoke a token, or switch to an installation, outside this one.
     const row: Mutable<Parameters<typeof writeAudit>[1]> = {
-      installationId,
+      installationId: scope.installationId,
+      source: scope.source,
       actorType: AuditActorType.REVIEWER,
       actorId: principal.reviewerId,
       operation: descriptor.id,

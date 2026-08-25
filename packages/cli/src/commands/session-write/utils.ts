@@ -97,10 +97,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * `dismiss` takes a `--reason` convenience, refused when the payload already
  * carries one (a defined precedence beats a silent overwrite).
  */
-export function buildRiskPayload(
-  payload: unknown,
-  reason?: string,
-): unknown {
+export function buildRiskPayload(payload: unknown, reason?: string): unknown {
   if (payload === undefined) {
     throw new CliError(
       ExitCode.USAGE,
@@ -115,7 +112,7 @@ export function buildRiskPayload(
   if (!isRecord(payload) || Array.isArray(payload)) {
     throw new CliError(
       ExitCode.USAGE,
-      "--reason needs a JSON object payload to merge into — send {\"flags\":[…]} (or put reason in the payload)",
+      '--reason needs a JSON object payload to merge into — send {"flags":[…]} (or put reason in the payload)',
     );
   }
   if (payload["reason"] !== undefined) {

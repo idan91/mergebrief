@@ -77,6 +77,11 @@ export type {
   SessionCreateInput,
 } from "./stores/tenant";
 
+// The one unscoped read: which owner holds the url-box row at these PR
+// coordinates (instance visibility). Returns an owner to bind a ctx to,
+// never a row.
+export { resolveUrlBoxOwner } from "./stores/url-box";
+
 // The Review Session surface. The factory itself is NOT exported — it is
 // reachable only as `createTenantRepository(...).reviewSessions`, so a caller cannot hold
 // one without a ctx.

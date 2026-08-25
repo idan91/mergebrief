@@ -111,7 +111,7 @@ export async function runReady(
 
 /**
  * POST /api/generate — URL-box generation, no confirm prompt (the operator's
- * own key, mirroring the web URL box). Receipt passthrough ({briefId}).
+ * own key, mirroring the web URL box). Receipt passthrough ({repoId, prNumber}).
  */
 export async function runGenerate(
   client: ApiClient,

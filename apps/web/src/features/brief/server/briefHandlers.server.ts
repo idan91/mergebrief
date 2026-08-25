@@ -1,11 +1,6 @@
 import "@tanstack/react-start/server-only";
 
-import {
-  briefErrorCode,
-  clampConfigMessage,
-  GenerateErrorCode,
-  isCuratedBriefError,
-} from "../utils/briefErrors";
+import { briefErrorCode } from "../utils/briefErrors";
 import { getServerLogger } from "../../../server/logger";
 import {
   listLocalBriefs,
@@ -14,10 +9,6 @@ import {
   readRevisionChanges,
   readRevisionNarrative,
 } from "./brief.server";
-import {
-  generateBriefFromUrl,
-  GeneratorConfigurationError,
-} from "./generate.server";
 import type {
   Brief,
   ComparisonMarks,
@@ -62,32 +53,6 @@ async function curated<T>(action: string, body: () => Promise<T>): Promise<T> {
   }
 }
 
-/**
- * The generation boundary. Two classes are deliberately allowed through with
- * their own text:
- *   - the curated user-facing sentences `generate.server` authors, and
- *   - `GeneratorConfigurationError`, whose message is built from ConfigError
- *     issues (env-var NAMES only) — CLAMPED here anyway, because "safe by
- *     construction" is a comment and this is the boundary.
- * Everything else — including anything brief-core throws with the pasted URL
- * reflected in it — is replaced.
- */
-async function curatedGeneration(body: () => Promise<string>): Promise<string> {
-  try {
-    return await body();
-  } catch (error) {
-    if (error instanceof GeneratorConfigurationError) {
-      // oxlint-disable-next-line preserve-caught-error -- cause would serialize to the browser
-      throw new Error(clampConfigMessage(error.message));
-    }
-    const raw = error instanceof Error ? error.message : String(error);
-    if (isCuratedBriefError(raw)) throw error;
-    logger.warn("generateBrief: unmapped generation failure", { err: error });
-    // oxlint-disable-next-line preserve-caught-error -- cause would serialize to the browser
-    throw new Error(GenerateErrorCode.GENERATION_FAILED);
-  }
-}
-
 export interface BriefHandlers {
   getLocalBrief(briefId: string): Promise<Brief>;
   getLocalBriefs(): Promise<LocalBriefSummary[]>;
@@ -96,7 +61,6 @@ export interface BriefHandlers {
   getLocalRevisionNarrative(
     id: string,
   ): Promise<RevisionNarrativeArtifact | null>;
-  generateBrief(url: string): Promise<string>;
 }
 
 export const briefHandlers: BriefHandlers = {
@@ -109,5 +73,4 @@ export const briefHandlers: BriefHandlers = {
     curated("getLocalComparisonMarks", () => readComparisonMarks(id)),
   getLocalRevisionNarrative: (id) =>
     curated("getLocalRevisionNarrative", () => readRevisionNarrative(id)),
-  generateBrief: (url) => curatedGeneration(() => generateBriefFromUrl(url)),
 };

@@ -31,6 +31,7 @@ export const PRODUCT_ACTION_ID = {
   RESOLVE_THREAD: "resolve-thread",
   UNRESOLVE_THREAD: "unresolve-thread",
   GENERATE_BRIEF: "generate-brief",
+  DELETE_URL_BRIEF: "delete-url-brief",
   MINT_TOKEN: "mint-token",
   REVOKE_TOKEN: "revoke-token",
   SELECT_INSTALLATION: "select-installation",

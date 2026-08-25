@@ -14,7 +14,7 @@ import { createAllowedRepoResolver } from "./allowed-repos";
 import { authRoutes } from "./auth";
 import type { AuthDeps } from "./auth/session";
 import { generateRoute } from "./generate";
-import type { UrlBriefEngine } from "./generate/types";
+import { urlBriefRoutes } from "./briefs";
 import type { InstallationGitHubPort } from "./github-port";
 import { capabilitiesRoute } from "./capabilities";
 import { pullsRoute } from "./pulls";
@@ -38,8 +38,12 @@ export interface AppDeps {
   /** Audit knobs from persistence config; omitted = private writes on,
    * caller ip off. */
   readonly audit?: AuditEmitConfig;
-  /** Omitted (worker-less / test deployments) ⇒ POST /api/generate answers a curated 503. */
-  readonly urlBriefEngine?: UrlBriefEngine;
+  /**
+   * Operator PAT backstop for the url-box door's viewer-token resolve
+   * (`MERGEBRIEF_URL_BOX_TOKEN`); the worker holds the same backstop for the
+   * generation reads. Absent disables the fallback.
+   */
+  readonly urlBoxFallbackToken?: string | undefined;
 }
 
 /** Compose the `/api` router over injected deps. */
@@ -56,6 +60,7 @@ export function apiRoutes(deps: AppDeps): ProductRouter<RequestLogEnv> {
   app.route("/repos", reposRoutes(deps, allowedRepos));
   // Session-gated only: the pasted URL's repo is outside the installation
   // model, so the engine's viewer-token fetch is the access check.
-  app.route("/generate", generateRoute(deps, deps.urlBriefEngine));
+  app.route("/generate", generateRoute(deps, deps.urlBoxFallbackToken));
+  app.route("/briefs", urlBriefRoutes(deps));
   return app;
 }

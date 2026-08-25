@@ -74,6 +74,24 @@ function stubGitHub(): void {
           repositories: [{ id: REPO_A, full_name: "octo/hello" }],
         });
       }
+      if (url.includes("/repos/octo/hello/pulls/7")) {
+        return jsonResponse({
+          head: { sha: HEAD_SHA },
+          base: {
+            sha: "c".repeat(40),
+            repo: { id: REPO_A, full_name: "octo/hello" },
+          },
+          state: "open",
+          draft: false,
+          merged: false,
+          title: "Add thing",
+          body: "",
+          html_url: "https://github.com/octo/hello/pull/7",
+          commits: 3,
+          user: { login: "octocat" },
+          closed_at: null,
+        });
+      }
       if (/\/repositories\/\d+$/.test(url)) {
         return jsonResponse({
           id: REPO_A,
@@ -103,7 +121,9 @@ describe("generate + collaborators over the real api app", () => {
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
-    kp = createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
+    kp = createEnvKeyProvider({
+      [KEY_REF]: randomBytes(32).toString("base64"),
+    });
     const auth: AuthDeps = {
       oauthClientId: "Iv1.test-client-id",
       oauthClientSecret: "test-client-secret",
@@ -124,19 +144,6 @@ describe("generate + collaborators over the real api app", () => {
         listRepoCollaborators: async () => ({
           ok: true as const,
           value: ROSTER,
-        }),
-      },
-      urlBriefEngine: {
-        fetchHeadSha: async () => ({ ok: true as const, value: HEAD_SHA }),
-        lookupIndex: async () => null,
-        generate: async () => ({
-          ok: true as const,
-          value: {
-            repo: "octo/hello",
-            number: 7,
-            index: 1,
-            head: HEAD_SHA,
-          },
         }),
       },
       serverVersion: "test-version",
@@ -232,7 +239,8 @@ describe("generate + collaborators over the real api app", () => {
     if (typeof parsed !== "object" || parsed === null) {
       throw new Error(`unexpected receipt: ${result.out}`);
     }
-    expect(typeof Reflect.get(parsed, "briefId")).toBe("string");
+    expect(typeof Reflect.get(parsed, "repoId")).toBe("string");
+    expect(typeof Reflect.get(parsed, "prNumber")).toBe("number");
   });
 
   it("generate with a non-PR URL relays the 400 (exit 5)", async () => {

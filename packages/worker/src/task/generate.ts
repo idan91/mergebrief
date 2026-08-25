@@ -57,6 +57,7 @@ import {
   type SpendPolicy,
 } from "generators";
 import { planAnchoredGeneration, stitchBrief } from "./anchoring";
+import { enqueueOwnerHeadFollowUp } from "./owner-follow-up";
 import {
   createArtifactStore,
   writeAudit,
@@ -94,6 +95,7 @@ import {
   splitRepoSlug,
   type GitHubApiError,
   type GitHubPort,
+  type PullRequestInfo,
   type PullRequestSource,
 } from "./github-port";
 import type { Logger } from "logging";
@@ -156,6 +158,8 @@ interface SupersessionWatch {
   readonly signal: AbortSignal;
   /** Throws `SupersededSignal` (after aborting) when the head moved. */
   assertCurrent(): Promise<void>;
+  /** The newer PR the abort was based on — the successor, already read. */
+  observed(): PullRequestInfo | undefined;
   startPolling(): void;
   stop(): void;
 }
@@ -168,10 +172,17 @@ function createSupersessionWatch(
   const controller = new AbortController();
   let timer: ReturnType<typeof setInterval> | undefined;
   let polling = false;
+  let seen: PullRequestInfo | undefined;
 
   async function headMoved(): Promise<boolean> {
     const info = await source.fetchPullRequest();
-    return info.ok && info.value.headSha !== headSha;
+    if (!info.ok || info.value.headSha === headSha) {
+      return false;
+    }
+    // Retained so the supersession does not have to re-read GitHub to learn
+    // the head it is standing down for.
+    seen = info.value;
+    return true;
   }
 
   async function pollOnce(): Promise<void> {
@@ -188,6 +199,9 @@ function createSupersessionWatch(
 
   return {
     signal: controller.signal,
+    observed() {
+      return seen;
+    },
     async assertCurrent() {
       let moved = false;
       try {
@@ -507,9 +521,14 @@ async function runGeneration(
     );
     return;
   }
-  if (pr.state === PrState.CLOSED || pr.state === PrState.MERGED) {
-    // A brief for a terminal PR would never be read (same rule as the
-    // enqueue gate); the queued projection row must not sit forever.
+  if (
+    payload.grantId === undefined &&
+    (pr.state === PrState.CLOSED || pr.state === PrState.MERGED)
+  ) {
+    // App world: a brief for a terminal PR would never be read (same rule as
+    // the enqueue gate); the queued projection row must not sit forever.
+    // Url-box jobs generate regardless — briefing a merged PR is that door's
+    // primary use.
     throw new SupersededSignal(`pull_request ${pr.prNumber} is ${pr.state}`);
   }
   if (pr.repoSlug == null || splitRepoSlug(pr.repoSlug) === undefined) {
@@ -591,15 +610,44 @@ async function runGeneration(
 
   await projection.markRunning(target, GenerationPhase.FETCHING);
 
+  // The App world relies on the newer push's own webhook job (same job_key,
+  // replaced) to generate the head this run found moved. A url-box PR may have
+  // no installation and therefore no webhook, so this job is the only thing
+  // that knows: EVERY owner-world supersession — the mismatch below, a
+  // pre-call `assertCurrent`, or the poller aborting mid-stream — schedules
+  // the observed head before standing down, or the paste produces no brief.
+  const grantId = payload.grantId;
+  async function queueObservedHeadForOwner(
+    observed?: PullRequestInfo,
+  ): Promise<void> {
+    if (grantId === undefined) {
+      return;
+    }
+    // A read the caller already has beats a fresh one: the successor is known
+    // to exist, and re-reading could fail. `unwrapGitHub` on the fallback is
+    // deliberate — a transient failure must RETRY the job rather than finalize
+    // `superseded`, which would drop the successor head on the floor.
+    const current = observed ?? unwrapGitHub(await source.fetchPullRequest());
+    if (current.headSha === headSha) {
+      return;
+    }
+    await enqueueOwnerHeadFollowUp(deps.handle, payload.ctx, {
+      prNumber: prRow.prNumber,
+      repoId: prRow.repoId,
+      grantId,
+      info: current,
+      log,
+    });
+  }
+
   const info = unwrapGitHub(await source.fetchPullRequest());
   if (info.headSha !== headSha) {
-    // The PR moved between enqueue and drain — the newer push's job (same
-    // job_key, replaced) will generate the new head; this one is obsolete.
+    await queueObservedHeadForOwner(info);
     throw new SupersededSignal(
       `head advanced ${headSha.slice(0, 8)} → ${info.headSha.slice(0, 8)}`,
     );
   }
-  if (info.state !== "open") {
+  if (payload.grantId === undefined && info.state !== "open") {
     throw new SupersededSignal(
       `pull_request ${pr.prNumber} is ${info.state} on GitHub`,
     );
@@ -626,12 +674,16 @@ async function runGeneration(
   try {
     await generateArtifacts();
   } catch (error) {
-    if (watch.signal.aborted && !(error instanceof SupersededSignal)) {
-      // The poller aborted an in-flight SDK call; its rejection (an
-      // APIUserAbortError) is the abort, not a failure.
-      throw new SupersededSignal("head advanced mid-call (streaming poll)");
+    // The poller aborting an in-flight SDK call surfaces as its rejection (an
+    // APIUserAbortError); that is the abort, not a failure.
+    const outcome =
+      watch.signal.aborted && !(error instanceof SupersededSignal)
+        ? new SupersededSignal("head advanced mid-call (streaming poll)")
+        : error;
+    if (outcome instanceof SupersededSignal) {
+      await queueObservedHeadForOwner(watch.observed());
     }
-    throw error;
+    throw outcome;
   } finally {
     watch.stop();
   }

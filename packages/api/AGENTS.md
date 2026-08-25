@@ -150,6 +150,13 @@ whether the file imports `app.request`.
   is no row to hold a limit and the person is at the keyboard — while a
   Bearer principal carries `api_token.scope`, chosen at mint and immutable
   for the token's life.
+- **The per-PR row world is resolved, not assumed** (`routes/repos/pr/scope.ts`).
+  The credential's own world is tried first, so the App door wins for
+  rendering; the url-box fallback is INSTANCE-wide — a reader the gate made
+  prove GitHub access may open a row another user pasted, and the picked owner
+  is deterministic (their own row first, else the oldest). Per-reviewer state
+  is unaffected: the Review Session's natural key carries the reviewer.
+  Deletion and the personal list stay owner-bound and never use this resolver.
 - **`no-store` on every response of a gated route** — error paths included;
   it is all per-viewer state (success responses set it explicitly; every
   error path inherits it from the `renderErrorResponse` producer).
@@ -191,9 +198,11 @@ about it. **Never hand-place an emit in a route.**
   value must stay inside persistence's `AuditClientSchema`, since a value the
   store rejects throws inside the emit and loses the whole row.
 - `caller_ip` is the socket address, written only under the operator flag.
-- **A row is keyed on the acting credential's tenant**, never the target's,
-  and a refusal that resolved no credential is not recorded at all — the
-  tenant column cannot be null. Both are documented in `docs/self-host/operations.md`.
+- **A row is keyed on the acting credential's scope**, never the target's:
+  the tenant for an installation-bound credential, or a NULL installation
+  with `source: url-box` for an owner-world (installation-less) session. A
+  refusal that resolved no credential at all is not recorded. Documented in
+  `docs/self-host/operations.md`.
 
 ## Product Operation catalog
 

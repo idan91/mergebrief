@@ -23,11 +23,6 @@ vi.mock("./brief.server", () => ({
   readRevisionNarrative: throwRaw,
 }));
 
-vi.mock("./generate.server", () => ({
-  generateBriefFromUrl: throwRaw,
-  GeneratorConfigurationError: class GeneratorConfigurationError extends Error {},
-}));
-
 const { briefHandlers } = await import("./briefHandlers.server");
 
 const CALLS: Record<string, () => Promise<unknown>> = {
@@ -39,8 +34,6 @@ const CALLS: Record<string, () => Promise<unknown>> = {
     briefHandlers.getLocalComparisonMarks("id_1_deadbeef"),
   getLocalRevisionNarrative: () =>
     briefHandlers.getLocalRevisionNarrative("id_1_deadbeef"),
-  generateBrief: () =>
-    briefHandlers.generateBrief("https://github.com/o/r/pull/1"),
 };
 
 describe("a raw reader failure never escapes a handler", () => {

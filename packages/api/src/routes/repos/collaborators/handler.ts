@@ -2,7 +2,7 @@ import type { Context } from "hono";
 import { GitHubApiErrorCode } from "github";
 import type { InstallationId, RepoId } from "persistence";
 import { BadGateway, NotFound } from "../../../shared-errors/api-error";
-import type { AuthzEnv } from "../../authz";
+import { requireInstallationScope, type AuthzEnv } from "../../authz";
 import type { InstallationGitHubPort } from "../../github-port";
 import type { TtlCache } from "../../ttl-cache";
 import collaboratorsController from "./controller";
@@ -35,9 +35,10 @@ export default function createHandlers(
         throw new NotFound();
       }
 
-      const ctx = c.get("ctx");
+      // Installation-world surface: the collaborators port is App-scoped.
+      const installationId = requireInstallationScope(c.get("ctx"));
       const repoId = c.get("repoId");
-      const key = cacheKey(ctx.installationId, repoId);
+      const key = cacheKey(installationId, repoId);
       const now = Date.now();
       const cached = cache.get(key, now);
       if (cached !== undefined) {
@@ -53,7 +54,7 @@ export default function createHandlers(
       const fetched = await collaboratorsController.listCollaborators(
         { github },
         {
-          installationId: ctx.installationId,
+          installationId,
           owner: target.owner,
           repo: target.repo,
         },

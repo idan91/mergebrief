@@ -223,7 +223,7 @@ describe("reviewer auth routes", () => {
     await harness.close();
   });
 
-  it("a session with no installation is refused at the gate (401), never 500", async () => {
+  it("a session with no installation resolves the owner scope — the fail-closed empty list, never 500", async () => {
     const token = randomBytes(32).toString("base64url");
     const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
     const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
@@ -249,7 +249,10 @@ describe("reviewer auth routes", () => {
     const res = await app.request("/api/pulls", {
       headers: { cookie: `rs_session=${token}` },
     });
-    expect(res.status).toBe(401);
+    // The owner scope holds no installation∩viewer repos: an empty list,
+    // with no GitHub call and no 500.
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ pulls: [] });
   });
 
   it("GET /api/auth/github → 302 to GitHub with an HttpOnly state cookie", async () => {
@@ -327,7 +330,7 @@ describe("reviewer auth routes", () => {
     expect(expiresAt - before).toBeGreaterThan(15_000_000_000);
   });
 
-  it("callback → 403 when the reviewer has no accessible installation", async () => {
+  it("callback with no accessible installation binds an OWNER-world session", async () => {
     stubGitHub({
       token: tokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN),
       installations: [],
@@ -339,11 +342,12 @@ describe("reviewer auth routes", () => {
         headers: { Cookie: `rs_oauth_state=${state}` },
       },
     );
-    expect(res.status).toBe(403);
-    expect(((await res.json()) as { code?: string }).code).toBe(
-      "app-not-installed",
+    // The url-box world: sign-in no longer requires an installation.
+    expect(res.status).toBe(302);
+    const rows = await harness.raw(
+      "select installation_id, reviewer_id from auth_session",
     );
-    expect(await countRows(harness, "auth_session")).toBe(0);
+    expect(rows).toEqual([{ installation_id: null, reviewer_id: REVIEWER_ID }]);
   });
 
   // Default-binding fallback matrix: the callback binds the session to the

@@ -17,6 +17,7 @@ import { prNumberSchema } from "../../wire-bounds";
 import sessionController from "../controller";
 import { spanQuerySchema } from "../schemas";
 import type { SessionWriteFailure } from "../types";
+import { resolvePrScopeFrom } from "../../scope";
 
 /**
  * Resolve the PR and the Brief the request names, throwing the wire posture:
@@ -36,7 +37,7 @@ export async function resolveSessionWrite(
     throw new BadRequest();
   }
   const resolved = await sessionController.resolveWrite(deps, {
-    ctx: c.get("ctx"),
+    ctx: await resolvePrScopeFrom(c, deps.handle, prNumber.data),
     repoId: c.get("repoId"),
     prNumber: prNumber.data,
     span: span.data,

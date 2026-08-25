@@ -37,6 +37,7 @@ import {
   throwRepoResolveFailure,
 } from "../logic/resolve-repo-owner-and-name";
 import { readDraftAnchor } from "./logic/draft-anchor";
+import { resolvePrScopeFrom } from "../scope";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
@@ -124,7 +125,7 @@ export default function createHandlers(
     }
     const draftId = parsedBody.data.draftId;
 
-    const ctx = c.get("ctx");
+    const ctx = await resolvePrScopeFrom(c, deps.handle, parsedPr.data);
     const repoId = c.get("repoId");
     const pr = await createTenantRepository(
       deps.handle,
@@ -172,7 +173,7 @@ export default function createHandlers(
     }
 
     await recordPublishedDraft(c, resolved, draft.id, posted.value.commentId);
-    evictConversation(ctx.installationId, repoId, pr.prNumber);
+    evictConversation(ctx, repoId, pr.prNumber);
     stampAuditTarget(c, "review_comment", posted.value.commentId);
 
     if (posted.value.reviewId === undefined) {
@@ -210,7 +211,7 @@ export default function createHandlers(
       throw new BadRequest();
     }
 
-    const ctx = c.get("ctx");
+    const ctx = await resolvePrScopeFrom(c, deps.handle, parsedPr.data);
     const repoId = c.get("repoId");
     const pr = await createTenantRepository(
       deps.handle,
@@ -247,7 +248,7 @@ export default function createHandlers(
 
     // The write happened: the cached conversation is stale — drop it so the
     // FE's post-reply refetch reflects the reply inside the TTL.
-    evictConversation(ctx.installationId, repoId, pr.prNumber);
+    evictConversation(ctx, repoId, pr.prNumber);
 
     stampAuditTarget(c, "review_comment", BigInt(created.value.commentId));
 
@@ -275,7 +276,7 @@ function setThreadResolution(
       throw new BadRequest();
     }
 
-    const ctx = c.get("ctx");
+    const ctx = await resolvePrScopeFrom(c, deps.handle, parsedPr.data);
     const repoId = c.get("repoId");
     const pr = await createTenantRepository(
       deps.handle,
@@ -313,7 +314,7 @@ function setThreadResolution(
     // The thread state changed (or was confirmed) on GitHub: the cached
     // conversation is stale either way — drop it so the FE's refetch shows
     // the slim-row transition immediately.
-    evictConversation(ctx.installationId, repoId, pr.prNumber);
+    evictConversation(ctx, repoId, pr.prNumber);
 
     stampAuditTarget(c, "review_comment", BigInt(parsedComment.data));
 

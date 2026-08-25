@@ -10,7 +10,7 @@
 import { describe, expect, it } from "vitest";
 
 import { briefHandlers, type BriefHandlers } from "./briefHandlers.server";
-import { GenerateErrorCode, isCuratedBriefError } from "../utils/briefErrors";
+import { isCuratedBriefError } from "../utils/briefErrors";
 
 /**
  * One rejecting call per handler. Ids pass the charset guard but name no
@@ -27,8 +27,6 @@ const REJECTING_CALLS: Record<keyof BriefHandlers, () => Promise<unknown>> = {
     briefHandlers.getLocalComparisonMarks("../../etc/passwd"),
   getLocalRevisionNarrative: () =>
     briefHandlers.getLocalRevisionNarrative("../../etc/passwd"),
-  generateBrief: () =>
-    briefHandlers.generateBrief("https://example.com/not-a-pr?token=shhh"),
 };
 
 describe("every brief handler ends at the curation boundary", () => {
@@ -46,7 +44,6 @@ describe("every brief handler ends at the curation boundary", () => {
       expect(message).not.toContain("ENOENT");
       expect(message).not.toContain("/Users/");
       expect(message).not.toContain("passwd");
-      expect(message).not.toContain("shhh");
     });
   }
 
@@ -54,16 +51,5 @@ describe("every brief handler ends at the curation boundary", () => {
     expect(Object.keys(REJECTING_CALLS).toSorted()).toEqual(
       Object.keys(briefHandlers).toSorted(),
     );
-  });
-});
-
-describe("generateBrief boundary", () => {
-  it("passes the deliberate user-facing sentences through unchanged", async () => {
-    const message = await briefHandlers
-      .generateBrief("https://example.com/nope")
-      .catch((error: unknown) =>
-        error instanceof Error ? error.message : String(error),
-      );
-    expect(message).toBe(GenerateErrorCode.NOT_A_PR_URL);
   });
 });

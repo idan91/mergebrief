@@ -299,10 +299,10 @@ describe("the committed catalog", () => {
       today: "2026-08-16",
       commandPaths: cliCommandPaths(),
     });
-    // The catalog's final shape: 35 operations, and every one accounted for.
+    // The catalog's final shape: 36 operations, and every one accounted for.
     expect(result).toEqual({
       ok: true,
-      value: { commands: 29, gaps: 0, webOnly: 6 },
+      value: { commands: 29, gaps: 0, webOnly: 7 },
     });
   });
 });

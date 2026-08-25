@@ -12,16 +12,17 @@ import {
 import { prNumberSchema } from "../wire-bounds";
 import readyController from "./controller";
 import { throwMarkReadyFailure } from "./logic/wire-failures";
+import { resolvePrScopeFrom } from "../scope";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
 export default function createHandlers(deps: AuthRouteDeps) {
   const markReady = async (c: Context<AuthzEnv>) => {
-    const ctx = c.get("ctx");
     const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
     if (!parsedPr.success) {
       throw new BadRequest();
     }
+    const ctx = await resolvePrScopeFrom(c, deps.handle, parsedPr.data);
     const tenant = createTenantRepository(deps.handle, ctx);
     const pr = await tenant.pullRequests.getByNumber(
       c.get("repoId"),

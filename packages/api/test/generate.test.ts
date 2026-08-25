@@ -1,7 +1,6 @@
-// POST /api/generate route tests, all against a fake UrlBriefEngine (the real
-// engine is the web startup wiring's concern). Harness mirrors
-// installations.test.ts: app.request() over PGlite, GitHub's token endpoint
-// stubbed at global fetch.
+// POST /api/generate route tests: the url-box door end to end over PGlite —
+// viewer-token resolve (GitHub stubbed at global fetch), owner-scoped
+// upsert, and the enqueued worker job. Harness mirrors installations.test.ts.
 import { randomBytes, createHash } from "node:crypto";
 import {
   encryptToken,
@@ -9,29 +8,19 @@ import {
   createTenantRepository,
   createGrantAuth,
   isInstallationId,
+  isRepoId,
   isReviewerId,
   type AppDatabase,
   type KeyProvider,
   type ReviewerId,
-  type TenantContext,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-  type Mock,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createApp,
-  UrlBriefErrorKind,
   type ApiApp,
   type AppDeps,
   type AuthDeps,
-  type UrlBriefEngine,
 } from "../src/index";
 import { testLogger } from "./logging";
 
@@ -39,10 +28,13 @@ const SECRET = "test-webhook-secret";
 const KEY_REF = "SESSION_KEY_V1";
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
 const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
+const FALLBACK_PAT = "ghp_OPERATOR_PAT";
 const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
 const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 const PR_URL = "https://github.com/o/r/pull/7";
 const HEAD = "a".repeat(40);
+const BASE = "b".repeat(40);
+const REPO_ID = 424242;
 
 function brand<T extends bigint>(
   guard: (v: bigint) => v is T,
@@ -53,11 +45,13 @@ function brand<T extends bigint>(
   return asBigInt;
 }
 
-const CTX: TenantContext = { installationId: brand(isInstallationId, 987654) };
 const REVIEWER: ReviewerId = brand(isReviewerId, 555);
+const OTHER_REVIEWER: ReviewerId = brand(isReviewerId, 556);
 
 function keyProvider(): KeyProvider {
-  return createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
+  return createEnvKeyProvider({
+    [KEY_REF]: randomBytes(32).toString("base64"),
+  });
 }
 
 function authDeps(kp: KeyProvider): AuthDeps {
@@ -71,9 +65,11 @@ function authDeps(kp: KeyProvider): AuthDeps {
   };
 }
 
+/** An OWNER-world session (no installation) — the url-box viewer's shape. */
 async function seedSession(
   handle: AppDatabase,
   kp: KeyProvider,
+  reviewer: ReviewerId = REVIEWER,
 ): Promise<string> {
   const cookie = randomBytes(32).toString("base64url");
   const hash = createHash("sha256").update(cookie).digest("hex");
@@ -87,9 +83,11 @@ async function seedSession(
     keyRef: KEY_REF,
     refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
   });
-  await createTenantRepository(handle, CTX).sessions.create({
+  await createTenantRepository(handle, {
+    ownerUserId: reviewer,
+  }).sessions.create({
     sessionTokenHash: hash,
-    reviewerId: REVIEWER,
+    reviewerId: reviewer,
     reviewerLogin: "octocat",
     grantId: grant.id,
     expiresAt: new Date("2027-01-01T00:00:00Z"),
@@ -106,35 +104,51 @@ const unusedConversationPort = {
   },
 };
 
-interface EngineMocks {
-  fetchHeadSha: Mock<UrlBriefEngine["fetchHeadSha"]>;
-  lookupIndex: Mock<UrlBriefEngine["lookupIndex"]>;
-  generate: Mock<UrlBriefEngine["generate"]>;
+interface PrEndpointScript {
+  /** Status per bearer token; default 200 with the canned PR. */
+  byToken?: Record<string, number>;
+  merged?: boolean;
+  state?: string;
+  /** Answer the OAuth token endpoint with a rotated pair. */
+  tokenEndpoint?: boolean;
 }
 
-/** A controllable engine; every method observable and overridable per test. */
-function fakeEngine(
-  overrides: Partial<EngineMocks> = {},
-): UrlBriefEngine & EngineMocks {
+interface FetchCounts {
+  prCallTokens: string[];
+}
+
+function prJson(script: PrEndpointScript): unknown {
   return {
-    fetchHeadSha: vi.fn(async () => ({ ok: true as const, value: HEAD })),
-    lookupIndex: vi.fn(async () => null),
-    generate: vi.fn(async () => ({
-      ok: true as const,
-      value: { repo: "o/r", number: 7, index: 1, head: HEAD },
-    })),
-    ...overrides,
+    head: { sha: HEAD },
+    base: {
+      sha: BASE,
+      repo: { id: REPO_ID, full_name: "o/r" },
+    },
+    state: script.state ?? "open",
+    draft: false,
+    merged: script.merged ?? false,
+    title: "Add thing",
+    body: "",
+    html_url: PR_URL,
+    commits: 3,
+    user: { login: "octocat" },
+    closed_at: script.merged === true ? "2026-08-01T00:00:00Z" : null,
   };
 }
 
-function stubTokenEndpoint(): { token: number } {
-  const counts = { token: 0 };
+function stubGitHub(script: PrEndpointScript = {}): FetchCounts {
+  const counts: FetchCounts = { prCallTokens: [] };
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (input: unknown) => {
+    vi.fn(async (input: unknown, init?: RequestInit) => {
       const url = String(input instanceof Request ? input.url : input);
-      if (url.includes("/login/oauth/access_token")) {
-        counts.token++;
+      const headers = new Headers(
+        input instanceof Request ? input.headers : init?.headers,
+      );
+      if (
+        script.tokenEndpoint === true &&
+        url.includes("/login/oauth/access_token")
+      ) {
         return new Response(
           JSON.stringify({
             access_token: ROTATED_ACCESS,
@@ -153,6 +167,41 @@ function stubTokenEndpoint(): { token: number } {
           },
         );
       }
+      if (url.includes("/repositories/")) {
+        return new Response(
+          JSON.stringify({
+            full_name: "o/r",
+            private: false,
+            permissions: { push: false },
+          }),
+          {
+            status: 200,
+            headers: {
+              "content-type": "application/json; charset=utf-8",
+              date: new Date().toUTCString(),
+            },
+          },
+        );
+      }
+      if (url.includes("/repos/o/r/pulls/7")) {
+        const auth = headers.get("authorization") ?? "";
+        const token = auth.replace(/^(token|Bearer)\s+/i, "");
+        counts.prCallTokens.push(token);
+        const status = script.byToken?.[token] ?? 200;
+        if (status !== 200) {
+          return new Response(JSON.stringify({ message: "Not Found" }), {
+            status,
+            headers: { "content-type": "application/json" },
+          });
+        }
+        return new Response(JSON.stringify(prJson(script)), {
+          status: 200,
+          headers: {
+            "content-type": "application/json; charset=utf-8",
+            date: new Date().toUTCString(),
+          },
+        });
+      }
       throw new Error(`unexpected fetch in generate suite: ${url}`);
     }),
   );
@@ -164,17 +213,20 @@ async function post(
   cookie: string | undefined,
   url: string,
 ): Promise<Response> {
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+  };
+  if (cookie !== undefined) {
+    headers["Cookie"] = `rs_session=${cookie}`;
+  }
   return app.request("/api/generate", {
     method: "POST",
     body: JSON.stringify({ url }),
-    headers: {
-      "content-type": "application/json",
-      ...(cookie === undefined ? {} : { Cookie: `rs_session=${cookie}` }),
-    },
+    headers,
   });
 }
 
-describe("POST /api/generate", () => {
+describe("POST /api/generate — the url-box door", () => {
   let harness: PgliteHarness;
   let kp: KeyProvider;
 
@@ -188,250 +240,286 @@ describe("POST /api/generate", () => {
     await harness.close();
   });
 
-  function buildApp(engine: UrlBriefEngine | undefined): ApiApp {
+  function buildApp(fallbackToken?: string): ApiApp {
     const deps: AppDeps = {
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: authDeps(kp),
       github: unusedConversationPort,
-      ...(engine === undefined ? {} : { urlBriefEngine: engine }),
+      urlBoxFallbackToken: fallbackToken,
     };
     return createApp(deps);
   }
 
-  it("401s without a session, engine untouched", async () => {
-    const engine = fakeEngine();
-    const res = await post(buildApp(engine), undefined, PR_URL);
+  it("401 with no session", async () => {
+    stubGitHub();
+    const res = await post(buildApp(), undefined, PR_URL);
     expect(res.status).toBe(401);
-    expect(engine.fetchHeadSha).not.toHaveBeenCalled();
   });
 
-  it("503s with curated copy when no engine is wired", async () => {
-    const app = buildApp(undefined);
+  it("400 for a non-PR url", async () => {
+    stubGitHub();
     const cookie = await seedSession(harness.handle, kp);
-    const res = await post(app, cookie, PR_URL);
-    expect(res.status).toBe(503);
-    expect(await res.json()).toEqual({
-      error: "url generation unavailable",
-      code: "generation-unavailable",
-    });
-  });
-
-  it("400s a non-PR URL without reaching the engine", async () => {
-    const engine = fakeEngine();
-    const app = buildApp(engine);
-    const cookie = await seedSession(harness.handle, kp);
-    const res = await post(app, cookie, "https://example.com/not-github");
+    const res = await post(buildApp(), cookie, "https://example.com/nope");
     expect(res.status).toBe(400);
-    expect(engine.fetchHeadSha).not.toHaveBeenCalled();
   });
 
-  it("generates and returns the briefId, engine receiving the decrypted viewer token", async () => {
-    const engine = fakeEngine();
-    const app = buildApp(engine);
+  it("upserts the owner-scoped row, enqueues the worker job, returns coords", async () => {
+    const counts = stubGitHub({ merged: true, state: "closed" });
     const cookie = await seedSession(harness.handle, kp);
-    const res = await post(app, cookie, PR_URL);
+    const res = await post(buildApp(), cookie, PR_URL);
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ briefId: `o-r-7_1_${"a".repeat(8)}` });
-    expect(res.headers.get("cache-control")).toBe("no-store");
-    expect(engine.fetchHeadSha).toHaveBeenCalledWith(
-      { owner: "o", repo: "r", number: 7 },
-      ACCESS_TOKEN,
-    );
-    expect(engine.generate).toHaveBeenCalledWith(PR_URL, ACCESS_TOKEN);
-  });
-
-  it("dedupes by head: an existing index answers without generating", async () => {
-    const engine = fakeEngine({ lookupIndex: vi.fn(async () => 2) });
-    const app = buildApp(engine);
-    const cookie = await seedSession(harness.handle, kp);
-    const res = await post(app, cookie, PR_URL);
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ briefId: `o-r-7_2_${"a".repeat(8)}` });
-    expect(engine.generate).not.toHaveBeenCalled();
-  });
-
-  it("collapses a viewer-token NOT_FOUND to the uniform 404 posture", async () => {
-    const engine = fakeEngine({
-      fetchHeadSha: vi.fn(async () => ({
-        ok: false as const,
-        error: { kind: UrlBriefErrorKind.NOT_FOUND, message: "x" },
-      })),
-    });
-    const app = buildApp(engine);
-    const cookie = await seedSession(harness.handle, kp);
-    const res = await post(app, cookie, PR_URL);
-    expect(res.status).toBe(404);
-    expect(await res.json()).toEqual({ error: "not found", code: "not-found" });
-  });
-
-  it("surfaces a config failure as 503 with the env-safe message", async () => {
-    const engine = fakeEngine({
-      generate: vi.fn(async () => ({
-        ok: false as const,
-        error: {
-          kind: UrlBriefErrorKind.CONFIG,
-          message: "ANTHROPIC_API_KEY is required",
-        },
-      })),
-    });
-    const app = buildApp(engine);
-    const cookie = await seedSession(harness.handle, kp);
-    const res = await post(app, cookie, PR_URL);
-    expect(res.status).toBe(503);
     expect(await res.json()).toEqual({
-      error: "ANTHROPIC_API_KEY is required",
-      code: "generation-config",
-      params: { detail: "ANTHROPIC_API_KEY is required" },
+      repoId: String(REPO_ID),
+      prNumber: 7,
     });
-  });
+    expect(counts.prCallTokens).toEqual([ACCESS_TOKEN]);
 
-  it("scrubs a credential the engine quoted into its config message", async () => {
-    // The port contract says config messages name env vars, never values —
-    // this route is the boundary that enforces it, and the shared sanitizer
-    // now covers credential shapes as well as URLs.
-    const engine = fakeEngine({
-      generate: vi.fn(async () => ({
-        ok: false as const,
-        error: {
-          kind: UrlBriefErrorKind.CONFIG,
-          message: "rejected key sk-ant-api03-LeAkEd_Key-999",
-        },
-      })),
-    });
-    const app = buildApp(engine);
-    const cookie = await seedSession(harness.handle, kp);
-    const res = await post(app, cookie, PR_URL);
-    const raw = await res.text();
-    expect(raw).not.toContain("sk-ant-api03-LeAkEd_Key-999");
-    expect(raw).toContain("[redacted-token]");
-  });
-
-  it("clamps a contract-violating config message (URL scrubbed, first line only)", async () => {
-    const engine = fakeEngine({
-      generate: vi.fn(async () => ({
-        ok: false as const,
-        error: {
-          kind: UrlBriefErrorKind.CONFIG,
-          message: "bad DSN postgres://user:pass@host/db\nstack line",
-        },
-      })),
-    });
-    const app = buildApp(engine);
-    const cookie = await seedSession(harness.handle, kp);
-    const res = await post(app, cookie, PR_URL);
-    expect(res.status).toBe(503);
-    const body = await res.json();
-    expect(JSON.stringify(body)).not.toContain("pass");
-    expect(JSON.stringify(body)).not.toContain("stack line");
-    expect(body).toEqual({
-      error: "bad DSN [redacted-url]",
-      code: "generation-config",
-      params: { detail: "bad DSN [redacted-url]" },
-    });
-  });
-
-  it("spends the refresh once on an unauthorized head fetch, then retries with the rotated token", async () => {
-    stubTokenEndpoint();
-    const fetchHeadSha = vi
-      .fn<UrlBriefEngine["fetchHeadSha"]>()
-      .mockResolvedValueOnce({
-        ok: false as const,
-        error: { kind: UrlBriefErrorKind.UNAUTHORIZED, message: "x" },
-      })
-      .mockResolvedValueOnce({ ok: true as const, value: HEAD });
-    const engine = fakeEngine({ fetchHeadSha });
-    const app = buildApp(engine);
-    const cookie = await seedSession(harness.handle, kp);
-    const res = await post(app, cookie, PR_URL);
-    expect(res.status).toBe(200);
-    expect(fetchHeadSha).toHaveBeenCalledTimes(2);
-    expect(fetchHeadSha).toHaveBeenLastCalledWith(
-      { owner: "o", repo: "r", number: 7 },
-      ROTATED_ACCESS,
+    const rows = await harness.raw(
+      "select installation_id, owner_user_id, source, state, repo_slug, title from pull_request",
     );
+    expect(rows).toEqual([
+      {
+        installation_id: null,
+        owner_user_id: Number(REVIEWER),
+        source: "url-box",
+        // A merged PR is a first-class url-box target, and still enqueues.
+        state: "merged",
+        repo_slug: "o/r",
+        title: "Add thing",
+      },
+    ]);
+
+    const generations = await harness.raw(
+      "select status, head_sha from generation",
+    );
+    expect(generations).toEqual([{ status: "queued", head_sha: HEAD }]);
+
+    const jobs = await harness.raw(
+      "select payload, run_at from graphile_worker.jobs where task_identifier = 'generate'",
+    );
+    expect(jobs).toHaveLength(1);
+    const payload = jobs[0]?.["payload"];
+    expect(payload).toMatchObject({
+      owner_user_id: String(REVIEWER),
+      pull_request_id: expect.stringMatching(/^\d+$/),
+      head_sha: HEAD,
+    });
+    expect(
+      typeof payload === "object" && payload !== null && "grant_id" in payload,
+    ).toBe(true);
+    // A paste takes the short trailing window, never zero: a claimed job
+    // cannot be replaced, so an immediate re-paste would generate twice.
+    const runAt = new Date(String(jobs[0]?.["run_at"]));
+    const delaySeconds = (runAt.getTime() - Date.now()) / 1000;
+    expect(delaySeconds).toBeGreaterThan(1);
+    expect(delaySeconds).toBeLessThanOrEqual(30);
+
+    const audits = await harness.raw(
+      "select installation_id, source, operation, outcome from audit_log",
+    );
+    expect(audits).toContainEqual({
+      installation_id: null,
+      source: "url-box",
+      operation: "generate-brief",
+      outcome: "ok",
+    });
   });
 
-  it("spends the refresh on an unauthorized generate stage and retries with the rotated token", async () => {
-    stubTokenEndpoint();
-    const generate = vi
-      .fn<UrlBriefEngine["generate"]>()
-      .mockResolvedValueOnce({
-        ok: false as const,
-        error: { kind: UrlBriefErrorKind.UNAUTHORIZED, message: "x" },
-      })
-      .mockResolvedValueOnce({
-        ok: true as const,
-        value: { repo: "o/r", number: 7, index: 1, head: HEAD },
+  it("an installation-bound viewer's paste lands owner-world AND reads back on the repo route", async () => {
+    stubGitHub();
+    // Same shape as seedSession but bound to a tenant — the pre-url-box norm.
+    const cookie = await (async () => {
+      const raw = randomBytes(32).toString("base64url");
+      const hash = createHash("sha256").update(raw).digest("hex");
+      const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
+      const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
+      if (!sealedAccess.ok || !sealedRefresh.ok)
+        throw new Error("seed encrypt failed");
+      const grant = await createGrantAuth(harness.handle).createGrant({
+        ghTokenCiphertext: sealedAccess.value,
+        ghRefreshTokenCiphertext: sealedRefresh.value,
+        keyRef: KEY_REF,
+        refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
       });
-    const engine = fakeEngine({ generate });
-    const app = buildApp(engine);
-    const cookie = await seedSession(harness.handle, kp);
+      await createTenantRepository(harness.handle, {
+        installationId: brand(isInstallationId, 987654),
+      }).sessions.create({
+        sessionTokenHash: hash,
+        reviewerId: REVIEWER,
+        reviewerLogin: "octocat",
+        grantId: grant.id,
+        expiresAt: new Date("2027-01-01T00:00:00Z"),
+      });
+      return raw;
+    })();
+    const app = buildApp();
+
     const res = await post(app, cookie, PR_URL);
     expect(res.status).toBe(200);
-    expect(generate).toHaveBeenCalledTimes(2);
-    expect(generate).toHaveBeenLastCalledWith(PR_URL, ROTATED_ACCESS);
-  });
-
-  it("401 when the generate stage is still unauthorized after the head fetch spent the one refresh", async () => {
-    // The refresh budget is per REQUEST, shared across both engine stages: the
-    // head fetch spends it, so a second UNAUTHORIZED at the generate stage
-    // must surface without another token-endpoint call or a generate retry.
-    const counts = stubTokenEndpoint();
-    const fetchHeadSha = vi
-      .fn<UrlBriefEngine["fetchHeadSha"]>()
-      .mockResolvedValueOnce({
-        ok: false as const,
-        error: { kind: UrlBriefErrorKind.UNAUTHORIZED, message: "x" },
-      })
-      .mockResolvedValueOnce({ ok: true as const, value: HEAD });
-    const generate = vi.fn<UrlBriefEngine["generate"]>().mockResolvedValue({
-      ok: false as const,
-      error: { kind: UrlBriefErrorKind.UNAUTHORIZED, message: "x" },
-    });
-    const engine = fakeEngine({ fetchHeadSha, generate });
-    const app = buildApp(engine);
-    const cookie = await seedSession(harness.handle, kp);
-    const res = await post(app, cookie, PR_URL);
-    expect(res.status).toBe(401);
-    expect(counts.token).toBe(1);
-    expect(fetchHeadSha).toHaveBeenCalledTimes(2);
-    expect(generate).toHaveBeenCalledTimes(1);
-  });
-
-  it("single-flights concurrent generations for the same PR-head", async () => {
-    let release: (() => void) | undefined;
-    const generate = vi.fn(
-      () =>
-        new Promise<{
-          ok: true;
-          value: { repo: string; number: number; index: number; head: string };
-        }>((resolve) => {
-          release = () =>
-            resolve({
-              ok: true,
-              value: { repo: "o/r", number: 7, index: 1, head: HEAD },
-            });
-        }),
+    const rows = await harness.raw(
+      "select installation_id, owner_user_id from pull_request",
     );
-    const engine = fakeEngine({ generate });
-    const app = buildApp(engine);
+    expect(rows).toEqual([
+      { installation_id: null, owner_user_id: Number(REVIEWER) },
+    ]);
+
+    // The read-back: the tenant ctx misses, the owner fallback resolves —
+    // the poll-after-paste loop must work for exactly this viewer.
+    const meta = await app.request(`/api/repos/${REPO_ID}/pulls/7`, {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
+    expect(meta.status).toBe(200);
+    const body: unknown = await meta.json();
+    expect(body).toMatchObject({
+      repoId: String(REPO_ID),
+      prNumber: 7,
+      briefAvailable: false,
+      generation: { status: "queued" },
+    });
+  });
+
+  it("when BOTH worlds hold the row, the tenant world wins the read-back", async () => {
+    stubGitHub();
+    const tenantCtx = { installationId: brand(isInstallationId, 987654) };
+    // Seed the SAME coordinates in both worlds; only the tenant row carries
+    // the marker slug.
+    await createTenantRepository(harness.handle, tenantCtx).pullRequests.upsert(
+      {
+        repoId: brand(isRepoId, REPO_ID),
+        prNumber: 7,
+        repoSlug: "o/r",
+        title: "tenant title",
+        state: "open",
+      },
+    );
+    await createTenantRepository(harness.handle, {
+      ownerUserId: REVIEWER,
+    }).pullRequests.upsert({
+      repoId: brand(isRepoId, REPO_ID),
+      prNumber: 7,
+      repoSlug: "o/r",
+      title: "owner title",
+      state: "open",
+    });
+    const cookie = await (async () => {
+      const raw = randomBytes(32).toString("base64url");
+      const hash = createHash("sha256").update(raw).digest("hex");
+      const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
+      const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
+      if (!sealedAccess.ok || !sealedRefresh.ok)
+        throw new Error("seed encrypt failed");
+      const grant = await createGrantAuth(harness.handle).createGrant({
+        ghTokenCiphertext: sealedAccess.value,
+        ghRefreshTokenCiphertext: sealedRefresh.value,
+        keyRef: KEY_REF,
+        refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
+      });
+      await createTenantRepository(harness.handle, tenantCtx).sessions.create({
+        sessionTokenHash: hash,
+        reviewerId: REVIEWER,
+        reviewerLogin: "octocat",
+        grantId: grant.id,
+        expiresAt: new Date("2027-01-01T00:00:00Z"),
+      });
+      return raw;
+    })();
+
+    const meta = await buildApp().request(`/api/repos/${REPO_ID}/pulls/7`, {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
+    expect(meta.status).toBe(200);
+    // The stored title is the row marker — the tenant row must win.
+    expect(await meta.json()).toMatchObject({ title: "tenant title" });
+  });
+
+  it("a second signed-in reader opens the url-box row another viewer pasted", async () => {
+    // Url-box rows are instance-visible: the gate already made this reader
+    // prove GitHub access to the repo, and the row is theirs to read.
+    stubGitHub();
+    const app = buildApp();
+    expect(
+      (await post(app, await seedSession(harness.handle, kp), PR_URL)).status,
+    ).toBe(200);
+
+    const other = await seedSession(harness.handle, kp, OTHER_REVIEWER);
+    const meta = await app.request(`/api/repos/${REPO_ID}/pulls/7`, {
+      headers: { Cookie: `rs_session=${other}` },
+    });
+
+    expect(meta.status).toBe(200);
+    expect(await meta.json()).toMatchObject({ prNumber: 7 });
+  });
+
+  it("re-pasting replaces the pending job instead of stacking a second", async () => {
+    stubGitHub();
+    const cookie = await seedSession(harness.handle, kp);
+    const app = buildApp();
+    expect((await post(app, cookie, PR_URL)).status).toBe(200);
+    const first = await harness.raw(
+      "select run_at from graphile_worker.jobs where task_identifier = 'generate'",
+    );
+    expect((await post(app, cookie, PR_URL)).status).toBe(200);
+
+    const prs = await harness.raw("select id from pull_request");
+    expect(prs).toHaveLength(1);
+    const jobs = await harness.raw(
+      "select id, run_at from graphile_worker.jobs where task_identifier = 'generate'",
+    );
+    expect(jobs).toHaveLength(1);
+    // Trailing, not fixed: the re-paste re-schedules the one job off the LAST
+    // trigger, so its window never runs down while pastes keep arriving.
+    const rescheduled = new Date(String(jobs[0]?.["run_at"])).getTime();
+    expect(rescheduled).toBeGreaterThanOrEqual(
+      new Date(String(first[0]?.["run_at"])).getTime(),
+    );
+    expect(rescheduled).toBeGreaterThan(Date.now() + 1000);
+  });
+
+  it("an expired viewer token spends the one refresh and retries rotated", async () => {
+    const counts = stubGitHub({
+      byToken: { [ACCESS_TOKEN]: 401 },
+      tokenEndpoint: true,
+    });
+    const cookie = await seedSession(harness.handle, kp);
+    // The PAT is CONFIGURED here so the assertion genuinely excludes it: a
+    // 401 must spend the refresh, never escalate to the operator identity.
+    const res = await post(buildApp(FALLBACK_PAT), cookie, PR_URL);
+    expect(res.status).toBe(200);
+    expect(counts.prCallTokens).toEqual([ACCESS_TOKEN, ROTATED_ACCESS]);
+  });
+
+  it("a viewer denial with no PAT collapses to the uniform 404", async () => {
+    stubGitHub({ byToken: { [ACCESS_TOKEN]: 404 } });
+    const cookie = await seedSession(harness.handle, kp);
+    const res = await post(buildApp(), cookie, PR_URL);
+    expect(res.status).toBe(404);
+    expect(await harness.raw("select id from pull_request")).toHaveLength(0);
+  });
+
+  it("a viewer denial retries once with the operator PAT", async () => {
+    const counts = stubGitHub({ byToken: { [ACCESS_TOKEN]: 404 } });
+    const cookie = await seedSession(harness.handle, kp);
+    const res = await post(buildApp(FALLBACK_PAT), cookie, PR_URL);
+    expect(res.status).toBe(200);
+    expect(counts.prCallTokens).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
+  });
+
+  // A 401 from the OPERATOR's key is not the reader's expiry: it must not
+  // spend the request's one refresh, and it must not send the reader to
+  // re-authenticate a credential that is not theirs.
+  it("keeps the reader's 404 when the operator PAT is itself rejected", async () => {
+    const counts = stubGitHub({
+      byToken: { [ACCESS_TOKEN]: 404, [FALLBACK_PAT]: 401 },
+      tokenEndpoint: true,
+    });
     const cookie = await seedSession(harness.handle, kp);
 
-    const [first, second] = [
-      post(app, cookie, PR_URL),
-      post(app, cookie, PR_URL),
-    ];
-    // Both requests must be past dedupe and inside the flight before release.
-    await vi.waitFor(() => {
-      expect(engine.lookupIndex).toHaveBeenCalledTimes(2);
-    });
-    release?.();
-    const [resA, resB] = await Promise.all([first, second]);
-    expect(resA.status).toBe(200);
-    expect(resB.status).toBe(200);
-    expect(await resA.json()).toEqual(await resB.json());
-    expect(generate).toHaveBeenCalledTimes(1);
+    const res = await post(buildApp(FALLBACK_PAT), cookie, PR_URL);
+
+    expect(res.status).toBe(404);
+    // One viewer read, one PAT read, and NO rotated-token retry.
+    expect(counts.prCallTokens).toEqual([ACCESS_TOKEN, FALLBACK_PAT]);
   });
 });

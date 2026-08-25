@@ -28,10 +28,10 @@ export function prRoutes(deps: ConversationRouteDeps): ProductRouter<AuthzEnv> {
   // routes evict a PR's entry on their success paths.
   const conversation = conversationRoute(deps);
   const evictConversation: ConversationRoutes["evictConversation"] = (
-    installationId,
+    ctx,
     repoId,
     prNumber,
-  ) => conversation.evictConversation(installationId, repoId, prNumber);
+  ) => conversation.evictConversation(ctx, repoId, prNumber);
   // Rooted, not prefixed: the reads leaf's paths share no common prefix.
   app.route("/", readsRoutes(deps));
   app.route("/session", sessionRoutes(deps));

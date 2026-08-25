@@ -15,6 +15,7 @@
 //       is safe precisely because (a) guarantees a child's world mark
 //       matches its parent's.
 import { and, desc, eq, inArray, lt, sql } from "drizzle-orm";
+import type { PgUpdateSetSource } from "drizzle-orm/pg-core";
 import { type AppDatabase, internal } from "../db/handle";
 import { deleteOrphanedGrants } from "../auth/grant";
 import { checkpoint } from "../schema/checkpoint";
@@ -146,11 +147,12 @@ export type PullRequestStatePatch = PullRequestLifecycle;
  * inside its transaction); `index.ts` never re-exports it.
  */
 /**
- * The columns an upsert's conflict branch may name. Partial by design: a key
- * left off is a column drizzle does not touch, which is how an omitted input
- * field preserves the stored value.
+ * The columns an upsert's conflict branch may name — drizzle's own update
+ * shape, so a column may take a value or a SQL expression. Partial by design:
+ * a key left off is a column drizzle does not touch, which is how an omitted
+ * input field preserves the stored value.
  */
-export type PullRequestUpdateSet = Partial<typeof pullRequest.$inferInsert>;
+export type PullRequestUpdateSet = PgUpdateSetSource<typeof pullRequest>;
 
 export function buildLifecycleColumns(lc: PullRequestLifecycle): {
   state: PrState;

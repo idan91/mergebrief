@@ -160,7 +160,9 @@ describe("read commands over the real api app", () => {
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
-    kp = createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
+    kp = createEnvKeyProvider({
+      [KEY_REF]: randomBytes(32).toString("base64"),
+    });
     const auth: AuthDeps = {
       oauthClientId: "Iv1.test-client-id",
       oauthClientSecret: "test-client-secret",
@@ -400,10 +402,10 @@ describe("read commands over the real api app", () => {
   it("delta with explicit --baseline/--head wraps the artifact verbatim; unmodeled 404 exits 4", async () => {
     await seedBriefedPr(harness.handle);
     const deltaBody = '{"artifactKind":"delta","changedGroups":[]}';
-    const prRow = await createTenantRepository(harness.handle, CTX).pullRequests.getByNumber(
-      brand(isRepoId, REPO_A),
-      7,
-    );
+    const prRow = await createTenantRepository(
+      harness.handle,
+      CTX,
+    ).pullRequests.getByNumber(brand(isRepoId, REPO_A), 7);
     if (prRow === undefined) throw new Error("seed missing");
     const write = await createArtifactStore(harness.handle, CTX).deltas.write({
       pullRequestId: prRow.id,

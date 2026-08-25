@@ -38,6 +38,7 @@ import {
 } from "./logic/submit-comments";
 import { submitBodySchema } from "./schemas";
 import type { EvictConversation } from "./types";
+import { resolvePrScopeFrom } from "../scope";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
@@ -139,7 +140,7 @@ export default function createHandlers(
     }
     const submitBody = parsedBody.data;
 
-    const ctx = c.get("ctx");
+    const ctx = await resolvePrScopeFrom(c, deps.handle, parsedPr.data);
     const pr = await createTenantRepository(
       deps.handle,
       ctx,
@@ -200,7 +201,7 @@ export default function createHandlers(
 
     // A submitted review is a conversation write — the cached conversation
     // is stale the moment it lands.
-    evictConversation(ctx.installationId, c.get("repoId"), pr.prNumber);
+    evictConversation(ctx, c.get("repoId"), pr.prNumber);
 
     return c.json(
       {

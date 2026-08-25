@@ -39,6 +39,7 @@ import {
   resolveSessionWrite,
   throwSessionWriteFailure,
 } from "./logic/write-seam";
+import { resolvePrScopeFrom } from "../scope";
 
 const NO_STORE = { "cache-control": "no-store" };
 
@@ -117,7 +118,7 @@ export default function createHandlers(deps: AuthRouteDeps) {
     }
 
     const previewed = await sessionController.previewSession(deps, {
-      ctx: c.get("ctx"),
+      ctx: await resolvePrScopeFrom(c, deps.handle, prNumber.data),
       repoId: c.get("repoId"),
       prNumber: prNumber.data,
       span: span.data,

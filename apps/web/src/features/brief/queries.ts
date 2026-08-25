@@ -23,26 +23,39 @@ function stringField(value: unknown, key: string): string | undefined {
   return typeof field === "string" ? field : undefined;
 }
 
+/** Where a just-enqueued url-box brief will render (the repo route). */
+export interface GenerateAccepted {
+  readonly repoId: string;
+  readonly prNumber: number;
+}
+
 /**
- * Signed-in generate path: runs the pipeline with the VIEWER's token — works
- * for any repo the account can read, no gh CLI and no App installation.
+ * The url-box door: resolve + enqueue with the VIEWER's token — works for
+ * any repo the account can read, no App installation. Generation runs in the
+ * worker; the coords point at the repo route, whose meta poll shows progress.
  */
-export async function generateBriefViaApi(url: string): Promise<string> {
+export async function generateBriefViaApi(
+  url: string,
+): Promise<GenerateAccepted> {
   const response = await apiFetch("/api/generate", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ url }),
   });
   const body = await apiJsonFromResponse(response, "/api/generate");
-  const briefIdValue = stringField(body, "briefId");
-  if (briefIdValue === undefined) {
+  const repoId = stringField(body, "repoId");
+  const prNumber =
+    typeof body === "object" && body !== null && "prNumber" in body
+      ? body.prNumber
+      : undefined;
+  if (repoId === undefined || typeof prNumber !== "number") {
     throw new ApiError(
       ApiErrorCode.MALFORMED,
       response.status,
       "/api/generate",
     );
   }
-  return briefIdValue;
+  return { repoId, prNumber };
 }
 
 export function localBriefQueryOptions(briefId: string) {

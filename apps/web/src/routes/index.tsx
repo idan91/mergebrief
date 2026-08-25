@@ -1,10 +1,9 @@
 import { Trans, useTranslation } from "react-i18next";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 
 import { Button } from "@web/components/Button/Button";
-import { generateBrief } from "../features/brief/server/brief.functions";
 import {
   generateBriefViaApi,
   localBriefsQueryOptions,
@@ -40,7 +39,6 @@ function BriefPicker() {
   const { t } = useTranslation();
   const briefs = useSuspenseQuery(localBriefsQueryOptions()).data;
   const session = useSuspenseQuery(pullsSessionQueryOptions()).data;
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [url, setUrl] = useState("");
   const [pending, setPending] = useState(false);
@@ -51,16 +49,17 @@ function BriefPicker() {
     setPending(true);
     setError(null);
     try {
-      // Behavior follows the VISIBLE auth state: signed in generates through
-      // the api route on the viewer's token; signed out uses the local gh CLI.
-      const briefId =
-        session.kind === "ready"
-          ? await generateBriefViaApi(url)
-          : await generateBrief({ data: { url } });
-      // The list is cached with staleTime Infinity — a fresh brief must
-      // invalidate it or the picker shows the load-time snapshot.
-      await queryClient.invalidateQueries({ queryKey: ["briefs", "local"] });
-      await navigate({ to: "/briefs/$briefId", params: { briefId } });
+      // Signed-in only: the api door resolves with the viewer's token and
+      // enqueues the worker; the repo route's meta poll shows progress. The
+      // signed-out gh-CLI door is gone — the box asks for sign-in instead.
+      const accepted = await generateBriefViaApi(url);
+      await navigate({
+        to: "/repos/$repoId/pulls/$prNumber",
+        params: {
+          repoId: accepted.repoId,
+          prNumber: String(accepted.prNumber),
+        },
+      });
     } catch (caught) {
       // The server function rejects with a CODE, never a sentence — render
       // it through the catalog (unmapped reasons fall back to the unexpected
@@ -88,24 +87,29 @@ function BriefPicker() {
           <li>{t("shell.landingBullet2")}</li>
           <li>{t("shell.landingBullet3")}</li>
         </ul>
-        <form className={styles["form"]} onSubmit={handleGenerate}>
-          <input
-            aria-label={t("shell.ariaLabelPrUrl")}
-            disabled={pending}
-            placeholder={t("shell.prUrlPlaceholder")}
-            type="url"
-            value={url}
-            onChange={(event) => setUrl(event.target.value)}
-          />
-          <Button
-            disabled={pending}
-            loading={pending}
-            type="submit"
-            variant="primary"
-          >
-            {pending ? t("shell.generating") : t("shell.generate")}
-          </Button>
-        </form>
+        {/* The url-box is a signed-in door: the worker generates with the
+            viewer's grant, so a signed-out visitor gets the sign-in button
+            below instead of a dead form. */}
+        {session.kind === "ready" ? (
+          <form className={styles["form"]} onSubmit={handleGenerate}>
+            <input
+              aria-label={t("shell.ariaLabelPrUrl")}
+              disabled={pending}
+              placeholder={t("shell.prUrlPlaceholder")}
+              type="url"
+              value={url}
+              onChange={(event) => setUrl(event.target.value)}
+            />
+            <Button
+              disabled={pending}
+              loading={pending}
+              type="submit"
+              variant="primary"
+            >
+              {pending ? t("shell.generating") : t("shell.generate")}
+            </Button>
+          </form>
+        ) : null}
         {error ? (
           <p className={styles["error"]} role="alert">
             {error}

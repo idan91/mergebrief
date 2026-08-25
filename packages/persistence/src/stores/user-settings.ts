@@ -38,7 +38,9 @@ export interface UserSettingsStore {
  * `AppDatabase`. Uses the in-package `internal()` unwrap; never exposes a raw
  * query surface, and is intentionally NOT ctx-bound (see the file header).
  */
-export function createUserSettingsStore(handle: AppDatabase): UserSettingsStore {
+export function createUserSettingsStore(
+  handle: AppDatabase,
+): UserSettingsStore {
   const db = internal(handle);
 
   return {

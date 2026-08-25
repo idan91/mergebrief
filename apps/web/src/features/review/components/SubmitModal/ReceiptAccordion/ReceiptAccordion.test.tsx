@@ -10,7 +10,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { Receipt } from "../../../utils/receipt";
 import { ReceiptAccordion } from "./ReceiptAccordion";
 
-const RAW = "Reviewed by @you (human) · octo/hello #7 @ aaaaaaa\n  not checked: business intent";
+const RAW =
+  "Reviewed by @you (human) · octo/hello #7 @ aaaaaaa\n  not checked: business intent";
 
 function receipt(): Receipt {
   return {
@@ -103,7 +104,9 @@ describe("ReceiptAccordion", () => {
     renderAccordion();
     expect(screen.getByText("Inline comments (2)")).toBeTruthy();
     expect(
-      screen.getByText(/risk disposition — 1 addressed · 1 dismissed · 1 open/i),
+      screen.getByText(
+        /risk disposition — 1 addressed · 1 dismissed · 1 open/i,
+      ),
     ).toBeTruthy();
   });
 

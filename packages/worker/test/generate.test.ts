@@ -234,6 +234,8 @@ function ok<T>(value: T): Result<T, GitHubApiError> {
 function stubGitHub(headSha: string): StubGitHub {
   const stub: StubGitHub = {
     info: {
+      repoId: makeRepoId(7n),
+      repoFullName: "acme/widget",
       headSha,
       baseSha: BASE,
       state: "open",
@@ -243,6 +245,8 @@ function stubGitHub(headSha: string): StubGitHub {
       body: "",
       htmlUrl: "https://github.com/acme/widget/pull/7",
       commitCount: 3,
+      authorLogin: "octocat",
+      closedAt: null,
     },
     files: [{ path: "a.ts", additions: 8, deletions: 2 }],
     diff: SMALL_DIFF,
@@ -458,6 +462,192 @@ describe("generate task — url-box world", () => {
       operation: "generate",
       target_type: "brief",
     });
+  });
+
+  it("re-queues the head it observed when a url-box PR moved before the drain", async () => {
+    // No installation means no webhook: if this run only stood down, the
+    // paste would end with no brief and nothing scheduled.
+    const ownerCtx = parseScopeContext({ ownerUserId: 555 });
+    const pr = await createTenantRepository(
+      harness.handle,
+      ownerCtx,
+    ).pullRequests.upsert({
+      repoId: makeRepoId(7n),
+      prNumber: 7,
+      repoSlug: "acme/widget",
+      state: PrState.OPEN,
+    });
+    const projection = createGenerationProjection(harness.handle, ownerCtx);
+    expect((await projection.upsertQueued(target(pr, HEAD_1))).ok).toBe(true);
+    const generator = stubGenerator();
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github: stubGitHub(HEAD_2),
+    });
+
+    await task({
+      owner_user_id: "555",
+      grant_id: "31",
+      pull_request_id: String(pr.id),
+      head_sha: HEAD_1,
+    });
+
+    expect(generator.calls).toEqual([]);
+    expect((await projection.get(target(pr, HEAD_1)))?.status).toBe(
+      GenerationStatus.SUPERSEDED,
+    );
+    expect((await projection.get(target(pr, HEAD_2)))?.status).toBe(
+      GenerationStatus.QUEUED,
+    );
+    const jobs = await harness.raw(
+      "select payload from graphile_worker.jobs where task_identifier = 'generate'",
+    );
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]?.["payload"]).toMatchObject({
+      owner_user_id: "555",
+      grant_id: "31",
+      head_sha: HEAD_2,
+    });
+  });
+
+  it("re-queues the observed head when a url-box PR moves MID-generation", async () => {
+    // The mid-stream poller aborts the SDK call, which surfaces as an abort
+    // rather than a head mismatch — the follow-up must ride that path too.
+    const ownerCtx = parseScopeContext({ ownerUserId: 555 });
+    const pr = await createTenantRepository(
+      harness.handle,
+      ownerCtx,
+    ).pullRequests.upsert({
+      repoId: makeRepoId(7n),
+      prNumber: 7,
+      repoSlug: "acme/widget",
+      state: PrState.OPEN,
+    });
+    const projection = createGenerationProjection(harness.handle, ownerCtx);
+    expect((await projection.upsertQueued(target(pr, HEAD_1))).ok).toBe(true);
+    const github = stubGitHub(HEAD_1);
+    // The pre-flight read sees the job's head; every poll after it sees the
+    // push that supersedes this run.
+    github.nextHeads = [HEAD_1];
+    github.info = { ...github.info, headSha: HEAD_2 };
+    const hangingGenerator: Generator = {
+      async generate<S extends z.ZodType>(
+        req: GenerateRequest<S>,
+      ): Promise<z.infer<S>> {
+        return new Promise<never>((_, reject) => {
+          req.signal?.addEventListener("abort", () => {
+            reject(
+              Object.assign(new Error("Request was aborted."), {
+                name: "APIUserAbortError",
+              }),
+            );
+          });
+        });
+      },
+      origin: (effort: Effort) => ({
+        provider: "stub",
+        model: "stub-model",
+        effort,
+      }),
+    };
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator: hangingGenerator,
+      github,
+      headPollIntervalMs: 5,
+    });
+
+    await task({
+      owner_user_id: "555",
+      grant_id: "31",
+      pull_request_id: String(pr.id),
+      head_sha: HEAD_1,
+    });
+
+    expect((await projection.get(target(pr, HEAD_1)))?.status).toBe(
+      GenerationStatus.SUPERSEDED,
+    );
+    expect((await projection.get(target(pr, HEAD_2)))?.status).toBe(
+      GenerationStatus.QUEUED,
+    );
+    const jobs = await harness.raw(
+      "select payload from graphile_worker.jobs where task_identifier = 'generate'",
+    );
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]?.["payload"]).toMatchObject({
+      owner_user_id: "555",
+      grant_id: "31",
+      head_sha: HEAD_2,
+    });
+  });
+
+  it("queues the successor from the read it already made, not a fresh one", async () => {
+    // Every GitHub read after the abort fails. The follow-up must still queue
+    // HEAD_2 off the read the watch already made — re-reading here would
+    // finalize `superseded` with nothing scheduled, and no webhook exists to
+    // bring the successor back.
+    const ownerCtx = parseScopeContext({ ownerUserId: 555 });
+    const pr = await createTenantRepository(
+      harness.handle,
+      ownerCtx,
+    ).pullRequests.upsert({
+      repoId: makeRepoId(7n),
+      prNumber: 7,
+      repoSlug: "acme/widget",
+      state: PrState.OPEN,
+    });
+    const projection = createGenerationProjection(harness.handle, ownerCtx);
+    expect((await projection.upsertQueued(target(pr, HEAD_1))).ok).toBe(true);
+    const github = stubGitHub(HEAD_1);
+    github.nextHeads = [HEAD_1];
+    github.info = { ...github.info, headSha: HEAD_2 };
+    const hangingGenerator: Generator = {
+      async generate<S extends z.ZodType>(
+        req: GenerateRequest<S>,
+      ): Promise<z.infer<S>> {
+        return new Promise<never>((_, reject) => {
+          req.signal?.addEventListener("abort", () => {
+            // From the abort on, GitHub is unreachable.
+            github.fetchPullRequestError = {
+              code: "request-failed",
+              status: 502,
+              message: "GitHub API returned status 502",
+            };
+            reject(
+              Object.assign(new Error("Request was aborted."), {
+                name: "APIUserAbortError",
+              }),
+            );
+          });
+        });
+      },
+      origin: (effort: Effort) => ({
+        provider: "stub",
+        model: "stub-model",
+        effort,
+      }),
+    };
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator: hangingGenerator,
+      github,
+      headPollIntervalMs: 5,
+    });
+
+    await task({
+      owner_user_id: "555",
+      grant_id: "31",
+      pull_request_id: String(pr.id),
+      head_sha: HEAD_1,
+    });
+
+    expect((await projection.get(target(pr, HEAD_2)))?.status).toBe(
+      GenerationStatus.QUEUED,
+    );
   });
 
   it("a url-box job cannot address an installation tenant's PR", async () => {
@@ -979,6 +1169,8 @@ describe("generate task", () => {
     expect(after?.status).toBe(GenerationStatus.SUPERSEDED);
     expect(after?.attempts).toBe(before?.attempts);
     expect(generator.calls).toEqual([]);
+    // The App world schedules nothing here: the push's own webhook did.
+    expect(await projection.get(target(pr, HEAD_2))).toBeUndefined();
   });
 
   it("marks superseded for a PR that went terminal after enqueue", async () => {
