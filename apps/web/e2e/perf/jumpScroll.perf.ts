@@ -15,7 +15,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { gotoBrief } from "../support/page";
-import { PERF_FIXTURE_REV1_ID } from "./ids";
+import { PERF_ROUTE_REV1 } from "./ids";
 import { p95, report } from "./report";
 
 const SAMPLES = 5;
@@ -76,7 +76,7 @@ async function landingOffset(target: Locator): Promise<number> {
 }
 
 test("jump to far chunk timing", async ({ page }) => {
-  await gotoBrief(page, `/briefs/${PERF_FIXTURE_REV1_ID}`, {
+  await gotoBrief(page, PERF_ROUTE_REV1, {
     timeout: 90_000,
   });
 
@@ -121,7 +121,7 @@ test("jump to far chunk timing", async ({ page }) => {
 });
 
 test("scroll frame gaps", async ({ page }) => {
-  await gotoBrief(page, `/briefs/${PERF_FIXTURE_REV1_ID}`, {
+  await gotoBrief(page, PERF_ROUTE_REV1, {
     timeout: 90_000,
   });
 

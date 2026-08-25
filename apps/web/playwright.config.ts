@@ -1,25 +1,15 @@
-// E2E v1: the unauthenticated dummy-brief suite.
-// Chromium only, single worker, hermetic — no DB, no GitHub, no live spend,
-// so it runs on fork PRs. Retries here are the ADR's single carve-out from
-// the no-retry flake policy: the browser layer is the one place a retry
-// buys signal instead of hiding a bug.
+// E2E v2: the seeded-database suite over the repo route.
+// Chromium only, single worker, network-free — GitHub is stubbed inside the
+// server process and postgres is a disposable container this harness owns,
+// so no live spend and no dev-database contact. Retries are the ADR's single
+// carve-out from the no-retry flake policy: the browser layer is the one
+// place a retry buys signal instead of hiding a bug.
 import { defineConfig, devices } from "@playwright/test";
-import { fileURLToPath } from "node:url";
-
-/**
- * The committed fixture artifact set the web server is booted over
- * (`MERGEBRIEF_OUT_DIR`). Pointing the reader at this directory instead of
- * copying files into `tools/categorizer/out` keeps the run hermetic in both
- * directions: the suite sees only these artifacts (a developer's generated
- * briefs cannot change what the timeline or picker renders), and the run
- * never writes into a directory a developer owns.
- */
-const FIXTURE_OUT_DIR = fileURLToPath(
-  new URL("./e2e/fixtures/briefs", import.meta.url),
-);
-
-/** Dedicated port: never the dev server's 3000, so a running `pnpm dev` neither collides nor gets reused. */
-const PORT = 3311;
+import {
+  buildWebServerEnv,
+  E2E_PORT,
+  STORAGE_STATE_PATH,
+} from "./e2e/harness/env";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -34,23 +24,26 @@ export default defineConfig({
   reporter: process.env["CI"]
     ? [["github"], ["html", { open: "never" }]]
     : [["list"]],
+  globalSetup: "./e2e/harness/globalSetup.ts",
+  globalTeardown: "./e2e/harness/globalTeardown.ts",
   use: {
-    baseURL: `http://localhost:${PORT}`,
+    baseURL: `http://localhost:${String(E2E_PORT)}`,
     trace: "on-first-retry",
+    // The seeded session's cookie — every page is a signed-in viewer.
+    storageState: STORAGE_STATE_PATH,
   },
   projects: [{ name: "chromium", use: devices["Desktop Chrome"] }],
   webServer: {
     // The real server entry (`src/server.ts`) in dev mode: same request
-    // pipeline as production for `/briefs/*`, without paying a full build
-    // per CI run. `reuseExistingServer` is OFF unconditionally — a reused
-    // server would be missing `MERGEBRIEF_OUT_DIR` and serve the wrong
-    // artifacts.
-    command: `pnpm exec vite dev --port ${String(PORT)} --strictPort`,
-    url: `http://localhost:${PORT}/healthz`,
+    // pipeline as production, without paying a full build per run.
+    // `reuseExistingServer` is OFF unconditionally — a reused server would
+    // be composed over the wrong database and without the GitHub stub.
+    command: `pnpm exec vite dev --port ${String(E2E_PORT)} --strictPort`,
+    url: `http://localhost:${String(E2E_PORT)}/healthz`,
     reuseExistingServer: false,
     timeout: 120_000,
     stdout: "ignore",
     stderr: "pipe",
-    env: { MERGEBRIEF_OUT_DIR: FIXTURE_OUT_DIR },
+    env: buildWebServerEnv(),
   },
 });

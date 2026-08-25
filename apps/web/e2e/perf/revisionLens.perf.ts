@@ -14,7 +14,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { gotoBrief } from "../support/page";
-import { PERF_FIXTURE_REV1_ID, PERF_FIXTURE_REV2_ID } from "./ids";
+import { PERF_ROUTE_REV1, PERF_ROUTE_REV2 } from "./ids";
 import { report } from "./report";
 
 const SAMPLES = 5;
@@ -32,13 +32,13 @@ async function settleOnRevision(page: Page, revTag: string): Promise<void> {
 test("revision navigation timing", async ({ page }) => {
   // Hydration gate: a pre-hydration link click is a full document load and
   // would measure an MPA reload, not the client-side transition under test.
-  await gotoBrief(page, `/briefs/${PERF_FIXTURE_REV2_ID}`, {
+  await gotoBrief(page, PERF_ROUTE_REV2, {
     timeout: 90_000,
   });
   await settleOnRevision(page, "r2");
 
-  const toPrev = page.getByRole("link", { name: "Previous brief, 1" });
-  const toNext = page.getByRole("link", { name: "Next brief, 2" });
+  const toPrev = page.getByRole("button", { name: "Previous revision, 1" });
+  const toNext = page.getByRole("button", { name: "Next revision, 2" });
 
   // Warmup round: both revisions' loaders and code paths warm before timing.
   await toPrev.click();
@@ -68,7 +68,7 @@ test("lens flip timing", async ({ page }) => {
   // Hydration gate: the radios are controlled inputs — a pre-hydration click
   // toggles nothing (the known lost-keystroke window `waitForInteractive`
   // exists for).
-  await gotoBrief(page, `/briefs/${PERF_FIXTURE_REV2_ID}`, {
+  await gotoBrief(page, PERF_ROUTE_REV2, {
     timeout: 90_000,
   });
   await settleOnRevision(page, "r2");
@@ -117,7 +117,7 @@ test("the hidden story pane keeps its windowed cards across a flip", async ({
   // story pane is hidden its windowed DOM must stay exactly as it was (no
   // re-derive against hidden zero-rects), and the flip back must render a
   // coherent window at the restored (top) scroll position.
-  await gotoBrief(page, `/briefs/${PERF_FIXTURE_REV2_ID}`, {
+  await gotoBrief(page, PERF_ROUTE_REV2, {
     timeout: 90_000,
   });
   await settleOnRevision(page, "r2");
@@ -165,7 +165,7 @@ test("the hidden story pane keeps its windowed cards across a flip", async ({
 test("cold load timing", async ({ page }) => {
   // Context for the interaction numbers: what a from-scratch render of the
   // large fixture costs. One warm navigation then timed reloads.
-  await gotoBrief(page, `/briefs/${PERF_FIXTURE_REV1_ID}`, {
+  await gotoBrief(page, PERF_ROUTE_REV1, {
     timeout: 90_000,
   });
 

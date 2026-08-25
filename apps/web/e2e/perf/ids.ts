@@ -14,3 +14,8 @@ export const PERF_FIXTURE_REV1_ID = `${PERF_FIXTURE_STEM}_1_${head8(PERF_SHA_REV
 export const PERF_FIXTURE_REV2_ID = `${PERF_FIXTURE_STEM}_2_${head8(PERF_SHA_REV2)}`;
 
 export const PERF_COMPARISON_ID = `${PERF_FIXTURE_STEM}_previous-brief_${head8(PERF_SHA_REV1)}-${head8(PERF_SHA_REV2)}`;
+
+/** The perf suite's seeded route identities (repo id set by the harness). */
+export const PERF_PR_PATH = "/repos/424243/pulls/1";
+export const PERF_ROUTE_REV1 = `${PERF_PR_PATH}?base=${PERF_SHA_BASE}&head=${PERF_SHA_REV1}`;
+export const PERF_ROUTE_REV2 = `${PERF_PR_PATH}?base=${PERF_SHA_BASE}&head=${PERF_SHA_REV2}`;

@@ -10,7 +10,7 @@
 import { expect, test } from "@playwright/test";
 
 import { gotoBrief } from "../support/page";
-import { PERF_FIXTURE_REV1_ID } from "./ids";
+import { PERF_ROUTE_REV1 } from "./ids";
 import { report } from "./report";
 
 interface CommitStats {
@@ -106,7 +106,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("render work during a scroll storm", async ({ page }) => {
-  await gotoBrief(page, `/briefs/${PERF_FIXTURE_REV1_ID}`, {
+  await gotoBrief(page, PERF_ROUTE_REV1, {
     timeout: 90_000,
   });
 
@@ -157,7 +157,7 @@ test("render work during a scroll storm", async ({ page }) => {
 });
 
 test("render work per pure scroll-spy tick", async ({ page }) => {
-  await gotoBrief(page, `/briefs/${PERF_FIXTURE_REV1_ID}`, {
+  await gotoBrief(page, PERF_ROUTE_REV1, {
     timeout: 90_000,
   });
 

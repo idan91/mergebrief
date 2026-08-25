@@ -8,7 +8,7 @@
 // the behaviour the app asked for.
 import { expect, test, type Page } from "@playwright/test";
 
-import { FIXTURE_BRIEF_REV2 } from "../fixtures/ids";
+import { FIXTURE_ROUTE_REV2 } from "../fixtures/ids";
 import { gotoBrief } from "../support/page";
 
 /** Records every scroll request the page makes, in order. */
@@ -47,7 +47,7 @@ async function readThroughBehaviors(
   page: Page,
 ): Promise<(string | undefined)[]> {
   await page.addInitScript(RECORD_SCROLL_REQUESTS);
-  await gotoBrief(page, `/briefs/${FIXTURE_BRIEF_REV2}`);
+  await gotoBrief(page, FIXTURE_ROUTE_REV2);
   // Drop the scroll restoration the router performs on arrival — only the
   // read-through's own request is under test.
   await page.evaluate(() => {

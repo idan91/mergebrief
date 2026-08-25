@@ -135,6 +135,9 @@ importers:
       '@vitest/coverage-v8':
         specifier: 4.1.8
         version: 4.1.8(vitest@4.1.8)
+      ingest-briefs:
+        specifier: workspace:*
+        version: link:../../tools/ingest-briefs
       jsdom:
         specifier: 29.1.1
         version: 29.1.1

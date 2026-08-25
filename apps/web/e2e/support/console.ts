@@ -19,6 +19,14 @@ const IGNORED_CONSOLE_PATTERNS = [
 ];
 
 /**
+ * Expected-404 endpoints: the browser logs a resource error for ANY 404
+ * fetch, and these are designed denials the page degrades on (the mention
+ * pool is unavailable in the owner world). Keyed by URL so a real 404 — a
+ * missing brief, a broken asset — still fails the spec.
+ */
+const EXPECTED_404_URLS = [/\/api\/repos\/\d+\/collaborators$/];
+
+/**
  * Record console errors and uncaught exceptions for the life of a page.
  * Attach BEFORE the first navigation — messages emitted during load are not
  * replayed to listeners registered afterwards.
@@ -29,6 +37,13 @@ export function collectPageFaults(page: Page): PageFault[] {
     if (message.type() !== "error") return;
     const text = message.text();
     if (IGNORED_CONSOLE_PATTERNS.some((pattern) => pattern.test(text))) return;
+    const sourceUrl = message.location().url;
+    if (
+      /Failed to load resource/.test(text) &&
+      EXPECTED_404_URLS.some((pattern) => pattern.test(sourceUrl))
+    ) {
+      return;
+    }
     faults.push({ kind: "console", text });
   });
   page.on("pageerror", (error) => {

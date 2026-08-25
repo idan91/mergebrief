@@ -34,7 +34,7 @@ export async function waitForInteractive(
   await expect(dialog).toBeHidden();
 }
 
-/** Navigate to a local-brief URL and wait for the page to be interactive. */
+/** Navigate to a brief URL (repo route) and wait for it to be interactive. */
 export async function gotoBrief(
   page: Page,
   path: string,

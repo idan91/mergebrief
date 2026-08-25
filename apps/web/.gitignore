@@ -19,3 +19,6 @@ e2e/perf/generated/
 *.tsbuildinfo
 .vite/
 .cache/
+
+# e2e harness artifacts (storage state, throwaway keys) — regenerated per run
+e2e/.artifacts/

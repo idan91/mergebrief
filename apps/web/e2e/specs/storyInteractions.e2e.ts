@@ -3,11 +3,11 @@
 // judge because they turn on layout and real focus.
 import { expect, test } from "@playwright/test";
 
-import { FIXTURE_BRIEF_REV2 } from "../fixtures/ids";
+import { FIXTURE_ROUTE_REV2 } from "../fixtures/ids";
 import { gotoBrief, shortcutsDialog } from "../support/page";
 
 test("chunk cards collapse and expand", async ({ page }) => {
-  await gotoBrief(page, `/briefs/${FIXTURE_BRIEF_REV2}`);
+  await gotoBrief(page, FIXTURE_ROUTE_REV2);
 
   // `#c1` stays: chunk ids ARE the deep-link anchor contract. The toggle
   // rides its testid instead of DOM order.
@@ -26,7 +26,7 @@ test("chunk cards collapse and expand", async ({ page }) => {
 });
 
 test("the PR description discloses on demand", async ({ page }) => {
-  await gotoBrief(page, `/briefs/${FIXTURE_BRIEF_REV2}`);
+  await gotoBrief(page, FIXTURE_ROUTE_REV2);
 
   const toggle = page.getByTestId("pr-description-toggle");
   await expect(toggle).toHaveText("Show original PR description");
@@ -40,7 +40,7 @@ test("the PR description discloses on demand", async ({ page }) => {
 test("the risk-attrs disclosure jumps to the carrying group", async ({
   page,
 }) => {
-  await gotoBrief(page, `/briefs/${FIXTURE_BRIEF_REV2}`);
+  await gotoBrief(page, FIXTURE_ROUTE_REV2);
 
   // Collapse the target BEFORE opening the rail disclosure (an outside
   // click would dismiss it): a risk-attr jump is wayfinding, and a
@@ -87,7 +87,7 @@ test("the risk-attrs disclosure jumps to the carrying group", async ({
 test("the shortcuts modal opens with ? and closes with Escape", async ({
   page,
 }) => {
-  await gotoBrief(page, `/briefs/${FIXTURE_BRIEF_REV2}`);
+  await gotoBrief(page, FIXTURE_ROUTE_REV2);
   const dialog = shortcutsDialog(page);
 
   await page.keyboard.press("Shift+Slash");

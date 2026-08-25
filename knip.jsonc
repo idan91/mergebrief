@@ -34,7 +34,13 @@
         // its config and specs are entries, and `e2e/support` + `e2e/fixtures`
         // hang off them.
         "playwright.config.ts",
+        "playwright.perf.config.ts",
         "e2e/**/*.e2e.ts",
+        "e2e/**/*.perf.ts",
+        // The harness seed runs as a tsx child process; the generator is a
+        // pnpm script.
+        "e2e/harness/seed.ts",
+        "e2e/perf/generateFixture.ts",
       ],
     },
     "packages/api": {

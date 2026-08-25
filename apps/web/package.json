@@ -15,7 +15,7 @@
     "test": "vitest run --coverage",
     "test:e2e": "playwright test",
     "perf:fixture": "tsx e2e/perf/generateFixture.ts",
-    "perf:measure": "playwright test --config playwright.perf.config.ts"
+    "perf:measure": "MERGEBRIEF_E2E_PORT=3313 MERGEBRIEF_E2E_REPO_ID=424243 MERGEBRIEF_E2E_REPO_SLUG=mergebrief/perf-fixture MERGEBRIEF_E2E_FIXTURE_DIR=e2e/perf/generated playwright test --config playwright.perf.config.ts"
   },
   "dependencies": {
     "@floating-ui/react": "^0.27.19",
@@ -52,6 +52,7 @@
     "@types/react-dom": "^19.0.3",
     "@vitejs/plugin-react": "^6.0.1",
     "@vitest/coverage-v8": "4.1.8",
+    "ingest-briefs": "workspace:*",
     "jsdom": "29.1.1",
     "repo-config": "workspace:*",
     "stylelint": "^17.0.0",

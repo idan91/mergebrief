@@ -4,7 +4,11 @@
 // is user-editable and shareable. Both halves are asserted here.
 import { expect, test } from "@playwright/test";
 
-import { FIXTURE_BRIEF_REV1, FIXTURE_BRIEF_REV2 } from "../fixtures/ids";
+import {
+  FIXTURE_REV1_HEAD,
+  FIXTURE_ROUTE_REV1,
+  FIXTURE_ROUTE_REV2,
+} from "../fixtures/ids";
 import { gotoBrief } from "../support/page";
 
 test("a Changes Only deep link renders the comparison span", async ({
@@ -12,7 +16,7 @@ test("a Changes Only deep link renders the comparison span", async ({
 }) => {
   await gotoBrief(
     page,
-    `/briefs/${FIXTURE_BRIEF_REV2}?view=changes&compare=previous-brief`,
+    `${FIXTURE_ROUTE_REV2}&view=changes&compare=previous-brief`,
   );
 
   await expect(page.getByRole("radio", { name: "Changes Only" })).toBeChecked();
@@ -32,10 +36,7 @@ test("a Changes Only deep link renders the comparison span", async ({
 test("unrecognized params fall back to the product default", async ({
   page,
 }) => {
-  await gotoBrief(
-    page,
-    `/briefs/${FIXTURE_BRIEF_REV2}?view=bogus&compare=bogus`,
-  );
+  await gotoBrief(page, `${FIXTURE_ROUTE_REV2}&view=bogus&compare=bogus`);
 
   // Unparseable keys read as "nothing chosen yet", so the fresh-arrival
   // default applies — the page renders rather than 404ing or erroring.
@@ -52,7 +53,7 @@ test("a comparison the revision cannot offer normalizes down", async ({
   // satisfiable: it collapses to the full brief with comparison off.
   await gotoBrief(
     page,
-    `/briefs/${FIXTURE_BRIEF_REV1}?view=changes&compare=previous-brief`,
+    `${FIXTURE_ROUTE_REV1}&view=changes&compare=previous-brief`,
   );
 
   await expect(page.getByRole("radio", { name: "Full brief" })).toBeChecked();
@@ -79,10 +80,11 @@ test("a comparison the revision cannot offer normalizes down", async ({
 test("the timeline navigates between the fixture's revisions", async ({
   page,
 }) => {
-  await gotoBrief(page, `/briefs/${FIXTURE_BRIEF_REV2}`);
+  await gotoBrief(page, FIXTURE_ROUTE_REV2);
 
-  await page.getByRole("link", { name: "Previous brief, 1" }).click();
-  await expect(page).toHaveURL(new RegExp(`/briefs/${FIXTURE_BRIEF_REV1}`));
+  await page.getByRole("button", { name: "Previous revision, 1" }).click();
+  // The repo route encodes the revision in the span params, not the path.
+  await expect(page).toHaveURL(new RegExp(`head=${FIXTURE_REV1_HEAD}`));
   await expect(
     page.getByRole("heading", {
       name: "Add J/K/Z/? keyboard navigation and CSS-only focus mode to the brief screen",

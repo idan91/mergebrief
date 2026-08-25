@@ -2,7 +2,7 @@
 // gets swept; serious/critical fail, moderate/minor are attached to the report.
 import { expect, test } from "@playwright/test";
 
-import { FIXTURE_BRIEF_REV1, FIXTURE_BRIEF_REV2 } from "../fixtures/ids";
+import { FIXTURE_ROUTE_REV1, FIXTURE_ROUTE_REV2 } from "../fixtures/ids";
 import { expectNoSeriousAxeViolations } from "../support/axe";
 import { gotoBrief, shortcutsDialog } from "../support/page";
 
@@ -13,32 +13,32 @@ test("the picker front door is clean", async ({ page }, testInfo) => {
 });
 
 test("the full brief is clean", async ({ page }, testInfo) => {
-  await gotoBrief(page, `/briefs/${FIXTURE_BRIEF_REV2}`);
+  await gotoBrief(page, FIXTURE_ROUTE_REV2);
   await expectNoSeriousAxeViolations(page, testInfo, "full-brief");
 });
 
 test("the first revision is clean", async ({ page }, testInfo) => {
-  await gotoBrief(page, `/briefs/${FIXTURE_BRIEF_REV1}`);
+  await gotoBrief(page, FIXTURE_ROUTE_REV1);
   await expectNoSeriousAxeViolations(page, testInfo, "first-revision");
 });
 
 test("the Changes Only span is clean", async ({ page }, testInfo) => {
   await gotoBrief(
     page,
-    `/briefs/${FIXTURE_BRIEF_REV2}?view=changes&compare=previous-brief`,
+    `${FIXTURE_ROUTE_REV2}&view=changes&compare=previous-brief`,
   );
   await expectNoSeriousAxeViolations(page, testInfo, "changes-only");
 });
 
 test("the shortcuts dialog is clean", async ({ page }, testInfo) => {
-  await gotoBrief(page, `/briefs/${FIXTURE_BRIEF_REV2}`);
+  await gotoBrief(page, FIXTURE_ROUTE_REV2);
   await page.keyboard.press("Shift+Slash");
   await expect(shortcutsDialog(page)).toBeVisible();
   await expectNoSeriousAxeViolations(page, testInfo, "shortcuts-dialog");
 });
 
 test("the submit modal is clean on all views", async ({ page }, testInfo) => {
-  await gotoBrief(page, `/briefs/${FIXTURE_BRIEF_REV2}`);
+  await gotoBrief(page, FIXTURE_ROUTE_REV2);
   // One modal owns the whole flow: the header CTA lands on the advisory view
   // (the fixture has unresolved items), Continue reaches the verdict-first
   // form, and the receipt is a preview view inside the same dialog.
