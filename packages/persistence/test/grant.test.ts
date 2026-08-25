@@ -166,7 +166,9 @@ describe("grant lifecycle — deleteIfOrphaned", () => {
   it("is a no-op on a grant that still has a referent", async () => {
     const auth = createGrantAuth(handle);
     const grant = await auth.createGrant(createInput());
-    await createTenantRepository(handle, { installationId: INSTALLATION }).sessions.create({
+    await createTenantRepository(handle, {
+      installationId: INSTALLATION,
+    }).sessions.create({
       sessionTokenHash: "a".repeat(64),
       reviewerId: REVIEWER,
       reviewerLogin: "octocat",
@@ -175,7 +177,24 @@ describe("grant lifecycle — deleteIfOrphaned", () => {
     });
     expect(await auth.deleteIfOrphaned(grant.id)).toBe(0);
     // The referent still resolves with its grant.
-    const resolved = await createSessionAuth(handle).findSession("a".repeat(64));
+    const resolved = await createSessionAuth(handle).findSession(
+      "a".repeat(64),
+    );
     expect(resolved?.grant.id).toBe(grant.id);
+  });
+});
+
+describe("createGrantAuth.getGrant", () => {
+  it("reads a grant by id; absence is a normal undefined", async () => {
+    const handle = await freshDatabase();
+    const auth = createGrantAuth(handle);
+    const grant = await auth.createGrant(createInput());
+
+    const read = await auth.getGrant(grant.id);
+    expect(read?.id).toBe(grant.id);
+    expect(read?.ghTokenCiphertext).toBe(grant.ghTokenCiphertext);
+
+    await auth.deleteIfOrphaned(grant.id);
+    expect(await auth.getGrant(grant.id)).toBeUndefined();
   });
 });

@@ -6,9 +6,10 @@ import { createGenerator } from "generators";
 import { createAppClient, loadConfig as loadGitHubConfig } from "github";
 import { Logger as GraphileLogger } from "graphile-worker";
 import { createGraphileLogFactory, createLogger } from "logging";
-import { closeDb, createDb } from "persistence";
+import { closeDb, createDb, createEnvKeyProvider } from "persistence";
+import type { Mutable } from "types";
 import { loadConfig } from "./config";
-import { appGitHubPort } from "./task/github-port";
+import { appGitHubPort, type UrlBoxAuthDeps } from "./task/github-port";
 import { createGenerateTask } from "./task/generate";
 import {
   createSweepAuditTask,
@@ -101,13 +102,20 @@ async function main(): Promise<void> {
     onError: (error) =>
       logger.warn("postgres pool error (idle client)", { err: error }),
   });
+  // Grants name their key by env-var NAME (keyRef); resolution is lazy, per
+  // url-box job — a deployment with no url-box traffic never needs the key.
+  const keyProvider = createEnvKeyProvider(env);
+  const urlBoxDeps: Mutable<UrlBoxAuthDeps> = { handle, keyProvider };
+  if (config.value.urlBoxToken !== undefined) {
+    urlBoxDeps.fallbackToken = config.value.urlBoxToken;
+  }
   const configuredEffort = config.value.generator.effort;
   const configuredFullRegeneration =
     config.value.generator["full-regeneration"];
   const generate = createGenerateTask({
     handle,
     generator: generator.value,
-    github: appGitHubPort(createAppClient(githubConfig.value)),
+    github: appGitHubPort(createAppClient(githubConfig.value), urlBoxDeps),
     publicBaseUrl: config.value.publicBaseUrl,
     // Absent → brief-core's medium default.
     ...(configuredEffort === undefined ? {} : { effort: configuredEffort }),

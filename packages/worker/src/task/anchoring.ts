@@ -105,10 +105,7 @@ function allReLook(
 }
 
 /** Previous-brief ids ∪ the chain's — deduped, previous first. */
-function reserveIds(
-  brief: Brief,
-  chainGroupIds: readonly string[],
-): string[] {
+function reserveIds(brief: Brief, chainGroupIds: readonly string[]): string[] {
   return [
     ...new Set([
       ...brief.changeGroups.map((group) => group.id),

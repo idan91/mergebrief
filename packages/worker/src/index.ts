@@ -42,6 +42,7 @@ export type {
   CompareFiles,
   GitHubPort,
   PullRequestSource,
+  RepoParts,
 } from "./task/github-port";
 
 // Anchored-generation machinery: pure plan + stitch helpers, exported so the

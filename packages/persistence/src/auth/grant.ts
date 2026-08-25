@@ -78,6 +78,13 @@ export interface GrantAuth {
   /** Insert the grant row for a fresh GitHub authorization (login callback). */
   createGrant(input: GrantCreateInput): Promise<GithubGrantRow>;
   /**
+   * Plain read by id — how the worker resolves a job's `grant_id` reference
+   * into the ciphertext pair it lazily decrypts. Absence is a normal
+   * `undefined`: the referencing session may have logged out (grant
+   * orphan-cleaned) between enqueue and drain.
+   */
+  getGrant(grantId: GrantRowId): Promise<GithubGrantRow | undefined>;
+  /**
    * Serialized, single-use-refresh-token-safe rotation. ONE transaction:
    * `SELECT … FOR UPDATE` the grant by id — which serializes concurrent
    * refreshes across BOTH channels and every referent of this grant. Then:
@@ -131,6 +138,15 @@ export function createGrantAuth(handle: AppDatabase): GrantAuth {
         throw new Error("github_grant insert returned no row");
       }
       return row;
+    },
+
+    async getGrant(grantId) {
+      const rows = await db
+        .select()
+        .from(githubGrant)
+        .where(eq(githubGrant.id, grantId))
+        .limit(1);
+      return rows[0];
     },
 
     async refreshGrant(grantId, seenTokenCiphertext, refresh) {

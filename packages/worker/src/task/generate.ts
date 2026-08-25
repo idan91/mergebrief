@@ -64,6 +64,8 @@ import {
   AuditActorType,
   AuditMetadataKey,
   createTenantRepository,
+  isOwnerContext,
+  PullRequestSources,
   GenerationFailureCode,
   createGenerationProjection,
   GenerationKind,
@@ -490,6 +492,12 @@ async function runGeneration(
   const repo = createTenantRepository(handle, ctx);
   const projection = createGenerationProjection(handle, ctx);
   const store = createArtifactStore(handle, ctx);
+  const auditScope = isOwnerContext(ctx)
+    ? { installationId: null, source: PullRequestSources.URL_BOX }
+    : {
+        installationId: ctx.installationId,
+        source: PullRequestSources.APP_INSTALLATION,
+      };
 
   const pr = await repo.pullRequests.getById(pullRequestId);
   if (pr === undefined) {
@@ -514,19 +522,30 @@ async function runGeneration(
   // rotation, and deleting by a stale id would orphan the newer comment.
   let liveEntryCommentId: bigint | null = prRow.entryCommentId;
 
-  // The GitHub boundary is opened BEFORE the spend gate: a capped run posts no
-  // GitHub reads, but it may still have to update an Entry comment that is
-  // already on the thread.
-  const source = await github.forPullRequest(
-    ctx.installationId,
-    pr.repoSlug,
-    pr.prNumber,
-  );
+  // The GitHub boundary is opened BEFORE the spend gate: a capped run posts
+  // no further GitHub reads, but it may still have to update an Entry comment
+  // that is already on the thread. A url-box job binds the viewer's
+  // grant-resolved token instead of the App installation — that binding can
+  // itself cost one probe read (the PAT-fallback decision), the one GitHub
+  // touch a capped url-box drain pays.
+  const source =
+    payload.grantId === undefined
+      ? await github.openPullRequestSource(
+          payload.ctx.installationId,
+          pr.repoSlug,
+          pr.prNumber,
+        )
+      : await github.openUrlBoxPullRequestSource(
+          payload.grantId,
+          pr.repoSlug,
+          pr.prNumber,
+        );
 
   // ---- Daily generation cap ------------------------------------------------
-  // THE enforcement point: the single boundary where a run starts, before any
-  // GitHub/provider call AND before the projection says `running` — the gate
-  // must not count the very run it is deciding on. At the cap the run is
+  // THE enforcement point: the single boundary where a run starts, before
+  // any provider call AND before the projection says `running` — the gate
+  // must not count the very run it is deciding on. (GitHub READS may precede
+  // it: the source binding above; the cap protects model spend.) At the cap the run is
   // SKIPPED, not deferred: terminal `capped`, no retry, no attempt consumed.
   // The counter sums ATTEMPTS, not rows.
   const cap =
@@ -546,7 +565,7 @@ async function runGeneration(
         cap,
         dayUtc: day.label,
       });
-      if (liveEntryCommentId !== null) {
+      if (liveEntryCommentId !== null && payload.grantId === undefined) {
         // UPDATE ONLY: a capped PR never gets an Entry comment created for it
         // — the cap must not make MergeBrief louder on a thread than it was.
         await refreshEntryComment(
@@ -687,9 +706,12 @@ async function runGeneration(
     // `entryCommentOnDrafts: true`. Generation itself is untouched — this
     // gates the COMMENT only; `ready_for_review` triggers the next drain,
     // whose skip-branch ready flip posts it.
+    // Url-box world: no App presence on the thread, and the viewer's token
+    // must never write to GitHub — the Entry comment surface is off entirely.
     const entryCommentAllowed =
-      !info.draft || repoConfig?.settings?.entryCommentOnDrafts === true;
-    if (!entryCommentAllowed) {
+      payload.grantId === undefined &&
+      (!info.draft || repoConfig?.settings?.entryCommentOnDrafts === true);
+    if (!entryCommentAllowed && payload.grantId === undefined) {
       log.info(
         "generate: entry comment suppressed — draft PR without entryCommentOnDrafts",
       );
@@ -890,7 +912,7 @@ async function runGeneration(
       briefRef = { id: written.value.id, headIndex: written.value.headIndex };
       generatedBrief = stamped;
       await writeAudit(handle, {
-        installationId: ctx.installationId,
+        ...auditScope,
         actorType: AuditActorType.SYSTEM,
         operation: AUDIT_OPERATION_GENERATE,
         outcome: AuditOutcome.OK,
@@ -997,7 +1019,7 @@ async function runGeneration(
     });
     if (deltaCount > 0) {
       await writeAudit(handle, {
-        installationId: ctx.installationId,
+        ...auditScope,
         actorType: AuditActorType.SYSTEM,
         operation: AUDIT_OPERATION_GENERATE,
         outcome: AuditOutcome.OK,

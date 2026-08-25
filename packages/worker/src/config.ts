@@ -14,6 +14,11 @@
 //   AUDIT_RETENTION_DAYS     optional; validated by persistence's loader
 //                            (30-day floor). Unset → the sweep keeps forever.
 //
+//   MERGEBRIEF_URL_BOX_TOKEN optional; the operator PAT the url-box door
+//                            falls back to when a viewer's App user token
+//                            cannot read the pasted repo. Passed through
+//                            verbatim; unset disables the backstop.
+//
 //   GENERATOR_API_KEY_ENV    REMOVED. Setting it now refuses boot with a
 //                            migration hint — a stale deployment must not
 //                            silently fall back to the default key variable.
@@ -51,6 +56,8 @@ export interface WorkerConfig {
    * carries no `spend` block.
    */
   readonly spend: SpendPolicy;
+  /** Operator PAT backstop for url-box jobs; undefined disables it. */
+  readonly urlBoxToken: string | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -146,6 +153,7 @@ export function loadConfig(
       generator: generatorConfig.value.generator,
       publicBaseUrl: baseUrlParsed.data,
       spend: generatorConfig.value.spend,
+      urlBoxToken: env["MERGEBRIEF_URL_BOX_TOKEN"] || undefined,
     },
   };
 }

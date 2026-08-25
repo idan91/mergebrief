@@ -28,7 +28,9 @@ src/
     entry-comment.ts    Entry-comment pure builders (delete+repost lives
                         in generate.ts)
     github-port.ts      the GitHub boundary: PR reads + repo-file read behind a
-                        testable port
+                        testable port; two credential worlds — App installation
+                        client, or a url-box job's grant-resolved viewer token
+                        (lazy decrypt, operator-PAT probe fallback)
     sweep-audit.ts      the audit-retention sweep — the ONE scheduled job
                         (graphile cron), instance-wide rather than ctx-bound
     repo-config.ts      the `.mergebrief/` phase: fetch 3 default-
@@ -41,12 +43,20 @@ test/                 generate.test.ts + sweep-audit.test.ts = integration
 ## Invariants (enforced, don't weaken)
 
 - **Payload handshake:** the job payload shape is the shared
-  `GenerateJobPayload` type in `types` — string ids, snake_case. Both sides
-  (ingest serializer, `src/task/payload.ts` parser) plus their tests move in
-  lockstep; the compile-time pin in `payload.ts` breaks the build on drift.
+  `GenerateJobPayload` union in `types` — string ids, snake_case; an
+  App-installation job carries `installation_id`, a url-box job carries
+  `owner_user_id` + `grant_id` (a credential REFERENCE — never token
+  material). Both sides (ingest serializer, `src/task/payload.ts` parser)
+  plus their tests move in lockstep; the compile-time pin in `payload.ts`
+  breaks the build on drift.
 - **Tenancy:** everything goes through persistence's ctx-bound interfaces
-  (`createTenantRepository`, `createArtifactStore`, `createGenerationProjection`); the installation id
-  enters ONLY via the validated payload — never a spoofable source.
+  (`createTenantRepository`, `createArtifactStore`, `createGenerationProjection`); the scope identity
+  (installation or url-box owner) enters ONLY via the validated payload —
+  never a spoofable source.
+- **Url-box jobs never write to GitHub:** the Entry-comment surface is off
+  entirely for them, and the viewer token is used for reads only — decrypted
+  lazily per job, held in the bound source's closure, never persisted or
+  logged.
 - **Abort is not a failure**: supersession → terminal
   `superseded`, `attempts` untouched, NO graphile retry, no salvage/dump.
 - **No double-spend:** brief and delta cores are skip-if-stored; marks and

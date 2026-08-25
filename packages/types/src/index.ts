@@ -79,9 +79,25 @@ export interface DraftPolicy {
  * (`persistence`) and the drain side (`worker`). Snake_case because it crosses
  * as JSON in a Postgres row, and STRING ids because JSON cannot carry bigint.
  * Change this shape only with BOTH sides in the same commit.
+ *
+ * Two worlds, discriminated by which scope id rides along: an
+ * App-installation job carries `installation_id`; a url-box job carries the
+ * owner and a `grant_id` credential REFERENCE (never token material — the
+ * worker resolves and decrypts lazily).
  */
-export interface GenerateJobPayload {
+export interface InstallationGenerateJobPayload {
   readonly installation_id: string;
   readonly pull_request_id: string;
   readonly head_sha: string;
 }
+
+export interface UrlBoxGenerateJobPayload {
+  readonly owner_user_id: string;
+  readonly grant_id: string;
+  readonly pull_request_id: string;
+  readonly head_sha: string;
+}
+
+export type GenerateJobPayload =
+  | InstallationGenerateJobPayload
+  | UrlBoxGenerateJobPayload;

@@ -16,6 +16,7 @@ import {
   isPullRequestRowId,
   isRepoId,
   isReviewerId,
+  parseScopeContext,
   parseTenantContext,
   PrState,
   type GenerationTarget,
@@ -57,6 +58,7 @@ import type {
   GitHubApiError,
   GitHubPort,
   PullRequestFile,
+  PullRequestSource,
   PullRequestInfo,
   RepoFileResult,
 } from "../src/task/github-port";
@@ -221,6 +223,8 @@ interface StubGitHub extends GitHubPort {
   repoFileErrors: Map<string, GitHubApiError>;
   /** Every fetchRepoFile path requested, in order. */
   repoFileCalls: string[];
+  /** Every openUrlBoxPullRequestSource binding, in order. */
+  urlBoxCalls: { grantId: bigint; repoSlug: string; prNumber: number }[];
 }
 
 function ok<T>(value: T): Result<T, GitHubApiError> {
@@ -250,71 +254,79 @@ function stubGitHub(headSha: string): StubGitHub {
     repoFiles: new Map(),
     repoFileErrors: new Map(),
     repoFileCalls: [],
-    async forPullRequest() {
-      return {
-        fetchPullRequest: async () => {
-          if (stub.fetchPullRequestError) {
-            return { ok: false, error: stub.fetchPullRequestError };
-          }
-          const scripted = stub.nextHeads.shift();
-          return ok(
-            scripted === undefined
-              ? stub.info
-              : { ...stub.info, headSha: scripted },
-          );
-        },
-        fetchPullRequestFiles: async () => ok(stub.files),
-        fetchDiff: async () => ok(stub.diff),
-        fetchCompareDiff: async (base: string, head: string) =>
-          ok(stub.compareDiffs.get(`${base}...${head}`) ?? SMALL_DIFF),
-        fetchCompareFiles: async (base: string, head: string) =>
-          ok(
-            stub.compareFiles.get(`${base}...${head}`) ?? {
-              files: [],
-              complete: false,
-            },
-          ),
-        fetchRepoFile: async (path: string) => {
-          stub.repoFileCalls.push(path);
-          const scripted = stub.repoFileErrors.get(path);
-          if (scripted !== undefined) {
-            return { ok: false, error: scripted };
-          }
-          return ok(stub.repoFiles.get(path) ?? { kind: "absent" as const });
-        },
-        postEntryComment: async (body: string) => {
-          if (stub.postEntryCommentError) {
-            return { ok: false, error: stub.postEntryCommentError };
-          }
-          const commentId = BigInt(
-            9000 + stub.comments.size + stub.commentCalls.length,
-          );
-          stub.comments.set(commentId, body);
-          stub.commentCalls.push(`post:${commentId}`);
-          await stub.onPostEntryComment?.();
-          return ok({ commentId });
-        },
-        deleteComment: async (commentId: bigint) => {
-          if (stub.deleteCommentError) {
-            return { ok: false, error: stub.deleteCommentError };
-          }
-          // Mirrors the real adapter: a 404 (unknown id) maps to ok.
-          stub.comments.delete(commentId);
-          stub.commentCalls.push(`delete:${commentId}`);
-          return ok(undefined);
-        },
-        fetchComment: async (commentId: bigint) => {
-          if (stub.fetchCommentError) {
-            return { ok: false, error: stub.fetchCommentError };
-          }
-          stub.commentCalls.push(`fetch:${commentId}`);
-          const body = stub.comments.get(commentId);
-          // Mirrors the real adapter: a 404 (unknown id) maps to ok undefined.
-          return ok(body === undefined ? undefined : { body });
-        },
-      };
+    urlBoxCalls: [],
+    async openPullRequestSource() {
+      return buildSource();
+    },
+    async openUrlBoxPullRequestSource(grantId, repoSlug, prNumber) {
+      stub.urlBoxCalls.push({ grantId, repoSlug, prNumber });
+      return buildSource();
     },
   };
+  function buildSource(): PullRequestSource {
+    return {
+      fetchPullRequest: async () => {
+        if (stub.fetchPullRequestError) {
+          return { ok: false, error: stub.fetchPullRequestError };
+        }
+        const scripted = stub.nextHeads.shift();
+        return ok(
+          scripted === undefined
+            ? stub.info
+            : { ...stub.info, headSha: scripted },
+        );
+      },
+      fetchPullRequestFiles: async () => ok(stub.files),
+      fetchDiff: async () => ok(stub.diff),
+      fetchCompareDiff: async (base: string, head: string) =>
+        ok(stub.compareDiffs.get(`${base}...${head}`) ?? SMALL_DIFF),
+      fetchCompareFiles: async (base: string, head: string) =>
+        ok(
+          stub.compareFiles.get(`${base}...${head}`) ?? {
+            files: [],
+            complete: false,
+          },
+        ),
+      fetchRepoFile: async (path: string) => {
+        stub.repoFileCalls.push(path);
+        const scripted = stub.repoFileErrors.get(path);
+        if (scripted !== undefined) {
+          return { ok: false, error: scripted };
+        }
+        return ok(stub.repoFiles.get(path) ?? { kind: "absent" as const });
+      },
+      postEntryComment: async (body: string) => {
+        if (stub.postEntryCommentError) {
+          return { ok: false, error: stub.postEntryCommentError };
+        }
+        const commentId = BigInt(
+          9000 + stub.comments.size + stub.commentCalls.length,
+        );
+        stub.comments.set(commentId, body);
+        stub.commentCalls.push(`post:${commentId}`);
+        await stub.onPostEntryComment?.();
+        return ok({ commentId });
+      },
+      deleteComment: async (commentId: bigint) => {
+        if (stub.deleteCommentError) {
+          return { ok: false, error: stub.deleteCommentError };
+        }
+        // Mirrors the real adapter: a 404 (unknown id) maps to ok.
+        stub.comments.delete(commentId);
+        stub.commentCalls.push(`delete:${commentId}`);
+        return ok(undefined);
+      },
+      fetchComment: async (commentId: bigint) => {
+        if (stub.fetchCommentError) {
+          return { ok: false, error: stub.fetchCommentError };
+        }
+        stub.commentCalls.push(`fetch:${commentId}`);
+        const body = stub.comments.get(commentId);
+        // Mirrors the real adapter: a 404 (unknown id) maps to ok undefined.
+        return ok(body === undefined ? undefined : { body });
+      },
+    };
+  }
   return stub;
 }
 
@@ -337,7 +349,10 @@ beforeEach(async () => {
 async function trigger(
   headSha: string,
 ): Promise<{ pr: PullRequestRow; payload: unknown }> {
-  const outcome = await createIngestRoutines(harness.handle, ctx).triggerGeneration({
+  const outcome = await createIngestRoutines(
+    harness.handle,
+    ctx,
+  ).triggerGeneration({
     pullRequest: {
       repoId: makeRepoId(7n),
       prNumber: 7,
@@ -368,6 +383,113 @@ function target(pr: PullRequestRow, headSha: string): GenerationTarget {
 // ---------------------------------------------------------------------------
 // Tests.
 // ---------------------------------------------------------------------------
+
+describe("generate task — url-box world", () => {
+  it("drains a url-box payload: viewer port, owner-scoped brief, no entry comment, url-box audit", async () => {
+    const ownerCtx = parseScopeContext({ ownerUserId: 555 });
+    const pr = await createTenantRepository(
+      harness.handle,
+      ownerCtx,
+    ).pullRequests.upsert({
+      repoId: makeRepoId(7n),
+      prNumber: 7,
+      repoSlug: "acme/widget",
+      state: PrState.OPEN,
+    });
+    // The queued projection row the enqueue door writes (PR-3 side of the
+    // handshake) — the drain transitions it, never creates it.
+    const queued = await createGenerationProjection(
+      harness.handle,
+      ownerCtx,
+    ).upsertQueued(target(pr, HEAD_1));
+    expect(queued.ok).toBe(true);
+    const payload = {
+      owner_user_id: "555",
+      grant_id: "31",
+      pull_request_id: String(pr.id),
+      head_sha: HEAD_1,
+    };
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github,
+    });
+
+    await task(payload);
+
+    // The credential path: the grant reference reached the port, and the
+    // installation binding was never asked for.
+    expect(github.urlBoxCalls).toEqual([
+      { grantId: 31n, repoSlug: "acme/widget", prNumber: 7 },
+    ]);
+
+    const brief = await createArtifactStore(
+      harness.handle,
+      ownerCtx,
+    ).briefs.get(pr.id, BASE, HEAD_1);
+    expect(brief).toBeDefined();
+    expect(brief?.installationId).toBeNull();
+
+    const row = await createGenerationProjection(harness.handle, ownerCtx).get(
+      target(pr, HEAD_1),
+    );
+    expect(row?.status).toBe(GenerationStatus.SUCCEEDED);
+
+    // The viewer's token must never write to GitHub: no comment ops at all.
+    expect(github.commentCalls).toEqual([]);
+    expect(
+      (
+        await createTenantRepository(
+          harness.handle,
+          ownerCtx,
+        ).pullRequests.getById(pr.id)
+      )?.entryCommentId,
+    ).toBeNull();
+
+    const audits = await harness.raw(
+      "select installation_id, source, operation, target_type from audit_log",
+    );
+    expect(audits).toContainEqual({
+      installation_id: null,
+      source: "url-box",
+      operation: "generate",
+      target_type: "brief",
+    });
+  });
+
+  it("a url-box job cannot address an installation tenant's PR", async () => {
+    // Installation world owns the row; a url-box payload naming its id must
+    // drop (no artifacts, no projection transition).
+    const { pr } = await trigger(HEAD_1);
+    const payload = {
+      owner_user_id: "555",
+      grant_id: "31",
+      pull_request_id: String(pr.id),
+      head_sha: HEAD_1,
+    };
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github,
+    });
+
+    await task(payload);
+
+    expect(generator.calls).toEqual([]);
+    const brief = await createArtifactStore(harness.handle, ctx).briefs.get(
+      pr.id,
+      BASE,
+      HEAD_1,
+    );
+    expect(brief).toBeUndefined();
+  });
+});
 
 describe("generate task", () => {
   it("drains the exact payload ingest enqueued: brief written, projection succeeded, audit emitted", async () => {
@@ -484,9 +606,10 @@ describe("generate task", () => {
       `${PUBLIC_URL}/repos/7/pulls/7?base=${BASE}&head=${HEAD_1}`,
     );
 
-    const row = await createTenantRepository(harness.handle, ctx).pullRequests.getById(
-      pr.id,
-    );
+    const row = await createTenantRepository(
+      harness.handle,
+      ctx,
+    ).pullRequests.getById(pr.id);
     expect(row?.entryCommentId).toBe(commentId);
   });
 
@@ -528,9 +651,10 @@ describe("generate task", () => {
     const [readyId, readyBody] = [...github.comments.entries()][0] ?? [];
     expect(readyBody).toContain("Read the brief");
     expect(readyBody).not.toContain("generating");
-    const row = await createTenantRepository(harness.handle, ctx).pullRequests.getById(
-      pr.id,
-    );
+    const row = await createTenantRepository(
+      harness.handle,
+      ctx,
+    ).pullRequests.getById(pr.id);
     expect(row?.entryCommentId).toBe(readyId);
 
     // Exact cycle: post generating → delete generating → post ready. The
@@ -693,9 +817,10 @@ describe("generate task", () => {
     expect(body).toContain(`head=${HEAD_2}`);
     expect(github.commentCalls).toContain(`delete:${firstId}`);
 
-    const row = await createTenantRepository(harness.handle, ctx).pullRequests.getById(
-      second.pr.id,
-    );
+    const row = await createTenantRepository(
+      harness.handle,
+      ctx,
+    ).pullRequests.getById(second.pr.id);
     expect(row?.entryCommentId).toBe(secondId);
   });
 
@@ -742,8 +867,11 @@ describe("generate task", () => {
     );
     expect(row?.status).toBe(GenerationStatus.SUCCEEDED);
     expect(
-      (await createTenantRepository(harness.handle, ctx).pullRequests.getById(pr.id))
-        ?.entryCommentId,
+      (
+        await createTenantRepository(harness.handle, ctx).pullRequests.getById(
+          pr.id,
+        )
+      )?.entryCommentId,
     ).toBeNull();
     expect(
       logs.some((line) => line.includes("entry comment post failed")),
@@ -818,14 +946,16 @@ describe("generate task", () => {
 
     // The old comment survives alone; no second comment was posted past it.
     expect([...github.comments.keys()]).toEqual([firstId]);
-    const row = await createTenantRepository(harness.handle, ctx).pullRequests.getById(
-      second.pr.id,
-    );
+    const row = await createTenantRepository(
+      harness.handle,
+      ctx,
+    ).pullRequests.getById(second.pr.id);
     expect(row?.entryCommentId).toBe(firstId);
     // The job itself still succeeded.
-    const projection = await createGenerationProjection(harness.handle, ctx).get(
-      target(second.pr, HEAD_2),
-    );
+    const projection = await createGenerationProjection(
+      harness.handle,
+      ctx,
+    ).get(target(second.pr, HEAD_2));
     expect(projection?.status).toBe(GenerationStatus.SUCCEEDED);
   });
 
@@ -853,14 +983,14 @@ describe("generate task", () => {
 
   it("marks superseded for a PR that went terminal after enqueue", async () => {
     const { pr, payload } = await trigger(HEAD_1);
-    const setState = await createTenantRepository(harness.handle, ctx).pullRequests.setState(
-      pr.id,
-      {
-        state: PrState.CLOSED,
-        closedAt: new Date(),
-        purgeAfter: null,
-      },
-    );
+    const setState = await createTenantRepository(
+      harness.handle,
+      ctx,
+    ).pullRequests.setState(pr.id, {
+      state: PrState.CLOSED,
+      closedAt: new Date(),
+      purgeAfter: null,
+    });
     expect(setState.ok).toBe(true);
     const generator = stubGenerator();
     const task = createGenerateTask({
@@ -1163,7 +1293,11 @@ describe("generate task", () => {
     expect(after?.attempts).toBe(before?.attempts);
     expect(after?.errorCode).toBeNull();
     expect(
-      await createArtifactStore(harness.handle, ctx).briefs.get(pr.id, BASE, HEAD_1),
+      await createArtifactStore(harness.handle, ctx).briefs.get(
+        pr.id,
+        BASE,
+        HEAD_1,
+      ),
     ).toBeUndefined();
   });
 
@@ -1197,7 +1331,11 @@ describe("generate task", () => {
     // The brief (already generated and written) survives; the delta was
     // never spent; the projection ends superseded.
     expect(
-      await createArtifactStore(harness.handle, ctx).briefs.get(pr.id, BASE, HEAD_1),
+      await createArtifactStore(harness.handle, ctx).briefs.get(
+        pr.id,
+        BASE,
+        HEAD_1,
+      ),
     ).toBeDefined();
     expect(generator.calls).toEqual(["brief"]);
     const row = await createGenerationProjection(harness.handle, ctx).get(
@@ -2202,7 +2340,11 @@ describe("generate task — repo-config origin on the generation record", () => 
     expect(byPath.get(RepoConfigPaths.INSTRUCTIONS)?.outcome).toBe("absent");
     // No brief artifact exists — the generation record is the only witness.
     expect(
-      await createArtifactStore(harness.handle, ctx).briefs.get(pr.id, BASE, HEAD_1),
+      await createArtifactStore(harness.handle, ctx).briefs.get(
+        pr.id,
+        BASE,
+        HEAD_1,
+      ),
     ).toBeUndefined();
   });
 
@@ -2371,10 +2513,10 @@ describe("generate task — entry-comment draft gate", () => {
     expect(github.comments.size).toBe(0);
     const row = await createGenerationProjection(harness.handle, ctx).get(
       target(
-        (await createTenantRepository(harness.handle, ctx).pullRequests.getByNumber(
-          makeRepoId(7n),
-          7,
-        ))!,
+        (await createTenantRepository(
+          harness.handle,
+          ctx,
+        ).pullRequests.getByNumber(makeRepoId(7n), 7))!,
         HEAD_1,
       ),
     );
@@ -2709,8 +2851,11 @@ describe("generate task — daily generation cap", () => {
 
     expect(generator.calls).toEqual(["brief"]);
     expect(
-      (await createGenerationProjection(harness.handle, ctx).get(target(pr, HEAD_1)))
-        ?.status,
+      (
+        await createGenerationProjection(harness.handle, ctx).get(
+          target(pr, HEAD_1),
+        )
+      )?.status,
     ).toBe(GenerationStatus.SUCCEEDED);
   });
 
@@ -2734,7 +2879,11 @@ describe("generate task — daily generation cap", () => {
     // No provider call, and no brief for the capped head.
     expect(generator.calls).toEqual([]);
     expect(
-      await createArtifactStore(harness.handle, ctx).briefs.get(pr.id, BASE, HEAD_2),
+      await createArtifactStore(harness.handle, ctx).briefs.get(
+        pr.id,
+        BASE,
+        HEAD_2,
+      ),
     ).toBeUndefined();
 
     const row = await createGenerationProjection(harness.handle, ctx).get(
@@ -2761,9 +2910,10 @@ describe("generate task — daily generation cap", () => {
     await burnOneRun();
     const { pr, payload } = await trigger(HEAD_2);
     const github = stubGitHub(HEAD_2);
-    const prRow = await createTenantRepository(harness.handle, ctx).pullRequests.getById(
-      pr.id,
-    );
+    const prRow = await createTenantRepository(
+      harness.handle,
+      ctx,
+    ).pullRequests.getById(pr.id);
     // Re-seed the live comment the first run posted into this run's stub.
     const liveId = prRow?.entryCommentId;
     expect(liveId).not.toBeNull();
@@ -2791,10 +2941,10 @@ describe("generate task — daily generation cap", () => {
     const { pr, payload } = await trigger(HEAD_2);
     const github = stubGitHub(HEAD_2);
     // Clear the tracked comment: this PR has none on the thread.
-    await createTenantRepository(harness.handle, ctx).pullRequests.setEntryComment(
-      pr.id,
-      null,
-    );
+    await createTenantRepository(
+      harness.handle,
+      ctx,
+    ).pullRequests.setEntryComment(pr.id, null);
 
     await createGenerateTask({
       handle: harness.handle,
@@ -2829,8 +2979,11 @@ describe("generate task — daily generation cap", () => {
 
     expect(generator.calls).toEqual([]);
     expect(
-      (await createGenerationProjection(harness.handle, ctx).get(target(pr, HEAD_2)))
-        ?.status,
+      (
+        await createGenerationProjection(harness.handle, ctx).get(
+          target(pr, HEAD_2),
+        )
+      )?.status,
     ).toBe(GenerationStatus.CAPPED);
   });
 
@@ -2866,9 +3019,10 @@ describe("generate task — daily generation cap", () => {
     })(payload);
 
     expect(generator.calls).toEqual([]);
-    const afterRetry = await createGenerationProjection(harness.handle, ctx).get(
-      target(pr, HEAD_2),
-    );
+    const afterRetry = await createGenerationProjection(
+      harness.handle,
+      ctx,
+    ).get(target(pr, HEAD_2));
     expect(afterRetry?.status).toBe(GenerationStatus.FAILED);
     expect(afterRetry?.errorCode).toBe(failed?.errorCode);
   });
@@ -2888,8 +3042,11 @@ describe("generate task — daily generation cap", () => {
 
     expect(generator.calls).toContain("brief");
     expect(
-      (await createGenerationProjection(harness.handle, ctx).get(target(pr, HEAD_2)))
-        ?.status,
+      (
+        await createGenerationProjection(harness.handle, ctx).get(
+          target(pr, HEAD_2),
+        )
+      )?.status,
     ).toBe(GenerationStatus.SUCCEEDED);
   });
 
@@ -2906,8 +3063,11 @@ describe("generate task — daily generation cap", () => {
 
     expect(generator.calls).toContain("brief");
     expect(
-      (await createGenerationProjection(harness.handle, ctx).get(target(pr, HEAD_2)))
-        ?.status,
+      (
+        await createGenerationProjection(harness.handle, ctx).get(
+          target(pr, HEAD_2),
+        )
+      )?.status,
     ).toBe(GenerationStatus.SUCCEEDED);
   });
 });
