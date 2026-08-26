@@ -63,6 +63,26 @@ The TanStack Start front end: the DB-backed read + submit surface, fed by
   (`BRIEF_ID_PATTERN`, no path separators) before being joined, and every
   refusal crosses the wire as a CODE — a raw Node error would print the
   deployment's absolute paths into a `role="alert"`.
+- **Decompose at birth, not on review.** Every sub-component gets its own
+  nested folder plus `module.scss`; closure-free helpers and consts go to a
+  co-located `utils.ts`/`consts.ts`; types to `types.ts`. Prop interfaces are
+  exported (`interface XProps`), never inline in the signature. A component
+  carrying heavy logic extracts it to a co-located
+  `use<Component>Facade` hook and stays thin.
+- **Leave vertical rhythm.** Blank line between the hook-setup group, each
+  `useEffect` (its comment attached above it), derived values, and JSX
+  sections. Related one-liners may sit together.
+- **Never gate behaviour on how a visually identical mode was entered.** If two
+  states look the same, a behavioural difference between them is
+  indistinguishable from a bug. Key behaviour on the visible state, or make the
+  modes visibly distinct. When the same defect is reported a third time after
+  two verified fixes, question the design rather than the code.
+- **Fold capability into the shared component; no behaviour wrappers.** A
+  generic capability (positioning, hover, anchoring) belongs in the component's
+  own API. `HoverX`/`AnchoredX`/`XWrapper` forks its identity — a wrapper is
+  only justified when it encodes a product feature's domain mapping.
+- **One `.svg` asset file per mark or icon**, imported via svgr. Never a
+  collection of path data grouped into one `.tsx`.
 
 ## Placement and styling (full rules + rationale live in `docs/adr/`)
 

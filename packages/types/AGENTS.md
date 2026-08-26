@@ -28,3 +28,17 @@ style as the rest of the repo: say WHY the type exists, not just what it is.
 ```sh
 pnpm -C packages/types typecheck
 ```
+
+## When to revisit this boundary
+
+Three triggers, and only these, justify reopening the owner-first rule:
+
+1. FE-Zod ↔ API-response drift starts biting ⇒ export a typed wire contract
+   from `api`, which owns the wire — not a central types home.
+2. A deployment split or npm consumption ⇒ publish a contract surface at the
+   splitting seam, never a god types package.
+3. This package outgrows a few hundred lines ⇒ section it, don't broaden it.
+
+A central domain-types home stays wrong for the same reason each time: it
+splits types from the Zod schemas and guards that validate them, and this
+package is zero-dependency so it can never hold a schema.

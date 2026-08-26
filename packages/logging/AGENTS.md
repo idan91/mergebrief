@@ -87,3 +87,9 @@ pnpm -C packages/logging typecheck
 pnpm -C packages/logging test
 pnpm lint                        # repo-root oxlint --type-aware
 ```
+- **Hoist singleton accessors to module scope.** Assign `getServerLogger()` (or
+  any singleton accessor) once at module scope — or once per composition
+  function — and use the const. Calling the accessor at every log site is
+  visual noise even when it is cached; deferring construction past module
+  import is only justified when the accessor cannot do its own env lookup
+  internally.

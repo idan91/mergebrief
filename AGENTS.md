@@ -84,3 +84,29 @@ it, alongside a `CLAUDE.md` that points at it — a new package adds both.
   the surface legitimately moved. Include the report in the PR body.
   Convention gate, never CI — live API spend. See
   `tools/categorizer/eval/README.md`.
+- **No nested ternaries** — one condition per ternary, no exceptions. Reach for
+  a lookup map (`Record<State, Value>`), if/else, or an early return instead.
+  Enforced by `no-nested-ternary`.
+- **Conditional fields are assigned, not spread.** Declare the object with its
+  unconditional fields, then assign the optional ones under an `if`; never
+  `...(cond ? { x } : {})`. Works with `exactOptionalPropertyTypes`. Enforced
+  by `no-restricted-syntax`.
+- **`as const` map names are plural, their `ValueOf` type singular** —
+  `const PullRequestSources = {...} as const;`
+  `type PullRequestSource = ValueOf<typeof PullRequestSources>`. Applies to new
+  maps; older singular names in `packages/persistence` stay as they are.
+- **Judge a gate by its exit code, never by grepping output.** `pnpm lint`
+  short-circuits on `&&`, so a failure in an early step means later steps —
+  including `pnpm format:check` — never run at all. Prettier reports violations
+  as `[warn]` lines, not "error". Run `cmd >/dev/null 2>&1; echo $?`, and in
+  stacked work lint each branch bottom-up: a rule can pass at the tip and fail
+  mid-stack.
+- **Never search with a glob that can match a real env file.** Target
+  `.env.example` and source files explicitly — a filename-list grep still reads
+  contents, and real env files hold live keys.
+- **Review by re-deriving, not by agreeing.** Form your own read of a diff
+  before reading the author's, then name the disagreements as reasoning gaps.
+  A finding you believe is wrong gets a reply explaining why, not a compliance
+  fix; a question is not a change request.
+- **The artifact noun is lowercase "brief"** mid-sentence in user-facing copy;
+  the product is "MergeBrief". Identifiers, docs and ADRs are unaffected.
