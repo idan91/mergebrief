@@ -34,6 +34,12 @@
     // Labelled region + tabindex=0 is the required pattern for keyboard-
     // reachable scroll containers (axe: scrollable-region-focusable).
     "jsx-a11y/no-noninteractive-tabindex": ["error", { "roles": ["region"] }],
+    // One condition per ternary. Replacements, in order: a `Record<State,
+    // Value>` lookup, if/else, an early return. Warn, not error: 67
+    // pre-existing violations at the time this landed, and `pnpm lint`
+    // short-circuits, so erroring here would hide every later gate. Ratchet to
+    // "error" once the count reaches zero.
+    "no-nested-ternary": "warn",
     "typescript/no-explicit-any": "error",
     "typescript/consistent-type-imports": "error",
     "typescript/no-non-null-assertion": "error",
