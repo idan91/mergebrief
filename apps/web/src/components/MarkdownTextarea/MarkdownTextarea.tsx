@@ -18,7 +18,7 @@ import {
 import { IconButton } from "../IconButton/IconButton";
 import { Markdown } from "../Markdown/Markdown";
 import { ScreenReaderOnly } from "../ScreenReaderOnly/ScreenReaderOnly";
-import { TOOLBAR_ICONS } from "./icons";
+import { ToolbarIcons } from "./icons";
 import {
   useMarkdownTextareaFacade,
   type MarkdownTextareaMode,
@@ -286,7 +286,7 @@ export function MarkdownTextarea({
               title={action.title}
               onClick={action.run}
             >
-              {TOOLBAR_ICONS[action.icon]}
+              {ToolbarIcons[action.icon]}
             </IconButton>
           ))}
         </div>

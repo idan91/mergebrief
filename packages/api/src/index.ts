@@ -36,9 +36,13 @@ export type { SessionPayload } from "./routes/repos/pr/session/logic/payload";
 export {
   API_ERROR_ENGLISH,
   API_ERROR_STATUS,
-  ApiErrorCode,
+  ApiErrorCodes,
 } from "./error-response";
-export type { ApiErrorBody, ApiErrorParams } from "./error-response";
+export type {
+  ApiErrorBody,
+  ApiErrorCode,
+  ApiErrorParams,
+} from "./error-response";
 
 // Installs/upgrades the `graphile_worker` schema so the webhook's by-name
 // `add_job` enqueue works against real Postgres. Composition roots call this

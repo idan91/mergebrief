@@ -4,18 +4,18 @@ import clsx from "clsx";
 
 import styles from "./IconButton.module.scss";
 
-export const ICON_BUTTON_VARIANTS = {
+export const IconButtonVariants = {
   GHOST: "ghost",
   OUTLINED: "outlined",
 } as const;
-export type IconButtonVariant = ValueOf<typeof ICON_BUTTON_VARIANTS>;
+export type IconButtonVariant = ValueOf<typeof IconButtonVariants>;
 
-export const ICON_BUTTON_SIZES = {
+export const IconButtonSizes = {
   SM: "sm",
   MD: "md",
   LG: "lg",
 } as const;
-export type IconButtonSize = ValueOf<typeof ICON_BUTTON_SIZES>;
+export type IconButtonSize = ValueOf<typeof IconButtonSizes>;
 
 export type IconButtonBaseProps = {
   /** Required accessible name; a caller-passed aria-label overrides it. */
@@ -33,8 +33,8 @@ export type IconButtonProps = IconButtonBaseProps &
 export function IconButton(props: IconButtonProps) {
   const {
     label,
-    variant = ICON_BUTTON_VARIANTS.GHOST,
-    size = ICON_BUTTON_SIZES.SM,
+    variant = IconButtonVariants.GHOST,
+    size = IconButtonSizes.SM,
     disabled = false,
     "aria-disabled": ariaDisabled,
     "aria-label": ariaLabel,

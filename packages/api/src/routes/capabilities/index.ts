@@ -1,6 +1,6 @@
 // `GET /api/capabilities` — itself a registered Product Query: the endpoint
 // appears in its own output. Composition only.
-import { PRODUCT_QUERY_ID } from "../../product-operations/ids";
+import { ProductQueryIds } from "../../product-operations/ids";
 import { productOperationRegistry } from "../../product-operations/registry";
 import {
   productRouter,
@@ -19,7 +19,7 @@ export function capabilitiesRoute(
   app.use("/", sessionLayer(deps), accessStampLayer());
   app.query(
     {
-      id: PRODUCT_QUERY_ID.READ_CAPABILITIES,
+      id: ProductQueryIds.READ_CAPABILITIES,
       classification: WRITE_CLASSIFICATION.READ,
     },
     "/",

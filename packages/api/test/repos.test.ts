@@ -4,10 +4,9 @@
 // endpoints inside the TTL); stringified repoIds; flat, unpaginated;
 // `no-store`; a GitHub failure is a 401/502, NEVER a DB-only fallback.
 // Bearer and cookie both authenticate (it lives under /api/*).
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import {
   encryptToken,
-  createEnvKeyProvider,
   createTenantRepository,
   createGrantAuth,
   isInstallationId,
@@ -22,13 +21,18 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createApp, type ApiApp, type AuthDeps } from "../src/index";
+import { createApp, type ApiApp } from "../src/index";
 import { testLogger } from "./logging";
+import {
+  INSTALLATION_ID,
+  KEY_REF,
+  REVIEWER_ID,
+  SECRET,
+  buildAuthDeps,
+  createKeyProvider,
+  hashSha256Hex,
+} from "./fixtures";
 
-const SECRET = "test-webhook-secret";
-const KEY_REF = "SESSION_KEY_V1";
-const INSTALLATION_ID = 987654;
-const REVIEWER_ID = 555;
 const REPO_A = 42001;
 const REPO_B = 42002;
 
@@ -48,21 +52,6 @@ const CTX: TenantContext = {
   installationId: brand(isInstallationId, INSTALLATION_ID),
 };
 const REVIEWER: ReviewerId = brand(isReviewerId, REVIEWER_ID);
-
-function keyProvider(): KeyProvider {
-  return createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
-}
-
-function authDeps(kp: KeyProvider): AuthDeps {
-  return {
-    oauthClientId: "Iv1.test-client-id",
-    oauthClientSecret: "test-client-secret",
-    keyProvider: kp,
-    sessionKeyRef: KEY_REF,
-    publicBaseUrl: "https://app.example.test",
-    cookieSecure: true,
-  };
-}
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -113,10 +102,6 @@ function stubGitHub(cfg: StubConfig): StubCounts {
   return counts;
 }
 
-function sha256Hex(value: string): string {
-  return createHash("sha256").update(value).digest("hex");
-}
-
 // Conversation port stub: never exercised here.
 const unusedConversationPort = {
   fetchPullRequestConversation: async () => {
@@ -134,12 +119,12 @@ describe("GET /api/repos", () => {
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
-    kp = keyProvider();
+    kp = createKeyProvider();
     app = createApp({
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: authDeps(kp),
+      auth: buildAuthDeps(kp),
       github: unusedConversationPort,
     });
   });
@@ -162,7 +147,7 @@ describe("GET /api/repos", () => {
       refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
     });
     await createTenantRepository(harness.handle, CTX).sessions.create({
-      sessionTokenHash: sha256Hex(cookie),
+      sessionTokenHash: hashSha256Hex(cookie),
       reviewerId: REVIEWER,
       reviewerLogin: "octocat",
       grantId: grant.id,
@@ -189,7 +174,7 @@ describe("GET /api/repos", () => {
       userId: REVIEWER,
       userLogin: "octocat",
       name: "ci-token",
-      tokenHash: sha256Hex(plaintext),
+      tokenHash: hashSha256Hex(plaintext),
       grantId: grant.id,
       expiresAt: null,
     });

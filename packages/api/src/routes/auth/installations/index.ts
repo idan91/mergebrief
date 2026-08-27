@@ -3,8 +3,8 @@
 // so the rebinding is an atomic `auth_session` UPDATE and the switch emits
 // an `auth` audit row at the choke point.
 import {
-  PRODUCT_ACTION_ID,
-  PRODUCT_QUERY_ID,
+  ProductActionIds,
+  ProductQueryIds,
 } from "../../../product-operations/ids";
 import {
   productRouter,
@@ -24,7 +24,7 @@ export function installationsRoutes(
   app.use("/", sessionLayer(deps), accessStampLayer());
   app.query(
     {
-      id: PRODUCT_QUERY_ID.LIST_INSTALLATIONS,
+      id: ProductQueryIds.LIST_INSTALLATIONS,
       classification: WRITE_CLASSIFICATION.READ,
     },
     "/",
@@ -32,7 +32,7 @@ export function installationsRoutes(
   );
   app.action(
     {
-      id: PRODUCT_ACTION_ID.SELECT_INSTALLATION,
+      id: ProductActionIds.SELECT_INSTALLATION,
       classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
     },
     "post",

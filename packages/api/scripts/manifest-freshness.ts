@@ -5,11 +5,11 @@ import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import type { ValueOf } from "types";
 
-export const MANIFEST_FRESHNESS = {
+export const ManifestFreshnesses = {
   FRESH: "fresh",
   STALE: "stale",
 } as const;
-export type ManifestFreshness = ValueOf<typeof MANIFEST_FRESHNESS>;
+export type ManifestFreshness = ValueOf<typeof ManifestFreshnesses>;
 
 export interface ManifestFreshnessInput {
   /** `undefined` when the manifest does not exist. */
@@ -28,12 +28,12 @@ export function decideManifestFreshness({
   newestSourceMtimeMs,
 }: ManifestFreshnessInput): ManifestFreshness {
   if (manifestMtimeMs === undefined || newestSourceMtimeMs === undefined) {
-    return MANIFEST_FRESHNESS.STALE;
+    return ManifestFreshnesses.STALE;
   }
   if (manifestMtimeMs > newestSourceMtimeMs) {
-    return MANIFEST_FRESHNESS.FRESH;
+    return ManifestFreshnesses.FRESH;
   }
-  return MANIFEST_FRESHNESS.STALE;
+  return ManifestFreshnesses.STALE;
 }
 
 const SKIPPED_DIRECTORIES = new Set(["node_modules", ".git"]);

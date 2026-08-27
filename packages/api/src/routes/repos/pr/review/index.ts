@@ -5,7 +5,7 @@
 // they were saved as they were written. Deliberately NOT here: the
 // checkpoint write — the `pull_request_review` webhook (including the echo
 // of this very submit) is the ONLY checkpoint writer.
-import { PRODUCT_ACTION_ID } from "../../../../product-operations/ids";
+import { ProductActionIds } from "../../../../product-operations/ids";
 import {
   productRouter,
   type ProductRouter,
@@ -24,7 +24,7 @@ export function reviewSubmitRoute(
   const handlers = createReviewHandlers(deps, evictConversation);
   app.action(
     {
-      id: PRODUCT_ACTION_ID.SUBMIT_REVIEW,
+      id: ProductActionIds.SUBMIT_REVIEW,
       classification: WRITE_CLASSIFICATION.EXTERNAL_WRITE,
     },
     "post",

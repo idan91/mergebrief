@@ -70,7 +70,7 @@ function collectInvocations(text: string): readonly string[] {
 describe("skill drift", () => {
   it("the --require blocks name exactly the expected operation ids", () => {
     const found = collectRequiredIds(fullText);
-    expect([...found].sort()).toEqual([...EXPECTED_OP_IDS].sort());
+    expect([...found].toSorted()).toEqual([...EXPECTED_OP_IDS].toSorted());
   });
 
   it("every expected operation id appears in the skill's prose", () => {

@@ -15,12 +15,7 @@ export {
   buildUpdateDraftPayload,
   resolveReadFlag,
 } from "./utils";
-export type {
-  AnchorFlags,
-  CreateDraftInput,
-  ReanchorInput,
-  UpdateDraftInput,
-} from "./types";
+export type { AnchorFlags } from "./types";
 
 export async function runSessionWrite(
   client: ApiClient,

@@ -4,43 +4,44 @@
 // answers the endpoints the gate and the diff proxy touch: `GET
 // /repositories/{id}` (the access check), the span diff, and the OAuth token
 // endpoint (refresh). Call counts assert the positive cache + diff cache.
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import {
   createArtifactStore,
   encryptToken,
-  createEnvKeyProvider,
   decryptToken,
   createTenantRepository,
   createGrantAuth,
-  isInstallationId,
-  isRepoId,
-  isReviewerId,
   PrState,
   createSessionAuth,
   createTokenAuth,
   WriteClassification,
   type AppDatabase,
-  type InstallationId,
   type KeyProvider,
-  type RepoId,
-  type ReviewerId,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createApp, type ApiApp, type AuthDeps } from "../src/index";
+import { createApp, type ApiApp } from "../src/index";
 import { testLogger } from "./logging";
+import {
+  INSTALLATION_ID,
+  KEY_REF,
+  PR_NUMBER,
+  REPO_SLUG,
+  REVIEWER_ID,
+  SECRET,
+  brandInstallationId,
+  brandRepoId,
+  brandReviewerId,
+  buildAuthDeps,
+  createKeyProvider,
+  hashSha256Hex,
+} from "./fixtures";
 
 // ---------------------------------------------------------------------------
 // Fixtures + deps.
 // ---------------------------------------------------------------------------
 
-const SECRET = "test-webhook-secret";
-const KEY_REF = "SESSION_KEY_V1";
-const INSTALLATION_ID = 987654;
-const REVIEWER_ID = 555;
 const REPO_ID = 424242;
-const REPO_SLUG = "octo/hello";
-const PR_NUMBER = 7;
 
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
 const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
@@ -50,39 +51,7 @@ const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 const BRIEF_BODY = JSON.stringify({ summary: "the brief", findings: [] });
 const DIFF_TEXT = "diff --git a/f b/f\n@@ -1 +1 @@\n-old\n+new\n";
 
-function keyProvider(): KeyProvider {
-  return createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
-}
-
-function authDeps(kp: KeyProvider): AuthDeps {
-  return {
-    oauthClientId: "Iv1.test-client-id",
-    oauthClientSecret: "test-client-secret",
-    keyProvider: kp,
-    sessionKeyRef: KEY_REF,
-    publicBaseUrl: "https://app.example.test",
-    cookieSecure: true,
-  };
-}
-
-function sha256Hex(value: string): string {
-  return createHash("sha256").update(value).digest("hex");
-}
-
-function brandInstallation(value: bigint): InstallationId {
-  if (!isInstallationId(value)) throw new Error("bad installation id");
-  return value;
-}
-function brandReviewer(value: bigint): ReviewerId {
-  if (!isReviewerId(value)) throw new Error("bad reviewer id");
-  return value;
-}
-function brandRepo(value: bigint): RepoId {
-  if (!isRepoId(value)) throw new Error("bad repo id");
-  return value;
-}
-
-const CTX = { installationId: brandInstallation(BigInt(INSTALLATION_ID)) };
+const CTX = { installationId: brandInstallationId(BigInt(INSTALLATION_ID)) };
 
 // ---------------------------------------------------------------------------
 // GitHub HTTP stub (global fetch) — dispatches on URL, counts calls per family.
@@ -199,7 +168,7 @@ async function seedSession(
   },
 ): Promise<{ cookie: string; hash: string }> {
   const cookie = randomBytes(32).toString("base64url");
-  const hash = sha256Hex(cookie);
+  const hash = hashSha256Hex(cookie);
   const sealedAccess = await encryptToken(
     kp,
     KEY_REF,
@@ -221,7 +190,7 @@ async function seedSession(
   });
   await createTenantRepository(handle, CTX).sessions.create({
     sessionTokenHash: hash,
-    reviewerId: brandReviewer(BigInt(REVIEWER_ID)),
+    reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
     reviewerLogin: "octocat",
     grantId: grant.id,
     expiresAt,
@@ -232,7 +201,7 @@ async function seedSession(
 /** Seed the tenant PR row; returns its branded row id. */
 async function seedPullRequest(handle: AppDatabase): Promise<void> {
   await createTenantRepository(handle, CTX).pullRequests.upsert({
-    repoId: brandRepo(BigInt(REPO_ID)),
+    repoId: brandRepoId(BigInt(REPO_ID)),
     prNumber: PR_NUMBER,
     repoSlug: REPO_SLUG,
     state: PrState.OPEN,
@@ -246,7 +215,7 @@ async function seedBrief(
   repoConfig?: string,
 ): Promise<void> {
   const pr = await createTenantRepository(handle, CTX).pullRequests.getByNumber(
-    brandRepo(BigInt(REPO_ID)),
+    brandRepoId(BigInt(REPO_ID)),
     PR_NUMBER,
   );
   if (pr === undefined) throw new Error("seedBrief: pr missing");
@@ -278,7 +247,7 @@ async function seedDelta(
   head: string,
 ): Promise<void> {
   const pr = await createTenantRepository(handle, CTX).pullRequests.getByNumber(
-    brandRepo(BigInt(REPO_ID)),
+    brandRepoId(BigInt(REPO_ID)),
     PR_NUMBER,
   );
   if (pr === undefined) throw new Error("seedDelta: pr missing");
@@ -338,12 +307,12 @@ describe("reviewer read API + authz gate", () => {
   beforeEach(async () => {
     vi.spyOn(Date, "now").mockImplementation(() => realNow() + clockOffsetMs);
     harness = await createPgliteHarness();
-    kp = keyProvider();
+    kp = createKeyProvider();
     app = createApp({
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: authDeps(kp),
+      auth: buildAuthDeps(kp),
       github: unusedConversationPort,
     });
   });
@@ -611,10 +580,10 @@ describe("reviewer read API + authz gate", () => {
     const bearer = `mergebrief_${randomBytes(32).toString("base64url")}`;
     await createTokenAuth(harness.handle).mintToken({
       scope: WriteClassification.EXTERNAL_WRITE,
-      installationId: brandInstallation(BigInt(INSTALLATION_ID)),
-      userId: brandReviewer(BigInt(REVIEWER_ID)),
+      installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
+      userId: brandReviewerId(BigInt(REVIEWER_ID)),
       name: "cli-agent",
-      tokenHash: sha256Hex(bearer),
+      tokenHash: hashSha256Hex(bearer),
       grantId: resolved.session.grantId,
       expiresAt: null,
     });

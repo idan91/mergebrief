@@ -18,9 +18,9 @@ import { renderManifest } from "../src/product-operations/manifest";
 import { productOperationRegistry } from "../src/product-operations/registry";
 import type { ProductOperationDescriptor } from "../src/product-operations/types";
 import {
-  MANIFEST_FAILURE,
-  MANIFEST_MODE,
-  MANIFEST_OUTCOME,
+  ManifestFailures,
+  ManifestModes,
+  ManifestOutcomes,
   runManifest,
 } from "../scripts/run-manifest";
 import { composeCatalog } from "./compose-catalog";
@@ -84,7 +84,7 @@ describe("runManifest — write mode", () => {
 
     let composeCalls = 0;
     const result = await runManifest({
-      mode: MANIFEST_MODE.WRITE,
+      mode: ManifestModes.WRITE,
       manifestPath,
       sourceRoots: [source],
       collectOperations: async () => {
@@ -95,7 +95,7 @@ describe("runManifest — write mode", () => {
 
     expect(result).toStrictEqual({
       ok: true,
-      value: MANIFEST_OUTCOME.SKIPPED_CURRENT,
+      value: ManifestOutcomes.SKIPPED_CURRENT,
     });
     expect(composeCalls).toBe(0);
     expect(await readFile(manifestPath, "utf8")).toBe("stale-but-newer\n");
@@ -112,7 +112,7 @@ describe("runManifest — write mode", () => {
 
     let composeCalls = 0;
     const result = await runManifest({
-      mode: MANIFEST_MODE.WRITE,
+      mode: ManifestModes.WRITE,
       manifestPath,
       sourceRoots: [source],
       collectOperations: async () => {
@@ -123,7 +123,7 @@ describe("runManifest — write mode", () => {
 
     expect(result).toStrictEqual({
       ok: true,
-      value: MANIFEST_OUTCOME.REGENERATED,
+      value: ManifestOutcomes.REGENERATED,
     });
     expect(composeCalls).toBe(1);
     expect(await readFile(manifestPath, "utf8")).toBe(renderManifest([SAMPLE]));
@@ -139,7 +139,7 @@ describe("runManifest — write mode", () => {
     await setMtime(source, 2_000);
 
     const result = await runManifest({
-      mode: MANIFEST_MODE.WRITE,
+      mode: ManifestModes.WRITE,
       manifestPath,
       sourceRoots: [source],
       collectOperations: async () => [],
@@ -147,7 +147,7 @@ describe("runManifest — write mode", () => {
 
     expect(result).toStrictEqual({
       ok: false,
-      error: MANIFEST_FAILURE.EMPTY_CATALOG,
+      error: ManifestFailures.EMPTY_CATALOG,
     });
     expect(await readFile(manifestPath, "utf8")).toBe("outdated\n");
   });
@@ -165,7 +165,7 @@ describe("runManifest — check mode", () => {
 
     let composeCalls = 0;
     const result = await runManifest({
-      mode: MANIFEST_MODE.CHECK,
+      mode: ManifestModes.CHECK,
       manifestPath,
       sourceRoots: [source],
       collectOperations: async () => {
@@ -175,7 +175,7 @@ describe("runManifest — check mode", () => {
     });
 
     expect(composeCalls).toBe(1);
-    expect(result).toStrictEqual({ ok: false, error: MANIFEST_FAILURE.DRIFT });
+    expect(result).toStrictEqual({ ok: false, error: ManifestFailures.DRIFT });
   });
 
   it("passes when the committed bytes equal the render, and writes nothing", async () => {
@@ -185,7 +185,7 @@ describe("runManifest — check mode", () => {
     const before = await stat(manifestPath);
 
     const result = await runManifest({
-      mode: MANIFEST_MODE.CHECK,
+      mode: ManifestModes.CHECK,
       manifestPath,
       sourceRoots: [],
       collectOperations: async () => [SAMPLE],
@@ -193,7 +193,7 @@ describe("runManifest — check mode", () => {
 
     expect(result).toStrictEqual({
       ok: true,
-      value: MANIFEST_OUTCOME.VERIFIED,
+      value: ManifestOutcomes.VERIFIED,
     });
     expect((await stat(manifestPath)).mtimeMs).toBe(before.mtimeMs);
   });
@@ -201,12 +201,12 @@ describe("runManifest — check mode", () => {
   it("fails when the manifest is missing", async () => {
     const root = await makeTempRoot();
     const result = await runManifest({
-      mode: MANIFEST_MODE.CHECK,
+      mode: ManifestModes.CHECK,
       manifestPath: join(root, "absent.json"),
       sourceRoots: [],
       collectOperations: async () => [SAMPLE],
     });
-    expect(result).toStrictEqual({ ok: false, error: MANIFEST_FAILURE.DRIFT });
+    expect(result).toStrictEqual({ ok: false, error: ManifestFailures.DRIFT });
   });
 });
 

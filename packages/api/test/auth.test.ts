@@ -5,23 +5,17 @@
 // Asserts NO GitHub token/secret leaks into any response beyond the opaque
 // session cookie.
 import { randomBytes } from "node:crypto";
-import { createHash } from "node:crypto";
 import {
   decryptToken,
   encryptToken,
-  createEnvKeyProvider,
   createTenantRepository,
   createGrantAuth,
-  isInstallationId,
-  isReviewerId,
   createSessionAuth,
   createTokenAuth,
   WriteClassification,
   createUserSettingsStore,
   type AppDatabase,
-  type InstallationId,
   type KeyProvider,
-  type ReviewerId,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -31,55 +25,31 @@ import {
   derivePrincipalFromSession,
   refreshSessionToken,
   type ApiApp,
-  type AuthDeps,
 } from "../src/index";
 import { testLogger, testLogging } from "./logging";
+import {
+  INSTALLATION_ID,
+  KEY_REF,
+  REVIEWER_ID,
+  SECRET,
+  brandInstallationId,
+  brandReviewerId,
+  buildAuthDeps,
+  createKeyProvider,
+  hashSha256Hex,
+} from "./fixtures";
 
 // ---------------------------------------------------------------------------
 // Fixtures + deps.
 // ---------------------------------------------------------------------------
 
-const SECRET = "test-webhook-secret";
-const KEY_REF = "SESSION_KEY_V1";
-const INSTALLATION_ID = 987654;
 const OTHER_INSTALLATION_ID = 111222;
-const REVIEWER_ID = 555;
 
 // GitHub token plaintexts the stub hands back — asserted ABSENT from responses.
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
 const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
 const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
 const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
-
-function keyProvider(): KeyProvider {
-  return createEnvKeyProvider({
-    [KEY_REF]: randomBytes(32).toString("base64"),
-  });
-}
-
-function authDeps(kp: KeyProvider): AuthDeps {
-  return {
-    oauthClientId: "Iv1.test-client-id",
-    oauthClientSecret: "test-client-secret",
-    keyProvider: kp,
-    sessionKeyRef: KEY_REF,
-    publicBaseUrl: "https://app.example.test",
-    cookieSecure: true,
-  };
-}
-
-function sha256Hex(value: string): string {
-  return createHash("sha256").update(value).digest("hex");
-}
-
-function brandInstallation(value: bigint): InstallationId {
-  if (!isInstallationId(value)) throw new Error("bad installation id");
-  return value;
-}
-function brandReviewer(value: bigint): ReviewerId {
-  if (!isReviewerId(value)) throw new Error("bad reviewer id");
-  return value;
-}
 
 // ---------------------------------------------------------------------------
 // GitHub HTTP stub (global fetch).
@@ -164,7 +134,7 @@ async function seedSession(
   input: { expiresAt: Date; accessPlaintext: string; refreshPlaintext: string },
 ): Promise<string> {
   const token = randomBytes(32).toString("base64url");
-  const hash = sha256Hex(token);
+  const hash = hashSha256Hex(token);
   const sealedAccess = await encryptToken(kp, KEY_REF, input.accessPlaintext);
   const sealedRefresh = await encryptToken(kp, KEY_REF, input.refreshPlaintext);
   if (!sealedAccess.ok || !sealedRefresh.ok)
@@ -176,10 +146,10 @@ async function seedSession(
     refreshExpiresAt: input.expiresAt,
   });
   await createTenantRepository(handle, {
-    installationId: brandInstallation(BigInt(INSTALLATION_ID)),
+    installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
   }).sessions.create({
     sessionTokenHash: hash,
-    reviewerId: brandReviewer(BigInt(REVIEWER_ID)),
+    reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
     reviewerLogin: "octocat",
     grantId: grant.id,
     expiresAt: input.expiresAt,
@@ -208,12 +178,12 @@ describe("reviewer auth routes", () => {
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
-    kp = keyProvider();
+    kp = createKeyProvider();
     app = createApp({
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: authDeps(kp),
+      auth: buildAuthDeps(kp),
       github: unusedConversationPort,
     });
   });
@@ -237,10 +207,10 @@ describe("reviewer auth routes", () => {
     });
     // Owner-world (url-box) session: installation_id NULL by construction.
     await createTenantRepository(harness.handle, {
-      ownerUserId: brandReviewer(BigInt(REVIEWER_ID)),
+      ownerUserId: brandReviewerId(BigInt(REVIEWER_ID)),
     }).sessions.create({
-      sessionTokenHash: sha256Hex(token),
-      reviewerId: brandReviewer(BigInt(REVIEWER_ID)),
+      sessionTokenHash: hashSha256Hex(token),
+      reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
       reviewerLogin: "octocat",
       grantId: grant.id,
       expiresAt: new Date("2027-01-01T00:00:00Z"),
@@ -374,8 +344,8 @@ describe("reviewer auth routes", () => {
       installations: [{ id: INSTALLATION_ID }, { id: OTHER_INSTALLATION_ID }],
     });
     await createUserSettingsStore(harness.handle).setDefaultInstallation(
-      brandReviewer(BigInt(REVIEWER_ID)),
-      brandInstallation(BigInt(OTHER_INSTALLATION_ID)),
+      brandReviewerId(BigInt(REVIEWER_ID)),
+      brandInstallationId(BigInt(OTHER_INSTALLATION_ID)),
     );
     expect(await runCallbackAndReadInstallation()).toBe(
       String(OTHER_INSTALLATION_ID),
@@ -388,8 +358,8 @@ describe("reviewer auth routes", () => {
       installations: [{ id: INSTALLATION_ID }], // OTHER not in the live set
     });
     await createUserSettingsStore(harness.handle).setDefaultInstallation(
-      brandReviewer(BigInt(REVIEWER_ID)),
-      brandInstallation(BigInt(OTHER_INSTALLATION_ID)),
+      brandReviewerId(BigInt(REVIEWER_ID)),
+      brandInstallationId(BigInt(OTHER_INSTALLATION_ID)),
     );
     expect(await runCallbackAndReadInstallation()).toBe(
       String(INSTALLATION_ID),
@@ -408,7 +378,7 @@ describe("reviewer auth routes", () => {
 
   it("POST /api/auth/logout deletes the session (and its orphaned grant) and clears the cookie", async () => {
     const token = randomBytes(32).toString("base64url");
-    const hash = sha256Hex(token);
+    const hash = hashSha256Hex(token);
     const sealed = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
     const sealedR = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
     if (!sealed.ok || !sealedR.ok) throw new Error("seed failed");
@@ -419,10 +389,10 @@ describe("reviewer auth routes", () => {
       refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
     });
     await createTenantRepository(harness.handle, {
-      installationId: brandInstallation(BigInt(INSTALLATION_ID)),
+      installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
     }).sessions.create({
       sessionTokenHash: hash,
-      reviewerId: brandReviewer(BigInt(REVIEWER_ID)),
+      reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
       reviewerLogin: "octocat",
       grantId: grant.id,
       expiresAt: new Date("2027-01-01T00:00:00Z"),
@@ -459,7 +429,7 @@ describe("reviewer auth routes", () => {
     const resolved = await createSessionAuth(harness.handle).findSession(hash);
     if (resolved === undefined) throw new Error("seeded session not found");
     const result = await refreshSessionToken(
-      { handle: harness.handle, auth: authDeps(kp) },
+      { handle: harness.handle, auth: buildAuthDeps(kp) },
       derivePrincipalFromSession(resolved),
       testLogger(),
     );
@@ -510,7 +480,7 @@ describe("reviewer auth routes", () => {
     if (resolved === undefined) throw new Error("seeded session not found");
     const capture = testLogging();
     const result = await refreshSessionToken(
-      { handle: harness.handle, auth: authDeps(kp) },
+      { handle: harness.handle, auth: buildAuthDeps(kp) },
       derivePrincipalFromSession(resolved),
       capture.logger,
     );
@@ -567,7 +537,7 @@ describe("reviewer auth routes", () => {
     if (!rotated.ok) throw new Error("out-of-band rotation failed");
 
     const result = await refreshSessionToken(
-      { handle: harness.handle, auth: authDeps(kp) },
+      { handle: harness.handle, auth: buildAuthDeps(kp) },
       derivePrincipalFromSession(stale), // still carries the PRE-rotation ciphertext
       testLogger(),
     );
@@ -596,10 +566,10 @@ describe("reviewer auth routes", () => {
     // the rotation proceeds — only the session-expiry mirror can notice.
     await createTokenAuth(harness.handle).mintToken({
       scope: WriteClassification.EXTERNAL_WRITE,
-      installationId: brandInstallation(BigInt(INSTALLATION_ID)),
-      userId: brandReviewer(BigInt(REVIEWER_ID)),
+      installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
+      userId: brandReviewerId(BigInt(REVIEWER_ID)),
       name: "shares-the-grant",
-      tokenHash: sha256Hex(randomBytes(32).toString("base64url")),
+      tokenHash: hashSha256Hex(randomBytes(32).toString("base64url")),
       grantId: resolved.session.grantId,
       expiresAt: null,
     });
@@ -607,7 +577,7 @@ describe("reviewer auth routes", () => {
     await createSessionAuth(harness.handle).deleteSession(hash);
 
     const result = await refreshSessionToken(
-      { handle: harness.handle, auth: authDeps(kp) },
+      { handle: harness.handle, auth: buildAuthDeps(kp) },
       derivePrincipalFromSession(resolved),
       testLogger(),
     );
@@ -639,11 +609,11 @@ describe("reviewer auth routes", () => {
       keyRef: KEY_REF,
       refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
     });
-    const bearerHash = sha256Hex(randomBytes(32).toString("base64url"));
+    const bearerHash = hashSha256Hex(randomBytes(32).toString("base64url"));
     const minted = await createTokenAuth(harness.handle).mintToken({
       scope: WriteClassification.EXTERNAL_WRITE,
-      installationId: brandInstallation(BigInt(INSTALLATION_ID)),
-      userId: brandReviewer(BigInt(REVIEWER_ID)),
+      installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
+      userId: brandReviewerId(BigInt(REVIEWER_ID)),
       name: "revoked-mid-flight",
       tokenHash: bearerHash,
       grantId: grant.id,
@@ -657,7 +627,7 @@ describe("reviewer auth routes", () => {
     const principal = derivePrincipalFromApiToken(live.value);
     // The owner revokes while the request is in flight.
     const revoked = await createTokenAuth(harness.handle).revokeToken(
-      brandReviewer(BigInt(REVIEWER_ID)),
+      brandReviewerId(BigInt(REVIEWER_ID)),
       minted.id,
       new Date(),
     );
@@ -665,7 +635,7 @@ describe("reviewer auth routes", () => {
 
     const capture = testLogging();
     const result = await refreshSessionToken(
-      { handle: harness.handle, auth: authDeps(kp) },
+      { handle: harness.handle, auth: buildAuthDeps(kp) },
       principal,
       capture.logger,
     );

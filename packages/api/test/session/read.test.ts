@@ -2,27 +2,33 @@
 // sides of materialization, projects the Attention List off the rows it
 // returns, and — the invariant the suite exists for — CREATES NOTHING. Every
 // case asserts the `review_session` row count across the call.
-import { AnchorStatus, createTenantRepository, ReviewOutcome } from "persistence";
+import {
+  AnchorStatus,
+  createTenantRepository,
+  ReviewOutcome,
+} from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../../src/index";
 import { testLogger } from "../logging";
 import {
-  authDeps,
   BRIEF_BODY,
   CTX,
-  keyProvider,
   NO_ARTIFACT,
-  PR_NUMBER,
   REPO_ID,
   REVIEWER,
-  SECRET,
   seedBrief,
   seedPreviousWork,
   seedPullRequest,
   seedSession,
   stubGitHub,
 } from "./fixtures";
+import {
+  PR_NUMBER,
+  SECRET,
+  buildAuthDeps,
+  createKeyProvider,
+} from "../fixtures";
 import type { KeyProvider } from "persistence";
 
 /** The payload's shape as the assertions read it — the test-side boundary. */
@@ -62,12 +68,12 @@ describe("read-review-session", () => {
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
-    kp = keyProvider();
+    kp = createKeyProvider();
     app = createApp({
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: authDeps(kp),
+      auth: buildAuthDeps(kp),
       github: {
         fetchPullRequestConversation: () => {
           throw new Error("conversation port must not be called");
@@ -238,7 +244,10 @@ describe("read-review-session", () => {
     const previous = await seedBrief(harness.handle, 1);
     // `c1` is in the new Brief's persisted carried set, so the mark carries.
     const current = await seedBrief(harness.handle, 2, BRIEF_BODY, ["c1"]);
-    await createTenantRepository(harness.handle, CTX).reviewSessions.writeToSession(
+    await createTenantRepository(
+      harness.handle,
+      CTX,
+    ).reviewSessions.writeToSession(
       {
         briefId: previous,
         reviewerId: REVIEWER,
@@ -253,7 +262,10 @@ describe("read-review-session", () => {
     expect(pending.carriedFrom?.items).toBe(1);
 
     // The write that writes it must not turn the receipt into nothing.
-    await createTenantRepository(harness.handle, CTX).reviewSessions.writeToSession(
+    await createTenantRepository(
+      harness.handle,
+      CTX,
+    ).reviewSessions.writeToSession(
       {
         briefId: current,
         reviewerId: REVIEWER,
@@ -268,7 +280,10 @@ describe("read-review-session", () => {
 
     // And clearing the carried work does not shrink it: the count states what
     // came across, so the receipt survives the reviewer acting on every item.
-    await createTenantRepository(harness.handle, CTX).reviewSessions.writeToSession(
+    await createTenantRepository(
+      harness.handle,
+      CTX,
+    ).reviewSessions.writeToSession(
       {
         briefId: current,
         reviewerId: REVIEWER,

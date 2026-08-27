@@ -7,7 +7,7 @@ import type {
   AttentionItemKind,
   SessionAttentionItem,
 } from "../session/attention";
-import { ATTENTION_ITEM_KIND } from "../session/attention";
+import { AttentionItemKinds } from "../session/attention";
 
 export type ReviewOutcome = "comment" | "approve" | "request-changes";
 export type RiskEvidenceKind =
@@ -249,7 +249,7 @@ function isDispositionPending(
   kind: AttentionItemKind,
   disposition: Disposition,
 ): boolean {
-  if (kind === ATTENTION_ITEM_KIND.REOPENED_DISPOSITION) {
+  if (kind === AttentionItemKinds.REOPENED_DISPOSITION) {
     return disposition.kind === "open";
   }
   return disposition.kind === "addressed" && disposition.evidence === undefined;
@@ -275,7 +275,7 @@ function buildCarriedDraftItem(
     }
     return {
       id: `carried:${id}`,
-      kind: ATTENTION_ITEM_KIND.ORPHANED_ANCHOR,
+      kind: AttentionItemKinds.ORPHANED_ANCHOR,
       label: commentLocation(live),
       targetId: live.anchor.chunkId,
       clearedBy: item.clearedBy,
@@ -291,7 +291,7 @@ function buildCarriedDraftItem(
   if (renders || input.deletedMissingDrafts.has(id)) return undefined;
   return {
     id: `carried:${id}`,
-    kind: ATTENTION_ITEM_KIND.ORPHANED_ANCHOR,
+    kind: AttentionItemKinds.ORPHANED_ANCHOR,
     label: `${item.location.filePath}:${String(item.location.startLine)}`,
     targetId: "",
     clearedBy: item.clearedBy,
@@ -339,7 +339,7 @@ export function deriveCarriedItems(input: CarriedInput): CarriedItem[] {
   );
   return input.attention.flatMap((item) => {
     const derived =
-      item.kind === ATTENTION_ITEM_KIND.ORPHANED_ANCHOR
+      item.kind === AttentionItemKinds.ORPHANED_ANCHOR
         ? buildCarriedDraftItem(input, item)
         : buildCarriedDispositionItem(input, item, regions);
     return derived === undefined ? [] : [derived];

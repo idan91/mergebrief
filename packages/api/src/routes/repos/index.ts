@@ -8,7 +8,7 @@
 //
 // Beneath it: the per-repo collaborators leaf and the per-PR subtree, each
 // behind its per-repo gate.
-import { PRODUCT_QUERY_ID } from "../../product-operations/ids";
+import { ProductQueryIds } from "../../product-operations/ids";
 import {
   productRouter,
   type ProductRouter,
@@ -41,7 +41,7 @@ export function reposRoutes(
 
   app.query(
     {
-      id: PRODUCT_QUERY_ID.LIST_REPOS,
+      id: ProductQueryIds.LIST_REPOS,
       classification: WRITE_CLASSIFICATION.READ,
     },
     "/",

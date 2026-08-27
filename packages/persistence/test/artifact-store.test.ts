@@ -719,10 +719,14 @@ describe("createArtifactStore.hunkSpans — the carry-over hop", () => {
     if (result.ok) throw new Error("expected rejection");
     expect(result.error.code).toBe(ArtifactErrorCode.PARENT_NOT_IN_TENANT);
     expect(
-      await createArtifactStore(handle, CTX_A).hunkSpans.listForPullRequest(pr.id),
+      await createArtifactStore(handle, CTX_A).hunkSpans.listForPullRequest(
+        pr.id,
+      ),
     ).toHaveLength(0);
     expect(
-      await createArtifactStore(handle, CTX_B).hunkSpans.listForPullRequest(pr.id),
+      await createArtifactStore(handle, CTX_B).hunkSpans.listForPullRequest(
+        pr.id,
+      ),
     ).toHaveLength(0);
   });
 });

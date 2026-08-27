@@ -4,17 +4,17 @@ import clsx from "clsx";
 
 import styles from "./RowButton.module.scss";
 
-export const ROW_BUTTON_VARIANTS = {
+export const RowButtonVariants = {
   ROW: "row",
   CARD: "card",
 } as const;
-export type RowButtonVariant = ValueOf<typeof ROW_BUTTON_VARIANTS>;
+export type RowButtonVariant = ValueOf<typeof RowButtonVariants>;
 
-export const ROW_BUTTON_DENSITIES = {
+export const RowButtonDensities = {
   FULL: "full",
   SLIM: "slim",
 } as const;
-export type RowButtonDensity = ValueOf<typeof ROW_BUTTON_DENSITIES>;
+export type RowButtonDensity = ValueOf<typeof RowButtonDensities>;
 
 export type RowButtonBaseProps = {
   variant?: RowButtonVariant;
@@ -33,8 +33,8 @@ export type RowButtonProps = RowButtonBaseProps &
  */
 export function RowButton(props: RowButtonProps) {
   const {
-    variant = ROW_BUTTON_VARIANTS.ROW,
-    density = ROW_BUTTON_DENSITIES.FULL,
+    variant = RowButtonVariants.ROW,
+    density = RowButtonDensities.FULL,
     disabled = false,
     "aria-disabled": ariaDisabled,
     className,

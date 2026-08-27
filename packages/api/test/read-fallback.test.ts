@@ -5,70 +5,40 @@
 // world, so an App-world brief stays governed by the installation alone.
 import { createHash, randomBytes } from "node:crypto";
 import {
-  createEnvKeyProvider,
   createGrantAuth,
   createTenantRepository,
   encryptToken,
-  isInstallationId,
-  isRepoId,
-  isReviewerId,
   PrState,
   type AppDatabase,
-  type InstallationId,
   type KeyProvider,
-  type RepoId,
-  type ReviewerId,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createApp, type ApiApp, type AuthDeps } from "../src/index";
+import { createApp, type ApiApp } from "../src/index";
 import { testLogger } from "./logging";
+import {
+  INSTALLATION_ID,
+  KEY_REF,
+  PR_NUMBER,
+  REPO_SLUG,
+  REVIEWER_ID,
+  SECRET,
+  brandInstallationId,
+  brandRepoId,
+  brandReviewerId,
+  buildAuthDeps,
+  createKeyProvider,
+} from "./fixtures";
 
-const SECRET = "test-webhook-secret";
-const KEY_REF = "SESSION_KEY_V1";
-const INSTALLATION_ID = 987654;
-const REVIEWER_ID = 555;
 const REPO_ID = 424242;
-const REPO_SLUG = "octo/hello";
-const PR_NUMBER = 7;
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
 const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
 const FALLBACK_PAT = "ghp_OPERATOR_PAT";
 
-function brandInstallation(value: bigint): InstallationId {
-  if (!isInstallationId(value)) throw new Error("bad installation id");
-  return value;
-}
-function brandReviewer(value: bigint): ReviewerId {
-  if (!isReviewerId(value)) throw new Error("bad reviewer id");
-  return value;
-}
-function brandRepo(value: bigint): RepoId {
-  if (!isRepoId(value)) throw new Error("bad repo id");
-  return value;
-}
-
 const TENANT_CTX = {
-  installationId: brandInstallation(BigInt(INSTALLATION_ID)),
+  installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
 };
-const OWNER_CTX = { ownerUserId: brandReviewer(BigInt(REVIEWER_ID)) };
-
-function keyProvider(): KeyProvider {
-  return createEnvKeyProvider({
-    [KEY_REF]: randomBytes(32).toString("base64"),
-  });
-}
-
-function authDeps(kp: KeyProvider): AuthDeps {
-  return {
-    oauthClientId: "Iv1.test-client-id",
-    oauthClientSecret: "test-client-secret",
-    keyProvider: kp,
-    sessionKeyRef: KEY_REF,
-    publicBaseUrl: "https://app.example.test",
-    cookieSecure: true,
-  };
-}
+const OWNER_CTX = { ownerUserId: brandReviewerId(BigInt(REVIEWER_ID)) };
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -153,7 +123,7 @@ async function seedSession(
   // url-box row they own lives in the OTHER world.
   await createTenantRepository(handle, TENANT_CTX).sessions.create({
     sessionTokenHash: createHash("sha256").update(cookie).digest("hex"),
-    reviewerId: brandReviewer(BigInt(REVIEWER_ID)),
+    reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
     reviewerLogin: "octocat",
     grantId: grant.id,
     expiresAt,
@@ -166,7 +136,7 @@ async function seedOwnerPullRequest(
   title = "the reader's own paste",
 ): Promise<void> {
   await createTenantRepository(handle, OWNER_CTX).pullRequests.upsert({
-    repoId: brandRepo(BigInt(REPO_ID)),
+    repoId: brandRepoId(BigInt(REPO_ID)),
     prNumber: PR_NUMBER,
     repoSlug: REPO_SLUG,
     state: PrState.OPEN,
@@ -179,7 +149,7 @@ async function seedTenantPullRequest(
   title = "the installation's row",
 ): Promise<void> {
   await createTenantRepository(handle, TENANT_CTX).pullRequests.upsert({
-    repoId: brandRepo(BigInt(REPO_ID)),
+    repoId: brandRepoId(BigInt(REPO_ID)),
     prNumber: PR_NUMBER,
     repoSlug: REPO_SLUG,
     state: PrState.OPEN,
@@ -193,7 +163,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
-    kp = keyProvider();
+    kp = createKeyProvider();
   });
 
   afterEach(async () => {
@@ -206,7 +176,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: authDeps(kp),
+      auth: buildAuthDeps(kp),
       github: {
         fetchPullRequestConversation: async () => {
           throw new Error("conversation port must not be called");
@@ -297,9 +267,9 @@ describe("the per-repo gate's operator-PAT rung", () => {
     stubGitHub();
     const cookie = await seedSession(harness.handle, kp);
     await createTenantRepository(harness.handle, {
-      ownerUserId: brandReviewer(BigInt(REVIEWER_ID + 1)),
+      ownerUserId: brandReviewerId(BigInt(REVIEWER_ID + 1)),
     }).pullRequests.upsert({
-      repoId: brandRepo(BigInt(REPO_ID)),
+      repoId: brandRepoId(BigInt(REPO_ID)),
       prNumber: PR_NUMBER,
       repoSlug: REPO_SLUG,
       state: PrState.OPEN,

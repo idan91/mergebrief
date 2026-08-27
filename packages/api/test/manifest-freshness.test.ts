@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   decideManifestFreshness,
   fileMtimeMs,
-  MANIFEST_FRESHNESS,
+  ManifestFreshnesses,
   newestMtimeMs,
 } from "../scripts/manifest-freshness";
 
@@ -34,7 +34,7 @@ describe("decideManifestFreshness", () => {
         manifestMtimeMs: 2_000,
         newestSourceMtimeMs: 1_000,
       }),
-    ).toBe(MANIFEST_FRESHNESS.FRESH);
+    ).toBe(ManifestFreshnesses.FRESH);
   });
 
   it("is stale when a source is newer than the manifest", () => {
@@ -43,7 +43,7 @@ describe("decideManifestFreshness", () => {
         manifestMtimeMs: 1_000,
         newestSourceMtimeMs: 2_000,
       }),
-    ).toBe(MANIFEST_FRESHNESS.STALE);
+    ).toBe(ManifestFreshnesses.STALE);
   });
 
   it("treats equal timestamps as stale (filesystem granularity is coarse)", () => {
@@ -52,7 +52,7 @@ describe("decideManifestFreshness", () => {
         manifestMtimeMs: 1_000,
         newestSourceMtimeMs: 1_000,
       }),
-    ).toBe(MANIFEST_FRESHNESS.STALE);
+    ).toBe(ManifestFreshnesses.STALE);
   });
 
   it("is stale when the manifest is missing", () => {
@@ -61,7 +61,7 @@ describe("decideManifestFreshness", () => {
         manifestMtimeMs: undefined,
         newestSourceMtimeMs: 1_000,
       }),
-    ).toBe(MANIFEST_FRESHNESS.STALE);
+    ).toBe(ManifestFreshnesses.STALE);
   });
 
   it("is stale when no source was found at all", () => {
@@ -70,7 +70,7 @@ describe("decideManifestFreshness", () => {
         manifestMtimeMs: 2_000,
         newestSourceMtimeMs: undefined,
       }),
-    ).toBe(MANIFEST_FRESHNESS.STALE);
+    ).toBe(ManifestFreshnesses.STALE);
   });
 });
 

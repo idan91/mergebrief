@@ -105,9 +105,7 @@ describe("concernShares", () => {
       { concern: "test", added: 1, deleted: 0 },
       { concern: "doc", added: 1, deleted: 0 },
     ]);
-    expect(
-      thirds.reduce((sum, share) => sum + share.percent, 0),
-    ).toBe(100);
+    expect(thirds.reduce((sum, share) => sum + share.percent, 0)).toBe(100);
   });
 
   it("survives an all-zero rollup without NaN", () => {

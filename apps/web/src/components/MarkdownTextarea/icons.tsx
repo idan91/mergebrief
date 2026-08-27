@@ -11,7 +11,7 @@ import QuoteIcon from "./icons/quote.svg?react";
 import SuggestionIcon from "./icons/suggestion.svg?react";
 import TaskListIcon from "./icons/task-list.svg?react";
 
-export const TOOLBAR_ICONS = {
+export const ToolbarIcons = {
   bold: <BoldIcon aria-hidden="true" />,
   italic: <ItalicIcon aria-hidden="true" />,
   code: <CodeIcon aria-hidden="true" />,
@@ -23,4 +23,4 @@ export const TOOLBAR_ICONS = {
   suggestion: <SuggestionIcon aria-hidden="true" />,
 } as const;
 
-export type ToolbarIconKey = keyof typeof TOOLBAR_ICONS;
+export type ToolbarIconKey = keyof typeof ToolbarIcons;

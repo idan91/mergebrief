@@ -9,8 +9,8 @@
 // able to erase their own stored data. On the delete, a tenant row, another
 // owner's row, and a nonexistent row are one indistinguishable 404.
 import {
-  PRODUCT_ACTION_ID,
-  PRODUCT_QUERY_ID,
+  ProductActionIds,
+  ProductQueryIds,
 } from "../../product-operations/ids";
 import {
   productRouter,
@@ -27,7 +27,7 @@ export function urlBriefRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   app.use("*", sessionLayer(deps), accessStampLayer());
   app.query(
     {
-      id: PRODUCT_QUERY_ID.LIST_URL_BRIEFS,
+      id: ProductQueryIds.LIST_URL_BRIEFS,
       classification: WRITE_CLASSIFICATION.READ,
     },
     "/",
@@ -35,7 +35,7 @@ export function urlBriefRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   );
   app.action(
     {
-      id: PRODUCT_ACTION_ID.DELETE_URL_BRIEF,
+      id: ProductActionIds.DELETE_URL_BRIEF,
       classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
     },
     "delete",

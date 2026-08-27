@@ -3,33 +3,40 @@
 // the injected `InstallationGitHubPort` (stubbed here — the wire→domain mapping
 // is the github package's suite); the viewer-token reply POST and the gate's
 // access check hit the global-fetch stub.
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import type { FetchPullRequestConversationInput, PrConversation } from "github";
 import {
   createArtifactStore,
   encryptToken,
-  createEnvKeyProvider,
   createTenantRepository,
   createGrantAuth,
-  isInstallationId,
-  isRepoId,
-  isReviewerId,
   PrState,
   type AppDatabase,
   type InstallationId,
   type KeyProvider,
-  type RepoId,
-  type ReviewerId,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createApp,
   type ApiApp,
-  type AuthDeps,
   type InstallationGitHubPort,
 } from "../src/index";
 import { testLogger, testLogging } from "./logging";
+import {
+  INSTALLATION_ID,
+  KEY_REF,
+  PR_NUMBER,
+  REPO_SLUG,
+  REVIEWER_ID,
+  SECRET,
+  brandInstallationId,
+  brandRepoId,
+  brandReviewerId,
+  buildAuthDeps,
+  createKeyProvider,
+  hashSha256Hex,
+} from "./fixtures";
 
 // POST .../comments/{id}/replies is on octokit's `triggersNotification` list:
 // the throttling plugin spaces consecutive reply POSTs ~3s apart through
@@ -37,13 +44,7 @@ import { testLogger, testLogging } from "./logging";
 // freezing Date.now poisons the shared limiters). Give the file headroom.
 vi.setConfig({ testTimeout: 30_000 });
 
-const SECRET = "test-webhook-secret";
-const KEY_REF = "SESSION_KEY_V1";
-const INSTALLATION_ID = 987654;
-const REVIEWER_ID = 555;
 const REPO_ID = 424242;
-const REPO_SLUG = "octo/hello";
-const PR_NUMBER = 7;
 const ROOT_COMMENT_ID = 3_538_588_388;
 const BASE_SHA = "b".repeat(40);
 const HEAD_SHA = "a".repeat(40);
@@ -54,39 +55,7 @@ const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
 const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
 const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 
-function keyProvider(): KeyProvider {
-  return createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
-}
-
-function authDeps(kp: KeyProvider): AuthDeps {
-  return {
-    oauthClientId: "Iv1.test-client-id",
-    oauthClientSecret: "test-client-secret",
-    keyProvider: kp,
-    sessionKeyRef: KEY_REF,
-    publicBaseUrl: "https://app.example.test",
-    cookieSecure: true,
-  };
-}
-
-function sha256Hex(value: string): string {
-  return createHash("sha256").update(value).digest("hex");
-}
-
-function brandInstallation(value: bigint): InstallationId {
-  if (!isInstallationId(value)) throw new Error("bad installation id");
-  return value;
-}
-function brandReviewer(value: bigint): ReviewerId {
-  if (!isReviewerId(value)) throw new Error("bad reviewer id");
-  return value;
-}
-function brandRepo(value: bigint): RepoId {
-  if (!isRepoId(value)) throw new Error("bad repo id");
-  return value;
-}
-
-const CTX = { installationId: brandInstallation(BigInt(INSTALLATION_ID)) };
+const CTX = { installationId: brandInstallationId(BigInt(INSTALLATION_ID)) };
 
 // ---------------------------------------------------------------------------
 // Conversation port stub — canned domain fixtures, call log for cache asserts.
@@ -323,8 +292,8 @@ async function seedSession(
     refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
   });
   await createTenantRepository(handle, CTX).sessions.create({
-    sessionTokenHash: sha256Hex(cookie),
-    reviewerId: brandReviewer(BigInt(REVIEWER_ID)),
+    sessionTokenHash: hashSha256Hex(cookie),
+    reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
     reviewerLogin: "octocat",
     grantId: grant.id,
     expiresAt: new Date("2027-01-01T00:00:00Z"),
@@ -334,7 +303,7 @@ async function seedSession(
 
 async function seedPullRequest(handle: AppDatabase): Promise<void> {
   await createTenantRepository(handle, CTX).pullRequests.upsert({
-    repoId: brandRepo(BigInt(REPO_ID)),
+    repoId: brandRepoId(BigInt(REPO_ID)),
     prNumber: PR_NUMBER,
     repoSlug: REPO_SLUG,
     state: PrState.OPEN,
@@ -347,15 +316,15 @@ async function seedPullRequestWithEntryComment(
   entryCommentId: bigint,
 ): Promise<void> {
   await seedPullRequest(handle);
-  const row = await createTenantRepository(handle, CTX).pullRequests.getByNumber(
-    brandRepo(BigInt(REPO_ID)),
-    PR_NUMBER,
-  );
+  const row = await createTenantRepository(
+    handle,
+    CTX,
+  ).pullRequests.getByNumber(brandRepoId(BigInt(REPO_ID)), PR_NUMBER);
   if (row === undefined) throw new Error("seed row missing");
-  const set = await createTenantRepository(handle, CTX).pullRequests.setEntryComment(
-    row.id,
-    entryCommentId,
-  );
+  const set = await createTenantRepository(
+    handle,
+    CTX,
+  ).pullRequests.setEntryComment(row.id, entryCommentId);
   if (!set.ok) throw new Error("setEntryComment failed in seed");
 }
 
@@ -369,7 +338,7 @@ function replyPath(commentId: number | string = ROOT_COMMENT_ID): string {
 async function seedBriefSession(handle: AppDatabase): Promise<void> {
   const repo = createTenantRepository(handle, CTX);
   const pr = await repo.pullRequests.getByNumber(
-    brandRepo(BigInt(REPO_ID)),
+    brandRepoId(BigInt(REPO_ID)),
     PR_NUMBER,
   );
   if (pr === undefined) throw new Error("seedBriefSession: pr missing");
@@ -388,7 +357,7 @@ async function seedBriefSession(handle: AppDatabase): Promise<void> {
   const written = await repo.reviewSessions.writeToSession(
     {
       briefId: brief.value.id,
-      reviewerId: brandReviewer(BigInt(REVIEWER_ID)),
+      reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
       brief: async () => ({ groupIds: [], flags: [] }),
     },
     (writer) => writer.putReadMark({ chunkId: "c1" }),
@@ -441,7 +410,7 @@ describe("conversation surface", () => {
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
-    kp = keyProvider();
+    kp = createKeyProvider();
   });
 
   afterEach(async () => {
@@ -454,7 +423,7 @@ describe("conversation surface", () => {
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: authDeps(kp),
+      auth: buildAuthDeps(kp),
       github: port,
     });
   }
@@ -758,7 +727,7 @@ describe("conversation surface", () => {
         logger: capture.logger,
         handle: harness.handle,
         webhookSecret: SECRET,
-        auth: authDeps(kp),
+        auth: buildAuthDeps(kp),
         github: port,
       });
       // Sabotage the audit table: the GitHub write already happened, so a

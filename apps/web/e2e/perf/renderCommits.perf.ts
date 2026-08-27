@@ -115,11 +115,11 @@ test("render work during a scroll storm", async ({ page }) => {
     await new Promise((resolve) => {
       setTimeout(resolve, 300);
     });
-    const stats = window.__COMMIT_STATS__;
-    if (!stats) throw new Error("commit hook not installed");
-    stats.commits = 0;
-    stats.renderedComponents = [];
-    stats.renderMs = [];
+    const tracked = window.__COMMIT_STATS__;
+    if (!tracked) throw new Error("commit hook not installed");
+    tracked.commits = 0;
+    tracked.renderedComponents = [];
+    tracked.renderMs = [];
     window.__COMMIT_TRACKING__ = true;
     await new Promise<void>((resolve) => {
       let start: number | null = null;
@@ -135,7 +135,7 @@ test("render work during a scroll storm", async ({ page }) => {
       requestAnimationFrame(tick);
     });
     window.__COMMIT_TRACKING__ = false;
-    return stats;
+    return tracked;
   }, 4000);
 
   expect(stats.commits).toBeGreaterThan(0);
@@ -190,11 +190,11 @@ test("render work per pure scroll-spy tick", async ({ page }) => {
     const low = boundary - readingLineOffset - 80;
     const high = boundary - readingLineOffset + 80;
 
-    const stats = window.__COMMIT_STATS__;
-    if (!stats) throw new Error("commit hook not installed");
-    stats.commits = 0;
-    stats.renderedComponents = [];
-    stats.renderMs = [];
+    const tracked = window.__COMMIT_STATS__;
+    if (!tracked) throw new Error("commit hook not installed");
+    tracked.commits = 0;
+    tracked.renderedComponents = [];
+    tracked.renderMs = [];
     window.__COMMIT_TRACKING__ = true;
     for (let i = 0; i < 30; i += 1) {
       window.scrollTo({
@@ -206,7 +206,7 @@ test("render work per pure scroll-spy tick", async ({ page }) => {
       });
     }
     window.__COMMIT_TRACKING__ = false;
-    return stats;
+    return tracked;
   });
 
   expect(stats.commits).toBeGreaterThan(0);

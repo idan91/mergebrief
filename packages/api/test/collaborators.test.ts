@@ -4,14 +4,12 @@
 // the github package's suite); the gate's access check hits the global-fetch
 // stub. The viewerCanPush guard must deny with NO port call — GitHub denies
 // roster reads to non-push viewers, so must we.
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import type { ListRepoCollaboratorsInput, RepoCollaborators } from "github";
 import {
   encryptToken,
-  createEnvKeyProvider,
   createTenantRepository,
   createGrantAuth,
-  isInstallationId,
   isReviewerId,
   type AppDatabase,
   type InstallationId,
@@ -22,44 +20,25 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createApp,
   type ApiApp,
-  type AuthDeps,
   type InstallationGitHubPort,
 } from "../src/index";
 import { testLogger } from "./logging";
+import {
+  INSTALLATION_ID,
+  KEY_REF,
+  REPO_SLUG,
+  REVIEWER_ID,
+  SECRET,
+  brandInstallationId,
+  buildAuthDeps,
+  createKeyProvider,
+  hashSha256Hex,
+} from "./fixtures";
 
-const SECRET = "test-webhook-secret";
-const KEY_REF = "SESSION_KEY_V1";
-const INSTALLATION_ID = 987654;
-const REVIEWER_ID = 555;
 const REPO_ID = 424242;
-const REPO_SLUG = "octo/hello";
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
 
-function keyProvider(): KeyProvider {
-  return createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
-}
-
-function authDeps(kp: KeyProvider): AuthDeps {
-  return {
-    oauthClientId: "Iv1.test-client-id",
-    oauthClientSecret: "test-client-secret",
-    keyProvider: kp,
-    sessionKeyRef: KEY_REF,
-    publicBaseUrl: "https://app.example.test",
-    cookieSecure: true,
-  };
-}
-
-function sha256Hex(value: string): string {
-  return createHash("sha256").update(value).digest("hex");
-}
-
-function brandInstallation(value: bigint): InstallationId {
-  if (!isInstallationId(value)) throw new Error("bad installation id");
-  return value;
-}
-
-const CTX = { installationId: brandInstallation(BigInt(INSTALLATION_ID)) };
+const CTX = { installationId: brandInstallationId(BigInt(INSTALLATION_ID)) };
 
 // ---------------------------------------------------------------------------
 // Port stub — canned results, call log for cache/guard asserts.
@@ -187,7 +166,7 @@ async function seedSession(
   const reviewerId = BigInt(reviewer.id);
   if (!isReviewerId(reviewerId)) throw new Error("bad reviewer id");
   await createTenantRepository(handle, CTX).sessions.create({
-    sessionTokenHash: sha256Hex(cookie),
+    sessionTokenHash: hashSha256Hex(cookie),
     reviewerId,
     reviewerLogin: reviewer.login,
     grantId: grant.id,
@@ -218,7 +197,7 @@ describe("GET /api/repos/:repoId/collaborators", () => {
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
-    kp = keyProvider();
+    kp = createKeyProvider();
   });
 
   afterEach(async () => {
@@ -231,7 +210,7 @@ describe("GET /api/repos/:repoId/collaborators", () => {
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: authDeps(kp),
+      auth: buildAuthDeps(kp),
       github: port,
     });
   }

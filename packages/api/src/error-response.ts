@@ -45,9 +45,6 @@ export const ApiErrorCodes = {
 } as const;
 export type ApiErrorCode = ValueOf<typeof ApiErrorCodes>;
 
-/** Frozen-suite alias — dies with the wire-pin shims. */
-export const ApiErrorCode = ApiErrorCodes;
-
 /**
  * Codes that carry interpolation params, typed per code. Adding params to a
  * code is additive; a param value is never free-form upstream text unless

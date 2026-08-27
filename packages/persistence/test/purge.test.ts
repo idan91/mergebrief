@@ -383,9 +383,10 @@ describe("createPurgeRoutines.purgePullRequest — cascade + no-FK audit surviva
     expect(await countChildTables(pair.raw, prId)).toBe(8);
     expect(await countSessionTables(pair.raw, TENANT_A)).toBe(6);
 
-    const result = await createPurgeRoutines(pair.handle, CTX_A).purgePullRequest(
-      prId,
-    );
+    const result = await createPurgeRoutines(
+      pair.handle,
+      CTX_A,
+    ).purgePullRequest(prId);
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("expected purge success");
     expect(result.value).toBe(1);
@@ -640,7 +641,9 @@ describe("createPurgeRoutines.sweepExpired — retention sweep", () => {
   it("emits no audit entry when the sweep erases nothing", async () => {
     const { raw, handle } = await freshPair();
     await insertPr(raw, { installationId: TENANT_A, prNumber: 1 }); // null purge_after
-    const purged = await createPurgeRoutines(handle, CTX_A).sweepExpired(new Date());
+    const purged = await createPurgeRoutines(handle, CTX_A).sweepExpired(
+      new Date(),
+    );
     expect(purged).toBe(0);
     expect(await deleteAudits(raw, TENANT_A)).toHaveLength(0);
   });
@@ -753,9 +756,10 @@ describe("createPurgeRoutines.sweepExpiredSessions — TTL sweep", () => {
     await session(TENANT_A, "a-live", live);
     await session(TENANT_B, "b-expired", expired);
 
-    const deleted = await createPurgeRoutines(handle, CTX_A).sweepExpiredSessions(
-      now,
-    );
+    const deleted = await createPurgeRoutines(
+      handle,
+      CTX_A,
+    ).sweepExpiredSessions(now);
     expect(deleted).toBe(1);
 
     const remaining = await raw

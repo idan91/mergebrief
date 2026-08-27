@@ -1,39 +1,40 @@
 // Mark-ready route integration tests: `app.request()` against `createApp` over
 // the PGlite harness, GitHub stubbed at the global-fetch boundary (same pattern
 // as review-submit.test.ts).
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import {
   encryptToken,
-  createEnvKeyProvider,
   createTenantRepository,
   createGrantAuth,
-  isInstallationId,
-  isRepoId,
-  isReviewerId,
   PrState,
   type AppDatabase,
-  type InstallationId,
   type KeyProvider,
-  type RepoId,
-  type ReviewerId,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createApp, type ApiApp, type AuthDeps } from "../src/index";
+import { createApp, type ApiApp } from "../src/index";
 import { testLogger } from "./logging";
+import {
+  INSTALLATION_ID,
+  KEY_REF,
+  PR_NUMBER,
+  REPO_SLUG,
+  REVIEWER_ID,
+  SECRET,
+  brandInstallationId,
+  brandRepoId,
+  brandReviewerId,
+  buildAuthDeps,
+  createKeyProvider,
+  hashSha256Hex,
+} from "./fixtures";
 
 // Some cases make several full requests over the PGlite harness (double-POST,
 // refresh-once). GraphQL is not throttled, so the only real cost is the
 // harness; the slowest case measures 3.0s, cold snapshot cache included.
 vi.setConfig({ testTimeout: 10_000 });
 
-const SECRET = "test-webhook-secret";
-const KEY_REF = "SESSION_KEY_V1";
-const INSTALLATION_ID = 987654;
-const REVIEWER_ID = 555;
 const REPO_ID = 424242;
-const REPO_SLUG = "octo/hello";
-const PR_NUMBER = 7;
 const NODE_ID = "PR_kwDOABCD";
 
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
@@ -41,39 +42,7 @@ const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
 const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
 const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 
-function keyProvider(): KeyProvider {
-  return createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
-}
-
-function authDeps(kp: KeyProvider): AuthDeps {
-  return {
-    oauthClientId: "Iv1.test-client-id",
-    oauthClientSecret: "test-client-secret",
-    keyProvider: kp,
-    sessionKeyRef: KEY_REF,
-    publicBaseUrl: "https://app.example.test",
-    cookieSecure: true,
-  };
-}
-
-function sha256Hex(value: string): string {
-  return createHash("sha256").update(value).digest("hex");
-}
-
-function brandInstallation(value: bigint): InstallationId {
-  if (!isInstallationId(value)) throw new Error("bad installation id");
-  return value;
-}
-function brandReviewer(value: bigint): ReviewerId {
-  if (!isReviewerId(value)) throw new Error("bad reviewer id");
-  return value;
-}
-function brandRepo(value: bigint): RepoId {
-  if (!isRepoId(value)) throw new Error("bad repo id");
-  return value;
-}
-
-const CTX = { installationId: brandInstallation(BigInt(INSTALLATION_ID)) };
+const CTX = { installationId: brandInstallationId(BigInt(INSTALLATION_ID)) };
 
 // ---------------------------------------------------------------------------
 // GitHub HTTP stub (global fetch) — REST /repositories/:id + the GraphQL POST.
@@ -229,8 +198,8 @@ async function seedSession(
     refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
   });
   await createTenantRepository(handle, CTX).sessions.create({
-    sessionTokenHash: sha256Hex(cookie),
-    reviewerId: brandReviewer(BigInt(REVIEWER_ID)),
+    sessionTokenHash: hashSha256Hex(cookie),
+    reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
     reviewerLogin: "octocat",
     grantId: grant.id,
     expiresAt: new Date("2027-01-01T00:00:00Z"),
@@ -240,7 +209,7 @@ async function seedSession(
 
 async function seedDraftPr(handle: AppDatabase, draft = true): Promise<void> {
   await createTenantRepository(handle, CTX).pullRequests.upsert({
-    repoId: brandRepo(BigInt(REPO_ID)),
+    repoId: brandRepoId(BigInt(REPO_ID)),
     prNumber: PR_NUMBER,
     repoSlug: REPO_SLUG,
     draft,
@@ -249,10 +218,10 @@ async function seedDraftPr(handle: AppDatabase, draft = true): Promise<void> {
 }
 
 async function readDraft(handle: AppDatabase): Promise<boolean | undefined> {
-  const row = await createTenantRepository(handle, CTX).pullRequests.getByNumber(
-    brandRepo(BigInt(REPO_ID)),
-    PR_NUMBER,
-  );
+  const row = await createTenantRepository(
+    handle,
+    CTX,
+  ).pullRequests.getByNumber(brandRepoId(BigInt(REPO_ID)), PR_NUMBER);
   return row?.draft;
 }
 
@@ -302,12 +271,12 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
-    kp = keyProvider();
+    kp = createKeyProvider();
     app = createApp({
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: authDeps(kp),
+      auth: buildAuthDeps(kp),
       github: unusedConversationPort,
     });
   });

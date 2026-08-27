@@ -5,7 +5,7 @@
 // (`allowed-repos.ts`, one cache with `/api/repos`). A GitHub failure fails
 // the list (401/502) — NEVER a DB-only listing, which would leak rows the
 // viewer can no longer see.
-import { PRODUCT_QUERY_ID } from "../../product-operations/ids";
+import { ProductQueryIds } from "../../product-operations/ids";
 import {
   productRouter,
   type ProductRouter,
@@ -25,7 +25,7 @@ export function pullsRoute(
   app.use("/", sessionLayer(deps), accessStampLayer());
   app.query(
     {
-      id: PRODUCT_QUERY_ID.LIST_PULLS,
+      id: ProductQueryIds.LIST_PULLS,
       classification: WRITE_CLASSIFICATION.READ,
     },
     "/",

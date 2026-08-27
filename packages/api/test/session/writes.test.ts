@@ -18,14 +18,10 @@ import { z } from "zod";
 import { createApp, type ApiApp } from "../../src/index";
 import { testLogger } from "../logging";
 import {
-  authDeps,
   CTX,
-  keyProvider,
   NO_ARTIFACT,
-  PR_NUMBER,
   REPO_ID,
   REVIEWER,
-  SECRET,
   seedApiToken,
   seedBrief,
   seedHop,
@@ -36,6 +32,12 @@ import {
   seedSession,
   stubGitHub,
 } from "./fixtures";
+import {
+  PR_NUMBER,
+  SECRET,
+  buildAuthDeps,
+  createKeyProvider,
+} from "../fixtures";
 
 function pathFor(suffix: string, head: string): string {
   return `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/session${suffix}?base=base&head=${head}`;
@@ -109,12 +111,12 @@ describe("the Review Session writes", () => {
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
-    kp = keyProvider();
+    kp = createKeyProvider();
     app = createApp({
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: authDeps(kp),
+      auth: buildAuthDeps(kp),
       github: {
         fetchPullRequestConversation: () => {
           throw new Error("conversation port must not be called");
@@ -177,7 +179,10 @@ describe("the Review Session writes", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(await countRows("review_session")).toBe(2);
-    const snapshot = await createTenantRepository(harness.handle, CTX).reviewSessions.get({
+    const snapshot = await createTenantRepository(
+      harness.handle,
+      CTX,
+    ).reviewSessions.get({
       briefId: current,
       reviewerId: REVIEWER,
     });
@@ -210,7 +215,10 @@ describe("the Review Session writes", () => {
 
     // A write that throws takes the whole materialization down with it — the
     // session and the copied rows go back with the transaction.
-    const failed = createTenantRepository(harness.handle, CTX).reviewSessions.writeToSession(
+    const failed = createTenantRepository(
+      harness.handle,
+      CTX,
+    ).reviewSessions.writeToSession(
       {
         briefId: current,
         reviewerId: REVIEWER,
@@ -321,7 +329,10 @@ describe("the Review Session writes", () => {
     );
     expect([edited.status, reanchored.status]).toEqual([200, 200]);
 
-    const snapshot = await createTenantRepository(harness.handle, CTX).reviewSessions.get({
+    const snapshot = await createTenantRepository(
+      harness.handle,
+      CTX,
+    ).reviewSessions.get({
       briefId,
       reviewerId: REVIEWER,
     });
@@ -355,7 +366,10 @@ describe("the Review Session writes", () => {
 
     expect(res.status).toBe(200);
     expect(await countRows("review_group_reclassification")).toBe(1);
-    const snapshot = await createTenantRepository(harness.handle, CTX).reviewSessions.get({
+    const snapshot = await createTenantRepository(
+      harness.handle,
+      CTX,
+    ).reviewSessions.get({
       briefId,
       reviewerId: REVIEWER,
     });
@@ -488,7 +502,10 @@ describe("the Review Session writes", () => {
       await write("POST", "/comments", "head-1", DRAFT),
     );
     // The publish itself is submit's job; here it is the state the edit meets.
-    await createTenantRepository(harness.handle, CTX).reviewSessions.writeToSession(
+    await createTenantRepository(
+      harness.handle,
+      CTX,
+    ).reviewSessions.writeToSession(
       { briefId, reviewerId: REVIEWER, brief: async () => NO_ARTIFACT },
       (writer) => writer.publishDraftComments([BigInt(draftId)]),
     );
@@ -680,7 +697,10 @@ describe("the Review Session writes", () => {
     expect(again.status).toBe(200);
     expect(await again.json()).toEqual({ flags: 0 });
 
-    const snapshot = await createTenantRepository(harness.handle, CTX).reviewSessions.get({
+    const snapshot = await createTenantRepository(
+      harness.handle,
+      CTX,
+    ).reviewSessions.get({
       briefId,
       reviewerId: REVIEWER,
     });
@@ -805,7 +825,10 @@ describe("the Review Session writes", () => {
     const previous = await seedBrief(harness.handle, 1);
     await seedPreviousWork(harness.handle, previous);
     // The decision points at a Chunk the next Brief did not carry.
-    await createTenantRepository(harness.handle, CTX).reviewSessions.writeToSession(
+    await createTenantRepository(
+      harness.handle,
+      CTX,
+    ).reviewSessions.writeToSession(
       {
         briefId: previous,
         reviewerId: REVIEWER,

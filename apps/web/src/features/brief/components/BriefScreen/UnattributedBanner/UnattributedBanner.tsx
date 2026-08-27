@@ -1,6 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { useId, useState } from "react";
 
+import { Button, ButtonVariants } from "@web/components/Button/Button";
+
 import type { UnattributedView } from "../../../utils/viewModel";
 import { FileRow } from "./FileRow/FileRow";
 import styles from "./UnattributedBanner.module.scss";
@@ -39,18 +41,18 @@ export function UnattributedBanner({ view }: UnattributedBannerProps) {
           {t("brief.unattributed.bannerRest", { count: view.files.length })}
         </span>
 
-        <button
+        <Button
           aria-controls={open ? detailId : undefined}
           aria-expanded={open}
           className={styles["toggle"]}
           data-testid="unattributed-banner-toggle"
-          type="button"
+          variant={ButtonVariants.QUIET}
           onClick={() => setOpen(!open)}
         >
           {open
             ? t("brief.unattributed.hideLines")
             : t("brief.unattributed.showLines")}
-        </button>
+        </Button>
       </div>
 
       {open ? (

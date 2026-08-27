@@ -25,13 +25,13 @@ import {
 import { ApiErrorCodes, buildErrorResponse } from "../error-response";
 import { ApiError, Forbidden, Unauthorized } from "../shared-errors/api-error";
 
-export const ACTION_METHOD = {
+export const ActionMethods = {
   POST: "post",
   DELETE: "delete",
   PATCH: "patch",
   PUT: "put",
 } as const;
-export type ActionMethod = ValueOf<typeof ACTION_METHOD>;
+export type ActionMethod = ValueOf<typeof ActionMethods>;
 
 /** A query declaration — id from the query vocabulary, read-only by type. */
 export interface ProductQueryDeclaration {
@@ -75,11 +75,11 @@ function mountAction<E extends Env, P extends string>(
   path: P,
   handlers: RouteHandlers<E, P>,
 ): void {
-  if (method === ACTION_METHOD.POST) {
+  if (method === ActionMethods.POST) {
     app.post(path, ...handlers);
-  } else if (method === ACTION_METHOD.DELETE) {
+  } else if (method === ActionMethods.DELETE) {
     app.delete(path, ...handlers);
-  } else if (method === ACTION_METHOD.PATCH) {
+  } else if (method === ActionMethods.PATCH) {
     app.patch(path, ...handlers);
   } else {
     app.put(path, ...handlers);

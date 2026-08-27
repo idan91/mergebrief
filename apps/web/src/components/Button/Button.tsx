@@ -5,24 +5,25 @@ import clsx from "clsx";
 import { AccessibleLink } from "../AccessibleLink/AccessibleLink";
 import styles from "./Button.module.scss";
 
-export const BUTTON_ELEMENTS = {
+export const ButtonElements = {
   BUTTON: "button",
   ANCHOR: "a",
 } as const;
-export type ButtonElement = ValueOf<typeof BUTTON_ELEMENTS>;
+/** @public */
+export type ButtonElement = ValueOf<typeof ButtonElements>;
 
-export const BUTTON_VARIANTS = {
+export const ButtonVariants = {
   PRIMARY: "primary",
   SECONDARY: "secondary",
   QUIET: "quiet",
 } as const;
-export type ButtonVariant = ValueOf<typeof BUTTON_VARIANTS>;
+export type ButtonVariant = ValueOf<typeof ButtonVariants>;
 
-export const BUTTON_SIZES = {
+export const ButtonSizes = {
   SM: "sm",
   MD: "md",
 } as const;
-export type ButtonSize = ValueOf<typeof BUTTON_SIZES>;
+export type ButtonSize = ValueOf<typeof ButtonSizes>;
 
 export type ButtonBaseProps = {
   variant?: ButtonVariant;
@@ -34,12 +35,12 @@ export type ButtonBaseProps = {
 };
 
 export type ButtonAsButtonProps = {
-  as?: typeof BUTTON_ELEMENTS.BUTTON;
+  as?: typeof ButtonElements.BUTTON;
 } & ButtonBaseProps &
   Omit<ComponentPropsWithRef<"button">, "disabled">;
 
 export type ButtonAsAnchorProps = {
-  as: typeof BUTTON_ELEMENTS.ANCHOR;
+  as: typeof ButtonElements.ANCHOR;
   href: string;
 } & ButtonBaseProps &
   ComponentPropsWithRef<"a">;
@@ -47,7 +48,7 @@ export type ButtonAsAnchorProps = {
 export type ButtonProps = ButtonAsButtonProps | ButtonAsAnchorProps;
 
 function isAnchorProps(props: ButtonProps): props is ButtonAsAnchorProps {
-  return props.as === BUTTON_ELEMENTS.ANCHOR;
+  return props.as === ButtonElements.ANCHOR;
 }
 
 type ButtonSharedProps<E extends HTMLElement> = ButtonBaseProps & {
@@ -66,8 +67,8 @@ function buttonAttributes<
   P extends ButtonSharedProps<E>,
 >(props: P) {
   const {
-    variant = BUTTON_VARIANTS.SECONDARY,
-    size = BUTTON_SIZES.MD,
+    variant = ButtonVariants.SECONDARY,
+    size = ButtonSizes.MD,
     disabled = false,
     loading = false,
     "aria-busy": ariaBusy,

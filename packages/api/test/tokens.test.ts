@@ -9,10 +9,9 @@
 //      accessible set, token material is returned exactly once.
 // Same harness as installations.test.ts: `app.request()` over PGlite, GitHub
 // stubbed at the global-fetch boundary.
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import {
   encryptToken,
-  createEnvKeyProvider,
   createTenantRepository,
   createGrantAuth,
   isInstallationId,
@@ -28,13 +27,18 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createApp, type ApiApp, type AuthDeps } from "../src/index";
+import { createApp, type ApiApp } from "../src/index";
 import { testLogger, testLogging } from "./logging";
+import {
+  INSTALLATION_ID,
+  KEY_REF,
+  REVIEWER_ID,
+  SECRET,
+  buildAuthDeps,
+  createKeyProvider,
+  hashSha256Hex,
+} from "./fixtures";
 
-const SECRET = "test-webhook-secret";
-const KEY_REF = "SESSION_KEY_V1";
-const INSTALLATION_ID = 987654;
-const REVIEWER_ID = 555;
 const REPO_A = 42001;
 
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
@@ -55,21 +59,6 @@ const CTX: TenantContext = {
   installationId: brand(isInstallationId, INSTALLATION_ID),
 };
 const REVIEWER: ReviewerId = brand(isReviewerId, REVIEWER_ID);
-
-function keyProvider(): KeyProvider {
-  return createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
-}
-
-function authDeps(kp: KeyProvider): AuthDeps {
-  return {
-    oauthClientId: "Iv1.test-client-id",
-    oauthClientSecret: "test-client-secret",
-    keyProvider: kp,
-    sessionKeyRef: KEY_REF,
-    publicBaseUrl: "https://app.example.test",
-    cookieSecure: true,
-  };
-}
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -166,10 +155,6 @@ function stubGitHub(cfg: StubConfig): StubCounts {
   return counts;
 }
 
-function sha256Hex(value: string): string {
-  return createHash("sha256").update(value).digest("hex");
-}
-
 /** Seed an api_token row directly; returns the Bearer plaintext. */
 async function seedApiToken(
   handle: AppDatabase,
@@ -197,7 +182,7 @@ async function seedApiToken(
     userId: REVIEWER,
     userLogin: "octocat",
     name: "ci-token",
-    tokenHash: sha256Hex(plaintext),
+    tokenHash: hashSha256Hex(plaintext),
     grantId: grant.id,
     expiresAt:
       overrides.expiresAt === undefined
@@ -242,12 +227,12 @@ describe("Bearer presentation on /api/*", () => {
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
-    kp = keyProvider();
+    kp = createKeyProvider();
     app = createApp({
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: authDeps(kp),
+      auth: buildAuthDeps(kp),
       github: unusedConversationPort,
     });
   });
@@ -405,7 +390,7 @@ describe("Bearer presentation on /api/*", () => {
       logger: capture.logger,
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: authDeps(kp),
+      auth: buildAuthDeps(kp),
       github: unusedConversationPort,
     });
     const bearer = await seedApiToken(harness.handle, kp);
@@ -460,12 +445,12 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
-    kp = keyProvider();
+    kp = createKeyProvider();
     app = createApp({
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: authDeps(kp),
+      auth: buildAuthDeps(kp),
       github: unusedConversationPort,
     });
   });
@@ -489,7 +474,7 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
       refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
     });
     await createTenantRepository(harness.handle, CTX).sessions.create({
-      sessionTokenHash: sha256Hex(cookie),
+      sessionTokenHash: hashSha256Hex(cookie),
       reviewerId: REVIEWER,
       reviewerLogin: "octocat",
       grantId: grant.id,
@@ -545,7 +530,7 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
       "select token_hash, grant_id from api_token",
     );
     expect(rows).toHaveLength(1);
-    expect(rows[0]?.["token_hash"]).toBe(sha256Hex(body.token));
+    expect(rows[0]?.["token_hash"]).toBe(hashSha256Hex(body.token));
 
     // Link-never-copy: mint linked the SESSION's grant — one physical
     // pair exists after the mint, and the token row points at it.

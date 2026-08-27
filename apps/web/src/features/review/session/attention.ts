@@ -11,27 +11,27 @@ import type { ValueOf } from "types";
  * token rather than a new name — a carried decision whose evidence target is
  * gone lands in exactly the condition the submit list already names.
  */
-export const ATTENTION_ITEM_KIND = {
+export const AttentionItemKinds = {
   ORPHANED_ANCHOR: "orphaned-anchor",
   REOPENED_DISPOSITION: "reopened-disposition",
   MISSING_EVIDENCE: "missing-evidence",
 } as const;
-export type AttentionItemKind = ValueOf<typeof ATTENTION_ITEM_KIND>;
+export type AttentionItemKind = ValueOf<typeof AttentionItemKinds>;
 
-export const ATTENTION_SUBJECT_TYPE = {
+export const AttentionSubjectTypes = {
   DRAFT_COMMENT: "draft-comment",
   DISPOSITION: "disposition",
 } as const;
-export type AttentionSubjectType = ValueOf<typeof ATTENTION_SUBJECT_TYPE>;
+export type AttentionSubjectType = ValueOf<typeof AttentionSubjectTypes>;
 
 /** `disposition.carry_status` — the carry-over verdict on a carried row. */
-export const DISPOSITION_CARRY_STATUS = {
+export const DispositionCarryStatuses = {
   NEW: "new",
   REOPENED: "reopened",
   SETTLED: "settled",
   DROPPED: "dropped",
 } as const;
-export type DispositionCarryStatus = ValueOf<typeof DISPOSITION_CARRY_STATUS>;
+export type DispositionCarryStatus = ValueOf<typeof DispositionCarryStatuses>;
 
 export interface SessionAttentionItem {
   kind: AttentionItemKind;
@@ -47,9 +47,9 @@ export interface SessionAttentionItem {
   clearedBy: string[];
 }
 
-const KINDS = new Set<string>(Object.values(ATTENTION_ITEM_KIND));
-const SUBJECT_TYPES = new Set<string>(Object.values(ATTENTION_SUBJECT_TYPE));
-const CARRY_STATUSES = new Set<string>(Object.values(DISPOSITION_CARRY_STATUS));
+const KINDS = new Set<string>(Object.values(AttentionItemKinds));
+const SUBJECT_TYPES = new Set<string>(Object.values(AttentionSubjectTypes));
+const CARRY_STATUSES = new Set<string>(Object.values(DispositionCarryStatuses));
 
 export function isCarryStatus(value: unknown): value is DispositionCarryStatus {
   return typeof value === "string" && CARRY_STATUSES.has(value);

@@ -5,5 +5,18 @@
       "Read(./**/.env.local)",
       "Read(./tools/categorizer/.env)"
     ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && { git diff --quiet && git diff --cached --quiet; } || pnpm lint >/dev/null 2>&1 || { echo 'pnpm lint is red. Run it, judge it by its exit code, and fix every gate before finishing.' >&2; exit 2; }",
+            "timeout": 180
+          }
+        ]
+      }
+    ]
   }
 }

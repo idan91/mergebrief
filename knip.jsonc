@@ -7,6 +7,11 @@
   // package's curated public surface, and anything not reachable from one of
   // these files is dead by definition.
   "ignoreExportsUsedInFile": true,
+  // `@public` marks an export that is part of a module's published surface
+  // even when nothing imports it yet — the paired `ValueOf` type of an
+  // `as const` map, whose discriminated unions need the member types rather
+  // than the union.
+  "tags": ["-@public"],
   "workspaces": {
     ".": {
       // The shared coverage policy is imported by every package's vitest

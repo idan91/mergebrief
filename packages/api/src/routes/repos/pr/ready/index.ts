@@ -5,7 +5,7 @@
 // success OUR `draft` mirror flips to false in the same request; the later
 // `ready_for_review` webhook lands as an idempotent no-op. The poll/webhook
 // is the reconciler for every race in between.
-import { PRODUCT_ACTION_ID } from "../../../../product-operations/ids";
+import { ProductActionIds } from "../../../../product-operations/ids";
 import {
   productRouter,
   type ProductRouter,
@@ -20,7 +20,7 @@ export function markReadyRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   const handlers = createReadyHandlers(deps);
   app.action(
     {
-      id: PRODUCT_ACTION_ID.MARK_READY,
+      id: ProductActionIds.MARK_READY,
       classification: WRITE_CLASSIFICATION.EXTERNAL_WRITE,
     },
     "post",

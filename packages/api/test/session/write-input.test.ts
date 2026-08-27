@@ -10,7 +10,7 @@ import {
   categorySchema,
   createDraftSchema,
   readSchema,
-} from "../../src/routes/repos/pr/session/write-input";
+} from "../../src/routes/repos/pr/session/schemas";
 import { rowIdSchema } from "../../src/routes/repos/pr/wire-bounds";
 
 const ANCHOR = {

@@ -23,8 +23,8 @@ import { z } from "zod";
 import { createApp, type ApiApp, type AuthDeps } from "../src/index";
 import { productOperationRegistry } from "../src/product-operations/registry";
 import { testLogger } from "./logging";
+import { KEY_REF } from "./fixtures";
 
-const KEY_REF = "SESSION_KEY_V1";
 const MANIFEST_PATH = join(
   fileURLToPath(new URL("..", import.meta.url)),
   "product-operations.manifest.json",
@@ -59,7 +59,9 @@ describe("GET /api/capabilities", () => {
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
-    kp = createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
+    kp = createEnvKeyProvider({
+      [KEY_REF]: randomBytes(32).toString("base64"),
+    });
     const auth: AuthDeps = {
       oauthClientId: "Iv1.test-client-id",
       oauthClientSecret: "test-client-secret",

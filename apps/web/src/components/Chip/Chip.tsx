@@ -4,24 +4,25 @@ import clsx from "clsx";
 
 import styles from "./Chip.module.scss";
 
-export const CHIP_ELEMENTS = {
+export const ChipElements = {
   BUTTON: "button",
   SPAN: "span",
 } as const;
-export type ChipElement = ValueOf<typeof CHIP_ELEMENTS>;
+/** @public */
+export type ChipElement = ValueOf<typeof ChipElements>;
 
-export const CHIP_TONES = {
+export const ChipTones = {
   NEUTRAL: "neutral",
   WARNING: "warning",
 } as const;
-export type ChipTone = ValueOf<typeof CHIP_TONES>;
+export type ChipTone = ValueOf<typeof ChipTones>;
 
 export type ChipBaseProps = {
   tone?: ChipTone;
 };
 
 export type ChipAsButtonProps = {
-  as?: typeof CHIP_ELEMENTS.BUTTON;
+  as?: typeof ChipElements.BUTTON;
   /** Controlled toggle state → aria-pressed; never inferred from clicks. */
   pressed?: boolean;
   /** aria-disabled + interaction guard — never the native attribute. */
@@ -30,15 +31,15 @@ export type ChipAsButtonProps = {
   Omit<ComponentPropsWithRef<"button">, "disabled" | "aria-pressed">;
 
 export type ChipAsSpanProps = {
-  as: typeof CHIP_ELEMENTS.SPAN;
+  as: typeof ChipElements.SPAN;
 } & ChipBaseProps &
   ComponentPropsWithRef<"span">;
 
 export type ChipProps = ChipAsButtonProps | ChipAsSpanProps;
 
 export function Chip(props: ChipProps) {
-  if (props.as === CHIP_ELEMENTS.SPAN) {
-    const { as: Tag, tone = CHIP_TONES.NEUTRAL, className, ...rest } = props;
+  if (props.as === ChipElements.SPAN) {
+    const { as: Tag, tone = ChipTones.NEUTRAL, className, ...rest } = props;
     return (
       <Tag
         {...rest}
@@ -49,8 +50,8 @@ export function Chip(props: ChipProps) {
   }
 
   const {
-    as: element = CHIP_ELEMENTS.BUTTON,
-    tone = CHIP_TONES.NEUTRAL,
+    as: element = ChipElements.BUTTON,
+    tone = ChipTones.NEUTRAL,
     pressed,
     disabled = false,
     "aria-disabled": ariaDisabled,

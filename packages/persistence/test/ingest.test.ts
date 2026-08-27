@@ -5,7 +5,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { IngestOutcome } from "../src/stores/ingest";
 import { createIngestRoutines } from "../src/stores/ingest";
-import { createTenantRepository, parseTenantContext } from "../src/stores/tenant";
+import {
+  createTenantRepository,
+  parseTenantContext,
+} from "../src/stores/tenant";
 import { createPgliteHarness, type PgliteHarness } from "../src/testing";
 import {
   GenerationKind,

@@ -290,6 +290,7 @@ export function useReviewSubmit(
     closeSubmit,
     comments,
     consumeReviewComment,
+    currentBriefIdRef,
     getReviewComment,
     invalidateConversation,
     markSubmitted,

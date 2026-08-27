@@ -30,7 +30,9 @@ describe("deriveSnapshotKey", () => {
   it("is stable and content-addressed, not path-addressed", async () => {
     const dir = await migrationsCopy();
     expect(await deriveSnapshotKey(dir)).toBe(await deriveSnapshotKey(dir));
-    expect(await deriveSnapshotKey(dir)).toBe(await deriveSnapshotKey(REAL_MIGRATIONS));
+    expect(await deriveSnapshotKey(dir)).toBe(
+      await deriveSnapshotKey(REAL_MIGRATIONS),
+    );
   });
 
   it("changes when a migration SQL file changes", async () => {

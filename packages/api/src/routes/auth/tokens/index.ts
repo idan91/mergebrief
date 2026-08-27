@@ -3,8 +3,8 @@
 // under `/api/auth/*`, where the session layer IGNORES Bearer headers — a
 // token can never mint tokens. Composition only.
 import {
-  PRODUCT_ACTION_ID,
-  PRODUCT_QUERY_ID,
+  ProductActionIds,
+  ProductQueryIds,
 } from "../../../product-operations/ids";
 import {
   productRouter,
@@ -23,7 +23,7 @@ export function tokensRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   app.use("/:id", sessionLayer(deps), accessStampLayer());
   app.action(
     {
-      id: PRODUCT_ACTION_ID.MINT_TOKEN,
+      id: ProductActionIds.MINT_TOKEN,
       classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
     },
     "post",
@@ -32,7 +32,7 @@ export function tokensRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   );
   app.query(
     {
-      id: PRODUCT_QUERY_ID.LIST_TOKENS,
+      id: ProductQueryIds.LIST_TOKENS,
       classification: WRITE_CLASSIFICATION.READ,
     },
     "/",
@@ -40,7 +40,7 @@ export function tokensRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   );
   app.action(
     {
-      id: PRODUCT_ACTION_ID.REVOKE_TOKEN,
+      id: ProductActionIds.REVOKE_TOKEN,
       classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
     },
     "delete",

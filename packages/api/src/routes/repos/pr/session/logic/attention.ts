@@ -18,7 +18,7 @@ import {
 } from "persistence";
 import type { ValueOf } from "types";
 import {
-  PRODUCT_ACTION_ID,
+  ProductActionIds,
   type ProductActionId,
 } from "../../../../../product-operations/ids";
 
@@ -28,34 +28,34 @@ import {
  * pointer is cleared, which leaves exactly the condition the submit list
  * already names, and `carryStatus` is what distinguishes carried from fresh.
  */
-export const ATTENTION_ITEM_KIND = {
+export const AttentionItemKinds = {
   ORPHANED_ANCHOR: "orphaned-anchor",
   REOPENED_DISPOSITION: "reopened-disposition",
   MISSING_EVIDENCE: DispositionEvidenceStatus.MISSING_EVIDENCE,
 } as const;
-export type AttentionItemKind = ValueOf<typeof ATTENTION_ITEM_KIND>;
+export type AttentionItemKind = ValueOf<typeof AttentionItemKinds>;
 
-export const ATTENTION_SUBJECT_TYPE = {
+export const AttentionSubjectTypes = {
   DRAFT_COMMENT: "draft-comment",
   DISPOSITION: "disposition",
 } as const;
-export type AttentionSubjectType = ValueOf<typeof ATTENTION_SUBJECT_TYPE>;
+export type AttentionSubjectType = ValueOf<typeof AttentionSubjectTypes>;
 
 /** At least one operation — an item nothing can clear is not an item. */
 type ClearedBy = readonly [ProductActionId, ...ProductActionId[]];
 
 const CLEARED_BY = {
-  [ATTENTION_ITEM_KIND.ORPHANED_ANCHOR]: [
-    PRODUCT_ACTION_ID.REANCHOR_DRAFT_COMMENT,
-    PRODUCT_ACTION_ID.DELETE_DRAFT_COMMENT,
+  [AttentionItemKinds.ORPHANED_ANCHOR]: [
+    ProductActionIds.REANCHOR_DRAFT_COMMENT,
+    ProductActionIds.DELETE_DRAFT_COMMENT,
   ],
-  [ATTENTION_ITEM_KIND.REOPENED_DISPOSITION]: [
-    PRODUCT_ACTION_ID.ADDRESS_RISK,
-    PRODUCT_ACTION_ID.DISMISS_RISK,
+  [AttentionItemKinds.REOPENED_DISPOSITION]: [
+    ProductActionIds.ADDRESS_RISK,
+    ProductActionIds.DISMISS_RISK,
   ],
-  [ATTENTION_ITEM_KIND.MISSING_EVIDENCE]: [
-    PRODUCT_ACTION_ID.ADDRESS_RISK,
-    PRODUCT_ACTION_ID.DISMISS_RISK,
+  [AttentionItemKinds.MISSING_EVIDENCE]: [
+    ProductActionIds.ADDRESS_RISK,
+    ProductActionIds.DISMISS_RISK,
   ],
 } as const satisfies Record<AttentionItemKind, ClearedBy>;
 
@@ -131,7 +131,7 @@ function classifyDisposition(
   // Reopened wins over missing evidence on the same row: a re-look re-decides
   // the flag outright, so a second item would ask for the same act twice.
   if (row.carryStatus === DispositionCarryStatus.REOPENED) {
-    return ATTENTION_ITEM_KIND.REOPENED_DISPOSITION;
+    return AttentionItemKinds.REOPENED_DISPOSITION;
   }
   // SETTLED alone: a decision that carried and still stands. A DROPPED row's
   // flag stopped firing, so `address-risk`/`dismiss-risk` have nothing to act
@@ -140,7 +140,7 @@ function classifyDisposition(
     row.carryStatus === DispositionCarryStatus.SETTLED &&
     row.evidenceStatus === DispositionEvidenceStatus.MISSING_EVIDENCE
   ) {
-    return ATTENTION_ITEM_KIND.MISSING_EVIDENCE;
+    return AttentionItemKinds.MISSING_EVIDENCE;
   }
   return undefined;
 }
@@ -156,9 +156,9 @@ export function deriveAttentionItems(input: AttentionInput): AttentionItem[] {
     }
     items.push(
       item(
-        ATTENTION_ITEM_KIND.ORPHANED_ANCHOR,
+        AttentionItemKinds.ORPHANED_ANCHOR,
         {
-          type: ATTENTION_SUBJECT_TYPE.DRAFT_COMMENT,
+          type: AttentionSubjectTypes.DRAFT_COMMENT,
           id: String(comment.id),
           attribute: null,
         },
@@ -180,7 +180,7 @@ export function deriveAttentionItems(input: AttentionInput): AttentionItem[] {
       item(
         kind,
         {
-          type: ATTENTION_SUBJECT_TYPE.DISPOSITION,
+          type: AttentionSubjectTypes.DISPOSITION,
           id: null,
           attribute: row.attribute,
         },

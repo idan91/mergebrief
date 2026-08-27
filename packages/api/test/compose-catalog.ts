@@ -8,8 +8,7 @@ import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 export type { PgliteHarness };
 import { createApp, type ApiApp, type AuthDeps } from "../src/index";
 import { testLogger } from "./logging";
-
-const KEY_REF = "SESSION_KEY_V1";
+import { KEY_REF } from "./fixtures";
 
 export interface ComposedCatalog {
   readonly app: ApiApp;

@@ -9,7 +9,6 @@ import { randomBytes } from "node:crypto";
 import {
   createArtifactStore,
   encryptToken,
-  createEnvKeyProvider,
   createTenantRepository,
   createGenerationProjection,
   GenerationFailureCode,
@@ -26,14 +25,18 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createApp, type ApiApp, type AuthDeps } from "../src/index";
+import { createApp, type ApiApp } from "../src/index";
 import { testLogger } from "./logging";
+import {
+  INSTALLATION_ID,
+  KEY_REF,
+  REVIEWER_ID,
+  SECRET,
+  buildAuthDeps,
+  createKeyProvider,
+} from "./fixtures";
 
-const SECRET = "test-webhook-secret";
-const KEY_REF = "SESSION_KEY_V1";
-const INSTALLATION_ID = 987654;
 const OTHER_INSTALLATION_ID = 111222;
-const REVIEWER_ID = 555;
 const REPO_A = 424242;
 const REPO_B = 535353;
 
@@ -57,21 +60,6 @@ const CTX: TenantContext = {
 const OTHER_CTX: TenantContext = {
   installationId: brand(isInstallationId, OTHER_INSTALLATION_ID),
 };
-
-function keyProvider(): KeyProvider {
-  return createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
-}
-
-function authDeps(kp: KeyProvider): AuthDeps {
-  return {
-    oauthClientId: "Iv1.test-client-id",
-    oauthClientSecret: "test-client-secret",
-    keyProvider: kp,
-    sessionKeyRef: KEY_REF,
-    publicBaseUrl: "https://app.example.test",
-    cookieSecure: true,
-  };
-}
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -265,12 +253,12 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
-    kp = keyProvider();
+    kp = createKeyProvider();
     app = createApp({
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: authDeps(kp),
+      auth: buildAuthDeps(kp),
       github: unusedConversationPort,
     });
   });
@@ -762,7 +750,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: authDeps(kp),
+      auth: buildAuthDeps(kp),
       github: unusedConversationPort,
       draftPolicy: { generate: false, debounceSeconds: 900 },
     });

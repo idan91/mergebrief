@@ -53,7 +53,9 @@ describe("createUserSettingsStore — the non-tenant per-user seam", () => {
       keyRef: "env:K1",
       refreshExpiresAt: new Date(Date.now() + 3_600_000),
     });
-    await createTenantRepository(handle, { installationId: INSTALL_A }).sessions.create({
+    await createTenantRepository(handle, {
+      installationId: INSTALL_A,
+    }).sessions.create({
       sessionTokenHash: "hash-x",
       reviewerId: USER,
       grantId: grant.id,

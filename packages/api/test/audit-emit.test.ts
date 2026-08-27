@@ -14,19 +14,21 @@ import {
 import { createApp, type ApiApp, type AuditEmitConfig } from "../src/index";
 import { testLogger } from "./logging";
 import {
-  authDeps,
-  INSTALLATION_ID,
-  keyProvider,
-  PR_NUMBER,
   REPO_ID,
-  REVIEWER_ID,
-  SECRET,
   seedApiToken,
   seedBrief,
   seedPullRequest,
   seedSession,
   stubGitHub,
 } from "./session/fixtures";
+import {
+  INSTALLATION_ID,
+  PR_NUMBER,
+  REVIEWER_ID,
+  SECRET,
+  buildAuthDeps,
+  createKeyProvider,
+} from "./fixtures";
 
 vi.setConfig({ testTimeout: 20_000 });
 
@@ -116,7 +118,7 @@ describe("the audit choke point", () => {
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: authDeps(kp),
+      auth: buildAuthDeps(kp),
       ...(audit === undefined ? {} : { audit }),
       github: {
         fetchPullRequestConversation: () => {
@@ -131,7 +133,7 @@ describe("the audit choke point", () => {
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
-    kp = keyProvider();
+    kp = createKeyProvider();
     stubGitHub();
     cookie = await seedSession(harness.handle, kp);
     await seedPullRequest(harness.handle);

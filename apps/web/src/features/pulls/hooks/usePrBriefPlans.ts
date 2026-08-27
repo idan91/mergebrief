@@ -279,8 +279,6 @@ export function usePrBriefPlans(
       queryClient,
       repoId,
       revisionJump,
-      spanBase,
-      spanHead,
       viewerCanResolve,
     ],
   );

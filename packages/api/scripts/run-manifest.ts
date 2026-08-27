@@ -11,28 +11,28 @@ import type { ProductOperationDescriptor } from "../src/product-operations/types
 import {
   decideManifestFreshness,
   fileMtimeMs,
-  MANIFEST_FRESHNESS,
+  ManifestFreshnesses,
   newestMtimeMs,
 } from "./manifest-freshness";
 
-export const MANIFEST_MODE = {
+export const ManifestModes = {
   WRITE: "write",
   CHECK: "check",
 } as const;
-export type ManifestMode = ValueOf<typeof MANIFEST_MODE>;
+export type ManifestMode = ValueOf<typeof ManifestModes>;
 
-export const MANIFEST_OUTCOME = {
+export const ManifestOutcomes = {
   SKIPPED_CURRENT: "skipped-current",
   REGENERATED: "regenerated",
   VERIFIED: "verified",
 } as const;
-export type ManifestOutcome = ValueOf<typeof MANIFEST_OUTCOME>;
+export type ManifestOutcome = ValueOf<typeof ManifestOutcomes>;
 
-export const MANIFEST_FAILURE = {
+export const ManifestFailures = {
   EMPTY_CATALOG: "empty-catalog",
   DRIFT: "drift",
 } as const;
-export type ManifestFailure = ValueOf<typeof MANIFEST_FAILURE>;
+export type ManifestFailure = ValueOf<typeof ManifestFailures>;
 
 export interface RunManifestOptions {
   readonly mode: ManifestMode;
@@ -48,8 +48,8 @@ export interface RunManifestOptions {
 export async function runManifest(
   options: RunManifestOptions,
 ): Promise<Result<ManifestOutcome, ManifestFailure>> {
-  if (options.mode === MANIFEST_MODE.WRITE && (await isCurrent(options))) {
-    return { ok: true, value: MANIFEST_OUTCOME.SKIPPED_CURRENT };
+  if (options.mode === ManifestModes.WRITE && (await isCurrent(options))) {
+    return { ok: true, value: ManifestOutcomes.SKIPPED_CURRENT };
   }
 
   const operations = await options.collectOperations();
@@ -62,19 +62,19 @@ export async function runManifest(
     }
     // An empty registry means composition never ran; writing it would pin an
     // empty catalog the drift check then passes against forever.
-    return { ok: false, error: MANIFEST_FAILURE.EMPTY_CATALOG };
+    return { ok: false, error: ManifestFailures.EMPTY_CATALOG };
   }
 
-  if (options.mode === MANIFEST_MODE.CHECK) {
+  if (options.mode === ManifestModes.CHECK) {
     const committed = await readOrUndefined(options.manifestPath);
     if (committed !== rendered) {
-      return { ok: false, error: MANIFEST_FAILURE.DRIFT };
+      return { ok: false, error: ManifestFailures.DRIFT };
     }
-    return { ok: true, value: MANIFEST_OUTCOME.VERIFIED };
+    return { ok: true, value: ManifestOutcomes.VERIFIED };
   }
 
   await writeFile(options.manifestPath, rendered);
-  return { ok: true, value: MANIFEST_OUTCOME.REGENERATED };
+  return { ok: true, value: ManifestOutcomes.REGENERATED };
 }
 
 async function isCurrent(options: RunManifestOptions): Promise<boolean> {
@@ -84,7 +84,7 @@ async function isCurrent(options: RunManifestOptions): Promise<boolean> {
   ]);
   return (
     decideManifestFreshness({ manifestMtimeMs, newestSourceMtimeMs }) ===
-    MANIFEST_FRESHNESS.FRESH
+    ManifestFreshnesses.FRESH
   );
 }
 

@@ -4,7 +4,6 @@
 import { randomBytes, createHash } from "node:crypto";
 import {
   createArtifactStore,
-  createEnvKeyProvider,
   createGrantAuth,
   createTenantRepository,
   encryptToken,
@@ -20,16 +19,10 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  createApp,
-  type ApiApp,
-  type AppDeps,
-  type AuthDeps,
-} from "../src/index";
+import { createApp, type ApiApp, type AppDeps } from "../src/index";
 import { testLogger } from "./logging";
+import { KEY_REF, SECRET, buildAuthDeps, createKeyProvider } from "./fixtures";
 
-const SECRET = "test-webhook-secret";
-const KEY_REF = "SESSION_KEY_V1";
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
 const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
 const REPO_ID_NUM = 424242;
@@ -49,23 +42,6 @@ const OWNER_CTX: ScopeContext = { ownerUserId: REVIEWER };
 const TENANT_CTX: ScopeContext = {
   installationId: brand(isInstallationId, 987654),
 };
-
-function keyProvider(): KeyProvider {
-  return createEnvKeyProvider({
-    [KEY_REF]: randomBytes(32).toString("base64"),
-  });
-}
-
-function authDeps(kp: KeyProvider): AuthDeps {
-  return {
-    oauthClientId: "Iv1.test-client-id",
-    oauthClientSecret: "test-client-secret",
-    keyProvider: kp,
-    sessionKeyRef: KEY_REF,
-    publicBaseUrl: "https://app.example.test",
-    cookieSecure: true,
-  };
-}
 
 async function seedOwnerSession(
   handle: AppDatabase,
@@ -147,12 +123,12 @@ describe("DELETE /api/briefs/:repoId/:prNumber", () => {
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
-    kp = keyProvider();
+    kp = createKeyProvider();
     const deps: AppDeps = {
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: authDeps(kp),
+      auth: buildAuthDeps(kp),
       github: unusedConversationPort,
     };
     app = createApp(deps);

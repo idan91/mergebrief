@@ -3,6 +3,7 @@
 // the summaries, coverage open by default, raw artifact behind a disclosure.
 // Importing I18nProvider registers appI18n as the react-i18next default —
 // the bare-rendered subtree below resolves it without a provider.
+// oxlint-disable-next-line import/no-unassigned-import -- registration is the point.
 import "../../../../../i18n/I18nProvider";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";

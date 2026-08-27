@@ -5,9 +5,9 @@
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  MANIFEST_FAILURE,
-  MANIFEST_MODE,
-  MANIFEST_OUTCOME,
+  ManifestFailures,
+  ManifestModes,
+  ManifestOutcomes,
   runManifest,
   type ManifestFailure,
   type ManifestOutcome,
@@ -29,22 +29,22 @@ const SOURCE_ROOTS = [
 ];
 
 const OUTCOME_LINE = {
-  [MANIFEST_OUTCOME.SKIPPED_CURRENT]:
+  [ManifestOutcomes.SKIPPED_CURRENT]:
     "product-operations manifest is current (sources unchanged).",
-  [MANIFEST_OUTCOME.REGENERATED]: "product-operations manifest regenerated.",
-  [MANIFEST_OUTCOME.VERIFIED]: "product-operations manifest is current.",
+  [ManifestOutcomes.REGENERATED]: "product-operations manifest regenerated.",
+  [ManifestOutcomes.VERIFIED]: "product-operations manifest is current.",
 } as const satisfies Record<ManifestOutcome, string>;
 
 const FAILURE_LINE = {
-  [MANIFEST_FAILURE.EMPTY_CATALOG]:
+  [ManifestFailures.EMPTY_CATALOG]:
     "composition registered no product operations — the committed manifest was left untouched",
-  [MANIFEST_FAILURE.DRIFT]:
+  [ManifestFailures.DRIFT]:
     "product-operations.manifest.json is stale — run: pnpm -C packages/api manifest",
 } as const satisfies Record<ManifestFailure, string>;
 
 const mode = process.argv.includes("--check")
-  ? MANIFEST_MODE.CHECK
-  : MANIFEST_MODE.WRITE;
+  ? ManifestModes.CHECK
+  : ManifestModes.WRITE;
 
 const result = await runManifest({
   mode,

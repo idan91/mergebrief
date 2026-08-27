@@ -2,31 +2,38 @@
 // PGlite harness, GitHub stubbed at the global-fetch boundary (same pattern as
 // reads.test.ts). Pins that the route never writes the checkpoint — the webhook
 // is its only writer.
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import {
   AnchorStatus,
   createArtifactStore,
   DraftCommentSide,
   encryptToken,
-  createEnvKeyProvider,
   createTenantRepository,
   createGrantAuth,
-  isInstallationId,
-  isRepoId,
-  isReviewerId,
   PrState,
   type AppDatabase,
   type BriefRowId,
-  type InstallationId,
   type KeyProvider,
-  type RepoId,
-  type ReviewerId,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { createApp, type ApiApp, type AuthDeps } from "../src/index";
+import { createApp, type ApiApp } from "../src/index";
 import { testLogger, testLogging } from "./logging";
+import {
+  INSTALLATION_ID,
+  KEY_REF,
+  PR_NUMBER,
+  REPO_SLUG,
+  REVIEWER_ID,
+  SECRET,
+  brandInstallationId,
+  brandRepoId,
+  brandReviewerId,
+  buildAuthDeps,
+  createKeyProvider,
+  hashSha256Hex,
+} from "./fixtures";
 
 // POST /pulls/{n}/reviews is on octokit's `triggersNotification` list, so the
 // throttling plugin spaces consecutive create-review calls ~3s apart through
@@ -36,13 +43,7 @@ import { testLogger, testLogging } from "./logging";
 // seconds; give the file the headroom instead of fighting the throttle.
 vi.setConfig({ testTimeout: 30_000 });
 
-const SECRET = "test-webhook-secret";
-const KEY_REF = "SESSION_KEY_V1";
-const INSTALLATION_ID = 987654;
-const REVIEWER_ID = 555;
 const REPO_ID = 424242;
-const REPO_SLUG = "octo/hello";
-const PR_NUMBER = 7;
 const COMMIT_ID = "c".repeat(40);
 const BASE_SHA = "d".repeat(40);
 
@@ -51,39 +52,7 @@ const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
 const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
 const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 
-function keyProvider(): KeyProvider {
-  return createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
-}
-
-function authDeps(kp: KeyProvider): AuthDeps {
-  return {
-    oauthClientId: "Iv1.test-client-id",
-    oauthClientSecret: "test-client-secret",
-    keyProvider: kp,
-    sessionKeyRef: KEY_REF,
-    publicBaseUrl: "https://app.example.test",
-    cookieSecure: true,
-  };
-}
-
-function sha256Hex(value: string): string {
-  return createHash("sha256").update(value).digest("hex");
-}
-
-function brandInstallation(value: bigint): InstallationId {
-  if (!isInstallationId(value)) throw new Error("bad installation id");
-  return value;
-}
-function brandReviewer(value: bigint): ReviewerId {
-  if (!isReviewerId(value)) throw new Error("bad reviewer id");
-  return value;
-}
-function brandRepo(value: bigint): RepoId {
-  if (!isRepoId(value)) throw new Error("bad repo id");
-  return value;
-}
-
-const CTX = { installationId: brandInstallation(BigInt(INSTALLATION_ID)) };
+const CTX = { installationId: brandInstallationId(BigInt(INSTALLATION_ID)) };
 
 // ---------------------------------------------------------------------------
 // GitHub HTTP stub (global fetch) — dispatches on URL/method, counts calls.
@@ -221,8 +190,8 @@ async function seedSession(
     refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
   });
   await createTenantRepository(handle, CTX).sessions.create({
-    sessionTokenHash: sha256Hex(cookie),
-    reviewerId: brandReviewer(BigInt(REVIEWER_ID)),
+    sessionTokenHash: hashSha256Hex(cookie),
+    reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
     reviewerLogin: "octocat",
     grantId: grant.id,
     expiresAt: new Date("2027-01-01T00:00:00Z"),
@@ -232,7 +201,7 @@ async function seedSession(
 
 async function seedPullRequest(handle: AppDatabase): Promise<void> {
   await createTenantRepository(handle, CTX).pullRequests.upsert({
-    repoId: brandRepo(BigInt(REPO_ID)),
+    repoId: brandRepoId(BigInt(REPO_ID)),
     prNumber: PR_NUMBER,
     repoSlug: REPO_SLUG,
     state: PrState.OPEN,
@@ -250,7 +219,7 @@ async function seedSessionDrafts(
 ): Promise<BriefRowId> {
   const repo = createTenantRepository(handle, CTX);
   const pr = await repo.pullRequests.getByNumber(
-    brandRepo(BigInt(REPO_ID)),
+    brandRepoId(BigInt(REPO_ID)),
     PR_NUMBER,
   );
   if (pr === undefined) throw new Error("seed: pr missing");
@@ -283,7 +252,7 @@ async function seedSessionDrafts(
   const written = await repo.reviewSessions.writeToSession(
     {
       briefId: brief.value.id,
-      reviewerId: brandReviewer(BigInt(REVIEWER_ID)),
+      reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
       brief: async () => ({ groupIds: [], flags: [] }),
     },
     async (writer) => {
@@ -350,10 +319,13 @@ async function seedCarriedDraft(
   anchorStatus: AnchorStatus,
   body = "carried note",
 ): Promise<string> {
-  const written = await createTenantRepository(handle, CTX).reviewSessions.writeToSession(
+  const written = await createTenantRepository(
+    handle,
+    CTX,
+  ).reviewSessions.writeToSession(
     {
       briefId,
-      reviewerId: brandReviewer(BigInt(REVIEWER_ID)),
+      reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
       brief: async () => ({ groupIds: [], flags: [] }),
     },
     async (writer) =>
@@ -376,10 +348,13 @@ async function seedTwoSideDraft(
   briefId: BriefRowId,
   body = "crosses sides",
 ): Promise<void> {
-  const written = await createTenantRepository(handle, CTX).reviewSessions.writeToSession(
+  const written = await createTenantRepository(
+    handle,
+    CTX,
+  ).reviewSessions.writeToSession(
     {
       briefId,
-      reviewerId: brandReviewer(BigInt(REVIEWER_ID)),
+      reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
       brief: async () => ({ groupIds: [], flags: [] }),
     },
     async (writer) =>
@@ -463,12 +438,12 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
-    kp = keyProvider();
+    kp = createKeyProvider();
     app = createApp({
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: authDeps(kp),
+      auth: buildAuthDeps(kp),
       github: unusedConversationPort,
     });
   });
@@ -737,9 +712,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
 
     const res = await submit(app, cookie, validBody());
     expect(res.status).toBe(201);
-    const retry = z
-      .object({ body: z.string() })
-      .parse(counts.reviewBodies[1]);
+    const retry = z.object({ body: z.string() }).parse(counts.reviewBodies[1]);
     // Cross-side line numbers mean nothing without their sides.
     expect(retry.body).toContain("src/c.ts:LEFT 10-RIGHT 12");
     expect(retry.body).toContain("crosses sides");
@@ -754,10 +727,13 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     const { cookie } = await seedSession(harness.handle, kp);
     const briefId = await seedSessionDrafts(harness.handle);
     // One draft is already on GitHub: it is not the submit's to post again.
-    await createTenantRepository(harness.handle, CTX).reviewSessions.writeToSession(
+    await createTenantRepository(
+      harness.handle,
+      CTX,
+    ).reviewSessions.writeToSession(
       {
         briefId,
-        reviewerId: brandReviewer(BigInt(REVIEWER_ID)),
+        reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
         brief: async () => ({ groupIds: [], flags: [] }),
       },
       async (writer) => {
@@ -794,7 +770,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
         logger: capture.logger,
         handle: harness.handle,
         webhookSecret: SECRET,
-        auth: authDeps(kp),
+        auth: buildAuthDeps(kp),
         github: unusedConversationPort,
       }),
     };
@@ -858,10 +834,10 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     const { cookie } = await seedSession(harness.handle, kp);
     await seedSessionDrafts(harness.handle);
     // A session on a NEWER Brief of the same PR freezes the one being read.
-    const pr = await createTenantRepository(harness.handle, CTX).pullRequests.getByNumber(
-      brandRepo(BigInt(REPO_ID)),
-      PR_NUMBER,
-    );
+    const pr = await createTenantRepository(
+      harness.handle,
+      CTX,
+    ).pullRequests.getByNumber(brandRepoId(BigInt(REPO_ID)), PR_NUMBER);
     if (pr === undefined) throw new Error("pr missing");
     const newer = await createArtifactStore(harness.handle, CTX).briefs.write({
       pullRequestId: pr.id,
@@ -875,10 +851,13 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
       body: "{}",
     });
     if (!newer.ok) throw new Error("newer brief write failed");
-    await createTenantRepository(harness.handle, CTX).reviewSessions.writeToSession(
+    await createTenantRepository(
+      harness.handle,
+      CTX,
+    ).reviewSessions.writeToSession(
       {
         briefId: newer.value.id,
-        reviewerId: brandReviewer(BigInt(REVIEWER_ID)),
+        reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
         brief: async () => ({ groupIds: [], flags: [] }),
       },
       (writer) => writer.putReadMark({ chunkId: "c1" }),

@@ -13,8 +13,8 @@
 //   - A frozen session — the reviewer has already written against a newer
 //     Brief — refuses every write with `pr-changed-since-read` (409).
 import {
-  PRODUCT_ACTION_ID,
-  PRODUCT_QUERY_ID,
+  ProductActionIds,
+  ProductQueryIds,
 } from "../../../../product-operations/ids";
 import {
   productRouter,
@@ -31,7 +31,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
 
   app.query(
     {
-      id: PRODUCT_QUERY_ID.READ_REVIEW_SESSION,
+      id: ProductQueryIds.READ_REVIEW_SESSION,
       classification: WRITE_CLASSIFICATION.READ,
     },
     "/",
@@ -39,7 +39,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   );
   app.action(
     {
-      id: PRODUCT_ACTION_ID.CREATE_DRAFT_COMMENT,
+      id: ProductActionIds.CREATE_DRAFT_COMMENT,
       classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
     },
     "post",
@@ -48,7 +48,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   );
   app.action(
     {
-      id: PRODUCT_ACTION_ID.UPDATE_DRAFT_COMMENT,
+      id: ProductActionIds.UPDATE_DRAFT_COMMENT,
       classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
     },
     "patch",
@@ -57,7 +57,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   );
   app.action(
     {
-      id: PRODUCT_ACTION_ID.REANCHOR_DRAFT_COMMENT,
+      id: ProductActionIds.REANCHOR_DRAFT_COMMENT,
       classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
     },
     "put",
@@ -66,7 +66,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   );
   app.action(
     {
-      id: PRODUCT_ACTION_ID.DELETE_DRAFT_COMMENT,
+      id: ProductActionIds.DELETE_DRAFT_COMMENT,
       classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
     },
     "delete",
@@ -75,7 +75,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   );
   app.action(
     {
-      id: PRODUCT_ACTION_ID.SET_CHUNK_READ,
+      id: ProductActionIds.SET_CHUNK_READ,
       classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
     },
     "put",
@@ -84,7 +84,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   );
   app.action(
     {
-      id: PRODUCT_ACTION_ID.RECLASSIFY_GROUP,
+      id: ProductActionIds.RECLASSIFY_GROUP,
       classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
     },
     "put",
@@ -97,7 +97,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   // the operation's shape and not batching.
   app.action(
     {
-      id: PRODUCT_ACTION_ID.DISMISS_RISK,
+      id: ProductActionIds.DISMISS_RISK,
       classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
     },
     "post",
@@ -106,7 +106,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   );
   app.action(
     {
-      id: PRODUCT_ACTION_ID.ADDRESS_RISK,
+      id: ProductActionIds.ADDRESS_RISK,
       classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
     },
     "post",
@@ -115,7 +115,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   );
   app.action(
     {
-      id: PRODUCT_ACTION_ID.REOPEN_RISK,
+      id: ProductActionIds.REOPEN_RISK,
       classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
     },
     "post",
@@ -124,7 +124,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   );
   app.action(
     {
-      id: PRODUCT_ACTION_ID.SET_REVIEW_OUTCOME,
+      id: ProductActionIds.SET_REVIEW_OUTCOME,
       classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
     },
     "put",

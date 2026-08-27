@@ -217,7 +217,10 @@ describe("createTokenAuth mint / resolve / touch", () => {
   });
 
   it("returns NOT_FOUND for an unknown hash", async () => {
-    const resolved = await createTokenAuth(handle).resolveByHash(OTHER_HASH, NOW);
+    const resolved = await createTokenAuth(handle).resolveByHash(
+      OTHER_HASH,
+      NOW,
+    );
     expect(resolved.ok).toBe(false);
     if (resolved.ok) throw new Error("unreachable");
     expect(resolved.error.code).toBe(TokenAuthErrorCode.NOT_FOUND);

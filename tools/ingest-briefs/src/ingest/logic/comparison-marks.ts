@@ -21,9 +21,7 @@ interface MarkedFile {
 }
 
 /** Coordinates only: whatever else the read-time file carries is dropped. */
-function projectMarkedFiles(
-  files: readonly MarkedFile[],
-): {
+function projectMarkedFiles(files: readonly MarkedFile[]): {
   file: string;
   addedRanges: MarkedRange[];
   removedRanges: MarkedRange[];

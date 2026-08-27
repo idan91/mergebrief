@@ -10,32 +10,28 @@ import {
   PrState,
   createArtifactStore,
   encryptToken,
-  createEnvKeyProvider,
   createTenantRepository,
   createGrantAuth,
-  isInstallationId,
-  isRepoId,
-  isReviewerId,
   createTokenAuth,
   type AppDatabase,
   type BriefRowId,
-  type InstallationId,
   type KeyProvider,
-  type RepoId,
-  type ReviewerId,
   type TenantContext,
   type WriteClassification,
 } from "persistence";
 import { vi } from "vitest";
-import type { AuthDeps } from "../../src/index";
+import {
+  INSTALLATION_ID,
+  KEY_REF,
+  PR_NUMBER,
+  REPO_SLUG,
+  REVIEWER_ID,
+  brandInstallationId,
+  brandRepoId,
+  brandReviewerId,
+} from "../fixtures";
 
-export const SECRET = "test-webhook-secret";
-export const KEY_REF = "SESSION_KEY_V1";
-export const INSTALLATION_ID = 987654;
-export const REVIEWER_ID = 555;
 export const REPO_ID = 424242;
-export const REPO_SLUG = "octo/hello";
-export const PR_NUMBER = 7;
 
 /** Two flags firing on one file, and one change group — the carry inputs. */
 export const BRIEF_BODY = JSON.stringify({
@@ -61,38 +57,10 @@ export const BRIEF_BODY = JSON.stringify({
 
 export const NO_ARTIFACT = { groupIds: [], flags: [] };
 
-function brandInstallation(value: bigint): InstallationId {
-  if (!isInstallationId(value)) throw new Error("bad installation id");
-  return value;
-}
-function brandReviewer(value: bigint): ReviewerId {
-  if (!isReviewerId(value)) throw new Error("bad reviewer id");
-  return value;
-}
-function brandRepo(value: bigint): RepoId {
-  if (!isRepoId(value)) throw new Error("bad repo id");
-  return value;
-}
-
 export const CTX: TenantContext = {
-  installationId: brandInstallation(BigInt(INSTALLATION_ID)),
+  installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
 };
-export const REVIEWER = brandReviewer(BigInt(REVIEWER_ID));
-
-export function keyProvider(): KeyProvider {
-  return createEnvKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
-}
-
-export function authDeps(kp: KeyProvider): AuthDeps {
-  return {
-    oauthClientId: "Iv1.test-client-id",
-    oauthClientSecret: "test-client-secret",
-    keyProvider: kp,
-    sessionKeyRef: KEY_REF,
-    publicBaseUrl: "https://app.example.test",
-    cookieSecure: true,
-  };
-}
+export const REVIEWER = brandReviewerId(BigInt(REVIEWER_ID));
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -198,7 +166,7 @@ async function seedGrant(
 
 export async function seedPullRequest(handle: AppDatabase): Promise<void> {
   await createTenantRepository(handle, CTX).pullRequests.upsert({
-    repoId: brandRepo(BigInt(REPO_ID)),
+    repoId: brandRepoId(BigInt(REPO_ID)),
     prNumber: PR_NUMBER,
     repoSlug: REPO_SLUG,
     state: PrState.OPEN,
@@ -213,7 +181,7 @@ export async function seedBrief(
   carriedChunkIds: readonly string[] = [],
 ): Promise<BriefRowId> {
   const pr = await createTenantRepository(handle, CTX).pullRequests.getByNumber(
-    brandRepo(BigInt(REPO_ID)),
+    brandRepoId(BigInt(REPO_ID)),
     PR_NUMBER,
   );
   if (pr === undefined) throw new Error("seedBrief: pr missing");
@@ -261,7 +229,7 @@ async function writeHop(
   spans: unknown,
 ): Promise<void> {
   const pr = await createTenantRepository(handle, CTX).pullRequests.getByNumber(
-    brandRepo(BigInt(REPO_ID)),
+    brandRepoId(BigInt(REPO_ID)),
     PR_NUMBER,
   );
   if (pr === undefined) throw new Error("seedHop: pr missing");

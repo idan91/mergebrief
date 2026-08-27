@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   API_ERROR_ENGLISH,
   API_ERROR_STATUS,
-  ApiErrorCode,
+  ApiErrorCodes,
   errorJson,
 } from "../src/error-response";
 
@@ -15,7 +15,7 @@ function appFor(handler: (c: Context) => Response): Hono {
 
 describe("errorJson", () => {
   it("emits { error, code } with the code's mapped status and no-store", async () => {
-    const app = appFor((c) => errorJson(c, ApiErrorCode.NOT_FOUND));
+    const app = appFor((c) => errorJson(c, ApiErrorCodes.NOT_FOUND));
     const res = await app.request("/probe");
     expect(res.status).toBe(404);
     expect(res.headers.get("cache-control")).toBe("no-store");
@@ -24,7 +24,7 @@ describe("errorJson", () => {
 
   it("composes the English line from the template and carries params", async () => {
     const app = appFor((c) =>
-      errorJson(c, ApiErrorCode.GENERATION_CONFIG, {
+      errorJson(c, ApiErrorCodes.GENERATION_CONFIG, {
         detail: "missing ANTHROPIC_API_KEY",
       }),
     );
@@ -38,13 +38,13 @@ describe("errorJson", () => {
   });
 
   it("omits params entirely for paramless codes", async () => {
-    const app = appFor((c) => errorJson(c, ApiErrorCode.UNAUTHORIZED));
+    const app = appFor((c) => errorJson(c, ApiErrorCodes.UNAUTHORIZED));
     const body: unknown = await (await app.request("/probe")).json();
     expect(body).not.toHaveProperty("params");
   });
 
   it("maps every code to exactly one status and one template", () => {
-    const codes = Object.values(ApiErrorCode);
+    const codes = Object.values(ApiErrorCodes);
     expect(codes).toHaveLength(24);
     for (const code of codes) {
       expect(API_ERROR_STATUS[code]).toBeGreaterThanOrEqual(400);

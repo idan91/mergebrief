@@ -6,7 +6,7 @@
 // indistinguishable to the caller (no existence leak), mirroring the
 // cold-denial posture of the gated routes. Generation itself runs in the
 // worker; the response carries the PR coordinates the web polls.
-import { PRODUCT_ACTION_ID } from "../../product-operations/ids";
+import { ProductActionIds } from "../../product-operations/ids";
 import {
   productRouter,
   type ProductRouter,
@@ -25,7 +25,7 @@ export function generateRoute(
   app.use("/", sessionLayer(deps), accessStampLayer());
   app.action(
     {
-      id: PRODUCT_ACTION_ID.GENERATE_BRIEF,
+      id: ProductActionIds.GENERATE_BRIEF,
       classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
     },
     "post",

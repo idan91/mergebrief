@@ -19,6 +19,7 @@ export function FileRow({ file }: FileRowProps) {
 
   return (
     <div className={styles["fileRow"]}>
+      {/* eslint-disable-next-line no-restricted-syntax -- zero-chrome mono disclosure row: no shared component models a borderless, unpadded target */}
       <button
         aria-controls={open ? diffId : undefined}
         aria-expanded={open}

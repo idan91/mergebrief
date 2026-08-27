@@ -34,18 +34,12 @@
     }
   }
 
+  // Button quiet supplies the chrome; the pull and the dim resting colour are
+  // banner-local. The end margin seats the button inside the banner's 14px
+  // inline padding so its edge gap matches the 6px block gap.
   .toggle {
-    padding: functions.to-rem(4px) functions.to-rem(10px);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-md);
-
-    // End margin pulls the button inside the banner's 14px inline padding so
-    // its edge gap matches the 6px block gap.
     margin-inline: auto functions.to-rem(-8px);
-    background: transparent;
     color: var(--dim);
-    cursor: pointer;
-    font-size: var(--font-size-md);
 
     &:hover {
       color: var(--text);

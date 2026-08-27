@@ -5,7 +5,8 @@
 // the server entry answers, never a thrown internal error.
 import { createLogger } from "logging";
 import { describe, expect, it, vi } from "vitest";
-import { ApiErrorCode as SOURCE_API_ERROR_CODE } from "api";
+import { ApiErrorCodes as SOURCE_API_ERROR_CODES } from "api";
+import type { ApiErrorCode as SourceApiErrorCode } from "api";
 import type { Equals } from "types";
 import {
   ApiError,
@@ -304,11 +305,11 @@ describe("errorFromResponse", () => {
 describe("wire vocabulary mirror (drift pins)", () => {
   type WebWireCode = Exclude<ApiErrorCode, "malformed">;
   // Compile-time: the mirror minus the web-local member IS the api vocabulary.
-  true satisfies Equals<WebWireCode, SOURCE_API_ERROR_CODE>;
+  true satisfies Equals<WebWireCode, SourceApiErrorCode>;
 
   it("runtime vocabulary equals the api's, plus only malformed", () => {
     const web = Object.values(ApiErrorCode);
-    const source = Object.values(SOURCE_API_ERROR_CODE);
+    const source = Object.values(SOURCE_API_ERROR_CODES);
     expect(web.filter((code) => code !== "malformed").toSorted()).toEqual(
       [...source].toSorted(),
     );

@@ -4,12 +4,12 @@ import clsx from "clsx";
 
 import styles from "./MenuItem.module.scss";
 
-export const MENU_ITEM_ROLES = {
+export const MenuItemRoles = {
   ITEM: "menuitem",
   RADIO: "menuitemradio",
   CHECKBOX: "menuitemcheckbox",
 } as const;
-export type MenuItemRole = ValueOf<typeof MENU_ITEM_ROLES>;
+export type MenuItemRole = ValueOf<typeof MenuItemRoles>;
 
 export type MenuItemBaseProps = {
   /** aria-disabled + interaction guard — never the native attribute. */
@@ -25,18 +25,18 @@ type MenuItemButtonAttributes = Omit<
    `role` on the call site and demands aria-checked there, which the
    component owns. */
 export type MenuItemAsItemProps = {
-  kind?: typeof MENU_ITEM_ROLES.ITEM;
+  kind?: typeof MenuItemRoles.ITEM;
 } & MenuItemBaseProps &
   MenuItemButtonAttributes;
 
 export type MenuItemAsRadioProps = {
-  kind: typeof MENU_ITEM_ROLES.RADIO;
+  kind: typeof MenuItemRoles.RADIO;
   checked: boolean;
 } & MenuItemBaseProps &
   MenuItemButtonAttributes;
 
 export type MenuItemAsCheckboxProps = {
-  kind: typeof MENU_ITEM_ROLES.CHECKBOX;
+  kind: typeof MenuItemRoles.CHECKBOX;
   checked: boolean;
 } & MenuItemBaseProps &
   MenuItemButtonAttributes;
@@ -54,13 +54,13 @@ type ResolvedMenuItem = {
 
 function resolveProps(props: MenuItemProps): ResolvedMenuItem {
   if (
-    props.kind === MENU_ITEM_ROLES.RADIO ||
-    props.kind === MENU_ITEM_ROLES.CHECKBOX
+    props.kind === MenuItemRoles.RADIO ||
+    props.kind === MenuItemRoles.CHECKBOX
   ) {
     const { kind, checked, ...rest } = props;
     return { role: kind, checked, rest };
   }
-  const { kind = MENU_ITEM_ROLES.ITEM, ...rest } = props;
+  const { kind = MenuItemRoles.ITEM, ...rest } = props;
   return { role: kind, checked: undefined, rest };
 }
 

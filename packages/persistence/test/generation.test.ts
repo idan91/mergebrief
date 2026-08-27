@@ -413,7 +413,9 @@ describe("createGenerationProjection — status transitions", () => {
 
     // Another tenant sees nothing.
     expect(
-      await createGenerationProjection(handle, CTX_B).listBriefsForPullRequest(pr.id),
+      await createGenerationProjection(handle, CTX_B).listBriefsForPullRequest(
+        pr.id,
+      ),
     ).toEqual([]);
   });
 

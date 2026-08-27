@@ -6,7 +6,7 @@
 // gated on viewerIsAuthor or draft: GitHub separately authorizes each
 // write. Every one IS a conversation write — success calls the injected
 // `evictConversation` hook.
-import { PRODUCT_ACTION_ID } from "../../../../product-operations/ids";
+import { ProductActionIds } from "../../../../product-operations/ids";
 import {
   productRouter,
   type ProductRouter,
@@ -25,7 +25,7 @@ export function commentWriteRoutes(
   const handlers = createCommentsHandlers(deps, evictConversation);
   app.action(
     {
-      id: PRODUCT_ACTION_ID.CREATE_INLINE_COMMENT,
+      id: ProductActionIds.CREATE_INLINE_COMMENT,
       classification: WRITE_CLASSIFICATION.EXTERNAL_WRITE,
     },
     "post",
@@ -34,7 +34,7 @@ export function commentWriteRoutes(
   );
   app.action(
     {
-      id: PRODUCT_ACTION_ID.REPLY_TO_COMMENT,
+      id: ProductActionIds.REPLY_TO_COMMENT,
       classification: WRITE_CLASSIFICATION.EXTERNAL_WRITE,
     },
     "post",
@@ -43,7 +43,7 @@ export function commentWriteRoutes(
   );
   app.action(
     {
-      id: PRODUCT_ACTION_ID.RESOLVE_THREAD,
+      id: ProductActionIds.RESOLVE_THREAD,
       classification: WRITE_CLASSIFICATION.EXTERNAL_WRITE,
     },
     "post",
@@ -52,7 +52,7 @@ export function commentWriteRoutes(
   );
   app.action(
     {
-      id: PRODUCT_ACTION_ID.UNRESOLVE_THREAD,
+      id: ProductActionIds.UNRESOLVE_THREAD,
       classification: WRITE_CLASSIFICATION.EXTERNAL_WRITE,
     },
     "post",

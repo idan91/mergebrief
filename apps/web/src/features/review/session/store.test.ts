@@ -4,11 +4,7 @@ import { briefFixture } from "@web/features/brief/utils/fixtures";
 import { buildBriefViewModel } from "@web/features/brief/utils";
 import type { ReviewComment } from "../utils/comments";
 import type { RiskEvidence } from "../utils/state";
-import {
-  createReviewSessionStore,
-  deriveInitialState,
-  type ReviewSessionState,
-} from "./store";
+import { createReviewSessionStore, deriveInitialState } from "./store";
 import { serializeSnapshot } from "./snapshot";
 import type { SessionWriteGateway } from "./writeGateway";
 import type { SessionWriteResult } from "./writes";

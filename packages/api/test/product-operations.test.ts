@@ -7,8 +7,8 @@ import type { WriteClassification } from "persistence";
 import { describe, expect, it } from "vitest";
 import { createProductOperationRegistry } from "../src/product-operations/registry";
 import {
-  PRODUCT_ACTION_ID,
-  PRODUCT_QUERY_ID,
+  ProductActionIds,
+  ProductQueryIds,
 } from "../src/product-operations/ids";
 import { productRouter } from "../src/product-operations/product-router";
 import {
@@ -124,11 +124,11 @@ describe("product operation registry", () => {
 });
 
 const QUERY = {
-  id: PRODUCT_QUERY_ID.LIST_PULLS,
+  id: ProductQueryIds.LIST_PULLS,
   classification: WRITE_CLASSIFICATION.READ,
 } as const;
 const ACTION = {
-  id: PRODUCT_ACTION_ID.SUBMIT_REVIEW,
+  id: ProductActionIds.SUBMIT_REVIEW,
   classification: WRITE_CLASSIFICATION.EXTERNAL_WRITE,
 } as const;
 
@@ -162,7 +162,7 @@ describe("product router", () => {
     router.action(ACTION, "post", "/review", (c) => c.json({ ok: true }));
     router.action(
       {
-        id: PRODUCT_ACTION_ID.REVOKE_TOKEN,
+        id: ProductActionIds.REVOKE_TOKEN,
         classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
       },
       "delete",
@@ -183,7 +183,7 @@ describe("product router", () => {
     const pr = productRouter();
     pr.query(
       {
-        id: PRODUCT_QUERY_ID.READ_CONVERSATION,
+        id: ProductQueryIds.READ_CONVERSATION,
         classification: WRITE_CLASSIFICATION.READ,
       },
       "/conversation",
@@ -193,7 +193,7 @@ describe("product router", () => {
     const repos = productRouter();
     repos.query(
       {
-        id: PRODUCT_QUERY_ID.LIST_REPOS,
+        id: ProductQueryIds.LIST_REPOS,
         classification: WRITE_CLASSIFICATION.READ,
       },
       "/",
@@ -255,7 +255,7 @@ describe("product router", () => {
     expect(() =>
       router.query(
         {
-          id: PRODUCT_QUERY_ID.LIST_PULLS,
+          id: ProductQueryIds.LIST_PULLS,
           // @ts-expect-error — a query must declare READ, not a write classification
           classification: WRITE_CLASSIFICATION.EXTERNAL_WRITE,
         },
@@ -266,7 +266,7 @@ describe("product router", () => {
     expect(() =>
       router.action(
         {
-          id: PRODUCT_ACTION_ID.SUBMIT_REVIEW,
+          id: ProductActionIds.SUBMIT_REVIEW,
           // @ts-expect-error — an action must declare a write classification, not READ
           classification: WRITE_CLASSIFICATION.READ,
         },
@@ -282,7 +282,7 @@ describe("product router", () => {
     const router = productRouter();
     router.query(
       {
-        // @ts-expect-error — a query id must come from PRODUCT_QUERY_ID
+        // @ts-expect-error — a query id must come from ProductQueryIds
         id: "not-in-the-vocabulary",
         classification: WRITE_CLASSIFICATION.READ,
       },
@@ -291,8 +291,8 @@ describe("product router", () => {
     );
     router.action(
       {
-        // @ts-expect-error — an action id must come from PRODUCT_ACTION_ID
-        id: PRODUCT_QUERY_ID.LIST_PULLS,
+        // @ts-expect-error — an action id must come from ProductActionIds
+        id: ProductQueryIds.LIST_PULLS,
         classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
       },
       "post",
@@ -372,7 +372,7 @@ describe("product router", () => {
     expect(() =>
       root.query(
         {
-          id: PRODUCT_QUERY_ID.LIST_REPOS,
+          id: ProductQueryIds.LIST_REPOS,
           classification: WRITE_CLASSIFICATION.READ,
         },
         "/repos",
@@ -492,7 +492,7 @@ describe("the scope check at the router seam", () => {
     router.action(ACTION, "post", "/review", (c) => c.json({ ok: true }));
     router.action(
       {
-        id: PRODUCT_ACTION_ID.GENERATE_BRIEF,
+        id: ProductActionIds.GENERATE_BRIEF,
         classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
       },
       "post",

@@ -4,7 +4,7 @@
 // operation starts here.
 import type { ValueOf } from "types";
 
-export const PRODUCT_QUERY_ID = {
+export const ProductQueryIds = {
   LIST_PULLS: "list-pulls",
   LIST_URL_BRIEFS: "list-url-briefs",
   LIST_REPOS: "list-repos",
@@ -22,9 +22,9 @@ export const PRODUCT_QUERY_ID = {
   READ_REVIEW_SESSION: "read-review-session",
   READ_CAPABILITIES: "read-capabilities",
 } as const;
-export type ProductQueryId = ValueOf<typeof PRODUCT_QUERY_ID>;
+export type ProductQueryId = ValueOf<typeof ProductQueryIds>;
 
-export const PRODUCT_ACTION_ID = {
+export const ProductActionIds = {
   SUBMIT_REVIEW: "submit-review",
   MARK_READY: "mark-ready",
   CREATE_INLINE_COMMENT: "create-inline-comment",
@@ -51,4 +51,4 @@ export const PRODUCT_ACTION_ID = {
   REOPEN_RISK: "reopen-risk",
   SET_REVIEW_OUTCOME: "set-review-outcome",
 } as const;
-export type ProductActionId = ValueOf<typeof PRODUCT_ACTION_ID>;
+export type ProductActionId = ValueOf<typeof ProductActionIds>;

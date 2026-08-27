@@ -14,7 +14,7 @@ import type { AuthRouteDeps } from "../../auth/session";
 import { createAuthzMiddleware, type AuthzEnv } from "../../authz";
 import type { InstallationGitHubPort } from "../../github-port";
 import { createTtlCache } from "../../ttl-cache";
-import { PRODUCT_QUERY_ID } from "../../../product-operations/ids";
+import { ProductQueryIds } from "../../../product-operations/ids";
 import {
   productRouter,
   type ProductRouter,
@@ -42,7 +42,7 @@ export function collaboratorsRoute(
   app.use("/", authz);
   app.query(
     {
-      id: PRODUCT_QUERY_ID.LIST_COLLABORATORS,
+      id: ProductQueryIds.LIST_COLLABORATORS,
       classification: WRITE_CLASSIFICATION.READ,
     },
     "/",

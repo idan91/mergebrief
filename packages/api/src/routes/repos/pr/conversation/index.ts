@@ -9,7 +9,7 @@
 // hook is how every conversation write (review submit, the comments routes)
 // drops the PR's entry on its success path.
 import type { RepoId, ScopeContext } from "persistence";
-import { PRODUCT_QUERY_ID } from "../../../../product-operations/ids";
+import { ProductQueryIds } from "../../../../product-operations/ids";
 import {
   productRouter,
   type ProductRouter,
@@ -49,7 +49,7 @@ export function conversationRoute(
   const handlers = createConversationHandlers(deps, deps.github, cache);
   app.query(
     {
-      id: PRODUCT_QUERY_ID.READ_CONVERSATION,
+      id: ProductQueryIds.READ_CONVERSATION,
       classification: WRITE_CLASSIFICATION.READ,
     },
     "/",

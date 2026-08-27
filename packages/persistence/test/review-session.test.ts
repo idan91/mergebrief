@@ -7,7 +7,11 @@ import { Categories } from "brief-core";
 import { drizzle } from "drizzle-orm/pglite";
 import { describe, expect, it } from "vitest";
 import { fromDrizzle } from "../src/db/handle";
-import { createArtifactStore, createTenantRepository, ReviewSessionErrorCode } from "../src/index";
+import {
+  createArtifactStore,
+  createTenantRepository,
+  ReviewSessionErrorCode,
+} from "../src/index";
 import type {
   AppDatabase,
   ReviewSessionRow,
@@ -96,7 +100,10 @@ async function openSession(
   briefId: BriefRowId,
   reviewerId: ReviewerId = REVIEWER,
 ): Promise<ReviewSessionRow> {
-  const created = await createTenantRepository(handle, ctx).reviewSessions.writeToSession(
+  const created = await createTenantRepository(
+    handle,
+    ctx,
+  ).reviewSessions.writeToSession(
     { briefId, reviewerId, brief: async () => NO_FACTS },
     async (writer) => writer.session,
   );
@@ -112,7 +119,10 @@ async function write<T>(
   briefId: BriefRowId,
   body: (writer: SessionWriter) => Promise<T>,
 ): Promise<T> {
-  const written = await createTenantRepository(handle, ctx).reviewSessions.writeToSession(
+  const written = await createTenantRepository(
+    handle,
+    ctx,
+  ).reviewSessions.writeToSession(
     { briefId, reviewerId: REVIEWER, brief: async () => NO_FACTS },
     body,
   );

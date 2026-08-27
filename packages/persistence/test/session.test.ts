@@ -40,7 +40,9 @@ async function seedSession(
       keyRef: "SESSION_KEY_V1",
       refreshExpiresAt: input.expiresAt ?? EXPIRY,
     }));
-  await createTenantRepository(handle, { installationId: INSTALLATION_ID }).sessions.create({
+  await createTenantRepository(handle, {
+    installationId: INSTALLATION_ID,
+  }).sessions.create({
     sessionTokenHash: input.hash ?? HASH,
     reviewerId: REVIEWER_ID,
     reviewerLogin: "octocat",
@@ -78,7 +80,9 @@ describe("createSessionAuth.findSession", () => {
   });
 
   it("returns undefined for an unknown hash", async () => {
-    expect(await createSessionAuth(handle).findSession(OTHER_HASH)).toBeUndefined();
+    expect(
+      await createSessionAuth(handle).findSession(OTHER_HASH),
+    ).toBeUndefined();
   });
 });
 
@@ -123,7 +127,9 @@ describe("createSessionAuth.setExpiresAt", () => {
     const resolved = await createSessionAuth(handle).findSession(HASH);
     expect(resolved?.session.expiresAt).toEqual(rotated);
     // Unknown hash is a clean 0, not an error.
-    expect(await createSessionAuth(handle).setExpiresAt(OTHER_HASH, rotated)).toBe(0);
+    expect(
+      await createSessionAuth(handle).setExpiresAt(OTHER_HASH, rotated),
+    ).toBe(0);
   });
 });
 

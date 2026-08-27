@@ -158,6 +158,23 @@
         "vitest/expect-expect": [
           "error",
           { "assertFunctionNames": ["expect", "expect*"] }
+        ],
+        // Helpers declared inside a describe/it read with the case they
+        // serve; hoisting them out to save a closure per call buys nothing
+        // in a test.
+        "unicorn/consistent-function-scoping": "off"
+      }
+    },
+    {
+      // The Playwright perf harness. Its stdout IS its interface (a runner
+      // parses the PERF_RESULT lines), and the injected browser globals are
+      // named by contract with addInitScript.
+      "files": ["apps/web/e2e/**"],
+      "rules": {
+        "no-console": "off",
+        "no-underscore-dangle": [
+          "error",
+          { "allow": ["__typename", "__COMMIT_STATS__", "__COMMIT_TRACKING__"] }
         ]
       }
     },

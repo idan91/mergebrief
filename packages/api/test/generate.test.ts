@@ -4,7 +4,6 @@
 import { randomBytes, createHash } from "node:crypto";
 import {
   encryptToken,
-  createEnvKeyProvider,
   createTenantRepository,
   createGrantAuth,
   isInstallationId,
@@ -16,16 +15,10 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  createApp,
-  type ApiApp,
-  type AppDeps,
-  type AuthDeps,
-} from "../src/index";
+import { createApp, type ApiApp, type AppDeps } from "../src/index";
 import { testLogger } from "./logging";
+import { KEY_REF, SECRET, buildAuthDeps, createKeyProvider } from "./fixtures";
 
-const SECRET = "test-webhook-secret";
-const KEY_REF = "SESSION_KEY_V1";
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
 const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
 const FALLBACK_PAT = "ghp_OPERATOR_PAT";
@@ -47,23 +40,6 @@ function brand<T extends bigint>(
 
 const REVIEWER: ReviewerId = brand(isReviewerId, 555);
 const OTHER_REVIEWER: ReviewerId = brand(isReviewerId, 556);
-
-function keyProvider(): KeyProvider {
-  return createEnvKeyProvider({
-    [KEY_REF]: randomBytes(32).toString("base64"),
-  });
-}
-
-function authDeps(kp: KeyProvider): AuthDeps {
-  return {
-    oauthClientId: "Iv1.test-client-id",
-    oauthClientSecret: "test-client-secret",
-    keyProvider: kp,
-    sessionKeyRef: KEY_REF,
-    publicBaseUrl: "https://app.example.test",
-    cookieSecure: true,
-  };
-}
 
 /** An OWNER-world session (no installation) — the url-box viewer's shape. */
 async function seedSession(
@@ -232,7 +208,7 @@ describe("POST /api/generate — the url-box door", () => {
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
-    kp = keyProvider();
+    kp = createKeyProvider();
   });
 
   afterEach(async () => {
@@ -245,7 +221,7 @@ describe("POST /api/generate — the url-box door", () => {
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
-      auth: authDeps(kp),
+      auth: buildAuthDeps(kp),
       github: unusedConversationPort,
       urlBoxFallbackToken: fallbackToken,
     };

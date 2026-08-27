@@ -1,6 +1,6 @@
 import type { TranslationKey } from "i18n";
 import { useTranslation } from "react-i18next";
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { Button } from "@web/components/Button/Button";
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea/MarkdownTextarea";
@@ -109,11 +109,14 @@ export function ReplyComposer({
   const [local, setLocal] = useState(() => readReplyDraft(threadId));
   const localRef = useRef(local);
   localRef.current = local;
-  const edit = (body: string) => {
-    setLocal(body);
-    localRef.current = body;
-    writeReplyDraft(threadId, body);
-  };
+  const edit = useCallback(
+    (body: string) => {
+      setLocal(body);
+      localRef.current = body;
+      writeReplyDraft(threadId, body);
+    },
+    [threadId],
+  );
   // Instance-scoped id: the same thread can render TWO composers (inline at
   // its chunk AND in the section) — a thread-derived id would duplicate and
   // break label/error association.
@@ -140,7 +143,7 @@ export function ReplyComposer({
       element.focus();
       element.setSelectionRange(element.value.length, element.value.length);
     }, 0);
-  }, [quote]);
+  }, [edit, quote]);
 
   // The combo button's node (focus-handoff subject) and the flag saying its
   // retirement stranded focus. The effect runs AFTER the unmount commits, so
