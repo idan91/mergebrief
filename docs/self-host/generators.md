@@ -188,14 +188,25 @@ machine, under your interactive login**. They are not available inside ANY
 container — including the docker-compose worker running on your own
 laptop. "Local" is not the boundary; **host process vs container** is: a
 container never sees your installed CLI or your login, no matter where it
-runs. This is a boundary, not a gap: the thing that
-makes CLI backends attractive — subscription auth — is at best a
-documented-but-discouraged path for unattended use (Codex), and at worst
-explicitly reserved for "ordinary, individual usage" with active
-enforcement (Anthropic). Deployed workers on API keys are legally fine but
-erase the cost advantage, so they wait for a real deployed-mode decision.
-Full reasoning + the revisit triggers:
+runs. This is a boundary about where a login lives, not about whether
+subscription auth is allowed. Deployed workers on API keys are legally
+fine but erase the cost advantage, so they wait for a real deployed-mode
+decision. Full reasoning + the revisit triggers:
 [`docs/dev/harness-cli-deployed-feasibility.md`](../dev/harness-cli-deployed-feasibility.md).
+
+**On the terms of service** (verified 2026-08-26): running the vendor's own
+CLI non-interactively against your own subscription, on your own machine, is
+documented by both vendors as a supported use, and every enforcement action
+on record targeted tools that reimplemented the vendor's client or handled
+its OAuth tokens — MergeBrief spawns the unmodified binary and never touches
+a credential. Two caveats an operator should own: Anthropic's permission
+lives in a documentation page rather than versioned legal terms, so it can
+narrow without notice; and "advertised usage limits … assume ordinary,
+individual usage", which is undefined and volume-keyed. The safe shape is
+one operator, one login, one machine, with no credential shared and no
+generation run on anyone else's behalf. Evidence, quotes, and the revisit
+triggers:
+[`docs/dev/harness-subscription-ban-risk.md`](../dev/harness-subscription-ban-risk.md).
 
 What the CLIs *are* for: host-side processes in the dev loop
 (`pnpm categorize`, the web app run with `pnpm dev` — not its docker
@@ -218,7 +229,12 @@ only in your local shell.)
 
 Isolation per CLI (what a generation run may touch): claude-code runs with
 ALL built-in tools disabled and print mode; codex runs read-only sandboxed
-with no session persistence. Both run under hard + inactivity watchdogs
+with no session persistence. One thing print mode does NOT disable: a
+non-bare `claude -p` run executes hooks from `.claude/settings.json` and
+connects `.mcp.json` servers found in its working directory. MergeBrief
+passes no working directory and clones no repositories, so a generation
+inherits only the directory you launched it from — keep that in mind if you
+ever run the categorizer from inside a checkout you don't trust. Both run under hard + inactivity watchdogs
 with a process-group kill ladder — a hung CLI (or its grandchildren) is
 killed, classified, and dumped, never waited on forever.
 
@@ -260,7 +276,10 @@ whole point — but a few facts keep the guarantee honest:
   auto-roll into paid "extra usage" credits when that toggle is enabled on
   the account — without any prompt or warning, and with no client-side
   off-switch. Disable extra usage in your account's billing settings if
-  you want quota exhaustion to be a loud error instead of a bill.
+  you want quota exhaustion to be a loud error instead of a bill. This is
+  the documented real-world failure mode of orchestrated headless runs, and
+  it is unbounded: one publicly reported `claude -p` workload spent $313 in
+  8.5 hours before anyone noticed.
 - **Scale accordingly.** Per-PR generation fits comfortably in a Pro/Max
   window; batch workloads (the eval suite: ~60 generations per full run)
   do not fit a Pro plan.

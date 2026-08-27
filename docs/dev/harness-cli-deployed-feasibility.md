@@ -3,6 +3,8 @@
 **Date:** 2026-07-12
 **Purpose:** companion to `harness-cli-capabilities.md`. That note covers invocation/schema/output; this one answers: *can the agent-harness CLI adapters run inside a deployed docker-compose worker?* Decision already locked — adapters are **local-only in v1**; this note records the WHY (for README/docs boundary wording) and the revisit triggers. It blocks nothing.
 
+**Superseded in part:** the subscription-ToS readings below (§1, §2, and the ToS column of the verdict table) predate a fuller primary-source pass and are more pessimistic than the evidence supports — Anthropic's legal page now carries an explicit carve-out for signing in to the unmodified Claude Code binary, and OpenAI publishes a guide for `codex exec` on ChatGPT auth. See `harness-subscription-ban-risk.md` for the current reading. The containerization, auth-persistence, and operational findings here stand.
+
 **Scope note:** "deployed" here means an unattended Linux container (docker-compose worker) invoking the CLI on the user's behalf. Three independent gates per CLI: (a) does auth technically survive containerization, (b) does the vendor's *subscription* ToS permit unattended/server use, (c) is the operational story (install, pinning, upgrades, failure modes) sane. API-key auth is legally uncomplicated everywhere — the interesting question is subscription auth, which is what makes these CLIs cheap enough to be the point.
 
 **Sources (fetched 2026-07-12 unless noted):**

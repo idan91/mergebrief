@@ -87,11 +87,12 @@ generate on the subscription you already pay for. One optional
 and the categorizer CLIs alike (the `mergebrief` HTTP client below never
 constructs a generator).
 
-**The CLI backends are local-only in v1, deliberately.** Subscription auth
-for unattended/server use ranges from documented-but-discouraged (Codex) to
-explicitly reserved for individual usage with an enforcement precedent
-(Anthropic), and API-key mode erases the cost advantage that makes CLI
-backends attractive — so the deployed worker stays on API backends.
+**The CLI backends are local-only in v1, deliberately.** A container never
+sees your installed CLI or your login, and API-key mode erases the cost
+advantage that makes CLI backends attractive — so the deployed worker stays
+on API backends. Running the vendor's own CLI against your own subscription
+on your own machine is documented by both vendors as supported; the caveats
+worth knowing before you rely on it are in the generators doc.
 Full config surface, per-provider notes, and the boundary reasoning:
 [`docs/self-host/generators.md`](./docs/self-host/generators.md).
 
