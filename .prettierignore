@@ -6,6 +6,13 @@ coverage
 **/.vite
 .playwright-cli
 
+# Agent/tool session state; .claude also holds throwaway worktrees whose
+# copies of the repo would otherwise be scanned as source.
+.claude
+.pnpm-store
+.serena
+.impeccable
+
 # Generated artifacts: the router's file-based route tree, drizzle's migration
 # output (SQL + its journal), and anything else emitted as `*.gen.*`.
 **/routeTree.gen.ts

@@ -1,6 +1,6 @@
 # Harness CLI capabilities (claude / codex / cursor-agent / opencode)
 
-**Date:** 2026-07-12
+**Date:** 2026-07-12; §3 (cursor-agent) execution-verified 2026-08-27.
 **Purpose:** feeds Harness CLI adapter design ticket, BRIEF-11 wayfinder map.
 
 **Sources (all primary; fetched 2026-07-12 unless noted):**
@@ -15,7 +15,7 @@
 - Codex non-interactive docs: <https://developers.openai.com/codex/noninteractive> (308-redirects to <https://learn.chatgpt.com/docs/non-interactive-mode>)
 - Codex auth docs: <https://developers.openai.com/codex/auth> (redirects to <https://learn.chatgpt.com/docs/auth>)
 - Codex source (main branch): `codex-rs/exec/src/exec_events.rs`, `codex-rs/exec/src/lib.rs`, `codex-rs/exec/src/event_processor_with_human_output.rs`, `codex-rs/exec/src/event_processor_with_jsonl_output.rs` — <https://github.com/openai/codex>
-- Cursor CLI docs: <https://cursor.com/docs/cli/reference/parameters>, <https://cursor.com/docs/cli/headless>, <https://cursor.com/docs/cli/reference/output-format>, <https://cursor.com/docs/cli/reference/authentication> (cursor-agent NOT installed locally; nothing verified by execution)
+- Cursor CLI docs: <https://cursor.com/docs/cli/reference/parameters>, <https://cursor.com/docs/cli/headless>, <https://cursor.com/docs/cli/reference/output-format>, <https://cursor.com/docs/cli/reference/authentication>; authenticated execution runs on `cursor-agent 2026.08.25-3e8eec8` + `@cursor/sdk` smokes, darwin/arm64 (2026-08-27)
 - OpenCode docs: <https://opencode.ai/docs/cli/>; source (dev branch): `packages/opencode/src/cli/cmd/run.ts` — <https://github.com/sst/opencode> (NOT installed locally)
 - Project memory: `~/.claude/projects/-Users-idan-Projects-Code-code-review/memory/brief-14-27-28-implementation-2026-07.md` (codex hang observation)
 
@@ -117,42 +117,51 @@ Local version verified: **codex-cli 0.142.5** (`codex --version`).
 
 ---
 
-## 3. `cursor-agent` (Cursor CLI) — deferred; lower depth
+## 3. `cursor-agent` (Cursor CLI) — execution-verified
 
-Not installed locally; all facts from cursor.com docs (fetched 2026-07-12; docs are undated/unversioned). Docs refer to the binary as both `cursor-agent` and `agent`.
+Verified by authenticated execution on binary `2026.08.25-3e8eec8` (darwin/arm64, Pro subscription, 2026-08-27). Where behavior contradicts the cursor.com docs, execution wins and the conflict is noted.
 
 ### Headless invocation
 
-- `-p/--print` — "Print responses to console (for scripts or non-interactive use). Has access to all tools, including write and shell." Default output format is text. (parameters docs)
-- **Permissions:** `-f/--force` (alias `--yolo`) — "Force allow commands unless explicitly denied." Without it, `-p` proposes rather than applies changes. `--sandbox <enabled|disabled>`. (parameters + headless docs)
-- **stdin / TTY:** not covered in the docs pages fetched — **unverified**.
+- `-p/--print` — non-interactive; default output format text. **Has access to all tools, including write and shell — and it USES them: a plain `-p` run without `--force` created a file on disk** (verified). The docs-era assumption that print mode proposes-not-applies is false.
+- **Read-only lockdown:** `--mode plan` (or `--mode ask`) — verified: the same file-creation prompt under `--mode plan` produced a textual plan and wrote nothing. This, not the absence of `--force`, is the generation lockdown. `--sandbox <enabled|disabled>` also exists (not exercised).
+- **stdin prompt delivery: works** (verified — prompt piped, no TTY needed for `json` mode).
+- `--trust` skips the workspace-trust prompt; needed for scripted runs in fresh directories.
 
 ### Structured output
 
-- `--output-format <text|json|stream-json>` (print mode only); `--stream-partial-output` for deltas with stream-json. (parameters docs)
-- **Envelope (documented, output-format page)** — notably a near-clone of Claude Code's: `json` mode returns `{"type":"result","subtype":"success","is_error":false,"duration_ms":...,"duration_api_ms":...,"result":"<full assistant text>","session_id":"<uuid>","request_id":...}`. Answer text lives in `.result` ("concatenation of all text deltas"). stream-json event types: `system`, `user`, `assistant`, `tool_call` (started/completed), terminal `result`.
-- **No native JSON-Schema enforcement of the answer** — no flag exists in the documented parameter list. Schema compliance is prompt-and-pray + adapter-side validate/retry.
+- `--output-format <text|json|stream-json>` (print mode only); `--stream-partial-output` for deltas.
+- **Envelope (verified):** `{"type":"result","subtype":"success","is_error":false,"duration_ms":...,"duration_api_ms":...,"result":"<answer>","session_id":...,"request_id":...,"usage":{"inputTokens":...,"outputTokens":...,"cacheReadTokens":...,"cacheWriteTokens":...}}`. Answer in `.result`. The `usage` block and `request_id` are new since the 2026-07 docs snapshot.
+- **stream-json (verified):** `system/init` → `user` → `assistant` → terminal `result` (same shape as json envelope incl. `usage`). `system/init` carries `apiKeySource` (`"login"` or `"env"`), `model` (display name incl. effort, e.g. "GPT-5.2 Medium"), `permissionMode`, `cwd`, `session_id`.
+- **No JSON-Schema flag** (still true on current binary) — adapter validate/retry is the enforcement.
 
 ### Model selection + origin
 
-- `--model <model>`; `--list-models` to enumerate. (parameters docs)
-- **Origin tracking:** the documented `result` envelope has no model field — gap. Whether the stream-json `system` init event reports the model is not shown in docs — unverified.
+- `--model <model>`; `--list-models` enumerates ~200 ids; effort is baked into the id (`-low/-medium/-high/-xhigh/-max`, `-thinking`, `-fast` variants), plus bracket overrides (`claude-opus-4-8[effort=high]`).
+- **Origin:** `result` envelope has no model field (verified). stream-json `system/init` reports the *requested* model's display name — under a pinned model it echoes the request; not proof of the served model. Origin stays a declaration.
 
 ### Exit codes + error surfaces
 
-- Not documented anywhere fetched — **unverified**. Envelope has `is_error`/`subtype` for in-band failure.
+- Verified: success 0; bad model exit 1 (`Cannot use this model: <id>. Available models: ...` on stderr); unknown flag exit 1 (`error: unknown option`); logged-out generation exit 1 (`Error: Authentication required. Please run 'agent login' first, or set CURSOR_API_KEY environment variable.`). AUTH vs CONFIG classify from stderr prefixes; errors are NOT in-band JSON.
+- **Trap:** logged-out `status` exits **0** ("Not logged in" on stdout) — exit code is auth-blind. `cursor-agent update` while logged out exits 1.
 
 ### Streaming / timeout / cancellation
 
-- stream-json exists; no timeout flags documented; SIGINT behavior undocumented — unverified.
+- **stream-json emits NOTHING to a pipe until process exit** (verified: 0 bytes for 24s mid-generation, full event log flushed at termination). Under a pty, output streams incrementally. An output-inactivity watchdog on piped stdout will kill every long run — the adapter must run the CLI under a pty or watch process-liveness + wall-clock only.
+- SIGTERM (verified): process dies in ~16ms, exit 143, no cleanup stall — single-rung kill ladder suffices.
+- No timeout flags (unchanged); the docs-era `status` hang is gone on the current binary.
+- Per-attempt overhead: ~14–16s wall for a trivial one-shot vs ~4–5s `duration_api_ms` — ~9s process startup/auth cost per spawn.
 
 ### Token/cost accounting
 
-- None in the documented envelope (only `duration_ms`/`duration_api_ms`) — no token or cost fields. Gap.
+- Tokens: yes, in `usage` on the terminal `result` event (json and stream-json) — totals only, no per-turn breakdown events. Cost: none — price it yourself or record "unknown".
 
 ### Auth
 
-- `agent login` (browser OAuth), credentials "securely stored locally" — **exact on-disk path not documented**. `agent logout`, `agent status`. API-key mode: `CURSOR_API_KEY` env var or `--api-key` flag (keys from cursor.com/dashboard → API Keys). `NO_OPEN_BROWSER=1` prints the login URL instead of opening a browser. (authentication docs)
+- `agent login` (browser OAuth) / `logout` / `status`. **Probe (verified): `cursor-agent about --format json`** — exit 0 both states, `userEmail`/`subscriptionTier` null when logged out, plus `cliVersion`, default `model`, update status. Instant, machine-checkable; prefer it over `status` (exit-blind) for the boot probe.
+- **`CURSOR_API_KEY` (verified): takes precedence over the stored login** — `system/init` reports `apiKeySource: "env"` with both present. The init event is the billing-route assertion hook.
+- **darwin quirk (verified):** given an env key, the CLI persists it to the macOS keychain (warns and continues on failure). `HOME` overrides do not isolate credentials on macOS and can trigger keychain dialogs — don't fake HOME in tests.
+- SDK note: `@cursor/sdk` credentials (`~/.cursor/sdk/auth.json`, API-key only) are **disjoint from CLI login** (verified behaviorally: SDK sees no CLI session). SDK error classes work via `instanceof` only — constructor names are minified.
 
 ---
 
@@ -201,11 +210,11 @@ Structured-output floor is HARD: every Generator adapter must guarantee schema-v
 
 1. **Schema enforcement tiering:** `claude -p` is the only CLI with *documented validate-and-retry semantics* against a caller-supplied schema (`--json-schema` → `structured_output` or a typed error subtype). `codex exec --output-schema` enforces shape but delivers the answer as a JSON string inside `item.text` / `-o` file, with undocumented failure semantics. cursor-agent and opencode have **no schema flag at all** — for them the adapter's validate+re-invoke wrapper *is* the enforcement mechanism. Design the port so the wrapper exists for everyone (defense-in-depth, per the enum-server-enforcement lesson) and native enforcement is an optimization.
 2. **Answer extraction is four different shapes:** `.result` / `.structured_output` (claude json envelope) vs last `item.completed agent_message .item.text` or `-o` file (codex) vs `.result` (cursor, claude-clone envelope) vs concatenated `text` events with **no terminal result event** (opencode). The adapter interface should be "give me (answer_text, structured_answer?, metadata)" and hide this entirely.
-3. **Origin tracking:** only claude reports the model actually used in machine-readable output (`system/init` model + `modelUsage` keyed by model). Codex `--json` has a verified origin-tracking hole *including silent model rerouting* (reroute notification exists but is dropped by the JSONL processor). Cursor/opencode JSON modes show no model field. If knowing the model's origin matters for the brief record, the adapter must echo the *requested* model and mark actual-model as unknown for non-claude backends.
-4. **Cost/token accounting:** claude gives tokens + USD (`total_cost_usd`, `modelUsage[].cost_usd`); codex gives tokens only (`turn.completed.usage`, incl. cached + reasoning splits) — price it yourself; cursor and opencode give effectively nothing. Any per-run cost ledger must tolerate "unknown".
-5. **Timeouts are 100% the adapter's job:** none of the four has a wall-clock timeout flag. Codex has a *lived* hang precedent in this project (BRIEF-14/27/28: ~1h zero-output hang, killed manually) and opencode's exit condition is an idle event that never arrives if the provider stalls. Wrap every backend in hard timeout + output-inactivity watchdog; prefer streaming modes (`stream-json` / `--json` / `--format json`) so the watchdog has liveness signal.
-6. **Cancellation:** codex SIGINT is verified-clean (forwards turn/interrupt, exits 1). Claude/cursor/opencode SIGINT semantics are unverified — assume kill, and make adapter runs idempotent/ephemeral (codex `--ephemeral`, claude `--no-session-persistence`) so a killed run leaves no resumable junk.
-7. **Exit codes are nearly information-free everywhere:** codex is deliberately binary 0/1 (verified in source); claude/opencode are 0/1-ish and cursor undocumented. Error *classification* (auth expiry vs rate limit vs refusal) is only possible on claude, via documented `system/api_retry` error categories and result `errors[]`. The adapter's Result type should classify from in-band JSON where available and fall back to "opaque failure + captured stderr".
-8. **Permission lockdown for a generator call differs per CLI and is a correctness issue, not just safety:** claude `--tools "" --bare -p` gives a near-pure LLM call; codex minimum is `--sandbox read-only --skip-git-repo-check` (default sandbox already read-only in exec); cursor without `--force` proposes-not-applies (fine for generation); opencode auto-*rejects* permissions in run mode — meaning a generation that tries to use a tool silently loses that capability rather than prompting. Bake per-backend "generation profile" flag sets into the adapter.
-9. **Auth fragility ranking for unattended runs:** worst is claude-on-OAuth (login expiry stalls unattended runs; macOS Keychain access fails in sandboxed/backgrounded contexts — see docker-builds memory for the same keychain class of problem) — mitigate with `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`, noting `--bare` only honors the API-key paths. Codex is file-based (`~/.codex/auth.json`) with auto-refresh — friendliest to headless. Cursor needs `CURSOR_API_KEY` for CI (interactive store path undocumented). OpenCode is plain-file (`~/.local/share/opencode/auth.json`).
+3. **Origin tracking:** only claude reports the model actually used in machine-readable output (`system/init` model + `modelUsage` keyed by model). Codex `--json` has a verified origin-tracking hole *including silent model rerouting* (reroute notification exists but is dropped by the JSONL processor). Cursor's `system/init` model field is a requested-echo (verified), and its result envelope has none; opencode JSON shows no model field. If knowing the model's origin matters for the brief record, the adapter must echo the *requested* model and mark actual-model as unknown for non-claude backends.
+4. **Cost/token accounting:** claude gives tokens + USD (`total_cost_usd`, `modelUsage[].cost_usd`); codex and cursor give tokens only (codex `turn.completed.usage`; cursor `result.usage`, both incl. cache splits) — price it yourself; opencode gives effectively nothing. Any per-run cost ledger must tolerate "unknown".
+5. **Timeouts are 100% the adapter's job:** none of the four has a wall-clock timeout flag. Codex has a *lived* hang precedent in this project (BRIEF-14/27/28: ~1h zero-output hang, killed manually) and opencode's exit condition is an idle event that never arrives if the provider stalls. Wrap every backend in hard timeout + output-inactivity watchdog; prefer streaming modes (`stream-json` / `--json` / `--format json`) so the watchdog has liveness signal — **except cursor, whose stream-json is silent on a pipe until exit (verified)**: there the watchdog must key on process-liveness + wall-clock, or the adapter must spawn under a pty.
+6. **Cancellation:** codex SIGINT is verified-clean (forwards turn/interrupt, exits 1); cursor SIGTERM is verified-clean (dies ~16ms, exit 143). Claude/opencode SIGINT semantics are unverified — assume kill, and make adapter runs idempotent/ephemeral (codex `--ephemeral`, claude `--no-session-persistence`) so a killed run leaves no resumable junk.
+7. **Exit codes are nearly information-free everywhere:** codex is deliberately binary 0/1 (verified in source); claude/opencode are 0/1-ish; cursor is 0/1 with classifiable *stderr* prefixes (verified: auth vs config discriminate on message text, but `status` exits 0 even logged out). Error *classification* (auth expiry vs rate limit vs refusal) is only possible in-band on claude, via documented `system/api_retry` error categories and result `errors[]`. The adapter's Result type should classify from in-band JSON where available and fall back to stderr-prefix matching, then "opaque failure + captured stderr".
+8. **Permission lockdown for a generator call differs per CLI and is a correctness issue, not just safety:** claude `--tools "" --bare -p` gives a near-pure LLM call; codex minimum is `--sandbox read-only --skip-git-repo-check` (default sandbox already read-only in exec); cursor requires `--mode plan` — a bare `-p` run without `--force` *applies* file writes (verified), the docs-era proposes-not-applies assumption is false; opencode auto-*rejects* permissions in run mode — meaning a generation that tries to use a tool silently loses that capability rather than prompting. Bake per-backend "generation profile" flag sets into the adapter.
+9. **Auth fragility ranking for unattended runs:** worst is claude-on-OAuth (login expiry stalls unattended runs; macOS Keychain access fails in sandboxed/backgrounded contexts — see docker-builds memory for the same keychain class of problem) — mitigate with `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`, noting `--bare` only honors the API-key paths. Codex is file-based (`~/.codex/auth.json`) with auto-refresh — friendliest to headless. Cursor honors `CURSOR_API_KEY` with precedence over the stored login (verified; `system/init` `apiKeySource` asserts the route) and persists it to the macOS keychain on darwin. OpenCode is plain-file (`~/.local/share/opencode/auth.json`).
 10. **Envelope churn risk:** claude's envelope is documented API surface (SDK types, versioned changelog behavior notes) — safest to parse. Cursor's is documented but the product is fast-moving. Codex's is source-typed but unversioned. OpenCode's is an internal event mirror read off the dev branch — pin the version you test against and gate opencode/cursor adapters behind a conformance smoke test rather than trusting the shape.
