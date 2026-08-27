@@ -89,8 +89,10 @@ it, alongside a `CLAUDE.md` that points at it — a new package adds both.
   Enforced by `no-nested-ternary`.
 - **Conditional fields are assigned, not spread.** Declare the object with its
   unconditional fields, then assign the optional ones under an `if`; never
-  `...(cond ? { x } : {})`. Works with `exactOptionalPropertyTypes`. Enforced
-  by `no-restricted-syntax`.
+  `...(cond ? { x } : {})`. Works with `exactOptionalPropertyTypes`. NOT
+  machine-checked: oxlint has no `no-restricted-syntax`, and ESLint's copy
+  already carries the enum and import selectors at `error`, where a new one
+  would fail ~255 existing sites. Reviewers hold this one.
 - **`as const` map names are PascalCase and plural, their `ValueOf` type
   singular** — `const PullRequestSources = {...} as const;`
   `type PullRequestSource = ValueOf<typeof PullRequestSources>`. SHOUT_CASE is
