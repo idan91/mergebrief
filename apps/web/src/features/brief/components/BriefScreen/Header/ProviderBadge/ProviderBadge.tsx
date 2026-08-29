@@ -4,6 +4,7 @@ import type { Brief } from "../../../../types";
 // currentColor inherits. Real logos only — never a hand-drawn approximation.
 import AnthropicMark from "./marks/anthropic.svg?react";
 import ClaudeCodeMark from "./marks/claude-code.svg?react";
+import CursorMark from "./marks/cursor.svg?react";
 import GenericProviderMark from "./marks/generic.svg?react";
 import OpenAiMark from "./marks/openai.svg?react";
 import OpenRouterMark from "./marks/openrouter.svg?react";
@@ -32,13 +33,14 @@ const PROVIDER_CLASS_TAG: Record<string, ProviderGenerationType> = {
 };
 
 /**
- * Official marks by provider slug. `codex` and `cursor` are deliberately
- * absent — no vetted standalone logomark ships for either, so both take the
- * named fallback rather than an approximation.
+ * Official marks by provider slug. `codex` is deliberately absent: OpenAI
+ * publishes no standalone Codex logomark, so it takes the named fallback
+ * rather than an approximation.
  */
 const PROVIDER_CONFIGS: Record<string, MarkConfig> = {
   anthropic: { mark: AnthropicMark, name: "Anthropic" },
   "claude-code": { mark: ClaudeCodeMark, name: "Claude Code" },
+  cursor: { mark: CursorMark, name: "Cursor" },
   openai: { mark: OpenAiMark, name: "OpenAI" },
   openrouter: { mark: OpenRouterMark, name: "OpenRouter" },
 };

@@ -15,13 +15,14 @@ import {
   type FloorAttempt,
   type RunWithSchemaFloorArgs,
 } from "../validation/enforceSchema";
+import { enumPreservingJsonSchema } from "../validation/jsonSchema";
 import type {
   GenerateRequest,
   Generator,
   Logger,
   TokenUsage,
 } from "../contract/generator";
-import { harnessTimeoutError } from "../harness/redact";
+import { harnessTimeoutError, redactSecrets } from "../harness/redact";
 import {
   resolveHarnessTimeouts,
   runHarnessProcess,
@@ -41,7 +42,9 @@ import type { Effort, Generation } from "../contract/generation";
  *    `runWithSchemaFloor` is the ONLY enforcement.
  * 2. Abort rejections propagate untouched.
  * 3. Origin is a declaration — no served-model signal exists, so no
- *    mismatch hook; unset model stamps "cursor-default" with effort null.
+ *    mismatch hook; unset model stamps "cursor-default". Effort rides the
+ *    model-id VARIANT (`--model` accepts only `--list-models` ids, no
+ *    bracket overrides); the stamp parses the id's suffix.
  * 4. No secrets in errors: stderr classifies via allowlist to fixed text
  *    (redacted tail only via `harnessTimeoutError`); the probe's
  *    `userEmail` never leaves it.
@@ -53,13 +56,42 @@ import type { Effort, Generation } from "../contract/generation";
 
 const CURSOR_DEFAULT_MODEL_TOKEN = "cursor-default";
 
+/**
+ * The transport's answer-shape contract, stitched at the END of every
+ * prompt: plan-mode models (grok, composer) narrate around or instead of
+ * the answer, and omit empty required arrays. Recovery exists
+ * (extractJsonCandidate + the floor), but compliance beats salvage.
+ */
+const CURSOR_OUTPUT_CONTRACT =
+  "Respond with ONLY the JSON object conforming to the schema above — no narration, no plan, no code fences, no text before or after the object. " +
+  "Every field the schema requires must be present: emit empty arrays as [] rather than omitting them.";
+
+/**
+ * The `--list-models` id vocabulary bakes effort into the id
+ * (`gpt-5.2-high`, `cursor-grok-4.6-low-fast`). Parse the suffix back into
+ * the normalized vocabulary; anything outside it (bare ids, `-xhigh`)
+ * stamps null — the id itself carries the full truth either way.
+ */
+const BAKED_EFFORT_SHAPE = /-(low|medium|high|xhigh)(?:-fast)?$/;
+
+function parseBakedEffort(model: string): Effort | null {
+  const match = BAKED_EFFORT_SHAPE.exec(model);
+  if (match === null) return null;
+  const suffix = match[1];
+  if (suffix === "low" || suffix === "medium" || suffix === "high") {
+    return suffix;
+  }
+  return null; // -xhigh: outside the normalized vocabulary.
+}
+
 export interface CursorGeneratorOptions {
   /** Binary path or name (PATH-resolved by spawn). */
   command: string;
   /**
-   * BARE model id for --model (the effort bracket is appended per request);
-   * absent → the CLI's configured default runs (the origin stamp shows
-   * "cursor-default" and effort null — no flag, no bracket to carry it).
+   * Model id for --model, VERBATIM from `--list-models` — effort rides the
+   * id variant (`gpt-5.2-high`, `cursor-grok-4.6-low`); bracket overrides
+   * are rejected by the CLI (execution-verified). Absent → the CLI's
+   * configured default runs (the origin stamp shows "cursor-default").
    */
   model?: string | undefined;
   failureDir: string;
@@ -84,21 +116,45 @@ export class CursorGenerator implements Generator {
   }
 
   origin(effort: Effort): Generation {
+    // Effort rides the model-id VARIANT, never a knob of its own — the
+    // stamp echoes what the id itself declares, not what was requested.
+    void effort;
     if (this.model === undefined) {
-      // No --model flag → no bracket to carry effort: both gaps surface.
       return {
         provider: "cursor",
         model: CURSOR_DEFAULT_MODEL_TOKEN,
         effort: null,
       };
     }
-    return { provider: "cursor", model: this.model, effort };
+    return {
+      provider: "cursor",
+      model: this.model,
+      effort: parseBakedEffort(this.model),
+    };
   }
 
   async generate<S extends z.ZodType>(
     req: GenerateRequest<S>,
   ): Promise<z.infer<S>> {
     const log = req.log ?? (() => {});
+
+    // The CLI has no schema flag, so the wire schema rides the PROMPT —
+    // this adapter's equivalent of claude's --json-schema / codex's
+    // --output-schema. Without it the model is told to conform to a schema
+    // it never received (prompt.ts says "the provided JSON schema").
+    let wireSchema: Record<string, unknown>;
+    try {
+      wireSchema = enumPreservingJsonSchema(req.schema);
+    } catch (error) {
+      throw new GeneratorError(
+        GeneratorErrorKind.CONFIG,
+        `schema for ${req.label} is not representable as a strict JSON schema: ${
+          error instanceof Error ? error.message : "unknown error"
+        }`,
+        { cause: error },
+      );
+    }
+    const schemaBlock = `The JSON schema your response must conform to:\n${JSON.stringify(wireSchema)}`;
 
     // Fresh EMPTY temp cwd per generate(): plan mode still reads the
     // workspace, so a generation must never see repo or ambient files.
@@ -111,11 +167,13 @@ export class CursorGenerator implements Generator {
       failureDir: this.failureDir,
       log,
       attempt: async (feedback) => {
-        // Stateless CLI: every retry is a fresh process, feedback stitched
-        // into stdin (no system-prompt channel).
+        // Stateless CLI: every retry is a fresh process — system, schema,
+        // feedback stitch into stdin; the output contract sits LAST
+        // (the final instruction carries the most weight).
+        const base = `${req.system}\n\n${schemaBlock}\n\n${req.user}`;
         const prompt = feedback
-          ? `${req.system}\n\n${req.user}\n\n[Your previous response]\n${feedback.raw}\n\n${schemaFeedbackMessage(feedback.error)}`
-          : `${req.system}\n\n${req.user}`;
+          ? `${base}\n\n[Your previous response]\n${feedback.raw}\n\n${schemaFeedbackMessage(feedback.error)}\n\n${CURSOR_OUTPUT_CONTRACT}`
+          : `${base}\n\n${CURSOR_OUTPUT_CONTRACT}`;
         log(
           `${feedback ? "retrying" : "generating"} ${req.label} via ${this.command}…`,
         );
@@ -128,7 +186,14 @@ export class CursorGenerator implements Generator {
           "--trust",
         ];
         if (this.model !== undefined) {
-          argv.push("--model", `${this.model}[effort=${req.effort}]`);
+          // VERBATIM — the CLI accepts only --list-models ids; bracket
+          // overrides are rejected outright (execution-verified).
+          argv.push("--model", this.model);
+          if (parseBakedEffort(this.model) !== req.effort) {
+            log(
+              `note: cursor selects effort via the model-id variant — requested effort ${req.effort} does not ride the wire (configured id: ${this.model})`,
+            );
+          }
         }
         const runArgs: HarnessRunArgs = {
           command: this.command,
@@ -181,7 +246,13 @@ function classifyStderr(
       `${command}: not authenticated for ${label} — run \`cursor-agent login\` or set CURSOR_API_KEY`,
     );
   }
-  if (stderrTail.includes("Cannot use this model")) {
+  // Both needles: the rejection lists ~200 available ids after the prefix,
+  // which flushes "Cannot use this model" out of the 4KB rolling tail —
+  // "Available models" is what survives at the end.
+  if (
+    stderrTail.includes("Cannot use this model") ||
+    stderrTail.includes("Available models")
+  ) {
     return new GeneratorError(
       GeneratorErrorKind.CONFIG,
       `${command}: rejected the configured model for ${label} — check \`cursor-agent --list-models\``,
@@ -332,15 +403,29 @@ function interpretCursorRun(args: InterpretCursorRunArgs): FloorAttempt {
   if (envelope?.usage) args.onUsage?.(envelope.usage);
 
   if (envelope === null || run.exitCode !== 0) {
-    const classified = classifyStderr(command, label, run.stderrTail);
+    // Head AND tail: the failure prefix lives at the head, and a long
+    // payload after it (the ~200-id available-models list) flushes it out
+    // of the rolling tail.
+    const classified = classifyStderr(
+      command,
+      label,
+      `${run.stderrHead}\n${run.stderrTail}`,
+    );
     if (classified) throw classified;
     const outcome =
       envelope === null
         ? "without a result envelope"
         : "after a result envelope";
+    // stderr is this CLI's ONLY error channel (nothing rides in-band), so an
+    // unclassified failure carries the head (where the cause is stated) —
+    // redacted BEFORE truncating, same boundary as harnessTimeoutError.
+    const detail = redactSecrets(
+      (run.stderrHead === "" ? run.stderrTail : run.stderrHead).trim(),
+    ).slice(0, 500);
+    const stderrNote = detail === "" ? "" : `; stderr: ${detail}`;
     throw new GeneratorError(
       GeneratorErrorKind.OPAQUE,
-      `${command} exited (code ${run.exitCode ?? `signal ${run.exitSignal ?? "unknown"}`}) ${outcome} for ${label}`,
+      `${command} exited (code ${run.exitCode ?? `signal ${run.exitSignal ?? "unknown"}`}) ${outcome} for ${label}${stderrNote}`,
     );
   }
   if (envelope.isError) {
@@ -355,7 +440,72 @@ function interpretCursorRun(args: InterpretCursorRunArgs): FloorAttempt {
       invalidReason: `No output for ${label} (subtype=${renderSubtype(envelope.subtype)})`,
     };
   }
-  return { raw: envelope.result };
+  // No native schema enforcement + plan-mode framing ⇒ the model narrates
+  // around the JSON ("I'll inspect the workspace…{…}"). Hand the floor the
+  // first balanced JSON object as a CANDIDATE — the floor still validates
+  // it and falls back to the raw text; extraction is never the mechanism.
+  const attempt: FloorAttempt = { raw: envelope.result };
+  const candidate = extractJsonCandidate(envelope.result);
+  if (candidate !== undefined) attempt.parsed = candidate;
+  return attempt;
+}
+
+/**
+ * LAST parseable balanced top-level JSON object in the text, respecting
+ * strings and escapes; undefined when none parses. Last, not first: the
+ * answer follows the narration, and with the wire schema riding the prompt
+ * a model may echo the schema object before it — every earlier span
+ * (narration braces, the echo) must not shadow the answer. The floor still
+ * validates whatever this picks. Bounded single pass — no regex.
+ */
+function extractJsonCandidate(text: string): unknown {
+  let candidate: unknown;
+  let found = false;
+  let start = text.indexOf("{");
+  // Span-attempt bound: narration carries a handful of braces; a hostile
+  // many-brace flood must not turn the rescan quadratic against the 16M
+  // stdout cap. Past the bound the floor's raw path still judges the text.
+  let attempts = 0;
+  while (start !== -1 && attempts < 32) {
+    attempts++;
+    const end = findBalancedEnd(text, start);
+    if (end === -1) {
+      start = text.indexOf("{", start + 1);
+      continue;
+    }
+    try {
+      candidate = JSON.parse(text.slice(start, end + 1));
+      found = true;
+      start = text.indexOf("{", end + 1);
+    } catch {
+      start = text.indexOf("{", start + 1);
+    }
+  }
+  return found ? candidate : undefined;
+}
+
+/** Index of the brace closing the object opened at `start`, or -1. */
+function findBalancedEnd(text: string, start: number): number {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (escaped) {
+      escaped = false;
+    } else if (inString) {
+      if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+    } else if (ch === '"') {
+      inString = true;
+    } else if (ch === "{") {
+      depth++;
+    } else if (ch === "}") {
+      depth--;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
 }
 
 /**

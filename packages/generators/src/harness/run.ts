@@ -37,6 +37,9 @@ export const DEFAULT_HARNESS_TIMEOUTS: HarnessTimeouts = {
  */
 const STDERR_TAIL_UNITS = 4096;
 
+/** How much of stderr's HEAD is retained (same unit caveats as the tail). */
+const STDERR_HEAD_UNITS = 1024;
+
 /**
  * Default cap on accumulated stdout (UTF-16 code units). A flooding CLI
  * keeps resetting the inactivity watchdog, so without a size bound it can
@@ -90,6 +93,12 @@ export interface HarnessRunArgs {
 
 export interface HarnessRunResult {
   stdout: string;
+  /**
+   * First ~1 KB of stderr — failure PREFIXES live at the head, and a long
+   * payload after them (cursor's ~200-id available-models list) flushes
+   * them out of the rolling tail below.
+   */
+  stderrHead: string;
   /** Last ~4 KB of stderr — classification context, never dumped wholesale. */
   stderrTail: string;
   exitCode: number | null;
@@ -123,6 +132,7 @@ export async function runHarnessProcess(
     });
 
     let stdout = "";
+    let stderrHead = "";
     let stderrTail = "";
     let lineBuffer = "";
     let timedOut: HarnessRunResult["timedOut"] = null;
@@ -278,6 +288,9 @@ export async function runHarnessProcess(
     });
     child.stderr.on("data", (text: string) => {
       resetInactivity();
+      if (stderrHead.length < STDERR_HEAD_UNITS) {
+        stderrHead = (stderrHead + text).slice(0, STDERR_HEAD_UNITS);
+      }
       stderrTail = (stderrTail + text).slice(-STDERR_TAIL_UNITS);
     });
 
@@ -328,7 +341,14 @@ export async function runHarnessProcess(
         );
         return;
       }
-      resolve({ stdout, stderrTail, exitCode, exitSignal, timedOut });
+      resolve({
+        stdout,
+        stderrHead,
+        stderrTail,
+        exitCode,
+        exitSignal,
+        timedOut,
+      });
     });
   });
 }

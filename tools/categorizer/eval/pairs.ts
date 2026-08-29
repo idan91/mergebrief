@@ -13,7 +13,12 @@ import {
   type AnchorPlan,
   type CompareFiles,
 } from "worker";
-import { loadBaseline, saveBaseline } from "./baseline";
+import {
+  BaselineModes,
+  loadBaseline,
+  saveBaseline,
+  type BaselineMode,
+} from "./baseline";
 import { FixtureSchema, toRepoContext, type EvalFixture } from "./loadCase";
 import type { CaseOutcome } from "./report";
 import { persistRunBriefs } from "./specimens";
@@ -427,7 +432,7 @@ export async function evaluatePairCase(
   effort: Effort,
   runs: number,
   key: string,
-  rebaseline: boolean,
+  baselineMode: BaselineMode,
   outDir: string,
   progress: (message: string) => void,
   mode: PairRunMode = "anchored",
@@ -456,28 +461,31 @@ export async function evaluatePairCase(
   const baselinePath = join(pairCase.dir, "baseline.json");
   let baseline: CaseOutcome["baseline"] = null;
   let rebaselined = false;
-  if (!rebaseline) {
+  if (baselineMode === BaselineModes.COMPARE) {
     const loaded = loadBaseline(baselinePath, key);
     if (!loaded.ok) return loaded;
     baseline = loaded.value;
-  } else if (result.generationFailures > 0) {
-    progress(
-      `  ${pairCase.id}: NOT rebaselining — ${result.generationFailures} run failures`,
-    );
-    for (const message of result.failureMessages) {
-      progress(`    ${message}`);
+  } else if (baselineMode === BaselineModes.REBASELINE) {
+    if (result.generationFailures > 0) {
+      progress(
+        `  ${pairCase.id}: NOT rebaselining — ${result.generationFailures} run failures`,
+      );
+      for (const message of result.failureMessages) {
+        progress(`    ${message}`);
+      }
+    } else {
+      saveBaseline(baselinePath, {
+        key,
+        runs: result.pairs.length,
+        properties: Object.fromEntries(
+          [...scored.scores.entries()].map(([id, score]) => [id, score.passes]),
+        ),
+      });
+      rebaselined = true;
+      progress(`  ${pairCase.id}: baseline written (${key})`);
     }
-  } else {
-    saveBaseline(baselinePath, {
-      key,
-      runs: result.pairs.length,
-      properties: Object.fromEntries(
-        [...scored.scores.entries()].map(([id, score]) => [id, score.passes]),
-      ),
-    });
-    rebaselined = true;
-    progress(`  ${pairCase.id}: baseline written (${key})`);
   }
+  // NONE: characterization — scores report with no comparison.
   return {
     ok: true,
     value: {

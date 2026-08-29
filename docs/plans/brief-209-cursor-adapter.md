@@ -83,6 +83,9 @@ interpreter, optional model, prompt concatenation, probe const.
      allowed; unset → no flag, stamp `"cursor-default"`). Effort is real via
      bracket override `model[effort=x]`, stamped. No mismatch hook — origin is
      unverifiable by design; one doc line says so.
+     *(Amended in-flight, 2026-08-28: execution disproved the bracket —
+     `--model` accepts only verbatim `--list-models` ids; effort rides the
+     id VARIANT and the stamp parses its suffix. See the capabilities doc §3.)*
    - **Env:** add `CURSOR_API_ENDPOINT` to `HARNESS_STRIPPED_CREDENTIAL_VARS`
      in `harness/run.ts`; `CURSOR_API_KEY` deliberately survives the strip
      (same subscription pool).

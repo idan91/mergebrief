@@ -124,25 +124,33 @@ describe("CursorGenerator invocation profile", () => {
       "plan",
       "--trust",
     ]);
-    // System + user prompt both travel by stdin (the CLI has no system
-    // channel), system first.
+    // System, wire schema, user, and the output contract all travel by
+    // stdin (the CLI has no system channel and NO schema flag — the prompt
+    // is the only place the model ever sees the schema), in that order.
     const stdin = readFileSync(join(scriptDir, "stdin-0.txt"), "utf8");
-    expect(stdin).toBe("you are a test\n\nproduce ok");
+    expect(stdin.startsWith("you are a test")).toBe(true);
+    const schemaAt = stdin.indexOf('"ok"');
+    const userAt = stdin.indexOf("produce ok");
+    const contractAt = stdin.indexOf("ONLY the JSON object");
+    expect(schemaAt).toBeGreaterThan(0);
+    expect(userAt).toBeGreaterThan(schemaAt);
+    expect(contractAt).toBeGreaterThan(userAt);
+    expect(stdin).toContain("emit empty arrays as []");
     // Spawn cwd is a fresh empty temp dir, not the worker's own cwd.
     const cwd = readFileSync(join(scriptDir, "cwd-0.txt"), "utf8");
     expect(cwd).not.toBe(process.cwd());
     expect(cwd).toContain("cursor-gen-");
   });
 
-  it("rides the effort knob into the model-id bracket override", async () => {
+  it("sends the configured model id VERBATIM — never a bracket override", async () => {
+    // The CLI accepts only --list-models ids; a bracket-decorated id is
+    // rejected outright (execution-verified), so effort never decorates it.
     const { generator, scriptDir } = scriptedGenerator([
       { output: '{"ok":true}' },
     ]);
     await expect(
       generator.generate({ ...request(), effort: "high" }),
     ).resolves.toEqual({ ok: true });
-    // No model → no --model flag even at non-default effort: there is no id
-    // to carry the bracket.
     const bare: unknown = JSON.parse(
       readFileSync(join(scriptDir, "argv-0.json"), "utf8"),
     );
@@ -155,6 +163,7 @@ describe("CursorGenerator invocation profile", () => {
       "--trust",
     ]);
     const withModel = scriptedGenerator([{ output: '{"ok":true}' }]);
+    const logs: string[] = [];
     const modelGenerator = makeGenerator(
       {
         SHIM_SCENARIO: "scripted",
@@ -163,7 +172,10 @@ describe("CursorGenerator invocation profile", () => {
       { model: "gpt-5.2" },
     );
     await expect(
-      modelGenerator.generate({ ...request(), effort: "high" }),
+      modelGenerator.generate({
+        ...request({ log: (m) => logs.push(m) }),
+        effort: "high",
+      }),
     ).resolves.toEqual({ ok: true });
     const argv: unknown = JSON.parse(
       readFileSync(join(withModel.scriptDir, "argv-0.json"), "utf8"),
@@ -176,19 +188,43 @@ describe("CursorGenerator invocation profile", () => {
       "plan",
       "--trust",
       "--model",
-      "gpt-5.2[effort=high]",
+      "gpt-5.2",
     ]);
+    // Requested effort can't ride a bare id — the gap is logged, not silent.
+    expect(logs.join("\n")).toContain("does not ride the wire");
   });
 
-  it("stamps the configured model and echoes effort only when it rides", () => {
-    const configured = makeGenerator({}, { model: "gpt-5.2" });
-    expect(configured.origin("high")).toEqual({
-      provider: "cursor",
-      model: "gpt-5.2",
-      effort: "high",
-    });
-    // No model → no --model flag → no bracket to carry effort: both gaps
-    // surface honestly.
+  it("stays quiet when the id variant already carries the requested effort", async () => {
+    const { scriptDir } = scriptedGenerator([{ output: '{"ok":true}' }]);
+    const logs: string[] = [];
+    const generator = makeGenerator(
+      { SHIM_SCENARIO: "scripted", SHIM_SCRIPT_DIR: scriptDir },
+      { model: "gpt-5.2-high" },
+    );
+    await expect(
+      generator.generate({
+        ...request({ log: (m) => logs.push(m) }),
+        effort: "high",
+      }),
+    ).resolves.toEqual({ ok: true });
+    expect(logs.join("\n")).not.toContain("does not ride the wire");
+  });
+
+  it("stamps effort parsed from the id variant, null outside the vocabulary", () => {
+    const cases: Array<[string, "low" | "medium" | "high" | null]> = [
+      ["gpt-5.2", null],
+      ["gpt-5.2-high", "high"],
+      ["gpt-5.2-low-fast", "low"],
+      ["cursor-grok-4.6-medium", "medium"],
+      ["cursor-grok-4.6-xhigh", null],
+    ];
+    for (const [model, effort] of cases) {
+      expect(makeGenerator({}, { model }).origin("high")).toEqual({
+        provider: "cursor",
+        model,
+        effort,
+      });
+    }
     const defaulted = makeGenerator({});
     expect(defaulted.origin("high")).toEqual({
       provider: "cursor",
@@ -202,6 +238,44 @@ describe("CursorGenerator envelope handling", () => {
   it("resolves a schema-valid answer through the floor", async () => {
     const generator = makeGenerator({ SHIM_SCENARIO: "valid" });
     await expect(generator.generate(request())).resolves.toEqual({ ok: true });
+  });
+
+  it("recovers JSON the model wrapped in narration, in ONE attempt", async () => {
+    // The observed failure shape: plan-mode narration glued to the answer.
+    // The extracted candidate must save the attempt (floor-validated), with
+    // no feedback retry spent.
+    const { generator, scriptDir } = scriptedGenerator([
+      {
+        output:
+          'I\'ll look up the brief schema so the JSON matches.{"ok":true}Done.',
+      },
+    ]);
+    await expect(generator.generate(request())).resolves.toEqual({ ok: true });
+    expect(readFileSync(join(scriptDir, "counter"), "utf8")).toBe("1");
+  });
+
+  it("still floor-fails narration with no JSON inside", async () => {
+    const { generator, scriptDir } = scriptedGenerator([
+      { output: "I'll inspect the workspace and report back." },
+      { output: "Still thinking about it." },
+    ]);
+    const caught = await rejection(generator.generate(request()));
+    expect(caught.kind).toBe(GeneratorErrorKind.SCHEMA_FLOOR);
+    // Both attempts spent: prose with no JSON is a real schema failure.
+    expect(readFileSync(join(scriptDir, "counter"), "utf8")).toBe("2");
+  });
+
+  it("skips narration braces and a schema echo to find the real answer", async () => {
+    // With the wire schema riding the prompt, a model may echo it (or use
+    // braces in prose) BEFORE the answer — the LAST parseable object wins.
+    const { generator, scriptDir } = scriptedGenerator([
+      {
+        output:
+          'I\'ll emit {ok, tags} per the schema {"type":"object","properties":{}}. {"ok":true}',
+      },
+    ]);
+    await expect(generator.generate(request())).resolves.toEqual({ ok: true });
+    expect(readFileSync(join(scriptDir, "counter"), "utf8")).toBe("1");
   });
 
   it("reports envelope usage tokens through onUsage", async () => {
@@ -335,22 +409,38 @@ describe("CursorGenerator stderr taxonomy", () => {
     expect(caught.message).not.toContain("Available models");
   });
 
+  it("still classifies a rejected model when the id list flushes the prefix", async () => {
+    // Real-CLI shape: ~200 available ids follow the rejection, pushing
+    // "Cannot use this model" out of the 4KB rolling stderr tail.
+    const generator = makeGenerator({
+      SHIM_SCENARIO: "stderr-exit",
+      SHIM_STDERR: `Cannot use this model: bad[effort=high]. Available models: ${Array.from({ length: 300 }, (_, i) => `model-${i}-medium`).join(", ")}\n`,
+    });
+    const caught = await rejection(generator.generate(request()));
+    expect(caught.kind).toBe(GeneratorErrorKind.CONFIG);
+  });
+
   it("classifies an unknown option as config", async () => {
     const generator = makeGenerator({ SHIM_SCENARIO: "stderr-unknown-option" });
     const caught = await rejection(generator.generate(request()));
     expect(caught.kind).toBe(GeneratorErrorKind.CONFIG);
   });
 
-  it("falls back to opaque with the exit code for unrecognized stderr", async () => {
+  it("falls back to opaque with the exit code and a REDACTED stderr tail", async () => {
+    // stderr is cursor's only error channel — an unclassified failure must
+    // carry the tail (unlike claude/codex, whose errors ride in-band), with
+    // credential-shaped substrings stripped at the redactSecrets boundary.
     const generator = makeGenerator({
       SHIM_SCENARIO: "stderr-exit",
-      SHIM_STDERR: "segfault-SENTINEL details\n",
+      SHIM_STDERR: "Unknown model family; api_key=sk-SENTINELSECRET\n",
       SHIM_EXIT_CODE: "7",
     });
     const caught = await rejection(generator.generate(request()));
     expect(caught.kind).toBe(GeneratorErrorKind.OPAQUE);
     expect(caught.message).toContain("7");
-    expect(caught.message).not.toContain("SENTINEL");
+    expect(caught.message).toContain("Unknown model family");
+    expect(caught.message).toContain("(redacted)");
+    expect(caught.message).not.toContain("SENTINELSECRET");
   });
 
   it("classifies an exit without a result envelope as opaque", async () => {
@@ -453,7 +543,9 @@ describe("cursor registry entry", () => {
     );
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.error.issues.join("; ")).toContain("bare model id");
+    expect(result.error.issues.join("; ")).toContain(
+      "bracket overrides are rejected",
+    );
   });
 
   it("rejects unknown option keys strictly", async () => {

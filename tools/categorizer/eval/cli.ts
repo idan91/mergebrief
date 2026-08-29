@@ -14,7 +14,13 @@ import {
 import type { Result } from "types";
 import { categorize } from "brief-core";
 import { extractConfigFlag } from "brief-core/cli-config";
-import { loadBaseline, preflightBaselineKeys, saveBaseline } from "./baseline";
+import {
+  BaselineModes,
+  loadBaseline,
+  preflightBaselineKeys,
+  saveBaseline,
+  type BaselineMode,
+} from "./baseline";
 import { textLengthNotes } from "./length";
 import { loadPrices, priceUsage } from "./cost";
 import { loadCases, type EvalCase } from "./loadCase";
@@ -36,7 +42,7 @@ import { withUsageSink } from "./usageSink";
  * `pnpm -C tools/categorizer eval` — the generation regression runner.
  *
  *   eval [--config <mergebrief.config.yaml>] [--case <id>] [--runs N]
- *        [--rebaseline] [--prices <prices.json>]
+ *        [--rebaseline] [--no-baseline] [--prices <prices.json>]
  *
  * Exit codes: 0 clean · 1 = ≥1 REGRESSION · 2 = config/usage error.
  * On-demand only, never wired into CI — every run is live API spend. Report
@@ -59,6 +65,7 @@ const DEFAULT_EFFORT: Effort = "medium";
 const SUBSCRIPTION_PROVIDERS: ReadonlySet<string> = new Set<Provider>([
   Providers.CLAUDE_CODE,
   Providers.CODEX,
+  Providers.CURSOR,
 ]);
 const DEFAULT_RUNS = 5;
 
@@ -67,6 +74,12 @@ export interface EvalArgs {
   caseId?: string;
   runs: number;
   rebaseline: boolean;
+  /**
+   * Characterization: run a generator key with NO committed baseline (a
+   * cross-model run) — skips the key preflight and the comparison; verdicts
+   * render as no-baseline. Never combinable with --rebaseline.
+   */
+  noBaseline: boolean;
   pricesPath: string;
   /**
    * Vacuous-pass probe: pair cases run BOTH generations fresh — no anchor
@@ -84,6 +97,7 @@ export function parseEvalArgs(argv: string[]): Result<EvalArgs, string> {
     configPath: flagged.configPath,
     runs: DEFAULT_RUNS,
     rebaseline: false,
+    noBaseline: false,
     pricesPath: join(here, "prices.json"),
     pairFresh: false,
   };
@@ -91,6 +105,8 @@ export function parseEvalArgs(argv: string[]): Result<EvalArgs, string> {
     const flag = rest.shift();
     if (flag === "--rebaseline") {
       args.rebaseline = true;
+    } else if (flag === "--no-baseline") {
+      args.noBaseline = true;
     } else if (flag === "--pair-fresh") {
       args.pairFresh = true;
     } else if (flag === "--case" || flag === "--runs" || flag === "--prices") {
@@ -115,6 +131,13 @@ export function parseEvalArgs(argv: string[]): Result<EvalArgs, string> {
     return {
       ok: false,
       error: "--pair-fresh is the vacuous-pass probe — never a baseline source",
+    };
+  }
+  if (args.noBaseline && args.rebaseline) {
+    return {
+      ok: false,
+      error:
+        "--no-baseline characterizes without a baseline; --rebaseline writes one — pick one",
     };
   }
   return { ok: true, value: args };
@@ -164,7 +187,7 @@ async function evaluateCase(
   effort: Effort,
   runs: number,
   key: string,
-  rebaseline: boolean,
+  baselineMode: BaselineMode,
   progress: (message: string) => void,
 ): Promise<Result<EvaluatedCase, string>> {
   const { fixture } = evalCase;
@@ -188,25 +211,28 @@ async function evaluateCase(
   const baselinePath = join(evalCase.dir, "baseline.json");
   let baseline: CaseOutcome["baseline"] = null;
   let rebaselined = false;
-  if (!rebaseline) {
+  if (baselineMode === BaselineModes.COMPARE) {
     const loaded = loadBaseline(baselinePath, key);
     if (!loaded.ok) return loaded;
     baseline = loaded.value;
-  } else if (result.generationFailures > 0) {
-    progress(
-      `  ${evalCase.id}: NOT rebaselining — ${result.generationFailures} generation failures`,
-    );
-  } else {
-    saveBaseline(baselinePath, {
-      key,
-      runs: result.briefs.length,
-      properties: Object.fromEntries(
-        [...scored.scores.entries()].map(([id, score]) => [id, score.passes]),
-      ),
-    });
-    rebaselined = true;
-    progress(`  ${evalCase.id}: baseline written (${key})`);
+  } else if (baselineMode === BaselineModes.REBASELINE) {
+    if (result.generationFailures > 0) {
+      progress(
+        `  ${evalCase.id}: NOT rebaselining — ${result.generationFailures} generation failures`,
+      );
+    } else {
+      saveBaseline(baselinePath, {
+        key,
+        runs: result.briefs.length,
+        properties: Object.fromEntries(
+          [...scored.scores.entries()].map(([id, score]) => [id, score.passes]),
+        ),
+      });
+      rebaselined = true;
+      progress(`  ${evalCase.id}: baseline written (${key})`);
+    }
   }
+  // NONE: characterization — scores report with no comparison.
   return {
     ok: true,
     value: {
@@ -234,7 +260,7 @@ async function main(): Promise<void> {
   if (!parsed.ok) {
     console.error(parsed.error);
     console.error(
-      "usage: pnpm eval [--config <yaml>] [--case <id>] [--runs N] [--rebaseline] [--pair-fresh] [--prices <json>]",
+      "usage: pnpm eval [--config <yaml>] [--case <id>] [--runs N] [--rebaseline] [--no-baseline] [--pair-fresh] [--prices <json>]",
     );
     process.exit(2);
   }
@@ -277,9 +303,14 @@ async function main(): Promise<void> {
     process.exit(2);
   }
 
+  let baselineMode: BaselineMode = BaselineModes.COMPARE;
+  if (args.rebaseline) baselineMode = BaselineModes.REBASELINE;
+  else if (args.noBaseline) baselineMode = BaselineModes.NONE;
+
   // Refuse cross-key runs before the first generation spends money.
-  // --rebaseline intends to overwrite keys, so it skips the preflight.
-  if (!args.rebaseline) {
+  // --rebaseline intends to overwrite keys and --no-baseline compares
+  // nothing, so only the compare mode preflights.
+  if (baselineMode === BaselineModes.COMPARE) {
     const preflight = preflightBaselineKeys(
       [...singleCases, ...pairCases],
       key,
@@ -324,7 +355,7 @@ async function main(): Promise<void> {
       generator.value.effort,
       args.runs,
       key,
-      args.rebaseline,
+      baselineMode,
       (message) => console.error(message),
     );
     if (!evaluated.ok) {
@@ -344,7 +375,7 @@ async function main(): Promise<void> {
       generator.value.effort,
       args.runs,
       key,
-      args.rebaseline,
+      baselineMode,
       OUT_DIR,
       (message) => console.error(message),
       args.pairFresh ? "fresh" : "anchored",

@@ -23,6 +23,7 @@ describe("ProviderBadge", () => {
     ["openai", "OpenAI", "API"],
     ["openrouter", "OpenRouter", "API"],
     ["claude-code", "Claude Code", "CLI"],
+    ["cursor", "Cursor", "CLI"],
   ] as const)(
     "%s: official mark (aria-hidden) + sr-only name + %s class tag",
     (provider, name, tag) => {
@@ -55,22 +56,6 @@ describe("ProviderBadge", () => {
       />,
     );
     expect(badge().textContent).toContain("codex");
-    expect(badge().textContent).toContain("CLI");
-    expect(badge().querySelector("svg")).toBeTruthy();
-  });
-
-  it("cursor takes the named fallback: generic glyph + visible token, CLI tag", () => {
-    // Model id deliberately free of the provider token (see the codex case).
-    render(
-      <ProviderBadge
-        generation={{
-          provider: "cursor",
-          model: "gpt-5.2",
-          effort: null,
-        }}
-      />,
-    );
-    expect(badge().textContent).toContain("cursor");
     expect(badge().textContent).toContain("CLI");
     expect(badge().querySelector("svg")).toBeTruthy();
   });

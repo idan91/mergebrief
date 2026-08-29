@@ -362,14 +362,19 @@ describe("runHarnessProcess", () => {
     });
   });
 
-  it("captures a bounded stderr tail", async () => {
+  it("captures a bounded stderr head and tail", async () => {
+    // Long stderr keeps BOTH ends: the head (failure prefixes live there —
+    // a payload after them flushes the rolling tail) and the tail.
     const big = "x".repeat(10_000);
     const result = await run("stderr-exit", {
-      env: { SHIM_STDERR: `${big}THE-END`, SHIM_EXIT_CODE: "3" },
+      env: { SHIM_STDERR: `THE-START${big}THE-END`, SHIM_EXIT_CODE: "3" },
     });
     expect(result.exitCode).toBe(3);
+    expect(result.stderrHead.length).toBeLessThanOrEqual(1024);
+    expect(result.stderrHead).toContain("THE-START");
     expect(result.stderrTail.length).toBeLessThanOrEqual(4096);
     expect(result.stderrTail).toContain("THE-END");
+    expect(result.stderrTail).not.toContain("THE-START");
   });
 });
 

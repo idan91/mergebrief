@@ -20,6 +20,7 @@ import {
   type PairEvalProperty,
   type RevisionPair,
 } from "../eval/pairs";
+import { BaselineModes } from "../eval/baseline";
 import { parseEvalArgs } from "../eval/cli";
 
 /** Serves canned generation outputs in call order (run1 base, run1 revised, …). */
@@ -328,7 +329,7 @@ describe("evaluatePairCase", () => {
       "medium",
       1,
       "fake:fake-model",
-      false,
+      BaselineModes.COMPARE,
       outDir,
       () => {},
     );
@@ -372,7 +373,7 @@ describe("evaluatePairCase", () => {
       "medium",
       1,
       "fake:fake-model",
-      false,
+      BaselineModes.COMPARE,
       outDir,
       () => {},
     );
@@ -381,6 +382,42 @@ describe("evaluatePairCase", () => {
     const notes = evaluated.value.outcome.notes.join("\n");
     expect(notes).toContain("revised text length: 1/1 runs over cap");
     expect(notes).not.toContain("base text length");
+  });
+
+  it("no-baseline mode neither loads nor writes baseline.json", async () => {
+    // The characterization guard: a branch flip sending NONE into the write
+    // path would overwrite a committed baseline during a cross-model run.
+    const root = writePairCase("demo-pair", EXPECTED_TS);
+    const cases = await loadPairCases(root);
+    if (!cases.ok) throw new Error(cases.error);
+    const pairCase = cases.value[0];
+    if (pairCase === undefined) throw new Error("no case");
+    const outputs = () => [
+      genOutput([
+        { id: "g1", title: "alpha", file: "a.ts", start: 5 },
+        { id: "g2", title: "beta", file: "b.ts" },
+      ]),
+      genOutput([
+        { id: "tmpA", title: "alpha rewritten", file: "a.ts", start: 5 },
+        { id: "tmpB", title: "beta v2", file: "b.ts" },
+      ]),
+    ];
+    const outDir = mkdtempSync(join(tmpdir(), "pair-out-"));
+    const evaluated = await evaluatePairCase(
+      pairCase,
+      new SequenceGenerator(outputs()),
+      "medium",
+      1,
+      "cross:model-with-no-baseline",
+      BaselineModes.NONE,
+      outDir,
+      () => {},
+    );
+    expect(evaluated.ok).toBe(true);
+    if (!evaluated.ok) throw new Error(evaluated.error);
+    expect(evaluated.value.outcome.baseline).toBeNull();
+    expect(evaluated.value.rebaselined).toBe(false);
+    expect(existsSync(join(pairCase.dir, "baseline.json"))).toBe(false);
   });
 
   it("rebaseline writes and re-reads the baseline at the same key", async () => {
@@ -406,7 +443,7 @@ describe("evaluatePairCase", () => {
       "medium",
       1,
       "fake:fake-model",
-      true,
+      BaselineModes.REBASELINE,
       outDir,
       () => {},
     );
@@ -421,7 +458,7 @@ describe("evaluatePairCase", () => {
       "medium",
       1,
       "fake:fake-model",
-      false,
+      BaselineModes.COMPARE,
       outDir,
       () => {},
     );

@@ -11,15 +11,16 @@
 # API keys are BYOK-by-env-NAME: never put a key VALUE in this file.
 
 generator:
-  # anthropic | claude-code | codex | cursor | openai | openrouter
+  # anthropic | openai | openrouter | claude-code | codex | cursor
   provider: anthropic
 
   # Model id. Optional for anthropic/claude-code (Opus 4.8 default), codex
   # and cursor (the CLI's configured default runs; provenance stamps
   # "codex-default" / "cursor-default"); REQUIRED for openai and openrouter
-  # (full slug there, e.g. anthropic/claude-sonnet-5). cursor takes a BARE
-  # id from `cursor-agent --list-models` — the adapter appends the
-  # [effort=…] bracket itself, so a bracketed id refuses boot.
+  # (full slug there, e.g. anthropic/claude-sonnet-5). cursor takes an id
+  # VERBATIM from `cursor-agent --list-models`, effort variant included
+  # (e.g. gpt-5.2-high) — the CLI accepts nothing else; effort: has no wire
+  # effect for cursor.
   # The documented cost knob:
   model: claude-sonnet-5
 

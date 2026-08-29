@@ -184,13 +184,14 @@ const DEFAULT_CODEX_COMMAND = "codex";
 const cursorOptions = z
   .object({
     provider: z.literal(Providers.CURSOR),
-    /** Bare model id only — the adapter owns the effort bracket. */
+    /** Model id VERBATIM from `cursor-agent --list-models` — effort rides
+     * the id variant; bracketed ids refuse boot (the CLI rejects them). */
     model: z
       .string()
       .min(1)
       .refine((value) => !value.includes("["), {
         message:
-          "must be a bare model id — the adapter appends the [effort=…] bracket itself",
+          "bracket overrides are rejected by cursor-agent — pick an effort variant id from `cursor-agent --list-models` (e.g. gpt-5.2-high)",
       })
       .optional(),
     /** Binary path or name; default "cursor-agent" (PATH-resolved). */

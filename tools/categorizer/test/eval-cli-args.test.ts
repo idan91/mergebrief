@@ -35,6 +35,16 @@ describe("parseEvalArgs", () => {
     });
   });
 
+  it("parses --no-baseline and refuses it alongside --rebaseline", () => {
+    const parsed = parseEvalArgs(["--no-baseline"]);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.noBaseline).toBe(true);
+    expect(parsed.value.rebaseline).toBe(false);
+    // Characterize or write a baseline — never both in one run.
+    expect(parseEvalArgs(["--no-baseline", "--rebaseline"]).ok).toBe(false);
+  });
+
   it("rejects bad runs values and unknown flags", () => {
     expect(parseEvalArgs(["--runs", "0"]).ok).toBe(false);
     expect(parseEvalArgs(["--runs", "x"]).ok).toBe(false);

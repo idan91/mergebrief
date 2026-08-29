@@ -199,7 +199,12 @@ function renderLines(
       );
     }
     if (allUnbaselined) {
-      lines.push(`  no baseline for this generator — run eval --rebaseline`);
+      // Characterization: without a comparison the pass counts ARE the
+      // result — render every property instead of one summary line.
+      lines.push(`  no baseline for this generator — characterization scores:`);
+      for (const p of entry.properties) {
+        lines.push(`  ${p.passes}/${p.runs}  ${p.id} — ${p.description}`);
+      }
     } else if (unbaselined.length > 0) {
       // A partially-baselined case must never read as clean: a property added
       // without a rebaseline would otherwise fail silently forever.

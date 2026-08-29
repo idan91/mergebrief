@@ -137,7 +137,7 @@ Verified by authenticated execution on binary `2026.08.25-3e8eec8` (darwin/arm64
 
 ### Model selection + origin
 
-- `--model <model>`; `--list-models` enumerates ~200 ids; effort is baked into the id (`-low/-medium/-high/-xhigh/-max`, `-thinking`, `-fast` variants), plus bracket overrides (`claude-opus-4-8[effort=high]`).
+- `--model <model>`; `--list-models` enumerates ~200 ids; effort is baked into the id (`-low/-medium/-high/-xhigh/-max`, `-thinking`, `-fast` variants). **Bracket overrides are REJECTED by `--model`** (execution-verified 2026-08-28, binary 2026.08.25: `cursor-grok-4.6-high[effort=high]` and `gpt-5.2[effort=high]` both fail with `Cannot use this model`; the bracket note previously recorded here came from help text, not accepted argv). The id list is the whole vocabulary — base ids (`gpt-5.2`) and flattened effort variants (`gpt-5.2-high`) both appear in it, and the rejection's ~200-id "Available models" payload flushes the error prefix out of a 4KB stderr tail (capture the head for classification).
 - **Origin:** `result` envelope has no model field (verified). stream-json `system/init` reports the *requested* model's display name — under a pinned model it echoes the request; not proof of the served model. Origin stays a declaration.
 
 ### Exit codes + error surfaces

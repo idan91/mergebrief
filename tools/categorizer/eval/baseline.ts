@@ -1,7 +1,20 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod/v4";
-import type { Result } from "types";
+import type { Result, ValueOf } from "types";
+
+/**
+ * How a run relates to the checked-in baseline: `compare` (the default
+ * regression gate), `rebaseline` (overwrite — an explicit, reviewed commit),
+ * or `none` (characterization: a generator key with no committed baseline,
+ * e.g. a cross-model run — scores report, verdicts render as no-baseline).
+ */
+export const BaselineModes = {
+  COMPARE: "compare",
+  REBASELINE: "rebaseline",
+  NONE: "none",
+} as const;
+export type BaselineMode = ValueOf<typeof BaselineModes>;
 
 /**
  * A case's checked-in baseline: property pass counts from main at a given

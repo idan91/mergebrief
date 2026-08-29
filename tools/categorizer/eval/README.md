@@ -9,6 +9,7 @@ pnpm -C tools/categorizer eval                  # all cases, 5 runs each, compar
 pnpm -C tools/categorizer eval --case <id>     # one case
 pnpm -C tools/categorizer eval --runs 1        # quick smoke (verdicts withheld under 5)
 pnpm -C tools/categorizer eval --rebaseline    # rewrite baseline.json (review + commit the diff)
+pnpm -C tools/categorizer eval --no-baseline   # characterize a key with no committed baseline (cross-model runs)
 pnpm -C tools/categorizer eval --config <mergebrief.config.yaml>   # non-default generator
 pnpm -C tools/categorizer eval --prices <json> # non-default price table
 ```
