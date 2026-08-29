@@ -4,14 +4,14 @@ import type { Result, ValueOf } from "types";
 import {
   ClaudeCodeGenerator,
   CLAUDE_PROBE,
-  claudeVersionWarning,
+  buildClaudeVersionWarning,
   interpretClaudeAuthStatus,
 } from "../adapters/claudeCode";
 import { CodexGenerator, CODEX_PROBE } from "../adapters/codex";
 import {
   CursorGenerator,
   CURSOR_PROBE,
-  cursorVersionWarning,
+  buildCursorVersionWarning,
   interpretCursorAbout,
 } from "../adapters/cursor";
 import { createOpenAiCore } from "../adapters/openai";
@@ -276,16 +276,17 @@ export const GENERATOR_REGISTRY = {
       // Boot probe: a misconfigured instance refuses boot instead of failing
       // inside jobs. The interpreters add the billing checks: version-floor
       // warning + subscription-route assertion (API-key route = ConfigError).
-      const probe = await probeHarnessCli({
+      const probeArgs: Parameters<typeof probeHarnessCli>[0] = {
         command,
         versionArgv: [...CLAUDE_PROBE.versionArgv],
         authArgv: [...CLAUDE_PROBE.authArgv],
         authFailureHint: CLAUDE_PROBE.authFailureHint,
         env: deps.env,
-        ...(deps.log ? { log: deps.log } : {}),
-        interpretVersionOutput: claudeVersionWarning,
+        interpretVersionOutput: buildClaudeVersionWarning,
         interpretAuthOutput: interpretClaudeAuthStatus,
-      });
+      };
+      if (deps.log) probeArgs.log = deps.log;
+      const probe = await probeHarnessCli(probeArgs);
       if (!probe.ok) return probe;
       return {
         ok: true,
@@ -340,7 +341,7 @@ export const GENERATOR_REGISTRY = {
         authArgv: [...CURSOR_PROBE.authArgv],
         authFailureHint: CURSOR_PROBE.authFailureHint,
         env: deps.env,
-        interpretVersionOutput: cursorVersionWarning,
+        interpretVersionOutput: buildCursorVersionWarning,
         interpretAuthOutput: interpretCursorAbout,
       };
       if (deps.log) probeArgs.log = deps.log;

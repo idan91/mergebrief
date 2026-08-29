@@ -12,12 +12,14 @@ import {
 import {
   runWithSchemaFloor,
   schemaFeedbackMessage,
+  type RunWithSchemaFloorArgs,
 } from "../validation/enforceSchema";
 import type { GenerateRequest, Generator, Logger } from "../contract/generator";
 import { harnessTimeoutError } from "../harness/redact";
 import {
   resolveHarnessTimeouts,
   runHarnessProcess,
+  type HarnessRunArgs,
   type HarnessRunResult,
   type HarnessTimeoutOverrides,
   type HarnessTimeouts,
@@ -177,49 +179,51 @@ export class ClaudeCodeGenerator implements Generator {
     const workDir = mkdtempSync(join(tmpdir(), "claude-code-gen-"));
     const systemFile = join(workDir, "system-prompt.txt");
 
+    const floorArgs: RunWithSchemaFloorArgs<S> = {
+      schema: req.schema,
+      label: req.label,
+      failureDir: this.failureDir,
+      log,
+      attempt: async (feedback) => {
+        // Stateless CLI: every retry is a fresh process, feedback stitched
+        // after the user turn (no assistant-turn boundary).
+        const prompt = feedback
+          ? `${req.user}\n\n[Your previous response]\n${feedback.raw}\n\n${schemaFeedbackMessage(feedback.error)}`
+          : req.user;
+        log(
+          `${feedback ? "retrying" : "generating"} ${req.label} via ${this.command}…`,
+        );
+        const runArgs: HarnessRunArgs = {
+          command: this.command,
+          argv: [
+            "-p",
+            "--output-format",
+            "stream-json",
+            "--verbose",
+            "--tools",
+            "",
+            "--model",
+            this.model,
+            "--system-prompt-file",
+            systemFile,
+            "--json-schema",
+            JSON.stringify(wireSchema),
+          ],
+          stdin: prompt,
+          timeouts: this.timeouts,
+          log,
+        };
+        if (this.env) runArgs.env = this.env;
+        if (req.signal) runArgs.signal = req.signal;
+        const run = await runHarnessProcess(runArgs);
+        return this.interpret(req.label, run, log);
+      },
+    };
+    if (req.salvageFields) floorArgs.salvageFields = req.salvageFields;
+
     try {
       writeFileSync(systemFile, req.system, { mode: 0o600 });
-      return await runWithSchemaFloor({
-        schema: req.schema,
-        label: req.label,
-        ...(req.salvageFields ? { salvageFields: req.salvageFields } : {}),
-        failureDir: this.failureDir,
-        log,
-        attempt: async (feedback) => {
-          // Stateless CLI: the feedback retry is a fresh process whose
-          // prompt stitches the failed output + validation errors after the
-          // original user turn (the CLI has no assistant-turn boundary).
-          const prompt = feedback
-            ? `${req.user}\n\n[Your previous response]\n${feedback.raw}\n\n${schemaFeedbackMessage(feedback.error)}`
-            : req.user;
-          log(
-            `${feedback ? "retrying" : "generating"} ${req.label} via ${this.command}…`,
-          );
-          const run = await runHarnessProcess({
-            command: this.command,
-            argv: [
-              "-p",
-              "--output-format",
-              "stream-json",
-              "--verbose",
-              "--tools",
-              "",
-              "--model",
-              this.model,
-              "--system-prompt-file",
-              systemFile,
-              "--json-schema",
-              JSON.stringify(wireSchema),
-            ],
-            stdin: prompt,
-            timeouts: this.timeouts,
-            ...(this.env ? { env: this.env } : {}),
-            ...(req.signal ? { signal: req.signal } : {}),
-            log,
-          });
-          return this.interpret(req.label, run, log);
-        },
-      });
+      return await runWithSchemaFloor(floorArgs);
     } finally {
       // Best-effort: a throw here would REPLACE the in-flight rejection
       // (JS finally semantics) — an abort or classified failure must never
@@ -412,7 +416,7 @@ function parseCliVersion(text: string): [number, number, number] | null {
  * not ability to run. Unparseable output warns too — "could not verify"
  * must surface, never silently pass.
  */
-export function claudeVersionWarning(stdout: string): string | null {
+export function buildClaudeVersionWarning(stdout: string): string | null {
   const seen = parseCliVersion(stdout);
   if (seen === null) {
     return `warning: could not read a version from the claude CLI's --version output — the billing-attribution floor ${CLAUDE_BILLING_VERSION_FLOOR} is unverifiable`;

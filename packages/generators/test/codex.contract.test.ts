@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { CodexGenerator } from "../src/adapters/codex";
 import {
   describeGeneratorContract,
+  type ContractGeneratorHandle,
   type ContractTurn,
   type GeneratorContractHarness,
 } from "./contract";
@@ -70,9 +71,8 @@ function makeCodexHarness(): GeneratorContractHarness {
         timeouts: { hardMs: 8000, inactivityMs: 4000, killGraceMs: 300 },
       });
 
-      return {
+      const handle: ContractGeneratorHandle = {
         generator,
-        ...(wantsAbort ? { signal: controller.signal } : {}),
         attempts: () => {
           const counter = join(scriptDir, "counter");
           return existsSync(counter)
@@ -84,6 +84,8 @@ function makeCodexHarness(): GeneratorContractHarness {
           return existsSync(stdin) ? readFileSync(stdin, "utf8") : null;
         },
       };
+      if (wantsAbort) handle.signal = controller.signal;
+      return handle;
     },
   };
 }

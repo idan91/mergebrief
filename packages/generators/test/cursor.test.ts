@@ -7,7 +7,7 @@ import { z } from "zod/v4";
 import {
   CURSOR_VERSION_FLOOR,
   CursorGenerator,
-  cursorVersionWarning,
+  buildCursorVersionWarning,
   interpretCursorAbout,
   resolveCursorTimeouts,
 } from "../src/adapters/cursor";
@@ -402,7 +402,7 @@ describe("CursorGenerator spawn-env boundary", () => {
   });
 });
 
-function deps(env: Record<string, string>) {
+function makeDeps(env: Record<string, string>) {
   return {
     env: { ...process.env, ...env },
     failureDir: tempDir("cursor-reg-"),
@@ -413,7 +413,7 @@ describe("cursor registry entry", () => {
   it("constructs through the boot probe against the shim", async () => {
     const result = await createGenerator(
       { provider: Providers.CURSOR, command: FAKE_CURSOR },
-      deps({ SHIM_SCENARIO: "valid" }),
+      makeDeps({ SHIM_SCENARIO: "valid" }),
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -425,7 +425,7 @@ describe("cursor registry entry", () => {
     // verdict can refuse.
     const result = await createGenerator(
       { provider: Providers.CURSOR, command: FAKE_CURSOR },
-      deps({ SHIM_SCENARIO: "auth-logged-out" }),
+      makeDeps({ SHIM_SCENARIO: "auth-logged-out" }),
     );
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -435,7 +435,7 @@ describe("cursor registry entry", () => {
   it("refuses boot when the binary is missing", async () => {
     const result = await createGenerator(
       { provider: Providers.CURSOR, command: "/nonexistent/cursor-agent" },
-      deps({}),
+      makeDeps({}),
     );
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -449,7 +449,7 @@ describe("cursor registry entry", () => {
         command: FAKE_CURSOR,
         model: "gpt-5.2[effort=high]",
       },
-      deps({ SHIM_SCENARIO: "valid" }),
+      makeDeps({ SHIM_SCENARIO: "valid" }),
     );
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -459,7 +459,7 @@ describe("cursor registry entry", () => {
   it("rejects unknown option keys strictly", async () => {
     const result = await createGenerator(
       { provider: Providers.CURSOR, modle: "typo" },
-      deps({}),
+      makeDeps({}),
     );
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -471,7 +471,10 @@ describe("cursor registry entry", () => {
     const result = await createGenerator(
       { provider: Providers.CURSOR, command: FAKE_CURSOR },
       {
-        ...deps({ SHIM_SCENARIO: "valid", SHIM_VERSION: "2026.08.20-abcdef0" }),
+        ...makeDeps({
+          SHIM_SCENARIO: "valid",
+          SHIM_VERSION: "2026.08.20-abcdef0",
+        }),
         log: (m) => warnings.push(m),
       },
     );
@@ -504,29 +507,29 @@ describe("cursor registry entry", () => {
   });
 });
 
-describe("cursorVersionWarning (headless-contract floor)", () => {
+describe("buildCursorVersionWarning (headless-contract floor)", () => {
   it("stays silent at the floor and above", () => {
-    expect(cursorVersionWarning("2026.08.25-3e8eec8")).toBeNull();
-    expect(cursorVersionWarning("2026.08.26-0000000")).toBeNull();
-    expect(cursorVersionWarning("2026.09.01-abcdef0")).toBeNull();
-    expect(cursorVersionWarning("2027.01.01")).toBeNull();
+    expect(buildCursorVersionWarning("2026.08.25-3e8eec8")).toBeNull();
+    expect(buildCursorVersionWarning("2026.08.26-0000000")).toBeNull();
+    expect(buildCursorVersionWarning("2026.09.01-abcdef0")).toBeNull();
+    expect(buildCursorVersionWarning("2027.01.01")).toBeNull();
   });
 
   it("ignores the build-hash suffix when comparing", () => {
     // Lexicographically "-0000000" < "-3e8eec8": only the date prefix counts.
-    expect(cursorVersionWarning("2026.08.25-0000000")).toBeNull();
+    expect(buildCursorVersionWarning("2026.08.25-0000000")).toBeNull();
   });
 
   it("warns below the floor, naming both versions from parsed digits", () => {
-    const warning = cursorVersionWarning("2026.08.24-fffffff");
+    const warning = buildCursorVersionWarning("2026.08.24-fffffff");
     expect(warning).toContain("2026.08.24");
     expect(warning).toContain(CURSOR_VERSION_FLOOR);
     expect(warning).toContain("older");
-    expect(cursorVersionWarning("2025.12.31-abcdef0")).toContain("older");
+    expect(buildCursorVersionWarning("2025.12.31-abcdef0")).toContain("older");
   });
 
   it("warns unverifiable when no version parses", () => {
-    const warning = cursorVersionWarning("cursor-agent, no digits");
+    const warning = buildCursorVersionWarning("cursor-agent, no digits");
     expect(warning).toContain("unverifiable");
     expect(warning).toContain(CURSOR_VERSION_FLOOR);
   });

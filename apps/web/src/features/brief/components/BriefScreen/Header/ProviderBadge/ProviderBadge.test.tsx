@@ -46,10 +46,12 @@ describe("ProviderBadge", () => {
 
   it("codex takes the named fallback: generic glyph + visible token, CLI tag", () => {
     // No standalone official Codex mark exists, so no brand approximation
-    // ships — the pill names the provider in text instead.
+    // ships — the pill names the provider in text instead. The model id
+    // deliberately does NOT contain the provider token, so this pins the
+    // visible token itself, not the model cell.
     render(
       <ProviderBadge
-        generation={{ provider: "codex", model: "gpt-5.2-codex", effort: null }}
+        generation={{ provider: "codex", model: "gpt-5.2", effort: null }}
       />,
     );
     expect(badge().textContent).toContain("codex");
@@ -58,11 +60,12 @@ describe("ProviderBadge", () => {
   });
 
   it("cursor takes the named fallback: generic glyph + visible token, CLI tag", () => {
+    // Model id deliberately free of the provider token (see the codex case).
     render(
       <ProviderBadge
         generation={{
           provider: "cursor",
-          model: "cursor-default",
+          model: "gpt-5.2",
           effort: null,
         }}
       />,

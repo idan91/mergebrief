@@ -315,7 +315,7 @@ describe("CodexGenerator answer selection and classification", () => {
   });
 });
 
-function deps(env: Record<string, string>) {
+function makeDeps(env: Record<string, string>) {
   return {
     env: { ...process.env, ...env },
     failureDir: tempDir("codex-reg-"),
@@ -326,7 +326,7 @@ describe("codex registry entry", () => {
   it("constructs through the boot probe against the shim", async () => {
     const result = await createGenerator(
       { provider: Providers.CODEX, command: FAKE_CODEX },
-      deps({ SHIM_SCENARIO: "valid" }),
+      makeDeps({ SHIM_SCENARIO: "valid" }),
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -340,7 +340,7 @@ describe("codex registry entry", () => {
   it("refuses boot when the CLI is not logged in", async () => {
     const result = await createGenerator(
       { provider: Providers.CODEX, command: FAKE_CODEX },
-      deps({ SHIM_SCENARIO: "auth-error" }),
+      makeDeps({ SHIM_SCENARIO: "auth-error" }),
     );
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -350,7 +350,7 @@ describe("codex registry entry", () => {
   it("refuses boot when the binary is missing", async () => {
     const result = await createGenerator(
       { provider: Providers.CODEX, command: "/nonexistent/codex" },
-      deps({}),
+      makeDeps({}),
     );
     expect(result.ok).toBe(false);
   });

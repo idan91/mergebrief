@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
 import { GeneratorError, GeneratorErrorKind } from "../src/contract/errors";
-import type { Generator } from "../src/contract/generator";
+import type { GenerateRequest, Generator } from "../src/contract/generator";
 import { GenerationSchema, type Generation } from "../src/contract/generation";
 
 /**
@@ -96,15 +96,16 @@ export function describeGeneratorContract(
     });
 
     async function generate(handle: ContractGeneratorHandle) {
-      return handle.generator.generate({
+      const req: GenerateRequest<typeof ContractSchema> = {
         schema: ContractSchema,
         system: "sys",
         user: "usr",
         effort: "medium",
         label: "contract",
         salvageFields: ["tags"],
-        ...(handle.signal ? { signal: handle.signal } : {}),
-      });
+      };
+      if (handle.signal) req.signal = handle.signal;
+      return handle.generator.generate(req);
     }
 
     it("passes valid output through untouched", async () => {

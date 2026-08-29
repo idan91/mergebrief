@@ -6,12 +6,14 @@ import { GeneratorError, GeneratorErrorKind } from "../contract/errors";
 import {
   runWithSchemaFloor,
   schemaFeedbackMessage,
+  type RunWithSchemaFloorArgs,
 } from "../validation/enforceSchema";
 import type { GenerateRequest, Generator } from "../contract/generator";
 import { harnessTimeoutError } from "../harness/redact";
 import {
   resolveHarnessTimeouts,
   runHarnessProcess,
+  type HarnessRunArgs,
   type HarnessRunResult,
   type HarnessTimeoutOverrides,
   type HarnessTimeouts,
@@ -115,50 +117,55 @@ export class CodexGenerator implements Generator {
     const workDir = mkdtempSync(join(tmpdir(), "codex-gen-"));
     const schemaFile = join(workDir, "output-schema.json");
 
+    const floorArgs: RunWithSchemaFloorArgs<S> = {
+      schema: req.schema,
+      label: req.label,
+      failureDir: this.failureDir,
+      log,
+      attempt: async (feedback) => {
+        // Stateless CLI: every retry is a fresh process, feedback stitched
+        // into stdin (no system-prompt channel).
+        const prompt = feedback
+          ? `${req.system}\n\n${req.user}\n\n[Your previous response]\n${feedback.raw}\n\n${schemaFeedbackMessage(feedback.error)}`
+          : `${req.system}\n\n${req.user}`;
+        log(
+          `${feedback ? "retrying" : "generating"} ${req.label} via ${this.command}…`,
+        );
+        const argv = [
+          "exec",
+          "--json",
+          "--sandbox",
+          "read-only",
+          "--skip-git-repo-check",
+          "--ephemeral",
+          "--output-schema",
+          schemaFile,
+          "-c",
+          `model_reasoning_effort=${req.effort}`,
+        ];
+        if (this.model !== undefined) {
+          argv.push("--model", this.model);
+        }
+        const runArgs: HarnessRunArgs = {
+          command: this.command,
+          argv,
+          stdin: prompt,
+          timeouts: this.timeouts,
+          log,
+        };
+        if (this.env) runArgs.env = this.env;
+        if (req.signal) runArgs.signal = req.signal;
+        const run = await runHarnessProcess(runArgs);
+        return interpretCodexRun(this.command, req.label, run, wireSchema);
+      },
+    };
+    if (req.salvageFields) floorArgs.salvageFields = req.salvageFields;
+
     try {
       writeFileSync(schemaFile, JSON.stringify(codexWireSchema), {
         mode: 0o600,
       });
-      return await runWithSchemaFloor({
-        schema: req.schema,
-        label: req.label,
-        ...(req.salvageFields ? { salvageFields: req.salvageFields } : {}),
-        failureDir: this.failureDir,
-        log,
-        attempt: async (feedback) => {
-          // Stateless CLI: the feedback retry is a fresh process; system,
-          // failed output and validation errors stitch into one stdin
-          // prompt (codex exec has no separate system-prompt channel).
-          const prompt = feedback
-            ? `${req.system}\n\n${req.user}\n\n[Your previous response]\n${feedback.raw}\n\n${schemaFeedbackMessage(feedback.error)}`
-            : `${req.system}\n\n${req.user}`;
-          log(
-            `${feedback ? "retrying" : "generating"} ${req.label} via ${this.command}…`,
-          );
-          const run = await runHarnessProcess({
-            command: this.command,
-            argv: [
-              "exec",
-              "--json",
-              "--sandbox",
-              "read-only",
-              "--skip-git-repo-check",
-              "--ephemeral",
-              "--output-schema",
-              schemaFile,
-              "-c",
-              `model_reasoning_effort=${req.effort}`,
-              ...(this.model !== undefined ? ["--model", this.model] : []),
-            ],
-            stdin: prompt,
-            timeouts: this.timeouts,
-            ...(this.env ? { env: this.env } : {}),
-            ...(req.signal ? { signal: req.signal } : {}),
-            log,
-          });
-          return interpretCodexRun(this.command, req.label, run, wireSchema);
-        },
-      });
+      return await runWithSchemaFloor(floorArgs);
     } finally {
       // Best-effort: a throw here would REPLACE the in-flight rejection.
       try {

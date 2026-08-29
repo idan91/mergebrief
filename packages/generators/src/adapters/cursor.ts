@@ -415,7 +415,7 @@ function parseCursorVersion(text: string): DateVersion | null {
  * not ability to run. Unparseable output warns too — "could not verify"
  * must surface, never silently pass.
  */
-export function cursorVersionWarning(stdout: string): string | null {
+export function buildCursorVersionWarning(stdout: string): string | null {
   const seen = parseCursorVersion(stdout);
   if (seen === null) {
     return `warning: could not read a version from the cursor-agent --version output — the headless-contract floor ${CURSOR_VERSION_FLOOR} is unverifiable`;

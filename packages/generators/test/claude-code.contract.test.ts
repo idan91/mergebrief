@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { ClaudeCodeGenerator } from "../src/adapters/claudeCode";
 import {
   describeGeneratorContract,
+  type ContractGeneratorHandle,
   type ContractTurn,
   type GeneratorContractHarness,
 } from "./contract";
@@ -79,9 +80,8 @@ function makeClaudeCodeHarness(): GeneratorContractHarness {
         timeouts: { hardMs: 8000, inactivityMs: 4000, killGraceMs: 300 },
       });
 
-      return {
+      const handle: ContractGeneratorHandle = {
         generator,
-        ...(wantsAbort ? { signal: controller.signal } : {}),
         attempts: () => {
           const counter = join(scriptDir, "counter");
           return existsSync(counter)
@@ -93,6 +93,8 @@ function makeClaudeCodeHarness(): GeneratorContractHarness {
           return existsSync(stdin) ? readFileSync(stdin, "utf8") : null;
         },
       };
+      if (wantsAbort) handle.signal = controller.signal;
+      return handle;
     },
   };
 }

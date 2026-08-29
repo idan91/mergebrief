@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
 import {
   ClaudeCodeGenerator,
-  claudeVersionWarning,
+  buildClaudeVersionWarning,
   interpretClaudeAuthStatus,
 } from "../src/adapters/claudeCode";
 import { GeneratorError, GeneratorErrorKind } from "../src/contract/errors";
@@ -345,7 +345,7 @@ describe("ClaudeCodeGenerator trust-but-verify", () => {
   });
 });
 
-function deps(env: Record<string, string>) {
+function makeDeps(env: Record<string, string>) {
   return {
     env: { ...process.env, ...env },
     failureDir: tempDir("claude-code-reg-"),
@@ -356,7 +356,7 @@ describe("claude-code registry entry", () => {
   it("constructs through the boot probe against the shim", async () => {
     const result = await createGenerator(
       { provider: Providers.CLAUDE_CODE, command: FAKE_CLAUDE },
-      deps({ SHIM_SCENARIO: "valid" }),
+      makeDeps({ SHIM_SCENARIO: "valid" }),
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -368,7 +368,7 @@ describe("claude-code registry entry", () => {
   it("refuses boot when the CLI is not authenticated", async () => {
     const result = await createGenerator(
       { provider: Providers.CLAUDE_CODE, command: FAKE_CLAUDE },
-      deps({ SHIM_SCENARIO: "auth-error" }),
+      makeDeps({ SHIM_SCENARIO: "auth-error" }),
     );
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -378,7 +378,7 @@ describe("claude-code registry entry", () => {
   it("refuses boot when the binary is missing", async () => {
     const result = await createGenerator(
       { provider: Providers.CLAUDE_CODE, command: "/nonexistent/claude" },
-      deps({}),
+      makeDeps({}),
     );
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -388,7 +388,7 @@ describe("claude-code registry entry", () => {
   it("rejects unknown option keys strictly", async () => {
     const result = await createGenerator(
       { provider: Providers.CLAUDE_CODE, modle: "typo" },
-      deps({}),
+      makeDeps({}),
     );
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -400,7 +400,7 @@ describe("claude-code registry entry", () => {
     const warnings: string[] = [];
     const result = await createGenerator(
       { provider: Providers.CLAUDE_CODE, command: FAKE_CLAUDE },
-      { ...deps({ SHIM_SCENARIO: "valid" }), log: (m) => warnings.push(m) },
+      { ...makeDeps({ SHIM_SCENARIO: "valid" }), log: (m) => warnings.push(m) },
     );
     expect(result.ok).toBe(true);
     expect(warnings).toEqual([]);
@@ -411,7 +411,7 @@ describe("claude-code registry entry", () => {
     const result = await createGenerator(
       { provider: Providers.CLAUDE_CODE, command: FAKE_CLAUDE },
       {
-        ...deps({ SHIM_SCENARIO: "valid", SHIM_VERSION: "2.1.207" }),
+        ...makeDeps({ SHIM_SCENARIO: "valid", SHIM_VERSION: "2.1.207" }),
         log: (m) => warnings.push(m),
       },
     );
@@ -423,7 +423,7 @@ describe("claude-code registry entry", () => {
   it("refuses boot when auth status reports an apiKeyHelper route", async () => {
     const result = await createGenerator(
       { provider: Providers.CLAUDE_CODE, command: FAKE_CLAUDE },
-      deps({
+      makeDeps({
         SHIM_SCENARIO: "valid",
         SHIM_AUTH_STATUS: JSON.stringify({
           loggedIn: true,
@@ -444,7 +444,7 @@ describe("claude-code registry entry", () => {
     const result = await createGenerator(
       { provider: Providers.CLAUDE_CODE, command: FAKE_CLAUDE },
       {
-        ...deps({
+        ...makeDeps({
           SHIM_SCENARIO: "valid",
           SHIM_AUTH_STATUS: "Logged in as shim@example.com",
         }),
@@ -456,26 +456,30 @@ describe("claude-code registry entry", () => {
   });
 });
 
-describe("claudeVersionWarning (billing floor)", () => {
+describe("buildClaudeVersionWarning (billing floor)", () => {
   it("stays silent at the floor and above", () => {
-    expect(claudeVersionWarning("2.1.226 (Claude Code)")).toBeNull();
-    expect(claudeVersionWarning("2.1.227 (Claude Code)")).toBeNull();
-    expect(claudeVersionWarning("2.2.0 (Claude Code)")).toBeNull();
-    expect(claudeVersionWarning("3.0.0 (Claude Code)")).toBeNull();
+    expect(buildClaudeVersionWarning("2.1.226 (Claude Code)")).toBeNull();
+    expect(buildClaudeVersionWarning("2.1.227 (Claude Code)")).toBeNull();
+    expect(buildClaudeVersionWarning("2.2.0 (Claude Code)")).toBeNull();
+    expect(buildClaudeVersionWarning("3.0.0 (Claude Code)")).toBeNull();
   });
 
   it("warns below the floor, naming both versions from parsed digits", () => {
-    const warning = claudeVersionWarning("2.1.207 (Claude Code)");
+    const warning = buildClaudeVersionWarning("2.1.207 (Claude Code)");
     expect(warning).toContain("2.1.207");
     expect(warning).toContain("2.1.226");
     expect(warning).toContain("older");
     // Same-major/minor boundary and lower-major both count as older.
-    expect(claudeVersionWarning("2.1.225 (Claude Code)")).toContain("older");
-    expect(claudeVersionWarning("1.9.999 (Claude Code)")).toContain("older");
+    expect(buildClaudeVersionWarning("2.1.225 (Claude Code)")).toContain(
+      "older",
+    );
+    expect(buildClaudeVersionWarning("1.9.999 (Claude Code)")).toContain(
+      "older",
+    );
   });
 
   it("warns unverifiable when no version parses", () => {
-    const warning = claudeVersionWarning("Claude Code, no digits here");
+    const warning = buildClaudeVersionWarning("Claude Code, no digits here");
     expect(warning).toContain("unverifiable");
     expect(warning).toContain("2.1.226");
   });
