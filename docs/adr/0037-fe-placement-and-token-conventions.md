@@ -215,6 +215,39 @@ exist, so the rule cannot be stated. Both remain text + review.
 rewritten once, during the structure-motion PR — alias before moves, so
 paths churn once.
 
+### 10. Heading levels
+
+Added 2026-08-29 (BRIEF-208). The type scale decides how big a heading is;
+this decides which heading it is. The two were tangled: five modals reached
+for `h3` because the Modal shell sized a bare `h3` selector, which is a tag
+selector doing size work.
+
+1. `h1` names what the screen is showing. Exactly one per screen — usually
+   the page title; on a screen whose content is replaced by a state or error
+   card, that card's heading is the `h1`.
+2. `h2` is a top-level section of the screen.
+3. Overlay content is its own outline, rooted at `h2`, never `h1`. A dialog
+   does not replace the screen, so it must not claim the screen's `h1`.
+4. A level follows the nearest ancestor heading. No skips.
+5. A tag is chosen by document structure, never to get a size. A component
+   that wants a different size pins one in its own module.
+
+These govern headings the app itself authors. Markdown authored by a user or
+a model and rendered through `components/Markdown` keeps its fixed
+`h1`→`h3` / `h2`→`h4` demotion instead: that content is embedded at a
+different depth by every call site, so its levels cannot follow an ancestor
+the renderer never sees, and the demotion exists to stop authored content
+injecting a second `h1` into the outline.
+
+Nothing here is machine-checkable — `eslint-plugin-jsx-a11y` ships no
+heading-level rule — so this is a reviewer-held convention, like the
+conditional-spread ban. The enforcement that IS available is structural: a
+shared shell styles headings level-agnostically
+(`:where(h1, h2, h3, h4, h5, h6)`), so it can never again be the reason a
+component picks a level. Because `:where()` contributes no specificity, a
+component that pins its own heading keeps it, and authored markdown rendered
+inside a dialog now keeps its own scale instead of inheriting the shell's.
+
 ## Why This Way
 
 One ownership rule across all four surfaces means an agent (or human) asks
@@ -281,3 +314,6 @@ ambiguity resolves to px. Full taxonomy with per-category reasoning:
 - **Build-enforced typed CSS modules** — a wrong-classname bug shipping past
   the data-attr + editor-plugin combination.
 - **pages/ layer** — routes stabilizing 1:1 with features long-term.
+- **Machine-checked heading levels** (decision 10) — a linter shipping a
+  heading-level rule the existing toolchain can express, or a level regression
+  reaching production past review.

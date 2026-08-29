@@ -90,7 +90,7 @@ export function MarkReadyModal({
       close={busy ? undefined : close}
       labelledBy="mark-ready-modal-heading"
     >
-      <h3 id="mark-ready-modal-heading">{t("pulls.markReadyModal.heading")}</h3>
+      <h2 id="mark-ready-modal-heading">{t("pulls.markReadyModal.heading")}</h2>
       {/* Zero flags: the gate can open for unposted drafts alone — no
           risk-flag copy over an empty list; the advisory line focuses on the
           drafts instead. */}

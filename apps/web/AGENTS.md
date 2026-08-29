@@ -123,6 +123,13 @@ The TanStack Start front end: the DB-backed read + submit surface, fed by
   menu/dialog widths; chrome stays px — borders, radii, shadows, icon boxes,
   decorative geometry, breakpoints. Ambiguous sizing → px. Taxonomy:
   `docs/plans/brief-84-px-to-rem.md`.
+- Heading levels follow document structure, never size: one `h1` per screen
+  (a state/error card that replaces the screen owns it), `h2` for a top-level
+  section, overlay content rooted at `h2`, no skipped levels. A component that
+  wants a different size pins one in its own module; a shared shell styles
+  headings level-agnostically so it never dictates a level. Authored markdown
+  through `components/Markdown` is exempt — it keeps its fixed h1→h3/h2→h4
+  demotion. Reviewer-held: no lint rule expresses it.
 - `data-testid` for test selection; `data-state`/`data-variant` for styling —
   CSS targets attributes, not toggled classes. Extracted components adopt
   both at birth. A behavioral third category (an attribute runtime code

@@ -167,9 +167,9 @@ export function SubmitModal({
     >
       {view === "advisory" ? (
         <>
-          <h3 id="submit-modal-heading" ref={headingRef} tabIndex={-1}>
+          <h2 id="submit-modal-heading" ref={headingRef} tabIndex={-1}>
             {t("review.submit.beforeYouSubmit")}
-          </h3>
+          </h2>
           <p className={modalStyles["copy"]}>
             {t("review.submit.advisoryIntro")}
           </p>
@@ -197,9 +197,9 @@ export function SubmitModal({
         </>
       ) : view === "verdict" ? (
         <>
-          <h3 id="submit-modal-heading" ref={headingRef} tabIndex={-1}>
+          <h2 id="submit-modal-heading" ref={headingRef} tabIndex={-1}>
             {t("review.submit.heading")}
-          </h3>
+          </h2>
           <p className={modalStyles["copy"]}>{t("review.submit.intro")}</p>
           <fieldset className={styles["outcomes"]}>
             <legend>{t("review.submit.outcomeLegend")}</legend>
@@ -299,9 +299,9 @@ export function SubmitModal({
       ) : (
         <>
           <div className={styles["receiptTitle"]}>
-            <h3 id="submit-modal-heading" ref={headingRef} tabIndex={-1}>
+            <h2 id="submit-modal-heading" ref={headingRef} tabIndex={-1}>
               {t("review.submit.receiptHeading")}
-            </h3>
+            </h2>
             <span className={styles["tag"]}>
               {t("review.submit.notAnApproval")}
             </span>

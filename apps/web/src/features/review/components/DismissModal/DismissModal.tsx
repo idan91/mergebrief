@@ -28,7 +28,7 @@ export function DismissModal({
       close={cancel}
       labelledBy="dismiss-modal-heading"
     >
-      <h3 id="dismiss-modal-heading">{t("review.dismiss.heading")}</h3>
+      <h2 id="dismiss-modal-heading">{t("review.dismiss.heading")}</h2>
       <div className={styles["target"]}>{target?.label}</div>
       <textarea
         aria-label={t("review.dismiss.reasonLabel")}

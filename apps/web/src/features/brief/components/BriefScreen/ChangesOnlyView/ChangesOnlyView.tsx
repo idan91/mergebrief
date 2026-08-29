@@ -168,7 +168,7 @@ function PreviousBriefChanges({
         return (
           <section className={styles["group"]} key={group.id}>
             <div className={styles["groupHead"]}>
-              <h3 className={styles["groupTitle"]}>{group.group.title}</h3>
+              <h2 className={styles["groupTitle"]}>{group.group.title}</h2>
               <span className={styles["groupCategory"]}>
                 {categoryLabel(group.group.dominantCategory)}
               </span>
@@ -180,9 +180,9 @@ function PreviousBriefChanges({
       {orphanChunks.length > 0 ? (
         <section className={styles["group"]}>
           <div className={styles["groupHead"]}>
-            <h3 className={styles["groupTitle"]}>
+            <h2 className={styles["groupTitle"]}>
               {t("brief.changes.otherChanges")}
-            </h3>
+            </h2>
           </div>
           <WindowedNarrativeList brief={brief} chunks={orphanChunks} />
         </section>
@@ -322,7 +322,7 @@ function LastReviewChanges({ delta }: LastReviewChangesProps) {
       {model.groups.map((group) => (
         <section className={styles["group"]} key={group.id}>
           <div className={styles["groupHead"]}>
-            <h3 className={styles["groupTitle"]}>{group.group.title}</h3>
+            <h2 className={styles["groupTitle"]}>{group.group.title}</h2>
             <span className={styles["groupCategory"]}>
               {categoryLabel(group.group.dominantCategory)}
             </span>

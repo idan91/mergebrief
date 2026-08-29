@@ -83,7 +83,7 @@ function EvidenceForm({
     (kind === "manual-note" && note.trim() === "");
   return (
     <>
-      <h3 id="evidence-modal-heading">{t("review.evidence.heading")}</h3>
+      <h2 id="evidence-modal-heading">{t("review.evidence.heading")}</h2>
       <div className={styles["target"]}>{target.label}</div>
       <div className={styles["evidenceOptions"]}>
         <label>

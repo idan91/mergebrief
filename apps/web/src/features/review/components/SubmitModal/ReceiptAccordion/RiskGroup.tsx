@@ -13,7 +13,7 @@ export function RiskGroup({ title, items }: RiskGroupProps) {
   const { t } = useTranslation();
   return (
     <div className={styles["riskGroup"]}>
-      <h4>{title}</h4>
+      <h3>{title}</h3>
       {items.length === 0 ? (
         <p className={styles["empty"]}>{t("review.summary.none")}</p>
       ) : null}

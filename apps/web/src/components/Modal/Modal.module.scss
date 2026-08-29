@@ -33,7 +33,8 @@
     border-radius: var(--radius-lg);
     background: var(--box-fill);
 
-    h3 {
+    // The dialog's heading at whatever level the outline gives it.
+    :where(h1, h2, h3, h4, h5, h6) {
       margin-block-end: functions.to-rem(3px);
       font-size: var(--font-size-xl);
       font-weight: 600;

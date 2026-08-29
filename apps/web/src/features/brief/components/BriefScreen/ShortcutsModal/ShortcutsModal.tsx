@@ -32,7 +32,7 @@ export function ShortcutsModal({ open, close }: ShortcutsModalProps) {
   const { t } = useTranslation();
   return (
     <Modal open={open} close={close} labelledBy="shortcuts-modal-heading">
-      <h3 id="shortcuts-modal-heading">{t("brief.shortcuts.heading")}</h3>
+      <h2 id="shortcuts-modal-heading">{t("brief.shortcuts.heading")}</h2>
       {/* Key→description pairs are a definition list; <div> inside <dl> is
           valid grouping markup and keeps the row layout untouched. */}
       <dl className={styles["list"]}>

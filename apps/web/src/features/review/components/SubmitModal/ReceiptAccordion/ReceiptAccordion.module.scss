@@ -131,11 +131,14 @@
   }
 
   .riskGroup {
-    h4 {
+    h3 {
       margin-block: functions.to-rem(10px) functions.to-rem(4px);
       color: var(--dim);
       font-size: var(--font-size-md);
       font-weight: 700;
+
+      // Pinned: the Modal shell's heading rule would otherwise set 1.55 here.
+      line-height: 1.35;
     }
   }
 
