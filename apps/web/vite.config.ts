@@ -75,5 +75,11 @@ export default defineConfig({
       "@web": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+  // Vite only exposes VITE_* to the client. ENABLE_* joins it as the
+  // feature-flag namespace, so a flag reads the same on the server and in
+  // the browser. Boolean toggles ONLY: everything matching this prefix is
+  // inlined into the client bundle, so a secret must never be named ENABLE_*.
+  envPrefix: ["VITE_", "ENABLE_"],
+
   plugins: [svgr(), tanstackStart(), viteReact()],
 });

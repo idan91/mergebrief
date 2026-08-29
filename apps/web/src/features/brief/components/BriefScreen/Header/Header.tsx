@@ -1,6 +1,7 @@
 import { LocalePicker } from "../../../../../i18n/LocalePicker/LocalePicker";
 import { useTranslation } from "react-i18next";
 import { Link } from "@tanstack/react-router";
+import { CONTENT_START_ATTR } from "../utils";
 import {
   useEffect,
   useId,
@@ -93,6 +94,19 @@ export interface HeaderProps {
 // The product name — an identifier, never translated.
 const PRODUCT_NAME = "MergeBrief";
 
+/** Longer than the collapse ease, so the height is read once settled. */
+const SETTLE_MS = 200;
+
+/** --sticky-stack-h is @property-registered, so this reads a number, not
+ * the calc() text an unregistered custom property returns. */
+function readStickyStackHeight(): number {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(
+    "--sticky-stack-h",
+  );
+  const parsed = Number.parseFloat(raw);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 export function Header({
   brief,
   repoConfig,
@@ -111,9 +125,14 @@ export function Header({
 }: HeaderProps) {
   const { t } = useTranslation();
   const headerRef = useRef<HTMLElement>(null);
-  // The header height is content-driven (title length, meta line, viewport),
-  // so publish the measured height as --top-bar-h. Sticky chunk headers and the
-  // progress bar pin to that, staying flush with the header's bottom edge.
+  const [collapsed, setCollapsed] = useState(false);
+  // Written at the flip, not by an effect: the observer's callback runs
+  // before paint, so a passive effect would still read the pre-flip value.
+  const collapsedRef = useRef(false);
+  // The whole pinned stack at rest, not just the header — content must clear
+  // the toolbar too. At rest only, or trigger and result chase each other.
+  const [restHeight, setRestHeight] = useState(0);
+
   useEffect(() => {
     const el = headerRef.current;
     if (!el) return;
@@ -121,17 +140,52 @@ export function Header({
     // same-value setProperty still invalidates every var(--top-bar-h)
     // consumer, which stutters the resize.
     let lastHeight = "";
+    let settle = 0;
     const apply = () => {
       const next = `${el.offsetHeight}px`;
       if (next === lastHeight) return;
       lastHeight = next;
       document.documentElement.style.setProperty("--top-bar-h", next);
+      if (collapsedRef.current) return;
+      // On settle, not per frame: the ease resizes ~10 times, and each read
+      // would resolve style synchronously and rebuild the observer.
+      window.clearTimeout(settle);
+      settle = window.setTimeout(() => {
+        setRestHeight(readStickyStackHeight());
+      }, SETTLE_MS);
     };
     apply();
     const observer = new ResizeObserver(apply);
     observer.observe(el);
-    return () => observer.disconnect();
+    return () => {
+      window.clearTimeout(settle);
+      observer.disconnect();
+    };
   }, []);
+
+  // Fires on the crossing alone; a scroll-driven timeline samples geometry
+  // every frame, measured at ~7ms extra p95 frame gap.
+  useEffect(() => {
+    const sentinel = document.querySelector(`[${CONTENT_START_ATTR}]`);
+    if (!sentinel || restHeight === 0) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // Last entry is current: a jump can batch a down-then-up crossing.
+        const entry = entries.at(-1);
+        if (!entry) return;
+        // rootBounds is null cross-origin; that edge is the same line.
+        const line = entry.rootBounds?.top ?? restHeight;
+        const next = entry.boundingClientRect.top <= line;
+        collapsedRef.current = next;
+        setCollapsed(next);
+      },
+      // Margining by the RESTING height leaves the rest-minus-collapsed
+      // difference as hysteresis, so a crossing cannot flap against itself.
+      { rootMargin: `-${restHeight}px 0px 0px 0px`, threshold: 0 },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [restHeight]);
 
   // Terminal-action slot focus continuity: when the own-draft state flips,
   // the focused slot button unmounts and its replacement mounts — without
@@ -161,53 +215,63 @@ export function Header({
   const prLink = isHttpUrl(brief.pr.url) ? brief.pr.url : null;
 
   return (
-    <header className={styles["header"]} ref={headerRef}>
-      {/* Tier 1 — the one-line identity row: wordmark · state badge · title
-          (truncates first) · repo + PR link · riders · [spacer] · CTA ·
-          overflow. */}
+    <header
+      className={styles["header"]}
+      ref={headerRef}
+      data-collapsed={collapsed ? "" : undefined}
+    >
+      {/* Tier 1 — the identity row: wordmark · title block · [spacer] · CTA ·
+          overflow. The block is two lines: the SOURCE (title, state, repo, PR
+          link), then how the brief was GENERATED (model, details, warnings). */}
       <div className={styles["identityRow"]}>
-        {/* Lead + riders are inert on wide viewports (display: contents —
-            one flex line); at ≤880px they become the two content rows of
-            the grid layout, with the CTA + overflow column spanning both. */}
+        {/* Lead is inert on wide viewports (display: contents — one flex
+            line); at ≤880px it becomes the grid's content row, with the CTA +
+            overflow column beside it. */}
         <div className={styles["lead"]}>
           <div className={styles["wordmark"]}>{PRODUCT_NAME}</div>
-          <StateBadge live={livePrState} pr={brief.pr} />
-          {/* The self-review chip must stay adjacent to the Draft badge. */}
-          {ownDraft !== undefined ? <SelfReviewChip /> : null}
-          <h1 className={styles["title"]}>{brief.pr.title}</h1>
-          <span className={styles["repoRef"]}>
-            <b>{brief.pr.repo}</b>{" "}
-            {prLink ? (
-              <AccessibleLink
-                className={styles["ghlink"]}
-                href={prLink}
-                target="_blank"
-              >
-                #{brief.pr.number} ↗
-              </AccessibleLink>
-            ) : (
-              <span>#{brief.pr.number}</span>
-            )}
-          </span>
+          <div className={styles["titleBlock"]}>
+            <div className={styles["titleLine"]}>
+              <h1 className={styles["title"]}>{brief.pr.title}</h1>
+              <StateBadge live={livePrState} pr={brief.pr} />
+              {/* The self-review chip must stay adjacent to the Draft badge. */}
+              {ownDraft !== undefined ? <SelfReviewChip /> : null}
+              <span className={styles["repoRef"]}>
+                <b>{brief.pr.repo}</b>{" "}
+                {prLink ? (
+                  <AccessibleLink
+                    className={styles["ghlink"]}
+                    href={prLink}
+                    target="_blank"
+                  >
+                    #{brief.pr.number} ↗
+                  </AccessibleLink>
+                ) : (
+                  <span>#{brief.pr.number}</span>
+                )}
+              </span>
+            </div>
+            {/* How the brief was GENERATED. Its source — title, state, repo and
+                PR link — stays on the line above. Never wraps above 880px: a
+                second wrap would put the block at three lines at rest and two
+                collapsed, which moves the published --top-bar-h mid-scroll. */}
+            <span className={styles["metaLine"]}>
+              <ProviderBadge generation={brief.generation} />
+              {/* The ⓘ disclosure AND the generation-warnings chip (its second
+                  trigger) — co-located inside so one close path owns focus. */}
+              <BriefDetailsPanel
+                brief={brief}
+                repoConfig={repoConfig}
+                totalAdded={model.totalAdded}
+                totalDeleted={model.totalDeleted}
+                totalCoreAdded={model.totalCoreAdded}
+                totalCoreDeleted={model.totalCoreDeleted}
+              />
+              {repoConfig != null ? (
+                <RepoConfigChip repoConfig={repoConfig} />
+              ) : null}
+            </span>
+          </div>
         </div>
-        {/* Everything after the repo/PR link wraps to a second line on
-            narrow viewports; the CTA + overflow stay pinned at the row end. */}
-        <span className={styles["riders"]}>
-          <ProviderBadge generation={brief.generation} />
-          {/* The ⓘ disclosure AND the generation-warnings chip (its second
-              trigger) — co-located inside so one close path owns focus. */}
-          <BriefDetailsPanel
-            brief={brief}
-            repoConfig={repoConfig}
-            totalAdded={model.totalAdded}
-            totalDeleted={model.totalDeleted}
-            totalCoreAdded={model.totalCoreAdded}
-            totalCoreDeleted={model.totalCoreDeleted}
-          />
-          {repoConfig != null ? (
-            <RepoConfigChip repoConfig={repoConfig} />
-          ) : null}
-        </span>
         <span aria-hidden="true" className={styles["spacer"]} />
         {/* The terminal-action slot: Submit on a reviewer view, Mark ready for
             review in the own-draft state. */}

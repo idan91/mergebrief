@@ -42,7 +42,9 @@
 
     /* The C-shortcut scroll must clear the sticky app header — same offset
        every other top-aligned scroll compensates. */
-    scroll-margin-block-start: var(--top-bar-h, 116px);
+    // The WHOLE pinned stack, not just the header: landing on the header's
+    // height alone leaves the target under the toolbar beneath it.
+    scroll-margin-block-start: var(--sticky-stack-h);
   }
 
   .twist {

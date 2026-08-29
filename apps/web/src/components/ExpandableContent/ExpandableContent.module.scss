@@ -6,9 +6,10 @@
     --expandable-content-text-cap: #{functions.to-rem(200px)};
 
     // Collapsing scrolls the block back into view; without this it lands
-    // under the sticky header.
+    // under the pinned stack. The WHOLE stack, not just the header: the
+    // header's height alone leaves the target under the toolbar beneath it.
     scroll-margin-block-start: calc(
-      var(--top-bar-h, 116px) + #{functions.to-rem(12px)}
+      var(--sticky-stack-h) + #{functions.to-rem(12px)}
     );
 
     @media (width >= 1440px) {

@@ -13,6 +13,11 @@ coverage
 .serena
 .impeccable
 
+# Local e2e/perf run output — already git-ignored, but prettier reads the disk,
+# so a perf run would otherwise fail `pnpm lint` for whoever ran it.
+apps/web/e2e/perf/generated
+apps/web/e2e/.artifacts
+
 # Generated artifacts: the router's file-based route tree, drizzle's migration
 # output (SQL + its journal), and anything else emitted as `*.gen.*`.
 **/routeTree.gen.ts

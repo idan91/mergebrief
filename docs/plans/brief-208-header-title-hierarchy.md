@@ -101,6 +101,36 @@ rule bans two tokens sharing a value, and this is one token serving both roles.
 Hierarchy on the brief screen comes from row position and weight instead of
 size, which is what the Part 3 amendment below rebuilds the header to give it.
 
+**Amended 2026-08-30 (owner call on the render, after the stack's first two
+PRs merged).** The 20px decision above is REVERSED: the title ships at 24px on
+a new `--font-size-4xl`, which makes the scale eight steps
+(10/11/12/13/15/17/20/24, deltas 1,1,1,2,2,3,4). Only the brief header's title
+uses it. The six other `3xl` sites — `base.scss`'s bare `h1`, the settings
+route heading, `GroupCard`, and the three state/error cards — stay at 20px, so
+the brief header title is deliberately the largest text in the app and `3xl`
+keeps carrying every other page title. Sweeping those to `4xl` is a separate
+decision the owner has not made.
+
+The step is not repeated at the two sites that need it. `--header-title-font`
+names the title's resting step once; `.title` renders it and
+`--header-identity-h` derives the identity tier's height from it, so the
+rendered title and the pre-hydration `--top-bar-h` cannot disagree. Below
+880px the header ships already-compact, so the token drops to
+`--font-size-lg` there and the derivation follows.
+
+Measured at 1440 after the change: title 24px on a 28.8px line box, header
+125.8px at rest (was 121px) and 97px collapsed — the collapsed floor is set by
+the meta line, not the title, so the change buys 28.8px of collapse travel
+instead of 24px. With the observer's published value removed, the static
+fallback resolves to 125.8px against a measured 125.8px, exactly.
+
+**Found while verifying, pre-existing, NOT fixed here:** at 375px the derived
+fallback is 108.59px against a measured header of 219.27px. The derivation
+models the title line, the gap and the meta line, but not the extra rows the
+header wraps into below the breakpoint; on the pre-amendment code the same gap
+is ~102px. It only ever bites before the ResizeObserver publishes, which is
+why desktop-only verification missed it. Needs its own ticket.
+
 ## Part 2 — Applying the heading-level rules across the app
 
 Branch `feature/BRIEF-208/heading-levels`, based on Part 1. **Estimated ~60
@@ -224,6 +254,62 @@ opening the PR.
 move, the animation guards and the five-width geometry are subtle and
 interdependent. (Fable where quota allows; on a quota hit, Opus 5 high and note
 the substitution.)
+
+**Amended during execution (Part 3, six owner calls on the render, then
+measured).** Almost nothing in the steps above survived contact with the
+rendered result. What shipped:
+
+- **20px, not 24px, and no new scale step.** Part 1 ships nothing; the title
+  uses the existing `--font-size-3xl`. **Reversed 2026-08-30 — see the Part 1
+  amendment below; the title is 24px on `--font-size-4xl` after all.**
+- **The identity row is a two-line block.** `.titleLine` carries the title,
+  state badge and repo/PR link — the SOURCE. `.metaLine` carries the model
+  cell, details disclosure and warnings chip — how the brief was GENERATED.
+  The `riders` group is gone, dissolved into the meta line, and the ≤880px
+  grid is a single content row.
+- **The collapse is an IntersectionObserver, not a CSS timeline.** Step 2's
+  "CSS only, no JavaScript" was the wrong instrument twice over. A
+  `scroll(root block)` timeline fired over an arbitrary 100px of scroll rather
+  than at the content; a named `view-timeline` fixed the trigger but sampled
+  geometry every frame and measured 24–33ms p95 frame gap against an 18ms
+  baseline. An observer on a sentinel marking where the change content begins
+  fires on the crossing alone, restores the baseline, needs no `@supports`
+  guard, and works in Firefox, which ships no scroll-driven animations at all.
+  It is also the right shape for the requirement, which was always a moment
+  rather than a scrub.
+- **The header shrinks with the title**, 121px to 97px: the title eases 20→13,
+  the meta controls 24→20, the row gap 6→4 and the padding 11→4.
+- **The published height is no longer constant**, which the plan treated as
+  inviolable. It moves once per crossing, and the landing assertions stay at
+  0px because the ResizeObserver republishes and every consumer reads the
+  same value.
+
+**`--sticky-stack-h` is the load-bearing lesson.** The header, focus banner
+and lens toolbar were re-added by hand at five call sites and had drifted:
+`ConversationSection`, `ExpandableContent` and the collapse trigger each used
+the header alone and so landed content under the toolbar, and `base.scss`
+pinned the split-view group card at a hardcoded `132px` — the stack's value
+back when the header was 97px and the toolbar 35px. That is the clipped group
+heading. One registered `<length>` composes it now, and everything reads it.
+
+For the same reason `--top-bar-h`'s pre-hydration fallback is DERIVED from
+named tokens rather than a measured number pasted in; it had been
+hand-resynced four times as the design moved. Verified with JavaScript
+disabled that it resolves to the same height the header actually measures.
+
+Two accessibility notes worth carrying forward. The meta controls are one
+`--header-meta-control-h`, 24px at rest and 20px collapsed; 20px is under
+WCAG 2.5.8's minimum on its own and is carried by the spacing exception,
+which the 12px row gap supplies — shrinking that gap would invalidate it.
+And `overflow: hidden` on a row whose control fills its height shaves the
+focus ring flat; `overflow-clip-margin` is NOT the fix, because WebKit does
+not implement it. Block padding with a cancelling negative margin is.
+
+Everything the collapse moves shares one duration token, including the
+lengths derived from `--header-meta-control-h`, which need their own
+transition because custom properties do not interpolate. Reduced motion
+zeroes that token rather than each file opting out.
+
 
 ## Out of scope
 

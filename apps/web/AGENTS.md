@@ -130,6 +130,19 @@ The TanStack Start front end: the DB-backed read + submit surface, fed by
   headings level-agnostically so it never dictates a level. Authored markdown
   through `components/Markdown` is exempt — it keeps its fixed h1→h3/h2→h4
   demotion. Reviewer-held: no lint rule expresses it.
+- **Styling carries no comments.** A `.module.scss` rule, a token, or a
+  `style` object gets a comment ONLY when a reader who understands CSS would
+  still be unable to predict the behaviour — a browser bug or missing feature
+  (`overflow-clip-margin` is unimplemented in WebKit), a value that must track
+  something in another file, a cascade or ordering trap, or a measured
+  constraint an innocent edit would silently break (a WCAG target-size gap).
+  Everything else goes: no restating the declaration below it (`min-inline-size`
+  is self-evidently a floor), no naming the layout mechanism (`display: grid` is
+  visible), no design rationale, no history of what was tried. If the comment
+  would survive being pasted into another project's stylesheet, it says nothing
+  about this one — delete it. Prefer deleting outright over shortening; a
+  trimmed paragraph is still a paragraph.
+
 - `data-testid` for test selection; `data-state`/`data-variant` for styling —
   CSS targets attributes, not toggled classes. Extracted components adopt
   both at birth. A behavioral third category (an attribute runtime code

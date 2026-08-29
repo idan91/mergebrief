@@ -14,6 +14,17 @@
   // (fixed box, middle-aligned, can't inflate the identity row).
   // Mono glyph + circled-i shape + open state on IconButton's ghost-sm
   // chrome; the 24px box fixes the old 18px min-target violation.
+  // The attribute is carried so this beats IconButton's own sm sizing rule,
+  // which is equally specific: the trigger belongs to the header's meta set
+  // and takes its height from there, not from the shared component's default.
+  .trigger[data-size="sm"] {
+    inline-size: var(--header-meta-control-h);
+    block-size: var(--header-meta-control-h);
+    transition:
+      inline-size var(--header-collapse-ease),
+      block-size var(--header-collapse-ease);
+  }
+
   .trigger {
     border-color: var(--line2);
     border-radius: var(--radius-pill);
@@ -38,7 +49,11 @@
     flex: none;
     gap: functions.to-rem(5px);
     min-height: 0;
-    block-size: functions.to-rem(20px);
+
+    // Same box as the ⓘ trigger beside it, which renders at IconButton's sm
+    // size; they read as one pair rather than two heights.
+    block-size: var(--header-meta-control-h);
+    transition: block-size var(--header-collapse-ease);
     padding-block: 0;
     padding-inline: functions.to-rem(9px);
     color: var(--amber);

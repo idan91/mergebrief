@@ -2,9 +2,6 @@
 @use "mixins";
 
 @layer components {
-  // Two-tier sticky header: identity/status row, then the lens toolbar.
-  // --top-bar-h measures the whole element, so sticky offsets below stay
-  // correct however either tier wraps.
   .header {
     position: sticky;
     inset-block-start: 0;
@@ -16,8 +13,8 @@
     backdrop-filter: blur(12px);
     container: header / inline-size;
 
-    // Rise above the FocusBanner (90) exactly while a menu popup is open;
-    // staying at 50 otherwise lets the drawer scrim dim the header.
+    // Above the FocusBanner (90) only while a menu is open; 50 lets the
+    // drawer scrim dim the header.
     &:has([role="menu"]) {
       z-index: 91;
     }
@@ -27,14 +24,12 @@
     display: flex;
     align-items: center;
     gap: clamp(functions.to-rem(10px), 1.5vw, functions.to-rem(16px));
-    min-block-size: functions.to-rem(52px);
-    padding-block: functions.to-rem(7px);
+    min-block-size: var(--header-identity-min);
+    padding-block: var(--header-pad-block);
+    transition: padding-block var(--header-collapse-ease);
     padding-inline: clamp(functions.to-rem(18px), 3vw, functions.to-rem(28px));
   }
 
-  // A second neutral layer (product register) so the working controls read
-  // as a toolbar rather than more header.
-  // Three regions in reading order: revision, filtering, details.
   .lensRow {
     display: flex;
     flex-wrap: wrap;
@@ -42,16 +37,14 @@
     justify-content: space-between;
     gap: functions.to-rem(8px)
       clamp(functions.to-rem(10px), 1.5vw, functions.to-rem(18px));
-    min-block-size: functions.to-rem(44px);
+    min-block-size: var(--header-lens-min);
     padding-block: functions.to-rem(5px);
     padding-inline: clamp(functions.to-rem(18px), 3vw, functions.to-rem(28px));
     border-block-start: 1px solid var(--line);
     background: color-mix(in srgb, var(--panel2) 45%, transparent);
   }
 
-  // line-height: 1 on the row's single-line text items: inherited
-  // line-heights give them different line boxes, so box-centering drifts the
-  // visible baselines ~2px. Safe — all three are nowrap single-line.
+  // line-height: 1 — inherited line boxes drift the visible baselines ~2px.
   .wordmark {
     flex: none;
     color: var(--text);
@@ -62,28 +55,89 @@
     white-space: nowrap;
   }
 
-  // The title truncates FIRST: the huge shrink factor spends all of its
-  // width before any other cell gives an inch, so a long repo name or model
-  // id can never push the pinned CTA + overflow off the sticky header.
-  .title {
+  .titleBlock {
+    display: flex;
     flex: 0 1000 auto;
-
-    // Without a floor the mid width band squeezes the title to zero while
-    // longer riders keep theirs.
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--header-line-gap);
+    transition: row-gap var(--header-collapse-ease);
     min-inline-size: functions.to-rem(112px);
+  }
+
+  .titleLine {
+    display: flex;
+    align-items: center;
+    gap: functions.to-rem(10px);
+    min-inline-size: 0;
+  }
+
+  // Never wraps above 880px: a second line moves the published --top-bar-h
+  // mid-scroll.
+  .metaLine {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: clamp(functions.to-rem(8px), 1vw, functions.to-rem(12px));
+    min-inline-size: 0;
+
+    // clip, not hidden: hidden would make this a scroll container.
+    overflow: clip;
+
+    // Padding + cancelling margin gives the focus ring room inside the clip
+    // box, sized for the 3px ring prefers-contrast raises to.
+    // overflow-clip-margin would be the obvious tool; WebKit lacks it.
+    padding-block: functions.to-rem(6px);
+    margin-block: functions.to-rem(-6px);
+  }
+
+  .title {
+    // Yields first: the one thing here that reads fine truncated.
+    flex: 0 1000 auto;
+    min-inline-size: 0;
     overflow: hidden;
     color: var(--text);
-    font-size: var(--font-size-lg);
+    font-size: var(--header-title-font);
+    transition: font-size var(--header-collapse-ease);
     font-weight: 600;
     line-height: 1.2;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
+  .header[data-collapsed] .title {
+    font-size: var(--font-size-lg);
+  }
+
+  // Scoped to the widths that collapse: below the breakpoint the header ships
+  // already-compact and holds ONE height.
+  @media (width > 880px) {
+    .header[data-collapsed] {
+      --header-line-gap: #{functions.to-rem(6px)};
+      --header-pad-block: #{functions.to-rem(4px)};
+      --header-meta-font: var(--font-size-sm);
+      --header-meta-font-sm: var(--font-size-xs);
+
+      // 20px rides WCAG 2.5.8's spacing exception: measured 28.8px between
+      // centres along this line, 25px vertically against the PR link on 24px
+      // required. Tightening either gap breaks it.
+      --header-meta-control-h: #{functions.to-rem(20px)};
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .header {
+      --header-collapse-ease: 0s;
+    }
+  }
+
   .repoRef {
-    flex: 0 1 auto;
     min-inline-size: 0;
+
+    // As on .metaLine: room for the PR link's focus ring.
     overflow: hidden;
+    padding-block: functions.to-rem(6px);
+    margin-block: functions.to-rem(-6px);
     color: var(--faint);
     font-size: var(--font-size-md);
     line-height: 1.2;
@@ -97,18 +151,21 @@
   }
 
   // display: contents keeps the identity row one flex line on wide viewports;
-  // the ≤880px block turns lead and riders into the grid's two content rows.
+  // the ≤880px block turns lead into the grid's content row.
   .lead {
-    display: contents;
-  }
-
-  .riders {
     display: contents;
   }
 
   .spacer {
     flex: 1;
     min-inline-size: 0;
+  }
+
+  // Button's default makes this 38px beside 24px controls. Trimmed here, not
+  // on Button, which every other surface uses.
+  .identityRow > [data-terminal-slot] {
+    padding-block: functions.to-rem(5px);
+    padding-inline: functions.to-rem(12px);
   }
 
   .ghlink {
@@ -122,23 +179,14 @@
     }
   }
 
-  // One visual object for the three progress facts: hairline-divided cells
-  // read as a group, not three floating text blocks.
-  // No region claims the slack, so a hidden one (the local navigator drops
-  // below 1120px) just leaves the survivors spread, never re-mapped.
   .detailsRegion {
     display: flex;
     flex: none;
     align-items: center;
     gap: clamp(functions.to-rem(10px), 1.5vw, functions.to-rem(18px));
-
-    // Inert while the lens row is one line (the controls' flex-1 absorbs
-    // the space) but keeps the stats parked at the END when the row wraps.
     margin-inline-start: auto;
   }
 
-  // One grid for the whole stats group: shared label row + value row, each
-  // stat a row-subgrid, so every label and every value align by construction.
   // Never `align-items: baseline` here — it inflates the rows.
   .statsGroup {
     display: grid;
@@ -147,8 +195,6 @@
     grid-template-rows: auto auto;
   }
 
-  // A disclosure's classless wrapper span joins the grid transparently; its
-  // trigger button is the real stat cell.
   .statsGroup > span:not([class]) {
     display: contents;
   }
@@ -182,9 +228,8 @@
     }
   }
 
-  // Hairline dividers between the cells. Placed AFTER the `.stat` reset —
-  // its `border: 0` would swallow an earlier rule of equal specificity; the
-  // second selector reaches a divider-owed stat inside a contents wrapper.
+  // After the `.stat` reset: its `border: 0` would swallow an equal-specificity
+  // earlier rule.
   .statsGroup > * + .stat,
   .statsGroup > * + span:not([class]) > .stat {
     border-inline-start: 1px solid var(--line);
@@ -192,8 +237,6 @@
     margin-inline-start: functions.to-rem(14px);
   }
 
-  // DB-path wrapper: the controls slot's groups share one flex container,
-  // mirroring the local TimelineNavigator's lens region.
   .lensCluster {
     display: flex;
     flex: 1;
@@ -209,7 +252,6 @@
     flex: none;
   }
 
-  // Glyph styling + open state on IconButton's outlined-lg circle.
   .menuTrigger {
     font-size: var(--font-size-2xl);
     line-height: 1;
@@ -261,11 +303,9 @@
     }
   }
 
-  // scaleX, not inline-size: a percentage inline-size recomputes on every
-  // resize frame and re-fires the transition, so the hairline chases the
-  // window edge. scaleX is resize-invariant and animates on the compositor.
-  // transform-origin has no logical keywords yet — `0 50%` = inline-start
-  // in the app's LTR-only layout.
+  // scaleX, not inline-size: a percentage re-fires the transition every
+  // resize frame. `0 50%` = inline-start; transform-origin has no logical
+  // keywords yet.
   .progressBar {
     position: fixed;
     inset-block-start: var(--top-bar-h);
@@ -394,25 +434,13 @@
     }
   }
 
-  @media (width <= 1120px) {
-    .identityRow {
-      min-block-size: functions.to-rem(46px);
-      padding-block: functions.to-rem(5px);
-    }
-  }
-
   @media (width <= 880px) {
-    // A grid, not flex-wrap: two content rows — lead, riders — with the CTA
-    // + overflow column spanning both, vertically centered. DOM (and so
-    // focus) order is unchanged; only placement moves.
     .identityRow {
       display: grid;
       align-items: center;
       gap: functions.to-rem(6px)
         clamp(functions.to-rem(10px), 1.5vw, functions.to-rem(16px));
-      grid-template-areas:
-        "lead   cta menu"
-        "riders cta menu";
+      grid-template-areas: "lead cta menu";
       grid-template-columns: minmax(0, 1fr) auto auto;
       padding-block: functions.to-rem(10px);
       padding-inline: functions.to-rem(18px);
@@ -426,19 +454,9 @@
       min-inline-size: 0;
     }
 
-    .riders {
-      display: flex;
-      align-items: center;
+    .metaLine {
       flex-wrap: wrap;
-      gap: functions.to-rem(10px);
-      grid-area: riders;
-      min-inline-size: 0;
-
-      // Riderless briefs (no origin, no chips): the empty row collapses
-      // and the CTA centers against the lead line alone.
-      &:empty {
-        display: none;
-      }
+      overflow: visible;
     }
 
     .identityRow > [data-terminal-slot] {
@@ -451,16 +469,9 @@
       grid-area: menu;
     }
 
-    // Zero flex-basis inside the lead row: the title grows into the free
-    // space and ellipsizes instead of pushing the grid wider.
-    .title {
+    .titleBlock {
       flex: 1 1 0;
       min-inline-size: 0;
-    }
-
-    // Cap so a long repo slug cannot starve the basis-0 title.
-    .repoRef {
-      max-inline-size: 40%;
     }
 
     // Grid columns own the spacing; the flex spacer is dead weight here.
@@ -525,8 +536,7 @@
     align-items: baseline;
   }
 
-  // Decorative revision-load spinner beside the timeline controls; the
-  // content region's aria-busy carries the semantics.
+  // Decorative; the content region's aria-busy carries the semantics.
   .revisionSpinner {
     flex: none;
     inline-size: 14px;

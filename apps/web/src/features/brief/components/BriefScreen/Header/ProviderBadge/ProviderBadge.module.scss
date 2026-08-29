@@ -12,8 +12,12 @@
     flex: 0 1 auto;
     min-inline-size: 0;
     align-items: stretch;
-    block-size: 18px;
+
+    // One height with the ⓘ trigger and the warnings chip beside it: the
+    // three meta controls are a set, not three independent boxes.
+    block-size: var(--header-meta-control-h);
     border: 1px solid var(--line2);
+    transition: block-size var(--header-collapse-ease);
     border-radius: var(--radius-sm);
     color: var(--dim);
     vertical-align: middle;
@@ -29,9 +33,19 @@
     padding-inline: functions.to-rem(5px);
   }
 
+  // Two thirds of the badge's height, the proportion it had at 18px, so the
+  // mark keeps its weight in the lockup instead of being re-tuned by hand
+  // whenever the badge's height moves.
   .mark {
-    inline-size: 12px;
-    block-size: 12px;
+    inline-size: calc(var(--header-meta-control-h) * 2 / 3);
+    block-size: calc(var(--header-meta-control-h) * 2 / 3);
+
+    // The custom property it derives from SNAPS at the collapse boundary —
+    // custom properties do not interpolate — so the derived lengths carry the
+    // ease themselves, or the mark jumps a frame ahead of the box around it.
+    transition:
+      inline-size var(--header-collapse-ease),
+      block-size var(--header-collapse-ease);
   }
 
   // Fallback/unknown providers show the token as text inside the cell —
@@ -39,13 +53,14 @@
   .markName {
     overflow: hidden;
     max-inline-size: functions.to-rem(96px);
-    font-size: var(--font-size-sm);
+    font-size: var(--header-meta-font);
     text-overflow: ellipsis;
   }
 
   // Block + line-height centering (not flex) so the model id can ellipsize
-  // — the artifact-controlled string is the badge's one unbounded cell.
-  // 16px = the badge's 18px fixed height minus its 1px borders.
+  // — the artifact-controlled string is the badge's one unbounded cell. The
+  // line box is the badge's height less its two 1px borders, derived rather
+  // than restated, so it cannot fall out of step with the box.
   .modelCell {
     display: block;
     flex: 0 1 auto;
@@ -55,24 +70,30 @@
     border-inline-start: 1px solid var(--line);
     color: var(--text);
     font-family: var(--mono);
-    font-size: var(--font-size-sm);
-    line-height: 16px;
+    font-size: var(--header-meta-font);
+
+    // line-height rides the same ease for the same reason as .mark: its
+    // calc() input snaps, so the resolved length has to be interpolated here.
+    transition:
+      font-size var(--header-collapse-ease),
+      line-height var(--header-collapse-ease);
+
+    // Centres the text whatever size it is: the line box IS the cell's inner
+    // height, so it stays middled in both states without an optical nudge.
+    line-height: calc(var(--header-meta-control-h) - 2px);
     text-overflow: ellipsis;
   }
 
-  // Textual adapter-class end tag, with a 1px optical down-nudge on the
-  // inner text span so the cell's own border stays put.
+  // Textual adapter-class end tag. Flex-centred, with no optical nudge: the
+  // 1px translate this used to carry was tuned to an 18px badge and fought
+  // true centring once the box grew.
   .classTag {
     display: inline-flex;
     align-items: center;
     padding-inline: functions.to-rem(5px);
     border-inline-start: 1px solid var(--line);
-    font-size: var(--font-size-xs);
+    font-size: var(--header-meta-font-sm);
     letter-spacing: 0.08em;
     line-height: 1;
-
-    > span {
-      transform: translateY(1px);
-    }
   }
 }

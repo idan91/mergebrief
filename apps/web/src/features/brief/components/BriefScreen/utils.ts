@@ -274,3 +274,12 @@ export function resolveRiskEvidence(
 
 /** User inputs that abort an in-flight programmatic landing. */
 export const SCROLL_ABORT_EVENTS = ["wheel", "touchstart", "keydown"] as const;
+
+/**
+ * Marks where the change content begins, directly below the brief's overview
+ * blocks. The header observes this element to know the moment that content
+ * reaches it, and collapses its title then. It is a behavioural attribute
+ * that runtime code queries — never a styling or test hook — and it sits
+ * outside both views so switching between them cannot unmount it.
+ */
+export const CONTENT_START_ATTR = "data-content-start";

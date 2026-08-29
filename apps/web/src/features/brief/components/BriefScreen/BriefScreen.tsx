@@ -55,6 +55,7 @@ import { ReadingToolbar } from "./ReadingToolbar/ReadingToolbar";
 import { RiskFlagModals } from "./RiskFlagModals/RiskFlagModals";
 import { ShortcutsModal } from "./ShortcutsModal/ShortcutsModal";
 import { StoryView } from "./StoryView/StoryView";
+import { CONTENT_START_ATTR } from "./utils";
 import { SummarySection } from "./SummarySection/SummarySection";
 import { UnattributedBanner } from "./UnattributedBanner/UnattributedBanner";
 import { useDelayedPending } from "./useDelayedPending";
@@ -775,6 +776,12 @@ export function BriefScreen({
             />
           ) : null}
 
+          {/* Where the change content begins. The header observes this to
+            collapse its title the moment that content reaches it; it sits
+            outside both scope panes so switching between them cannot unmount
+            it, and outside the windowed chunk lists so virtualization cannot
+            either. */}
+          <div aria-hidden="true" {...{ [CONTENT_START_ATTR]: "" }} />
           {/* Scope panes stay MOUNTED once shown and toggle with `hidden`
             (display:none — out of paint and the AT tree): the flip used to
             remount the alternate tree, and mounting 300 chunk cards is the

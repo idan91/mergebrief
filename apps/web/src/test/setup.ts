@@ -15,6 +15,46 @@ class ResizeObserverStub implements ResizeObserver {
   disconnect(): void {}
 }
 
+/** Every IntersectionObserver constructed under test, newest last. A stub that
+ * only swallows calls leaves observer-driven behaviour untestable; tests drive
+ * it by invoking a recorded callback with a synthetic entry. */
+export const intersectionObservers: {
+  callback: IntersectionObserverCallback;
+  rootMargin: string;
+  disconnected: boolean;
+}[] = [];
+
+/** jsdom ships no IntersectionObserver; the header uses one to know when the
+ * change content reaches it. */
+class IntersectionObserverStub implements IntersectionObserver {
+  readonly root = null;
+  readonly rootMargin: string;
+  readonly thresholds: readonly number[] = [];
+  private readonly record: (typeof intersectionObservers)[number];
+
+  constructor(
+    callback: IntersectionObserverCallback,
+    init?: IntersectionObserverInit,
+  ) {
+    this.rootMargin = init?.rootMargin ?? "";
+    this.record = {
+      callback,
+      rootMargin: this.rootMargin,
+      disconnected: false,
+    };
+    intersectionObservers.push(this.record);
+  }
+
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {
+    this.record.disconnected = true;
+  }
+  takeRecords(): IntersectionObserverEntry[] {
+    return [];
+  }
+}
+
 class MediaQueryListStub extends EventTarget implements MediaQueryList {
   readonly matches = false;
   onchange:
@@ -31,6 +71,10 @@ class MediaQueryListStub extends EventTarget implements MediaQueryList {
 
 if (typeof globalThis.ResizeObserver === "undefined") {
   globalThis.ResizeObserver = ResizeObserverStub;
+}
+
+if (typeof globalThis.IntersectionObserver === "undefined") {
+  globalThis.IntersectionObserver = IntersectionObserverStub;
 }
 
 if (typeof globalThis.matchMedia === "undefined") {

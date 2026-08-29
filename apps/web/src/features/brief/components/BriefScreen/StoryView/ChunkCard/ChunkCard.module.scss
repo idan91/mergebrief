@@ -5,6 +5,12 @@
     overflow: clip;
     margin-block-end: functions.to-rem(12px);
     border: 1px solid var(--line);
+
+    // The sticky head OWNS the box's top edge, so it keeps that edge while
+    // stuck instead of leaving the card looking sliced off. The card still
+    // reserves the 1px, so nothing moves; overflow: clip means the head
+    // cannot simply overlap the card's own border.
+    border-block-start-color: transparent;
     border-radius: var(--radius-md);
     background: var(--panel2);
 
@@ -19,11 +25,21 @@
       --current-halo: 0 0 0 1px var(--current-edge);
 
       border-color: var(--current-edge);
+      border-block-start-color: transparent;
       box-shadow: var(--current-halo);
+
+      .head {
+        border-block-start-color: var(--current-edge);
+      }
     }
 
     &[data-reviewed] {
       border-color: var(--color-outline-2);
+      border-block-start-color: transparent;
+
+      .head {
+        border-block-start-color: var(--color-outline-2);
+      }
     }
 
     &[data-state="open"] .head {
@@ -38,14 +54,12 @@
   .head {
     position: sticky;
 
-    // Stacks below the focus banner strip in focus mode (--focus-banner-h is
-    // 0px outside it) and below the sticky reading toolbar in the story view
-    // (--toolbar-h is 0px wherever the toolbar unmounts), so the
-    // chunk header pins to the lowest pinned strip's bottom edge instead of
-    // sliding behind it.
-    inset-block-start: calc(
-      var(--top-bar-h) + var(--focus-banner-h, 0px) + var(--toolbar-h, 0px)
-    );
+    // The card's top edge, carried by the element that stays put.
+    border-block-start: 1px solid var(--line);
+
+    // Pins to the bottom edge of everything above it instead of sliding
+    // behind it. --sticky-stack-h is that whole stack as one value.
+    inset-block-start: var(--sticky-stack-h);
     z-index: 10;
     display: flex;
     inline-size: 100%;

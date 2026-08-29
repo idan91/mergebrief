@@ -142,7 +142,7 @@ was superseded: value-named tokens (`--font-size-13`, `--radius-8`,
 `--color-surface-01`) are banned as scaffolding waste. Tokens exist only for
 the deliberate design-system scale:
 
-- **Type:** semantic steps (`--font-size-xs` … `--font-size-3xl`, `md` =
+- **Type:** semantic steps (`--font-size-xs` … `--font-size-4xl`, `md` =
   body) plus em steps for parent-relative contexts.
 - **Radius / shadow:** small semantic sets (`--radius-xs/sm/md/lg/pill/
 circle`; `--shadow-elevation-sm/md/lg` + special cases).

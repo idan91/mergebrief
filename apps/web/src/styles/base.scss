@@ -203,12 +203,17 @@
   // fixed — the card itself never scrolls.
   .split-main .story-group > article {
     position: sticky;
-    inset-block-start: 132px;
+
+    // The pinned stack, not a constant. This was 132px — the header plus a
+    // 35px toolbar, both of which have since changed — so the card pinned
+    // 34px too high and its own top edge sat under the toolbar, leaving the
+    // first row inside it looking like the top of the box.
+    inset-block-start: var(--sticky-stack-h);
     display: flex;
     flex-direction: column;
     order: initial;
     grid-column: 2;
-    max-block-size: calc(100vh - 132px - 24px);
+    max-block-size: calc(100vh - var(--sticky-stack-h) - 24px);
   }
 
   @media (width <= 1180px) {

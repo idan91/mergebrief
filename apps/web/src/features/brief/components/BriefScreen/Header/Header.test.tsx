@@ -6,11 +6,20 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Brief } from "../../../types";
 import { buildBriefViewModel } from "../../../utils/viewModel";
+import { intersectionObservers } from "../../../../../test/setup";
+import { CONTENT_START_ATTR } from "../utils";
 import { Header, type HeaderProps } from "./Header";
 
 afterEach(cleanup);
@@ -141,7 +150,7 @@ describe("Header identity row", () => {
     expect(screen.queryByText(/basebase\.\.headhead/)).toBeNull();
   });
 
-  it("renders the keycap origin badge in the riders", async () => {
+  it("renders the keycap origin badge on the meta line", async () => {
     await renderHeader();
     // Full semantics are pinned in ProviderBadge.test.tsx; the header pins
     // only the wiring.
@@ -149,6 +158,78 @@ describe("Header identity row", () => {
     expect(badge?.textContent).toContain("m-1 · high");
     expect(badge?.textContent).toContain("API");
     expect(document.querySelector("[data-origin]")).toBeNull();
+  });
+
+  /** A crossing at `top`, against a root edge at `lineTop`. Built out in full
+   * rather than cast: the header reads boundingClientRect and rootBounds. */
+  function crossingEntry(
+    top: number,
+    lineTop: number,
+    target: Element,
+  ): IntersectionObserverEntry {
+    return {
+      boundingClientRect: new DOMRect(0, top, 10, 10),
+      intersectionRatio: 0,
+      intersectionRect: new DOMRect(),
+      isIntersecting: top > lineTop,
+      rootBounds: new DOMRect(0, lineTop, 100, 100),
+      target,
+      time: 0,
+    };
+  }
+
+  it("collapses when the change content reaches the header, and expands back", async () => {
+    // The trigger line is the pinned stack's resting height; jsdom computes no
+    // stylesheet, so publish one for the header to read.
+    document.documentElement.style.setProperty("--sticky-stack-h", "120px");
+    const sentinel = document.createElement("div");
+    sentinel.setAttribute(CONTENT_START_ATTR, "");
+    document.body.append(sentinel);
+    intersectionObservers.length = 0;
+    try {
+      await renderHeader();
+      const header = document.querySelector("header");
+      await waitFor(() => expect(intersectionObservers.length).toBe(1));
+      const observed = intersectionObservers[0];
+      expect(observed?.rootMargin).toBe("-120px 0px 0px 0px");
+
+      // Content risen past the line: collapse.
+      act(() => {
+        observed?.callback([crossingEntry(-1, 0, sentinel)], observed as never);
+      });
+      expect(header?.hasAttribute("data-collapsed")).toBe(true);
+
+      // Scrolled back below it: expand. Bistable, not one-way.
+      act(() => {
+        observed?.callback([crossingEntry(40, 0, sentinel)], observed as never);
+      });
+      expect(header?.hasAttribute("data-collapsed")).toBe(false);
+    } finally {
+      sentinel.remove();
+      document.documentElement.style.removeProperty("--sticky-stack-h");
+    }
+  });
+
+  it("splits the block into a source line and a generation line", async () => {
+    await renderHeader();
+    // Fixed membership: the source (title, state, repo, PR link) on the first
+    // line, how the brief was generated (model, details) on the second. The
+    // block reserves a constant height for exactly this shape, so a member
+    // moving between lines is what would break the published --top-bar-h.
+    const title = screen.getByRole("heading", { level: 1 });
+    const titleLine = title.parentElement;
+    const block = titleLine?.parentElement;
+    const metaLine = block?.lastElementChild;
+
+    expect(titleLine?.contains(screen.getByText("acme/widgets"))).toBe(true);
+    expect(titleLine?.contains(screen.getByRole("link", { name: /#7/ }))).toBe(
+      true,
+    );
+    expect(
+      metaLine?.contains(document.querySelector("[data-provider-badge]")!),
+    ).toBe(true);
+    expect(metaLine?.contains(title)).toBe(false);
+    expect(metaLine?.contains(screen.getByText("acme/widgets"))).toBe(false);
   });
 });
 
@@ -175,6 +256,9 @@ describe("state badge", () => {
     expect(badge?.nextElementSibling?.matches("[data-self-review-chip]")).toBe(
       true,
     );
+    // Both ride the title's own line, not the meta line under it.
+    const titleLine = screen.getByRole("heading", { level: 1 }).parentElement;
+    expect(titleLine?.contains(badge!)).toBe(true);
   });
 
   it.each([
@@ -638,15 +722,17 @@ describe("Header own-draft state", () => {
     rerender(
       <Header {...headerProps({ markReady: vi.fn(), pending: false })} />,
     );
-    // …then the user moves on and works elsewhere.
-    const elsewhere = screen.getByRole("button", { name: /^language:/i });
+    // …then the user moves on and works elsewhere. Any focusable header
+    // control does; the details disclosure is one that does not depend on a
+    // feature flag.
+    const elsewhere = screen.getByRole("button", { name: "Brief details" });
     elsewhere.focus();
 
     // A LATER external ready flip must leave the user's focus alone — a
     // stale `true` from the earlier swap would yank it onto Receipt.
     rerender(<Header {...headerProps(undefined)} />);
     expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: /^language:/i }),
+      screen.getByRole("button", { name: "Brief details" }),
     );
   });
 

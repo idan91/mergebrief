@@ -107,9 +107,9 @@
     --color-border-strong: var(--color-outline-2);
 
     // ── Type scale ───────────────────────────────────────────────────────
-    // Seven steps, 10/11/12/13/15/17/20 — deltas 1,1,1,2,2,3, so the scale
-    // widens as it climbs. `md` is the body anchor; roles never earn a token
-    // at an equal value. Expressed as rem via to-rem() so the scale follows
+    // Eight steps, 10/11/12/13/15/17/20/24 — deltas 1,1,1,2,2,3,4, so the
+    // scale widens as it climbs. `md` is the body anchor; roles never earn
+    // a token at an equal value. Expressed as rem via to-rem() so the scale follows
     // the reader's browser font-size preference (WCAG 1.4.4); the px
     // arguments are the design values, exact at the 16px root default.
     --font-size-xs: #{functions.to-rem(10px)}; // micro labels, badges, gutter numerals
@@ -119,6 +119,7 @@
     --font-size-xl: #{functions.to-rem(15px)}; // subheads, section titles
     --font-size-2xl: #{functions.to-rem(17px)}; // panel / drawer titles
     --font-size-3xl: #{functions.to-rem(20px)}; // page titles
+    --font-size-4xl: #{functions.to-rem(24px)}; // the brief header's PR title
 
     // The document base size (body in base.scss) — the measuring stick the
     // steps above are chosen against, not a step itself. The only fluid
@@ -155,20 +156,62 @@
     --shadow-ring-highlight: 0 0 0 2px var(--color-comment-highlight);
     --shadow-ring-clear: 0 0 0 2px transparent;
     --shadow-ring-muted: 0 0 0 3px var(--color-outline-2);
+    --header-pad-block: #{functions.to-rem(11px)};
+    --header-line-gap: #{functions.to-rem(6px)};
 
-    // Height of the sticky page header; sticky chunk headers pin just below
-    // it. Pre-hydration fallback — the Header's ResizeObserver publishes the
-    // measured value. Keep in sync with Header.module.scss: the two tiers'
-    // min-block-size (52px identity + 44px lens) + the 1px bottom border.
-    --top-bar-h: 97px;
+    // One box for all three meta controls. 20px when collapsed rides WCAG
+    // 2.5.8's spacing exception; the gaps that carry it are in the module.
+    --header-meta-control-h: #{functions.to-rem(24px)};
+    --header-meta-h: var(--header-meta-control-h);
+    --header-collapse-ease: 160ms ease;
+    --header-meta-font: var(--font-size-md);
+    --header-meta-font-sm: var(--font-size-sm);
+    --header-identity-min: #{functions.to-rem(52px)};
+    --header-lens-min: #{functions.to-rem(44px)};
+    --header-title-font: var(--font-size-4xl);
+
+    // The 1.2 mirrors .title's line-height.
+    --header-title-line: calc(var(--header-title-font) * 1.2);
+    --header-identity-h: calc(
+      var(--header-title-line) + var(--header-line-gap) + var(--header-meta-h)
+    );
+    --header-identity-box: calc(
+      var(--header-identity-h) + 2 * var(--header-pad-block)
+    );
+    --header-identity-tier: max(
+      var(--header-identity-min),
+      var(--header-identity-box)
+    );
+
+    // Pre-hydration fallback only; the ResizeObserver publishes the measured
+    // value on mount.
+    --top-bar-h: calc(
+      var(--header-identity-tier) + var(--header-lens-min) + 1px
+    );
+
+    // @property-registered in _layers.scss so JS reads a number.
+    --sticky-stack-h: calc(
+      var(--top-bar-h) + var(--focus-banner-h, 0px) + var(--toolbar-h, 0px)
+    );
 
     color-scheme: dark light;
   }
 
+  @media (width <= 880px) {
+    :root {
+      // Matches what renders here. Does NOT make the fallback correct at
+      // these widths — the derivation models two lines and the header wraps
+      // into more (108.59px derived against 219.27px actual at 375).
+      --header-title-font: var(--font-size-lg);
+    }
+  }
+
   @media (width <= 1120px) {
     :root {
-      // Identity tier compresses to 46px min at this width (Header.module.scss).
-      --top-bar-h: 91px;
+      // Only the padding and the tier minimum change at this width; the
+      // derivation above picks the rest up unchanged.
+      --header-pad-block: #{functions.to-rem(9px)};
+      --header-identity-min: #{functions.to-rem(46px)};
     }
   }
 }

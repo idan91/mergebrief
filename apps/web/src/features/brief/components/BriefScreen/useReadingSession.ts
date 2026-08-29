@@ -61,12 +61,10 @@ function numericCssVar(name: string): number {
 }
 
 function focusScrollOffset(): number {
-  const topBarHeight = numericCssVar("--top-bar-h");
-  const focusBannerHeight =
-    document
-      .querySelector<HTMLElement>("[data-focus-banner]")
-      ?.getBoundingClientRect().height ?? 0;
-  return topBarHeight + focusBannerHeight + 40;
+  // The whole pinned stack, read as one registered length rather than
+  // re-added from its parts here — the parts drifting apart between call
+  // sites is what put a landing underneath the toolbar.
+  return numericCssVar("--sticky-stack-h") + 40;
 }
 
 function scrollElementToTop(

@@ -16,6 +16,14 @@ interface LocaleOption {
   readonly nativeName: string;
 }
 
+/** Off unless ENABLE_LANGUAGE_SELECTION is switched on. The catalog and the
+ * locale machinery stay wired; only the control is withheld, so turning the
+ * flag on is the whole of shipping it. */
+function isLanguageSelectionEnabled(): boolean {
+  const flag: unknown = import.meta.env["ENABLE_LANGUAGE_SELECTION"];
+  return flag === "true" || flag === "1" || flag === true;
+}
+
 /** Registry rows plus the dev-only pseudo entry. */
 function localeOptions(): LocaleOption[] {
   const options: LocaleOption[] = LOCALES.map((entry) => ({
@@ -91,6 +99,10 @@ export function LocalePicker() {
   };
 
   const activeOption = options[focusIndex];
+
+  // After the hooks, never before them: an early return above would make the
+  // hook order depend on the flag.
+  if (!isLanguageSelectionEnabled()) return null;
 
   return (
     <div className={styles["root"]} ref={rootRef}>

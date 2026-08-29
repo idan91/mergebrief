@@ -3,7 +3,7 @@
 // registry's locales.
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { LOCALES, PSEUDO_LOCALE } from "i18n";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { appI18n, changeLocale, I18nProvider } from "../I18nProvider";
 import { LOCALE_STORAGE_KEY } from "../locale";
@@ -30,7 +30,27 @@ function openMenu() {
   return screen.getByRole("menu");
 }
 
+// The picker is gated behind ENABLE_LANGUAGE_SELECTION and off by default;
+// these cases are about the control itself, so they run with it on.
+beforeEach(() => {
+  vi.stubEnv("ENABLE_LANGUAGE_SELECTION", "true");
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
 describe("LocalePicker", () => {
+  it("renders nothing unless ENABLE_LANGUAGE_SELECTION is on", () => {
+    // The default. Language selection ships wired but withheld, so the flag
+    // being off has to mean no control at all — not a hidden one that is
+    // still in the tab order.
+    vi.stubEnv("ENABLE_LANGUAGE_SELECTION", "");
+    const { container } = render(<LocalePicker />);
+    expect(container.firstChild).toBeNull();
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
   it("names the active language on the trigger", () => {
     renderPicker();
     expect(
