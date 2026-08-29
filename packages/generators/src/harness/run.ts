@@ -398,6 +398,11 @@ export const HARNESS_STRIPPED_CREDENTIAL_VARS = [
   "CODEX_ACCESS_TOKEN",
   "OPENAI_API_KEY",
   "OPENROUTER_API_KEY",
+  // cursor: the endpoint redirect must never reach a spawn. CURSOR_API_KEY
+  // deliberately SURVIVES — it outranks the stored login in the CLI's auth
+  // precedence but bills the SAME subscription pool (the claude vars above
+  // are stripped for the opposite reason: they rebill to an API account).
+  "CURSOR_API_ENDPOINT",
 ] as const;
 
 /**

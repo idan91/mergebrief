@@ -8,7 +8,8 @@ export type Logger = (message: string) => void;
  * Provider-reported token counts for ONE underlying request. Numbers are
  * the provider's own accounting and their semantics differ:
  * Anthropic's `inputTokens` EXCLUDES cache reads; OpenAI-compatible
- * `inputTokens` (prompt_tokens) INCLUDES them. Consumers pricing these
+ * `inputTokens` (prompt_tokens) INCLUDES them; cursor-agent's cache
+ * semantics are unverified. Consumers pricing these
  * must apply per-provider rates accordingly.
  */
 export interface TokenUsage {
@@ -52,7 +53,8 @@ export interface GenerateRequest<S extends z.ZodType> {
    * Invoked once per underlying provider request that reports usage —
    * feedback/knob retries included, so a
    * caller totalling spend SUMS the calls. Best-effort: adapters without
-   * per-call usage (the CLI adapters) never invoke it, and a request that
+   * per-call usage (the claude-code/codex CLI adapters — cursor's envelope
+   * does report tokens) never invoke it, and a request that
    * fails before usage is read reports nothing. Observability only — the
    * callback must not throw and never affects generation flow.
    */

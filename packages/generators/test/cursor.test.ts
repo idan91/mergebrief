@@ -1,0 +1,532 @@
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { afterEach, describe, expect, it } from "vitest";
+import { z } from "zod/v4";
+import {
+  CURSOR_VERSION_FLOOR,
+  CursorGenerator,
+  cursorVersionWarning,
+  interpretCursorAbout,
+  resolveCursorTimeouts,
+} from "../src/adapters/cursor";
+import { GeneratorError, GeneratorErrorKind } from "../src/contract/errors";
+import type { TokenUsage } from "../src/contract/generator";
+
+/**
+ * Adapter-specific behavior on real fake-cursor processes: invocation
+ * profile (argv/stdin/cwd), envelope classification, stderr-prefix error
+ * taxonomy, and the boot-probe interpreters. The pipeline conformance cases
+ * (cursor.contract.test.ts) ride the registry-wiring change that makes the
+ * adapter constructable.
+ */
+
+const FAKE_CURSOR = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "shims",
+  "fake-cursor.cjs",
+);
+
+const Schema = z.object({ ok: z.boolean() });
+
+// Every temp dir is tracked and removed after each test — repeated local
+// runs must not accumulate failure dumps and script fixtures.
+const tempDirs: string[] = [];
+function tempDir(prefix: string): string {
+  const dir = mkdtempSync(join(tmpdir(), prefix));
+  tempDirs.push(dir);
+  return dir;
+}
+afterEach(() => {
+  for (const dir of tempDirs.splice(0)) {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+function makeGenerator(
+  env: Record<string, string>,
+  overrides?: Partial<ConstructorParameters<typeof CursorGenerator>[0]>,
+) {
+  return new CursorGenerator({
+    command: FAKE_CURSOR,
+    failureDir: tempDir("cursor-fail-"),
+    env: { ...process.env, ...env },
+    timeouts: { hardMs: 8000, killGraceMs: 300 },
+    ...overrides,
+  });
+}
+
+function request(extras?: {
+  log?: (m: string) => void;
+  onUsage?: (usage: TokenUsage) => void;
+}) {
+  const req: {
+    schema: typeof Schema;
+    system: string;
+    user: string;
+    effort: "medium";
+    label: string;
+    log?: (m: string) => void;
+    onUsage?: (usage: TokenUsage) => void;
+  } = {
+    schema: Schema,
+    system: "you are a test",
+    user: "produce ok",
+    effort: "medium",
+    label: "probe",
+  };
+  if (extras?.log) req.log = extras.log;
+  if (extras?.onUsage) req.onUsage = extras.onUsage;
+  return req;
+}
+
+function scriptedGenerator(turns: unknown[]) {
+  const scriptDir = tempDir("cursor-script-");
+  writeFileSync(join(scriptDir, "turns.json"), JSON.stringify(turns));
+  const generator = makeGenerator({
+    SHIM_SCENARIO: "scripted",
+    SHIM_SCRIPT_DIR: scriptDir,
+  });
+  return { generator, scriptDir };
+}
+
+async function rejection(promise: Promise<unknown>): Promise<GeneratorError> {
+  const caught = await promise.then(
+    () => {
+      throw new Error("expected rejection");
+    },
+    (error: unknown) => error,
+  );
+  if (!(caught instanceof GeneratorError)) throw new Error("wrong rejection");
+  return caught;
+}
+
+describe("CursorGenerator invocation profile", () => {
+  it("passes the plan-mode lockdown argv from an empty temp cwd, prompts via stdin", async () => {
+    const { generator, scriptDir } = scriptedGenerator([
+      { output: '{"ok":true}' },
+    ]);
+    await expect(generator.generate(request())).resolves.toEqual({ ok: true });
+
+    const argv: unknown = JSON.parse(
+      readFileSync(join(scriptDir, "argv-0.json"), "utf8"),
+    );
+    // The COMPLETE lockdown argv contract — order, pairing, and nothing
+    // extra: never --force, never --sandbox, never --api-key. No --model
+    // when none is configured (the CLI's own default runs).
+    expect(argv).toEqual([
+      "-p",
+      "--output-format",
+      "stream-json",
+      "--mode",
+      "plan",
+      "--trust",
+    ]);
+    // System + user prompt both travel by stdin (the CLI has no system
+    // channel), system first.
+    const stdin = readFileSync(join(scriptDir, "stdin-0.txt"), "utf8");
+    expect(stdin).toBe("you are a test\n\nproduce ok");
+    // Spawn cwd is a fresh empty temp dir, not the worker's own cwd.
+    const cwd = readFileSync(join(scriptDir, "cwd-0.txt"), "utf8");
+    expect(cwd).not.toBe(process.cwd());
+    expect(cwd).toContain("cursor-gen-");
+  });
+
+  it("rides the effort knob into the model-id bracket override", async () => {
+    const { generator, scriptDir } = scriptedGenerator([
+      { output: '{"ok":true}' },
+    ]);
+    await expect(
+      generator.generate({ ...request(), effort: "high" }),
+    ).resolves.toEqual({ ok: true });
+    // No model → no --model flag even at non-default effort: there is no id
+    // to carry the bracket.
+    const bare: unknown = JSON.parse(
+      readFileSync(join(scriptDir, "argv-0.json"), "utf8"),
+    );
+    expect(bare).toEqual([
+      "-p",
+      "--output-format",
+      "stream-json",
+      "--mode",
+      "plan",
+      "--trust",
+    ]);
+    const withModel = scriptedGenerator([{ output: '{"ok":true}' }]);
+    const modelGenerator = makeGenerator(
+      {
+        SHIM_SCENARIO: "scripted",
+        SHIM_SCRIPT_DIR: withModel.scriptDir,
+      },
+      { model: "gpt-5.2" },
+    );
+    await expect(
+      modelGenerator.generate({ ...request(), effort: "high" }),
+    ).resolves.toEqual({ ok: true });
+    const argv: unknown = JSON.parse(
+      readFileSync(join(withModel.scriptDir, "argv-0.json"), "utf8"),
+    );
+    expect(argv).toEqual([
+      "-p",
+      "--output-format",
+      "stream-json",
+      "--mode",
+      "plan",
+      "--trust",
+      "--model",
+      "gpt-5.2[effort=high]",
+    ]);
+  });
+
+  it("stamps the configured model and echoes effort only when it rides", () => {
+    const configured = makeGenerator({}, { model: "gpt-5.2" });
+    expect(configured.origin("high")).toEqual({
+      provider: "cursor",
+      model: "gpt-5.2",
+      effort: "high",
+    });
+    // No model → no --model flag → no bracket to carry effort: both gaps
+    // surface honestly.
+    const defaulted = makeGenerator({});
+    expect(defaulted.origin("high")).toEqual({
+      provider: "cursor",
+      model: "cursor-default",
+      effort: null,
+    });
+  });
+});
+
+describe("CursorGenerator envelope handling", () => {
+  it("resolves a schema-valid answer through the floor", async () => {
+    const generator = makeGenerator({ SHIM_SCENARIO: "valid" });
+    await expect(generator.generate(request())).resolves.toEqual({ ok: true });
+  });
+
+  it("reports envelope usage tokens through onUsage", async () => {
+    const usages: TokenUsage[] = [];
+    const generator = makeGenerator({ SHIM_SCENARIO: "valid" });
+    await expect(
+      generator.generate(request({ onUsage: (usage) => usages.push(usage) })),
+    ).resolves.toEqual({ ok: true });
+    // Shim envelope: inputTokens 11 / outputTokens 22 / cacheReadTokens 3
+    // (cacheWriteTokens has no TokenUsage slot and is dropped).
+    expect(usages).toEqual([
+      { inputTokens: 11, outputTokens: 22, cacheReadTokens: 3 },
+    ]);
+  });
+
+  it("logs the billing route from system/init through the allowlist", async () => {
+    const logs: string[] = [];
+    const generator = makeGenerator({
+      SHIM_SCENARIO: "valid",
+      SHIM_API_KEY_SOURCE: "env",
+    });
+    await expect(
+      generator.generate(request({ log: (m) => logs.push(m) })),
+    ).resolves.toEqual({ ok: true });
+    expect(logs.join("\n")).toContain("apiKeySource: env");
+  });
+
+  it("stays quiet on the expected plan permission mode", async () => {
+    const logs: string[] = [];
+    const generator = makeGenerator({ SHIM_SCENARIO: "valid" });
+    await expect(
+      generator.generate(request({ log: (m) => logs.push(m) })),
+    ).resolves.toEqual({ ok: true });
+    expect(logs.join("\n")).not.toContain("lockdown");
+  });
+
+  it("warns on a drifted permission mode without echoing it", async () => {
+    // The one lockdown claim the CLI makes checkable — silence here would
+    // let a drifted CLI run generations with write+shell tools live.
+    const logs: string[] = [];
+    const generator = makeGenerator({
+      SHIM_SCENARIO: "valid",
+      SHIM_PERMISSION_MODE: "drift-SENTINEL-mode",
+    });
+    await expect(
+      generator.generate(request({ log: (m) => logs.push(m) })),
+    ).resolves.toEqual({ ok: true });
+    const joined = logs.join("\n");
+    expect(joined).toContain("write lockdown is unverified");
+    expect(joined).toContain("an unrecognized mode");
+    expect(joined).not.toContain("SENTINEL");
+  });
+
+  it("never echoes a drifted apiKeySource into logs", async () => {
+    const logs: string[] = [];
+    const generator = makeGenerator({
+      SHIM_SCENARIO: "valid",
+      SHIM_API_KEY_SOURCE: "leak-SENTINEL-value",
+    });
+    await expect(
+      generator.generate(request({ log: (m) => logs.push(m) })),
+    ).resolves.toEqual({ ok: true });
+    const joined = logs.join("\n");
+    expect(joined).not.toContain("SENTINEL");
+    expect(joined).toContain("an unrecognized source");
+  });
+
+  it("feeds a schema-invalid answer back through one floor retry", async () => {
+    const { generator, scriptDir } = scriptedGenerator([
+      { output: "not json at all" },
+      { output: '{"ok":true}' },
+    ]);
+    await expect(generator.generate(request())).resolves.toEqual({ ok: true });
+    // Fresh process per attempt; the retry prompt stitches system, failed
+    // output and validation feedback into one stdin.
+    const stdin = readFileSync(join(scriptDir, "stdin-1.txt"), "utf8");
+    expect(stdin.startsWith("you are a test")).toBe(true);
+    expect(stdin).toContain("[Your previous response]");
+    expect(stdin).toContain("not json at all");
+    expect(stdin).toContain("failed schema validation");
+  });
+
+  it("surfaces an empty answer as a schema-floor failure", async () => {
+    const { generator } = scriptedGenerator([{ output: "" }]);
+    const caught = await rejection(generator.generate(request()));
+    expect(caught.kind).toBe(GeneratorErrorKind.SCHEMA_FLOOR);
+    expect(caught.message).toContain("No output");
+  });
+
+  it("reports billed usage even when the envelope is an error", async () => {
+    // The tokens were spent before the failure classified — onUsage fires
+    // off the envelope, ahead of the error branches.
+    const usages: TokenUsage[] = [];
+    const { generator } = scriptedGenerator([
+      { isError: true, subtype: "error", output: "" },
+    ]);
+    await rejection(
+      generator.generate(request({ onUsage: (usage) => usages.push(usage) })),
+    );
+    expect(usages).toEqual([
+      { inputTokens: 11, outputTokens: 22, cacheReadTokens: 3 },
+    ]);
+  });
+
+  it("keeps a drifted error subtype out of the message", async () => {
+    const { generator } = scriptedGenerator([
+      { isError: true, subtype: "drifted-SENTINEL-subtype", output: "" },
+    ]);
+    const caught = await rejection(generator.generate(request()));
+    expect(caught.kind).toBe(GeneratorErrorKind.OPAQUE);
+    expect(caught.message).not.toContain("SENTINEL");
+    expect(caught.message).toContain("an unrecognized error");
+  });
+});
+
+describe("CursorGenerator stderr taxonomy", () => {
+  it("classifies the auth prefix without echoing raw stderr", async () => {
+    const generator = makeGenerator({ SHIM_SCENARIO: "stderr-auth" });
+    const caught = await rejection(generator.generate(request()));
+    expect(caught.kind).toBe(GeneratorErrorKind.AUTH);
+    expect(caught.message).toContain("cursor-agent login");
+    expect(caught.message).toContain("CURSOR_API_KEY");
+    // Fixed text only — the CLI's own phrasing never rides along.
+    expect(caught.message).not.toContain("Please run");
+  });
+
+  it("classifies a rejected model as config", async () => {
+    const generator = makeGenerator({ SHIM_SCENARIO: "stderr-bad-model" });
+    const caught = await rejection(generator.generate(request()));
+    expect(caught.kind).toBe(GeneratorErrorKind.CONFIG);
+    expect(caught.message).not.toContain("Available models");
+  });
+
+  it("classifies an unknown option as config", async () => {
+    const generator = makeGenerator({ SHIM_SCENARIO: "stderr-unknown-option" });
+    const caught = await rejection(generator.generate(request()));
+    expect(caught.kind).toBe(GeneratorErrorKind.CONFIG);
+  });
+
+  it("falls back to opaque with the exit code for unrecognized stderr", async () => {
+    const generator = makeGenerator({
+      SHIM_SCENARIO: "stderr-exit",
+      SHIM_STDERR: "segfault-SENTINEL details\n",
+      SHIM_EXIT_CODE: "7",
+    });
+    const caught = await rejection(generator.generate(request()));
+    expect(caught.kind).toBe(GeneratorErrorKind.OPAQUE);
+    expect(caught.message).toContain("7");
+    expect(caught.message).not.toContain("SENTINEL");
+  });
+
+  it("classifies an exit without a result envelope as opaque", async () => {
+    const generator = makeGenerator({ SHIM_SCENARIO: "envelope-drift" });
+    const caught = await rejection(generator.generate(request()));
+    expect(caught.kind).toBe(GeneratorErrorKind.OPAQUE);
+  });
+
+  it("classifies a silent hang as a wall-clock timeout", async () => {
+    const generator = makeGenerator(
+      { SHIM_SCENARIO: "hang" },
+      { timeouts: { hardMs: 400, killGraceMs: 200 } },
+    );
+    const caught = await rejection(generator.generate(request()));
+    expect(caught.kind).toBe(GeneratorErrorKind.TIMEOUT);
+    // The pipe-silent stream means the HARD timer owns the kill, never the
+    // inactivity watchdog (which defaults to the same ceiling).
+    expect(caught.message).toContain("hard wall-clock");
+  });
+});
+
+describe("CursorGenerator spawn-env boundary", () => {
+  it("strips CURSOR_API_ENDPOINT but lets CURSOR_API_KEY through", async () => {
+    // CURSOR_API_KEY is the deliberate survivor: it outranks the stored
+    // login in the CLI's auth precedence but bills the SAME subscription
+    // pool (the inverse of the claude adapter's refuse-API-key posture).
+    // CURSOR_API_ENDPOINT redirects the API host and must never reach a
+    // spawn.
+    const EchoSchema = z.object({
+      leakedVars: z.array(z.string()),
+      cwd: z.string(),
+    });
+    const generator = makeGenerator({
+      SHIM_SCENARIO: "env-echo",
+      CURSOR_API_KEY: "shim-cursor-key",
+      CURSOR_API_ENDPOINT: "https://attacker.example",
+      ANTHROPIC_API_KEY: "shim-anthropic-key",
+    });
+    const echoed = await generator.generate({
+      schema: EchoSchema,
+      system: "s",
+      user: "u",
+      effort: "medium",
+      label: "env",
+    });
+    expect(echoed.leakedVars).toContain("CURSOR_API_KEY");
+    expect(echoed.leakedVars).not.toContain("CURSOR_API_ENDPOINT");
+    expect(echoed.leakedVars).not.toContain("ANTHROPIC_API_KEY");
+  });
+});
+
+describe("cursorVersionWarning (headless-contract floor)", () => {
+  it("stays silent at the floor and above", () => {
+    expect(cursorVersionWarning("2026.08.25-3e8eec8")).toBeNull();
+    expect(cursorVersionWarning("2026.08.26-0000000")).toBeNull();
+    expect(cursorVersionWarning("2026.09.01-abcdef0")).toBeNull();
+    expect(cursorVersionWarning("2027.01.01")).toBeNull();
+  });
+
+  it("ignores the build-hash suffix when comparing", () => {
+    // Lexicographically "-0000000" < "-3e8eec8": only the date prefix counts.
+    expect(cursorVersionWarning("2026.08.25-0000000")).toBeNull();
+  });
+
+  it("warns below the floor, naming both versions from parsed digits", () => {
+    const warning = cursorVersionWarning("2026.08.24-fffffff");
+    expect(warning).toContain("2026.08.24");
+    expect(warning).toContain(CURSOR_VERSION_FLOOR);
+    expect(warning).toContain("older");
+    expect(cursorVersionWarning("2025.12.31-abcdef0")).toContain("older");
+  });
+
+  it("warns unverifiable when no version parses", () => {
+    const warning = cursorVersionWarning("cursor-agent, no digits");
+    expect(warning).toContain("unverifiable");
+    expect(warning).toContain(CURSOR_VERSION_FLOOR);
+  });
+});
+
+describe("interpretCursorAbout (auth verdict — `about` exits 0 logged out)", () => {
+  it("passes silently on an authenticated account", () => {
+    const verdict = interpretCursorAbout(
+      JSON.stringify({
+        cliVersion: "2026.08.25-3e8eec8",
+        userEmail: "shim@example.com",
+        subscriptionTier: "pro",
+        model: "auto",
+      }),
+    );
+    expect(verdict).toEqual({ ok: true, value: null });
+  });
+
+  it("passes on partial evidence (tier without email)", () => {
+    const verdict = interpretCursorAbout(
+      JSON.stringify({ userEmail: null, subscriptionTier: "pro" }),
+    );
+    expect(verdict).toEqual({ ok: true, value: null });
+  });
+
+  it("refuses boot when both identity fields are null (logged out)", () => {
+    const verdict = interpretCursorAbout(
+      JSON.stringify({
+        cliVersion: "2026.08.25-3e8eec8",
+        userEmail: null,
+        subscriptionTier: null,
+      }),
+    );
+    expect(verdict.ok).toBe(false);
+    if (verdict.ok) return;
+    const text = verdict.error.issues.join("; ");
+    expect(text).toContain("not authenticated");
+    expect(text).toContain("cursor-agent login");
+    expect(text).toContain("CURSOR_API_KEY");
+  });
+
+  it("treats an empty-string email as no evidence", () => {
+    const verdict = interpretCursorAbout(
+      JSON.stringify({ userEmail: "", subscriptionTier: null }),
+    );
+    expect(verdict.ok).toBe(false);
+  });
+
+  it("never echoes the account email into any verdict", () => {
+    // `about` output carries userEmail — PII that must never reach a
+    // message or warning on ANY path (allowlist rendering only).
+    const sentinel = "leak-SENTINEL@example.com";
+    const pass = interpretCursorAbout(
+      JSON.stringify({ userEmail: sentinel, subscriptionTier: "pro" }),
+    );
+    expect(JSON.stringify(pass)).not.toContain("SENTINEL");
+
+    const drifted = interpretCursorAbout(
+      JSON.stringify({ userEmail: sentinel, subscriptionTier: 42 }),
+    );
+    expect(JSON.stringify(drifted)).not.toContain("SENTINEL");
+  });
+
+  it("warns unverifiable instead of refusing on non-JSON output", () => {
+    const verdict = interpretCursorAbout("cursor-agent about: plain text\n");
+    expect(verdict.ok).toBe(true);
+    if (!verdict.ok) return;
+    expect(verdict.value).toContain("unverifiable");
+  });
+
+  it("warns unverifiable on parsed JSON without the identity fields", () => {
+    const verdict = interpretCursorAbout(
+      JSON.stringify({ cliVersion: "2026.08.25-3e8eec8" }),
+    );
+    expect(verdict.ok).toBe(true);
+    if (!verdict.ok) return;
+    expect(verdict.value).toContain("unverifiable");
+  });
+});
+
+describe("resolveCursorTimeouts (stream is pipe-silent until exit)", () => {
+  it("defaults the inactivity watchdog to the hard ceiling", () => {
+    // With no liveness signal on the pipe, a 3-minute inactivity default
+    // would kill every longer run — inactivity must collapse to wall-clock.
+    const timeouts = resolveCursorTimeouts(undefined);
+    expect(timeouts.inactivityMs).toBe(timeouts.hardMs);
+  });
+
+  it("keeps inactivity pinned to an overridden hard ceiling", () => {
+    const timeouts = resolveCursorTimeouts({ hardMs: 1000 });
+    expect(timeouts.hardMs).toBe(1000);
+    expect(timeouts.inactivityMs).toBe(1000);
+  });
+
+  it("honors an explicit inactivity override", () => {
+    // An operator who verified --stream-partial-output delivers to a pipe
+    // may restore a real watchdog deliberately.
+    const timeouts = resolveCursorTimeouts({ hardMs: 5000, inactivityMs: 250 });
+    expect(timeouts.inactivityMs).toBe(250);
+  });
+
+  it("keeps the shared kill-grace default", () => {
+    const timeouts = resolveCursorTimeouts(undefined);
+    expect(timeouts.killGraceMs).toBeGreaterThan(0);
+  });
+});
