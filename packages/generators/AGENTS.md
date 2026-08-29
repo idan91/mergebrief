@@ -1,7 +1,7 @@
 # packages/generators — agent notes
 
 The `Generator` port and its adapter family: structured generation — `(schema, system, user) → object valid against the
-schema` — behind one contract, with five interchangeable adapters.
+schema` — behind one contract, with six interchangeable adapters.
 
 ## Map
 
@@ -20,9 +20,10 @@ src/
     registry.ts             provider registry + per-adapter option schemas
                             + createGenerator (construction = Result)
     loader.ts               mergebrief.config.yaml loader (yaml dep lives here)
-  adapters/               the five implementations
+  adapters/               the six implementations
     anthropic.ts            Anthropic SDK (streaming, the default)
-    claudeCode.ts codex.ts  local-CLI adapters (run on the harness)
+    claudeCode.ts codex.ts
+    cursor.ts               local-CLI adapters (run on the harness)
     openaiCore.ts           shared OpenAI-compatible streaming core
     openai.ts openrouter.ts assemblies on that core
   validation/             what every adapter's OUTPUT passes through
@@ -51,7 +52,7 @@ and `docs/self-host/generators.md`.
 - **Salvage** (`salvageDroppableEnums`): recovery step inside the floor —
   invalid entries in caller-designated array fields are dropped
   (warn-and-drop) instead of failing the whole generation.
-- **Harness**: the subprocess machinery under the claude-code/codex
+- **Harness**: the subprocess machinery under the claude-code/codex/cursor
   adapters only; API adapters never touch it.
 
 ## Invariants (enforced, don't weaken)
@@ -70,8 +71,10 @@ and `docs/self-host/generators.md`.
   spawn (generation AND startup check) goes through `envForSpawn`, which
   strips `HARNESS_STRIPPED_CREDENTIAL_VARS` — env credentials outrank the
   CLI's own login in its auth precedence, so a leaked var would silently
-  rebill generations to an API/cloud account. `CLAUDE_CODE_OAUTH_TOKEN`
-  deliberately survives (it IS the subscription route). Residual hole:
+  rebill generations to an API/cloud account. Two deliberate survivors:
+  `CLAUDE_CODE_OAUTH_TOKEN` (it IS claude's subscription route) and
+  `CURSOR_API_KEY` (outranks cursor's stored login but bills the SAME
+  subscription pool). Residual hole:
   `apiKeyHelper` lives in the CLI's settings file, unreachable from env.
 - **Construction returns `Result`; `generate()` throws** — a misconfigured
   instance refuses boot, never limps into jobs.
@@ -86,7 +89,8 @@ Repo-wide rules apply (root `CLAUDE.md`): no `enum`, strict TS, no bare
 
 `test/contract.ts` is the shared Generator conformance suite; each adapter
 runs it through its own transport fake — a stub SDK client (anthropic, the
-characterization anchor), real fake-binary processes (claude-code/codex),
+characterization anchor), real fake-binary processes
+(claude-code/codex/cursor),
 fetch-level SSE fixtures (openai/openrouter). The generic pipeline
 mechanics are covered here; their integration with the real Brief schema
 stays in `packages/brief-core/test` (the domain schema lives there —

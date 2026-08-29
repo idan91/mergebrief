@@ -146,13 +146,20 @@ describe("compose-worker runtime marker", () => {
   const composeDeps = { env: composeEnv, failureDir: "out" };
 
   it("refuses harness providers under the marker with the operator's options", async () => {
-    for (const provider of [Providers.CLAUDE_CODE, Providers.CODEX]) {
+    for (const provider of [
+      Providers.CLAUDE_CODE,
+      Providers.CODEX,
+      Providers.CURSOR,
+    ]) {
       const result = await createGenerator({ provider }, composeDeps);
       expect(result.ok).toBe(false);
       if (result.ok) return;
       expect(result.error.issues[0]).toContain(
         "not available in the compose worker",
       );
+      // The message interpolates HARNESS_PROVIDERS — dropping a member from
+      // the set would silently downgrade its refusal to "not found on PATH".
+      expect(result.error.issues[0]).toContain("cursor");
       expect(result.error.issues[0]).toContain("MERGEBRIEF_CONFIG");
     }
   });

@@ -379,10 +379,7 @@ export function resolveCursorTimeouts(
 // `about` exits 0 logged out — the verdict lives in its JSON body.
 // ---------------------------------------------------------------------------
 
-/**
- * Boot-probe wiring shared with the registry entry (CODEX_PROBE pattern).
- * @public until the registry entry lands and imports it.
- */
+/** Boot-probe wiring shared with the registry entry (CODEX_PROBE pattern). */
 export const CURSOR_PROBE = {
   versionArgv: ["--version"],
   /** `status` exits 0 even logged out; `about --format json` carries the verdict. */

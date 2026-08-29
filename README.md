@@ -77,12 +77,12 @@ see [`tools/categorizer/README.md`](./tools/categorizer/README.md).
 
 ## Generation backends (pick your model — or your subscription)
 
-Briefs generate through one of five interchangeable backends, all held to
+Briefs generate through one of six interchangeable backends, all held to
 the same hard floor (schema-valid output or a loud failure): **Anthropic
 API** (the zero-config default; `claude-sonnet-5` is the documented cost
 knob), **OpenAI API**, **OpenRouter** (any slug with structured outputs),
-or — for the local dev loop — the **Claude Code** and **Codex CLIs**, which
-generate on the subscription you already pay for. One optional
+or — for the local dev loop — the **Claude Code**, **Codex** and **Cursor
+CLIs**, which generate on the subscription you already pay for. One optional
 `mergebrief.config.yaml` selects the backend for the worker, the web app,
 and the categorizer CLIs alike (the `mergebrief` HTTP client below never
 constructs a generator).

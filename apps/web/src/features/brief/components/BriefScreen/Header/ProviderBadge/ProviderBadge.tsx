@@ -28,12 +28,13 @@ const PROVIDER_CLASS_TAG: Record<string, ProviderGenerationType> = {
   openrouter: ProviderGenerationTypes.API,
   "claude-code": ProviderGenerationTypes.CLI,
   codex: ProviderGenerationTypes.CLI,
+  cursor: ProviderGenerationTypes.CLI,
 };
 
 /**
- * Official marks by provider slug. `codex` is deliberately absent: OpenAI
- * publishes no standalone Codex logomark, so it takes the named fallback
- * rather than an approximation.
+ * Official marks by provider slug. `codex` and `cursor` are deliberately
+ * absent — no vetted standalone logomark ships for either, so both take the
+ * named fallback rather than an approximation.
  */
 const PROVIDER_CONFIGS: Record<string, MarkConfig> = {
   anthropic: { mark: AnthropicMark, name: "Anthropic" },

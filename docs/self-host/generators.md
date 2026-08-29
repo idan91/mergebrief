@@ -1,6 +1,6 @@
 # Generation backends (`mergebrief.config.yaml`)
 
-MergeBrief generates Briefs through one of five interchangeable backends.
+MergeBrief generates Briefs through one of six interchangeable backends.
 Every backend meets the same hard contract: **the
 output is valid against the Brief schema or the generation fails loudly** —
 native provider enforcement is a bonus layer, never the mechanism. Salvage
@@ -147,7 +147,7 @@ The window resets at 00:00 UTC. A push skipped today is not retried
 automatically when the cap resets — the PR gets its brief on its next
 settled push (or any event that re-queues it).
 
-## The five providers
+## The six providers
 
 | provider | class | auth | effort knob | notes |
 |---|---|---|---|---|
@@ -156,6 +156,7 @@ settled push (or any event that re-queues it).
 | `openrouter` | API | `apiKeyEnv` (default `OPENROUTER_API_KEY`) | gated by the model's listed `reasoning` support | full slug required; boot requires the model to list `structured_outputs`; `require_parameters` is forced on every request |
 | `claude-code` | **local CLI** | your interactive `claude /login` (OAuth/keychain) | none (`effort: null` — honest gap) | lockdown: `--tools ""`, print mode, no `--bare`; served model verified from `modelUsage` post-run |
 | `codex` | **local CLI** | your interactive `codex login` | `model_reasoning_effort` | lockdown: `--sandbox read-only --skip-git-repo-check --ephemeral`; **origin blind spot**: codex's JSONL carries no model id, so a silent server-side reroute is unobservable — the stamp records what you configured |
+| `cursor` | **local CLI** | your interactive `cursor-agent login` (or `CURSOR_API_KEY` — bills the same subscription pool) | real when `model:` is set — rides the model-id bracket (`model[effort=…]`); without `model:` there is no bracket to carry it (`effort: null`) | lockdown: `--mode plan` from an empty temp dir (bare print mode APPLIES file writes); the stream is pipe-silent until exit, so the wall-clock timeout is the only watchdog; **origin blind spot**: the envelope has no model field and `system/init` echoes the request — the stamp records what you configured |
 
 `effort:` note: the committed eval baselines (`tools/categorizer/eval`)
 assume the default (anthropic at `medium`) — running an instance at a
@@ -176,6 +177,7 @@ know when a typo gets caught:
 | `openrouter` | [openrouter.ai/models](https://openrouter.ai/models) — copy the full slug, e.g. `anthropic/claude-sonnet-5` | **refuses boot** — the `/models` preflight requires your slug to exist (and list `structured_outputs`) |
 | `claude-code` | whatever your installed `claude` CLI accepts: aliases like `opus` / `sonnet` / `haiku` or full ids from the Anthropic models page above ([model config docs](https://code.claude.com/docs)) | fails the **first generation** (`model_not_found` → config error); post-run the served model is verified against the CLI's own report, mismatch = warning |
 | `codex` | your installed `codex` CLI's configured models ([platform.openai.com/docs/models](https://platform.openai.com/docs/models)); omit `model:` to use the CLI's default | **weakest**: the CLI's output carries no model id, so the stamp records what you configured, unverified |
+| `cursor` | your installed CLI's own list: `cursor-agent --list-models` (give the BARE id — the adapter appends the `[effort=…]` bracket itself); omit `model:` to use the CLI's default | a bracketed id **refuses boot** (config check); a bad bare id fails the **first generation** (`Cannot use this model` → config error) — the stamp records what you configured, unverified |
 
 Fast pre-check for any provider without spending a webhook:
 `pnpm categorize --config ./mergebrief.config.yaml <pr-url>` boots the same
@@ -183,8 +185,8 @@ generator the worker would and fails fast on the same checks.
 
 ## Harness CLIs are HOST-PROCESS-ONLY in v1 — deliberately
 
-The `claude-code` and `codex` providers run a CLI **as a process on your
-machine, under your interactive login**. They are not available inside ANY
+The `claude-code`, `codex` and `cursor` providers run a CLI **as a process on
+your machine, under your interactive login**. They are not available inside ANY
 container — including the docker-compose worker running on your own
 laptop. "Local" is not the boundary; **host process vs container** is: a
 container never sees your installed CLI or your login, no matter where it
@@ -229,7 +231,13 @@ only in your local shell.)
 
 Isolation per CLI (what a generation run may touch): claude-code runs with
 ALL built-in tools disabled and print mode; codex runs read-only sandboxed
-with no session persistence. One thing print mode does NOT disable: a
+with no session persistence; cursor runs in plan mode (read-only — a bare
+print-mode run would APPLY file writes) from a fresh empty temp directory,
+so it never sees the directory you launched from. Two cursor housekeeping
+notes: the CLI keeps its own session state under `~/.cursor` between runs
+(the adapter's temp-cwd isolation does not cover the CLI's home-directory
+state), and on macOS a `CURSOR_API_KEY` provided by env is written by the
+CLI into the keychain (it warns and continues if that fails). One thing print mode does NOT disable: a
 non-bare `claude -p` run executes hooks from `.claude/settings.json` and
 connects `.mcp.json` servers found in its working directory. MergeBrief
 passes no working directory and clones no repositories, so a generation

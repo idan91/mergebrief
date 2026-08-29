@@ -123,7 +123,9 @@ plug-points, small diff). ~300–400 LOC.
 5. Docs + config: `docs/self-host/generators.md` (provider table + harness
    section: mode-plan lockdown, darwin keychain-persistence quirk, `~/.cursor`
    session-junk note, origin-unverifiable line), `mergebrief.config.example.yaml`,
-   `.env.example` (`CURSOR_API_KEY`, `CURSOR_API_ENDPOINT`).
+   `.env.example` (`CURSOR_API_KEY` only — `CURSOR_API_ENDPOINT` is
+   deliberately undocumented there: it is a stripped-at-spawn redirect
+   var, not an operator knob, and an example line would invite setting it).
 
 ## Part 3 — align existing generators (PR 3: `feature/BRIEF-209/generator-alignment`, stacked on PR 2)
 
@@ -147,6 +149,22 @@ Accumulated notes (PR 1 review):
 2. Verb-first rename pair — `claudeVersionWarning` and `cursorVersionWarning`
    both violate the verb-first function-name rule; rename together (e.g.
    `build*VersionWarning`) so the floor-check pair stays symmetric.
+
+Accumulated notes (PR 2 review):
+
+3. Conditional-assignment alignment widens: the registry's claude-code
+   `create` still spreads `...(deps.log ? { log } : {})`;
+   `codex.contract.test.ts` / `claude-code.contract.test.ts` (and
+   `contract.ts`'s own `generate()`) still use conditional spread for
+   `signal`. Fold into note 1's scope.
+4. Badge fallback tests for codex and cursor both pass on the model cell
+   alone (`gpt-5.2-codex` / `cursor-default` contain the slug) — switch both
+   to a model string that does not contain the provider token so the visible
+   token pin is real.
+5. Verb-first: the three test-file `deps(...)` helpers
+   (claude-code/codex/cursor) rename together (e.g. `makeDeps`).
+6. `codex.contract.test.ts` builds its handle as an inferred literal —
+   type it as `ContractGeneratorHandle` like cursor's, when touched.
 
 ## Prepared for Idan (never run by the agent)
 

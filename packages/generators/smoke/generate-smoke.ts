@@ -7,6 +7,7 @@
  *   pnpm -C packages/generators smoke -- --adapter anthropic
  *   pnpm -C packages/generators smoke -- --adapter claude-code
  *   pnpm -C packages/generators smoke -- --adapter codex
+ *   pnpm -C packages/generators smoke -- --adapter cursor
  *   pnpm -C packages/generators smoke -- --adapter openai --model gpt-5.2
  *   pnpm -C packages/generators smoke -- --adapter openrouter --model anthropic/claude-sonnet-5
  *   pnpm -C packages/generators smoke -- --config ../../mergebrief.config.yaml
@@ -32,7 +33,7 @@ function flagValue(args: string[], flag: string): string | undefined {
 
 function usage(): never {
   console.error(
-    "usage: pnpm -C packages/generators smoke -- --adapter <anthropic|claude-code|codex|openai|openrouter> [--model <id>] [--command <path>]\n" +
+    "usage: pnpm -C packages/generators smoke -- --adapter <anthropic|claude-code|codex|cursor|openai|openrouter> [--model <id>] [--command <path>]\n" +
       "       pnpm -C packages/generators smoke -- --config <mergebrief.config.yaml>",
   );
   process.exit(2);

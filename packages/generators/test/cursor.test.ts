@@ -13,6 +13,7 @@ import {
 } from "../src/adapters/cursor";
 import { GeneratorError, GeneratorErrorKind } from "../src/contract/errors";
 import type { TokenUsage } from "../src/contract/generator";
+import { createGenerator, Providers } from "../src/config/registry";
 
 /**
  * Adapter-specific behavior on real fake-cursor processes: invocation
@@ -398,6 +399,108 @@ describe("CursorGenerator spawn-env boundary", () => {
     expect(echoed.leakedVars).toContain("CURSOR_API_KEY");
     expect(echoed.leakedVars).not.toContain("CURSOR_API_ENDPOINT");
     expect(echoed.leakedVars).not.toContain("ANTHROPIC_API_KEY");
+  });
+});
+
+function deps(env: Record<string, string>) {
+  return {
+    env: { ...process.env, ...env },
+    failureDir: tempDir("cursor-reg-"),
+  };
+}
+
+describe("cursor registry entry", () => {
+  it("constructs through the boot probe against the shim", async () => {
+    const result = await createGenerator(
+      { provider: Providers.CURSOR, command: FAKE_CURSOR },
+      deps({ SHIM_SCENARIO: "valid" }),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.origin("low")).toMatchObject({ provider: "cursor" });
+  });
+
+  it("refuses boot when the CLI is logged out (about exits 0)", async () => {
+    // The exit-blind trap: `about` succeeds either way — only the JSON
+    // verdict can refuse.
+    const result = await createGenerator(
+      { provider: Providers.CURSOR, command: FAKE_CURSOR },
+      deps({ SHIM_SCENARIO: "auth-logged-out" }),
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.issues.join("; ")).toContain("not authenticated");
+  });
+
+  it("refuses boot when the binary is missing", async () => {
+    const result = await createGenerator(
+      { provider: Providers.CURSOR, command: "/nonexistent/cursor-agent" },
+      deps({}),
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.issues.join("; ")).toContain("not found on PATH");
+  });
+
+  it("rejects a bracketed model id at config time", async () => {
+    const result = await createGenerator(
+      {
+        provider: Providers.CURSOR,
+        command: FAKE_CURSOR,
+        model: "gpt-5.2[effort=high]",
+      },
+      deps({ SHIM_SCENARIO: "valid" }),
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.issues.join("; ")).toContain("bare model id");
+  });
+
+  it("rejects unknown option keys strictly", async () => {
+    const result = await createGenerator(
+      { provider: Providers.CURSOR, modle: "typo" },
+      deps({}),
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.issues.join("; ")).toContain('"modle"');
+  });
+
+  it("warns but constructs when the CLI predates the contract floor", async () => {
+    const warnings: string[] = [];
+    const result = await createGenerator(
+      { provider: Providers.CURSOR, command: FAKE_CURSOR },
+      {
+        ...deps({ SHIM_SCENARIO: "valid", SHIM_VERSION: "2026.08.20-abcdef0" }),
+        log: (m) => warnings.push(m),
+      },
+    );
+    expect(result.ok).toBe(true);
+    expect(warnings.join("; ")).toContain("2026.08.20");
+    expect(warnings.join("; ")).toContain("older");
+  });
+
+  it("keeps credential vars out of the probe spawns", async () => {
+    // The shim's about arm exits 1 when any stripped-list var reached it —
+    // a successful construction here proves the probe went through
+    // envForSpawn (CURSOR_API_KEY excepted: the deliberate survivor).
+    // Minimal env, not a process.env spread: the vitest runner injects
+    // BASE_URL, which the shim's leak regex would flag as a false positive.
+    // PATH stays so the shim's `#!/usr/bin/env node` resolves.
+    const result = await createGenerator(
+      { provider: Providers.CURSOR, command: FAKE_CURSOR },
+      {
+        env: {
+          PATH: process.env["PATH"] ?? "",
+          SHIM_SCENARIO: "auth-fail-if-credentials",
+          ANTHROPIC_API_KEY: "shim-anthropic-key",
+          CURSOR_API_ENDPOINT: "https://attacker.example",
+          CURSOR_API_KEY: "shim-cursor-key",
+        },
+        failureDir: tempDir("cursor-reg-"),
+      },
+    );
+    expect(result.ok).toBe(true);
   });
 });
 

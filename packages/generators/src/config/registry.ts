@@ -8,6 +8,12 @@ import {
   interpretClaudeAuthStatus,
 } from "../adapters/claudeCode";
 import { CodexGenerator, CODEX_PROBE } from "../adapters/codex";
+import {
+  CursorGenerator,
+  CURSOR_PROBE,
+  cursorVersionWarning,
+  interpretCursorAbout,
+} from "../adapters/cursor";
 import { createOpenAiCore } from "../adapters/openai";
 import { createOpenRouterCore } from "../adapters/openrouter";
 import { configError, type ConfigError } from "../contract/errors";
@@ -35,6 +41,7 @@ export const Providers = {
   ANTHROPIC: "anthropic",
   CLAUDE_CODE: "claude-code",
   CODEX: "codex",
+  CURSOR: "cursor",
   OPENAI: "openai",
   OPENROUTER: "openrouter",
 } as const;
@@ -174,6 +181,33 @@ const codexOptions = z
 
 const DEFAULT_CODEX_COMMAND = "codex";
 
+const cursorOptions = z
+  .object({
+    provider: z.literal(Providers.CURSOR),
+    /** Bare model id only — the adapter owns the effort bracket. */
+    model: z
+      .string()
+      .min(1)
+      .refine((value) => !value.includes("["), {
+        message:
+          "must be a bare model id — the adapter appends the [effort=…] bracket itself",
+      })
+      .optional(),
+    /** Binary path or name; default "cursor-agent" (PATH-resolved). */
+    command: z.string().min(1).optional(),
+    /**
+     * Note: cursor's stream is pipe-silent until exit, so an unset
+     * inactivityMs defaults to hardMs (wall-clock only), not the shared
+     * 3-minute watchdog.
+     */
+    timeouts: harnessTimeouts.optional(),
+    effort: effortOption,
+    "full-regeneration": fullRegenerationOption,
+  })
+  .strict();
+
+const DEFAULT_CURSOR_COMMAND = "cursor-agent";
+
 const DEFAULT_OPENAI_KEY_ENV = "OPENAI_API_KEY";
 
 const openaiOptions = z
@@ -293,6 +327,37 @@ export const GENERATOR_REGISTRY = {
       };
     },
   }),
+  [Providers.CURSOR]: defineEntry({
+    options: cursorOptions,
+    create: async (options, deps) => {
+      const command = options.command ?? DEFAULT_CURSOR_COMMAND;
+      // The interpreters carry the whole auth verdict: `about` exits 0 even
+      // logged out, so the generic nonzero-exit check alone would pass an
+      // unauthenticated CLI into jobs.
+      const probeArgs: Parameters<typeof probeHarnessCli>[0] = {
+        command,
+        versionArgv: [...CURSOR_PROBE.versionArgv],
+        authArgv: [...CURSOR_PROBE.authArgv],
+        authFailureHint: CURSOR_PROBE.authFailureHint,
+        env: deps.env,
+        interpretVersionOutput: cursorVersionWarning,
+        interpretAuthOutput: interpretCursorAbout,
+      };
+      if (deps.log) probeArgs.log = deps.log;
+      const probe = await probeHarnessCli(probeArgs);
+      if (!probe.ok) return probe;
+      return {
+        ok: true,
+        value: new CursorGenerator({
+          command,
+          model: options.model,
+          failureDir: deps.failureDir,
+          timeouts: options.timeouts,
+          env: deps.env,
+        }),
+      };
+    },
+  }),
   [Providers.OPENAI]: defineEntry({
     options: openaiOptions,
     create: async (options, deps) => {
@@ -343,6 +408,7 @@ export const GeneratorConfigSchema = z.discriminatedUnion("provider", [
   GENERATOR_REGISTRY[Providers.ANTHROPIC].options,
   GENERATOR_REGISTRY[Providers.CLAUDE_CODE].options,
   GENERATOR_REGISTRY[Providers.CODEX].options,
+  GENERATOR_REGISTRY[Providers.CURSOR].options,
   GENERATOR_REGISTRY[Providers.OPENAI].options,
   GENERATOR_REGISTRY[Providers.OPENROUTER].options,
 ]);
@@ -381,6 +447,7 @@ export const COMPOSE_WORKER_RUNTIME = "compose-worker";
 const HARNESS_PROVIDERS: ReadonlySet<Provider> = new Set([
   Providers.CLAUDE_CODE,
   Providers.CODEX,
+  Providers.CURSOR,
 ]);
 
 /** Provider tokens with registry entries. */
@@ -483,6 +550,8 @@ export async function createGenerator(
       );
     case Providers.CODEX:
       return GENERATOR_REGISTRY[Providers.CODEX].create(parsed.data, deps);
+    case Providers.CURSOR:
+      return GENERATOR_REGISTRY[Providers.CURSOR].create(parsed.data, deps);
     case Providers.OPENAI:
       return GENERATOR_REGISTRY[Providers.OPENAI].create(parsed.data, deps);
     case Providers.OPENROUTER:

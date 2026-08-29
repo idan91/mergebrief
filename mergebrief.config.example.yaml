@@ -11,13 +11,15 @@
 # API keys are BYOK-by-env-NAME: never put a key VALUE in this file.
 
 generator:
-  # anthropic | claude-code | codex | openai | openrouter
+  # anthropic | claude-code | codex | cursor | openai | openrouter
   provider: anthropic
 
-  # Model id. Optional for anthropic/claude-code (Opus 4.8 default) and
-  # codex (the CLI's configured default runs; provenance stamps
-  # "codex-default"); REQUIRED for openai and openrouter (full slug there,
-  # e.g. anthropic/claude-sonnet-5).
+  # Model id. Optional for anthropic/claude-code (Opus 4.8 default), codex
+  # and cursor (the CLI's configured default runs; provenance stamps
+  # "codex-default" / "cursor-default"); REQUIRED for openai and openrouter
+  # (full slug there, e.g. anthropic/claude-sonnet-5). cursor takes a BARE
+  # id from `cursor-agent --list-models` — the adapter appends the
+  # [effort=…] bracket itself, so a bracketed id refuses boot.
   # The documented cost knob:
   model: claude-sonnet-5
 
@@ -54,14 +56,18 @@ generator:
   # referer: https://you.example
   # title: MergeBrief
 
-  # --- Harness CLIs (claude-code / codex; LOCAL dev loop only) -------------
+  # --- Harness CLIs (claude-code / codex / cursor; LOCAL dev loop only) ----
   # These run the CLI on YOUR machine under YOUR interactive login
-  # (`claude /login` / `codex login`) — not available to the deployed
-  # worker (docs/self-host/generators.md explains the boundary).
-  # command: /usr/local/bin/claude   # binary path/name; defaults: claude / codex
+  # (`claude /login` / `codex login` / `cursor-agent login`) — not available
+  # to the deployed worker (docs/self-host/generators.md explains the
+  # boundary).
+  # command: /usr/local/bin/claude   # binary path/name; defaults:
+  #                                  #   claude / codex / cursor-agent
   # timeouts:                        # harness watchdogs, milliseconds
   #   hardMs: 900000                 #   hard wall-clock cap (default 15 min)
-  #   inactivityMs: 180000           #   output-inactivity watchdog (default 3 min)
+  #   inactivityMs: 180000           #   output-inactivity watchdog (default
+  #                                  #   3 min; cursor: defaults to hardMs —
+  #                                  #   its stream is silent until exit)
   #   killGraceMs: 5000              #   SIGINT → SIGKILL grace (default 5 s)
 
 # --- Draft-PR generation policy (spend knobs) -------------------------------

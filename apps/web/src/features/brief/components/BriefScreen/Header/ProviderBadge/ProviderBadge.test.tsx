@@ -57,6 +57,21 @@ describe("ProviderBadge", () => {
     expect(badge().querySelector("svg")).toBeTruthy();
   });
 
+  it("cursor takes the named fallback: generic glyph + visible token, CLI tag", () => {
+    render(
+      <ProviderBadge
+        generation={{
+          provider: "cursor",
+          model: "cursor-default",
+          effort: null,
+        }}
+      />,
+    );
+    expect(badge().textContent).toContain("cursor");
+    expect(badge().textContent).toContain("CLI");
+    expect(badge().querySelector("svg")).toBeTruthy();
+  });
+
   it("unknown providers get the same fallback with no class tag", () => {
     render(
       <ProviderBadge

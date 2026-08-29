@@ -5,7 +5,7 @@
  *
  * The package: structured generation —
  * `(schema, system, user) → object valid against the schema` — behind one
- * `Generator` contract, with five interchangeable adapters.
+ * `Generator` contract, with six interchangeable adapters.
  */
 
 // --- contract/ — what an adapter IS -----------------------------------------
@@ -63,7 +63,7 @@ export {
   type SpendPolicy,
 } from "./config/spendPolicy";
 
-// --- adapters/ — the five implementations -----------------------------------
+// --- adapters/ — the six implementations ------------------------------------
 // (Constructed via createGenerator in normal use; exported for tests and
 // direct composition.)
 export {
@@ -75,6 +75,10 @@ export {
   type ClaudeCodeGeneratorOptions,
 } from "./adapters/claudeCode";
 export { CodexGenerator, type CodexGeneratorOptions } from "./adapters/codex";
+export {
+  CursorGenerator,
+  type CursorGeneratorOptions,
+} from "./adapters/cursor";
 export {
   classifyOpenAiError,
   OpenAiCompatibleCore,
