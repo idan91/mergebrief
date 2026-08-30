@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
 import { describe, expect, it } from "vitest";
-import { WriteClassification } from "../src/types";
+import { WriteClassifications } from "../src/types";
 
 const MIGRATIONS_DIR = fileURLToPath(new URL("../drizzle", import.meta.url));
 
@@ -53,8 +53,11 @@ describe("migration 0024 — api_token.scope", () => {
       "select token_hash, scope from api_token order by token_hash",
     );
     expect(rows.rows).toEqual([
-      { token_hash: "hash-live", scope: WriteClassification.EXTERNAL_WRITE },
-      { token_hash: "hash-revoked", scope: WriteClassification.EXTERNAL_WRITE },
+      { token_hash: "hash-live", scope: WriteClassifications.EXTERNAL_WRITE },
+      {
+        token_hash: "hash-revoked",
+        scope: WriteClassifications.EXTERNAL_WRITE,
+      },
     ]);
 
     // The DEFAULT was scaffolding for the backfill — a later mint must choose.
@@ -75,7 +78,7 @@ describe("migration 0024 — api_token.scope", () => {
       ...(constraint.rows[0]?.def ?? "").matchAll(/'([^']*)'/g),
     ].map((match) => match[1] ?? "");
     expect(accepted.toSorted()).toEqual(
-      Object.values(WriteClassification).toSorted(),
+      Object.values(WriteClassifications).toSorted(),
     );
   });
 });

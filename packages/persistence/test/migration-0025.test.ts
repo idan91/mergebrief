@@ -8,7 +8,11 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
 import { describe, expect, it } from "vitest";
-import { AuditChannel, AuditOutcome, WriteClassification } from "../src/types";
+import {
+  AuditChannels,
+  AuditOutcomes,
+  WriteClassifications,
+} from "../src/types";
 
 const MIGRATIONS_DIR = fileURLToPath(new URL("../drizzle", import.meta.url));
 
@@ -84,17 +88,17 @@ describe("migration 0025 — audit_log operation/outcome", () => {
     // DB-stored vocabulary.
     expect(
       (await checkValues(client, "audit_log_outcome_check")).toSorted(),
-    ).toEqual(Object.values(AuditOutcome).toSorted());
+    ).toEqual(Object.values(AuditOutcomes).toSorted());
     expect(
       (await checkValues(client, "audit_log_channel_check")).toSorted(),
-    ).toEqual(Object.values(AuditChannel).toSorted());
+    ).toEqual(Object.values(AuditChannels).toSorted());
     // `classification` narrows the shared scope vocabulary — reads are never
     // audited, so `read` must NOT be accepted here.
     expect(
       (await checkValues(client, "audit_log_classification_check")).toSorted(),
     ).toEqual(
-      Object.values(WriteClassification)
-        .filter((value) => value !== WriteClassification.READ)
+      Object.values(WriteClassifications)
+        .filter((value) => value !== WriteClassifications.READ)
         .toSorted(),
     );
   });

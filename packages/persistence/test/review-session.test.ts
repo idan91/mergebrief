@@ -10,7 +10,7 @@ import { fromDrizzle } from "../src/db/handle";
 import {
   createArtifactStore,
   createTenantRepository,
-  ReviewSessionErrorCode,
+  ReviewSessionErrorCodes,
 } from "../src/index";
 import type {
   AppDatabase,
@@ -20,17 +20,17 @@ import type {
 } from "../src/index";
 import * as schema from "../src/schema/index";
 import {
-  AnchorStatus,
-  ChangeGroupCategory,
-  DispositionCarryStatus,
-  DispositionEvidenceKind,
-  DispositionEvidenceStatus,
-  DraftCommentSide,
-  DraftCommentStatus,
+  AnchorStatuses,
+  ChangeGroupCategories,
+  DispositionCarryStatuses,
+  DispositionEvidenceKinds,
+  DispositionEvidenceStatuses,
+  DraftCommentSides,
+  DraftCommentStatuses,
   isInstallationId,
   isRepoId,
   isReviewerId,
-  ReviewOutcome,
+  ReviewOutcomes,
   type BriefRowId,
   type InstallationId,
   type RepoId,
@@ -156,15 +156,15 @@ async function countRows(client: PGlite, table: string): Promise<number> {
 
 describe("review-session vocabularies — map and CHECK in lockstep", () => {
   it.each([
-    ["review_session_review_outcome_check", ReviewOutcome],
-    ["review_draft_comment_status_check", DraftCommentStatus],
-    ["review_draft_comment_side_check", DraftCommentSide],
-    ["review_draft_comment_start_side_check", DraftCommentSide],
-    ["review_draft_comment_anchor_status_check", AnchorStatus],
-    ["review_group_reclassification_category_check", ChangeGroupCategory],
-    ["disposition_carry_status_check", DispositionCarryStatus],
-    ["disposition_evidence_status_check", DispositionEvidenceStatus],
-    ["disposition_evidence_kind_check", DispositionEvidenceKind],
+    ["review_session_review_outcome_check", ReviewOutcomes],
+    ["review_draft_comment_status_check", DraftCommentStatuses],
+    ["review_draft_comment_side_check", DraftCommentSides],
+    ["review_draft_comment_start_side_check", DraftCommentSides],
+    ["review_draft_comment_anchor_status_check", AnchorStatuses],
+    ["review_group_reclassification_category_check", ChangeGroupCategories],
+    ["disposition_carry_status_check", DispositionCarryStatuses],
+    ["disposition_evidence_status_check", DispositionEvidenceStatuses],
+    ["disposition_evidence_kind_check", DispositionEvidenceKinds],
   ])("%s accepts exactly its `as const` map", async (name, map) => {
     const { client } = await freshPair();
     expect((await checkValues(client, name)).toSorted()).toEqual(
@@ -173,7 +173,7 @@ describe("review-session vocabularies — map and CHECK in lockstep", () => {
   });
 
   it("mirrors brief-core's Category vocabulary exactly", () => {
-    expect(Object.values(ChangeGroupCategory).toSorted()).toEqual(
+    expect(Object.values(ChangeGroupCategories).toSorted()).toEqual(
       [...Categories].toSorted(),
     );
   });
@@ -191,7 +191,7 @@ describe("review-session vocabularies — map and CHECK in lockstep", () => {
     const rejection: unknown = await write(handle, CTX_A, briefId, (writer) =>
       writer.addDraftComment({
         filePath: "src/app.ts",
-        side: DraftCommentSide.NEW,
+        side: DraftCommentSides.NEW,
         startLine: start,
         endLine: end,
         body: "bad range",
@@ -213,20 +213,20 @@ describe("review-session vocabularies — map and CHECK in lockstep", () => {
     const written = await write(handle, CTX_A, briefId, (writer) =>
       writer.addDraftComment({
         filePath: "src/app.ts",
-        side: DraftCommentSide.OLD,
-        startSide: DraftCommentSide.NEW,
+        side: DraftCommentSides.OLD,
+        startSide: DraftCommentSides.NEW,
         startLine: 10,
         endLine: 20,
         body: "crosses sides",
       }),
     );
-    expect(written.startSide).toBe(DraftCommentSide.NEW);
+    expect(written.startSide).toBe(DraftCommentSides.NEW);
 
     const inverted = await write(handle, CTX_A, briefId, (writer) =>
       writer.addDraftComment({
         filePath: "src/app.ts",
-        side: DraftCommentSide.NEW,
-        startSide: DraftCommentSide.OLD,
+        side: DraftCommentSides.NEW,
+        startSide: DraftCommentSides.OLD,
         startLine: 25,
         endLine: 3,
         body: "old start after new end",
@@ -244,8 +244,8 @@ describe("review-session vocabularies — map and CHECK in lockstep", () => {
     const rejection: unknown = await write(handle, CTX_A, briefId, (writer) =>
       writer.addDraftComment({
         filePath: "src/app.ts",
-        side: DraftCommentSide.NEW,
-        startSide: DraftCommentSide.NEW,
+        side: DraftCommentSides.NEW,
+        startSide: DraftCommentSides.NEW,
         startLine: 1,
         endLine: 2,
         body: "not genuinely two-side",
@@ -344,7 +344,7 @@ describe("reviewSessions — session semantics", () => {
     const second = await openSession(handle, CTX_A, briefId);
 
     expect(second.id).toBe(first.id);
-    expect(first.reviewOutcome).toBe(ReviewOutcome.COMMENT);
+    expect(first.reviewOutcome).toBe(ReviewOutcomes.COMMENT);
   });
 
   it("leaves the stored outcome alone when a later write does not name one", async () => {
@@ -358,7 +358,7 @@ describe("reviewSessions — session semantics", () => {
     };
 
     await repo.reviewSessions.writeToSession(query, (writer) =>
-      writer.setReviewOutcome(ReviewOutcome.REQUEST_CHANGES),
+      writer.setReviewOutcome(ReviewOutcomes.REQUEST_CHANGES),
     );
     await repo.reviewSessions.writeToSession(query, (writer) =>
       writer.putReadMark({ chunkId: "c1" }),
@@ -368,7 +368,9 @@ describe("reviewSessions — session semantics", () => {
       briefId,
       reviewerId: REVIEWER,
     });
-    expect(snapshot?.session.reviewOutcome).toBe(ReviewOutcome.REQUEST_CHANGES);
+    expect(snapshot?.session.reviewOutcome).toBe(
+      ReviewOutcomes.REQUEST_CHANGES,
+    );
   });
 
   it("reads nothing and creates nothing when no session exists", async () => {
@@ -393,16 +395,16 @@ describe("reviewSessions — session semantics", () => {
     await write(handle, CTX_A, briefId, async (writer) => {
       await writer.addDraftComment({
         filePath: "src/app.ts",
-        side: DraftCommentSide.NEW,
+        side: DraftCommentSides.NEW,
         startLine: 10,
         endLine: 12,
         body: "this leaks",
-        anchorStatus: AnchorStatus.MOVED,
+        anchorStatus: AnchorStatuses.MOVED,
       });
       await writer.putReadMark({ chunkId: "c1" });
       await writer.putReclassification({
         changeGroupId: "g1",
-        category: ChangeGroupCategory.BUGFIX,
+        category: ChangeGroupCategories.BUGFIX,
       });
       await writer.recordSubmittedReview({ githubReviewId: 909n });
     });
@@ -413,8 +415,8 @@ describe("reviewSessions — session semantics", () => {
     });
     expect(snapshot?.session.id).toBe(reviewSessionId);
     expect(snapshot?.draftComments).toHaveLength(1);
-    expect(snapshot?.draftComments[0]?.status).toBe(DraftCommentStatus.DRAFT);
-    expect(snapshot?.draftComments[0]?.anchorStatus).toBe(AnchorStatus.MOVED);
+    expect(snapshot?.draftComments[0]?.status).toBe(DraftCommentStatuses.DRAFT);
+    expect(snapshot?.draftComments[0]?.anchorStatus).toBe(AnchorStatuses.MOVED);
     expect(snapshot?.readMarks).toHaveLength(1);
     expect(snapshot?.reclassifications).toHaveLength(1);
     expect(snapshot?.submittedReviews).toHaveLength(1);
@@ -431,11 +433,11 @@ describe("reviewSessions — session semantics", () => {
       await writer.putReadMark({ chunkId: "c1" });
       await writer.putReclassification({
         changeGroupId: "g1",
-        category: ChangeGroupCategory.BUGFIX,
+        category: ChangeGroupCategories.BUGFIX,
       });
       await writer.putReclassification({
         changeGroupId: "g1",
-        category: ChangeGroupCategory.NEW_FEATURE,
+        category: ChangeGroupCategories.NEW_FEATURE,
       });
       await writer.recordSubmittedReview({ githubReviewId: 909n });
       await writer.recordSubmittedReview({ githubReviewId: 909n });
@@ -448,7 +450,7 @@ describe("reviewSessions — session semantics", () => {
     expect(snapshot?.readMarks).toHaveLength(1);
     expect(snapshot?.reclassifications).toHaveLength(1);
     expect(snapshot?.reclassifications[0]?.category).toBe(
-      ChangeGroupCategory.NEW_FEATURE,
+      ChangeGroupCategories.NEW_FEATURE,
     );
     expect(snapshot?.submittedReviews).toHaveLength(1);
   });
@@ -462,14 +464,14 @@ describe("reviewSessions — session semantics", () => {
     const published = await write(handle, CTX_A, briefId, async (writer) => {
       const first = await writer.addDraftComment({
         filePath: "src/app.ts",
-        side: DraftCommentSide.NEW,
+        side: DraftCommentSides.NEW,
         startLine: 1,
         endLine: 1,
         body: "publish me",
       });
       await writer.addDraftComment({
         filePath: "src/app.ts",
-        side: DraftCommentSide.NEW,
+        side: DraftCommentSides.NEW,
         startLine: 2,
         endLine: 2,
         body: "leave me",
@@ -483,7 +485,7 @@ describe("reviewSessions — session semantics", () => {
       reviewerId: REVIEWER,
     });
     const flipped = snapshot?.draftComments.filter(
-      (row) => row.status === DraftCommentStatus.SUBMITTED,
+      (row) => row.status === DraftCommentStatuses.SUBMITTED,
     );
     expect(flipped?.map((row) => row.id)).toEqual([published]);
   });
@@ -518,7 +520,7 @@ describe("reviewSessions — tenancy containment", () => {
     expect(attempt.ok).toBe(false);
     if (attempt.ok) return;
     expect(attempt.error.code).toBe(
-      ReviewSessionErrorCode.PARENT_NOT_IN_TENANT,
+      ReviewSessionErrorCodes.PARENT_NOT_IN_TENANT,
     );
     expect(await countRows(client, "review_session")).toBe(0);
   });
@@ -546,6 +548,6 @@ describe("reviewSessions — tenancy containment", () => {
 
     expect(a.installationId).toBe(TENANT_A);
     expect(b.installationId).toBe(TENANT_B);
-    expect(a.reviewOutcome).toBe(ReviewOutcome.COMMENT);
+    expect(a.reviewOutcome).toBe(ReviewOutcomes.COMMENT);
   });
 });

@@ -9,7 +9,7 @@ import {
   isInstallationId,
   isReviewerId,
   createTokenAuth,
-  WriteClassification,
+  WriteClassifications,
   type KeyProvider,
   type TenantContext,
 } from "persistence";
@@ -84,7 +84,7 @@ describe("GET /api/version", () => {
       refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
     });
     await createTokenAuth(harness.handle).mintToken({
-      scope: WriteClassification.EXTERNAL_WRITE,
+      scope: WriteClassifications.EXTERNAL_WRITE,
       installationId: CTX.installationId,
       userId: brand(isReviewerId, 555),
       name: "ci-token",

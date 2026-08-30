@@ -38,7 +38,7 @@ const SEPARATOR = ".";
 // ---------------------------------------------------------------------------
 
 /** Why a key could not be resolved. No value/material is ever surfaced. */
-export const KeyErrorCode = {
+export const KeyErrorCodes = {
   /** The named env var is absent or empty. */
   MISSING: "missing",
   /** The env var value is not valid (canonical) base64. */
@@ -46,7 +46,7 @@ export const KeyErrorCode = {
   /** The decoded key is not exactly 32 bytes (AES-256). */
   WRONG_LENGTH: "wrong-length",
 } as const;
-export type KeyErrorCode = ValueOf<typeof KeyErrorCode>;
+export type KeyErrorCode = ValueOf<typeof KeyErrorCodes>;
 
 export interface KeyError {
   readonly code: KeyErrorCode;
@@ -81,7 +81,7 @@ export function createEnvKeyProvider(
         return {
           ok: false,
           error: {
-            code: KeyErrorCode.MISSING,
+            code: KeyErrorCodes.MISSING,
             message: `key env var "${keyRef}" is not set`,
           },
         };
@@ -91,7 +91,7 @@ export function createEnvKeyProvider(
         return {
           ok: false,
           error: {
-            code: KeyErrorCode.MALFORMED,
+            code: KeyErrorCodes.MALFORMED,
             message: `key env var "${keyRef}" is not valid base64`,
           },
         };
@@ -100,7 +100,7 @@ export function createEnvKeyProvider(
         return {
           ok: false,
           error: {
-            code: KeyErrorCode.WRONG_LENGTH,
+            code: KeyErrorCodes.WRONG_LENGTH,
             message: `key env var "${keyRef}" must decode to ${KEY_BYTES} bytes, got ${decoded.length}`,
           },
         };
@@ -114,7 +114,7 @@ export function createEnvKeyProvider(
 // Crypto errors — expected failures. Messages never carry plaintext/key bytes.
 // ---------------------------------------------------------------------------
 
-export const CryptoErrorCode = {
+export const CryptoErrorCodes = {
   /** The key provider could not resolve `keyRef` (see `cause`). */
   KEY_UNAVAILABLE: "key-unavailable",
   /** The ciphertext string is structurally invalid (segments/base64/lengths). */
@@ -124,7 +124,7 @@ export const CryptoErrorCode = {
   /** GCM tag verification failed — tampering or wrong key. No plaintext. */
   AUTHENTICATION_FAILED: "authentication-failed",
 } as const;
-export type CryptoErrorCode = ValueOf<typeof CryptoErrorCode>;
+export type CryptoErrorCode = ValueOf<typeof CryptoErrorCodes>;
 
 export interface CryptoError {
   readonly code: CryptoErrorCode;
@@ -168,7 +168,7 @@ export async function encryptToken(
   const resolved = await provider.resolveKey(keyRef);
   if (!resolved.ok) {
     return cryptoFail(
-      CryptoErrorCode.KEY_UNAVAILABLE,
+      CryptoErrorCodes.KEY_UNAVAILABLE,
       `could not resolve key "${keyRef}"`,
       resolved.error,
     );
@@ -204,14 +204,14 @@ export async function decryptToken(
   const segments = ciphertext.split(SEPARATOR);
   if (segments.length !== 4) {
     return cryptoFail(
-      CryptoErrorCode.MALFORMED_CIPHERTEXT,
+      CryptoErrorCodes.MALFORMED_CIPHERTEXT,
       "ciphertext has an unexpected structure",
     );
   }
   const [version, ivPart, ctPart, tagPart] = segments;
   if (version !== VERSION) {
     return cryptoFail(
-      CryptoErrorCode.UNKNOWN_VERSION,
+      CryptoErrorCodes.UNKNOWN_VERSION,
       "ciphertext version is not supported",
     );
   }
@@ -228,7 +228,7 @@ export async function decryptToken(
     ct.length === 0
   ) {
     return cryptoFail(
-      CryptoErrorCode.MALFORMED_CIPHERTEXT,
+      CryptoErrorCodes.MALFORMED_CIPHERTEXT,
       "ciphertext segments are invalid",
     );
   }
@@ -236,7 +236,7 @@ export async function decryptToken(
   const resolved = await provider.resolveKey(keyRef);
   if (!resolved.ok) {
     return cryptoFail(
-      CryptoErrorCode.KEY_UNAVAILABLE,
+      CryptoErrorCodes.KEY_UNAVAILABLE,
       `could not resolve key "${keyRef}"`,
       resolved.error,
     );
@@ -252,7 +252,7 @@ export async function decryptToken(
     // Swallow the underlying error — it carries nothing useful and we must not
     // leak key/plaintext state — and return a uniform authentication failure.
     return cryptoFail(
-      CryptoErrorCode.AUTHENTICATION_FAILED,
+      CryptoErrorCodes.AUTHENTICATION_FAILED,
       "ciphertext authentication failed",
     );
   }

@@ -4,10 +4,10 @@
 // carry-over the read reports and a write writes is the same work.
 import { createHash, randomBytes } from "node:crypto";
 import {
-  DispositionDecision,
-  DraftCommentSide,
-  ChangeGroupCategory,
-  PrState,
+  DispositionDecisions,
+  DraftCommentSides,
+  ChangeGroupCategories,
+  PrStates,
   createArtifactStore,
   encryptToken,
   createTenantRepository,
@@ -169,7 +169,7 @@ export async function seedPullRequest(handle: AppDatabase): Promise<void> {
     repoId: brandRepoId(BigInt(REPO_ID)),
     prNumber: PR_NUMBER,
     repoSlug: REPO_SLUG,
-    state: PrState.OPEN,
+    state: PrStates.OPEN,
   });
 }
 
@@ -270,7 +270,7 @@ export async function seedOrphanedDraft(
     (writer) =>
       writer.addDraftComment({
         filePath: "src/other.ts",
-        side: DraftCommentSide.NEW,
+        side: DraftCommentSides.NEW,
         startLine: 10,
         endLine: 12,
         body: "and this one too",
@@ -294,14 +294,14 @@ export async function seedPreviousWork(
     async (writer) => {
       await writer.addDraftComment({
         filePath: "src/app.ts",
-        side: DraftCommentSide.NEW,
+        side: DraftCommentSides.NEW,
         startLine: 10,
         endLine: 12,
         body: "this allocation is unbounded",
       });
       await writer.putReclassification({
         changeGroupId: "g1",
-        category: ChangeGroupCategory.LOGIC_REFACTOR,
+        category: ChangeGroupCategories.LOGIC_REFACTOR,
       });
     },
   );
@@ -314,7 +314,7 @@ export async function seedPreviousWork(
         attribute: "no-tests",
         regionStart: 10,
         regionEnd: 12,
-        decision: DispositionDecision.DISMISSED,
+        decision: DispositionDecisions.DISMISSED,
         reason: "covered by the integration suite",
       }),
   );

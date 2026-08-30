@@ -4,15 +4,15 @@
 // projection decides: the revision distance, the id a carried subject
 // carries, and the default outcome a session with no row reports.
 import {
-  AnchorStatus,
-  ChangeGroupCategory,
-  DispositionCarryStatus,
-  DispositionDecision,
-  DispositionEvidenceStatus,
-  DraftCommentSide,
-  DraftCommentStatus,
+  AnchorStatuses,
+  ChangeGroupCategories,
+  DispositionCarryStatuses,
+  DispositionDecisions,
+  DispositionEvidenceStatuses,
+  DraftCommentSides,
+  DraftCommentStatuses,
   isReviewSessionId,
-  ReviewOutcome,
+  ReviewOutcomes,
   type CarriedWork,
   type ReviewSessionId,
   type ReviewSessionView,
@@ -34,19 +34,19 @@ const CARRIED: CarriedWork = {
     {
       id: 71n,
       filePath: "src/app.ts",
-      side: DraftCommentSide.NEW,
+      side: DraftCommentSides.NEW,
       startSide: null,
       startLine: 10,
       endLine: 12,
       body: "this leaks",
-      status: DraftCommentStatus.DRAFT,
-      anchorStatus: AnchorStatus.ORPHANED,
+      status: DraftCommentStatuses.DRAFT,
+      anchorStatus: AnchorStatuses.ORPHANED,
       carriedFromCommentId: null,
     },
   ],
   readMarks: ["chunk-a", "chunk-b"],
   reclassifications: [
-    { changeGroupId: "group-a", category: ChangeGroupCategory.BUGFIX },
+    { changeGroupId: "group-a", category: ChangeGroupCategories.BUGFIX },
   ],
   dispositions: [
     {
@@ -54,12 +54,12 @@ const CARRIED: CarriedWork = {
       attribute: "auth",
       regionStart: 4,
       regionEnd: 20,
-      decision: DispositionDecision.DISMISSED,
+      decision: DispositionDecisions.DISMISSED,
       reason: "covered by the gate",
       evidenceStatus: null,
       evidence: null,
       decidedAt: DECIDED_AT,
-      carryStatus: DispositionCarryStatus.REOPENED,
+      carryStatus: DispositionCarryStatuses.REOPENED,
     },
   ],
 };
@@ -79,7 +79,7 @@ describe("buildSessionPayload", () => {
   it("reports an unmaterialized session and the default outcome", () => {
     const payload = buildSessionPayload(CARRIED_VIEW, 5);
     expect(payload.materialized).toBe(false);
-    expect(payload.reviewOutcome).toBe(ReviewOutcome.COMMENT);
+    expect(payload.reviewOutcome).toBe(ReviewOutcomes.COMMENT);
     expect(payload.submittedReviewIds).toEqual([]);
   });
 
@@ -141,14 +141,14 @@ describe("buildSessionPayload", () => {
         ...CARRIED,
         dispositions: CARRIED.dispositions.map((row) => ({
           ...row,
-          carryStatus: DispositionCarryStatus.SETTLED,
-          evidenceStatus: DispositionEvidenceStatus.MISSING_EVIDENCE,
+          carryStatus: DispositionCarryStatuses.SETTLED,
+          evidenceStatus: DispositionEvidenceStatuses.MISSING_EVIDENCE,
         })),
       },
     };
     const payload = buildSessionPayload(view, 5);
     expect(payload.dispositions[0]?.evidenceStatus).toBe(
-      DispositionEvidenceStatus.MISSING_EVIDENCE,
+      DispositionEvidenceStatuses.MISSING_EVIDENCE,
     );
     expect(payload.attention.map((entry) => entry.kind)).toEqual([
       "orphaned-anchor",

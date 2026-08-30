@@ -36,9 +36,9 @@ import { resolveScope, type RowScope } from "./scope";
 import type { ScopeContext } from "./scope-context";
 import type { GenerateJobPayload, Mutable } from "types";
 import {
-  GenerationKind,
-  GenerationStatus,
-  PrState,
+  GenerationKinds,
+  GenerationStatuses,
+  PrStates,
   type GrantRowId,
   type Result,
   type ValueOf,
@@ -51,7 +51,7 @@ const DEFAULT_DEBOUNCE_SECONDS = 60;
  * `pull_request` row is already in a terminal (`closed`/`merged`) state.
  */
 function existingPrIsTerminal() {
-  return sql`${pullRequest.state} in (${PrState.CLOSED}, ${PrState.MERGED})`;
+  return sql`${pullRequest.state} in (${PrStates.CLOSED}, ${PrStates.MERGED})`;
 }
 
 /**
@@ -75,11 +75,11 @@ const GENERATE_TASK_IDENTIFIER = "generate";
 // Errors — expected failures. Programmer/infra errors still `throw`.
 // ---------------------------------------------------------------------------
 
-export const IngestErrorCode = {
+export const IngestErrorCodes = {
   /** `debounceSeconds` was negative or non-finite (NaN/Infinity). */
   INVALID_DEBOUNCE: "invalid-debounce",
 } as const;
-export type IngestErrorCode = ValueOf<typeof IngestErrorCode>;
+export type IngestErrorCode = ValueOf<typeof IngestErrorCodes>;
 
 export interface IngestError {
   readonly code: IngestErrorCode;
@@ -304,7 +304,7 @@ export function createIngestRoutines(
           return {
             ok: false,
             error: {
-              code: IngestErrorCode.INVALID_DEBOUNCE,
+              code: IngestErrorCodes.INVALID_DEBOUNCE,
               message: `${name} must be a non-negative finite number, got ${value}`,
             },
           };
@@ -336,7 +336,7 @@ export function createIngestRoutines(
         // generate for). The PR upsert above still refreshed repo_slug.
         if (
           preserveTerminal &&
-          (prRow.state === PrState.CLOSED || prRow.state === PrState.MERGED)
+          (prRow.state === PrStates.CLOSED || prRow.state === PrStates.MERGED)
         ) {
           return { ok: true, value: { pullRequest: prRow } };
         }
@@ -357,8 +357,8 @@ export function createIngestRoutines(
                   generation.pullRequestId,
                 ),
                 eq(generation.pullRequestId, prRow.id),
-                eq(generation.kind, GenerationKind.BRIEF),
-                eq(generation.status, GenerationStatus.SUCCEEDED),
+                eq(generation.kind, GenerationKinds.BRIEF),
+                eq(generation.status, GenerationStatuses.SUCCEEDED),
               ),
             )
             .limit(1);
@@ -376,10 +376,10 @@ export function createIngestRoutines(
           .values({
             installationId: scope.installationId,
             pullRequestId: prRow.id,
-            kind: GenerationKind.BRIEF,
+            kind: GenerationKinds.BRIEF,
             headSha: input.headSha,
             baselineSha: null,
-            status: GenerationStatus.QUEUED,
+            status: GenerationStatuses.QUEUED,
           })
           .onConflictDoUpdate({
             target: [
@@ -390,7 +390,7 @@ export function createIngestRoutines(
               generation.baselineSha,
             ],
             set: {
-              status: GenerationStatus.QUEUED,
+              status: GenerationStatuses.QUEUED,
               attempts: sql`${generation.attempts} + 1`,
               phase: null,
               errorCode: null,

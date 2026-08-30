@@ -11,7 +11,7 @@ import {
   isInstallationId,
   isReviewerId,
   createTokenAuth,
-  WriteClassification,
+  WriteClassifications,
 } from "persistence";
 import { createPgliteHarness } from "persistence/testing";
 import { describe, expect, it } from "vitest";
@@ -332,7 +332,7 @@ describe("mergebrief capabilities against the real api app", () => {
       });
       const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
       await createTokenAuth(harness.handle).mintToken({
-        scope: WriteClassification.READ,
+        scope: WriteClassifications.READ,
         installationId,
         userId: reviewerId,
         name: "caps-test",

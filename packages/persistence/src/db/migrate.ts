@@ -98,10 +98,10 @@ const JournalSchema = z.object({
   entries: z.array(z.object({ when: z.number(), tag: z.string() })),
 });
 
-export const SchemaCheckErrorCode = {
+export const SchemaCheckErrorCodes = {
   PENDING_MIGRATIONS: "pending-migrations",
 } as const;
-export type SchemaCheckErrorCode = ValueOf<typeof SchemaCheckErrorCode>;
+export type SchemaCheckErrorCode = ValueOf<typeof SchemaCheckErrorCodes>;
 
 export interface SchemaCheckError {
   readonly code: SchemaCheckErrorCode;
@@ -166,7 +166,7 @@ export async function checkAppSchemaWith(
   return {
     ok: false,
     error: {
-      code: SchemaCheckErrorCode.PENDING_MIGRATIONS,
+      code: SchemaCheckErrorCodes.PENDING_MIGRATIONS,
       pendingCount: pending,
       message:
         `database schema is ${pending} migration(s) behind the checked-in set ` +

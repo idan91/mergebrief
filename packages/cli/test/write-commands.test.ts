@@ -20,9 +20,9 @@ import {
   isInstallationId,
   isRepoId,
   isReviewerId,
-  PrState,
+  PrStates,
   createTokenAuth,
-  WriteClassification,
+  WriteClassifications,
   type KeyProvider,
   type ReviewerId,
   type TenantContext,
@@ -210,7 +210,7 @@ describe("write commands over the real api app", () => {
       refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
     });
     await createTokenAuth(harness.handle).mintToken({
-      scope: WriteClassification.EXTERNAL_WRITE,
+      scope: WriteClassifications.EXTERNAL_WRITE,
       installationId: CTX.installationId,
       userId: REVIEWER,
       name: "ci-token",
@@ -231,7 +231,7 @@ describe("write commands over the real api app", () => {
       prNumber: 7,
       repoSlug: "octo/hello",
       title: "PR 7",
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     const pr = await repo.pullRequests.getByNumber(brand(isRepoId, REPO_A), 7);
     if (pr === undefined) throw new Error("seedPr: pr missing");

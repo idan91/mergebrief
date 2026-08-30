@@ -33,7 +33,7 @@ import {
 import { AnchorStates } from "brief-core";
 import { StoredIdsSchema } from "./artifact-store";
 import type { RowScope } from "./scope";
-import { DraftCommentStatus } from "../types";
+import { DraftCommentStatuses } from "../types";
 import type {
   AnchorStatus,
   BriefRowId,
@@ -41,6 +41,7 @@ import type {
   DispositionDecision,
   DispositionEvidence,
   DraftCommentSide,
+  DraftCommentStatus,
   PullRequestRowId,
   ReviewOutcome,
   ReviewSessionId,
@@ -54,7 +55,7 @@ import type {
 // rather than borrowed from `tenant.ts`, which composes this module.
 // ---------------------------------------------------------------------------
 
-export const ReviewSessionErrorCode = {
+export const ReviewSessionErrorCodes = {
   /** A write named a `brief` or `review_session` outside ctx's tenant. */
   PARENT_NOT_IN_TENANT: "parent-not-in-tenant",
   /**
@@ -65,7 +66,7 @@ export const ReviewSessionErrorCode = {
    */
   SESSION_FROZEN: "session-frozen",
 } as const;
-export type ReviewSessionErrorCode = ValueOf<typeof ReviewSessionErrorCode>;
+export type ReviewSessionErrorCode = ValueOf<typeof ReviewSessionErrorCodes>;
 
 export interface ReviewSessionError {
   readonly code: ReviewSessionErrorCode;
@@ -721,7 +722,7 @@ export function createReviewSessionRepository(
         if (ids.length === 0) return;
         await tx
           .update(reviewDraftComment)
-          .set({ status: DraftCommentStatus.SUBMITTED })
+          .set({ status: DraftCommentStatuses.SUBMITTED })
           .where(
             and(ownedBy(sessionId), inArray(reviewDraftComment.id, [...ids])),
           );
@@ -1134,13 +1135,13 @@ export function createReviewSessionRepository(
         const facts = await readBriefCarrySlice(tx, query.briefId);
         if (facts === undefined) {
           return fail(
-            ReviewSessionErrorCode.PARENT_NOT_IN_TENANT,
+            ReviewSessionErrorCodes.PARENT_NOT_IN_TENANT,
             `brief ${query.briefId} not in ${scope.label}`,
           );
         }
         if (await hasNewerSession(tx, facts, query.reviewerId)) {
           return fail(
-            ReviewSessionErrorCode.SESSION_FROZEN,
+            ReviewSessionErrorCodes.SESSION_FROZEN,
             `reviewer ${query.reviewerId} already works on a newer brief of pull_request ${facts.pullRequestId}`,
           );
         }

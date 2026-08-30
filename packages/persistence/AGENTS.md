@@ -102,7 +102,7 @@ drizzle/              generated SQL migrations — append-only
 ## Conventions
 
 - **No `enum`:** `as const` maps + `ValueOf<T>`. **Keys SHOUT_CASE, string values
-  kebab-case** (`PurgeErrorCode.NOT_FOUND` → `"not-found"`). The doc example in
+  kebab-case** (`PurgeErrorCodes.NOT_FOUND` → `"not-found"`). The doc example in
   `src/types.ts` demonstrates it. DB-stored vocabularies (state, kind, status, phase,
   decision, actor_type, generation error_code, audit outcome/classification/channel,
   review_outcome, draft-comment status/side/anchor_status, reclassification
@@ -116,14 +116,14 @@ drizzle/              generated SQL migrations — append-only
   mirror even though the runtime graph now touches brief-core: the ONLY edge is
   the `brief-core/remap` subpath (the deterministic remapper carry-over
   composes), deliberately not the barrel, so the generation graph and its model
-  SDKs stay out of this package. `WriteClassification`
+  SDKs stay out of this package. `WriteClassifications`
   is the one vocabulary shared outward: it is `api_token.scope` AND the
   classification `packages/api` sorts every operation by, which re-exports this
   map rather than declaring a second one. `audit_log.classification` narrows
   the same map (`read` is never audited) instead of forking it.
-- **`GenerationFailureCode` is the widest of those locksteps.** It is the
+- **`GenerationFailureCodes` is the widest of those locksteps.** It is the
   DB-stored failure vocabulary (distinct from the store-internal
-  `GenerationErrorCode`), so a new code needs FOUR changes together: the
+  `GenerationErrorCodes`), so a new code needs FOUR changes together: the
   `as const` map in `src/types.ts`, a CHECK migration, a
   `generationError.<code>` template in `packages/i18n`, and the hand-rolled
   mirror in `apps/web` (`GenerationFailureCodes`). The web mirror parses

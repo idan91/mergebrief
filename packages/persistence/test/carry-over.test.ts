@@ -11,7 +11,7 @@ import { fromDrizzle } from "../src/db/handle";
 import {
   createArtifactStore,
   createTenantRepository,
-  ReviewSessionErrorCode,
+  ReviewSessionErrorCodes,
 } from "../src/index";
 import type {
   AppDatabase,
@@ -22,15 +22,16 @@ import type {
 } from "../src/index";
 import * as schema from "../src/schema/index";
 import {
-  ChangeGroupCategory,
-  DispositionDecision,
-  DraftCommentSide,
-  DraftCommentStatus,
-  ReviewOutcome,
+  ChangeGroupCategories,
+  DispositionDecisions,
+  DraftCommentSides,
+  DraftCommentStatuses,
+  ReviewOutcomes,
   isInstallationId,
   isRepoId,
   isReviewerId,
   type BriefRowId,
+  type DraftCommentSide,
   type InstallationId,
   type PullRequestRowId,
   type RepoId,
@@ -193,7 +194,7 @@ async function seedPreviousComment(
     (writer) =>
       writer.addDraftComment({
         filePath: "src/app.ts",
-        side: DraftCommentSide.NEW,
+        side: DraftCommentSides.NEW,
         startLine: 10,
         endLine: 12,
         body: "this allocation is unbounded",
@@ -392,32 +393,32 @@ async function seedPreviousWork(
 ): Promise<void> {
   await openSession(world, briefId);
   await write(world, briefId, async (writer) => {
-    await writer.setReviewOutcome(ReviewOutcome.APPROVE);
+    await writer.setReviewOutcome(ReviewOutcomes.APPROVE);
     await writer.addDraftComment({
       filePath: "src/app.ts",
-      side: DraftCommentSide.NEW,
+      side: DraftCommentSides.NEW,
       startLine: 10,
       endLine: 12,
       body: "draft",
     });
     await writer.addDraftComment({
       filePath: "src/app.ts",
-      side: DraftCommentSide.NEW,
+      side: DraftCommentSides.NEW,
       startLine: 40,
       endLine: 41,
       body: "already on GitHub",
-      status: DraftCommentStatus.SUBMITTED,
+      status: DraftCommentStatuses.SUBMITTED,
     });
     for (const chunkId of chunkIds) {
       await writer.putReadMark({ chunkId });
     }
     await writer.putReclassification({
       changeGroupId: "g1",
-      category: ChangeGroupCategory.BUGFIX,
+      category: ChangeGroupCategories.BUGFIX,
     });
     await writer.putReclassification({
       changeGroupId: "g9",
-      category: ChangeGroupCategory.BUGFIX,
+      category: ChangeGroupCategories.BUGFIX,
     });
   });
   await seedDisposition(world, briefId, 30, 32);
@@ -900,7 +901,7 @@ describe("preview — the rules a multi-push chain must not loosen", () => {
     await write(world, previous, (writer) =>
       writer.addDraftComment({
         filePath: "src/app.ts",
-        side: DraftCommentSide.OLD,
+        side: DraftCommentSides.OLD,
         startLine: 10,
         endLine: 12,
         body: "on the removed side",
@@ -1063,7 +1064,7 @@ describe("old-side drafts against the PR base", () => {
     await write(world, briefId, (writer) =>
       writer.addDraftComment({
         filePath: "src/app.ts",
-        side: DraftCommentSide.OLD,
+        side: DraftCommentSides.OLD,
         startLine: 10,
         endLine: 12,
         body: "on the removed side",
@@ -1164,8 +1165,8 @@ describe("two-side drafts — both legs or orphan", () => {
     const current = await seedBrief(world, 2);
     await seedHop(world, 1, 2);
     await seedTwoSideDraft(world, previous, {
-      startSide: DraftCommentSide.OLD,
-      side: DraftCommentSide.NEW,
+      startSide: DraftCommentSides.OLD,
+      side: DraftCommentSides.NEW,
       startLine: 10,
       endLine: 12,
     });
@@ -1175,7 +1176,7 @@ describe("two-side drafts — both legs or orphan", () => {
     // The old leg rides the base, which held; the new leg shifts by three.
     expect(view.carried.draftComments).toEqual([
       expect.objectContaining({
-        startSide: DraftCommentSide.OLD,
+        startSide: DraftCommentSides.OLD,
         startLine: 10,
         endLine: 15,
         anchorStatus: "moved",
@@ -1189,8 +1190,8 @@ describe("two-side drafts — both legs or orphan", () => {
     const current = await seedBrief(world, 2);
     await seedHop(world, 1, 2);
     await seedTwoSideDraft(world, previous, {
-      startSide: DraftCommentSide.NEW,
-      side: DraftCommentSide.OLD,
+      startSide: DraftCommentSides.NEW,
+      side: DraftCommentSides.OLD,
       startLine: 10,
       endLine: 20,
     });
@@ -1199,7 +1200,7 @@ describe("two-side drafts — both legs or orphan", () => {
 
     expect(view.carried.draftComments).toEqual([
       expect.objectContaining({
-        startSide: DraftCommentSide.NEW,
+        startSide: DraftCommentSides.NEW,
         startLine: 13,
         endLine: 20,
         anchorStatus: "moved",
@@ -1218,8 +1219,8 @@ describe("two-side drafts — both legs or orphan", () => {
       },
     ]);
     await seedTwoSideDraft(world, previous, {
-      startSide: DraftCommentSide.OLD,
-      side: DraftCommentSide.NEW,
+      startSide: DraftCommentSides.OLD,
+      side: DraftCommentSides.NEW,
       startLine: 10,
       endLine: 12,
     });
@@ -1228,7 +1229,7 @@ describe("two-side drafts — both legs or orphan", () => {
 
     expect(view.carried.draftComments).toEqual([
       expect.objectContaining({
-        startSide: DraftCommentSide.OLD,
+        startSide: DraftCommentSides.OLD,
         startLine: 10,
         endLine: 12,
         anchorStatus: null,
@@ -1249,8 +1250,8 @@ describe("two-side drafts — both legs or orphan", () => {
       },
     ]);
     await seedTwoSideDraft(world, previous, {
-      startSide: DraftCommentSide.OLD,
-      side: DraftCommentSide.NEW,
+      startSide: DraftCommentSides.OLD,
+      side: DraftCommentSides.NEW,
       startLine: 10,
       endLine: 12,
     });
@@ -1259,7 +1260,7 @@ describe("two-side drafts — both legs or orphan", () => {
 
     expect(view.carried.draftComments).toEqual([
       expect.objectContaining({
-        startSide: DraftCommentSide.OLD,
+        startSide: DraftCommentSides.OLD,
         startLine: 10,
         endLine: 12,
         anchorStatus: "orphaned",
@@ -1273,8 +1274,8 @@ describe("two-side drafts — both legs or orphan", () => {
     const current = await seedBrief(world, 2, [], "other-base");
     await seedHop(world, 1, 2);
     await seedTwoSideDraft(world, previous, {
-      startSide: DraftCommentSide.NEW,
-      side: DraftCommentSide.OLD,
+      startSide: DraftCommentSides.NEW,
+      side: DraftCommentSides.OLD,
       startLine: 10,
       endLine: 20,
     });
@@ -1284,7 +1285,7 @@ describe("two-side drafts — both legs or orphan", () => {
     // The old leg lost its base; the placeable new leg must not survive alone.
     expect(view.carried.draftComments).toEqual([
       expect.objectContaining({
-        startSide: DraftCommentSide.NEW,
+        startSide: DraftCommentSides.NEW,
         startLine: 10,
         endLine: 20,
         anchorStatus: "orphaned",
@@ -1298,8 +1299,8 @@ describe("two-side drafts — both legs or orphan", () => {
     const current = await seedBrief(world, 2);
     // No hop row at all.
     await seedTwoSideDraft(world, previous, {
-      startSide: DraftCommentSide.OLD,
-      side: DraftCommentSide.NEW,
+      startSide: DraftCommentSides.OLD,
+      side: DraftCommentSides.NEW,
       startLine: 10,
       endLine: 12,
     });
@@ -1336,7 +1337,7 @@ describe("writeToSession — the first write, one transaction", () => {
       (writer) =>
         writer.addDraftComment({
           filePath: "src/other.ts",
-          side: DraftCommentSide.NEW,
+          side: DraftCommentSides.NEW,
           startLine: 1,
           endLine: 2,
           body: "the triggering write",
@@ -1420,7 +1421,7 @@ describe("writeToSession — the first write, one transaction", () => {
     });
     // The previous session approved; an approve riding onto new commits is the
     // one carry that does real damage.
-    expect(snapshot?.session.reviewOutcome).toBe(ReviewOutcome.COMMENT);
+    expect(snapshot?.session.reviewOutcome).toBe(ReviewOutcomes.COMMENT);
   });
 
   // PGlite serializes transactions on one connection, so these two calls
@@ -1466,7 +1467,7 @@ describe("writeToSession — the first write, one transaction", () => {
     await write(world, await briefIdFor(world, 1), (writer) =>
       writer.addDraftComment({
         filePath: "src/app.ts",
-        side: DraftCommentSide.NEW,
+        side: DraftCommentSides.NEW,
         startLine: 20,
         endLine: 20,
         body: "typed after the read",
@@ -1566,7 +1567,7 @@ describe("freeze — a session freezes only when a newer one is materialized", (
 
     expect(refused.ok).toBe(false);
     if (refused.ok) return;
-    expect(refused.error.code).toBe(ReviewSessionErrorCode.SESSION_FROZEN);
+    expect(refused.error.code).toBe(ReviewSessionErrorCodes.SESSION_FROZEN);
     const snapshot = await repo.reviewSessions.get({
       briefId: first,
       reviewerId: REVIEWER,
@@ -1608,10 +1609,10 @@ describe("the session writer covers every product write", () => {
           attribute: "sql-injection",
           regionStart: 10,
           regionEnd: 20,
-          decision: DispositionDecision.DISMISSED,
+          decision: DispositionDecisions.DISMISSED,
           reason: "test-only path",
         });
-        return writer.setReviewOutcome(ReviewOutcome.APPROVE);
+        return writer.setReviewOutcome(ReviewOutcomes.APPROVE);
       },
     );
 
@@ -1620,11 +1621,11 @@ describe("the session writer covers every product write", () => {
       briefId,
       reviewerId: REVIEWER,
     });
-    expect(snapshot?.session.reviewOutcome).toBe(ReviewOutcome.APPROVE);
+    expect(snapshot?.session.reviewOutcome).toBe(ReviewOutcomes.APPROVE);
     expect(snapshot?.dispositions).toEqual([
       expect.objectContaining({
         attribute: "sql-injection",
-        decision: DispositionDecision.DISMISSED,
+        decision: DispositionDecisions.DISMISSED,
         reason: "test-only path",
         carryStatus: null,
       }),
@@ -1655,7 +1656,7 @@ describe("the session writer covers every product write", () => {
         attribute: "sql-injection",
         regionStart: 33,
         regionEnd: 35,
-        decision: DispositionDecision.ADDRESSED,
+        decision: DispositionDecisions.ADDRESSED,
       }),
     );
 
@@ -1665,7 +1666,7 @@ describe("the session writer covers every product write", () => {
     });
     expect(snapshot?.dispositions).toEqual([
       expect.objectContaining({
-        decision: DispositionDecision.ADDRESSED,
+        decision: DispositionDecisions.ADDRESSED,
         carryStatus: null,
       }),
     ]);
@@ -1687,7 +1688,7 @@ describe("the session writer covers every product write", () => {
       async (writer) => {
         await writer.putDisposition({
           ...anchor,
-          decision: DispositionDecision.DISMISSED,
+          decision: DispositionDecisions.DISMISSED,
           reason: "test-only path",
         });
         // Undoing twice is the same undo: an undecided flag is a row that

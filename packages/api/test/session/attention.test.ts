@@ -1,11 +1,11 @@
 // The Attention List's ladder: what earns an item and what carries silently.
 // The integration suite covers the payload; this pins the three kinds.
 import {
-  AnchorStatus,
-  DispositionCarryStatus,
-  DispositionDecision,
-  DispositionEvidenceStatus,
-  DraftCommentStatus,
+  AnchorStatuses,
+  DispositionCarryStatuses,
+  DispositionDecisions,
+  DispositionEvidenceStatuses,
+  DraftCommentStatuses,
 } from "persistence";
 import { describe, expect, it } from "vitest";
 import {
@@ -19,8 +19,8 @@ const COMMENT: AttentionDraftComment = {
   filePath: "src/app.ts",
   startLine: 10,
   endLine: 12,
-  status: DraftCommentStatus.DRAFT,
-  anchorStatus: AnchorStatus.ORPHANED,
+  status: DraftCommentStatuses.DRAFT,
+  anchorStatus: AnchorStatuses.ORPHANED,
 };
 
 const DISPOSITION: AttentionDisposition = {
@@ -28,8 +28,8 @@ const DISPOSITION: AttentionDisposition = {
   attribute: "no-tests",
   regionStart: 10,
   regionEnd: 12,
-  decision: DispositionDecision.DISMISSED,
-  carryStatus: DispositionCarryStatus.SETTLED,
+  decision: DispositionDecisions.DISMISSED,
+  carryStatus: DispositionCarryStatuses.SETTLED,
   evidenceStatus: null,
 };
 
@@ -68,8 +68,8 @@ describe("deriveAttentionItems", () => {
     expect(
       kinds(
         [
-          { ...COMMENT, anchorStatus: AnchorStatus.MOVED },
-          { ...COMMENT, status: DraftCommentStatus.SUBMITTED },
+          { ...COMMENT, anchorStatus: AnchorStatuses.MOVED },
+          { ...COMMENT, status: DraftCommentStatuses.SUBMITTED },
         ],
         [],
       ),
@@ -81,9 +81,9 @@ describe("deriveAttentionItems", () => {
       kinds(
         [],
         [
-          { ...DISPOSITION, carryStatus: DispositionCarryStatus.REOPENED },
+          { ...DISPOSITION, carryStatus: DispositionCarryStatuses.REOPENED },
           DISPOSITION,
-          { ...DISPOSITION, carryStatus: DispositionCarryStatus.DROPPED },
+          { ...DISPOSITION, carryStatus: DispositionCarryStatuses.DROPPED },
         ],
       ),
     ).toEqual(["reopened-disposition"]);
@@ -91,7 +91,7 @@ describe("deriveAttentionItems", () => {
 
   it("lists missing evidence only on a CARRIED disposition", () => {
     const missing = {
-      evidenceStatus: DispositionEvidenceStatus.MISSING_EVIDENCE,
+      evidenceStatus: DispositionEvidenceStatuses.MISSING_EVIDENCE,
     };
     expect(
       kinds(
@@ -101,7 +101,7 @@ describe("deriveAttentionItems", () => {
           {
             ...DISPOSITION,
             ...missing,
-            carryStatus: DispositionCarryStatus.NEW,
+            carryStatus: DispositionCarryStatuses.NEW,
           },
           { ...DISPOSITION, ...missing, carryStatus: null },
           // Dropped: the flag stopped firing, so neither clearing operation
@@ -109,7 +109,7 @@ describe("deriveAttentionItems", () => {
           {
             ...DISPOSITION,
             ...missing,
-            carryStatus: DispositionCarryStatus.DROPPED,
+            carryStatus: DispositionCarryStatuses.DROPPED,
           },
         ],
       ),
@@ -120,8 +120,8 @@ describe("deriveAttentionItems", () => {
     const items = deriveAttentionItems({
       draftComments: [],
       dispositions: [
-        { ...DISPOSITION, carryStatus: DispositionCarryStatus.REOPENED },
-        { ...SECOND_FLAG, carryStatus: DispositionCarryStatus.REOPENED },
+        { ...DISPOSITION, carryStatus: DispositionCarryStatuses.REOPENED },
+        { ...SECOND_FLAG, carryStatus: DispositionCarryStatuses.REOPENED },
       ],
     });
 
@@ -140,8 +140,8 @@ describe("deriveAttentionItems", () => {
         [
           {
             ...DISPOSITION,
-            carryStatus: DispositionCarryStatus.REOPENED,
-            evidenceStatus: DispositionEvidenceStatus.MISSING_EVIDENCE,
+            carryStatus: DispositionCarryStatuses.REOPENED,
+            evidenceStatus: DispositionEvidenceStatuses.MISSING_EVIDENCE,
           },
         ],
       ),

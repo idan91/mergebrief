@@ -46,13 +46,13 @@ export interface GrantRefreshRejection {
   readonly reason: string;
 }
 
-export const GrantAuthErrorCode = {
+export const GrantAuthErrorCodes = {
   /** No grant row for the id (last referent deleted concurrently). */
   NOT_FOUND: "not-found",
   /** The caller's `refresh` callback rejected; the row is left untouched. */
   REFRESH_REJECTED: "refresh-rejected",
 } as const;
-export type GrantAuthErrorCode = ValueOf<typeof GrantAuthErrorCode>;
+export type GrantAuthErrorCode = ValueOf<typeof GrantAuthErrorCodes>;
 
 export interface GrantAuthError {
   readonly code: GrantAuthErrorCode;
@@ -163,7 +163,7 @@ export function createGrantAuth(handle: AppDatabase): GrantAuth {
         const row = locked[0];
         if (row === undefined) {
           return fail(
-            GrantAuthErrorCode.NOT_FOUND,
+            GrantAuthErrorCodes.NOT_FOUND,
             "github_grant not found for the given id",
           );
         }
@@ -178,7 +178,7 @@ export function createGrantAuth(handle: AppDatabase): GrantAuth {
         if (!patch.ok) {
           // The tx commits cleanly with NO write — the caller acts per channel.
           return fail(
-            GrantAuthErrorCode.REFRESH_REJECTED,
+            GrantAuthErrorCodes.REFRESH_REJECTED,
             "github_grant refresh was rejected by the caller",
           );
         }

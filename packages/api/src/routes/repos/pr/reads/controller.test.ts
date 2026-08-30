@@ -4,7 +4,7 @@ import {
   isInstallationId,
   isRepoId,
   parseTenantContext,
-  PrState,
+  PrStates,
   type RepoId,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
@@ -39,7 +39,7 @@ beforeAll(async () => {
     prNumber: PR_NUMBER,
     repoSlug: "acme/app",
     title: "Add thing",
-    state: PrState.OPEN,
+    state: PrStates.OPEN,
   });
   const written = await artifacts.briefs.write({
     pullRequestId: pr.id,

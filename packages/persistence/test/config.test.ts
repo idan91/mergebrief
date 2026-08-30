@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
-  ConfigErrorCode,
+  ConfigErrorCodes,
   loadConfig,
   type ConfigError,
   type PersistenceConfig,
@@ -61,7 +61,7 @@ describe("config — loadConfig", () => {
     const error = err(
       loadConfig({ DATABASE_URL: VALID_URL, AUDIT_RETENTION_DAYS: "7" }),
     );
-    expect(error.code).toBe(ConfigErrorCode.INVALID);
+    expect(error.code).toBe(ConfigErrorCodes.INVALID);
     expect(error.issues.join("; ")).toMatch(/AUDIT_RETENTION_DAYS/);
   });
 
@@ -98,7 +98,7 @@ describe("config — loadConfig", () => {
 
   it("rejects a missing DATABASE_URL", () => {
     const error = err(loadConfig({}));
-    expect(error.code).toBe(ConfigErrorCode.INVALID);
+    expect(error.code).toBe(ConfigErrorCodes.INVALID);
     expect(error.issues.some((i) => i.startsWith("DATABASE_URL"))).toBe(true);
   });
 
@@ -273,7 +273,7 @@ describe("config — DATABASE_URL_FILE", () => {
         },
       }),
     );
-    expect(error.code).toBe(ConfigErrorCode.INVALID);
+    expect(error.code).toBe(ConfigErrorCodes.INVALID);
     expect(
       error.issues.some(
         (issue) =>
@@ -361,7 +361,7 @@ describe("config — TLS explicit-or-refuse gate", () => {
 
   it("refuses a non-loopback host with no sslmode", () => {
     const error = err(loadConfig({ DATABASE_URL: REMOTE }));
-    expect(error.code).toBe(ConfigErrorCode.INVALID);
+    expect(error.code).toBe(ConfigErrorCodes.INVALID);
     expect(error.issues.some((i) => i.startsWith("DATABASE_URL"))).toBe(true);
   });
 

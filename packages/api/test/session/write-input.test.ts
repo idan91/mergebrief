@@ -2,7 +2,7 @@
 // rejected payload is a 400; this pins the edges that decide it — the int8
 // ceiling a row id must stay under, the line ordering an anchor must hold,
 // and the closed category vocabulary.
-import { ChangeGroupCategory, DraftCommentSide } from "persistence";
+import { ChangeGroupCategories, DraftCommentSides } from "persistence";
 import { describe, expect, it } from "vitest";
 import {
   anchorSchema,
@@ -15,7 +15,7 @@ import { rowIdSchema } from "../../src/routes/repos/pr/wire-bounds";
 
 const ANCHOR = {
   filePath: "src/app.ts",
-  side: DraftCommentSide.NEW,
+  side: DraftCommentSides.NEW,
   startLine: 10,
   endLine: 12,
 };
@@ -85,22 +85,22 @@ describe("anchorSchema — two-side ranges", () => {
   it("accepts old\u2192new and keeps the crossing startSide", () => {
     const parsed = anchorSchema.parse({
       ...ANCHOR,
-      startSide: DraftCommentSide.OLD,
+      startSide: DraftCommentSides.OLD,
     });
-    expect(parsed.startSide).toBe(DraftCommentSide.OLD);
+    expect(parsed.startSide).toBe(DraftCommentSides.OLD);
   });
 
   it("accepts new\u2192old with lines out of order — cross-side is unordered", () => {
     const parsed = anchorSchema.parse({
       ...ANCHOR,
-      side: DraftCommentSide.OLD,
-      startSide: DraftCommentSide.NEW,
+      side: DraftCommentSides.OLD,
+      startSide: DraftCommentSides.NEW,
       startLine: 25,
       endLine: 3,
     });
     expect(parsed).toMatchObject({
-      side: DraftCommentSide.OLD,
-      startSide: DraftCommentSide.NEW,
+      side: DraftCommentSides.OLD,
+      startSide: DraftCommentSides.NEW,
       startLine: 25,
       endLine: 3,
     });
@@ -108,7 +108,7 @@ describe("anchorSchema — two-side ranges", () => {
 
   it("normalizes a startSide equal to side to null", () => {
     expect(
-      anchorSchema.parse({ ...ANCHOR, startSide: DraftCommentSide.NEW })
+      anchorSchema.parse({ ...ANCHOR, startSide: DraftCommentSides.NEW })
         .startSide,
     ).toBe(null);
   });
@@ -121,7 +121,7 @@ describe("anchorSchema — two-side ranges", () => {
     expect(
       anchorSchema.safeParse({
         ...ANCHOR,
-        startSide: DraftCommentSide.NEW,
+        startSide: DraftCommentSides.NEW,
         startLine: 12,
         endLine: 10,
       }).success,
@@ -142,7 +142,7 @@ describe("createDraftSchema", () => {
     expect(
       createDraftSchema.parse({
         ...ANCHOR,
-        startSide: DraftCommentSide.NEW,
+        startSide: DraftCommentSides.NEW,
         body: "hi",
       }).startSide,
     ).toBe(null);
@@ -172,8 +172,8 @@ describe("createDraftSchema", () => {
 describe("categorySchema", () => {
   it("accepts a known category", () => {
     expect(
-      categorySchema.parse({ category: ChangeGroupCategory.BUGFIX }),
-    ).toEqual({ category: ChangeGroupCategory.BUGFIX });
+      categorySchema.parse({ category: ChangeGroupCategories.BUGFIX }),
+    ).toEqual({ category: ChangeGroupCategories.BUGFIX });
   });
 
   it.each([

@@ -2,7 +2,7 @@
 // holds: an action writes exactly ONE row keyed on its descriptor id, a
 // denial writes one saying why, a read writes none at all, and the
 // private-writes knob switches the one class it is allowed to switch.
-import { AuditClientSchema, WriteClassification } from "persistence";
+import { AuditClientSchema, WriteClassifications } from "persistence";
 import type { KeyProvider } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -160,7 +160,7 @@ describe("the audit choke point", () => {
       outcome: "ok",
       // The acting credential's tenant keys the row.
       installation_id: String(INSTALLATION_ID),
-      classification: WriteClassification.PRIVATE_WRITE,
+      classification: WriteClassifications.PRIVATE_WRITE,
       channel: "cookie",
       client: CLI_AGENT,
       actor_id: String(REVIEWER_ID),
@@ -186,7 +186,7 @@ describe("the audit choke point", () => {
     const readOnly = await seedApiToken(
       harness.handle,
       kp,
-      WriteClassification.READ,
+      WriteClassifications.READ,
     );
 
     const res = await readMark(appWith(), {
@@ -242,7 +242,7 @@ describe("the audit choke point", () => {
     const readOnly = await seedApiToken(
       harness.handle,
       kp,
-      WriteClassification.READ,
+      WriteClassifications.READ,
     );
     const refused = await readMark(app, {
       Authorization: `Bearer ${readOnly}`,
@@ -318,10 +318,10 @@ describe("the emit's two pure rules", () => {
 
   it("switches private writes only, and only when they succeeded", () => {
     const cases = [
-      [WriteClassification.PRIVATE_WRITE, "ok", false, false],
-      [WriteClassification.PRIVATE_WRITE, "denied", false, true],
-      [WriteClassification.EXTERNAL_WRITE, "ok", false, true],
-      [WriteClassification.PRIVATE_WRITE, "ok", true, true],
+      [WriteClassifications.PRIVATE_WRITE, "ok", false, false],
+      [WriteClassifications.PRIVATE_WRITE, "denied", false, true],
+      [WriteClassifications.EXTERNAL_WRITE, "ok", false, true],
+      [WriteClassifications.PRIVATE_WRITE, "ok", true, true],
     ] as const;
     for (const [classification, outcome, privateWrites, written] of cases) {
       expect(isAuditRowWritten(classification, outcome, privateWrites)).toBe(

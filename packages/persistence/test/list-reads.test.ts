@@ -12,11 +12,11 @@ import {
   type TenantContext,
 } from "../src/index";
 import {
-  GenerationKind,
-  GenerationStatus,
+  GenerationKinds,
+  GenerationStatuses,
   isInstallationId,
   isRepoId,
-  PrState,
+  PrStates,
   type InstallationId,
   type RepoId,
 } from "../src/types";
@@ -40,7 +40,7 @@ describe("pull_request title persistence", () => {
       repoId: REPO_1,
       prNumber: 1,
       title: "feat: initial title",
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     expect(first.title).toBe("feat: initial title");
 
@@ -48,7 +48,7 @@ describe("pull_request title persistence", () => {
       repoId: REPO_1,
       prNumber: 1,
       title: "feat: renamed title",
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     expect(renamed.id).toBe(first.id);
     expect(renamed.title).toBe("feat: renamed title");
@@ -64,7 +64,7 @@ describe("pull_request base_sha persistence", () => {
       repoId: REPO_1,
       prNumber: 1,
       baseSha: "base-1",
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     expect(first.baseSha).toBe("base-1");
 
@@ -72,7 +72,7 @@ describe("pull_request base_sha persistence", () => {
     const preserved = await repo.pullRequests.upsert({
       repoId: REPO_1,
       prNumber: 1,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     expect(preserved.baseSha).toBe("base-1");
 
@@ -81,7 +81,7 @@ describe("pull_request base_sha persistence", () => {
       repoId: REPO_1,
       prNumber: 1,
       baseSha: "base-2",
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     expect(retargeted.baseSha).toBe("base-2");
   });
@@ -98,27 +98,27 @@ describe("pullRequests.listForRepos", () => {
       repoId: REPO_1,
       prNumber: 1,
       title: "a-r1-p1",
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     await new Promise((r) => setTimeout(r, 5));
     await a.pullRequests.upsert({
       repoId: REPO_1,
       prNumber: 2,
       title: "a-r1-p2",
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     await a.pullRequests.upsert({
       repoId: REPO_2,
       prNumber: 3,
       title: "a-r2-p3",
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     // Tenant B: same repo id — must NEVER surface for ctx A.
     await b.pullRequests.upsert({
       repoId: REPO_1,
       prNumber: 9,
       title: "b-r1-p9",
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
 
     const rows = await a.pullRequests.listForRepos([REPO_1], 100);
@@ -141,12 +141,12 @@ describe("briefs.latestForPullRequests", () => {
     const pr1 = await repo.pullRequests.upsert({
       repoId: REPO_1,
       prNumber: 1,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     const pr2 = await repo.pullRequests.upsert({
       repoId: REPO_1,
       prNumber: 2,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
 
     await store.briefs.write({
@@ -180,7 +180,7 @@ describe("briefs.latestForPullRequests", () => {
     const bPr = await b.pullRequests.upsert({
       repoId: REPO_1,
       prNumber: 1,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     await createArtifactStore(handle, CTX_B).briefs.write({
       pullRequestId: bPr.id,
@@ -208,7 +208,7 @@ describe("comparison existence seams", () => {
     const pr = await repo.pullRequests.upsert({
       repoId: REPO_1,
       prNumber: 1,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     const brief = await store.briefs.write({
       pullRequestId: pr.id,
@@ -267,7 +267,7 @@ describe("comparison existence seams", () => {
     const pr = await repo.pullRequests.upsert({
       repoId: REPO_1,
       prNumber: 1,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
 
     expect(await store.deltas.existsForSpan(pr.id, "cp-1", "head-2")).toBe(
@@ -297,7 +297,7 @@ describe("comparison existence seams", () => {
     const bPr = await b.pullRequests.upsert({
       repoId: REPO_1,
       prNumber: 1,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     const marks = await bStore.comparisonMarks.write({
       pullRequestId: bPr.id,
@@ -344,7 +344,7 @@ describe("batched span listings — per-revision joins", () => {
     const pr = await repo.pullRequests.upsert({
       repoId: REPO_1,
       prNumber: 1,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
 
     await store.briefs.write({
@@ -382,7 +382,7 @@ describe("batched span listings — per-revision joins", () => {
     const pr = await repo.pullRequests.upsert({
       repoId: REPO_1,
       prNumber: 1,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     const brief = await store.briefs.write({
       pullRequestId: pr.id,
@@ -453,19 +453,19 @@ describe("generation.latestBriefForPullRequests", () => {
     const pr = await repo.pullRequests.upsert({
       repoId: REPO_1,
       prNumber: 1,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
 
     await gen.upsertQueued({
       pullRequestId: pr.id,
-      kind: GenerationKind.BRIEF,
+      kind: GenerationKinds.BRIEF,
       headSha: "head-1",
       baselineSha: null,
     });
     await new Promise((r) => setTimeout(r, 5));
     await gen.upsertQueued({
       pullRequestId: pr.id,
-      kind: GenerationKind.BRIEF,
+      kind: GenerationKinds.BRIEF,
       headSha: "head-2",
       baselineSha: null,
     });
@@ -473,16 +473,16 @@ describe("generation.latestBriefForPullRequests", () => {
     await new Promise((r) => setTimeout(r, 5));
     await gen.upsertQueued({
       pullRequestId: pr.id,
-      kind: GenerationKind.DELTA,
+      kind: GenerationKinds.DELTA,
       headSha: "head-2",
       baselineSha: "cp",
     });
 
     const latest = await gen.latestBriefForPullRequests([pr.id]);
     const row = latest.get(pr.id);
-    expect(row?.kind).toBe(GenerationKind.BRIEF);
+    expect(row?.kind).toBe(GenerationKinds.BRIEF);
     expect(row?.headSha).toBe("head-2");
-    expect(row?.status).toBe(GenerationStatus.QUEUED);
+    expect(row?.status).toBe(GenerationStatuses.QUEUED);
   });
 
   it("never returns another tenant's projections", async () => {
@@ -491,11 +491,11 @@ describe("generation.latestBriefForPullRequests", () => {
     const bPr = await b.pullRequests.upsert({
       repoId: REPO_1,
       prNumber: 1,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     await createGenerationProjection(handle, CTX_B).upsertQueued({
       pullRequestId: bPr.id,
-      kind: GenerationKind.BRIEF,
+      kind: GenerationKinds.BRIEF,
       headSha: "head",
       baselineSha: null,
     });

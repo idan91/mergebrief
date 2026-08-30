@@ -18,9 +18,9 @@ import {
   isInstallationId,
   isRepoId,
   isReviewerId,
-  PrState,
+  PrStates,
   createTokenAuth,
-  WriteClassification,
+  WriteClassifications,
   type AppDatabase,
   type KeyProvider,
   type ReviewerId,
@@ -193,7 +193,7 @@ describe("disposition commands over the real api app", () => {
       refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
     });
     await createTokenAuth(harness.handle).mintToken({
-      scope: WriteClassification.EXTERNAL_WRITE,
+      scope: WriteClassifications.EXTERNAL_WRITE,
       installationId: CTX.installationId,
       userId: REVIEWER,
       name: "ci-token",
@@ -213,7 +213,7 @@ describe("disposition commands over the real api app", () => {
       repoSlug: "octo/hello",
       title: "PR 7",
       baseSha: BASE_SHA,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     const brief = await createArtifactStore(handle, CTX).briefs.write({
       pullRequestId: pr.id,

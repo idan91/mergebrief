@@ -5,7 +5,7 @@
 // the server entry answers, never a thrown internal error.
 import { createLogger } from "logging";
 import { describe, expect, it, vi } from "vitest";
-import { ApiErrorCodes as SOURCE_API_ERROR_CODES } from "api";
+import { ApiErrorCodes } from "api";
 import type { ApiErrorCode as SourceApiErrorCode } from "api";
 import type { Equals } from "types";
 import {
@@ -309,7 +309,7 @@ describe("wire vocabulary mirror (drift pins)", () => {
 
   it("runtime vocabulary equals the api's, plus only malformed", () => {
     const web = Object.values(ApiErrorCode);
-    const source = Object.values(SOURCE_API_ERROR_CODES);
+    const source = Object.values(ApiErrorCodes);
     expect(web.filter((code) => code !== "malformed").toSorted()).toEqual(
       [...source].toSorted(),
     );

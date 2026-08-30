@@ -14,7 +14,7 @@ import {
   ensureAppSchema,
   isRepoId,
   isReviewerId,
-  PrState,
+  PrStates,
   type ReviewerId,
 } from "persistence";
 import {
@@ -50,7 +50,7 @@ async function main(): Promise<void> {
       ctx: { ownerUserId: owner },
       resolveRepo: async () => ({
         repoId,
-        lifecycle: { state: PrState.OPEN },
+        lifecycle: { state: PrStates.OPEN },
       }),
     });
     if (summary.briefs === 0) {

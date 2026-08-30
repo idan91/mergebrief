@@ -5,7 +5,7 @@ import {
   isGrantRowId,
   isInstallationId,
   isReviewerId,
-  WriteClassification,
+  WriteClassifications,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import type { Logger } from "logging";
@@ -82,7 +82,7 @@ async function setup(token = "gh-token-1"): Promise<Setup> {
     createdAt: new Date(),
     ghTokenCiphertext: await seal(token),
     keyRef: KEY_REF,
-    scope: WriteClassification.EXTERNAL_WRITE,
+    scope: WriteClassifications.EXTERNAL_WRITE,
     channel: AuthChannel.COOKIE,
   };
   // Real handle + auth bundle: only `auth.keyProvider` is exercised (the

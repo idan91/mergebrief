@@ -2,7 +2,7 @@
 // lifecycle. `gh` runs as the operator's own auth and only ever reads —
 // nothing here stores a token.
 import { execFileSync } from "node:child_process";
-import { isRepoId, PrState, type PullRequestLifecycle } from "persistence";
+import { isRepoId, PrStates, type PullRequestLifecycle } from "persistence";
 import { z } from "zod";
 import type { CliArgs } from "../args";
 import type { RepoResolution, ResolveRepo } from "../ingest";
@@ -29,10 +29,10 @@ function readGhJson(path: string): unknown {
 /** Open unless GitHub says otherwise; merged wins over closed. */
 function buildResolvedLifecycle(pr: GhPr): PullRequestLifecycle {
   if (pr.merged !== true && pr.state !== "closed") {
-    return { state: PrState.OPEN };
+    return { state: PrStates.OPEN };
   }
   const closedAt = pr.merged_at ?? pr.closed_at ?? new Date().toISOString();
-  const state = pr.merged === true ? PrState.MERGED : PrState.CLOSED;
+  const state = pr.merged === true ? PrStates.MERGED : PrStates.CLOSED;
   return { state, closedAt: new Date(closedAt), purgeAfter: null };
 }
 

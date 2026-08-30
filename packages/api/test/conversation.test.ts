@@ -10,7 +10,7 @@ import {
   encryptToken,
   createTenantRepository,
   createGrantAuth,
-  PrState,
+  PrStates,
   type AppDatabase,
   type InstallationId,
   type KeyProvider,
@@ -306,7 +306,7 @@ async function seedPullRequest(handle: AppDatabase): Promise<void> {
     repoId: brandRepoId(BigInt(REPO_ID)),
     prNumber: PR_NUMBER,
     repoSlug: REPO_SLUG,
-    state: PrState.OPEN,
+    state: PrStates.OPEN,
   });
 }
 

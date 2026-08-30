@@ -2,8 +2,8 @@
 // previous-brief / last-review derivations. Pure over lean listing rows —
 // the one DB probe (generation pending) is injected.
 import {
-  GenerationKind,
-  GenerationStatus,
+  GenerationKinds,
+  GenerationStatuses,
   type BriefSpanRow,
   type ComparisonSpanRow,
   type GenerationProjection,
@@ -11,6 +11,7 @@ import {
   type NarrativeSpanRow,
   type PullRequestRow,
   type ValueOf,
+  type GenerationStatus,
 } from "persistence";
 
 export interface PreviousBriefComparisonView {
@@ -101,7 +102,8 @@ export function derivePreviousBriefComparison(
 
 function isNonTerminal(status: GenerationStatus): boolean {
   return (
-    status === GenerationStatus.QUEUED || status === GenerationStatus.RUNNING
+    status === GenerationStatuses.QUEUED ||
+    status === GenerationStatuses.RUNNING
   );
 }
 
@@ -173,7 +175,7 @@ export function makeLatestPendingProbe(
       }
       const deltaGeneration = await generations.get({
         pullRequestId,
-        kind: GenerationKind.DELTA,
+        kind: GenerationKinds.DELTA,
         headSha,
         baselineSha,
       });

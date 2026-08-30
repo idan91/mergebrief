@@ -1,7 +1,7 @@
 import type { Context } from "hono";
 import {
-  AnchorStatus,
-  DraftCommentStatus,
+  AnchorStatuses,
+  DraftCommentStatuses,
   createTenantRepository,
 } from "persistence";
 import { ApiErrorCodes } from "../../../../error-response";
@@ -69,13 +69,13 @@ async function resolvePublishableDraft(
   if (draft === undefined) {
     throw new NotFound();
   }
-  if (draft.status === DraftCommentStatus.SUBMITTED) {
+  if (draft.status === DraftCommentStatuses.SUBMITTED) {
     throw new Conflict(ApiErrorCodes.DRAFT_ALREADY_PUBLISHED);
   }
   // Same refusal the submit makes, for the same reason: an orphaned anchor
   // would land the comment on unrelated lines, and posting one at a time
   // has no degradation fold to catch it. Re-anchor or delete to clear it.
-  if (draft.anchorStatus === AnchorStatus.ORPHANED) {
+  if (draft.anchorStatus === AnchorStatuses.ORPHANED) {
     throw new Conflict(ApiErrorCodes.DRAFT_ANCHOR_ORPHANED);
   }
   return draft;

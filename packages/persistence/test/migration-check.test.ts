@@ -11,7 +11,7 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import {
   checkAppSchemaWith,
   ensureAppSchema,
-  SchemaCheckErrorCode,
+  SchemaCheckErrorCodes,
   type SchemaCheckError,
   type SchemaQueryExecutor,
 } from "../src/db/migrate";
@@ -70,7 +70,7 @@ describe("migration check — checkAppSchemaWith", () => {
     const result = await checkAppSchemaWith(executorFor(client));
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.error.code).toBe(SchemaCheckErrorCode.PENDING_MIGRATIONS);
+    expect(result.error.code).toBe(SchemaCheckErrorCodes.PENDING_MIGRATIONS);
     expect(result.error.pendingCount).toBe(2);
     expect(result.error.message).toContain("2");
     expect(result.error.message).toContain(
@@ -111,7 +111,7 @@ describe("migration check — checkAppSchemaWith", () => {
 describe("migration check — ensureAppSchema dispatch", () => {
   const URL = "postgres://user:pass@localhost:5432/app";
   const REFUSAL: SchemaCheckError = {
-    code: SchemaCheckErrorCode.PENDING_MIGRATIONS,
+    code: SchemaCheckErrorCodes.PENDING_MIGRATIONS,
     message: "behind",
     pendingCount: 3,
   };

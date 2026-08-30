@@ -29,7 +29,8 @@ import { resolveScope } from "./scope";
 import type { ScopeContext } from "./scope-context";
 import {
   type GrantRowId,
-  PrState,
+  PrStates,
+  type PrState,
   type PullRequestRowId,
   type Result,
   type ReviewerId,
@@ -58,13 +59,13 @@ export type {
 // Repository errors — expected failures. Programmer errors still `throw`.
 // ---------------------------------------------------------------------------
 
-export const RepositoryErrorCode = {
+export const RepositoryErrorCodes = {
   /** A per-PR write named a `pull_request` that is not in ctx's tenant. */
   PARENT_NOT_IN_TENANT: "parent-not-in-tenant",
   /** A scoped mutation matched no row in ctx's tenant. */
   NOT_FOUND: "not-found",
 } as const;
-export type RepositoryErrorCode = ValueOf<typeof RepositoryErrorCode>;
+export type RepositoryErrorCode = ValueOf<typeof RepositoryErrorCodes>;
 
 export interface RepositoryError {
   readonly code: RepositoryErrorCode;
@@ -94,14 +95,14 @@ export type AuthSessionRow = typeof authSession.$inferSelect;
  * here; grace math lives in `createPurgeRoutines.setRetention`.
  */
 interface OpenLifecycle {
-  readonly state: typeof PrState.OPEN;
+  readonly state: typeof PrStates.OPEN;
   /** Optional-but-null-only: a Date cannot be smuggled onto an open PR. */
   readonly closedAt?: null;
   readonly purgeAfter?: null;
 }
 
 interface TerminalLifecycle {
-  readonly state: typeof PrState.CLOSED | typeof PrState.MERGED;
+  readonly state: typeof PrStates.CLOSED | typeof PrStates.MERGED;
   readonly closedAt: Date;
   readonly purgeAfter: Date | null;
 }
@@ -159,7 +160,7 @@ export function buildLifecycleColumns(lc: PullRequestLifecycle): {
   closedAt: Date | null;
   purgeAfter: Date | null;
 } {
-  if (lc.state === PrState.OPEN) {
+  if (lc.state === PrStates.OPEN) {
     return { state: lc.state, closedAt: null, purgeAfter: null };
   }
   return { state: lc.state, closedAt: lc.closedAt, purgeAfter: lc.purgeAfter };
@@ -434,7 +435,7 @@ export function createTenantRepository(
       const row = rows[0];
       if (row === undefined) {
         return fail(
-          RepositoryErrorCode.NOT_FOUND,
+          RepositoryErrorCodes.NOT_FOUND,
           `pull_request ${pullRequestId} not found in ${scope.label}`,
         );
       }
@@ -452,7 +453,7 @@ export function createTenantRepository(
       const row = rows[0];
       if (row === undefined) {
         return fail(
-          RepositoryErrorCode.NOT_FOUND,
+          RepositoryErrorCodes.NOT_FOUND,
           `pull_request ${pullRequestId} not found in ${scope.label}`,
         );
       }
@@ -470,7 +471,7 @@ export function createTenantRepository(
       const row = rows[0];
       if (row === undefined) {
         return fail(
-          RepositoryErrorCode.NOT_FOUND,
+          RepositoryErrorCodes.NOT_FOUND,
           `pull_request ${pullRequestId} not found in ${scope.label}`,
         );
       }
@@ -495,7 +496,7 @@ export function createTenantRepository(
         if (parents[0] === undefined) {
           // Nothing written; the (empty) tx commits cleanly.
           return fail(
-            RepositoryErrorCode.PARENT_NOT_IN_TENANT,
+            RepositoryErrorCodes.PARENT_NOT_IN_TENANT,
             `pull_request ${input.pullRequestId} not in ${scope.label}`,
           );
         }

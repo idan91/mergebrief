@@ -11,10 +11,10 @@ import {
 } from "../src/stores/tenant";
 import { createPgliteHarness, type PgliteHarness } from "../src/testing";
 import {
-  GenerationKind,
-  GenerationStatus,
+  GenerationKinds,
+  GenerationStatuses,
   isRepoId,
-  PrState,
+  PrStates,
   type Result,
 } from "../src/types";
 import { brandWith } from "./helpers";
@@ -80,7 +80,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
         ...(overrides?.baseSha === undefined
           ? {}
           : { baseSha: overrides.baseSha }),
-        state: PrState.OPEN,
+        state: PrStates.OPEN,
       },
       headSha: overrides?.headSha ?? HEAD_SHA,
       ...(overrides?.debounceSeconds === undefined
@@ -101,7 +101,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
       repoId: REPO_ID,
       prNumber: 7,
       repoSlug: "acme/widgets",
-      state: PrState.CLOSED,
+      state: PrStates.CLOSED,
       closedAt: new Date(),
       purgeAfter: null,
     });
@@ -116,13 +116,13 @@ describe("createIngestRoutines.triggerGeneration", () => {
     expect(outcome.pullRequest.repoId).toBe(REPO_ID);
     expect(outcome.pullRequest.prNumber).toBe(7);
     expect(outcome.pullRequest.title).toBe("feat: add widgets");
-    expect(outcome.pullRequest.state).toBe(PrState.OPEN);
+    expect(outcome.pullRequest.state).toBe(PrStates.OPEN);
 
     // The returned generation row: kind brief, queued, baseline null.
     const generation = expectGeneration(outcome);
     expect(generation.pullRequestId).toBe(outcome.pullRequest.id);
-    expect(generation.kind).toBe(GenerationKind.BRIEF);
-    expect(generation.status).toBe(GenerationStatus.QUEUED);
+    expect(generation.kind).toBe(GenerationKinds.BRIEF);
+    expect(generation.status).toBe(GenerationStatuses.QUEUED);
     expect(generation.headSha).toBe(HEAD_SHA);
     expect(generation.baselineSha).toBeNull();
     expect(generation.attempts).toBe(0);
@@ -179,7 +179,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
     expect(second.pullRequest.id).toBe(first.pullRequest.id);
     expect(expectGeneration(second).id).toBe(expectGeneration(first).id);
     expect(expectGeneration(second).attempts).toBe(1);
-    expect(expectGeneration(second).status).toBe(GenerationStatus.QUEUED);
+    expect(expectGeneration(second).status).toBe(GenerationStatuses.QUEUED);
 
     const prs = await harness.raw("select id from pull_request");
     const generations = await harness.raw("select id from generation");
@@ -206,13 +206,13 @@ describe("createIngestRoutines.triggerGeneration", () => {
     // state:open too, but must leave the terminal lifecycle intact AND queue
     // nothing (no forever-queued generation row, no dead job).
     const outcome = unwrap(await trigger());
-    expect(outcome.pullRequest.state).toBe(PrState.CLOSED);
+    expect(outcome.pullRequest.state).toBe(PrStates.CLOSED);
     expect(outcome.pullRequest.closedAt).not.toBeNull();
     expect(outcome.generation).toBeUndefined();
 
     const prs = await harness.raw("select state, closed_at from pull_request");
     expect(prs).toHaveLength(1);
-    expect(prs[0]?.["state"]).toBe(PrState.CLOSED);
+    expect(prs[0]?.["state"]).toBe(PrStates.CLOSED);
     expect(prs[0]?.["closed_at"]).not.toBeNull();
 
     // The pre-close generation row is untouched (no attempts bump) and the
@@ -234,7 +234,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
     await closePr();
 
     const outcome = unwrap(await trigger({ reopen: true }));
-    expect(outcome.pullRequest.state).toBe(PrState.OPEN);
+    expect(outcome.pullRequest.state).toBe(PrStates.OPEN);
     expect(outcome.pullRequest.closedAt).toBeNull();
     expect(outcome.pullRequest.purgeAfter).toBeNull();
   });
@@ -270,7 +270,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
         title: "feat: add widgets",
         draft: true,
         authorLogin: "author-octocat",
-        state: PrState.OPEN,
+        state: PrStates.OPEN,
       });
       expect(row.draft).toBe(true);
       expect(row.authorLogin).toBe("author-octocat");
@@ -292,7 +292,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
         prNumber: 7,
         repoSlug: "acme/widgets",
         draft: true,
-        state: PrState.OPEN,
+        state: PrStates.OPEN,
       });
       const after = await harness.raw(
         "select status, attempts from generation",
@@ -313,9 +313,9 @@ describe("createIngestRoutines.triggerGeneration", () => {
         prNumber: 7,
         repoSlug: "acme/widgets",
         draft: true,
-        state: PrState.OPEN,
+        state: PrStates.OPEN,
       });
-      expect(row.state).toBe(PrState.CLOSED);
+      expect(row.state).toBe(PrStates.CLOSED);
       expect(row.closedAt).not.toBeNull();
       // The non-lifecycle fields still refreshed.
       expect(row.draft).toBe(true);

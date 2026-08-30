@@ -6,14 +6,14 @@
 // whichever side moves, the OTHER side's suite goes red locally.
 import { describe, expect, it } from "vitest";
 import {
-  Categories as SOURCE_CATEGORIES,
-  Concerns as SOURCE_CONCERNS,
-  Roles as SOURCE_ROLES,
-  RiskSurfaceAttributes as SOURCE_RISK_SURFACE_ATTRIBUTES,
-  Specificities as SOURCE_SPECIFICITIES,
-  RevisionNarrativeSkipReasons as SOURCE_SKIP_REASONS,
-  type Specificity as SourceSpecificity,
-  type RevisionNarrativeSkipReason as SourceSkipReason,
+  Categories as BriefCoreCategories,
+  Concerns as BriefCoreConcerns,
+  Roles as BriefCoreRoles,
+  RiskSurfaceAttributes as BriefCoreRiskSurfaceAttributes,
+  Specificities as BriefCoreSpecificities,
+  RevisionNarrativeSkipReasons as BriefCoreRevisionNarrativeSkipReasons,
+  type Specificity as BriefCoreSpecificity,
+  type RevisionNarrativeSkipReason as BriefCoreRevisionNarrativeSkipReason,
 } from "brief-core";
 import type { Equals } from "types";
 import {
@@ -34,13 +34,13 @@ interface VocabularyPin {
 }
 
 const VOCABULARY_PINS: readonly VocabularyPin[] = [
-  { label: "Categories", mirror: Categories, source: SOURCE_CATEGORIES },
-  { label: "Concerns", mirror: Concerns, source: SOURCE_CONCERNS },
-  { label: "Roles", mirror: Roles, source: SOURCE_ROLES },
+  { label: "Categories", mirror: Categories, source: BriefCoreCategories },
+  { label: "Concerns", mirror: Concerns, source: BriefCoreConcerns },
+  { label: "Roles", mirror: Roles, source: BriefCoreRoles },
   {
     label: "RiskSurfaceAttributes",
     mirror: RiskSurfaceAttributes,
-    source: SOURCE_RISK_SURFACE_ATTRIBUTES,
+    source: BriefCoreRiskSurfaceAttributes,
   },
 ];
 
@@ -72,21 +72,22 @@ describe("lockstep pins (brief vocabulary mirror vs brief-core)", () => {
     // These two mirrors are plain unions on the FE side, so the pin is
     // type-level, gated by typecheck. Unknown `specificity` makes validation
     // DROP the whole intentCheck, so drift here silently deletes the intent bar.
-    const specificityPin: Equals<Specificity, SourceSpecificity> = true;
-    const skipReasonPin: Equals<RevisionNarrativeSkipReason, SourceSkipReason> =
-      true;
+    const specificityPin: Equals<Specificity, BriefCoreSpecificity> = true;
+    const skipReasonPin: Equals<
+      RevisionNarrativeSkipReason,
+      BriefCoreRevisionNarrativeSkipReason
+    > = true;
     expect(specificityPin && skipReasonPin).toBe(true);
     // Runtime half: the wire values themselves, against literals from the
     // spec — so a token renamed on BOTH sides in lockstep (type pins happy,
     // stored artifacts broken) still fails here.
-    expect(Object.values(SOURCE_SPECIFICITIES).toSorted()).toEqual([
+    expect(Object.values(BriefCoreSpecificities).toSorted()).toEqual([
       "broad",
       "none",
       "precise",
     ]);
-    expect(Object.values(SOURCE_SKIP_REASONS).toSorted()).toEqual([
-      "disabled by config",
-      "span too large",
-    ]);
+    expect(
+      Object.values(BriefCoreRevisionNarrativeSkipReasons).toSorted(),
+    ).toEqual(["disabled by config", "span too large"]);
   });
 });

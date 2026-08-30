@@ -1,12 +1,16 @@
 import { ReviewCommentSide } from "github";
-import { DraftCommentSide, type ReviewDraftCommentRow } from "persistence";
+import {
+  DraftCommentSides,
+  type ReviewDraftCommentRow,
+  type DraftCommentSide,
+} from "persistence";
 
 /** The stored side vocabulary as GitHub names it. */
 export const SIDE_ON_GITHUB: Readonly<
   Record<DraftCommentSide, ReviewCommentSide>
 > = {
-  [DraftCommentSide.OLD]: ReviewCommentSide.LEFT,
-  [DraftCommentSide.NEW]: ReviewCommentSide.RIGHT,
+  [DraftCommentSides.OLD]: ReviewCommentSide.LEFT,
+  [DraftCommentSides.NEW]: ReviewCommentSide.RIGHT,
 };
 
 /** A stored draft as GitHub's inline-comment coordinates. */

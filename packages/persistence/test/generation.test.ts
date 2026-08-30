@@ -6,18 +6,18 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import {
   createTenantRepository,
   createGenerationProjection,
-  GenerationErrorCode,
+  GenerationErrorCodes,
   createIngestRoutines,
-  GenerationFailureCode,
+  GenerationFailureCodes,
   type TenantContext,
 } from "../src/index";
 import {
-  GenerationKind,
-  GenerationPhase,
-  GenerationStatus,
+  GenerationKinds,
+  GenerationPhases,
+  GenerationStatuses,
   isInstallationId,
   isRepoId,
-  PrState,
+  PrStates,
   type InstallationId,
   type RepoId,
 } from "../src/types";
@@ -41,12 +41,12 @@ describe("createGenerationProjection — status transitions", () => {
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
 
     const target = {
       pullRequestId: pr.id,
-      kind: GenerationKind.DELTA,
+      kind: GenerationKinds.DELTA,
       headSha: "head",
       baselineSha: "checkpoint",
     };
@@ -54,20 +54,20 @@ describe("createGenerationProjection — status transitions", () => {
     const queued = await gen.upsertQueued(target);
     expect(queued.ok).toBe(true);
     if (!queued.ok) throw new Error("queue failed");
-    expect(queued.value.status).toBe(GenerationStatus.QUEUED);
+    expect(queued.value.status).toBe(GenerationStatuses.QUEUED);
     expect(queued.value.attempts).toBe(0);
 
-    const running = await gen.markRunning(target, GenerationPhase.GENERATING);
+    const running = await gen.markRunning(target, GenerationPhases.GENERATING);
     if (!running.ok) throw new Error("markRunning failed");
-    expect(running.value.status).toBe(GenerationStatus.RUNNING);
-    expect(running.value.phase).toBe(GenerationPhase.GENERATING);
+    expect(running.value.status).toBe(GenerationStatuses.RUNNING);
+    expect(running.value.phase).toBe(GenerationPhases.GENERATING);
     expect(running.value.updatedAt.getTime()).toBeGreaterThanOrEqual(
       queued.value.updatedAt.getTime(),
     );
 
     const done = await gen.markSucceeded(target);
     if (!done.ok) throw new Error("markSucceeded failed");
-    expect(done.value.status).toBe(GenerationStatus.SUCCEEDED);
+    expect(done.value.status).toBe(GenerationStatuses.SUCCEEDED);
     // A terminal row must not advertise the phase it was mid-way through.
     expect(done.value.phase).toBeNull();
     expect(done.value.id).toBe(queued.value.id); // one row throughout
@@ -80,18 +80,18 @@ describe("createGenerationProjection — status transitions", () => {
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     const target = {
       pullRequestId: pr.id,
-      kind: GenerationKind.DELTA,
+      kind: GenerationKinds.DELTA,
       headSha: "head",
       baselineSha: "checkpoint",
     };
 
     const first = await gen.upsertQueued(target);
     await gen.markFailed(target, {
-      code: GenerationFailureCode.UNKNOWN,
+      code: GenerationFailureCodes.UNKNOWN,
       params: { detail: "boom" },
     });
     const requeued = await gen.upsertQueued(target);
@@ -99,7 +99,7 @@ describe("createGenerationProjection — status transitions", () => {
     if (!first.ok || !requeued.ok) throw new Error("queue failed");
     expect(requeued.value.id).toBe(first.value.id);
     expect(requeued.value.attempts).toBe(1);
-    expect(requeued.value.status).toBe(GenerationStatus.QUEUED);
+    expect(requeued.value.status).toBe(GenerationStatuses.QUEUED);
     expect(requeued.value.errorCode).toBeNull();
     expect(requeued.value.errorParams).toBeNull();
   });
@@ -111,11 +111,11 @@ describe("createGenerationProjection — status transitions", () => {
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     const target = {
       pullRequestId: pr.id,
-      kind: GenerationKind.BRIEF,
+      kind: GenerationKinds.BRIEF,
       headSha: "head",
       baselineSha: null,
     };
@@ -137,18 +137,18 @@ describe("createGenerationProjection — status transitions", () => {
     const bPr = await b.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
 
     const result = await genA.upsertQueued({
       pullRequestId: bPr.id,
-      kind: GenerationKind.BRIEF,
+      kind: GenerationKinds.BRIEF,
       headSha: "head",
       baselineSha: null,
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected rejection");
-    expect(result.error.code).toBe(GenerationErrorCode.PARENT_NOT_IN_TENANT);
+    expect(result.error.code).toBe(GenerationErrorCodes.PARENT_NOT_IN_TENANT);
   });
 
   it("markFailed stores the typed code and sanitizes the detail param", async () => {
@@ -158,11 +158,11 @@ describe("createGenerationProjection — status transitions", () => {
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     const target = {
       pullRequestId: pr.id,
-      kind: GenerationKind.BRIEF,
+      kind: GenerationKinds.BRIEF,
       headSha: "head",
       baselineSha: null,
     };
@@ -174,12 +174,12 @@ describe("createGenerationProjection — status transitions", () => {
       "    at processTicksAndRejections (node:internal/process/task_queues:82:21)",
     ].join("\n");
     const failed = await gen.markFailed(target, {
-      code: GenerationFailureCode.UNKNOWN,
+      code: GenerationFailureCodes.UNKNOWN,
       params: { detail: raw },
     });
 
     if (!failed.ok) throw new Error("markFailed failed");
-    expect(failed.value.errorCode).toBe(GenerationFailureCode.UNKNOWN);
+    expect(failed.value.errorCode).toBe(GenerationFailureCodes.UNKNOWN);
     const stored = failed.value.errorParams?.detail;
     expect(stored).toBe("connect ECONNREFUSED [redacted-url] retrying");
     expect(stored).not.toContain("\n"); // one line — stack trace dropped
@@ -195,21 +195,21 @@ describe("createGenerationProjection — status transitions", () => {
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 8,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     const target = {
       pullRequestId: pr.id,
-      kind: GenerationKind.BRIEF,
+      kind: GenerationKinds.BRIEF,
       headSha: "head-8",
       baselineSha: null,
     };
     await gen.upsertQueued(target);
     const failed = await gen.markFailed(target, {
-      code: GenerationFailureCode.PROVIDER_RATE_LIMIT,
+      code: GenerationFailureCodes.PROVIDER_RATE_LIMIT,
     });
     if (!failed.ok) throw new Error("markFailed failed");
     expect(failed.value.errorCode).toBe(
-      GenerationFailureCode.PROVIDER_RATE_LIMIT,
+      GenerationFailureCodes.PROVIDER_RATE_LIMIT,
     );
     expect(failed.value.errorParams).toBeNull();
   });
@@ -221,21 +221,21 @@ describe("createGenerationProjection — status transitions", () => {
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 10,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     const target = {
       pullRequestId: pr.id,
-      kind: GenerationKind.BRIEF,
+      kind: GenerationKinds.BRIEF,
       headSha: "head-10",
       baselineSha: null,
     };
     await gen.upsertQueued(target);
     const failed = await gen.markFailed(target, {
-      code: GenerationFailureCode.UNKNOWN,
+      code: GenerationFailureCodes.UNKNOWN,
       params: { detail: "\nreal message on line two" },
     });
     if (!failed.ok) throw new Error("markFailed failed");
-    expect(failed.value.errorCode).toBe(GenerationFailureCode.UNKNOWN);
+    expect(failed.value.errorCode).toBe(GenerationFailureCodes.UNKNOWN);
     expect(failed.value.errorParams).toBeNull();
   });
 
@@ -246,7 +246,7 @@ describe("createGenerationProjection — status transitions", () => {
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 9,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     await expect(
       client.query(
@@ -263,11 +263,11 @@ describe("createGenerationProjection — status transitions", () => {
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     const target = {
       pullRequestId: pr.id,
-      kind: GenerationKind.DELTA,
+      kind: GenerationKinds.DELTA,
       headSha: "head",
       baselineSha: "checkpoint",
     };
@@ -275,9 +275,9 @@ describe("createGenerationProjection — status transitions", () => {
     await gen.upsertQueued(target);
     // A prior failure sets attempts/error; supersession must not disturb either.
     const requeued = await gen.upsertQueued(target); // attempts → 1 (already ran once)
-    await gen.markRunning(target, GenerationPhase.GENERATING); // mid-run abort — phase is set
+    await gen.markRunning(target, GenerationPhases.GENERATING); // mid-run abort — phase is set
     await gen.markFailed(target, {
-      code: GenerationFailureCode.UNKNOWN,
+      code: GenerationFailureCodes.UNKNOWN,
       params: { detail: "boom" },
     });
     if (!requeued.ok) throw new Error("requeue failed");
@@ -285,7 +285,7 @@ describe("createGenerationProjection — status transitions", () => {
 
     const superseded = await gen.markSuperseded(target);
     if (!superseded.ok) throw new Error("markSuperseded failed");
-    expect(superseded.value.status).toBe(GenerationStatus.SUPERSEDED);
+    expect(superseded.value.status).toBe(GenerationStatuses.SUPERSEDED);
     // An abort is NOT a failure: attempts untouched, error cleared — and the
     // mid-run phase must not survive into the terminal row.
     expect(superseded.value.attempts).toBe(attemptsBefore);
@@ -301,34 +301,34 @@ describe("createGenerationProjection — status transitions", () => {
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     const stale = {
       pullRequestId: pr.id,
-      kind: GenerationKind.BRIEF,
+      kind: GenerationKinds.BRIEF,
       headSha: "old-head",
       baselineSha: null,
     } as const;
     const current = {
       pullRequestId: pr.id,
-      kind: GenerationKind.BRIEF,
+      kind: GenerationKinds.BRIEF,
       headSha: "new-head",
       baselineSha: null,
     } as const;
 
     await gen.upsertQueued(stale);
-    await gen.markRunning(stale, GenerationPhase.GENERATING); // sweep catches it mid-run
+    await gen.markRunning(stale, GenerationPhases.GENERATING); // sweep catches it mid-run
     await gen.upsertQueued(current);
     await gen.markSucceeded(current);
 
     const swept = await gen.supersedeStaleBriefs(pr.id, "new-head");
     expect(swept).toBe(1);
     const staleRow = await gen.get(stale);
-    expect(staleRow?.status).toBe(GenerationStatus.SUPERSEDED);
+    expect(staleRow?.status).toBe(GenerationStatuses.SUPERSEDED);
     expect(staleRow?.phase).toBeNull();
     expect(staleRow?.errorCode).toBeNull();
     // The current head's row is untouched.
-    expect((await gen.get(current))?.status).toBe(GenerationStatus.SUCCEEDED);
+    expect((await gen.get(current))?.status).toBe(GenerationStatuses.SUCCEEDED);
   });
 
   it("a swept stale brief never shadows the current head in latestBriefForPullRequests", async () => {
@@ -343,24 +343,24 @@ describe("createGenerationProjection — status transitions", () => {
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     const stale = {
       pullRequestId: pr.id,
-      kind: GenerationKind.BRIEF,
+      kind: GenerationKinds.BRIEF,
       headSha: "old-head",
       baselineSha: null,
     } as const;
     const current = {
       pullRequestId: pr.id,
-      kind: GenerationKind.BRIEF,
+      kind: GenerationKinds.BRIEF,
       headSha: "new-head",
       baselineSha: null,
     } as const;
 
     await gen.upsertQueued(stale);
     await gen.upsertQueued(current);
-    await gen.markRunning(current, GenerationPhase.GENERATING);
+    await gen.markRunning(current, GenerationPhases.GENERATING);
     await gen.markSucceeded(current);
     // The sweep's updated_at must be strictly newer than the success's.
     await new Promise((resolve) => setTimeout(resolve, 5));
@@ -368,7 +368,7 @@ describe("createGenerationProjection — status transitions", () => {
 
     const latest = (await gen.latestBriefForPullRequests([pr.id])).get(pr.id);
     expect(latest?.headSha).toBe("new-head");
-    expect(latest?.status).toBe(GenerationStatus.SUCCEEDED);
+    expect(latest?.status).toBe(GenerationStatuses.SUCCEEDED);
   });
 
   it("listBriefsForPullRequest: brief-kind rows only, tenant-scoped, created_at survives a re-queue", async () => {
@@ -378,24 +378,24 @@ describe("createGenerationProjection — status transitions", () => {
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
 
     const briefA = {
       pullRequestId: pr.id,
-      kind: GenerationKind.BRIEF,
+      kind: GenerationKinds.BRIEF,
       headSha: "head-a",
       baselineSha: null,
     };
     const briefB = {
       pullRequestId: pr.id,
-      kind: GenerationKind.BRIEF,
+      kind: GenerationKinds.BRIEF,
       headSha: "head-b",
       baselineSha: null,
     };
     const delta = {
       pullRequestId: pr.id,
-      kind: GenerationKind.DELTA,
+      kind: GenerationKinds.DELTA,
       headSha: "head-b",
       baselineSha: "head-a",
     };
@@ -426,18 +426,18 @@ describe("createGenerationProjection — status transitions", () => {
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
 
     const result = await gen.markRunning({
       pullRequestId: pr.id,
-      kind: GenerationKind.BRIEF,
+      kind: GenerationKinds.BRIEF,
       headSha: "never-queued",
       baselineSha: null,
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected notFound");
-    expect(result.error.code).toBe(GenerationErrorCode.NOT_FOUND);
+    expect(result.error.code).toBe(GenerationErrorCodes.NOT_FOUND);
   });
 });
 
@@ -455,7 +455,7 @@ describe("repo-config origin on the generation row", () => {
       pullRequest: {
         repoId: brandWith(isRepoId, 900n),
         prNumber: 3,
-        state: PrState.OPEN,
+        state: PrStates.OPEN,
       },
       headSha: "h1",
       debounceSeconds: 0,
@@ -464,7 +464,7 @@ describe("repo-config origin on the generation row", () => {
     const projection = createGenerationProjection(handle, ctx);
     const target = {
       pullRequestId: first.value.pullRequest.id,
-      kind: GenerationKind.BRIEF,
+      kind: GenerationKinds.BRIEF,
       headSha: "h1",
       baselineSha: null,
     } as const;
@@ -484,7 +484,7 @@ describe("repo-config origin on the generation row", () => {
       pullRequest: {
         repoId: brandWith(isRepoId, 900n),
         prNumber: 3,
-        state: PrState.OPEN,
+        state: PrStates.OPEN,
       },
       headSha: "h1",
       debounceSeconds: 0,

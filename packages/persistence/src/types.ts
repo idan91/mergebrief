@@ -73,41 +73,41 @@ export const PullRequestSources = {
 export type PullRequestSource = ValueOf<typeof PullRequestSources>;
 
 /** `pull_request.state`. */
-export const PrState = {
+export const PrStates = {
   OPEN: "open",
   CLOSED: "closed",
   MERGED: "merged",
 } as const;
-export type PrState = ValueOf<typeof PrState>;
+export type PrState = ValueOf<typeof PrStates>;
 
 /** `disposition.decision`. */
-export const DispositionDecision = {
+export const DispositionDecisions = {
   ADDRESSED: "addressed",
   DISMISSED: "dismissed",
 } as const;
-export type DispositionDecision = ValueOf<typeof DispositionDecision>;
+export type DispositionDecision = ValueOf<typeof DispositionDecisions>;
 
 /**
  * `disposition.carry_status` — how this row reached the session it sits in.
  * Nullable in the DB: a decision made in this session carries no status.
  */
-export const DispositionCarryStatus = {
+export const DispositionCarryStatuses = {
   NEW: "new",
   REOPENED: "reopened",
   SETTLED: "settled",
   DROPPED: "dropped",
 } as const;
-export type DispositionCarryStatus = ValueOf<typeof DispositionCarryStatus>;
+export type DispositionCarryStatus = ValueOf<typeof DispositionCarryStatuses>;
 
 /**
  * `disposition.evidence_status` — a one-value vocabulary today; nullable
  * means the evidence the decision claimed is still present.
  */
-export const DispositionEvidenceStatus = {
+export const DispositionEvidenceStatuses = {
   MISSING_EVIDENCE: "missing-evidence",
 } as const;
 export type DispositionEvidenceStatus = ValueOf<
-  typeof DispositionEvidenceStatus
+  typeof DispositionEvidenceStatuses
 >;
 
 /**
@@ -116,12 +116,12 @@ export type DispositionEvidenceStatus = ValueOf<
  * Chunk id, or the reviewer's own words. Null on a dismissal, which carries
  * its `reason` instead.
  */
-export const DispositionEvidenceKind = {
+export const DispositionEvidenceKinds = {
   LINKED_COMMENT: "linked-comment",
   CHUNK_REVIEWED: "chunk-reviewed",
   MANUAL_NOTE: "manual-note",
 } as const;
-export type DispositionEvidenceKind = ValueOf<typeof DispositionEvidenceKind>;
+export type DispositionEvidenceKind = ValueOf<typeof DispositionEvidenceKinds>;
 
 /** The evidence an `address-risk` claims; `ref` reads per `kind`. */
 export interface DispositionEvidence {
@@ -137,20 +137,20 @@ export interface DispositionEvidence {
  * `packages/api` re-exports this map rather than declaring its own. Chosen at
  * mint, immutable for the token's life.
  */
-export const WriteClassification = {
+export const WriteClassifications = {
   READ: "read",
   PRIVATE_WRITE: "private-write",
   EXTERNAL_WRITE: "external-write",
 } as const;
-export type WriteClassification = ValueOf<typeof WriteClassification>;
+export type WriteClassification = ValueOf<typeof WriteClassifications>;
 
 /** `generation.kind`. */
-export const GenerationKind = {
+export const GenerationKinds = {
   BRIEF: "brief",
   DELTA: "delta",
   REVISION_NARRATIVE: "revision-narrative",
 } as const;
-export type GenerationKind = ValueOf<typeof GenerationKind>;
+export type GenerationKind = ValueOf<typeof GenerationKinds>;
 
 /**
  * `generation.status`. `superseded` = a mid-call generation aborted because
@@ -158,7 +158,7 @@ export type GenerationKind = ValueOf<typeof GenerationKind>;
  * generation cap. Neither is a failure — both are terminal and consume no
  * attempt.
  */
-export const GenerationStatus = {
+export const GenerationStatuses = {
   QUEUED: "queued",
   RUNNING: "running",
   SUCCEEDED: "succeeded",
@@ -166,25 +166,25 @@ export const GenerationStatus = {
   SUPERSEDED: "superseded",
   CAPPED: "capped",
 } as const;
-export type GenerationStatus = ValueOf<typeof GenerationStatus>;
+export type GenerationStatus = ValueOf<typeof GenerationStatuses>;
 
 /** `generation.phase` — optional determinate-progress detail. */
-export const GenerationPhase = {
+export const GenerationPhases = {
   FETCHING: "fetching",
   REDACTING: "redacting",
   GENERATING: "generating",
   WRITING: "writing",
 } as const;
-export type GenerationPhase = ValueOf<typeof GenerationPhase>;
+export type GenerationPhase = ValueOf<typeof GenerationPhases>;
 
 /**
  * `generation.error_code` — the DB-stored failure vocabulary (CHECK-
  * constrained; adding a code needs a migration in lockstep). Distinct from
- * the store-internal `GenerationErrorCode`. The web catalog renders
+ * the store-internal `GenerationErrorCodes`. The web catalog renders
  * `generationError.<code>`; a new code also needs its catalog key and the
  * web vocab mirror.
  */
-export const GenerationFailureCode = {
+export const GenerationFailureCodes = {
   PROVIDER_AUTH: "provider-auth",
   PROVIDER_RATE_LIMIT: "provider-rate-limit",
   PROVIDER_TIMEOUT: "provider-timeout",
@@ -197,12 +197,12 @@ export const GenerationFailureCode = {
   GITHUB_UNAVAILABLE: "github-unavailable",
   UNKNOWN: "unknown",
 } as const;
-export type GenerationFailureCode = ValueOf<typeof GenerationFailureCode>;
+export type GenerationFailureCode = ValueOf<typeof GenerationFailureCodes>;
 
 /** Codes that carry interpolation params, typed per code. */
 export interface GenerationFailureParamMap {
-  [GenerationFailureCode.GENERATION_CONFIG]: { readonly detail: string };
-  [GenerationFailureCode.UNKNOWN]: { readonly detail: string };
+  [GenerationFailureCodes.GENERATION_CONFIG]: { readonly detail: string };
+  [GenerationFailureCodes.UNKNOWN]: { readonly detail: string };
 }
 
 type ParamFailureCode = keyof GenerationFailureParamMap;
@@ -227,71 +227,71 @@ export interface GenerationFailureParams {
 }
 
 /** `audit_log.actor_type`. */
-export const AuditActorType = {
+export const AuditActorTypes = {
   REVIEWER: "reviewer",
   APP: "app",
   SYSTEM: "system",
 } as const;
-export type AuditActorType = ValueOf<typeof AuditActorType>;
+export type AuditActorType = ValueOf<typeof AuditActorTypes>;
 
 /** `audit_log.classification` — where the audited write landed. The same
  * vocabulary `api_token.scope` uses, minus `read`: reads are never audited. */
 export type AuditClassification = Exclude<
   WriteClassification,
-  typeof WriteClassification.READ
+  typeof WriteClassifications.READ
 >;
 
 /** `audit_log.channel` — the credential surface the call arrived on. */
-export const AuditChannel = {
+export const AuditChannels = {
   COOKIE: "cookie",
   BEARER: "bearer",
   WEBHOOK: "webhook",
   WORKER: "worker",
 } as const;
-export type AuditChannel = ValueOf<typeof AuditChannel>;
+export type AuditChannel = ValueOf<typeof AuditChannels>;
 
 /** `audit_log.outcome` — how the audited action ended. */
-export const AuditOutcome = {
+export const AuditOutcomes = {
   OK: "ok",
   DENIED: "denied",
   FAILED: "failed",
 } as const;
-export type AuditOutcome = ValueOf<typeof AuditOutcome>;
+export type AuditOutcome = ValueOf<typeof AuditOutcomes>;
 
 /** `review_session.review_outcome` — the provisional submit verdict. */
-export const ReviewOutcome = {
+export const ReviewOutcomes = {
   COMMENT: "comment",
   APPROVE: "approve",
   REQUEST_CHANGES: "request-changes",
 } as const;
-export type ReviewOutcome = ValueOf<typeof ReviewOutcome>;
+export type ReviewOutcome = ValueOf<typeof ReviewOutcomes>;
 
 /** `review_draft_comment.status`. */
-export const DraftCommentStatus = {
+export const DraftCommentStatuses = {
   DRAFT: "draft",
   SUBMITTED: "submitted",
 } as const;
-export type DraftCommentStatus = ValueOf<typeof DraftCommentStatus>;
+export type DraftCommentStatus = ValueOf<typeof DraftCommentStatuses>;
 
 /**
  * `review_draft_comment.side` — the diff side the coordinates address. The
  * client's vocabulary, mapped to GitHub's LEFT/RIGHT only at submit.
  */
-export const DraftCommentSide = {
+export const DraftCommentSides = {
   OLD: "old",
   NEW: "new",
 } as const;
-export type DraftCommentSide = ValueOf<typeof DraftCommentSide>;
+export type DraftCommentSide = ValueOf<typeof DraftCommentSides>;
 
 /**
  * `review_draft_comment.anchor_status` — carry-over verdict on a comment's
  * coordinates. NULL means the anchor still holds exactly.
  */
-export const AnchorStatus = {
+export const AnchorStatuses = {
   MOVED: "moved",
   ORPHANED: "orphaned",
 } as const;
-export type AnchorStatus = ValueOf<typeof AnchorStatus>;
+export type AnchorStatus = ValueOf<typeof AnchorStatuses>;
 
 /**
  * `review_group_reclassification.category` — the Change-group intent
@@ -300,7 +300,7 @@ export type AnchorStatus = ValueOf<typeof AnchorStatus>;
  * `test/review-session.test.ts` pins the mirror against the source AND
  * against the DB CHECK, so all three move together.
  */
-export const ChangeGroupCategory = {
+export const ChangeGroupCategories = {
   BUGFIX: "bugfix",
   LOGIC_REFACTOR: "logic-refactor",
   MOVE_WITH_EDITS: "move-with-edits",
@@ -310,4 +310,4 @@ export const ChangeGroupCategory = {
   DEPENDENCY_UPDATE: "dependency-update",
   SCHEMA_CHANGE: "schema-change",
 } as const;
-export type ChangeGroupCategory = ValueOf<typeof ChangeGroupCategory>;
+export type ChangeGroupCategory = ValueOf<typeof ChangeGroupCategories>;

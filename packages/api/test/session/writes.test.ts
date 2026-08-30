@@ -6,10 +6,10 @@
 // with 409, `set-chunk-read` is idempotent under a repeat of the same boolean,
 // and the router's scope gate stands in front of all of them.
 import {
-  ChangeGroupCategory,
-  DraftCommentSide,
+  ChangeGroupCategories,
+  DraftCommentSides,
   createTenantRepository,
-  WriteClassification,
+  WriteClassifications,
 } from "persistence";
 import type { KeyProvider } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
@@ -268,7 +268,7 @@ describe("the Review Session writes", () => {
       write("DELETE", `/comments/${draftId}`, "head-1"),
       write("PUT", "/chunks/c1/read", "head-1", { read: true }),
       write("PUT", "/groups/g1/classification", "head-1", {
-        category: ChangeGroupCategory.BUGFIX,
+        category: ChangeGroupCategories.BUGFIX,
       }),
       write("POST", "/risks/dismiss", "head-1", {
         flags: [FLAG],
@@ -358,10 +358,10 @@ describe("the Review Session writes", () => {
     const briefId = await seedBrief(harness.handle, 1);
 
     const res = await write("PUT", "/groups/g1/classification", "head-1", {
-      category: ChangeGroupCategory.BUGFIX,
+      category: ChangeGroupCategories.BUGFIX,
     });
     await write("PUT", "/groups/g1/classification", "head-1", {
-      category: ChangeGroupCategory.NEW_FEATURE,
+      category: ChangeGroupCategories.NEW_FEATURE,
     });
 
     expect(res.status).toBe(200);
@@ -374,7 +374,7 @@ describe("the Review Session writes", () => {
       reviewerId: REVIEWER,
     });
     expect(snapshot?.reclassifications[0]?.category).toBe(
-      ChangeGroupCategory.NEW_FEATURE,
+      ChangeGroupCategories.NEW_FEATURE,
     );
   });
 
@@ -541,7 +541,7 @@ describe("the Review Session writes", () => {
         for (let i = 0; i < 100; i++) {
           await writer.addDraftComment({
             ...DRAFT,
-            side: DraftCommentSide.NEW,
+            side: DraftCommentSides.NEW,
           });
         }
       },
@@ -606,12 +606,12 @@ describe("the Review Session writes", () => {
     const readOnly = await seedApiToken(
       harness.handle,
       kp,
-      WriteClassification.READ,
+      WriteClassifications.READ,
     );
     const writer = await seedApiToken(
       harness.handle,
       kp,
-      WriteClassification.PRIVATE_WRITE,
+      WriteClassifications.PRIVATE_WRITE,
     );
 
     async function asToken(bearer: string): Promise<Response> {
@@ -750,7 +750,7 @@ describe("the Review Session writes", () => {
       harness.handle,
       kp,
       // The widest scope there is: this refusal is not about scope.
-      WriteClassification.EXTERNAL_WRITE,
+      WriteClassifications.EXTERNAL_WRITE,
     );
 
     async function asAgent(

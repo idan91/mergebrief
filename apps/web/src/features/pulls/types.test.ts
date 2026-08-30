@@ -3,7 +3,7 @@
 // are parsed, never cast.
 import { describe, expect, it } from "vitest";
 import {
-  LastReviewUnavailableReason as SOURCE_LAST_REVIEW_UNAVAILABLE_REASON,
+  LastReviewUnavailableReason,
   type LastReviewComparisonView,
 } from "api";
 import type { Equals } from "types";
@@ -487,7 +487,7 @@ describe("lockstep pins (mirrored wire contract vs its api source)", () => {
     // the keys in opposite order today) but catches a key rename, a dropped
     // reason, and a changed wire value.
     expect({ ...LastReviewUnavailableReasons }).toEqual({
-      ...SOURCE_LAST_REVIEW_UNAVAILABLE_REASON,
+      ...LastReviewUnavailableReason,
     });
   });
 

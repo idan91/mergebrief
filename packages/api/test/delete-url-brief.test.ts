@@ -10,7 +10,7 @@ import {
   isInstallationId,
   isRepoId,
   isReviewerId,
-  PrState,
+  PrStates,
   type AppDatabase,
   type KeyProvider,
   type RepoId,
@@ -77,7 +77,7 @@ async function seedBriefedPr(
     repoId: REPO,
     prNumber: 7,
     repoSlug: "o/r",
-    state: PrState.OPEN,
+    state: PrStates.OPEN,
   });
   const brief = await createArtifactStore(handle, ctx).briefs.write({
     pullRequestId: pr.id,

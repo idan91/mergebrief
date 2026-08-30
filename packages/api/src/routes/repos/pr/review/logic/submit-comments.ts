@@ -1,13 +1,17 @@
 // The draft→review-comment shaping and the degradation fold: every comment
 // becomes a quoted block in the review body when GitHub 422s the anchors.
 import { ReviewCommentSide, type ReviewCommentInput } from "github";
-import { DraftCommentSide, type ReviewDraftCommentRow } from "persistence";
+import {
+  DraftCommentSides,
+  type ReviewDraftCommentRow,
+  type DraftCommentSide,
+} from "persistence";
 import type { Mutable } from "types";
 
 /** The stored side vocabulary as GitHub names it. */
 const SIDE_ON_GITHUB: Readonly<Record<DraftCommentSide, ReviewCommentSide>> = {
-  [DraftCommentSide.OLD]: ReviewCommentSide.LEFT,
-  [DraftCommentSide.NEW]: ReviewCommentSide.RIGHT,
+  [DraftCommentSides.OLD]: ReviewCommentSide.LEFT,
+  [DraftCommentSides.NEW]: ReviewCommentSide.RIGHT,
 };
 
 /** One held draft as the review's comment payload. */

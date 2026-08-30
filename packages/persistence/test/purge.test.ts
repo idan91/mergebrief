@@ -36,22 +36,23 @@ import {
   revisionNarrative,
 } from "../src/schema/index";
 import * as schema from "../src/schema/index";
-import { PurgeErrorCode, createPurgeRoutines } from "../src/stores/purge";
+import { PurgeErrorCodes, createPurgeRoutines } from "../src/stores/purge";
 import type { TenantContext } from "../src/stores/tenant";
 import {
-  AuditOutcome,
-  DispositionDecision,
-  ChangeGroupCategory,
-  DraftCommentSide,
-  GenerationKind,
-  GenerationStatus,
+  AuditOutcomes,
+  DispositionDecisions,
+  ChangeGroupCategories,
+  DraftCommentSides,
+  GenerationKinds,
+  GenerationStatuses,
   isInstallationId,
   isRepoId,
   isReviewerId,
-  PrState,
-  WriteClassification,
+  PrStates,
+  WriteClassifications,
   type GrantRowId,
   type InstallationId,
+  type PrState,
   type PullRequestRowId,
   type RepoId,
   type ReviewerId,
@@ -135,7 +136,7 @@ async function insertPr(db: Db, seed: PrSeed): Promise<PullRequestRowId> {
       repoId: seed.repoId ?? REPO,
       prNumber: seed.prNumber ?? 7,
       repoSlug: "acme/widgets",
-      state: seed.state ?? (armed ? PrState.CLOSED : PrState.OPEN),
+      state: seed.state ?? (armed ? PrStates.CLOSED : PrStates.OPEN),
       closedAt:
         seed.closedAt ?? (armed ? new Date("2026-07-01T00:00:00Z") : undefined),
       purgeAfter: seed.purgeAfter,
@@ -185,7 +186,7 @@ async function seedFullGraph(
     installationId,
     reviewSessionId,
     filePath: "src/index.ts",
-    side: DraftCommentSide.NEW,
+    side: DraftCommentSides.NEW,
     startLine: 10,
     endLine: 12,
     body: "free-text reviewer content",
@@ -199,7 +200,7 @@ async function seedFullGraph(
     installationId,
     reviewSessionId,
     changeGroupId: "group-1",
-    category: ChangeGroupCategory.BUGFIX,
+    category: ChangeGroupCategories.BUGFIX,
   });
   await db.insert(reviewSubmittedReview).values({
     installationId,
@@ -213,7 +214,7 @@ async function seedFullGraph(
     attribute: "sql-injection",
     regionStart: 10,
     regionEnd: 20,
-    decision: DispositionDecision.DISMISSED,
+    decision: DispositionDecisions.DISMISSED,
     reason: "false positive",
     decidedAt: new Date(),
   });
@@ -266,17 +267,17 @@ async function seedFullGraph(
   await db.insert(generation).values({
     installationId,
     pullRequestId,
-    kind: GenerationKind.BRIEF,
+    kind: GenerationKinds.BRIEF,
     headSha: HEAD_SHA,
     baselineSha: null,
-    status: GenerationStatus.SUCCEEDED,
+    status: GenerationStatuses.SUCCEEDED,
   });
   // A pre-existing (non-delete) audit row — proves audit_log is retained.
   await db.insert(auditLog).values({
     installationId,
     actorType: "app",
     operation: "generate",
-    outcome: AuditOutcome.OK,
+    outcome: AuditOutcomes.OK,
     targetType: "pull_request",
     targetId: pullRequestId,
     metadata: { kind: "brief" },
@@ -423,7 +424,7 @@ describe("createPurgeRoutines.purgePullRequest — cascade + no-FK audit surviva
     }).purgePullRequest(prId);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected notFound");
-    expect(result.error.code).toBe(PurgeErrorCode.NOT_FOUND);
+    expect(result.error.code).toBe(PurgeErrorCodes.NOT_FOUND);
 
     // Nothing deleted, and no spurious audit entry under either tenant.
     expect(await countChildTables(pair.raw, prId)).toBe(8);
@@ -542,7 +543,7 @@ describe("createPurgeRoutines.purgeInstallation — tenant-isolated offboarding"
         tokenHash: hash,
         userId: REVIEWER,
         name: "ci-token",
-        scope: WriteClassification.EXTERNAL_WRITE,
+        scope: WriteClassifications.EXTERNAL_WRITE,
         grantId: await insertGrant(raw),
         expiresAt: null,
       });
@@ -658,13 +659,13 @@ describe("createPurgeRoutines.setRetention — purge_after semantics", () => {
 
     const result = await createPurgeRoutines(handle, CTX_A).setRetention(
       prId,
-      PrState.CLOSED,
+      PrStates.CLOSED,
       closedAt,
       7,
     );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("expected success");
-    expect(result.value.state).toBe(PrState.CLOSED);
+    expect(result.value.state).toBe(PrStates.CLOSED);
     expect(result.value.closedAt?.getTime()).toBe(closedAt.getTime());
     const expected = closedAt.getTime() + 7 * 24 * 60 * 60 * 1000;
     expect(result.value.purgeAfter?.getTime()).toBe(expected);
@@ -679,13 +680,13 @@ describe("createPurgeRoutines.setRetention — purge_after semantics", () => {
     for (const bad of [-1, Number.NaN, Number.POSITIVE_INFINITY]) {
       const result = await routines.setRetention(
         prId,
-        PrState.CLOSED,
+        PrStates.CLOSED,
         closedAt,
         bad,
       );
       expect(result.ok).toBe(false);
       if (result.ok) throw new Error("expected failure");
-      expect(result.error.code).toBe(PurgeErrorCode.INVALID_GRACE);
+      expect(result.error.code).toBe(PurgeErrorCodes.INVALID_GRACE);
     }
     const rows = await raw
       .select()
@@ -702,7 +703,7 @@ describe("createPurgeRoutines.setRetention — purge_after semantics", () => {
 
     const result = await routines.setRetention(
       prId,
-      PrState.MERGED,
+      PrStates.MERGED,
       new Date("2026-07-01T00:00:00Z"),
       null,
     );
@@ -725,10 +726,10 @@ describe("createPurgeRoutines.setRetention — purge_after semantics", () => {
     const prId = await insertPr(raw, { installationId: TENANT_A });
     const result = await createPurgeRoutines(handle, {
       installationId: TENANT_B,
-    }).setRetention(prId, PrState.CLOSED, new Date(), 3);
+    }).setRetention(prId, PrStates.CLOSED, new Date(), 3);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected notFound");
-    expect(result.error.code).toBe(PurgeErrorCode.NOT_FOUND);
+    expect(result.error.code).toBe(PurgeErrorCodes.NOT_FOUND);
   });
 });
 

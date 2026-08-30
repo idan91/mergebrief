@@ -3,9 +3,9 @@
 // returns, and — the invariant the suite exists for — CREATES NOTHING. Every
 // case asserts the `review_session` row count across the call.
 import {
-  AnchorStatus,
+  AnchorStatuses,
   createTenantRepository,
-  ReviewOutcome,
+  ReviewOutcomes,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -157,7 +157,7 @@ describe("read-review-session", () => {
     expect(body.draftComments).toEqual([
       expect.objectContaining({
         id: expect.stringMatching(/^\d+$/),
-        anchorStatus: AnchorStatus.ORPHANED,
+        anchorStatus: AnchorStatuses.ORPHANED,
       }),
     ]);
     expect(body.attention).toEqual([
@@ -271,7 +271,7 @@ describe("read-review-session", () => {
         reviewerId: REVIEWER,
         brief: async () => NO_ARTIFACT,
       },
-      (writer) => writer.setReviewOutcome(ReviewOutcome.COMMENT),
+      (writer) => writer.setReviewOutcome(ReviewOutcomes.COMMENT),
     );
 
     const settled = await readBody(await read("head-2"));

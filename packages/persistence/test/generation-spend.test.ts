@@ -13,12 +13,13 @@ import {
   type TenantContext,
 } from "../src/index";
 import {
-  GenerationKind,
-  GenerationStatus,
+  GenerationKinds,
+  GenerationStatuses,
   isInstallationId,
   isRepoId,
-  PrState,
+  PrStates,
   type InstallationId,
+  type GenerationStatus,
   type PullRequestRowId,
   type RepoId,
 } from "../src/types";
@@ -58,7 +59,7 @@ async function harness(): Promise<
   const pr = await repo.pullRequests.upsert({
     repoId: REPO,
     prNumber: 7,
-    state: PrState.OPEN,
+    state: PrStates.OPEN,
     repoSlug: SLUG,
   });
   const projection = createGenerationProjection(handle, CTX);
@@ -74,7 +75,7 @@ async function harness(): Promise<
     async run({ pullRequestId, headSha, status, createdAt, attempts = 0 }) {
       const target = {
         pullRequestId,
-        kind: GenerationKind.BRIEF,
+        kind: GenerationKinds.BRIEF,
         headSha,
         baselineSha: null,
       } as const;
@@ -98,40 +99,40 @@ describe("countStartedRunsForRepo", () => {
     await run({
       pullRequestId,
       headSha: "a",
-      status: GenerationStatus.SUCCEEDED,
+      status: GenerationStatuses.SUCCEEDED,
       createdAt: inside,
     });
     await run({
       pullRequestId,
       headSha: "b",
-      status: GenerationStatus.FAILED,
+      status: GenerationStatuses.FAILED,
       createdAt: inside,
     });
     await run({
       pullRequestId,
       headSha: "c",
       // Superseded runs SPENT — they count.
-      status: GenerationStatus.SUPERSEDED,
+      status: GenerationStatuses.SUPERSEDED,
       createdAt: inside,
     });
     await run({
       pullRequestId,
       headSha: "d",
-      status: GenerationStatus.RUNNING,
+      status: GenerationStatuses.RUNNING,
       createdAt: inside,
     });
     await run({
       pullRequestId,
       headSha: "e",
       // Enqueued but never drained — nothing spent yet.
-      status: GenerationStatus.QUEUED,
+      status: GenerationStatuses.QUEUED,
       createdAt: inside,
     });
     await run({
       pullRequestId,
       headSha: "f",
       // The skip itself must never feed the counter that produced it.
-      status: GenerationStatus.CAPPED,
+      status: GenerationStatuses.CAPPED,
       createdAt: inside,
     });
 
@@ -155,7 +156,7 @@ describe("countStartedRunsForRepo", () => {
     await run({
       pullRequestId,
       headSha: "hot",
-      status: GenerationStatus.SUCCEEDED,
+      status: GenerationStatuses.SUCCEEDED,
       createdAt: inside,
       attempts: 3,
     });
@@ -163,7 +164,7 @@ describe("countStartedRunsForRepo", () => {
     await run({
       pullRequestId,
       headSha: "fresh",
-      status: GenerationStatus.SUCCEEDED,
+      status: GenerationStatuses.SUCCEEDED,
       createdAt: inside,
     });
 
@@ -184,14 +185,14 @@ describe("countStartedRunsForRepo", () => {
     await run({
       pullRequestId,
       headSha: "requeued",
-      status: GenerationStatus.QUEUED,
+      status: GenerationStatuses.QUEUED,
       createdAt: inside,
       attempts: 9,
     });
     await run({
       pullRequestId,
       headSha: "skipped",
-      status: GenerationStatus.CAPPED,
+      status: GenerationStatuses.CAPPED,
       createdAt: inside,
       attempts: 9,
     });
@@ -212,25 +213,25 @@ describe("countStartedRunsForRepo", () => {
     await run({
       pullRequestId,
       headSha: "midnight",
-      status: GenerationStatus.SUCCEEDED,
+      status: GenerationStatuses.SUCCEEDED,
       createdAt: DAY_START,
     });
     await run({
       pullRequestId,
       headSha: "last-instant",
-      status: GenerationStatus.SUCCEEDED,
+      status: GenerationStatuses.SUCCEEDED,
       createdAt: new Date("2026-08-03T23:59:59.999Z"),
     });
     await run({
       pullRequestId,
       headSha: "next-day",
-      status: GenerationStatus.SUCCEEDED,
+      status: GenerationStatuses.SUCCEEDED,
       createdAt: DAY_END,
     });
     await run({
       pullRequestId,
       headSha: "yesterday",
-      status: GenerationStatus.SUCCEEDED,
+      status: GenerationStatuses.SUCCEEDED,
       createdAt: new Date("2026-08-02T23:59:59.999Z"),
     });
 
@@ -251,7 +252,7 @@ describe("countStartedRunsForRepo", () => {
     await run({
       pullRequestId,
       headSha: "mine",
-      status: GenerationStatus.SUCCEEDED,
+      status: GenerationStatuses.SUCCEEDED,
       createdAt: inside,
     });
 
@@ -262,13 +263,13 @@ describe("countStartedRunsForRepo", () => {
     ).pullRequests.upsert({
       repoId: OTHER_REPO,
       prNumber: 9,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
       repoSlug: "acme/web",
     });
     await run({
       pullRequestId: sibling.id,
       headSha: "sibling",
-      status: GenerationStatus.SUCCEEDED,
+      status: GenerationStatuses.SUCCEEDED,
       createdAt: inside,
     });
 
@@ -281,13 +282,13 @@ describe("countStartedRunsForRepo", () => {
     ).pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
       repoSlug: SLUG,
     });
     const foreign = createGenerationProjection(handle, otherCtx);
     const foreignTarget = {
       pullRequestId: foreignPr.id,
-      kind: GenerationKind.BRIEF,
+      kind: GenerationKinds.BRIEF,
       headSha: "foreign",
       baselineSha: null,
     } as const;
@@ -314,7 +315,7 @@ describe("markCapped", () => {
     const projection = createGenerationProjection(handle, CTX);
     const target = {
       pullRequestId,
-      kind: GenerationKind.BRIEF,
+      kind: GenerationKinds.BRIEF,
       headSha: "capped-head",
       baselineSha: null,
     } as const;
@@ -323,7 +324,7 @@ describe("markCapped", () => {
 
     const capped = await projection.markCapped(target);
     if (!capped.ok) throw new Error(capped.error.message);
-    expect(capped.value.status).toBe(GenerationStatus.CAPPED);
+    expect(capped.value.status).toBe(GenerationStatuses.CAPPED);
     expect(capped.value.attempts).toBe(queued.value.attempts);
     expect(capped.value.phase).toBeNull();
     expect(capped.value.errorCode).toBeNull();

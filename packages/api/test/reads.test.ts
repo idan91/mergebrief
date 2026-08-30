@@ -11,10 +11,10 @@ import {
   decryptToken,
   createTenantRepository,
   createGrantAuth,
-  PrState,
+  PrStates,
   createSessionAuth,
   createTokenAuth,
-  WriteClassification,
+  WriteClassifications,
   type AppDatabase,
   type KeyProvider,
 } from "persistence";
@@ -204,7 +204,7 @@ async function seedPullRequest(handle: AppDatabase): Promise<void> {
     repoId: brandRepoId(BigInt(REPO_ID)),
     prNumber: PR_NUMBER,
     repoSlug: REPO_SLUG,
-    state: PrState.OPEN,
+    state: PrStates.OPEN,
   });
 }
 
@@ -579,7 +579,7 @@ describe("reviewer read API + authz gate", () => {
     if (resolved === undefined) throw new Error("seeded session not found");
     const bearer = `mergebrief_${randomBytes(32).toString("base64url")}`;
     await createTokenAuth(harness.handle).mintToken({
-      scope: WriteClassification.EXTERNAL_WRITE,
+      scope: WriteClassifications.EXTERNAL_WRITE,
       installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
       userId: brandReviewerId(BigInt(REVIEWER_ID)),
       name: "cli-agent",

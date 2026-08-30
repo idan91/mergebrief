@@ -8,7 +8,7 @@ import {
   createGrantAuth,
   createTenantRepository,
   encryptToken,
-  PrState,
+  PrStates,
   type AppDatabase,
   type KeyProvider,
 } from "persistence";
@@ -139,7 +139,7 @@ async function seedOwnerPullRequest(
     repoId: brandRepoId(BigInt(REPO_ID)),
     prNumber: PR_NUMBER,
     repoSlug: REPO_SLUG,
-    state: PrState.OPEN,
+    state: PrStates.OPEN,
     title,
   });
 }
@@ -152,7 +152,7 @@ async function seedTenantPullRequest(
     repoId: brandRepoId(BigInt(REPO_ID)),
     prNumber: PR_NUMBER,
     repoSlug: REPO_SLUG,
-    state: PrState.OPEN,
+    state: PrStates.OPEN,
     title,
   });
 }
@@ -272,7 +272,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
       repoId: brandRepoId(BigInt(REPO_ID)),
       prNumber: PR_NUMBER,
       repoSlug: REPO_SLUG,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
       title: "somebody else's paste",
     });
 

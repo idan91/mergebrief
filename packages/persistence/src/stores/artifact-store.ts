@@ -45,7 +45,7 @@ import {
 // Errors — expected failures. Programmer errors still `throw`.
 // ---------------------------------------------------------------------------
 
-export const ArtifactErrorCode = {
+export const ArtifactErrorCodes = {
   /** A write named a `pull_request` that is not in ctx's tenant. */
   PARENT_NOT_IN_TENANT: "parent-not-in-tenant",
   /** A `revision_narrative` write named a `brief` not in (ctx, same PR). */
@@ -53,7 +53,7 @@ export const ArtifactErrorCode = {
   /** A `comparison_marks` or `hunk_span` body failed its coordinates-only Zod schema. */
   INVALID_BODY: "invalid-body",
 } as const;
-export type ArtifactErrorCode = ValueOf<typeof ArtifactErrorCode>;
+export type ArtifactErrorCode = ValueOf<typeof ArtifactErrorCodes>;
 
 export interface ArtifactError {
   readonly code: ArtifactErrorCode;
@@ -481,7 +481,7 @@ export function createArtifactStore(
       return db.transaction(async (tx) => {
         if (!(await parentInTenant(tx, input.pullRequestId))) {
           return fail(
-            ArtifactErrorCode.PARENT_NOT_IN_TENANT,
+            ArtifactErrorCodes.PARENT_NOT_IN_TENANT,
             `pull_request ${input.pullRequestId} not in ${scope.label}`,
           );
         }
@@ -631,7 +631,7 @@ export function createArtifactStore(
       return db.transaction(async (tx) => {
         if (!(await parentInTenant(tx, input.pullRequestId))) {
           return fail(
-            ArtifactErrorCode.PARENT_NOT_IN_TENANT,
+            ArtifactErrorCodes.PARENT_NOT_IN_TENANT,
             `pull_request ${input.pullRequestId} not in ${scope.label}`,
           );
         }
@@ -722,7 +722,7 @@ export function createArtifactStore(
       return db.transaction(async (tx) => {
         if (!(await parentInTenant(tx, input.pullRequestId))) {
           return fail(
-            ArtifactErrorCode.PARENT_NOT_IN_TENANT,
+            ArtifactErrorCodes.PARENT_NOT_IN_TENANT,
             `pull_request ${input.pullRequestId} not in ${scope.label}`,
           );
         }
@@ -779,7 +779,7 @@ export function createArtifactStore(
       return db.transaction(async (tx) => {
         if (!(await parentInTenant(tx, input.pullRequestId))) {
           return fail(
-            ArtifactErrorCode.PARENT_NOT_IN_TENANT,
+            ArtifactErrorCodes.PARENT_NOT_IN_TENANT,
             `pull_request ${input.pullRequestId} not in ${scope.label}`,
           );
         }
@@ -797,7 +797,7 @@ export function createArtifactStore(
           .limit(1);
         if (anchors[0] === undefined) {
           return fail(
-            ArtifactErrorCode.BRIEF_NOT_ANCHORED,
+            ArtifactErrorCodes.BRIEF_NOT_ANCHORED,
             `brief ${input.briefId} not in ${scope.label} on pull_request ${input.pullRequestId}`,
           );
         }
@@ -901,7 +901,7 @@ export function createArtifactStore(
     async write(input) {
       const parsed = ComparisonMarksBodySchema.safeParse(input.marks);
       if (!parsed.success) {
-        return fail(ArtifactErrorCode.INVALID_BODY, parsed.error.message);
+        return fail(ArtifactErrorCodes.INVALID_BODY, parsed.error.message);
       }
       const marks = parsed.data;
       // The natural-key SHAs ARE the body's SHA pair.
@@ -909,7 +909,7 @@ export function createArtifactStore(
       return db.transaction(async (tx) => {
         if (!(await parentInTenant(tx, input.pullRequestId))) {
           return fail(
-            ArtifactErrorCode.PARENT_NOT_IN_TENANT,
+            ArtifactErrorCodes.PARENT_NOT_IN_TENANT,
             `pull_request ${input.pullRequestId} not in ${scope.label}`,
           );
         }
@@ -1005,13 +1005,13 @@ export function createArtifactStore(
     async write(input) {
       const parsed = HunkSpansSchema.safeParse(input.spans);
       if (!parsed.success) {
-        return fail(ArtifactErrorCode.INVALID_BODY, parsed.error.message);
+        return fail(ArtifactErrorCodes.INVALID_BODY, parsed.error.message);
       }
       const serialized = JSON.stringify(parsed.data);
       return db.transaction(async (tx) => {
         if (!(await parentInTenant(tx, input.pullRequestId))) {
           return fail(
-            ArtifactErrorCode.PARENT_NOT_IN_TENANT,
+            ArtifactErrorCodes.PARENT_NOT_IN_TENANT,
             `pull_request ${input.pullRequestId} not in ${scope.label}`,
           );
         }

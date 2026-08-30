@@ -1,8 +1,8 @@
 // Drift pins for the generation-failure vocabulary. The web mirror is
 // hand-rolled (modeled data inside a 200, so it never rides the wire-error
 // contract): these are what catch a code added on one side alone.
-import { GenerationFailureCode as SOURCE_FAILURE_CODE } from "persistence";
 import { describe, expect, it } from "vitest";
+import { GenerationFailureCodes as PersistenceGenerationFailureCodes } from "persistence";
 
 import { appI18n } from "../../i18n/I18nProvider";
 import { failureLine } from "./components/PrBrief/FailedCard/utils";
@@ -11,7 +11,7 @@ import { GenerationFailureCodes } from "./types";
 describe("generation-failure vocabulary", () => {
   it("mirrors persistence exactly, both directions", () => {
     expect(Object.values(GenerationFailureCodes).toSorted()).toEqual(
-      Object.values(SOURCE_FAILURE_CODE).toSorted(),
+      Object.values(PersistenceGenerationFailureCodes).toSorted(),
     );
   });
 

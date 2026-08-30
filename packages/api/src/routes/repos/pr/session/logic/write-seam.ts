@@ -3,7 +3,7 @@
 // functions — resolve the write target, and map the store's refusals onto
 // the wire as throws.
 import type { Context } from "hono";
-import { ReviewSessionErrorCode } from "persistence";
+import { ReviewSessionErrorCodes } from "persistence";
 import { ApiErrorCodes } from "../../../../../error-response";
 import {
   BadRequest,
@@ -55,7 +55,7 @@ export function throwSessionWriteFailure(failure: SessionWriteFailure): never {
   if (failure.kind === "unreadable-brief") {
     throw new InternalError();
   }
-  if (failure.error.code === ReviewSessionErrorCode.SESSION_FROZEN) {
+  if (failure.error.code === ReviewSessionErrorCodes.SESSION_FROZEN) {
     throw new Conflict(ApiErrorCodes.PR_CHANGED_SINCE_READ);
   }
   throw new NotFound();

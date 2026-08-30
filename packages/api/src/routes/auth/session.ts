@@ -16,10 +16,10 @@ import {
   decryptToken,
   encryptToken,
   createGrantAuth,
-  GrantAuthErrorCode,
+  GrantAuthErrorCodes,
   createSessionAuth,
   createTokenAuth,
-  WriteClassification,
+  WriteClassifications,
   type AppDatabase,
   type AuthSessionRow,
   type GithubGrantRow,
@@ -28,6 +28,7 @@ import {
   type KeyProvider,
   type SessionWithGrant,
   type TokenWithGrant,
+  type WriteClassification,
 } from "persistence";
 import type { Logger } from "logging";
 import type { Mutable, DraftPolicy, Result, ValueOf } from "types";
@@ -127,7 +128,7 @@ export function derivePrincipalFromSession(
     keyRef: resolved.grant.keyRef,
     // A cookie has no row to hold a limit and the person is at the keyboard:
     // the browser is unlimited by construction, not by a stored value.
-    scope: WriteClassification.EXTERNAL_WRITE,
+    scope: WriteClassifications.EXTERNAL_WRITE,
     channel: AuthChannel.COOKIE,
   };
 }
@@ -308,7 +309,7 @@ export async function refreshSessionToken(
   );
 
   if (!refreshed.ok) {
-    if (refreshed.error.code === GrantAuthErrorCode.NOT_FOUND) {
+    if (refreshed.error.code === GrantAuthErrorCodes.NOT_FOUND) {
       // The grant vanished under us — its last referent (this very row) was
       // deleted concurrently (logout / sweep / purge). Nothing to clean up;
       // the caller re-authenticates.

@@ -20,11 +20,11 @@ import { type GithubGrantRow, deleteOrphanedGrants } from "./grant";
 // Errors — expected failures. Programmer errors still `throw`.
 // ---------------------------------------------------------------------------
 
-export const SessionAuthErrorCode = {
+export const SessionAuthErrorCodes = {
   /** No session row for the given `session_token_hash`. */
   NOT_FOUND: "not-found",
 } as const;
-export type SessionAuthErrorCode = ValueOf<typeof SessionAuthErrorCode>;
+export type SessionAuthErrorCode = ValueOf<typeof SessionAuthErrorCodes>;
 
 export interface SessionAuthError {
   readonly code: SessionAuthErrorCode;
@@ -138,7 +138,7 @@ export function createSessionAuth(handle: AppDatabase): SessionAuth {
         const row = locked[0];
         if (row === undefined) {
           return fail(
-            SessionAuthErrorCode.NOT_FOUND,
+            SessionAuthErrorCodes.NOT_FOUND,
             "auth_session not found for the given token hash",
           );
         }

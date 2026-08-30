@@ -10,15 +10,15 @@ import {
   createArtifactStore,
   createTenantRepository,
   createGenerationProjection,
-  GenerationKind,
-  GenerationStatus,
+  GenerationKinds,
+  GenerationStatuses,
   createIngestRoutines,
   isPullRequestRowId,
   isRepoId,
   isReviewerId,
   parseScopeContext,
   parseTenantContext,
-  PrState,
+  PrStates,
   type GenerationTarget,
   type PullRequestRow,
   type RepoId,
@@ -361,7 +361,7 @@ async function trigger(
       repoId: makeRepoId(7n),
       prNumber: 7,
       repoSlug: "acme/widget",
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     },
     headSha,
     debounceSeconds: 0,
@@ -378,7 +378,7 @@ function target(pr: PullRequestRow, headSha: string): GenerationTarget {
   if (!isPullRequestRowId(pr.id)) throw new Error("bad pr id");
   return {
     pullRequestId: pr.id,
-    kind: GenerationKind.BRIEF,
+    kind: GenerationKinds.BRIEF,
     headSha,
     baselineSha: null,
   };
@@ -398,7 +398,7 @@ describe("generate task — url-box world", () => {
       repoId: makeRepoId(7n),
       prNumber: 7,
       repoSlug: "acme/widget",
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     // The queued projection row the enqueue door writes (PR-3 side of the
     // handshake) — the drain transitions it, never creates it.
@@ -440,7 +440,7 @@ describe("generate task — url-box world", () => {
     const row = await createGenerationProjection(harness.handle, ownerCtx).get(
       target(pr, HEAD_1),
     );
-    expect(row?.status).toBe(GenerationStatus.SUCCEEDED);
+    expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
 
     // The viewer's token must never write to GitHub: no comment ops at all.
     expect(github.commentCalls).toEqual([]);
@@ -475,7 +475,7 @@ describe("generate task — url-box world", () => {
       repoId: makeRepoId(7n),
       prNumber: 7,
       repoSlug: "acme/widget",
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     const projection = createGenerationProjection(harness.handle, ownerCtx);
     expect((await projection.upsertQueued(target(pr, HEAD_1))).ok).toBe(true);
@@ -496,10 +496,10 @@ describe("generate task — url-box world", () => {
 
     expect(generator.calls).toEqual([]);
     expect((await projection.get(target(pr, HEAD_1)))?.status).toBe(
-      GenerationStatus.SUPERSEDED,
+      GenerationStatuses.SUPERSEDED,
     );
     expect((await projection.get(target(pr, HEAD_2)))?.status).toBe(
-      GenerationStatus.QUEUED,
+      GenerationStatuses.QUEUED,
     );
     const jobs = await harness.raw(
       "select payload from graphile_worker.jobs where task_identifier = 'generate'",
@@ -523,7 +523,7 @@ describe("generate task — url-box world", () => {
       repoId: makeRepoId(7n),
       prNumber: 7,
       repoSlug: "acme/widget",
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     const projection = createGenerationProjection(harness.handle, ownerCtx);
     expect((await projection.upsertQueued(target(pr, HEAD_1))).ok).toBe(true);
@@ -568,10 +568,10 @@ describe("generate task — url-box world", () => {
     });
 
     expect((await projection.get(target(pr, HEAD_1)))?.status).toBe(
-      GenerationStatus.SUPERSEDED,
+      GenerationStatuses.SUPERSEDED,
     );
     expect((await projection.get(target(pr, HEAD_2)))?.status).toBe(
-      GenerationStatus.QUEUED,
+      GenerationStatuses.QUEUED,
     );
     const jobs = await harness.raw(
       "select payload from graphile_worker.jobs where task_identifier = 'generate'",
@@ -597,7 +597,7 @@ describe("generate task — url-box world", () => {
       repoId: makeRepoId(7n),
       prNumber: 7,
       repoSlug: "acme/widget",
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     const projection = createGenerationProjection(harness.handle, ownerCtx);
     expect((await projection.upsertQueued(target(pr, HEAD_1))).ok).toBe(true);
@@ -646,7 +646,7 @@ describe("generate task — url-box world", () => {
     });
 
     expect((await projection.get(target(pr, HEAD_2)))?.status).toBe(
-      GenerationStatus.QUEUED,
+      GenerationStatuses.QUEUED,
     );
   });
 
@@ -714,7 +714,7 @@ describe("generate task", () => {
     const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
-    expect(row?.status).toBe(GenerationStatus.SUCCEEDED);
+    expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
     expect(row?.errorCode).toBeNull();
 
     const audits = await harness.raw(
@@ -1055,7 +1055,7 @@ describe("generate task", () => {
     const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
-    expect(row?.status).toBe(GenerationStatus.SUCCEEDED);
+    expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
     expect(
       (
         await createTenantRepository(harness.handle, ctx).pullRequests.getById(
@@ -1146,7 +1146,7 @@ describe("generate task", () => {
       harness.handle,
       ctx,
     ).get(target(second.pr, HEAD_2));
-    expect(projection?.status).toBe(GenerationStatus.SUCCEEDED);
+    expect(projection?.status).toBe(GenerationStatuses.SUCCEEDED);
   });
 
   it("marks superseded (attempts untouched, no generator call) when the head advanced", async () => {
@@ -1166,7 +1166,7 @@ describe("generate task", () => {
     await task(payload);
 
     const after = await projection.get(target(pr, HEAD_1));
-    expect(after?.status).toBe(GenerationStatus.SUPERSEDED);
+    expect(after?.status).toBe(GenerationStatuses.SUPERSEDED);
     expect(after?.attempts).toBe(before?.attempts);
     expect(generator.calls).toEqual([]);
     // The App world schedules nothing here: the push's own webhook did.
@@ -1179,7 +1179,7 @@ describe("generate task", () => {
       harness.handle,
       ctx,
     ).pullRequests.setState(pr.id, {
-      state: PrState.CLOSED,
+      state: PrStates.CLOSED,
       closedAt: new Date(),
       purgeAfter: null,
     });
@@ -1197,7 +1197,7 @@ describe("generate task", () => {
     const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
-    expect(row?.status).toBe(GenerationStatus.SUPERSEDED);
+    expect(row?.status).toBe(GenerationStatuses.SUPERSEDED);
     expect(generator.calls).toEqual([]);
   });
 
@@ -1405,7 +1405,7 @@ describe("generate task", () => {
     const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
-    expect(row?.status).toBe(GenerationStatus.FAILED);
+    expect(row?.status).toBe(GenerationStatuses.FAILED);
     // Stamped at the GitHub throw site — the code, not prose, is the record.
     expect(row?.errorCode).toBe("github-access");
     expect(row?.errorParams).toBeNull();
@@ -1431,7 +1431,7 @@ describe("generate task", () => {
     const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
-    expect(row?.status).toBe(GenerationStatus.FAILED);
+    expect(row?.status).toBe(GenerationStatuses.FAILED);
   });
 
   it("aborts a mid-stream generation on a superseding push: superseded, no retry, attempts untouched", async () => {
@@ -1481,7 +1481,7 @@ describe("generate task", () => {
     await expect(task(payload)).resolves.toBeUndefined(); // abort is NOT a job failure
 
     const after = await projection.get(target(pr, HEAD_1));
-    expect(after?.status).toBe(GenerationStatus.SUPERSEDED);
+    expect(after?.status).toBe(GenerationStatuses.SUPERSEDED);
     expect(after?.attempts).toBe(before?.attempts);
     expect(after?.errorCode).toBeNull();
     expect(
@@ -1533,7 +1533,7 @@ describe("generate task", () => {
     const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
-    expect(row?.status).toBe(GenerationStatus.SUPERSEDED);
+    expect(row?.status).toBe(GenerationStatuses.SUPERSEDED);
   });
 
   it("classifies an SDK APIConnectionError as transient (rethrow for graphile retry)", async () => {
@@ -1554,7 +1554,7 @@ describe("generate task", () => {
     const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
-    expect(row?.status).toBe(GenerationStatus.FAILED);
+    expect(row?.status).toBe(GenerationStatuses.FAILED);
   });
 
   it("returns the job to the queue on graceful shutdown: no failed/superseded projection", async () => {
@@ -1599,7 +1599,7 @@ describe("generate task", () => {
     const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
-    expect(row?.status).toBe(GenerationStatus.RUNNING);
+    expect(row?.status).toBe(GenerationStatuses.RUNNING);
     expect(row?.errorCode).toBeNull();
   });
 
@@ -1671,9 +1671,9 @@ describe("generate task", () => {
 
     const projection = createGenerationProjection(harness.handle, ctx);
     const stale = await projection.get(target(first.pr, HEAD_1));
-    expect(stale?.status).toBe(GenerationStatus.SUPERSEDED);
+    expect(stale?.status).toBe(GenerationStatuses.SUPERSEDED);
     const current = await projection.get(target(second.pr, HEAD_2));
-    expect(current?.status).toBe(GenerationStatus.SUCCEEDED);
+    expect(current?.status).toBe(GenerationStatuses.SUCCEEDED);
   });
 
   it("marks a transient generation error failed and rethrows; a deterministic one does not rethrow", async () => {
@@ -1693,14 +1693,14 @@ describe("generate task", () => {
     let row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
-    expect(row?.status).toBe(GenerationStatus.FAILED);
+    expect(row?.status).toBe(GenerationStatuses.FAILED);
 
     generator.failNextWith = new Error("Model refused to produce the brief.");
     await expect(task(payload)).resolves.toBeUndefined();
     row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
-    expect(row?.status).toBe(GenerationStatus.FAILED);
+    expect(row?.status).toBe(GenerationStatuses.FAILED);
     // A plain-Error refusal has no stamp and no taxonomy — unknown{detail}.
     expect(row?.errorCode).toBe("unknown");
     expect(row?.errorParams?.detail).toContain("refused");
@@ -2206,7 +2206,7 @@ describe("generate task — anchored generation", () => {
     const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_2),
     );
-    expect(row?.status).toBe(GenerationStatus.FAILED);
+    expect(row?.status).toBe(GenerationStatuses.FAILED);
     expect(row?.errorCode).toBe("unknown");
     expect(row?.errorParams?.detail).toContain("coverage");
     // No brief row was written for the failed span.
@@ -2399,7 +2399,7 @@ deEmphasize:
     const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
-    expect(row?.status).toBe(GenerationStatus.SUCCEEDED);
+    expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
   });
 
   it("fail-open on a per-file fetch failure: loud fetch-failed outcome, generation succeeds", async () => {
@@ -2431,7 +2431,7 @@ deEmphasize:
     const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
-    expect(row?.status).toBe(GenerationStatus.SUCCEEDED);
+    expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
   });
 
   it("maps a pre-decode oversize rejection to an over-budget outcome with fetch-level facts", async () => {
@@ -2524,7 +2524,7 @@ describe("generate task — repo-config origin on the generation record", () => 
     const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
-    expect(row?.status).toBe(GenerationStatus.FAILED);
+    expect(row?.status).toBe(GenerationStatuses.FAILED);
     const origin = repoConfigOriginSchema.parse(
       JSON.parse(row?.repoConfig ?? "null"),
     );
@@ -2597,7 +2597,7 @@ describe("generate task — entry-comment draft gate", () => {
     const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
-    expect(row?.status).toBe(GenerationStatus.SUCCEEDED);
+    expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
   });
 
   it("posts entry comments on a draft PR when the repo opts in via settings.yaml", async () => {
@@ -2713,7 +2713,7 @@ describe("generate task — entry-comment draft gate", () => {
         HEAD_1,
       ),
     );
-    expect(row?.status).toBe(GenerationStatus.SUCCEEDED);
+    expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
   });
 
   it("converting to draft SWEEPS the lingering entry comment (suppression = off, not leave-as-is)", async () => {
@@ -3028,7 +3028,7 @@ describe("generate task — daily generation cap", () => {
     const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
-    expect(row?.status).toBe(GenerationStatus.SUCCEEDED);
+    expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
   });
 
   it("does NOT count the run it is deciding on (a cap of 1 lets the first run through)", async () => {
@@ -3049,7 +3049,7 @@ describe("generate task — daily generation cap", () => {
           target(pr, HEAD_1),
         )
       )?.status,
-    ).toBe(GenerationStatus.SUCCEEDED);
+    ).toBe(GenerationStatuses.SUCCEEDED);
   });
 
   it("at the cap: skips before any provider call, marks capped, emits spend.cap.trip", async () => {
@@ -3082,7 +3082,7 @@ describe("generate task — daily generation cap", () => {
     const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_2),
     );
-    expect(row?.status).toBe(GenerationStatus.CAPPED);
+    expect(row?.status).toBe(GenerationStatuses.CAPPED);
     // Not a failure: no error code, no attempt consumed.
     expect(row?.errorCode).toBeNull();
     expect(row?.attempts).toBe(0);
@@ -3177,7 +3177,7 @@ describe("generate task — daily generation cap", () => {
           target(pr, HEAD_2),
         )
       )?.status,
-    ).toBe(GenerationStatus.CAPPED);
+    ).toBe(GenerationStatuses.CAPPED);
   });
 
   it("leaves a FAILED row failed — an at-cap retry must not erase the real failure", async () => {
@@ -3198,7 +3198,7 @@ describe("generate task — daily generation cap", () => {
     const failed = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_2),
     );
-    expect(failed?.status).toBe(GenerationStatus.FAILED);
+    expect(failed?.status).toBe(GenerationStatuses.FAILED);
     expect(failed?.errorCode).not.toBeNull();
 
     // The retry: at cap now, so the run is skipped — but the record stays.
@@ -3216,7 +3216,7 @@ describe("generate task — daily generation cap", () => {
       harness.handle,
       ctx,
     ).get(target(pr, HEAD_2));
-    expect(afterRetry?.status).toBe(GenerationStatus.FAILED);
+    expect(afterRetry?.status).toBe(GenerationStatuses.FAILED);
     expect(afterRetry?.errorCode).toBe(failed?.errorCode);
   });
 
@@ -3240,7 +3240,7 @@ describe("generate task — daily generation cap", () => {
           target(pr, HEAD_2),
         )
       )?.status,
-    ).toBe(GenerationStatus.SUCCEEDED);
+    ).toBe(GenerationStatuses.SUCCEEDED);
   });
 
   it("no spend policy = uncapped (the zero-config default)", async () => {
@@ -3261,6 +3261,6 @@ describe("generate task — daily generation cap", () => {
           target(pr, HEAD_2),
         )
       )?.status,
-    ).toBe(GenerationStatus.SUCCEEDED);
+    ).toBe(GenerationStatuses.SUCCEEDED);
   });
 });

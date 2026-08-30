@@ -4,7 +4,7 @@
 // differ only in whether a subject has a row id yet, so one payload type
 // covers both and `materialized` is what tells them apart.
 import {
-  ReviewOutcome,
+  ReviewOutcomes,
   type CarriedWork,
   type DispositionEvidence,
   type DispositionEvidenceKind,
@@ -79,7 +79,7 @@ export function shapeCarriedWork(carried: CarriedWork): SessionWork {
   return {
     // No row means no stored verdict; the column's default is what a first
     // write would land on.
-    reviewOutcome: ReviewOutcome.COMMENT,
+    reviewOutcome: ReviewOutcomes.COMMENT,
     draftComments: carried.draftComments.map(shapeDraftComment),
     readMarks: [...carried.readMarks],
     reclassifications: carried.reclassifications.map((row) => ({

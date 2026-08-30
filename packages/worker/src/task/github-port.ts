@@ -28,7 +28,7 @@ import {
 import {
   createGrantAuth,
   decryptToken,
-  GenerationFailureCode,
+  GenerationFailureCodes,
   type AppDatabase,
   type GrantRowId,
   type InstallationId,
@@ -224,7 +224,7 @@ function serveProbeOnce(
 
 function buildPermanentAccessFailure(message: string): PermanentJobError {
   return new PermanentJobError(message, {
-    failure: { code: GenerationFailureCode.GITHUB_ACCESS },
+    failure: { code: GenerationFailureCodes.GITHUB_ACCESS },
   });
 }
 

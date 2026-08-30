@@ -2,11 +2,13 @@
 // the write routes accept, with the bounds that keep an unbounded string or
 // an out-of-range id from reaching the store.
 import {
-  ChangeGroupCategory,
-  DispositionEvidenceKind,
-  DraftCommentSide,
-  ReviewOutcome,
+  ChangeGroupCategories,
+  DispositionEvidenceKinds,
+  DraftCommentSides,
+  ReviewOutcomes,
+  type ChangeGroupCategory,
   type DispositionEvidence,
+  type DraftCommentSide,
 } from "persistence";
 import { z } from "zod";
 import {
@@ -27,8 +29,8 @@ const coordinateSchema = z.number().int().positive().max(MAX_INT4);
 export const briefLocalIdSchema = z.string().min(1).max(MAX_ID_LENGTH);
 
 const sideSchema = z.union([
-  z.literal(DraftCommentSide.OLD),
-  z.literal(DraftCommentSide.NEW),
+  z.literal(DraftCommentSides.OLD),
+  z.literal(DraftCommentSides.NEW),
 ]);
 
 /** The coordinates a draft carries; they ARE the GitHub POST payload. */
@@ -88,7 +90,7 @@ export const createDraftSchema = z
 export const readSchema = z.object({ read: z.boolean() });
 
 function isChangeGroupCategory(value: unknown): value is ChangeGroupCategory {
-  return Object.values(ChangeGroupCategory).some((known) => known === value);
+  return Object.values(ChangeGroupCategories).some((known) => known === value);
 }
 
 export const categorySchema = z.object({
@@ -128,9 +130,9 @@ export const dismissSchema = buildFlagsSchema(flagSchema).extend({
 const evidenceSchema = z
   .object({
     kind: z.union([
-      z.literal(DispositionEvidenceKind.LINKED_COMMENT),
-      z.literal(DispositionEvidenceKind.CHUNK_REVIEWED),
-      z.literal(DispositionEvidenceKind.MANUAL_NOTE),
+      z.literal(DispositionEvidenceKinds.LINKED_COMMENT),
+      z.literal(DispositionEvidenceKinds.CHUNK_REVIEWED),
+      z.literal(DispositionEvidenceKinds.MANUAL_NOTE),
     ]),
     ref: z.string().max(MAX_BODY_LENGTH).nullish(),
   })
@@ -143,7 +145,7 @@ const evidenceSchema = z
   // A note is the reviewer's own words; every other kind's ref is an id.
   .refine(
     (evidence) =>
-      evidence.kind === DispositionEvidenceKind.MANUAL_NOTE ||
+      evidence.kind === DispositionEvidenceKinds.MANUAL_NOTE ||
       (evidence.ref ?? "").length <= MAX_ID_LENGTH,
     { message: "a pointer ref is an id" },
   )
@@ -164,8 +166,8 @@ export const reopenSchema = buildFlagsSchema(flagSchema);
 
 export const outcomeSchema = z.object({
   outcome: z.union([
-    z.literal(ReviewOutcome.COMMENT),
-    z.literal(ReviewOutcome.APPROVE),
-    z.literal(ReviewOutcome.REQUEST_CHANGES),
+    z.literal(ReviewOutcomes.COMMENT),
+    z.literal(ReviewOutcomes.APPROVE),
+    z.literal(ReviewOutcomes.REQUEST_CHANGES),
   ]),
 });

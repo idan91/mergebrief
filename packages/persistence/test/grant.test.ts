@@ -15,7 +15,7 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createGrantAuth,
-  GrantAuthErrorCode,
+  GrantAuthErrorCodes,
   type GrantRefreshPatch,
   type GrantRefreshRejection,
 } from "../src/auth/grant";
@@ -125,7 +125,7 @@ describe("createGrantAuth.createGrant / refreshGrant", () => {
     const result = await auth.refreshGrant(grant.id, "v1.enc-access", refresh);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GrantAuthErrorCode.REFRESH_REJECTED);
+    expect(result.error.code).toBe(GrantAuthErrorCodes.REFRESH_REJECTED);
 
     const rows = await internal(handle)
       .select()
@@ -145,7 +145,7 @@ describe("createGrantAuth.createGrant / refreshGrant", () => {
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GrantAuthErrorCode.NOT_FOUND);
+    expect(result.error.code).toBe(GrantAuthErrorCodes.NOT_FOUND);
   });
 });
 

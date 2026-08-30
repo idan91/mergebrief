@@ -3,17 +3,20 @@
 // pattern as mark-ready.test.ts).
 import { randomBytes } from "node:crypto";
 import {
-  AnchorStatus,
+  AnchorStatuses,
   createArtifactStore,
-  DraftCommentSide,
-  DraftCommentStatus,
+  DraftCommentSides,
+  DraftCommentStatuses,
   encryptToken,
   createTenantRepository,
   createGrantAuth,
-  PrState,
+  PrStates,
   type AppDatabase,
   type BriefRowId,
   type KeyProvider,
+  type AnchorStatus,
+  type DraftCommentSide,
+  type DraftCommentStatus,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -187,7 +190,7 @@ async function seedPr(handle: AppDatabase): Promise<void> {
     prNumber: PR_NUMBER,
     repoSlug: REPO_SLUG,
     draft: true,
-    state: PrState.OPEN,
+    state: PrStates.OPEN,
   });
 }
 
@@ -198,7 +201,7 @@ async function seedPr(handle: AppDatabase): Promise<void> {
 async function seedDraft(
   handle: AppDatabase,
   body = "post now",
-  status: DraftCommentStatus = DraftCommentStatus.DRAFT,
+  status: DraftCommentStatus = DraftCommentStatuses.DRAFT,
   anchorStatus: AnchorStatus | null = null,
   startSide: DraftCommentSide | null = null,
 ): Promise<{ briefId: BriefRowId; draftId: bigint }> {
@@ -229,7 +232,7 @@ async function seedDraft(
     (writer) =>
       writer.addDraftComment({
         filePath: "src/index.ts",
-        side: DraftCommentSide.NEW,
+        side: DraftCommentSides.NEW,
         startSide,
         startLine: 10,
         endLine: 12,
@@ -452,9 +455,9 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     const { draftId } = await seedDraft(
       harness.handle,
       "spans both sides",
-      DraftCommentStatus.DRAFT,
+      DraftCommentStatuses.DRAFT,
       null,
-      DraftCommentSide.OLD,
+      DraftCommentSides.OLD,
     );
 
     const res = await post(app, cookie, named(draftId));
@@ -665,7 +668,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       const { draftId } = await seedDraft(
         harness.handle,
         "already there",
-        DraftCommentStatus.SUBMITTED,
+        DraftCommentStatuses.SUBMITTED,
       );
 
       const res = await post(app, cookie, named(draftId));
@@ -681,8 +684,8 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       const { draftId } = await seedDraft(
         harness.handle,
         "stale anchor",
-        DraftCommentStatus.DRAFT,
-        AnchorStatus.ORPHANED,
+        DraftCommentStatuses.DRAFT,
+        AnchorStatuses.ORPHANED,
       );
 
       const res = await post(app, cookie, named(draftId));
@@ -696,7 +699,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       const rows = await harness.raw(
         "select status from review_draft_comment order by id",
       );
-      expect(rows[0]?.["status"]).toBe(DraftCommentStatus.DRAFT);
+      expect(rows[0]?.["status"]).toBe(DraftCommentStatuses.DRAFT);
     });
 
     it("a moved anchor is not orphaned — it posts at its carried coordinates", async () => {
@@ -709,8 +712,8 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       const { draftId } = await seedDraft(
         harness.handle,
         "moved note",
-        DraftCommentStatus.DRAFT,
-        AnchorStatus.MOVED,
+        DraftCommentStatuses.DRAFT,
+        AnchorStatuses.MOVED,
       );
 
       expect((await post(app, cookie, named(draftId))).status).toBe(201);
@@ -744,7 +747,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       const rows = await harness.raw(
         "select status from review_draft_comment order by id",
       );
-      expect(rows[0]?.["status"]).toBe(DraftCommentStatus.SUBMITTED);
+      expect(rows[0]?.["status"]).toBe(DraftCommentStatuses.SUBMITTED);
     });
 
     it("logs a plain error, not audit.fail, when the flip fails after the post", async () => {

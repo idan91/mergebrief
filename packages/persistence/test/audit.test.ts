@@ -11,10 +11,10 @@ import {
 import { internal } from "../src/db/handle";
 import { auditLog } from "../src/schema/audit-log";
 import {
-  AuditChannel,
-  WriteClassification,
-  AuditOutcome,
-  AuditActorType,
+  AuditChannels,
+  WriteClassifications,
+  AuditOutcomes,
+  AuditActorTypes,
   isInstallationId,
   type InstallationId,
 } from "../src/types";
@@ -27,9 +27,9 @@ describe("writeAudit — append-only emit", () => {
     const handle = await freshDatabase();
     const entry: AuditEntry = {
       installationId: TENANT,
-      actorType: AuditActorType.APP,
+      actorType: AuditActorTypes.APP,
       operation: "generate",
-      outcome: AuditOutcome.OK,
+      outcome: AuditOutcomes.OK,
       targetType: "brief",
       targetId: 424242n, // no such brief row — audit has NO outbound FK
       metadata: { kind: "brief" },
@@ -46,10 +46,10 @@ describe("writeAudit — append-only emit", () => {
     const handle = await freshDatabase();
     const row = await writeAudit(handle, {
       installationId: TENANT,
-      actorType: AuditActorType.REVIEWER,
+      actorType: AuditActorTypes.REVIEWER,
       actorId: 31337n,
       operation: "auth",
-      outcome: AuditOutcome.OK,
+      outcome: AuditOutcomes.OK,
       metadata: { decision: "403" },
     });
     expect(row.operation).toBe("auth");
@@ -61,10 +61,10 @@ describe("writeAudit — append-only emit", () => {
     const handle = await freshDatabase();
     const row = await writeAudit(handle, {
       installationId: TENANT,
-      actorType: AuditActorType.REVIEWER,
+      actorType: AuditActorTypes.REVIEWER,
       actorId: 31337n,
       operation: "submit",
-      outcome: AuditOutcome.OK,
+      outcome: AuditOutcomes.OK,
       targetType: "pull_request",
       targetId: 7n,
     });
@@ -76,20 +76,20 @@ describe("writeAudit — append-only emit", () => {
     const handle = await freshDatabase();
     const resolved = await writeAudit(handle, {
       installationId: TENANT,
-      actorType: AuditActorType.REVIEWER,
+      actorType: AuditActorTypes.REVIEWER,
       actorId: 31337n,
       operation: "resolve-thread",
-      outcome: AuditOutcome.OK,
+      outcome: AuditOutcomes.OK,
       targetType: "review_comment",
       targetId: 12345n,
     });
     expect(resolved.operation).toBe("resolve-thread");
     const unresolved = await writeAudit(handle, {
       installationId: TENANT,
-      actorType: AuditActorType.REVIEWER,
+      actorType: AuditActorTypes.REVIEWER,
       actorId: 31337n,
       operation: "unresolve-thread",
-      outcome: AuditOutcome.OK,
+      outcome: AuditOutcomes.OK,
       targetType: "review_comment",
       targetId: 12345n,
     });
@@ -176,9 +176,9 @@ describe("writeAudit — append-only emit", () => {
     const handle = await freshDatabase();
     const entry: AuditEntry = {
       installationId: TENANT,
-      actorType: AuditActorType.SYSTEM,
+      actorType: AuditActorTypes.SYSTEM,
       operation: "delete",
-      outcome: AuditOutcome.OK,
+      outcome: AuditOutcomes.OK,
       targetType: "repos/acme/widgets",
       targetId: 1n,
     };
@@ -201,9 +201,9 @@ async function seedAged(
 ): Promise<void> {
   await internal(handle).insert(auditLog).values({
     installationId,
-    actorType: AuditActorType.SYSTEM,
+    actorType: AuditActorTypes.SYSTEM,
     operation: "generate",
-    outcome: AuditOutcome.OK,
+    outcome: AuditOutcomes.OK,
     occurredAt,
   });
 }
@@ -213,9 +213,9 @@ describe("writeAudit — the forensic call-shape fields", () => {
     const handle = await freshDatabase();
     const base: AuditEntry = {
       installationId: TENANT,
-      actorType: AuditActorType.REVIEWER,
+      actorType: AuditActorTypes.REVIEWER,
       operation: "mark-ready",
-      outcome: AuditOutcome.OK,
+      outcome: AuditOutcomes.OK,
     };
     await expect(
       writeAudit(handle, { ...base, requestId: "req 1/2" }),
@@ -246,8 +246,8 @@ describe("writeAudit — the forensic call-shape fields", () => {
       requestId: "01JABCDEF",
       client: "mergebrief/0.1.0",
       callerIp: "203.0.113.7",
-      channel: AuditChannel.BEARER,
-      classification: WriteClassification.EXTERNAL_WRITE,
+      channel: AuditChannels.BEARER,
+      classification: WriteClassifications.EXTERNAL_WRITE,
       credentialId: 42n,
     });
     expect(row.client).toBe("mergebrief/0.1.0");

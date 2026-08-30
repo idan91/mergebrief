@@ -13,8 +13,13 @@ import {
   timestamp,
   unique,
 } from "drizzle-orm/pg-core";
-import type { BriefRowId, ReviewSessionId, ReviewerId } from "../types";
-import { ReviewOutcome } from "../types";
+import type {
+  BriefRowId,
+  ReviewOutcome,
+  ReviewSessionId,
+  ReviewerId,
+} from "../types";
+import { ReviewOutcomes } from "../types";
 import { brief } from "./brief";
 import { tenantColumns } from "./columns";
 
@@ -33,7 +38,7 @@ export const reviewSession = pgTable(
     reviewOutcome: text("review_outcome")
       .$type<ReviewOutcome>()
       .notNull()
-      .default(ReviewOutcome.COMMENT),
+      .default(ReviewOutcomes.COMMENT),
     /**
      * How much of the previous session's work this one materialized with.
      * Stamped ONCE, inside the materialization transaction, because it is the

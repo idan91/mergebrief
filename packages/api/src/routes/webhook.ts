@@ -34,7 +34,7 @@ import {
   type ParsedWebhookEvent,
 } from "github";
 import {
-  PrState,
+  PrStates,
   createTenantRepository,
   createIngestRoutines,
   parseTenantContext,
@@ -110,7 +110,7 @@ async function handlePullRequest(
       ...(event.authorLogin === undefined
         ? {}
         : { authorLogin: event.authorLogin }),
-      state: event.merged === true ? PrState.MERGED : PrState.CLOSED,
+      state: event.merged === true ? PrStates.MERGED : PrStates.CLOSED,
       closedAt: new Date(),
       purgeAfter: null,
     });
@@ -132,7 +132,7 @@ async function handlePullRequest(
       ...(event.authorLogin === undefined
         ? {}
         : { authorLogin: event.authorLogin }),
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     return;
   }
@@ -155,7 +155,7 @@ async function handlePullRequest(
           ...(event.authorLogin === undefined
             ? {}
             : { authorLogin: event.authorLogin }),
-          state: PrState.OPEN,
+          state: PrStates.OPEN,
         },
         { reopen: event.action === PullRequestAction.REOPENED },
       );
@@ -270,7 +270,7 @@ async function triggerGeneration(
     prNumber: event.prNumber,
     repoSlug: event.repoFullName,
     title: event.title,
-    state: PrState.OPEN,
+    state: PrStates.OPEN,
   };
   // Review events carry no base SHA; omission preserves the stored one.
   if ("baseSha" in event) {

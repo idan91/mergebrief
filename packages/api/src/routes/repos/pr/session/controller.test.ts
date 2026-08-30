@@ -6,7 +6,7 @@ import {
   isRepoId,
   isReviewerId,
   parseTenantContext,
-  PrState,
+  PrStates,
   type RepoId,
   type TenantContext,
 } from "persistence";
@@ -73,7 +73,7 @@ beforeAll(async () => {
     prNumber: PR_NUMBER,
     repoSlug: "acme/app",
     title: "Add thing",
-    state: PrState.OPEN,
+    state: PrStates.OPEN,
   });
   const written = await createArtifactStore(harness.handle, ctx).briefs.write({
     pullRequestId: pr.id,

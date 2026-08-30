@@ -30,13 +30,13 @@ export type AuditLogRow = typeof auditLog.$inferSelect;
  * Conventional metadata key names. Naming only — keys are open; the value
  * rules below are what protects the ledger.
  */
-export const AuditMetadataKey = {
+export const AuditMetadataKeys = {
   DECISION: "decision",
   KIND: "kind",
   COUNT: "count",
   REASON: "reason",
 } as const;
-export type AuditMetadataKey = ValueOf<typeof AuditMetadataKey>;
+export type AuditMetadataKey = ValueOf<typeof AuditMetadataKeys>;
 
 /** Any snake_case token. */
 const metadataKeySchema = z

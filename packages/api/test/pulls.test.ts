@@ -11,14 +11,14 @@ import {
   encryptToken,
   createTenantRepository,
   createGenerationProjection,
-  GenerationFailureCode,
-  GenerationKind,
-  GenerationStatus,
+  GenerationFailureCodes,
+  GenerationKinds,
+  GenerationStatuses,
   createGrantAuth,
   isInstallationId,
   isRepoId,
   isReviewerId,
-  PrState,
+  PrStates,
   type AppDatabase,
   type KeyProvider,
   type TenantContext,
@@ -173,7 +173,7 @@ async function seedPr(handle: AppDatabase, input: SeedPrInput) {
     ...(input.authorLogin === undefined
       ? {}
       : { authorLogin: input.authorLogin }),
-    state: PrState.OPEN,
+    state: PrStates.OPEN,
   });
 }
 
@@ -422,7 +422,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     // span has no brief yet: briefAvailable=false, headSha=head-2, base=null.
     await gen.upsertQueued({
       pullRequestId: pr.id,
-      kind: GenerationKind.BRIEF,
+      kind: GenerationKinds.BRIEF,
       headSha: "head-1",
       baselineSha: null,
     });
@@ -439,14 +439,14 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     });
     await gen.markSucceeded({
       pullRequestId: pr.id,
-      kind: GenerationKind.BRIEF,
+      kind: GenerationKinds.BRIEF,
       headSha: "head-1",
       baselineSha: null,
     });
     await new Promise((r) => setTimeout(r, 5));
     await gen.upsertQueued({
       pullRequestId: pr.id,
-      kind: GenerationKind.BRIEF,
+      kind: GenerationKinds.BRIEF,
       headSha: "head-2",
       baselineSha: null,
     });
@@ -460,7 +460,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
       baseSha: null,
       briefAvailable: false,
       generation: {
-        status: GenerationStatus.QUEUED,
+        status: GenerationStatuses.QUEUED,
         phase: null,
         attempts: 0,
         errorCode: null,
@@ -472,12 +472,12 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     const failedRow = await gen.markFailed(
       {
         pullRequestId: pr.id,
-        kind: GenerationKind.BRIEF,
+        kind: GenerationKinds.BRIEF,
         headSha: "head-2",
         baselineSha: null,
       },
       {
-        code: GenerationFailureCode.GENERATION_CONFIG,
+        code: GenerationFailureCodes.GENERATION_CONFIG,
         params: { detail: "missing ANTHROPIC_API_KEY" },
       },
     );
@@ -488,7 +488,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     };
     expect(failedBody.pulls[0]).toMatchObject({
       generation: {
-        status: GenerationStatus.FAILED,
+        status: GenerationStatuses.FAILED,
         errorCode: "generation-config",
         errorParams: { detail: "missing ANTHROPIC_API_KEY" },
       },
@@ -655,7 +655,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     const gen = createGenerationProjection(harness.handle, CTX);
     await gen.upsertQueued({
       pullRequestId: pr.id,
-      kind: GenerationKind.BRIEF,
+      kind: GenerationKinds.BRIEF,
       headSha: "head-1",
       baselineSha: null,
     });
@@ -674,7 +674,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
       // Persisted at ingest — the span is known before any brief.
       baseSha: "base-1",
       briefAvailable: false,
-      generation: { status: GenerationStatus.QUEUED, attempts: 0 },
+      generation: { status: GenerationStatuses.QUEUED, attempts: 0 },
     });
 
     await createArtifactStore(harness.handle, CTX).briefs.write({
@@ -690,7 +690,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     });
     await gen.markSucceeded({
       pullRequestId: pr.id,
-      kind: GenerationKind.BRIEF,
+      kind: GenerationKinds.BRIEF,
       headSha: "head-1",
       baselineSha: null,
     });
@@ -701,7 +701,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
       headSha: "head-1",
       baseSha: "base-1",
       briefAvailable: true,
-      generation: { status: GenerationStatus.SUCCEEDED, phase: null },
+      generation: { status: GenerationStatuses.SUCCEEDED, phase: null },
     });
   });
 
@@ -1074,7 +1074,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     const gen = createGenerationProjection(harness.handle, CTX);
     const queued = await gen.upsertQueued({
       pullRequestId: pr.id,
-      kind: GenerationKind.DELTA,
+      kind: GenerationKinds.DELTA,
       headSha: "head-2",
       baselineSha: "gone-sha",
     });
@@ -1085,12 +1085,12 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     const failed = await gen.markFailed(
       {
         pullRequestId: pr.id,
-        kind: GenerationKind.DELTA,
+        kind: GenerationKinds.DELTA,
         headSha: "head-2",
         baselineSha: "gone-sha",
       },
       {
-        code: GenerationFailureCode.UNKNOWN,
+        code: GenerationFailureCodes.UNKNOWN,
         params: { detail: "span diff unavailable" },
       },
     );
@@ -1113,7 +1113,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     const gen = createGenerationProjection(harness.handle, CTX);
     const queued = await gen.upsertQueued({
       pullRequestId: pr.id,
-      kind: GenerationKind.BRIEF,
+      kind: GenerationKinds.BRIEF,
       headSha: "head-2",
       baselineSha: null,
     });
@@ -1123,7 +1123,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     // Brief job finished, still no marks → nothing is coming for this span.
     const done = await gen.markSucceeded({
       pullRequestId: pr.id,
-      kind: GenerationKind.BRIEF,
+      kind: GenerationKinds.BRIEF,
       headSha: "head-2",
       baselineSha: null,
     });
@@ -1201,7 +1201,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     const gen = createGenerationProjection(harness.handle, CTX);
     await gen.upsertQueued({
       pullRequestId: pr.id,
-      kind: GenerationKind.BRIEF,
+      kind: GenerationKinds.BRIEF,
       headSha: "head-1",
       baselineSha: null,
     });
@@ -1215,7 +1215,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     await writeBrief(pr.id, "base-c", "head-3", 3);
     await gen.upsertQueued({
       pullRequestId: pr.id,
-      kind: GenerationKind.BRIEF,
+      kind: GenerationKinds.BRIEF,
       headSha: "head-3",
       baselineSha: null,
     });
@@ -1495,7 +1495,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     const gen = createGenerationProjection(harness.handle, CTX);
     const queued = await gen.upsertQueued({
       pullRequestId: pr.id,
-      kind: GenerationKind.BRIEF,
+      kind: GenerationKinds.BRIEF,
       headSha: "head-2",
       baselineSha: null,
     });
@@ -1517,7 +1517,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     // Warming over, still no marks → all head-2 entries agree on unavailable.
     const done = await gen.markSucceeded({
       pullRequestId: pr.id,
-      kind: GenerationKind.BRIEF,
+      kind: GenerationKinds.BRIEF,
       headSha: "head-2",
       baselineSha: null,
     });

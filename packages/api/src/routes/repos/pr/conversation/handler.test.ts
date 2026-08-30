@@ -8,8 +8,8 @@ import {
   isInstallationId,
   isRepoId,
   parseTenantContext,
-  PrState,
-  WriteClassification,
+  PrStates,
+  WriteClassifications,
   isGrantRowId,
   isReviewerId,
   type RepoId,
@@ -69,7 +69,7 @@ beforeAll(async () => {
     prNumber: PR_NUMBER,
     repoSlug: "acme/app",
     title: "Add thing",
-    state: PrState.OPEN,
+    state: PrStates.OPEN,
   });
 });
 afterAll(async () => {
@@ -90,7 +90,7 @@ function buildApp(
     createdAt: new Date(),
     ghTokenCiphertext: "unused",
     keyRef: "unused",
-    scope: WriteClassification.EXTERNAL_WRITE,
+    scope: WriteClassifications.EXTERNAL_WRITE,
     channel: AuthChannel.COOKIE,
   };
   const github: InstallationGitHubPort = {
@@ -236,7 +236,7 @@ describe("readConversation — owner world (viewer token)", () => {
       repoId: ownerRepoId,
       prNumber: PR_NUMBER,
       repoSlug: "acme/own",
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     void pr;
 
@@ -261,7 +261,7 @@ describe("readConversation — owner world (viewer token)", () => {
       createdAt: new Date(),
       ghTokenCiphertext: ciphertext,
       keyRef,
-      scope: WriteClassification.EXTERNAL_WRITE,
+      scope: WriteClassifications.EXTERNAL_WRITE,
       channel: AuthChannel.COOKIE,
     };
 

@@ -5,7 +5,7 @@ import {
   isInstallationId,
   isRepoId,
   parseTenantContext,
-  PrState,
+  PrStates,
   type RepoId,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
@@ -43,7 +43,7 @@ describe("pullsController.listPulls", () => {
       repoSlug: "acme/app",
       title: "Add thing",
       authorLogin: "octocat",
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     const deps: PullsControllerDeps = {
       tenant,

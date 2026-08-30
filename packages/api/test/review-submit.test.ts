@@ -4,16 +4,17 @@
 // is its only writer.
 import { randomBytes } from "node:crypto";
 import {
-  AnchorStatus,
+  AnchorStatuses,
   createArtifactStore,
-  DraftCommentSide,
+  DraftCommentSides,
   encryptToken,
   createTenantRepository,
   createGrantAuth,
-  PrState,
+  PrStates,
   type AppDatabase,
   type BriefRowId,
   type KeyProvider,
+  type AnchorStatus,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -204,7 +205,7 @@ async function seedPullRequest(handle: AppDatabase): Promise<void> {
     repoId: brandRepoId(BigInt(REPO_ID)),
     prNumber: PR_NUMBER,
     repoSlug: REPO_SLUG,
-    state: PrState.OPEN,
+    state: PrStates.OPEN,
   });
 }
 
@@ -238,13 +239,13 @@ async function seedSessionDrafts(
   const anchors = [
     {
       filePath: "src/a.ts",
-      side: DraftCommentSide.NEW,
+      side: DraftCommentSides.NEW,
       startLine: 12,
       endLine: 12,
     },
     {
       filePath: "src/b.ts",
-      side: DraftCommentSide.OLD,
+      side: DraftCommentSides.OLD,
       startLine: 25,
       endLine: 30,
     },
@@ -331,7 +332,7 @@ async function seedCarriedDraft(
     async (writer) =>
       await writer.addDraftComment({
         filePath: "src/c.ts",
-        side: DraftCommentSide.NEW,
+        side: DraftCommentSides.NEW,
         startLine: 40,
         endLine: 40,
         body,
@@ -360,8 +361,8 @@ async function seedTwoSideDraft(
     async (writer) =>
       await writer.addDraftComment({
         filePath: "src/c.ts",
-        side: DraftCommentSide.NEW,
-        startSide: DraftCommentSide.OLD,
+        side: DraftCommentSides.NEW,
+        startSide: DraftCommentSides.OLD,
         startLine: 10,
         endLine: 12,
         body,
@@ -525,7 +526,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     await seedPullRequest(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
     const briefId = await seedSessionDrafts(harness.handle);
-    await seedCarriedDraft(harness.handle, briefId, AnchorStatus.ORPHANED);
+    await seedCarriedDraft(harness.handle, briefId, AnchorStatuses.ORPHANED);
 
     const res = await submit(app, cookie, validBody());
     expect(res.status).toBe(409);
@@ -550,7 +551,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     await seedCarriedDraft(
       harness.handle,
       briefId,
-      AnchorStatus.MOVED,
+      AnchorStatuses.MOVED,
       "moved note",
     );
 
@@ -578,7 +579,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     const draftId = await seedCarriedDraft(
       harness.handle,
       briefId,
-      AnchorStatus.ORPHANED,
+      AnchorStatuses.ORPHANED,
     );
     expect((await submit(app, cookie, validBody())).status).toBe(409);
 
@@ -606,7 +607,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     const draftId = await seedCarriedDraft(
       harness.handle,
       briefId,
-      AnchorStatus.ORPHANED,
+      AnchorStatuses.ORPHANED,
     );
     expect((await submit(app, cookie, validBody())).status).toBe(409);
 

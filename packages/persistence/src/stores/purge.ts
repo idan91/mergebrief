@@ -53,11 +53,11 @@ import type { PullRequestRow } from "./tenant";
 import { resolveScope } from "./scope";
 import type { ScopeContext } from "./scope-context";
 import {
-  AuditActorType,
-  AuditOutcome,
+  AuditActorTypes,
+  AuditOutcomes,
+  PrStates,
   PullRequestSources,
   type InstallationId,
-  type PrState,
   type PullRequestRowId,
   type RepoId,
   type Result,
@@ -80,13 +80,13 @@ const AUDIT_TARGET_AUDIT_LOG = "audit_log";
 // Errors — expected failures. Programmer errors still `throw`.
 // ---------------------------------------------------------------------------
 
-export const PurgeErrorCode = {
+export const PurgeErrorCodes = {
   /** A tenant-scoped purge/retention op named a `pull_request` not in ctx. */
   NOT_FOUND: "not-found",
   /** `graceDays` was negative, fractional-invalid (NaN/Infinity), or absurd. */
   INVALID_GRACE: "invalid-grace",
 } as const;
-export type PurgeErrorCode = ValueOf<typeof PurgeErrorCode>;
+export type PurgeErrorCode = ValueOf<typeof PurgeErrorCodes>;
 
 export interface PurgeError {
   readonly code: PurgeErrorCode;
@@ -161,7 +161,7 @@ export interface PurgeRoutines {
    */
   setRetention(
     prRowId: PullRequestRowId,
-    state: typeof PrState.CLOSED | typeof PrState.MERGED,
+    state: typeof PrStates.CLOSED | typeof PrStates.MERGED,
     closedAt: Date,
     graceDays: number | null,
   ): Promise<Result<PullRequestRow, PurgeError>>;
@@ -217,7 +217,7 @@ export function createPurgeRoutines(
           .limit(1);
         if (parents[0] === undefined) {
           return fail(
-            PurgeErrorCode.NOT_FOUND,
+            PurgeErrorCodes.NOT_FOUND,
             `pull_request ${prRowId} not found in ${scope.label}`,
           );
         }
@@ -226,9 +226,9 @@ export function createPurgeRoutines(
         await insertAudit(tx, {
           installationId: scope.installationId,
           source: scope.source,
-          actorType: AuditActorType.APP,
+          actorType: AuditActorTypes.APP,
           operation: AUDIT_OPERATION_DELETE,
-          outcome: AuditOutcome.OK,
+          outcome: AuditOutcomes.OK,
           targetType: AUDIT_TARGET_PULL_REQUEST,
           targetId: prRowId,
         });
@@ -252,9 +252,9 @@ export function createPurgeRoutines(
         await insertAudit(tx, {
           installationId: scope.installationId,
           source: scope.source,
-          actorType: AuditActorType.APP,
+          actorType: AuditActorTypes.APP,
           operation: AUDIT_OPERATION_DELETE,
-          outcome: AuditOutcome.OK,
+          outcome: AuditOutcomes.OK,
           targetType: AUDIT_TARGET_REPO,
           targetId: repoId,
           metadata: { count },
@@ -295,9 +295,9 @@ export function createPurgeRoutines(
           await insertAudit(tx, {
             installationId: scope.installationId,
             source: scope.source,
-            actorType: AuditActorType.APP,
+            actorType: AuditActorTypes.APP,
             operation: AUDIT_OPERATION_DELETE,
-            outcome: AuditOutcome.OK,
+            outcome: AuditOutcomes.OK,
             targetType: AUDIT_TARGET_REPO,
             targetId: repoId,
             metadata: { count },
@@ -330,9 +330,9 @@ export function createPurgeRoutines(
         await insertAudit(tx, {
           installationId: scope.installationId,
           source: scope.source,
-          actorType: AuditActorType.APP,
+          actorType: AuditActorTypes.APP,
           operation: AUDIT_OPERATION_DELETE,
-          outcome: AuditOutcome.OK,
+          outcome: AuditOutcomes.OK,
           targetType: AUDIT_TARGET_INSTALLATION,
           targetId: installationId,
           metadata: { count: purgedPrs.length },
@@ -346,6 +346,9 @@ export function createPurgeRoutines(
     },
 
     async setRetention(prRowId, state, closedAt, graceDays) {
+      if (state !== PrStates.CLOSED && state !== PrStates.MERGED) {
+        throw new Error("setRetention requires a terminal PR state");
+      }
       // Guard the primitive itself: a negative/NaN grace would silently make
       // the row instantly sweepable — a data-loss footgun no upstream
       // validation should be trusted to catch.
@@ -354,7 +357,7 @@ export function createPurgeRoutines(
         (!Number.isFinite(graceDays) || graceDays < 0)
       ) {
         return fail(
-          PurgeErrorCode.INVALID_GRACE,
+          PurgeErrorCodes.INVALID_GRACE,
           `graceDays must be a non-negative finite number, got ${graceDays}`,
         );
       }
@@ -370,7 +373,7 @@ export function createPurgeRoutines(
       const row = rows[0];
       if (row === undefined) {
         return fail(
-          PurgeErrorCode.NOT_FOUND,
+          PurgeErrorCodes.NOT_FOUND,
           `pull_request ${prRowId} not found in ${scope.label}`,
         );
       }
@@ -396,9 +399,9 @@ export function createPurgeRoutines(
           await insertAudit(tx, {
             installationId: scope.installationId,
             source: scope.source,
-            actorType: AuditActorType.SYSTEM,
+            actorType: AuditActorTypes.SYSTEM,
             operation: AUDIT_OPERATION_DELETE,
-            outcome: AuditOutcome.OK,
+            outcome: AuditOutcomes.OK,
             targetType: AUDIT_TARGET_PULL_REQUEST,
             metadata: { count },
           });
@@ -498,9 +501,9 @@ export async function sweepAuditLog(
           installationId === null
             ? PullRequestSources.URL_BOX
             : PullRequestSources.APP_INSTALLATION,
-        actorType: AuditActorType.SYSTEM,
+        actorType: AuditActorTypes.SYSTEM,
         operation: AUDIT_OPERATION_DELETE,
-        outcome: AuditOutcome.OK,
+        outcome: AuditOutcomes.OK,
         targetType: AUDIT_TARGET_AUDIT_LOG,
         metadata: { count },
       });

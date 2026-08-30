@@ -11,7 +11,7 @@ import {
   isInstallationId,
   isRepoId,
   isReviewerId,
-  PrState,
+  PrStates,
   createUserSettingsStore,
   type AppDatabase,
   type KeyProvider,
@@ -335,7 +335,7 @@ describe("GET + POST /api/auth/installations", () => {
       repoId: brand(isRepoId, REPO_A),
       prNumber: 1,
       title: "tenant-a-pr",
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     const otherCtx: TenantContext = {
       installationId: brand(isInstallationId, OTHER_INSTALLATION_ID),
@@ -344,7 +344,7 @@ describe("GET + POST /api/auth/installations", () => {
       repoId: brand(isRepoId, REPO_B),
       prNumber: 2,
       title: "tenant-b-pr",
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
 
     // Warm the allowed-set cache under installation A.

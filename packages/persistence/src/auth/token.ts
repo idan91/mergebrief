@@ -20,8 +20,8 @@ import { type AppDatabase, internal } from "../db/handle";
 import { apiToken } from "../schema/api-token";
 import { githubGrant } from "../schema/github-grant";
 import {
-  AuditOutcome,
-  AuditActorType,
+  AuditOutcomes,
+  AuditActorTypes,
   type ApiTokenRowId,
   type GrantRowId,
   type InstallationId,
@@ -67,7 +67,7 @@ const metadataColumns = {
 // collapses ALL of these to a hint-free 401 on the Bearer path.
 // ---------------------------------------------------------------------------
 
-export const TokenAuthErrorCode = {
+export const TokenAuthErrorCodes = {
   /** No token row for the given hash, or an owner-scoped op missed. */
   NOT_FOUND: "not-found",
   /** The row exists but is past its mint-chosen `expires_at`. */
@@ -75,7 +75,7 @@ export const TokenAuthErrorCode = {
   /** The row exists but was revoked (`revoked_at` set). */
   REVOKED: "revoked",
 } as const;
-export type TokenAuthErrorCode = ValueOf<typeof TokenAuthErrorCode>;
+export type TokenAuthErrorCode = ValueOf<typeof TokenAuthErrorCodes>;
 
 export interface TokenAuthError {
   readonly code: TokenAuthErrorCode;
@@ -100,13 +100,13 @@ function livenessError(
 ): TokenAuthError | undefined {
   if (row.revokedAt !== null) {
     return {
-      code: TokenAuthErrorCode.REVOKED,
+      code: TokenAuthErrorCodes.REVOKED,
       message: "api_token is revoked",
     };
   }
   if (row.expiresAt !== null && row.expiresAt.getTime() <= now.getTime()) {
     return {
-      code: TokenAuthErrorCode.EXPIRED,
+      code: TokenAuthErrorCodes.EXPIRED,
       message: "api_token is expired",
     };
   }
@@ -212,10 +212,10 @@ export function createTokenAuth(handle: AppDatabase): TokenAuth {
         }
         await insertAudit(tx, {
           installationId: input.installationId,
-          actorType: AuditActorType.REVIEWER,
+          actorType: AuditActorTypes.REVIEWER,
           actorId: input.userId,
           operation: AUDIT_OPERATION_MINT,
-          outcome: AuditOutcome.OK,
+          outcome: AuditOutcomes.OK,
           targetType: "api_token",
           targetId: row.id,
           metadata: { decision: "200", kind: "mint" },
@@ -234,7 +234,7 @@ export function createTokenAuth(handle: AppDatabase): TokenAuth {
       const row = rows[0];
       if (row === undefined) {
         return fail(
-          TokenAuthErrorCode.NOT_FOUND,
+          TokenAuthErrorCodes.NOT_FOUND,
           "api_token not found for the given token hash",
         );
       }
@@ -282,7 +282,7 @@ export function createTokenAuth(handle: AppDatabase): TokenAuth {
         const row = existing[0];
         if (row === undefined) {
           return fail(
-            TokenAuthErrorCode.NOT_FOUND,
+            TokenAuthErrorCodes.NOT_FOUND,
             `api_token ${tokenId} not found for the given user`,
           );
         }

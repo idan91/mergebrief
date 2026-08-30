@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createArtifactStore,
-  ArtifactErrorCode,
+  ArtifactErrorCodes,
   createTenantRepository,
   type ArtifactStore,
   type TenantContext,
@@ -13,7 +13,7 @@ import {
 import {
   isInstallationId,
   isRepoId,
-  PrState,
+  PrStates,
   type InstallationId,
   type RepoId,
 } from "../src/types";
@@ -49,7 +49,7 @@ describe("createArtifactStore.briefs — idempotent content-addressed write", ()
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
 
     const first = await store.briefs.write({
@@ -89,7 +89,7 @@ describe("createArtifactStore.briefs — idempotent content-addressed write", ()
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 8,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
 
     const snapshot = JSON.stringify({
@@ -136,7 +136,7 @@ describe("createArtifactStore.briefs — anchor origin columns", () => {
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 9,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
 
     const first = await store.briefs.write({
@@ -182,7 +182,7 @@ describe("createArtifactStore.briefs — anchor origin columns", () => {
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 10,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
 
     const written = await store.briefs.write({
@@ -207,7 +207,7 @@ describe("createArtifactStore.briefs — anchor origin columns", () => {
     const pr = await repo.pullRequests.upsert({
       repoId: REPO,
       prNumber: 11,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     const base = {
       pullRequestId: pr.id,
@@ -239,7 +239,7 @@ describe("createArtifactStore.briefs — carried chunk ids", () => {
     const pr = await createTenantRepository(handle, CTX_A).pullRequests.upsert({
       repoId: REPO,
       prNumber: 11,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     const span = {
       pullRequestId: pr.id,
@@ -299,7 +299,7 @@ describe("createArtifactStore.deltas / diffSnapshots — same write discipline",
     const pr = await a.pullRequests.upsert({
       repoId: REPO,
       prNumber: 9,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
 
     const first = await aStore.deltas.write({
@@ -332,7 +332,7 @@ describe("createArtifactStore.deltas / diffSnapshots — same write discipline",
     });
     expect(foreign.ok).toBe(false);
     if (foreign.ok) throw new Error("expected rejection");
-    expect(foreign.error.code).toBe(ArtifactErrorCode.PARENT_NOT_IN_TENANT);
+    expect(foreign.error.code).toBe(ArtifactErrorCodes.PARENT_NOT_IN_TENANT);
   });
 
   it("diff_snapshot: idempotent per-sha rewrite, no origin, cross-tenant rejected", async () => {
@@ -343,7 +343,7 @@ describe("createArtifactStore.deltas / diffSnapshots — same write discipline",
     const pr = await a.pullRequests.upsert({
       repoId: REPO,
       prNumber: 11,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
 
     const first = await aStore.diffSnapshots.write({
@@ -369,7 +369,7 @@ describe("createArtifactStore.deltas / diffSnapshots — same write discipline",
     });
     expect(foreign.ok).toBe(false);
     if (foreign.ok) throw new Error("expected rejection");
-    expect(foreign.error.code).toBe(ArtifactErrorCode.PARENT_NOT_IN_TENANT);
+    expect(foreign.error.code).toBe(ArtifactErrorCodes.PARENT_NOT_IN_TENANT);
 
     const read = await aStore.diffSnapshots.get(pr.id, "chk");
     expect(read?.body).toBe("s2");
@@ -386,7 +386,7 @@ describe("createArtifactStore — cross-tenant write is rejected without a DB wr
     const bPr = await b.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
 
     const result = await aStore.briefs.write({
@@ -401,7 +401,7 @@ describe("createArtifactStore — cross-tenant write is rejected without a DB wr
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected rejection");
-    expect(result.error.code).toBe(ArtifactErrorCode.PARENT_NOT_IN_TENANT);
+    expect(result.error.code).toBe(ArtifactErrorCodes.PARENT_NOT_IN_TENANT);
 
     // No row under EITHER tenant.
     expect(await aStore.briefs.get(bPr.id, "base", "head")).toBeUndefined();
@@ -421,7 +421,7 @@ describe("createArtifactStore.revisionNarratives — brief anchoring", () => {
     const bPr = await b.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     const bBrief = await bStore.briefs.write({
       pullRequestId: bPr.id,
@@ -438,7 +438,7 @@ describe("createArtifactStore.revisionNarratives — brief anchoring", () => {
     const aPr = await a.pullRequests.upsert({
       repoId: REPO,
       prNumber: 9,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     const result = await aStore.revisionNarratives.write({
       pullRequestId: aPr.id,
@@ -451,7 +451,7 @@ describe("createArtifactStore.revisionNarratives — brief anchoring", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected rejection");
-    expect(result.error.code).toBe(ArtifactErrorCode.BRIEF_NOT_ANCHORED);
+    expect(result.error.code).toBe(ArtifactErrorCodes.BRIEF_NOT_ANCHORED);
     expect(
       await aStore.revisionNarratives.get(aPr.id, "prev", "head"),
     ).toBeUndefined();
@@ -464,7 +464,7 @@ describe("createArtifactStore.revisionNarratives — brief anchoring", () => {
     const pr = await a.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     const brief = await store.briefs.write({
       pullRequestId: pr.id,
@@ -499,7 +499,7 @@ describe("createArtifactStore.comparisonMarks — coordinates-only guard", () =>
     const pr = await a.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
 
     const result = await store.comparisonMarks.write({
@@ -513,7 +513,7 @@ describe("createArtifactStore.comparisonMarks — coordinates-only guard", () =>
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected rejection");
-    expect(result.error.code).toBe(ArtifactErrorCode.INVALID_BODY);
+    expect(result.error.code).toBe(ArtifactErrorCodes.INVALID_BODY);
     expect(
       await store.comparisonMarks.get(pr.id, "base", "head"),
     ).toBeUndefined();
@@ -526,7 +526,7 @@ describe("createArtifactStore.comparisonMarks — coordinates-only guard", () =>
     const pr = await a.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
 
     const result = await store.comparisonMarks.write({
@@ -546,7 +546,7 @@ describe("createArtifactStore.comparisonMarks — coordinates-only guard", () =>
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected rejection");
-    expect(result.error.code).toBe(ArtifactErrorCode.INVALID_BODY);
+    expect(result.error.code).toBe(ArtifactErrorCodes.INVALID_BODY);
   });
 
   it("rejects impossible line ranges (inverted, zero, negative)", async () => {
@@ -556,7 +556,7 @@ describe("createArtifactStore.comparisonMarks — coordinates-only guard", () =>
     const pr = await a.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
 
     const bodies = [
@@ -577,7 +577,7 @@ describe("createArtifactStore.comparisonMarks — coordinates-only guard", () =>
       });
       expect(result.ok).toBe(false);
       if (result.ok) throw new Error("expected rejection");
-      expect(result.error.code).toBe(ArtifactErrorCode.INVALID_BODY);
+      expect(result.error.code).toBe(ArtifactErrorCodes.INVALID_BODY);
     }
   });
 
@@ -588,7 +588,7 @@ describe("createArtifactStore.comparisonMarks — coordinates-only guard", () =>
     const pr = await a.pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
 
     const result = await store.comparisonMarks.write({
@@ -627,7 +627,7 @@ describe("createArtifactStore.hunkSpans — the carry-over hop", () => {
     const pr = await createTenantRepository(handle, CTX_A).pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
 
     const first = await store.hunkSpans.write({
@@ -671,7 +671,7 @@ describe("createArtifactStore.hunkSpans — the carry-over hop", () => {
     const pr = await createTenantRepository(handle, CTX_A).pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
 
     const result = await store.hunkSpans.write({
@@ -696,7 +696,7 @@ describe("createArtifactStore.hunkSpans — the carry-over hop", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected rejection");
-    expect(result.error.code).toBe(ArtifactErrorCode.INVALID_BODY);
+    expect(result.error.code).toBe(ArtifactErrorCodes.INVALID_BODY);
     expect(await store.hunkSpans.listForPullRequest(pr.id)).toHaveLength(0);
   });
 
@@ -705,7 +705,7 @@ describe("createArtifactStore.hunkSpans — the carry-over hop", () => {
     const pr = await createTenantRepository(handle, CTX_A).pullRequests.upsert({
       repoId: REPO,
       prNumber: 7,
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
 
     const result = await createArtifactStore(handle, CTX_B).hunkSpans.write({
@@ -717,7 +717,7 @@ describe("createArtifactStore.hunkSpans — the carry-over hop", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected rejection");
-    expect(result.error.code).toBe(ArtifactErrorCode.PARENT_NOT_IN_TENANT);
+    expect(result.error.code).toBe(ArtifactErrorCodes.PARENT_NOT_IN_TENANT);
     expect(
       await createArtifactStore(handle, CTX_A).hunkSpans.listForPullRequest(
         pr.id,

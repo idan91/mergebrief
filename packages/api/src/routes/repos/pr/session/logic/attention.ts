@@ -10,11 +10,15 @@
 // ONE derivation over both sides of materialization: a session's own rows and
 // the in-memory verdicts differ only in whether the subject has a row id yet.
 import {
-  AnchorStatus,
-  DispositionCarryStatus,
-  DispositionEvidenceStatus,
-  DraftCommentStatus,
+  AnchorStatuses,
+  DispositionCarryStatuses,
+  DispositionEvidenceStatuses,
+  DraftCommentStatuses,
   type DispositionDecision,
+  type AnchorStatus,
+  type DispositionCarryStatus,
+  type DispositionEvidenceStatus,
+  type DraftCommentStatus,
 } from "persistence";
 import type { ValueOf } from "types";
 import {
@@ -31,7 +35,7 @@ import {
 export const AttentionItemKinds = {
   ORPHANED_ANCHOR: "orphaned-anchor",
   REOPENED_DISPOSITION: "reopened-disposition",
-  MISSING_EVIDENCE: DispositionEvidenceStatus.MISSING_EVIDENCE,
+  MISSING_EVIDENCE: DispositionEvidenceStatuses.MISSING_EVIDENCE,
 } as const;
 export type AttentionItemKind = ValueOf<typeof AttentionItemKinds>;
 
@@ -130,15 +134,15 @@ function classifyDisposition(
 ): AttentionItemKind | undefined {
   // Reopened wins over missing evidence on the same row: a re-look re-decides
   // the flag outright, so a second item would ask for the same act twice.
-  if (row.carryStatus === DispositionCarryStatus.REOPENED) {
+  if (row.carryStatus === DispositionCarryStatuses.REOPENED) {
     return AttentionItemKinds.REOPENED_DISPOSITION;
   }
   // SETTLED alone: a decision that carried and still stands. A DROPPED row's
   // flag stopped firing, so `address-risk`/`dismiss-risk` have nothing to act
   // on and the item could never be cleared.
   if (
-    row.carryStatus === DispositionCarryStatus.SETTLED &&
-    row.evidenceStatus === DispositionEvidenceStatus.MISSING_EVIDENCE
+    row.carryStatus === DispositionCarryStatuses.SETTLED &&
+    row.evidenceStatus === DispositionEvidenceStatuses.MISSING_EVIDENCE
   ) {
     return AttentionItemKinds.MISSING_EVIDENCE;
   }
@@ -149,8 +153,8 @@ export function deriveAttentionItems(input: AttentionInput): AttentionItem[] {
   const items: AttentionItem[] = [];
   for (const comment of input.draftComments) {
     if (
-      comment.status !== DraftCommentStatus.DRAFT ||
-      comment.anchorStatus !== AnchorStatus.ORPHANED
+      comment.status !== DraftCommentStatuses.DRAFT ||
+      comment.anchorStatus !== AnchorStatuses.ORPHANED
     ) {
       continue;
     }

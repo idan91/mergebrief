@@ -1,4 +1,4 @@
-import { PrState } from "persistence";
+import { PrStates } from "persistence";
 import { describe, expect, it } from "vitest";
 import { buildStaticLifecycle } from "../src/cli/lifecycle";
 import { writeIngestReport } from "../src/cli/report";
@@ -35,12 +35,12 @@ describe("buildTargetContext", () => {
 
 describe("buildStaticLifecycle", () => {
   it("leaves an open PR with no closure stamps", () => {
-    expect(buildStaticLifecycle("open")).toEqual({ state: PrState.OPEN });
+    expect(buildStaticLifecycle("open")).toEqual({ state: PrStates.OPEN });
   });
 
   it("stamps a merged PR closed and never purgeable", () => {
     const lifecycle = buildStaticLifecycle("merged");
-    expect(lifecycle.state).toBe(PrState.MERGED);
+    expect(lifecycle.state).toBe(PrStates.MERGED);
     expect(lifecycle).toMatchObject({ purgeAfter: null });
   });
 });

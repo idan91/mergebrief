@@ -3,8 +3,13 @@
 // payload and what `remapRanges` consumes at carry-over. `anchor_status` is
 // NULL while the anchor still holds exactly.
 import { bigint, index, integer, pgTable, text } from "drizzle-orm/pg-core";
-import type { AnchorStatus, DraftCommentSide, ReviewSessionId } from "../types";
-import { DraftCommentStatus } from "../types";
+import type {
+  AnchorStatus,
+  DraftCommentSide,
+  DraftCommentStatus,
+  ReviewSessionId,
+} from "../types";
+import { DraftCommentStatuses } from "../types";
 import { stampColumns, tenantColumns } from "./columns";
 import { reviewSession } from "./review-session";
 
@@ -27,7 +32,7 @@ export const reviewDraftComment = pgTable(
     status: text("status")
       .$type<DraftCommentStatus>()
       .notNull()
-      .default(DraftCommentStatus.DRAFT),
+      .default(DraftCommentStatuses.DRAFT),
     /** Carry-over verdict on the coordinates; NULL = the anchor still holds. */
     anchorStatus: text("anchor_status").$type<AnchorStatus>(),
     /** The session this row was copied from at carry-over materialization. */

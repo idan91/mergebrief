@@ -10,7 +10,7 @@ import {
   createTenantRepository,
   isRepoId,
   parseTenantContext,
-  PrState,
+  PrStates,
   type RepoId,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
@@ -174,7 +174,7 @@ async function seedPullRequest(
     repoId: brandRepoId(repoId),
     prNumber,
     repoSlug: "acme/widgets",
-    state: PrState.OPEN,
+    state: PrStates.OPEN,
   });
 }
 

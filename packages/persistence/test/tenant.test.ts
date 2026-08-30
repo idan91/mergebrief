@@ -9,7 +9,7 @@ import {
   createTenantRepository,
   createGrantAuth,
   parseTenantContext,
-  RepositoryErrorCode,
+  RepositoryErrorCodes,
   safeParseTenantContext,
   type AppDatabase,
   type PullRequestLifecycle,
@@ -23,7 +23,7 @@ import {
   isInstallationId,
   isRepoId,
   isReviewerId,
-  PrState,
+  PrStates,
   type InstallationId,
   type RepoId,
   type ReviewerId,
@@ -42,7 +42,7 @@ const CTX_B: TenantContext = { installationId: TENANT_B };
 
 function upsertInput(
   prNumber: number,
-  lifecycle: PullRequestLifecycle = { state: PrState.OPEN },
+  lifecycle: PullRequestLifecycle = { state: PrStates.OPEN },
 ): PullRequestUpsertInput {
   return { repoId: REPO, prNumber, repoSlug: "acme/widgets", ...lifecycle };
 }
@@ -67,20 +67,20 @@ describe("createTenantRepository — tenant isolation on reads", () => {
     const a = createTenantRepository(handle, CTX_A);
     const b = createTenantRepository(handle, CTX_B);
 
-    await a.pullRequests.upsert(upsertInput(7, { state: PrState.OPEN }));
+    await a.pullRequests.upsert(upsertInput(7, { state: PrStates.OPEN }));
     await b.pullRequests.upsert(
       upsertInput(7, {
-        state: PrState.MERGED,
+        state: PrStates.MERGED,
         closedAt: new Date(),
         purgeAfter: null,
       }),
     );
 
     expect((await a.pullRequests.getByNumber(REPO, 7))?.state).toBe(
-      PrState.OPEN,
+      PrStates.OPEN,
     );
     expect((await b.pullRequests.getByNumber(REPO, 7))?.state).toBe(
-      PrState.MERGED,
+      PrStates.MERGED,
     );
   });
 
@@ -124,7 +124,7 @@ describe("createTenantRepository — cross-tenant child writes are rejected with
     if (result.ok) {
       throw new Error("expected a rejection");
     }
-    expect(result.error.code).toBe(RepositoryErrorCode.PARENT_NOT_IN_TENANT);
+    expect(result.error.code).toBe(RepositoryErrorCodes.PARENT_NOT_IN_TENANT);
 
     // No row was written under EITHER tenant.
     expect(await a.checkpoints.get(bPr.id, REVIEWER)).toBeUndefined();
@@ -138,7 +138,7 @@ describe("createTenantRepository — cross-tenant child writes are rejected with
 
     const bPr = await b.pullRequests.upsert(upsertInput(7));
     const result = await a.pullRequests.setState(bPr.id, {
-      state: PrState.CLOSED,
+      state: PrStates.CLOSED,
       closedAt: new Date(),
       purgeAfter: null,
     });
@@ -147,10 +147,10 @@ describe("createTenantRepository — cross-tenant child writes are rejected with
     if (result.ok) {
       throw new Error("expected a rejection");
     }
-    expect(result.error.code).toBe(RepositoryErrorCode.NOT_FOUND);
+    expect(result.error.code).toBe(RepositoryErrorCodes.NOT_FOUND);
     // B's PR is untouched.
     expect((await b.pullRequests.getByNumber(REPO, 7))?.state).toBe(
-      PrState.OPEN,
+      PrStates.OPEN,
     );
   });
 
@@ -166,7 +166,7 @@ describe("createTenantRepository — cross-tenant child writes are rejected with
     if (result.ok) {
       throw new Error("expected a rejection");
     }
-    expect(result.error.code).toBe(RepositoryErrorCode.NOT_FOUND);
+    expect(result.error.code).toBe(RepositoryErrorCodes.NOT_FOUND);
     // B's PR is untouched.
     expect(
       (await b.pullRequests.getByNumber(REPO, 7))?.entryCommentId,
@@ -227,7 +227,7 @@ describe("createTenantRepository — setDraft (mark-ready flip)", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected a rejection");
-    expect(result.error.code).toBe(RepositoryErrorCode.NOT_FOUND);
+    expect(result.error.code).toBe(RepositoryErrorCodes.NOT_FOUND);
     // B's draft PR is untouched.
     expect((await b.pullRequests.getByNumber(REPO, 7))?.draft).toBe(true);
   });
@@ -239,18 +239,18 @@ describe("createTenantRepository — idempotent upserts", () => {
     const a = createTenantRepository(handle, CTX_A);
 
     const first = await a.pullRequests.upsert(
-      upsertInput(7, { state: PrState.OPEN }),
+      upsertInput(7, { state: PrStates.OPEN }),
     );
     const second = await a.pullRequests.upsert(
       upsertInput(7, {
-        state: PrState.MERGED,
+        state: PrStates.MERGED,
         closedAt: new Date(),
         purgeAfter: null,
       }),
     );
 
     expect(second.id).toBe(first.id); // same row
-    expect(second.state).toBe(PrState.MERGED); // updated in place
+    expect(second.state).toBe(PrStates.MERGED); // updated in place
   });
 
   it("reopening a closed PR disarms retention", async () => {
@@ -259,7 +259,7 @@ describe("createTenantRepository — idempotent upserts", () => {
 
     const closed = await a.pullRequests.upsert(
       upsertInput(7, {
-        state: PrState.CLOSED,
+        state: PrStates.CLOSED,
         closedAt: new Date("2026-07-01T00:00:00Z"),
         purgeAfter: new Date("2026-07-08T00:00:00Z"),
       }),
@@ -268,18 +268,18 @@ describe("createTenantRepository — idempotent upserts", () => {
 
     // Reopen via BOTH mutation paths; each must clear the armed sweep fields.
     const viaUpsert = await a.pullRequests.upsert(
-      upsertInput(7, { state: PrState.OPEN }),
+      upsertInput(7, { state: PrStates.OPEN }),
     );
     expect(viaUpsert.closedAt).toBeNull();
     expect(viaUpsert.purgeAfter).toBeNull();
 
     await a.pullRequests.setState(closed.id, {
-      state: PrState.CLOSED,
+      state: PrStates.CLOSED,
       closedAt: new Date("2026-07-01T00:00:00Z"),
       purgeAfter: new Date("2026-07-08T00:00:00Z"),
     });
     const viaSetState = await a.pullRequests.setState(closed.id, {
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     });
     expect(viaSetState.ok).toBe(true);
     if (!viaSetState.ok) throw new Error("expected success");

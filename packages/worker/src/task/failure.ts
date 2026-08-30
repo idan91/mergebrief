@@ -5,7 +5,7 @@
 // stamp.
 import { APIConnectionError } from "@anthropic-ai/sdk";
 import { GeneratorError, GeneratorErrorKind } from "generators";
-import { GenerationFailureCode, type GenerationFailure } from "persistence";
+import { GenerationFailureCodes, type GenerationFailure } from "persistence";
 
 interface JobErrorOptions {
   readonly cause?: unknown;
@@ -57,12 +57,12 @@ function transientFailure(cause: unknown): GenerationFailure {
       ? Reflect.get(cause, "status")
       : undefined;
   if (status === 429) {
-    return { code: GenerationFailureCode.PROVIDER_RATE_LIMIT };
+    return { code: GenerationFailureCodes.PROVIDER_RATE_LIMIT };
   }
   if (status === 408) {
-    return { code: GenerationFailureCode.PROVIDER_TIMEOUT };
+    return { code: GenerationFailureCodes.PROVIDER_TIMEOUT };
   }
-  return { code: GenerationFailureCode.PROVIDER_UNAVAILABLE };
+  return { code: GenerationFailureCodes.PROVIDER_UNAVAILABLE };
 }
 
 function getErrorDetail(error: unknown): string {
@@ -82,33 +82,33 @@ export function classifyFailure(error: unknown): GenerationFailure {
   if (unwrapped instanceof GeneratorError) {
     switch (unwrapped.kind) {
       case GeneratorErrorKind.AUTH:
-        return { code: GenerationFailureCode.PROVIDER_AUTH };
+        return { code: GenerationFailureCodes.PROVIDER_AUTH };
       case GeneratorErrorKind.PROVIDER_TRANSIENT:
         // Adapters fold 408/429/5xx into one kind but keep the SDK error as
         // cause — recover the rate-limit/timeout distinction from it.
         return transientFailure(unwrapped.cause);
       case GeneratorErrorKind.TIMEOUT:
-        return { code: GenerationFailureCode.PROVIDER_TIMEOUT };
+        return { code: GenerationFailureCodes.PROVIDER_TIMEOUT };
       case GeneratorErrorKind.SCHEMA_FLOOR:
-        return { code: GenerationFailureCode.OUTPUT_INVALID };
+        return { code: GenerationFailureCodes.OUTPUT_INVALID };
       case GeneratorErrorKind.REFUSAL:
-        return { code: GenerationFailureCode.PROVIDER_REFUSAL };
+        return { code: GenerationFailureCodes.PROVIDER_REFUSAL };
       case GeneratorErrorKind.CONFIG:
       case GeneratorErrorKind.CLI_MISSING:
         // Config absorbs cli-missing: both are operator-fixable setup.
         return {
-          code: GenerationFailureCode.GENERATION_CONFIG,
+          code: GenerationFailureCodes.GENERATION_CONFIG,
           params: { detail: unwrapped.message },
         };
       case GeneratorErrorKind.OPAQUE:
         return {
-          code: GenerationFailureCode.UNKNOWN,
+          code: GenerationFailureCodes.UNKNOWN,
           params: { detail: unwrapped.message },
         };
     }
   }
   if (unwrapped instanceof APIConnectionError) {
-    return { code: GenerationFailureCode.PROVIDER_UNAVAILABLE };
+    return { code: GenerationFailureCodes.PROVIDER_UNAVAILABLE };
   }
   const status =
     typeof unwrapped === "object" && unwrapped !== null
@@ -116,20 +116,20 @@ export function classifyFailure(error: unknown): GenerationFailure {
       : undefined;
   if (typeof status === "number") {
     if (status === 429) {
-      return { code: GenerationFailureCode.PROVIDER_RATE_LIMIT };
+      return { code: GenerationFailureCodes.PROVIDER_RATE_LIMIT };
     }
     if (status === 408) {
-      return { code: GenerationFailureCode.PROVIDER_TIMEOUT };
+      return { code: GenerationFailureCodes.PROVIDER_TIMEOUT };
     }
     if (status === 401 || status === 403) {
-      return { code: GenerationFailureCode.PROVIDER_AUTH };
+      return { code: GenerationFailureCodes.PROVIDER_AUTH };
     }
     if (status >= 500) {
-      return { code: GenerationFailureCode.PROVIDER_UNAVAILABLE };
+      return { code: GenerationFailureCodes.PROVIDER_UNAVAILABLE };
     }
   }
   return {
-    code: GenerationFailureCode.UNKNOWN,
+    code: GenerationFailureCodes.UNKNOWN,
     params: { detail: getErrorDetail(unwrapped) },
   };
 }

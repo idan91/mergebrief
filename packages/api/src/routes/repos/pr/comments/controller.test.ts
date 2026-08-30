@@ -12,7 +12,7 @@ import {
   isGrantRowId,
   isInstallationId,
   isReviewerId,
-  WriteClassification,
+  WriteClassifications,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import type { Result } from "types";
@@ -86,7 +86,7 @@ async function buildClient(ciphertextOverride?: string) {
     createdAt: new Date(),
     ghTokenCiphertext: ciphertextOverride ?? sealed.value,
     keyRef: KEY_REF,
-    scope: WriteClassification.EXTERNAL_WRITE,
+    scope: WriteClassifications.EXTERNAL_WRITE,
     channel: AuthChannel.COOKIE,
   };
   const deps: AuthRouteDeps = {

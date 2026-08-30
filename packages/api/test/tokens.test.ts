@@ -17,13 +17,14 @@ import {
   isInstallationId,
   isRepoId,
   isReviewerId,
-  PrState,
+  PrStates,
   createTokenAuth,
-  WriteClassification,
+  WriteClassifications,
   type AppDatabase,
   type KeyProvider,
   type ReviewerId,
   type TenantContext,
+  type WriteClassification,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -177,7 +178,7 @@ async function seedApiToken(
     refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
   });
   const minted = await createTokenAuth(handle).mintToken({
-    scope: overrides.scope ?? WriteClassification.EXTERNAL_WRITE,
+    scope: overrides.scope ?? WriteClassifications.EXTERNAL_WRITE,
     installationId: CTX.installationId,
     userId: REVIEWER,
     userLogin: "octocat",
@@ -206,7 +207,7 @@ async function seedPr(handle: AppDatabase): Promise<void> {
     prNumber: 7,
     repoSlug: "octo/hello",
     title: "PR 7",
-    state: PrState.OPEN,
+    state: PrStates.OPEN,
   });
 }
 
@@ -274,7 +275,7 @@ describe("Bearer presentation on /api/*", () => {
     });
     await seedPr(harness.handle);
     const readOnly = await seedApiToken(harness.handle, kp, {
-      scope: WriteClassification.READ,
+      scope: WriteClassifications.READ,
     });
 
     // The same credential reads fine…

@@ -3,15 +3,15 @@
 // parser, so this is the contract test.
 import { describe, expect, it } from "vitest";
 import {
-  ReviewCommentSide as SOURCE_REVIEW_COMMENT_SIDE,
-  ReviewVerdictState as SOURCE_REVIEW_VERDICT_STATE,
-  ThreadSubjectType as SOURCE_THREAD_SUBJECT_TYPE,
-  type ConversationAuthor as SourceAuthor,
-  type ConversationComment as SourceComment,
-  type ConversationReview as SourceReview,
-  type ConversationThread as SourceThread,
-  type PrComment as SourcePrLevelComment,
-  type PrConversation as SourcePrConversation,
+  ReviewCommentSide,
+  ReviewVerdictState,
+  ThreadSubjectType,
+  type ConversationAuthor as GithubConversationAuthor,
+  type ConversationComment as GithubConversationComment,
+  type ConversationReview as GithubConversationReview,
+  type ConversationThread as GithubConversationThread,
+  type PrComment as GithubPrComment,
+  type PrConversation as GithubPrConversation,
 } from "github";
 import type { Equals } from "types";
 import {
@@ -214,17 +214,17 @@ const VOCABULARY_PINS: readonly VocabularyPin[] = [
   {
     label: "ThreadSides",
     mirror: ThreadSides,
-    source: SOURCE_REVIEW_COMMENT_SIDE,
+    source: ReviewCommentSide,
   },
   {
     label: "ThreadSubjectTypes",
     mirror: ThreadSubjectTypes,
-    source: SOURCE_THREAD_SUBJECT_TYPE,
+    source: ThreadSubjectType,
   },
   {
     label: "ReviewVerdictStates",
     mirror: ReviewVerdictStates,
-    source: SOURCE_REVIEW_VERDICT_STATE,
+    source: ReviewVerdictState,
   },
 ];
 
@@ -235,15 +235,24 @@ const VOCABULARY_PINS: readonly VocabularyPin[] = [
  * the shape that drifted instead of the whole envelope.
  */
 const SHAPE_PINS = {
-  ConversationAuthor: true satisfies Equals<ConversationAuthor, SourceAuthor>,
+  ConversationAuthor: true satisfies Equals<
+    ConversationAuthor,
+    GithubConversationAuthor
+  >,
   ConversationComment: true satisfies Equals<
     ConversationComment,
-    SourceComment
+    GithubConversationComment
   >,
-  ConversationThread: true satisfies Equals<ConversationThread, SourceThread>,
-  ConversationReview: true satisfies Equals<ConversationReview, SourceReview>,
-  PrLevelComment: true satisfies Equals<PrLevelComment, SourcePrLevelComment>,
-  PrConversation: true satisfies Equals<PrConversation, SourcePrConversation>,
+  ConversationThread: true satisfies Equals<
+    ConversationThread,
+    GithubConversationThread
+  >,
+  ConversationReview: true satisfies Equals<
+    ConversationReview,
+    GithubConversationReview
+  >,
+  PrLevelComment: true satisfies Equals<PrLevelComment, GithubPrComment>,
+  PrConversation: true satisfies Equals<PrConversation, GithubPrConversation>,
 } as const;
 
 describe("lockstep pins (conversation mirror vs its github source)", () => {

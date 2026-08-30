@@ -3,8 +3,8 @@
 // stays in `index.ts`.
 import type { Context } from "hono";
 import {
-  DispositionDecision,
-  DraftCommentStatus,
+  DispositionDecisions,
+  DraftCommentStatuses,
   type DispositionAnchor,
   type ReviewDraftCommentRow,
   type SessionWriter,
@@ -58,7 +58,7 @@ function assertWritableDraft(
   if (draft === undefined) {
     throw new NotFound();
   }
-  if (draft.status === DraftCommentStatus.SUBMITTED) {
+  if (draft.status === DraftCommentStatuses.SUBMITTED) {
     throw new Conflict(ApiErrorCodes.DRAFT_ALREADY_PUBLISHED);
   }
   return draft;
@@ -145,7 +145,7 @@ export default function createHandlers(deps: AuthRouteDeps) {
     const written = await resolved.run(async (writer) => {
       const held = await writer.draftComments();
       const unposted = held.filter(
-        (row) => row.status === DraftCommentStatus.DRAFT,
+        (row) => row.status === DraftCommentStatuses.DRAFT,
       );
       if (unposted.length >= MAX_SESSION_DRAFTS) {
         return undefined;
@@ -172,7 +172,10 @@ export default function createHandlers(deps: AuthRouteDeps) {
     const resolved = await resolveSessionWrite(deps, c);
     const written = await resolved.run(async (writer) => {
       const held = heldDraft(await writer.draftComments(), draftId.data);
-      if (held === undefined || held.status === DraftCommentStatus.SUBMITTED) {
+      if (
+        held === undefined ||
+        held.status === DraftCommentStatuses.SUBMITTED
+      ) {
         return held;
       }
       return await writer.updateDraftComment(draftId.data, {
@@ -198,7 +201,10 @@ export default function createHandlers(deps: AuthRouteDeps) {
     const resolved = await resolveSessionWrite(deps, c);
     const written = await resolved.run(async (writer) => {
       const held = heldDraft(await writer.draftComments(), draftId.data);
-      if (held === undefined || held.status === DraftCommentStatus.SUBMITTED) {
+      if (
+        held === undefined ||
+        held.status === DraftCommentStatuses.SUBMITTED
+      ) {
         return held;
       }
       // The human placed it, so the carry-over's verdict is settled.
@@ -225,7 +231,10 @@ export default function createHandlers(deps: AuthRouteDeps) {
     const resolved = await resolveSessionWrite(deps, c);
     const written = await resolved.run(async (writer) => {
       const held = heldDraft(await writer.draftComments(), draftId.data);
-      if (held === undefined || held.status === DraftCommentStatus.SUBMITTED) {
+      if (
+        held === undefined ||
+        held.status === DraftCommentStatuses.SUBMITTED
+      ) {
         return held;
       }
       await writer.deleteDraftComment(draftId.data);
@@ -305,7 +314,7 @@ export default function createHandlers(deps: AuthRouteDeps) {
       flags.map((flag) =>
         writer.putDisposition({
           ...flag,
-          decision: DispositionDecision.DISMISSED,
+          decision: DispositionDecisions.DISMISSED,
           reason,
         }),
       ),
@@ -325,7 +334,7 @@ export default function createHandlers(deps: AuthRouteDeps) {
         // the reviewer just named what this decision stands on.
         writer.putDisposition({
           ...anchor,
-          decision: DispositionDecision.ADDRESSED,
+          decision: DispositionDecisions.ADDRESSED,
           evidence,
         }),
       ),

@@ -1,7 +1,7 @@
 import type { Context } from "hono";
 import {
-  AnchorStatus,
-  DraftCommentStatus,
+  AnchorStatuses,
+  DraftCommentStatuses,
   createTenantRepository,
 } from "persistence";
 import { ApiErrorCodes } from "../../../../error-response";
@@ -53,7 +53,7 @@ async function resolveSubmittableDrafts(
 ) {
   const held = await resolved.run(async (writer) =>
     (await writer.draftComments()).filter(
-      (row) => row.status === DraftCommentStatus.DRAFT,
+      (row) => row.status === DraftCommentStatuses.DRAFT,
     ),
   );
   if (!held.ok) {
@@ -63,7 +63,7 @@ async function resolveSubmittableDrafts(
   // Posting an orphaned anchor lands the comment on unrelated lines;
   // dropping it reports feedback that never landed. Re-anchoring or
   // deleting the draft clears it.
-  if (drafts.some((row) => row.anchorStatus === AnchorStatus.ORPHANED)) {
+  if (drafts.some((row) => row.anchorStatus === AnchorStatuses.ORPHANED)) {
     throw new Conflict(ApiErrorCodes.DRAFT_ANCHOR_ORPHANED);
   }
   return drafts;

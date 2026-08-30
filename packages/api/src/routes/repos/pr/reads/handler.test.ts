@@ -11,9 +11,9 @@ import {
   isRepoId,
   isReviewerId,
   parseTenantContext,
-  PrState,
+  PrStates,
   createTenantRepository,
-  WriteClassification,
+  WriteClassifications,
   type RepoId,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
@@ -91,7 +91,7 @@ beforeAll(async () => {
     prNumber: PR_NUMBER,
     repoSlug: "acme/app",
     title: "Add thing",
-    state: PrState.OPEN,
+    state: PrStates.OPEN,
   });
 });
 afterAll(async () => {
@@ -114,7 +114,7 @@ async function buildApp(ciphertextOverride?: string): Promise<Hono<AuthzEnv>> {
     createdAt: new Date(),
     ghTokenCiphertext: ciphertextOverride ?? sealed.value,
     keyRef: KEY_REF,
-    scope: WriteClassification.EXTERNAL_WRITE,
+    scope: WriteClassifications.EXTERNAL_WRITE,
     channel: AuthChannel.COOKIE,
   };
   const deps: AuthRouteDeps = {

@@ -28,12 +28,12 @@ import type {
   ReviewerId,
 } from "../src/types";
 import {
-  AuditOutcome,
-  AuditActorType,
-  DispositionDecision,
-  GenerationKind,
-  GenerationStatus,
-  PrState,
+  AuditOutcomes,
+  AuditActorTypes,
+  DispositionDecisions,
+  GenerationKinds,
+  GenerationStatuses,
+  PrStates,
   isInstallationId,
   isRepoId,
   isReviewerId,
@@ -89,7 +89,7 @@ async function insertPullRequest(db: Db): Promise<PullRequestRowId> {
       repoId: REPO,
       prNumber: 7,
       repoSlug: "acme/widgets",
-      state: PrState.OPEN,
+      state: PrStates.OPEN,
     })
     .returning({ id: pullRequest.id });
   const row = rows[0];
@@ -200,7 +200,7 @@ async function seedFullGraph(
     attribute: "sql-injection",
     regionStart: 10,
     regionEnd: 20,
-    decision: DispositionDecision.DISMISSED,
+    decision: DispositionDecisions.DISMISSED,
     reason: "false positive",
     decidedAt: new Date(),
   });
@@ -216,17 +216,17 @@ async function seedFullGraph(
   await db.insert(generation).values({
     installationId: INSTALLATION,
     pullRequestId,
-    kind: GenerationKind.BRIEF,
+    kind: GenerationKinds.BRIEF,
     headSha: HEAD_SHA,
     baselineSha: null,
-    status: GenerationStatus.SUCCEEDED,
+    status: GenerationStatuses.SUCCEEDED,
   });
 
   await db.insert(auditLog).values({
     installationId: INSTALLATION,
-    actorType: AuditActorType.APP,
+    actorType: AuditActorTypes.APP,
     operation: "generate",
-    outcome: AuditOutcome.OK,
+    outcome: AuditOutcomes.OK,
     targetType: "pull_request",
     targetId: pullRequestId,
     metadata: { kind: "brief" },
@@ -392,9 +392,9 @@ describe("M1 schema migrations", () => {
     const db = await freshDb();
     await db.insert(auditLog).values({
       installationId: INSTALLATION,
-      actorType: AuditActorType.SYSTEM,
+      actorType: AuditActorTypes.SYSTEM,
       operation: "delete",
-      outcome: AuditOutcome.OK,
+      outcome: AuditOutcomes.OK,
       targetType: "pull_request",
       targetId: 999_999_999n,
       metadata: { reason: "retention sweep" },
@@ -489,7 +489,7 @@ describe("closed-vocabulary + shape CHECK constraints", () => {
       .select({ operation: auditLog.operation, outcome: auditLog.outcome })
       .from(auditLog);
     expect(rows[0]?.operation).toBe("submit-review");
-    expect(rows[0]?.outcome).toBe(AuditOutcome.OK);
+    expect(rows[0]?.outcome).toBe(AuditOutcomes.OK);
   });
 
   it("rejects an audit_log operation that is not a kebab-case token", async () => {
@@ -522,7 +522,7 @@ describe("closed-vocabulary + shape CHECK constraints", () => {
     const rows = await db
       .select({ status: generation.status })
       .from(generation);
-    expect(rows[0]?.status).toBe(GenerationStatus.SUPERSEDED);
+    expect(rows[0]?.status).toBe(GenerationStatuses.SUPERSEDED);
   });
 });
 

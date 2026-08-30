@@ -30,8 +30,8 @@ import { resolveScope } from "./scope";
 import type { ScopeContext } from "./scope-context";
 import { sanitizeErrorDetail } from "logging";
 import {
-  GenerationKind,
-  GenerationStatus,
+  GenerationKinds,
+  GenerationStatuses,
   type GenerationFailure,
   type GenerationPhase,
   type PullRequestRowId,
@@ -46,13 +46,13 @@ export type GenerationRow = typeof generation.$inferSelect;
 // Errors — expected failures. Programmer errors still `throw`.
 // ---------------------------------------------------------------------------
 
-export const GenerationErrorCode = {
+export const GenerationErrorCodes = {
   /** `upsertQueued` named a `pull_request` that is not in ctx's tenant. */
   PARENT_NOT_IN_TENANT: "parent-not-in-tenant",
   /** A transition targeted a projection row absent from ctx's tenant. */
   NOT_FOUND: "not-found",
 } as const;
-export type GenerationErrorCode = ValueOf<typeof GenerationErrorCode>;
+export type GenerationErrorCode = ValueOf<typeof GenerationErrorCodes>;
 
 export interface GenerationError {
   readonly code: GenerationErrorCode;
@@ -77,7 +77,7 @@ interface BaseGenerationTarget {
 
 /** A Brief spans the whole PR — no lower-bound SHA in the projection key. */
 interface BriefGenerationTarget extends BaseGenerationTarget {
-  readonly kind: typeof GenerationKind.BRIEF;
+  readonly kind: typeof GenerationKinds.BRIEF;
   readonly baselineSha: null;
 }
 
@@ -91,8 +91,8 @@ interface BriefGenerationTarget extends BaseGenerationTarget {
  */
 interface SpanGenerationTarget extends BaseGenerationTarget {
   readonly kind:
-    | typeof GenerationKind.DELTA
-    | typeof GenerationKind.REVISION_NARRATIVE;
+    | typeof GenerationKinds.DELTA
+    | typeof GenerationKinds.REVISION_NARRATIVE;
   readonly baselineSha: string;
 }
 
@@ -260,7 +260,7 @@ export function createGenerationProjection(
     const row = rows[0];
     if (row === undefined) {
       return fail(
-        GenerationErrorCode.NOT_FOUND,
+        GenerationErrorCodes.NOT_FOUND,
         `generation ${target.kind}@${target.headSha} not found in ${scope.label}`,
       );
     }
@@ -284,7 +284,7 @@ export function createGenerationProjection(
           .limit(1);
         if (parents[0] === undefined) {
           return fail(
-            GenerationErrorCode.PARENT_NOT_IN_TENANT,
+            GenerationErrorCodes.PARENT_NOT_IN_TENANT,
             `pull_request ${target.pullRequestId} not in ${scope.label}`,
           );
         }
@@ -296,7 +296,7 @@ export function createGenerationProjection(
             kind: target.kind,
             headSha: target.headSha,
             baselineSha: target.baselineSha,
-            status: GenerationStatus.QUEUED,
+            status: GenerationStatuses.QUEUED,
           })
           .onConflictDoUpdate({
             target: [
@@ -307,7 +307,7 @@ export function createGenerationProjection(
               generation.baselineSha,
             ],
             set: {
-              status: GenerationStatus.QUEUED,
+              status: GenerationStatuses.QUEUED,
               attempts: sql`${generation.attempts} + 1`,
               phase: null,
               errorCode: null,
@@ -327,7 +327,7 @@ export function createGenerationProjection(
 
     async markRunning(target, phase) {
       return transition(target, {
-        status: GenerationStatus.RUNNING,
+        status: GenerationStatuses.RUNNING,
         phase: phase ?? null,
       });
     },
@@ -336,7 +336,7 @@ export function createGenerationProjection(
       // Terminal rows carry no `phase` — a determinate phase only describes a
       // RUNNING job; leaving the last mid-run value would misreport the row.
       return transition(target, {
-        status: GenerationStatus.SUCCEEDED,
+        status: GenerationStatuses.SUCCEEDED,
         phase: null,
         errorCode: null,
         errorParams: null,
@@ -347,7 +347,7 @@ export function createGenerationProjection(
       // Not a failure, so `attempts` is deliberately left untouched and
       // the error columns are cleared. Terminal → no phase.
       return transition(target, {
-        status: GenerationStatus.SUPERSEDED,
+        status: GenerationStatuses.SUPERSEDED,
         phase: null,
         errorCode: null,
         errorParams: null,
@@ -358,7 +358,7 @@ export function createGenerationProjection(
       // Same abort semantics as markSuperseded: the run never started, so
       // `attempts` stays untouched and nothing is retried.
       return transition(target, {
-        status: GenerationStatus.CAPPED,
+        status: GenerationStatuses.CAPPED,
         phase: null,
         errorCode: null,
         errorParams: null,
@@ -372,7 +372,7 @@ export function createGenerationProjection(
       const detail =
         "params" in failure ? sanitizeErrorDetail(failure.params.detail) : "";
       return transition(target, {
-        status: GenerationStatus.FAILED,
+        status: GenerationStatuses.FAILED,
         errorCode: failure.code,
         errorParams: detail === "" ? null : { detail },
       });
@@ -409,10 +409,10 @@ export function createGenerationProjection(
         .where(
           and(
             eq(pullRequest.repoId, repoId),
-            eq(generation.kind, GenerationKind.BRIEF),
+            eq(generation.kind, GenerationKinds.BRIEF),
             notInArray(generation.status, [
-              GenerationStatus.QUEUED,
-              GenerationStatus.CAPPED,
+              GenerationStatuses.QUEUED,
+              GenerationStatuses.CAPPED,
             ]),
             gte(generation.createdAt, from),
             lt(generation.createdAt, to),
@@ -439,13 +439,13 @@ export function createGenerationProjection(
               generation.installationId,
               generation.pullRequestId,
             ),
-            eq(generation.kind, GenerationKind.BRIEF),
+            eq(generation.kind, GenerationKinds.BRIEF),
             inArray(generation.pullRequestId, [...pullRequestIds]),
           ),
         )
         .orderBy(
           asc(generation.pullRequestId),
-          asc(sql`(${generation.status} = ${GenerationStatus.SUPERSEDED})`),
+          asc(sql`(${generation.status} = ${GenerationStatuses.SUPERSEDED})`),
           desc(generation.updatedAt),
           desc(generation.id),
         );
@@ -462,7 +462,7 @@ export function createGenerationProjection(
               generation.installationId,
               generation.pullRequestId,
             ),
-            eq(generation.kind, GenerationKind.BRIEF),
+            eq(generation.kind, GenerationKinds.BRIEF),
             eq(generation.pullRequestId, pullRequestId),
           ),
         )
@@ -473,7 +473,7 @@ export function createGenerationProjection(
       const rows = await db
         .update(generation)
         .set({
-          status: GenerationStatus.SUPERSEDED,
+          status: GenerationStatuses.SUPERSEDED,
           phase: null,
           errorCode: null,
           errorParams: null,
@@ -486,11 +486,11 @@ export function createGenerationProjection(
               generation.pullRequestId,
             ),
             eq(generation.pullRequestId, pullRequestId),
-            eq(generation.kind, GenerationKind.BRIEF),
+            eq(generation.kind, GenerationKinds.BRIEF),
             ne(generation.headSha, currentHeadSha),
             inArray(generation.status, [
-              GenerationStatus.QUEUED,
-              GenerationStatus.RUNNING,
+              GenerationStatuses.QUEUED,
+              GenerationStatuses.RUNNING,
             ]),
           ),
         )

@@ -6,7 +6,7 @@ import {
   encryptToken,
   createTenantRepository,
   createGrantAuth,
-  PrState,
+  PrStates,
   type AppDatabase,
   type KeyProvider,
 } from "persistence";
@@ -213,7 +213,7 @@ async function seedDraftPr(handle: AppDatabase, draft = true): Promise<void> {
     prNumber: PR_NUMBER,
     repoSlug: REPO_SLUG,
     draft,
-    state: PrState.OPEN,
+    state: PrStates.OPEN,
   });
 }
 

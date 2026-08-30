@@ -14,7 +14,7 @@ import {
   resolveUrlBoxOwner,
   safeParseScopeContext,
   PullRequestSources,
-  RepositoryErrorCode,
+  RepositoryErrorCodes,
   type OwnerContext,
   type TenantContext,
 } from "../src/index";
@@ -22,7 +22,7 @@ import {
   isInstallationId,
   isRepoId,
   isReviewerId,
-  PrState,
+  PrStates,
   type InstallationId,
   type RepoId,
   type ReviewerId,
@@ -41,7 +41,7 @@ const TENANT_CTX: TenantContext = { installationId: TENANT };
 const CTX_A: OwnerContext = { ownerUserId: OWNER_A };
 const CTX_B: OwnerContext = { ownerUserId: OWNER_B };
 
-const OPEN = { state: PrState.OPEN } as const;
+const OPEN = { state: PrStates.OPEN } as const;
 
 function upsertInput(prNumber: number) {
   return { repoId: REPO, prNumber, repoSlug: "acme/widgets", ...OPEN };
@@ -109,7 +109,7 @@ describe("owner-scoped pull_request rows", () => {
     expect(await a.pullRequests.getById(bRow.id)).toBeUndefined();
     expect(await a.pullRequests.setState(bRow.id, OPEN)).toMatchObject({
       ok: false,
-      error: { code: RepositoryErrorCode.NOT_FOUND },
+      error: { code: RepositoryErrorCodes.NOT_FOUND },
     });
   });
 });
@@ -129,7 +129,7 @@ describe("owner-scoped child writes verify the parent across worlds", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected a rejection");
-    expect(result.error.code).toBe(RepositoryErrorCode.PARENT_NOT_IN_TENANT);
+    expect(result.error.code).toBe(RepositoryErrorCodes.PARENT_NOT_IN_TENANT);
   });
 
   it("rejects an owner checkpoint attached to a tenant pull_request", async () => {
@@ -366,7 +366,7 @@ describe("pull_request owner-shape CHECK", () => {
         source: PullRequestSources.URL_BOX,
         repoId: REPO,
         prNumber: 1,
-        state: PrState.OPEN,
+        state: PrStates.OPEN,
       }),
       "pull_request_owner_shape",
     );
@@ -380,7 +380,7 @@ describe("pull_request owner-shape CHECK", () => {
         ownerUserId: null,
         repoId: REPO,
         prNumber: 1,
-        state: PrState.OPEN,
+        state: PrStates.OPEN,
       }),
       "pull_request_owner_shape",
     );
@@ -394,7 +394,7 @@ describe("pull_request owner-shape CHECK", () => {
         source: PullRequestSources.URL_BOX,
         repoId: REPO,
         prNumber: 1,
-        state: PrState.OPEN,
+        state: PrStates.OPEN,
       }),
       "pull_request_owner_shape",
     );

@@ -25,21 +25,26 @@ export type { AppDatabase, AppSchema, CreateDbOptions } from "./db/handle";
 export {
   migrateApp,
   ensureAppSchema,
-  SchemaCheckErrorCode,
+  SchemaCheckErrorCodes,
 } from "./db/migrate";
-export type { SchemaCheckError, EnsureAppSchemaOptions } from "./db/migrate";
+export type {
+  SchemaCheckError,
+  SchemaCheckErrorCode,
+  EnsureAppSchemaOptions,
+} from "./db/migrate";
 
 // Persistence env config (Zod-parsed; injectable env — never reads process.env).
 // `LoadConfigOptions` carries the DATABASE_URL_FILE reader + warning sink —
 // composition roots pass their logger's `warn`.
 export {
   AUDIT_RETENTION_FLOOR_DAYS,
-  ConfigErrorCode,
+  ConfigErrorCodes,
   loadConfig,
 } from "./db/config";
 export type {
   PersistenceConfig,
   ConfigError,
+  ConfigErrorCode,
   LoadConfigOptions,
 } from "./db/config";
 
@@ -56,7 +61,7 @@ export {
   isOwnerContext,
   TenantContextSchema,
   ScopeContextSchema,
-  RepositoryErrorCode,
+  RepositoryErrorCodes,
 } from "./stores/tenant";
 export type {
   TenantContext,
@@ -67,6 +72,7 @@ export type {
   CheckpointRepository,
   SessionRepository,
   RepositoryError,
+  RepositoryErrorCode,
   PullRequestRow,
   CheckpointRow,
   AuthSessionRow,
@@ -85,10 +91,11 @@ export { resolveUrlBoxOwner } from "./stores/url-box";
 // The Review Session surface. The factory itself is NOT exported — it is
 // reachable only as `createTenantRepository(...).reviewSessions`, so a caller cannot hold
 // one without a ctx.
-export { ReviewSessionErrorCode } from "./stores/review-session";
+export { ReviewSessionErrorCodes } from "./stores/review-session";
 export type {
   ReviewSessionRepository,
   ReviewSessionError,
+  ReviewSessionErrorCode,
   ReviewSessionKey,
   SessionWriter,
   CarryOverQuery,
@@ -126,7 +133,7 @@ export type {
 // surface exposed.
 export {
   createArtifactStore,
-  ArtifactErrorCode,
+  ArtifactErrorCodes,
   ComparisonMarksBodySchema,
   HunkSpansSchema,
   StoredIdsSchema,
@@ -134,6 +141,7 @@ export {
 export type {
   ArtifactStore,
   ArtifactError,
+  ArtifactErrorCode,
   BriefStore,
   DeltaStore,
   DiffSnapshotStore,
@@ -163,38 +171,45 @@ export type {
 // The `generation` status-projection write helpers.
 export {
   createGenerationProjection,
-  GenerationErrorCode,
+  GenerationErrorCodes,
 } from "./stores/generation";
 export type {
   GenerationProjection,
   GenerationError,
+  GenerationErrorCode,
   GenerationTarget,
   GenerationRow,
 } from "./stores/generation";
 
 // The append-only audit emit. `AuditMetadataSchema` is the value enforcement
-// for a ledger an operator may keep forever; `AuditMetadataKey` names the
+// for a ledger an operator may keep forever; `AuditMetadataKeys` names the
 // conventional keys without restricting them. `insertAudit` (the tx-capable
 // variant) stays in-package — not re-exported.
 export {
   writeAudit,
   AuditClientSchema,
   AuditRequestIdSchema,
-  AuditMetadataKey,
+  AuditMetadataKeys,
   AuditMetadataSchema,
   AuditOperationSchema,
   AuditTargetTypeSchema,
 } from "./stores/audit";
-export type { AuditEntry, AuditMetadata, AuditLogRow } from "./stores/audit";
+export type {
+  AuditEntry,
+  AuditMetadata,
+  AuditMetadataKey,
+  AuditLogRow,
+} from "./stores/audit";
 
 // The transactional ingest boundary: webhook trigger → PR upsert + queued
 // `generation` projection + debounced graphile `generate` job, in ONE
 // transaction. Calls `graphile_worker.add_job` by name — no graphile-worker
 // npm dependency here.
-export { createIngestRoutines, IngestErrorCode } from "./stores/ingest";
+export { createIngestRoutines, IngestErrorCodes } from "./stores/ingest";
 export type {
   IngestRoutines,
   IngestError,
+  IngestErrorCode,
   IngestOutcome,
   TriggerGenerationInput,
 } from "./stores/ingest";
@@ -203,12 +218,13 @@ export type {
 // instance-wide audit sweep (an operator setting, so it has no ctx to bind to).
 export {
   createPurgeRoutines,
-  PurgeErrorCode,
+  PurgeErrorCodes,
   sweepAuditLog,
 } from "./stores/purge";
 export type {
   PurgeRoutines,
   PurgeError,
+  PurgeErrorCode,
   InstallationPurgeCounts,
 } from "./stores/purge";
 
@@ -226,11 +242,12 @@ export type {
 // The grant boundary — ONE `github_grant` row per GitHub authorization holds
 // the encrypted pair; BOTH presentation channels rotate through
 // `refreshGrant`'s serialized CAS. Pre-tenant like its referents.
-export { createGrantAuth, GrantAuthErrorCode } from "./auth/grant";
+export { createGrantAuth, GrantAuthErrorCodes } from "./auth/grant";
 export type {
   GithubGrantRow,
   GrantAuth,
   GrantAuthError,
+  GrantAuthErrorCode,
   GrantCreateInput,
   GrantRefreshPatch,
   GrantRefreshRejection,
@@ -239,20 +256,22 @@ export type {
 // The `auth_session` boundary — the PRE-TENANT, token-hash-keyed
 // session resolver (find / delete / expiry mirror). NOT ctx-bound: it PRODUCES
 // the tenant, so it precedes `createTenantRepository` scoping.
-export { createSessionAuth, SessionAuthErrorCode } from "./auth/session";
+export { createSessionAuth, SessionAuthErrorCodes } from "./auth/session";
 export type {
   SessionAuth,
   SessionAuthError,
+  SessionAuthErrorCode,
   SessionWithGrant,
 } from "./auth/session";
 
 // The API-token auth boundary — the second presentation channel's PRE-TENANT,
 // hash-keyed resolver. Like `createSessionAuth` it PRODUCES the tenant, so it
 // precedes `createTenantRepository` scoping.
-export { createTokenAuth, TokenAuthErrorCode } from "./auth/token";
+export { createTokenAuth, TokenAuthErrorCodes } from "./auth/token";
 export type {
   TokenAuth,
   TokenAuthError,
+  TokenAuthErrorCode,
   TokenMintInput,
   TokenWithGrant,
   ApiTokenRow,
@@ -264,7 +283,13 @@ export {
   encryptToken,
   decryptToken,
   createEnvKeyProvider,
+  KeyErrorCodes,
+  CryptoErrorCodes,
+} from "./auth/crypto";
+export type {
+  KeyProvider,
+  KeyError,
   KeyErrorCode,
+  CryptoError,
   CryptoErrorCode,
 } from "./auth/crypto";
-export type { KeyProvider, KeyError, CryptoError } from "./auth/crypto";

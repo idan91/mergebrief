@@ -9,7 +9,7 @@ import {
   isInstallationId,
   isRepoId,
   isReviewerId,
-  PrState,
+  PrStates,
   type OwnerContext,
   type ReviewerId,
 } from "persistence";
@@ -40,7 +40,7 @@ function staticResolve(): (
 ) => Promise<RepoResolution> {
   return async () => ({
     repoId: REPO_ID,
-    lifecycle: { state: PrState.OPEN },
+    lifecycle: { state: PrStates.OPEN },
   });
 }
 
@@ -293,7 +293,7 @@ describe("ingestBriefDirectory", () => {
       ctx: OWNER_CTX,
       resolveRepo: async () => ({
         repoId: REPO_ID,
-        lifecycle: { state: PrState.OPEN },
+        lifecycle: { state: PrStates.OPEN },
         baseSha: base,
       }),
     });
@@ -326,7 +326,7 @@ describe("ingestBriefDirectory", () => {
       ctx: OWNER_CTX,
       resolveRepo: async () => {
         calls += 1;
-        return { repoId: REPO_ID, lifecycle: { state: PrState.OPEN } };
+        return { repoId: REPO_ID, lifecycle: { state: PrStates.OPEN } };
       },
     });
 
@@ -391,7 +391,7 @@ describe("ingestBriefDirectory", () => {
       // Distinct repos, same flattened stem.
       resolveRepo: async (slug: string) => ({
         repoId: brand(isRepoId, slug === "a-b/c" ? 111n : 222n),
-        lifecycle: { state: PrState.OPEN },
+        lifecycle: { state: PrStates.OPEN },
       }),
     });
 

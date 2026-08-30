@@ -11,7 +11,7 @@ import {
 } from "github";
 import {
   createIngestRoutines,
-  PrState,
+  PrStates,
   type PullRequestLifecycle,
   type ReviewerId,
 } from "persistence";
@@ -44,19 +44,19 @@ interface GenerateBriefInput {
 function buildLifecycle(info: PullRequestInfo): PullRequestLifecycle {
   if (info.merged) {
     return {
-      state: PrState.MERGED,
+      state: PrStates.MERGED,
       closedAt: info.closedAt ?? new Date(),
       purgeAfter: null,
     };
   }
   if (info.state === "closed") {
     return {
-      state: PrState.CLOSED,
+      state: PrStates.CLOSED,
       closedAt: info.closedAt ?? new Date(),
       purgeAfter: null,
     };
   }
-  return { state: PrState.OPEN };
+  return { state: PrStates.OPEN };
 }
 
 /**

@@ -54,10 +54,10 @@ export interface PersistenceConfig {
 // Errors — expected failure (bad/missing env). Never throws.
 // ---------------------------------------------------------------------------
 
-export const ConfigErrorCode = {
+export const ConfigErrorCodes = {
   INVALID: "invalid",
 } as const;
-export type ConfigErrorCode = ValueOf<typeof ConfigErrorCode>;
+export type ConfigErrorCode = ValueOf<typeof ConfigErrorCodes>;
 
 export interface ConfigError {
   readonly code: ConfigErrorCode;
@@ -176,7 +176,7 @@ export function loadConfig(
     return {
       ok: false,
       error: {
-        code: ConfigErrorCode.INVALID,
+        code: ConfigErrorCodes.INVALID,
         message: "invalid persistence configuration",
         issues: [dsn.error],
       },
@@ -192,7 +192,7 @@ export function loadConfig(
     return {
       ok: false,
       error: {
-        code: ConfigErrorCode.INVALID,
+        code: ConfigErrorCodes.INVALID,
         message: "invalid persistence configuration",
         issues,
       },
@@ -205,7 +205,7 @@ export function loadConfig(
     return {
       ok: false,
       error: {
-        code: ConfigErrorCode.INVALID,
+        code: ConfigErrorCodes.INVALID,
         message: "invalid persistence configuration",
         issues: [tls.error],
       },

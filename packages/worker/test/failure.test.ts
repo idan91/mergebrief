@@ -1,6 +1,6 @@
 import { APIConnectionError } from "@anthropic-ai/sdk";
 import { GeneratorError, GeneratorErrorKind } from "generators";
-import { GenerationFailureCode } from "persistence";
+import { GenerationFailureCodes } from "persistence";
 import { describe, expect, it } from "vitest";
 import {
   classifyFailure,
@@ -11,17 +11,17 @@ import {
 describe("classifyFailure", () => {
   it("an explicit stamp wins over every probe", () => {
     const stamped = new PermanentJobError("diff too large", {
-      failure: { code: GenerationFailureCode.DIFF_TOO_LARGE },
+      failure: { code: GenerationFailureCodes.DIFF_TOO_LARGE },
       cause: Object.assign(new Error("406"), { status: 406 }),
     });
     expect(classifyFailure(stamped)).toEqual({
-      code: GenerationFailureCode.DIFF_TOO_LARGE,
+      code: GenerationFailureCodes.DIFF_TOO_LARGE,
     });
     const transient = new TransientJobError("gh 502", {
-      failure: { code: GenerationFailureCode.GITHUB_UNAVAILABLE },
+      failure: { code: GenerationFailureCodes.GITHUB_UNAVAILABLE },
     });
     expect(classifyFailure(transient)).toEqual({
-      code: GenerationFailureCode.GITHUB_UNAVAILABLE,
+      code: GenerationFailureCodes.GITHUB_UNAVAILABLE,
     });
   });
 
@@ -30,19 +30,19 @@ describe("classifyFailure", () => {
       cause: new GeneratorError(GeneratorErrorKind.REFUSAL, "model refused"),
     });
     expect(classifyFailure(wrapped)).toEqual({
-      code: GenerationFailureCode.PROVIDER_REFUSAL,
+      code: GenerationFailureCodes.PROVIDER_REFUSAL,
     });
   });
 
   it.each([
-    [GeneratorErrorKind.AUTH, GenerationFailureCode.PROVIDER_AUTH],
+    [GeneratorErrorKind.AUTH, GenerationFailureCodes.PROVIDER_AUTH],
     [
       GeneratorErrorKind.PROVIDER_TRANSIENT,
-      GenerationFailureCode.PROVIDER_UNAVAILABLE,
+      GenerationFailureCodes.PROVIDER_UNAVAILABLE,
     ],
-    [GeneratorErrorKind.TIMEOUT, GenerationFailureCode.PROVIDER_TIMEOUT],
-    [GeneratorErrorKind.SCHEMA_FLOOR, GenerationFailureCode.OUTPUT_INVALID],
-    [GeneratorErrorKind.REFUSAL, GenerationFailureCode.PROVIDER_REFUSAL],
+    [GeneratorErrorKind.TIMEOUT, GenerationFailureCodes.PROVIDER_TIMEOUT],
+    [GeneratorErrorKind.SCHEMA_FLOOR, GenerationFailureCodes.OUTPUT_INVALID],
+    [GeneratorErrorKind.REFUSAL, GenerationFailureCodes.PROVIDER_REFUSAL],
   ])("maps GeneratorError kind %s to %s", (kind, code) => {
     expect(classifyFailure(new GeneratorError(kind, "boom"))).toEqual({
       code,
@@ -57,7 +57,7 @@ describe("classifyFailure", () => {
       expect(
         classifyFailure(new GeneratorError(kind, "MODEL env var unknown")),
       ).toEqual({
-        code: GenerationFailureCode.GENERATION_CONFIG,
+        code: GenerationFailureCodes.GENERATION_CONFIG,
         params: { detail: "MODEL env var unknown" },
       });
     }
@@ -69,7 +69,7 @@ describe("classifyFailure", () => {
         new GeneratorError(GeneratorErrorKind.OPAQUE, "exit code 7"),
       ),
     ).toEqual({
-      code: GenerationFailureCode.UNKNOWN,
+      code: GenerationFailureCodes.UNKNOWN,
       params: { detail: "exit code 7" },
     });
   });
@@ -81,34 +81,34 @@ describe("classifyFailure", () => {
           cause: Object.assign(new Error("rate limited"), { status: 429 }),
         }),
       ),
-    ).toEqual({ code: GenerationFailureCode.PROVIDER_RATE_LIMIT });
+    ).toEqual({ code: GenerationFailureCodes.PROVIDER_RATE_LIMIT });
     expect(
       classifyFailure(
         new GeneratorError(GeneratorErrorKind.PROVIDER_TRANSIENT, "408", {
           cause: Object.assign(new Error("timeout"), { status: 408 }),
         }),
       ),
-    ).toEqual({ code: GenerationFailureCode.PROVIDER_TIMEOUT });
+    ).toEqual({ code: GenerationFailureCodes.PROVIDER_TIMEOUT });
     expect(
       classifyFailure(
         new GeneratorError(GeneratorErrorKind.PROVIDER_TRANSIENT, "529"),
       ),
-    ).toEqual({ code: GenerationFailureCode.PROVIDER_UNAVAILABLE });
+    ).toEqual({ code: GenerationFailureCodes.PROVIDER_UNAVAILABLE });
   });
 
   it("maps a connection-level SDK failure to provider-unavailable", () => {
     expect(classifyFailure(new APIConnectionError({}))).toEqual({
-      code: GenerationFailureCode.PROVIDER_UNAVAILABLE,
+      code: GenerationFailureCodes.PROVIDER_UNAVAILABLE,
     });
   });
 
   it.each([
-    [429, GenerationFailureCode.PROVIDER_RATE_LIMIT],
-    [408, GenerationFailureCode.PROVIDER_TIMEOUT],
-    [401, GenerationFailureCode.PROVIDER_AUTH],
-    [403, GenerationFailureCode.PROVIDER_AUTH],
-    [500, GenerationFailureCode.PROVIDER_UNAVAILABLE],
-    [529, GenerationFailureCode.PROVIDER_UNAVAILABLE],
+    [429, GenerationFailureCodes.PROVIDER_RATE_LIMIT],
+    [408, GenerationFailureCodes.PROVIDER_TIMEOUT],
+    [401, GenerationFailureCodes.PROVIDER_AUTH],
+    [403, GenerationFailureCodes.PROVIDER_AUTH],
+    [500, GenerationFailureCodes.PROVIDER_UNAVAILABLE],
+    [529, GenerationFailureCodes.PROVIDER_UNAVAILABLE],
   ])("probes a bare status %i", (status, code) => {
     expect(
       classifyFailure(Object.assign(new Error("http"), { status })),
@@ -117,11 +117,11 @@ describe("classifyFailure", () => {
 
   it("falls back to unknown{detail} for a plain error and a thrown string", () => {
     expect(classifyFailure(new Error("something odd"))).toEqual({
-      code: GenerationFailureCode.UNKNOWN,
+      code: GenerationFailureCodes.UNKNOWN,
       params: { detail: "something odd" },
     });
     expect(classifyFailure("thrown string")).toEqual({
-      code: GenerationFailureCode.UNKNOWN,
+      code: GenerationFailureCodes.UNKNOWN,
       params: { detail: "thrown string" },
     });
   });

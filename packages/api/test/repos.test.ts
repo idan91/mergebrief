@@ -12,9 +12,9 @@ import {
   isInstallationId,
   isRepoId,
   isReviewerId,
-  PrState,
+  PrStates,
   createTokenAuth,
-  WriteClassification,
+  WriteClassifications,
   type KeyProvider,
   type ReviewerId,
   type TenantContext,
@@ -169,7 +169,7 @@ describe("GET /api/repos", () => {
       refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
     });
     await createTokenAuth(harness.handle).mintToken({
-      scope: WriteClassification.EXTERNAL_WRITE,
+      scope: WriteClassifications.EXTERNAL_WRITE,
       installationId: CTX.installationId,
       userId: REVIEWER,
       userLogin: "octocat",
@@ -255,7 +255,7 @@ describe("GET /api/repos", () => {
         repoId: brand(isRepoId, REPO_A),
         prNumber: 7,
         repoSlug: "octo/hello",
-        state: PrState.OPEN,
+        state: PrStates.OPEN,
       });
       const cookie = await seedSession();
       const res = await getRepos({ Cookie: `rs_session=${cookie}` });

@@ -12,18 +12,20 @@ import type { Context, MiddlewareHandler } from "hono";
 import { matchedRoutes } from "hono/route";
 import {
   writeAudit,
-  AuditActorType,
-  AuditMetadataKey,
-  AuditChannel,
-  AuditOutcome,
+  AuditActorTypes,
+  AuditMetadataKeys,
+  AuditChannels,
+  AuditOutcomes,
   AuditRequestIdSchema,
   isInstallationId,
   isReviewerId,
   PullRequestSources,
-  WriteClassification,
+  WriteClassifications,
   type AppDatabase,
   type InstallationId,
   type PullRequestSource,
+  type AuditChannel,
+  type AuditOutcome,
 } from "persistence";
 import type { RequestLogEnv } from "../request-logging";
 import type { ProductOperationRegistry } from "./registry";
@@ -106,8 +108,8 @@ export function isAuditRowWritten(
 ): boolean {
   return (
     privateWrites ||
-    outcome !== AuditOutcome.OK ||
-    classification !== WriteClassification.PRIVATE_WRITE
+    outcome !== AuditOutcomes.OK ||
+    classification !== WriteClassifications.PRIVATE_WRITE
   );
 }
 
@@ -116,9 +118,9 @@ const CLIENT_ERROR = 400;
 
 function getOutcome(status: number): AuditOutcome {
   if (status >= SERVER_ERROR) {
-    return AuditOutcome.FAILED;
+    return AuditOutcomes.FAILED;
   }
-  return status >= CLIENT_ERROR ? AuditOutcome.DENIED : AuditOutcome.OK;
+  return status >= CLIENT_ERROR ? AuditOutcomes.DENIED : AuditOutcomes.OK;
 }
 
 /**
@@ -191,7 +193,7 @@ interface AuditPrincipal {
 }
 
 function isAuditChannel(value: unknown): value is AuditChannel {
-  return Object.values(AuditChannel).some((known) => known === value);
+  return Object.values(AuditChannels).some((known) => known === value);
 }
 
 /** One variable out of the context bag, unnarrowed — the callers guard it. */
@@ -340,7 +342,7 @@ export function createAuditMiddleware(
     const row: Mutable<Parameters<typeof writeAudit>[1]> = {
       installationId: scope.installationId,
       source: scope.source,
-      actorType: AuditActorType.REVIEWER,
+      actorType: AuditActorTypes.REVIEWER,
       actorId: principal.reviewerId,
       operation: descriptor.id,
       outcome,
@@ -364,7 +366,7 @@ export function createAuditMiddleware(
       row.targetId = target.id;
     }
     if (reason !== undefined) {
-      row.metadata = { [AuditMetadataKey.REASON]: reason };
+      row.metadata = { [AuditMetadataKeys.REASON]: reason };
     }
     try {
       await writeAudit(deps.handle, row);

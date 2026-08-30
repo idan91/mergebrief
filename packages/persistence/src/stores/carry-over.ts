@@ -8,15 +8,20 @@
 // or mark-read on a guess.
 import { RemapOutcomes, remapThroughHops, type Hop } from "brief-core/remap";
 import {
-  AnchorStatus,
-  DispositionCarryStatus,
-  DraftCommentSide,
-  DispositionEvidenceKind,
-  DispositionEvidenceStatus,
-  DraftCommentStatus,
+  AnchorStatuses,
+  DispositionCarryStatuses,
+  DraftCommentSides,
+  DispositionEvidenceKinds,
+  DispositionEvidenceStatuses,
+  DraftCommentStatuses,
+  type AnchorStatus,
+  type ChangeGroupCategory,
+  type DispositionCarryStatus,
   type DispositionDecision,
   type DispositionEvidence,
-  type ChangeGroupCategory,
+  type DispositionEvidenceStatus,
+  type DraftCommentSide,
+  type DraftCommentStatus,
 } from "../types";
 import { HunkSpansSchema } from "./artifact-store";
 
@@ -195,22 +200,26 @@ function carryTwoSideComment(
   context: CarryOverContext,
 ): CarriedDraftComment {
   if (context.baseShaMoved || context.hops === null) {
-    return { ...comment, anchorStatus: AnchorStatus.ORPHANED };
+    return { ...comment, anchorStatus: AnchorStatuses.ORPHANED };
   }
   const newLine =
-    comment.startSide === DraftCommentSide.NEW
+    comment.startSide === DraftCommentSides.NEW
       ? comment.startLine
       : comment.endLine;
   const placed = replace(context, comment.filePath, newLine, newLine);
   if (placed === undefined) {
-    return { ...comment, anchorStatus: AnchorStatus.ORPHANED };
+    return { ...comment, anchorStatus: AnchorStatuses.ORPHANED };
   }
   if (placed.start === newLine) {
     return { ...comment, anchorStatus: null };
   }
-  return comment.startSide === DraftCommentSide.NEW
-    ? { ...comment, startLine: placed.start, anchorStatus: AnchorStatus.MOVED }
-    : { ...comment, endLine: placed.start, anchorStatus: AnchorStatus.MOVED };
+  return comment.startSide === DraftCommentSides.NEW
+    ? {
+        ...comment,
+        startLine: placed.start,
+        anchorStatus: AnchorStatuses.MOVED,
+      }
+    : { ...comment, endLine: placed.start, anchorStatus: AnchorStatuses.MOVED };
 }
 
 function carryComment(
@@ -224,11 +233,11 @@ function carryComment(
   // about, so a base that held still leaves them exact. A moved base or a
   // chain that cannot be trusted still orphans them: an untrustworthy span
   // orphans every anchor it covers, whichever side it sits on.
-  if (comment.side === DraftCommentSide.OLD) {
+  if (comment.side === DraftCommentSides.OLD) {
     const unplaceable = context.baseShaMoved || context.hops === null;
     return {
       ...comment,
-      anchorStatus: unplaceable ? AnchorStatus.ORPHANED : null,
+      anchorStatus: unplaceable ? AnchorStatuses.ORPHANED : null,
     };
   }
   const placed = replace(
@@ -238,7 +247,7 @@ function carryComment(
     comment.endLine,
   );
   if (placed === undefined) {
-    return { ...comment, anchorStatus: AnchorStatus.ORPHANED };
+    return { ...comment, anchorStatus: AnchorStatuses.ORPHANED };
   }
   if (placed.start === comment.startLine && placed.end === comment.endLine) {
     return { ...comment, anchorStatus: null };
@@ -247,7 +256,7 @@ function carryComment(
     ...comment,
     startLine: placed.start,
     endLine: placed.end,
-    anchorStatus: AnchorStatus.MOVED,
+    anchorStatus: AnchorStatuses.MOVED,
   };
 }
 
@@ -283,8 +292,8 @@ function carryDisposition(
     // only ones it has.
     const unplaceable =
       occurrences === undefined
-        ? DispositionCarryStatus.DROPPED
-        : DispositionCarryStatus.REOPENED;
+        ? DispositionCarryStatuses.DROPPED
+        : DispositionCarryStatuses.REOPENED;
     return { ...carried, carryStatus: unplaceable };
   }
   const located = {
@@ -293,7 +302,7 @@ function carryDisposition(
     regionEnd: placed.end,
   };
   if (occurrences === undefined) {
-    return { ...located, carryStatus: DispositionCarryStatus.DROPPED };
+    return { ...located, carryStatus: DispositionCarryStatuses.DROPPED };
   }
   // Overlap, not equality — the region is remapped and chunk bounds are
   // re-derived per Brief, so an exact-region rule would drop live decisions.
@@ -301,11 +310,11 @@ function carryDisposition(
     (flag) => flag.regionStart <= placed.end && flag.regionEnd >= placed.start,
   );
   if (!stillFiring) {
-    return { ...located, carryStatus: DispositionCarryStatus.DROPPED };
+    return { ...located, carryStatus: DispositionCarryStatuses.DROPPED };
   }
   return {
     ...located,
-    carryStatus: DispositionCarryStatus.SETTLED,
+    carryStatus: DispositionCarryStatuses.SETTLED,
   };
 }
 
@@ -340,8 +349,8 @@ function carryEvidence(
     return { evidence: row.evidence, evidenceStatus: row.evidenceStatus };
   }
   const kept = { evidence: row.evidence, evidenceStatus: row.evidenceStatus };
-  if (row.evidence.kind === DispositionEvidenceKind.MANUAL_NOTE) return kept;
-  if (row.evidence.kind === DispositionEvidenceKind.LINKED_COMMENT) {
+  if (row.evidence.kind === DispositionEvidenceKinds.MANUAL_NOTE) return kept;
+  if (row.evidence.kind === DispositionEvidenceKinds.LINKED_COMMENT) {
     const now = surviving.draftComments.get(row.evidence.ref);
     if (now !== undefined) {
       return {
@@ -360,7 +369,7 @@ function carryEvidence(
   }
   return {
     evidence: null,
-    evidenceStatus: DispositionEvidenceStatus.MISSING_EVIDENCE,
+    evidenceStatus: DispositionEvidenceStatuses.MISSING_EVIDENCE,
   };
 }
 
@@ -380,7 +389,7 @@ function mergeOnAnchor(
       byAnchor.set(key, row);
       continue;
     }
-    if (held.carryStatus !== DispositionCarryStatus.REOPENED) {
+    if (held.carryStatus !== DispositionCarryStatuses.REOPENED) {
       byAnchor.set(key, row);
     }
   }
@@ -420,7 +429,7 @@ export function evaluateCarryOver(
   const groups = new Set(context.groupIds);
   const firing = firingOccurrences(context.flags);
   const draftComments = previous.draftComments
-    .filter((comment) => comment.status === DraftCommentStatus.DRAFT)
+    .filter((comment) => comment.status === DraftCommentStatuses.DRAFT)
     .map((comment) => carryComment(comment, context));
   const surviving: SurvivingEvidence = {
     // Every comment the previous session held, not only the ones that
@@ -432,7 +441,7 @@ export function evaluateCarryOver(
       previous.draftComments.flatMap((row) => {
         const now: SurvivingComment = {
           id: String(row.id),
-          published: row.status === DraftCommentStatus.SUBMITTED,
+          published: row.status === DraftCommentStatuses.SUBMITTED,
         };
         const carried = row.carriedFromCommentId;
         const pairs: [string, SurvivingComment][] = [[now.id, now]];

@@ -19,13 +19,13 @@ import { apiToken } from "../src/schema/api-token";
 import { createGrantAuth, type GithubGrantRow } from "../src/auth/grant";
 import {
   createTokenAuth,
-  TokenAuthErrorCode,
+  TokenAuthErrorCodes,
   type TokenMintInput,
 } from "../src/auth/token";
 import {
   isInstallationId,
   isReviewerId,
-  WriteClassification,
+  WriteClassifications,
   type InstallationId,
   type ReviewerId,
 } from "../src/types";
@@ -153,7 +153,7 @@ function mintInput(
     userId: USER,
     userLogin: "octocat",
     name: "ci-token",
-    scope: WriteClassification.EXTERNAL_WRITE,
+    scope: WriteClassifications.EXTERNAL_WRITE,
     tokenHash: HASH,
     grantId: grant.id,
     expiresAt: FUTURE,
@@ -176,7 +176,7 @@ describe("createTokenAuth mint / resolve / touch", () => {
     expect(minted.revokedAt).toBeNull();
     expect(minted.lastUsedAt).toBeNull();
     // Chosen at mint, and on the metadata projection the settings list reads.
-    expect(minted.scope).toBe(WriteClassification.EXTERNAL_WRITE);
+    expect(minted.scope).toBe(WriteClassifications.EXTERNAL_WRITE);
 
     const resolved = await auth.resolveByHash(HASH, NOW);
     expect(resolved.ok).toBe(true);
@@ -223,7 +223,7 @@ describe("createTokenAuth mint / resolve / touch", () => {
     );
     expect(resolved.ok).toBe(false);
     if (resolved.ok) throw new Error("unreachable");
-    expect(resolved.error.code).toBe(TokenAuthErrorCode.NOT_FOUND);
+    expect(resolved.error.code).toBe(TokenAuthErrorCodes.NOT_FOUND);
   });
 
   it("returns EXPIRED for a token past its expiry", async () => {
@@ -232,7 +232,7 @@ describe("createTokenAuth mint / resolve / touch", () => {
     const resolved = await auth.resolveByHash(HASH, NOW);
     expect(resolved.ok).toBe(false);
     if (resolved.ok) throw new Error("unreachable");
-    expect(resolved.error.code).toBe(TokenAuthErrorCode.EXPIRED);
+    expect(resolved.error.code).toBe(TokenAuthErrorCodes.EXPIRED);
   });
 
   it("touches last_used_at by hash", async () => {
@@ -293,7 +293,7 @@ describe("createTokenAuth list / revoke", () => {
     const resolved = await auth.resolveByHash(HASH, NOW);
     expect(resolved.ok).toBe(false);
     if (resolved.ok) throw new Error("unreachable");
-    expect(resolved.error.code).toBe(TokenAuthErrorCode.REVOKED);
+    expect(resolved.error.code).toBe(TokenAuthErrorCodes.REVOKED);
 
     // Still listable (the settings list stays honest after revocation), and
     // the soft revoke KEEPS the grant reference — only hard deletes
@@ -319,7 +319,7 @@ describe("createTokenAuth list / revoke", () => {
     const result = await auth.revokeToken(OTHER_USER, minted.id, NOW);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(TokenAuthErrorCode.NOT_FOUND);
+    expect(result.error.code).toBe(TokenAuthErrorCodes.NOT_FOUND);
     // The row is untouched.
     const resolved = await auth.resolveByHash(HASH, NOW);
     expect(resolved.ok).toBe(true);

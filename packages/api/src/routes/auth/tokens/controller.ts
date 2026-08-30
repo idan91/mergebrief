@@ -5,7 +5,7 @@
 import { randomBytes } from "node:crypto";
 import {
   createTokenAuth,
-  TokenAuthErrorCode,
+  TokenAuthErrorCodes,
   type ApiTokenMetadataRow,
   type ApiTokenRowId,
 } from "persistence";
@@ -94,7 +94,7 @@ export default {
     );
     if (!revoked.ok) {
       // NOT_FOUND is the only expected arm on this path.
-      if (revoked.error.code !== TokenAuthErrorCode.NOT_FOUND) {
+      if (revoked.error.code !== TokenAuthErrorCodes.NOT_FOUND) {
         throw new Error(`unexpected revoke failure: ${revoked.error.code}`);
       }
       return {

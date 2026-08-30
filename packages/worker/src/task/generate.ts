@@ -61,18 +61,18 @@ import { enqueueOwnerHeadFollowUp } from "./owner-follow-up";
 import {
   createArtifactStore,
   writeAudit,
-  AuditOutcome,
-  AuditActorType,
-  AuditMetadataKey,
+  AuditOutcomes,
+  AuditActorTypes,
+  AuditMetadataKeys,
   createTenantRepository,
   isOwnerContext,
   PullRequestSources,
-  GenerationFailureCode,
+  GenerationFailureCodes,
   createGenerationProjection,
-  GenerationKind,
-  GenerationPhase,
-  GenerationStatus,
-  PrState,
+  GenerationKinds,
+  GenerationPhases,
+  GenerationStatuses,
+  PrStates,
   StoredIdsSchema,
   type AppDatabase,
   type ArtifactStore,
@@ -259,13 +259,13 @@ function unwrapGitHub<T>(result: Result<T, GitHubApiError>): T {
     throw new PermanentJobError(result.error.message, {
       failure:
         result.error.status === 406
-          ? { code: GenerationFailureCode.DIFF_TOO_LARGE }
-          : { code: GenerationFailureCode.GITHUB_ACCESS },
+          ? { code: GenerationFailureCodes.DIFF_TOO_LARGE }
+          : { code: GenerationFailureCodes.GITHUB_ACCESS },
     });
   }
   // Transient (rate limit / 5xx / network): rethrown → graphile retries.
   throw new TransientJobError(result.error.message, {
-    failure: { code: GenerationFailureCode.GITHUB_UNAVAILABLE },
+    failure: { code: GenerationFailureCodes.GITHUB_UNAVAILABLE },
   });
 }
 
@@ -331,7 +331,7 @@ function getAnchorColumns(anchor: Anchor): {
 function briefTarget(payload: ParsedGeneratePayload): GenerationTarget {
   return {
     pullRequestId: payload.pullRequestId,
-    kind: GenerationKind.BRIEF,
+    kind: GenerationKinds.BRIEF,
     headSha: payload.headSha,
     baselineSha: null,
   };
@@ -523,7 +523,7 @@ async function runGeneration(
   }
   if (
     payload.grantId === undefined &&
-    (pr.state === PrState.CLOSED || pr.state === PrState.MERGED)
+    (pr.state === PrStates.CLOSED || pr.state === PrStates.MERGED)
   ) {
     // App world: a brief for a terminal PR would never be read (same rule as
     // the enqueue gate); the queued projection row must not sit forever.
@@ -601,14 +601,14 @@ async function runGeneration(
       // with the previous attempt's real failure recorded, and stamping
       // `capped` over it would erase why the job actually broke.
       const current = await projection.get(target);
-      if (current?.status !== GenerationStatus.FAILED) {
+      if (current?.status !== GenerationStatuses.FAILED) {
         await projection.markCapped(target);
       }
       return;
     }
   }
 
-  await projection.markRunning(target, GenerationPhase.FETCHING);
+  await projection.markRunning(target, GenerationPhases.FETCHING);
 
   // The App world relies on the newer push's own webhook job (same job_key,
   // replaced) to generate the head this run found moved. A url-box PR may have
@@ -893,7 +893,7 @@ async function runGeneration(
           }
         }
       }
-      await projection.markRunning(target, GenerationPhase.GENERATING);
+      await projection.markRunning(target, GenerationPhases.GENERATING);
       // Post the "generating" Entry comment before the (minutes-long) model
       // call: the deep link already renders the diff-first wait UX, so the
       // thread learns a Brief is coming while it is still being produced.
@@ -913,7 +913,7 @@ async function runGeneration(
           anchorView,
         ),
       );
-      await projection.markRunning(target, GenerationPhase.WRITING);
+      await projection.markRunning(target, GenerationPhases.WRITING);
       // Anchored stitch: carry frozen groups verbatim over the model's take,
       // rewrite ids by descent, enforce coverage. A coverage failure is a
       // pipeline error — permanent, never salvage.
@@ -965,12 +965,12 @@ async function runGeneration(
       generatedBrief = stamped;
       await writeAudit(handle, {
         ...auditScope,
-        actorType: AuditActorType.SYSTEM,
+        actorType: AuditActorTypes.SYSTEM,
         operation: AUDIT_OPERATION_GENERATE,
-        outcome: AuditOutcome.OK,
+        outcome: AuditOutcomes.OK,
         targetType: "brief",
         targetId: briefRef.id,
-        metadata: { [AuditMetadataKey.KIND]: GenerationKind.BRIEF },
+        metadata: { [AuditMetadataKeys.KIND]: GenerationKinds.BRIEF },
       });
     } else {
       log.info(
@@ -1072,14 +1072,14 @@ async function runGeneration(
     if (deltaCount > 0) {
       await writeAudit(handle, {
         ...auditScope,
-        actorType: AuditActorType.SYSTEM,
+        actorType: AuditActorTypes.SYSTEM,
         operation: AUDIT_OPERATION_GENERATE,
-        outcome: AuditOutcome.OK,
+        outcome: AuditOutcomes.OK,
         targetType: "pull_request",
         targetId: pullRequestId,
         metadata: {
-          [AuditMetadataKey.KIND]: GenerationKind.DELTA,
-          [AuditMetadataKey.COUNT]: deltaCount,
+          [AuditMetadataKeys.KIND]: GenerationKinds.DELTA,
+          [AuditMetadataKeys.COUNT]: deltaCount,
         },
       });
     }

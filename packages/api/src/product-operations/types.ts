@@ -1,4 +1,4 @@
-import { WriteClassification } from "persistence";
+import { WriteClassifications, type WriteClassification } from "persistence";
 
 // The Product Operation taxonomy: every authenticated domain operation is a
 // query (read-only) or an action (state-changing), classified by where its
@@ -16,7 +16,7 @@ export const OPERATION_KIND = {
  * CHECK constraint that pins it lives with the column, so `persistence` owns
  * the declaration and this is the api-side name for it.
  */
-export const WRITE_CLASSIFICATION = WriteClassification;
+export const WRITE_CLASSIFICATION = WriteClassifications;
 
 /** A write that leaves the instance (GitHub reviews, comments, thread state). */
 export type ExternalWriteClassification =
