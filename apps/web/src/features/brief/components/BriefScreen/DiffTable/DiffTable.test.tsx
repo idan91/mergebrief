@@ -185,6 +185,54 @@ function renderTable(
   return { view, openCommentComposer, flowStore };
 }
 
+describe("DiffTable — stable comparison column", () => {
+  it("keeps the revision column when comparison is off", () => {
+    const { view } = renderTable();
+
+    expect(view.container.querySelectorAll("thead th")).toHaveLength(4);
+    expect(
+      view.container.querySelectorAll("tbody tr[data-line-kind]"),
+    ).toHaveLength(2);
+    for (const row of view.container.querySelectorAll(
+      "tbody tr[data-line-kind]",
+    )) {
+      expect(row.querySelectorAll("td")).toHaveLength(4);
+    }
+    expect(view.container.querySelectorAll("[data-jump-target]")).toHaveLength(
+      0,
+    );
+  });
+
+  it("paints marked runs without changing the table structure", () => {
+    const run = {
+      chunkId: "c1",
+      file: "src/a.ts",
+      rowIndexes: [1],
+      kind: "added" as const,
+    };
+    const { view } = renderTable({
+      comparisonView: {
+        marks: new Map([[1, "added"]]),
+        runs: [run],
+        runByRow: new Map([[1, run]]),
+      },
+    });
+
+    expect(view.container.querySelectorAll("thead th")).toHaveLength(4);
+    for (const row of view.container.querySelectorAll(
+      "tbody tr[data-line-kind]",
+    )) {
+      expect(row.querySelectorAll("td")).toHaveLength(4);
+    }
+    expect(
+      view.container.querySelectorAll('tbody td[data-rev="added"]'),
+    ).toHaveLength(1);
+    expect(view.container.querySelectorAll("[data-jump-target]")).toHaveLength(
+      1,
+    );
+  });
+});
+
 describe("DiffTable — a draft restored from the server", () => {
   it("renders on the row its coordinates name, with no row ids to go on", () => {
     // The session read lands BEFORE the diff does, so a restored draft carries
@@ -334,7 +382,7 @@ describe("DiffTable — selectable code text", () => {
     } = renderTable();
     const [first, second] = commentableRows(container);
     if (!first || !second) throw new Error("expected two diff rows");
-    const code = first.querySelector("td:not([data-line-number])");
+    const code = first.querySelector("td:last-child");
     if (!(code instanceof HTMLElement)) throw new Error("expected a code cell");
     fireEvent.mouseDown(code);
     fireEvent.mouseEnter(second);
@@ -350,7 +398,7 @@ describe("DiffTable — selectable code text", () => {
       openCommentComposer,
     } = renderTable();
     const [first] = commentableRows(container);
-    const code = first?.querySelector("td:not([data-line-number])");
+    const code = first?.querySelector("td:last-child");
     const gutter = first?.querySelector("[data-line-number]");
     if (!first || !(code instanceof Element) || !(gutter instanceof Element)) {
       throw new Error("expected code and gutter cells");
@@ -368,7 +416,7 @@ describe("DiffTable — selectable code text", () => {
       openCommentComposer,
     } = renderTable();
     const [first, second] = commentableRows(container);
-    const code = first?.querySelector("td:not([data-line-number])");
+    const code = first?.querySelector("td:last-child");
     const gutter = first?.querySelector("[data-line-number]");
     if (!second || !(code instanceof Element) || !(gutter instanceof Element)) {
       throw new Error("expected code and gutter cells");

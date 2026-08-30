@@ -208,7 +208,7 @@ export function DiffTable({
   const handleToggleConversationThread = (threadId: number) =>
     toggleConversationThread(chunkKey, threadId);
   const overlayActive = comparisonView.runs.length > 0;
-  const metaColSpan = overlayActive ? 4 : 3;
+  const metaColSpan = 4;
 
   function finishSelection(rowIndex: number) {
     // Read-only revision: composer entry is inert (the affordance itself is
@@ -251,9 +251,9 @@ export function DiffTable({
           </ScreenReaderOnly>
           <ScreenReaderOnly as="thead">
             <tr>
-              {overlayActive ? (
-                <th scope="col">{t("brief.diff.colRevision")}</th>
-              ) : null}
+              <th aria-hidden={overlayActive ? undefined : true} scope="col">
+                {overlayActive ? t("brief.diff.colRevision") : null}
+              </th>
               <th scope="col">{t("brief.diff.colOld")}</th>
               <th scope="col">{t("brief.diff.colNew")}</th>
               <th scope="col">{t("brief.diff.colContent")}</th>
@@ -373,16 +373,14 @@ export function DiffTable({
                     }}
                     tabIndex={0}
                   >
-                    {overlayActive ? (
-                      <RevisionGutterCell
-                        run={revRun}
-                        isStart={isRevStart}
-                        isEnd={isRevEnd}
-                        chunk={chunk}
-                        onRailEnter={handleRailEnter}
-                        onRailLeave={handleRailLeave}
-                      />
-                    ) : null}
+                    <RevisionGutterCell
+                      run={overlayActive ? revRun : undefined}
+                      isStart={isRevStart}
+                      isEnd={isRevEnd}
+                      chunk={chunk}
+                      onRailEnter={handleRailEnter}
+                      onRailLeave={handleRailLeave}
+                    />
                     <td
                       className={styles["lineNumber"]}
                       data-comment-anchor=""
