@@ -1,7 +1,7 @@
 // The comments domain's failure->throw mappers: every GitHub refusal lands
 // on the wire with the gated-route posture (uniform-404 collapse; distinct
 // 409 only where the FE has a recovery action).
-import { GitHubApiErrorCode, type InlineReviewCommentError } from "github";
+import { GitHubApiErrorCodes, type InlineReviewCommentError } from "github";
 import { ApiErrorCodes } from "../../../../../error-response";
 import {
   BadGateway,
@@ -25,13 +25,13 @@ export function throwPublishFailure(failure: PublishFailure): never {
   if (error.staleAnchor === true) {
     throw new Conflict(ApiErrorCodes.PR_CHANGED_SINCE_READ);
   }
-  if (error.code === GitHubApiErrorCode.UNAUTHORIZED) {
+  if (error.code === GitHubApiErrorCodes.UNAUTHORIZED) {
     throw new Unauthorized();
   }
   // 403/404 collapse to the gate's 404 posture — no existence leak.
   if (
-    error.code === GitHubApiErrorCode.NOT_FOUND ||
-    error.code === GitHubApiErrorCode.FORBIDDEN
+    error.code === GitHubApiErrorCodes.NOT_FOUND ||
+    error.code === GitHubApiErrorCodes.FORBIDDEN
   ) {
     throw new NotFound();
   }
@@ -47,12 +47,12 @@ export function throwReplyFailure(failure: ReplyFailure): never {
   if (failure.kind === "token-unreadable") {
     throw new Unauthorized();
   }
-  if (failure.error.code === GitHubApiErrorCode.UNAUTHORIZED) {
+  if (failure.error.code === GitHubApiErrorCodes.UNAUTHORIZED) {
     throw new Unauthorized();
   }
   if (
-    failure.error.code === GitHubApiErrorCode.NOT_FOUND ||
-    failure.error.code === GitHubApiErrorCode.FORBIDDEN
+    failure.error.code === GitHubApiErrorCodes.NOT_FOUND ||
+    failure.error.code === GitHubApiErrorCodes.FORBIDDEN
   ) {
     throw new NotFound();
   }
@@ -70,13 +70,13 @@ export function throwResolutionFailure(failure: ResolutionFailure): never {
   if (failure.kind === "token-unreadable") {
     throw new Unauthorized();
   }
-  if (failure.error.code === GitHubApiErrorCode.UNAUTHORIZED) {
+  if (failure.error.code === GitHubApiErrorCodes.UNAUTHORIZED) {
     throw new Unauthorized();
   }
-  if (failure.error.code === GitHubApiErrorCode.FORBIDDEN) {
+  if (failure.error.code === GitHubApiErrorCodes.FORBIDDEN) {
     throw new Forbidden(ApiErrorCodes.GITHUB_PERMISSION);
   }
-  if (failure.error.code === GitHubApiErrorCode.NOT_FOUND) {
+  if (failure.error.code === GitHubApiErrorCodes.NOT_FOUND) {
     throw new NotFound();
   }
   throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);

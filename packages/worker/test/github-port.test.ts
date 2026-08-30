@@ -4,7 +4,7 @@
 import { randomBytes } from "node:crypto";
 import type * as githubModule from "github";
 import {
-  GitHubApiErrorCode,
+  GitHubApiErrorCodes,
   createUserOctokit,
   fetchPullRequest,
 } from "github";
@@ -151,7 +151,7 @@ describe("appGitHubPort — openUrlBoxPullRequestSource", () => {
       if (tokenOf(octokit) === "ghu_viewer") {
         return {
           ok: false,
-          error: { code: GitHubApiErrorCode.NOT_FOUND, message: "404" },
+          error: { code: GitHubApiErrorCodes.NOT_FOUND, message: "404" },
         };
       }
       return { ok: true, value: INFO };
@@ -179,7 +179,7 @@ describe("appGitHubPort — openUrlBoxPullRequestSource", () => {
       if (tokenOf(octokit) === "ghu_viewer") {
         return {
           ok: false,
-          error: { code: GitHubApiErrorCode.FORBIDDEN, message: "403" },
+          error: { code: GitHubApiErrorCodes.FORBIDDEN, message: "403" },
         };
       }
       return { ok: true, value: INFO };
@@ -206,7 +206,7 @@ describe("appGitHubPort — openUrlBoxPullRequestSource", () => {
     const grantId = await seedGrant("ghu_viewer");
     vi.mocked(fetchPullRequest).mockResolvedValue({
       ok: false,
-      error: { code: GitHubApiErrorCode.UNAUTHORIZED, message: "401" },
+      error: { code: GitHubApiErrorCodes.UNAUTHORIZED, message: "401" },
     });
     const port = appGitHubPort(unusedApp, {
       handle: harness.handle,
@@ -230,7 +230,7 @@ describe("appGitHubPort — openUrlBoxPullRequestSource", () => {
     const grantId = await seedGrant("ghu_viewer");
     vi.mocked(fetchPullRequest).mockResolvedValue({
       ok: false,
-      error: { code: GitHubApiErrorCode.NOT_FOUND, message: "404" },
+      error: { code: GitHubApiErrorCodes.NOT_FOUND, message: "404" },
     });
     const port = appGitHubPort(unusedApp, {
       handle: harness.handle,

@@ -22,7 +22,7 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ExitCode } from "../src/exit";
+import { ExitCodes } from "../src/exit";
 import { testLogger } from "./logging";
 import { runCli, type CliDeps } from "../src/program";
 
@@ -192,7 +192,7 @@ describe("mergebrief commands over the real api app", () => {
       ["auth", "login", "--base-url", BASE_URL, "--json"],
       d,
     );
-    expect(code).toBe(ExitCode.OK);
+    expect(code).toBe(ExitCodes.OK);
   }
 
   it("auth login stores the token 0600 and reports the status shape", async () => {
@@ -204,7 +204,7 @@ describe("mergebrief commands over the real api app", () => {
       ["auth", "login", "--base-url", BASE_URL, "--json"],
       d,
     );
-    expect(code).toBe(ExitCode.OK);
+    expect(code).toBe(ExitCodes.OK);
     expect(io.err).toEqual([]);
 
     const status: unknown = JSON.parse(io.out.join(""));
@@ -227,7 +227,7 @@ describe("mergebrief commands over the real api app", () => {
       ["auth", "login", "--base-url", BASE_URL, "--json"],
       d,
     );
-    expect(code).toBe(ExitCode.USAGE);
+    expect(code).toBe(ExitCodes.USAGE);
     expect(io.out).toEqual([]);
     expect(io.err).toHaveLength(1);
   });
@@ -242,7 +242,7 @@ describe("mergebrief commands over the real api app", () => {
       },
     });
     const code = await runCli(["auth", "status", "--json"], d);
-    expect(code).toBe(ExitCode.OK);
+    expect(code).toBe(ExitCodes.OK);
     const status = JSON.parse(io.out.join("")) as {
       server: { reachable: boolean; authenticated: boolean | null };
     };
@@ -255,7 +255,7 @@ describe("mergebrief commands over the real api app", () => {
 
   it("an unknown flag is a usage error (exit 2)", async () => {
     const { deps: d } = deps();
-    expect(await runCli(["repos", "--bogus"], d)).toBe(ExitCode.USAGE);
+    expect(await runCli(["repos", "--bogus"], d)).toBe(ExitCodes.USAGE);
   });
 });
 
@@ -324,7 +324,7 @@ describe("auth login profile selection + verification", () => {
         gitOriginUrl: () => undefined,
       },
     );
-    expect(code).toBe(ExitCode.OK);
+    expect(code).toBe(ExitCodes.OK);
     const config = readFileSync(join(configDir, "config.json"), "utf8");
     expect(config).toContain('"work"');
     const status = JSON.parse(captured.out.join("")) as { profile: string };
@@ -369,7 +369,7 @@ describe("auth login profile selection + verification", () => {
         gitOriginUrl: () => undefined,
       },
     );
-    expect(code).toBe(ExitCode.OK);
+    expect(code).toBe(ExitCodes.OK);
     const status = JSON.parse(captured.out.join("")) as {
       server: { authenticated: boolean | null };
     };

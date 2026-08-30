@@ -6,7 +6,7 @@
 import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
 import { markPullRequestReadyForReview } from "../src/operations/mark-ready";
-import { GitHubApiErrorCode } from "../src/errors";
+import { GitHubApiErrorCodes } from "../src/errors";
 import { LEAKED_TOKEN, graphqlResponseError } from "./fixtures/graphql-error";
 
 function mockGraphqlOctokit(graphql: ReturnType<typeof vi.fn>): Octokit {
@@ -87,7 +87,7 @@ describe("markPullRequestReadyForReview", () => {
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     expect(graphql).toHaveBeenCalledTimes(1);
   });
 
@@ -101,7 +101,7 @@ describe("markPullRequestReadyForReview", () => {
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
   });
 
   it("maps a resolve-time GraphQL error (forbidden) to a sanitized failure, no mutation", async () => {
@@ -116,7 +116,7 @@ describe("markPullRequestReadyForReview", () => {
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.FORBIDDEN);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
     expect(graphql).toHaveBeenCalledTimes(1);
     // No secret/upstream text leaks through the sanitization chokepoint.
     expect(JSON.stringify(result.error)).not.toContain(LEAKED_TOKEN);
@@ -148,7 +148,7 @@ describe("markPullRequestReadyForReview", () => {
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 
   it("flags an ill-shaped resolve response as an unexpected-shape failure", async () => {
@@ -161,6 +161,6 @@ describe("markPullRequestReadyForReview", () => {
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 });

@@ -1,6 +1,6 @@
 import type { Result } from "types";
 import { configError, type ConfigError } from "../contract/errors";
-import { GeneratorError, GeneratorErrorKind } from "../contract/errors";
+import { GeneratorError, GeneratorErrorKinds } from "../contract/errors";
 import type { Logger } from "../contract/generator";
 import { redactSecrets } from "./redact";
 import {
@@ -70,7 +70,7 @@ export async function probeHarnessCli(
       // spawn failure (EMFILE et al) reports itself (message is code-only,
       // never stderr content).
       return configError([
-        error.kind === GeneratorErrorKind.CLI_MISSING
+        error.kind === GeneratorErrorKinds.CLI_MISSING
           ? `${args.command}: not found on PATH`
           : error.message,
       ]);
@@ -99,7 +99,7 @@ export async function probeHarnessCli(
     if (error instanceof GeneratorError) {
       return configError([
         `${args.command}: auth preflight could not run — ${
-          error.kind === GeneratorErrorKind.CLI_MISSING
+          error.kind === GeneratorErrorKinds.CLI_MISSING
             ? "binary disappeared mid-probe"
             : error.message
         }`,

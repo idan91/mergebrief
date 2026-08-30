@@ -9,7 +9,7 @@ import {
 import type Anthropic from "@anthropic-ai/sdk";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
-import { GeneratorError, GeneratorErrorKind } from "../src/contract/errors";
+import { GeneratorError, GeneratorErrorKinds } from "../src/contract/errors";
 import { AnthropicGenerator } from "../src/adapters/anthropic";
 import type { AnthropicStreamingClient } from "../src/adapters/anthropic";
 import {
@@ -173,12 +173,12 @@ describe("AnthropicGenerator SDK error classification", () => {
   }
 
   it.each([
-    [401, GeneratorErrorKind.AUTH],
-    [403, GeneratorErrorKind.AUTH],
-    [400, GeneratorErrorKind.CONFIG],
-    [404, GeneratorErrorKind.CONFIG],
-    [429, GeneratorErrorKind.PROVIDER_TRANSIENT],
-    [529, GeneratorErrorKind.PROVIDER_TRANSIENT],
+    [401, GeneratorErrorKinds.AUTH],
+    [403, GeneratorErrorKinds.AUTH],
+    [400, GeneratorErrorKinds.CONFIG],
+    [404, GeneratorErrorKinds.CONFIG],
+    [429, GeneratorErrorKinds.PROVIDER_TRANSIENT],
+    [529, GeneratorErrorKinds.PROVIDER_TRANSIENT],
   ])("maps SDK status %d to kind %s", async (status, kind) => {
     const sdkError = Object.assign(new Error(`http ${status}`), { status });
     const error = await rejectionFor(sdkError);
@@ -192,7 +192,7 @@ describe("AnthropicGenerator SDK error classification", () => {
     });
     const error = await rejectionFor(connectionError);
     expect(error).toMatchObject({
-      kind: GeneratorErrorKind.PROVIDER_TRANSIENT,
+      kind: GeneratorErrorKinds.PROVIDER_TRANSIENT,
       cause: connectionError,
     });
   });
@@ -201,7 +201,7 @@ describe("AnthropicGenerator SDK error classification", () => {
     const retryable = new RetryableError("middleware retries exhausted");
     const error = await rejectionFor(retryable);
     expect(error).toMatchObject({
-      kind: GeneratorErrorKind.PROVIDER_TRANSIENT,
+      kind: GeneratorErrorKinds.PROVIDER_TRANSIENT,
       cause: retryable,
     });
   });
@@ -211,7 +211,7 @@ describe("AnthropicGenerator SDK error classification", () => {
     const error = await rejectionFor(statusless);
     expect(error).toBeInstanceOf(GeneratorError);
     expect(error).toMatchObject({
-      kind: GeneratorErrorKind.OPAQUE,
+      kind: GeneratorErrorKinds.OPAQUE,
       cause: statusless,
     });
   });
@@ -230,7 +230,7 @@ describe("AnthropicGenerator SDK error classification", () => {
     });
     await expect(promise).rejects.toBeInstanceOf(GeneratorError);
     await expect(promise).rejects.toMatchObject({
-      kind: GeneratorErrorKind.CONFIG,
+      kind: GeneratorErrorKinds.CONFIG,
     });
     expect(stub.requests).toHaveLength(0);
   });

@@ -22,7 +22,7 @@ import {
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApiClient } from "../src/client";
-import { ExitCode } from "../src/exit";
+import { ExitCodes } from "../src/exit";
 import { resolveRepoId, type RepoCacheDeps } from "../src/profile/repos";
 import { runCli, type CliDeps } from "../src/program";
 import { testLogger } from "./logging";
@@ -193,7 +193,7 @@ describe("mergebrief repos command + cache", () => {
       ["auth", "login", "--base-url", BASE_URL, "--json"],
       d,
     );
-    expect(code).toBe(ExitCode.OK);
+    expect(code).toBe(ExitCodes.OK);
   }
 
   it("repos --json is BYTE-IDENTICAL passthrough and populates the no-TTL cache", async () => {
@@ -217,7 +217,7 @@ describe("mergebrief repos command + cache", () => {
     }).request({ path: "/api/repos" });
 
     const first = deps({ fetch: countingFetch });
-    expect(await runCli(["repos", "--json"], first.deps)).toBe(ExitCode.OK);
+    expect(await runCli(["repos", "--json"], first.deps)).toBe(ExitCodes.OK);
     expect(first.io.out.join("")).toBe(reference.bodyText);
     expect(apiRepoHits).toBe(1);
 
@@ -225,14 +225,14 @@ describe("mergebrief repos command + cache", () => {
     // and STILL byte-identical: the cache returns raw bytes, never
     // re-serialized.
     const second = deps({ fetch: countingFetch });
-    expect(await runCli(["repos", "--json"], second.deps)).toBe(ExitCode.OK);
+    expect(await runCli(["repos", "--json"], second.deps)).toBe(ExitCodes.OK);
     expect(apiRepoHits).toBe(1);
     expect(second.io.out.join("")).toBe(reference.bodyText);
 
     // --refresh bypasses the disk cache.
     const third = deps({ fetch: countingFetch });
     expect(await runCli(["repos", "--refresh", "--json"], third.deps)).toBe(
-      ExitCode.OK,
+      ExitCodes.OK,
     );
     expect(apiRepoHits).toBe(2);
   });
@@ -248,7 +248,7 @@ describe("mergebrief repos command + cache", () => {
 
     const { deps: d, io } = deps();
     const code = await runCli(["repos", "--refresh", "--json"], d);
-    expect(code).toBe(ExitCode.AUTH);
+    expect(code).toBe(ExitCodes.AUTH);
     expect(io.out).toEqual([]);
     expect(io.err).toHaveLength(1);
     expect(io.err[0]).toContain("401");
@@ -316,7 +316,7 @@ describe("mergebrief repos command + cache", () => {
         repos: [{ repoId: String(REPO_A), fullName: "octo/hello" }],
       }));
       await expect(resolveRepoId(d, "octo/gone")).rejects.toMatchObject({
-        code: ExitCode.NOT_FOUND,
+        code: ExitCodes.NOT_FOUND,
         message: expect.stringContaining('profile "default"'),
       });
     });

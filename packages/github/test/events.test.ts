@@ -7,14 +7,15 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
-  EventParseErrorCode,
-  InstallationAction,
-  InstallationRepositoriesAction,
+  EventParseErrorCodes,
+  InstallationActions,
+  InstallationRepositoriesActions,
   parseWebhookEvent,
-  ParsedWebhookEventKind,
-  PullRequestAction,
+  ParsedWebhookEventKinds,
+  PullRequestActions,
   type EventParseError,
   type ParsedWebhookEvent,
+  type PullRequestAction,
 } from "../src/webhook/events";
 import type { Result } from "../src/types";
 
@@ -60,12 +61,12 @@ function expectErr(
 
 describe("parseWebhookEvent — pull_request", () => {
   const cases: ReadonlyArray<[string, PullRequestAction]> = [
-    ["pull_request.opened.json", PullRequestAction.OPENED],
-    ["pull_request.synchronize.json", PullRequestAction.SYNCHRONIZE],
-    ["pull_request.reopened.json", PullRequestAction.REOPENED],
-    ["pull_request.closed.json", PullRequestAction.CLOSED],
-    ["pull_request.ready_for_review.json", PullRequestAction.READY_FOR_REVIEW],
-    ["pull_request.review_requested.json", PullRequestAction.REVIEW_REQUESTED],
+    ["pull_request.opened.json", PullRequestActions.OPENED],
+    ["pull_request.synchronize.json", PullRequestActions.SYNCHRONIZE],
+    ["pull_request.reopened.json", PullRequestActions.REOPENED],
+    ["pull_request.closed.json", PullRequestActions.CLOSED],
+    ["pull_request.ready_for_review.json", PullRequestActions.READY_FOR_REVIEW],
+    ["pull_request.review_requested.json", PullRequestActions.REVIEW_REQUESTED],
   ];
 
   for (const [fixture, action] of cases) {
@@ -76,7 +77,7 @@ describe("parseWebhookEvent — pull_request", () => {
           payload: jsonFixture(fixture),
         }),
       );
-      if (event.kind !== ParsedWebhookEventKind.PULL_REQUEST) {
+      if (event.kind !== ParsedWebhookEventKinds.PULL_REQUEST) {
         throw new Error(`expected pull-request kind, got ${event.kind}`);
       }
       expect(event.action).toBe(action);
@@ -105,10 +106,10 @@ describe("parseWebhookEvent — pull_request", () => {
         payload: jsonFixture("pull_request.converted_to_draft.json"),
       }),
     );
-    if (event.kind !== ParsedWebhookEventKind.PULL_REQUEST) {
+    if (event.kind !== ParsedWebhookEventKinds.PULL_REQUEST) {
       throw new Error(`expected pull-request kind, got ${event.kind}`);
     }
-    expect(event.action).toBe(PullRequestAction.CONVERTED_TO_DRAFT);
+    expect(event.action).toBe(PullRequestActions.CONVERTED_TO_DRAFT);
     expect(event.draft).toBe(true);
     expect(event.authorLogin).toBe("Codertocat");
   });
@@ -120,7 +121,7 @@ describe("parseWebhookEvent — pull_request", () => {
         payload: jsonFixture("pull_request.synchronize.json"),
       }),
     );
-    if (sync.kind !== ParsedWebhookEventKind.PULL_REQUEST) {
+    if (sync.kind !== ParsedWebhookEventKinds.PULL_REQUEST) {
       throw new Error("expected pull-request");
     }
     expect(sync.before).toBe("f95f852bd8fca8fcc58a9a2d6c842781e32a215e");
@@ -132,7 +133,7 @@ describe("parseWebhookEvent — pull_request", () => {
         payload: jsonFixture("pull_request.opened.json"),
       }),
     );
-    if (opened.kind !== ParsedWebhookEventKind.PULL_REQUEST) {
+    if (opened.kind !== ParsedWebhookEventKinds.PULL_REQUEST) {
       throw new Error("expected pull-request");
     }
     expect(opened.before).toBeUndefined();
@@ -146,7 +147,7 @@ describe("parseWebhookEvent — pull_request", () => {
         payload: jsonFixture("pull_request.closed.json"),
       }),
     );
-    if (closed.kind !== ParsedWebhookEventKind.PULL_REQUEST) {
+    if (closed.kind !== ParsedWebhookEventKinds.PULL_REQUEST) {
       throw new Error("expected pull-request");
     }
     expect(closed.merged).toBe(false);
@@ -157,7 +158,7 @@ describe("parseWebhookEvent — pull_request", () => {
         payload: jsonFixture("pull_request.opened.json"),
       }),
     );
-    if (opened.kind !== ParsedWebhookEventKind.PULL_REQUEST) {
+    if (opened.kind !== ParsedWebhookEventKinds.PULL_REQUEST) {
       throw new Error("expected pull-request");
     }
     expect(opened.merged).toBeUndefined();
@@ -185,7 +186,7 @@ describe("parseWebhookEvent — pull_request", () => {
         },
       }),
     );
-    if (event.kind !== ParsedWebhookEventKind.PULL_REQUEST) {
+    if (event.kind !== ParsedWebhookEventKinds.PULL_REQUEST) {
       throw new Error("expected pull-request");
     }
     expect(event.authorLogin).toBeUndefined();
@@ -198,8 +199,8 @@ describe("parseWebhookEvent — pull_request", () => {
         payload: { action: "labeled", number: 2 },
       }),
     );
-    expect(event.kind).toBe(ParsedWebhookEventKind.IGNORED);
-    if (event.kind !== ParsedWebhookEventKind.IGNORED) return;
+    expect(event.kind).toBe(ParsedWebhookEventKinds.IGNORED);
+    if (event.kind !== ParsedWebhookEventKinds.IGNORED) return;
     expect(event.eventName).toBe("pull_request");
     expect(event.action).toBe("labeled");
   });
@@ -221,7 +222,7 @@ describe("parseWebhookEvent — pull_request", () => {
         },
       }),
     );
-    expect(error.code).toBe(EventParseErrorCode.INVALID_PAYLOAD);
+    expect(error.code).toBe(EventParseErrorCodes.INVALID_PAYLOAD);
     expect(error.issues?.some((i) => i.startsWith("installation"))).toBe(true);
   });
 
@@ -242,7 +243,7 @@ describe("parseWebhookEvent — pull_request", () => {
         },
       }),
     );
-    expect(error.code).toBe(EventParseErrorCode.INVALID_PAYLOAD);
+    expect(error.code).toBe(EventParseErrorCodes.INVALID_PAYLOAD);
   });
 
   it("errors on an id past the safe-integer range (rounded by JSON.parse)", () => {
@@ -265,7 +266,7 @@ describe("parseWebhookEvent — pull_request", () => {
         },
       }),
     );
-    expect(error.code).toBe(EventParseErrorCode.INVALID_PAYLOAD);
+    expect(error.code).toBe(EventParseErrorCodes.INVALID_PAYLOAD);
     expect(error.issues?.some((i) => i.startsWith("installation"))).toBe(true);
   });
 });
@@ -278,7 +279,7 @@ describe("parseWebhookEvent — pull_request_review", () => {
         payload: jsonFixture("pull_request_review.submitted.json"),
       }),
     );
-    if (event.kind !== ParsedWebhookEventKind.PULL_REQUEST_REVIEW) {
+    if (event.kind !== ParsedWebhookEventKinds.PULL_REQUEST_REVIEW) {
       throw new Error(`expected pull-request-review, got ${event.kind}`);
     }
     expect(event.prNumber).toBe(2);
@@ -296,7 +297,7 @@ describe("parseWebhookEvent — pull_request_review", () => {
         payload: jsonFixture("pull_request_review.submitted.json"),
       }),
     );
-    if (event.kind !== ParsedWebhookEventKind.PULL_REQUEST_REVIEW) {
+    if (event.kind !== ParsedWebhookEventKinds.PULL_REQUEST_REVIEW) {
       throw new Error(`expected pull-request-review, got ${event.kind}`);
     }
     expect(event.commitId).toBe("ec26c3e57ca3a959ca5aad62de7213c562f8c821");
@@ -311,7 +312,7 @@ describe("parseWebhookEvent — pull_request_review", () => {
         payload: jsonFixture("pull_request_review.submitted.bot.json"),
       }),
     );
-    if (event.kind !== ParsedWebhookEventKind.PULL_REQUEST_REVIEW) {
+    if (event.kind !== ParsedWebhookEventKinds.PULL_REQUEST_REVIEW) {
       throw new Error(`expected pull-request-review, got ${event.kind}`);
     }
     expect(event.reviewerType).toBe("Bot");
@@ -327,7 +328,7 @@ describe("parseWebhookEvent — pull_request_review", () => {
         }),
       }),
     );
-    expect(error.code).toBe(EventParseErrorCode.INVALID_PAYLOAD);
+    expect(error.code).toBe(EventParseErrorCodes.INVALID_PAYLOAD);
     expect(error.issues?.some((i) => i.startsWith("review.commit_id"))).toBe(
       true,
     );
@@ -342,7 +343,7 @@ describe("parseWebhookEvent — pull_request_review", () => {
         }),
       }),
     );
-    expect(error.code).toBe(EventParseErrorCode.INVALID_PAYLOAD);
+    expect(error.code).toBe(EventParseErrorCodes.INVALID_PAYLOAD);
     expect(error.issues?.some((i) => i.startsWith("review.submitted_at"))).toBe(
       true,
     );
@@ -355,7 +356,7 @@ describe("parseWebhookEvent — pull_request_review", () => {
         payload: { action: "dismissed" },
       }),
     );
-    expect(event.kind).toBe(ParsedWebhookEventKind.IGNORED);
+    expect(event.kind).toBe(ParsedWebhookEventKinds.IGNORED);
   });
 });
 
@@ -367,10 +368,10 @@ describe("parseWebhookEvent — installation", () => {
         payload: jsonFixture("installation.created.json"),
       }),
     );
-    if (event.kind !== ParsedWebhookEventKind.INSTALLATION) {
+    if (event.kind !== ParsedWebhookEventKinds.INSTALLATION) {
       throw new Error(`expected installation, got ${event.kind}`);
     }
-    expect(event.action).toBe(InstallationAction.CREATED);
+    expect(event.action).toBe(InstallationActions.CREATED);
     expect(event.installationId).toBe(957387n);
     expect(event.senderId).toBe(21031067n);
     expect(event.repoIds).toEqual([186853002n]);
@@ -383,10 +384,10 @@ describe("parseWebhookEvent — installation", () => {
         payload: jsonFixture("installation.deleted.json"),
       }),
     );
-    if (event.kind !== ParsedWebhookEventKind.INSTALLATION) {
+    if (event.kind !== ParsedWebhookEventKinds.INSTALLATION) {
       throw new Error(`expected installation, got ${event.kind}`);
     }
-    expect(event.action).toBe(InstallationAction.DELETED);
+    expect(event.action).toBe(InstallationActions.DELETED);
     expect(event.installationId).toBe(2n);
     expect(event.repoIds).toEqual([1296269n]);
   });
@@ -398,7 +399,7 @@ describe("parseWebhookEvent — installation", () => {
         payload: { action: "suspend", installation: { id: 1 } },
       }),
     );
-    expect(event.kind).toBe(ParsedWebhookEventKind.IGNORED);
+    expect(event.kind).toBe(ParsedWebhookEventKinds.IGNORED);
   });
 });
 
@@ -410,10 +411,10 @@ describe("parseWebhookEvent — installation_repositories", () => {
         payload: jsonFixture("installation_repositories.removed.json"),
       }),
     );
-    if (event.kind !== ParsedWebhookEventKind.INSTALLATION_REPOSITORIES) {
+    if (event.kind !== ParsedWebhookEventKinds.INSTALLATION_REPOSITORIES) {
       throw new Error(`expected installation-repositories, got ${event.kind}`);
     }
-    expect(event.action).toBe(InstallationRepositoriesAction.REMOVED);
+    expect(event.action).toBe(InstallationRepositoriesActions.REMOVED);
     expect(event.installationId).toBe(2n);
     expect(event.repoIdsRemoved).toEqual([1296269n]);
     expect(event.repoIdsAdded).toEqual([]);
@@ -426,10 +427,10 @@ describe("parseWebhookEvent — installation_repositories", () => {
         payload: jsonFixture("installation_repositories.added.json"),
       }),
     );
-    if (event.kind !== ParsedWebhookEventKind.INSTALLATION_REPOSITORIES) {
+    if (event.kind !== ParsedWebhookEventKinds.INSTALLATION_REPOSITORIES) {
       throw new Error(`expected installation-repositories, got ${event.kind}`);
     }
-    expect(event.action).toBe(InstallationRepositoriesAction.ADDED);
+    expect(event.action).toBe(InstallationRepositoriesActions.ADDED);
     expect(event.repoIdsAdded).toEqual([186853007n]);
     expect(event.repoIdsRemoved).toEqual([]);
   });
@@ -440,13 +441,13 @@ describe("parseWebhookEvent — envelope handling", () => {
     const event = expectOk(
       parseWebhookEvent({ eventName: "star", payload: { action: "created" } }),
     );
-    expect(event.kind).toBe(ParsedWebhookEventKind.IGNORED);
-    if (event.kind !== ParsedWebhookEventKind.IGNORED) return;
+    expect(event.kind).toBe(ParsedWebhookEventKinds.IGNORED);
+    if (event.kind !== ParsedWebhookEventKinds.IGNORED) return;
     expect(event.eventName).toBe("star");
   });
 
   it("errors on a missing event name", () => {
     const error = expectErr(parseWebhookEvent({ eventName: "", payload: {} }));
-    expect(error.code).toBe(EventParseErrorCode.MISSING_EVENT_NAME);
+    expect(error.code).toBe(EventParseErrorCodes.MISSING_EVENT_NAME);
   });
 });

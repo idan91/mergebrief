@@ -20,7 +20,7 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ExitCode } from "../src/exit";
+import { ExitCodes } from "../src/exit";
 import { runCli, type CliDeps } from "../src/program";
 import { testLogger } from "./logging";
 
@@ -223,7 +223,7 @@ describe("generate + collaborators over the real api app", () => {
         gitOriginUrl: () => undefined,
       },
     );
-    expect(code).toBe(ExitCode.OK);
+    expect(code).toBe(ExitCodes.OK);
   }
 
   it("generate <url> runs with no confirm prompt; receipt verbatim", async () => {
@@ -234,7 +234,7 @@ describe("generate + collaborators over the real api app", () => {
       "--json",
     ]);
     expect(result.err).toEqual([]);
-    expect(result.code).toBe(ExitCode.OK);
+    expect(result.code).toBe(ExitCodes.OK);
     const parsed: unknown = JSON.parse(result.out);
     if (typeof parsed !== "object" || parsed === null) {
       throw new Error(`unexpected receipt: ${result.out}`);
@@ -250,7 +250,7 @@ describe("generate + collaborators over the real api app", () => {
       "https://example.com/not-a-pr",
       "--json",
     ]);
-    expect(result.code).toBe(ExitCode.SERVER_REJECTED);
+    expect(result.code).toBe(ExitCodes.SERVER_REJECTED);
     expect(result.out).toBe("");
     expect(result.err).toHaveLength(1);
   });
@@ -259,7 +259,7 @@ describe("generate + collaborators over the real api app", () => {
     await login();
     const result = await run(["collaborators", "--json"]);
     expect(result.err).toEqual([]);
-    expect(result.code).toBe(ExitCode.OK);
+    expect(result.code).toBe(ExitCodes.OK);
     expect(JSON.parse(result.out)).toEqual(ROSTER);
   });
 });

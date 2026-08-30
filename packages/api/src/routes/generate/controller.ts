@@ -5,7 +5,7 @@ import type { PrLocator } from "brief-core";
 import {
   createUserOctokit,
   fetchPullRequest,
-  GitHubApiErrorCode,
+  GitHubApiErrorCodes,
   type GitHubApiError,
   type PullRequestInfo,
 } from "github";
@@ -83,7 +83,7 @@ async function resolveUnderFallback(
     createUserOctokit(fallbackToken),
     ref,
   );
-  if (fallback.ok || fallback.error.code !== GitHubApiErrorCode.UNAUTHORIZED) {
+  if (fallback.ok || fallback.error.code !== GitHubApiErrorCodes.UNAUTHORIZED) {
     return fallback;
   }
   deps.log.warn(
@@ -111,7 +111,7 @@ export default {
       if ("kind" in resolved.error) {
         return { ok: false, error: { kind: "token-unreadable" } };
       }
-      if (resolved.error.code === GitHubApiErrorCode.UNAUTHORIZED) {
+      if (resolved.error.code === GitHubApiErrorCodes.UNAUTHORIZED) {
         return { ok: false, error: { kind: "unauthorized" } };
       }
       if (isGitHubDenial(resolved.error)) {

@@ -14,15 +14,15 @@ import {
 } from "../errors";
 import type { Result, ValueOf } from "../types";
 
-export const RepoFileKind = {
+export const RepoFileKinds = {
   FILE: "file",
   ABSENT: "absent",
   TOO_LARGE: "too-large",
 } as const;
-export type RepoFileKind = ValueOf<typeof RepoFileKind>;
+export type RepoFileKind = ValueOf<typeof RepoFileKinds>;
 
 export interface RepoFileContent {
-  readonly kind: typeof RepoFileKind.FILE;
+  readonly kind: typeof RepoFileKinds.FILE;
   /** UTF-8 decoded file content. */
   readonly content: string;
   /** Git blob SHA of the served content — the origin stamp. */
@@ -33,12 +33,12 @@ export interface RepoFileContent {
 
 /** The path does not exist on the resolved ref — an outcome, not an error. */
 export interface RepoFileAbsent {
-  readonly kind: typeof RepoFileKind.ABSENT;
+  readonly kind: typeof RepoFileKinds.ABSENT;
 }
 
 /** The blob exceeds `maxBytes`; rejected before decode. */
 export interface RepoFileTooLarge {
-  readonly kind: typeof RepoFileKind.TOO_LARGE;
+  readonly kind: typeof RepoFileKinds.TOO_LARGE;
   readonly blobSha: string;
   readonly size: number;
 }
@@ -124,7 +124,7 @@ export async function getRepoFile(
     body = response.data;
   } catch (error) {
     if (error instanceof RequestError && error.status === 404) {
-      return { ok: true, value: { kind: RepoFileKind.ABSENT } };
+      return { ok: true, value: { kind: RepoFileKinds.ABSENT } };
     }
     return { ok: false, error: mapRequestError(error, "fetch repo file") };
   }
@@ -146,7 +146,7 @@ export async function getRepoFile(
   if (size > input.maxBytes) {
     return {
       ok: true,
-      value: { kind: RepoFileKind.TOO_LARGE, blobSha: sha, size },
+      value: { kind: RepoFileKinds.TOO_LARGE, blobSha: sha, size },
     };
   }
   if (encoding !== "base64" || content === undefined) {
@@ -163,7 +163,7 @@ export async function getRepoFile(
     return {
       ok: true,
       value: {
-        kind: RepoFileKind.TOO_LARGE,
+        kind: RepoFileKinds.TOO_LARGE,
         blobSha: sha,
         size: decoded.bytes,
       },
@@ -172,7 +172,7 @@ export async function getRepoFile(
   return {
     ok: true,
     value: {
-      kind: RepoFileKind.FILE,
+      kind: RepoFileKinds.FILE,
       content: decoded.text,
       blobSha: sha,
       size: decoded.bytes,

@@ -9,7 +9,7 @@ import {
   fetchComment,
   postEntryComment,
 } from "../src/operations/comments";
-import { GitHubApiErrorCode } from "../src/errors";
+import { GitHubApiErrorCodes } from "../src/errors";
 import {
   fetchPullRequest,
   fetchPullRequestFiles,
@@ -22,9 +22,9 @@ import {
 } from "../src/operations/pull-request";
 import {
   createPullRequestReview,
-  ReviewCommentSide,
-  ReviewEvent,
-  ReviewValidationClass,
+  ReviewCommentSides,
+  ReviewEvents,
+  ReviewValidationClasses,
 } from "../src/operations/review";
 import {
   fetchRepositoryById,
@@ -138,7 +138,7 @@ describe("postEntryComment", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 
   it("maps an API failure to a sanitized error", async () => {
@@ -152,7 +152,7 @@ describe("postEntryComment", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.FORBIDDEN);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
     expect(result.error.status).toBe(403);
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
   });
@@ -196,7 +196,7 @@ describe("deleteComment", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
     expect(result.error.status).toBe(500);
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
   });
@@ -246,7 +246,7 @@ describe("fetchComment", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
     expect(result.error.status).toBe(500);
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
   });
@@ -336,7 +336,7 @@ describe("fetchRepositoryById", () => {
     const result = await fetchRepositoryById(octokit, toRepoId(1n));
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     expect(result.error.status).toBe(404);
     const serialized = JSON.stringify(result.error);
     expect(serialized).not.toContain(LEAKED_TOKEN);
@@ -349,7 +349,7 @@ describe("fetchRepositoryById", () => {
     const result = await fetchRepositoryById(octokit, toRepoId(1n));
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 });
 
@@ -392,7 +392,7 @@ describe("listInstallationRepositoriesForUser", () => {
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.UNAUTHORIZED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.UNAUTHORIZED);
     expect(JSON.stringify(result.error)).not.toContain(LEAKED_TOKEN);
   });
 
@@ -405,7 +405,7 @@ describe("listInstallationRepositoriesForUser", () => {
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 
   it("rejects a repo id past the safe-integer range", async () => {
@@ -421,7 +421,7 @@ describe("listInstallationRepositoriesForUser", () => {
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 });
 
@@ -434,7 +434,7 @@ describe("mapRequestError — rate-limit classification", () => {
     const result = await fetchRepositoryById(octokit, toRepoId(1n));
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.RATE_LIMITED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.RATE_LIMITED);
     expect(result.error.status).toBe(403);
     expect(JSON.stringify(result.error)).not.toContain(LEAKED_TOKEN);
   });
@@ -447,7 +447,7 @@ describe("mapRequestError — rate-limit classification", () => {
     const result = await fetchRepositoryById(octokit, toRepoId(1n));
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.RATE_LIMITED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.RATE_LIMITED);
   });
 
   it("keeps a plain 403 (with remaining budget) as forbidden", async () => {
@@ -458,7 +458,7 @@ describe("mapRequestError — rate-limit classification", () => {
     const result = await fetchRepositoryById(octokit, toRepoId(1n));
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.FORBIDDEN);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
   });
 });
 
@@ -597,7 +597,7 @@ describe("fetchPullRequest / fetchDiff", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
   });
 
   it("returns the raw diff string", async () => {
@@ -652,7 +652,7 @@ describe("fetchPullRequest / fetchDiff", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
   });
 
@@ -666,7 +666,7 @@ describe("fetchPullRequest / fetchDiff", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
   });
 });
@@ -774,7 +774,7 @@ describe("fetchCompareFiles", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
   });
 
@@ -828,7 +828,7 @@ describe("fetchReviewCommentsRaw / fetchCompareCommitCount / resolveCommitSha", 
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.FORBIDDEN);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
   });
 
@@ -865,7 +865,7 @@ describe("fetchReviewCommentsRaw / fetchCompareCommitCount / resolveCommitSha", 
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
   });
 
@@ -899,7 +899,7 @@ describe("fetchReviewCommentsRaw / fetchCompareCommitCount / resolveCommitSha", 
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
   });
 });
@@ -929,21 +929,21 @@ describe("createPullRequestReview", () => {
     repo: "r",
     prNumber: 7,
     commitId: "c".repeat(40),
-    event: ReviewEvent.REQUEST_CHANGES,
+    event: ReviewEvents.REQUEST_CHANGES,
     body: "overall verdict",
     comments: [
       {
         path: "src/a.ts",
         line: 12,
-        side: ReviewCommentSide.RIGHT,
+        side: ReviewCommentSides.RIGHT,
         body: "anchored note",
       },
       {
         path: "src/b.ts",
         line: 30,
-        side: ReviewCommentSide.LEFT,
+        side: ReviewCommentSides.LEFT,
         startLine: 25,
-        startSide: ReviewCommentSide.LEFT,
+        startSide: ReviewCommentSides.LEFT,
         body: "multi-line note",
       },
     ],
@@ -991,7 +991,7 @@ describe("createPullRequestReview", () => {
       repo: "r",
       prNumber: 7,
       commitId: "c".repeat(40),
-      event: ReviewEvent.APPROVE,
+      event: ReviewEvents.APPROVE,
     });
     expect(result.ok).toBe(true);
     const sent = createReview.mock.calls[0]?.[0];
@@ -1008,7 +1008,7 @@ describe("createPullRequestReview", () => {
     const result = await createPullRequestReview(octokit, baseInput);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 
   it("classifies a commit_id 422 as unknown-commit without leaking the body", async () => {
@@ -1026,7 +1026,9 @@ describe("createPullRequestReview", () => {
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.status).toBe(422);
-    expect(result.error.validation).toBe(ReviewValidationClass.UNKNOWN_COMMIT);
+    expect(result.error.validation).toBe(
+      ReviewValidationClasses.UNKNOWN_COMMIT,
+    );
     const serialized = JSON.stringify(result.error);
     expect(serialized).not.toContain(LEAKED_TOKEN);
     expect(serialized).not.toContain("Validation Failed");
@@ -1046,7 +1048,7 @@ describe("createPullRequestReview", () => {
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.validation).toBe(
-      ReviewValidationClass.INVALID_COMMENTS,
+      ReviewValidationClasses.INVALID_COMMENTS,
     );
     expect(JSON.stringify(result.error)).not.toContain("thread line");
   });
@@ -1073,7 +1075,9 @@ describe("createPullRequestReview", () => {
     const result = await createPullRequestReview(octokit, baseInput);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.validation).toBe(ReviewValidationClass.UNKNOWN_COMMIT);
+    expect(result.error.validation).toBe(
+      ReviewValidationClasses.UNKNOWN_COMMIT,
+    );
     expect(JSON.stringify(result.error)).not.toContain("deadbeef");
   });
 
@@ -1083,7 +1087,7 @@ describe("createPullRequestReview", () => {
     const result = await createPullRequestReview(octokit, baseInput);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.validation).toBe(ReviewValidationClass.UNKNOWN);
+    expect(result.error.validation).toBe(ReviewValidationClasses.UNKNOWN);
   });
 
   it("maps a non-422 failure through the shared taxonomy with no validation class", async () => {
@@ -1092,7 +1096,7 @@ describe("createPullRequestReview", () => {
     const result = await createPullRequestReview(octokit, baseInput);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.FORBIDDEN);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
     expect(result.error.validation).toBeUndefined();
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
   });

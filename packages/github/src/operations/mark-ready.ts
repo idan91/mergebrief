@@ -10,7 +10,7 @@
 import type { Octokit } from "octokit";
 import { z } from "zod";
 import {
-  GitHubApiErrorCode,
+  GitHubApiErrorCodes,
   mapGraphqlError,
   unexpectedResponseError,
   type GitHubApiError,
@@ -76,7 +76,7 @@ mutation MarkPullRequestReady($pullRequestId: ID!) {
 
 function resourceNotFoundError(): GitHubApiError {
   return {
-    code: GitHubApiErrorCode.NOT_FOUND,
+    code: GitHubApiErrorCodes.NOT_FOUND,
     message: `failed to ${CONTEXT}: pull request not found`,
   };
 }

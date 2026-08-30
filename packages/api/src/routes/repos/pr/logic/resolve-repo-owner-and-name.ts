@@ -7,7 +7,7 @@
 import {
   createUserOctokit,
   fetchRepositoryById,
-  GitHubApiErrorCode,
+  GitHubApiErrorCodes,
   type GitHubApiError,
 } from "github";
 import type { RepoId } from "persistence";
@@ -74,12 +74,12 @@ export function throwRepoResolveFailure(
   if (failure.kind === "token-unreadable") {
     throw new Unauthorized();
   }
-  if (failure.error.code === GitHubApiErrorCode.UNAUTHORIZED) {
+  if (failure.error.code === GitHubApiErrorCodes.UNAUTHORIZED) {
     throw new Unauthorized();
   }
   if (
-    failure.error.code === GitHubApiErrorCode.NOT_FOUND ||
-    failure.error.code === GitHubApiErrorCode.FORBIDDEN
+    failure.error.code === GitHubApiErrorCodes.NOT_FOUND ||
+    failure.error.code === GitHubApiErrorCodes.FORBIDDEN
   ) {
     if (urlBoxOnly) {
       throw new Forbidden(ApiErrorCodes.NO_REPO_WRITE_ACCESS);

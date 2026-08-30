@@ -16,7 +16,7 @@ import type { ValueOf } from "types";
  *   opaque              unclassifiable — carries whatever context exists
  *                       (stderr tail, exit code) in the message
  */
-export const GeneratorErrorKind = {
+export const GeneratorErrorKinds = {
   AUTH: "auth",
   CONFIG: "config",
   PROVIDER_TRANSIENT: "provider-transient",
@@ -26,7 +26,7 @@ export const GeneratorErrorKind = {
   CLI_MISSING: "cli-missing",
   OPAQUE: "opaque",
 } as const;
-export type GeneratorErrorKind = ValueOf<typeof GeneratorErrorKind>;
+export type GeneratorErrorKind = ValueOf<typeof GeneratorErrorKinds>;
 
 /**
  * Expected construction failure (bad config, missing key var, failed boot

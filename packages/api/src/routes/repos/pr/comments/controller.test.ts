@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import {
-  GitHubApiErrorCode,
+  GitHubApiErrorCodes,
   createInlineReviewComment,
   createReviewCommentReply,
 } from "github";
@@ -119,7 +119,7 @@ describe("commentsController", () => {
     vi.mocked(createInlineReviewComment).mockResolvedValue({
       ok: false,
       error: {
-        code: GitHubApiErrorCode.FORBIDDEN,
+        code: GitHubApiErrorCodes.FORBIDDEN,
         status: 403,
         message: "denied",
         staleAnchor: false,
@@ -146,7 +146,7 @@ describe("commentsController", () => {
 
   it("wraps a reply denial whole with phase mutation", async () => {
     vi.mocked(createReviewCommentReply).mockResolvedValue(
-      buildGitHubError(GitHubApiErrorCode.NOT_FOUND),
+      buildGitHubError(GitHubApiErrorCodes.NOT_FOUND),
     );
     const result = await commentsController.postReply(
       { github: await buildClient() },
@@ -157,7 +157,7 @@ describe("commentsController", () => {
       error: {
         kind: "github-denied",
         phase: "mutation",
-        error: { code: GitHubApiErrorCode.NOT_FOUND },
+        error: { code: GitHubApiErrorCodes.NOT_FOUND },
       },
     });
   });

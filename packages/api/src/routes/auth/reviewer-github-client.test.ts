@@ -10,7 +10,7 @@ import {
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import type { Logger } from "logging";
 import type { Result } from "types";
-import { GitHubApiErrorCode, type GitHubApiError } from "github";
+import { GitHubApiErrorCodes, type GitHubApiError } from "github";
 import {
   afterAll,
   beforeAll,
@@ -102,25 +102,25 @@ async function setup(token = "gh-token-1"): Promise<Setup> {
 }
 
 const expired: GitHubApiError = {
-  code: GitHubApiErrorCode.UNAUTHORIZED,
+  code: GitHubApiErrorCodes.UNAUTHORIZED,
   status: 401,
   message: "unauthorized",
 };
 
 const denied: GitHubApiError = {
-  code: GitHubApiErrorCode.NOT_FOUND,
+  code: GitHubApiErrorCodes.NOT_FOUND,
   status: 404,
   message: "not found",
 };
 
 const upstreamTrouble: GitHubApiError = {
-  code: GitHubApiErrorCode.RATE_LIMITED,
+  code: GitHubApiErrorCodes.RATE_LIMITED,
   status: 403,
   message: "rate limited",
 };
 
 function isDeniedError(error: GitHubApiError): boolean {
-  return error.code === GitHubApiErrorCode.NOT_FOUND;
+  return error.code === GitHubApiErrorCodes.NOT_FOUND;
 }
 
 /** Answers 200 for the PAT alone — a repo outside the App installation. */
@@ -246,7 +246,7 @@ describe("createReviewerGitHubClient", () => {
   it("does not refresh on a non-expiry failure", async () => {
     const { deps, session } = await setup();
     const notFound: GitHubApiError = {
-      code: GitHubApiErrorCode.NOT_FOUND,
+      code: GitHubApiErrorCodes.NOT_FOUND,
       status: 404,
       message: "not found",
     };
@@ -390,7 +390,7 @@ describe("createReviewerGitHubClient", () => {
           : {
               ok: false,
               error: {
-                code: GitHubApiErrorCode.UNAUTHORIZED,
+                code: GitHubApiErrorCodes.UNAUTHORIZED,
                 status: 401,
                 message: "bad credentials",
               },

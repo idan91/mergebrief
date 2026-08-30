@@ -10,7 +10,7 @@ import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
 import type { Result } from "types";
-import { CliError, ExitCode } from "../exit";
+import { CliError, ExitCodes } from "../exit";
 
 const profileSchema = z.object({
   baseUrl: z.string().url(),
@@ -103,7 +103,7 @@ export function resolveProfile(input: ResolveProfileInput): ResolvedProfile {
   if (explicit !== undefined) {
     if (config.profiles[explicit] === undefined) {
       throw new CliError(
-        ExitCode.USAGE,
+        ExitCodes.USAGE,
         `profile "${explicit}" is not configured (run: mergebrief auth login --profile ${explicit})`,
       );
     }
@@ -121,7 +121,7 @@ export function resolveProfile(input: ResolveProfileInput): ResolvedProfile {
   const profile = name === undefined ? undefined : config.profiles[name];
   if (name === undefined || profile === undefined) {
     throw new CliError(
-      ExitCode.USAGE,
+      ExitCodes.USAGE,
       "no profile resolved — run: mergebrief auth login",
     );
   }

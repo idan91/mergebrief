@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
 import { CodexGenerator } from "../src/adapters/codex";
-import { GeneratorError, GeneratorErrorKind } from "../src/contract/errors";
+import { GeneratorError, GeneratorErrorKinds } from "../src/contract/errors";
 import { createGenerator, Providers } from "../src/config/registry";
 
 /**
@@ -225,7 +225,7 @@ describe("CodexGenerator answer selection and classification", () => {
       (error: unknown) => error,
     );
     if (!(caught instanceof GeneratorError)) throw new Error("wrong rejection");
-    expect(caught.kind).toBe(GeneratorErrorKind.OPAQUE);
+    expect(caught.kind).toBe(GeneratorErrorKinds.OPAQUE);
     // The shim's message is "stream error: rate limited" — free-form CLI
     // text must never reach the error message.
     expect(caught.message).not.toContain("rate limited");
@@ -275,14 +275,14 @@ describe("CodexGenerator answer selection and classification", () => {
       SHIM_SCRIPT_DIR: scriptDir,
     });
     await expect(generator.generate(request())).rejects.toMatchObject({
-      kind: GeneratorErrorKind.OPAQUE,
+      kind: GeneratorErrorKinds.OPAQUE,
     });
   });
 
   it("classifies a clean exit without an agent answer as opaque", async () => {
     const generator = makeGenerator({ SHIM_SCENARIO: "envelope-drift" });
     await expect(generator.generate(request())).rejects.toMatchObject({
-      kind: GeneratorErrorKind.OPAQUE,
+      kind: GeneratorErrorKinds.OPAQUE,
     });
   });
 
@@ -292,7 +292,7 @@ describe("CodexGenerator answer selection and classification", () => {
       { timeouts: { hardMs: 8000, inactivityMs: 300, killGraceMs: 200 } },
     );
     await expect(generator.generate(request())).rejects.toMatchObject({
-      kind: GeneratorErrorKind.TIMEOUT,
+      kind: GeneratorErrorKinds.TIMEOUT,
     });
   });
 

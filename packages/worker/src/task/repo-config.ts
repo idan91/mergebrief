@@ -8,13 +8,13 @@
 // 5xx, an unreadable blob, or a validation surprise degrades to "generate
 // without repo config" with a LOUD `fetch-failed` outcome on the record.
 import type { CustomRiskAttributeInput, RepoContext } from "brief-core";
-import { RepoFileKind } from "github";
+import { RepoFileKinds } from "github";
 import {
   INSTRUCTIONS_BUDGET_BYTES,
   repoConfigArtifactSchema,
   repoConfigOriginSchema,
   POLICY_MAX_BYTES,
-  RepoConfigOutcome,
+  RepoConfigOutcomes,
   RepoConfigPaths,
   SETTINGS_MAX_BYTES,
   validateRepoConfig,
@@ -99,12 +99,12 @@ export async function acquireRepoConfig(
           ? {
               path: slot.path,
               blobSha: null,
-              outcome: RepoConfigOutcome.ABSENT,
+              outcome: RepoConfigOutcomes.ABSENT,
             }
           : {
               path: slot.path,
               blobSha: fetched.inputs[slot.key]?.blobSha ?? null,
-              outcome: RepoConfigOutcome.INVALID,
+              outcome: RepoConfigOutcomes.INVALID,
               detail: "repo-config validation failed unexpectedly",
             }),
     );
@@ -142,7 +142,7 @@ async function fetchSlots(
       overrides.set(slot.path, {
         path: slot.path,
         blobSha: null,
-        outcome: RepoConfigOutcome.FETCH_FAILED,
+        outcome: RepoConfigOutcomes.FETCH_FAILED,
         detail,
       });
       log.warn(
@@ -151,16 +151,16 @@ async function fetchSlots(
       continue;
     }
     const file = result.value;
-    if (file.kind === RepoFileKind.ABSENT) {
+    if (file.kind === RepoFileKinds.ABSENT) {
       continue; // validate reports the canonical `absent` outcome.
     }
-    if (file.kind === RepoFileKind.TOO_LARGE) {
+    if (file.kind === RepoFileKinds.TOO_LARGE) {
       // Rejected before decode — the validator never sees content, so the
       // over-budget outcome is stamped here with the fetch-level facts.
       overrides.set(slot.path, {
         path: slot.path,
         blobSha: file.blobSha,
-        outcome: RepoConfigOutcome.OVER_BUDGET,
+        outcome: RepoConfigOutcomes.OVER_BUDGET,
         bytesUsed: file.size,
         bytesBudget: slot.cap,
         detail: "file exceeds its byte cap",
@@ -188,7 +188,7 @@ function validateAndShape(
     (outcome) => fetched.overrides.get(outcome.path) ?? outcome,
   );
   for (const outcome of files) {
-    if (outcome.outcome === RepoConfigOutcome.INVALID) {
+    if (outcome.outcome === RepoConfigOutcomes.INVALID) {
       log.warn(
         `repo config: ${outcome.path} invalid — ${outcome.detail ?? "rejected whole"}`,
       );

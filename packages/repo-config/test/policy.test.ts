@@ -5,7 +5,7 @@ import {
   IMPLICATION_MAX_CHARS,
   MAX_CUSTOM_ATTRIBUTES,
   POLICY_MAX_BYTES,
-  RepoConfigOutcome,
+  RepoConfigOutcomes,
 } from "../src/constants";
 import { validateRepoConfig } from "../src/validate";
 import { padYamlToBytes, policyFile, yaml } from "./helpers";
@@ -29,21 +29,21 @@ describe("policy.yaml — shape and caps", () => {
       }),
     );
     expect(result.policy?.attributes).toHaveProperty("touches-migrations");
-    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcome.APPLIED);
+    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcomes.APPLIED);
   });
 
   it("rejects an unknown top-level key", () => {
     const result = validate(yaml({ version: 1, attributes: {}, extra: true }));
     expect(result.policy).toBeUndefined();
-    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcome.INVALID);
+    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcomes.INVALID);
   });
 
   it("rejects an unknown version and a missing version", () => {
     expect(policyOutcome(yaml({ version: 2, attributes: {} }))?.outcome).toBe(
-      RepoConfigOutcome.INVALID,
+      RepoConfigOutcomes.INVALID,
     );
     expect(policyOutcome(yaml({ attributes: {} }))?.outcome).toBe(
-      RepoConfigOutcome.INVALID,
+      RepoConfigOutcomes.INVALID,
     );
   });
 
@@ -54,7 +54,7 @@ describe("policy.yaml — shape and caps", () => {
         attributes: { "my-attr": { criteria: "x", tier: "high" } },
       }),
     );
-    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcome.INVALID);
+    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcomes.INVALID);
   });
 
   it("accepts criteria at the char cap and rejects one over", () => {
@@ -64,7 +64,7 @@ describe("policy.yaml — shape and caps", () => {
         attributes: { "my-attr": { criteria: "x".repeat(CRITERIA_MAX_CHARS) } },
       }),
     );
-    expect(at.outcomes[2]?.outcome).toBe(RepoConfigOutcome.APPLIED);
+    expect(at.outcomes[2]?.outcome).toBe(RepoConfigOutcomes.APPLIED);
     const over = validate(
       yaml({
         version: 1,
@@ -73,7 +73,7 @@ describe("policy.yaml — shape and caps", () => {
         },
       }),
     );
-    expect(over.outcomes[2]?.outcome).toBe(RepoConfigOutcome.INVALID);
+    expect(over.outcomes[2]?.outcome).toBe(RepoConfigOutcomes.INVALID);
   });
 
   it("rejects an implication over the char cap", () => {
@@ -88,7 +88,7 @@ describe("policy.yaml — shape and caps", () => {
         },
       }),
     );
-    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcome.INVALID);
+    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcomes.INVALID);
   });
 
   it("accepts the maximum attribute count and rejects one over", () => {
@@ -97,7 +97,7 @@ describe("policy.yaml — shape and caps", () => {
       attrsAt[`attr-${i}`] = { criteria: "x" };
     expect(
       policyOutcome(yaml({ version: 1, attributes: attrsAt }))?.outcome,
-    ).toBe(RepoConfigOutcome.APPLIED);
+    ).toBe(RepoConfigOutcomes.APPLIED);
 
     const attrsOver = {
       ...attrsAt,
@@ -105,7 +105,7 @@ describe("policy.yaml — shape and caps", () => {
     };
     expect(
       policyOutcome(yaml({ version: 1, attributes: attrsOver }))?.outcome,
-    ).toBe(RepoConfigOutcome.INVALID);
+    ).toBe(RepoConfigOutcomes.INVALID);
   });
 
   it("applies at exactly the byte cap and is over-budget one byte past it", () => {
@@ -115,11 +115,11 @@ describe("policy.yaml — shape and caps", () => {
     });
     const at = padYamlToBytes(base, POLICY_MAX_BYTES);
     expect(Buffer.byteLength(at, "utf8")).toBe(POLICY_MAX_BYTES);
-    expect(policyOutcome(at)?.outcome).toBe(RepoConfigOutcome.APPLIED);
+    expect(policyOutcome(at)?.outcome).toBe(RepoConfigOutcomes.APPLIED);
 
     const over = padYamlToBytes(base, POLICY_MAX_BYTES + 1);
     const overOutcome = policyOutcome(over);
-    expect(overOutcome?.outcome).toBe(RepoConfigOutcome.OVER_BUDGET);
+    expect(overOutcome?.outcome).toBe(RepoConfigOutcomes.OVER_BUDGET);
     expect(overOutcome?.bytesUsed).toBe(POLICY_MAX_BYTES + 1);
     expect(overOutcome?.bytesBudget).toBe(POLICY_MAX_BYTES);
   });
@@ -141,7 +141,7 @@ describe("policy.yaml — attribute name charset (security control)", () => {
         yaml({ version: 1, attributes: { [name]: { criteria: "x" } } }),
       );
       expect(result.policy).toBeUndefined();
-      expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcome.INVALID);
+      expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcomes.INVALID);
     });
   }
 
@@ -152,7 +152,7 @@ describe("policy.yaml — attribute name charset (security control)", () => {
       policyOutcome(
         yaml({ version: 1, attributes: { [name]: { criteria: "x" } } }),
       )?.outcome,
-    ).toBe(RepoConfigOutcome.APPLIED);
+    ).toBe(RepoConfigOutcomes.APPLIED);
   });
 });
 
@@ -167,7 +167,7 @@ describe("policy.yaml — floor attributes cannot be de-emphasized", () => {
         }),
       );
       expect(result.policy).toBeUndefined();
-      expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcome.INVALID);
+      expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcomes.INVALID);
     });
   }
 });
@@ -180,7 +180,7 @@ describe("policy.yaml — collision resolution (built-in wins + chip)", () => {
         attributes: { "touches-auth": { criteria: "custom def" } },
       }),
     );
-    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcome.APPLIED);
+    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcomes.APPLIED);
     expect(result.collisions).toContain("touches-auth");
     expect(result.policy?.attributes).not.toHaveProperty("touches-auth");
   });
@@ -193,7 +193,7 @@ describe("policy.yaml — collision resolution (built-in wins + chip)", () => {
       }),
     );
     expect(result.collisions).toContain("unresolved-reference");
-    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcome.APPLIED);
+    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcomes.APPLIED);
   });
 
   it("drops a custom name colliding with a reserved word (uncertain)", () => {
@@ -201,7 +201,7 @@ describe("policy.yaml — collision resolution (built-in wins + chip)", () => {
       yaml({ version: 1, attributes: { uncertain: { criteria: "x" } } }),
     );
     expect(result.collisions).toContain("uncertain");
-    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcome.APPLIED);
+    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcomes.APPLIED);
   });
 
   it("keeps non-colliding customs alongside dropped ones", () => {
@@ -229,7 +229,7 @@ describe("policy.yaml — de-emphasis resolution", () => {
         deEmphasize: [{ attribute: "widely-imported" }],
       }),
     );
-    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcome.APPLIED);
+    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcomes.APPLIED);
     expect(result.policy?.deEmphasize).toEqual([
       { attribute: "widely-imported" },
     ]);
@@ -256,7 +256,7 @@ describe("policy.yaml — de-emphasis resolution", () => {
         deEmphasize: [{ attribute: "totally-made-up" }],
       }),
     );
-    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcome.APPLIED);
+    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcomes.APPLIED);
     expect(result.policy?.deEmphasize).toEqual([]);
     expect(result.outcomes[2]?.warning).toContain("de-emphasis");
   });

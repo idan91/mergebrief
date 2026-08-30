@@ -1,4 +1,4 @@
-import { GitHubApiErrorCode, type GitHubApiError } from "github";
+import { GitHubApiErrorCodes, type GitHubApiError } from "github";
 
 // Shared Result-side failure members. They wrap lower-layer errors WHOLE —
 // the handler maps them to posture; nothing translates at the boundary.
@@ -58,7 +58,7 @@ export function buildGitHubDeniedResult<E extends object>(
  */
 export function isGitHubDenial(error: GitHubApiError): boolean {
   return (
-    error.code === GitHubApiErrorCode.NOT_FOUND ||
-    error.code === GitHubApiErrorCode.FORBIDDEN
+    error.code === GitHubApiErrorCodes.NOT_FOUND ||
+    error.code === GitHubApiErrorCodes.FORBIDDEN
   );
 }

@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
 import { APIUserAbortError } from "openai";
-import { GeneratorError, GeneratorErrorKind } from "../src/contract/errors";
+import { GeneratorError, GeneratorErrorKinds } from "../src/contract/errors";
 import { createOpenRouterCore } from "../src/adapters/openrouter";
 import { createGenerator, Providers } from "../src/config/registry";
 import {
@@ -281,7 +281,7 @@ describe("OpenRouter wrapped-400 metadata surfacing", () => {
     const scripted = scriptedFetch(() => wrapped400(CAPTURED_RAW));
     const generator = await mustCore(scripted);
     const caught = await caughtFrom(generator);
-    expect(caught.kind).toBe(GeneratorErrorKind.CONFIG);
+    expect(caught.kind).toBe(GeneratorErrorKinds.CONFIG);
     expect(caught.message).toContain("Azure");
     expect(caught.message).toContain("Missing 'riskNotes'");
   });
@@ -298,7 +298,7 @@ describe("OpenRouter wrapped-400 metadata surfacing", () => {
     );
     const generator = await mustCore(scripted);
     const caught = await caughtFrom(generator);
-    expect(caught.kind).toBe(GeneratorErrorKind.CONFIG);
+    expect(caught.kind).toBe(GeneratorErrorKinds.CONFIG);
     expect(caught.message).toContain("plain bad request");
   });
 

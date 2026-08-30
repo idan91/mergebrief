@@ -4,7 +4,7 @@
 // 6 → the server/CLI pair cannot run the required operation.
 import type { ValueOf } from "types";
 
-export const ExitCode = {
+export const ExitCodes = {
   /** Success — including modeled unavailability (`delta`'s available:false). */
   OK: 0,
   /** Generic/unexpected: network, 5xx, server-400 skew. */
@@ -20,7 +20,7 @@ export const ExitCode = {
   /** `capabilities --require` failed — stop before driving the operation. */
   INCOMPATIBLE: 6,
 } as const;
-export type ExitCode = ValueOf<typeof ExitCode>;
+export type ExitCode = ValueOf<typeof ExitCodes>;
 
 /**
  * The one expected-failure envelope inside the CLI: commands throw it, the
@@ -40,10 +40,10 @@ export class CliError extends Error {
 
 /** Map an HTTP failure status to the contract. */
 export function exitCodeForStatus(status: number): ExitCode {
-  if (status === 401) return ExitCode.AUTH;
-  if (status === 404) return ExitCode.NOT_FOUND;
+  if (status === 401) return ExitCodes.AUTH;
+  if (status === 404) return ExitCodes.NOT_FOUND;
   // Any other 4xx is a server-side payload/validation rejection.
-  if (status >= 400 && status < 500) return ExitCode.SERVER_REJECTED;
+  if (status >= 400 && status < 500) return ExitCodes.SERVER_REJECTED;
   // 5xx and anything else unexpected.
-  return ExitCode.GENERIC;
+  return ExitCodes.GENERIC;
 }

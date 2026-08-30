@@ -9,7 +9,7 @@ import {
   CRITERIA_MAX_CHARS as SOURCE_CRITERIA_MAX_CHARS,
   FLOOR_ATTRIBUTES as SOURCE_FLOOR_ATTRIBUTES,
   IMPLICATION_MAX_CHARS as SOURCE_IMPLICATION_MAX_CHARS,
-  RepoConfigOutcome,
+  RepoConfigOutcomes,
   RepoConfigPaths,
 } from "repo-config";
 import { matchesGlob as sourceMatchesGlob } from "brief-core";
@@ -200,7 +200,7 @@ describe("lockstep pins (FE copies vs their sources)", () => {
     // A legitimate cap/vocabulary bump upstream must turn a test red HERE —
     // the best-effort context query would otherwise silently drop every
     // source marker for new briefs.
-    expect([...OUTCOMES]).toEqual(Object.values(RepoConfigOutcome));
+    expect([...OUTCOMES]).toEqual(Object.values(RepoConfigOutcomes));
     expect([...SLOT_PATHS]).toEqual([
       RepoConfigPaths.INSTRUCTIONS,
       RepoConfigPaths.SETTINGS,

@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { GeneratorError, GeneratorErrorKind } from "../src/contract/errors";
+import { GeneratorError, GeneratorErrorKinds } from "../src/contract/errors";
 import {
   HARNESS_STRIPPED_CREDENTIAL_VARS,
   runHarnessProcess,
@@ -312,7 +312,7 @@ describe("runHarnessProcess", () => {
     });
     await expect(promise).rejects.toBeInstanceOf(GeneratorError);
     await expect(promise).rejects.toMatchObject({
-      kind: GeneratorErrorKind.OPAQUE,
+      kind: GeneratorErrorKinds.OPAQUE,
     });
     await expect(promise).rejects.toThrow(/stdout exceeded/);
   });
@@ -339,12 +339,12 @@ describe("runHarnessProcess", () => {
   it("classifies spawn failures honestly: missing binary vs system failure", () => {
     const enoent = Object.assign(new Error("spawn ENOENT"), { code: "ENOENT" });
     expect(spawnFailureError("claude", enoent).kind).toBe(
-      GeneratorErrorKind.CLI_MISSING,
+      GeneratorErrorKinds.CLI_MISSING,
     );
     // Resource exhaustion is not a missing binary — no PATH remediation.
     const emfile = Object.assign(new Error("spawn EMFILE"), { code: "EMFILE" });
     const systemFailure = spawnFailureError("claude", emfile);
-    expect(systemFailure.kind).toBe(GeneratorErrorKind.OPAQUE);
+    expect(systemFailure.kind).toBe(GeneratorErrorKinds.OPAQUE);
     expect(systemFailure.message).toContain("EMFILE");
     expect(systemFailure.message).not.toContain("not found");
   });
@@ -358,7 +358,7 @@ describe("runHarnessProcess", () => {
     });
     await expect(promise).rejects.toBeInstanceOf(GeneratorError);
     await expect(promise).rejects.toMatchObject({
-      kind: GeneratorErrorKind.CLI_MISSING,
+      kind: GeneratorErrorKinds.CLI_MISSING,
     });
   });
 
@@ -439,7 +439,7 @@ describe("harnessTimeoutError / redactSecrets", () => {
     });
     // Simulate a timeout classification carrying that stderr tail.
     const error = harnessTimeoutError("brief", { ...result, timedOut: "hard" });
-    expect(error.kind).toBe(GeneratorErrorKind.TIMEOUT);
+    expect(error.kind).toBe(GeneratorErrorKinds.TIMEOUT);
     expect(error.message).not.toContain("supersecretvalue");
     expect(error.message).not.toContain("abc.def.ghi");
     expect(error.message).toContain("(redacted)");

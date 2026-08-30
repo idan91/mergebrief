@@ -7,7 +7,7 @@
 import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
 import { setReviewThreadResolution } from "../src/operations/resolve-thread";
-import { GitHubApiErrorCode } from "../src/errors";
+import { GitHubApiErrorCodes } from "../src/errors";
 import {
   LEAKED_TOKEN,
   UPSTREAM_TEXT,
@@ -279,7 +279,7 @@ describe("setReviewThreadResolution", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     // Walked both pages, never mutated.
     expect(graphql).toHaveBeenCalledTimes(2);
   });
@@ -302,7 +302,7 @@ describe("setReviewThreadResolution", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     expect(graphql).toHaveBeenCalledTimes(1);
   });
 
@@ -324,7 +324,7 @@ describe("setReviewThreadResolution", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     expect(graphql).toHaveBeenCalledTimes(1);
   });
 
@@ -358,7 +358,7 @@ describe("setReviewThreadResolution", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     // Nothing was mutated — no second call at all.
     expect(graphql).toHaveBeenCalledTimes(1);
   });
@@ -414,7 +414,7 @@ describe("setReviewThreadResolution", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     expect(graphql).toHaveBeenCalledTimes(1);
   });
 
@@ -426,7 +426,7 @@ describe("setReviewThreadResolution", () => {
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     expect(graphql).toHaveBeenCalledTimes(1);
   });
 
@@ -440,7 +440,7 @@ describe("setReviewThreadResolution", () => {
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
   });
 
   it("stops at the page cap and reports not-found without further calls", async () => {
@@ -463,7 +463,7 @@ describe("setReviewThreadResolution", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     expect(graphql).toHaveBeenCalledTimes(20);
   });
 
@@ -481,7 +481,7 @@ describe("setReviewThreadResolution", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.FORBIDDEN);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
     expect(graphql).toHaveBeenCalledTimes(1);
     // No secret/upstream text leaks through the sanitization chokepoint.
     expect(JSON.stringify(result.error)).not.toContain(LEAKED_TOKEN);
@@ -524,7 +524,7 @@ describe("setReviewThreadResolution", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 
   it("does NOT converge on a mutation-time GraphQL error (no message sniffing)", async () => {
@@ -555,7 +555,7 @@ describe("setReviewThreadResolution", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.FORBIDDEN);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
     expect(JSON.stringify(result.error)).not.toContain(LEAKED_TOKEN);
     expect(JSON.stringify(result.error)).not.toContain("already resolved");
   });
@@ -572,7 +572,7 @@ describe("setReviewThreadResolution", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 
   it("flags an ill-shaped mutation response as an unexpected-shape failure", async () => {
@@ -598,6 +598,6 @@ describe("setReviewThreadResolution", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 });

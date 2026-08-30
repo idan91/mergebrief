@@ -6,8 +6,9 @@ import type { Result } from "types";
 import {
   configError,
   GeneratorError,
-  GeneratorErrorKind,
+  GeneratorErrorKinds,
   type ConfigError,
+  type GeneratorErrorKind,
 } from "../contract/errors";
 import {
   runWithSchemaFloor,
@@ -52,15 +53,15 @@ import type { Effort, Generation } from "../contract/generation";
 
 /** In-band `system/api_retry` categories → taxonomy kinds. */
 const API_RETRY_KIND: Record<string, GeneratorErrorKind> = {
-  authentication_failed: GeneratorErrorKind.AUTH,
-  oauth_org_not_allowed: GeneratorErrorKind.AUTH,
-  billing_error: GeneratorErrorKind.AUTH,
-  rate_limit: GeneratorErrorKind.PROVIDER_TRANSIENT,
-  overloaded: GeneratorErrorKind.PROVIDER_TRANSIENT,
-  server_error: GeneratorErrorKind.PROVIDER_TRANSIENT,
-  invalid_request: GeneratorErrorKind.CONFIG,
-  model_not_found: GeneratorErrorKind.CONFIG,
-  max_output_tokens: GeneratorErrorKind.CONFIG,
+  authentication_failed: GeneratorErrorKinds.AUTH,
+  oauth_org_not_allowed: GeneratorErrorKinds.AUTH,
+  billing_error: GeneratorErrorKinds.AUTH,
+  rate_limit: GeneratorErrorKinds.PROVIDER_TRANSIENT,
+  overloaded: GeneratorErrorKinds.PROVIDER_TRANSIENT,
+  server_error: GeneratorErrorKinds.PROVIDER_TRANSIENT,
+  invalid_request: GeneratorErrorKinds.CONFIG,
+  model_not_found: GeneratorErrorKinds.CONFIG,
+  max_output_tokens: GeneratorErrorKinds.CONFIG,
 };
 
 /**
@@ -166,7 +167,7 @@ export class ClaudeCodeGenerator implements Generator {
       wireSchema = enumPreservingJsonSchema(req.schema);
     } catch (error) {
       throw new GeneratorError(
-        GeneratorErrorKind.CONFIG,
+        GeneratorErrorKinds.CONFIG,
         `schema for ${req.label} is not representable as a strict JSON schema: ${
           error instanceof Error ? error.message : "unknown error"
         }`,
@@ -264,7 +265,7 @@ export class ClaudeCodeGenerator implements Generator {
       const kind =
         (lastApiRetryCategory !== null
           ? apiRetryKind(lastApiRetryCategory)
-          : undefined) ?? GeneratorErrorKind.OPAQUE;
+          : undefined) ?? GeneratorErrorKinds.OPAQUE;
       throw new GeneratorError(
         kind,
         `${this.command} exited (code ${run.exitCode ?? `signal ${run.exitSignal ?? "unknown"}`}) without a result envelope for ${label}${
@@ -292,7 +293,7 @@ export class ClaudeCodeGenerator implements Generator {
     }
     if (envelope.isError) {
       throw new GeneratorError(
-        GeneratorErrorKind.OPAQUE,
+        GeneratorErrorKinds.OPAQUE,
         `${this.command} reported ${envelope.subtype === "" ? "an error" : renderSubtype(envelope.subtype)} for ${label}`,
       );
     }

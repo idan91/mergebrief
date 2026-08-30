@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import { GitHubApiErrorCode } from "github";
+import { GitHubApiErrorCodes } from "github";
 import {
   createArtifactStore,
   createGenerationProjection,
@@ -207,12 +207,12 @@ export default function createHandlers(
       // re-login prompt; a retried-still-401 is an upstream error like any
       // other non-404.
       if (
-        denied.error.code === GitHubApiErrorCode.UNAUTHORIZED &&
+        denied.error.code === GitHubApiErrorCodes.UNAUTHORIZED &&
         !denied.retried
       ) {
         throw new Unauthorized();
       }
-      if (denied.error.code === GitHubApiErrorCode.NOT_FOUND) {
+      if (denied.error.code === GitHubApiErrorCodes.NOT_FOUND) {
         throw new NotFound();
       }
       throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);

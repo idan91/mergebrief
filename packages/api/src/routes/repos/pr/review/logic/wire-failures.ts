@@ -1,8 +1,9 @@
 // The review domain's failure->throw mapper (gated-route posture).
 import {
-  GitHubApiErrorCode,
-  ReviewValidationClass,
+  GitHubApiErrorCodes,
+  ReviewValidationClasses,
   type CreateReviewError,
+  type ReviewValidationClass,
 } from "github";
 import { ApiErrorCodes } from "../../../../../error-response";
 import {
@@ -28,15 +29,15 @@ export function throwSubmitFailure(failure: SubmitFailure): never {
   const error = failure.error;
   // Unknown commit → the PR was rewritten since it was read. Fail closed;
   // the FE tells the reviewer to reload (drafts survive via sessionStorage).
-  if (isValidation(error, ReviewValidationClass.UNKNOWN_COMMIT)) {
+  if (isValidation(error, ReviewValidationClasses.UNKNOWN_COMMIT)) {
     throw new Conflict(ApiErrorCodes.PR_REWRITTEN_SINCE_READ);
   }
   // A still-unauthorized final result (refresh budget spent or hard-failed)
   // is a clean re-login prompt, not an upstream error.
-  if (error.code === GitHubApiErrorCode.UNAUTHORIZED) {
+  if (error.code === GitHubApiErrorCodes.UNAUTHORIZED) {
     throw new Unauthorized();
   }
-  if (error.code === GitHubApiErrorCode.NOT_FOUND) {
+  if (error.code === GitHubApiErrorCodes.NOT_FOUND) {
     throw new NotFound();
   }
   throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);

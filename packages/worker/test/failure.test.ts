@@ -1,5 +1,5 @@
 import { APIConnectionError } from "@anthropic-ai/sdk";
-import { GeneratorError, GeneratorErrorKind } from "generators";
+import { GeneratorError, GeneratorErrorKinds } from "generators";
 import { GenerationFailureCodes } from "persistence";
 import { describe, expect, it } from "vitest";
 import {
@@ -27,7 +27,7 @@ describe("classifyFailure", () => {
 
   it("classifies through an unstamped wrapper's cause", () => {
     const wrapped = new PermanentJobError("model refused", {
-      cause: new GeneratorError(GeneratorErrorKind.REFUSAL, "model refused"),
+      cause: new GeneratorError(GeneratorErrorKinds.REFUSAL, "model refused"),
     });
     expect(classifyFailure(wrapped)).toEqual({
       code: GenerationFailureCodes.PROVIDER_REFUSAL,
@@ -35,14 +35,14 @@ describe("classifyFailure", () => {
   });
 
   it.each([
-    [GeneratorErrorKind.AUTH, GenerationFailureCodes.PROVIDER_AUTH],
+    [GeneratorErrorKinds.AUTH, GenerationFailureCodes.PROVIDER_AUTH],
     [
-      GeneratorErrorKind.PROVIDER_TRANSIENT,
+      GeneratorErrorKinds.PROVIDER_TRANSIENT,
       GenerationFailureCodes.PROVIDER_UNAVAILABLE,
     ],
-    [GeneratorErrorKind.TIMEOUT, GenerationFailureCodes.PROVIDER_TIMEOUT],
-    [GeneratorErrorKind.SCHEMA_FLOOR, GenerationFailureCodes.OUTPUT_INVALID],
-    [GeneratorErrorKind.REFUSAL, GenerationFailureCodes.PROVIDER_REFUSAL],
+    [GeneratorErrorKinds.TIMEOUT, GenerationFailureCodes.PROVIDER_TIMEOUT],
+    [GeneratorErrorKinds.SCHEMA_FLOOR, GenerationFailureCodes.OUTPUT_INVALID],
+    [GeneratorErrorKinds.REFUSAL, GenerationFailureCodes.PROVIDER_REFUSAL],
   ])("maps GeneratorError kind %s to %s", (kind, code) => {
     expect(classifyFailure(new GeneratorError(kind, "boom"))).toEqual({
       code,
@@ -51,8 +51,8 @@ describe("classifyFailure", () => {
 
   it("config and cli-missing both land on generation-config with detail", () => {
     for (const kind of [
-      GeneratorErrorKind.CONFIG,
-      GeneratorErrorKind.CLI_MISSING,
+      GeneratorErrorKinds.CONFIG,
+      GeneratorErrorKinds.CLI_MISSING,
     ]) {
       expect(
         classifyFailure(new GeneratorError(kind, "MODEL env var unknown")),
@@ -66,7 +66,7 @@ describe("classifyFailure", () => {
   it("opaque generator errors keep their message as unknown detail", () => {
     expect(
       classifyFailure(
-        new GeneratorError(GeneratorErrorKind.OPAQUE, "exit code 7"),
+        new GeneratorError(GeneratorErrorKinds.OPAQUE, "exit code 7"),
       ),
     ).toEqual({
       code: GenerationFailureCodes.UNKNOWN,
@@ -77,21 +77,21 @@ describe("classifyFailure", () => {
   it("recovers rate-limit and timeout from a transient GeneratorError's cause", () => {
     expect(
       classifyFailure(
-        new GeneratorError(GeneratorErrorKind.PROVIDER_TRANSIENT, "429", {
+        new GeneratorError(GeneratorErrorKinds.PROVIDER_TRANSIENT, "429", {
           cause: Object.assign(new Error("rate limited"), { status: 429 }),
         }),
       ),
     ).toEqual({ code: GenerationFailureCodes.PROVIDER_RATE_LIMIT });
     expect(
       classifyFailure(
-        new GeneratorError(GeneratorErrorKind.PROVIDER_TRANSIENT, "408", {
+        new GeneratorError(GeneratorErrorKinds.PROVIDER_TRANSIENT, "408", {
           cause: Object.assign(new Error("timeout"), { status: 408 }),
         }),
       ),
     ).toEqual({ code: GenerationFailureCodes.PROVIDER_TIMEOUT });
     expect(
       classifyFailure(
-        new GeneratorError(GeneratorErrorKind.PROVIDER_TRANSIENT, "529"),
+        new GeneratorError(GeneratorErrorKinds.PROVIDER_TRANSIENT, "529"),
       ),
     ).toEqual({ code: GenerationFailureCodes.PROVIDER_UNAVAILABLE });
   });

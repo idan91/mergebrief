@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { ConfigErrorCode, loadConfig } from "../src/config";
+import { ConfigErrorCodes, loadConfig } from "../src/config";
 
 const VALID_ENV = {
   DATABASE_URL: "postgres://user:pass@localhost:5432/db",
@@ -113,7 +113,7 @@ describe("loadConfig", () => {
     const result = loadConfig({ PUBLIC_BASE_URL: VALID_ENV.PUBLIC_BASE_URL });
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.error.code).toBe(ConfigErrorCode.INVALID);
+    expect(result.error.code).toBe(ConfigErrorCodes.INVALID);
     expect(result.error.issues.join(";")).toContain("DATABASE_URL");
   });
 

@@ -15,19 +15,19 @@ import {
 import type { Result, ValueOf } from "../types";
 
 /** GitHub wire values for the review `event` — not our kebab-case vocabulary. */
-export const ReviewEvent = {
+export const ReviewEvents = {
   APPROVE: "APPROVE",
   REQUEST_CHANGES: "REQUEST_CHANGES",
   COMMENT: "COMMENT",
 } as const;
-export type ReviewEvent = ValueOf<typeof ReviewEvent>;
+export type ReviewEvent = ValueOf<typeof ReviewEvents>;
 
 /** GitHub wire values for a review comment's diff side. */
-export const ReviewCommentSide = {
+export const ReviewCommentSides = {
   LEFT: "LEFT",
   RIGHT: "RIGHT",
 } as const;
-export type ReviewCommentSide = ValueOf<typeof ReviewCommentSide>;
+export type ReviewCommentSide = ValueOf<typeof ReviewCommentSides>;
 
 export interface ReviewCommentInput {
   readonly path: string;
@@ -57,12 +57,12 @@ export interface CreatePullRequestReviewInput {
  * into the body; `unknown` → a plain failure. Classification is best-effort
  * over the response text — GitHub exposes no stable discriminator.
  */
-export const ReviewValidationClass = {
+export const ReviewValidationClasses = {
   UNKNOWN_COMMIT: "unknown-commit",
   INVALID_COMMENTS: "invalid-comments",
   UNKNOWN: "unknown",
 } as const;
-export type ReviewValidationClass = ValueOf<typeof ReviewValidationClass>;
+export type ReviewValidationClass = ValueOf<typeof ReviewValidationClasses>;
 
 export interface CreateReviewError extends GitHubApiError {
   /** Present only when GitHub returned a 422. */
@@ -94,7 +94,7 @@ const COMMENT_HINT = /\b(path|line|position|side|thread|diff)\b/i;
 function classifyValidation422(error: RequestError): ReviewValidationClass {
   const parsed = validationBodySchema.safeParse(error.response?.data);
   if (!parsed.success) {
-    return ReviewValidationClass.UNKNOWN;
+    return ReviewValidationClasses.UNKNOWN;
   }
   const texts: string[] = [];
   // The top-level message can be the ONLY signal — e.g. an unknown SHA is
@@ -113,12 +113,12 @@ function classifyValidation422(error: RequestError): ReviewValidationClass {
   // Commit takes priority: an unknown commit invalidates every anchor too,
   // and retrying anchors against a vanished SHA can never succeed.
   if (texts.some((text) => COMMIT_HINT.test(text))) {
-    return ReviewValidationClass.UNKNOWN_COMMIT;
+    return ReviewValidationClasses.UNKNOWN_COMMIT;
   }
   if (texts.some((text) => COMMENT_HINT.test(text))) {
-    return ReviewValidationClass.INVALID_COMMENTS;
+    return ReviewValidationClasses.INVALID_COMMENTS;
   }
-  return ReviewValidationClass.UNKNOWN;
+  return ReviewValidationClasses.UNKNOWN;
 }
 
 /**

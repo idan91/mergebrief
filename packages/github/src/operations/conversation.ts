@@ -7,33 +7,33 @@
 import type { Octokit } from "octokit";
 import { z } from "zod";
 import {
-  GitHubApiErrorCode,
+  GitHubApiErrorCodes,
   mapGraphqlError,
   mapRequestError,
   unexpectedResponseError,
   type GitHubApiError,
 } from "../errors";
-import { ReviewCommentSide } from "./review";
+import { ReviewCommentSides, type ReviewCommentSide } from "./review";
 import type { Result, ValueOf } from "../types";
 
 /** GitHub wire values for a review thread's subject (line-anchored or file-level). */
-export const ThreadSubjectType = {
+export const ThreadSubjectTypes = {
   LINE: "LINE",
   FILE: "FILE",
 } as const;
-export type ThreadSubjectType = ValueOf<typeof ThreadSubjectType>;
+export type ThreadSubjectType = ValueOf<typeof ThreadSubjectTypes>;
 
 /**
  * GitHub wire values for a submitted review's state. `PENDING` is deliberately
  * absent: a pending review is a draft, and those nodes are skipped in mapping.
  */
-export const ReviewVerdictState = {
+export const ReviewVerdictStates = {
   COMMENTED: "COMMENTED",
   APPROVED: "APPROVED",
   CHANGES_REQUESTED: "CHANGES_REQUESTED",
   DISMISSED: "DISMISSED",
 } as const;
-export type ReviewVerdictState = ValueOf<typeof ReviewVerdictState>;
+export type ReviewVerdictState = ValueOf<typeof ReviewVerdictStates>;
 
 export interface ConversationAuthor {
   /** GitHub login; `"ghost"` when the account was deleted. */
@@ -149,8 +149,8 @@ const wireCommentSchema = z.object({
 });
 
 const diffSideSchema = z.enum([
-  ReviewCommentSide.LEFT,
-  ReviewCommentSide.RIGHT,
+  ReviewCommentSides.LEFT,
+  ReviewCommentSides.RIGHT,
 ]);
 
 const wireThreadSchema = z.object({
@@ -161,7 +161,7 @@ const wireThreadSchema = z.object({
   startLine: z.number().int().nullable(),
   diffSide: diffSideSchema.nullable(),
   startDiffSide: diffSideSchema.nullable(),
-  subjectType: z.enum([ThreadSubjectType.LINE, ThreadSubjectType.FILE]),
+  subjectType: z.enum([ThreadSubjectTypes.LINE, ThreadSubjectTypes.FILE]),
   comments: z.object({
     pageInfo: z.object({ hasNextPage: z.boolean() }),
     nodes: z.array(wireCommentSchema.nullable()).nullable(),
@@ -182,7 +182,7 @@ const threadConnectionSchema = z.object({
 const wireReviewSchema = z.object({
   fullDatabaseId: z.string().nullable(),
   author: authorSchema,
-  state: z.enum(["PENDING", ...Object.values(ReviewVerdictState)]),
+  state: z.enum(["PENDING", ...Object.values(ReviewVerdictStates)]),
   body: z.string(),
   submittedAt: z.string().nullable(),
   url: z.string(),
@@ -317,7 +317,7 @@ const FETCH_CONTEXT = "fetch pull request conversation";
 /** Sanitized not-found for a null repository/pullRequest field (expected failure). */
 function resourceNotFoundError(): GitHubApiError {
   return {
-    code: GitHubApiErrorCode.NOT_FOUND,
+    code: GitHubApiErrorCodes.NOT_FOUND,
     message: `failed to ${FETCH_CONTEXT}: pull request not found`,
   };
 }

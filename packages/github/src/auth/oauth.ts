@@ -40,7 +40,7 @@ export interface OAuthTokens {
   readonly refreshTokenExpiresAt: Date;
 }
 
-export const OAuthErrorCode = {
+export const OAuthErrorCodes = {
   /** The code→token exchange failed (bad/expired code, network, GitHub 4xx). */
   EXCHANGE_FAILED: "exchange-failed",
   /** The refresh-token rotation failed (revoked/expired refresh token, etc.). */
@@ -48,7 +48,7 @@ export const OAuthErrorCode = {
   /** GitHub returned no refresh token — token expiration is not enabled. */
   EXPIRATION_NOT_ENABLED: "expiration-not-enabled",
 } as const;
-export type OAuthErrorCode = ValueOf<typeof OAuthErrorCode>;
+export type OAuthErrorCode = ValueOf<typeof OAuthErrorCodes>;
 
 export interface OAuthError {
   readonly code: OAuthErrorCode;
@@ -111,7 +111,7 @@ function toOAuthTokens(
     return {
       ok: false,
       error: {
-        code: OAuthErrorCode.EXPIRATION_NOT_ENABLED,
+        code: OAuthErrorCodes.EXPIRATION_NOT_ENABLED,
         message:
           "GitHub returned no refresh token — enable 'Expire user authorization tokens' on the App",
       },
@@ -146,7 +146,7 @@ export async function exchangeWebFlowCode(
     return {
       ok: false,
       error: {
-        code: OAuthErrorCode.EXCHANGE_FAILED,
+        code: OAuthErrorCodes.EXCHANGE_FAILED,
         message: "failed to exchange the OAuth web-flow code",
       },
     };
@@ -170,7 +170,7 @@ export async function refreshUserToken(
     return {
       ok: false,
       error: {
-        code: OAuthErrorCode.REFRESH_FAILED,
+        code: OAuthErrorCodes.REFRESH_FAILED,
         message: "failed to refresh the user access token",
       },
     };

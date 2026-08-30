@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { RepoConfigOutcome, RepoConfigPaths } from "../src/constants";
+import { RepoConfigOutcomes, RepoConfigPaths } from "../src/constants";
 import { validateRepoConfig } from "../src/validate";
 import { instructionsFile, policyFile, settingsFile, yaml } from "./helpers";
 
@@ -17,7 +17,7 @@ describe("validateRepoConfig — outcome table", () => {
   it("marks every absent file absent with a null blob SHA", () => {
     const result = validateRepoConfig({});
     for (const outcome of result.outcomes) {
-      expect(outcome.outcome).toBe(RepoConfigOutcome.ABSENT);
+      expect(outcome.outcome).toBe(RepoConfigOutcomes.ABSENT);
       expect(outcome.blobSha).toBeNull();
     }
     expect(result.settings).toBeUndefined();
@@ -38,9 +38,9 @@ describe("validateRepoConfig — outcome table", () => {
       ),
     });
     expect(result.outcomes.map((o) => o.outcome)).toEqual([
-      RepoConfigOutcome.APPLIED,
-      RepoConfigOutcome.APPLIED,
-      RepoConfigOutcome.APPLIED,
+      RepoConfigOutcomes.APPLIED,
+      RepoConfigOutcomes.APPLIED,
+      RepoConfigOutcomes.APPLIED,
     ]);
     expect(result.instructions).toBeDefined();
     expect(result.settings?.entryCommentOnDrafts).toBe(true);
@@ -64,9 +64,9 @@ describe("validateRepoConfig — outcome table", () => {
     const result = validateRepoConfig({
       settings: settingsFile(yaml({ version: 1 })),
     });
-    expect(result.outcomes[0]?.outcome).toBe(RepoConfigOutcome.ABSENT);
-    expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcome.APPLIED);
-    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcome.ABSENT);
+    expect(result.outcomes[0]?.outcome).toBe(RepoConfigOutcomes.ABSENT);
+    expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcomes.APPLIED);
+    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcomes.ABSENT);
   });
 });
 
@@ -109,7 +109,7 @@ describe("validateRepoConfig — prototype pollution resistance", () => {
     const content =
       "version: 1\nattributes:\n  constructor:\n    criteria: x\n";
     const result = validateRepoConfig({ policy: policyFile(content) });
-    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcome.INVALID);
+    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcomes.INVALID);
     expect(result.policy).toBeUndefined();
     expect(freshProbe["criteria"]).toBeUndefined();
   });
@@ -131,7 +131,7 @@ describe("validateRepoConfig — error hygiene (no content echo)", () => {
     // Unbalanced brackets + a canary value → yaml throws; detail must be a class message.
     const bad = `version: 1\nentryCommentOnDrafts: [${CANARY}\nbroken: {${CANARY}`;
     const result = validateRepoConfig({ settings: settingsFile(bad) });
-    expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcome.INVALID);
+    expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcomes.INVALID);
     expect(result.outcomes[1]?.detail).toBe("not valid YAML");
     assertNoCanary(result);
   });
@@ -139,7 +139,7 @@ describe("validateRepoConfig — error hygiene (no content echo)", () => {
   it("does not echo the file's text in a YAML parse error (policy)", () => {
     const bad = `version: 1\nattributes:\n  my-attr:\n    criteria: "${CANARY}\n  : : :`;
     const result = validateRepoConfig({ policy: policyFile(bad) });
-    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcome.INVALID);
+    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcomes.INVALID);
     assertNoCanary(result);
   });
 
@@ -151,7 +151,7 @@ describe("validateRepoConfig — error hygiene (no content echo)", () => {
       entryCommentOnDrafts: false,
     });
     const result = validateRepoConfig({ settings: settingsFile(content) });
-    expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcome.INVALID);
+    expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcomes.INVALID);
     assertNoCanary(result);
   });
 
@@ -179,7 +179,7 @@ describe("validateRepoConfig — error hygiene (no content echo)", () => {
       attributes: { [CANARY]: { criteria: "x" } },
     });
     const result = validateRepoConfig({ policy: policyFile(content) });
-    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcome.INVALID);
+    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcomes.INVALID);
     assertNoCanary(result);
   });
 
@@ -191,7 +191,7 @@ describe("validateRepoConfig — error hygiene (no content echo)", () => {
       attributes: { criteria: { criteria: "" } },
     });
     const result = validateRepoConfig({ policy: policyFile(content) });
-    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcome.INVALID);
+    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcomes.INVALID);
     expect(result.outcomes[2]?.detail ?? "").not.toContain(
       "attributes.criteria.criteria",
     );
@@ -206,7 +206,7 @@ describe("validateRepoConfig — error hygiene (no content echo)", () => {
       attributes: { [name]: { criteria: "" } }, // empty criteria fails min(1)
     });
     const result = validateRepoConfig({ policy: policyFile(content) });
-    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcome.INVALID);
+    expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcomes.INVALID);
     expect(result.outcomes[2]?.detail ?? "").not.toContain(name);
   });
 });

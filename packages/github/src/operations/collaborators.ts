@@ -6,7 +6,7 @@
 import type { Octokit } from "octokit";
 import { z } from "zod";
 import {
-  GitHubApiErrorCode,
+  GitHubApiErrorCodes,
   mapGraphqlError,
   unexpectedResponseError,
   type GitHubApiError,
@@ -84,7 +84,7 @@ const FETCH_CONTEXT = "list repo collaborators";
 /** Sanitized not-found for a null repository/collaborators field. */
 function resourceNotFoundError(): GitHubApiError {
   return {
-    code: GitHubApiErrorCode.NOT_FOUND,
+    code: GitHubApiErrorCodes.NOT_FOUND,
     message: `failed to ${FETCH_CONTEXT}: repository or collaborators not accessible`,
   };
 }

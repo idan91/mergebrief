@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { z } from "zod/v4";
-import { GeneratorError, GeneratorErrorKind } from "../contract/errors";
+import { GeneratorError, GeneratorErrorKinds } from "../contract/errors";
 import {
   runWithSchemaFloor,
   schemaFeedbackMessage,
@@ -104,7 +104,7 @@ export class CodexGenerator implements Generator {
       codexWireSchema = withAllRequired(wireSchema);
     } catch (error) {
       throw new GeneratorError(
-        GeneratorErrorKind.CONFIG,
+        GeneratorErrorKinds.CONFIG,
         `schema for ${req.label} is not representable as a strict JSON schema: ${
           error instanceof Error ? error.message : "unknown error"
         }`,
@@ -216,7 +216,7 @@ function interpretCodexRun(
           ? "exited without an agent answer"
           : "produced an answer alongside a fatal event (drifted CLI)";
     throw new GeneratorError(
-      GeneratorErrorKind.OPAQUE,
+      GeneratorErrorKinds.OPAQUE,
       `${command} ${what} for ${label}${sawFailureEvent ? " after an in-band error event" : ""}`,
     );
   }

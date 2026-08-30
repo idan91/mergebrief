@@ -2,7 +2,7 @@
 // the viewer's own token, never taken from the caller. Shared by the
 // installations and tokens domains (switch/mint validate targets against it).
 import {
-  GitHubApiErrorCode,
+  GitHubApiErrorCodes,
   listUserInstallations,
   type UserInstallation,
 } from "github";
@@ -44,7 +44,7 @@ export async function resolveAccessibleInstallations(
       );
       return { ok: false, error: { kind: "auth-dead" } };
     }
-    if (result.error.code === GitHubApiErrorCode.UNAUTHORIZED) {
+    if (result.error.code === GitHubApiErrorCodes.UNAUTHORIZED) {
       return { ok: false, error: { kind: "auth-dead" } };
     }
     return { ok: false, error: { kind: "upstream-failed" } };

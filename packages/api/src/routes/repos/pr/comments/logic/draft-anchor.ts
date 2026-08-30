@@ -1,4 +1,4 @@
-import { ReviewCommentSide } from "github";
+import { ReviewCommentSides, type ReviewCommentSide } from "github";
 import {
   DraftCommentSides,
   type ReviewDraftCommentRow,
@@ -9,8 +9,8 @@ import {
 export const SideOnGithub: Readonly<
   Record<DraftCommentSide, ReviewCommentSide>
 > = {
-  [DraftCommentSides.OLD]: ReviewCommentSide.LEFT,
-  [DraftCommentSides.NEW]: ReviewCommentSide.RIGHT,
+  [DraftCommentSides.OLD]: ReviewCommentSides.LEFT,
+  [DraftCommentSides.NEW]: ReviewCommentSides.RIGHT,
 };
 
 /** A stored draft as GitHub's inline-comment coordinates. */

@@ -5,11 +5,11 @@
 import { verify } from "@octokit/webhooks-methods";
 import type { Result, ValueOf } from "../types";
 
-export const WebhookVerifyErrorCode = {
+export const WebhookVerifyErrorCodes = {
   MISSING_SIGNATURE: "missing-signature",
   INVALID_SIGNATURE: "invalid-signature",
 } as const;
-export type WebhookVerifyErrorCode = ValueOf<typeof WebhookVerifyErrorCode>;
+export type WebhookVerifyErrorCode = ValueOf<typeof WebhookVerifyErrorCodes>;
 
 export interface WebhookVerifyError {
   readonly code: WebhookVerifyErrorCode;
@@ -39,7 +39,7 @@ export async function verifyWebhookSignature(
     return {
       ok: false,
       error: {
-        code: WebhookVerifyErrorCode.MISSING_SIGNATURE,
+        code: WebhookVerifyErrorCodes.MISSING_SIGNATURE,
         message: "missing x-hub-signature-256 header",
       },
     };
@@ -55,7 +55,7 @@ export async function verifyWebhookSignature(
     return {
       ok: false,
       error: {
-        code: WebhookVerifyErrorCode.INVALID_SIGNATURE,
+        code: WebhookVerifyErrorCodes.INVALID_SIGNATURE,
         message: "webhook signature is malformed or does not match the payload",
       },
     };
@@ -65,7 +65,7 @@ export async function verifyWebhookSignature(
     return {
       ok: false,
       error: {
-        code: WebhookVerifyErrorCode.INVALID_SIGNATURE,
+        code: WebhookVerifyErrorCodes.INVALID_SIGNATURE,
         message: "webhook signature does not match the payload",
       },
     };

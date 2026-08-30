@@ -4,8 +4,8 @@
 // symlink, submodule) are sanitized errors; API failures leak no token.
 import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
-import { GitHubApiErrorCode } from "../src/errors";
-import { getRepoFile, RepoFileKind } from "../src/operations/repo-file";
+import { GitHubApiErrorCodes } from "../src/errors";
+import { getRepoFile, RepoFileKinds } from "../src/operations/repo-file";
 
 const LEAKED_TOKEN = "ghs_PLANTED_INSTALLATION_TOKEN";
 
@@ -63,7 +63,7 @@ describe("getRepoFile", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value).toEqual({
-      kind: RepoFileKind.FILE,
+      kind: RepoFileKinds.FILE,
       content: text,
       blobSha: "abc123def456",
       size: Buffer.byteLength(text, "utf8"),
@@ -118,7 +118,7 @@ describe("getRepoFile", () => {
     });
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    expect(result.value).toEqual({ kind: RepoFileKind.ABSENT });
+    expect(result.value).toEqual({ kind: RepoFileKinds.ABSENT });
   });
 
   it("rejects an oversize file before decode (TOO_LARGE, size + sha kept)", async () => {
@@ -142,7 +142,7 @@ describe("getRepoFile", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value).toEqual({
-      kind: RepoFileKind.TOO_LARGE,
+      kind: RepoFileKinds.TOO_LARGE,
       blobSha: "bigblob",
       size: 5000,
     });
@@ -159,7 +159,7 @@ describe("getRepoFile", () => {
     });
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    expect(result.value.kind).toBe(RepoFileKind.FILE);
+    expect(result.value.kind).toBe(RepoFileKinds.FILE);
   });
 
   it("round-trips multibyte UTF-8 content", async () => {
@@ -173,7 +173,7 @@ describe("getRepoFile", () => {
     });
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    if (result.value.kind !== RepoFileKind.FILE)
+    if (result.value.kind !== RepoFileKinds.FILE)
       throw new Error("expected file");
     expect(result.value.content).toBe(text);
   });
@@ -190,7 +190,7 @@ describe("getRepoFile", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
   });
 
@@ -206,7 +206,7 @@ describe("getRepoFile", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 
   it("rejects a followed symlink reported as type 'file' with a target field", async () => {
@@ -221,7 +221,7 @@ describe("getRepoFile", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 
   it("rejects a submodule payload carrying submodule_git_url", async () => {
@@ -238,7 +238,7 @@ describe("getRepoFile", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 
   it("rejects malformed base64 content as a sanitized error", async () => {
@@ -259,7 +259,7 @@ describe("getRepoFile", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 
   it("rejects non-UTF-8 bytes instead of silently substituting U+FFFD", async () => {
@@ -282,7 +282,7 @@ describe("getRepoFile", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 
   it("re-guards on the DECODED byte count when the reported size understates it", async () => {
@@ -300,7 +300,7 @@ describe("getRepoFile", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value).toEqual({
-      kind: RepoFileKind.TOO_LARGE,
+      kind: RepoFileKinds.TOO_LARGE,
       blobSha: "abc123def456",
       size: 100,
     });
@@ -324,7 +324,7 @@ describe("getRepoFile", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 
   it("maps a 403 to a sanitized error that leaks no token", async () => {
@@ -337,7 +337,7 @@ describe("getRepoFile", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.FORBIDDEN);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
     expect(JSON.stringify(result.error)).not.toContain(LEAKED_TOKEN);
   });

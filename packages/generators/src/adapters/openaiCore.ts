@@ -1,6 +1,6 @@
 import { APIConnectionError, APIUserAbortError, OpenAIError } from "openai";
 import type { z } from "zod/v4";
-import { GeneratorError, GeneratorErrorKind } from "../contract/errors";
+import { GeneratorError, GeneratorErrorKinds } from "../contract/errors";
 import {
   runWithSchemaFloor,
   schemaFeedbackMessage,
@@ -172,7 +172,7 @@ export class OpenAiCompatibleCore implements Generator {
       openAiWireSchema = withAllRequired(wireSchema);
     } catch (error) {
       throw new GeneratorError(
-        GeneratorErrorKind.CONFIG,
+        GeneratorErrorKinds.CONFIG,
         `schema for ${req.label} is not representable as a strict JSON schema: ${
           error instanceof Error ? error.message : "unknown error"
         }`,
@@ -207,7 +207,7 @@ export class OpenAiCompatibleCore implements Generator {
         );
         if (outcome.refusal !== null) {
           throw new GeneratorError(
-            GeneratorErrorKind.REFUSAL,
+            GeneratorErrorKinds.REFUSAL,
             `Model refused to produce the ${req.label}.`,
           );
         }
@@ -431,7 +431,7 @@ export function classifyOpenAiError(error: unknown): unknown {
   if (error instanceof APIUserAbortError) return error;
   if (error instanceof APIConnectionError) {
     return new GeneratorError(
-      GeneratorErrorKind.PROVIDER_TRANSIENT,
+      GeneratorErrorKinds.PROVIDER_TRANSIENT,
       safeProviderMessage(error.message),
       // Sanitized like the HTTP branches: the wrapped fetch rejection can
       // carry credential-bearing URLs/headers in its nested chain.
@@ -444,7 +444,7 @@ export function classifyOpenAiError(error: unknown): unknown {
   // not be retried into a storm.
   if (error instanceof TypeError && Reflect.get(error, "cause") !== undefined) {
     return new GeneratorError(
-      GeneratorErrorKind.PROVIDER_TRANSIENT,
+      GeneratorErrorKinds.PROVIDER_TRANSIENT,
       "network failure while reading the provider response",
       { cause: sanitizedStatuslessCause(error) },
     );
@@ -455,7 +455,7 @@ export function classifyOpenAiError(error: unknown): unknown {
   if (typeof status !== "number") {
     if (error instanceof OpenAIError) {
       return new GeneratorError(
-        GeneratorErrorKind.OPAQUE,
+        GeneratorErrorKinds.OPAQUE,
         safeProviderMessage(error.message),
         { cause: sanitizedStatuslessCause(error) },
       );
@@ -476,17 +476,17 @@ export function classifyOpenAiError(error: unknown): unknown {
   );
   const cause = sanitizedCause(error, status);
   if (status === 401 || status === 403) {
-    return new GeneratorError(GeneratorErrorKind.AUTH, message, { cause });
+    return new GeneratorError(GeneratorErrorKinds.AUTH, message, { cause });
   }
   if (status === 400 || status === 404) {
-    return new GeneratorError(GeneratorErrorKind.CONFIG, message, { cause });
+    return new GeneratorError(GeneratorErrorKinds.CONFIG, message, { cause });
   }
   if (status === 408 || status === 429 || status >= 500) {
-    return new GeneratorError(GeneratorErrorKind.PROVIDER_TRANSIENT, message, {
+    return new GeneratorError(GeneratorErrorKinds.PROVIDER_TRANSIENT, message, {
       cause,
     });
   }
-  return new GeneratorError(GeneratorErrorKind.OPAQUE, message, { cause });
+  return new GeneratorError(GeneratorErrorKinds.OPAQUE, message, { cause });
 }
 
 /**

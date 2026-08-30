@@ -19,7 +19,7 @@
 import type { Octokit } from "octokit";
 import { z } from "zod";
 import {
-  GitHubApiErrorCode,
+  GitHubApiErrorCodes,
   mapGraphqlError,
   unexpectedResponseError,
   type GitHubApiError,
@@ -149,7 +149,7 @@ const MAX_THREAD_PAGES = 20;
 /** Sanitized not-found for a null repository/pullRequest field. */
 function pullRequestNotFoundError(): GitHubApiError {
   return {
-    code: GitHubApiErrorCode.NOT_FOUND,
+    code: GitHubApiErrorCodes.NOT_FOUND,
     message: `failed to ${CONTEXT}: pull request not found`,
   };
 }
@@ -157,7 +157,7 @@ function pullRequestNotFoundError(): GitHubApiError {
 /** Sanitized not-found for a `rootCommentId` that matches no thread on the PR. */
 function threadNotFoundError(): GitHubApiError {
   return {
-    code: GitHubApiErrorCode.NOT_FOUND,
+    code: GitHubApiErrorCodes.NOT_FOUND,
     message: `failed to ${CONTEXT}: review thread not found`,
   };
 }

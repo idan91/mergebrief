@@ -19,9 +19,10 @@ import {
   PARKED_ATTRIBUTE_CANDIDATES,
   POLICY_MAX_BYTES,
   RESERVED_ATTRIBUTE_WORDS,
-  RepoConfigOutcome,
+  RepoConfigOutcomes,
   RepoConfigPaths,
   SETTINGS_MAX_BYTES,
+  type RepoConfigOutcome,
 } from "./constants";
 import {
   policyV1Schema,
@@ -227,13 +228,13 @@ function validateInstructions(
   // `file.path` — the three paths are structural, not data.
   const path = RepoConfigPaths.INSTRUCTIONS;
   if (file === undefined) {
-    return { outcome: makeOutcome(path, null, RepoConfigOutcome.ABSENT) };
+    return { outcome: makeOutcome(path, null, RepoConfigOutcomes.ABSENT) };
   }
   const bytes = utf8Bytes(file.content);
   const budget = INSTRUCTIONS_BUDGET_BYTES;
   if (bytes > budget) {
     return {
-      outcome: makeOutcome(path, file.blobSha, RepoConfigOutcome.OVER_BUDGET, {
+      outcome: makeOutcome(path, file.blobSha, RepoConfigOutcomes.OVER_BUDGET, {
         detail: `over budget: ${bytes} of ${budget} bytes`,
         bytesUsed: bytes,
         bytesBudget: budget,
@@ -243,7 +244,7 @@ function validateInstructions(
   const warning = nearingCapWarning(bytes, budget);
   return {
     value: { content: file.content, blobSha: file.blobSha, bytes },
-    outcome: makeOutcome(path, file.blobSha, RepoConfigOutcome.APPLIED, {
+    outcome: makeOutcome(path, file.blobSha, RepoConfigOutcomes.APPLIED, {
       bytesUsed: bytes,
       bytesBudget: budget,
       ...(warning !== null ? { warning } : {}),
@@ -261,13 +262,13 @@ function validateSettings(
 ): SettingsResult {
   const path = RepoConfigPaths.SETTINGS;
   if (file === undefined) {
-    return { outcome: makeOutcome(path, null, RepoConfigOutcome.ABSENT) };
+    return { outcome: makeOutcome(path, null, RepoConfigOutcomes.ABSENT) };
   }
   const bytes = utf8Bytes(file.content);
   const budget = SETTINGS_MAX_BYTES;
   if (bytes > budget) {
     return {
-      outcome: makeOutcome(path, file.blobSha, RepoConfigOutcome.OVER_BUDGET, {
+      outcome: makeOutcome(path, file.blobSha, RepoConfigOutcomes.OVER_BUDGET, {
         detail: `over budget: ${bytes} of ${budget} bytes`,
         bytesUsed: bytes,
         bytesBudget: budget,
@@ -277,7 +278,7 @@ function validateSettings(
   const parsed = tryParseYaml(file.content);
   if (!parsed.ok) {
     return {
-      outcome: makeOutcome(path, file.blobSha, RepoConfigOutcome.INVALID, {
+      outcome: makeOutcome(path, file.blobSha, RepoConfigOutcomes.INVALID, {
         detail: "not valid YAML",
       }),
     };
@@ -285,7 +286,7 @@ function validateSettings(
   const result = settingsV1Schema.safeParse(parsed.value);
   if (!result.success) {
     return {
-      outcome: makeOutcome(path, file.blobSha, RepoConfigOutcome.INVALID, {
+      outcome: makeOutcome(path, file.blobSha, RepoConfigOutcomes.INVALID, {
         detail: sanitizeZodError(result.error),
       }),
     };
@@ -293,7 +294,7 @@ function validateSettings(
   const warning = nearingCapWarning(bytes, budget);
   return {
     value: result.data,
-    outcome: makeOutcome(path, file.blobSha, RepoConfigOutcome.APPLIED, {
+    outcome: makeOutcome(path, file.blobSha, RepoConfigOutcomes.APPLIED, {
       bytesUsed: bytes,
       bytesBudget: budget,
       ...(warning !== null ? { warning } : {}),
@@ -311,7 +312,7 @@ function validatePolicy(file: RepoConfigFileInput | undefined): PolicyResult {
   const path = RepoConfigPaths.POLICY;
   if (file === undefined) {
     return {
-      outcome: makeOutcome(path, null, RepoConfigOutcome.ABSENT),
+      outcome: makeOutcome(path, null, RepoConfigOutcomes.ABSENT),
       collisions: [],
     };
   }
@@ -319,7 +320,7 @@ function validatePolicy(file: RepoConfigFileInput | undefined): PolicyResult {
   const budget = POLICY_MAX_BYTES;
   if (bytes > budget) {
     return {
-      outcome: makeOutcome(path, file.blobSha, RepoConfigOutcome.OVER_BUDGET, {
+      outcome: makeOutcome(path, file.blobSha, RepoConfigOutcomes.OVER_BUDGET, {
         detail: `over budget: ${bytes} of ${budget} bytes`,
         bytesUsed: bytes,
         bytesBudget: budget,
@@ -330,7 +331,7 @@ function validatePolicy(file: RepoConfigFileInput | undefined): PolicyResult {
   const parsed = tryParseYaml(file.content);
   if (!parsed.ok) {
     return {
-      outcome: makeOutcome(path, file.blobSha, RepoConfigOutcome.INVALID, {
+      outcome: makeOutcome(path, file.blobSha, RepoConfigOutcomes.INVALID, {
         detail: "not valid YAML",
       }),
       collisions: [],
@@ -339,7 +340,7 @@ function validatePolicy(file: RepoConfigFileInput | undefined): PolicyResult {
   const result = policyV1Schema.safeParse(parsed.value);
   if (!result.success) {
     return {
-      outcome: makeOutcome(path, file.blobSha, RepoConfigOutcome.INVALID, {
+      outcome: makeOutcome(path, file.blobSha, RepoConfigOutcomes.INVALID, {
         detail: sanitizeZodError(result.error),
       }),
       collisions: [],
@@ -391,7 +392,7 @@ function validatePolicy(file: RepoConfigFileInput | undefined): PolicyResult {
   return {
     value: { attributes: survivingAttributes, deEmphasize },
     collisions,
-    outcome: makeOutcome(path, file.blobSha, RepoConfigOutcome.APPLIED, {
+    outcome: makeOutcome(path, file.blobSha, RepoConfigOutcomes.APPLIED, {
       bytesUsed: bytes,
       bytesBudget: budget,
       ...(warning !== null ? { warning } : {}),

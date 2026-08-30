@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import { GitHubApiErrorCode } from "github";
+import { GitHubApiErrorCodes } from "github";
 import type { InstallationId, RepoId } from "persistence";
 import { BadGateway, NotFound } from "../../../shared-errors/api-error";
 import { requireInstallationScope, type AuthzEnv } from "../../authz";
@@ -62,7 +62,7 @@ export default function createHandlers(
       if (!fetched.ok) {
         // 404-collapse posture identical to the other reads; everything else is
         // an honest upstream error.
-        if (fetched.error.error.code === GitHubApiErrorCode.NOT_FOUND) {
+        if (fetched.error.error.code === GitHubApiErrorCodes.NOT_FOUND) {
           throw new NotFound();
         }
         throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);

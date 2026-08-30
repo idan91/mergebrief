@@ -7,9 +7,10 @@
 import {
   createPullRequestReview,
   createUserOctokit,
-  ReviewValidationClass,
+  ReviewValidationClasses,
   type CreatePullRequestReviewInput,
   type CreateReviewError,
+  type ReviewValidationClass,
 } from "github";
 import type { Mutable } from "types";
 import {
@@ -59,7 +60,7 @@ export default {
     const commentsWereRejected =
       !created.ok &&
       !("kind" in created.error) &&
-      isValidation(created.error, ReviewValidationClass.INVALID_COMMENTS) &&
+      isValidation(created.error, ReviewValidationClasses.INVALID_COMMENTS) &&
       input.comments.length > 0;
     if (commentsWereRejected) {
       commentsDegraded = true;

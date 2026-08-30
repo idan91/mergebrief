@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { GeneratorError, GeneratorErrorKind } from "../contract/errors";
+import { GeneratorError, GeneratorErrorKinds } from "../contract/errors";
 import type { Logger } from "../contract/generator";
 
 /**
@@ -335,7 +335,7 @@ export async function runHarnessProcess(
       if (overflowed) {
         reject(
           new GeneratorError(
-            GeneratorErrorKind.OPAQUE,
+            GeneratorErrorKinds.OPAQUE,
             `${args.command}: stdout exceeded ${maxStdoutUnits} characters — runaway output, process killed`,
           ),
         );
@@ -375,13 +375,13 @@ export function spawnFailureError(
   const code = error.code ?? "spawn error";
   if (CLI_MISSING_SPAWN_CODES.has(code)) {
     return new GeneratorError(
-      GeneratorErrorKind.CLI_MISSING,
+      GeneratorErrorKinds.CLI_MISSING,
       `${command}: not found or not runnable (${code})`,
       { cause: error },
     );
   }
   return new GeneratorError(
-    GeneratorErrorKind.OPAQUE,
+    GeneratorErrorKinds.OPAQUE,
     `${command}: spawn failed (${code})`,
     { cause: error },
   );

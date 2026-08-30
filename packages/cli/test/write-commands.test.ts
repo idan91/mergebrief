@@ -29,7 +29,7 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ExitCode } from "../src/exit";
+import { ExitCodes } from "../src/exit";
 import { buildSubmitPayload, requireSpan } from "../src/commands/write";
 import { runCli, type CliDeps } from "../src/program";
 import { testLogger } from "./logging";
@@ -97,7 +97,7 @@ describe("buildSubmitPayload plumbing", () => {
         thrown !== null && typeof thrown === "object" && "code" in thrown
           ? (thrown as { code: number }).code
           : undefined,
-      ).toBe(ExitCode.USAGE);
+      ).toBe(ExitCodes.USAGE);
     }
     expect(requireSpan(BASE, COMMIT)).toEqual({ base: BASE, head: COMMIT });
   });
@@ -300,7 +300,7 @@ describe("write commands over the real api app", () => {
         gitOriginUrl: () => undefined,
       },
     );
-    expect(code).toBe(ExitCode.OK);
+    expect(code).toBe(ExitCodes.OK);
   }
 
   it("submit -F - (stdin) posts and passes the receipt through verbatim", async () => {
@@ -312,7 +312,7 @@ describe("write commands over the real api app", () => {
       payload,
     );
     expect(result.err).toEqual([]);
-    expect(result.code).toBe(ExitCode.OK);
+    expect(result.code).toBe(ExitCodes.OK);
     expect(JSON.parse(result.out)).toEqual({
       reviewId: 987001,
       commentsDegraded: false,
@@ -328,7 +328,7 @@ describe("write commands over the real api app", () => {
     );
     writeFileSync(path, JSON.stringify({ outcome: "comment", body: "ok" }));
     const result = await run(["submit", "7", "-F", path, ...SPAN, "--json"]);
-    expect(result.code).toBe(ExitCode.OK);
+    expect(result.code).toBe(ExitCodes.OK);
   });
 
   it("submit with convenience flags posts a comment-less review", async () => {
@@ -344,7 +344,7 @@ describe("write commands over the real api app", () => {
       ...SPAN,
       "--json",
     ]);
-    expect(result.code).toBe(ExitCode.OK);
+    expect(result.code).toBe(ExitCodes.OK);
     expect(JSON.parse(result.out)).toEqual({
       reviewId: 987001,
       commentsDegraded: false,
@@ -379,7 +379,7 @@ describe("write commands over the real api app", () => {
         gitOriginUrl: () => "git@github.com:nobody/nothing.git",
       },
     );
-    expect(code).toBe(ExitCode.USAGE);
+    expect(code).toBe(ExitCodes.USAGE);
     expect(out.join("")).toBe("");
     expect(err).toHaveLength(1);
     expect(err[0]).toContain("--base and --head");
@@ -421,7 +421,7 @@ describe("write commands over the real api app", () => {
         gitOriginUrl: () => "git@github.com:nobody/nothing.git",
       },
     );
-    expect(code).toBe(ExitCode.USAGE);
+    expect(code).toBe(ExitCodes.USAGE);
     expect(out.join("")).toBe("");
     expect(err).toHaveLength(1);
     expect(err[0]).toContain("PR number");
@@ -440,7 +440,7 @@ describe("write commands over the real api app", () => {
       ...SPAN,
       "--json",
     ]);
-    expect(result.code).toBe(ExitCode.SERVER_REJECTED);
+    expect(result.code).toBe(ExitCodes.SERVER_REJECTED);
     expect(result.out).toBe("");
     expect(result.err).toHaveLength(1);
   });
@@ -457,7 +457,7 @@ describe("write commands over the real api app", () => {
       "thanks, fixed",
       "--json",
     ]);
-    expect(result.code).toBe(ExitCode.OK);
+    expect(result.code).toBe(ExitCodes.OK);
     expect(JSON.parse(result.out)).toEqual({ commentId: 987002 });
   });
 
@@ -468,14 +468,14 @@ describe("write commands over the real api app", () => {
       ["reply", "12345", "--pr", "7", "--body-file", "-", "--json"],
       "multi\nline body\n",
     );
-    expect(result.code).toBe(ExitCode.OK);
+    expect(result.code).toBe(ExitCodes.OK);
   });
 
   it("reply without a body source is a usage error", async () => {
     await seedPr();
     await login();
     const result = await run(["reply", "12345", "--pr", "7", "--json"]);
-    expect(result.code).toBe(ExitCode.USAGE);
+    expect(result.code).toBe(ExitCodes.USAGE);
     expect(result.out).toBe("");
   });
 });

@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { Hono } from "hono";
-import { GitHubApiErrorCode, fetchRepositoryById } from "github";
+import { GitHubApiErrorCodes, fetchRepositoryById } from "github";
 import type * as githubModule from "github";
 import type { Logger } from "logging";
 import {
@@ -119,8 +119,8 @@ async function buildGateApp(): Promise<Hono<AuthzEnv>> {
 function denied(status: number): Result<never, githubModule.GitHubApiError> {
   const code =
     status === 401
-      ? GitHubApiErrorCode.UNAUTHORIZED
-      : GitHubApiErrorCode.FORBIDDEN;
+      ? GitHubApiErrorCodes.UNAUTHORIZED
+      : GitHubApiErrorCodes.FORBIDDEN;
   return { ok: false, error: { code, status, message: "denied" } };
 }
 

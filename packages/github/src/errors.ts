@@ -5,14 +5,14 @@
 import { RequestError } from "octokit";
 import type { ValueOf } from "./types";
 
-export const GitHubApiErrorCode = {
+export const GitHubApiErrorCodes = {
   NOT_FOUND: "not-found",
   FORBIDDEN: "forbidden",
   UNAUTHORIZED: "unauthorized",
   RATE_LIMITED: "rate-limited",
   REQUEST_FAILED: "request-failed",
 } as const;
-export type GitHubApiErrorCode = ValueOf<typeof GitHubApiErrorCode>;
+export type GitHubApiErrorCode = ValueOf<typeof GitHubApiErrorCodes>;
 
 export interface GitHubApiError {
   readonly code: GitHubApiErrorCode;
@@ -45,19 +45,19 @@ function isRateLimited403(error: RequestError): boolean {
 function codeForStatus(status: number): GitHubApiErrorCode {
   switch (status) {
     case 401: {
-      return GitHubApiErrorCode.UNAUTHORIZED;
+      return GitHubApiErrorCodes.UNAUTHORIZED;
     }
     case 403: {
-      return GitHubApiErrorCode.FORBIDDEN;
+      return GitHubApiErrorCodes.FORBIDDEN;
     }
     case 404: {
-      return GitHubApiErrorCode.NOT_FOUND;
+      return GitHubApiErrorCodes.NOT_FOUND;
     }
     case 429: {
-      return GitHubApiErrorCode.RATE_LIMITED;
+      return GitHubApiErrorCodes.RATE_LIMITED;
     }
     default: {
-      return GitHubApiErrorCode.REQUEST_FAILED;
+      return GitHubApiErrorCodes.REQUEST_FAILED;
     }
   }
 }
@@ -74,7 +74,7 @@ export function mapRequestError(
   if (error instanceof RequestError) {
     const code =
       error.status === 403 && isRateLimited403(error)
-        ? GitHubApiErrorCode.RATE_LIMITED
+        ? GitHubApiErrorCodes.RATE_LIMITED
         : codeForStatus(error.status);
     return {
       code,
@@ -83,7 +83,7 @@ export function mapRequestError(
     };
   }
   return {
-    code: GitHubApiErrorCode.REQUEST_FAILED,
+    code: GitHubApiErrorCodes.REQUEST_FAILED,
     message: `failed to ${context}: GitHub API request did not complete`,
   };
 }
@@ -91,7 +91,7 @@ export function mapRequestError(
 /** Build a sanitized `GitHubApiError` for an unexpected/ill-shaped 2xx response body. */
 export function unexpectedResponseError(context: string): GitHubApiError {
   return {
-    code: GitHubApiErrorCode.REQUEST_FAILED,
+    code: GitHubApiErrorCodes.REQUEST_FAILED,
     message: `failed to ${context}: unexpected GitHub API response shape`,
   };
 }
@@ -127,9 +127,9 @@ const GRAPHQL_TYPE_PRECEDENCE: ReadonlyArray<{
   readonly type: string;
   readonly code: GitHubApiErrorCode;
 }> = [
-  { type: "RATE_LIMITED", code: GitHubApiErrorCode.RATE_LIMITED },
-  { type: "FORBIDDEN", code: GitHubApiErrorCode.FORBIDDEN },
-  { type: "NOT_FOUND", code: GitHubApiErrorCode.NOT_FOUND },
+  { type: "RATE_LIMITED", code: GitHubApiErrorCodes.RATE_LIMITED },
+  { type: "FORBIDDEN", code: GitHubApiErrorCodes.FORBIDDEN },
+  { type: "NOT_FOUND", code: GitHubApiErrorCodes.NOT_FOUND },
 ];
 
 /**
@@ -152,12 +152,12 @@ export function mapGraphqlError(
     );
     const matched = GRAPHQL_TYPE_PRECEDENCE.find(({ type }) => types.has(type));
     return {
-      code: matched?.code ?? GitHubApiErrorCode.REQUEST_FAILED,
+      code: matched?.code ?? GitHubApiErrorCodes.REQUEST_FAILED,
       message: `failed to ${context}: GitHub GraphQL query failed`,
     };
   }
   return {
-    code: GitHubApiErrorCode.REQUEST_FAILED,
+    code: GitHubApiErrorCodes.REQUEST_FAILED,
     message: `failed to ${context}: GitHub GraphQL request did not complete`,
   };
 }

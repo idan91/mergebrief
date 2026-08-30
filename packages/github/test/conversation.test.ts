@@ -9,7 +9,7 @@ import {
   createReviewCommentReply,
   fetchPullRequestConversation,
 } from "../src/operations/conversation";
-import { GitHubApiErrorCode } from "../src/errors";
+import { GitHubApiErrorCodes } from "../src/errors";
 import {
   conversationResponse,
   gqlComment,
@@ -535,7 +535,7 @@ describe("fetchPullRequestConversation — failure paths", () => {
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     const serialized = JSON.stringify(result.error);
     expect(serialized).not.toContain(LEAKED_TOKEN);
     expect(serialized).not.toContain("Could not resolve");
@@ -563,7 +563,7 @@ describe("fetchPullRequestConversation — failure paths", () => {
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.UNAUTHORIZED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.UNAUTHORIZED);
     expect(result.error.status).toBe(401);
   });
 
@@ -581,7 +581,7 @@ describe("fetchPullRequestConversation — failure paths", () => {
       );
       expect(result.ok).toBe(false);
       if (result.ok) throw new Error("unreachable");
-      expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
+      expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
       expect(result.error.message).not.toContain("unexpected");
     }
   });
@@ -594,7 +594,7 @@ describe("fetchPullRequestConversation — failure paths", () => {
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
     expect(result.error.message).toContain(
       "unexpected GitHub API response shape",
     );
@@ -660,7 +660,7 @@ describe("fetchPullRequestConversation — failure paths", () => {
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.RATE_LIMITED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.RATE_LIMITED);
   });
 });
 
@@ -712,7 +712,7 @@ describe("createReviewCommentReply", () => {
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 
   it("maps a 404 (root comment gone) to a sanitized not-found", async () => {
@@ -743,7 +743,7 @@ describe("createReviewCommentReply", () => {
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     expect(JSON.stringify(result.error)).not.toContain(LEAKED_TOKEN);
   });
 });

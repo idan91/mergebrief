@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
-import { GeneratorError, GeneratorErrorKind } from "../src/contract/errors";
+import { GeneratorError, GeneratorErrorKinds } from "../src/contract/errors";
 import type { GenerateRequest, Generator } from "../src/contract/generator";
 import { GenerationSchema, type Generation } from "../src/contract/generation";
 
@@ -170,7 +170,7 @@ export function describeGeneratorContract(
       const promise = generate(handle);
       await expect(promise).rejects.toBeInstanceOf(GeneratorError);
       await expect(promise).rejects.toMatchObject({
-        kind: GeneratorErrorKind.SCHEMA_FLOOR,
+        kind: GeneratorErrorKinds.SCHEMA_FLOOR,
       });
       await expect(promise).rejects.toThrow(/raw output saved to/);
       expect(handle.attempts()).toBe(2);
@@ -201,7 +201,7 @@ export function describeGeneratorContract(
     it("fails a no-output attempt once: schema-floor, no retry, dumped", async () => {
       const handle = await harness.make([{ raw: "" }], dir);
       await expect(generate(handle)).rejects.toMatchObject({
-        kind: GeneratorErrorKind.SCHEMA_FLOOR,
+        kind: GeneratorErrorKinds.SCHEMA_FLOOR,
       });
       expect(handle.attempts()).toBe(1);
       const files = dumps(dir);
@@ -223,7 +223,7 @@ export function describeGeneratorContract(
       const promise = generate(handle);
       await expect(promise).rejects.toBeInstanceOf(GeneratorError);
       await expect(promise).rejects.toMatchObject({
-        kind: GeneratorErrorKind.REFUSAL,
+        kind: GeneratorErrorKinds.REFUSAL,
       });
       expect(handle.attempts()).toBe(1);
       expect(dumps(dir)).toHaveLength(0);

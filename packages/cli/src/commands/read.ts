@@ -4,7 +4,7 @@
 // pr-meta → delta; `diff --group` = brief + diff).
 import { z } from "zod";
 import type { ApiClient } from "../client";
-import { CliError, ExitCode } from "../exit";
+import { CliError, ExitCodes } from "../exit";
 import { filterDiffByChunks, type ChunkSpan } from "./diff-filter";
 
 // ---------------------------------------------------------------------------
@@ -44,7 +44,7 @@ const briefChunkSliceSchema = z.object({
 
 function skewError(what: string): CliError {
   return new CliError(
-    ExitCode.GENERIC,
+    ExitCodes.GENERIC,
     `the server's ${what} response did not match the documented shape (version skew? check \`mergebrief auth status\`)`,
   );
 }
@@ -83,7 +83,7 @@ function briefSpan(
   const { baseSha, headSha, briefAvailable } = meta.slice;
   if (!briefAvailable || baseSha === null || headSha === null) {
     throw new CliError(
-      ExitCode.NOT_FOUND,
+      ExitCodes.NOT_FOUND,
       `no brief generated yet for PR ${prNumber} — generation is webhook-driven; try again after the next push settles`,
     );
   }
@@ -196,7 +196,7 @@ export async function runDiff(
     (options.base !== undefined || options.head !== undefined)
   ) {
     throw new CliError(
-      ExitCode.USAGE,
+      ExitCodes.USAGE,
       "--group filters the brief's own span — it cannot be combined with --base/--head",
     );
   }
@@ -224,7 +224,7 @@ export async function runDiff(
     );
     if (groupChunks.length === 0) {
       throw new CliError(
-        ExitCode.NOT_FOUND,
+        ExitCodes.NOT_FOUND,
         `change group "${options.group}" is not in this PR's brief (see \`mergebrief groups ${prNumber}\`)`,
       );
     }
@@ -235,7 +235,7 @@ export async function runDiff(
     span = briefSpan(meta, prNumber);
   } else {
     throw new CliError(
-      ExitCode.USAGE,
+      ExitCodes.USAGE,
       "--base and --head must be given together",
     );
   }
@@ -251,7 +251,7 @@ export async function runDiff(
       // Fail LOUD: a silently under-shown group is worse than an error — the
       // brief and the live diff disagree about files.
       throw new CliError(
-        ExitCode.GENERIC,
+        ExitCodes.GENERIC,
         `group "${options.group}" references files missing from the live diff (${filtered.missingFiles.join(", ")}) — the brief may lag a push; retry after regeneration`,
       );
     }
@@ -293,7 +293,7 @@ export async function runDelta(
     head = options.head;
   } else if (options.baseline !== undefined || options.head !== undefined) {
     throw new CliError(
-      ExitCode.USAGE,
+      ExitCodes.USAGE,
       "--baseline and --head must be given together",
     );
   } else {

@@ -27,7 +27,7 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ExitCode } from "../src/exit";
+import { ExitCodes } from "../src/exit";
 import { buildReanchorPayload } from "../src/commands/session-write/utils";
 import { runCli, type CliDeps } from "../src/program";
 import { testLogger } from "./logging";
@@ -259,7 +259,7 @@ describe("session write commands over the real api app", () => {
         gitOriginUrl: () => undefined,
       },
     );
-    expect(code).toBe(ExitCode.OK);
+    expect(code).toBe(ExitCodes.OK);
   }
 
   const CREATE_FLAGS = [
@@ -285,7 +285,7 @@ describe("session write commands over the real api app", () => {
       "--json",
     ]);
     expect(result.err).toEqual([]);
-    expect(result.code).toBe(ExitCode.OK);
+    expect(result.code).toBe(ExitCodes.OK);
     expect(draftIdOf(result.out)).toMatch(/^\d+$/);
   });
 
@@ -310,7 +310,7 @@ describe("session write commands over the real api app", () => {
       "--json",
     ]);
     expect(result.err).toEqual([]);
-    expect(result.code).toBe(ExitCode.OK);
+    expect(result.code).toBe(ExitCodes.OK);
     const session = await run(["session", "7", ...SPAN, "--json"]);
     expect(session.out).toContain('"startSide":"old"');
   });
@@ -322,7 +322,7 @@ describe("session write commands over the real api app", () => {
       ["draft", "create", "7", "-F", "-", "--start-side", "old", ...SPAN],
       JSON.stringify({}),
     );
-    expect(result.code).toBe(ExitCode.USAGE);
+    expect(result.code).toBe(ExitCodes.USAGE);
     expect(result.err.join("")).toContain("mutually exclusive");
   });
 
@@ -359,7 +359,7 @@ describe("session write commands over the real api app", () => {
       payload,
     );
     expect(result.err).toEqual([]);
-    expect(result.code).toBe(ExitCode.OK);
+    expect(result.code).toBe(ExitCodes.OK);
     expect(draftIdOf(result.out)).toMatch(/^\d+$/);
   });
 
@@ -377,9 +377,9 @@ describe("session write commands over the real api app", () => {
       ["draft", "create", "7", "-F", "-", ...SPAN, "--json"],
       payload,
     );
-    expect(created.code).toBe(ExitCode.OK);
+    expect(created.code).toBe(ExitCodes.OK);
     const session = await run(["session", "7", ...SPAN, "--json"]);
-    expect(session.code).toBe(ExitCode.OK);
+    expect(session.code).toBe(ExitCodes.OK);
     expect(session.out).toContain('"side":"old"');
     expect(session.out).not.toContain('"side":"new"');
   });
@@ -402,7 +402,7 @@ describe("session write commands over the real api app", () => {
       ],
       "{}",
     );
-    expect(result.code).toBe(ExitCode.USAGE);
+    expect(result.code).toBe(ExitCodes.USAGE);
     expect(result.out).toBe("");
     expect(result.err[0]).toContain("mutually exclusive");
   });
@@ -425,7 +425,7 @@ describe("session write commands over the real api app", () => {
       ...SPAN,
       "--json",
     ]);
-    expect(result.code).toBe(ExitCode.USAGE);
+    expect(result.code).toBe(ExitCodes.USAGE);
     expect(result.out).toBe("");
     expect(result.err[0]).toContain("--start");
   });
@@ -437,7 +437,7 @@ describe("session write commands over the real api app", () => {
       ["draft", "create", "7", "-F", "-", "--body", "x", ...SPAN, "--json"],
       "{}",
     );
-    expect(result.code).toBe(ExitCode.USAGE);
+    expect(result.code).toBe(ExitCodes.USAGE);
     expect(result.out).toBe("");
     expect(result.err).toHaveLength(1);
     expect(result.err[0]).toContain("mutually exclusive");
@@ -468,7 +468,7 @@ describe("session write commands over the real api app", () => {
         gitOriginUrl: () => "git@github.com:nobody/nothing.git",
       },
     );
-    expect(code).toBe(ExitCode.USAGE);
+    expect(code).toBe(ExitCodes.USAGE);
     expect(out.join("")).toBe("");
     expect(err).toHaveLength(1);
     expect(err[0]).toContain("--base and --head");
@@ -493,7 +493,7 @@ describe("session write commands over the real api app", () => {
       ...SPAN,
       "--json",
     ]);
-    expect(result.code).toBe(ExitCode.USAGE);
+    expect(result.code).toBe(ExitCodes.USAGE);
     expect(result.out).toBe("");
     expect(result.err).toHaveLength(1);
   });
@@ -515,7 +515,7 @@ describe("session write commands over the real api app", () => {
       ...SPAN,
       "--json",
     ]);
-    expect(result.code).toBe(ExitCode.SERVER_REJECTED);
+    expect(result.code).toBe(ExitCodes.SERVER_REJECTED);
     expect(result.out).toBe("");
     expect(result.err).toHaveLength(1);
   });
@@ -544,14 +544,14 @@ describe("session write commands over the real api app", () => {
       "--json",
     ]);
     expect(flagged.err).toEqual([]);
-    expect(flagged.code).toBe(ExitCode.OK);
+    expect(flagged.code).toBe(ExitCodes.OK);
     expect(draftIdOf(flagged.out)).toBe(draftId);
 
     const filed = await run(
       ["draft", "update", "7", draftId, "-F", "-", ...SPAN, "--json"],
       JSON.stringify({ body: "even sharper" }),
     );
-    expect(filed.code).toBe(ExitCode.OK);
+    expect(filed.code).toBe(ExitCodes.OK);
     expect(draftIdOf(filed.out)).toBe(draftId);
   });
 
@@ -573,7 +573,7 @@ describe("session write commands over the real api app", () => {
       ],
       "{}",
     );
-    expect(result.code).toBe(ExitCode.USAGE);
+    expect(result.code).toBe(ExitCodes.USAGE);
     expect(result.out).toBe("");
     expect(result.err[0]).toContain("mutually exclusive");
   });
@@ -604,7 +604,7 @@ describe("session write commands over the real api app", () => {
       ...SPAN,
       "--json",
     ]);
-    expect(result.code).toBe(ExitCode.SERVER_REJECTED);
+    expect(result.code).toBe(ExitCodes.SERVER_REJECTED);
     expect(result.out).toBe("");
     expect(result.err).toHaveLength(1);
     expect(result.err[0]).toContain("403");
@@ -630,7 +630,7 @@ describe("session write commands over the real api app", () => {
       ...SPAN,
       "--json",
     ]);
-    expect(result.code).toBe(ExitCode.SERVER_REJECTED);
+    expect(result.code).toBe(ExitCodes.SERVER_REJECTED);
     expect(result.out).toBe("");
     expect(result.err).toHaveLength(1);
     expect(result.err[0]).toContain("403");
@@ -641,7 +641,7 @@ describe("session write commands over the real api app", () => {
     await login();
     const marked = await run(["chunk-read", "7", "chunk-1", ...SPAN, "--json"]);
     expect(marked.err).toEqual([]);
-    expect(marked.code).toBe(ExitCode.OK);
+    expect(marked.code).toBe(ExitCodes.OK);
     expect(JSON.parse(marked.out)).toEqual({ chunkId: "chunk-1", read: true });
 
     const cleared = await run([
@@ -652,7 +652,7 @@ describe("session write commands over the real api app", () => {
       ...SPAN,
       "--json",
     ]);
-    expect(cleared.code).toBe(ExitCode.OK);
+    expect(cleared.code).toBe(ExitCodes.OK);
     expect(JSON.parse(cleared.out)).toEqual({
       chunkId: "chunk-1",
       read: false,
@@ -671,7 +671,7 @@ describe("session write commands over the real api app", () => {
       ...SPAN,
       "--json",
     ]);
-    expect(result.code).toBe(ExitCode.USAGE);
+    expect(result.code).toBe(ExitCodes.USAGE);
     expect(result.out).toBe("");
     expect(result.err).toHaveLength(1);
   });
@@ -699,7 +699,7 @@ describe("session write commands over the real api app", () => {
       ["chunk-read", "x", "chunk-1", ...SPAN, "--json"],
     ]) {
       const result = await run(argv);
-      expect(result.code).toBe(ExitCode.USAGE);
+      expect(result.code).toBe(ExitCodes.USAGE);
       expect(result.out).toBe("");
       expect(result.err).toHaveLength(1);
       expect(result.err[0]).toContain("PR number");

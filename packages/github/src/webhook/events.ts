@@ -19,16 +19,16 @@ import type { Result, ValueOf } from "../types";
 // Closed vocabularies (kebab-case values; SHOUT_CASE keys).
 // ---------------------------------------------------------------------------
 
-export const ParsedWebhookEventKind = {
+export const ParsedWebhookEventKinds = {
   PULL_REQUEST: "pull-request",
   PULL_REQUEST_REVIEW: "pull-request-review",
   INSTALLATION: "installation",
   INSTALLATION_REPOSITORIES: "installation-repositories",
   IGNORED: "ignored",
 } as const;
-export type ParsedWebhookEventKind = ValueOf<typeof ParsedWebhookEventKind>;
+export type ParsedWebhookEventKind = ValueOf<typeof ParsedWebhookEventKinds>;
 
-export const PullRequestAction = {
+export const PullRequestActions = {
   OPENED: "opened",
   SYNCHRONIZE: "synchronize",
   REOPENED: "reopened",
@@ -37,42 +37,42 @@ export const PullRequestAction = {
   CLOSED: "closed",
   REVIEW_REQUESTED: "review-requested",
 } as const;
-export type PullRequestAction = ValueOf<typeof PullRequestAction>;
+export type PullRequestAction = ValueOf<typeof PullRequestActions>;
 
-export const InstallationAction = {
+export const InstallationActions = {
   CREATED: "created",
   DELETED: "deleted",
 } as const;
-export type InstallationAction = ValueOf<typeof InstallationAction>;
+export type InstallationAction = ValueOf<typeof InstallationActions>;
 
-export const InstallationRepositoriesAction = {
+export const InstallationRepositoriesActions = {
   ADDED: "added",
   REMOVED: "removed",
 } as const;
 export type InstallationRepositoriesAction = ValueOf<
-  typeof InstallationRepositoriesAction
+  typeof InstallationRepositoriesActions
 >;
 
 // GitHub's raw `action` string → our normalized action. Any raw action absent
 // from a map is an unhandled action for that event → `ignored`.
 const RAW_PULL_REQUEST_ACTION: Readonly<Record<string, PullRequestAction>> = {
-  opened: PullRequestAction.OPENED,
-  synchronize: PullRequestAction.SYNCHRONIZE,
-  reopened: PullRequestAction.REOPENED,
-  ready_for_review: PullRequestAction.READY_FOR_REVIEW,
-  converted_to_draft: PullRequestAction.CONVERTED_TO_DRAFT,
-  closed: PullRequestAction.CLOSED,
-  review_requested: PullRequestAction.REVIEW_REQUESTED,
+  opened: PullRequestActions.OPENED,
+  synchronize: PullRequestActions.SYNCHRONIZE,
+  reopened: PullRequestActions.REOPENED,
+  ready_for_review: PullRequestActions.READY_FOR_REVIEW,
+  converted_to_draft: PullRequestActions.CONVERTED_TO_DRAFT,
+  closed: PullRequestActions.CLOSED,
+  review_requested: PullRequestActions.REVIEW_REQUESTED,
 };
 const RAW_INSTALLATION_ACTION: Readonly<Record<string, InstallationAction>> = {
-  created: InstallationAction.CREATED,
-  deleted: InstallationAction.DELETED,
+  created: InstallationActions.CREATED,
+  deleted: InstallationActions.DELETED,
 };
 const RAW_INSTALLATION_REPOSITORIES_ACTION: Readonly<
   Record<string, InstallationRepositoriesAction>
 > = {
-  added: InstallationRepositoriesAction.ADDED,
-  removed: InstallationRepositoriesAction.REMOVED,
+  added: InstallationRepositoriesActions.ADDED,
+  removed: InstallationRepositoriesActions.REMOVED,
 };
 
 // The `x-github-event` names this parser understands. Typed against
@@ -89,7 +89,7 @@ const HANDLED_EVENT_NAMES = {
 // ---------------------------------------------------------------------------
 
 export interface ParsedPullRequestEvent {
-  readonly kind: typeof ParsedWebhookEventKind.PULL_REQUEST;
+  readonly kind: typeof ParsedWebhookEventKinds.PULL_REQUEST;
   readonly action: PullRequestAction;
   readonly installationId: InstallationId;
   readonly repoId: RepoId;
@@ -115,7 +115,7 @@ export interface ParsedPullRequestEvent {
 }
 
 export interface ParsedPullRequestReviewEvent {
-  readonly kind: typeof ParsedWebhookEventKind.PULL_REQUEST_REVIEW;
+  readonly kind: typeof ParsedWebhookEventKinds.PULL_REQUEST_REVIEW;
   readonly installationId: InstallationId;
   readonly repoId: RepoId;
   readonly repoFullName: string;
@@ -136,7 +136,7 @@ export interface ParsedPullRequestReviewEvent {
 }
 
 export interface ParsedInstallationEvent {
-  readonly kind: typeof ParsedWebhookEventKind.INSTALLATION;
+  readonly kind: typeof ParsedWebhookEventKinds.INSTALLATION;
   readonly action: InstallationAction;
   readonly installationId: InstallationId;
   /** Repos included in the install/uninstall payload, when present. */
@@ -145,7 +145,7 @@ export interface ParsedInstallationEvent {
 }
 
 export interface ParsedInstallationRepositoriesEvent {
-  readonly kind: typeof ParsedWebhookEventKind.INSTALLATION_REPOSITORIES;
+  readonly kind: typeof ParsedWebhookEventKinds.INSTALLATION_REPOSITORIES;
   readonly action: InstallationRepositoriesAction;
   readonly installationId: InstallationId;
   readonly repoIdsAdded: readonly RepoId[];
@@ -153,7 +153,7 @@ export interface ParsedInstallationRepositoriesEvent {
 }
 
 export interface IgnoredWebhookEvent {
-  readonly kind: typeof ParsedWebhookEventKind.IGNORED;
+  readonly kind: typeof ParsedWebhookEventKinds.IGNORED;
   readonly eventName: string;
   /** The raw `action`, when the payload carried one. */
   readonly action?: string;
@@ -170,11 +170,11 @@ export type ParsedWebhookEvent =
 // Errors.
 // ---------------------------------------------------------------------------
 
-export const EventParseErrorCode = {
+export const EventParseErrorCodes = {
   INVALID_PAYLOAD: "invalid-payload",
   MISSING_EVENT_NAME: "missing-event-name",
 } as const;
-export type EventParseErrorCode = ValueOf<typeof EventParseErrorCode>;
+export type EventParseErrorCode = ValueOf<typeof EventParseErrorCodes>;
 
 export interface EventParseError {
   readonly code: EventParseErrorCode;
@@ -270,7 +270,7 @@ function invalidPayload(
   return {
     ok: false,
     error: {
-      code: EventParseErrorCode.INVALID_PAYLOAD,
+      code: EventParseErrorCodes.INVALID_PAYLOAD,
       message: `malformed ${eventName} webhook payload`,
       issues: issuesFrom(error),
     },
@@ -282,8 +282,8 @@ function ignored(
   action: string | undefined,
 ): ParsedWebhookEvent {
   return action === undefined
-    ? { kind: ParsedWebhookEventKind.IGNORED, eventName }
-    : { kind: ParsedWebhookEventKind.IGNORED, eventName, action };
+    ? { kind: ParsedWebhookEventKinds.IGNORED, eventName }
+    : { kind: ParsedWebhookEventKinds.IGNORED, eventName, action };
 }
 
 // ---------------------------------------------------------------------------
@@ -300,7 +300,7 @@ function parsePullRequest(
   }
   const data = parsed.data;
   const base: ParsedPullRequestEvent = {
-    kind: ParsedWebhookEventKind.PULL_REQUEST,
+    kind: ParsedWebhookEventKinds.PULL_REQUEST,
     action,
     installationId: data.installation.id,
     repoId: data.repository.id,
@@ -315,7 +315,7 @@ function parsePullRequest(
       : { authorLogin: data.pull_request.user.login }),
     ...(data.before === undefined ? {} : { before: data.before }),
     ...(data.after === undefined ? {} : { after: data.after }),
-    ...(action === PullRequestAction.CLOSED &&
+    ...(action === PullRequestActions.CLOSED &&
     data.pull_request.merged !== undefined
       ? { merged: data.pull_request.merged }
       : {}),
@@ -337,7 +337,7 @@ function parsePullRequestReview(
   return {
     ok: true,
     value: {
-      kind: ParsedWebhookEventKind.PULL_REQUEST_REVIEW,
+      kind: ParsedWebhookEventKinds.PULL_REQUEST_REVIEW,
       installationId: data.installation.id,
       repoId: data.repository.id,
       repoFullName: data.repository.full_name,
@@ -367,7 +367,7 @@ function parseInstallation(
   return {
     ok: true,
     value: {
-      kind: ParsedWebhookEventKind.INSTALLATION,
+      kind: ParsedWebhookEventKinds.INSTALLATION,
       action,
       installationId: data.installation.id,
       senderId: data.sender.id,
@@ -391,7 +391,7 @@ function parseInstallationRepositories(
   return {
     ok: true,
     value: {
-      kind: ParsedWebhookEventKind.INSTALLATION_REPOSITORIES,
+      kind: ParsedWebhookEventKinds.INSTALLATION_REPOSITORIES,
       action,
       installationId: data.installation.id,
       repoIdsAdded: data.repositories_added.map((repo) => repo.id),
@@ -425,7 +425,7 @@ export function parseWebhookEvent(
     return {
       ok: false,
       error: {
-        code: EventParseErrorCode.MISSING_EVENT_NAME,
+        code: EventParseErrorCodes.MISSING_EVENT_NAME,
         message: "missing x-github-event header",
       },
     };

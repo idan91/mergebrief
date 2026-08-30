@@ -81,7 +81,7 @@ export const RESERVED_ATTRIBUTE_WORDS = ["uncertain"] as const;
  * (fail-open on a GitHub 5xx), never by validation — it lives here so the
  * whole vocabulary has one home.
  */
-export const RepoConfigOutcome = {
+export const RepoConfigOutcomes = {
   APPLIED: "applied",
   ABSENT: "absent",
   INVALID: "invalid",
@@ -89,4 +89,4 @@ export const RepoConfigOutcome = {
   FETCH_FAILED: "fetch-failed",
 } as const;
 
-export type RepoConfigOutcome = ValueOf<typeof RepoConfigOutcome>;
+export type RepoConfigOutcome = ValueOf<typeof RepoConfigOutcomes>;

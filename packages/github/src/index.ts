@@ -8,12 +8,12 @@
 export type { Result, ValueOf } from "./types";
 
 // Zod-parsed env config; env is injected, never read from `process.env`.
-export { loadConfig, ConfigErrorCode } from "./config";
-export type { GitHubConfig, ConfigError } from "./config";
+export { loadConfig, ConfigErrorCodes } from "./config";
+export type { GitHubConfig, ConfigError, ConfigErrorCode } from "./config";
 
 // Shared sanitized API-error shape — the single sanitization chokepoint.
-export { GitHubApiErrorCode } from "./errors";
-export type { GitHubApiError } from "./errors";
+export { GitHubApiErrorCodes } from "./errors";
+export type { GitHubApiError, GitHubApiErrorCode } from "./errors";
 
 // --- auth/ — how a client gets CONSTRUCTED + AUTHENTICATED ------------------
 
@@ -34,12 +34,13 @@ export {
   listAppInstallationsForUser,
   listUserInstallations,
   createUserOctokit,
-  OAuthErrorCode,
+  OAuthErrorCodes,
 } from "./auth/oauth";
 export type {
   GitHubOAuthApp,
   OAuthTokens,
   OAuthError,
+  OAuthErrorCode,
   UserInstallation,
 } from "./auth/oauth";
 
@@ -48,21 +49,22 @@ export type {
 // Webhook HMAC verification — constant-time, over the RAW body.
 export {
   verifyWebhookSignature,
-  WebhookVerifyErrorCode,
+  WebhookVerifyErrorCodes,
 } from "./webhook/verify";
 export type {
   VerifyWebhookSignatureInput,
   WebhookVerifyError,
+  WebhookVerifyErrorCode,
 } from "./webhook/verify";
 
 // Webhook event parsing: Zod-validated, branded, discriminated.
 export {
   parseWebhookEvent,
-  ParsedWebhookEventKind,
-  PullRequestAction,
-  InstallationAction,
-  InstallationRepositoriesAction,
-  EventParseErrorCode,
+  ParsedWebhookEventKinds,
+  PullRequestActions,
+  InstallationActions,
+  InstallationRepositoriesActions,
+  EventParseErrorCodes,
 } from "./webhook/events";
 export type {
   ParseWebhookEventInput,
@@ -73,6 +75,11 @@ export type {
   ParsedInstallationRepositoriesEvent,
   IgnoredWebhookEvent,
   EventParseError,
+  EventParseErrorCode,
+  ParsedWebhookEventKind,
+  PullRequestAction,
+  InstallationAction,
+  InstallationRepositoriesAction,
 } from "./webhook/events";
 
 // --- operations/ — what we CALL on GitHub (REST + GraphQL) -------------------
@@ -93,11 +100,12 @@ export {
   listInstallationRepositoriesForUser,
 } from "./operations/repo";
 export type { RepositoryInfo } from "./operations/repo";
-export { getRepoFile, RepoFileKind } from "./operations/repo-file";
+export { getRepoFile, RepoFileKinds } from "./operations/repo-file";
 export type {
   GetRepoFileInput,
   RepoFileAbsent,
   RepoFileContent,
+  RepoFileKind,
   RepoFileResult,
   RepoFileTooLarge,
 } from "./operations/repo-file";
@@ -125,14 +133,17 @@ export type {
 // commit; 422s carry a best-effort validation class.
 export {
   createPullRequestReview,
-  ReviewEvent,
-  ReviewCommentSide,
-  ReviewValidationClass,
+  ReviewEvents,
+  ReviewCommentSides,
+  ReviewValidationClasses,
 } from "./operations/review";
 export type {
   CreatePullRequestReviewInput,
   ReviewCommentInput,
   CreateReviewError,
+  ReviewEvent,
+  ReviewCommentSide,
+  ReviewValidationClass,
 } from "./operations/review";
 
 // Inline review-comment write: one standalone comment on a PR's diff, pinned
@@ -180,8 +191,8 @@ export type {
 export {
   fetchPullRequestConversation,
   createReviewCommentReply,
-  ThreadSubjectType,
-  ReviewVerdictState,
+  ThreadSubjectTypes,
+  ReviewVerdictStates,
 } from "./operations/conversation";
 export type {
   FetchPullRequestConversationInput,
@@ -192,4 +203,6 @@ export type {
   ConversationReview,
   ConversationAuthor,
   PrComment,
+  ThreadSubjectType,
+  ReviewVerdictState,
 } from "./operations/conversation";

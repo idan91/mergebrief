@@ -8,10 +8,10 @@ import {
   exchangeWebFlowCode,
   listUserInstallations,
   refreshUserToken,
-  OAuthErrorCode,
+  OAuthErrorCodes,
   type GitHubOAuthApp,
 } from "../src/auth/oauth";
-import { GitHubApiErrorCode } from "../src/errors";
+import { GitHubApiErrorCodes } from "../src/errors";
 
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_VALUE";
 const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_VALUE";
@@ -83,7 +83,7 @@ describe("exchangeWebFlowCode", () => {
     const result = await exchangeWebFlowCode(app, { code: CODE, state: STATE });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(OAuthErrorCode.EXPIRATION_NOT_ENABLED);
+    expect(result.error.code).toBe(OAuthErrorCodes.EXPIRATION_NOT_ENABLED);
   });
 
   it("maps a thrown exchange error to a sanitized EXCHANGE_FAILED (no leaks)", async () => {
@@ -93,7 +93,7 @@ describe("exchangeWebFlowCode", () => {
     const result = await exchangeWebFlowCode(app, { code: CODE, state: STATE });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(OAuthErrorCode.EXCHANGE_FAILED);
+    expect(result.error.code).toBe(OAuthErrorCodes.EXCHANGE_FAILED);
     const serialized = JSON.stringify(result.error);
     expect(serialized).not.toContain(CODE);
     expect(serialized).not.toContain(REFRESH_TOKEN);
@@ -132,7 +132,7 @@ describe("refreshUserToken", () => {
     const result = await refreshUserToken(app, { refreshToken: REFRESH_TOKEN });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(OAuthErrorCode.REFRESH_FAILED);
+    expect(result.error.code).toBe(OAuthErrorCodes.REFRESH_FAILED);
     const serialized = JSON.stringify(result.error);
     expect(serialized).not.toContain(REFRESH_TOKEN);
     expect(serialized).not.toContain("SECRET_VALUE");
@@ -194,6 +194,6 @@ describe("listUserInstallations", () => {
     const result = await listUserInstallations("ghu_EXPIRED");
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.UNAUTHORIZED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.UNAUTHORIZED);
   });
 });

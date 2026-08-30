@@ -6,7 +6,7 @@
 // --- root — boot plumbing ----------------------------------------------------
 
 // Worker env config (Zod-parsed; injectable env — never reads process.env).
-export { loadConfig, ConfigErrorCode } from "./config";
+export { loadConfig, ConfigErrorCodes } from "./config";
 export type { WorkerConfig, ConfigError } from "./config";
 
 // Runner bootstrap: idempotent boot migrations (app + queue schema) + the

@@ -6,7 +6,7 @@ import type { Result } from "types";
 import {
   configError,
   GeneratorError,
-  GeneratorErrorKind,
+  GeneratorErrorKinds,
   type ConfigError,
 } from "../contract/errors";
 import {
@@ -147,7 +147,7 @@ export class CursorGenerator implements Generator {
       wireSchema = enumPreservingJsonSchema(req.schema);
     } catch (error) {
       throw new GeneratorError(
-        GeneratorErrorKind.CONFIG,
+        GeneratorErrorKinds.CONFIG,
         `schema for ${req.label} is not representable as a strict JSON schema: ${
           error instanceof Error ? error.message : "unknown error"
         }`,
@@ -242,7 +242,7 @@ function classifyStderr(
 ): GeneratorError | null {
   if (stderrTail.includes("Authentication required")) {
     return new GeneratorError(
-      GeneratorErrorKind.AUTH,
+      GeneratorErrorKinds.AUTH,
       `${command}: not authenticated for ${label} — run \`cursor-agent login\` or set CURSOR_API_KEY`,
     );
   }
@@ -254,13 +254,13 @@ function classifyStderr(
     stderrTail.includes("Available models")
   ) {
     return new GeneratorError(
-      GeneratorErrorKind.CONFIG,
+      GeneratorErrorKinds.CONFIG,
       `${command}: rejected the configured model for ${label} — check \`cursor-agent --list-models\``,
     );
   }
   if (stderrTail.includes("error: unknown option")) {
     return new GeneratorError(
-      GeneratorErrorKind.CONFIG,
+      GeneratorErrorKinds.CONFIG,
       `${command}: rejected an option for ${label} — the installed CLI may predate this adapter's argv contract; update it (\`cursor-agent update\`)`,
     );
   }
@@ -424,13 +424,13 @@ function interpretCursorRun(args: InterpretCursorRunArgs): FloorAttempt {
     ).slice(0, 500);
     const stderrNote = detail === "" ? "" : `; stderr: ${detail}`;
     throw new GeneratorError(
-      GeneratorErrorKind.OPAQUE,
+      GeneratorErrorKinds.OPAQUE,
       `${command} exited (code ${run.exitCode ?? `signal ${run.exitSignal ?? "unknown"}`}) ${outcome} for ${label}${stderrNote}`,
     );
   }
   if (envelope.isError) {
     throw new GeneratorError(
-      GeneratorErrorKind.OPAQUE,
+      GeneratorErrorKinds.OPAQUE,
       `${command} reported ${envelope.subtype === "" ? "an error" : renderSubtype(envelope.subtype)} for ${label}`,
     );
   }

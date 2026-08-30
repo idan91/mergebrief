@@ -21,11 +21,12 @@ export {
   PARKED_ATTRIBUTE_CANDIDATES,
   POLICY_MAX_BYTES,
   REPO_CONFIG_DIR,
-  RepoConfigOutcome,
+  RepoConfigOutcomes,
   RepoConfigPaths,
   RESERVED_ATTRIBUTE_WORDS,
   SETTINGS_MAX_BYTES,
 } from "./constants";
+export type { RepoConfigOutcome } from "./constants";
 
 // --- schemas.ts — Zod schemas + inferred types ------------------------------
 export {

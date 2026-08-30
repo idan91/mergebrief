@@ -9,7 +9,7 @@ import {
   buildClaudeVersionWarning,
   interpretClaudeAuthStatus,
 } from "../src/adapters/claudeCode";
-import { GeneratorError, GeneratorErrorKind } from "../src/contract/errors";
+import { GeneratorError, GeneratorErrorKinds } from "../src/contract/errors";
 import { createGenerator, Providers } from "../src/config/registry";
 
 /**
@@ -125,7 +125,7 @@ describe("ClaudeCodeGenerator envelope classification", () => {
     const promise = generator.generate(request());
     await expect(promise).rejects.toBeInstanceOf(GeneratorError);
     await expect(promise).rejects.toMatchObject({
-      kind: GeneratorErrorKind.AUTH,
+      kind: GeneratorErrorKinds.AUTH,
     });
     await expect(promise).rejects.toThrow(/authentication_failed/);
   });
@@ -133,7 +133,7 @@ describe("ClaudeCodeGenerator envelope classification", () => {
   it("classifies an exit without a result envelope as opaque", async () => {
     const generator = makeGenerator({ SHIM_SCENARIO: "envelope-drift" });
     await expect(generator.generate(request())).rejects.toMatchObject({
-      kind: GeneratorErrorKind.OPAQUE,
+      kind: GeneratorErrorKinds.OPAQUE,
     });
   });
 
@@ -144,7 +144,7 @@ describe("ClaudeCodeGenerator envelope classification", () => {
     );
     const promise = generator.generate(request());
     await expect(promise).rejects.toMatchObject({
-      kind: GeneratorErrorKind.TIMEOUT,
+      kind: GeneratorErrorKinds.TIMEOUT,
     });
   });
 
@@ -233,7 +233,7 @@ describe("ClaudeCodeGenerator envelope classification", () => {
       (error: unknown) => error,
     );
     if (!(caught instanceof GeneratorError)) throw new Error("wrong rejection");
-    expect(caught.kind).toBe(GeneratorErrorKind.OPAQUE);
+    expect(caught.kind).toBe(GeneratorErrorKinds.OPAQUE);
     expect(caught.message).not.toContain("after constructor");
     expect(caught.message).toContain("an unrecognized error category");
   });

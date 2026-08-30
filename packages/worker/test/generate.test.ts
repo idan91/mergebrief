@@ -30,7 +30,7 @@ import { APIConnectionError } from "@anthropic-ai/sdk";
 import type { z } from "zod/v4";
 import {
   GeneratorError,
-  GeneratorErrorKind,
+  GeneratorErrorKinds,
   type Effort,
   type GenerateRequest,
   type Generator,
@@ -2947,7 +2947,7 @@ describe("generate task — observability", () => {
     const throwing: Generator = {
       async generate(): Promise<never> {
         throw new GeneratorError(
-          GeneratorErrorKind.AUTH,
+          GeneratorErrorKinds.AUTH,
           "provider rejected the key",
         );
       },

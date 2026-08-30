@@ -5,7 +5,7 @@
 // template + HTTP status; anything else relays the server's `error` text
 // verbatim. Success bodies pass through VERBATIM — never re-shaped.
 import { createI18n, en } from "i18n";
-import { CliError, ExitCode, exitCodeForStatus } from "./exit";
+import { CliError, ExitCodes, exitCodeForStatus } from "./exit";
 
 // One instance for the process — resources are baked in, init is sync.
 const i18n = createI18n();
@@ -128,7 +128,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         });
       } catch (error) {
         throw new CliError(
-          ExitCode.GENERIC,
+          ExitCodes.GENERIC,
           `could not reach ${base}: ${error instanceof Error ? error.message : "network error"}`,
         );
       }
@@ -141,7 +141,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         contentType.includes("text/html")
       ) {
         throw new CliError(
-          ExitCode.GENERIC,
+          ExitCodes.GENERIC,
           `${base} answered like an identity-provider proxy (redirect/HTML) — exempt /api/* from the IdP for Bearer traffic (see docs/self-host)`,
         );
       }

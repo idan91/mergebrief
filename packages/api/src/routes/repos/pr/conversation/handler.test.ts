@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { GitHubApiErrorCode, type GitHubApiError } from "github";
+import { GitHubApiErrorCodes, type GitHubApiError } from "github";
 import type * as GitHubModule from "github";
 import type { Logger } from "logging";
 import {
@@ -173,11 +173,11 @@ describe("conversation handler wire posture", () => {
 
   it("collapses a GitHub NOT_FOUND to 404 and everything else to 502", async () => {
     const notFound = await buildApp(
-      deniedFetch(GitHubApiErrorCode.NOT_FOUND),
+      deniedFetch(GitHubApiErrorCodes.NOT_FOUND),
     ).request(`/${PR_NUMBER}/conversation`);
     expect(notFound.status).toBe(404);
     const upstream = await buildApp(
-      deniedFetch(GitHubApiErrorCode.REQUEST_FAILED),
+      deniedFetch(GitHubApiErrorCodes.REQUEST_FAILED),
     ).request(`/${PR_NUMBER}/conversation`);
     expect(upstream.status).toBe(502);
     expect(await upstream.json()).toMatchObject({ code: "github-unavailable" });
@@ -190,7 +190,7 @@ describe("readConversation — installation-path 401 stays an upstream error", (
       vi.fn(async () => ({
         ok: false as const,
         error: {
-          code: GitHubApiErrorCode.UNAUTHORIZED,
+          code: GitHubApiErrorCodes.UNAUTHORIZED,
           message: "bad app credentials",
         },
       })),
@@ -346,7 +346,7 @@ describe("readConversation — owner world (viewer token)", () => {
       fetchResult: {
         ok: false,
         error: {
-          code: GitHubApiErrorCode.UNAUTHORIZED,
+          code: GitHubApiErrorCodes.UNAUTHORIZED,
           message: "bad credentials",
         },
       },

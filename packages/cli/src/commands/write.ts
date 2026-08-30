@@ -5,7 +5,7 @@
 // relayed: a 4xx validation rejection maps to exit 5, which is what makes an
 // agent's submit loop self-correcting without stderr parsing. Receipts pass
 // through VERBATIM.
-import { CliError, ExitCode } from "../exit";
+import { CliError, ExitCodes } from "../exit";
 import type { ApiClient } from "../client";
 
 export interface WriteIo {
@@ -36,7 +36,7 @@ export function requireSpan(
 ): BriefSpan {
   if (!base || !head) {
     throw new CliError(
-      ExitCode.USAGE,
+      ExitCodes.USAGE,
       "--base and --head are required — name the brief span you reviewed (see `mergebrief pr <n>` baseSha/headSha); it is never auto-fetched",
     );
   }
@@ -155,7 +155,7 @@ export function buildSubmitPayload(input: SubmitInput): unknown {
   const hasFlags = input.outcome !== undefined || input.body !== undefined;
   if (input.payload !== undefined && hasFlags) {
     throw new CliError(
-      ExitCode.USAGE,
+      ExitCodes.USAGE,
       "-F and the convenience flags (--outcome/--body) are mutually exclusive",
     );
   }

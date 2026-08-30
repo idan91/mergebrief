@@ -4,7 +4,7 @@ import Anthropic, {
   RetryableError,
 } from "@anthropic-ai/sdk";
 import type { z } from "zod/v4";
-import { GeneratorError, GeneratorErrorKind } from "../contract/errors";
+import { GeneratorError, GeneratorErrorKinds } from "../contract/errors";
 import type { GenerateRequest, Generator, Logger } from "../contract/generator";
 import {
   runWithSchemaFloor,
@@ -103,7 +103,7 @@ export class AnthropicGenerator implements Generator {
       wireSchema = enumPreservingJsonSchema(req.schema);
     } catch (error) {
       throw new GeneratorError(
-        GeneratorErrorKind.CONFIG,
+        GeneratorErrorKinds.CONFIG,
         `schema for ${req.label} is not representable as a strict JSON schema: ${
           error instanceof Error ? error.message : "unknown error"
         }`,
@@ -140,7 +140,7 @@ export class AnthropicGenerator implements Generator {
         const response = outcome.response;
         if (response.stop_reason === "refusal") {
           throw new GeneratorError(
-            GeneratorErrorKind.REFUSAL,
+            GeneratorErrorKinds.REFUSAL,
             `Model refused to produce the ${req.label}.`,
           );
         }
@@ -293,7 +293,7 @@ function classifySdkError(error: unknown): unknown {
   // RetryableError surfacing after retry exhaustion) are provider-transient.
   if (error instanceof APIConnectionError || error instanceof RetryableError) {
     return new GeneratorError(
-      GeneratorErrorKind.PROVIDER_TRANSIENT,
+      GeneratorErrorKinds.PROVIDER_TRANSIENT,
       error.message,
       { cause: error },
     );
@@ -310,21 +310,21 @@ function classifySdkError(error: unknown): unknown {
       ? error.message
       : `transport error (status ${status})`;
   if (status === 401 || status === 403) {
-    return new GeneratorError(GeneratorErrorKind.AUTH, message, {
+    return new GeneratorError(GeneratorErrorKinds.AUTH, message, {
       cause: error,
     });
   }
   if (status === 400 || status === 404) {
-    return new GeneratorError(GeneratorErrorKind.CONFIG, message, {
+    return new GeneratorError(GeneratorErrorKinds.CONFIG, message, {
       cause: error,
     });
   }
   if (status === 408 || status === 429 || status >= 500) {
-    return new GeneratorError(GeneratorErrorKind.PROVIDER_TRANSIENT, message, {
+    return new GeneratorError(GeneratorErrorKinds.PROVIDER_TRANSIENT, message, {
       cause: error,
     });
   }
-  return new GeneratorError(GeneratorErrorKind.OPAQUE, message, {
+  return new GeneratorError(GeneratorErrorKinds.OPAQUE, message, {
     cause: error,
   });
 }
@@ -335,7 +335,7 @@ function classifySdkError(error: unknown): unknown {
  */
 function wrapStatuslessSdkError(error: unknown): unknown {
   if (error instanceof AnthropicError) {
-    return new GeneratorError(GeneratorErrorKind.OPAQUE, error.message, {
+    return new GeneratorError(GeneratorErrorKinds.OPAQUE, error.message, {
       cause: error,
     });
   }

@@ -21,7 +21,7 @@ import {
   runCapabilities,
   type CapabilitiesRunDeps,
 } from "../src/commands/capabilities";
-import { CliError, ExitCode } from "../src/exit";
+import { CliError, ExitCodes } from "../src/exit";
 import type { ReadIo } from "../src/commands/read";
 import { CLI_CATALOG_FINGERPRINT } from "../src/generated-catalog-fingerprint";
 import { runCli, type CliDeps } from "../src/program";
@@ -182,7 +182,7 @@ describe("runCapabilities --require — fail-closed", () => {
     await expect(run).rejects.toThrow(CliError);
     const error = await run.catch((cause: unknown) => cause);
     if (!(error instanceof CliError)) throw new Error("expected CliError");
-    expect(error.code).toBe(ExitCode.INCOMPATIBLE);
+    expect(error.code).toBe(ExitCodes.INCOMPATIBLE);
     expect(error.message).toContain("read-gone");
     expect(error.message).toContain("submit-review");
     expect(error.message).toContain("mint-token");
@@ -264,7 +264,7 @@ describe("mergebrief capabilities through runCli", () => {
       ["capabilities", "--json", "--require", "list-pulls"],
       d,
     );
-    expect(code).toBe(ExitCode.OK);
+    expect(code).toBe(ExitCodes.OK);
     expect(err).toEqual([]);
     const body: unknown = JSON.parse(out.join(""));
     expect(body).toMatchObject({
@@ -280,7 +280,7 @@ describe("mergebrief capabilities through runCli", () => {
       ["capabilities", "--json", "--require", "no-such-op"],
       d,
     );
-    expect(code).toBe(ExitCode.INCOMPATIBLE);
+    expect(code).toBe(ExitCodes.INCOMPATIBLE);
     expect(out).toEqual([]);
     expect(err).toHaveLength(1);
     expect(err[0]).toContain("no-such-op");
@@ -350,7 +350,7 @@ describe("mergebrief capabilities against the real api app", () => {
           env: { MERGEBRIEF_TOKEN: plaintext },
         },
       );
-      expect(code).toBe(ExitCode.OK);
+      expect(code).toBe(ExitCodes.OK);
       expect(err).toEqual([]);
       const body: unknown = JSON.parse(out.join(""));
       expect(body).toMatchObject({

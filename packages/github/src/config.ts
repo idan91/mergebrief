@@ -25,10 +25,10 @@ export interface GitHubConfig {
 // Errors — expected failure (bad/missing env). Never throws.
 // ---------------------------------------------------------------------------
 
-export const ConfigErrorCode = {
+export const ConfigErrorCodes = {
   INVALID: "invalid",
 } as const;
-export type ConfigErrorCode = ValueOf<typeof ConfigErrorCode>;
+export type ConfigErrorCode = ValueOf<typeof ConfigErrorCodes>;
 
 export interface ConfigError {
   readonly code: ConfigErrorCode;
@@ -94,7 +94,7 @@ type ParsedEnv = z.infer<typeof ConfigSchema>;
 
 function invalidConfigError(issue: string): ConfigError {
   return {
-    code: ConfigErrorCode.INVALID,
+    code: ConfigErrorCodes.INVALID,
     message: "invalid GitHub App configuration",
     issues: [issue],
   };
@@ -164,7 +164,7 @@ export function loadConfig(
     return {
       ok: false,
       error: {
-        code: ConfigErrorCode.INVALID,
+        code: ConfigErrorCodes.INVALID,
         message: "invalid GitHub client configuration",
         issues,
       },

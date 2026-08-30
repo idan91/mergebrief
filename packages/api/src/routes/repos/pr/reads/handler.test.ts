@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { Hono } from "hono";
-import { GitHubApiErrorCode, fetchCompareDiff } from "github";
+import { GitHubApiErrorCodes, fetchCompareDiff } from "github";
 import type * as githubModule from "github";
 import type { Logger } from "logging";
 import {
@@ -149,10 +149,10 @@ async function buildApp(ciphertextOverride?: string): Promise<Hono<AuthzEnv>> {
 function denied(status: number): Result<string, githubModule.GitHubApiError> {
   const code =
     status === 401
-      ? GitHubApiErrorCode.UNAUTHORIZED
+      ? GitHubApiErrorCodes.UNAUTHORIZED
       : status === 404
-        ? GitHubApiErrorCode.NOT_FOUND
-        : GitHubApiErrorCode.REQUEST_FAILED;
+        ? GitHubApiErrorCodes.NOT_FOUND
+        : GitHubApiErrorCodes.REQUEST_FAILED;
   return { ok: false, error: { code, status, message: "denied" } };
 }
 

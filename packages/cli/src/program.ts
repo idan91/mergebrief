@@ -17,7 +17,7 @@ import {
   saveConfig,
   type ResolvedProfile,
 } from "./profile/config";
-import { CliError, ExitCode } from "./exit";
+import { CliError, ExitCodes } from "./exit";
 import {
   runCollaborators,
   runConversation,
@@ -118,7 +118,7 @@ function resolveFromDisk(
 ): ResolvedProfile {
   const config = loadConfig(deps.configDir);
   if (!config.ok) {
-    throw new CliError(ExitCode.USAGE, config.error);
+    throw new CliError(ExitCodes.USAGE, config.error);
   }
   const originUrl = deps.gitOriginUrl();
   return resolveProfile({
@@ -146,7 +146,7 @@ async function probeServer(
     }
     return { reachable: true, authenticated: true, version };
   } catch (error) {
-    if (error instanceof CliError && error.code === ExitCode.AUTH) {
+    if (error instanceof CliError && error.code === ExitCodes.AUTH) {
       return { reachable: true, authenticated: false, version: null };
     }
     return { reachable: false, authenticated: null, version: null };
@@ -193,7 +193,7 @@ async function runAuthLogin(
 ): Promise<void> {
   const config = loadConfig(deps.configDir);
   if (!config.ok) {
-    throw new CliError(ExitCode.USAGE, config.error);
+    throw new CliError(ExitCodes.USAGE, config.error);
   }
   // MERGEBRIEF_PROFILE selects the login target exactly like --profile.
   const profileName =
@@ -202,7 +202,7 @@ async function runAuthLogin(
   const baseUrl = options.baseUrl ?? existing?.baseUrl;
   if (baseUrl === undefined) {
     throw new CliError(
-      ExitCode.USAGE,
+      ExitCodes.USAGE,
       `profile "${profileName}" has no base URL yet — pass --base-url <deployment origin>`,
     );
   }
@@ -210,7 +210,7 @@ async function runAuthLogin(
   const token = (await deps.readStdin()).trim();
   if (!token.startsWith(TOKEN_PREFIX)) {
     throw new CliError(
-      ExitCode.USAGE,
+      ExitCodes.USAGE,
       `that does not look like a MergeBrief token (expected the ${TOKEN_PREFIX} prefix) — mint one at ${baseUrl}/settings`,
     );
   }
@@ -283,13 +283,13 @@ async function resolveTarget(
     (originUrl === undefined ? undefined : fullNameFromOriginUrl(originUrl));
   if (fullName === undefined) {
     throw new CliError(
-      ExitCode.USAGE,
+      ExitCodes.USAGE,
       "no target repository — run inside a git repo with an origin remote, or pass -R owner/name",
     );
   }
   if (!/^[^/\s]+\/[^/\s]+$/.test(fullName)) {
     throw new CliError(
-      ExitCode.USAGE,
+      ExitCodes.USAGE,
       `-R expects owner/name, got "${fullName}"`,
     );
   }
@@ -313,14 +313,14 @@ async function readSource(deps: CliDeps, source: string): Promise<string> {
   const readFile = deps.readFile;
   if (readFile === undefined) {
     throw new CliError(
-      ExitCode.USAGE,
+      ExitCodes.USAGE,
       "file input is not available in this environment",
     );
   }
   try {
     return readFile(source);
   } catch {
-    throw new CliError(ExitCode.USAGE, `could not read ${source}`);
+    throw new CliError(ExitCodes.USAGE, `could not read ${source}`);
   }
 }
 
@@ -328,7 +328,7 @@ function parsePayloadSource(raw: string): unknown {
   try {
     return JSON.parse(raw);
   } catch {
-    throw new CliError(ExitCode.USAGE, "the -F payload is not valid JSON");
+    throw new CliError(ExitCodes.USAGE, "the -F payload is not valid JSON");
   }
 }
 
@@ -340,7 +340,7 @@ async function readBodySource(
 ): Promise<string> {
   if (body !== undefined && bodyFile !== undefined) {
     throw new CliError(
-      ExitCode.USAGE,
+      ExitCodes.USAGE,
       "--body and --body-file are mutually exclusive",
     );
   }
@@ -350,13 +350,13 @@ async function readBodySource(
   if (bodyFile !== undefined) {
     return (await readSource(deps, bodyFile)).replace(/\n$/, "");
   }
-  throw new CliError(ExitCode.USAGE, "a reply needs --body or --body-file");
+  throw new CliError(ExitCodes.USAGE, "a reply needs --body or --body-file");
 }
 
 function parsePrNumber(raw: string): number {
   if (!/^\d+$/.test(raw)) {
     throw new CliError(
-      ExitCode.USAGE,
+      ExitCodes.USAGE,
       `PR number must be a positive integer, got "${raw}"`,
     );
   }
@@ -488,7 +488,7 @@ export function buildProgram(deps: CliDeps): Command {
         const global = globals();
         if (global.json) {
           throw new CliError(
-            ExitCode.USAGE,
+            ExitCodes.USAGE,
             "diff has no JSON arm — its raw output is the machine format",
           );
         }
@@ -1166,11 +1166,11 @@ export async function runCli(
 ): Promise<number> {
   if (argv.includes("--agents")) {
     deps.stdout(AGENTS_MOVED);
-    return ExitCode.OK;
+    return ExitCodes.OK;
   }
   try {
     await buildProgram(deps).parseAsync([...argv], { from: "user" });
-    return ExitCode.OK;
+    return ExitCodes.OK;
   } catch (error) {
     if (error instanceof CliError) {
       deps.stderr(error.message);
@@ -1184,12 +1184,12 @@ export async function runCli(
         code === "commander.help" ||
         code === "commander.version"
       ) {
-        return ExitCode.OK;
+        return ExitCodes.OK;
       }
       // Usage errors already printed one line via configureOutput.
-      return ExitCode.USAGE;
+      return ExitCodes.USAGE;
     }
     deps.stderr(error instanceof Error ? error.message : "unexpected error");
-    return ExitCode.GENERIC;
+    return ExitCodes.GENERIC;
   }
 }

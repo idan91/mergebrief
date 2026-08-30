@@ -4,7 +4,7 @@
 // then transport probes, then `unknown{detail}`. A probe never overrides a
 // stamp.
 import { APIConnectionError } from "@anthropic-ai/sdk";
-import { GeneratorError, GeneratorErrorKind } from "generators";
+import { GeneratorError, GeneratorErrorKinds } from "generators";
 import { GenerationFailureCodes, type GenerationFailure } from "persistence";
 
 interface JobErrorOptions {
@@ -81,26 +81,26 @@ export function classifyFailure(error: unknown): GenerationFailure {
 
   if (unwrapped instanceof GeneratorError) {
     switch (unwrapped.kind) {
-      case GeneratorErrorKind.AUTH:
+      case GeneratorErrorKinds.AUTH:
         return { code: GenerationFailureCodes.PROVIDER_AUTH };
-      case GeneratorErrorKind.PROVIDER_TRANSIENT:
+      case GeneratorErrorKinds.PROVIDER_TRANSIENT:
         // Adapters fold 408/429/5xx into one kind but keep the SDK error as
         // cause — recover the rate-limit/timeout distinction from it.
         return transientFailure(unwrapped.cause);
-      case GeneratorErrorKind.TIMEOUT:
+      case GeneratorErrorKinds.TIMEOUT:
         return { code: GenerationFailureCodes.PROVIDER_TIMEOUT };
-      case GeneratorErrorKind.SCHEMA_FLOOR:
+      case GeneratorErrorKinds.SCHEMA_FLOOR:
         return { code: GenerationFailureCodes.OUTPUT_INVALID };
-      case GeneratorErrorKind.REFUSAL:
+      case GeneratorErrorKinds.REFUSAL:
         return { code: GenerationFailureCodes.PROVIDER_REFUSAL };
-      case GeneratorErrorKind.CONFIG:
-      case GeneratorErrorKind.CLI_MISSING:
+      case GeneratorErrorKinds.CONFIG:
+      case GeneratorErrorKinds.CLI_MISSING:
         // Config absorbs cli-missing: both are operator-fixable setup.
         return {
           code: GenerationFailureCodes.GENERATION_CONFIG,
           params: { detail: unwrapped.message },
         };
-      case GeneratorErrorKind.OPAQUE:
+      case GeneratorErrorKinds.OPAQUE:
         return {
           code: GenerationFailureCodes.UNKNOWN,
           params: { detail: unwrapped.message },

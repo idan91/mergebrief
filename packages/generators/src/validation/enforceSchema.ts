@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { z } from "zod/v4";
-import { GeneratorError, GeneratorErrorKind } from "../contract/errors";
+import { GeneratorError, GeneratorErrorKinds } from "../contract/errors";
 import { parseStructuredText, validationError } from "./jsonSchema";
 import { salvageDroppableEnums } from "./enumRecovery";
 
@@ -216,7 +216,7 @@ export async function runWithSchemaFloor<S extends z.ZodType>(
     }
 
     throw new GeneratorError(
-      GeneratorErrorKind.SCHEMA_FLOOR,
+      GeneratorErrorKinds.SCHEMA_FLOOR,
       `${errorMessage}${dumpNote}`,
       { cause: parseError },
     );

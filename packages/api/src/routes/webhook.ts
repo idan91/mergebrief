@@ -21,10 +21,10 @@ import { type RequestLogEnv } from "../request-logging";
 import type { Mutable, DraftPolicy, Result } from "types";
 import { DEFAULT_DRAFT_POLICY } from "../draft-policy";
 import {
-  InstallationAction,
-  InstallationRepositoriesAction,
-  ParsedWebhookEventKind,
-  PullRequestAction,
+  InstallationActions,
+  InstallationRepositoriesActions,
+  ParsedWebhookEventKinds,
+  PullRequestActions,
   parseWebhookEvent,
   verifyWebhookSignature,
   type ParsedInstallationEvent,
@@ -32,6 +32,7 @@ import {
   type ParsedPullRequestEvent,
   type ParsedPullRequestReviewEvent,
   type ParsedWebhookEvent,
+  type PullRequestAction,
 } from "github";
 import {
   PrStates,
@@ -84,11 +85,11 @@ type RawBodyResult = Result<string, "body-too-large">;
  * a no-op here.
  */
 const GENERATION_TRIGGER_ACTIONS: ReadonlySet<PullRequestAction> = new Set([
-  PullRequestAction.OPENED,
-  PullRequestAction.SYNCHRONIZE,
-  PullRequestAction.REOPENED,
-  PullRequestAction.READY_FOR_REVIEW,
-  PullRequestAction.REVIEW_REQUESTED,
+  PullRequestActions.OPENED,
+  PullRequestActions.SYNCHRONIZE,
+  PullRequestActions.REOPENED,
+  PullRequestActions.READY_FOR_REVIEW,
+  PullRequestActions.REVIEW_REQUESTED,
 ]);
 
 async function handlePullRequest(
@@ -97,7 +98,7 @@ async function handlePullRequest(
   event: ParsedPullRequestEvent,
   policy: DraftPolicy,
 ): Promise<void> {
-  if (event.action === PullRequestAction.CLOSED) {
+  if (event.action === PullRequestActions.CLOSED) {
     // Terminal state write, NO enqueue. `purgeAfter: null` = "never sweep":
     // the retention window is unconfigured, so closing arms nothing.
     await createTenantRepository(handle, ctx).pullRequests.upsert({
@@ -116,7 +117,7 @@ async function handlePullRequest(
     });
     return;
   }
-  if (event.action === PullRequestAction.CONVERTED_TO_DRAFT) {
+  if (event.action === PullRequestActions.CONVERTED_TO_DRAFT) {
     // ready→draft re-entry: state-only. Persist through the terminal-preserving
     // ingest upsert, but do NOT touch the generation projection or enqueue —
     // re-triggering the worker's skip-path is not a no-op (Entry-comment repost
@@ -157,7 +158,7 @@ async function handlePullRequest(
             : { authorLogin: event.authorLogin }),
           state: PrStates.OPEN,
         },
-        { reopen: event.action === PullRequestAction.REOPENED },
+        { reopen: event.action === PullRequestActions.REOPENED },
       );
       return;
     }
@@ -185,7 +186,7 @@ function windowOverrides(
   TriggerGenerationInput,
   "debounceSeconds" | "regenerationDebounceSeconds"
 > {
-  if (event.action === PullRequestAction.READY_FOR_REVIEW) {
+  if (event.action === PullRequestActions.READY_FOR_REVIEW) {
     return { debounceSeconds: READY_FLIP_DEBOUNCE_SECONDS };
   }
   if (isDraft && policy.debounceSeconds !== null) {
@@ -261,7 +262,7 @@ async function triggerGeneration(
   // open; a review or any other trigger merely implies the PR is open and must
   // not resurrect a since-closed PR (a review CAN be submitted on a closed one).
   const reopen =
-    "action" in event && event.action === PullRequestAction.REOPENED;
+    "action" in event && event.action === PullRequestActions.REOPENED;
   type IngestPullRequest = Parameters<
     ReturnType<typeof createIngestRoutines>["triggerGeneration"]
   >[0]["pullRequest"];
@@ -305,7 +306,7 @@ async function handleInstallation(
   ctx: TenantContext,
   event: ParsedInstallationEvent,
 ): Promise<void> {
-  if (event.action === InstallationAction.DELETED) {
+  if (event.action === InstallationActions.DELETED) {
     // App uninstalled → the tenant offboards: createPurgeRoutines deletes all PR
     // aggregates (children cascade) + sessions and emits its own `delete`
     // audit entry, in one transaction.
@@ -319,7 +320,7 @@ async function handleInstallationRepositories(
   ctx: TenantContext,
   event: ParsedInstallationRepositoriesEvent,
 ): Promise<void> {
-  if (event.action !== InstallationRepositoriesAction.REMOVED) {
+  if (event.action !== InstallationRepositoriesActions.REMOVED) {
     return; // `added` is a no-op, same lazy-row reasoning as install-created.
   }
   // ONE set-based transaction (not a per-repo Promise.all, which would open N
@@ -333,20 +334,20 @@ async function dispatch(
   event: ParsedWebhookEvent,
   policy: DraftPolicy,
 ): Promise<void> {
-  if (event.kind === ParsedWebhookEventKind.IGNORED) {
+  if (event.kind === ParsedWebhookEventKinds.IGNORED) {
     return;
   }
   // The tenant boundary: the branded installation id from the SIGNED payload,
   // revalidated through persistence's context schema.
   const ctx = parseTenantContext({ installationId: event.installationId });
   switch (event.kind) {
-    case ParsedWebhookEventKind.PULL_REQUEST:
+    case ParsedWebhookEventKinds.PULL_REQUEST:
       return handlePullRequest(handle, ctx, event, policy);
-    case ParsedWebhookEventKind.PULL_REQUEST_REVIEW:
+    case ParsedWebhookEventKinds.PULL_REQUEST_REVIEW:
       return handlePullRequestReview(handle, ctx, event, policy);
-    case ParsedWebhookEventKind.INSTALLATION:
+    case ParsedWebhookEventKinds.INSTALLATION:
       return handleInstallation(handle, ctx, event);
-    case ParsedWebhookEventKind.INSTALLATION_REPOSITORIES:
+    case ParsedWebhookEventKinds.INSTALLATION_REPOSITORIES:
       return handleInstallationRepositories(handle, ctx, event);
   }
 }

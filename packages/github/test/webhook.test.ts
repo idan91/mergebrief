@@ -7,7 +7,7 @@ import { sign } from "@octokit/webhooks-methods";
 import { describe, expect, it } from "vitest";
 import {
   verifyWebhookSignature,
-  WebhookVerifyErrorCode,
+  WebhookVerifyErrorCodes,
 } from "../src/webhook/verify";
 
 const SECRET = "it's a secret to everybody";
@@ -34,7 +34,7 @@ describe("verifyWebhookSignature", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(WebhookVerifyErrorCode.INVALID_SIGNATURE);
+    expect(result.error.code).toBe(WebhookVerifyErrorCodes.INVALID_SIGNATURE);
   });
 
   it("rejects a replayed signature against a different body (INVALID_SIGNATURE)", async () => {
@@ -46,7 +46,7 @@ describe("verifyWebhookSignature", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(WebhookVerifyErrorCode.INVALID_SIGNATURE);
+    expect(result.error.code).toBe(WebhookVerifyErrorCodes.INVALID_SIGNATURE);
   });
 
   it("rejects a tampered signature with INVALID_SIGNATURE", async () => {
@@ -61,7 +61,7 @@ describe("verifyWebhookSignature", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(WebhookVerifyErrorCode.INVALID_SIGNATURE);
+    expect(result.error.code).toBe(WebhookVerifyErrorCodes.INVALID_SIGNATURE);
   });
 
   it("rejects a malformed signature (no sha256= prefix) with INVALID_SIGNATURE", async () => {
@@ -72,7 +72,7 @@ describe("verifyWebhookSignature", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(WebhookVerifyErrorCode.INVALID_SIGNATURE);
+    expect(result.error.code).toBe(WebhookVerifyErrorCodes.INVALID_SIGNATURE);
   });
 
   it("reports MISSING_SIGNATURE when the header is absent", async () => {
@@ -83,7 +83,7 @@ describe("verifyWebhookSignature", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(WebhookVerifyErrorCode.MISSING_SIGNATURE);
+    expect(result.error.code).toBe(WebhookVerifyErrorCodes.MISSING_SIGNATURE);
   });
 
   it("reports MISSING_SIGNATURE for an empty/whitespace header", async () => {
@@ -94,7 +94,7 @@ describe("verifyWebhookSignature", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(WebhookVerifyErrorCode.MISSING_SIGNATURE);
+    expect(result.error.code).toBe(WebhookVerifyErrorCodes.MISSING_SIGNATURE);
   });
 
   it("never echoes the secret or payload in an error message", async () => {

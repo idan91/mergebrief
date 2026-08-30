@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { INSTRUCTIONS_BUDGET_BYTES, RepoConfigOutcome } from "../src/constants";
+import {
+  INSTRUCTIONS_BUDGET_BYTES,
+  RepoConfigOutcomes,
+} from "../src/constants";
 import { validateRepoConfig } from "../src/validate";
 import { instructionsFile } from "./helpers";
 
@@ -16,17 +19,17 @@ describe("instructions.md validation", () => {
     expect(result.instructions?.content).toBe(content);
     expect(result.instructions?.blobSha).toBe("sha-fake");
     expect(result.instructions?.bytes).toBe(Buffer.byteLength(content, "utf8"));
-    expect(result.outcomes[0]?.outcome).toBe(RepoConfigOutcome.APPLIED);
+    expect(result.outcomes[0]?.outcome).toBe(RepoConfigOutcomes.APPLIED);
   });
 
   it("applies at exactly the byte cap and is over-budget one byte past it", () => {
     const at = "x".repeat(INSTRUCTIONS_BUDGET_BYTES);
-    expect(validate(at).outcomes[0]?.outcome).toBe(RepoConfigOutcome.APPLIED);
+    expect(validate(at).outcomes[0]?.outcome).toBe(RepoConfigOutcomes.APPLIED);
 
     const over = "x".repeat(INSTRUCTIONS_BUDGET_BYTES + 1);
     const result = validate(over);
     expect(result.instructions).toBeUndefined();
-    expect(result.outcomes[0]?.outcome).toBe(RepoConfigOutcome.OVER_BUDGET);
+    expect(result.outcomes[0]?.outcome).toBe(RepoConfigOutcomes.OVER_BUDGET);
     expect(result.outcomes[0]?.bytesUsed).toBe(INSTRUCTIONS_BUDGET_BYTES + 1);
     expect(result.outcomes[0]?.bytesBudget).toBe(INSTRUCTIONS_BUDGET_BYTES);
   });
@@ -34,7 +37,7 @@ describe("instructions.md validation", () => {
   it("warns (but stays applied) when nearing the cap", () => {
     const content = "x".repeat(Math.ceil(INSTRUCTIONS_BUDGET_BYTES * 0.85));
     const result = validate(content);
-    expect(result.outcomes[0]?.outcome).toBe(RepoConfigOutcome.APPLIED);
+    expect(result.outcomes[0]?.outcome).toBe(RepoConfigOutcomes.APPLIED);
     expect(result.outcomes[0]?.warning).toContain("nearing the cap");
   });
 
@@ -49,10 +52,10 @@ describe("instructions.md validation", () => {
   it("treats multibyte content at the byte cap correctly", () => {
     // 4 bytes each × (budget/4) == exactly the budget in bytes.
     const at = "🎉".repeat(INSTRUCTIONS_BUDGET_BYTES / 4);
-    expect(validate(at).outcomes[0]?.outcome).toBe(RepoConfigOutcome.APPLIED);
+    expect(validate(at).outcomes[0]?.outcome).toBe(RepoConfigOutcomes.APPLIED);
     const over = `${at}🎉`;
     expect(validate(over).outcomes[0]?.outcome).toBe(
-      RepoConfigOutcome.OVER_BUDGET,
+      RepoConfigOutcomes.OVER_BUDGET,
     );
   });
 });

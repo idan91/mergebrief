@@ -5,8 +5,8 @@
 import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
 import { createInlineReviewComment } from "../src/operations/inline-comment";
-import { GitHubApiErrorCode } from "../src/errors";
-import { ReviewCommentSide } from "../src/operations/review";
+import { GitHubApiErrorCodes } from "../src/errors";
+import { ReviewCommentSides } from "../src/operations/review";
 
 function mockOctokit(createReviewComment: ReturnType<typeof vi.fn>): Octokit {
   const stub = { rest: { pulls: { createReviewComment } } };
@@ -20,7 +20,7 @@ const INPUT = {
   commitId: "a".repeat(40),
   path: "src/index.ts",
   line: 12,
-  side: ReviewCommentSide.RIGHT,
+  side: ReviewCommentSides.RIGHT,
   body: "post now",
 } as const;
 
@@ -41,7 +41,7 @@ describe("createInlineReviewComment", () => {
       {
         ...INPUT,
         startLine: 10,
-        startSide: ReviewCommentSide.RIGHT,
+        startSide: ReviewCommentSides.RIGHT,
       },
     );
     expect(result.ok).toBe(true);
@@ -98,7 +98,7 @@ describe("createInlineReviewComment", () => {
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
   });
 
   it("drops an unsafe review id to undefined rather than failing the post", async () => {
@@ -139,7 +139,7 @@ describe("createInlineReviewComment", () => {
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.FORBIDDEN);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
     expect(result.error.staleAnchor).toBeUndefined();
   });
 });

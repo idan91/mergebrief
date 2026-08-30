@@ -1,5 +1,5 @@
 // The ready domain's failure->throw mapper (gated-route posture).
-import { GitHubApiErrorCode } from "github";
+import { GitHubApiErrorCodes } from "github";
 import { ApiErrorCodes } from "../../../../../error-response";
 import {
   BadGateway,
@@ -24,13 +24,13 @@ export function throwMarkReadyFailure(failure: MarkReadyFailure): never {
   if (failure.kind === "token-unreadable") {
     throw new Unauthorized();
   }
-  if (failure.error.code === GitHubApiErrorCode.UNAUTHORIZED) {
+  if (failure.error.code === GitHubApiErrorCodes.UNAUTHORIZED) {
     throw new Unauthorized();
   }
-  if (failure.error.code === GitHubApiErrorCode.FORBIDDEN) {
+  if (failure.error.code === GitHubApiErrorCodes.FORBIDDEN) {
     throw new Forbidden(ApiErrorCodes.GITHUB_PERMISSION);
   }
-  if (failure.error.code === GitHubApiErrorCode.NOT_FOUND) {
+  if (failure.error.code === GitHubApiErrorCodes.NOT_FOUND) {
     throw new NotFound();
   }
   throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);

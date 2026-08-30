@@ -28,7 +28,7 @@ import {
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApiClient } from "../src/client";
-import { ExitCode } from "../src/exit";
+import { ExitCodes } from "../src/exit";
 import { runDelta } from "../src/commands/read";
 import { runCli, type CliDeps } from "../src/program";
 import { testLogger } from "./logging";
@@ -292,7 +292,7 @@ describe("read commands over the real api app", () => {
         gitOriginUrl: () => undefined,
       },
     );
-    expect(code).toBe(ExitCode.OK);
+    expect(code).toBe(ExitCodes.OK);
   }
 
   function reference(token: string) {
@@ -306,19 +306,19 @@ describe("read commands over the real api app", () => {
     const token = await seedToken();
     const list = await reference(token).request({ path: "/api/pulls" });
     const listRun = await run(["pr", "--json"]);
-    expect(listRun.code).toBe(ExitCode.OK);
+    expect(listRun.code).toBe(ExitCodes.OK);
     expect(listRun.out).toBe(list.bodyText);
 
     const meta = await reference(token).request({
       path: `/api/repos/${REPO_A}/pulls/7`,
     });
     const metaRun = await run(["pr", "7", "--json"]);
-    expect(metaRun.code).toBe(ExitCode.OK);
+    expect(metaRun.code).toBe(ExitCodes.OK);
     expect(metaRun.out).toBe(meta.bodyText);
 
     // TTY split: non-contractual rendering, but never raw JSON.
     const tty = await run(["pr"]);
-    expect(tty.code).toBe(ExitCode.OK);
+    expect(tty.code).toBe(ExitCodes.OK);
     expect(tty.out).toContain("octo/hello#7");
     expect(tty.out.startsWith("{")).toBe(false);
   });
@@ -327,7 +327,7 @@ describe("read commands over the real api app", () => {
     await seedBriefedPr(harness.handle);
     await login();
     const result = await run(["groups", "7", "--json"]);
-    expect(result.code).toBe(ExitCode.OK);
+    expect(result.code).toBe(ExitCodes.OK);
     expect(result.out).toBe(BRIEF_BODY);
   });
 
@@ -340,7 +340,7 @@ describe("read commands over the real api app", () => {
     });
     await login();
     const result = await run(["groups", "7", "--json"]);
-    expect(result.code).toBe(ExitCode.NOT_FOUND);
+    expect(result.code).toBe(ExitCodes.NOT_FOUND);
     expect(result.out).toBe("");
     expect(result.err).toHaveLength(1);
     expect(result.err[0]).toContain("no brief generated yet");
@@ -354,7 +354,7 @@ describe("read commands over the real api app", () => {
       path: `/api/repos/${REPO_A}/pulls/7/conversation`,
     });
     const result = await run(["conversation", "7", "--json"]);
-    expect(result.code).toBe(ExitCode.OK);
+    expect(result.code).toBe(ExitCodes.OK);
     expect(result.out).toBe(wire.bodyText);
   });
 
@@ -363,12 +363,12 @@ describe("read commands over the real api app", () => {
     await login();
 
     const rejected = await run(["diff", "7", "--json"]);
-    expect(rejected.code).toBe(ExitCode.USAGE);
+    expect(rejected.code).toBe(ExitCodes.USAGE);
     expect(rejected.out).toBe("");
     expect(rejected.err).toHaveLength(1);
 
     const raw = await run(["diff", "7"]);
-    expect(raw.code).toBe(ExitCode.OK);
+    expect(raw.code).toBe(ExitCodes.OK);
     expect(raw.out).toBe(RAW_DIFF);
   });
 
@@ -377,7 +377,7 @@ describe("read commands over the real api app", () => {
     await login();
 
     const filtered = await run(["diff", "7", "--group", "grp-1"]);
-    expect(filtered.code).toBe(ExitCode.OK);
+    expect(filtered.code).toBe(ExitCodes.OK);
     expect(filtered.out).toContain("@@ -8,3 +8,5 @@");
     expect(filtered.out).toContain("+added two");
     expect(filtered.out).not.toContain("@@ -40,2 +42,2 @@");
@@ -391,11 +391,11 @@ describe("read commands over the real api app", () => {
       "--base",
       BASE_SHA,
     ]);
-    expect(custom.code).toBe(ExitCode.USAGE);
+    expect(custom.code).toBe(ExitCodes.USAGE);
     expect(custom.out).toBe("");
 
     const unknown = await run(["diff", "7", "--group", "nope"]);
-    expect(unknown.code).toBe(ExitCode.NOT_FOUND);
+    expect(unknown.code).toBe(ExitCodes.NOT_FOUND);
     expect(unknown.err[0]).toContain('change group "nope"');
   });
 
@@ -428,7 +428,7 @@ describe("read commands over the real api app", () => {
       HEAD_SHA,
       "--json",
     ]);
-    expect(ok.code).toBe(ExitCode.OK);
+    expect(ok.code).toBe(ExitCodes.OK);
     expect(JSON.parse(ok.out)).toEqual({
       available: true,
       baselineSha: BASE_SHA,
@@ -447,7 +447,7 @@ describe("read commands over the real api app", () => {
       HEAD_SHA,
       "--json",
     ]);
-    expect(missing.code).toBe(ExitCode.NOT_FOUND);
+    expect(missing.code).toBe(ExitCodes.NOT_FOUND);
     expect(missing.out).toBe("");
   });
 });

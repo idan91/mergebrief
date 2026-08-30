@@ -11,7 +11,7 @@ import {
   interpretCursorAbout,
   resolveCursorTimeouts,
 } from "../src/adapters/cursor";
-import { GeneratorError, GeneratorErrorKind } from "../src/contract/errors";
+import { GeneratorError, GeneratorErrorKinds } from "../src/contract/errors";
 import type { TokenUsage } from "../src/contract/generator";
 import { createGenerator, Providers } from "../src/config/registry";
 
@@ -260,7 +260,7 @@ describe("CursorGenerator envelope handling", () => {
       { output: "Still thinking about it." },
     ]);
     const caught = await rejection(generator.generate(request()));
-    expect(caught.kind).toBe(GeneratorErrorKind.SCHEMA_FLOOR);
+    expect(caught.kind).toBe(GeneratorErrorKinds.SCHEMA_FLOOR);
     // Both attempts spent: prose with no JSON is a real schema failure.
     expect(readFileSync(join(scriptDir, "counter"), "utf8")).toBe("2");
   });
@@ -361,7 +361,7 @@ describe("CursorGenerator envelope handling", () => {
   it("surfaces an empty answer as a schema-floor failure", async () => {
     const { generator } = scriptedGenerator([{ output: "" }]);
     const caught = await rejection(generator.generate(request()));
-    expect(caught.kind).toBe(GeneratorErrorKind.SCHEMA_FLOOR);
+    expect(caught.kind).toBe(GeneratorErrorKinds.SCHEMA_FLOOR);
     expect(caught.message).toContain("No output");
   });
 
@@ -385,7 +385,7 @@ describe("CursorGenerator envelope handling", () => {
       { isError: true, subtype: "drifted-SENTINEL-subtype", output: "" },
     ]);
     const caught = await rejection(generator.generate(request()));
-    expect(caught.kind).toBe(GeneratorErrorKind.OPAQUE);
+    expect(caught.kind).toBe(GeneratorErrorKinds.OPAQUE);
     expect(caught.message).not.toContain("SENTINEL");
     expect(caught.message).toContain("an unrecognized error");
   });
@@ -395,7 +395,7 @@ describe("CursorGenerator stderr taxonomy", () => {
   it("classifies the auth prefix without echoing raw stderr", async () => {
     const generator = makeGenerator({ SHIM_SCENARIO: "stderr-auth" });
     const caught = await rejection(generator.generate(request()));
-    expect(caught.kind).toBe(GeneratorErrorKind.AUTH);
+    expect(caught.kind).toBe(GeneratorErrorKinds.AUTH);
     expect(caught.message).toContain("cursor-agent login");
     expect(caught.message).toContain("CURSOR_API_KEY");
     // Fixed text only — the CLI's own phrasing never rides along.
@@ -405,7 +405,7 @@ describe("CursorGenerator stderr taxonomy", () => {
   it("classifies a rejected model as config", async () => {
     const generator = makeGenerator({ SHIM_SCENARIO: "stderr-bad-model" });
     const caught = await rejection(generator.generate(request()));
-    expect(caught.kind).toBe(GeneratorErrorKind.CONFIG);
+    expect(caught.kind).toBe(GeneratorErrorKinds.CONFIG);
     expect(caught.message).not.toContain("Available models");
   });
 
@@ -417,13 +417,13 @@ describe("CursorGenerator stderr taxonomy", () => {
       SHIM_STDERR: `Cannot use this model: bad[effort=high]. Available models: ${Array.from({ length: 300 }, (_, i) => `model-${i}-medium`).join(", ")}\n`,
     });
     const caught = await rejection(generator.generate(request()));
-    expect(caught.kind).toBe(GeneratorErrorKind.CONFIG);
+    expect(caught.kind).toBe(GeneratorErrorKinds.CONFIG);
   });
 
   it("classifies an unknown option as config", async () => {
     const generator = makeGenerator({ SHIM_SCENARIO: "stderr-unknown-option" });
     const caught = await rejection(generator.generate(request()));
-    expect(caught.kind).toBe(GeneratorErrorKind.CONFIG);
+    expect(caught.kind).toBe(GeneratorErrorKinds.CONFIG);
   });
 
   it("falls back to opaque with the exit code and a REDACTED stderr tail", async () => {
@@ -436,7 +436,7 @@ describe("CursorGenerator stderr taxonomy", () => {
       SHIM_EXIT_CODE: "7",
     });
     const caught = await rejection(generator.generate(request()));
-    expect(caught.kind).toBe(GeneratorErrorKind.OPAQUE);
+    expect(caught.kind).toBe(GeneratorErrorKinds.OPAQUE);
     expect(caught.message).toContain("7");
     expect(caught.message).toContain("Unknown model family");
     expect(caught.message).toContain("(redacted)");
@@ -446,7 +446,7 @@ describe("CursorGenerator stderr taxonomy", () => {
   it("classifies an exit without a result envelope as opaque", async () => {
     const generator = makeGenerator({ SHIM_SCENARIO: "envelope-drift" });
     const caught = await rejection(generator.generate(request()));
-    expect(caught.kind).toBe(GeneratorErrorKind.OPAQUE);
+    expect(caught.kind).toBe(GeneratorErrorKinds.OPAQUE);
   });
 
   it("classifies a silent hang as a wall-clock timeout", async () => {
@@ -455,7 +455,7 @@ describe("CursorGenerator stderr taxonomy", () => {
       { timeouts: { hardMs: 400, killGraceMs: 200 } },
     );
     const caught = await rejection(generator.generate(request()));
-    expect(caught.kind).toBe(GeneratorErrorKind.TIMEOUT);
+    expect(caught.kind).toBe(GeneratorErrorKinds.TIMEOUT);
     // The pipe-silent stream means the HARD timer owns the kill, never the
     // inactivity watchdog (which defaults to the same ceiling).
     expect(caught.message).toContain("hard wall-clock");

@@ -5,7 +5,7 @@
 import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
 import { listRepoCollaborators } from "../src/operations/collaborators";
-import { GitHubApiErrorCode } from "../src/errors";
+import { GitHubApiErrorCodes } from "../src/errors";
 import {
   collaboratorsResponse,
   gqlCollaborator,
@@ -151,7 +151,7 @@ describe("listRepoCollaborators — failures", () => {
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     expect(result.error.message).not.toContain("o/r");
   });
 
@@ -165,7 +165,7 @@ describe("listRepoCollaborators — failures", () => {
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
   });
 
   it("maps a FORBIDDEN GraphQL error without leaking token or upstream text", async () => {
@@ -180,7 +180,7 @@ describe("listRepoCollaborators — failures", () => {
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.FORBIDDEN);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
     expect(result.error.message).not.toContain(UPSTREAM_TEXT);
   });
@@ -201,7 +201,7 @@ describe("listRepoCollaborators — failures", () => {
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
     expect(result.error.status).toBe(502);
     expect(result.error.message).not.toContain("boom");
   });
@@ -216,7 +216,7 @@ describe("listRepoCollaborators — failures", () => {
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
 
     const midPage = vi
       .fn()
@@ -230,6 +230,6 @@ describe("listRepoCollaborators — failures", () => {
     );
     expect(midResult.ok).toBe(false);
     if (midResult.ok) throw new Error("unreachable");
-    expect(midResult.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
+    expect(midResult.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
   });
 });

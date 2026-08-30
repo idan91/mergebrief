@@ -10,7 +10,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
 import type { ApiClient } from "../client";
-import { CliError, ExitCode } from "../exit";
+import { CliError, ExitCodes } from "../exit";
 
 const reposBodySchema = z.object({
   repos: z.array(z.object({ repoId: z.string(), fullName: z.string() })),
@@ -59,7 +59,7 @@ export async function refreshRepos(
   const parsed = reposBodySchema.safeParse(JSON.parse(response.bodyText));
   if (!parsed.success) {
     throw new CliError(
-      ExitCode.GENERIC,
+      ExitCodes.GENERIC,
       "the server's /api/repos response did not match the documented shape (version skew? check `mergebrief auth status`)",
     );
   }
@@ -99,7 +99,7 @@ export async function resolveRepoId(
   const fresh = body.repos.find((repo) => repo.fullName === fullName);
   if (fresh === undefined) {
     throw new CliError(
-      ExitCode.NOT_FOUND,
+      ExitCodes.NOT_FOUND,
       `${fullName} is not visible to profile "${deps.profileName}" — not in its installation, or your access changed (try --refresh, -R owner/name, or another profile)`,
     );
   }

@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { APIUserAbortError } from "openai";
 import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
-import { GeneratorError, GeneratorErrorKind } from "../src/contract/errors";
+import { GeneratorError, GeneratorErrorKinds } from "../src/contract/errors";
 import { createOpenAiCore } from "../src/adapters/openai";
 import { createGenerator, Providers } from "../src/config/registry";
 
@@ -211,7 +211,7 @@ describe("OpenAiCompatibleCore effort-knob discovery", () => {
       jsonError(400, "Invalid schema: something else entirely."),
     );
     await expect(generator.generate(request())).rejects.toMatchObject({
-      kind: GeneratorErrorKind.CONFIG,
+      kind: GeneratorErrorKinds.CONFIG,
     });
     expect(recorded.bodies).toHaveLength(1);
   });
@@ -227,7 +227,7 @@ describe("OpenAiCompatibleCore effort-retry classification boundary", () => {
         : jsonError(429, "rate limited");
     });
     await expect(generator.generate(request())).rejects.toMatchObject({
-      kind: GeneratorErrorKind.PROVIDER_TRANSIENT,
+      kind: GeneratorErrorKinds.PROVIDER_TRANSIENT,
     });
   });
 });
@@ -435,7 +435,7 @@ describe("OpenAiCompatibleCore message hygiene", () => {
       (error: unknown) => error,
     );
     if (!(caught instanceof GeneratorError)) throw new Error("wrong rejection");
-    expect(caught.kind).toBe(GeneratorErrorKind.AUTH);
+    expect(caught.kind).toBe(GeneratorErrorKinds.AUTH);
     expect(caught.message).not.toContain("SENTINELSECRETVALUE");
     // The WHOLE cause chain must be clean too: console.error prints cause
     // chains recursively, so a raw SDK cause would undo the redaction at
@@ -470,7 +470,7 @@ describe("OpenAiCompatibleCore statusless cause hygiene", () => {
       (error: unknown) => error,
     );
     if (!(caught instanceof GeneratorError)) throw new Error("wrong rejection");
-    expect(caught.kind).toBe(GeneratorErrorKind.PROVIDER_TRANSIENT);
+    expect(caught.kind).toBe(GeneratorErrorKinds.PROVIDER_TRANSIENT);
     const chain: string[] = [];
     let node: unknown = caught;
     while (node instanceof Error) {
@@ -512,11 +512,11 @@ describe("OpenAiCompatibleCore abort during knob discovery", () => {
 
 describe("OpenAiCompatibleCore error classification", () => {
   it.each([
-    [401, GeneratorErrorKind.AUTH],
-    [403, GeneratorErrorKind.AUTH],
-    [404, GeneratorErrorKind.CONFIG],
-    [429, GeneratorErrorKind.PROVIDER_TRANSIENT],
-    [500, GeneratorErrorKind.PROVIDER_TRANSIENT],
+    [401, GeneratorErrorKinds.AUTH],
+    [403, GeneratorErrorKinds.AUTH],
+    [404, GeneratorErrorKinds.CONFIG],
+    [429, GeneratorErrorKinds.PROVIDER_TRANSIENT],
+    [500, GeneratorErrorKinds.PROVIDER_TRANSIENT],
   ])("maps status %d to kind %s", async (status, kind) => {
     const { generator } = await coreWith(() =>
       jsonError(status, `http ${status}`),

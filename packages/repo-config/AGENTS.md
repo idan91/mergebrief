@@ -17,7 +17,7 @@ src/
   index.ts      ENTRY — sectioned re-exports = the public surface
   constants.ts  fixed paths, budget caps (schema constants, versioned with
                 the schema), floor attributes, parked/reserved vocabulary,
-                the RepoConfigOutcome map
+                the RepoConfigOutcomes map
   schemas.ts    Zod (imported as `zod/v4`): settingsV1Schema, policyV1Schema
                 — .strict() everywhere; attribute-name charset is a security
                 control (names later extend a model json_schema enum)

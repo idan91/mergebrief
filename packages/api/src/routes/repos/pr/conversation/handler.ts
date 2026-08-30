@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import { GitHubApiErrorCode } from "github";
+import { GitHubApiErrorCodes } from "github";
 import {
   createTenantRepository,
   isOwnerContext,
@@ -110,13 +110,13 @@ export default function createHandlers(
         }
         if (
           ownerWorld &&
-          fetched.error.error.code === GitHubApiErrorCode.UNAUTHORIZED
+          fetched.error.error.code === GitHubApiErrorCodes.UNAUTHORIZED
         ) {
           throw new Unauthorized();
         }
         // 404-collapse posture identical to the other reads; everything else is
         // an honest upstream error (no REST fallback tier).
-        if (fetched.error.error.code === GitHubApiErrorCode.NOT_FOUND) {
+        if (fetched.error.error.code === GitHubApiErrorCodes.NOT_FOUND) {
           throw new NotFound();
         }
         throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);

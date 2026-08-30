@@ -28,7 +28,7 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ExitCode } from "../src/exit";
+import { ExitCodes } from "../src/exit";
 import { runCli, type CliDeps } from "../src/program";
 import { testLogger } from "./logging";
 
@@ -280,7 +280,7 @@ describe("disposition commands over the real api app", () => {
         gitOriginUrl: () => undefined,
       },
     );
-    expect(code).toBe(ExitCode.OK);
+    expect(code).toBe(ExitCodes.OK);
   }
 
   const FLAGS_PAYLOAD = JSON.stringify({
@@ -306,7 +306,7 @@ describe("disposition commands over the real api app", () => {
       ...SPAN,
       "--json",
     ]);
-    expect(result.code).toBe(ExitCode.USAGE);
+    expect(result.code).toBe(ExitCodes.USAGE);
     expect(result.out).toBe("");
     expect(result.err).toHaveLength(1);
     expect(result.err[0]).toContain("-F");
@@ -333,7 +333,7 @@ describe("disposition commands over the real api app", () => {
       ],
       withReason,
     );
-    expect(result.code).toBe(ExitCode.USAGE);
+    expect(result.code).toBe(ExitCodes.USAGE);
     expect(result.out).toBe("");
     expect(result.err).toHaveLength(1);
     expect(result.err[0]).toContain("--reason");
@@ -364,7 +364,7 @@ describe("disposition commands over the real api app", () => {
       ],
       bareArray,
     );
-    expect(result.code).toBe(ExitCode.USAGE);
+    expect(result.code).toBe(ExitCodes.USAGE);
     expect(result.out).toBe("");
     expect(result.err).toHaveLength(1);
     expect(result.err[0]).toContain("JSON object");
@@ -387,7 +387,7 @@ describe("disposition commands over the real api app", () => {
       ],
       FLAGS_PAYLOAD,
     );
-    expect(dismissed.code).toBe(ExitCode.SERVER_REJECTED);
+    expect(dismissed.code).toBe(ExitCodes.SERVER_REJECTED);
     expect(dismissed.out).toBe("");
     expect(dismissed.err).toHaveLength(1);
     expect(dismissed.err[0]).toContain("403");
@@ -406,14 +406,14 @@ describe("disposition commands over the real api app", () => {
         ],
       }),
     );
-    expect(addressed.code).toBe(ExitCode.SERVER_REJECTED);
+    expect(addressed.code).toBe(ExitCodes.SERVER_REJECTED);
     expect(addressed.err[0]).toContain("403");
 
     const reopened = await run(
       ["risk", "reopen", "7", "-F", "-", ...SPAN, "--json"],
       FLAGS_PAYLOAD,
     );
-    expect(reopened.code).toBe(ExitCode.SERVER_REJECTED);
+    expect(reopened.code).toBe(ExitCodes.SERVER_REJECTED);
     expect(reopened.err[0]).toContain("403");
   });
 
@@ -437,7 +437,7 @@ describe("disposition commands over the real api app", () => {
       readStdin: async () => FLAGS_PAYLOAD,
       gitOriginUrl: () => "git@github.com:nobody/nothing.git",
     });
-    expect(code).toBe(ExitCode.USAGE);
+    expect(code).toBe(ExitCodes.USAGE);
     expect(out.join("")).toBe("");
     expect(err).toHaveLength(1);
     expect(err[0]).toContain("--base and --head");
@@ -457,7 +457,7 @@ describe("disposition commands over the real api app", () => {
       "--json",
     ]);
     expect(result.err).toEqual([]);
-    expect(result.code).toBe(ExitCode.OK);
+    expect(result.code).toBe(ExitCodes.OK);
     expect(JSON.parse(result.out)).toEqual({
       changeGroupId: "grp-1",
       category: "bugfix",
@@ -476,7 +476,7 @@ describe("disposition commands over the real api app", () => {
       ...SPAN,
       "--json",
     ]);
-    expect(result.code).toBe(ExitCode.SERVER_REJECTED);
+    expect(result.code).toBe(ExitCodes.SERVER_REJECTED);
     expect(result.out).toBe("");
     expect(result.err).toHaveLength(1);
   });
@@ -492,7 +492,7 @@ describe("disposition commands over the real api app", () => {
       "--json",
     ]);
     expect(result.err).toEqual([]);
-    expect(result.code).toBe(ExitCode.OK);
+    expect(result.code).toBe(ExitCodes.OK);
     expect(JSON.parse(result.out)).toEqual({ outcome: "request-changes" });
   });
 
@@ -511,7 +511,7 @@ describe("disposition commands over the real api app", () => {
       "--json",
     ]);
     expect(result.err).toEqual([]);
-    expect(result.code).toBe(ExitCode.OK);
+    expect(result.code).toBe(ExitCodes.OK);
     expect(JSON.parse(result.out)).toEqual({
       resolved: true,
       alreadyInTargetState: false,
@@ -549,7 +549,7 @@ describe("disposition commands over the real api app", () => {
       String(ROOT_COMMENT_ID),
       "--json",
     ]);
-    expect(result.code).toBe(ExitCode.OK);
+    expect(result.code).toBe(ExitCodes.OK);
     expect(JSON.parse(result.out)).toEqual({
       resolved: false,
       alreadyInTargetState: false,
@@ -565,7 +565,7 @@ describe("disposition commands over the real api app", () => {
     ]);
     const result = await run(["ready", "7", "--json"]);
     expect(result.err).toEqual([]);
-    expect(result.code).toBe(ExitCode.OK);
+    expect(result.code).toBe(ExitCodes.OK);
     expect(JSON.parse(result.out)).toEqual({ draft: false });
   });
 
@@ -579,7 +579,7 @@ describe("disposition commands over the real api app", () => {
       ["ready", "x", "--json"],
     ]) {
       const result = await run(argv, FLAGS_PAYLOAD);
-      expect(result.code).toBe(ExitCode.USAGE);
+      expect(result.code).toBe(ExitCodes.USAGE);
       expect(result.out).toBe("");
       expect(result.err).toHaveLength(1);
       expect(result.err[0]).toContain("PR number");

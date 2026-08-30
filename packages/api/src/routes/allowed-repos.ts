@@ -6,7 +6,7 @@
 // 401/502, NEVER a DB-only listing).
 import {
   createUserOctokit,
-  GitHubApiErrorCode,
+  GitHubApiErrorCodes,
   listInstallationRepositoriesForUser,
 } from "github";
 import type { Logger } from "logging";
@@ -95,7 +95,7 @@ export function createAllowedRepoResolver(
         }
         // Fail closed — a DB-only fallback would leak rows.
         const status =
-          repos.error.code === GitHubApiErrorCode.UNAUTHORIZED ? 401 : 502;
+          repos.error.code === GitHubApiErrorCodes.UNAUTHORIZED ? 401 : 502;
         return { ok: false, error: { status } };
       }
       cache.set(cacheKey, repos.value, Date.now() + AUTHZ_CACHE_TTL_MS);

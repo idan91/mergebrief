@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
-import { GeneratorError, GeneratorErrorKind } from "../src/contract/errors";
+import { GeneratorError, GeneratorErrorKinds } from "../src/contract/errors";
 import { runWithSchemaFloor } from "../src/validation/enforceSchema";
 
 /**
@@ -120,7 +120,7 @@ describe("runWithSchemaFloor", () => {
         failureDir: dir,
         attempt: async () => ({ raw: "", parsed: hostile }),
       }),
-    ).rejects.toMatchObject({ kind: GeneratorErrorKind.SCHEMA_FLOOR });
+    ).rejects.toMatchObject({ kind: GeneratorErrorKinds.SCHEMA_FLOOR });
   });
 
   it("survives a non-serializable candidate-only failure", async () => {
@@ -133,7 +133,7 @@ describe("runWithSchemaFloor", () => {
         failureDir: dir,
         attempt: async () => ({ raw: "", parsed: cyclic }),
       }),
-    ).rejects.toMatchObject({ kind: GeneratorErrorKind.SCHEMA_FLOOR });
+    ).rejects.toMatchObject({ kind: GeneratorErrorKinds.SCHEMA_FLOOR });
     // Still dumped (with the fallback serialization), not rejected opaquely.
     expect(
       readdirSync(dir).filter((f) => f.endsWith(".failed.json")),
@@ -172,7 +172,7 @@ describe("runWithSchemaFloor", () => {
           return { raw: "" };
         },
       }),
-    ).rejects.toMatchObject({ kind: GeneratorErrorKind.SCHEMA_FLOOR });
+    ).rejects.toMatchObject({ kind: GeneratorErrorKinds.SCHEMA_FLOOR });
     expect(calls).toBe(1);
   });
 
@@ -218,7 +218,7 @@ describe("runWithSchemaFloor", () => {
     });
     await expect(promise).rejects.toBeInstanceOf(GeneratorError);
     await expect(promise).rejects.toMatchObject({
-      kind: GeneratorErrorKind.SCHEMA_FLOOR,
+      kind: GeneratorErrorKinds.SCHEMA_FLOOR,
       cause: expect.any(Error),
     });
   });

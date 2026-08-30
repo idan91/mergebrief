@@ -2,7 +2,7 @@
 // Builders return `unknown` because the `-F` arm IS unknown: the payload is
 // the user's bytes, relayed for the server to validate. Only the flag arm
 // has a shape the CLI knows (`FlagAnchor`).
-import { CliError, ExitCode } from "../../exit";
+import { CliError, ExitCodes } from "../../exit";
 import type {
   AnchorFlags,
   CreateDraftInput,
@@ -17,7 +17,7 @@ const EXCLUSIVE =
 function parseLine(flag: string, raw: string): number {
   if (!/^[1-9]\d*$/.test(raw)) {
     throw new CliError(
-      ExitCode.USAGE,
+      ExitCodes.USAGE,
       `${flag} must be a positive integer, got "${raw}"`,
     );
   }
@@ -55,7 +55,7 @@ function hasAnchorFlags(flags: AnchorFlags): boolean {
 export function buildCreateDraftPayload(input: CreateDraftInput): unknown {
   const hasFlags = hasAnchorFlags(input) || input.body !== undefined;
   if (input.payload !== undefined && hasFlags) {
-    throw new CliError(ExitCode.USAGE, EXCLUSIVE);
+    throw new CliError(ExitCodes.USAGE, EXCLUSIVE);
   }
   if (input.payload !== undefined) {
     return input.payload;
@@ -69,7 +69,7 @@ export function buildCreateDraftPayload(input: CreateDraftInput): unknown {
 
 export function buildUpdateDraftPayload(input: UpdateDraftInput): unknown {
   if (input.payload !== undefined && input.body !== undefined) {
-    throw new CliError(ExitCode.USAGE, EXCLUSIVE);
+    throw new CliError(ExitCodes.USAGE, EXCLUSIVE);
   }
   if (input.payload !== undefined) {
     return input.payload;
@@ -79,7 +79,7 @@ export function buildUpdateDraftPayload(input: UpdateDraftInput): unknown {
 
 export function buildReanchorPayload(input: ReanchorInput): unknown {
   if (input.payload !== undefined && hasAnchorFlags(input)) {
-    throw new CliError(ExitCode.USAGE, EXCLUSIVE);
+    throw new CliError(ExitCodes.USAGE, EXCLUSIVE);
   }
   if (input.payload !== undefined) {
     return input.payload;
@@ -100,7 +100,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export function buildRiskPayload(payload: unknown, reason?: string): unknown {
   if (payload === undefined) {
     throw new CliError(
-      ExitCode.USAGE,
+      ExitCodes.USAGE,
       "-F is required — risk operations take a JSON payload with the flags array (anchors copy through from `session --json`)",
     );
   }
@@ -111,13 +111,13 @@ export function buildRiskPayload(payload: unknown, reason?: string): unknown {
   // put bytes on the wire the user never wrote.
   if (!isRecord(payload) || Array.isArray(payload)) {
     throw new CliError(
-      ExitCode.USAGE,
+      ExitCodes.USAGE,
       '--reason needs a JSON object payload to merge into — send {"flags":[…]} (or put reason in the payload)',
     );
   }
   if (payload["reason"] !== undefined) {
     throw new CliError(
-      ExitCode.USAGE,
+      ExitCodes.USAGE,
       "--reason and a reason in the -F payload are mutually exclusive — provide it once",
     );
   }
@@ -131,7 +131,7 @@ export function resolveReadFlag(
 ): boolean {
   if (read === true && unread === true) {
     throw new CliError(
-      ExitCode.USAGE,
+      ExitCodes.USAGE,
       "--read and --unread are mutually exclusive",
     );
   }

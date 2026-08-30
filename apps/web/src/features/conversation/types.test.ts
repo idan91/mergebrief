@@ -3,9 +3,9 @@
 // parser, so this is the contract test.
 import { describe, expect, it } from "vitest";
 import {
-  ReviewCommentSide,
-  ReviewVerdictState,
-  ThreadSubjectType,
+  ReviewCommentSides,
+  ReviewVerdictStates as GithubReviewVerdictStates,
+  ThreadSubjectTypes as GithubThreadSubjectTypes,
   type ConversationAuthor as GithubConversationAuthor,
   type ConversationComment as GithubConversationComment,
   type ConversationReview as GithubConversationReview,
@@ -214,17 +214,17 @@ const VOCABULARY_PINS: readonly VocabularyPin[] = [
   {
     label: "ThreadSides",
     mirror: ThreadSides,
-    source: ReviewCommentSide,
+    source: ReviewCommentSides,
   },
   {
     label: "ThreadSubjectTypes",
     mirror: ThreadSubjectTypes,
-    source: ThreadSubjectType,
+    source: GithubThreadSubjectTypes,
   },
   {
     label: "ReviewVerdictStates",
     mirror: ReviewVerdictStates,
-    source: ReviewVerdictState,
+    source: GithubReviewVerdictStates,
   },
 ];
 

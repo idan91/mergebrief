@@ -10,25 +10,25 @@ import {
   resolveProfile,
   type CliConfig,
 } from "../src/profile/config";
-import { CliError, ExitCode, exitCodeForStatus } from "../src/exit";
+import { CliError, ExitCodes, exitCodeForStatus } from "../src/exit";
 
 describe("exit-code mapping (the contract table)", () => {
   it.each([
-    [401, ExitCode.AUTH],
-    [404, ExitCode.NOT_FOUND],
-    [400, ExitCode.SERVER_REJECTED],
-    [403, ExitCode.SERVER_REJECTED],
-    [409, ExitCode.SERVER_REJECTED],
-    [422, ExitCode.SERVER_REJECTED],
-    [500, ExitCode.GENERIC],
-    [502, ExitCode.GENERIC],
-    [503, ExitCode.GENERIC],
+    [401, ExitCodes.AUTH],
+    [404, ExitCodes.NOT_FOUND],
+    [400, ExitCodes.SERVER_REJECTED],
+    [403, ExitCodes.SERVER_REJECTED],
+    [409, ExitCodes.SERVER_REJECTED],
+    [422, ExitCodes.SERVER_REJECTED],
+    [500, ExitCodes.GENERIC],
+    [502, ExitCodes.GENERIC],
+    [503, ExitCodes.GENERIC],
   ])("HTTP %i → exit %i", (status, code) => {
     expect(exitCodeForStatus(status)).toBe(code);
   });
 
   it("pins the numeric values — additive-only, never renumbered", () => {
-    expect(ExitCode).toEqual({
+    expect(ExitCodes).toEqual({
       OK: 0,
       GENERIC: 1,
       USAGE: 2,
@@ -113,7 +113,7 @@ describe("profile resolution order", () => {
     }
     expect(thrown).toBeInstanceOf(CliError);
     expect(thrown instanceof CliError ? thrown.code : undefined).toBe(
-      ExitCode.USAGE,
+      ExitCodes.USAGE,
     );
   });
 
@@ -177,7 +177,7 @@ describe("client proxy/IdP detection", () => {
     await expect(
       client.request({ path: "/api/version" }),
     ).rejects.toMatchObject({
-      code: ExitCode.GENERIC,
+      code: ExitCodes.GENERIC,
       message: expect.stringContaining("identity-provider"),
     });
   });
@@ -192,7 +192,7 @@ describe("client proxy/IdP detection", () => {
     await expect(
       client.request({ path: "/api/version" }),
     ).rejects.toMatchObject({
-      code: ExitCode.GENERIC,
+      code: ExitCodes.GENERIC,
     });
   });
 
@@ -253,7 +253,7 @@ describe("client proxy/IdP detection", () => {
     await expect(
       client.request({ path: "/api/version" }),
     ).rejects.toMatchObject({
-      code: ExitCode.AUTH,
+      code: ExitCodes.AUTH,
       message: "unauthorized (HTTP 401)",
     });
   });

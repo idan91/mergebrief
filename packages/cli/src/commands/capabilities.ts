@@ -5,7 +5,7 @@
 // alone is one stderr warning, never a gate.
 import { z } from "zod";
 import type { ApiClient } from "../client";
-import { CliError, ExitCode } from "../exit";
+import { CliError, ExitCodes } from "../exit";
 import { labelArm, parseOperationsMap, type CliArm } from "./capabilities-map";
 import type { ReadIo } from "./read";
 
@@ -36,7 +36,7 @@ export async function runCapabilities(
   const parsed = responseSliceSchema.safeParse(raw);
   if (!parsed.success) {
     throw new CliError(
-      ExitCode.GENERIC,
+      ExitCodes.GENERIC,
       "the server's capabilities response did not match the documented shape (version skew? check `mergebrief auth status`)",
     );
   }
@@ -56,7 +56,7 @@ export async function runCapabilities(
   }
   if (failures.length > 0) {
     throw new CliError(
-      ExitCode.INCOMPATIBLE,
+      ExitCodes.INCOMPATIBLE,
       `incompatible: ${failures.join("; ")}`,
     );
   }

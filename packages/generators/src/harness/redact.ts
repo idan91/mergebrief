@@ -1,4 +1,4 @@
-import { GeneratorError, GeneratorErrorKind } from "../contract/errors";
+import { GeneratorError, GeneratorErrorKinds } from "../contract/errors";
 import type { HarnessRunResult } from "./run";
 
 /**
@@ -19,7 +19,7 @@ export function harnessTimeoutError(
   const tail = redactSecrets(result.stderrTail.trim()).slice(-500);
   const stderrNote = tail === "" ? "" : `; stderr tail: ${tail}`;
   return new GeneratorError(
-    GeneratorErrorKind.TIMEOUT,
+    GeneratorErrorKinds.TIMEOUT,
     `${label}: ${which} fired and the process was killed${stderrNote}`,
   );
 }

@@ -5,7 +5,7 @@
 // text ever reaches a Result error.
 import { RequestError } from "octokit";
 import { describe, expect, it } from "vitest";
-import { GitHubApiErrorCode, mapGraphqlError } from "../src/errors";
+import { GitHubApiErrorCodes, mapGraphqlError } from "../src/errors";
 import {
   LEAKED_TOKEN,
   UPSTREAM_TEXT,
@@ -18,7 +18,7 @@ describe("mapGraphqlError", () => {
       graphqlResponseError([{ type: "NOT_FOUND", message: UPSTREAM_TEXT }]),
       "fetch pull request conversation",
     );
-    expect(mapped.code).toBe(GitHubApiErrorCode.NOT_FOUND);
+    expect(mapped.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
     const serialized = JSON.stringify(mapped);
     expect(serialized).not.toContain(LEAKED_TOKEN);
     expect(serialized).not.toContain("Could not resolve");
@@ -36,7 +36,7 @@ describe("mapGraphqlError", () => {
       graphqlResponseError([{ type: "FORBIDDEN", message: "nope" }]),
       "fetch pull request conversation",
     );
-    expect(mapped.code).toBe(GitHubApiErrorCode.FORBIDDEN);
+    expect(mapped.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
   });
 
   it("classifies RATE_LIMITED as rate-limited, taking precedence over other error types", () => {
@@ -47,7 +47,7 @@ describe("mapGraphqlError", () => {
       ]),
       "fetch pull request conversation",
     );
-    expect(mapped.code).toBe(GitHubApiErrorCode.RATE_LIMITED);
+    expect(mapped.code).toBe(GitHubApiErrorCodes.RATE_LIMITED);
   });
 
   it("classifies an unrecognized GraphQL error type as request-failed", () => {
@@ -55,7 +55,7 @@ describe("mapGraphqlError", () => {
       graphqlResponseError([{ message: "internal weirdness" }]),
       "fetch pull request conversation",
     );
-    expect(mapped.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+    expect(mapped.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
     expect(JSON.stringify(mapped)).not.toContain("weirdness");
   });
 
@@ -77,7 +77,7 @@ describe("mapGraphqlError", () => {
       httpError,
       "fetch pull request conversation",
     );
-    expect(mapped.code).toBe(GitHubApiErrorCode.UNAUTHORIZED);
+    expect(mapped.code).toBe(GitHubApiErrorCodes.UNAUTHORIZED);
     expect(mapped.status).toBe(401);
     const serialized = JSON.stringify(mapped);
     expect(serialized).not.toContain(LEAKED_TOKEN);
@@ -95,13 +95,13 @@ describe("mapGraphqlError", () => {
       errors: [{ type: "FORBIDDEN", message: "nope" }],
     };
     const mapped = mapGraphqlError(shaped, "fetch pull request conversation");
-    expect(mapped.code).toBe(GitHubApiErrorCode.FORBIDDEN);
+    expect(mapped.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
     expect(JSON.stringify(mapped)).not.toContain("Could not resolve");
   });
 
   it("maps a non-Error thrown value to request-failed", () => {
     const mapped = mapGraphqlError("boom", "fetch pull request conversation");
-    expect(mapped.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+    expect(mapped.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
     expect(mapped.message).not.toContain("boom");
   });
 });

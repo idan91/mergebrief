@@ -16,7 +16,7 @@ import {
   fetchPullRequestFiles,
   getInstallationClient,
   getRepoFile,
-  GitHubApiErrorCode,
+  GitHubApiErrorCodes,
   postEntryComment,
   type AppClient,
   type CompareFiles,
@@ -283,8 +283,8 @@ export function appGitHubPort(
       const probe = await viewerSource.fetchPullRequest();
       if (
         !probe.ok &&
-        (probe.error.code === GitHubApiErrorCode.NOT_FOUND ||
-          probe.error.code === GitHubApiErrorCode.FORBIDDEN)
+        (probe.error.code === GitHubApiErrorCodes.NOT_FOUND ||
+          probe.error.code === GitHubApiErrorCodes.FORBIDDEN)
       ) {
         return bindPullRequestSource(
           createUserOctokit(urlBox.fallbackToken),

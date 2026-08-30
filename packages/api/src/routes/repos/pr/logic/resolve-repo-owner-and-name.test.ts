@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { GitHubApiErrorCode, fetchRepositoryById } from "github";
+import { GitHubApiErrorCodes, fetchRepositoryById } from "github";
 import type * as githubModule from "github";
 import type { Logger } from "logging";
 import {
@@ -120,7 +120,7 @@ beforeEach(() => {
 describe("resolveRepoOwnerAndName", () => {
   it("wraps a fresh-resolve denial whole with phase resolve", async () => {
     vi.mocked(fetchRepositoryById).mockResolvedValue(
-      githubError(GitHubApiErrorCode.FORBIDDEN),
+      githubError(GitHubApiErrorCodes.FORBIDDEN),
     );
     const result = await resolveRepoOwnerAndName(
       { github: await buildClient() },
@@ -131,7 +131,7 @@ describe("resolveRepoOwnerAndName", () => {
       error: {
         kind: "github-denied",
         phase: "resolve",
-        error: { code: GitHubApiErrorCode.FORBIDDEN },
+        error: { code: GitHubApiErrorCodes.FORBIDDEN },
       },
     });
   });

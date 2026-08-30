@@ -7,7 +7,7 @@ import {
   fetchPullRequestConversation,
   getInstallationClient,
   listRepoCollaborators,
-  GitHubApiErrorCode,
+  GitHubApiErrorCodes,
   type AppClient,
   type FetchPullRequestConversationInput,
   type GitHubApiError,
@@ -40,7 +40,7 @@ function mintFailure(context: string): { ok: false; error: GitHubApiError } {
   return {
     ok: false,
     error: {
-      code: GitHubApiErrorCode.REQUEST_FAILED,
+      code: GitHubApiErrorCodes.REQUEST_FAILED,
       message: `failed to ${context}: installation client unavailable`,
     },
   };

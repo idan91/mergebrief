@@ -49,7 +49,7 @@ import {
   FreshRestartReasons,
   FullRegenerations,
   GeneratorError,
-  GeneratorErrorKind,
+  GeneratorErrorKinds,
   type Anchor,
   type Effort,
   type FullRegeneration,
@@ -82,7 +82,7 @@ import {
   type PullRequestRow,
   type TenantRepository,
 } from "persistence";
-import { GitHubApiErrorCode } from "github";
+import { GitHubApiErrorCodes } from "github";
 import type { Result } from "types";
 import {
   entryCommentBody,
@@ -105,7 +105,7 @@ import {
   TransientJobError,
 } from "./failure";
 import { parseGeneratePayload, type ParsedGeneratePayload } from "./payload";
-import { RepoConfigOutcome, RepoConfigPaths } from "repo-config";
+import { RepoConfigOutcomes, RepoConfigPaths } from "repo-config";
 import {
   acquireRepoConfig,
   buildRepoConfigArtifact,
@@ -243,9 +243,9 @@ function withAbortSignal(generator: Generator, signal: AbortSignal): Generator {
 /** 406 = GitHub refuses to render the diff (too large) — permanent per span. */
 function isPermanentGitHubError(error: GitHubApiError): boolean {
   return (
-    error.code === GitHubApiErrorCode.NOT_FOUND ||
-    error.code === GitHubApiErrorCode.UNAUTHORIZED ||
-    error.code === GitHubApiErrorCode.FORBIDDEN ||
+    error.code === GitHubApiErrorCodes.NOT_FOUND ||
+    error.code === GitHubApiErrorCodes.UNAUTHORIZED ||
+    error.code === GitHubApiErrorCodes.FORBIDDEN ||
     error.status === 406
   );
 }
@@ -282,7 +282,7 @@ function isTransientGenerationError(error: unknown): boolean {
   // Adapters classify their own transport failures: provider-transient is the
   // only kind a retry can help.
   if (error instanceof GeneratorError) {
-    return error.kind === GeneratorErrorKind.PROVIDER_TRANSIENT;
+    return error.kind === GeneratorErrorKinds.PROVIDER_TRANSIENT;
   }
   if (error instanceof APIConnectionError) {
     return true;
@@ -776,7 +776,7 @@ async function runGeneration(
         repoConfig?.files.some(
           (file) =>
             file.path === RepoConfigPaths.SETTINGS &&
-            file.outcome === RepoConfigOutcome.FETCH_FAILED,
+            file.outcome === RepoConfigOutcomes.FETCH_FAILED,
         ) ?? false;
       if (!settingsUnknown) {
         await removeEntryComment();

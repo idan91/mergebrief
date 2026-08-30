@@ -29,7 +29,7 @@ import {
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApiClient } from "../src/client";
-import { ExitCode } from "../src/exit";
+import { ExitCodes } from "../src/exit";
 import { runCli, type CliDeps } from "../src/program";
 import { testLogger } from "./logging";
 
@@ -268,7 +268,7 @@ describe("session read commands over the real api app", () => {
         gitOriginUrl: () => undefined,
       },
     );
-    expect(code).toBe(ExitCode.OK);
+    expect(code).toBe(ExitCodes.OK);
   }
 
   async function referenceBody(path: string): Promise<string> {
@@ -290,11 +290,11 @@ describe("session read commands over the real api app", () => {
     );
     const result = await run(["session", "7", ...SPAN, "--json"]);
     expect(result.err).toEqual([]);
-    expect(result.code).toBe(ExitCode.OK);
+    expect(result.code).toBe(ExitCodes.OK);
     expect(result.out).toBe(wire);
 
     const tty = await run(["session", "7", ...SPAN]);
-    expect(tty.code).toBe(ExitCode.OK);
+    expect(tty.code).toBe(ExitCodes.OK);
     expect(tty.out).toBe(`${wire}\n`);
   });
 
@@ -320,7 +320,7 @@ describe("session read commands over the real api app", () => {
       },
       gitOriginUrl: () => "git@github.com:nobody/nothing.git",
     });
-    expect(code).toBe(ExitCode.USAGE);
+    expect(code).toBe(ExitCodes.USAGE);
     expect(out.join("")).toBe("");
     expect(err).toHaveLength(1);
     expect(err[0]).toContain("--base and --head");
@@ -343,7 +343,7 @@ describe("session read commands over the real api app", () => {
       "--json",
     ]);
     expect(result.err).toEqual([]);
-    expect(result.code).toBe(ExitCode.OK);
+    expect(result.code).toBe(ExitCodes.OK);
     expect(result.out).toBe(wire);
   });
 
@@ -351,7 +351,7 @@ describe("session read commands over the real api app", () => {
     await seedSessionedPr(harness.handle);
     await login();
     const result = await run(["marks", "7", "--head", HEAD_SHA, "--json"]);
-    expect(result.code).toBe(ExitCode.USAGE);
+    expect(result.code).toBe(ExitCodes.USAGE);
     expect(result.out).toBe("");
     expect(result.err).toHaveLength(1);
     expect(result.err[0]).toContain("--baseline and --head");
@@ -369,7 +369,7 @@ describe("session read commands over the real api app", () => {
       HEAD_SHA,
       "--json",
     ]);
-    expect(result.code).toBe(ExitCode.NOT_FOUND);
+    expect(result.code).toBe(ExitCodes.NOT_FOUND);
     expect(result.out).toBe("");
     expect(result.err).toHaveLength(1);
   });
@@ -390,7 +390,7 @@ describe("session read commands over the real api app", () => {
       "--json",
     ]);
     expect(result.err).toEqual([]);
-    expect(result.code).toBe(ExitCode.OK);
+    expect(result.code).toBe(ExitCodes.OK);
     expect(result.out).toBe(wire);
   });
 
@@ -404,7 +404,7 @@ describe("session read commands over the real api app", () => {
       PREV_HEAD_SHA,
       "--json",
     ]);
-    expect(result.code).toBe(ExitCode.USAGE);
+    expect(result.code).toBe(ExitCodes.USAGE);
     expect(result.out).toBe("");
     expect(result.err).toHaveLength(1);
     expect(result.err[0]).toContain("--prev-head and --head");
@@ -418,7 +418,7 @@ describe("session read commands over the real api app", () => {
     );
     const result = await run(["context", "7", ...SPAN, "--json"]);
     expect(result.err).toEqual([]);
-    expect(result.code).toBe(ExitCode.OK);
+    expect(result.code).toBe(ExitCodes.OK);
     expect(result.out).toBe(wire);
     expect(result.out).toContain('"repoConfig"');
   });
@@ -427,7 +427,7 @@ describe("session read commands over the real api app", () => {
     await seedSessionedPr(harness.handle);
     await login();
     const result = await run(["context", "7", "--json"]);
-    expect(result.code).toBe(ExitCode.USAGE);
+    expect(result.code).toBe(ExitCodes.USAGE);
     expect(result.out).toBe("");
     expect(result.err).toHaveLength(1);
     expect(result.err[0]).toContain("--base and --head");
@@ -450,7 +450,7 @@ describe("session read commands over the real api app", () => {
       ["context", "x", ...SPAN, "--json"],
     ]) {
       const result = await run(argv);
-      expect(result.code).toBe(ExitCode.USAGE);
+      expect(result.code).toBe(ExitCodes.USAGE);
       expect(result.out).toBe("");
       expect(result.err).toHaveLength(1);
       expect(result.err[0]).toContain("PR number");

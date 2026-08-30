@@ -9,17 +9,17 @@ import {
   CRITERIA_MAX_CHARS,
   FLOOR_ATTRIBUTES,
   IMPLICATION_MAX_CHARS,
-  RepoConfigOutcome,
+  RepoConfigOutcomes,
   RepoConfigPaths,
 } from "./constants";
 import { deEmphasisRuleSchema } from "./schemas";
 
 const outcomeEnum = z.enum([
-  RepoConfigOutcome.APPLIED,
-  RepoConfigOutcome.ABSENT,
-  RepoConfigOutcome.INVALID,
-  RepoConfigOutcome.OVER_BUDGET,
-  RepoConfigOutcome.FETCH_FAILED,
+  RepoConfigOutcomes.APPLIED,
+  RepoConfigOutcomes.ABSENT,
+  RepoConfigOutcomes.INVALID,
+  RepoConfigOutcomes.OVER_BUDGET,
+  RepoConfigOutcomes.FETCH_FAILED,
 ]);
 
 /**

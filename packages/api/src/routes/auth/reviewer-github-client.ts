@@ -4,7 +4,7 @@
 // refresh (`refreshSessionToken`) before re-running — the token can expire
 // between calls, and per-call-site refresh logic either misses that or
 // refreshes more than once. Hand-rolled refresh locals are banned.
-import { GitHubApiErrorCode } from "github";
+import { GitHubApiErrorCodes } from "github";
 import {
   isTokenUnreadableFailure,
   type TokenUnreadableFailure,
@@ -28,7 +28,7 @@ export type ReviewerTokenFailure = TokenUnreadableFailure;
 export interface ReviewerGitHubClient {
   /**
    * Run a token-taking GitHub call. On expiry (default predicate: a
-   * `GitHubApiErrorCode.UNAUTHORIZED` code) the request's single refresh is
+   * `GitHubApiErrorCodes.UNAUTHORIZED` code) the request's single refresh is
    * spent and the call re-runs once with the rotated token; a failed or
    * already-spent refresh returns the original error unchanged.
    */
@@ -65,7 +65,7 @@ function isUnauthorizedCode(error: unknown): boolean {
     typeof error === "object" &&
     error !== null &&
     "code" in error &&
-    error.code === GitHubApiErrorCode.UNAUTHORIZED
+    error.code === GitHubApiErrorCodes.UNAUTHORIZED
   );
 }
 

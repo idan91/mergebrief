@@ -80,8 +80,8 @@ Result-side, `Error` = thrown (CONTEXT.md glossary).
    pre-sanitized (`sanitizeErrorDetail` from `logging`).
 
 Security collapses stay at the per-domain handlers, BEFORE the wire:
-internal enums (`GitHubApiErrorCode`, `UrlBriefErrorKind`,
-`RefreshErrorCode`) map to thrown classes there, keeping the uniform-404
+internal maps (`GitHubApiErrorCodes`, `UrlBriefErrorKind`,
+`RefreshErrorCodes`) map to thrown classes there, keeping the uniform-404
 posture. A wire code is already the public posture, never the internal
 cause.
 

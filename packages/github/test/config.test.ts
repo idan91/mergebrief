@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
-  ConfigErrorCode,
+  ConfigErrorCodes,
   loadConfig,
   type ConfigError,
   type GitHubConfig,
@@ -54,7 +54,7 @@ describe("config — loadConfig", () => {
 
   it("rejects an empty env, listing every missing required field", () => {
     const error = err(loadConfig({}));
-    expect(error.code).toBe(ConfigErrorCode.INVALID);
+    expect(error.code).toBe(ConfigErrorCodes.INVALID);
     // Zod's superRefine (the PEM/_PATH exclusivity check) only runs once the
     // per-field schema checks all pass, so an empty env surfaces the plain
     // per-field "required" issues; exclusivity is covered by its own tests

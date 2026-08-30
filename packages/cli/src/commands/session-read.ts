@@ -5,7 +5,7 @@
 // comparison (`--baseline`/`--head`); `narrative` names a revision hop
 // (`--prev-head`/`--head`).
 import type { ApiClient } from "../client";
-import { CliError, ExitCode } from "../exit";
+import { CliError, ExitCodes } from "../exit";
 import type { ReadIo } from "./read";
 import type { BriefSpan } from "./write";
 
@@ -25,7 +25,7 @@ export function requireComparisonSpan(
 ): ComparisonSpan {
   if (!baseline || !head) {
     throw new CliError(
-      ExitCode.USAGE,
+      ExitCodes.USAGE,
       "--baseline and --head are required — name the comparison span (see `mergebrief pr <n>` revisions); it is never auto-fetched",
     );
   }
@@ -38,7 +38,7 @@ export function requireNarrativeSpan(
 ): NarrativeSpan {
   if (!prevHead || !head) {
     throw new CliError(
-      ExitCode.USAGE,
+      ExitCodes.USAGE,
       "--prev-head and --head are required — name the revision hop (see `mergebrief pr <n>` revisions); it is never auto-fetched",
     );
   }

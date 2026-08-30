@@ -27,7 +27,11 @@ export {
   type FreshRestartReason,
   type Generation,
 } from "./contract/generation";
-export { GeneratorError, GeneratorErrorKind } from "./contract/errors";
+export {
+  GeneratorError,
+  GeneratorErrorKinds,
+  type GeneratorErrorKind,
+} from "./contract/errors";
 
 // --- config/ — how an instance CHOOSES an adapter ---------------------------
 export {
