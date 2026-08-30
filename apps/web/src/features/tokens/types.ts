@@ -8,15 +8,15 @@ type Result<T> = SharedResult<T, string>;
  * rungs, widening: read only, this instance's own state, and writes that leave
  * the instance for GitHub. Immutable for the token's life.
  */
-export const TokenScope = {
+export const TokenScopes = {
   READ: "read",
   PRIVATE_WRITE: "private-write",
   EXTERNAL_WRITE: "external-write",
 } as const;
-export type TokenScope = ValueOf<typeof TokenScope>;
+export type TokenScope = ValueOf<typeof TokenScopes>;
 
 function isTokenScope(value: unknown): value is TokenScope {
-  return Object.values(TokenScope).some((known) => known === value);
+  return Object.values(TokenScopes).some((known) => known === value);
 }
 
 /** One token as the settings list shows it — metadata only, never material. */

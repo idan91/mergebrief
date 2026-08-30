@@ -3,12 +3,12 @@
 import { Trans, useTranslation } from "react-i18next";
 import {
   useTokenSettings,
-  ExpiryChoice,
+  ExpiryChoices,
   SCOPE_UNCHOSEN,
   TOKEN_NAME_MAX,
   type ScopeChoice,
 } from "../../hooks/useTokenSettings";
-import { TokenScope } from "../../types";
+import { TokenScopes } from "../../types";
 import { Button } from "@web/components/Button/Button";
 import { formatDate, renderedLocale } from "../../../../i18n/locale";
 import styles from "./TokenSettings.module.scss";
@@ -34,16 +34,16 @@ const CHMOD_COMMAND = "chmod 600";
 
 /** Catalog key per rung — the same label in the picker and in the list. */
 const SCOPE_LABEL_KEY = {
-  [TokenScope.READ]: "tokens.scopeRead",
-  [TokenScope.PRIVATE_WRITE]: "tokens.scopePrivateWrite",
-  [TokenScope.EXTERNAL_WRITE]: "tokens.scopeExternalWrite",
+  [TokenScopes.READ]: "tokens.scopeRead",
+  [TokenScopes.PRIVATE_WRITE]: "tokens.scopePrivateWrite",
+  [TokenScopes.EXTERNAL_WRITE]: "tokens.scopeExternalWrite",
 } as const;
 
 /** Narrowest first: the list reads as a ladder, not an unordered set. */
 const SCOPE_ORDER = [
-  TokenScope.READ,
-  TokenScope.PRIVATE_WRITE,
-  TokenScope.EXTERNAL_WRITE,
+  TokenScopes.READ,
+  TokenScopes.PRIVATE_WRITE,
+  TokenScopes.EXTERNAL_WRITE,
 ] as const;
 
 function toScopeChoice(value: string): ScopeChoice | undefined {
@@ -130,23 +130,23 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
           <select
             onChange={(event) => {
               const value = event.target.value;
-              const choice = Object.values(ExpiryChoice).find(
+              const choice = Object.values(ExpiryChoices).find(
                 (c) => c === value,
               );
               if (choice !== undefined) state.setExpiry(choice);
             }}
             value={state.expiry}
           >
-            <option value={ExpiryChoice.THIRTY_DAYS}>
+            <option value={ExpiryChoices.THIRTY_DAYS}>
               {t("tokens.expiry30")}
             </option>
-            <option value={ExpiryChoice.NINETY_DAYS}>
+            <option value={ExpiryChoices.NINETY_DAYS}>
               {t("tokens.expiry90")}
             </option>
-            <option value={ExpiryChoice.ONE_YEAR}>
+            <option value={ExpiryChoices.ONE_YEAR}>
               {t("tokens.expiry365")}
             </option>
-            <option value={ExpiryChoice.NONE}>{t("tokens.noExpiry")}</option>
+            <option value={ExpiryChoices.NONE}>{t("tokens.noExpiry")}</option>
           </select>
         </label>
         <Button

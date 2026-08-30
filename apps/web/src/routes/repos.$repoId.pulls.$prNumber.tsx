@@ -13,7 +13,7 @@ import {
 } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo } from "react";
 
-import { ApiError, ApiErrorCode } from "../data/apiFetch";
+import { ApiError, ApiErrorCodes } from "../data/apiFetch";
 import {
   parseCompareParam,
   parseViewParam,
@@ -97,7 +97,7 @@ function assertRepoId(raw: string): string {
 
 /** A read-API NOT_FOUND (the artifact/PR does not exist for this viewer). */
 function isNotFoundError(error: unknown): boolean {
-  return error instanceof ApiError && error.code === ApiErrorCode.NOT_FOUND;
+  return error instanceof ApiError && error.code === ApiErrorCodes.NOT_FOUND;
 }
 
 /**
@@ -106,7 +106,7 @@ function isNotFoundError(error: unknown): boolean {
  * 500). Everything else propagates to the error component.
  */
 function mapLoaderError(error: unknown): never {
-  if (error instanceof ApiError && error.code === ApiErrorCode.UNAUTHORIZED) {
+  if (error instanceof ApiError && error.code === ApiErrorCodes.UNAUTHORIZED) {
     throw redirect({ href: "/api/auth/github" });
   }
   if (isNotFoundError(error)) {

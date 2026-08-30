@@ -5,16 +5,19 @@
 // the server entry answers, never a thrown internal error.
 import { createLogger } from "logging";
 import { describe, expect, it, vi } from "vitest";
-import { ApiErrorCodes } from "api";
-import type { ApiErrorCode as SourceApiErrorCode } from "api";
+import {
+  ApiErrorCodes as ServerApiErrorCodes,
+  type ApiErrorCode as ServerApiErrorCode,
+} from "api";
 import type { Equals } from "types";
 import {
   ApiError,
-  ApiErrorCode,
+  ApiErrorCodes,
   apiJsonFromResponse,
   dispatchInProcess,
   errorFromResponse,
   type DispatchLogSink,
+  type ApiErrorCode,
 } from "./apiFetch";
 
 function fakeApp(handler: (request: Request) => Response) {
@@ -297,7 +300,7 @@ describe("errorFromResponse", () => {
       new Response("<html>bad gateway</html>", { status: 502 }),
       "/x",
     );
-    expect(error.code).toBe(ApiErrorCode.GITHUB_UNAVAILABLE);
+    expect(error.code).toBe(ApiErrorCodes.GITHUB_UNAVAILABLE);
     expect(error.status).toBe(502);
   });
 });
@@ -305,11 +308,11 @@ describe("errorFromResponse", () => {
 describe("wire vocabulary mirror (drift pins)", () => {
   type WebWireCode = Exclude<ApiErrorCode, "malformed">;
   // Compile-time: the mirror minus the web-local member IS the api vocabulary.
-  true satisfies Equals<WebWireCode, SourceApiErrorCode>;
+  true satisfies Equals<WebWireCode, ServerApiErrorCode>;
 
   it("runtime vocabulary equals the api's, plus only malformed", () => {
-    const web = Object.values(ApiErrorCode);
-    const source = Object.values(ApiErrorCodes);
+    const web = Object.values(ApiErrorCodes);
+    const source = Object.values(ServerApiErrorCodes);
     expect(web.filter((code) => code !== "malformed").toSorted()).toEqual(
       [...source].toSorted(),
     );

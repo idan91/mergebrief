@@ -41,13 +41,14 @@ third style — evolved past its response-smuggling.
 ### Error classes
 
 Abstract base `ApiError(code, params?)` plus exactly one subclass per HTTP
-status in `API_ERROR_STATUS`: `BadRequest` 400, `Unauthorized` 401,
+status in `API_ERROR_STATUS` (`ApiErrorStatusByCode`): `BadRequest` 400, `Unauthorized` 401,
 `Forbidden` 403, `NotFound` 404, `Conflict` 409, `PayloadTooLarge` 413,
 `InternalError` 500, `BadGateway` 502, `ServiceUnavailable` 503. No
 speculative classes. Class = HTTP vocabulary; the `ApiErrorCode` product code
 rides inside. A `CodeFor<status>` mapped type over `API_ERROR_STATUS`
-constrains each class to codes of its status — class, status, and code can
-never disagree; `API_ERROR_STATUS` stays the single source of truth.
+(`ApiErrorStatusByCode`) constrains each class to codes of its status — class,
+status, and code can never disagree; `API_ERROR_STATUS` (`ApiErrorStatusByCode`)
+stays the single source of truth.
 
 ### `app.onError` is the sole wire-error producer
 
@@ -119,7 +120,7 @@ counterpart of `InstallationGitHubPort`. Factory
 `createReviewerGitHubClient(deps, session, log)` beside
 `refreshSessionToken`. Its primitive `run(call, isExpired?)` executes a
 token-taking call and, on expiry (default predicate:
-`GitHubApiErrorCode.UNAUTHORIZED`), refreshes at most once per request and
+`GitHubApiErrorCodes.UNAUTHORIZED`), refreshes at most once per request and
 re-runs; `session()` exposes the possibly-rotated session. It replaces every
 `spendRefresh` closure and inline variant; hand-rolled refresh locals are
 banned. The authz gate and allowed-repos resolver adopt it in the authz

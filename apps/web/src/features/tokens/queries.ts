@@ -5,7 +5,7 @@ import { queryOptions } from "@tanstack/react-query";
 
 import {
   ApiError,
-  ApiErrorCode,
+  ApiErrorCodes,
   apiFetchJson,
   errorFromResponse,
 } from "../../data/apiFetch";
@@ -25,7 +25,7 @@ export function tokensQueryOptions() {
       const body = await apiFetchJson(path);
       const parsed = parseTokensView(body);
       if (!parsed.ok) {
-        throw new ApiError(ApiErrorCode.MALFORMED, 200, path);
+        throw new ApiError(ApiErrorCodes.MALFORMED, 200, path);
       }
       return parsed.value;
     },
@@ -60,7 +60,7 @@ export async function mintToken(input: MintTokenInput): Promise<MintedToken> {
     body = await response.json();
   } catch {
     throw new ApiError(
-      ApiErrorCode.MALFORMED,
+      ApiErrorCodes.MALFORMED,
       response.status,
       "/api/auth/tokens",
     );
@@ -68,7 +68,7 @@ export async function mintToken(input: MintTokenInput): Promise<MintedToken> {
   const parsed = parseMintedToken(body);
   if (!parsed.ok) {
     throw new ApiError(
-      ApiErrorCode.MALFORMED,
+      ApiErrorCodes.MALFORMED,
       response.status,
       "/api/auth/tokens",
     );

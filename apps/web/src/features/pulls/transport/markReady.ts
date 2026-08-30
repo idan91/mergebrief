@@ -12,9 +12,10 @@ import type { QueryKey } from "@tanstack/react-query";
 
 import {
   ApiError,
-  ApiErrorCode,
+  ApiErrorCodes,
   apiFetch,
   errorFromResponse,
+  type ApiErrorCode,
 } from "../../../data/apiFetch";
 import { prMetaQueryOptions } from "../queries";
 
@@ -45,33 +46,33 @@ type MarkReadyFailureKind = Exclude<MarkReadyResult["kind"], "ready">;
 // route's only 400 is a malformed :prNumber — unreachable from a valid UI
 // state — so invalid-request stays in the generic upstream bucket. Retrying
 // any kind is safe: the operation is idempotent server-side.
-const KIND_FOR_CODE = {
-  [ApiErrorCode.UNAUTHORIZED]: "unauthorized",
-  [ApiErrorCode.INVALID_SIGNATURE]: "upstream",
-  [ApiErrorCode.FORBIDDEN]: "github-permission",
-  [ApiErrorCode.GITHUB_PERMISSION]: "github-permission",
-  [ApiErrorCode.SCOPE_EXCEEDED]: "upstream",
-  [ApiErrorCode.HUMAN_ONLY]: "upstream",
-  [ApiErrorCode.NO_REPO_WRITE_ACCESS]: "no-write-access",
-  [ApiErrorCode.NOT_FOUND]: "not-found",
-  [ApiErrorCode.INVALID_REQUEST]: "upstream",
-  [ApiErrorCode.NOT_A_PR_URL]: "upstream",
-  [ApiErrorCode.SIGN_IN_FAILED]: "upstream",
-  [ApiErrorCode.REQUEST_TOO_LARGE]: "upstream",
-  [ApiErrorCode.DIFF_TOO_LARGE]: "upstream",
-  [ApiErrorCode.DRAFT_ALREADY_PUBLISHED]: "upstream",
-  [ApiErrorCode.DRAFT_ANCHOR_ORPHANED]: "upstream",
-  [ApiErrorCode.DRAFT_LIMIT_REACHED]: "upstream",
-  [ApiErrorCode.PR_CHANGED_SINCE_READ]: "upstream",
-  [ApiErrorCode.PR_REWRITTEN_SINCE_READ]: "upstream",
-  [ApiErrorCode.APP_NOT_INSTALLED]: "upstream",
-  [ApiErrorCode.GITHUB_UNAVAILABLE]: "upstream",
-  [ApiErrorCode.GENERATION_FAILED]: "upstream",
-  [ApiErrorCode.GENERATION_UNAVAILABLE]: "upstream",
-  [ApiErrorCode.GENERATION_CONFIG]: "upstream",
-  [ApiErrorCode.INTERNAL_ERROR]: "upstream",
+const KindForCode = {
+  [ApiErrorCodes.UNAUTHORIZED]: "unauthorized",
+  [ApiErrorCodes.INVALID_SIGNATURE]: "upstream",
+  [ApiErrorCodes.FORBIDDEN]: "github-permission",
+  [ApiErrorCodes.GITHUB_PERMISSION]: "github-permission",
+  [ApiErrorCodes.SCOPE_EXCEEDED]: "upstream",
+  [ApiErrorCodes.HUMAN_ONLY]: "upstream",
+  [ApiErrorCodes.NO_REPO_WRITE_ACCESS]: "no-write-access",
+  [ApiErrorCodes.NOT_FOUND]: "not-found",
+  [ApiErrorCodes.INVALID_REQUEST]: "upstream",
+  [ApiErrorCodes.NOT_A_PR_URL]: "upstream",
+  [ApiErrorCodes.SIGN_IN_FAILED]: "upstream",
+  [ApiErrorCodes.REQUEST_TOO_LARGE]: "upstream",
+  [ApiErrorCodes.DIFF_TOO_LARGE]: "upstream",
+  [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]: "upstream",
+  [ApiErrorCodes.DRAFT_ANCHOR_ORPHANED]: "upstream",
+  [ApiErrorCodes.DRAFT_LIMIT_REACHED]: "upstream",
+  [ApiErrorCodes.PR_CHANGED_SINCE_READ]: "upstream",
+  [ApiErrorCodes.PR_REWRITTEN_SINCE_READ]: "upstream",
+  [ApiErrorCodes.APP_NOT_INSTALLED]: "upstream",
+  [ApiErrorCodes.GITHUB_UNAVAILABLE]: "upstream",
+  [ApiErrorCodes.GENERATION_FAILED]: "upstream",
+  [ApiErrorCodes.GENERATION_UNAVAILABLE]: "upstream",
+  [ApiErrorCodes.GENERATION_CONFIG]: "upstream",
+  [ApiErrorCodes.INTERNAL_ERROR]: "upstream",
   // Web-local; never on the wire — errorFromResponse cannot produce it.
-  [ApiErrorCode.MALFORMED]: "upstream",
+  [ApiErrorCodes.MALFORMED]: "upstream",
 } as const satisfies Record<ApiErrorCode, MarkReadyFailureKind>;
 
 /** The route-injected action shape the Brief screen's own-draft flow calls. */
@@ -94,16 +95,16 @@ export async function markPrReady(
   const response = await apiFetch(path, { method: "POST" });
   if (!response.ok) {
     const { code } = await errorFromResponse(response, path);
-    return { kind: KIND_FOR_CODE[code] };
+    return { kind: KindForCode[code] };
   }
   let body: unknown;
   try {
     body = await response.json();
   } catch {
-    throw new ApiError(ApiErrorCode.MALFORMED, response.status, path);
+    throw new ApiError(ApiErrorCodes.MALFORMED, response.status, path);
   }
   if (!isReadyBody(body)) {
-    throw new ApiError(ApiErrorCode.MALFORMED, response.status, path);
+    throw new ApiError(ApiErrorCodes.MALFORMED, response.status, path);
   }
   return { kind: "ready" };
 }

@@ -11,7 +11,7 @@ vi.mock("../../data/apiFetch", async (importOriginal) => {
   return { ...actual, apiFetchJson: vi.fn() };
 });
 
-import { ApiError, ApiErrorCode, apiFetchJson } from "../../data/apiFetch";
+import { ApiError, ApiErrorCodes, apiFetchJson } from "../../data/apiFetch";
 import { tokensQueryOptions } from "./queries";
 
 const apiFetchJsonMock = vi.mocked(apiFetchJson);
@@ -59,7 +59,7 @@ describe("tokensQueryOptions queryFn", () => {
     );
     expect(failure).toBeInstanceOf(ApiError);
     if (!(failure instanceof ApiError)) throw new Error("unreachable");
-    expect(failure.code).toBe(ApiErrorCode.MALFORMED);
+    expect(failure.code).toBe(ApiErrorCodes.MALFORMED);
   });
 });
 
@@ -81,6 +81,6 @@ describe("mintToken transport", () => {
     vi.unstubAllGlobals();
     expect(failure).toBeInstanceOf(ApiError);
     if (!(failure instanceof ApiError)) throw new Error("unreachable");
-    expect(failure.code).toBe(ApiErrorCode.MALFORMED);
+    expect(failure.code).toBe(ApiErrorCodes.MALFORMED);
   });
 });

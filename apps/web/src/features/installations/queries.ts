@@ -6,7 +6,7 @@ import { queryOptions } from "@tanstack/react-query";
 
 import {
   ApiError,
-  ApiErrorCode,
+  ApiErrorCodes,
   apiFetchJson,
   errorFromResponse,
 } from "../../data/apiFetch";
@@ -20,7 +20,7 @@ export function installationsQueryOptions() {
       const body = await apiFetchJson(path);
       const parsed = parseInstallationsView(body);
       if (!parsed.ok) {
-        throw new ApiError(ApiErrorCode.MALFORMED, 200, path);
+        throw new ApiError(ApiErrorCodes.MALFORMED, 200, path);
       }
       return parsed.value;
     },

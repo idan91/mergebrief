@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { ApiError, ApiErrorCode } from "../../../data/apiFetch";
+import { ApiError, ApiErrorCodes } from "../../../data/apiFetch";
 import { installationsQueryOptions } from "../../installations/queries";
 import { mintToken, revokeToken, tokensQueryOptions } from "../queries";
 import type { ApiTokenView, MintedToken, TokenScope } from "../types";
@@ -19,13 +19,13 @@ import type { ApiTokenView, MintedToken, TokenScope } from "../types";
 export const TOKEN_NAME_MAX = 100;
 
 /** The expiry choices the form offers; `none` = no expiry. */
-export const ExpiryChoice = {
+export const ExpiryChoices = {
   THIRTY_DAYS: "30",
   NINETY_DAYS: "90",
   ONE_YEAR: "365",
   NONE: "none",
 } as const;
-export type ExpiryChoice = (typeof ExpiryChoice)[keyof typeof ExpiryChoice];
+export type ExpiryChoice = (typeof ExpiryChoices)[keyof typeof ExpiryChoices];
 
 /** No pre-selection: the scope a token carries is always a stated choice. */
 export const SCOPE_UNCHOSEN = "";
@@ -73,7 +73,7 @@ export function useTokenSettings(enabled: boolean): TokenSettingsState {
 
   const [name, setName] = useState("");
   const [installationId, setInstallationId] = useState("");
-  const [expiry, setExpiry] = useState<ExpiryChoice>(ExpiryChoice.NINETY_DAYS);
+  const [expiry, setExpiry] = useState<ExpiryChoice>(ExpiryChoices.NINETY_DAYS);
   const [scope, setScope] = useState<ScopeChoice>(SCOPE_UNCHOSEN);
   const [mintedToken, setMintedToken] = useState<MintedToken | null>(null);
 
@@ -128,7 +128,7 @@ export function useTokenSettings(enabled: boolean): TokenSettingsState {
       name: trimmedName,
       scope,
       installationId: effectiveInstallationId,
-      expiresInDays: expiry === ExpiryChoice.NONE ? null : Number(expiry),
+      expiresInDays: expiry === ExpiryChoices.NONE ? null : Number(expiry),
     });
   };
 
@@ -141,7 +141,7 @@ export function useTokenSettings(enabled: boolean): TokenSettingsState {
 
   const mintError = minting.isError
     ? minting.error instanceof ApiError &&
-      minting.error.code === ApiErrorCode.FORBIDDEN
+      minting.error.code === ApiErrorCodes.FORBIDDEN
       ? t("tokens.mintForbidden")
       : t("tokens.mintFailed")
     : null;

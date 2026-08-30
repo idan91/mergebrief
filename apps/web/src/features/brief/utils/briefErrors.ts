@@ -14,7 +14,7 @@ import type { TFunction } from "i18next";
 import type { TranslationKey } from "i18n";
 import { sanitizeErrorDetail } from "logging/sanitize";
 import type { ValueOf } from "types";
-import { ApiError, ApiErrorCode } from "../../../data/apiFetch";
+import { ApiError, ApiErrorCodes } from "../../../data/apiFetch";
 
 /**
  * The closed set of CODES this path may surface to a browser. The server
@@ -22,7 +22,7 @@ import { ApiError, ApiErrorCode } from "../../../data/apiFetch";
  * catalog — so the cross-boundary allowlist check stays an identity test on
  * a stable token instead of on translatable prose.
  */
-export const BriefErrorCode = {
+export const BriefErrorCodes = {
   /** No artifact for that id — the browser gets a 404-shaped sentence. */
   NOT_FOUND: "not-found",
   /** The id itself failed the charset guard (never echoed back). */
@@ -32,7 +32,7 @@ export const BriefErrorCode = {
   /** Anything else: the raw reason is in the server log. */
   UNEXPECTED: "unexpected",
 } as const;
-export type BriefErrorCode = ValueOf<typeof BriefErrorCode>;
+export type BriefErrorCode = ValueOf<typeof BriefErrorCodes>;
 
 /**
  * The URL-box generation path's own closed set. Separate map, same rule —
@@ -41,18 +41,18 @@ export type BriefErrorCode = ValueOf<typeof BriefErrorCode>;
  * too: `parsePrUrl` reflects the whole pasted string, which must not reach a
  * `role="alert"` render.
  */
-export const GenerateErrorCode = {
+export const GenerateErrorCodes = {
   NOT_A_PR_URL: "not-a-pr-url",
   URL_TOO_LONG: "url-too-long",
   NO_GH_CLI: "no-gh-cli",
   FETCH_FAILED: "fetch-failed",
   GENERATION_FAILED: "generation-failed",
 } as const;
-export type GenerateErrorCode = ValueOf<typeof GenerateErrorCode>;
+export type GenerateErrorCode = ValueOf<typeof GenerateErrorCodes>;
 
 const CURATED: ReadonlySet<string> = new Set([
-  ...Object.values(BriefErrorCode),
-  ...Object.values(GenerateErrorCode),
+  ...Object.values(BriefErrorCodes),
+  ...Object.values(GenerateErrorCodes),
 ]);
 
 /** True when `message` is a code this codebase authored for the browser. */
@@ -80,7 +80,7 @@ export function clampConfigMessage(message: string): string {
  */
 export function briefErrorCode(error: unknown): string {
   const message = error instanceof Error ? error.message : "";
-  return isCuratedBriefError(message) ? message : BriefErrorCode.UNEXPECTED;
+  return isCuratedBriefError(message) ? message : BriefErrorCodes.UNEXPECTED;
 }
 
 /**
@@ -89,15 +89,15 @@ export function briefErrorCode(error: unknown): string {
  */
 /** Code → catalog key. Explicit, so no cast is needed to reach `t`. */
 const DETAIL_KEYS = {
-  [BriefErrorCode.NOT_FOUND]: "briefError.not-found",
-  [BriefErrorCode.INVALID_ID]: "briefError.invalid-id",
-  [BriefErrorCode.UNREADABLE]: "briefError.unreadable",
-  [BriefErrorCode.UNEXPECTED]: "briefError.unexpected",
-  [GenerateErrorCode.NOT_A_PR_URL]: "briefError.not-a-pr-url",
-  [GenerateErrorCode.URL_TOO_LONG]: "briefError.url-too-long",
-  [GenerateErrorCode.NO_GH_CLI]: "briefError.no-gh-cli",
-  [GenerateErrorCode.FETCH_FAILED]: "briefError.fetch-failed",
-  [GenerateErrorCode.GENERATION_FAILED]: "briefError.generation-failed",
+  [BriefErrorCodes.NOT_FOUND]: "briefError.not-found",
+  [BriefErrorCodes.INVALID_ID]: "briefError.invalid-id",
+  [BriefErrorCodes.UNREADABLE]: "briefError.unreadable",
+  [BriefErrorCodes.UNEXPECTED]: "briefError.unexpected",
+  [GenerateErrorCodes.NOT_A_PR_URL]: "briefError.not-a-pr-url",
+  [GenerateErrorCodes.URL_TOO_LONG]: "briefError.url-too-long",
+  [GenerateErrorCodes.NO_GH_CLI]: "briefError.no-gh-cli",
+  [GenerateErrorCodes.FETCH_FAILED]: "briefError.fetch-failed",
+  [GenerateErrorCodes.GENERATION_FAILED]: "briefError.generation-failed",
 } as const satisfies Record<BriefErrorCode | GenerateErrorCode, TranslationKey>;
 
 function isKnownDetailCode(code: string): code is keyof typeof DETAIL_KEYS {
@@ -107,18 +107,18 @@ function isKnownDetailCode(code: string): code is keyof typeof DETAIL_KEYS {
 export function briefErrorDetail(t: TFunction, error: unknown): string {
   if (error instanceof ApiError) {
     if (
-      error.code === ApiErrorCode.GENERATION_CONFIG &&
+      error.code === ApiErrorCodes.GENERATION_CONFIG &&
       error.params !== undefined
     ) {
       return t("errors.generation-config", { detail: error.params.detail });
     }
     switch (error.code) {
-      case ApiErrorCode.NOT_A_PR_URL:
-      case ApiErrorCode.INVALID_REQUEST:
+      case ApiErrorCodes.NOT_A_PR_URL:
+      case ApiErrorCodes.INVALID_REQUEST:
         return t("briefError.not-a-pr-url");
-      case ApiErrorCode.UNAUTHORIZED:
+      case ApiErrorCodes.UNAUTHORIZED:
         return t("briefError.sessionExpired");
-      case ApiErrorCode.NOT_FOUND:
+      case ApiErrorCodes.NOT_FOUND:
         return t("briefError.signedFetchFailed");
       default:
         return t("briefError.generation-failed");

@@ -6,7 +6,7 @@
 // errors carry absolute paths, and `ApiError`'s message embeds the request
 // path.
 import type { TFunction } from "i18next";
-import { ApiError, ApiErrorCode } from "../../../../../data/apiFetch";
+import { ApiError, ApiErrorCodes } from "../../../../../data/apiFetch";
 
 export function prBriefErrorDetail(t: TFunction, error: unknown): string {
   if (!(error instanceof ApiError)) return t("pulls.briefError.generic");
@@ -18,5 +18,5 @@ export function prBriefErrorDetail(t: TFunction, error: unknown): string {
 
 /** Whether to offer the sign-in CTA alongside the message. */
 export function prBriefErrorNeedsSignIn(error: unknown): boolean {
-  return error instanceof ApiError && error.code === ApiErrorCode.UNAUTHORIZED;
+  return error instanceof ApiError && error.code === ApiErrorCodes.UNAUTHORIZED;
 }

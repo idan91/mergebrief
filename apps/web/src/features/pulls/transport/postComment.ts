@@ -13,9 +13,10 @@
 // a retry-as-is invitation.
 import {
   ApiError,
-  ApiErrorCode,
+  ApiErrorCodes,
   apiFetch,
   errorFromResponse,
+  type ApiErrorCode,
 } from "../../../data/apiFetch";
 
 export type PostCommentResult =
@@ -53,33 +54,33 @@ type PostCommentFailureKind = Exclude<PostCommentResult["kind"], "posted">;
 // (reload to re-anchor); an orphaned anchor and an already-published draft are
 // neither stale nor retryable. A 413 is deterministic (over-long body), so its
 // copy must say edit-the-draft, never retry-as-is.
-const KIND_FOR_CODE = {
-  [ApiErrorCode.UNAUTHORIZED]: "unauthorized",
-  [ApiErrorCode.INVALID_SIGNATURE]: "upstream",
-  [ApiErrorCode.FORBIDDEN]: "upstream",
-  [ApiErrorCode.GITHUB_PERMISSION]: "upstream",
-  [ApiErrorCode.SCOPE_EXCEEDED]: "upstream",
-  [ApiErrorCode.HUMAN_ONLY]: "upstream",
-  [ApiErrorCode.NO_REPO_WRITE_ACCESS]: "no-write-access",
-  [ApiErrorCode.NOT_FOUND]: "not-found",
-  [ApiErrorCode.INVALID_REQUEST]: "invalid",
-  [ApiErrorCode.NOT_A_PR_URL]: "upstream",
-  [ApiErrorCode.SIGN_IN_FAILED]: "upstream",
-  [ApiErrorCode.REQUEST_TOO_LARGE]: "invalid",
-  [ApiErrorCode.DIFF_TOO_LARGE]: "upstream",
-  [ApiErrorCode.DRAFT_ALREADY_PUBLISHED]: "already-published",
-  [ApiErrorCode.DRAFT_ANCHOR_ORPHANED]: "orphaned-anchor",
-  [ApiErrorCode.DRAFT_LIMIT_REACHED]: "upstream",
-  [ApiErrorCode.PR_CHANGED_SINCE_READ]: "stale",
-  [ApiErrorCode.PR_REWRITTEN_SINCE_READ]: "stale",
-  [ApiErrorCode.APP_NOT_INSTALLED]: "upstream",
-  [ApiErrorCode.GITHUB_UNAVAILABLE]: "upstream",
-  [ApiErrorCode.GENERATION_FAILED]: "upstream",
-  [ApiErrorCode.GENERATION_UNAVAILABLE]: "upstream",
-  [ApiErrorCode.GENERATION_CONFIG]: "upstream",
-  [ApiErrorCode.INTERNAL_ERROR]: "upstream",
+const KindForCode = {
+  [ApiErrorCodes.UNAUTHORIZED]: "unauthorized",
+  [ApiErrorCodes.INVALID_SIGNATURE]: "upstream",
+  [ApiErrorCodes.FORBIDDEN]: "upstream",
+  [ApiErrorCodes.GITHUB_PERMISSION]: "upstream",
+  [ApiErrorCodes.SCOPE_EXCEEDED]: "upstream",
+  [ApiErrorCodes.HUMAN_ONLY]: "upstream",
+  [ApiErrorCodes.NO_REPO_WRITE_ACCESS]: "no-write-access",
+  [ApiErrorCodes.NOT_FOUND]: "not-found",
+  [ApiErrorCodes.INVALID_REQUEST]: "invalid",
+  [ApiErrorCodes.NOT_A_PR_URL]: "upstream",
+  [ApiErrorCodes.SIGN_IN_FAILED]: "upstream",
+  [ApiErrorCodes.REQUEST_TOO_LARGE]: "invalid",
+  [ApiErrorCodes.DIFF_TOO_LARGE]: "upstream",
+  [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]: "already-published",
+  [ApiErrorCodes.DRAFT_ANCHOR_ORPHANED]: "orphaned-anchor",
+  [ApiErrorCodes.DRAFT_LIMIT_REACHED]: "upstream",
+  [ApiErrorCodes.PR_CHANGED_SINCE_READ]: "stale",
+  [ApiErrorCodes.PR_REWRITTEN_SINCE_READ]: "stale",
+  [ApiErrorCodes.APP_NOT_INSTALLED]: "upstream",
+  [ApiErrorCodes.GITHUB_UNAVAILABLE]: "upstream",
+  [ApiErrorCodes.GENERATION_FAILED]: "upstream",
+  [ApiErrorCodes.GENERATION_UNAVAILABLE]: "upstream",
+  [ApiErrorCodes.GENERATION_CONFIG]: "upstream",
+  [ApiErrorCodes.INTERNAL_ERROR]: "upstream",
   // Web-local; never on the wire — errorFromResponse cannot produce it.
-  [ApiErrorCode.MALFORMED]: "upstream",
+  [ApiErrorCodes.MALFORMED]: "upstream",
 } as const satisfies Record<ApiErrorCode, PostCommentFailureKind>;
 
 /**
@@ -126,16 +127,16 @@ export async function postInlineComment(
   });
   if (!response.ok) {
     const { code } = await errorFromResponse(response, path);
-    return { kind: KIND_FOR_CODE[code] };
+    return { kind: KindForCode[code] };
   }
   let parsed: unknown;
   try {
     parsed = await response.json();
   } catch {
-    throw new ApiError(ApiErrorCode.MALFORMED, response.status, path);
+    throw new ApiError(ApiErrorCodes.MALFORMED, response.status, path);
   }
   if (!isPostedBody(parsed)) {
-    throw new ApiError(ApiErrorCode.MALFORMED, response.status, path);
+    throw new ApiError(ApiErrorCodes.MALFORMED, response.status, path);
   }
   return {
     kind: "posted",

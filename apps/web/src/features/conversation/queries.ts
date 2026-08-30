@@ -8,7 +8,7 @@ import { queryOptions, type QueryKey } from "@tanstack/react-query";
 import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
 import {
   ApiError,
-  ApiErrorCode,
+  ApiErrorCodes,
   apiFetch,
   apiJsonFromResponse,
 } from "../../data/apiFetch";
@@ -58,7 +58,7 @@ export function conversationQueryOptions(repoId: string, prNumber: number) {
       const body = await apiJsonFromResponse(response, path);
       const parsed = parseConversation(body);
       if (!parsed.ok) {
-        throw new ApiError(ApiErrorCode.MALFORMED, response.status, path);
+        throw new ApiError(ApiErrorCodes.MALFORMED, response.status, path);
       }
       return { kind: "ready", conversation: parsed.value };
     },
@@ -111,7 +111,7 @@ export function collaboratorsQueryOptions(repoId: string) {
       const body = await apiJsonFromResponse(response, path);
       const parsed = parseCollaborators(body);
       if (!parsed.ok) {
-        throw new ApiError(ApiErrorCode.MALFORMED, response.status, path);
+        throw new ApiError(ApiErrorCodes.MALFORMED, response.status, path);
       }
       const candidates = parsed.value.toSorted((a, b) =>
         a.login.localeCompare(b.login),

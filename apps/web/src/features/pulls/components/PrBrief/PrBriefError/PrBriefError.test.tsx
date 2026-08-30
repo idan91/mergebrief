@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { ApiError, ApiErrorCode } from "../../../../../data/apiFetch";
+import { ApiError, ApiErrorCodes } from "../../../../../data/apiFetch";
 import { appI18n, I18nProvider } from "../../../../../i18n/I18nProvider";
 import { PrBriefError } from "./PrBriefError";
 import { prBriefErrorDetail } from "./utils";
@@ -13,7 +13,7 @@ afterEach(cleanup);
 
 describe("prBriefErrorDetail", () => {
   it("answers every ApiError kind with curated copy", () => {
-    for (const kind of Object.values(ApiErrorCode)) {
+    for (const kind of Object.values(ApiErrorCodes)) {
       const detail = prBriefErrorDetail(t, new ApiError(kind, 500, "/api/x"));
       // i18next echoes the KEY for a missing entry — assert real copy, not
       // just non-empty, or a catalog gap would render the key into the page.
@@ -51,7 +51,7 @@ describe("PrBriefError", () => {
     render(
       <I18nProvider>
         <PrBriefError
-          error={new ApiError(ApiErrorCode.UNAUTHORIZED, 401, "/api/pulls")}
+          error={new ApiError(ApiErrorCodes.UNAUTHORIZED, 401, "/api/pulls")}
         />
       </I18nProvider>,
     );
@@ -61,7 +61,7 @@ describe("PrBriefError", () => {
     render(
       <I18nProvider>
         <PrBriefError
-          error={new ApiError(ApiErrorCode.NOT_FOUND, 404, "/api/pulls")}
+          error={new ApiError(ApiErrorCodes.NOT_FOUND, 404, "/api/pulls")}
         />
       </I18nProvider>,
     );

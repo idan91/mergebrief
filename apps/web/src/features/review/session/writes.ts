@@ -11,9 +11,10 @@
 import type { TranslationKey } from "i18n";
 
 import {
-  ApiErrorCode,
+  ApiErrorCodes,
   apiFetch,
   errorFromResponse,
+  type ApiErrorCode,
 } from "../../../data/apiFetch";
 import type { ReviewOutcome, RiskEvidence } from "../utils/state";
 import type { CommentSide } from "../utils/comments";
@@ -43,10 +44,10 @@ export type SessionWriteResult<T = void> =
 
 /** Wire copy per code the session routes can return; the rest is generic. */
 const FAILURE_COPY: Partial<Record<ApiErrorCode, TranslationKey>> = {
-  [ApiErrorCode.DRAFT_LIMIT_REACHED]: "review.writeError.draftLimit",
-  [ApiErrorCode.DRAFT_ALREADY_PUBLISHED]: "review.writeError.alreadyPublished",
-  [ApiErrorCode.HUMAN_ONLY]: "review.writeError.humanOnly",
-  [ApiErrorCode.UNAUTHORIZED]: "review.writeError.unauthorized",
+  [ApiErrorCodes.DRAFT_LIMIT_REACHED]: "review.writeError.draftLimit",
+  [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]: "review.writeError.alreadyPublished",
+  [ApiErrorCodes.HUMAN_ONLY]: "review.writeError.humanOnly",
+  [ApiErrorCodes.UNAUTHORIZED]: "review.writeError.unauthorized",
 };
 
 const FROZEN: SessionWriteFailure = {
@@ -107,8 +108,8 @@ export interface SessionWrites {
 
 function failureFor(code: ApiErrorCode): SessionWriteFailure {
   if (
-    code === ApiErrorCode.PR_CHANGED_SINCE_READ ||
-    code === ApiErrorCode.PR_REWRITTEN_SINCE_READ
+    code === ApiErrorCodes.PR_CHANGED_SINCE_READ ||
+    code === ApiErrorCodes.PR_REWRITTEN_SINCE_READ
   ) {
     return FROZEN;
   }

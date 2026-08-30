@@ -3,7 +3,7 @@ import { queryOptions } from "@tanstack/react-query";
 
 import {
   ApiError,
-  ApiErrorCode,
+  ApiErrorCodes,
   apiFetch,
   apiJsonFromResponse,
 } from "../../data/apiFetch";
@@ -50,7 +50,7 @@ export async function generateBriefViaApi(
       : undefined;
   if (repoId === undefined || typeof prNumber !== "number") {
     throw new ApiError(
-      ApiErrorCode.MALFORMED,
+      ApiErrorCodes.MALFORMED,
       response.status,
       "/api/generate",
     );

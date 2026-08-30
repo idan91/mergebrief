@@ -17,7 +17,7 @@ import type { ValueOf } from "types";
 // web-local member: `malformed` (a 2xx whose body failed to parse — a
 // programmer/contract error surfaced as data; never on the wire). The
 // Equals + runtime pins in apiFetch.test.ts fail on any drift.
-export const ApiErrorCode = {
+export const ApiErrorCodes = {
   UNAUTHORIZED: "unauthorized",
   INVALID_SIGNATURE: "invalid-signature",
   FORBIDDEN: "forbidden",
@@ -44,15 +44,15 @@ export const ApiErrorCode = {
   INTERNAL_ERROR: "internal-error",
   MALFORMED: "malformed",
 } as const;
-export type ApiErrorCode = ValueOf<typeof ApiErrorCode>;
+export type ApiErrorCode = ValueOf<typeof ApiErrorCodes>;
 
 export interface ApiErrorParams {
   readonly detail: string;
 }
 
 function isWireCode(value: string): value is ApiErrorCode {
-  return Object.values(ApiErrorCode).some(
-    (code) => code === value && code !== ApiErrorCode.MALFORMED,
+  return Object.values(ApiErrorCodes).some(
+    (code) => code === value && code !== ApiErrorCodes.MALFORMED,
   );
 }
 
@@ -97,23 +97,23 @@ function configParams(value: unknown): ApiErrorParams | undefined {
 function codeForStatus(status: number): ApiErrorCode {
   switch (status) {
     case 400:
-      return ApiErrorCode.INVALID_REQUEST;
+      return ApiErrorCodes.INVALID_REQUEST;
     case 401:
-      return ApiErrorCode.UNAUTHORIZED;
+      return ApiErrorCodes.UNAUTHORIZED;
     case 403:
-      return ApiErrorCode.FORBIDDEN;
+      return ApiErrorCodes.FORBIDDEN;
     case 404:
-      return ApiErrorCode.NOT_FOUND;
+      return ApiErrorCodes.NOT_FOUND;
     case 409:
-      return ApiErrorCode.PR_CHANGED_SINCE_READ;
+      return ApiErrorCodes.PR_CHANGED_SINCE_READ;
     case 413:
-      return ApiErrorCode.REQUEST_TOO_LARGE;
+      return ApiErrorCodes.REQUEST_TOO_LARGE;
     case 500:
-      return ApiErrorCode.INTERNAL_ERROR;
+      return ApiErrorCodes.INTERNAL_ERROR;
     // A codeless 503 is typically a proxy answering for a down backend, not
     // the generation feature — bucket it with unreachable, never a coded 503.
     default:
-      return ApiErrorCode.GITHUB_UNAVAILABLE;
+      return ApiErrorCodes.GITHUB_UNAVAILABLE;
   }
 }
 
@@ -139,7 +139,7 @@ export async function errorFromResponse(
       isWireCode(body.code)
     ) {
       code = body.code;
-      if (code === ApiErrorCode.GENERATION_CONFIG) {
+      if (code === ApiErrorCodes.GENERATION_CONFIG) {
         params = configParams(body);
       }
     }
@@ -258,7 +258,7 @@ export async function apiJsonFromResponse(
     const body: unknown = await response.json();
     return body;
   } catch {
-    throw new ApiError(ApiErrorCode.MALFORMED, response.status, path);
+    throw new ApiError(ApiErrorCodes.MALFORMED, response.status, path);
   }
 }
 
