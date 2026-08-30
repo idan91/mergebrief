@@ -30,7 +30,7 @@ import {
 import { createErrorHandler } from "../../../../shared-errors/on-error";
 import type * as sessionModule from "../../../auth/session";
 import {
-  AuthChannel,
+  AuthChannels,
   refreshSessionToken,
   type AuthRouteDeps,
   type ViewerPrincipal,
@@ -115,7 +115,7 @@ async function buildApp(ciphertextOverride?: string): Promise<Hono<AuthzEnv>> {
     ghTokenCiphertext: ciphertextOverride ?? sealed.value,
     keyRef: KEY_REF,
     scope: WriteClassifications.EXTERNAL_WRITE,
-    channel: AuthChannel.COOKIE,
+    channel: AuthChannels.COOKIE,
   };
   const deps: AuthRouteDeps = {
     handle: harness.handle,

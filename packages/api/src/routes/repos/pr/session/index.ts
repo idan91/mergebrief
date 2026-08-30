@@ -20,7 +20,7 @@ import {
   productRouter,
   type ProductRouter,
 } from "../../../../product-operations/product-router";
-import { WRITE_CLASSIFICATION } from "../../../../product-operations/types";
+import { WriteClassifications } from "../../../../product-operations/types";
 import type { AuthzEnv } from "../../../authz";
 import type { AuthRouteDeps } from "../../../auth/session";
 import createSessionHandlers from "./handler";
@@ -32,7 +32,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   app.query(
     {
       id: ProductQueryIds.READ_REVIEW_SESSION,
-      classification: WRITE_CLASSIFICATION.READ,
+      classification: WriteClassifications.READ,
     },
     "/",
     handlers.readSession,
@@ -40,7 +40,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   app.action(
     {
       id: ProductActionIds.CREATE_DRAFT_COMMENT,
-      classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
+      classification: WriteClassifications.PRIVATE_WRITE,
     },
     "post",
     "/comments",
@@ -49,7 +49,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   app.action(
     {
       id: ProductActionIds.UPDATE_DRAFT_COMMENT,
-      classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
+      classification: WriteClassifications.PRIVATE_WRITE,
     },
     "patch",
     "/comments/:draftId",
@@ -58,7 +58,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   app.action(
     {
       id: ProductActionIds.REANCHOR_DRAFT_COMMENT,
-      classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
+      classification: WriteClassifications.PRIVATE_WRITE,
     },
     "put",
     "/comments/:draftId/anchor",
@@ -67,7 +67,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   app.action(
     {
       id: ProductActionIds.DELETE_DRAFT_COMMENT,
-      classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
+      classification: WriteClassifications.PRIVATE_WRITE,
     },
     "delete",
     "/comments/:draftId",
@@ -76,7 +76,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   app.action(
     {
       id: ProductActionIds.SET_CHUNK_READ,
-      classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
+      classification: WriteClassifications.PRIVATE_WRITE,
     },
     "put",
     "/chunks/:chunkId/read",
@@ -85,7 +85,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   app.action(
     {
       id: ProductActionIds.RECLASSIFY_GROUP,
-      classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
+      classification: WriteClassifications.PRIVATE_WRITE,
     },
     "put",
     "/groups/:groupId/classification",
@@ -98,7 +98,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   app.action(
     {
       id: ProductActionIds.DISMISS_RISK,
-      classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
+      classification: WriteClassifications.PRIVATE_WRITE,
     },
     "post",
     "/risks/dismiss",
@@ -107,7 +107,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   app.action(
     {
       id: ProductActionIds.ADDRESS_RISK,
-      classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
+      classification: WriteClassifications.PRIVATE_WRITE,
     },
     "post",
     "/risks/address",
@@ -116,7 +116,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   app.action(
     {
       id: ProductActionIds.REOPEN_RISK,
-      classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
+      classification: WriteClassifications.PRIVATE_WRITE,
     },
     "post",
     "/risks/reopen",
@@ -125,7 +125,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   app.action(
     {
       id: ProductActionIds.SET_REVIEW_OUTCOME,
-      classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
+      classification: WriteClassifications.PRIVATE_WRITE,
     },
     "put",
     "/outcome",

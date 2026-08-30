@@ -14,10 +14,11 @@ export {
   derivePrincipalFromApiToken,
   derivePrincipalFromSession,
   refreshSessionToken,
-  RefreshErrorCode,
+  RefreshErrorCodes,
 } from "./routes/auth/session";
 export type {
   RefreshError,
+  RefreshErrorCode,
   RefreshedSession,
   AuthRouteDeps,
 } from "./routes/auth/session";
@@ -25,17 +26,20 @@ export type {
 // Exported only for consumers that MIRROR this contract: `apps/web` hand-rolls
 // its own wire types and its drift pins assert against this source. No route
 // behavior depends on the re-export.
-export { LastReviewUnavailableReason } from "./routes/repos/pr/reads/logic/revision-comparisons";
-export type { LastReviewComparisonView } from "./routes/repos/pr/reads/logic/revision-comparisons";
+export { LastReviewUnavailableReasons } from "./routes/repos/pr/reads/logic/revision-comparisons";
+export type {
+  LastReviewComparisonView,
+  LastReviewUnavailableReason,
+} from "./routes/repos/pr/reads/logic/revision-comparisons";
 export type { SessionPayload } from "./routes/repos/pr/session/logic/payload";
 
-// The wire error contract. `API_ERROR_ENGLISH`/`API_ERROR_STATUS` are
+// The wire error contract. `ApiErrorEnglishByCode`/`ApiErrorStatusByCode` are
 // mirror-only: `packages/i18n` pins `errors.<code>` templates against them;
 // `apps/web` pins its hand-rolled code mirror. No route behavior may depend
 // on these exports.
 export {
-  API_ERROR_ENGLISH,
-  API_ERROR_STATUS,
+  ApiErrorEnglishByCode,
+  ApiErrorStatusByCode,
   ApiErrorCodes,
 } from "./error-response";
 export type {

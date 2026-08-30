@@ -30,7 +30,7 @@ import {
 import type { RequestLogEnv } from "../request-logging";
 import type { ProductOperationRegistry } from "./registry";
 import {
-  OPERATION_KIND,
+  OperationKinds,
   type ProductActionDescriptor,
   type ProductOperationDescriptor,
 } from "./types";
@@ -309,7 +309,7 @@ export function createAuditMiddleware(
       return;
     }
     c.set("operation", descriptor.id);
-    if (descriptor.kind !== OPERATION_KIND.ACTION) {
+    if (descriptor.kind !== OperationKinds.ACTION) {
       return;
     }
     const outcome = getOutcome(c.res.status);

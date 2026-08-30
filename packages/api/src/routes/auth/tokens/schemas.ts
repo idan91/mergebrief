@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { WRITE_CLASSIFICATION } from "../../../product-operations/types";
+import { WriteClassifications } from "../../../product-operations/types";
 import { MAX_EXPIRY_DAYS } from "./consts";
 
 /**
@@ -14,9 +14,9 @@ export const mintBodySchema = z.object({
   // silently lacks what its owner expects, surfacing as an unexplained 403.
   // The mint form asks, and the list shows what was asked for.
   scope: z.enum([
-    WRITE_CLASSIFICATION.READ,
-    WRITE_CLASSIFICATION.PRIVATE_WRITE,
-    WRITE_CLASSIFICATION.EXTERNAL_WRITE,
+    WriteClassifications.READ,
+    WriteClassifications.PRIVATE_WRITE,
+    WriteClassifications.EXTERNAL_WRITE,
   ]),
   installationId: z.union([
     z.string().regex(/^\d+$/),

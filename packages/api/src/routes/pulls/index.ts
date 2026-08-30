@@ -10,7 +10,7 @@ import {
   productRouter,
   type ProductRouter,
 } from "../../product-operations/product-router";
-import { WRITE_CLASSIFICATION } from "../../product-operations/types";
+import { WriteClassifications } from "../../product-operations/types";
 import type { AuthRouteDeps } from "../auth/session";
 import type { AllowedRepoResolver } from "../allowed-repos";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "../authz";
@@ -26,7 +26,7 @@ export function pullsRoute(
   app.query(
     {
       id: ProductQueryIds.LIST_PULLS,
-      classification: WRITE_CLASSIFICATION.READ,
+      classification: WriteClassifications.READ,
     },
     "/",
     handlers.listPulls,

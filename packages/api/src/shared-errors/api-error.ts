@@ -1,22 +1,22 @@
 // The thrown wire-error family: abstract `ApiError` + exactly one subclass
-// per HTTP status in `API_ERROR_STATUS`. `CodeFor<status>` constrains each
+// per HTTP status in `ApiErrorStatusByCode`. `CodeFor<status>` constrains each
 // class to codes of its status, so class, status, and code can never
 // disagree — the status table stays the single source of truth.
 import type { ValueOf } from "types";
 import {
   ApiErrorCodes,
   type ApiErrorCode,
-  type API_ERROR_STATUS,
   type ApiErrorParams,
+  type ApiErrorStatusByCode,
 } from "../error-response";
 
-export type ApiErrorStatus = ValueOf<typeof API_ERROR_STATUS>;
+export type ApiErrorStatus = ValueOf<typeof ApiErrorStatusByCode>;
 
 type ParamCode = keyof ApiErrorParams;
 
 /** The codes whose pinned status is `S`. */
 export type CodeFor<S extends ApiErrorStatus> = {
-  [C in ApiErrorCode]: (typeof API_ERROR_STATUS)[C] extends S ? C : never;
+  [C in ApiErrorCode]: (typeof ApiErrorStatusByCode)[C] extends S ? C : never;
 }[ApiErrorCode];
 
 // A class whose code IS its status restated defaults to it (`new

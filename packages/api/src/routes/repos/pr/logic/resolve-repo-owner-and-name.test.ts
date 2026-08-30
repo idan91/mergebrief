@@ -24,7 +24,7 @@ import {
 } from "vitest";
 import { createReviewerGitHubClient } from "../../../auth/reviewer-github-client";
 import {
-  AuthChannel,
+  AuthChannels,
   type AuthRouteDeps,
   type ViewerPrincipal,
 } from "../../../auth/session";
@@ -83,7 +83,7 @@ async function buildClient(ciphertextOverride?: string) {
     ghTokenCiphertext: ciphertextOverride ?? sealed.value,
     keyRef: KEY_REF,
     scope: WriteClassifications.EXTERNAL_WRITE,
-    channel: AuthChannel.COOKIE,
+    channel: AuthChannels.COOKIE,
   };
   const deps: AuthRouteDeps = {
     handle: harness.handle,

@@ -9,7 +9,7 @@ import {
 import type { Mutable } from "types";
 
 /** The stored side vocabulary as GitHub names it. */
-const SIDE_ON_GITHUB: Readonly<Record<DraftCommentSide, ReviewCommentSide>> = {
+const SideOnGithub: Readonly<Record<DraftCommentSide, ReviewCommentSide>> = {
   [DraftCommentSides.OLD]: ReviewCommentSide.LEFT,
   [DraftCommentSides.NEW]: ReviewCommentSide.RIGHT,
 };
@@ -30,14 +30,14 @@ export function shapeSubmitComment(
   const comment: Mutable<SubmitComment> = {
     path: draft.filePath,
     line: draft.endLine,
-    side: SIDE_ON_GITHUB[draft.side],
+    side: SideOnGithub[draft.side],
     body: draft.body,
   };
   // A two-side range is multi-line by definition; same-side needs the span.
   const multiLine = draft.startSide !== null || draft.startLine < draft.endLine;
   if (multiLine) {
     comment.startLine = draft.startLine;
-    comment.startSide = SIDE_ON_GITHUB[draft.startSide ?? draft.side];
+    comment.startSide = SideOnGithub[draft.startSide ?? draft.side];
   }
   return comment;
 }

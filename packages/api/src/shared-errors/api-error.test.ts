@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { API_ERROR_STATUS, ApiErrorCodes } from "../error-response";
+import { ApiErrorStatusByCode, ApiErrorCodes } from "../error-response";
 import {
   ApiError,
   BadGateway,
@@ -53,7 +53,7 @@ describe("ApiError classes", () => {
     for (const err of instances) {
       expect(err).toBeInstanceOf(ApiError);
       expect(err).toBeInstanceOf(Error);
-      expect(err.status).toBe(API_ERROR_STATUS[err.code]);
+      expect(err.status).toBe(ApiErrorStatusByCode[err.code]);
     }
   });
 

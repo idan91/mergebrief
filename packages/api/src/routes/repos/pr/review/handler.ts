@@ -29,7 +29,7 @@ import {
 } from "../wire-bounds";
 import reviewController from "./controller";
 import { throwSubmitFailure } from "./logic/wire-failures";
-import { OUTCOME_TO_EVENT } from "./consts";
+import { OutcomeToEvent } from "./consts";
 import { ReviewOutcomes, type ReviewOutcome } from "./types";
 import {
   foldCommentsIntoBody,
@@ -180,7 +180,7 @@ export default function createHandlers(
           repo: target.value.repo,
           prNumber: pr.prNumber,
           commitId: commitId.data,
-          event: OUTCOME_TO_EVENT[submitBody.outcome],
+          event: OutcomeToEvent[submitBody.outcome],
         },
         body: submitBody.body,
         comments,

@@ -26,7 +26,7 @@ import { repoAuthzLayer, type AuthzEnv } from "./authz";
 import { createErrorHandler } from "../shared-errors/on-error";
 import type * as sessionModule from "./auth/session";
 import {
-  AuthChannel,
+  AuthChannels,
   refreshSessionToken,
   type AuthRouteDeps,
   type ViewerPrincipal,
@@ -90,7 +90,7 @@ async function buildGateApp(): Promise<Hono<AuthzEnv>> {
     ghTokenCiphertext: sealed.value,
     keyRef: KEY_REF,
     scope: WriteClassifications.EXTERNAL_WRITE,
-    channel: AuthChannel.COOKIE,
+    channel: AuthChannels.COOKIE,
   };
   const deps: AuthRouteDeps = {
     handle: harness.handle,

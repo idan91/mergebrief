@@ -95,11 +95,11 @@ export function sha256Hex(value: string): string {
 // dispatches on — the ONLY behavioral fork.
 // ---------------------------------------------------------------------------
 
-export const AuthChannel = {
+export const AuthChannels = {
   COOKIE: "cookie",
   BEARER: "bearer",
 } as const;
-export type AuthChannel = ValueOf<typeof AuthChannel>;
+export type AuthChannel = ValueOf<typeof AuthChannels>;
 
 /**
  * A resolved viewer. For `bearer`, `sessionTokenHash` carries the API token's
@@ -129,7 +129,7 @@ export function derivePrincipalFromSession(
     // A cookie has no row to hold a limit and the person is at the keyboard:
     // the browser is unlimited by construction, not by a stored value.
     scope: WriteClassifications.EXTERNAL_WRITE,
-    channel: AuthChannel.COOKIE,
+    channel: AuthChannels.COOKIE,
   };
 }
 
@@ -157,7 +157,7 @@ export function derivePrincipalFromApiToken({
     expiresAt: token.expiresAt ?? NO_EXPIRY_SENTINEL,
     createdAt: token.createdAt,
     scope: token.scope,
-    channel: AuthChannel.BEARER,
+    channel: AuthChannels.BEARER,
   };
 }
 
@@ -165,13 +165,13 @@ export function derivePrincipalFromApiToken({
 // Refresh orchestrator — exported: the authz gate calls it on a 401.
 // ---------------------------------------------------------------------------
 
-export const RefreshErrorCode = {
+export const RefreshErrorCodes = {
   /** No session for the hash (already logged out / swept). */
   NOT_FOUND: "not-found",
   /** Refresh could not complete — the session was deleted; re-login required. */
   REFRESH_FAILED: "refresh-failed",
 } as const;
-export type RefreshErrorCode = ValueOf<typeof RefreshErrorCode>;
+export type RefreshErrorCode = ValueOf<typeof RefreshErrorCodes>;
 
 export interface RefreshError {
   readonly code: RefreshErrorCode;
@@ -266,7 +266,7 @@ export async function refreshSessionToken(
     clientId: deps.auth.oauthClientId,
     clientSecret: deps.auth.oauthClientSecret,
   });
-  const isCookie = session.channel === AuthChannel.COOKIE;
+  const isCookie = session.channel === AuthChannels.COOKIE;
 
   // The one posture fork: cookie burns its session on any unrecoverable arm;
   // bearer leaves the row for its owner to see and revoke.
@@ -285,7 +285,7 @@ export async function refreshSessionToken(
     return {
       ok: false,
       error: {
-        code: RefreshErrorCode.REFRESH_FAILED,
+        code: RefreshErrorCodes.REFRESH_FAILED,
         message: "refresh failed; re-authentication required",
       },
     };
@@ -315,7 +315,10 @@ export async function refreshSessionToken(
       // the caller re-authenticates.
       return {
         ok: false,
-        error: { code: RefreshErrorCode.NOT_FOUND, message: "grant not found" },
+        error: {
+          code: RefreshErrorCodes.NOT_FOUND,
+          message: "grant not found",
+        },
       };
     }
     // REFRESH_REJECTED: decrypt / GitHub rotation / re-encrypt failed.
@@ -338,7 +341,7 @@ export async function refreshSessionToken(
       return {
         ok: false,
         error: {
-          code: RefreshErrorCode.NOT_FOUND,
+          code: RefreshErrorCodes.NOT_FOUND,
           message: "session not found",
         },
       };
@@ -358,7 +361,7 @@ export async function refreshSessionToken(
       return {
         ok: false,
         error: {
-          code: RefreshErrorCode.REFRESH_FAILED,
+          code: RefreshErrorCodes.REFRESH_FAILED,
           message: "refresh failed; re-authentication required",
         },
       };

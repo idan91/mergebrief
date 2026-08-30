@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { computeCatalogFingerprint } from "../../product-operations/manifest";
 import {
-  OPERATION_KIND,
-  WRITE_CLASSIFICATION,
+  OperationKinds,
+  WriteClassifications,
   type ProductOperationDescriptor,
 } from "../../product-operations/types";
 import capabilitiesController from "./controller";
@@ -10,8 +10,8 @@ import capabilitiesController from "./controller";
 const OPERATIONS: readonly ProductOperationDescriptor[] = [
   {
     id: "read-capabilities",
-    kind: OPERATION_KIND.QUERY,
-    classification: WRITE_CLASSIFICATION.READ,
+    kind: OperationKinds.QUERY,
+    classification: WriteClassifications.READ,
     endpoint: "GET /api/capabilities",
   },
 ];

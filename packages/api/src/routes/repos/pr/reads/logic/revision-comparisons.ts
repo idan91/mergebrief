@@ -111,14 +111,14 @@ function isNonTerminal(status: GenerationStatus): boolean {
  * Why `lastReview` is unavailable despite a recorded checkpoint. API-response
  * vocabulary only — never stored, so no DB CHECK/migration.
  */
-export const LastReviewUnavailableReason = {
+export const LastReviewUnavailableReasons = {
   /** No marks and no live generation — GC'd baseline / rewritten history. */
   BASELINE_UNAVAILABLE: "baseline-unavailable",
   /** No marks yet, but a delta generation for the span is still non-terminal. */
   PENDING: "pending",
 } as const;
 export type LastReviewUnavailableReason = ValueOf<
-  typeof LastReviewUnavailableReason
+  typeof LastReviewUnavailableReasons
 >;
 
 /**
@@ -227,7 +227,7 @@ export async function deriveLastReviewComparison(
     pendingProbe !== undefined && (await pendingProbe(baselineSha));
   return {
     unavailable: pending
-      ? LastReviewUnavailableReason.PENDING
-      : LastReviewUnavailableReason.BASELINE_UNAVAILABLE,
+      ? LastReviewUnavailableReasons.PENDING
+      : LastReviewUnavailableReasons.BASELINE_UNAVAILABLE,
   };
 }

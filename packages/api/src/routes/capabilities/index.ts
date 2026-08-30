@@ -6,7 +6,7 @@ import {
   productRouter,
   type ProductRouter,
 } from "../../product-operations/product-router";
-import { WRITE_CLASSIFICATION } from "../../product-operations/types";
+import { WriteClassifications } from "../../product-operations/types";
 import type { AuthRouteDeps } from "../auth/session";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "../authz";
 import createCapabilitiesHandlers from "./handler";
@@ -20,7 +20,7 @@ export function capabilitiesRoute(
   app.query(
     {
       id: ProductQueryIds.READ_CAPABILITIES,
-      classification: WRITE_CLASSIFICATION.READ,
+      classification: WriteClassifications.READ,
     },
     "/",
     handlers.readCapabilities,

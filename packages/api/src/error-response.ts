@@ -70,7 +70,7 @@ export type ApiErrorBody =
 
 // 1:1 — a code needing two statuses is two codes. `app-not-installed` is 403
 // from its one login site; a future non-403 site mints a new code.
-export const API_ERROR_STATUS = {
+export const ApiErrorStatusByCode = {
   [ApiErrorCodes.UNAUTHORIZED]: 401,
   [ApiErrorCodes.INVALID_SIGNATURE]: 401,
   [ApiErrorCodes.FORBIDDEN]: 403,
@@ -102,7 +102,7 @@ export const API_ERROR_STATUS = {
  * MIRROR-ONLY: `packages/i18n`'s suite pins `errors.<code>` equality against
  * it; no route behavior may depend on the export.
  */
-export const API_ERROR_ENGLISH = {
+export const ApiErrorEnglishByCode = {
   [ApiErrorCodes.UNAUTHORIZED]: "unauthorized",
   [ApiErrorCodes.INVALID_SIGNATURE]: "invalid signature",
   [ApiErrorCodes.FORBIDDEN]: "forbidden",
@@ -142,7 +142,7 @@ function composeEnglish(
   code: ApiErrorCode,
   params: { readonly [key: string]: string } | undefined,
 ): string {
-  return API_ERROR_ENGLISH[code].replaceAll(
+  return ApiErrorEnglishByCode[code].replaceAll(
     /\{\{(\w+)\}\}/g,
     (token, name: string) => params?.[name] ?? token,
   );
@@ -180,5 +180,5 @@ export function buildErrorResponse(
   const base = { error: composeEnglish(code, params), code };
   const body = params === undefined ? base : { ...base, params };
   c.set("apiErrorCode", code);
-  return c.json(body, API_ERROR_STATUS[code], NO_STORE);
+  return c.json(body, ApiErrorStatusByCode[code], NO_STORE);
 }

@@ -1,8 +1,8 @@
 import { Hono, type Context } from "hono";
 import { describe, expect, it } from "vitest";
 import {
-  API_ERROR_ENGLISH,
-  API_ERROR_STATUS,
+  ApiErrorEnglishByCode,
+  ApiErrorStatusByCode,
   ApiErrorCodes,
   errorJson,
 } from "../src/error-response";
@@ -47,13 +47,13 @@ describe("errorJson", () => {
     const codes = Object.values(ApiErrorCodes);
     expect(codes).toHaveLength(24);
     for (const code of codes) {
-      expect(API_ERROR_STATUS[code]).toBeGreaterThanOrEqual(400);
-      expect(API_ERROR_ENGLISH[code]).toBeTruthy();
+      expect(ApiErrorStatusByCode[code]).toBeGreaterThanOrEqual(400);
+      expect(ApiErrorEnglishByCode[code]).toBeTruthy();
     }
   });
 
   it("pins the full code→status table — a flip is a contract decision", () => {
-    expect(API_ERROR_STATUS).toEqual({
+    expect(ApiErrorStatusByCode).toEqual({
       unauthorized: 401,
       "invalid-signature": 401,
       forbidden: 403,

@@ -10,7 +10,7 @@ import {
   productRouter,
   type ProductRouter,
 } from "../../../product-operations/product-router";
-import { WRITE_CLASSIFICATION } from "../../../product-operations/types";
+import { WriteClassifications } from "../../../product-operations/types";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "../../authz";
 import type { AuthRouteDeps } from "../session";
 import createTokensHandlers from "./handler";
@@ -24,7 +24,7 @@ export function tokensRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   app.action(
     {
       id: ProductActionIds.MINT_TOKEN,
-      classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
+      classification: WriteClassifications.PRIVATE_WRITE,
     },
     "post",
     "/",
@@ -33,7 +33,7 @@ export function tokensRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   app.query(
     {
       id: ProductQueryIds.LIST_TOKENS,
-      classification: WRITE_CLASSIFICATION.READ,
+      classification: WriteClassifications.READ,
     },
     "/",
     handlers.listTokens,
@@ -41,7 +41,7 @@ export function tokensRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   app.action(
     {
       id: ProductActionIds.REVOKE_TOKEN,
-      classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
+      classification: WriteClassifications.PRIVATE_WRITE,
     },
     "delete",
     "/:id",

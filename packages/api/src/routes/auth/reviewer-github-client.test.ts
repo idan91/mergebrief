@@ -23,7 +23,7 @@ import {
 import { createReviewerGitHubClient } from "./reviewer-github-client";
 import type * as sessionModule from "./session";
 import {
-  AuthChannel,
+  AuthChannels,
   refreshSessionToken,
   type AuthRouteDeps,
   type ViewerPrincipal,
@@ -83,7 +83,7 @@ async function setup(token = "gh-token-1"): Promise<Setup> {
     ghTokenCiphertext: await seal(token),
     keyRef: KEY_REF,
     scope: WriteClassifications.EXTERNAL_WRITE,
-    channel: AuthChannel.COOKIE,
+    channel: AuthChannels.COOKIE,
   };
   // Real handle + auth bundle: only `auth.keyProvider` is exercised (the
   // refresh orchestrator is mocked), but the deps stay honestly typed.

@@ -17,7 +17,7 @@ import {
   InternalError,
   NotFound,
 } from "../../../../shared-errors/api-error";
-import { AuthChannel, type AuthRouteDeps } from "../../../auth/session";
+import { AuthChannels, type AuthRouteDeps } from "../../../auth/session";
 import type { AuthzEnv } from "../../../authz";
 import { prNumberSchema, rowIdSchema } from "../wire-bounds";
 import sessionController from "./controller";
@@ -70,7 +70,7 @@ function assertWritableDraft(
  * token clearing one would sign under the human's signature.
  */
 function assertHuman(c: Context<AuthzEnv>): void {
-  if (c.get("session").channel !== AuthChannel.COOKIE) {
+  if (c.get("session").channel !== AuthChannels.COOKIE) {
     throw new Forbidden(ApiErrorCodes.HUMAN_ONLY);
   }
 }

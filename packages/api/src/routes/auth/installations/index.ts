@@ -10,7 +10,7 @@ import {
   productRouter,
   type ProductRouter,
 } from "../../../product-operations/product-router";
-import { WRITE_CLASSIFICATION } from "../../../product-operations/types";
+import { WriteClassifications } from "../../../product-operations/types";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "../../authz";
 import type { AuthRouteDeps } from "../session";
 import createInstallationsHandlers from "./handler";
@@ -25,7 +25,7 @@ export function installationsRoutes(
   app.query(
     {
       id: ProductQueryIds.LIST_INSTALLATIONS,
-      classification: WRITE_CLASSIFICATION.READ,
+      classification: WriteClassifications.READ,
     },
     "/",
     handlers.listInstallations,
@@ -33,7 +33,7 @@ export function installationsRoutes(
   app.action(
     {
       id: ProductActionIds.SELECT_INSTALLATION,
-      classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
+      classification: WriteClassifications.PRIVATE_WRITE,
     },
     "post",
     "/",

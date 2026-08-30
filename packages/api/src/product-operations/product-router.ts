@@ -15,9 +15,9 @@ import type { ProductActionId, ProductQueryId } from "./ids";
 import type { ProductOperationRegistry } from "./registry";
 import {
   isWriteClassification,
-  OPERATION_KIND,
+  OperationKinds,
   scopeReaches,
-  WRITE_CLASSIFICATION,
+  WriteClassifications,
   type ActionClassification,
   type ProductActionDescriptor,
   type ProductQueryDescriptor,
@@ -36,7 +36,7 @@ export type ActionMethod = ValueOf<typeof ActionMethods>;
 /** A query declaration — id from the query vocabulary, read-only by type. */
 export interface ProductQueryDeclaration {
   readonly id: ProductQueryId;
-  readonly classification: typeof WRITE_CLASSIFICATION.READ;
+  readonly classification: typeof WriteClassifications.READ;
 }
 
 /** An action declaration — id from the action vocabulary, a write class. */
@@ -86,15 +86,15 @@ function mountAction<E extends Env, P extends string>(
   }
 }
 
-const SEAL_REASON = {
+const SealReasons = {
   MOUNTED: "mounted",
   COMMITTED: "committed",
 } as const;
-type SealReason = ValueOf<typeof SEAL_REASON>;
+type SealReason = ValueOf<typeof SealReasons>;
 
 const SEAL_CAUSE: Readonly<Record<SealReason, string>> = {
-  [SEAL_REASON.MOUNTED]: "mounted into a parent",
-  [SEAL_REASON.COMMITTED]: "committed",
+  [SealReasons.MOUNTED]: "mounted into a parent",
+  [SealReasons.COMMITTED]: "committed",
 };
 
 function hasKey<K extends string>(
@@ -145,8 +145,8 @@ function scopeGate<E extends Env>(
 
 function isActionClassification(value: string): value is ActionClassification {
   return (
-    value === WRITE_CLASSIFICATION.PRIVATE_WRITE ||
-    value === WRITE_CLASSIFICATION.EXTERNAL_WRITE
+    value === WriteClassifications.PRIVATE_WRITE ||
+    value === WriteClassifications.EXTERNAL_WRITE
   );
 }
 
@@ -214,13 +214,13 @@ export function productRouter<E extends Env = Env>(): ProductRouter<E> {
     },
     query(descriptor, path, ...handlers) {
       assertOpen(`cannot declare query "${descriptor.id}"`);
-      if (descriptor.classification !== WRITE_CLASSIFICATION.READ) {
+      if (descriptor.classification !== WriteClassifications.READ) {
         throw new Error(
           `product query "${descriptor.id}" must be classified "read"`,
         );
       }
       pending.push({
-        descriptor: { ...descriptor, kind: OPERATION_KIND.QUERY },
+        descriptor: { ...descriptor, kind: OperationKinds.QUERY },
         method: "GET",
         path,
       });
@@ -234,7 +234,7 @@ export function productRouter<E extends Env = Env>(): ProductRouter<E> {
         );
       }
       pending.push({
-        descriptor: { ...descriptor, kind: OPERATION_KIND.ACTION },
+        descriptor: { ...descriptor, kind: OperationKinds.ACTION },
         method: method.toUpperCase(),
         path,
       });
@@ -270,14 +270,14 @@ export function productRouter<E extends Env = Env>(): ProductRouter<E> {
       for (const entry of pending) {
         const endpoint = `${entry.method} ${entry.path}`;
         // Branch per kind so the registered union member stays discriminated.
-        if (entry.descriptor.kind === OPERATION_KIND.QUERY) {
+        if (entry.descriptor.kind === OperationKinds.QUERY) {
           registry.register({ ...entry.descriptor, endpoint });
         } else {
           registry.register({ ...entry.descriptor, endpoint });
         }
       }
       // Post-commit declarations would serve but never register.
-      sealedBy = SEAL_REASON.COMMITTED;
+      sealedBy = SealReasons.COMMITTED;
     },
   };
 
@@ -296,7 +296,7 @@ export function productRouter<E extends Env = Env>(): ProductRouter<E> {
           `cannot mount "${prefix}": this router was already ${SEAL_CAUSE[sealedBy]}`,
         );
       }
-      sealedBy = SEAL_REASON.MOUNTED;
+      sealedBy = SealReasons.MOUNTED;
       // Hand the entries over once — the parent owns them now.
       return pending.splice(0, pending.length);
     },

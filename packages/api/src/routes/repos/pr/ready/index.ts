@@ -10,7 +10,7 @@ import {
   productRouter,
   type ProductRouter,
 } from "../../../../product-operations/product-router";
-import { WRITE_CLASSIFICATION } from "../../../../product-operations/types";
+import { WriteClassifications } from "../../../../product-operations/types";
 import type { AuthRouteDeps } from "../../../auth/session";
 import type { AuthzEnv } from "../../../authz";
 import createReadyHandlers from "./handler";
@@ -21,7 +21,7 @@ export function markReadyRoute(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   app.action(
     {
       id: ProductActionIds.MARK_READY,
-      classification: WRITE_CLASSIFICATION.EXTERNAL_WRITE,
+      classification: WriteClassifications.EXTERNAL_WRITE,
     },
     "post",
     "/",

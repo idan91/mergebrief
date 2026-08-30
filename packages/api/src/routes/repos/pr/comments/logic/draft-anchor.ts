@@ -6,7 +6,7 @@ import {
 } from "persistence";
 
 /** The stored side vocabulary as GitHub names it. */
-export const SIDE_ON_GITHUB: Readonly<
+export const SideOnGithub: Readonly<
   Record<DraftCommentSide, ReviewCommentSide>
 > = {
   [DraftCommentSides.OLD]: ReviewCommentSide.LEFT,
@@ -24,13 +24,13 @@ export function readDraftAnchor(draft: ReviewDraftCommentRow): {
   const anchor: ReturnType<typeof readDraftAnchor> = {
     path: draft.filePath,
     line: draft.endLine,
-    side: SIDE_ON_GITHUB[draft.side],
+    side: SideOnGithub[draft.side],
   };
   // A two-side range is multi-line by definition; same-side needs the span.
   const multiLine = draft.startSide !== null || draft.startLine < draft.endLine;
   if (multiLine) {
     anchor.startLine = draft.startLine;
-    anchor.startSide = SIDE_ON_GITHUB[draft.startSide ?? draft.side];
+    anchor.startSide = SideOnGithub[draft.startSide ?? draft.side];
   }
   return anchor;
 }

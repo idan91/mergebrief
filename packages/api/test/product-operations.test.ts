@@ -12,8 +12,8 @@ import {
 } from "../src/product-operations/ids";
 import { productRouter } from "../src/product-operations/product-router";
 import {
-  OPERATION_KIND,
-  WRITE_CLASSIFICATION,
+  OperationKinds,
+  WriteClassifications,
 } from "../src/product-operations/types";
 
 describe("product operation registry", () => {
@@ -21,14 +21,14 @@ describe("product operation registry", () => {
     const registry = createProductOperationRegistry();
     registry.register({
       id: "list-pulls",
-      kind: OPERATION_KIND.QUERY,
-      classification: WRITE_CLASSIFICATION.READ,
+      kind: OperationKinds.QUERY,
+      classification: WriteClassifications.READ,
       endpoint: "GET /api/pulls",
     });
     registry.register({
       id: "generate-brief",
-      kind: OPERATION_KIND.ACTION,
-      classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
+      kind: OperationKinds.ACTION,
+      classification: WriteClassifications.PRIVATE_WRITE,
       endpoint: "POST /api/generate",
     });
     expect(registry.list().map((d) => d.id)).toEqual([
@@ -41,8 +41,8 @@ describe("product operation registry", () => {
     const registry = createProductOperationRegistry();
     registry.register({
       id: "mint-token",
-      kind: OPERATION_KIND.ACTION,
-      classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
+      kind: OperationKinds.ACTION,
+      classification: WriteClassifications.PRIVATE_WRITE,
       endpoint: "POST /api/auth/tokens",
     });
     expect(registry.list()).toEqual([
@@ -59,8 +59,8 @@ describe("product operation registry", () => {
     const registry = createProductOperationRegistry();
     const descriptor = {
       id: "list-pulls",
-      kind: OPERATION_KIND.QUERY,
-      classification: WRITE_CLASSIFICATION.READ,
+      kind: OperationKinds.QUERY,
+      classification: WriteClassifications.READ,
       endpoint: "GET /api/pulls",
     } as const;
     registry.register(descriptor);
@@ -72,8 +72,8 @@ describe("product operation registry", () => {
     const registry = createProductOperationRegistry();
     const descriptor = {
       id: "list-pulls",
-      kind: OPERATION_KIND.QUERY,
-      classification: WRITE_CLASSIFICATION.READ,
+      kind: OperationKinds.QUERY,
+      classification: WriteClassifications.READ,
       endpoint: "GET /api/pulls",
     } as const;
     registry.register(descriptor);
@@ -83,8 +83,8 @@ describe("product operation registry", () => {
     expect(() =>
       registry.register({
         ...descriptor,
-        kind: OPERATION_KIND.ACTION,
-        classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
+        kind: OperationKinds.ACTION,
+        classification: WriteClassifications.PRIVATE_WRITE,
       }),
     ).toThrowError(/list-pulls/);
   });
@@ -96,8 +96,8 @@ describe("product operation registry", () => {
       expect(() =>
         registry.register({
           id,
-          kind: OPERATION_KIND.QUERY,
-          classification: WRITE_CLASSIFICATION.READ,
+          kind: OperationKinds.QUERY,
+          classification: WriteClassifications.READ,
           endpoint: "GET /api/probe",
         }),
       ).toThrowError(/kebab-case/);
@@ -108,15 +108,15 @@ describe("product operation registry", () => {
     const registry = createProductOperationRegistry();
     registry.register({
       id: "read-pull",
-      kind: OPERATION_KIND.QUERY,
-      classification: WRITE_CLASSIFICATION.READ,
+      kind: OperationKinds.QUERY,
+      classification: WriteClassifications.READ,
       endpoint: "GET /api/a",
     });
     const snapshot = registry.list();
     registry.register({
       id: "read-brief",
-      kind: OPERATION_KIND.QUERY,
-      classification: WRITE_CLASSIFICATION.READ,
+      kind: OperationKinds.QUERY,
+      classification: WriteClassifications.READ,
       endpoint: "GET /api/b",
     });
     expect(snapshot).toHaveLength(1);
@@ -125,11 +125,11 @@ describe("product operation registry", () => {
 
 const QUERY = {
   id: ProductQueryIds.LIST_PULLS,
-  classification: WRITE_CLASSIFICATION.READ,
+  classification: WriteClassifications.READ,
 } as const;
 const ACTION = {
   id: ProductActionIds.SUBMIT_REVIEW,
-  classification: WRITE_CLASSIFICATION.EXTERNAL_WRITE,
+  classification: WriteClassifications.EXTERNAL_WRITE,
 } as const;
 
 /** What the auth middleware contributes, as far as the scope check cares. */
@@ -158,12 +158,12 @@ describe("product router", () => {
 
   it("action mounts each declared method", async () => {
     const router = productRouter<SessionEnv>();
-    router.use(scopeSetter(WRITE_CLASSIFICATION.EXTERNAL_WRITE));
+    router.use(scopeSetter(WriteClassifications.EXTERNAL_WRITE));
     router.action(ACTION, "post", "/review", (c) => c.json({ ok: true }));
     router.action(
       {
         id: ProductActionIds.REVOKE_TOKEN,
-        classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
+        classification: WriteClassifications.PRIVATE_WRITE,
       },
       "delete",
       "/tokens/:id",
@@ -184,7 +184,7 @@ describe("product router", () => {
     pr.query(
       {
         id: ProductQueryIds.READ_CONVERSATION,
-        classification: WRITE_CLASSIFICATION.READ,
+        classification: WriteClassifications.READ,
       },
       "/conversation",
       (c) => c.body(null, 204),
@@ -194,7 +194,7 @@ describe("product router", () => {
     repos.query(
       {
         id: ProductQueryIds.LIST_REPOS,
-        classification: WRITE_CLASSIFICATION.READ,
+        classification: WriteClassifications.READ,
       },
       "/",
       (c) => c.body(null, 204),
@@ -257,7 +257,7 @@ describe("product router", () => {
         {
           id: ProductQueryIds.LIST_PULLS,
           // @ts-expect-error — a query must declare READ, not a write classification
-          classification: WRITE_CLASSIFICATION.EXTERNAL_WRITE,
+          classification: WriteClassifications.EXTERNAL_WRITE,
         },
         "/pulls",
         (c) => c.body(null, 204),
@@ -268,7 +268,7 @@ describe("product router", () => {
         {
           id: ProductActionIds.SUBMIT_REVIEW,
           // @ts-expect-error — an action must declare a write classification, not READ
-          classification: WRITE_CLASSIFICATION.READ,
+          classification: WriteClassifications.READ,
         },
         "post",
         "/review",
@@ -284,7 +284,7 @@ describe("product router", () => {
       {
         // @ts-expect-error — a query id must come from ProductQueryIds
         id: "not-in-the-vocabulary",
-        classification: WRITE_CLASSIFICATION.READ,
+        classification: WriteClassifications.READ,
       },
       "/probe",
       (c) => c.body(null, 204),
@@ -293,7 +293,7 @@ describe("product router", () => {
       {
         // @ts-expect-error — an action id must come from ProductActionIds
         id: ProductQueryIds.LIST_PULLS,
-        classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
+        classification: WriteClassifications.PRIVATE_WRITE,
       },
       "post",
       "/probe",
@@ -373,7 +373,7 @@ describe("product router", () => {
       root.query(
         {
           id: ProductQueryIds.LIST_REPOS,
-          classification: WRITE_CLASSIFICATION.READ,
+          classification: WriteClassifications.READ,
         },
         "/repos",
         (c) => c.body(null, 204),
@@ -493,7 +493,7 @@ describe("the scope check at the router seam", () => {
     router.action(
       {
         id: ProductActionIds.GENERATE_BRIEF,
-        classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
+        classification: WriteClassifications.PRIVATE_WRITE,
       },
       "post",
       "/generate",
@@ -504,7 +504,7 @@ describe("the scope check at the router seam", () => {
   }
 
   it("refuses a read-scoped credential on either write class", async () => {
-    const app = actionApp(WRITE_CLASSIFICATION.READ);
+    const app = actionApp(WriteClassifications.READ);
     for (const path of ["/generate", "/review"]) {
       const res = await post(app, path);
       expect(res.status).toBe(403);
@@ -513,12 +513,12 @@ describe("the scope check at the router seam", () => {
   });
 
   it("lets a read-scoped credential read", async () => {
-    const res = await actionApp(WRITE_CLASSIFICATION.READ).request("/pulls");
+    const res = await actionApp(WriteClassifications.READ).request("/pulls");
     expect(res.status).toBe(200);
   });
 
   it("stops a private-write credential at the instance boundary", async () => {
-    const app = actionApp(WRITE_CLASSIFICATION.PRIVATE_WRITE);
+    const app = actionApp(WriteClassifications.PRIVATE_WRITE);
     expect((await post(app, "/generate")).status).toBe(200);
     const external = await post(app, "/review");
     expect(external.status).toBe(403);
@@ -526,7 +526,7 @@ describe("the scope check at the router seam", () => {
   });
 
   it("lets an external-write credential through everywhere", async () => {
-    const app = actionApp(WRITE_CLASSIFICATION.EXTERNAL_WRITE);
+    const app = actionApp(WriteClassifications.EXTERNAL_WRITE);
     expect((await post(app, "/generate")).status).toBe(200);
     expect((await post(app, "/review")).status).toBe(200);
   });

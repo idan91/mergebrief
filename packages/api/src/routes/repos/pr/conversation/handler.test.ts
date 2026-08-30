@@ -18,7 +18,7 @@ import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import type { Result } from "types";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createErrorHandler } from "../../../../shared-errors/on-error";
-import { AuthChannel, type ViewerPrincipal } from "../../../auth/session";
+import { AuthChannels, type ViewerPrincipal } from "../../../auth/session";
 import type { AuthzEnv } from "../../../authz";
 import type { InstallationGitHubPort } from "../../../github-port";
 import { createTtlCache } from "../../../ttl-cache";
@@ -91,7 +91,7 @@ function buildApp(
     ghTokenCiphertext: "unused",
     keyRef: "unused",
     scope: WriteClassifications.EXTERNAL_WRITE,
-    channel: AuthChannel.COOKIE,
+    channel: AuthChannels.COOKIE,
   };
   const github: InstallationGitHubPort = {
     listRepoCollaborators: vi.fn(async () => {
@@ -262,7 +262,7 @@ describe("readConversation — owner world (viewer token)", () => {
       ghTokenCiphertext: ciphertext,
       keyRef,
       scope: WriteClassifications.EXTERNAL_WRITE,
-      channel: AuthChannel.COOKIE,
+      channel: AuthChannels.COOKIE,
     };
 
     const tokensSeen: string[] = [];

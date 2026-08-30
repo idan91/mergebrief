@@ -11,7 +11,7 @@ import {
   productRouter,
   type ProductRouter,
 } from "../../../../product-operations/product-router";
-import { WRITE_CLASSIFICATION } from "../../../../product-operations/types";
+import { WriteClassifications } from "../../../../product-operations/types";
 import type { AuthRouteDeps } from "../../../auth/session";
 import type { AuthzEnv } from "../../../authz";
 import createCommentsHandlers from "./handler";
@@ -26,7 +26,7 @@ export function commentWriteRoutes(
   app.action(
     {
       id: ProductActionIds.CREATE_INLINE_COMMENT,
-      classification: WRITE_CLASSIFICATION.EXTERNAL_WRITE,
+      classification: WriteClassifications.EXTERNAL_WRITE,
     },
     "post",
     "/",
@@ -35,7 +35,7 @@ export function commentWriteRoutes(
   app.action(
     {
       id: ProductActionIds.REPLY_TO_COMMENT,
-      classification: WRITE_CLASSIFICATION.EXTERNAL_WRITE,
+      classification: WriteClassifications.EXTERNAL_WRITE,
     },
     "post",
     "/:commentId/replies",
@@ -44,7 +44,7 @@ export function commentWriteRoutes(
   app.action(
     {
       id: ProductActionIds.RESOLVE_THREAD,
-      classification: WRITE_CLASSIFICATION.EXTERNAL_WRITE,
+      classification: WriteClassifications.EXTERNAL_WRITE,
     },
     "post",
     "/:commentId/resolve",
@@ -53,7 +53,7 @@ export function commentWriteRoutes(
   app.action(
     {
       id: ProductActionIds.UNRESOLVE_THREAD,
-      classification: WRITE_CLASSIFICATION.EXTERNAL_WRITE,
+      classification: WriteClassifications.EXTERNAL_WRITE,
     },
     "post",
     "/:commentId/unresolve",

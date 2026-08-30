@@ -16,7 +16,7 @@ import {
   productRouter,
   type ProductRouter,
 } from "../../product-operations/product-router";
-import { WRITE_CLASSIFICATION } from "../../product-operations/types";
+import { WriteClassifications } from "../../product-operations/types";
 import type { AuthRouteDeps } from "../auth/session";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "../authz";
 import createUrlBriefHandlers from "./handler";
@@ -28,7 +28,7 @@ export function urlBriefRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   app.query(
     {
       id: ProductQueryIds.LIST_URL_BRIEFS,
-      classification: WRITE_CLASSIFICATION.READ,
+      classification: WriteClassifications.READ,
     },
     "/",
     handlers.listUrlBriefs,
@@ -36,7 +36,7 @@ export function urlBriefRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   app.action(
     {
       id: ProductActionIds.DELETE_URL_BRIEF,
-      classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
+      classification: WriteClassifications.PRIVATE_WRITE,
     },
     "delete",
     "/:repoId/:prNumber",

@@ -19,7 +19,7 @@ import {
   productRouter,
   type ProductRouter,
 } from "../../../product-operations/product-router";
-import { WRITE_CLASSIFICATION } from "../../../product-operations/types";
+import { WriteClassifications } from "../../../product-operations/types";
 import { COLLABORATORS_CACHE_MAX_ENTRIES } from "./consts";
 import createCollaboratorsHandlers from "./handler";
 
@@ -43,7 +43,7 @@ export function collaboratorsRoute(
   app.query(
     {
       id: ProductQueryIds.LIST_COLLABORATORS,
-      classification: WRITE_CLASSIFICATION.READ,
+      classification: WriteClassifications.READ,
     },
     "/",
     handlers.listCollaborators,

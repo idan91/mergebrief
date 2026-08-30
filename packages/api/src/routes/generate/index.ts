@@ -11,7 +11,7 @@ import {
   productRouter,
   type ProductRouter,
 } from "../../product-operations/product-router";
-import { WRITE_CLASSIFICATION } from "../../product-operations/types";
+import { WriteClassifications } from "../../product-operations/types";
 import type { AuthRouteDeps } from "../auth/session";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "../authz";
 import createGenerateHandlers from "./handler";
@@ -26,7 +26,7 @@ export function generateRoute(
   app.action(
     {
       id: ProductActionIds.GENERATE_BRIEF,
-      classification: WRITE_CLASSIFICATION.PRIVATE_WRITE,
+      classification: WriteClassifications.PRIVATE_WRITE,
     },
     "post",
     "/",

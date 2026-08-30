@@ -48,7 +48,7 @@ export type AttentionSubjectType = ValueOf<typeof AttentionSubjectTypes>;
 /** At least one operation — an item nothing can clear is not an item. */
 type ClearedBy = readonly [ProductActionId, ...ProductActionId[]];
 
-const CLEARED_BY = {
+const ClearedBy = {
   [AttentionItemKinds.ORPHANED_ANCHOR]: [
     ProductActionIds.REANCHOR_DRAFT_COMMENT,
     ProductActionIds.DELETE_DRAFT_COMMENT,
@@ -125,7 +125,7 @@ function item(
   subject: AttentionSubject,
   location: AttentionLocation,
 ): AttentionItem {
-  return { kind, subject, location, clearedBy: CLEARED_BY[kind] };
+  return { kind, subject, location, clearedBy: ClearedBy[kind] };
 }
 
 /** A disposition's kind, or `undefined` when it carried silently. */

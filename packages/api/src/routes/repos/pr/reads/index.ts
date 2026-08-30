@@ -8,7 +8,7 @@ import {
   productRouter,
   type ProductRouter,
 } from "../../../../product-operations/product-router";
-import { WRITE_CLASSIFICATION } from "../../../../product-operations/types";
+import { WriteClassifications } from "../../../../product-operations/types";
 import type { AuthRouteDeps } from "../../../auth/session";
 import type { AuthzEnv } from "../../../authz";
 import { createTtlCache } from "../../../ttl-cache";
@@ -23,7 +23,7 @@ export function readsRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   app.query(
     {
       id: ProductQueryIds.READ_PULL,
-      classification: WRITE_CLASSIFICATION.READ,
+      classification: WriteClassifications.READ,
     },
     "/",
     handlers.readPull,
@@ -31,7 +31,7 @@ export function readsRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   app.query(
     {
       id: ProductQueryIds.READ_BRIEF,
-      classification: WRITE_CLASSIFICATION.READ,
+      classification: WriteClassifications.READ,
     },
     "/brief",
     handlers.readBrief,
@@ -39,7 +39,7 @@ export function readsRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   app.query(
     {
       id: ProductQueryIds.READ_MARKS,
-      classification: WRITE_CLASSIFICATION.READ,
+      classification: WriteClassifications.READ,
     },
     "/marks",
     handlers.readMarks,
@@ -47,7 +47,7 @@ export function readsRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   app.query(
     {
       id: ProductQueryIds.READ_DELTA,
-      classification: WRITE_CLASSIFICATION.READ,
+      classification: WriteClassifications.READ,
     },
     "/delta",
     handlers.readDelta,
@@ -55,7 +55,7 @@ export function readsRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   app.query(
     {
       id: ProductQueryIds.READ_NARRATIVE,
-      classification: WRITE_CLASSIFICATION.READ,
+      classification: WriteClassifications.READ,
     },
     "/narrative",
     handlers.readNarrative,
@@ -63,7 +63,7 @@ export function readsRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   app.query(
     {
       id: ProductQueryIds.READ_BRIEF_CONTEXT,
-      classification: WRITE_CLASSIFICATION.READ,
+      classification: WriteClassifications.READ,
     },
     "/brief-context",
     handlers.readBriefContext,
@@ -71,7 +71,7 @@ export function readsRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   app.query(
     {
       id: ProductQueryIds.READ_DIFF,
-      classification: WRITE_CLASSIFICATION.READ,
+      classification: WriteClassifications.READ,
     },
     "/diff",
     handlers.readDiff,

@@ -14,7 +14,7 @@ import {
   productRouter,
   type ProductRouter,
 } from "../../../../product-operations/product-router";
-import { WRITE_CLASSIFICATION } from "../../../../product-operations/types";
+import { WriteClassifications } from "../../../../product-operations/types";
 import type { AuthRouteDeps } from "../../../auth/session";
 import type { AuthzEnv } from "../../../authz";
 import type { InstallationGitHubPort } from "../../../github-port";
@@ -50,7 +50,7 @@ export function conversationRoute(
   app.query(
     {
       id: ProductQueryIds.READ_CONVERSATION,
-      classification: WRITE_CLASSIFICATION.READ,
+      classification: WriteClassifications.READ,
     },
     "/",
     handlers.readConversation,
