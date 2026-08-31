@@ -45,7 +45,7 @@ lookup. Both fixed in PR A.
   chunked commits per logical unit; no Co-Authored-By trailers, no
   AI-attribution in PR bodies; PR titles `[BRIEF-67] prefix: Title Case`.
   PRs ready-for-review; Idan merges.
-- **Review gate: fable-reviewer subagent on each branch diff before its PR
+- **Review gate: reviewer subagent on each branch diff before its PR
   goes up.** No per-commit review agents.
 - **Confirmed specialist skills (mandatory): `typescript-eng`, `tdd`.**
   Test-first for PR A guard logic and PR B snapshot pinning.

@@ -79,7 +79,7 @@ workspace-root anchor + compose bind mount), and the serverfn
 
 Same execution setup as BRIEF-88 (confirmed): chunked commits,
 `security-reviewer` pre-commit gate, `typescript-eng` + `tdd` mandatory,
-fable-reviewer round pre-push, `git-eng` for all git operations, no
+reviewer round pre-push, `git-eng` for all git operations, no
 AI-attribution anywhere. Not a generation surface (prompt/schema/adapter
 defaults untouched) — **no eval run**.
 

@@ -23,7 +23,7 @@ checklist this plan expands.
 - **Pre-commit gate**: `security-reviewer` + `performance-reviewer` run in
   parallel on staged changes before every commit; findings ≥80 confidence get
   fixed and re-run until clean.
-- **Pre-PR gate**: `fable-reviewer` on the branch diff before each PR goes up;
+- **Pre-PR gate**: `reviewer` on the branch diff before each PR goes up;
   medium+ findings iterate, nitpick-only = clean.
 - CI is path-filtered per package: contract-touching PRs (2, 3, 4) must run
   dependents' suites locally before push (`pnpm -r test` or targeted).
@@ -43,7 +43,7 @@ checklist this plan expands.
 Opus-only ruling for this stack). Effort: high for PRs 2–4, medium for PRs 1,
 5, 6. Invocation: **sequential in the main thread** — every PR depends on its
 predecessor; no parallel subagent implementation. Review agents
-(fable-reviewer / security-reviewer / performance-reviewer) are the only
+(reviewer / security-reviewer / performance-reviewer) are the only
 subagents.
 
 ## The stack
@@ -161,7 +161,7 @@ Pure functions beside `packages/brief-core/src/diff/` — TDD, no worker wiring.
 ## Sequencing & gates summary
 
 PR 1 → PR 2 → PR 3 → PR 4 → PR 5 → PR 6, strictly sequential (stacked).
-Gates: security+performance reviewers pre-commit (all PRs); fable-reviewer
+Gates: security+performance reviewers pre-commit (all PRs); reviewer
 pre-PR (all PRs); eval gate at PR 4 (and PR 6 narrative touch if applicable);
 /impeccable at PR 6; local dependent-suite runs before push on PRs 2–4;
 `always`-path byte-compat asserted at PR 3 and re-asserted by PR 5 baselines.

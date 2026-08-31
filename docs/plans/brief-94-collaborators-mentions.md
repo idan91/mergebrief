@@ -96,7 +96,7 @@ rich rendering (avatar + name).
 ## PR breakdown
 
 Four stacked PRs, sequential in the main thread (each consumes the
-previous layer's exports). Review loop: `fable-reviewer` agent, one
+previous layer's exports). Review loop: `reviewer` agent, one
 pre-merge round per PR on the branch diff; medium+ findings iterate,
 low/nitpick-only = clean with a note in the PR body. Idan merges.
 

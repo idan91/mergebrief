@@ -23,7 +23,7 @@ domain core leaves `tools/` (which implies dev-only) for `packages/`
 - Branch `feature/BRIEF-68/brief-core-split` off fresh `main`.
 - Chunked commits per part below; no Co-Authored-By trailers; no AI
   attribution in the PR body.
-- Pre-PR gate: `fable-reviewer` subagent on the full branch diff; findings
+- Pre-PR gate: `reviewer` subagent on the full branch diff; findings
   fixed before PR. PR ready-for-review (not draft), base `main`; Idan merges.
 
 ## File partition (FINAL — Part-1 import audit; supersedes the ticket's
@@ -50,7 +50,7 @@ the dependency rule (consumed by production ⇒ moves) closes over the
 **One PR** (~renames + a few hundred changed import/wiring lines; well
 under the 1000-LOC ceiling since git tracks the moves as renames).
 All parts run **sequentially in the main thread (Fable, current session)**
-— mechanical work on hot context; no subagent fan-out. `fable-reviewer`
+— mechanical work on hot context; no subagent fan-out. `reviewer`
 subagent for the gate only.
 
 1. **Move** — create `packages/brief-core` (package.json `"brief-core"`,

@@ -19,7 +19,7 @@ Prototype (primary source): branch `prototype/brief-182-receipt-variants`
 - Chunked commits: commit after each logical unit.
 - Pre-commit gate: `performance-reviewer` on staged changes before every
   commit; findings ≥80 confidence get fixed before committing.
-- Pre-PR gate: `fable-reviewer` adversarial pass on each branch diff before
+- Pre-PR gate: `reviewer` adversarial pass on each branch diff before
   the PR goes up; medium+ findings iterate (max 2 rounds).
 - No `Co-Authored-By` trailers; no AI-attribution in PR bodies.
 - PR titles: `[BRIEF-182] feat: …` / `[BRIEF-182] refactor: …`.

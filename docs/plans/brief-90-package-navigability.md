@@ -89,7 +89,7 @@ nominal LOC larger but mostly renames; single PR per locked decision. Chunks:
 
 ## Review loop (both PRs)
 
-After each branch is complete (pre-push): dispatch **fable-reviewer** on the
+After each branch is complete (pre-push): dispatch **reviewer** on the
 branch diff. Iterate medium+ findings until clean; low/nitpick-only pass =
 clean, note it in the PR body (feedback-review-loop-severity). Then push +
 open the PR per git-eng.

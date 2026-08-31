@@ -5,7 +5,7 @@ strategy user-confirmed). All decisions locked in
 [ADR 0034](../adr/0034-observability-v1-logging-health.md); discovery on the
 BRIEF-51 wayfinder map (Notion, five closed grill tickets — zoom there for
 per-decision rationale). Survey: `brief-51-observability-survey.md`.
-Review model: fable-reviewer gate per PR; **Idan reviews all four PRs
+Review model: reviewer gate per PR; **Idan reviews all four PRs
 together once the stack is complete** — PRs go up ready-for-review and wait.
 
 ## Mandatory skills (user-confirmed)
@@ -39,10 +39,10 @@ together once the stack is complete** — PRs go up ready-for-review and wait.
 ## Review loop (per PR, before moving to the next)
 
 1. Suites + lint green (exit codes, not grep — per repo standard).
-2. Dispatch **fable-reviewer** on the branch diff; fix findings
+2. Dispatch **reviewer** on the branch diff; fix findings
    upstream-first (a finding against earlier-PR code is fixed in THAT
    branch, descendants rebased — see Merge guide).
-3. Re-run fable-reviewer until clean, then open the PR and proceed.
+3. Re-run reviewer until clean, then open the PR and proceed.
 
 ## Non-negotiables (from ADR 0034)
 

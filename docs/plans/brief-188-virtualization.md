@@ -54,7 +54,7 @@ full-tree reconcile + layout/paint, and it scales with brief size.
 - Chunked commits per logical unit; **performance-reviewer gate on staged
   changes before every commit** (fix findings ≥80 confidence, re-run until
   clean). No `Co-Authored-By` trailers, no AI-attribution in PR bodies.
-- `fable-reviewer` subagent reviews each PR branch before it goes up;
+- `reviewer` subagent reviews each PR branch before it goes up;
   review-loop iterates on medium+ severity findings, nitpick-only = clean.
   Two review rounds max without a stated reason.
 - Idan merges. After each squash-merge, realign the remainder of the stack

@@ -80,7 +80,7 @@ list instead of being faked here.
   CI job + needs update; (2) full spec set + axe; (3) QA-doc tag flips.
 - performance-reviewer before each commit (≥80 → fix).
 - No Co-Authored-By, no AI attribution. Stop before push; then the
-  approved PR-ready flow (push, PR, fable-reviewer loop, CI green, hand
+  approved PR-ready flow (push, PR, reviewer loop, CI green, hand
   to Idan). PR body needs an eval-presence note only if generation
   surfaces are touched (they must not be).
 

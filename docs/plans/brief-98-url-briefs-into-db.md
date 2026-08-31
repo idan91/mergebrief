@@ -92,7 +92,7 @@ for `db:` ids today) and dies with the path. Revisit only if missed.
 - **typescript-eng**, **tdd** (test-first on persistence/tenancy and the
   ingest tool), **verify** (runtime end-to-end drive after the stack lands).
 - Stacked PRs, one branch per PR (`feature/BRIEF-98/<slug>`), each PR
-  reviewed by a fable-reviewer subagent before publish; Idan merges.
+  reviewed by a reviewer subagent before publish; Idan merges.
   PR titles `[BRIEF-98] <prefix>: Title Case`. Unslop pass on every PR body.
 - Gates per PR: package lint + test (coverage floors ride inside
   `pnpm test`), per-branch lint on the stack. **No eval run** — the
@@ -191,5 +191,5 @@ merge; babysit with watch-pr-stack on request.
 1. `git-eng`: branch off the stack tip.
 2. TDD where the part owns logic (PR 1, 2, 3, 5): failing test first.
 3. Implement; chunked commits; performance + security reviewers pre-commit.
-4. Package gates + per-branch lint; fable-reviewer pass; fix medium+.
+4. Package gates + per-branch lint; reviewer pass; fix medium+.
 5. Publish PR (stacked base), unslopped body; pause for Idan's review cadence.

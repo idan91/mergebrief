@@ -37,7 +37,7 @@ re-open them; it sequences them.
 - No `Co-Authored-By` trailers; no AI-attribution in PR bodies.
 - Push via HTTPS + gh helper. After each squash-merge: realign the stack with
   `rebase --onto` (patch-id proof), never plain-pull a rebased branch.
-- `fable-reviewer` subagent reviews each PR branch before handoff; Idan
+- `reviewer` subagent reviews each PR branch before handoff; Idan
   merges. Review-loop severity: medium+ iterate, nitpick-only = clean.
   2 rounds max.
 
@@ -143,5 +143,5 @@ The A+C verdict, from the prototype recipes (ticket "Prototype verdict"):
 
 Sequential main-thread stack (each PR depends on the previous): PR 1 → 2
 (Fable 5 high) → PR 3 (Opus 5 high) → PR 4 (Fable 5 high). No parallel
-subagent implementation; `fable-reviewer` + `performance-reviewer` gates as
+subagent implementation; `reviewer` + `performance-reviewer` gates as
 above.

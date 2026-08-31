@@ -19,7 +19,7 @@ merge. Do not start any post-merge work.
   before every commit. No Co-Authored-By trailers, no AI attribution anywhere.
 - Skills mandatory: typescript-eng, tdd (persistence/tenancy, worker token
   path, API door, ingest mapping), verify (end of stack).
-- fable-reviewer subagent on every PR before publishing. Review budget: 2
+- reviewer subagent on every PR before publishing. Review budget: 2
   rounds max; iterate on medium+ findings only, nitpick-only = clean. Give
   reviewer agents EXPLICIT read-only-git instructions — a past reviewer
   stashed in-flight work and switched branches on the shared worktree.
@@ -103,6 +103,6 @@ LOC guardrails: ideal <500, ceiling ~1000 per PR — split triggers are named
 in the plan (PR 1 migration lead-PR; PR 5b playwright rework).
 
 Finish = stack published (each PR based on its parent), all local gates
-green per branch, fable-reviewer clean per PR, runtime verify passed (paste
+green per branch, reviewer clean per PR, runtime verify passed (paste
 URL signed-in → worker generates → repo route renders with session + submit),
 then report the stack to me and stop.

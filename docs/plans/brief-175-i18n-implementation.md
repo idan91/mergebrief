@@ -10,7 +10,7 @@ independent stacks may interleave. No generation-surface files are touched —
   `rebase --onto` realignment (repo standing workflow); HTTPS + gh helper.
   Chunked commits per logical unit. No Co-Authored-By trailers, no
   AI-attribution in PR bodies.
-- **Reviewer gates per PR**: fable-reviewer on every branch diff;
+- **Reviewer gates per PR**: reviewer on every branch diff;
   security-reviewer additionally on API-touching PRs (3, 4, 5, 7);
   performance-reviewer additionally on web-touching PRs (5, 7, 9–13).
   Findings ≥80 confidence: fix, re-stage, re-run until clean.

@@ -55,7 +55,7 @@ Target shape fixed by the BRIEF-134 close-out amendment; the BRIEF-134 stack
 - PR titles: `[BRIEF-104] feat: …` in Title Case. Ready for review (not
   draft). Push HTTPS via the gh credential helper.
 - Review loop: subagent review (Opus-only per current quota ruling —
-  `fable-reviewer` runs on Opus), medium+ findings iterate, Idan merges.
+  `reviewer` runs on Opus), medium+ findings iterate, Idan merges.
 
 ## PR 1 — `[BRIEF-104] feat: Succinct Summary And Changelog Prompt`
 

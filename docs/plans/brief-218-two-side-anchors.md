@@ -41,7 +41,7 @@ byte-identical throughout.
   in parallel on staged changes; findings ≥80 confidence fixed before commit.
 - Specialist skills mandatory: **typescript-eng** (all PRs), **impeccable**
   (PR3 rendered-UI audit; render-before-shipping-CSS rule applies).
-- Per-PR flow: usual stack flow — push branch, **fable-reviewer** subagent
+- Per-PR flow: usual stack flow — push branch, **reviewer** subagent
   review, upstream-first fixes, 2-round review budget, Idan merges.
 - Gates per PR: `pnpm -r test`, `pnpm lint`, `pnpm -r typecheck` (CI is
   billing-dead; local gates are the judge). Not a generation surface — no

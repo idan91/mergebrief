@@ -45,7 +45,7 @@ agent-complete-CLI premise has no enforcement.
 - No `Co-Authored-By` trailers; no AI-attribution in PR bodies.
 - PR titles: `[BRIEF-196] feat: <Part> In Title Case`.
 - Per-PR gates before push: root `pnpm lint`, package typecheck + tests,
-  `fable-reviewer` pass (iterate on medium+ findings; 2-round budget).
+  `reviewer` pass (iterate on medium+ findings; 2-round budget).
 
 ### Mandatory specialist skills
 

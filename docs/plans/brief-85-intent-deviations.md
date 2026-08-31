@@ -49,7 +49,7 @@ test-deletion risk attribute (labeling hits the gap).
   ⇒ fix, re-stage, re-run until clean.
 - No `Co-Authored-By` trailers; no AI-attribution in PR bodies.
 - PR titles: `[BRIEF-85] <prefix>: Title Case`; ready-for-review (not
-  draft); `fable-reviewer` inline pass per PR **looped until clean** —
+  draft); `reviewer` inline pass per PR **looped until clean** —
   fix findings, re-run the reviewer, repeat; hand to Idan only on a
   clean pass. **Clean = no critical/high/medium findings**: a pass whose
   findings are all low-severity and/or nitpicks counts as clean (note

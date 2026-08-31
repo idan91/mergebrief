@@ -56,7 +56,7 @@ the durable capture. Styling values live in the FE PR against real tokens.
   ⇒ fix, re-stage, re-run until clean.
 - No `Co-Authored-By` trailers; no AI-attribution in PR bodies.
 - PR titles: `[BRIEF-93] <prefix>: Title Case`; ready-for-review (not draft).
-- **Review loop per PR**: `fable-reviewer` looped until clean (clean = no
+- **Review loop per PR**: `reviewer` looped until clean (clean = no
   critical/high/medium findings; low/nitpick-only pass = clean, note in PR
   body). **PR 2 additionally gets a `security-reviewer` pass on the branch
   diff** (authz-adjacent), looped on the same severity bar.
@@ -110,7 +110,7 @@ each part (LOC ceilings are hard gates; split triggers acted on, not noted).
 ## Implementation order & verification
 
 1. PR 1 → PR 2 → PR 3 → PR 4, each: implement (TDD) → chunked commits w/
-   gates → fable-reviewer loop (+security pass on PR 2) → push, PR up.
+   gates → reviewer loop (+security pass on PR 2) → push, PR up.
 2. Per-package suites locally before each push — CI is path-filtered and
    will NOT run dependents (PR 2 consumes PR 1's parser shapes; PR 4
    consumes PR 2's route bodies).

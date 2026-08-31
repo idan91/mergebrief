@@ -11,7 +11,7 @@ everywhere instead of only on the newest code.
 | # | Decision |
 |---|----------|
 | PR shape | 3 stacked PRs off main, one per sweep, chunked commits |
-| Reviewer gate | `fable-reviewer` on each PR branch before it goes up; no security/perf agents (mechanical) |
+| Reviewer gate | `reviewer` on each PR branch before it goes up; no security/perf agents (mechanical) |
 | Schema convention | **Owner-co-located**: a Zod schema lives beside the module that owns the shape (route file, operation, store). A package whose central contract IS the schema keeps it in its established file (`packages/brief-core/src/types.ts` — the domain schema, referenced by other packages' docs). `packages/types` stays types-only, zero runtime. |
 | Mandatory skills | `git-eng` for all git operations; `typescript-eng` standards apply |
 | Eval harness | Not touched — renames/moves only; no generation-surface change. If any sweep touches `prompt.ts`/output schema semantics, stop and flag. |
@@ -78,7 +78,7 @@ Est. ~100–300 LOC depending on strays found. Main thread.
 
 - `pnpm lint`, `pnpm typecheck` (or per-package equivalents), `pnpm test` for
   changed packages + dependents.
-- `fable-reviewer` on the branch diff; medium+ findings iterate (max 2 rounds).
+- `reviewer` on the branch diff; medium+ findings iterate (max 2 rounds).
 - PR body: overview + changelog; no AI attribution.
 
 ## Git requirements (git-eng)

@@ -105,7 +105,7 @@ account fields without it.
   re-reviewed until clean.
 - No `Co-Authored-By` trailers; no AI attribution in the PR description.
 - Push HTTPS via the gh credential helper.
-- **`fable-reviewer` on the full branch diff before opening the PR**;
+- **`reviewer` on the full branch diff before opening the PR**;
   iterate on medium+ findings (nitpick-only = clean).
 - PR to `main`, title `[BRIEF-150] chore: Claude CLI Billing Startup
   Checks`; Idan merges.
@@ -130,7 +130,7 @@ Single S-effort subtask; estimated ~120 src + ~250 test + ~10 docs LOC ≈
 **Model/effort/invocation**: sequential in the main thread — design is
 settled here, execution is small and mechanical; no implementation
 subagents. Subagents only as review gates: `security-reviewer` per commit,
-`fable-reviewer` once on the branch diff.
+`reviewer` once on the branch diff.
 
 ## Implementation steps
 
@@ -148,6 +148,6 @@ subagents. Subagents only as review gates: `security-reviewer` per commit,
    line. security-reviewer ⇒ commit.
 5. Verify: `pnpm -C packages/generators typecheck && pnpm -C
    packages/generators test && pnpm lint`.
-6. `fable-reviewer` on branch diff; iterate medium+ findings.
+6. `reviewer` on branch diff; iterate medium+ findings.
 7. PR to `main` per git-eng rules; report eval-not-needed rationale (no
    generation surface) in the PR body.

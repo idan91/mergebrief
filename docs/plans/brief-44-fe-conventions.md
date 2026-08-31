@@ -99,7 +99,7 @@ follow-up ticket. Where this document's decision list conflicts, the ADR wins.
   committing.
 - PR titles `[BRIEF-44] <prefix>: Title Case`; ready-for-review, base =
   predecessor branch; no AI attribution.
-- fable-reviewer loop per PR until clean (medium+ iterates; low/nitpick-only
+- reviewer loop per PR until clean (medium+ iterates; low/nitpick-only
   = clean with leftovers noted in the PR body). Idan merges.
 - LOC ceilings are hard gates: measure `git diff --stat` after every part;
   ideal <500 changed LOC, ceiling ~1000 (mechanical sweeps split per value
@@ -122,7 +122,7 @@ prompted from this plan plus a short per-PR brief. Context-heavy work (file
 reads, sweeps, the BriefPage split) stays inside each subagent's context.
 The orchestrating session (Fable 5) keeps only the compact parts: dispatch
 briefs, git operations (chunked commits + pre-commit reviewer gates, judged
-on `diff --stat` + reviewer verdicts), PR creation/bodies, and fable-reviewer
+on `diff --stat` + reviewer verdicts), PR creation/bodies, and reviewer
 loops. Review-loop fixes: substantial ones continue the implementing
 subagent (its context persists); trivial ones the orchestrator applies
 directly. If orchestrator context still grows long, session-break points are

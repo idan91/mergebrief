@@ -61,7 +61,7 @@ compose/ops docs (#213/#214).
   generation surfaces should be touched — PR bodies still carry the
   explicit "Eval-harness gate: skipped — no generation-surface files"
   line since reviewers expect it.
-- Review loop after push: fable-reviewer per PR (adversarial; PR 1's
+- Review loop after push: reviewer per PR (adversarial; PR 1's
   reviewer briefed on TLS-bypass and file-handling attack surface), fix
   medium+, re-review the delta, CI green, then hand to Idan.
 

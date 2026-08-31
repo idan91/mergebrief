@@ -43,7 +43,7 @@ Read these sites before editing; every step below assumes them.
   commit (fix ≥80-confidence findings before committing), no Co-Authored-By,
   no AI attribution. Idan merges.
 - `tdd`: each PR opens with its named test, watched red, before any fix.
-- `typescript-eng` and `ponytail` govern the code; `fable-reviewer` reviews
+- `typescript-eng` and `ponytail` govern the code; `reviewer` reviews
   the branch diff before each PR goes up.
 - PR 2 stacks on PR 1's branch; realign after PR 1's squash-merge via
   `git-eng`.
@@ -70,7 +70,7 @@ row's set with the new brief's final ids.
 3. Schema: add `usedGroupIds: text("used_group_ids")` to
    `packages/persistence/src/schema/brief.ts`, then generate AND apply the
    migration in the same step, no confirmation gate (standing authorization —
-   not held for fable-reviewer or any commit):
+   not held for reviewer or any commit):
    run `pnpm -C packages/persistence generate` →
    `0031_brief-used-group-ids.sql` (a single nullable `ALTER TABLE brief ADD
    COLUMN used_group_ids text;` — no backfill, old rows stay NULL and heal

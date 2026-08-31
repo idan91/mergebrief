@@ -30,7 +30,7 @@ PRs, sequential stack. Board ticket:
 ## Review loop (every PR)
 
 1. Implementation-time rigor first (fewer reviewer rounds by design).
-2. `fable-reviewer` subagent on the branch diff; `performance-reviewer` on
+2. `reviewer` subagent on the branch diff; `performance-reviewer` on
    staged changes. Medium+ findings iterate; nitpick-only = clean.
 3. **Design-audit gate (PRs 2–4 only, Idan 2026-08-03): run
    `/impeccable audit` against the RENDERED header** — dev server +

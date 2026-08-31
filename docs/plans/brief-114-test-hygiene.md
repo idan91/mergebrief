@@ -64,7 +64,7 @@ so the pre-release pass is a gates-index plus a shrinking residual.
   This ticket is performance-shaped — the reviewer's opinion on the
   amortization matters; don't rubber-stamp.
 - Stop before push; then the approved PR-ready flow (push, PR
-  `[BRIEF-114] chore: ...`, fable-reviewer loop, hand to Idan).
+  `[BRIEF-114] chore: ...`, reviewer loop, hand to Idan).
 
 ## Specialist skills (mandatory)
 

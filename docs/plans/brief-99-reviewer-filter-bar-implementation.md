@@ -6,7 +6,7 @@ it first; do not relitigate anything in its Decisions section.
 ## Models and invocation
 
 **All agents run Opus 5 — implementation and reviewers alike. No Fable anywhere**
-(usage constraint, 2026-08-05). Reviewer subagents (`fable-reviewer`,
+(usage constraint, 2026-08-05). Reviewer subagents (`reviewer`,
 `performance-reviewer`, `security-reviewer`) get an explicit `model: "opus"`
 override when spawned.
 

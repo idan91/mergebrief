@@ -96,7 +96,7 @@ Same contract as BRIEF-110–113: two stacked branches
 `chore/BRIEF-20/spend-guardrail` → `chore/BRIEF-20/hardening-bundle`,
 chunked commits, performance-reviewer pre-commit (≥80 → fix), no
 Co-Authored-By/AI attribution, stop before push; then the approved
-PR-ready flow (push, PRs, fable-reviewer loop, CI green, hand to Idan).
+PR-ready flow (push, PRs, reviewer loop, CI green, hand to Idan).
 PR bodies: eval-presence note if any generation-surface path is touched —
 the worker gate sits OUTSIDE `brief-core/src/generation` and adapter
 defaults, so expect "skipped — no generation-surface files"; if config

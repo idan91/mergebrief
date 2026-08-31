@@ -40,7 +40,7 @@ now; extend later without breaking).
 - **test-driven-development** (confirmed): red-first for the schema-validation
   part and the default-pinning test; the threading edits may follow
   test-with-code where a failing test first is impractical (signature changes).
-- **fable-reviewer** subagent on the branch diff BEFORE opening the PR;
+- **reviewer** subagent on the branch diff BEFORE opening the PR;
   findings fixed in-branch (repo pattern: review rounds happen pre-PR, not in
   PR comments).
 - Repo conventions: root `CLAUDE.md` + per-package `AGENTS.md`
@@ -60,7 +60,7 @@ statement, not a gate run.
 
 Recommended execution: **main thread, Sonnet 5 at high effort** (mechanical
 S-ticket on locked patterns — Fable capability is not needed for
-implementation; Fable IS the reviewer via the fable-reviewer agent). Parts are
+implementation; Fable IS the reviewer via the reviewer agent). Parts are
 sequential (each builds on the previous) — no subagent fan-out.
 
 ### Part 1 — generators: config schema + surface (~100 LOC w/ tests)
@@ -109,7 +109,7 @@ TDD: write the failing loader tests first.
    `docs/self-host/` at implementation time) gains the `effort:` row + one
    sentence: committed eval baselines assume the default
    (anthropic @ medium); a non-default effort intentionally diverges.
-5. Full verification sweep (below), fable-reviewer round, fix findings,
+5. Full verification sweep (below), reviewer round, fix findings,
    push, PR.
 
 ## Verification (all judged by exit code)

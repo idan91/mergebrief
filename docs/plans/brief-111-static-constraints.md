@@ -45,7 +45,7 @@ drift by agents or outside contributors fails `pnpm lint`, not review.
   realign per house workflow).
 - Pre-commit gate: `performance-reviewer` on staged changes ≥80 → fix.
 - Stop before push; PR-ready flow as approved for BRIEF-110 (push, PR,
-  fable-reviewer loop — medium+ iterate — then hand to Idan).
+  reviewer loop — medium+ iterate — then hand to Idan).
 
 ## Specialist skills (mandatory)
 

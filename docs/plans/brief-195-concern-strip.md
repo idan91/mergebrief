@@ -49,7 +49,7 @@ the v2 prototype attached there. This plan turns them into two stacked PRs.
      banner lane, toolbar, header controls), plus an axe pass. Findings of
      medium+ severity iterate before merge; nitpick-only = clean.
 - **Commit strategy**: chunked logical commits; `performance-reviewer` gate on
-  staged changes before each commit; `fable-reviewer` on each PR branch before
+  staged changes before each commit; `reviewer` on each PR branch before
   handoff. Review-round budget: 2 max.
 - **Model/effort**: Fable 5, **medium** effort, both PRs, sequential in the
   main thread (PR 2 depends on PR 1's branch).
@@ -89,7 +89,7 @@ feature.
    screenshots at 1280 and ≤640, wrap measured, spacing/alignment judged
    against the prototype. Screenshots ride the PR body via the established
    SendUserFile + drag-drop flow.
-5. Gates, `fable-reviewer`, PR up (base `main`).
+5. Gates, `reviewer`, PR up (base `main`).
 
 ## PR 2 — `feature/BRIEF-195/retire-concerns-lens` (deletion-heavy, ~800 LOC mostly red)
 
@@ -125,7 +125,7 @@ checklist.
 9. **Impeccable audit gate** (skill invoked): full responsive/visual
    inspection + mechanical detector pass on the rendered app across summary
    region, banner lane, toolbar, and header controls; axe pass on the
-   BriefScreen. Medium+ findings iterate; then gates, `fable-reviewer`,
+   BriefScreen. Medium+ findings iterate; then gates, `reviewer`,
    PR up (base: PR 1's branch, retargeted to `main` after PR 1 merges).
 
 ## Merge order

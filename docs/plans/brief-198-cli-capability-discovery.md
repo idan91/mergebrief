@@ -132,7 +132,7 @@ Retarget to `main` after PR 1 squash-merges (git-eng stack realign:
 Design is fully locked; both PRs are execution — Opus 5 per the standing
 model-selection preference (Fable was the design pass). Sequential in the
 main thread: PR 2 stacks on PR 1's branch and consumes its manifest entry.
-Pre-commit `performance-reviewer` per chunk; `fable-reviewer` pass on each
+Pre-commit `performance-reviewer` per chunk; `reviewer` pass on each
 branch diff before the PR goes up (2-round budget).
 
 ## Out of scope

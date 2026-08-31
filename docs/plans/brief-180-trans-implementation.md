@@ -97,7 +97,7 @@ Two gates ride along, both mirroring checks the package already performs on
 `feature/BRIEF-180/trans-inline-markup` off #302's tip. HTTPS + `gh` helper.
 Idan merges; the implementation never merges.
 
-Three chunked commits, `fable-reviewer` on the branch diff before each:
+Three chunked commits, `reviewer` on the branch diff before each:
 
 1. `feat(i18n): allow positional Trans slots in catalog values` — the gate
    rewrite plus its tests.

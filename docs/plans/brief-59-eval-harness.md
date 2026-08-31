@@ -86,7 +86,7 @@ run-to-run variance, not change quality.
 ## Git flow (git-eng, user-confirmed)
 
 - Branches `feature/BRIEF-59/<part>`, stacked in dependency order on main.
-- Chunked commits per logical unit. Reviewer gates: **fable-reviewer** on
+- Chunked commits per logical unit. Reviewer gates: **reviewer** on
   each PR branch diff before opening the PR; performance-reviewer pre-commit
   where staged code warrants it (offline tooling — expected rarely).
 - 3 PRs, ready-for-review, Idan merges. Per-branch lint before push; judge

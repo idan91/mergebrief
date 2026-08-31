@@ -73,7 +73,7 @@ their endpoints are not brief-addressed.
   committing.
 - **No Co-Authored-By trailers; no AI-attribution in PR bodies.**
 - PR titles `[BRIEF-201] feat: …`; unslop pass on every PR body.
-- Per-PR review flow: fable-reviewer subagent on each branch diff before
+- Per-PR review flow: reviewer subagent on each branch diff before
   publishing; Idan merges; squash-merge realign via `rebase --onto`.
 
 ## Mandatory skills
@@ -148,7 +148,7 @@ their endpoints are not brief-addressed.
 4. Update `product-operations.map.json`; run `map:check`.
 5. Gates: `pnpm -C packages/cli typecheck && test && build && docs:check &&
    map:check`, `pnpm -C packages/api manifest:check`, repo `pnpm lint`.
-6. Pre-commit reviewers → chunked commits → fable-reviewer on the branch
+6. Pre-commit reviewers → chunked commits → reviewer on the branch
    diff → publish PR (unslopped body) → next PR.
 
 ## Verification (whole stack)

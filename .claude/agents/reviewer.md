@@ -1,5 +1,5 @@
 ---
-name: fable-reviewer
+name: reviewer
 description: Pre-merge code reviewer for BRIEF PR branches. Reviews a branch diff adversarially — correctness, races, contract drift, repo-convention violations — and reports findings with file:line anchors. Read-only; never edits or commits.
 model: fable
 effort: high

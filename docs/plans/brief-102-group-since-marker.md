@@ -69,7 +69,7 @@ Estimate ~300–400 LOC incl. tests. Steps (TDD):
 - typescript-eng + tdd skills mandatory.
 - Verification: apps/web typecheck/test/lint + root `pnpm lint` before push
   (BRIEF-127 lesson: CI Lint = root prettier too), build for SSR safety.
-- fable-reviewer branch loop until nitpick-only, then PR + CI watch.
+- reviewer branch loop until nitpick-only, then PR + CI watch.
 
 ## Execution
 

@@ -171,7 +171,7 @@ Invocation: **main thread, sequential after PR 1** (depends on loader +
 deps shape), **Fable 5, low/medium effort** — mostly mechanical; FE copy is
 product-visible so keep Fable rather than delegating.
 
-Review loop: **`fable-reviewer` agent** (`.claude/agents/fable-reviewer.md`,
+Review loop: **`reviewer` agent** (`.claude/agents/reviewer.md`,
 pinned model fable + effort high — codex dropped, too slow). One pre-merge
 review round per PR on the branch diff; PR 1 is the round that matters
 (trust-boundary route + debounce/supersession races); for PR 2 the pinned

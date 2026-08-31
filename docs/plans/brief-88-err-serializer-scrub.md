@@ -124,7 +124,7 @@ registration; placeholder is exactly `[redacted-url]`.
 - No `Co-Authored-By` trailers; no AI-attribution in the PR body.
 - PR title: `[BRIEF-88] feat: Scrub URL-Shaped Secrets in the Shared
   Err Serializer`; body per repo template; base `main`; push via `gh`.
-- Post-PR: fable-reviewer loop per repo convention (medium+ findings
+- Post-PR: reviewer loop per repo convention (medium+ findings
   iterate; low/nitpick-only pass = clean, note in PR body).
 
 ## Verification

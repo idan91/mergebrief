@@ -24,7 +24,7 @@ prompt change (after this stack).
   `security-reviewer` + `performance-reviewer` in parallel on staged
   changes; findings ≥80 confidence get fixed, re-staged, re-run until
   clean.
-- **Review loop: `fable-reviewer` per PR** after gates pass (Opus 5, as all
+- **Review loop: `reviewer` per PR** after gates pass (Opus 5, as all
   agents — standing rule 2026-08-05). Medium+ findings iterate;
   nitpick-only = clean.
 - **Mandatory skills**: `typescript-eng` (repo TS discipline),
@@ -147,7 +147,7 @@ Model: Opus 5, main thread.
 ## Sequencing & invocation
 
 Strictly sequential (each PR bases on the previous), main thread, Opus 5
-throughout — no parallel subagent implementation; `fable-reviewer` +
+throughout — no parallel subagent implementation; `reviewer` +
 pre-commit reviewers are the only subagents. After each merge, realign the
 remaining stack (squash-merge realign per memory). Manual smoke on the
 local demo path per PR (`pnpm -C apps/web dev`, artifacts from

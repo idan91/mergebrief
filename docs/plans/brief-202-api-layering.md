@@ -32,7 +32,7 @@ suite edit is wrong — stop and re-derive.
 - Pre-commit review agents: `performance-reviewer` on every PR;
   `security-reviewer` additionally on PR 2 (auth), PR 3 (authz/webhook),
   and PR 8-9 (pr-writes). Findings ≥80 confidence fixed before commit.
-- Per-PR post-push review: `fable-reviewer` subagent on the branch diff;
+- Per-PR post-push review: `reviewer` subagent on the branch diff;
   medium+ findings fixed; 2-round budget (nitpick-only = clean).
 - PR titles: `[BRIEF-202] refactor: <Title Case>`; bodies get an unslop
   pass; no template in repo — Overview/Changelog shape.
@@ -76,7 +76,7 @@ from this table.
 | PRs 2-9 (locked-design conversions; gates + invariant pins do the guarding) | Fable 5, medium (Opus 5 fallback on quota, noted per PR) | Main thread, sequential (stack dependency) |
 | PR 10 (session machinery dissolve — subtlest code, partly outside wire pins) | Fable 5, high | Main thread |
 | PR 11 (session ops + ratchet) | Fable 5, medium | Main thread |
-| Reviews | fable-reviewer (Fable 5) per PR | Subagent, after each push |
+| Reviews | reviewer (Fable 5) per PR | Subagent, after each push |
 
 Medium-effort rule: a judgment call not covered by a pin (an unpinned
 posture site, an ambiguous failure mapping) stops the run — never

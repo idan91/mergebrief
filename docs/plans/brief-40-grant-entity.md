@@ -56,13 +56,13 @@ ready-for-review: PR 1 base=`main`, PR 2 base=PR 1 branch; Idan merges (squash) 
 merge, retarget/rebase the stack per the squash-stack recipe (`git rebase --onto`, never
 plain-pull a just-rebased branch). No Co-Authored-By trailers, no AI attribution in PRs.
 Gates (user-confirmed): **security-reviewer** on staged changes before each commit chunk
-that touches auth/crypto/migration; **fable-reviewer** on the full branch diff before each
+that touches auth/crypto/migration; **reviewer** on the full branch diff before each
 PR goes up. Findings ≥80 confidence: fix, re-stage, re-run until clean.
 
 ## Review loop
 
 1. **Pre-commit:** security-reviewer on staged changes (auth/crypto/migration chunks).
-2. **Pre-PR:** fable-reviewer on the full branch diff; fix ≥80-confidence findings before
+2. **Pre-PR:** reviewer on the full branch diff; fix ≥80-confidence findings before
    the PR goes up.
 3. **Post-PR:** Idan reviews on GitHub. Fixes for review comments land **upstream-first**
    (a comment on PR 1 code is fixed on PR 1's branch, PR 2 rebases on top) — never patched

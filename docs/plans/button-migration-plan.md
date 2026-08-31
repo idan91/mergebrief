@@ -64,7 +64,7 @@ feature folder, never by "component now, call sites later".
   `[BRIEF-187] refactor: …`; chunked commits; no AI-attribution trailers or
   footers. Squash-merge realignment via `rebase --onto` (watch-pr-stack flow);
   never plain-pull a rebased branch.
-- **Reviewer gates per PR:** `fable-reviewer` + `performance-reviewer` on the
+- **Reviewer gates per PR:** `reviewer` + `performance-reviewer` on the
   branch diff before marking ready. Medium+ findings iterate; nitpick-only =
   clean. Two review rounds max without stated reason.
 - **Mandatory specialist skills:** `typescript-eng` (const-map unions,

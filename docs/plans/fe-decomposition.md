@@ -50,7 +50,7 @@ to props/session ownership.
   interface moves), `web-accessibility` (APG menu, modals, live regions
   must survive moves intact), `vercel-react-best-practices` (memo
   boundaries are the crux of PR 1).
-- **Per-PR gates:** fable-reviewer inline loop (lean stage-gate — no
+- **Per-PR gates:** reviewer inline loop (lean stage-gate — no
   finder fan-out; medium+ findings iterate, low/nitpick-only = clean with
   a note in the PR body); `pnpm -C apps/web typecheck && test && lint`
   (exit codes judge); `build` when server/isomorphic edges move (PR 4

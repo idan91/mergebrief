@@ -127,7 +127,7 @@ optional field).
   re-run until clean.
 - PR titles: `[BRIEF-54] feat: …` per git-eng rules; no AI attribution
   anywhere.
-- **Review loop**: `fable-reviewer` subagent on each PR branch diff before
+- **Review loop**: `reviewer` subagent on each PR branch diff before
   handing to Idan; reply+fix upstream-first on stacks; Idan merges.
 
 ## Mandatory specialist skills (user-confirmed)
@@ -190,7 +190,7 @@ expectations need judgment; spend-aware).
 
 Stacks on PR 1 (parallel to PR 2). **Model: Sonnet, high effort, main
 thread** — design fully locked; execution against existing patterns
-(conversation bar anatomy, jump-rail placement). `fable-reviewer` gate
+(conversation bar anatomy, jump-rail placement). `reviewer` gate
 before handoff.
 
 1. `IntentBar` component (exported prop interface; facade hook if it grows —
@@ -225,10 +225,10 @@ contract).
 | PR | Scope | Model / effort | Invocation | Gates |
 |---|---|---|---|---|
 | docs | plan + ADR 0009 amendment | — (this session) | main, straight to main | — |
-| 1 | brief-core schema/prompt/validation | Fable / high | main thread | perf + sec pre-commit; eval report in body; fable-reviewer |
-| 2 | eval cases + adversarial | Fable / medium | main thread, after 1 | perf pre-commit; fable-reviewer |
-| 3 | intent bar FE | Sonnet / high | main thread, after 1 | perf + sec pre-commit; fable-reviewer |
-| 4 | modal line | Sonnet / medium | main thread, after 3 | perf pre-commit; fable-reviewer |
+| 1 | brief-core schema/prompt/validation | Fable / high | main thread | perf + sec pre-commit; eval report in body; reviewer |
+| 2 | eval cases + adversarial | Fable / medium | main thread, after 1 | perf pre-commit; reviewer |
+| 3 | intent bar FE | Sonnet / high | main thread, after 1 | perf + sec pre-commit; reviewer |
+| 4 | modal line | Sonnet / medium | main thread, after 3 | perf pre-commit; reviewer |
 
 Post-merge: rebaseline eval on main (PR 1 drift); `/verify` smoke on the web
 surface (bar render on a live brief, mark-ready line on an own-draft PR).

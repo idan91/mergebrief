@@ -1,7 +1,7 @@
 # BRIEF-94 — Merge guide
 
 > State as of 2026-08-01. Plan: `docs/plans/brief-94-collaborators-mentions.md`.
-> All four PRs are up with clean fable-reviewer rounds; nothing is merged yet.
+> All four PRs are up with clean reviewer rounds; nothing is merged yet.
 > Test the feature AFTER the whole stack lands — the FE degrades silently by
 > design, so a half-merged state looks like "mentions filtered", not an error.
 

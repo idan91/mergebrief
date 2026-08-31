@@ -1,69 +1,23 @@
 # tools/ingest-briefs — agent notes
 
-The one-shot cutover tool: a directory of CLI brief artifacts becomes database
-rows under one explicit scope. It exists because the web app's file-backed
-brief reader is being deleted, and everything already generated has to survive
-that deletion.
+The one-shot cutover tool: a directory of CLI brief artifacts becomes database rows under one explicit scope. It exists because the web app's file-backed brief reader is being deleted, and everything already generated has to survive that deletion.
+
+Repo-wide conventions apply (root AGENTS.md); refinements below.
 
 ## Map
 
-```
-src/
-  index.ts     ENTRY — the ingest core, importable by tests and the e2e seeder
-  main.ts      the runnable CLI; calls main() at load, so nothing imports it
-  args.ts      the argv parser, separated so importing it runs no ingest
-  cli/         the process half: target scope, `gh` resolver, run report
-  ingest/      the mapping itself
-    ingest.ts    the orchestrator: one named phase per artifact family
-    consts.ts    the artifact file-name grammar — THE map of file → row
-    schemas.ts   what the mapper reads off each body
-    types.ts     options, summary, and the run state phases share
-    utils.ts     PR keys, stems, JSON reads
-    logic/       one module per phase, in the order the orchestrator runs them
-test/          ingest.test.ts (PGlite, real fixtures), args.test.ts, cli.test.ts
-```
-
-Which file becomes which row is `ingest/consts.ts` — one named regex per
-family, and the orchestrator's header comment walks the same list. `.diffs`,
-`.comments` and the manifest have no database home: the repo route reads diffs
-and conversations live from GitHub.
+`src/index.ts` is the ingest core (importable by tests and the e2e seeder); `src/main.ts` is the runnable CLI. Which file becomes which row is `ingest/consts.ts` — one named regex per family, and the orchestrator's header comment walks the same list. `.diffs`, `.comments` and the manifest have no database home: the repo route reads diffs and conversations live from GitHub.
 
 ## Invariants (enforced, don't weaken)
 
-- **Bodies pass through VERBATIM.** The files were written by the same
-  generation pipeline the web parses; re-shaping here could only lose data.
-- **The target scope is EXPLICIT** (`--target user:<id>` or
-  `installation:<id>`), never inferred from the artifacts.
-- **Idempotent**: every write is the stores' content-addressed upsert, so a
-  re-run rewrites the same rows rather than duplicating them.
-- **A brief that cannot be placed is LOUD, never silent.** Unplaceable briefs
-  are listed as `UNMAPPED` and the process exits 2 — a cutover that reports
-  success while dropping a brief is the failure this tool exists to prevent.
-  A pre-index brief is placed when the resolution supplies its base SHA
-  (`--resolve-repos`); without one it is unmapped, and its PR is left entirely
-  alone rather than half-written.
-- **An ambiguous sidecar is skipped, never guessed.** Flattening the slug makes
-  `a-b/c` #1 and `a/b-c` #1 one stem; a stem two rows share attaches to
-  neither. Narratives additionally match on the index in their file name, since
-  a base retarget puts two briefs at one head.
-- **Nothing here stores a credential.** `gh` runs as the operator's own auth
-  and only ever reads; `DATABASE_URL` comes from the environment.
-- **Importing a module must not run an ingest.** `main.ts` calls `main()` at
-  load, which is why the argv parser lives in its own file.
+- **Bodies pass through VERBATIM.** The files were written by the same generation pipeline the web parses; re-shaping here could only lose data.
+- **The target scope is EXPLICIT** (`--target user:<id>` or `installation:<id>`), never inferred from the artifacts.
+- **Idempotent**: every write is the stores' content-addressed upsert, so a re-run rewrites the same rows rather than duplicating them.
+- **A brief that cannot be placed is LOUD, never silent.** Unplaceable briefs are listed as `UNMAPPED` and the process exits 2 — a cutover that reports success while dropping a brief is the failure this tool exists to prevent. A pre-index brief is placed when the resolution supplies its base SHA (`--resolve-repos`); without one it is unmapped, and its PR is left entirely alone rather than half-written.
+- **An ambiguous sidecar is skipped, never guessed.** Flattening the slug makes `a-b/c` #1 and `a/b-c` #1 one stem; a stem two rows share attaches to neither. Narratives additionally match on the index in their file name, since a base retarget puts two briefs at one head.
+- **Nothing here stores a credential.** `gh` runs as the operator's own auth and only ever reads; `DATABASE_URL` comes from the environment.
+- **Importing a module must not run an ingest.** `main.ts` calls `main()` at load, which is why the argv parser lives in its own file.
 
 ## Verification
 
-```sh
-pnpm -C tools/ingest-briefs typecheck
-pnpm -C tools/ingest-briefs test     # PGlite + the committed e2e fixtures
-```
-
-A real run needs a database and, for repo ids and lifecycles, the `gh` CLI:
-
-```sh
-DATABASE_URL=... pnpm -C tools/ingest-briefs ingest -- \
-  --dir tools/categorizer/out --target user:<github-user-id> --resolve-repos
-```
-
-Exit codes: 0 clean, 2 one or more briefs unmapped (inspect before cutover),
-1 the run failed.
+`pnpm -C tools/ingest-briefs typecheck` / `test` (PGlite + the committed e2e fixtures). A real run needs a database and the `gh` CLI: `DATABASE_URL=... pnpm -C tools/ingest-briefs ingest -- --dir <dir> --target user:<github-user-id> --resolve-repos`. Exit codes: 0 clean, 2 one or more briefs unmapped (inspect before cutover), 1 the run failed.

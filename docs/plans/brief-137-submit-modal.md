@@ -69,7 +69,7 @@ Ticket: https://app.notion.com/p/3b25e9400eeb8172b08cc69b67507454
 - Commit strategy (confirmed): **chunked logical commits**, with
   **performance-reviewer on staged changes before each commit**; findings
   confidence ≥ 80 get fixed and re-run until clean.
-- Review loop per PR (confirmed): **fable-reviewer on the branch diff** +
+- Review loop per PR (confirmed): **reviewer on the branch diff** +
   performance-reviewer gate above; **medium+ findings iterate**, nitpick-only =
   clean (memory: feedback-review-loop-severity).
 - **/impeccable audit on the RENDERED modal as a merge gate** (PR 3, once the

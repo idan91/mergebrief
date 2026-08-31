@@ -57,7 +57,7 @@ postComment's fallback and told the reviewer to retry a refusal no retry clears.
 - **Pre-commit gates:** `security-reviewer` + `performance-reviewer` in
   parallel on staged diff before every commit; fix ≥80-confidence findings,
   re-run until clean.
-- **Pre-PR:** `fable-reviewer` adversarial pass on the branch diff before
+- **Pre-PR:** `reviewer` adversarial pass on the branch diff before
   `gh pr create`.
 - **PR:** title `[BRIEF-214] fix: Exhaustive Wire-Code Maps In Web Transports`,
   base `main`, standard Overview/Changelog body (no Images section — no visual
@@ -88,5 +88,5 @@ Order (one commit each, shared-shape first so later transports copy it):
 `resolve.ts`. No shared helper module: kinds differ per transport and a
 generic mapper would be an unrequested abstraction.
 
-Close-out: full `pnpm test` + lint in `apps/web`, fable-reviewer pass, PR up,
+Close-out: full `pnpm test` + lint in `apps/web`, reviewer pass, PR up,
 move BRIEF-214 to In review.

@@ -47,7 +47,7 @@ structurally cannot show the problem.
   every commit** (findings ≥80 confidence get fixed before committing).
 - No `Co-Authored-By` trailers; no AI-attribution in PR bodies.
 - PR titles: `[BRIEF-186] perf: …` in Title Case, per git-eng rules.
-- Each PR gets a `fable-reviewer` subagent review before handing to Idan;
+- Each PR gets a `reviewer` subagent review before handing to Idan;
   Idan merges. Review budget: 2 rounds max; medium+ findings iterate,
   nitpick-only = clean.
 

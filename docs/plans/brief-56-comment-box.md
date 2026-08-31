@@ -97,7 +97,7 @@ CommentComposer except where a decision says otherwise (icons, a11y).
 ## PR breakdown
 
 Five stacked PRs, sequential in the main thread (each depends on the shared
-component landing first). Review loop: `fable-reviewer` agent, one pre-merge
+component landing first). Review loop: `reviewer` agent, one pre-merge
 round per PR on the branch diff; medium+ findings iterate, low/nitpick-only
 = clean with a note in the PR body. Idan merges.
 

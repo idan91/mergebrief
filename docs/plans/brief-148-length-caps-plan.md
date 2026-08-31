@@ -58,7 +58,7 @@ lede caps.
 - Chunked commits per logical unit. **Pre-commit gate: `security-reviewer`
   on staged changes before every commit**; findings ≥80 confidence get fixed
   and re-reviewed before committing.
-- **`fable-reviewer` on each branch diff** before the PR goes up; iterate on
+- **`reviewer` on each branch diff** before the PR goes up; iterate on
   medium+ findings (nitpick-only = clean, per review-loop severity memory).
 - No Co-Authored-By trailers; no AI-attribution in PR bodies.
 - PR titles: `[BRIEF-148] <prefix>: Title Case`. Idan merges.

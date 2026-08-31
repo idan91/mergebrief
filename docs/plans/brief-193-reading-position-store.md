@@ -72,6 +72,6 @@ New store, co-located with the screen (`BriefScreen/readingPosition/`):
   final shape).
 - Skills (mandatory): `typescript-eng`, `tdd`.
 - Git: all git operations through `git-eng`. Chunked commits;
-  `performance-reviewer` gate pre-commit; `fable-reviewer` on each PR
+  `performance-reviewer` gate pre-commit; `reviewer` on each PR
   branch before ready. No AI attribution in commits/PRs. PR titles
   `[BRIEF-193] refactor: …`.
