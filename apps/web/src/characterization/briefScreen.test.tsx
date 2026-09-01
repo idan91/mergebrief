@@ -359,7 +359,7 @@ describe("brief screen characterization", () => {
 
   // Changes-only's summary-only column is not reachable here: the
   // single-artifact local fixture has no comparison baseline, so `changes`
-  // normalizes back to `full`. That cell is pinned by modeLegality.test.
+  // normalizes back to `full`. That cell is pinned by regions.test.
 
   it("keeps the split-intent categories bolded inside the sentence", async () => {
     // One <Trans> sentence: a short components array would drop the <b> and

@@ -67,7 +67,7 @@ import { useConversationWiring } from "./useConversationWiring";
 import { useInFlightDraftPosts } from "./useInFlightDraftPosts";
 import { useMarkReadyFlow } from "./useMarkReadyFlow";
 import { POST_COMMENT_COPY_KEYS, useOwnDraftFlow } from "./useOwnDraftFlow";
-import { deriveRegionBlocks } from "./modeLegality";
+import { deriveVisibleRegions } from "./regions";
 import {
   ReadingPositionProvider,
   useCreateReadingPositionStore,
@@ -311,14 +311,14 @@ export function BriefScreen({
     toggleFocusMode,
   } = session;
 
-  // Region block presence: ONE derivation over the two axes — no per-block
+  // Region visibility: ONE derivation over the two reading modes — no per-region
   // ad-hoc gating below.
-  const blocks = deriveRegionBlocks({
+  const regions = deriveVisibleRegions({
     scope: compareState.view,
     focus: focusMode,
   });
 
-  // The IntentBar renders in Changes scope (its legality row) but its jump
+  // The IntentBar renders in Changes scope (its visibility row) but its jump
   // targets (group/chunk anchors) only exist in the full story flow — so a
   // jump from Changes first navigates the Scope axis to `full`, then jumps
   // once the flipped scope actually renders (the effect below fires when
@@ -580,12 +580,12 @@ export function BriefScreen({
     toggleHelp: session.toggleShortcuts,
     // Keyboard-only announcement: the checkbox click is self-announcing.
     markViewed: markViewedFromShortcut,
-    // Gated on the legality cell, not just plan presence: with the section
+    // Gated on the visibility cell, not just plan presence: with the section
     // unmounted (focus mode, Changes scope) the target is gone — an
     // undefined action lets the shortcut hook's don't-swallow branch pass
     // the key through instead of eating it over a sticky `setOpen(true)`.
     jumpToConversation:
-      conversation !== undefined && blocks.conversation
+      conversation !== undefined && regions.conversation
         ? conversationWiring.jumpToConversation
         : undefined,
   });
@@ -679,12 +679,12 @@ export function BriefScreen({
             />
           ) : null}
 
-          {/* Region blocks render strictly off the legality derivation above —
-            each block reads its own cell, nothing re-tests the axes. */}
-          {blocks.summary ? (
+          {/* Regions render strictly off the visibility derivation above —
+            each reads its own cell, nothing re-tests the modes. */}
+          {regions.summary ? (
             <>
               <SummarySection brief={brief} />
-              {/* Directly beneath the capped summary — one legality row with
+              {/* Directly beneath the capped summary — one visibility row with
                 it. */}
               {brief.intentCheck ? (
                 <IntentBar
@@ -700,7 +700,7 @@ export function BriefScreen({
             </>
           ) : null}
 
-          {blocks.summary &&
+          {regions.summary &&
           model.unattributed !== undefined &&
           model.unattributed.added + model.unattributed.deleted > 0 ? (
             <UnattributedBanner view={model.unattributed} />
@@ -708,11 +708,11 @@ export function BriefScreen({
 
           {/* Full-brief rollup always — never a scope cut, no delta treatment
             under compare. */}
-          {blocks.summary && brief.concernView.length >= 2 ? (
+          {regions.summary && brief.concernView.length >= 2 ? (
             <ConcernStrip rollup={brief.concernView} />
           ) : null}
 
-          {blocks.groupToc ? (
+          {regions.groupToc ? (
             <GroupTocBar
               key={`toc-${briefId}`}
               conversationGroupIds={conversationWiring.conversationGroupIds}
@@ -726,7 +726,7 @@ export function BriefScreen({
             expanded digest. The Filter disclosure is the ONLY filter surface:
             it governs the diff's inline threads and sits above the
             collapsed-by-default section it filters. */}
-          {blocks.toolbar ? (
+          {regions.toolbar ? (
             <ReadingToolbar
               key={`toolbar-${briefId}`}
               comparison={comparison}
@@ -760,7 +760,7 @@ export function BriefScreen({
             />
           ) : null}
 
-          {blocks.conversation && conversation !== undefined ? (
+          {regions.conversation && conversation !== undefined ? (
             <ConversationSection
               key={`conversation-${briefId}`}
               {...conversationReadOnly}

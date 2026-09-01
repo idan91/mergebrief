@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { deriveRegionBlocks } from "./modeLegality";
+import { deriveVisibleRegions } from "./regions";
 
 /**
- * The legality table asserted column by column, plus the axis-precedence
+ * The visibility table asserted column by column, plus the mode-precedence
  * boundary between the columns.
  */
-describe("deriveRegionBlocks", () => {
+describe("deriveVisibleRegions", () => {
   it("Full renders the whole region", () => {
-    const blocks = deriveRegionBlocks({ scope: "full", focus: false });
-    expect(blocks).toEqual({
+    const regions = deriveVisibleRegions({ scope: "full", focus: false });
+    expect(regions).toEqual({
       summary: true,
       toolbar: true,
       conversation: true,
@@ -18,8 +18,8 @@ describe("deriveRegionBlocks", () => {
   });
 
   it("Changes keeps only the summary", () => {
-    const blocks = deriveRegionBlocks({ scope: "changes", focus: false });
-    expect(blocks).toEqual({
+    const regions = deriveVisibleRegions({ scope: "changes", focus: false });
+    expect(regions).toEqual({
       summary: true,
       toolbar: false,
       conversation: false,
@@ -28,8 +28,8 @@ describe("deriveRegionBlocks", () => {
   });
 
   it("Focus empties the region", () => {
-    const blocks = deriveRegionBlocks({ scope: "full", focus: true });
-    expect(blocks).toEqual({
+    const regions = deriveVisibleRegions({ scope: "full", focus: true });
+    expect(regions).toEqual({
       summary: false,
       toolbar: false,
       conversation: false,
@@ -38,8 +38,8 @@ describe("deriveRegionBlocks", () => {
   });
 
   it("focus wins over scope", () => {
-    const blocks = deriveRegionBlocks({ scope: "changes", focus: true });
-    expect(blocks).toEqual({
+    const regions = deriveVisibleRegions({ scope: "changes", focus: true });
+    expect(regions).toEqual({
       summary: false,
       toolbar: false,
       conversation: false,

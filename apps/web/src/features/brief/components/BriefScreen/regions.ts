@@ -1,16 +1,16 @@
-// Block presence derives from the two axes — Scope (Full/Changes) and Focus
-// (on/off) — in one place. No per-block ad-hoc gating conditions may exist
-// outside this derivation.
+// Which page regions are visible derives from the two reading modes — Scope
+// (Full/Changes) and Focus (on/off) — in one place. No per-region ad-hoc
+// gating conditions may exist outside this derivation.
 import type { ViewParam } from "../../comparison/compareState";
 
-export interface ModeAxes {
+export interface ReadingModes {
   /** The URL `view` param. */
   scope: ViewParam;
   focus: boolean;
 }
 
-/** One row per region block. */
-export interface RegionBlocks {
+/** One flag per page region. */
+export interface VisibleRegions {
   /** Summary + IntentBar (capped) — one flag for both. */
   summary: boolean;
   toolbar: boolean;
@@ -19,11 +19,11 @@ export interface RegionBlocks {
 }
 
 /**
- * Axis precedence: Focus empties the region entirely; Changes scope keeps
+ * Mode precedence: Focus hides every region; Changes scope keeps
  * only the summary.
  */
-export function deriveRegionBlocks(axes: ModeAxes): RegionBlocks {
-  if (axes.focus) {
+export function deriveVisibleRegions(modes: ReadingModes): VisibleRegions {
+  if (modes.focus) {
     return {
       summary: false,
       toolbar: false,
@@ -31,7 +31,7 @@ export function deriveRegionBlocks(axes: ModeAxes): RegionBlocks {
       groupToc: false,
     };
   }
-  if (axes.scope === "changes") {
+  if (modes.scope === "changes") {
     return {
       summary: true,
       toolbar: false,
