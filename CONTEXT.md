@@ -229,6 +229,14 @@ _Avoid_: using the two words interchangeably; Error-suffixed types on the Result
 The two GitHub identities the API acts under. The installation port is the app's own channel — an installation token injected once at startup, one rate budget shared across viewers. The reviewer GitHub client is the signed-in reviewer's channel — their OAuth token, bound per request; it runs a call with the current token and, on a token-expired failure, refreshes at most once per request and re-runs. Which identity a call runs under decides whose permissions and whose rate budget apply.
 _Avoid_: viewer token (say reviewer), refresh budget (say refreshed at most once per request)
 
+**Header**:
+The sticky top band of a screen. On the Brief page it is two tiers: the identity row (wordmark, PR title and state, meta chips, the terminal action, the PR-scoped overflow menu, and the **Account menu** last) and the lens row (revision navigator and stats). Spans the full width above the **Sidebar** column; compacts on scroll but never loses its controls. The landing page carries a one-tier Header.
+_Avoid_: top chrome, top bar (the CSS variable's name, not the concept), navbar
+
+**Account menu**:
+The person-anchored menu at the end of every **Header**, holding what is about the signed-in user and never about the PR: identity, Settings, Language, Sign in / Sign out. Trigger is the GitHub avatar when signed in and a generic person icon when not, in the same place either way. No placeholder rows for what is not built. Distinct from the PR-scoped overflow menu (about this PR) and the **Sidebar** (about reading this PR).
+_Avoid_: user menu, profile menu, app menu, top-chrome menu (charting-era word)
+
 **Sidebar**:
 The Brief page's permanent right-edge column, PR-contextual only, always present on wide screens. Two states: **collapsed** — the group-TOC lines (hover reveals the group name, the current group is marked) plus the expand control and the page's small utilities at its foot — and **expanded**, where it widens to show one **Tab** beside those same lines, narrowing the reading column rather than covering it. Nothing on the sidebar competes with change groups and chunks for attention: no counts on the collapsed sidebar, at most a presence dot. Hidden wherever the group TOC is hidden (**Focus mode**, Changes **Scope**). Below the tablet breakpoint the same two states render differently: collapsed is a bar on the bottom edge (group lines as a position indicator between previous/next arrows, plus the same small utilities), expanded is a sheet rising from it that covers the page while open, so a jump collapses it.
 _Avoid_: rail (that is the **Jump-rail**), panel, drawer, shell (charting-era word), tenant (the API's multi-tenancy noun)
