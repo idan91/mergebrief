@@ -523,6 +523,8 @@ Options:
   -F, --payload <path>  full JSON payload from a file, or "-" for stdin
   --file <path>         anchor file path (flag form)
   --side <side>         old | new (flag form; default: new)
+  --start-side <side>   old | new — side of --start when the range crosses sides
+                        (flag form)
   --start <line>        anchor start line (flag form)
   --end <line>          anchor end line (flag form)
   --body <text>         comment body (flag form)
@@ -565,6 +567,8 @@ Options:
   -F, --payload <path>  full JSON payload from a file, or "-" for stdin
   --file <path>         anchor file path (flag form)
   --side <side>         old | new (flag form; default: new)
+  --start-side <side>   old | new — side of --start when the range crosses sides
+                        (flag form)
   --start <line>        anchor start line (flag form)
   --end <line>          anchor end line (flag form)
   --base <sha>          span base of the brief (required)
