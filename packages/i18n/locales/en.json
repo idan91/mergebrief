@@ -290,6 +290,10 @@
     },
     "intent": {
       "title": "Intent check",
+      "splitChecksOut": "Checks out",
+      "splitNeedsALook": "Needs a look",
+      "emptyChecksOut": "nothing checks out",
+      "emptyNeedsALook": "nothing needs a look",
       "deviations_one": "<0>{{count}}</0> deviation",
       "deviations_other": "<0>{{count}}</0> deviations",
       "linkedTickets_one": "{{count}} linked ticket",
@@ -297,9 +301,6 @@
       "unavailable": "intent check unavailable — {{reason}}",
       "reasonBroad": "the ticket scope is too broad to check against this PR",
       "reasonNone": "no stated intent was available for this PR",
-      "collapseLabel": "Collapse intent check",
-      "expandLabel": "Show full intent check",
-      "framing": "This is the AI’s fallible read of the PR’s stated intent — a factual summary of what the diff does against what the ticket asked, never a verdict.",
       "bucketAccomplished": "Accomplished",
       "bucketClaimedButUnachieved": "Claimed but unachieved",
       "bucketDeviations": "Deviations",
@@ -314,7 +315,6 @@
       "statedButMissing_other": "<0>{{count}}</0> stated but missing",
       "doneButUnstated_one": "<0>{{count}}</0> done but unstated",
       "doneButUnstated_other": "<0>{{count}}</0> done but unstated",
-      "acknowledged": "acknowledged",
       "source": "source",
       "prDescription": "PR description"
     },

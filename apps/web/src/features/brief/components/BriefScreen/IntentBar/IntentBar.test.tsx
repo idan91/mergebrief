@@ -66,10 +66,12 @@ describe("IntentBar", () => {
       "0 deviations",
       "1 stated but missing",
       "1 done but unstated",
-      "1 linked ticket",
     ]) {
       expect(toggle.textContent).toContain(pair);
     }
+    // Provenance, not a bucket count — the linked-ticket line lives in the
+    // panel preamble, never the bar.
+    expect(toggle.textContent).not.toContain("linked ticket");
   });
 
   it("starts collapsed and never auto-expands, even with a missing ask", () => {
@@ -82,12 +84,84 @@ describe("IntentBar", () => {
     ).not.toBeNull();
   });
 
-  it("expands on click and leads the body with the fallible-read framing", () => {
+  it("opens in full — the twist is the only disclosure, no inner height cap", () => {
     render(<IntentBar intentCheck={PRECISE} jumpToGroup={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
-    expect(screen.getByText(/fallible read/i)).toBeTruthy();
-    expect(screen.getByText(/never\s+a verdict/i)).toBeTruthy();
+    // No second expand layer: the per-bucket clamp owns overflow instead.
+    expect(
+      screen.queryByRole("button", { name: /show full intent check/i }),
+    ).toBeNull();
+    expect(screen.queryByTestId("intent-text")).toBeNull();
+  });
+
+  it("expands on click with no framing line — the scope note leads the panel", () => {
+    const withScope: IntentCheck = {
+      ...PRECISE,
+      scopeNote: "later URL-box work is outside this diff",
+    };
+    render(<IntentBar intentCheck={withScope} jumpToGroup={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
+    expect(screen.queryByText(/fallible read/i)).toBeNull();
     expect(screen.getByText("add the widget endpoint")).toBeTruthy();
+    const body = bodyText();
+    expect(
+      body.indexOf("later URL-box work is outside this diff"),
+    ).toBeLessThan(body.indexOf("1 linked ticket"));
+  });
+
+  it("renders the linked-ticket subsection in the preamble: count line + id bullets", () => {
+    render(<IntentBar intentCheck={PRECISE} jumpToGroup={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
+    expect(screen.getByText("1 linked ticket")).toBeTruthy();
+    // The id derives from the URL tail and carries the link.
+    const link = screen.getByRole("link", {
+      name: /^T-1 ?\(opens in a new tab\)$/,
+    });
+    expect(link.getAttribute("href")).toBe("https://tracker.example/T-1");
+    // The subsection precedes the buckets.
+    const body = bodyText();
+    expect(body.indexOf("1 linked ticket")).toBeLessThan(
+      body.indexOf("add the widget endpoint"),
+    );
+  });
+
+  it("derives the ticket id from the URL path tail, dropping query and fragment", () => {
+    render(
+      <IntentBar
+        intentCheck={{
+          ...PRECISE,
+          ticketUrls: ["https://tracker.example/browse/T-7?filter=x#top"],
+        }}
+        jumpToGroup={() => {}}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
+    expect(
+      screen.getByRole("link", { name: /^T-7 ?\(opens in a new tab\)$/ }),
+    ).toBeTruthy();
+  });
+
+  it("never links a non-http(s) ticket URL — the id renders as plain text", () => {
+    const sneaky: IntentCheck = {
+      ...PRECISE,
+      // eslint-disable-next-line no-script-url
+      ticketUrls: ["javascript:alert(1)"],
+    };
+    render(<IntentBar intentCheck={sneaky} jumpToGroup={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
+    expect(screen.getByText("1 linked ticket")).toBeTruthy();
+    expect(screen.queryByRole("link", { name: /alert/ })).toBeNull();
+  });
+
+  it("omits the linked-ticket subsection entirely when there are no tickets", () => {
+    render(
+      <IntentBar
+        intentCheck={{ ...PRECISE, ticketUrls: [] }}
+        jumpToGroup={() => {}}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
+    expect(screen.queryByText(/linked ticket/)).toBeNull();
   });
 
   it("renders broad sources as the same quiet bar with an unavailability line and no buckets", () => {
@@ -95,8 +169,12 @@ describe("IntentBar", () => {
     expect(screen.getByText(/intent check unavailable/i)).toBeTruthy();
     expect(screen.queryByText("1 accomplished")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
-    // Body has the framing but no bucket labels.
+    // Body keeps the preamble (scope note + ticket provenance), no buckets.
     expect(screen.getByText("parent epic spans several PRs")).toBeTruthy();
+    expect(screen.getByText("1 linked ticket")).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: /^EPIC-9 ?\(opens in a new tab\)$/ }),
+    ).toBeTruthy();
     expect(screen.queryByText("Accomplished")).toBeNull();
   });
 
@@ -253,12 +331,14 @@ describe("IntentBar — alarm buckets", () => {
     claimedButUnachieved: [item("claims the flake is fixed but only skips it")],
   };
 
-  it("renders the buckets in the locked static order, never severity-sorted", () => {
+  it("ships the DOM in split order: Checks out first, static order within each side", () => {
     render(<IntentBar intentCheck={WITH_ALARMS} jumpToGroup={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
     const body = bodyText();
     const order = [
+      "Checks out",
       "Accomplished",
+      "Needs a look",
       "Claimed but unachieved",
       "Deviations",
       "Stated but missing",
@@ -266,6 +346,77 @@ describe("IntentBar — alarm buckets", () => {
     ].map((label) => body.indexOf(label));
     expect(order.every((index) => index >= 0)).toBe(true);
     expect(order).toEqual(order.toSorted((a, b) => a - b));
+  });
+
+  it("exposes the real heading ladder: band h2, split heads h3, bucket labels h4", () => {
+    render(<IntentBar intentCheck={WITH_ALARMS} jumpToGroup={() => {}} />);
+    expect(
+      screen.getByRole("heading", { level: 2, name: /intent check/i }),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
+    expect(
+      screen.getByRole("heading", { level: 3, name: "Checks out" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { level: 3, name: "Needs a look" }),
+    ).toBeTruthy();
+    const bucketHeads = screen
+      .getAllByRole("heading", { level: 4 })
+      .map((node) => node.textContent);
+    expect(bucketHeads).toEqual([
+      "Accomplished",
+      "◇Claimed but unachieved",
+      "◇Deviations",
+      "Stated but missing",
+      "Done but unstated",
+    ]);
+  });
+
+  it("keeps an empty split side as information: head + quiet empty line", () => {
+    const oneSided: IntentCheck = {
+      ...PRECISE,
+      statedButMissing: [],
+      doneButUnstated: [],
+    };
+    render(<IntentBar intentCheck={oneSided} jumpToGroup={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
+    // Both heads always render on a precise check — an empty "Needs a look"
+    // is the band's best news, said out loud instead of silently dropped.
+    expect(
+      screen.getByRole("heading", { level: 3, name: "Checks out" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { level: 3, name: "Needs a look" }),
+    ).toBeTruthy();
+    expect(screen.getByText("nothing needs a look")).toBeTruthy();
+    expect(screen.queryByText("nothing checks out")).toBeNull();
+
+    cleanup();
+    const alarmOnly: IntentCheck = {
+      ...PRECISE,
+      accomplished: [],
+      deviations: [item("drops the cache")],
+    };
+    render(<IntentBar intentCheck={alarmOnly} jumpToGroup={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
+    expect(
+      screen.getByRole("heading", { level: 3, name: "Checks out" }),
+    ).toBeTruthy();
+    expect(screen.getByText("nothing checks out")).toBeTruthy();
+    expect(screen.queryByText("nothing needs a look")).toBeNull();
+  });
+
+  it("keeps the empty lines out of two-populated-side and broad renders", () => {
+    render(<IntentBar intentCheck={WITH_ALARMS} jumpToGroup={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
+    expect(screen.queryByText(/^nothing /)).toBeNull();
+
+    cleanup();
+    render(<IntentBar intentCheck={BROAD} jumpToGroup={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
+    // Unavailable sources render no split body at all — no heads, no lines.
+    expect(screen.queryByRole("heading", { level: 3 })).toBeNull();
+    expect(screen.queryByText(/^nothing /)).toBeNull();
   });
 
   it("carries one muted caution line per NON-EMPTY alarm bucket, and none otherwise", () => {
@@ -282,7 +433,7 @@ describe("IntentBar — alarm buckets", () => {
     expect(screen.queryByText(/AI-inferred tension/i)).toBeNull();
   });
 
-  it("partitions acknowledged deviations to the TAIL, with a chip and no caution", () => {
+  it("partitions acknowledged deviations under Checks out, with no chip and no caution", () => {
     const mixed: IntentCheck = {
       ...PRECISE,
       deviations: [
@@ -295,15 +446,22 @@ describe("IntentBar — alarm buckets", () => {
     render(<IntentBar intentCheck={mixed} jumpToGroup={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
     const body = bodyText();
-    // The unacknowledged one sits in the alarm slot; the acknowledged one is a
-    // quiet receipt after every other bucket.
-    expect(body.indexOf("silent reversal")).toBeLessThan(
-      body.indexOf("Done but unstated"),
+    // The acknowledged half is a quiet receipt on the Checks-out side; the
+    // unacknowledged half stays in the alarm slot on the other side.
+    expect(body.indexOf("reversal the description owns")).toBeLessThan(
+      body.indexOf("Needs a look"),
     );
-    expect(body.indexOf("Done but unstated")).toBeLessThan(
-      body.indexOf("reversal the description owns"),
+    expect(body.indexOf("Needs a look")).toBeLessThan(
+      body.indexOf("silent reversal"),
     );
-    expect(screen.getByText("acknowledged")).toBeTruthy();
+    // The chip is gone — the bucket label already says acknowledged.
+    expect(screen.queryByText("acknowledged")).toBeNull();
+    expect(
+      screen.getByRole("heading", {
+        level: 4,
+        name: "Deviations acknowledged in the description",
+      }),
+    ).toBeTruthy();
     // Only the unacknowledged half is alarm-class.
     expect(screen.getAllByText(/AI-inferred tension/i)).toHaveLength(1);
   });
@@ -333,10 +491,7 @@ describe("IntentBar — alarm buckets", () => {
     expect(header).not.toContain("1 deviations");
   });
 
-  it("renders a brief with no alarm items byte-identically to the old bar", () => {
-    // An intent check whose alarm arrays are empty must produce exactly the
-    // markup it produced before the buckets existed — no stray glyph,
-    // caution, chip, or heading.
+  it("renders no alarm residue when the alarm buckets are empty", () => {
     const { container } = render(
       <IntentBar intentCheck={PRECISE} jumpToGroup={() => {}} />,
     );
@@ -344,11 +499,10 @@ describe("IntentBar — alarm buckets", () => {
     const html = container.innerHTML;
     expect(html).not.toContain("◇");
     expect(html).not.toContain("AI-inferred tension");
-    expect(html).not.toContain("acknowledged");
     expect(html).not.toContain("Claimed but unachieved");
     expect(html).not.toContain("Deviations acknowledged");
-    // The header counts DO grow to five — that is the one visible change, and
-    // it stays neutral (same class as its siblings, no color, no ordering).
+    // The header counts stay the neutral flat five — same class, no color,
+    // no ordering.
     const counts = [...container.querySelectorAll("span")].filter((node) =>
       /^\d+ (accomplished|claimed but unachieved|deviations|stated but missing|done but unstated)$/.test(
         (node.textContent ?? "").replace(/\s+/g, " ").trim(),
