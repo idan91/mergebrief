@@ -688,6 +688,9 @@ export function BriefScreen({
                 it. */}
               {brief.intentCheck ? (
                 <IntentBar
+                  groupTitles={Object.fromEntries(
+                    brief.changeGroups.map((group) => [group.id, group.title]),
+                  )}
                   key={`intent-${briefId}`}
                   intentCheck={brief.intentCheck}
                   jumpToGroup={jumpToGroupFromIntentBar}

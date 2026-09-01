@@ -38,6 +38,14 @@
       border-radius: var(--radius-circle);
     }
 
+    &[data-width="auto"] {
+      inline-size: auto;
+      min-inline-size: functions.to-rem(24px);
+      padding-inline: functions.to-rem(6px);
+      column-gap: functions.to-rem(4px);
+      grid-auto-flow: column;
+    }
+
     &[data-variant="outlined"] {
       border-color: var(--line2);
       background: var(--panel2);

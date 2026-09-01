@@ -12,6 +12,13 @@ export const UNAVAILABLE_REASON_KEY: Record<
 };
 
 /**
+ * A bucket past the threshold clamps to the visible count plus an in-place
+ * "Show all N" expander; growth stays in place, nothing behind a scroll.
+ */
+export const CLAMP_THRESHOLD = 6;
+export const CLAMP_VISIBLE = 5;
+
+/**
  * The one caution line the alarm buckets carry — epistemic, not severity.
  * Rendered ONLY when its bucket is non-empty.
  */

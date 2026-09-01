@@ -66,6 +66,9 @@ export type Catalog = typeof en & {
       bytesUsed: "{{used}} of {{budget}} bytes";
     };
     intent: (typeof en)["brief"]["intent"] & {
+      showAll: "Show all {{count}}";
+      jumpToGroup: "go to change-group {{groupId}}";
+      jumpToGroupTitled: "go to change-group {{groupId}} — {{title}}";
       deviations_one: "<0>{{count}}</0> deviation";
       deviations_other: "<0>{{count}}</0> deviations";
       linkedTickets_one: "{{count}} linked ticket";

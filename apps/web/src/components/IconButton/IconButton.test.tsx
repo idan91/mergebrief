@@ -24,6 +24,18 @@ describe("IconButton", () => {
     expect(screen.getByRole("button", { name: "Next revision" })).toBeTruthy();
   });
 
+  it("autoWidth stamps data-width for labeled icon content", () => {
+    render(
+      <IconButton autoWidth label="go to change-group g1">
+        ↳ g1
+      </IconButton>,
+    );
+    const button = screen.getByRole("button", {
+      name: "go to change-group g1",
+    });
+    expect(button.getAttribute("data-width")).toBe("auto");
+  });
+
   it("disabled renders aria-disabled, never the native attribute, and guards clicks", () => {
     const onClick = vi.fn();
     render(

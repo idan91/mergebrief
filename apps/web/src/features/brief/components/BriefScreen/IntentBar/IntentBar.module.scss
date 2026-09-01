@@ -2,20 +2,16 @@
 @use "mixins";
 
 @layer components {
-  // Deliberately quiet: no warning colors, no gap-first emphasis.
   .bar {
     margin-block: functions.to-rem(4px) functions.to-rem(12px);
   }
 
-  // The band title is the toggle: heading semantics, button box.
   .heading {
     margin: 0;
     font-size: inherit;
     font-weight: inherit;
   }
 
-  // Full-width wrap row on ToolbarButton's box: its own border tint,
-  // radius, and text layout.
   .toggle {
     display: flex;
     flex-wrap: wrap;
@@ -33,8 +29,7 @@
     padding: functions.to-rem(6px) functions.to-rem(10px);
     white-space: normal;
 
-    /* Re-pins at ToolbarButton's state-selector specificity: the full-width
-       row keeps its transparent ground and quiet border when open/hovered. */
+    /* Re-pins at ToolbarButton's state-selector specificity. */
     &:hover,
     &[aria-expanded="true"]:hover {
       border-color: color-mix(in srgb, currentcolor 45%, transparent);
@@ -58,7 +53,6 @@
     @include mixins.focus-ring;
   }
 
-  // Same disclosure grammar as the conversation heading's twist.
   .twist {
     align-self: center;
     color: var(--dim);
@@ -88,7 +82,6 @@
     opacity: 0.8;
   }
 
-  // Weighted digit + widened word space so each pair reads as one unit.
   .countNum {
     margin-inline-end: functions.to-rem(3px);
     font-weight: 650;
@@ -119,7 +112,6 @@
     padding: functions.to-rem(10px) functions.to-rem(12px) functions.to-rem(2px);
   }
 
-  // Panel text is capped at a readable measure; the BAR stays full-width.
   .scopeNote {
     font-size: var(--font-size-lg);
     margin-block: 0 functions.to-rem(10px);
@@ -149,7 +141,10 @@
 
   .split {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+
+    /* The 340px floor IS the wrap breakpoint — a media query cannot see a
+       narrowed column. */
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
     gap: functions.to-rem(22px) functions.to-rem(36px);
     align-items: start;
   }
@@ -195,9 +190,6 @@
     margin-block: 0 functions.to-rem(4px);
   }
 
-  /* Alarm buckets carry NO color of any kind — an epistemic caution must
-     never read as a severity. Weight and a neutral glyph carry the
-     emphasis instead. */
   .alarmGlyph {
     margin-inline-end: functions.to-rem(6px);
     opacity: 0.65;
@@ -217,17 +209,19 @@
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: functions.to-rem(12px);
-    max-inline-size: 72ch;
+
+    > li + li {
+      border-block-start: 1px solid var(--line);
+      margin-block-start: functions.to-rem(10px);
+      padding-block-start: functions.to-rem(10px);
+    }
   }
 
-  // Marker column (the jump chip, or a dot) + body column; claim on one
-  // line, evidence on its own muted line beneath it.
   .item {
     display: grid;
     align-items: baseline;
     column-gap: functions.to-rem(10px);
-    grid-template-columns: minmax(functions.to-rem(28px), auto) 1fr;
+    grid-template-columns: minmax(functions.to-rem(28px), auto) 1fr auto;
   }
 
   .marker {
@@ -240,24 +234,21 @@
     display: flex;
     flex-direction: column;
     gap: functions.to-rem(3px);
-  }
 
-  .itemHead {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: functions.to-rem(4px) functions.to-rem(8px);
-  }
-
-  .itemMeta {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: functions.to-rem(4px) functions.to-rem(10px);
+    /* Bites only once the split wraps single-column (quotes run ~100ch
+       uncapped). */
+    max-inline-size: 72ch;
   }
 
   .intent {
     font-weight: 500;
+  }
+
+  .itemMeta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: functions.to-rem(3px);
   }
 
   .quote {
@@ -265,56 +256,55 @@
     font-size: var(--font-size-lg);
   }
 
+  .sourceBadge {
+    opacity: 0.75;
+  }
+
   .source {
     color: var(--faint);
-    font-size: var(--font-size-md);
-
-    &::before {
-      content: "· ";
-      color: var(--faint);
-    }
   }
 
-  .jumps {
-    display: inline-flex;
-    flex-wrap: wrap;
-    gap: functions.to-rem(4px);
-  }
-
-  // Inline jump chip on Chip's button branch: quieter tint, sm radius, no
-  // pill height.
-  .jump {
-    display: inline-flex;
-    align-items: center;
-    gap: functions.to-rem(4px);
-    min-height: 0;
-    background: none;
-    border: 1px solid color-mix(in srgb, currentcolor 25%, transparent);
+  .showAll {
+    margin-block-start: functions.to-rem(10px);
+    min-block-size: functions.to-rem(24px);
+    padding: functions.to-rem(2px) functions.to-rem(8px);
+    border: 1px solid var(--line2);
     border-radius: var(--radius-sm);
+    background: none;
     color: var(--dim);
-    cursor: pointer;
     font: inherit;
     font-size: var(--font-size-md);
     letter-spacing: normal;
-    padding: 0 functions.to-rem(6px);
 
     /* :is(button) matches Chip's hover specificity so the quiet tint wins. */
     &:is(button):hover {
-      border-color: color-mix(in srgb, currentcolor 50%, transparent);
+      border-color: color-mix(in srgb, var(--line2) 60%, var(--text));
       background: none;
       color: var(--text);
     }
+
+    &:focus-visible {
+      @include mixins.focus-ring;
+    }
   }
 
-  .jumpArrow {
-    color: var(--faint);
+  .gotoSet {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: functions.to-rem(4px);
+    align-self: center;
+
+    /* ~Two labeled buttons per row; more stack instead of starving the
+       claim text at the 340px floor. */
+    max-inline-size: functions.to-rem(96px);
   }
 
-  .jump:hover .jumpArrow {
-    color: inherit;
+  .goto {
+    font-size: var(--font-size-md);
   }
 
-  .jump:focus-visible {
-    @include mixins.focus-ring;
+  .gotoId {
+    font-size: var(--font-size-sm);
   }
 }

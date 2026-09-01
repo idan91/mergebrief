@@ -23,6 +23,8 @@ export type IconButtonBaseProps = {
   variant?: IconButtonVariant;
   /** sm 24px (default) / md 32px / lg 34px circle. */
   size?: IconButtonSize;
+  /** Width follows the content (labeled icon, e.g. "↳ g1"); height keeps the size. */
+  autoWidth?: boolean;
   /** aria-disabled + interaction guard — never the native attribute. */
   disabled?: boolean;
 };
@@ -35,6 +37,7 @@ export function IconButton(props: IconButtonProps) {
     label,
     variant = IconButtonVariants.GHOST,
     size = IconButtonSizes.SM,
+    autoWidth = false,
     disabled = false,
     "aria-disabled": ariaDisabled,
     "aria-label": ariaLabel,
@@ -58,6 +61,7 @@ export function IconButton(props: IconButtonProps) {
       className={clsx(styles["iconButton"], className)}
       data-size={size}
       data-variant={variant}
+      data-width={autoWidth ? "auto" : undefined}
       type={type}
       onClick={handleClick}
     />
