@@ -229,6 +229,22 @@ _Avoid_: using the two words interchangeably; Error-suffixed types on the Result
 The two GitHub identities the API acts under. The installation port is the app's own channel — an installation token injected once at startup, one rate budget shared across viewers. The reviewer GitHub client is the signed-in reviewer's channel — their OAuth token, bound per request; it runs a call with the current token and, on a token-expired failure, refreshes at most once per request and re-runs. Which identity a call runs under decides whose permissions and whose rate budget apply.
 _Avoid_: viewer token (say reviewer), refresh budget (say refreshed at most once per request)
 
+**Sidebar**:
+The Brief page's permanent right-edge column, PR-contextual only, always present on wide screens. Two states: **collapsed** — the group-TOC lines (hover reveals the group name, the current group is marked) plus the expand control and the page's small utilities at its foot — and **expanded**, where it widens to show one **Tab** beside those same lines, narrowing the reading column rather than covering it. Nothing on the sidebar competes with change groups and chunks for attention: no counts on the collapsed sidebar, at most a presence dot. Hidden wherever the group TOC is hidden (**Focus mode**, Changes **Scope**). Below the tablet breakpoint the narrow-screen shape takes over.
+_Avoid_: rail (that is the **Jump-rail**), panel, drawer, shell (charting-era word), tenant (the API's multi-tenancy noun)
+
+**Tab**:
+One surface housed in the expanded **Sidebar**, shown one at a time via a tabs row that lists only the tabs that exist. "This PR" — the group list — is the first; Activity and Repo chat are candidates, each earning its place through its own ticket. Conversation is not a tab: it stays in the reading flow.
+_Avoid_: tenant, inhabitant, view (that is the URL scope param), pane
+
+**Focus mode**:
+The reading mode that strips the Brief page to the story flow alone — summary, toolbar, conversation, group TOC and **Sidebar** all hidden — with a single exit control. A mode of the page, not a filter of its content.
+_Avoid_: zen mode (code-internal only), distraction-free, reading mode (every mode is for reading)
+
+**Scope** (Full vs Changes):
+Which slice of the Brief the page shows: **Full** is the whole story flow; **Changes** is the compare view between two revisions, keeping only the summary. Scope and **Focus mode** are the two reading modes that together decide which page regions render; that decision is made once, never per region.
+_Avoid_: view (the URL param's name, not the concept), tab (that is a **Sidebar** surface), filter (the toolbar Filter governs inline threads)
+
 ## Relationships
 
 - A **PR** has at most one **Brief** per commit SHA. The brief is **shared** across reviewers.
