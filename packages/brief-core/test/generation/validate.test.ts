@@ -686,6 +686,7 @@ describe("validateIntentCheck", () => {
 
   const preciseCheck = () => ({
     ticketUrls: [ticketUrl],
+    ticketTitles: ["Stop the retry loop"],
     specificity: "precise" as const,
     scopeNote: "",
     accomplished: [
@@ -759,6 +760,7 @@ describe("validateIntentCheck", () => {
     const { issues } = validateIntentCheck(
       {
         ticketUrls: [ticketUrl],
+        ticketTitles: ["Stop the retry loop"],
         specificity: "broad",
         scopeNote: "parent epic spans several PRs",
         accomplished: [],
@@ -801,6 +803,65 @@ describe("validateIntentCheck", () => {
     expect(
       issues.filter((i) => i.includes(forged)).length,
     ).toBeGreaterThanOrEqual(2);
+  });
+
+  it("drops the paired title when its un-injected ticketUrl drops", () => {
+    const forged = "https://evil.example/T-666";
+    const input = {
+      ...preciseCheck(),
+      ticketUrls: [ticketUrl, forged],
+      ticketTitles: ["Stop the retry loop", "Forged ticket"],
+    };
+    const { intentCheck } = validateIntentCheck(
+      input,
+      emittedGroups,
+      injected,
+      sources,
+    );
+    expect(intentCheck.ticketUrls).toEqual([ticketUrl]);
+    expect(intentCheck.ticketTitles).toEqual(["Stop the retry loop"]);
+  });
+
+  it('normalizes a title/url length mismatch with a warning (pad "", truncate extras)', () => {
+    const short = { ...preciseCheck(), ticketTitles: [] };
+    const padded = validateIntentCheck(short, emittedGroups, injected, sources);
+    expect(padded.intentCheck.ticketTitles).toEqual([""]);
+    expect(padded.issues.join("\n")).toContain("ticketTitles");
+
+    const long = {
+      ...preciseCheck(),
+      ticketTitles: ["Stop the retry loop", "stray extra title"],
+    };
+    const truncated = validateIntentCheck(
+      long,
+      emittedGroups,
+      injected,
+      sources,
+    );
+    expect(truncated.intentCheck.ticketTitles).toEqual(["Stop the retry loop"]);
+    expect(truncated.issues.join("\n")).toContain("ticketTitles");
+  });
+
+  it("keeps titles paired with surviving urls on the broad/none path too", () => {
+    const forged = "https://evil.example/T-666";
+    const { intentCheck } = validateIntentCheck(
+      {
+        ...preciseCheck(),
+        specificity: "broad",
+        accomplished: [],
+        statedButMissing: [],
+        doneButUnstated: [],
+        deviations: [],
+        claimedButUnachieved: [],
+        ticketUrls: [forged, ticketUrl],
+        ticketTitles: ["Forged ticket", "Stop the retry loop"],
+      },
+      emittedGroups,
+      injected,
+      sources,
+    );
+    expect(intentCheck.ticketUrls).toEqual([ticketUrl]);
+    expect(intentCheck.ticketTitles).toEqual(["Stop the retry loop"]);
   });
 
   it('accepts sourceUrl "" (title/description) without requiring ticketUrls membership', () => {
@@ -1235,6 +1296,7 @@ describe("fanOutIntentCheck (grammar budget)", () => {
   it("dispatches each tagged item into its stored bucket and drops the tag", () => {
     const out = fanOutIntentCheck({
       ticketUrls: ["https://tracker.example/T-1"],
+      ticketTitles: ["Stop the retry loop"],
       specificity: "precise",
       scopeNote: "note",
       items: [
@@ -1259,6 +1321,7 @@ describe("fanOutIntentCheck (grammar budget)", () => {
     expect(out.deviations[0]?.acknowledged).toBe(true);
     // Scalars ride through untouched.
     expect(out.ticketUrls).toEqual(["https://tracker.example/T-1"]);
+    expect(out.ticketTitles).toEqual(["Stop the retry loop"]);
     expect(out.specificity).toBe("precise");
     expect(out.scopeNote).toBe("note");
   });
@@ -1266,6 +1329,7 @@ describe("fanOutIntentCheck (grammar budget)", () => {
   it("preserves order within a bucket and keeps multiple items per bucket", () => {
     const out = fanOutIntentCheck({
       ticketUrls: [],
+      ticketTitles: [],
       specificity: "precise",
       scopeNote: "",
       items: [
@@ -1281,6 +1345,7 @@ describe("fanOutIntentCheck (grammar budget)", () => {
   it("yields five empty buckets for an empty items array (the broad/none path)", () => {
     const out = fanOutIntentCheck({
       ticketUrls: [],
+      ticketTitles: [],
       specificity: "none",
       scopeNote: "",
       items: [],
@@ -1295,6 +1360,7 @@ describe("fanOutIntentCheck (grammar budget)", () => {
   it("round-trips into the validator: a fanned-out check validates like a native one", () => {
     const fanned = fanOutIntentCheck({
       ticketUrls: [],
+      ticketTitles: [],
       specificity: "precise",
       scopeNote: "",
       items: [

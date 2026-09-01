@@ -49,6 +49,7 @@ const commitRange = {
 
 const noneIntentCheck = {
   ticketUrls: [],
+  ticketTitles: [],
   specificity: "none",
   scopeNote: "",
   items: [],
@@ -262,6 +263,7 @@ describe("categorize — intent check validation", () => {
       ...twoGroupBriefGen,
       intentCheck: {
         ticketUrls: [ticketUrl],
+        ticketTitles: [""],
         specificity: "precise",
         scopeNote: "",
         items: [
@@ -294,6 +296,7 @@ describe("categorize — intent check validation", () => {
     // the fan-out dispatches each item by its tag and drops the tag itself.
     expect(brief.intentCheck).toEqual({
       ticketUrls: [ticketUrl],
+      ticketTitles: [""],
       specificity: "precise",
       scopeNote: "",
       accomplished: [
@@ -326,6 +329,7 @@ describe("categorize — intent check validation", () => {
       ...twoGroupBriefGen,
       intentCheck: {
         ticketUrls: [ticketUrl],
+        ticketTitles: [""],
         specificity: "broad",
         scopeNote: "",
         items: [
@@ -374,6 +378,7 @@ describe("categorize — intent check validation", () => {
       ...twoGroupBriefGen,
       intentCheck: {
         ticketUrls: [ticketUrl],
+        ticketTitles: [""],
         specificity: "precise",
         scopeNote: "",
         items: [
@@ -423,6 +428,7 @@ describe("categorize — intent check validation", () => {
       ...twoGroupBriefGen,
       intentCheck: {
         ticketUrls: [ticketUrl],
+        ticketTitles: [""],
         specificity: "precise",
         scopeNote: "",
         items: [
@@ -455,6 +461,7 @@ describe("categorize — intent check validation", () => {
       ...twoGroupBriefGen,
       intentCheck: {
         ticketUrls: ["https://evil.example/T-666"],
+        ticketTitles: [""],
         specificity: "precise",
         scopeNote: "",
         items: [
@@ -488,6 +495,7 @@ describe("categorize — intent check validation", () => {
       ...twoGroupBriefGen,
       intentCheck: {
         ticketUrls: [ticketUrl],
+        ticketTitles: [""],
         specificity: "precise",
         scopeNote: "",
         items: [

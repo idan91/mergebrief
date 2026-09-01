@@ -795,6 +795,11 @@ function parseIntentCheck(
     return undefined;
   }
   const ticketUrls = stringArray(value["ticketUrls"]);
+  // ABSENT on pre-title Briefs — read as empty, never drop the check; a
+  // PRESENT-but-malformed array still drops it.
+  const rawTitles = value["ticketTitles"];
+  const ticketTitles: Result<string[]> =
+    rawTitles === undefined ? { ok: true, value: [] } : stringArray(rawTitles);
   const accomplished = parseArray(
     value["accomplished"],
     parseIntentItem,
@@ -823,6 +828,7 @@ function parseIntentCheck(
   );
   for (const parsed of [
     ticketUrls,
+    ticketTitles,
     accomplished,
     statedButMissing,
     doneButUnstated,
@@ -837,6 +843,7 @@ function parseIntentCheck(
   // The loop guarantees every result is ok; re-narrow for the type system.
   if (
     !ticketUrls.ok ||
+    !ticketTitles.ok ||
     !accomplished.ok ||
     !statedButMissing.ok ||
     !doneButUnstated.ok ||
@@ -847,6 +854,11 @@ function parseIntentCheck(
   }
   return {
     ticketUrls: ticketUrls.value,
+    // Realigned to one title per URL ("" filling the gaps) so the renderer
+    // can index the pair without its own bounds checks.
+    ticketTitles: ticketUrls.value.map(
+      (_, index) => ticketTitles.value[index] ?? "",
+    ),
     specificity,
     scopeNote,
     // `acknowledged` is meaningful ONLY in `deviations`. Generation forces it

@@ -256,6 +256,12 @@ describe("intent-check prompt section", () => {
     expect(brief).toContain("never invent");
   });
 
+  it("elicits a verbatim title per ticketUrls entry, empty when none exists", () => {
+    expect(brief).toMatch(/ticketTitles[\s\S]*?same (position|order)/);
+    expect(brief).toMatch(/ticketTitles[\s\S]*?verbatim/);
+    expect(brief).toMatch(/ticketTitles[\s\S]*?""/);
+  });
+
   it("glosses all three specificity levels and forces empty buckets on broad/none", () => {
     for (const token of ["precise", "broad", "none"]) {
       expect(brief).toContain(`\`${token}\``);

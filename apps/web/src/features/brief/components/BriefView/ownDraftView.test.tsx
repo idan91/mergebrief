@@ -266,6 +266,7 @@ describe("own-draft Brief view", () => {
       ...flaglessBrief,
       intentCheck: {
         ticketUrls: ["https://tracker.example/T-1"],
+        ticketTitles: [],
         specificity: "precise",
         scopeNote: "",
         accomplished: [],
@@ -316,6 +317,7 @@ describe("own-draft Brief view", () => {
       ...briefFixture,
       intentCheck: {
         ticketUrls: ["https://tracker.example/T-1"],
+        ticketTitles: [],
         specificity: "precise",
         scopeNote: "",
         accomplished: [],
@@ -367,6 +369,7 @@ describe("own-draft Brief view", () => {
       ...briefFixture,
       intentCheck: {
         ticketUrls: ["https://tracker.example/T-1"],
+        ticketTitles: [],
         specificity: "precise",
         scopeNote: "",
         accomplished: [],
@@ -415,6 +418,7 @@ describe("own-draft Brief view", () => {
       ...briefFixture,
       intentCheck: {
         ticketUrls: [],
+        ticketTitles: [],
         specificity: "broad",
         scopeNote: "parent epic",
         accomplished: [],

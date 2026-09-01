@@ -164,9 +164,43 @@ export function fanOutIntentCheck(
   }
   return {
     ticketUrls: generated.ticketUrls,
+    ticketTitles: generated.ticketTitles,
     specificity: generated.specificity,
     scopeNote: generated.scopeNote,
     ...buckets,
+  };
+}
+
+/**
+ * Align titles to urls (pad ""/truncate, warn on mismatch), then drop the
+ * pairs whose url the harness never injected — url and title move together.
+ */
+function resolveTicketPairs(
+  intentCheck: IntentCheck,
+  injectedUrls: readonly string[],
+  issues: string[],
+): { ticketUrls: string[]; ticketTitles: string[] } {
+  const { ticketUrls, ticketTitles } = intentCheck;
+
+  if (ticketTitles.length !== ticketUrls.length) {
+    issues.push(
+      `intent check ticketTitles length ${ticketTitles.length} does not match ticketUrls length ${ticketUrls.length} — aligned`,
+    );
+  }
+
+  const pairs = ticketUrls
+    .map((url, index) => ({ url, title: ticketTitles[index] ?? "" }))
+    .filter((pair) => {
+      if (injectedUrls.includes(pair.url)) return true;
+      issues.push(
+        `intent check cites un-injected ticket URL "${pair.url}" — dropped`,
+      );
+      return false;
+    });
+
+  return {
+    ticketUrls: pairs.map((pair) => pair.url),
+    ticketTitles: pairs.map((pair) => pair.title),
   };
 }
 
@@ -211,17 +245,11 @@ export function validateIntentCheck(
       );
     }
     // ticketUrls membership still holds on the unavailable path.
-    const known = intentCheck.ticketUrls.filter((url) => {
-      if (injectedUrls.includes(url)) return true;
-      issues.push(
-        `intent check cites un-injected ticket URL "${url}" — dropped`,
-      );
-      return false;
-    });
+    const knownPairs = resolveTicketPairs(intentCheck, injectedUrls, issues);
     return {
       intentCheck: {
         ...intentCheck,
-        ticketUrls: known,
+        ...knownPairs,
         accomplished: [],
         statedButMissing: [],
         doneButUnstated: [],
@@ -232,11 +260,11 @@ export function validateIntentCheck(
     };
   }
 
-  const ticketUrls = intentCheck.ticketUrls.filter((url) => {
-    if (injectedUrls.includes(url)) return true;
-    issues.push(`intent check cites un-injected ticket URL "${url}" — dropped`);
-    return false;
-  });
+  const { ticketUrls, ticketTitles } = resolveTicketPairs(
+    intentCheck,
+    injectedUrls,
+    issues,
+  );
   const allowedSources = new Set(["", ...ticketUrls]);
   const contentByUrl = new Map(
     fetchedContent.map((s) => [s.url, normalizeWhitespace(s.content)]),
@@ -432,6 +460,7 @@ export function validateIntentCheck(
     intentCheck: {
       ...intentCheck,
       ticketUrls,
+      ticketTitles,
       accomplished,
       statedButMissing,
       doneButUnstated,

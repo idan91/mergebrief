@@ -330,6 +330,7 @@ const briefGen = (riskSurface: string[]) => ({
   summary: "s",
   intentCheck: {
     ticketUrls: [],
+    ticketTitles: [],
     specificity: "none",
     scopeNote: "",
     items: [],
@@ -407,6 +408,7 @@ const validIntentCheck = {
  */
 const validGenerationIntentCheck = {
   ticketUrls: ["https://tracker.example/T-1"],
+  ticketTitles: ["Widget endpoint returns the list"],
   specificity: "precise",
   scopeNote: "",
   items: [
@@ -495,6 +497,29 @@ describe("IntentCheckSchema", () => {
     expect(IntentCheckSchema.safeParse(noMissingIds).success).toBe(false);
   });
 
+  it("defaults ticketTitles to [] on a legacy stored check (pre-title artifacts)", () => {
+    // validIntentCheck deliberately carries no ticketTitles — it doubles as
+    // the legacy-artifact fixture.
+    const legacy = IntentCheckSchema.safeParse(
+      structuredClone(validIntentCheck),
+    );
+    expect(legacy.success).toBe(true);
+    if (!legacy.success) return;
+    expect(legacy.data.ticketTitles).toEqual([]);
+  });
+
+  it("carries a title per URL when present", () => {
+    const titled = IntentCheckSchema.safeParse({
+      ...structuredClone(validIntentCheck),
+      ticketTitles: ["Widget endpoint returns the list"],
+    });
+    expect(titled.success).toBe(true);
+    if (!titled.success) return;
+    expect(titled.data.ticketTitles).toEqual([
+      "Widget endpoint returns the list",
+    ]);
+  });
+
   it("all five buckets share ONE item shape (grammar budget — see IntentItemSchema)", () => {
     // A doneButUnstated item parses with the same fields as a stated ask; the
     // ticket-side fields must be "" there — enforced by the validator, not the
@@ -526,6 +551,14 @@ describe("IntentCheckGenerationSchema (grammar budget)", () => {
     ).toBe(true);
   });
 
+  it("REQUIRES ticketTitles on the wire — strict structured output has no optional fields", () => {
+    const bad: Record<string, unknown> = structuredClone(
+      validGenerationIntentCheck,
+    );
+    delete bad["ticketTitles"];
+    expect(IntentCheckGenerationSchema.safeParse(bad).success).toBe(false);
+  });
+
   it("rejects an item with no bucket tag (the fan-out has nowhere to dispatch it)", () => {
     const bad = structuredClone(validGenerationIntentCheck);
     const target: Partial<(typeof bad.items)[number]> = bad.items[0];
@@ -549,7 +582,10 @@ describe("IntentCheckGenerationSchema (grammar budget)", () => {
       "claimedButUnachieved",
     ]);
     const storedArrays = Object.keys(IntentCheckSchema.shape).filter(
-      (key) => !["ticketUrls", "specificity", "scopeNote"].includes(key),
+      (key) =>
+        !["ticketUrls", "ticketTitles", "specificity", "scopeNote"].includes(
+          key,
+        ),
     );
     expect(storedArrays.toSorted()).toEqual([...IntentBuckets].toSorted());
   });
@@ -562,6 +598,7 @@ describe("IntentCheckGenerationSchema (grammar budget)", () => {
     ).filter(([, schema]) => schema.def.type === "array");
     expect(arrayFields.map(([name]) => name).toSorted()).toEqual([
       "items",
+      "ticketTitles",
       "ticketUrls",
     ]);
   });

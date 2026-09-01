@@ -106,6 +106,7 @@ const incrementalDiff = `diff --git a/src/a.ts b/src/a.ts
  */
 const storedIntentCheck = {
   ticketUrls: [],
+  ticketTitles: [],
   specificity: "none" as const,
   scopeNote: "",
   accomplished: [],
@@ -120,6 +121,7 @@ const briefGen = {
   summary: "s",
   intentCheck: {
     ticketUrls: [],
+    ticketTitles: [],
     specificity: "none",
     scopeNote: "",
     items: [],

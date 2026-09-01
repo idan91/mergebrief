@@ -212,7 +212,7 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
       [],
     );
 
-    const { specificity, ticketUrls, scopeNote } = intentCheck;
+    const { specificity, ticketUrls, ticketTitles, scopeNote } = intentCheck;
     const available = specificity === "precise";
 
     const partition = partitionIntentCheck(intentCheck);
@@ -312,20 +312,28 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
                 })}
               </span>
               <ul className={styles["ticketList"]}>
-                {ticketUrls.map((url) => (
-                  <li key={url}>
-                    <span aria-hidden="true" className={styles["marker"]}>
-                      ▪
-                    </span>
-                    {isHttpUrl(url) ? (
-                      <AccessibleLink href={url} target="_blank">
-                        {deriveTicketId(url)}
-                      </AccessibleLink>
-                    ) : (
-                      <span>{deriveTicketId(url)}</span>
-                    )}
-                  </li>
-                ))}
+                {ticketUrls.map((url, index) => {
+                  const title = ticketTitles[index] ?? "";
+                  return (
+                    <li key={url}>
+                      <span aria-hidden="true" className={styles["marker"]}>
+                        ▪
+                      </span>
+                      <span>
+                        {isHttpUrl(url) ? (
+                          <AccessibleLink href={url} target="_blank">
+                            {deriveTicketId(url)}
+                          </AccessibleLink>
+                        ) : (
+                          <span>{deriveTicketId(url)}</span>
+                        )}
+                        {title !== "" ? (
+                          <span className={styles["ticketTitle"]}>{title}</span>
+                        ) : null}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           ) : null}

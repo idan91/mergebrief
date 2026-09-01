@@ -263,6 +263,12 @@ export interface IntentItem {
  */
 export interface IntentCheck {
   ticketUrls: string[];
+  /**
+   * @description Display title per `ticketUrls` entry, same order and length
+   * (the boundary parser realigns). `""` = no usable title — the renderer
+   * falls back to the id alone. Empty strings throughout on older Briefs.
+   */
+  ticketTitles: string[];
   specificity: Specificity;
   scopeNote: string;
   accomplished: IntentItem[];

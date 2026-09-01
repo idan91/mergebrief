@@ -127,6 +127,14 @@
     color: var(--dim);
   }
 
+  .ticketTitle {
+    color: var(--dim);
+
+    &::before {
+      content: " — ";
+    }
+  }
+
   .ticketList {
     list-style: none;
     margin-block: functions.to-rem(4px) 0;

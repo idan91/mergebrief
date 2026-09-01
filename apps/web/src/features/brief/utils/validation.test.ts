@@ -435,6 +435,43 @@ describe("parseBrief", () => {
     expect(parsed.value.intentCheck?.claimedButUnachieved).toEqual([]);
   });
 
+  it("defaults ticketTitles to empty strings on an older intentCheck", () => {
+    const parsed = parseBrief({
+      ...twoGroupBriefInput,
+      intentCheck: preciseIntentCheck,
+    });
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    // One "" per URL — the renderer's id-only fallback, never a dropped check.
+    expect(parsed.value.intentCheck?.ticketTitles).toEqual([""]);
+  });
+
+  it("keeps ticketTitles paired with ticketUrls, realigning a length mismatch", () => {
+    const parsed = parseBrief({
+      ...twoGroupBriefInput,
+      intentCheck: {
+        ...preciseIntentCheck,
+        ticketTitles: ["Widget endpoint", "stray extra"],
+      },
+    });
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.intentCheck?.ticketTitles).toEqual(["Widget endpoint"]);
+  });
+
+  it("drops the intentCheck when a PRESENT ticketTitles is malformed", () => {
+    const parsed = parseBrief({
+      ...twoGroupBriefInput,
+      intentCheck: { ...preciseIntentCheck, ticketTitles: [42] },
+    });
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.intentCheck).toBeUndefined();
+  });
+
   it("reads a missing `acknowledged` as false on every older item", () => {
     const parsed = parseBrief({
       ...twoGroupBriefInput,

@@ -40,6 +40,7 @@ function intentItem(overrides: { acknowledged?: boolean } = {}) {
 function intentCheck(overrides: Partial<IntentCheck> = {}): IntentCheck {
   return {
     ticketUrls: [],
+    ticketTitles: [],
     specificity: "precise",
     scopeNote: "",
     accomplished: [],

@@ -120,6 +120,7 @@ function stubGenerator(): StubGenerator {
       summary: "stub brief",
       intentCheck: {
         ticketUrls: [],
+        ticketTitles: [],
         specificity: "none",
         scopeNote: "",
         items: [],
@@ -1745,6 +1746,7 @@ function twoGroupBriefOutput(
     summary: "stub brief",
     intentCheck: {
       ticketUrls: [],
+      ticketTitles: [],
       specificity: "none",
       scopeNote: "",
       items: [],
@@ -2172,6 +2174,7 @@ describe("generate task — anchored generation", () => {
       summary: "stub brief",
       intentCheck: {
         ticketUrls: [],
+        ticketTitles: [],
         specificity: "none",
         scopeNote: "",
         items: [],
@@ -2236,6 +2239,7 @@ deEmphasize:
     summary: "stub brief",
     intentCheck: {
       ticketUrls: [],
+      ticketTitles: [],
       specificity: "none",
       scopeNote: "",
       items: [],

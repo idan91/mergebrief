@@ -15,6 +15,7 @@ function validGeneration() {
     summary: "s",
     intentCheck: {
       ticketUrls: [],
+      ticketTitles: [],
       specificity: "none",
       scopeNote: "",
       items: [],

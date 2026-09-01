@@ -463,12 +463,21 @@ export const IntentItemSchema = z.object({
  * means every bucket MUST be empty, enforced mechanically post-parse. No
  * optional fields (strict structured-output; "" / [] = N/A).
  */
+const TICKET_TITLES_DESCRIPTION =
+  'display title for each ticketUrls entry — same order and length, the source\'s own heading/summary line verbatim, never invented or paraphrased; "" when the source shows no usable title';
+
 export const IntentCheckSchema = z.object({
   ticketUrls: z
     .array(z.string())
     .describe(
       "the linked-context URLs treated as ticket-like intent sources — ONLY URLs present in the Linked context section, never invented",
     ),
+  // `.default([])` is stored-side back-compat only: pre-title artifacts parse
+  // as title-less. The generation schema requires the field.
+  ticketTitles: z
+    .array(z.string())
+    .default([])
+    .describe(TICKET_TITLES_DESCRIPTION),
   specificity: z
     .enum([Specificities.PRECISE, Specificities.BROAD, Specificities.NONE])
     .describe(
@@ -537,6 +546,9 @@ export const IntentGenerationItemSchema = IntentItemSchema.extend({
 
 export const IntentCheckGenerationSchema = z.object({
   ticketUrls: IntentCheckSchema.shape.ticketUrls,
+  // Required on the wire — strict structured output has no optional fields;
+  // [] when there are no tickets.
+  ticketTitles: z.array(z.string()).describe(TICKET_TITLES_DESCRIPTION),
   specificity: IntentCheckSchema.shape.specificity,
   scopeNote: IntentCheckSchema.shape.scopeNote,
   items: z

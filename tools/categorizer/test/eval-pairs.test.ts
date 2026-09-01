@@ -45,6 +45,7 @@ class SequenceGenerator implements Generator {
 
 const intentNone = {
   ticketUrls: [],
+  ticketTitles: [],
   specificity: "none",
   scopeNote: "",
   items: [],

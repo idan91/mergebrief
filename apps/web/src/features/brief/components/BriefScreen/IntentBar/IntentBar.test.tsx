@@ -10,6 +10,7 @@ afterEach(cleanup);
 
 const PRECISE: IntentCheck = {
   ticketUrls: ["https://tracker.example/T-1"],
+  ticketTitles: [],
   specificity: "precise",
   scopeNote: "",
   accomplished: [
@@ -45,6 +46,7 @@ const PRECISE: IntentCheck = {
 
 const BROAD: IntentCheck = {
   ticketUrls: ["https://tracker.example/EPIC-9"],
+  ticketTitles: [],
   specificity: "broad",
   scopeNote: "parent epic spans several PRs",
   accomplished: [],
@@ -123,6 +125,37 @@ describe("IntentBar", () => {
     expect(body.indexOf("1 linked ticket")).toBeLessThan(
       body.indexOf("add the widget endpoint"),
     );
+  });
+
+  it("renders id — title bullets when the check carries ticket titles", () => {
+    render(
+      <IntentBar
+        intentCheck={{
+          ...PRECISE,
+          ticketTitles: ["Widget endpoint returns the list"],
+        }}
+        jumpToGroup={() => {}}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
+    // The id keeps the link; the title rides beside it as plain dim text
+    // (the dash joiner is CSS content, not DOM text).
+    expect(
+      screen.getByRole("link", { name: /^T-1 ?\(opens in a new tab\)$/ }),
+    ).toBeTruthy();
+    expect(screen.getByText("Widget endpoint returns the list")).toBeTruthy();
+  });
+
+  it("keeps the id-only bullet when the title is empty (pre-title briefs)", () => {
+    render(<IntentBar intentCheck={PRECISE} jumpToGroup={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
+    const bullet = screen
+      .getByRole("link", { name: /^T-1 ?\(opens in a new tab\)$/ })
+      .closest("li");
+    // Marker + linked id only — no title element renders (a dangling empty
+    // span would still paint its CSS-content dash, invisible to textContent).
+    expect(bullet?.textContent?.trim()).toBe("▪T-1 (opens in a new tab)");
+    expect(bullet?.querySelector('span[class*="ticketTitle"]')).toBeNull();
   });
 
   it("derives the ticket id from the URL path tail, dropping query and fragment", () => {

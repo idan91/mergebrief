@@ -320,6 +320,7 @@ describe("brief screen characterization", () => {
       ...briefFixture,
       intentCheck: {
         ticketUrls: [],
+        ticketTitles: [],
         specificity: "none",
         scopeNote: "PR description only",
         accomplished: [

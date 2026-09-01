@@ -582,6 +582,7 @@ describe("stitchBrief", () => {
       {
         intentCheck: {
           ticketUrls: [],
+          ticketTitles: [],
           specificity: "precise",
           scopeNote: "",
           accomplished: [
@@ -620,6 +621,7 @@ describe("stitchBrief", () => {
       {
         intentCheck: {
           ticketUrls: [],
+          ticketTitles: [],
           specificity: "precise",
           scopeNote: "",
           accomplished: [

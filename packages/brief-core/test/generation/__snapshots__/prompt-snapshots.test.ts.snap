@@ -108,7 +108,7 @@ When a sensible order exists, emit \`readingOrder\`: a strict permutation of the
 
 ## Intent check
 
-The brief's \`intentCheck\` reports, factually, whether the PR did what its stated intent asked. The **intent sources** are the PR title, the PR description, and every ticket-like block in the Linked context (issue-tracker tickets, task pages — not design docs or reference material), **judged together** as one composite statement of intent. Resolve the sources yourself: list the Linked context URLs you treated as ticket-like intent sources in \`ticketUrls\` — ONLY URLs that appear in the Linked context section, never invented, and never a URL you merely saw mentioned in the text.
+The brief's \`intentCheck\` reports, factually, whether the PR did what its stated intent asked. The **intent sources** are the PR title, the PR description, and every ticket-like block in the Linked context (issue-tracker tickets, task pages — not design docs or reference material), **judged together** as one composite statement of intent. Resolve the sources yourself: list the Linked context URLs you treated as ticket-like intent sources in \`ticketUrls\` — ONLY URLs that appear in the Linked context section, never invented, and never a URL you merely saw mentioned in the text. For each \`ticketUrls\` entry, put the source's display title in \`ticketTitles\` at the same position — its own heading or summary line, verbatim, never invented or paraphrased; \`""\` when the source shows no usable title. The two arrays always have the same length (\`[]\` and \`[]\` when there are no tickets).
 
 **specificity** — how actionable the combined sources are:
 
@@ -314,7 +314,7 @@ When a sensible order exists, emit \`readingOrder\`: a strict permutation of the
 
 ## Intent check
 
-The brief's \`intentCheck\` reports, factually, whether the PR did what its stated intent asked. The **intent sources** are the PR title, the PR description, and every ticket-like block in the Linked context (issue-tracker tickets, task pages — not design docs or reference material), **judged together** as one composite statement of intent. Resolve the sources yourself: list the Linked context URLs you treated as ticket-like intent sources in \`ticketUrls\` — ONLY URLs that appear in the Linked context section, never invented, and never a URL you merely saw mentioned in the text.
+The brief's \`intentCheck\` reports, factually, whether the PR did what its stated intent asked. The **intent sources** are the PR title, the PR description, and every ticket-like block in the Linked context (issue-tracker tickets, task pages — not design docs or reference material), **judged together** as one composite statement of intent. Resolve the sources yourself: list the Linked context URLs you treated as ticket-like intent sources in \`ticketUrls\` — ONLY URLs that appear in the Linked context section, never invented, and never a URL you merely saw mentioned in the text. For each \`ticketUrls\` entry, put the source's display title in \`ticketTitles\` at the same position — its own heading or summary line, verbatim, never invented or paraphrased; \`""\` when the source shows no usable title. The two arrays always have the same length (\`[]\` and \`[]\` when there are no tickets).
 
 **specificity** — how actionable the combined sources are:
 
@@ -495,7 +495,7 @@ When a sensible order exists, emit \`readingOrder\`: a strict permutation of the
 
 ## Intent check
 
-The brief's \`intentCheck\` reports, factually, whether the PR did what its stated intent asked. The **intent sources** are the PR title, the PR description, and every ticket-like block in the Linked context (issue-tracker tickets, task pages — not design docs or reference material), **judged together** as one composite statement of intent. Resolve the sources yourself: list the Linked context URLs you treated as ticket-like intent sources in \`ticketUrls\` — ONLY URLs that appear in the Linked context section, never invented, and never a URL you merely saw mentioned in the text.
+The brief's \`intentCheck\` reports, factually, whether the PR did what its stated intent asked. The **intent sources** are the PR title, the PR description, and every ticket-like block in the Linked context (issue-tracker tickets, task pages — not design docs or reference material), **judged together** as one composite statement of intent. Resolve the sources yourself: list the Linked context URLs you treated as ticket-like intent sources in \`ticketUrls\` — ONLY URLs that appear in the Linked context section, never invented, and never a URL you merely saw mentioned in the text. For each \`ticketUrls\` entry, put the source's display title in \`ticketTitles\` at the same position — its own heading or summary line, verbatim, never invented or paraphrased; \`""\` when the source shows no usable title. The two arrays always have the same length (\`[]\` and \`[]\` when there are no tickets).
 
 **specificity** — how actionable the combined sources are:
 
@@ -672,7 +672,7 @@ When a sensible order exists, emit \`readingOrder\`: a strict permutation of the
 
 ## Intent check
 
-The brief's \`intentCheck\` reports, factually, whether the PR did what its stated intent asked. The **intent sources** are the PR title, the PR description, and every ticket-like block in the Linked context (issue-tracker tickets, task pages — not design docs or reference material), **judged together** as one composite statement of intent. Resolve the sources yourself: list the Linked context URLs you treated as ticket-like intent sources in \`ticketUrls\` — ONLY URLs that appear in the Linked context section, never invented, and never a URL you merely saw mentioned in the text.
+The brief's \`intentCheck\` reports, factually, whether the PR did what its stated intent asked. The **intent sources** are the PR title, the PR description, and every ticket-like block in the Linked context (issue-tracker tickets, task pages — not design docs or reference material), **judged together** as one composite statement of intent. Resolve the sources yourself: list the Linked context URLs you treated as ticket-like intent sources in \`ticketUrls\` — ONLY URLs that appear in the Linked context section, never invented, and never a URL you merely saw mentioned in the text. For each \`ticketUrls\` entry, put the source's display title in \`ticketTitles\` at the same position — its own heading or summary line, verbatim, never invented or paraphrased; \`""\` when the source shows no usable title. The two arrays always have the same length (\`[]\` and \`[]\` when there are no tickets).
 
 **specificity** — how actionable the combined sources are:
 

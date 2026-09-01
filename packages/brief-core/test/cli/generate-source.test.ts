@@ -78,6 +78,7 @@ const briefGen = {
   summary: "s",
   intentCheck: {
     ticketUrls: [],
+    ticketTitles: [],
     specificity: "none",
     scopeNote: "",
     items: [],

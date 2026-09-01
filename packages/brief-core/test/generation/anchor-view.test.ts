@@ -76,6 +76,7 @@ const previousBrief: Brief = {
   ],
   intentCheck: {
     ticketUrls: [],
+    ticketTitles: [],
     specificity: "precise",
     scopeNote: "",
     accomplished: [
@@ -233,6 +234,7 @@ const minimalGen = {
   summary: "s",
   intentCheck: {
     ticketUrls: [],
+    ticketTitles: [],
     specificity: "none",
     scopeNote: "",
     items: [],
@@ -285,6 +287,7 @@ describe("categorize — anchored threading", () => {
       ],
       intentCheck: {
         ticketUrls: [],
+        ticketTitles: [],
         specificity: "precise",
         scopeNote: "",
         items: [
