@@ -2,7 +2,6 @@
 
 Regression net over generation quality: labeled real-PR fixtures, N runs
 per case, mechanical property checklists, provider:model-keyed baselines.
-Design decisions in `docs/plans/brief-59-eval-harness.md`.
 
 ```sh
 pnpm -C tools/categorizer eval                  # all cases, 5 runs each, compare vs baselines

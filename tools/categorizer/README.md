@@ -8,7 +8,7 @@ Turns a real pull-request diff into a structured review **brief** — a *story* 
 > `pnpm delta` — thin entries into brief-core) and the eval harness
 > (`eval/`, `pnpm eval`).
 
-This is the dogfoodable thin slice that validates the categorizer (the unproven core) by building it and eyeballing its output against hand-labels. See `docs/plans/categorizer-thin-slice.md` and `docs/mvp/center-of-gravity.md`.
+This is the dogfoodable thin slice that validates the categorizer (the unproven core) by building it and eyeballing its output against hand-labels. See `docs/mvp/center-of-gravity.md`.
 
 ## How it works
 

@@ -13,7 +13,7 @@ range to review (e.g. "review feature/BRIEF-64/draft-policy against main").
 
 1. `git diff <base>...<branch>` for the full diff; read every changed file's
    surrounding context — review the change IN its file, not the hunk alone.
-2. Re-derive intent from the referenced plan doc (`docs/plans/`) and ADRs;
+2. Re-derive intent from the PR description, its ticket or spec, and the ADRs;
    flag divergence between plan and implementation as a finding, whichever
    side is wrong.
 3. Hunt in priority order:

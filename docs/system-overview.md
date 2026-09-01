@@ -95,4 +95,4 @@ Explicitly parked so the build doesn't scope-creep and nothing reads as forgotte
 - [ADR 0016](./adr/0016-github-app-auth-and-trust-tenancy-boundary.md) — GitHub App, auth, trust/tenancy
 - [ADR 0017](./adr/0017-oss-self-host-first-distribution.md) — OSS self-host-first distribution
 - [ADR 0018](./adr/0018-m1-postgres-schema.md) — M1 Postgres schema
-- [`docs/plans/product-backend-epic.md`](./plans/product-backend-epic.md), and `CONTEXT.md` (glossary)
+- `CONTEXT.md` (glossary)

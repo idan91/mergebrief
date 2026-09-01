@@ -2,6 +2,7 @@
 
 > **Status doc — read first each session.** Tracks the prioritized work for the OSS-only
 > direction. Update the status boxes as items move. Created 2026-06-30.
+> Plan documents cited for shipped work (`plans/...`) were pruned; git history keeps them.
 
 ## Context (why this doc exists)
 
@@ -69,7 +70,7 @@ strategy.
 
 ### P1 — Nail the front door (brand surface)  ·  status: [x] done (2026-07-01, PR #13)
 
-**Needs grilling:** No — design iteration, not a decision-tree (use the `frontend-design` / `impeccable` skills + the flexer reference). · **Docs:** [`plans/p1-front-door.md`](./plans/p1-front-door.md) (**detailed scope + design/a11y checklist + deferred-with-triggers**) · [`vision.md`](./vision.md) · [`plans/web-generate-from-url.md`](./plans/web-generate-from-url.md) (the paste-URL flow)
+**Needs grilling:** No — design iteration, not a decision-tree (use the `frontend-design` / `impeccable` skills + the flexer reference). · **Docs:** `plans/p1-front-door.md` (**detailed scope + design/a11y checklist + deferred-with-triggers**) · [`vision.md`](./vision.md) · `plans/web-generate-from-url.md` (the paste-URL flow)
 
 The stranger's first impression — for an unknown OSS project this drives word-of-mouth far
 more than the backend.
@@ -83,7 +84,7 @@ more than the backend.
 - **Fold in the important design + a11y fixes** from the 2026-06-30 assessment — front-door
   copy de-jargon, hero/empty-state, `--faint` contrast (fails AA at 3.28:1), skip-link, toast
   live-region, brief `h1`, favicon/OG, **keyboard nav (`J`/`K`/`Z`/`?`)**. Full checklist +
-  baseline scores (Design 26/40, Audit 14/20) in [`plans/p1-front-door.md`](./plans/p1-front-door.md).
+  baseline scores (Design 26/40, Audit 14/20) in `plans/p1-front-door.md`.
 - **P2 scope-check pulled forward** into P1 (read-only; it's grilling-free) so the demo framing
   knows what narrative slice it can show.
 
@@ -117,7 +118,7 @@ demonstrable advantage over Atlas.
 
 ### Cheap win — Keyboard navigation + focus mode  ·  status: [x] shipped with P1 (2026-07-01)
 
-**Needs grilling:** No — established UX pattern (apply the `web-accessibility` skill at build time). · **Docs:** [`plans/p1-front-door.md`](./plans/p1-front-door.md) (item 8) · reuses existing scroll-spy / group-TOC machinery.
+**Needs grilling:** No — established UX pattern (apply the `web-accessibility` skill at build time). · **Docs:** `plans/p1-front-door.md` (item 8) · reuses existing scroll-spy / group-TOC machinery.
 
 Small, high-polish, demo-impressive. **Now in-scope for P1** (resolved 2026-06-30): ships with
 the front-door work since it sharpens the demo, and naturally extends to P2's walkthrough nav.
@@ -205,9 +206,9 @@ playbook standard."
 
 ### P4 — M1 self-host backend, rescoped as "make self-hosting real"  ·  status: [x] done (WS1–WS3 shipped; BRIEF-3 PRs in review)
 
-**Needs grilling:** No — the decisions are already locked in ADRs; this is execution (drop only the hosted/multi-tenant scope per ADR 0023). · **Docs:** [`plans/product-backend-epic.md`](./plans/product-backend-epic.md) · [ADR 0015](./adr/0015-self-hosted-runtime-postgres-single-dependency.md) · [ADR 0016](./adr/0016-github-app-auth-and-trust-tenancy-boundary.md) · [ADR 0018](./adr/0018-m1-postgres-schema.md) · [ADR 0020](./adr/0020-brief-trigger-and-activation-model.md) (also 0006/0008/0013)
+**Needs grilling:** No — the decisions are already locked in ADRs; this is execution (drop only the hosted/multi-tenant scope per ADR 0023). · **Docs:** [ADR 0015](./adr/0015-self-hosted-runtime-postgres-single-dependency.md) · [ADR 0016](./adr/0016-github-app-auth-and-trust-tenancy-boundary.md) · [ADR 0018](./adr/0018-m1-postgres-schema.md) · [ADR 0020](./adr/0020-brief-trigger-and-activation-model.md) (also 0006/0008/0013)
 
-Not "build a SaaS." See `docs/plans/product-backend-epic.md` workstreams 1–3 (reframed).
+Not "build a SaaS." The backend epic plan (workstreams 1–3, reframed) lives in git history.
 
 - Postgres-only persistence (ADR 0018) + GitHub App + background worker (wraps the existing
   `Generator` as-is); **BYOK default**; **one-command docker-compose**.
@@ -310,19 +311,19 @@ should start without it firing:
 - 2026-07-01 — **P1 done** (PR #13, `feature/p1-front-door`). Front-door polish +
   in-scope a11y fixes landed, including keyboard nav (`J`/`K`/`Z`/`?`). Mobile brief
   header stays deferred with its pull-forward trigger (scope record in
-  [`plans/p1-front-door.md`](./plans/p1-front-door.md)).
+  `plans/p1-front-door.md`).
 - 2026-07-02 — **Comparison overlay + Revision narrative shipped** (PR #14, ADR 0024;
   not a roadmap P-item — grew out of ADR 0021's overlay). Timeline + View/Compare
   model replaces the Full/Delta lens; non-first Briefs get a generated shared
   Revision narrative; mechanical marks drive highlights for both baselines. Legal
   detail sanitized from ADRs 0017/0023 + system-overview/oss-roadmap ahead of going
   public. Follow-ups recorded in
-  [`plans/comparison-overlay-and-revision-narrative.md`](./plans/comparison-overlay-and-revision-narrative.md)
+  `plans/comparison-overlay-and-revision-narrative.md`
   (Delta-path huge-span wiring, incremental diffs sidecar, YAML config loader).
   Pre-existing duplicate-key bug in the summary preview found during the browser
   pass → PR #15.
 - 2026-07-02 — **P2 done** (PR #16, `feature/reading-order`; ADR 0025, plan in
-  [`plans/reading-order.md`](./plans/reading-order.md)). Every full Brief can carry a
+  `plans/reading-order.md`). Every full Brief can carry a
   **Reading order** — a strict, foundation-first permutation over its Change-groups with
   no-verdict why-lines — emitted in the Brief's own call, validated warn-and-drop on both
   sides, degrading to structural order. FE ships the **Read-through** experience: Story
@@ -346,7 +347,7 @@ should start without it firing:
   rules) across `apps/web` + `tools/categorizer`, wired into CI as parallel matrix jobs.
   **Next: grill the AI-authored-code review lens** (P1/P2 gate now open), then P3.
 - 2026-07-04 — **ADR 0026 trio shipped** (PR #19, `feature/risk-attr-trio`; plan in
-  [`plans/ai-authorship-attributes.md`](./plans/ai-authorship-attributes.md)). The three
+  `plans/ai-authorship-attributes.md`). The three
   model-observed attributes land end to end: schema + prompt discipline + warn-and-drop
   validation (`comment-contradicts-code` citation gate, `new-dependency` section-aware +
   chunk-scoped manifest confirm, plus a `removes-validation` additive-chunk gate added after
@@ -442,7 +443,7 @@ should start without it firing:
   concrete a11y misses (`--faint` contrast 3.28:1 fails AA, no skip-link, silent toast, no brief
   `h1`). Baseline: Design 26/40, Audit 14/20 (A11y + Responsive the weak dims). Bucketed every
   finding into **In-P1 / Deferred-with-triggers / Won't-do**; full record in
-  [`plans/p1-front-door.md`](./plans/p1-front-door.md). **Resolved:** keyboard nav (`J`/`K`/`Z`/`?`)
+  `plans/p1-front-door.md`. **Resolved:** keyboard nav (`J`/`K`/`Z`/`?`)
   folded into P1; mobile brief header deferred (demo is desktop-framed) with a pull-forward trigger.
 - 2026-07-07 — **BRIEF-21 smoke finding → BRIEF-24 candidate: raw span diff affordance.** Full
   Brief renders the whole-PR diff; last-review highlights can only mark rows that survive in it.

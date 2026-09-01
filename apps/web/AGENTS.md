@@ -1,6 +1,6 @@
 # apps/web — agent notes
 
-The TanStack Start front end: the DB-backed read + submit surface, fed by `packages/api` for both App-installation and URL-box briefs. Feature context lives in `docs/adr/` and `docs/plans/`.
+The TanStack Start front end: the DB-backed read + submit surface, fed by `packages/api` for both App-installation and URL-box briefs. Feature context lives in `docs/adr/`.
 
 Repo-wide conventions apply (root AGENTS.md); refinements below.
 
@@ -32,7 +32,7 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 - New file placement: co-locate with its single consumer; on a second consumer, promote to the nearest common ancestor of all consumers (parent component → feature root → global, last resort). Lateral imports into another subtree are forbidden — wanting one IS the promotion signal. Anything touching a feature's store/queries never sits above that feature.
 - In-component functions are closure-dependent only; closure-free logic goes to a co-located `<Component>/utils.ts` (directly unit-testable).
 - Zero raw colors/font-sizes/radii/shadows in `.module.scss` — semantic-scale tokens/mixins only (no value-named tokens); off-scale values stay raw with a line-scoped stylelint disable + TODO note, or earn a component-local token with a one-line justification.
-- Units: text and everything text-coupled is rem via `functions.to-rem(<px>)` — font sizes, margin/padding/gap (raw px is stylelint-banned there), touch-target min-heights, measure caps, menu/dialog widths. Chrome stays px: borders, radii, shadows, icon boxes, decorative geometry, breakpoints. Ambiguous sizing → px. Taxonomy: `docs/plans/brief-84-px-to-rem.md`.
+- Units: text and everything text-coupled is rem via `functions.to-rem(<px>)` — font sizes, margin/padding/gap (raw px is stylelint-banned there), touch-target min-heights, measure caps, menu/dialog widths. Chrome stays px: borders, radii, shadows, icon boxes, decorative geometry, breakpoints. Ambiguous sizing → px.
 - Heading levels follow document structure, never size: one `h1` per screen (a state/error card that replaces the screen owns it), `h2` for a top-level section, overlay content rooted at `h2`, no skipped levels. A component that wants a different size pins one in its own module; a shared shell styles headings level-agnostically so it never dictates a level. Authored markdown through `components/Markdown` is exempt — it keeps its fixed h1→h3/h2→h4 demotion. Reviewer-held: no lint rule expresses it.
 - **Styling carries no comments.** A `.module.scss` rule, a token, or a `style` object gets a comment ONLY when a reader who understands CSS could not predict the behaviour: a browser bug or missing feature, a value that must track another file, a cascade trap, or a measured constraint an innocent edit would silently break. Everything else goes — no restating the declaration, no naming the visible layout mechanism, no design rationale, no history. A comment that would survive pasting into another project's stylesheet says nothing about this one; delete rather than shorten.
 
