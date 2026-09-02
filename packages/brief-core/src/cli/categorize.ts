@@ -21,9 +21,12 @@ import {
 } from "generators";
 import { extractConfigFlag, extractOutFlag } from "./config";
 import {
+  buildContextQuery,
   createBuiltInContextProviders,
   fetchContextSnippets,
+  type TrackerConfig,
 } from "../context";
+import { readLocalTracker } from "./settings";
 import { splitDiffByFile } from "../diff/diff";
 import { assignBriefIndex, lookupBriefShaByIndex } from "../artifacts/manifest";
 import { countChangedLines, type RevisionChanges } from "../diff/revchanges";
@@ -85,6 +88,7 @@ async function buildInputs(
   range: Range | undefined,
   log: (msg: string) => void,
   source: PrSource,
+  tracker: TrackerConfig | undefined,
 ): Promise<{
   pr: FetchedPr;
   comments: ReviewComment[];
@@ -120,8 +124,16 @@ async function buildInputs(
           commitCount: meta.commitCount,
         }),
   ]);
+  const query = buildContextQuery({
+    title: meta.title,
+    body: meta.body,
+    branch: meta.headRef ?? "",
+    repo: locator,
+    tracker,
+    notion: false,
+  });
   const links = await fetchContextSnippets(
-    { title: meta.title, body: meta.body },
+    query,
     createBuiltInContextProviders(),
     log,
   );
@@ -135,6 +147,11 @@ async function buildInputs(
  * app's server fn) — the only thing a caller supplies beyond the PR is where
  * to write.
  */
+export interface GenerateOptions {
+  /** The repo's `tracker:` block; absent means ticket keys never match. */
+  readonly tracker?: TrackerConfig | undefined;
+}
+
 export async function generateAndWrite(
   outDir: string,
   url: string,
@@ -143,6 +160,7 @@ export async function generateAndWrite(
   log: (msg: string) => void,
   effort?: Effort,
   source: PrSource = ghPrSource,
+  options: GenerateOptions = {},
 ): Promise<Brief> {
   log(
     range
@@ -154,6 +172,7 @@ export async function generateAndWrite(
     range,
     log,
     source,
+    options.tracker,
   );
 
   const stem = prStem(
@@ -350,10 +369,22 @@ async function runOne(
   range: Range | undefined,
   generator: Generator,
   effort: Effort | undefined,
+  tracker: TrackerConfig | undefined,
 ): Promise<Brief> {
   const tag = prTag(url);
   const log = (msg: string): void => console.error(`[${tag}] ${msg}`);
-  return generateAndWrite(outDir, url, range, generator, log, effort);
+  return generateAndWrite(
+    outDir,
+    url,
+    range,
+    generator,
+    log,
+    effort,
+    ghPrSource,
+    {
+      tracker,
+    },
+  );
 }
 
 /**
@@ -418,6 +449,10 @@ async function main(): Promise<void> {
 
   await mkdir(outDir, { recursive: true });
 
+  // Local-only mode: the working tree's settings.yaml names the tracker.
+  const local = readLocalTracker(process.cwd());
+  if (local.warning !== undefined) console.error(`warning: ${local.warning}`);
+
   // PRs are independent — run them in parallel, sharing one generator so the
   // SDK's connection pool is reused. A single bad URL must not kill the batch.
   const generator = constructed.value;
@@ -432,7 +467,14 @@ async function main(): Promise<void> {
         try {
           return {
             url,
-            brief: await runOne(outDir, url, parsed.range, generator, effort),
+            brief: await runOne(
+              outDir,
+              url,
+              parsed.range,
+              generator,
+              effort,
+              local.tracker,
+            ),
           };
         } catch (error) {
           return { url, error };

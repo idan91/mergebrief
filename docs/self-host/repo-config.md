@@ -10,7 +10,7 @@ repo's** briefs loudly when invalid, never the instance.
 ```
 .mergebrief/
   instructions.md    # text guidance to generation (semi-trusted, bounded)
-  settings.yaml      # workflow behavior (v1: entryCommentOnDrafts)
+  settings.yaml      # workflow behavior (v1: entryCommentOnDrafts, tracker)
   policy.yaml        # risk policy: custom attributes + display de-emphasis
   rules/             # RESERVED for future generated output — leave empty
 ```
@@ -51,6 +51,35 @@ genuinely review drafts opt in with `true`. Generation itself always runs
 for drafts (subject to the instance `drafts:` knob below); this gates the
 comment only.
 
+### `tracker:` — where this repo's tickets live
+
+```yaml
+version: 1
+tracker:
+  kind: notion            # notion | github
+  keyPrefix: BRIEF        # notion: required; keys never match without it
+  databaseId: 3935e9400eeb80b0ad46000b1ce17b37   # notion: required; database or data source id, dashes optional
+  # kind: github
+  # issuesRepo: owner/name   # optional: where a bare #N resolves
+```
+
+The brief's Intent check names one **primary ticket** per PR, found in the
+description, title or branch name, and reads it through a tracker
+provider (see [trackers.md](trackers.md)). This block tells it which
+tracker the repo uses:
+
+- `PREFIX-N` keys match **only** the configured `keyPrefix`
+  (case-insensitive, word-bounded). With no `tracker:` block, keys never
+  match.
+- `#N`, `owner/repo#N`, GitHub issue URLs and a branch segment starting
+  `N-` always match, whatever the kind. A bare `#N` resolves against
+  `issuesRepo` when set, else the PR's own repo.
+- When a PR names several references, ones on the configured tracker
+  come first: in a Notion repo, `[BRIEF-12]` in the title outranks `#467`
+  in the description, which is usually a pull request. Within that pool a
+  closing keyword wins, then reading order.
+- An invalid block rejects the whole file, like any other key.
+
 ## `policy.yaml` (32 KB, versioned)
 
 ```yaml
@@ -90,14 +119,14 @@ proceeds without it and the error shows on the origin chip to both
 author and reviewer. A GitHub fetch failure fails **open**: the brief
 generates without repo config, recorded loudly as `fetch-failed`.
 
-## Local-only mode (CLI) — designed, not yet built
+## Local-only mode (CLI) — first slice built
 
-The dotdir is designed to serve a second mode: gitignore
-`.mergebrief/` and the CLI would read your working tree as personal local
-config (your own machine, your own trust context). **The CLI does not read
-`.mergebrief/` yet** — today the only ingestion path is the server's
-default-branch fetch; `validateRepoConfig` is deliberately source-agnostic
-so the CLI mode can reuse it when built.
+The dotdir also serves a second mode: the `categorize` and `delta` CLIs
+read `.mergebrief/settings.yaml` from the **working tree** they run in
+(your own machine, your own trust context). Today they read the `tracker:`
+block only, version-gated, ignoring other keys; a file that does not parse
+yields no tracker and one warning line, never a failed run. Instructions
+and policy still come only from the server's default-branch fetch.
 
 ## Related instance block: `drafts:` (operator-side)
 

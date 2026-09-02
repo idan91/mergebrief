@@ -19,7 +19,12 @@ function makeSnippet(source: string): ProviderSnippet {
   };
 }
 
-const query = { title: "t", body: "see https://a.example/x" };
+const query = {
+  title: "t",
+  body: "see https://a.example/x",
+  headRef: "",
+  repo: { owner: "o", repo: "r" },
+};
 
 describe("fetchContextSnippets", () => {
   it("concatenates provider results in provider order and numbers them ctx-1..N", async () => {

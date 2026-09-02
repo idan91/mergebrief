@@ -47,6 +47,75 @@ describe("settings.yaml validation", () => {
     expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcomes.INVALID);
   });
 
+  it("applies a notion tracker block", () => {
+    const tracker = {
+      kind: "notion",
+      keyPrefix: "BRIEF",
+      databaseId: "3935e9400eeb80b0ad46000b1ce17b37",
+    };
+    const result = validate(yaml({ version: 1, tracker }));
+    expect(result.settings?.tracker).toEqual(tracker);
+    expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcomes.APPLIED);
+  });
+
+  it("accepts a dashed notion id and stores it bare", () => {
+    const tracker = {
+      kind: "notion",
+      keyPrefix: "BRIEF",
+      databaseId: "3935e940-0eeb-80b0-ad46-000b1ce17b37",
+    };
+    const result = validate(yaml({ version: 1, tracker }));
+    expect(result.settings?.tracker).toEqual({
+      ...tracker,
+      databaseId: "3935e9400eeb80b0ad46000b1ce17b37",
+    });
+  });
+
+  it("applies a github tracker block with and without issuesRepo", () => {
+    expect(
+      validate(yaml({ version: 1, tracker: { kind: "github" } })).settings
+        ?.tracker,
+    ).toEqual({ kind: "github" });
+    expect(
+      validate(
+        yaml({
+          version: 1,
+          tracker: { kind: "github", issuesRepo: "acme/tracker" },
+        }),
+      ).settings?.tracker,
+    ).toEqual({ kind: "github", issuesRepo: "acme/tracker" });
+  });
+
+  it.each([
+    ["an unknown kind", { kind: "jira", keyPrefix: "X" }],
+    [
+      "a notion block missing its database id",
+      { kind: "notion", keyPrefix: "BRIEF" },
+    ],
+    [
+      "a bad database id",
+      { kind: "notion", keyPrefix: "BRIEF", databaseId: "not-hex" },
+    ],
+    [
+      "a mis-dashed database id",
+      {
+        kind: "notion",
+        keyPrefix: "BRIEF",
+        databaseId: "3935e9400eeb-80b0-ad46-000b1ce17b37",
+      },
+    ],
+    [
+      "a bad key prefix",
+      { kind: "notion", keyPrefix: "BRI EF", databaseId: "a".repeat(32) },
+    ],
+    ["an unknown tracker key", { kind: "github", issueRepo: "acme/tracker" }],
+    ["a bad issuesRepo", { kind: "github", issuesRepo: "acme" }],
+  ])("rejects the whole file for %s", (_label, tracker) => {
+    const result = validate(yaml({ version: 1, tracker }));
+    expect(result.settings).toBeUndefined();
+    expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcomes.INVALID);
+  });
+
   it("applies at exactly the byte cap", () => {
     const content = padYamlToBytes(yaml({ version: 1 }), SETTINGS_MAX_BYTES);
     expect(Buffer.byteLength(content, "utf8")).toBe(SETTINGS_MAX_BYTES);

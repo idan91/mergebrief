@@ -4,6 +4,7 @@
 // validate.ts); these schemas own STRUCTURAL validity only.
 
 import { z } from "zod/v4";
+import { TrackerConfigSchema } from "brief-core";
 import {
   ATTRIBUTE_NAME_MAX_CHARS,
   ATTRIBUTE_NAME_PATTERN,
@@ -16,14 +17,17 @@ import {
 // --- settings.yaml (v1) -----------------------------------------------------
 
 /**
- * `settings.yaml` v1. One workflow knob today. `.strict()` so a typo'd key is
- * rejected, not ignored; `version` must be the literal `1` (an unknown or
- * missing version takes the invalid path).
+ * `settings.yaml` v1. `.strict()` so a typo'd key is rejected, not ignored;
+ * `version` must be the literal `1` (an unknown or missing version takes the
+ * invalid path). The `tracker:` block names the repo's ticket tracker; ticket
+ * keys match only its configured prefix, and an invalid block rejects the
+ * whole file like any other key.
  */
 export const settingsV1Schema = z
   .object({
     version: z.literal(1),
     entryCommentOnDrafts: z.boolean().default(false),
+    tracker: TrackerConfigSchema.optional(),
   })
   .strict();
 

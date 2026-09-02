@@ -10,9 +10,9 @@ What the layout can't show:
 
 - `types.ts` (Brief schema + closed vocabulary, mirroring `docs/mvp/labeling-schema.md` and `risk-surface.md`) and `generation/prompt.ts` are GENERATION SURFACE (root AGENTS.md's eval gate).
 - `diff/` is mechanical parsing, no model calls.
-- `cli/` entries are invoked from `tools/categorizer`.
+- `cli/` entries are invoked from `tools/categorizer`. They are local-only mode's first slice: `cli/settings.ts` reads the `tracker:` block of the working tree's `.mergebrief/settings.yaml` with the schema `context/tracker.ts` owns (repo-config depends on brief-core, so the CLI cannot go through `validateRepoConfig`).
 - `github/` is the CLI/dev + web generate-from-URL fetch surface behind the `PrSource` port (the worker uses its own github-port).
-- `context/` is the ContextSource boundary: the query, the snippet, the provider port, the fan-out and the provider registry. Providers return `Result`, the fan-out fails open per provider, and the SSRF guard lives in `providers/url.ts`, outside the `PrSource` port. Every fence tag the prompt uses is listed once in `generation/fences.ts`; injected text is stripped of the whole union.
+- `context/` is the ContextSource boundary: the query, the snippet, the provider port, the fan-out and the provider registry. `context/trackers/` holds one module per ticket tracker, its reference syntax and, once it has one, its read; `references.ts` only scans locations, applies the closing rule and dedupes. A new tracker is one module plus a line in `trackers/index.ts`. Providers return `Result`, the fan-out fails open per provider, and the SSRF guard lives in `providers/url.ts`, outside the `PrSource` port. Every fence tag the prompt uses is listed once in `generation/fences.ts`; injected text is stripped of the whole union.
 
 Consumers: `packages/worker`, `packages/repo-config`, `apps/web`, `tools/categorizer` (CLIs + eval).
 

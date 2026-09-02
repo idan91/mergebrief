@@ -1,5 +1,7 @@
 import type { Result, ValueOf } from "types";
 import type { Log } from "../github/types";
+import type { TicketReference, TicketReferenceRepo } from "./references";
+import type { TrackerConfig } from "./tracker";
 
 /** Provider vocabulary. Each token is a registry entry, never a flag. */
 export const ContextProviderTypes = {
@@ -26,10 +28,20 @@ export interface ContextReadFailure {
   readonly detail: string;
 }
 
-/** The metadata tier every provider is asked with: never the diff. */
+/**
+ * The metadata tier every provider is asked with: never the diff. Built by
+ * `buildContextQuery`, which resolves the primary ticket reference once so
+ * every provider sees the same one.
+ */
 export interface ContextQuery {
   readonly title: string;
   readonly body: string;
+  /** Head branch name; "" when unknown. */
+  readonly headRef: string;
+  readonly repo: TicketReferenceRepo;
+  readonly tracker?: TrackerConfig | undefined;
+  /** The one ticket this PR is about, when a reference was found. */
+  readonly primary?: TicketReference | undefined;
 }
 
 /** What a provider hands back; the fan-out assigns the per-generation id. */

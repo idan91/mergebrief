@@ -238,6 +238,7 @@ function stubGitHub(headSha: string): StubGitHub {
       repoId: makeRepoId(7n),
       repoFullName: "acme/widget",
       headSha,
+      headRef: "feature/stub",
       baseSha: BASE,
       state: "open",
       draft: false,

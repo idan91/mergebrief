@@ -95,6 +95,13 @@ describe("metadataFromView (gh pr view JSON → PrMetadata)", () => {
     expect(meta.merged).toBe(false);
   });
 
+  it("carries headRefName as headRef and omits it when gh sends none", () => {
+    expect(
+      metadataFromView({ ...baseView, headRefName: "feature/thing" }).headRef,
+    ).toBe("feature/thing");
+    expect("headRef" in metadataFromView(baseView)).toBe(false);
+  });
+
   it("omits lifecycle fields when gh sends no state (fail-open)", () => {
     const meta = metadataFromView(baseView);
     expect("state" in meta).toBe(false);

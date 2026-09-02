@@ -32,6 +32,8 @@ export interface PullRequestInfo {
   /** The base repo's `owner/name` as GitHub verified it (rename-proof-ish). */
   readonly repoFullName: string;
   readonly headSha: string;
+  /** Head branch name, as GitHub reports it. */
+  readonly headRef: string;
   readonly baseSha: string;
   /** GitHub PR state (`open` / `closed`). */
   readonly state: string;
@@ -83,6 +85,7 @@ export async function fetchPullRequest(
         repoId: repoId.data,
         repoFullName: data.base.repo.full_name,
         headSha: data.head.sha,
+        headRef: data.head.ref,
         baseSha: data.base.sha,
         state: data.state,
         draft: data.draft ?? false,

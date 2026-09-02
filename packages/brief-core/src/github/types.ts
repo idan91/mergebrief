@@ -24,6 +24,8 @@ export interface PrMetadata {
   baseSha: string;
   /** Number of commits in the PR at this head. */
   commitCount: number;
+  /** Head branch name; absent on older fetch paths and artifacts. */
+  headRef?: string;
   files: PrFile[];
   /**
    * PR lifecycle snapshot at fetch time, stamped into the artifact envelope's

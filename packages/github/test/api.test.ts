@@ -466,7 +466,7 @@ describe("fetchPullRequest / fetchDiff", () => {
   it("extracts the minimal PR fields", async () => {
     const pullsGet = vi.fn().mockResolvedValue({
       data: {
-        head: { sha: "head-sha" },
+        head: { sha: "head-sha", ref: "feature/thing" },
         base: { sha: "base-sha", repo: { id: 424242, full_name: "o/r" } },
         state: "open",
         draft: false,
@@ -491,6 +491,7 @@ describe("fetchPullRequest / fetchDiff", () => {
       repoId: 424242n,
       repoFullName: "o/r",
       headSha: "head-sha",
+      headRef: "feature/thing",
       baseSha: "base-sha",
       state: "open",
       draft: false,

@@ -17,9 +17,12 @@ import {
 } from "generators";
 import { extractConfigFlag } from "./config";
 import {
+  buildContextQuery,
   createBuiltInContextProviders,
   fetchContextSnippets,
+  type TrackerConfig,
 } from "../context";
+import { readLocalTracker } from "./settings";
 import { splitDiffByFile } from "../diff/diff";
 import { lookupBriefIndex } from "../artifacts/manifest";
 import { buildComparisonMarks, writeComparisonMarks } from "../diff/comparison";
@@ -59,6 +62,7 @@ export async function generateAndWriteDelta(
   generator: Generator,
   log: (msg: string) => void,
   effort?: Effort,
+  tracker?: TrackerConfig,
 ): Promise<DeltaBrief> {
   const locator = parsePrUrl(url);
 
@@ -78,8 +82,16 @@ export async function generateAndWriteDelta(
     fetchCompareDiff(locator, baselineSha, headSha),
     fetchReviewComments(locator),
   ]);
+  const query = buildContextQuery({
+    title: meta.title,
+    body: meta.body,
+    branch: meta.headRef ?? "",
+    repo: locator,
+    tracker,
+    notion: false,
+  });
   const links = await fetchContextSnippets(
-    { title: meta.title, body: meta.body },
+    query,
     createBuiltInContextProviders(),
     log,
   );
@@ -174,6 +186,10 @@ async function main(): Promise<void> {
   const tag = `${locator.owner}/${locator.repo}#${locator.number}`;
   const log = (msg: string): void => console.error(`[${tag}] ${msg}`);
 
+  // Local-only mode: the working tree's settings.yaml names the tracker.
+  const local = readLocalTracker(process.cwd());
+  if (local.warning !== undefined) log(`warning: ${local.warning}`);
+
   const delta = await generateAndWriteDelta(
     OUT_DIR,
     url,
@@ -182,6 +198,7 @@ async function main(): Promise<void> {
     constructed.value,
     log,
     loaded.value.generator.effort,
+    local.tracker,
   );
 
   console.log("");

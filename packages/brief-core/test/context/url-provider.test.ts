@@ -6,6 +6,10 @@ import {
 } from "../../src/context/providers/url";
 import { ContextProviderTypes } from "../../src/context/types";
 
+function makeQuery(body: string) {
+  return { title: "t", body, headRef: "", repo: { owner: "o", repo: "r" } };
+}
+
 function stubDeps(logs: string[] = []) {
   return {
     log: (m: string) => logs.push(m),
@@ -61,7 +65,7 @@ describe("urlContextProvider", () => {
     expect(urlContextProvider.providerId).toBe(ContextProviderTypes.URL);
 
     const outcome = await urlContextProvider.fetch(
-      { title: "t", body: "internal: http://127.0.0.1/admin" },
+      makeQuery("internal: http://127.0.0.1/admin"),
       stubDeps(logs),
     );
 
@@ -69,9 +73,52 @@ describe("urlContextProvider", () => {
     expect(logs.some((l) => l.includes("blocked"))).toBe(true);
   });
 
+  it("skips the primary ticket's URL so it is never fetched twice", async () => {
+    const logs: string[] = [];
+    const url = "http://127.0.0.1/issues/1";
+    const outcome = await urlContextProvider.fetch(
+      {
+        ...makeQuery(`see ${url}`),
+        primary: {
+          tracker: "github",
+          key: "",
+          number: 1,
+          url,
+          foundIn: "description",
+          closing: false,
+        },
+      },
+      stubDeps(logs),
+    );
+    expect(outcome).toEqual({ ok: true, value: [] });
+    expect(logs).toEqual([]);
+  });
+
+  it("skips the primary's URL in any of its forms", async () => {
+    const logs: string[] = [];
+    const body =
+      "https://github.com/o/r/issues/9/ https://github.com/o/r/issues/9?x=1 https://github.com/o/r/issues/9#issuecomment-2";
+    const outcome = await urlContextProvider.fetch(
+      {
+        ...makeQuery(body),
+        primary: {
+          tracker: "github",
+          key: "",
+          number: 9,
+          url: "https://github.com/o/r/issues/9",
+          foundIn: "description",
+          closing: false,
+        },
+      },
+      stubDeps(logs),
+    );
+    expect(outcome).toEqual({ ok: true, value: [] });
+    expect(logs).toEqual([]);
+  });
+
   it("returns nothing for a body with no links", async () => {
     const outcome = await urlContextProvider.fetch(
-      { title: "t", body: "plain" },
+      makeQuery("plain"),
       stubDeps(),
     );
     expect(outcome).toEqual({ ok: true, value: [] });

@@ -27,3 +27,28 @@ export {
   type EgressTier,
 } from "./registry";
 export { extractLinks, isPublicUrl, urlContextProvider } from "./providers/url";
+export { buildContextQuery } from "./query";
+export {
+  collectTicketReferences,
+  resolvePrimaryTicket,
+  type TicketReference,
+  type TicketReferenceInput,
+  type TicketReferenceRepo,
+} from "./references";
+export {
+  TRACKERS,
+  getTracker,
+  githubTracker,
+  notionTracker,
+  parseNotionPageId,
+  type ReferenceHit,
+  type Tracker,
+} from "./trackers";
+export {
+  ReferenceLocations,
+  TicketTrackers,
+  TrackerConfigSchema,
+  type ReferenceLocation,
+  type TicketTracker,
+  type TrackerConfig,
+} from "./tracker";

@@ -29,6 +29,7 @@ import {
   categorizeDelta,
   categorizeRevisionNarrative,
   buildComparisonMarks,
+  buildContextQuery,
   countChangedLines,
   createBuiltInContextProviders,
   fetchContextSnippets,
@@ -704,17 +705,13 @@ async function runGeneration(
       sha: info.headSha,
       baseSha: info.baseSha,
       commitCount: info.commitCount,
+      headRef: info.headRef,
       files,
       ...(state !== undefined ? { state } : {}),
       draft: info.draft,
       merged: info.merged,
     };
     const coreLog: CoreLog = (message) => log.info(message);
-    const links = await fetchContextSnippets(
-      { title: meta.title, body: meta.body },
-      createBuiltInContextProviders(),
-      coreLog,
-    );
 
     // ---- The shared Brief (skip-if-exists: retries never re-spend) ----------
     const priorBriefs = await store.briefs.listForPullRequest(pullRequestId);
@@ -758,6 +755,20 @@ async function runGeneration(
         buildRepoConfigOrigin(repoConfig),
       );
     }
+    // Context providers run after the repo config so the tracker block can
+    // name the primary ticket; never the diff, fail-open per provider.
+    const links = await fetchContextSnippets(
+      buildContextQuery({
+        title: meta.title,
+        body: meta.body,
+        branch: info.headRef,
+        repo: locator,
+        tracker: repoConfig?.settings?.tracker,
+        notion: false,
+      }),
+      createBuiltInContextProviders(),
+      coreLog,
+    );
     // Entry-comment draft gate: the branded Entry comment stays OFF draft PRs
     // unless the repo opts in via `.mergebrief/settings.yaml`
     // `entryCommentOnDrafts: true`. Generation itself is untouched — this

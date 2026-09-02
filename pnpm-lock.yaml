@@ -229,6 +229,9 @@ importers:
       types:
         specifier: workspace:*
         version: link:../types
+      yaml:
+        specifier: ^2.9.0
+        version: 2.9.0
       zod:
         specifier: ^3.25.0
         version: 3.25.76

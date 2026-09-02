@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { z } from "zod/v4";
 import {
+  buildContextQuery,
   createBuiltInContextProviders,
   fetchContextSnippets,
 } from "../context";
@@ -59,6 +60,7 @@ const GhViewSchema = z.object({
   body: z.string().nullish(),
   url: z.string(),
   headRefOid: z.string(),
+  headRefName: z.string().nullish(),
   baseRefOid: z.string(),
   // `commits` carries one entry per commit in the PR; we only need the count.
   commits: z.array(z.unknown()).nullish(),
@@ -91,7 +93,7 @@ export function metadataFromView(raw: unknown): PrMetadata {
           merged: ghState === "MERGED",
         }
       : {};
-  return {
+  const meta: PrMetadata = {
     title: view.title,
     body: view.body ?? "",
     url: view.url,
@@ -102,6 +104,8 @@ export function metadataFromView(raw: unknown): PrMetadata {
     ...lifecycle,
     ...(typeof view.isDraft === "boolean" ? { draft: view.isDraft } : {}),
   };
+  if (typeof view.headRefName === "string") meta.headRef = view.headRefName;
+  return meta;
 }
 
 export async function fetchPrMetadata(loc: PrLocator): Promise<PrMetadata> {
@@ -114,7 +118,7 @@ export async function fetchPrMetadata(loc: PrLocator): Promise<PrMetadata> {
       "--repo",
       repoSlug(loc),
       "--json",
-      "title,body,url,headRefOid,baseRefOid,commits,files,state,isDraft",
+      "title,body,url,headRefOid,headRefName,baseRefOid,commits,files,state,isDraft",
     ],
     { maxBuffer: MAX_BUFFER },
   );
@@ -227,8 +231,15 @@ export async function fetchPr(
     fetchPrDiff(locator),
     fetchPrMetadata(locator),
   ]);
+  const query = buildContextQuery({
+    title: meta.title,
+    body: meta.body,
+    branch: meta.headRef ?? "",
+    repo: locator,
+    notion: false,
+  });
   const links = await fetchContextSnippets(
-    { title: meta.title, body: meta.body },
+    query,
     createBuiltInContextProviders(),
     log,
   );

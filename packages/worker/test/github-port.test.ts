@@ -52,6 +52,7 @@ const INFO: githubModule.PullRequestInfo = {
   repoId: brandRepoId(7n),
   repoFullName: "acme/widget",
   headSha: "a".repeat(40),
+  headRef: "feature/fixture",
   baseSha: "c".repeat(40),
   state: "open",
   draft: false,

@@ -3,6 +3,7 @@ import { lookup as dnsLookup, type LookupAddress } from "node:dns";
 import { get as httpGet } from "node:http";
 import { get as httpsGet } from "node:https";
 import type { Result } from "types";
+import { canonicalizeTicketUrl } from "../references";
 import {
   ContextProviderTypes,
   type ContextProvider,
@@ -178,7 +179,11 @@ async function fetchUrlSnippets(
   deps: ContextProviderDeps,
 ): Promise<Result<ProviderSnippet[], ContextReadFailure>> {
   const { log, signal } = deps;
-  const urls = extractLinks(query.body);
+  // The primary ticket is the tracker provider's read; never fetch it twice.
+  const primaryUrl = query.primary?.url;
+  const urls = extractLinks(query.body).filter(
+    (url) => canonicalizeTicketUrl(url) !== primaryUrl,
+  );
   const results = await Promise.all(
     urls.map(async (url): Promise<ProviderSnippet | null> => {
       const shown = displayUrl(url);
