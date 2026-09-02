@@ -712,7 +712,7 @@ export function BriefScreen({
             <ConcernStrip rollup={brief.concernView} />
           ) : null}
 
-          {regions.groupToc ? (
+          {regions.sidebar ? (
             <GroupTocBar
               key={`toc-${briefId}`}
               conversationGroupIds={conversationWiring.conversationGroupIds}

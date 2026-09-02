@@ -34,6 +34,20 @@ const groupedState = (over: Partial<ShortcutState> = {}): ShortcutState =>
   });
 
 describe("resolveShortcut", () => {
+  it("s toggles the sidebar", () => {
+    expect(resolveShortcut(key("s"), state())).toEqual({
+      type: "toggleSidebar",
+    });
+  });
+
+  it("shift+S is not a sidebar toggle", () => {
+    expect(resolveShortcut(key("S", { shiftKey: true }), state())).toBeNull();
+  });
+
+  it("s stands down while typing", () => {
+    expect(resolveShortcut(key("s", { isTyping: true }), state())).toBeNull();
+  });
+
   it("j advances to the next chunk", () => {
     expect(resolveShortcut(key("j"), state({ activeChunkId: "a" }))).toEqual({
       type: "jump",

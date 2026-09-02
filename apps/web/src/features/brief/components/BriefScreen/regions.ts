@@ -15,7 +15,7 @@ export interface VisibleRegions {
   summary: boolean;
   toolbar: boolean;
   conversation: boolean;
-  groupToc: boolean;
+  sidebar: boolean;
 }
 
 /**
@@ -28,7 +28,7 @@ export function deriveVisibleRegions(modes: ReadingModes): VisibleRegions {
       summary: false,
       toolbar: false,
       conversation: false,
-      groupToc: false,
+      sidebar: false,
     };
   }
   if (modes.scope === "changes") {
@@ -36,13 +36,13 @@ export function deriveVisibleRegions(modes: ReadingModes): VisibleRegions {
       summary: true,
       toolbar: false,
       conversation: false,
-      groupToc: false,
+      sidebar: false,
     };
   }
   return {
     summary: true,
     toolbar: true,
     conversation: true,
-    groupToc: true,
+    sidebar: true,
   };
 }

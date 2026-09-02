@@ -50,6 +50,28 @@ describe("useKeyboardShortcuts — C dispatch", () => {
   });
 });
 
+function pressS(): KeyboardEvent {
+  const event = new KeyboardEvent("keydown", { key: "s", cancelable: true });
+  window.dispatchEvent(event);
+  return event;
+}
+
+describe("useKeyboardShortcuts — S dispatch", () => {
+  it("does not swallow S while no sidebar toggle is wired", () => {
+    renderHook(() => useKeyboardShortcuts(options({})));
+    const event = pressS();
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it("consumes S and toggles when the sidebar is wired", () => {
+    const toggleSidebar = vi.fn();
+    renderHook(() => useKeyboardShortcuts(options({ toggleSidebar })));
+    const event = pressS();
+    expect(event.defaultPrevented).toBe(true);
+    expect(toggleSidebar).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("useKeyboardShortcuts — click-input focus", () => {
   it("V still fires with focus parked on the Viewed checkbox", () => {
     // Clicking the checkbox leaves it focused; a blanket INPUT stand-down

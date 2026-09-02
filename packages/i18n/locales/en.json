@@ -286,7 +286,8 @@
       "jumpConversation": "Jump to the Conversation section (DB path)",
       "quoteThread": "Quote selected thread text into the reply box",
       "toggleShortcuts": "Toggle this shortcuts list",
-      "closeDialog": "Close focus mode or a dialog"
+      "closeDialog": "Close focus mode or a dialog",
+      "toggleSidebar": "Toggle the sidebar"
     },
     "intent": {
       "title": "Intent check",
@@ -560,6 +561,20 @@
     "toc": {
       "ariaLabel": "Change groups",
       "srHasConversation": " — has conversation"
+    },
+    "sidebar": {
+      "ariaLabel": "Sidebar",
+      "expand": "Expand sidebar",
+      "collapse": "Collapse sidebar",
+      "scrollToTop": "Scroll to top",
+      "tabs": {
+        "ariaLabel": "Sidebar tabs",
+        "thisPr": "This PR"
+      },
+      "sheet": {
+        "expandToFull": "Expand the sheet to full height",
+        "shrinkToHalf": "Shrink the sheet to half height"
+      }
     },
     "progress": {
       "ariaLabel": "Read-through progress",

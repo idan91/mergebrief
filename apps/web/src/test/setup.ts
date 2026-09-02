@@ -55,18 +55,38 @@ class IntersectionObserverStub implements IntersectionObserver {
   }
 }
 
+const mediaQueryMatches = new Map<string, boolean>();
+const mediaQueryLists: MediaQueryListStub[] = [];
+
+/** jsdom ships no layout, so a media query answers false until a test flips it. */
 class MediaQueryListStub extends EventTarget implements MediaQueryList {
-  readonly matches = false;
   onchange:
     | ((this: MediaQueryList, ev: MediaQueryListEvent) => unknown)
     | null = null;
 
   constructor(readonly media: string) {
     super();
+    mediaQueryLists.push(this);
+  }
+
+  get matches(): boolean {
+    return mediaQueryMatches.get(this.media) ?? false;
   }
 
   addListener(): void {}
   removeListener(): void {}
+}
+
+/** Flip a query's answer and notify its listeners, the way a resize would. */
+export function setMediaQueryMatches(media: string, matches: boolean): void {
+  mediaQueryMatches.set(media, matches);
+  for (const list of mediaQueryLists) {
+    if (list.media === media) list.dispatchEvent(new Event("change"));
+  }
+}
+
+export function resetMediaQueries(): void {
+  mediaQueryMatches.clear();
 }
 
 if (typeof globalThis.ResizeObserver === "undefined") {

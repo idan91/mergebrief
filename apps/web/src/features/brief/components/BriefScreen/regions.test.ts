@@ -13,7 +13,7 @@ describe("deriveVisibleRegions", () => {
       summary: true,
       toolbar: true,
       conversation: true,
-      groupToc: true,
+      sidebar: true,
     });
   });
 
@@ -23,7 +23,7 @@ describe("deriveVisibleRegions", () => {
       summary: true,
       toolbar: false,
       conversation: false,
-      groupToc: false,
+      sidebar: false,
     });
   });
 
@@ -33,7 +33,7 @@ describe("deriveVisibleRegions", () => {
       summary: false,
       toolbar: false,
       conversation: false,
-      groupToc: false,
+      sidebar: false,
     });
   });
 
@@ -43,7 +43,7 @@ describe("deriveVisibleRegions", () => {
       summary: false,
       toolbar: false,
       conversation: false,
-      groupToc: false,
+      sidebar: false,
     });
   });
 });

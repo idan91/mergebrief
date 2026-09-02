@@ -25,6 +25,8 @@ export interface KeyboardShortcutsOptions {
   markViewed: (chunkId: string) => void;
   /** Jump to the Conversation section; absent on the local path (no section). */
   jumpToConversation?: (() => void) | undefined;
+  /** Toggle the Sidebar; absent while no Sidebar is mounted. */
+  toggleSidebar?: (() => void) | undefined;
 }
 
 /** The minimal slice of a keydown event the decision logic needs. */
@@ -51,6 +53,7 @@ export type ShortcutAction =
   | { type: "toggleFocus" }
   | { type: "toggleHelp" }
   | { type: "jumpToConversation" }
+  | { type: "toggleSidebar" }
   | { type: "markViewed"; chunkId: string };
 
 const TYPING_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
@@ -125,6 +128,7 @@ export function resolveShortcut(
   if (key === "z") return { type: "toggleFocus" };
   if (key === "?") return { type: "toggleHelp" };
   if (key === "c") return { type: "jumpToConversation" };
+  if (key === "s" && !event.shiftKey) return { type: "toggleSidebar" };
   // Focus mode only — a global V would silently collapse arbitrary chunks.
   if (key === "v" && state.focusModeActive && state.activeChunkId !== null) {
     return { type: "markViewed", chunkId: state.activeChunkId };
@@ -135,7 +139,7 @@ export function resolveShortcut(
 /**
  * Global J/K (next/prev chunk), Shift+J/Shift+K (next/prev group in Reading
  * order — Read-through), Z (focus mode), V (mark viewed + advance, focus mode
- * only), ? (shortcuts hint), Esc (exit focus
+ * only), S (sidebar), ? (shortcuts hint), Esc (exit focus
  * mode). Modeled on Atlas's reading shortcuts. Stands down while typing or
  * while an overlay (drawer/modal/composer) holds focus, so it never steals keys
  * mid-edit.
@@ -152,7 +156,7 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions): void {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      const o = latest.current;
+      const current = latest.current;
       const action = resolveShortcut(
         {
           key: event.key,
@@ -163,25 +167,28 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions): void {
           isTyping: isTypingTarget(event.target),
         },
         {
-          chunkIds: o.chunkIds,
-          groupBoundaries: o.groupBoundaries,
-          activeChunkId: o.getActiveChunkId(),
-          disabled: o.disabled,
-          focusModeActive: o.focusModeActive,
+          chunkIds: current.chunkIds,
+          groupBoundaries: current.groupBoundaries,
+          activeChunkId: current.getActiveChunkId(),
+          disabled: current.disabled,
+          focusModeActive: current.focusModeActive,
         },
       );
       if (!action) return;
       // C is a no-op without a section to jump to (local path) — don't
       // swallow the key.
-      if (action.type === "jumpToConversation" && !o.jumpToConversation) {
+      if (action.type === "jumpToConversation" && !current.jumpToConversation) {
         return;
       }
+      if (action.type === "toggleSidebar" && !current.toggleSidebar) return;
       event.preventDefault();
-      if (action.type === "jump") o.jumpToChunk(action.chunkId);
-      else if (action.type === "toggleFocus") o.toggleFocusMode();
-      else if (action.type === "jumpToConversation") o.jumpToConversation?.();
-      else if (action.type === "markViewed") o.markViewed(action.chunkId);
-      else o.toggleHelp();
+      if (action.type === "jump") current.jumpToChunk(action.chunkId);
+      else if (action.type === "toggleFocus") current.toggleFocusMode();
+      else if (action.type === "jumpToConversation")
+        current.jumpToConversation?.();
+      else if (action.type === "toggleSidebar") current.toggleSidebar?.();
+      else if (action.type === "markViewed") current.markViewed(action.chunkId);
+      else current.toggleHelp();
     }
 
     window.addEventListener("keydown", onKeyDown);
