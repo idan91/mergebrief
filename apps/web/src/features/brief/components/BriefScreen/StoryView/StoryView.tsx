@@ -23,6 +23,7 @@ import { estimateChunkCardHeight } from "../chunkHeightModel";
 import { useChunkWindows } from "../chunkWindows";
 import { useReadingPosition } from "../readingPosition";
 import { CHUNK_WINDOW_INDEX_ATTR, useGroupWindow } from "../useGroupWindow";
+import { deriveGroupSectionId } from "../utils";
 import { Button } from "@web/components/Button/Button";
 import { ToolbarButton } from "@web/components/ToolbarButton/ToolbarButton";
 import styles from "./StoryView.module.scss";
@@ -94,6 +95,7 @@ export function StoryView(props: StoryViewProps) {
         return (
           <section
             className="story-group reveal"
+            id={deriveGroupSectionId(group.id)}
             key={group.id}
             data-active-group={isActiveFocusGroup ? "" : undefined}
             data-focus-rail={

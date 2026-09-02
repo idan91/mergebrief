@@ -168,6 +168,7 @@ export default [
               "stopColor",
               // Discriminant/behavioural props, never rendered as copy.
               "placement",
+              "callout",
               "kind",
               "variant",
               "size",
@@ -217,6 +218,7 @@ export default [
       "apps/web/src/components/LinkButton/**",
       "apps/web/src/components/MenuItem/**",
       "apps/web/src/components/RowButton/**",
+      "apps/web/src/components/Tabs/**",
       "apps/web/src/components/ToolbarButton/**",
     ],
     linterOptions: {

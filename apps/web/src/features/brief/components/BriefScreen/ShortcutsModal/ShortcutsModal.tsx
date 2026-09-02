@@ -23,6 +23,7 @@ const SHORTCUTS: ShortcutDefinition[] = [
   { key: "Z", descriptionKey: "brief.shortcuts.focusMode" },
   { key: "V", descriptionKey: "brief.shortcuts.markViewed" },
   { key: "C", descriptionKey: "brief.shortcuts.jumpConversation" },
+  { key: "S", descriptionKey: "brief.shortcuts.toggleSidebar" },
   { key: "R", descriptionKey: "brief.shortcuts.quoteThread" },
   { key: "?", descriptionKey: "brief.shortcuts.toggleShortcuts" },
   { key: "Esc", descriptionKey: "brief.shortcuts.closeDialog" },

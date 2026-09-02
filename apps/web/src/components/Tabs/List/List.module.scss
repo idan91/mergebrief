@@ -1,0 +1,11 @@
+@use "functions";
+
+@layer components {
+  .list {
+    display: flex;
+    flex: none;
+    gap: functions.to-rem(4px);
+    padding-inline: functions.to-rem(10px);
+    border-block-end: 1px solid var(--line);
+  }
+}

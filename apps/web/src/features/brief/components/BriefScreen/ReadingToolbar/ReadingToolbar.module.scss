@@ -63,7 +63,7 @@
   }
 
   // The group stepper exists only below 1120px, where the gutter TOC dies
-  // (GroupTocBar.module.scss hides at the same breakpoint).
+  // (Sidebar.module.scss hides at the same breakpoint).
   .stepper[data-stepper="group"] {
     display: none;
 

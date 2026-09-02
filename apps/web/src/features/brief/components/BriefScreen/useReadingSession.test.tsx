@@ -8,11 +8,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ReviewSessionProvider } from "@web/features/review/session";
 import { briefFixture } from "../../utils/fixtures";
 import { buildBriefViewModel } from "../../utils/viewModel";
+import { deriveGroupHeadingId, deriveGroupSectionId } from "./utils";
 import {
   createReadingPositionStore,
   type ReadingPositionStore,
 } from "./readingPosition";
-import { useReadingSession } from "./useReadingSession";
+import {
+  useReadingSession,
+  type UseReadingSessionValue,
+} from "./useReadingSession";
 
 afterEach(() => {
   cleanup();
@@ -40,11 +44,12 @@ function mountChunk(id: string, crossing: boolean): HTMLElement {
 interface HostProps {
   position: ReadingPositionStore;
   onRender: () => void;
+  onSession?: ((session: UseReadingSessionValue) => void) | undefined;
 }
 
-function SessionHost({ position, onRender }: HostProps) {
+function SessionHost({ position, onRender, onSession }: HostProps) {
   onRender();
-  useReadingSession({
+  const session = useReadingSession({
     brief: briefFixture,
     briefId: "fixture-brief",
     compareViewFull: true,
@@ -53,6 +58,7 @@ function SessionHost({ position, onRender }: HostProps) {
     repoConfig: null,
     position,
   });
+  onSession?.(session);
   return null;
 }
 
@@ -86,5 +92,87 @@ describe("useReadingSession reading position", () => {
 
     expect(position.getState().activeChunkId).toBe("chunk-b");
     expect(onRender.mock.calls.length).toBe(rendersAfterMount);
+  });
+});
+
+function requireFirst<T>(items: readonly T[], what: string): T {
+  const first = items[0];
+  if (!first) throw new Error(`fixture has no ${what}`);
+  return first;
+}
+
+describe("useReadingSession heading landing", () => {
+  const group = requireFirst(model.groups, "groups");
+  const firstChunk = requireFirst(group.chunks, "chunks");
+
+  /** A far-off section so the scroller takes its instant path onto the element. */
+  function mountGroup(withHeading: boolean) {
+    const section = document.createElement("section");
+    section.id = deriveGroupSectionId(group.id);
+    section.getBoundingClientRect = () => rectAt(9000, 9600);
+    section.scrollIntoView = vi.fn();
+    document.body.append(section);
+    const chunk = document.createElement("article");
+    chunk.id = firstChunk.id;
+    chunk.getBoundingClientRect = () => rectAt(9100, 9400);
+    chunk.scrollIntoView = vi.fn();
+    section.append(chunk);
+    let heading: HTMLElement | null = null;
+    if (withHeading) {
+      heading = document.createElement("h2");
+      heading.id = deriveGroupHeadingId(group.id);
+      heading.tabIndex = -1;
+      section.prepend(heading);
+    }
+    return { section, chunk, heading };
+  }
+
+  function renderSession() {
+    const position = createReadingPositionStore();
+    let session: UseReadingSessionValue | null = null;
+    render(
+      <ReviewSessionProvider briefId="fixture-brief" model={model}>
+        <SessionHost
+          position={position}
+          onRender={() => {}}
+          onSession={(value) => {
+            session = value;
+          }}
+        />
+      </ReviewSessionProvider>,
+    );
+    if (!session) throw new Error("session not captured");
+    return { position, session: session as UseReadingSessionValue };
+  }
+
+  it("lands on the group section, focuses the heading, and marks the first chunk", () => {
+    vi.useFakeTimers();
+    const { section, chunk, heading } = mountGroup(true);
+    const { position, session } = renderSession();
+
+    act(() => {
+      session.jumpToGroupHeading(group.id);
+      vi.advanceTimersByTime(100);
+    });
+
+    expect(document.activeElement).toBe(heading);
+    expect(position.getState().activeChunkId).toBe(firstChunk.id);
+    expect(section.scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(chunk.scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the chunk jump when the heading is not mounted", () => {
+    vi.useFakeTimers();
+    const { section, chunk } = mountGroup(false);
+    const { position, session } = renderSession();
+
+    act(() => {
+      session.jumpToGroupHeading(group.id);
+      vi.advanceTimersByTime(100);
+    });
+
+    expect(position.getState().activeChunkId).toBe(firstChunk.id);
+    expect(chunk.scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(section.scrollIntoView).not.toHaveBeenCalled();
   });
 });

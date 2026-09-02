@@ -63,6 +63,29 @@ describe("IconButton", () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
+  it("shows its label in a callout on hover and focus when asked", () => {
+    render(
+      <IconButton callout="left" label="Scroll to top">
+        ↑
+      </IconButton>,
+    );
+    const button = screen.getByRole("button", { name: "Scroll to top" });
+    expect(screen.queryByRole("tooltip")).toBeNull();
+
+    fireEvent.pointerEnter(button);
+    expect(screen.getByRole("tooltip").textContent).toBe("Scroll to top");
+
+    fireEvent.focus(button);
+    fireEvent.blur(button);
+    expect(screen.queryByRole("tooltip")).toBeNull();
+  });
+
+  it("shows no callout without the prop", () => {
+    render(<IconButton label="Copy path">×</IconButton>);
+    fireEvent.pointerEnter(screen.getByRole("button", { name: "Copy path" }));
+    expect(screen.queryByRole("tooltip")).toBeNull();
+  });
+
   it("passes through className, refs, roving tabIndex, and data-* hooks", () => {
     let node: HTMLButtonElement | null = null;
     render(

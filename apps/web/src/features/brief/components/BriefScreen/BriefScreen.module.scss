@@ -4,7 +4,7 @@
   .toast {
     position: fixed;
     inset-block-end: functions.to-rem(28px);
-    inset-inline-start: 50%;
+    inset-inline-start: calc((100% - var(--sidebar-w)) / 2);
     z-index: 120;
     max-inline-size: functions.to-rem(560px);
     padding-block: functions.to-rem(12px);
@@ -25,20 +25,10 @@
     }
   }
 
-  .kbdHint {
+  .focusExit {
     position: fixed;
     inset-block-end: functions.to-rem(24px);
     inset-inline-end: functions.to-rem(24px);
     z-index: 110;
-    display: flex;
-    align-items: center;
-    gap: functions.to-rem(8px);
-  }
-
-  // Mono glyph styling on IconButton's outlined-lg circle.
-  .shortcutsTrigger {
-    font-family: var(--mono);
-    font-size: var(--font-size-xl);
-    font-weight: 600;
   }
 }

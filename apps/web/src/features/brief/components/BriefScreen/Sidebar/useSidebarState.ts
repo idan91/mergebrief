@@ -14,6 +14,8 @@ export interface SidebarState {
   expand: () => void;
   collapse: () => void;
   selectTab: (tab: SidebarTab) => void;
+  /** False until a frame after the stored preference is applied, so the first paint never animates. */
+  motionReady: boolean;
 }
 
 /**
@@ -26,12 +28,16 @@ export function useSidebarState(): SidebarState {
     DEFAULT_SIDEBAR_PREFERENCE,
   );
   const latest = useRef(preference);
+  const [motionReady, setMotionReady] = useState(false);
 
   // Before paint, so a client-side navigation never flashes the default.
   useLayoutEffect(() => {
     const stored = readSidebarPreference();
     latest.current = stored;
     setPreference(stored);
+
+    const frame = window.requestAnimationFrame(() => setMotionReady(true));
+    return () => window.cancelAnimationFrame(frame);
   }, []);
 
   const update = useCallback((patch: Partial<SidebarPreference>) => {
@@ -56,5 +62,6 @@ export function useSidebarState(): SidebarState {
     expand,
     collapse,
     selectTab,
+    motionReady,
   };
 }

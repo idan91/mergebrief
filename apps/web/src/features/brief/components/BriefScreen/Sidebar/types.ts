@@ -1,3 +1,4 @@
+import type { MouseEvent } from "react";
 import type { ValueOf } from "types";
 
 export const SidebarTabs = {
@@ -10,3 +11,9 @@ export interface SidebarPreference {
   expanded: boolean;
   tab: SidebarTab;
 }
+
+/** A sidebar-originated jump; the event tells keyboard activation from a pointer click. */
+export type JumpFromSidebar = (
+  groupId: string,
+  event: MouseEvent<HTMLButtonElement>,
+) => void;

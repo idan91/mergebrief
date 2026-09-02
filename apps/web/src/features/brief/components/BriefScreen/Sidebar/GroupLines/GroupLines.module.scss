@@ -1,0 +1,78 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .lines {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: safe center;
+    inline-size: 100%;
+    min-block-size: 0;
+    padding-block: functions.to-rem(12px);
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+
+  .line {
+    position: relative;
+    flex: none;
+    inline-size: 32px;
+    block-size: 24px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+
+    &::before {
+      position: absolute;
+      inset-block-start: 50%;
+      inset-inline-start: 50%;
+      inline-size: 16px;
+      block-size: 4px;
+      border-radius: var(--radius-xs);
+      background: var(--faint);
+      opacity: 0.45;
+      content: "";
+      transform: translate(-50%, -50%);
+      transition:
+        inline-size 80ms ease,
+        opacity 80ms ease,
+        background-color 80ms ease;
+    }
+
+    &:hover::before {
+      inline-size: 24px;
+      background: var(--text);
+      opacity: 1;
+    }
+
+    @include mixins.focus-visible {
+      outline-offset: -2px;
+    }
+
+    &[data-current]::before {
+      background: var(--color-accent);
+      opacity: 1;
+    }
+
+    &[data-conversation]::after {
+      position: absolute;
+      inset-block-start: 50%;
+      inset-inline-start: 0;
+      inline-size: 4px;
+      block-size: 4px;
+      border-radius: var(--radius-pill);
+      background: var(--color-comment-highlight);
+      content: "";
+      transform: translateY(-50%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .line::before {
+      transition: none;
+    }
+  }
+}

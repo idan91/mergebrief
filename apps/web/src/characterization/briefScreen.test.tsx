@@ -11,6 +11,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -96,7 +97,10 @@ function statText(label: string): string | null {
 }
 
 describe("brief screen characterization", () => {
-  afterEach(() => cleanup());
+  afterEach(() => {
+    cleanup();
+    window.localStorage.clear();
+  });
 
   it("renders the change-group story", async () => {
     await renderBriefScreen();
@@ -355,6 +359,67 @@ describe("brief screen characterization", () => {
       expect(screen.queryByTestId("brief-summary")).toBeNull(),
     );
     expect(screen.queryByTestId("reading-toolbar")).toBeNull();
+  });
+
+  it("places the Sidebar landmark after main, holding the group lines", async () => {
+    await renderBriefScreen();
+    const landmarks = [...document.querySelectorAll("main, aside")].map(
+      (element) => element.tagName,
+    );
+    expect(landmarks).toEqual(["MAIN", "ASIDE"]);
+    const aside = screen.getByRole("complementary", { name: "Sidebar" });
+    expect(
+      within(aside).getByRole("navigation", { name: "Change groups" }),
+    ).toBeTruthy();
+    expect(screen.getByRole("main").getAttribute("data-sidebar")).toBe(
+      "collapsed",
+    );
+  });
+
+  it("S expands the sidebar and focus mode hides it without touching the preference", async () => {
+    await renderBriefScreen();
+
+    fireEvent.keyDown(window, { key: "s" });
+
+    await waitFor(() =>
+      expect(screen.getByRole("main").getAttribute("data-sidebar")).toBe(
+        "expanded",
+      ),
+    );
+    expect(screen.getByRole("tab", { name: "This PR" })).toBeTruthy();
+
+    fireEvent.keyDown(window, { key: "z" });
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("complementary", { name: "Sidebar" }),
+      ).toBeNull(),
+    );
+    expect(screen.getByRole("main").getAttribute("data-sidebar")).toBeNull();
+    expect(
+      JSON.parse(window.localStorage.getItem("mergebrief.sidebar") ?? ""),
+    ).toEqual({ expanded: true, tab: "this-pr" });
+
+    fireEvent.keyDown(window, { key: "z" });
+
+    await waitFor(() =>
+      expect(screen.getByRole("tab", { name: "This PR" })).toBeTruthy(),
+    );
+  });
+
+  it("hiding the sidebar with focus inside it lands focus on the content region", async () => {
+    await renderBriefScreen();
+    const chevron = screen.getByRole("button", { name: "Expand sidebar" });
+    chevron.focus();
+
+    fireEvent.keyDown(window, { key: "z" });
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("complementary", { name: "Sidebar" }),
+      ).toBeNull(),
+    );
+    expect(document.activeElement).toBe(screen.getByRole("main"));
   });
 
   // Changes-only's summary-only column is not reachable here: the

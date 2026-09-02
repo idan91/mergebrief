@@ -29,6 +29,7 @@ import { SinceMarker } from "./SinceMarker/SinceMarker";
 import { Button } from "@web/components/Button/Button";
 import { LinkButton } from "@web/components/LinkButton/LinkButton";
 import styles from "./GroupCard.module.scss";
+import { deriveGroupHeadingId } from "../../utils";
 import { selectGroupReviewComments } from "./utils";
 
 const EMPTY_RISK_FLAGS: RiskFlag[] = [];
@@ -183,7 +184,13 @@ export const GroupCard = memo(function GroupCard({
             ) : null}
           </div>
         </div>
-        <h2 className={styles["title"]}>{group.group.title}</h2>
+        <h2
+          className={styles["title"]}
+          id={deriveGroupHeadingId(group.id)}
+          tabIndex={-1}
+        >
+          {group.group.title}
+        </h2>
         <p className={styles["summary"]}>{group.group.summary}</p>
         {group.readingOrderStep !== undefined ? (
           <p className={styles["readingOrder"]}>

@@ -1,0 +1,79 @@
+@use "functions";
+
+@layer components {
+  .sidebar {
+    position: fixed;
+    inset-block: var(--top-bar-h) 0;
+    inset-inline-end: 0;
+    z-index: 45;
+    display: flex;
+    justify-content: flex-end;
+    inline-size: var(--sidebar-w-collapsed);
+    overflow: hidden;
+    border-inline-start: 1px solid var(--line);
+    background: var(--bg);
+
+    &[data-state="expanded"] {
+      inline-size: var(--sidebar-w-expanded);
+    }
+
+    &[data-motion="on"] {
+      transition: inline-size 0.2s ease;
+    }
+
+    @media (width <= 1120px) {
+      display: none;
+    }
+  }
+
+  .column {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    align-items: center;
+    order: 2;
+    inline-size: var(--sidebar-w-collapsed);
+    padding-block: functions.to-rem(10px) functions.to-rem(16px);
+  }
+
+  .chevron svg {
+    transition: transform 0.2s ease;
+  }
+
+  .sidebar[data-state="expanded"] .chevron svg {
+    transform: rotate(180deg);
+  }
+
+  .foot {
+    display: flex;
+    flex-direction: column;
+    gap: functions.to-rem(6px);
+    margin-block-start: auto;
+  }
+
+  .shortcutsTrigger {
+    font-family: var(--mono);
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+  }
+
+  .panel {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    order: 1;
+    inline-size: calc(var(--sidebar-w-expanded) - var(--sidebar-w-collapsed));
+    border-inline-end: 1px solid var(--line);
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sidebar[data-motion="on"],
+    .chevron svg {
+      transition: none;
+    }
+  }
+}

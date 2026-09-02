@@ -25,6 +25,8 @@ export interface CalloutProps {
   placement?: Placement;
   /** Size to content instead of the fixed 320px column. */
   fit?: boolean;
+  /** Label density: the padding of a one-line name, not a card. */
+  compact?: boolean;
   /**
    * Called when the hover system (anchor + callout, joined by safePolygon)
    * is left — the parent unmounts the callout in response. The pointer can
@@ -52,6 +54,7 @@ function CalloutRoot({
   anchor,
   placement = "top",
   fit = false,
+  compact = false,
   onClose,
   children,
 }: CalloutProps) {
@@ -89,6 +92,7 @@ function CalloutRoot({
     <FloatingPortal>
       <span
         className={styles["callout"]}
+        data-compact={compact ? "" : undefined}
         data-fit={fit ? "" : undefined}
         ref={refs.setFloating}
         role="tooltip"

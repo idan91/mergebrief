@@ -1,0 +1,33 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .tab {
+    padding-block: functions.to-rem(12px) functions.to-rem(10px);
+    padding-inline: functions.to-rem(6px);
+    border: 0;
+    border-block-end: 2px solid transparent;
+    background: transparent;
+    color: var(--dim);
+    font-family: var(--sans);
+    font-size: var(--font-size-lg);
+    font-weight: 500;
+    cursor: pointer;
+    transition:
+      color 0.15s,
+      border-color 0.15s;
+
+    &:hover {
+      color: var(--text);
+    }
+
+    @include mixins.focus-visible {
+      outline-offset: -2px;
+    }
+
+    &[aria-selected="true"] {
+      border-block-end-color: var(--color-accent);
+      color: var(--text);
+    }
+  }
+}

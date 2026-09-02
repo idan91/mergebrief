@@ -44,6 +44,8 @@ import {
 } from "./ReadingToolbar/ReadingToolbar";
 import {
   deriveBriefProgress,
+  deriveGroupHeadingId,
+  deriveGroupSectionId,
   groupStartIndexes,
   SCROLL_ABORT_EVENTS,
   toggleSetMember,
@@ -328,6 +330,8 @@ export interface UseReadingSessionValue {
   /** Ensure-open for row-target jumps; wayfinding jumps never call it. */
   openChunk: (chunkId: string) => void;
   jumpToGroup: (groupId: string) => void;
+  /** A keyboard jump from the Sidebar: lands and focuses the group heading. */
+  jumpToGroupHeading: (groupId: string) => void;
   toggleFocusMode: () => void;
   startReadThrough: () => void;
   /** Exit focus mode into the story view (the intent-bar landing path). */
@@ -669,6 +673,26 @@ export function useReadingSession(
     [jumpToChunk, model.groups],
   );
 
+  // The section is in flow at every width where the card can be sticky, so
+  // it is the landing; the heading only takes focus.
+  const jumpToGroupHeading = useCallback(
+    (groupId: string) => {
+      const group = model.groups.find((candidate) => candidate.id === groupId);
+      const target = group?.chunks[0];
+      const heading = document.getElementById(deriveGroupHeadingId(groupId));
+      if (!target) return;
+      if (!heading) {
+        jumpToChunk(target.id);
+        return;
+      }
+
+      setActivePosition(target.id);
+      scrollToChunk(deriveGroupSectionId(groupId), "smooth", "top");
+      heading.focus({ preventScroll: true });
+    },
+    [jumpToChunk, model.groups, scrollToChunk, setActivePosition],
+  );
+
   // The intent bar lives in the full-compare story view, so leave focus
   // mode first.
   const exitToStoryView = useCallback(() => {
@@ -703,6 +727,7 @@ export function useReadingSession(
     jumpToChunkFromShortcut,
     openChunk,
     jumpToGroup,
+    jumpToGroupHeading,
     toggleFocusMode,
     startReadThrough,
     exitToStoryView,

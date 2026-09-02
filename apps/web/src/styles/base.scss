@@ -147,20 +147,59 @@
 }
 
 @layer layout {
+  // The Sidebar's reserve on the reading column's end edge: the column
+  // narrows instead of sliding under it, and the toast centres on what is left.
+  :root {
+    &:has(.main[data-sidebar="collapsed"]) {
+      --sidebar-w: var(--sidebar-w-collapsed);
+    }
+
+    &:has(.main[data-sidebar="expanded"]) {
+      --sidebar-w: var(--sidebar-w-expanded);
+    }
+
+    @media (width <= 1120px) {
+      &:has(.main[data-sidebar]) {
+        /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
+        --sidebar-w: 0px;
+      }
+    }
+  }
+
   .main {
+    --main-gutter: clamp(
+      #{functions.to-rem(18px)},
+      4vw,
+      #{functions.to-rem(28px)}
+    );
+
     // The body is a column flexbox (footer pinning), where auto inline
     // margins disable stretch: without an explicit inline-size the region
     // shrinks to fit its CONTENT and the page width shifts whenever content
     // changes (revision steps, live diff arriving). Fill, cap, center.
     inline-size: 100%;
-    max-inline-size: functions.to-rem(980px);
+    max-inline-size: calc(functions.to-rem(980px) + var(--sidebar-w));
     padding-block: functions.to-rem(36px) functions.to-rem(140px);
-    padding-inline: clamp(functions.to-rem(18px), 4vw, functions.to-rem(28px));
+    padding-inline: var(--main-gutter)
+      calc(var(--main-gutter) + var(--sidebar-w));
     margin-inline: auto;
     transition: opacity 0.15s ease;
 
     &.split-main {
-      max-inline-size: 1560px;
+      max-inline-size: calc(1560px + var(--sidebar-w));
+    }
+
+    &[data-sidebar-motion] {
+      transition:
+        opacity 0.15s ease,
+        padding-inline-end 0.2s ease,
+        max-inline-size 0.2s ease;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      &[data-sidebar-motion] {
+        transition: opacity 0.15s ease;
+      }
     }
 
     // A revision load outlasted the pending delay: the stale content dims
@@ -216,8 +255,10 @@
     max-block-size: calc(100vh - var(--sticky-stack-h) - 24px);
   }
 
-  @media (width <= 1180px) {
-    .split-main .story-group {
+  // The split stacks once the reading column is narrower than a 1180px
+  // viewport leaves it, so each Sidebar state shifts the flip by its reserve.
+  @mixin stack-split {
+    &.split-main .story-group {
       display: flex;
 
       .group-chunks {
@@ -225,10 +266,28 @@
       }
     }
 
-    .split-main .story-group > article {
+    &.split-main .story-group > article {
       position: static;
       order: 1;
       max-block-size: none;
+    }
+  }
+
+  @media (width <= 1180px) {
+    .main {
+      @include stack-split;
+    }
+  }
+
+  @media (width <= 1228px) {
+    .main[data-sidebar="collapsed"] {
+      @include stack-split;
+    }
+  }
+
+  @media (width <= 1604px) {
+    .main[data-sidebar="expanded"] {
+      @include stack-split;
     }
   }
 

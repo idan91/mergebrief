@@ -22,6 +22,10 @@
   max-width: functions.to-rem(320px);
 }
 
+.callout[data-compact] {
+  padding: functions.to-rem(7px) functions.to-rem(10px);
+}
+
 // floating-ui arrow (SVG): same surface as the callout; hairline via the
 // component's stroke prop.
 .arrow {
@@ -43,6 +47,10 @@
   margin-bottom: functions.to-rem(4px);
   font-size: var(--font-size-lg);
   font-weight: 600;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
 }
 
 // The line count rides an inline WebkitLineClamp from the `clamp` prop; this

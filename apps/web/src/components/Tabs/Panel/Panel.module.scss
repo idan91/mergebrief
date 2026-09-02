@@ -1,0 +1,12 @@
+@layer components {
+  .panel {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-block-size: 0;
+
+    &[hidden] {
+      display: none;
+    }
+  }
+}

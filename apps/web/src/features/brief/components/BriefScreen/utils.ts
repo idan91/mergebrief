@@ -283,3 +283,13 @@ export const SCROLL_ABORT_EVENTS = ["wheel", "touchstart", "keydown"] as const;
  * outside both views so switching between them cannot unmount it.
  */
 export const CONTENT_START_ATTR = "data-content-start";
+
+/** The focus target of a sidebar-originated jump: the group card's heading. */
+export function deriveGroupHeadingId(groupId: string): string {
+  return `${groupId}-heading`;
+}
+
+/** The in-flow anchor of a group: its section, which heads the card at every width. */
+export function deriveGroupSectionId(groupId: string): string {
+  return `${groupId}-section`;
+}

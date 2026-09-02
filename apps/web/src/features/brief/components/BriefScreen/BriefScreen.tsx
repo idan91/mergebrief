@@ -12,7 +12,6 @@ import {
 import { useStore } from "zustand";
 
 import { Button } from "@web/components/Button/Button";
-import { IconButton } from "@web/components/IconButton/IconButton";
 import {
   ConversationSection,
   type ConversationPlan,
@@ -48,12 +47,12 @@ import { ChangesOnlyView } from "./ChangesOnlyView/ChangesOnlyView";
 import { ConcernStrip } from "./ConcernStrip/ConcernStrip";
 import { FocusBanner } from "./FocusBanner/FocusBanner";
 import { IntentBar, type IntentBarHandle } from "./IntentBar/IntentBar";
-import { GroupTocBar } from "./GroupTocBar/GroupTocBar";
 import { CarryOver } from "./CarryOver/CarryOver";
 import { Header } from "./Header/Header";
 import { ReadingToolbar } from "./ReadingToolbar/ReadingToolbar";
 import { RiskFlagModals } from "./RiskFlagModals/RiskFlagModals";
 import { ShortcutsModal } from "./ShortcutsModal/ShortcutsModal";
+import { Sidebar, useSidebarState } from "./Sidebar";
 import { StoryView } from "./StoryView/StoryView";
 import { CONTENT_START_ATTR } from "./utils";
 import { SummarySection } from "./SummarySection/SummarySection";
@@ -317,6 +316,20 @@ export function BriefScreen({
     scope: compareState.view,
     focus: focusMode,
   });
+  // Hidden is not collapsed: the stored preference survives Focus mode and
+  // Changes scope untouched, so the cell gates the render, never a write.
+  const sidebar = useSidebarState();
+  const sidebarLayout = sidebar.expanded ? "expanded" : "collapsed";
+  // The whole aside unmounts when its cell goes false; focus left inside it
+  // lands on the content region instead of the body.
+  const sidebarWasVisible = useRef(regions.sidebar);
+  useEffect(() => {
+    const hidden = sidebarWasVisible.current && !regions.sidebar;
+    sidebarWasVisible.current = regions.sidebar;
+    if (!hidden || document.activeElement !== document.body) return;
+
+    document.getElementById("main-content")?.focus({ preventScroll: true });
+  }, [regions.sidebar]);
 
   // The IntentBar renders in Changes scope (its visibility row) but its jump
   // targets (group/chunk anchors) only exist in the full story flow — so a
@@ -588,6 +601,7 @@ export function BriefScreen({
       conversation !== undefined && regions.conversation
         ? conversationWiring.jumpToConversation
         : undefined,
+    toggleSidebar: regions.sidebar ? sidebar.toggle : undefined,
   });
 
   // Plain handlers: every consumer below is non-memoized, so useCallback
@@ -667,6 +681,8 @@ export function BriefScreen({
           tabIndex={-1}
           data-zen={focusMode ? "on" : undefined}
           data-pending={pendingShown ? "" : undefined}
+          data-sidebar={regions.sidebar ? sidebarLayout : undefined}
+          data-sidebar-motion={sidebar.motionReady ? "" : undefined}
           aria-busy={pendingShown || undefined}
           inert={pendingShown || undefined}
         >
@@ -710,15 +726,6 @@ export function BriefScreen({
             under compare. */}
           {regions.summary && brief.concernView.length >= 2 ? (
             <ConcernStrip rollup={brief.concernView} />
-          ) : null}
-
-          {regions.sidebar ? (
-            <GroupTocBar
-              key={`toc-${briefId}`}
-              conversationGroupIds={conversationWiring.conversationGroupIds}
-              groups={model.groups}
-              jumpToGroup={jumpToGroup}
-            />
           ) : null}
 
           {/* Sticky above the conversation slot — every control renders above
@@ -842,6 +849,18 @@ export function BriefScreen({
             ) : null}
           </ChunkWindowProvider>
         </main>
+        {regions.sidebar ? (
+          <Sidebar
+            key={`sidebar-${briefId}`}
+            conversationGroupIds={conversationWiring.conversationGroupIds}
+            groups={model.groups}
+            jumpToGroup={jumpToGroup}
+            jumpToGroupHeading={session.jumpToGroupHeading}
+            pending={pendingShown}
+            state={sidebar}
+            toggleShortcuts={session.toggleShortcuts}
+          />
+        ) : null}
         {/* Submit-review machinery + receipt: HIDDEN (not broken) in the
           own-draft state, whose terminal action is mark-ready. None of these
           surfaces stays reachable: the Header CTA slot swaps, the menu drops
@@ -910,22 +929,13 @@ export function BriefScreen({
           open={session.shortcutsOpen}
           close={session.closeShortcuts}
         />
-        <div className={styles["kbdHint"]} data-testid="kbd-hint">
-          {focusMode ? (
+        {focusMode ? (
+          <div className={styles["focusExit"]}>
             <Button onClick={toggleFocusMode}>
               {t("brief.screen.exitFocus")}
             </Button>
-          ) : null}
-          <IconButton
-            className={styles["shortcutsTrigger"]}
-            label={t("brief.screen.ariaLabelShortcuts")}
-            size="lg"
-            variant="outlined"
-            onClick={session.toggleShortcuts}
-          >
-            ?
-          </IconButton>
-        </div>
+          </div>
+        ) : null}
         <div
           className={styles["toast"]}
           data-testid="brief-toast"

@@ -193,6 +193,13 @@
     --sticky-stack-h: calc(
       var(--top-bar-h) + var(--focus-banner-h, 0px) + var(--toolbar-h, 0px)
     );
+    --sidebar-w-collapsed: 3rem;
+    --sidebar-w-expanded: 26.5rem;
+
+    // The width the Sidebar currently reserves; base.scss sets it from the
+    // reading column's state.
+    /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
+    --sidebar-w: 0px;
 
     color-scheme: dark light;
   }
