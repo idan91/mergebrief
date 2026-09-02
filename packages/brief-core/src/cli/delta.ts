@@ -3,7 +3,6 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   fetchCompareDiff,
-  fetchLinkedContext,
   fetchPrMetadata,
   fetchReviewComments,
   parsePrUrl,
@@ -17,6 +16,10 @@ import {
   type Generator,
 } from "generators";
 import { extractConfigFlag } from "./config";
+import {
+  createBuiltInContextProviders,
+  fetchContextSnippets,
+} from "../context";
 import { splitDiffByFile } from "../diff/diff";
 import { lookupBriefIndex } from "../artifacts/manifest";
 import { buildComparisonMarks, writeComparisonMarks } from "../diff/comparison";
@@ -75,7 +78,11 @@ export async function generateAndWriteDelta(
     fetchCompareDiff(locator, baselineSha, headSha),
     fetchReviewComments(locator),
   ]);
-  const links = await fetchLinkedContext(meta.body, log);
+  const links = await fetchContextSnippets(
+    { title: meta.title, body: meta.body },
+    createBuiltInContextProviders(),
+    log,
+  );
   // Endpoint brief indices (read-only) for the `_b→_h` label — null if unbriefed.
   const stem = prStem(`${locator.owner}/${locator.repo}`, locator.number);
   const [baselineIndex, headIndex] = await Promise.all([

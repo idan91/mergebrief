@@ -1,3 +1,4 @@
+import type { ContextSnippet } from "../context/types";
 import { type PrLifecycleState, type ReviewComment } from "../types";
 
 export type { ReviewComment };
@@ -33,17 +34,12 @@ export interface PrMetadata {
   merged?: boolean;
 }
 
-/** Text fetched from a URL found in the PR description. Best-effort context. */
-export interface LinkedContext {
-  url: string;
-  content: string;
-}
-
 export interface FetchedPr {
   locator: PrLocator;
   meta: PrMetadata;
   diff: string;
-  links: LinkedContext[];
+  /** Untrusted reference text the context providers fetched. Best-effort. */
+  links: ContextSnippet[];
 }
 
 /** Minimal logger — structural so callers (CLI) can pass a tagged sink. */

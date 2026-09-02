@@ -8,6 +8,7 @@ import {
   type RiskSurfaceAttribute,
 } from "../types";
 import { REPO_INSTRUCTION_CLASSES, type RepoContext } from "./repo-context";
+import { stripKnownFences } from "./fences";
 
 /**
  * System prompt builder — generation surface: any edit here is eval-gated.
@@ -438,9 +439,6 @@ export interface AnchorViewInput {
   readonly frozenGroupIds: readonly string[];
 }
 
-/** Nested-fence strip — anchor content can never close its own tag. */
-const ANCHOR_FENCE = /<\/?anchor_brief/gi;
-
 /** Union of a group's chunk files and risk attributes, order-stable. */
 function groupFacts(
   brief: Brief,
@@ -531,6 +529,6 @@ export function renderAnchorView(input: AnchorViewInput): string {
 
   // Nested fences are stripped so the content can never close its own tag and
   // spoof the message's real sections.
-  const body = sections.join("\n\n").replace(ANCHOR_FENCE, "");
+  const body = stripKnownFences(sections.join("\n\n"));
   return `<anchor_brief index="${previousBrief.index}">\n${body}\n</anchor_brief>`;
 }

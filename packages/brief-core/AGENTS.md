@@ -11,7 +11,8 @@ What the layout can't show:
 - `types.ts` (Brief schema + closed vocabulary, mirroring `docs/mvp/labeling-schema.md` and `risk-surface.md`) and `generation/prompt.ts` are GENERATION SURFACE (root AGENTS.md's eval gate).
 - `diff/` is mechanical parsing, no model calls.
 - `cli/` entries are invoked from `tools/categorizer`.
-- `github/` is the CLI/dev + web generate-from-URL fetch surface behind the `PrSource` port (the worker uses its own github-port). The SSRF guard in `linked-context.ts` sits outside that port.
+- `github/` is the CLI/dev + web generate-from-URL fetch surface behind the `PrSource` port (the worker uses its own github-port).
+- `context/` is the ContextSource boundary: the query, the snippet, the provider port, the fan-out and the provider registry. Providers return `Result`, the fan-out fails open per provider, and the SSRF guard lives in `providers/url.ts`, outside the `PrSource` port. Every fence tag the prompt uses is listed once in `generation/fences.ts`; injected text is stripped of the whole union.
 
 Consumers: `packages/worker`, `packages/repo-config`, `apps/web`, `tools/categorizer` (CLIs + eval).
 

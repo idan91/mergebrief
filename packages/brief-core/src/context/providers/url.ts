@@ -2,7 +2,15 @@ import { isIP, type LookupFunction } from "node:net";
 import { lookup as dnsLookup, type LookupAddress } from "node:dns";
 import { get as httpGet } from "node:http";
 import { get as httpsGet } from "node:https";
-import type { LinkedContext, Log } from "./types";
+import type { Result } from "types";
+import {
+  ContextProviderTypes,
+  type ContextProvider,
+  type ContextProviderDeps,
+  type ContextQuery,
+  type ContextReadFailure,
+  type ProviderSnippet,
+} from "../types";
 
 /** Cap fetched link bodies so a huge page can't blow up token cost. */
 const MAX_LINK_CHARS = 20_000;
@@ -103,7 +111,10 @@ type FetchTextResult = { text: string } | { error: string };
  * as a skip, so a public URL can't bounce us to an internal one). Body is
  * capped at MAX_LINK_CHARS.
  */
-function fetchText(rawUrl: string): Promise<FetchTextResult> {
+function fetchText(
+  rawUrl: string,
+  signal: AbortSignal,
+): Promise<FetchTextResult> {
   return new Promise((resolve) => {
     let url: URL;
     try {
@@ -115,7 +126,7 @@ function fetchText(rawUrl: string): Promise<FetchTextResult> {
     const get = url.protocol === "https:" ? httpsGet : httpGet;
     const req = get(
       rawUrl,
-      { lookup: validatingLookup, timeout: LINK_TIMEOUT_MS },
+      { lookup: validatingLookup, timeout: LINK_TIMEOUT_MS, signal },
       (res) => {
         const status = res.statusCode ?? 0;
         if (status < 200 || status >= 300) {
@@ -162,13 +173,14 @@ export function extractLinks(body: string): string[] {
  * and skipped — a brief must still be producible from the diff alone. URLs are
  * credential-stripped before they reach a log line or the stored context.
  */
-export async function fetchLinkedContext(
-  body: string,
-  log: Log = () => {},
-): Promise<LinkedContext[]> {
-  const urls = extractLinks(body);
+async function fetchUrlSnippets(
+  query: ContextQuery,
+  deps: ContextProviderDeps,
+): Promise<Result<ProviderSnippet[], ContextReadFailure>> {
+  const { log, signal } = deps;
+  const urls = extractLinks(query.body);
   const results = await Promise.all(
-    urls.map(async (url): Promise<LinkedContext | null> => {
+    urls.map(async (url): Promise<ProviderSnippet | null> => {
       const shown = displayUrl(url);
       if (!isPublicUrl(url)) {
         log(
@@ -176,14 +188,27 @@ export async function fetchLinkedContext(
         );
         return null;
       }
-      const result = await fetchText(url);
+      const result = await fetchText(url, signal);
       if ("error" in result) {
         log(`linked context: ${shown} failed (${result.error}), skipping`);
         return null;
       }
       log(`linked context: fetched ${shown} (${result.text.length} chars)`);
-      return { url: shown, content: result.text };
+      return {
+        providerId: ContextProviderTypes.URL,
+        source: shown,
+        text: result.text,
+      };
     }),
   );
-  return results.filter((r): r is LinkedContext => r !== null);
+  return {
+    ok: true,
+    value: results.filter((r): r is ProviderSnippet => r !== null),
+  };
 }
+
+/** The built-in provider: plain HTTP behind the URLs in the PR description. */
+export const urlContextProvider: ContextProvider = {
+  providerId: ContextProviderTypes.URL,
+  fetch: fetchUrlSnippets,
+};

@@ -1,7 +1,10 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { z } from "zod/v4";
-import { fetchLinkedContext } from "./linked-context";
+import {
+  createBuiltInContextProviders,
+  fetchContextSnippets,
+} from "../context";
 import type { FetchedPr, Log, PrLocator, PrMetadata } from "./types";
 
 /** Folder-internal exec plumbing — shared with `comments.ts`, not on the barrel. */
@@ -213,7 +216,7 @@ export async function fetchCompareCommitCount(
 
 /**
  * Parse a PR URL, then fetch its diff and metadata in parallel. Once we have
- * the description, chase any links in it for extra context (best-effort).
+ * the description, run the built-in context providers over it (best-effort).
  */
 export async function fetchPr(
   url: string,
@@ -224,6 +227,10 @@ export async function fetchPr(
     fetchPrDiff(locator),
     fetchPrMetadata(locator),
   ]);
-  const links = await fetchLinkedContext(meta.body, log);
+  const links = await fetchContextSnippets(
+    { title: meta.title, body: meta.body },
+    createBuiltInContextProviders(),
+    log,
+  );
   return { locator, meta, diff, links };
 }

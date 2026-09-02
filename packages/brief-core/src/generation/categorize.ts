@@ -55,11 +55,12 @@ import {
 } from "./validate";
 import type {
   FetchedPr,
-  LinkedContext,
   PrLocator,
   PrMetadata,
   ReviewComment,
 } from "../github";
+import type { ContextSnippet } from "../context/types";
+import { attributeSafe, stripKnownFences } from "./fences";
 
 export type { Logger };
 
@@ -101,17 +102,17 @@ function buildPrRef(locator: PrLocator, meta: PrMetadata, sha: string): PrRef {
   };
 }
 
-/** Nested-fence strip shared by the prompt render AND the intent-check
- * verification source — the two views must stay byte-identical. */
-const LINKED_CONTEXT_FENCE = /<\/?linked_context/gi;
-
-/** Render the untrusted linked-context section, fenced so it reads as data. */
-function renderLinked(links: LinkedContext[]): string {
+/**
+ * Render the untrusted linked-context section, fenced so it reads as data.
+ * The body strip is the same `stripKnownFences` the verification corpus
+ * applies: the two views must stay byte-identical.
+ */
+function renderLinked(links: readonly ContextSnippet[]): string {
   if (links.length === 0) return "(none)";
   return links
     .map((l) => {
-      const safe = l.content.replace(LINKED_CONTEXT_FENCE, "");
-      return `<linked_context url="${l.url}">\n${safe}\n</linked_context>`;
+      const url = attributeSafe(l.source);
+      return `<linked_context url="${url}">\n${stripKnownFences(l.text)}\n</linked_context>`;
     })
     .join("\n\n");
 }
@@ -295,12 +296,12 @@ export async function categorize(
   const intentChecked = validateIntentCheck(
     fanOutIntentCheck(generated.intentCheck),
     generated.changeGroups,
-    pr.links.map((l) => l.url),
+    pr.links.map((l) => l.source),
     [
       { url: "", content: corpusClean(`${pr.meta.title}\n\n${pr.meta.body}`) },
       ...pr.links.map((l) => ({
-        url: l.url,
-        content: corpusClean(l.content.replace(LINKED_CONTEXT_FENCE, "")),
+        url: l.source,
+        content: corpusClean(stripKnownFences(l.text)),
       })),
     ],
     carriedGroupIds,
@@ -409,7 +410,7 @@ export interface DeltaInput {
   headIndex?: number | null;
   /** The baseline→head incremental unified diff. */
   incrementalDiff: string;
-  links?: LinkedContext[];
+  links?: ContextSnippet[];
   /** Existing PR review comments, for the "comments addressed" analysis. */
   comments?: ReviewComment[];
 }
@@ -426,7 +427,7 @@ function renderComments(comments: ReviewComment[]): string {
     .map((c) => {
       const reply = c.inReplyToId ? ` reply-to:${c.inReplyToId}` : "";
       const loc = commentLocation(c);
-      const safeBody = c.body.replace(/<\/?review_comment/gi, "");
+      const safeBody = stripKnownFences(c.body);
       return `<review_comment>\nid:${c.id} ${c.file}${loc} @${c.author}${reply}\n${safeBody}\n</review_comment>`;
     })
     .join("\n\n");
@@ -536,7 +537,7 @@ export interface RevisionNarrativeInput {
   headIndex: number;
   /** The prevHead→head incremental unified diff. */
   incrementalDiff: string;
-  links?: LinkedContext[];
+  links?: ContextSnippet[];
   /** The current full Brief, trimmed to alignment context by `renderBriefContext`. */
   brief: Brief;
   /**

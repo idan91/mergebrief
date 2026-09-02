@@ -30,15 +30,16 @@ import {
   categorizeRevisionNarrative,
   buildComparisonMarks,
   countChangedLines,
-  fetchLinkedContext,
+  createBuiltInContextProviders,
+  fetchContextSnippets,
   isHugeSpan,
   parseChangedRanges,
   revisionNarrativeConfig,
   toPrLifecycleState,
   type AnchorViewInput,
   type Brief,
+  type ContextSnippet,
   type DeltaInput,
-  type LinkedContext,
   type PrLocator,
   type PrMetadata,
   type RevisionNarrativeSkipped,
@@ -709,7 +710,11 @@ async function runGeneration(
       merged: info.merged,
     };
     const coreLog: CoreLog = (message) => log.info(message);
-    const links = await fetchLinkedContext(meta.body, coreLog);
+    const links = await fetchContextSnippets(
+      { title: meta.title, body: meta.body },
+      createBuiltInContextProviders(),
+      coreLog,
+    );
 
     // ---- The shared Brief (skip-if-exists: retries never re-spend) ----------
     const priorBriefs = await store.briefs.listForPullRequest(pullRequestId);
@@ -1324,7 +1329,7 @@ interface RevisionArtifactInputs {
   /** Instance-config reasoning effort; undefined → engine default. */
   readonly effort: Effort | undefined;
   readonly wholePrChangedLines: number;
-  readonly links: LinkedContext[];
+  readonly links: ContextSnippet[];
   readonly log: Logger;
 }
 
@@ -1479,7 +1484,7 @@ interface DeltaWarmInputs {
   readonly effort: Effort | undefined;
   readonly briefHeadIndex: number;
   readonly wholePrChangedLines: number;
-  readonly links: LinkedContext[];
+  readonly links: ContextSnippet[];
   readonly log: Logger;
 }
 

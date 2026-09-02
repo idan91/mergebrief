@@ -87,6 +87,9 @@ export default [
       "**/routeTree.gen.ts",
       "**/*.gen.*",
       "mockup/**",
+      // Agent session state; holds throwaway worktrees whose copies of the
+      // repo would otherwise be linted as source.
+      ".claude/**",
     ],
   },
   {

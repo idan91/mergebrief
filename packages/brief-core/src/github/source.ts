@@ -14,8 +14,8 @@ import type { PrLocator, PrMetadata, ReviewComment } from "./types";
  * injects an octokit-backed source authenticated as the signed-in viewer, which
  * is how the URL box works where no gh binary exists.
  *
- * Deliberately NOT in the port: `fetchLinkedContext` (plain HTTP, no GitHub auth
- * involved) and `parsePrUrl`/`isCommitish` (pure).
+ * Deliberately NOT in the port: the context providers (`../context`, their own
+ * boundary with its own credentials) and `parsePrUrl`/`isCommitish` (pure).
  */
 export interface PrSource {
   fetchPrMetadata(loc: PrLocator): Promise<PrMetadata>;

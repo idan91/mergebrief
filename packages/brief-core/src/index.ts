@@ -8,7 +8,6 @@ export {
   parsePrUrl,
   fetchPr,
   fetchPrMetadata,
-  fetchLinkedContext,
   ghPrSource,
   MAX_COMMENTS,
   normalizeReviewComment,
@@ -17,9 +16,22 @@ export {
   type PrMetadata,
   type PrSource,
   type FetchedPr,
-  type LinkedContext,
   type ReviewComment,
 } from "./github";
+export {
+  ContextProviderTypes,
+  ContextReadReasons,
+  createBuiltInContextProviders,
+  fetchContextSnippets,
+  type ContextProvider,
+  type ContextProviderDeps,
+  type ContextProviderType,
+  type ContextQuery,
+  type ContextReadFailure,
+  type ContextReadReason,
+  type ContextSnippet,
+  type ProviderSnippet,
+} from "./context";
 export {
   categorize,
   categorizeDelta,

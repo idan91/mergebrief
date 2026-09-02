@@ -19,7 +19,12 @@ import {
   saveBaseline,
   type BaselineMode,
 } from "./baseline";
-import { FixtureSchema, toRepoContext, type EvalFixture } from "./loadCase";
+import {
+  FixtureSchema,
+  toRepoContext,
+  toSnippets,
+  type EvalFixture,
+} from "./loadCase";
 import type { CaseOutcome } from "./report";
 import { persistRunBriefs } from "./specimens";
 
@@ -231,7 +236,7 @@ async function loadOnePair(
 function toEvalFixture(value: z.infer<typeof FixtureSchema>): EvalFixture {
   const repoContext = toRepoContext(value.repoContext);
   return {
-    pr: value.pr,
+    pr: { ...value.pr, links: toSnippets(value.pr.links) },
     commitRange: value.commitRange,
     ...(repoContext === undefined ? {} : { repoContext }),
   };

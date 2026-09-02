@@ -4,17 +4,11 @@
  */
 export type {
   FetchedPr,
-  LinkedContext,
   PrFile,
   PrLocator,
   PrMetadata,
   ReviewComment,
 } from "./types";
-export {
-  extractLinks,
-  fetchLinkedContext,
-  isPublicUrl,
-} from "./linked-context";
 export {
   fetchCompareCommitCount,
   fetchCompareDiff,

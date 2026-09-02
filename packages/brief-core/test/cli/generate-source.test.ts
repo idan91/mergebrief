@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { z } from "zod/v4";
 import type { GenerateRequest, Generator } from "generators";
+import type * as ContextModule from "../../src/context";
 import type * as GithubModule from "../../src/github";
 import type { PrMetadata, PrSource, ReviewComment } from "../../src/github";
 import type { Effort, Generation } from "../../src/types";
@@ -32,9 +33,12 @@ vi.mock("../../src/github", async (importOriginal) => {
     ...actual,
     ...exploding,
     ghPrSource: { ...actual.ghPrSource, ...exploding },
-    // Not part of the port (plain HTTP): must be quiet, not exploding.
-    fetchLinkedContext: vi.fn(async () => []),
   };
+});
+// Not part of the port (its own boundary): must be quiet, not exploding.
+vi.mock("../../src/context", async (importOriginal) => {
+  const actual = await importOriginal<typeof ContextModule>();
+  return { ...actual, fetchContextSnippets: vi.fn(async () => []) };
 });
 
 const { generateAndWrite } = await import("../../src/cli/categorize");

@@ -2,7 +2,6 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  fetchLinkedContext,
   ghPrSource,
   isCommitish,
   parsePrUrl,
@@ -21,6 +20,10 @@ import {
   type Generator,
 } from "generators";
 import { extractConfigFlag, extractOutFlag } from "./config";
+import {
+  createBuiltInContextProviders,
+  fetchContextSnippets,
+} from "../context";
 import { splitDiffByFile } from "../diff/diff";
 import { assignBriefIndex, lookupBriefShaByIndex } from "../artifacts/manifest";
 import { countChangedLines, type RevisionChanges } from "../diff/revchanges";
@@ -117,7 +120,11 @@ async function buildInputs(
           commitCount: meta.commitCount,
         }),
   ]);
-  const links = await fetchLinkedContext(meta.body, log);
+  const links = await fetchContextSnippets(
+    { title: meta.title, body: meta.body },
+    createBuiltInContextProviders(),
+    log,
+  );
   return { pr: { locator, meta, diff, links }, comments, commitRange };
 }
 

@@ -15,6 +15,7 @@ import {
   type Effort,
   type Generation,
 } from "../../src/types";
+import type * as ContextModule from "../../src/context";
 import type * as GithubModule from "../../src/github";
 import type { PrMetadata } from "../../src/github";
 
@@ -34,7 +35,6 @@ vi.mock("../../src/github", async (importOriginal) => {
     fetchCompareDiff: vi.fn(async () => fetched.compareDiff),
     fetchCompareCommitCount: vi.fn(async () => 1),
     fetchReviewComments: vi.fn(async () => []),
-    fetchLinkedContext: vi.fn(async () => []),
     // Fixture SHAs are 16-char; pass them through instead of hitting `gh`.
     resolveFullSha: vi.fn(async (_loc: unknown, ref: string) => ref),
   };
@@ -45,6 +45,11 @@ vi.mock("../../src/github", async (importOriginal) => {
     // binds the unmocked gh functions at module init.
     ghPrSource: { ...actual.ghPrSource, ...mocked },
   };
+});
+
+vi.mock("../../src/context", async (importOriginal) => {
+  const actual = await importOriginal<typeof ContextModule>();
+  return { ...actual, fetchContextSnippets: vi.fn(async () => []) };
 });
 
 const { generateAndWrite } = await import("../../src/cli/categorize");

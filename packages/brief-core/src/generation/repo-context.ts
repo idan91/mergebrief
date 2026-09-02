@@ -10,6 +10,12 @@
 // as data. Neither is ever system-level text.
 
 import { RiskSurfaceAttributes } from "../types";
+import {
+  REPO_FENCE_TAGS,
+  attributeSafe,
+  stripFenceTags,
+  stripKnownFences,
+} from "./fences";
 
 /** UTF-8 byte length used for every budget decision in this module. */
 function byteLength(text: string): number {
@@ -75,13 +81,9 @@ export interface RepoContext {
   readonly customAttributes: readonly CustomRiskAttributeInput[];
 }
 
-/**
- * Strip any embedded fence tags so untrusted-ish content cannot break out of
- * its data section — the `<linked_context>` discipline. Both this module's
- * tags are stripped from every injected string.
- */
+/** Injected repo content is stripped of every known fence tag. */
 function stripFences(text: string): string {
-  return text.replace(/<\/?(?:repo_instructions|repo_custom_attributes)/gi, "");
+  return stripKnownFences(text);
 }
 
 /**
@@ -91,12 +93,7 @@ function stripFences(text: string): string {
  * original diff elsewhere.
  */
 export function stripForgedRepoFences(text: string): string {
-  return stripFences(text);
-}
-
-/** Fence-attribute values: keep them inert inside a quoted XML-ish attribute. */
-function attributeSafe(value: string): string {
-  return value.replace(/["<>\\]/g, "");
+  return stripFenceTags(text, REPO_FENCE_TAGS);
 }
 
 /**

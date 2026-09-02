@@ -3,7 +3,11 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { z } from "zod/v4";
 import type { Result } from "types";
-import type { FetchedPr } from "brief-core";
+import {
+  ContextProviderTypes,
+  type ContextSnippet,
+  type FetchedPr,
+} from "brief-core";
 import type { CommitRange } from "brief-core/types";
 import type { RepoContext } from "brief-core";
 import type { EvalProperty } from "./properties";
@@ -177,13 +181,25 @@ async function loadOne(
       id,
       dir,
       fixture: {
-        pr: parsed.data.pr,
+        pr: { ...parsed.data.pr, links: toSnippets(parsed.data.pr.links) },
         commitRange: parsed.data.commitRange,
         ...(repoContext !== undefined ? { repoContext } : {}),
       },
       properties,
     },
   };
+}
+
+/** Fixture links stay `{ url, content }`; the harness numbers them the way the fan-out would. */
+export function toSnippets(
+  links: z.infer<typeof FixtureSchema>["pr"]["links"],
+): ContextSnippet[] {
+  return links.map((link, index) => ({
+    id: `ctx-${index + 1}`,
+    providerId: ContextProviderTypes.URL,
+    source: link.url,
+    text: link.content,
+  }));
 }
 
 /** Zod optionals infer `| undefined`; RepoContext's fields are exact-optional
