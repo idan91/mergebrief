@@ -1,0 +1,70 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 95;
+    padding: 0;
+    border: 0;
+    background: rgb(0 0 0 / 55%);
+    cursor: default;
+    touch-action: pinch-zoom;
+  }
+
+  .sheet {
+    position: fixed;
+    inset-block-end: var(--sidebar-bar-h);
+    inset-inline: 0;
+    z-index: 96;
+    display: flex;
+    flex-direction: column;
+    block-size: calc(50dvh - var(--sidebar-bar-h));
+    border-block-start: 1px solid var(--line2);
+    border-start-start-radius: var(--radius-lg);
+    border-start-end-radius: var(--radius-lg);
+    background: var(--color-surface-1);
+    box-shadow: var(--shadow-elevation-lg);
+    touch-action: pinch-zoom;
+    transition: block-size 0.2s ease;
+
+    &[data-height="full"] {
+      block-size: calc(100dvh - var(--sticky-stack-h) - var(--sidebar-bar-h));
+    }
+  }
+
+  .handle {
+    position: relative;
+    flex: none;
+    inline-size: functions.to-rem(72px);
+    block-size: 24px;
+    margin-inline: auto;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+
+    &::before {
+      position: absolute;
+      inset-block-start: 50%;
+      inset-inline-start: 50%;
+      inline-size: functions.to-rem(40px);
+      block-size: 4px;
+      border-radius: var(--radius-pill);
+      background: var(--line2);
+      content: "";
+      transform: translate(-50%, -50%);
+    }
+
+    @include mixins.focus-visible {
+      outline-offset: -2px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sheet {
+      transition: none;
+    }
+  }
+}

@@ -195,11 +195,14 @@
     );
     --sidebar-w-collapsed: 3rem;
     --sidebar-w-expanded: 26.5rem;
+    --sidebar-bar-h: calc(3.25rem + env(safe-area-inset-bottom));
 
     // The width the Sidebar currently reserves; base.scss sets it from the
     // reading column's state.
     /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
     --sidebar-w: 0px;
+    /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
+    --sidebar-reserve-bottom: 0px;
 
     color-scheme: dark light;
   }

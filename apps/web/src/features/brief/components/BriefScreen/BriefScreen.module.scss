@@ -3,7 +3,9 @@
 @layer components {
   .toast {
     position: fixed;
-    inset-block-end: functions.to-rem(28px);
+    inset-block-end: calc(
+      functions.to-rem(28px) + var(--sidebar-reserve-bottom)
+    );
     inset-inline-start: calc((100% - var(--sidebar-w)) / 2);
     z-index: 120;
     max-inline-size: functions.to-rem(560px);

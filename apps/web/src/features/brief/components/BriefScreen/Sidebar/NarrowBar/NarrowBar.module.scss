@@ -1,0 +1,74 @@
+@use "functions";
+
+@layer components {
+  .bar {
+    display: flex;
+    align-items: center;
+    gap: functions.to-rem(4px);
+    block-size: var(--sidebar-bar-h);
+    padding-block-end: env(safe-area-inset-bottom);
+    padding-inline: functions.to-rem(8px);
+    border-block-start: 1px solid var(--line);
+    background: var(--bg);
+  }
+
+  .chevron svg {
+    transform: rotate(90deg);
+    transition: transform 0.2s ease;
+  }
+
+  .chevron[aria-expanded="true"] svg {
+    transform: rotate(-90deg);
+  }
+
+  .arrow[data-direction="next"] svg {
+    transform: rotate(180deg);
+  }
+
+  .position {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: functions.to-rem(10px);
+    min-inline-size: 0;
+  }
+
+  .lines {
+    display: flex;
+    flex: none;
+    gap: functions.to-rem(3px);
+  }
+
+  .line {
+    inline-size: 3px;
+    block-size: 12px;
+    border-radius: var(--radius-xs);
+    background: var(--faint);
+    opacity: 0.45;
+
+    &[data-current] {
+      background: var(--color-accent);
+      opacity: 1;
+    }
+  }
+
+  .name {
+    overflow: hidden;
+    color: var(--dim);
+    font-size: var(--font-size-md);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .shortcutsTrigger {
+    font-family: var(--mono);
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .chevron svg {
+      transition: none;
+    }
+  }
+}

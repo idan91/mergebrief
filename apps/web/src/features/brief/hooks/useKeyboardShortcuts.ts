@@ -14,6 +14,8 @@ export interface KeyboardShortcutsOptions {
   getActiveChunkId: () => string | null;
   /** True while a modal/drawer/composer holds focus — shortcuts stand down. */
   disabled: boolean;
+  /** True while the narrow Sidebar sheet is open: only S still fires. */
+  sheetOpen: boolean;
   focusModeActive: boolean;
   jumpToChunk: (chunkId: string) => void;
   toggleFocusMode: () => void;
@@ -45,6 +47,7 @@ export interface ShortcutState {
   groupBoundaries: number[];
   activeChunkId: string | null;
   disabled: boolean;
+  sheetOpen: boolean;
   focusModeActive: boolean;
 }
 
@@ -93,6 +96,7 @@ export function resolveShortcut(
   if (state.disabled) return null;
   if (event.metaKey || event.ctrlKey || event.altKey) return null;
   if (event.isTyping) return null;
+  if (state.sheetOpen && key !== "s") return null;
 
   if (key === "j" || key === "k") {
     const { chunkIds, groupBoundaries, activeChunkId } = state;
@@ -171,6 +175,7 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions): void {
           groupBoundaries: current.groupBoundaries,
           activeChunkId: current.getActiveChunkId(),
           disabled: current.disabled,
+          sheetOpen: current.sheetOpen,
           focusModeActive: current.focusModeActive,
         },
       );

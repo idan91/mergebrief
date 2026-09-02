@@ -158,6 +158,10 @@
       --sidebar-w: var(--sidebar-w-expanded);
     }
 
+    &:has(.main[data-sidebar="bar"]) {
+      --sidebar-reserve-bottom: var(--sidebar-bar-h);
+    }
+
     @media (width <= 1120px) {
       &:has(.main[data-sidebar]) {
         /* stylelint-disable-next-line length-zero-no-unit -- calc() rejects a unitless 0 */
@@ -179,7 +183,8 @@
     // changes (revision steps, live diff arriving). Fill, cap, center.
     inline-size: 100%;
     max-inline-size: calc(functions.to-rem(980px) + var(--sidebar-w));
-    padding-block: functions.to-rem(36px) functions.to-rem(140px);
+    padding-block: functions.to-rem(36px)
+      calc(functions.to-rem(140px) + var(--sidebar-reserve-bottom));
     padding-inline: var(--main-gutter)
       calc(var(--main-gutter) + var(--sidebar-w));
     margin-inline: auto;

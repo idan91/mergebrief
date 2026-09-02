@@ -3,6 +3,10 @@ import { useEffect, useRef, type FocusEvent, type KeyboardEvent } from "react";
 
 import { IconButton } from "@web/components/IconButton/IconButton";
 import { Tabs } from "@web/components/Tabs/Tabs";
+import {
+  ViewportBands,
+  type ViewportBand,
+} from "@web/hooks/useViewportBoundary";
 import { prefersReducedMotion } from "@web/utils/motion";
 import type { GroupView } from "../../../utils/viewModel";
 import { useReadingPosition } from "../readingPosition";
@@ -10,6 +14,8 @@ import { SIDEBAR_PANEL_ID } from "./consts";
 import { GroupLines } from "./GroupLines/GroupLines";
 import ArrowUpIcon from "./icons/arrow-up.svg?react";
 import ChevronLeftIcon from "./icons/chevron-left.svg?react";
+import { NarrowBar } from "./NarrowBar/NarrowBar";
+import { Sheet } from "./Sheet/Sheet";
 import { ThisPr } from "./Tabs/ThisPr/ThisPr";
 import { SidebarTabs, type JumpFromSidebar } from "./types";
 import type { SidebarState } from "./useSidebarState";
@@ -30,15 +36,17 @@ export interface SidebarProps {
   jumpToGroupHeading: (groupId: string) => void;
   conversationGroupIds?: ReadonlySet<string> | undefined;
   state: SidebarState;
+  band: ViewportBand;
   /** A revision load is pending: the aside goes inert with the content. */
   pending: boolean;
   toggleShortcuts: () => void;
 }
 
 /**
- * The Brief page's right-edge column: the group lines, the expand control and
- * the page's small utilities, plus the tabs while expanded. Rendered after
- * `<main>` so the content comes first in the tab order.
+ * The Brief page's Sidebar: on desktop a right-edge column holding the group
+ * lines, the expand control and the page's small utilities, plus the tabs
+ * while expanded; below the tablet breakpoint a bottom bar and a sheet.
+ * Rendered after `<main>` so the content comes first in the tab order.
  */
 export function Sidebar({
   groups,
@@ -46,6 +54,7 @@ export function Sidebar({
   jumpToGroupHeading,
   conversationGroupIds,
   state,
+  band,
   pending,
   toggleShortcuts,
 }: SidebarProps) {
@@ -55,6 +64,7 @@ export function Sidebar({
   );
   const chevronRef = useRef<HTMLButtonElement | null>(null);
   const { expanded } = state;
+  const narrow = band === ViewportBands.NARROW;
   const wasExpanded = useRef(expanded);
   const holdsFocus = useRef(false);
 
@@ -89,11 +99,18 @@ export function Sidebar({
   };
 
   const jumpFromSidebar: JumpFromSidebar = (groupId, event) => {
+    if (narrow) state.collapse();
     if (event.detail !== 0) {
       jumpToGroup(groupId);
+      if (narrow) chevronRef.current?.focus();
       return;
     }
     jumpToGroupHeading(groupId);
+  };
+
+  const collapseToChevron = () => {
+    state.collapse();
+    chevronRef.current?.focus();
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
@@ -101,13 +118,52 @@ export function Sidebar({
 
     event.preventDefault();
     event.stopPropagation();
-    state.collapse();
-    chevronRef.current?.focus();
+    collapseToChevron();
   };
 
   const chevronLabel = expanded
     ? t("brief.sidebar.collapse")
     : t("brief.sidebar.expand");
+
+  if (narrow) {
+    return (
+      // The keydown is the sheet's Escape, not an interaction of its own.
+      // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+      <aside
+        aria-label={t("brief.sidebar.ariaLabel")}
+        className={styles["sidebar"]}
+        data-state={expanded ? "expanded" : "collapsed"}
+        data-testid="sidebar"
+        data-variant="narrow"
+        inert={pending || undefined}
+        onBlur={trackFocus.onBlur}
+        onFocus={trackFocus.onFocus}
+        onKeyDown={handleKeyDown}
+      >
+        {expanded ? (
+          <Sheet
+            activeGroupId={activeGroupId}
+            close={collapseToChevron}
+            conversationGroupIds={conversationGroupIds}
+            groups={groups}
+            jumpToGroup={jumpFromSidebar}
+            selectTab={state.selectTab}
+            tab={state.tab}
+          />
+        ) : null}
+        <NarrowBar
+          activeGroupId={activeGroupId}
+          chevronRef={chevronRef}
+          expanded={expanded}
+          groups={groups}
+          jumpToGroup={jumpToGroup}
+          scrollToTop={scrollWindowToTop}
+          toggle={state.toggle}
+          toggleShortcuts={toggleShortcuts}
+        />
+      </aside>
+    );
+  }
 
   return (
     // The keydown is the disclosure's Escape, not an interaction of its own:
@@ -119,6 +175,7 @@ export function Sidebar({
       data-motion={state.motionReady ? "on" : undefined}
       data-state={expanded ? "expanded" : "collapsed"}
       data-testid="sidebar"
+      data-variant="desktop"
       inert={pending || undefined}
       onBlur={trackFocus.onBlur}
       onFocus={trackFocus.onFocus}

@@ -28,6 +28,10 @@ import {
   type ReviewSessionPayload,
 } from "@web/features/review/session";
 import { useLatestRef } from "@web/hooks/useLatestRef";
+import {
+  useViewportBoundary,
+  ViewportBands,
+} from "@web/hooks/useViewportBoundary";
 import type { UnresolvedItem } from "@web/features/review/utils/state";
 import type { BriefSearchParams } from "../../comparison/compareState";
 import { ChunkWindowProvider, createChunkWindowRegistry } from "./chunkWindows";
@@ -54,7 +58,7 @@ import { RiskFlagModals } from "./RiskFlagModals/RiskFlagModals";
 import { ShortcutsModal } from "./ShortcutsModal/ShortcutsModal";
 import { Sidebar, useSidebarState } from "./Sidebar";
 import { StoryView } from "./StoryView/StoryView";
-import { CONTENT_START_ATTR } from "./utils";
+import { CONTENT_START_ATTR, resolveSidebarLayout } from "./utils";
 import { SummarySection } from "./SummarySection/SummarySection";
 import { UnattributedBanner } from "./UnattributedBanner/UnattributedBanner";
 import { useDelayedPending } from "./useDelayedPending";
@@ -318,8 +322,11 @@ export function BriefScreen({
   });
   // Hidden is not collapsed: the stored preference survives Focus mode and
   // Changes scope untouched, so the cell gates the render, never a write.
-  const sidebar = useSidebarState();
-  const sidebarLayout = sidebar.expanded ? "expanded" : "collapsed";
+  const band = useViewportBoundary();
+  const sidebar = useSidebarState(band, regions.sidebar);
+  const sidebarLayout = resolveSidebarLayout(band, sidebar.expanded);
+  const sheetOpen =
+    band === ViewportBands.NARROW && regions.sidebar && sidebar.expanded;
   // The whole aside unmounts when its cell goes false; focus left inside it
   // lands on the content region instead of the body.
   const sidebarWasVisible = useRef(regions.sidebar);
@@ -587,6 +594,7 @@ export function BriefScreen({
     groupBoundaries,
     getActiveChunkId: () => readingPosition.getState().activeChunkId,
     disabled: shortcutsDisabled,
+    sheetOpen,
     focusModeActive: focusMode,
     jumpToChunk: session.jumpToChunkFromShortcut,
     toggleFocusMode,
@@ -759,7 +767,6 @@ export function BriefScreen({
                     }
                   : undefined
               }
-              groups={model.groups}
               jumpToGroup={jumpToGroup}
               rail={attributeRail}
               supportingCollapse={session.supportingCollapse}
@@ -852,6 +859,7 @@ export function BriefScreen({
         {regions.sidebar ? (
           <Sidebar
             key={`sidebar-${briefId}`}
+            band={band}
             conversationGroupIds={conversationWiring.conversationGroupIds}
             groups={model.groups}
             jumpToGroup={jumpToGroup}

@@ -1,4 +1,5 @@
 import { appI18n } from "../../../../i18n/I18nProvider";
+import { ViewportBands } from "@web/hooks/useViewportBoundary";
 import { describe, expect, it } from "vitest";
 
 import type { ProgressTotals } from "../../utils/progress";
@@ -25,6 +26,8 @@ import {
   resolveLocalComparisonIds,
   resolveRiskEvidence,
   toggleSetMember,
+  resolveSidebarLayout,
+  SidebarLayouts,
 } from "./utils";
 
 function intentItem(overrides: { acknowledged?: boolean } = {}) {
@@ -499,5 +502,25 @@ describe("groupSinceMarkers", () => {
 
   it("returns undefined without marks — no checkpoint, no marker", () => {
     expect(groupSinceMarkers(groups, null)).toBeUndefined();
+  });
+});
+
+describe("resolveSidebarLayout", () => {
+  it("reserves the bar below the breakpoint whatever the stored state", () => {
+    expect(resolveSidebarLayout(ViewportBands.NARROW, true)).toBe(
+      SidebarLayouts.BAR,
+    );
+    expect(resolveSidebarLayout(ViewportBands.NARROW, false)).toBe(
+      SidebarLayouts.BAR,
+    );
+  });
+
+  it("reserves the column's current width on desktop", () => {
+    expect(resolveSidebarLayout(ViewportBands.DESKTOP, true)).toBe(
+      SidebarLayouts.EXPANDED,
+    );
+    expect(resolveSidebarLayout(ViewportBands.DESKTOP, false)).toBe(
+      SidebarLayouts.COLLAPSED,
+    );
   });
 });

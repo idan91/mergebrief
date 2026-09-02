@@ -62,16 +62,6 @@
     white-space: nowrap;
   }
 
-  // The group stepper exists only below 1120px, where the gutter TOC dies
-  // (Sidebar.module.scss hides at the same breakpoint).
-  .stepper[data-stepper="group"] {
-    display: none;
-
-    @media (width <= 1120px) {
-      display: inline-flex;
-    }
-  }
-
   .count {
     margin-inline-end: functions.to-rem(4px);
     color: var(--dim);

@@ -6,6 +6,7 @@
     --scroller-bg: var(--bg);
 
     flex: 1;
+    overscroll-behavior: contain;
 
     @include mixins.rail-scroller;
   }

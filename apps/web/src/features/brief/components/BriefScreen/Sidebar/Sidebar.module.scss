@@ -1,7 +1,7 @@
 @use "functions";
 
 @layer components {
-  .sidebar {
+  .sidebar[data-variant="desktop"] {
     position: fixed;
     inset-block: var(--top-bar-h) 0;
     inset-inline-end: 0;
@@ -24,6 +24,13 @@
     @media (width <= 1120px) {
       display: none;
     }
+  }
+
+  .sidebar[data-variant="narrow"] {
+    position: fixed;
+    inset-block-end: 0;
+    inset-inline: 0;
+    z-index: 97;
   }
 
   .column {
@@ -71,7 +78,7 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .sidebar[data-motion="on"],
+    .sidebar[data-variant="desktop"][data-motion="on"],
     .chevron svg {
       transition: none;
     }

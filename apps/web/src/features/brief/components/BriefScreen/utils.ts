@@ -2,10 +2,15 @@
 // so they are unit-testable directly, without rendering.
 import type { TFunction } from "i18next";
 import type { TranslationKey } from "i18n";
+import type { ValueOf } from "types";
 import type {
   RiskEvidence,
   RiskEvidenceKind,
 } from "@web/features/review/utils/state";
+import {
+  ViewportBands,
+  type ViewportBand,
+} from "@web/hooks/useViewportBoundary";
 import type { CompareParam } from "../../comparison/compareState";
 import type { ComparisonQuery } from "../../comparison/comparisonQuery";
 import {
@@ -292,4 +297,22 @@ export function deriveGroupHeadingId(groupId: string): string {
 /** The in-flow anchor of a group: its section, which heads the card at every width. */
 export function deriveGroupSectionId(groupId: string): string {
   return `${groupId}-section`;
+}
+
+/** What the reading column reserves for the Sidebar. */
+export const SidebarLayouts = {
+  COLLAPSED: "collapsed",
+  EXPANDED: "expanded",
+  BAR: "bar",
+} as const;
+
+export type SidebarLayout = ValueOf<typeof SidebarLayouts>;
+
+/** The bar's height below the breakpoint, else the column's width. */
+export function resolveSidebarLayout(
+  band: ViewportBand,
+  expanded: boolean,
+): SidebarLayout {
+  if (band === ViewportBands.NARROW) return SidebarLayouts.BAR;
+  return expanded ? SidebarLayouts.EXPANDED : SidebarLayouts.COLLAPSED;
 }

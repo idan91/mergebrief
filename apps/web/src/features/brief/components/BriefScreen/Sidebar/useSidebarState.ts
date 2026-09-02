@@ -1,6 +1,10 @@
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 
 import {
+  ViewportBands,
+  type ViewportBand,
+} from "@web/hooks/useViewportBoundary";
+import {
   DEFAULT_SIDEBAR_PREFERENCE,
   readSidebarPreference,
   writeSidebarPreference,
@@ -19,16 +23,34 @@ export interface SidebarState {
 }
 
 /**
- * The stored sidebar preference: read once at mount, written on every
- * change the reader makes. Force-collapsing while hidden is the caller's
- * derivation over `expanded`, never a write here.
+ * The sidebar's state for the current viewport band. On desktop `expanded`
+ * is the stored preference. Narrow keeps the sheet's open state for the
+ * session only, always starting closed, and writes just the tab, so crossing
+ * back to desktop restores what was stored. Hiding force-collapses the sheet
+ * but leaves the stored preference untouched; on desktop the caller derives
+ * hidden from `expanded` and never writes here.
  */
-export function useSidebarState(): SidebarState {
+export function useSidebarState(
+  band: ViewportBand,
+  visible: boolean,
+): SidebarState {
   const [preference, setPreference] = useState<SidebarPreference>(
     DEFAULT_SIDEBAR_PREFERENCE,
   );
   const latest = useRef(preference);
   const [motionReady, setMotionReady] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [lastBand, setLastBand] = useState(band);
+  const [lastVisible, setLastVisible] = useState(visible);
+  const narrow = band === ViewportBands.NARROW;
+
+  // Crossing the breakpoint, or the sidebar leaving and returning, starts
+  // from a closed sheet: a modal never reopens on its own.
+  if (lastBand !== band || lastVisible !== visible) {
+    setLastBand(band);
+    setLastVisible(visible);
+    setSheetOpen(false);
+  }
 
   // Before paint, so a client-side navigation never flashes the default.
   useLayoutEffect(() => {
@@ -47,16 +69,28 @@ export function useSidebarState(): SidebarState {
     writeSidebarPreference(next);
   }, []);
 
-  const toggle = useCallback(
-    () => update({ expanded: !latest.current.expanded }),
-    [update],
+  const setExpanded = useCallback(
+    (expanded: boolean) => {
+      if (narrow) {
+        setSheetOpen(expanded);
+        return;
+      }
+      update({ expanded });
+    },
+    [narrow, update],
   );
-  const expand = useCallback(() => update({ expanded: true }), [update]);
-  const collapse = useCallback(() => update({ expanded: false }), [update]);
+
+  const expanded = narrow ? sheetOpen : preference.expanded;
+  const toggle = useCallback(
+    () => setExpanded(!(narrow ? sheetOpen : latest.current.expanded)),
+    [narrow, setExpanded, sheetOpen],
+  );
+  const expand = useCallback(() => setExpanded(true), [setExpanded]);
+  const collapse = useCallback(() => setExpanded(false), [setExpanded]);
   const selectTab = useCallback((tab: SidebarTab) => update({ tab }), [update]);
 
   return {
-    expanded: preference.expanded,
+    expanded,
     tab: preference.tab,
     toggle,
     expand,

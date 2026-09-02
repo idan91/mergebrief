@@ -2,6 +2,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { ViewportBand } from "@web/hooks/useViewportBoundary";
 import { SIDEBAR_STORAGE_KEY } from "./storage";
 import { useSidebarState } from "./useSidebarState";
 
@@ -15,6 +16,89 @@ function stored(): unknown {
   return raw === null ? null : JSON.parse(raw);
 }
 
+describe("useSidebarState at narrow width", () => {
+  it("starts collapsed whatever is stored and never writes the sheet state", () => {
+    window.localStorage.setItem(
+      SIDEBAR_STORAGE_KEY,
+      JSON.stringify({ expanded: true, tab: "this-pr" }),
+    );
+    const setItem = vi.spyOn(Storage.prototype, "setItem");
+    const { result } = renderHook(() => useSidebarState("narrow", true));
+    expect(result.current.expanded).toBe(false);
+
+    act(() => result.current.toggle());
+    expect(result.current.expanded).toBe(true);
+
+    act(() => result.current.collapse());
+    expect(result.current.expanded).toBe(false);
+    expect(setItem).not.toHaveBeenCalled();
+  });
+
+  it("writes the tab and keeps the stored expanded value", () => {
+    window.localStorage.setItem(
+      SIDEBAR_STORAGE_KEY,
+      JSON.stringify({ expanded: true, tab: "this-pr" }),
+    );
+    const { result } = renderHook(() => useSidebarState("narrow", true));
+
+    act(() => result.current.selectTab("this-pr"));
+
+    expect(stored()).toEqual({ expanded: true, tab: "this-pr" });
+  });
+
+  it("crossing to narrow shows a closed sheet and crossing back restores the preference", () => {
+    const { result, rerender } = renderHook(
+      ({ band }) => useSidebarState(band, true),
+      { initialProps: { band: "desktop" as ViewportBand } },
+    );
+    act(() => result.current.expand());
+    expect(result.current.expanded).toBe(true);
+
+    rerender({ band: "narrow" });
+    expect(result.current.expanded).toBe(false);
+
+    act(() => result.current.expand());
+    expect(result.current.expanded).toBe(true);
+
+    rerender({ band: "desktop" });
+    expect(result.current.expanded).toBe(true);
+
+    rerender({ band: "narrow" });
+    expect(result.current.expanded).toBe(false);
+    expect(stored()).toEqual({ expanded: true, tab: "this-pr" });
+  });
+});
+
+describe("useSidebarState while the sidebar is hidden", () => {
+  it("the sheet closes when the sidebar leaves and stays closed when it returns", () => {
+    const { result, rerender } = renderHook(
+      ({ visible }) => useSidebarState("narrow", visible),
+      { initialProps: { visible: true } },
+    );
+    act(() => result.current.expand());
+    expect(result.current.expanded).toBe(true);
+
+    rerender({ visible: false });
+    rerender({ visible: true });
+
+    expect(result.current.expanded).toBe(false);
+  });
+
+  it("hiding on desktop leaves the stored preference alone", () => {
+    const { result, rerender } = renderHook(
+      ({ visible }) => useSidebarState("desktop", visible),
+      { initialProps: { visible: true } },
+    );
+    act(() => result.current.expand());
+
+    rerender({ visible: false });
+    rerender({ visible: true });
+
+    expect(result.current.expanded).toBe(true);
+    expect(stored()).toEqual({ expanded: true, tab: "this-pr" });
+  });
+});
+
 describe("useSidebarState", () => {
   it("starts from the stored preference without writing", () => {
     window.localStorage.setItem(
@@ -23,7 +107,7 @@ describe("useSidebarState", () => {
     );
     const setItem = vi.spyOn(Storage.prototype, "setItem");
 
-    const { result } = renderHook(() => useSidebarState());
+    const { result } = renderHook(() => useSidebarState("desktop", true));
 
     expect(result.current.expanded).toBe(true);
     expect(result.current.tab).toBe("this-pr");
@@ -32,7 +116,7 @@ describe("useSidebarState", () => {
 
   it("reads storage once, not on every render", () => {
     const getItem = vi.spyOn(Storage.prototype, "getItem");
-    const { rerender } = renderHook(() => useSidebarState());
+    const { rerender } = renderHook(() => useSidebarState("desktop", true));
 
     rerender();
     rerender();
@@ -41,7 +125,7 @@ describe("useSidebarState", () => {
   });
 
   it("toggle flips expanded and writes", () => {
-    const { result } = renderHook(() => useSidebarState());
+    const { result } = renderHook(() => useSidebarState("desktop", true));
 
     act(() => result.current.toggle());
     expect(result.current.expanded).toBe(true);
@@ -53,7 +137,7 @@ describe("useSidebarState", () => {
   });
 
   it("expand and collapse are idempotent writes", () => {
-    const { result } = renderHook(() => useSidebarState());
+    const { result } = renderHook(() => useSidebarState("desktop", true));
 
     act(() => result.current.expand());
     act(() => result.current.expand());
@@ -65,7 +149,7 @@ describe("useSidebarState", () => {
   });
 
   it("selectTab keeps expanded and writes the tab", () => {
-    const { result } = renderHook(() => useSidebarState());
+    const { result } = renderHook(() => useSidebarState("desktop", true));
 
     act(() => result.current.expand());
     act(() => result.current.selectTab("this-pr"));
@@ -77,7 +161,7 @@ describe("useSidebarState", () => {
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new Error("denied");
     });
-    const { result } = renderHook(() => useSidebarState());
+    const { result } = renderHook(() => useSidebarState("desktop", true));
 
     act(() => result.current.toggle());
 

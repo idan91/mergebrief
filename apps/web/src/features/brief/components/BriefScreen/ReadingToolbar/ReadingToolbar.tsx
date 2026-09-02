@@ -11,14 +11,8 @@ import {
   FilterDisclosure,
   type FilterDisclosureProps,
 } from "./FilterDisclosure/FilterDisclosure";
-import { useReadingPosition } from "../readingPosition";
 import { RiskAttrsDisclosure } from "./RiskAttrsDisclosure/RiskAttrsDisclosure";
 import styles from "./ReadingToolbar.module.scss";
-
-/** The stepper only needs identity — never group content (no ranking cues). */
-export interface GroupStepTarget {
-  readonly id: string;
-}
 
 /** How many supporting chunks are collapsed; `some` = the mixed state. */
 export const SupportingCollapseStates = {
@@ -47,7 +41,6 @@ export interface ReadingToolbarProps {
   supportingCollapse: SupportingCollapseState;
   /** All collapsed → expand all; otherwise collapse all. */
   toggleCollapseSupporting: () => void;
-  groups: readonly GroupStepTarget[];
   comparison: ComparisonOverlayState;
   /** Screen-owned: the jump needs the model target list and the window
    * registry, which live above this bar. */
@@ -66,12 +59,10 @@ export function ReadingToolbar({
   jumpToGroup,
   supportingCollapse,
   toggleCollapseSupporting,
-  groups,
   comparison,
   revisionNav,
 }: ReadingToolbarProps) {
   const { t } = useTranslation();
-  const activeGroupId = useReadingPosition((state) => state.activeGroupId);
   const { jumpPrev, jumpNext } = revisionNav;
   const barRef = useRef<HTMLDivElement | null>(null);
 
@@ -102,24 +93,6 @@ export function ReadingToolbar({
       setHeight("0px");
     };
   }, []);
-
-  const activeGroupIndex = groups.findIndex(
-    (group) => group.id === activeGroupId,
-  );
-  const stepGroup = (direction: 1 | -1) => {
-    // Clamped, never wraps (matches read-through advance); no active group
-    // yet → either direction lands on the first group.
-    const target =
-      activeGroupIndex === -1
-        ? groups[0]
-        : groups[
-            Math.min(
-              groups.length - 1,
-              Math.max(0, activeGroupIndex + direction),
-            )
-          ];
-    if (target) jumpToGroup(target.id);
-  };
 
   return (
     <div
@@ -153,35 +126,6 @@ export function ReadingToolbar({
             {t("brief.toolbar.collapseLong")}
           </span>
         </ToolbarButton>
-        {groups.length > 0 ? (
-          <span
-            aria-label={t("brief.toolbar.ariaLabelGroupStepper")}
-            className={styles["stepper"]}
-            data-stepper="group"
-            role="group"
-          >
-            <span className={styles["count"]}>
-              {t("brief.toolbar.groupCount", {
-                current: activeGroupIndex === -1 ? "–" : activeGroupIndex + 1,
-                total: groups.length,
-              })}
-            </span>
-            <IconButton
-              className={styles["stepBtn"]}
-              label={t("brief.toolbar.ariaLabelPreviousGroup")}
-              onClick={() => stepGroup(-1)}
-            >
-              ◂
-            </IconButton>
-            <IconButton
-              className={styles["stepBtn"]}
-              label={t("brief.toolbar.ariaLabelNextGroup")}
-              onClick={() => stepGroup(1)}
-            >
-              ▸
-            </IconButton>
-          </span>
-        ) : null}
         {comparison.available && comparison.runCount > 0 ? (
           <span
             aria-label={

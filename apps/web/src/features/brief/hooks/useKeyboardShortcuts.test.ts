@@ -21,6 +21,7 @@ const state = (over: Partial<ShortcutState> = {}): ShortcutState => ({
   groupBoundaries: [],
   activeChunkId: "b",
   disabled: false,
+  sheetOpen: false,
   focusModeActive: false,
   ...over,
 });
@@ -34,6 +35,17 @@ const groupedState = (over: Partial<ShortcutState> = {}): ShortcutState =>
   });
 
 describe("resolveShortcut", () => {
+  it("only S fires while the sidebar sheet is open", () => {
+    const open = state({ sheetOpen: true, activeChunkId: "a" });
+    expect(resolveShortcut(key("s"), open)).toEqual({
+      type: "toggleSidebar",
+    });
+    for (const k of ["j", "k", "z", "c", "?"]) {
+      expect(resolveShortcut(key(k), open)).toBeNull();
+    }
+    expect(resolveShortcut(key("J", { shiftKey: true }), open)).toBeNull();
+  });
+
   it("s toggles the sidebar", () => {
     expect(resolveShortcut(key("s"), state())).toEqual({
       type: "toggleSidebar",
@@ -230,6 +242,7 @@ describe("conversation shortcut", () => {
     groupBoundaries: [0],
     activeChunkId: null,
     disabled: false,
+    sheetOpen: false,
     focusModeActive: false,
   };
 

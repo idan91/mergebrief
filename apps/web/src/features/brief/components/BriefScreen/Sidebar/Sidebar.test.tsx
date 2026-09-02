@@ -5,6 +5,7 @@ import {
   fireEvent,
   render,
   screen,
+  within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -15,6 +16,7 @@ import {
   ReadingPositionProvider,
 } from "../readingPosition";
 import { Button } from "@web/components/Button/Button";
+import type { ViewportBand } from "@web/hooks/useViewportBoundary";
 import { Sidebar } from "./Sidebar";
 import { SIDEBAR_STORAGE_KEY } from "./storage";
 import { useSidebarState } from "./useSidebarState";
@@ -26,6 +28,7 @@ if (!firstGroup) throw new Error("fixture has no groups");
 afterEach(() => {
   cleanup();
   window.localStorage.clear();
+  document.body.style.overflow = "";
   vi.restoreAllMocks();
 });
 
@@ -34,6 +37,7 @@ interface HarnessProps {
   jumpToGroupHeading?: (groupId: string) => void;
   toggleShortcuts?: () => void;
   conversationGroupIds?: ReadonlySet<string>;
+  band?: ViewportBand;
   pending?: boolean;
 }
 
@@ -44,15 +48,17 @@ function Harness({
   jumpToGroupHeading = noop,
   toggleShortcuts = noop,
   conversationGroupIds,
+  band = "desktop",
   pending = false,
 }: HarnessProps) {
-  const state = useSidebarState();
+  const state = useSidebarState(band, true);
   return (
     <>
       <Button data-testid="outside-toggle" onClick={state.toggle}>
         toggle
       </Button>
       <Sidebar
+        band={band}
         conversationGroupIds={conversationGroupIds}
         groups={model.groups}
         jumpToGroup={jumpToGroup}
@@ -265,5 +271,111 @@ describe("Sidebar", () => {
     });
 
     expect(aside.getAttribute("data-motion")).toBe("on");
+  });
+});
+
+describe("Sidebar below the tablet breakpoint", () => {
+  function chevronNarrow(): HTMLElement {
+    return within(screen.getByTestId("sidebar-bar")).getByRole("button", {
+      name: /sidebar/,
+    });
+  }
+
+  it("renders the bar inside the landmark with no sheet", () => {
+    renderSidebar({ band: "narrow" });
+    const aside = screen.getByRole("complementary", { name: "Sidebar" });
+    expect(aside.getAttribute("data-variant")).toBe("narrow");
+    expect(screen.getByTestId("sidebar-bar")).toBeTruthy();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.queryByRole("navigation")).toBeNull();
+  });
+
+  it("starts collapsed even when the stored preference is expanded", () => {
+    window.localStorage.setItem(
+      SIDEBAR_STORAGE_KEY,
+      JSON.stringify({ expanded: true, tab: "this-pr" }),
+    );
+    renderSidebar({ band: "narrow" });
+    expect(chevronNarrow().getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("the chevron opens the sheet with focus on the active tab, and Escape returns focus to the chevron", () => {
+    const windowListener = vi.fn();
+    window.addEventListener("keydown", windowListener);
+    renderSidebar({ band: "narrow" });
+
+    fireEvent.click(chevronNarrow());
+
+    const dialog = screen.getByRole("dialog", { name: "Sidebar" });
+    const tab = screen.getByRole("tab", { name: "This PR" });
+    expect(document.activeElement).toBe(tab);
+    expect(document.body.style.overflow).toBe("hidden");
+
+    fireEvent.keyDown(dialog, { key: "Escape" });
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(chevronNarrow());
+    expect(document.body.style.overflow).toBe("");
+    expect(windowListener).not.toHaveBeenCalled();
+    window.removeEventListener("keydown", windowListener);
+  });
+
+  it("the scrim and the chevron close the sheet back to the chevron", () => {
+    renderSidebar({ band: "narrow" });
+    fireEvent.click(chevronNarrow());
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "Collapse sidebar" })[0]!,
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(chevronNarrow());
+
+    fireEvent.click(chevronNarrow());
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    fireEvent.click(chevronNarrow());
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("a jump from the sheet collapses it; a tap returns focus to the chevron, a key press takes the heading landing", () => {
+    const jumpToGroup = vi.fn();
+    const jumpToGroupHeading = vi.fn();
+    renderSidebar({ band: "narrow", jumpToGroup, jumpToGroupHeading });
+    const rowName = firstGroup.group.title || firstGroup.group.summary;
+
+    fireEvent.click(chevronNarrow());
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(rowName) }), {
+      detail: 1,
+    });
+    expect(jumpToGroup).toHaveBeenCalledWith(firstGroup.id);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(chevronNarrow());
+
+    fireEvent.click(chevronNarrow());
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(rowName) }), {
+      detail: 0,
+    });
+    expect(jumpToGroupHeading).toHaveBeenCalledWith(firstGroup.id);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("a close the sidebar did not start still returns focus to the chevron", () => {
+    renderSidebar({ band: "narrow" });
+    fireEvent.click(chevronNarrow());
+    expect(document.activeElement).toBe(
+      screen.getByRole("tab", { name: "This PR" }),
+    );
+
+    fireEvent.click(screen.getByTestId("outside-toggle"));
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(chevronNarrow());
+  });
+
+  it("never writes the sheet state", () => {
+    const setItem = vi.spyOn(Storage.prototype, "setItem");
+    renderSidebar({ band: "narrow" });
+    fireEvent.click(chevronNarrow());
+    fireEvent.click(chevronNarrow());
+    expect(setItem).not.toHaveBeenCalled();
   });
 });

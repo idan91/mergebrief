@@ -19,6 +19,7 @@ function options(
     groupBoundaries: [0],
     getActiveChunkId: () => null,
     disabled: false,
+    sheetOpen: false,
     focusModeActive: false,
     jumpToChunk: vi.fn(),
     toggleFocusMode: vi.fn(),

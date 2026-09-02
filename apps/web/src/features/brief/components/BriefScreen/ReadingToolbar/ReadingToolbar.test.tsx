@@ -53,7 +53,6 @@ function renderToolbar(
     jumpToGroup: () => {},
     supportingCollapse: "none",
     toggleCollapseSupporting: () => {},
-    groups: [{ id: "g1" }, { id: "g2" }, { id: "g3" }],
     comparison: comparisonState(0),
     revisionNav: { jumpNext: () => {}, jumpPrev: () => {} },
     ...overrides,
@@ -261,35 +260,5 @@ describe("ReadingToolbar risk-attrs disclosure", () => {
     fireEvent.click(screen.getByRole("button", { name: /Risk attrs/ }));
     fireEvent.pointerDown(document.body);
     expect(document.querySelector("[data-attribute-jump-rail]")).toBeNull();
-  });
-});
-
-describe("ReadingToolbar group stepper", () => {
-  it("steps to the neighbouring group without wrapping", () => {
-    const jump = vi.fn();
-    renderToolbar({ jumpToGroup: jump }, "g2");
-    expect(screen.getByText("Group 2/3")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Previous group" }));
-    expect(jump).toHaveBeenLastCalledWith("g1");
-    fireEvent.click(screen.getByRole("button", { name: "Next group" }));
-    expect(jump).toHaveBeenLastCalledWith("g3");
-  });
-
-  it("clamps at the ends and lands on the first group when none is active", () => {
-    const jump = vi.fn();
-    renderToolbar({ jumpToGroup: jump }, "g1");
-    fireEvent.click(screen.getByRole("button", { name: "Previous group" }));
-    expect(jump).toHaveBeenLastCalledWith("g1");
-    cleanup();
-    const jumpAtLast = vi.fn();
-    renderToolbar({ jumpToGroup: jumpAtLast }, "g3");
-    fireEvent.click(screen.getByRole("button", { name: "Next group" }));
-    expect(jumpAtLast).toHaveBeenLastCalledWith("g3");
-    cleanup();
-    const jumpFromNone = vi.fn();
-    renderToolbar({ jumpToGroup: jumpFromNone }, null);
-    expect(screen.getByText("Group –/3")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Next group" }));
-    expect(jumpFromNone).toHaveBeenLastCalledWith("g1");
   });
 });

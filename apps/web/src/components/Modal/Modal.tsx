@@ -1,12 +1,8 @@
-import { useEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import clsx from "clsx";
-import styles from "./Modal.module.scss";
 
-// Focusable elements inside the dialog box, for the Tab trap. `aria-disabled`
-// controls are deliberately NOT excluded — they stay focusable so they keep
-// announcing why they are off.
-const FOCUSABLE =
-  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+import { useFocusTrap } from "../../hooks/useFocusTrap";
+import styles from "./Modal.module.scss";
 
 export interface ModalProps {
   open: boolean;
@@ -70,26 +66,7 @@ export function Modal({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open, close]);
 
-  // Tab trap: focus cycles inside the box while the modal is open — the page
-  // behind it stays visually present but must be unreachable by keyboard.
-  const onTrapKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== "Tab") return;
-    const nodes = boxRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE);
-    if (!nodes || nodes.length === 0) {
-      event.preventDefault();
-      return;
-    }
-    const first = nodes[0];
-    const last = nodes[nodes.length - 1];
-    const active = document.activeElement;
-    if (event.shiftKey && (active === first || active === boxRef.current)) {
-      event.preventDefault();
-      last?.focus();
-    } else if (!event.shiftKey && active === last) {
-      event.preventDefault();
-      first?.focus();
-    }
-  };
+  const onTrapKeyDown = useFocusTrap(boxRef);
 
   return (
     <div

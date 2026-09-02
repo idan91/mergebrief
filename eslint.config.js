@@ -201,7 +201,7 @@ export default [
     },
   },
   {
-    // The shared-button enforcement (see docs/plans/button-migration-plan.md):
+    // The shared-button enforcement:
     // raw `<button>` JSX and `target="_blank"` on a raw `<a>` are banned in
     // apps/web source outside the shared components' own files. The bespoke
     // sites carry `eslint-disable-next-line no-restricted-syntax` with a
