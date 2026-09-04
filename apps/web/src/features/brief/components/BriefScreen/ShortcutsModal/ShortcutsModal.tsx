@@ -1,10 +1,9 @@
 import type { TranslationKey } from "i18n";
-import clsx from "clsx";
 import { useTranslation } from "react-i18next";
-import { Button } from "@web/components/Button/Button";
+import { IconButton } from "@web/components/IconButton/IconButton";
 import { Modal } from "@web/components/Modal/Modal";
-import modalStyles from "@web/components/Modal/Modal.module.scss";
-import { Kbd } from "../Kbd/Kbd";
+import { Kbd, KbdGroup } from "../Kbd/Kbd";
+import CloseIcon from "./icons/close.svg?react";
 import styles from "./ShortcutsModal.module.scss";
 
 export interface ShortcutsModalProps {
@@ -13,7 +12,7 @@ export interface ShortcutsModalProps {
 }
 
 interface ShortcutDefinition {
-  key: string;
+  keys: readonly string[];
   /** Catalog key for the binding's description. */
   descriptionKey: TranslationKey;
 }
@@ -30,24 +29,24 @@ const SECTIONS: ShortcutSection[] = [
     id: "general",
     headingKey: "brief.shortcuts.sectionGeneral",
     shortcuts: [
-      { key: "J", descriptionKey: "brief.shortcuts.nextChunk" },
-      { key: "K", descriptionKey: "brief.shortcuts.previousChunk" },
-      { key: "Shift+J", descriptionKey: "brief.shortcuts.nextGroup" },
-      { key: "Shift+K", descriptionKey: "brief.shortcuts.previousGroup" },
-      { key: "C", descriptionKey: "brief.shortcuts.jumpConversation" },
-      { key: "S", descriptionKey: "brief.shortcuts.toggleSidebar" },
-      { key: "R", descriptionKey: "brief.shortcuts.quoteThread" },
-      { key: "?", descriptionKey: "brief.shortcuts.toggleShortcuts" },
-      { key: "Esc", descriptionKey: "brief.shortcuts.closeDialog" },
+      { keys: ["J"], descriptionKey: "brief.shortcuts.nextChunk" },
+      { keys: ["K"], descriptionKey: "brief.shortcuts.previousChunk" },
+      { keys: ["Shift", "J"], descriptionKey: "brief.shortcuts.nextGroup" },
+      { keys: ["Shift", "K"], descriptionKey: "brief.shortcuts.previousGroup" },
+      { keys: ["C"], descriptionKey: "brief.shortcuts.jumpConversation" },
+      { keys: ["S"], descriptionKey: "brief.shortcuts.toggleSidebar" },
+      { keys: ["R"], descriptionKey: "brief.shortcuts.quoteThread" },
+      { keys: ["?"], descriptionKey: "brief.shortcuts.toggleShortcuts" },
+      { keys: ["Esc"], descriptionKey: "brief.shortcuts.closeDialog" },
     ],
   },
   {
     id: "focus-mode",
     headingKey: "brief.shortcuts.sectionFocusMode",
     shortcuts: [
-      { key: "Z", descriptionKey: "brief.shortcuts.focusMode" },
-      { key: "V", descriptionKey: "brief.shortcuts.markViewed" },
-      { key: "Esc", descriptionKey: "brief.shortcuts.exitFocusMode" },
+      { keys: ["Z"], descriptionKey: "brief.shortcuts.focusMode" },
+      { keys: ["V"], descriptionKey: "brief.shortcuts.markViewed" },
+      { keys: ["Esc"], descriptionKey: "brief.shortcuts.exitFocusMode" },
     ],
   },
 ];
@@ -55,8 +54,22 @@ const SECTIONS: ShortcutSection[] = [
 export function ShortcutsModal({ open, close }: ShortcutsModalProps) {
   const { t } = useTranslation();
   return (
-    <Modal open={open} close={close} labelledBy="shortcuts-modal-heading">
-      <h2 id="shortcuts-modal-heading">{t("brief.shortcuts.heading")}</h2>
+    <Modal
+      boxClassName={styles["box"]}
+      close={close}
+      labelledBy="shortcuts-modal-heading"
+      open={open}
+    >
+      <div className={styles["header"]}>
+        <h2 id="shortcuts-modal-heading">{t("brief.shortcuts.heading")}</h2>
+        <IconButton
+          label={t("brief.shortcuts.close")}
+          size="md"
+          onClick={close}
+        >
+          <CloseIcon aria-hidden="true" />
+        </IconButton>
+      </div>
       <div className={styles["sections"]}>
         {SECTIONS.map((section) => (
           <section key={section.id}>
@@ -67,9 +80,13 @@ export function ShortcutsModal({ open, close }: ShortcutsModalProps) {
                 is valid grouping markup and keeps the row layout untouched. */}
             <dl className={styles["list"]}>
               {section.shortcuts.map((shortcut) => (
-                <div className={styles["row"]} key={shortcut.key}>
+                <div className={styles["row"]} key={shortcut.descriptionKey}>
                   <dt>
-                    <Kbd>{shortcut.key}</Kbd>
+                    <KbdGroup>
+                      {shortcut.keys.map((key) => (
+                        <Kbd key={key}>{key}</Kbd>
+                      ))}
+                    </KbdGroup>
                   </dt>
                   <dd>{t(shortcut.descriptionKey)}</dd>
                 </div>
@@ -77,9 +94,6 @@ export function ShortcutsModal({ open, close }: ShortcutsModalProps) {
             </dl>
           </section>
         ))}
-      </div>
-      <div className={clsx(modalStyles["actions"], styles["actions"])}>
-        <Button onClick={close}>{t("brief.shortcuts.close")}</Button>
       </div>
     </Modal>
   );

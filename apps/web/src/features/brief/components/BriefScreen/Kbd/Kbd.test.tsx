@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { Kbd, KbdSizes } from "./Kbd";
+import { Kbd, KbdGroup, KbdSizes } from "./Kbd";
 
 afterEach(cleanup);
 
@@ -23,5 +23,21 @@ describe("Kbd", () => {
     const cap = screen.getByText("J");
     expect(cap.getAttribute("data-size")).toBe(KbdSizes.SM);
     expect(cap.className).toContain("extra");
+  });
+});
+
+describe("KbdGroup", () => {
+  it("joins chord members with a plus", () => {
+    render(
+      <KbdGroup>
+        <Kbd>Shift</Kbd>
+        <Kbd>J</Kbd>
+      </KbdGroup>,
+    );
+    const caps = screen
+      .getAllByText(/Shift|J/)
+      .filter((el) => el.tagName === "KBD");
+    expect(caps.map((cap) => cap.textContent)).toEqual(["Shift", "J"]);
+    expect(caps[0]?.parentElement?.textContent).toBe("Shift+J");
   });
 });

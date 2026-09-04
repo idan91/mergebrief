@@ -57,4 +57,16 @@ describe("ShortcutsModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(close).toHaveBeenCalledTimes(1);
   });
+
+  it("renders a chord as separate caps joined by a plus", () => {
+    renderOpenModal();
+    const nextGroup = screen.getByText(
+      "Next group — Read-through, in Reading order",
+    );
+    const caps = [...(nextGroup.closest("div")?.querySelectorAll("kbd") ?? [])];
+    expect(caps.map((cap) => cap.textContent)).toEqual(["Shift", "J"]);
+    expect(nextGroup.closest("div")?.querySelector("dt")?.textContent).toBe(
+      "Shift+J",
+    );
+  });
 });
