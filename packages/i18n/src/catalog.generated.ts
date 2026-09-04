@@ -71,8 +71,6 @@ export type Catalog = typeof en & {
       jumpToGroupTitled: "go to change-group {{groupId}} — {{title}}";
       deviations_one: "<0>{{count}}</0> deviation";
       deviations_other: "<0>{{count}}</0> deviations";
-      linkedTickets_one: "{{count}} linked ticket";
-      linkedTickets_other: "{{count}} linked tickets";
       unavailable: "intent check unavailable — {{reason}}";
       accomplished_one: "<0>{{count}}</0> accomplished";
       accomplished_other: "<0>{{count}}</0> accomplished";

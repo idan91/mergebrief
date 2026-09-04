@@ -3,22 +3,6 @@ import type { TranslationKey } from "i18n";
 import type { IntentCheck, IntentItem } from "../../../types";
 
 /**
- * The preamble bullet's visible id — the last non-empty PATH segment of the
- * ticket URL (query/fragment never leak into it); a raw-split tail for
- * non-URL values, and the raw value when no tail exists.
- */
-export function deriveTicketId(url: string): string {
-  let source = url;
-  try {
-    source = new URL(url).pathname;
-  } catch {
-    // Not parseable as a URL — fall back to splitting the raw value.
-  }
-  const tail = source.split("/").findLast((segment) => segment !== "");
-  return tail ?? url;
-}
-
-/**
  * Scheme allowlist for a model-produced URL before it becomes an href. A
  * non-http(s) value renders as plain text.
  */

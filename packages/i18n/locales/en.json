@@ -301,8 +301,6 @@
       "jumpToGroupTitled": "go to change-group {{groupId}} — {{title}}",
       "deviations_one": "<0>{{count}}</0> deviation",
       "deviations_other": "<0>{{count}}</0> deviations",
-      "linkedTickets_one": "{{count}} linked ticket",
-      "linkedTickets_other": "{{count}} linked tickets",
       "unavailable": "intent check unavailable — {{reason}}",
       "reasonBroad": "the ticket scope is too broad to check against this PR",
       "reasonNone": "no stated intent was available for this PR",
@@ -321,7 +319,24 @@
       "doneButUnstated_one": "<0>{{count}}</0> done but unstated",
       "doneButUnstated_other": "<0>{{count}}</0> done but unstated",
       "source": "source",
+      "ticket": "ticket",
       "prDescription": "PR description",
+      "alignmentTitle": "Ticket alignment",
+      "ticketAsks": "Ticket asks",
+      "thisPr": "This PR",
+      "read": {
+        "aligned": "Aligned",
+        "partial": "Partial",
+        "misaligned": "Misaligned"
+      },
+      "noRead": "no read — the ticket scope is too broad to check against this PR",
+      "noReadPrecise": "no read — the ticket states no goal to check this PR against",
+      "foundIn": {
+        "description": "referenced in the PR description",
+        "title": "referenced in the PR title",
+        "branch": "referenced in the branch name"
+      },
+      "alignmentCaution": "AI-inferred read — verify against the ticket and the diff",
       "ticketUnread": "{{key}} could not be read.",
       "noAlignmentRead": "No alignment read for this PR.",
       "reason": {

@@ -21,8 +21,8 @@ import {
   UNAVAILABLE_REASON_KEY,
 } from "./consts";
 import styles from "./IntentBar.module.scss";
+import { TicketAlignment } from "./TicketAlignment/TicketAlignment";
 import {
-  deriveTicketId,
   isHttpUrl,
   partitionIntentCheck,
   type IntentBucketSpec,
@@ -49,11 +49,22 @@ export interface IntentItemRowProps {
   item: IntentItem;
   jumpToGroup: (groupId: string) => void;
   groupTitles: Record<string, string>;
+  /** The primary ticket's URL; an item quoting it is labelled "ticket". */
+  ticketUrl?: string | undefined;
 }
 
-function IntentItemRow({ item, jumpToGroup, groupTitles }: IntentItemRowProps) {
+function IntentItemRow({
+  item,
+  jumpToGroup,
+  groupTitles,
+  ticketUrl,
+}: IntentItemRowProps) {
   const { t } = useTranslation();
   const linked = item.sourceUrl !== "" && isHttpUrl(item.sourceUrl);
+  const fromTicket = linked && item.sourceUrl === ticketUrl;
+  const sourceLabel = fromTicket
+    ? t("brief.intent.ticket")
+    : t("brief.intent.source");
   // ids-multi disambiguation: a visible id only where the ambiguity
   // exists — claims carrying several groups.
   const multiGroup = item.groupIds.length > 1;
@@ -77,7 +88,7 @@ function IntentItemRow({ item, jumpToGroup, groupTitles }: IntentItemRowProps) {
                   href={item.sourceUrl}
                   target="_blank"
                 >
-                  {t("brief.intent.source")}
+                  {sourceLabel}
                 </AccessibleLink>
               </Badge>
             ) : item.sourceUrl === "" && item.quote !== "" ? (
@@ -128,9 +139,15 @@ export interface IntentBucketProps {
   bucket: IntentBucketSpec;
   jumpToGroup: (groupId: string) => void;
   groupTitles: Record<string, string>;
+  ticketUrl?: string | undefined;
 }
 
-function IntentBucket({ bucket, jumpToGroup, groupTitles }: IntentBucketProps) {
+function IntentBucket({
+  bucket,
+  jumpToGroup,
+  groupTitles,
+  ticketUrl,
+}: IntentBucketProps) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const listId = useId();
@@ -163,6 +180,7 @@ function IntentBucket({ bucket, jumpToGroup, groupTitles }: IntentBucketProps) {
             item={item}
             jumpToGroup={jumpToGroup}
             key={`${item.intent}::${item.quote}`}
+            ticketUrl={ticketUrl}
           />
         ))}
       </ul>
@@ -212,16 +230,18 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
       [],
     );
 
-    const { specificity, ticketUrls, ticketTitles, scopeNote } = intentCheck;
+    const { specificity, scopeNote, primaryTicket, alignment } = intentCheck;
     const available = specificity === "precise";
 
     const partition = partitionIntentCheck(intentCheck);
+    const ticketUrl = primaryTicket?.url;
     const checksOut = partition.checksOut.map((bucket) => (
       <IntentBucket
         bucket={bucket}
         groupTitles={groupTitles}
         jumpToGroup={jumpToGroup}
         key={bucket.key}
+        ticketUrl={ticketUrl}
       />
     ));
     const needsALook = partition.needsALook.map((bucket) => (
@@ -230,6 +250,7 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
         groupTitles={groupTitles}
         jumpToGroup={jumpToGroup}
         key={bucket.key}
+        ticketUrl={ticketUrl}
       />
     ));
 
@@ -304,38 +325,12 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
           {scopeNote !== "" ? (
             <p className={styles["scopeNote"]}>{scopeNote}</p>
           ) : null}
-          {ticketUrls.length > 0 ? (
-            <div className={styles["ticketSection"]}>
-              <span className={styles["ticketCount"]}>
-                {t("brief.intent.linkedTickets", {
-                  count: ticketUrls.length,
-                })}
-              </span>
-              <ul className={styles["ticketList"]}>
-                {ticketUrls.map((url, index) => {
-                  const title = ticketTitles[index] ?? "";
-                  return (
-                    <li key={url}>
-                      <span aria-hidden="true" className={styles["marker"]}>
-                        ▪
-                      </span>
-                      <span>
-                        {isHttpUrl(url) ? (
-                          <AccessibleLink href={url} target="_blank">
-                            {deriveTicketId(url)}
-                          </AccessibleLink>
-                        ) : (
-                          <span>{deriveTicketId(url)}</span>
-                        )}
-                        {title !== "" ? (
-                          <span className={styles["ticketTitle"]}>{title}</span>
-                        ) : null}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
+          {primaryTicket ? (
+            <TicketAlignment
+              alignment={alignment}
+              primaryTicket={primaryTicket}
+              specificity={specificity}
+            />
           ) : null}
           {available ? (
             <div className={styles["split"]}>

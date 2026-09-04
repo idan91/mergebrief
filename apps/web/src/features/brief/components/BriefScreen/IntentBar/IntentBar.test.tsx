@@ -4,11 +4,29 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { IntentBar, type IntentBarHandle } from "./IntentBar";
-import type { IntentCheck } from "../../../types";
+import type { IntentCheck, PrimaryTicket } from "../../../types";
 
 afterEach(cleanup);
 
-const PRECISE: IntentCheck = {
+const PRIMARY: PrimaryTicket = {
+  key: "T-1",
+  url: "https://tracker.example/T-1",
+  tracker: "github",
+  foundIn: "description",
+  title: "Widget endpoint returns the list",
+  header: "",
+  status: "read",
+  reason: "",
+};
+
+const ALIGNMENT: IntentCheck["alignment"] = {
+  read: "partial",
+  goal: "Add a widget endpoint returning the list and document it",
+  response: "The diff adds the endpoint; the API guide is untouched.",
+};
+
+/** A precise check with no primary ticket (older briefs, or no reference found). */
+const PRECISE_NO_TICKET: IntentCheck = {
   ticketUrls: ["https://tracker.example/T-1"],
   ticketTitles: [],
   specificity: "precise",
@@ -44,11 +62,23 @@ const PRECISE: IntentCheck = {
   claimedButUnachieved: [],
 };
 
+const PRECISE: IntentCheck = {
+  ...PRECISE_NO_TICKET,
+  primaryTicket: PRIMARY,
+  alignment: ALIGNMENT,
+};
+
 const BROAD: IntentCheck = {
   ticketUrls: ["https://tracker.example/EPIC-9"],
   ticketTitles: [],
   specificity: "broad",
   scopeNote: "parent epic spans several PRs",
+  primaryTicket: {
+    ...PRIMARY,
+    key: "EPIC-9",
+    url: "https://tracker.example/EPIC-9",
+    title: "Widgets everywhere",
+  },
   accomplished: [],
   statedButMissing: [],
   doneButUnstated: [],
@@ -71,9 +101,10 @@ describe("IntentBar", () => {
     ]) {
       expect(toggle.textContent).toContain(pair);
     }
-    // Provenance, not a bucket count — the linked-ticket line lives in the
+    // Provenance, not a bucket count — the Ticket alignment card lives in the
     // panel preamble, never the bar.
-    expect(toggle.textContent).not.toContain("linked ticket");
+    expect(toggle.textContent).not.toContain("Ticket alignment");
+    expect(toggle.textContent).not.toContain("partial");
   });
 
   it("starts collapsed and never auto-expands, even with a missing ask", () => {
@@ -108,93 +139,77 @@ describe("IntentBar", () => {
     const body = bodyText();
     expect(
       body.indexOf("later URL-box work is outside this diff"),
-    ).toBeLessThan(body.indexOf("1 linked ticket"));
+    ).toBeLessThan(body.indexOf("Ticket alignment"));
   });
 
-  it("renders the linked-ticket subsection in the preamble: count line + id bullets", () => {
+  it("renders the Ticket alignment subsection in the preamble, above the split", () => {
     render(<IntentBar intentCheck={PRECISE} jumpToGroup={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
-    expect(screen.getByText("1 linked ticket")).toBeTruthy();
-    // The id derives from the URL tail and carries the link.
+    expect(
+      screen.getByRole("heading", { level: 3, name: "Ticket alignment" }),
+    ).toBeTruthy();
     const link = screen.getByRole("link", {
       name: /^T-1 ?\(opens in a new tab\)$/,
     });
     expect(link.getAttribute("href")).toBe("https://tracker.example/T-1");
-    // The subsection precedes the buckets.
+    expect(screen.getByText("Widget endpoint returns the list")).toBeTruthy();
+    expect(screen.getByTestId("ticket-alignment-read").textContent).toBe(
+      "Partial",
+    );
+    // The subsection precedes the split's headings and the buckets.
     const body = bodyText();
-    expect(body.indexOf("1 linked ticket")).toBeLessThan(
+    expect(body.indexOf("Ticket alignment")).toBeLessThan(
+      body.indexOf("Checks out"),
+    );
+    expect(body.indexOf("Ticket alignment")).toBeLessThan(
       body.indexOf("add the widget endpoint"),
     );
   });
 
-  it("renders id — title bullets when the check carries ticket titles", () => {
+  it("keeps the card with a no-read row when a read ticket has no alignment", () => {
     render(
       <IntentBar
-        intentCheck={{
-          ...PRECISE,
-          ticketTitles: ["Widget endpoint returns the list"],
-        }}
+        intentCheck={{ ...PRECISE_NO_TICKET, primaryTicket: PRIMARY }}
         jumpToGroup={() => {}}
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
-    // The id keeps the link; the title rides beside it as plain dim text
-    // (the dash joiner is CSS content, not DOM text).
-    expect(
-      screen.getByRole("link", { name: /^T-1 ?\(opens in a new tab\)$/ }),
-    ).toBeTruthy();
-    expect(screen.getByText("Widget endpoint returns the list")).toBeTruthy();
-  });
-
-  it("keeps the id-only bullet when the title is empty (pre-title briefs)", () => {
-    render(<IntentBar intentCheck={PRECISE} jumpToGroup={() => {}} />);
-    fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
-    const bullet = screen
-      .getByRole("link", { name: /^T-1 ?\(opens in a new tab\)$/ })
-      .closest("li");
-    // Marker + linked id only — no title element renders (a dangling empty
-    // span would still paint its CSS-content dash, invisible to textContent).
-    expect(bullet?.textContent?.trim()).toBe("▪T-1 (opens in a new tab)");
-    expect(bullet?.querySelector('span[class*="ticketTitle"]')).toBeNull();
-  });
-
-  it("derives the ticket id from the URL path tail, dropping query and fragment", () => {
-    render(
-      <IntentBar
-        intentCheck={{
-          ...PRECISE,
-          ticketUrls: ["https://tracker.example/browse/T-7?filter=x#top"],
-        }}
-        jumpToGroup={() => {}}
-      />,
+    expect(screen.getByTestId("ticket-alignment")).toBeTruthy();
+    // Precise, so the row must not blame the ticket's scope.
+    expect(screen.getByTestId("ticket-alignment-no-read").textContent).toBe(
+      "no read — the ticket states no goal to check this PR against",
     );
-    fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
-    expect(
-      screen.getByRole("link", { name: /^T-7 ?\(opens in a new tab\)$/ }),
-    ).toBeTruthy();
+    expect(screen.queryByTestId("ticket-alignment-read")).toBeNull();
   });
 
-  it("never links a non-http(s) ticket URL — the id renders as plain text", () => {
-    const sneaky: IntentCheck = {
-      ...PRECISE,
-      // eslint-disable-next-line no-script-url
-      ticketUrls: ["javascript:alert(1)"],
+  it("renders the unread notice inside the card and still the buckets", () => {
+    const unread: IntentCheck = {
+      ...PRECISE_NO_TICKET,
+      primaryTicket: {
+        ...PRIMARY,
+        title: "",
+        status: "unread",
+        reason: "rate-limited",
+      },
     };
-    render(<IntentBar intentCheck={sneaky} jumpToGroup={() => {}} />);
+    render(<IntentBar intentCheck={unread} jumpToGroup={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
-    expect(screen.getByText("1 linked ticket")).toBeTruthy();
-    expect(screen.queryByRole("link", { name: /alert/ })).toBeNull();
+    expect(screen.getByRole("status").textContent).toBe(
+      "T-1 could not be read. GitHub rate-limited the read. No alignment read for this PR.",
+    );
+    expect(screen.getByText("add the widget endpoint")).toBeTruthy();
   });
 
-  it("omits the linked-ticket subsection entirely when there are no tickets", () => {
+  it("omits the subsection entirely without a primary ticket — no linked-tickets list remains", () => {
     render(
-      <IntentBar
-        intentCheck={{ ...PRECISE, ticketUrls: [] }}
-        jumpToGroup={() => {}}
-      />,
+      <IntentBar intentCheck={PRECISE_NO_TICKET} jumpToGroup={() => {}} />,
     );
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
+    expect(screen.queryByTestId("ticket-alignment")).toBeNull();
     expect(screen.queryByText(/linked ticket/)).toBeNull();
+    expect(screen.queryByText("Ticket alignment")).toBeNull();
+    // `ticketUrls` is still on the wire but renders nothing on its own.
+    expect(screen.queryByRole("link", { name: /T-1/ })).toBeNull();
   });
 
   it("renders broad sources as the same quiet bar with an unavailability line and no buckets", () => {
@@ -202,12 +217,15 @@ describe("IntentBar", () => {
     expect(screen.getByText(/intent check unavailable/i)).toBeTruthy();
     expect(screen.queryByText("1 accomplished")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
-    // Body keeps the preamble (scope note + ticket provenance), no buckets.
+    // Body keeps the preamble (scope note + the card with its no-read row),
+    // no buckets.
     expect(screen.getByText("parent epic spans several PRs")).toBeTruthy();
-    expect(screen.getByText("1 linked ticket")).toBeTruthy();
     expect(
       screen.getByRole("link", { name: /^EPIC-9 ?\(opens in a new tab\)$/ }),
     ).toBeTruthy();
+    expect(screen.getByTestId("ticket-alignment-no-read").textContent).toBe(
+      "no read — the ticket scope is too broad to check against this PR",
+    );
     expect(screen.queryByText("Accomplished")).toBeNull();
   });
 
@@ -249,7 +267,7 @@ describe("IntentBar", () => {
     render(<IntentBar intentCheck={mixedSources} jumpToGroup={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
     const [linked] = screen.getAllByRole("link", {
-      name: /^source ?\(opens in a new tab\)$/,
+      name: /^ticket ?\(opens in a new tab\)$/,
     });
     expect(linked?.closest('[data-color="neutral"]')).not.toBeNull();
     expect(
@@ -331,13 +349,30 @@ describe("IntentBar", () => {
     ).toBe("↳g6");
   });
 
-  it("links a valid http(s) source and attributes an empty sourceUrl to the PR description", () => {
-    render(<IntentBar intentCheck={PRECISE} jumpToGroup={() => {}} />);
+  it('labels an item quoting the primary ticket "ticket", any other linked page "source", and an empty sourceUrl the PR description', () => {
+    const withLinkedPage: IntentCheck = {
+      ...PRECISE,
+      statedButMissing: [
+        ...PRECISE.statedButMissing,
+        {
+          intent: "docs example",
+          quote: "add a usage example",
+          sourceUrl: "https://docs.example/spec",
+          groupIds: [],
+          acknowledged: false,
+        },
+      ],
+    };
+    render(<IntentBar intentCheck={withLinkedPage} jumpToGroup={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
     const link = screen.getAllByRole("link", {
-      name: /^source ?\(opens in a new tab\)$/,
+      name: /^ticket ?\(opens in a new tab\)$/,
     })[0];
     expect(link?.getAttribute("href")).toBe("https://tracker.example/T-1");
+    const page = screen.getByRole("link", {
+      name: /^source ?\(opens in a new tab\)$/,
+    });
+    expect(page.getAttribute("href")).toBe("https://docs.example/spec");
     expect(link?.getAttribute("rel")).toContain("noreferrer");
     // doneButUnstated item sources from the diff — no ticket link, no attribution row.
     expect(screen.getByText("drive-by lint fix")).toBeTruthy();
@@ -628,7 +663,10 @@ describe("IntentBar — alarm buckets", () => {
     render(<IntentBar intentCheck={BROAD} jumpToGroup={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
     // Unavailable sources render no split body at all — no heads, no lines.
-    expect(screen.queryByRole("heading", { level: 3 })).toBeNull();
+    // The Ticket alignment card's own h3 is the only level-3 heading left.
+    expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(1);
+    expect(screen.queryByText("Checks out")).toBeNull();
+    expect(screen.queryByText("Needs a look")).toBeNull();
     expect(screen.queryByText(/^nothing /)).toBeNull();
   });
 

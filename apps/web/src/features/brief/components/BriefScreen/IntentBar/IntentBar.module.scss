@@ -118,35 +118,6 @@
     max-inline-size: 72ch;
   }
 
-  .ticketSection {
-    font-size: var(--font-size-lg);
-    margin-block: functions.to-rem(2px) functions.to-rem(12px);
-  }
-
-  .ticketCount {
-    color: var(--dim);
-  }
-
-  .ticketTitle {
-    color: var(--dim);
-
-    &::before {
-      content: " — ";
-    }
-  }
-
-  .ticketList {
-    list-style: none;
-    margin-block: functions.to-rem(4px) 0;
-    padding: 0;
-
-    > li {
-      display: flex;
-      align-items: baseline;
-      gap: functions.to-rem(8px);
-    }
-  }
-
   .split {
     display: grid;
 
