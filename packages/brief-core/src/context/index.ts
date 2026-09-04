@@ -8,16 +8,19 @@ export type {
   ContextProviderType,
   ContextQuery,
   ContextReadFailure,
-  ContextReadReason,
   ContextSnippet,
+  PrimarySnippet,
+  PrimaryTicketOutcome,
   ProviderSnippet,
 } from "./types";
-export { ContextProviderTypes, ContextReadReasons } from "./types";
+export { ContextProviderTypes } from "./types";
 export {
   CONTEXT_PROVIDER_TIMEOUT_MS,
   fetchContextSnippets,
+  type ContextFetch,
   type FetchContextSnippetsOptions,
 } from "./fan-out";
+export { toPrimaryTicket } from "./primary";
 export {
   BUILT_IN_CONTEXT_PROVIDER_TYPES,
   CONTEXT_REGISTRY,

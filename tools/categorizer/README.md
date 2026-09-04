@@ -58,6 +58,20 @@ The index is assigned from a per-PR manifest `out/<owner>-<repo>-<num>.briefs.js
 
 By default the brief covers the **whole PR at the current head** (range read from `gh pr view`). Passing an explicit `<base-sha> <head-sha>` (mirroring `delta`) briefs that span instead — useful for dogfooding the full flow on a real PR with comments: generate `_1` at an earlier head, then a `delta`, then `_2` at the later head.
 
+### Primary ticket (`--context <file>`)
+
+The brief names one **primary ticket** per PR (a key matching the repo's `tracker:` block in `.mergebrief/settings.yaml`, a `#N`, an issue URL, or a branch segment starting `N-`) and reads it through a tracker provider. When no provider can read it locally, or an MCP or script already has the text, hand it over as JSON:
+
+```bash
+pnpm categorize --context ticket.json https://github.com/o/r/pull/1
+```
+
+```json
+{ "url": "https://tasks.example/DS-42", "key": "DS-42", "tracker": "notion", "title": "…", "header": "Status: Now", "content": "…" }
+```
+
+Only `url` and `content` are required. The file replaces the fetch for the primary and is stamped as read. An unread primary prints `error: <key> could not be read (<code>) — <reason>` on stderr and still exits 0: the brief was generated, the alignment read is absent. `delta` takes the same flag.
+
 ### Delta (re-review reload)
 
 ```bash

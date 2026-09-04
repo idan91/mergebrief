@@ -22,7 +22,7 @@ import {
 import {
   FixtureSchema,
   toRepoContext,
-  toSnippets,
+  toFetchedPr,
   type EvalFixture,
 } from "./loadCase";
 import type { CaseOutcome } from "./report";
@@ -236,7 +236,7 @@ async function loadOnePair(
 function toEvalFixture(value: z.infer<typeof FixtureSchema>): EvalFixture {
   const repoContext = toRepoContext(value.repoContext);
   return {
-    pr: { ...value.pr, links: toSnippets(value.pr.links) },
+    pr: toFetchedPr(value.pr),
     commitRange: value.commitRange,
     ...(repoContext === undefined ? {} : { repoContext }),
   };

@@ -7,6 +7,10 @@
 import { describe, expect, it } from "vitest";
 import {
   Categories as BriefCoreCategories,
+  PrimaryTicketStatuses as BriefCorePrimaryTicketStatuses,
+  ReferenceLocations as BriefCoreReferenceLocations,
+  TicketTrackers as BriefCoreTicketTrackers,
+  TicketUnreadReasons as BriefCoreTicketUnreadReasons,
   Concerns as BriefCoreConcerns,
   Roles as BriefCoreRoles,
   RiskSurfaceAttributes as BriefCoreRiskSurfaceAttributes,
@@ -18,6 +22,10 @@ import {
 import type { Equals } from "types";
 import {
   Categories,
+  PrimaryTicketStatuses,
+  ReferenceLocations,
+  TicketTrackers,
+  TicketUnreadReasons,
   Concerns,
   Roles,
   RiskSurfaceAttributes,
@@ -41,6 +49,26 @@ const VOCABULARY_PINS: readonly VocabularyPin[] = [
     label: "RiskSurfaceAttributes",
     mirror: RiskSurfaceAttributes,
     source: BriefCoreRiskSurfaceAttributes,
+  },
+  {
+    label: "TicketTrackers",
+    mirror: TicketTrackers,
+    source: Object.values(BriefCoreTicketTrackers),
+  },
+  {
+    label: "ReferenceLocations",
+    mirror: ReferenceLocations,
+    source: Object.values(BriefCoreReferenceLocations),
+  },
+  {
+    label: "PrimaryTicketStatuses",
+    mirror: PrimaryTicketStatuses,
+    source: Object.values(BriefCorePrimaryTicketStatuses),
+  },
+  {
+    label: "TicketUnreadReasons",
+    mirror: TicketUnreadReasons,
+    source: Object.values(BriefCoreTicketUnreadReasons),
   },
 ];
 

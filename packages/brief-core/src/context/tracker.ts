@@ -1,18 +1,17 @@
 import { z } from "zod/v4";
-import type { ValueOf } from "types";
+import {
+  ReferenceLocations,
+  TicketTrackers,
+  type ReferenceLocation,
+  type TicketTracker,
+} from "../types";
 
-export const TicketTrackers = {
-  GITHUB: "github",
-  NOTION: "notion",
-} as const;
-export type TicketTracker = ValueOf<typeof TicketTrackers>;
-
-export const ReferenceLocations = {
-  DESCRIPTION: "description",
-  TITLE: "title",
-  BRANCH: "branch",
-} as const;
-export type ReferenceLocation = ValueOf<typeof ReferenceLocations>;
+export {
+  ReferenceLocations,
+  TicketTrackers,
+  type ReferenceLocation,
+  type TicketTracker,
+};
 
 /** Key prefixes are short identifier words; anything else refuses the block. */
 const KEY_PREFIX = /^[A-Za-z][A-Za-z0-9_]{0,19}$/;

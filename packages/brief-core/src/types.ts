@@ -456,6 +456,73 @@ export const IntentItemSchema = z.object({
     ),
 });
 
+/** Which tracker a ticket lives in. */
+export const TicketTrackers = {
+  GITHUB: "github",
+  NOTION: "notion",
+} as const;
+export type TicketTracker = ValueOf<typeof TicketTrackers>;
+
+/** Where in the PR the primary ticket's reference was first found. */
+export const ReferenceLocations = {
+  DESCRIPTION: "description",
+  TITLE: "title",
+  BRANCH: "branch",
+} as const;
+export type ReferenceLocation = ValueOf<typeof ReferenceLocations>;
+
+/** Whether the harness read the primary ticket. Harness-written, never model-produced. */
+export const PrimaryTicketStatuses = {
+  READ: "read",
+  UNREAD: "unread",
+} as const;
+export type PrimaryTicketStatus = ValueOf<typeof PrimaryTicketStatuses>;
+
+/** Why a primary ticket went unread: a closed set, one copy template each. */
+export const TicketUnreadReasons = {
+  NOT_FOUND: "not-found",
+  NO_CREDENTIAL: "no-credential",
+  TIMEOUT: "timeout",
+  RATE_LIMITED: "rate-limited",
+  UNSUPPORTED: "unsupported",
+} as const;
+export type TicketUnreadReason = ValueOf<typeof TicketUnreadReasons>;
+
+/**
+ * The one ticket this PR is about, as the harness resolved and read it.
+ * Stamped after generation; the model never sees or produces it.
+ */
+export const PrimaryTicketSchema = z.object({
+  key: z
+    .string()
+    .describe('the tracker key, e.g. "BRIEF-239"; "" for a URL-only reference'),
+  url: z.string().describe("canonical ticket URL"),
+  tracker: z.enum([TicketTrackers.GITHUB, TicketTrackers.NOTION]),
+  foundIn: z.enum([
+    ReferenceLocations.DESCRIPTION,
+    ReferenceLocations.TITLE,
+    ReferenceLocations.BRANCH,
+  ]),
+  title: z.string().describe('the ticket title; "" when unread'),
+  header: z
+    .string()
+    .describe(
+      'the tracker header line (status, type, priority; or state, labels, milestone); "" when none',
+    ),
+  status: z.enum([PrimaryTicketStatuses.READ, PrimaryTicketStatuses.UNREAD]),
+  reason: z
+    .enum([
+      TicketUnreadReasons.NOT_FOUND,
+      TicketUnreadReasons.NO_CREDENTIAL,
+      TicketUnreadReasons.TIMEOUT,
+      TicketUnreadReasons.RATE_LIMITED,
+      TicketUnreadReasons.UNSUPPORTED,
+      "",
+    ])
+    .describe('why the ticket went unread; "" when read'),
+});
+export type PrimaryTicket = z.infer<typeof PrimaryTicketSchema>;
+
 /**
  * The ticket-gated intent check: did this PR do what its composite intent
  * source (title + description + ticket-like linked blocks) asked? Factual
@@ -513,6 +580,9 @@ export const IntentCheckSchema = z.object({
     .describe(
       "asks the sources claim fixed/delivered while the diff operates only on the problem's signal/check path (log demotion, catch-and-swallow, test skip/delete, threshold bump) — nothing in the diff plausibly fixes the problem itself. Verbatim quote + at least one groupId required (both-sides grounding). Empty when specificity is broad/none",
     ),
+  primaryTicket: PrimaryTicketSchema.optional().describe(
+    "the one ticket this PR is about, as the harness resolved and read it. Harness-written after generation, never model-produced; absent when the PR references no ticket.",
+  ),
 });
 
 /**

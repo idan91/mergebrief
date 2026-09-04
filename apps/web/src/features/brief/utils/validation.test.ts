@@ -4,7 +4,7 @@ import {
   parseBrief,
   parseDeltaBrief,
   parseRevisionNarrativeArtifact,
-  type ParseWarnSink,
+  type ParseWarnings,
 } from "./validation";
 
 const pr = {
@@ -388,6 +388,86 @@ describe("parseBrief", () => {
     ],
   };
 
+  it("keeps a well-formed primaryTicket on the intentCheck", () => {
+    const primaryTicket = {
+      key: "DS-42",
+      url: "https://tasks.example/DS-42",
+      tracker: "notion",
+      foundIn: "description",
+      title: "Retry loop",
+      header: "Status: Now",
+      status: "read",
+      reason: "",
+    };
+    const parsed = parseBrief({
+      ...twoGroupBriefInput,
+      intentCheck: { ...preciseIntentCheck, primaryTicket },
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.intentCheck?.primaryTicket).toEqual(primaryTicket);
+  });
+
+  it.each([
+    ["not an object", "DS-42"],
+    [
+      "an unknown tracker",
+      {
+        key: "",
+        url: "u",
+        tracker: "jira",
+        foundIn: "title",
+        title: "",
+        header: "",
+        status: "read",
+        reason: "",
+      },
+    ],
+    [
+      "an unknown reason",
+      {
+        key: "",
+        url: "u",
+        tracker: "github",
+        foundIn: "title",
+        title: "",
+        header: "",
+        status: "unread",
+        reason: "exploded",
+      },
+    ],
+    [
+      "a missing field",
+      {
+        key: "",
+        url: "u",
+        tracker: "github",
+        foundIn: "title",
+        status: "read",
+        reason: "",
+      },
+    ],
+  ])(
+    "drops a malformed primaryTicket (%s) and keeps the intentCheck",
+    (_label, primaryTicket) => {
+      const warnings: ParseWarnings = { warn: vi.fn() };
+      const parsed = parseBrief(
+        {
+          ...twoGroupBriefInput,
+          intentCheck: { ...preciseIntentCheck, primaryTicket },
+        },
+        warnings,
+      );
+      expect(parsed.ok).toBe(true);
+      if (!parsed.ok) return;
+      expect(parsed.value.intentCheck?.specificity).toBe("precise");
+      expect(parsed.value.intentCheck?.primaryTicket).toBeUndefined();
+      expect(warnings.warn).toHaveBeenCalledWith(
+        expect.stringContaining("dropping primaryTicket"),
+      );
+    },
+  );
+
   it("keeps a well-formed intentCheck (full Brief)", () => {
     const parsed = parseBrief({
       ...twoGroupBriefInput,
@@ -631,7 +711,7 @@ describe("parseBrief", () => {
   });
 
   it("reports every warn-and-drop through the injected sink", () => {
-    const warn = vi.fn<ParseWarnSink["warn"]>(() => {});
+    const warn = vi.fn<ParseWarnings["warn"]>(() => {});
     const parsed = parseBrief(
       {
         ...twoGroupBriefInput,

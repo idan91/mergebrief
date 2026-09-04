@@ -5,6 +5,7 @@
  */
 export const KNOWN_FENCE_TAGS = [
   "linked_context",
+  "primary_ticket",
   "repo_instructions",
   "repo_custom_attributes",
   "review_comment",

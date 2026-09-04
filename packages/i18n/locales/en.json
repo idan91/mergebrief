@@ -321,7 +321,20 @@
       "doneButUnstated_one": "<0>{{count}}</0> done but unstated",
       "doneButUnstated_other": "<0>{{count}}</0> done but unstated",
       "source": "source",
-      "prDescription": "PR description"
+      "prDescription": "PR description",
+      "ticketUnread": "{{key}} could not be read.",
+      "noAlignmentRead": "No alignment read for this PR.",
+      "reason": {
+        "not-found": "{{tracker}} returned not found — the page was moved, or the integration has no access to it",
+        "no-credential": "{{tracker}} refused the read — no credential is configured for it on this deployment",
+        "timeout": "{{tracker}} did not answer in time",
+        "rate-limited": "{{tracker}} rate-limited the read",
+        "unsupported": "no {{tracker}} reader is configured on this deployment"
+      },
+      "tracker": {
+        "github": "GitHub",
+        "notion": "Notion"
+      }
     },
     "toolbar": {
       "ariaLabelGroupStepper": "Step between change groups",

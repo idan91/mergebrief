@@ -684,6 +684,40 @@ describe("generate task — url-box world", () => {
 });
 
 describe("generate task", () => {
+  it("stamps the primary ticket the fan-out resolved onto the stored brief", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    github.info = { ...github.info, body: "fixes #7" };
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github,
+    });
+
+    await task(payload);
+
+    const brief = await createArtifactStore(harness.handle, ctx).briefs.get(
+      pr.id,
+      BASE,
+      HEAD_1,
+    );
+    // No provider reads GitHub tickets in this stub, so the primary is
+    // unread; the stamp proves the outcome reached the full-brief call.
+    expect(JSON.parse(brief?.body ?? "{}")).toMatchObject({
+      intentCheck: {
+        primaryTicket: {
+          url: "https://github.com/acme/widget/issues/7",
+          tracker: "github",
+          foundIn: "description",
+          status: "unread",
+          reason: "unsupported",
+        },
+      },
+    });
+  });
+
   it("drains the exact payload ingest enqueued: brief written, projection succeeded, audit emitted", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();

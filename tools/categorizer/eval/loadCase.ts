@@ -7,6 +7,7 @@ import {
   ContextProviderTypes,
   type ContextSnippet,
   type FetchedPr,
+  type PrimaryTicketOutcome,
 } from "brief-core";
 import type { CommitRange } from "brief-core/types";
 import type { RepoContext } from "brief-core";
@@ -42,6 +43,17 @@ export const FixtureSchema = z.object({
     }),
     diff: z.string().min(1),
     links: z.array(z.object({ url: z.string(), content: z.string() })),
+    /** The primary ticket, injected as read; `key`/`tracker`/`title`/`header` default to a bare GitHub-shaped ticket. */
+    primaryTicket: z
+      .object({
+        url: z.string(),
+        key: z.string().default(""),
+        tracker: z.enum(["github", "notion"]).default("github"),
+        title: z.string().default(""),
+        header: z.string().default(""),
+        content: z.string(),
+      })
+      .optional(),
   }),
   commitRange: z.object({
     base: z.string(),
@@ -181,13 +193,38 @@ async function loadOne(
       id,
       dir,
       fixture: {
-        pr: { ...parsed.data.pr, links: toSnippets(parsed.data.pr.links) },
+        pr: toFetchedPr(parsed.data.pr),
         commitRange: parsed.data.commitRange,
         ...(repoContext !== undefined ? { repoContext } : {}),
       },
       properties,
     },
   };
+}
+
+/** The fixture's `pr` as the engine takes it: links numbered, the primary stamped as read. */
+export function toFetchedPr(
+  pr: z.infer<typeof FixtureSchema>["pr"],
+): FetchedPr {
+  const { primaryTicket, ...rest } = pr;
+  const fetched: FetchedPr = { ...rest, links: toSnippets(pr.links) };
+  if (primaryTicket !== undefined) {
+    const outcome: PrimaryTicketOutcome = {
+      status: "read",
+      snippet: {
+        providerId: ContextProviderTypes.URL,
+        source: primaryTicket.url,
+        text: primaryTicket.content,
+        tracker: primaryTicket.tracker,
+        key: primaryTicket.key,
+        title: primaryTicket.title,
+        header: primaryTicket.header,
+        foundIn: "description",
+      },
+    };
+    fetched.primaryTicket = outcome;
+  }
+  return fetched;
 }
 
 /** Fixture links stay `{ url, content }`; the harness numbers them the way the fan-out would. */

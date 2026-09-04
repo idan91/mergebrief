@@ -88,6 +88,15 @@ the default profile (the first one you logged into). `MERGEBRIEF_TOKEN`
 overrides the resolved profile's stored token — handy in CI where the token
 lives in a secret store, not on disk.
 
+## Local generation and the primary ticket
+
+The `categorize` and `delta` dev CLIs (`tools/categorizer`) resolve the PR's
+primary ticket from the working tree's `.mergebrief/settings.yaml`
+(`tracker:` block, see [repo-config.md](repo-config.md)). Tracker reads use
+the same env as the worker (`gh auth` for GitHub Issues, `NOTION_TOKEN` for
+Notion); `--context <file>` supplies the ticket text directly when neither
+is available. Details in `tools/categorizer/README.md`.
+
 ## Agents
 
 The agent guide ships as the `mergebrief` skill (`skills/mergebrief` in the

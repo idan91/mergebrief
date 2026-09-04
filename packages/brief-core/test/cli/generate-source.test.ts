@@ -38,7 +38,10 @@ vi.mock("../../src/github", async (importOriginal) => {
 // Not part of the port (its own boundary): must be quiet, not exploding.
 vi.mock("../../src/context", async (importOriginal) => {
   const actual = await importOriginal<typeof ContextModule>();
-  return { ...actual, fetchContextSnippets: vi.fn(async () => []) };
+  return {
+    ...actual,
+    fetchContextSnippets: vi.fn(async () => ({ links: [] })),
+  };
 });
 
 const { generateAndWrite } = await import("../../src/cli/categorize");

@@ -583,9 +583,13 @@ describe("IntentCheckGenerationSchema (grammar budget)", () => {
     ]);
     const storedArrays = Object.keys(IntentCheckSchema.shape).filter(
       (key) =>
-        !["ticketUrls", "ticketTitles", "specificity", "scopeNote"].includes(
-          key,
-        ),
+        ![
+          "ticketUrls",
+          "ticketTitles",
+          "specificity",
+          "scopeNote",
+          "primaryTicket",
+        ].includes(key),
     );
     expect(storedArrays.toSorted()).toEqual([...IntentBuckets].toSorted());
   });

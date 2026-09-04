@@ -1,4 +1,4 @@
-import type { ContextSnippet } from "../context/types";
+import type { ContextSnippet, PrimaryTicketOutcome } from "../context/types";
 import { type PrLifecycleState, type ReviewComment } from "../types";
 
 export type { ReviewComment };
@@ -42,6 +42,8 @@ export interface FetchedPr {
   diff: string;
   /** Untrusted reference text the context providers fetched. Best-effort. */
   links: ContextSnippet[];
+  /** The one ticket this PR is about, when it references one. */
+  primaryTicket?: PrimaryTicketOutcome;
 }
 
 /** Minimal logger — structural so callers (CLI) can pass a tagged sink. */

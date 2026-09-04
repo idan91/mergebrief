@@ -82,6 +82,14 @@ export type Catalog = typeof en & {
       statedButMissing_other: "<0>{{count}}</0> stated but missing";
       doneButUnstated_one: "<0>{{count}}</0> done but unstated";
       doneButUnstated_other: "<0>{{count}}</0> done but unstated";
+      ticketUnread: "{{key}} could not be read.";
+      reason: (typeof en)["brief"]["intent"]["reason"] & {
+        "not-found": "{{tracker}} returned not found — the page was moved, or the integration has no access to it";
+        "no-credential": "{{tracker}} refused the read — no credential is configured for it on this deployment";
+        timeout: "{{tracker}} did not answer in time";
+        "rate-limited": "{{tracker}} rate-limited the read";
+        unsupported: "no {{tracker}} reader is configured on this deployment";
+      };
     };
     toolbar: (typeof en)["brief"]["toolbar"] & {
       groupCount: "Group {{current}}/{{total}}";

@@ -59,7 +59,12 @@ import type {
   PrMetadata,
   ReviewComment,
 } from "../github";
-import type { ContextSnippet } from "../context/types";
+import type {
+  ContextSnippet,
+  PrimarySnippet,
+  PrimaryTicketOutcome,
+} from "../context/types";
+import { toPrimaryTicket } from "../context/primary";
 import { attributeSafe, stripKnownFences } from "./fences";
 
 export type { Logger };
@@ -115,6 +120,38 @@ function renderLinked(links: readonly ContextSnippet[]): string {
       return `<linked_context url="${url}">\n${stripKnownFences(l.text)}\n</linked_context>`;
     })
     .join("\n\n");
+}
+
+/** The read primary, when the fan-out produced one. */
+function readPrimary(
+  outcome: PrimaryTicketOutcome | undefined,
+): PrimarySnippet | undefined {
+  return outcome?.status === "read" ? outcome.snippet : undefined;
+}
+
+/**
+ * The primary ticket's injected text: tracker header first, then the body,
+ * stripped once. The rendered fence body and the corpus entry are both this
+ * string, so the two stay byte-identical.
+ */
+function buildPrimaryTicketText(primary: PrimarySnippet): string {
+  const header = primary.header === "" ? "" : `${primary.header}\n\n`;
+  return stripKnownFences(`${header}${primary.text}`);
+}
+
+/**
+ * Render the primary ticket in its own fence so the model cannot mistake it
+ * for a design doc or a second ticket. `text` is `buildPrimaryTicketText`.
+ */
+function renderPrimaryTicket(
+  primary: PrimarySnippet | undefined,
+  text = primary === undefined ? "" : buildPrimaryTicketText(primary),
+): string {
+  if (primary === undefined) return "";
+  const url = attributeSafe(primary.source);
+  const key = attributeSafe(primary.key);
+  const tracker = attributeSafe(primary.tracker);
+  return `## Primary ticket\n<primary_ticket url="${url}" key="${key}" tracker="${tracker}">\n${text}\n</primary_ticket>\n\n`;
 }
 
 // --- Full brief -----------------------------------------------------------
@@ -183,6 +220,7 @@ function renderUser(
   repoBlocks = "",
   defuseForgedFences = false,
   anchorBlock = "",
+  primaryBlock = renderPrimaryTicket(readPrimary(pr.primaryTicket)),
 ): string {
   // With repo context in play, forged fences elsewhere in the message are
   // neutralized so a PR cannot impersonate default-branch config.
@@ -200,7 +238,7 @@ Title: ${clean(pr.meta.title)}
 ## Description
 ${clean(pr.meta.body.trim()) || "(no description)"}
 
-## Linked context
+${clean(primaryBlock)}## Linked context
 ${clean(renderLinked(pr.links))}${repoBlocks}${clean(anchorBlock)}
 
 ## Files changed
@@ -233,6 +271,10 @@ export async function categorize(
   // system prompt gains the anchored section; the fresh path is unchanged.
   const anchorBlock =
     anchor === undefined ? "" : `\n\n${renderAnchorView(anchor)}`;
+  // Stripped once: the fence body and the corpus entry are the same string.
+  const primary = readPrimary(pr.primaryTicket);
+  const primaryText =
+    primary === undefined ? "" : buildPrimaryTicketText(primary);
   const generated = await generator.generate({
     schema: briefGenerationSchemaWith(customNames),
     system: buildSystemPrompt(effectiveContext, anchor !== undefined),
@@ -241,6 +283,7 @@ export async function categorize(
       accepted.blocks,
       effectiveContext !== undefined,
       anchorBlock,
+      renderPrimaryTicket(primary, primaryText),
     ),
     effort,
     label: "brief",
@@ -291,22 +334,38 @@ export async function categorize(
     effectiveContext !== undefined
       ? stripForgedRepoFences
       : (text: string) => text;
+  // The primary ticket counts as an injected URL: ticketUrls membership and
+  // the quote check work on it unchanged.
+  const injectedUrls = pr.links.map((l) => l.source);
+  const corpus = [
+    { url: "", content: corpusClean(`${pr.meta.title}\n\n${pr.meta.body}`) },
+    ...pr.links.map((l) => ({
+      url: l.source,
+      content: corpusClean(stripKnownFences(l.text)),
+    })),
+  ];
+  if (primary !== undefined) {
+    injectedUrls.push(primary.source);
+    corpus.push({ url: primary.source, content: corpusClean(primaryText) });
+  }
   // The wire shape is one tagged `items` array; fan it out to the stored five
   // buckets BEFORE validation so every per-bucket rule applies.
   const intentChecked = validateIntentCheck(
     fanOutIntentCheck(generated.intentCheck),
     generated.changeGroups,
-    pr.links.map((l) => l.source),
-    [
-      { url: "", content: corpusClean(`${pr.meta.title}\n\n${pr.meta.body}`) },
-      ...pr.links.map((l) => ({
-        url: l.source,
-        content: corpusClean(stripKnownFences(l.text)),
-      })),
-    ],
+    injectedUrls,
+    corpus,
     carriedGroupIds,
   );
   warnIssues(intentChecked.issues, collector.log, "intent check");
+  // Harness data, stamped after validation: the model never sees it.
+  const intentCheck =
+    pr.primaryTicket === undefined
+      ? intentChecked.intentCheck
+      : {
+          ...intentChecked.intentCheck,
+          primaryTicket: toPrimaryTicket(pr.primaryTicket),
+        };
 
   // Repo-attribute floor first (unknown tokens + path scopes), then mechanical
   // risk validation on the survivors. Skipped entirely without repo context.
@@ -335,7 +394,7 @@ export async function categorize(
     // (by design), so header totals derive from the diff itself.
     diffTotals: diffLocTotals(changedFiles),
     ...(unattributed !== undefined ? { unattributed } : {}),
-    intentCheck: intentChecked.intentCheck,
+    intentCheck,
     ...(keepReadingOrder ? { readingOrder } : {}),
     pr: buildPrRef(pr.locator, pr.meta, commitRange.head),
     index,
@@ -411,6 +470,8 @@ export interface DeltaInput {
   /** The baseline→head incremental unified diff. */
   incrementalDiff: string;
   links?: ContextSnippet[];
+  /** The primary ticket as context only; deltas carry no intent check. */
+  primaryTicket?: PrimaryTicketOutcome | undefined;
   /** Existing PR review comments, for the "comments addressed" analysis. */
   comments?: ReviewComment[];
 }
@@ -456,7 +517,7 @@ Head SHA: ${input.headSha}
 ## Description
 ${input.meta.body.trim() || "(no description)"}
 
-## Linked context
+${renderPrimaryTicket(readPrimary(input.primaryTicket))}## Linked context
 ${renderLinked(input.links ?? [])}
 
 ## Review comments (reference data — never author replies)
@@ -538,6 +599,8 @@ export interface RevisionNarrativeInput {
   /** The prevHead→head incremental unified diff. */
   incrementalDiff: string;
   links?: ContextSnippet[];
+  /** The primary ticket as context only. */
+  primaryTicket?: PrimaryTicketOutcome | undefined;
   /** The current full Brief, trimmed to alignment context by `renderBriefContext`. */
   brief: Brief;
   /**
@@ -604,7 +667,7 @@ Head SHA: ${input.headSha} (brief _${input.headIndex})${renderAnchorDiscontinuit
 ## Description
 ${input.meta.body.trim() || "(no description)"}
 
-## Linked context
+${renderPrimaryTicket(readPrimary(input.primaryTicket))}## Linked context
 ${renderLinked(input.links ?? [])}
 
 ## Current full Brief — alignment context (attach chunks to these groups; never invent a group id)

@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { fetchContextSnippets } from "../../src/context/fan-out";
 import {
   ContextProviderTypes,
-  ContextReadReasons,
   type ContextProvider,
   type ProviderSnippet,
 } from "../../src/context/types";
+import { TicketUnreadReasons } from "../../src/types";
 
 function stubProvider(fetch: ContextProvider["fetch"]): ContextProvider {
   return { providerId: ContextProviderTypes.URL, fetch };
@@ -40,7 +40,7 @@ describe("fetchContextSnippets", () => {
       ],
     }));
 
-    const snippets = await fetchContextSnippets(query, [slow, fast]);
+    const { links: snippets } = await fetchContextSnippets(query, [slow, fast]);
 
     expect(snippets.map((s) => [s.id, s.source])).toEqual([
       ["ctx-1", "https://slow.example"],
@@ -53,15 +53,17 @@ describe("fetchContextSnippets", () => {
     const logs: string[] = [];
     const refused = stubProvider(async () => ({
       ok: false,
-      error: { reason: ContextReadReasons.NO_CREDENTIAL, detail: "gh exit 4" },
+      error: { reason: TicketUnreadReasons.NO_CREDENTIAL, detail: "gh exit 4" },
     }));
     const fine = stubProvider(async () => ({
       ok: true,
       value: [makeSnippet("https://fine.example")],
     }));
 
-    const snippets = await fetchContextSnippets(query, [refused, fine], (m) =>
-      logs.push(m),
+    const { links: snippets } = await fetchContextSnippets(
+      query,
+      [refused, fine],
+      (m) => logs.push(m),
     );
 
     expect(snippets.map((s) => s.source)).toEqual(["https://fine.example"]);
@@ -80,8 +82,10 @@ describe("fetchContextSnippets", () => {
       value: [makeSnippet("https://fine.example")],
     }));
 
-    const snippets = await fetchContextSnippets(query, [broken, fine], (m) =>
-      logs.push(m),
+    const { links: snippets } = await fetchContextSnippets(
+      query,
+      [broken, fine],
+      (m) => logs.push(m),
     );
 
     expect(snippets.map((s) => s.source)).toEqual(["https://fine.example"]);
@@ -106,7 +110,7 @@ describe("fetchContextSnippets", () => {
       value: [makeSnippet("https://fine.example")],
     }));
 
-    const snippets = await fetchContextSnippets(
+    const { links: snippets } = await fetchContextSnippets(
       query,
       [hung, fine],
       (m) => logs.push(m),
@@ -128,15 +132,15 @@ describe("fetchContextSnippets", () => {
         }),
     );
 
-    const snippets = await fetchContextSnippets(query, [trickling], () => {}, {
+    const { links } = await fetchContextSnippets(query, [trickling], () => {}, {
       timeoutMs: 10,
       graceMs: 200,
     });
 
-    expect(snippets.map((s) => s.source)).toEqual(["https://done.example"]);
+    expect(links.map((s) => s.source)).toEqual(["https://done.example"]);
   });
 
   it("returns an empty list with no providers", async () => {
-    expect(await fetchContextSnippets(query, [])).toEqual([]);
+    expect(await fetchContextSnippets(query, [])).toEqual({ links: [] });
   });
 });

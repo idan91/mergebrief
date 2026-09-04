@@ -18,6 +18,23 @@ export function extractConfigFlag(
 }
 
 /**
+ * Pull `--context <file>` out of the argv, the same shape as `--config`: the
+ * file supplies the primary ticket's text without a tracker read.
+ */
+export function extractContextFlag(
+  args: string[],
+): { contextPath: string | null; rest: string[] } | null {
+  const index = args.indexOf("--context");
+  if (index === -1) return { contextPath: null, rest: args };
+  const contextPath = args[index + 1];
+  if (contextPath === undefined || contextPath.startsWith("-")) return null;
+  return {
+    contextPath,
+    rest: [...args.slice(0, index), ...args.slice(index + 2)],
+  };
+}
+
+/**
  * Pull `--out <dir>` out of the argv, the same shape as `--config`: absent is
  * `null` (the caller's default), a flag-shaped or missing value is `null` for
  * the whole parse so the CLI prints usage rather than writing somewhere odd.

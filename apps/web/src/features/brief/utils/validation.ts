@@ -21,7 +21,12 @@ import {
   type PrRef,
   type AddressedReviewComment,
   type ReadingOrderStep,
+  type PrimaryTicket,
+  PrimaryTicketStatuses,
+  ReferenceLocations,
   type Specificity,
+  TicketTrackers,
+  TicketUnreadReasons,
   type RevisionChangeFile,
   type UnattributedFile,
   type RevisionChanges,
@@ -308,12 +313,12 @@ function parseRevisionChangeFile(value: unknown): Result<RevisionChangeFile> {
  */
 function parseUnattributed(
   value: unknown,
-  warnSink?: ParseWarnSink,
+  warnings?: ParseWarnings,
 ): UnattributedFile[] | undefined {
   if (value === undefined) return undefined;
   const parsed = parseArray(value, parseRevisionChangeFile, "unattributed");
   if (!parsed.ok) {
-    warnSink?.warn(`unattributed dropped: ${parsed.error}`);
+    warnings?.warn(`unattributed dropped: ${parsed.error}`);
     return undefined;
   }
   // The engine emits canonical ranges (1-based, ordered, disjoint); the view
@@ -322,7 +327,7 @@ function parseUnattributed(
   for (const entry of parsed.value) {
     for (const ranges of [entry.addedRanges, entry.removedRanges]) {
       if (!isCanonicalRanges(ranges)) {
-        warnSink?.warn(
+        warnings?.warn(
           `unattributed dropped: non-canonical ranges for ${entry.file}`,
         );
         return undefined;
@@ -727,17 +732,17 @@ function isReadingOrderPermutation(
 function parseReadingOrder(
   value: unknown,
   groupIds: string[],
-  warnSink: ParseWarnSink | undefined,
+  warnings: ParseWarnings | undefined,
 ): ReadingOrderStep[] | undefined {
   if (value === undefined) return undefined;
   const parsed = parseArray(value, parseReadingOrderStep, "readingOrder");
   if (!parsed.ok) {
-    warnSink?.warn(`parseBrief: dropping readingOrder — ${parsed.error}`);
+    warnings?.warn(`parseBrief: dropping readingOrder — ${parsed.error}`);
     return undefined;
   }
   const stepGroupIds = parsed.value.map((step) => step.groupId);
   if (!isReadingOrderPermutation(stepGroupIds, groupIds)) {
-    warnSink?.warn(
+    warnings?.warn(
       "parseBrief: dropping readingOrder — not a permutation of changeGroups ids",
     );
     return undefined;
@@ -747,6 +752,36 @@ function parseReadingOrder(
 
 function isSpecificity(value: unknown): value is Specificity {
   return value === "precise" || value === "broad" || value === "none";
+}
+
+/**
+ * Lenient: a malformed or unknown-valued primary ticket parses to absent and
+ * never fails the intent check.
+ */
+function parsePrimaryTicket(
+  value: unknown,
+  warnings: ParseWarnings | undefined,
+): PrimaryTicket | undefined {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) {
+    warnings?.warn("parseBrief: dropping primaryTicket — not an object");
+    return undefined;
+  }
+  const { key, url, tracker, foundIn, title, header, status, reason } = value;
+  const textFieldsPresent =
+    isString(key) && isString(url) && isString(title) && isString(header);
+  const vocabulariesKnown =
+    isOneOf(TicketTrackers, tracker) &&
+    isOneOf(ReferenceLocations, foundIn) &&
+    isOneOf(PrimaryTicketStatuses, status);
+  // `reason` is "" on a read ticket, one of the unread codes otherwise.
+  const reasonKnown = reason === "" || isOneOf(TicketUnreadReasons, reason);
+  const wellFormed = textFieldsPresent && vocabulariesKnown && reasonKnown;
+  if (!wellFormed) {
+    warnings?.warn("parseBrief: dropping primaryTicket — malformed");
+    return undefined;
+  }
+  return { key, url, tracker, foundIn, title, header, status, reason };
 }
 
 function parseIntentItem(value: unknown): Result<IntentItem> {
@@ -780,16 +815,16 @@ function parseIntentItem(value: unknown): Result<IntentItem> {
  */
 function parseIntentCheck(
   value: unknown,
-  warnSink: ParseWarnSink | undefined,
+  warnings: ParseWarnings | undefined,
 ): IntentCheck | undefined {
   if (value === undefined) return undefined;
   if (!isRecord(value)) {
-    warnSink?.warn("parseBrief: dropping intentCheck — not an object");
+    warnings?.warn("parseBrief: dropping intentCheck — not an object");
     return undefined;
   }
   const { specificity, scopeNote } = value;
   if (!isSpecificity(specificity) || !isString(scopeNote)) {
-    warnSink?.warn(
+    warnings?.warn(
       "parseBrief: dropping intentCheck — bad specificity or scopeNote",
     );
     return undefined;
@@ -836,7 +871,7 @@ function parseIntentCheck(
     claimedButUnachieved,
   ]) {
     if (!parsed.ok) {
-      warnSink?.warn(`parseBrief: dropping intentCheck — ${parsed.error}`);
+      warnings?.warn(`parseBrief: dropping intentCheck — ${parsed.error}`);
       return undefined;
     }
   }
@@ -852,7 +887,8 @@ function parseIntentCheck(
   ) {
     return undefined;
   }
-  return {
+  const primaryTicket = parsePrimaryTicket(value["primaryTicket"], warnings);
+  const intentCheck: IntentCheck = {
     ticketUrls: ticketUrls.value,
     // Realigned to one title per URL ("" filling the gaps) so the renderer
     // can index the pair without its own bounds checks.
@@ -870,6 +906,8 @@ function parseIntentCheck(
     deviations: deviations.value,
     claimedButUnachieved: unacknowledged(claimedButUnachieved.value),
   };
+  if (primaryTicket !== undefined) intentCheck.primaryTicket = primaryTicket;
+  return intentCheck;
 }
 
 /** Dead-field sweep: `acknowledged` is only ever true in `deviations`. */
@@ -947,16 +985,16 @@ function parseCommitRange(value: unknown): CommitRange | undefined {
  * (warned — a drift here means the stored-brief contract moved). */
 function parseAnchor(
   value: unknown,
-  warnSink?: ParseWarnSink,
+  warnings?: ParseWarnings,
 ): BriefAnchor | undefined {
   if (value === undefined) return undefined;
   if (!isRecord(value)) {
-    warnSink?.warn("brief anchor stamp malformed — dropped");
+    warnings?.warn("brief anchor stamp malformed — dropped");
     return undefined;
   }
   const state = value["state"];
   if (state !== "anchored" && state !== "fresh-restart" && state !== "none") {
-    warnSink?.warn("brief anchor stamp has an unknown state — dropped");
+    warnings?.warn("brief anchor stamp has an unknown state — dropped");
     return undefined;
   }
   const reason = value["reason"];
@@ -1006,13 +1044,13 @@ function parseLengthViolations(value: unknown): LengthViolation[] | undefined {
  * shared client/server — the server caller passes the process logger; the
  * client passes nothing and the drops stay silent.
  */
-export interface ParseWarnSink {
+export interface ParseWarnings {
   warn(msg: string): void;
 }
 
 export function parseBrief(
   value: unknown,
-  warnSink?: ParseWarnSink,
+  warnings?: ParseWarnings,
 ): Result<Brief> {
   if (!isRecord(value))
     return { ok: false, error: "Expected brief to be an object" };
@@ -1039,7 +1077,7 @@ export function parseBrief(
   const index = value["index"];
   const commitRange = parseCommitRange(value["commitRange"]);
   const generation = parseGeneration(value["generation"]);
-  const anchor = parseAnchor(value["anchor"], warnSink);
+  const anchor = parseAnchor(value["anchor"], warnings);
   const generationWarnings = parseGenerationWarnings(
     value["generationWarnings"],
   );
@@ -1047,10 +1085,10 @@ export function parseBrief(
   const readingOrder = parseReadingOrder(
     value["readingOrder"],
     normalized.value.changeGroups.map((group) => group.id),
-    warnSink,
+    warnings,
   );
-  const intentCheck = parseIntentCheck(value["intentCheck"], warnSink);
-  const unattributed = parseUnattributed(value["unattributed"], warnSink);
+  const intentCheck = parseIntentCheck(value["intentCheck"], warnings);
+  const unattributed = parseUnattributed(value["unattributed"], warnings);
   const diffTotals = parseLoc(value["diffTotals"]);
   return {
     ok: true,

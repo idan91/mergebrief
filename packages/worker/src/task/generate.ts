@@ -41,6 +41,8 @@ import {
   type Brief,
   type ContextSnippet,
   type DeltaInput,
+  type FetchedPr,
+  type PrimaryTicketOutcome,
   type PrLocator,
   type PrMetadata,
   type RevisionNarrativeSkipped,
@@ -757,7 +759,7 @@ async function runGeneration(
     }
     // Context providers run after the repo config so the tracker block can
     // name the primary ticket; never the diff, fail-open per provider.
-    const links = await fetchContextSnippets(
+    const { links, primaryTicket } = await fetchContextSnippets(
       buildContextQuery({
         title: meta.title,
         body: meta.body,
@@ -769,6 +771,19 @@ async function runGeneration(
       createBuiltInContextProviders(),
       coreLog,
     );
+    if (primaryTicket?.status === "unread") {
+      const { reference, reason } = primaryTicket;
+      log.warn("generate: primary ticket unread", {
+        tracker: reference.tracker,
+        reason,
+        key: reference.key === "" ? reference.url : reference.key,
+      });
+    } else if (primaryTicket !== undefined) {
+      log.debug("generate: primary ticket read", {
+        tracker: primaryTicket.snippet.tracker,
+        key: primaryTicket.snippet.key,
+      });
+    }
     // Entry-comment draft gate: the branded Entry comment stays OFF draft PRs
     // unless the repo opts in via `.mergebrief/settings.yaml`
     // `entryCommentOnDrafts: true`. Generation itself is untouched — this
@@ -917,9 +932,11 @@ async function runGeneration(
       if (entryCommentAllowed) {
         await refreshEntryComment(entryCommentGeneratingBody(deepLink()));
       }
+      const fetchedPr: FetchedPr = { locator, meta, diff, links };
+      if (primaryTicket !== undefined) fetchedPr.primaryTicket = primaryTicket;
       const brief = await runGenerator(() =>
         categorize(
-          { locator, meta, diff, links },
+          fetchedPr,
           headIndex,
           { base: info.baseSha, head: headSha, commitCount: info.commitCount },
           generator,
@@ -1064,6 +1081,7 @@ async function runGeneration(
         effort: deps.effort,
         wholePrChangedLines: churn(files),
         links,
+        primaryTicket,
         log,
       });
     }
@@ -1083,6 +1101,7 @@ async function runGeneration(
       briefHeadIndex: briefRef.headIndex,
       wholePrChangedLines: churn(files),
       links,
+      primaryTicket,
       log,
     });
     if (deltaCount > 0) {
@@ -1341,6 +1360,7 @@ interface RevisionArtifactInputs {
   readonly effort: Effort | undefined;
   readonly wholePrChangedLines: number;
   readonly links: ContextSnippet[];
+  readonly primaryTicket: PrimaryTicketOutcome | undefined;
   readonly log: Logger;
 }
 
@@ -1458,6 +1478,7 @@ async function writeRevisionArtifacts(
         headIndex: briefRef.headIndex,
         incrementalDiff: revDiff,
         links,
+        primaryTicket: inputs.primaryTicket,
         brief: generatedBrief,
         marksFiles: marks.files,
       },
@@ -1496,6 +1517,7 @@ interface DeltaWarmInputs {
   readonly briefHeadIndex: number;
   readonly wholePrChangedLines: number;
   readonly links: ContextSnippet[];
+  readonly primaryTicket: PrimaryTicketOutcome | undefined;
   readonly log: Logger;
 }
 
@@ -1597,6 +1619,7 @@ async function warmDeltaCores(
       headIndex: inputs.briefHeadIndex,
       incrementalDiff,
       links: inputs.links,
+      primaryTicket: inputs.primaryTicket,
     };
     // Supersession gate BEFORE each delta spend.
     // eslint-disable-next-line no-await-in-loop

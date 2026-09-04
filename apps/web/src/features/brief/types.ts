@@ -232,6 +232,48 @@ export interface ConcernRollup {
  */
 export type Specificity = "precise" | "broad" | "none";
 
+export const TicketTrackers = { GITHUB: "github", NOTION: "notion" } as const;
+export type TicketTracker = ValueOf<typeof TicketTrackers>;
+
+export const ReferenceLocations = {
+  DESCRIPTION: "description",
+  TITLE: "title",
+  BRANCH: "branch",
+} as const;
+export type ReferenceLocation = ValueOf<typeof ReferenceLocations>;
+
+export const PrimaryTicketStatuses = {
+  READ: "read",
+  UNREAD: "unread",
+} as const;
+export type PrimaryTicketStatus = ValueOf<typeof PrimaryTicketStatuses>;
+
+export const TicketUnreadReasons = {
+  NOT_FOUND: "not-found",
+  NO_CREDENTIAL: "no-credential",
+  TIMEOUT: "timeout",
+  RATE_LIMITED: "rate-limited",
+  UNSUPPORTED: "unsupported",
+} as const;
+export type TicketUnreadReason = ValueOf<typeof TicketUnreadReasons>;
+
+/**
+ * @description The one ticket the PR is about, as the harness resolved and
+ * read it. Harness-written, never model-produced. `key` is `""` for a
+ * URL-only reference; `title` and `header` are `""` when unread; `reason` is
+ * `""` when read.
+ */
+export interface PrimaryTicket {
+  key: string;
+  url: string;
+  tracker: TicketTracker;
+  foundIn: ReferenceLocation;
+  title: string;
+  header: string;
+  status: PrimaryTicketStatus;
+  reason: TicketUnreadReason | "";
+}
+
 /**
  * @description One item shared by all three intent buckets — a per-bucket
  * shape overflowed the structured-output grammar, so one shape carries every
@@ -286,6 +328,12 @@ export interface IntentCheck {
    * diff touches only the problem's signal/check path. Empty on an older Brief.
    */
   claimedButUnachieved: IntentItem[];
+  /**
+   * @description The primary ticket, when the PR references one. Absent on
+   * older Briefs and when no reference was found; a malformed value drops to
+   * absent at the boundary, never the whole check.
+   */
+  primaryTicket?: PrimaryTicket;
 }
 
 export interface AddressedReviewComment {

@@ -1,5 +1,10 @@
 import type { Result, ValueOf } from "types";
 import type { Log } from "../github/types";
+import type {
+  ReferenceLocation,
+  TicketTracker,
+  TicketUnreadReason,
+} from "../types";
 import type { TicketReference, TicketReferenceRepo } from "./references";
 import type { TrackerConfig } from "./tracker";
 
@@ -10,20 +15,12 @@ export const ContextProviderTypes = {
 export type ContextProviderType = ValueOf<typeof ContextProviderTypes>;
 
 /**
- * Why a provider could not read what it was asked for. A closed set: every
- * surface renders one sentence per code, never a raw provider message.
+ * Why a provider could not read what it was asked for: the closed
+ * `TicketUnreadReasons` set, so every surface renders one sentence per code
+ * and never a raw provider message.
  */
-export const ContextReadReasons = {
-  NOT_FOUND: "not-found",
-  NO_CREDENTIAL: "no-credential",
-  TIMEOUT: "timeout",
-  RATE_LIMITED: "rate-limited",
-  UNSUPPORTED: "unsupported",
-} as const;
-export type ContextReadReason = ValueOf<typeof ContextReadReasons>;
-
 export interface ContextReadFailure {
-  readonly reason: ContextReadReason;
+  readonly reason: TicketUnreadReason;
   /** Operator-facing detail: never a secret, a token, or a page body. */
   readonly detail: string;
 }
@@ -58,6 +55,26 @@ export interface ContextSnippet extends ProviderSnippet {
   readonly id: string;
 }
 
+/** The primary ticket as a provider read it: text plus the card's facts. */
+export interface PrimarySnippet extends ProviderSnippet {
+  readonly tracker: TicketTracker;
+  /** `PREFIX-N`; "" for a URL-only reference. */
+  readonly key: string;
+  readonly title: string;
+  /** The tracker header line; "" when the tracker has none. */
+  readonly header: string;
+  readonly foundIn: ReferenceLocation;
+}
+
+export type PrimaryTicketOutcome =
+  | { readonly status: "read"; readonly snippet: PrimarySnippet }
+  | {
+      readonly status: "unread";
+      readonly reference: TicketReference;
+      readonly reason: TicketUnreadReason;
+      readonly detail: string;
+    };
+
 export interface ContextProviderDeps {
   readonly log: Log;
   /** Aborted by the fan-out once the provider's budget is spent. */
@@ -74,4 +91,11 @@ export interface ContextProvider {
     query: ContextQuery,
     deps: ContextProviderDeps,
   ): Promise<Result<ProviderSnippet[], ContextReadFailure>>;
+  /** The tracker whose primary ticket this provider reads, if any. */
+  readonly tracker?: TicketTracker;
+  /** Read the primary ticket; only providers with a `tracker` implement it. */
+  readPrimary?(
+    reference: TicketReference,
+    deps: ContextProviderDeps,
+  ): Promise<Result<PrimarySnippet, ContextReadFailure>>;
 }

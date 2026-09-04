@@ -19,11 +19,18 @@ import {
   loadGeneratorConfigFile,
   type Generator,
 } from "generators";
-import { extractConfigFlag, extractOutFlag } from "./config";
+import {
+  extractConfigFlag,
+  extractContextFlag,
+  extractOutFlag,
+} from "./config";
+import { describeUnreadPrimary, readContextFile } from "./context-file";
 import {
   buildContextQuery,
   createBuiltInContextProviders,
   fetchContextSnippets,
+  type FetchContextSnippetsOptions,
+  type PrimarySnippet,
   type TrackerConfig,
 } from "../context";
 import { readLocalTracker } from "./settings";
@@ -88,7 +95,7 @@ async function buildInputs(
   range: Range | undefined,
   log: (msg: string) => void,
   source: PrSource,
-  tracker: TrackerConfig | undefined,
+  options: GenerateOptions,
 ): Promise<{
   pr: FetchedPr;
   comments: ReviewComment[];
@@ -129,15 +136,20 @@ async function buildInputs(
     body: meta.body,
     branch: meta.headRef ?? "",
     repo: locator,
-    tracker,
+    tracker: options.tracker,
     notion: false,
   });
-  const links = await fetchContextSnippets(
+  const fetchOptions: FetchContextSnippetsOptions =
+    options.suppliedPrimary === undefined
+      ? {}
+      : { suppliedPrimary: options.suppliedPrimary };
+  const context = await fetchContextSnippets(
     query,
     createBuiltInContextProviders(),
     log,
+    fetchOptions,
   );
-  return { pr: { locator, meta, diff, links }, comments, commitRange };
+  return { pr: { locator, meta, diff, ...context }, comments, commitRange };
 }
 
 /**
@@ -150,6 +162,8 @@ async function buildInputs(
 export interface GenerateOptions {
   /** The repo's `tracker:` block; absent means ticket keys never match. */
   readonly tracker?: TrackerConfig | undefined;
+  /** A primary ticket supplied by `--context <file>`; replaces the fetch. */
+  readonly suppliedPrimary?: PrimarySnippet | undefined;
 }
 
 export async function generateAndWrite(
@@ -172,7 +186,7 @@ export async function generateAndWrite(
     range,
     log,
     source,
-    options.tracker,
+    options,
   );
 
   const stem = prStem(
@@ -193,6 +207,12 @@ export async function generateAndWrite(
     undefined,
     effort,
   );
+
+  // An unread primary is surfaced, never silent; the brief still lands.
+  const primaryTicket = brief.intentCheck?.primaryTicket;
+  if (primaryTicket?.status === "unread") {
+    log(describeUnreadPrimary(primaryTicket));
+  }
 
   const briefFile = join(outDir, outName(brief));
   await writeFile(briefFile, `${JSON.stringify(brief, null, 2)}\n`);
@@ -344,6 +364,7 @@ async function generateAndWriteRevisionNarrative(args: {
         headIndex: brief.index,
         incrementalDiff,
         links: pr.links,
+        primaryTicket: pr.primaryTicket,
         brief,
         marksFiles,
       },
@@ -369,7 +390,7 @@ async function runOne(
   range: Range | undefined,
   generator: Generator,
   effort: Effort | undefined,
-  tracker: TrackerConfig | undefined,
+  options: GenerateOptions,
 ): Promise<Brief> {
   const tag = prTag(url);
   const log = (msg: string): void => console.error(`[${tag}] ${msg}`);
@@ -381,9 +402,7 @@ async function runOne(
     log,
     effort,
     ghPrSource,
-    {
-      tracker,
-    },
+    options,
   );
 }
 
@@ -413,15 +432,30 @@ function parseArgs(
 async function main(): Promise<void> {
   const flagged = extractConfigFlag(process.argv.slice(2));
   const outFlag = flagged ? extractOutFlag(flagged.rest) : null;
-  const parsed = outFlag ? parseArgs(outFlag.rest) : null;
+  const contextFlag = outFlag ? extractContextFlag(outFlag.rest) : null;
+  const parsed = contextFlag ? parseArgs(contextFlag.rest) : null;
   const outDir = outFlag?.outDir ?? DEFAULT_OUT_DIR;
-  if (!flagged || !outFlag || !parsed) {
+  if (!flagged || !outFlag || !contextFlag || !parsed) {
     console.error(
-      "usage: pnpm categorize [--config <mergebrief.config.yaml>] [--out <dir>] <pr-url> [<pr-url> …]\n" +
+      "usage: pnpm categorize [--config <mergebrief.config.yaml>] [--out <dir>] [--context <ticket.json>] <pr-url> [<pr-url> …]\n" +
         "       pnpm categorize [--config <path>] [--out <dir>] <pr-url> <base-sha> <head-sha>   (explicit span)\n" +
         "       --out defaults to `out` under the working directory; point it at\n" +
-        "       MERGEBRIEF_OUT_DIR to view the result in the dev brief viewer.",
+        "       MERGEBRIEF_OUT_DIR to view the result in the dev brief viewer.\n" +
+        "       --context supplies the primary ticket as JSON {url, key?, tracker?, title?, header?, content}.",
     );
+    process.exit(1);
+  }
+  const supplied =
+    contextFlag.contextPath === null
+      ? null
+      : readContextFile(contextFlag.contextPath);
+  if (supplied !== null && !supplied.ok) {
+    console.error(supplied.error);
+    process.exit(1);
+  }
+  // One file describes one ticket: a batch would stamp it on every PR.
+  if (supplied !== null && parsed.urls.length > 1) {
+    console.error("--context takes exactly one <pr-url>");
     process.exit(1);
   }
 
@@ -452,6 +486,9 @@ async function main(): Promise<void> {
   // Local-only mode: the working tree's settings.yaml names the tracker.
   const local = readLocalTracker(process.cwd());
   if (local.warning !== undefined) console.error(`warning: ${local.warning}`);
+  const options: GenerateOptions = supplied?.ok
+    ? { tracker: local.tracker, suppliedPrimary: supplied.value }
+    : { tracker: local.tracker };
 
   // PRs are independent — run them in parallel, sharing one generator so the
   // SDK's connection pool is reused. A single bad URL must not kill the batch.
@@ -473,7 +510,7 @@ async function main(): Promise<void> {
               parsed.range,
               generator,
               effort,
-              local.tracker,
+              options,
             ),
           };
         } catch (error) {

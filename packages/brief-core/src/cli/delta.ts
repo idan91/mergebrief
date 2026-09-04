@@ -15,11 +15,14 @@ import {
   loadGeneratorConfigFile,
   type Generator,
 } from "generators";
-import { extractConfigFlag } from "./config";
+import { extractConfigFlag, extractContextFlag } from "./config";
+import { describeUnreadPrimary, readContextFile } from "./context-file";
 import {
   buildContextQuery,
   createBuiltInContextProviders,
   fetchContextSnippets,
+  toPrimaryTicket,
+  type FetchContextSnippetsOptions,
   type TrackerConfig,
 } from "../context";
 import { readLocalTracker } from "./settings";
@@ -63,6 +66,7 @@ export async function generateAndWriteDelta(
   log: (msg: string) => void,
   effort?: Effort,
   tracker?: TrackerConfig,
+  fetchOptions: FetchContextSnippetsOptions = {},
 ): Promise<DeltaBrief> {
   const locator = parsePrUrl(url);
 
@@ -90,10 +94,11 @@ export async function generateAndWriteDelta(
     tracker,
     notion: false,
   });
-  const links = await fetchContextSnippets(
+  const { links, primaryTicket } = await fetchContextSnippets(
     query,
     createBuiltInContextProviders(),
     log,
+    fetchOptions,
   );
   // Endpoint brief indices (read-only) for the `_b→_h` label — null if unbriefed.
   const stem = prStem(`${locator.owner}/${locator.repo}`, locator.number);
@@ -119,6 +124,10 @@ export async function generateAndWriteDelta(
   log(
     `fetched ${links.length} linked refs, ${comments.length} review comments; generating delta…`,
   );
+  // An unread primary is surfaced here too; the delta carries no stamp.
+  if (primaryTicket?.status === "unread") {
+    log(describeUnreadPrimary(toPrimaryTicket(primaryTicket)));
+  }
 
   const delta = await categorizeDelta(
     {
@@ -130,6 +139,7 @@ export async function generateAndWriteDelta(
       headIndex,
       incrementalDiff,
       links,
+      primaryTicket,
       comments,
     },
     generator,
@@ -152,11 +162,20 @@ export async function generateAndWriteDelta(
 
 async function main(): Promise<void> {
   const flagged = extractConfigFlag(process.argv.slice(2));
-  const [url, baselineSha, headSha] = flagged ? flagged.rest : [];
-  if (!flagged || !url || !baselineSha || !headSha) {
+  const contextFlag = flagged ? extractContextFlag(flagged.rest) : null;
+  const [url, baselineSha, headSha] = contextFlag ? contextFlag.rest : [];
+  if (!flagged || !contextFlag || !url || !baselineSha || !headSha) {
     console.error(
-      "usage: pnpm delta [--config <mergebrief.config.yaml>] <pr-url> <baseline-sha> <head-sha>",
+      "usage: pnpm delta [--config <mergebrief.config.yaml>] [--context <ticket.json>] <pr-url> <baseline-sha> <head-sha>",
     );
+    process.exit(1);
+  }
+  const supplied =
+    contextFlag.contextPath === null
+      ? null
+      : readContextFile(contextFlag.contextPath);
+  if (supplied !== null && !supplied.ok) {
+    console.error(supplied.error);
     process.exit(1);
   }
 
@@ -189,6 +208,9 @@ async function main(): Promise<void> {
   // Local-only mode: the working tree's settings.yaml names the tracker.
   const local = readLocalTracker(process.cwd());
   if (local.warning !== undefined) log(`warning: ${local.warning}`);
+  const fetchOptions: FetchContextSnippetsOptions = supplied?.ok
+    ? { suppliedPrimary: supplied.value }
+    : {};
 
   const delta = await generateAndWriteDelta(
     OUT_DIR,
@@ -199,6 +221,7 @@ async function main(): Promise<void> {
     log,
     loaded.value.generator.effort,
     local.tracker,
+    fetchOptions,
   );
 
   console.log("");

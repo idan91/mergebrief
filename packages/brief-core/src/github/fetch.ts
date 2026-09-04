@@ -238,10 +238,10 @@ export async function fetchPr(
     repo: locator,
     notion: false,
   });
-  const links = await fetchContextSnippets(
+  const context = await fetchContextSnippets(
     query,
     createBuiltInContextProviders(),
     log,
   );
-  return { locator, meta, diff, links };
+  return { locator, meta, diff, ...context };
 }

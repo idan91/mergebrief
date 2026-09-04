@@ -226,6 +226,9 @@ importers:
       generators:
         specifier: workspace:*
         version: link:../generators
+      i18n:
+        specifier: workspace:*
+        version: link:../i18n
       types:
         specifier: workspace:*
         version: link:../types
