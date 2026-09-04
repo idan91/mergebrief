@@ -2,6 +2,7 @@ import type { Result } from "types";
 import type { Log } from "../github/types";
 import { TicketUnreadReasons } from "../types";
 import { resolvePrimaryTicket, type TicketReference } from "./references";
+import type { TrackerReads } from "./trackers";
 import type { PrimaryRead } from "./trackers/types";
 import type {
   ContextProvider,
@@ -26,8 +27,8 @@ export interface FetchContextSnippetsOptions {
    * fixture): replaces the tracker read and is stamped as read.
    */
   readonly suppliedPrimary?: PrimarySnippet;
-  /** The root's one ticket read; absent means every primary is reported unread. */
-  readonly primaryRead?: PrimaryRead | undefined;
+  /** The root's reads by tracker; a primary whose tracker has none is reported unread. */
+  readonly reads?: TrackerReads | undefined;
 }
 
 export interface ContextFetch {
@@ -123,8 +124,8 @@ async function readPrimaryTicket(
   }
   if (reference === undefined) return undefined;
 
-  const read = options.primaryRead;
-  if (read === undefined) {
+  const reads = options.reads ?? {};
+  if (reads[reference.tracker] === undefined) {
     return {
       status: "unread",
       reference,
@@ -133,18 +134,23 @@ async function readPrimaryTicket(
     };
   }
 
-  // Only the configured tracker's references are read; the rest stay text.
-  // A reference that resolves to a pull request is not a ticket: it is
-  // skipped and the next reference becomes the primary, in the parser's
-  // order. Every candidate shares the one budget, so the phase never
-  // outlives a single read.
+  // Each candidate is read by its own tracker; references to a tracker this
+  // root cannot read stay text. A reference that resolves to a pull request
+  // is not a ticket: it is skipped and the next reference becomes the
+  // primary, in the parser's order, the primary's tracker ranked first.
+  // Every candidate shares the one budget, so the phase never outlives a
+  // single read.
   let remainingReferences = query.references.filter(
-    (candidate) => candidate.tracker === read.kind,
+    (candidate) => reads[candidate.tracker] !== undefined,
   );
   const deadline = Date.now() + timeoutMs;
   for (let tried = 0; tried < MAX_PRIMARY_CANDIDATES; tried += 1) {
-    const candidate = resolvePrimaryTicket(remainingReferences, read.kind);
-    if (candidate === undefined) return undefined;
+    const candidate = resolvePrimaryTicket(
+      remainingReferences,
+      reference.tracker,
+    );
+    const read = candidate === undefined ? undefined : reads[candidate.tracker];
+    if (candidate === undefined || read === undefined) return undefined;
     remainingReferences = remainingReferences.filter((r) => r !== candidate);
     const remaining = deadline - Date.now();
     if (remaining <= 0) {

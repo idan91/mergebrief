@@ -11,6 +11,7 @@ import {
 import { categorizeDelta } from "../generation/categorize";
 import {
   createGenerator,
+  DEFAULT_CONTEXT_SOURCES,
   defaultGeneratorConfig,
   loadGeneratorConfigFile,
   type Generator,
@@ -21,12 +22,15 @@ import {
   buildContextQuery,
   fetchContextSnippets,
   toPrimaryTicket,
+  type ContextProvider,
   type FetchContextSnippetsOptions,
   type TrackerConfig,
 } from "../context";
+import { listReadableTrackers } from "../context/trackers";
 import {
   createCliContextProviders,
   createCliRootDeps,
+  resolveCliTrackerReads,
 } from "./context-providers";
 import { readLocalTracker } from "./settings";
 import { splitDiffByFile } from "../diff/diff";
@@ -39,8 +43,6 @@ import {
   prStem,
   printDeltaSummary,
 } from "../artifacts/output";
-import type { ContextProvider } from "../context/types";
-import { resolvePrimaryRead } from "../context/trackers";
 import type { DeltaBrief, Effort } from "../types";
 
 const OUT_DIR = "out";
@@ -98,7 +100,7 @@ export async function generateAndWriteDelta(
     branch: meta.headRef ?? "",
     repo: locator,
     tracker,
-    notion: false,
+    readable: listReadableTrackers(fetchOptions.reads ?? {}),
   });
   const { links, primaryTicket } = await fetchContextSnippets(
     query,
@@ -191,7 +193,13 @@ async function main(): Promise<void> {
   const loaded =
     flagged.configPath !== null
       ? loadGeneratorConfigFile(flagged.configPath)
-      : { ok: true as const, value: { generator: defaultGeneratorConfig } };
+      : {
+          ok: true as const,
+          value: {
+            generator: defaultGeneratorConfig,
+            contextSources: DEFAULT_CONTEXT_SOURCES,
+          },
+        };
   if (!loaded.ok) {
     console.error(loaded.error.issues.join("; "));
     process.exit(1);
@@ -206,25 +214,26 @@ async function main(): Promise<void> {
     );
     process.exit(1);
   }
-
   const locator = parsePrUrl(url);
   const tag = `${locator.owner}/${locator.repo}#${locator.number}`;
   const log = (msg: string): void => console.error(`[${tag}] ${msg}`);
 
   // Local-only mode: the working tree's settings.yaml names the tracker.
   const local = readLocalTracker(process.cwd());
-  const primaryRead = resolvePrimaryRead(
+  // Same spot, same rule: tracker tokens resolve by env-var NAME here only.
+  const suppliedPrimary = supplied?.ok ? supplied.value : undefined;
+  const reads = resolveCliTrackerReads(
+    suppliedPrimary,
     local.tracker,
-    createCliRootDeps(process.env),
+    createCliRootDeps(process.env, loaded.value.contextSources),
   );
-  if (!primaryRead.ok) {
-    console.error(primaryRead.error.issues.join("; "));
+  if (!reads.ok) {
+    console.error(reads.error.issues.join("; "));
     process.exit(1);
   }
   if (local.warning !== undefined) log(`warning: ${local.warning}`);
-  const fetchOptions: FetchContextSnippetsOptions = supplied?.ok
-    ? { suppliedPrimary: supplied.value }
-    : {};
+  const fetchOptions: FetchContextSnippetsOptions =
+    suppliedPrimary === undefined ? {} : { suppliedPrimary };
 
   const delta = await generateAndWriteDelta(
     OUT_DIR,
@@ -235,7 +244,7 @@ async function main(): Promise<void> {
     log,
     loaded.value.generator.effort,
     local.tracker,
-    { ...fetchOptions, primaryRead: primaryRead.value },
+    { ...fetchOptions, reads: reads.value },
     createCliContextProviders(),
   );
 

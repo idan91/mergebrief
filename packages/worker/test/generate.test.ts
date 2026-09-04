@@ -5,7 +5,7 @@
 // consumes is read back from the stubbed jobs table exactly as
 // `createIngestRoutines.triggerGeneration` wrote it — pinning both sides of the
 // contract in one place.
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createArtifactStore,
   createTenantRepository,
@@ -42,6 +42,8 @@ import {
   INSTRUCTIONS_INJECTION_BUDGET_BYTES,
   PARKED_ATTRIBUTE_CANDIDATES as CAT_PARKED,
   RESERVED_ATTRIBUTE_WORDS as CAT_RESERVED,
+  type ContextProvider,
+  type ContextQuery,
 } from "brief-core";
 import {
   ATTRIBUTE_NAME_PATTERN,
@@ -408,6 +410,65 @@ function target(pr: PullRequestRow, headSha: string): GenerationTarget {
 // Tests.
 // ---------------------------------------------------------------------------
 
+const NOTION_PAGE_ID = "3cf5e9400eeb81f9bed9e1474c2cb4d4";
+const NOTION_SETTINGS =
+  "version: 1\ntracker:\n  kind: notion\n  keyPrefix: BRIEF\n  databaseId: " +
+  "a".repeat(32) +
+  "\n";
+const NOTION_ROOT = {
+  env: { NOTION_TOKEN: "ntn_test_token_never_shown" },
+  contextSources: [{ type: "notion" as const }],
+};
+
+/** A recorded Notion behind global fetch: one private page with one paragraph. */
+function stubNotionFetch(): { calls: string[]; restore: () => void } {
+  const calls: string[] = [];
+  const routes: Record<string, unknown> = {
+    [`/v1/pages/${NOTION_PAGE_ID}`]: {
+      object: "page",
+      id: NOTION_PAGE_ID,
+      properties: {
+        Name: { type: "title", title: [{ plain_text: "Secret roadmap" }] },
+      },
+    },
+    [`/v1/blocks/${NOTION_PAGE_ID}/children`]: {
+      object: "list",
+      results: [
+        {
+          id: "b1",
+          type: "paragraph",
+          paragraph: {
+            rich_text: [{ plain_text: "Not for the public brief." }],
+          },
+        },
+      ],
+      has_more: false,
+      next_cursor: null,
+    },
+  };
+  vi.stubGlobal("fetch", async (url: string) => {
+    const path = new URL(url).pathname;
+    calls.push(path);
+    const body = routes[path];
+    if (body === undefined) return new Response("{}", { status: 404 });
+    return new Response(JSON.stringify(body), { status: 200 });
+  });
+  return { calls, restore: () => vi.unstubAllGlobals() };
+}
+
+function pointAtNotionPage(github: StubGitHub): void {
+  github.info = {
+    ...github.info,
+    body: `see https://www.notion.so/Roadmap-${NOTION_PAGE_ID}`,
+  };
+  github.repoFiles.set(RepoConfigPaths.SETTINGS, {
+    kind: "file",
+    content: NOTION_SETTINGS,
+    blobSha: "sha-s",
+    size: NOTION_SETTINGS.length,
+  });
+}
+
 describe("generate task — url-box world", () => {
   it("drains a url-box payload: viewer port, owner-scoped brief, no entry comment, url-box audit", async () => {
     const ownerCtx = parseScopeContext({ ownerUserId: 555 });
@@ -481,6 +542,50 @@ describe("generate task — url-box world", () => {
       source: "url-box",
       operation: "generate",
       target_type: "brief",
+    });
+  });
+
+  it("queries the context providers main.ts injected with the PR's metadata", async () => {
+    const ownerCtx = parseScopeContext({ ownerUserId: 555 });
+    const pr = await createTenantRepository(
+      harness.handle,
+      ownerCtx,
+    ).pullRequests.upsert({
+      repoId: makeRepoId(7n),
+      prNumber: 7,
+      repoSlug: "acme/widget",
+      state: PrStates.OPEN,
+    });
+    const projection = createGenerationProjection(harness.handle, ownerCtx);
+    expect((await projection.upsertQueued(target(pr, HEAD_1))).ok).toBe(true);
+    const queries: ContextQuery[] = [];
+    const provider: ContextProvider = {
+      providerId: "url",
+      fetch: async (query) => {
+        queries.push(query);
+        return { ok: true, value: [] };
+      },
+    };
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator: stubGenerator(),
+      github: stubGitHub(HEAD_1),
+      contextProviders: [provider],
+    });
+
+    await task({
+      owner_user_id: "555",
+      grant_id: "31",
+      pull_request_id: String(pr.id),
+      head_sha: HEAD_1,
+    });
+
+    expect(queries).toHaveLength(1);
+    expect(queries[0]).toMatchObject({
+      title: "stub PR",
+      headRef: "feature/stub",
+      repo: { owner: "acme", repo: "widget" },
     });
   });
 
@@ -793,6 +898,85 @@ describe("generate task", () => {
       intentCheck: { primaryTicket: { status: "unread", reason: "not-found" } },
     });
     expect(body).not.toContain("Secret roadmap");
+  });
+
+  it("never offers a url-box job the deployment's Notion integration", async () => {
+    const ownerCtx = parseScopeContext({ ownerUserId: 555 });
+    const pr = await createTenantRepository(
+      harness.handle,
+      ownerCtx,
+    ).pullRequests.upsert({
+      repoId: makeRepoId(7n),
+      prNumber: 7,
+      repoSlug: "acme/widget",
+      state: PrStates.OPEN,
+    });
+    await createGenerationProjection(harness.handle, ownerCtx).upsertQueued(
+      target(pr, HEAD_1),
+    );
+    const payload = {
+      owner_user_id: "555",
+      grant_id: "31",
+      pull_request_id: String(pr.id),
+      head_sha: HEAD_1,
+    };
+    const github = stubGitHub(HEAD_1);
+    pointAtNotionPage(github);
+    const notion = stubNotionFetch();
+    try {
+      await createGenerateTask({
+        handle: harness.handle,
+        publicBaseUrl: PUBLIC_URL,
+        generator: stubGenerator(),
+        github,
+        trackerRoot: NOTION_ROOT,
+      })(payload);
+    } finally {
+      notion.restore();
+    }
+
+    const brief = await createArtifactStore(
+      harness.handle,
+      ownerCtx,
+    ).briefs.get(pr.id, BASE, HEAD_1);
+    const body = brief?.body ?? "{}";
+    expect(notion.calls).toEqual([]);
+    // No Notion slot, so the page URL is never a ticket: no primary at all.
+    expect(JSON.parse(body).intentCheck?.primaryTicket).toBeUndefined();
+    expect(body).not.toContain("Secret roadmap");
+  });
+
+  it("reads the repo's Notion ticket for an installation job with the deployment's integration", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = stubGitHub(HEAD_1);
+    pointAtNotionPage(github);
+    const notion = stubNotionFetch();
+    try {
+      await createGenerateTask({
+        handle: harness.handle,
+        publicBaseUrl: PUBLIC_URL,
+        generator: stubGenerator(),
+        github,
+        trackerRoot: NOTION_ROOT,
+      })(payload);
+    } finally {
+      notion.restore();
+    }
+
+    const brief = await createArtifactStore(harness.handle, ctx).briefs.get(
+      pr.id,
+      BASE,
+      HEAD_1,
+    );
+    expect(notion.calls).toEqual([
+      `/v1/pages/${NOTION_PAGE_ID}`,
+      `/v1/blocks/${NOTION_PAGE_ID}/children`,
+    ]);
+    expect(JSON.parse(brief?.body ?? "{}")).toMatchObject({
+      intentCheck: {
+        primaryTicket: { status: "read", title: "Secret roadmap" },
+      },
+    });
   });
 
   it("reports a missing issue as unread not-found on the stored brief", async () => {
@@ -1792,6 +1976,77 @@ describe("generate task", () => {
     expect(
       generator.calls.filter((l) => l === "revision narrative"),
     ).toHaveLength(narrativeCallsBefore);
+  });
+
+  it("a narrative retry on a stored brief reads the repo's Notion ticket, not GitHub's default", async () => {
+    const first = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    pointAtNotionPage(github);
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github,
+      trackerRoot: NOTION_ROOT,
+    });
+    const firstNotion = stubNotionFetch();
+    try {
+      await task(first.payload);
+    } finally {
+      firstNotion.restore();
+    }
+    expect(firstNotion.calls).toHaveLength(2);
+
+    github.info = { ...github.info, headSha: HEAD_2 };
+    const second = await trigger(HEAD_2);
+    const originalGenerate = generator.generate.bind(generator);
+    let narrativeAttempts = 0;
+    generator.generate = async (req) => {
+      if (req.label === "revision narrative" && narrativeAttempts++ === 0) {
+        throw new Error("Model refused to produce the revision narrative.");
+      }
+      return originalGenerate(req);
+    };
+    const secondNotion = stubNotionFetch();
+    try {
+      await task(second.payload);
+    } finally {
+      secondNotion.restore();
+    }
+    const store = createArtifactStore(harness.handle, ctx);
+    expect(
+      await store.revisionNarratives.get(second.pr.id, HEAD_1, HEAD_2),
+    ).toBeUndefined();
+
+    // Retry on the stored brief: the skip path loads repo config and reads
+    // the Notion page again for the narrative, instead of GitHub's default.
+    const retryNotion = stubNotionFetch();
+    const fetchesBefore = github.repoFileCalls.length;
+    try {
+      await task(second.payload);
+    } finally {
+      retryNotion.restore();
+    }
+    expect(retryNotion.calls).toEqual([
+      `/v1/pages/${NOTION_PAGE_ID}`,
+      `/v1/blocks/${NOTION_PAGE_ID}/children`,
+    ]);
+    expect(github.repoFileCalls.length).toBeGreaterThan(fetchesBefore);
+    expect(
+      await store.revisionNarratives.get(second.pr.id, HEAD_1, HEAD_2),
+    ).toBeDefined();
+
+    // A further rerun spends nothing and so loads nothing: no config fetch.
+    const settled = github.repoFileCalls.length;
+    const idleNotion = stubNotionFetch();
+    try {
+      await task(second.payload);
+    } finally {
+      idleNotion.restore();
+    }
+    expect(idleNotion.calls).toEqual([]);
+    expect(github.repoFileCalls.length).toBe(settled);
   });
 
   it("sweeps a pre-drain-replaced head's projection to superseded after the newer head succeeds", async () => {

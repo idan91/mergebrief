@@ -15,6 +15,7 @@ import {
 } from "../generation/categorize";
 import {
   createGenerator,
+  DEFAULT_CONTEXT_SOURCES,
   defaultGeneratorConfig,
   loadGeneratorConfigFile,
   type Generator,
@@ -24,10 +25,12 @@ import {
   extractContextFlag,
   extractOutFlag,
 } from "./config";
+import type { Mutable } from "types";
 import { describeUnreadPrimary, readContextFile } from "./context-file";
 import {
   buildContextQuery,
   fetchContextSnippets,
+  type ContextProvider,
   type FetchContextSnippetsOptions,
   type PrimarySnippet,
   type TrackerConfig,
@@ -35,6 +38,7 @@ import {
 import {
   createCliContextProviders,
   createCliRootDeps,
+  resolveCliTrackerReads,
 } from "./context-providers";
 import { readLocalTracker } from "./settings";
 import { splitDiffByFile } from "../diff/diff";
@@ -52,9 +56,7 @@ import {
   revChangesName,
   revisionNarrativeName,
 } from "../artifacts/output";
-import type { Mutable } from "types";
-import type { ContextProvider } from "../context/types";
-import { resolvePrimaryRead, type PrimaryRead } from "../context/trackers";
+import { listReadableTrackers, type TrackerReads } from "../context/trackers";
 import type {
   Brief,
   CommitRange,
@@ -137,23 +139,25 @@ async function buildInputs(
           commitCount: meta.commitCount,
         }),
   ]);
+  const contextProviders =
+    options.contextProviders ?? createCliContextProviders();
   const query = buildContextQuery({
     title: meta.title,
     body: meta.body,
     branch: meta.headRef ?? "",
     repo: locator,
     tracker: options.tracker,
-    notion: false,
+    readable: listReadableTrackers(options.reads ?? {}),
   });
   const fetchOptions: Mutable<FetchContextSnippetsOptions> = {
-    primaryRead: options.primaryRead,
+    reads: options.reads,
   };
   if (options.suppliedPrimary !== undefined) {
     fetchOptions.suppliedPrimary = options.suppliedPrimary;
   }
   const context = await fetchContextSnippets(
     query,
-    options.contextProviders ?? createCliContextProviders(),
+    contextProviders,
     log,
     fetchOptions,
   );
@@ -174,8 +178,8 @@ export interface GenerateOptions {
   readonly suppliedPrimary?: PrimarySnippet | undefined;
   /** The providers the composition root built; absent means the CLI defaults. */
   readonly contextProviders?: readonly ContextProvider[] | undefined;
-  /** The root's tracker read; absent means every primary is reported unread. */
-  readonly primaryRead?: PrimaryRead | undefined;
+  /** The root's reads by tracker; absent means every primary is reported unread. */
+  readonly reads?: TrackerReads | undefined;
 }
 
 export async function generateAndWrite(
@@ -477,7 +481,13 @@ async function main(): Promise<void> {
   const loaded =
     flagged.configPath !== null
       ? loadGeneratorConfigFile(flagged.configPath)
-      : { ok: true as const, value: { generator: defaultGeneratorConfig } };
+      : {
+          ok: true as const,
+          value: {
+            generator: defaultGeneratorConfig,
+            contextSources: DEFAULT_CONTEXT_SOURCES,
+          },
+        };
   if (!loaded.ok) {
     console.error(loaded.error.issues.join("; "));
     process.exit(1);
@@ -492,25 +502,29 @@ async function main(): Promise<void> {
     );
     process.exit(1);
   }
-
   await mkdir(outDir, { recursive: true });
 
   // Local-only mode: the working tree's settings.yaml names the tracker.
   const local = readLocalTracker(process.cwd());
   if (local.warning !== undefined) console.error(`warning: ${local.warning}`);
-  const primaryRead = resolvePrimaryRead(
+  // Same spot, same rule: tracker tokens resolve by env-var NAME here only.
+  const suppliedPrimary = supplied?.ok ? supplied.value : undefined;
+  const reads = resolveCliTrackerReads(
+    suppliedPrimary,
     local.tracker,
-    createCliRootDeps(process.env),
+    createCliRootDeps(process.env, loaded.value.contextSources),
   );
-  if (!primaryRead.ok) {
-    console.error(primaryRead.error.issues.join("; "));
+  if (!reads.ok) {
+    console.error(
+      `${reads.error.issues.join("; ")} — add it to tools/categorizer/.env (see .env.example).`,
+    );
     process.exit(1);
   }
   const options: GenerateOptions = {
     tracker: local.tracker,
-    suppliedPrimary: supplied?.ok ? supplied.value : undefined,
+    suppliedPrimary,
     contextProviders: createCliContextProviders(),
-    primaryRead: primaryRead.value,
+    reads: reads.value,
   };
 
   // PRs are independent — run them in parallel, sharing one generator so the

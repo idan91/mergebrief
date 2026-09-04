@@ -1,5 +1,10 @@
 import type { Result } from "types";
 import { configError, type ConfigError } from "../contract/errors";
+import {
+  DEFAULT_CONTEXT_SOURCES,
+  validateContextSourcesBlock,
+  type ContextSourcesConfig,
+} from "./context-sources";
 import { validateDraftsBlock } from "./instancePolicy";
 import { readConfigRoot, renderKey, resolveEnvConfigPath } from "./readRoot";
 import {
@@ -27,6 +32,7 @@ import {
  *   convention for vendored extensions)
  * - a `generator:` block failing the registry-derived union (strict per
  *   adapter; token-gated key echoes)
+ * - a `contextSources:` block with an unknown type or a malformed entry
  *
  * The `yaml` dependency lives HERE only.
  */
@@ -38,6 +44,11 @@ export interface LoadedGeneratorConfig {
    * Uncapped when the block is absent.
    */
   spend: SpendPolicy;
+  /**
+   * The credentialed context providers; built-ins need no entry, so the
+   * empty default still reads URLs and GitHub issues.
+   */
+  contextSources: ContextSourcesConfig;
   /** The file the config came from; null for zero-config defaults. */
   source: string | null;
 }
@@ -53,6 +64,7 @@ export function loadGeneratorConfig(
       value: {
         generator: defaultGeneratorConfig,
         spend: DEFAULT_SPEND_POLICY,
+        contextSources: DEFAULT_CONTEXT_SOURCES,
         source: null,
       },
     };
@@ -82,6 +94,7 @@ export function loadGeneratorConfigFile(
       value: {
         generator: defaultGeneratorConfig,
         spend: DEFAULT_SPEND_POLICY,
+        contextSources: DEFAULT_CONTEXT_SOURCES,
         source: path,
       },
     };
@@ -93,6 +106,7 @@ export function loadGeneratorConfigFile(
       key === "generator" ||
       key === "drafts" ||
       key === "spend" ||
+      key === "contextSources" ||
       key.startsWith("x-")
     )
       continue;
@@ -120,11 +134,26 @@ export function loadGeneratorConfigFile(
     spend = validated.value;
   }
 
+  // Credentialed providers are constructed by the composition roots; the
+  // shape is refused here so every reader of the file agrees on it.
+  const sourcesBlock = root["contextSources"];
+  let contextSources = DEFAULT_CONTEXT_SOURCES;
+  if (sourcesBlock !== undefined) {
+    const validated = validateContextSourcesBlock(sourcesBlock);
+    if (!validated.ok) return validated;
+    contextSources = validated.value;
+  }
+
   const block = root["generator"];
   if (block === undefined) {
     return {
       ok: true,
-      value: { generator: defaultGeneratorConfig, spend, source: path },
+      value: {
+        generator: defaultGeneratorConfig,
+        spend,
+        contextSources,
+        source: path,
+      },
     };
   }
 
@@ -136,6 +165,6 @@ export function loadGeneratorConfigFile(
   }
   return {
     ok: true,
-    value: { generator: validated.value, spend, source: path },
+    value: { generator: validated.value, spend, contextSources, source: path },
   };
 }

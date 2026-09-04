@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { createGhIssueReader, type GhExec } from "../../src/github/issue";
-import { TicketUnreadReasons } from "../../src/types";
+import {
+  createGhTransport,
+  createInstallationTransport,
+  GitHubTransports,
+  type GhExec,
+  type InstallationIssueApi,
+  type IssueRecord,
+} from "../../../../src/context/trackers/github";
+import { TicketUnreadReasons } from "../../../../src/types";
 
 const LOCATOR = { owner: "acme", repo: "widget", number: 42 };
 
@@ -36,15 +43,15 @@ function stubExecFailing(failure: {
   };
 }
 
-describe("createGhIssueReader", () => {
+describe("GitHubTransports.GH", () => {
   it("reads the issue through gh api and maps the payload", async () => {
     const calls: ExecCall[] = [];
     const signal = new AbortController().signal;
-    const reader = createGhIssueReader(
+    const transport = createGhTransport(
       stubExecReturning(JSON.stringify(PAYLOAD), calls),
     );
 
-    const result = await reader.readIssue(LOCATOR, signal);
+    const result = await transport.readIssue(LOCATOR, signal);
 
     expect(calls).toEqual([
       { file: "gh", args: ["api", "repos/acme/widget/issues/42"], signal },
@@ -64,12 +71,12 @@ describe("createGhIssueReader", () => {
   });
 
   it("normalizes null body, milestone and labels", async () => {
-    const reader = createGhIssueReader(
+    const transport = createGhTransport(
       stubExecReturning(
         JSON.stringify({ title: "t", state: "open", body: null, labels: [] }),
       ),
     );
-    const result = await reader.readIssue(
+    const result = await transport.readIssue(
       LOCATOR,
       new AbortController().signal,
     );
@@ -88,12 +95,12 @@ describe("createGhIssueReader", () => {
   });
 
   it("flags a payload carrying pull_request", async () => {
-    const reader = createGhIssueReader(
+    const transport = createGhTransport(
       stubExecReturning(
         JSON.stringify({ ...PAYLOAD, pull_request: { url: "x" } }),
       ),
     );
-    const result = await reader.readIssue(
+    const result = await transport.readIssue(
       LOCATOR,
       new AbortController().signal,
     );
@@ -135,8 +142,8 @@ describe("createGhIssueReader", () => {
     [{ name: "AbortError" }, TicketUnreadReasons.TIMEOUT],
     [{ code: 1, stderr: "something else" }, TicketUnreadReasons.TIMEOUT],
   ])("maps the gh failure %j to %s", async (failure, reason) => {
-    const reader = createGhIssueReader(stubExecFailing(failure));
-    const result = await reader.readIssue(
+    const transport = createGhTransport(stubExecFailing(failure));
+    const result = await transport.readIssue(
       LOCATOR,
       new AbortController().signal,
     );
@@ -146,13 +153,13 @@ describe("createGhIssueReader", () => {
   });
 
   it("never lets stderr reach the failure detail", async () => {
-    const reader = createGhIssueReader(
+    const transport = createGhTransport(
       stubExecFailing({
         code: 1,
         stderr: "token ghp_SECRET leaked (HTTP 404)",
       }),
     );
-    const result = await reader.readIssue(
+    const result = await transport.readIssue(
       LOCATOR,
       new AbortController().signal,
     );
@@ -166,8 +173,8 @@ describe("createGhIssueReader", () => {
     { owner: "acme", repo: "widget", number: 0 },
   ])("refuses the malformed locator %j before touching gh", async (locator) => {
     const calls: ExecCall[] = [];
-    const reader = createGhIssueReader(stubExecReturning("{}", calls));
-    const result = await reader.readIssue(
+    const transport = createGhTransport(stubExecReturning("{}", calls));
+    const result = await transport.readIssue(
       locator,
       new AbortController().signal,
     );
@@ -182,9 +189,61 @@ describe("createGhIssueReader", () => {
   });
 
   it("throws on a payload gh should never produce", async () => {
-    const reader = createGhIssueReader(stubExecReturning('{"title": 3}'));
+    const transport = createGhTransport(stubExecReturning('{"title": 3}'));
     await expect(
-      reader.readIssue(LOCATOR, new AbortController().signal),
+      transport.readIssue(LOCATOR, new AbortController().signal),
     ).rejects.toThrow("expected string");
+  });
+});
+
+const ISSUE: IssueRecord = {
+  title: "t",
+  state: "open",
+  stateReason: null,
+  labels: ["bug"],
+  milestone: null,
+  body: "b",
+  isPullRequest: false,
+};
+
+function stubApi(calls: unknown[] = []): InstallationIssueApi {
+  return {
+    async fetchIssue(locator) {
+      calls.push(locator);
+      return { ok: true, value: ISSUE };
+    },
+  };
+}
+
+describe("GitHubTransports.INSTALLATION", () => {
+  const signal = new AbortController().signal;
+
+  it("reads through the job's issue API, addressed by the locator", async () => {
+    const calls: unknown[] = [];
+    const transport = createInstallationTransport(stubApi(calls));
+    await expect(transport.readIssue(LOCATOR, signal)).resolves.toEqual({
+      ok: true,
+      value: ISSUE,
+    });
+    expect(calls).toEqual([LOCATOR]);
+  });
+
+  it("is not-found outside the bound repo, without calling the API", async () => {
+    const calls: unknown[] = [];
+    const transport = createInstallationTransport(stubApi(calls), {
+      onlyRepo: { owner: "acme", repo: "other" },
+    });
+    const result = await transport.readIssue(LOCATOR, signal);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.reason).toBe(TicketUnreadReasons.NOT_FOUND);
+    expect(calls).toEqual([]);
+  });
+
+  it("lists both implementations under create()", () => {
+    expect(GitHubTransports.GH.create).toBe(createGhTransport);
+    expect(GitHubTransports.INSTALLATION.create).toBe(
+      createInstallationTransport,
+    );
   });
 });

@@ -6,9 +6,8 @@ import {
 } from "../context";
 import { execFileAsync, MAX_BUFFER, SEGMENT } from "./exec";
 import type { ContextProvider } from "../context/types";
-import { ghIssueReader } from "./issue";
-import { createGitHubRead } from "../context/trackers/github";
-import type { PrimaryRead } from "../context/trackers/types";
+import { createGitHubRead, GitHubTransports } from "../context/trackers/github";
+import { listReadableTrackers, type TrackerReads } from "../context/trackers";
 import type { FetchedPr, Log, PrLocator, PrMetadata } from "./types";
 
 const PR_URL = new RegExp(
@@ -212,19 +211,19 @@ export async function fetchCompareCommitCount(
  * the description, run the context providers over it (best-effort). This is
  * the `gh` source, so the default ticket read is GitHub through `gh`.
  */
-function ghPrimaryRead(): PrimaryRead | undefined {
-  const read = createGitHubRead({
-    env: {},
-    github: { issueReader: ghIssueReader },
-  });
-  return read.ok ? read.value : undefined;
+function createGhTrackerReads(): TrackerReads {
+  const read = createGitHubRead(
+    { env: {}, contextSources: [] },
+    GitHubTransports.GH.create(),
+  );
+  return read.ok ? { github: read.value } : {};
 }
 
 export async function fetchPr(
   url: string,
   log: Log = () => {},
   providers: readonly ContextProvider[] = createBuiltInContextProviders(),
-  primaryRead: PrimaryRead | undefined = ghPrimaryRead(),
+  reads: TrackerReads = createGhTrackerReads(),
 ): Promise<FetchedPr> {
   const locator = parsePrUrl(url);
   const [diff, meta] = await Promise.all([
@@ -236,10 +235,10 @@ export async function fetchPr(
     body: meta.body,
     branch: meta.headRef ?? "",
     repo: locator,
-    notion: false,
+    readable: listReadableTrackers(reads),
   });
   const context = await fetchContextSnippets(query, providers, log, {
-    primaryRead,
+    reads,
   });
   return { locator, meta, diff, ...context };
 }

@@ -8,7 +8,10 @@
 //                            inside selects the adapter; API keys resolve by
 //                            env-var NAME (apiKeyEnv) — never from DB or file
 //                            config. Its `spend` block carries the daily
-//                            generation cap; absent → uncapped.
+//                            generation cap; absent → uncapped. Its
+//                            `contextSources` block lists the credentialed
+//                            context providers; tokens resolve by env-var
+//                            NAME too.
 //   PUBLIC_BASE_URL          required; the web deployment's public origin —
 //                            the Entry comment's deep-link base.
 //   AUDIT_RETENTION_DAYS     optional; validated by persistence's loader
@@ -24,6 +27,7 @@
 //                            silently fall back to the default key variable.
 import {
   loadGeneratorConfig,
+  type ContextSourcesConfig,
   type GeneratorConfig,
   type SpendPolicy,
 } from "generators";
@@ -56,6 +60,8 @@ export interface WorkerConfig {
    * carries no `spend` block.
    */
   readonly spend: SpendPolicy;
+  /** The credentialed context providers to construct; empty = built-ins only. */
+  readonly contextSources: ContextSourcesConfig;
   /** Operator PAT backstop for url-box jobs; undefined disables it. */
   readonly urlBoxToken: string | undefined;
 }
@@ -153,6 +159,7 @@ export function loadConfig(
       generator: generatorConfig.value.generator,
       publicBaseUrl: baseUrlParsed.data,
       spend: generatorConfig.value.spend,
+      contextSources: generatorConfig.value.contextSources,
       urlBoxToken: env["MERGEBRIEF_URL_BOX_TOKEN"] || undefined,
     },
   };

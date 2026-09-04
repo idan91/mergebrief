@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import { fetchContextSnippets } from "../../src/context/fan-out";
 import { toPrimaryTicket } from "../../src/context/primary";
 import type { TicketReference } from "../../src/context/references";
-import type { PrimaryRead } from "../../src/context/trackers/types";
+import type {
+  PrimaryRead,
+  TrackerReads,
+} from "../../src/context/trackers/types";
 import {
   ContextProviderTypes,
   type ContextProvider,
@@ -46,6 +49,11 @@ function stubUrlProvider(): ContextProvider {
   };
 }
 
+/** The same read behind every tracker, so a test is indifferent to the reference's kind. */
+function stubReads(read: PrimaryRead): TrackerReads {
+  return { github: read, notion: read };
+}
+
 function stubRead(readPrimary: PrimaryRead["readPrimary"]): PrimaryRead {
   return { kind: "github", readPrimary };
 }
@@ -74,7 +82,7 @@ describe("fetchContextSnippets: the primary ticket", () => {
       value: snippet,
     }));
     const { primaryTicket } = await fetchContextSnippets(query, [], undefined, {
-      primaryRead: read,
+      reads: stubReads(read),
     });
     expect(primaryTicket).toEqual({ status: "read", snippet });
   });
@@ -89,7 +97,7 @@ describe("fetchContextSnippets: the primary ticket", () => {
       query,
       [],
       (m) => logs.push(m),
-      { primaryRead: read },
+      { reads: stubReads(read) },
     );
     expect(primaryTicket).toMatchObject({
       status: "unread",
@@ -102,7 +110,7 @@ describe("fetchContextSnippets: the primary ticket", () => {
     const read = stubRead(() => new Promise(() => undefined));
     const { primaryTicket } = await fetchContextSnippets(query, [], () => {}, {
       timeoutMs: 10,
-      primaryRead: read,
+      reads: stubReads(read),
     });
     expect(primaryTicket).toMatchObject({
       status: "unread",
@@ -115,12 +123,12 @@ describe("fetchContextSnippets: the primary ticket", () => {
       throw new Error("boom");
     });
     const { primaryTicket } = await fetchContextSnippets(query, [], undefined, {
-      primaryRead: read,
+      reads: stubReads(read),
     });
     expect(primaryTicket?.status).toBe("unread");
   });
 
-  it("reads only references of the read's own tracker", async () => {
+  it("reads each candidate through its own tracker's read", async () => {
     const notionRef: TicketReference = {
       tracker: "notion",
       key: "BRIEF-1",
@@ -129,7 +137,7 @@ describe("fetchContextSnippets: the primary ticket", () => {
       closing: true,
     };
     const visited: string[] = [];
-    const read = stubRead(async (ref) => {
+    const record = stubRead(async (ref) => {
       visited.push(ref.tracker);
       return { ok: true, value: snippet };
     });
@@ -137,10 +145,34 @@ describe("fetchContextSnippets: the primary ticket", () => {
       { ...query, primary: notionRef, references: [notionRef, reference] },
       [],
       undefined,
-      { primaryRead: read },
+      { reads: { github: record, notion: record } },
     );
-    expect(visited).toEqual(["github"]);
+    expect(visited).toEqual(["notion"]);
     expect(primaryTicket).toEqual({ status: "read", snippet });
+  });
+
+  it("reports a primary whose tracker this root cannot read as unread, touching no other read", async () => {
+    const notionRef: TicketReference = {
+      tracker: "notion",
+      key: "BRIEF-1",
+      url: "",
+      foundIn: "description",
+      closing: true,
+    };
+    const github = stubRead(async () => {
+      throw new Error("must not be called");
+    });
+    const { primaryTicket } = await fetchContextSnippets(
+      { ...query, primary: notionRef, references: [notionRef, reference] },
+      [],
+      undefined,
+      { reads: { github } },
+    );
+    expect(primaryTicket).toMatchObject({
+      status: "unread",
+      reason: "unsupported",
+      detail: "no notion read on this deployment",
+    });
   });
 
   it("a supplied primary replaces the read and is stamped as read", async () => {
@@ -149,7 +181,7 @@ describe("fetchContextSnippets: the primary ticket", () => {
     });
     const { primaryTicket } = await fetchContextSnippets(query, [], () => {}, {
       suppliedPrimary: snippet,
-      primaryRead: read,
+      reads: stubReads(read),
     });
     expect(primaryTicket).toEqual({ status: "read", snippet });
   });
@@ -180,7 +212,7 @@ describe("fetchContextSnippets: a primary that is not a ticket", () => {
       { ...query, primary: prNumber, references: [prNumber, reference] },
       [],
       (m) => logs.push(m),
-      { primaryRead: read },
+      { reads: stubReads(read) },
     );
     expect(primaryTicket).toEqual({ status: "read", snippet });
     expect(logs.some((l) => l.includes("not a ticket"))).toBe(true);
@@ -199,7 +231,7 @@ describe("fetchContextSnippets: a primary that is not a ticket", () => {
       { ...query, primary: prNumber, references: [prNumber, reference] },
       [],
       () => {},
-      { timeoutMs: 40, graceMs: 5, primaryRead: read },
+      { timeoutMs: 40, graceMs: 5, reads: stubReads(read) },
     );
     expect(primaryTicket).toMatchObject({
       status: "unread",
@@ -233,7 +265,7 @@ describe("fetchContextSnippets: a primary that is not a ticket", () => {
       { ...query, primary: prNumber, references: [prNumber, plain, closing] },
       [],
       undefined,
-      { primaryRead: read },
+      { reads: stubReads(read) },
     );
     expect(visited).toEqual([465, 12]);
     expect(
@@ -247,7 +279,7 @@ describe("fetchContextSnippets: a primary that is not a ticket", () => {
       { ...query, primary: prNumber, references: [prNumber] },
       [],
       undefined,
-      { primaryRead: read },
+      { reads: stubReads(read) },
     );
     expect(primaryTicket).toBeUndefined();
   });
@@ -261,7 +293,7 @@ describe("fetchContextSnippets: a primary that is not a ticket", () => {
       { ...query, primary: prNumber, references: [prNumber, reference] },
       [],
       undefined,
-      { primaryRead: read },
+      { reads: stubReads(read) },
     );
     expect(primaryTicket).toMatchObject({
       status: "unread",

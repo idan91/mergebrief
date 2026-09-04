@@ -78,6 +78,19 @@ describe("createGenerator", () => {
     expect(text).toContain("environment variable NAME");
   });
 
+  it("refuses a lowercase, dash-free key pasted as apiKeyEnv without echoing it", async () => {
+    const pastedKey = "secret_abcdef0123456789";
+    const result = await createGenerator(
+      { provider: "anthropic", apiKeyEnv: pastedKey },
+      deps,
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    const text = `${result.error.message} ${result.error.issues.join("; ")}`;
+    expect(text).not.toContain(pastedKey);
+    expect(text).toContain("environment variable NAME");
+  });
+
   it("redacts a non-token unknown provider instead of echoing it", async () => {
     const pastedSecret = "sk-ant-api03-not-a-provider";
     const result = await createGenerator({ provider: pastedSecret }, deps);

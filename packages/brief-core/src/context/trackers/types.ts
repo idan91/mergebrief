@@ -1,5 +1,5 @@
 import type { Result } from "types";
-import type { ConfigError } from "generators";
+import type { ConfigError, ContextSourcesConfig } from "generators";
 import type {
   ReferenceLocation,
   TicketTracker,
@@ -10,7 +10,8 @@ import type {
   ContextReadFailure,
   PrimarySnippet,
 } from "../types";
-import type { IssueReader } from "./github/issue-read";
+import type { GitHubTransport } from "./github/transport";
+import type { NotionTransport } from "./notion/transport";
 
 export interface TicketReferenceRepo {
   readonly owner: string;
@@ -27,8 +28,8 @@ export interface TicketReferenceInput {
   readonly repo: TicketReferenceRepo;
   /** The repo's `tracker:` block; absent means keys never match. */
   readonly tracker?: TrackerConfig | undefined;
-  /** Whether a Notion token is configured; Notion URLs match only then. */
-  readonly notion: boolean;
+  /** The trackers this root can read; a tracker whose URLs are plain links without a read checks for its kind here. */
+  readonly readable: readonly TicketTracker[];
 }
 
 export interface TicketReference {
@@ -54,16 +55,27 @@ export interface ReferenceHit {
   readonly reference: Omit<TicketReference, "foundIn" | "closing">;
 }
 
-/**
- * What a composition root can offer a tracker's read. A tracker takes what
- * it needs and refuses at boot when that is missing; a new tracker that
- * needs something no root offers yet adds one field here.
- */
-export interface TrackerRootDeps {
-  /** Tokens are resolved from here by NAME; roots stay the only `process.env` readers. */
+/** What every root offers every tracker: tokens by NAME from `env`, and the instance config's `contextSources:` entries. */
+export interface SharedRootDeps {
   readonly env: Record<string, string | undefined>;
-  /** GitHub's transport: the installation client at the worker, `gh` at the CLIs. */
-  readonly github?: { readonly issueReader: IssueReader } | undefined;
+  readonly contextSources: ContextSourcesConfig;
+}
+
+/**
+ * Each tracker's own transport, declared in its module and registered here
+ * under its `TicketTracker` kind; a kind without a line fails to compile. A
+ * new tracker adds one line; nothing that resolves a read changes.
+ */
+export interface TrackerTransports {
+  readonly github: GitHubTransport;
+  readonly notion: NotionTransport;
+}
+
+/** A composition root: the shared deps plus one transport slot per tracker it serves. */
+export interface TrackerRootDeps extends SharedRootDeps {
+  readonly transports: {
+    readonly [Kind in TicketTracker]?: TrackerTransports[Kind] | undefined;
+  };
 }
 
 /** A tracker's read, built for one root: the primary ticket a reference names. */
@@ -77,11 +89,11 @@ export interface PrimaryRead {
 
 /**
  * One tracker, implemented once per kind: its reference syntax, its URL
- * form, and how to build its read for a root. `trackers/index.ts` lists
- * them; a new tracker is a module here plus a line there.
+ * form, and its read. `trackers/index.ts` lists them and hands each its
+ * own transport slot the same way; a tracker never sees another's.
  */
-export interface Tracker {
-  readonly kind: TicketTracker;
+export interface Tracker<Kind extends TicketTracker = TicketTracker> {
+  readonly kind: Kind;
   /** This tracker's references in one location's text, offsets kept. */
   collectReferences(
     text: string,
@@ -90,6 +102,13 @@ export interface Tracker {
   ): ReferenceHit[];
   /** The canonical form of a URL this tracker owns; undefined for any other. */
   canonicalizeUrl(raw: string): string | undefined;
-  /** This tracker's read for one root; refuses when the root lacks what it needs. */
-  createRead(root: TrackerRootDeps): Result<PrimaryRead, ConfigError>;
+  /**
+   * This tracker's read for one root: the shared deps and its own slot,
+   * `undefined` when the root offers none. A tracker whose transport has
+   * no default refuses; one with a default builds the read anyway.
+   */
+  createRead(
+    shared: SharedRootDeps,
+    transport: TrackerTransports[Kind] | undefined,
+  ): Result<PrimaryRead, ConfigError>;
 }

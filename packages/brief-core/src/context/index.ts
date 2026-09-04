@@ -31,10 +31,16 @@ export {
 export { extractLinks, isPublicUrl, urlContextProvider } from "./providers/url";
 export {
   createGitHubRead,
+  createGhTransport,
+  createInstallationTransport,
+  GitHubTransports,
   readFailureForStatus,
   renderIssueHeader,
+  type GhExec,
+  type GitHubTransport,
+  type InstallationBounds,
+  type InstallationIssueApi,
   type IssueLocator,
-  type IssueReader,
   type IssueRecord,
 } from "./trackers/github";
 export { buildContextQuery } from "./query";
@@ -46,16 +52,30 @@ export {
   type TicketReferenceRepo,
 } from "./references";
 export {
+  createNotionRead,
+  createNotionHttpTransport,
+  NotionTransports,
+  type NotionFetch,
+  type NotionHttpTransportOptions,
+  type NotionSession,
+  type NotionTransport,
+} from "./trackers/notion";
+export {
   TRACKERS,
   getTracker,
   githubTracker,
   notionTracker,
   parseNotionPageId,
-  resolvePrimaryRead,
+  checkConfiguredTrackerReads,
+  listReadableTrackers,
+  resolveTrackerReads,
   type PrimaryRead,
   type ReferenceHit,
+  type SharedRootDeps,
   type Tracker,
+  type TrackerReads,
   type TrackerRootDeps,
+  type TrackerTransports,
 } from "./trackers";
 export {
   ReferenceLocations,

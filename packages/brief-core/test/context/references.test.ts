@@ -22,7 +22,7 @@ function makeInput(
     body: "",
     branch: "",
     repo: REPO,
-    notion: false,
+    readable: [],
     ...overrides,
   };
 }
@@ -145,7 +145,9 @@ describe("collectTicketReferences: shapes", () => {
       "3cf5e9400eeb81f9bed9e1474c2cb4d4",
     ],
   ])("notion URL %s → page id", (body, pageId) => {
-    const refs = collectTicketReferences(makeInput({ body, notion: true }));
+    const refs = collectTicketReferences(
+      makeInput({ body, readable: ["notion"] }),
+    );
     expect(refs[0]).toMatchObject({
       tracker: "notion",
       pageId,
@@ -166,7 +168,10 @@ describe("collectTicketReferences: shapes", () => {
   it("a notion URL without a 32-hex id is not a reference", () => {
     expect(
       collectTicketReferences(
-        makeInput({ body: "https://www.notion.so/product", notion: true }),
+        makeInput({
+          body: "https://www.notion.so/product",
+          readable: ["notion"],
+        }),
       ),
     ).toEqual([]);
   });

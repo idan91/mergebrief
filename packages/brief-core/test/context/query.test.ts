@@ -10,7 +10,7 @@ describe("buildContextQuery", () => {
       body: "Fixes #12\nsee https://docs.example/x",
       branch: "feature/12-thing",
       repo: REPO,
-      notion: false,
+      readable: [],
     });
     expect(query).toMatchObject({
       title: "Add thing",
@@ -36,7 +36,7 @@ describe("buildContextQuery", () => {
         keyPrefix: "BRIEF",
         databaseId: "a".repeat(32),
       },
-      notion: false,
+      readable: [],
     });
     expect(query.primary).toMatchObject({
       tracker: "notion",
@@ -50,7 +50,7 @@ describe("buildContextQuery", () => {
       body: "plain",
       branch: "",
       repo: REPO,
-      notion: false,
+      readable: [],
     });
     expect("primary" in query).toBe(false);
   });

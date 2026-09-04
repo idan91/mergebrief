@@ -12,6 +12,7 @@ import type { TrackerConfig } from "./tracker";
 export const ContextProviderTypes = {
   URL: "url",
   GITHUB_ISSUES: "github-issues",
+  NOTION: "notion",
 } as const;
 export type ContextProviderType = ValueOf<typeof ContextProviderTypes>;
 

@@ -4,20 +4,20 @@ import {
   readFailureForStatus,
   renderIssueHeader,
   type IssueLocator,
-  type IssueReader,
+  type GitHubTransport,
   type IssueRecord,
-} from "../../src/context/trackers/github";
+} from "../../../../src/context/trackers/github";
 import {
   ContextProviderTypes,
   MAX_SNIPPET_CHARS,
   type ContextReadFailure,
-} from "../../src/context/types";
-import type { TicketReference } from "../../src/context/references";
+} from "../../../../src/context/types";
+import type { TicketReference } from "../../../../src/context/references";
 import {
   ReferenceLocations,
   TicketTrackers,
   TicketUnreadReasons,
-} from "../../src/types";
+} from "../../../../src/types";
 
 const ISSUE: IssueRecord = {
   title: "Add the thing",
@@ -45,7 +45,7 @@ function stubDeps() {
 function stubReaderReturning(
   outcome: IssueRecord | ContextReadFailure,
   calls: IssueLocator[] = [],
-): IssueReader {
+): GitHubTransport {
   return {
     async readIssue(locator) {
       calls.push(locator);
@@ -55,19 +55,21 @@ function stubReaderReturning(
   };
 }
 
-/** The read for a root that bound this reader; the test's one way in. */
-function readWith(reader: IssueReader) {
-  const read = createGitHubRead({ env: {}, github: { issueReader: reader } });
+const SHARED = { env: {}, contextSources: [] };
+
+/** The read for a root whose GitHub slot holds this transport; the test's one way in. */
+function readWith(transport: GitHubTransport) {
+  const read = createGitHubRead(SHARED, transport);
   if (!read.ok) throw new Error("unreachable");
   return read.value;
 }
 
 describe("createGitHubRead", () => {
-  it("refuses a root that binds no issue transport", () => {
-    const read = createGitHubRead({ env: {} });
+  it("refuses a root with no GitHub slot", () => {
+    const read = createGitHubRead(SHARED, undefined);
     expect(read.ok).toBe(false);
     if (read.ok) throw new Error("unreachable");
-    expect(read.error.issues[0]).toMatch(/no issue transport/);
+    expect(read.error.issues[0]).toMatch(/no transport/);
   });
 
   it("declares the github kind when the root binds a reader", () => {
@@ -143,7 +145,7 @@ describe("createGitHubRead", () => {
 
   it("reports an aborted read as a timeout", async () => {
     const controller = new AbortController();
-    const reader: IssueReader = {
+    const reader: GitHubTransport = {
       async readIssue() {
         controller.abort();
         throw Object.assign(new Error("aborted"), { name: "AbortError" });
@@ -161,7 +163,7 @@ describe("createGitHubRead", () => {
   });
 
   it("lets a reader bug propagate instead of dressing it as a refusal", async () => {
-    const reader: IssueReader = {
+    const reader: GitHubTransport = {
       async readIssue() {
         throw new Error("boom");
       },

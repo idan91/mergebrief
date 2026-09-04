@@ -10,54 +10,11 @@ import {
   type PrimarySnippet,
 } from "../../types";
 import { refuseTrackerRead } from "../refusal";
-import type { PrimaryRead, TicketReference, TrackerRootDeps } from "../types";
-
-export interface IssueLocator {
-  readonly owner: string;
-  readonly repo: string;
-  readonly number: number;
-}
-
-/** One issue as the reader saw it; comments are never read. */
-export interface IssueRecord {
-  readonly title: string;
-  readonly state: string;
-  readonly stateReason: string | null;
-  readonly labels: readonly string[];
-  readonly milestone: string | null;
-  readonly body: string;
-  /** The payload carried `pull_request`: a PR, not a ticket. */
-  readonly isPullRequest: boolean;
-}
-
-/**
- * The port a composition root injects: the worker binds the installation
- * client, the CLIs bind `gh`. Expected refusals come back as `Result`.
- */
-export interface IssueReader {
-  readIssue(
-    locator: IssueLocator,
-    signal: AbortSignal,
-  ): Promise<Result<IssueRecord, ContextReadFailure>>;
-}
+import type { PrimaryRead, SharedRootDeps, TicketReference } from "../types";
+import type { GitHubTransport, IssueLocator, IssueRecord } from "./transport";
 
 const ISSUE_URL =
   /^https:\/\/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)\/issues\/(\d+)$/;
-
-/** HTTP status → unread reason; anything else is a transient "no answer". */
-export function readFailureForStatus(
-  status: number,
-  detail = `HTTP ${status}`,
-): ContextReadFailure {
-  if (status === 404) return { reason: TicketUnreadReasons.NOT_FOUND, detail };
-  if (status === 401 || status === 403) {
-    return { reason: TicketUnreadReasons.NO_CREDENTIAL, detail };
-  }
-  if (status === 429) {
-    return { reason: TicketUnreadReasons.RATE_LIMITED, detail };
-  }
-  return { reason: TicketUnreadReasons.TIMEOUT, detail };
-}
 
 /** `state · labels · milestone`, empty pieces omitted. */
 export function renderIssueHeader(record: IssueRecord): string {
@@ -82,7 +39,7 @@ function isAbortError(error: unknown): boolean {
 }
 
 async function readPrimaryIssue(
-  reader: IssueReader,
+  transport: GitHubTransport,
   reference: TicketReference,
   deps: ContextProviderDeps,
 ): Promise<Result<PrimarySnippet, ContextReadFailure>> {
@@ -99,7 +56,7 @@ async function readPrimaryIssue(
 
   let read: Result<IssueRecord, ContextReadFailure>;
   try {
-    read = await reader.readIssue(locator, deps.signal);
+    read = await transport.readIssue(locator, deps.signal);
   } catch (error) {
     if (!deps.signal.aborted && !isAbortError(error)) throw error;
     return {
@@ -135,21 +92,21 @@ async function readPrimaryIssue(
   };
 }
 
-/** GitHub's read for one root: needs the root's issue transport, nothing else. */
+/** GitHub's read for one root: no slot, no read. */
 export function createGitHubRead(
-  root: TrackerRootDeps,
+  shared: SharedRootDeps,
+  transport: GitHubTransport | undefined,
 ): Result<PrimaryRead, ConfigError> {
-  if (root.github === undefined) {
-    return refuseTrackerRead(["github: no issue transport bound at this root"]);
+  if (transport === undefined) {
+    return refuseTrackerRead(["github: no transport bound at this root"]);
   }
-  const reader = root.github.issueReader;
 
   return {
     ok: true,
     value: {
       kind: TicketTrackers.GITHUB,
       readPrimary: (reference, deps) =>
-        readPrimaryIssue(reader, reference, deps),
+        readPrimaryIssue(transport, reference, deps),
     },
   };
 }

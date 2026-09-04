@@ -75,11 +75,13 @@ function defineEntry<O extends z.ZodType>(
 }
 
 /**
- * POSIX-ish env-var identifier. Anything else is refused with a FIXED
+ * SHOUT_CASE env-var identifier. Anything else is refused with a FIXED
  * message: a misconfiguration that pastes the key VALUE into `apiKeyEnv`
- * must never see that value echoed into errors or logs.
+ * must never see that value echoed into errors or logs, and real tokens
+ * (`ntn_…`, `secret_…`) are lowercase, so lowercase names are refused too.
+ * Every by-NAME credential field in the instance config shares it.
  */
-const ENV_VAR_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
+export const ENV_VAR_NAME = /^[A-Z_][A-Z0-9_]*$/;
 
 /** Reads `apiKeyEnv` (or the adapter default) from the injected env by NAME. */
 function resolveApiKey(
@@ -88,7 +90,7 @@ function resolveApiKey(
 ): Result<string, ConfigError> {
   if (!ENV_VAR_NAME.test(keyEnv)) {
     return configError([
-      "apiKeyEnv: must be an environment variable NAME (letters, digits, underscores) — never a key value",
+      "apiKeyEnv: must be an environment variable NAME (UPPERCASE letters, digits, underscores) — never a key value",
     ]);
   }
   const key = env[keyEnv];

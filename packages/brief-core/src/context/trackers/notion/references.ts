@@ -1,10 +1,10 @@
 import {
   ReferenceLocations,
   TicketTrackers,
+  type ReferenceLocation,
   type TrackerConfig,
-} from "../tracker";
-import { refuseTrackerRead } from "./refusal";
-import type { ReferenceHit, Tracker } from "./types";
+} from "../../tracker";
+import type { ReferenceHit, TicketReferenceInput } from "../types";
 
 const NOTION_URL =
   /https?:\/\/(?:[a-z0-9-]+\.)?notion\.(?:so|site|com)\/[^\s<>()[\]"']*/gi;
@@ -76,19 +76,22 @@ function collectPageUrls(text: string, enabled: boolean): ReferenceHit[] {
   return hits;
 }
 
-/** Keys match only the configured prefix; page URLs only when a Notion token is configured. */
-export const notionTracker: Tracker = {
-  kind: TicketTrackers.NOTION,
-  createRead: () =>
-    refuseTrackerRead(["notion: no read on this deployment yet"]),
-  collectReferences(text, location, input) {
-    const keys = collectKeys(text, input.tracker);
-    if (location === ReferenceLocations.BRANCH) return keys;
-    return [...keys, ...collectPageUrls(text, input.notion)];
-  },
-  canonicalizeUrl(raw) {
-    if (!new RegExp(`^${NOTION_URL.source}$`, "i").test(raw)) return undefined;
-    const pageId = parseNotionPageId(raw);
-    return pageId === undefined ? undefined : buildNotionUrl(pageId);
-  },
-};
+/** Keys match only the configured prefix; page URLs only when a Notion read is configured. */
+export function collectNotionReferences(
+  text: string,
+  location: ReferenceLocation,
+  input: TicketReferenceInput,
+): ReferenceHit[] {
+  const keys = collectKeys(text, input.tracker);
+  if (location === ReferenceLocations.BRANCH) return keys;
+  return [
+    ...keys,
+    ...collectPageUrls(text, input.readable.includes(TicketTrackers.NOTION)),
+  ];
+}
+
+export function canonicalizeNotionUrl(raw: string): string | undefined {
+  if (!new RegExp(`^${NOTION_URL.source}$`, "i").test(raw)) return undefined;
+  const pageId = parseNotionPageId(raw);
+  return pageId === undefined ? undefined : buildNotionUrl(pageId);
+}

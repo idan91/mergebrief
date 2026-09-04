@@ -1,21 +1,26 @@
 import { TicketTrackers } from "../../tracker";
 import type { Tracker } from "../types";
-import { createGitHubRead } from "./issue-read";
+import { createGitHubRead } from "./read";
 import { canonicalizeGitHubUrl, collectGitHubReferences } from "./references";
 
-/** The GitHub tracker: `#N` syntax from `references.ts`, the issue read from `issue-read.ts`. */
-export const githubTracker: Tracker = {
+/** The GitHub tracker: syntax from `references.ts`, the port and its implementations from `transport.ts`, the read from `read.ts`. */
+export const githubTracker: Tracker<typeof TicketTrackers.GITHUB> = {
   kind: TicketTrackers.GITHUB,
   collectReferences: collectGitHubReferences,
   canonicalizeUrl: canonicalizeGitHubUrl,
   createRead: createGitHubRead,
 };
 
+export { createGitHubRead, renderIssueHeader } from "./read";
 export {
-  createGitHubRead,
+  GitHubTransports,
+  createGhTransport,
+  createInstallationTransport,
   readFailureForStatus,
-  renderIssueHeader,
+  type GhExec,
+  type GitHubTransport,
+  type InstallationBounds,
+  type InstallationIssueApi,
   type IssueLocator,
-  type IssueReader,
   type IssueRecord,
-} from "./issue-read";
+} from "./transport";

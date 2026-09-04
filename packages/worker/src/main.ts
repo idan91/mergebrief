@@ -2,6 +2,7 @@
 // This is the ONE place env is read and real dependencies are wired — the
 // library modules stay env-INJECTED. A misconfigured worker must fail LOUDLY
 // at boot, never limp into draining jobs it cannot complete.
+import { checkConfiguredTrackerReads, NotionTransports } from "brief-core";
 import { createGenerator } from "generators";
 import { createAppClient, loadConfig as loadGitHubConfig } from "github";
 import { Logger as GraphileLogger } from "graphile-worker";
@@ -96,6 +97,20 @@ async function main(): Promise<void> {
     exitOnConfigError(message);
   }
 
+  // Tracker reads: every `contextSources:` entry must be able to build its
+  // read here, tokens by env-var NAME. An unset token refuses boot like a
+  // missing generator key.
+  const trackerRoot = { env, contextSources: config.value.contextSources };
+  const trackerReads = checkConfiguredTrackerReads({
+    ...trackerRoot,
+    transports: { notion: NotionTransports.HTTP.create() },
+  });
+  if (!trackerReads.ok) {
+    exitOnConfigError(
+      `worker composition: invalid tracker configuration — ${trackerReads.error.issues.join("; ")}`,
+    );
+  }
+
   // Pool error observer: a DB restart surfaces as warn lines, not an
   // unhandled-'error' process crash.
   const handle = createDb(config.value.databaseUrl, {
@@ -125,6 +140,7 @@ async function main(): Promise<void> {
       : { fullRegeneration: configuredFullRegeneration }),
     // No `spend` block → uncapped.
     spend: config.value.spend,
+    trackerRoot,
     log: logger,
   });
 

@@ -102,3 +102,16 @@ generator:
 #   perRepo:
 #     acme/payments-api: 200
 #     acme/sandbox: 5
+
+# --- Context sources (ticket trackers needing a credential) -----------------
+# The URL and GitHub Issues providers are built in and need no entry; this
+# block lists the providers that need a deployment credential. Omit it for the
+# built-ins only. Credentials are BYOK-by-env-NAME, like generator.apiKeyEnv:
+# the file names the env var, never a value. A listed entry whose var is unset
+# refuses boot. Which board a key like BRIEF-12 resolves in is repo config
+# (`.mergebrief/settings.yaml` tracker:); see docs/self-host/trackers.md.
+# contextSources:
+#   - type: notion
+#     # NAME of the env var holding the internal-integration token.
+#     # Default: NOTION_TOKEN
+#     tokenEnv: NOTION_TOKEN

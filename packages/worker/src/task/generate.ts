@@ -33,17 +33,22 @@ import {
   countChangedLines,
   createBuiltInContextProviders,
   fetchContextSnippets,
-  resolvePrimaryRead,
+  listReadableTrackers,
+  resolveTrackerReads,
+  GitHubTransports,
+  NotionTransports,
   isHugeSpan,
   parseChangedRanges,
   revisionNarrativeConfig,
   toPrLifecycleState,
   type AnchorViewInput,
+  type ContextFetch,
+  type ContextProvider,
   type Brief,
-  type ContextSnippet,
+  type SharedRootDeps,
+  type TrackerRootDeps,
   type DeltaInput,
   type FetchedPr,
-  type PrimaryTicketOutcome,
   type PrLocator,
   type PrMetadata,
   type RevisionNarrativeSkipped,
@@ -103,7 +108,7 @@ import {
   type PullRequestInfo,
   type PullRequestSource,
 } from "./github-port";
-import { createIssueReader } from "./issue-reader";
+import { createInstallationIssueApi } from "./issue-api";
 import type { Logger } from "logging";
 import {
   classifyFailure,
@@ -145,6 +150,10 @@ export interface GenerateTaskDeps {
    * a config file with no `spend` block means.
    */
   readonly spend?: SpendPolicy;
+  /** The context providers main.ts built; absent → the built-ins only. */
+  readonly contextProviders?: readonly ContextProvider[];
+  /** What main.ts offers every tracker's read; GitHub's transport is bound per job. */
+  readonly trackerRoot?: SharedRootDeps;
   readonly log?: Logger;
 }
 
@@ -759,48 +768,78 @@ async function runGeneration(
         buildRepoConfigOrigin(repoConfig),
       );
     }
-    // The tracker read is resolved per job: the repo config names the
-    // tracker, and GitHub's transport is this job's client. Never the diff;
-    // fail-open per provider, an unreadable ticket reported, never guessed.
-    const primaryRead = resolvePrimaryRead(repoConfig?.settings?.tracker, {
-      env: {},
-      github: {
-        issueReader: createIssueReader(
-          source,
-          payload.grantId === undefined ? {} : { onlyRepo: locator },
-        ),
-      },
-    });
-    if (!primaryRead.ok) {
-      log.warn("generate: tracker read unavailable", {
-        issues: primaryRead.error.issues,
+    // Ticket context, loaded once and only when a core needs it: at once for
+    // a generation, lazily for a skip drain that regenerates a missing
+    // narrative or delta. A skip drain acquires repo config inside the load,
+    // never at the top, so an ordinary rerun keeps its no-double-fetch rule
+    // while a retry reads the ticket the brief was generated with. The reads
+    // are resolved per job: the repo config names the tracker, GitHub's
+    // transport is this job's client. Never the diff; fail-open per
+    // provider, an unreadable ticket reported, never guessed.
+    const trackerRoot = deps.trackerRoot ?? { env: {}, contextSources: [] };
+    let contextLoad: Promise<ContextFetch> | undefined;
+    const loadContext = (): Promise<ContextFetch> => {
+      contextLoad ??= fetchTicketContext();
+      return contextLoad;
+    };
+    async function fetchTicketContext(): Promise<ContextFetch> {
+      const config = repoConfig ?? (await acquireRepoConfig(source, log));
+      // A url-box job runs on the viewer's grant: GitHub stays inside the
+      // PR's repo and no deployment credential is offered, so the repo's
+      // settings cannot borrow the operator's Notion integration.
+      const transports: TrackerRootDeps["transports"] =
+        payload.grantId === undefined
+          ? {
+              github: GitHubTransports.INSTALLATION.create(
+                createInstallationIssueApi(source),
+              ),
+              notion: NotionTransports.HTTP.create(),
+            }
+          : {
+              github: GitHubTransports.INSTALLATION.create(
+                createInstallationIssueApi(source),
+                { onlyRepo: locator },
+              ),
+            };
+      const reads = resolveTrackerReads(config?.settings?.tracker, {
+        ...trackerRoot,
+        transports,
       });
-    }
-    const { links, primaryTicket } = await fetchContextSnippets(
-      buildContextQuery({
-        title: meta.title,
-        body: meta.body,
-        branch: info.headRef,
-        repo: locator,
-        tracker: repoConfig?.settings?.tracker,
-        notion: false,
-      }),
-      createBuiltInContextProviders(),
-      coreLog,
-      { primaryRead: primaryRead.ok ? primaryRead.value : undefined },
-    );
-    if (primaryTicket?.status === "unread") {
-      const { reference, reason } = primaryTicket;
-      log.warn("generate: primary ticket unread", {
-        tracker: reference.tracker,
-        reason,
-        key: reference.key === "" ? reference.url : reference.key,
-      });
-    } else if (primaryTicket !== undefined) {
-      log.debug("generate: primary ticket read", {
-        tracker: primaryTicket.snippet.tracker,
-        key: primaryTicket.snippet.key,
-      });
+      if (!reads.ok) {
+        log.warn("generate: tracker read unavailable", {
+          issues: reads.error.issues,
+        });
+      }
+      const readable = reads.ok ? listReadableTrackers(reads.value) : [];
+
+      const context = await fetchContextSnippets(
+        buildContextQuery({
+          title: meta.title,
+          body: meta.body,
+          branch: info.headRef,
+          repo: locator,
+          tracker: config?.settings?.tracker,
+          readable,
+        }),
+        deps.contextProviders ?? createBuiltInContextProviders(),
+        coreLog,
+        { reads: reads.ok ? reads.value : {} },
+      );
+      const { primaryTicket } = context;
+      if (primaryTicket?.status === "unread") {
+        const { reference, reason } = primaryTicket;
+        log.warn("generate: primary ticket unread", {
+          tracker: reference.tracker,
+          reason,
+          key: reference.key === "" ? reference.url : reference.key,
+        });
+      } else if (primaryTicket !== undefined) {
+        log.debug("generate: primary ticket read", {
+          tracker: primaryTicket.snippet.tracker,
+          key: primaryTicket.snippet.key,
+        });
+      }
+      return context;
     }
     // Entry-comment draft gate: the branded Entry comment stays OFF draft PRs
     // unless the repo opts in via `.mergebrief/settings.yaml`
@@ -950,6 +989,7 @@ async function runGeneration(
       if (entryCommentAllowed) {
         await refreshEntryComment(entryCommentGeneratingBody(deepLink()));
       }
+      const { links, primaryTicket } = await loadContext();
       const fetchedPr: FetchedPr = { locator, meta, diff, links };
       if (primaryTicket !== undefined) fetchedPr.primaryTicket = primaryTicket;
       const brief = await runGenerator(() =>
@@ -1098,8 +1138,7 @@ async function runGeneration(
         watch,
         effort: deps.effort,
         wholePrChangedLines: churn(files),
-        links,
-        primaryTicket,
+        loadContext,
         log,
       });
     }
@@ -1118,8 +1157,7 @@ async function runGeneration(
       effort: deps.effort,
       briefHeadIndex: briefRef.headIndex,
       wholePrChangedLines: churn(files),
-      links,
-      primaryTicket,
+      loadContext,
       log,
     });
     if (deltaCount > 0) {
@@ -1377,8 +1415,8 @@ interface RevisionArtifactInputs {
   /** Instance-config reasoning effort; undefined → engine default. */
   readonly effort: Effort | undefined;
   readonly wholePrChangedLines: number;
-  readonly links: ContextSnippet[];
-  readonly primaryTicket: PrimaryTicketOutcome | undefined;
+  /** The ticket context, loaded on first use so a rerun that spends nothing fetches nothing. */
+  readonly loadContext: () => Promise<ContextFetch>;
   readonly log: Logger;
 }
 
@@ -1400,7 +1438,6 @@ async function writeRevisionArtifacts(
     prevBrief,
     briefRef,
     generatedBrief,
-    links,
     log,
   } = inputs;
   const { pullRequestId, headSha } = payload;
@@ -1485,6 +1522,7 @@ async function writeRevisionArtifacts(
   // outside the try — a supersession must propagate, never be swallowed as a
   // narrative failure.
   await inputs.watch.assertCurrent();
+  const { links, primaryTicket } = await inputs.loadContext();
   try {
     const narrative = await categorizeRevisionNarrative(
       {
@@ -1496,7 +1534,7 @@ async function writeRevisionArtifacts(
         headIndex: briefRef.headIndex,
         incrementalDiff: revDiff,
         links,
-        primaryTicket: inputs.primaryTicket,
+        primaryTicket,
         brief: generatedBrief,
         marksFiles: marks.files,
       },
@@ -1534,8 +1572,8 @@ interface DeltaWarmInputs {
   readonly effort: Effort | undefined;
   readonly briefHeadIndex: number;
   readonly wholePrChangedLines: number;
-  readonly links: ContextSnippet[];
-  readonly primaryTicket: PrimaryTicketOutcome | undefined;
+  /** The ticket context, loaded on first use so a rerun that spends nothing fetches nothing. */
+  readonly loadContext: () => Promise<ContextFetch>;
   readonly log: Logger;
 }
 
@@ -1628,6 +1666,8 @@ async function warmDeltaCores(
       continue;
     }
 
+    // eslint-disable-next-line no-await-in-loop -- one shared load, memoized
+    const { links, primaryTicket } = await inputs.loadContext();
     const deltaInput: DeltaInput = {
       locator,
       meta,
@@ -1636,8 +1676,8 @@ async function warmDeltaCores(
       baselineIndex,
       headIndex: inputs.briefHeadIndex,
       incrementalDiff,
-      links: inputs.links,
-      primaryTicket: inputs.primaryTicket,
+      links,
+      primaryTicket,
     };
     // Supersession gate BEFORE each delta spend.
     // eslint-disable-next-line no-await-in-loop

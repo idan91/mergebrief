@@ -2,7 +2,7 @@ import { TicketUnreadReasons } from "brief-core";
 import { GitHubApiErrorCodes, type GitHubApiError } from "github";
 import { describe, expect, it } from "vitest";
 import type { IssueInfo, PullRequestSource } from "../src/task/github-port";
-import { createIssueReader } from "../src/task/issue-reader";
+import { createInstallationIssueApi } from "../src/task/issue-api";
 
 const ISSUE: IssueInfo = {
   title: "t",
@@ -31,13 +31,13 @@ function makeSource(
   return source;
 }
 
-describe("createIssueReader", () => {
+describe("createInstallationIssueApi", () => {
   it("passes a successful read through, addressed by the locator", async () => {
     const calls: unknown[][] = [];
-    const reader = createIssueReader(
+    const api = createInstallationIssueApi(
       makeSource(async () => ({ ok: true, value: ISSUE }), calls),
     );
-    await expect(reader.readIssue(LOCATOR, SIGNAL)).resolves.toEqual({
+    await expect(api.fetchIssue(LOCATOR, SIGNAL)).resolves.toEqual({
       ok: true,
       value: ISSUE,
     });
@@ -52,10 +52,10 @@ describe("createIssueReader", () => {
     [GitHubApiErrorCodes.REQUEST_FAILED, TicketUnreadReasons.TIMEOUT],
   ])("maps a %s API error to the %s unread reason", async (code, reason) => {
     const error: GitHubApiError = { code, message: "failed to fetch issue" };
-    const reader = createIssueReader(
+    const api = createInstallationIssueApi(
       makeSource(async () => ({ ok: false, error })),
     );
-    await expect(reader.readIssue(LOCATOR, SIGNAL)).resolves.toEqual({
+    await expect(api.fetchIssue(LOCATOR, SIGNAL)).resolves.toEqual({
       ok: false,
       error: { reason, detail: "failed to fetch issue" },
     });

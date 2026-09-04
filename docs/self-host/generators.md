@@ -61,9 +61,16 @@ generator:
 #   perRepo:
 #     acme/sandbox: 5
 
+# contextSources: — the FOURTH root block: ticket trackers that need a
+# deployment credential, by env-var NAME. URLs and GitHub issues are built
+# in and need no entry. See self-host/trackers.md.
+# contextSources:
+#   - type: notion
+#     tokenEnv: NOTION_TOKEN
+
 # x-*: root keys starting with "x-" are ignored (compose-style extension
-# slot); ANY other unknown key — root or inside generator:/drafts:/spend: —
-# refuses boot.
+# slot); ANY other unknown key — root or inside generator:/drafts:/spend:/
+# contextSources: — refuses boot.
 x-notes: anything here is yours
 ```
 

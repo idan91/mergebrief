@@ -37,6 +37,7 @@ export {
 export {
   COMPOSE_WORKER_RUNTIME,
   createGenerator,
+  ENV_VAR_NAME,
   defaultGeneratorConfig,
   FullRegenerations,
   GENERATOR_REGISTRY,
@@ -66,6 +67,18 @@ export {
   validateSpendBlock,
   type SpendPolicy,
 } from "./config/spendPolicy";
+export {
+  ContextSourceTypes,
+  ContextSourcesConfigSchema,
+  buildContextSourcesConfigError,
+  DEFAULT_CONTEXT_SOURCES,
+  DEFAULT_NOTION_TOKEN_ENV,
+  NotionContextSourceSchema,
+  validateContextSourcesBlock,
+  type ContextSourceType,
+  type ContextSourcesConfig,
+  type NotionContextSourceConfig,
+} from "./config/context-sources";
 
 // --- adapters/ — the six implementations ------------------------------------
 // (Constructed via createGenerator in normal use; exported for tests and

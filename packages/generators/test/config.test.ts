@@ -38,6 +38,7 @@ describe("loadGeneratorConfig (env-driven)", () => {
     expect(result.value).toEqual({
       generator: { provider: "anthropic" },
       spend: { dailyGenerationCap: null, perRepo: {} },
+      contextSources: [],
       source: null,
     });
   });
@@ -243,6 +244,38 @@ describe("loadGeneratorConfigFile", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.issues.join("; ")).toContain("drafts:");
+  });
+
+  it("accepts a contextSources root key block", () => {
+    const result = loadGeneratorConfigFile(
+      configFile(
+        "generator:\n  provider: anthropic\ncontextSources:\n  - type: notion\n    tokenEnv: MY_NOTION_VAR\n",
+      ),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.contextSources).toEqual([
+      { type: "notion", tokenEnv: "MY_NOTION_VAR" },
+    ]);
+  });
+
+  it("defaults contextSources to the built-ins when the block is absent", () => {
+    const result = loadGeneratorConfigFile(
+      configFile("generator:\n  provider: anthropic\n"),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.contextSources).toEqual([]);
+  });
+
+  it("refuses boot on a bad contextSources entry", () => {
+    const result = loadGeneratorConfigFile(
+      configFile("contextSources:\n  - type: jira\n"),
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.message).toBe("invalid context source configuration");
+    expect(result.error.issues.join("; ")).toContain("contextSources");
   });
 
   it("defaults the generator when the block is absent", () => {
