@@ -1,10 +1,25 @@
 @use "functions";
 
 @layer components {
+  .sections {
+    display: grid;
+    gap: functions.to-rem(20px);
+    margin-block-start: functions.to-rem(16px);
+  }
+
+  .sectionHeading {
+    margin-block-end: functions.to-rem(8px);
+    color: var(--faint);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    line-height: 1.45;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
   .list {
     display: grid;
     gap: functions.to-rem(10px);
-    margin-block: functions.to-rem(14px) functions.to-rem(4px);
   }
 
   .row {
@@ -15,20 +30,8 @@
     font-size: var(--font-size-lg);
   }
 
-  .key {
-    display: inline-flex;
-    flex: none;
-    align-items: center;
-    justify-content: center;
-    min-inline-size: functions.to-rem(28px);
-    padding-block: functions.to-rem(3px);
-    padding-inline: functions.to-rem(8px);
-    border: 1px solid var(--line2);
-    border-radius: var(--radius-md);
-    background: var(--panel2);
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: var(--font-size-md);
-    font-weight: 600;
+  // Later in the cascade than Modal's shared .actions, which sets 18px.
+  .actions {
+    margin-block-start: functions.to-rem(24px);
   }
 }

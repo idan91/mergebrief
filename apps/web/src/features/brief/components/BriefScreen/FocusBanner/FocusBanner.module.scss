@@ -36,18 +36,7 @@
     }
 
     kbd {
-      display: inline-block;
-      min-inline-size: functions.to-rem(18px);
       margin-inline-end: functions.to-rem(2px);
-      padding-block: functions.to-rem(1px);
-      padding-inline: functions.to-rem(5px);
-      border: 1px solid var(--line2);
-      border-radius: var(--radius-sm);
-      background: var(--panel);
-      color: var(--text);
-      font-family: var(--mono);
-      font-size: var(--font-size-sm);
-      text-align: center;
     }
   }
 }

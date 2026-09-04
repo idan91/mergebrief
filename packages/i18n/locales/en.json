@@ -281,13 +281,16 @@
       "previousChunk": "Previous chunk",
       "nextGroup": "Next group — Read-through, in Reading order",
       "previousGroup": "Previous group — Read-through, in Reading order",
-      "focusMode": "Focus mode — isolate the current chunk",
-      "markViewed": "Mark the current chunk Viewed and advance — focus mode",
-      "jumpConversation": "Jump to the Conversation section (DB path)",
+      "focusMode": "Enter or leave focus mode",
+      "markViewed": "Mark the current chunk viewed and advance",
+      "jumpConversation": "Jump to the Conversation section",
       "quoteThread": "Quote selected thread text into the reply box",
       "toggleShortcuts": "Toggle this shortcuts list",
-      "closeDialog": "Close focus mode or a dialog",
-      "toggleSidebar": "Toggle the sidebar"
+      "closeDialog": "Close a dialog",
+      "exitFocusMode": "Exit focus mode",
+      "toggleSidebar": "Toggle the sidebar",
+      "sectionGeneral": "General",
+      "sectionFocusMode": "Focus mode"
     },
     "intent": {
       "title": "Intent check",

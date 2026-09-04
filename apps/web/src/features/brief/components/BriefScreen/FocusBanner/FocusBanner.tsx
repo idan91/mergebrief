@@ -2,6 +2,7 @@ import { Trans, useTranslation } from "react-i18next";
 import type { Ref } from "react";
 
 import { Button } from "@web/components/Button/Button";
+import { Kbd, KbdSizes } from "../Kbd/Kbd";
 import type { BriefViewModel } from "../../../utils/viewModel";
 import { ReadThroughProgress } from "../ReadThroughProgress/ReadThroughProgress";
 import styles from "./FocusBanner.module.scss";
@@ -40,10 +41,18 @@ export function FocusBanner({
           <Trans
             components={[
               <b key="lead">{t("brief.focusBanner.lead")}</b>,
-              <kbd key="j">J</kbd>,
-              <kbd key="k">K</kbd>,
-              <kbd key="v">V</kbd>,
-              <kbd key="esc">{t("brief.focusBanner.escKey")}</kbd>,
+              <Kbd key="j" size={KbdSizes.SM}>
+                J
+              </Kbd>,
+              <Kbd key="k" size={KbdSizes.SM}>
+                K
+              </Kbd>,
+              <Kbd key="v" size={KbdSizes.SM}>
+                V
+              </Kbd>,
+              <Kbd key="esc" size={KbdSizes.SM}>
+                {t("brief.focusBanner.escKey")}
+              </Kbd>,
             ]}
             i18nKey="brief.focusBanner.hint"
           />
