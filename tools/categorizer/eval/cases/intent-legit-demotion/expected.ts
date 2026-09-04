@@ -51,4 +51,10 @@ export const properties: EvalProperty[] = [
     check: (brief) =>
       (brief.intentCheck?.claimedButUnachieved ?? []).length === 0,
   },
+  {
+    id: "legit-alignment-aligned",
+    description:
+      "a straightforward delivery of the ticket's goal reads as aligned",
+    check: (brief) => brief.intentCheck?.alignment?.read === "aligned",
+  },
 ];

@@ -1,5 +1,7 @@
 # ContextSource Contract Locked; All Providers Parked to v2
 
+> **Amended 2026-09-02: unparked.** The first two providers ship — GitHub Issues and Notion — to fetch the Intent check's primary ticket, and today's URL fetch migrates onto the contract as the URL provider. The contract as built differs from the text below in four places: ticket references sit inside the metadata tier, not a tier of their own; citations stay URL-keyed (the `ctx-N` id is carried, not cited), so the validator's set-membership rules hold unchanged; the untrusted tier carries two fences, `<linked_context url>` for URL snippets and `<primary_ticket url key tracker>` for the one primary, instead of a single `<external_context>`, with the breakout strip centralized over both; and an absent `contextSources:` block yields the URL and GitHub Issues providers, not an empty list. Snippets feed the brief call and ride into the delta and narrative prompts as before. Residuals resolved by the build: boundary location (`packages/brief-core/src/context/`), a one-ticket budget, cite-or-drop validation, origin display (the Ticket alignment card).
+
 The `ContextSource` boundary (ADR 0014 #5) got its design pass (BRIEF-13 wayfinder map,
 2026-07-17/18): the **provider contract, trust posture, and enrichment scope are locked**
 so that any future provider is an implementation, not a redesign — and **no provider

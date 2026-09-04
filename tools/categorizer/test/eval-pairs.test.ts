@@ -49,6 +49,7 @@ const intentNone = {
   specificity: "none",
   scopeNote: "",
   items: [],
+  alignment: { read: "", goal: "", response: "" },
 };
 
 function genOutput(

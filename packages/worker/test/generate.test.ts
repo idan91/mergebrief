@@ -127,6 +127,7 @@ function stubGenerator(): StubGenerator {
         specificity: "none",
         scopeNote: "",
         items: [],
+        alignment: { read: "", goal: "", response: "" },
       },
       changeGroups: [
         {
@@ -2143,6 +2144,7 @@ function twoGroupBriefOutput(
       specificity: "none",
       scopeNote: "",
       items: [],
+      alignment: { read: "", goal: "", response: "" },
     },
     changeGroups: [
       {
@@ -2571,6 +2573,7 @@ describe("generate task — anchored generation", () => {
         specificity: "none",
         scopeNote: "",
         items: [],
+        alignment: { read: "", goal: "", response: "" },
       },
       changeGroups: [
         {
@@ -2636,6 +2639,7 @@ deEmphasize:
       specificity: "none",
       scopeNote: "",
       items: [],
+      alignment: { read: "", goal: "", response: "" },
     },
     changeGroups: [
       {

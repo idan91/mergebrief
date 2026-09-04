@@ -13,6 +13,7 @@ import {
   type Chunk,
   type IntentBucket,
   type IntentCheck,
+  type TicketAlignment,
   type IntentCheckGeneration,
   type IntentItem,
   type LineRange,
@@ -141,6 +142,9 @@ function normalizeWhitespace(text: string): string {
  */
 const ALARM_QUOTE_MIN_WORDS = 5;
 
+/** A ticket's goal line is often a short clause ("Add a CopyButton component"); the alarm floor would drop it. */
+const ALIGNMENT_GOAL_MIN_WORDS = 3;
+
 /**
  * Convert the generation-side tagged `items` array into the stored five-bucket
  * shape — mechanical dispatch on each item's `bucket`, which is wire framing
@@ -162,13 +166,17 @@ export function fanOutIntentCheck(
   for (const { bucket, ...item } of generated.items) {
     buckets[bucket].push(item);
   }
-  return {
+  const intentCheck: IntentCheck = {
     ticketUrls: generated.ticketUrls,
     ticketTitles: generated.ticketTitles,
     specificity: generated.specificity,
     scopeNote: generated.scopeNote,
     ...buckets,
   };
+  // "" on `read` is the wire's no-read sentinel; the stored shape is absence.
+  const { read, goal, response } = generated.alignment;
+  if (read !== "") intentCheck.alignment = { read, goal, response };
+  return intentCheck;
 }
 
 /**
@@ -204,6 +212,58 @@ function resolveTicketPairs(
   };
 }
 
+/** What the alignment rules need to know about the primary ticket. */
+export interface PrimaryTicketFacts {
+  /** The corpus URL the goal must be quoted from. */
+  readonly url: string;
+  readonly read: boolean;
+}
+
+/**
+ * Why an alignment read cannot stand, or undefined when it verifies: the
+ * primary must have been read, and the goal quote must be a substring of
+ * its injected text, whitespace-normalized, at least the minimum words.
+ */
+function findAlignmentDefect(
+  alignment: TicketAlignment,
+  primary: PrimaryTicketFacts | undefined,
+  contentByUrl: ReadonlyMap<string, string>,
+): string | undefined {
+  if (primary === undefined) return "no primary ticket";
+  if (!primary.read) return "the primary ticket was not read";
+
+  const goal = normalizeWhitespace(alignment.goal);
+  if (goal === "") return "empty goal quote";
+  if (goal.split(" ").length < ALIGNMENT_GOAL_MIN_WORDS) {
+    return `goal quote shorter than ${ALIGNMENT_GOAL_MIN_WORDS} words`;
+  }
+
+  const ticketText = contentByUrl.get(primary.url) ?? "";
+  if (!ticketText.includes(goal)) {
+    return "goal quote not found in the primary ticket (whitespace-normalized)";
+  }
+  return undefined;
+}
+
+/**
+ * The alignment read is shown as a bare word, so an ungrounded one is
+ * alarm-tier risk: it drops whole, with its defect on the issues list.
+ */
+function verifyAlignment(
+  alignment: IntentCheck["alignment"],
+  primary: PrimaryTicketFacts | undefined,
+  contentByUrl: ReadonlyMap<string, string>,
+  issues: string[],
+): IntentCheck["alignment"] {
+  if (alignment === undefined) return undefined;
+
+  const defect = findAlignmentDefect(alignment, primary, contentByUrl);
+  if (defect === undefined) return alignment;
+
+  issues.push(`alignment read "${alignment.read}" dropped — ${defect}`);
+  return undefined;
+}
+
 /**
  * Validate a Brief's intent check — warn-and-drop into `generationWarnings`.
  * Pure: returns a sanitized copy, never mutates.
@@ -229,6 +289,7 @@ export function validateIntentCheck(
   /** Frozen group ids are live anchors — never pruned as unknown; the stitch
    * re-verifies against the merged brief. */
   carriedGroupIds: readonly string[] = [],
+  primary?: PrimaryTicketFacts,
 ): { intentCheck: IntentCheck; issues: string[] } {
   const issues: string[] = [];
 
@@ -246,9 +307,15 @@ export function validateIntentCheck(
     }
     // ticketUrls membership still holds on the unavailable path.
     const knownPairs = resolveTicketPairs(intentCheck, injectedUrls, issues);
+    if (intentCheck.alignment !== undefined) {
+      issues.push(
+        `alignment read "${intentCheck.alignment.read}" dropped — intent check is ${intentCheck.specificity}`,
+      );
+    }
+    const { alignment: _dropped, ...unavailable } = intentCheck;
     return {
       intentCheck: {
-        ...intentCheck,
+        ...unavailable,
         ...knownPairs,
         accomplished: [],
         statedButMissing: [],
@@ -456,19 +523,25 @@ export function validateIntentCheck(
     intentCheck.claimedButUnachieved,
   ).map((item) => forceUnacknowledged("claimedButUnachieved", item));
 
-  return {
-    intentCheck: {
-      ...intentCheck,
-      ticketUrls,
-      ticketTitles,
-      accomplished,
-      statedButMissing,
-      doneButUnstated,
-      deviations,
-      claimedButUnachieved,
-    },
+  const alignment = verifyAlignment(
+    intentCheck.alignment,
+    primary,
+    contentByUrl,
     issues,
+  );
+  const { alignment: _unverified, ...rest } = intentCheck;
+  const verified: IntentCheck = {
+    ...rest,
+    ticketUrls,
+    ticketTitles,
+    accomplished,
+    statedButMissing,
+    doneButUnstated,
+    deviations,
+    claimedButUnachieved,
   };
+  if (alignment !== undefined) verified.alignment = alignment;
+  return { intentCheck: verified, issues };
 }
 
 type ManifestFormat =

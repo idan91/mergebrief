@@ -4,6 +4,8 @@ The final review submitted to GitHub carries the reviewer's human approval plus 
 
 > **Update (2026-06-07): receipt delivery refined.** The receipt is no longer inlined into the GitHub review body. The native GitHub review reads as a normal human review; a one-line **Signature line** links to a static, tool-hosted **Review Summary** (per-submission permalink) that renders the receipt + analysis context. This preserves the receipt's auditable-transparency value for author/org while keeping the review surface clean. The core decision (receipt, not approval) is unchanged — only the delivery surface moved from inline block to linked static page.
 
+> **Update (2026-09-02): the Ticket alignment read is a read, not an approval.** The Intent check now names one primary ticket and reports how the diff relates to that ticket's goal: `aligned`, `partial`, or `misaligned`, with the goal quoted verbatim and one factual sentence about the diff. This is a fallible read shown to author and reviewer alike. It is never an approval, never a gate, and never a receipt item: nothing in the product blocks, warns, or scores on it, and `partial` is an ordinary outcome, not a defect. The reviewer's name still carries the judgment.
+
 ## Considered Options
 
 - **AI as gate / veto** — AI must approve before reviewer can submit. Rejected: kills the "human authority" wedge and reproduces the CodeRabbit power dynamic the product is positioned against.

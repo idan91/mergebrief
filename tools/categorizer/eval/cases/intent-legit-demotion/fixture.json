@@ -26,12 +26,15 @@
       ]
     },
     "diff": "diff --git a/packages/api/src/routes/webhook.ts b/packages/api/src/routes/webhook.ts\nindex 8f2c1a4..b71d9e3 100644\n--- a/packages/api/src/routes/webhook.ts\n+++ b/packages/api/src/routes/webhook.ts\n@@ -426,7 +426,10 @@ export function webhookRoute(deps: WebhookRouteDeps): Hono<RequestLogEnv> {\n     try {\n       await dispatch(deps.handle, parsed.value, deps.draftPolicy ?? DEFAULT_DRAFT_POLICY);\n     } catch (error) {\n-      log.error(\"webhook dispatch failed\", {\n+      // A single dispatch failure is self-healing under GitHub redelivery,\n+      // so a per-event page is not operator-actionable (ADR 0034 #5):\n+      // warn, and alert on a SUSTAINED rate instead.\n+      log.warn(\"webhook dispatch failed\", {\n         evt: \"webhook.dispatch.fail\",\n         err: error,\n       });\ndiff --git a/packages/api/test/webhook.test.ts b/packages/api/test/webhook.test.ts\nindex 3ac77e1..5d90b02 100644\n--- a/packages/api/test/webhook.test.ts\n+++ b/packages/api/test/webhook.test.ts\n@@ -849,17 +849,17 @@ describe(\"webhook event logging (BRIEF-51, ADR 0034)\", () => {\n     expect(typeof line?.[\"reqId\"]).toBe(\"string\");\n   });\n \n-  it(\"dispatch failure emits webhook.dispatch.fail at error with deliveryId\", async () => {\n+  it(\"dispatch failure emits webhook.dispatch.fail at warn with deliveryId\", async () => {\n     const { app, capture } = appWithCapture();\n     // Poison the write path AFTER app construction: the dispatch's first\n     // tenant write hits a missing table and throws — the route's 500 path.\n     await harness.raw(\"alter table pull_request rename to pull_request_poisoned\");\n     const res = await deliver(app, \"pull_request\", pullRequestPayload({ action: \"opened\" }), {\n       deliveryId: \"delivery-dispatch-1\",\n     });\n     expect(res.status).toBe(500);\n     const line = capture.lines().find((l) => l[\"evt\"] === \"webhook.dispatch.fail\");\n-    expect(line?.[\"level\"]).toBe(\"error\");\n+    expect(line?.[\"level\"]).toBe(\"warn\");\n     expect(line?.[\"deliveryId\"]).toBe(\"delivery-dispatch-1\");\n     expect(line?.[\"err\"]).toBeDefined();\n   });\n",
-    "links": [
-      {
-        "url": "https://tasks.example/OPS-91",
-        "content": "OPS-91 — Webhook dispatch failure log must earn its level\n\nwebhook.dispatch.fail logs at error, which pages on-call for an event\nGitHub will redeliver on its own. Per ADR 0034 #5 every log line earns\nits level, and a single self-healing failure is not operator-actionable.\n\n- Demote the webhook dispatch failure line from error to warn.\n- Keep the structured fields (evt, err, deliveryId) and the 500 response\n  exactly as they are — only the level changes.\n- Update the route's logging test to expect the new level.\n"
-      }
-    ]
+    "links": [],
+    "primaryTicket": {
+      "url": "https://tasks.example/OPS-91",
+      "key": "OPS-91",
+      "tracker": "github",
+      "title": "OPS-91 — Webhook dispatch failure log must earn its level",
+      "header": "",
+      "content": "OPS-91 — Webhook dispatch failure log must earn its level\n\nwebhook.dispatch.fail logs at error, which pages on-call for an event\nGitHub will redeliver on its own. Per ADR 0034 #5 every log line earns\nits level, and a single self-healing failure is not operator-actionable.\n\n- Demote the webhook dispatch failure line from error to warn.\n- Keep the structured fields (evt, err, deliveryId) and the 500 response\n  exactly as they are — only the level changes.\n- Update the route's logging test to expect the new level.\n"
+    }
   },
   "commitRange": {
     "base": "d98c3ff5aa1e4c07b2f9e6d3c85a1f74b0e29c31",

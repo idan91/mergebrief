@@ -26,6 +26,7 @@ describe("the shipped case set", () => {
       "intent-masked-fix",
       "intent-none-no-ticket",
       "intent-precise-ticket",
+      "intent-primary-plus-refs",
       "multi-package-types",
       "pure-move-persistence",
       "schema-change-provenance",

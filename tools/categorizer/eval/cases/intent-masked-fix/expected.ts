@@ -90,4 +90,12 @@ export const properties: EvalProperty[] = [
         ),
       ),
   },
+  {
+    id: "masked-alignment-misaligned",
+    description:
+      "a diff that only silences the signal of the problem the ticket asks to fix reads as misaligned, with a goal that verified",
+    check: (brief) =>
+      brief.intentCheck?.alignment?.read === "misaligned" &&
+      (brief.intentCheck.alignment.goal ?? "").length > 0,
+  },
 ];

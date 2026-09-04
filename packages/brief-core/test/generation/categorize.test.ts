@@ -55,6 +55,7 @@ const noneIntentCheck = {
   specificity: "none",
   scopeNote: "",
   items: [],
+  alignment: { read: "", goal: "", response: "" },
 };
 
 const twoGroupBriefGen = {
@@ -288,6 +289,7 @@ describe("categorize — intent check validation", () => {
             acknowledged: false,
           },
         ],
+        alignment: { read: "", goal: "", response: "" },
       },
     };
     const brief = await categorize(
@@ -346,6 +348,7 @@ describe("categorize — intent check validation", () => {
             acknowledged: false,
           },
         ],
+        alignment: { read: "", goal: "", response: "" },
       },
     };
     const logs: string[] = [];
@@ -396,6 +399,7 @@ describe("categorize — intent check validation", () => {
             acknowledged: false,
           },
         ],
+        alignment: { read: "", goal: "", response: "" },
       },
     };
     const brief = await categorize(
@@ -439,6 +443,7 @@ describe("categorize — intent check validation", () => {
             acknowledged: false,
           },
         ],
+        alignment: { read: "", goal: "", response: "" },
       },
     };
     const brief = await categorize(
@@ -490,6 +495,7 @@ describe("categorize — intent check validation", () => {
             acknowledged: false,
           },
         ],
+        alignment: { read: "", goal: "", response: "" },
       },
     };
     const brief = await categorize(
@@ -523,6 +529,7 @@ describe("categorize — intent check validation", () => {
             acknowledged: false,
           },
         ],
+        alignment: { read: "", goal: "", response: "" },
       },
     };
     const brief = await categorize(
@@ -565,6 +572,7 @@ describe("categorize — intent check validation", () => {
             acknowledged: false,
           },
         ],
+        alignment: { read: "", goal: "", response: "" },
       },
     };
     const brief = await categorize(
@@ -1428,6 +1436,7 @@ describe("categorize — the primary ticket", () => {
             acknowledged: false,
           },
         ],
+        alignment: { read: "", goal: "", response: "" },
       },
     };
     const brief = await categorize(
@@ -1494,5 +1503,126 @@ describe("categorize — the primary ticket", () => {
 
   it("never lets the primary stamp reach the model schema", () => {
     expect("primaryTicket" in IntentCheckGenerationSchema.shape).toBe(false);
+  });
+});
+
+describe("categorize — the alignment read", () => {
+  const primaryUrl = "https://github.com/o/r/issues/7";
+  const goal =
+    "The retry loop must stop after three attempts and surface the last error.";
+  const prWithPrimary: FetchedPr = {
+    ...pr,
+    meta: { ...pr.meta, title: "Fix retry loop", body: "fixes #7" },
+    primaryTicket: {
+      status: "read",
+      snippet: {
+        providerId: "url",
+        source: primaryUrl,
+        text: `Retry loop\n\n${goal}`,
+        tracker: "github",
+        key: "",
+        title: "Retry loop",
+        header: "",
+        foundIn: "description",
+      },
+    },
+  };
+  const preciseWithAlignment = (alignment: {
+    read: string;
+    goal: string;
+    response: string;
+  }) => ({
+    ...twoGroupBriefGen,
+    intentCheck: {
+      ticketUrls: [primaryUrl],
+      ticketTitles: ["Retry loop"],
+      specificity: "precise",
+      scopeNote: "",
+      items: [],
+      alignment,
+    },
+  });
+
+  it("stamps a verified read", async () => {
+    const brief = await categorize(
+      prWithPrimary,
+      1,
+      commitRange,
+      new FakeGenerator(
+        preciseWithAlignment({
+          read: "partial",
+          goal,
+          response:
+            "Stops after three attempts; the last error is still swallowed.",
+        }),
+      ),
+    );
+    expect(brief.intentCheck?.alignment).toEqual({
+      read: "partial",
+      goal,
+      response:
+        "Stops after three attempts; the last error is still swallowed.",
+    });
+    expect(brief.generationWarnings).toBeUndefined();
+  });
+
+  it("drops a read whose goal is not in the primary, with a warning", async () => {
+    const brief = await categorize(
+      prWithPrimary,
+      1,
+      commitRange,
+      new FakeGenerator(
+        preciseWithAlignment({
+          read: "misaligned",
+          goal: "the retry loop should log every attempt to disk",
+          response: "r",
+        }),
+      ),
+    );
+    expect(brief.intentCheck?.alignment).toBeUndefined();
+    expect(brief.generationWarnings?.some((w) => w.includes("alignment"))).toBe(
+      true,
+    );
+  });
+
+  it("drops a read when the primary was not read", async () => {
+    const unread: FetchedPr = {
+      ...prWithPrimary,
+      primaryTicket: {
+        status: "unread",
+        reference: {
+          tracker: "github",
+          key: "",
+          number: 7,
+          url: primaryUrl,
+          foundIn: "description",
+          closing: true,
+        },
+        reason: "timeout",
+        detail: "",
+      },
+    };
+    const brief = await categorize(
+      unread,
+      1,
+      commitRange,
+      new FakeGenerator(
+        preciseWithAlignment({ read: "aligned", goal, response: "r" }),
+      ),
+    );
+    expect(brief.intentCheck?.alignment).toBeUndefined();
+  });
+
+  it("treats the empty read as no read, silently", async () => {
+    const brief = await categorize(
+      prWithPrimary,
+      1,
+      commitRange,
+      new FakeGenerator(
+        preciseWithAlignment({ read: "", goal: "", response: "" }),
+      ),
+    );
+    expect(brief.intentCheck?.alignment).toBeUndefined();
+    expect(brief.generationWarnings).toBeUndefined();
   });
 });

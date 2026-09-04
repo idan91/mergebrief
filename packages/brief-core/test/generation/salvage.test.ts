@@ -19,6 +19,7 @@ function validGeneration() {
       specificity: "none",
       scopeNote: "",
       items: [],
+      alignment: { read: "", goal: "", response: "" },
     },
     changeGroups: [
       {

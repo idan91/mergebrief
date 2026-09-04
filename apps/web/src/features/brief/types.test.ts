@@ -6,6 +6,7 @@
 // whichever side moves, the OTHER side's suite goes red locally.
 import { describe, expect, it } from "vitest";
 import {
+  AlignmentReads as BriefCoreAlignmentReads,
   Categories as BriefCoreCategories,
   PrimaryTicketStatuses as BriefCorePrimaryTicketStatuses,
   ReferenceLocations as BriefCoreReferenceLocations,
@@ -21,6 +22,7 @@ import {
 } from "brief-core";
 import type { Equals } from "types";
 import {
+  AlignmentReads,
   Categories,
   PrimaryTicketStatuses,
   ReferenceLocations,
@@ -69,6 +71,11 @@ const VOCABULARY_PINS: readonly VocabularyPin[] = [
     label: "TicketUnreadReasons",
     mirror: TicketUnreadReasons,
     source: Object.values(BriefCoreTicketUnreadReasons),
+  },
+  {
+    label: "AlignmentReads",
+    mirror: AlignmentReads,
+    source: Object.values(BriefCoreAlignmentReads),
   },
 ];
 

@@ -1,4 +1,5 @@
 import {
+  AlignmentReads,
   Categories,
   Concerns,
   Roles,
@@ -25,6 +26,7 @@ import {
   PrimaryTicketStatuses,
   ReferenceLocations,
   type Specificity,
+  type TicketAlignment,
   TicketTrackers,
   TicketUnreadReasons,
   type RevisionChangeFile,
@@ -754,6 +756,28 @@ function isSpecificity(value: unknown): value is Specificity {
   return value === "precise" || value === "broad" || value === "none";
 }
 
+/** Lenient: a malformed alignment parses to absent, never fails the check. */
+function parseTicketAlignment(
+  value: unknown,
+  warnings: ParseWarnings | undefined,
+): TicketAlignment | undefined {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) {
+    warnings?.warn("parseBrief: dropping alignment — not an object");
+    return undefined;
+  }
+  const { read, goal, response } = value;
+  if (
+    !isOneOf(AlignmentReads, read) ||
+    !isString(goal) ||
+    !isString(response)
+  ) {
+    warnings?.warn("parseBrief: dropping alignment — malformed");
+    return undefined;
+  }
+  return { read, goal, response };
+}
+
 /**
  * Lenient: a malformed or unknown-valued primary ticket parses to absent and
  * never fails the intent check.
@@ -888,6 +912,7 @@ function parseIntentCheck(
     return undefined;
   }
   const primaryTicket = parsePrimaryTicket(value["primaryTicket"], warnings);
+  const alignment = parseTicketAlignment(value["alignment"], warnings);
   const intentCheck: IntentCheck = {
     ticketUrls: ticketUrls.value,
     // Realigned to one title per URL ("" filling the gaps) so the renderer
@@ -907,6 +932,7 @@ function parseIntentCheck(
     claimedButUnachieved: unacknowledged(claimedButUnachieved.value),
   };
   if (primaryTicket !== undefined) intentCheck.primaryTicket = primaryTicket;
+  if (alignment !== undefined) intentCheck.alignment = alignment;
   return intentCheck;
 }
 

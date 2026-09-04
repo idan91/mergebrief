@@ -89,6 +89,7 @@ const briefGen = {
     specificity: "none",
     scopeNote: "",
     items: [],
+    alignment: { read: "", goal: "", response: "" },
   },
   changeGroups: [
     {

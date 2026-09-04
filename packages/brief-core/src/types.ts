@@ -488,6 +488,54 @@ export const TicketUnreadReasons = {
 } as const;
 export type TicketUnreadReason = ValueOf<typeof TicketUnreadReasons>;
 
+/** How the diff relates to the primary ticket's goal. A read, never a gate. */
+export const AlignmentReads = {
+  ALIGNED: "aligned",
+  PARTIAL: "partial",
+  MISALIGNED: "misaligned",
+} as const;
+export type AlignmentRead = ValueOf<typeof AlignmentReads>;
+
+const ALIGNMENT_GOAL_DESCRIPTION =
+  "the shortest verbatim span of the primary ticket that states what the ticket wants achieved — the goal, not an acceptance list or an implementation step; a full clause, never a fragment; ~200 chars ceiling, never a target. The ticket title may serve as the goal when the body states none";
+const ALIGNMENT_RESPONSE_DESCRIPTION =
+  "one sentence, ~250 chars ceiling: what this diff does relative to the goal in plain words — what it delivers, leaves out, or does instead. Facts about the diff; never a verdict, never a recommendation, no group ids";
+
+/** The stored alignment read: present only when the model quoted a goal that verified. */
+export const TicketAlignmentSchema = z.object({
+  read: z.enum([
+    AlignmentReads.ALIGNED,
+    AlignmentReads.PARTIAL,
+    AlignmentReads.MISALIGNED,
+  ]),
+  goal: z.string().describe(ALIGNMENT_GOAL_DESCRIPTION),
+  response: z.string().describe(ALIGNMENT_RESPONSE_DESCRIPTION),
+});
+export type TicketAlignment = z.infer<typeof TicketAlignmentSchema>;
+
+/**
+ * The wire shape: strict structured output has no optional fields, so "" on
+ * `read` is the no-read sentinel and `fanOutIntentCheck` turns it into absence.
+ */
+export const TicketAlignmentGenerationSchema = z.object({
+  read: z
+    .enum([
+      AlignmentReads.ALIGNED,
+      AlignmentReads.PARTIAL,
+      AlignmentReads.MISALIGNED,
+      "",
+    ])
+    .describe(
+      'aligned: the diff delivers the goal as the ticket states it. partial: the diff serves the goal and delivers one slice of it — an ordinary outcome. misaligned: the diff does not serve the goal, or serves it in a way the ticket explicitly rules out. "" when no Primary ticket is present or it states no goal you can quote',
+    ),
+  goal: z
+    .string()
+    .describe(`${ALIGNMENT_GOAL_DESCRIPTION}; "" when read is ""`),
+  response: z
+    .string()
+    .describe(`${ALIGNMENT_RESPONSE_DESCRIPTION}; "" when read is ""`),
+});
+
 /**
  * The one ticket this PR is about, as the harness resolved and read it.
  * Stamped after generation; the model never sees or produces it.
@@ -583,6 +631,9 @@ export const IntentCheckSchema = z.object({
   primaryTicket: PrimaryTicketSchema.optional().describe(
     "the one ticket this PR is about, as the harness resolved and read it. Harness-written after generation, never model-produced; absent when the PR references no ticket.",
   ),
+  alignment: TicketAlignmentSchema.optional().describe(
+    "the Ticket alignment read against the primary ticket's goal. Absent when there is no primary ticket, it could not be read, the sources are broad or absent, or the goal quote did not verify.",
+  ),
 });
 
 /**
@@ -626,6 +677,7 @@ export const IntentCheckGenerationSchema = z.object({
     .describe(
       "every intent-check finding, each tagged with its bucket. Empty when specificity is broad/none (never a guessed gap). Per-bucket field rules are in the Intent check section of the system prompt",
     ),
+  alignment: TicketAlignmentGenerationSchema,
 });
 
 export type IntentCheckGeneration = z.infer<typeof IntentCheckGenerationSchema>;

@@ -304,6 +304,20 @@ describe("intent-check prompt section", () => {
     );
   });
 
+  it("asks for the alignment read with the agreed wording", () => {
+    expect(brief).toMatch(/### Ticket alignment/);
+    expect(brief).toContain(
+      "Quote the shortest verbatim span from the primary ticket that states what the ticket wants achieved",
+    );
+    expect(brief).toContain(
+      "When you cannot tell `partial` from `misaligned`, say `partial` — a false `misaligned` costs more than a miss.",
+    );
+    expect(brief).toContain(
+      "Emit a read only when the primary ticket itself states a goal you can quote",
+    );
+    expect(brief).toMatch(/never derived from counting the buckets/);
+  });
+
   it("keeps the intent check out of the delta and revision-narrative prompts", () => {
     expect(buildDeltaSystemPrompt()).not.toContain("Intent check");
     expect(buildDeltaSystemPrompt()).not.toContain("intentCheck");

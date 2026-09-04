@@ -52,6 +52,7 @@ import {
   validateReadingOrder,
   validateRepoAttributeTokens,
   validateRiskAttributes,
+  type PrimaryTicketFacts,
 } from "./validate";
 import type {
   FetchedPr,
@@ -120,6 +121,16 @@ function renderLinked(links: readonly ContextSnippet[]): string {
       return `<linked_context url="${url}">\n${stripKnownFences(l.text)}\n</linked_context>`;
     })
     .join("\n\n");
+}
+
+/** What the alignment rules need: the primary's corpus URL and whether it was read. */
+function derivePrimaryTicketFacts(
+  outcome: PrimaryTicketOutcome | undefined,
+): PrimaryTicketFacts | undefined {
+  if (outcome === undefined) return undefined;
+  if (outcome.status === "read")
+    return { url: outcome.snippet.source, read: true };
+  return { url: outcome.reference.url, read: false };
 }
 
 /** The read primary, when the fan-out produced one. */
@@ -350,12 +361,14 @@ export async function categorize(
   }
   // The wire shape is one tagged `items` array; fan it out to the stored five
   // buckets BEFORE validation so every per-bucket rule applies.
+  const primaryFacts = derivePrimaryTicketFacts(pr.primaryTicket);
   const intentChecked = validateIntentCheck(
     fanOutIntentCheck(generated.intentCheck),
     generated.changeGroups,
     injectedUrls,
     corpus,
     carriedGroupIds,
+    primaryFacts,
   );
   warnIssues(intentChecked.issues, collector.log, "intent check");
   // Harness data, stamped after validation: the model never sees it.

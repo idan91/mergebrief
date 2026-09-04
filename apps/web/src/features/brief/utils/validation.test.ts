@@ -388,6 +388,38 @@ describe("parseBrief", () => {
     ],
   };
 
+  it("keeps a well-formed alignment and drops a malformed one", () => {
+    const alignment = {
+      read: "partial",
+      goal: "Add a copy button",
+      response: "Adds the button; no docs.",
+    };
+    const kept = parseBrief({
+      ...twoGroupBriefInput,
+      intentCheck: { ...preciseIntentCheck, alignment },
+    });
+    expect(kept.ok && kept.value.intentCheck?.alignment).toEqual(alignment);
+
+    const warnSink: ParseWarnSink = { warn: vi.fn() };
+    const dropped = parseBrief(
+      {
+        ...twoGroupBriefInput,
+        intentCheck: {
+          ...preciseIntentCheck,
+          alignment: { ...alignment, read: "great" },
+        },
+      },
+      warnSink,
+    );
+    expect(dropped.ok && dropped.value.intentCheck?.alignment).toBeUndefined();
+    expect(dropped.ok && dropped.value.intentCheck?.specificity).toBe(
+      "precise",
+    );
+    expect(warnSink.warn).toHaveBeenCalledWith(
+      expect.stringContaining("dropping alignment"),
+    );
+  });
+
   it("keeps a well-formed primaryTicket on the intentCheck", () => {
     const primaryTicket = {
       key: "DS-42",

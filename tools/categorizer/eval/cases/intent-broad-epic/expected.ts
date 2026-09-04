@@ -49,4 +49,9 @@ export const properties: EvalProperty[] = [
       (brief.intentCheck?.deviations ?? []).length === 0 &&
       (brief.intentCheck?.claimedButUnachieved ?? []).length === 0,
   },
+  {
+    id: "alignment-absent-on-broad",
+    description: "a broad source never carries an alignment read",
+    check: (brief) => brief.intentCheck?.alignment === undefined,
+  },
 ];

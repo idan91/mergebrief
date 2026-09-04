@@ -232,6 +232,24 @@ export interface ConcernRollup {
  */
 export type Specificity = "precise" | "broad" | "none";
 
+export const AlignmentReads = {
+  ALIGNED: "aligned",
+  PARTIAL: "partial",
+  MISALIGNED: "misaligned",
+} as const;
+export type AlignmentRead = ValueOf<typeof AlignmentReads>;
+
+/**
+ * @description The Ticket alignment read against the primary ticket's goal:
+ * the read word, the goal quoted verbatim, one factual sentence about the
+ * diff. Never a gate.
+ */
+export interface TicketAlignment {
+  read: AlignmentRead;
+  goal: string;
+  response: string;
+}
+
 export const TicketTrackers = { GITHUB: "github", NOTION: "notion" } as const;
 export type TicketTracker = ValueOf<typeof TicketTrackers>;
 
@@ -334,6 +352,11 @@ export interface IntentCheck {
    * absent at the boundary, never the whole check.
    */
   primaryTicket?: PrimaryTicket;
+  /**
+   * @description Absent when there is no primary ticket, it could not be
+   * read, the sources are broad or absent, or the goal did not verify.
+   */
+  alignment?: TicketAlignment;
 }
 
 export interface AddressedReviewComment {

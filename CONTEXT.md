@@ -178,8 +178,28 @@ The compact, cheap view shown for a triaged-trivial PR or follow-up — a short 
 _Avoid_: lite brief, mini brief, summary-only (informal)
 
 **Intent check**:
-A secondary section of the **Brief** comparing the change's *stated intent* — a linked ticket (fetched from the PR description) or, failing that, the PR description itself — against what the diff actually does. When the intent source is *precise*, it reports three factual buckets: **accomplished**, **stated-but-missing**, **done-but-unstated**. When the source is *broad* (an epic/parent) or *absent*, it reports that the check is unavailable rather than guessing. Deliberately de-emphasized — the **Change-groups** carry the story; the intent check is the AI's fallible read, shown to both author and reviewer, never a verdict or focal point.
+A secondary section of the **Brief** comparing the change's *stated intent* — the PR title, the PR description, and the **Primary ticket** when one is read — against what the diff actually does. When the sources are *precise*, it reports five factual buckets: **accomplished**, **stated-but-missing**, **done-but-unstated**, **deviations**, **claimed-but-unachieved**; the last two carry an alarm register and drop unless grounded on both sides. When the sources are *broad* (an epic/parent) or *absent*, it reports that the check is unavailable rather than guessing. It also carries the **Ticket alignment** read. Deliberately de-emphasized — the **Change-groups** carry the story; the intent check is the AI's fallible read, shown to both author and reviewer, never a verdict or focal point.
 _Avoid_: requirements check, spec compliance, intent verdict
+
+**Ticket alignment**:
+The **Intent check**'s read of how the diff relates to the **Primary ticket**'s goal: `aligned` (delivers the goal), `partial` (serves it, one slice — an ordinary outcome), or `misaligned` (does not serve it, or reaches it by a way the ticket rules out). Carries the ticket's goal quoted verbatim and one factual sentence about the diff. Absent when there is no primary ticket, the ticket could not be read, or the sources are broad or absent. Never a gate.
+_Avoid_: alignment score, ticket verdict, compliance
+
+**Ticket reference**:
+A mention of a ticket found in the PR description, PR title, or branch name: a **Ticket key**, a GitHub issue number, or a tracker URL. References are collected; only the **Primary ticket** is fetched.
+_Avoid_: linked ticket (ambiguous with the generic linked context), issue link
+
+**Primary ticket**:
+The one **Ticket reference** the brief treats as the ticket this PR is about, chosen by precedence: references to the repo's configured tracker first, then a closing-keyword reference in the description, then description, title, branch name in reading order. Only the primary is fetched and shown to the model. An unreadable primary stays primary and is reported as unread.
+_Avoid_: main ticket, parent ticket, epic
+
+**Ticket key**:
+A tracker's short identifier for a ticket, `PREFIX-N`, recognized only when the prefix matches the repo's configured tracker.
+_Avoid_: ticket id, issue key
+
+**Linked context**:
+Text the harness fetched from URLs in the PR description and fenced as untrusted reference data for the model. The **Primary ticket** is fenced separately from it.
+_Avoid_: external context (that is the wider ADR concept), attachments
 
 **Soft gate**:
 A transient, non-blocking nudge shown to the **Author** at the ready-for-review handoff, surfacing unaddressed **Risk Surface** flags (primary, factual) and — only when the **Intent check** source is precise — stated-but-missing intent gaps (secondary). The author may fix or authorize; it never blocks and leaves no persistent author state (the author side has no **Dismissal** or **Receipt** of its own).

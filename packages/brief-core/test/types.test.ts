@@ -334,6 +334,7 @@ const briefGen = (riskSurface: string[]) => ({
     specificity: "none",
     scopeNote: "",
     items: [],
+    alignment: { read: "", goal: "", response: "" },
   },
   changeGroups: [
     {
@@ -429,6 +430,7 @@ const validGenerationIntentCheck = {
       acknowledged: true,
     },
   ],
+  alignment: { read: "", goal: "", response: "" },
 };
 
 describe("IntentCheckSchema", () => {
@@ -589,6 +591,7 @@ describe("IntentCheckGenerationSchema (grammar budget)", () => {
           "specificity",
           "scopeNote",
           "primaryTicket",
+          "alignment",
         ].includes(key),
     );
     expect(storedArrays.toSorted()).toEqual([...IntentBuckets].toSorted());

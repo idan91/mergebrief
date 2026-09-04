@@ -59,4 +59,18 @@ export const properties: EvalProperty[] = [
       (brief.intentCheck?.deviations ?? []).length === 0 &&
       (brief.intentCheck?.claimedButUnachieved ?? []).length === 0,
   },
+  {
+    id: "alignment-partial",
+    description:
+      "three of the four asks land, the docs-site example does not: the alignment read is partial",
+    check: (brief) => brief.intentCheck?.alignment?.read === "partial",
+  },
+  {
+    id: "alignment-goal-and-response",
+    description:
+      "the read carries a goal (the validator drops any that is not a verbatim span of the ticket) and one response sentence",
+    check: (brief) =>
+      (brief.intentCheck?.alignment?.goal ?? "").length > 0 &&
+      (brief.intentCheck?.alignment?.response ?? "").trim().length > 0,
+  },
 ];

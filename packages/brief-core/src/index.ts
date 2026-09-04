@@ -183,6 +183,7 @@ export {
   Specificities,
   RevisionNarrativeSkipReasons,
   PrLifecycleStates,
+  AlignmentReads,
   PrimaryTicketStatuses,
   TicketUnreadReasons,
   briefGenerationSchemaWith,

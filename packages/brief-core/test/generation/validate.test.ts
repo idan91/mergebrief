@@ -12,7 +12,7 @@ import {
   validateTextLength,
   validateNarrativeTextLength,
 } from "../../src/generation/validate";
-import type { Chunk, RiskSurfaceAttribute } from "../../src/types";
+import type { Chunk, IntentCheck, RiskSurfaceAttribute } from "../../src/types";
 
 const groups = [{ id: "g1" }, { id: "g2" }];
 
@@ -1306,6 +1306,7 @@ describe("fanOutIntentCheck (grammar budget)", () => {
         genItem("deviations", "opposed the thing", { acknowledged: true }),
         genItem("claimedButUnachieved", "masked the thing"),
       ],
+      alignment: { read: "", goal: "", response: "" },
     });
     expect(out.accomplished.map((i) => i.intent)).toEqual(["did the thing"]);
     expect(out.statedButMissing.map((i) => i.intent)).toEqual([
@@ -1337,6 +1338,7 @@ describe("fanOutIntentCheck (grammar budget)", () => {
         genItem("deviations", "dev"),
         genItem("accomplished", "second"),
       ],
+      alignment: { read: "", goal: "", response: "" },
     });
     expect(out.accomplished.map((i) => i.intent)).toEqual(["first", "second"]);
     expect(out.deviations).toHaveLength(1);
@@ -1349,6 +1351,7 @@ describe("fanOutIntentCheck (grammar budget)", () => {
       specificity: "none",
       scopeNote: "",
       items: [],
+      alignment: { read: "", goal: "", response: "" },
     });
     expect(out.accomplished).toEqual([]);
     expect(out.statedButMissing).toEqual([]);
@@ -1369,6 +1372,7 @@ describe("fanOutIntentCheck (grammar budget)", () => {
           quote: "this ask appears nowhere in the sources",
         }),
       ],
+      alignment: { read: "", goal: "", response: "" },
     });
     const { intentCheck, issues } = validateIntentCheck(
       fanned,
@@ -1483,5 +1487,159 @@ describe("validateNarrativeTextLength", () => {
     ]);
     expect(violations).toEqual([]);
     expect(issues).toEqual([]);
+  });
+});
+
+describe("validateIntentCheck — the alignment read", () => {
+  const anchorGroups = [{ id: "g1" }];
+  const primaryUrl = "https://github.com/o/r/issues/7";
+  const primaryText =
+    "Retry loop\n\nThe retry loop must stop after three attempts and surface the last error.";
+  const sources = [
+    { url: "", content: "Fix retry loop\n\nfixes #7" },
+    { url: primaryUrl, content: primaryText },
+  ];
+  const alignment = {
+    read: "partial" as const,
+    goal: "The retry loop must stop after three attempts and surface the last error.",
+    response: "Stops after three attempts; the last error is still swallowed.",
+  };
+  const makeIntentCheck = (
+    overrides: Partial<IntentCheck> = {},
+  ): IntentCheck => ({
+    ticketUrls: [primaryUrl],
+    ticketTitles: ["Retry loop"],
+    specificity: "precise",
+    scopeNote: "",
+    accomplished: [],
+    statedButMissing: [],
+    doneButUnstated: [],
+    deviations: [],
+    claimedButUnachieved: [],
+    alignment,
+    ...overrides,
+  });
+  const readPrimary = { url: primaryUrl, read: true };
+
+  it("keeps a read whose goal verifies against the primary, whitespace-normalized", () => {
+    const spaced = {
+      ...alignment,
+      goal: "The retry loop   must stop after three\nattempts and surface the last error.",
+    };
+    const result = validateIntentCheck(
+      makeIntentCheck({ alignment: spaced }),
+      anchorGroups,
+      [primaryUrl],
+      sources,
+      [],
+      readPrimary,
+    );
+    expect(result.intentCheck.alignment).toEqual(spaced);
+    expect(result.issues).toEqual([]);
+  });
+
+  it("keeps a three-word goal — ticket goals run shorter than alarm quotes", () => {
+    const short = { ...alignment, goal: "The retry loop" };
+    const result = validateIntentCheck(
+      makeIntentCheck({ alignment: short }),
+      anchorGroups,
+      [primaryUrl],
+      sources,
+      [],
+      readPrimary,
+    );
+    expect(result.intentCheck.alignment).toEqual(short);
+    expect(result.issues).toEqual([]);
+  });
+
+  it.each([
+    ["an empty goal", { ...alignment, goal: "" }, readPrimary],
+    [
+      "a goal under three words",
+      { ...alignment, goal: "Retry loop" },
+      readPrimary,
+    ],
+    [
+      "a goal not in the primary",
+      { ...alignment, goal: "the retry loop should log every attempt to disk" },
+      readPrimary,
+    ],
+    ["an unread primary", alignment, { url: primaryUrl, read: false }],
+    ["no primary at all", alignment, undefined],
+  ])(
+    "drops the read whole for %s, with one warning",
+    (_label, value, primary) => {
+      const result = validateIntentCheck(
+        makeIntentCheck({ alignment: value }),
+        groups,
+        [primaryUrl],
+        sources,
+        [],
+        primary,
+      );
+      expect(result.intentCheck.alignment).toBeUndefined();
+      expect(result.issues.filter((i) => i.includes("alignment"))).toHaveLength(
+        1,
+      );
+    },
+  );
+
+  it("forces absence when specificity is broad or none, whatever the model emitted", () => {
+    for (const specificity of ["broad", "none"] as const) {
+      const result = validateIntentCheck(
+        makeIntentCheck({ specificity }),
+        groups,
+        [primaryUrl],
+        sources,
+        [],
+        readPrimary,
+      );
+      expect(result.intentCheck.alignment).toBeUndefined();
+      expect(result.issues.some((i) => i.includes("alignment"))).toBe(true);
+    }
+  });
+
+  it("is silent when the model emitted no read", () => {
+    const result = validateIntentCheck(
+      makeIntentCheck({ alignment: undefined }),
+      anchorGroups,
+      [primaryUrl],
+      sources,
+      [],
+      readPrimary,
+    );
+    expect(result.intentCheck.alignment).toBeUndefined();
+    expect(result.issues).toEqual([]);
+  });
+});
+
+describe("fanOutIntentCheck — the alignment sentinel", () => {
+  const base = {
+    ticketUrls: [],
+    ticketTitles: [],
+    specificity: "precise" as const,
+    scopeNote: "",
+    items: [],
+    alignment: { read: "", goal: "", response: "" },
+  };
+
+  it('turns read "" into absence', () => {
+    const out = fanOutIntentCheck({
+      ...base,
+      alignment: { read: "", goal: "", response: "" },
+    });
+    expect("alignment" in out).toBe(false);
+  });
+
+  it("carries a real read through", () => {
+    const out = fanOutIntentCheck({
+      ...base,
+      alignment: { read: "aligned", goal: "g", response: "r" },
+    });
+    expect(out.alignment).toEqual({
+      read: "aligned",
+      goal: "g",
+      response: "r",
+    });
   });
 });

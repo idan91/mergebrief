@@ -129,6 +129,27 @@ describe("renderAnchorView", () => {
     expect(view).toContain("gA, gB");
   });
 
+  it("carries the previous alignment read as one re-judged line", () => {
+    const withRead = renderAnchorView({
+      ...anchorInput,
+      previousBrief: {
+        ...anchorInput.previousBrief,
+        intentCheck: {
+          ...anchorInput.previousBrief.intentCheck!,
+          alignment: {
+            read: "partial",
+            goal: "Add a copy button",
+            response: "Adds the button; no docs.",
+          },
+        },
+      },
+    });
+    expect(withRead).toContain(
+      '- [alignment] partial — "Add a copy button" — Adds the button; no docs.',
+    );
+    expect(view).not.toContain("[alignment]");
+  });
+
   it("wraps the view in an anchor_brief fence and strips nested fences", () => {
     expect(view.startsWith('<anchor_brief index="1">')).toBe(true);
     expect(view.endsWith("</anchor_brief>")).toBe(true);
@@ -238,6 +259,7 @@ const minimalGen = {
     specificity: "none",
     scopeNote: "",
     items: [],
+    alignment: { read: "", goal: "", response: "" },
   },
   changeGroups: [
     {
@@ -300,6 +322,7 @@ describe("categorize — anchored threading", () => {
             acknowledged: false,
           },
         ],
+        alignment: { read: "", goal: "", response: "" },
       },
     };
     const generator = new RecordingGenerator(fixture);
