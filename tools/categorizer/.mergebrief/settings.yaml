@@ -1,0 +1,5 @@
+version: 1
+tracker:
+  kind: notion
+  keyPrefix: BRIEF
+  databaseId: 3935e940-0eeb-80b0-ad46-000b1ce17b37
