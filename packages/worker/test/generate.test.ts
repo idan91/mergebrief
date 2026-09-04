@@ -57,6 +57,7 @@ import type { CompareFile } from "github";
 import type {
   GitHubApiError,
   GitHubPort,
+  IssueInfo,
   PullRequestFile,
   PullRequestSource,
   PullRequestInfo,
@@ -226,6 +227,8 @@ interface StubGitHub extends GitHubPort {
   repoFileCalls: string[];
   /** Every openUrlBoxPullRequestSource binding, in order. */
   urlBoxCalls: { grantId: bigint; repoSlug: string; prNumber: number }[];
+  /** Issues by `owner/repo#n`; missing = not found (404). */
+  issues: Map<string, IssueInfo>;
 }
 
 function ok<T>(value: T): Result<T, GitHubApiError> {
@@ -261,6 +264,7 @@ function stubGitHub(headSha: string): StubGitHub {
     repoFileErrors: new Map(),
     repoFileCalls: [],
     urlBoxCalls: [],
+    issues: new Map(),
     async openPullRequestSource() {
       return buildSource();
     },
@@ -283,6 +287,20 @@ function stubGitHub(headSha: string): StubGitHub {
         );
       },
       fetchPullRequestFiles: async () => ok(stub.files),
+      fetchIssue: async (owner: string, repo: string, number: number) => {
+        const issue = stub.issues.get(`${owner}/${repo}#${number}`);
+        if (issue === undefined) {
+          return {
+            ok: false,
+            error: {
+              code: "not-found",
+              status: 404,
+              message: "failed to fetch issue: GitHub API returned status 404",
+            },
+          };
+        }
+        return ok(issue);
+      },
       fetchDiff: async () => ok(stub.diff),
       fetchCompareDiff: async (base: string, head: string) =>
         ok(stub.compareDiffs.get(`${base}...${head}`) ?? SMALL_DIFF),
@@ -684,11 +702,20 @@ describe("generate task — url-box world", () => {
 });
 
 describe("generate task", () => {
-  it("stamps the primary ticket the fan-out resolved onto the stored brief", async () => {
+  it("reads the primary issue through the job's GitHub source and stamps it read", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
     github.info = { ...github.info, body: "fixes #7" };
+    github.issues.set("acme/widget#7", {
+      title: "Stop the retry loop",
+      state: "open",
+      stateReason: null,
+      labels: ["bug"],
+      milestone: "v1",
+      body: "The retry loop must stop after three attempts.",
+      isPullRequest: false,
+    });
     const task = createGenerateTask({
       handle: harness.handle,
       publicBaseUrl: PUBLIC_URL,
@@ -703,17 +730,93 @@ describe("generate task", () => {
       BASE,
       HEAD_1,
     );
-    // No provider reads GitHub tickets in this stub, so the primary is
-    // unread; the stamp proves the outcome reached the full-brief call.
     expect(JSON.parse(brief?.body ?? "{}")).toMatchObject({
       intentCheck: {
         primaryTicket: {
           url: "https://github.com/acme/widget/issues/7",
-          tracker: "github",
-          foundIn: "description",
-          status: "unread",
-          reason: "unsupported",
+          title: "Stop the retry loop",
+          header: "open · bug · v1",
+          status: "read",
+          reason: "",
         },
+      },
+    });
+  });
+
+  it("keeps a url-box read inside the PR's own repo", async () => {
+    const ownerCtx = parseScopeContext({ ownerUserId: 555 });
+    const pr = await createTenantRepository(
+      harness.handle,
+      ownerCtx,
+    ).pullRequests.upsert({
+      repoId: makeRepoId(7n),
+      prNumber: 7,
+      repoSlug: "acme/widget",
+      state: PrStates.OPEN,
+    });
+    await createGenerationProjection(harness.handle, ownerCtx).upsertQueued(
+      target(pr, HEAD_1),
+    );
+    const payload = {
+      owner_user_id: "555",
+      grant_id: "31",
+      pull_request_id: String(pr.id),
+      head_sha: HEAD_1,
+    };
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    github.info = { ...github.info, body: "fixes acme/private-tracker#42" };
+    github.issues.set("acme/private-tracker#42", {
+      title: "Secret roadmap",
+      state: "open",
+      stateReason: null,
+      labels: [],
+      milestone: null,
+      body: "Not for the public brief.",
+      isPullRequest: false,
+    });
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github,
+    });
+
+    await task(payload);
+
+    const brief = await createArtifactStore(
+      harness.handle,
+      ownerCtx,
+    ).briefs.get(pr.id, BASE, HEAD_1);
+    const body = brief?.body ?? "{}";
+    expect(JSON.parse(body)).toMatchObject({
+      intentCheck: { primaryTicket: { status: "unread", reason: "not-found" } },
+    });
+    expect(body).not.toContain("Secret roadmap");
+  });
+
+  it("reports a missing issue as unread not-found on the stored brief", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    github.info = { ...github.info, body: "fixes #404" };
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github,
+    });
+
+    await task(payload);
+
+    const brief = await createArtifactStore(harness.handle, ctx).briefs.get(
+      pr.id,
+      BASE,
+      HEAD_1,
+    );
+    expect(JSON.parse(brief?.body ?? "{}")).toMatchObject({
+      intentCheck: {
+        primaryTicket: { status: "unread", reason: "not-found" },
       },
     });
   });

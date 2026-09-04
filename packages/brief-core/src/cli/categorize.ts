@@ -27,12 +27,15 @@ import {
 import { describeUnreadPrimary, readContextFile } from "./context-file";
 import {
   buildContextQuery,
-  createBuiltInContextProviders,
   fetchContextSnippets,
   type FetchContextSnippetsOptions,
   type PrimarySnippet,
   type TrackerConfig,
 } from "../context";
+import {
+  createCliContextProviders,
+  createCliRootDeps,
+} from "./context-providers";
 import { readLocalTracker } from "./settings";
 import { splitDiffByFile } from "../diff/diff";
 import { assignBriefIndex, lookupBriefShaByIndex } from "../artifacts/manifest";
@@ -49,6 +52,9 @@ import {
   revChangesName,
   revisionNarrativeName,
 } from "../artifacts/output";
+import type { Mutable } from "types";
+import type { ContextProvider } from "../context/types";
+import { resolvePrimaryRead, type PrimaryRead } from "../context/trackers";
 import type {
   Brief,
   CommitRange,
@@ -139,13 +145,15 @@ async function buildInputs(
     tracker: options.tracker,
     notion: false,
   });
-  const fetchOptions: FetchContextSnippetsOptions =
-    options.suppliedPrimary === undefined
-      ? {}
-      : { suppliedPrimary: options.suppliedPrimary };
+  const fetchOptions: Mutable<FetchContextSnippetsOptions> = {
+    primaryRead: options.primaryRead,
+  };
+  if (options.suppliedPrimary !== undefined) {
+    fetchOptions.suppliedPrimary = options.suppliedPrimary;
+  }
   const context = await fetchContextSnippets(
     query,
-    createBuiltInContextProviders(),
+    options.contextProviders ?? createCliContextProviders(),
     log,
     fetchOptions,
   );
@@ -164,6 +172,10 @@ export interface GenerateOptions {
   readonly tracker?: TrackerConfig | undefined;
   /** A primary ticket supplied by `--context <file>`; replaces the fetch. */
   readonly suppliedPrimary?: PrimarySnippet | undefined;
+  /** The providers the composition root built; absent means the CLI defaults. */
+  readonly contextProviders?: readonly ContextProvider[] | undefined;
+  /** The root's tracker read; absent means every primary is reported unread. */
+  readonly primaryRead?: PrimaryRead | undefined;
 }
 
 export async function generateAndWrite(
@@ -486,9 +498,20 @@ async function main(): Promise<void> {
   // Local-only mode: the working tree's settings.yaml names the tracker.
   const local = readLocalTracker(process.cwd());
   if (local.warning !== undefined) console.error(`warning: ${local.warning}`);
-  const options: GenerateOptions = supplied?.ok
-    ? { tracker: local.tracker, suppliedPrimary: supplied.value }
-    : { tracker: local.tracker };
+  const primaryRead = resolvePrimaryRead(
+    local.tracker,
+    createCliRootDeps(process.env),
+  );
+  if (!primaryRead.ok) {
+    console.error(primaryRead.error.issues.join("; "));
+    process.exit(1);
+  }
+  const options: GenerateOptions = {
+    tracker: local.tracker,
+    suppliedPrimary: supplied?.ok ? supplied.value : undefined,
+    contextProviders: createCliContextProviders(),
+    primaryRead: primaryRead.value,
+  };
 
   // PRs are independent — run them in parallel, sharing one generator so the
   // SDK's connection pool is reused. A single bad URL must not kill the batch.

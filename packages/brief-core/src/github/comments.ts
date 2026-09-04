@@ -1,5 +1,6 @@
 import { z } from "zod/v4";
-import { execFileAsync, MAX_BUFFER, repoSlug } from "./fetch";
+import { execFileAsync, MAX_BUFFER } from "./exec";
+import { repoSlug } from "./fetch";
 import type { PrLocator, ReviewComment } from "./types";
 
 /** Cap on comments fed to generation (prompt-cost bound) — every PrSource

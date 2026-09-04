@@ -33,6 +33,7 @@ import {
   countChangedLines,
   createBuiltInContextProviders,
   fetchContextSnippets,
+  resolvePrimaryRead,
   isHugeSpan,
   parseChangedRanges,
   revisionNarrativeConfig,
@@ -102,6 +103,7 @@ import {
   type PullRequestInfo,
   type PullRequestSource,
 } from "./github-port";
+import { createIssueReader } from "./issue-reader";
 import type { Logger } from "logging";
 import {
   classifyFailure,
@@ -757,8 +759,23 @@ async function runGeneration(
         buildRepoConfigOrigin(repoConfig),
       );
     }
-    // Context providers run after the repo config so the tracker block can
-    // name the primary ticket; never the diff, fail-open per provider.
+    // The tracker read is resolved per job: the repo config names the
+    // tracker, and GitHub's transport is this job's client. Never the diff;
+    // fail-open per provider, an unreadable ticket reported, never guessed.
+    const primaryRead = resolvePrimaryRead(repoConfig?.settings?.tracker, {
+      env: {},
+      github: {
+        issueReader: createIssueReader(
+          source,
+          payload.grantId === undefined ? {} : { onlyRepo: locator },
+        ),
+      },
+    });
+    if (!primaryRead.ok) {
+      log.warn("generate: tracker read unavailable", {
+        issues: primaryRead.error.issues,
+      });
+    }
     const { links, primaryTicket } = await fetchContextSnippets(
       buildContextQuery({
         title: meta.title,
@@ -770,6 +787,7 @@ async function runGeneration(
       }),
       createBuiltInContextProviders(),
       coreLog,
+      { primaryRead: primaryRead.ok ? primaryRead.value : undefined },
     );
     if (primaryTicket?.status === "unread") {
       const { reference, reason } = primaryTicket;

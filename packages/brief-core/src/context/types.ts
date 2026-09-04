@@ -11,8 +11,12 @@ import type { TrackerConfig } from "./tracker";
 /** Provider vocabulary. Each token is a registry entry, never a flag. */
 export const ContextProviderTypes = {
   URL: "url",
+  GITHUB_ISSUES: "github-issues",
 } as const;
 export type ContextProviderType = ValueOf<typeof ContextProviderTypes>;
+
+/** Cap on any one snippet's text so a huge page can't blow up token cost. */
+export const MAX_SNIPPET_CHARS = 20_000;
 
 /**
  * Why a provider could not read what it was asked for: the closed
@@ -23,6 +27,8 @@ export interface ContextReadFailure {
   readonly reason: TicketUnreadReason;
   /** Operator-facing detail: never a secret, a token, or a page body. */
   readonly detail: string;
+  /** GitHub shares one number space: the reference was a pull request, so skip it and read the next. */
+  readonly resolvedToPullRequest?: true;
 }
 
 /**
@@ -39,6 +45,8 @@ export interface ContextQuery {
   readonly tracker?: TrackerConfig | undefined;
   /** The one ticket this PR is about, when a reference was found. */
   readonly primary?: TicketReference | undefined;
+  /** Every reference found, primary first; the read falls through when the primary is not a ticket. */
+  readonly references: readonly TicketReference[];
 }
 
 /** What a provider hands back; the fan-out assigns the per-generation id. */
@@ -82,8 +90,9 @@ export interface ContextProviderDeps {
 }
 
 /**
- * The port every source implements. Expected failures come back as a
- * `Result`; a partial read returns the snippets it got.
+ * The port a generic source implements (the URL chaser today). Expected
+ * failures come back as a `Result`; a partial read returns the snippets it
+ * got. Ticket reads are not providers: they are the trackers' `PrimaryRead`.
  */
 export interface ContextProvider {
   readonly providerId: ContextProviderType;
@@ -91,11 +100,4 @@ export interface ContextProvider {
     query: ContextQuery,
     deps: ContextProviderDeps,
   ): Promise<Result<ProviderSnippet[], ContextReadFailure>>;
-  /** The tracker whose primary ticket this provider reads, if any. */
-  readonly tracker?: TicketTracker;
-  /** Read the primary ticket; only providers with a `tracker` implement it. */
-  readPrimary?(
-    reference: TicketReference,
-    deps: ContextProviderDeps,
-  ): Promise<Result<PrimarySnippet, ContextReadFailure>>;
 }

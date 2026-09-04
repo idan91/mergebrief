@@ -11,6 +11,25 @@ describe("trackers", () => {
     }
   });
 
+  it("builds a read only for a root that offers what the tracker needs", () => {
+    const bare = { env: {} };
+    expect(getTracker("github").createRead(bare).ok).toBe(false);
+    expect(getTracker("notion").createRead(bare).ok).toBe(false);
+    const withGh = {
+      env: {},
+      github: {
+        issueReader: {
+          readIssue: async () => ({
+            ok: false as const,
+            error: { reason: "not-found" as const, detail: "stub" },
+          }),
+        },
+      },
+    };
+    const read = getTracker("github").createRead(withGh);
+    expect(read.ok && read.value.kind).toBe("github");
+  });
+
   it("each tracker canonicalizes only its own URLs", () => {
     const issue = "https://github.com/o/r/issues/9/";
     const page = "https://www.notion.so/Page-0123456789abcdef0123456789abcdef";

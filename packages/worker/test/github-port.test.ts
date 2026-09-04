@@ -6,6 +6,7 @@ import type * as githubModule from "github";
 import {
   GitHubApiErrorCodes,
   createUserOctokit,
+  fetchIssue,
   fetchPullRequest,
 } from "github";
 import {
@@ -25,6 +26,7 @@ import { appGitHubPort } from "../src/task/github-port";
 vi.mock("github", async (importOriginal) => ({
   ...(await importOriginal<typeof githubModule>()),
   createUserOctokit: vi.fn(),
+  fetchIssue: vi.fn(),
   fetchPullRequest: vi.fn(),
 }));
 
@@ -144,6 +146,31 @@ describe("appGitHubPort — openUrlBoxPullRequestSource", () => {
     for (const call of vi.mocked(fetchPullRequest).mock.calls) {
       expect(tokenOf(call[0])).toBe("ghu_viewer");
     }
+  });
+
+  it("reads an issue in any repo with the same bound token", async () => {
+    const grantId = await seedGrant("ghu_viewer");
+    vi.mocked(fetchPullRequest).mockResolvedValue({ ok: true, value: INFO });
+    vi.mocked(fetchIssue).mockResolvedValue({
+      ok: false,
+      error: { code: GitHubApiErrorCodes.NOT_FOUND, message: "nope" },
+    });
+    const port = appGitHubPort(unusedApp, {
+      handle: harness.handle,
+      keyProvider,
+    });
+
+    const source = await port.openUrlBoxPullRequestSource(
+      grantId,
+      "acme/widget",
+      7,
+    );
+    const result = await source.fetchIssue("acme", "tracker", 42);
+
+    expect(result.ok).toBe(false);
+    const call = vi.mocked(fetchIssue).mock.calls.at(-1);
+    expect(tokenOf(call?.[0])).toBe("ghu_viewer");
+    expect(call?.[1]).toEqual({ owner: "acme", repo: "tracker", number: 42 });
   });
 
   it("falls back to the operator PAT after a viewer NOT_FOUND probe", async () => {

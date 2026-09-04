@@ -6,6 +6,7 @@ import type { Result } from "types";
 import { canonicalizeTicketUrl } from "../references";
 import {
   ContextProviderTypes,
+  MAX_SNIPPET_CHARS,
   type ContextProvider,
   type ContextProviderDeps,
   type ContextQuery,
@@ -13,8 +14,6 @@ import {
   type ProviderSnippet,
 } from "../types";
 
-/** Cap fetched link bodies so a huge page can't blow up token cost. */
-const MAX_LINK_CHARS = 20_000;
 /** Bound how many links we chase per PR — cost and latency control. */
 const MAX_LINKS = 5;
 const LINK_TIMEOUT_MS = 10_000;
@@ -110,7 +109,7 @@ type FetchTextResult = { text: string } | { error: string };
  * GET a URL's body as text, validating the connection address at connect time
  * (closes DNS-rebinding TOCTOU) and not following redirects (a 3xx is treated
  * as a skip, so a public URL can't bounce us to an internal one). Body is
- * capped at MAX_LINK_CHARS.
+ * capped at MAX_SNIPPET_CHARS.
  */
 function fetchText(
   rawUrl: string,
@@ -138,10 +137,10 @@ function fetchText(
         res.setEncoding("utf8");
         let body = "";
         res.on("data", (chunk: string) => {
-          if (body.length >= MAX_LINK_CHARS) return;
+          if (body.length >= MAX_SNIPPET_CHARS) return;
           body += chunk;
-          if (body.length >= MAX_LINK_CHARS) {
-            body = body.slice(0, MAX_LINK_CHARS);
+          if (body.length >= MAX_SNIPPET_CHARS) {
+            body = body.slice(0, MAX_SNIPPET_CHARS);
             req.destroy(); // stop reading once we have enough
           }
         });

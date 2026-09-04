@@ -1,8 +1,16 @@
+import type { Result } from "types";
+import type { ConfigError } from "generators";
 import type {
   ReferenceLocation,
   TicketTracker,
   TrackerConfig,
 } from "../tracker";
+import type {
+  ContextProviderDeps,
+  ContextReadFailure,
+  PrimarySnippet,
+} from "../types";
+import type { IssueReader } from "./github/issue-read";
 
 export interface TicketReferenceRepo {
   readonly owner: string;
@@ -47,8 +55,30 @@ export interface ReferenceHit {
 }
 
 /**
- * One tracker's syntax: how its references look in PR text and how its URLs
- * canonicalize. A tracker's read lives in the same module once it has one.
+ * What a composition root can offer a tracker's read. A tracker takes what
+ * it needs and refuses at boot when that is missing; a new tracker that
+ * needs something no root offers yet adds one field here.
+ */
+export interface TrackerRootDeps {
+  /** Tokens are resolved from here by NAME; roots stay the only `process.env` readers. */
+  readonly env: Record<string, string | undefined>;
+  /** GitHub's transport: the installation client at the worker, `gh` at the CLIs. */
+  readonly github?: { readonly issueReader: IssueReader } | undefined;
+}
+
+/** A tracker's read, built for one root: the primary ticket a reference names. */
+export interface PrimaryRead {
+  readonly kind: TicketTracker;
+  readPrimary(
+    reference: TicketReference,
+    deps: ContextProviderDeps,
+  ): Promise<Result<PrimarySnippet, ContextReadFailure>>;
+}
+
+/**
+ * One tracker, implemented once per kind: its reference syntax, its URL
+ * form, and how to build its read for a root. `trackers/index.ts` lists
+ * them; a new tracker is a module here plus a line there.
  */
 export interface Tracker {
   readonly kind: TicketTracker;
@@ -60,4 +90,6 @@ export interface Tracker {
   ): ReferenceHit[];
   /** The canonical form of a URL this tracker owns; undefined for any other. */
   canonicalizeUrl(raw: string): string | undefined;
+  /** This tracker's read for one root; refuses when the root lacks what it needs. */
+  createRead(root: TrackerRootDeps): Result<PrimaryRead, ConfigError>;
 }

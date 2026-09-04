@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { fetchContextSnippets } from "../../src/context/fan-out";
 import { toPrimaryTicket } from "../../src/context/primary";
 import type { TicketReference } from "../../src/context/references";
+import type { PrimaryRead } from "../../src/context/trackers/types";
 import {
   ContextProviderTypes,
   type ContextProvider,
@@ -35,6 +36,7 @@ const query = {
   headRef: "",
   repo: { owner: "o", repo: "r" },
   primary: reference,
+  references: [reference],
 };
 
 function stubUrlProvider(): ContextProvider {
@@ -44,15 +46,8 @@ function stubUrlProvider(): ContextProvider {
   };
 }
 
-function stubIssueProvider(
-  readPrimary: NonNullable<ContextProvider["readPrimary"]>,
-): ContextProvider {
-  return {
-    providerId: ContextProviderTypes.URL,
-    tracker: "github",
-    fetch: async () => ({ ok: true, value: [] }),
-    readPrimary,
-  };
+function stubRead(readPrimary: PrimaryRead["readPrimary"]): PrimaryRead {
+  return { kind: "github", readPrimary };
 }
 
 describe("fetchContextSnippets: the primary ticket", () => {
@@ -62,7 +57,7 @@ describe("fetchContextSnippets: the primary ticket", () => {
     expect(outcome.primaryTicket).toBeUndefined();
   });
 
-  it("is unread/unsupported when no provider reads the tracker", async () => {
+  it("is unread/unsupported when the root has no read for the tracker", async () => {
     const { primaryTicket } = await fetchContextSnippets(query, [
       stubUrlProvider(),
     ]);
@@ -74,24 +69,27 @@ describe("fetchContextSnippets: the primary ticket", () => {
   });
 
   it("is read through the provider that owns the tracker", async () => {
-    const provider = stubIssueProvider(async () => ({
+    const read = stubRead(async () => ({
       ok: true,
       value: snippet,
     }));
-    const { primaryTicket } = await fetchContextSnippets(query, [provider]);
+    const { primaryTicket } = await fetchContextSnippets(query, [], undefined, {
+      primaryRead: read,
+    });
     expect(primaryTicket).toEqual({ status: "read", snippet });
   });
 
   it("carries the provider's failure reason when the read fails", async () => {
     const logs: string[] = [];
-    const provider = stubIssueProvider(async () => ({
+    const read = stubRead(async () => ({
       ok: false,
       error: { reason: TicketUnreadReasons.NOT_FOUND, detail: "404" },
     }));
     const { primaryTicket } = await fetchContextSnippets(
       query,
-      [provider],
+      [],
       (m) => logs.push(m),
+      { primaryRead: read },
     );
     expect(primaryTicket).toMatchObject({
       status: "unread",
@@ -101,13 +99,11 @@ describe("fetchContextSnippets: the primary ticket", () => {
   });
 
   it("is unread/timeout when the read outlives its budget", async () => {
-    const provider = stubIssueProvider(() => new Promise(() => undefined));
-    const { primaryTicket } = await fetchContextSnippets(
-      query,
-      [provider],
-      () => {},
-      { timeoutMs: 10 },
-    );
+    const read = stubRead(() => new Promise(() => undefined));
+    const { primaryTicket } = await fetchContextSnippets(query, [], () => {}, {
+      timeoutMs: 10,
+      primaryRead: read,
+    });
     expect(primaryTicket).toMatchObject({
       status: "unread",
       reason: TicketUnreadReasons.TIMEOUT,
@@ -115,24 +111,163 @@ describe("fetchContextSnippets: the primary ticket", () => {
   });
 
   it("is unread/timeout-shaped when the provider throws, never a crash", async () => {
-    const provider = stubIssueProvider(async () => {
+    const read = stubRead(async () => {
       throw new Error("boom");
     });
-    const { primaryTicket } = await fetchContextSnippets(query, [provider]);
+    const { primaryTicket } = await fetchContextSnippets(query, [], undefined, {
+      primaryRead: read,
+    });
     expect(primaryTicket?.status).toBe("unread");
   });
 
-  it("a supplied primary replaces the read and is stamped as read", async () => {
-    const provider = stubIssueProvider(async () => {
-      throw new Error("must not be called");
+  it("reads only references of the read's own tracker", async () => {
+    const notionRef: TicketReference = {
+      tracker: "notion",
+      key: "BRIEF-1",
+      url: "",
+      foundIn: "description",
+      closing: true,
+    };
+    const visited: string[] = [];
+    const read = stubRead(async (ref) => {
+      visited.push(ref.tracker);
+      return { ok: true, value: snippet };
     });
     const { primaryTicket } = await fetchContextSnippets(
-      query,
-      [provider],
-      () => {},
-      { suppliedPrimary: snippet },
+      { ...query, primary: notionRef, references: [notionRef, reference] },
+      [],
+      undefined,
+      { primaryRead: read },
+    );
+    expect(visited).toEqual(["github"]);
+    expect(primaryTicket).toEqual({ status: "read", snippet });
+  });
+
+  it("a supplied primary replaces the read and is stamped as read", async () => {
+    const read = stubRead(async () => {
+      throw new Error("must not be called");
+    });
+    const { primaryTicket } = await fetchContextSnippets(query, [], () => {}, {
+      suppliedPrimary: snippet,
+      primaryRead: read,
+    });
+    expect(primaryTicket).toEqual({ status: "read", snippet });
+  });
+});
+
+describe("fetchContextSnippets: a primary that is not a ticket", () => {
+  const prNumber: TicketReference = {
+    ...reference,
+    number: 465,
+    url: "https://github.com/o/r/issues/465",
+    closing: true,
+  };
+  const resolvedToPullRequest = {
+    ok: false as const,
+    error: {
+      reason: TicketUnreadReasons.NOT_FOUND,
+      detail: "#465 is a pull request, not an issue",
+      resolvedToPullRequest: true as const,
+    },
+  };
+
+  it("falls through to the next reference in parser order", async () => {
+    const logs: string[] = [];
+    const read = stubRead(async (ref) =>
+      ref.number === 465 ? resolvedToPullRequest : { ok: true, value: snippet },
+    );
+    const { primaryTicket } = await fetchContextSnippets(
+      { ...query, primary: prNumber, references: [prNumber, reference] },
+      [],
+      (m) => logs.push(m),
+      { primaryRead: read },
     );
     expect(primaryTicket).toEqual({ status: "read", snippet });
+    expect(logs.some((l) => l.includes("not a ticket"))).toBe(true);
+  });
+
+  it("shares one budget across candidates", async () => {
+    // The PR hit spends most of the budget; the real read then gets only
+    // the remainder, which a per-candidate budget would not have cut.
+    const read = stubRead(async (ref) => {
+      await new Promise((r) => setTimeout(r, 30));
+      return ref.number === 465
+        ? resolvedToPullRequest
+        : { ok: true, value: snippet };
+    });
+    const { primaryTicket } = await fetchContextSnippets(
+      { ...query, primary: prNumber, references: [prNumber, reference] },
+      [],
+      () => {},
+      { timeoutMs: 40, graceMs: 5, primaryRead: read },
+    );
+    expect(primaryTicket).toMatchObject({
+      status: "unread",
+      reason: "timeout",
+      reference,
+    });
+  });
+
+  it("picks the next candidate by the primary rule, not by raw order", async () => {
+    // Closes #465 (a PR) / See #10 / Fixes #12: the closing #12 wins over #10.
+    const plain: TicketReference = {
+      ...reference,
+      number: 10,
+      url: "https://github.com/o/r/issues/10",
+      closing: false,
+    };
+    const closing: TicketReference = {
+      ...reference,
+      number: 12,
+      url: "https://github.com/o/r/issues/12",
+      closing: true,
+    };
+    const visited: number[] = [];
+    const read = stubRead(async (ref) => {
+      visited.push(ref.number ?? 0);
+      return ref.number === 465
+        ? resolvedToPullRequest
+        : { ok: true, value: { ...snippet, source: ref.url } };
+    });
+    const { primaryTicket } = await fetchContextSnippets(
+      { ...query, primary: prNumber, references: [prNumber, plain, closing] },
+      [],
+      undefined,
+      { primaryRead: read },
+    );
+    expect(visited).toEqual([465, 12]);
+    expect(
+      primaryTicket?.status === "read" && primaryTicket.snippet.source,
+    ).toBe("https://github.com/o/r/issues/12");
+  });
+
+  it("yields no primary when every reference is a pull request", async () => {
+    const read = stubRead(async () => resolvedToPullRequest);
+    const { primaryTicket } = await fetchContextSnippets(
+      { ...query, primary: prNumber, references: [prNumber] },
+      [],
+      undefined,
+      { primaryRead: read },
+    );
+    expect(primaryTicket).toBeUndefined();
+  });
+
+  it("keeps an ordinary not-found as the primary's outcome", async () => {
+    const read = stubRead(async () => ({
+      ok: false,
+      error: { reason: TicketUnreadReasons.NOT_FOUND, detail: "HTTP 404" },
+    }));
+    const { primaryTicket } = await fetchContextSnippets(
+      { ...query, primary: prNumber, references: [prNumber, reference] },
+      [],
+      undefined,
+      { primaryRead: read },
+    );
+    expect(primaryTicket).toMatchObject({
+      status: "unread",
+      reason: "not-found",
+      reference: prNumber,
+    });
   });
 });
 

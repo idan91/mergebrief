@@ -3,6 +3,7 @@ import {
   TicketTrackers,
   type TrackerConfig,
 } from "../tracker";
+import { refuseTrackerRead } from "./refusal";
 import type { ReferenceHit, Tracker } from "./types";
 
 const NOTION_URL =
@@ -78,6 +79,8 @@ function collectPageUrls(text: string, enabled: boolean): ReferenceHit[] {
 /** Keys match only the configured prefix; page URLs only when a Notion token is configured. */
 export const notionTracker: Tracker = {
   kind: TicketTrackers.NOTION,
+  createRead: () =>
+    refuseTrackerRead(["notion: no read on this deployment yet"]),
   collectReferences(text, location, input) {
     const keys = collectKeys(text, input.tracker);
     if (location === ReferenceLocations.BRANCH) return keys;

@@ -12,6 +12,7 @@ import {
   fetchCompareDiff,
   fetchCompareFiles,
   fetchDiff,
+  fetchIssue,
   fetchPullRequest,
   fetchPullRequestFiles,
   getInstallationClient,
@@ -21,6 +22,7 @@ import {
   type AppClient,
   type CompareFiles,
   type GitHubApiError,
+  type IssueInfo,
   type PullRequestFile,
   type PullRequestInfo,
   type RepoFileResult,
@@ -40,6 +42,7 @@ import { PermanentJobError } from "./failure";
 export type {
   CompareFiles,
   GitHubApiError,
+  IssueInfo,
   PullRequestFile,
   PullRequestInfo,
   RepoFileResult,
@@ -49,6 +52,15 @@ export type {
 export interface PullRequestSource {
   fetchPullRequest(): Promise<Result<PullRequestInfo, GitHubApiError>>;
   fetchPullRequestFiles(): Promise<Result<PullRequestFile[], GitHubApiError>>;
+  /**
+   * One issue by number, in any repo the bound credential can see: the
+   * primary ticket may live in a sibling repo of the installation.
+   */
+  fetchIssue(
+    owner: string,
+    repo: string,
+    number: number,
+  ): Promise<Result<IssueInfo, GitHubApiError>>;
   /** The whole-PR unified diff at the current head. */
   fetchDiff(): Promise<Result<string, GitHubApiError>>;
   /** The `base...head` span diff (narrative/marks/delta inputs). */
@@ -154,6 +166,8 @@ function bindPullRequestSource(
   return {
     fetchPullRequest: () => fetchPullRequest(octokit, ref),
     fetchPullRequestFiles: () => fetchPullRequestFiles(octokit, ref),
+    fetchIssue: (owner, repo, number) =>
+      fetchIssue(octokit, { owner, repo, number }),
     fetchDiff: () => fetchDiff(octokit, ref),
     fetchCompareDiff: (base, head) =>
       fetchCompareDiff(octokit, {

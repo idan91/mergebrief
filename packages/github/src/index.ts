@@ -128,6 +128,8 @@ export type {
   CompareFiles,
   CommitRef,
 } from "./operations/pull-request";
+export { fetchIssue } from "./operations/issue";
+export type { IssueInfo, IssueRef } from "./operations/issue";
 
 // Review-submit primitive: one grouped formal review, pinned to the reviewed
 // commit; 422s carry a best-effort validation class.

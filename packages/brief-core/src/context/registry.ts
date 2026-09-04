@@ -14,18 +14,10 @@ export const EgressTiers = {
 } as const;
 export type EgressTier = ValueOf<typeof EgressTiers>;
 
-/** What a composition root injects; roots stay the only `process.env` readers. */
-export interface CreateContextProviderDeps {
-  readonly env: Record<string, string | undefined>;
-}
-
 interface ContextRegistryEntry<Options extends z.ZodType> {
   readonly options: Options;
   readonly egress: EgressTier;
-  create(
-    options: z.infer<Options>,
-    deps: CreateContextProviderDeps,
-  ): Result<ContextProvider, ConfigError>;
+  create(options: z.infer<Options>): Result<ContextProvider, ConfigError>;
 }
 
 /** Generic entry helper: ties each schema to its create without widening. */
@@ -42,10 +34,10 @@ const urlOptions = z
   .strict();
 
 /**
- * The static compiled-in provider registry, the generator registry's shape:
- * a type token, a strict Zod options schema carrying the token as
- * discriminant, an egress tier, and a `create` returning `Result` so a
- * misconfigured instance refuses boot instead of limping into jobs.
+ * The static compiled-in registry of generic sources, the generator
+ * registry's shape: a type token, a strict Zod options schema carrying the
+ * token as discriminant, an egress tier, and a `create` returning `Result`.
+ * Ticket trackers are not here; they live in `trackers/`.
  */
 export const CONTEXT_REGISTRY = {
   [ContextProviderTypes.URL]: defineEntry({
@@ -60,7 +52,7 @@ export const BUILT_IN_CONTEXT_PROVIDER_TYPES = [
   ContextProviderTypes.URL,
 ] as const;
 
-/** The providers that need no configuration, in fan-out order. */
+/** The generic sources every root runs, in fan-out order: the URL chaser. */
 export function createBuiltInContextProviders(): ContextProvider[] {
   return [urlContextProvider];
 }

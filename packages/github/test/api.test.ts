@@ -10,6 +10,7 @@ import {
   postEntryComment,
 } from "../src/operations/comments";
 import { GitHubApiErrorCodes } from "../src/errors";
+import { fetchIssue } from "../src/operations/issue";
 import {
   fetchPullRequest,
   fetchPullRequestFiles,
@@ -61,6 +62,7 @@ function mockOctokit(overrides: {
   createComment?: ReturnType<typeof vi.fn>;
   deleteComment?: ReturnType<typeof vi.fn>;
   getComment?: ReturnType<typeof vi.fn>;
+  issuesGet?: ReturnType<typeof vi.fn>;
   pullsGet?: ReturnType<typeof vi.fn>;
   createReview?: ReturnType<typeof vi.fn>;
   compareBasehead?: ReturnType<typeof vi.fn>;
@@ -77,6 +79,7 @@ function mockOctokit(overrides: {
         createComment: overrides.createComment ?? vi.fn(),
         deleteComment: overrides.deleteComment ?? vi.fn(),
         getComment: overrides.getComment ?? vi.fn(),
+        get: overrides.issuesGet ?? vi.fn(),
       },
       pulls: {
         get: overrides.pullsGet ?? vi.fn(),
@@ -1100,5 +1103,88 @@ describe("createPullRequestReview", () => {
     expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
     expect(result.error.validation).toBeUndefined();
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
+  });
+});
+
+describe("fetchIssue", () => {
+  const ISSUE_REF = { owner: "o", repo: "r", number: 12 };
+
+  it("extracts title, state, labels, milestone and body", async () => {
+    const issuesGet = vi.fn().mockResolvedValue({
+      data: {
+        title: "Add the thing",
+        state: "closed",
+        state_reason: "completed",
+        labels: [{ name: "bug" }, "p1", { name: null }],
+        milestone: { title: "v1.2" },
+        body: "the body",
+      },
+    });
+    const octokit = mockOctokit({ issuesGet });
+    const result = await fetchIssue(octokit, ISSUE_REF);
+    expect(issuesGet).toHaveBeenCalledWith({
+      owner: "o",
+      repo: "r",
+      issue_number: 12,
+    });
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        title: "Add the thing",
+        state: "closed",
+        stateReason: "completed",
+        labels: ["bug", "p1"],
+        milestone: "v1.2",
+        body: "the body",
+        isPullRequest: false,
+      },
+    });
+  });
+
+  it("normalizes a null body, milestone and state_reason", async () => {
+    const issuesGet = vi.fn().mockResolvedValue({
+      data: {
+        title: "t",
+        state: "open",
+        state_reason: null,
+        labels: [],
+        milestone: null,
+        body: null,
+      },
+    });
+    const result = await fetchIssue(mockOctokit({ issuesGet }), ISSUE_REF);
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value.body).toBe("");
+    expect(result.value.milestone).toBeNull();
+    expect(result.value.stateReason).toBeNull();
+    expect(result.value.labels).toEqual([]);
+  });
+
+  it("flags a payload carrying pull_request as a pull request", async () => {
+    const issuesGet = vi.fn().mockResolvedValue({
+      data: {
+        title: "a PR",
+        state: "open",
+        labels: [],
+        milestone: null,
+        body: "",
+        pull_request: { url: "https://api.github.com/repos/o/r/pulls/12" },
+      },
+    });
+    const result = await fetchIssue(mockOctokit({ issuesGet }), ISSUE_REF);
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value.isPullRequest).toBe(true);
+  });
+
+  it("maps a 404 to a sanitized not-found error", async () => {
+    const issuesGet = vi.fn().mockRejectedValue(requestError(404));
+    const result = await fetchIssue(mockOctokit({ issuesGet }), ISSUE_REF);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
+    expect(result.error.status).toBe(404);
+    expect(JSON.stringify(result.error)).not.toContain(LEAKED_TOKEN);
   });
 });

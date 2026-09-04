@@ -24,6 +24,7 @@ const query = {
   body: "see https://a.example/x",
   headRef: "",
   repo: { owner: "o", repo: "r" },
+  references: [],
 };
 
 describe("fetchContextSnippets", () => {

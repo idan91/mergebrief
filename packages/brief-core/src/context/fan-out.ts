@@ -1,7 +1,8 @@
 import type { Result } from "types";
 import type { Log } from "../github/types";
 import { TicketUnreadReasons } from "../types";
-import type { TicketReference } from "./references";
+import { resolvePrimaryTicket, type TicketReference } from "./references";
+import type { PrimaryRead } from "./trackers/types";
 import type {
   ContextProvider,
   ContextProviderDeps,
@@ -25,6 +26,8 @@ export interface FetchContextSnippetsOptions {
    * fixture): replaces the tracker read and is stamped as read.
    */
   readonly suppliedPrimary?: PrimarySnippet;
+  /** The root's one ticket read; absent means every primary is reported unread. */
+  readonly primaryRead?: PrimaryRead | undefined;
 }
 
 export interface ContextFetch {
@@ -59,7 +62,7 @@ function resolveAfterAbort(
 /**
  * Run every provider against the same query in parallel and concatenate the
  * results in provider order, numbering them `ctx-1..N`; alongside, read the
- * primary ticket through the provider that owns its tracker. Fail-open per
+ * primary ticket through the root's one tracker read. Fail-open per
  * provider: a failure, a throw, or a timeout is logged and contributes
  * nothing; an unreadable primary is reported, never guessed. A brief must
  * still be producible from the diff alone. Fresh per generation, no cache.
@@ -79,7 +82,7 @@ export async function fetchContextSnippets(
         readProviderSnippets(provider, query, log, timeoutMs, graceMs),
       ),
     ),
-    readPrimaryTicket(query, providers, log, timeoutMs, graceMs, options),
+    readPrimaryTicket(query, log, timeoutMs, graceMs, options),
   ]);
 
   const links = perProvider
@@ -101,9 +104,11 @@ function attributeSupplied(
   return { ...supplied, foundIn: reference.foundIn };
 }
 
+/** How many references are tried when the primary turns out not to be a ticket. */
+const MAX_PRIMARY_CANDIDATES = 5;
+
 async function readPrimaryTicket(
   query: ContextQuery,
-  providers: readonly ContextProvider[],
   log: Log,
   timeoutMs: number,
   graceMs: number,
@@ -118,19 +123,62 @@ async function readPrimaryTicket(
   }
   if (reference === undefined) return undefined;
 
-  const provider = providers.find((p) => p.tracker === reference.tracker);
-  const readPrimary = provider?.readPrimary?.bind(provider);
-  if (readPrimary === undefined) {
+  const read = options.primaryRead;
+  if (read === undefined) {
     return {
       status: "unread",
       reference,
       reason: TicketUnreadReasons.UNSUPPORTED,
-      detail: `no provider reads ${reference.tracker} tickets here`,
+      detail: `no ${reference.tracker} read on this deployment`,
     };
   }
 
+  // Only the configured tracker's references are read; the rest stay text.
+  // A reference that resolves to a pull request is not a ticket: it is
+  // skipped and the next reference becomes the primary, in the parser's
+  // order. Every candidate shares the one budget, so the phase never
+  // outlives a single read.
+  let remainingReferences = query.references.filter(
+    (candidate) => candidate.tracker === read.kind,
+  );
+  const deadline = Date.now() + timeoutMs;
+  for (let tried = 0; tried < MAX_PRIMARY_CANDIDATES; tried += 1) {
+    const candidate = resolvePrimaryTicket(remainingReferences, read.kind);
+    if (candidate === undefined) return undefined;
+    remainingReferences = remainingReferences.filter((r) => r !== candidate);
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      return {
+        status: "unread",
+        reference: candidate,
+        reason: TicketUnreadReasons.TIMEOUT,
+        detail: `no answer within ${timeoutMs} ms`,
+      };
+    }
+    const outcome = await readCandidate(
+      candidate,
+      read,
+      log,
+      remaining,
+      graceMs,
+    );
+    const skipped =
+      outcome.status === "unread" && outcome.resolvedToPullRequest === true;
+    if (!skipped) return outcome;
+    log(`context: ${candidate.url} is not a ticket, trying the next reference`);
+  }
+  return undefined;
+}
+
+async function readCandidate(
+  reference: TicketReference,
+  read: PrimaryRead,
+  log: Log,
+  timeoutMs: number,
+  graceMs: number,
+): Promise<PrimaryTicketOutcome & { resolvedToPullRequest?: true }> {
   const outcome = await runWithinBudget(
-    (deps) => readPrimary(reference, deps),
+    (deps) => read.readPrimary(reference, deps),
     log,
     timeoutMs,
     graceMs,
@@ -148,7 +196,15 @@ async function readPrimaryTicket(
     log(
       `context: primary ticket unread (${outcome.error.reason}: ${outcome.error.detail})`,
     );
-    return { status: "unread", reference, ...outcome.error };
+    const unread: PrimaryTicketOutcome & { resolvedToPullRequest?: true } = {
+      status: "unread",
+      reference,
+      reason: outcome.error.reason,
+      detail: outcome.error.detail,
+    };
+    if (outcome.error.resolvedToPullRequest === true)
+      unread.resolvedToPullRequest = true;
+    return unread;
   }
   return { status: "read", snippet: outcome.value };
 }

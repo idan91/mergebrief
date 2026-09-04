@@ -25,6 +25,25 @@ describe("buildContextQuery", () => {
     });
   });
 
+  it("ranks a key on the repo's tracker above a bare #N in the description", () => {
+    const query = buildContextQuery({
+      title: "[BRIEF-239] Add thing",
+      body: "on #467",
+      branch: "",
+      repo: REPO,
+      tracker: {
+        kind: "notion",
+        keyPrefix: "BRIEF",
+        databaseId: "a".repeat(32),
+      },
+      notion: false,
+    });
+    expect(query.primary).toMatchObject({
+      tracker: "notion",
+      key: "BRIEF-239",
+    });
+  });
+
   it("leaves the primary absent when nothing references a ticket", () => {
     const query = buildContextQuery({
       title: "t",

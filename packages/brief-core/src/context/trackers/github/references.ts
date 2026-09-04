@@ -1,5 +1,9 @@
-import { ReferenceLocations, TicketTrackers } from "../tracker";
-import type { ReferenceHit, TicketReferenceInput, Tracker } from "./types";
+import {
+  ReferenceLocations,
+  TicketTrackers,
+  type ReferenceLocation,
+} from "../../tracker";
+import type { ReferenceHit, TicketReferenceInput } from "../types";
 
 /** GitHub caps logins at 39 chars and repo names at 100; the bounds keep backtracking constant per position. */
 const GITHUB_ISSUE_URL =
@@ -81,18 +85,20 @@ function collectBranchSegments(
   return hits;
 }
 
-/** Built in: `#N`, `owner/repo#N`, issue URLs and a branch segment starting `N-` match on every deployment. */
-export const githubTracker: Tracker = {
-  kind: TicketTrackers.GITHUB,
-  collectReferences(text, location, input) {
-    if (location === ReferenceLocations.BRANCH) {
-      return collectBranchSegments(text, input);
-    }
-    return collectMentions(text, input);
-  },
-  canonicalizeUrl(raw) {
-    const issue = new RegExp(`^${GITHUB_ISSUE_URL.source}`).exec(raw);
-    if (issue === null) return undefined;
-    return buildIssueUrl(issue[1] ?? "", issue[2] ?? "", Number(issue[3]));
-  },
-};
+/** `#N`, `owner/repo#N`, issue URLs and a branch segment starting `N-`, on every deployment. */
+export function collectGitHubReferences(
+  text: string,
+  location: ReferenceLocation,
+  input: TicketReferenceInput,
+): ReferenceHit[] {
+  if (location === ReferenceLocations.BRANCH) {
+    return collectBranchSegments(text, input);
+  }
+  return collectMentions(text, input);
+}
+
+export function canonicalizeGitHubUrl(raw: string): string | undefined {
+  const issue = new RegExp(`^${GITHUB_ISSUE_URL.source}`).exec(raw);
+  if (issue === null) return undefined;
+  return buildIssueUrl(issue[1] ?? "", issue[2] ?? "", Number(issue[3]));
+}

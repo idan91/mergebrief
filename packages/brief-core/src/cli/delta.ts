@@ -19,12 +19,15 @@ import { extractConfigFlag, extractContextFlag } from "./config";
 import { describeUnreadPrimary, readContextFile } from "./context-file";
 import {
   buildContextQuery,
-  createBuiltInContextProviders,
   fetchContextSnippets,
   toPrimaryTicket,
   type FetchContextSnippetsOptions,
   type TrackerConfig,
 } from "../context";
+import {
+  createCliContextProviders,
+  createCliRootDeps,
+} from "./context-providers";
 import { readLocalTracker } from "./settings";
 import { splitDiffByFile } from "../diff/diff";
 import { lookupBriefIndex } from "../artifacts/manifest";
@@ -36,6 +39,8 @@ import {
   prStem,
   printDeltaSummary,
 } from "../artifacts/output";
+import type { ContextProvider } from "../context/types";
+import { resolvePrimaryRead } from "../context/trackers";
 import type { DeltaBrief, Effort } from "../types";
 
 const OUT_DIR = "out";
@@ -67,6 +72,7 @@ export async function generateAndWriteDelta(
   effort?: Effort,
   tracker?: TrackerConfig,
   fetchOptions: FetchContextSnippetsOptions = {},
+  contextProviders: readonly ContextProvider[] = createCliContextProviders(),
 ): Promise<DeltaBrief> {
   const locator = parsePrUrl(url);
 
@@ -96,7 +102,7 @@ export async function generateAndWriteDelta(
   });
   const { links, primaryTicket } = await fetchContextSnippets(
     query,
-    createBuiltInContextProviders(),
+    contextProviders,
     log,
     fetchOptions,
   );
@@ -207,6 +213,14 @@ async function main(): Promise<void> {
 
   // Local-only mode: the working tree's settings.yaml names the tracker.
   const local = readLocalTracker(process.cwd());
+  const primaryRead = resolvePrimaryRead(
+    local.tracker,
+    createCliRootDeps(process.env),
+  );
+  if (!primaryRead.ok) {
+    console.error(primaryRead.error.issues.join("; "));
+    process.exit(1);
+  }
   if (local.warning !== undefined) log(`warning: ${local.warning}`);
   const fetchOptions: FetchContextSnippetsOptions = supplied?.ok
     ? { suppliedPrimary: supplied.value }
@@ -221,7 +235,8 @@ async function main(): Promise<void> {
     log,
     loaded.value.generator.effort,
     local.tracker,
-    fetchOptions,
+    { ...fetchOptions, primaryRead: primaryRead.value },
+    createCliContextProviders(),
   );
 
   console.log("");

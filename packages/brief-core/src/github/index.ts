@@ -27,3 +27,4 @@ export {
   normalizeReviewComment,
 } from "./comments";
 export { ghPrSource, type PrSource } from "./source";
+export { createGhIssueReader, ghIssueReader, type GhExec } from "./issue";

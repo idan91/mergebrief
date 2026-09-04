@@ -1,26 +1,15 @@
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import { z } from "zod/v4";
 import {
   buildContextQuery,
   createBuiltInContextProviders,
   fetchContextSnippets,
 } from "../context";
+import { execFileAsync, MAX_BUFFER, SEGMENT } from "./exec";
+import type { ContextProvider } from "../context/types";
+import { ghIssueReader } from "./issue";
+import { createGitHubRead } from "../context/trackers/github";
+import type { PrimaryRead } from "../context/trackers/types";
 import type { FetchedPr, Log, PrLocator, PrMetadata } from "./types";
-
-/** Folder-internal exec plumbing — shared with `comments.ts`, not on the barrel. */
-export const execFileAsync = promisify(execFile);
-
-/** 64 MiB — large PRs can produce big diffs; default execFile buffer is 1 MiB. */
-export const MAX_BUFFER = 64 * 1024 * 1024;
-
-/**
- * GitHub owner/repo segment grammar: alphanumerics, hyphen, underscore, dot.
- * Validating before we ever hand a value to `gh` keeps untrusted URL input
- * out of the argument list (defense in depth — we use execFile, not a shell,
- * so there is no shell to inject into either way).
- */
-const SEGMENT = /^[A-Za-z0-9._-]+$/;
 
 const PR_URL = new RegExp(
   String.raw`^https?://github\.com/([^/]+)/([^/]+)/pull/(\d+)(?:[/?#].*)?$`,
@@ -220,11 +209,22 @@ export async function fetchCompareCommitCount(
 
 /**
  * Parse a PR URL, then fetch its diff and metadata in parallel. Once we have
- * the description, run the built-in context providers over it (best-effort).
+ * the description, run the context providers over it (best-effort). This is
+ * the `gh` source, so the default ticket read is GitHub through `gh`.
  */
+function ghPrimaryRead(): PrimaryRead | undefined {
+  const read = createGitHubRead({
+    env: {},
+    github: { issueReader: ghIssueReader },
+  });
+  return read.ok ? read.value : undefined;
+}
+
 export async function fetchPr(
   url: string,
   log: Log = () => {},
+  providers: readonly ContextProvider[] = createBuiltInContextProviders(),
+  primaryRead: PrimaryRead | undefined = ghPrimaryRead(),
 ): Promise<FetchedPr> {
   const locator = parsePrUrl(url);
   const [diff, meta] = await Promise.all([
@@ -238,10 +238,8 @@ export async function fetchPr(
     repo: locator,
     notion: false,
   });
-  const context = await fetchContextSnippets(
-    query,
-    createBuiltInContextProviders(),
-    log,
-  );
+  const context = await fetchContextSnippets(query, providers, log, {
+    primaryRead,
+  });
   return { locator, meta, diff, ...context };
 }

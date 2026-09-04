@@ -7,7 +7,13 @@ import {
 import { ContextProviderTypes } from "../../src/context/types";
 
 function makeQuery(body: string) {
-  return { title: "t", body, headRef: "", repo: { owner: "o", repo: "r" } };
+  return {
+    title: "t",
+    body,
+    headRef: "",
+    repo: { owner: "o", repo: "r" },
+    references: [],
+  };
 }
 
 function stubDeps(logs: string[] = []) {

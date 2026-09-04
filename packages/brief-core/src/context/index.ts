@@ -13,7 +13,7 @@ export type {
   PrimaryTicketOutcome,
   ProviderSnippet,
 } from "./types";
-export { ContextProviderTypes } from "./types";
+export { ContextProviderTypes, MAX_SNIPPET_CHARS } from "./types";
 export {
   CONTEXT_PROVIDER_TIMEOUT_MS,
   fetchContextSnippets,
@@ -26,10 +26,17 @@ export {
   CONTEXT_REGISTRY,
   EgressTiers,
   createBuiltInContextProviders,
-  type CreateContextProviderDeps,
   type EgressTier,
 } from "./registry";
 export { extractLinks, isPublicUrl, urlContextProvider } from "./providers/url";
+export {
+  createGitHubRead,
+  readFailureForStatus,
+  renderIssueHeader,
+  type IssueLocator,
+  type IssueReader,
+  type IssueRecord,
+} from "./trackers/github";
 export { buildContextQuery } from "./query";
 export {
   collectTicketReferences,
@@ -44,8 +51,11 @@ export {
   githubTracker,
   notionTracker,
   parseNotionPageId,
+  resolvePrimaryRead,
+  type PrimaryRead,
   type ReferenceHit,
   type Tracker,
+  type TrackerRootDeps,
 } from "./trackers";
 export {
   ReferenceLocations,

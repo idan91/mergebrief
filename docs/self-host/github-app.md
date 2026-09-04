@@ -12,7 +12,7 @@ This doc is the canonical setup reference for both contributors and self-hosters
 | Repository permission | Access | Why |
 |---|---|---|
 | **Contents** | Read & write | **Read** PR diffs. **Write** is required *only* because GitHub's `markPullRequestReadyForReview` GraphQL mutation (the "mark ready for review" author affordance) is gated on `contents: write` — that is GitHub's permission granularity for the mutation, not a MergeBrief code-write path. The App still **never pushes code, branches, or file contents**; the only write it performs is flipping a draft PR to ready. |
-| **Pull requests** | Read & write | Read PR data; post the one branded "brief ready" comment; also authorizes the reviewer's own review + inline comments. |
+| **Pull requests** | Read & write | Read PR data; post the one branded "brief ready" comment; also authorizes the reviewer's own review + inline comments. Also authorizes reading the primary ticket when it is a GitHub issue (`Get an issue` accepts `Pull requests: read`), so the ticket-alignment read needs no `Issues` permission — see [trackers.md](trackers.md). |
 | **Metadata** | Read-only | Mandatory baseline (auto-selected). |
 
 > **Why Contents is Read & write, not Read-only:**
