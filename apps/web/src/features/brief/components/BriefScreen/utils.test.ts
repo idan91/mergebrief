@@ -249,6 +249,21 @@ describe("deriveBriefProgress", () => {
       }),
     ).toBe(100);
   });
+
+  it("includes remainder chunks in own-draft read-through", () => {
+    expect(
+      deriveBriefProgress({
+        ownDraftActive: true,
+        totals: {
+          reviewed: 2,
+          chunkTotal: 3,
+          flagsResolved: 2,
+          flagTotal: 2,
+        },
+        flagCount: 2,
+      }),
+    ).toBeCloseTo((2 / 3) * 100);
+  });
 });
 
 describe("resolveLocalComparisonIds", () => {

@@ -1004,6 +1004,40 @@ describe("stitchBrief — unattributed remainder", () => {
       ),
     ).toBe(true);
   });
+
+  it("omits remainder ids from the carried chunk set", () => {
+    const generated = brief(
+      [group("tmpB", "beta v2")],
+      [chunk("x2", "tmpB", "b.ts", 1, 2)],
+    );
+    const result = stitchBrief({
+      generated,
+      plan: planFor(),
+      prFiles: ["a.ts", "b.ts"],
+      changedFiles: [
+        {
+          file: "a.ts",
+          addedRanges: [{ start: 5, end: 9 }],
+          removedRanges: [],
+        },
+        {
+          file: "b.ts",
+          addedRanges: [{ start: 1, end: 3 }],
+          removedRanges: [],
+        },
+      ],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value.brief.unattributed?.length).toBeGreaterThan(0);
+    expect(result.value.carriedChunkIds).toEqual(["c1"]);
+    expect(
+      result.value.carriedChunkIds.every((id) => !id.startsWith("u-")),
+    ).toBe(true);
+    expect(
+      result.value.brief.chunks.every((row) => !row.id.startsWith("u-")),
+    ).toBe(true);
+  });
 });
 
 describe("stitchBrief — overlap replacement discipline", () => {

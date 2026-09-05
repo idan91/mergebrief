@@ -33,7 +33,11 @@ import {
 const receiptArtifactI18n = createI18n();
 import { summarizeProgress, type ProgressTotals } from "../../utils/progress";
 import type { Brief } from "../../types";
-import type { BriefViewModel, GroupView } from "../../utils/viewModel";
+import {
+  GroupViewKinds,
+  type BriefViewModel,
+  type GroupView,
+} from "../../utils/viewModel";
 import type { RepoConfigContext } from "../../utils/repoConfig";
 import type { ChunkWindowRegistry } from "./chunkWindows";
 import type { ReadingPositionStore } from "./readingPosition";
@@ -480,17 +484,28 @@ export function useReadingSession(
     totals,
     flagCount: model.flags.length,
   });
-  const unresolvedItems = useMemo(
-    () =>
-      deriveUnresolvedItems({
-        chunks: brief.chunks,
-        flags: model.flags,
-        dispositions,
-        reviewedChunkIds: reviewedChunks,
-        comments: reviewComments,
-      }),
-    [brief.chunks, dispositions, model.flags, reviewComments, reviewedChunks],
-  );
+  const unresolvedItems = useMemo(() => {
+    const remainderGroup = model.groups.find(
+      (group) => group.kind === GroupViewKinds.UNATTRIBUTED_REMAINDER,
+    );
+    const remainderChunks = remainderGroup?.chunks ?? [];
+
+    return deriveUnresolvedItems({
+      chunks: brief.chunks,
+      remainderChunks,
+      flags: model.flags,
+      dispositions,
+      reviewedChunkIds: reviewedChunks,
+      comments: reviewComments,
+    });
+  }, [
+    brief.chunks,
+    dispositions,
+    model.flags,
+    model.groups,
+    reviewComments,
+    reviewedChunks,
+  ]);
   // Frozen snapshot + Receipt: the inputs the drawer and summary preview render.
   const snapshot = useMemo(
     () =>

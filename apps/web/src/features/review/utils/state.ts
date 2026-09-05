@@ -1,5 +1,6 @@
 import type { TFunction } from "i18next";
 import { Roles, type BriefChunk } from "../../brief/types";
+import { isUnattributedRemainderChunk } from "../../brief/utils/remainder";
 import type { RiskFlag } from "@web/features/brief/utils";
 import type { ReviewComment } from "./comments";
 import type { Disposition } from "../session/disposition";
@@ -18,6 +19,7 @@ export type UnresolvedItemKind =
   | "open-risk"
   | "missing-evidence"
   | "unreviewed-core"
+  | "unreviewed-remainder"
   | "draft-comment"
   | "thin-dismissal";
 
@@ -46,6 +48,8 @@ export interface RiskEvidence {
 
 export interface UnresolvedInput {
   chunks: BriefChunk[];
+  /** View-model remainder chunks (`kind`), never selected by role. */
+  remainderChunks: BriefChunk[];
   flags: RiskFlag[];
   dispositions: Record<string, Disposition>;
   reviewedChunkIds: Set<string>;
@@ -115,6 +119,8 @@ export function deriveUnresolvedItems(
   input: UnresolvedInput,
 ): UnresolvedItem[] {
   const items: UnresolvedItem[] = [];
+  const remainderChunks = input.remainderChunks;
+  const remainderIds = new Set(remainderChunks.map((chunk) => chunk.id));
 
   for (const flag of input.flags) {
     const disposition = input.dispositions[flag.id] ?? { kind: "open" };
@@ -148,6 +154,9 @@ export function deriveUnresolvedItems(
   }
 
   for (const chunk of input.chunks) {
+    if (remainderIds.has(chunk.id) || isUnattributedRemainderChunk(chunk)) {
+      continue;
+    }
     if (chunk.role === Roles.CORE && !input.reviewedChunkIds.has(chunk.id)) {
       items.push({
         id: `core:${chunk.id}`,
@@ -156,6 +165,16 @@ export function deriveUnresolvedItems(
         targetId: chunk.id,
       });
     }
+  }
+
+  for (const chunk of remainderChunks) {
+    if (input.reviewedChunkIds.has(chunk.id)) continue;
+    items.push({
+      id: `remainder:${chunk.id}`,
+      kind: "unreviewed-remainder",
+      label: chunk.file,
+      targetId: chunk.id,
+    });
   }
 
   for (const comment of input.comments) {

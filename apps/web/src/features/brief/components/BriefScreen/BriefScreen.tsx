@@ -34,7 +34,7 @@ export type { BriefComparisonPlan } from "./useComparisonOverlay";
 export { markReadyBatchFailureCopy } from "./utils";
 export { POST_COMMENT_COPY_KEYS } from "./useOwnDraftFlow";
 export { OWN_DRAFT_STALE_COMPOSER_REASON_KEY };
-export type { BriefScreenProps, OwnDraftPlan, LensPaneProps } from "./types";
+export type { BriefScreenProps, OwnDraftPlan } from "./types";
 
 const LensPane = memo(
   function LensPane({ children }: LensPaneProps) {

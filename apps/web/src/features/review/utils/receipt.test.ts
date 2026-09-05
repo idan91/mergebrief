@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 
 import { briefFixture } from "@web/features/brief/utils/fixtures";
 import { buildBriefViewModel } from "@web/features/brief/utils";
+import { GroupViewKinds } from "@web/features/brief/utils/remainder";
+import { Roles, type Brief } from "@web/features/brief/types";
 import { buildReceipt } from "./receipt";
 
 const t = createI18n().t;
@@ -22,6 +24,19 @@ function snapshot(overrides: Partial<SessionSnapshot> = {}): SessionSnapshot {
     reviewComments: [],
     reviewOutcome: "comment",
     ...overrides,
+  };
+}
+
+function remainderBrief(): Brief {
+  return {
+    ...briefFixture,
+    unattributed: [
+      {
+        file: "src/orphan.ts",
+        addedRanges: [{ start: 1, end: 3 }],
+        removedRanges: [{ start: 2, end: 2 }],
+      },
+    ],
   };
 }
 
@@ -272,6 +287,30 @@ describe("receipt de-emphasis count dedupes path-scoped rules", () => {
     });
     expect(receipt.repoConfig?.deEmphasisLine).toBe(
       "1 attribute de-emphasized by repo policy @ p1p2p3p",
+    );
+  });
+
+  it("includes remainder chunks in chunkTotal so the total may exceed core plus supporting", () => {
+    const brief = remainderBrief();
+    const remainderModel = buildBriefViewModel(brief);
+    const remainderGroup = remainderModel.groups.find(
+      (group) => group.kind === GroupViewKinds.UNATTRIBUTED_REMAINDER,
+    );
+    expect(remainderGroup?.chunks).toHaveLength(1);
+
+    const receipt = buildReceipt(t, snapshot(), brief, remainderModel);
+    const coreCount = brief.chunks.filter(
+      (chunk) => chunk.role === Roles.CORE,
+    ).length;
+    const supportingCount = brief.chunks.filter(
+      (chunk) => chunk.role === Roles.SUPPORTING,
+    ).length;
+
+    expect(brief.chunks.length).toBe(2);
+    expect(receipt.progress.chunkTotal).toBe(3);
+    expect(coreCount + supportingCount).toBe(2);
+    expect(receipt.progress.chunkTotal).toBeGreaterThan(
+      coreCount + supportingCount,
     );
   });
 });

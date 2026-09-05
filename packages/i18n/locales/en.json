@@ -708,6 +708,7 @@
       "blockerOpenRisk": "Open risk",
       "blockerMissingEvidence": "Addressed without evidence",
       "blockerUnreviewedCore": "Unreviewed core chunk",
+      "blockerUnreviewedRemainder": "Unread unattributed lines",
       "blockerDraftComment": "Draft comment",
       "blockerThinDismissal": "Thin dismissal reason",
       "heading": "Submit review",

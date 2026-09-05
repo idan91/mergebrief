@@ -332,6 +332,7 @@ function unresolvedKindLabel(
     "open-risk": "review.submit.blockerOpenRisk",
     "missing-evidence": "review.submit.blockerMissingEvidence",
     "unreviewed-core": "review.submit.blockerUnreviewedCore",
+    "unreviewed-remainder": "review.submit.blockerUnreviewedRemainder",
     "draft-comment": "review.submit.blockerDraftComment",
     "thin-dismissal": "review.submit.blockerThinDismissal",
   };

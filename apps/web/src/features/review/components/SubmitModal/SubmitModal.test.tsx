@@ -271,6 +271,30 @@ describe("SubmitModal advisory view", () => {
     // (pins the prevViewRef reset to the ENTRY view, not "verdict").
     expect(document.activeElement).not.toBe(heading);
   });
+
+  it("lists unread unattributed lines as advisory and still lets Continue through", () => {
+    renderModal({
+      unresolvedItems: [
+        {
+          id: "remainder:u-7e7f21ef",
+          kind: "unreviewed-remainder",
+          label: "src/orphan.ts",
+          targetId: "u-7e7f21ef",
+        },
+      ],
+    });
+
+    expect(
+      screen.getByRole("button", { name: /unread unattributed lines/i }),
+    ).toBeTruthy();
+    expect(screen.getByText("src/orphan.ts")).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: /^submit review$/i }),
+    ).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /^continue$/i }));
+    expect(submitButton()).toBeTruthy();
+  });
 });
 
 describe("SubmitModal stale-head ack", () => {

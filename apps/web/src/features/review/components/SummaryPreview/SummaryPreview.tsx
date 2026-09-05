@@ -73,7 +73,7 @@ export function SummaryPreview({ brief, snapshot }: SummaryPreviewProps) {
               <div>
                 <dt>{t("review.summary.chunksReviewed")}</dt>
                 <dd>
-                  {reviewedChunkIds.size}/{brief.chunks.length}
+                  {reviewedChunkIds.size}/{receipt.progress.chunkTotal}
                 </dd>
               </div>
               <div>

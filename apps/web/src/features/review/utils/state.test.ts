@@ -2,6 +2,7 @@ import { appI18n } from "../../../i18n/I18nProvider";
 import { describe, expect, it } from "vitest";
 
 import { Roles, type BriefChunk } from "../../brief/types";
+import { GroupViewKinds } from "../../brief/utils/remainder";
 import type { RiskFlag } from "@web/features/brief/utils";
 import type { ReviewComment } from "./comments";
 import type {
@@ -97,11 +98,24 @@ describe("riskEvidenceLabel", () => {
   });
 });
 
+const remainderChunk = {
+  id: "u-7e7f21ef",
+  changeGroupId: GroupViewKinds.UNATTRIBUTED_REMAINDER,
+  file: "src/orphan.ts",
+  concern: "implementation",
+  role: Roles.CORE,
+  loc: { added: 3, deleted: 1 },
+  addedRanges: [{ start: 1, end: 3 }],
+  removedRanges: [{ start: 2, end: 2 }],
+  riskSurface: [],
+} satisfies BriefChunk;
+
 describe("deriveUnresolvedItems", () => {
   it("finds open risks, addressed risks without evidence, unreviewed core chunks, draft comments, and thin dismissals", () => {
     expect(
       deriveUnresolvedItems({
         chunks: [coreChunk, supportingChunk],
+        remainderChunks: [],
         flags: [riskFlag],
         dispositions: { "chunk-a-no-tests-0": { kind: "addressed" } },
         reviewedChunkIds: new Set(["chunk-b"]),
@@ -133,6 +147,7 @@ describe("deriveUnresolvedItems", () => {
     expect(
       deriveUnresolvedItems({
         chunks: [coreChunk],
+        remainderChunks: [],
         flags: [riskFlag],
         dispositions: {
           "chunk-a-no-tests-0": { kind: "dismissed", reason: "ok" },
@@ -152,6 +167,7 @@ describe("deriveUnresolvedItems", () => {
     expect(
       deriveUnresolvedItems({
         chunks: [coreChunk],
+        remainderChunks: [],
         flags: [riskFlag],
         dispositions: {},
         reviewedChunkIds: new Set(["chunk-a"]),
@@ -163,6 +179,75 @@ describe("deriveUnresolvedItems", () => {
         kind: "open-risk",
         label: "no-tests @ src/a.ts",
         targetId: "chunk-a",
+      },
+    ]);
+  });
+
+  it("emits unreviewed-remainder for unread view-model remainder chunks", () => {
+    expect(
+      deriveUnresolvedItems({
+        chunks: [coreChunk],
+        remainderChunks: [remainderChunk],
+        flags: [],
+        dispositions: {},
+        reviewedChunkIds: new Set(),
+        comments: [],
+      }),
+    ).toEqual([
+      {
+        id: "core:chunk-a",
+        kind: "unreviewed-core",
+        label: "src/a.ts",
+        targetId: "chunk-a",
+      },
+      {
+        id: "remainder:u-7e7f21ef",
+        kind: "unreviewed-remainder",
+        label: "src/orphan.ts",
+        targetId: "u-7e7f21ef",
+      },
+    ]);
+  });
+
+  it("omits a reviewed remainder chunk", () => {
+    expect(
+      deriveUnresolvedItems({
+        chunks: [coreChunk],
+        remainderChunks: [remainderChunk],
+        flags: [],
+        dispositions: {},
+        reviewedChunkIds: new Set(["chunk-a", "u-7e7f21ef"]),
+        comments: [],
+      }),
+    ).toEqual([]);
+  });
+
+  it("never labels a remainder chunk as unreviewed-core, even when it is also in chunks", () => {
+    const items = deriveUnresolvedItems({
+      chunks: [coreChunk, remainderChunk],
+      remainderChunks: [remainderChunk],
+      flags: [],
+      dispositions: {},
+      reviewedChunkIds: new Set(),
+      comments: [],
+    });
+
+    expect(items.filter((item) => item.kind === "unreviewed-core")).toEqual([
+      {
+        id: "core:chunk-a",
+        kind: "unreviewed-core",
+        label: "src/a.ts",
+        targetId: "chunk-a",
+      },
+    ]);
+    expect(
+      items.filter((item) => item.kind === "unreviewed-remainder"),
+    ).toEqual([
+      {
+        id: "remainder:u-7e7f21ef",
+        kind: "unreviewed-remainder",
+        label: "src/orphan.ts",
+        targetId: "u-7e7f21ef",
       },
     ]);
   });
