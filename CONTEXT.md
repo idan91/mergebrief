@@ -68,14 +68,19 @@ How a prior comment is placed in a **Delta Brief** once head has moved. A shippe
 _Avoid_: re-anchor (informal), outdated (GitHub's word, only for shipped comments)
 
 **Chunk**:
-A contiguous run of changed lines sharing **one Concern and one Change-group** — the atomic unit of the brief. A chunk is *sub-file*: a single git hunk may be **split into multiple chunks** at concern/group boundaries, and one file's chunks may land in different Change-groups. Each chunk has one Concern, one Role, one Categorization-by-inheritance (from its group), zero or more Risk Surface attributes, and its own LoC.
+A contiguous run of changed lines sharing **one Concern and one Change-group** — the atomic unit of the brief. A chunk is *sub-file*: a single git hunk may be **split into multiple chunks** at concern/group boundaries, and one file's chunks may land in different Change-groups. Each chunk has one Concern, one Role, one Categorization-by-inheritance (from its group), zero or more Risk Surface attributes, and its own LoC. Lines in the **Unattributed remainder** are still chunks: they belong to that group and inherit no Categorization.
 _Avoid_: hunk (a chunk may be finer than a git hunk), file, diff block
 _Limitation_: a chunk cannot express multiplicity *interleaved within one inseparable contiguous span* (e.g., move and logic-fix woven line-by-line). That is the deferred sub-operation tree; until then, express it via dominant+secondary Categorization on the group plus a text callout in the Summary.
 
 **Change-group**:
 A cluster of chunks that together accomplish one coherent piece of work (e.g., "fix the cross-param leak"). The unit of *intent* — it carries the Categorization and the summary. Spans files and Concerns: one or more core chunks (the intent's implementation may span files) plus zero or more supporting test/doc/spec chunks. The Story view pivots the brief by Change-group.
 **Boundary rule:** one group = the largest chunk set expressible as ONE Summary + ONE Dominant Category. If a set needs two unrelated summaries, split it. Author commit structure is a *hint* for understanding intent, never the boundary itself. A single-intent PR is one group; a grab-bag PR (fix + lib bump + README typo) is several.
+**Exception:** the **Unattributed remainder** is a Change-group with no Summary and no Categorization — leftover lines, not an intent. Never split, never merged into an intent group.
 _Avoid_: chapter (Linear's narrative-only term), story, cluster, section
+
+**Unattributed remainder**:
+The set of changed lines no attributed **Chunk** claimed. It is a **Change-group** of unattributed chunks — the one exception to the intent boundary: no Summary, no Categorization, never split, never merged into an intent group.
+_Avoid_: coverage gap, orphan lines, residue, unattributed (bare noun)
 
 **Category**:
 A taxonomy entry describing the *intent* of a Change-group, not opinion about it. Examples: `pure-move`, `move-with-edits`, `lib-bump`, `logic-refactor`, `new-feature`, `bugfix`, `schema-change`, `dependency-update`. Category answers "what kind of change"; Concern answers "what kind of artifact" — they are independent axes.
@@ -277,8 +282,8 @@ _Avoid_: view (the URL param's name, not the concept), tab (that is a **Sidebar*
 
 - A **PR** has at most one **Brief** per commit SHA. The brief is **shared** across reviewers.
 - A **Brief**'s **index** is a PR-global ordinal over the *distinct head SHAs* briefed (shared, not per-reviewer); a **Delta Brief** spans the gap between two such SHAs.
-- A **Brief** contains many **Chunks**, clustered into **Change-groups**. A chunk is a contiguous run of changed lines sharing one Concern and one Change-group; a git hunk may be split into multiple chunks, and one file's chunks may span multiple Change-groups.
-- A **Change-group** has one **Categorization** (one or more **Categories**, exactly one **Dominant**), one **Summary**, and inherits a **Playbook** from its **Dominant Category**. A group spans one core chunk plus zero or more supporting chunks.
+- A **Brief** contains many **Chunks**, clustered into **Change-groups**. A chunk is a contiguous run of changed lines sharing one Concern and one Change-group; a git hunk may be split into multiple chunks, and one file's chunks may span multiple Change-groups. Changed lines no attributed chunk claimed are the **Unattributed remainder**, one last Change-group of unattributed chunks.
+- A **Change-group** has one **Categorization** (one or more **Categories**, exactly one **Dominant**), one **Summary**, and inherits a **Playbook** from its **Dominant Category**. A group spans one core chunk plus zero or more supporting chunks. The **Unattributed remainder** is the exception: no Categorization, no Summary, no Playbook.
 - A **Chunk** belongs to exactly one **Change-group**, has one **Concern**, one **Role** (core/supporting), zero or more **Risk Surface** attributes, and its own **LoC** (+added/−deleted).
 - The brief is read through two pivots over the same chunk set: the **Story view** (by Change-group) and the **Concern view** (by Concern). LoC rolls up under both.
 - A full **Brief** at a given SHA is shared across all reviewers of that SHA. A **Delta Brief** spans the *reviewer's* last-reviewed SHA → current head, so two reviewers at different checkpoints receive different Delta Briefs over different commit spans. The full Brief is the shared, per-SHA artifact; the Delta Brief is selected per reviewer by their baseline. New pushes (debounced) move the head, after which a fresh full Brief and new Delta Briefs become available.
@@ -311,6 +316,7 @@ _Avoid_: view (the URL param's name, not the concept), tab (that is a **Sidebar*
 - **`test-only` / `config-only` / `generated-code` as Categories** conflated *artifact* with *intent*. Resolved: these are **Concern** values, not Categories. Category is purely intent (what kind of change); Concern is artifact (what kind of file).
 - **"spec" is overloaded** — `.spec.ts` test files vs specification documents. Resolved default: `spec` Concern = specification document; `.spec.ts`/`.test.ts` → `test` Concern.
 - **"A file with multiple changes/concerns"** — resolved: the **Chunk** (not the file) is the atomic unit and is sub-file. Separable multiplicity (different intents or concerns in different parts of a file) is handled by splitting into multiple chunks across groups/concerns. *Interleaved* multiplicity within one inseparable contiguous span is the one unhandled case → deferred sub-operation tree.
+- **"Leftover lines as a coverage disclosure, not a group"** was the pre-feature shape (`UnattributedBanner` + header stat). Resolved: they are the **Unattributed remainder** — a last **Change-group** of unattributed **Chunks**, same product language as any other group, with the caveat that the model made no intent claim. Concern, Role, and Risk Surface on those chunks are not implied here.
 - **"production" rejected** as the core-concern name — bakes in a deployment assumption. Resolved: `implementation`.
 - **"Activation"** was one word for three independent things — *what fires compute*, *how a human reaches the brief*, and *turning draft-first on*. The old definition (compute-on-first-click) also contradicted the eager-on-push generation model. Resolved into **Trigger** (eager-on-push compute), **Entry** (the branded deep-link comment, posts on ready), and **Draft-first** (per-repo opt-in that gates Entry until `ready_for_review`, never the Trigger). "Activation" is retired.
 - **"AI-authorship signals" as an in-product grouping** was considered for the
