@@ -3,6 +3,7 @@ import {
   autoUpdate,
   flip,
   FloatingArrow,
+  FloatingFocusManager,
   FloatingPortal,
   offset,
   safePolygon,
@@ -27,6 +28,11 @@ export interface CalloutProps {
   fit?: boolean;
   /** Label density: the padding of a one-line name, not a card. */
   compact?: boolean;
+  /**
+   * The panel holds a control (not just a description). Drops `role="tooltip"`
+   * and lets Tab reach the portaled content; the parent owns return-focus.
+   */
+  interactive?: boolean;
   /**
    * Called when the hover system (anchor + callout, joined by safePolygon)
    * is left — the parent unmounts the callout in response. The pointer can
@@ -55,6 +61,7 @@ function CalloutRoot({
   placement = "top",
   fit = false,
   compact = false,
+  interactive = false,
   onClose,
   children,
 }: CalloutProps) {
@@ -88,28 +95,43 @@ function CalloutRoot({
       transform: ENTER_SLIDE[side],
     }),
   });
+  const floating = (
+    <span
+      className={styles["callout"]}
+      data-compact={compact ? "" : undefined}
+      data-fit={fit ? "" : undefined}
+      ref={refs.setFloating}
+      role={interactive ? undefined : "tooltip"}
+      style={{ ...floatingStyles, ...transitionStyles }}
+      {...getFloatingProps()}
+    >
+      <FloatingArrow
+        className={styles["arrow"]}
+        context={context}
+        ref={arrowRef}
+        // Hairline to match the callout border (--line2; SVG presentation
+        // attributes cannot resolve CSS custom properties).
+        stroke="#2b2b32"
+        strokeWidth={1}
+      />
+      {children}
+    </span>
+  );
   return (
     <FloatingPortal>
-      <span
-        className={styles["callout"]}
-        data-compact={compact ? "" : undefined}
-        data-fit={fit ? "" : undefined}
-        ref={refs.setFloating}
-        role="tooltip"
-        style={{ ...floatingStyles, ...transitionStyles }}
-        {...getFloatingProps()}
-      >
-        <FloatingArrow
-          className={styles["arrow"]}
+      {interactive ? (
+        <FloatingFocusManager
           context={context}
-          ref={arrowRef}
-          // Hairline to match the callout border (--line2; SVG presentation
-          // attributes cannot resolve CSS custom properties).
-          stroke="#2b2b32"
-          strokeWidth={1}
-        />
-        {children}
-      </span>
+          initialFocus={-1}
+          modal={false}
+          order={["reference", "content"]}
+          returnFocus={false}
+        >
+          {floating}
+        </FloatingFocusManager>
+      ) : (
+        floating
+      )}
     </FloatingPortal>
   );
 }

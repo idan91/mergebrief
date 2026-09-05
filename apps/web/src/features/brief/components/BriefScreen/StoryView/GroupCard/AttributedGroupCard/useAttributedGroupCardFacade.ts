@@ -2,9 +2,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 
-import type { ReviewComment } from "@web/features/review/utils/comments";
 import type { Disposition } from "@web/features/review/session";
-import type { ReviewFlowActions } from "@web/features/review/session/flow/store";
 import {
   useReviewSession,
   useReviewSessionActions,
@@ -26,22 +24,6 @@ export interface AttributedGroupCardFacadeParams {
   model: BriefViewModel;
 }
 
-export interface AttributedGroupCardFacadeReturn {
-  groupFlags: RiskFlag[];
-  dominant: string;
-  isReclassified: boolean;
-  dispositions: Record<string, Disposition | undefined>;
-  reviewComments: ReviewComment[];
-  flagsReadOnly: boolean;
-  selectedFlagSet: Set<string>;
-  reopenFlag: (flag: RiskFlag) => void;
-  chooseDominant: (category: Category) => void;
-  setDismissTarget: ReviewFlowActions["setDismissTarget"];
-  setEvidenceTarget: ReviewFlowActions["setEvidenceTarget"];
-  toggleRiskFlag: ReviewFlowActions["toggleRiskFlag"];
-  toggleRiskGroup: ReviewFlowActions["toggleRiskGroup"];
-}
-
 /**
  * Group-scoped store slices and the card's risk/dominant actions. Whole-map
  * subscriptions would re-render every card (in both kept-warm scope panes)
@@ -50,7 +32,7 @@ export interface AttributedGroupCardFacadeReturn {
 export function useAttributedGroupCardFacade({
   group,
   model,
-}: AttributedGroupCardFacadeParams): AttributedGroupCardFacadeReturn {
+}: AttributedGroupCardFacadeParams) {
   const { t } = useTranslation();
   const groupFlags = model.flagsByGroup.get(group.id) ?? EMPTY_RISK_FLAGS;
   const dominant = useReviewSession(

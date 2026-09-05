@@ -86,6 +86,8 @@ function headerProps(ownDraft: HeaderProps["ownDraft"]): HeaderProps {
     availability: { previousBrief: false, lastReview: false },
     compareState: { view: "full", compare: "off" },
     ownDraft,
+    jumpToGroup: vi.fn(),
+    jumpToGroupHeading: vi.fn(),
   };
 }
 
@@ -110,6 +112,8 @@ async function renderHeader(overrides: Partial<HeaderProps> = {}) {
     availability: { previousBrief: false, lastReview: false },
     compareState: { view: "full", compare: "off" },
     controlsSlot: <div data-testid="controls-slot" />,
+    jumpToGroup: vi.fn(),
+    jumpToGroupHeading: vi.fn(),
     ...overrides,
   };
   const rootRoute = createRootRoute();
@@ -397,7 +401,7 @@ describe("Header menu and stats", () => {
     expect(screen.getByText(/derived from the diff/)).toBeTruthy();
   });
 
-  it("shows the unattributed stat with the honest caveat when a remainder exists", async () => {
+  it("shows the unattributed stat with title, note, and Jump when a remainder exists", async () => {
     const model = buildBriefViewModel({
       ...brief,
       unattributed: [
@@ -408,21 +412,24 @@ describe("Header menu and stats", () => {
         },
       ],
     });
-    await renderHeader({ model });
+    const jumpToGroup = vi.fn();
+    await renderHeader({ jumpToGroup, model });
     const stat = screen.getByTestId("unattributed-disclosure");
     expect(stat.textContent).toContain("unattributed");
     expect(stat.textContent).toContain("+4");
     expect(stat.textContent).toContain("−2");
     fireEvent.click(stat);
-    const total = model.totalAdded + model.totalDeleted;
-    const attributed = total - 6;
+    expect(screen.getByText("Unattributed remainder")).toBeTruthy();
     expect(
-      screen.getByText(
-        new RegExp(
-          `attributed ${String(attributed)} of ${String(total)} changed lines`,
-        ),
-      ),
+      screen.getByText("The model did not attribute these lines."),
     ).toBeTruthy();
+    expect(
+      screen.getByText("They are reviewed as the last change-group."),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Jump to group" }), {
+      detail: 1,
+    });
+    expect(jumpToGroup).toHaveBeenCalledWith("unattributed-remainder");
   });
 
   it("renders no unattributed stat without a remainder", async () => {

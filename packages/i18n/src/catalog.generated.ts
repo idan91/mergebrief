@@ -154,12 +154,6 @@ export type Catalog = typeof en & {
       changed_one: "{{count}} file changed since {{sha}}";
       changed_other: "{{count}} files changed since {{sha}}";
     };
-    unattributed: (typeof en)["brief"]["unattributed"] & {
-      calloutCaveat: "The brief attributed {{attributed}} of {{total}} changed lines. These lines belong to no chunk and appear in no group or concern.";
-      bannerRest_one: "changed lines in {{count}} file are not covered by any chunk.";
-      bannerRest_other: "changed lines in {{count}} files are not covered by any chunk.";
-      fileLines: "lines {{ranges}}";
-    };
     carryOver: (typeof en)["brief"]["carryOver"] & {
       receipt_one: "Your review carried forward · {{count}} item · {{span}} · {{verdict}}";
       receipt_other: "Your review carried forward · {{count}} items · {{span}} · {{verdict}}";

@@ -21,7 +21,11 @@ import type { BriefTimeline } from "../../../utils/timeline";
 import type { RepoConfigContext } from "../../../utils/repoConfig";
 import type { Brief, LivePrState } from "../../../types";
 import { isDbBriefId } from "../../../utils/briefIdentity";
-import type { BriefViewModel } from "../../../utils/viewModel";
+import {
+  GroupViewKinds,
+  type BriefViewModel,
+  type UnattributedRemainderGroupView,
+} from "../../../utils/viewModel";
 import { AccessibleLink } from "@web/components/AccessibleLink/AccessibleLink";
 import { Button } from "@web/components/Button/Button";
 import { IconButton } from "@web/components/IconButton/IconButton";
@@ -89,6 +93,8 @@ export interface HeaderProps {
    * carries the semantics.
    */
   revisionPending?: boolean | undefined;
+  jumpToGroup: (groupId: string) => void;
+  jumpToGroupHeading: (groupId: string) => void;
 }
 
 // The product name — an identifier, never translated.
@@ -122,6 +128,8 @@ export function Header({
   controlsSlot,
   ownDraft,
   revisionPending,
+  jumpToGroup,
+  jumpToGroupHeading,
 }: HeaderProps) {
   const { t } = useTranslation();
   const headerRef = useRef<HTMLElement>(null);
@@ -213,6 +221,10 @@ export function Header({
     "--progress-scale": `${progress / 100}`,
   };
   const prLink = isHttpUrl(brief.pr.url) ? brief.pr.url : null;
+  const remainderGroup = model.groups.find(
+    (group): group is UnattributedRemainderGroupView =>
+      group.kind === GroupViewKinds.UNATTRIBUTED_REMAINDER,
+  );
 
   return (
     <header
@@ -356,12 +368,12 @@ export function Header({
                 <span className="red">−{model.totalCoreDeleted}</span>
               </b>
             </CoreLinesDisclosure>
-            {model.unattributed !== undefined &&
-            model.unattributed.added + model.unattributed.deleted > 0 ? (
+            {remainderGroup !== undefined ? (
               <UnattributedDisclosure
-                totalChanged={model.totalAdded + model.totalDeleted}
+                group={remainderGroup}
+                jumpToGroup={jumpToGroup}
+                jumpToGroupHeading={jumpToGroupHeading}
                 triggerClassName={`stat ${styles["stat"]}`}
-                view={model.unattributed}
               />
             ) : null}
             <div className={`stat ${styles["stat"]}`}>

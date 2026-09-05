@@ -1,28 +1,39 @@
 import { useTranslation } from "react-i18next";
-import { useEffect, useId, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FocusEvent,
+  type MouseEvent,
+} from "react";
 
+import { Button } from "@web/components/Button/Button";
 import { Callout } from "@web/components/Callout/Callout";
-import type { UnattributedView } from "../../../utils/viewModel";
+import { GroupViewKinds } from "../../../utils/remainder";
+import { resolveGroupName } from "../../../utils/resolveGroupName";
+import type { UnattributedRemainderGroupView } from "../../../utils/viewModel";
 import styles from "./UnattributedDisclosure.module.scss";
 
 export interface UnattributedDisclosureProps {
-  /** The brief's unattributed remainder (non-empty at this render). */
-  view: UnattributedView;
-  /** Whole-change line total (chunks + remainder) — the caveat's "of Y". */
-  totalChanged: number;
+  /** The hydrated remainder group (the cell only mounts when this exists). */
+  group: UnattributedRemainderGroupView;
+  jumpToGroup: (groupId: string) => void;
+  jumpToGroupHeading: (groupId: string) => void;
   /** Styles the trigger button; the header owns the stat cell look. */
   triggerClassName?: string | undefined;
 }
 
 /**
- * The header's "unattributed" stat + per-file mini panel, in the
+ * The header's "unattributed" stat + Jump callout, in the
  * CoreLinesDisclosure grammar — hover previews (mouse only), click is
  * canonical for touch, keyboard focus opens, Escape-at-capture dismisses,
  * scroll closes.
  */
 export function UnattributedDisclosure({
-  view,
-  totalChanged,
+  group,
+  jumpToGroup,
+  jumpToGroupHeading,
   triggerClassName,
 }: UnattributedDisclosureProps) {
   const { t } = useTranslation();
@@ -33,6 +44,8 @@ export function UnattributedDisclosure({
   // span is display:contents (no box), so its rect would place the callout
   // at the viewport origin.
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLSpanElement | null>(null);
+  const ignoreFocusOpenRef = useRef(false);
   const detailId = useId();
 
   useEffect(() => {
@@ -41,10 +54,15 @@ export function UnattributedDisclosure({
     // key so it never reaches page-level shortcut handling.
     if (anchor === null) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.stopPropagation();
-        setAnchor(null);
-      }
+      if (event.key !== "Escape") return;
+      event.stopPropagation();
+      const active = document.activeElement;
+      const heldInPanel =
+        active instanceof Node && (panelRef.current?.contains(active) ?? false);
+      setAnchor(null);
+      if (!heldInPanel) return;
+      ignoreFocusOpenRef.current = true;
+      triggerRef.current?.focus();
     };
     document.addEventListener("keydown", onKeyDown, true);
     return () => document.removeEventListener("keydown", onKeyDown, true);
@@ -58,7 +76,29 @@ export function UnattributedDisclosure({
     return () => window.removeEventListener("scroll", close, { capture: true });
   }, [anchor]);
 
-  const attributed = totalChanged - view.added - view.deleted;
+  const closeUnlessInside = (event: FocusEvent<HTMLElement>) => {
+    const next = event.relatedTarget;
+    if (next instanceof Node && isInsideDisclosure(next)) return;
+    setAnchor(null);
+  };
+
+  const isInsideDisclosure = (node: Node) => {
+    if (triggerRef.current?.contains(node)) return true;
+    if (panelRef.current?.contains(node)) return true;
+    return (
+      node instanceof Element &&
+      node.hasAttribute("data-floating-ui-focus-guard")
+    );
+  };
+
+  const jumpFromCallout = (event: MouseEvent<HTMLButtonElement>) => {
+    setAnchor(null);
+    if (event.detail !== 0) {
+      jumpToGroup(GroupViewKinds.UNATTRIBUTED_REMAINDER);
+      return;
+    }
+    jumpToGroupHeading(GroupViewKinds.UNATTRIBUTED_REMAINDER);
+  };
 
   return (
     // Hover EXIT is owned by Callout's safePolygon (its onClose): closing on
@@ -75,7 +115,6 @@ export function UnattributedDisclosure({
       <button
         ref={triggerRef}
         aria-controls={anchor ? detailId : undefined}
-        aria-describedby={anchor ? detailId : undefined}
         aria-expanded={anchor !== null}
         className={
           triggerClassName
@@ -91,11 +130,15 @@ export function UnattributedDisclosure({
         // Keyboard-only open: a mouse click focuses the button in some
         // browsers, and a plain focus-open would fight the click toggle.
         onFocus={(event) => {
+          if (ignoreFocusOpenRef.current) {
+            ignoreFocusOpenRef.current = false;
+            return;
+          }
           if (event.currentTarget.matches(":focus-visible")) {
             setAnchor(event.currentTarget);
           }
         }}
-        onBlur={() => setAnchor(null)}
+        onBlur={closeUnlessInside}
       >
         <span className={styles["labelCell"]}>
           {t("brief.unattributed.label")}
@@ -103,9 +146,9 @@ export function UnattributedDisclosure({
         </span>
 
         <b>
-          <span className="green">+{view.added}</span>{" "}
+          <span className="green">+{group.added}</span>{" "}
           <span className="faint">/</span>{" "}
-          <span className="red">−{view.deleted}</span>
+          <span className="red">−{group.deleted}</span>
         </b>
       </button>
       {anchor ? (
@@ -113,32 +156,33 @@ export function UnattributedDisclosure({
         <Callout
           anchor={anchor}
           fit
+          interactive
           placement="bottom"
           onClose={() => setAnchor(null)}
         >
-          <span className={styles["panel"]} id={detailId}>
+          <span
+            className={styles["panel"]}
+            id={detailId}
+            onBlur={closeUnlessInside}
+            ref={panelRef}
+          >
             <span className={styles["title"]}>
-              {t("brief.unattributed.calloutTitle")}
+              {resolveGroupName(t, group)}
             </span>
-
-            <dl className={styles["rows"]}>
-              {view.files.map((file) => (
-                <div className={styles["row"]} key={file.file}>
-                  <dt>{file.file}</dt>
-                  <dd>
-                    <span className="green">+{file.added}</span>{" "}
-                    <span className="red">−{file.deleted}</span>
-                  </dd>
-                </div>
-              ))}
-            </dl>
-
-            <span className={styles["caveat"]}>
-              {t("brief.unattributed.calloutCaveat", {
-                attributed,
-                total: totalChanged,
-              })}
+            <span className={styles["note"]}>
+              {t("brief.unattributed.remainderSummary")}
             </span>
+            <span className={styles["note"]}>
+              {t("brief.unattributed.calloutNote")}
+            </span>
+            <Button
+              className={styles["jump"]}
+              size="sm"
+              type="button"
+              onClick={jumpFromCallout}
+            >
+              {t("brief.unattributed.jumpToGroup")}
+            </Button>
           </span>
         </Callout>
       ) : null}

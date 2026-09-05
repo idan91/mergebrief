@@ -22,56 +22,26 @@
   }
 
   .panel {
-    display: block;
-    max-inline-size: functions.to-rem(420px);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: functions.to-rem(10px);
+    max-inline-size: functions.to-rem(280px);
     padding: functions.to-rem(4px);
   }
 
   .title {
     display: block;
-    margin-block-end: functions.to-rem(8px);
     font-weight: 600;
   }
 
-  .rows {
-    display: grid;
-
-    // A long mono path must shrink the track, never widen it past the panel.
-    grid-template-columns: minmax(0, 1fr);
-    gap: functions.to-rem(4px);
-    margin: 0;
-    font-family: var(--mono);
-    font-size: var(--font-size-md);
-  }
-
-  .row {
-    display: flex;
-    gap: functions.to-rem(12px);
-    justify-content: space-between;
-
-    dt {
-      overflow: hidden;
-      min-inline-size: 0;
-      color: var(--dim);
-
-      // Ellipsis at the START: the path's tail is the identifying part.
-      direction: rtl;
-      text-align: start;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    dd {
-      margin: 0;
-      white-space: nowrap;
-    }
-  }
-
-  .caveat {
-    display: block;
-    margin-block-start: functions.to-rem(10px);
+  .note {
     color: var(--faint);
     font-size: var(--font-size-md);
     line-height: 1.5;
+  }
+
+  .jump {
+    min-block-size: functions.to-rem(24px);
   }
 }
