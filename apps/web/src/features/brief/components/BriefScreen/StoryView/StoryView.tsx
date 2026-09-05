@@ -11,6 +11,9 @@ import {
 import type { ComparisonOverlayState } from "../../../comparison/comparisonOverlay";
 import type { AddressedReviewComment, Brief } from "../../../types";
 import type { BriefViewModel, RiskFlag } from "../../../utils/viewModel";
+import { GroupViewKinds } from "../../../utils/viewModel";
+import { resolveGroupName } from "../../../utils/resolveGroupName";
+import { isUnattributedRemainderChunk } from "../../../utils/remainder";
 import type { DigestRow } from "@web/features/conversation/utils/digest";
 import type { ThreadComposerWiring } from "@web/features/conversation";
 import { useReviewFlow } from "@web/features/review/session";
@@ -333,7 +336,7 @@ function FocusGroupRail({
   const activeChunkId = useReadingPosition((state) => state.activeChunkId);
   const panelId = useId();
   const groupFlags = model.flagsByGroup.get(group.id) ?? EMPTY_RISK_FLAGS;
-  const dominant = group.group.dominantCategory;
+  const isRemainder = group.kind === GroupViewKinds.UNATTRIBUTED_REMAINDER;
   const activeChunk =
     group.chunks.find((chunk) => chunk.id === activeChunkId) ??
     group.chunks[0] ??
@@ -367,8 +370,6 @@ function FocusGroupRail({
       </ToolbarButton>
       {open ? (
         <div className={styles["railPanel"]} id={panelId}>
-          {/* Fixed header: everything above the stats divider stays put;
-              only the detail region below it scrolls. */}
           <div className={styles["railHead"]}>
             <div className={styles["railMeta"]}>
               {group.readingOrderStep !== undefined
@@ -381,29 +382,38 @@ function FocusGroupRail({
                     total: model.groups.length,
                   })}
             </div>
-            <h2 className={styles["railTitle"]}>{group.group.title}</h2>
-            <p className={styles["railSummary"]}>{group.group.summary}</p>
-            {group.readingOrderWhy ? (
+            <h2 className={styles["railTitle"]}>
+              {resolveGroupName(t, group)}
+            </h2>
+            <p className={styles["railSummary"]}>
+              {group.kind === GroupViewKinds.UNATTRIBUTED_REMAINDER
+                ? t("brief.unattributed.remainderSummary")
+                : group.group.summary}
+            </p>
+            {group.kind === GroupViewKinds.ATTRIBUTED &&
+            group.readingOrderWhy ? (
               <p className={styles["railWhy"]}>{group.readingOrderWhy}</p>
             ) : null}
-            <div className={styles["railChips"]}>
-              <span className={styles["railChip"]} data-kind="dominant">
-                {t("brief.story.railDominant", { category: dominant })}
-              </span>
-              {group.group.secondaryCategories.map((category) => (
-                <span className={styles["railChip"]} key={category}>
-                  {t("brief.story.railSecondary", { category })}
+            {group.kind === GroupViewKinds.ATTRIBUTED ? (
+              <div className={styles["railChips"]}>
+                <span className={styles["railChip"]} data-kind="dominant">
+                  {t("brief.story.railDominant", {
+                    category: group.group.dominantCategory,
+                  })}
                 </span>
-              ))}
-              {group.group.uncertain ? (
-                <span className={styles["railChip"]} data-kind="uncertain">
-                  {t("brief.story.railUncertain")}
-                </span>
-              ) : null}
-            </div>
+                {group.group.secondaryCategories.map((category) => (
+                  <span className={styles["railChip"]} key={category}>
+                    {t("brief.story.railSecondary", { category })}
+                  </span>
+                ))}
+                {group.group.uncertain ? (
+                  <span className={styles["railChip"]} data-kind="uncertain">
+                    {t("brief.story.railUncertain")}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
           </div>
-          {/* The keyboard-reachable scroll region: tabindex + label live here,
-              on the element that actually scrolls, so they coincide. */}
           <div
             aria-label={t("brief.story.ariaLabelGroupDetails")}
             className={styles["railScroller"]}
@@ -415,11 +425,13 @@ function FocusGroupRail({
                 <span className="green">+{group.added}</span> /{" "}
                 <span className="red">−{group.deleted}</span>
               </span>
-              <span>
-                {t("brief.story.flags", { count: groupFlags.length })}
-              </span>
+              {isRemainder ? null : (
+                <span>
+                  {t("brief.story.flags", { count: groupFlags.length })}
+                </span>
+              )}
             </div>
-            {activeChunk ? (
+            {isRemainder || !activeChunk ? null : (
               <div className={styles["railRiskFacts"]}>
                 <div className={styles["railLabel"]}>
                   {t("brief.story.railActiveRisks")}
@@ -461,7 +473,7 @@ function FocusGroupRail({
                   </p>
                 )}
               </div>
-            ) : null}
+            )}
             <div className={styles["railChunkList"]}>
               <div className={styles["railLabel"]}>
                 {t("brief.story.railChunks")}
@@ -477,7 +489,9 @@ function FocusGroupRail({
                 >
                   <span className={styles["railChunkFile"]}>{chunk.file}</span>
                   <span className={styles["railChunkMeta"]}>
-                    {chunk.role} ·{" "}
+                    {isUnattributedRemainderChunk(chunk) ? null : (
+                      <>{chunk.role} · </>
+                    )}
                     <span className="green">+{chunk.loc.added}</span> /{" "}
                     <span className="red">−{chunk.loc.deleted}</span>
                   </span>

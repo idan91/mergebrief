@@ -144,13 +144,14 @@ export interface DeriveBriefProgressInput {
   ownDraftActive: boolean;
   totals: ProgressTotals;
   flagCount: number;
-  chunkCount: number;
 }
 
 /** Overall review progress in percent (0–100); 0 when there is no work. */
 export function deriveBriefProgress(input: DeriveBriefProgressInput): number {
-  const { ownDraftActive, totals, flagCount, chunkCount } = input;
-  const totalWork = ownDraftActive ? chunkCount : flagCount + chunkCount;
+  const { ownDraftActive, totals, flagCount } = input;
+  const totalWork = ownDraftActive
+    ? totals.chunkTotal
+    : flagCount + totals.chunkTotal;
   const done = ownDraftActive
     ? totals.reviewed
     : totals.reviewed + totals.flagsResolved;

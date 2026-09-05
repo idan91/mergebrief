@@ -5,8 +5,19 @@ import { parseBrief } from "./validation";
 import {
   buildAttributeRail,
   buildBriefViewModel,
+  GroupViewKinds,
+  isAttributedGroupView,
   riskChipView,
+  type AttributedGroupView,
+  type GroupView,
 } from "./viewModel";
+
+function requireAttributed(group: GroupView | undefined): AttributedGroupView {
+  if (group === undefined || !isAttributedGroupView(group)) {
+    throw new Error("expected an attributed group");
+  }
+  return group;
+}
 
 function twoGroupBrief(readingOrder?: unknown) {
   return {
@@ -153,17 +164,11 @@ describe("buildBriefViewModel", () => {
     if (!parsed.ok) return;
 
     const model = buildBriefViewModel(parsed.value);
+    const group = requireAttributed(model.groups[0]);
 
-    expect(model.groups[0]?.chunks.map((chunk) => chunk.id)).toEqual([
-      "c1",
-      "c2",
-    ]);
-    expect(model.groups[0]?.coreChunks.map((chunk) => chunk.id)).toEqual([
-      "c1",
-    ]);
-    expect(model.groups[0]?.supportingChunks.map((chunk) => chunk.id)).toEqual([
-      "c2",
-    ]);
+    expect(group.chunks.map((chunk) => chunk.id)).toEqual(["c1", "c2"]);
+    expect(group.coreChunks.map((chunk) => chunk.id)).toEqual(["c1"]);
+    expect(group.supportingChunks.map((chunk) => chunk.id)).toEqual(["c2"]);
     expect(model.chunkToGroup.get("c1")).toBe("g1");
     expect(model.flags[0]?.groupId).toBe("g1");
   });
@@ -212,14 +217,17 @@ describe("buildBriefViewModel", () => {
 
     const model = buildBriefViewModel(parsed.value);
 
-    expect(model.groups[0]).toMatchObject({
+    expect(requireAttributed(model.groups[0])).toMatchObject({
       added: 12,
       deleted: 3,
       coreAdded: 4,
       coreDeleted: 1,
     });
     // Deletion-only core set stays a plain sum — no special casing.
-    expect(model.groups[1]).toMatchObject({ coreAdded: 0, coreDeleted: 5 });
+    expect(requireAttributed(model.groups[1])).toMatchObject({
+      coreAdded: 0,
+      coreDeleted: 5,
+    });
     expect(model.totalAdded).toBe(12);
     expect(model.totalDeleted).toBe(8);
     expect(model.totalCoreAdded).toBe(4);
@@ -254,7 +262,11 @@ describe("buildBriefViewModel", () => {
 
     expect(model.groups.map((group) => group.id)).toEqual(["g2", "g1"]);
     expect(model.groups.map((group) => group.readingOrderStep)).toEqual([1, 2]);
-    expect(model.groups.map((group) => group.readingOrderWhy)).toEqual([
+    expect(
+      model.groups.map((group) =>
+        isAttributedGroupView(group) ? group.readingOrderWhy : undefined,
+      ),
+    ).toEqual([
       "establishes the schema the rest builds on",
       "wires the schema into call sites",
     ]);
@@ -388,21 +400,24 @@ describe("buildBriefViewModel — repo-config display weight", () => {
 
   it("group header union: floor first, fully-quiet attributes collapse, loud firings keep a chip", () => {
     const model = buildBriefViewModel(briefWithRisk(), snapshot);
-    const byId = new Map(model.groups.map((g) => [g.id, g]));
+    const g1 = requireAttributed(
+      model.groups.find((group) => group.id === "g1"),
+    );
+    const g2 = requireAttributed(
+      model.groups.find((group) => group.id === "g2"),
+    );
 
     // g1 (c1 only): billing loud, widens-error-handling fully quiet → +n bucket.
-    expect(byId.get("g1")?.headerRisk.shown).toEqual(["touches-billing"]);
-    expect(byId.get("g1")?.headerRisk.deEmphasized).toEqual([
-      "widens-error-handling",
-    ]);
+    expect(g1.headerRisk.shown).toEqual(["touches-billing"]);
+    expect(g1.headerRisk.deEmphasized).toEqual(["widens-error-handling"]);
 
     // g2 (c2): touches-auth is floor → pinned first; widens-error-handling is
     // loud there (co-fire) → stays a chip.
-    expect(byId.get("g2")?.headerRisk.shown).toEqual([
+    expect(g2.headerRisk.shown).toEqual([
       "touches-auth",
       "widens-error-handling",
     ]);
-    expect(byId.get("g2")?.headerRisk.deEmphasized).toEqual([]);
+    expect(g2.headerRisk.deEmphasized).toEqual([]);
   });
 
   it("without a snapshot everything is a plain built-in loud chip (back-compat)", () => {
@@ -410,9 +425,11 @@ describe("buildBriefViewModel — repo-config display weight", () => {
     expect(
       model.flags.every((f) => f.source === "built-in" && !f.deEmphasized),
     ).toBe(true);
-    const g1 = model.groups.find((g) => g.id === "g1");
-    expect(g1?.headerRisk.deEmphasized).toEqual([]);
-    expect(g1?.headerRisk.shown).toEqual([
+    const g1 = requireAttributed(
+      model.groups.find((group) => group.id === "g1"),
+    );
+    expect(g1.headerRisk.deEmphasized).toEqual([]);
+    expect(g1.headerRisk.shown).toEqual([
       "touches-billing",
       "widens-error-handling",
     ]);
@@ -538,16 +555,97 @@ describe("buildBriefViewModel — unattributed", () => {
     const withEmpty = parseBrief({ ...twoGroupBrief(), unattributed: [] });
     expect(withEmpty.ok).toBe(true);
     if (!withEmpty.ok) return;
-    expect(buildBriefViewModel(withEmpty.value).unattributed).toEqual({
+    const emptyModel = buildBriefViewModel(withEmpty.value);
+    expect(emptyModel.unattributed).toEqual({
       files: [],
       added: 0,
       deleted: 0,
     });
+    expect(emptyModel.groups.every(isAttributedGroupView)).toBe(true);
 
     const absent = parseBrief(twoGroupBrief());
     expect(absent.ok).toBe(true);
     if (!absent.ok) return;
     expect(buildBriefViewModel(absent.value).unattributed).toBeUndefined();
+  });
+});
+
+describe("buildBriefViewModel — remainder group", () => {
+  it("appends the remainder after attributed groups in source order", () => {
+    const parsed = parseBrief({
+      ...twoGroupBrief(),
+      unattributed: [
+        {
+          file: "src/orphan.ts",
+          addedRanges: [{ start: 1, end: 3 }],
+          removedRanges: [{ start: 2, end: 2 }],
+        },
+      ],
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+
+    const brief = parsed.value;
+    const leftover = brief.unattributed?.[0];
+    if (leftover === undefined) throw new Error("expected leftover file");
+    leftover.diff = [{ kind: "add", content: "leftover()", newLine: 1 }];
+
+    const model = buildBriefViewModel(brief);
+    const remainder = model.groups[2];
+    expect(remainder?.kind).toBe(GroupViewKinds.UNATTRIBUTED_REMAINDER);
+    expect(remainder?.readingOrderStep).toBeUndefined();
+    expect(remainder?.index).toBe(2);
+    expect(remainder?.chunks.map((chunk) => chunk.id)).toEqual(["u-7e7f21ef"]);
+    expect(model.chunkToGroup.get("u-7e7f21ef")).toBe(
+      GroupViewKinds.UNATTRIBUTED_REMAINDER,
+    );
+    expect(remainder?.chunks[0]?.diff).toEqual([
+      { kind: "add", content: "leftover()", newLine: 1 },
+    ]);
+  });
+
+  it("places the remainder at step N+1 after a valid reading order", () => {
+    const parsed = parseBrief({
+      ...twoGroupBrief([
+        { groupId: "g2", why: "establishes the schema the rest builds on" },
+        { groupId: "g1", why: "wires the schema into call sites" },
+      ]),
+      unattributed: [
+        {
+          file: "src/orphan.ts",
+          addedRanges: [{ start: 1, end: 1 }],
+          removedRanges: [],
+        },
+      ],
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+
+    const model = buildBriefViewModel(parsed.value);
+    expect(model.groups.map((group) => group.id)).toEqual([
+      "g2",
+      "g1",
+      GroupViewKinds.UNATTRIBUTED_REMAINDER,
+    ]);
+    expect(model.groups.map((group) => group.readingOrderStep)).toEqual([
+      1, 2, 3,
+    ]);
+    expect(
+      model.groups.map((group) =>
+        isAttributedGroupView(group) ? group.readingOrderWhy : undefined,
+      ),
+    ).toEqual([
+      "establishes the schema the rest builds on",
+      "wires the schema into call sites",
+      undefined,
+    ]);
+  });
+
+  it("does not add a remainder when the field is absent", () => {
+    const parsed = parseBrief(twoGroupBrief());
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(buildBriefViewModel(parsed.value).groups).toHaveLength(2);
   });
 });
 

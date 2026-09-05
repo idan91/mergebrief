@@ -26,6 +26,22 @@ describe("deriveInitialState", () => {
     expect(state.reviewedChunks.size).toBe(0);
     expect(state.reviewOutcome).toBe("comment");
   });
+
+  it("does not seed a remainder group into the reclassification map", () => {
+    const withRemainder = buildBriefViewModel({
+      ...briefFixture,
+      unattributed: [
+        {
+          file: "src/orphan.ts",
+          addedRanges: [{ start: 1, end: 1 }],
+          removedRanges: [],
+        },
+      ],
+    });
+    const state = deriveInitialState(withRemainder);
+    expect(state.dominants["g1"]).toBe("bugfix");
+    expect(state.dominants["unattributed-remainder"]).toBeUndefined();
+  });
 });
 
 describe("disposeFlag", () => {

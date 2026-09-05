@@ -201,7 +201,6 @@ describe("deriveBriefProgress", () => {
         ownDraftActive: false,
         totals: { reviewed: 0, chunkTotal: 0, flagsResolved: 0, flagTotal: 0 },
         flagCount: 0,
-        chunkCount: 0,
       }),
     ).toBe(0);
   });
@@ -212,7 +211,6 @@ describe("deriveBriefProgress", () => {
         ownDraftActive: false,
         totals,
         flagCount: 2,
-        chunkCount: 4,
       }),
     ).toBe(50);
   });
@@ -223,9 +221,33 @@ describe("deriveBriefProgress", () => {
         ownDraftActive: true,
         totals,
         flagCount: 2,
-        chunkCount: 4,
       }),
     ).toBe(25);
+  });
+
+  it("stays below 100% until remainder chunks in chunkTotal are read", () => {
+    const attributedRead: ProgressTotals = {
+      reviewed: 2,
+      chunkTotal: 3,
+      flagsResolved: 2,
+      flagTotal: 2,
+    };
+
+    expect(
+      deriveBriefProgress({
+        ownDraftActive: false,
+        totals: attributedRead,
+        flagCount: 2,
+      }),
+    ).toBe(80);
+
+    expect(
+      deriveBriefProgress({
+        ownDraftActive: false,
+        totals: { ...attributedRead, reviewed: 3 },
+        flagCount: 2,
+      }),
+    ).toBe(100);
   });
 });
 

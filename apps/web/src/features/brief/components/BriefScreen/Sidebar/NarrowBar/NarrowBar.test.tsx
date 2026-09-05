@@ -4,12 +4,17 @@ import { createRef } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { briefFixture } from "../../../../utils/fixtures";
-import { buildBriefViewModel } from "../../../../utils/viewModel";
+import {
+  buildBriefViewModel,
+  GroupViewKinds,
+} from "../../../../utils/viewModel";
 import { NarrowBar, type NarrowBarProps } from "./NarrowBar";
 
 const model = buildBriefViewModel(briefFixture);
 const first = model.groups[0];
-if (!first) throw new Error("fixture has no groups");
+if (!first || first.kind !== GroupViewKinds.ATTRIBUTED) {
+  throw new Error("fixture has no attributed group");
+}
 // Two groups make the stepper's neighbour reachable; the fixture ships one.
 const second = { ...first, id: "g-second", index: 1 };
 const groups = [first, second];

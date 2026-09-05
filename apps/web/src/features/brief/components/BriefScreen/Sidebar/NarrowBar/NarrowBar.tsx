@@ -4,10 +4,10 @@ import type { RefObject } from "react";
 import { IconButton } from "@web/components/IconButton/IconButton";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import type { GroupView } from "../../../../utils/viewModel";
+import { resolveGroupName } from "../../../../utils/resolveGroupName";
 import ChevronLeftIcon from "../icons/chevron-left.svg?react";
 import ArrowUpIcon from "../icons/arrow-up.svg?react";
 import { SIDEBAR_PANEL_ID } from "../consts";
-import { deriveGroupName } from "../utils";
 import { resolveStepTarget } from "./utils";
 import styles from "./NarrowBar.module.scss";
 
@@ -86,7 +86,7 @@ export function NarrowBar({
                   total: groups.length,
                 })}{" "}
               </ScreenReaderOnly>
-              {deriveGroupName(activeGroup)}
+              {resolveGroupName(t, activeGroup)}
             </>
           ) : null}
         </span>

@@ -8,12 +8,13 @@
 import type { BriefChunk, Category, DiffLine } from "../../brief/types";
 import type { Result } from "types";
 import type { BriefViewModel } from "@web/features/brief/utils";
-import type {
-  CommentAnchor,
-  CommentSide,
-  ReviewComment,
+import {
+  CommentSides,
+  rowId,
+  type CommentAnchor,
+  type CommentSide,
+  type ReviewComment,
 } from "../utils/comments";
-import { rowId } from "../utils/comments";
 import { getChunkRegion, isFlagUnderAnchor } from "../utils/state";
 import type { ReviewOutcome, RiskEvidence } from "../utils/state";
 import type { Disposition } from "./disposition";
@@ -113,23 +114,41 @@ function lineOnSide(row: DiffLine, side: CommentSide): number | undefined {
   return side === "old" ? row.oldLine : row.newLine;
 }
 
+function rangesOnDraftStartSide(chunk: BriefChunk, draft: SessionDraftComment) {
+  const startSide = draft.startSide ?? draft.side;
+  return startSide === CommentSides.OLD
+    ? chunk.removedRanges
+    : chunk.addedRanges;
+}
+
+function chunkOwnsDraftStart(
+  chunk: BriefChunk,
+  draft: SessionDraftComment,
+): boolean {
+  return rangesOnDraftStartSide(chunk, draft).some(
+    (range) => draft.startLine >= range.start && draft.startLine <= range.end,
+  );
+}
+
 /**
- * The chunk a draft's coordinates land in: same file, region covering the
- * start line. An uncovered line takes the nearest chunk in the file rather
- * than nothing — the ranges name changed lines, a comment may sit on context,
- * and a draft that resolves to no chunk renders nowhere at all. A file this
- * Brief does not show has no home, and the attention list says so.
+ * The chunk a draft's coordinates land in: same file, an actual added or
+ * removed range covering the start line on its side. Envelope coverage is
+ * the fallback for a context line — two disjoint ranges must not swallow a
+ * leftover line that another chunk owns. A file this Brief does not show
+ * has no home, and the attention list says so.
  */
 function chunkForDraft(
   chunks: BriefChunk[],
   draft: SessionDraftComment,
 ): BriefChunk | undefined {
   const inFile = chunks.filter((chunk) => chunk.file === draft.filePath);
-  const covering = inFile.find((chunk) => {
+  const covering = inFile.find((chunk) => chunkOwnsDraftStart(chunk, draft));
+  if (covering !== undefined) return covering;
+  const envelope = inFile.find((chunk) => {
     const region = getChunkRegion(chunk);
     return draft.startLine >= region.start && draft.startLine <= region.end;
   });
-  if (covering !== undefined) return covering;
+  if (envelope !== undefined) return envelope;
   const preceding = inFile.filter(
     (chunk) => getChunkRegion(chunk).start <= draft.startLine,
   );

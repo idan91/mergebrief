@@ -479,7 +479,6 @@ export function useReadingSession(
     ownDraftActive,
     totals,
     flagCount: model.flags.length,
-    chunkCount: brief.chunks.length,
   });
   const unresolvedItems = useMemo(
     () =>

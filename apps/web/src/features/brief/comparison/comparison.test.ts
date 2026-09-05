@@ -361,6 +361,42 @@ describe("bindRevisionNarrativeCallout", () => {
   });
 });
 
+describe("bindRevisionNarrativeCallout — remainder", () => {
+  const remainderChunk: BriefChunk = {
+    ...scenario,
+    id: "u-3f0d7c10",
+    changeGroupId: "unattributed-remainder",
+  };
+
+  it("titles a remainder row with the remainder marker when a narrative covers the span", () => {
+    expect(
+      bindRevisionNarrativeCallout(
+        firstRun(),
+        remainderChunk,
+        fullBrief,
+        narrative,
+      ),
+    ).toEqual({
+      available: true,
+      remainder: true,
+      summary: "Adds the scroller hook.",
+    });
+  });
+
+  it("degrades a remainder row with the remainder marker when no narrative covers the span", () => {
+    expect(
+      bindRevisionNarrativeCallout(firstRun(), remainderChunk, fullBrief, {
+        ...narrative,
+        chunks: [],
+      }),
+    ).toEqual({
+      available: true,
+      degraded: true,
+      remainder: true,
+    });
+  });
+});
+
 describe("bindComparisonCallout", () => {
   it("dispatches to the narrative adapter for previous-brief", () => {
     expect(

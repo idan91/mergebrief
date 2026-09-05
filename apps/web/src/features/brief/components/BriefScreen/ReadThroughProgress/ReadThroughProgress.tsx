@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import type { GroupView } from "../../../utils/viewModel";
+import { resolveGroupName } from "../../../utils/resolveGroupName";
 import { useReadingPosition } from "../readingPosition";
 import styles from "./ReadThroughProgress.module.scss";
 
@@ -28,6 +29,7 @@ export interface ReadThroughSegment {
 export function buildReadThroughSegments(
   groups: GroupView[],
   activeChunkId: string | null,
+  groupTitle: (group: GroupView) => string,
 ): ReadThroughSegment[] {
   const activeGroupIndex = groups.findIndex((group) =>
     group.chunks.some((chunk) => chunk.id === activeChunkId),
@@ -48,7 +50,7 @@ export function buildReadThroughSegments(
       groupId: group.id,
       step: group.readingOrderStep ?? index + 1,
       hasReadingOrder: group.readingOrderStep !== undefined,
-      title: group.group.title || group.group.summary,
+      title: groupTitle(group),
       firstChunkId: group.chunks[0]?.id,
       fillPercent,
       isCurrent,
@@ -75,7 +77,9 @@ export function ReadThroughProgress({
 }: ReadThroughProgressProps) {
   const { t } = useTranslation();
   const activeChunkId = useReadingPosition((state) => state.activeChunkId);
-  const segments = buildReadThroughSegments(groups, activeChunkId);
+  const segments = buildReadThroughSegments(groups, activeChunkId, (group) =>
+    resolveGroupName(t, group),
+  );
   if (segments.length === 0) return null;
   const complete =
     segments.length > 0 && segments[segments.length - 1]?.isCurrent

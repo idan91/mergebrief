@@ -4,6 +4,7 @@ import { memo, useMemo, useRef } from "react";
 import { CopyButton } from "@web/components/CopyButton/CopyButton";
 import { reviewCommentsForChunk } from "../../../../utils/reviewComments";
 import { buildChunkComparisonView } from "../../../../comparison/comparison";
+import { isUnattributedRemainderChunk } from "../../../../utils/remainder";
 import type {
   AddressedReviewComment,
   BriefChunk,
@@ -270,11 +271,15 @@ export const ChunkCard = memo(function ChunkCard({
               ) : null}
             </span>
           ) : null}
-          <span className={styles["chip"]} data-concern={chunk.concern}>
-            <span className={styles["dot"]} />
-            {chunk.concern}
-          </span>
-          <RoleBadge role={chunk.role} />
+          {isUnattributedRemainderChunk(chunk) ? null : (
+            <>
+              <span className={styles["chip"]} data-concern={chunk.concern}>
+                <span className={styles["dot"]} />
+                {chunk.concern}
+              </span>
+              <RoleBadge role={chunk.role} />
+            </>
+          )}
           {comments.length > 0 ? (
             <span className={styles["chip"]}>
               {t("brief.chunk.drafts", { count: comments.length })}

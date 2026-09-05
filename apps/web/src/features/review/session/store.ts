@@ -3,6 +3,7 @@ import { createStore, type StoreApi } from "zustand/vanilla";
 
 import type { Category } from "../../brief/types";
 import type { BriefViewModel } from "@web/features/brief/utils";
+import { GroupViewKinds } from "@web/features/brief/utils/viewModel";
 import type { CommentAnchor, ReviewComment } from "../utils/comments";
 import type { ReviewOutcome, RiskEvidence } from "../utils/state";
 import type { BulkDisposition, Disposition } from "./disposition";
@@ -142,6 +143,7 @@ export function deriveInitialState(model: BriefViewModel): ReviewSessionState {
   for (const flag of model.flags) dispositions[flag.id] = { kind: "open" };
   const dominants: Record<string, Category> = {};
   for (const group of model.groups) {
+    if (group.kind !== GroupViewKinds.ATTRIBUTED) continue;
     dominants[group.id] = group.group.dominantCategory;
   }
   return {

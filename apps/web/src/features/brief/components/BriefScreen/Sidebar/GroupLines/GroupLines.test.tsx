@@ -3,12 +3,17 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { briefFixture } from "../../../../utils/fixtures";
-import { buildBriefViewModel } from "../../../../utils/viewModel";
+import {
+  buildBriefViewModel,
+  GroupViewKinds,
+} from "../../../../utils/viewModel";
 import { GroupLines } from "./GroupLines";
 
 const model = buildBriefViewModel(briefFixture);
 const first = model.groups[0];
-if (!first) throw new Error("fixture has no groups");
+if (!first || first.kind !== GroupViewKinds.ATTRIBUTED) {
+  throw new Error("fixture has no attributed group");
+}
 const firstName = first.group.title || first.group.summary;
 
 afterEach(cleanup);

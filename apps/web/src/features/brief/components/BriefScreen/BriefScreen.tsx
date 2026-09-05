@@ -60,7 +60,6 @@ import { Sidebar, useSidebarState } from "./Sidebar";
 import { StoryView } from "./StoryView/StoryView";
 import { CONTENT_START_ATTR, resolveSidebarLayout } from "./utils";
 import { SummarySection } from "./SummarySection/SummarySection";
-import { UnattributedBanner } from "./UnattributedBanner/UnattributedBanner";
 import { useDelayedPending } from "./useDelayedPending";
 import {
   useComparisonOverlay,
@@ -724,16 +723,11 @@ export function BriefScreen({
             </>
           ) : null}
 
-          {regions.summary &&
-          model.unattributed !== undefined &&
-          model.unattributed.added + model.unattributed.deleted > 0 ? (
-            <UnattributedBanner view={model.unattributed} />
-          ) : null}
-
-          {/* Full-brief rollup always — never a scope cut, no delta treatment
-            under compare. */}
           {regions.summary && brief.concernView.length >= 2 ? (
-            <ConcernStrip rollup={brief.concernView} />
+            <ConcernStrip
+              remainder={model.unattributed}
+              rollup={brief.concernView}
+            />
           ) : null}
 
           {/* Sticky above the conversation slot — every control renders above

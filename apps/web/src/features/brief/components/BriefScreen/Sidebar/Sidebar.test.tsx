@@ -10,7 +10,7 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { briefFixture } from "../../../utils/fixtures";
-import { buildBriefViewModel } from "../../../utils/viewModel";
+import { buildBriefViewModel, GroupViewKinds } from "../../../utils/viewModel";
 import {
   createReadingPositionStore,
   ReadingPositionProvider,
@@ -23,7 +23,9 @@ import { useSidebarState } from "./useSidebarState";
 
 const model = buildBriefViewModel(briefFixture);
 const firstGroup = model.groups[0];
-if (!firstGroup) throw new Error("fixture has no groups");
+if (!firstGroup || firstGroup.kind !== GroupViewKinds.ATTRIBUTED) {
+  throw new Error("fixture has no attributed group");
+}
 
 afterEach(() => {
   cleanup();

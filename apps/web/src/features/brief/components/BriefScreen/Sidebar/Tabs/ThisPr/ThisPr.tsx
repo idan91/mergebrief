@@ -2,10 +2,10 @@ import { useTranslation } from "react-i18next";
 
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 
-import { categoryLabel } from "../../../../../utils/viewModel";
+import { categoryLabel, GroupViewKinds } from "../../../../../utils/viewModel";
 import type { GroupView } from "../../../../../utils/viewModel";
+import { resolveGroupName } from "../../../../../utils/resolveGroupName";
 import type { JumpFromSidebar } from "../../types";
-import { deriveGroupName } from "../../utils";
 import styles from "./ThisPr.module.scss";
 
 export interface ThisPrProps {
@@ -43,17 +43,28 @@ export function ThisPr({
                 <span aria-hidden="true" className={styles["ordinal"]}>
                   {group.index + 1}
                 </span>
-                <span className={styles["name"]}>{deriveGroupName(group)}</span>
+                <span className={styles["name"]}>
+                  {resolveGroupName(t, group)}
+                </span>
                 <span className={styles["meta"]}>
-                  <span className={styles["category"]}>
-                    {categoryLabel(group.group.dominantCategory)}
-                  </span>
-                  <span className={styles["counts"]}>
-                    {t("brief.group.chunkCounts", {
-                      core: group.coreChunks.length,
-                      supporting: group.supportingChunks.length,
-                    })}
-                  </span>
+                  {group.kind === GroupViewKinds.ATTRIBUTED ? (
+                    <>
+                      <span className={styles["category"]}>
+                        {categoryLabel(group.group.dominantCategory)}
+                      </span>
+                      <span className={styles["counts"]}>
+                        {t("brief.group.chunkCounts", {
+                          core: group.coreChunks.length,
+                          supporting: group.supportingChunks.length,
+                        })}
+                      </span>
+                    </>
+                  ) : (
+                    <span className={styles["counts"]}>
+                      <span className="green">+{group.added}</span>{" "}
+                      <span className="red">−{group.deleted}</span>
+                    </span>
+                  )}
                 </span>
                 {hasConversation ? (
                   <span className={styles["marker"]}>

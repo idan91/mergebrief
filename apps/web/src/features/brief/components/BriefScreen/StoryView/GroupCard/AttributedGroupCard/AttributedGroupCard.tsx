@@ -1,0 +1,228 @@
+import { Trans, useTranslation } from "react-i18next";
+import { memo } from "react";
+
+import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
+import { CoreLinesDisclosure } from "../../../CoreLinesDisclosure/CoreLinesDisclosure";
+import { RiskBadge } from "../../../RiskBadge/RiskBadge";
+import { RiskChipDisclosure } from "../../../RiskChipDisclosure/RiskChipDisclosure";
+import { RiskDetailList } from "../../../RiskDetailList/RiskDetailList";
+import { SinceMarker } from "../SinceMarker/SinceMarker";
+import { Button } from "@web/components/Button/Button";
+import styles from "../GroupCard.module.scss";
+import { deriveGroupHeadingId } from "../../../utils";
+import type { GroupCardProps } from "../types";
+import type { AttributedGroupView } from "../../../../../utils/viewModel";
+import { RiskSurface } from "./RiskSurface/RiskSurface";
+import { useAttributedGroupCardFacade } from "./useAttributedGroupCardFacade";
+
+export interface AttributedGroupCardProps extends Omit<
+  GroupCardProps,
+  "group"
+> {
+  group: AttributedGroupView;
+}
+
+export const AttributedGroupCard = memo(function AttributedGroupCard({
+  group,
+  brief,
+  model,
+  jumpToChunk,
+  sinceChangedFileCount,
+  sinceBaselineShortSha,
+  openDeltaLens,
+}: AttributedGroupCardProps) {
+  const { t } = useTranslation();
+  const {
+    groupFlags,
+    dominant,
+    isReclassified,
+    dispositions,
+    reviewComments,
+    flagsReadOnly,
+    selectedFlagSet,
+    reopenFlag,
+    chooseDominant,
+    setDismissTarget,
+    setEvidenceTarget,
+    toggleRiskFlag,
+    toggleRiskGroup,
+  } = useAttributedGroupCardFacade({ group, model });
+
+  return (
+    <article className={`${styles["card"]} reveal`}>
+      <div className={styles["head"]}>
+        <div className={styles["eyebrow"]}>
+          <span className={styles["number"]}>
+            {t("brief.group.changeGroupOf", {
+              index: group.index + 1,
+              total: model.groups.length,
+            })}
+          </span>
+          <div className={styles["metrics"]}>
+            <CoreLinesDisclosure
+              allAdded={group.added}
+              allDeleted={group.deleted}
+              className={styles["loc"]}
+              coreAdded={group.coreAdded}
+              coreDeleted={group.coreDeleted}
+            >
+              <span className="green">+{group.coreAdded}</span> /{" "}
+              <span className="red">−{group.coreDeleted}</span>{" "}
+              {t("brief.group.coreSuffix")} ·{" "}
+              {t("brief.group.chunkCounts", {
+                core: group.coreChunks.length,
+                supporting: group.supportingChunks.length,
+              })}
+            </CoreLinesDisclosure>
+            {sinceBaselineShortSha !== undefined ? (
+              <SinceMarker
+                baselineShortSha={sinceBaselineShortSha}
+                changedFileCount={sinceChangedFileCount ?? 0}
+                openDeltaLens={openDeltaLens}
+              />
+            ) : null}
+          </div>
+        </div>
+        <h2
+          className={styles["title"]}
+          id={deriveGroupHeadingId(group.id)}
+          tabIndex={-1}
+        >
+          {group.group.title}
+        </h2>
+        <p className={styles["summary"]}>{group.group.summary}</p>
+        {group.readingOrderStep !== undefined ? (
+          <p className={styles["readingOrder"]}>
+            {t("brief.group.stepOf", {
+              step: group.readingOrderStep,
+              total: model.groups.length,
+            })}
+            {group.readingOrderWhy ? ` — ${group.readingOrderWhy}` : ""}
+          </p>
+        ) : null}
+        <div className={styles["categoryRow"]}>
+          <span className={styles["chip"]} data-kind="dominant">
+            <em>{t("brief.group.dominant")}</em> {dominant}
+          </span>
+          {group.group.secondaryCategories.map((category) => (
+            <span className={styles["chip"]} key={category}>
+              {t("brief.group.secondary", { category })}
+            </span>
+          ))}
+          {group.group.uncertain && !isReclassified ? (
+            <span className={styles["chip"]} data-kind="uncertain">
+              {t("brief.group.uncertain")}
+            </span>
+          ) : null}
+          {isReclassified ? (
+            <span className={styles["reclassNote"]}>
+              {t("brief.group.reclassNote")}
+            </span>
+          ) : null}
+        </div>
+        {group.headerRisk.shown.length > 0 ||
+        group.headerRisk.deEmphasized.length > 0 ? (
+          <div
+            aria-label={t("brief.group.ariaLabelGroupRisks")}
+            className={styles["groupRiskRow"]}
+            data-testid="group-risk-union"
+            role="group"
+          >
+            {group.headerRisk.shown.map((attr) => {
+              const metas = group.chunks
+                .map((chunk) => model.riskMetaByChunk.get(chunk.id)?.get(attr))
+                .filter((m) => m !== undefined);
+              const meta = metas.find((m) => !m.deEmphasized) ?? metas[0];
+              if (meta?.source === "repo-policy") {
+                return (
+                  <RiskChipDisclosure
+                    detail={
+                      meta.implication !== undefined
+                        ? t("brief.riskBadge.repoPolicyWithImplication", {
+                            implication: meta.implication,
+                          })
+                        : t("brief.riskBadge.repoPolicyLead")
+                    }
+                    key={attr}
+                  >
+                    <RiskBadge meta={meta}>{attr}</RiskBadge>
+                  </RiskChipDisclosure>
+                );
+              }
+              return (
+                <RiskBadge key={attr} meta={meta}>
+                  {attr}
+                </RiskBadge>
+              );
+            })}
+            {group.headerRisk.deEmphasized.length > 0 ? (
+              <RiskChipDisclosure
+                detail={
+                  <RiskDetailList
+                    attrs={group.headerRisk.deEmphasized}
+                    metaFor={(attr) =>
+                      group.chunks
+                        .map((chunk) =>
+                          model.riskMetaByChunk.get(chunk.id)?.get(attr),
+                        )
+                        .find((m) => m !== undefined)
+                    }
+                  />
+                }
+              >
+                <RiskBadge meta={{ source: "built-in", deEmphasized: true }}>
+                  {t("brief.group.deEmphasizedCount", {
+                    count: group.headerRisk.deEmphasized.length,
+                  })}
+                  <ScreenReaderOnly>
+                    {t("brief.group.srDeEmphasizedList", {
+                      attrs: group.headerRisk.deEmphasized.join(", "),
+                    })}
+                  </ScreenReaderOnly>
+                </RiskBadge>
+              </RiskChipDisclosure>
+            ) : null}
+          </div>
+        ) : null}
+        {group.group.uncertain && !isReclassified && !flagsReadOnly ? (
+          <div className={styles["uncertainPanel"]}>
+            <span className={styles["question"]}>
+              <Trans
+                components={[
+                  <b key="between">
+                    {group.group.uncertainBetween.join(
+                      t("brief.group.uncertainSeparator"),
+                    )}
+                  </b>,
+                ]}
+                i18nKey="brief.group.splitIntent"
+              />
+            </span>
+            <span className={styles["pick"]}>
+              {group.group.uncertainBetween.map((category) => (
+                <Button key={category} onClick={() => chooseDominant(category)}>
+                  {category}
+                </Button>
+              ))}
+            </span>
+          </div>
+        ) : null}
+      </div>
+      <RiskSurface
+        chunks={brief.chunks}
+        dispositions={dispositions}
+        flagsReadOnly={flagsReadOnly}
+        group={group}
+        groupFlags={groupFlags}
+        jumpToChunk={jumpToChunk}
+        reopenFlag={reopenFlag}
+        reviewComments={reviewComments}
+        selectedFlagSet={selectedFlagSet}
+        setDismissTarget={setDismissTarget}
+        setEvidenceTarget={setEvidenceTarget}
+        toggleRiskFlag={toggleRiskFlag}
+        toggleRiskGroup={toggleRiskGroup}
+      />
+    </article>
+  );
+});

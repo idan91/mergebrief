@@ -3,7 +3,7 @@ import { useCallback, useMemo } from "react";
 import { Markdown } from "@web/components/Markdown/Markdown";
 import { estimateNarrativeCardHeight } from "../chunkHeightModel";
 import { useGroupWindow } from "../useGroupWindow";
-import { categoryLabel } from "../../../utils/viewModel";
+import { categoryLabel, GroupViewKinds } from "../../../utils/viewModel";
 import type { BriefViewModel } from "../../../utils/viewModel";
 import { buildBriefViewModel } from "../../../utils/viewModel";
 import type {
@@ -161,6 +161,7 @@ function PreviousBriefChanges({
       ) : null}
       <p className={styles["overview"]}>{narrative.overview}</p>
       {model.groups.map((group) => {
+        if (group.kind !== GroupViewKinds.ATTRIBUTED) return null;
         const chunks = narrative.chunks.filter(
           (chunk) => chunk.briefChangeGroupId === group.group.id,
         );
@@ -319,27 +320,30 @@ function LastReviewChanges({ delta }: LastReviewChangesProps) {
         <Markdown content={delta.summary} />
       </div>
       <DeltaContext brief={delta} />
-      {model.groups.map((group) => (
-        <section className={styles["group"]} key={group.id}>
-          <div className={styles["groupHead"]}>
-            <h2 className={styles["groupTitle"]}>{group.group.title}</h2>
-            <span className={styles["groupCategory"]}>
-              {categoryLabel(group.group.dominantCategory)}
-            </span>
-          </div>
-          {group.chunks.map((chunk) => (
-            <div className={styles["chunk"]} key={chunk.id}>
-              <div className={styles["chunkFile"]}>{chunk.file}</div>
-              {chunk.summary ? (
-                <p className={styles["chunkSummary"]}>{chunk.summary}</p>
-              ) : null}
-              {chunk.diff && chunk.diff.length > 0 ? (
-                <ReadonlyDiff rows={chunk.diff.filter(isCodeRow)} />
-              ) : null}
+      {model.groups.map((group) => {
+        if (group.kind !== GroupViewKinds.ATTRIBUTED) return null;
+        return (
+          <section className={styles["group"]} key={group.id}>
+            <div className={styles["groupHead"]}>
+              <h2 className={styles["groupTitle"]}>{group.group.title}</h2>
+              <span className={styles["groupCategory"]}>
+                {categoryLabel(group.group.dominantCategory)}
+              </span>
             </div>
-          ))}
-        </section>
-      ))}
+            {group.chunks.map((chunk) => (
+              <div className={styles["chunk"]} key={chunk.id}>
+                <div className={styles["chunkFile"]}>{chunk.file}</div>
+                {chunk.summary ? (
+                  <p className={styles["chunkSummary"]}>{chunk.summary}</p>
+                ) : null}
+                {chunk.diff && chunk.diff.length > 0 ? (
+                  <ReadonlyDiff rows={chunk.diff.filter(isCodeRow)} />
+                ) : null}
+              </div>
+            ))}
+          </section>
+        );
+      })}
     </div>
   );
 }

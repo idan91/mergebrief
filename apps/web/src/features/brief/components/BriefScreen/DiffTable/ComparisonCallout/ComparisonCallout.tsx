@@ -1,7 +1,9 @@
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { Callout } from "@web/components/Callout/Callout";
 import {
   bindComparisonCallout,
+  type ComparisonCalloutContent,
   type ComparisonRun,
   type ComparisonSource,
 } from "../../../../comparison/comparison";
@@ -42,6 +44,7 @@ export function ComparisonCallout({
     source.kind === "last-review"
       ? `${verb} since your last review`
       : `${verb} this revision`;
+  const groupName = resolveCalloutGroup(t, callout);
   return (
     <Callout anchor={anchor} onClose={onClose} placement="right-start">
       <Callout.Eyebrow>{eyebrow}</Callout.Eyebrow>
@@ -52,11 +55,11 @@ export function ComparisonCallout({
           {callout.summary && (
             <Callout.Title clamp={4}>{callout.summary}</Callout.Title>
           )}
-          {callout.groupTitle && (
+          {groupName ? (
             <Callout.Context>
-              {t("brief.diff.calloutIn", { group: callout.groupTitle })}
+              {t("brief.diff.calloutIn", { group: groupName })}
             </Callout.Context>
-          )}
+          ) : null}
           {callout.degraded && (
             <Callout.Context>
               <span className={styles["unavailable"]}>
@@ -76,4 +79,12 @@ export function ComparisonCallout({
       )}
     </Callout>
   );
+}
+
+function resolveCalloutGroup(
+  t: TFunction,
+  callout: ComparisonCalloutContent,
+): string | undefined {
+  if (callout.remainder) return t("brief.unattributed.remainderTitle");
+  return callout.groupTitle;
 }

@@ -7,6 +7,7 @@ import type { SessionPayload as ApiSessionPayload } from "api";
 import type { Equals } from "types";
 import { briefFixture } from "@web/features/brief/utils/fixtures";
 import { buildBriefViewModel } from "@web/features/brief/utils";
+import { GroupViewKinds } from "@web/features/brief/utils/remainder";
 import {
   emptySessionPayload,
   parseReviewSessionPayload,
@@ -102,6 +103,46 @@ describe("sessionInitialState", () => {
     expect(anchor?.chunkId).toBe(chunk.id);
     expect(anchor?.rowIds.length).toBeGreaterThan(0);
     expect(anchor?.selectedText.length).toBeGreaterThan(0);
+  });
+
+  it("lands a leftover-line draft on the remainder chunk, not a spanning attributed envelope", () => {
+    const brief = structuredClone(briefFixture);
+    const chunk = brief.chunks[0];
+    if (chunk === undefined) throw new Error("fixture has no chunk");
+    chunk.addedRanges = [
+      { start: 1, end: 2 },
+      { start: 100, end: 101 },
+    ];
+    brief.unattributed = [
+      {
+        file: chunk.file,
+        addedRanges: [{ start: 50, end: 50 }],
+        removedRanges: [],
+      },
+    ];
+    const remainderModel = buildBriefViewModel(brief);
+    const remainder = remainderModel.groups.find(
+      (group) => group.kind === GroupViewKinds.UNATTRIBUTED_REMAINDER,
+    )?.chunks[0];
+    if (remainder === undefined) throw new Error("expected a remainder chunk");
+
+    const state = sessionInitialState(
+      remainderModel,
+      payload({
+        draftComments: [
+          {
+            id: "61",
+            filePath: chunk.file,
+            side: "new",
+            startLine: 50,
+            endLine: 50,
+            body: "leftover line",
+            status: "draft",
+          },
+        ],
+      }),
+    );
+    expect(state.reviewComments[0]?.anchor.chunkId).toBe(remainder.id);
   });
 
   it("lands a disposition on the flag its anchor names, and only that one", () => {

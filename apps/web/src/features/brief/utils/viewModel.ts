@@ -9,6 +9,11 @@ import {
   type RepoConfigContext,
 } from "./repoConfig";
 import {
+  GroupViewKinds,
+  hydrateRemainderGroup,
+  type GroupViewKind,
+} from "./remainder";
+import {
   Concerns,
   Roles,
   type Brief,
@@ -23,6 +28,8 @@ import {
   type UnattributedFile,
 } from "../types";
 
+export { GroupViewKinds } from "./remainder";
+
 /**
  * The group header's deduped union of member-chunk attribute chips: floor
  * first, fully-de-emphasized attributes collapsed behind "+n". Never
@@ -35,23 +42,40 @@ export interface GroupHeaderRisk {
   deEmphasized: RiskToken[];
 }
 
-export interface GroupView {
+interface GroupViewBase {
+  kind: GroupViewKind;
   id: string;
   index: number;
-  group: ChangeGroup;
   chunks: BriefChunk[];
-  coreChunks: BriefChunk[];
-  supportingChunks: BriefChunk[];
   added: number;
   deleted: number;
+  /** 1-based position in the Brief's Reading order; unset without a valid one. */
+  readingOrderStep?: number | undefined;
+}
+
+export interface AttributedGroupView extends GroupViewBase {
+  kind: typeof GroupViewKinds.ATTRIBUTED;
+  group: ChangeGroup;
+  coreChunks: BriefChunk[];
+  supportingChunks: BriefChunk[];
   /** Derived-line sums over the group's core chunks. */
   coreAdded: number;
   coreDeleted: number;
   headerRisk: GroupHeaderRisk;
-  /** 1-based position in the Brief's Reading order; unset without a valid one. */
-  readingOrderStep?: number;
   /** The Reading-order step's why-line; unset without a valid Reading order. */
-  readingOrderWhy?: string;
+  readingOrderWhy?: string | undefined;
+}
+
+export interface UnattributedRemainderGroupView extends GroupViewBase {
+  kind: typeof GroupViewKinds.UNATTRIBUTED_REMAINDER;
+}
+
+export type GroupView = AttributedGroupView | UnattributedRemainderGroupView;
+
+export function isAttributedGroupView(
+  group: GroupView,
+): group is AttributedGroupView {
+  return group.kind === GroupViewKinds.ATTRIBUTED;
 }
 
 export interface RiskFlag {
@@ -204,6 +228,7 @@ export function buildBriefViewModel(
     );
 
     return {
+      kind: GroupViewKinds.ATTRIBUTED,
       id,
       index,
       group,
@@ -215,13 +240,14 @@ export function buildBriefViewModel(
       coreAdded: sumLoc(coreChunks, "added"),
       coreDeleted: sumLoc(coreChunks, "deleted"),
       headerRisk: buildGroupHeaderRisk(groupChunks, riskMetaByChunk),
-    } satisfies GroupView;
+    } satisfies AttributedGroupView;
   });
 
-  const groups = orderGroupsByReadingOrder(
+  const attributed = orderGroupsByReadingOrder(
     sourceOrderGroups,
     brief.readingOrder,
   );
+  const groups = appendRemainderGroup(attributed, brief, chunkToGroup);
 
   const coreOnly = brief.chunks.filter((chunk) => chunk.role === Roles.CORE);
   const unattributed = buildUnattributedView(brief.unattributed);
@@ -384,9 +410,9 @@ function sortByConcern(chunks: BriefChunk[]): BriefChunk[] {
  * hand a `Brief` built outside that parser (fixtures, tests).
  */
 function orderGroupsByReadingOrder(
-  groups: GroupView[],
+  groups: AttributedGroupView[],
   readingOrder: ReadingOrderStep[] | undefined,
-): GroupView[] {
+): AttributedGroupView[] {
   if (!readingOrder || readingOrder.length === 0) return groups;
   const byId = new Map(groups.map((group) => [group.id, group]));
   const stepGroupIds = readingOrder.map((step) => step.groupId);
@@ -396,7 +422,7 @@ function orderGroupsByReadingOrder(
     stepGroupIds.every((id) => byId.has(id));
   if (!isPermutation) return groups;
   const ordered = readingOrder
-    .map((step, index): GroupView | undefined => {
+    .map((step, index): AttributedGroupView | undefined => {
       const group = byId.get(step.groupId);
       if (!group) return undefined;
       return {
@@ -406,10 +432,38 @@ function orderGroupsByReadingOrder(
         readingOrderWhy: step.why,
       };
     })
-    .filter((group): group is GroupView => group !== undefined);
+    .filter((group): group is AttributedGroupView => group !== undefined);
   // isPermutation guarantees every step resolves; this is a defensive
   // fallback in case that invariant is ever violated.
   return ordered.length === groups.length ? ordered : groups;
+}
+
+function appendRemainderGroup(
+  attributed: AttributedGroupView[],
+  brief: Brief,
+  chunkToGroup: Map<string, string>,
+): GroupView[] {
+  const usedIds = new Set(brief.chunks.map((chunk) => chunk.id));
+  const hydration = hydrateRemainderGroup(brief.unattributed, usedIds);
+  if (hydration === undefined) return attributed;
+
+  const remainder: UnattributedRemainderGroupView = {
+    kind: GroupViewKinds.UNATTRIBUTED_REMAINDER,
+    id: GroupViewKinds.UNATTRIBUTED_REMAINDER,
+    index: attributed.length,
+    chunks: hydration.chunks,
+    added: hydration.added,
+    deleted: hydration.deleted,
+  };
+  if (attributed[0]?.readingOrderStep !== undefined) {
+    remainder.readingOrderStep = attributed.length + 1;
+  }
+
+  for (const chunk of hydration.chunks) {
+    chunkToGroup.set(chunk.id, remainder.id);
+  }
+
+  return [...attributed, remainder];
 }
 
 function sumLoc(chunks: BriefChunk[], key: keyof BriefChunk["loc"]): number {

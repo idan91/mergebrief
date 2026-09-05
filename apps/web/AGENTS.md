@@ -6,7 +6,7 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 
 ## Conventions
 
-- Components take EXPORTED prop interfaces (never inline); heavy components get a facade hook that owns their flow state — `useReviewSubmit` is the template (the screen wires props in; the hook owns pending/error/copy).
+- Components take EXPORTED prop interfaces (never inline); heavy components get a facade hook that owns their flow state — `useReviewSubmit` is the template (the screen wires props in; the hook owns pending/error/copy). Moving JSX into a nested folder does not skip the facade: store subscriptions, flow actions, and derived selection stay in `use<Component>Facade`, not the card file.
 - Server data crosses `data/apiFetch` only (isomorphic: SSR dispatches in-process through the SAME authz gate). Never reach persistence from a server function — that would be a second enforcement path.
 - **Error components render a curated mapper** (`briefErrorDetail` / `prBriefErrorDetail`), NEVER `error.message` — even an `ApiError`'s embeds the request path. Messages reflecting caller input (a pasted URL) are curated too — they land in a `role="alert"`. A `createServerFn` rejection is a client-visible string (TanStack serializes the message and non-enumerable own props, `{ cause }` included). Every handler therefore ends at a curation boundary: log the raw reason server-side as a FIELD, throw a CODE from a closed allowlist.
 - **User-facing copy lives in the `packages/i18n` catalog, never in a component.** A component reads `useTranslation()`; a pure helper takes a `TFunction` first parameter; a data structure stores a `TranslationKey` and resolves at render (the view model stays locale-free). Module-local `COPY` maps are dead.

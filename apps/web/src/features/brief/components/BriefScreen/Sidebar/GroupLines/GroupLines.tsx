@@ -2,10 +2,10 @@ import { useTranslation } from "react-i18next";
 import { useState } from "react";
 
 import { Callout } from "@web/components/Callout/Callout";
-import { categoryLabel } from "../../../../utils/viewModel";
+import { categoryLabel, GroupViewKinds } from "../../../../utils/viewModel";
 import type { GroupView } from "../../../../utils/viewModel";
+import { resolveGroupName } from "../../../../utils/resolveGroupName";
 import type { JumpFromSidebar } from "../types";
-import { deriveGroupName } from "../utils";
 import styles from "./GroupLines.module.scss";
 
 export interface GroupLinesProps {
@@ -39,7 +39,7 @@ export function GroupLines({
       {groups.map((group) => {
         const hasConversation = conversationGroupIds?.has(group.id) ?? false;
         const current = group.id === activeGroupId;
-        const name = `${deriveGroupName(group)}${
+        const name = `${resolveGroupName(t, group)}${
           hasConversation ? t("brief.toc.srHasConversation") : ""
         }`;
         return (
@@ -79,10 +79,12 @@ export function GroupLines({
           }
         >
           <Callout.Eyebrow>
-            {categoryLabel(calloutGroup.group.dominantCategory)}
+            {calloutGroup.kind === GroupViewKinds.ATTRIBUTED
+              ? categoryLabel(calloutGroup.group.dominantCategory)
+              : t("brief.unattributed.label")}
           </Callout.Eyebrow>
           <Callout.Title clamp={2}>
-            {deriveGroupName(calloutGroup)}
+            {resolveGroupName(t, calloutGroup)}
           </Callout.Title>
         </Callout>
       ) : null}

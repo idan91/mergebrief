@@ -6,6 +6,7 @@ import type {
   RevisionChangeFile,
   RevisionNarrative,
 } from "../types";
+import { isUnattributedRemainderChunk } from "../utils/remainder";
 
 /**
  * The full-Brief comparison overlay: join a baseline's shared, mechanical
@@ -62,6 +63,11 @@ export interface ChunkComparisonView {
 export interface ComparisonCalloutContent {
   available: boolean;
   groupTitle?: string;
+  /**
+   * Remainder rows title themselves at render (`remainderTitle`) so this
+   * binder stays locale-free.
+   */
+  remainder?: true;
   summary?: string;
   /**
    * @description True when the span has no narrative coverage and the content
@@ -250,6 +256,9 @@ function bindBriefChunkFallback(
   chunk: BriefChunk,
   brief: Brief,
 ): ComparisonCalloutContent {
+  if (isUnattributedRemainderChunk(chunk)) {
+    return bindRemainderFallback(run, chunk);
+  }
   const group = brief.changeGroups.find(
     (candidate) => candidate.id === chunk.changeGroupId,
   );
@@ -263,6 +272,24 @@ function bindBriefChunkFallback(
     groupTitle: group.title,
     summary: chunk.summary ?? group.summary,
   };
+}
+
+function bindRemainderFallback(
+  run: ComparisonRun,
+  chunk: BriefChunk,
+): ComparisonCalloutContent {
+  if (run.kind === "removed") {
+    return { available: true, degraded: true, remainder: true };
+  }
+  const content: ComparisonCalloutContent = {
+    available: true,
+    degraded: true,
+    remainder: true,
+  };
+  if (chunk.summary !== undefined) {
+    content.summary = chunk.summary;
+  }
+  return content;
 }
 
 /**
@@ -287,6 +314,14 @@ export function bindRevisionNarrativeCallout(
       (headLines.some((line) => lineInRanges(line, candidate.addedRanges)) ||
         oldLines.some((line) => lineInRanges(line, candidate.removedRanges))),
   );
+  if (isUnattributedRemainderChunk(chunk)) {
+    if (!narrativeChunk) return bindRemainderFallback(run, chunk);
+    return {
+      available: true,
+      remainder: true,
+      summary: narrativeChunk.summary,
+    };
+  }
   if (!narrativeChunk) return bindBriefChunkFallback(run, chunk, brief);
   const group = brief.changeGroups.find(
     (candidate) => candidate.id === narrativeChunk.briefChangeGroupId,

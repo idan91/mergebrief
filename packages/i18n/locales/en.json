@@ -632,6 +632,8 @@
     },
     "unattributed": {
       "label": "unattributed",
+      "remainderTitle": "Unattributed remainder",
+      "remainderSummary": "The model did not attribute these lines.",
       "calloutTitle": "Changed lines no chunk covers",
       "calloutCaveat": "The brief attributed {{attributed}} of {{total}} changed lines. These lines belong to no chunk and appear in no group or concern.",
       "bannerRest_one": "changed lines in {{count}} file are not covered by any chunk.",

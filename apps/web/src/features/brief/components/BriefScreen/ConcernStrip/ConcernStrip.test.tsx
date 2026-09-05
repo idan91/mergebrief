@@ -25,6 +25,13 @@ describe("ConcernStrip", () => {
       />,
     );
     expect(single.innerHTML).toBe("");
+    const { container: residue } = render(
+      <ConcernStrip
+        remainder={{ added: 7, deleted: 0 }}
+        rollup={[{ concern: "implementation", added: 412, deleted: 118 }]}
+      />,
+    );
+    expect(residue.innerHTML).toBe("");
   });
 
   it("renders one segment per concern in vocabulary order", () => {
@@ -59,6 +66,22 @@ describe("ConcernStrip", () => {
     expect(doc?.textContent).toContain("5%");
   });
 
+  it("renders the remainder as a last neutral segment", () => {
+    render(
+      <ConcernStrip remainder={{ added: 25, deleted: 0 }} rollup={rollup} />,
+    );
+    const strip = screen.getByTestId("concern-strip");
+    const remainder = strip.querySelector(
+      '[data-kind="unattributed-remainder"]',
+    );
+    expect(remainder?.textContent).toContain("unattributed");
+    expect(remainder?.textContent).toContain("+25");
+    const segments = [...strip.querySelectorAll("[data-concern], [data-kind]")];
+    expect(segments.at(-1)?.getAttribute("data-kind")).toBe(
+      "unattributed-remainder",
+    );
+  });
+
   it("labels the group for assistive tech", () => {
     render(<ConcernStrip rollup={rollup} />);
     expect(screen.getByRole("group").getAttribute("aria-label")).toBe(
@@ -85,8 +108,14 @@ describe("concernShares", () => {
       { concern: "test", added: 10, deleted: 0 },
     ]);
     expect(shares).toEqual([
-      { concern: "implementation", added: 100, deleted: 0, percent: 91 },
-      { concern: "test", added: 10, deleted: 0, percent: 9 },
+      {
+        kind: "concern",
+        concern: "implementation",
+        added: 100,
+        deleted: 0,
+        percent: 91,
+      },
+      { kind: "concern", concern: "test", added: 10, deleted: 0, percent: 9 },
     ]);
   });
 
@@ -114,5 +143,28 @@ describe("concernShares", () => {
       { concern: "test", added: 0, deleted: 0 },
     ]);
     expect(shares.map((share) => share.percent)).toEqual([0, 0]);
+  });
+
+  it("appends a last remainder segment and apportions over the whole diff", () => {
+    const shares = concernShares(
+      [
+        { concern: "implementation", added: 50, deleted: 0 },
+        { concern: "test", added: 50, deleted: 0 },
+      ],
+      { added: 25, deleted: 0 },
+    );
+    expect(shares.map((share) => share.percent)).toEqual([40, 40, 20]);
+    expect(shares[2]).toEqual({
+      kind: "unattributed-remainder",
+      added: 25,
+      deleted: 0,
+      percent: 20,
+    });
+  });
+
+  it("does not append a zero-line remainder", () => {
+    const shares = concernShares(rollup, { added: 0, deleted: 0 });
+    expect(shares).toHaveLength(3);
+    expect(shares.every((share) => share.kind === "concern")).toBe(true);
   });
 });
