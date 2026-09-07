@@ -2,9 +2,9 @@
 
 The `Generator` port and its adapter family: structured generation — `(schema, system, user) → object valid against the schema` — behind one contract, with six interchangeable adapters.
 
-## Map
+Repo-wide conventions apply (root AGENTS.md); refinements below.
 
-**Entry point: `src/index.ts`** — the package's only export (`package.json` `exports["."]`); every public symbol is re-exported there, grouped by folder. Start reading there.
+## Map
 
 What the layout can't show:
 
@@ -12,6 +12,7 @@ What the layout can't show:
 - `createGenerator` construction returns `Result` (`config/registry.ts`); the yaml dep lives only in `config/loader.ts`.
 - Every adapter's output passes through `validation/` (`runWithSchemaFloor`: validate → recover → one feedback retry → dump + throw).
 - Harness spawns use no shell, with watchdog timers and a kill ladder (`harness/run.ts`); `test/shims/` fakes the CLI binary, not the spawn.
+- No composition root lives here: `createGenerator`, `loadConfig` and `harness/run.ts` (`HarnessRunArgs.env`) take `env` explicitly, and the process roots that read `process.env` are the worker's `main.ts`, the brief-core CLIs and `smoke/`.
 - `smoke/` is manual live smoke, NEVER wired into vitest/CI.
 
 Config shape for operators: `mergebrief.config.example.yaml` (repo root) and `docs/self-host/generators.md`.
@@ -31,16 +32,10 @@ Config shape for operators: `mergebrief.config.example.yaml` (repo root) and `do
 - **No credential env var reaches a CLI spawn**: every harness spawn (generation AND startup check) goes through `envForSpawn`, which strips `HARNESS_STRIPPED_CREDENTIAL_VARS` (a leaked var outranks the CLI's own login and silently rebills generations to an API/cloud account). Two deliberate survivors: `CLAUDE_CODE_OAUTH_TOKEN` (claude's subscription route) and `CURSOR_API_KEY` (bills the same subscription pool). Residual hole: `apiKeyHelper` lives in the CLI's settings file, unreachable from env.
 - **Construction returns `Result`; `generate()` throws** — a misconfigured instance refuses boot, never limps into jobs.
 
-## Conventions
-
-Repo-wide conventions apply (root AGENTS.md); refinements below.
-
-- `zod` is imported as `zod/v4`.
-
 ## Tests
 
 `test/contract.ts` is the shared Generator conformance suite; each adapter runs it through its own transport fake. Brief-schema integration stays in `packages/brief-core/test` — importing the domain schema here would cycle.
 
 ## Verification
 
-`pnpm -C packages/generators typecheck` / `test`; repo-root `pnpm lint`. `pnpm -C packages/generators smoke -- --adapter <name>` is MANUAL live smoke.
+`pnpm -C packages/generators smoke -- --adapter <name>` is manual live smoke, never wired into vitest or CI.

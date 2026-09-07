@@ -2,16 +2,18 @@
 
 The persistence layer for the self-host backend. The schema and every design decision behind it live in the Postgres-schema decision record under `docs/adr/`. Do not re-derive or contradict them here; if code must diverge, amend that record first.
 
+Repo-wide conventions apply (root AGENTS.md); refinements below.
+
 ## Map
 
-**Entry points: `src/index.ts`** (the public surface, `exports["."]`) and **`src/testing.ts`** (the PGlite cross-package test harness, `exports["./testing"]` — dev-only). Every public symbol is re-exported from `index.ts`, grouped by folder. Start reading there.
+`src/testing.ts` is the PGlite cross-package test harness (`exports["./testing"]`, dev-only).
 
 What the layout can't show:
 
 - `schema/` is one drizzle file per table.
 - `stores/ingest.ts` is the transactional webhook→upsert→enqueue boundary.
 - `stores/url-box.ts` holds `resolveUrlBoxOwner`, the ONE unscoped read.
-- `auth/` holds the PRE-tenant resolvers (they PRODUCE the tenant) plus AES-256-GCM token crypto behind the key-provider interface.
+- `auth/` holds the PRE-tenant resolvers (they PRODUCE the tenant) plus AES-256-GCM token crypto behind the key-provider interface. `createEnvKeyProvider(env)` takes the env map explicitly; the composition roots that call it read `process.env`, this package never does.
 - Generated SQL under `drizzle/` is append-only.
 
 ## Invariants (enforced, don't weaken)
@@ -25,7 +27,7 @@ What the layout can't show:
 - **Audit:** append-only, no outbound FKs — no update or delete helpers exist. The only removal is the instance-wide retention sweep in `src/stores/purge.ts` (`sweepAuditLog`), unset by default, refusing any window under the 30-day floor.
   - A row holds ids, tokens and numbers: never a body, never free text. `caller_ip` is the one identifying column, nullable (collecting it is a config change, not a migration), populated only under the operator flag.
   - Metadata takes OPEN keys and CLOSED values (`src/stores/audit.ts`) — a token, a finite number, or a boolean, nothing else. The value rules are the PII enforcement; weakening them needs a matching decision-record note.
-  - `operation` and `target_type` are open token vocabularies (the descriptors belong to `packages/api`, whose choke point writes every request-path row), shape-checked in code and by a DB CHECK. Rows this package writes itself (purge sweeps, the mint transaction) name their own operation token, apart from any descriptor id.
+  - `operation` and `target_type` are open token vocabularies (the descriptors belong to `apps/api`, whose choke point writes every request-path row), shape-checked in code and by a DB CHECK. Rows this package writes itself (purge sweeps, the mint transaction) name their own operation token, apart from any descriptor id.
 - **Carry-over:** evaluated on read — in memory, creating nothing. A read mark carries only against `brief.carried_chunk_ids` (a bare chunk-id match would mark unopened Chunks read); a hop chain that cannot be linked end to end orphans every anchor. Orphaned work is unplaced, never deleted.
   - MATERIALIZED by the first write: one transaction creates the session, copies the carried rows with their verdict columns, and applies the write. It re-reads the previous session's rows rather than trusting the read's payload, and only the session's creator copies — a concurrent first write cannot double the rows.
   - A carried draft keeps its previous row id to the payload, and each copy stores its source row, so one addressing form works on both sides of materialization. A session freezes only once the reviewer materializes a newer one — never because a newer Brief exists.
@@ -34,16 +36,13 @@ What the layout can't show:
 
 ## Conventions
 
-Repo-wide conventions apply (root AGENTS.md); refinements below.
-
 - **DB-stored vocabularies are CHECK-constrained** (state, kind, status, phase, decision, actor_type, generation error_code, audit outcome/classification/channel, review_outcome, draft-comment status/side/anchor_status, reclassification category, disposition carry_status/evidence_status/evidence_kind, api_token scope; migrations 0002, 0017, 0019, 0021, 0024, 0025, 0029). **Adding a value needs a code change AND a migration**, in lockstep — `test/review-session.test.ts` proves it by reading `pg_get_constraintdef` back against the `as const` map.
   - `category` pins against brief-core's `Categories` — a mirror, not a fork, reached ONLY via the `brief-core/remap` subpath, never the barrel (the generation graph and its model SDKs stay out of this package).
-  - `WriteClassifications` is the one vocabulary shared outward: it is `api_token.scope` AND the classification `packages/api` sorts every operation by; api re-exports this map rather than declaring a second one. `audit_log.classification` narrows the same map (`read` is never audited) instead of forking it.
+  - `WriteClassifications` is the one vocabulary shared outward: it is `api_token.scope` AND the classification `apps/api` sorts every operation by; api re-exports this map rather than declaring a second one. `audit_log.classification` narrows the same map (`read` is never audited) instead of forking it.
 - **`GenerationFailureCodes` is the widest of those locksteps.** It is the DB-stored failure vocabulary (distinct from the store-internal `GenerationErrorCodes`), so a new code needs FOUR changes together: the `as const` map in `src/types.ts`, a CHECK migration, a `generationError.<code>` template in `packages/i18n`, and the hand-rolled mirror in `apps/web` (`GenerationFailureCodes`). The web mirror parses tolerantly (an unknown code renders the generic failed line). `markFailed` sanitizes any `detail` param itself; callers cannot bypass it.
-- **Naming grammar:** verb-first for every function, constructors included — the verb names what comes back (`loadConfig`, `encryptToken`, `resolveKey`, `createArtifactStore`, `createPurgeRoutines`, `createEnvKeyProvider`). One scoped exception: Drizzle column-DSL helpers (`tenantColumns()`) stay noun-named, matching Drizzle's own `bigint()`/`text()` register.
-- Interfaces for shapes.
+- One scoped exception to verb-first names: Drizzle column-DSL helpers (`tenantColumns()`) stay noun-named, matching Drizzle's own `bigint()`/`text()` register.
 - DB identifiers stay snake_case (Postgres convention); TS property names camelCase.
 
 ## Verification
 
-`pnpm -C packages/persistence typecheck` / `test` (PGlite against the checked-in migrations); repo-root `pnpm lint`. Optional real-Postgres migration smoke: `docker compose up -d postgres`, then `DATABASE_URL=postgres://code_review:code_review@127.0.0.1:5432/code_review pnpm -C packages/persistence migrate`.
+`pnpm -C packages/persistence test` runs PGlite against the checked-in migrations. Optional real-Postgres migration smoke: `docker compose up -d postgres`, then `DATABASE_URL=postgres://code_review:code_review@127.0.0.1:5432/code_review pnpm -C packages/persistence migrate`.

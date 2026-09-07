@@ -6,8 +6,6 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 
 ## Map
 
-**Entry point: `src/index.ts`** — the package's only export (`package.json` `exports["."]`).
-
 `locales/` holds one `<id>.json` per shipped locale; the QA gates live in this package's `test/`. The pseudo locale is a postProcessor (accent map + ~35% pad), dev-only.
 
 ## Invariants (enforced, don't weaken)
@@ -20,7 +18,3 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 - **Typed keys and params**: `types.ts` ships the `CustomTypeOptions` wiring — an unknown key fails to compile, and parameterized calls infer expected replacement names plus formatted value types. JSON imports widen values to `string`, so `catalog.generated.ts` restores literals only for parameterized leaves. Run `pnpm generate:types` after editing catalog parameters; typecheck rejects stale generated output.
 - **Registry ↔ files**: every `locales/<id>.json` has exactly one `LOCALES` row and one `RESOURCES` entry; the suite pins the bijection. The pseudo locale has NO file and NO registry row — it exists only as the postProcessor.
 - **No backend, no detection**: resources are baked in and init is synchronous. Locale selection belongs to callers.
-
-## Verification
-
-`pnpm -C packages/i18n typecheck` / `test`; repo-root `pnpm lint`.

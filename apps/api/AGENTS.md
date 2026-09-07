@@ -1,4 +1,4 @@
-# packages/api — agent notes
+# apps/api — agent notes
 
 The Hono HTTP surface for the self-host backend. Its **webhook trust boundary** — `POST /api/webhooks/github` — verifies the HMAC over the raw body and parses the event through `github`'s Zod boundary. The event then maps, transactionally, to `persistence`'s tenant-scoped writes plus one debounced graphile `generate` job (`createIngestRoutines`).
 
@@ -24,7 +24,7 @@ Layering: controllers are Hono-free and return `Result<T, XxxFailure>` for anyth
 **Adding a new error code** (the recipe):
 
 1. Add the kebab-case code to `ApiErrorCodes`, its status to `ApiErrorStatusByCode` (1:1 — a code needing two statuses is two codes), and its English template to `ApiErrorEnglishByCode` (i18next `{{param}}` syntax for any params, typed in `ApiErrorParams`). The status places the code in its class's `CodeFor<status>` automatically — throw it via that class.
-2. Add the identical template as `errors.<code>` in `packages/i18n/locales/en.json` — the i18n suite pins completeness and wording equality against the exported maps. CI's path filter will NOT run that suite for an api-only edit: run `pnpm -C packages/i18n test` locally.
+2. Add the identical template as `errors.<code>` in `packages/i18n/locales/en.json` — the i18n suite pins completeness and wording equality against the exported maps.
 3. Mirror the code in `apps/web`'s hand-rolled `ApiErrorCode` (its Equals pin fails to compile otherwise), and add the matching `pulls.briefError.<code>` copy. That lookup is total by a template-literal key type, so a missing entry breaks `apps/web`'s typecheck. The two catalog blocks are different copy: `errors.<code>` is the wire line, `pulls.briefError.<code>` is what a reader sees.
 4. A param value must never carry free-form upstream text unless pre-sanitized (`sanitizeErrorDetail` from `logging`).
 
@@ -32,11 +32,11 @@ Security collapses stay at the per-domain handlers, BEFORE the wire: internal vo
 
 ## Domain layout (enforced, don't weaken)
 
-Every catalog domain is a folder with a closed role set at root — new endpoints follow it, no exceptions:
+Every catalog domain is a folder with a closed role set at root; new endpoints follow it:
 
 - `index.ts` — the `xxxRoute` factory; composition only.
-- `handler.ts` — a `createHandlers(deps)` factory, the module's DEFAULT export, returning the domain's handlers object (import sites bind it as `createXxxHandlers`). Members parse/validate (Zod), call the controller, judge posture, and throw `ApiError` subclasses; success = plain `c.json(...)`. The handler derives the tenant and passes `tenant: TenantRepository` down.
-- `controller.ts` — a single `xxxController` object, the module's DEFAULT export (the one carve-out from named-exports-only); op functions module-private, verb-first, 1:1 with handlers. Hono-free.
+- `handler.ts` exports a named `createXxxHandlers(deps)` factory returning the domain's handlers object. Members parse and validate (Zod), call the controller, judge posture, and throw `ApiError` subclasses; success is a plain `c.json(...)`. The handler derives the tenant and passes `tenant: TenantRepository` down. A handler never calls the controller inside the response expression; the result lands in a named const first.
+- `controller.ts` exports a single named `xxxController` object; op functions module-private, verb-first, 1:1 with handlers. Hono-free.
 - `schemas.ts` / `utils.ts` (generic only) / `consts.ts` / `types.ts` (incl. the domain's `XxxControllerDeps` — narrow slices, never `AppDeps`; `log: Logger` rides deps).
 - `logic/` — domain business logic; never at root, never in `utils.ts`.
 
@@ -76,16 +76,16 @@ Tests: full-URL wire suites stay in `test/` (the byte-identity proof); unit test
 
 Every domain route declares its operation through the product router — declaration and mounting are one statement, so an endpoint cannot exist without a catalog descriptor. Composing the app IS registering: the root commit stamps each declaration's full `METHOD /api/...` endpoint into the registry, and `product-operations.manifest.json` is that registry rendered.
 
-Adding or renaming an operation means regenerating the manifest (`pnpm -C packages/api manifest`) and committing it — `manifest:check` fails on drift. The root `dev` and `app:host` scripts run the write path before starting, so a local run leaves the change in the working tree ready to commit. `build` only verifies — a build must never mutate a tracked source.
+Adding or renaming an operation means regenerating the manifest (`pnpm -C apps/api manifest`) and committing it — `manifest:check` fails on drift. The root `dev` and `app:host` scripts run the write path before starting, so a local run leaves the change in the working tree ready to commit. `build` only verifies — a build must never mutate a tracked source.
 
 `--check` always composes and judges by bytes, whatever the timestamps say; the write path itself skips by mtime, so a normal dev start pays nothing.
 
-The manifest is also one half of a both-directions gate: EVERY operation needs exactly one entry in `packages/cli/product-operations.map.json` — a `mergebrief` command, a documented expiring gap, or a reasoned `webOnly` note. Every entry there must in turn name an operation the manifest carries.
+The manifest is also one half of a both-directions gate: EVERY operation needs exactly one entry in `apps/cli/product-operations.map.json` — a `mergebrief` command, a documented expiring gap, or a reasoned `webOnly` note. Every entry there must in turn name an operation the manifest carries.
 
 ## Tests
 
-`test/webhook.test.ts` = integration via `app.request()` against `persistence/testing`'s PGlite harness (real migrations + a `graphile_worker` stub standing in for the real worker schema — tests only; the compose smoke uses real graphile). Payloads are built inline (shapes cribbed from `packages/github/test/fixtures/*.json`, not imported) and signed with `@octokit/webhooks-methods` `sign`. Zero network, zero LLM calls.
+`test/webhook.test.ts` = integration via `app.request()` against `persistence/testing`'s PGlite harness (real migrations + a `graphile_worker` stub standing in for the real worker schema — tests only; the compose smoke uses real graphile). Payloads follow the shapes in `packages/github/test/fixtures/*.json` and are signed with `@octokit/webhooks-methods` `sign`. Zero network, zero LLM calls.
 
 ## Verification
 
-`pnpm -C packages/api typecheck` / `test` / `manifest:check` (the operation manifest matches the composed app); repo-root `pnpm lint`.
+`pnpm -C apps/api manifest:check` proves the operation manifest matches the composed app.

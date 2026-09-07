@@ -1,4 +1,4 @@
-# packages/worker — agent notes
+# apps/worker — agent notes
 
 The long-lived background worker. Drains graphile-worker's `generate` jobs — the ones `persistence`'s `createIngestRoutines` enqueues — and produces the PR's artifacts: shared Brief, comparison marks, carry-over hunk spans, revision narrative, and pre-warmed delta cores (one per distinct checkpoint SHA, huge-span skip honored). The generation engine is `brief-core`, reused as-is behind its `Generator` port.
 
@@ -22,7 +22,7 @@ What the layout can't show:
 - **Abort is not a failure**: supersession → terminal `superseded`, `attempts` untouched, NO graphile retry, no salvage/dump.
 - **No double-spend:** brief and delta cores are skip-if-stored; marks and narratives are content-addressed upserts. A retry pays only for what a prior attempt didn't finish.
 - **Error classification:** permanent failures (404/406, deterministic generation failures) are marked `failed` and NOT rethrown; transient ones (429/5xx/network) are marked and rethrown so graphile owns retry/backoff.
-- **Only `main.ts` reads `process.env`** (`loadConfig(env)` everywhere else). The generator block comes from the instance config (`MERGEBRIEF_CONFIG` → `mergebrief.config.yaml`, else zero-config defaults); BYOK keys resolve by env-var NAME (`generator.apiKeyEnv`) — never from DB or repo config. The tracker root is built there too (`GenerateTaskDeps.trackerRoot`: the env and the `contextSources:` block, tokens by env-var NAME) after `checkConfiguredTrackerReads` refuses boot on a listed tracker it cannot read; the task binds GitHub's transport per job, offers Notion's only to installation jobs, and resolves one read per bound slot when a core needs the ticket.
+- **`main.ts` is the composition root and the only reader of `process.env`**; everything else takes `env` or its values as parameters (`loadConfig(env)`), brief-core's helpers included. The generator block comes from the instance config (`MERGEBRIEF_CONFIG` → `mergebrief.config.yaml`, else zero-config defaults); BYOK keys resolve by env-var NAME (`generator.apiKeyEnv`) — never from DB or repo config. The tracker root is built there too (`GenerateTaskDeps.trackerRoot`: the env and the `contextSources:` block, tokens by env-var NAME) after `checkConfiguredTrackerReads` refuses boot on a listed tracker it cannot read; the task binds GitHub's transport per job, offers Notion's only to installation jobs, and resolves one read per bound slot when a core needs the ticket.
 - **Repo-config is fail-open:** nothing in the `.mergebrief/` phase may fail a generation — fetch failures become loud `fetch-failed` outcomes, invalid files are rejected whole, and an unexpected crash degrades to no-config. Per-file outcomes are recorded on the generation row BEFORE the model call; the policy snapshot rides the brief artifact.
 - **Entry-comment draft gate:** the Entry comment stays off draft PRs unless `.mergebrief/settings.yaml` opts in; the delete-only sweep runs ONLY on known-off settings (a settings fetch failure suppresses posting but never deletes a live comment).
 - **The daily generation cap gates ONE boundary**: the check sits in `runGeneration` before `markRunning` and any GitHub/provider call, so a run never counts itself.
@@ -30,7 +30,7 @@ What the layout can't show:
   - The counter sums ATTEMPTS in the generation store per `repo_id` and UTC day. Accuracy assumes the SINGLE-SLOT runner (`DEFAULT_CONCURRENCY = 1` in `runner.ts`); the lockless gate at concurrency C admits up to `cap + C - 1` runs.
 - **One scheduled job, and it is not tenant-scoped**: `sweep-audit` runs on graphile's cron (`SWEEP_AUDIT_CRONTAB`, daily) and calls persistence's instance-wide `sweepAuditLog` (retention is an operator env setting — no ctx to bind). Unset retention deletes nothing; a window under the 30-day floor is refused. Worker-only: nothing on a request path may call it.
 - **Migrations at boot are idempotent** and ordered app-schema → queue-schema (`startWorker`); the `graphile_worker` schema stays graphile-owned.
-- **Logging goes through the `packages/logging` boundary**: `main.ts` builds the one process logger; the task takes it via `GenerateTaskDeps.log` and stamps `{prId, headSha}` child bindings on every job line; graphile lifecycle logs ride `createGraphileLogFactory`.
+- **One process logger**: `main.ts` builds it; the task takes it via `GenerateTaskDeps.log` and stamps `{prId, headSha}` child bindings on every job line; graphile lifecycle logs ride `createGraphileLogFactory`.
   - The first-class `evt` names minted here — `job.fail`, `job.retries.exhausted` (`attempts === max_attempts`), `provider.error`, `spend.cap.trip` — come ONLY from the taxonomy table in `docs/self-host/observability.md`.
   - JOB/PROVIDER failure logs are MESSAGE-ONLY (no `err` field): provider cause chains may carry request contents, and the URL scrub targets URL-shaped secrets, not prompt/diff payloads. Boot failures (`main.ts` catch) are exempt — nothing provider-shaped reaches them, and the `err` field keeps the stack the operator needs.
 
@@ -42,4 +42,4 @@ What the layout can't show:
 
 ## Verification
 
-`pnpm -C packages/worker typecheck` / `test`; repo-root `pnpm lint`. Runnable entry: `pnpm -C packages/worker start` (needs DATABASE_URL, GitHub App creds, and the provider key — see `src/config.ts`).
+Runnable entry: `pnpm -C apps/worker start` (needs `DATABASE_URL`, the GitHub App credentials and the provider key; see `src/config.ts`).

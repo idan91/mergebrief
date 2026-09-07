@@ -8,15 +8,11 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 
 ## Map
 
-**Entry point: `src/index.ts`** — the package's only export (`package.json` `exports["."]`); every public symbol is re-exported there, grouped by folder. Start reading there.
-
 What the layout can't show:
 
 - HMAC verification is raw-body and constant-time (`webhook/verify.ts`).
-- `auth/retry.ts` tunes retry for every Octokit constructed here.
 - `operations/repo-file.ts` reads with ref unset = default branch (the trust rule).
 - `operations/collaborators.ts` lists with affiliation ALL (org/team-granted included).
-- `operations/resolve-thread.ts` walks reviewThreads to map rootCommentId → thread node id.
 
 ## Invariants (enforced, don't weaken)
 
@@ -35,7 +31,3 @@ What the layout can't show:
 ## Test fixtures
 
 `test/fixtures/*.json` are sanitized payloads from `@octokit/webhooks-examples`, copied in, never imported at test time. A live smoke re-verifies parsing against real captured deliveries.
-
-## Verification
-
-`pnpm -C packages/github typecheck` / `test`; repo-root `pnpm lint`.

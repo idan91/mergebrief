@@ -1,4 +1,4 @@
-# packages/cli — agent notes
+# apps/cli — agent notes
 
 The `mergebrief` CLI: humans and AI agents driving the read/write API. Ships as a single-file bundle (`dist/mergebrief.js`, tsup, no workspace runtime deps).
 
@@ -32,4 +32,4 @@ What the layout can't show:
 
 ## Verification
 
-`pnpm -C packages/cli typecheck` / `test` / `build` / `docs:check` (README flag appendix current) / `map:check` (operation map exhaustive, commands real); repo-root `pnpm lint`.
+`pnpm -C apps/cli typecheck` / `test` / `build` / `docs:check` (README flag appendix current) / `map:check` (operation map exhaustive, commands real); repo-root `pnpm lint`.

@@ -163,3 +163,12 @@ single number, lines-only.
 - Every domain conversion must be wire-identical — same status, body,
   headers (`no-store`), GitHub call count/order, DB writes — or it does not
   merge.
+
+## Update 2026-09-06
+
+Controllers and handlers are named exports: `handler.ts` exports
+`createXxxHandlers`, `controller.ts` exports `xxxController`. The
+default-export carve-out this record granted is withdrawn; the root rule
+(named exports only, default exports where a framework reads one) applies
+to `apps/api` without exception. The 14 files still default-exporting keep
+a scoped lint override until their migration ticket lands.

@@ -6,13 +6,7 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 
 ## Map
 
-**Entry point: `src/index.ts`** — the package's process-side export (`package.json` `exports["."]`). `logging/sanitize` is the browser-safe pure subpath; it must never import `logger.ts` or pino.
-
-What the layout can't show:
-
-- `sanitizeErrorDetail` (`sanitize.ts`) sanitizes free-form error text leaving the process: first line only, URLs redacted (`file://` included), tokens redacted, 300-char cap.
-- `REDACT_PATHS` and the err serializer live in `logger.ts`.
-- Tests inject `captureDestination` and assert on real NDJSON output.
+`logging/sanitize` is the browser-safe pure subpath; it must never import `logger.ts` or pino. `sanitizeErrorDetail` (`sanitize.ts`) sanitizes free-form error text leaving the process: first line only, URLs redacted (`file://` included), tokens redacted, 300-char cap.
 
 ## Invariants (enforced, don't weaken)
 
@@ -23,9 +17,5 @@ What the layout can't show:
 - **The two mechanisms cover different threats, and both are needed.** Key-path redaction protects secrets WE hold and name (a `token` field); content scrubbing protects secrets EMBEDDED in prose we do not control (a provider's error text quoting the key it rejected). Message-only provider failure logs depend entirely on the content scrub.
 - **One scrub vocabulary, two exits.** `scrub.ts` owns the patterns; the log boundary and `sanitizeErrorDetail` both consume them, so a credential closed on one path cannot leak through the other. They differ in exactly one respect: logs exempt `file://` (ESM stack frames), error detail does not (detail is never a stack).
 - **`createLogger({ env })` is the composition seam**: `LOG_LEVEL` (default `info`) picks the level; format is NODE_ENV-decided (pino-pretty transport only when `development`). An unknown `LOG_LEVEL` throws — misconfiguration fails loudly at boot.
-- **Framework-free**: no Hono, no graphile imports (the graphile adapter is structurally typed). The Hono request middleware lives in `packages/api`, deliberately outside this package.
+- **Framework-free**: no Hono, no graphile imports (the graphile adapter is structurally typed). The Hono request middleware lives in `apps/api`, deliberately outside this package.
 - **String level labels** (`"level":"warn"`): part of the operator-facing line shape documented in `docs/self-host/observability.md`; changing the rendering is a breaking change post-OSS-cutover.
-
-## Verification
-
-`pnpm -C packages/logging typecheck` / `test`; repo-root `pnpm lint`.
