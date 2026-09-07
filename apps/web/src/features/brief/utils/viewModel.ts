@@ -36,7 +36,7 @@ export { GroupViewKinds } from "./remainder";
  * counts-as-severity, never an aggregate glyph.
  */
 export interface GroupHeaderRisk {
-  /** Chips rendered individually — floor-first, then first appearance. */
+  /** Chips rendered individually, floor-first, then first appearance. */
   shown: RiskToken[];
   /** Attributes whose every firing in this group is de-emphasized ("+n"). */
   deEmphasized: RiskToken[];
@@ -265,24 +265,24 @@ export function buildBriefViewModel(
           source: "built-in",
           deEmphasized: false,
         } satisfies AttributeDisplayMeta);
-      const flag = {
+      const flag: RiskFlag = {
         id: `${chunk.id}-${attr}-${index}`,
         attr,
         chunkId: chunk.id,
         file: chunk.file,
         groupId,
-        ...(isBuiltInAttribute(attr)
-          ? { descriptionKey: RISK_DESCRIPTION_KEYS[attr] }
-          : meta.criteria !== undefined
-            ? { criteria: meta.criteria }
-            : {}),
         source: meta.source,
         deEmphasized: meta.deEmphasized,
-        ...(meta.implication !== undefined
-          ? { implication: meta.implication }
-          : {}),
-        ...(note !== undefined ? { note } : {}),
-      } satisfies RiskFlag;
+      };
+
+      if (isBuiltInAttribute(attr)) {
+        flag.descriptionKey = RISK_DESCRIPTION_KEYS[attr];
+      } else if (meta.criteria !== undefined) {
+        flag.criteria = meta.criteria;
+      }
+      if (meta.implication !== undefined) flag.implication = meta.implication;
+      if (note !== undefined) flag.note = note;
+
       flags.push(flag);
       flagsById.set(flag.id, flag);
       const groupFlags = flagsByGroup.get(groupId);
@@ -291,7 +291,7 @@ export function buildBriefViewModel(
     }
   }
 
-  return {
+  const viewModel: BriefViewModel = {
     groups,
     flags,
     flagsById,
@@ -304,10 +304,13 @@ export function buildBriefViewModel(
       sumLoc(brief.chunks, "deleted") + (unattributed?.deleted ?? 0),
     totalCoreAdded: sumLoc(coreOnly, "added"),
     totalCoreDeleted: sumLoc(coreOnly, "deleted"),
-    ...(unattributed !== undefined ? { unattributed } : {}),
     chunkToGroup,
     riskMetaByChunk,
   };
+
+  if (unattributed !== undefined) viewModel.unattributed = unattributed;
+
+  return viewModel;
 }
 
 /**
@@ -403,11 +406,8 @@ function sortByConcern(chunks: BriefChunk[]): BriefChunk[] {
 }
 
 /**
- * @description Orders `groups` by the Brief's Reading order when one is
- * present and valid, attaching each group's step index + why-line; otherwise
- * preserves source order. Re-verifies the permutation defensively:
- * `validation.ts` already drops an invalid `readingOrder`, but callers can
- * hand a `Brief` built outside that parser (fixtures, tests).
+ * Recheck the reading-order permutation because fixtures can bypass validation.ts.
+ * Invalid or absent orders preserve source order.
  */
 function orderGroupsByReadingOrder(
   groups: AttributedGroupView[],
@@ -470,7 +470,7 @@ function sumLoc(chunks: BriefChunk[], key: keyof BriefChunk["loc"]): number {
   return chunks.reduce((total, chunk) => total + chunk.loc[key], 0);
 }
 
-/** Ranges arrive engine-canonical (disjoint, ascending) — a plain sum counts. */
+/** Ranges arrive engine-canonical (disjoint, ascending), a plain sum counts. */
 function sumRanges(ranges: LineRange[]): number {
   return ranges.reduce(
     (total, range) => total + (range.end - range.start + 1),
@@ -505,13 +505,13 @@ export interface AttributeRailEntry {
 
 export interface AttributeRail {
   entries: AttributeRailEntry[];
-  /** A floor attribute fired somewhere — the rail defaults open. */
+  /** A floor attribute fired somewhere, the rail defaults open. */
   floorFired: boolean;
 }
 
 /**
  * Build the attribute-keyed jump-rail: fired attributes with
- * their carrying groups in story order — floor pinned first, then first
+ * their carrying groups in story order, floor pinned first, then first
  * appearance; DE-EMPHASIZED firings are excluded entirely (a group carries
  * an attribute only via a loud firing). Attribute-keyed, never group-ranked.
  */

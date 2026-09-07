@@ -1,12 +1,9 @@
-// Own-comment reconciliation: server-backed wins, exact join on review id.
-// Fetched threads carrying a review id the reviewer's submits recorded are
-// the reviewer's own; the local session record demotes to a pointer (keeping
-// disposition/evidence links) and any local DRAFT matching an own thread
-// flips to submitted, so a missed sessionStorage flip never resurrects
-// posted drafts after the first refetch.
+// Server-backed threads win on exact review-id joins while local records retain links.
+// Matching drafts must become submitted so a missed local flip cannot resurrect a post.
 import { describe, expect, it } from "vitest";
 import type { ReviewComment } from "../../review/utils/comments";
-import type { ConversationThread } from "../types";
+import type { ConversationComment, ConversationThread } from "../types";
+import type { Mutable } from "types";
 import {
   demotedSubmittedCommentIds,
   reconcileOwnComments,
@@ -46,6 +43,17 @@ function serverThread(overrides: {
   reviewId?: number;
   body?: string;
 }): ConversationThread {
+  const rootComment: Mutable<ConversationComment> = {
+    commentId: overrides.rootCommentId,
+    author: { login: "me", isBot: false },
+    body: overrides.body ?? "my note",
+    createdAt: "2026-07-07T10:00:00Z",
+    url: `https://example.test/c/${overrides.rootCommentId}`,
+  };
+
+  if (overrides.reviewId !== undefined)
+    rootComment.reviewId = overrides.reviewId;
+
   return {
     rootCommentId: overrides.rootCommentId,
     path: overrides.path ?? "src/a.ts",
@@ -54,18 +62,7 @@ function serverThread(overrides: {
     subjectType: "LINE",
     isResolved: false,
     isOutdated: false,
-    comments: [
-      {
-        commentId: overrides.rootCommentId,
-        author: { login: "me", isBot: false },
-        body: overrides.body ?? "my note",
-        createdAt: "2026-07-07T10:00:00Z",
-        url: `https://example.test/c/${overrides.rootCommentId}`,
-        ...(overrides.reviewId === undefined
-          ? {}
-          : { reviewId: overrides.reviewId }),
-      },
-    ],
+    comments: [rootComment],
     hasMoreComments: false,
   };
 }
@@ -73,7 +70,7 @@ function serverThread(overrides: {
 const MY_REVIEW = 4_647_663_464;
 
 describe("reconcileOwnComments", () => {
-  it("identifies own threads by the recorded review id and pointers a submitted local to its thread", () => {
+  it("links submitted locals to own threads by recorded review id", () => {
     const result = reconcileOwnComments(
       [localComment({ id: "local-1" })],
       [
@@ -92,7 +89,7 @@ describe("reconcileOwnComments", () => {
     expect(result.resurrectedDraftIds).toEqual([]);
   });
 
-  it("joins per comment on (path, line, side) — old-side maps to LEFT", () => {
+  it("joins on path, line and side with old-side mapped to LEFT", () => {
     const result = reconcileOwnComments(
       [
         localComment({ id: "left-1", side: "old", endLine: 20 }),
@@ -142,7 +139,7 @@ describe("reconcileOwnComments", () => {
     expect(result.pointers.get("b")).toBe(9001);
   });
 
-  it("flips a local DRAFT matching an own thread (missed-flip resurrection closed)", () => {
+  it("marks matching local drafts submitted after a missed flip", () => {
     // The submit landed on GitHub but the sessionStorage flip was lost
     // (navigate-away mid-request). After the first refetch the server-backed
     // record wins: the draft must NOT re-ship on the next submit.
@@ -155,10 +152,10 @@ describe("reconcileOwnComments", () => {
     expect(result.pointers.get("ghost-draft")).toBe(9001);
   });
 
-  it("gives exact body matches global priority over an earlier local's fallback", () => {
+  it("prioritizes exact body matches over earlier fallback candidates", () => {
     // Two locals share one anchor; only ONE server thread exists and its
     // body exactly matches the LATER draft. The earlier local must not
-    // steal it via fallback — the exact match wins, so the posted draft
+    // steal it via fallback, the exact match wins, so the posted draft
     // flips (missed-flip closure) and the unposted one stays a draft.
     const result = reconcileOwnComments(
       [
@@ -183,7 +180,7 @@ describe("reconcileOwnComments", () => {
     expect(result.resurrectedDraftIds).toEqual(["posted"]);
   });
 
-  it("does not join against a thread with no side (exact side required)", () => {
+  it("requires an exact side to join a thread", () => {
     const sideless: ConversationThread = {
       ...serverThread({ rootCommentId: 9001, reviewId: MY_REVIEW }),
     };
@@ -221,7 +218,7 @@ describe("reconcileOwnComments", () => {
     expect(result.pointers.has("still-draft")).toBe(false);
   });
 
-  it("returns empty results with no recorded review ids (nothing submitted from here)", () => {
+  it("returns empty results when no review ids were recorded", () => {
     const result = reconcileOwnComments(
       [localComment({ id: "local-1" })],
       [serverThread({ rootCommentId: 9001, reviewId: MY_REVIEW })],
@@ -254,7 +251,7 @@ describe("demotedSubmittedCommentIds display half", () => {
     ).toEqual(new Set());
   });
 
-  it("demotes nothing with no own threads (conversation not loaded)", () => {
+  it("demotes nothing before own threads load", () => {
     expect(
       demotedSubmittedCommentIds(
         [localComment({ id: "local-1", status: "submitted" })],

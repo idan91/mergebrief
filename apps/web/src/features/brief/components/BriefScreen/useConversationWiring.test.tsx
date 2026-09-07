@@ -1,8 +1,5 @@
 // @vitest-environment jsdom
-// The INLINE (at-chunk) conversation wiring: this hook builds the composer the
-// diff-embedded thread rows get, so a dropped field here silently removes an
-// affordance from the chunk view while the section keeps it. Pins
-// the resolution pass-through and its refetch target.
+// Inline composers must retain the section composer's resolution affordance and refetch target.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -17,6 +14,7 @@ import {
 import type { Brief, BriefChunk } from "../../types";
 import { buildBriefViewModel } from "../../utils";
 import { useConversationWiring } from "./useConversationWiring";
+import type { Mutable } from "types";
 
 afterEach(cleanup);
 
@@ -104,12 +102,15 @@ function plan(
         : ({ kind: "ready", conversation } as const),
     retry: false,
   };
-  return {
+  const conversationPlan: Mutable<ConversationPlan> = {
     // Structural stand-in for the real descriptor (test-only escape hatch).
     queryOptions: descriptor as unknown as ConversationPlan["queryOptions"],
     postReply: vi.fn(),
-    ...(resolution === undefined ? {} : { resolution }),
   };
+
+  if (resolution !== undefined) conversationPlan.resolution = resolution;
+
+  return conversationPlan;
 }
 
 function renderWiring(
@@ -143,7 +144,7 @@ function renderWiring(
   return { result, invalidate };
 }
 
-describe("useConversationWiring — resolution", () => {
+describe("useConversationWiring, resolution", () => {
   it("passes the plan's resolution to the inline composer", () => {
     const setResolved = vi.fn();
     const refetchCapability = vi.fn();
@@ -154,13 +155,13 @@ describe("useConversationWiring — resolution", () => {
     expect(resolution?.canResolve).toBe(true);
     expect(resolution?.setResolved).toBe(setResolved);
     expect(resolution?.refetchCapability).toBe(refetchCapability);
-    // The inline refetch targets the SHARED conversation key — the section and
+    // The inline refetch targets the SHARED conversation key, the section and
     // the at-chunk rows read the same query.
     resolution?.refetchConversation();
     expect(invalidate).toHaveBeenCalledWith({ queryKey: QUERY_KEY });
   });
 
-  it("carries no resolution when the plan has none (local path)", () => {
+  it("carries no resolution on the local path", () => {
     expect(
       renderWiring(plan()).result.current.conversationComposer?.resolution,
     ).toBeUndefined();
@@ -171,10 +172,10 @@ describe("useConversationWiring — resolution", () => {
 });
 
 // The filter reaches the DIFF, not just the digest. Nothing else in the suite
-// would notice if this memo stopped filtering (or dropped its filter dep) —
+// would notice if this memo stopped filtering (or dropped its filter dep),
 // the section's own tests would stay green while the diff quietly kept every
 // thread.
-describe("useConversationWiring — inline filtering", () => {
+describe("useConversationWiring, inline filtering", () => {
   async function inlineRows(filter?: ConversationFilter) {
     const { result } = renderWiring(
       plan(undefined, conversationWith(["alice", "bob"])),
@@ -213,10 +214,10 @@ describe("useConversationWiring — inline filtering", () => {
 });
 
 // The Filter disclosure renders in the toolbar ABOVE the section, outside
-// its disclosure body, so this hook — not the section — owns the facets it
+// its disclosure body, so this hook, not the section, owns the facets it
 // draws.
-describe("useConversationWiring — filter facets", () => {
-  it("exposes the RECONCILED filter — a ghost selection never reaches the receipt", async () => {
+describe("useConversationWiring, filter facets", () => {
+  it("removes ghost reviewers from the filter exposed to the receipt", async () => {
     // `?reviewers=ghost` filters nothing (degrade-to-looser), so the
     // trigger receipt must not count it: `applied` is what the disclosure
     // renders, pressed states and All/None/Clear included.
@@ -245,7 +246,7 @@ describe("useConversationWiring — filter facets", () => {
       "alice",
       "bob",
     ]);
-    // Bob's thread is the one the diff loses — the pill must say so.
+    // Bob's thread is the one the diff loses, the pill must say so.
     expect(facets?.hiddenInlineThreads).toBe(1);
   });
 

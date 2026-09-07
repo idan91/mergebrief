@@ -11,7 +11,7 @@ import type { SessionWriteGateway } from "./writeGateway";
 import type { SessionWriteResult } from "./writes";
 
 /**
- * @description Session/domain state of the Review Session — the shared, persisted half.
+ * @description Session/domain state of the Review Session, the shared, persisted half.
  */
 export interface ReviewSessionState {
   /**
@@ -25,7 +25,7 @@ export interface ReviewSessionState {
   reviewComments: ReviewComment[];
   reviewOutcome: ReviewOutcome;
   /**
-   * @description Review ids returned by this session's successful submits —
+   * @description Review ids returned by this session's successful submits,
    * the own-comment join keys against fetched conversation threads.
    */
   submittedReviewIds: number[];
@@ -51,7 +51,7 @@ export interface ReviewSessionActions {
    */
   reclassifyGroup: (groupId: string, category: Category) => void;
   /**
-   * Stages a draft comment. Awaits the write and answers whether it LANDED —
+   * Stages a draft comment. Awaits the write and answers whether it LANDED,
    * the composer closes on success rather than on click, so a failure leaves
    * it open holding its text and the same action still available.
    */
@@ -74,13 +74,13 @@ export interface ReviewSessionActions {
   toggleComment: (id: string) => void;
   /**
    * @description After a successful submit: exactly the POSTED comments flip
-   * to `submitted` (ids captured at click time — a draft added or edited
+   * to `submitted` (ids captured at click time, a draft added or edited
    * while the request was in flight stays a draft), so a later re-submit
    * ships only comments GitHub never saw.
    */
   markCommentsSubmitted: (ids: readonly string[]) => void;
   /**
-   * @description Record a successful submit's created review id — the
+   * @description Record a successful submit's created review id, the
    * server-backed join key for own-comment reconciliation.
    */
   recordSubmittedReview: (reviewId: number) => void;
@@ -102,7 +102,7 @@ export interface ReviewSessionStoreValue extends ReviewSessionState {
   /**
    * Carried drafts deleted from the attention list whose file this Brief
    * renders nowhere: the store never held them, so their absence cannot say
-   * whether the reviewer acted. Not session data — this tab's own action.
+   * whether the reviewer acted. Not session data, this tab's own action.
    */
   deletedMissingDrafts: Set<string>;
   actions: ReviewSessionActions;
@@ -118,7 +118,7 @@ function toggle<T>(set: ReadonlySet<T>, value: T): Set<T> {
 }
 
 /**
- * Comment id unique against the current list — probes for a free suffix rather
+ * Comment id unique against the current list, probes for a free suffix rather
  * than deriving one from `length` (which collides after a delete) and needs no
  * secure context the way `crypto.randomUUID()` would.
  */
@@ -158,7 +158,7 @@ export function deriveInitialState(model: BriefViewModel): ReviewSessionState {
 }
 
 /**
- * Restores one set's membership to a captured value — the revert half of an
+ * Restores one set's membership to a captured value, the revert half of an
  * optimistic toggle.
  */
 function withMembership<T>(
@@ -173,15 +173,9 @@ function withMembership<T>(
 }
 
 /**
- * The per-brief session store. Every action fires EXACTLY ONE operation —
- * no batching, no debounce, no retry machinery — and applies optimistically
- * so the screen answers the click immediately. A failed write REVERTS: the
- * UI returns to the state where that same action is still available, which
- * is the whole of the recovery story (a retry is the action again).
- *
- * `getGateway` is a getter, not a value: the model behind the wire mapping is
- * re-derived on a revision switch while this store survives it. Null gateway
- * = no writes wired (the local file-backed path), where actions stay local.
+ * Each optimistic action sends one operation and reverts on failure; retry is the action again.
+ * Read the gateway lazily because the wire model changes while this store survives.
+ * A null gateway keeps the file-backed development path local.
  */
 export function createReviewSessionStore(
   initial: ReviewSessionState,
@@ -304,18 +298,24 @@ export function createReviewSessionStore(
           void landed(
             (gateway) => gateway.reclassify(groupId, category),
             () =>
-              set((current) => ({
-                ...(previous === undefined
-                  ? {}
-                  : {
-                      dominants: { ...current.dominants, [groupId]: previous },
-                    }),
-                reclassifiedGroups: withMembership(
-                  current.reclassifiedGroups,
-                  groupId,
-                  wasReclassified,
-                ),
-              })),
+              set((current) => {
+                const rollback: Partial<ReviewSessionState> = {
+                  reclassifiedGroups: withMembership(
+                    current.reclassifiedGroups,
+                    groupId,
+                    wasReclassified,
+                  ),
+                };
+
+                if (previous !== undefined) {
+                  rollback.dominants = {
+                    ...current.dominants,
+                    [groupId]: previous,
+                  };
+                }
+
+                return rollback;
+              }),
           );
         },
         async saveComment(comment) {
@@ -498,7 +498,7 @@ export function createReviewSessionStore(
   });
 }
 
-/** The dispositions the ids currently hold — an optimistic write's undo. */
+/** The dispositions the ids currently hold, an optimistic write's undo. */
 function capture(
   dispositions: Record<string, Disposition>,
   ids: readonly string[],
@@ -507,7 +507,7 @@ function capture(
 }
 
 /**
- * Put the captured dispositions back — but only where the value this action
+ * Put the captured dispositions back, but only where the value this action
  * WROTE is still the one on screen. A newer decision on the same flag owns it
  * now, and restoring over it would leave the screen behind the server.
  */

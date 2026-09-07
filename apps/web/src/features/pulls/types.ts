@@ -1,7 +1,7 @@
 // Read-API PR shapes + boundary guards. Mirrors the api package's `pr-view`
 // response contract. Hand-rolled guards returning `Result` (no zod in this
 // bundle); API responses are parsed at the boundary, never cast.
-import type { Result as SharedResult, ValueOf } from "types";
+import type { Mutable, Result as SharedResult, ValueOf } from "types";
 
 type Result<T> = SharedResult<T, string>;
 
@@ -28,7 +28,7 @@ export const GenerationStatuses = {
 export type GenerationStatus = ValueOf<typeof GenerationStatuses>;
 
 /**
- * Hand-rolled mirror of persistence's `GenerationFailureCode` — modeled data
+ * Hand-rolled mirror of persistence's `GenerationFailureCode`, modeled data
  * inside a 200, so it never rides the wire-error vocabulary. An unknown code
  * degrades to the generic failed line rather than failing the parse: the
  * server may ship a code this bundle predates.
@@ -86,39 +86,35 @@ export type LastReviewUnavailableReason = ValueOf<
 >;
 
 /**
- * The per-reviewer "since my last review" comparison on PR meta. The wire
- * union is shape-discriminated (`unavailable` key vs payload); the
- * parsed form adds `kind` so consumers switch without re-probing keys. The
- * field being ABSENT from `comparisons` means the reviewer never submitted —
- * no control at all, nothing to explain.
+ * The wire discriminates by the unavailable key; parsing adds kind for consumers.
+ * An absent comparison means no prior submission and therefore no control to explain.
  */
+export interface AvailableLastReviewComparison {
+  readonly kind: "available";
+  /** False = marks-only tier: still an offer, the delta core was skipped. */
+  readonly deltaAvailable: boolean;
+  readonly baselineSha: string;
+  /** Present when the checkpoint SHA was a briefed head. */
+  readonly baselineIndex?: number;
+}
+
 export type LastReviewComparison =
-  | {
-      readonly kind: "available";
-      /** False = marks-only tier: still an offer, the delta core was skipped. */
-      readonly deltaAvailable: boolean;
-      readonly baselineSha: string;
-      /** Present when the checkpoint SHA was a briefed head. */
-      readonly baselineIndex?: number;
-    }
+  | AvailableLastReviewComparison
   | {
       readonly kind: "unavailable";
       readonly reason: LastReviewUnavailableReason;
     };
 
-/** Comparison availability envelope — additive. */
+/** Comparison availability envelope, additive. */
 export interface PrComparisons {
   readonly previousBrief?: PreviousBriefComparison;
   readonly lastReview?: LastReviewComparison;
 }
 
 /**
- * One browsable Brief revision on PR meta. `baseSha` is PER-ENTRY and
- * critical: the base drifts across revisions (base-branch advance /
- * retarget) and the brief GET is an exact `(pr, base, head)` lookup, so the
- * navigator fetches each revision with ITS OWN base — never the top-level
- * view's. Ordered by `headIndex` ascending; `comparisons` mirrors the
- * top-level envelope (empty object when neither baseline has marks here).
+ * Fetch each revision with its own baseSha: branch advances and retargets change it.
+ * The brief lookup requires the exact pr/base/head tuple, never the top-level view's base.
+ * Entries use ascending headIndex; comparisons mirrors the top-level envelope.
  */
 export interface RevisionSummary {
   readonly headSha: string;
@@ -126,7 +122,7 @@ export interface RevisionSummary {
   readonly headIndex: number;
   readonly createdAt: string;
   /**
-   * When this revision's brief generation started — the conversation cutoff:
+   * When this revision's brief generation started, the conversation cutoff:
    * comments newer than this postdate the brief. Absent on wire bodies from
    * servers predating the field.
    */
@@ -157,17 +153,13 @@ export interface PrSummary {
   /** GitHub draft state; with `viewerIsAuthor` it derives own-draft affordances. */
   readonly draft: boolean;
   /**
-   * Whether the requesting viewer authored this PR — derived server-side per
+   * Whether the requesting viewer authored this PR, derived server-side per
    * request; the author login itself never crosses the wire.
    */
   readonly viewerIsAuthor: boolean;
   /**
-   * Whether the viewer may resolve/unresolve this PR's review threads —
-   * GitHub's own rule (push permission OR authorship), derived server-side.
-   * Read it from PR META ONLY: the list payload falls back to authorship
-   * alone (no per-repo access check runs there), so a `false` on a list row is
-   * not a capability denial. Affordance only — GitHub's mutation-time
-   * enforcement stays the truth.
+   * Read this affordance from PR meta only: list rows omit the push-permission check.
+   * GitHub still enforces push permission or authorship at mutation time.
    */
   readonly viewerCanResolve: boolean;
   readonly generation: GenerationSummary | null;
@@ -175,13 +167,13 @@ export interface PrSummary {
   /** Present on PR-meta responses only; absent on list rows. */
   readonly comparisons?: PrComparisons;
   /**
-   * Instance draft-PR policy — PR-meta only. Drives the own-draft copy states;
+   * Instance draft-PR policy, PR-meta only. Drives the own-draft copy states;
    * the refresh copy must state the CONFIGURED window, never a hardcoded
    * duration.
    */
   readonly draftPolicy?: DraftPolicySummary;
   /**
-   * The browsable revision timeline — present on PR-meta only when
+   * The browsable revision timeline, present on PR-meta only when
    * `briefAvailable` (no brief, no head, no history). Ordered by `headIndex`.
    */
   readonly revisions?: readonly RevisionSummary[];
@@ -189,7 +181,7 @@ export interface PrSummary {
 
 /**
  * The picker's view of `GET /api/pulls`. Logged-out (401) and
- * backend-unavailable (502/503 — GitHub or composition down) are both
+ * backend-unavailable (502/503, GitHub or composition down) are both
  * EXPECTED states the picker renders inline; only contract violations throw.
  */
 export type PullsSession =
@@ -211,7 +203,7 @@ function isStringOrNull(value: unknown): value is string | null {
 
 /**
  * The wire shape of a repo id is a NUMERIC string (bigints are stringified
- * server-side). Anything else is malformed data — and since the picker
+ * server-side). Anything else is malformed data, and since the picker
  * interpolates this into `/repos/{repoId}/...` URLs, a loose string would
  * become an unintended route instead of a rejected response.
  */
@@ -351,15 +343,15 @@ function parseLastReview(
       error: "lastReview.baselineIndex must be a number when present",
     };
   }
-  return {
-    ok: true,
-    value: {
-      kind: "available",
-      deltaAvailable: value["deltaAvailable"],
-      baselineSha: value["baselineSha"],
-      ...(baselineIndex === undefined ? {} : { baselineIndex }),
-    },
+  const available: Mutable<AvailableLastReviewComparison> = {
+    kind: "available",
+    deltaAvailable: value["deltaAvailable"],
+    baselineSha: value["baselineSha"],
   };
+
+  if (baselineIndex !== undefined) available.baselineIndex = baselineIndex;
+
+  return { ok: true, value: available };
 }
 
 /** Absent (list rows) parses to undefined; present must be well-formed. */
@@ -391,17 +383,14 @@ function parseComparisons(value: unknown): Result<PrComparisons | undefined> {
   if (!previousBrief.ok) return previousBrief;
   const lastReview = parseLastReview(value["lastReview"]);
   if (!lastReview.ok) return lastReview;
-  return {
-    ok: true,
-    value: {
-      ...(previousBrief.value === undefined
-        ? {}
-        : { previousBrief: previousBrief.value }),
-      ...(lastReview.value === undefined
-        ? {}
-        : { lastReview: lastReview.value }),
-    },
-  };
+  const comparisons: Mutable<PrComparisons> = {};
+
+  if (previousBrief.value !== undefined) {
+    comparisons.previousBrief = previousBrief.value;
+  }
+  if (lastReview.value !== undefined) comparisons.lastReview = lastReview.value;
+
+  return { ok: true, value: comparisons };
 }
 
 function parseRevision(value: unknown): Result<RevisionSummary> {
@@ -424,21 +413,21 @@ function parseRevision(value: unknown): Result<RevisionSummary> {
     return { ok: false, error: "revision.generatedAt must be a string" };
   }
   // A revision's `comparisons` is the SAME envelope as the top-level one
-  // (empty object when neither baseline has marks) — reuse its guard so the
+  // (empty object when neither baseline has marks), reuse its guard so the
   // two can never drift.
   const comparisons = parseComparisons(value["comparisons"]);
   if (!comparisons.ok) return comparisons;
-  return {
-    ok: true,
-    value: {
-      headSha: value["headSha"],
-      baseSha: value["baseSha"],
-      headIndex: value["headIndex"],
-      createdAt: value["createdAt"],
-      ...(generatedAt === undefined ? {} : { generatedAt }),
-      comparisons: comparisons.value ?? {},
-    },
+  const revision: Mutable<RevisionSummary> = {
+    headSha: value["headSha"],
+    baseSha: value["baseSha"],
+    headIndex: value["headIndex"],
+    createdAt: value["createdAt"],
+    comparisons: comparisons.value ?? {},
   };
+
+  if (generatedAt !== undefined) revision.generatedAt = generatedAt;
+
+  return { ok: true, value: revision };
 }
 
 function parseRevisions(
@@ -491,7 +480,7 @@ export function parsePrSummary(value: unknown): Result<PrSummary> {
     return { ok: false, error: "viewerIsAuthor must be a boolean" };
   }
   // Deliberately NOT required: a server predating the field parses fine and
-  // yields `false` — fail closed, the affordance simply never shows.
+  // yields `false`, fail closed, the affordance simply never shows.
   // Present-but-not-a-boolean is still malformed: coercing a truthy string
   // would hand out a capability the server never granted.
   const viewerCanResolve = value["viewerCanResolve"];
@@ -512,31 +501,27 @@ export function parsePrSummary(value: unknown): Result<PrSummary> {
   if (!revisions.ok) return revisions;
   const draftPolicy = parseDraftPolicy(value["draftPolicy"]);
   if (!draftPolicy.ok) return draftPolicy;
-  return {
-    ok: true,
-    value: {
-      repoId: value["repoId"],
-      repoSlug: value["repoSlug"],
-      prNumber: value["prNumber"],
-      title: value["title"],
-      state: value["state"],
-      baseSha: value["baseSha"],
-      headSha: value["headSha"],
-      briefAvailable: value["briefAvailable"],
-      draft: value["draft"],
-      viewerIsAuthor: value["viewerIsAuthor"],
-      viewerCanResolve: viewerCanResolve ?? false,
-      generation: generation.value,
-      updatedAt: value["updatedAt"],
-      ...(comparisons.value === undefined
-        ? {}
-        : { comparisons: comparisons.value }),
-      ...(revisions.value === undefined ? {} : { revisions: revisions.value }),
-      ...(draftPolicy.value === undefined
-        ? {}
-        : { draftPolicy: draftPolicy.value }),
-    },
+  const summary: Mutable<PrSummary> = {
+    repoId: value["repoId"],
+    repoSlug: value["repoSlug"],
+    prNumber: value["prNumber"],
+    title: value["title"],
+    state: value["state"],
+    baseSha: value["baseSha"],
+    headSha: value["headSha"],
+    briefAvailable: value["briefAvailable"],
+    draft: value["draft"],
+    viewerIsAuthor: value["viewerIsAuthor"],
+    viewerCanResolve: viewerCanResolve ?? false,
+    generation: generation.value,
+    updatedAt: value["updatedAt"],
   };
+
+  if (comparisons.value !== undefined) summary.comparisons = comparisons.value;
+  if (revisions.value !== undefined) summary.revisions = revisions.value;
+  if (draftPolicy.value !== undefined) summary.draftPolicy = draftPolicy.value;
+
+  return { ok: true, value: summary };
 }
 
 export function parsePullsList(value: unknown): Result<PrSummary[]> {

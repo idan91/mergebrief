@@ -19,8 +19,12 @@ function requireAttributed(group: GroupView | undefined): AttributedGroupView {
   return group;
 }
 
-function twoGroupBrief(readingOrder?: unknown) {
-  return {
+type TwoGroupBrief = Omit<Brief, "artifactKind" | "readingOrder"> & {
+  readingOrder?: unknown;
+};
+
+function twoGroupBrief(readingOrder?: unknown): TwoGroupBrief {
+  const brief: TwoGroupBrief = {
     pr: {
       repo: "Idan91/components",
       number: 5,
@@ -75,8 +79,11 @@ function twoGroupBrief(readingOrder?: unknown) {
       },
     ],
     concernView: [{ concern: "implementation", added: 10, deleted: 1 }],
-    ...(readingOrder !== undefined ? { readingOrder } : {}),
   };
+
+  if (readingOrder !== undefined) brief.readingOrder = readingOrder;
+
+  return brief;
 }
 
 describe("riskChipView", () => {
@@ -108,7 +115,7 @@ describe("riskChipView", () => {
 });
 
 describe("buildBriefViewModel", () => {
-  it("groups chunks by chunk.changeGroupId and derives core/supporting buckets", () => {
+  it("groups chunks by changeGroupId into core and supporting buckets", () => {
     const parsed = parseBrief({
       pr: {
         repo: "Idan91/components",
@@ -173,7 +180,7 @@ describe("buildBriefViewModel", () => {
     expect(model.flags[0]?.groupId).toBe("g1");
   });
 
-  it("sums core-chunk-only lines per group and brief-wide beside the full sums", () => {
+  it("sums core-only lines beside full group and brief totals", () => {
     const parsed = parseBrief({
       ...twoGroupBrief(),
       chunks: [
@@ -223,7 +230,7 @@ describe("buildBriefViewModel", () => {
       coreAdded: 4,
       coreDeleted: 1,
     });
-    // Deletion-only core set stays a plain sum — no special casing.
+    // Deletion-only core set stays a plain sum, no special casing.
     expect(requireAttributed(model.groups[1])).toMatchObject({
       coreAdded: 0,
       coreDeleted: 5,
@@ -248,7 +255,7 @@ describe("buildBriefViewModel", () => {
     ]);
   });
 
-  it("orders groups by a valid readingOrder and attaches step index + why-line", () => {
+  it("attaches step indexes and reasons in valid reading order", () => {
     const parsed = parseBrief(
       twoGroupBrief([
         { groupId: "g2", why: "establishes the schema the rest builds on" },
@@ -325,9 +332,9 @@ describe("buildBriefViewModel", () => {
     expect(flag?.descriptionKey).toBe("brief.risk.newAbstraction");
   });
 
-  it("falls back to source order when readingOrder is not a valid permutation, even bypassing the parser", () => {
+  it("uses source order for invalid readingOrder without parser validation", () => {
     // Exercises the viewModel's own defensive re-check (validation.ts already
-    // drops an invalid readingOrder at the parse boundary — this covers a
+    // drops an invalid readingOrder at the parse boundary, this covers a
     // Brief constructed outside that parser, e.g. fixtures or partial mocks).
     const invalid: Brief = {
       ...(parseBrief(twoGroupBrief()) as { ok: true; value: Brief }).value,
@@ -345,7 +352,7 @@ describe("buildBriefViewModel", () => {
   });
 });
 
-describe("buildBriefViewModel — repo-config display weight", () => {
+describe("buildBriefViewModel, repo-config display weight", () => {
   function briefWithRisk() {
     const base = twoGroupBrief();
     // The fixture's empty arrays infer never[]; push through a typed view.
@@ -372,7 +379,7 @@ describe("buildBriefViewModel — repo-config display weight", () => {
     },
   };
 
-  it("marks sources, quiets de-emphasized firings, and un-quiets on floor co-fire", () => {
+  it("marks sources and quiets firings unless a floor attribute co-fires", () => {
     const model = buildBriefViewModel(briefWithRisk(), snapshot);
 
     const billing = model.flags.find((f) => f.attr === "touches-billing");
@@ -398,7 +405,7 @@ describe("buildBriefViewModel — repo-config display weight", () => {
     ).toBe(false);
   });
 
-  it("group header union: floor first, fully-quiet attributes collapse, loud firings keep a chip", () => {
+  it("orders floor chips first and collapses fully quiet attributes", () => {
     const model = buildBriefViewModel(briefWithRisk(), snapshot);
     const g1 = requireAttributed(
       model.groups.find((group) => group.id === "g1"),
@@ -420,7 +427,7 @@ describe("buildBriefViewModel — repo-config display weight", () => {
     expect(g2.headerRisk.deEmphasized).toEqual([]);
   });
 
-  it("without a snapshot everything is a plain built-in loud chip (back-compat)", () => {
+  it("renders loud built-in chips when the snapshot is absent", () => {
     const model = buildBriefViewModel(briefWithRisk());
     expect(
       model.flags.every((f) => f.source === "built-in" && !f.deEmphasized),
@@ -436,7 +443,7 @@ describe("buildBriefViewModel — repo-config display weight", () => {
   });
 });
 
-describe("buildAttributeRail — jump-rail", () => {
+describe("buildAttributeRail, jump-rail", () => {
   const railSnapshot = {
     files: [],
     collisions: [],
@@ -478,7 +485,7 @@ describe("buildAttributeRail — jump-rail", () => {
     );
   });
 
-  it("no floor firing → rail present but floorFired false (collapsed default)", () => {
+  it("shows a collapsed rail when no floor attribute fires", () => {
     const base = twoGroupBrief();
     const chunks: { riskSurface: string[] }[] = base.chunks;
     chunks[0]?.riskSurface.push("hot-path");
@@ -490,8 +497,8 @@ describe("buildAttributeRail — jump-rail", () => {
   });
 });
 
-describe("buildBriefViewModel — unattributed", () => {
-  it("exposes per-file counts and totals, and folds them into the brief totals", () => {
+describe("buildBriefViewModel, unattributed", () => {
+  it("includes per-file counts and totals in the brief totals", () => {
     const parsed = parseBrief({
       ...twoGroupBrief(),
       unattributed: [
@@ -570,7 +577,7 @@ describe("buildBriefViewModel — unattributed", () => {
   });
 });
 
-describe("buildBriefViewModel — remainder group", () => {
+describe("buildBriefViewModel, remainder group", () => {
   it("appends the remainder after attributed groups in source order", () => {
     const parsed = parseBrief({
       ...twoGroupBrief(),
@@ -649,8 +656,8 @@ describe("buildBriefViewModel — remainder group", () => {
   });
 });
 
-describe("buildBriefViewModel — exact totals under overlaps", () => {
-  it("prefers diffTotals over chunk sums (which double-count overlaps)", () => {
+describe("buildBriefViewModel, exact totals under overlaps", () => {
+  it("prefers diffTotals to overlapping chunk sums", () => {
     const parsed = parseBrief({
       ...twoGroupBrief(),
       diffTotals: { added: 10, deleted: 3 },

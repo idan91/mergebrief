@@ -28,6 +28,7 @@ import type { ConversationResult } from "@web/features/conversation/queries";
 import { useMentionPool } from "@web/features/conversation/hooks/useMentionPool";
 import { prefersReducedMotion } from "@web/utils/motion";
 import type { BriefViewModel } from "../../utils/viewModel";
+import type { Mutable } from "types";
 import type { BriefChunk } from "../../types";
 import {
   conversationGroupIds,
@@ -41,17 +42,17 @@ const LANDING_POLL_FRAMES = 90;
 
 export interface UseConversationWiringInput {
   briefId: string;
-  /** The route's conversation plan; absent on the local path — every output
+  /** The route's conversation plan; absent on the local path, every output
    * then self-disables. */
   conversation: ConversationPlan | undefined;
   /** The `?thread=` landing target: opens the section on mount AND on in-app
    * navigation that changes the target after mount. */
   conversationFocusThreadId: number | undefined;
-  /** Reviewer/verdict filter — separate from the plan so a chip click cannot
+  /** Reviewer/verdict filter, separate from the plan so a chip click cannot
    * churn the plan identity the ChunkCard memos ride on. */
   conversationFilter: ConversationFilter | undefined;
   jumpToChunk: (chunkId: string, behavior?: ScrollBehavior) => void;
-  /** Conversation landings are row targets — rows only exist on open cards. */
+  /** Conversation landings are row targets, rows only exist on open cards. */
   ensureChunkOpen: (chunkId: string) => void;
   model: BriefViewModel;
   readingOrderedChunks: BriefChunk[];
@@ -64,11 +65,8 @@ export interface ConversationFilterFacets {
   readonly reviewers: readonly ReviewerFacet[];
   readonly hiddenInlineThreads: number;
   /**
-   * The filter AS APPLIED — reviewer selections nobody on this PR matches
-   * dropped. The trigger's receipt and the panel's pressed states read THIS
-   * one, so a stale shared link (`?reviewers=ghost`) cannot claim an active
-   * filter that filters nothing. Chip clicks build the next state from it
-   * too, writing the dropped login out of the URL.
+   * Applied filter with unmatched reviewers removed. Receipts, pressed states and
+   * chip updates share it so ghost logins cannot claim a filter or persist in the URL.
    */
   readonly applied: ConversationFilter;
 }
@@ -78,7 +76,7 @@ export interface UseConversationWiringValue {
   /** Facets for the Filter disclosure; absent until the conversation resolves. */
   conversationFilterFacets: ConversationFilterFacets | undefined;
   conversationComposer: ThreadComposerWiring | undefined;
-  /** Which groups carry conversation threads — the TocBar's markers. */
+  /** Which groups carry conversation threads, the TocBar's markers. */
   conversationGroupIds: Set<string> | undefined;
   /** Refetches the conversation after a posted inline comment; absent on the
    * local path. */
@@ -107,11 +105,8 @@ export function useConversationWiring(
     submittedReviewIds,
   } = input;
 
-  // Collapsed by default: the section sits ABOVE the change groups, so
-  // expanded-by-default would push the Brief down. A `?thread=` landing opens
-  // it — including when the param arrives via in-app navigation AFTER mount,
-  // which an initializer alone would miss. The effect re-fires only when the
-  // TARGET changes, so the user can still collapse it afterwards.
+  // Collapse initially to keep the brief visible; open on each new thread target,
+  // including navigation after mount. The user may collapse the same target again.
   const [open, setOpen] = useState(conversationFocusThreadId !== undefined);
   useEffect(() => {
     if (conversationFocusThreadId !== undefined) setOpen(true);
@@ -132,9 +127,11 @@ export function useConversationWiring(
   // Inline conversation threads: the same query the section runs (react-query
   // dedupes on the key), disabled on the local path.
   const queryClient = useQueryClient();
+  const conversationOptions =
+    conversation?.queryOptions ??
+    disabledComparisonQuery<ConversationResult>("conversation");
   const conversationQuery = useQuery({
-    ...(conversation?.queryOptions ??
-      disabledComparisonQuery<ConversationResult>("conversation")),
+    ...conversationOptions,
     enabled: conversation !== undefined,
   });
   const conversationData =
@@ -152,7 +149,7 @@ export function useConversationWiring(
         conversationData,
       ),
     );
-    // Ownership is the review-id join alone — local comments feed only the
+    // Ownership is the review-id join alone, local comments feed only the
     // pointer/resurrection outputs, so they stay OUT of these deps: a comment
     // save/toggle must not rebuild every chunk's inline rows and bust the
     // ChunkCard memo boundary.
@@ -202,44 +199,42 @@ export function useConversationWiring(
   // Slim transport (draft reads/writes and announce copy live inside
   // ReplyComposer's session-store reads): identity stable per plan, so it
   // never busts ChunkCard's memo. The mention pool shares the section's query
-  // key — one fetch serves both surfaces.
+  // key, one fetch serves both surfaces.
   const mentionPool = useMentionPool(conversation?.collaborators);
 
-  const conversationComposer = useMemo<ThreadComposerWiring | undefined>(
-    () =>
-      conversation === undefined
-        ? undefined
-        : {
-            briefId,
-            post: conversation.postReply,
-            mentionPool,
-            onPosted: () =>
-              void queryClient.invalidateQueries({
-                queryKey: conversation.queryOptions.queryKey,
-              }),
-            // Resolution rides the inline (at-chunk) threads too: same
-            // thread, same capability, same shared query key.
-            ...(conversation.resolution === undefined
-              ? {}
-              : {
-                  resolution: {
-                    ...conversation.resolution,
-                    refetchConversation: () =>
-                      void queryClient.invalidateQueries({
-                        queryKey: conversation.queryOptions.queryKey,
-                      }),
-                  },
-                }),
-          },
-    [briefId, conversation, mentionPool, queryClient],
-  );
+  const conversationComposer = useMemo<ThreadComposerWiring | undefined>(() => {
+    if (conversation === undefined) return undefined;
+
+    const composer: Mutable<ThreadComposerWiring> = {
+      post: conversation.postReply,
+      mentionPool,
+      onPosted: () =>
+        void queryClient.invalidateQueries({
+          queryKey: conversation.queryOptions.queryKey,
+        }),
+    };
+
+    // Resolution rides the inline (at-chunk) threads too: same
+    // thread, same capability, same shared query key.
+    if (conversation.resolution !== undefined) {
+      composer.resolution = {
+        ...conversation.resolution,
+        refetchConversation: () =>
+          void queryClient.invalidateQueries({
+            queryKey: conversation.queryOptions.queryKey,
+          }),
+      };
+    }
+
+    return composer;
+  }, [conversation, mentionPool, queryClient]);
 
   const groupIds = useMemo(
     () => conversationGroupIds(conversationByChunk, model.groups),
     [conversationByChunk, model.groups],
   );
 
-  // A posted inline comment is a conversation write — refetch so the new
+  // A posted inline comment is a conversation write, refetch so the new
   // thread renders. The query client is app-level, not mount-level, so
   // invalidating from the post path's closure is remount-safe.
   const invalidateConversation = useMemo(
@@ -253,13 +248,9 @@ export function useConversationWiring(
     [conversation, queryClient],
   );
 
-  // Move focus WITH the scroll and flash the target. When the digest hands us
-  // a row target, land on the thread's OWN row inside the diff — the chunk top
-  // is only the fallback (bot threads aggregate at the chunk; a resolved bot
-  // thread has no row at all).
-  // One live flash timer: a repeat jump inside the window must RESTART the
-  // flash (remove → reflow → re-add; a matching attribute never restarts a
-  // CSS animation) instead of letting the first jump's timer cut it short.
+  // Focus the thread's own diff row, falling back to the chunk for aggregated bots.
+  // A resolved bot has no row. Restart the flash on repeated jumps by forcing reflow;
+  // replace the old timer so it cannot cut the new flash short.
   const flashTimerRef = useRef<{ el: HTMLElement; timer: number } | null>(null);
   const flashConversationTarget = useCallback((target: HTMLElement) => {
     const pending = flashTimerRef.current;
@@ -280,7 +271,7 @@ export function useConversationWiring(
       };
     });
   }, []);
-  // One landing chain at a time: a fresh jump (or a brief switch — this
+  // One landing chain at a time: a fresh jump (or a brief switch, this
   // hook's host no longer remounts per brief) cancels the previous poll, or
   // a stale loop could steal focus onto a same-id element of the NEXT brief.
   const landingFrameRef = useRef<number | null>(null);
@@ -291,7 +282,7 @@ export function useConversationWiring(
       landingFrameRef.current = null;
     }
     // A stale landing's abort listeners must not survive into the next
-    // jump — one firing would cancel the NEW landing.
+    // jump, one firing would cancel the NEW landing.
     removeAbortRef.current?.();
     removeAbortRef.current = null;
   }, []);
@@ -302,7 +293,7 @@ export function useConversationWiring(
       cancelLanding();
       // Row target: the thread row only renders on an open card.
       ensureChunkOpen(chunkId);
-      // The user's own input aborts the landing — a late focus() would yank
+      // The user's own input aborts the landing, a late focus() would yank
       // them away from wherever they moved.
       for (const type of SCROLL_ABORT_EVENTS) {
         window.addEventListener(type, cancelLanding, {

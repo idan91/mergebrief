@@ -1,11 +1,6 @@
-// The in-flow PR-conversation section: verdict strip, then threads grouped
-// by chunk in the Brief's reading order, unresolved first, bots collapsed
-// per author (never hidden). Chips carry TEXT, not color alone (WCAG 1.4.1).
-// Digest rows are one keyboard pattern: `<button aria-expanded>` disclosures.
-//
-// No background poll — refetch on focus/navigation via the query's staleTime
-// plus the manual refresh control. Expansion state is keyed by thread id in
-// component state so it survives refetch.
+// Chips need text as well as color; digest rows use button disclosures.
+// Keep expansion keyed by thread id across refetches. Refresh on focus/navigation
+// and manual request, without background polling.
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -42,6 +37,7 @@ import type {
 import { DigestGroupView } from "./DigestGroupView/DigestGroupView";
 import { headSummary } from "./utils";
 import styles from "./ConversationSection.module.scss";
+import type { Mutable } from "types";
 
 /** The route-injected data plan (absent on the local demo path). */
 export interface ConversationPlan {
@@ -56,7 +52,7 @@ export interface ConversationPlan {
     rootCommentId: number,
     body: string,
   ) => Promise<ReplyResult>;
-  /** Absent on the local demo path — no resolve affordance renders at all. */
+  /** Absent on the local demo path, no resolve affordance renders at all. */
   readonly resolution?: ConversationResolutionPlan;
   /** Absent when there is no revision timeline. */
   readonly revisionJump?: ThreadRevisionJump;
@@ -76,7 +72,7 @@ export interface ConversationSectionProps {
   localComments: readonly ReviewComment[];
   submittedReviewIds: readonly number[];
   /**
-   * Jump to a chunk — or, when `target` is given, to a specific thread's
+   * Jump to a chunk, or, when `target` is given, to a specific thread's
    * row inside its diff (the row-level rendering is the real destination;
    * the chunk is just the container).
    */
@@ -95,12 +91,8 @@ export interface ConversationSectionProps {
    */
   focusThreadId?: number | undefined;
   /**
-   * URL-carried reviewer/verdict filter. This section only READS it — the
-   * toolbar's Filter disclosure above owns writes — so the digest, the strip
-   * and the diff agree.
-   *
-   * Deliberately not on the plan: the plan's identity feeds the memo
-   * boundaries that keep the diff's chunk cards off the render path.
+   * The toolbar owns filter writes; this section reads the same URL state as the diff.
+   * Keep it off the plan whose identity protects memoized chunk cards.
    */
   filter?: ConversationFilter | undefined;
 }
@@ -145,7 +137,7 @@ export function ConversationSection({
   const [shownAllGroups, setShownAllGroups] = useState<ReadonlySet<string>>(
     new Set(),
   );
-  // Ids already flipped this mount — the reconciliation effect must never
+  // Ids already flipped this mount, the reconciliation effect must never
   // loop (a flip changes localComments, which recomputes the reconcile).
   const flippedRef = useRef<Set<string>>(new Set());
 
@@ -234,11 +226,8 @@ export function ConversationSection({
       queryKey: plan.queryOptions.queryKey,
     });
 
-  // Inbound `?thread=` landing: reveal the targeted thread, then
-  // scroll+flash+focus its row. Lands ONCE per target id (a ref, not state —
-  // re-runs must not re-yank focus while the reviewer reads), and is only
-  // marked landed AFTER the row was found and focused, so a still-hidden row
-  // retries on the next refetch instead of being silently spent.
+  // Spend a thread landing only after its row is found and focused. Hidden rows retry
+  // on refetch; a completed target must not keep pulling focus from the reviewer.
   const landedThreadRef = useRef<number | undefined>(undefined);
   useEffect(() => {
     if (focusThreadId === undefined || !open || conversation === undefined) {
@@ -246,7 +235,7 @@ export function ConversationSection({
     }
     if (landedThreadRef.current === focusThreadId) return;
     // Reveal the target everywhere it could be hidden: expand its detail,
-    // lift its group's show-more cap, and open a containing bot group — a
+    // lift its group's show-more cap, and open a containing bot group, a
     // row behind any of these never renders, so it could never be landed on.
     setExpandedThreads((current) => new Set(current).add(focusThreadId));
     for (const group of digest) {
@@ -272,7 +261,7 @@ export function ConversationSection({
         `[data-conversation-section-thread="${focusThreadId}"]`,
       );
       if (row !== null) {
-        // Found — only now is the target spent.
+        // Found, only now is the target spent.
         landedThreadRef.current = focusThreadId;
         // Reduced motion lands instantly; the flash is CSS-gated where styled.
         row.scrollIntoView({
@@ -295,25 +284,24 @@ export function ConversationSection({
 
   // Every conversation write evicts server-side; the post-reply refetch makes
   // the reply visible in-section. Draft reads/writes and announce copy live
-  // inside ReplyComposer — only the transport rides here.
-  const composer: ThreadComposerWiring = {
-    ...(readOnlyReason === undefined ? {} : { readOnlyReason }),
+  // inside ReplyComposer, only the transport rides here.
+  const composer: Mutable<ThreadComposerWiring> = {
     post: plan.postReply,
     onPosted: refresh,
     mentionPool,
-    ...(plan.revisionJump === undefined
-      ? {}
-      : { revisionJump: plan.revisionJump }),
-    // A resolution flip is a conversation write too: the row's slim/full
-    // transition comes from THIS section's refetch, not a local edit.
-    ...(plan.resolution === undefined
-      ? {}
-      : {
-          resolution: { ...plan.resolution, refetchConversation: refresh },
-        }),
   };
 
-  // Comments the viewed revision's brief cannot account for — an older
+  if (readOnlyReason !== undefined) composer.readOnlyReason = readOnlyReason;
+  if (plan.revisionJump !== undefined) {
+    composer.revisionJump = plan.revisionJump;
+  }
+  // A resolution flip is a conversation write too: the row's slim/full
+  // transition comes from THIS section's refetch, not a local edit.
+  if (plan.resolution !== undefined) {
+    composer.resolution = { ...plan.resolution, refetchConversation: refresh };
+  }
+
+  // Comments the viewed revision's brief cannot account for, an older
   // revision honestly counts more; zero (or no cutoff) renders nothing.
   const afterBriefCount = useMemo(
     () =>
@@ -337,7 +325,7 @@ export function ConversationSection({
       data-conversation-section
     >
       <div className={styles["head"]}>
-        {/* The heading IS the disclosure, and the C shortcut's focus target —
+        {/* The heading IS the disclosure, and the C shortcut's focus target,
             a button is natively focusable. */}
         <h2 className={styles["heading"]}>
           <LinkButton
@@ -355,7 +343,7 @@ export function ConversationSection({
             </span>
             {t("conversation.heading")}
             {/* Totals ONLY: the header describes the whole conversation;
-                filter state renders in exactly one place — the toolbar's
+                filter state renders in exactly one place, the toolbar's
                 Filter trigger. */}
             {summary !== undefined ? (
               <span className={styles["headSummary"]}>{summary}</span>

@@ -1,10 +1,5 @@
 // @vitest-environment jsdom
-// The thread detail's resolution affordances: the standalone
-// Resolve/Unresolve action and the Reply & resolve combo. Pins the posture
-// (hidden without capability, never disabled-dead), the direction each thread
-// state offers, the refetch-not-optimistic state update, the 403's double
-// refetch (conversation AND capability), and the combo's three outcomes —
-// including that a landed reply is NEVER re-posted.
+// Resolution uses refetches rather than optimistic state; a landed reply must never repost.
 import { appI18n } from "../../../../../i18n/I18nProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -27,6 +22,7 @@ import type { DigestThreadRow } from "../../../utils/digest";
 import type { ReplyResult } from "../../../reply";
 import type { ResolveThreadResult } from "../../../resolve";
 import type { ConversationThread } from "../../../types";
+import type { Mutable } from "types";
 import type {
   ThreadComposerWiring,
   ThreadResolutionWiring,
@@ -117,7 +113,7 @@ interface Harness {
   setResolved: ReturnType<typeof vi.fn>;
   refetchConversation: ReturnType<typeof vi.fn>;
   refetchCapability: ReturnType<typeof vi.fn>;
-  /** Call order across BOTH transports — the combo's sequencing evidence. */
+  /** Call order across BOTH transports, the combo's sequencing evidence. */
   calls: string[];
 }
 
@@ -165,14 +161,12 @@ function renderDetail(options: RenderOptions = {}) {
           refetchConversation,
           refetchCapability,
         };
-  const composer: ThreadComposerWiring = {
-    post,
-    onPosted: vi.fn(),
-    ...(options.mentionPool === undefined
-      ? {}
-      : { mentionPool: options.mentionPool }),
-    ...(resolution === undefined ? {} : { resolution }),
-  };
+  const composer: Mutable<ThreadComposerWiring> = { post, onPosted: vi.fn() };
+
+  if (options.mentionPool !== undefined) {
+    composer.mentionPool = options.mentionPool;
+  }
+  if (resolution !== undefined) composer.resolution = resolution;
   const flowStore = createReviewFlowStore(
     {
       saveComment: vi.fn(),
@@ -231,14 +225,14 @@ const RESOLVE_BUTTON = { name: /^Resolv/ };
 const UNRESOLVE_BUTTON = { name: /^Unresolv/ };
 const COMBO_BUTTON = { name: /^Reply & resolve/ };
 
-describe("ThreadDetail — standalone resolve/unresolve", () => {
-  it("shows no resolution action on the local path (no wiring)", () => {
+describe("ThreadDetail, standalone resolve/unresolve", () => {
+  it("shows no resolution action without local wiring", () => {
     renderDetail();
     expect(screen.queryByRole("button", RESOLVE_BUTTON)).toBeNull();
     expect(screen.queryByRole("button", UNRESOLVE_BUTTON)).toBeNull();
   });
 
-  it("hides the action when the viewer cannot resolve (never disabled-dead)", () => {
+  it("hides resolution actions when the viewer lacks capability", () => {
     renderDetail({ canResolve: false });
     expect(screen.queryByRole("button", RESOLVE_BUTTON)).toBeNull();
     expect(screen.queryByRole("button", UNRESOLVE_BUTTON)).toBeNull();
@@ -280,7 +274,7 @@ describe("ThreadDetail — standalone resolve/unresolve", () => {
     );
   });
 
-  it("treats a converged flip as success (same copy, same refetch)", async () => {
+  it("uses success copy and refetches for a converged flip", async () => {
     const h = renderDetail({
       canResolve: true,
       resolve: { kind: "done", resolved: true, alreadyInTargetState: true },
@@ -310,7 +304,7 @@ describe("ThreadDetail — standalone resolve/unresolve", () => {
     const busy = screen.getByRole("button", RESOLVE_BUTTON);
     expect(busy.getAttribute("aria-busy")).toBe("true");
     expect(busy.getAttribute("aria-disabled")).toBe("true");
-    // aria-disabled does not block clicks — the in-flight guard must.
+    // aria-disabled does not block clicks, the in-flight guard must.
     fireEvent.click(busy);
     expect(h.setResolved).toHaveBeenCalledTimes(1);
     release?.({ kind: "done", resolved: true, alreadyInTargetState: false });
@@ -354,7 +348,7 @@ describe("ThreadDetail — standalone resolve/unresolve", () => {
     expect(h.refetchCapability).not.toHaveBeenCalled();
   });
 
-  it("uses indeterminate copy on a throw and refreshes to show where it landed", async () => {
+  it("uses indeterminate copy and refreshes after a thrown resolution", async () => {
     const h = renderDetail({
       canResolve: true,
       resolve: () => Promise.reject(new Error("boom")),
@@ -369,7 +363,7 @@ describe("ThreadDetail — standalone resolve/unresolve", () => {
   });
 });
 
-describe("ThreadDetail — Reply & resolve combo", () => {
+describe("ThreadDetail, Reply & resolve combo", () => {
   it("appears only once the composer has text", () => {
     renderDetail({ canResolve: true });
     expect(screen.queryByRole("button", COMBO_BUTTON)).toBeNull();
@@ -398,7 +392,7 @@ describe("ThreadDetail — Reply & resolve combo", () => {
     type("fixed in the last push");
     fireEvent.click(screen.getByRole("button", COMBO_BUTTON));
     await waitFor(() => expect(h.setResolved).toHaveBeenCalled());
-    // The reply is the commit point — it must precede the resolve, always.
+    // The reply is the commit point, it must precede the resolve, always.
     expect(h.calls).toEqual(["reply", "resolve"]);
     expect(h.post).toHaveBeenCalledWith(9001, expect.any(String));
     expect(h.setResolved).toHaveBeenCalledWith(9001, true);
@@ -437,7 +431,7 @@ describe("ThreadDetail — Reply & resolve combo", () => {
 
   it("keeps the busy combo button mounted after the reply clears the draft", async () => {
     // The reply lands (clearing the draft) while the resolve leg is still in
-    // flight: the control the reviewer clicked — and may still be focused on —
+    // flight: the control the reviewer clicked, and may still be focused on,
     // must not vanish, taking its aria-busy with it.
     let release: ((result: ResolveThreadResult) => void) | undefined;
     renderDetail({
@@ -468,10 +462,10 @@ describe("ThreadDetail — Reply & resolve combo", () => {
     );
   });
 
-  it("hands focus to the standalone Resolve button when the combo retires (partial)", async () => {
+  it("focuses Resolve when the combo retires after partial success", async () => {
     // The keyboard path: the reply lands (draft cleared), the resolve fails,
     // and the focused combo button retires. Without a handoff activeElement
-    // becomes <body> and Tab restarts from the top of the page — here focus
+    // becomes <body> and Tab restarts from the top of the page, here focus
     // must land on the control that finishes the job.
     renderDetail({ canResolve: true, resolve: { kind: "upstream" } });
     type("fixed");
@@ -549,7 +543,7 @@ describe("ThreadDetail — Reply & resolve combo", () => {
       ).toContain(partial),
     );
     expect(h.announce).toHaveBeenCalledWith(partial);
-    // The reply is GitHub's record now: one post, ever — a retry would
+    // The reply is GitHub's record now: one post, ever, a retry would
     // double-post. The standalone Resolve button is the retry path.
     expect(h.post).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("button", RESOLVE_BUTTON)).toBeDefined();
@@ -558,9 +552,9 @@ describe("ThreadDetail — Reply & resolve combo", () => {
     expect(screen.queryByRole("button", COMBO_BUTTON)).toBeNull();
   });
 
-  it("a THROWN resolve leg gets indeterminate partial copy, not a failure claim", async () => {
+  it("uses indeterminate partial copy for a thrown resolve leg", async () => {
     // A dropped connection after the server received the mutation leaves the
-    // thread possibly resolved — asserting "resolving failed" would be a lie
+    // thread possibly resolved, asserting "resolving failed" would be a lie
     // that invites a blind re-resolve.
     const h = renderDetail({
       canResolve: true,
@@ -580,7 +574,7 @@ describe("ThreadDetail — Reply & resolve combo", () => {
     expect(h.announce).not.toHaveBeenCalledWith(
       expect.stringContaining("resolving the thread failed"),
     );
-    // Indeterminate still refetches — that is how the reviewer sees the truth.
+    // Indeterminate still refetches, that is how the reviewer sees the truth.
     expect(h.refetchConversation).toHaveBeenCalled();
     expect(h.post).toHaveBeenCalledTimes(1);
   });
@@ -623,8 +617,8 @@ describe("ThreadDetail — Reply & resolve combo", () => {
   });
 });
 
-describe("ThreadDetail — mention pool hand-off", () => {
-  it("merges the composer's roster after the thread's participants (order = ranking)", () => {
+describe("ThreadDetail, mention pool hand-off", () => {
+  it("ranks thread participants before the composer roster", () => {
     renderDetail({
       mentionPool: [
         {

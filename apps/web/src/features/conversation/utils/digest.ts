@@ -1,11 +1,6 @@
-// Digest view-model builder: the conversation organized by the BRIEF'S
-// structure — threads grouped by chunk in reading order, unresolved first —
-// not GitHub's chronological feed. Bot walls collapse, never hide: humans get
-// one row per thread; bots one aggregated row per (bot author, chunk group),
-// expandable to per-thread rows. Outdated threads live in a revision-labeled
-// group (their anchor-time coordinates are never trusted); unanchored fresh
-// threads and PR-level comments form the general group. Sorting never reads
-// bot self-assigned severity.
+// Bot groups collapse but remain accessible; sorting never uses their stated severity.
+// Outdated threads need revision labels because anchor-time coordinates are untrusted.
+// Unanchored fresh threads and PR-level comments belong in the general group.
 import type { BriefChunk } from "../../brief/types";
 import { placeThread, type ThreadPlacement } from "./anchor";
 import { deriveDigestLine } from "./digestLine";
@@ -14,6 +9,7 @@ import type {
   PrConversation,
   PrLevelComment,
 } from "../types";
+import type { Mutable } from "types";
 
 export interface DigestThreadRow {
   readonly kind: "thread";
@@ -23,7 +19,7 @@ export interface DigestThreadRow {
   readonly placement: ThreadPlacement;
   /** True when the thread came from this reviewer's recorded submits. */
   readonly isOwn: boolean;
-  /** Short anchor revision label — outdated rows only. */
+  /** Short anchor revision label, outdated rows only. */
   readonly anchorLabel?: string;
   /**
    * The viewed revision's generation cutoff, stamped on every row so the
@@ -49,7 +45,7 @@ export interface DigestGroup {
   readonly label: string;
   readonly chunkId?: string;
   readonly rows: readonly DigestRow[];
-  /** PR-level (issue) comments — general group only. */
+  /** PR-level (issue) comments, general group only. */
   readonly prComments?: readonly PrLevelComment[];
 }
 
@@ -74,19 +70,22 @@ function threadRow(
     thread.isOutdated && thread.anchorSha !== undefined
       ? thread.anchorSha.slice(0, SHORT_SHA_LENGTH)
       : undefined;
-  return {
+  const row: Mutable<DigestThreadRow> = {
     kind: "thread",
     thread,
     digestLine: deriveDigestLine(rootBody),
     placement,
     isOwn: ownThreadIds.has(thread.rootCommentId),
-    ...(anchorLabel === undefined ? {} : { anchorLabel }),
-    ...(briefGeneratedAt === undefined ? {} : { briefGeneratedAt }),
   };
+
+  if (anchorLabel !== undefined) row.anchorLabel = anchorLabel;
+  if (briefGeneratedAt !== undefined) row.briefGeneratedAt = briefGeneratedAt;
+
+  return row;
 }
 
 /**
- * The row index inside the chunk's diff (from `rowId` = `chunkId:index`) —
+ * The row index inside the chunk's diff (from `rowId` = `chunkId:index`),
  * the ONE reading-order axis. LEFT old-line and RIGHT new-line numbers are
  * not comparable; the placement already resolved both to a row position.
  */
@@ -205,12 +204,9 @@ export function buildConversationDigest(
 }
 
 /**
- * Inline placement: what renders AT a chunk, as opposed to the digest.
- * Fresh human threads inline per-thread (resolved ones too —
- * they collapse visually, they don't hide); bots inline as ONE aggregated
- * disclosure per bot carrying only their UNRESOLVED threads — resolved and
- * outdated bot threads are digest-only, and nothing unanchored ever floats
- * mid-code. Rows reuse the digest's sorted view-model.
+ * Fresh human threads remain inline even when resolved. Bot disclosures inline only
+ * unresolved threads; resolved/outdated bots stay in the digest. Unanchored threads
+ * never float mid-code. Reuse the digest's sorted rows.
  */
 export function buildInlineThreads(
   input: BuildConversationDigestInput,
@@ -243,9 +239,9 @@ export function buildInlineThreads(
 }
 
 export interface InlineRowSplit {
-  /** Human threads keyed by their diff-row index — rendered UNDER the row. */
+  /** Human threads keyed by their diff-row index, rendered UNDER the row. */
   readonly byRow: ReadonlyMap<number, DigestThreadRow[]>;
-  /** Bot groups — ONE aggregated chunk-level disclosure per bot. */
+  /** Bot groups, ONE aggregated chunk-level disclosure per bot. */
   readonly botGroups: readonly DigestBotGroupRow[];
 }
 

@@ -1,10 +1,5 @@
-// The server-held session, resolved into the store's initial state.
-//
-// The wire keys everything by content anchor — file, attribute, line region —
-// while the store keys by brief-local ids, so every list is resolved against
-// the view model here. An anchor that resolves to nothing is DROPPED: it
-// belongs to a chunk this Brief no longer renders, and the attention list is
-// what tells the reviewer about it.
+// Resolve durable wire anchors into brief-local ids against this view model.
+// Drop anchors with no rendered chunk; the attention list explains the missing placement.
 import type { BriefChunk, Category, DiffLine } from "../../brief/types";
 import type { Result } from "types";
 import type { BriefViewModel } from "@web/features/brief/utils";
@@ -66,14 +61,14 @@ export interface SessionReclassification {
 
 /**
  * The span the carry-over row states. Null is a first-ever session and
- * nothing else — the row itself does not render.
+ * nothing else, the row itself does not render.
  */
 export interface SessionCarriedFrom {
   sessionId: string;
   headSha: string;
   /** Pushes between that Brief and this one; at least 1. */
   revisions: number;
-  /** How much work carried — the receipt's count, never the session's total. */
+  /** How much work carried, the receipt's count, never the session's total. */
   items: number;
 }
 
@@ -91,7 +86,7 @@ export interface ReviewSessionPayload {
   submittedReviewIds: string[];
 }
 
-/** A session with no work in it — the shape a first-ever read returns. */
+/** A session with no work in it, the shape a first-ever read returns. */
 export function emptySessionPayload(): ReviewSessionPayload {
   return {
     materialized: false,
@@ -131,11 +126,9 @@ function chunkOwnsDraftStart(
 }
 
 /**
- * The chunk a draft's coordinates land in: same file, an actual added or
- * removed range covering the start line on its side. Envelope coverage is
- * the fallback for a context line — two disjoint ranges must not swallow a
- * leftover line that another chunk owns. A file this Brief does not show
- * has no home, and the attention list says so.
+ * Prefer actual changed ranges over envelopes so disjoint ranges cannot claim another
+ * chunk's leftover line. Envelope coverage is only the fallback for context lines.
+ * Files outside this brief have no home and remain in the attention list.
  */
 function chunkForDraft(
   chunks: BriefChunk[],
@@ -210,11 +203,8 @@ function collectCrossSideRows(
 }
 
 /**
- * The rendered rows the draft covers. Rebuilt from the diff rather than
- * stored: the wire carries GitHub's coordinates, which are the durable
- * anchor, and row indexes are a property of this render. Empty is the normal
- * case on the DB path, where the diff attaches after this runs — the renderer
- * falls back to the coordinates.
+ * Rebuild row indexes from the diff; only GitHub coordinates are durable on the wire.
+ * Empty rows are normal before the DB-path diff attaches; rendering uses coordinates.
  */
 function rowsForDraft(
   chunk: BriefChunk,
@@ -294,7 +284,11 @@ function toDisposition(row: SessionDisposition): Disposition {
     return { kind: "dismissed", reason: row.reason ?? "" };
   }
   const evidence = toEvidence(row.evidence);
-  return { kind: "addressed", ...(evidence ? { evidence } : {}) };
+  const addressed: Disposition = { kind: "addressed" };
+
+  if (evidence) addressed.evidence = evidence;
+
+  return addressed;
 }
 
 /**

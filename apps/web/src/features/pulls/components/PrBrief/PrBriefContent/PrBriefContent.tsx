@@ -12,6 +12,7 @@ import type {
   BriefSearchParams,
 } from "../../../../brief/comparison/compareState";
 import {
+  buildBriefSearchParams,
   resolveBriefSearch,
   withCompare,
   withView,
@@ -93,14 +94,14 @@ export function PrBriefContent({
   );
   // The Review Session, prefetched by the route loader so the FIRST paint
   // already carries marks, drafts and dispositions. A failed read degrades:
-  // the Brief renders, and the screen goes read-only — a reviewer typing into
+  // the Brief renders, and the screen goes read-only, a reviewer typing into
   // a screen hiding their earlier drafts writes the same comment twice.
   const session = useQuery(
     sessionQueryOptions(repoId, prNumber, span.base, span.head),
   );
   // No session in hand = writes off, whether the read failed or has not
   // landed. A failed BACKGROUND refetch keeps the session that is already
-  // rendered — only an absent one closes the screen.
+  // rendered, only an absent one closes the screen.
   const sessionReadOnly =
     session.data === undefined
       ? { reason: t("brief.screen.sessionUnavailable") }
@@ -146,10 +147,7 @@ export function PrBriefContent({
     onNavigateSearch(
       withCompare(
         resolveBriefSearch(
-          {
-            ...(searchView !== undefined ? { view: searchView } : {}),
-            ...(searchCompare !== undefined ? { compare: searchCompare } : {}),
-          },
+          buildBriefSearchParams(searchView, searchCompare),
           flags,
         ),
         "last-review",
@@ -173,10 +171,7 @@ export function PrBriefContent({
     onNavigateSearch(
       withView(
         resolveBriefSearch(
-          {
-            ...(searchView !== undefined ? { view: searchView } : {}),
-            ...(searchCompare !== undefined ? { compare: searchCompare } : {}),
-          },
+          buildBriefSearchParams(searchView, searchCompare),
           flags,
         ),
         "full",
@@ -212,7 +207,7 @@ export function PrBriefContent({
   );
   return (
     <>
-      {/* Warming is a property of the LATEST generation — never shown while a
+      {/* Warming is a property of the LATEST generation, never shown while a
           stale or read-only revision is in view (history never polls). */}
       {readOnly === undefined &&
       staleHead !== true &&
@@ -220,7 +215,7 @@ export function PrBriefContent({
         <WarmingChip />
       ) : null}
       <BriefView
-        // Live webhook state — the badge never shows the artifact's stale
+        // Live webhook state, the badge never shows the artifact's stale
         // snapshot.
         livePrState={{ state: meta.state, draft: meta.draft }}
         brief={assembled}

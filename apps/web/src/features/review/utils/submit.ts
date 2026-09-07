@@ -13,13 +13,13 @@ export type WireSide = "LEFT" | "RIGHT";
 
 export interface WireComment {
   path: string;
-  /** The anchor line — the END line of a multi-line range. */
+  /** The anchor line, the END line of a multi-line range. */
   line: number;
   side: WireSide;
   /** First line of a multi-line range; absent for single-line. */
   startLine?: number;
   startSide?: WireSide;
-  /** The anchored source text — quoted by the server's degradation fold. */
+  /** The anchored source text, quoted by the server's degradation fold. */
   selectedText: string;
   body?: string;
 }
@@ -36,7 +36,7 @@ export interface SubmitPayload {
 
 export interface BuildSubmitPayloadInput {
   outcome: ReviewOutcome;
-  /** The review body — the receipt's one-line signature on the DB path. */
+  /** The review body, the receipt's one-line signature on the DB path. */
   body?: string;
 }
 
@@ -46,7 +46,7 @@ const SIDE_TO_WIRE: Record<CommentAnchor["side"], WireSide> = {
 };
 
 /**
- * Mirrors of the submit route's caps — keep in lockstep. Anything the route
+ * Mirrors of the submit route's caps, keep in lockstep. Anything the route
  * would 400 deterministically must block client-side with recoverable copy:
  * the UI resubmits the same draft set, so a route 400 is unrecoverable there.
  */
@@ -88,10 +88,11 @@ export function mapAnchorToWire(anchor: CommentAnchor): WireComment {
 export function buildSubmitPayload(
   input: BuildSubmitPayloadInput,
 ): SubmitPayload {
-  return {
-    outcome: input.outcome,
-    ...(input.body === undefined ? {} : { body: input.body }),
-  };
+  const payload: SubmitPayload = { outcome: input.outcome };
+
+  if (input.body !== undefined) payload.body = input.body;
+
+  return payload;
 }
 
 /**
@@ -101,17 +102,17 @@ export function buildSubmitPayload(
  */
 export type SubmitReviewResult =
   | { kind: "submitted"; reviewId: number; commentsDegraded: boolean }
-  /** 409 — the PR was rewritten since it was read; reload to re-anchor. */
+  /** 409, the PR was rewritten since it was read; reload to re-anchor. */
   | { kind: "rewritten" }
   | { kind: "unauthorized" }
   | { kind: "not-found" }
-  /** 409 — a held draft's anchor no longer points at code; re-place or drop it. */
+  /** 409, a held draft's anchor no longer points at code; re-place or drop it. */
   | { kind: "orphaned-draft" }
-  /** 400 (shape; programmer error) or deterministic 413 — edit the body, retry-as-is never clears. */
+  /** 400 (shape; programmer error) or deterministic 413, edit the body, retry-as-is never clears. */
   | { kind: "invalid" }
-  /** 502/anything else — GitHub rejected or is unreachable. */
+  /** 502/anything else, GitHub rejected or is unreachable. */
   /**
-   * 403 — a url-box brief for a repo the reader's own GitHub account cannot
+   * 403, a url-box brief for a repo the reader's own GitHub account cannot
    * write to. Never a retry: it clears by installing the App there.
    */
   | { kind: "no-write-access" }
@@ -130,7 +131,7 @@ export type SubmitReviewAction = (
 
 /**
  * The one-line signature carried as the GitHub review body. Mechanical claims
- * only; never empty — GitHub requires a body for REQUEST_CHANGES, and this
+ * only; never empty, GitHub requires a body for REQUEST_CHANGES, and this
  * line satisfies it for every outcome.
  */
 export function buildSignatureLine(
@@ -149,7 +150,7 @@ export function buildSignatureLine(
 }
 
 /**
- * Separator between the reviewer's own comment and the signature line —
+ * Separator between the reviewer's own comment and the signature line,
  * GitHub renders `---` as a horizontal rule, fencing the tool's mechanical
  * claims off from the reviewer's words.
  */
@@ -158,7 +159,7 @@ const REVIEW_BODY_SEPARATOR = "\n\n---\n\n";
 /**
  * The GitHub review body: the reviewer's free-text comment above the
  * signature line, separator-fenced; the signature alone when the comment is
- * empty (GitHub requires a nonempty body for REQUEST_CHANGES — the signature
+ * empty (GitHub requires a nonempty body for REQUEST_CHANGES, the signature
  * satisfies it for every outcome).
  */
 export function buildReviewBody(
@@ -200,12 +201,9 @@ function foldedLengthEstimate(drafts: readonly ReviewComment[]): number {
 }
 
 /**
- * Why Submit is disabled, or `undefined` when it may proceed. A neutral
- * COMMENT review needs content — an inline draft or the review comment
- * (GitHub 422s an empty one); approve /
- * request-changes carry their verdict as the content. Anything the route
- * would 400 deterministically (comment cap, fold budget) blocks HERE with a
- * recoverable reason — the UI resubmits the same draft set on retry.
+ * GitHub rejects a content-free COMMENT; verdicts supply their own content.
+ * Mirror deterministic route caps here with recoverable reasons because retry
+ * would otherwise resubmit the same invalid drafts.
  */
 export function submitBlockedReason(
   t: TFunction,

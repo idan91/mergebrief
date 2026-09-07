@@ -1,5 +1,5 @@
 // The comparison-overlay facade hook: resolves the View/Compare state and the
-// active baseline's data. Marks/narrative/delta resolve from ONE source — the
+// active baseline's data. Marks/narrative/delta resolve from ONE source, the
 // injected plan (DB path) or the local sidecar ids; both query sets exist as
 // hooks and `enabled` picks.
 import { useQuery } from "@tanstack/react-query";
@@ -51,7 +51,7 @@ export interface BriefComparisonPlan {
     /** Live raw span diff baseline → head (Changes Only "Show raw diff"). */
     readonly rawDiff?: ComparisonQuery<string>;
   };
-  /** The personal checkpoint comparison — offered iff marks exist. */
+  /** The personal checkpoint comparison, offered iff marks exist. */
   readonly lastReview?: {
     readonly marks: ComparisonQuery<ComparisonMarks>;
     /** Absent = marks-only tier: the worker skipped the delta core. */
@@ -136,7 +136,7 @@ export function useComparisonOverlay(
   );
 
   // The plan's marks descriptor follows the ACTIVE baseline; narrative stays
-  // previous-brief-only, delta last-review-only — mirroring the local ids.
+  // previous-brief-only, delta last-review-only, mirroring the local ids.
   const planPrevious = comparisonPlan?.previousBrief;
   const planLastReview = comparisonPlan?.lastReview;
   const activePlanSlot =
@@ -159,20 +159,20 @@ export function useComparisonOverlay(
     ...localComparisonMarksQueryOptions(marksId ?? ""),
     enabled: comparisonPlan === undefined && Boolean(marksId),
   });
-  const planMarks = useQuery({
-    ...(activePlanSlot?.marks ??
-      disabledComparisonQuery<ComparisonMarks>("marks")),
-    enabled: planActive,
-  });
+  const planMarksOptions =
+    activePlanSlot?.marks ?? disabledComparisonQuery<ComparisonMarks>("marks");
+  const planMarks = useQuery({ ...planMarksOptions, enabled: planActive });
   const marks =
     (comparisonPlan === undefined ? localMarks.data : planMarks.data) ?? null;
   const localNarrative = useQuery({
     ...localRevisionNarrativeQueryOptions(narrativeId ?? ""),
     enabled: comparisonPlan === undefined && Boolean(narrativeId),
   });
+  const planNarrativeOptions =
+    planPrevious?.narrative ??
+    disabledComparisonQuery<RevisionNarrativeArtifact>("narrative");
   const planNarrative = useQuery({
-    ...(planPrevious?.narrative ??
-      disabledComparisonQuery<RevisionNarrativeArtifact>("narrative")),
+    ...planNarrativeOptions,
     enabled:
       planActive &&
       activeCompare === "previous-brief" &&
@@ -185,8 +185,10 @@ export function useComparisonOverlay(
     ...localBriefQueryOptions(deltaId ?? ""),
     enabled: comparisonPlan === undefined && Boolean(deltaId),
   });
+  const planDeltaOptions =
+    planLastReview?.delta ?? disabledComparisonQuery<Brief>("delta");
   const planDelta = useQuery({
-    ...(planLastReview?.delta ?? disabledComparisonQuery<Brief>("delta")),
+    ...planDeltaOptions,
     enabled:
       planActive &&
       activeCompare === "last-review" &&
@@ -207,9 +209,11 @@ export function useComparisonOverlay(
     ...localComparisonMarksQueryOptions(localSinceIds.marksId ?? ""),
     enabled: comparisonPlan === undefined && Boolean(localSinceIds.marksId),
   });
+  const planSinceMarksOptions =
+    planLastReview?.marks ??
+    disabledComparisonQuery<ComparisonMarks>("since-marks");
   const planSinceMarks = useQuery({
-    ...(planLastReview?.marks ??
-      disabledComparisonQuery<ComparisonMarks>("since-marks")),
+    ...planSinceMarksOptions,
     enabled: planLastReview !== undefined,
   });
   const sinceReviewMarks =

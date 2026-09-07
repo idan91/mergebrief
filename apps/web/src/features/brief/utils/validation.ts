@@ -32,6 +32,7 @@ import {
   type RevisionChangeFile,
   type UnattributedFile,
   type RevisionChanges,
+  type RevisionNarrative,
   type RevisionNarrativeArtifact,
   type RevisionNarrativeChunk,
   type RiskNote,
@@ -119,7 +120,7 @@ function categoryArray(value: unknown): Result<Category[]> {
 /**
  * The risk vocabulary is per-generation (built-ins ∪ that repo's custom names,
  * enforced server-side at decode time), so the FE cannot enumerate it. It CAN
- * enforce the token shape both sources share: lower kebab-case, ≤ 50 chars —
+ * enforce the token shape both sources share: lower kebab-case, ≤ 50 chars,
  * imported from repoConfig.ts so there is exactly ONE mirror of the contract.
  */
 function isRiskToken(value: unknown): value is RiskToken {
@@ -176,25 +177,18 @@ function parsePrRef(value: unknown): Result<PrRef> {
         "Expected pr repo, number, title, http(s) url, sha, and description",
     };
   }
-  // Lifecycle snapshot: optional, lenient — a malformed value is dropped
+  // Lifecycle snapshot: optional, lenient, a malformed value is dropped
   // rather than failing the artifact (badge display metadata only).
   const state = value["state"];
   const draft = value["draft"];
   const merged = value["merged"];
-  return {
-    ok: true,
-    value: {
-      repo,
-      number,
-      title,
-      url,
-      sha,
-      description,
-      ...(state === "open" || state === "closed" ? { state } : {}),
-      ...(typeof draft === "boolean" ? { draft } : {}),
-      ...(typeof merged === "boolean" ? { merged } : {}),
-    },
-  };
+  const pr: PrRef = { repo, number, title, url, sha, description };
+
+  if (state === "open" || state === "closed") pr.state = state;
+  if (typeof draft === "boolean") pr.draft = draft;
+  if (typeof merged === "boolean") pr.merged = merged;
+
+  return { ok: true, value: pr };
 }
 
 export function parseAddressedReviewComment(
@@ -377,7 +371,7 @@ const ComparisonBaselineLabels = {
 
 /**
  * Parse the header fields of a `.comparison.json` marks sidecar
- * needed for comparison availability — deliberately ignores `files`, which
+ * needed for comparison availability, deliberately ignores `files`, which
  * availability scanning never needs.
  */
 export function parseComparisonMarksSummary(
@@ -415,7 +409,7 @@ export function parseComparisonMarksSummary(
 /**
  * Parse a full `.comparison.json` marks sidecar: the header fields
  * (via `parseComparisonMarksSummary`) plus the per-file changed-line ranges
- * (reusing the revision-change file parser — identical `files` shape).
+ * (reusing the revision-change file parser, identical `files` shape).
  */
 export function parseComparisonMarks(value: unknown): Result<ComparisonMarks> {
   const summary = parseComparisonMarksSummary(value);
@@ -548,22 +542,22 @@ export function parseRevisionNarrativeArtifact(
     value["generationWarnings"],
   );
   const lengthViolations = parseLengthViolations(value["lengthViolations"]);
-  return {
-    ok: true,
-    value: {
-      artifactKind: "revisionNarrative",
-      pr: pr.value,
-      prevHeadSha,
-      headSha,
-      prevIndex,
-      headIndex,
-      generation,
-      ...(generationWarnings ? { generationWarnings } : {}),
-      ...(lengthViolations ? { lengthViolations } : {}),
-      overview,
-      chunks: chunks.value,
-    },
+  const narrative: RevisionNarrative = {
+    artifactKind: "revisionNarrative",
+    pr: pr.value,
+    prevHeadSha,
+    headSha,
+    prevIndex,
+    headIndex,
+    generation,
+    overview,
+    chunks: chunks.value,
   };
+
+  if (generationWarnings) narrative.generationWarnings = generationWarnings;
+  if (lengthViolations) narrative.lengthViolations = lengthViolations;
+
+  return { ok: true, value: narrative };
 }
 
 function parseChunk(value: unknown): Result<ParsedChunk> {
@@ -617,25 +611,25 @@ function parseChunk(value: unknown): Result<ParsedChunk> {
   if (summary !== undefined && !isString(summary)) {
     return { ok: false, error: "Expected chunk summary to be a string" };
   }
-  return {
-    ok: true,
-    value: {
-      id,
-      ...(isString(changeGroupId) ? { changeGroupId } : {}),
-      file,
-      concern,
-      role,
-      loc: loc.value,
-      addedRanges: addedRanges.value,
-      removedRanges: removedRanges.value,
-      riskSurface: risks.value,
-      ...(riskNotes !== undefined ? { riskNotes: parsedRiskNotes.value } : {}),
-      ...(isString(summary) ? { summary } : {}),
-      ...(addressesComments !== undefined
-        ? { addressesComments: parsedAddressesComments.value }
-        : {}),
-    },
+  const chunk: ParsedChunk = {
+    id,
+    file,
+    concern,
+    role,
+    loc: loc.value,
+    addedRanges: addedRanges.value,
+    removedRanges: removedRanges.value,
+    riskSurface: risks.value,
   };
+
+  if (isString(changeGroupId)) chunk.changeGroupId = changeGroupId;
+  if (riskNotes !== undefined) chunk.riskNotes = parsedRiskNotes.value;
+  if (isString(summary)) chunk.summary = summary;
+  if (addressesComments !== undefined) {
+    chunk.addressesComments = parsedAddressesComments.value;
+  }
+
+  return { ok: true, value: chunk };
 }
 
 function parseChangeGroup(value: unknown): Result<ParsedChangeGroup> {
@@ -675,20 +669,20 @@ function parseChangeGroup(value: unknown): Result<ParsedChangeGroup> {
   if (id !== undefined && !isString(id)) {
     return { ok: false, error: "Expected change group id to be a string" };
   }
-  return {
-    ok: true,
-    value: {
-      ...(isString(id) ? { id } : {}),
-      title,
-      summary,
-      dominantCategory,
-      secondaryCategories: secondaryCategories.value,
-      uncertain,
-      uncertainBetween: uncertainBetween.value,
-      coreChunkIds: coreChunkIds.value,
-      supportingChunkIds: supportingChunkIds.value,
-    },
+  const group: ParsedChangeGroup = {
+    title,
+    summary,
+    dominantCategory,
+    secondaryCategories: secondaryCategories.value,
+    uncertain,
+    uncertainBetween: uncertainBetween.value,
+    coreChunkIds: coreChunkIds.value,
+    supportingChunkIds: supportingChunkIds.value,
   };
+
+  if (isString(id)) group.id = id;
+
+  return { ok: true, value: group };
 }
 
 function parseReadingOrderStep(value: unknown): Result<ReadingOrderStep> {
@@ -728,7 +722,7 @@ function isReadingOrderPermutation(
 /**
  * Parses an optional `readingOrder`, dropping it (with a console warning,
  * never a hard failure) when malformed or when it isn't a permutation of
- * `groupIds`. Full Brief only — Reading order is out of scope for Delta
+ * `groupIds`. Full Brief only, Reading order is out of scope for Delta
  * Briefs, so callers must not wire this into Delta parsing.
  */
 function parseReadingOrder(
@@ -821,7 +815,7 @@ function parseIntentItem(value: unknown): Result<IntentItem> {
   const groupIds = stringArray(value["groupIds"]);
   if (!groupIds.ok) return groupIds;
   // `acknowledged` is absent on older items and dead in four of the five
-  // buckets — a missing or non-boolean value reads `false` rather than failing
+  // buckets, a missing or non-boolean value reads `false` rather than failing
   // the whole check. Only `true` is critical (it moves a deviation out of the
   // alarm register), so anything else is safely false.
   const acknowledged = value["acknowledged"] === true;
@@ -833,8 +827,8 @@ function parseIntentItem(value: unknown): Result<IntentItem> {
 
 /**
  * Parses an optional `intentCheck`, dropping it to `undefined` (warn, never a
- * hard failure) when malformed — server-validated artifacts can still drift.
- * Full Brief only — never wired into `parseDeltaBrief`. groupIds are NOT
+ * hard failure) when malformed, server-validated artifacts can still drift.
+ * Full Brief only, never wired into `parseDeltaBrief`. groupIds are NOT
  * cross-validated here; `jumpToGroup` already ignores dangling ids.
  */
 function parseIntentCheck(
@@ -854,7 +848,7 @@ function parseIntentCheck(
     return undefined;
   }
   const ticketUrls = stringArray(value["ticketUrls"]);
-  // ABSENT on pre-title Briefs — read as empty, never drop the check; a
+  // ABSENT on pre-title Briefs, read as empty, never drop the check; a
   // PRESENT-but-malformed array still drops it.
   const rawTitles = value["ticketTitles"];
   const ticketTitles: Result<string[]> =
@@ -944,7 +938,7 @@ function unacknowledged(items: IntentItem[]): IntentItem[] {
 }
 
 /**
- * An intent bucket that may be absent (the alarm pair on an older Brief) —
+ * An intent bucket that may be absent (the alarm pair on an older Brief),
  * `undefined` yields `[]`, anything else goes through the same per-item
  * parser as the required buckets.
  */
@@ -1008,7 +1002,7 @@ function parseCommitRange(value: unknown): CommitRange | undefined {
 }
 
 /** Anchor stamp: known states only; malformed/unknown → absent
- * (warned — a drift here means the stored-brief contract moved). */
+ * (warned, a drift here means the stored-brief contract moved). */
 function parseAnchor(
   value: unknown,
   warnings?: ParseWarnings,
@@ -1024,7 +1018,11 @@ function parseAnchor(
     return undefined;
   }
   const reason = value["reason"];
-  return { state, ...(isString(reason) ? { reason } : {}) };
+  const anchor: BriefAnchor = { state };
+
+  if (isString(reason)) anchor.reason = reason;
+
+  return anchor;
 }
 
 function parseGeneration(value: unknown): Generation | undefined {
@@ -1042,7 +1040,7 @@ function parseGenerationWarnings(value: unknown): string[] | undefined {
 }
 
 /**
- * Length-violation stamp: pipeline-assigned diagnostics — the
+ * Length-violation stamp: pipeline-assigned diagnostics, the
  * UI only needs "any present" for the muted line, so malformed entries are
  * dropped silently and an empty result reads as absent.
  */
@@ -1067,7 +1065,7 @@ function parseLengthViolations(value: unknown): LengthViolation[] | undefined {
 /**
  * The one log level `parseBrief` emits: a dropped optional section is degraded
  * output, never operator-actionable failure. INJECTED because this module is
- * shared client/server — the server caller passes the process logger; the
+ * shared client/server, the server caller passes the process logger; the
  * client passes nothing and the drops stay silent.
  */
 export interface ParseWarnings {
@@ -1116,27 +1114,27 @@ export function parseBrief(
   const intentCheck = parseIntentCheck(value["intentCheck"], warnings);
   const unattributed = parseUnattributed(value["unattributed"], warnings);
   const diffTotals = parseLoc(value["diffTotals"]);
-  return {
-    ok: true,
-    value: {
-      artifactKind: "brief",
-      pr: pr.value,
-      summary,
-      ...(unattributed !== undefined ? { unattributed } : {}),
-      ...(diffTotals.ok ? { diffTotals: diffTotals.value } : {}),
-      ...(isInteger(index) ? { index } : {}),
-      ...(commitRange ? { commitRange } : {}),
-      ...(generation ? { generation } : {}),
-      ...(anchor ? { anchor } : {}),
-      ...(generationWarnings ? { generationWarnings } : {}),
-      ...(lengthViolations ? { lengthViolations } : {}),
-      ...(readingOrder ? { readingOrder } : {}),
-      ...(intentCheck ? { intentCheck } : {}),
-      changeGroups: normalized.value.changeGroups,
-      chunks: normalized.value.chunks,
-      concernView: concernView.value,
-    },
+  const brief: Brief = {
+    artifactKind: "brief",
+    pr: pr.value,
+    summary,
+    changeGroups: normalized.value.changeGroups,
+    chunks: normalized.value.chunks,
+    concernView: concernView.value,
   };
+
+  if (unattributed !== undefined) brief.unattributed = unattributed;
+  if (diffTotals.ok) brief.diffTotals = diffTotals.value;
+  if (isInteger(index)) brief.index = index;
+  if (commitRange) brief.commitRange = commitRange;
+  if (generation) brief.generation = generation;
+  if (anchor) brief.anchor = anchor;
+  if (generationWarnings) brief.generationWarnings = generationWarnings;
+  if (lengthViolations) brief.lengthViolations = lengthViolations;
+  if (readingOrder) brief.readingOrder = readingOrder;
+  if (intentCheck) brief.intentCheck = intentCheck;
+
+  return { ok: true, value: brief };
 }
 
 export function parseDeltaBrief(value: unknown): Result<Brief> {
@@ -1197,29 +1195,29 @@ export function parseDeltaBrief(value: unknown): Result<Brief> {
     value["generationWarnings"],
   );
   const lengthViolations = parseLengthViolations(value["lengthViolations"]);
-  return {
-    ok: true,
-    value: {
-      artifactKind: "delta",
-      pr: pr.value,
-      baselineSha,
-      headSha,
-      ...(isNullableInteger(baselineIndex) ? { baselineIndex } : {}),
-      ...(isNullableInteger(headIndex) ? { headIndex } : {}),
-      ...(generation ? { generation } : {}),
-      ...(generationWarnings ? { generationWarnings } : {}),
-      ...(lengthViolations ? { lengthViolations } : {}),
-      summary,
-      commentsAddressed,
-      ...(reviewComments !== undefined
-        ? { reviewComments: parsedReviewComments.value }
-        : {}),
-      changeGroups: normalized.value.changeGroups,
-      chunks: normalized.value.chunks,
-      concernView: buildConcernView(normalized.value.chunks),
-      wholePrImpact,
-    },
+  const delta: Brief = {
+    artifactKind: "delta",
+    pr: pr.value,
+    baselineSha,
+    headSha,
+    summary,
+    commentsAddressed,
+    changeGroups: normalized.value.changeGroups,
+    chunks: normalized.value.chunks,
+    concernView: buildConcernView(normalized.value.chunks),
+    wholePrImpact,
   };
+
+  if (isNullableInteger(baselineIndex)) delta.baselineIndex = baselineIndex;
+  if (isNullableInteger(headIndex)) delta.headIndex = headIndex;
+  if (generation) delta.generation = generation;
+  if (generationWarnings) delta.generationWarnings = generationWarnings;
+  if (lengthViolations) delta.lengthViolations = lengthViolations;
+  if (reviewComments !== undefined) {
+    delta.reviewComments = parsedReviewComments.value;
+  }
+
+  return { ok: true, value: delta };
 }
 
 function normalizeGroupsAndChunks(
@@ -1276,7 +1274,7 @@ function normalizeGroupsAndChunks(
   return { ok: true, value: { changeGroups, chunks: normalizedChunks } };
 }
 
-/** Vocabulary-order rollup — matches the pipeline's derived concernView. */
+/** Vocabulary-order rollup, matches the pipeline's derived concernView. */
 function buildConcernView(chunks: BriefChunk[]): ConcernRollup[] {
   const byConcern = new Map<Concern, { added: number; deleted: number }>();
   for (const chunk of chunks) {

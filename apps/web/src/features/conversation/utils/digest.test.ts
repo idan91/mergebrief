@@ -1,9 +1,4 @@
-// Digest view-model builder: threads grouped by chunk in READING ORDER,
-// unresolved first within a group; humans one row per thread; bots one
-// aggregated row per (bot author, chunk-group) with per-thread rows on
-// expand; resolved/outdated bot threads never inline; outdated threads in
-// their own revision-labeled group; unanchored + PR-level comments in the
-// general group. Sorting never uses bot self-assigned severity.
+// Digest sorting follows brief reading order, never bot self-assigned severity.
 import { describe, expect, it } from "vitest";
 import type { BriefChunk } from "../../brief/types";
 import {
@@ -12,6 +7,7 @@ import {
   splitInlineRows,
 } from "./digest";
 import type { ConversationThread, PrConversation } from "../types";
+import type { Mutable } from "types";
 
 function chunk(id: string, file: string): BriefChunk {
   return {
@@ -45,17 +41,13 @@ function thread(overrides: {
   anchorSha?: string;
 }): ConversationThread {
   nextId += 1;
-  return {
+  const conversationThread: Mutable<ConversationThread> = {
     rootCommentId: nextId,
     path: overrides.path ?? "src/a.ts",
-    ...(overrides.isOutdated ? {} : { line: overrides.line ?? 10 }),
     side: "RIGHT",
     subjectType: "LINE",
     isResolved: overrides.isResolved ?? false,
     isOutdated: overrides.isOutdated ?? false,
-    ...(overrides.anchorSha === undefined
-      ? {}
-      : { anchorSha: overrides.anchorSha }),
     comments: [
       {
         commentId: nextId,
@@ -70,6 +62,13 @@ function thread(overrides: {
     ],
     hasMoreComments: false,
   };
+
+  if (!overrides.isOutdated) conversationThread.line = overrides.line ?? 10;
+  if (overrides.anchorSha !== undefined) {
+    conversationThread.anchorSha = overrides.anchorSha;
+  }
+
+  return conversationThread;
 }
 
 function conversation(threads: ConversationThread[]): PrConversation {
@@ -118,7 +117,7 @@ describe("buildConversationDigest", () => {
     ]);
   });
 
-  it("aggregates bot threads into one row per (bot, chunk group) with open counts", () => {
+  it("aggregates open bot counts by author and chunk group", () => {
     const bot1 = thread({ login: "coderabbitai", isBot: true, line: 10 });
     const bot2 = thread({
       login: "coderabbitai",
@@ -142,8 +141,8 @@ describe("buildConversationDigest", () => {
     expect(rows.filter((row) => row.kind === "thread")).toHaveLength(1);
   });
 
-  it("orders mixed LEFT/RIGHT rows by their diff-row position, not raw line numbers", () => {
-    // Chunk rows: ctx(9/9)=0, add(10)=1, add(11)=2, add(12)=3 — plus a del.
+  it("orders mixed LEFT/RIGHT rows by diff position", () => {
+    // Chunk rows: ctx(9/9)=0, add(10)=1, add(11)=2, add(12)=3, plus a del.
     const mixedChunk = {
       ...chunk("c1", "src/a.ts"),
       diff: [
@@ -152,7 +151,7 @@ describe("buildConversationDigest", () => {
         { kind: "add", content: "c", newLine: 11 },
       ],
     } as BriefChunk;
-    // LEFT thread on oldLine 11 sits at row 0 — BEFORE the RIGHT thread on
+    // LEFT thread on oldLine 11 sits at row 0, BEFORE the RIGHT thread on
     // newLine 10 (row 1), even though 11 > 10 numerically.
     const leftThread: ConversationThread = {
       ...thread({ line: 11 }),
@@ -186,7 +185,7 @@ describe("buildConversationDigest", () => {
     expect(row.anchorLabel).toBe("bbbbbbb");
   });
 
-  it("routes unanchored fresh threads and PR-level comments to the general group", () => {
+  it("puts unanchored fresh threads and PR comments in the general group", () => {
     const renamed = thread({ path: "src/gone.ts", line: 10 });
     const convo = {
       ...conversation([renamed]),
@@ -250,7 +249,7 @@ describe("buildConversationDigest", () => {
 });
 
 describe("buildInlineThreads", () => {
-  it("puts fresh human threads inline at their chunk (resolved included, collapsed later)", () => {
+  it("places fresh human threads inline including resolved ones", () => {
     const openThread = thread({ line: 10 });
     const resolved = thread({ line: 11, isResolved: true });
     const inline = buildInlineThreads({
@@ -265,7 +264,7 @@ describe("buildInlineThreads", () => {
     expect(ids).toEqual([openThread.rootCommentId, resolved.rootCommentId]);
   });
 
-  it("aggregates only UNRESOLVED bot threads inline; resolved bot threads stay digest-only", () => {
+  it("keeps resolved bot threads in the digest and unresolved ones inline", () => {
     const botOpen = thread({ login: "coderabbitai", isBot: true, line: 10 });
     const botResolved = thread({
       login: "coderabbitai",
@@ -296,7 +295,7 @@ describe("buildInlineThreads", () => {
     expect(inline.size).toBe(0);
   });
 
-  it("drops an all-resolved bot group entirely (no empty disclosure)", () => {
+  it("omits empty disclosures for all-resolved bot groups", () => {
     const botResolved = thread({
       login: "coderabbitai",
       isBot: true,
@@ -313,7 +312,7 @@ describe("buildInlineThreads", () => {
 });
 
 describe("splitInlineRows", () => {
-  it("routes human threads to their diff-row index and bots to chunk-level groups", () => {
+  it("places human threads by diff row and bot threads by chunk group", () => {
     const human = thread({ line: 10 });
     const bot = thread({ login: "coderabbitai", isBot: true, line: 11 });
     const rows =

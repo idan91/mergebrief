@@ -43,16 +43,9 @@ interface ReviewSessionProviderProps {
 }
 
 /**
- * Per-brief client runtime of the Review Session. The store is created once
- * per mount (never a module singleton), so it is SSR-safe and per-brief
- * isolated, mirroring the per-request queryClient. Its contents are the
- * server's: the loader read them, and every action writes them back.
- *
- * The provider is NOT remounted per brief: a revision change swaps `briefId`
- * in place, and the render-phase switch below re-derives the store before any
- * child renders against the new model. An effect would be too late: one frame
- * of the old brief's ids against the new model's flags/groups is a crash, not
- * a flicker.
+ * Create the store per mount for SSR isolation, but switch briefs in place.
+ * Re-derive during render: an effect would expose old ids to the new brief and crash.
+ * The loader and writes keep the server authoritative.
  */
 export function ReviewSessionProvider({
   briefId,
@@ -80,35 +73,32 @@ export function ReviewSessionProvider({
   const mountedBriefId = useRef(briefId);
   const appliedSession = useRef(session);
 
-  // Render-phase re-derive (guarded, so it runs once per change and never on
-  // the server, where neither input can change within the single render pass).
-  // The session is re-applied on IDENTITY change, not just on a brief switch:
-  // a read that lands after the first paint — the degraded route recovering —
-  // must reach the store, or writes would come back on over a screen still
-  // showing none of the reviewer's earlier work. react-query's structural
-  // sharing keeps the reference stable while the payload is unchanged, so an
-  // unchanged refetch re-derives nothing.
+  // Reapply on session identity changes so a read recovering after first paint reaches
+  // the store before writes resume. Structural sharing skips unchanged refetches.
+  // The guarded render update runs once per change; server inputs cannot change mid-render.
   if (
     mountedBriefId.current !== briefId ||
     appliedSession.current !== session
   ) {
     // A different Brief is a different session: the frozen posture and any
     // pending failure copy belong to the one that was left behind. A refetch
-    // of the SAME brief keeps them — the server session is still frozen, and
+    // of the SAME brief keeps them, the server session is still frozen, and
     // un-freezing would hand back controls whose every write fails.
     const switched = mountedBriefId.current !== briefId;
     mountedBriefId.current = briefId;
     appliedSession.current = session;
-    store.setState({
-      ...sessionInitialState(model, session),
-      ...(switched
-        ? {
-            frozen: false,
-            writeError: null,
-            deletedMissingDrafts: new Set<string>(),
-          }
-        : {}),
-    });
+    const nextState: Partial<ReviewSessionStoreValue> = sessionInitialState(
+      model,
+      session,
+    );
+
+    if (switched) {
+      nextState.frozen = false;
+      nextState.writeError = null;
+      nextState.deletedMissingDrafts = new Set<string>();
+    }
+
+    store.setState(nextState);
   }
 
   return (
@@ -134,7 +124,7 @@ export function useReviewSessionActions(): ReviewSessionActions {
  * The chunk-scoped slice of the session's review comments. `useShallow`
  * keeps the returned array identity stable while the chunk's own comments
  * are reference-unchanged, so a memoized consumer re-renders only when its
- * slice changes — not on every comment interaction elsewhere.
+ * slice changes, not on every comment interaction elsewhere.
  */
 export function useChunkReviewComments(chunkId: string): ReviewComment[] {
   return useReviewSession(

@@ -3,6 +3,7 @@
 import { commentRun } from "./rules/comment-run.mjs";
 import { extensionlessImport } from "./rules/extensionless-import.mjs";
 import { noBlankTarget } from "./rules/no-blank-target.mjs";
+import { noConditionalSpread } from "./rules/no-conditional-spread.mjs";
 import { noEmDash } from "./rules/no-em-dash.mjs";
 import { noEnum } from "./rules/no-enum.mjs";
 import { noRawButton } from "./rules/no-raw-button.mjs";
@@ -16,6 +17,7 @@ const plugin = {
     "extensionless-import": extensionlessImport,
     "no-raw-button": noRawButton,
     "no-blank-target": noBlankTarget,
+    "no-conditional-spread": noConditionalSpread,
     "test-title": testTitle,
     "comment-run": commentRun,
     "no-em-dash": noEmDash,

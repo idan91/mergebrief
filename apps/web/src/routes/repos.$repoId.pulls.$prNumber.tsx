@@ -1,9 +1,6 @@
-// The DB-backed brief route: the deep-link target PR comments point at. The
-// loader SSR-prefetches exactly what the link names (PR-meta, plus the brief
-// when the span is known); live diff and status polling stay client-side. The
-// render trigger is artifact EXISTS — status only flavors the wait state.
-// Composition only: the body switch, state cards, and plan assembly live in
-// `features/pulls`.
+// SSR-prefetch the linked meta/span; live diff and status polling stay client-side.
+// Render when the artifact exists; status only controls the waiting state.
+// Keep the body switch and plan assembly in features/pulls.
 import { useSuspenseQuery, type QueryClient } from "@tanstack/react-query";
 import {
   createFileRoute,
@@ -15,6 +12,7 @@ import { useCallback, useEffect, useMemo } from "react";
 
 import { ApiError, ApiErrorCodes } from "../data/apiFetch";
 import {
+  buildBriefSearchParams,
   parseCompareParam,
   parseViewParam,
   type BriefSearch,
@@ -42,6 +40,7 @@ import {
   type ConversationFilter,
   type ConversationFilterSearch,
 } from "@web/features/conversation/utils/filter";
+import type { Mutable } from "types";
 
 /** One lightweight PR-meta read per tick. */
 const META_POLL_MS = 4000;
@@ -118,7 +117,7 @@ function mapLoaderError(error: unknown): never {
 /**
  * The Review Session, read alongside the Brief artifact so the first paint is
  * already marked. It DEGRADES: a failed read leaves an error in the cache,
- * which the screen renders as an unavailable session with writes off — it
+ * which the screen renders as an unavailable session with writes off, it
  * never fails the route. The read creates nothing.
  */
 function prefetchSession(
@@ -141,40 +140,42 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
   validateSearch: (search: Record<string, unknown>): PrBriefSearch => {
     const base = search["base"];
     const head = search["head"];
-    // `head` is the revision-selection key, kept on its own so a `?head=<sha>`
-    // deep link selects a revision — its base resolves from `revisions[]`,
-    // never the URL. A lone `base` cannot address anything, so it survives only
-    // alongside a head; an unknown head degrades to latest downstream rather
-    // than 404ing a stale link.
+    // Only head selects a revision; resolve its base from revisions rather than the URL.
+    // Retain a supplied base only with a head. Unknown heads degrade to latest, not 404.
     const view = parseViewParam(search["view"]);
     const compare = parseCompareParam(search["compare"]);
     const thread = parseThreadParam(search["thread"]);
+    const parsed: PrBriefSearch = {};
+
+    if (nonEmpty(head)) parsed.head = head;
+    if (nonEmpty(head) && nonEmpty(base)) parsed.base = base;
+    if (view !== undefined) parsed.view = view;
+    if (compare !== undefined) parsed.compare = compare;
+    if (thread !== undefined) parsed.thread = thread;
+
     return {
-      ...(nonEmpty(head) ? { head } : {}),
-      ...(nonEmpty(head) && nonEmpty(base) ? { base } : {}),
-      ...(view !== undefined ? { view } : {}),
-      ...(compare !== undefined ? { compare } : {}),
-      ...(thread !== undefined ? { thread } : {}),
+      ...parsed,
       // Parsed and re-projected, so unknown tokens drop and the surviving
       // selection lands in canonical order.
       ...conversationFilterSearch(parseConversationFilter(search)),
     };
   },
-  loaderDeps: ({ search }) => ({
-    ...(search.base === undefined ? {} : { base: search.base }),
-    ...(search.head === undefined ? {} : { head: search.head }),
-  }),
+  loaderDeps: ({ search }) => {
+    const deps: Pick<PrBriefSearch, "base" | "head"> = {};
+
+    if (search.base !== undefined) deps.base = search.base;
+    if (search.head !== undefined) deps.head = search.head;
+
+    return deps;
+  },
   loader: async ({ context, params, deps }) => {
     const repoId = assertRepoId(params.repoId);
     const prNumber = parsePrNumber(params.prNumber);
     const explicit = spanFromSearch(deps);
     try {
       if (explicit !== undefined) {
-        // Deep link with a span: meta + brief in parallel, no waterfall. While
-        // the PR's first brief is still generating the link names a span whose
-        // artifact 404s, and that must NOT 404 the page. Swallow ONLY a
-        // brief-query NOT_FOUND; a missing PR is still a real 404 and any other
-        // brief failure propagates.
+        // A linked span may still be generating: swallow only the brief-query NOT_FOUND.
+        // Missing PRs remain real 404s and every other brief failure propagates.
         const [metaResult, briefResult] = await Promise.allSettled([
           context.queryClient.ensureQueryData(
             prMetaQueryOptions(repoId, prNumber),
@@ -191,11 +192,8 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
           if (!isNotFoundError(briefResult.reason)) {
             mapLoaderError(briefResult.reason);
           }
-          // `ensureQueryData` already wrote an ERROR entry into the brief query
-          // cache, and `dbBriefQueryOptions` is retry:false + staleTime
-          // Infinity — the later `useSuspenseQuery` would THROW that cached
-          // error instead of refetching. Drop it so the first render fetches
-          // fresh.
+          // Drop the cached brief error so the first render fetches again.
+          // With retry:false and infinite staleTime, useSuspenseQuery would otherwise throw it.
           context.queryClient.removeQueries({
             queryKey: dbBriefQueryOptions(
               repoId,
@@ -215,7 +213,7 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
       );
       // Prefetch the SELECTED revision's brief with ITS OWN base (`deps.base`
       // disambiguates duplicate-head rows) so a historical head SSRs correctly.
-      // An unknown head degrades to latest — never a 404.
+      // An unknown head degrades to latest, never a 404.
       const timeline = resolveDbTimeline(meta.revisions, deps.head, deps.base);
       if (timeline !== undefined) {
         const span = {
@@ -326,17 +324,9 @@ function PrBriefRoute() {
     [explicit, meta, timeline],
   );
 
-  // Write posture. The submit route pins commit_id to the viewed head and
-  // anchors are read against the RENDERED (base…head) diff, so two stale
-  // shapes exist:
-  // - HEAD mismatch: GitHub accepts a review pinned to the older head and
-  //   marks its comments outdated — writable behind an explicit ack.
-  // - BASE mismatch: the rendered diff is not the PR's current one, so anchors
-  //   can land wrong or nowhere — stays hard read-only.
-  // `meta.baseSha` is comparable here: with `briefAvailable` it is the latest
-  // brief row's own base, the same row `revisions[]` ends with; a null meta
-  // base cannot veto. Derived as primitives so the memo below survives poll
-  // ticks, which rebuild `timeline` object identities.
+  // Head drift permits submission behind an acknowledgement; base drift stays read-only
+  // because the rendered anchors may be wrong. Compare against meta.baseSha only when
+  // a brief exists; a null base cannot veto. Use primitives to survive poll-created timelines.
   const selectedHeadIsCurrent =
     timeline !== undefined && timeline.selected.headSha === meta.headSha;
   const selectedBaseIsCurrent =
@@ -354,7 +344,7 @@ function PrBriefRoute() {
   const newerRevisionSelectable =
     timeline === undefined ||
     timeline.selectedIndex < timeline.points.length - 1;
-  // Memoized so its reference is stable across PR-meta poll ticks — an inline
+  // Memoized so its reference is stable across PR-meta poll ticks, an inline
   // literal would recreate the composer wiring downstream and bust every
   // ChunkCard's memo boundary on each tick.
   const readOnly = useMemo(
@@ -365,10 +355,7 @@ function PrBriefRoute() {
   // Hoisted: an inline literal is a new object per render, busting the memo
   // boundaries downstream on every poll tick.
   const briefSearch = useMemo<BriefSearchParams>(
-    () => ({
-      ...(search.view !== undefined ? { view: search.view } : {}),
-      ...(search.compare !== undefined ? { compare: search.compare } : {}),
-    }),
+    () => buildBriefSearchParams(search.view, search.compare),
     [search.view, search.compare],
   );
 
@@ -384,9 +371,9 @@ function PrBriefRoute() {
   const selectRevision = useCallback(
     (point: DbTimelinePoint) => {
       void navigate({
-        // The FULL span is written — head alone cannot address a duplicate-
+        // The FULL span is written, head alone cannot address a duplicate-
         // head revision. A jump target (`thread`) is spent once a revision is
-        // selected — drop the key entirely (exactOptionalPropertyTypes
+        // selected, drop the key entirely (exactOptionalPropertyTypes
         // forbids `undefined`).
         search: ({ thread: _spent, ...rest }) => ({
           ...rest,
@@ -401,13 +388,9 @@ function PrBriefRoute() {
     [navigate],
   );
 
-  // Outdated-thread → revision jump: a thread anchored on a briefed head
-  // navigates to `?head=<anchor>&thread=<id>` with its own base; a miss keeps
-  // the affordance disabled rather than guessing. `revisionJump` reaches every
-  // memoized ChunkCard, so its identity must survive PR-meta poll ticks (which
-  // rebuild `timeline` and its point objects) — hence the memo keys on a
-  // PRIMITIVE fingerprint of the span list, and the pairs are rebuilt from it.
-  // SHAs are hex, so the separators cannot collide.
+  // Jump only to known briefed heads using their own bases; never guess a missing revision.
+  // Memoize on a primitive span fingerprint so poll-created objects do not rerender cards.
+  // Hex SHAs cannot collide with its separators.
   const revisionSpansKey = useMemo(
     () =>
       timeline === undefined
@@ -428,12 +411,15 @@ function PrBriefRoute() {
         // current-entry choice for the same ambiguity.
         const span = spans.findLast((s) => s.headSha === anchorSha);
         void navigate({
-          search: (current) => ({
-            ...current,
-            head: anchorSha,
-            ...(span !== undefined ? { base: span.baseSha } : {}),
-            thread: threadId,
-          }),
+          search: (current) => {
+            const next: PrBriefSearch = { ...current, head: anchorSha };
+
+            // Key order is URL param order: base lands before thread.
+            if (span !== undefined) next.base = span.baseSha;
+            next.thread = threadId;
+
+            return next;
+          },
           replace: false,
         });
       },
@@ -442,7 +428,7 @@ function PrBriefRoute() {
 
   // Pin the selected span into the URL: fresh links get the resolved head+base,
   // and base drift is corrected to the revision's OWN base. A DEGRADED (unknown)
-  // head is left in place — the page shows latest with a stable note rather
+  // head is left in place, the page shows latest with a stable note rather
   // than silently rewriting the address the reviewer followed.
   const pinnedSpan = state.kind === "render" ? state.span : undefined;
   useEffect(() => {
@@ -462,8 +448,8 @@ function PrBriefRoute() {
 
   // Re-anchor onto the brief only when focus was left NOWHERE (e.g. the
   // operated stepper went aria-disabled at a timeline boundary). The controls
-  // themselves survive a revision change — the brief subtree is no longer
-  // keyed by brief id — so focus normally just stays put. Never scrolls.
+  // themselves survive a revision change, the brief subtree is no longer
+  // keyed by brief id, so focus normally just stays put. Never scrolls.
   useEffect(() => {
     const active = document.activeElement;
     const focusSurvived =
@@ -489,18 +475,18 @@ function PrBriefRoute() {
   // Identity is stabilized on the raw param STRINGS: the parsed filter holds
   // fresh Sets every render, and it rides into the memo boundaries that keep
   // inline threads off the render path.
-  const conversationFilter = useMemo(
-    () =>
-      parseConversationFilter({
-        ...(search.verdicts === undefined ? {} : { verdicts: search.verdicts }),
-        ...(search.reviewers === undefined
-          ? {}
-          : { reviewers: search.reviewers }),
-        ...(search.reviews === undefined ? {} : { reviews: search.reviews }),
-      }),
-    [search.reviewers, search.reviews, search.verdicts],
-  );
-  // `replace`: a filter is a triage gesture, not a destination — ten chip
+  const conversationFilter = useMemo(() => {
+    const filterSearch: Mutable<ConversationFilterSearch> = {};
+
+    if (search.verdicts !== undefined) filterSearch.verdicts = search.verdicts;
+    if (search.reviewers !== undefined) {
+      filterSearch.reviewers = search.reviewers;
+    }
+    if (search.reviews !== undefined) filterSearch.reviews = search.reviews;
+
+    return parseConversationFilter(filterSearch);
+  }, [search.reviewers, search.reviews, search.verdicts]);
+  // `replace`: a filter is a triage gesture, not a destination, ten chip
   // clicks must not become ten back-button steps.
   const onConversationFilterChange = useCallback(
     (next: ConversationFilter) => {

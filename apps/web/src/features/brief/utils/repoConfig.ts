@@ -1,12 +1,6 @@
-// Repo-config snapshot support: FE-local types + parser for the
-// /brief-context payload, and the display-weight resolution the Story/Concern
-// views apply. Display weight ALWAYS derives from the generation-time snapshot
-// stored with the artifact, never live policy (historical rendering stays
-// self-contained).
-//
-// FE-local because importing `repo-config` or `categorizer` here would drag
-// the generator engine into the client bundle. The floor list and the glob
-// matcher are small mirrored copies, pinned by lockstep tests.
+// Display weights use the stored generation-time snapshot, never live policy.
+// Local types avoid pulling the generator engine into the browser bundle.
+// Lockstep tests pin the mirrored floor list and glob matcher.
 import type { Result } from "./validation";
 
 export type RepoConfigOutcome =
@@ -59,7 +53,7 @@ export interface RepoConfigContext {
 }
 
 /**
- * Floor attributes — can never be de-emphasized, pinned first in every chip
+ * Floor attributes, can never be de-emphasized, pinned first in every chip
  * ordering. Mirrors `repo-config`'s FLOOR_ATTRIBUTES (lockstep-tested).
  */
 export const FLOOR_ATTRIBUTES = [
@@ -123,16 +117,19 @@ function parseFileOutcome(value: unknown): RepoConfigFileOutcome | undefined {
     return undefined;
   if (bytesBudget !== undefined && typeof bytesBudget !== "number")
     return undefined;
-  return {
+  const fileOutcome: RepoConfigFileOutcome = {
     path,
     blobSha,
     // Membership checked against OUTCOMES above; narrow via find, not a cast.
     outcome: OUTCOMES.find((known) => known === outcome) ?? "invalid",
-    ...(detail === undefined ? {} : { detail }),
-    ...(warning === undefined ? {} : { warning }),
-    ...(bytesUsed === undefined ? {} : { bytesUsed }),
-    ...(bytesBudget === undefined ? {} : { bytesBudget }),
   };
+
+  if (detail !== undefined) fileOutcome.detail = detail;
+  if (warning !== undefined) fileOutcome.warning = warning;
+  if (bytesUsed !== undefined) fileOutcome.bytesUsed = bytesUsed;
+  if (bytesBudget !== undefined) fileOutcome.bytesBudget = bytesBudget;
+
+  return fileOutcome;
 }
 
 function parseFired(value: unknown): FiredCustomAttribute | undefined {
@@ -161,12 +158,12 @@ function parseFired(value: unknown): FiredCustomAttribute | undefined {
   if (paths !== undefined && paths.some((entry) => entry.length === 0)) {
     return undefined;
   }
-  return {
-    name,
-    criteria,
-    ...(implication === undefined ? {} : { implication }),
-    ...(paths === undefined ? {} : { paths }),
-  };
+  const fired: FiredCustomAttribute = { name, criteria };
+
+  if (implication !== undefined) fired.implication = implication;
+  if (paths !== undefined) fired.paths = paths;
+
+  return fired;
 }
 
 function parseRule(value: unknown): DeEmphasisRule | undefined {
@@ -174,12 +171,16 @@ function parseRule(value: unknown): DeEmphasisRule | undefined {
   const { attribute } = value;
   const paths = value["paths"];
   if (!isString(attribute) || !optionalStringArray(paths)) return undefined;
-  return { attribute, ...(paths === undefined ? {} : { paths }) };
+  const rule: DeEmphasisRule = { attribute };
+
+  if (paths !== undefined) rule.paths = paths;
+
+  return rule;
 }
 
 /**
  * Parse the /brief-context envelope `{ repoConfig: <snapshot|null> }`.
- * `null` (generation recorded nothing) is a valid result — every affordance
+ * `null` (generation recorded nothing) is a valid result, every affordance
  * then renders as if no repo config exists.
  */
 export function parseBriefContext(
@@ -199,7 +200,7 @@ export function parseBriefContext(
   if (!Array.isArray(filesRaw)) {
     return { ok: false, error: "Expected repoConfig.files array" };
   }
-  // Exactly the three canonical slots, in order — a snapshot the writer's
+  // Exactly the three canonical slots, in order, a snapshot the writer's
   // schema would reject must not drive display metadata.
   if (filesRaw.length !== SLOT_PATHS.length) {
     return { ok: false, error: "Expected exactly three repoConfig file slots" };
@@ -251,11 +252,8 @@ export function parseBriefContext(
   return { ok: true, value: { files, collisions, policy } };
 }
 
-// ---------------------------------------------------------------------------
-// Path-scope matching — mirrored copy of the categorizer's linear matcher
-// (lockstep-tested; `**/` = complete segments, `*` within a segment, `?` one
-// non-separator char; iterative sweep, never a backtracking RegExp).
-// ---------------------------------------------------------------------------
+// Mirrors the linear matcher, pinned by lockstep tests.
+// **/ matches complete segments; * and ? stay within a segment. No backtracking regex.
 
 type GlobToken =
   | { kind: "literal"; char: string }
@@ -361,7 +359,7 @@ export interface AttributeDisplayMeta {
   deEmphasized: boolean;
   /** Repo-authored reviewer hint, custom attributes only (chip expansion). */
   implication?: string;
-  /** The repo's model-evaluated criteria — the custom chip's description. */
+  /** The repo's model-evaluated criteria, the custom chip's description. */
   criteria?: string;
 }
 
@@ -373,7 +371,7 @@ const BUILT_IN_META: AttributeDisplayMeta = {
 /**
  * Resolve one attribute's display weight on one chunk. The floor co-fire
  * rule lives HERE: a de-emphasized attribute on a chunk that also fires a
- * floor attribute renders un-quieted — the combination is the signal.
+ * floor attribute renders un-quieted, the combination is the signal.
  */
 export function attributeDisplayMeta(
   context: RepoConfigContext | null | undefined,
@@ -398,20 +396,21 @@ export function attributeDisplayMeta(
       ? { source: "built-in", deEmphasized: true }
       : BUILT_IN_META;
   }
-  return {
+  const meta: AttributeDisplayMeta = {
     source: "repo-policy",
     deEmphasized,
     criteria: fired.criteria,
-    ...(fired.implication === undefined
-      ? {}
-      : { implication: fired.implication }),
   };
+
+  if (fired.implication !== undefined) meta.implication = fired.implication;
+
+  return meta;
 }
 
 /**
  * Order attribute names for a chip row: floor attributes first (in their
  * declared order), everything else in first-appearance order. Never a
- * severity ranking — floor pinning is disclosure, not scoring.
+ * severity ranking, floor pinning is disclosure, not scoring.
  */
 export function floorFirst(attrs: readonly string[]): string[] {
   const floors = FLOOR_ATTRIBUTES.filter((floor) => attrs.includes(floor));

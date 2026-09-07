@@ -1,8 +1,5 @@
-// The rendered-brief plan assembly: comparison-plan memos, the
-// submit/post-now/mark-ready transports, the own-draft derivation, and the
-// identity pinning that keeps every plan stable across PR-meta poll ticks
-// (each refetch rebuilds `timeline` object identities, and these plans feed
-// memoized ChunkCards).
+// PR-meta polls rebuild timeline objects. Keep plans stable so memoized ChunkCards
+// do not rerender for unchanged transport and comparison inputs.
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
@@ -31,6 +28,12 @@ import {
 import { postConversationReply } from "../../conversation/reply";
 import { setThreadResolution } from "../../conversation/resolve";
 import type { Span } from "../utils/briefRouteState";
+import type { Mutable } from "types";
+
+type PreviousBriefPlan = Mutable<
+  NonNullable<BriefComparisonPlan["previousBrief"]>
+>;
+type LastReviewPlan = Mutable<NonNullable<BriefComparisonPlan["lastReview"]>>;
 import type { DbTimelineSelection } from "../utils/dbTimeline";
 import { createMarkReadyAction } from "../transport/markReady";
 import { isOwnDraft } from "../utils/ownDraft";
@@ -48,7 +51,7 @@ import type { PrSummary } from "../types";
 export interface UsePrBriefPlansInput {
   repoId: string;
   prNumber: number;
-  /** The RENDERED span — anchors and commit pins derive from it, never meta. */
+  /** The RENDERED span, anchors and commit pins derive from it, never meta. */
   span: Span;
   meta: PrSummary;
   /** The resolved revision timeline; absent on legacy metas. */
@@ -82,7 +85,7 @@ export function usePrBriefPlans(
   const { repoId, prNumber, span, meta, timeline, revisionJump } = input;
 
   // On the timeline path the SELECTED revision's own availability drives the
-  // plan — each envelope is scoped to its head. On the legacy non-timeline
+  // plan, each envelope is scoped to its head. On the legacy non-timeline
   // path, meta.comparisons applies only to the current head: a pinned older
   // span must not borrow the current head's baselines.
   const currentHead = meta.headSha === span.head;
@@ -109,72 +112,73 @@ export function usePrBriefPlans(
   // oxlint-disable-next-line react-hooks/exhaustive-deps
   const lastReview = useMemo(() => rawLastReview, [lastReviewKey]);
   const comparisonPlan = useMemo<BriefComparisonPlan>(() => {
-    return {
-      ...(previous === undefined
-        ? {}
-        : {
-            previousBrief: {
-              marks: dbComparisonMarksQueryOptions(
-                repoId,
-                prNumber,
-                previous.baselineSha,
-                span.head,
-                "previous-brief",
-                previous.baselineIndex,
-              ),
-              // Raw span diff toggle: previous head → selected head.
-              rawDiff: prDiffQueryOptions(
-                repoId,
-                prNumber,
-                previous.baselineSha,
-                span.head,
-              ),
-              ...(previous.narrativeAvailable
-                ? {
-                    narrative: dbRevisionNarrativeQueryOptions(
-                      repoId,
-                      prNumber,
-                      previous.baselineSha,
-                      span.head,
-                    ),
-                  }
-                : {}),
-            },
-          }),
-      ...(lastReview === undefined || lastReview.kind !== "available"
-        ? {}
-        : {
-            lastReview: {
-              marks: dbComparisonMarksQueryOptions(
-                repoId,
-                prNumber,
-                lastReview.baselineSha,
-                span.head,
-                "checkpoint",
-                lastReview.baselineIndex ?? null,
-              ),
-              // Raw span diff toggle: checkpoint → selected head.
-              rawDiff: prDiffQueryOptions(
-                repoId,
-                prNumber,
-                lastReview.baselineSha,
-                span.head,
-              ),
-              // Marks-only tier: no delta descriptor — the delta pane
-              // degrades honestly ("absence IS the signal").
-              ...(lastReview.deltaAvailable
-                ? {
-                    delta: dbDeltaQueryOptions(
-                      repoId,
-                      prNumber,
-                      lastReview.baselineSha,
-                      span.head,
-                    ),
-                  }
-                : {}),
-            },
-          }),
-    };
+    const plan: Mutable<BriefComparisonPlan> = {};
+
+    if (previous !== undefined) {
+      const previousBrief: PreviousBriefPlan = {
+        marks: dbComparisonMarksQueryOptions(
+          repoId,
+          prNumber,
+          previous.baselineSha,
+          span.head,
+          "previous-brief",
+          previous.baselineIndex,
+        ),
+        // Raw span diff toggle: previous head → selected head.
+        rawDiff: prDiffQueryOptions(
+          repoId,
+          prNumber,
+          previous.baselineSha,
+          span.head,
+        ),
+      };
+
+      if (previous.narrativeAvailable) {
+        previousBrief.narrative = dbRevisionNarrativeQueryOptions(
+          repoId,
+          prNumber,
+          previous.baselineSha,
+          span.head,
+        );
+      }
+
+      plan.previousBrief = previousBrief;
+    }
+
+    if (lastReview !== undefined && lastReview.kind === "available") {
+      const lastReviewPlan: LastReviewPlan = {
+        marks: dbComparisonMarksQueryOptions(
+          repoId,
+          prNumber,
+          lastReview.baselineSha,
+          span.head,
+          "checkpoint",
+          lastReview.baselineIndex ?? null,
+        ),
+        // Raw span diff toggle: checkpoint → selected head.
+        rawDiff: prDiffQueryOptions(
+          repoId,
+          prNumber,
+          lastReview.baselineSha,
+          span.head,
+        ),
+      };
+
+      // Marks-only tier: no delta descriptor, the delta pane
+      // degrades honestly ("absence IS the signal").
+      if (lastReview.deltaAvailable) {
+        lastReviewPlan.delta = dbDeltaQueryOptions(
+          repoId,
+          prNumber,
+          lastReview.baselineSha,
+          span.head,
+        );
+      }
+
+      plan.lastReview = lastReviewPlan;
+    }
+
+    return plan;
   }, [lastReview, prNumber, previous, repoId, span.head]);
   const availability: CompareOptionFlags = {
     previousBrief: comparisonPlan.previousBrief !== undefined,
@@ -187,11 +191,8 @@ export function usePrBriefPlans(
       ? lastReviewUnavailableReasonTitle(t, lastReview.reason)
       : undefined;
 
-  // Anchors were read against THIS span's head, so the review pins
-  // commit_id = span.head — never meta.headSha, which may have advanced while
-  // reading.
-  // The SHAs ride as primitives: `span` is rebuilt on every PR-meta poll tick,
-  // and these actions feed memoized cards.
+  // Pin reviews to the viewed span head, never a meta head that advanced while reading.
+  // Use primitive SHAs because poll ticks rebuild span objects passed to memoized cards.
   const spanBase = span.base;
   const spanHead = span.head;
   const submitAction = useCallback<SubmitReviewAction>(
@@ -205,17 +206,14 @@ export function usePrBriefPlans(
     [prNumber, repoId, spanBase, spanHead],
   );
 
-  // Own-draft state is derived at read time from the PrView booleans — never
-  // stored, never an entry path. The injected action awaits the pr-view
-  // invalidation on success, so the own-draft UI stays until the refreshed
-  // PrView lands — invalidate, never optimistically clear. A ready-elsewhere
-  // flip rides the same derivation via the meta poll.
+  // Derive own-draft state from PrView and await invalidation before clearing its UI.
+  // The same meta poll observes a ready-elsewhere transition.
   const queryClient = useQueryClient();
   const markReadyAction = useMemo(
     () => createMarkReadyAction(queryClient, repoId, prNumber),
     [prNumber, queryClient, repoId],
   );
-  // Per-comment post-now, pinned to THIS span's head — never meta.headSha,
+  // Per-comment post-now, pinned to THIS span's head, never meta.headSha,
   // which may have advanced while drafting. Only wired into `ownDraft` at the
   // current head (below), so a stale-head post cannot be offered.
   const postCommentAction = useCallback(
@@ -244,17 +242,17 @@ export function usePrBriefPlans(
   );
 
   const briefId = `${DB_BRIEF_ID_PREFIX}${repoId}:${String(prNumber)}:${span.base}:${span.head}`;
-  // The live-conversation plan is always fetched fresh per PR — resolution
+  // The live-conversation plan is always fetched fresh per PR, resolution
   // flips and replies happen outside our generation cycle. The selected
   // revision's generation start is a primitive dep, so poll-tick timeline
   // rebuilds with unchanged content never rebuild the plan.
   const briefGeneratedAt = timeline?.selected.generatedAt;
-  // The resolve capability is PR-LEVEL and comes off PR META — never the list
+  // The resolve capability is PR-LEVEL and comes off PR META, never the list
   // payload, whose value is an authorship-only fallback. It rides every
   // revision on purpose: a thread belongs to the PR, not to the rendered head.
   const viewerCanResolve = meta.viewerCanResolve;
-  const conversationPlan = useMemo(
-    () => ({
+  const conversationPlan = useMemo<ConversationPlan>(() => {
+    const plan: Mutable<ConversationPlan> = {
       queryOptions: conversationQueryOptions(repoId, prNumber),
       // Collaborator mention pool: repo-scoped, shared by the section and the
       // inline composers through one query key.
@@ -270,18 +268,21 @@ export function usePrBriefPlans(
             queryKey: prMetaQueryOptions(repoId, prNumber).queryKey,
           }),
       },
-      ...(revisionJump === undefined ? {} : { revisionJump }),
-      ...(briefGeneratedAt === undefined ? {} : { briefGeneratedAt }),
-    }),
-    [
-      briefGeneratedAt,
-      prNumber,
-      queryClient,
-      repoId,
-      revisionJump,
-      viewerCanResolve,
-    ],
-  );
+    };
+
+    if (revisionJump !== undefined) plan.revisionJump = revisionJump;
+    if (briefGeneratedAt !== undefined)
+      plan.briefGeneratedAt = briefGeneratedAt;
+
+    return plan;
+  }, [
+    briefGeneratedAt,
+    prNumber,
+    queryClient,
+    repoId,
+    revisionJump,
+    viewerCanResolve,
+  ]);
 
   return {
     briefId,

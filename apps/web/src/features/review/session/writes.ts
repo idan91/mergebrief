@@ -1,13 +1,6 @@
-// The Review Session write transport: ONE request per user action, no
-// batching, no network debounce, no retry machinery. A retry here is the
-// action again — so every call either lands or is reported, and nothing is
-// queued for later.
-//
-// Never a snapshot PUT: a whole-session write clobbers a concurrent writer's
-// untouched fields, leaves the audit trail unable to say what the reviewer
-// did, and collapses every action into one scope check. Bulk dismiss/address
-// arrive as one call carrying an id array — the operation's shape, not
-// batching.
+// Send one request per action; never queue or retry it implicitly.
+// Snapshot PUTs would clobber concurrent fields and erase per-operation audit/scope checks.
+// Bulk dismiss/address is one operation carrying ids, not a batch of separate writes.
 import type { TranslationKey } from "i18n";
 
 import {
@@ -15,12 +8,14 @@ import {
   apiFetch,
   errorFromResponse,
   type ApiErrorCode,
+  type ApiFetchInit,
 } from "../../../data/apiFetch";
+import type { Mutable } from "types";
 import type { ReviewOutcome, RiskEvidence } from "../utils/state";
 import type { CommentSide } from "../utils/comments";
 import type { Category } from "../../brief/types";
 
-/** The Brief a write names — the same span the session read took. */
+/** The Brief a write names, the same span the session read took. */
 export interface SessionWriteTarget {
   repoId: string;
   prNumber: number;
@@ -127,11 +122,8 @@ export function sessionWritePath(
 type WriteMethod = "POST" | "PUT" | "PATCH" | "DELETE";
 
 /**
- * How many session writes are in flight, process-wide. The focus refetch
- * REPLACES the store, so it must not run against a payload computed before a
- * write this tab has already sent: the reviewer would watch their own action
- * disappear, or see the created draft twice. Not a queue and not a lock —
- * just "not right now".
+ * Focus refetch replaces the store. Delay it while this tab has sent writes,
+ * otherwise stale payloads can erase visible actions or duplicate a draft. This is no lock.
  */
 let inFlight = 0;
 
@@ -140,8 +132,8 @@ export function hasPendingSessionWrite(): boolean {
 }
 
 /**
- * One operation. A non-2xx is an EXPECTED outcome the caller reverts on —
- * never a throw — and a thrown fetch is the same indeterminate failure: the
+ * One operation. A non-2xx is an EXPECTED outcome the caller reverts on,
+ * never a throw, and a thrown fetch is the same indeterminate failure: the
  * reviewer is told, and the action stays available.
  */
 async function send<T>(
@@ -155,11 +147,14 @@ async function send<T>(
   let response: Response;
   inFlight += 1;
   try {
-    response = await apiFetch(path, {
+    const init: Mutable<ApiFetchInit> = {
       method,
       headers: { "content-type": "application/json" },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-    });
+    };
+
+    if (body !== undefined) init.body = JSON.stringify(body);
+
+    response = await apiFetch(path, init);
   } catch {
     return { ok: false, failure: UNKNOWN };
   } finally {
@@ -189,7 +184,7 @@ function draftId(payload: unknown): string {
   ) {
     return payload.draftId;
   }
-  // A 2xx with no id is a contract violation, but the write DID land — the
+  // A 2xx with no id is a contract violation, but the write DID land, the
   // caller must not revert. The unusable id keeps post-now off this draft
   // until the next read replaces it.
   return "";

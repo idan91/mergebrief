@@ -1,9 +1,5 @@
 // @vitest-environment jsdom
-// The thread row's two renderings: the full disclosure row, and the slim
-// "resolved" line a settled thread collapses to. Pins which state picks which
-// variant (outdated wins over resolved), that the slim row stays the SAME
-// single-button disclosure, and that its accessible name still carries who
-// said what — "resolved" alone would name every settled row identically.
+// Resolved rows retain a single disclosure and a distinct who/what accessible name.
 import { appI18n } from "../../../../i18n/I18nProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
@@ -19,12 +15,13 @@ import {
 import type { DigestThreadRow } from "../../utils/digest";
 import type { ConversationThread } from "../../types";
 import type { ThreadComposerWiring } from "../../wiring";
+import type { Mutable } from "types";
 import { ThreadRowView } from "./ThreadRowView";
 
 const BRIEF_ID = "db:42:7:base:head";
 
 // One ordered hook: cleanup() unmounts the ReviewSessionProvider, whose
-// teardown FLUSHES a pending snapshot write — the storage clear must run
+// teardown FLUSHES a pending snapshot write, the storage clear must run
 // after it, or one test's drafts hydrate into the next (every test shares a
 // briefId).
 afterEach(() => {
@@ -109,16 +106,19 @@ function threadRow(overrides: RowOverrides = {}): DigestThreadRow {
     })),
     hasMoreComments: false,
   };
-  return {
+  const row: Mutable<DigestThreadRow> = {
     kind: "thread",
     thread,
     digestLine: DIGEST_LINE,
     placement: { kind: "chunk", chunkId: "c1", rowId: "c1:1" },
     isOwn: overrides.isOwn ?? false,
-    ...(overrides.anchorLabel === undefined
-      ? {}
-      : { anchorLabel: overrides.anchorLabel }),
   };
+
+  if (overrides.anchorLabel !== undefined) {
+    row.anchorLabel = overrides.anchorLabel;
+  }
+
+  return row;
 }
 
 function composer(): ThreadComposerWiring {
@@ -171,7 +171,7 @@ function renderRow(row: DigestThreadRow, expanded = false) {
   return { view, toggle };
 }
 
-describe("ThreadRowView — slim resolved rows", () => {
+describe("ThreadRowView, slim resolved rows", () => {
   it("renders a collapsed resolved thread as the slim variant", () => {
     const { view } = renderRow(threadRow({ isResolved: true, isOwn: true }));
     const row = screen.getByTestId("thread-row");
@@ -185,7 +185,7 @@ describe("ThreadRowView — slim resolved rows", () => {
     expect(row.textContent).toContain(DIGEST_LINE);
   });
 
-  it("keeps an outdated resolved thread on the full row (outdated wins)", () => {
+  it("keeps outdated resolved threads on the full row", () => {
     renderRow(
       threadRow({ isResolved: true, isOutdated: true, anchorLabel: "abc1234" }),
     );
@@ -222,7 +222,7 @@ describe("ThreadRowView — slim resolved rows", () => {
     const { toggle } = renderRow(threadRow({ isResolved: true }));
     const row = screen.getByTestId("thread-row");
     expect(row.getAttribute("aria-expanded")).toBe("false");
-    // Rendering only — no resolve/unresolve actions ride the collapsed row.
+    // Rendering only, no resolve/unresolve actions ride the collapsed row.
     expect(screen.getAllByRole("button")).toHaveLength(1);
     fireEvent.click(row);
     expect(toggle).toHaveBeenCalledWith(9001);
@@ -239,7 +239,7 @@ describe("ThreadRowView — slim resolved rows", () => {
     ).toBeDefined();
   });
 
-  it("shows the comment count only above one comment (today's rule)", () => {
+  it("shows comment counts only above one", () => {
     renderRow(threadRow({ isResolved: true }));
     expect(screen.getByTestId("thread-row").textContent).not.toMatch(
       /\d+ comments/,
@@ -253,7 +253,7 @@ describe("ThreadRowView — slim resolved rows", () => {
     ).not.toBeNull();
   });
 
-  it("drops the landing attribute on inline (hideJump) renders, slim included", () => {
+  it("omits landing attributes from all inline hideJump rows", () => {
     const flowStore = createReviewFlowStore(
       {
         saveComment: vi.fn(),
@@ -301,18 +301,18 @@ describe("ThreadRowView — slim resolved rows", () => {
   });
 });
 
-describe("ThreadRowView — author avatars", () => {
+describe("ThreadRowView, author avatars", () => {
   it("shows the root author's avatar on the full row", () => {
     renderRow(threadRow({}));
     const row = screen.getByTestId("thread-row");
     expect(row.querySelector("img")?.getAttribute("src")).toBe(
       "https://avatars.example/alice.png",
     );
-    // Decorative — the login text carries the identity.
+    // Decorative, the login text carries the identity.
     expect(row.querySelector("img")?.getAttribute("alt")).toBe("");
   });
 
-  it("keeps the slim resolved row text-only (no avatar)", () => {
+  it("keeps slim resolved rows text-only without avatars", () => {
     renderRow(threadRow({ isResolved: true }));
     expect(screen.getByTestId("thread-row").querySelector("img")).toBeNull();
   });

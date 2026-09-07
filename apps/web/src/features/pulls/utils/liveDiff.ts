@@ -1,8 +1,5 @@
-// Client-side handling of the LIVE whole-PR diff. The proxy returns ONE
-// unified diff spanning every file (never persisted). Split the body on
-// `diff --git` boundaries, then slice each chunk's rows with the shared
-// diffSlicing module. A chunk whose file is absent keeps the legal no-`diff`
-// shape (the renderer degrades).
+// The live diff is never persisted. Missing files retain the legal no-diff shape
+// so chunk rendering degrades instead of failing.
 import {
   parseUnifiedDiffPatch,
   sliceChunkDiff,
@@ -13,7 +10,7 @@ import type { Brief } from "../../brief/types";
 export { splitUnifiedDiffByFile } from "../../brief/utils/diffSlicing";
 
 /**
- * Attach sliced per-chunk diff rows from the live whole-PR diff. Pure — the
+ * Attach sliced per-chunk diff rows from the live whole-PR diff. Pure, the
  * input brief is never mutated; an empty diff returns it unchanged.
  */
 export function attachLiveDiffs(brief: Brief, diff: string): Brief {
@@ -34,21 +31,22 @@ export function attachLiveDiffs(brief: Brief, diff: string): Brief {
     }
     return rows;
   };
-  return {
+  const withDiffs: Brief = {
     ...brief,
     chunks: brief.chunks.map((chunk) => {
       const rows = rowsFor(chunk.file);
       if (rows === undefined) return chunk;
       return { ...chunk, diff: sliceChunkDiff(rows, chunk) };
     }),
-    ...(brief.unattributed === undefined
-      ? {}
-      : {
-          unattributed: brief.unattributed.map((entry) => {
-            const rows = rowsFor(entry.file);
-            if (rows === undefined) return entry;
-            return { ...entry, diff: sliceChunkDiff(rows, entry) };
-          }),
-        }),
   };
+
+  if (brief.unattributed !== undefined) {
+    withDiffs.unattributed = brief.unattributed.map((entry) => {
+      const rows = rowsFor(entry.file);
+      if (rows === undefined) return entry;
+      return { ...entry, diff: sliceChunkDiff(rows, entry) };
+    });
+  }
+
+  return withDiffs;
 }

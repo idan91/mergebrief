@@ -1,15 +1,10 @@
-// Conversation filter state and reductions:
-// - The reviewer family filters reviews, threads AND PR-level comments; the
-//   verdict family and the recency toggle are review-only concepts.
-// - OR within a family, AND across families; an empty family is INACTIVE
-//   (no filter), never "show nothing".
-// - Counts are faceted: each family's counts ignore its own selection but
-//   honour the other family's, and are computed AFTER the recency reduction.
-// - Latest-per-reviewer is the DEFAULT.
-// - DISMISSED has no chip, so any active verdict filter hides dismissed
-//   reviews.
+// Reviewer filters apply to all conversation kinds; verdict and recency apply to reviews.
+// Combine within a family with OR, across families with AND; empty means inactive.
+// Facet counts exclude their own selection and follow recency reduction.
+// Latest-per-reviewer is the default; active verdict filters hide chipless DISMISSED reviews.
 import { toggleSet } from "@web/utils/collections";
 import { buildInlineThreads } from "./digest";
+import type { Mutable } from "types";
 import {
   ReviewVerdictStates,
   type ConversationAuthor,
@@ -21,7 +16,7 @@ import type { ValueOf } from "types";
 
 /**
  * The verdict states that earn a chip, in render order. DISMISSED is absent,
- * so it can never be selected — and therefore never survives an active
+ * so it can never be selected, and therefore never survives an active
  * verdict filter.
  */
 export const FilterVerdictStates = {
@@ -31,7 +26,7 @@ export const FilterVerdictStates = {
 } as const;
 export type FilterVerdictState = ValueOf<typeof FilterVerdictStates>;
 
-/** URL vocabulary for the verdict family — kebab-case, user-editable. */
+/** URL vocabulary for the verdict family, kebab-case, user-editable. */
 const VERDICT_PARAM: Readonly<Record<FilterVerdictState, string>> = {
   APPROVED: "approved",
   CHANGES_REQUESTED: "changes-requested",
@@ -59,7 +54,7 @@ export interface ConversationFilter {
 /** Search-param projection of the filter; `undefined` = key omitted from the URL. */
 // A type alias, not an interface: only aliases carry an implicit index
 // signature, and this shape is spread into route search objects. Keys are
-// OPTIONAL under `exactOptionalPropertyTypes` — an absent key, never an
+// OPTIONAL under `exactOptionalPropertyTypes`, an absent key, never an
 // explicit undefined.
 export type ConversationFilterSearch = {
   readonly verdicts?: string;
@@ -90,7 +85,7 @@ function splitParam(value: unknown): readonly string[] {
 
 /**
  * Read the filter out of URL search params. Every unknown token is DROPPED
- * rather than rejected — this state is user-editable and shareable, so a
+ * rather than rejected, this state is user-editable and shareable, so a
  * stale link degrades to a looser filter instead of an error.
  */
 export function parseConversationFilter(
@@ -116,19 +111,18 @@ export function conversationFilterSearch(
     filter.verdicts.has(state),
   ).map((state) => VERDICT_PARAM[state]);
   const reviewers = [...filter.reviewers];
-  return {
-    ...(verdicts.length === 0 ? {} : { verdicts: verdicts.join(",") }),
-    ...(reviewers.length === 0 ? {} : { reviewers: reviewers.join(",") }),
-    ...(filter.latestOnly ? {} : { reviews: ALL_REVIEWS_PARAM }),
-  };
+  const search: Mutable<ConversationFilterSearch> = {};
+
+  if (verdicts.length !== 0) search.verdicts = verdicts.join(",");
+  if (reviewers.length !== 0) search.reviewers = reviewers.join(",");
+  if (!filter.latestOnly) search.reviews = ALL_REVIEWS_PARAM;
+
+  return search;
 }
 
 /**
- * A COMMENTED review with an empty body is GitHub's envelope around inline
- * comments, not a verdict anyone stated. They must also stay out of the
- * recency reduction and the counts: otherwise an approver who later leaves one
- * inline comment loses their standing approval to an envelope that renders
- * nothing.
+ * Empty COMMENTED envelopes must not replace an earlier approval in recency or counts.
+ * They carry inline comments, not a new verdict.
  */
 export function isStatedVerdict(review: ConversationReview): boolean {
   return (
@@ -140,8 +134,8 @@ function isNewer(
   candidate: ConversationReview,
   incumbent: ConversationReview,
 ): boolean {
-  // `submittedAt` is optional on the wire, so array order — GitHub returns
-  // reviews in submission order — is the fallback, and the candidate always
+  // `submittedAt` is optional on the wire, so array order, GitHub returns
+  // reviews in submission order, is the fallback, and the candidate always
   // sits later in the array than the incumbent.
   if (
     candidate.submittedAt === undefined ||
@@ -152,7 +146,7 @@ function isNewer(
 }
 
 /**
- * One review per author — the most recent. Authors keep first-appearance
+ * One review per author, the most recent. Authors keep first-appearance
  * order, so repeated renders are stable.
  */
 export function latestReviewPerAuthor(
@@ -236,7 +230,7 @@ export interface VerdictFacet {
 
 /**
  * Verdict chip counts: computed after the recency reduction and under the
- * reviewer selection, but blind to the verdict selection itself — a chip says
+ * reviewer selection, but blind to the verdict selection itself, a chip says
  * what it would add. States with no reviews yield no chip.
  */
 export function verdictFacets(
@@ -265,7 +259,7 @@ export interface ReviewerFacet {
 }
 
 /**
- * Every author with activity on the PR — reviews, threads or PR comments —
+ * Every author with activity on the PR, reviews, threads or PR comments,
  * humans first, then bots, each alphabetically. Deliberately NOT faceted:
  * chips that vanish as you select would move the target mid-click, and thread
  * authors have no verdict to be faceted by.
@@ -292,7 +286,7 @@ export function reviewerFacets(
 }
 
 /**
- * Drop reviewer selections nobody on this PR matches — the same
+ * Drop reviewer selections nobody on this PR matches, the same
  * degrade-to-looser rule the verdict vocabulary gets. A shared link whose
  * logins have since changed would otherwise arrive as an ACTIVE family
  * matching nothing. Call once the conversation resolves.
@@ -313,14 +307,8 @@ export function reconcileReviewers(
 const NO_OWN_THREADS: ReadonlySet<number> = new Set<number>();
 
 /**
- * Threads the filter removes FROM THE DIFF. Counted against the inline set
- * rather than every thread: the digest carries outdated and resolved-bot
- * threads that never render inline, so counting those would warn about an
- * absence the reader could not have noticed.
- *
- * ONE digest build, then subtract by author: placement is per-thread and
- * inline inclusion is per-row, so removing a reviewer can only drop whole
- * rows, never re-group the survivors.
+ * Count removals from the inline set, excluding threads only visible in the digest.
+ * Removing reviewers drops whole rows, so subtract from one digest without regrouping.
  */
 export function countHiddenInlineThreads(
   conversation: PrConversation,
@@ -365,7 +353,7 @@ export function withReviewerSelection(
   return { ...filter, reviewers: toggleSet(filter.reviewers, login) };
 }
 
-/** The All link: select every reviewer — same visible set as selecting none. */
+/** The All link: select every reviewer, same visible set as selecting none. */
 export function withAllReviewers(
   filter: ConversationFilter,
   logins: readonly string[],
@@ -381,7 +369,7 @@ export function withNoReviewers(
 }
 
 /**
- * Both families back to inactive, recency PRESERVED — resetting to the
+ * Both families back to inactive, recency PRESERVED, resetting to the
  * default would silently re-collapse a history the reader opted into.
  */
 export function withNoFilters(filter: ConversationFilter): ConversationFilter {

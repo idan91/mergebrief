@@ -1,16 +1,7 @@
-// Inline post-now transport: posts one staged draft comment immediately as a
-// standalone inline review comment (own-draft state only). Expected failure
-// statuses are RESULT KINDS the own-draft flow renders as toast copy — only a
-// malformed 2xx throws (contract violation).
-//
-// Deterministic-400 mirroring: the route rejects an empty or over-long body, a
-// non-40-hex commitId, and startLine >= line. Client mirrors: the composer
-// blocks an empty body at save time; the over-long body is blocked at the Post
-// affordance by `postCommentBlockedReason` (keep in lockstep with the route's
-// MAX_BODY_LENGTH); the commitId is always the viewed head; the anchor→wire map
-// only sets startLine on a true multi-line range. A 400 that still lands
-// collapses to `invalid`, whose copy tells the author to edit the draft — never
-// a retry-as-is invitation.
+// Expected failures are result kinds for own-draft toast copy; malformed 2xx responses throw.
+// Keep body limits in lockstep with the route. The composer blocks empty bodies,
+// postCommentBlockedReason blocks long ones, and anchors encode only true multiline ranges.
+// Any remaining deterministic 400 requires editing the draft, never retrying unchanged.
 import {
   ApiError,
   ApiErrorCodes,
@@ -18,29 +9,32 @@ import {
   errorFromResponse,
   type ApiErrorCode,
 } from "../../../data/apiFetch";
+import type { Mutable } from "types";
+
+/** 201, posted; `reviewId` is the wrapping review id when GitHub assigns one. */
+export interface PostedComment {
+  readonly kind: "posted";
+  readonly commentId: number;
+  readonly reviewId?: number;
+}
 
 export type PostCommentResult =
-  /** 201 — posted; `reviewId` is the wrapping review id when GitHub assigns one. */
-  | {
-      readonly kind: "posted";
-      readonly commentId: number;
-      readonly reviewId?: number;
-    }
-  /** 401 — session expired; sign in again. The draft stays. */
+  | PostedComment
+  /** 401, session expired; sign in again. The draft stays. */
   | { readonly kind: "unauthorized" }
-  /** 404 — the PR (or repo access) is gone. */
+  /** 404, the PR (or repo access) is gone. */
   | { readonly kind: "not-found" }
-  /** 409 — the head advanced under the pinned commit; reload to re-anchor. */
+  /** 409, the head advanced under the pinned commit; reload to re-anchor. */
   | { readonly kind: "stale" }
-  /** 409 — the draft's anchor points at no code; re-place or delete it. */
+  /** 409, the draft's anchor points at no code; re-place or delete it. */
   | { readonly kind: "orphaned-anchor" }
-  /** 409 — the draft is already on GitHub; nothing posted twice. */
+  /** 409, the draft is already on GitHub; nothing posted twice. */
   | { readonly kind: "already-published" }
-  /** 400 (shape; mirrored client-side) or deterministic 413 — edit the body, retry-as-is never clears. */
+  /** 400 (shape; mirrored client-side) or deterministic 413, edit the body, retry-as-is never clears. */
   | { readonly kind: "invalid" }
-  /** 502/anything else — GitHub rejected or is unreachable. */
+  /** 502/anything else, GitHub rejected or is unreachable. */
   /**
-   * 403 — a url-box brief for a repo the reader's own GitHub account cannot
+   * 403, a url-box brief for a repo the reader's own GitHub account cannot
    * write to. Never a retry: it clears by installing the App there.
    */
   | { readonly kind: "no-write-access" }
@@ -48,12 +42,9 @@ export type PostCommentResult =
 
 type PostCommentFailureKind = Exclude<PostCommentResult["kind"], "posted">;
 
-// Total over the wire vocabulary: a new ApiErrorCode member fails to compile
-// here instead of silently becoming "try again shortly". Each 409 is its own
-// outcome — a frozen session and a rewritten PR both mean the read went stale
-// (reload to re-anchor); an orphaned anchor and an already-published draft are
-// neither stale nor retryable. A 413 is deterministic (over-long body), so its
-// copy must say edit-the-draft, never retry-as-is.
+// Keep the wire mapping total so new codes cannot silently become retry advice.
+// Frozen-session and rewritten-PR failures require reloading to re-anchor.
+// Orphaned/published drafts are neither stale nor retryable; 413 requires a body edit.
 const KindForCode = {
   [ApiErrorCodes.UNAUTHORIZED]: "unauthorized",
   [ApiErrorCodes.INVALID_SIGNATURE]: "upstream",
@@ -79,7 +70,7 @@ const KindForCode = {
   [ApiErrorCodes.GENERATION_UNAVAILABLE]: "upstream",
   [ApiErrorCodes.GENERATION_CONFIG]: "upstream",
   [ApiErrorCodes.INTERNAL_ERROR]: "upstream",
-  // Web-local; never on the wire — errorFromResponse cannot produce it.
+  // Web-local; never on the wire, errorFromResponse cannot produce it.
   [ApiErrorCodes.MALFORMED]: "upstream",
 } as const satisfies Record<ApiErrorCode, PostCommentFailureKind>;
 
@@ -138,9 +129,12 @@ export async function postInlineComment(
   if (!isPostedBody(parsed)) {
     throw new ApiError(ApiErrorCodes.MALFORMED, response.status, path);
   }
-  return {
+  const posted: Mutable<PostedComment> = {
     kind: "posted",
     commentId: parsed.commentId,
-    ...(parsed.reviewId === undefined ? {} : { reviewId: parsed.reviewId }),
   };
+
+  if (parsed.reviewId !== undefined) posted.reviewId = parsed.reviewId;
+
+  return posted;
 }

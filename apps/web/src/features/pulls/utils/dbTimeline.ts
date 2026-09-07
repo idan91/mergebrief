@@ -1,19 +1,14 @@
-// The DB-backed Brief revision timeline over PR-meta's `revisions[]`. Pure
-// and framework-free so the whole resolution is unit-testable; the route
-// wires a `?head=` search param through `resolveDbTimeline` to pick a point.
-//
-// Points navigate BRIEF heads only — a Delta is a lens, never a point.
-// `baseSha` is per-entry and critical (base drifts across revisions), so the
-// selected point's OWN base drives the brief GET — never the top-level
-// view's.
+// Timeline points represent brief heads; a Delta is a comparison lens.
+// The selected revision's own base drives the brief GET because bases can drift.
 import type { PrComparisons, RevisionSummary } from "../types";
+import type { Mutable } from "types";
 
 export interface DbTimelinePoint {
   readonly headSha: string;
-  /** This revision's OWN base — the brief GET is an exact (pr, base, head). */
+  /** This revision's OWN base, the brief GET is an exact (pr, base, head). */
   readonly baseSha: string;
   readonly headIndex: number;
-  /** This revision's generation start — the conversation cutoff. */
+  /** This revision's generation start, the conversation cutoff. */
   readonly generatedAt?: string;
   readonly comparisons: PrComparisons;
 }
@@ -25,7 +20,7 @@ export interface DbTimelineSelection {
   /** Index of `selected` within `points`. */
   readonly selectedIndex: number;
   /**
-   * True when a `?head=` was requested but is not a known revision — the
+   * True when a `?head=` was requested but is not a known revision, the
    * selection fell back to latest so a stale deep link renders SOMETHING with
    * a polite note, never a 404.
    */
@@ -35,33 +30,24 @@ export interface DbTimelineSelection {
 }
 
 function toPoint(revision: RevisionSummary): DbTimelinePoint {
-  return {
+  const point: Mutable<DbTimelinePoint> = {
     headSha: revision.headSha,
     baseSha: revision.baseSha,
     headIndex: revision.headIndex,
-    ...(revision.generatedAt === undefined
-      ? {}
-      : { generatedAt: revision.generatedAt }),
     comparisons: revision.comparisons,
   };
+
+  if (revision.generatedAt !== undefined) {
+    point.generatedAt = revision.generatedAt;
+  }
+
+  return point;
 }
 
 /**
- * Resolve the browsable timeline and the selected point for a requested span.
- *
- * A head SHA is NOT unique in `revisions[]`: a retarget re-brief writes a
- * second row for the same head with a different base (the brief natural key
- * is `(pr, base, head)`). Selection identity is therefore the ARRAY POSITION
- * of a point, and resolution prefers span identity:
- *
- * - `undefined` return: no revisions (no brief yet) — the caller keeps its
- *   existing wait/empty flow, there is no head to select.
- * - head + base given → the exact `(base, head)` revision when one exists.
- * - bare head (or a base matching no row) → the HIGHEST-index row with that
- *   head — the same current-entry choice the backend's `at(-1)` makes for
- *   duplicate heads, so the two sides agree on which duplicate is "the" one.
- * - head unknown → latest, with `degraded: true` (the note case).
- * - nothing requested → latest (the default view).
+ * Retargeting can produce multiple revisions for one head; identity is array position.
+ * Prefer an exact base/head span, then the highest-index matching head, matching the backend.
+ * Unknown heads degrade to latest; absent revisions return undefined.
  */
 export function resolveDbTimeline(
   revisions: readonly RevisionSummary[] | undefined,
@@ -95,7 +81,7 @@ export function resolveDbTimeline(
   const selectedIndex = requestedIndex === -1 ? latestIndex : requestedIndex;
   const selected = points[selectedIndex];
   // `selectedIndex` is always in range (findIndex hit, or the clamped latest),
-  // so `selected` is defined — the guard is TypeScript narrowing only.
+  // so `selected` is defined, the guard is TypeScript narrowing only.
   if (selected === undefined) {
     return undefined;
   }

@@ -14,7 +14,9 @@ import type {
   ComparisonMarks,
   ComparisonMarksSummary,
   DiffLine,
+  LastReviewComparisonAvailability,
   LocalBriefSummary,
+  PreviousBriefComparisonAvailability,
   RevisionChanges,
   RevisionNarrativeArtifact,
 } from "../types";
@@ -33,21 +35,16 @@ import { BriefErrorCodes, type BriefErrorCode } from "../utils/briefErrors";
 const logger = getServerLogger();
 
 /**
- * A read failure already reduced to browser-safe copy. Node's own errors carry
- * the deployment's absolute paths and cross the server-function boundary
- * verbatim, so every throw out of this module goes through here: the raw detail
- * is logged, the message is one of the curated strings.
- *
- * NEVER attach `{ cause }` — TanStack's serializer walks non-enumerable own
- * props, so a cause chain ships straight to an unauthenticated browser.
+ * Log raw read failures and throw only curated browser-safe messages.
+ * Never attach cause: TanStack serializes non-enumerable own properties too.
  */
 class BriefReadError extends Error {}
 
 /**
- * Routine outcomes — a link to a brief this instance doesn't have, or an id
+ * Routine outcomes, a link to a brief this instance doesn't have, or an id
  * that fails the charset guard. Both are what an id-guessing crawler
  * produces at whatever rate it likes, so they must not sustain an alertable
- * warn rate. A broken or unparsable artifact is different — that IS degraded.
+ * warn rate. A broken or unparsable artifact is different, that IS degraded.
  */
 const ROUTINE_REASONS: ReadonlySet<string> = new Set<string>([
   BriefErrorCodes.NOT_FOUND,
@@ -56,7 +53,7 @@ const ROUTINE_REASONS: ReadonlySet<string> = new Set<string>([
 
 /**
  * Log the raw reason (server-side only) and throw the curated one. The raw
- * value rides as a structured FIELD, never interpolated into `msg` — the
+ * value rides as a structured FIELD, never interpolated into `msg`, the
  * logging boundary redacts and serializes fields, and `msg` bypasses that.
  */
 function failRead(
@@ -96,7 +93,7 @@ const REVISION_NARRATIVE_SUFFIX = ".revision-narrative.json";
 const REVISION_CHANGES_SUFFIX = ".revchanges.json";
 
 interface LocalComparisonMarksEntry extends ComparisonMarksSummary {
-  /** Sidecar filename minus `.comparison.json` — the marks artifact id. */
+  /** Sidecar filename minus `.comparison.json`, the marks artifact id. */
   id: string;
 }
 
@@ -105,7 +102,7 @@ async function readLocalBriefSummaries(): Promise<LocalBriefSummary[]> {
   try {
     entries = await readdir(requireLocalBriefsDir());
   } catch (error) {
-    // No out dir yet — a fresh checkout/container that never ran the local
+    // No out dir yet, a fresh checkout/container that never ran the local
     // generator. Zero local briefs, not a 500.
     if (error instanceof Error && "code" in error && error.code === "ENOENT") {
       return [];
@@ -139,21 +136,24 @@ async function readLocalBriefSummaries(): Promise<LocalBriefSummary[]> {
         logger.warn(`Ignoring unreadable brief ${briefId}: ${String(error)}`);
         return null;
       }
-      return {
+      const summary: LocalBriefSummary = {
         id: briefId,
         artifactKind: brief.artifactKind,
         repo: brief.pr.repo,
         number: brief.pr.number,
         title: brief.pr.title,
         sha: brief.pr.sha,
-        ...(brief.index != null ? { index: brief.index } : {}),
-        ...(brief.baselineSha ? { baselineSha: brief.baselineSha } : {}),
-        ...(brief.headSha ? { headSha: brief.headSha } : {}),
-        ...(brief.baselineIndex != null
-          ? { baselineIndex: brief.baselineIndex }
-          : {}),
-        ...(brief.headIndex != null ? { headIndex: brief.headIndex } : {}),
-      } satisfies LocalBriefSummary;
+      };
+
+      if (brief.index != null) summary.index = brief.index;
+      if (brief.baselineSha) summary.baselineSha = brief.baselineSha;
+      if (brief.headSha) summary.headSha = brief.headSha;
+      if (brief.baselineIndex != null) {
+        summary.baselineIndex = brief.baselineIndex;
+      }
+      if (brief.headIndex != null) summary.headIndex = brief.headIndex;
+
+      return summary;
     }),
   );
   const summaries = parsedSummaries.filter(
@@ -182,7 +182,7 @@ async function readLocalBriefSummaries(): Promise<LocalBriefSummary[]> {
 }
 
 interface LegacyRevisionChangesEntry {
-  /** Sidecar filename minus `.revchanges.json` — the owning brief's own id. */
+  /** Sidecar filename minus `.revchanges.json`, the owning brief's own id. */
   id: string;
   headSha: string;
   prevHeadSha: string;
@@ -190,14 +190,9 @@ interface LegacyRevisionChangesEntry {
 }
 
 /**
- * Read every legacy `.revchanges.json` sidecar's header fields. Kept during
- * migration as a previous-brief marks alias: a brief with only a
- * `.revchanges.json` and no
- * `.comparison.json` still offers the Previous Brief comparison — the data is
- * shape-identical (`RevisionChanges.files` and `ComparisonMarks.files` share
- * the same per-file range shape), so `readComparisonMarks` maps one onto the
- * other on demand rather than requiring a migration script. Fail-closed like
- * the `.comparison.json` scan: a malformed legacy sidecar is skipped, not fatal.
+ * Legacy .revchanges.json headers still provide Previous Brief availability.
+ * Their files shape matches ComparisonMarks; map headers on read without migration.
+ * Skip malformed sidecars so a generation glitch cannot fail the review.
  */
 async function readLocalRevisionChangesEntries(
   entries: string[],
@@ -243,7 +238,7 @@ async function readLocalRevisionChangesEntries(
 
 /**
  * Read and validate every `.comparison.json` sidecar's header fields. A
- * malformed sidecar is skipped, not fatal — same fail-closed
+ * malformed sidecar is skipped, not fatal, same fail-closed
  * discipline as `readRevisionChanges`: a marks-scanning glitch degrades
  * comparison availability rather than the whole listing.
  */
@@ -285,12 +280,8 @@ async function readLocalComparisonMarksEntries(
 }
 
 /**
- * Derive the PR-stem prefix (`<owner>-<repo>-<number>`) a brief's marks/
- * narrative sidecars are named under, from its own id — `briefId(stem, index,
- * head)` in the categorizer is `${stem}_${index}_${head8}`, so stripping that
- * known suffix recovers `stem` without re-deriving it from `repo`/`number`
- * (repo names can themselves contain hyphens, which would make that
- * reconstruction ambiguous).
+ * Strip the categorizer's known index/head suffix to recover the sidecar stem.
+ * Reconstructing from repo and number is ambiguous when repo names contain hyphens.
  */
 function briefStemFromSummary(summary: LocalBriefSummary): string | undefined {
   if (summary.index == null) return undefined;
@@ -326,19 +317,18 @@ function buildComparisonAvailability(
     (mark) => mark.baselineLabel === "previous-brief",
   );
   if (previousBriefMarks && previousBriefMarks.baselineIndex != null) {
-    comparisons.previousBrief = {
+    const previousBrief: PreviousBriefComparisonAvailability = {
       marksId: previousBriefMarks.id,
-      ...(narrativeIds.has(summary.id) ? { narrativeId: summary.id } : {}),
       baselineSha: previousBriefMarks.baselineSha,
       baselineIndex: previousBriefMarks.baselineIndex,
     };
+
+    if (narrativeIds.has(summary.id)) previousBrief.narrativeId = summary.id;
+
+    comparisons.previousBrief = previousBrief;
   } else {
-    // Migration alias: no `.comparison.json` marks for
-    // this head, but a legacy `.revchanges.json` sidecar exists for this exact
-    // brief (sidecar is keyed by the brief's own id, not the stem prefix — it
-    // predates the label-keyed marks filename). `marksId` is the brief's own
-    // id; `readComparisonMarks` maps the legacy shape onto `ComparisonMarks` on
-    // read. No narrative ever existed for the legacy path.
+    // Legacy sidecars use the brief's own id rather than a label-keyed marks id.
+    // readComparisonMarks maps their shared files shape; no legacy narrative exists.
     const legacy = legacyRevisionChanges.find(
       (entry) => entry.id === summary.id && entry.headSha === summary.sha,
     );
@@ -361,12 +351,15 @@ function buildComparisonAvailability(
         artifact.headSha === summary.sha &&
         artifact.baselineSha === checkpointMarks.baselineSha,
     );
-    comparisons.lastReview = {
+    const lastReview: LastReviewComparisonAvailability = {
       marksId: checkpointMarks.id,
-      ...(matchingDelta ? { deltaId: matchingDelta.id } : {}),
       baselineSha: checkpointMarks.baselineSha,
       baselineIndex: checkpointMarks.baselineIndex,
     };
+
+    if (matchingDelta) lastReview.deltaId = matchingDelta.id;
+
+    comparisons.lastReview = lastReview;
   }
 
   return comparisons.previousBrief || comparisons.lastReview
@@ -382,7 +375,7 @@ export async function readLocalBrief(briefId: string): Promise<Brief> {
 
 /**
  * Read the revision-changes sidecar for a brief, or `null` when it is
- * absent (first brief) — never an error: the overlay must never block the brief.
+ * absent (first brief), never an error: the overlay must never block the brief.
  * A malformed sidecar fails closed (logged, treated as absent), so a generation
  * glitch degrades the overlay rather than the whole review.
  */
@@ -422,11 +415,8 @@ export async function readRevisionChanges(
 }
 
 /**
- * Read a full `.comparison.json` marks sidecar by its marks id, or
- * `null` when absent/malformed. Fail-closed like `readRevisionChanges`: a
- * generation glitch degrades the overlay, never the review. The id is the
- * sidecar filename minus `.comparison.json` (label-keyed, so checkpoint and
- * previous-brief marks never collide).
+ * Absent or malformed sidecars degrade the overlay without failing the review.
+ * Marks ids include the label so checkpoint and previous-brief files cannot collide.
  */
 export async function readComparisonMarks(
   marksId: string,
@@ -466,14 +456,8 @@ export async function readComparisonMarks(
 }
 
 /**
- * Migration fallback: when no `.comparison.json`
- * exists for a marks id, try the legacy `.revchanges.json` sidecar of the same
- * id — the availability builder only ever hands out a legacy `marksId` when
- * that sidecar is what backs the Previous Brief option (see
- * `buildComparisonAvailability`). `RevisionChanges` and `ComparisonMarks`
- * share the same `files` shape; only the header needs remapping
- * (`prevHeadSha` -> `baselineSha`, `prevIndex` -> `baselineIndex`, and the
- * implicit `baselineLabel: "previous-brief"`).
+ * Availability supplies a legacy marksId only when that sidecar backs Previous Brief.
+ * The files shape is shared; remap the header and supply the previous-brief label.
  */
 async function readLegacyRevisionChangesAsMarks(
   marksId: string,
@@ -490,7 +474,7 @@ async function readLegacyRevisionChangesAsMarks(
 }
 
 /**
- * Read a `.revision-narrative.json` artifact by its narrative id —
+ * Read a `.revision-narrative.json` artifact by its narrative id,
  * a real narrative or a skip stub, discriminated by `artifactKind`. `null` when
  * absent (generation failed: marks still render with "summary unavailable") or
  * malformed. The id is the sidecar filename minus `.revision-narrative.json`.
@@ -615,7 +599,7 @@ async function attachChunkDiffs(brief: Brief, briefId: string): Promise<Brief> {
   const fileDiffs = await readFileDiffs(briefId, brief.artifactKind);
   if (fileDiffs.size === 0) return brief;
 
-  return {
+  const withDiffs: Brief = {
     ...brief,
     chunks: brief.chunks.map((chunk) => {
       const fileDiff = fileDiffs.get(chunk.file);
@@ -625,16 +609,17 @@ async function attachChunkDiffs(brief: Brief, briefId: string): Promise<Brief> {
         diff: sliceChunkDiff(fileDiff.rows, chunk),
       } satisfies BriefChunk;
     }),
-    ...(brief.unattributed === undefined
-      ? {}
-      : {
-          unattributed: brief.unattributed.map((entry) => {
-            const fileDiff = fileDiffs.get(entry.file);
-            if (!fileDiff) return entry;
-            return { ...entry, diff: sliceChunkDiff(fileDiff.rows, entry) };
-          }),
-        }),
   };
+
+  if (brief.unattributed !== undefined) {
+    withDiffs.unattributed = brief.unattributed.map((entry) => {
+      const fileDiff = fileDiffs.get(entry.file);
+      if (!fileDiff) return entry;
+      return { ...entry, diff: sliceChunkDiff(fileDiff.rows, entry) };
+    });
+  }
+
+  return withDiffs;
 }
 
 async function attachReviewComments(
@@ -703,7 +688,7 @@ async function readFileDiffs(
     );
   } catch (error) {
     // The diffs sidecar is written with the brief; a missing one is a broken
-    // artifact set, not a missing brief — but either way the browser must not
+    // artifact set, not a missing brief, but either way the browser must not
     // learn the out-dir path.
     return failRead(
       BriefErrorCodes.UNREADABLE,

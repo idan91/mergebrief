@@ -4,7 +4,7 @@ import type { BriefTimelinePoint } from "../utils/timeline";
 
 /**
  * @description The **View** control: `full` renders the whole Brief; `changes`
- * renders only the selected comparison span — the "Full Brief vs Changes
+ * renders only the selected comparison span, the "Full Brief vs Changes
  * Only" axis.
  */
 export type ViewParam = "full" | "changes";
@@ -21,11 +21,8 @@ export interface BriefSearch {
 }
 
 /**
- * @description Raw View/Compare search params as parsed from the URL —
- * `undefined` means the key was absent (or held an unrecognized value),
- * distinct from an explicit `off`/`full`. Only this "nothing chosen yet"
- * state triggers the product-aware fresh-arrival default — persistence is
- * session-only, so defaults recompute per arrival.
+ * Absent or unrecognized URL values differ from explicit off/full selections.
+ * Only absence triggers fresh-arrival defaults; selections persist for the session.
  */
 export interface BriefSearchParams {
   view?: ViewParam;
@@ -33,11 +30,7 @@ export interface BriefSearchParams {
 }
 
 /**
- * @description Which Compare options are selectable at the current timeline
- * point — plain booleans for the control/normalization logic. Distinct from
- * `ComparisonAvailability` in `types.ts`, which carries the underlying
- * artifact ids (marksId/narrativeId/deltaId) these flags are derived from
- * via `comparisonAvailability`.
+ * Selectable options derived from ComparisonAvailability artifact ids.
  */
 export interface CompareOptionFlags {
   previousBrief: boolean;
@@ -73,6 +66,19 @@ export function parseViewParam(value: unknown): ViewParam | undefined {
   return value === "full" || value === "changes" ? value : undefined;
 }
 
+/** Only a present param lands as a key; absent stays absent, never `undefined`. */
+export function buildBriefSearchParams(
+  view: ViewParam | undefined,
+  compare: CompareParam | undefined,
+): BriefSearchParams {
+  const search: BriefSearchParams = {};
+
+  if (view !== undefined) search.view = view;
+  if (compare !== undefined) search.compare = compare;
+
+  return search;
+}
+
 export function parseCompareParam(value: unknown): CompareParam | undefined {
   return value === "previous-brief" ||
     value === "last-review" ||
@@ -92,11 +98,8 @@ export function comparisonAvailability(
 }
 
 /**
- * Product default comparison precedence: **Your last review** wins whenever
- * its marks exist, even if the Delta narrative failed — falling back to
- * Previous Brief would silently switch the user's baseline, which is worse
- * than a missing summary. Backs both `changes + off` normalization and the
- * fresh-arrival default below.
+ * Last-review marks take precedence even when their Delta narrative failed.
+ * Falling back to Previous Brief would silently change the selected baseline.
  */
 export function defaultComparison(
   availability: CompareOptionFlags,
@@ -116,16 +119,8 @@ function isAvailable(
 }
 
 /**
- * Normalize an explicit View/Compare pair against what's actually available
- * for the selected timeline point. Two invalid shapes
- * collapse deterministically instead of erroring, since URL state is
- * user-editable and shareable:
- *
- * - An unavailable Compare baseline can never stay selected — it falls back
- *   to `off`.
- * - `changes + off` has no product meaning: Changes Only picks the product
- *   default comparison; if none is available, Changes Only itself is
- *   unavailable and the state falls back to `full + off`.
+ * User-editable URLs may name unavailable comparisons; normalize them to off.
+ * Changes Only requires a comparison, falling back to full + off if none exists.
  */
 export function normalizeBriefSearch(
   search: BriefSearch,
@@ -148,16 +143,9 @@ export function normalizeBriefSearch(
 }
 
 /**
- * Resolve the raw URL params into the active, normalized View/Compare state
- * for the selected timeline point.
- *
- * - Both keys absent (fresh arrival, e.g. a brand-new deep link with no
- *   selection made yet): apply the product-aware default. Only a known
- *   personal baseline (**Your last review**) earns `Changes Only` by default
- *   for a *returning* reviewer; **Previous Brief** stays directly selectable
- *   but is never force-defaulted for a first-time reviewer on a non-first
- *   Brief.
- * - Otherwise (any explicit selection present): normalize it.
+ * Only a known personal baseline defaults returning reviewers to Changes Only.
+ * Previous Brief remains selectable but never forces that fresh-arrival default.
+ * Any explicit selection is normalized instead.
  */
 export function resolveBriefSearch(
   params: BriefSearchParams,

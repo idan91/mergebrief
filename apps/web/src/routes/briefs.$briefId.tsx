@@ -10,6 +10,7 @@ import {
 
 import { BriefPage } from "@web/features/brief";
 import {
+  buildBriefSearchParams,
   parseCompareParam,
   parseViewParam,
   type BriefSearchParams,
@@ -33,10 +34,7 @@ export const Route = createFileRoute("/briefs/$briefId")({
   validateSearch: (search: Record<string, unknown>): BriefSearchParams => {
     const view = parseViewParam(search["view"]);
     const compare = parseCompareParam(search["compare"]);
-    return {
-      ...(view !== undefined ? { view } : {}),
-      ...(compare !== undefined ? { compare } : {}),
-    };
+    return buildBriefSearchParams(view, compare);
   },
   // A Delta artifact id is no longer a route target. Redirect before the
   // loader runs so the old URL never renders the superseded shape.
@@ -81,7 +79,7 @@ function BriefRoute() {
   const navigate = Route.useNavigate();
   // Pending only while a navigation targeting another brief page runs its
   // loader (revision links land on another briefId of the same route):
-  // leaving the page — including to the summary-preview subpath — never
+  // leaving the page, including to the summary-preview subpath, never
   // dims the brief.
   const revisionPending = useRouterState({
     select: (state) =>

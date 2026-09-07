@@ -68,6 +68,8 @@
     "house/test-title": ["error", { "maxLength": 70 }],
     "house/comment-run": ["error", { "maxContentLines": 4 }],
     "house/no-em-dash": "error",
+    // Off until the last step of the lint stack flips it on.
+    "house/no-conditional-spread": "off",
     // Named exports only; the framework-required default exports are carved
     // out per-path in the overrides.
     "import/no-default-export": "error",

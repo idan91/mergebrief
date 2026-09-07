@@ -1,20 +1,12 @@
-// The isomorphic read-API fetch boundary.
-//
-// Client branch: a plain relative `fetch` — the browser attaches the session
-// cookie itself. SSR branch: IN-PROCESS dispatch of the same Hono app the
-// server entry mounts, with the incoming cookie forwarded, so the
-// server-rendered read traverses the IDENTICAL authz middleware. Reaching
-// persistence directly from a server function is forbidden — that is a second
-// enforcement path. The synthesized URL's origin is irrelevant: Hono routes on
-// the path.
-//
-// Composition failure maps to the same sanitized 503 the server entry answers
-// for `/api/*`; never a leaked internal.
+// Client fetch attaches the session cookie; SSR forwards it through the same Hono authz gate.
+// Do not read persistence directly from a server function.
+// Hono routes on the path, so the synthesized origin is irrelevant.
+// Composition failures return a sanitized 503 without internal details.
 import { createIsomorphicFn } from "@tanstack/react-start";
 import type { ValueOf } from "types";
 
 // Hand-rolled mirror of the api package's wire vocabulary plus the ONE
-// web-local member: `malformed` (a 2xx whose body failed to parse — a
+// web-local member: `malformed` (a 2xx whose body failed to parse, a
 // programmer/contract error surfaced as data; never on the wire). The
 // Equals + runtime pins in apiFetch.test.ts fail on any drift.
 export const ApiErrorCodes = {
@@ -111,7 +103,7 @@ function codeForStatus(status: number): ApiErrorCode {
     case 500:
       return ApiErrorCodes.INTERNAL_ERROR;
     // A codeless 503 is typically a proxy answering for a down backend, not
-    // the generation feature — bucket it with unreachable, never a coded 503.
+    // the generation feature, bucket it with unreachable, never a coded 503.
     default:
       return ApiErrorCodes.GITHUB_UNAVAILABLE;
   }
@@ -121,7 +113,7 @@ function codeForStatus(status: number): ApiErrorCode {
  * Map a non-2xx response to its typed error, reading the wire body
  * TOLERANTLY: a `{ code }` in the closed wire vocabulary wins; anything else
  * (no body, non-JSON, unknown code, the never-on-wire `malformed`) falls back
- * to the status bucket. Consumes the body — call at most once per response.
+ * to the status bucket. Consumes the body, call at most once per response.
  */
 export async function errorFromResponse(
   response: Response,
@@ -144,7 +136,7 @@ export async function errorFromResponse(
       }
     }
   } catch {
-    // Non-JSON error body — the status bucket stands.
+    // Non-JSON error body, the status bucket stands.
   }
   return new ApiError(code, response.status, path, params);
 }
@@ -155,8 +147,8 @@ interface DispatchableApp {
 }
 
 /**
- * The narrow request-init surface this boundary forwards. Typed explicitly —
- * not `RequestInit` — so the SSR branch provably forwards every field it
+ * The narrow request-init surface this boundary forwards. Typed explicitly,
+ * not `RequestInit`, so the SSR branch provably forwards every field it
  * accepts.
  */
 export interface ApiFetchInit {
@@ -193,7 +185,7 @@ export async function dispatchInProcess(
     app = await getApp();
   } catch (error) {
     // `error` can quote DATABASE_URL back on a Postgres misconfig, so it rides
-    // as a FIELD — the logging boundary's `err` serializer scrubs URL-shaped
+    // as a FIELD, the logging boundary's `err` serializer scrubs URL-shaped
     // substrings; `msg` bypasses redaction.
     logger.error("apiFetch: webhook app composition failed", { err: error });
     return new Response(JSON.stringify({ error: "service unavailable" }), {
@@ -203,20 +195,18 @@ export async function dispatchInProcess(
   }
   // Header names are case-insensitive: build a real Headers object and set
   // the forwarded viewer cookie LAST, after deleting any caller-supplied
-  // `Cookie`/`cookie` — a plain object spread would keep both variants and
+  // `Cookie`/`cookie`, a plain object spread would keep both variants and
   // let a stale caller cookie merge ahead of the real one.
   const headers = new Headers(init?.headers ?? {});
   headers.delete("cookie");
   if (cookie !== undefined) {
     headers.set("cookie", cookie);
   }
-  return app.fetch(
-    new Request(`http://internal${path}`, {
-      method: init?.method ?? "GET",
-      headers,
-      ...(init?.body === undefined ? {} : { body: init.body }),
-    }),
-  );
+  const request: RequestInit = { method: init?.method ?? "GET", headers };
+
+  if (init?.body !== undefined) request.body = init.body;
+
+  return app.fetch(new Request(`http://internal${path}`, request));
 }
 
 const dispatch = createIsomorphicFn()

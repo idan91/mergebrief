@@ -42,6 +42,12 @@ const CASES: readonly FixtureCase[] = [
   { rule: "no-raw-button", bad: "bad.tsx", good: "good.tsx", lines: [4, 5] },
   { rule: "no-blank-target", bad: "bad.tsx", good: "good.tsx", lines: [3] },
   {
+    rule: "no-conditional-spread",
+    bad: "bad.ts",
+    good: "good.ts",
+    lines: [5, 6, 7, 8],
+  },
+  {
     rule: "test-title",
     bad: "bad.ts",
     good: "good.ts",

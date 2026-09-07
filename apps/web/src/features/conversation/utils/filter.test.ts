@@ -26,6 +26,7 @@ import type {
   PrLevelComment,
   ReviewVerdictState,
 } from "../types";
+import type { Mutable } from "types";
 
 function review(
   reviewId: number,
@@ -33,16 +34,19 @@ function review(
   state: ReviewVerdictState,
   options: { isBot?: boolean; submittedAt?: string; body?: string } = {},
 ): ConversationReview {
-  return {
+  const conversationReview: Mutable<ConversationReview> = {
     reviewId,
     author: { login, isBot: options.isBot ?? false },
     state,
     body: options.body ?? `body ${reviewId}`,
-    ...(options.submittedAt === undefined
-      ? {}
-      : { submittedAt: options.submittedAt }),
     url: `https://github.com/o/r/pull/1#pullrequestreview-${reviewId}`,
   };
+
+  if (options.submittedAt !== undefined) {
+    conversationReview.submittedAt = options.submittedAt;
+  }
+
+  return conversationReview;
 }
 
 function chunkFixture(): BriefChunk {
@@ -70,10 +74,9 @@ function thread(
   options: { isOutdated?: boolean } = {},
 ): ConversationThread {
   const isOutdated = options.isOutdated ?? false;
-  return {
+  const conversationThread: Mutable<ConversationThread> = {
     rootCommentId,
     path: "src/a.ts",
-    ...(isOutdated ? {} : { line: 10 }),
     side: "RIGHT",
     subjectType: "LINE",
     isResolved: false,
@@ -89,6 +92,10 @@ function thread(
     ],
     hasMoreComments: false,
   };
+
+  if (!isOutdated) conversationThread.line = 10;
+
+  return conversationThread;
 }
 
 function prComment(commentId: number, login: string): PrLevelComment {
@@ -275,7 +282,7 @@ describe("applyConversationFilter", () => {
       ],
     });
     // Latest-only + reviewers=alice + verdicts=approved: alice's approval is
-    // no longer her latest, so nothing matches — the reduction runs FIRST.
+    // no longer her latest, so nothing matches, the reduction runs FIRST.
     const filter = parseConversationFilter({
       verdicts: "approved",
       reviewers: "alice",
@@ -456,7 +463,7 @@ describe("countHiddenInlineThreads", () => {
 
   it("ignores threads that never render in the diff", () => {
     // Outdated threads are digest-only, so hiding them costs the diff
-    // nothing — warning about them would train the reader to ignore the pill.
+    // nothing, warning about them would train the reader to ignore the pill.
     const conversation = buildConversation({
       threads: [
         thread(10, "alice"),
@@ -546,7 +553,7 @@ describe("reconcileReviewers", () => {
     ]);
   });
 
-  it("empties the family when no login survives, rather than hiding everything", () => {
+  it("clears unmatched reviewer filters so they cannot hide everything", () => {
     const filter = parseConversationFilter({ reviewers: "ghost" });
     const reconciled = reconcileReviewers(filter, conversation);
     expect(reconciled.reviewers.size).toBe(0);

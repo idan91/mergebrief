@@ -7,6 +7,7 @@
     "house/extensionless-import": "error",
     "house/no-raw-button": "error",
     "house/no-blank-target": "error",
+    "house/no-conditional-spread": "error",
     "house/test-title": ["error", { "maxLength": 70 }],
     "house/comment-run": ["error", { "maxContentLines": 4 }],
     "house/no-em-dash": "error"

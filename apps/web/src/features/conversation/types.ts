@@ -1,15 +1,8 @@
-// Conversation wire shapes + boundary guards. Mirrors the api package's
-// conversation GET contract (itself the github package's `PrConversation`
-// domain shape, JSON-serialized: optional fields are ABSENT keys, never
-// null). Hand-rolled guards returning `Result` (no zod in this bundle);
-// parsed at the boundary, never cast.
-//
-// GitHub facts wear GitHub words — thread chips are open / resolved /
-// outdated; review states are GitHub's SHOUT literals. Review Session
-// dispositions keep the product's words; `linked-comment` evidence is the
-// bridge.
+// Mirrors the JSON conversation contract: optional keys are absent, never null.
+// Guards parse at the boundary without adding Zod to the bundle.
+// GitHub state names differ from Review Session dispositions; linked-comment bridges them.
 import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
-import type { Result as SharedResult, ValueOf } from "types";
+import type { Mutable, Result as SharedResult, ValueOf } from "types";
 
 type Result<T> = SharedResult<T, string>;
 
@@ -40,7 +33,7 @@ export interface ConversationAuthor {
   readonly isBot: boolean;
   /**
    * GitHub-CDN avatar; absent for ghost authors and https-gated at the
-   * parse boundary (it lands in an `<img src>`) — a non-https value drops
+   * parse boundary (it lands in an `<img src>`), a non-https value drops
    * the field, never the author.
    */
   readonly avatarUrl?: string;
@@ -52,7 +45,7 @@ export interface ConversationComment {
   readonly body: string;
   readonly createdAt: string;
   readonly url: string;
-  /** The formal review this comment belongs to — the own-comment join key. */
+  /** The formal review this comment belongs to, the own-comment join key. */
   readonly reviewId?: number;
 }
 
@@ -68,7 +61,7 @@ export interface ConversationThread {
   readonly subjectType: ThreadSubjectType;
   readonly isResolved: boolean;
   readonly isOutdated: boolean;
-  /** Anchor-time commit — the revision label for outdated threads. */
+  /** Anchor-time commit, the revision label for outdated threads. */
   readonly anchorSha?: string;
   readonly comments: readonly ConversationComment[];
   readonly hasMoreComments: boolean;
@@ -135,11 +128,14 @@ function parseAuthor(value: unknown): ConversationAuthor | undefined {
     avatarUrl !== undefined && avatarUrl.startsWith("https://")
       ? avatarUrl
       : undefined;
-  return {
+  const author: Mutable<ConversationAuthor> = {
     login: value["login"],
     isBot: value["isBot"],
-    ...(safeAvatar === undefined ? {} : { avatarUrl: safeAvatar }),
   };
+
+  if (safeAvatar !== undefined) author.avatarUrl = safeAvatar;
+
+  return author;
 }
 
 function parseComment(value: unknown): ConversationComment | undefined {
@@ -152,14 +148,17 @@ function parseComment(value: unknown): ConversationComment | undefined {
   if (typeof value["url"] !== "string") return undefined;
   const reviewId = value["reviewId"];
   if (reviewId !== undefined && !isSafeId(reviewId)) return undefined;
-  return {
+  const comment: Mutable<ConversationComment> = {
     commentId: value["commentId"],
     author,
     body: value["body"],
     createdAt: value["createdAt"],
     url: value["url"],
-    ...(reviewId === undefined ? {} : { reviewId }),
   };
+
+  if (reviewId !== undefined) comment.reviewId = reviewId;
+
+  return comment;
 }
 
 function optionalLine(value: unknown): value is number | undefined {
@@ -191,7 +190,7 @@ function parseThread(value: unknown): ConversationThread | undefined {
   if (typeof value["isOutdated"] !== "boolean") return undefined;
   if (!optionalString(value["anchorSha"])) return undefined;
   if (typeof value["hasMoreComments"] !== "boolean") return undefined;
-  // Contract: `line` is absent ONLY for outdated or file-level threads — a
+  // Contract: `line` is absent ONLY for outdated or file-level threads, a
   // fresh LINE thread without a line would silently unanchor, a FILE thread
   // WITH one would place inline.
   const isFileLevel = subjectType === ThreadSubjectTypes.FILE;
@@ -210,27 +209,24 @@ function parseThread(value: unknown): ConversationThread | undefined {
   // The root id IS the reply target: it must be the first comment shown,
   // or a reply would land on a different comment than the displayed thread.
   if (comments[0]?.commentId !== value["rootCommentId"]) return undefined;
-  return {
+  const thread: Mutable<ConversationThread> = {
     rootCommentId: value["rootCommentId"],
     path: value["path"],
-    ...(value["line"] === undefined ? {} : { line: value["line"] }),
-    ...(value["startLine"] === undefined
-      ? {}
-      : { startLine: value["startLine"] }),
-    ...(value["side"] === undefined ? {} : { side: value["side"] }),
-    ...(value["startSide"] === undefined
-      ? {}
-      : { startSide: value["startSide"] }),
     // `includes` narrowed the literal above.
     subjectType: subjectType === ThreadSubjectTypes.FILE ? "FILE" : "LINE",
     isResolved: value["isResolved"],
     isOutdated: value["isOutdated"],
-    ...(value["anchorSha"] === undefined
-      ? {}
-      : { anchorSha: value["anchorSha"] }),
     comments,
     hasMoreComments: value["hasMoreComments"],
   };
+
+  if (value["line"] !== undefined) thread.line = value["line"];
+  if (value["startLine"] !== undefined) thread.startLine = value["startLine"];
+  if (value["side"] !== undefined) thread.side = value["side"];
+  if (value["startSide"] !== undefined) thread.startSide = value["startSide"];
+  if (value["anchorSha"] !== undefined) thread.anchorSha = value["anchorSha"];
+
+  return thread;
 }
 
 function parseReview(value: unknown): ConversationReview | undefined {
@@ -244,7 +240,7 @@ function parseReview(value: unknown): ConversationReview | undefined {
   if (typeof value["body"] !== "string") return undefined;
   if (!optionalString(value["submittedAt"])) return undefined;
   if (typeof value["url"] !== "string") return undefined;
-  return {
+  const review: Mutable<ConversationReview> = {
     reviewId: value["reviewId"],
     author,
     state:
@@ -254,11 +250,14 @@ function parseReview(value: unknown): ConversationReview | undefined {
         ? state
         : ReviewVerdictStates.COMMENTED,
     body: value["body"],
-    ...(value["submittedAt"] === undefined
-      ? {}
-      : { submittedAt: value["submittedAt"] }),
     url: value["url"],
   };
+
+  if (value["submittedAt"] !== undefined) {
+    review.submittedAt = value["submittedAt"];
+  }
+
+  return review;
 }
 
 function parsePrLevelComment(value: unknown): PrLevelComment | undefined {
@@ -280,7 +279,7 @@ function parsePrLevelComment(value: unknown): PrLevelComment | undefined {
 
 /**
  * Parse the collaborators GET's body into mention candidates; `ok: false` =
- * contract violation. `hasMore` is parsed but not surfaced — a truncated pool
+ * contract violation. `hasMore` is parsed but not surfaced, a truncated pool
  * is still a pool. `avatarUrl` is https-gated: a non-https value drops the
  * FIELD (the entry stays), since the string lands in an `<img src>`.
  */
@@ -306,11 +305,12 @@ export function parseCollaborators(
       avatarUrl !== undefined && avatarUrl.startsWith("https://")
         ? avatarUrl
         : undefined;
-    candidates.push({
-      login: entry["login"],
-      ...(name === undefined ? {} : { name }),
-      ...(safeAvatar === undefined ? {} : { avatarUrl: safeAvatar }),
-    });
+    const candidate: Mutable<MentionCandidate> = { login: entry["login"] };
+
+    if (name !== undefined) candidate.name = name;
+    if (safeAvatar !== undefined) candidate.avatarUrl = safeAvatar;
+
+    candidates.push(candidate);
   }
   return { ok: true, value: candidates };
 }

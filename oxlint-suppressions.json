@@ -1529,14 +1529,6 @@
       "count": 2
     }
   },
-  "apps/web/src/data/apiFetch.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 9
-    }
-  },
   "apps/web/src/data/ssrWarnSink.client.test.ts": {
     "house/comment-run": {
       "count": 1
@@ -1567,14 +1559,6 @@
   "apps/web/src/features/brief/comparison/compareState.test.ts": {
     "house/test-title": {
       "count": 4
-    }
-  },
-  "apps/web/src/features/brief/comparison/compareState.ts": {
-    "house/comment-run": {
-      "count": 5
-    },
-    "house/no-em-dash": {
-      "count": 5
     }
   },
   "apps/web/src/features/brief/comparison/comparison.test.ts": {
@@ -2058,30 +2042,6 @@
       "count": 1
     }
   },
-  "apps/web/src/features/brief/components/BriefScreen/useComparisonOverlay.ts": {
-    "house/no-em-dash": {
-      "count": 3
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/useConversationWiring.test.tsx": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 8
-    },
-    "house/test-title": {
-      "count": 2
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/useConversationWiring.ts": {
-    "house/comment-run": {
-      "count": 3
-    },
-    "house/no-em-dash": {
-      "count": 13
-    }
-  },
   "apps/web/src/features/brief/components/BriefScreen/useDelayedPending.test.tsx": {
     "house/no-em-dash": {
       "count": 2
@@ -2283,14 +2243,6 @@
       "count": 1
     }
   },
-  "apps/web/src/features/brief/server/brief.server.ts": {
-    "house/comment-run": {
-      "count": 6
-    },
-    "house/no-em-dash": {
-      "count": 14
-    }
-  },
   "apps/web/src/features/brief/server/briefErrorBoundary.server.test.ts": {
     "house/no-em-dash": {
       "count": 2
@@ -2429,14 +2381,6 @@
       "count": 6
     }
   },
-  "apps/web/src/features/brief/utils/repoConfig.ts": {
-    "house/comment-run": {
-      "count": 2
-    },
-    "house/no-em-dash": {
-      "count": 7
-    }
-  },
   "apps/web/src/features/brief/utils/reviewComments.test.ts": {
     "house/test-title": {
       "count": 3
@@ -2458,27 +2402,6 @@
     },
     "house/test-title": {
       "count": 25
-    }
-  },
-  "apps/web/src/features/brief/utils/validation.ts": {
-    "house/no-em-dash": {
-      "count": 13
-    }
-  },
-  "apps/web/src/features/brief/utils/viewModel.test.ts": {
-    "house/no-em-dash": {
-      "count": 7
-    },
-    "house/test-title": {
-      "count": 12
-    }
-  },
-  "apps/web/src/features/brief/utils/viewModel.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 4
     }
   },
   "apps/web/src/features/conversation/components/ConversationFilterPanel/ConversationFilterPanel.test.tsx": {
@@ -2509,14 +2432,6 @@
     },
     "house/test-title": {
       "count": 16
-    }
-  },
-  "apps/web/src/features/conversation/components/ConversationSection/ConversationSection.tsx": {
-    "house/comment-run": {
-      "count": 3
-    },
-    "house/no-em-dash": {
-      "count": 12
     }
   },
   "apps/web/src/features/conversation/components/ConversationSection/DigestGroupView/BotGroupRowView/BotGroupRowView.tsx": {
@@ -2578,17 +2493,6 @@
       "count": 1
     }
   },
-  "apps/web/src/features/conversation/components/ThreadRowView/ThreadDetail/ThreadDetail.test.tsx": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 12
-    },
-    "house/test-title": {
-      "count": 9
-    }
-  },
   "apps/web/src/features/conversation/components/ThreadRowView/ThreadDetail/ThreadDetail.tsx": {
     "house/no-em-dash": {
       "count": 4
@@ -2610,17 +2514,6 @@
       "count": 9
     }
   },
-  "apps/web/src/features/conversation/components/ThreadRowView/ThreadRowView.test.tsx": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 6
-    },
-    "house/test-title": {
-      "count": 5
-    }
-  },
   "apps/web/src/features/conversation/components/ThreadRowView/ThreadRowView.tsx": {
     "house/no-em-dash": {
       "count": 4
@@ -2634,14 +2527,6 @@
       "count": 1
     },
     "house/test-title": {
-      "count": 2
-    }
-  },
-  "apps/web/src/features/conversation/hooks/useMentionPool.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
       "count": 2
     }
   },
@@ -2692,14 +2577,6 @@
       "count": 7
     }
   },
-  "apps/web/src/features/conversation/types.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 6
-    }
-  },
   "apps/web/src/features/conversation/utils/anchor.test.ts": {
     "house/no-em-dash": {
       "count": 2
@@ -2721,25 +2598,6 @@
       "count": 2
     }
   },
-  "apps/web/src/features/conversation/utils/digest.test.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 2
-    },
-    "house/test-title": {
-      "count": 9
-    }
-  },
-  "apps/web/src/features/conversation/utils/digest.ts": {
-    "house/comment-run": {
-      "count": 2
-    },
-    "house/no-em-dash": {
-      "count": 7
-    }
-  },
   "apps/web/src/features/conversation/utils/digestLine.test.ts": {
     "house/test-title": {
       "count": 15
@@ -2750,44 +2608,12 @@
       "count": 5
     }
   },
-  "apps/web/src/features/conversation/utils/filter.test.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    },
-    "house/test-title": {
-      "count": 1
-    }
-  },
-  "apps/web/src/features/conversation/utils/filter.ts": {
-    "house/comment-run": {
-      "count": 3
-    },
-    "house/no-em-dash": {
-      "count": 12
-    }
-  },
   "apps/web/src/features/conversation/utils/mentions.test.ts": {
     "house/no-em-dash": {
       "count": 1
     },
     "house/test-title": {
       "count": 3
-    }
-  },
-  "apps/web/src/features/conversation/utils/mentions.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
-  "apps/web/src/features/conversation/utils/ownComments.test.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 2
-    },
-    "house/test-title": {
-      "count": 9
     }
   },
   "apps/web/src/features/conversation/utils/ownComments.ts": {
@@ -2904,11 +2730,6 @@
       "count": 6
     }
   },
-  "apps/web/src/features/pulls/components/PrBrief/PrBriefContent/PrBriefContent.tsx": {
-    "house/no-em-dash": {
-      "count": 4
-    }
-  },
   "apps/web/src/features/pulls/components/PrBrief/PrBriefError/PrBriefError.test.tsx": {
     "house/no-em-dash": {
       "count": 2
@@ -2986,14 +2807,6 @@
     },
     "house/test-title": {
       "count": 3
-    }
-  },
-  "apps/web/src/features/pulls/hooks/usePrBriefPlans.ts": {
-    "house/comment-run": {
-      "count": 3
-    },
-    "house/no-em-dash": {
-      "count": 9
     }
   },
   "apps/web/src/features/pulls/prBriefRoute.test.tsx": {
@@ -3080,14 +2893,6 @@
       "count": 2
     }
   },
-  "apps/web/src/features/pulls/transport/postComment.ts": {
-    "house/comment-run": {
-      "count": 2
-    },
-    "house/no-em-dash": {
-      "count": 13
-    }
-  },
   "apps/web/src/features/pulls/transport/submitReview.test.ts": {
     "house/test-title": {
       "count": 2
@@ -3110,14 +2915,6 @@
     },
     "house/test-title": {
       "count": 15
-    }
-  },
-  "apps/web/src/features/pulls/types.ts": {
-    "house/comment-run": {
-      "count": 3
-    },
-    "house/no-em-dash": {
-      "count": 13
     }
   },
   "apps/web/src/features/pulls/utils/briefRouteState.test.ts": {
@@ -3144,25 +2941,9 @@
       "count": 4
     }
   },
-  "apps/web/src/features/pulls/utils/dbTimeline.ts": {
-    "house/comment-run": {
-      "count": 2
-    },
-    "house/no-em-dash": {
-      "count": 7
-    }
-  },
   "apps/web/src/features/pulls/utils/liveDiff.test.ts": {
     "house/test-title": {
       "count": 2
-    }
-  },
-  "apps/web/src/features/pulls/utils/liveDiff.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 1
     }
   },
   "apps/web/src/features/pulls/utils/ownDraft.test.ts": {
@@ -3322,28 +3103,12 @@
       "count": 1
     }
   },
-  "apps/web/src/features/review/session/provider.tsx": {
-    "house/comment-run": {
-      "count": 2
-    },
-    "house/no-em-dash": {
-      "count": 3
-    }
-  },
   "apps/web/src/features/review/session/serverState.test.ts": {
     "house/no-em-dash": {
       "count": 3
     },
     "house/test-title": {
       "count": 1
-    }
-  },
-  "apps/web/src/features/review/session/serverState.ts": {
-    "house/comment-run": {
-      "count": 3
-    },
-    "house/no-em-dash": {
-      "count": 6
     }
   },
   "apps/web/src/features/review/session/snapshot.ts": {
@@ -3359,14 +3124,6 @@
       "count": 1
     }
   },
-  "apps/web/src/features/review/session/store.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 11
-    }
-  },
   "apps/web/src/features/review/session/writeGateway.ts": {
     "house/no-em-dash": {
       "count": 4
@@ -3375,14 +3132,6 @@
   "apps/web/src/features/review/session/writes.test.ts": {
     "house/no-em-dash": {
       "count": 2
-    }
-  },
-  "apps/web/src/features/review/session/writes.ts": {
-    "house/comment-run": {
-      "count": 2
-    },
-    "house/no-em-dash": {
-      "count": 6
     }
   },
   "apps/web/src/features/review/utils/comments.test.ts": {
@@ -3406,11 +3155,6 @@
       "count": 3
     }
   },
-  "apps/web/src/features/review/utils/receipt.ts": {
-    "house/no-em-dash": {
-      "count": 8
-    }
-  },
   "apps/web/src/features/review/utils/state.test.ts": {
     "house/test-title": {
       "count": 3
@@ -3430,14 +3174,6 @@
     },
     "house/test-title": {
       "count": 5
-    }
-  },
-  "apps/web/src/features/review/utils/submit.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 13
     }
   },
   "apps/web/src/features/tokens/components/TokenSettings/TokenSettings.test.tsx": {
@@ -3561,11 +3297,6 @@
       "count": 2
     }
   },
-  "apps/web/src/routes/briefs.$briefId.tsx": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "apps/web/src/routes/briefs.$briefId_.summary-preview.tsx": {
     "house/no-em-dash": {
       "count": 1
@@ -3574,14 +3305,6 @@
   "apps/web/src/routes/index.tsx": {
     "house/no-em-dash": {
       "count": 4
-    }
-  },
-  "apps/web/src/routes/repos.$repoId.pulls.$prNumber.tsx": {
-    "house/comment-run": {
-      "count": 6
-    },
-    "house/no-em-dash": {
-      "count": 15
     }
   },
   "apps/web/src/routes/settings.tsx": {

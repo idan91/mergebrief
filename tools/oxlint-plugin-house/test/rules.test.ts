@@ -55,6 +55,16 @@ describe("house/no-blank-target", () => {
   });
 });
 
+describe("house/no-conditional-spread", () => {
+  it("reports a ternary, and, coalesce and call-argument spread", () => {
+    expectLines("no-conditional-spread", "bad.ts", [5, 6, 7, 8]);
+  });
+
+  it("passes a plain spread, assign-under-if and an array spread", () => {
+    expectLines("no-conditional-spread", "good.ts", []);
+  });
+});
+
 describe("house/test-title", () => {
   it("reports long titles and parentheticals in every vitest form", () => {
     expectLines("test-title", "bad.ts", [3, 4, 5, 6, 7, 8, 9]);

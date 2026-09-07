@@ -19,7 +19,7 @@ import {
  * each consumer keeps its own labelling and fallbacks.
  */
 export interface ReceiptAddressedFlag {
-  /** The source RiskFlag's id — the stable per-flag key. */
+  /** The source RiskFlag's id, the stable per-flag key. */
   id: string;
   attr: string;
   file: string;
@@ -36,7 +36,7 @@ export interface ReceiptAddressedFlag {
 }
 
 export interface ReceiptDismissedFlag {
-  /** The source RiskFlag's id — the stable per-flag key. */
+  /** The source RiskFlag's id, the stable per-flag key. */
   id: string;
   attr: string;
   file: string;
@@ -47,7 +47,7 @@ export interface ReceiptDismissedFlag {
 }
 
 export interface ReceiptOpenFlag {
-  /** The source RiskFlag's id — the stable per-flag key. */
+  /** The source RiskFlag's id, the stable per-flag key. */
   id: string;
   attr: string;
   file: string;
@@ -73,7 +73,7 @@ export interface ReceiptComment {
 export interface ReceiptRepoConfig {
   files: { path: string; outcome: string; blobSha: string | null }[];
   collisions: string[];
-  /** "N attribute(s) de-emphasized by repo policy @ sha" — null when none. */
+  /** "N attribute(s) de-emphasized by repo policy @ sha", null when none. */
   deEmphasisLine: string | null;
 }
 
@@ -91,7 +91,7 @@ export interface Receipt {
 }
 
 /**
- * Mechanical scope the tool does NOT verify — a builder constant, not faked
+ * Mechanical scope the tool does NOT verify, a builder constant, not faked
  * data. Two forms on purpose: the receipt `<pre>` renders a FROZEN artifact
  * format (fixed-shape lines a reader may copy or diff), so it stays English
  * and locale-independent; the prose list in the summary reads the catalog.
@@ -154,21 +154,26 @@ export function buildReceipt(
     }
   }
 
-  const comments: ReceiptComment[] = snapshot.reviewComments.map((comment) => ({
-    id: comment.id,
-    file: comment.anchor.file,
-    side: comment.anchor.side,
-    ...(comment.anchor.startSide === undefined
-      ? {}
-      : { startSide: comment.anchor.startSide }),
-    startLine: comment.anchor.startLine,
-    endLine: comment.anchor.endLine,
-    firstLine: comment.body.split("\n")[0] ?? "",
-    status: comment.status,
-  }));
+  const comments: ReceiptComment[] = snapshot.reviewComments.map((comment) => {
+    const receiptComment: ReceiptComment = {
+      id: comment.id,
+      file: comment.anchor.file,
+      side: comment.anchor.side,
+      startLine: comment.anchor.startLine,
+      endLine: comment.anchor.endLine,
+      firstLine: comment.body.split("\n")[0] ?? "",
+      status: comment.status,
+    };
+
+    if (comment.anchor.startSide !== undefined) {
+      receiptComment.startSide = comment.anchor.startSide;
+    }
+
+    return receiptComment;
+  });
 
   const receiptRepoConfig = buildReceiptRepoConfig(repoConfig);
-  return {
+  const receipt: Receipt = {
     subject: {
       repo: brief.pr.repo,
       number: brief.pr.number,
@@ -188,14 +193,15 @@ export function buildReceipt(
     open,
     comments,
     reclassifiedCount: snapshot.reclassifiedGroupIds.length,
-    ...(receiptRepoConfig === undefined
-      ? {}
-      : { repoConfig: receiptRepoConfig }),
   };
+
+  if (receiptRepoConfig !== undefined) receipt.repoConfig = receiptRepoConfig;
+
+  return receipt;
 }
 
 /**
- * `file:+start[-end]` — the on-screen anchor for a receipt comment
+ * `file:+start[-end]`, the on-screen anchor for a receipt comment
  * (ReceiptAccordion). NOT the frozen artifact's shape, which
  * prints no side sign.
  */
@@ -213,7 +219,7 @@ export function receiptCommentLabel(comment: ReceiptComment): string {
 }
 
 export interface ReceiptRiskRow {
-  /** The flag's own id — (attr, file) pairs repeat when two chunks in one
+  /** The flag's own id, (attr, file) pairs repeat when two chunks in one
    * file carry the same attribute. */
   id: string;
   attr: string;
@@ -283,7 +289,7 @@ function buildReceiptRepoConfig(
   const policySha =
     repoConfig.files.find((file) => file.path.endsWith("policy.yaml"))
       ?.blobSha ?? null;
-  // Count ATTRIBUTES, not rules — one attribute may carry several
+  // Count ATTRIBUTES, not rules, one attribute may carry several
   // path-scoped rules.
   const deEmphasized = new Set(
     (repoConfig.policy?.deEmphasize ?? []).map((rule) => rule.attribute),
