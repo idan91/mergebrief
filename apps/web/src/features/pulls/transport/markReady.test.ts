@@ -124,7 +124,6 @@ describe("markPrReady", () => {
 // and failure kinds never touch the cache.
 async function flushMicrotasks(times = 4): Promise<void> {
   for (let i = 0; i < times; i += 1) {
-    // eslint-disable-next-line no-await-in-loop -- sequential flush is the point
     await Promise.resolve();
   }
 }
@@ -185,7 +184,6 @@ describe("createMarkReadyAction", () => {
         7,
         () => Promise.resolve<MarkReadyResult>({ kind }),
       );
-      // eslint-disable-next-line no-await-in-loop -- three sequential cases
       await expect(action()).resolves.toEqual({ kind });
       expect(invalidateQueries).not.toHaveBeenCalled();
     }

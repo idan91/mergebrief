@@ -137,7 +137,7 @@ export async function runWithSchemaFloor<S extends z.ZodType>(
 
   for (let attempt = 0; ; attempt++) {
     // Sequential by design: the retry needs the failed attempt's output.
-    // eslint-disable-next-line no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     const outcome = await args.attempt(feedback);
     const raw = outcome.raw;
     let parseError: unknown;

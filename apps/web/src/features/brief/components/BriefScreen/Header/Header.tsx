@@ -459,7 +459,7 @@ function SelfReviewChip() {
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
-        {/* eslint-disable-next-line no-restricted-syntax -- tooltip anchor (cursor: help, no onClick): not an action */}
+        {/* oxlint-disable-next-line house/no-raw-button -- tooltip anchor (cursor: help, no onClick): not an action */}
         <button
           aria-describedby={tooltipId}
           aria-label={t("brief.header.ariaLabelAboutSelfReview")}

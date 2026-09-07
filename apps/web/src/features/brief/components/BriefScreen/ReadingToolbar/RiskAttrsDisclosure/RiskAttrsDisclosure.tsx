@@ -120,7 +120,7 @@ export function RiskAttrsDisclosure({
                 const position = cycle.get(entry.attr) ?? 0;
                 const target = ids[position % ids.length];
                 return (
-                  // eslint-disable-next-line no-restricted-syntax -- reset wrapper making the inner chip interactive: component chrome would double it
+                  // oxlint-disable-next-line house/no-raw-button -- reset wrapper making the inner chip interactive: component chrome would double it
                   <button
                     className={styles["chipButton"]}
                     data-floor={entry.floor ? "" : undefined}

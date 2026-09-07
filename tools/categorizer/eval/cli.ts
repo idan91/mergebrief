@@ -348,7 +348,7 @@ async function main(): Promise<void> {
   const outcomes: CaseOutcome[] = [];
   const skippedRebaselines: string[] = [];
   for (const evalCase of singleCases) {
-    // eslint-disable-next-line no-await-in-loop -- serial by design (run.ts doc)
+    // oxlint-disable-next-line no-await-in-loop -- serial by design (run.ts doc)
     const evaluated = await evaluateCase(
       evalCase,
       metered,
@@ -368,7 +368,7 @@ async function main(): Promise<void> {
     }
   }
   for (const pairCase of pairCases) {
-    // eslint-disable-next-line no-await-in-loop -- serial by design (run.ts doc)
+    // oxlint-disable-next-line no-await-in-loop -- serial by design (run.ts doc)
     const evaluated = await evaluatePairCase(
       pairCase,
       metered,

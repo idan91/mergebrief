@@ -134,7 +134,6 @@ describe("collaboratorsQueryOptions queryFn", () => {
       new Response(
         JSON.stringify({
           collaborators: [
-            // eslint-disable-next-line no-script-url
             { login: "mallory", avatarUrl: "javascript:alert(1)" },
           ],
           hasMore: false,

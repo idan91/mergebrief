@@ -1,0 +1,11 @@
+{
+  "jsPlugins": ["../src/index.mjs"],
+  "plugins": [],
+  "categories": { "correctness": "off", "suspicious": "off", "perf": "off" },
+  "rules": {
+    "house/no-enum": "error",
+    "house/extensionless-import": "error",
+    "house/no-raw-button": "error",
+    "house/no-blank-target": "error"
+  }
+}

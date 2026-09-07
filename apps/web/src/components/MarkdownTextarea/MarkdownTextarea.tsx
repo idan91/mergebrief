@@ -247,7 +247,7 @@ export function MarkdownTextarea({
         onKeyDown={onTablistKeyDown}
       >
         {MODES.map((mode) => (
-          // eslint-disable-next-line no-restricted-syntax -- role=tab under the tablist's roving tabindex: singleton role plumbing no sibling models
+          // oxlint-disable-next-line house/no-raw-button -- role=tab under the tablist's roving tabindex: singleton role plumbing no sibling models
           <button
             aria-controls={panelId(mode)}
             aria-selected={facade.mode === mode}

@@ -97,7 +97,7 @@ export function usePrBriefPlans(
     rawPrevious === undefined
       ? undefined
       : `${rawPrevious.baselineSha}|${String(rawPrevious.baselineIndex)}|${String(rawPrevious.narrativeAvailable)}`;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // oxlint-disable-next-line react-hooks/exhaustive-deps
   const previous = useMemo(() => rawPrevious, [previousKey]);
   const rawLastReview = effectiveComparisons?.lastReview;
   const lastReviewKey =
@@ -106,7 +106,7 @@ export function usePrBriefPlans(
       : rawLastReview.kind === "available"
         ? `available|${rawLastReview.baselineSha}|${String(rawLastReview.baselineIndex ?? "")}|${String(rawLastReview.deltaAvailable)}`
         : `unavailable|${rawLastReview.reason}`;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // oxlint-disable-next-line react-hooks/exhaustive-deps
   const lastReview = useMemo(() => rawLastReview, [lastReviewKey]);
   const comparisonPlan = useMemo<BriefComparisonPlan>(() => {
     return {

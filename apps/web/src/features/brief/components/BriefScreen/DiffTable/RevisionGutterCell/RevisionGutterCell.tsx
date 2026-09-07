@@ -39,7 +39,7 @@ export function RevisionGutterCell({
       onMouseEnter={(e) => onRailEnter(run, e.currentTarget)}
     >
       {isStart ? (
-        // eslint-disable-next-line no-restricted-syntax -- invisible gutter overlay: the hit area is not the visual element
+        // oxlint-disable-next-line house/no-raw-button -- invisible gutter overlay: the hit area is not the visual element
         <button
           className={styles["railButton"]}
           // CSS-module classnames are hashed at build time, so jump-nav

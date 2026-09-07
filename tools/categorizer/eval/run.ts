@@ -24,7 +24,7 @@ export async function runCase(
   const failureMessages: string[] = [];
   for (let run = 1; run <= runs; run++) {
     try {
-      // eslint-disable-next-line no-await-in-loop -- serial by design (see module doc)
+      // oxlint-disable-next-line no-await-in-loop -- serial by design (see module doc)
       briefs.push(await generate());
       runNumbers.push(run);
     } catch (error) {

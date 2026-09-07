@@ -141,7 +141,6 @@ describe("parseConversation", () => {
       author: {
         login: "mallory",
         isBot: false,
-        // eslint-disable-next-line no-script-url
         avatarUrl: "javascript:alert(1)",
       },
     };

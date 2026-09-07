@@ -32,7 +32,7 @@ export function ThisPr({
           const hasConversation = conversationGroupIds?.has(group.id) ?? false;
           return (
             <li key={group.id}>
-              {/* eslint-disable-next-line no-restricted-syntax -- two-line list row on an alignment grid: block content the shared Button does not model */}
+              {/* oxlint-disable-next-line house/no-raw-button -- two-line list row on an alignment grid: block content the shared Button does not model */}
               <button
                 aria-current={current ? "true" : undefined}
                 className={styles["row"]}

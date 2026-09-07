@@ -410,7 +410,6 @@ describe("IntentBar", () => {
         {
           intent: "sneaky",
           quote: "click me",
-          // eslint-disable-next-line no-script-url
           sourceUrl: "javascript:alert(1)",
           groupIds: [],
           acknowledged: false,

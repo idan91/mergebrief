@@ -130,7 +130,7 @@ export async function loadCases(
   const cases: EvalCase[] = [];
   for (const id of selected) {
     const dir = join(casesDir, id);
-    // eslint-disable-next-line no-await-in-loop -- sequential: first bad case aborts the load
+    // oxlint-disable-next-line no-await-in-loop -- sequential: first bad case aborts the load
     const loaded = await loadOne(id, dir);
     if (!loaded.ok) return loaded;
     cases.push(loaded.value);

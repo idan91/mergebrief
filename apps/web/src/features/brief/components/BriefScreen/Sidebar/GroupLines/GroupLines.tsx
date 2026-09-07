@@ -43,7 +43,7 @@ export function GroupLines({
           hasConversation ? t("brief.toc.srHasConversation") : ""
         }`;
         return (
-          // eslint-disable-next-line no-restricted-syntax -- mini-map tick with a pseudo-element hit area
+          // oxlint-disable-next-line house/no-raw-button -- mini-map tick with a pseudo-element hit area
           <button
             aria-current={current ? "true" : undefined}
             aria-label={name}

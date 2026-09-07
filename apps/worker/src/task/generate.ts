@@ -1600,7 +1600,7 @@ async function warmDeltaCores(
 
   let generated = 0;
   for (const baselineSha of distinctShas) {
-    // eslint-disable-next-line no-await-in-loop -- spans run sequentially by design (one model call at a time)
+    // oxlint-disable-next-line no-await-in-loop -- spans run sequentially by design (one model call at a time)
     const already = await store.deltas.get(pullRequestId, baselineSha, headSha);
     if (already !== undefined) {
       continue;
@@ -1616,7 +1616,7 @@ async function warmDeltaCores(
     if (prefetched !== undefined) {
       incrementalDiff = prefetched.diff;
     } else {
-      // eslint-disable-next-line no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const spanDiff = await source.fetchCompareDiff(baselineSha, headSha);
       if (!spanDiff.ok) {
         if (isPermanentGitHubError(spanDiff.error)) {
@@ -1644,7 +1644,7 @@ async function warmDeltaCores(
         baselineIndex,
         incrementalDiff,
       );
-      // eslint-disable-next-line no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const marksWritten = await store.comparisonMarks.write({
         pullRequestId,
         marks: {
@@ -1667,7 +1667,7 @@ async function warmDeltaCores(
       continue;
     }
 
-    // eslint-disable-next-line no-await-in-loop -- one shared load, memoized
+    // oxlint-disable-next-line no-await-in-loop -- one shared load, memoized
     const { links, primaryTicket } = await inputs.loadContext();
     const deltaInput: DeltaInput = {
       locator,
@@ -1681,9 +1681,9 @@ async function warmDeltaCores(
       primaryTicket,
     };
     // Supersession gate BEFORE each delta spend.
-    // eslint-disable-next-line no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     await inputs.watch.assertCurrent();
-    // eslint-disable-next-line no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     const delta = await runGenerator(() =>
       categorizeDelta(
         deltaInput,
@@ -1692,7 +1692,7 @@ async function warmDeltaCores(
         inputs.effort,
       ),
     );
-    // eslint-disable-next-line no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     const written = await store.deltas.write({
       pullRequestId,
       baselineSha,

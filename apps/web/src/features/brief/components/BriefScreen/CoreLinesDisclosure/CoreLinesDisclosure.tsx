@@ -75,7 +75,7 @@ export function CoreLinesDisclosure({
         if (event.pointerType === "mouse") setAnchor(triggerRef.current);
       }}
     >
-      {/* eslint-disable-next-line no-restricted-syntax -- headless zero-specificity trigger wrapper: the child carries the visuals */}
+      {/* oxlint-disable-next-line house/no-raw-button -- headless zero-specificity trigger wrapper: the child carries the visuals */}
       <button
         ref={triggerRef}
         aria-controls={anchor ? detailId : undefined}

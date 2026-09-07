@@ -51,9 +51,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Unfiltered on purpose: `pnpm lint` is a whole-repo gate (oxlint,
-      # eslint, knip, `prettier --check .`, stylelint, and the product
-      # operation catalog gate — manifest drift + CLI-map exhaustiveness).
+      # Unfiltered on purpose: `pnpm lint` is a whole-repo gate (oxlint with
+      # the house plugin, knip, `prettier --check .`, stylelint, and the
+      # product operation catalog gate: manifest drift + CLI-map
+      # exhaustiveness).
       # Prettier and knip read files no package owns — docs, root config —
       # so there is no change set that provably cannot break it.
       - name: Run lint

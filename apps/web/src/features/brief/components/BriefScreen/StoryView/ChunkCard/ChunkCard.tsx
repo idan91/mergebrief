@@ -186,7 +186,7 @@ export const ChunkCard = memo(function ChunkCard({
       tabIndex={-1}
     >
       <div className={styles["head"]}>
-        {/* eslint-disable-next-line no-restricted-syntax -- disclosure with a user-select: text requirement no shared component models */}
+        {/* oxlint-disable-next-line house/no-raw-button -- disclosure with a user-select: text requirement no shared component models */}
         <button
           className={styles["toggle"]}
           type="button"

@@ -16,7 +16,10 @@
     ".": {
       // The shared coverage policy is imported by every package's vitest
       // config, which knip resolves per workspace, not from the root.
-      "entry": ["vitest.shared.ts", "eslint.config.js"],
+      "entry": ["vitest.shared.ts"],
+      // Loaded by oxlint through `.oxlintrc.json`'s `jsPlugins`, by name;
+      // there is no import for knip to see.
+      "ignoreDependencies": ["eslint-plugin-i18next"],
       "project": ["*.ts", "*.js"],
       // The CI/weekly workflows install browsers with `pnpm -C apps/web exec
       // playwright ...`. knip attributes a workflow's binaries to the root
@@ -90,6 +93,12 @@
     "packages/types": { "entry": ["src/index.ts"] },
     "apps/worker": { "entry": ["src/index.ts", "src/main.ts"] },
     "tools/ingest-briefs": { "entry": ["src/index.ts", "src/main.ts"] },
+    "tools/oxlint-plugin-house": {
+      "entry": ["src/index.mjs"],
+      // Each rule's counter-examples: linted by the plugin's tests, never
+      // imported.
+      "ignore": ["test/fixtures/**"],
+    },
     "tools/categorizer": {
       // Each eval case's `expected.ts` is dynamically imported by absolute
       // path from the case loader (BRIEF-59), so it is an entry too.

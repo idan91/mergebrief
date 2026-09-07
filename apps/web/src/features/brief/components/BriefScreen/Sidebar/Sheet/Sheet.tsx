@@ -54,7 +54,6 @@ export function Sheet({
       ?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')
       ?.focus();
     // Focus lands once, on open; a later tab change moves it through the tabs row.
-    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSelectTab = (value: string) => {
@@ -67,7 +66,7 @@ export function Sheet({
 
   return (
     <>
-      {/* eslint-disable-next-line no-restricted-syntax -- full-viewport scrim: a tap target with no chrome */}
+      {/* oxlint-disable-next-line house/no-raw-button -- full-viewport scrim: a tap target with no chrome */}
       <button
         aria-label={t("brief.sidebar.collapse")}
         className={styles["scrim"]}
@@ -88,7 +87,7 @@ export function Sheet({
         tabIndex={-1}
         onKeyDown={onTrapKeyDown}
       >
-        {/* eslint-disable-next-line no-restricted-syntax -- the sheet's grab handle: a pill, not a labelled control */}
+        {/* oxlint-disable-next-line house/no-raw-button -- the sheet's grab handle: a pill, not a labelled control */}
         <button
           aria-expanded={full}
           aria-label={

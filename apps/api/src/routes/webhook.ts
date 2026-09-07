@@ -379,7 +379,7 @@ async function readRawBodyWithinLimit(
     while (true) {
       // Stream reads are inherently sequential — each chunk arrives only
       // after the previous read resolves — so there is nothing to parallelize.
-      // eslint-disable-next-line no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const { done, value } = await reader.read();
       if (done) {
         chunks.push(decoder.decode());
@@ -387,7 +387,7 @@ async function readRawBodyWithinLimit(
       }
       bytesRead += value.byteLength;
       if (bytesRead > MAX_WEBHOOK_BODY_BYTES) {
-        // eslint-disable-next-line no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         await reader.cancel();
         return { ok: false, error: "body-too-large" };
       }

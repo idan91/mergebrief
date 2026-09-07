@@ -50,6 +50,6 @@ export function useScrollSpy(
       if (frame !== null) window.cancelAnimationFrame(frame);
     };
     // `key` captures the id list identity without re-running on every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [key, offset]);
 }

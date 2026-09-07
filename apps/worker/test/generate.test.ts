@@ -2265,7 +2265,7 @@ describe("generate task — anchored generation", () => {
     const second = await trigger(HEAD_2);
     if (options.rev2FailWith !== undefined) {
       generator.failNextWith = options.rev2FailWith;
-      // eslint-disable-next-line vitest/no-conditional-expect -- asserts the failure the caller staged.
+      // oxlint-disable-next-line vitest/no-conditional-expect -- asserts the failure the caller staged.
       await expect(task(second.payload)).rejects.toThrow(APIConnectionError);
     } else {
       await task(second.payload);

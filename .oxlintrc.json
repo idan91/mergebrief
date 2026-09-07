@@ -3,6 +3,12 @@
   // react-perf is deliberately absent: its inline-prop rules contradict the
   // house style (no memoization by default — inline handlers to non-memoized
   // children are idiomatic and free).
+  // The house plugin carries every convention oxlint has no native rule for;
+  // eslint-plugin-i18next gates user-facing copy. Both load as JS plugins.
+  "jsPlugins": [
+    "./tools/oxlint-plugin-house/src/index.mjs",
+    "eslint-plugin-i18next"
+  ],
   "plugins": [
     "typescript",
     "unicorn",
@@ -50,13 +56,14 @@
       "error",
       { "assertionStyle": "never" }
     ],
-    // The closest oxlint gets to the root standard's `enum` ban: it covers
-    // `const enum` only. Plain `enum` is NOT expressible here — oxlint has no
-    // `no-enum` and no `no-restricted-syntax` (checked, oxlint 1.72), so that
-    // half of the rule stays prose.
     "oxc/no-const-enum": "error",
-    // Named exports only; the four framework-required default exports are
-    // carved out per-path in the overrides.
+    // oxlint has no `noInlineConfig`, so a line disable can suppress these
+    // two like any rule; `--report-unused-disable-directives` catches a stale
+    // one and a live one is reviewed like every lint-disable.
+    "house/no-enum": "error",
+    "house/extensionless-import": "error",
+    // Named exports only; the framework-required default exports are carved
+    // out per-path in the overrides.
     "import/no-default-export": "error",
     "import/no-cycle": "error",
     // Side-effect imports are how Vite loads global styles and server
@@ -86,7 +93,9 @@
     "**/dist/**",
     "**/out/**",
     "**/.playwright-cli/**",
-    "**/routeTree.gen.ts"
+    "**/routeTree.gen.ts",
+    // Each house rule's own counter-examples; the plugin's tests lint them.
+    "tools/oxlint-plugin-house/test/fixtures/**"
   ],
   "overrides": [
     {
@@ -117,12 +126,130 @@
     },
     {
       // Framework-required default exports: vite/tsup/drizzle read the
-      // default export of their config, ESLint's flat config is the default
-      // export of `eslint.config.js`, and TanStack Start's server entry is
-      // resolved the same way.
-      "files": ["**/*.config.ts", "eslint.config.js", "apps/web/src/server.ts"],
+      // default export of their config, and TanStack Start's server entry is
+      // resolved the same way. The house plugin is loaded by oxlint the same
+      // way ESLint loads a plugin: by default export.
+      "files": [
+        "**/*.config.ts",
+        "apps/web/src/server.ts",
+        "tools/oxlint-plugin-house/src/index.mjs"
+      ],
       "rules": {
         "import/no-default-export": "off"
+      }
+    },
+    {
+      // User-facing copy lives in the catalog, never in a component. `jsx-only`
+      // covers JSX text and attributes. Tests and stories are exempt: fixtures
+      // are not copy.
+      "files": ["apps/web/src/**/*.tsx"],
+      "rules": {
+        "i18next/no-literal-string": [
+          "error",
+          {
+            "mode": "jsx-only",
+            "jsx-attributes": {
+              // Structural and behavioural attributes are never copy.
+              "exclude": [
+                "className",
+                "data-.*",
+                "id",
+                "key",
+                "type",
+                "role",
+                "href",
+                "to",
+                "name",
+                "value",
+                "scope",
+                "color",
+                "as",
+                "testId",
+                "labelledBy",
+                "describedBy",
+                "aria-hidden",
+                "aria-haspopup",
+                "autoComplete",
+                "rel",
+                "target",
+                "charSet",
+                "property",
+                "content",
+                "crossOrigin",
+                "boxClassName",
+                "labelClassName",
+                "triggerClassName",
+                "stroke",
+                "fill",
+                "focusable",
+                "viewBox",
+                "xmlns",
+                "d",
+                "points",
+                "offset",
+                "stopColor",
+                "placement",
+                "callout",
+                "kind",
+                "variant",
+                "size",
+                "density",
+                "tone",
+                "state",
+                "side",
+                "anchor",
+                "components"
+              ]
+            },
+            // The plugin's default callee list stays in force: a blanket
+            // exclude would exempt every JSX nested in a call expression.
+            "words": {
+              // Punctuation-only and single-glyph nodes are decoration. The
+              // named entries are discriminants inside attribute expressions.
+              "exclude": [
+                "^[^a-zA-Z]*$",
+                "^.$",
+                "^(chunk|group|last-review|previous-brief|step|reference|content|repo-policy|built-in|open|verdict|receipt|start)$"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      // The shared-button enforcement: raw `<button>` and `target="_blank"` on
+      // a raw `<a>` are banned in apps/web source outside the shared
+      // components' own files. A bespoke site carries an
+      // oxlint-disable-next-line with its reason; the disables are the
+      // allowlist.
+      "files": ["apps/web/src/**/*.tsx"],
+      "rules": {
+        "house/no-raw-button": "error",
+        "house/no-blank-target": "error"
+      }
+    },
+    {
+      "files": [
+        "apps/web/src/components/AccessibleLink/**",
+        "apps/web/src/components/Button/**",
+        "apps/web/src/components/Chip/**",
+        "apps/web/src/components/IconButton/**",
+        "apps/web/src/components/LinkButton/**",
+        "apps/web/src/components/MenuItem/**",
+        "apps/web/src/components/RowButton/**",
+        "apps/web/src/components/Tabs/**",
+        "apps/web/src/components/ToolbarButton/**"
+      ],
+      "rules": {
+        "house/no-raw-button": "off",
+        "house/no-blank-target": "off"
+      }
+    },
+    {
+      // Stories are fixtures, not copy.
+      "files": ["**/*.stories.tsx"],
+      "rules": {
+        "i18next/no-literal-string": "off"
       }
     },
     {
@@ -133,6 +260,7 @@
         "apps/web/e2e/**"
       ],
       "rules": {
+        "i18next/no-literal-string": "off",
         "typescript/no-non-null-assertion": "off",
         // Sequential awaits in tests are usually the point (step-by-step UI
         // flows where each action depends on the previous one settling).
@@ -176,6 +304,14 @@
           "error",
           { "allow": ["__typename", "__COMMIT_STATS__", "__COMMIT_TRACKING__"] }
         ]
+      }
+    },
+    {
+      // The plugin itself is Node-resolved, not bundler-resolved: its `.mjs`
+      // modules must carry their extension.
+      "files": ["tools/oxlint-plugin-house/**"],
+      "rules": {
+        "house/extensionless-import": "off"
       }
     },
     {

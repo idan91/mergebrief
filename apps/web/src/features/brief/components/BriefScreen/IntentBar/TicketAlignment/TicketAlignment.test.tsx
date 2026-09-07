@@ -249,7 +249,6 @@ describe("TicketAlignment", () => {
   it("never links a non-http(s) ticket URL — the key renders as plain text", () => {
     const sneaky: PrimaryTicket = {
       ...READ_TICKET,
-      // eslint-disable-next-line no-script-url
       url: "javascript:alert(1)",
     };
     render(

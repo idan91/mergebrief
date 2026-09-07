@@ -258,7 +258,7 @@ export function useMarkReadyFlow(
           // Sequential BY DESIGN: a failure must STOP the run before the next
           // outward write and before mark-ready — Promise.all would defeat
           // the stop-on-failure contract.
-          // eslint-disable-next-line no-await-in-loop
+          // oxlint-disable-next-line no-await-in-loop
           const outcome = await postDraft(draft, true);
           if (outcome !== "posted") {
             setMarkReadyBatch(null);

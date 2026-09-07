@@ -41,7 +41,7 @@ const logger = (() => {
   try {
     return createLogger({ env });
   } catch (error) {
-    // eslint-disable-next-line no-console -- the logging boundary itself failed to construct; bare console is the only channel left
+    // oxlint-disable-next-line no-console -- the logging boundary itself failed to construct; bare console is the only channel left
     console.error("worker composition: invalid logging configuration —", error);
     process.exit(0);
   }

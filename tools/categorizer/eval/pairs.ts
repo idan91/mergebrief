@@ -136,7 +136,7 @@ export async function loadPairCases(
   }
   const cases: PairCase[] = [];
   for (const id of selected) {
-    // eslint-disable-next-line no-await-in-loop -- sequential: first bad case aborts the load
+    // oxlint-disable-next-line no-await-in-loop -- sequential: first bad case aborts the load
     const loaded = await loadOnePair(id, join(pairsDir, id));
     if (!loaded.ok) return loaded;
     cases.push(loaded.value);
@@ -281,7 +281,7 @@ export async function runPairCase(
   for (let run = 1; run <= runs; run++) {
     progress(`  ${pairCase.id}: run ${run}/${runs} (base + revision)…`);
     try {
-      // eslint-disable-next-line no-await-in-loop -- serial by design (see runCase)
+      // oxlint-disable-next-line no-await-in-loop -- serial by design (see runCase)
       const base = await categorize(
         fixture.base.pr,
         1,
@@ -297,7 +297,7 @@ export async function runPairCase(
         compareFiles: fixture.increment.compareFiles,
         baseShaMoved: fixture.increment.baseShaMoved,
       });
-      // eslint-disable-next-line no-await-in-loop -- serial by design
+      // oxlint-disable-next-line no-await-in-loop -- serial by design
       const generated = await categorize(
         fixture.revised.pr,
         2,

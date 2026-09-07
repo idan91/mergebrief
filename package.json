@@ -13,16 +13,14 @@
     "test:persistence": "pnpm -C packages/persistence test",
     "typecheck:worker": "pnpm -C apps/worker typecheck",
     "test:worker": "pnpm -C apps/worker test",
-    "lint": "oxlint --type-aware && eslint . --quiet && knip --no-config-hints && pnpm format:check && pnpm -C apps/web lint && pnpm check:catalog",
+    "lint": "oxlint --type-aware --report-unused-disable-directives && knip --no-config-hints && pnpm format:check && pnpm -C apps/web lint && pnpm check:catalog",
     "check:catalog": "pnpm -C apps/api manifest:check && pnpm -C apps/cli map:check",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
   "packageManager": "pnpm@11.10.0",
   "devDependencies": {
-    "@typescript-eslint/parser": "^8.65.0",
     "concurrently": "^10.0.4",
-    "eslint": "^10.8.0",
     "eslint-plugin-i18next": "^6.1.5",
     "knip": "^6.31.0",
     "oxlint": "1.72.0",
