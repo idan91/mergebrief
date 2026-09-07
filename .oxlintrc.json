@@ -62,6 +62,12 @@
     // one and a live one is reviewed like every lint-disable.
     "house/no-enum": "error",
     "house/extensionless-import": "error",
+    // Test titles and comments: existing violations sit in
+    // oxlint-suppressions.json, which only shrinks. A PR that edits a listed
+    // file clears that file's entries for the rules it trips and prunes.
+    "house/test-title": ["error", { "maxLength": 70 }],
+    "house/comment-run": ["error", { "maxContentLines": 4 }],
+    "house/no-em-dash": "error",
     // Named exports only; the framework-required default exports are carved
     // out per-path in the overrides.
     "import/no-default-export": "error",

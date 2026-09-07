@@ -1,9 +1,12 @@
 // The house oxlint plugin: every repo convention oxlint has no native rule
 // for, as selector rules. `.oxlintrc.json` loads it through `jsPlugins`.
+import { commentRun } from "./rules/comment-run.mjs";
 import { extensionlessImport } from "./rules/extensionless-import.mjs";
 import { noBlankTarget } from "./rules/no-blank-target.mjs";
+import { noEmDash } from "./rules/no-em-dash.mjs";
 import { noEnum } from "./rules/no-enum.mjs";
 import { noRawButton } from "./rules/no-raw-button.mjs";
+import { testTitle } from "./rules/test-title.mjs";
 
 /** @type {import("./types").HousePlugin} */
 const plugin = {
@@ -13,6 +16,9 @@ const plugin = {
     "extensionless-import": extensionlessImport,
     "no-raw-button": noRawButton,
     "no-blank-target": noBlankTarget,
+    "test-title": testTitle,
+    "comment-run": commentRun,
+    "no-em-dash": noEmDash,
   },
 };
 

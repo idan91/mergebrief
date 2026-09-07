@@ -1,12 +1,12 @@
-// Drift pins for the two-places-by-design English: the api composes wire
-// lines from its own template map; this catalog renders the same lines from
-// `errors.<code>`. Shared source is ruled out (the CLI must not pull the api
-// package), so equality is pinned here instead.
-import { ApiErrorEnglishByCode, ApiErrorCodes } from "api";
+// The api composes wire lines from its own template map and the catalog
+// renders the same lines from `errors.<code>`; the CLI must not pull the api
+// package, so shared source is ruled out and equality is pinned here. It sits
+// on the api side because nothing imports an app.
 import { describe, expect, it } from "vitest";
-import en from "../locales/en.json";
+import { en } from "i18n";
+import { ApiErrorEnglishByCode, ApiErrorCodes } from "../src/index";
 
-describe("wire error pin (api ↔ catalog)", () => {
+describe("wire error pin between api and catalog", () => {
   it("errors.* keys equal the ApiErrorCode vocabulary exactly", () => {
     expect(Object.keys(en.errors).toSorted()).toEqual(
       Object.values(ApiErrorCodes).toSorted(),

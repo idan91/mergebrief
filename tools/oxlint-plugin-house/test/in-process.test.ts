@@ -20,6 +20,7 @@ interface FixtureCase {
   readonly bad: string;
   readonly good: string;
   readonly lines: readonly number[];
+  readonly messageIds?: readonly string[];
 }
 
 function readFixture(
@@ -40,9 +41,38 @@ const CASES: readonly FixtureCase[] = [
   },
   { rule: "no-raw-button", bad: "bad.tsx", good: "good.tsx", lines: [4, 5] },
   { rule: "no-blank-target", bad: "bad.tsx", good: "good.tsx", lines: [3] },
+  {
+    rule: "test-title",
+    bad: "bad.ts",
+    good: "good.ts",
+    lines: [3, 4, 5, 6, 7, 8, 9],
+    messageIds: [
+      "tooLong",
+      "parenthetical",
+      "tooLong",
+      "parenthetical",
+      "parenthetical",
+      "parenthetical",
+      "parenthetical",
+    ],
+  },
+  {
+    rule: "comment-run",
+    bad: "bad.ts",
+    good: "good.ts",
+    lines: [1, 8],
+    messageIds: ["run", "run"],
+  },
+  {
+    rule: "no-em-dash",
+    bad: "bad.ts",
+    good: "good.ts",
+    lines: [3, 6, 9],
+    messageIds: ["comment", "comment", "title"],
+  },
 ];
 
-for (const { rule, bad, good, lines } of CASES) {
+for (const { rule, bad, good, lines, messageIds } of CASES) {
   const definition = plugin.rules[rule];
   if (definition === undefined) throw new Error(`plugin has no rule ${rule}`);
   tester.run(rule, definition as unknown as TesterRule, {
@@ -50,7 +80,10 @@ for (const { rule, bad, good, lines } of CASES) {
     invalid: [
       {
         ...readFixture(rule, bad),
-        errors: lines.map((line) => ({ messageId: "violation", line })),
+        errors: lines.map((line, index) => ({
+          messageId: messageIds?.[index] ?? "violation",
+          line,
+        })),
       },
     ],
   });

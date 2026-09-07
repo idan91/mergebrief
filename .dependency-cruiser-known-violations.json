@@ -1,0 +1,1286 @@
+[
+  {
+    "type": "dependency",
+    "from": "apps/cli/test/capabilities-command.test.ts",
+    "to": "apps/api/src/index.ts",
+    "unresolvedTo": "api",
+    "dependencyTypes": ["undetermined", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "no-app-imports-another-app"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/cli/test/closeout-commands.test.ts",
+    "to": "apps/api/src/index.ts",
+    "unresolvedTo": "api",
+    "dependencyTypes": ["undetermined", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "no-app-imports-another-app"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/cli/test/commands.test.ts",
+    "to": "apps/api/src/index.ts",
+    "unresolvedTo": "api",
+    "dependencyTypes": ["undetermined", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "no-app-imports-another-app"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/cli/test/disposition-commands.test.ts",
+    "to": "apps/api/src/index.ts",
+    "unresolvedTo": "api",
+    "dependencyTypes": ["undetermined", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "no-app-imports-another-app"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/cli/test/read-commands.test.ts",
+    "to": "apps/api/src/index.ts",
+    "unresolvedTo": "api",
+    "dependencyTypes": ["undetermined", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "no-app-imports-another-app"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/cli/test/repos-cache.test.ts",
+    "to": "apps/api/src/index.ts",
+    "unresolvedTo": "api",
+    "dependencyTypes": ["undetermined", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "no-app-imports-another-app"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/cli/test/session-read-commands.test.ts",
+    "to": "apps/api/src/index.ts",
+    "unresolvedTo": "api",
+    "dependencyTypes": ["undetermined", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "no-app-imports-another-app"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/cli/test/session-write-commands.test.ts",
+    "to": "apps/api/src/index.ts",
+    "unresolvedTo": "api",
+    "dependencyTypes": ["undetermined", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "no-app-imports-another-app"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/cli/test/write-commands.test.ts",
+    "to": "apps/api/src/index.ts",
+    "unresolvedTo": "api",
+    "dependencyTypes": ["undetermined", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "no-app-imports-another-app"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/data/apiFetch.test.ts",
+    "to": "apps/api/src/index.ts",
+    "unresolvedTo": "api",
+    "dependencyTypes": ["undetermined", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "no-app-imports-another-app"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/pulls/types.test.ts",
+    "to": "apps/api/src/index.ts",
+    "unresolvedTo": "api",
+    "dependencyTypes": ["undetermined", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "no-app-imports-another-app"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/review/session/serverState.test.ts",
+    "to": "apps/api/src/index.ts",
+    "unresolvedTo": "api",
+    "dependencyTypes": ["undetermined", "type-only", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "no-app-imports-another-app"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/server/webhookApp.ts",
+    "to": "apps/api/src/index.ts",
+    "unresolvedTo": "api",
+    "dependencyTypes": ["undetermined", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "no-app-imports-another-app"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/BriefScreen.tsx",
+    "to": "apps/web/src/features/pulls/components/MarkReadyModal/MarkReadyModal.tsx",
+    "unresolvedTo": "@web/features/pulls/components/MarkReadyModal/MarkReadyModal",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/CarryOver/AttentionList/AttentionList.tsx",
+    "to": "apps/web/src/features/review/utils/state.ts",
+    "unresolvedTo": "@web/features/review/utils/state",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-webpack",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/CarryOver/AttentionList/utils.ts",
+    "to": "apps/web/src/features/review/utils/state.ts",
+    "unresolvedTo": "@web/features/review/utils/state",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-webpack",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/CarryOver/CarryOver.tsx",
+    "to": "apps/web/src/features/review/utils/state.ts",
+    "unresolvedTo": "@web/features/review/utils/state",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-webpack",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/CarryOver/useCarryOver.ts",
+    "to": "apps/web/src/features/review/utils/state.ts",
+    "unresolvedTo": "@web/features/review/utils/state",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/DiffTable/diffRowView.ts",
+    "to": "apps/web/src/features/review/utils/comments.ts",
+    "unresolvedTo": "@web/features/review/utils/comments",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/DiffTable/DiffTable.test.tsx",
+    "to": "apps/web/src/features/conversation/utils/digest.ts",
+    "unresolvedTo": "@web/features/conversation/utils/digest",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/DiffTable/DiffTable.tsx",
+    "to": "apps/web/src/features/conversation/utils/digest.ts",
+    "unresolvedTo": "@web/features/conversation/utils/digest",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-webpack",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/DiffTable/DiffTable.tsx",
+    "to": "apps/web/src/features/conversation/utils/ownComments.ts",
+    "unresolvedTo": "@web/features/conversation/utils/ownComments",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/DiffTable/DiffTable.tsx",
+    "to": "apps/web/src/features/review/utils/comments.ts",
+    "unresolvedTo": "@web/features/review/utils/comments",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/ReadingToolbar/FilterDisclosure/FilterDisclosure.test.tsx",
+    "to": "apps/web/src/features/conversation/utils/filter.ts",
+    "unresolvedTo": "@web/features/conversation/utils/filter",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/ReadingToolbar/FilterDisclosure/FilterDisclosure.tsx",
+    "to": "apps/web/src/features/conversation/utils/filter.ts",
+    "unresolvedTo": "@web/features/conversation/utils/filter",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/ReadingToolbar/FilterDisclosure/utils.test.ts",
+    "to": "apps/web/src/features/conversation/utils/filter.ts",
+    "unresolvedTo": "@web/features/conversation/utils/filter",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/ReadingToolbar/FilterDisclosure/utils.ts",
+    "to": "apps/web/src/features/conversation/utils/filter.ts",
+    "unresolvedTo": "@web/features/conversation/utils/filter",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-webpack",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/ReadingToolbar/ReadingToolbar.test.tsx",
+    "to": "apps/web/src/features/conversation/utils/filter.ts",
+    "unresolvedTo": "@web/features/conversation/utils/filter",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/RiskFlagModals/useRiskFlagModalsFacade.ts",
+    "to": "apps/web/src/features/review/utils/state.ts",
+    "unresolvedTo": "@web/features/review/utils/state",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-webpack",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/StoryView/ChunkCard/ChunkCard.tsx",
+    "to": "apps/web/src/features/conversation/utils/digest.ts",
+    "unresolvedTo": "@web/features/conversation/utils/digest",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/StoryView/GroupCard/AttributedGroupCard/RiskSurface/RiskSurface.tsx",
+    "to": "apps/web/src/features/review/session/flow/store.ts",
+    "unresolvedTo": "@web/features/review/session/flow/store",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-webpack",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/StoryView/GroupCard/AttributedGroupCard/RiskSurface/RiskSurface.tsx",
+    "to": "apps/web/src/features/review/utils/comments.ts",
+    "unresolvedTo": "@web/features/review/utils/comments",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-webpack",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/StoryView/GroupCard/AttributedGroupCard/RiskSurface/RiskSurface.tsx",
+    "to": "apps/web/src/features/review/utils/state.ts",
+    "unresolvedTo": "@web/features/review/utils/state",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/StoryView/GroupCard/utils.test.ts",
+    "to": "apps/web/src/features/review/utils/comments.ts",
+    "unresolvedTo": "@web/features/review/utils/comments",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-webpack",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/StoryView/GroupCard/utils.ts",
+    "to": "apps/web/src/features/review/utils/comments.ts",
+    "unresolvedTo": "@web/features/review/utils/comments",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-webpack",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/StoryView/StoryView.tsx",
+    "to": "apps/web/src/features/conversation/utils/digest.ts",
+    "unresolvedTo": "@web/features/conversation/utils/digest",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-webpack",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/types.ts",
+    "to": "apps/web/src/features/conversation/utils/filter.ts",
+    "unresolvedTo": "@web/features/conversation/utils/filter",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-webpack",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/types.ts",
+    "to": "apps/web/src/features/pulls/transport/markReady.ts",
+    "unresolvedTo": "@web/features/pulls/transport/markReady",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-webpack",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/types.ts",
+    "to": "apps/web/src/features/pulls/transport/postComment.ts",
+    "unresolvedTo": "@web/features/pulls/transport/postComment",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-webpack",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/types.ts",
+    "to": "apps/web/src/features/review/utils/submit.ts",
+    "unresolvedTo": "@web/features/review/utils/submit",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-webpack",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/useBriefScreenFacade.ts",
+    "to": "apps/web/src/features/review/hooks/useReviewSubmit.ts",
+    "unresolvedTo": "@web/features/review/hooks/useReviewSubmit",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/useBriefScreenFacade.ts",
+    "to": "apps/web/src/features/review/utils/state.ts",
+    "unresolvedTo": "@web/features/review/utils/state",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-webpack",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/useConversationWiring.test.tsx",
+    "to": "apps/web/src/features/conversation/utils/filter.ts",
+    "unresolvedTo": "@web/features/conversation/utils/filter",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/useConversationWiring.ts",
+    "to": "apps/web/src/features/conversation/hooks/useMentionPool.ts",
+    "unresolvedTo": "@web/features/conversation/hooks/useMentionPool",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/useConversationWiring.ts",
+    "to": "apps/web/src/features/conversation/utils/digest.ts",
+    "unresolvedTo": "@web/features/conversation/utils/digest",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/useConversationWiring.ts",
+    "to": "apps/web/src/features/conversation/utils/filter.ts",
+    "unresolvedTo": "@web/features/conversation/utils/filter",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/useConversationWiring.ts",
+    "to": "apps/web/src/features/conversation/utils/ownComments.ts",
+    "unresolvedTo": "@web/features/conversation/utils/ownComments",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/useMarkReadyFlow.ts",
+    "to": "apps/web/src/features/pulls/hooks/useMarkReady.ts",
+    "unresolvedTo": "@web/features/pulls/hooks/useMarkReady",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/useMarkReadyFlow.ts",
+    "to": "apps/web/src/features/pulls/transport/markReady.ts",
+    "unresolvedTo": "@web/features/pulls/transport/markReady",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-webpack",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/useMarkReadyFlow.ts",
+    "to": "apps/web/src/features/review/utils/comments.ts",
+    "unresolvedTo": "@web/features/review/utils/comments",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-webpack",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/useOwnDraftFlow.ts",
+    "to": "apps/web/src/features/pulls/transport/postComment.ts",
+    "unresolvedTo": "@web/features/pulls/transport/postComment",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-webpack",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/useOwnDraftFlow.ts",
+    "to": "apps/web/src/features/review/utils/comments.ts",
+    "unresolvedTo": "@web/features/review/utils/comments",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/useReadingSession.ts",
+    "to": "apps/web/src/features/review/utils/comments.ts",
+    "unresolvedTo": "@web/features/review/utils/comments",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-webpack",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/useReadingSession.ts",
+    "to": "apps/web/src/features/review/utils/receipt.ts",
+    "unresolvedTo": "@web/features/review/utils/receipt",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/useReadingSession.ts",
+    "to": "apps/web/src/features/review/utils/state.ts",
+    "unresolvedTo": "@web/features/review/utils/state",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefScreen/utils.ts",
+    "to": "apps/web/src/features/review/utils/state.ts",
+    "unresolvedTo": "@web/features/review/utils/state",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-webpack",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefView/BriefView.tsx",
+    "to": "apps/web/src/features/conversation/utils/filter.ts",
+    "unresolvedTo": "@web/features/conversation/utils/filter",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-webpack",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefView/BriefView.tsx",
+    "to": "apps/web/src/features/review/utils/submit.ts",
+    "unresolvedTo": "@web/features/review/utils/submit",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-webpack",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefView/ownDraftView.test.tsx",
+    "to": "apps/web/src/features/pulls/transport/markReady.ts",
+    "unresolvedTo": "../../../pulls/transport/markReady",
+    "dependencyTypes": ["local", "type-only", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/brief/components/BriefView/ownDraftView.test.tsx",
+    "to": "apps/web/src/features/pulls/transport/postComment.ts",
+    "unresolvedTo": "../../../pulls/transport/postComment",
+    "dependencyTypes": ["local", "type-only", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/conversation/components/ConversationSection/ConversationSection.test.tsx",
+    "to": "apps/web/src/features/review/utils/comments.ts",
+    "unresolvedTo": "@web/features/review/utils/comments",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-webpack",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/conversation/components/ConversationSection/ConversationSection.tsx",
+    "to": "apps/web/src/features/review/utils/comments.ts",
+    "unresolvedTo": "@web/features/review/utils/comments",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-webpack",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/conversation/utils/anchor.ts",
+    "to": "apps/web/src/features/review/utils/comments.ts",
+    "unresolvedTo": "../../review/utils/comments",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/conversation/utils/ownComments.test.ts",
+    "to": "apps/web/src/features/review/utils/comments.ts",
+    "unresolvedTo": "../../review/utils/comments",
+    "dependencyTypes": ["local", "type-only", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/conversation/utils/ownComments.ts",
+    "to": "apps/web/src/features/review/utils/comments.ts",
+    "unresolvedTo": "../../review/utils/comments",
+    "dependencyTypes": ["local", "type-only", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/pulls/components/PrBrief/PrBriefBody/PrBriefBody.tsx",
+    "to": "apps/web/src/features/brief/comparison/compareState.ts",
+    "unresolvedTo": "../../../../brief/comparison/compareState",
+    "dependencyTypes": ["local", "type-only", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/pulls/components/PrBrief/PrBriefBody/PrBriefBody.tsx",
+    "to": "apps/web/src/features/conversation/utils/filter.ts",
+    "unresolvedTo": "@web/features/conversation/utils/filter",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-webpack",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/pulls/components/PrBrief/PrBriefContent/DbBriefControls/DbCompareBar/DbCompareBar.tsx",
+    "to": "apps/web/src/features/brief/comparison/compareState.ts",
+    "unresolvedTo": "../../../../../../brief/comparison/compareState",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/pulls/components/PrBrief/PrBriefContent/PrBriefContent.tsx",
+    "to": "apps/web/src/features/brief/comparison/compareState.ts",
+    "unresolvedTo": "../../../../brief/comparison/compareState",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/pulls/components/PrBrief/PrBriefContent/PrBriefContent.tsx",
+    "to": "apps/web/src/features/conversation/utils/filter.ts",
+    "unresolvedTo": "@web/features/conversation/utils/filter",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-webpack",
+      "local",
+      "type-only",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/pulls/components/PrBrief/WaitCard/LiveDiffPreview/LiveDiffPreview.tsx",
+    "to": "apps/web/src/features/brief/utils/diffSlicing.ts",
+    "unresolvedTo": "../../../../../brief/utils/diffSlicing",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/pulls/hooks/usePrBriefPlans.ts",
+    "to": "apps/web/src/features/brief/comparison/compareState.ts",
+    "unresolvedTo": "../../brief/comparison/compareState",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/pulls/hooks/usePrBriefPlans.ts",
+    "to": "apps/web/src/features/review/utils/submit.ts",
+    "unresolvedTo": "../../review/utils/submit",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/pulls/prBriefRoute.test.tsx",
+    "to": "apps/web/src/features/brief/utils/fixtures.ts",
+    "unresolvedTo": "@web/features/brief/utils/fixtures",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/pulls/prSessionRoute.test.tsx",
+    "to": "apps/web/src/features/brief/utils/fixtures.ts",
+    "unresolvedTo": "@web/features/brief/utils/fixtures",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/pulls/prTimelineRoute.test.tsx",
+    "to": "apps/web/src/features/brief/utils/fixtures.ts",
+    "unresolvedTo": "@web/features/brief/utils/fixtures",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/pulls/queries.ts",
+    "to": "apps/web/src/features/brief/utils/repoConfig.ts",
+    "unresolvedTo": "../brief/utils/repoConfig",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/pulls/queries.ts",
+    "to": "apps/web/src/features/brief/utils/validation.ts",
+    "unresolvedTo": "../brief/utils/validation",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/pulls/transport/postComment.effect.test.ts",
+    "to": "apps/web/src/features/brief/utils/fixtures.ts",
+    "unresolvedTo": "@web/features/brief/utils/fixtures",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/pulls/transport/postComment.effect.test.ts",
+    "to": "apps/web/src/features/review/utils/comments.ts",
+    "unresolvedTo": "../../review/utils/comments",
+    "dependencyTypes": ["local", "type-only", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/pulls/transport/submitReview.test.ts",
+    "to": "apps/web/src/features/review/utils/submit.ts",
+    "unresolvedTo": "../../review/utils/submit",
+    "dependencyTypes": ["local", "type-only", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/pulls/transport/submitReview.ts",
+    "to": "apps/web/src/features/review/utils/submit.ts",
+    "unresolvedTo": "../../review/utils/submit",
+    "dependencyTypes": ["local", "type-only", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/pulls/utils/liveDiff.ts",
+    "to": "apps/web/src/features/brief/utils/diffSlicing.ts",
+    "unresolvedTo": "../../brief/utils/diffSlicing",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/review/components/SummaryPreview/SummaryPreview.test.tsx",
+    "to": "apps/web/src/features/brief/utils/fixtures.ts",
+    "unresolvedTo": "@web/features/brief/utils/fixtures",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/review/session/serverState.test.ts",
+    "to": "apps/web/src/features/brief/utils/fixtures.ts",
+    "unresolvedTo": "@web/features/brief/utils/fixtures",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/review/session/serverState.test.ts",
+    "to": "apps/web/src/features/brief/utils/remainder.ts",
+    "unresolvedTo": "@web/features/brief/utils/remainder",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/review/session/store.test.ts",
+    "to": "apps/web/src/features/brief/utils/fixtures.ts",
+    "unresolvedTo": "@web/features/brief/utils/fixtures",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/review/session/store.ts",
+    "to": "apps/web/src/features/brief/utils/viewModel.ts",
+    "unresolvedTo": "@web/features/brief/utils/viewModel",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/review/session/writeGateway.test.ts",
+    "to": "apps/web/src/features/brief/utils/fixtures.ts",
+    "unresolvedTo": "@web/features/brief/utils/fixtures",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/review/utils/receipt.test.ts",
+    "to": "apps/web/src/features/brief/utils/fixtures.ts",
+    "unresolvedTo": "@web/features/brief/utils/fixtures",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/review/utils/receipt.test.ts",
+    "to": "apps/web/src/features/brief/utils/remainder.ts",
+    "unresolvedTo": "@web/features/brief/utils/remainder",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/review/utils/receipt.ts",
+    "to": "apps/web/src/features/brief/utils/repoConfig.ts",
+    "unresolvedTo": "../../brief/utils/repoConfig",
+    "dependencyTypes": ["local", "type-only", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/review/utils/state.test.ts",
+    "to": "apps/web/src/features/brief/utils/remainder.ts",
+    "unresolvedTo": "../../brief/utils/remainder",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/features/review/utils/state.ts",
+    "to": "apps/web/src/features/brief/utils/remainder.ts",
+    "unresolvedTo": "../../brief/utils/remainder",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-feature-imports-through-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/characterization/briefScreen.test.tsx",
+    "to": "apps/web/src/features/brief/utils/fixtures.ts",
+    "unresolvedTo": "@web/features/brief/utils/fixtures",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-routes-import-feature-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/routes/briefs.$briefId.tsx",
+    "to": "apps/web/src/features/brief/comparison/compareState.ts",
+    "unresolvedTo": "../features/brief/comparison/compareState",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-routes-import-feature-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/routes/briefs.$briefId.tsx",
+    "to": "apps/web/src/features/brief/utils/briefErrors.ts",
+    "unresolvedTo": "@web/features/brief/utils/briefErrors",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-routes-import-feature-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/routes/index.tsx",
+    "to": "apps/web/src/features/brief/utils/briefErrors.ts",
+    "unresolvedTo": "@web/features/brief/utils/briefErrors",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-routes-import-feature-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/routes/repos.$repoId.pulls.$prNumber.tsx",
+    "to": "apps/web/src/features/brief/comparison/compareState.ts",
+    "unresolvedTo": "../features/brief/comparison/compareState",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-routes-import-feature-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/routes/repos.$repoId.pulls.$prNumber.tsx",
+    "to": "apps/web/src/features/conversation/utils/filter.ts",
+    "unresolvedTo": "@web/features/conversation/utils/filter",
+    "dependencyTypes": ["aliased", "aliased-webpack", "local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-routes-import-feature-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/routes/repos.$repoId.pulls.$prNumber.tsx",
+    "to": "apps/web/src/features/pulls/utils/briefRouteState.ts",
+    "unresolvedTo": "../features/pulls/utils/briefRouteState",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-routes-import-feature-index"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "apps/web/src/routes/repos.$repoId.pulls.$prNumber.tsx",
+    "to": "apps/web/src/features/pulls/utils/dbTimeline.ts",
+    "unresolvedTo": "../features/pulls/utils/dbTimeline",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "web-routes-import-feature-index"
+    }
+  }
+]

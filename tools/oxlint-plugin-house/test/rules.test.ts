@@ -54,3 +54,33 @@ describe("house/no-blank-target", () => {
     expectLines("no-blank-target", "good.tsx", []);
   });
 });
+
+describe("house/test-title", () => {
+  it("reports long titles and parentheticals in every vitest form", () => {
+    expectLines("test-title", "bad.ts", [3, 4, 5, 6, 7, 8, 9]);
+  });
+
+  it("passes short titles, the cap itself and a template with expressions", () => {
+    expectLines("test-title", "good.ts", []);
+  });
+});
+
+describe("house/comment-run", () => {
+  it("reports a line run and a JSDoc block of five content lines", () => {
+    expectLines("comment-run", "bad.ts", [1, 8]);
+  });
+
+  it("passes four-line runs split by code and a trailing comment", () => {
+    expectLines("comment-run", "good.ts", []);
+  });
+});
+
+describe("house/no-em-dash", () => {
+  it("reports an em-dash in a line comment, a block comment and a title", () => {
+    expectLines("no-em-dash", "bad.ts", [3, 6, 9]);
+  });
+
+  it("passes hyphens and double dashes", () => {
+    expectLines("no-em-dash", "good.ts", []);
+  });
+});

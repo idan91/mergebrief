@@ -27,6 +27,7 @@
     "@octokit/webhooks-methods": "^5.1.1",
     "@types/node": "^22.10.0",
     "@vitest/coverage-v8": "^4.1.8",
+    "i18n": "workspace:*",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
     "vitest": "^4.1.8"
