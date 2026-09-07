@@ -1,17 +1,7 @@
-// The filter UI as anchored-panel CONTENT: two chip rows — verdict states
-// with counts, per-reviewer — and a footer with the recency toggle and
-// All/None/Clear. Chips are `aria-pressed` toggle buttons carrying TEXT, not
-// color alone (WCAG 1.4.1).
-//
-// Selection is OR within a family, AND across; verdict counts are faceted;
-// zero-count chips are unrendered unless selected (something must stay to
-// unpress); All/None/Clear never disable UNDER the pointer that just used
-// them — `aria-disabled` plus a no-op, keeping focus.
-//
-// The trigger, the hidden-thread receipt and the always-mounted live region
-// belong to the disclosure wrapper: a region living here would unmount with
-// the panel, which is exactly the insertion screen readers skip. Selection
-// lives in the URL, so this component is pure props.
+// The filter UI as anchored-panel CONTENT. Chips carry TEXT, not color alone
+// (WCAG 1.4.1); selection is OR within a family and AND across; All/None/Clear go
+// aria-disabled rather than disabled so focus survives. Selection lives in the
+// URL, so this component is pure props, and the live region belongs to the wrapper.
 import { useTranslation } from "react-i18next";
 import { Button } from "@web/components/Button/Button";
 import { Chip } from "@web/components/Chip/Chip";
@@ -40,7 +30,7 @@ export interface ConversationFilterPanelProps {
   onChange: (next: ConversationFilter) => void;
 }
 
-/** Chip text — the digest's own verdict vocabulary. */
+/** Chip text, the digest's own verdict vocabulary. */
 const VERDICT_LABEL: Record<FilterVerdictState, string> = {
   APPROVED: "approved",
   CHANGES_REQUESTED: "changes requested",
@@ -55,7 +45,7 @@ const VERDICT_ORDER: readonly FilterVerdictState[] = [
 
 /**
  * The chips to draw: every state with reviews behind it, PLUS any state the
- * filter selects. Zero-count states drop out only while UNSELECTED — a
+ * filter selects. Zero-count states drop out only while UNSELECTED, a
  * selected chip that vanished would leave an active filter nothing to unpress.
  */
 function chipFacets(
@@ -115,7 +105,10 @@ export function ConversationFilterPanel({
                     </span>
                   ) : null}
                   <ScreenReaderOnly>
-                    {` — ${facet.humanCount} from people, ${facet.botCount} from bots; filters the conversation`}
+                    {t("conversation.srFacetSummary", {
+                      humanCount: facet.humanCount,
+                      botCount: facet.botCount,
+                    })}
                   </ScreenReaderOnly>
                 </Chip>
               </li>
@@ -155,7 +148,7 @@ export function ConversationFilterPanel({
         </div>
       ) : null}
 
-      {/* The recency toggle sits OUTSIDE the chip gates — it governs the
+      {/* The recency toggle sits OUTSIDE the chip gates, it governs the
           reviews the whole section reads. Quick actions are real buttons,
           not text links: these ACT on the view. */}
       <div className={styles["foot"]}>

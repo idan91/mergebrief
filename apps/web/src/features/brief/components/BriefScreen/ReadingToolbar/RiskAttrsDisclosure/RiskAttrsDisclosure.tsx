@@ -25,18 +25,10 @@ export interface RiskAttrsDisclosureProps {
 }
 
 /**
- * Trigger `Risk attrs · N` opening an anchored panel of attribute chips —
- * attribute-keyed, never group-ranked. Clicking a chip CYCLES through its
- * carrying targets in story order. A floor firing puts an emphasis dot on
- * the trigger — it NEVER auto-opens the panel.
- *
- * Positioned by floating-ui but rendered IN-TREE, not portaled: anchored to
- * a sticky bar, a body portal repositions via JS a frame behind every scroll
- * event and visibly stutters — in-tree the panel rides the bar natively, so
- * scroll tracking is disabled below. flip/shift still keep the panel inside
- * the viewport at open time. Escape is claimed at CAPTURE phase so
- * dismissing the panel cannot leak to bubble-phase shortcut listeners;
- * useDismiss only registers at capture when told to.
+ * Trigger `Risk attrs · N` opening a panel of attribute chips, keyed by attribute
+ * and never group-ranked; a chip CYCLES its carrying targets in story order, and a
+ * floor firing dots the trigger without auto-opening. Rendered IN-TREE because a
+ * body portal stutters against a sticky bar; Escape is claimed at CAPTURE.
  */
 export function RiskAttrsDisclosure({
   rail,
@@ -98,7 +90,7 @@ export function RiskAttrsDisclosure({
       </ToolbarButton>
       {open ? (
         /* Non-modal disclosure, not a dialog: focus stays on the trigger on
-           open (initialFocus -1 — the default steals it into the panel), Tab
+           open (initialFocus -1, the default steals it into the panel), Tab
            crosses into the in-tree panel naturally, and closing returns
            focus to the trigger. */
         <FloatingFocusManager
@@ -145,7 +137,10 @@ export function RiskAttrsDisclosure({
                     >
                       {entry.attr} ×{ids.length}
                       <ScreenReaderOnly>
-                        {` — jump to carrying group ${(position % ids.length) + 1} of ${ids.length}, story order`}
+                        {t("brief.toolbar.srJumpToCarryingGroup", {
+                          position: (position % ids.length) + 1,
+                          total: ids.length,
+                        })}
                       </ScreenReaderOnly>
                     </RiskBadge>
                   </button>

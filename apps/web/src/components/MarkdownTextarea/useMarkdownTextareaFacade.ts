@@ -11,8 +11,8 @@ import {
   type TextEdit,
 } from "./utils";
 import type { ToolbarIconKey } from "./icons";
-
-export type MarkdownTextareaMode = "write" | "preview";
+import { MarkdownTextareaModes, type MarkdownTextareaMode } from "./types";
+import { useTranslation } from "react-i18next";
 
 export interface ToolbarAction {
   icon: ToolbarIconKey;
@@ -41,7 +41,7 @@ export interface MarkdownTextareaFacadeArgs {
   readOnly: boolean;
   /**
    * Pre-fill for the Insert-suggestion action (the anchored lines' text).
-   * The action only exists when this is provided — suggestions are
+   * The action only exists when this is provided, suggestions are
    * meaningless off a diff anchor.
    */
   suggestionSeed?: string | undefined;
@@ -57,7 +57,10 @@ export function useMarkdownTextareaFacade({
   readOnly,
   suggestionSeed,
 }: MarkdownTextareaFacadeArgs): MarkdownTextareaFacade {
-  const [mode, setMode] = useState<MarkdownTextareaMode>("write");
+  const { t } = useTranslation();
+  const [mode, setMode] = useState<MarkdownTextareaMode>(
+    MarkdownTextareaModes.WRITE,
+  );
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   /** Applies the edit unless read-only or the edit declines (null). */
@@ -95,50 +98,56 @@ export function useMarkdownTextareaFacade({
     applyTextEdit((text, start, end) =>
       applyLinePrefix(text, start, end, linePrefix),
     );
-  const insertLink = () => applyTextEdit(applyLinkTemplate);
+  const insertLink = () =>
+    applyTextEdit((text, start, end) => applyLinkTemplate(t, text, start, end));
 
   const toolbarActions: ToolbarAction[] = [
     {
       icon: "bold",
-      label: "Bold",
-      title: "Bold (Ctrl/Cmd+B)",
+      label: t("shell.markdownToolbar.bold"),
+      title: t("shell.markdownToolbar.boldTitle"),
       run: () => wrap("**"),
     },
     {
       icon: "italic",
-      label: "Italic",
-      title: "Italic (Ctrl/Cmd+I)",
+      label: t("shell.markdownToolbar.italic"),
+      title: t("shell.markdownToolbar.italicTitle"),
       run: () => wrap("_"),
     },
     {
       icon: "code",
-      label: "Inline code",
-      title: "Inline code",
+      label: t("shell.markdownToolbar.inlineCode"),
+      title: t("shell.markdownToolbar.inlineCode"),
       run: () => wrap("`"),
     },
-    { icon: "quote", label: "Quote", title: "Quote", run: () => prefix("> ") },
+    {
+      icon: "quote",
+      label: t("shell.markdownToolbar.quote"),
+      title: t("shell.markdownToolbar.quote"),
+      run: () => prefix("> "),
+    },
     {
       icon: "bulletedList",
-      label: "Bulleted list",
-      title: "Bulleted list",
+      label: t("shell.markdownToolbar.bulletedList"),
+      title: t("shell.markdownToolbar.bulletedList"),
       run: () => prefix("- "),
     },
     {
       icon: "numberedList",
-      label: "Numbered list",
-      title: "Numbered list",
+      label: t("shell.markdownToolbar.numberedList"),
+      title: t("shell.markdownToolbar.numberedList"),
       run: () => applyTextEdit(applyOrderedListPrefix),
     },
     {
       icon: "taskList",
-      label: "Task list",
-      title: "Task list",
+      label: t("shell.markdownToolbar.taskList"),
+      title: t("shell.markdownToolbar.taskList"),
       run: () => prefix("- [ ] "),
     },
     {
       icon: "link",
-      label: "Link",
-      title: "Link (Ctrl/Cmd+K)",
+      label: t("shell.markdownToolbar.link"),
+      title: t("shell.markdownToolbar.linkTitle"),
       run: insertLink,
     },
   ];
@@ -157,8 +166,8 @@ export function useMarkdownTextareaFacade({
   if (insertSuggestion !== undefined) {
     toolbarActions.push({
       icon: "suggestion",
-      label: "Insert suggestion",
-      title: "Insert suggestion (Ctrl/Cmd+G)",
+      label: t("shell.markdownToolbar.insertSuggestion"),
+      title: t("shell.markdownToolbar.insertSuggestionTitle"),
       run: insertSuggestion,
     });
   }
@@ -184,7 +193,7 @@ export function useMarkdownTextareaFacade({
         return;
       }
       if (event.key === "Tab" && !meta && !event.altKey) {
-        // Indent/outdent only inside a list — everywhere else Tab must keep
+        // Indent/outdent only inside a list, everywhere else Tab must keep
         // its default focus-move behavior (keyboard users need the exit).
         const direction = event.shiftKey ? "outdent" : "indent";
         if (

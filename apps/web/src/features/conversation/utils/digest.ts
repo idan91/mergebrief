@@ -10,6 +10,7 @@ import type {
   PrLevelComment,
 } from "../types";
 import type { Mutable } from "types";
+import type { TFunction } from "i18next";
 
 export interface DigestThreadRow {
   readonly kind: "thread";
@@ -149,8 +150,11 @@ function toRows(rows: readonly DigestThreadRow[]): DigestRow[] {
 }
 
 /** Build the digest groups: chunks in reading order, then outdated, then general. */
-export function buildConversationDigest(
+type DigestGroupLabel = (kind: "outdated" | "general") => string;
+
+function collectDigestGroups(
   input: BuildConversationDigestInput,
+  labelFor: DigestGroupLabel,
 ): DigestGroup[] {
   const { conversation, chunks, ownThreadIds, briefGeneratedAt } = input;
   const byChunk = new Map<string, DigestThreadRow[]>();
@@ -187,7 +191,7 @@ export function buildConversationDigest(
     groups.push({
       id: "outdated",
       kind: "outdated",
-      label: "Outdated — anchored on earlier revisions",
+      label: labelFor("outdated"),
       rows: toRows(outdated.toSorted(compareRows)),
     });
   }
@@ -195,7 +199,7 @@ export function buildConversationDigest(
     groups.push({
       id: "general",
       kind: "general",
-      label: "Pull-request conversation",
+      label: labelFor("general"),
       rows: toRows(general.toSorted(compareRows)),
       prComments: conversation.prComments,
     });
@@ -208,10 +212,22 @@ export function buildConversationDigest(
  * unresolved threads; resolved/outdated bots stay in the digest. Unanchored threads
  * never float mid-code. Reuse the digest's sorted rows.
  */
+export function buildConversationDigest(
+  t: TFunction,
+  input: BuildConversationDigestInput,
+): DigestGroup[] {
+  return collectDigestGroups(input, (kind) =>
+    kind === "outdated"
+      ? t("conversation.digestOutdated")
+      : t("conversation.digestGeneral"),
+  );
+}
+
 export function buildInlineThreads(
   input: BuildConversationDigestInput,
 ): Map<string, DigestRow[]> {
-  const groups = buildConversationDigest(input);
+  // Inline threads read only the chunk groups; the labels never render.
+  const groups = collectDigestGroups(input, () => "");
   const byChunk = new Map<string, DigestRow[]>();
   for (const group of groups) {
     if (group.kind !== "chunk" || group.chunkId === undefined) continue;

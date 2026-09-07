@@ -205,13 +205,13 @@ export function ConversationSection({
     () =>
       filtered === undefined
         ? []
-        : buildConversationDigest({
+        : buildConversationDigest(t, {
             conversation: filtered,
             chunks,
             ownThreadIds: reconciliation?.ownThreadIds ?? new Set(),
             briefGeneratedAt: plan.briefGeneratedAt,
           }),
-    [chunks, filtered, plan.briefGeneratedAt, reconciliation],
+    [chunks, filtered, plan.briefGeneratedAt, reconciliation, t],
   );
 
   const toggleThread = (threadId: number) =>
@@ -316,7 +316,7 @@ export function ConversationSection({
   const verdicts = filtered?.reviews ?? [];
 
   const summary =
-    conversation === undefined ? undefined : headSummary(conversation);
+    conversation === undefined ? undefined : headSummary(t, conversation);
 
   return (
     <section

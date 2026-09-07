@@ -9,6 +9,7 @@ import {
   type ComparisonRun,
 } from "../../../../comparison/comparison";
 import styles from "./RevisionGutterCell.module.scss";
+import { useTranslation } from "react-i18next";
 
 export interface RevisionGutterCellProps {
   run: ComparisonRun | undefined;
@@ -26,13 +27,12 @@ export function RevisionGutterCell({
   onRailEnter,
   onRailLeave,
 }: RevisionGutterCellProps) {
+  const { t } = useTranslation();
   if (!run) return <td className={styles["gutter"]} />;
   const count = run.rowIndexes.length;
-  const verb = run.kind === "removed" ? "Removed" : "New";
+  const railKey =
+    run.kind === "removed" ? "brief.diff.railRemoved" : "brief.diff.railNew";
   return (
-    // Mouse-leave is deliberately absent: the ComparisonCallout's hover
-    // system (safePolygon) owns closing, so the pointer can travel into the
-    // callout. `onRailLeave` remains the keyboard close path (blur below).
     <td
       className={styles["gutter"]}
       data-rev={run.kind}
@@ -42,14 +42,9 @@ export function RevisionGutterCell({
         // oxlint-disable-next-line house/no-raw-button -- invisible gutter overlay: the hit area is not the visual element
         <button
           className={styles["railButton"]}
-          // CSS-module classnames are hashed at build time, so jump-nav
-          // (`useRevisionNavigation`) targets REVISION_JUMP_ATTR instead of
-          // a class selector. The VALUE is the run's model key: jumps to
-          // rails in unmounted chunks resolve by key after the window
-          // mounts the card.
           {...{ [REVISION_JUMP_ATTR]: comparisonRunKey(run) }}
           type="button"
-          aria-label={`${verb} this revision. ${count} line${count === 1 ? "" : "s"}.`}
+          aria-label={t(railKey, { count })}
           onFocus={(e) => onRailEnter(run, e.currentTarget)}
           onBlur={onRailLeave}
           onKeyDown={(e) => {

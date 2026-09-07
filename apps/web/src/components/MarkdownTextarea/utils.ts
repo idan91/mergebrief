@@ -1,3 +1,5 @@
+import type { TFunction } from "i18next";
+
 export interface TextEdit {
   text: string;
   selectionStart: number;
@@ -21,7 +23,7 @@ export function applyMarkdownWrap(
 
 /**
  * No selection: the marker lands at the current line's start and the caret
- * stays in the text, ready to type — never a placeholder the user must
+ * stays in the text, ready to type, never a placeholder the user must
  * delete, never a selection typing would overwrite. With a selection: every
  * selected line is prefixed and the caret collapses to the end.
  */
@@ -54,11 +56,14 @@ export function applyLinePrefix(
 }
 
 export function applyLinkTemplate(
+  t: TFunction,
   text: string,
   selectionStart: number,
   selectionEnd: number,
 ): TextEdit {
-  const selected = text.slice(selectionStart, selectionEnd) || "link text";
+  const selected =
+    text.slice(selectionStart, selectionEnd) ||
+    t("shell.markdownToolbar.linkPlaceholder");
   const replacement = `[${selected}](https://example.com)`;
   return {
     text: `${text.slice(0, selectionStart)}${replacement}${text.slice(selectionEnd)}`,
@@ -105,12 +110,10 @@ function nextMarker(item: ListItemLine): string {
 }
 
 /**
- * Enter inside a list item continues the list (GitHub behavior): the new
- * line gets the same marker (numbered: incremented; task: unchecked), and
- * text after the caret becomes the new item's content. Enter on an EMPTY
- * item terminates the list by deleting its marker. Returns null when the
- * caret is not in a list item (callers fall through to the default
- * newline) — including any non-collapsed selection.
+ * Enter inside a list item continues the list, GitHub behavior: the new line
+ * repeats the marker, incremented when numbered and unchecked when a task, and
+ * text after the caret becomes the new item. Enter on an EMPTY item deletes the
+ * marker. Null when the caret is not in a list item or the selection is ranged.
  */
 export function continueListOnEnter(
   text: string,
@@ -127,7 +130,7 @@ export function continueListOnEnter(
   // Caret inside the marker itself: not an intent to continue the list.
   if (selectionStart < lineStart + prefixLength) return null;
   if (item.content === "") {
-    // Empty item: terminate the list — the marker line becomes empty.
+    // Empty item: terminate the list, the marker line becomes empty.
     return {
       text: `${text.slice(0, lineStart)}${text.slice(selectionStart)}`,
       selectionStart: lineStart,
@@ -157,7 +160,7 @@ export function indentListSelection(
 ): TextEdit | null {
   const firstLineStart = lineStartAt(text, selectionStart);
   // A non-collapsed selection ending at column 0 does not visibly include
-  // that line — exclude it (standard editor convention).
+  // that line, exclude it (standard editor convention).
   const effectiveEnd =
     selectionEnd > selectionStart &&
     selectionEnd === lineStartAt(text, selectionEnd)
@@ -250,7 +253,7 @@ const MENTION_PATTERN = /(?:^|[\s([{])@([a-zA-Z0-9-]*)$/;
 
 /**
  * The mention being typed at the caret, or null when the caret is not in
- * one — including inside a code fence, where `@` is code, not a mention.
+ * one, including inside a code fence, where `@` is code, not a mention.
  */
 export function activeMentionQuery(
   text: string,
@@ -269,7 +272,7 @@ export function activeMentionQuery(
 /**
  * Replaces the typed `@query` with `@login ` and parks the caret after.
  * A mid-token accept (caret inside `@albert` after `@al`) consumes the
- * rest of the token too — `@alice bert` residue is never right.
+ * rest of the token too, `@alice bert` residue is never right.
  */
 export function insertMention(
   text: string,

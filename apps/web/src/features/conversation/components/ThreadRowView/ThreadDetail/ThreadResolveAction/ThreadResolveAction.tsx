@@ -2,6 +2,8 @@ import { useId } from "react";
 
 import { Button } from "@web/components/Button/Button";
 import rowStyles from "../../../../rows.module.scss";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 
 export interface ThreadResolveActionProps {
   /** The thread's current server state, picks the offered direction. */
@@ -18,9 +20,19 @@ export interface ThreadResolveActionProps {
   exposeButton?: ((element: HTMLButtonElement | null) => void) | undefined;
 }
 
-function deriveResolveLabel(resolved: boolean, pending: boolean): string {
-  if (resolved) return pending ? "Unresolving…" : "Unresolve";
-  return pending ? "Resolving…" : "Resolve";
+function deriveResolveLabel(
+  t: TFunction,
+  resolved: boolean,
+  pending: boolean,
+): string {
+  if (resolved) {
+    return pending
+      ? t("conversation.unresolvingAction")
+      : t("conversation.unresolveAction");
+  }
+  return pending
+    ? t("conversation.resolvingAction")
+    : t("conversation.resolveAction");
 }
 
 /**
@@ -36,7 +48,8 @@ export function ThreadResolveAction({
   exposeButton,
 }: ThreadResolveActionProps) {
   const errorId = `${useId()}-resolve-error`;
-  const label = deriveResolveLabel(resolved, pending);
+  const { t } = useTranslation();
+  const label = deriveResolveLabel(t, resolved, pending);
   return (
     <>
       <div className={rowStyles["detailActions"]}>

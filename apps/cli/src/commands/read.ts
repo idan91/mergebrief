@@ -367,9 +367,13 @@ function renderPrList(bodyText: string, io: ReadIo): void {
     const parsed: unknown = JSON.parse(bodyText);
     if (isRecord(parsed) && Array.isArray(parsed["pulls"])) {
       for (const pull of parsed["pulls"].filter(isRecord)) {
-        io.stdout(
-          `${asDisplay(pull["repoSlug"])}#${asDisplay(pull["prNumber"])}\t${asDisplay(pull["title"])}\t${asDisplay(pull["state"])}\n`,
-        );
+        const locator = `${asDisplay(pull["repoSlug"])}#${asDisplay(pull["prNumber"])}`;
+        const columns = [
+          locator,
+          asDisplay(pull["title"]),
+          asDisplay(pull["state"]),
+        ];
+        io.stdout(`${columns.join("\t")}\n`);
       }
       return;
     }

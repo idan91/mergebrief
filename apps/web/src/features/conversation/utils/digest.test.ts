@@ -8,6 +8,9 @@ import {
 } from "./digest";
 import type { ConversationThread, PrConversation } from "../types";
 import type { Mutable } from "types";
+import { createI18n } from "i18n";
+
+const t = createI18n().t;
 
 function chunk(id: string, file: string): BriefChunk {
   return {
@@ -88,7 +91,7 @@ describe("buildConversationDigest", () => {
   it("groups threads by chunk in the Brief's reading order", () => {
     const t1 = thread({ path: "src/b.ts", line: 10 });
     const t2 = thread({ path: "src/a.ts", line: 10 });
-    const groups = buildConversationDigest({
+    const groups = buildConversationDigest(t, {
       conversation: conversation([t1, t2]),
       chunks: CHUNKS,
       ownThreadIds: new Set(),
@@ -101,7 +104,7 @@ describe("buildConversationDigest", () => {
     const resolved = thread({ line: 10, isResolved: true });
     const openLate = thread({ line: 12 });
     const openEarly = thread({ line: 11 });
-    const groups = buildConversationDigest({
+    const groups = buildConversationDigest(t, {
       conversation: conversation([resolved, openLate, openEarly]),
       chunks: CHUNKS,
       ownThreadIds: new Set(),
@@ -126,7 +129,7 @@ describe("buildConversationDigest", () => {
       isResolved: true,
     });
     const human = thread({ login: "alice", line: 12 });
-    const groups = buildConversationDigest({
+    const groups = buildConversationDigest(t, {
       conversation: conversation([bot1, bot2, human]),
       chunks: CHUNKS,
       ownThreadIds: new Set(),
@@ -158,7 +161,7 @@ describe("buildConversationDigest", () => {
       side: "LEFT",
     };
     const rightThread = thread({ line: 10 });
-    const groups = buildConversationDigest({
+    const groups = buildConversationDigest(t, {
       conversation: conversation([rightThread, leftThread]),
       chunks: [mixedChunk],
       ownThreadIds: new Set(),
@@ -172,7 +175,7 @@ describe("buildConversationDigest", () => {
   it("puts outdated threads in a revision-labeled group, never a chunk group", () => {
     const outdated = thread({ isOutdated: true, anchorSha: "b".repeat(40) });
     const fresh = thread({ line: 10 });
-    const groups = buildConversationDigest({
+    const groups = buildConversationDigest(t, {
       conversation: conversation([outdated, fresh]),
       chunks: CHUNKS,
       ownThreadIds: new Set(),
@@ -199,7 +202,7 @@ describe("buildConversationDigest", () => {
         },
       ],
     };
-    const groups = buildConversationDigest({
+    const groups = buildConversationDigest(t, {
       conversation: convo,
       chunks: CHUNKS,
       ownThreadIds: new Set(),
@@ -212,7 +215,7 @@ describe("buildConversationDigest", () => {
 
   it("marks own threads from the reconciliation set", () => {
     const own = thread({ line: 10 });
-    const groups = buildConversationDigest({
+    const groups = buildConversationDigest(t, {
       conversation: conversation([own]),
       chunks: CHUNKS,
       ownThreadIds: new Set([own.rootCommentId]),
@@ -227,7 +230,7 @@ describe("buildConversationDigest", () => {
       line: 10,
       body: "## Walkthrough\n\nReal point here.",
     });
-    const groups = buildConversationDigest({
+    const groups = buildConversationDigest(t, {
       conversation: conversation([noisy]),
       chunks: CHUNKS,
       ownThreadIds: new Set(),
@@ -239,7 +242,7 @@ describe("buildConversationDigest", () => {
 
   it("returns no groups for an empty conversation", () => {
     expect(
-      buildConversationDigest({
+      buildConversationDigest(t, {
         conversation: conversation([]),
         chunks: CHUNKS,
         ownThreadIds: new Set(),

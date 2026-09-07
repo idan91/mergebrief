@@ -19,10 +19,8 @@ import { IconButton } from "../IconButton/IconButton";
 import { Markdown } from "../Markdown/Markdown";
 import { ScreenReaderOnly } from "../ScreenReaderOnly/ScreenReaderOnly";
 import { ToolbarIcons } from "./icons";
-import {
-  useMarkdownTextareaFacade,
-  type MarkdownTextareaMode,
-} from "./useMarkdownTextareaFacade";
+import { useMarkdownTextareaFacade } from "./useMarkdownTextareaFacade";
+import { MarkdownTextareaModes, type MarkdownTextareaMode } from "./types";
 import {
   useMentionAutocomplete,
   type MentionCandidate,
@@ -73,10 +71,10 @@ export interface MarkdownTextareaProps {
   exposeTextarea?: ((element: HTMLTextAreaElement | null) => void) | undefined;
 }
 
-const MODES: MarkdownTextareaMode[] = ["write", "preview"];
+const MODES: MarkdownTextareaMode[] = Object.values(MarkdownTextareaModes);
 const MODE_LABELS: Record<MarkdownTextareaMode, string> = {
-  write: "Write",
-  preview: "Preview",
+  [MarkdownTextareaModes.WRITE]: "Write",
+  [MarkdownTextareaModes.PREVIEW]: "Preview",
 };
 
 interface PreviewPanelProps {
@@ -207,13 +205,20 @@ export function MarkdownTextarea({
     }
     if (meta && event.shiftKey && event.key.toLowerCase() === "p") {
       event.preventDefault();
-      const next = facade.mode === "write" ? "preview" : "write";
+      const next =
+        facade.mode === MarkdownTextareaModes.WRITE
+          ? MarkdownTextareaModes.PREVIEW
+          : MarkdownTextareaModes.WRITE;
       facade.setMode(next);
       // Hiding the panel that holds focus drops it to <body>, which would
       // kill this very handler, move focus WITH the mode, both ways.
       window.setTimeout(() => {
-        if (next === "write") facade.textareaRef.current?.focus();
-        else document.getElementById(panelId("preview"))?.focus();
+        if (next === MarkdownTextareaModes.WRITE)
+          facade.textareaRef.current?.focus();
+        else
+          document
+            .getElementById(panelId(MarkdownTextareaModes.PREVIEW))
+            ?.focus();
       }, 0);
       return;
     }
@@ -268,9 +273,9 @@ export function MarkdownTextarea({
         ))}
       </div>
       <div
-        aria-labelledby={tabId("write")}
-        hidden={facade.mode !== "write"}
-        id={panelId("write")}
+        aria-labelledby={tabId(MarkdownTextareaModes.WRITE)}
+        hidden={facade.mode !== MarkdownTextareaModes.WRITE}
+        id={panelId(MarkdownTextareaModes.WRITE)}
         role="tabpanel"
       >
         <div
@@ -383,10 +388,10 @@ export function MarkdownTextarea({
         <div className={styles["hint"]}>{t("shell.markdownSupported")}</div>
       </div>
       <div
-        aria-labelledby={tabId("preview")}
+        aria-labelledby={tabId(MarkdownTextareaModes.PREVIEW)}
         className={styles["previewPanel"]}
-        hidden={facade.mode !== "preview"}
-        id={panelId("preview")}
+        hidden={facade.mode !== MarkdownTextareaModes.PREVIEW}
+        id={panelId(MarkdownTextareaModes.PREVIEW)}
         role="tabpanel"
         // Rendered markdown usually has no focusables, make the panel
         // itself the tab stop so keyboard users can reach and scroll it
@@ -394,7 +399,7 @@ export function MarkdownTextarea({
         // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex
         tabIndex={0}
       >
-        {facade.mode === "preview" ? (
+        {facade.mode === MarkdownTextareaModes.PREVIEW ? (
           <PreviewPanel renderPreview={renderPreview} value={value} />
         ) : null}
       </div>

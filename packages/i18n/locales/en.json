@@ -243,7 +243,9 @@
       "selfReviewTooltip": "You're viewing your own draft PR. Review submission and the receipt unlock once it's marked ready for review.",
       "ariaLabelMoreActions": "More actions",
       "summaryPreview": "Summary preview",
-      "submitReviewCta": "Submit"
+      "submitReviewCta": "Submit",
+      "repoConfigChip": "repo config",
+      "repoConfigChipAt": "repo config @ {{sha}}"
     },
     "details": {
       "ariaLabelTrigger": "Brief details",
@@ -372,7 +374,15 @@
       "srFloorFired": " — floor attribute fired",
       "filterLabel": "Filter",
       "threadsInDiff_one": " thread in the diff",
-      "threadsInDiff_other": " threads in the diff"
+      "threadsInDiff_other": " threads in the diff",
+      "threadsHiddenInDiff_one": "{{count}} thread hidden in the diff",
+      "threadsHiddenInDiff_other": "{{count}} threads hidden in the diff",
+      "filterVerdicts_one": "{{count}} verdict",
+      "filterVerdicts_other": "{{count}} verdicts",
+      "filterReviewers_one": "{{count}} reviewer",
+      "filterReviewers_other": "{{count}} reviewers",
+      "filterHidden": "{{count}} hidden",
+      "srJumpToCarryingGroup": " — jump to carrying group {{position}} of {{total}}, story order"
     },
     "group": {
       "dominant": "dominant",
@@ -492,7 +502,16 @@
       "calloutIn": "In: {{group}}",
       "spanSummaryUnavailable": "Span summary unavailable — showing group context.",
       "revRemoved": "removed",
-      "revNew": "new"
+      "revNew": "new",
+      "calloutNewSinceLastReview": "New since your last review",
+      "calloutRemovedSinceLastReview": "Removed since your last review",
+      "calloutNewThisRevision": "New this revision",
+      "calloutRemovedThisRevision": "Removed this revision",
+      "railNew_one": "New this revision. {{count}} line.",
+      "railNew_other": "New this revision. {{count}} lines.",
+      "railRemoved_one": "Removed this revision. {{count}} line.",
+      "railRemoved_other": "Removed this revision. {{count}} lines.",
+      "noContentChanges": "File changed without content changes."
     },
     "summarySection": {
       "eyebrowDelta": "Delta brief",
@@ -561,7 +580,9 @@
       "previousBrief": "Previous brief",
       "ariaLabelNav": "PR revision timeline",
       "viewingBrief": "Viewing Brief {{index}} of {{total}}",
-      "briefOptionSha": "Brief {{index}} of {{total}} · {{sha}}"
+      "briefOptionSha": "Brief {{index}} of {{total}} · {{sha}}",
+      "ariaLabelPreviousBrief": "Previous brief, {{index}}",
+      "ariaLabelNextBrief": "Next brief, {{index}}"
     },
     "chunk": {
       "viewed": "Viewed",
@@ -756,7 +777,8 @@
       "dismissAnyway": "Dismiss anyway",
       "dismissWithReason": "Dismiss with reason",
       "thinWarning": "Thin reason on a flag — it will appear on the receipt exactly as written. Dismiss anyway?",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "noReasonGiven": "(no reason given)"
     },
     "comment": {
       "saveFirst": "Save or cancel your edit first — posting sends the last saved text.",
@@ -798,7 +820,11 @@
       "commentDeleted": "Draft comment deleted.",
       "reanchorArmed": "Pick the lines this draft belongs on.",
       "commentReanchored": "Draft comment re-anchored.",
-      "reanchorCancelled": "Re-anchoring cancelled."
+      "reanchorCancelled": "Re-anchoring cancelled.",
+      "flagsDismissed_one": "{{count}} flag dismissed. Reason recorded verbatim on the receipt.",
+      "flagsDismissed_other": "{{count}} flags dismissed. Reason recorded verbatim on the receipt.",
+      "risksAddressed_one": "{{count}} risk marked addressed with evidence.",
+      "risksAddressed_other": "{{count}} risks marked addressed with evidence."
     },
     "submitResult": {
       "posted": "Review posted to GitHub under your account.",
@@ -897,7 +923,20 @@
       "replyFailedSuffix": "The thread was left unresolved."
     },
     "reply": "Reply",
-    "quoteReply": "Quote reply"
+    "quoteReply": "Quote reply",
+    "srFacetSummary": " — {{humanCount}} from people, {{botCount}} from bots; filters the conversation",
+    "resolveAction": "Resolve",
+    "resolvingAction": "Resolving…",
+    "unresolveAction": "Unresolve",
+    "unresolvingAction": "Unresolving…",
+    "digestOutdated": "Outdated — anchored on earlier revisions",
+    "digestGeneral": "Pull-request conversation",
+    "summaryReviews_one": "{{count}} review",
+    "summaryReviews_other": "{{count}} reviews",
+    "summaryComments_one": "{{count}} comment",
+    "summaryComments_other": "{{count}} comments",
+    "summaryThreads_one": "{{count}} thread · {{open}} open",
+    "summaryThreads_other": "{{count}} threads · {{open}} open"
   },
   "tokens": {
     "heading": "API tokens",
@@ -978,6 +1017,22 @@
     "localePicker": {
       "ariaLabelTrigger": "Language: {{locale}}",
       "ariaLabelMenu": "Choose a language"
+    },
+    "markdownToolbar": {
+      "bold": "Bold",
+      "boldTitle": "Bold (Ctrl/Cmd+B)",
+      "italic": "Italic",
+      "italicTitle": "Italic (Ctrl/Cmd+I)",
+      "inlineCode": "Inline code",
+      "quote": "Quote",
+      "bulletedList": "Bulleted list",
+      "numberedList": "Numbered list",
+      "taskList": "Task list",
+      "link": "Link",
+      "linkTitle": "Link (Ctrl/Cmd+K)",
+      "insertSuggestion": "Insert suggestion",
+      "insertSuggestionTitle": "Insert suggestion (Ctrl/Cmd+G)",
+      "linkPlaceholder": "link text"
     }
   },
   "briefError": {
@@ -991,6 +1046,7 @@
     "fetch-failed": "Couldn't fetch this PR — is it public, and are you `gh auth login`'d?",
     "generation-failed": "Couldn't generate the brief for this PR — check the server logs and try again.",
     "sessionExpired": "Your session expired — sign in again to generate.",
-    "signedFetchFailed": "Couldn't fetch this PR — check the URL; for a private repo, make sure the app is installed and can access it."
+    "signedFetchFailed": "Couldn't fetch this PR — check the URL; for a private repo, make sure the app is installed and can access it.",
+    "generatorConfigInvalid": "generator configuration invalid"
   }
 }

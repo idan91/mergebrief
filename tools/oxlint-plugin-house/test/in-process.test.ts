@@ -76,6 +76,12 @@ const CASES: readonly FixtureCase[] = [
     lines: [2, 4],
   },
   {
+    rule: "no-hand-built-plural",
+    bad: "bad.ts",
+    good: "good.ts",
+    lines: [2, 3],
+  },
+  {
     rule: "no-process-env",
     bad: "bad.ts",
     good: "good.ts",

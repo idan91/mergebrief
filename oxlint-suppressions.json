@@ -1134,28 +1134,7 @@
       "count": 1
     }
   },
-  "apps/web/src/components/MarkdownTextarea/useMarkdownTextareaFacade.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "apps/web/src/components/MarkdownTextarea/useMentionAutocomplete.ts": {
-    "house/no-em-dash": {
-      "count": 6
-    }
-  },
-  "apps/web/src/components/MarkdownTextarea/utils.test.ts": {
-    "house/no-em-dash": {
-      "count": 3
-    },
-    "house/test-title": {
-      "count": 2
-    }
-  },
-  "apps/web/src/components/MarkdownTextarea/utils.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
     "house/no-em-dash": {
       "count": 6
     }
@@ -1308,11 +1287,6 @@
       "count": 4
     }
   },
-  "apps/web/src/features/brief/components/BriefScreen/ChangesOnlyView/RawSpanDiff/RawSpanDiff.tsx": {
-    "house/no-em-dash": {
-      "count": 4
-    }
-  },
   "apps/web/src/features/brief/components/BriefScreen/ConcernStrip/ConcernStrip.tsx": {
     "house/comment-run": {
       "count": 1
@@ -1331,11 +1305,6 @@
       "count": 5
     }
   },
-  "apps/web/src/features/brief/components/BriefScreen/DiffTable/ComparisonCallout/ComparisonCallout.tsx": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "apps/web/src/features/brief/components/BriefScreen/DiffTable/DiffTable.test.tsx": {
     "house/no-em-dash": {
       "count": 9
@@ -1347,11 +1316,6 @@
   "apps/web/src/features/brief/components/BriefScreen/DiffTable/DiffTable.tsx": {
     "house/no-em-dash": {
       "count": 11
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/DiffTable/RevisionGutterCell/RevisionGutterCell.tsx": {
-    "house/comment-run": {
-      "count": 1
     }
   },
   "apps/web/src/features/brief/components/BriefScreen/Header/BriefDetailsPanel/BriefDetailsPanel.test.tsx": {
@@ -1378,14 +1342,6 @@
       "count": 17
     }
   },
-  "apps/web/src/features/brief/components/BriefScreen/Header/Header.tsx": {
-    "house/comment-run": {
-      "count": 2
-    },
-    "house/no-em-dash": {
-      "count": 21
-    }
-  },
   "apps/web/src/features/brief/components/BriefScreen/Header/ProviderBadge/ProviderBadge.test.tsx": {
     "house/no-em-dash": {
       "count": 3
@@ -1403,14 +1359,6 @@
     }
   },
   "apps/web/src/features/brief/components/BriefScreen/Header/StateBadge/StateBadge.tsx": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/Header/TimelineNavigator/TimelineNavigator.tsx": {
-    "house/comment-run": {
-      "count": 1
-    },
     "house/no-em-dash": {
       "count": 1
     }
@@ -1470,27 +1418,6 @@
       "count": 1
     }
   },
-  "apps/web/src/features/brief/components/BriefScreen/ReadingToolbar/FilterDisclosure/FilterDisclosure.tsx": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 5
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/ReadingToolbar/FilterDisclosure/utils.test.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/ReadingToolbar/FilterDisclosure/utils.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "apps/web/src/features/brief/components/BriefScreen/ReadingToolbar/ReadingToolbar.test.tsx": {
     "house/no-em-dash": {
       "count": 3
@@ -1500,14 +1427,6 @@
     }
   },
   "apps/web/src/features/brief/components/BriefScreen/ReadingToolbar/ReadingToolbar.tsx": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/ReadingToolbar/RiskAttrsDisclosure/RiskAttrsDisclosure.tsx": {
-    "house/comment-run": {
-      "count": 1
-    },
     "house/no-em-dash": {
       "count": 2
     }
@@ -1523,14 +1442,6 @@
     }
   },
   "apps/web/src/features/brief/components/BriefScreen/RiskFlagModals/useRiskFlagModalsFacade.test.tsx": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/RiskFlagModals/useRiskFlagModalsFacade.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
     "house/no-em-dash": {
       "count": 1
     }
@@ -1870,11 +1781,6 @@
       "count": 1
     }
   },
-  "apps/web/src/features/brief/server/briefErrorBoundary.server.test.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "apps/web/src/features/brief/server/briefHandlers.backstop.server.test.ts": {
     "house/comment-run": {
       "count": 1
@@ -1926,14 +1832,6 @@
       "count": 25
     }
   },
-  "apps/web/src/features/brief/utils/briefErrors.ts": {
-    "house/comment-run": {
-      "count": 3
-    },
-    "house/no-em-dash": {
-      "count": 7
-    }
-  },
   "apps/web/src/features/brief/utils/diffSlicing.test.ts": {
     "house/test-title": {
       "count": 2
@@ -1969,22 +1867,6 @@
     },
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "apps/web/src/features/brief/utils/rawSpanDiff.test.ts": {
-    "house/no-em-dash": {
-      "count": 5
-    },
-    "house/test-title": {
-      "count": 2
-    }
-  },
-  "apps/web/src/features/brief/utils/rawSpanDiff.ts": {
-    "house/comment-run": {
-      "count": 2
-    },
-    "house/no-em-dash": {
-      "count": 5
     }
   },
   "apps/web/src/features/brief/utils/remainder.test.ts": {
@@ -2034,14 +1916,6 @@
       "count": 2
     }
   },
-  "apps/web/src/features/conversation/components/ConversationFilterPanel/ConversationFilterPanel.tsx": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 6
-    }
-  },
   "apps/web/src/features/conversation/components/ConversationSection/ConversationSection.test.tsx": {
     "house/comment-run": {
       "count": 1
@@ -2059,16 +1933,6 @@
     }
   },
   "apps/web/src/features/conversation/components/ConversationSection/DigestGroupView/PrCommentRow/PrCommentRow.tsx": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "apps/web/src/features/conversation/components/ConversationSection/utils.test.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "apps/web/src/features/conversation/components/ConversationSection/utils.ts": {
     "house/no-em-dash": {
       "count": 1
     }

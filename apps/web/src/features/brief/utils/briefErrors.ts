@@ -1,14 +1,7 @@
-// The local-brief path's error boundary vocabulary.
-//
-// Server-function rejections cross to an unauthenticated browser and TanStack
-// ships the Error's own message — a raw `readFile` ENOENT would disclose the
-// deployment's absolute filesystem layout to anyone guessing a brief id. So
-// server modules map every failure onto one of these curated strings (the raw
-// error goes to the server log and nowhere else), and error components render
-// a server message only when it IS one of them.
-//
-// Pure and client-safe on purpose: imported from both `server/` modules and
-// route error components, so it must never touch `server-only`.
+// The local-brief path's error boundary vocabulary. Server-function rejections
+// cross to an unauthenticated browser carrying the Error's own message, so a raw
+// ENOENT would disclose the deployment's filesystem layout; server modules map
+// every failure onto one of these curated strings. Client-safe, never server-only.
 
 import type { TFunction } from "i18next";
 import type { TranslationKey } from "i18n";
@@ -19,27 +12,24 @@ import { ApiError, ApiErrorCodes } from "../../../data/apiFetch";
 /**
  * The closed set of CODES this path may surface to a browser. The server
  * functions throw the code; the client renders `briefError.<code>` from the
- * catalog — so the cross-boundary allowlist check stays an identity test on
+ * catalog, so the cross-boundary allowlist check stays an identity test on
  * a stable token instead of on translatable prose.
  */
 export const BriefErrorCodes = {
-  /** No artifact for that id — the browser gets a 404-shaped sentence. */
+  /** No artifact for that id, the browser gets a 404-shaped sentence. */
   NOT_FOUND: "not-found",
   /** The id itself failed the charset guard (never echoed back). */
   INVALID_ID: "invalid-id",
-  /** The artifact exists but doesn't parse / doesn't match the schema. */
   UNREADABLE: "unreadable",
-  /** Anything else: the raw reason is in the server log. */
   UNEXPECTED: "unexpected",
 } as const;
 export type BriefErrorCode = ValueOf<typeof BriefErrorCodes>;
 
 /**
- * The URL-box generation path's own closed set. Separate map, same rule —
- * `generate.server.ts` throws these exact codes and the server-function
- * boundary passes only these through. A bad PR URL gets a curated sentence
- * too: `parsePrUrl` reflects the whole pasted string, which must not reach a
- * `role="alert"` render.
+ * The URL-box generation path's own closed set. Separate map, same rule:
+ * `generate.server.ts` throws these exact codes and the boundary passes only
+ * these through. A bad PR URL gets a curated sentence too, since `parsePrUrl`
+ * reflects the whole pasted string, which must not reach a `role="alert"`.
  */
 export const GenerateErrorCodes = {
   NOT_A_PR_URL: "not-a-pr-url",
@@ -61,33 +51,21 @@ export function isCuratedBriefError(message: string): boolean {
 }
 
 /**
- * Clamp a generator-CONFIG message before it crosses to the browser: first
- * line only, URL-shaped substrings redacted, length capped. The upstream
- * messages carry only env-var names and config fields, but that safety is a
- * convention — this is the boundary that enforces it through the shared
- * logging sanitizer.
+ * Clamp a generator-CONFIG message before it crosses to the browser: first line
+ * only, URL-shaped substrings redacted, length capped. Upstream messages carry
+ * only env-var names and config fields, but that safety is a convention and this
+ * is the boundary that enforces it through the shared logging sanitizer.
  */
-export function clampConfigMessage(message: string): string {
+export function clampConfigMessage(t: TFunction, message: string): string {
   const clamped = sanitizeErrorDetail(message);
-  return clamped === "" ? "generator configuration invalid" : clamped;
+  return clamped === "" ? t("briefError.generatorConfigInvalid") : clamped;
 }
 
-/**
- * What an error boundary on the local-brief path should render. A curated
- * message passes through; anything else — a raw Node error that escaped a
- * mapping, a framework internal — degrades to the unexpected copy rather
- * than printing server internals into the page.
- */
 export function briefErrorCode(error: unknown): string {
   const message = error instanceof Error ? error.message : "";
   return isCuratedBriefError(message) ? message : BriefErrorCodes.UNEXPECTED;
 }
 
-/**
- * The rendered sentence for an error boundary — the code's catalog copy, or
- * the unexpected line for anything unmapped.
- */
-/** Code → catalog key. Explicit, so no cast is needed to reach `t`. */
 const DETAIL_KEYS = {
   [BriefErrorCodes.NOT_FOUND]: "briefError.not-found",
   [BriefErrorCodes.INVALID_ID]: "briefError.invalid-id",

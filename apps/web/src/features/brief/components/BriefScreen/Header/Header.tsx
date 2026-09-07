@@ -40,34 +40,15 @@ import styles from "./Header.module.scss";
 
 export type LayoutMode = "stacked" | "split";
 
-/**
- * Present only while the viewer reads their OWN DRAFT PR: the header labels
- * the state with the self-review chip and puts "Mark ready for review" in the
- * slot the Receipt CTA otherwise holds.
- */
 export interface OwnDraftHeaderProps {
-  /** The state's terminal action (opens the soft gate or marks ready directly). */
   markReady: () => void;
-  /** True while the mark-ready mutation (incl. the pr-view refresh) is in flight. */
   pending: boolean;
-  /**
-   * True while a historical revision is in view: mark-ready is head-scoped,
-   * so the CTA reads disabled (still focusable) and the click announces why.
-   */
   unavailable?: boolean;
 }
 
 export interface HeaderProps {
   brief: Brief;
-  /**
-   * Drives the "repo config @ sha" chip; absent/null (or an all-absent
-   * surface) renders no chip.
-   */
   repoConfig?: RepoConfigContext | null | undefined;
-  /**
-   * Live webhook-maintained PR state (DB route): the state badge prefers it
-   * over the artifact's stamped snapshot. Absent on the local file path.
-   */
   livePrState?: LivePrState | undefined;
   briefId: string;
   timeline: BriefTimeline;
@@ -75,36 +56,25 @@ export interface HeaderProps {
   totals: ProgressTotals;
   progress: number;
   openSubmit: () => void;
-  /** Compare availability at the selected timeline point. */
   availability: CompareOptionFlags;
-  /** Resolved, normalized View/Compare state. */
   compareState: BriefSearch;
   /**
    * The DB route's unified revision/compare controls: rendered in the local
    * TimelineNavigator's slot so BOTH paths keep their controls in the sticky
-   * header — discoverable and never scrolled out of reach.
+   * header, discoverable and never scrolled out of reach.
    */
   controlsSlot?: ReactNode | undefined;
-  /** Own-draft state; absent on every plain reviewer view. */
   ownDraft?: OwnDraftHeaderProps | undefined;
-  /**
-   * A revision load outlasted the pending delay: a small spinner rides next
-   * to the revision controls. Decorative — the content region's `aria-busy`
-   * carries the semantics.
-   */
   revisionPending?: boolean | undefined;
   jumpToGroup: (groupId: string) => void;
   jumpToGroupHeading: (groupId: string) => void;
 }
 
-// The product name — an identifier, never translated.
+// The product name, an identifier, never translated.
 const PRODUCT_NAME = "MergeBrief";
 
-/** Longer than the collapse ease, so the height is read once settled. */
 const SETTLE_MS = 200;
 
-/** --sticky-stack-h is @property-registered, so this reads a number, not
- * the calc() text an unregistered custom property returns. */
 function readStickyStackHeight(): number {
   const raw = getComputedStyle(document.documentElement).getPropertyValue(
     "--sticky-stack-h",
@@ -134,19 +104,14 @@ export function Header({
   const { t } = useTranslation();
   const headerRef = useRef<HTMLElement>(null);
   const [collapsed, setCollapsed] = useState(false);
-  // Written at the flip, not by an effect: the observer's callback runs
-  // before paint, so a passive effect would still read the pre-flip value.
   const collapsedRef = useRef(false);
-  // The whole pinned stack at rest, not just the header — content must clear
+  // The whole pinned stack at rest, not just the header, content must clear
   // the toolbar too. At rest only, or trigger and result chase each other.
   const [restHeight, setRestHeight] = useState(0);
 
   useEffect(() => {
     const el = headerRef.current;
     if (!el) return;
-    // Write only on CHANGE: the observer fires every resize frame, and a
-    // same-value setProperty still invalidates every var(--top-bar-h)
-    // consumer, which stutters the resize.
     let lastHeight = "";
     let settle = 0;
     const apply = () => {
@@ -155,8 +120,6 @@ export function Header({
       lastHeight = next;
       document.documentElement.style.setProperty("--top-bar-h", next);
       if (collapsedRef.current) return;
-      // On settle, not per frame: the ease resizes ~10 times, and each read
-      // would resolve style synchronously and rebuild the observer.
       window.clearTimeout(settle);
       settle = window.setTimeout(() => {
         setRestHeight(readStickyStackHeight());
@@ -171,17 +134,13 @@ export function Header({
     };
   }, []);
 
-  // Fires on the crossing alone; a scroll-driven timeline samples geometry
-  // every frame, measured at ~7ms extra p95 frame gap.
   useEffect(() => {
     const sentinel = document.querySelector(`[${CONTENT_START_ATTR}]`);
     if (!sentinel || restHeight === 0) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        // Last entry is current: a jump can batch a down-then-up crossing.
         const entry = entries.at(-1);
         if (!entry) return;
-        // rootBounds is null cross-origin; that edge is the same line.
         const line = entry.rootBounds?.top ?? restHeight;
         const next = entry.boundingClientRect.top <= line;
         collapsedRef.current = next;
@@ -195,13 +154,6 @@ export function Header({
     return () => observer.disconnect();
   }, [restHeight]);
 
-  // Terminal-action slot focus continuity: when the own-draft state flips,
-  // the focused slot button unmounts and its replacement mounts — without
-  // this, keyboard focus is dumped on <body>. An unmounting element fires no
-  // blur, so the flag survives the swap. It is CONSUMED on every swap —
-  // cleared first, re-armed only by the real onFocus the focus() call
-  // triggers — so a swap while focus was elsewhere leaves no stale `true`
-  // for a later flip to steal focus with.
   const terminalSlotRef = useRef<HTMLButtonElement>(null);
   const terminalSlotFocused = useRef(false);
   const wasOwnDraft = useRef(ownDraft !== undefined);
@@ -232,11 +184,8 @@ export function Header({
       ref={headerRef}
       data-collapsed={collapsed ? "" : undefined}
     >
-      {/* Tier 1 — the identity row: wordmark · title block · [spacer] · CTA ·
-          overflow. The block is two lines: the SOURCE (title, state, repo, PR
-          link), then how the brief was GENERATED (model, details, warnings). */}
       <div className={styles["identityRow"]}>
-        {/* Lead is inert on wide viewports (display: contents — one flex
+        {/* Lead is inert on wide viewports (display: contents, one flex
             line); at ≤880px it becomes the grid's content row, with the CTA +
             overflow column beside it. */}
         <div className={styles["lead"]}>
@@ -262,14 +211,12 @@ export function Header({
                 )}
               </span>
             </div>
-            {/* How the brief was GENERATED. Its source — title, state, repo and
-                PR link — stays on the line above. Never wraps above 880px: a
+            {/* How the brief was GENERATED. Its source, title, state, repo and
+                PR link, stays on the line above. Never wraps above 880px: a
                 second wrap would put the block at three lines at rest and two
                 collapsed, which moves the published --top-bar-h mid-scroll. */}
             <span className={styles["metaLine"]}>
               <ProviderBadge generation={brief.generation} />
-              {/* The ⓘ disclosure AND the generation-warnings chip (its second
-                  trigger) — co-located inside so one close path owns focus. */}
               <BriefDetailsPanel
                 brief={brief}
                 repoConfig={repoConfig}
@@ -285,11 +232,9 @@ export function Header({
           </div>
         </div>
         <span aria-hidden="true" className={styles["spacer"]} />
-        {/* The terminal-action slot: Submit on a reviewer view, Mark ready for
-            review in the own-draft state. */}
         {ownDraft !== undefined ? (
           /* Caller-owned aria-disabled (not the `disabled` prop): the click
-             stays live so an unavailable/pending press ANNOUNCES its reason —
+             stays live so an unavailable/pending press ANNOUNCES its reason,
              the mark-ready flow's in-flight guard no-ops repeats. */
           <Button
             aria-busy={ownDraft.pending || undefined}
@@ -328,12 +273,10 @@ export function Header({
         <LocalePicker />
         <HeaderMenu
           briefId={briefId}
-          /* Summary preview is submit machinery (review outcome + summary):
-             hidden-not-broken in the own-draft state. */
           hideSummaryPreview={ownDraft !== undefined}
         />
       </div>
-      {/* Tier 2 — the lens toolbar: everything that changes WHAT is on
+      {/* Tier 2, the lens toolbar: everything that changes WHAT is on
           screen (Scope, Compare), flattened to one wrappable line, plus the
           quiet stats group parked at the far end. */}
       <div className={styles["lensRow"]}>
@@ -350,8 +293,6 @@ export function Header({
         {revisionPending === true ? (
           <span aria-hidden="true" className={styles["revisionSpinner"]} />
         ) : null}
-        {/* The three progress facts read as ONE object — hairline-divided
-            cells instead of three floating text blocks. */}
         <div className={styles["detailsRegion"]}>
           <div className={styles["statsGroup"]}>
             <CoreLinesDisclosure
@@ -384,9 +325,6 @@ export function Header({
             </div>
             <div className={`stat ${styles["stat"]}`}>
               {t("brief.header.flags")}
-              {/* Own-draft state: dispositions are unreachable (flags are a
-                read-only mirror), so a resolved/total fraction would sit at a
-                permanent 0/N — show the count alone. */}
               {ownDraft !== undefined ? (
                 <b>{totals.flagTotal}</b>
               ) : (
@@ -398,7 +336,6 @@ export function Header({
           </div>
         </div>
       </div>
-      {/* Decorative twin of the stats' numbers — hidden from the tree. */}
       <div
         aria-hidden="true"
         className={styles["progressBar"]}
@@ -409,16 +346,10 @@ export function Header({
 }
 
 /**
- * The own-draft state label: non-dismissible (no close affordance), rendered
- * only in the own-draft state.
- *
- * WCAG 1.4.13 (content on hover/focus): the tooltip is DISMISSABLE — while
- * visible (hovered OR focused, both tracked in React), a document-level
- * CAPTURE listener claims Escape and hides only the tooltip, so a
- * hover-without-focus pointer user can dismiss it without moving the pointer,
- * and the key never reaches page-level handling. HOVERABLE — visible-state
- * CSS re-enables pointer events so the pointer can travel onto the tooltip.
- * PERSISTENT — it stays while hovered or focused; leaving re-arms it.
+ * The own-draft state label, non-dismissible and own-draft only. WCAG 1.4.13:
+ * DISMISSABLE through a capture-phase Escape that hides only the tooltip, so a
+ * hovering pointer user need not move and the key never reaches page handling;
+ * HOVERABLE via visible-state pointer events; PERSISTENT while hovered or focused.
  */
 function SelfReviewChip() {
   const { t } = useTranslation();
@@ -426,15 +357,9 @@ function SelfReviewChip() {
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
   const [tooltipDismissed, setTooltipDismissed] = useState(false);
-  // The Escape claim exists exactly while the tooltip is visible: capture
-  // phase on document beats (and stops) the window-level page-shortcut
-  // listener, and detaches the moment the tooltip is gone so a plain Escape
-  // elsewhere on the page is untouched.
   const tooltipVisible = (hovered || focused) && !tooltipDismissed;
   useEffect(() => {
     if (!tooltipVisible) return;
-    // `globalThis.`: the module imports React's KeyboardEvent for the menu;
-    // this is a native document listener.
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.key !== "Escape") return;
       event.stopPropagation();
@@ -445,7 +370,7 @@ function SelfReviewChip() {
   }, [tooltipVisible]);
   // Re-arm only when BOTH channels are idle: with hover and focus
   // overlapping, a per-channel re-arm (on mouseleave / on blur) would bring a
-  // dismissed tooltip back while the OTHER channel still holds it visible —
+  // dismissed tooltip back while the OTHER channel still holds it visible,
   // Escape must stick for as long as either channel is active.
   useEffect(() => {
     if (!hovered && !focused) setTooltipDismissed(false);
@@ -480,15 +405,9 @@ function SelfReviewChip() {
 
 interface HeaderMenuProps {
   briefId: string;
-  /** Summary preview is submit machinery, hidden in the own-draft state. */
   hideSummaryPreview: boolean;
 }
 
-/**
- * Overflow for the header's rare actions. Standard menu-button semantics:
- * Escape/outside-click close, focus returns to the trigger, arrow keys move
- * between items.
- */
 function HeaderMenu({ briefId, hideSummaryPreview }: HeaderMenuProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -496,7 +415,6 @@ function HeaderMenu({ briefId, hideSummaryPreview }: HeaderMenuProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuId = useId();
 
-  // Focus the first item when the menu opens (menu-button pattern).
   useEffect(() => {
     if (!open) return;
     wrapRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
@@ -517,10 +435,6 @@ function HeaderMenu({ briefId, hideSummaryPreview }: HeaderMenuProps) {
     triggerRef.current?.focus();
   };
 
-  // Summary preview is the menu's only entry: with it hidden there is nothing
-  // to overflow, so the trigger goes too rather than opening an empty popup.
-  // (Local briefs only — the standalone preview route resolves through the
-  // local file store, and DB briefs get their receipt in the submit flow.)
   if (hideSummaryPreview || isDbBriefId(briefId)) return null;
 
   // On the wrapper, not the popup: Escape must also work when focus sits on
@@ -533,9 +447,6 @@ function HeaderMenu({ briefId, hideSummaryPreview }: HeaderMenuProps) {
       closeAndRefocus();
       return;
     }
-    // APG menu-button: Tab closes the menu and moves focus onward — from
-    // the trigger, not from a menuitem the close is about to unmount (which
-    // would drop focus to <body> and restart tabbing at the document top).
     if (event.key === "Tab") {
       triggerRef.current?.focus();
       setOpen(false);
@@ -555,7 +466,7 @@ function HeaderMenu({ briefId, hideSummaryPreview }: HeaderMenuProps) {
   };
 
   // No blur-based closer: Safari/Firefox-macOS don't focus buttons on
-  // mousedown, so a click on a menuitem blurs the focused item first — a
+  // mousedown, so a click on a menuitem blurs the focused item first, a
   // blur handler would unmount the menu before the click lands. The
   // pointerdown-outside listener, Tab, and Escape cover every close path.
 
@@ -596,7 +507,6 @@ function HeaderMenu({ briefId, hideSummaryPreview }: HeaderMenuProps) {
             tabIndex={0}
             to="/briefs/$briefId/summary-preview"
             onClick={() => setOpen(false)}
-            // Anchors activate on Enter only; menuitem promises Space too.
             onKeyDown={(event) => {
               if (event.key === " ") {
                 event.preventDefault();
@@ -626,27 +536,18 @@ function isHttpUrl(value: unknown): value is string {
   }
 }
 
-/** Error-class outcomes that flip the origin chip to its warning state. */
 const REPO_CONFIG_ERROR_OUTCOMES = new Set([
   "invalid",
   "over-budget",
   "fetch-failed",
 ]);
 
-/**
- * The repo-config origin chip, WARNING-ONLY: the ok-state lives in the
- * Brief-details panel, so the chip renders only when something needs the
- * author's or reviewer's attention (error outcome, applied-with-warning, or
- * a collision).
- */
 function RepoConfigChip({ repoConfig }: { repoConfig: RepoConfigContext }) {
   const { t } = useTranslation();
   const anyPresent =
     repoConfig.files.some((file) => file.outcome !== "absent") ||
     repoConfig.collisions.length > 0;
   if (!anyPresent) return null;
-  // Warning state also on applied-with-warning files: config problems must
-  // surface to author and reviewer alike.
   const anyError =
     repoConfig.files.some(
       (file) =>
@@ -658,8 +559,8 @@ function RepoConfigChip({ repoConfig }: { repoConfig: RepoConfigContext }) {
     (file) => file.outcome === "applied" && file.blobSha !== null,
   )?.blobSha;
   const label = appliedSha
-    ? `repo config @ ${appliedSha.slice(0, 7)}`
-    : "repo config";
+    ? t("brief.header.repoConfigChipAt", { sha: appliedSha.slice(0, 7) })
+    : t("brief.header.repoConfigChip");
   return (
     <RiskChipDisclosure
       detail={

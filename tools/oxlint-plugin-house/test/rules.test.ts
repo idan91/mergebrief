@@ -114,3 +114,13 @@ describe("house/no-process-env", () => {
     expectLines("no-process-env", "good.ts", []);
   });
 });
+
+describe("house/no-hand-built-plural", () => {
+  it("reports a conditional whose branches are the empty string and s", () => {
+    expectLines("no-hand-built-plural", "bad.ts", [2, 3]);
+  });
+
+  it("passes a count key and an unrelated conditional", () => {
+    expectLines("no-hand-built-plural", "good.ts", []);
+  });
+});

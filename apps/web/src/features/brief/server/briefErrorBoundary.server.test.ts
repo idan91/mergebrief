@@ -15,6 +15,9 @@ import {
   isCuratedBriefError,
 } from "../utils/briefErrors";
 import { ApiError, ApiErrorCodes } from "../../../data/apiFetch";
+import { createI18n } from "i18n";
+
+const t = createI18n().t;
 
 /** Passes the id charset guard; no artifact of that name exists. */
 const ABSENT_ID = "no-such-brief_1_deadbeef";
@@ -55,7 +58,7 @@ describe("briefErrorCode / briefErrorDetail", () => {
     );
   });
 
-  it("replaces anything else — the allowlist is the render gate", () => {
+  it("replaces anything else, the allowlist is the render gate", () => {
     const raw = new Error(
       "ENOENT: no such file or directory, open '/app/tools/categorizer/out/x.json'",
     );
@@ -68,7 +71,7 @@ describe("briefErrorCode / briefErrorDetail", () => {
     expect(isCuratedBriefError(raw.message)).toBe(false);
   });
 
-  it("renders a GENERATE code as copy — the URL box must never show a token", () => {
+  it("renders a GENERATE code as copy, the URL box must never show a token", () => {
     for (const code of Object.values(GenerateErrorCodes)) {
       const rendered = briefErrorDetail(appI18n.t, new Error(code));
       expect(rendered).not.toBe(code);
@@ -104,6 +107,6 @@ describe("briefErrorCode / briefErrorDetail", () => {
 
   it("redacts token-shaped config detail before it reaches the browser", () => {
     const leaked = "bad sk-ant-api03-abcdefghijkl";
-    expect(clampConfigMessage(leaked)).toBe("bad [redacted-token]");
+    expect(clampConfigMessage(t, leaked)).toBe("bad [redacted-token]");
   });
 });

@@ -11,6 +11,9 @@ import {
   insertMention,
   replaceSelectionWithSuggestion,
 } from "./utils";
+import { createI18n } from "i18n";
+
+const t = createI18n().t;
 
 describe("applyMarkdownWrap", () => {
   it("wraps selected text with markdown markers", () => {
@@ -39,7 +42,7 @@ describe("applyLinePrefix", () => {
     });
   });
 
-  it("inserts only the marker at a collapsed selection — no placeholder", () => {
+  it("inserts only the marker at a collapsed selection, no placeholder", () => {
     expect(applyLinePrefix("", 0, 0, "- [ ] ")).toEqual({
       text: "- [ ] ",
       selectionStart: 6,
@@ -58,7 +61,7 @@ describe("applyLinePrefix", () => {
 
 describe("applyLinkTemplate", () => {
   it("wraps the selection as link text", () => {
-    expect(applyLinkTemplate("see docs", 4, 8)).toEqual({
+    expect(applyLinkTemplate(t, "see docs", 4, 8)).toEqual({
       text: "see [docs](https://example.com)",
       selectionStart: 5,
       selectionEnd: 9,
@@ -158,7 +161,7 @@ describe("indentListSelection", () => {
 
   it("excludes a line the selection only touches at column 0", () => {
     // Selection ends at the start of line 2 (shift-down selection): line 2
-    // is not visibly selected, so outdent must not touch it — and line 1
+    // is not visibly selected, so outdent must not touch it, and line 1
     // is already at the margin, so the whole edit declines.
     expect(indentListSelection("- a\n  - b", 0, 4, "outdent")).toBeNull();
   });
@@ -173,7 +176,7 @@ describe("applyOrderedListPrefix", () => {
     });
   });
 
-  it("inserts only the marker at a collapsed selection — no placeholder", () => {
+  it("inserts only the marker at a collapsed selection, no placeholder", () => {
     expect(applyOrderedListPrefix("", 0, 0)).toEqual({
       text: "1. ",
       selectionStart: 3,
@@ -210,7 +213,7 @@ describe("activeMentionQuery", () => {
     expect(activeMentionQuery("@", 1)).toEqual({ start: 0, query: "" });
   });
 
-  it("requires a boundary before the @ (emails are not mentions)", () => {
+  it("requires a boundary before the @, so emails are not mentions", () => {
     expect(activeMentionQuery("mail me a@b", 11)).toBeNull();
   });
 
@@ -218,7 +221,7 @@ describe("activeMentionQuery", () => {
     expect(activeMentionQuery("@alice done", 11)).toBeNull();
   });
 
-  it("suppresses mentions inside an open code fence (``` and ~~~)", () => {
+  it("suppresses mentions inside an open code fence of either style", () => {
     expect(activeMentionQuery("```\n@al", 7)).toBeNull();
     expect(activeMentionQuery("~~~\n@al", 7)).toBeNull();
     expect(activeMentionQuery("```\ncode\n```\n@al", 16)).toEqual({

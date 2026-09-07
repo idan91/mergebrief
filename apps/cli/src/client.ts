@@ -70,13 +70,11 @@ function resolveCatalogErrorLine(
   const params = body["params"];
   if (typeof code !== "string" || !isKnownErrorCode(code)) return undefined;
 
-  // `replace` isolates interpolation variables from i18next OPTIONS,
-  // a wire param named `count`/`context` must not steer the lookup.
+  // `replace` isolates the params: a wire param named `count` would otherwise
+  // steer i18next's plural lookup.
   const rendered = i18n.t(`errors.${code}`, {
     replace: isRecord(params) ? params : {},
   });
-  // Missing params leave literal {{tokens}} (skipOnVariables default):
-  // an unrendered template relays the server's line instead.
   if (rendered.trim() === "" || rendered.includes("{{")) return undefined;
   return `${rendered} (HTTP ${status})`;
 }

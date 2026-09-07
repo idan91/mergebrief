@@ -153,15 +153,17 @@
       }
     },
     {
-      // User-facing copy lives in the catalog, never in a component. `jsx-only`
-      // covers JSX text and attributes. Tests and stories are exempt: fixtures
-      // are not copy.
-      "files": ["apps/web/src/**/*.tsx"],
+      // User-facing copy lives in the catalog. `all` mode sees strings assigned
+      // to consts and built in template literals, not only JSX; the word
+      // pattern below lets a bare identifier-shaped string through and stops
+      // anything Capitalised or sentence-shaped.
+      "files": ["apps/web/src/**/*.{ts,tsx}"],
       "rules": {
         "i18next/no-literal-string": [
           "error",
           {
-            "mode": "jsx-only",
+            "mode": "all",
+            "should-validate-template": true,
             "jsx-attributes": {
               // Structural and behavioural attributes are never copy.
               "exclude": [
@@ -215,19 +217,63 @@
                 "components"
               ]
             },
-            // The plugin's default callee list stays in force: a blanket
-            // exclude would exempt every JSX nested in a call expression.
+            // The plugin's default callee list plus the sinks that never reach
+            // a reader: errors, logging, and the parse-failure reporters.
+            "callees": {
+              "exclude": [
+                "i18n(ext)?$",
+                "^t$",
+                "require",
+                "addEventListener",
+                "removeEventListener",
+                "postMessage",
+                "getElementById",
+                "dispatch",
+                "commit",
+                "includes",
+                "indexOf",
+                "endsWith",
+                "startsWith",
+                "Error",
+                "super",
+                "logger\\..*",
+                "console\\..*",
+                "warn",
+                "failRead"
+              ]
+            },
+            "object-properties": {
+              "exclude": ["[A-Z_-]+", "error", "name", "nativeName"]
+            },
             "words": {
-              // Punctuation-only and single-glyph nodes are decoration. The
-              // named entries are discriminants inside attribute expressions.
+              // Punctuation-only and single-glyph nodes are decoration; the
+              // named entries are discriminants inside attribute expressions;
+              // the last pattern passes any string that is neither Capitalised
+              // nor two words apart.
               "exclude": [
                 "^[^a-zA-Z]*$",
                 "^.$",
-                "^(chunk|group|last-review|previous-brief|step|reference|content|repo-policy|built-in|open|verdict|receipt|start)$"
+                "^(chunk|group|last-review|previous-brief|step|reference|content|repo-policy|built-in|open|verdict|receipt|start)$",
+                "^(?![A-Z][a-z])(?![\\s\\S]*[A-Za-z] [A-Za-z(])[\\s\\S]*$"
               ]
             }
           }
         ]
+      }
+    },
+    {
+      // Copy that stays English by shape: the root document's head meta, the
+      // dev fixtures, and the receipt and submit text written into GitHub in a
+      // frozen format.
+      "files": [
+        "apps/web/src/routes/__root.tsx",
+        "apps/web/src/features/brief/utils/fixtures.ts",
+        "apps/web/src/features/review/utils/receipt.ts",
+        "apps/web/src/features/review/utils/submit.ts",
+        "**/characterization/**"
+      ],
+      "rules": {
+        "i18next/no-literal-string": "off"
       }
     },
     {
@@ -242,6 +288,14 @@
         "house/no-blank-target": "error",
         // A render-prefixed function in a React tree is a sub-component.
         "house/no-render-function": "error"
+      }
+    },
+    {
+      // Plurals go through `_one`/`_other` keys with `count`. The helpers that
+      // shape copy are .ts, so the rule cannot be a .tsx-only override.
+      "files": ["apps/web/src/**/*.ts", "apps/web/src/**/*.tsx"],
+      "rules": {
+        "house/no-hand-built-plural": "error"
       }
     },
     {

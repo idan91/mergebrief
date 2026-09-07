@@ -56,6 +56,9 @@ export type Catalog = typeof en & {
     };
   };
   brief: (typeof en)["brief"] & {
+    header: (typeof en)["brief"]["header"] & {
+      repoConfigChipAt: "repo config @ {{sha}}";
+    };
     details: (typeof en)["brief"]["details"] & {
       commits_one: "{{count}} commit";
       commits_other: "{{count}} commits";
@@ -93,6 +96,14 @@ export type Catalog = typeof en & {
       groupCount: "Group {{current}}/{{total}}";
       changes_one: "{{count}} change";
       changes_other: "{{count}} changes";
+      threadsHiddenInDiff_one: "{{count}} thread hidden in the diff";
+      threadsHiddenInDiff_other: "{{count}} threads hidden in the diff";
+      filterVerdicts_one: "{{count}} verdict";
+      filterVerdicts_other: "{{count}} verdicts";
+      filterReviewers_one: "{{count}} reviewer";
+      filterReviewers_other: "{{count}} reviewers";
+      filterHidden: "{{count}} hidden";
+      srJumpToCarryingGroup: " — jump to carrying group {{position}} of {{total}}, story order";
     };
     group: (typeof en)["brief"]["group"] & {
       ariaLabelGroupRiskSurface: "{{title}} — risk surface";
@@ -127,6 +138,10 @@ export type Catalog = typeof en & {
       summarySkipped: "Summary skipped — {{reason}}.";
       caption: "Diff for {{file}}";
       calloutIn: "In: {{group}}";
+      railNew_one: "New this revision. {{count}} line.";
+      railNew_other: "New this revision. {{count}} lines.";
+      railRemoved_one: "Removed this revision. {{count}} line.";
+      railRemoved_other: "Removed this revision. {{count}} lines.";
     };
     markReadyBatch: (typeof en)["brief"]["markReadyBatch"] & {
       counts: "Posted {{posted}} of {{total}}.";
@@ -140,6 +155,8 @@ export type Catalog = typeof en & {
       briefOption: "Brief {{index}}";
       viewingBrief: "Viewing Brief {{index}} of {{total}}";
       briefOptionSha: "Brief {{index}} of {{total}} · {{sha}}";
+      ariaLabelPreviousBrief: "Previous brief, {{index}}";
+      ariaLabelNextBrief: "Next brief, {{index}}";
     };
     chunk: (typeof en)["brief"]["chunk"] & {
       drafts_one: "{{count}} draft";
@@ -185,6 +202,12 @@ export type Catalog = typeof en & {
       lines_other: "{{count}} lines";
       tooLongToPost: "This comment is longer than GitHub's {{max, number}}-character limit — shorten it to post.";
     };
+    announce: (typeof en)["review"]["announce"] & {
+      flagsDismissed_one: "{{count}} flag dismissed. Reason recorded verbatim on the receipt.";
+      flagsDismissed_other: "{{count}} flags dismissed. Reason recorded verbatim on the receipt.";
+      risksAddressed_one: "{{count}} risk marked addressed with evidence.";
+      risksAddressed_other: "{{count}} risks marked addressed with evidence.";
+    };
   };
   conversation: (typeof en)["conversation"] & {
     jumpToRevision: "Jump to revision {{sha}}";
@@ -202,6 +225,13 @@ export type Catalog = typeof en & {
     openThreads_other: "{{count}} open threads";
     showMore_one: "Show {{count}} more";
     showMore_other: "Show {{count}} more";
+    srFacetSummary: " — {{humanCount}} from people, {{botCount}} from bots; filters the conversation";
+    summaryReviews_one: "{{count}} review";
+    summaryReviews_other: "{{count}} reviews";
+    summaryComments_one: "{{count}} comment";
+    summaryComments_other: "{{count}} comments";
+    summaryThreads_one: "{{count}} thread · {{open}} open";
+    summaryThreads_other: "{{count}} threads · {{open}} open";
   };
   tokens: (typeof en)["tokens"] & {
     ariaLabelRevoke: "Revoke {{name}}";

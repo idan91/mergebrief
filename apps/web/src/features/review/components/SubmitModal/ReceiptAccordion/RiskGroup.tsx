@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 
 import type { ReceiptRiskRow } from "../../../utils/receipt";
-import { shortFile } from "../utils";
+import { shortFile } from "../../../utils/receipt";
 import styles from "./ReceiptAccordion.module.scss";
 
 export interface RiskGroupProps {

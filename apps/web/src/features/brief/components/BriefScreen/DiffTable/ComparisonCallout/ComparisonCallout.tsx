@@ -13,6 +13,7 @@ import type {
 } from "../../../../types";
 
 import styles from "./ComparisonCallout.module.scss";
+import type { TranslationKey } from "i18n";
 
 export interface ComparisonCalloutProps {
   /** The rail element the callout anchors to. */
@@ -23,10 +24,29 @@ export interface ComparisonCalloutProps {
   chunk: BriefChunk;
   source: ComparisonSource;
   /**
-   * When the Previous-Brief narrative was deliberately skipped, the reason —
+   * When the Previous-Brief narrative was deliberately skipped, the reason,
    * conveyed as a distinct "skipped" state, not a failure.
    */
   skipReason: RevisionNarrativeSkipReason | null;
+}
+
+const EYEBROW_KEYS = {
+  "last-review": {
+    removed: "brief.diff.calloutRemovedSinceLastReview",
+    new: "brief.diff.calloutNewSinceLastReview",
+  },
+  revision: {
+    removed: "brief.diff.calloutRemovedThisRevision",
+    new: "brief.diff.calloutNewThisRevision",
+  },
+} as const;
+
+function deriveEyebrowKey(runKind: string, sourceKind: string): TranslationKey {
+  const bySource =
+    sourceKind === "last-review"
+      ? EYEBROW_KEYS["last-review"]
+      : EYEBROW_KEYS.revision;
+  return runKind === "removed" ? bySource.removed : bySource.new;
 }
 
 export function ComparisonCallout({
@@ -39,11 +59,7 @@ export function ComparisonCallout({
 }: ComparisonCalloutProps) {
   const { t } = useTranslation();
   const callout = bindComparisonCallout(run, chunk, source);
-  const verb = run.kind === "removed" ? "Removed" : "New";
-  const eyebrow =
-    source.kind === "last-review"
-      ? `${verb} since your last review`
-      : `${verb} this revision`;
+  const eyebrow = t(deriveEyebrowKey(run.kind, source.kind));
   const groupName = resolveCalloutGroup(t, callout);
   return (
     <Callout anchor={anchor} onClose={onClose} placement="right-start">

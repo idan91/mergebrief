@@ -6,6 +6,7 @@ import { noBlankTarget } from "./rules/no-blank-target.mjs";
 import { noConditionalSpread } from "./rules/no-conditional-spread.mjs";
 import { noEmDash } from "./rules/no-em-dash.mjs";
 import { noEnum } from "./rules/no-enum.mjs";
+import { noHandBuiltPlural } from "./rules/no-hand-built-plural.mjs";
 import { noProcessEnv } from "./rules/no-process-env.mjs";
 import { noRenderFunction } from "./rules/no-render-function.mjs";
 import { noRawButton } from "./rules/no-raw-button.mjs";
@@ -25,6 +26,7 @@ const plugin = {
     "no-em-dash": noEmDash,
     "no-render-function": noRenderFunction,
     "no-process-env": noProcessEnv,
+    "no-hand-built-plural": noHandBuiltPlural,
   },
 };
 

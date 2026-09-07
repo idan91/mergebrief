@@ -1,8 +1,7 @@
-// The flag-disposition facade: dismiss-with-reason (short-reason
-// warn-then-accept) and address-with-evidence, committing through the session
-// store and sweeping the flow store's selection. The TARGETS live in the
-// ReviewFlow store (opened from the group cards); only the dismiss modal's
-// input state is local here.
+// The flag-disposition facade: dismiss-with-reason, where a short reason warns
+// once then accepts, and address-with-evidence; both commit through the session
+// store and sweep the flow store's selection. The TARGETS live in the ReviewFlow
+// store; only the dismiss modal's input state is local here.
 import { useCallback, useState } from "react";
 
 import type { DismissTarget } from "@web/features/review";
@@ -18,6 +17,7 @@ import type {
 } from "@web/features/review/utils/state";
 import type { RiskFlag } from "../../../utils/viewModel";
 import { resolveRiskEvidence } from "../utils";
+import { useTranslation } from "react-i18next";
 
 export interface UseRiskFlagModalsFacadeInput {
   /** The view model's flag lookup (evidence resolution). */
@@ -41,7 +41,7 @@ export interface UseRiskFlagModalsFacadeValue {
 }
 
 interface DismissInputState {
-  /** The target this input belongs to — a new target resets the input. */
+  /** The target this input belongs to, a new target resets the input. */
   target: DismissTarget | null;
   reason: string;
   warned: boolean;
@@ -50,6 +50,7 @@ interface DismissInputState {
 export function useRiskFlagModalsFacade(
   input: UseRiskFlagModalsFacadeInput,
 ): UseRiskFlagModalsFacadeValue {
+  const { t } = useTranslation();
   const { flagsById } = input;
   const sessionActions = useReviewSessionActions();
   const flowActions = useReviewActions();
@@ -86,17 +87,15 @@ export function useRiskFlagModalsFacade(
     }
     sessionActions.disposeFlag(dismissTarget.flagIds, {
       kind: "dismissed",
-      reason: reason || "(no reason given)",
+      reason: reason || t("review.dismiss.noReasonGiven"),
     });
     flowActions.clearRiskSelection(dismissTarget.flagIds);
     flowActions.setDismissTarget(null);
     const dismissedCount = dismissTarget.flagIds.length;
     flowActions.announce(
-      dismissedCount === 1
-        ? "Dismissed. Reason recorded verbatim on the receipt."
-        : `${dismissedCount} flags dismissed. Reason recorded verbatim on the receipt.`,
+      t("review.announce.flagsDismissed", { count: dismissedCount }),
     );
-  }, [dismissInput, dismissTarget, flowActions, sessionActions]);
+  }, [dismissInput, dismissTarget, flowActions, sessionActions, t]);
 
   const confirmEvidence = useCallback(
     (
@@ -121,12 +120,10 @@ export function useRiskFlagModalsFacade(
       const addressedIds = [...evidenceByFlagId.keys()];
       flowActions.clearRiskSelection(addressedIds);
       flowActions.announce(
-        addressedIds.length === 1
-          ? "Risk marked addressed with evidence."
-          : `${addressedIds.length} risks marked addressed with evidence.`,
+        t("review.announce.risksAddressed", { count: addressedIds.length }),
       );
     },
-    [evidenceTarget, flagsById, flowActions, sessionActions],
+    [evidenceTarget, flagsById, flowActions, sessionActions, t],
   );
 
   return {

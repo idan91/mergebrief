@@ -7,6 +7,9 @@ import type {
   PrLevelComment,
   ReviewVerdictState,
 } from "../../types";
+import { createI18n } from "i18n";
+
+const t = createI18n().t;
 
 function review(
   reviewId: number,
@@ -71,14 +74,14 @@ function buildConversation(
 
 describe("headSummary", () => {
   it("returns nothing for an empty conversation", () => {
-    expect(headSummary(buildConversation())).toBeUndefined();
+    expect(headSummary(t, buildConversation())).toBeUndefined();
   });
 
-  it("omits zero parts — a body-only review never reads 0 threads", () => {
+  it("omits zero parts, a body-only review never reads 0 threads", () => {
     const conversation = buildConversation({
       reviews: [review(1, "COMMENTED", "LGTM")],
     });
-    expect(headSummary(conversation)).toBe("1 review");
+    expect(headSummary(t, conversation)).toBe("1 review");
   });
 
   it("ignores empty-bodied COMMENTED envelopes", () => {
@@ -86,14 +89,14 @@ describe("headSummary", () => {
       reviews: [review(1, "COMMENTED", "  ")],
       threads: [thread(11, true)],
     });
-    expect(headSummary(conversation)).toBe("1 thread · 0 open");
+    expect(headSummary(t, conversation)).toBe("1 thread · 0 open");
   });
 
   it("threads carry the open count", () => {
     const conversation = buildConversation({
       threads: [thread(11), thread(12, true)],
     });
-    expect(headSummary(conversation)).toBe("2 threads · 1 open");
+    expect(headSummary(t, conversation)).toBe("2 threads · 1 open");
   });
 
   it("joins all present kinds with pluralization", () => {
@@ -102,7 +105,7 @@ describe("headSummary", () => {
       prComments: [prComment(21)],
       threads: [thread(11)],
     });
-    expect(headSummary(conversation)).toBe(
+    expect(headSummary(t, conversation)).toBe(
       "2 reviews · 1 comment · 1 thread · 1 open",
     );
   });

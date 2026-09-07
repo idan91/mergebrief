@@ -30,12 +30,10 @@ export interface TimelineNavigatorProps {
 }
 
 /**
- * Timeline points navigate Brief heads only. The View and Compare controls
- * write canonical `view`/`compare` search params, always through
- * `withView`/`withCompare` so the URL only ever holds a normalized, valid
- * combination. Previous/Next/select preserve the current search verbatim —
- * the choice sticks across timeline navigation and re-normalizes against the
- * newly selected point's own availability.
+ * Timeline points navigate Brief heads only. The View and Compare controls write
+ * canonical `view`/`compare` params through `withView`/`withCompare`, so the URL
+ * only ever holds a normalized, valid combination. Previous, Next and select
+ * preserve the search verbatim and re-normalize against the new point.
  */
 export function TimelineNavigator({
   availability,
@@ -111,7 +109,9 @@ export function TimelineNavigator({
         </span>
         {previous ? (
           <Link
-            aria-label={`Previous brief, ${previous.index}`}
+            aria-label={t("brief.timeline.ariaLabelPreviousBrief", {
+              index: previous.index,
+            })}
             className={styles["arrow"]}
             params={{ briefId: previous.briefId }}
             search={(prev) => prev}
@@ -153,7 +153,9 @@ export function TimelineNavigator({
         </label>
         {next ? (
           <Link
-            aria-label={`Next brief, ${next.index}`}
+            aria-label={t("brief.timeline.ariaLabelNextBrief", {
+              index: next.index,
+            })}
             className={styles["arrow"]}
             params={{ briefId: next.briefId }}
             search={(prev) => prev}

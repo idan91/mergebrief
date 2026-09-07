@@ -18,14 +18,14 @@ import styles from "./RawSpanDiff.module.scss";
 export interface RawSpanDiffProps {
   /** Live span-diff descriptor for the active baseline → selected head. */
   query: ComparisonQuery<string>;
-  /** The Changes Only summary — shown when the raw diff is toggled off. */
+  /** The Changes Only summary, shown when the raw diff is toggled off. */
   children: ReactNode;
 }
 
 // The raw diff's rows carry no meaningful comment anchors, so `DiffTable` is
 // always read-only here; the reason keeps disabled rows keyboard-discoverable.
 const READ_ONLY_REASON_KEY: TranslationKey = "brief.diff.rawReadOnlyReason";
-// A read-only table paints no overlay, so this never mutates — hoisted so
+// A read-only table paints no overlay, so this never mutates, hoisted so
 // every file's table shares one identity.
 const EMPTY_COMPARISON_VIEW: ChunkComparisonView = {
   marks: new Map(),
@@ -37,7 +37,7 @@ interface RawSpanDiffState {
   toggle: () => void;
   isLoading: boolean;
   isError: boolean;
-  /** The fetch SUCCEEDED — an empty `chunks` then means a no-change span. */
+  /** The fetch SUCCEEDED, an empty `chunks` then means a no-change span. */
   isSuccess: boolean;
   chunks: BriefChunk[];
 }
@@ -58,12 +58,13 @@ function useRawSpanDiff(query: ComparisonQuery<string>): RawSpanDiffState {
     ...query,
     enabled: showRaw && !guarded,
   });
-  // `enabled: false` only blocks fetching — react-query still serves a cached
+  // `enabled: false` only blocks fetching, react-query still serves a cached
   // body for the same key, so the guard has to veto the cache too.
   const body = guarded ? undefined : diff.data;
+  const { t } = useTranslation();
   const chunks = useMemo(
-    () => (body === undefined ? [] : buildRawSpanDiffChunks(body)),
-    [body],
+    () => (body === undefined ? [] : buildRawSpanDiffChunks(t, body)),
+    [body, t],
   );
   return {
     showRaw,
