@@ -1,9 +1,5 @@
-// The session-authoring writes: `draft create|update|reanchor|delete` and
-// `chunk-read` — thin requests over the server's locked validation, each
-// naming its brief span (`requireSpan`, exit 2). This file holds the main
-// act — `runSessionWrite`, the one wire call every session write goes
-// through; `utils.ts` assembles payloads (convenience flags XOR `-F`, the
-// `submit` pattern); `types.ts` the shapes. Receipts pass through VERBATIM.
+// Every session write names a brief span; missing span flags exit 2.
+// Keep validation server-owned and receipts verbatim; payload flags remain exclusive with -F.
 import type { ApiClient } from "../../client";
 import type { ReadIo } from "../read";
 import { spanQuery, type BriefSpan } from "../write";
@@ -15,7 +11,12 @@ export {
   buildUpdateDraftPayload,
   resolveReadFlag,
 } from "./utils";
-export type { AnchorFlags } from "./types";
+export type {
+  AnchorFlags,
+  CreateDraftInput,
+  ReanchorInput,
+  UpdateDraftInput,
+} from "./types";
 
 export async function runSessionWrite(
   client: ApiClient,

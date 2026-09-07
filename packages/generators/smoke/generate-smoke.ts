@@ -1,21 +1,18 @@
 /**
- * Manual live smoke for generator adapters. ONE real `generate()` against a
- * real backend with a tiny schema; prints the origin stamp and the output;
- * exits nonzero on any failure (a schema-floor violation included). NEVER
- * wired into vitest or CI — it spends money and needs live auth.
- *
- *   pnpm -C packages/generators smoke -- --adapter anthropic
- *   pnpm -C packages/generators smoke -- --adapter claude-code
- *   pnpm -C packages/generators smoke -- --adapter codex
- *   pnpm -C packages/generators smoke -- --adapter cursor
- *   pnpm -C packages/generators smoke -- --adapter openai --model gpt-5.2
- *   pnpm -C packages/generators smoke -- --adapter openrouter --model anthropic/claude-sonnet-5
- *   pnpm -C packages/generators smoke -- --config ../../mergebrief.config.yaml
- *   (paths resolve relative to packages/generators because of -C)
+ * Manual live adapter smoke spends money and needs credentials; never run it in vitest or CI.
+ * Use pnpm -C packages/generators smoke -- --adapter <name> or --config <path>.
+ * Paths resolve from packages/generators; failures, including schema violations, exit nonzero.
  */
 import { z } from "zod/v4";
 import { createGenerator } from "../src/config/registry";
 import { loadGeneratorConfigFile } from "../src/config/loader";
+
+/** The generator block the `--adapter` flags assemble in place of a config file. */
+interface SmokeGeneratorConfig {
+  provider: string;
+  model?: string;
+  command?: string;
+}
 
 const SmokeSchema = z.object({
   greeting: z.string(),
@@ -55,11 +52,12 @@ async function main(): Promise<void> {
   } else if (adapter !== undefined) {
     const model = flagValue(args, "--model");
     const command = flagValue(args, "--command");
-    generatorConfig = {
-      provider: adapter,
-      ...(model ? { model } : {}),
-      ...(command ? { command } : {}),
-    };
+    const flagConfig: SmokeGeneratorConfig = { provider: adapter };
+
+    if (model) flagConfig.model = model;
+    if (command) flagConfig.command = command;
+
+    generatorConfig = flagConfig;
   } else {
     usage();
   }
@@ -76,7 +74,7 @@ async function main(): Promise<void> {
   const generator = constructed.value;
 
   const started = Date.now();
-  // Any throw here — schema floor, auth, timeout — is a FAILED smoke.
+  // Any throw here, schema floor, auth, timeout, is a FAILED smoke.
   const output = await generator.generate({
     schema: SmokeSchema,
     system:

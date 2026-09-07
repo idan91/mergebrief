@@ -11,7 +11,13 @@ import {
   deriveClient,
   deriveRequestId,
 } from "../src/product-operations/audit";
-import { createApp, type ApiApp, type AuditEmitConfig } from "../src/index";
+import type { Mutable } from "types";
+import {
+  createApp,
+  type ApiApp,
+  type AppDeps,
+  type AuditEmitConfig,
+} from "../src/index";
 import { testLogger } from "./logging";
 import {
   REPO_ID,
@@ -48,7 +54,7 @@ interface AuditRow {
 }
 
 /** The choke point's rows. Seeding a Bearer token writes its own issuance row
- * inside the mint transaction — not a request, so not this suite's subject. */
+ * inside the mint transaction, not a request, so not this suite's subject. */
 async function auditRows(harness: PgliteHarness): Promise<AuditRow[]> {
   const rows = await harness.raw(
     `select operation, outcome, installation_id, classification, channel,
@@ -114,12 +120,11 @@ describe("the audit choke point", () => {
   let cookie: string;
 
   function appWith(audit?: AuditEmitConfig): ApiApp {
-    return createApp({
+    const deps: Mutable<AppDeps> = {
       logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
-      ...(audit === undefined ? {} : { audit }),
       github: {
         fetchPullRequestConversation: () => {
           throw new Error("conversation port must not be called");
@@ -128,7 +133,11 @@ describe("the audit choke point", () => {
           throw new Error("collaborators port must not be called");
         },
       },
-    });
+    };
+
+    if (audit !== undefined) deps.audit = audit;
+
+    return createApp(deps);
   }
 
   beforeEach(async () => {
@@ -172,7 +181,7 @@ describe("the audit choke point", () => {
     expect(rows[0]?.request_id).not.toBeNull();
   });
 
-  it("never records a read — not even a denied one", async () => {
+  it("never records a read, not even a denied one", async () => {
     const app = appWith();
     const read = await app.request(
       `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/session?base=base&head=head-1`,
@@ -227,7 +236,7 @@ describe("the audit choke point", () => {
       outcome: "denied",
       reason: "no-repo-access",
       target_type: "repo",
-      // Even a denial keys on the ACTING credential's tenant — the target
+      // Even a denial keys on the ACTING credential's tenant, the target
       // repo resolved to nothing, so no other tenant is available to leak.
       installation_id: String(INSTALLATION_ID),
     });
@@ -294,7 +303,7 @@ describe("the emit's two pure rules", () => {
   it("never derives a value the ledger would reject", () => {
     // The two regexes live in different packages, and CI does not run
     // persistence's suite for an api-only edit. A derived value the store
-    // refuses would throw inside the emit and lose the WHOLE row — including
+    // refuses would throw inside the emit and lose the WHOLE row, including
     // the denials the config knob is not allowed to switch off.
     const overLong = `mergebrief/${"9".repeat(64)}`;
     const derived = [CLI_AGENT, "mergebrief/0.1.0-rc.1", overLong].map(
@@ -307,7 +316,7 @@ describe("the emit's two pure rules", () => {
     expect(accepted).toEqual([true, true]);
   });
 
-  it("keeps a conforming correlation id and drops one the ledger would reject", () => {
+  it("keeps valid correlation ids and drops ledger-invalid ones", () => {
     // Drops what the ledger schema rejects (65+ chars, `=`), keeps a valid id.
     const kept = "01HXABC-req_9";
     expect(deriveRequestId(kept)).toBe(kept);

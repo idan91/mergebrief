@@ -1,8 +1,5 @@
-// Conversation-surface integration tests: `app.request()` against `createApp`
-// over the PGlite harness. The installation-token GraphQL read enters through
-// the injected `InstallationGitHubPort` (stubbed here — the wire→domain mapping
-// is the github package's suite); the viewer-token reply POST and the gate's
-// access check hit the global-fetch stub.
+// Installation conversation reads use the injected port; viewer replies and access checks
+// use the HTTP boundary. The github suite owns installation wire-to-domain mapping.
 import { randomBytes } from "node:crypto";
 import type { FetchPullRequestConversationInput, PrConversation } from "github";
 import {
@@ -40,7 +37,7 @@ import {
 
 // POST .../comments/{id}/replies is on octokit's `triggersNotification` list:
 // the throttling plugin spaces consecutive reply POSTs ~3s apart through
-// MODULE-GLOBAL Bottleneck groups (shared across this whole file, unfakeable —
+// MODULE-GLOBAL Bottleneck groups (shared across this whole file, unfakeable,
 // freezing Date.now poisons the shared limiters). Give the file headroom.
 vi.setConfig({ testTimeout: 30_000 });
 
@@ -58,7 +55,7 @@ const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 const CTX = { installationId: brandInstallationId(BigInt(INSTALLATION_ID)) };
 
 // ---------------------------------------------------------------------------
-// Conversation port stub — canned domain fixtures, call log for cache asserts.
+// Conversation port stub, canned domain fixtures, call log for cache asserts.
 // ---------------------------------------------------------------------------
 
 function conversationFixture(): PrConversation {
@@ -160,7 +157,7 @@ function stubPort(
 }
 
 // ---------------------------------------------------------------------------
-// GitHub HTTP stub (global fetch) — gate access check, reply POST, token.
+// GitHub HTTP stub (global fetch), gate access check, reply POST, token.
 // ---------------------------------------------------------------------------
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -212,7 +209,7 @@ interface StubCounts {
   createReview: number;
   /** Parsed JSON body of each reply POST, in order. */
   readonly replyBodies: unknown[];
-  /** URL of each reply POST, in order — pins the target repo + comment id. */
+  /** URL of each reply POST, in order, pins the target repo + comment id. */
   readonly replyUrls: string[];
 }
 
@@ -381,12 +378,15 @@ async function postReply(
   body: unknown,
   path = replyPath(),
 ): Promise<Response> {
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+  };
+
+  if (cookie !== undefined) headers["cookie"] = `rs_session=${cookie}`;
+
   return await app.request(path, {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-      ...(cookie === undefined ? {} : { cookie: `rs_session=${cookie}` }),
-    },
+    headers,
     body: JSON.stringify(body),
   });
 }
@@ -436,13 +436,13 @@ describe("conversation surface", () => {
       stubGitHub({});
       const res = await getConversation(makeApp(port), undefined);
       expect(res.status).toBe(401);
-      // Gate denials are per-viewer state too — the no-store contract covers
+      // Gate denials are per-viewer state too, the no-store contract covers
       // EVERY response of a gated route, middleware denials included.
       expect(res.headers.get("cache-control")).toBe("no-store");
       expect(log.calls).toHaveLength(0);
     });
 
-    it("404s when the viewer has no repo access (gate collapse), port untouched", async () => {
+    it("404s denied viewers without calling the conversation port", async () => {
       const { port, log } = stubPort([okResult()]);
       stubGitHub({ repositories: () => repoStatus(404) });
       const { cookie } = await seedSession(harness.handle, kp);
@@ -453,7 +453,7 @@ describe("conversation surface", () => {
       expect(log.calls).toHaveLength(0);
     });
 
-    it("returns the conversation with no-store, fetched on the installation token", async () => {
+    it("returns no-store conversation data using the installation token", async () => {
       const { port, log } = stubPort([okResult()]);
       stubGitHub({ repositories: () => repoOk() });
       const { cookie } = await seedSession(harness.handle, kp);
@@ -507,11 +507,11 @@ describe("conversation surface", () => {
       expect(body.prComments.map((comment) => comment.commentId)).toEqual([
         9001,
       ]);
-      // Only the exact stored id is filtered — pagination flag untouched.
+      // Only the exact stored id is filtered, pagination flag untouched.
       expect(body.hasMorePrComments).toBe(false);
     });
 
-    it("does not filter other bot comments — only the stored Entry id", async () => {
+    it("does not filter other bot comments, only the stored Entry id", async () => {
       const fixture = conversationFixture();
       const withBots = {
         ok: true as const,
@@ -532,7 +532,7 @@ describe("conversation surface", () => {
       const { port } = stubPort([withBots]);
       stubGitHub({ repositories: () => repoOk() });
       const { cookie } = await seedSession(harness.handle, kp);
-      // Stored id targets NEITHER comment (stale rotation) — nothing filters.
+      // Stored id targets NEITHER comment (stale rotation), nothing filters.
       await seedPullRequestWithEntryComment(harness.handle, 999_999n);
       const res = await getConversation(makeApp(port), cookie);
       const body = (await res.json()) as PrConversation;
@@ -541,7 +541,7 @@ describe("conversation surface", () => {
       ]);
     });
 
-    it("serves the second read from the per-PR cache (one port call inside the TTL)", async () => {
+    it("caches the second read per PR within the TTL", async () => {
       const { port, log } = stubPort([okResult()]);
       stubGitHub({ repositories: () => repoOk() });
       const { cookie } = await seedSession(harness.handle, kp);
@@ -559,7 +559,7 @@ describe("conversation surface", () => {
       expect(log.calls).toHaveLength(1);
     });
 
-    it("collapses a port not-found to 404 and other failures to 502 (no fallback tier)", async () => {
+    it("maps port not-found to 404 and other failures to 502", async () => {
       const notFound = {
         ok: false as const,
         error: {
@@ -612,7 +612,7 @@ describe("conversation surface", () => {
   });
 
   describe("POST reply", () => {
-    it("posts the reply with the viewer token to the fresh-resolved repo and audits it", async () => {
+    it("posts and audits with the viewer token and fresh repo name", async () => {
       const { port } = stubPort([okResult()]);
       const counts = stubGitHub({
         repositories: () => repoOk(),
@@ -636,7 +636,7 @@ describe("conversation surface", () => {
       expect(await replyAuditCount(harness)).toBe(1);
     });
 
-    it("rejects an empty or oversized body deterministically (400, nothing posted)", async () => {
+    it("400s empty or oversized replies without posting", async () => {
       const { port } = stubPort([okResult()]);
       const counts = stubGitHub({
         repositories: () => repoOk(),
@@ -655,7 +655,7 @@ describe("conversation surface", () => {
       expect(await replyAuditCount(harness)).toBe(0);
     });
 
-    it("rejects a comment id past safe-integer precision (400)", async () => {
+    it("400s comment ids beyond safe integer precision", async () => {
       const { port } = stubPort([okResult()]);
       const counts = stubGitHub({
         repositories: () => repoOk(),
@@ -691,7 +691,7 @@ describe("conversation surface", () => {
       expect(counts.reply).toBe(2);
     });
 
-    it("collapses a reply-create 403 to the gate's 404 posture (no distinguishable denial)", async () => {
+    it("collapses reply-create 403 to the gate's uniform 404", async () => {
       const { port } = stubPort([okResult()]);
       stubGitHub({
         repositories: () => repoOk(),
@@ -704,7 +704,7 @@ describe("conversation surface", () => {
       expect(await replyAuditCount(harness)).toBe(0);
     });
 
-    it("404s when the root comment is gone (sanitized upstream 404)", async () => {
+    it("404s a deleted root comment with sanitized copy", async () => {
       const { port } = stubPort([okResult()]);
       stubGitHub({
         repositories: () => repoOk(),
@@ -717,7 +717,7 @@ describe("conversation surface", () => {
       expect(await replyAuditCount(harness)).toBe(0);
     });
 
-    it("returns 201 even when the audit write fails after the posted reply (commit point)", async () => {
+    it("keeps 201 when auditing fails after posting the reply", async () => {
       const { port } = stubPort([okResult(), okResult()]);
       stubGitHub({ repositories: () => repoOk(), reply: () => replyCreated() });
       const { cookie } = await seedSession(harness.handle, kp);
@@ -838,7 +838,7 @@ describe("conversation surface", () => {
 });
 
 describe("appInstallationPort", () => {
-  it("maps an installation-client mint rejection to a sanitized Result error on both reads", async () => {
+  it("returns sanitized mint-rejection errors from both read methods", async () => {
     const { appInstallationPort } = await import("../src/routes/github-port");
     const app = {
       getInstallationOctokit: async () => {

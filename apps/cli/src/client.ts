@@ -1,34 +1,32 @@
-// The client boundary. Takes an injected fetch-compatible function, so command
-// tests run against the REAL api Hono app (`app.request` is fetch-shaped) with
-// zero network. Every non-2xx becomes a `CliError` carrying the exit-code mapping
-// and ONE stderr-ready line: a known wire `code` renders its catalog
-// template + HTTP status; anything else relays the server's `error` text
-// verbatim. Success bodies pass through VERBATIM — never re-shaped.
+// Keep success bodies verbatim. Non-2xx responses become one stderr line plus an exit code.
+// Known wire codes use catalog templates and HTTP status; unknown ones relay server error text.
+// Inject fetch so CLI tests exercise the real Hono app without network calls.
 import { createI18n, en } from "i18n";
+import type { Mutable } from "types";
 import { CliError, ExitCodes, exitCodeForStatus } from "./exit";
 
-// One instance for the process — resources are baked in, init is sync.
+// One instance for the process, resources are baked in, init is sync.
 const i18n = createI18n();
 
 /**
  * This CLI's version, sent as the user-agent so an audit row can say which
- * client did something. Pinned to `package.json` by a test — the bundle has no
+ * client did something. Pinned to `package.json` by a test, the bundle has no
  * package.json to read at runtime. Purely forensic: the server must never
  * branch on it.
  */
 export const CLI_VERSION = "0.1.0";
 const USER_AGENT = `mergebrief/${CLI_VERSION}`;
 
+/** The request options the client hands its fetch. */
+export interface FetchInit {
+  readonly method?: string;
+  readonly headers?: Record<string, string>;
+  readonly body?: string;
+  readonly redirect?: "manual" | "follow" | "error";
+}
+
 /** `fetch`-compatible; `app.request` satisfies it in tests. */
-export type FetchLike = (
-  input: string,
-  init?: {
-    readonly method?: string;
-    readonly headers?: Record<string, string>;
-    readonly body?: string;
-    readonly redirect?: "manual" | "follow" | "error";
-  },
-) => Promise<Response>;
+export type FetchLike = (input: string, init?: FetchInit) => Promise<Response>;
 
 export interface ApiClientOptions {
   readonly fetch: FetchLike;
@@ -46,7 +44,7 @@ export interface ApiRequest {
 
 export interface ApiResponse {
   readonly status: number;
-  /** The VERBATIM body text — passthrough, never re-serialized. */
+  /** The VERBATIM body text, passthrough, never re-serialized. */
   readonly bodyText: string;
 }
 
@@ -61,8 +59,8 @@ function isKnownErrorCode(value: string): value is keyof typeof en.errors {
 /**
  * Best-effort extraction of the server's one-line error text. Tolerant
  * probe: a known wire `code` renders the catalog template (with `params`
- * interpolated); an unknown/absent code — or a render that comes back
- * empty — relays the `error` field verbatim.
+ * interpolated); an unknown/absent code, or a render that comes back
+ * empty, relays the `error` field verbatim.
  */
 function serverErrorLine(bodyText: string, status: number): string {
   try {
@@ -71,7 +69,7 @@ function serverErrorLine(bodyText: string, status: number): string {
       const code = parsed["code"];
       const params = parsed["params"];
       if (typeof code === "string" && isKnownErrorCode(code)) {
-        // `replace` isolates interpolation variables from i18next OPTIONS —
+        // `replace` isolates interpolation variables from i18next OPTIONS,
         // a wire param named `count`/`context` must not steer the lookup.
         const rendered = i18n.t(`errors.${code}`, {
           replace: isRecord(params) ? params : {},
@@ -88,7 +86,7 @@ function serverErrorLine(bodyText: string, status: number): string {
       }
     }
   } catch {
-    // Non-JSON error body — fall through to the generic line.
+    // Non-JSON error body, fall through to the generic line.
   }
   return `request failed (HTTP ${status})`;
 }
@@ -117,15 +115,18 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         body = JSON.stringify(req.body);
       }
 
+      const init: Mutable<FetchInit> = {
+        method: req.method ?? "GET",
+        headers,
+        // Redirects are a PROXY smell, not an API behavior, surface them.
+        redirect: "manual",
+      };
+
+      if (body !== undefined) init.body = body;
+
       let response: Response;
       try {
-        response = await options.fetch(`${base}${req.path}`, {
-          method: req.method ?? "GET",
-          headers,
-          ...(body === undefined ? {} : { body }),
-          // Redirects are a PROXY smell, not an API behavior — surface them.
-          redirect: "manual",
-        });
+        response = await options.fetch(`${base}${req.path}`, init);
       } catch (error) {
         throw new CliError(
           ExitCodes.GENERIC,

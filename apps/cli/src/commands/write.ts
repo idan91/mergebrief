@@ -1,10 +1,6 @@
-// `reply` and `submit` — thin POSTs over the server's locked validation.
-// `reply` carries the text it posts; `submit` PUBLISHES the comments the
-// server already holds and NAMES the brief span it reviewed (`--base`/
-// `--head`, the ONE client-side shape check, exit 2). Everything else is
-// relayed: a 4xx validation rejection maps to exit 5, which is what makes an
-// agent's submit loop self-correcting without stderr parsing. Receipts pass
-// through VERBATIM.
+// Submit publishes server-held comments pinned to the reviewed base/head span.
+// Only span shape is checked here; server validation failures map to exit 5.
+// Pass receipts through verbatim so callers need not parse stderr to recover.
 import { CliError, ExitCodes } from "../exit";
 import type { ApiClient } from "../client";
 
@@ -23,7 +19,7 @@ export interface ReplyOptions {
   readonly body: string;
 }
 
-/** The brief a write names — the same span every session call takes. */
+/** The brief a write names, the same span every session call takes. */
 export interface BriefSpan {
   readonly base: string;
   readonly head: string;
@@ -68,7 +64,7 @@ export async function runReply(
 }
 
 // ---------------------------------------------------------------------------
-// thread resolution + ready — span-less GitHub-backed writes
+// thread resolution + ready, span-less GitHub-backed writes
 // ---------------------------------------------------------------------------
 
 /** POST resolve/unresolve on a thread's root comment; receipt passthrough. */
@@ -110,7 +106,7 @@ export async function runReady(
 }
 
 /**
- * POST /api/generate — URL-box generation, no confirm prompt (the operator's
+ * POST /api/generate, URL-box generation, no confirm prompt (the operator's
  * own key, mirroring the web URL box). Receipt passthrough ({repoId, prNumber}).
  */
 export async function runGenerate(
@@ -141,13 +137,19 @@ export interface SubmitInput {
   readonly body?: string | undefined;
 }
 
+/** The submit body the convenience flags build when no `-F` payload is given. */
+interface SubmitFlagPayload {
+  outcome: string;
+  body?: string;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
 /**
  * Assemble the submit payload. `-F` (file/stdin) and the convenience flags
- * are mutually exclusive — a defined precedence beats a silent merge. The
+ * are mutually exclusive, a defined precedence beats a silent merge. The
  * payload carries the outcome and the review body; the comments are the
  * drafts the server holds, so there is nothing here to send them in.
  */
@@ -162,15 +164,17 @@ export function buildSubmitPayload(input: SubmitInput): unknown {
   if (input.payload !== undefined) {
     return input.payload;
   }
-  return {
-    outcome: input.outcome ?? "comment",
-    ...(input.body === undefined ? {} : { body: input.body }),
-  };
+
+  const payload: SubmitFlagPayload = { outcome: input.outcome ?? "comment" };
+
+  if (input.body !== undefined) payload.body = input.body;
+
+  return payload;
 }
 
 /**
  * POST the review; the receipt ({reviewId, commentsDegraded}) is passthrough.
- * Takes the ALREADY-BUILT payload (`buildSubmitPayload`) — the caller builds
+ * Takes the ALREADY-BUILT payload (`buildSubmitPayload`), the caller builds
  * it before any network work so usage errors (exit 2) fire before target
  * resolution can fail with exit 4.
  */
@@ -190,7 +194,7 @@ export async function runSubmit(
 
   // `commentsDegraded` must be PROMINENT in both output modes: the receipt
   // carries it verbatim for --json consumers, and a stderr warning fires in
-  // both modes (stderr is free on exit-0 runs — the invariant governs stdout).
+  // both modes (stderr is free on exit-0 runs, the invariant governs stdout).
   let degraded = false;
   try {
     const parsed: unknown = JSON.parse(response.bodyText);

@@ -1,6 +1,7 @@
 import { APIUserAbortError } from "openai";
 import {
   describeGeneratorContract,
+  type ContractGeneratorHandle,
   type ContractTurn,
   type GeneratorContractHarness,
 } from "./contract";
@@ -8,7 +9,7 @@ import { createOpenAiCore } from "../src/adapters/openai";
 
 /**
  * The shared Generator conformance suite against FETCH-LEVEL fixtures: a
- * real `openai` SDK client whose injected fetch serves scripted SSE bodies —
+ * real `openai` SDK client whose injected fetch serves scripted SSE bodies,
  * the wire-level fake the API adapters use (deliberate contrast with the
  * anthropic stub-client anchor).
  */
@@ -18,7 +19,7 @@ function sseBody(content: string, refusal?: string): string {
   const events: string[] = [];
   const push = (payload: unknown) =>
     events.push(`data: ${JSON.stringify(payload)}\n\n`);
-  // Split the content across two deltas — accumulation must reassemble.
+  // Split the content across two deltas, accumulation must reassemble.
   const cut = Math.ceil(content.length / 2);
   for (const piece of [content.slice(0, cut), content.slice(cut)]) {
     push({
@@ -104,7 +105,7 @@ function makeOpenAiHarness(): GeneratorContractHarness {
         if (turn === undefined) throw new Error("no scripted turn left");
         if ("abort" in turn) {
           // Never respond; abort the caller's signal and reject like fetch
-          // does — the SDK converts this into its APIUserAbortError.
+          // does, the SDK converts this into its APIUserAbortError.
           queueMicrotask(() => controller.abort());
           return new Promise<Response>((_resolve, reject) => {
             const fail = () =>
@@ -133,9 +134,8 @@ function makeOpenAiHarness(): GeneratorContractHarness {
       });
       if (!core.ok) throw new Error(core.error.issues.join("; "));
 
-      return {
+      const handle: ContractGeneratorHandle = {
         generator: core.value,
-        ...(wantsAbort ? { signal: controller.signal } : {}),
         attempts: () => recorded.length,
         feedbackSeen: () => {
           const retry = recorded[1];
@@ -147,6 +147,10 @@ function makeOpenAiHarness(): GeneratorContractHarness {
             .join("\n");
         },
       };
+
+      if (wantsAbort) handle.signal = controller.signal;
+
+      return handle;
     },
   };
 }

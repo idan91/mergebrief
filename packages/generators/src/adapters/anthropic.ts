@@ -9,15 +9,12 @@ import type { GenerateRequest, Generator, Logger } from "../contract/generator";
 import {
   runWithSchemaFloor,
   schemaFeedbackMessage,
+  type RunWithSchemaFloorArgs,
 } from "../validation/enforceSchema";
 import { enumPreservingJsonSchema } from "../validation/jsonSchema";
 import type { Effort, Generation } from "../contract/generation";
 
-// ---------------------------------------------------------------------------
-// The structural slice of the SDK client the adapter touches — lets tests
-// fake it with `satisfies` instead of double assertions, while the real
-// `Anthropic` instance remains assignable unchanged.
-// ---------------------------------------------------------------------------
+// Keep the real SDK assignable while tests fake this narrow slice with satisfies.
 
 /** The response fields the adapter reads off a finished stream. */
 export interface AnthropicStreamResponse {
@@ -39,7 +36,7 @@ export interface AnthropicStreamHandle {
   finalMessage(): Promise<AnthropicStreamResponse>;
 }
 
-/** The client surface the adapter needs — `Anthropic` satisfies it as-is. */
+/** The client surface the adapter needs, `Anthropic` satisfies it as-is. */
 export interface AnthropicStreamingClient {
   messages: {
     stream(
@@ -50,21 +47,10 @@ export interface AnthropicStreamingClient {
 }
 
 /**
- * Anthropic adapter on the official SDK: Opus 4.8 with adaptive thinking,
- * effort, prompt caching, and native structured output. The system prompt is
- * the stable prefix, so it carries a cache_control breakpoint; the volatile
- * diff goes in the user turn after it. Streaming (not parse()) because
- * adaptive thinking + a large max_tokens trips the SDK's 10-minute guard.
- *
- * Parse-failure handling is the shared schema-floor pipeline
- * (`runWithSchemaFloor`).
- *
- * The wire format carries the enum-preserving JSON schema WITHOUT a client
- * `parse` callback: SDK ≥0.101 parses eagerly at message_stop and a `parse`
- * member would turn an invalid output into a stream REJECTION — skipping
- * salvage, retry, and dump entirely. The pipeline owns validation; the SDK's
- * residual JSON.parse rejection (non-JSON output, e.g. max_tokens truncation)
- * is caught below and converted into a pipeline-visible failed attempt.
+ * Cache the stable system prefix and stream to avoid the SDK's adaptive-thinking timeout guard.
+ * Send schema without an SDK parse callback: eager parsing would bypass salvage/retry/dump.
+ * Convert residual JSON parsing rejections into floor-visible attempts.
+ * The shared schema floor owns validation regardless of native structured-output enforcement.
  */
 const DEFAULT_MODEL = "claude-opus-4-8";
 const MAX_TOKENS = 32000;
@@ -111,15 +97,14 @@ export class AnthropicGenerator implements Generator {
       );
     }
 
-    return runWithSchemaFloor({
+    const floor: RunWithSchemaFloorArgs<S> = {
       schema: req.schema,
       label: req.label,
-      ...(req.salvageFields ? { salvageFields: req.salvageFields } : {}),
       failureDir: this.failureDir,
       log,
       attempt: async (feedback) => {
         // On retry, the model sees its own failed output plus the validation
-        // errors — mid-conversation assistant turns are fine (only last-turn
+        // errors, mid-conversation assistant turns are fine (only last-turn
         // prefill is disallowed), and the cached system+user prefix is reused.
         const messages: Anthropic.MessageParam[] = feedback
           ? [
@@ -157,7 +142,11 @@ export class AnthropicGenerator implements Generator {
         // parseStructuredText), so only the raw text crosses the boundary.
         return { raw };
       },
-    });
+    };
+
+    if (req.salvageFields) floor.salvageFields = req.salvageFields;
+
+    return runWithSchemaFloor(floor);
   }
 
   /** One streamed request with live progress + heartbeat logging. */
@@ -170,7 +159,7 @@ export class AnthropicGenerator implements Generator {
     | { response: AnthropicStreamResponse }
     | { sdkParseFailure: string; raw: string }
   > {
-    // The request options' `signal` aborts the HTTP stream itself — the SDK
+    // The request options' `signal` aborts the HTTP stream itself, the SDK
     // rejects with APIUserAbortError and no further output tokens are billed.
     const stream = this.client.messages.stream(
       {
@@ -178,7 +167,7 @@ export class AnthropicGenerator implements Generator {
         max_tokens: MAX_TOKENS,
         thinking: { type: "adaptive" },
         output_config: {
-          // Schema only — never a client parse callback (see class docs).
+          // Schema only, never a client parse callback (see class docs).
           format: { type: "json_schema", schema: wireSchema },
           effort: req.effort,
         },
@@ -204,7 +193,7 @@ export class AnthropicGenerator implements Generator {
     let phase: "thinking" | "writing" = "thinking";
     let collected = "";
     // Usage accumulated from stream events: the fallback source when the
-    // SDK's eager parse rejects finalMessage() — the truncated attempt is
+    // SDK's eager parse rejects finalMessage(), the truncated attempt is
     // the EXPENSIVE one, and its spend must not vanish from onUsage sums.
     // Boxed because closure writes don't survive TS's flow narrowing.
     const streamUsage: {
@@ -249,7 +238,7 @@ export class AnthropicGenerator implements Generator {
         error instanceof AnthropicError &&
         error.message.startsWith("Failed to parse structured output")
       ) {
-        // The stream completed and was billed — the rejection is the SDK's
+        // The stream completed and was billed, the rejection is the SDK's
         // parse, not the request. Report what the events carried.
         if (streamUsage.current) {
           req.onUsage?.({
@@ -261,7 +250,7 @@ export class AnthropicGenerator implements Generator {
         return { sdkParseFailure: error.message, raw: collected };
       }
       // Recognized SDK failures adopt the shared taxonomy; anything
-      // unrecognized — most importantly aborts — propagates UNTOUCHED.
+      // unrecognized, most importantly aborts, propagates UNTOUCHED.
       throw classifySdkError(error);
     } finally {
       clearInterval(heartbeat);
@@ -282,11 +271,8 @@ export class AnthropicGenerator implements Generator {
 }
 
 /**
- * Map recognized SDK failures onto the shared taxonomy:
- * 401/403 → auth; 400/404 (bad model, unsupported request shape) → config;
- * 408/429/5xx after the SDK's own retries, and connection-level failures →
- * provider-transient. Unrecognized errors (aborts, custom rejections)
- * return UNCHANGED so they propagate untouched.
+ * Classify recognized SDK auth/config/transient failures after SDK retries.
+ * Unknown failures, aborts and custom rejections must propagate unchanged.
  */
 function classifySdkError(error: unknown): unknown {
   // Statusless-but-retryable SDK failures (connection errors, middleware
@@ -331,7 +317,7 @@ function classifySdkError(error: unknown): unknown {
 
 /**
  * Statusless SDK failures that aren't aborts (e.g. "stream ended without a
- * message") still belong to the taxonomy — opaque, original as cause.
+ * message") still belong to the taxonomy, opaque, original as cause.
  */
 function wrapStatuslessSdkError(error: unknown): unknown {
   if (error instanceof AnthropicError) {
@@ -342,7 +328,7 @@ function wrapStatuslessSdkError(error: unknown): unknown {
   return error;
 }
 
-/** The response's text content — the raw (possibly invalid) structured output. */
+/** The response's text content, the raw (possibly invalid) structured output. */
 function textContent(response: { content: { type: string }[] }): string {
   return response.content
     .filter(

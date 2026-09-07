@@ -1,8 +1,5 @@
-// Repo-collaborators primitive: the @mention candidate pool. GraphQL because
-// REST's collaborators list carries no display name; `affiliation: ALL` is
-// critical — it includes org/team-granted members, the bulk of the intended
-// pool. Nodes are `User` objects (App bots cannot be repo collaborators), so
-// no bot filtering is needed. Failures funnel through `mapGraphqlError`.
+// Use GraphQL for collaborator display names and ALL affiliation for org/team grants.
+// Nodes are Users, so App-bot filtering is unnecessary; failures use mapGraphqlError.
 import type { Octokit } from "octokit";
 import { z } from "zod";
 import {
@@ -12,6 +9,7 @@ import {
   type GitHubApiError,
 } from "../errors";
 import type { Result } from "../types";
+import type { Mutable } from "types";
 
 export interface RepoCollaborator {
   readonly login: string;
@@ -128,11 +126,14 @@ export async function listRepoCollaborators(
       if (node === null) {
         continue;
       }
-      collaborators.push({
+      const collaborator: Mutable<RepoCollaborator> = {
         login: node.login,
-        ...(node.name === null ? {} : { name: node.name }),
         avatarUrl: node.avatarUrl,
-      });
+      };
+
+      if (node.name !== null) collaborator.name = node.name;
+
+      collaborators.push(collaborator);
     }
 
     hasMore = connection.pageInfo.hasNextPage;

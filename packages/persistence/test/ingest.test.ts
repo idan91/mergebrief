@@ -3,8 +3,13 @@
 // PGlite harness because it provides the `graphile_worker` stub the enqueue
 // step calls by name.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { IngestOutcome } from "../src/stores/ingest";
+import type {
+  IngestOutcome,
+  TriggerGenerationInput,
+} from "../src/stores/ingest";
 import { createIngestRoutines } from "../src/stores/ingest";
+import type { PullRequestUpsertInput } from "../src/stores/tenant";
+import type { Mutable } from "types";
 import {
   createTenantRepository,
   parseTenantContext,
@@ -71,28 +76,31 @@ describe("createIngestRoutines.triggerGeneration", () => {
     baseSha?: string;
     headSha?: string;
   }): Promise<Result<IngestOutcome, { code: string; message: string }>> {
-    return createIngestRoutines(harness.handle, CTX).triggerGeneration({
-      pullRequest: {
-        repoId: REPO_ID,
-        prNumber: 7,
-        repoSlug: "acme/widgets",
-        title: "feat: add widgets",
-        ...(overrides?.baseSha === undefined
-          ? {}
-          : { baseSha: overrides.baseSha }),
-        state: PrStates.OPEN,
-      },
+    const pullRequest: Mutable<PullRequestUpsertInput> = {
+      repoId: REPO_ID,
+      prNumber: 7,
+      repoSlug: "acme/widgets",
+      title: "feat: add widgets",
+      state: PrStates.OPEN,
+    };
+
+    if (overrides?.baseSha !== undefined)
+      pullRequest.baseSha = overrides.baseSha;
+
+    const input: Mutable<TriggerGenerationInput> = {
+      pullRequest,
       headSha: overrides?.headSha ?? HEAD_SHA,
-      ...(overrides?.debounceSeconds === undefined
-        ? {}
-        : { debounceSeconds: overrides.debounceSeconds }),
-      ...(overrides?.regenerationDebounceSeconds === undefined
-        ? {}
-        : {
-            regenerationDebounceSeconds: overrides.regenerationDebounceSeconds,
-          }),
-      ...(overrides?.reopen === undefined ? {} : { reopen: overrides.reopen }),
-    });
+    };
+
+    if (overrides?.debounceSeconds !== undefined) {
+      input.debounceSeconds = overrides.debounceSeconds;
+    }
+    if (overrides?.regenerationDebounceSeconds !== undefined) {
+      input.regenerationDebounceSeconds = overrides.regenerationDebounceSeconds;
+    }
+    if (overrides?.reopen !== undefined) input.reopen = overrides.reopen;
+
+    return createIngestRoutines(harness.handle, CTX).triggerGeneration(input);
   }
 
   /** Close the PR out-of-band, as the `pull_request.closed` handler would. */
@@ -107,7 +115,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
     });
   }
 
-  it("writes the PR row, the queued generation row, and the debounced job atomically", async () => {
+  it("atomically writes PR, queued generation and debounced job rows", async () => {
     const before = Date.now();
     const outcome = unwrap(await trigger());
 
@@ -135,7 +143,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
     expect(generations).toHaveLength(1);
     expect(jobs).toHaveLength(1);
 
-    // The job: task, key, payload (STRING ids — JSON can't carry bigint),
+    // The job: task, key, payload (STRING ids, JSON can't carry bigint),
     // run_at ≈ now + 60s.
     const job = jobs[0];
     if (job === undefined) throw new Error("expected a jobs row");
@@ -163,7 +171,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
     expect(retargeted.pullRequest.baseSha).toBe("base-2");
   });
 
-  it("is idempotent on redelivery: same PR row, attempts++, ONE job with a pushed run_at", async () => {
+  it("redelivery increments attempts and defers one existing job", async () => {
     const first = unwrap(await trigger());
     const firstJobs = await harness.raw(
       "select run_at from graphile_worker.jobs",
@@ -195,7 +203,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
     expect(epochMs(jobs[0]?.["run_at"])).toBeGreaterThan(firstRunAt);
   });
 
-  it("does NOT resurrect a closed PR on a stale (non-reopen) trigger, and skips the enqueue", async () => {
+  it("rejects stale non-reopen triggers for closed PRs without enqueueing", async () => {
     unwrap(await trigger());
     const jobsBefore = await harness.raw(
       "select run_at from graphile_worker.jobs",
@@ -239,7 +247,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
     expect(outcome.pullRequest.purgeAfter).toBeNull();
   });
 
-  it("rolls the whole transaction back when the enqueue fails (atomicity)", async () => {
+  it("rolls back the whole transaction when enqueueing fails", async () => {
     await harness.raw(
       "drop function graphile_worker.add_job(text, json, text, timestamptz, text)",
     );
@@ -250,7 +258,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
     expect(await harness.raw("select id from generation")).toHaveLength(0);
   });
 
-  it("rejects an invalid debounce as an expected Result error, writing nothing", async () => {
+  it("refuses invalid debounce with a Result error and no writes", async () => {
     const result = await trigger({ debounceSeconds: -1 });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected an error result");
@@ -258,7 +266,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
     expect(await harness.raw("select id from pull_request")).toHaveLength(0);
   });
 
-  // recordState: the enqueue-free sibling — state-only events
+  // recordState: the enqueue-free sibling, state-only events
   // (converted_to_draft) persist PR fields WITHOUT touching the generation
   // projection or scheduling work.
   describe("recordState", () => {
@@ -298,13 +306,13 @@ describe("createIngestRoutines.triggerGeneration", () => {
         "select status, attempts from generation",
       );
       expect(after).toEqual(before);
-      // Still exactly the one job from the trigger — no new enqueue.
+      // Still exactly the one job from the trigger, no new enqueue.
       expect(
         await harness.raw("select id from graphile_worker.jobs"),
       ).toHaveLength(1);
     });
 
-    it("preserves a terminal lifecycle (never resurrects a closed PR)", async () => {
+    it("preserves terminal lifecycle without resurrecting closed PRs", async () => {
       unwrap(await trigger());
       await closePr();
 
@@ -338,7 +346,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
       expect(delta).toBeLessThan(70_000);
     });
 
-    it("still uses the normal window when the prior generation is merely queued", async () => {
+    it("keeps the normal window while the prior generation is only queued", async () => {
       await trigger();
       const before = Date.now();
       const result = await trigger({
@@ -366,7 +374,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
       expect(delta).toBeLessThan(910_000);
     });
 
-    it("a failed prior generation does not damp — the author has no brief to look at", async () => {
+    it("keeps failed prior generations undamped because no brief exists", async () => {
       await trigger();
       await harness.raw("update generation set status = 'failed'");
       const before = Date.now();

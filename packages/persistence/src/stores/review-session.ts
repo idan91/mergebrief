@@ -1,16 +1,6 @@
-// The Review Session surface — the reviewer's private work on one Brief.
-// Reached through `createTenantRepository(db, ctx).reviewSessions`, so it obeys the same
-// containment rules as every other store: `ctx` is the one place an
-// `installation_id` enters, every read filters on it and every write stamps
-// it.
-//
-// Two rules this file exists to enforce:
-//   (a) there is no Begin operation — `writeToSession` creates the session on
-//       the first write and `get` never creates anything;
-//   (b) a write naming a parent (`brief` for the session, `review_session`
-//       for an owned row) resolves that parent within ctx's tenant in the
-//       SAME transaction — a parent in another tenant yields a Result error,
-//       never a DB write.
+// Tenant context filters every read and stamps every write. Reads never create sessions;
+// first writes materialize them. Resolve parent ownership inside the same transaction
+// and return Result errors for cross-tenant parents before any write.
 import { and, asc, desc, eq, gt, gte, inArray, lt, lte, or } from "drizzle-orm";
 import type { Hop } from "brief-core/remap";
 import type { AppDrizzle } from "../db/handle";
@@ -51,7 +41,7 @@ import type {
 } from "../types";
 
 // ---------------------------------------------------------------------------
-// Errors — expected failures. Programmer errors still `throw`. Owned here
+// Errors, expected failures. Programmer errors still `throw`. Owned here
 // rather than borrowed from `tenant.ts`, which composes this module.
 // ---------------------------------------------------------------------------
 
@@ -61,7 +51,7 @@ export const ReviewSessionErrorCodes = {
   /**
    * The reviewer has already materialized a session on a NEWER Brief of this
    * PR, so this one is frozen. A newer Brief on its own never freezes
-   * anything — that would reject writes mid-sentence every time the worker
+   * anything, that would reject writes mid-sentence every time the worker
    * generated one. Surfaces as the existing `pr-changed-since-read` (409).
    */
   SESSION_FROZEN: "session-frozen",
@@ -87,7 +77,7 @@ export type ReviewSubmittedReviewRow =
   typeof reviewSubmittedReview.$inferSelect;
 export type DispositionRow = typeof disposition.$inferSelect;
 
-/** The session key — a Brief and the reviewer working against it. */
+/** The session key, a Brief and the reviewer working against it. */
 export interface ReviewSessionKey {
   readonly briefId: BriefRowId;
   readonly reviewerId: ReviewerId;
@@ -108,7 +98,7 @@ export interface DraftCommentInput {
 }
 
 /**
- * An edit to a stored draft — only the named fields move. A re-anchor names
+ * An edit to a stored draft, only the named fields move. A re-anchor names
  * the coordinates AND clears `anchorStatus`: the human placed it, so the
  * carry-over's verdict on it is settled.
  */
@@ -151,14 +141,14 @@ export interface DispositionInput {
   readonly evidence?: DispositionEvidence | null;
 }
 
-/** A disposition's anchor — the only way a clearing operation names one. */
+/** A disposition's anchor, the only way a clearing operation names one. */
 export type DispositionAnchor = Pick<
   DispositionInput,
   "filePath" | "attribute" | "regionStart" | "regionEnd"
 >;
 
 /**
- * The session and everything it owns — one read, no writes. Every list is
+ * The session and everything it owns, one read, no writes. Every list is
  * insertion-ordered by row id: an in-place UPDATE rewrites the heap tuple, so
  * an unordered read would permute the list after a status flip.
  */
@@ -180,17 +170,14 @@ export interface CarryOverInputs {
 }
 
 /**
- * A session read, plus what the reviewer's previous session would contribute
- * if they wrote. The Brief facts arrive as a thunk, not a value: this layer
- * stores the artifact opaquely, so the caller parses a multi-hundred-KB body
- * to produce them, and only an evaluation that found a previous session ever
- * needs them.
+ * Resolve brief facts lazily: only a previous-session evaluation needs the expensive body parse.
+ * The storage layer otherwise treats the artifact as opaque.
  */
 export interface CarryOverQuery extends ReviewSessionKey {
   readonly brief: () => Promise<CarryOverInputs>;
 }
 
-/** The receipt's count before materialization — every evaluated subject. */
+/** The receipt's count before materialization, every evaluated subject. */
 function countPendingCarriedItems(carried: CarriedWork): number {
   return (
     carried.draftComments.length +
@@ -206,15 +193,9 @@ export interface CarriedFrom {
   readonly headSha: string;
   readonly headIndex: number;
   /**
-   * How much of that session's work is present here — the receipt's count,
-   * and the thing that tells a session that carried nothing (no row) from one
-   * that carried and has nothing pending (the clean receipt).
-   *
-   * All four subjects count. Drafts and dispositions carry a marker column;
-   * read marks and reclassifications do not, so after materialization they
-   * are derived by intersecting with the previous session's own rows, which
-   * are never deleted. Leaving them out reports zero for a session whose only
-   * carried work was a read mark, and the receipt then renders as nothing.
+   * Count all four carried subjects so a clean receipt differs from no carried work.
+   * Read marks and reclassifications lack marker columns; intersect previous-session rows
+   * after materialization rather than reporting zero for read-mark-only carry.
    */
   readonly items: number;
 }
@@ -222,15 +203,11 @@ export interface CarriedFrom {
 export interface ReviewSessionView {
   /** Present once the session materialized; its rows then hold the carry-over. */
   readonly session: ReviewSessionSnapshot | undefined;
-  /** Evaluated in memory — nothing here exists as a row yet. */
+  /** Evaluated in memory, nothing here exists as a row yet. */
   readonly carried: CarriedWork;
   /**
-   * Where the work came from, on both sides of materialization: `undefined`
-   * is a first-ever session and nothing else. After materialization it is
-   * re-resolved rather than read off the carried rows — only comments and
-   * dispositions carry a marker column, so a session that carried read marks
-   * alone would otherwise report itself as first-ever. The Brief it names is
-   * the near end of the span the carry-over row states.
+   * Undefined means first-ever session only. Re-resolve origin after materialization because
+   * read-mark-only carry has no marker column. The named brief is the carried span's near end.
    */
   readonly carriedFrom: CarriedFrom | undefined;
 }
@@ -252,7 +229,7 @@ export interface SessionWriter {
     input: Omit<DraftCommentInput, "reviewSessionId" | "carriedFromSessionId">,
   ): Promise<ReviewDraftCommentRow>;
   /**
-   * Edit a draft this session holds — its own row, or the copy of a carried
+   * Edit a draft this session holds, its own row, or the copy of a carried
    * one named by the id it was copied from. `undefined` when it holds neither.
    */
   updateDraftComment(
@@ -263,12 +240,12 @@ export interface SessionWriter {
   deleteDraftComment(id: bigint): Promise<bigint | undefined>;
   /** Every draft this session holds, published ones included, oldest first. */
   draftComments(): Promise<readonly ReviewDraftCommentRow[]>;
-  /** Flip drafts to `submitted` — what publishing them to GitHub records here. */
+  /** Flip drafts to `submitted`, what publishing them to GitHub records here. */
   publishDraftComments(ids: readonly bigint[]): Promise<void>;
   putReadMark(
     input: Omit<ReadMarkInput, "reviewSessionId">,
   ): Promise<ReviewReadMarkRow>;
-  /** Drop a Chunk's read mark, if any — the unread half of `set-chunk-read`. */
+  /** Drop a Chunk's read mark, if any, the unread half of `set-chunk-read`. */
   clearReadMark(chunkId: string): Promise<void>;
   putReclassification(
     input: Omit<ReclassificationInput, "reviewSessionId">,
@@ -279,19 +256,19 @@ export interface SessionWriter {
   /** Record a decision on a risk flag; idempotent on its anchor. */
   putDisposition(input: DispositionInput): Promise<DispositionRow>;
   /**
-   * Undo a decision — the flag goes back to undecided, which is a row that
+   * Undo a decision, the flag goes back to undecided, which is a row that
    * does not exist. `false` when this session held none. Idempotent.
    */
   deleteDisposition(anchor: DispositionAnchor): Promise<boolean>;
-  /** The provisional submit verdict. Never carried — a new session starts over. */
+  /** The provisional submit verdict. Never carried, a new session starts over. */
   setReviewOutcome(outcome: ReviewOutcome): Promise<ReviewSessionRow>;
 }
 
 export interface ReviewSessionRepository {
-  /** Read by key. Absence is a normal `undefined` — never a create. */
+  /** Read by key. Absence is a normal `undefined`, never a create. */
   get(key: ReviewSessionKey): Promise<ReviewSessionSnapshot | undefined>;
   /**
-   * Run `write` as the session's write — materializing the session and its
+   * Run `write` as the session's write, materializing the session and its
    * carry-over first if this is the first one, all in ONE transaction. Any
    * write operation can be the one that writes; no read ever is.
    * `sessionFrozen` when the reviewer already works on a newer Brief.
@@ -302,7 +279,7 @@ export interface ReviewSessionRepository {
   ): Promise<Result<T, ReviewSessionError>>;
   /**
    * The session as it stands plus, while it does not exist yet, the previous
-   * session's work re-placed onto this Brief. Creates NOTHING — the verdicts
+   * session's work re-placed onto this Brief. Creates NOTHING, the verdicts
    * become rows only when the reviewer writes.
    */
   preview(query: CarryOverQuery): Promise<ReviewSessionView>;
@@ -324,11 +301,8 @@ interface ChainBrief {
 }
 
 /**
- * The chunk ids that survived EVERY step from the previous session's Brief to
- * this one. `carried_chunk_ids` names what one Brief took from its immediate
- * predecessor, so a single-hop read of the newest Brief would accept an id
- * that a re-minted chunk merely reused two pushes ago. The intersection is
- * what makes the id mean the same chunk the reviewer actually opened.
+ * Intersect carried_chunk_ids across every hop. A newest-hop match alone could accept
+ * a re-minted chunk that reused an id without preserving what the reviewer opened.
  */
 function carriedThroughChain(
   chain: readonly ChainBrief[],
@@ -348,13 +322,9 @@ function carriedThroughChain(
 }
 
 /**
- * True only when every step past `fromHeadIndex` descended its group ids
- * from the chain-adjacent Brief. The previous session's own Brief is outside
- * the carried span — its stamp describes how it relates to ITS predecessor —
- * so it is skipped, exactly as `carriedThroughChain` skips it. NULL (a
- * pre-stamp row) is not proof. Nor is `anchored` on a step sharing its
- * predecessor's head: a base retarget re-briefs the same head and anchors to
- * the nearest DIFFERENT head, skipping the row the reviewer judged.
+ * Require adjacent descent after the previous session's own brief; its earlier stamp is irrelevant.
+ * Null stamps prove nothing. Same-head retarget anchoring may skip the judged row
+ * by anchoring to the nearest different head, so it cannot prove chain adjacency.
  */
 function descendedThroughChain(
   chain: readonly ChainBrief[],
@@ -380,7 +350,7 @@ interface PreviousSession {
 }
 
 /**
- * The inserts as the repository itself uses them — it may name a carry-over
+ * The inserts as the repository itself uses them, it may name a carry-over
  * source because it resolves that session in the same transaction first. The
  * public `SessionWriter` narrows the field away.
  */
@@ -409,7 +379,7 @@ function fail(
 
 /**
  * Build the Review Session repository. Not exported from `index.ts` on its
- * own — `createTenantRepository` composes it, so a caller cannot reach it without a ctx.
+ * own, `createTenantRepository` composes it, so a caller cannot reach it without a ctx.
  */
 export function createReviewSessionRepository(
   db: AppDrizzle,
@@ -467,7 +437,7 @@ export function createReviewSessionRepository(
 
   /**
    * Every Brief from the previous session's up to the current one, oldest
-   * first — the chain both the hops and the carried chunk set are read off.
+   * first, the chain both the hops and the carried chunk set are read off.
    */
   async function chainBriefs(
     tx: Reader,
@@ -613,16 +583,9 @@ export function createReviewSessionRepository(
   }
 
   /**
-   * The verdicts for a session that does not exist yet. Runs on every read
-   * AND again inside the materialization transaction — the payload a read
-   * returned is never trusted, which is what makes the late write to the old
-   * session safe with no lock and no version token.
-   *
-   * `previous` and `artifact` both arrive resolved: the caller has to probe
-   * for a previous session anyway to know whether an evaluation is owed, and
-   * the thunk behind `artifact` reads the Brief body through the same handle,
-   * which a read inside an open transaction would deadlock on a
-   * single-connection database.
+   * Re-evaluate inside materialization rather than trusting a read payload, preserving late writes.
+   * Resolve the artifact beforehand: its thunk reads through this same handle and would
+   * deadlock inside a transaction on a single-connection database.
    */
   async function evaluatePending(
     tx: Reader,
@@ -647,7 +610,7 @@ export function createReviewSessionRepository(
   }
 
   /**
-   * The row this session holds for `id` — its own, or the copy of the carried
+   * The row this session holds for `id`, its own, or the copy of the carried
    * row `id` named. At most one matches: ids come from one sequence, so a
    * source id is never also a row id here.
    */
@@ -676,23 +639,23 @@ export function createReviewSessionRepository(
   ): SessionInserts {
     return {
       async addDraftComment(input) {
+        const values: typeof reviewDraftComment.$inferInsert = {
+          installationId: scope.installationId,
+          reviewSessionId: sessionId,
+          filePath: input.filePath,
+          side: input.side,
+          startSide: input.startSide ?? null,
+          startLine: input.startLine,
+          endLine: input.endLine,
+          body: input.body,
+          anchorStatus: input.anchorStatus ?? null,
+          carriedFromSessionId: input.carriedFromSessionId ?? null,
+        };
+
+        if (input.status !== undefined) values.status = input.status;
+
         return only(
-          await tx
-            .insert(reviewDraftComment)
-            .values({
-              installationId: scope.installationId,
-              reviewSessionId: sessionId,
-              filePath: input.filePath,
-              side: input.side,
-              startSide: input.startSide ?? null,
-              startLine: input.startLine,
-              endLine: input.endLine,
-              body: input.body,
-              ...(input.status === undefined ? {} : { status: input.status }),
-              anchorStatus: input.anchorStatus ?? null,
-              carriedFromSessionId: input.carriedFromSessionId ?? null,
-            })
-            .returning(),
+          await tx.insert(reviewDraftComment).values(values).returning(),
           "review_draft_comment",
         );
       },
@@ -808,8 +771,8 @@ export function createReviewSessionRepository(
                 reason: input.reason ?? null,
                 evidenceKind: input.evidence?.kind ?? null,
                 evidenceRef: input.evidence?.ref ?? null,
-                // Deciding here settles both questions the carry brought over
-                // — the re-look AND the evidence the old decision lost.
+                // Deciding here settles both questions the carry brought over,
+                // the re-look AND the evidence the old decision lost.
                 carryStatus: null,
                 evidenceStatus: null,
                 decidedAt: new Date(),
@@ -879,7 +842,7 @@ export function createReviewSessionRepository(
   }
 
   /**
-   * Copy the evaluated work onto the new session — one statement per table.
+   * Copy the evaluated work onto the new session, one statement per table.
    * Carry-over COPIES; it never points at the old rows. An orphan keeps its
    * last known file and line: the CHECK leaves no sentinel to write, and a
    * violation would throw and take the whole materialization down.
@@ -1000,7 +963,7 @@ export function createReviewSessionRepository(
   }
 
   /**
-   * The session row for a key, or `undefined` — never a create. Joins the
+   * The session row for a key, or `undefined`, never a create. Joins the
    * anchoring `brief` through the scope's child predicate: the world mark
    * alone cannot separate two owners, so brief ownership is what keeps a
    * guessed (briefId, reviewerId) pair from reading across owners.
@@ -1026,7 +989,7 @@ export function createReviewSessionRepository(
 
   /**
    * The Brief facts a materialization would evaluate against, or `undefined`
-   * when there is nothing to evaluate — the session already exists, or it is
+   * when there is nothing to evaluate, the session already exists, or it is
    * the reviewer's first on this PR. Both skip the Brief-body parse entirely.
    */
   async function deriveCarryOverInputs(
@@ -1043,7 +1006,7 @@ export function createReviewSessionRepository(
     return previous === undefined ? undefined : query.brief();
   }
 
-  /** The session and everything it owns, or `undefined` — never a create. */
+  /** The session and everything it owns, or `undefined`, never a create. */
   async function snapshotFor(
     key: ReviewSessionKey,
   ): Promise<ReviewSessionSnapshot | undefined> {
@@ -1125,11 +1088,8 @@ export function createReviewSessionRepository(
     },
 
     async writeToSession(query, write) {
-      // Resolved BEFORE the transaction opens: the thunk reads the Brief body
-      // through this same handle, which a read inside an open transaction
-      // would deadlock. `preview` pays the same probe for the same reason —
-      // a first-ever session has nothing to evaluate, so it must never pay
-      // for a multi-hundred-KB parse it would discard.
+      // Resolve the thunk before opening the transaction to avoid single-connection deadlock.
+      // First-ever sessions skip the expensive brief parse because they have nothing to evaluate.
       const artifact = await deriveCarryOverInputs(query);
       return db.transaction(async (tx) => {
         const facts = await readBriefCarrySlice(tx, query.briefId);
@@ -1171,7 +1131,7 @@ export function createReviewSessionRepository(
           const previous = await previousSession(tx, facts, query.reviewerId);
           if (previous !== undefined) {
             if (artifact === undefined) {
-              // The probe lost a race — a concurrent first write on an older
+              // The probe lost a race, a concurrent first write on an older
               // Brief created this session. Failing is deliberate: carry-over
               // cannot be re-evaluated inside the open transaction, and
               // skipping it writes without the carried work for good.
@@ -1203,8 +1163,8 @@ export function createReviewSessionRepository(
     async preview(query) {
       // The session and the Brief are independent reads, so they go together;
       // the previous-session probe then answers BOTH "did work carry in" and
-      // "is there anything to evaluate", so a first-ever session — and every
-      // session that already materialized — never pays for the body parse.
+      // "is there anything to evaluate", so a first-ever session, and every
+      // session that already materialized, never pays for the body parse.
       const [snapshot, facts] = await Promise.all([
         snapshotFor(query),
         readBriefCarrySlice(db, query.briefId),
@@ -1241,11 +1201,8 @@ export function createReviewSessionRepository(
           },
         };
       }
-      // The thunk resolves BEFORE the transaction opens — its Brief-body read
-      // goes through this same handle, which a read inside an open
-      // transaction deadlocks on a single-connection database. The evaluation
-      // itself keeps its snapshot: the previous session stays writable until
-      // a newer one is materialized, so its rows must be read together.
+      // Resolve the brief-body thunk before the transaction to avoid single-connection deadlock.
+      // Read prior-session rows together inside it; they remain writable until materialization.
       const artifact = await query.brief();
       const carried = await db.transaction((tx) =>
         evaluatePending(tx, facts, previous, artifact),

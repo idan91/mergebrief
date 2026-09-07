@@ -68,19 +68,12 @@ const GhViewSchema = z.object({
 });
 
 /**
- * Parsed-`gh pr view` JSON → `PrMetadata` (exported for tests — the exec
+ * Parsed-`gh pr view` JSON → `PrMetadata` (exported for tests, the exec
  * wrapper below is just plumbing around this mapping).
  */
 export function metadataFromView(raw: unknown): PrMetadata {
   const view = GhViewSchema.parse(raw);
   const ghState = view.state?.toUpperCase();
-  const lifecycle =
-    ghState === "OPEN" || ghState === "CLOSED" || ghState === "MERGED"
-      ? {
-          state: ghState === "OPEN" ? ("open" as const) : ("closed" as const),
-          merged: ghState === "MERGED",
-        }
-      : {};
   const meta: PrMetadata = {
     title: view.title,
     body: view.body ?? "",
@@ -89,10 +82,17 @@ export function metadataFromView(raw: unknown): PrMetadata {
     baseSha: view.baseRefOid,
     commitCount: view.commits?.length ?? 0,
     files: view.files ?? [],
-    ...lifecycle,
-    ...(typeof view.isDraft === "boolean" ? { draft: view.isDraft } : {}),
   };
+
+  const knownState =
+    ghState === "OPEN" || ghState === "CLOSED" || ghState === "MERGED";
+  if (knownState) {
+    meta.state = ghState === "OPEN" ? "open" : "closed";
+    meta.merged = ghState === "MERGED";
+  }
+  if (typeof view.isDraft === "boolean") meta.draft = view.isDraft;
   if (typeof view.headRefName === "string") meta.headRef = view.headRefName;
+
   return meta;
 }
 
@@ -113,7 +113,7 @@ export async function fetchPrMetadata(loc: PrLocator): Promise<PrMetadata> {
   return metadataFromView(JSON.parse(stdout));
 }
 
-/** A commit-ish we will interpolate into a `gh api` path — restrict to hex SHAs. */
+/** A commit-ish we will interpolate into a `gh api` path, restrict to hex SHAs. */
 const COMMITISH = /^[0-9a-fA-F]{7,40}$/;
 
 export function isCommitish(ref: string): boolean {
@@ -121,11 +121,8 @@ export function isCommitish(ref: string): boolean {
 }
 
 /**
- * Resolve a possibly-abbreviated commit SHA to the full 40-char SHA via the
- * commits API. Artifacts must be keyed by full SHAs: the FE joins comparison
- * marks and Delta artifacts onto brief heads by exact SHA equality, so a
- * short SHA passed on the CLI would produce artifacts that silently never
- * match. Already-full SHAs return as-is without a network call.
+ * Artifacts require full SHAs because the browser joins comparison and delta heads by exact
+ * equality. Abbreviated CLI input must resolve before storage; full SHAs avoid a network call.
  */
 export async function resolveFullSha(
   loc: PrLocator,
@@ -144,11 +141,8 @@ export async function resolveFullSha(
 }
 
 /**
- * Incremental unified diff between two commits of a PR's repo, via the GitHub
- * compare API (`base...head`). Three-dot (merge-base) semantics: identical to a
- * true tree diff when head descends from baseline, but after a rebase/force-push
- * it can include merge-base noise — the rebase-robust two-dot form needs a local
- * clone. base/head are validated as hex SHAs before reaching the api path.
+ * GitHub compare uses three-dot merge-base semantics, which can include noise after rebases.
+ * A rebase-robust two-dot diff needs a local clone. Validate both SHAs before building API paths.
  */
 export async function fetchCompareDiff(
   loc: PrLocator,

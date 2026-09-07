@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { z } from "zod/v4";
-import type { Result } from "types";
+import type { Mutable, Result } from "types";
 import {
   ContextProviderTypes,
   type ContextSnippet,
@@ -10,13 +10,13 @@ import {
   type PrimaryTicketOutcome,
 } from "brief-core";
 import type { CommitRange } from "brief-core/types";
-import type { RepoContext } from "brief-core";
+import type { CustomRiskAttributeInput, RepoContext } from "brief-core";
 import type { EvalProperty } from "./properties";
 
 /**
  * Each `cases/<id>/` dir carries a fully cached `fixture.json` (no GitHub at
  * eval time) and an `expected.ts` exporting the case's property checklist. The
- * fixture is Zod-validated — it crosses a file boundary and gets hand-edited.
+ * fixture is Zod-validated, it crosses a file boundary and gets hand-edited.
  */
 
 const PrFileSchema = z.object({
@@ -187,19 +187,14 @@ async function loadOne(
     };
   }
   const repoContext = toRepoContext(parsed.data.repoContext);
-  return {
-    ok: true,
-    value: {
-      id,
-      dir,
-      fixture: {
-        pr: toFetchedPr(parsed.data.pr),
-        commitRange: parsed.data.commitRange,
-        ...(repoContext !== undefined ? { repoContext } : {}),
-      },
-      properties,
-    },
+  const fixture: EvalFixture = {
+    pr: toFetchedPr(parsed.data.pr),
+    commitRange: parsed.data.commitRange,
   };
+
+  if (repoContext !== undefined) fixture.repoContext = repoContext;
+
+  return { ok: true, value: { id, dir, fixture, properties } };
 }
 
 /** The fixture's `pr` as the engine takes it: links numbered, the primary stamped as read. */
@@ -239,23 +234,37 @@ export function toSnippets(
   }));
 }
 
-/** Zod optionals infer `| undefined`; RepoContext's fields are exact-optional
- * — rebuild with conditional spreads instead of casting past the checker. */
+type FixtureRepoContext = NonNullable<
+  z.infer<typeof FixtureSchema>["repoContext"]
+>;
+type FixtureCustomAttribute = FixtureRepoContext["customAttributes"][number];
+
+/** Zod optionals infer `| undefined`; RepoContext's fields are exact-optional,
+ * so each optional field is assigned only when the fixture carries it. */
 export function toRepoContext(
   raw: z.infer<typeof FixtureSchema>["repoContext"],
 ): RepoContext | undefined {
   if (raw === undefined) return undefined;
-  return {
-    ...(raw.instructions !== undefined
-      ? { instructions: raw.instructions }
-      : {}),
-    customAttributes: raw.customAttributes.map((attr) => ({
-      name: attr.name,
-      criteria: attr.criteria,
-      ...(attr.implication !== undefined
-        ? { implication: attr.implication }
-        : {}),
-      ...(attr.paths !== undefined ? { paths: attr.paths } : {}),
-    })),
+
+  const context: Mutable<RepoContext> = {
+    customAttributes: raw.customAttributes.map(shapeCustomAttribute),
   };
+
+  if (raw.instructions !== undefined) context.instructions = raw.instructions;
+
+  return context;
+}
+
+function shapeCustomAttribute(
+  attr: FixtureCustomAttribute,
+): CustomRiskAttributeInput {
+  const attribute: Mutable<CustomRiskAttributeInput> = {
+    name: attr.name,
+    criteria: attr.criteria,
+  };
+
+  if (attr.implication !== undefined) attribute.implication = attr.implication;
+  if (attr.paths !== undefined) attribute.paths = attr.paths;
+
+  return attribute;
 }

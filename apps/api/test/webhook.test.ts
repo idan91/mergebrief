@@ -1,9 +1,5 @@
-// Integration tests for the webhook trust boundary: `app.request()` against
-// `createApp` over the persistence PGlite harness (real migrations + the
-// graphile_worker stub). Payloads are minimal inline builders satisfying
-// github's Zod schemas (shapes cribbed from that package's fixtures — not
-// imported), signed for real with `@octokit/webhooks-methods`. No network,
-// no LLM, no real Postgres.
+// Use real signatures and schema-valid payloads over PGlite with a graphile queue stub.
+// No network, model calls or real Postgres are needed at this boundary.
 import { sign } from "@octokit/webhooks-methods";
 import {
   createEnvKeyProvider,
@@ -96,22 +92,25 @@ function pullRequestPayload(input: {
   draft?: boolean;
   authorLogin?: string | null;
 }): Record<string, unknown> {
+  const pullRequest: Record<string, unknown> = {
+    title: "Update the README with new information.",
+    head: { sha: HEAD_SHA },
+    base: { sha: "f95f852bd8fca8fcc58a9a2d6c842781e32a215e" },
+    draft: input.draft ?? false,
+    user:
+      input.authorLogin === null
+        ? null
+        : { login: input.authorLogin ?? "author-octocat" },
+  };
+
+  if (input.merged !== undefined) pullRequest["merged"] = input.merged;
+
   return {
     action: input.action,
     number: input.prNumber ?? 2,
     installation: { id: INSTALLATION_ID },
     repository: { id: input.repoId ?? REPO_ID, full_name: "acme/widgets" },
-    pull_request: {
-      title: "Update the README with new information.",
-      head: { sha: HEAD_SHA },
-      base: { sha: "f95f852bd8fca8fcc58a9a2d6c842781e32a215e" },
-      draft: input.draft ?? false,
-      user:
-        input.authorLogin === null
-          ? null
-          : { login: input.authorLogin ?? "author-octocat" },
-      ...(input.merged === undefined ? {} : { merged: input.merged }),
-    },
+    pull_request: pullRequest,
   };
 }
 
@@ -223,7 +222,7 @@ describe("POST /api/webhooks/github", () => {
     await harness.close();
   });
 
-  it("pull_request opened with a valid signature → 200 + PR row + generation row + debounced job", async () => {
+  it("200s signed opened events with PR, generation and debounced job rows", async () => {
     const before = Date.now();
     const res = await deliver(
       app,
@@ -290,7 +289,7 @@ describe("POST /api/webhooks/github", () => {
         )
       ).status,
     ).toBe(200);
-    // A review carries neither draft nor author — must preserve both, exactly
+    // A review carries neither draft nor author, must preserve both, exactly
     // as it preserves base_sha.
     expect(
       (await deliver(app, "pull_request_review", pullRequestReviewPayload()))
@@ -302,7 +301,7 @@ describe("POST /api/webhooks/github", () => {
     expect(prs[0]?.["author_login"]).toBe("author-octocat");
   });
 
-  it("a pull_request event with user:null (deleted author) preserves the stored author_login", async () => {
+  it("preserves stored author_login when the event author is deleted", async () => {
     // Ingest with a known author.
     expect(
       (
@@ -317,7 +316,7 @@ describe("POST /api/webhooks/github", () => {
         )
       ).status,
     ).toBe(200);
-    // Redeliver the same PR's synchronize with `pull_request.user: null` —
+    // Redeliver the same PR's synchronize with `pull_request.user: null`,
     // GitHub's deleted-author shape. The omitted parse field must preserve the
     // stored login (pinning webhook.ts's `=== undefined` spread against a
     // future `?? null` refactor), while draft still updates normally.
@@ -340,7 +339,7 @@ describe("POST /api/webhooks/github", () => {
     expect(prs[0]?.["draft"]).toBe(false);
   });
 
-  it("ready_for_review flips draft false idempotently (route + webhook converge)", async () => {
+  it("converges ready_for_review and route flips idempotently", async () => {
     expect(
       (
         await deliver(
@@ -373,12 +372,9 @@ describe("POST /api/webhooks/github", () => {
     expect(prs[0]?.["author_login"]).toBe("author-octocat");
   });
 
-  it("converted_to_draft flips draft true WITHOUT touching generation or enqueueing (state-only)", async () => {
-    // A ready PR converted back to draft must re-enter own-draft state — but
-    // entering draft has no regen rationale: the
-    // event is state-only. The generation projection for the already-briefed
-    // head must be untouched (no phantom `queued`, no attempts bump) and no
-    // job may be scheduled beyond the one the earlier trigger left.
+  it("updates draft state without touching generation or enqueueing", async () => {
+    // Ready-to-draft transitions update state only. Preserve the generation projection
+    // and the earlier job without phantom queued status or an attempts increment.
     expect(
       (
         await deliver(
@@ -419,7 +415,7 @@ describe("POST /api/webhooks/github", () => {
     expect(prs[0]?.["draft"]).toBe(true);
     expect(prs[0]?.["author_login"]).toBe("author-octocat");
     // Generation projection untouched (status AND attempts), job list identical
-    // (same single job, run_at NOT pushed — no debounce replace happened).
+    // (same single job, run_at NOT pushed, no debounce replace happened).
     expect(
       await harness.raw("select status, attempts from generation"),
     ).toEqual(genBefore);
@@ -446,7 +442,7 @@ describe("POST /api/webhooks/github", () => {
     expect(again[0]?.["draft"]).toBe(true);
   });
 
-  it("redelivery is idempotent: one PR row, attempts++, one job with a pushed run_at", async () => {
+  it("redelivery increments attempts and defers the single existing job", async () => {
     const payload = pullRequestPayload({ action: "opened" });
     expect((await deliver(app, "pull_request", payload)).status).toBe(200);
     const firstJobs = await harness.raw(
@@ -467,7 +463,7 @@ describe("POST /api/webhooks/github", () => {
     expect(epochMs(jobs[0]?.["run_at"])).toBeGreaterThan(firstRunAt);
   });
 
-  it("pull_request_review submitted on a KNOWN PR → 200 + queued generation (gap-filler)", async () => {
+  it("200s submitted reviews on known PRs and queues generation", async () => {
     await seedPullRequest(harness, BigInt(REPO_ID), 2);
     const res = await deliver(
       app,
@@ -480,7 +476,7 @@ describe("POST /api/webhooks/github", () => {
     expect(await countRows(harness, "graphile_worker.jobs")).toBe(1);
   });
 
-  it("pull_request_review on an UNKNOWN PR → 200 no-op (no phantom open row)", async () => {
+  it("200s reviews on unknown PRs without creating phantom rows", async () => {
     const res = await deliver(
       app,
       "pull_request_review",
@@ -494,10 +490,10 @@ describe("POST /api/webhooks/github", () => {
     expect(await countRows(harness, "checkpoint")).toBe(0);
   });
 
-  it("submitted review writes the checkpoint pinned to review.commit_id, not head.sha", async () => {
+  it("pins submitted-review checkpoints to review.commit_id", async () => {
     await seedPullRequest(harness, BigInt(REPO_ID), 2);
     const viewedHead = "1111111111111111111111111111111111111111";
-    // head.sha stays HEAD_SHA (a push landed mid-review) — commit_id must win.
+    // head.sha stays HEAD_SHA (a push landed mid-review), commit_id must win.
     const res = await deliver(
       app,
       "pull_request_review",
@@ -516,7 +512,7 @@ describe("POST /api/webhooks/github", () => {
     expect(await countRows(harness, "graphile_worker.jobs")).toBe(1);
   });
 
-  it("Bot-authored review skips the checkpoint but still re-queues generation", async () => {
+  it("skips bot checkpoints while still queueing generation", async () => {
     await seedPullRequest(harness, BigInt(REPO_ID), 2);
     const res = await deliver(
       app,
@@ -528,7 +524,7 @@ describe("POST /api/webhooks/github", () => {
     expect(await countRows(harness, "graphile_worker.jobs")).toBe(1);
   });
 
-  it("out-of-order review deliveries keep the newest submission (monotonic)", async () => {
+  it("keeps the newest submitted review on out-of-order delivery", async () => {
     await seedPullRequest(harness, BigInt(REPO_ID), 2);
     const newerSha = "2222222222222222222222222222222222222222";
     const olderSha = "3333333333333333333333333333333333333333";
@@ -555,7 +551,7 @@ describe("POST /api/webhooks/github", () => {
     expect(String(rows[0]?.["last_submitted_sha"])).toBe(newerSha);
   });
 
-  it("review redelivery is idempotent — one checkpoint row, same values", async () => {
+  it("review redelivery is idempotent, one checkpoint row, same values", async () => {
     await seedPullRequest(harness, BigInt(REPO_ID), 2);
     const payload = pullRequestReviewPayload();
     await deliver(app, "pull_request_review", payload);
@@ -786,7 +782,7 @@ describe("POST /api/webhooks/github", () => {
     expect(audits[0]?.["target_type"]).toBe("repo");
   });
 
-  it("ignored event (pull_request labeled) → 200, no writes", async () => {
+  it("200s ignored pull_request labeled events without writes", async () => {
     const res = await deliver(
       app,
       "pull_request",
@@ -831,7 +827,7 @@ describe("POST /api/webhooks/github", () => {
       expect(delta).toBeLessThan(15_000);
     });
 
-    it("draft regeneration damps once a brief succeeded and damping is configured", async () => {
+    it("damps draft regeneration only after success and when configured", async () => {
       const damped = appWithPolicy({ generate: true, debounceSeconds: 900 });
       await deliver(
         damped,
@@ -850,7 +846,7 @@ describe("POST /api/webhooks/github", () => {
       expect(delta).toBeLessThan(910_000);
     });
 
-    it("a draft's FIRST brief uses the normal window even with damping configured", async () => {
+    it("keeps a draft's first brief on the normal window despite damping", async () => {
       const damped = appWithPolicy({ generate: true, debounceSeconds: 900 });
       const before = Date.now();
       await deliver(
@@ -881,7 +877,7 @@ describe("POST /api/webhooks/github", () => {
       expect(delta).toBeLessThan(65_000);
     });
 
-    it("generate: off — a draft trigger records state only (no generation, no job)", async () => {
+    it("generate off: records draft state without generating or enqueueing", async () => {
       const off = appWithPolicy({ generate: false, debounceSeconds: null });
       const res = await deliver(
         off,
@@ -896,7 +892,7 @@ describe("POST /api/webhooks/github", () => {
       expect(await countRows(harness, "graphile_worker.jobs")).toBe(0);
     });
 
-    it("generate: off — ready_for_review still produces the first generation", async () => {
+    it("generate: off, ready_for_review still produces the first generation", async () => {
       const off = appWithPolicy({ generate: false, debounceSeconds: null });
       await deliver(
         off,
@@ -915,7 +911,7 @@ describe("POST /api/webhooks/github", () => {
       expect(delta).toBeLessThan(15_000);
     });
 
-    it("generate: off — a review on a KNOWN draft PR keeps its checkpoint but skips the enqueue", async () => {
+    it("generate off: checkpoints known draft reviews without enqueueing", async () => {
       const off = appWithPolicy({ generate: false, debounceSeconds: null });
       await deliver(
         off,
@@ -932,7 +928,7 @@ describe("POST /api/webhooks/github", () => {
       expect(await countRows(harness, "graphile_worker.jobs")).toBe(0);
     });
 
-    it("generate: off — reopening a closed draft transitions it back to open (no wedge)", async () => {
+    it("generate off: reopens closed drafts so later events can proceed", async () => {
       const off = appWithPolicy({ generate: false, debounceSeconds: null });
       await deliver(
         off,
@@ -953,12 +949,12 @@ describe("POST /api/webhooks/github", () => {
       const prs = await harness.raw("select * from pull_request");
       expect(prs).toHaveLength(1);
       expect(prs[0]?.["state"]).toBe("open");
-      // Still a draft under generate: off — no generation, no job.
+      // Still a draft under generate: off, no generation, no job.
       expect(await countRows(harness, "generation")).toBe(0);
       expect(await countRows(harness, "graphile_worker.jobs")).toBe(0);
     });
 
-    it("ready_for_review replaces a pending draft-damped job with ONE short-window job", async () => {
+    it("replaces pending draft damping with one short ready_for_review job", async () => {
       const damped = appWithPolicy({ generate: true, debounceSeconds: 900 });
       await deliver(
         damped,
@@ -982,7 +978,7 @@ describe("POST /api/webhooks/github", () => {
       expect(delta).toBeLessThan(15_000);
     });
 
-    it("a review on a damped draft regenerates on the NORMAL window (damping is for push storms)", async () => {
+    it("uses the normal review window even when draft pushes are damped", async () => {
       const damped = appWithPolicy({ generate: true, debounceSeconds: 900 });
       await deliver(
         damped,
@@ -997,7 +993,7 @@ describe("POST /api/webhooks/github", () => {
       expect(delta).toBeLessThan(65_000);
     });
 
-    it("generate: off — a review on a KNOWN non-draft PR still enqueues", async () => {
+    it("generate: off, a review on a KNOWN non-draft PR still enqueues", async () => {
       const off = appWithPolicy({ generate: false, debounceSeconds: null });
       await deliver(
         off,
@@ -1039,7 +1035,7 @@ describe("webhook event logging", () => {
     return { app, capture };
   }
 
-  it("invalid signature emits webhook.verify.fail at warn with deliveryId + reqId", async () => {
+  it("warns on invalid signatures with delivery and request correlation ids", async () => {
     const { app, capture } = appWithCapture();
     const res = await deliver(
       app,
@@ -1062,7 +1058,7 @@ describe("webhook event logging", () => {
   it("dispatch failure emits webhook.dispatch.fail at error with deliveryId", async () => {
     const { app, capture } = appWithCapture();
     // Poison the write path AFTER app construction: the dispatch's first
-    // tenant write hits a missing table and throws — the route's 500 path.
+    // tenant write hits a missing table and throws, the route's 500 path.
     await harness.raw(
       "alter table pull_request rename to pull_request_poisoned",
     );

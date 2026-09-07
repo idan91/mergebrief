@@ -1,9 +1,5 @@
-// Repo-file fetch for the `.mergebrief/` config surface: read ONE file's
-// content via the contents API. Default-branch resolution is delegated to
-// GitHub — omitting `ref` serves the repository's default branch, avoiding a
-// `repos.get` round-trip and its staleness window. The size guard rejects
-// oversize blobs BEFORE decoding; the semantic byte budgets live in
-// `repo-config`, not here.
+// Omit ref so GitHub selects the default branch without a stale repos.get round trip.
+// Reject oversized blobs before decoding; repo-config owns semantic byte budgets.
 import type { Octokit } from "octokit";
 import { RequestError } from "octokit";
 import { z } from "zod";
@@ -25,13 +21,13 @@ export interface RepoFileContent {
   readonly kind: typeof RepoFileKinds.FILE;
   /** UTF-8 decoded file content. */
   readonly content: string;
-  /** Git blob SHA of the served content — the origin stamp. */
+  /** Git blob SHA of the served content, the origin stamp. */
   readonly blobSha: string;
   /** Blob size in bytes, as reported by GitHub. */
   readonly size: number;
 }
 
-/** The path does not exist on the resolved ref — an outcome, not an error. */
+/** The path does not exist on the resolved ref, an outcome, not an error. */
 export interface RepoFileAbsent {
   readonly kind: typeof RepoFileKinds.ABSENT;
 }
@@ -68,7 +64,7 @@ const contentsFileSchema = z.object({
   content: z.string().optional(),
   encoding: z.string().optional(),
   // GitHub reports followed/unfollowable symlinks and submodules through
-  // these markers even when `type` reads "file" — their presence disqualifies
+  // these markers even when `type` reads "file", their presence disqualifies
   // the payload as a regular blob.
   target: z.string().optional(),
   submodule_git_url: z.string().optional(),
@@ -79,7 +75,7 @@ const BASE64_BODY = /^[A-Za-z0-9+/]*={0,2}$/;
 
 /**
  * Decode a contents-API base64 payload strictly: canonical alphabet/padding
- * only, and the result must be valid UTF-8 — replacing bytes with U+FFFD would
+ * only, and the result must be valid UTF-8, replacing bytes with U+FFFD would
  * hand a corrupted file downstream as if it were the committed content.
  */
 function decodeBase64Utf8(
@@ -100,9 +96,18 @@ function decodeBase64Utf8(
   }
 }
 
+// A type alias, not an interface: octokit's `RequestParameters` index
+// signature is only satisfied implicitly by an object-literal type.
+type RepoContentsParams = {
+  owner: string;
+  repo: string;
+  path: string;
+  ref?: string;
+};
+
 /**
  * Fetch one repo file's decoded content via the contents API. A 404 is the
- * `absent` outcome (expected — most repos carry no `.mergebrief/`); a blob
+ * `absent` outcome (expected, most repos carry no `.mergebrief/`); a blob
  * over `maxBytes` is `too-large` (rejected before decode); a non-file path
  * (directory/symlink/submodule) or non-base64 payload is a sanitized error.
  */
@@ -112,14 +117,17 @@ export async function getRepoFile(
 ): Promise<Result<RepoFileResult, GitHubApiError>> {
   let body: unknown;
   try {
+    const params: RepoContentsParams = {
+      owner: input.owner,
+      repo: input.repo,
+      path: input.path,
+    };
+
+    if (input.ref !== undefined) params.ref = input.ref;
+
     const response = await octokit.request(
       "GET /repos/{owner}/{repo}/contents/{path}",
-      {
-        owner: input.owner,
-        repo: input.repo,
-        path: input.path,
-        ...(input.ref === undefined ? {} : { ref: input.ref }),
-      },
+      params,
     );
     body = response.data;
   } catch (error) {
@@ -130,7 +138,7 @@ export async function getRepoFile(
   }
 
   if (Array.isArray(body)) {
-    // Directory listing — the path is not a file.
+    // Directory listing, the path is not a file.
     return { ok: false, error: unexpectedResponseError("fetch repo file") };
   }
   const parsed = contentsFileSchema.safeParse(body);
@@ -158,7 +166,7 @@ export async function getRepoFile(
     return { ok: false, error: unexpectedResponseError("fetch repo file") };
   }
   if (decoded.bytes > input.maxBytes) {
-    // The reported `size` passed the guard but the actual payload is bigger —
+    // The reported `size` passed the guard but the actual payload is bigger,
     // the decoded byte count is the truth the cap protects.
     return {
       ok: true,

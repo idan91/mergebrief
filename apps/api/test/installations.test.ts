@@ -1,8 +1,5 @@
-// Multi-org endpoint tests: GET + POST /api/auth/installations.
-// Same harness as pulls.test.ts: `app.request()`
-// over PGlite, GitHub stubbed at the global-fetch boundary. The accessible set
-// is ALWAYS re-derived from GitHub (`GET /user/installations`, viewer token) —
-// a switch to anything outside it is a 403 with NO session/settings mutation.
+// Re-derive accessible installations from GitHub with the viewer token on every switch.
+// An inaccessible selection must 403 without mutating session or settings.
 import { randomBytes, createHash } from "node:crypto";
 import {
   encryptToken,
@@ -77,7 +74,7 @@ function installationsOk(
 
 interface StubConfig {
   readonly installations?: (call: number) => Response;
-  /** `GET /user/installations/{id}/repositories` — the list endpoint's set. */
+  /** `GET /user/installations/{id}/repositories`, the list endpoint's set. */
   readonly installationRepos?: (call: number, url: string) => Response;
   readonly token?: (call: number) => Response;
 }
@@ -213,12 +210,15 @@ describe("GET + POST /api/auth/installations", () => {
     body: unknown,
     cookie?: string,
   ): Promise<Response> {
+    const headers: Record<string, string> = {
+      "content-type": "application/json",
+    };
+
+    if (cookie !== undefined) headers["Cookie"] = `rs_session=${cookie}`;
+
     return app.request(path, {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        ...(cookie === undefined ? {} : { Cookie: `rs_session=${cookie}` }),
-      },
+      headers,
       body: JSON.stringify(body),
     });
   }
@@ -232,7 +232,7 @@ describe("GET + POST /api/auth/installations", () => {
 
   // ------------------------------------------------------------------- list
 
-  it("list: 401 without a session (no GitHub call)", async () => {
+  it("list: 401s absent sessions without calling GitHub", async () => {
     const counts = stubGitHub({ installations: () => installationsOk([]) });
     const res = await get("/api/auth/installations");
     expect(res.status).toBe(401);
@@ -282,7 +282,7 @@ describe("GET + POST /api/auth/installations", () => {
 
   // ----------------------------------------------------------------- switch
 
-  it("switch: to an accessible installation rebinds the session (200)", async () => {
+  it("switch: rebinds the session to an accessible installation", async () => {
     stubGitHub({
       installations: () =>
         installationsOk([
@@ -309,7 +309,7 @@ describe("GET + POST /api/auth/installations", () => {
     expect(await sessionInstallationId()).toBe(String(OTHER_INSTALLATION_ID));
   });
 
-  it("switch: the next /api/pulls uses the NEW installation's repo set (no stale cache)", async () => {
+  it("switch: uses the new installation's repo set on the next pull read", async () => {
     const REPO_A = 424242;
     const REPO_B = 535353;
     const counts = stubGitHub({
@@ -363,7 +363,7 @@ describe("GET + POST /api/auth/installations", () => {
     expect(switched.status).toBe(200);
 
     // Immediately after the switch (inside the 60s TTL) the list must resolve
-    // the NEW installation's set — never reuse the pre-switch cache entry.
+    // the NEW installation's set, never reuse the pre-switch cache entry.
     const after = await get("/api/pulls", cookie);
     expect(after.status).toBe(200);
     const afterBody = (await after.json()) as {
@@ -403,7 +403,7 @@ describe("GET + POST /api/auth/installations", () => {
     );
   });
 
-  it("switch: to an inaccessible installation → 403 AND no session/settings mutation", async () => {
+  it("switch: 403s inaccessible installations without changing state", async () => {
     stubGitHub({
       installations: () =>
         installationsOk([{ id: INSTALLATION_ID, login: "acme" }]),
@@ -418,7 +418,7 @@ describe("GET + POST /api/auth/installations", () => {
     expect(res.status).toBe(403);
     // Session tenant stamp unchanged.
     expect(await sessionInstallationId()).toBe(String(INSTALLATION_ID));
-    // No default written despite setDefault:true — validation precedes any write.
+    // No default written despite setDefault:true, validation precedes any write.
     expect(
       await createUserSettingsStore(harness.handle).get(REVIEWER),
     ).toBeUndefined();

@@ -1,6 +1,6 @@
 // Submit-route integration tests: `app.request()` against `createApp` over the
 // PGlite harness, GitHub stubbed at the global-fetch boundary (same pattern as
-// reads.test.ts). Pins that the route never writes the checkpoint — the webhook
+// reads.test.ts). Pins that the route never writes the checkpoint, the webhook
 // is its only writer.
 import { randomBytes } from "node:crypto";
 import {
@@ -36,12 +36,8 @@ import {
   hashSha256Hex,
 } from "./fixtures";
 
-// POST /pulls/{n}/reviews is on octokit's `triggersNotification` list, so the
-// throttling plugin spaces consecutive create-review calls ~3s apart through
-// MODULE-GLOBAL Bottleneck groups (shared across every test in this file, and
-// unfakeable: freezing/rewinding Date.now poisons the shared limiters — see
-// reads.test.ts). Tests that make a second POST therefore legitimately take
-// seconds; give the file the headroom instead of fighting the throttle.
+// Octokit spaces notification-triggering review POSTs about 3s apart through shared
+// Bottleneck groups. Give repeated-POST tests enough time; fake clocks poison those limiters.
 vi.setConfig({ testTimeout: 30_000 });
 
 const REPO_ID = 424242;
@@ -56,7 +52,7 @@ const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 const CTX = { installationId: brandInstallationId(BigInt(INSTALLATION_ID)) };
 
 // ---------------------------------------------------------------------------
-// GitHub HTTP stub (global fetch) — dispatches on URL/method, counts calls.
+// GitHub HTTP stub (global fetch), dispatches on URL/method, counts calls.
 // ---------------------------------------------------------------------------
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -120,7 +116,7 @@ interface StubCounts {
   token: number;
   /** Parsed JSON body of each create-review POST, in order. */
   readonly reviewBodies: unknown[];
-  /** URL of each create-review POST, in order — pins the target repo slug. */
+  /** URL of each create-review POST, in order, pins the target repo slug. */
   readonly reviewUrls: string[];
 }
 
@@ -210,7 +206,7 @@ async function seedPullRequest(handle: AppDatabase): Promise<void> {
 }
 
 /**
- * The Brief the submit names, plus the drafts the session holds — one
+ * The Brief the submit names, plus the drafts the session holds, one
  * single-line anchor and one multi-line range on the old side. They ARE the
  * review's comments; nothing about them rides on the request.
  */
@@ -300,12 +296,15 @@ async function submit(
   body: unknown,
   path = SUBMIT_PATH,
 ): Promise<Response> {
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+  };
+
+  if (cookie !== undefined) headers["cookie"] = `rs_session=${cookie}`;
+
   return await app.request(path, {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-      ...(cookie === undefined ? {} : { cookie: `rs_session=${cookie}` }),
-    },
+    headers,
     body: JSON.stringify(body),
   });
 }
@@ -343,7 +342,7 @@ async function seedCarriedDraft(
   return String(written.value.id);
 }
 
-/** One two-side draft (old\u2192new) on the session — start leg on the base. */
+/** One two-side draft (old\u2192new) on the session, start leg on the base. */
 async function seedTwoSideDraft(
   handle: AppDatabase,
   briefId: BriefRowId,
@@ -455,7 +454,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     await harness.close();
   });
 
-  it("401 when no session cookie is present (no GitHub call)", async () => {
+  it("401s absent session cookies without calling GitHub", async () => {
     const counts = stubGitHub({});
     const res = await submit(app, undefined, validBody());
     expect(res.status).toBe(401);
@@ -472,7 +471,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     expect(res.status).toBe(404);
   });
 
-  it("400 on an ill-shaped body (bad outcome, missing outcome, non-JSON)", async () => {
+  it("400s invalid or absent outcomes and non-JSON bodies", async () => {
     stubGitHub({ repositories: () => repoOk() });
     await seedPullRequest(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
@@ -495,7 +494,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     expect(counts.createReview).toBe(0);
   });
 
-  it("400 on request-changes without a body (GitHub requires one) — no GitHub call", async () => {
+  it("400s bodyless request-changes without calling GitHub", async () => {
     const counts = stubGitHub({ repositories: () => repoOk() });
     await seedPullRequest(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
@@ -505,7 +504,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     expect(counts.createReview).toBe(0);
   });
 
-  it("400 when the held drafts could not be folded within the body budget (no GitHub call)", async () => {
+  it("400s drafts exceeding the fold budget without calling GitHub", async () => {
     // Every accepted submit must be representable by the degradation fold:
     // individually-valid drafts whose FOLDED body would exceed GitHub's cap
     // are rejected deterministically before any upstream side effect.
@@ -521,7 +520,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     expect(counts.createReview).toBe(0);
   });
 
-  it("409 draft-anchor-orphaned when the session holds an orphaned draft (no GitHub call)", async () => {
+  it("409s orphaned drafts without calling GitHub", async () => {
     const counts = stubGitHub({ repositories: () => repoOk() });
     await seedPullRequest(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
@@ -540,7 +539,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     expect(await draftStatuses(harness)).toEqual(["draft", "draft", "draft"]);
   });
 
-  it("a moved anchor is not orphaned — the submit posts it at its carried coordinates", async () => {
+  it("posts moved anchors at their carried coordinates", async () => {
     const counts = stubGitHub({
       repositories: () => repoOk(),
       createReview: () => reviewCreated(987001),
@@ -588,7 +587,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     const res = await submit(app, cookie, validBody());
     expect(res.status).toBe(201);
     expect(counts.createReview).toBe(1);
-    // Re-placed, then published — the draft the reviewer wrote still lands.
+    // Re-placed, then published, the draft the reviewer wrote still lands.
     expect(await draftStatuses(harness)).toEqual([
       "submitted",
       "submitted",
@@ -626,7 +625,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     expect(res.status).toBe(404);
   });
 
-  it("posts ONE grouped formal review pinned to commitId; audit row; NO checkpoint", async () => {
+  it("posts one pinned grouped review and audits without checkpointing", async () => {
     const counts = stubGitHub({
       repositories: () => repoOk(),
       createReview: () => reviewCreated(987001),
@@ -643,7 +642,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
 
     // Exactly ONE per-repo gate ran (mount order: the submit route's gate is
     // the only one a POST traverses), plus the route's own FRESH slug resolve
-    // for the mutating write — two /repositories/{id} calls, no more.
+    // for the mutating write, two /repositories/{id} calls, no more.
     expect(counts.repositories).toBe(2);
     // Exactly one grouped POST, wire shape pinned to the viewed head.
     expect(counts.createReview).toBe(1);
@@ -664,7 +663,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
       ],
     });
 
-    // Audit: one `submit` row. Checkpoint: NONE — the webhook is the only
+    // Audit: one `submit` row. Checkpoint: NONE, the webhook is the only
     // checkpoint writer; the route must never write it.
     expect(await submitAuditCount(harness)).toBe(1);
     const checkpoints = await harness.raw(
@@ -777,10 +776,10 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     };
   }
 
-  it("keeps the 201 and logs a plain error when the bookkeeping dies after the post", async () => {
+  it("keeps 201 and logs when post-commit bookkeeping fails", async () => {
     // The GitHub write is the commit point: a local failure after it must
     // never read as "nothing was submitted", which would invite a second
-    // review. `audit.fail` is NOT this failure — it names an audit ROW that
+    // review. `audit.fail` is NOT this failure, it names an audit ROW that
     // would not persist, and raising it here alerts on the wrong thing.
     const { capture, app: captureApp } = capturingApp();
     stubGitHub({
@@ -868,7 +867,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     expect(res.status).toBe(409);
     expect(await readWireCode(res)).toBe("pr-changed-since-read");
     expect(counts.createReview).toBe(0);
-    // Only the gate's own access check ran — the route never re-resolved.
+    // Only the gate's own access check ran, the route never re-resolved.
     expect(counts.repositories).toBe(1);
     expect(await draftStatuses(harness)).not.toContain("submitted");
   });
@@ -899,9 +898,9 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     );
   });
 
-  it("404 collapse when the fresh resolve is denied (revoked inside the cache TTL)", async () => {
+  it("404s fresh-resolution denial after access was cached", async () => {
     // The gate passes (positive cache semantics), but access was revoked
-    // before the route's fresh resolve — the denial must collapse to the
+    // before the route's fresh resolve, the denial must collapse to the
     // same 404 a cold gate denial produces, never a distinguishable 502.
     const counts = stubGitHub({
       repositories: (call) => (call === 0 ? repoOk() : repoStatus(403)),
@@ -934,7 +933,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     expect(await submitAuditCount(harness)).toBe(1);
   });
 
-  it("anchoring 422 → ONE degradation retry with comments folded into the body", async () => {
+  it("retries anchoring 422 once with comments folded into the body", async () => {
     const counts = stubGitHub({
       repositories: () => repoOk(),
       createReview: (call) =>
@@ -967,7 +966,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     expect(await submitAuditCount(harness)).toBe(1);
   });
 
-  it("refreshes once when the token expires between the anchored attempt and the degradation retry", async () => {
+  it("refreshes once between anchored submission and degradation retry", async () => {
     const counts = stubGitHub({
       repositories: () => repoOk(),
       token: () => tokenSuccess(),
@@ -1027,7 +1026,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     expect(await submitAuditCount(harness)).toBe(0);
   });
 
-  it("double-submit produces two reviews (documented-allowed; guard is FE-only)", async () => {
+  it("allows two reviews from repeated submissions", async () => {
     const counts = stubGitHub({
       repositories: () => repoOk(),
       createReview: (call) => reviewCreated(987001 + call),

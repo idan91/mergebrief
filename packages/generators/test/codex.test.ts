@@ -12,14 +12,12 @@ import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
 import { CodexGenerator } from "../src/adapters/codex";
 import { GeneratorError, GeneratorErrorKinds } from "../src/contract/errors";
+import type { GenerateRequest } from "../src/contract/generator";
 import { createGenerator, Providers } from "../src/config/registry";
 
 /**
- * Adapter-specific behavior on real fake-codex processes: invocation
- * profile (argv, schema tempfile), last-agent-message selection, opaque
- * classification with untrusted-message hygiene, origin (effort echoed,
- * reroute blind spot), and registry construction. Pipeline conformance
- * lives in codex.contract.test.ts.
+ * Use real fake-codex processes for argv, tempfile, envelope and origin behavior.
+ * Keep shared pipeline conformance in codex.contract.test.ts.
  */
 
 const FAKE_CODEX = join(
@@ -55,15 +53,18 @@ function makeGenerator(
   });
 }
 
-function request(log?: (m: string) => void) {
-  return {
+function request(log?: (m: string) => void): GenerateRequest<typeof Schema> {
+  const req: GenerateRequest<typeof Schema> = {
     schema: Schema,
     system: "you are a test",
     user: "produce ok",
-    effort: "high" as const,
+    effort: "high",
     label: "probe",
-    ...(log ? { log } : {}),
   };
+
+  if (log) req.log = log;
+
+  return req;
 }
 
 describe("CodexGenerator invocation profile", () => {
@@ -82,7 +83,7 @@ describe("CodexGenerator invocation profile", () => {
     const argv: unknown = JSON.parse(
       readFileSync(join(scriptDir, "argv-0.json"), "utf8"),
     );
-    // The COMPLETE lockdown argv contract — read-only sandbox, no session
+    // The COMPLETE lockdown argv contract, read-only sandbox, no session
     // persistence, effort mapped to model_reasoning_effort, no --model
     // when unconfigured.
     expect(argv).toEqual([
@@ -117,7 +118,7 @@ describe("CodexGenerator invocation profile", () => {
     expect(existsSync(String(Reflect.get(meta, "path")))).toBe(false);
   });
 
-  it("sends the all-required null-union schema and strips stand-in nulls (OpenAI strict mode rejects optional properties)", async () => {
+  it("sends strict all-required null unions and removes stand-in nulls", async () => {
     const scriptDir = tempDir("codex-optional-");
     writeFileSync(
       join(scriptDir, "turns.json"),
@@ -197,7 +198,7 @@ describe("CodexGenerator invocation profile", () => {
   it("stamps codex-default and echoes effort when no model is configured", () => {
     const generator = makeGenerator({});
     // The reroute blind spot: no JSONL event carries a model id, so the
-    // stamp is the static declaration — here, the CLI's own default.
+    // stamp is the static declaration, here, the CLI's own default.
     expect(generator.origin("medium")).toEqual({
       provider: "codex",
       model: "codex-default",
@@ -226,7 +227,7 @@ describe("CodexGenerator answer selection and classification", () => {
     );
     if (!(caught instanceof GeneratorError)) throw new Error("wrong rejection");
     expect(caught.kind).toBe(GeneratorErrorKinds.OPAQUE);
-    // The shim's message is "stream error: rate limited" — free-form CLI
+    // The shim's message is "stream error: rate limited", free-form CLI
     // text must never reach the error message.
     expect(caught.message).not.toContain("rate limited");
     expect(caught.message).toContain("in-band error event");
@@ -247,8 +248,8 @@ describe("CodexGenerator answer selection and classification", () => {
     expect(caught.message).not.toContain("SENTINEL");
   });
 
-  it("ignores a non-string agent_message text without erasing an earlier answer", async () => {
-    // Envelope drift: a valid answer followed by a non-string text item —
+  it("preserves earlier answers when agent_message text is not a string", async () => {
+    // Envelope drift: a valid answer followed by a non-string text item,
     // the drifted item must not overwrite the answer with "".
     const scriptDir = tempDir("codex-nonstring-");
     writeFileSync(
@@ -262,7 +263,7 @@ describe("CodexGenerator answer selection and classification", () => {
     await expect(generator.generate(request())).resolves.toEqual({ ok: true });
   });
 
-  it("voids an answer that arrives alongside a fatal event on a drifted exit 0", async () => {
+  it("voids answers paired with fatal events even on exit zero", async () => {
     const scriptDir = tempDir("codex-fatalanswer-");
     writeFileSync(
       join(scriptDir, "turns.json"),
@@ -296,7 +297,7 @@ describe("CodexGenerator answer selection and classification", () => {
     });
   });
 
-  it("hands a non-JSON answer to the floor (second parse is the floor's)", async () => {
+  it("passes non-JSON answers to the schema floor for parsing", async () => {
     const scriptDir = tempDir("codex-nonjson-");
     writeFileSync(
       join(scriptDir, "turns.json"),

@@ -1,6 +1,6 @@
 // The structured-logging boundary: pino is constructed here and nowhere else,
 // and no pino type or value ever appears in an exported signature.
-import { pino, stdSerializers } from "pino";
+import { pino, stdSerializers, type LoggerOptions } from "pino";
 import type { ValueOf } from "types";
 import { scrubSecrets, URL_SHAPED_LOG } from "./scrub";
 
@@ -18,7 +18,7 @@ export interface Logger {
   child(bindings: LogFields): Logger;
 }
 
-// Four levels only (matches graphile-worker); no `fatal` — fatal moments log
+// Four levels only (matches graphile-worker); no `fatal`, fatal moments log
 // `error` and exit.
 export const LogLevels = {
   ERROR: "error",
@@ -57,11 +57,8 @@ export function resolveLoggerConfig(env: NodeJS.ProcessEnv): LoggerConfig {
   return { level: raw, pretty: env["NODE_ENV"] === "development" };
 }
 
-// Secret vocabulary redacted at top level AND one wildcard depth — including
-// under `params` (wire-error interpolation params) at both depths — plus the
-// sensitive request headers; `remove: true` makes redacted keys VANISH with no
-// placeholder. Extending the vocabulary is non-breaking; narrowing it needs a
-// decision-record amendment.
+// Redact secret keys at top level and one wildcard depth, including params and sensitive headers.
+// Remove keys without placeholders. Narrowing the vocabulary needs a decision-record amendment.
 const SECRET_KEYS = [
   "token",
   "accessToken",
@@ -84,12 +81,9 @@ const REDACT_PATHS = [
   ...SECRET_KEYS.map((key) => `*.params.${key}`),
 ];
 
-// Substring scrub for secrets embedded in strings, which key-path redaction is
-// structurally blind to — both families live in `scrub.ts`, shared with the
-// error-detail sanitizer. Scope is `err`/`error` (every string field of the
-// serialized error) plus `msg` ONLY: a secret under any other field name
-// emits verbatim, so structured secrets must ride SECRET_KEYS. There is
-// deliberately no disable knob.
+// Shared scrub.ts patterns protect strings that key-path redaction cannot recognize.
+// Scrub every serialized err/error string and msg only. Other fields must use SECRET_KEYS
+// to avoid leaking structured secrets; there is deliberately no disable option.
 function scrubString(text: string): string {
   return scrubSecrets(text, URL_SHAPED_LOG);
 }
@@ -145,14 +139,14 @@ function scrubbedErrSerializer(value: unknown): unknown {
       serialized = stdSerializers.err(value);
     } catch {
       // A frozen error-like makes pino's cycle-tag write throw, and pino calls
-      // serializers with no try/catch — a logger must never crash its call
+      // serializers with no try/catch, a logger must never crash its call
       // site. Diagnostics degrade here; the scrub below still runs.
     }
   }
   return scrubValue(serialized, new WeakSet());
 }
 
-/** Anything with a sonic-boom-compatible `write` — injectable for tests. */
+/** Anything with a sonic-boom-compatible `write`, injectable for tests. */
 export interface LogDestination {
   write(line: string): void;
 }
@@ -185,7 +179,7 @@ function wrap(instance: PinoLike): Logger {
 }
 
 /**
- * The ONE place pino is constructed. Env is injected — this package never
+ * The ONE place pino is constructed. Env is injected, this package never
  * reads `process.env`. String level labels (`"level":"warn"`) are part of the
  * operator-facing line shape; changing the rendering is a breaking change.
  */
@@ -193,22 +187,23 @@ export function createLogger(options: CreateLoggerOptions = {}): Logger {
   const { env = {}, base, destination } = options;
   const { level, pretty } = resolveLoggerConfig(env);
 
-  const pinoOptions = {
+  const pinoOptions: LoggerOptions = {
     level,
     redact: { paths: REDACT_PATHS, remove: true },
     // Both keys on purpose: an `error:` slip-up under pino's default path
-    // drops message/stack while emitting enumerable props — the leak shape.
+    // drops message/stack while emitting enumerable props, the leak shape.
     serializers: { err: scrubbedErrSerializer, error: scrubbedErrSerializer },
     formatters: {
       level: (label: string) => ({ level: label }),
     },
-    ...(base === undefined ? {} : { base }),
-    // pino-pretty is a devDependency: referenced only in dev mode, resolved
-    // lazily inside pino's worker thread.
-    ...(pretty && destination === undefined
-      ? { transport: { target: "pino-pretty" } }
-      : {}),
   };
+
+  if (base !== undefined) pinoOptions.base = base;
+  // pino-pretty is a devDependency: referenced only in dev mode, resolved
+  // lazily inside pino's worker thread.
+  if (pretty && destination === undefined) {
+    pinoOptions.transport = { target: "pino-pretty" };
+  }
 
   const instance =
     destination === undefined

@@ -1,9 +1,5 @@
-// Read-API + authz-gate integration tests: `app.request()` against `createApp`
-// over the persistence PGlite harness, with GitHub mocked at the HTTP boundary
-// via a stubbed global `fetch` — the same pattern as `auth.test.ts`. The stub
-// answers the endpoints the gate and the diff proxy touch: `GET
-// /repositories/{id}` (the access check), the span diff, and the OAuth token
-// endpoint (refresh). Call counts assert the positive cache + diff cache.
+// Exercise authz and diff caching through app.request over PGlite and the HTTP stub.
+// The stub covers repository access, span diffs and OAuth refresh; counts expose caching.
 import { randomBytes } from "node:crypto";
 import {
   createArtifactStore,
@@ -17,8 +13,10 @@ import {
   WriteClassifications,
   type AppDatabase,
   type KeyProvider,
+  type BriefWriteInput,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
+import type { Mutable } from "types";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import { testLogger } from "./logging";
@@ -54,7 +52,7 @@ const DIFF_TEXT = "diff --git a/f b/f\n@@ -1 +1 @@\n-old\n+new\n";
 const CTX = { installationId: brandInstallationId(BigInt(INSTALLATION_ID)) };
 
 // ---------------------------------------------------------------------------
-// GitHub HTTP stub (global fetch) — dispatches on URL, counts calls per family.
+// GitHub HTTP stub (global fetch), dispatches on URL, counts calls per family.
 // ---------------------------------------------------------------------------
 
 interface TokenSuccess {
@@ -115,7 +113,7 @@ interface StubCounts {
   repositories: number;
   diff: number;
   token: number;
-  /** Every fetched URL, in order — lets a test assert the requested diff span. */
+  /** Every fetched URL, in order, lets a test assert the requested diff span. */
   readonly urls: string[];
 }
 
@@ -219,7 +217,7 @@ async function seedBrief(
     PR_NUMBER,
   );
   if (pr === undefined) throw new Error("seedBrief: pr missing");
-  const written = await createArtifactStore(handle, CTX).briefs.write({
+  const write: Mutable<BriefWriteInput> = {
     pullRequestId: pr.id,
     baseSha: base,
     headSha: head,
@@ -229,8 +227,11 @@ async function seedBrief(
     model: "claude",
     effort: "high",
     body: BRIEF_BODY,
-    ...(repoConfig === undefined ? {} : { repoConfig }),
-  });
+  };
+
+  if (repoConfig !== undefined) write.repoConfig = repoConfig;
+
+  const written = await createArtifactStore(handle, CTX).briefs.write(write);
   if (!written.ok)
     throw new Error(`seedBrief: write failed ${written.error.code}`);
 }
@@ -279,13 +280,9 @@ function diffPath(base: string, head: string): string {
 // Suite.
 // ---------------------------------------------------------------------------
 
-// Virtual clock: `Date.now` = real time + a FORWARD-ONLY offset, installed for
-// every test. The TTL test advances the offset instead of freezing time —
-// octokit's throttling plugin keeps MODULE-GLOBAL Bottleneck groups whose
-// limiters record `Date.now` timestamps, so a frozen/rewound clock (fake
-// timers, a scoped spy that restores) poisons every later GitHub-calling test
-// in the file with a phantom ~61s throttle wait. A monotonic offset that never
-// rewinds keeps those shared limiters consistent.
+// Use a forward-only Date.now offset for TTL tests. Octokit shares Bottleneck groups
+// across the file; freezing or rewinding time can poison later calls with a 61s wait.
+// Never restore an earlier clock while those groups survive.
 const realNow = Date.now.bind(Date);
 let clockOffsetMs = 0;
 
@@ -323,14 +320,14 @@ describe("reviewer read API + authz gate", () => {
     await harness.close();
   });
 
-  it("401 when no session cookie is present (no GitHub call)", async () => {
+  it("401s absent session cookies without calling GitHub", async () => {
     const counts = stubGitHub({ repositories: () => repoOk() });
     const res = await app.request(briefPath("base", "head"));
     expect(res.status).toBe(401);
     expect(counts.repositories).toBe(0);
   });
 
-  it("401 for an unknown session cookie (no GitHub call)", async () => {
+  it("401s unknown session cookies without calling GitHub", async () => {
     const counts = stubGitHub({ repositories: () => repoOk() });
     const res = await app.request(briefPath("base", "head"), {
       headers: {
@@ -341,7 +338,7 @@ describe("reviewer read API + authz gate", () => {
     expect(counts.repositories).toBe(0);
   });
 
-  it("404 with no repo access → NO audit row for a read, and the negative is NOT cached", async () => {
+  it("404s repo denial without an audit row or negative cache entry", async () => {
     const counts = stubGitHub({ repositories: () => repoStatus(404) });
     const { cookie } = await seedSession(harness.handle, kp);
     await seedPullRequest(harness.handle);
@@ -351,7 +348,7 @@ describe("reviewer read API + authz gate", () => {
     });
     expect(first.status).toBe(404);
 
-    // Reads are never audited — a denied one included. The refusal is
+    // Reads are never audited, a denied one included. The refusal is
     // visible on the `api.access` line, not in the ledger.
     const auditRows = await harness.raw("select operation from audit_log");
     expect(auditRows).toHaveLength(0);
@@ -364,7 +361,7 @@ describe("reviewer read API + authz gate", () => {
     expect(counts.repositories).toBe(2);
   });
 
-  it("403 from GitHub also collapses to 404 (no existence leak)", async () => {
+  it("collapses GitHub 403 to a uniform 404", async () => {
     stubGitHub({ repositories: () => repoStatus(403) });
     const { cookie } = await seedSession(harness.handle, kp);
     await seedPullRequest(harness.handle);
@@ -374,7 +371,7 @@ describe("reviewer read API + authz gate", () => {
     expect(res.status).toBe(404);
   });
 
-  it("200 authorized brief read returns the stored body; a missing span is 404", async () => {
+  it("returns authorized stored briefs and 404s missing spans", async () => {
     stubGitHub({ repositories: () => repoOk() });
     const { cookie } = await seedSession(harness.handle, kp);
     await seedPullRequest(harness.handle);
@@ -393,7 +390,7 @@ describe("reviewer read API + authz gate", () => {
     expect(missing.status).toBe(404);
   });
 
-  it("brief-context returns the snapshot for a span, null for rows written before snapshots existed, 404 for no row", async () => {
+  it("returns snapshots, null for legacy rows, and 404 for missing rows", async () => {
     stubGitHub({ repositories: () => repoOk() });
     const { cookie } = await seedSession(harness.handle, kp);
     await seedPullRequest(harness.handle);
@@ -432,7 +429,7 @@ describe("reviewer read API + authz gate", () => {
     );
   });
 
-  it("200 authorized delta read returns the stored body; a missing span is 404", async () => {
+  it("returns authorized stored deltas and 404s missing spans", async () => {
     const counts = stubGitHub({ repositories: () => repoOk() });
     const { cookie } = await seedSession(harness.handle, kp);
     await seedPullRequest(harness.handle);
@@ -454,7 +451,7 @@ describe("reviewer read API + authz gate", () => {
     expect(counts.repositories).toBe(1);
   });
 
-  it("delta query rejects a cross-repo owner:ref selector and missing params (400)", async () => {
+  it("400s delta queries with cross-repo refs or missing parameters", async () => {
     stubGitHub({ repositories: () => repoOk() });
     const { cookie } = await seedSession(harness.handle, kp);
     await seedPullRequest(harness.handle);
@@ -471,7 +468,7 @@ describe("reviewer read API + authz gate", () => {
     expect(missingHead.status).toBe(400);
   });
 
-  it("400 on a malformed query (missing head)", async () => {
+  it("400s queries missing head", async () => {
     stubGitHub({ repositories: () => repoOk() });
     const { cookie } = await seedSession(harness.handle, kp);
     await seedPullRequest(harness.handle);
@@ -484,7 +481,7 @@ describe("reviewer read API + authz gate", () => {
     expect(res.status).toBe(400);
   });
 
-  it("positive cache: two authorized reads within the TTL fire the access check once", async () => {
+  it("checks access once for two authorized reads inside the TTL", async () => {
     const counts = stubGitHub({ repositories: () => repoOk() });
     const { cookie } = await seedSession(harness.handle, kp);
     await seedPullRequest(harness.handle);
@@ -501,7 +498,7 @@ describe("reviewer read API + authz gate", () => {
     expect(counts.repositories).toBe(1);
   });
 
-  it("a grant revoked at GitHub denies once the 60s positive-cache TTL passes", async () => {
+  it("denies revoked grants after the positive-cache TTL expires", async () => {
     const counts = stubGitHub({
       repositories: (call) => (call === 0 ? repoOk() : repoStatus(404)),
     });
@@ -514,7 +511,7 @@ describe("reviewer read API + authz gate", () => {
     });
     expect(a.status).toBe(200);
 
-    // Advance the virtual clock past the TTL (forward-only — see the offset
+    // Advance the virtual clock past the TTL (forward-only, see the offset
     // note above). The gate re-checks GitHub, which now denies → 404.
     clockOffsetMs += 61_000;
     const b = await app.request(briefPath("base1", "head1"), {
@@ -542,7 +539,7 @@ describe("reviewer read API + authz gate", () => {
     expect(counts.repositories).toBe(2); // 401 then 200
     expect(counts.token).toBe(1); // one refresh
 
-    // The linked grant's access ciphertext rotated to the refreshed token —
+    // The linked grant's access ciphertext rotated to the refreshed token,
     // decrypt and compare, an existence check alone proves nothing.
     const rows = await harness.raw(
       "select g.gh_token_ciphertext from auth_session s join github_grant g on g.id = s.grant_id where s.session_token_hash = $1",
@@ -558,14 +555,14 @@ describe("reviewer read API + authz gate", () => {
     expect(decrypted.value).toBe(ROTATED_ACCESS);
   });
 
-  it("a browser-triggered rotation does NOT strand the Bearer channel sharing the grant", async () => {
+  it("keeps Bearer access working after browser-triggered grant rotation", async () => {
     // The bug this pins: mint copied the session's pair, the browser's
     // refresh consumed the single-use refresh token, and the CLI token died on
     // its own next refresh. Now both channels share ONE grant row, so the
     // browser's rotation is the CLI's rotation.
     const counts = stubGitHub({
-      // First access check 401s (expired access token); every later check —
-      // including the Bearer channel's own, made with the ROTATED token — 200s.
+      // First access check 401s (expired access token); every later check,
+      // including the Bearer channel's own, made with the ROTATED token, 200s.
       repositories: (call) => (call === 0 ? repoStatus(401) : repoOk()),
       token: () => jsonResponse(tokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH)),
     });
@@ -573,7 +570,7 @@ describe("reviewer read API + authz gate", () => {
     await seedPullRequest(harness.handle);
     await seedBrief(harness.handle, "base1", "head1");
 
-    // Mint a Bearer token LINKED to the session's grant — the route's exact
+    // Mint a Bearer token LINKED to the session's grant, the route's exact
     // link-never-copy semantics (tokens.ts passes currentSession.grantId).
     const resolved = await createSessionAuth(harness.handle).findSession(hash);
     if (resolved === undefined) throw new Error("seeded session not found");
@@ -598,14 +595,14 @@ describe("reviewer read API + authz gate", () => {
 
     // 2. CLI request afterwards: its authz gate runs a FRESH GitHub check
     //    (different session-hash cache key) with the grant's ROTATED access
-    //    token — it succeeds with NO second exchange. This is
+    //    token, it succeeds with NO second exchange. This is
     //    the request that silently died.
     const viaBearer = await app.request(briefPath("base1", "head1"), {
       headers: { Authorization: `Bearer ${bearer}` },
     });
     expect(viaBearer.status).toBe(200);
     expect(await viaBearer.text()).toBe(BRIEF_BODY);
-    expect(counts.token).toBe(1); // STILL one — no second refresh spent
+    expect(counts.token).toBe(1); // STILL one, no second refresh spent
     expect(counts.repositories).toBe(3); // 401, cookie-retry 200, bearer 200
   });
 
@@ -632,7 +629,7 @@ describe("reviewer read API + authz gate", () => {
     expect(rows[0]?.["n"]).toBe(0);
   });
 
-  it("401 and deletes the session when it has expired (dead refresh token)", async () => {
+  it("401s expired sessions with dead refresh tokens and deletes them", async () => {
     const counts = stubGitHub({ repositories: () => repoOk() });
     const { cookie } = await seedSession(harness.handle, kp, {
       expiresAt: new Date(Date.now() - 1000),
@@ -643,7 +640,7 @@ describe("reviewer read API + authz gate", () => {
       headers: { Cookie: `rs_session=${cookie}` },
     });
     expect(res.status).toBe(401);
-    // Rejected before the access check — no GitHub call at all.
+    // Rejected before the access check, no GitHub call at all.
     expect(counts.repositories).toBe(0);
     // The dead session is burned.
     const rows = await harness.raw(
@@ -652,7 +649,7 @@ describe("reviewer read API + authz gate", () => {
     expect(rows[0]?.["n"]).toBe(0);
   });
 
-  it("400 on a diff ref that selects a cross-repo owner:ref span (no GitHub call)", async () => {
+  it("400s cross-repo diff refs without calling GitHub", async () => {
     const counts = stubGitHub({
       repositories: () => repoOk(),
       diff: () => diffOk(),
@@ -664,11 +661,11 @@ describe("reviewer read API + authz gate", () => {
       headers: { Cookie: `rs_session=${cookie}` },
     });
     expect(res.status).toBe(400);
-    // Rejected at the Zod boundary — the compare endpoint is never reached.
+    // Rejected at the Zod boundary, the compare endpoint is never reached.
     expect(counts.diff).toBe(0);
   });
 
-  it("diff proxy fetches the REQUESTED base...head span (not the whole PR)", async () => {
+  it("proxies the requested base...head diff rather than the whole PR", async () => {
     const counts = stubGitHub({
       repositories: () => repoOk(),
       diff: () => diffOk(),
@@ -686,7 +683,7 @@ describe("reviewer read API + authz gate", () => {
     );
   });
 
-  it("diff proxy on a cached-authz hit refreshes an expired token and retries", async () => {
+  it("refreshes expired tokens on cached-authz diff reads and retries", async () => {
     // span1: diff ok (warms authz + diff cache). span2: diff 401 → refresh → ok.
     const counts = stubGitHub({
       repositories: () => repoOk(),
@@ -709,7 +706,7 @@ describe("reviewer read API + authz gate", () => {
     });
     expect(b.status).toBe(200);
     expect(await b.text()).toBe(DIFF_TEXT);
-    expect(counts.repositories).toBe(1); // still cached — no second access check
+    expect(counts.repositories).toBe(1); // still cached, no second access check
     expect(counts.token).toBe(1); // diff-route refresh fired
     expect(counts.diff).toBe(3); // span1 ok, span2 401 + retry ok
   });
@@ -717,7 +714,7 @@ describe("reviewer read API + authz gate", () => {
   // Long timeout: octokit's retry plugin retries a 406 (not in its doNotRetry
   // list) with backoff before the sanitized error surfaces.
   it(
-    "maps GitHub's 406 (diff too large to render) to a 413, not a 502",
+    "maps GitHub's oversized-diff 406 to 413",
     { timeout: 20_000 },
     async () => {
       stubGitHub({ repositories: () => repoOk(), diff: () => diffStatus(406) });
@@ -757,7 +754,7 @@ describe("reviewer read API + authz gate", () => {
     );
   });
 
-  it("serves but does NOT cache an oversized diff (re-fetched on repeat)", async () => {
+  it("serves oversized diffs without caching them", async () => {
     const big = "x".repeat(1_000_001); // just over the 1 MB per-entry cap
     const counts = stubGitHub({
       repositories: () => repoOk(),
@@ -781,7 +778,7 @@ describe("reviewer read API + authz gate", () => {
     expect(counts.diff).toBe(2);
   });
 
-  it("diff proxy: fetches once, then serves the per-session cache on a repeat read", async () => {
+  it("serves repeated diff reads from the per-session cache", async () => {
     const counts = stubGitHub({
       repositories: () => repoOk(),
       diff: () => diffOk(),

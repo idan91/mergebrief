@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { z } from "zod/v4";
-import type { Result } from "types";
+import type { Mutable, Result } from "types";
 import {
   AnchorStates,
   categorize,
@@ -10,6 +10,7 @@ import {
   planAnchoredGeneration,
   stitchBrief,
   type AnchorPlan,
+  type CompareFile,
   type CompareFiles,
 } from "brief-core";
 import type { Brief } from "brief-core/types";
@@ -31,14 +32,9 @@ import type { CaseOutcome } from "./report";
 import { persistRunBriefs } from "./specimens";
 
 /**
- * Revision-pair cases: a pair = a base fixture + a constructed increment. The
- * runner drives the SAME machinery production runs — fresh categorize, plan,
- * anchored categorize, stitch — so properties measure the real pipeline, not a
- * re-implementation.
- *
- * A pair case without a baseline.json reports scores with verdicts withheld;
- * baselines land via `--rebaseline --case <id>` as an explicit reviewed commit
- * AFTER the vacuous-pass check.
+ * Pair properties run the production categorize/plan/categorize/stitch pipeline.
+ * Unbaselined cases withhold verdicts. Establish baselines only through explicit review
+ * after proving that deliberately broken pairs fail their predicates.
  */
 
 const PairIncrementSchema = z.object({
@@ -84,8 +80,8 @@ export interface RevisionPair {
 
 /**
  * One mechanical predicate over a revision pair. Same register as
- * `EvalProperty`: anchor on run-stable facts — group survival, id carry,
- * attribute presence, coverage — never chunk boundaries or free-form text.
+ * `EvalProperty`: anchor on run-stable facts, group survival, id carry,
+ * attribute presence, coverage, never chunk boundaries or free-form text.
  */
 export interface PairEvalProperty {
   id: string;
@@ -112,7 +108,7 @@ function isPairProperty(value: unknown): value is PairEvalProperty {
 
 /**
  * Load every `pair-cases/<id>/` (pair.json + expected.ts exporting
- * `pairProperties`). A missing directory is an empty source, not an error —
+ * `pairProperties`). A missing directory is an empty source, not an error,
  * the pair source lands incrementally.
  */
 export async function loadPairCases(
@@ -191,7 +187,7 @@ async function loadOnePair(
       error: `pair case "${id}": expected.ts exports no properties`,
     };
   }
-  // Duplicate ids refuse at LOAD time — before any generation spends money
+  // Duplicate ids refuse at LOAD time, before any generation spends money
   // (scorePairRuns keeps its own backstop for programmatic callers).
   const propertyIds = new Set<string>();
   for (const property of properties) {
@@ -214,19 +210,7 @@ async function loadOnePair(
         increment: {
           incrementalDiff: parsed.data.increment.incrementalDiff,
           baseShaMoved: parsed.data.increment.baseShaMoved,
-          compareFiles: {
-            files: parsed.data.increment.compareFiles.files.map((file) => ({
-              filename: file.filename,
-              status: file.status,
-              ...(file.previousFilename === undefined
-                ? {}
-                : { previousFilename: file.previousFilename }),
-            })),
-            complete: parsed.data.increment.compareFiles.complete,
-            ...(parsed.data.increment.compareFiles.status === undefined
-              ? {}
-              : { status: parsed.data.increment.compareFiles.status }),
-          },
+          compareFiles: shapeCompareFiles(parsed.data.increment.compareFiles),
         },
       },
       properties,
@@ -237,11 +221,43 @@ async function loadOnePair(
 /** Zod optionals infer `| undefined`; EvalFixture is exact-optional. */
 function toEvalFixture(value: z.infer<typeof FixtureSchema>): EvalFixture {
   const repoContext = toRepoContext(value.repoContext);
-  return {
+  const fixture: EvalFixture = {
     pr: toFetchedPr(value.pr),
     commitRange: value.commitRange,
-    ...(repoContext === undefined ? {} : { repoContext }),
   };
+
+  if (repoContext !== undefined) fixture.repoContext = repoContext;
+
+  return fixture;
+}
+
+type FixtureCompareFiles = z.infer<typeof PairIncrementSchema>["compareFiles"];
+
+/** The pair's compare span as brief-core takes it; `status` rides only when recorded. */
+function shapeCompareFiles(raw: FixtureCompareFiles): CompareFiles {
+  const compareFiles: Mutable<CompareFiles> = {
+    files: raw.files.map(shapeCompareFile),
+    complete: raw.complete,
+  };
+
+  if (raw.status !== undefined) compareFiles.status = raw.status;
+
+  return compareFiles;
+}
+
+function shapeCompareFile(
+  raw: FixtureCompareFiles["files"][number],
+): CompareFile {
+  const compareFile: Mutable<CompareFile> = {
+    filename: raw.filename,
+    status: raw.status,
+  };
+
+  if (raw.previousFilename !== undefined) {
+    compareFile.previousFilename = raw.previousFilename;
+  }
+
+  return compareFile;
 }
 
 export interface PairRunResult {
@@ -255,13 +271,13 @@ export interface PairRunResult {
 /**
  * Run a pair case N times, serially (same posture as `runCase`): each run =
  * one fresh base generation + one anchored revision generation + the
- * production stitch. Any failure in the run — either generation, or a
- * stitch/coverage error — voids that run and is recorded.
+ * production stitch. Any failure in the run, either generation, or a
+ * stitch/coverage error, voids that run and is recorded.
  */
 /**
  * `anchored` = the production path (plan → anchored categorize → stitch).
  * `fresh` = the vacuous-pass probe: BOTH generations run fresh, no anchor
- * view, no stitch — the anchoring-dependent properties MUST fail here, or
+ * view, no stitch, the anchoring-dependent properties MUST fail here, or
  * they are vacuous.
  */
 export type PairRunMode = "anchored" | "fresh";
@@ -314,7 +330,7 @@ export async function runPairCase(
           : undefined,
       );
       if (mode === "fresh") {
-        // No stitch and no anchor stamp — the anchored-path guarantees are
+        // No stitch and no anchor stamp, the anchored-path guarantees are
         // absent by design. The plan rides along for inspection.
         pairs.push({ base, revised: generated, plan });
         runNumbers.push(run);
@@ -354,7 +370,7 @@ export interface PairScoredRuns {
   notes: string[];
 }
 
-/** Score pair properties against every run's pair — mirror of `scoreRuns`. */
+/** Score pair properties against every run's pair, mirror of `scoreRuns`. */
 export function scorePairRuns(
   properties: readonly PairEvalProperty[],
   pairs: readonly RevisionPair[],
@@ -430,7 +446,7 @@ export interface EvaluatedPairCase {
 
 /**
  * Evaluate one pair case end to end: run, persist BOTH sides' specimens,
- * score, load-or-write the baseline. Lives here — not in the CLI — so the
+ * score, load-or-write the baseline. Lives here, not in the CLI, so the
  * whole path is coverable with a fake generator.
  */
 export async function evaluatePairCase(
@@ -452,7 +468,7 @@ export async function evaluatePairCase(
     progress,
     mode,
   );
-  // Both sides persist — flaky pair properties need base AND revised
+  // Both sides persist, flaky pair properties need base AND revised
   // specimens.
   persistRunBriefs(join(outDir, "eval-runs", pairCase.id, "base"), {
     briefs: result.pairs.map((pair) => pair.base),
@@ -492,7 +508,7 @@ export async function evaluatePairCase(
       progress(`  ${pairCase.id}: baseline written (${key})`);
     }
   }
-  // NONE: characterization — scores report with no comparison.
+  // NONE: characterization, scores report with no comparison.
   return {
     ok: true,
     value: {

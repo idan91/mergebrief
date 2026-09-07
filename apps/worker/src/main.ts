@@ -1,5 +1,5 @@
 // The worker startup wiring (`pnpm start` / the compose `worker` service).
-// This is the ONE place env is read and real dependencies are wired — the
+// This is the ONE place env is read and real dependencies are wired, the
 // library modules stay env-INJECTED. A misconfigured worker must fail LOUDLY
 // at boot, never limp into draining jobs it cannot complete.
 import { checkConfiguredTrackerReads, NotionTransports } from "brief-core";
@@ -11,7 +11,7 @@ import { closeDb, createDb, createEnvKeyProvider } from "persistence";
 import type { Mutable } from "types";
 import { loadConfig } from "./config";
 import { appGitHubPort, type UrlBoxAuthDeps } from "./task/github-port";
-import { createGenerateTask } from "./task/generate";
+import { createGenerateTask, type GenerateTaskDeps } from "./task/generate";
 import {
   createSweepAuditTask,
   SWEEP_AUDIT_CRONTAB,
@@ -27,13 +27,13 @@ function readEnv(): NodeJS.ProcessEnv {
   try {
     process.loadEnvFile();
   } catch {
-    // No .env file — the required vars may still be set in the ambient env.
+    // No .env file, the required vars may still be set in the ambient env.
   }
   return process.env;
 }
 
-// The one process logger: everything here — composition, task, graphile
-// lifecycle — logs through it. Its own construction can fail on config (bad
+// The one process logger: everything here, composition, task, graphile
+// lifecycle, logs through it. Its own construction can fail on config (bad
 // LOG_LEVEL); that too must stay down, and with the boundary broken, bare
 // console is the only channel left.
 const env = readEnv();
@@ -68,7 +68,7 @@ async function main(): Promise<void> {
     );
   }
   // The worker authenticates to GitHub as the App (installation tokens) to
-  // fetch PR data — same credential set the web tier already requires.
+  // fetch PR data, same credential set the web tier already requires.
   const githubConfig = loadGitHubConfig(env);
   if (!githubConfig.ok) {
     exitOnConfigError(
@@ -77,7 +77,7 @@ async function main(): Promise<void> {
   }
 
   // The instance config (or zero-config default) selects the adapter; keys
-  // resolve by env-var NAME and adapters run their startup checks here — a
+  // resolve by env-var NAME and adapters run their startup checks here, a
   // misconfigured instance refuses boot before taking jobs.
   const generator = await createGenerator(config.value.generator, {
     env,
@@ -118,7 +118,7 @@ async function main(): Promise<void> {
       logger.warn("postgres pool error (idle client)", { err: error }),
   });
   // Grants name their key by env-var NAME (keyRef); resolution is lazy, per
-  // url-box job — a deployment with no url-box traffic never needs the key.
+  // url-box job, a deployment with no url-box traffic never needs the key.
   const keyProvider = createEnvKeyProvider(env);
   const urlBoxDeps: Mutable<UrlBoxAuthDeps> = { handle, keyProvider };
   if (config.value.urlBoxToken !== undefined) {
@@ -127,22 +127,25 @@ async function main(): Promise<void> {
   const configuredEffort = config.value.generator.effort;
   const configuredFullRegeneration =
     config.value.generator["full-regeneration"];
-  const generate = createGenerateTask({
+  const generateDeps: Mutable<GenerateTaskDeps> = {
     handle,
     generator: generator.value,
     github: appGitHubPort(createAppClient(githubConfig.value), urlBoxDeps),
     publicBaseUrl: config.value.publicBaseUrl,
-    // Absent → brief-core's medium default.
-    ...(configuredEffort === undefined ? {} : { effort: configuredEffort }),
-    // Absent → never.
-    ...(configuredFullRegeneration === undefined
-      ? {}
-      : { fullRegeneration: configuredFullRegeneration }),
     // No `spend` block → uncapped.
     spend: config.value.spend,
     trackerRoot,
     log: logger,
-  });
+  };
+
+  // Absent → brief-core's medium default.
+  if (configuredEffort !== undefined) generateDeps.effort = configuredEffort;
+  // Absent → never.
+  if (configuredFullRegeneration !== undefined) {
+    generateDeps.fullRegeneration = configuredFullRegeneration;
+  }
+
+  const generate = createGenerateTask(generateDeps);
 
   const sweepAudit = createSweepAuditTask({
     handle,

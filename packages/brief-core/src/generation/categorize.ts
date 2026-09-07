@@ -18,6 +18,7 @@ import {
   type RepoContext,
 } from "./repo-context";
 import { AnthropicGenerator, type Generator, type Logger } from "generators";
+import type { Mutable } from "types";
 import {
   buildSystemPrompt,
   renderAnchorView,
@@ -78,7 +79,7 @@ const DEFAULT_EFFORT: Effort = "medium";
 
 /**
  * Array fields where an out-of-vocabulary token may be dropped (warn) instead
- * of failing the whole generation — the supplementary enum arrays, matching
+ * of failing the whole generation, the supplementary enum arrays, matching
  * the pipeline's warn-and-drop posture. Never `dominantCategory` or any
  * structural field: those stay hard failures (with one feedback retry).
  */
@@ -95,17 +96,20 @@ const SALVAGE_FIELDS = [
  * current head.
  */
 function buildPrRef(locator: PrLocator, meta: PrMetadata, sha: string): PrRef {
-  return {
+  const ref: PrRef = {
     repo: `${locator.owner}/${locator.repo}`,
     number: locator.number,
     title: meta.title,
     url: meta.url,
     sha,
     description: meta.body,
-    ...(meta.state !== undefined ? { state: meta.state } : {}),
-    ...(meta.draft !== undefined ? { draft: meta.draft } : {}),
-    ...(meta.merged !== undefined ? { merged: meta.merged } : {}),
   };
+
+  if (meta.state !== undefined) ref.state = meta.state;
+  if (meta.draft !== undefined) ref.draft = meta.draft;
+  if (meta.merged !== undefined) ref.merged = meta.merged;
+
+  return ref;
 }
 
 /**
@@ -168,14 +172,9 @@ function renderPrimaryTicket(
 // --- Full brief -----------------------------------------------------------
 
 /**
- * The repo context ACTUALLY in play for one generation, plus its pre-rendered
- * data blocks — every consumer (system prompt, user message, schema names,
- * post-parse validation) derives from this same accepted context, so a rejected
- * artifact disappears from ALL of them at once.
- *
- * Acceptance is fail-open: name floor + collision drop, then a scope pre-filter
- * (a path-scoped attribute matching no changed file is never injected), then the
- * instructions budget — over-budget means omitted whole.
+ * Derive prompts, schema names and post-parse validation from one accepted context.
+ * Name/collision checks, changed-file scope filtering and the instruction budget fail open;
+ * rejected artifacts must disappear from every consumer together.
  */
 function acceptRepoContext(
   repoContext: RepoContext | undefined,
@@ -215,10 +214,10 @@ function acceptRepoContext(
     sections.push(`## Repo-defined risk attributes\n${attributeBlock}`);
   }
 
-  const context: RepoContext = {
-    ...(instructions === undefined ? {} : { instructions }),
-    customAttributes: applicable,
-  };
+  const context: Mutable<RepoContext> = { customAttributes: applicable };
+
+  if (instructions !== undefined) context.instructions = instructions;
+
   const inPlay = instructions !== undefined || applicable.length > 0;
   return {
     context: inPlay ? context : undefined,
@@ -338,7 +337,7 @@ export async function categorize(
   const keepReadingOrder =
     readingOrder !== undefined && readingOrderIssues.length === 0;
 
-  // Quotes must verify against the SAME sanitized view the prompt rendered —
+  // Quotes must verify against the SAME sanitized view the prompt rendered,
   // checking raw text would flag a model quote as fabricated when the harness
   // altered the text it read. Warn-and-drop, same register as readingOrder.
   const corpusClean =
@@ -399,33 +398,34 @@ export async function categorize(
   const textLength = validateTextLength(generated.changeGroups, trio.chunks);
   warnIssues(textLength.issues, collector.log, "text length");
 
-  const partial = {
+  const brief: Brief = {
     ...rest,
     chunks: trio.chunks,
     concernView: buildConcernView(trio.chunks),
     // Exact whole-diff totals: per-chunk sums double-count overlap lines
     // (by design), so header totals derive from the diff itself.
     diffTotals: diffLocTotals(changedFiles),
-    ...(unattributed !== undefined ? { unattributed } : {}),
     intentCheck,
-    ...(keepReadingOrder ? { readingOrder } : {}),
     pr: buildPrRef(pr.locator, pr.meta, commitRange.head),
     index,
     commitRange,
     generation: generator.origin(effort),
   };
+
+  if (unattributed !== undefined) brief.unattributed = unattributed;
+  if (keepReadingOrder) brief.readingOrder = readingOrder;
+
   warnIssues(
-    validatePartition(partial.changeGroups, partial.chunks),
+    validatePartition(brief.changeGroups, brief.chunks),
     collector.log,
   );
+
   const warnings = collector.warnings();
-  const brief: Brief = {
-    ...partial,
-    ...(warnings.length > 0 ? { generationWarnings: warnings } : {}),
-    ...(textLength.violations.length > 0
-      ? { lengthViolations: textLength.violations }
-      : {}),
-  };
+  if (warnings.length > 0) brief.generationWarnings = warnings;
+  if (textLength.violations.length > 0) {
+    brief.lengthViolations = textLength.violations;
+  }
+
   return brief;
 }
 
@@ -558,7 +558,7 @@ export async function categorizeDelta(
     salvageFields: SALVAGE_FIELDS,
     log: collector.log,
   });
-  // Delta chunk loc derives from the incremental diff — same discipline as
+  // Delta chunk loc derives from the incremental diff, same discipline as
   // the full brief; the delta artifact carries no concernView/unattributed.
   const fileDiffs = splitDiffByFile(input.incrementalDiff);
   const chunksWithLoc = deriveChunkLoc(
@@ -573,7 +573,7 @@ export async function categorizeDelta(
   const textLength = validateTextLength(generated.changedGroups, trio.chunks);
   warnIssues(textLength.issues, collector.log, "text length");
 
-  const partial = {
+  const delta: DeltaBrief = {
     ...generated,
     chunks: trio.chunks,
     pr: buildPrRef(input.locator, input.meta, input.meta.sha),
@@ -584,17 +584,16 @@ export async function categorizeDelta(
     generation: generator.origin(effort),
   };
   warnIssues(
-    validatePartition(partial.changedGroups, partial.chunks),
+    validatePartition(delta.changedGroups, delta.chunks),
     collector.log,
   );
+
   const warnings = collector.warnings();
-  const delta: DeltaBrief = {
-    ...partial,
-    ...(warnings.length > 0 ? { generationWarnings: warnings } : {}),
-    ...(textLength.violations.length > 0
-      ? { lengthViolations: textLength.violations }
-      : {}),
-  };
+  if (warnings.length > 0) delta.generationWarnings = warnings;
+  if (textLength.violations.length > 0) {
+    delta.lengthViolations = textLength.violations;
+  }
+
   return delta;
 }
 
@@ -605,7 +604,7 @@ export interface RevisionNarrativeInput {
   meta: PrMetadata;
   prevHeadSha: string;
   headSha: string;
-  /** Brief index of each end (both are always briefed — a narrative only
+  /** Brief index of each end (both are always briefed, a narrative only
    * exists between two briefed heads). */
   prevIndex: number;
   headIndex: number;
@@ -629,7 +628,7 @@ export interface RevisionNarrativeInput {
 
 /**
  * Trim the current full Brief to the alignment context the narrative needs:
- * group id/title/summary/categories and chunk file/ranges/group-id — never risk
+ * group id/title/summary/categories and chunk file/ranges/group-id, never risk
  * surface, LoC, or other fields, which would invite re-describing them.
  */
 function renderBriefContext(brief: Brief): string {
@@ -734,16 +733,18 @@ export async function categorizeRevisionNarrative(
   const narrative: RevisionNarrative = {
     artifactKind: "revisionNarrative",
     ...generated,
-    ...(textLength.violations.length > 0
-      ? { lengthViolations: textLength.violations }
-      : {}),
     pr: buildPrRef(input.locator, input.meta, input.headSha),
     prevHeadSha: input.prevHeadSha,
     headSha: input.headSha,
     prevIndex: input.prevIndex,
     headIndex: input.headIndex,
     generation: generator.origin(effort),
-    ...(warnings.length > 0 ? { generationWarnings: warnings } : {}),
   };
+
+  if (textLength.violations.length > 0) {
+    narrative.lengthViolations = textLength.violations;
+  }
+  if (warnings.length > 0) narrative.generationWarnings = warnings;
+
   return narrative;
 }

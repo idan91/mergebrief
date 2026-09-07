@@ -11,7 +11,8 @@ import {
 } from "../errors";
 import { repoIdSchema } from "../ids";
 import type { Result } from "../types";
-import type { CompareFiles } from "brief-core";
+import type { CompareFile, CompareFiles } from "brief-core";
+import type { Mutable } from "types";
 
 export interface PullRequestRef {
   readonly owner: string;
@@ -22,13 +23,13 @@ export interface PullRequestRef {
 export interface CompareDiffRef {
   readonly owner: string;
   readonly repo: string;
-  /** The span endpoints — any two refs (SHAs/branches) GitHub can compare. */
+  /** The span endpoints, any two refs (SHAs/branches) GitHub can compare. */
   readonly base: string;
   readonly head: string;
 }
 
 export interface PullRequestInfo {
-  /** The base repo's immutable numeric id — the row key the doors upsert by. */
+  /** The base repo's immutable numeric id, the row key the doors upsert by. */
   readonly repoId: RepoId;
   /** The base repo's `owner/name` as GitHub verified it (rename-proof-ish). */
   readonly repoFullName: string;
@@ -44,7 +45,7 @@ export interface PullRequestInfo {
   readonly title: string;
   /** PR description body; GitHub sends null for an empty description. */
   readonly body: string;
-  /** The PR's html page URL (generation metadata — never fetched from). */
+  /** The PR's html page URL (generation metadata, never fetched from). */
   readonly htmlUrl: string;
   /** Number of commits on the PR at this head. */
   readonly commitCount: number;
@@ -105,7 +106,7 @@ export async function fetchPullRequest(
 }
 
 /**
- * List a PR's changed files — the per-file generation input and the whole-PR
+ * List a PR's changed files, the per-file generation input and the whole-PR
  * churn denominator for the huge-span heuristic.
  */
 export async function fetchPullRequestFiles(
@@ -218,7 +219,7 @@ export interface CommitRef {
 }
 
 /**
- * Resolve a possibly-abbreviated commit-ish to its full 40-char SHA —
+ * Resolve a possibly-abbreviated commit-ish to its full 40-char SHA,
  * artifacts are keyed by full SHAs and joined by exact equality.
  */
 export async function resolveCommitSha(
@@ -282,10 +283,10 @@ const compareFilesSchema = z.object({
 });
 
 /**
- * Per-file JSON metadata for a `base...head` span — the signals the raw diff
+ * Per-file JSON metadata for a `base...head` span, the signals the raw diff
  * media type cannot carry (pure renames, binaries, and mode-only changes have
  * no hunks). `per_page: 1` minimizes the commit list riding the same response;
- * `files[]` is NOT paginated, it is capped — hence `complete`.
+ * `files[]` is NOT paginated, it is capped, hence `complete`.
  */
 export async function fetchCompareFiles(
   octokit: Octokit,
@@ -305,30 +306,48 @@ export async function fetchCompareFiles(
         error: unexpectedResponseError("fetch compare files"),
       };
     }
-    const spanStatus =
-      parsed.data.status === undefined ? {} : { status: parsed.data.status };
+    const spanStatus = parsed.data.status;
     if (parsed.data.files === undefined) {
-      // A 200 without `files[]` (degraded/oversized compare) proves nothing —
+      // A 200 without `files[]` (degraded/oversized compare) proves nothing,
       // report incomplete so the touched predicate re-looks everything instead
       // of wrongly confirming "untouched".
-      return { ok: true, value: { files: [], complete: false, ...spanStatus } };
+      return { ok: true, value: shapeCompareFiles([], false, spanStatus) };
     }
-    const files = parsed.data.files.map((file) => ({
-      filename: file.filename,
-      status: file.status,
-      ...(file.previous_filename === undefined
-        ? {}
-        : { previousFilename: file.previous_filename }),
-    }));
-    return {
-      ok: true,
-      value: {
-        files,
-        complete: files.length < COMPARE_FILES_CAP,
-        ...spanStatus,
-      },
-    };
+    const files = parsed.data.files.map(shapeCompareFile);
+    const complete = files.length < COMPARE_FILES_CAP;
+    return { ok: true, value: shapeCompareFiles(files, complete, spanStatus) };
   } catch (error) {
     return { ok: false, error: mapRequestError(error, "fetch compare files") };
   }
+}
+
+/** One compare entry; `previous_filename` rides only on renames and copies. */
+function shapeCompareFile(file: {
+  filename: string;
+  status: string;
+  previous_filename?: string | undefined;
+}): CompareFile {
+  const compareFile: Mutable<CompareFile> = {
+    filename: file.filename,
+    status: file.status,
+  };
+
+  if (file.previous_filename !== undefined) {
+    compareFile.previousFilename = file.previous_filename;
+  }
+
+  return compareFile;
+}
+
+/** The span's file list; `status` is absent when the compare omitted it. */
+function shapeCompareFiles(
+  files: readonly CompareFile[],
+  complete: boolean,
+  status: string | undefined,
+): CompareFiles {
+  const compareFiles: Mutable<CompareFiles> = { files, complete };
+
+  if (status !== undefined) compareFiles.status = status;
+
+  return compareFiles;
 }

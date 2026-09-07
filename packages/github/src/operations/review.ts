@@ -1,9 +1,6 @@
-// Review-submit primitive: one formal, grouped pull-request review pinned to
-// the commit the reviewer actually read (`commit_id`, never head-at-delivery).
-// GitHub's create-review is ATOMIC: one invalid comment 422s the whole review.
-// The caller's degradation retry needs to tell an anchoring 422 apart from an
-// unknown-commit 422, so the 422 body is classified INTERNALLY — the body
-// itself never escapes sanitization, only the derived class does.
+// Pin formal reviews to the viewed commit. GitHub creation is atomic: one invalid comment
+// rejects the whole review. Distinguish anchoring from unknown-commit 422s internally;
+// only sanitized text and the derived class may leave this boundary.
 import type { Octokit } from "octokit";
 import { RequestError } from "octokit";
 import { z } from "zod";
@@ -14,7 +11,7 @@ import {
 } from "../errors";
 import type { Result, ValueOf } from "../types";
 
-/** GitHub wire values for the review `event` — not our kebab-case vocabulary. */
+/** GitHub wire values for the review `event`, not our kebab-case vocabulary. */
 export const ReviewEvents = {
   APPROVE: "APPROVE",
   REQUEST_CHANGES: "REQUEST_CHANGES",
@@ -44,7 +41,7 @@ export interface CreatePullRequestReviewInput {
   readonly owner: string;
   readonly repo: string;
   readonly prNumber: number;
-  /** The reviewed head — pins anchors to the diff the reviewer saw. */
+  /** The reviewed head, pins anchors to the diff the reviewer saw. */
   readonly commitId: string;
   readonly event: ReviewEvent;
   readonly body?: string;
@@ -55,7 +52,7 @@ export interface CreatePullRequestReviewInput {
  * The 422 classes the submit route reacts to differently: `unknown-commit` →
  * fail closed; `invalid-comments` → one degradation retry with comments folded
  * into the body; `unknown` → a plain failure. Classification is best-effort
- * over the response text — GitHub exposes no stable discriminator.
+ * over the response text, GitHub exposes no stable discriminator.
  */
 export const ReviewValidationClasses = {
   UNKNOWN_COMMIT: "unknown-commit",
@@ -71,7 +68,7 @@ export interface CreateReviewError extends GitHubApiError {
 
 // GitHub's 422 body: top-level `message` plus an `errors` array whose entries
 // are strings ("Pull request review thread line must be part of the diff") or
-// objects ({ resource, code, field }). Parsed loosely — an unparseable body
+// objects ({ resource, code, field }). Parsed loosely, an unparseable body
 // just classifies as `unknown`.
 const validationBodySchema = z.object({
   message: z.string().optional(),
@@ -97,7 +94,7 @@ function classifyValidation422(error: RequestError): ReviewValidationClass {
     return ReviewValidationClasses.UNKNOWN;
   }
   const texts: string[] = [];
-  // The top-level message can be the ONLY signal — e.g. an unknown SHA is
+  // The top-level message can be the ONLY signal, e.g. an unknown SHA is
   // reported as { message: "No commit found for SHA: …", errors: [] }.
   if (parsed.data.message !== undefined) {
     texts.push(parsed.data.message);
@@ -121,6 +118,28 @@ function classifyValidation422(error: RequestError): ReviewValidationClass {
   return ReviewValidationClasses.UNKNOWN;
 }
 
+type CreateReviewParams = NonNullable<
+  Parameters<Octokit["rest"]["pulls"]["createReview"]>[0]
+>;
+type ReviewCommentParams = NonNullable<CreateReviewParams["comments"]>[number];
+
+/** One grouped-review comment on the wire; the start pair rides only on ranges. */
+function shapeReviewCommentParams(
+  comment: ReviewCommentInput,
+): ReviewCommentParams {
+  const params: ReviewCommentParams = {
+    path: comment.path,
+    line: comment.line,
+    side: comment.side,
+    body: comment.body,
+  };
+
+  if (comment.startLine !== undefined) params.start_line = comment.startLine;
+  if (comment.startSide !== undefined) params.start_side = comment.startSide;
+
+  return params;
+}
+
 /**
  * Create one grouped formal review on a PR, authored by whoever the octokit's
  * token identifies. A 422 additionally carries its `ReviewValidationClass`.
@@ -129,31 +148,21 @@ export async function createPullRequestReview(
   octokit: Octokit,
   input: CreatePullRequestReviewInput,
 ): Promise<Result<{ readonly reviewId: bigint }, CreateReviewError>> {
+  const params: CreateReviewParams = {
+    owner: input.owner,
+    repo: input.repo,
+    pull_number: input.prNumber,
+    commit_id: input.commitId,
+    event: input.event,
+  };
+
+  if (input.body !== undefined) params.body = input.body;
+  if (input.comments !== undefined) {
+    params.comments = input.comments.map(shapeReviewCommentParams);
+  }
+
   try {
-    const response = await octokit.rest.pulls.createReview({
-      owner: input.owner,
-      repo: input.repo,
-      pull_number: input.prNumber,
-      commit_id: input.commitId,
-      event: input.event,
-      ...(input.body === undefined ? {} : { body: input.body }),
-      ...(input.comments === undefined
-        ? {}
-        : {
-            comments: input.comments.map((comment) => ({
-              path: comment.path,
-              line: comment.line,
-              side: comment.side,
-              ...(comment.startLine === undefined
-                ? {}
-                : { start_line: comment.startLine }),
-              ...(comment.startSide === undefined
-                ? {}
-                : { start_side: comment.startSide }),
-              body: comment.body,
-            })),
-          }),
-    });
+    const response = await octokit.rest.pulls.createReview(params);
     // JSON.parse rounds ints past 2^53 before we see them.
     if (!Number.isSafeInteger(response.data.id)) {
       return {

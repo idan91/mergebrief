@@ -1,16 +1,10 @@
-// The pure, source-agnostic core of the repo-config surface. Takes
-// already-fetched file contents and returns a validated config + a per-file
-// outcome table. It never fetches, never touches the filesystem, never throws
-// for expected failures.
-//
-// Secret/echo hygiene: outcome `detail`/`warning` strings carry path + a
-// sanitized reason ONLY — never file content, YAML values, or raw `yaml`-lib
-// messages (those can quote source). Zod issue paths/codes are fine; received
-// values are NOT.
+// Validate already-fetched config without I/O; expected failures return outcomes.
+// Details may contain paths and sanitized reasons, never file content, YAML values
+// or raw parser messages. Zod received values are untrusted too.
 
 import { parse as parseYaml } from "yaml";
 import { RiskSurfaceAttributes } from "brief-core";
-import type { Result } from "types";
+import type { Mutable, Result } from "types";
 import type { z } from "zod/v4";
 import {
   BUDGET_WARN_FRACTION,
@@ -36,7 +30,7 @@ import {
 
 /**
  * One repo-local file as handed to validation. `undefined` at the input = absent
- * (404). `path` is advisory (caller bookkeeping) — origin outcomes always
+ * (404). `path` is advisory (caller bookkeeping), origin outcomes always
  * report the canonical fixed slot path, never this field.
  */
 export interface RepoConfigFileInput {
@@ -52,7 +46,7 @@ export interface RepoConfigInput {
   readonly policy?: RepoConfigFileInput;
 }
 
-/** Per-file result — one entry per fixed path, always present in the outcome table. */
+/** Per-file result, one entry per fixed path, always present in the outcome table. */
 export interface RepoConfigFileOutcome {
   readonly path: string;
   readonly blobSha: string | null;
@@ -118,11 +112,8 @@ function nearingCapWarning(bytes: number, budget: number): string | null {
 }
 
 /**
- * Static, safe field names that may appear verbatim in a sanitized detail.
- * Anything else in a Zod issue path is an untrusted, author-supplied key (a
- * custom attribute name, or an off-charset key surfaced by `invalid_key`) and
- * is replaced with `<key>` — those strings are YAML content and must never be
- * echoed.
+ * Only allowlisted static field names may appear in details. Other Zod path keys are
+ * author-supplied YAML content and must become <key>, including invalid_key paths.
  */
 const SAFE_PATH_SEGMENTS: ReadonlySet<string> = new Set([
   "version",
@@ -136,11 +127,8 @@ const SAFE_PATH_SEGMENTS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Sanitized rendering of a Zod failure: issue PATHS + CODES only, and paths
- * only through the allow-list above. Never `message` (can embed received
- * values), never `received`, never `keys`, never untrusted key names — Zod's
- * `invalid_key` issue puts the raw offending key in `path`, so passing paths
- * through verbatim would leak file content.
+ * Render only issue codes and allowlisted path keys. Zod messages, received values,
+ * keys and invalid_key paths can echo source content and must not pass through verbatim.
  */
 function sanitizeZodError(error: z.ZodError): string {
   const parts = error.issues.slice(0, 8).map((issue) => {
@@ -149,7 +137,7 @@ function sanitizeZodError(error: z.ZodError): string {
         if (typeof segment === "number") return String(segment);
         if (typeof segment !== "string") return "<key>";
         // The child of `attributes` is an author-supplied record key (a custom
-        // attribute name) — untrusted YAML, never echoed, even if it happens to
+        // attribute name), untrusted YAML, never echoed, even if it happens to
         // spell a structural word like `criteria`.
         if (index > 0 && issue.path[index - 1] === "attributes") return "<key>";
         return SAFE_PATH_SEGMENTS.has(segment) ? segment : "<key>";
@@ -165,6 +153,19 @@ interface OutcomeFields {
   readonly bytesUsed?: number;
   readonly bytesBudget?: number;
   readonly warning?: string;
+}
+
+/** The applied outcome's budget fields; the cap warning rides only when one fired. */
+function shapeAppliedFields(
+  bytesUsed: number,
+  bytesBudget: number,
+  warning: string | null,
+): OutcomeFields {
+  const fields: Mutable<OutcomeFields> = { bytesUsed, bytesBudget };
+
+  if (warning !== null) fields.warning = warning;
+
+  return fields;
 }
 
 /** Build an outcome, omitting optional keys entirely (exactOptionalPropertyTypes). */
@@ -190,18 +191,13 @@ function makeOutcome(
   return result;
 }
 
-/** Sanitized error token for an unparseable YAML file — carries no source. */
+/** Sanitized error token for an unparseable YAML file, carries no source. */
 const YAML_PARSE_ERROR = "invalid-yaml" as const;
 
 /**
- * Parse YAML defensively — an expected parse failure returns `Result`, never a
- * throw. `logLevel: "error"` suppresses the library's WARNING channel while
- * still THROWING on genuine syntax errors (so malformed YAML is still rejected
- * whole): at the default level it routes recoverable warnings (e.g. unresolved
- * tags) through `process.emitWarning`, echoing the offending SOURCE LINE to
- * stderr — a content leak. `"silent"` would over-suppress, recovering from
- * real errors and defeating reject-whole. The thrown error is discarded here
- * too (its message can quote source).
+ * YAML logLevel error prevents warning-channel source echoes while retaining syntax throws.
+ * Silent would recover from real errors and violate reject-whole. Discard thrown parser
+ * messages too because they may quote file content.
  */
 function tryParseYaml(
   content: string,
@@ -225,7 +221,7 @@ function validateInstructions(
   file: RepoConfigFileInput | undefined,
 ): InstructionsResult {
   // Origin path is the canonical fixed slot, never the caller-supplied
-  // `file.path` — the three paths are structural, not data.
+  // `file.path`, the three paths are structural, not data.
   const path = RepoConfigPaths.INSTRUCTIONS;
   if (file === undefined) {
     return { outcome: makeOutcome(path, null, RepoConfigOutcomes.ABSENT) };
@@ -244,11 +240,12 @@ function validateInstructions(
   const warning = nearingCapWarning(bytes, budget);
   return {
     value: { content: file.content, blobSha: file.blobSha, bytes },
-    outcome: makeOutcome(path, file.blobSha, RepoConfigOutcomes.APPLIED, {
-      bytesUsed: bytes,
-      bytesBudget: budget,
-      ...(warning !== null ? { warning } : {}),
-    }),
+    outcome: makeOutcome(
+      path,
+      file.blobSha,
+      RepoConfigOutcomes.APPLIED,
+      shapeAppliedFields(bytes, budget, warning),
+    ),
   };
 }
 
@@ -294,11 +291,12 @@ function validateSettings(
   const warning = nearingCapWarning(bytes, budget);
   return {
     value: result.data,
-    outcome: makeOutcome(path, file.blobSha, RepoConfigOutcomes.APPLIED, {
-      bytesUsed: bytes,
-      bytesBudget: budget,
-      ...(warning !== null ? { warning } : {}),
-    }),
+    outcome: makeOutcome(
+      path,
+      file.blobSha,
+      RepoConfigOutcomes.APPLIED,
+      shapeAppliedFields(bytes, budget, warning),
+    ),
   };
 }
 
@@ -349,7 +347,7 @@ function validatePolicy(file: RepoConfigFileInput | undefined): PolicyResult {
 
   // Collision resolution: a custom name matching a built-in / parked / reserved
   // token is dropped (built-in wins + chip). Fails only TOWARD built-in
-  // semantics — the file stays applied. Insertion order is deterministic.
+  // semantics, the file stays applied. Insertion order is deterministic.
   const survivingAttributes: Record<string, CustomAttribute> = {};
   const collisions: string[] = [];
   for (const [name, definition] of Object.entries(result.data.attributes)) {
@@ -362,7 +360,7 @@ function validatePolicy(file: RepoConfigFileInput | undefined): PolicyResult {
 
   // De-emphasis resolution: keep entries targeting a built-in non-floor or a
   // surviving custom name; drop entries whose target is unknown (likely typo)
-  // and warn (never invalid — floor targets were already rejected by the schema).
+  // and warn (never invalid, floor targets were already rejected by the schema).
   const survivingNames: ReadonlySet<string> = new Set(
     Object.keys(survivingAttributes),
   );
@@ -392,11 +390,12 @@ function validatePolicy(file: RepoConfigFileInput | undefined): PolicyResult {
   return {
     value: { attributes: survivingAttributes, deEmphasize },
     collisions,
-    outcome: makeOutcome(path, file.blobSha, RepoConfigOutcomes.APPLIED, {
-      bytesUsed: bytes,
-      bytesBudget: budget,
-      ...(warning !== null ? { warning } : {}),
-    }),
+    outcome: makeOutcome(
+      path,
+      file.blobSha,
+      RepoConfigOutcomes.APPLIED,
+      shapeAppliedFields(bytes, budget, warning),
+    ),
   };
 }
 

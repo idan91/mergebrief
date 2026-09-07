@@ -1,13 +1,7 @@
-// The worker's repo-config phase: fetch the three fixed `.mergebrief/` paths
-// from the DEFAULT BRANCH (fresh per generation, no cache), validate via
-// `repo-config`'s pure core, and shape the results for the two consumers —
-// the `RepoContext` injection and the `brief.repo_config` origin snapshot.
-//
-// FAIL-OPEN is the whole contract here: nothing in this module ever throws
-// for an expected failure and `acquireRepoConfig` never rejects — a GitHub
-// 5xx, an unreadable blob, or a validation surprise degrades to "generate
-// without repo config" with a LOUD `fetch-failed` outcome on the record.
+// Read the three fixed default-branch paths fresh and validate for injection and snapshots.
+// Failures must never reject acquisition: degrade to no config with explicit per-file outcomes.
 import type { CustomRiskAttributeInput, RepoContext } from "brief-core";
+import type { Mutable } from "types";
 import { RepoFileKinds } from "github";
 import {
   INSTRUCTIONS_BUDGET_BYTES,
@@ -18,6 +12,8 @@ import {
   RepoConfigPaths,
   SETTINGS_MAX_BYTES,
   validateRepoConfig,
+  type CustomAttribute,
+  type FiredCustomAttribute,
   type RepoConfigArtifact,
   type RepoConfigFileInput,
   type RepoConfigFileOutcome,
@@ -50,12 +46,12 @@ export interface AcquiredRepoConfig {
   readonly settings: RepoSettingsV1 | undefined;
   /** Validated policy (de-emphasis rules feed the snapshot). */
   readonly policy: ValidatedRepoPolicy | undefined;
-  /** Per-file outcome table — fetch-level outcomes already merged in. */
+  /** Per-file outcome table, fetch-level outcomes already merged in. */
   readonly files: readonly RepoConfigFileOutcome[];
   readonly collisions: readonly string[];
 }
 
-/** The no-config acquisition — also the fail-open fallback shape. */
+/** The no-config acquisition, also the fail-open fallback shape. */
 function nothingAcquired(
   files: readonly RepoConfigFileOutcome[],
 ): AcquiredRepoConfig {
@@ -69,16 +65,9 @@ function nothingAcquired(
 }
 
 /**
- * Fetch + validate the repo-config surface for one generation. Never throws.
- * Failure granularity:
- *   - a per-file FETCH failure marks that file `fetch-failed` and validation
- *     still runs on whatever fetched cleanly;
- *   - an unexpected crash in validation/shaping degrades to no config while
- *     KEEPING each slot's fetch truth: absent stays `absent`, fetch problems
- *     keep their outcome, and a cleanly-fetched file is marked `invalid` with
- *     a static detail (its content is what the validator crashed on).
- * Log lines carry static reasons + the error NAME only — never the message
- * (an unexpected error's text is unvetted for content echo).
+ * Per-file fetch failures preserve successful siblings. A validation/shaping crash retains
+ * absent/fetch-failed truth and marks fetched files invalid with static detail.
+ * Log only static reasons and error names, never unvetted messages that may echo config.
  */
 export async function acquireRepoConfig(
   source: PullRequestSource,
@@ -136,7 +125,7 @@ async function fetchSlots(
     const result = results[index];
     if (result === undefined || !result.ok) {
       // GitHub 5xx / transport failure: fail-open, loud. The detail is a
-      // `mapRequestError` product — sanitized by construction.
+      // `mapRequestError` product, sanitized by construction.
       const detail =
         result === undefined ? "no fetch result" : result.error.message;
       overrides.set(slot.path, {
@@ -155,7 +144,7 @@ async function fetchSlots(
       continue; // validate reports the canonical `absent` outcome.
     }
     if (file.kind === RepoFileKinds.TOO_LARGE) {
-      // Rejected before decode — the validator never sees content, so the
+      // Rejected before decode, the validator never sees content, so the
       // over-budget outcome is stamped here with the fetch-level facts.
       overrides.set(slot.path, {
         path: slot.path,
@@ -198,14 +187,9 @@ function validateAndShape(
   const customAttributes: CustomRiskAttributeInput[] =
     validated.policy === undefined
       ? []
-      : Object.entries(validated.policy.attributes).map(([name, def]) => ({
-          name,
-          criteria: def.criteria,
-          ...(def.implication === undefined
-            ? {}
-            : { implication: def.implication }),
-          ...(def.paths === undefined ? {} : { paths: def.paths }),
-        }));
+      : Object.entries(validated.policy.attributes).map(([name, def]) =>
+          shapeCustomAttribute(name, def),
+        );
   const instructions =
     validated.instructions === undefined
       ? undefined
@@ -214,13 +198,12 @@ function validateAndShape(
           blobSha: validated.instructions.blobSha,
           content: validated.instructions.content,
         };
-  const repoContext: RepoContext | undefined =
-    instructions === undefined && customAttributes.length === 0
-      ? undefined
-      : {
-          ...(instructions === undefined ? {} : { instructions }),
-          customAttributes,
-        };
+  const context: Mutable<RepoContext> = { customAttributes };
+
+  if (instructions !== undefined) context.instructions = instructions;
+
+  const inPlay = instructions !== undefined || customAttributes.length > 0;
+  const repoContext = inPlay ? context : undefined;
 
   return {
     repoContext,
@@ -245,9 +228,38 @@ export function buildRepoConfigOrigin(acquired: AcquiredRepoConfig): string {
   );
 }
 
+/** A policy attribute as brief-core takes it; scope and implication ride only when set. */
+function shapeCustomAttribute(
+  name: string,
+  def: CustomAttribute,
+): CustomRiskAttributeInput {
+  const attribute: Mutable<CustomRiskAttributeInput> = {
+    name,
+    criteria: def.criteria,
+  };
+
+  if (def.implication !== undefined) attribute.implication = def.implication;
+  if (def.paths !== undefined) attribute.paths = def.paths;
+
+  return attribute;
+}
+
+/** The same attribute as the stored artifact carries it (own copy of `paths`). */
+function shapeFiredCustomAttribute(
+  name: string,
+  def: CustomAttribute,
+): FiredCustomAttribute {
+  const attribute: FiredCustomAttribute = { name, criteria: def.criteria };
+
+  if (def.implication !== undefined) attribute.implication = def.implication;
+  if (def.paths !== undefined) attribute.paths = [...def.paths];
+
+  return attribute;
+}
+
 /**
  * Serialize the `brief.repo_config` snapshot: the merged per-file outcome
- * table, collision disclosures, and — when a policy applied — the definitions
+ * table, collision disclosures, and, when a policy applied, the definitions
  * of the custom attributes that actually FIRED on this brief plus the
  * de-emphasis rules in effect.
  */
@@ -260,14 +272,7 @@ export function buildRepoConfigArtifact(
     const firedNames = new Set(chunks.flatMap((chunk) => chunk.riskSurface));
     const firedCustomAttributes = Object.entries(acquired.policy.attributes)
       .filter(([name]) => firedNames.has(name))
-      .map(([name, def]) => ({
-        name,
-        criteria: def.criteria,
-        ...(def.implication === undefined
-          ? {}
-          : { implication: def.implication }),
-        ...(def.paths === undefined ? {} : { paths: [...def.paths] }),
-      }));
+      .map(([name, def]) => shapeFiredCustomAttribute(name, def));
     policy = {
       firedCustomAttributes,
       deEmphasize: [...acquired.policy.deEmphasize],
@@ -276,7 +281,7 @@ export function buildRepoConfigArtifact(
   // Parse through the shared artifact schema before storing: the writer
   // self-checks against the exact contract readers enforce (slot tuple,
   // constrained fired definitions, no floor de-emphasis). A parse failure
-  // here is a programmer error — throw, never store a malformed snapshot.
+  // here is a programmer error, throw, never store a malformed snapshot.
   const artifact: RepoConfigArtifact = repoConfigArtifactSchema.parse({
     files: acquired.files.map((file) => ({ ...file })),
     collisions: [...acquired.collisions],

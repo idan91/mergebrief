@@ -1,28 +1,23 @@
-// The `generate` task — the drain side of the pipeline the webhook enqueues
-// into. One job = "bring this PR's artifacts up to date at this head": the
-// shared Brief (plus, when a previous briefed head exists, the mechanical
-// comparison marks and the revision narrative), then the pre-warmed delta
-// cores — one per DISTINCT checkpoint SHA on the PR, each guarded by the
-// huge-span skip. The generation engine is reused as-is behind its
-// `Generator` port; this module owns ONLY orchestration: payload validation,
-// tenancy, idempotent skip/reuse, projection transitions, and error mapping.
+/* oxlint-disable house/comment-run -- the projection state model and the idempotency
+   contract decide whether a retry re-spends tokens; neither fits four lines */
+// One job = bring this PR's artifacts up to date at this head: the shared brief, the
+// mechanical comparison marks and revision narrative when a previous briefed head exists,
+// then one pre-warmed delta core per DISTINCT checkpoint SHA, each guarded by the huge-span
+// skip. This module owns orchestration only: payload validation, tenancy, idempotent
+// skip/reuse, projection transitions and error mapping.
 //
-// STATE MODEL (`generation` projection, kind `brief`):
-// queued → running(phase) → succeeded | failed | superseded.
-//   - superseded (terminal, NOT a failure): the PR head advanced past the
-//     job's head, or the PR reached a terminal state — no retry, `attempts`
-//     untouched, no salvage or dump.
-//   - failed: recorded via `markFailed` (which sanitizes). PERMANENT
-//     failures (404/406/unrenderable inputs, deterministic generation
-//     failures) return normally so graphile does NOT retry a job that cannot
-//     succeed; TRANSIENT failures (rate limits, 5xx, network) rethrow so
-//     graphile's backoff/dead-letter machinery owns the retry.
+// State model (generation projection, kind brief):
+// queued to running(phase) to succeeded, failed or superseded.
+//   superseded is terminal and NOT a failure: the head advanced past the job's head, or the
+//   PR reached a terminal state. No retry, attempts untouched, no salvage or dump.
+//   failed is recorded through markFailed, which sanitizes. PERMANENT failures return
+//   normally so graphile does not retry a job that cannot succeed; TRANSIENT failures
+//   rethrow so graphile's backoff and dead-letter machinery owns the retry.
 //
-// IDEMPOTENCY (retries must not double-spend tokens): the brief is skipped
-// when its (base, head) row already exists; each delta core is skipped when
-// its (checkpoint, head) row exists; marks/narrative writes are
-// content-addressed upserts. A retry therefore only pays for what a prior
-// attempt didn't finish.
+// Idempotency, so a retry never double-spends: the brief is skipped when its (base, head)
+// row exists, each delta core is skipped when its (checkpoint, head) row exists, and
+// marks/narrative writes are content-addressed upserts.
+/* oxlint-enable house/comment-run */
 import { APIConnectionError } from "@anthropic-ai/sdk";
 import {
   categorize,
@@ -46,6 +41,7 @@ import {
   type AnchorViewInput,
   type ContextFetch,
   type ContextProvider,
+  type AnchorPlanArgs,
   type Brief,
   type SharedRootDeps,
   type TrackerRootDeps,
@@ -89,12 +85,13 @@ import {
   type ArtifactStore,
   type BriefRowId,
   type BriefSpanRow,
+  type BriefWriteInput,
   type GenerationTarget,
   type PullRequestRow,
   type TenantRepository,
 } from "persistence";
 import { GitHubApiErrorCodes } from "github";
-import type { Result } from "types";
+import type { Mutable, Result } from "types";
 import {
   entryCommentBody,
   entryCommentCappedBody,
@@ -110,7 +107,7 @@ import {
   type PullRequestSource,
 } from "./github-port";
 import { createInstallationIssueApi } from "./issue-api";
-import type { Logger } from "logging";
+import type { LogFields, Logger } from "logging";
 import {
   classifyFailure,
   PermanentJobError,
@@ -138,7 +135,7 @@ export interface GenerateTaskDeps {
   readonly handle: AppDatabase;
   readonly generator: Generator;
   readonly github: GitHubPort;
-  /** The web deployment's public origin — the Entry comment's deep-link base. */
+  /** The web deployment's public origin, the Entry comment's deep-link base. */
   readonly publicBaseUrl: string;
   /** Head-poll cadence during streaming; default ~20s. */
   readonly headPollIntervalMs?: number;
@@ -161,20 +158,14 @@ export interface GenerateTaskDeps {
 const DEFAULT_HEAD_POLL_INTERVAL_MS = 20_000;
 
 /**
- * The cooperative-cancellation supervisor. Two mechanisms share one
- * AbortController:
- *   - `assertCurrent()` — the cheap head check run BEFORE each artifact call;
- *   - `startPolling()` — a ~20s head-poll DURING streaming, so a superseding
- *     push aborts the in-flight SDK call (stopping output-token spend)
- *     instead of waiting minutes for the stream to finish.
- * A poll fetch failure never aborts (best-effort); only a confirmed head
- * mismatch does.
+ * Share one controller between pre-call head checks and streaming head polls.
+ * Abort only on confirmed supersession to stop output spend; failed polls are best-effort.
  */
 interface SupersessionWatch {
   readonly signal: AbortSignal;
   /** Throws `SupersededSignal` (after aborting) when the head moved. */
   assertCurrent(): Promise<void>;
-  /** The newer PR the abort was based on — the successor, already read. */
+  /** The newer PR the abort was based on, the successor, already read. */
   observed(): PullRequestInfo | undefined;
   startPolling(): void;
   stop(): void;
@@ -207,7 +198,7 @@ function createSupersessionWatch(
         controller.abort();
       }
     } catch {
-      // Poll failures are ignored — the pre-call checks still stand.
+      // Poll failures are ignored, the pre-call checks still stand.
     } finally {
       polling = false;
     }
@@ -256,7 +247,7 @@ function withAbortSignal(generator: Generator, signal: AbortSignal): Generator {
   };
 }
 
-/** 406 = GitHub refuses to render the diff (too large) — permanent per span. */
+/** 406 = GitHub refuses to render the diff (too large), permanent per span. */
 function isPermanentGitHubError(error: GitHubApiError): boolean {
   return (
     error.code === GitHubApiErrorCodes.NOT_FOUND ||
@@ -286,13 +277,9 @@ function unwrapGitHub<T>(result: Result<T, GitHubApiError>): T {
 }
 
 /**
- * Classify a thrown generation error. The Anthropic SDK's transient failures
- * are HTTP 429/5xx/408 (numeric `status`) or a connection-level
- * `APIConnectionError` (whose `status` is undefined and whose `name` stays
- * plain "Error" — an instanceof check is the only reliable detector, hence
- * the SDK import here). Anything else (refusal, schema failure after the
- * built-in feedback retry) is deterministic enough that a graphile retry
- * would re-spend tokens for the same outcome.
+ * Treat 429/5xx/408 and SDK APIConnectionError as transient. The latter has no status
+ * and a plain Error name, so it needs instanceof. Retrying deterministic schema/refusal
+ * failures would spend again without a recovery signal.
  */
 function isTransientGenerationError(error: unknown): boolean {
   // Adapters classify their own transport failures: provider-transient is the
@@ -331,16 +318,19 @@ function getGenerationOrigin(generation: Brief["generation"]): {
 }
 
 /** Anchor stamp → brief row columns; `reason` exists exactly on fresh-restart. */
-function getAnchorColumns(anchor: Anchor): {
+interface AnchorColumns {
   anchorState: Anchor["state"];
   anchorReason?: string;
-} {
-  return {
-    anchorState: anchor.state,
-    ...(anchor.state === AnchorStates.FRESH_RESTART
-      ? { anchorReason: anchor.reason }
-      : {}),
-  };
+}
+
+function getAnchorColumns(anchor: Anchor): AnchorColumns {
+  const columns: AnchorColumns = { anchorState: anchor.state };
+
+  if (anchor.state === AnchorStates.FRESH_RESTART) {
+    columns.anchorReason = anchor.reason;
+  }
+
+  return columns;
 }
 
 /** The brief-kind projection target the ingest transaction queued. */
@@ -361,7 +351,7 @@ function briefTarget(payload: ParsedGeneratePayload): GenerationTarget {
 export interface GenerateTaskHelpers {
   readonly abortSignal?: AbortSignal;
   /**
-   * The slice of graphile's `Job` row the failure events read (snake_case —
+   * The slice of graphile's `Job` row the failure events read (snake_case,
    * graphile's own column shape rides through structurally). `attempts`
    * INCLUDES the in-flight attempt; the retries-exhausted event is minted at
    * `attempts === max_attempts` because graphile has none of its own.
@@ -387,12 +377,12 @@ export function createGenerateTask(
   ): Promise<void> {
     const parsed = parseGeneratePayload(rawPayload);
     if (!parsed.ok) {
-      // Poisoned/foreign job: no projection row is addressable — drop it.
+      // Poisoned/foreign job: no projection row is addressable, drop it.
       log.warn(`generate: dropping malformed payload — ${parsed.error}`);
       return;
     }
     const payload = parsed.value;
-    // The pipeline's correlation key: {prId, headSha} on every job line — the
+    // The pipeline's correlation key: {prId, headSha} on every job line, the
     // durable join to the webhook leg, since deliveries coalesce and no
     // delivery id owns a job.
     const jobLog = log.child({
@@ -425,18 +415,18 @@ export function createGenerateTask(
       const permanent = error instanceof PermanentJobError;
       const attempt = helpers?.job?.attempts;
       const maxAttempts = helpers?.job?.max_attempts;
-      // Message-only: no `err` field — provider cause chains may carry
+      const failFields: LogFields = { evt: "job.fail", permanent };
+
+      if (attempt !== undefined) failFields["attempt"] = attempt;
+      if (maxAttempts !== undefined) failFields["maxAttempts"] = maxAttempts;
+
+      // Message-only: no `err` field, provider cause chains may carry
       // request contents, which the boundary's URL scrub does not cover.
       jobLog.error(
         permanent
           ? `generate: permanent failure — ${message}`
           : `generate: failed (${message}) — handing to graphile for retry`,
-        {
-          evt: "job.fail",
-          permanent,
-          ...(attempt === undefined ? {} : { attempt }),
-          ...(maxAttempts === undefined ? {} : { maxAttempts }),
-        },
+        failFields,
       );
       if (
         attempt !== undefined &&
@@ -471,7 +461,7 @@ function noopLogger(): Logger {
 }
 
 /**
- * Emitted when the failure is a provider call gone wrong — a `GeneratorError`,
+ * Emitted when the failure is a provider call gone wrong, a `GeneratorError`,
  * the SDK's connection error, or any error carrying a numeric HTTP status.
  * Message-only posture: fields carry classification, never the raw error
  * object (cause chains may hold request contents).
@@ -481,7 +471,7 @@ function emitProviderError(
   deps: GenerateTaskDeps,
   thrown: unknown,
 ): void {
-  // A permanent classification wraps the original throw — read through it.
+  // A permanent classification wraps the original throw, read through it.
   const error =
     thrown instanceof PermanentJobError && thrown.cause !== undefined
       ? thrown.cause
@@ -499,12 +489,12 @@ function emitProviderError(
   }
   // origin() is pure metadata; any effort yields the same provider name.
   const provider = deps.generator.origin(deps.effort ?? "medium").provider;
-  log.error(error instanceof Error ? error.message : String(error), {
-    evt: "provider.error",
-    provider,
-    ...(typeof status === "number" ? { status } : {}),
-    ...(error instanceof GeneratorError ? { kind: error.kind } : {}),
-  });
+  const fields: LogFields = { evt: "provider.error", provider };
+
+  if (typeof status === "number") fields["status"] = status;
+  if (error instanceof GeneratorError) fields["kind"] = error.kind;
+
+  log.error(error instanceof Error ? error.message : String(error), fields);
 }
 
 /** Control-flow signal: the job's head is no longer the PR's head. */
@@ -543,7 +533,7 @@ async function runGeneration(
   ) {
     // App world: a brief for a terminal PR would never be read (same rule as
     // the enqueue gate); the queued projection row must not sit forever.
-    // Url-box jobs generate regardless — briefing a merged PR is that door's
+    // Url-box jobs generate regardless, briefing a merged PR is that door's
     // primary use.
     throw new SupersededSignal(`pull_request ${pr.prNumber} is ${pr.state}`);
   }
@@ -553,16 +543,13 @@ async function runGeneration(
   // Re-bind post-guard so the narrowing survives into the inner closure.
   const prRow: PullRequestRow = pr;
   // The Entry comment id rotates up to twice per run (generating → ready);
-  // track the live value — the prRow snapshot goes stale after the first
+  // track the live value, the prRow snapshot goes stale after the first
   // rotation, and deleting by a stale id would orphan the newer comment.
   let liveEntryCommentId: bigint | null = prRow.entryCommentId;
 
-  // The GitHub boundary is opened BEFORE the spend gate: a capped run posts
-  // no further GitHub reads, but it may still have to update an Entry comment
-  // that is already on the thread. A url-box job binds the viewer's
-  // grant-resolved token instead of the App installation — that binding can
-  // itself cost one probe read (the PAT-fallback decision), the one GitHub
-  // touch a capped url-box drain pays.
+  // Bind the GitHub source before the cap so an existing Entry comment can be updated.
+  // A url-box binding may itself probe once for PAT fallback; capped jobs pay that read
+  // but make no further GitHub reads.
   const source =
     payload.grantId === undefined
       ? await github.openPullRequestSource(
@@ -576,13 +563,9 @@ async function runGeneration(
           pr.prNumber,
         );
 
-  // ---- Daily generation cap ------------------------------------------------
-  // THE enforcement point: the single boundary where a run starts, before
-  // any provider call AND before the projection says `running` — the gate
-  // must not count the very run it is deciding on. (GitHub READS may precede
-  // it: the source binding above; the cap protects model spend.) At the cap the run is
-  // SKIPPED, not deferred: terminal `capped`, no retry, no attempt consumed.
-  // The counter sums ATTEMPTS, not rows.
+  // Gate model spend before markRunning so the current attempt cannot count itself.
+  // Binding the GitHub source may precede this gate. Count attempts, not rows; capped jobs
+  // are terminal skips with no retry or consumed attempt.
   const cap =
     deps.spend === undefined ? null : capForRepo(deps.spend, pr.repoSlug);
   if (cap !== null) {
@@ -601,8 +584,8 @@ async function runGeneration(
         dayUtc: day.label,
       });
       if (liveEntryCommentId !== null && payload.grantId === undefined) {
-        // UPDATE ONLY: a capped PR never gets an Entry comment created for it
-        // — the cap must not make MergeBrief louder on a thread than it was.
+        // UPDATE ONLY: a capped PR never gets an Entry comment created for it,
+        // the cap must not make MergeBrief louder on a thread than it was.
         await refreshEntryComment(
           entryCommentCappedBody({
             publicBaseUrl: deps.publicBaseUrl,
@@ -626,12 +609,8 @@ async function runGeneration(
 
   await projection.markRunning(target, GenerationPhases.FETCHING);
 
-  // The App world relies on the newer push's own webhook job (same job_key,
-  // replaced) to generate the head this run found moved. A url-box PR may have
-  // no installation and therefore no webhook, so this job is the only thing
-  // that knows: EVERY owner-world supersession — the mismatch below, a
-  // pre-call `assertCurrent`, or the poller aborting mid-stream — schedules
-  // the observed head before standing down, or the paste produces no brief.
+  // Installation jobs rely on the newer push webhook. Url-box jobs may have no webhook,
+  // so every supersession path must schedule the observed head before standing down.
   const grantId = payload.grantId;
   async function queueObservedHeadForOwner(
     observed?: PullRequestInfo,
@@ -641,7 +620,7 @@ async function runGeneration(
     }
     // A read the caller already has beats a fresh one: the successor is known
     // to exist, and re-reading could fail. `unwrapGitHub` on the fallback is
-    // deliberate — a transient failure must RETRY the job rather than finalize
+    // deliberate, a transient failure must RETRY the job rather than finalize
     // `superseded`, which would drop the successor head on the floor.
     const current = observed ?? unwrapGitHub(await source.fetchPullRequest());
     if (current.headSha === headSha) {
@@ -669,11 +648,8 @@ async function runGeneration(
     );
   }
 
-  // Cooperative cancellation from here on: the watch's signal is threaded
-  // into every generator call, its poller aborts mid-stream on a superseding
-  // push, and `assertCurrent()` gates each subsequent artifact call. The
-  // abort surfaces as `SupersededSignal` in the catch below — never as a job
-  // failure (no retry, `attempts` untouched).
+  // Pass the watch signal through every model call and check freshness before each artifact.
+  // A watch abort is SupersededSignal, never a retried failure or an attempts increment.
   const watch = createSupersessionWatch(
     source,
     headSha,
@@ -681,7 +657,7 @@ async function runGeneration(
   );
   // The generator aborts on EITHER trigger: a superseding push (the watch) or
   // graceful shutdown (graphile's helpers.abortSignal). The two are told
-  // apart in `createGenerateTask`'s catch — superseded vs back-to-queue.
+  // apart in `createGenerateTask`'s catch, superseded vs back-to-queue.
   const generatorSignal =
     shutdownSignal === undefined
       ? watch.signal
@@ -721,10 +697,12 @@ async function runGeneration(
       commitCount: info.commitCount,
       headRef: info.headRef,
       files,
-      ...(state !== undefined ? { state } : {}),
       draft: info.draft,
       merged: info.merged,
     };
+
+    if (state !== undefined) meta.state = state;
+
     const coreLog: CoreLog = (message) => log.info(message);
 
     // ---- The shared Brief (skip-if-exists: retries never re-spend) ----------
@@ -748,35 +726,24 @@ async function runGeneration(
 
     let briefRef: { id: BriefRowId; headIndex: number };
     let generatedBrief: Brief | undefined;
-    // Repo-config phase: three default-branch reads, fresh per generation,
-    // validated pure-side. NEVER fails the job — a fetch failure degrades to
-    // no-config with a loud `fetch-failed` outcome on the record. ALSO
-    // acquired on a skip drain of a DRAFT PR: the entry gate below needs
-    // `settings.entryCommentOnDrafts`, and fail-open's undefined settings
-    // correctly default the gate CLOSED.
+    // Fresh default-branch config reads fail open with recorded fetch-failed outcomes.
+    // Draft skip drains also need settings for the Entry gate; unavailable settings close it.
     const repoConfig =
       existing === undefined || info.draft
         ? await acquireRepoConfig(source, log)
         : undefined;
     if (repoConfig !== undefined && existing === undefined) {
-      // Per-file outcomes land on the GENERATION record NOW — before the model
-      // call — so a failed or superseded run still shows its config outcomes.
-      // GENERATION runs only: a draft SKIP drain acquires config for the entry
-      // gate, but recording it would overwrite the record with config that
-      // never shaped the stored brief.
+      // Record config outcomes before generation so failed or superseded runs retain them.
+      // A draft skip drain must not overwrite outcomes with config that never shaped the brief.
       await projection.recordRepoConfig(
         target,
         buildRepoConfigOrigin(repoConfig),
       );
     }
-    // Ticket context, loaded once and only when a core needs it: at once for
-    // a generation, lazily for a skip drain that regenerates a missing
-    // narrative or delta. A skip drain acquires repo config inside the load,
-    // never at the top, so an ordinary rerun keeps its no-double-fetch rule
-    // while a retry reads the ticket the brief was generated with. The reads
-    // are resolved per job: the repo config names the tracker, GitHub's
-    // transport is this job's client. Never the diff; fail-open per
-    // provider, an unreadable ticket reported, never guessed.
+    // Load ticket context only when a core needs it, lazily for skip-drain recovery.
+    // Resolve the configured tracker with the job's transport and the brief's ticket.
+    // Acquire repo config within that lazy load to avoid double fetching ordinary reruns.
+    // Never use diff text; fail open per provider and report unreadable tickets without guessing.
     const trackerRoot = deps.trackerRoot ?? { env: {}, contextSources: [] };
     let contextLoad: Promise<ContextFetch> | undefined;
     const loadContext = (): Promise<ContextFetch> => {
@@ -842,13 +809,9 @@ async function runGeneration(
       }
       return context;
     }
-    // Entry-comment draft gate: the branded Entry comment stays OFF draft PRs
-    // unless the repo opts in via `.mergebrief/settings.yaml`
-    // `entryCommentOnDrafts: true`. Generation itself is untouched — this
-    // gates the COMMENT only; `ready_for_review` triggers the next drain,
-    // whose skip-branch ready flip posts it.
-    // Url-box world: no App presence on the thread, and the viewer's token
-    // must never write to GitHub — the Entry comment surface is off entirely.
+    // Entry comments stay off drafts unless repo settings opt in; generation is independent.
+    // The ready_for_review skip drain may later post the ready entry.
+    // Url-box credentials must never write to GitHub, so that world has no Entry comments.
     const entryCommentAllowed =
       payload.grantId === undefined &&
       (!info.draft || repoConfig?.settings?.entryCommentOnDrafts === true);
@@ -856,11 +819,8 @@ async function runGeneration(
       log.info(
         "generate: entry comment suppressed — draft PR without entryCommentOnDrafts",
       );
-      // Suppression means OFF, not "leave whatever is there": a comment posted
-      // before the PR converted to draft must not linger through the draft
-      // phase. BUT the sweep is destructive, so it only runs on KNOWN-off
-      // settings — a settings fetch failure closes the POSTING gate without
-      // deleting a possibly-legitimate opt-in comment.
+      // Delete lingering draft entries only when settings are known to disable them.
+      // A settings fetch failure closes posting but cannot justify deleting a valid opt-in comment.
       const settingsUnknown =
         repoConfig?.files.some(
           (file) =>
@@ -873,12 +833,9 @@ async function runGeneration(
     }
     if (existing === undefined) {
       const headIndex = (priorBriefs.at(-1)?.headIndex ?? 0) + 1;
-      // ---- Anchoring decision: policy × previous brief --------------------
-      // `always` = kill-switch (the fresh path); `on-model-swap` restarts
-      // fresh once when the stamped provider/model moved; otherwise a
-      // recoverable previous brief anchors this generation — partition now,
-      // stitch after the model call. Every degradation (missing row,
-      // unrecoverable body) falls back to a fresh generation stamped `none`.
+      // Always forces fresh output; on-model-swap restarts when the stamped provider/model differs.
+      // Otherwise recover a previous brief for partition/stitch. Missing or unusable rows fall
+      // back to fresh generation stamped none.
       const policy = deps.fullRegeneration ?? FullRegenerations.NEVER;
       let anchor: Anchor = { state: AnchorStates.NONE };
       let anchorPlan: ReturnType<typeof planAnchoredGeneration> | undefined;
@@ -896,7 +853,7 @@ async function runGeneration(
             );
       const previousBody =
         prevRow === undefined ? undefined : recoverBrief(prevRow.body, log);
-      // The chain reads off the NEWEST prior row, not `prevBrief` — that
+      // The chain reads off the NEWEST prior row, not `prevBrief`, that
       // lookup skips same-head rows, so after a base retarget (same head,
       // new base) it would drop the retargeted row's history for good.
       const chainSource = priorBriefs.at(-1);
@@ -942,17 +899,20 @@ async function runGeneration(
                 `generate: compare files fetch failed (anchoring degrades to full re-look) — ${compareFilesResult.error.message}`,
               );
             }
-            anchorPlan = planAnchoredGeneration({
+            const planArgs: Mutable<AnchorPlanArgs> = {
               previousBrief: previousBody,
               chainGroupIds,
-              ...(prevSpanFetch?.ok === true
-                ? { incrementalDiff: prevSpanFetch.value }
-                : {}),
-              ...(compareFilesResult.ok
-                ? { compareFiles: compareFilesResult.value }
-                : {}),
               baseShaMoved: prevBrief.baseSha !== info.baseSha,
-            });
+            };
+
+            if (prevSpanFetch?.ok === true) {
+              planArgs.incrementalDiff = prevSpanFetch.value;
+            }
+            if (compareFilesResult.ok) {
+              planArgs.compareFiles = compareFilesResult.value;
+            }
+
+            anchorPlan = planAnchoredGeneration(planArgs);
             anchor = { state: AnchorStates.ANCHORED };
             // The prompt contract: the model receives the trimmed previous
             // brief plus the mechanical frozen partition.
@@ -974,7 +934,7 @@ async function runGeneration(
                 spans: anchorPlan.hunkSpans,
               });
               // Both failure codes are deterministic writer defects against a
-              // fixed shape and a resolved parent — no retry can fix either.
+              // fixed shape and a resolved parent, no retry can fix either.
               if (!hopWritten.ok) {
                 throw new PermanentJobError(hopWritten.error.message);
               }
@@ -986,7 +946,7 @@ async function runGeneration(
       // Post the "generating" Entry comment before the (minutes-long) model
       // call: the deep link already renders the diff-first wait UX, so the
       // thread learns a Brief is coming while it is still being produced.
-      // Skip-branch reruns never reach here — no generating churn for them.
+      // Skip-branch reruns never reach here, no generating churn for them.
       if (entryCommentAllowed) {
         await refreshEntryComment(entryCommentGeneratingBody(deepLink()));
       }
@@ -1008,7 +968,7 @@ async function runGeneration(
       await projection.markRunning(target, GenerationPhases.WRITING);
       // Anchored stitch: carry frozen groups verbatim over the model's take,
       // rewrite ids by descent, enforce coverage. A coverage failure is a
-      // pipeline error — permanent, never salvage.
+      // pipeline error, permanent, never salvage.
       let finalBrief = brief;
       let carriedChunkIds: readonly string[] = [];
       if (anchorPlan !== undefined) {
@@ -1025,7 +985,7 @@ async function runGeneration(
         carriedChunkIds = stitched.value.carriedChunkIds;
       }
       const stamped: Brief = { ...finalBrief, anchor };
-      const written = await store.briefs.write({
+      const briefWrite: Mutable<BriefWriteInput> = {
         pullRequestId,
         baseSha: info.baseSha,
         headSha,
@@ -1041,15 +1001,19 @@ async function runGeneration(
             ...stamped.changeGroups.map((group) => group.id),
           ]),
         ],
-        ...(repoConfig === undefined
-          ? {}
-          : {
-              // Fired attributes come from the PERSISTED chunks — the
-              // stitched artifact, not the model's raw take, which disagrees
-              // on carried/dropped regions.
-              repoConfig: buildRepoConfigArtifact(repoConfig, stamped.chunks),
-            }),
-      });
+      };
+
+      if (repoConfig !== undefined) {
+        // Fired attributes come from the PERSISTED chunks, the stitched
+        // artifact, not the model's raw take, which disagrees on
+        // carried/dropped regions.
+        briefWrite.repoConfig = buildRepoConfigArtifact(
+          repoConfig,
+          stamped.chunks,
+        );
+      }
+
+      const written = await store.briefs.write(briefWrite);
       if (!written.ok) {
         throw new PermanentJobError(written.error.message);
       }
@@ -1091,16 +1055,9 @@ async function runGeneration(
       }
     }
 
-    // ---- Entry comment: ready flip -------------------------------------------
-    // The brief artifact now EXISTS — the FE's render trigger — so the deep
-    // link renders the Brief itself; replace the generating comment (the
-    // delete+repost IS the "ready" ping) before the slower revision/delta
-    // work. Supersession gate first: a superseded run must post nothing.
-    // On a skip-branch rerun, when the live comment already carries this
-    // head's ready body, reposting would only re-ping the thread — leave it
-    // in place. The check is skip-branch-only (a fresh generation's comment
-    // says "generating", so a GET would always mismatch), and any miss falls
-    // through to the normal refresh.
+    // Once the artifact exists, delete/repost the ready Entry before slower delta work.
+    // Check supersession first. On skip reruns, an identical ready body must not re-ping.
+    // Only skips need the read: fresh runs still carry a generating body and always refresh.
     await watch.assertCurrent();
     if (entryCommentAllowed) {
       const readyBody = entryCommentBody(deepLink());
@@ -1117,7 +1074,7 @@ async function runGeneration(
 
     // ---- Marks + revision narrative vs the previous briefed head ------------
     // The prevHead...head span diff is fetched ONCE and reused by the delta
-    // loop below — a checkpoint at the previous briefed head (the common
+    // loop below, a checkpoint at the previous briefed head (the common
     // reviewed-last-push case) must not re-fetch the same compare diff.
     let prevSpan: PrefetchedSpan | undefined;
     if (prevBrief !== undefined && prevSpanFetch !== undefined) {
@@ -1202,7 +1159,7 @@ async function runGeneration(
 
   /**
    * Delete-only sweep for the suppressed state: remove the live Entry comment
-   * (404-tolerant) and clear the stored id. Failures never fail the job — the
+   * (404-tolerant) and clear the stored id. Failures never fail the job, the
    * next drain retries naturally.
    */
   async function removeEntryComment(): Promise<void> {
@@ -1232,7 +1189,7 @@ async function runGeneration(
    * True when the tracked Entry comment exists and its live body already
    * equals `body`. Any uncertainty (no tracked id, comment gone, fetch
    * failure) reports false so the caller falls back to the delete+repost
-   * cycle — the self-heals stay intact.
+   * cycle, the self-heals stay intact.
    */
   async function entryCommentMatches(body: string): Promise<boolean> {
     if (liveEntryCommentId === null) {
@@ -1249,13 +1206,9 @@ async function runGeneration(
   }
 
   /**
-   * Maintain the ONE branded Entry comment: delete the live id (the real
-   * adapter maps an already-gone 404 to ok — the dangling-id self-heal),
-   * repost `body` at the bottom of the thread, rotate the stored id. Called
-   * with the "generating" body when a fresh generation starts and the
-   * "ready" body once the brief artifact exists — the ready delete+repost IS
-   * the notification ping. A GitHub or storage failure here NEVER fails the
-   * job; the next settled head retries the whole cycle naturally.
+   * Delete/repost rotates the one Entry id and supplies the ready notification ping.
+   * The adapter treats already-deleted ids as success. GitHub or storage failures must not
+   * fail generation; a later settled head can retry the cycle.
    */
   async function refreshEntryComment(body: string): Promise<void> {
     if (liveEntryCommentId !== null) {
@@ -1288,7 +1241,7 @@ async function runGeneration(
         `generate: entry comment id not stored (job unaffected) — ${stored.error.message}`,
       );
       // The new comment is untracked: a later run would delete only the OLD
-      // stored id and post again, leaving this one behind — two comments.
+      // stored id and post again, leaving this one behind, two comments.
       // Best-effort delete restores the ONE-comment invariant now.
       const cleanup = await source.deleteComment(posted.value.commentId);
       if (!cleanup.ok) {
@@ -1305,7 +1258,7 @@ async function runGeneration(
 /**
  * Structural guard for a stored brief body. The body was schema-validated at
  * generation time and written by us, so this only defends against the row
- * predating a shape change — checked structurally (never a bare cast).
+ * predating a shape change, checked structurally (never a bare cast).
  */
 function isBrief(value: unknown): value is Brief {
   if (typeof value !== "object" || value === null) {
@@ -1325,7 +1278,7 @@ function isBrief(value: unknown): value is Brief {
 
 /**
  * Every group id the PR's chain has used, read off the previous row. NULL
- * (a row predating the column) heals from the recovered body's groups —
+ * (a row predating the column) heals from the recovered body's groups,
  * never the empty set while a previous brief exists.
  */
 function resolveChainGroupIds(
@@ -1358,7 +1311,7 @@ function recoverBrief(body: string, log: Logger): Brief | undefined {
   }
 }
 
-/** Whole-PR churn — the huge-span denominator (metadata, not span diff). */
+/** Whole-PR churn, the huge-span denominator (metadata, not span diff). */
 function churn(
   files: readonly { additions: number; deletions: number }[],
 ): number {
@@ -1392,7 +1345,7 @@ async function runGenerator<T>(call: () => Promise<T>): Promise<T> {
   }
 }
 
-/** A span diff already fetched this run — reused, never re-fetched. */
+/** A span diff already fetched this run, reused, never re-fetched. */
 interface PrefetchedSpan {
   readonly baselineSha: string;
   readonly diff: string;
@@ -1423,7 +1376,7 @@ interface RevisionArtifactInputs {
 
 /**
  * Comparison marks (mechanical, always) + revision narrative (generated,
- * best-effort — a narrative failure never fails the Brief, mirroring
+ * best-effort, a narrative failure never fails the Brief, mirroring
  * `generateAndWrite`). Marks are written BEFORE the narrative call so a
  * failed narrative still leaves highlights available.
  */
@@ -1463,14 +1416,14 @@ async function writeRevisionArtifacts(
   });
   if (!marksWritten.ok) {
     // Marks are critical for the comparison UI: surface loudly, but classify
-    // as permanent — the same inputs would fail identically on retry.
+    // as permanent, the same inputs would fail identically on retry.
     throw new PermanentJobError(marksWritten.error.message);
   }
 
   if (generatedBrief === undefined) {
     // Either the narrative for this span is already stored (retry after a
     // fully-successful revision pass) or the stored brief body couldn't be
-    // recovered — marks (above) are idempotently refreshed either way.
+    // recovered, marks (above) are idempotently refreshed either way.
     return;
   }
 
@@ -1520,7 +1473,7 @@ async function writeRevisionArtifacts(
   }
 
   // Supersession gate BEFORE spending on the narrative call; deliberately
-  // outside the try — a supersession must propagate, never be swallowed as a
+  // outside the try, a supersession must propagate, never be swallowed as a
   // narrative failure.
   await inputs.watch.assertCurrent();
   const { links, primaryTicket } = await inputs.loadContext();
@@ -1579,12 +1532,9 @@ interface DeltaWarmInputs {
 }
 
 /**
- * Pre-warm one delta core per DISTINCT checkpoint SHA on the PR — every
- * settled push-bundle, never lazy. Per checkpoint:
- * skip-if-stored → span marks (mechanical, before the LLM call) → huge-span
- * skip (the view falls back to the full Brief; absence IS the signal) →
- * generate + write. A failed span aborts the job with its classification;
- * completed spans are stored, so a retry resumes where it stopped.
+ * Prewarm each distinct checkpoint: skip stored cores, write mechanical marks, then apply
+ * the huge-span guard before model spend. Missing huge-span deltas signal full-brief fallback.
+ * A failed span aborts with its classification; stored earlier spans survive for retry.
  */
 async function warmDeltaCores(
   payload: ParsedGeneratePayload,
@@ -1607,7 +1557,7 @@ async function warmDeltaCores(
     }
     // Reuse the prevHead...head diff fetched for the revision artifacts when
     // the checkpoint sits at the previous briefed head (the common
-    // reviewed-last-push case) — never fetch the same span twice in one run.
+    // reviewed-last-push case), never fetch the same span twice in one run.
     const prefetched =
       inputs.prevSpan?.baselineSha === baselineSha
         ? inputs.prevSpan

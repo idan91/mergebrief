@@ -1,9 +1,5 @@
-// Webhook event parsing: an already-JSON-parsed body plus its `x-github-event`
-// name into a typed, discriminated `ParsedWebhookEvent`. A PARSING primitive
-// only — it never decides generation-vs-purge or writes tenant state.
-//
-// Only the fields we read are wrapped in Zod, so a malformed delivery is an
-// expected `Result` error rather than a throw.
+// Parse only consumed webhook fields into Result; malformed deliveries are expected failures.
+// This boundary never decides generation/purge policy or writes tenant state.
 import { z } from "zod";
 import type { WebhookEventName } from "@octokit/webhooks/types";
 import type { InstallationId, RepoId, ReviewerId } from "persistence";
@@ -14,6 +10,7 @@ import {
   reviewerIdSchema,
 } from "../ids";
 import type { Result, ValueOf } from "../types";
+import type { Mutable } from "types";
 
 // ---------------------------------------------------------------------------
 // Closed vocabularies (kebab-case values; SHOUT_CASE keys).
@@ -85,7 +82,7 @@ const HANDLED_EVENT_NAMES = {
 } as const satisfies Record<string, WebhookEventName>;
 
 // ---------------------------------------------------------------------------
-// Parsed event shapes — a discriminated union keyed by `kind`.
+// Parsed event shapes, a discriminated union keyed by `kind`.
 // ---------------------------------------------------------------------------
 
 export interface ParsedPullRequestEvent {
@@ -95,7 +92,7 @@ export interface ParsedPullRequestEvent {
   readonly repoId: RepoId;
   readonly repoFullName: string;
   readonly prNumber: number;
-  /** The PR title — a purgeable display label, refreshed on every event. */
+  /** The PR title, a purgeable display label, refreshed on every event. */
   readonly title: string;
   readonly headSha: string;
   readonly baseSha: string;
@@ -106,11 +103,11 @@ export interface ParsedPullRequestEvent {
    * instead of nulling it.
    */
   readonly authorLogin?: string;
-  /** Present on `synchronize` — the pre-push head, for force-push detection. */
+  /** Present on `synchronize`, the pre-push head, for force-push detection. */
   readonly before?: string;
-  /** Present on `synchronize` — the post-push head. */
+  /** Present on `synchronize`, the post-push head. */
   readonly after?: string;
-  /** Present on `closed` — whether the PR was merged vs. just closed. */
+  /** Present on `closed`, whether the PR was merged vs. just closed. */
   readonly merged?: boolean;
 }
 
@@ -120,18 +117,18 @@ export interface ParsedPullRequestReviewEvent {
   readonly repoId: RepoId;
   readonly repoFullName: string;
   readonly prNumber: number;
-  /** The PR title — a purgeable display label, refreshed on every event. */
+  /** The PR title, a purgeable display label, refreshed on every event. */
   readonly title: string;
   readonly headSha: string;
   readonly reviewerId: ReviewerId;
   readonly reviewerLogin: string;
-  /** GitHub account type, e.g. `User` / `Bot` — the checkpoint bot filter key. */
+  /** GitHub account type, e.g. `User` / `Bot`, the checkpoint bot filter key. */
   readonly reviewerType: string;
   /** GitHub review state, e.g. `approved` / `changes_requested` / `commented`. */
   readonly reviewState: string;
-  /** The SHA the review was submitted against — the checkpoint SHA. */
+  /** The SHA the review was submitted against, the checkpoint SHA. */
   readonly commitId: string;
-  /** GitHub's `review.submitted_at` — drives newest-submission-wins upserts. */
+  /** GitHub's `review.submitted_at`, drives newest-submission-wins upserts. */
   readonly submittedAt: Date;
 }
 
@@ -184,7 +181,7 @@ export interface EventParseError {
 }
 
 // ---------------------------------------------------------------------------
-// Zod schemas — only the fields downstream reads.
+// Zod schemas, only the fields downstream reads.
 // ---------------------------------------------------------------------------
 
 const installationRefSchema = z.object({ id: installationIdSchema });
@@ -299,7 +296,7 @@ function parsePullRequest(
     return invalidPayload(HANDLED_EVENT_NAMES.PULL_REQUEST, parsed.error);
   }
   const data = parsed.data;
-  const base: ParsedPullRequestEvent = {
+  const event: Mutable<ParsedPullRequestEvent> = {
     kind: ParsedWebhookEventKinds.PULL_REQUEST,
     action,
     installationId: data.installation.id,
@@ -310,17 +307,18 @@ function parsePullRequest(
     headSha: data.pull_request.head.sha,
     baseSha: data.pull_request.base.sha,
     draft: data.pull_request.draft,
-    ...(data.pull_request.user == null
-      ? {}
-      : { authorLogin: data.pull_request.user.login }),
-    ...(data.before === undefined ? {} : { before: data.before }),
-    ...(data.after === undefined ? {} : { after: data.after }),
-    ...(action === PullRequestActions.CLOSED &&
-    data.pull_request.merged !== undefined
-      ? { merged: data.pull_request.merged }
-      : {}),
   };
-  return { ok: true, value: base };
+
+  const author = data.pull_request.user;
+  if (author !== null && author !== undefined) event.authorLogin = author.login;
+  if (data.before !== undefined) event.before = data.before;
+  if (data.after !== undefined) event.after = data.after;
+  const merged = data.pull_request.merged;
+  if (action === PullRequestActions.CLOSED && merged !== undefined) {
+    event.merged = merged;
+  }
+
+  return { ok: true, value: event };
 }
 
 function parsePullRequestReview(
@@ -364,16 +362,16 @@ function parseInstallation(
   }
   const data = parsed.data;
   const repoIds = data.repositories?.map((repo) => repo.id);
-  return {
-    ok: true,
-    value: {
-      kind: ParsedWebhookEventKinds.INSTALLATION,
-      action,
-      installationId: data.installation.id,
-      senderId: data.sender.id,
-      ...(repoIds === undefined ? {} : { repoIds }),
-    },
+  const event: Mutable<ParsedInstallationEvent> = {
+    kind: ParsedWebhookEventKinds.INSTALLATION,
+    action,
+    installationId: data.installation.id,
+    senderId: data.sender.id,
   };
+
+  if (repoIds !== undefined) event.repoIds = repoIds;
+
+  return { ok: true, value: event };
 }
 
 function parseInstallationRepositories(

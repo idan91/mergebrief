@@ -1,20 +1,9 @@
-import type { ValueOf } from "types";
+import type { Mutable, ValueOf } from "types";
 
 /**
- * The generation-failure taxonomy. `generate()` throws — `Result` is for
- * construction only — and every adapter throws this one class so callers
- * classify failures without knowing the transport:
- *
- *   auth                expired/invalid credentials (API 401/403, CLI auth error)
- *   config              boot-knowable misconfiguration reaching runtime
- *                       (unknown model, unsupported response format, no route)
- *   provider-transient  429/5xx-class failures after the SDK's own retries
- *   timeout             the adapter's wall-clock or inactivity watchdog fired
- *   schema-floor        validate→salvage→retry pipeline exhausted
- *   refusal             the model declined to produce the artifact
- *   cli-missing         harness binary not found / not runnable
- *   opaque              unclassifiable — carries whatever context exists
- *                       (stderr tail, exit code) in the message
+ * Construction returns Result; generate throws this shared transport-independent taxonomy.
+ * Provider-transient follows exhausted SDK retries; watchdogs classify as timeout.
+ * Schema-floor means salvage/retry exhaustion. Unclassifiable failures retain sanitized context.
  */
 export const GeneratorErrorKinds = {
   AUTH: "auth",
@@ -31,7 +20,7 @@ export type GeneratorErrorKind = ValueOf<typeof GeneratorErrorKinds>;
 /**
  * Expected construction failure (bad config, missing key var, failed boot
  * probe). Mirrors the worker-config ConfigError pattern: per-field issues,
- * VALUES OMITTED — key material never appears, env vars by NAME only.
+ * VALUES OMITTED, key material never appears, env vars by NAME only.
  */
 export interface ConfigError {
   readonly code: "invalid";
@@ -53,20 +42,20 @@ export function configError(
   ok: false;
   error: ConfigError;
 } {
-  return {
-    ok: false,
-    error: {
-      code: "invalid",
-      message: "invalid generator configuration",
-      issues,
-      ...(opts?.transient ? { transient: true } : {}),
-    },
+  const error: Mutable<ConfigError> = {
+    code: "invalid",
+    message: "invalid generator configuration",
+    issues,
   };
+
+  if (opts?.transient) error.transient = true;
+
+  return { ok: false, error };
 }
 
 /**
  * The one failure class every adapter throws from `generate()`. Messages
- * follow the repo rule: never a secret, a token, or a connection string —
+ * follow the repo rule: never a secret, a token, or a connection string,
  * env vars are referenced by NAME only.
  */
 export class GeneratorError extends Error {

@@ -1,9 +1,6 @@
-// PR-conversation primitive. One query returns the pre-threaded conversation —
-// review threads with `isResolved`/`isOutdated` first-class (REST exposes no
-// thread-resolution state at all, which is what forces GraphQL), review
-// verdicts, and PR-level comments. Domain ids are REST `databaseId` numbers;
-// GraphQL `node_id` never leaves this module. Failures funnel through
-// `mapGraphqlError`.
+// GraphQL supplies first-class thread resolution state unavailable through REST.
+// Keep node ids inside this module; domain ids are numeric REST databaseIds.
+// Failures use mapGraphqlError.
 import type { Octokit } from "octokit";
 import { z } from "zod";
 import {
@@ -15,6 +12,7 @@ import {
 } from "../errors";
 import { ReviewCommentSides, type ReviewCommentSide } from "./review";
 import type { Result, ValueOf } from "../types";
+import type { Mutable } from "types";
 
 /** GitHub wire values for a review thread's subject (line-anchored or file-level). */
 export const ThreadSubjectTypes = {
@@ -45,7 +43,7 @@ export interface ConversationAuthor {
 }
 
 export interface ConversationComment {
-  /** REST `databaseId` — the id the reply endpoint and REST tooling accept. */
+  /** REST `databaseId`, the id the reply endpoint and REST tooling accept. */
   readonly commentId: number;
   readonly author: ConversationAuthor;
   readonly body: string;
@@ -54,7 +52,7 @@ export interface ConversationComment {
   /** GitHub permalink to this comment. */
   readonly url: string;
   /**
-   * The formal review this comment belongs to — the own-comment join key
+   * The formal review this comment belongs to, the own-comment join key
    * against the submit flow's returned review id.
    */
   readonly reviewId?: number;
@@ -62,7 +60,7 @@ export interface ConversationComment {
 
 export interface ConversationThread {
   /**
-   * The thread's first comment id — the thread's stable identity AND the
+   * The thread's first comment id, the thread's stable identity AND the
    * `comment_id` a reply POST targets (GraphQL threads carry no databaseId).
    */
   readonly rootCommentId: number;
@@ -76,7 +74,7 @@ export interface ConversationThread {
   readonly subjectType: ThreadSubjectType;
   readonly isResolved: boolean;
   readonly isOutdated: boolean;
-  /** Commit the thread was anchored on — the revision label for outdated threads. */
+  /** Commit the thread was anchored on, the revision label for outdated threads. */
   readonly anchorSha?: string;
   /** Chronological; index 0 is the root comment, the rest are replies. */
   readonly comments: readonly ConversationComment[];
@@ -120,10 +118,10 @@ export interface FetchPullRequestConversationInput {
 }
 
 // ---------------------------------------------------------------------------
-// Wire schemas — Zod-validated at the boundary (no bare `as` off the wire).
+// Wire schemas, Zod-validated at the boundary (no bare `as` off the wire).
 // ---------------------------------------------------------------------------
 
-// `avatarUrl` is `URI!` on Actor, so github.com cannot omit it — but it is
+// `avatarUrl` is `URI!` on Actor, so github.com cannot omit it, but it is
 // decorative, and optional keeps a hypothetical omission (GHES, schema drift)
 // from failing the whole conversation fetch.
 const authorSchema = z
@@ -169,7 +167,7 @@ const wireThreadSchema = z.object({
 });
 
 // Connection `nodes` are nullable LISTS of NULLABLE elements in GitHub's
-// schema — a null list reads as empty, a null element (node deleted or hidden
+// schema, a null list reads as empty, a null element (node deleted or hidden
 // mid-query) is skipped; neither is a whole-fetch failure.
 const threadConnectionSchema = z.object({
   pageInfo: z.object({
@@ -196,7 +194,7 @@ const wireIssueCommentSchema = z.object({
   url: z.string(),
 });
 
-// `repository` and `pullRequest` are nullable in GitHub's schema — a missing
+// `repository` and `pullRequest` are nullable in GitHub's schema, a missing
 // or inaccessible resource can arrive as a null FIELD in a 2xx response, not
 // only as a GraphQL error. `reviews` is likewise a nullable connection;
 // `reviewThreads`/`comments` are NON_NULL.
@@ -235,7 +233,7 @@ const threadsPageResponseSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
-// Queries — variables only; nothing caller-supplied is ever interpolated.
+// Queries, variables only; nothing caller-supplied is ever interpolated.
 // ---------------------------------------------------------------------------
 
 const THREAD_PAGE_FIELDS = `
@@ -328,7 +326,7 @@ function resourceNotFoundError(): GitHubApiError {
 
 /**
  * Parse a wire `fullDatabaseId` (BigInt-as-string) into the domain's number id.
- * `undefined` for null/unparseable/unsafe values — node-level defects drop the
+ * `undefined` for null/unparseable/unsafe values, node-level defects drop the
  * node, envelope defects fail the fetch.
  */
 function parseDatabaseId(value: string | null): number | undefined {
@@ -343,11 +341,17 @@ function mapAuthor(author: z.infer<typeof authorSchema>): ConversationAuthor {
   if (author === null) {
     return { login: "ghost", isBot: false };
   }
-  return {
+
+  const conversationAuthor: Mutable<ConversationAuthor> = {
     login: author.login,
     isBot: author.__typename === "Bot",
-    ...(author.avatarUrl === undefined ? {} : { avatarUrl: author.avatarUrl }),
   };
+
+  if (author.avatarUrl !== undefined) {
+    conversationAuthor.avatarUrl = author.avatarUrl;
+  }
+
+  return conversationAuthor;
 }
 
 function mapComment(
@@ -361,14 +365,17 @@ function mapComment(
     comment.pullRequestReview === null
       ? undefined
       : parseDatabaseId(comment.pullRequestReview.fullDatabaseId);
-  return {
+  const conversationComment: Mutable<ConversationComment> = {
     commentId,
     author: mapAuthor(comment.author),
     body: comment.body,
     createdAt: comment.createdAt,
     url: comment.url,
-    ...(reviewId === undefined ? {} : { reviewId }),
   };
+
+  if (reviewId !== undefined) conversationComment.reviewId = reviewId;
+
+  return conversationComment;
 }
 
 function mapThread(
@@ -398,22 +405,27 @@ function mapThread(
   }
   const comments = [root, ...replies];
   const anchorSha = wireRoot.originalCommit?.oid;
-  return {
+  const conversationThread: Mutable<ConversationThread> = {
     rootCommentId: root.commentId,
     path: thread.path,
-    ...(thread.line === null ? {} : { line: thread.line }),
-    ...(thread.startLine === null ? {} : { startLine: thread.startLine }),
-    ...(thread.diffSide === null ? {} : { side: thread.diffSide }),
-    ...(thread.startDiffSide === null
-      ? {}
-      : { startSide: thread.startDiffSide }),
     subjectType: thread.subjectType,
     isResolved: thread.isResolved,
     isOutdated: thread.isOutdated,
-    ...(anchorSha === undefined ? {} : { anchorSha }),
     comments,
     hasMoreComments: thread.comments.pageInfo.hasNextPage,
   };
+
+  if (thread.line !== null) conversationThread.line = thread.line;
+  if (thread.startLine !== null) {
+    conversationThread.startLine = thread.startLine;
+  }
+  if (thread.diffSide !== null) conversationThread.side = thread.diffSide;
+  if (thread.startDiffSide !== null) {
+    conversationThread.startSide = thread.startDiffSide;
+  }
+  if (anchorSha !== undefined) conversationThread.anchorSha = anchorSha;
+
+  return conversationThread;
 }
 
 function mapReviews(
@@ -429,16 +441,19 @@ function mapReviews(
       // Node-level defect: drop the node, never the fetch.
       continue;
     }
-    mapped.push({
+    const conversationReview: Mutable<ConversationReview> = {
       reviewId,
       author: mapAuthor(review.author),
       state: review.state,
       body: review.body,
-      ...(review.submittedAt === null
-        ? {}
-        : { submittedAt: review.submittedAt }),
       url: review.url,
-    });
+    };
+
+    if (review.submittedAt !== null) {
+      conversationReview.submittedAt = review.submittedAt;
+    }
+
+    mapped.push(conversationReview);
   }
   return mapped;
 }
@@ -561,7 +576,7 @@ export interface CreateReviewCommentReplyInput {
 
 /**
  * Reply to an existing review thread, authored by whoever the octokit's token
- * identifies. Replies post IMMEDIATELY, outside any pending review —
+ * identifies. Replies post IMMEDIATELY, outside any pending review,
  * create-review's `comments[]` cannot express `in_reply_to`, so there is no
  * batched alternative.
  */

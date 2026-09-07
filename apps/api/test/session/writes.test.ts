@@ -1,10 +1,6 @@
-// The Review Session writes, end to end over the PGlite harness. Five things
-// this suite exists to hold: any write can be the one that writes the
-// carry-over (session row created, carried rows copied, write applied, all in
-// one transaction), a draft id the read handed out before materialization
-// lands on the copy that write makes, a frozen session refuses every write
-// with 409, `set-chunk-read` is idempotent under a repeat of the same boolean,
-// and the router's scope gate stands in front of all of them.
+// Any session write may materialize carried state atomically before applying its action.
+// Pre-materialization draft ids must resolve to copies; frozen sessions refuse all writes.
+// Repeated read marks are idempotent and every write inherits the router scope gate.
 import {
   ChangeGroupCategories,
   DraftCommentSides,
@@ -64,7 +60,7 @@ async function readDraftId(res: Response): Promise<string> {
 
 /**
  * The draft-comment subject ids the read route hands out for the orphaned
- * carried anchors — before materialization those are the PREVIOUS session's
+ * carried anchors, before materialization those are the PREVIOUS session's
  * rows. A null id would fail the parse, which is the point.
  */
 function draftSubjectIds(body: unknown): string[] {
@@ -143,14 +139,17 @@ describe("the Review Session writes", () => {
     head: string,
     body?: unknown,
   ): Promise<Response> {
-    return app.request(pathFor(suffix, head), {
+    const init: RequestInit = {
       method,
       headers: {
         Cookie: `rs_session=${cookie}`,
         "content-type": "application/json",
       },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-    });
+    };
+
+    if (body !== undefined) init.body = JSON.stringify(body);
+
+    return app.request(pathFor(suffix, head), init);
   }
 
   async function read(head: string): Promise<Response> {
@@ -168,7 +167,7 @@ describe("the Review Session writes", () => {
     const previous = await seedBrief(harness.handle, 1);
     const current = await seedBrief(harness.handle, 2);
     await seedPreviousWork(harness.handle, previous);
-    // One session — the previous one — and nothing on the new Brief yet.
+    // One session, the previous one, and nothing on the new Brief yet.
     expect(await countRows("review_session")).toBe(1);
 
     // A read mark owns none of the carried subjects and still creates the
@@ -213,7 +212,7 @@ describe("the Review Session writes", () => {
     await seedPreviousWork(harness.handle, previous);
     const carriedBefore = await countRows("review_draft_comment");
 
-    // A write that throws takes the whole materialization down with it — the
+    // A write that throws takes the whole materialization down with it, the
     // session and the copied rows go back with the transaction.
     const failed = createTenantRepository(
       harness.handle,
@@ -241,7 +240,7 @@ describe("the Review Session writes", () => {
       await write("POST", "/comments", "head-1", DRAFT),
     );
     const current = await seedBrief(harness.handle, 2);
-    // The reviewer writes the NEWER Brief's session — that, and only
+    // The reviewer writes the NEWER Brief's session, that, and only
     // that, freezes the older one.
     const opened = await createTenantRepository(
       harness.handle,
@@ -378,7 +377,7 @@ describe("the Review Session writes", () => {
     );
   });
 
-  it("resolves a carried draft id on every write, not only the one that writes", async () => {
+  it("resolves carried draft ids on every write after materialization", async () => {
     await seedBrief(harness.handle, 1);
     const draftId = await readDraftId(
       await write("POST", "/comments", "head-1", DRAFT),
@@ -400,7 +399,7 @@ describe("the Review Session writes", () => {
       ).map((row) => row["body"]),
     ).toEqual([DRAFT.body, "edited"]);
 
-    // Materialized now, and the same id still reaches the copy — the pointer
+    // Materialized now, and the same id still reaches the copy, the pointer
     // is a column on it, not a mapping that lived for one transaction.
     const deleted = await write("DELETE", `/comments/${draftId}`, "head-2");
     expect(deleted.status).toBe(200);
@@ -412,7 +411,7 @@ describe("the Review Session writes", () => {
     ).toEqual([{ id: draftId }]);
 
     // The trade-off this accepts: that first write on Brief 2 froze Brief 1,
-    // so every later Brief-1 write is 409 — terminal for a screen still on it.
+    // so every later Brief-1 write is 409, terminal for a screen still on it.
     expect(
       (await write("PATCH", `/comments/${draftId}`, "head-1", { body: "x" }))
         .status,
@@ -426,7 +425,7 @@ describe("the Review Session writes", () => {
     const [draftId] = draftSubjectIds(await (await read("head-2")).json());
 
     // The FIRST write of the session: it writes, copies, and lands on
-    // the copy — the operation the attention item names, run straight off it.
+    // the copy, the operation the attention item names, run straight off it.
     const res = await write("PUT", `/comments/${draftId}/anchor`, "head-2", {
       filePath: "src/app.ts",
       side: "new",
@@ -447,12 +446,12 @@ describe("the Review Session writes", () => {
     expect(await readDraftId(res)).not.toBe(draftId);
   });
 
-  it("clears every carried anchor one read listed, materializing on the first", async () => {
+  it("clears every listed carried anchor and materializes on the first write", async () => {
     const previous = await seedBrief(harness.handle, 1);
     await seedBrief(harness.handle, 2);
     await seedPreviousWork(harness.handle, previous);
     await seedOrphanedDraft(harness.handle, previous);
-    // Two items, one payload — the list is meant to be walked, so the second
+    // Two items, one payload, the list is meant to be walked, so the second
     // id has to still work after the first write materialized the session.
     const [first, second] = draftSubjectIds(
       await (await read("head-2")).json(),
@@ -690,7 +689,7 @@ describe("the Review Session writes", () => {
     });
     expect(reopened.status).toBe(200);
     expect(await countRows("disposition")).toBe(0);
-    // Repeating the undo is the same undo — and says it changed nothing.
+    // Repeating the undo is the same undo, and says it changed nothing.
     const again = await write("POST", "/risks/reopen", "head-1", {
       flags: [FLAG],
     });
@@ -723,7 +722,7 @@ describe("the Review Session writes", () => {
           { ...FLAG, regionStart: 3_000_000_000, regionEnd: 3_000_000_000 },
         ],
       }),
-      // The cap the web app mirrors — a deterministic 400 past it.
+      // The cap the web app mirrors, a deterministic 400 past it.
       write("POST", "/risks/reopen", "head-1", {
         flags: Array.from({ length: 201 }, () => FLAG),
       }),
@@ -744,7 +743,7 @@ describe("the Review Session writes", () => {
     expect(await countRows("review_session")).toBe(0);
   });
 
-  it("keeps clearing human-only whatever the granted scope, and lets the same token author", async () => {
+  it("keeps clearing human-only while allowing token-authored decisions", async () => {
     await seedBrief(harness.handle, 1);
     const bearer = await seedApiToken(
       harness.handle,
@@ -758,14 +757,17 @@ describe("the Review Session writes", () => {
       body?: unknown,
       method = "POST",
     ): Promise<Response> {
-      return app.request(pathFor(suffix, "head-1"), {
+      const init: RequestInit = {
         method,
         headers: {
           Authorization: `Bearer ${bearer}`,
           "content-type": "application/json",
         },
-        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-      });
+      };
+
+      if (body !== undefined) init.body = JSON.stringify(body);
+
+      return app.request(pathFor(suffix, "head-1"), init);
     }
 
     // All FIVE clearing operations, not just the three risk ones:
@@ -791,7 +793,7 @@ describe("the Review Session writes", () => {
       code: "human-only",
     });
     expect(await countRows("disposition")).toBe(0);
-    // Nothing was written at all — the refusal lands before the session is
+    // Nothing was written at all, the refusal lands before the session is
     // materialized, so a refused clear cannot freeze an older Brief.
     expect(await countRows("review_session")).toBe(0);
 
@@ -821,7 +823,7 @@ describe("the Review Session writes", () => {
     expect(await readOutcome(await read("head-2"))).toBe("comment");
   });
 
-  it("lists a carried decision whose evidence is gone, cleared by either operation", async () => {
+  it("lists decisions with missing evidence and clears them by either route", async () => {
     const previous = await seedBrief(harness.handle, 1);
     await seedPreviousWork(harness.handle, previous);
     // The decision points at a Chunk the next Brief did not carry.
@@ -870,7 +872,7 @@ describe("the Review Session writes", () => {
   });
 
   it("keeps a linked-comment evidence pointer good across two carries", async () => {
-    // The id the reviewer cites is the one the READ handed out — the previous
+    // The id the reviewer cites is the one the READ handed out, the previous
     // session's row. Every carry re-keys the copy, so a pointer that is not
     // re-normalized forward reports missing evidence on work that is alive.
     await seedBrief(harness.handle, 1);
@@ -891,7 +893,7 @@ describe("the Review Session writes", () => {
       expect(carried.status).toBe(200);
     }
 
-    // Still proof, and the pointer resolves WITHIN the newest session — the
+    // Still proof, and the pointer resolves WITHIN the newest session, the
     // only scope a write can address. A ref left pointing at an older
     // session's row still exists somewhere, and is exactly as good as gone.
     expect(

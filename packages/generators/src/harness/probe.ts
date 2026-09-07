@@ -5,21 +5,18 @@ import type { Logger } from "../contract/generator";
 import { redactSecrets } from "./redact";
 import {
   runHarnessProcess,
+  type HarnessRunArgs,
   type HarnessRunResult,
   type HarnessTimeouts,
 } from "./run";
 
-// ---------------------------------------------------------------------------
-// Boot probe: a misconfigured instance refuses boot, never
-// limps into jobs. `<cli> --version` proves the binary exists and runs; the
-// auth preflight proves a credential is present.
-// ---------------------------------------------------------------------------
+// Refuse misconfigured boots: version probes prove the CLI runs and auth preflight proves credentials.
 
 export interface HarnessProbeArgs {
   command: string;
   versionArgv: readonly string[];
   /**
-   * Auth preflight argv; nonzero exit = not authenticated. REQUIRED — a
+   * Auth preflight argv; nonzero exit = not authenticated. REQUIRED, a
    * probe that skips auth would let an unauthenticated CLI limp into jobs.
    * An adapter whose CLI has no status command supplies its best equivalent.
    */
@@ -32,13 +29,13 @@ export interface HarnessProbeArgs {
   /** Sink for interpreter warnings; absent = warnings are dropped. */
   log?: Logger;
   /**
-   * Adapter-owned read of a SUCCESSFUL version probe's stdout (exit 0 —
+   * Adapter-owned read of a SUCCESSFUL version probe's stdout (exit 0,
    * failures keep their generic verdicts above). Non-null = a warning to
    * surface (e.g. a billing-attribution version floor); never fatal.
    */
   interpretVersionOutput?: (stdout: string) => string | null;
   /**
-   * Adapter-owned read of a SUCCESSFUL auth preflight's stdout (exit 0 —
+   * Adapter-owned read of a SUCCESSFUL auth preflight's stdout (exit 0,
    * the CLI says "authenticated"; this decides whether that credential is
    * also the RIGHT one). `ok` carries an optional warning; an error refuses
    * boot (fail-loud, same contract as the generic checks).
@@ -54,12 +51,13 @@ export async function probeHarnessCli(
     inactivityMs: args.timeoutMs ?? 10_000,
     killGraceMs: 1_000,
   };
-  const base = {
+  const base: Omit<HarnessRunArgs, "argv"> = {
     command: args.command,
     stdin: "",
     timeouts,
-    ...(args.env ? { env: args.env } : {}),
   };
+
+  if (args.env) base.env = args.env;
 
   let version: HarnessRunResult;
   try {
@@ -108,14 +106,14 @@ export async function probeHarnessCli(
     throw error;
   }
   if (auth.timedOut) {
-    // A hung preflight is NOT an auth verdict — telling an authenticated
+    // A hung preflight is NOT an auth verdict, telling an authenticated
     // operator to log in again would be a false diagnosis.
     return configError([
       `${args.command}: auth preflight timed out before completing`,
     ]);
   }
   if (auth.exitCode === null) {
-    // Killed by an external signal — no auth verdict was produced; the
+    // Killed by an external signal, no auth verdict was produced; the
     // login hint would be a false diagnosis (same honesty rule as timeouts).
     return configError([
       `${args.command}: auth preflight terminated by signal ${auth.exitSignal ?? "unknown"} before completing`,

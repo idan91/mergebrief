@@ -9,17 +9,14 @@ import { createOpenRouterCore } from "../src/adapters/openrouter";
 import { createGenerator, Providers } from "../src/config/registry";
 import {
   describeGeneratorContract,
+  type ContractGeneratorHandle,
   type ContractTurn,
   type GeneratorContractHarness,
 } from "./contract";
 
 /**
- * OpenRouter assembly on fetch-level fixtures: /models preflight arms
- * (structured_outputs requirement, reasoning gating), the forced
- * require_parameters, reasoning:{effort} translation, served-model
- * verification — plus the shared contract suite. The streaming core's
- * pipeline behavior is already pinned by openai.contract.test.ts; the
- * contract run here guards the ASSEMBLY (preflight + transport wrapper).
+ * Fetch fixtures cover preflight plus transport assembly and shared conformance.
+ * The OpenAI contract suite separately pins the shared streaming pipeline.
  */
 
 const SLUG = "test-lab/test-model-1";
@@ -149,7 +146,7 @@ describe("OpenRouter request translation", () => {
     await expect(generator.generate(request())).resolves.toEqual({ ok: true });
     const body = scripted.bodies[0];
     if (!body) throw new Error("no request recorded");
-    // Forced last — the configured false must lose.
+    // Forced last, the configured false must lose.
     expect(body["provider"]).toEqual({
       order: ["some-lab"],
       require_parameters: true,
@@ -181,9 +178,9 @@ describe("OpenRouter request translation", () => {
 });
 
 describe("OpenRouter reasoning backstop", () => {
-  it("recovers when the listing advertised reasoning but the provider rejects it", async () => {
+  it("recovers from provider rejection of advertised reasoning support", async () => {
     // The listing lied: reasoning is in supported_parameters, so the first
-    // request carries reasoning:{effort} — OpenRouter answers 400 naming
+    // request carries reasoning:{effort}, OpenRouter answers 400 naming
     // `reasoning`. The transport-aware backstop retries without the knob
     // and origin records the gap.
     const scripted = scriptedFetch((body) =>
@@ -207,7 +204,7 @@ describe("OpenRouter reasoning backstop", () => {
   });
 
   it("recovers when the knob rejection arrives wrapped in metadata.raw", async () => {
-    // The catalog listed reasoning, the upstream provider rejects it — but
+    // The catalog listed reasoning, the upstream provider rejects it, but
     // OpenRouter wraps that as a generic 400 whose top-level message never
     // names `reasoning`; only metadata.raw does. Without scanning the raw,
     // this is a permanent CONFIG failure instead of an honest effort: null.
@@ -231,7 +228,7 @@ describe("OpenRouter reasoning backstop", () => {
 });
 
 // A real failing body captured from a live repro: OpenRouter wraps the
-// upstream rejection as a generic 400 — the actual cause lives only in
+// upstream rejection as a generic 400, the actual cause lives only in
 // error.metadata.raw.
 const CAPTURED_RAW =
   '{\n  "error": {\n    "message": "Invalid schema for response_format \'brief\': In context=(\'properties\', \'chunks\', \'items\'), \'required\' is required to be supplied and to be an array including every key in properties. Missing \'riskNotes\'.",\n    "type": "invalid_request_error",\n    "param": "text.format.schema",\n    "code": "invalid_json_schema"\n  }\n}';
@@ -321,7 +318,7 @@ describe("OpenRouter wrapped-400 metadata surfacing", () => {
   it("bounds the surfaced message even for a huge raw body", async () => {
     // Short repeated words survive every redaction rule (a single long run
     // would be collapsed by redactSecrets before the slice, making the
-    // bound assertion vacuous) — the 800 chars must come from the slice.
+    // bound assertion vacuous), the 800 chars must come from the slice.
     const scripted = scriptedFetch(() =>
       wrapped400("missing key ".repeat(500)),
     );
@@ -353,7 +350,7 @@ describe("OpenRouter served-model verification", () => {
       generator.generate({ ...request(), log: (m) => requestLogs.push(m) }),
     ).resolves.toEqual({ ok: true });
     expect(mismatches).toEqual([[SLUG, "other-lab/shadow-model"]]);
-    // The per-request log carries the warning — that is the caller's
+    // The per-request log carries the warning, that is the caller's
     // artifact-warning collection surface; the
     // construction-time log does NOT double-log it.
     expect(requestLogs.join("\n")).toContain(
@@ -445,7 +442,7 @@ describe("OpenRouter preflight", () => {
     const text = result.error.issues.join("; ");
     expect(text).toContain("rejected the API key");
     expect(text).not.toContain("SENTINEL");
-    // Deterministic — must stay down, never restart.
+    // Deterministic, must stay down, never restart.
     expect(result.error.transient).toBeUndefined();
   });
 
@@ -597,9 +594,8 @@ function makeOpenRouterHarness(): GeneratorContractHarness {
       });
       if (!core.ok) throw new Error(core.error.issues.join("; "));
 
-      return {
+      const handle: ContractGeneratorHandle = {
         generator: core.value,
-        ...(wantsAbort ? { signal: controller.signal } : {}),
         attempts: () => recorded.length,
         feedbackSeen: () => {
           const retry = recorded[1];
@@ -610,6 +606,10 @@ function makeOpenRouterHarness(): GeneratorContractHarness {
             .join("\n");
         },
       };
+
+      if (wantsAbort) handle.signal = controller.signal;
+
+      return handle;
     },
   };
 }

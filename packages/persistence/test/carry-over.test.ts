@@ -1,9 +1,5 @@
-// Carry-over: the read-side evaluation and the write-on-first-write
-// transaction, exercised through the ctx-bound store — the only surface the
-// API layer gets. The dangerous failure here is silent (a wrongly-placed
-// anchor reads as correct), so every carry rule gets its own case, including
-// the one that must NOT happen: a read mark carrying on a chunk id that was
-// merely re-used.
+// Exercise carry through the tenant-bound store. A wrong anchor can look valid,
+// so include negative cases where a re-minted chunk merely reused an id.
 import type { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { describe, expect, it } from "vitest";
@@ -15,11 +11,13 @@ import {
 } from "../src/index";
 import type {
   AppDatabase,
+  BriefWriteInput,
   CarryOverInputs,
   FlagKey,
   SessionWriter,
   TenantContext,
 } from "../src/index";
+import type { Mutable } from "types";
 import * as schema from "../src/schema/index";
 import {
   ChangeGroupCategories,
@@ -74,7 +72,7 @@ async function freshWorld(): Promise<World> {
 
 /**
  * One Brief of the PR at `headIndex`, head SHA `head-<headIndex>`. Stamped
- * `anchored` unless a test says otherwise — an unstamped chain drops every
+ * `anchored` unless a test says otherwise, an unstamped chain drops every
  * reclassification, which is its own test, not this suite's default.
  */
 async function seedBrief(
@@ -85,7 +83,7 @@ async function seedBrief(
   anchorState: string | null = "anchored",
   headSha = "",
 ): Promise<BriefRowId> {
-  const written = await createArtifactStore(world.handle, CTX).briefs.write({
+  const briefWrite: Mutable<BriefWriteInput> = {
     pullRequestId: world.pullRequestId,
     baseSha,
     headSha: headSha === "" ? `head-${headIndex}` : headSha,
@@ -96,9 +94,14 @@ async function seedBrief(
     effort: "high",
     body: '{"brief":true}',
     carriedChunkIds,
-    ...(anchorState === null ? {} : { anchorState }),
-    ...(anchorState === "fresh-restart" ? { anchorReason: "model-swap" } : {}),
-  });
+  };
+
+  if (anchorState !== null) briefWrite.anchorState = anchorState;
+  if (anchorState === "fresh-restart") briefWrite.anchorReason = "model-swap";
+
+  const written = await createArtifactStore(world.handle, CTX).briefs.write(
+    briefWrite,
+  );
   if (!written.ok)
     throw new Error(`brief seed failed: ${written.error.message}`);
   return written.value.id;
@@ -228,7 +231,7 @@ function createCountingArtifact(): {
   };
 }
 
-describe("preview — the read-side evaluation creates nothing", () => {
+describe("preview, the read-side evaluation creates nothing", () => {
   it("carries nothing when the reviewer has no earlier session", async () => {
     const world = await freshWorld();
     const briefId = await seedBrief(world, 1);
@@ -298,7 +301,7 @@ describe("preview — the read-side evaluation creates nothing", () => {
   });
 });
 
-describe("preview — several pushes are ONE evaluation", () => {
+describe("preview, several pushes are ONE evaluation", () => {
   it("composes 7 → 8 → 9 → 10 into a single remap", async () => {
     const world = await freshWorld();
     const previous = await seedBrief(world, 7);
@@ -317,7 +320,7 @@ describe("preview — several pushes are ONE evaluation", () => {
       ...NO_ARTIFACT,
     });
 
-    // Three hops of +3 each, composed once — never three lists summed.
+    // Three hops of +3 each, composed once, never three lists summed.
     expect(view.carried.draftComments).toEqual([
       expect.objectContaining({
         startLine: 19,
@@ -359,7 +362,7 @@ describe("preview — several pushes are ONE evaluation", () => {
     await seedBrief(world, 8);
     await seedBrief(world, 9);
     // A hop written LAST but belonging FIRST in the chain, plus a fork off the
-    // shared baseline from a generation that failed — ordinal position is not
+    // shared baseline from a generation that failed, ordinal position is not
     // chain position.
     await seedHop(world, 8, 9);
     await seedHop(world, 7, 8);
@@ -450,7 +453,7 @@ const FIRING = [
   },
 ];
 
-describe("preview — what carries, per subject", () => {
+describe("preview, what carries, per subject", () => {
   async function twoBriefs(
     carriedChunkIds: readonly string[],
     previousChunkIds: readonly string[] = ["c5"],
@@ -478,8 +481,8 @@ describe("preview — what carries, per subject", () => {
     expect(view.carried.readMarks).toEqual(["c5"]);
   });
 
-  it("does NOT carry a read mark onto a re-minted chunk that merely shares its id", async () => {
-    // `c5` exists in the new Brief but was NOT carried — chunk ids get a
+  it("refuses read marks on re-minted chunks that merely reuse ids", async () => {
+    // `c5` exists in the new Brief but was NOT carried, chunk ids get a
     // collision guard, not descent, so this is a Chunk the reviewer never
     // opened. Marking it read would be a silent rubber-stamp.
     const { world, current } = await twoBriefs([]);
@@ -516,7 +519,7 @@ describe("preview — what carries, per subject", () => {
   it("does NOT carry a reclassification across a fresh-restart brief", async () => {
     // The current Brief re-derived its groups from scratch: `g1` being
     // present again is numbering coincidence, not the group the reviewer
-    // judged — the override must drop, exactly as a read mark would.
+    // judged, the override must drop, exactly as a read mark would.
     const world = await freshWorld();
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(world, 2, [], "base", "fresh-restart");
@@ -536,7 +539,7 @@ describe("preview — what carries, per subject", () => {
   });
 
   it("does NOT carry a reclassification across a brief with no anchor stamp", async () => {
-    // NULL anchor state (a row predating the stamp) is not proof of descent —
+    // NULL anchor state (a row predating the stamp) is not proof of descent,
     // ambiguity biases to dropping.
     const world = await freshWorld();
     const previous = await seedBrief(world, 1);
@@ -558,7 +561,7 @@ describe("preview — what carries, per subject", () => {
 
   it("does NOT carry a reclassification when the restart sits mid-chain", async () => {
     // Brief 2 re-derived from scratch; brief 3 descending from IT proves
-    // nothing about brief 1's groups — the whole span must have descended.
+    // nothing about brief 1's groups, the whole span must have descended.
     const world = await freshWorld();
     const previous = await seedBrief(world, 1);
     await seedBrief(world, 2, [], "base", "fresh-restart");
@@ -580,7 +583,7 @@ describe("preview — what carries, per subject", () => {
   });
 
   it("carries when only the previous session's OWN brief was a restart", async () => {
-    // That brief's stamp describes the hop BEFORE the carried span — the
+    // That brief's stamp describes the hop BEFORE the carried span, the
     // reviewer judged its groups directly, so it must not gate the carry.
     const world = await freshWorld();
     const previous = await seedBrief(world, 1, [], "base", "fresh-restart");
@@ -716,7 +719,7 @@ describe("preview — what carries, per subject", () => {
     });
 
     // Row order is the previous session's insertion order: 30-32, then 60-62.
-    // Both are remapped — a dropped row ships on current coordinates too, or
+    // Both are remapped, a dropped row ships on current coordinates too, or
     // whatever now occupies its old lines reads as already decided.
     expect(
       view.carried.dispositions.map((row) => [
@@ -778,7 +781,7 @@ describe("preview — what carries, per subject", () => {
       }),
     ]);
 
-    // A note is the reviewer's own words — there is nothing for it to dangle
+    // A note is the reviewer's own words, there is nothing for it to dangle
     // against, whatever the new Brief dropped.
     await world.client.query(
       `update disposition set evidence_kind = 'manual-note', evidence_ref =
@@ -798,7 +801,7 @@ describe("preview — what carries, per subject", () => {
   });
 
   it("keeps evidence naming a comment the reviewer published", async () => {
-    // The submitted comment does not carry — GitHub holds it now — but the
+    // The submitted comment does not carry, GitHub holds it now, but the
     // proof it stands for is firmer than a draft's, not gone.
     const { world, current } = await twoBriefs(["c5"]);
     const submitted = await world.client.query<{ id: string }>(
@@ -843,7 +846,7 @@ describe("preview — what carries, per subject", () => {
   });
 });
 
-describe("preview — the rules a multi-push chain must not loosen", () => {
+describe("preview, the rules a multi-push chain must not loosen", () => {
   it("does NOT carry a read mark that any step of the chain dropped", async () => {
     const world = await freshWorld();
     const previous = await seedBrief(world, 7);
@@ -924,7 +927,7 @@ describe("preview — the rules a multi-push chain must not loosen", () => {
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(world, 2);
     // The hunk covers 30-32 (reopened, stays put) and shifts 50-52 back onto
-    // 30-32 (settled). One anchor, one row — and the anchor is a unique key,
+    // 30-32 (settled). One anchor, one row, and the anchor is a unique key,
     // so a second row would abort the whole materialization.
     await seedHop(world, 1, 2, [
       {
@@ -1014,7 +1017,7 @@ describe("preview — the rules a multi-push chain must not loosen", () => {
     });
 
     // A first-ever session has no predecessor to place, and a materialized
-    // one holds its carry-over as rows — neither pays for the parse, and the
+    // one holds its carry-over as rows, neither pays for the parse, and the
     // read runs on every page load.
     expect(firstEver.calls()).toBe(0);
     // The write that creates a first-ever session pays nothing either: there
@@ -1126,7 +1129,7 @@ describe("old-side drafts against the PR base", () => {
   });
 });
 
-describe("two-side drafts — both legs or orphan", () => {
+describe("two-side drafts, both legs or orphan", () => {
   /** One two-side draft; direction picked by which side holds the start. */
   async function seedTwoSideDraft(
     world: World,
@@ -1159,7 +1162,7 @@ describe("two-side drafts — both legs or orphan", () => {
     });
   }
 
-  it("moves only the new leg through the hop (old\u2192new)", async () => {
+  it("moves only the new leg through an old-to-new hop", async () => {
     const world = await freshWorld();
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(world, 2);
@@ -1184,7 +1187,7 @@ describe("two-side drafts — both legs or orphan", () => {
     ]);
   });
 
-  it("moves only the new leg through the hop (new\u2192old)", async () => {
+  it("moves only the new leg through a new-to-old hop", async () => {
     const world = await freshWorld();
     const previous = await seedBrief(world, 1);
     const current = await seedBrief(world, 2);
@@ -1313,7 +1316,7 @@ describe("two-side drafts — both legs or orphan", () => {
   });
 });
 
-describe("writeToSession — the first write, one transaction", () => {
+describe("writeToSession, the first write, one transaction", () => {
   /** Brief 1 carries work; brief 2 is where the reviewer writes next. */
   async function pending(): Promise<{ world: World; current: BriefRowId }> {
     const world = await freshWorld();
@@ -1379,7 +1382,7 @@ describe("writeToSession — the first write, one transaction", () => {
     });
     const sourceId = previewed.carried.draftComments[0]?.id;
 
-    // The id the read handed out, used AFTER a different write materialized —
+    // The id the read handed out, used AFTER a different write materialized,
     // it still names the copy, because the copy points back at its source.
     await repo.reviewSessions.writeToSession(
       { briefId: current, reviewerId: REVIEWER, ...QUERY },
@@ -1425,7 +1428,7 @@ describe("writeToSession — the first write, one transaction", () => {
   });
 
   // PGlite serializes transactions on one connection, so these two calls
-  // cannot overlap here — what this pins is the mechanism that makes an
+  // cannot overlap here, what this pins is the mechanism that makes an
   // overlap safe: whichever writer loses the session insert never copies.
   it("copies each carried row once when a second first-write follows", async () => {
     const { world, current } = await pending();
@@ -1510,7 +1513,7 @@ describe("writeToSession — the first write, one transaction", () => {
       briefId: current,
       reviewerId: REVIEWER,
     });
-    // There is no sentinel for "unplaced" — the CHECK forbids one — so the
+    // There is no sentinel for "unplaced", the CHECK forbids one, so the
     // row keeps the file and line it was last placed at.
     expect(snapshot?.draftComments[0]).toEqual(
       expect.objectContaining({
@@ -1523,7 +1526,7 @@ describe("writeToSession — the first write, one transaction", () => {
   });
 });
 
-describe("freeze — a session freezes only when a newer one is materialized", () => {
+describe("freeze, a session freezes only when a newer one is materialized", () => {
   it("accepts a write while a newer Brief merely exists", async () => {
     const world = await freshWorld();
     const first = await seedBrief(world, 1);

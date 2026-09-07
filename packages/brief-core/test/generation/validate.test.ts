@@ -26,7 +26,7 @@ describe("validatePartition", () => {
     expect(validatePartition(groups, chunks)).toEqual([]);
   });
 
-  it("flags a chunk pointing at an unknown group (dangling ref)", () => {
+  it("flags chunks referencing unknown groups", () => {
     const chunks = [
       { id: "c1", changeGroupId: "g1", role: "core" as const },
       { id: "c2", changeGroupId: "g2", role: "core" as const },
@@ -56,7 +56,7 @@ describe("validatePartition", () => {
   });
 });
 
-describe("validateReadingOrder — carried (frozen) ids on anchored runs", () => {
+describe("validateReadingOrder with frozen ids on anchored runs", () => {
   const emitted = [{ id: "tmp1" }];
 
   it("accepts an order spanning emitted + carried ids and demands BOTH", () => {
@@ -67,7 +67,7 @@ describe("validateReadingOrder — carried (frozen) ids on anchored runs", () =>
         ["gFrozen"],
       ),
     ).toEqual([]);
-    // Missing the carried id is an issue — the anchored contract demands the
+    // Missing the carried id is an issue, the anchored contract demands the
     // whole ordering, frozen ids included.
     expect(
       validateReadingOrder([{ groupId: "tmp1" }], emitted, ["gFrozen"]).length,
@@ -83,7 +83,7 @@ describe("validateReadingOrder — carried (frozen) ids on anchored runs", () =>
     expect(issues.join(" ")).toContain("ghost");
   });
 
-  it("without carried ids behaves exactly as before (fresh path untouched)", () => {
+  it("preserves fresh validation behavior without carried ids", () => {
     expect(validateReadingOrder([{ groupId: "tmp1" }], emitted)).toEqual([]);
   });
 });
@@ -97,7 +97,7 @@ describe("validateNarrativeGroups", () => {
     expect(validateNarrativeGroups(chunks, groups)).toEqual([]);
   });
 
-  it("warns (returns an issue) when a briefChangeGroupId does not exist on the current Brief", () => {
+  it("warns on narrative group ids missing from the current brief", () => {
     const chunks = [{ id: "rc1", briefChangeGroupId: "g9" }];
     const issues = validateNarrativeGroups(chunks, groups);
     expect(issues.some((i) => i.includes("rc1") && i.includes("g9"))).toBe(
@@ -126,7 +126,7 @@ describe("validateReadingOrder", () => {
     );
   });
 
-  it("flags an extra (unknown) group id", () => {
+  it("flags unknown group ids", () => {
     const order = [{ groupId: "g1" }, { groupId: "g2" }, { groupId: "g9" }];
     const issues = validateReadingOrder(order, groups);
     expect(issues.some((i) => i.includes("unknown") && i.includes("g9"))).toBe(
@@ -182,7 +182,7 @@ describe("validateRiskAttributes", () => {
     expect(result.chunks[0].riskSurface).toContain("comment-contradicts-code");
   });
 
-  it("drops comment-contradicts-code without a note and warns; the chunk survives", () => {
+  it("warns and drops uncited comment-contradicts-code while keeping chunks", () => {
     const chunks = [
       trioChunk({ riskSurface: ["comment-contradicts-code", "no-tests"] }),
     ];
@@ -198,7 +198,7 @@ describe("validateRiskAttributes", () => {
     expect(chunks[0].riskSurface).toContain("comment-contradicts-code");
   });
 
-  it("keeps new-dependency when the chunk's own added lines add a new dependency key", () => {
+  it("keeps new-dependency for new keys in the chunk's own added lines", () => {
     const chunks = [
       trioChunk({
         file: "package.json",
@@ -221,7 +221,7 @@ describe("validateRiskAttributes", () => {
     expect(result.chunks[0].riskSurface).toEqual(["new-dependency"]);
   });
 
-  it("drops new-dependency for a version bump (same key added and removed)", () => {
+  it("drops new-dependency for version bumps with matching removed keys", () => {
     const chunks = [
       trioChunk({
         file: "package.json",
@@ -293,7 +293,7 @@ describe("validateRiskAttributes", () => {
     }
   });
 
-  it("drops new-dependency when the added manifest line is not a dependency entry", () => {
+  it("drops new-dependency for added manifest metadata", () => {
     const cases = [
       {
         // package.json script under a visible "scripts" section
@@ -350,7 +350,7 @@ describe("validateRiskAttributes", () => {
     }
   });
 
-  it("confirms only the chunk whose added ranges cover the new dependency line", () => {
+  it("confirms new dependencies only within the chunk's added ranges", () => {
     const patch = [
       "diff --git a/package.json b/package.json",
       "@@ -10,2 +10,3 @@",
@@ -384,7 +384,7 @@ describe("validateRiskAttributes", () => {
     expect(result.issues.some((i) => i.includes("c1"))).toBe(false);
   });
 
-  it("passes other attributes with notes through untouched and drops a removed attribute's note", () => {
+  it("preserves valid attribute notes and removes dropped attributes' notes", () => {
     const chunks = [
       trioChunk({
         riskSurface: ["comment-contradicts-code", "new-abstraction"],
@@ -451,7 +451,7 @@ describe("validateNarrativeMarksOverlap", () => {
     },
   ];
 
-  it("returns no issues when a chunk's added range overlaps a mark's added range", () => {
+  it("accepts chunk added ranges overlapping added marks", () => {
     const chunks = [
       {
         id: "rc1",
@@ -463,7 +463,7 @@ describe("validateNarrativeMarksOverlap", () => {
     expect(validateNarrativeMarksOverlap(chunks, marksFiles)).toEqual([]);
   });
 
-  it("returns no issues when a chunk's removed range overlaps a mark's removed range", () => {
+  it("accepts chunk removed ranges overlapping removed marks", () => {
     const chunks = [
       {
         id: "rc1",
@@ -504,7 +504,7 @@ describe("validateNarrativeMarksOverlap", () => {
   });
 });
 
-describe("validateMarksNarrativeCoverage (reverse direction)", () => {
+describe("validateMarksNarrativeCoverage in reverse", () => {
   const marksFiles = [
     {
       file: "a.ts",
@@ -545,7 +545,7 @@ describe("validateMarksNarrativeCoverage (reverse direction)", () => {
     expect(issues[0]).not.toContain("removed");
   });
 
-  it("flags a removed range only covered on the added side (sides never cross)", () => {
+  it("flags removed ranges covered only by added-side marks", () => {
     const chunks = [
       {
         file: "a.ts",
@@ -585,7 +585,7 @@ function chunkWith(
   riskSurface: string[],
   withNote = false,
 ): Chunk {
-  return {
+  const chunk: Chunk = {
     id: "c1",
     changeGroupId: "g1",
     file,
@@ -595,13 +595,15 @@ function chunkWith(
     addedRanges: [{ start: 1, end: 1 }],
     removedRanges: [],
     riskSurface,
-    ...(withNote
-      ? { riskNotes: riskSurface.map((attr) => ({ attr, note: "n" })) }
-      : {}),
   };
+
+  if (withNote)
+    chunk.riskNotes = riskSurface.map((attr) => ({ attr, note: "n" }));
+
+  return chunk;
 }
 
-describe("validateRepoAttributeTokens (warn-and-drop floor)", () => {
+describe("validateRepoAttributeTokens with warn-and-drop validation", () => {
   const custom = [
     { name: "touches-billing", criteria: "c", paths: ["services/billing/**"] },
     { name: "raw-sql", criteria: "c" },
@@ -635,7 +637,7 @@ describe("validateRepoAttributeTokens (warn-and-drop floor)", () => {
     expect(issues.join("\n")).toContain('unknown risk token "invented-token"');
   });
 
-  it("drops an out-of-scope custom firing and its note; built-ins are never scope-checked", () => {
+  it("drops out-of-scope custom firings and notes without scoping built-ins", () => {
     const { chunks, issues } = validateRepoAttributeTokens(
       [chunkWith("apps/web/p.tsx", ["touches-billing", "touches-auth"], true)],
       custom,
@@ -645,19 +647,19 @@ describe("validateRepoAttributeTokens (warn-and-drop floor)", () => {
     expect(issues.join("\n")).toContain("outside its path scope");
   });
 
-  it("is pure — the input chunks are not mutated", () => {
+  it("is pure, the input chunks are not mutated", () => {
     const input = [chunkWith("a.ts", ["invented-token"])];
     validateRepoAttributeTokens(input, custom);
     expect(input[0]?.riskSurface).toEqual(["invented-token"]);
   });
 });
 
-describe("validateRepoAttributeTokens — riskNotes cannot smuggle tokens (codex r1)", () => {
+describe("validateRepoAttributeTokens rejects tokens smuggled through riskNotes", () => {
   const custom = [
     { name: "touches-billing", criteria: "c", paths: ["services/billing/**"] },
   ];
 
-  it("drops a note whose attr never appeared on riskSurface but is out of scope or unknown", () => {
+  it("drops unknown or out-of-scope notes even without riskSurface entries", () => {
     const chunk = {
       ...chunkWith("apps/web/p.tsx", ["mutates-state"]),
       riskNotes: [
@@ -720,7 +722,7 @@ describe("validateIntentCheck", () => {
     claimedButUnachieved: [],
   });
 
-  /** A grounded alarm-bucket item — verifiable quote + valid group anchor. */
+  /** A grounded alarm-bucket item, verifiable quote + valid group anchor. */
   const alarmItem = () => ({
     intent: "reverses the retry-stop ask",
     quote: "must stop after three attempts",
@@ -741,7 +743,7 @@ describe("validateIntentCheck", () => {
     expect(intentCheck).toEqual(input);
   });
 
-  it("empties all buckets when specificity is broad/none but buckets are non-empty", () => {
+  it("empties all non-empty buckets for broad or absent specificity", () => {
     for (const specificity of ["broad", "none"] as const) {
       const { intentCheck, issues } = validateIntentCheck(
         { ...preciseCheck(), specificity },
@@ -756,7 +758,7 @@ describe("validateIntentCheck", () => {
     }
   });
 
-  it("leaves an already-empty broad check clean (no issues)", () => {
+  it("accepts already-empty broad checks without issues", () => {
     const { issues } = validateIntentCheck(
       {
         ticketUrls: [ticketUrl],
@@ -822,7 +824,7 @@ describe("validateIntentCheck", () => {
     expect(intentCheck.ticketTitles).toEqual(["Stop the retry loop"]);
   });
 
-  it('normalizes a title/url length mismatch with a warning (pad "", truncate extras)', () => {
+  it("warns and pads or truncates titles to match URL counts", () => {
     const short = { ...preciseCheck(), ticketTitles: [] };
     const padded = validateIntentCheck(short, emittedGroups, injected, sources);
     expect(padded.intentCheck.ticketTitles).toEqual([""]);
@@ -864,7 +866,7 @@ describe("validateIntentCheck", () => {
     expect(intentCheck.ticketTitles).toEqual(["Stop the retry loop"]);
   });
 
-  it('accepts sourceUrl "" (title/description) without requiring ticketUrls membership', () => {
+  it("accepts empty sourceUrl for title/body without ticket membership", () => {
     const input = {
       ...preciseCheck(),
       accomplished: [
@@ -904,7 +906,7 @@ describe("validateIntentCheck", () => {
     expect(issues.join("\n")).toContain('"g9"');
   });
 
-  it("keeps an accomplished ask alive even when ALL its groupIds were dangling (stated-side survives), but warns", () => {
+  it("warns but keeps accomplished asks after all dangling group ids drop", () => {
     const input = {
       ...preciseCheck(),
       accomplished: [{ ...preciseCheck().accomplished[0]!, groupIds: ["g9"] }],
@@ -922,7 +924,7 @@ describe("validateIntentCheck", () => {
     );
   });
 
-  it("warns (never drops) on an accomplished ask emitted with zero groupIds", () => {
+  it("warns but keeps accomplished asks emitted without group ids", () => {
     const input = {
       ...preciseCheck(),
       accomplished: [{ ...preciseCheck().accomplished[0]!, groupIds: [] }],
@@ -937,7 +939,7 @@ describe("validateIntentCheck", () => {
     expect(issues.join("\n")).toContain("no valid group anchor — kept");
   });
 
-  it("drops a doneButUnstated item whose groupIds all dangle (no grounding)", () => {
+  it("drops unstated items when every group id dangles", () => {
     const input = {
       ...preciseCheck(),
       doneButUnstated: [
@@ -969,7 +971,7 @@ describe("validateIntentCheck", () => {
     expect(issues.join("\n")).toContain("ungrounded claim");
   });
 
-  it("empties groupIds on a statedButMissing item and warns (no diff anchor by definition)", () => {
+  it("warns and clears group ids from statedButMissing items", () => {
     const input = {
       ...preciseCheck(),
       statedButMissing: [
@@ -992,7 +994,7 @@ describe("validateIntentCheck", () => {
     expect(issues.join("\n")).toContain("no diff anchor");
   });
 
-  it("warns (never drops) on a quote that is not a whitespace-normalized substring of its source", () => {
+  it("warns but keeps quotes that fail source-substring verification", () => {
     const input = {
       ...preciseCheck(),
       statedButMissing: [
@@ -1015,7 +1017,7 @@ describe("validateIntentCheck", () => {
     expect(issues.join("\n")).toContain("quote");
   });
 
-  it("normalizes whitespace before the substring check (line breaks and runs of spaces match)", () => {
+  it("normalizes line breaks and repeated spaces before checking substrings", () => {
     const input = {
       ...preciseCheck(),
       statedButMissing: [
@@ -1037,7 +1039,7 @@ describe("validateIntentCheck", () => {
     expect(issues).toEqual([]);
   });
 
-  it("warns on an EMPTY ticket-side quote (uncited stated ask — schema demands verbatim citation)", () => {
+  it("warns on empty quotes for ticket-side asks", () => {
     const input = {
       ...preciseCheck(),
       statedButMissing: [
@@ -1060,7 +1062,7 @@ describe("validateIntentCheck", () => {
     expect(issues.join("\n")).toContain("empty quote");
   });
 
-  it("does not warn on doneButUnstated's empty quote (no ticket side by design)", () => {
+  it("allows unstated items to have empty quotes without warning", () => {
     const input = {
       ...preciseCheck(),
       doneButUnstated: [
@@ -1082,13 +1084,13 @@ describe("validateIntentCheck", () => {
     expect(issues).toEqual([]);
   });
 
-  it("is pure — the input intent check is not mutated", () => {
+  it("is pure, the input intent check is not mutated", () => {
     const input = { ...preciseCheck(), specificity: "broad" as const };
     validateIntentCheck(input, emittedGroups, injected, sources);
     expect(input.accomplished).toHaveLength(1);
   });
 
-  describe("alarm buckets — drop, never warn-and-keep", () => {
+  describe("alarm buckets, drop, never warn-and-keep", () => {
     for (const bucket of ["deviations", "claimedButUnachieved"] as const) {
       it(`keeps a fully grounded ${bucket} item untouched`, () => {
         const input = { ...preciseCheck(), [bucket]: [alarmItem()] };
@@ -1119,7 +1121,7 @@ describe("validateIntentCheck", () => {
       });
 
       it(`drops a ${bucket} item whose quote is a bare fragment, even when it verifies`, () => {
-        // "must stop" IS a substring of the ticket content — length, not
+        // "must stop" IS a substring of the ticket content, length, not
         // presence, is what fails here.
         const input = {
           ...preciseCheck(),
@@ -1216,7 +1218,7 @@ describe("validateIntentCheck", () => {
       });
     }
 
-    it("accepts an acknowledged deviation untouched (quiet receipt)", () => {
+    it("preserves acknowledged deviations", () => {
       const input = {
         ...preciseCheck(),
         deviations: [{ ...alarmItem(), acknowledged: true }],
@@ -1231,7 +1233,7 @@ describe("validateIntentCheck", () => {
       expect(intentCheck.deviations[0]?.acknowledged).toBe(true);
     });
 
-    it("forces acknowledged=false outside deviations, on every other bucket, and warns", () => {
+    it("warns and clears acknowledged outside deviation buckets", () => {
       const input = {
         ...preciseCheck(),
         accomplished: [
@@ -1281,7 +1283,7 @@ describe("validateIntentCheck", () => {
   });
 });
 
-/** One tagged wire item — the shape generation actually emits. */
+/** One tagged wire item, the shape generation actually emits. */
 const genItem = (bucket: string, intent: string, overrides = {}) => ({
   bucket,
   intent,
@@ -1292,7 +1294,7 @@ const genItem = (bucket: string, intent: string, overrides = {}) => ({
   ...overrides,
 });
 
-describe("fanOutIntentCheck (grammar budget)", () => {
+describe("fanOutIntentCheck within the grammar budget", () => {
   it("dispatches each tagged item into its stored bucket and drops the tag", () => {
     const out = fanOutIntentCheck({
       ticketUrls: ["https://tracker.example/T-1"],
@@ -1317,7 +1319,7 @@ describe("fanOutIntentCheck (grammar budget)", () => {
     expect(out.claimedButUnachieved.map((i) => i.intent)).toEqual([
       "masked the thing",
     ]);
-    // The bucket tag is wire framing — it never reaches the stored artifact.
+    // The bucket tag is wire framing, it never reaches the stored artifact.
     expect(out.accomplished[0]).not.toHaveProperty("bucket");
     expect(out.deviations[0]?.acknowledged).toBe(true);
     // Scalars ride through untouched.
@@ -1344,7 +1346,7 @@ describe("fanOutIntentCheck (grammar budget)", () => {
     expect(out.deviations).toHaveLength(1);
   });
 
-  it("yields five empty buckets for an empty items array (the broad/none path)", () => {
+  it("returns five empty buckets for empty tagged items", () => {
     const out = fanOutIntentCheck({
       ticketUrls: [],
       ticketTitles: [],
@@ -1360,14 +1362,14 @@ describe("fanOutIntentCheck (grammar budget)", () => {
     expect(out.claimedButUnachieved).toEqual([]);
   });
 
-  it("round-trips into the validator: a fanned-out check validates like a native one", () => {
+  it("validates dispatched tagged items like native bucket arrays", () => {
     const fanned = fanOutIntentCheck({
       ticketUrls: [],
       ticketTitles: [],
       specificity: "precise",
       scopeNote: "",
       items: [
-        // Alarm item with an unverifiable quote — the validator must still drop it.
+        // Alarm item with an unverifiable quote, the validator must still drop it.
         genItem("deviations", "ungrounded alarm", {
           quote: "this ask appears nowhere in the sources",
         }),
@@ -1391,7 +1393,7 @@ const group = (id: string, title: string, summary: string) => ({
   summary,
 });
 
-describe("validateTextLength (warn-only length floor)", () => {
+describe("validateTextLength with warn-only limits", () => {
   it("passes text at or under every cap with no violations", () => {
     const { violations, issues } = validateTextLength(
       [group("g1", "a".repeat(150), "b".repeat(250))],
@@ -1430,7 +1432,7 @@ describe("validateTextLength (warn-only length floor)", () => {
     expect(issues[1]).toContain("exceeds the 250-char cap");
   });
 
-  it("flags an over-cap riskNotes note per attribute and skips absent riskNotes", () => {
+  it("flags oversized attribute notes and skips absent riskNotes", () => {
     const { violations } = validateTextLength(
       [],
       [
@@ -1490,7 +1492,7 @@ describe("validateNarrativeTextLength", () => {
   });
 });
 
-describe("validateIntentCheck — the alignment read", () => {
+describe("validateIntentCheck, the alignment read", () => {
   const anchorGroups = [{ id: "g1" }];
   const primaryUrl = "https://github.com/o/r/issues/7";
   const primaryText =
@@ -1521,7 +1523,7 @@ describe("validateIntentCheck — the alignment read", () => {
   });
   const readPrimary = { url: primaryUrl, read: true };
 
-  it("keeps a read whose goal verifies against the primary, whitespace-normalized", () => {
+  it("keeps reads with goals verified against normalized primary text", () => {
     const spaced = {
       ...alignment,
       goal: "The retry loop   must stop after three\nattempts and surface the last error.",
@@ -1538,7 +1540,7 @@ describe("validateIntentCheck — the alignment read", () => {
     expect(result.issues).toEqual([]);
   });
 
-  it("keeps a three-word goal — ticket goals run shorter than alarm quotes", () => {
+  it("keeps a three-word goal, ticket goals run shorter than alarm quotes", () => {
     const short = { ...alignment, goal: "The retry loop" };
     const result = validateIntentCheck(
       makeIntentCheck({ alignment: short }),
@@ -1584,7 +1586,7 @@ describe("validateIntentCheck — the alignment read", () => {
     },
   );
 
-  it("forces absence when specificity is broad or none, whatever the model emitted", () => {
+  it("omits reads when specificity is broad or absent", () => {
     for (const specificity of ["broad", "none"] as const) {
       const result = validateIntentCheck(
         makeIntentCheck({ specificity }),
@@ -1613,7 +1615,7 @@ describe("validateIntentCheck — the alignment read", () => {
   });
 });
 
-describe("fanOutIntentCheck — the alignment sentinel", () => {
+describe("fanOutIntentCheck, the alignment sentinel", () => {
   const base = {
     ticketUrls: [],
     ticketTitles: [],

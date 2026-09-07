@@ -100,7 +100,7 @@ interface StubCounts {
   comments: number;
   token: number;
   readonly commentBodies: Array<Record<string, unknown>>;
-  /** Full URL of each comment POST, in order — pins the fresh-slug target. */
+  /** Full URL of each comment POST, in order, pins the fresh-slug target. */
   readonly commentUrls: string[];
 }
 
@@ -255,7 +255,7 @@ async function readWireCode(res: Response): Promise<string> {
 }
 
 /**
- * A session on a NEWER Brief of the same PR — the one thing that freezes the
+ * A session on a NEWER Brief of the same PR, the one thing that freezes the
  * Brief the request names.
  */
 async function freezeWithNewerBrief(handle: AppDatabase): Promise<void> {
@@ -314,12 +314,15 @@ async function post(
   body: { draftId: string } | string,
   path = PATH,
 ): Promise<Response> {
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+  };
+
+  if (cookie !== undefined) headers["cookie"] = `rs_session=${cookie}`;
+
   return await app.request(path, {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-      ...(cookie === undefined ? {} : { cookie: `rs_session=${cookie}` }),
-    },
+    headers,
     body: typeof body === "string" ? body : JSON.stringify(body),
   });
 }
@@ -356,7 +359,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     await harness.close();
   });
 
-  it("401 when no session cookie is present (no GitHub call)", async () => {
+  it("401s absent session cookies without calling GitHub", async () => {
     const counts = stubGitHub({});
     const res = await post(app, undefined, named(1n));
     expect(res.status).toBe(401);
@@ -374,7 +377,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     expect(counts.comments).toBe(0);
   });
 
-  it("404 when the PR is not in the tenant (no GitHub write)", async () => {
+  it("404s PRs outside the tenant without writing to GitHub", async () => {
     const counts = stubGitHub({ repositories: () => repoOk() });
     const { cookie } = await seedSession(harness.handle, kp);
     const res = await post(app, cookie, named(1n));
@@ -382,9 +385,9 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     expect(counts.comments).toBe(0);
   });
 
-  it("404 collapse when the IN-ROUTE fresh repo resolve is denied (gate passed)", async () => {
+  it("404s a denied fresh repo resolution after the gate passes", async () => {
     // The gate's access check (call 0) passes; the route's own fresh
-    // fetchRepositoryById (call 1) is denied — a viewer whose access was
+    // fetchRepositoryById (call 1) is denied, a viewer whose access was
     // revoked inside the positive-cache TTL. Must collapse to the gate's 404
     // posture and post nothing.
     const counts = stubGitHub({
@@ -403,7 +406,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
 
   it("201 happy path: posts to the FRESH slug, returns ids, audits, no-store", async () => {
     const counts = stubGitHub({
-      // Gate caches octo/hello; the route's own fresh resolve renames it —
+      // Gate caches octo/hello; the route's own fresh resolve renames it,
       // the comment POST must target the fresh owner/name, never the stale slug.
       repositories: (i) =>
         i === 0
@@ -425,7 +428,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     expect(await res.json()).toEqual({ commentId: 999, reviewId: 555 });
     expect(counts.comments).toBe(1);
     // Single-gate pin: exactly the gate's access check + the route's own
-    // fresh resolve — a third repositories call would mean a stacked gate.
+    // fresh resolve, a third repositories call would mean a stacked gate.
     expect(counts.repositories).toBe(2);
     // The POST url carried the FRESHLY-resolved repo name, never the gate's
     // cached (renamed-away) slug.
@@ -472,7 +475,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     });
   });
 
-  it("201 kept and audit.fail logged when the audit write fails after the posted comment", async () => {
+  it("keeps 201 and logs audit.fail when post-commit auditing fails", async () => {
     const capture = testLogging();
     const captureApp = createApp({
       logger: capture.logger,
@@ -511,7 +514,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     expect(await res.json()).toEqual({ commentId: 999 });
   });
 
-  it("409 stale anchor when GitHub 422s (head moved under the pinned commit)", async () => {
+  it("409s stale anchors when GitHub rejects the pinned head with 422", async () => {
     stubGitHub({
       repositories: () => repoOk(),
       comments: () => commentStatus(422),
@@ -539,7 +542,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
   });
 
   it.each([403, 404])(
-    "404 collapse when the in-route write is denied (%i) — no existence leak",
+    "collapses in-route write denial %i to a uniform 404",
     async (denialStatus) => {
       // Both denial statuses must be indistinguishable from a cold gate 404:
       // a FORBIDDEN (revoked access inside the cache TTL) and a NOT_FOUND
@@ -556,7 +559,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     },
   );
 
-  it("refreshes the token once when the write 401s mid-request, then succeeds", async () => {
+  it("refreshes once after a mid-request write 401 and succeeds", async () => {
     const counts = stubGitHub({
       repositories: () => repoOk(),
       token: () => tokenSuccess(),
@@ -571,7 +574,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     expect(counts.comments).toBe(2);
   });
 
-  it("401 when a second write 401 lands after the one refresh (budget spent)", async () => {
+  it("401s a second write rejection after the refresh budget is spent", async () => {
     const counts = stubGitHub({
       repositories: () => repoOk(),
       token: () => tokenSuccess(),
@@ -585,12 +588,9 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
     expect(counts.token).toBe(1);
   });
 
-  it("evicts the PR's cached conversation on a posted comment (app.ts wiring)", async () => {
-    // A counting conversation port: the conversation GET caches its body for
-    // 60s, so WITHOUT eviction a refetch inside the TTL never reaches the
-    // port. Read → read (cache-warm control, port count stays 1) → post →
-    // read: the third read reaching the port proves the route's success path
-    // evicted the entry through the app.ts wiring.
+  it("evicts cached PR conversations after posting a comment", async () => {
+    // Read twice to prove a warm cache, then post and read again within the TTL.
+    // The post-write port call proves app-level success wiring evicted the conversation entry.
     let conversationFetches = 0;
     const countingPort = {
       fetchPullRequestConversation: async () => {
@@ -631,7 +631,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
 
     expect((await get()).status).toBe(200);
     expect((await get()).status).toBe(200);
-    // Second read served from the cache — the TTL is warm.
+    // Second read served from the cache, the TTL is warm.
     expect(conversationFetches).toBe(1);
 
     const posted = await post(evictionApp, cookie, named(draftId));
@@ -651,7 +651,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       expect((await post(app, cookie, { draftId: "x" })).status).toBe(400);
     });
 
-    it("404s a draft this session does not hold — no GitHub write", async () => {
+    it("404s a draft this session does not hold, no GitHub write", async () => {
       const counts = stubGitHub({ repositories: () => repoOk() });
       await seedPr(harness.handle);
       const { cookie } = await seedSession(harness.handle, kp);
@@ -661,7 +661,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       expect(counts.comments).toBe(0);
     });
 
-    it("409 draft-already-published on a repeat — no second GitHub write", async () => {
+    it("409 draft-already-published on a repeat, no second GitHub write", async () => {
       const counts = stubGitHub({ repositories: () => repoOk() });
       await seedPr(harness.handle);
       const { cookie } = await seedSession(harness.handle, kp);
@@ -677,7 +677,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       expect(counts.comments).toBe(0);
     });
 
-    it("409 draft-anchor-orphaned on an orphaned anchor — no GitHub write", async () => {
+    it("409 draft-anchor-orphaned on an orphaned anchor, no GitHub write", async () => {
       const counts = stubGitHub({ repositories: () => repoOk() });
       await seedPr(harness.handle);
       const { cookie } = await seedSession(harness.handle, kp);
@@ -695,14 +695,14 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       // Refused before the fresh re-resolve: only the gate's lookup ran.
       expect(counts.repositories).toBe(1);
       expect(counts.comments).toBe(0);
-      // The draft is still held — nothing is dropped for the reviewer.
+      // The draft is still held, nothing is dropped for the reviewer.
       const rows = await harness.raw(
         "select status from review_draft_comment order by id",
       );
       expect(rows[0]?.["status"]).toBe(DraftCommentStatuses.DRAFT);
     });
 
-    it("a moved anchor is not orphaned — it posts at its carried coordinates", async () => {
+    it("a moved anchor is not orphaned, it posts at its carried coordinates", async () => {
       const counts = stubGitHub({
         repositories: () => repoOk(),
         comments: () => commentOk(),

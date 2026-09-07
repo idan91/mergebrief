@@ -1,7 +1,8 @@
-// `runCli` is the whole CLI behind an injected-deps boundary — command tests
+// `runCli` is the whole CLI behind an injected-deps boundary, command tests
 // run it against the REAL api Hono app and assert the contract surface:
 // exit 0 ⇒ stdout is documented JSON; exit ≠ 0 ⇒ empty stdout, ONE stderr line.
 import { Command } from "commander";
+import type { Mutable } from "types";
 import operationsMap from "../product-operations.map.json";
 import {
   CLI_VERSION,
@@ -57,6 +58,9 @@ import {
   resolveReadFlag,
   runSessionWrite,
   type AnchorFlags,
+  type CreateDraftInput,
+  type ReanchorInput,
+  type UpdateDraftInput,
 } from "./commands/session-write";
 
 export interface CliDeps {
@@ -68,7 +72,7 @@ export interface CliDeps {
   readonly env: Readonly<Record<string, string | undefined>>;
   readonly configDir: string;
   readonly cacheDir: string;
-  /** Raw stdout sink — receives EXACT bytes (passthrough, no re-framing). */
+  /** Raw stdout sink, receives EXACT bytes (passthrough, no re-framing). */
   readonly stdout: (text: string) => void;
   /** One-line stderr sink. */
   readonly stderr: (line: string) => void;
@@ -78,7 +82,7 @@ export interface CliDeps {
   readonly gitOriginUrl: () => string | undefined;
 }
 
-/** The two-level `auth status` shape — additive-only. */
+/** The two-level `auth status` shape, additive-only. */
 interface AuthStatusBody {
   readonly profile: string;
   readonly baseUrl: string;
@@ -95,7 +99,7 @@ interface AuthStatusBody {
 interface GlobalOptions {
   readonly json: boolean;
   readonly profile?: string;
-  /** `-R owner/name` — overrides origin-remote inference. */
+  /** `-R owner/name`, overrides origin-remote inference. */
   readonly repo?: string;
 }
 
@@ -170,7 +174,7 @@ function emitStatus(deps: CliDeps, json: boolean, body: AuthStatusBody): void {
     deps.stdout(`${JSON.stringify(body)}\n`);
     return;
   }
-  // TTY rendering — explicitly NON-contractual.
+  // TTY rendering, explicitly NON-contractual.
   const auth =
     body.server.authenticated === true
       ? "authenticated"
@@ -224,7 +228,7 @@ async function runAuthLogin(
   };
   saveConfig(deps.configDir, next);
 
-  // The login output IS an auth status — no third synthesized shape.
+  // The login output IS an auth status, no third synthesized shape.
   const savedProfile = next.profiles[profileName];
   if (savedProfile === undefined) {
     throw new Error("profile vanished after save"); // unreachable
@@ -260,7 +264,7 @@ async function runRepos(
   };
   const { body, bodyText } = await loadRepos(cacheDeps, options);
   if (global.json) {
-    // Passthrough: the server body VERBATIM — not one byte more (even an
+    // Passthrough: the server body VERBATIM, not one byte more (even an
     // appended newline is a byte the server never sent).
     deps.stdout(bodyText);
     return;
@@ -395,11 +399,12 @@ export function buildProgram(deps: CliDeps): Command {
       profile?: string;
       repo?: string;
     }>();
-    return {
-      json: opts.json,
-      ...(opts.profile === undefined ? {} : { profile: opts.profile }),
-      ...(opts.repo === undefined ? {} : { repo: opts.repo }),
-    };
+    const globalOptions: Mutable<GlobalOptions> = { json: opts.json };
+
+    if (opts.profile !== undefined) globalOptions.profile = opts.profile;
+    if (opts.repo !== undefined) globalOptions.repo = opts.repo;
+
+    return globalOptions;
   };
 
   const auth = program
@@ -557,17 +562,17 @@ export function buildProgram(deps: CliDeps): Command {
         },
       ) => {
         const global = globals();
-        const input: SubmitInput = {
-          ...(options.file === undefined
-            ? {}
-            : {
-                payload: parsePayloadSource(
-                  await readSource(deps, options.file),
-                ),
-              }),
+        const input: Mutable<SubmitInput> = {
           outcome: options.outcome,
           body: options.body,
         };
+
+        if (options.file !== undefined) {
+          input.payload = parsePayloadSource(
+            await readSource(deps, options.file),
+          );
+        }
+
         // Usage validation BEFORE any network work: a malformed PR number or
         // a missing span must exit 2 even when target resolution would fail
         // with exit 4.
@@ -689,21 +694,22 @@ export function buildProgram(deps: CliDeps): Command {
         const global = globals();
         const prNumber = parsePrNumber(raw);
         const span = requireSpan(options.base, options.head);
-        const payload = buildCreateDraftPayload({
-          ...(options.payload === undefined
-            ? {}
-            : {
-                payload: parsePayloadSource(
-                  await readSource(deps, options.payload),
-                ),
-              }),
+        const input: Mutable<CreateDraftInput> = {
           file: options.file,
           side: options.side,
           startSide: options.startSide,
           start: options.start,
           end: options.end,
           body: options.body,
-        });
+        };
+
+        if (options.payload !== undefined) {
+          input.payload = parsePayloadSource(
+            await readSource(deps, options.payload),
+          );
+        }
+
+        const payload = buildCreateDraftPayload(input);
         const { client, repoId } = await resolveTarget(deps, global);
         await runSessionWrite(
           client,
@@ -745,16 +751,15 @@ export function buildProgram(deps: CliDeps): Command {
         const global = globals();
         const prNumber = parsePrNumber(raw);
         const span = requireSpan(options.base, options.head);
-        const payload = buildUpdateDraftPayload({
-          ...(options.payload === undefined
-            ? {}
-            : {
-                payload: parsePayloadSource(
-                  await readSource(deps, options.payload),
-                ),
-              }),
-          body: options.body,
-        });
+        const input: Mutable<UpdateDraftInput> = { body: options.body };
+
+        if (options.payload !== undefined) {
+          input.payload = parsePayloadSource(
+            await readSource(deps, options.payload),
+          );
+        }
+
+        const payload = buildUpdateDraftPayload(input);
         const { client, repoId } = await resolveTarget(deps, global);
         await runSessionWrite(
           client,
@@ -802,20 +807,21 @@ export function buildProgram(deps: CliDeps): Command {
         const global = globals();
         const prNumber = parsePrNumber(raw);
         const span = requireSpan(options.base, options.head);
-        const payload = buildReanchorPayload({
-          ...(options.payload === undefined
-            ? {}
-            : {
-                payload: parsePayloadSource(
-                  await readSource(deps, options.payload),
-                ),
-              }),
+        const input: Mutable<ReanchorInput> = {
           file: options.file,
           side: options.side,
           startSide: options.startSide,
           start: options.start,
           end: options.end,
-        });
+        };
+
+        if (options.payload !== undefined) {
+          input.payload = parsePayloadSource(
+            await readSource(deps, options.payload),
+          );
+        }
+
+        const payload = buildReanchorPayload(input);
         const { client, repoId } = await resolveTarget(deps, global);
         await runSessionWrite(
           client,

@@ -1,17 +1,15 @@
-import { spawn } from "node:child_process";
+import {
+  spawn,
+  type SpawnOptionsWithStdioTuple,
+  type StdioPipe,
+} from "node:child_process";
 import { GeneratorError, GeneratorErrorKinds } from "../contract/errors";
 import type { Logger } from "../contract/generator";
 
 /**
- * The shared harness-execution core: everything the CLI adapters have in
- * common — argv spawn (NO shell), prompt via stdin then close, streaming
- * line consumption as the liveness signal, the two mandatory timers (hard
- * wall-clock + output-inactivity watchdog), the SIGINT → grace → SIGKILL
- * kill ladder shared by cancellation and timer fire, stderr tail capture,
- * and the construction-time startup check.
- *
- * The per-CLI adapters own only flags, envelope parsing, and origin quirks.
- * No CLI has a built-in timeout, so the timers are not optional.
+ * Spawn argv without a shell and deliver prompts through stdin.
+ * CLI adapters have no native timeout: keep both hard and inactivity watchdogs.
+ * Cancellation and timeout share the SIGINT/grace/SIGKILL ladder; adapters own envelope quirks.
  */
 
 export interface HarnessTimeouts {
@@ -30,7 +28,7 @@ export const DEFAULT_HARNESS_TIMEOUTS: HarnessTimeouts = {
 };
 
 /**
- * How much stderr is retained for failure classification and messages —
+ * How much stderr is retained for failure classification and messages,
  * measured in UTF-16 code units (string .slice), not bytes: the bound keeps
  * errors and dumps small, it is not a wire-level byte contract. Non-ASCII
  * stderr may occupy up to three times this many UTF-8 bytes.
@@ -41,11 +39,8 @@ const STDERR_TAIL_UNITS = 4096;
 const STDERR_HEAD_UNITS = 1024;
 
 /**
- * Default cap on accumulated stdout (UTF-16 code units). A flooding CLI
- * keeps resetting the inactivity watchdog, so without a size bound it can
- * exhaust worker memory long before the hard timer fires. Generation
- * envelopes are at most a few MB; 16M units is an order of magnitude of
- * headroom.
+ * Output floods can reset inactivity indefinitely and exhaust memory before the hard timer.
+ * Bound UTF-16 accumulation with headroom above normal generation envelopes.
  */
 const DEFAULT_MAX_STDOUT_UNITS = 16 * 1024 * 1024;
 
@@ -70,7 +65,7 @@ export function resolveHarnessTimeouts(
 }
 
 export interface HarnessRunArgs {
-  /** Binary path or name (resolved via PATH by spawn — never a shell). */
+  /** Binary path or name (resolved via PATH by spawn, never a shell). */
   command: string;
   argv: readonly string[];
   /** The prompt. Written to stdin, then stdin closes (dodges ARG_MAX). */
@@ -81,7 +76,7 @@ export interface HarnessRunArgs {
    * the returned promise rejects with the signal's reason UNTOUCHED.
    */
   signal?: AbortSignal;
-  /** Complete stdout lines, in order — the adapters' envelope boundary. */
+  /** Complete stdout lines, in order, the adapters' envelope boundary. */
   onStdoutLine?: (line: string) => void;
   /** Spawn env; defaults to process.env (CLIs need HOME/keychain for auth). */
   env?: Record<string, string | undefined>;
@@ -94,12 +89,12 @@ export interface HarnessRunArgs {
 export interface HarnessRunResult {
   stdout: string;
   /**
-   * First ~1 KB of stderr — failure PREFIXES live at the head, and a long
+   * First ~1 KB of stderr, failure PREFIXES live at the head, and a long
    * payload after them (cursor's ~200-id available-models list) flushes
    * them out of the rolling tail below.
    */
   stderrHead: string;
-  /** Last ~4 KB of stderr — classification context, never dumped wholesale. */
+  /** Last ~4 KB of stderr, classification context, never dumped wholesale. */
   stderrTail: string;
   exitCode: number | null;
   exitSignal: NodeJS.Signals | null;
@@ -108,11 +103,8 @@ export interface HarnessRunResult {
 }
 
 /**
- * Run one CLI process to completion under the timers. Resolves with the
- * outcome (including timer kills — those become classified failures at the
- * adapter); rejects ONLY for aborts (with the signal's reason, untouched)
- * and for spawn-level failures (missing binary → GeneratorError
- * cli-missing).
+ * Timer kills resolve to classified outcomes. Only aborts and spawn failures reject;
+ * preserve abort reasons unchanged and classify missing binaries as cli-missing.
  */
 export async function runHarnessProcess(
   args: HarnessRunArgs,
@@ -122,14 +114,21 @@ export async function runHarnessProcess(
   }
   return new Promise<HarnessRunResult>((resolve, reject) => {
     // detached: the child leads its own process GROUP, so the kill ladder
-    // can signal the whole tree — agentic CLIs fork subprocesses, and a
+    // can signal the whole tree, agentic CLIs fork subprocesses, and a
     // SIGKILL to the direct child alone would orphan them past the timers.
-    const child = spawn(args.command, [...args.argv], {
+    const spawnOptions: SpawnOptionsWithStdioTuple<
+      StdioPipe,
+      StdioPipe,
+      StdioPipe
+    > = {
       env: envForSpawn(args.env),
-      ...(args.cwd ? { cwd: args.cwd } : {}),
       stdio: ["pipe", "pipe", "pipe"],
       detached: true,
-    });
+    };
+
+    if (args.cwd) spawnOptions.cwd = args.cwd;
+
+    const child = spawn(args.command, [...args.argv], spawnOptions);
 
     let stdout = "";
     let stderrHead = "";
@@ -153,16 +152,13 @@ export async function runHarnessProcess(
     // die with the CLI; falls back to the direct child if the group is gone.
     const signalTree = (sig: NodeJS.Signals): void => {
       const pid = child.pid;
-      // A child that never spawned (ENOENT — pid never assigned) has nothing
-      // to signal. Never fall through to child.kill here: during macOS's
-      // async spawn-failure window the internal handle still exists with
-      // pid 0, and signalling it is kill(0) — our OWN process group. The
-      // !pid check also refuses pid 0 itself: kill(-0) is kill(0) too.
+      // Never signal a child without a positive pid. During macOS spawn failure its internal
+      // handle may still use pid 0; child.kill or kill(-0) would signal our own process group.
       if (!pid) return;
       try {
         process.kill(-pid, sig);
       } catch {
-        // Group already gone or unsupported — try the direct child.
+        // Group already gone or unsupported, try the direct child.
         child.kill(sig);
       }
     };
@@ -183,7 +179,7 @@ export async function runHarnessProcess(
       killTimer = setTimeout(() => {
         // Mark the escalation as done BEFORE signalling: cleanup() treats a
         // non-null killTimer as a pending escalation and fires the group
-        // SIGKILL itself — after this callback ran, that second kill could
+        // SIGKILL itself, after this callback ran, that second kill could
         // target a reused pgid.
         killTimer = null;
         signalTree("SIGKILL");
@@ -207,18 +203,15 @@ export async function runHarnessProcess(
     };
     resetInactivity();
 
-    // A throwing consumer callback must SETTLE the run (kill + reject), not
-    // escape an EventEmitter callback as an uncaught exception. Once ANY
-    // terminal cause exists (abort, timer, earlier consumer failure), lines
-    // flushed during the kill-grace window are no longer delivered — a
-    // dying CLI's malformed flush must not overwrite the first cause.
+    // Consumer exceptions must kill and reject rather than escape the event callback.
+    // Once a terminal cause wins, suppress kill-grace output so a malformed flush cannot replace it.
     const deliverLine = (line: string): void => {
       if (terminalCause() || !args.onStdoutLine) return;
       try {
         args.onStdoutLine(line);
       } catch (error) {
         // Re-check: a REENTRANT callback may have aborted the signal (or a
-        // timer fired) before throwing — the earlier cause keeps the run.
+        // timer fired) before throwing, the earlier cause keeps the run.
         if (terminalCause()) return;
         consumerFailed = true;
         consumerFailure = error;
@@ -242,7 +235,7 @@ export async function runHarnessProcess(
         clearTimeout(killTimer);
         // The direct child closed while an escalation was pending: a
         // SIGINT-cooperative CLI may leave a SIGINT-ignoring descendant in
-        // the group — finish the ladder for the group NOW (ESRCH-safe).
+        // the group, finish the ladder for the group NOW (ESRCH-safe).
         signalTree("SIGKILL");
         killTimer = null;
       }
@@ -257,12 +250,12 @@ export async function runHarnessProcess(
     child.stderr.setEncoding("utf8");
     child.stdout.on("data", (text: string) => {
       // Once the cap is hit, further chunks (e.g. kill-grace flushes from a
-      // SIGINT-ignoring flooder) are dropped — appending would defeat the
+      // SIGINT-ignoring flooder) are dropped, appending would defeat the
       // bound being enforced.
       if (stdoutCapped) return;
       resetInactivity();
       stdout += text;
-      // Runaway-output bound. The BOUND is enforced unconditionally — a
+      // Runaway-output bound. The BOUND is enforced unconditionally, a
       // flood during another cause's kill grace must not grow memory for up
       // to killGraceMs. The overflow CLASSIFICATION stays first-cause-wins:
       // only a flood with no prior terminal cause owns the outcome.
@@ -294,16 +287,16 @@ export async function runHarnessProcess(
       stderrTail = (stderrTail + text).slice(-STDERR_TAIL_UNITS);
     });
 
-    // The child may exit before draining stdin (EPIPE) — that's the child's
+    // The child may exit before draining stdin (EPIPE), that's the child's
     // outcome to report via exit code, not a spawn failure.
     child.stdin.on("error", () => {});
     child.stdin.write(args.stdin);
     child.stdin.end();
 
     child.on("error", (error: NodeJS.ErrnoException) => {
-      // Only PRE-spawn failures (ENOENT/EACCES — pid never assigned) are
+      // Only PRE-spawn failures (ENOENT/EACCES, pid never assigned) are
       // cli-missing; post-spawn process-control errors (e.g. a kill failing)
-      // must not hijack the run's outcome — the close handler owns it.
+      // must not hijack the run's outcome, the close handler owns it.
       if (child.pid !== undefined) return;
       cleanup();
       // An abort that landed during the async spawn gap still wins: the
@@ -354,7 +347,7 @@ export async function runHarnessProcess(
 }
 
 /**
- * Codes meaning "this executable does not exist or cannot be executed" —
+ * Codes meaning "this executable does not exist or cannot be executed",
  * the only shapes that honestly map to cli-missing. Resource exhaustion
  * (EMFILE/ENFILE/ENOMEM/EAGAIN) is a system condition: reporting it as a
  * missing binary sends the operator chasing PATH for nothing.
@@ -397,12 +390,9 @@ function toAbortReason(signal: AbortSignal | undefined): unknown {
 }
 
 /**
- * Credential and billing-redirect env vars no harness CLI may inherit: both
- * CLIs put env credentials ABOVE their own interactive login in auth
- * precedence, so a leaked var silently rebills every generation to an
- * API/cloud account. `CLAUDE_CODE_OAUTH_TOKEN` deliberately SURVIVES — it is
- * the subscription route this protects. Residual hole: `apiKeyHelper` lives
- * in the CLI's settings file, unreachable from this boundary.
+ * Strip credential/billing redirects that override the CLI's interactive login.
+ * CLAUDE_CODE_OAUTH_TOKEN survives as the intended subscription route.
+ * Settings-file apiKeyHelper is outside this environment boundary.
  */
 export const HARNESS_STRIPPED_CREDENTIAL_VARS = [
   // claude: key/token outrank OAuth; the cloud switches + base-url redirect
@@ -419,7 +409,7 @@ export const HARNESS_STRIPPED_CREDENTIAL_VARS = [
   "OPENAI_API_KEY",
   "OPENROUTER_API_KEY",
   // cursor: the endpoint redirect must never reach a spawn. CURSOR_API_KEY
-  // deliberately SURVIVES — it outranks the stored login in the CLI's auth
+  // deliberately SURVIVES, it outranks the stored login in the CLI's auth
   // precedence but bills the SAME subscription pool (the claude vars above
   // are stripped for the opposite reason: they rebill to an API account).
   "CURSOR_API_ENDPOINT",

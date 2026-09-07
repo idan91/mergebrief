@@ -8,6 +8,7 @@ import {
   HARNESS_STRIPPED_CREDENTIAL_VARS,
   runHarnessProcess,
   spawnFailureError,
+  type HarnessRunArgs,
   type HarnessTimeouts,
 } from "../src/harness/run";
 import { harnessTimeoutError, redactSecrets } from "../src/harness/redact";
@@ -15,11 +16,8 @@ import { probeHarnessCli } from "../src/harness/probe";
 import { configError } from "../src/contract/errors";
 
 /**
- * Process-lifecycle tests against REAL child processes running fake CLI
- * binaries (fake the binary, never the spawn).
- * Timer durations are injected at tens-of-milliseconds scale with ~10x
- * ratios between tiers; assertions are about BEHAVIOR (which timer fired,
- * which signal, marker files), never about durations.
+ * Fake the CLI binary, never spawn. Use injected short timers with separated tiers
+ * and assert outcomes/signals rather than elapsed durations.
  */
 
 const shimDir = fileURLToPath(new URL("./shims/", import.meta.url));
@@ -46,15 +44,18 @@ function run(
     onStdoutLine?: (line: string) => void;
   } = {},
 ) {
-  return runHarnessProcess({
+  const runArgs: HarnessRunArgs = {
     command: process.execPath,
     argv: [FAKE_CLAUDE],
     stdin: extra.stdin ?? "prompt body",
     timeouts: extra.timeouts ?? TEST_TIMEOUTS,
     env: { SHIM_SCENARIO: scenario, ...extra.env },
-    ...(extra.signal ? { signal: extra.signal } : {}),
-    ...(extra.onStdoutLine ? { onStdoutLine: extra.onStdoutLine } : {}),
-  });
+  };
+
+  if (extra.signal) runArgs.signal = extra.signal;
+  if (extra.onStdoutLine) runArgs.onStdoutLine = extra.onStdoutLine;
+
+  return runHarnessProcess(runArgs);
 }
 
 describe("runHarnessProcess", () => {
@@ -79,7 +80,7 @@ describe("runHarnessProcess", () => {
     expect(lines[0]).toContain('"init"');
   });
 
-  it("delivers the prompt via stdin (no argv, no ARG_MAX exposure)", async () => {
+  it("delivers prompts through stdin without argv size exposure", async () => {
     const marker = `prompt-${Date.now()}-with ünïcode and "quotes"`;
     const result = await run("echo-stdin", { stdin: marker });
     expect(result.stdout).toContain(JSON.stringify(marker).slice(1, -1));
@@ -188,7 +189,7 @@ describe("runHarnessProcess", () => {
     expect(result.timedOut).toBe("inactivity");
   });
 
-  it("settles the run when the line consumer throws (no uncaught escape)", async () => {
+  it("settles and rejects when the line consumer throws", async () => {
     const boom = new Error("adapter parse failure");
     const promise = run("slow-drip", {
       env: { SHIM_DRIP_MS: "100", SHIM_DRIP_COUNT: "1000" },
@@ -196,12 +197,12 @@ describe("runHarnessProcess", () => {
         throw boom;
       },
     });
-    // Rejects with the consumer's error — and the process was killed rather
+    // Rejects with the consumer's error, and the process was killed rather
     // than dripping until a timer fired.
     await expect(promise).rejects.toBe(boom);
   });
 
-  it("keeps the timeout outcome when a dying CLI's flush makes the consumer throw", async () => {
+  it("preserves timeout outcomes when dying CLI flushes throw", async () => {
     const result = await run("flush-on-sigint", {
       onStdoutLine: () => {
         throw new Error("consumer chokes on the dying flush");
@@ -211,7 +212,7 @@ describe("runHarnessProcess", () => {
     expect(result.timedOut).toBe("inactivity");
   });
 
-  it("keeps the abort rejection when a dying CLI's flush makes the consumer throw", async () => {
+  it("preserves abort reasons when dying CLI flushes throw", async () => {
     const controller = new AbortController();
     const reason = new Error("superseded");
     const promise = run("flush-on-sigint", {
@@ -254,9 +255,9 @@ describe("runHarnessProcess", () => {
     await expect(promise).rejects.toBe(reason);
   });
 
-  it("rejects a consumer failure on the unterminated final line without a post-close ladder", async () => {
+  it("rejects final-line consumer failures without a post-close kill ladder", async () => {
     // The child exits cleanly leaving an unterminated line; the consumer
-    // throws on the close-time flush. The run must reject with that error —
+    // throws on the close-time flush. The run must reject with that error,
     // and must NOT signal the (post-close, possibly reused) process group.
     const boom = new Error("final-line consumer failure");
     const promise = runHarnessProcess({
@@ -289,16 +290,16 @@ describe("runHarnessProcess", () => {
   });
 
   it("propagates a null abort reason untouched", async () => {
-    // abort(null) sets signal.reason to null — the caller must get null
-    // back, not a synthesized Error — untouched means falsy too.
+    // abort(null) sets signal.reason to null, the caller must get null
+    // back, not a synthesized Error, untouched means falsy too.
     const controller = new AbortController();
     const promise = run("hang", { signal: controller.signal });
     setTimeout(() => controller.abort(null), 50);
     await expect(promise).rejects.toBe(null);
   });
 
-  it("kills a flooding CLI at the stdout cap with a classified overflow error", async () => {
-    // Steady large chunks keep resetting the inactivity watchdog — the cap
+  it("kills stdout floods with a classified overflow error", async () => {
+    // Steady large chunks keep resetting the inactivity watchdog, the cap
     // must terminate the run long before the hard timer.
     const promise = runHarnessProcess({
       command: process.execPath,
@@ -319,7 +320,7 @@ describe("runHarnessProcess", () => {
 
   it("keeps the stdout bound during another cause's kill grace", async () => {
     // Silent hang → the inactivity watchdog fires FIRST (owns the outcome);
-    // on SIGINT the dying CLI floods stdout through the grace window — the
+    // on SIGINT the dying CLI floods stdout through the grace window, the
     // returned partial stdout must still respect the cap.
     const cap = 64 * 1024;
     const result = await runHarnessProcess({
@@ -341,7 +342,7 @@ describe("runHarnessProcess", () => {
     expect(spawnFailureError("claude", enoent).kind).toBe(
       GeneratorErrorKinds.CLI_MISSING,
     );
-    // Resource exhaustion is not a missing binary — no PATH remediation.
+    // Resource exhaustion is not a missing binary, no PATH remediation.
     const emfile = Object.assign(new Error("spawn EMFILE"), { code: "EMFILE" });
     const systemFailure = spawnFailureError("claude", emfile);
     expect(systemFailure.kind).toBe(GeneratorErrorKinds.OPAQUE);
@@ -363,7 +364,7 @@ describe("runHarnessProcess", () => {
   });
 
   it("captures a bounded stderr head and tail", async () => {
-    // Long stderr keeps BOTH ends: the head (failure prefixes live there —
+    // Long stderr keeps BOTH ends: the head (failure prefixes live there,
     // a payload after them flushes the rolling tail) and the tail.
     const big = "x".repeat(10_000);
     const result = await run("stderr-exit", {
@@ -378,7 +379,7 @@ describe("runHarnessProcess", () => {
   });
 });
 
-/** Every stripped var set to a live value — derived from the exported
+/** Every stripped var set to a live value, derived from the exported
  * list so a var added there is automatically under test. */
 const leakedCredentials = () =>
   Object.fromEntries(
@@ -406,7 +407,7 @@ describe("billing-route guarantee: credential vars never reach the CLI", () => {
     });
   });
 
-  it("strips the vars on the PROBE path too — boot verifies the credential generation will use", async () => {
+  it("strips probe credentials to match generation authentication", async () => {
     const probe = await probeHarnessCli({
       command: process.execPath,
       versionArgv: [FAKE_CLAUDE, "--version"],
@@ -417,7 +418,7 @@ describe("billing-route guarantee: credential vars never reach the CLI", () => {
         SHIM_SCENARIO: "auth-fail-if-credentials",
       },
     });
-    // The shim's auth status FAILS if any credential var reached it — an
+    // The shim's auth status FAILS if any credential var reached it, an
     // ok probe proves the strip covers the preflight, not just generation.
     expect(probe.ok).toBe(true);
   });
@@ -484,7 +485,7 @@ describe("harnessTimeoutError / redactSecrets", () => {
     expect(error.message).toContain("rest");
   });
 
-  it("redacts Authorization headers (Basic and Digest) and bare JWTs", async () => {
+  it("redacts Basic and Digest authorization headers and bare JWTs", async () => {
     const result = await runHarnessProcess({
       command: process.execPath,
       argv: [FAKE_CLAUDE],
@@ -493,7 +494,7 @@ describe("harnessTimeoutError / redactSecrets", () => {
       env: {
         SHIM_SCENARIO: "stderr-exit",
         // Header rules take the line remainder (Digest is a param list, not
-        // one token) — unrelated text goes on its own lines.
+        // one token), unrelated text goes on its own lines.
         SHIM_STDERR:
           'Authorization: Basic dXNlcjpwYXNz\nProxy-Authorization: Digest username="u", response="abc123"\nthen eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.s1g_9 tail\n',
         SHIM_EXIT_CODE: "1",
@@ -530,7 +531,7 @@ describe("harnessTimeoutError / redactSecrets", () => {
     expect(cookies).not.toContain("hunter2");
     expect(cookies).not.toContain("abc123zz");
     expect(cookies).toContain("next line stays");
-    // Quoted values are consumed to the closing quote — password="hunter 2"
+    // Quoted values are consumed to the closing quote, password="hunter 2"
     // must not strand a credential suffix after the space.
     const quoted = redactSecrets(`login password="hunter 2" attempt`);
     expect(quoted).not.toContain("hunter 2");
@@ -614,7 +615,7 @@ describe("probeHarnessCli", () => {
     );
   });
 
-  it("reports a signalled auth preflight as incomplete, not as not-authenticated", async () => {
+  it("marks signalled auth preflights incomplete rather than unauthenticated", async () => {
     // Externally killed preflight: exitCode null, no auth verdict produced.
     const result = await probeHarnessCli({
       ...probeArgs,
@@ -772,7 +773,7 @@ describe("shim self-checks", () => {
       const text: unknown = Reflect.get(item, "text");
       if (typeof text === "string") agentTexts.push(text);
     }
-    // Preliminary narration first, the answer LAST — consumers must pick the
+    // Preliminary narration first, the answer LAST, consumers must pick the
     // last agent_message.
     expect(agentTexts.length).toBeGreaterThanOrEqual(2);
     const last = agentTexts.at(-1);

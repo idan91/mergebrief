@@ -22,12 +22,8 @@ import {
 } from "../types";
 
 /**
- * Validate the chunk↔group partition. With group membership on the chunk
- * (`changeGroupId`), duplicate and orphan chunks are structurally impossible
- * (a chunk has exactly one required group id). What remains to check is a
- * dangling reference (a chunk pointing at a group that doesn't exist) and a
- * group with no chunks / no core chunk. Returns human-readable issues — empty
- * means clean.
+ * Required changeGroupId prevents duplicate memberships structurally. Check dangling
+ * references and empty/coreless groups here; an empty issue list means clean.
  */
 export function validatePartition(
   groups: Pick<ChangeGroup, "id">[],
@@ -57,11 +53,8 @@ export function validatePartition(
 }
 
 /**
- * Validate a revision narrative's `briefChangeGroupId` references against the
- * full Brief's change-groups. Membership is not structurally guaranteed here —
- * narrative and Brief are two independent model outputs — so dangling
- * references happen. Warn, never hard-fail: schema validity is the only
- * hard-fail condition for a narrative.
+ * Narrative and brief are independent model outputs, so references may dangle.
+ * Warn rather than fail: only schema validity hard-fails a narrative.
  */
 export function validateNarrativeGroups(
   chunks: Pick<RevisionNarrativeChunk, "id" | "briefChangeGroupId">[],
@@ -82,14 +75,14 @@ export function validateNarrativeGroups(
 /**
  * Validate a Brief's optional reading order: when present it must be an exact
  * permutation of the Brief's change-group ids. Warn-and-drop, not a hard
- * failure — an invalid order degrades to the Brief's emission order.
+ * failure, an invalid order degrades to the Brief's emission order.
  */
 export function validateReadingOrder(
   readingOrder: Pick<ReadingOrderStep, "groupId">[] | undefined,
   groups: Pick<ChangeGroup, "id">[],
   /**
    * Frozen groups are withheld from the model's output but their ids are live
-   * anchors — the contract demands the whole ordering, so they join both the
+   * anchors, the contract demands the whole ordering, so they join both the
    * known-id set and the required set.
    */
   carriedGroupIds: readonly string[] = [],
@@ -123,7 +116,7 @@ export function validateReadingOrder(
 /**
  * One intent-source origin the quote check can verify against: the PR
  * title/description composite rides as `url: ""`, fetched linked context as
- * its URL — mirroring the `sourceUrl` convention on the schema.
+ * its URL, mirroring the `sourceUrl` convention on the schema.
  */
 export interface IntentSource {
   url: string;
@@ -137,7 +130,7 @@ function normalizeWhitespace(text: string): string {
 
 /**
  * Minimum words for an alarm-bucket quote to count as verified: below this the
- * substring check stops discriminating — a generic fragment appears in almost
+ * substring check stops discriminating, a generic fragment appears in almost
  * any source text, so it cannot ground an alarm.
  */
 const ALARM_QUOTE_MIN_WORDS = 5;
@@ -146,12 +139,8 @@ const ALARM_QUOTE_MIN_WORDS = 5;
 const ALIGNMENT_GOAL_MIN_WORDS = 3;
 
 /**
- * Convert the generation-side tagged `items` array into the stored five-bucket
- * shape — mechanical dispatch on each item's `bucket`, which is wire framing
- * and dropped here. The grammar budget forces one array on the wire (see
- * `IntentItemSchema`); everything downstream keeps the five-array shape.
- *
- * Runs BEFORE `validateIntentCheck` so every per-bucket rule still applies.
+ * Grammar budgets require one tagged wire array; storage retains five buckets.
+ * Dispatch before validateIntentCheck so per-bucket checks see the stored shape.
  */
 export function fanOutIntentCheck(
   generated: IntentCheckGeneration,
@@ -181,7 +170,7 @@ export function fanOutIntentCheck(
 
 /**
  * Align titles to urls (pad ""/truncate, warn on mismatch), then drop the
- * pairs whose url the harness never injected — url and title move together.
+ * pairs whose url the harness never injected, url and title move together.
  */
 function resolveTicketPairs(
   intentCheck: IntentCheck,
@@ -265,28 +254,17 @@ function verifyAlignment(
 }
 
 /**
- * Validate a Brief's intent check — warn-and-drop into `generationWarnings`.
- * Pure: returns a sanitized copy, never mutates.
- *
- * 1. broad/none with non-empty buckets → all five emptied (never a guessed gap).
- * 2. `ticketUrls` must be ⊆ the injected linked-context URLs; an item's
- *    `sourceUrl` must be `""` or one of the survivors, else the item drops.
- * 3. Dangling `groupIds` are pruned. An `accomplished` item left with zero ids
- *    is kept but warned; a `doneButUnstated` item with zero ids is dropped.
- * 4. Per-bucket rules on the shared item shape: `statedButMissing` carries no
- *    groupIds, `doneButUnstated` no quote/sourceUrl, and `acknowledged` is
- *    forced false outside `deviations`.
- * 5. Neutral-bucket quotes are verified as whitespace-normalized substrings of
- *    their source — warn only.
- * 6. Alarm buckets (`deviations`, `claimedButUnachieved`) are stricter: verified
- *    both-sides grounding or the item DROPS. A false alarm costs more than a miss.
+ * Return sanitized copies with warnings, never mutate input or infer broad/none gaps.
+ * Ticket sources must have been injected; dangling ids cannot ground unstated work.
+ * Neutral quote failures warn and keep, while alarms require verified source and diff
+ * grounding or drop: a fabricated alarm costs more than a miss.
  */
 export function validateIntentCheck(
   intentCheck: IntentCheck,
   changeGroups: Pick<ChangeGroup, "id">[],
   injectedUrls: readonly string[],
   fetchedContent: readonly IntentSource[],
-  /** Frozen group ids are live anchors — never pruned as unknown; the stitch
+  /** Frozen group ids are live anchors, never pruned as unknown; the stitch
    * re-verifies against the merged brief. */
   carriedGroupIds: readonly string[] = [],
   primary?: PrimaryTicketFacts,
@@ -391,7 +369,7 @@ export function validateIntentCheck(
 
   /**
    * `acknowledged` is meaningful only in `deviations`; anywhere else `true` is
-   * forced back to `false` + warn — the item shape is shared across buckets.
+   * forced back to `false` + warn, the item shape is shared across buckets.
    */
   function forceUnacknowledged<
     T extends { intent: string; acknowledged: boolean },
@@ -404,11 +382,9 @@ export function validateIntentCheck(
   }
 
   /**
-   * Where the neutral buckets warn-and-keep, an alarm item's quote must VERIFY
-   * — non-empty, long enough to discriminate, source content present,
-   * whitespace-normalized substring — or the item drops. The word floor exists
-   * because a bare fragment would match almost any source and launder a
-   * fabricated alarm.
+   * Alarm quotes need non-empty, sufficiently specific source substrings after whitespace
+   * normalization. The word floor prevents generic fragments from laundering fabricated alarms;
+   * neutral buckets instead warn and keep.
    */
   function quoteVerifies(
     bucket: string,
@@ -631,12 +607,8 @@ interface SectionContext {
 }
 
 /**
- * Best-effort dependency key from one manifest line (diff marker already
- * stripped), format-dispatched and section-aware. When the enclosing section
- * is visible in the patch, only known dependency sections count; when it
- * isn't (the common case — the header sits outside the hunk context), a
- * value-shape check plus a non-dep-key blocklist keeps metadata fields
- * (`"lint": "oxlint …"`, `edition = "2021"`) from confirming.
+ * Visible sections restrict dependency keys; absent hunk headers require shape checks
+ * and a metadata-key blocklist so fields such as lint or edition cannot confirm dependencies.
  */
 function depKeyFromLine(
   content: string,
@@ -717,7 +689,7 @@ interface DepEntry {
 /**
  * Scan one side of a file patch for dependency entries. The side's "file
  * view" (context lines + that side's changed lines) drives both the line
- * counter — from each `@@` hunk header — and the section tracking, so a
+ * counter, from each `@@` hunk header, and the section tracking, so a
  * `"scripts": {` opener in context correctly reclassifies the lines under it.
  */
 function collectDepEntries(
@@ -783,12 +755,8 @@ function collectDepEntries(
 }
 
 /**
- * Mechanically confirm `new-dependency` for ONE chunk: an added line inside
- * the chunk's own `addedRanges` introduces a dependency key that no removed
- * line in the file also carries. Same key on both sides = a version bump —
- * `lib-bump`/`dependency-update` Category territory, not this attribute.
- * Chunk-scoped so a real dependency added elsewhere in the manifest never
- * confirms an unrelated chunk's flag.
+ * Confirm only new keys in this chunk's added ranges. Removed keys elsewhere in the file
+ * make matching additions version bumps. A dependency added in another chunk cannot confirm it.
  */
 function confirmsNewDependency(
   patch: string,
@@ -807,25 +775,10 @@ function confirmsNewDependency(
 }
 
 /**
- * Validate model-observed risk attributes — warn-and-drop, mirroring
- * `validateReadingOrder`'s posture: drop the *attribute*, never the chunk;
- * each drop is a warn issue. Pure — returns sanitized copies, never mutates
- * the input.
- *
- * - `comment-contradicts-code` must carry a matching `riskNotes` citation →
- *   dropped without one.
- * - `new-dependency` must be mechanically confirmable from the chunk's own
- *   added lines: a package manifest whose patch adds a dependency entry
- *   (section-aware — metadata fields don't count) inside this chunk's
- *   `addedRanges`, with a key no removed line also carries → dropped
- *   otherwise.
- * - `removes-validation` requires the chunk to actually remove lines. Deliberate
- *   trade: an added early-return can weaken a guard without deleting lines, but
- *   that shape is rare and this drops the observed false-positive class.
- * - `new-abstraction` has no mechanical confirm (model-observed only).
- *
- * A dropped attribute's `riskNotes` entries go with it; everything else
- * passes through untouched.
+ * Drop invalid attributes and their notes, never chunks; return copies with warnings.
+ * New-dependency needs chunk-local evidence; comment-contradicts-code needs a citation.
+ * Removes-validation requires removed lines, accepting misses on added early returns
+ * to reject the observed false positives. New-abstraction remains model-observed.
  */
 export function validateRiskAttributes<C extends Chunk>(
   chunks: C[],
@@ -883,13 +836,9 @@ export function validateRiskAttributes<C extends Chunk>(
     if (drops.size === 0) return chunk;
     const riskSurface = chunk.riskSurface.filter((attr) => !drops.has(attr));
     const riskNotes = chunk.riskNotes?.filter((n) => !drops.has(n.attr));
-    return {
-      ...chunk,
-      riskSurface,
-      ...(riskNotes !== undefined && riskNotes.length > 0
-        ? { riskNotes }
-        : { riskNotes: undefined }),
-    };
+    const hasNotes = riskNotes !== undefined && riskNotes.length > 0;
+    const keptNotes = hasNotes ? riskNotes : undefined;
+    return { ...chunk, riskSurface, riskNotes: keptNotes };
   });
 
   return { chunks: sanitized, issues };
@@ -897,7 +846,7 @@ export function validateRiskAttributes<C extends Chunk>(
 
 /**
  * Validate risk tokens against THIS generation's vocabulary (built-ins ∪ the
- * repo's injected custom names) and each custom attribute's path scope —
+ * repo's injected custom names) and each custom attribute's path scope,
  * warn-and-drop. The harness-side floor that holds regardless of adapter, and
  * the ONLY enforcement of path scopes, which no schema can express. Pure.
  */
@@ -912,7 +861,7 @@ export function validateRepoAttributeTokens<C extends Chunk>(
   const builtIn = new Set<string>(RiskSurfaceAttributes);
 
   // A token is bad on this chunk when it is unknown or a custom attribute fired
-  // outside its path scope — checked for riskSurface AND riskNotes
+  // outside its path scope, checked for riskSurface AND riskNotes
   // independently, so a bad token cannot survive by hiding in a note.
   function badTokenReason(token: string, file: string): string | undefined {
     if (builtIn.has(token)) return undefined;
@@ -947,13 +896,9 @@ export function validateRepoAttributeTokens<C extends Chunk>(
     if (drops.size === 0) return chunk;
     const riskSurface = chunk.riskSurface.filter((token) => !drops.has(token));
     const riskNotes = chunk.riskNotes?.filter((note) => !drops.has(note.attr));
-    return {
-      ...chunk,
-      riskSurface,
-      ...(riskNotes !== undefined && riskNotes.length > 0
-        ? { riskNotes }
-        : { riskNotes: undefined }),
-    };
+    const hasNotes = riskNotes !== undefined && riskNotes.length > 0;
+    const keptNotes = hasNotes ? riskNotes : undefined;
+    return { ...chunk, riskSurface, riskNotes: keptNotes };
   });
 
   return { chunks: sanitized, issues };
@@ -998,7 +943,7 @@ export function validateNarrativeMarksOverlap(
 }
 
 /**
- * Warn ceilings in chars — deliberately above the prompt's stated ideals so a
+ * Warn ceilings in chars, deliberately above the prompt's stated ideals so a
  * warning always means a real violation, never borderline noise. The PR
  * lede/changelog stays out; its caps are prompt-enforced.
  */
@@ -1024,7 +969,7 @@ function checkTextLength(
 }
 
 /**
- * Length check for brief-shaped output — change-groups plus per-chunk riskNotes.
+ * Length check for brief-shaped output, change-groups plus per-chunk riskNotes.
  * WARN-ONLY by design: never trim, never retry, never a schema `maxLength`. The
  * prompt carries the caps; this is the floor that measures compliance.
  */
@@ -1098,7 +1043,7 @@ function formatRange(range: LineRange): string {
 
 /**
  * The reverse direction of `validateNarrativeMarksOverlap`: every mechanical
- * mark range should overlap some narrative chunk for the same file and side —
+ * mark range should overlap some narrative chunk for the same file and side,
  * an uncovered span has no summary in the comparison overlay. Warn only, never
  * retry: a regen costs a full narrative spend for what the FE degrades over.
  */

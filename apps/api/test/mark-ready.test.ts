@@ -45,7 +45,7 @@ const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 const CTX = { installationId: brandInstallationId(BigInt(INSTALLATION_ID)) };
 
 // ---------------------------------------------------------------------------
-// GitHub HTTP stub (global fetch) — REST /repositories/:id + the GraphQL POST.
+// GitHub HTTP stub (global fetch), REST /repositories/:id + the GraphQL POST.
 // ---------------------------------------------------------------------------
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -84,7 +84,7 @@ function notADraftGraphql(): Response {
   });
 }
 function graphqlError(): Response {
-  // A GraphQL-level error (HTTP 200 + errors) — maps to REQUEST_FAILED → 502.
+  // A GraphQL-level error (HTTP 200 + errors), maps to REQUEST_FAILED → 502.
   // NOT an HTTP 5xx, which octokit's retry plugin would back off and retry.
   return jsonResponse({
     data: null,
@@ -93,7 +93,7 @@ function graphqlError(): Response {
 }
 function forbiddenGraphql(): Response {
   // GitHub's GraphQL FORBIDDEN envelope for the mark-ready MUTATION when the
-  // App lacks `contents: write` — the community-documented permission gap.
+  // App lacks `contents: write`, the community-documented permission gap.
   return jsonResponse({
     data: null,
     errors: [
@@ -245,13 +245,13 @@ async function markReady(
   cookie: string | undefined,
   path = READY_PATH,
 ): Promise<Response> {
-  return await app.request(path, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      ...(cookie === undefined ? {} : { cookie: `rs_session=${cookie}` }),
-    },
-  });
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+  };
+
+  if (cookie !== undefined) headers["cookie"] = `rs_session=${cookie}`;
+
+  return await app.request(path, { method: "POST", headers });
 }
 
 // Conversation port stub: never exercised by this route.
@@ -287,7 +287,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
     await harness.close();
   });
 
-  it("401 when no session cookie is present (no GitHub call)", async () => {
+  it("401s absent session cookies without calling GitHub", async () => {
     const counts = stubGitHub({});
     const res = await markReady(app, undefined);
     expect(res.status).toBe(401);
@@ -301,13 +301,13 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
     const { cookie } = await seedSession(harness.handle, kp);
     const res = await markReady(app, cookie);
     expect(res.status).toBe(404);
-    // Row untouched — the mutation never ran.
+    // Row untouched, the mutation never ran.
     expect(await readDraft(harness.handle)).toBe(true);
   });
 
-  it("404 collapse when the IN-ROUTE fresh repo resolve is denied (gate passed)", async () => {
+  it("404s denied fresh repo resolution after the gate passes", async () => {
     // The gate's access check (call 0) passes; the route's own fresh
-    // fetchRepositoryById (call 1) is denied — a viewer whose access was
+    // fetchRepositoryById (call 1) is denied, a viewer whose access was
     // revoked inside the positive-cache TTL. Must collapse to the gate's 404
     // posture, run no mutation, and leave the row untouched.
     const counts = stubGitHub({
@@ -323,7 +323,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
     expect(await markReadyAuditCount(harness)).toBe(0);
   });
 
-  it("resolves the PR against the FRESHLY fetched owner/name, never the gate's cached slug", async () => {
+  it("resolves the PR with fresh owner and name instead of the cached slug", async () => {
     // A mutating write must not trust the gate's positive-cache slug (≤60s
     // stale after a rename + name-reuse): the GraphQL resolve must carry the
     // owner/name from the route's own fresh /repositories/{id} fetch.
@@ -348,10 +348,10 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
     });
   });
 
-  it("401 when a second GitHub 401 lands after the one refresh (budget spent, no second refresh)", async () => {
+  it("401s a second GitHub rejection without refreshing twice", async () => {
     // One refresh-once budget per REQUEST: the first GraphQL 401 spends it;
     // when the retried call 401s again the route must NOT refresh a second
-    // time — it returns 401 and leaves the row untouched.
+    // time, it returns 401 and leaves the row untouched.
     const counts = stubGitHub({
       repositories: () => repoOk(),
       token: () => tokenSuccess(),
@@ -367,7 +367,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
     expect(await markReadyAuditCount(harness)).toBe(0);
   });
 
-  it("404 when the PR is not in the tenant (no GitHub mutation)", async () => {
+  it("404s PRs outside the tenant without a GitHub mutation", async () => {
     const counts = stubGitHub({ repositories: () => repoOk() });
     const { cookie } = await seedSession(harness.handle, kp);
     const res = await markReady(app, cookie);
@@ -375,7 +375,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
     expect(counts.graphql).toBe(0);
   });
 
-  it("200 on the fresh-flip happy path: mutation runs, row flips, audit emitted", async () => {
+  it("200s a fresh flip with mutation, row update and audit", async () => {
     const counts = stubGitHub({
       repositories: () => repoOk(),
       graphql: (i) => (i === 0 ? nodeIdGraphql(true) : mutationGraphql()),
@@ -396,7 +396,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
     expect(await markReadyAuditCount(harness)).toBe(1);
   });
 
-  it("200 converged when the PR is already out of draft (no mutation), still audits + flips", async () => {
+  it("200s an already-ready PR with audit and row update but no mutation", async () => {
     const counts = stubGitHub({
       repositories: () => repoOk(),
       graphql: () => nodeIdGraphql(false),
@@ -407,13 +407,13 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
     const res = await markReady(app, cookie);
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ draft: false });
-    // Only the resolve call — the read-time non-draft short-circuits.
+    // Only the resolve call, the read-time non-draft short-circuits.
     expect(counts.graphql).toBe(1);
     expect(await readDraft(harness.handle)).toBe(false);
     expect(await markReadyAuditCount(harness)).toBe(1);
   });
 
-  it("200 converged when the mutation races a concurrent ready ('not a draft')", async () => {
+  it("200s a mutation that races a concurrent ready transition", async () => {
     stubGitHub({
       repositories: () => repoOk(),
       graphql: (i) => (i === 0 ? nodeIdGraphql(true) : notADraftGraphql()),
@@ -443,12 +443,10 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
     expect(await markReadyAuditCount(harness)).toBe(0);
   });
 
-  it("403 github-permission (NOT the 404 collapse) on a MUTATION-stage FORBIDDEN — the App lacks contents:write", async () => {
-    // The gate AND the fresh re-resolve both succeed (the viewer has proven
-    // repo access), then the node-id resolve succeeds and only the mutation
-    // 403s: an App permission gap, not an access revocation. It must be a
-    // distinct, honestly-actionable 403 — never the existence-hiding 404 —
-    // while leaving the row untouched, emitting no audit, and staying no-store.
+  it("returns actionable 403 github-permission for mutation-stage denial", async () => {
+    // Repo access and fresh resolution succeed before mutation denies contents:write.
+    // This needs an actionable 403 rather than a uniform 404, with no row update or audit
+    // and with no-store retained.
     const counts = stubGitHub({
       repositories: () => repoOk(),
       graphql: (i) => (i === 0 ? nodeIdGraphql(true) : forbiddenGraphql()),
@@ -465,12 +463,12 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
     });
     // Reached the mutation (resolve + mutation = 2 GraphQL calls).
     expect(counts.graphql).toBe(2);
-    // Row untouched, no audit — GitHub rejected the write.
+    // Row untouched, no audit, GitHub rejected the write.
     expect(await readDraft(harness.handle)).toBe(true);
     expect(await markReadyAuditCount(harness)).toBe(0);
   });
 
-  it("fresh-resolve FORBIDDEN still collapses to 404 (existence-leak posture unchanged)", async () => {
+  it("collapses fresh-resolution FORBIDDEN to a uniform 404", async () => {
     // Distinct from the mutation-stage 403 above: a FORBIDDEN at the in-route
     // fresh /repositories/{id} resolve (BEFORE the viewer re-proves access this
     // request) must keep collapsing to the gate's 404 posture.
@@ -488,7 +486,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
     expect(await markReadyAuditCount(harness)).toBe(0);
   });
 
-  it("refreshes the token once when a GraphQL call 401s mid-request, then succeeds", async () => {
+  it("refreshes once after a mid-request GraphQL 401 and succeeds", async () => {
     // The route's refresh-once budget is shared across the whole op: the first
     // resolve 401s (expired token), the route refreshes once, and the retried
     // op (resolve + mutation) lands. Gate + route-resolve keep repositories at 2.
@@ -513,7 +511,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
     expect(await readDraft(harness.handle)).toBe(false);
   });
 
-  it("double-POST: both converge to 200 and the row stays draft=false (idempotent)", async () => {
+  it("converges two POSTs to 200 with the row no longer a draft", async () => {
     // First POST flips via the mutation; the second reads isDraft=false at
     // resolve time (GitHub is now non-draft) and converges without mutating.
     stubGitHub({
@@ -533,7 +531,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
     expect(first.status).toBe(200);
     expect(second.status).toBe(200);
     expect(await readDraft(harness.handle)).toBe(false);
-    // Two audit rows — each accepted request records its action.
+    // Two audit rows, each accepted request records its action.
     expect(await markReadyAuditCount(harness)).toBe(2);
   });
 });

@@ -1,14 +1,6 @@
-// API tokens as a second presentation channel. Two surfaces, one auth model:
-//   1. Bearer presentation: `Authorization: Bearer mergebrief_...` resolves
-//      through `createTokenAuth` into the SAME principal shape a cookie session
-//      yields, on `/api/*` only. Miss/expired/revoked/garbage → hint-free 401.
-//      Refresh-once mid-request rides the same spendRefresh machinery; the
-//      token's own expiry never moves.
-//   2. `/api/auth/tokens` mint/list/revoke: cookie-authed ONLY (Bearer on /api/auth/*
-//      is ignored), mint validates the installation against the viewer's LIVE
-//      accessible set, token material is returned exactly once.
-// Same harness as installations.test.ts: `app.request()` over PGlite, GitHub
-// stubbed at the global-fetch boundary.
+// Bearer /api/* access yields the same principal as cookies and hint-free 401s on invalid tokens.
+// Refresh-once must not extend token expiry. Mint/list/revoke stay cookie-only.
+// Mint checks live installation access and returns token material exactly once.
 import { randomBytes } from "node:crypto";
 import {
   encryptToken,
@@ -268,7 +260,7 @@ describe("Bearer presentation on /api/*", () => {
     expect(body.pulls[0]?.prNumber).toBe(7);
   });
 
-  it("carries the token's scope to the router gate: a read token cannot write", async () => {
+  it("denies writes when the Bearer token carries read scope", async () => {
     stubGitHub({
       installationRepos: () =>
         installationReposOk([{ id: REPO_A, full_name: "octo/hello" }]),
@@ -296,7 +288,7 @@ describe("Bearer presentation on /api/*", () => {
     });
   });
 
-  it("401s garbage, unknown, expired, and revoked tokens with the same hint-free body", async () => {
+  it("401s all invalid token forms with the same hint-free body", async () => {
     stubGitHub({});
     const expired = await seedApiToken(harness.handle, kp, {
       expiresAt: new Date("2020-01-01T00:00:00Z"),
@@ -319,7 +311,7 @@ describe("Bearer presentation on /api/*", () => {
     }
   });
 
-  it("ignores Bearer on /api/auth/* — the browser-only surface never resolves tokens", async () => {
+  it("ignores Bearer tokens on browser-only /api/auth/* routes", async () => {
     stubGitHub({
       userInstallations: () =>
         userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
@@ -331,7 +323,7 @@ describe("Bearer presentation on /api/*", () => {
     expect(res.status).toBe(401);
   });
 
-  it("refreshes ONCE mid-request on an expired GitHub access token, without moving the token's own expiry", async () => {
+  it("refreshes GitHub access once without extending token expiry", async () => {
     const counts = stubGitHub({
       installationRepos: (call) =>
         call === 0
@@ -372,10 +364,10 @@ describe("Bearer presentation on /api/*", () => {
     ).toEqual([{ n: 0 }]);
   });
 
-  it("emits token.refresh.fail on the bearer channel when GitHub rejects the rotation", async () => {
+  it("emits token.refresh.fail for rejected Bearer-channel rotations", async () => {
     stubGitHub({
       // Every data call 401s (expired access token) and the rotation itself
-      // is rejected — the refresh orchestrator's bearer-channel hard failure.
+      // is rejected, the refresh orchestrator's bearer-channel hard failure.
       installationRepos: () =>
         jsonResponse({ message: "Bad credentials" }, 401),
       token: () =>
@@ -401,11 +393,11 @@ describe("Bearer presentation on /api/*", () => {
     });
     expect(res.status).toBe(401);
     // Alert contract: the bearer fork emits the same evt as the
-    // cookie flow — operators key alerts off token.refresh.fail.
+    // cookie flow, operators key alerts off token.refresh.fail.
     const line = capture.lines().find((l) => l["evt"] === "token.refresh.fail");
     expect(line?.["level"]).toBe("error");
     expect(typeof line?.["reviewerId"]).toBe("string");
-    // The api_token row is NOT deleted on failure — user-managed credential.
+    // The api_token row is NOT deleted on failure, user-managed credential.
     expect(
       await harness.raw("select count(*)::int as n from api_token"),
     ).toEqual([{ n: 1 }]);
@@ -420,7 +412,7 @@ describe("Bearer presentation on /api/*", () => {
     const bearer = await seedApiToken(harness.handle, kp);
 
     expect((await getWithBearer("/api/pulls", bearer)).status).toBe(200);
-    // The touch is fire-and-forget (never awaited on the request path) — poll.
+    // The touch is fire-and-forget (never awaited on the request path), poll.
     await vi.waitFor(async () => {
       const touched = await harness.raw(
         "select last_used_at from api_token limit 1",
@@ -439,7 +431,7 @@ describe("Bearer presentation on /api/*", () => {
   });
 });
 
-describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
+describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
   let harness: PgliteHarness;
   let app: ApiApp;
   let kp: KeyProvider;
@@ -485,12 +477,15 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
   }
 
   async function mint(body: unknown, cookie?: string): Promise<Response> {
+    const headers: Record<string, string> = {
+      "content-type": "application/json",
+    };
+
+    if (cookie !== undefined) headers["Cookie"] = `rs_session=${cookie}`;
+
     return app.request("/api/auth/tokens", {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        ...(cookie === undefined ? {} : { Cookie: `rs_session=${cookie}` }),
-      },
+      headers,
       body: JSON.stringify(body),
     });
   }
@@ -533,7 +528,7 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.["token_hash"]).toBe(hashSha256Hex(body.token));
 
-    // Link-never-copy: mint linked the SESSION's grant — one physical
+    // Link-never-copy: mint linked the SESSION's grant, one physical
     // pair exists after the mint, and the token row points at it.
     const grantRows = await harness.raw("select id from github_grant");
     expect(grantRows).toHaveLength(1);
@@ -593,7 +588,7 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
     expect(body.apiToken.expiresAt).toBeNull();
   });
 
-  it("validates the installation against the viewer's LIVE set — 403, nothing minted", async () => {
+  it("403s installations outside the live accessible set without minting", async () => {
     stubGitHub({
       userInstallations: () =>
         userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
@@ -609,7 +604,7 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
     ).toEqual([{ n: 0 }]);
   });
 
-  it("returns the wire error contract when the live installation lookup fails", async () => {
+  it("returns wire errors when live installation lookup fails", async () => {
     stubGitHub({
       userInstallations: () => jsonResponse({ message: "forbidden" }, 403),
     });
@@ -663,7 +658,7 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
       headers: { Authorization: `Bearer ${bearer}` },
     });
     expect(viaBearerList.status).toBe(401);
-    // Exactly the seeded row — nothing minted through either path.
+    // Exactly the seeded row, nothing minted through either path.
     expect(
       await harness.raw("select count(*)::int as n from api_token"),
     ).toEqual([{ n: 1 }]);
@@ -698,14 +693,14 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
       apiToken: { scope: "external-write" },
     });
 
-    // No scope is NOT a default — the reach a token carries is always chosen.
+    // No scope is NOT a default, the reach a token carries is always chosen.
     const unchosen = await mint(
       { name: "unstated", installationId: INSTALLATION_ID },
       cookie,
     );
     expect(unchosen.status).toBe(400);
 
-    // The list surface shows it too — the scope is how a reader tells the two
+    // The list surface shows it too, the scope is how a reader tells the two
     // credentials apart.
     const list = await app.request("/api/auth/tokens", {
       headers: { Cookie: `rs_session=${cookie}` },
@@ -748,7 +743,7 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
     }
   });
 
-  it("revokes: Bearer dies, list shows revoked_at, repeat revoke is idempotent, foreign id is 404", async () => {
+  it("revokes idempotently, records revocation and 404s foreign token ids", async () => {
     stubGitHub({
       userInstallations: () =>
         userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),

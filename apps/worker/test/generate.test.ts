@@ -1,10 +1,5 @@
-// Integration tests for the `generate` task: real migrated PGlite schema (the
-// `persistence/testing` harness, including the graphile_worker STUB), a stub
-// Generator (no model calls), and an in-memory GitHub port (no network). The
-// FIRST test drives the full enqueue→drain handshake: the payload the task
-// consumes is read back from the stubbed jobs table exactly as
-// `createIngestRoutines.triggerGeneration` wrote it — pinning both sides of the
-// contract in one place.
+// Use migrated PGlite, a graphile queue stub and fake model/GitHub ports without network.
+// The first test drains the exact payload ingest wrote, pinning the enqueue/drain contract.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createArtifactStore,
@@ -36,7 +31,7 @@ import {
   type Generator,
 } from "generators";
 import { createLogger } from "logging";
-import type { Result } from "types";
+import type { Mutable, Result } from "types";
 import {
   CUSTOM_ATTRIBUTE_NAME_PATTERN,
   INSTRUCTIONS_INJECTION_BUDGET_BYTES,
@@ -54,7 +49,10 @@ import {
   repoConfigOriginSchema,
   RESERVED_ATTRIBUTE_WORDS,
 } from "repo-config";
-import { createGenerateTask } from "../src/task/generate";
+import {
+  createGenerateTask,
+  type GenerateTaskDeps,
+} from "../src/task/generate";
 import type { CompareFile } from "brief-core";
 import type {
   GitHubApiError,
@@ -84,7 +82,7 @@ const SMALL_DIFF = `diff --git a/a.ts b/a.ts
  line2
 `;
 
-/** 8 changed lines — huge against a 10-line whole-PR churn (ratio 0.8). */
+/** 8 changed lines, huge against a 10-line whole-PR churn (ratio 0.8). */
 const HUGE_DIFF = `diff --git a/b.ts b/b.ts
 --- a/b.ts
 +++ b/b.ts
@@ -101,12 +99,12 @@ function makeReviewerId(value: bigint): ReviewerId {
 }
 
 // ---------------------------------------------------------------------------
-// Stub generator — dispatches canned, schema-minimal outputs by label.
+// Stub generator, dispatches canned, schema-minimal outputs by label.
 // ---------------------------------------------------------------------------
 
 interface StubGenerator extends Generator {
   readonly calls: string[];
-  /** Canned outputs by label — tests may override an entry. */
+  /** Canned outputs by label, tests may override an entry. */
   readonly outputs: Record<string, unknown>;
   /** Every request's prompt surfaces, for injection assertions. */
   readonly requests: { label: string; system: string; user: string }[];
@@ -204,7 +202,7 @@ interface StubGitHub extends GitHubPort {
   compareDiffs: Map<string, string>;
   /**
    * Keyed `${base}...${head}`; missing spans fall back to the conservative
-   * `{files: [], complete: false}` (nothing confirmable — all re-look).
+   * `{files: [], complete: false}` (nothing confirmable, all re-look).
    */
   compareFiles: Map<
     string,
@@ -470,8 +468,8 @@ function pointAtNotionPage(github: StubGitHub): void {
   });
 }
 
-describe("generate task — url-box world", () => {
-  it("drains a url-box payload: viewer port, owner-scoped brief, no entry comment, url-box audit", async () => {
+describe("generate task, url-box world", () => {
+  it("drains url-box jobs with owner scope and viewer reads, without Entries", async () => {
     const ownerCtx = parseScopeContext({ ownerUserId: 555 });
     const pr = await createTenantRepository(
       harness.handle,
@@ -483,7 +481,7 @@ describe("generate task — url-box world", () => {
       state: PrStates.OPEN,
     });
     // The queued projection row the enqueue door writes (PR-3 side of the
-    // handshake) — the drain transitions it, never creates it.
+    // handshake), the drain transitions it, never creates it.
     const queued = await createGenerationProjection(
       harness.handle,
       ownerCtx,
@@ -590,7 +588,7 @@ describe("generate task — url-box world", () => {
     });
   });
 
-  it("re-queues the head it observed when a url-box PR moved before the drain", async () => {
+  it("requeues the observed head when a url-box PR moves before draining", async () => {
     // No installation means no webhook: if this run only stood down, the
     // paste would end with no brief and nothing scheduled.
     const ownerCtx = parseScopeContext({ ownerUserId: 555 });
@@ -640,7 +638,7 @@ describe("generate task — url-box world", () => {
 
   it("re-queues the observed head when a url-box PR moves MID-generation", async () => {
     // The mid-stream poller aborts the SDK call, which surfaces as an abort
-    // rather than a head mismatch — the follow-up must ride that path too.
+    // rather than a head mismatch, the follow-up must ride that path too.
     const ownerCtx = parseScopeContext({ ownerUserId: 555 });
     const pr = await createTenantRepository(
       harness.handle,
@@ -712,7 +710,7 @@ describe("generate task — url-box world", () => {
 
   it("queues the successor from the read it already made, not a fresh one", async () => {
     // Every GitHub read after the abort fails. The follow-up must still queue
-    // HEAD_2 off the read the watch already made — re-reading here would
+    // HEAD_2 off the read the watch already made, re-reading here would
     // finalize `superseded` with nothing scheduled, and no webhook exists to
     // bring the successor back.
     const ownerCtx = parseScopeContext({ ownerUserId: 555 });
@@ -808,7 +806,7 @@ describe("generate task — url-box world", () => {
 });
 
 describe("generate task", () => {
-  it("reads the primary issue through the job's GitHub source and stamps it read", async () => {
+  it("reads and stamps the primary issue through the job's GitHub source", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
@@ -947,7 +945,7 @@ describe("generate task", () => {
     expect(body).not.toContain("Secret roadmap");
   });
 
-  it("reads the repo's Notion ticket for an installation job with the deployment's integration", async () => {
+  it("reads installation-job Notion tickets through deployment credentials", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const github = stubGitHub(HEAD_1);
     pointAtNotionPage(github);
@@ -1006,7 +1004,7 @@ describe("generate task", () => {
     });
   });
 
-  it("drains the exact payload ingest enqueued: brief written, projection succeeded, audit emitted", async () => {
+  it("drains ingest's payload into a stored brief, success state and audit", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
@@ -1030,7 +1028,7 @@ describe("generate task", () => {
     expect(JSON.parse(brief?.body ?? "{}")).toMatchObject({
       summary: "stub brief",
       index: 1,
-      // The PR lifecycle snapshot — pins the info→PrMetadata stamping
+      // The PR lifecycle snapshot, pins the info→PrMetadata stamping
       // wiring, not just the widened interface.
       pr: { state: "open", draft: false, merged: false },
     });
@@ -1101,7 +1099,7 @@ describe("generate task", () => {
     });
   });
 
-  it("posts the Entry comment with the exact-span deep link and stores its id", async () => {
+  it("posts the exact-span Entry deep link and stores its id", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
@@ -1127,7 +1125,7 @@ describe("generate task", () => {
     expect(row?.entryCommentId).toBe(commentId);
   });
 
-  it("posts a generating comment while the brief is produced, replaced on ready (delete+repost)", async () => {
+  it("replaces the generating Entry with a ready notification", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const github = stubGitHub(HEAD_1);
     const inner = stubGenerator();
@@ -1160,7 +1158,7 @@ describe("generate task", () => {
       `${PUBLIC_URL}/repos/7/pulls/7?base=${BASE}&head=${HEAD_1}`,
     );
 
-    // On ready: delete+repost — exactly one comment left, the ready body.
+    // On ready: delete+repost, exactly one comment left, the ready body.
     expect(github.comments.size).toBe(1);
     const [readyId, readyBody] = [...github.comments.entries()][0] ?? [];
     expect(readyBody).toContain("Read the brief");
@@ -1182,7 +1180,7 @@ describe("generate task", () => {
     ]);
   });
 
-  it("a rerun for an already-briefed head leaves the live ready comment alone (no re-ping)", async () => {
+  it("preserves an existing ready Entry on reruns without re-pinging", async () => {
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
     const task = createGenerateTask({
@@ -1198,8 +1196,8 @@ describe("generate task", () => {
     const [readyId] = [...github.comments.entries()][0] ?? [];
 
     // Same head re-queued (review-submitted gap-filler / redelivery): the
-    // brief is already stored and the ready comment is already live — the
-    // rerun verifies the body via one fetch and posts NOTHING — delete+repost
+    // brief is already stored and the ready comment is already live, the
+    // rerun verifies the body via one fetch and posts NOTHING, delete+repost
     // here would re-ping the thread with no new information.
     const second = await trigger(HEAD_1);
     await task(second.payload);
@@ -1305,7 +1303,7 @@ describe("generate task", () => {
     expect([...github.comments.values()][0]).toContain("Read the brief");
   });
 
-  it("second push replaces the Entry comment: old deleted, new posted, stored id rotated", async () => {
+  it("replaces the Entry on a second push and rotates its stored id", async () => {
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
     const task = createGenerateTask({
@@ -1392,11 +1390,11 @@ describe("generate task", () => {
     ).toBe(true);
   });
 
-  it("best-effort deletes the posted comment when storing its id fails (no untracked orphan)", async () => {
+  it("best-effort deletes posted Entries when storing their ids fails", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const github = stubGitHub(HEAD_1);
     // Interleave: the PR row vanishes between the READY post and its
-    // setEntryComment (purge race) — the only way the id-store can fail. The
+    // setEntryComment (purge race), the only way the id-store can fail. The
     // first post is the generating comment; the row must survive it (the
     // brief write needs the parent).
     let posts = 0;
@@ -1420,7 +1418,7 @@ describe("generate task", () => {
 
     await task(payload);
 
-    // The untracked comment was cleaned up — no orphan survives for a later
+    // The untracked comment was cleaned up, no orphan survives for a later
     // run to post past.
     expect(github.comments.size).toBe(0);
     const lastPost = github.commentCalls
@@ -1428,14 +1426,14 @@ describe("generate task", () => {
       .at(-1);
     expect(lastPost).toBeDefined();
     const orphanId = lastPost?.slice("post:".length);
-    // The cleanup delete follows the failed store — the run's final call.
+    // The cleanup delete follows the failed store, the run's final call.
     expect(github.commentCalls.at(-1)).toBe(`delete:${orphanId}`);
     expect(
       logs.some((line) => line.includes("entry comment id not stored")),
     ).toBe(true);
   });
 
-  it("an Entry comment delete failure skips the repost (never two comments) and keeps the stored id", async () => {
+  it("retains the stored id and skips reposting when Entry deletion fails", async () => {
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
     const task = createGenerateTask({
@@ -1473,7 +1471,7 @@ describe("generate task", () => {
     expect(projection?.status).toBe(GenerationStatuses.SUCCEEDED);
   });
 
-  it("marks superseded (attempts untouched, no generator call) when the head advanced", async () => {
+  it("supersedes advanced heads without attempts changes or generation", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_2); // GitHub's head moved past the job's
@@ -1525,7 +1523,7 @@ describe("generate task", () => {
     expect(generator.calls).toEqual([]);
   });
 
-  it("skips brief generation when the (base, head) brief already exists", async () => {
+  it("skips generation when the exact base/head brief already exists", async () => {
     const { payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
@@ -1640,7 +1638,7 @@ describe("generate task", () => {
       generation: { effort: "low" },
     });
     // Checkpoint-span marks share the (HEAD_1, HEAD_2) span with the
-    // previous-brief marks here — one content-addressed row.
+    // previous-brief marks here, one content-addressed row.
     const marks = await store.comparisonMarks.get(second.pr.id, HEAD_1, HEAD_2);
     expect(marks).toBeDefined();
     expect(generator.calls.filter((label) => label === "delta")).toHaveLength(
@@ -1654,7 +1652,7 @@ describe("generate task", () => {
     );
   });
 
-  it("skips the delta call on a huge span (full-brief fallback)", async () => {
+  it("skips huge-span deltas for full-brief fallback", async () => {
     const first = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
@@ -1686,7 +1684,7 @@ describe("generate task", () => {
     expect(
       await store.deltas.get(second.pr.id, HEAD_1, HEAD_2),
     ).toBeUndefined();
-    // The span marks are still there — the honest highlights survive the skip.
+    // The span marks are still there, the honest highlights survive the skip.
     expect(
       await store.comparisonMarks.get(second.pr.id, HEAD_1, HEAD_2),
     ).toBeDefined();
@@ -1709,7 +1707,7 @@ describe("generate task", () => {
     expect(await harness.raw("select * from brief")).toHaveLength(0);
   });
 
-  it("marks a permanent GitHub failure failed WITHOUT rethrowing (no graphile retry)", async () => {
+  it("records permanent GitHub failures without rethrowing for retry", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const github = stubGitHub(HEAD_1);
     github.fetchPullRequestError = {
@@ -1730,7 +1728,7 @@ describe("generate task", () => {
       target(pr, HEAD_1),
     );
     expect(row?.status).toBe(GenerationStatuses.FAILED);
-    // Stamped at the GitHub throw site — the code, not prose, is the record.
+    // Stamped at the GitHub throw site, the code, not prose, is the record.
     expect(row?.errorCode).toBe("github-access");
     expect(row?.errorParams).toBeNull();
   });
@@ -1758,7 +1756,7 @@ describe("generate task", () => {
     expect(row?.status).toBe(GenerationStatuses.FAILED);
   });
 
-  it("aborts a mid-stream generation on a superseding push: superseded, no retry, attempts untouched", async () => {
+  it("aborts superseded streams without retry or attempts changes", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const github = stubGitHub(HEAD_1);
     // Initial pre-flight check sees the job's head; every poll after sees the
@@ -1766,7 +1764,7 @@ describe("generate task", () => {
     github.nextHeads = [HEAD_1];
     github.info = { ...github.info, headSha: HEAD_2 };
 
-    // The brief call hangs until the threaded signal aborts — the SDK-abort
+    // The brief call hangs until the threaded signal aborts, the SDK-abort
     // shape (APIUserAbortError) the worker must map to superseded.
     const calls: string[] = [];
     const hangingGenerator: Generator = {
@@ -1817,7 +1815,7 @@ describe("generate task", () => {
     ).toBeUndefined();
   });
 
-  it("supersedes before a delta spend when the head moves between artifact calls", async () => {
+  it("supersedes between artifacts before spending on a delta", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const written = await createTenantRepository(
       harness.handle,
@@ -1860,7 +1858,7 @@ describe("generate task", () => {
     expect(row?.status).toBe(GenerationStatuses.SUPERSEDED);
   });
 
-  it("classifies an SDK APIConnectionError as transient (rethrow for graphile retry)", async () => {
+  it("rethrows SDK connection errors as transient for graphile retry", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const task = createGenerateTask({
@@ -1870,7 +1868,7 @@ describe("generate task", () => {
       github: stubGitHub(HEAD_1),
     });
 
-    // The SDK's connection error carries NO status and name "Error" — only
+    // The SDK's connection error carries NO status and name "Error", only
     // an instanceof check can catch it.
     generator.failNextWith = new APIConnectionError({});
     await expect(task(payload)).rejects.toThrow("Connection error");
@@ -1881,7 +1879,7 @@ describe("generate task", () => {
     expect(row?.status).toBe(GenerationStatuses.FAILED);
   });
 
-  it("returns the job to the queue on graceful shutdown: no failed/superseded projection", async () => {
+  it("requeues on shutdown without failed or superseded projection state", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const shutdown = new AbortController();
     const calls: string[] = [];
@@ -1927,7 +1925,7 @@ describe("generate task", () => {
     expect(row?.errorCode).toBeNull();
   });
 
-  it("recovers the revision narrative on a retry that reuses the stored brief", async () => {
+  it("recovers a missing narrative while reusing the stored brief", async () => {
     const first = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
@@ -1979,7 +1977,7 @@ describe("generate task", () => {
     ).toHaveLength(narrativeCallsBefore);
   });
 
-  it("a narrative retry on a stored brief reads the repo's Notion ticket, not GitHub's default", async () => {
+  it("reads the configured Notion ticket when retrying a stored narrative", async () => {
     const first = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
@@ -2050,9 +2048,9 @@ describe("generate task", () => {
     expect(github.repoFileCalls.length).toBe(settled);
   });
 
-  it("sweeps a pre-drain-replaced head's projection to superseded after the newer head succeeds", async () => {
+  it("supersedes replaced projections after the newer head succeeds", async () => {
     const first = await trigger(HEAD_1); // queued row for head 1; job replaced below
-    const second = await trigger(HEAD_2); // same job_key — payload now carries head 2
+    const second = await trigger(HEAD_2); // same job_key, payload now carries head 2
     expect(second.pr.id).toBe(first.pr.id);
 
     const generator = stubGenerator();
@@ -2071,7 +2069,7 @@ describe("generate task", () => {
     expect(current?.status).toBe(GenerationStatuses.SUCCEEDED);
   });
 
-  it("marks a transient generation error failed and rethrows; a deterministic one does not rethrow", async () => {
+  it("rethrows transient failures but retains deterministic ones as failed", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
@@ -2096,7 +2094,7 @@ describe("generate task", () => {
       target(pr, HEAD_1),
     );
     expect(row?.status).toBe(GenerationStatuses.FAILED);
-    // A plain-Error refusal has no stamp and no taxonomy — unknown{detail}.
+    // A plain-Error refusal has no stamp and no taxonomy, unknown{detail}.
     expect(row?.errorCode).toBe("unknown");
     expect(row?.errorParams?.detail).toContain("refused");
   });
@@ -2194,7 +2192,7 @@ function twoGroupBriefOutput(
   };
 }
 
-describe("generate task — anchored generation", () => {
+describe("generate task, anchored generation", () => {
   const SPAN = `${HEAD_1}...${HEAD_2}`;
 
   /** Two-revision run: rev1 with gA/gB, then rev2 with the given output. */
@@ -2233,24 +2231,30 @@ describe("generate task — anchored generation", () => {
         status: "ahead",
       },
     );
-    const task = createGenerateTask({
+    const taskDeps: Mutable<GenerateTaskDeps> = {
       handle: harness.handle,
       publicBaseUrl: PUBLIC_URL,
       generator,
       github,
-      ...(options.fullRegeneration === undefined
-        ? {}
-        : { fullRegeneration: options.fullRegeneration }),
-    });
+    };
+
+    if (options.fullRegeneration !== undefined) {
+      taskDeps.fullRegeneration = options.fullRegeneration;
+    }
+
+    const task = createGenerateTask(taskDeps);
     await task(first.payload);
 
-    github.info = {
+    const revisedInfo: Mutable<PullRequestInfo> = {
       ...github.info,
       headSha: HEAD_2,
-      ...(options.rev2BaseSha === undefined
-        ? {}
-        : { baseSha: options.rev2BaseSha }),
     };
+
+    if (options.rev2BaseSha !== undefined) {
+      revisedInfo.baseSha = options.rev2BaseSha;
+    }
+
+    github.info = revisedInfo;
     generator.outputs["brief"] =
       options.rev2Output ??
       twoGroupBriefOutput("tmpA", "alpha rewritten", "tmpB", "beta v2");
@@ -2326,13 +2330,13 @@ describe("generate task — anchored generation", () => {
     const store = createArtifactStore(harness.handle, ctx);
     const rev1 = await store.briefs.get(pr.id, BASE, HEAD_1);
     expect(JSON.parse(rev1?.usedGroupIds ?? "null")).toEqual(["gA", "gB"]);
-    // Rev 2's groups descend back onto gA/gB — the union gains nothing.
+    // Rev 2's groups descend back onto gA/gB, the union gains nothing.
     const rev2 = await store.briefs.get(pr.id, BASE, HEAD_2);
     expect(JSON.parse(rev2?.usedGroupIds ?? "null")).toEqual(["gA", "gB"]);
   });
 
   it("a fresh restart still accumulates the chain's used ids", async () => {
-    // `always` writes the model's raw ids — the chain set must still union
+    // `always` writes the model's raw ids, the chain set must still union
     // them with history, or the next descent could resurrect gA/gB.
     const { pr } = await runTwoRevisions({ fullRegeneration: "always" });
     const store = createArtifactStore(harness.handle, ctx);
@@ -2348,7 +2352,7 @@ describe("generate task — anchored generation", () => {
   it("a same-head base retarget keeps the chain's used ids", async () => {
     // One briefed head, then the base retargets under it: `prevBrief` (a
     // DIFFERENT head) is undefined, so the chain must read off the newest
-    // row itself. `gZ` lives only in the stored column, in no body — the
+    // row itself. `gZ` lives only in the stored column, in no body, the
     // assertion fails if the read falls back to the body or resets.
     const first = await trigger(HEAD_1);
     const generator = stubGenerator();
@@ -2464,7 +2468,7 @@ describe("generate task — anchored generation", () => {
     expect(await store.hunkSpans.listForPullRequest(pr.id)).toHaveLength(0);
   });
 
-  it("`always` bypasses anchoring entirely — fresh output, ids untouched, stamp none", async () => {
+  it("always mode keeps fresh ids and stamps anchoring none", async () => {
     const { pr } = await runTwoRevisions({ fullRegeneration: "always" });
     const store = createArtifactStore(harness.handle, ctx);
     const row = await store.briefs.get(pr.id, BASE, HEAD_2);
@@ -2479,7 +2483,7 @@ describe("generate task — anchored generation", () => {
     expect(body.changeGroups?.map((g) => g.id)).toEqual(["tmpA", "tmpB"]);
   });
 
-  it("`on-model-swap` restarts fresh when the configured model moved, stamping the reason", async () => {
+  it("on-model-swap restarts fresh and stamps the changed-model reason", async () => {
     const { pr } = await runTwoRevisions({
       fullRegeneration: "on-model-swap",
       rev2Model: "stub-model-2",
@@ -2509,7 +2513,7 @@ describe("generate task — anchored generation", () => {
     expect(row?.anchorState).toBe("anchored");
   });
 
-  it("a base-SHA move (rebase) re-looks everything but ids still descend", async () => {
+  it("reviews everything after a base move while retaining id descent", async () => {
     const BASE_2 = "d".repeat(40);
     const { pr } = await runTwoRevisions({ rev2BaseSha: BASE_2 });
     const store = createArtifactStore(harness.handle, ctx);
@@ -2521,7 +2525,7 @@ describe("generate task — anchored generation", () => {
     };
     expect(body.anchoring?.carried).toEqual([]);
     // Nothing carried, but descent still maps the fresh groups onto the
-    // previous ids — group identity survives the rebase.
+    // previous ids, group identity survives the rebase.
     expect(body.changeGroups?.map((g) => g.id).toSorted()).toEqual([
       "gA",
       "gB",
@@ -2543,7 +2547,7 @@ describe("generate task — anchored generation", () => {
     expect(briefRequests[1]?.user).toContain("gA");
   });
 
-  it("a same-base force-push (diverged span) carries nothing but stays anchored", async () => {
+  it("carries nothing for diverged same-base spans but remains anchored", async () => {
     const { pr } = await runTwoRevisions({
       compareFilesEntry: {
         files: [{ filename: "b.ts", status: "modified" }],
@@ -2564,7 +2568,7 @@ describe("generate task — anchored generation", () => {
   });
 
   it("a coverage failure is a permanent pipeline error, not salvage", async () => {
-    // Rev2 output covers only a.ts (which is frozen) — b.ts lands nowhere.
+    // Rev2 output covers only a.ts (which is frozen), b.ts lands nowhere.
     const rev2Output = {
       summary: "stub brief",
       intentCheck: {
@@ -2618,7 +2622,7 @@ describe("generate task — anchored generation", () => {
   });
 });
 
-describe("generate task — repo-config phase", () => {
+describe("generate task, repo-config phase", () => {
   const POLICY_YAML = `version: 1
 attributes:
   touches-billing:
@@ -2679,7 +2683,7 @@ deEmphasize:
     return repoConfigArtifactSchema.parse(parsed);
   }
 
-  it("fetches the three fixed paths, injects the context, and snapshots applied outcomes + fired attributes", async () => {
+  it("injects fixed-path config and snapshots outcomes and fired attributes", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     generator.outputs["brief"] = FIRING_BRIEF;
@@ -2712,7 +2716,7 @@ deEmphasize:
         RepoConfigPaths.POLICY,
       ].toSorted(),
     );
-    // The brief request carried the injected context — fenced data + contract —
+    // The brief request carried the injected context, fenced data + contract,
     // and its schema ACCEPTED the custom token (the stub parses the canned
     // output through the request's own schema, so this line having passed IS
     // the enum-extension proof).
@@ -2747,7 +2751,7 @@ deEmphasize:
     ]);
   });
 
-  it("records absent outcomes and a null policy when no .mergebrief/ exists (prompts untouched)", async () => {
+  it("records absent config and null policy without changing prompts", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
@@ -2770,7 +2774,7 @@ deEmphasize:
     expect(request?.system).not.toContain("Repo instructions");
   });
 
-  it("rejects an invalid settings file whole (invalid outcome) while others apply", async () => {
+  it("rejects invalid settings wholly while applying valid sibling files", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
@@ -2796,14 +2800,14 @@ deEmphasize:
     expect(byPath.get(RepoConfigPaths.SETTINGS)?.outcome).toBe("invalid");
     expect(byPath.get(RepoConfigPaths.SETTINGS)?.blobSha).toBe("sha-bad");
     expect(byPath.get(RepoConfigPaths.INSTRUCTIONS)?.outcome).toBe("applied");
-    // Job still succeeds — repo-config problems never fail a generation.
+    // Job still succeeds, repo-config problems never fail a generation.
     const row = await createGenerationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
     expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
   });
 
-  it("fail-open on a per-file fetch failure: loud fetch-failed outcome, generation succeeds", async () => {
+  it("generates despite per-file fetch failures and records their outcomes", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
@@ -2835,7 +2839,7 @@ deEmphasize:
     expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
   });
 
-  it("maps a pre-decode oversize rejection to an over-budget outcome with fetch-level facts", async () => {
+  it("records pre-decode oversize refusals as over-budget with fetch facts", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
@@ -2863,7 +2867,7 @@ deEmphasize:
     expect(instructions?.bytesBudget).toBe(16 * 1024);
   });
 
-  it("does not re-fetch repo config on the skip-if-stored path (no double fetch, snapshot preserved)", async () => {
+  it("reuses stored snapshots without refetching config on skip drains", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     generator.outputs["brief"] = FIRING_BRIEF;
@@ -2889,8 +2893,8 @@ deEmphasize:
   });
 });
 
-describe("vocabulary lockstep (categorizer ↔ repo-config)", () => {
-  it("parked/reserved lists, name pattern, and instructions budget agree across packages", () => {
+describe("categorizer and repo-config vocabulary lockstep", () => {
+  it("shares reserved names, name patterns and instruction budgets", () => {
     expect([...CAT_PARKED]).toEqual([...PARKED_ATTRIBUTE_CANDIDATES]);
     expect([...CAT_RESERVED]).toEqual([...RESERVED_ATTRIBUTE_WORDS]);
     expect(CUSTOM_ATTRIBUTE_NAME_PATTERN.source).toBe(
@@ -2900,8 +2904,8 @@ describe("vocabulary lockstep (categorizer ↔ repo-config)", () => {
   });
 });
 
-describe("generate task — repo-config origin on the generation record", () => {
-  it("records per-file outcomes on the projection row BEFORE generation, surviving a failed run", async () => {
+describe("generate task, repo-config origin on the generation record", () => {
+  it("records config before generation so outcomes survive failed runs", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     // Deterministic (permanent) generation failure AFTER acquisition.
@@ -2932,7 +2936,7 @@ describe("generate task — repo-config origin on the generation record", () => 
     const byPath = new Map(origin.files.map((f) => [f.path, f]));
     expect(byPath.get(RepoConfigPaths.SETTINGS)?.outcome).toBe("invalid");
     expect(byPath.get(RepoConfigPaths.INSTRUCTIONS)?.outcome).toBe("absent");
-    // No brief artifact exists — the generation record is the only witness.
+    // No brief artifact exists, the generation record is the only witness.
     expect(
       await createArtifactStore(harness.handle, ctx).briefs.get(
         pr.id,
@@ -2942,7 +2946,7 @@ describe("generate task — repo-config origin on the generation record", () => 
     ).toBeUndefined();
   });
 
-  it("also records outcomes on the successful path (both rows carry the table)", async () => {
+  it("records config outcomes on both rows after successful generation", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
@@ -2970,10 +2974,10 @@ describe("generate task — repo-config origin on the generation record", () => 
 // Entry-comment draft gate.
 // ---------------------------------------------------------------------------
 
-describe("generate task — entry-comment draft gate", () => {
+describe("generate task, entry-comment draft gate", () => {
   const OPT_IN_SETTINGS = "version: 1\nentryCommentOnDrafts: true\n";
 
-  it("suppresses BOTH entry comments on a draft PR without settings; generation itself runs", async () => {
+  it("generates drafts without settings while suppressing both Entries", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
@@ -3001,7 +3005,7 @@ describe("generate task — entry-comment draft gate", () => {
     expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
   });
 
-  it("posts entry comments on a draft PR when the repo opts in via settings.yaml", async () => {
+  it("posts draft Entries only when repo settings opt in", async () => {
     const { payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
@@ -3028,7 +3032,7 @@ describe("generate task — entry-comment draft gate", () => {
     expect(github.comments.size).toBe(1);
   });
 
-  it("ready_for_review drain posts the entry for a previously suppressed draft (skip path)", async () => {
+  it("posts the previously suppressed draft Entry on a ready skip drain", async () => {
     const { payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
@@ -3052,7 +3056,7 @@ describe("generate task — entry-comment draft gate", () => {
     expect(body).toBeTruthy();
   });
 
-  it("a draft SKIP drain stays silent without opt-in, posts with opt-in (settings fetched lazily)", async () => {
+  it("lazily reads draft skip settings and posts only with opt-in", async () => {
     const { payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
@@ -3063,7 +3067,7 @@ describe("generate task — entry-comment draft gate", () => {
       generator,
       github,
     });
-    await task(payload); // fresh draft drain — silent
+    await task(payload); // fresh draft drain, silent
     const fetchesAfterFirst = github.repoFileCalls.length;
 
     // Re-drain (skip path) while STILL a draft: still silent, and settings
@@ -3085,7 +3089,7 @@ describe("generate task — entry-comment draft gate", () => {
     expect(github.comments.size).toBe(1);
   });
 
-  it("draft + settings FETCH FAILURE keeps the gate CLOSED (fail-open closes, never opens)", async () => {
+  it("keeps draft Entry posting closed when settings fetching fails", async () => {
     const { payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
@@ -3117,7 +3121,7 @@ describe("generate task — entry-comment draft gate", () => {
     expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
   });
 
-  it("converting to draft SWEEPS the lingering entry comment (suppression = off, not leave-as-is)", async () => {
+  it("deletes lingering Entries when converting to draft", async () => {
     const { payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
@@ -3130,7 +3134,7 @@ describe("generate task — entry-comment draft gate", () => {
     await task(payload); // non-draft: entry comment live
     expect(github.comments.size).toBe(1);
 
-    // Convert to draft, push a new head: fresh generation, gate closed —
+    // Convert to draft, push a new head: fresh generation, gate closed,
     // the stale comment (deep-linking the OLD head) must be deleted.
     github.info = { ...github.info, draft: true, headSha: HEAD_2 };
     const second = await trigger(HEAD_2);
@@ -3145,7 +3149,7 @@ describe("generate task — entry-comment draft gate", () => {
     expect(brief2).toBeDefined();
   });
 
-  it("a settings FETCH FAILURE never sweeps a live comment (destructive act needs KNOWN-off settings)", async () => {
+  it("preserves live Entries when settings fetching fails", async () => {
     const { payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
@@ -3184,7 +3188,7 @@ describe("generate task — entry-comment draft gate", () => {
     ).toBe(postsBefore);
   });
 
-  it("non-draft PRs are untouched: comments post exactly as before, no extra config fetch on skip", async () => {
+  it("posts non-draft Entries without extra config reads on skips", async () => {
     const { payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
@@ -3221,8 +3225,8 @@ function captureLogger() {
   return { logger, lines };
 }
 
-describe("generate task — observability", () => {
-  it("a transient failure emits job.fail (permanent: false) with attempt counts and job bindings", async () => {
+describe("generate task, observability", () => {
+  it("logs transient job.fail with attempts and job bindings", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const github = stubGitHub(HEAD_1);
     github.fetchPullRequestError = {
@@ -3255,7 +3259,7 @@ describe("generate task — observability", () => {
     );
   });
 
-  it("a permanent failure emits job.fail (permanent: true) without rethrowing", async () => {
+  it("logs permanent job.fail without rethrowing", async () => {
     const { payload } = await trigger(HEAD_1);
     const github = stubGitHub(HEAD_1);
     github.fetchPullRequestError = {
@@ -3397,7 +3401,7 @@ describe("generate task — observability", () => {
   });
 });
 
-describe("generate task — daily generation cap", () => {
+describe("generate task, daily generation cap", () => {
   const UNCAPPED = { dailyGenerationCap: null, perRepo: {} };
 
   /** Burn one STARTED run for acme/widget so the cap has something to count. */
@@ -3432,7 +3436,7 @@ describe("generate task — daily generation cap", () => {
     expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
   });
 
-  it("does NOT count the run it is deciding on (a cap of 1 lets the first run through)", async () => {
+  it("excludes the deciding run from the cap so a first run can proceed", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     await createGenerateTask({
@@ -3453,7 +3457,7 @@ describe("generate task — daily generation cap", () => {
     ).toBe(GenerationStatuses.SUCCEEDED);
   });
 
-  it("at the cap: skips before any provider call, marks capped, emits spend.cap.trip", async () => {
+  it("caps before provider calls and records capped state and cap events", async () => {
     await burnOneRun();
     const { pr, payload } = await trigger(HEAD_2);
     const generator = stubGenerator();
@@ -3581,7 +3585,7 @@ describe("generate task — daily generation cap", () => {
     ).toBe(GenerationStatuses.CAPPED);
   });
 
-  it("leaves a FAILED row failed — an at-cap retry must not erase the real failure", async () => {
+  it("preserves failed rows when retries reach the cap", async () => {
     await burnOneRun();
     // The PR's own run failed; graphile will retry it. Meanwhile the repo
     // sits at its cap, so the retry lands in the gate.
@@ -3602,7 +3606,7 @@ describe("generate task — daily generation cap", () => {
     expect(failed?.status).toBe(GenerationStatuses.FAILED);
     expect(failed?.errorCode).not.toBeNull();
 
-    // The retry: at cap now, so the run is skipped — but the record stays.
+    // The retry: at cap now, so the run is skipped, but the record stays.
     const generator = stubGenerator();
     await createGenerateTask({
       handle: harness.handle,
@@ -3644,7 +3648,7 @@ describe("generate task — daily generation cap", () => {
     ).toBe(GenerationStatuses.SUCCEEDED);
   });
 
-  it("no spend policy = uncapped (the zero-config default)", async () => {
+  it("leaves zero-config jobs uncapped", async () => {
     await burnOneRun();
     const { pr, payload } = await trigger(HEAD_2);
     const generator = stubGenerator();

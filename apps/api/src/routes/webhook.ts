@@ -1,21 +1,20 @@
-// POST /api/webhooks/github — the TRUST BOUNDARY. Everything that arrives here
-// is untrusted until the HMAC over the RAW body verifies against the configured
-// secret; only then is the payload parsed (github's Zod boundary) and mapped to
-// tenant-scoped writes. The tenant is derived from the SIGNED payload's
-// `installation.id` — never from a header a caller could spoof past the HMAC.
+/* oxlint-disable house/comment-run -- the trust boundary and its status contract are the
+   one thing a reader must know before touching this handler, and neither fits four lines */
+// The trust boundary. Nothing is trusted until the HMAC over the RAW body verifies against
+// the configured secret; only then is the payload parsed and mapped to tenant-scoped writes.
+// Tenancy comes from the SIGNED payload's installation.id, never from a spoofable header.
 //
-// Response discipline: this handler must return 200 FAST for every handled or
-// ignored delivery (GitHub times webhooks out at 10s) — it only upserts rows
-// and enqueues one debounced job; no LLM call, no generation, no GitHub API
-// call. Idempotency is inherent in the write path (natural-key upserts +
-// graphile `job_key` replace), so redeliveries need no dedup logic here.
+// Return 200 fast for every handled or ignored delivery (GitHub times out at 10s): upsert
+// rows and enqueue one debounced job, with no model call and no GitHub API call. Natural-key
+// upserts plus graphile job_key replacement make redelivery idempotent with no dedup here.
 //
 // Status contract:
-//   401 — missing/invalid signature (nothing read, nothing written)
-//   400 — signed but unparseable (bad JSON / malformed handled payload)
-//   413 — body exceeds the webhook size cap (nothing read past the cap)
-//   200 — handled or deliberately ignored
-//   500 — unexpected throw (sanitized body; internals stay in the log)
+//   401 missing or invalid signature (nothing parsed, nothing written)
+//   400 signed but unparseable (bad JSON or malformed handled payload)
+//   413 body exceeds the webhook size cap (nothing read past the cap)
+//   200 handled or deliberately ignored
+//   500 unexpected throw (sanitized body; internals stay in the log)
+/* oxlint-enable house/comment-run */
 import { Hono } from "hono";
 import { type RequestLogEnv } from "../request-logging";
 import type { Mutable, DraftPolicy, Result } from "types";
@@ -41,6 +40,8 @@ import {
   parseTenantContext,
   createPurgeRoutines,
   type AppDatabase,
+  type PullRequestLifecycle,
+  type PullRequestUpsertInput,
   type TenantContext,
   type TriggerGenerationInput,
 } from "persistence";
@@ -54,7 +55,7 @@ import {
 
 export interface WebhookRouteDeps {
   readonly handle: AppDatabase;
-  /** `GITHUB_WEBHOOK_SECRET` — injected by the startup wiring. */
+  /** `GITHUB_WEBHOOK_SECRET`, injected by the startup wiring. */
   readonly webhookSecret: string;
   /**
    * Instance draft-PR policy, loaded from `mergebrief.config.yaml` by the
@@ -92,6 +93,26 @@ const GENERATION_TRIGGER_ACTIONS: ReadonlySet<PullRequestAction> = new Set([
   PullRequestActions.REVIEW_REQUESTED,
 ]);
 
+/** The row every `pull_request` handler writes; a deleted author omits the login. */
+function shapePullRequestUpsert(
+  event: ParsedPullRequestEvent,
+  lifecycle: PullRequestLifecycle,
+): PullRequestUpsertInput {
+  const upsert: Mutable<PullRequestUpsertInput> = {
+    repoId: event.repoId,
+    prNumber: event.prNumber,
+    repoSlug: event.repoFullName,
+    title: event.title,
+    baseSha: event.baseSha,
+    draft: event.draft,
+    ...lifecycle,
+  };
+
+  if (event.authorLogin !== undefined) upsert.authorLogin = event.authorLogin;
+
+  return upsert;
+}
+
 async function handlePullRequest(
   handle: AppDatabase,
   ctx: TenantContext,
@@ -101,63 +122,30 @@ async function handlePullRequest(
   if (event.action === PullRequestActions.CLOSED) {
     // Terminal state write, NO enqueue. `purgeAfter: null` = "never sweep":
     // the retention window is unconfigured, so closing arms nothing.
-    await createTenantRepository(handle, ctx).pullRequests.upsert({
-      repoId: event.repoId,
-      prNumber: event.prNumber,
-      repoSlug: event.repoFullName,
-      title: event.title,
-      baseSha: event.baseSha,
-      draft: event.draft,
-      ...(event.authorLogin === undefined
-        ? {}
-        : { authorLogin: event.authorLogin }),
-      state: event.merged === true ? PrStates.MERGED : PrStates.CLOSED,
-      closedAt: new Date(),
-      purgeAfter: null,
-    });
+    await createTenantRepository(handle, ctx).pullRequests.upsert(
+      shapePullRequestUpsert(event, {
+        state: event.merged === true ? PrStates.MERGED : PrStates.CLOSED,
+        closedAt: new Date(),
+        purgeAfter: null,
+      }),
+    );
     return;
   }
   if (event.action === PullRequestActions.CONVERTED_TO_DRAFT) {
-    // ready→draft re-entry: state-only. Persist through the terminal-preserving
-    // ingest upsert, but do NOT touch the generation projection or enqueue —
-    // re-triggering the worker's skip-path is not a no-op (Entry-comment repost
-    // ping, compare-diff spend, phantom `queued` status, and a full LLM re-run
-    // if the head's last generation failed).
-    await createIngestRoutines(handle, ctx).recordState({
-      repoId: event.repoId,
-      prNumber: event.prNumber,
-      repoSlug: event.repoFullName,
-      title: event.title,
-      baseSha: event.baseSha,
-      draft: event.draft,
-      ...(event.authorLogin === undefined
-        ? {}
-        : { authorLogin: event.authorLogin }),
-      state: PrStates.OPEN,
-    });
+    // Draft re-entry updates lifecycle only. Enqueueing can repost Entry comments, spend on
+    // comparisons, create phantom queued state or retry a previously failed generation.
+    await createIngestRoutines(handle, ctx).recordState(
+      shapePullRequestUpsert(event, { state: PrStates.OPEN }),
+    );
     return;
   }
   if (GENERATION_TRIGGER_ACTIONS.has(event.action)) {
     if (event.draft && !policy.generate) {
-      // Instance policy: drafts don't generate. State-only write, same shape
-      // as the converted_to_draft path — the PR stays current so
-      // the eventual `ready_for_review` (draft: false) takes the normal
-      // trigger path and produces the FIRST generation. A `reopened` draft
-      // must still leave the terminal state here (the reopen flag), or the
-      // row wedges closed forever — no later event carries the reopen intent.
+      // Drafts excluded by instance policy still need lifecycle updates. A reopened draft
+      // must clear terminal state now; no later event carries the reopen intent.
+      // The eventual ready_for_review event takes the normal first-generation path.
       await createIngestRoutines(handle, ctx).recordState(
-        {
-          repoId: event.repoId,
-          prNumber: event.prNumber,
-          repoSlug: event.repoFullName,
-          title: event.title,
-          baseSha: event.baseSha,
-          draft: event.draft,
-          ...(event.authorLogin === undefined
-            ? {}
-            : { authorLogin: event.authorLogin }),
-          state: PrStates.OPEN,
-        },
+        shapePullRequestUpsert(event, { state: PrStates.OPEN }),
         { reopen: event.action === PullRequestActions.REOPENED },
       );
       return;
@@ -172,11 +160,8 @@ async function handlePullRequest(
 }
 
 /**
- * The enqueue-window rule: `ready_for_review` → the short constant flip window
- * (cancels a pending draft-damped job via job-key replace); a draft trigger
- * under configured damping → the regeneration window (persistence applies it
- * only once a prior brief SUCCEEDED, so a draft's first brief stays fast);
- * everything else → no override.
+ * Ready flips replace pending draft damping with the short window.
+ * Configured draft damping applies only after a successful brief, keeping first briefs fast.
  */
 function windowOverrides(
   event: ParsedPullRequestEvent,
@@ -201,13 +186,9 @@ async function handlePullRequestReview(
   event: ParsedPullRequestReviewEvent,
   policy: DraftPolicy,
 ): Promise<void> {
-  // Generation gap-filler: a submitted review re-queues the brief for the
-  // current head — but only for a PR we have already
-  // ingested. A review on an UNKNOWN PR would take the INSERT path and mint a
-  // phantom `open` row (the PR may well be closed; reviews can be submitted on
-  // closed PRs), so it is skipped: if we missed the PR's own events, the next
-  // `pull_request` delivery ingests it properly. On a KNOWN terminal PR the
-  // ingest guard preserves the lifecycle and skips the enqueue.
+  // Requeue submitted reviews only for known PRs; inserting here could invent an open
+  // row for a closed PR. Unknown PRs wait for their pull_request delivery.
+  // The ingest guard preserves terminal state and skips enqueueing for known closed PRs.
   const tenant = createTenantRepository(handle, ctx);
   const known = await tenant.pullRequests.getByNumber(
     event.repoId,
@@ -216,13 +197,9 @@ async function handlePullRequestReview(
   if (known === undefined) {
     return;
   }
-  // The WEBHOOK is the only checkpoint writer — including the echo of our own
-  // submit route — so one code path covers in-app and native github.com
-  // reviews. Pinned to `review.commit_id` (the head the reviewer actually
-  // saw), never head-at-delivery. Bot-authored reviews are skipped: a bot
-  // checkpoint would pre-warm delta baselines no human ever opens (LLM spend).
-  // Ordered BEFORE the enqueue so the worker's state derivation sees the new
-  // baseline. Redeliveries are safe (idempotent, newest-submission-wins).
+  // Only webhooks write checkpoints, including echoes of our own submissions.
+  // Pin to the reviewed commit, never the delivery-time head; skip bots to avoid unused spend.
+  // Write before enqueueing so the worker sees the baseline. Newest-submission wins on redelivery.
   if (event.reviewerType !== "Bot") {
     const checkpointed = await tenant.checkpoints.upsertOnSubmit({
       pullRequestId: known.id,
@@ -233,18 +210,18 @@ async function handlePullRequestReview(
     });
     if (!checkpointed.ok) {
       // The parent was verified above inside this tenant, so a failure here is
-      // a programmer/infra error — surface it as the route's 500.
+      // a programmer/infra error, surface it as the route's 500.
       throw new Error(`checkpoint upsert failed: ${checkpointed.error.code}`);
     }
   }
   // Review events carry no draft flag; the STORED row (loaded above for the
   // known-PR guard) supplies it. Under drafts-off the checkpoint still
-  // landed — it's reviewer-baseline state, not spend — but no job enqueues.
+  // landed, it's reviewer-baseline state, not spend, but no job enqueues.
   if (known.draft && !policy.generate) {
     return;
   }
   // No window override: damping exists for WIP push storms, and a submitted
-  // review is deliberate human engagement — its gap-filler regeneration
+  // review is deliberate human engagement, its gap-filler regeneration
   // takes the normal window even on a damped draft.
   await triggerGeneration(handle, ctx, event, {});
 }
@@ -295,7 +272,7 @@ async function triggerGeneration(
   });
   if (!result.ok) {
     // Every override above is a validated constant or a loader-validated
-    // policy value, so an error here is a programmer error — surface it as
+    // policy value, so an error here is a programmer error, surface it as
     // the route's 500, never swallow it.
     throw new Error(`ingest trigger failed: ${result.error.code}`);
   }
@@ -377,8 +354,8 @@ async function readRawBodyWithinLimit(
 
   try {
     while (true) {
-      // Stream reads are inherently sequential — each chunk arrives only
-      // after the previous read resolves — so there is nothing to parallelize.
+      // Stream reads are inherently sequential, each chunk arrives only
+      // after the previous read resolves, so there is nothing to parallelize.
       // oxlint-disable-next-line no-await-in-loop
       const { done, value } = await reader.read();
       if (done) {
@@ -403,11 +380,8 @@ export function webhookRoute(deps: WebhookRouteDeps): Hono<RequestLogEnv> {
   const app = new Hono<RequestLogEnv>();
 
   app.post("/github", async (c) => {
-    // GitHub's delivery id rides every webhook event line as a child binding —
-    // the operator's join key back to the delivery record. The header lands
-    // PRE-verify on a public endpoint, so anything outside GitHub's GUID
-    // charset/length is dropped rather than bound (log-injection /
-    // volume-inflation control).
+    // Delivery ids are untrusted before signature verification. Bind only bounded GUID-shaped
+    // values for operator correlation, preventing log injection and volume inflation.
     const rawDeliveryId = c.req.header("x-github-delivery");
     const deliveryId =
       rawDeliveryId !== undefined && /^[\w-]{1,64}$/.test(rawDeliveryId)
@@ -418,7 +392,7 @@ export function webhookRoute(deps: WebhookRouteDeps): Hono<RequestLogEnv> {
         ? c.get("logger")
         : c.get("logger").child({ deliveryId });
 
-    // Verify the HMAC over the RAW body BEFORE any parsing — the exact bytes
+    // Verify the HMAC over the RAW body BEFORE any parsing, the exact bytes
     // GitHub signed, never a JSON re-encode.
     const rawBody = await readRawBodyWithinLimit(c.req.raw);
     if (!rawBody.ok) {
@@ -434,7 +408,7 @@ export function webhookRoute(deps: WebhookRouteDeps): Hono<RequestLogEnv> {
       signature,
     });
     if (!verified.ok) {
-      // Warn, not error — raw hits are scanner noise; a SUSTAINED rate
+      // Warn, not error, raw hits are scanner noise; a SUSTAINED rate
       // (secret drift after rotation) is what an operator alerts on.
       log.warn("webhook signature verification failed", {
         evt: "webhook.verify.fail",
@@ -457,7 +431,7 @@ export function webhookRoute(deps: WebhookRouteDeps): Hono<RequestLogEnv> {
     }
 
     // Map the event to tenant-scoped writes. Unexpected throw → 500 with a
-    // sanitized body — internals never reach the caller.
+    // sanitized body, internals never reach the caller.
     try {
       await dispatch(
         deps.handle,

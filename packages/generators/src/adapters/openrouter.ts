@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import OpenAI, { type ClientOptions } from "openai";
 import type { Result } from "types";
 import { configError, type ConfigError } from "../contract/errors";
 import type { Logger } from "../contract/generator";
@@ -10,24 +10,10 @@ import {
 } from "./openaiCore";
 
 /**
- * OpenRouter assembly on the shared core: the same streaming pipeline with
- * OpenRouter's own request/verification surface —
- *
- * 1. `/models` boot preflight: the configured slug must exist AND list
- *    `structured_outputs` in `supported_parameters` — with
- *    `require_parameters: true` every request would otherwise fail at
- *    routing time; refusing boot is the honest fail-fast. The model's
- *    `supported_parameters` are cached to gate the reasoning knob.
- * 2. Every request carries `provider.require_parameters: true` (forced,
- *    merged OVER any configured routing options): OpenRouter must never
- *    silently route to a provider that ignores `response_format`.
- * 3. Effort translates to OpenRouter's `reasoning: { effort }` shape, sent
- *    only when the model listed `reasoning` support — the core's knob
- *    discovery is pre-seeded from the preflight, so the origin stamp records
- *    the gap without burning a 400.
- * 4. Trust-but-verify: stream chunks carry the served model id; a mismatch
- *    against the configured slug logs a warning and fires the hook — the
- *    origin stamp stays the declaration.
+ * Preflight requires the model and structured_outputs so strict routing can succeed.
+ * Force require_parameters over configured options; never route around response_format.
+ * Seed effort support from advertised reasoning capabilities without spending on a failed probe.
+ * Warn on served-model mismatches while preserving the configured origin declaration.
  */
 
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
@@ -63,15 +49,20 @@ export async function createOpenRouterCore(
   options: OpenRouterAssemblyOptions,
 ): Promise<Result<OpenAiCompatibleCore, ConfigError>> {
   const log = options.log ?? (() => {});
-  const client = new OpenAI({
+  const defaultHeaders: Record<string, string> = {};
+
+  if (options.referer) defaultHeaders["HTTP-Referer"] = options.referer;
+  if (options.title) defaultHeaders["X-Title"] = options.title;
+
+  const clientOptions: ClientOptions = {
     apiKey: options.apiKey,
     baseURL: options.baseUrl ?? OPENROUTER_BASE_URL,
-    defaultHeaders: {
-      ...(options.referer ? { "HTTP-Referer": options.referer } : {}),
-      ...(options.title ? { "X-Title": options.title } : {}),
-    },
-    ...(options.fetch ? { fetch: options.fetch } : {}),
-  });
+    defaultHeaders,
+  };
+
+  if (options.fetch) clientOptions.fetch = options.fetch;
+
+  const client = new OpenAI(clientOptions);
 
   const listing = await modelListing(client, options.model);
   if (!listing.ok) return listing;
@@ -112,7 +103,7 @@ export async function createOpenRouterCore(
       provider: "openrouter",
       model: options.model,
       failureDir: options.failureDir,
-      // Pre-seeded from the preflight — no discovery 400 needed. The
+      // Pre-seeded from the preflight, no discovery 400 needed. The
       // backstop stays armed for a listing that lied: our wrapper puts
       // `reasoning` on the wire, so a knob rejection names THAT.
       initialEffortSupported: reasoningSupported,
@@ -151,10 +142,11 @@ function openRouterTransport(
           // Forced LAST: routing options can never disable it.
           require_parameters: true,
         },
-        ...(config.reasoningSupported && effort !== undefined
-          ? { reasoning: { effort } }
-          : {}),
       };
+
+      if (config.reasoningSupported && effort !== undefined) {
+        wireBody.reasoning = { effort };
+      }
       const stream = await client.chat.completions.create(
         wireBody,
         options.signal ? { signal: options.signal } : undefined,
@@ -200,7 +192,7 @@ async function modelListing(
         "OpenRouter rejected the API key (401/403) — check the configured apiKeyEnv variable's value",
       ]);
     }
-    // Non-auth statuses and network unreachability may clear on their own —
+    // Non-auth statuses and network unreachability may clear on their own,
     // tagged transient so restart self-heal keeps applying.
     return configError(
       [

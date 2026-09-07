@@ -1,10 +1,6 @@
-// Pure anchored-generation helpers: the plan step (partition previous groups
-// into frozen | re-look, with remap-as-invariant-assertion) and the stitch
-// step (carry frozen groups verbatim, keep the regenerated rest, rewrite ids
-// by descent, recompute the mechanical rollup, enforce coverage). No I/O, no
-// model calls; the worker's generate task wires these around the categorize
-// call, and the eval harness's revision-pair runner exercises the same code.
-import type { Result } from "types";
+// Pure anchored planning and stitching shared by the worker and revision-pair evals.
+// Carry frozen groups verbatim, remap ids by descent and enforce coverage without model calls.
+import type { Mutable, Result } from "types";
 import { assignGroupIds } from "../diff/descent";
 import { splitDiffByFile } from "../diff/diff";
 import {
@@ -15,7 +11,11 @@ import {
   type HunkSpan,
 } from "../diff/remap";
 import { parseChangedRanges } from "../diff/revchanges";
-import { GroupVerdicts, partitionGroups } from "../diff/touched";
+import {
+  GroupVerdicts,
+  partitionGroups,
+  type CompareFileEntry,
+} from "../diff/touched";
 import {
   buildConcernView,
   deriveUnattributed,
@@ -30,6 +30,7 @@ import type {
   AnchorPlanArgs,
   ChangeGroup,
   Chunk,
+  CompareFile,
   CompareFiles,
   FrozenCarry,
   ReLookEntry,
@@ -66,7 +67,7 @@ function allReLook(
   };
 }
 
-/** Previous-brief ids ∪ the chain's — deduped, previous first. */
+/** Previous-brief ids ∪ the chain's, deduped, previous first. */
 function reserveIds(brief: Brief, chainGroupIds: readonly string[]): string[] {
   return [
     ...new Set([
@@ -77,11 +78,8 @@ function reserveIds(brief: Brief, chainGroupIds: readonly string[]): string[] {
 }
 
 /**
- * The hop for this push: one entry per path the push touched, its `@@`
- * coordinates parsed from that path's patch. Keyed by path, and zero hunks
- * always wins a collision — an anchor entering the hop sits on the pre-push
- * tree, so a path that was renamed away (or that the patch and the compare
- * list disagree about) must demote rather than settle on unrelated new code.
+ * Zero-hunk entries win path collisions: anchors refer to the pre-push tree.
+ * Renamed-away paths and patch/compare disagreements must demote rather than bind new code.
  */
 function buildHop(
   compareFiles: CompareFiles,
@@ -105,11 +103,8 @@ function buildHop(
 }
 
 /**
- * Partition the previous brief's groups into frozen carries and re-looks.
- * Conservative at every step: rebase/base-advance, a missing span diff or
- * compare list, files shared across previous groups (coverage exclusivity —
- * two groups cannot both carry the same file), and any ambiguous range remap
- * all land in re-look.
+ * Rebases, missing comparisons, shared files and ambiguous remaps require re-look.
+ * Two carried groups cannot both own the same file.
  */
 export function planAnchoredGeneration(args: AnchorPlanArgs): AnchorPlan {
   const { previousBrief, incrementalDiff, compareFiles, baseShaMoved } = args;
@@ -137,7 +132,7 @@ export function planAnchoredGeneration(args: AnchorPlanArgs): AnchorPlan {
   }
   if (compareFiles.status !== "ahead") {
     // A same-base force-push (amend/squash/drop) never moves the base SHA but
-    // shows 'diverged' here — and then the three-dot span diffs from the
+    // shows 'diverged' here, and then the three-dot span diffs from the
     // divergence point, not prevHead, so "absent from the span" proves
     // nothing. Only a fast-forward span is trustworthy evidence.
     return allReLook(
@@ -153,7 +148,7 @@ export function planAnchoredGeneration(args: AnchorPlanArgs): AnchorPlan {
   }));
 
   // Coverage exclusivity: a file owned by two previous groups can only be
-  // carried once — force every co-owner to re-look and let the model (and
+  // carried once, force every co-owner to re-look and let the model (and
   // descent) re-partition that file.
   const ownersByFile = new Map<string, number>();
   for (const group of groupFiles) {
@@ -171,13 +166,7 @@ export function planAnchoredGeneration(args: AnchorPlanArgs): AnchorPlan {
   const verdicts = partitionGroups({
     previousGroups: groupFiles,
     incrementalFiles: parseChangedRanges(incrementalDiff),
-    compareFiles: compareFiles.files.map((file) => ({
-      file: file.filename,
-      status: file.status,
-      ...(file.previousFilename === undefined
-        ? {}
-        : { previousFile: file.previousFilename }),
-    })),
+    compareFiles: compareFiles.files.map(shapeCompareFileEntry),
     compareComplete: compareFiles.complete,
   });
 
@@ -210,7 +199,7 @@ export function planAnchoredGeneration(args: AnchorPlanArgs): AnchorPlan {
       continue;
     }
     // Under the file-level predicate a frozen file has no hunks, so this is
-    // identity — but contradictory evidence (a hunk in a "clean" file) must
+    // identity, but contradictory evidence (a hunk in a "clean" file) must
     // demote, never carry wrong lines.
     const remapped: Chunk[] = [];
     let demoted: string | undefined;
@@ -235,15 +224,30 @@ export function planAnchoredGeneration(args: AnchorPlanArgs): AnchorPlan {
     }
   }
 
-  return {
+  const plan: Mutable<AnchorPlan> = {
     frozen,
     frozenFiles,
     reLook,
     previousGroupIds: reserveIds(previousBrief, chainGroupIds),
-    ...(compareFiles.complete
-      ? { hunkSpans: buildHop(compareFiles, patches) }
-      : {}),
   };
+
+  if (compareFiles.complete) plan.hunkSpans = buildHop(compareFiles, patches);
+
+  return plan;
+}
+
+/** The compare endpoint's entry as the partition reads it. */
+function shapeCompareFileEntry(file: CompareFile): CompareFileEntry {
+  const entry: Mutable<CompareFileEntry> = {
+    file: file.filename,
+    status: file.status,
+  };
+
+  if (file.previousFilename !== undefined) {
+    entry.previousFile = file.previousFilename;
+  }
+
+  return entry;
 }
 
 /** Dominant frozen parent for a dropped generated group (tie → first frozen). */
@@ -270,11 +274,9 @@ function dominantFrozenParent(
 }
 
 /**
- * Merge frozen carries with the generated regions: drop the model's take on
- * frozen files, rewrite surviving ids by descent, re-point references,
- * recompute the mechanical concern rollup, and enforce the coverage
- * invariant (every PR file in exactly one group). Coverage failure is a
- * pipeline error (Result), never salvage.
+ * Carry frozen regions verbatim and recompute rollups after id descent.
+ * Every PR file must belong to exactly one group; coverage failure returns a pipeline error,
+ * never a salvaged partial brief.
  */
 export function stitchBrief(
   args: StitchArgs,
@@ -282,12 +284,8 @@ export function stitchBrief(
   const { plan, prFiles } = args;
   const warnings: string[] = [];
 
-  // ---- scrub generated chunks on files the PR no longer changes -----------
-  // The model can resurrect a departed file from the anchor brief (a revision
-  // that reverts a file out of the PR still shows it in the re-look diff and
-  // the previous brief). Chunks outside the PR's file universe are noise:
-  // drop them before claims are judged so a departed file can neither survive
-  // into the brief nor serve as claim evidence.
+  // The model can resurrect files removed from the PR because they remain in the anchor
+  // or re-look diff. Drop them before judging claims so they cannot survive or supply evidence.
   const prFileSet = new Set(prFiles);
   const departedFiles = [
     ...new Set(
@@ -311,14 +309,9 @@ export function stitchBrief(
           ),
         };
 
-  // ---- claims: a generated group under a frozen id UNFREEZES it -----------
-  // The prompt contract forbids frozen ids except as claim targets (a new
-  // file joining a frozen group); a claim means the model re-examined the
-  // whole group, so its version wins and the carry is cancelled. A claim is
-  // validated MECHANICALLY: the claiming group must re-emit at least one of
-  // the frozen group's previous files — a bare id collision with zero file
-  // overlap is a numbering slip, not a claim, and routes through descent like
-  // any other temp id instead of cancelling a carry it never referenced.
+  // A claim cancels a frozen carry only when it re-emits a previous file from that group.
+  // An id collision with no file overlap is a numbering slip and must take normal descent.
+  // Valid claims replace the whole group because the model re-examined it.
   const frozenFilesById = new Map(
     plan.frozen.map((carry) => [
       carry.group.id,
@@ -349,7 +342,7 @@ export function stitchBrief(
         `anchored stitch: frozen group ${group.id} claimed by the model output — unfrozen and re-examined`,
       );
     } else if (overlaps) {
-      // The re-emission holds nothing beyond the group's own frozen files —
+      // The re-emission holds nothing beyond the group's own frozen files,
       // no new file is joining, so there is no claim evidence (the re-look
       // diff cannot have touched a frozen file by construction). The carry
       // survives; the model's drift is discarded with the frozen chunks.
@@ -576,7 +569,7 @@ export function stitchBrief(
     }
   }
   // Backstop for the mechanical guarantee: a carried group may only describe
-  // files the PR still changes — a stale carry (e.g. an undetected history
+  // files the PR still changes, a stale carry (e.g. an undetected history
   // rewrite dropping a file) must fail here, never persist.
   for (const carry of activeFrozen) {
     for (const chunk of carry.chunks) {
@@ -596,12 +589,12 @@ export function stitchBrief(
     };
   }
 
-  // Full structural validators on the artifact actually persisted —
+  // Full structural validators on the artifact actually persisted,
   // warn-register, matching their fresh-path posture.
   for (const issue of validatePartition(mergedGroups, mergedChunks)) {
     warnings.push(`anchored stitch: ${issue}`);
   }
-  // Length floor over the MERGED artifact — carried groups included, so a
+  // Length floor over the MERGED artifact, carried groups included, so a
   // pre-cap carry is measured too; replaces the partial stamp `categorize()`
   // computed on the re-emitted regions alone.
   const textLength = validateTextLength(mergedGroups, mergedChunks);
@@ -616,7 +609,7 @@ export function stitchBrief(
     return id === undefined ? [] : [id];
   });
   // The stitch's recomputed text-length and overlap lines REPLACE
-  // categorize()'s — those name the model's tmp ids, which don't exist in
+  // categorize()'s, those name the model's tmp ids, which don't exist in
   // the stored artifact (same replacement discipline as lengthViolations).
   const priorWarnings = (generated.generationWarnings ?? []).filter(
     (line) =>
@@ -630,8 +623,6 @@ export function stitchBrief(
     concernView,
     unattributed,
     diffTotals: diffLocTotals([...args.changedFiles]),
-    ...(readingOrder === undefined ? {} : { readingOrder }),
-    ...(intentCheck === undefined ? {} : { intentCheck }),
     // Always overwritten below: an empty merged set must DELETE the field,
     // or the filtered-out originals survive via the `...generated` spread.
     anchoring: {
@@ -641,7 +632,10 @@ export function stitchBrief(
   };
   if (readingOrder === undefined) {
     delete brief.readingOrder;
+  } else {
+    brief.readingOrder = readingOrder;
   }
+  if (intentCheck !== undefined) brief.intentCheck = intentCheck;
   if (mergedWarnings.length > 0) {
     brief.generationWarnings = mergedWarnings;
   } else {

@@ -10,6 +10,7 @@ import {
   interpretClaudeAuthStatus,
 } from "../src/adapters/claudeCode";
 import { GeneratorError, GeneratorErrorKinds } from "../src/contract/errors";
+import type { GenerateRequest } from "../src/contract/generator";
 import { createGenerator, Providers } from "../src/config/registry";
 
 /**
@@ -27,7 +28,7 @@ const FAKE_CLAUDE = join(
 
 const Schema = z.object({ ok: z.boolean() });
 
-// Every temp dir is tracked and removed after each test — repeated local
+// Every temp dir is tracked and removed after each test, repeated local
 // runs must not accumulate failure dumps and script fixtures.
 const tempDirs: string[] = [];
 function tempDir(prefix: string): string {
@@ -54,19 +55,22 @@ function makeGenerator(
   });
 }
 
-function request(log?: (m: string) => void) {
-  return {
+function request(log?: (m: string) => void): GenerateRequest<typeof Schema> {
+  const req: GenerateRequest<typeof Schema> = {
     schema: Schema,
     system: "you are a test",
     user: "produce ok",
-    effort: "medium" as const,
+    effort: "medium",
     label: "probe",
-    ...(log ? { log } : {}),
   };
+
+  if (log) req.log = log;
+
+  return req;
 }
 
 describe("ClaudeCodeGenerator invocation profile", () => {
-  it("passes the lockdown argv and delivers prompts via stdin, system via file", async () => {
+  it("uses lockdown argv with stdin prompts and a system file", async () => {
     const scriptDir = tempDir("claude-code-argv-");
     const { writeFileSync } = await import("node:fs");
     writeFileSync(
@@ -82,7 +86,7 @@ describe("ClaudeCodeGenerator invocation profile", () => {
     const argv: unknown = JSON.parse(
       readFileSync(join(scriptDir, "argv-0.json"), "utf8"),
     );
-    // The COMPLETE lockdown argv contract — order, pairing, and nothing
+    // The COMPLETE lockdown argv contract, order, pairing, and nothing
     // extra (a missing --verbose or a non-empty --tools must fail here).
     // NEVER --bare: OAuth/keychain auth is the point of this adapter.
     expect(argv).toEqual([
@@ -158,7 +162,7 @@ describe("ClaudeCodeGenerator envelope classification", () => {
     const scriptDir = tempDir("claude-code-salvage-");
     const { writeFileSync } = await import("node:fs");
     // forceExhausted: the shim emits the CLI-rejected envelope even though
-    // the payload is parseable JSON — the real CLI rejects on SCHEMA, and
+    // the payload is parseable JSON, the real CLI rejects on SCHEMA, and
     // an enum slip is exactly that shape.
     writeFileSync(
       join(scriptDir, "turns.json"),
@@ -188,7 +192,7 @@ describe("ClaudeCodeGenerator envelope classification", () => {
   });
 
   it("keeps untrusted envelope strings out of error messages", async () => {
-    // A drifted CLI could put arbitrary text in subtype/category fields —
+    // A drifted CLI could put arbitrary text in subtype/category fields,
     // errors must render allowlisted tokens only, never the raw string.
     const scriptDir = tempDir("claude-code-sentinel-");
     const { writeFileSync } = await import("node:fs");
@@ -214,7 +218,7 @@ describe("ClaudeCodeGenerator envelope classification", () => {
   });
 
   it("treats inherited-object category names as unrecognized, kind opaque", async () => {
-    // "constructor" resolves on Object.prototype — a plain `in`/index read
+    // "constructor" resolves on Object.prototype, a plain `in`/index read
     // would return a FUNCTION as the kind and allowlist the name.
     const scriptDir = tempDir("claude-code-proto-");
     const { writeFileSync } = await import("node:fs");
@@ -258,7 +262,7 @@ describe("ClaudeCodeGenerator envelope classification", () => {
       (error: unknown) => error,
     );
     if (!(caught instanceof GeneratorError)) throw new Error("wrong rejection");
-    // The schema floor surfaces invalidReason in its message chain — the
+    // The schema floor surfaces invalidReason in its message chain, the
     // drifted subtype must have been rendered through the allowlist.
     expect(caught.message).not.toContain("SENTINEL");
   });
@@ -310,7 +314,7 @@ describe("ClaudeCodeGenerator trust-but-verify", () => {
     expect(generator.origin("medium").model).toBe("claude-opus-4-8");
   });
 
-  it("surfaces a missing modelUsage as unverifiable (empty served list)", async () => {
+  it("marks absent modelUsage unverifiable with no served models", async () => {
     const scriptDir = tempDir("claude-code-nousage-");
     const { writeFileSync } = await import("node:fs");
     writeFileSync(
@@ -456,7 +460,7 @@ describe("claude-code registry entry", () => {
   });
 });
 
-describe("buildClaudeVersionWarning (billing floor)", () => {
+describe("buildClaudeVersionWarning billing floor", () => {
   it("stays silent at the floor and above", () => {
     expect(buildClaudeVersionWarning("2.1.226 (Claude Code)")).toBeNull();
     expect(buildClaudeVersionWarning("2.1.227 (Claude Code)")).toBeNull();
@@ -485,7 +489,7 @@ describe("buildClaudeVersionWarning (billing floor)", () => {
   });
 });
 
-describe("interpretClaudeAuthStatus (billing-route assertion)", () => {
+describe("interpretClaudeAuthStatus billing-route assertion", () => {
   // Route table verified against the real CLI at 2.1.226.
   it("passes the keychain subscription login silently", () => {
     const verdict = interpretClaudeAuthStatus(

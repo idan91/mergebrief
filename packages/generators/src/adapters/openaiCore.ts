@@ -4,9 +4,15 @@ import { GeneratorError, GeneratorErrorKinds } from "../contract/errors";
 import {
   runWithSchemaFloor,
   schemaFeedbackMessage,
+  type RunWithSchemaFloorArgs,
 } from "../validation/enforceSchema";
 import { redactSecrets } from "../harness/redact";
-import type { GenerateRequest, Generator, Logger } from "../contract/generator";
+import type {
+  GenerateRequest,
+  Generator,
+  Logger,
+  TokenUsage,
+} from "../contract/generator";
 import { enumPreservingJsonSchema } from "../validation/jsonSchema";
 import {
   stripInjectedNulls,
@@ -15,26 +21,13 @@ import {
 import type { Effort, Generation } from "../contract/generation";
 
 /**
- * Shared core for OpenAI-compatible chat-completions providers: the openai
- * and openrouter adapters differ in preflight, headers and origin reporting
- * — the streaming request, schema floor wiring, and error taxonomy live here
- * once.
- *
- * Invariants:
- * 1. The schema floor is hard — strict `json_schema` response_format is the
- *    native enforcement bonus layer; every answer runs `runWithSchemaFloor`.
- * 2. Abort rejections propagate UNTOUCHED — the SDK's APIUserAbortError is
- *    recognized and passed through unchanged.
- * 3. Origin is honest: `reasoning_effort` support is discovered at run
- *    time (a 400 naming the parameter → retry once without it and cache
- *    "no knob" for the instance's lifetime); once discovered absent, the
- *    stamp records `effort: null`.
- * 4. No secrets in errors: messages carry provider-authored status text and
- *    parameter names, never keys (the SDK redacts auth headers itself; we
- *    never interpolate request bodies or headers).
+ * Every response passes the shared schema floor; native strict schema is an extra layer.
+ * Propagate aborts unchanged. Discover absent effort support on a parameter-naming 400,
+ * retry once without it, then cache the gap and stamp effort null.
+ * Never interpolate request bodies, headers or credentials into errors.
  */
 
-/** One streamed chunk — the narrow shape the core reads. */
+/** One streamed chunk, the narrow shape the core reads. */
 export interface OpenAiStreamChunk {
   choices?: {
     delta?: { content?: string | null; refusal?: string | null };
@@ -63,25 +56,28 @@ export interface OpenAiChatRequest {
   };
   reasoning_effort?: Effort;
   stream: true;
-  /** Sent iff the caller passed onUsage — zero wire change for callers that
+  /** Sent iff the caller passed onUsage, zero wire change for callers that
    * don't observe usage. */
   stream_options?: { include_usage: true };
 }
 
+/** Per-call knobs a transport honors alongside the wire body. */
+export interface StreamChatOptions {
+  signal?: AbortSignal;
+  /** The PER-REQUEST logger: warnings a wrapper emits through it reach the
+   * caller's collection surface (artifact warnings), not just the
+   * construction-time process log. */
+  log?: Logger;
+}
+
 /**
- * The transport boundary: adapters wrap the official `openai` client (or a
- * fetch-fixture-backed one in tests) into this one streaming call.
- * Provider-specific body extensions (openrouter's `provider` routing block)
- * are the WRAPPER's job — it spreads them before calling the SDK, so
- * the core stays provider-shape-agnostic.
+ * Provider wrappers add body extensions before the SDK call.
+ * Keep this streaming boundary independent of provider-specific routing shapes.
  */
 export interface OpenAiChatTransport {
   streamChat(
     body: OpenAiChatRequest,
-    /** `log` is the PER-REQUEST logger: warnings a wrapper emits through it
-     * reach the caller's collection surface (artifact warnings), not just
-     * the construction-time process log. */
-    options: { signal?: AbortSignal; log?: Logger },
+    options: StreamChatOptions,
   ): Promise<AsyncIterable<OpenAiStreamChunk>>;
 }
 
@@ -93,7 +89,7 @@ export interface OpenAiCompatibleCoreOptions {
   failureDir: string;
   /**
    * Pre-seeded effort-knob knowledge (openrouter learns it from its
-   * /models preflight — no discovery 400 needed). Omit for run-time
+   * /models preflight, no discovery 400 needed). Omit for run-time
    * discovery.
    */
   initialEffortSupported?: boolean | undefined;
@@ -106,7 +102,7 @@ export interface OpenAiCompatibleCoreOptions {
   knobRejectionMarker?: string | undefined;
 }
 
-/** Documented finish reasons; anything else renders as unrecognized —
+/** Documented finish reasons; anything else renders as unrecognized,
  * the field is provider output and must not carry arbitrary text. */
 const KNOWN_FINISH_REASONS = new Set([
   "stop",
@@ -167,7 +163,7 @@ export class OpenAiCompatibleCore implements Generator {
     try {
       wireSchema = enumPreservingJsonSchema(req.schema);
       // OpenAI-lineage strict mode rejects optional properties ("'required'
-      // ... must include every key in properties") — send the all-required
+      // ... must include every key in properties"), send the all-required
       // null-union variant, and strip the stand-in nulls back out below.
       openAiWireSchema = withAllRequired(wireSchema);
     } catch (error) {
@@ -185,10 +181,9 @@ export class OpenAiCompatibleCore implements Generator {
       { role: "user", content: req.user },
     ];
 
-    return runWithSchemaFloor({
+    const floor: RunWithSchemaFloorArgs<S> = {
       schema: req.schema,
       label: req.label,
-      ...(req.salvageFields ? { salvageFields: req.salvageFields } : {}),
       failureDir: this.failureDir,
       log,
       attempt: async (feedback) => {
@@ -214,13 +209,13 @@ export class OpenAiCompatibleCore implements Generator {
         if (outcome.finishReason !== "stop") {
           // Only "stop" is a completed generation. EOF without a terminal
           // finish_reason is a truncated response; "length" and
-          // "content_filter" end AFTER partial output — content that
+          // "content_filter" end AFTER partial output, content that
           // happens to parse must never pass the floor as complete.
           return {
             raw: outcome.raw,
             invalidReason: `Stream for ${req.label} ended with finish_reason=${renderFinishReason(outcome.finishReason)} (incomplete or filtered response).`,
             // Incomplete output must not become a completed generation via
-            // enum salvage either — retry with the raw as feedback instead.
+            // enum salvage either, retry with the raw as feedback instead.
             salvageable: false,
           };
         }
@@ -231,13 +226,13 @@ export class OpenAiCompatibleCore implements Generator {
           };
         }
         // The null-union wire schema means a compliant model may emit null
-        // where the domain schema says "absent" — hand the floor a stripped
+        // where the domain schema says "absent", hand the floor a stripped
         // CANDIDATE (still validated there; the floor stays the mechanism).
         let candidate: unknown;
         try {
           candidate = JSON.parse(outcome.raw);
         } catch {
-          candidate = undefined; // malformed — let the floor report the parse error
+          candidate = undefined; // malformed, let the floor report the parse error
         }
         if (candidate !== undefined) {
           return {
@@ -247,7 +242,11 @@ export class OpenAiCompatibleCore implements Generator {
         }
         return { raw: outcome.raw };
       },
-    });
+    };
+
+    if (req.salvageFields) floor.salvageFields = req.salvageFields;
+
+    return runWithSchemaFloor(floor);
   }
 
   /** One streamed request; retries ONCE without reasoning_effort on a 400
@@ -273,19 +272,18 @@ export class OpenAiCompatibleCore implements Generator {
           schema: wireSchema,
         },
       },
-      ...(this.effortSupported !== false
-        ? { reasoning_effort: req.effort }
-        : {}),
       stream: true,
-      ...(req.onUsage ? { stream_options: { include_usage: true } } : {}),
     };
+
+    if (this.effortSupported !== false) body.reasoning_effort = req.effort;
+    if (req.onUsage) body.stream_options = { include_usage: true };
 
     try {
       return await this.consume(req, body, log);
     } catch (error) {
       // The retry decision follows THIS request's knob usage, not the
       // shared cache: two concurrent first requests can both send the knob
-      // and both get the 400 — the second must still retry even though its
+      // and both get the 400, the second must still retry even though its
       // sibling already flipped the cache (setting it again is idempotent).
       if (
         body.reasoning_effort !== undefined &&
@@ -293,7 +291,7 @@ export class OpenAiCompatibleCore implements Generator {
       ) {
         // Discovery is INDEPENDENT of abort timing: the knob's absence is
         // now known either way (later calls must not resend it), and an
-        // abort landing between the 400 and this catch is still an abort —
+        // abort landing between the 400 and this catch is still an abort,
         // never a CONFIG error built from an internal discovery response.
         this.effortSupported = false;
         if (req.signal?.aborted) {
@@ -306,7 +304,7 @@ export class OpenAiCompatibleCore implements Generator {
         try {
           return await this.consume(req, rest, log);
         } catch (retryError) {
-          // The retry needs its own classification boundary — a 401/429/
+          // The retry needs its own classification boundary, a 401/429/
           // connection failure here must not escape unclassified.
           throw classifyOpenAiError(retryError);
         }
@@ -341,10 +339,12 @@ export class OpenAiCompatibleCore implements Generator {
       // The ORIGINAL optional req.log crosses the boundary (not the normalized
       // no-op): a wrapper's `requestLog ?? constructionLog` fallback must
       // still fire for callers that gave no per-request logger.
-      const stream = await this.transport.streamChat(body, {
-        ...(req.signal ? { signal: req.signal } : {}),
-        ...(req.log ? { log: req.log } : {}),
-      });
+      const streamOptions: StreamChatOptions = {};
+
+      if (req.signal) streamOptions.signal = req.signal;
+      if (req.log) streamOptions.log = req.log;
+
+      const stream = await this.transport.streamChat(body, streamOptions);
       for await (const chunk of stream) {
         if (chunk.usage) usage = chunk.usage;
         const choice = chunk.choices?.[0];
@@ -360,7 +360,7 @@ export class OpenAiCompatibleCore implements Generator {
         }
       }
       // SDK ≥6 can swallow an AbortError raised mid-body-read and end the
-      // iterable normally — a partial (or even coincidentally valid) output
+      // iterable normally, a partial (or even coincidentally valid) output
       // must never masquerade as a completed generation.
       if (req.signal?.aborted) {
         throw new APIUserAbortError();
@@ -377,7 +377,7 @@ export class OpenAiCompatibleCore implements Generator {
       clearInterval(heartbeat);
     }
     log(`done in ${elapsed()} — ${collected.length} chars`);
-    // The chunk shape is DECLARED over unvalidated provider JSON — a
+    // The chunk shape is DECLARED over unvalidated provider JSON, a
     // self-hosted "compatible" server can emit anything here. Guard like
     // the delta reads above; a malformed usage object reports nothing
     // rather than NaN.
@@ -388,15 +388,16 @@ export class OpenAiCompatibleCore implements Generator {
     ) {
       const cached = usage.prompt_tokens_details?.cached_tokens;
       const reasoning = usage.completion_tokens_details?.reasoning_tokens;
-      req.onUsage?.({
+      const report: TokenUsage = {
         inputTokens: usage.prompt_tokens,
         outputTokens: usage.completion_tokens,
         cacheReadTokens: typeof cached === "number" ? cached : 0,
-        // Absent ≠ 0: only a numeric report enters the field.
-        ...(typeof reasoning === "number"
-          ? { reasoningTokens: reasoning }
-          : {}),
-      });
+      };
+
+      // Absent ≠ 0: only a numeric report enters the field.
+      if (typeof reasoning === "number") report.reasoningTokens = reasoning;
+
+      req.onUsage?.(report);
     }
     return {
       raw: collected,
@@ -406,12 +407,11 @@ export class OpenAiCompatibleCore implements Generator {
   }
 }
 
-/** True for a 400 whose provider message names the effort knob's wire
- * parameter. The text is PROVIDER-authored status text (never model
- * output) — sniffing it is the discovery mechanism. OpenRouter wraps
- * upstream rejections behind a generic message, so the extracted
- * metadata.raw is scanned too: a catalog-listed-but-broken knob degrades to
- * honest effort: null, not a permanent CONFIG failure. */
+/**
+ * Discover missing effort support from parameter-naming provider 400 text, never model output.
+ * Also inspect OpenRouter metadata.raw for wrapped rejections so broken advertised knobs
+ * degrade to an honest null effort instead of permanent config failure.
+ */
 function isEffortKnobRejection(error: unknown, marker: string): boolean {
   if (typeof error !== "object" || error === null) return false;
   if (Reflect.get(error, "status") !== 400) return false;
@@ -439,7 +439,7 @@ export function classifyOpenAiError(error: unknown): unknown {
     );
   }
   // Body-read connection failures surface from fetch as a statusless
-  // TypeError CARRYING A CAUSE (undici attaches the socket error) — those
+  // TypeError CARRYING A CAUSE (undici attaches the socket error), those
   // are transient. A causeless TypeError is a programmer error and must
   // not be retried into a storm.
   if (error instanceof TypeError && Reflect.get(error, "cause") !== undefined) {
@@ -462,12 +462,8 @@ export function classifyOpenAiError(error: unknown): unknown {
     }
     return error;
   }
-  // Provider-authored message text can echo request contents (a compatible
-  // server may quote headers back) — redact before it enters an error the
-  // app will log. The cause is a SANITIZED summary, not the raw SDK error:
-  // Node's console.error prints cause chains recursively, so a raw cause
-  // (whose .message and parsed .error body are unredacted) would undo the
-  // redaction at any full-object log sink downstream.
+  // Provider error text may echo credentials or request contents. Redact before logging.
+  // Attach only a sanitized cause summary; recursive cause logging would expose raw SDK fields.
   const detail = providerErrorDetail(error);
   const message = safeProviderMessage(
     (error instanceof Error
@@ -490,14 +486,9 @@ export function classifyOpenAiError(error: unknown): unknown {
 }
 
 /**
- * OpenRouter wraps upstream provider rejections as a generic 400 ("Provider
- * returned error") whose real cause lives in the parsed body's
- * `error.metadata.raw` (+ `metadata.provider_name`) — text the SDK never
- * folds into `.message`. The SDK parks the body's `error` field
- * on the APIError's `.error` property; every field here is optional wire
- * data, so absence degrades to "" and the caller keeps today's message.
- * The returned text is provider-authored and untrusted — it must only enter
- * messages through `safeProviderMessage`.
+ * OpenRouter may hide its real provider rejection in APIError.error.metadata.raw.
+ * Optional fields degrade to empty text. All extracted provider text is untrusted
+ * and may enter messages only through safeProviderMessage.
  */
 function extractedProviderRaw(
   error: unknown,
@@ -517,7 +508,7 @@ function extractedProviderRaw(
   };
 }
 
-/** ` — <provider>: <raw>` suffix for classified messages, or "". */
+/** `, <provider>: <raw>` suffix for classified messages, or "". */
 function providerErrorDetail(error: unknown): string {
   const extracted = extractedProviderRaw(error);
   if (extracted === null) return "";
@@ -531,7 +522,7 @@ function safeProviderMessage(message: string): string {
   return redactSecrets(message).slice(0, 800);
 }
 
-/** Status + redacted text only — the raw body is exactly what can leak. */
+/** Status + redacted text only, the raw body is exactly what can leak. */
 function sanitizedCause(error: unknown, status: number): Error {
   const name =
     error instanceof Error ? error.constructor.name : "TransportError";
@@ -541,7 +532,7 @@ function sanitizedCause(error: unknown, status: number): Error {
   );
 }
 
-/** Same, for statusless failures — the nested chain is dropped entirely. */
+/** Same, for statusless failures, the nested chain is dropped entirely. */
 function sanitizedStatuslessCause(error: Error): Error {
   return new Error(
     `${error.constructor.name}: ${safeProviderMessage(error.message)}`,

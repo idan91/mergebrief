@@ -1,5 +1,5 @@
 // Compose the session payload from the store snapshot (or the carried
-// preview) — the one entry the controller reads.
+// preview), the one entry the controller reads.
 export * from "./types";
 // The session read's wire shape, built from either side of materialization: a
 // session's own rows, or the carry-over verdicts held in memory. The two
@@ -16,6 +16,11 @@ export function buildSessionPayload(
 ): SessionPayload {
   const source = view.session ?? view.carried;
   const from = view.carriedFrom;
+  const work =
+    view.session === undefined
+      ? shapeCarriedWork(view.carried)
+      : shapeStoredWork(view.session);
+
   return {
     materialized: view.session !== undefined,
     carriedFrom:
@@ -27,9 +32,7 @@ export function buildSessionPayload(
             revisions: headIndex - from.headIndex,
             items: from.items,
           },
-    ...(view.session === undefined
-      ? shapeCarriedWork(view.carried)
-      : shapeStoredWork(view.session)),
+    ...work,
     attention: deriveAttentionItems(source),
   };
 }
