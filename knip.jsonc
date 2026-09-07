@@ -22,7 +22,7 @@
       // playwright ...`. knip attributes a workflow's binaries to the root
       // workspace, which does not (and should not) depend on Playwright —
       // apps/web owns it. `manifest` is likewise not a binary: the dev/build
-      // scripts invoke `pnpm -C packages/api manifest`, a package script.
+      // scripts invoke `pnpm -C apps/api manifest`, a package script.
       "ignoreBinaries": ["playwright", "manifest"],
     },
     "apps/web": {
@@ -48,13 +48,13 @@
         "e2e/perf/generateFixture.ts",
       ],
     },
-    "packages/api": {
+    "apps/api": {
       "entry": ["src/index.ts", "scripts/generate-manifest.ts"],
     },
     "packages/brief-core": {
       "entry": ["src/index.ts", "src/types.ts", "src/cli/*.ts"],
     },
-    "packages/cli": {
+    "apps/cli": {
       "entry": [
         "src/bin.ts",
         "scripts/embed-help.ts",
@@ -88,7 +88,7 @@
     },
     "packages/repo-config": { "entry": ["src/index.ts"] },
     "packages/types": { "entry": ["src/index.ts"] },
-    "packages/worker": { "entry": ["src/index.ts", "src/main.ts"] },
+    "apps/worker": { "entry": ["src/index.ts", "src/main.ts"] },
     "tools/ingest-briefs": { "entry": ["src/index.ts", "src/main.ts"] },
     "tools/categorizer": {
       // Each eval case's `expected.ts` is dynamically imported by absolute

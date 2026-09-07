@@ -2,12 +2,10 @@
 // planAnchoredGeneration (partition + remap-as-invariant + shared-file
 // exclusivity) and stitchBrief (carry + drop + id descent + coverage).
 import { describe, expect, it } from "vitest";
-import { remapThroughHops, type Brief } from "brief-core";
-import {
-  planAnchoredGeneration,
-  stitchBrief,
-  type AnchorPlan,
-} from "../src/task/anchoring";
+import { planAnchoredGeneration, stitchBrief } from "../src/anchoring";
+import type { AnchorPlan } from "../src/anchoring/types";
+import { remapThroughHops } from "../src/diff/remap";
+import type { Brief } from "../src/types";
 
 const GENERATION = {
   provider: "stub",

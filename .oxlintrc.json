@@ -94,8 +94,8 @@
       // files goes through `packages/logging`, so NO console level survives
       // (the global rule's warn/error/info allowance is client-side only).
       "files": [
-        "packages/api/src/**",
-        "packages/worker/src/**",
+        "apps/api/src/**",
+        "apps/worker/src/**",
         "apps/web/src/server.ts",
         "apps/web/src/server/**",
         "apps/web/src/**/*.server.ts"
@@ -106,10 +106,10 @@
     },
     {
       // Domain controllers and handler factories are single-export modules,
-      // default-exported by convention (packages/api AGENTS.md domain layout).
+      // default-exported by convention (apps/api AGENTS.md domain layout).
       "files": [
-        "packages/api/src/routes/**/controller.ts",
-        "packages/api/src/routes/**/handler.ts"
+        "apps/api/src/routes/**/controller.ts",
+        "apps/api/src/routes/**/handler.ts"
       ],
       "rules": {
         "import/no-default-export": "off"

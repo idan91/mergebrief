@@ -32,9 +32,9 @@ walk by hand:
   `tools/categorizer` — each against its own coverage floor.
 - Access control on the reviewer API: `/api/*` 401 signed-out, an
   inaccessible repo id → 404 (never 403 — no existence leak), the `auth`
-  audit row, and the negative not being cached (`packages/api`).
+  audit row, and the negative not being cached (`apps/api`).
 - CLI exit codes against the contract table, `--json` shapes, stderr
-  fidelity (`packages/cli`).
+  fidelity (`apps/cli`).
 - Generator config refusals — bad provider, unknown key, missing key var,
   missing CLI binary, set-but-empty `MERGEBRIEF_CONFIG`, invalid `drafts:`
   block — with values never echoed (`packages/generators`).

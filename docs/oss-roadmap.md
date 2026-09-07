@@ -412,7 +412,7 @@ should start without it firing:
   closed remaining duplicate `Result` shapes, silenced `no-await-in-loop` false positives in the
   stream reader. **Next: BRIEF-3 (background worker + one-command docker-compose, WS3) — last of
   P4/M1.**
-- 2026-07-06 — **P4 WS3 done (BRIEF-3, PRs #29 + #30, merged 2026-07-06).** `packages/worker`: the
+- 2026-07-06 — **P4 WS3 done (BRIEF-3, PRs #29 + #30, merged 2026-07-06).** `apps/worker`: the
   long-lived graphile-worker runner draining the BRIEF-2 queue — payload contract pinned via
   the shared `GenerateJobPayload` type, brief + marks + revision narrative + delta cores
   pre-warmed per distinct checkpoint SHA (huge-span skip), projection transitions

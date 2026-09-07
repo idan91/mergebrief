@@ -16,7 +16,7 @@ coherent system-design doc** (likely `docs/system-overview.md` §3 rewritten, or
 - Auth: OAuth via `@octokit/oauth-app`, expiring + rotating tokens (both encrypted),
   serialized lazy refresh, redirect degradation; per-read authz gate + the two in-memory
   caches (authz 5-min positives, per-session diff cache).
-- Topology: Hono app in `packages/api` mounted into `apps/web` (one origin, lift-out boundary);
+- Topology: Hono app in `apps/api` mounted into `apps/web` (one origin, lift-out boundary);
   `packages/github`; worker.
 - Documented-not-built knobs: `on-first-view`, `max-checkpoints-per-bundle`, refresh-token
   session cap.

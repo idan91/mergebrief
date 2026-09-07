@@ -481,7 +481,7 @@ describe("lockstep pins (mirrored wire contract vs its api source)", () => {
   it("LastReviewUnavailableReasons equals the api route's reason map", () => {
     // The mirror is hand-rolled (no zod in this bundle) and CI is
     // path-filtered per package, so an added or renamed reason in
-    // `packages/api/src/routes/reads.ts` would otherwise ship green while the
+    // `apps/api/src/routes/reads.ts` would otherwise ship green while the
     // picker's guard rejects the whole PR-meta response.
     // `toEqual` on the maps forgives declaration order (the two sides declare
     // the keys in opposite order today) but catches a key rename, a dropped

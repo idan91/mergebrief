@@ -124,8 +124,6 @@ export type {
   PullRequestInfo,
   PullRequestFile,
   CompareDiffRef,
-  CompareFile,
-  CompareFiles,
   CommitRef,
 } from "./operations/pull-request";
 export { fetchIssue } from "./operations/issue";

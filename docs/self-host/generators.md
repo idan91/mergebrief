@@ -84,7 +84,7 @@ How processes find it:
 **Path form**: a relative `MERGEBRIEF_CONFIG` is resolved
 against the **workspace root** — the nearest ancestor of the process
 working directory containing `pnpm-workspace.yaml` — never against bare
-cwd (the worker runs from `packages/worker`, the web app from `apps/web`;
+cwd (the worker runs from `apps/worker`, the web app from `apps/web`;
 cwd-relative would let one env value silently name different files). So
 `MERGEBRIEF_CONFIG=mergebrief.config.yaml` in `.env` means the repo-root
 file everywhere, local and dockerized alike — the docker image is a full

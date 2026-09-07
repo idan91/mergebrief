@@ -2,79 +2,41 @@
 // into frozen | re-look, with remap-as-invariant-assertion) and the stitch
 // step (carry frozen groups verbatim, keep the regenerated rest, rewrite ids
 // by descent, recompute the mechanical rollup, enforce coverage). No I/O, no
-// model calls — `generate.ts` wires these around the categorize call.
+// model calls; the worker's generate task wires these around the categorize
+// call, and the eval harness's revision-pair runner exercises the same code.
+import type { Result } from "types";
+import { assignGroupIds } from "../diff/descent";
+import { splitDiffByFile } from "../diff/diff";
 import {
-  assignGroupIds,
+  parseHunkSpans,
+  remapThroughPatch,
+  RemapOutcomes,
+  type Hop,
+  type HunkSpan,
+} from "../diff/remap";
+import { parseChangedRanges } from "../diff/revchanges";
+import { GroupVerdicts, partitionGroups } from "../diff/touched";
+import {
   buildConcernView,
   deriveUnattributed,
   detectChunkOverlaps,
   diffLocTotals,
-  GroupVerdicts,
-  parseChangedRanges,
-  parseHunkSpans,
-  partitionGroups,
-  remapThroughPatch,
-  RemapOutcomes,
-  splitDiffByFile,
   unattributedTotals,
-  validatePartition,
-  validateTextLength,
-  type Brief,
-  type Hop,
-  type HunkSpan,
-  type RevisionChangeFile,
-} from "brief-core";
-import type { CompareFiles } from "github";
-import type { Result } from "types";
-
-type ChangeGroup = Brief["changeGroups"][number];
-type Chunk = Brief["chunks"][number];
-
-export interface AnchorPlanArgs {
-  readonly previousBrief: Brief;
-  /** The prevHead→head raw span diff; undefined = fetch failed (nothing confirmable). */
-  readonly incrementalDiff?: string;
-  /** Compare per-file metadata; undefined = fetch failed (nothing confirmable). */
-  readonly compareFiles?: CompareFiles;
-  /**
-   * True when the PR-base SHA moved since the previous brief (rebase /
-   * base-advance): three-dot compare data lies after a rewrite, so everything
-   * re-looks BEFORE the partition even runs.
-   */
-  readonly baseShaMoved: boolean;
-  /**
-   * Every group id the PR's Brief chain has used (`brief.used_group_ids`) —
-   * folded into `previousGroupIds` so descent never re-mints a retired id
-   * for an unrelated group. Absent degrades to previous-brief-only.
-   */
-  readonly chainGroupIds?: readonly string[];
-}
-
-/** One frozen group carried verbatim: its definition + (remapped) chunks. */
-export interface FrozenCarry {
-  readonly group: ChangeGroup;
-  readonly chunks: readonly Chunk[];
-}
-
-export interface ReLookEntry {
-  readonly id: string;
-  readonly files: readonly string[];
-  readonly reason?: string;
-}
-
-export interface AnchorPlan {
-  readonly frozen: readonly FrozenCarry[];
-  /** Union of the frozen groups' files — the withhold/drop set. */
-  readonly frozenFiles: ReadonlySet<string>;
-  readonly reLook: readonly ReLookEntry[];
-  readonly previousGroupIds: readonly string[];
-  /**
-   * The durable carry-over hop for this push — every file the span touched,
-   * coordinates only. Absent whenever the file list may be incomplete, since
-   * a missing hop demotes an anchor while a partial one misplaces it.
-   */
-  readonly hunkSpans?: Hop;
-}
+} from "../generation/loc";
+import { validatePartition, validateTextLength } from "../generation/validate";
+import type { Brief } from "../types";
+import type {
+  AnchorPlan,
+  AnchorPlanArgs,
+  ChangeGroup,
+  Chunk,
+  CompareFiles,
+  FrozenCarry,
+  ReLookEntry,
+  StitchArgs,
+  StitchError,
+  StitchResult,
+} from "./types";
 
 /** Files per previous group, from its chunks (order-stable, deduped). */
 function getGroupFiles(brief: Brief, groupId: string): string[] {
@@ -282,35 +244,6 @@ export function planAnchoredGeneration(args: AnchorPlanArgs): AnchorPlan {
       ? { hunkSpans: buildHop(compareFiles, patches) }
       : {}),
   };
-}
-
-export interface StitchArgs {
-  /** The fresh categorize output (model temp ids, may re-cover frozen files). */
-  readonly generated: Brief;
-  readonly plan: AnchorPlan;
-  /** Every changed file path of the PR — the coverage check's universe. */
-  readonly prFiles: readonly string[];
-  /**
-   * The whole-PR diff's changed-line ranges — the universe `unattributed`
-   * derives against. categorize() skips the stamp on anchored runs (the model
-   * withholds frozen chunks), so the stitch owns it over the merged set.
-   */
-  readonly changedFiles: readonly RevisionChangeFile[];
-}
-
-export interface StitchResult {
-  readonly brief: Brief;
-  readonly carriedGroupIds: readonly string[];
-  /**
-   * The ids of the chunks that carried verbatim. Chunk ids get a collision
-   * guard, not descent, so a read mark may only carry against this exact set.
-   */
-  readonly carriedChunkIds: readonly string[];
-  readonly regeneratedGroupIds: readonly string[];
-}
-
-export interface StitchError {
-  readonly message: string;
 }
 
 /** Dominant frozen parent for a dropped generated group (tie → first frozen). */

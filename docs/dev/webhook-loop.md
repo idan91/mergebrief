@@ -89,7 +89,7 @@ docker compose exec postgres psql -U code_review -d code_review \
 Expect a `pull_request` row for your PR and a `graphile_worker.jobs` row with
 `task_identifier = generate` and `key = generate:<pull_request_id>`.
 
-The queue also **drains**: run the worker (`pnpm -C packages/worker start`
+The queue also **drains**: run the worker (`pnpm -C apps/worker start`
 with the same env, or the compose `worker` service — see
 [`../self-host/compose.md`](../self-host/compose.md)) and the job disappears after the
 debounce, the `generation` row walks `queued → running → succeeded`, and the Brief lands in

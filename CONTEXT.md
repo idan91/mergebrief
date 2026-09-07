@@ -278,6 +278,20 @@ _Avoid_: zen mode (code-internal only), distraction-free, reading mode (every mo
 Which slice of the Brief the page shows: **Full** is the whole story flow; **Changes** is the compare view between two revisions, keeping only the summary. Scope and **Focus mode** are the two reading modes that together decide which page regions render; that decision is made once, never per region.
 _Avoid_: view (the URL param's name, not the concept), tab (that is a **Sidebar** surface), filter (the toolbar Filter governs inline threads)
 
+### Workspace
+
+**App**:
+A workspace member that runs as its own process or ships as its own binary, now or by design: the web app, the API, the worker, the CLI. Lives under `apps/`. Nothing imports an App; Apps talk over HTTP or the job queue.
+_Avoid_: service (for the CLI), package (for a deployable)
+
+**Package**:
+A workspace member Apps share by importing it. Lives under `packages/`.
+_Avoid_: library, module (for a workspace member)
+
+**Tool**:
+A repo-local script run by hand, never deployed, never imported. Lives under `tools/`.
+_Avoid_: script (bare), dev package
+
 ## Relationships
 
 - A **PR** has at most one **Brief** per commit SHA. The brief is **shared** across reviewers.

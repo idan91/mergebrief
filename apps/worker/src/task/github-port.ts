@@ -20,13 +20,13 @@ import {
   GitHubApiErrorCodes,
   postEntryComment,
   type AppClient,
-  type CompareFiles,
   type GitHubApiError,
   type IssueInfo,
   type PullRequestFile,
   type PullRequestInfo,
   type RepoFileResult,
 } from "github";
+import type { CompareFiles } from "brief-core";
 import {
   createGrantAuth,
   decryptToken,
@@ -40,7 +40,6 @@ import type { Result } from "types";
 import { PermanentJobError } from "./failure";
 
 export type {
-  CompareFiles,
   GitHubApiError,
   IssueInfo,
   PullRequestFile,

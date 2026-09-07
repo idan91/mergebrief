@@ -39,7 +39,7 @@ const FAILURE_LINE = {
   [ManifestFailures.EMPTY_CATALOG]:
     "composition registered no product operations — the committed manifest was left untouched",
   [ManifestFailures.DRIFT]:
-    "product-operations.manifest.json is stale — run: pnpm -C packages/api manifest",
+    "product-operations.manifest.json is stale — run: pnpm -C apps/api manifest",
 } as const satisfies Record<ManifestFailure, string>;
 
 const mode = process.argv.includes("--check")

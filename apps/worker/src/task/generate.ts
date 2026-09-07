@@ -39,7 +39,9 @@ import {
   NotionTransports,
   isHugeSpan,
   parseChangedRanges,
+  planAnchoredGeneration,
   revisionNarrativeConfig,
+  stitchBrief,
   toPrLifecycleState,
   type AnchorViewInput,
   type ContextFetch,
@@ -66,7 +68,6 @@ import {
   type Generator,
   type SpendPolicy,
 } from "generators";
-import { planAnchoredGeneration, stitchBrief } from "./anchoring";
 import { enqueueOwnerHeadFollowUp } from "./owner-follow-up";
 import {
   createArtifactStore,

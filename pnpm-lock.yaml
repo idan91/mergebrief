@@ -39,6 +39,95 @@ importers:
         specifier: 3.8.4
         version: 3.8.4
 
+  apps/api:
+    dependencies:
+      brief-core:
+        specifier: workspace:*
+        version: link:../../packages/brief-core
+      github:
+        specifier: workspace:*
+        version: link:../../packages/github
+      graphile-worker:
+        specifier: ^0.16.6
+        version: 0.16.6(typescript@5.9.3)
+      hono:
+        specifier: ^4.9.10
+        version: 4.12.27
+      logging:
+        specifier: workspace:*
+        version: link:../../packages/logging
+      persistence:
+        specifier: workspace:*
+        version: link:../../packages/persistence
+      types:
+        specifier: workspace:*
+        version: link:../../packages/types
+      zod:
+        specifier: ^3.25.0
+        version: 3.25.76
+    devDependencies:
+      '@octokit/webhooks-methods':
+        specifier: ^5.1.1
+        version: 5.1.1
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.19.21
+      '@vitest/coverage-v8':
+        specifier: ^4.1.8
+        version: 4.1.8(vitest@4.1.8)
+      tsx:
+        specifier: ^4.19.0
+        version: 4.22.4
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.8
+        version: 4.1.8(@types/node@22.19.21)(@vitest/coverage-v8@4.1.8)(jsdom@29.1.1)(vite@8.0.16(@types/node@22.19.21)(esbuild@0.28.1)(jiti@2.7.0)(less@4.8.0)(sass@1.101.0)(stylus@0.62.0)(tsx@4.22.4)(yaml@2.9.0))
+
+  apps/cli:
+    dependencies:
+      commander:
+        specifier: ^14.0.2
+        version: 14.0.3
+      i18n:
+        specifier: workspace:*
+        version: link:../../packages/i18n
+      zod:
+        specifier: ^3.25.0
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.19.21
+      '@vitest/coverage-v8':
+        specifier: ^4.1.8
+        version: 4.1.8(vitest@4.1.8)
+      api:
+        specifier: workspace:*
+        version: link:../api
+      logging:
+        specifier: workspace:*
+        version: link:../../packages/logging
+      persistence:
+        specifier: workspace:*
+        version: link:../../packages/persistence
+      tsup:
+        specifier: ^8.5.0
+        version: 8.5.1(jiti@2.7.0)(postcss@8.5.15)(tsx@4.22.4)(typescript@5.9.3)(yaml@2.9.0)
+      tsx:
+        specifier: ^4.19.0
+        version: 4.22.4
+      types:
+        specifier: workspace:*
+        version: link:../../packages/types
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.8
+        version: 4.1.8(@types/node@22.19.21)(@vitest/coverage-v8@4.1.8)(jsdom@29.1.1)(vite@8.0.16(@types/node@22.19.21)(esbuild@0.27.7)(jiti@2.7.0)(less@4.8.0)(sass@1.101.0)(stylus@0.62.0)(tsx@4.22.4)(yaml@2.9.0))
+
   apps/web:
     dependencies:
       '@floating-ui/react':
@@ -61,7 +150,7 @@ importers:
         version: 3.14.9(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       api:
         specifier: workspace:*
-        version: link:../../packages/api
+        version: link:../api
       brief-core:
         specifier: workspace:*
         version: link:../../packages/brief-core
@@ -175,36 +264,39 @@ importers:
         specifier: 4.1.8
         version: 4.1.8(@types/node@22.19.21)(@vitest/coverage-v8@4.1.8)(jsdom@29.1.1)(vite@8.0.16(@types/node@22.19.21)(esbuild@0.28.1)(jiti@2.7.0)(less@4.8.0)(sass@1.101.0)(stylus@0.62.0)(tsx@4.22.4)(yaml@2.9.0))
 
-  packages/api:
+  apps/worker:
     dependencies:
+      '@anthropic-ai/sdk':
+        specifier: ^0.104.1
+        version: 0.104.1(zod@3.25.76)
       brief-core:
         specifier: workspace:*
-        version: link:../brief-core
-      github:
+        version: link:../../packages/brief-core
+      generators:
         specifier: workspace:*
-        version: link:../github
+        version: link:../../packages/generators
+      github:
+        specifier: workspace:^
+        version: link:../../packages/github
       graphile-worker:
         specifier: ^0.16.6
         version: 0.16.6(typescript@5.9.3)
-      hono:
-        specifier: ^4.9.10
-        version: 4.12.27
       logging:
         specifier: workspace:*
-        version: link:../logging
+        version: link:../../packages/logging
       persistence:
         specifier: workspace:*
-        version: link:../persistence
+        version: link:../../packages/persistence
+      repo-config:
+        specifier: workspace:*
+        version: link:../../packages/repo-config
       types:
         specifier: workspace:*
-        version: link:../types
+        version: link:../../packages/types
       zod:
         specifier: ^3.25.0
         version: 3.25.76
     devDependencies:
-      '@octokit/webhooks-methods':
-        specifier: ^5.1.1
-        version: 5.1.1
       '@types/node':
         specifier: ^22.10.0
         version: 22.19.21
@@ -252,49 +344,6 @@ importers:
         specifier: ^4.1.8
         version: 4.1.8(@types/node@22.19.21)(@vitest/coverage-v8@4.1.8)(jsdom@29.1.1)(vite@8.0.16(@types/node@22.19.21)(esbuild@0.28.1)(jiti@2.7.0)(less@4.8.0)(sass@1.101.0)(stylus@0.62.0)(tsx@4.22.4)(yaml@2.9.0))
 
-  packages/cli:
-    dependencies:
-      commander:
-        specifier: ^14.0.2
-        version: 14.0.3
-      i18n:
-        specifier: workspace:*
-        version: link:../i18n
-      zod:
-        specifier: ^3.25.0
-        version: 3.25.76
-    devDependencies:
-      '@types/node':
-        specifier: ^22.10.0
-        version: 22.19.21
-      '@vitest/coverage-v8':
-        specifier: ^4.1.8
-        version: 4.1.8(vitest@4.1.8)
-      api:
-        specifier: workspace:*
-        version: link:../api
-      logging:
-        specifier: workspace:*
-        version: link:../logging
-      persistence:
-        specifier: workspace:*
-        version: link:../persistence
-      tsup:
-        specifier: ^8.5.0
-        version: 8.5.1(jiti@2.7.0)(postcss@8.5.15)(tsx@4.22.4)(typescript@5.9.3)(yaml@2.9.0)
-      tsx:
-        specifier: ^4.19.0
-        version: 4.22.4
-      types:
-        specifier: workspace:*
-        version: link:../types
-      typescript:
-        specifier: ^5.7.0
-        version: 5.9.3
-      vitest:
-        specifier: ^4.1.8
-        version: 4.1.8(@types/node@22.19.21)(@vitest/coverage-v8@4.1.8)(jsdom@29.1.1)(vite@8.0.16(@types/node@22.19.21)(esbuild@0.27.7)(jiti@2.7.0)(less@4.8.0)(sass@1.101.0)(stylus@0.62.0)(tsx@4.22.4)(yaml@2.9.0))
-
   packages/generators:
     dependencies:
       '@anthropic-ai/sdk':
@@ -340,6 +389,9 @@ importers:
       '@octokit/webhooks-methods':
         specifier: ^5.1.1
         version: 5.1.1
+      brief-core:
+        specifier: workspace:*
+        version: link:../brief-core
       octokit:
         specifier: ^4.1.4
         version: 4.1.4
@@ -380,7 +432,7 @@ importers:
         version: 4.1.8(vitest@4.1.8)
       api:
         specifier: workspace:*
-        version: link:../api
+        version: link:../../apps/api
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
@@ -493,55 +545,6 @@ importers:
         specifier: ^5.7.0
         version: 5.9.3
 
-  packages/worker:
-    dependencies:
-      '@anthropic-ai/sdk':
-        specifier: ^0.104.1
-        version: 0.104.1(zod@3.25.76)
-      brief-core:
-        specifier: workspace:*
-        version: link:../brief-core
-      generators:
-        specifier: workspace:*
-        version: link:../generators
-      github:
-        specifier: workspace:^
-        version: link:../github
-      graphile-worker:
-        specifier: ^0.16.6
-        version: 0.16.6(typescript@5.9.3)
-      logging:
-        specifier: workspace:*
-        version: link:../logging
-      persistence:
-        specifier: workspace:*
-        version: link:../persistence
-      repo-config:
-        specifier: workspace:*
-        version: link:../repo-config
-      types:
-        specifier: workspace:*
-        version: link:../types
-      zod:
-        specifier: ^3.25.0
-        version: 3.25.76
-    devDependencies:
-      '@types/node':
-        specifier: ^22.10.0
-        version: 22.19.21
-      '@vitest/coverage-v8':
-        specifier: ^4.1.8
-        version: 4.1.8(vitest@4.1.8)
-      tsx:
-        specifier: ^4.19.0
-        version: 4.22.4
-      typescript:
-        specifier: ^5.7.0
-        version: 5.9.3
-      vitest:
-        specifier: ^4.1.8
-        version: 4.1.8(@types/node@22.19.21)(@vitest/coverage-v8@4.1.8)(jsdom@29.1.1)(vite@8.0.16(@types/node@22.19.21)(esbuild@0.28.1)(jiti@2.7.0)(less@4.8.0)(sass@1.101.0)(stylus@0.62.0)(tsx@4.22.4)(yaml@2.9.0))
-
   tools/categorizer:
     dependencies:
       '@anthropic-ai/sdk':
@@ -556,9 +559,6 @@ importers:
       types:
         specifier: workspace:*
         version: link:../../packages/types
-      worker:
-        specifier: workspace:*
-        version: link:../../packages/worker
       zod:
         specifier: ^3.25.0
         version: 3.25.76
@@ -9573,7 +9573,7 @@ snapshots:
       magic-string: 0.30.21
       obug: 2.1.3
       pathe: 2.0.3
-      picomatch: 4.0.4
+      picomatch: 4.0.5
       std-env: 4.1.0
       tinybench: 2.9.0
       tinyexec: 1.2.4
@@ -9602,7 +9602,7 @@ snapshots:
       magic-string: 0.30.21
       obug: 2.1.3
       pathe: 2.0.3
-      picomatch: 4.0.4
+      picomatch: 4.0.5
       std-env: 4.1.0
       tinybench: 2.9.0
       tinyexec: 1.2.4

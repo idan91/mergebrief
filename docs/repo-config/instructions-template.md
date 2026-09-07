@@ -13,7 +13,7 @@ honors these classes only (see `docs/repo-config/authoring.md`):
 ```markdown
 ## Grouping
 
-- Treat `packages/api` and `packages/api-client` as one review unit — they
+- Treat `apps/api` and `apps/api-client` as one review unit — they
   always change together.
 - `infra/**` changes are their own group even when a feature PR touches them.
 

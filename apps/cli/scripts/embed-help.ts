@@ -101,7 +101,7 @@ const next =
 if (process.argv.includes("--check")) {
   if (next !== readme) {
     console.error(
-      "README flag appendix is stale — run: pnpm --dir packages/cli docs:appendix",
+      "README flag appendix is stale — run: pnpm --dir apps/cli docs:appendix",
     );
     process.exit(1);
   }

@@ -22,7 +22,7 @@ import { startWorker } from "./runner";
 /** Where failed-generation raw outputs are dumped for debugging (ephemeral). */
 const FAILURE_DUMP_DIR = "out";
 
-/** Load `packages/worker/.env` if present, then return the ambient env. */
+/** Load `apps/worker/.env` if present, then return the ambient env. */
 function readEnv(): NodeJS.ProcessEnv {
   try {
     process.loadEnvFile();

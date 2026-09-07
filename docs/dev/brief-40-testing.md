@@ -99,8 +99,8 @@ logout → re-login. Everything should feel identical to before.
 garbage one onto the grant (decrypts fine, GitHub rejects it → the refresh path fires with
 the still-valid stored refresh token):
 ```sh
-# run from packages/api so the workspace import resolves; use the SERVER's session key
-cd packages/api
+# run from apps/api so the workspace import resolves; use the SERVER's session key
+cd apps/api
 SESSION_KEY_V1=<server key> pnpm exec tsx -e "
 import { encryptToken, envKeyProvider } from 'persistence';
 const sealed = await encryptToken(envKeyProvider(), 'SESSION_KEY_V1', 'ghu_invalid_forced');

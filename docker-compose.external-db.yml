@@ -70,7 +70,7 @@ services:
   worker:
     build:
       context: .
-      dockerfile: packages/worker/Dockerfile
+      dockerfile: apps/worker/Dockerfile
     env_file:
       - path: .env
         required: false

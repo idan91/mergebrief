@@ -6,7 +6,7 @@
 //
 // Run from the repo root with the app env loaded:
 //   set -a && . ./.env && set +a
-//   pnpm -C packages/worker exec tsx ../persistence/toDelete-migrate-carrier-to-core.ts [out-dir]
+//   pnpm -C apps/worker exec tsx ../persistence/toDelete-migrate-carrier-to-core.ts [out-dir]
 //
 // [out-dir] defaults to MERGEBRIEF_OUT_DIR, then tools/categorizer/out.
 // Without a resolvable DATABASE_URL the DB pass is skipped.

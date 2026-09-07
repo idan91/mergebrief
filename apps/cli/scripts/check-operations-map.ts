@@ -37,7 +37,7 @@ if (!result.ok) {
     process.stderr.write(`${error}\n`);
   }
   process.stderr.write(
-    "product-operations map check failed — fix packages/cli/product-operations.map.json\n",
+    "product-operations map check failed — fix apps/cli/product-operations.map.json\n",
   );
   process.exit(1);
 }
@@ -53,7 +53,7 @@ if (process.argv.includes("--write")) {
   }
   if (committed !== rendered) {
     process.stderr.write(
-      "baked catalog fingerprint is stale — run: pnpm -C packages/cli map:check --write\n",
+      "baked catalog fingerprint is stale — run: pnpm -C apps/cli map:check --write\n",
     );
     process.exit(1);
   }

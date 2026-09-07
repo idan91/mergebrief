@@ -17,8 +17,7 @@
     "brief-core": "workspace:*",
     "generators": "workspace:*",
     "types": "workspace:*",
-    "zod": "^3.25.0",
-    "worker": "workspace:*"
+    "zod": "^3.25.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

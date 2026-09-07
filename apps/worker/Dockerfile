@@ -28,4 +28,4 @@ ENV MERGEBRIEF_RUNTIME=compose-worker
 
 # Boot order (migrate app schema -> migrate queue schema -> run) is owned by
 # the worker itself (`startWorker`); both migrators are idempotent.
-CMD ["pnpm", "--dir", "packages/worker", "start"]
+CMD ["pnpm", "--dir", "apps/worker", "start"]

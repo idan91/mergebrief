@@ -3,16 +3,18 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { z } from "zod/v4";
 import type { Result } from "types";
-import { AnchorStates, categorize, parseChangedRanges } from "brief-core";
-import type { Brief } from "brief-core/types";
-import type { Effort, Generator } from "generators";
-import { textLengthNotes } from "./length";
 import {
+  AnchorStates,
+  categorize,
+  parseChangedRanges,
   planAnchoredGeneration,
   stitchBrief,
   type AnchorPlan,
   type CompareFiles,
-} from "worker";
+} from "brief-core";
+import type { Brief } from "brief-core/types";
+import type { Effort, Generator } from "generators";
+import { textLengthNotes } from "./length";
 import {
   BaselineModes,
   loadBaseline,

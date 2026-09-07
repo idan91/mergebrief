@@ -55,7 +55,7 @@ import {
   RESERVED_ATTRIBUTE_WORDS,
 } from "repo-config";
 import { createGenerateTask } from "../src/task/generate";
-import type { CompareFile } from "github";
+import type { CompareFile } from "brief-core";
 import type {
   GitHubApiError,
   GitHubPort,

@@ -11,6 +11,7 @@ import {
 } from "../errors";
 import { repoIdSchema } from "../ids";
 import type { Result } from "../types";
+import type { CompareFiles } from "brief-core";
 
 export interface PullRequestRef {
   readonly owner: string;
@@ -262,33 +263,6 @@ export async function fetchCompareDiff(
   } catch (error) {
     return { ok: false, error: mapRequestError(error, "fetch compare diff") };
   }
-}
-
-/**
- * One compare `files[]` entry. `status` stays an OPEN string on purpose: a new
- * GitHub status must degrade to conservative handling, not fail a parse.
- */
-export interface CompareFile {
-  readonly filename: string;
-  readonly status: string;
-  /** `previous_filename` — present on renamed/copied entries. */
-  readonly previousFilename?: string;
-}
-
-export interface CompareFiles {
-  readonly files: readonly CompareFile[];
-  /**
-   * False when the list may be truncated: GitHub caps a compare response at
-   * 300 files, so a 300-entry list proves nothing about the rest.
-   */
-  readonly complete: boolean;
-  /**
-   * The compare relation head-vs-base ('ahead' | 'diverged' | 'behind' |
-   * 'identical'; open string). Only 'ahead' means a fast-forward span whose
-   * three-dot diff equals the true tree diff — a same-base force-push shows
-   * 'diverged' while the base SHA never moves. Absent means not-fast-forward.
-   */
-  readonly status?: string;
 }
 
 /** GitHub caps the compare response's `files[]` at this many entries. */

@@ -85,7 +85,7 @@ services:
   worker:
     build:
       context: .
-      dockerfile: packages/worker/Dockerfile
+      dockerfile: apps/worker/Dockerfile
     depends_on:
       postgres:
         condition: service_healthy

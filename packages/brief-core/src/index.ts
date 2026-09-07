@@ -170,6 +170,20 @@ export {
 // exported for tests/CLI.
 export { renderAnchorView, type AnchorViewInput } from "./generation/prompt";
 export { generateAndWrite, type Range } from "./cli/categorize";
+// Anchored generation: the pure plan + stitch helpers the worker's generate
+// task and the eval harness's revision-pair runner both run.
+export { planAnchoredGeneration, stitchBrief } from "./anchoring";
+export type {
+  AnchorPlan,
+  AnchorPlanArgs,
+  CompareFile,
+  CompareFiles,
+  FrozenCarry,
+  ReLookEntry,
+  StitchArgs,
+  StitchError,
+  StitchResult,
+} from "./anchoring/types";
 export {
   AnchorStates,
   Categories,
