@@ -69,11 +69,14 @@ export function StoryView(props: StoryViewProps) {
     props.addressedReviewComments ?? EMPTY_ADDRESSED_REVIEW_COMMENTS;
   // Gated on focus mode: outside it the selector pins null, so scroll-spy
   // ticks never re-render the whole story tree. In focus mode the spy is
-  // off — the group only moves on explicit navigation.
+  // off, the group only moves on explicit navigation.
   const { focusMode } = props;
   const activeFocusGroupId = useReadingPosition((state) =>
     focusMode ? state.activeGroupId : null,
   );
+  const focusRailState = focusRailOpen ? "open" : "collapsed";
+  const focusRailAttr = props.focusMode ? focusRailState : undefined;
+
   return (
     <div
       className={styles["storyView"]}
@@ -101,23 +104,15 @@ export function StoryView(props: StoryViewProps) {
             id={deriveGroupSectionId(group.id)}
             key={group.id}
             data-active-group={isActiveFocusGroup ? "" : undefined}
-            data-focus-rail={
-              props.focusMode
-                ? focusRailOpen
-                  ? "open"
-                  : "collapsed"
-                : undefined
-            }
+            data-focus-rail={focusRailAttr}
           >
             {props.focusMode ? (
               <div className="group-chunks">
-                {/* Focus mode isolates one card via display:none CSS — the
-                    windowing latch can't see CSS hiding (attribute-based),
-                    and a fixed-height column would leave a giant empty
-                    track. The plain list is the correct shape here, and only
-                    the ACTIVE group's (the others' sections are display:none
-                    whole) — mounting every group's cards would re-pay the
-                    full-tree cost windowing exists to remove. */}
+                {/**
+                 * Focus mode hides sections with CSS, which the windowing latch cannot detect.
+                 * Use a plain list to avoid a fixed-height empty track, and mount only
+                 * the active group's cards to preserve the windowing cost savings.
+                 */}
                 {(isActiveFocusGroup ? group.chunks : []).map((chunk) => (
                   <ChunkCard
                     key={`${chunk.file}#${chunk.id}`}
@@ -141,17 +136,16 @@ export function StoryView(props: StoryViewProps) {
                 view={props}
               />
             )}
-            {props.focusMode ? (
-              isActiveFocusGroup ? (
-                <FocusGroupRail
-                  group={group}
-                  model={props.model}
-                  open={focusRailOpen}
-                  setOpen={setFocusRailOpen}
-                  jumpToChunk={props.jumpToChunk}
-                />
-              ) : null
-            ) : (
+            {isActiveFocusGroup ? (
+              <FocusGroupRail
+                group={group}
+                model={props.model}
+                open={focusRailOpen}
+                setOpen={setFocusRailOpen}
+                jumpToChunk={props.jumpToChunk}
+              />
+            ) : null}
+            {props.focusMode ? null : (
               <GroupCard
                 group={group}
                 brief={props.brief}
@@ -176,11 +170,9 @@ interface WindowedChunkListProps {
 }
 
 /**
- * The windowed chunk column: only viewport-adjacent cards mount; the column
- * keeps its full estimated height so the page geometry (and the sticky
- * GroupCard beside it) is unaffected. The card holding focus or the open
- * composer is pinned mounted, and the list registers with the jump registry
- * so anchors resolve to not-yet-mounted chunks.
+ * Mount viewport-adjacent cards while preserving the estimated column height.
+ * Keep the focused card and open composer mounted.
+ * Register jumps so anchors can reach chunks that have not mounted yet.
  */
 function WindowedChunkList({
   group,
@@ -287,7 +279,7 @@ function WindowedChunkList({
               position: "absolute",
               // `top`, never `transform`: a transformed ancestor becomes the
               // containing block for the card's sticky header, and Chromium
-              // leaves stale sticky paint behind after programmatic jumps —
+              // leaves stale sticky paint behind after programmatic jumps,
               // headers detach from their cards.
               insetBlockStart: item.start - window.scrollMargin,
               insetInlineStart: 0,

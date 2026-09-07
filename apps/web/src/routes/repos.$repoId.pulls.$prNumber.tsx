@@ -67,14 +67,16 @@ function spanFromSearch(search: PrBriefSearch): Span | undefined {
     : undefined;
 }
 
+/** A number as given, a string through `Number`, anything else NaN. */
+function coerceNumber(value: unknown): number {
+  if (typeof value === "number") return value;
+  if (typeof value === "string") return Number(value);
+  return NaN;
+}
+
 /** A positive-int thread databaseId, or undefined. */
-function parseThreadParam(value: unknown): number | undefined {
-  const parsed =
-    typeof value === "number"
-      ? value
-      : typeof value === "string"
-        ? Number(value)
-        : NaN;
+function resolveThreadParam(value: unknown): number | undefined {
+  const parsed = coerceNumber(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
 }
 
@@ -144,7 +146,7 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
     // Retain a supplied base only with a head. Unknown heads degrade to latest, not 404.
     const view = parseViewParam(search["view"]);
     const compare = parseCompareParam(search["compare"]);
-    const thread = parseThreadParam(search["thread"]);
+    const thread = resolveThreadParam(search["thread"]);
     const parsed: PrBriefSearch = {};
 
     if (nonEmpty(head)) parsed.head = head;

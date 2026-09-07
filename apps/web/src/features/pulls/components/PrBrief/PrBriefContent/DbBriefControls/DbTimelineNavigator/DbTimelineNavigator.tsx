@@ -1,13 +1,6 @@
-// The Brief revision navigator over PR-meta's `revisions[]`: drives the
-// route's search params through `onSelect`.
-//
-// Selection identity is the POINT (its array position), never a head SHA
-// alone — a retarget re-brief yields two revisions with the same head and
-// different bases, so a SHA-keyed picker could not address both.
-//
-// A11y: the polite selection announcement and focus-to-heading are the
-// ROUTE's job (one live region per page) — this component only emits the
-// controls.
+// Drive route search params through onSelect using the revision array position.
+// A retarget can share a head SHA with a different base, so SHA identity is unsafe.
+// The route owns the single polite announcement and focus-to-heading behavior.
 import { type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { IconButton } from "@web/components/IconButton/IconButton";
@@ -18,11 +11,11 @@ import styles from "./DbTimelineNavigator.module.scss";
 export interface DbTimelineNavigatorProps {
   /** All points, ordered by `headIndex` ascending (latest last). */
   points: readonly DbTimelinePoint[];
-  /** Position of the selected point within `points` — the selection identity. */
+  /** Position of the selected point within `points`, the selection identity. */
   selectedIndex: number;
   previous: DbTimelinePoint | undefined;
   next: DbTimelinePoint | undefined;
-  /** Route-owned navigation — receives the selected revision point. */
+  /** Route-owned navigation, receives the selected revision point. */
   onSelect: (point: DbTimelinePoint) => void;
 }
 
@@ -30,7 +23,7 @@ function shortSha(sha: string): string {
   return sha.slice(0, 7);
 }
 
-/** `position:point` — unique per row even across duplicate heads. */
+/** `position:point`, unique per row even across duplicate heads. */
 function pointKey(position: number, point: DbTimelinePoint): string {
   return `${String(position)}:${point.baseSha}:${point.headSha}`;
 }
@@ -55,18 +48,16 @@ export function DbTimelineNavigator({
    * Left/Right step revisions from ANY control in the navigator, the picker
    * included. Up/Down stay native so the select keeps walking its options.
    */
+  const findStepTarget = (key: string): DbTimelinePoint | undefined => {
+    if (key === "ArrowLeft") return previous;
+    if (key === "ArrowRight") return next;
+    if (key === "Home") return points[0];
+    if (key === "End") return points[points.length - 1];
+    return undefined;
+  };
   const stepFromNav = (event: KeyboardEvent<HTMLElement>) => {
     if (event.defaultPrevented) return;
-    const target =
-      event.key === "ArrowLeft"
-        ? previous
-        : event.key === "ArrowRight"
-          ? next
-          : event.key === "Home"
-            ? points[0]
-            : event.key === "End"
-              ? points[points.length - 1]
-              : undefined;
+    const target = findStepTarget(event.key);
     if (target === undefined || target === points[selectedIndex]) return;
     event.preventDefault();
     onSelect(target);
@@ -79,7 +70,7 @@ export function DbTimelineNavigator({
     >
       <IconButton
         onKeyDown={stepFromNav}
-        // Disabled state keeps a descriptive name — a bare arrow glyph is
+        // Disabled state keeps a descriptive name, a bare arrow glyph is
         // meaningless to a screen reader.
         label={
           previous

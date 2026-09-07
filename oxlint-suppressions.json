@@ -1033,11 +1033,6 @@
       "count": 5
     }
   },
-  "apps/web/e2e/harness/github-stub.mjs": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "apps/web/e2e/harness/globalSetup.ts": {
     "house/comment-run": {
       "count": 1
@@ -1218,18 +1213,8 @@
       "count": 1
     }
   },
-  "apps/web/src/components/CopyButton/CopyButton.tsx": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "apps/web/src/components/ExpandableContent/ExpandableContent.test.tsx": {
     "house/test-title": {
-      "count": 1
-    }
-  },
-  "apps/web/src/components/ExpandableContent/ExpandableContent.tsx": {
-    "house/no-em-dash": {
       "count": 1
     }
   },
@@ -1272,11 +1257,6 @@
     },
     "house/test-title": {
       "count": 1
-    }
-  },
-  "apps/web/src/components/MarkdownTextarea/MarkdownTextarea.tsx": {
-    "house/no-em-dash": {
-      "count": 8
     }
   },
   "apps/web/src/components/MarkdownTextarea/icons.tsx": {
@@ -1450,11 +1430,6 @@
       "count": 2
     }
   },
-  "apps/web/src/features/brief/components/BriefScreen/ChangesOnlyView/ChangesOnlyView.tsx": {
-    "house/no-em-dash": {
-      "count": 10
-    }
-  },
   "apps/web/src/features/brief/components/BriefScreen/ChangesOnlyView/RawSpanDiff/RawSpanDiff.test.tsx": {
     "house/no-em-dash": {
       "count": 6
@@ -1507,14 +1482,6 @@
   "apps/web/src/features/brief/components/BriefScreen/DiffTable/RevisionGutterCell/RevisionGutterCell.tsx": {
     "house/comment-run": {
       "count": 1
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/DiffTable/diffRowView.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 3
     }
   },
   "apps/web/src/features/brief/components/BriefScreen/Header/BriefDetailsPanel/BriefDetailsPanel.test.tsx": {
@@ -1584,14 +1551,6 @@
     },
     "house/test-title": {
       "count": 17
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/IntentBar/IntentBar.tsx": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 5
     }
   },
   "apps/web/src/features/brief/components/BriefScreen/IntentBar/TicketAlignment/TicketAlignment.test.tsx": {
@@ -1681,14 +1640,6 @@
     },
     "house/no-em-dash": {
       "count": 2
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/RiskBadge/RiskBadge.tsx": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 1
     }
   },
   "apps/web/src/features/brief/components/BriefScreen/RiskChipDisclosure/RiskChipDisclosure.tsx": {
@@ -1784,14 +1735,6 @@
     },
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/StoryView/StoryView.tsx": {
-    "house/comment-run": {
-      "count": 2
-    },
-    "house/no-em-dash": {
-      "count": 3
     }
   },
   "apps/web/src/features/brief/components/BriefScreen/SummarySection/SummarySection.test.tsx": {
@@ -1954,14 +1897,6 @@
     },
     "house/test-title": {
       "count": 6
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/utils.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 8
     }
   },
   "apps/web/src/features/brief/components/BriefView/BriefView.tsx": {
@@ -2333,14 +2268,6 @@
       "count": 4
     }
   },
-  "apps/web/src/features/conversation/components/ThreadRowView/ThreadDetail/ThreadResolveAction/ThreadResolveAction.tsx": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "apps/web/src/features/conversation/components/ThreadRowView/ThreadDetail/useThreadResolution.ts": {
     "house/comment-run": {
       "count": 2
@@ -2477,11 +2404,6 @@
       "count": 1
     }
   },
-  "apps/web/src/features/installations/components/OrgSwitcher/OrgSwitcher.tsx": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "apps/web/src/features/installations/index.tsx": {
     "house/no-em-dash": {
       "count": 1
@@ -2555,14 +2477,6 @@
   "apps/web/src/features/pulls/components/PrBrief/PrBriefContent/DbBriefControls/DbTimelineNavigator/DbTimelineNavigator.test.tsx": {
     "house/test-title": {
       "count": 4
-    }
-  },
-  "apps/web/src/features/pulls/components/PrBrief/PrBriefContent/DbBriefControls/DbTimelineNavigator/DbTimelineNavigator.tsx": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 6
     }
   },
   "apps/web/src/features/pulls/components/PrBrief/PrBriefError/PrBriefError.test.tsx": {
@@ -2642,17 +2556,6 @@
     },
     "house/test-title": {
       "count": 3
-    }
-  },
-  "apps/web/src/features/pulls/prBriefRoute.test.tsx": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 10
-    },
-    "house/test-title": {
-      "count": 17
     }
   },
   "apps/web/src/features/pulls/prSessionRoute.test.tsx": {
@@ -2849,14 +2752,6 @@
       "count": 2
     }
   },
-  "apps/web/src/features/review/components/SubmitModal/SubmitModal.tsx": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 7
-    }
-  },
   "apps/web/src/features/review/components/SummaryPreview/SummaryPreview.test.tsx": {
     "house/test-title": {
       "count": 1
@@ -3024,14 +2919,6 @@
       "count": 3
     }
   },
-  "apps/web/src/features/tokens/hooks/useTokenSettings.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 3
-    }
-  },
   "apps/web/src/features/tokens/index.tsx": {
     "house/no-em-dash": {
       "count": 1
@@ -3104,11 +2991,6 @@
       "count": 1
     }
   },
-  "apps/web/src/i18n/LocalePicker/LocalePicker.tsx": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "apps/web/src/i18n/locale.server.test.ts": {
     "house/test-title": {
       "count": 1
@@ -3140,11 +3022,6 @@
   "apps/web/src/routes/index.tsx": {
     "house/no-em-dash": {
       "count": 4
-    }
-  },
-  "apps/web/src/routes/settings.tsx": {
-    "house/no-em-dash": {
-      "count": 1
     }
   },
   "apps/web/src/server.ts": {

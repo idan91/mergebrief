@@ -49,7 +49,7 @@ export interface MarkdownTextareaProps {
   onBlur?: (() => void) | undefined;
   /**
    * Primary action for Cmd/Ctrl+Enter. The consumer's own submit guards
-   * (empty body, pending, over-cap) apply — this only routes the shortcut.
+   * (empty body, pending, over-cap) apply, this only routes the shortcut.
    */
   onSubmit?: (() => void) | undefined;
   /** Escape hook (cancel an edit, blur a reply). */
@@ -58,7 +58,7 @@ export interface MarkdownTextareaProps {
   suggestionSeed?: string | undefined;
   /**
    * Candidate pool for `@`-mention autocomplete; empty/absent disables it.
-   * The pool is injected (thread participants, repo collaborators) — the
+   * The pool is injected (thread participants, repo collaborators), the
    * component never fetches. Pool order IS the ranking: the hook
    * prefix-filters in array order and caps the list.
    */
@@ -67,7 +67,7 @@ export interface MarkdownTextareaProps {
   renderPreview?: ((value: string) => ReactNode) | undefined;
   /**
    * Hands the consumer the inner textarea element (quote-reply focuses it
-   * after an external prefill). Ref-callback shape — called with null on
+   * after an external prefill). Ref-callback shape, called with null on
    * unmount.
    */
   exposeTextarea?: ((element: HTMLTextAreaElement | null) => void) | undefined;
@@ -143,7 +143,7 @@ export function MarkdownTextarea({
 
   // Roving tabindex across the toolbar: one tab stop for the group, arrows
   // move within it, and Tab re-enters at the last-focused control (toolbar
-  // pattern) — so the focused index is state, not just DOM focus.
+  // pattern), so the focused index is state, not just DOM focus.
   const toolbarRef = useRef<HTMLDivElement | null>(null);
   const [toolbarIndex, setToolbarIndex] = useState(0);
   const toolbarTabStop = Math.min(
@@ -179,16 +179,13 @@ export function MarkdownTextarea({
 
   // Branch on the prop, not its return value: a custom preview that
   // legitimately renders null must not fall back to the default renderer.
-  const renderPreviewPanel = () =>
-    renderPreview !== undefined ? (
-      renderPreview(value)
-    ) : value.trim() ? (
-      <Markdown content={value} renderSuggestions />
-    ) : (
-      <p className={styles["empty"]}>{t("shell.nothingToPreview")}</p>
-    );
+  const renderPreviewPanel = () => {
+    if (renderPreview !== undefined) return renderPreview(value);
+    if (value.trim()) return <Markdown content={value} renderSuggestions />;
+    return <p className={styles["empty"]}>{t("shell.nothingToPreview")}</p>;
+  };
 
-  // Root-level shortcut scope — these must work from the textarea, the tabs,
+  // Root-level shortcut scope, these must work from the textarea, the tabs,
   // AND the focused preview panel; a textarea-only handler would die the
   // moment the write panel hides.
   const onRootKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -206,7 +203,7 @@ export function MarkdownTextarea({
       const next = facade.mode === "write" ? "preview" : "write";
       facade.setMode(next);
       // Hiding the panel that holds focus drops it to <body>, which would
-      // kill this very handler — move focus WITH the mode, both ways.
+      // kill this very handler, move focus WITH the mode, both ways.
       window.setTimeout(() => {
         if (next === "write") facade.textareaRef.current?.focus();
         else document.getElementById(panelId("preview"))?.focus();
@@ -357,7 +354,7 @@ export function MarkdownTextarea({
                 {candidate.avatarUrl === undefined ? (
                   <span aria-hidden className={styles["mentionAvatarSlot"]} />
                 ) : (
-                  // Decorative — the option text carries the identity.
+                  // Decorative, the option text carries the identity.
                   <img
                     alt=""
                     className={styles["mentionAvatar"]}
@@ -384,7 +381,7 @@ export function MarkdownTextarea({
         hidden={facade.mode !== "preview"}
         id={panelId("preview")}
         role="tabpanel"
-        // Rendered markdown usually has no focusables — make the panel
+        // Rendered markdown usually has no focusables, make the panel
         // itself the tab stop so keyboard users can reach and scroll it
         // (APG tabs pattern recommendation for content-only panels).
         // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex

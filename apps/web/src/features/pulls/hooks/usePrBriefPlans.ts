@@ -46,7 +46,18 @@ import {
   prMetaQueryOptions,
 } from "../queries";
 import { submitReview } from "../transport/submitReview";
-import type { PrSummary } from "../types";
+import type { LastReviewComparison, PrSummary } from "../types";
+
+/** Primitive fingerprint of the last-review envelope, for memo identity. */
+function deriveLastReviewKey(
+  lastReview: LastReviewComparison | undefined,
+): string | undefined {
+  if (lastReview === undefined) return undefined;
+  if (lastReview.kind === "available") {
+    return `available|${lastReview.baselineSha}|${String(lastReview.baselineIndex ?? "")}|${String(lastReview.deltaAvailable)}`;
+  }
+  return `unavailable|${lastReview.reason}`;
+}
 
 export interface UsePrBriefPlansInput {
   repoId: string;
@@ -103,12 +114,7 @@ export function usePrBriefPlans(
   // oxlint-disable-next-line react-hooks/exhaustive-deps
   const previous = useMemo(() => rawPrevious, [previousKey]);
   const rawLastReview = effectiveComparisons?.lastReview;
-  const lastReviewKey =
-    rawLastReview === undefined
-      ? undefined
-      : rawLastReview.kind === "available"
-        ? `available|${rawLastReview.baselineSha}|${String(rawLastReview.baselineIndex ?? "")}|${String(rawLastReview.deltaAvailable)}`
-        : `unavailable|${rawLastReview.reason}`;
+  const lastReviewKey = deriveLastReviewKey(rawLastReview);
   // oxlint-disable-next-line react-hooks/exhaustive-deps
   const lastReview = useMemo(() => rawLastReview, [lastReviewKey]);
   const comparisonPlan = useMemo<BriefComparisonPlan>(() => {
@@ -231,15 +237,11 @@ export function usePrBriefPlans(
   // contract is "ALL current-head flags", so a historical revision could slip
   // past flags the head carries. The STATE itself stays on every revision.
   const ownDraftState = isOwnDraft(meta);
-  const ownDraft = useMemo(
-    () =>
-      ownDraftState
-        ? currentHead
-          ? { markReady: markReadyAction, postComment: postCommentAction }
-          : {}
-        : undefined,
-    [currentHead, markReadyAction, postCommentAction, ownDraftState],
-  );
+  const ownDraft = useMemo(() => {
+    if (!ownDraftState) return undefined;
+    if (!currentHead) return {};
+    return { markReady: markReadyAction, postComment: postCommentAction };
+  }, [currentHead, markReadyAction, postCommentAction, ownDraftState]);
 
   const briefId = `${DB_BRIEF_ID_PREFIX}${repoId}:${String(prNumber)}:${span.base}:${span.head}`;
   // The live-conversation plan is always fetched fresh per PR, resolution

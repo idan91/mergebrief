@@ -306,7 +306,8 @@ export function RiskSurface({
                             </div>
                           )}
                         </>
-                      ) : kind === "addressed" ? (
+                      ) : null}
+                      {kind === "addressed" ? (
                         <div className={styles["stateDetail"]}>
                           {getEvidenceText(
                             t,

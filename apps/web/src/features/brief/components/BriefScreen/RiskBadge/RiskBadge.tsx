@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 
@@ -16,26 +17,30 @@ export interface RiskBadgeProps {
   meta?: AttributeDisplayMeta | undefined;
 }
 
+function deriveRepoPolicyTitle(
+  t: TFunction,
+  implication: string | undefined,
+): string {
+  if (implication !== undefined) {
+    return t("brief.riskBadge.repoPolicyWithImplication", { implication });
+  }
+  return t("brief.riskBadge.repoPolicyLead");
+}
+
 /**
- * @description Risk-surface token chip. Lowercase because the tokens are
- * taxonomy identifiers (the Badge default uppercases role tags). Children
- * rather than a token prop so the "+N" overflow chip shares the exact skin.
- * One chip anatomy for every source: repo-defined attributes are a VARIANT
- * of this chip (data-source), never a second chip kind.
+ * Keep taxonomy tokens lowercase despite the Badge role-tag default.
+ * Children let the +N overflow share the same chip anatomy.
+ * Repo-defined attributes vary data-source, not the chip structure.
  */
 export function RiskBadge({ children, meta }: RiskBadgeProps) {
   const { t } = useTranslation();
   const repoDefined = meta?.source === "repo-policy";
   const implication = meta?.implication;
-  const title = repoDefined
-    ? implication !== undefined
-      ? t("brief.riskBadge.repoPolicyWithImplication", { implication })
-      : t("brief.riskBadge.repoPolicyLead")
-    : undefined;
+  const title = repoDefined ? deriveRepoPolicyTitle(t, implication) : undefined;
   return (
     <Badge
       className={styles["risk"]}
-      // De-emphasis is a HUE shift (amber → neutral), never opacity — small
+      // De-emphasis is a HUE shift (amber → neutral), never opacity, small
       // text under reduced opacity falls below 4.5:1.
       color={meta?.deEmphasized ? BadgeColors.NEUTRAL : BadgeColors.AMBER}
       dataset={{

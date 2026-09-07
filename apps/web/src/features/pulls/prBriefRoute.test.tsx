@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-// Flat at the feature root with reason: the subject is src/routes' file-based
-// route, where a .test file could trip route generation, so it is exercised
-// from the owning feature instead. DB-brief route states through the real
-// router: a seeded cache renders the brief via BriefView with EMPTY local
-// artifacts (the DB path's shape), and meta-only states render the
-// wait/failed cards.
+// Keep route tests in the owning feature to avoid file-based route generation.
+// The real router uses seeded DB briefs with empty local artifacts;
+// meta-only states exercise the waiting and failure cards.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
@@ -153,7 +150,7 @@ describe("DB brief route", () => {
     );
     expect(screen.getByText(briefFixture.changeGroups[0]!.title)).toBeTruthy();
     // The header's state badge on the DB route reads the LIVE webhook state
-    // from the pr row (meta.state = open) — never gated on the artifact's
+    // from the pr row (meta.state = open), never gated on the artifact's
     // stamped snapshot (this fixture predates stamping).
     expect(
       document
@@ -215,7 +212,7 @@ describe("DB brief route", () => {
     });
   });
 
-  it("shows the diff-first wait card while generation runs (no artifact yet)", async () => {
+  it("shows a diff-first wait card before the generated artifact exists", async () => {
     await renderRoute(
       meta({
         briefAvailable: false,
@@ -231,8 +228,8 @@ describe("DB brief route", () => {
       }),
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}`,
     );
-    // The phase is "generating" — the heading must NOT echo the verb
-    // ("Generating the brief — generating…"); it collapses to the phase-less
+    // The phase is "generating", the heading must NOT echo the verb
+    // ("Generating the brief, generating…"); it collapses to the phase-less
     // heading, with a lowercase "brief" for this view.
     await waitFor(() =>
       expect(
@@ -267,7 +264,7 @@ describe("DB brief route", () => {
     expect(screen.getByText(/2 attempts/)).toBeTruthy();
   });
 
-  it("normalizes a partial span (lone base/head) instead of treating it as explicit", async () => {
+  it("normalizes a lone base or head instead of treating it as explicit", async () => {
     const router = await renderRoute(
       meta({}),
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=stale-only`,
@@ -331,7 +328,7 @@ describe("DB brief route", () => {
     void queryClient;
   });
 
-  it("Compare last-review is offered on the marks-only tier and Changes Only degrades honestly", async () => {
+  it("offers marks-only comparison and explains missing changes-only view", async () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
@@ -393,13 +390,13 @@ describe("DB brief route", () => {
     );
     expect((button as HTMLInputElement).disabled).toBe(false);
     expect((button as HTMLInputElement).checked).toBe(true);
-    // Marks-only tier: the changes pane degrades — no delta core to render.
+    // Marks-only tier: the changes pane degrades, no delta core to render.
     await waitFor(() =>
       expect(screen.getByText(/changes summary unavailable/i)).toBeTruthy(),
     );
   });
 
-  it("Compare last-review renders the pre-warmed delta core when deltaAvailable", async () => {
+  it("renders the pre-warmed last-review delta when available", async () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
@@ -476,9 +473,9 @@ describe("DB brief route", () => {
     expect(screen.queryByText(/changes summary unavailable/i)).toBeNull();
   });
 
-  it("Compare Off is offered in Full Brief so a defaulted comparison can be turned off (codex PR-46 finding)", async () => {
+  it("allows turning off default comparison from Full Brief", async () => {
     // A returning reviewer defaults into changes+last-review; after clicking
-    // Full Brief the compare stays active — Off must exist to reach full+off.
+    // Full Brief the compare stays active, Off must exist to reach full+off.
     await renderRoute(
       meta({}),
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}&view=full&compare=off`,
@@ -491,7 +488,7 @@ describe("DB brief route", () => {
     expect((off as HTMLInputElement).checked).toBe(true);
   });
 
-  it("Compare last-review is disabled with the honest reason tooltip per unavailable tier", async () => {
+  it("explains why last-review comparison is disabled for each tier", async () => {
     const cases = [
       { reason: "pending", copy: /delta still generating/i },
       {
@@ -521,7 +518,7 @@ describe("DB brief route", () => {
     }
   });
 
-  it("Compare last-review keeps the generic never-submitted copy when the field is absent", async () => {
+  it("uses never-submitted copy when comparison availability is absent", async () => {
     await renderRoute(
       meta({}),
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`,
@@ -549,7 +546,7 @@ describe("DB brief route", () => {
     );
     // Still pinned: the OLD span's brief renders behind the banner.
     expect(screen.getByText(briefFixture.pr.title)).toBeTruthy();
-    // The legacy (no-revisions) path carries the stale-submit ack too — the
+    // The legacy (no-revisions) path carries the stale-submit ack too, the
     // gate is span-derived, not timeline-derived.
     fireEvent.click(screen.getByRole("button", { name: /^submit$/i }));
     // The advisory view fronts the modal when unresolved items exist;
@@ -575,7 +572,7 @@ describe("DB brief route", () => {
     expect(cta.getAttribute("aria-disabled")).toBe("false");
   });
 
-  it("own-draft on a HISTORICAL span: the state label stays, mark-ready and its gate do not", async () => {
+  it("labels historical own drafts without mark-ready or its gate", async () => {
     // The PR's head moved on; the viewer is pinned to the older span.
     await renderRoute(
       meta({
@@ -586,11 +583,11 @@ describe("DB brief route", () => {
       }),
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`,
     );
-    // The PR is still the viewer's draft — the state label follows STATE,
+    // The PR is still the viewer's draft, the state label follows STATE,
     // not the revision on screen.
     expect(screen.getByText("Self-review — your draft")).toBeTruthy();
     // But mark-ready is head-scoped: the gate would list THIS revision's
-    // flags, not the current head's — so the action reads disabled (still
+    // flags, not the current head's, so the action reads disabled (still
     // focusable) and a click explains itself instead of gating on stale
     // flags. Nothing gate-shaped exists in the DOM.
     const cta = screen.getByRole("button", { name: "Mark ready for review" });
@@ -603,6 +600,12 @@ describe("DB brief route", () => {
     expect(screen.queryByText("Before marking ready")).toBeNull();
   });
 });
+
+function readRequestUrl(input: RequestInfo | URL): string {
+  if (typeof input === "string") return input;
+  if (input instanceof URL) return input.href;
+  return input.url;
+}
 
 /**
  * Build the route with a fetch stub and a recognizable not-found component, so
@@ -617,12 +620,7 @@ async function renderRouteWithFetch(
   vi.stubGlobal(
     "fetch",
     vi.fn((input: RequestInfo | URL) => {
-      const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url;
+      const url = readRequestUrl(input);
       return Promise.resolve(fetchStub(url));
     }),
   );
@@ -645,7 +643,7 @@ async function renderRouteWithFetch(
   return { router, queryClient };
 }
 
-describe("DB brief route — explicit-span deep link while generating", () => {
+describe("DB brief route, explicit-span deep link while generating", () => {
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
@@ -663,7 +661,7 @@ describe("DB brief route — explicit-span deep link while generating", () => {
     },
   });
 
-  it("renders the diff-first wait state (NOT the not-found component) when the explicit-span brief 404s while generating", async () => {
+  it("shows the wait state for an explicit-span brief 404 while generating", async () => {
     await renderRouteWithFetch(
       (client) => {
         // Meta is seeded (present): the loader resolves it from cache and only
@@ -695,7 +693,7 @@ describe("DB brief route — explicit-span deep link while generating", () => {
     expect(screen.queryByTestId("nf")).toBeNull();
   });
 
-  it("leaves NO brief query entry in the cache after swallowing the generating-brief 404", async () => {
+  it("leaves no cached brief after a generating-brief 404", async () => {
     const { queryClient } = await renderRouteWithFetch(
       (client) => {
         client.setQueryData(
@@ -728,7 +726,7 @@ describe("DB brief route — explicit-span deep link while generating", () => {
     ).toBeUndefined();
   });
 
-  it("flips wait→render without the cached 404 crashing the Brief (artifact lands + meta flips)", async () => {
+  it("renders the arriving artifact without crashing on the cached 404", async () => {
     let briefReady = false;
     const { queryClient } = await renderRouteWithFetch(
       (client) => {
@@ -765,7 +763,7 @@ describe("DB brief route — explicit-span deep link while generating", () => {
       meta({}),
     );
 
-    // The Brief renders from a FRESH fetch — the evicted 404 does not resurface
+    // The Brief renders from a FRESH fetch, the evicted 404 does not resurface
     // as the error boundary.
     await waitFor(() =>
       expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
@@ -773,7 +771,7 @@ describe("DB brief route — explicit-span deep link while generating", () => {
     expect(screen.queryByText(/brief failed to load/i)).toBeNull();
   });
 
-  it("still renders the not-found component when the PR meta 404s (a missing PR is a real 404)", async () => {
+  it("renders not-found when PR metadata returns 404", async () => {
     await renderRouteWithFetch(
       () => {
         // Nothing seeded: BOTH meta and brief hit the network → 404. A meta

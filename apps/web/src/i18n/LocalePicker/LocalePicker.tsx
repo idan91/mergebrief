@@ -7,6 +7,7 @@ import type { KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@web/components/Button/Button";
+import { nextMenuFocusIndex } from "@web/utils/menuFocus";
 import { MenuItem } from "@web/components/MenuItem/MenuItem";
 import { changeLocale } from "../I18nProvider";
 import styles from "./LocalePicker.module.scss";
@@ -65,7 +66,7 @@ export function LocalePicker() {
   }, [close, open]);
 
   // A region tag (en-GB) falls back to its base row. `-1` means the runtime
-  // locale is in NO row — kept distinct from index 0 so the menu never checks
+  // locale is in NO row, kept distinct from index 0 so the menu never checks
   // a row the viewer is not actually on.
   const matchedIndex = options.findIndex(
     (option) =>
@@ -79,15 +80,7 @@ export function LocalePicker() {
   }, [focusIndex, open]);
 
   const roam = (from: number, key: string): void => {
-    const last = options.length - 1;
-    const next =
-      key === "ArrowDown"
-        ? (from + 1) % options.length
-        : key === "ArrowUp"
-          ? (from - 1 + options.length) % options.length
-          : key === "Home"
-            ? 0
-            : last;
+    const next = nextMenuFocusIndex(from, key, options.length);
     itemRefs.current[next]?.focus();
   };
 

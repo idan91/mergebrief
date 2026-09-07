@@ -4,7 +4,7 @@ import { Button } from "@web/components/Button/Button";
 import rowStyles from "../../../../rows.module.scss";
 
 export interface ThreadResolveActionProps {
-  /** The thread's current server state — picks the offered direction. */
+  /** The thread's current server state, picks the offered direction. */
   resolved: boolean;
   pending: boolean;
   /** Failure copy from the last attempt; null while there is none. */
@@ -18,14 +18,15 @@ export interface ThreadResolveActionProps {
   exposeButton?: ((element: HTMLButtonElement | null) => void) | undefined;
 }
 
+function deriveResolveLabel(resolved: boolean, pending: boolean): string {
+  if (resolved) return pending ? "Unresolving…" : "Unresolve";
+  return pending ? "Resolving…" : "Resolve";
+}
+
 /**
- * The standalone resolve/unresolve action: ONE button whose direction is the
- * thread's state. The caller renders it only when the viewer may resolve —
- * there is no disabled-dead variant.
- *
- * Focusable-disabled while pending: a hard `disabled` would drop keyboard and
- * screen-reader focus to `<body>` the moment the request starts. The click
- * guard lives in the hook.
+ * Render only when resolution is permitted; the thread state sets direction.
+ * Keep the pending button focusable to preserve keyboard and screen-reader focus.
+ * The hook guards clicks while pending.
  */
 export function ThreadResolveAction({
   resolved,
@@ -35,13 +36,7 @@ export function ThreadResolveAction({
   exposeButton,
 }: ThreadResolveActionProps) {
   const errorId = `${useId()}-resolve-error`;
-  const label = resolved
-    ? pending
-      ? "Unresolving…"
-      : "Unresolve"
-    : pending
-      ? "Resolving…"
-      : "Resolve";
+  const label = deriveResolveLabel(resolved, pending);
   return (
     <>
       <div className={rowStyles["detailActions"]}>

@@ -1,11 +1,7 @@
-// Facade hook for the token settings section: the mint form, the SHOWN-ONCE
-// minted token, the revoke mutation, and the deterministic-400 mirrors that
-// stop the form submitting a payload the server always rejects.
-//
-// SHOWN-ONCE: the minted token material lives in exactly ONE place — this
-// hook's `mintedToken` state. Dismissing clears that state AND resets the
-// mutation (react-query's `mutation.data` would otherwise retain the
-// material), so nothing in client state can re-render it afterwards.
+// Keep shown-once token material in this hook's mintedToken state.
+// Dismissal clears it and resets mutation.data so client state cannot redisplay it.
+// Mirror deterministic server validation to avoid submitting rejected payloads.
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -15,7 +11,7 @@ import { installationsQueryOptions } from "../../installations/queries";
 import { mintToken, revokeToken, tokensQueryOptions } from "../queries";
 import type { ApiTokenView, MintedToken, TokenScope } from "../types";
 
-/** The server's name cap (mirrored — see the mint route's Zod schema). */
+/** The server's name cap (mirrored, see the mint route's Zod schema). */
 export const TOKEN_NAME_MAX = 100;
 
 /** The expiry choices the form offers; `none` = no expiry. */
@@ -26,6 +22,13 @@ export const ExpiryChoices = {
   NONE: "none",
 } as const;
 export type ExpiryChoice = (typeof ExpiryChoices)[keyof typeof ExpiryChoices];
+
+/** A 403 names the forbidden scope; every other failure reads generic. */
+function deriveMintFailureCopy(t: TFunction, error: unknown): string {
+  const forbidden =
+    error instanceof ApiError && error.code === ApiErrorCodes.FORBIDDEN;
+  return forbidden ? t("tokens.mintForbidden") : t("tokens.mintFailed");
+}
 
 /** No pre-selection: the scope a token carries is always a stated choice. */
 export const SCOPE_UNCHOSEN = "";
@@ -134,16 +137,13 @@ export function useTokenSettings(enabled: boolean): TokenSettingsState {
 
   const dismissMintedToken = (): void => {
     setMintedToken(null);
-    // The mutation result also holds the material — reset it so NOTHING in
+    // The mutation result also holds the material, reset it so NOTHING in
     // client state can re-render the token after dismissal.
     minting.reset();
   };
 
   const mintError = minting.isError
-    ? minting.error instanceof ApiError &&
-      minting.error.code === ApiErrorCodes.FORBIDDEN
-      ? t("tokens.mintForbidden")
-      : t("tokens.mintFailed")
+    ? deriveMintFailureCopy(t, minting.error)
     : null;
 
   return {

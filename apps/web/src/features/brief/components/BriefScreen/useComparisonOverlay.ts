@@ -61,6 +61,10 @@ export interface BriefComparisonPlan {
   };
 }
 
+type ActivePlanSlot =
+  | BriefComparisonPlan["previousBrief"]
+  | BriefComparisonPlan["lastReview"];
+
 export interface UseComparisonOverlayInput {
   /** Feeds the LOCAL timeline/comparisons; may be empty (self-disables). */
   artifacts: LocalBriefSummary[];
@@ -139,22 +143,17 @@ export function useComparisonOverlay(
   // previous-brief-only, delta last-review-only, mirroring the local ids.
   const planPrevious = comparisonPlan?.previousBrief;
   const planLastReview = comparisonPlan?.lastReview;
-  const activePlanSlot =
-    activeCompare === "previous-brief"
-      ? planPrevious
-      : activeCompare === "last-review"
-        ? planLastReview
-        : undefined;
+  const planSlotByCompare: Record<CompareParam, ActivePlanSlot> = {
+    "previous-brief": planPrevious,
+    "last-review": planLastReview,
+    off: undefined,
+  };
+  const activePlanSlot = planSlotByCompare[activeCompare];
   const planActive =
     comparisonPlan !== undefined && activePlanSlot !== undefined;
   // Each slot carries its own baseline's raw span diff. Absent on the local
   // path and while Compare is off → the Changes Only toggle hides.
-  const activeRawSpanDiff =
-    activeCompare === "previous-brief"
-      ? planPrevious?.rawDiff
-      : activeCompare === "last-review"
-        ? planLastReview?.rawDiff
-        : undefined;
+  const activeRawSpanDiff = activePlanSlot?.rawDiff;
   const localMarks = useQuery({
     ...localComparisonMarksQueryOptions(marksId ?? ""),
     enabled: comparisonPlan === undefined && Boolean(marksId),

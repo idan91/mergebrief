@@ -34,7 +34,7 @@ export interface IntentBarProps {
   jumpToGroup: (groupId: string) => void;
   /**
    * Change-group titles by id, for the go-to buttons' name and hover
-   * tooltip — a bare ↳ says nothing about WHERE it goes. An unknown id
+   * tooltip, a bare ↳ says nothing about WHERE it goes. An unknown id
    * keeps the plain label.
    */
   groupTitles?: Record<string, string> | undefined;
@@ -53,6 +53,45 @@ export interface IntentItemRowProps {
   ticketUrl?: string | undefined;
 }
 
+interface IntentSourceBadgeProps {
+  item: IntentItem;
+  linked: boolean;
+  sourceLabel: string;
+}
+
+/** Where the quote came from: a link, or "PR description" when there is no URL. */
+function IntentSourceBadge({
+  item,
+  linked,
+  sourceLabel,
+}: IntentSourceBadgeProps) {
+  const { t } = useTranslation();
+
+  if (linked) {
+    return (
+      <Badge className={styles["sourceBadge"]}>
+        <AccessibleLink
+          className={styles["source"]}
+          href={item.sourceUrl}
+          target="_blank"
+        >
+          {sourceLabel}
+        </AccessibleLink>
+      </Badge>
+    );
+  }
+  if (item.sourceUrl === "" && item.quote !== "") {
+    return (
+      <Badge className={styles["sourceBadge"]}>
+        <span className={styles["source"]}>
+          {t("brief.intent.prDescription")}
+        </span>
+      </Badge>
+    );
+  }
+  return null;
+}
+
 function IntentItemRow({
   item,
   jumpToGroup,
@@ -66,7 +105,7 @@ function IntentItemRow({
     ? t("brief.intent.ticket")
     : t("brief.intent.source");
   // ids-multi disambiguation: a visible id only where the ambiguity
-  // exists — claims carrying several groups.
+  // exists, claims carrying several groups.
   const multiGroup = item.groupIds.length > 1;
   return (
     <li className={styles["item"]}>
@@ -81,23 +120,11 @@ function IntentItemRow({
             {item.quote !== "" ? (
               <q className={styles["quote"]}>{item.quote}</q>
             ) : null}
-            {linked ? (
-              <Badge className={styles["sourceBadge"]}>
-                <AccessibleLink
-                  className={styles["source"]}
-                  href={item.sourceUrl}
-                  target="_blank"
-                >
-                  {sourceLabel}
-                </AccessibleLink>
-              </Badge>
-            ) : item.sourceUrl === "" && item.quote !== "" ? (
-              <Badge className={styles["sourceBadge"]}>
-                <span className={styles["source"]}>
-                  {t("brief.intent.prDescription")}
-                </span>
-              </Badge>
-            ) : null}
+            <IntentSourceBadge
+              item={item}
+              linked={linked}
+              sourceLabel={sourceLabel}
+            />
           </span>
         ) : null}
       </span>
@@ -201,11 +228,9 @@ function IntentBucket({
 }
 
 /**
- * The ticket-gated intent bar: a full-width instrument row beneath the capped
- * summary. The header is ALWAYS visible with neutral, symmetric bucket counts;
- * the body is collapsed by default and NEVER auto-expands — auto-open on model
- * inference is the anchoring this design exists to prevent. Broad/none sources
- * render the same quiet bar with a single unavailability line.
+ * Keep the neutral bucket counts visible and the body initially collapsed.
+ * Never auto-expand from model inference, which could anchor the reviewer.
+ * Broad and absent intent sources show one quiet unavailability line.
  */
 export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
   function IntentBar({ intentCheck, jumpToGroup, groupTitles = {} }, ref) {
@@ -214,7 +239,7 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
     const sectionRef = useRef<HTMLElement>(null);
     const panelId = useId();
 
-    // Stable handle — `setOpen` and `sectionRef` are referentially fixed, so
+    // Stable handle, `setOpen` and `sectionRef` are referentially fixed, so
     // the empty dep array keeps the ref identity constant across renders.
     useImperativeHandle(
       ref,
@@ -273,7 +298,7 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
             <span className={styles["title"]}>{t("brief.intent.title")}</span>
             {available ? (
               <span className={styles["counts"]}>
-                {/* Every count stays neutral and uncolored — an alarm count
+                {/* Every count stays neutral and uncolored, an alarm count
                   reads exactly like the others; the register lives in the
                   body's caution lines, not here. */}
                 <span className={styles["count"]}>

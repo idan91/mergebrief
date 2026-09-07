@@ -23,7 +23,7 @@ export interface CopyButtonProps {
  * Icon button that copies `text` to the clipboard, with inline success/
  * failure feedback (icon + color + polite live-region announcement) that
  * resets after a moment. Feedback stays on the button itself so it works
- * inside any layout — including sticky headers — without a toast.
+ * inside any layout, including sticky headers, without a toast.
  */
 export function CopyButton({
   text,
@@ -43,7 +43,7 @@ export function CopyButton({
       await navigator.clipboard.writeText(text);
       onCopy?.(text);
     } catch {
-      // Clipboard denied or insecure context — surfaced via the button's
+      // Clipboard denied or insecure context, surfaced via the button's
       // own state, nothing else to recover.
       next = "failed";
     }
@@ -51,6 +51,13 @@ export function CopyButton({
     window.clearTimeout(resetTimer.current);
     resetTimer.current = window.setTimeout(() => setState("idle"), 1600);
   };
+
+  const announcementByState: Record<CopyState, string> = {
+    idle: "",
+    copied: t("shell.copied"),
+    failed: t("shell.copyFailed"),
+  };
+  const announcement = announcementByState[state];
 
   return (
     <IconButton
@@ -80,11 +87,7 @@ export function CopyButton({
       </svg>
       {/* Announce the outcome without moving focus. */}
       <span aria-live="polite" className="sr-only">
-        {state === "copied"
-          ? t("shell.copied")
-          : state === "failed"
-            ? t("shell.copyFailed")
-            : ""}
+        {announcement}
       </span>
     </IconButton>
   );

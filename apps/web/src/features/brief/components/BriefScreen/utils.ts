@@ -21,6 +21,7 @@ import type { ProgressTotals } from "../../utils/progress";
 import type {
   BriefChunk,
   ComparisonAvailability,
+  DiffLineKind,
   IntentCheck,
   RevisionNarrative,
   RevisionNarrativeArtifact,
@@ -28,7 +29,7 @@ import type {
 } from "../../types";
 import type { PostDraftOutcome } from "./useOwnDraftFlow";
 
-/** Typed placeholder for a plan slot that is absent — always `enabled: false`. */
+/** Typed placeholder for a plan slot that is absent, always `enabled: false`. */
 export function disabledComparisonQuery<T>(slot: string): ComparisonQuery<T> {
   return {
     queryKey: ["comparison-plan-disabled", slot],
@@ -37,7 +38,7 @@ export function disabledComparisonQuery<T>(slot: string): ComparisonQuery<T> {
 }
 
 /**
- * Total contiguous marked runs across the brief's chunks — the comparison
+ * Total contiguous marked runs across the brief's chunks, the comparison
  * overlay's jump-nav count. 0 without marks (overlay off or unavailable).
  */
 export function countComparisonRuns(
@@ -54,7 +55,7 @@ export function countComparisonRuns(
 
 /**
  * Per-group changed-since counts: DISTINCT member files with a nonempty entry
- * in the last-review marks. `undefined` without marks — no checkpoint means no
+ * in the last-review marks. `undefined` without marks, no checkpoint means no
  * marker, distinct from a checkpoint with zero changes. Mechanical marks only:
  * narrative/Delta text never decides the count.
  */
@@ -93,7 +94,7 @@ export function countIntentGaps(intentCheck: IntentCheck | undefined): number {
 }
 
 /**
- * Soft-gate line 2: count of precise intent TENSIONS — unacknowledged
+ * Soft-gate line 2: count of precise intent TENSIONS, unacknowledged
  * deviations plus claimed-but-unachieved. Acknowledged deviations are excluded:
  * the description already owns that reversal. Never part of the gate's OPEN
  * condition.
@@ -108,7 +109,7 @@ export function countIntentTensions(
 }
 
 /**
- * Which groups carry conversation threads — the TocBar's markers. Undefined
+ * Which groups carry conversation threads, the TocBar's markers. Undefined
  * when there is no conversation (or none of it landed on a chunk).
  */
 export function conversationGroupIds(
@@ -158,6 +159,15 @@ export function deriveBriefProgress(input: DeriveBriefProgressInput): number {
   return totalWork === 0 ? 0 : (done / totalWork) * 100;
 }
 
+/** The gutter sign of a diff row; hunk, context and note rows carry a space. */
+export const DIFF_LINE_SIGNS: Record<DiffLineKind, string> = {
+  add: "+",
+  del: "−",
+  ctx: " ",
+  hunk: " ",
+  note: " ",
+};
+
 export interface LocalComparisonIds {
   marksId: string | undefined;
   narrativeId: string | undefined;
@@ -172,13 +182,14 @@ export function resolveLocalComparisonIds(
   compare: CompareParam,
   comparisons: ComparisonAvailability | undefined,
 ): LocalComparisonIds {
+  const marksIdByCompare: Record<CompareParam, string | undefined> = {
+    "previous-brief": comparisons?.previousBrief?.marksId,
+    "last-review": comparisons?.lastReview?.marksId,
+    off: undefined,
+  };
+
   return {
-    marksId:
-      compare === "previous-brief"
-        ? comparisons?.previousBrief?.marksId
-        : compare === "last-review"
-          ? comparisons?.lastReview?.marksId
-          : undefined,
+    marksId: marksIdByCompare[compare],
     narrativeId:
       compare === "previous-brief"
         ? comparisons?.previousBrief?.narrativeId
@@ -195,7 +206,7 @@ export interface DiscriminatedNarrative {
 
 /**
  * An artifact's presence only means "something was fetched"; a skip stub is
- * narrative-unavailable with a knowable reason — discriminate on the kind.
+ * narrative-unavailable with a knowable reason, discriminate on the kind.
  */
 export function discriminateNarrativeArtifact(
   artifact: RevisionNarrativeArtifact | null,
@@ -209,7 +220,7 @@ export function discriminateNarrativeArtifact(
 /**
  * Batch "post my drafts, then mark ready" failure toast: honest counts prefix
  * and the explicit NOT-marked-ready suffix on every variant; guidance branches
- * on the stop-cause. Only `indeterminate` reads as may-have-posted — a
+ * on the stop-cause. Only `indeterminate` reads as may-have-posted, a
  * confident "not posted" there would invite a double-posting retry.
  */
 const BATCH_CAUSE_KEYS = {
@@ -282,11 +293,9 @@ export function resolveRiskEvidence(
 export const SCROLL_ABORT_EVENTS = ["wheel", "touchstart", "keydown"] as const;
 
 /**
- * Marks where the change content begins, directly below the brief's overview
- * blocks. The header observes this element to know the moment that content
- * reaches it, and collapses its title then. It is a behavioural attribute
- * that runtime code queries — never a styling or test hook — and it sits
- * outside both views so switching between them cannot unmount it.
+ * The header queries this boundary to collapse its title as content reaches it.
+ * Keep this behavioral marker outside both views so switching cannot unmount it.
+ * It is not a styling or test hook.
  */
 export const CONTENT_START_ATTR = "data-content-start";
 

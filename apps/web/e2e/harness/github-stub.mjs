@@ -34,13 +34,15 @@ function loadDiff(head8) {
   return entries.map((entry) => entry.patch).join("\n");
 }
 
+/** The request URL, whatever shape `fetch` was handed. */
+function readRequestUrl(input) {
+  if (typeof input === "string") return input;
+  if (input instanceof URL) return input.href;
+  return input.url;
+}
+
 globalThis.fetch = async (input, init) => {
-  const url =
-    typeof input === "string"
-      ? input
-      : input instanceof URL
-        ? input.href
-        : input.url;
+  const url = readRequestUrl(input);
   if (!url.startsWith("https://api.github.com")) {
     return realFetch(input, init);
   }
@@ -59,7 +61,7 @@ globalThis.fetch = async (input, init) => {
     const head = compare.groups.basehead.split("...")[1] ?? "";
     const diff = loadDiff(head.slice(0, 8));
     if (diff === undefined) {
-      // Unknown span head = the app compared against the wrong revision —
+      // Unknown span head = the app compared against the wrong revision,
       // fail loudly, never serve a plausible wrong diff.
       return jsonResponse({ message: "no fixture diff for that head" }, 404);
     }

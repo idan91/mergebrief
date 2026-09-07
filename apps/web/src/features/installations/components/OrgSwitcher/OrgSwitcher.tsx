@@ -11,6 +11,7 @@ import {
   switchInstallation,
 } from "../../queries";
 import { Button } from "@web/components/Button/Button";
+import { nextMenuFocusIndex } from "@web/utils/menuFocus";
 import { MenuItem } from "@web/components/MenuItem/MenuItem";
 import styles from "./OrgSwitcher.module.scss";
 
@@ -38,7 +39,7 @@ export function OrgSwitcher({ enabled }: OrgSwitcherProps) {
   const switching = useMutation({
     mutationFn: switchInstallation,
     onSuccess: () => {
-      // A tenant switch invalidates every piece of client state — queries AND
+      // A tenant switch invalidates every piece of client state, queries AND
       // the per-brief session stores. A hard navigation is the honest reset.
       reloadToPicker();
     },
@@ -79,15 +80,7 @@ export function OrgSwitcher({ enabled }: OrgSwitcherProps) {
   // Roving focus spans the org items PLUS the default-toggle item (last).
   const menuItemCount = items.length + 1;
   const roam = (from: number, key: string): void => {
-    const last = menuItemCount - 1;
-    const next =
-      key === "ArrowDown"
-        ? (from + 1) % menuItemCount
-        : key === "ArrowUp"
-          ? (from - 1 + menuItemCount) % menuItemCount
-          : key === "Home"
-            ? 0
-            : last;
+    const next = nextMenuFocusIndex(from, key, menuItemCount);
     itemRefs.current[next]?.focus();
   };
 
@@ -166,8 +159,8 @@ export function OrgSwitcher({ enabled }: OrgSwitcherProps) {
               </span>
             </MenuItem>
           ))}
-          {/* Menu-native checkbox item (never a form control inside role=menu)
-              — part of the same roving-focus set as the org items. */}
+          {/* Menu-native checkbox item (never a form control inside role=menu),
+             part of the same roving-focus set as the org items. */}
           <MenuItem
             checked={setDefault}
             className={styles["defaultToggle"]}

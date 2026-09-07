@@ -15,6 +15,17 @@ import { exceedsCap, parseCapPx } from "./utils";
 const CAP_FALLBACK_PX = 200;
 const ROOT_FONT_SIZE_FALLBACK_PX = 16;
 
+type ExpandableState = "fits" | "expanded" | "collapsed";
+
+function deriveExpandableState(
+  clipped: boolean,
+  expanded: boolean,
+): ExpandableState {
+  if (!clipped) return "fits";
+  if (expanded) return "expanded";
+  return "collapsed";
+}
+
 // csstype's CSSProperties has no `--*` index; a typed extension keeps the
 // custom property cast-free.
 interface ExpandableContentStyle extends CSSProperties {
@@ -33,7 +44,7 @@ export interface ExpandableContentProps {
 /**
  * Text clipped to `--expandable-content-text-cap` with a mask fade, an expand control, and
  * WCAG 2.4.11 focus-expands. The SSR default is `collapsed`, so fitting
- * content corrects to `fits` after hydration by dropping the control only —
+ * content corrects to `fits` after hydration by dropping the control only,
  * the clip itself never moves, which is what keeps the correction shift-free.
  */
 export function ExpandableContent({
@@ -87,7 +98,7 @@ export function ExpandableContent({
     return () => observer.disconnect();
   }, []);
 
-  const state = !clipped ? "fits" : expanded ? "expanded" : "collapsed";
+  const state = deriveExpandableState(clipped, expanded);
 
   // Rounded up: scrollHeight floors, and a fractional shortfall would clip
   // the last line's descenders once expanded.

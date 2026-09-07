@@ -3,6 +3,7 @@ import { useCallback, useMemo } from "react";
 import { Markdown } from "@web/components/Markdown/Markdown";
 import { estimateNarrativeCardHeight } from "../chunkHeightModel";
 import { useGroupWindow } from "../useGroupWindow";
+import { DIFF_LINE_SIGNS } from "../utils";
 import { categoryLabel, GroupViewKinds } from "../../../utils/viewModel";
 import type { BriefViewModel } from "../../../utils/viewModel";
 import { buildBriefViewModel } from "../../../utils/viewModel";
@@ -31,13 +32,13 @@ import styles from "./ChangesOnlyView.module.scss";
 export interface ChangesOnlyViewProps {
   /** The active baseline; `off` is normalized away before Changes Only renders. */
   compare: "previous-brief" | "last-review";
-  /** The full Brief at the selected head — owns the Change-group taxonomy. */
+  /** The full Brief at the selected head, owns the Change-group taxonomy. */
   brief: Brief;
   /** View model for the full Brief (group order, titles, categories). */
   model: BriefViewModel;
   /** The Revision narrative for Previous Brief, or null when it failed. */
   narrative: RevisionNarrative | null;
-  /** Full comparison marks — used to describe removed lines the diff can't show. */
+  /** Full comparison marks, used to describe removed lines the diff can't show. */
   marks: ComparisonMarks | null;
   /** Distinct skip reason when the narrative was deliberately not generated. */
   skipReason: RevisionNarrativeSkipReason | null;
@@ -45,8 +46,8 @@ export interface ChangesOnlyViewProps {
   delta: Brief | null;
   /**
    * The live span-diff descriptor for the ACTIVE compare baseline → selected
-   * head. Present only on the DB timeline path while a compare lens is active
-   * — it drives the "Show raw diff" toggle. Absent → just the summary.
+   * head. Present only on the DB timeline path while a compare lens is active,
+   * it drives the "Show raw diff" toggle. Absent → just the summary.
    */
   rawSpanDiff?: ComparisonQuery<string> | undefined;
 }
@@ -65,7 +66,7 @@ export function ChangesOnlyView(props: ChangesOnlyViewProps) {
     );
   if (props.rawSpanDiff === undefined) return summary;
   // Key on the LENS plus the addressed span so a lens switch or revision
-  // change remounts and resets to the summary — both lenses can resolve to
+  // change remounts and resets to the summary, both lenses can resolve to
   // the SAME span, and a lens switch is still a view change.
   return (
     <RawSpanDiff
@@ -91,7 +92,7 @@ function PreviousBriefChanges({
   skipReason,
 }: PreviousBriefChangesProps) {
   const { t } = useTranslation();
-  // Brief origin, not narrative content — so it renders independently of
+  // Brief origin, not narrative content, so it renders independently of
   // narrative availability, and stays hidden for anchored revisions,
   // always-regenerate instances, and briefs with no stamp.
   const restartNote =
@@ -200,7 +201,7 @@ interface WindowedNarrativeListProps {
 /**
  * Windowed narrative cards, same shape as the story pane's chunk column:
  * absolute cards in a totalSize column, explicit inline-size (absolute cards
- * have no intrinsic width). No jump registry — nothing navigates to a
+ * have no intrinsic width). No jump registry, nothing navigates to a
  * narrative card by id.
  */
 function WindowedNarrativeList({ brief, chunks }: WindowedNarrativeListProps) {
@@ -239,7 +240,7 @@ function WindowedNarrativeList({ brief, chunks }: WindowedNarrativeListProps) {
             ref={window.measureElement}
             style={{
               position: "absolute",
-              // `top`, never `transform` — see WindowedChunkList: transform
+              // `top`, never `transform`, see WindowedChunkList: transform
               // ancestors break the cards' sticky headers.
               insetBlockStart: item.start - window.scrollMargin,
               insetInlineStart: 0,
@@ -281,7 +282,7 @@ interface LastReviewChangesProps {
   delta: Brief | null;
 }
 
-/** The over-length muted line — shared by both compare lenses. */
+/** The over-length muted line, shared by both compare lenses. */
 function LengthGuidanceNote() {
   const { t } = useTranslation();
   return (
@@ -352,7 +353,7 @@ interface ReadonlyDiffProps {
   rows: DiffLine[];
 }
 
-/** Compact, read-only diff slice — no comment machinery (Changes Only is a read view). */
+/** Compact, read-only diff slice, no comment machinery (Changes Only is a read view). */
 function ReadonlyDiff({ rows }: ReadonlyDiffProps) {
   return (
     <div className={styles["diff"]}>
@@ -366,7 +367,7 @@ function ReadonlyDiff({ rows }: ReadonlyDiffProps) {
             {row.newLine ?? row.oldLine ?? ""}
           </span>
           <span>
-            {row.kind === "add" ? "+" : row.kind === "del" ? "−" : " "}
+            {DIFF_LINE_SIGNS[row.kind]}
             {row.content}
           </span>
         </div>
@@ -407,8 +408,8 @@ function countLines(ranges: LineRange[]): number {
 
 /**
  * The added/context rows for a narrative chunk, pulled from the full Brief's
- * head-coordinate diffs. Removed (prevHead-only) lines have no row at head —
- * the FE holds base→head diffs, not prevHead→head — so callers summarize
+ * head-coordinate diffs. Removed (prevHead-only) lines have no row at head,
+ * the FE holds base→head diffs, not prevHead→head, so callers summarize
  * those as a count instead.
  */
 function addedRowsForNarrativeChunk(

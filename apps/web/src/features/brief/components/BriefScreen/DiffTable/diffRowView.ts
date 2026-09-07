@@ -4,6 +4,7 @@ import {
   type ReviewComment,
 } from "@web/features/review/utils/comments";
 import { reviewCommentMatchesDiffLine } from "../../../utils/reviewComments";
+import { DIFF_LINE_SIGNS } from "../utils";
 import {
   type ChunkComparisonView,
   type ComparisonRowKind,
@@ -26,7 +27,7 @@ export interface DiffRowViewParams {
   dragIndexes: number[];
   activeRowIds: Set<string>;
   activeCommentAnchor: CommentAnchor | null;
-  /** Rows adopted by drafts that land on no rendered line — see below. */
+  /** Rows adopted by drafts that land on no rendered line, see below. */
   strandedRowIds: ReadonlyMap<string, string>;
 }
 
@@ -60,11 +61,9 @@ function resolveSideLine(
 }
 
 /**
- * A last-resort home for a draft whose lines this render shows nowhere: a
- * chunk's outer span covers the gaps BETWEEN its hunks, so a draft can attach
- * to the chunk and then match no row at all — invisible to the reviewer, and
- * an invisible draft is the same failure as a misplaced one. It adopts the
- * last row at or before its end line, or the chunk's first row.
+ * A chunk's outer span includes gaps between hunks, where drafts match no row.
+ * Keep those drafts visible on the last row at or before their end line,
+ * or on the chunk's first row when no earlier row exists.
  */
 export function resolveStrandedRows(
   chunk: BriefChunk,
@@ -87,7 +86,7 @@ export function resolveStrandedRows(
   return stranded;
 }
 
-/** Derives everything a commentable diff row needs to render. Pure — no DOM, no React. */
+/** Derives everything a commentable diff row needs to render. Pure, no DOM, no React. */
 export function getDiffRowView({
   line,
   index,
@@ -101,7 +100,7 @@ export function getDiffRowView({
   activeCommentAnchor,
   strandedRowIds,
 }: DiffRowViewParams): DiffRowView {
-  const sign = line.kind === "add" ? "+" : line.kind === "del" ? "−" : " ";
+  const sign = DIFF_LINE_SIGNS[line.kind];
   const id = rowId(chunk.id, index);
   const revRun = overlayActive ? comparisonView.runByRow.get(index) : undefined;
   const revMark = overlayActive ? comparisonView.marks.get(index) : undefined;
