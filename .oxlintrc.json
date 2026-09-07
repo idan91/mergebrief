@@ -44,11 +44,13 @@
     // reachable scroll containers (axe: scrollable-region-focusable).
     "jsx-a11y/no-noninteractive-tabindex": ["error", { "roles": ["region"] }],
     // One condition per ternary. Replacements, in order: a `Record<State,
-    // Value>` lookup, if/else, an early return. Warn, not error: 67
-    // pre-existing violations at the time this landed, and `pnpm lint`
-    // short-circuits, so erroring here would hide every later gate. Ratchet to
-    // "error" once the count reaches zero.
-    "no-nested-ternary": "warn",
+    // Value>` lookup, if/else, an early return.
+    "no-nested-ternary": "error",
+    // Loose equality never; `== null` stays legal for the wire shapes that
+    // carry null, converted at the boundary.
+    "eqeqeq": ["error", "always", { "null": "ignore" }],
+    // Blocks nest at most three deep inside a function; tests included.
+    "max-depth": ["error", { "max": 3 }],
     "typescript/no-explicit-any": "error",
     "typescript/consistent-type-imports": "error",
     "typescript/no-non-null-assertion": "error",
@@ -72,10 +74,10 @@
     "house/comment-run": ["error", { "maxContentLines": 4 }],
     "house/no-em-dash": "error",
     // Config enters at the composition root; the roots are listed in the
-    // overrides. Off until the last step of the lint stack flips it.
-    "house/no-process-env": "off",
-    // Off until the last step of the lint stack flips it on.
-    "house/no-conditional-spread": "off",
+    // overrides.
+    "house/no-process-env": "error",
+    // Conditional fields are assigned under an if, never spread.
+    "house/no-conditional-spread": "error",
     // Named exports only; the framework-required default exports are carved
     // out per-path in the overrides.
     "import/no-default-export": "error",

@@ -71,8 +71,8 @@ This file is the canonical repo-standards file; the root `CLAUDE.md` is a symlin
 - A function reads in one screen; about 60 lines is the signal to split, not a cap. A component whose logic sits above a wall of JSX splits into sub-components; a hook longer than one screen splits into sub-hooks or pure functions.
 - Blank lines separate a function's logical steps (parse, guard, act, respond).
 - No expression nests more than two calls; a compound boolean or computed return value gets a named const first.
-- No nested ternaries: one condition per ternary. Replacements in order: a `Record<State, Value>` lookup, if/else, an early return. `no-nested-ternary` moves to error as the lint stack lands.
-- Conditional fields are assigned, not spread. Declare the object with its unconditional fields, then assign the optional ones under an `if`; never `...(cond ? { x } : {})`. The house lint holds it once the lint stack lands.
+- No nested ternaries: one condition per ternary. Replacements in order: a `Record<State, Value>` lookup, if/else, an early return. `no-nested-ternary` holds it at error.
+- Conditional fields are assigned, not spread. Declare the object with its unconditional fields, then assign the optional ones under an `if`; never `...(cond ? { x } : {})`. `house/no-conditional-spread` holds it at error.
 
 ## Copy, logging and comments
 
