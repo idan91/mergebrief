@@ -35,6 +35,7 @@ import {
   buildAuthDeps,
   createKeyProvider,
   hashSha256Hex,
+  getRequestUrl,
 } from "./fixtures";
 
 // Not the harness: POST .../comments is on octokit's `triggersNotification`
@@ -117,12 +118,7 @@ function stubGitHub(cfg: StubConfig): StubCounts {
       input: string | URL | Request,
       init?: RequestInit,
     ): Promise<Response> => {
-      const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url;
+      const url = getRequestUrl(input);
       if (url.includes("/login/oauth/access_token")) {
         const i = counts.token++;
         return cfg.token

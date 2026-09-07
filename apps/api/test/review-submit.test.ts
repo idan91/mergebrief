@@ -34,6 +34,7 @@ import {
   buildAuthDeps,
   createKeyProvider,
   hashSha256Hex,
+  getRequestUrl,
 } from "./fixtures";
 
 // Octokit spaces notification-triggering review POSTs about 3s apart through shared
@@ -133,12 +134,7 @@ function stubGitHub(cfg: StubConfig): StubCounts {
       input: string | URL | Request,
       init?: RequestInit,
     ): Promise<Response> => {
-      const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url;
+      const url = getRequestUrl(input);
       if (url.includes("/login/oauth/access_token")) {
         const i = counts.token++;
         return cfg.token
@@ -972,12 +968,11 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
       token: () => tokenSuccess(),
       // Anchoring 422 → degradation retry hits an expired token (401) → one
       // refresh → the folded retry lands.
-      createReview: (call) =>
-        call === 0
-          ? anchoring422()
-          : call === 1
-            ? reviewStatus(401)
-            : reviewCreated(987003),
+      createReview: (call) => {
+        if (call === 0) return anchoring422();
+        if (call === 1) return reviewStatus(401);
+        return reviewCreated(987003);
+      },
     });
     await seedPullRequest(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);

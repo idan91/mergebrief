@@ -27,6 +27,7 @@ import {
   buildAuthDeps,
   createKeyProvider,
   hashSha256Hex,
+  getRequestUrl,
 } from "./fixtures";
 
 // Some cases make several full requests over the PGlite harness (double-POST,
@@ -142,12 +143,7 @@ function stubGitHub(cfg: StubConfig): StubCounts {
       input: string | URL | Request,
       init?: RequestInit,
     ): Promise<Response> => {
-      const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url;
+      const url = getRequestUrl(input);
       if (url.includes("/login/oauth/access_token")) {
         const i = counts.token++;
         return cfg.token
@@ -493,12 +489,11 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
     const counts = stubGitHub({
       repositories: () => repoOk(),
       token: () => tokenSuccess(),
-      graphql: (i) =>
-        i === 0
-          ? graphqlUnauthorized()
-          : i === 1
-            ? nodeIdGraphql(true)
-            : mutationGraphql(),
+      graphql: (call) => {
+        if (call === 0) return graphqlUnauthorized();
+        if (call === 1) return nodeIdGraphql(true);
+        return mutationGraphql();
+      },
     });
     await seedDraftPr(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
@@ -516,12 +511,11 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
     // resolve time (GitHub is now non-draft) and converges without mutating.
     stubGitHub({
       repositories: () => repoOk(),
-      graphql: (i) =>
-        i === 0
-          ? nodeIdGraphql(true)
-          : i === 1
-            ? mutationGraphql()
-            : nodeIdGraphql(false),
+      graphql: (call) => {
+        if (call === 0) return nodeIdGraphql(true);
+        if (call === 1) return mutationGraphql();
+        return nodeIdGraphql(false);
+      },
     });
     await seedDraftPr(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);

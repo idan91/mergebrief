@@ -25,32 +25,35 @@ import {
 } from "../validation/openaiStrict";
 import type { Effort, Generation } from "../contract/generation";
 
+/* oxlint-disable house/comment-run -- five adapter invariants, one of them the
+   no-secrets-in-errors rule, decide whether a change here is safe */
 /**
  * Codex CLI adapter: one `codex exec --json` process per attempt, JSONL
  * events on stdout, prompt via stdin.
  *
  * Invariants:
- * 1. The schema floor is hard — `--output-schema` is strict-decoding-level
+ * 1. The schema floor is hard, `--output-schema` is strict-decoding-level
  *    enforcement with UNVERIFIED edges; every answer still runs
  *    `runWithSchemaFloor`. The answer is the LAST completed `agent_message`,
- *    whose `text` is a JSON *string* — the floor's parse is the second parse
+ *    whose `text` is a JSON *string*, the floor's parse is the second parse
  *    of the double-parse quirk.
  * 2. Abort rejections propagate UNTOUCHED.
  * 3. Origin is honest within the static declaration: no JSONL event
  *    carries a model id and ModelRerouted has no JSONL counterpart, so a
- *    silent reroute is UNOBSERVABLE here — verification waits on the CLI's
+ *    silent reroute is UNOBSERVABLE here, verification waits on the CLI's
  *    JSONL gaining a model event. `model` stamps the configured id, or
  *    "codex-default" when the
  *    CLI's own configured default runs. Effort maps to
- *    `model_reasoning_effort` — the knob exists, so it IS echoed.
+ *    `model_reasoning_effort`, the knob exists, so it IS echoed.
  * 4. No secrets in errors: turn.failed/error carry free-form message
  *    strings (auth expiry, rate limits and refusals are NOT discriminated
- *    by type) — those strings are untrusted and are NEVER interpolated
+ *    by type), those strings are untrusted and are NEVER interpolated
  *    into GeneratorError messages; classification stays opaque with fixed
  *    text, and the full detail lives in local failure dumps only.
  * 5. Lockdown profile: `--sandbox read-only --skip-git-repo-check
- *    --ephemeral` — generation must neither write nor persist sessions.
+ *    --ephemeral`, generation must neither write nor persist sessions.
  */
+/* oxlint-enable house/comment-run */
 
 const CODEX_DEFAULT_MODEL_TOKEN = "codex-default";
 
@@ -99,7 +102,7 @@ export class CodexGenerator implements Generator {
       wireSchema = enumPreservingJsonSchema(req.schema);
       // The CLI forwards --output-schema to an OpenAI-lineage backend, whose
       // strict mode rejects optional properties ("'required' ... must include
-      // every key in properties") — send the all-required null-union variant
+      // every key in properties"), send the all-required null-union variant
       // and strip the stand-in nulls back out below (same shim as openaiCore).
       codexWireSchema = withAllRequired(wireSchema);
     } catch (error) {
@@ -177,12 +180,24 @@ export class CodexGenerator implements Generator {
   }
 }
 
+function describeCodexFailure(
+  run: HarnessRunResult,
+  lastAnswer: string | null,
+): string {
+  if (run.exitCode !== 0) {
+    const exitDetail = run.exitCode ?? `signal ${run.exitSignal ?? "unknown"}`;
+    return `failed (code ${exitDetail})`;
+  }
+  if (lastAnswer === null) return "exited without an agent answer";
+  return "produced an answer alongside a fatal event (drifted CLI)";
+}
+
 /** Map one finished codex run onto a floor attempt or a classified throw. */
 function interpretCodexRun(
   command: string,
   label: string,
   run: HarnessRunResult,
-  /** ORIGINAL (pre-`withAllRequired`) wire schema — drives the null strip. */
+  /** ORIGINAL (pre-`withAllRequired`) wire schema, drives the null strip. */
   wireSchema: Record<string, unknown>,
 ): { raw: string; invalidReason?: string; parsed?: unknown } {
   if (run.timedOut) {
@@ -195,7 +210,7 @@ function interpretCodexRun(
     const event = parseCodexLine(line);
     if (event === null) continue;
     if (event.kind === "agent-message") {
-      // LAST completed agent_message wins — earlier ones are narration.
+      // LAST completed agent_message wins, earlier ones are narration.
       lastAnswer = event.text;
     } else {
       sawFailureEvent = true;
@@ -203,18 +218,11 @@ function interpretCodexRun(
   }
 
   if (run.exitCode !== 0 || lastAnswer === null || sawFailureEvent) {
-    // turn.failed / error messages are free-form, undiscriminated strings
-    // (auth, rate limits and refusals all arrive this way) and untrusted —
-    // classification stays opaque with FIXED text; detail goes to dumps.
-    // A fatal in-band event voids any answer even on a drifted exit 0: the
-    // real CLI sets error_seen and exits 1, so 0 + turn.failed is a CLI we
-    // no longer understand.
-    const what =
-      run.exitCode !== 0
-        ? `failed (code ${run.exitCode ?? `signal ${run.exitSignal ?? "unknown"}`})`
-        : lastAnswer === null
-          ? "exited without an agent answer"
-          : "produced an answer alongside a fatal event (drifted CLI)";
+    // turn.failed messages are free-form untrusted strings, so classification
+    // stays opaque with FIXED text and detail goes to dumps. A fatal in-band
+    // event voids any answer even on exit 0: the real CLI exits 1, so a 0 with
+    // turn.failed is a CLI we no longer understand.
+    const what = describeCodexFailure(run, lastAnswer);
     throw new GeneratorError(
       GeneratorErrorKinds.OPAQUE,
       `${command} ${what} for ${label}${sawFailureEvent ? " after an in-band error event" : ""}`,
@@ -224,12 +232,10 @@ function interpretCodexRun(
   if (lastAnswer === "") {
     return { raw: "", invalidReason: `Empty agent answer for ${label}` };
   }
-  // The answer text is a JSON string of the payload (double-parse quirk).
-  // The null-union wire schema means a compliant model may emit null where
-  // the domain schema says "absent" — hand the floor a stripped CANDIDATE
-  // (still validated there; the floor stays the mechanism, openaiCore's
-  // exact posture). Malformed JSON falls back to raw so the floor reports
-  // the parse error itself.
+  // The answer text is a JSON string of the payload, the double-parse quirk.
+  // The null-union wire schema lets a compliant model emit null where the
+  // domain schema says absent, so hand the floor a stripped candidate. Malformed
+  // JSON falls back to raw so the floor reports the parse error itself.
   let candidate: unknown;
   try {
     candidate = JSON.parse(lastAnswer);
@@ -263,7 +269,7 @@ function parseCodexLine(line: string): CodexEvent | null {
     if (typeof item !== "object" || item === null) return null;
     if (Reflect.get(item, "type") !== "agent_message") return null;
     const text = Reflect.get(item, "text");
-    // Non-string text is envelope drift, not an answer — it must neither
+    // Non-string text is envelope drift, not an answer, it must neither
     // overwrite an earlier valid answer nor masquerade as an empty one.
     if (typeof text !== "string") return null;
     return { kind: "agent-message", text };

@@ -1,17 +1,20 @@
+/* oxlint-disable house/comment-run -- the orphan-sweep lifecycle and the FK it
+   depends on are the reason this boundary is safe to call concurrently */
 // The grant boundary. A `github_grant` row is the ONE holder of a GitHub
 // authorization's encrypted credential pair; `auth_session` and
 // `api_token` reference it by FK, so rotation lives HERE and both
 // presentation channels (cookie, Bearer) converge on it. Like
 // `session.ts`/`token.ts` this is pre-tenant: a grant belongs to a GitHub
-// user and spans installations — the installation binding stays on the
+// user and spans installations, the installation binding stays on the
 // referencing rows.
 //
-// Lifecycle: a grant dies with its LAST referent, in the same transaction —
+// Lifecycle: a grant dies with its LAST referent, in the same transaction,
 // every referent-deleting boundary calls `deleteOrphanedGrants` on the ids it
 // unlinked (module-internal, never on the `index.ts` surface). A concurrent
 // mint racing the last referent's delete resolves benignly in both
 // interleavings at the cost of one aborted transaction that retries clean;
 // do not "fix" it by dropping the FK.
+/* oxlint-enable house/comment-run */
 import { and, eq, inArray, notExists } from "drizzle-orm";
 import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
 import { apiToken } from "../schema/api-token";
@@ -21,13 +24,10 @@ import type { GrantRowId, Result, ValueOf } from "../types";
 
 export type GithubGrantRow = typeof githubGrant.$inferSelect;
 
-// ---------------------------------------------------------------------------
-// Refresh patch + rejection — the caller-driven refresh callback's contract.
-// The caller decrypts the stored refresh token, calls GitHub, and re-encrypts;
-// persistence only applies the resulting columns. `refreshExpiresAt` tracks the
-// rotating refresh token's own lifetime; what each channel does with it is the
-// caller's concern.
-// ---------------------------------------------------------------------------
+// The caller-driven refresh callback's contract: the caller decrypts the stored
+// refresh token, calls GitHub and re-encrypts, and persistence only applies the
+// resulting columns. `refreshExpiresAt` tracks the rotating refresh token's own
+// lifetime; what each channel does with it is the caller's concern.
 
 /** New encrypted-credential columns to persist after a successful rotation. */
 export interface GrantRefreshPatch {
@@ -39,7 +39,7 @@ export interface GrantRefreshPatch {
 
 /**
  * The caller's refresh failed (decrypt / GitHub rotation / re-encrypt). The
- * `reason` is opaque to persistence — it just signals "do not UPDATE"; the
+ * `reason` is opaque to persistence, it just signals "do not UPDATE"; the
  * caller acts on it per channel (delete the session / 401 the Bearer).
  */
 export interface GrantRefreshRejection {
@@ -78,25 +78,17 @@ export interface GrantAuth {
   /** Insert the grant row for a fresh GitHub authorization (login callback). */
   createGrant(input: GrantCreateInput): Promise<GithubGrantRow>;
   /**
-   * Plain read by id — how the worker resolves a job's `grant_id` reference
+   * Plain read by id, how the worker resolves a job's `grant_id` reference
    * into the ciphertext pair it lazily decrypts. Absence is a normal
    * `undefined`: the referencing session may have logged out (grant
    * orphan-cleaned) between enqueue and drain.
    */
   getGrant(grantId: GrantRowId): Promise<GithubGrantRow | undefined>;
   /**
-   * Serialized, single-use-refresh-token-safe rotation. ONE transaction:
-   * `SELECT … FOR UPDATE` the grant by id — which serializes concurrent
-   * refreshes across BOTH channels and every referent of this grant. Then:
-   *   - absent row → `NOT_FOUND` (the last referent vanished under us);
-   *   - **compare-and-swap**: `seenTokenCiphertext` is the access-token
-   *     ciphertext the caller observed BEFORE the failing GitHub call. If the
-   *     locked row's no longer matches, another request already rotated →
-   *     return the row AS-IS without calling `refresh` (no second exchange
-   *     against the now-consumed single-use refresh token);
-   *   - otherwise `refresh(lockedRow)` inside the lock; on ok apply the patch
-   *     (+ `updated_at`) and return the updated row; on rejection return
-   *     `REFRESH_REJECTED` with no write.
+   * Serialized rotation in ONE `SELECT … FOR UPDATE` transaction. No row gives
+   * `NOT_FOUND`; a `seenTokenCiphertext` mismatch means another request already
+   * rotated, so the row returns as-is rather than spending the consumed
+   * single-use refresh token; a rejection is `REFRESH_REJECTED` with no write.
    */
   refreshGrant(
     grantId: GrantRowId,
@@ -106,11 +98,10 @@ export interface GrantAuth {
     ) => Promise<Result<GrantRefreshPatch, GrantRefreshRejection>>,
   ): Promise<Result<GithubGrantRow, GrantAuthError>>;
   /**
-   * Delete the grant iff nothing references it — the compensation path for a
-   * login that created the grant but failed before the session insert (a
-   * never-referenced grant would otherwise linger forever; the lifecycle
-   * rule only cleans on referent DELETE). Safe to call on a referenced
-   * grant: it is a no-op. Returns rows deleted (0 or 1).
+   * Delete the grant iff nothing references it. This is the compensation path
+   * for a login that created a grant but failed before the session insert, since
+   * the lifecycle rule only cleans on referent DELETE. A referenced grant is a
+   * no-op. Returns rows deleted, 0 or 1.
    */
   deleteIfOrphaned(grantId: GrantRowId): Promise<number>;
 }
@@ -152,7 +143,7 @@ export function createGrantAuth(handle: AppDatabase): GrantAuth {
     async refreshGrant(grantId, seenTokenCiphertext, refresh) {
       return db.transaction(async (tx) => {
         // FOR UPDATE: serialize concurrent refreshes of THIS grant, across
-        // channels — GitHub refresh tokens are single-use, so a lost race
+        // channels, GitHub refresh tokens are single-use, so a lost race
         // burns the token.
         const locked = await tx
           .select()
@@ -176,7 +167,7 @@ export function createGrantAuth(handle: AppDatabase): GrantAuth {
 
         const patch = await refresh(row);
         if (!patch.ok) {
-          // The tx commits cleanly with NO write — the caller acts per channel.
+          // The tx commits cleanly with NO write, the caller acts per channel.
           return fail(
             GrantAuthErrorCodes.REFRESH_REJECTED,
             "github_grant refresh was rejected by the caller",
@@ -208,10 +199,16 @@ export function createGrantAuth(handle: AppDatabase): GrantAuth {
   };
 }
 
+function compareGrantIds(left: GrantRowId, right: GrantRowId): number {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
+}
+
 /**
  * Delete every grant in `grantIds` that no session or token references
- * anymore. MUST run on the same transaction that deleted the referents — a
- * grant dies with its last referent, atomically — hence the raw `AppDrizzle`
+ * anymore. MUST run on the same transaction that deleted the referents, a
+ * grant dies with its last referent, atomically, hence the raw `AppDrizzle`
  * executor. Module-internal: NOT re-exported from `index.ts`.
  */
 export async function deleteOrphanedGrants(
@@ -223,14 +220,11 @@ export async function deleteOrphanedGrants(
   }
   // De-dup (several referents may share one grant) + stable order so
   // concurrent callers acquire overlapping locks in the same sequence.
-  const unique = [...new Set(grantIds)].toSorted((a, b) =>
-    a < b ? -1 : a > b ? 1 : 0,
-  );
+  const unique = [...new Set(grantIds)].toSorted(compareGrantIds);
   // Lock the candidate grants FIRST: two transactions deleting DIFFERENT
-  // referents of one grant would otherwise each see the other's still-visible
-  // row under READ COMMITTED (write skew) and both keep the grant, orphaning
-  // it forever — nothing sweeps grants. Not reproducible on single-connection
-  // PGlite; verified against real Postgres.
+  // referents would each see the other's still-visible row under READ COMMITTED
+  // and both keep the grant, orphaning it forever. Not reproducible on
+  // single-connection PGlite; verified against real Postgres.
   await executor
     .select({ id: githubGrant.id })
     .from(githubGrant)

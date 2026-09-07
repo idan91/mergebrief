@@ -1,9 +1,7 @@
-// `GET /api/repos` — the CLI's owner/name → repoId resolution. The contract:
-// the installation∩user-access intersection from the pulls.ts allowed-set
-// machinery and its 60s cache (SHARED instance — one GitHub fetch serves both
-// endpoints inside the TTL); stringified repoIds; flat, unpaginated;
-// `no-store`; a GitHub failure is a 401/502, NEVER a DB-only fallback.
-// Bearer and cookie both authenticate (it lives under /api/*).
+// `GET /api/repos`, the CLI's owner/name to repoId resolution. The contract:
+// the installation and user-access intersection from the pulls.ts allowed-set
+// machinery and its shared 60s cache, stringified repoIds, flat, unpaginated,
+// no-store, and a GitHub failure answering 401 or 502, never a DB-only fallback.
 import { randomBytes } from "node:crypto";
 import {
   encryptToken,
@@ -31,6 +29,7 @@ import {
   buildAuthDeps,
   createKeyProvider,
   hashSha256Hex,
+  getRequestUrl,
 } from "./fixtures";
 
 const REPO_A = 42001;
@@ -80,12 +79,7 @@ function stubGitHub(cfg: StubConfig): StubCounts {
   const counts: StubCounts = { installationRepos: 0 };
   const fetchFn = vi.fn(
     async (input: string | URL | Request): Promise<Response> => {
-      const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url;
+      const url = getRequestUrl(input);
       if (
         url.includes("/user/installations/") &&
         url.includes("/repositories")
@@ -207,7 +201,7 @@ describe("GET /api/repos", () => {
     ]);
   });
 
-  it("authenticates via Bearer too (it lives under /api/*)", async () => {
+  it("authenticates via Bearer under the /api namespace", async () => {
     stubGitHub({
       installationRepos: () =>
         installationReposOk([{ id: REPO_A, full_name: "octo/hello" }]),
@@ -219,7 +213,7 @@ describe("GET /api/repos", () => {
     expect(body.repos).toHaveLength(1);
   });
 
-  it("SHARES the allowed-set cache with /api/pulls — one GitHub fetch inside the TTL", async () => {
+  it("shares the allowed-set cache with pulls, one fetch inside the TTL", async () => {
     const counts = stubGitHub({
       installationRepos: () =>
         installationReposOk([{ id: REPO_A, full_name: "octo/hello" }]),
@@ -244,7 +238,7 @@ describe("GET /api/repos", () => {
   // Long timeout: octokit's retry plugin retries the 500 with backoff before
   // the route sees the failure.
   it(
-    "fails closed on GitHub errors — 502, never a DB-derived listing",
+    "fails closed with 502 on GitHub errors, never a DB-derived listing",
     { timeout: 20_000 },
     async () => {
       stubGitHub({

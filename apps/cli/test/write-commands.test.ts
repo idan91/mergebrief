@@ -1,11 +1,7 @@
-// Write-command tests: payload plumbing (file / stdin / flags, with the
-// mutual-exclusion rule pinned), the ONE client-side shape check (the brief
-// span, exit 2), receipt passthrough byte-fidelity against the real app, the
-// commentsDegraded warning in both modes, and the exit-5 self-correction path
-// against REAL server validation.
-//
-// Long file timeout: octokit's write-path throttle spaces consecutive POSTs
-// ~3s, and several tests submit through the real app.
+// Write-command tests: payload plumbing with the mutual-exclusion rule pinned,
+// the one client-side shape check, receipt passthrough byte-fidelity, the
+// commentsDegraded warning, and the exit-5 self-correction path. The file
+// timeout is long because octokit's write throttle spaces POSTs about 3s.
 import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -33,6 +29,7 @@ import { ExitCodes } from "../src/exit";
 import { buildSubmitPayload, requireSpan } from "../src/commands/write";
 import { runCli, type CliDeps } from "../src/program";
 import { testLogger } from "./logging";
+import { getRequestUrl } from "./helpers";
 
 const KEY_REF = "SESSION_KEY_V1";
 const INSTALLATION_ID = 987654;
@@ -80,7 +77,7 @@ describe("buildSubmitPayload plumbing", () => {
     expect(buildSubmitPayload({})).toEqual({ outcome: "comment" });
   });
 
-  it("the brief span is the ONE client-side shape check (exit 2)", () => {
+  it("the brief span is the one client-side shape check, exit 2", () => {
     for (const [base, head] of [
       [undefined, undefined],
       [BASE, undefined],
@@ -102,7 +99,7 @@ describe("buildSubmitPayload plumbing", () => {
     expect(requireSpan(BASE, COMMIT)).toEqual({ base: BASE, head: COMMIT });
   });
 
-  it("-F and flags are mutually exclusive (defined precedence over silent merge)", () => {
+  it("-F and flags are mutually exclusive rather than silently merged", () => {
     expect(() =>
       buildSubmitPayload({ payload: { outcome: "comment" }, body: "x" }),
     ).toThrowError(/mutually exclusive/);
@@ -156,12 +153,7 @@ describe("write commands over the real api app", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: string | URL | Request): Promise<Response> => {
-        const url =
-          typeof input === "string"
-            ? input
-            : input instanceof URL
-              ? input.href
-              : input.url;
+        const url = getRequestUrl(input);
         if (
           url.includes("/user/installations/") &&
           url.includes("/repositories")
@@ -303,7 +295,7 @@ describe("write commands over the real api app", () => {
     expect(code).toBe(ExitCodes.OK);
   }
 
-  it("submit -F - (stdin) posts and passes the receipt through verbatim", async () => {
+  it("submit -F reads stdin and passes the receipt through verbatim", async () => {
     await seedPr();
     await login();
     const payload = JSON.stringify({ outcome: "comment", body: "looks fine" });
@@ -351,13 +343,13 @@ describe("write commands over the real api app", () => {
     });
   });
 
-  it("a missing span exits 2 before target resolution, even from a non-covered repo", async () => {
+  it("a missing span exits 2 before target resolution", async () => {
     await login();
     const token = await seedToken();
     const requested: string[] = [];
     const out: string[] = [];
     const err: string[] = [];
-    // The fetch boundary would FAIL resolution if reached — the usage error must
+    // The fetch boundary would FAIL resolution if reached, the usage error must
     // fire first, so this stub must never see an /api/repos request.
     const failingFetch: CliDeps["fetch"] = async (input, init) => {
       requested.push(input);
@@ -386,7 +378,7 @@ describe("write commands over the real api app", () => {
     expect(requested.filter((url) => url.includes("/api/repos"))).toEqual([]);
   });
 
-  it("invalid PR number exits 2 before target resolution, even from a non-covered repo", async () => {
+  it("an invalid PR number exits 2 before target resolution", async () => {
     await login();
     const token = await seedToken();
     const requested: string[] = [];
@@ -428,10 +420,10 @@ describe("write commands over the real api app", () => {
     expect(requested.filter((url) => url.includes("/api/repos"))).toEqual([]);
   });
 
-  it("server validation rejection maps to exit 5 (the self-correction path)", async () => {
+  it("server validation rejection maps to exit 5 on the self-correction path", async () => {
     await seedPr();
     await login();
-    // request-changes without a body — the server 400s deterministically.
+    // request-changes without a body, the server 400s deterministically.
     const result = await run([
       "submit",
       "7",

@@ -1,9 +1,7 @@
-// Disposition command tests: the risk operations (`risk dismiss|address|
-// reopen`, -F REQUIRED), `reclassify`, `outcome`, `thread resolve|unresolve`
-// and `ready` against the REAL api app. Risk ops pin the -F requirement and
-// the --reason mutual exclusion (exit 2) plus the human-only relay (403 →
-// exit 5); the rest pin receipts and the span/no-span split. The GitHub
-// GraphQL boundary is stubbed at global fetch (the api test pattern).
+// Disposition command tests against the REAL api app. Risk ops pin the -F
+// requirement, the --reason mutual exclusion and the human-only relay; the rest
+// pin receipts and the span versus no-span split. The GitHub GraphQL boundary is
+// stubbed at global fetch, following the api test pattern.
 import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -31,6 +29,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ExitCodes } from "../src/exit";
 import { runCli, type CliDeps } from "../src/program";
 import { testLogger } from "./logging";
+import { getRequestUrl } from "./helpers";
 
 const KEY_REF = "SESSION_KEY_V1";
 const INSTALLATION_ID = 987654;
@@ -97,12 +96,7 @@ function stubGitHub(graphql: readonly unknown[] = []): void {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: string | URL | Request): Promise<Response> => {
-      const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url;
+      const url = getRequestUrl(input);
       if (
         url.includes("/user/installations/") &&
         url.includes("/repositories")
@@ -312,7 +306,7 @@ describe("disposition commands over the real api app", () => {
     expect(result.err[0]).toContain("-F");
   });
 
-  it("risk dismiss --reason conflicts with a reason in the payload (exit 2)", async () => {
+  it("risk dismiss --reason conflicts with a payload reason, exit 2", async () => {
     await seedSessionedPr(harness.handle);
     await login();
     const withReason = JSON.stringify({
@@ -339,7 +333,7 @@ describe("disposition commands over the real api app", () => {
     expect(result.err[0]).toContain("--reason");
   });
 
-  it("risk dismiss --reason with a non-object payload exits 2 — nothing merged", async () => {
+  it("risk dismiss --reason on a non-object payload exits 2, nothing merged", async () => {
     await seedSessionedPr(harness.handle);
     await login();
     const bareArray = JSON.stringify([
@@ -370,7 +364,7 @@ describe("disposition commands over the real api app", () => {
     expect(result.err[0]).toContain("JSON object");
   });
 
-  it("risk ops relay the server's human-only refusal (exit 5)", async () => {
+  it("risk ops relay the server's human-only refusal as exit 5", async () => {
     await seedSessionedPr(harness.handle);
     await login();
     const dismissed = await run(
@@ -464,7 +458,7 @@ describe("disposition commands over the real api app", () => {
     });
   });
 
-  it("reclassify with an unknown category relays the 400 (exit 5)", async () => {
+  it("reclassify with an unknown category relays the 400 as exit 5", async () => {
     await seedSessionedPr(harness.handle);
     await login();
     const result = await run([
@@ -496,7 +490,7 @@ describe("disposition commands over the real api app", () => {
     expect(JSON.parse(result.out)).toEqual({ outcome: "request-changes" });
   });
 
-  it("thread resolve flips the thread over GitHub; receipt verbatim; no span taken", async () => {
+  it("thread resolve flips over GitHub with a verbatim receipt, no span", async () => {
     await seedSessionedPr(harness.handle);
     await login();
     stubGitHub([

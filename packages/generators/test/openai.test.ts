@@ -7,13 +7,13 @@ import { z } from "zod/v4";
 import { GeneratorError, GeneratorErrorKinds } from "../src/contract/errors";
 import { createOpenAiCore } from "../src/adapters/openai";
 import { createGenerator, Providers } from "../src/config/registry";
+import { getRequestUrl } from "./helpers";
 
 /**
- * Adapter-specific behavior on fetch-level fixtures: request construction
- * (strict json_schema, reasoning_effort), the 400-sniff no-knob discovery
- * with its instance-lifetime cache and origin gap, error-status
- * mapping, /models preflight arms, and the baseUrl escape hatch. Pipeline
- * conformance lives in openai.contract.test.ts.
+ * Adapter-specific behavior on fetch-level fixtures: request construction, the
+ * 400-sniff no-knob discovery with its instance-lifetime cache and origin gap,
+ * error-status mapping, /models preflight arms, and the baseUrl escape hatch.
+ * Pipeline conformance lives in openai.contract.test.ts.
  */
 
 const Schema = z.object({ ok: z.boolean() });
@@ -54,11 +54,6 @@ function jsonError(status: number, message: string): Response {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function getRequestUrl(input: Parameters<typeof fetch>[0]): string {
-  if (typeof input === "string") return input;
-  return input instanceof URL ? input.href : input.url;
 }
 
 function getRequestBody(init: RequestInit | undefined): string {
@@ -153,7 +148,7 @@ describe("OpenAiCompatibleCore request construction", () => {
 });
 
 describe("OpenAiCompatibleCore effort-knob discovery", () => {
-  it("retries once without reasoning_effort on a 400 naming it, and caches the gap", async () => {
+  it("retries without reasoning_effort on a 400 naming it and caches the gap", async () => {
     let calls = 0;
     const { generator, recorded } = await coreWith(() => {
       calls += 1;
@@ -234,11 +229,10 @@ describe("OpenAiCompatibleCore effort-retry classification boundary", () => {
 
 describe("OpenAiCompatibleCore mid-stream abort", () => {
   it("never accepts accumulated output from an aborted stream", async () => {
-    // Headers + a full valid payload arrive, THEN the caller aborts; if the
-    // SDK swallows the AbortError and ends the iterable, the accumulated
-    // (coincidentally valid) output must still be rejected as an abort.
-    // The stream is built INSIDE the fetch and aborts on first pull, so the
-    // abort demonstrably lands while generate() is consuming.
+    // Headers and a full valid payload arrive, THEN the caller aborts. If the
+    // SDK swallows the AbortError and ends the iterable, the coincidentally
+    // valid output must still be rejected as an abort. The stream aborts on
+    // first pull, so the abort lands while generate() is consuming.
     const controller = new AbortController();
     const fixtureFetch: typeof fetch = async (input) => {
       const models = modelsOk(getRequestUrl(input));
@@ -263,7 +257,7 @@ describe("OpenAiCompatibleCore mid-stream abort", () => {
             });
             return;
           }
-          // The consumer pulled the payload — abort NOW, mid-consumption,
+          // The consumer pulled the payload, abort NOW, mid-consumption,
           // then end cleanly (the swallow case the SDK can produce).
           controller.abort(new Error("mid-stream abort"));
           push({ choices: [{ index: 0, delta: {}, finish_reason: "stop" }] });
@@ -288,7 +282,7 @@ describe("OpenAiCompatibleCore mid-stream abort", () => {
         (error: unknown) => error,
       );
     // Abort-shaped, never a schema-floor success or failure. (The SDK class
-    // does not set .name — instanceof is the reliable check.)
+    // does not set .name, instanceof is the reliable check.)
     expect(
       caught instanceof APIUserAbortError ||
         (typeof caught === "object" &&
@@ -375,7 +369,7 @@ describe("OpenAiCompatibleCore truncated streams", () => {
         salvageFields: ["tags"],
       }),
     ).resolves.toEqual({ title: "t", tags: ["bugfix"] });
-    expect(calls).toBe(2); // retried — never salvaged the truncated first arm
+    expect(calls).toBe(2); // retried, never salvaged the truncated first arm
   });
 
   it.each(["length", "content_filter"])(
@@ -482,7 +476,7 @@ describe("OpenAiCompatibleCore statusless cause hygiene", () => {
 });
 
 describe("OpenAiCompatibleCore abort during knob discovery", () => {
-  it("keeps the abort when it lands with the discovery 400, and caches the gap", async () => {
+  it("keeps the abort landing with the discovery 400 and caches the gap", async () => {
     const controller = new AbortController();
     let calls = 0;
     const { generator, recorded } = await coreWith((body) => {
@@ -546,7 +540,7 @@ describe("openai preflight and registry entry", () => {
     const text = direct.error.issues.join("; ");
     expect(text).toContain("rejected");
     expect(text).not.toContain("SENTINEL");
-    // Deterministic — must stay down, never restart.
+    // Deterministic, must stay down, never restart.
     expect(direct.error.transient).toBeUndefined();
   });
 

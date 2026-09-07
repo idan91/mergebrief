@@ -146,13 +146,15 @@ async function buildApp(ciphertextOverride?: string): Promise<Hono<AuthzEnv>> {
   return app;
 }
 
+function deriveDeniedCode(status: number): githubModule.GitHubApiErrorCode {
+  if (status === 401) return GitHubApiErrorCodes.UNAUTHORIZED;
+  if (status === 404) return GitHubApiErrorCodes.NOT_FOUND;
+  return GitHubApiErrorCodes.REQUEST_FAILED;
+}
+
 function denied(status: number): Result<string, githubModule.GitHubApiError> {
-  const code =
-    status === 401
-      ? GitHubApiErrorCodes.UNAUTHORIZED
-      : status === 404
-        ? GitHubApiErrorCodes.NOT_FOUND
-        : GitHubApiErrorCodes.REQUEST_FAILED;
+  const code = deriveDeniedCode(status);
+
   return { ok: false, error: { code, status, message: "denied" } };
 }
 

@@ -1,9 +1,7 @@
-// Session-read command tests: passthrough byte-fidelity against the REAL api
-// app for the four Review Session reads (`session`, `marks`, `narrative`,
-// `context`), each span flag's usage error firing BEFORE any target
-// resolution, and 404 relays (exit 4). This file also establishes the
-// session seeding harness (brief + session row over PGlite) the later
-// session-write suites reuse.
+// Session-read command tests over the REAL api app: passthrough byte-fidelity
+// for the four Review Session reads, each span flag's usage error firing before
+// target resolution, and 404 relays. This file owns the session seeding harness
+// the later session-write suites reuse.
 import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -32,6 +30,7 @@ import { createApiClient } from "../src/client";
 import { ExitCodes } from "../src/exit";
 import { runCli, type CliDeps } from "../src/program";
 import { testLogger } from "./logging";
+import { getRequestUrl } from "./helpers";
 
 const KEY_REF = "SESSION_KEY_V1";
 const INSTALLATION_ID = 987654;
@@ -71,12 +70,7 @@ function stubGitHub(): void {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: string | URL | Request): Promise<Response> => {
-      const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url;
+      const url = getRequestUrl(input);
       if (
         url.includes("/user/installations/") &&
         url.includes("/repositories")
@@ -327,7 +321,7 @@ describe("session read commands over the real api app", () => {
     expect(requested.filter((url) => url.includes("/api/repos"))).toEqual([]);
   });
 
-  it("marks --json is verbatim passthrough for (baseline, head)", async () => {
+  it("marks --json is verbatim passthrough for a baseline and head span", async () => {
     await seedSessionedPr(harness.handle);
     await login();
     const wire = await referenceBody(
@@ -357,7 +351,7 @@ describe("session read commands over the real api app", () => {
     expect(result.err[0]).toContain("--baseline and --head");
   });
 
-  it("marks for an unknown span relays the 404 (exit 4)", async () => {
+  it("marks for an unknown span relays the 404 as exit 4", async () => {
     await seedSessionedPr(harness.handle);
     await login();
     const result = await run([
@@ -374,7 +368,7 @@ describe("session read commands over the real api app", () => {
     expect(result.err).toHaveLength(1);
   });
 
-  it("narrative --json is verbatim passthrough for (prevHead, head)", async () => {
+  it("narrative --json is verbatim passthrough for a prevHead span", async () => {
     await seedSessionedPr(harness.handle);
     await login();
     const wire = await referenceBody(

@@ -8,12 +8,12 @@ import {
 } from "./verdicts";
 
 /**
- * Report building: pure — no I/O, no process exit. The regression count is the
+ * Report building: pure, no I/O, no process exit. The regression count is the
  * ONLY automation surface; everything else is for a human reading the terminal
  * or pasting the markdown into a PR.
  */
 
-/** The slice of a property the report needs — `EvalProperty` and
+/** The slice of a property the report needs, `EvalProperty` and
  * `PairEvalProperty` both satisfy it; the report never calls `check`. */
 export interface PropertyDescriptor {
   id: string;
@@ -33,9 +33,9 @@ export interface CaseOutcome {
 }
 
 export const BillingKinds = {
-  /** Token-metered API — dollars computable when a price row exists. */
+  /** Token-metered API, dollars computable when a price row exists. */
   API: "api",
-  /** CLI adapters: no marginal cost, no meterable dollars — say so. */
+  /** CLI adapters: no marginal cost, no meterable dollars, say so. */
   SUBSCRIPTION: "subscription",
 } as const;
 export type BillingKind = ValueOf<typeof BillingKinds>;
@@ -125,7 +125,7 @@ export function buildReport(input: ReportInput): BuiltReport {
 }
 
 function buildCase(outcome: CaseOutcome): CaseReportEntry {
-  // A baseline id with no matching property must not vanish silently — that
+  // A baseline id with no matching property must not vanish silently, that
   // drops it from gating under a clean-looking report.
   const knownIds = new Set(outcome.properties.map((p) => p.id));
   const staleNotes = Object.keys(outcome.baseline?.properties ?? {})
@@ -200,7 +200,7 @@ function renderLines(
     }
     if (allUnbaselined) {
       // Characterization: without a comparison the pass counts ARE the
-      // result — render every property instead of one summary line.
+      // result, render every property instead of one summary line.
       lines.push(`  no baseline for this generator — characterization scores:`);
       for (const p of entry.properties) {
         lines.push(`  ${p.passes}/${p.runs}  ${p.id} — ${p.description}`);
@@ -225,23 +225,31 @@ function renderLines(
   lines.push(
     `${cases.length} case${cases.length === 1 ? "" : "s"}, ` +
       `${propertyCount} properties — ` +
-      (regressions > 0
-        ? `${regressions} REGRESSION${regressions === 1 ? "" : "S"}`
-        : anythingLoud
-          ? "no regressions (see lines above)"
-          : "no change vs baseline"),
+      describeRegressionOutcome(regressions, anythingLoud),
   );
   lines.push(renderCostLine(input));
   return lines;
 }
 
-/** Exported for the rebaseline path — cost is shown on EVERY spend. */
+function describeRegressionOutcome(
+  regressions: number,
+  anythingLoud: boolean,
+): string {
+  if (regressions > 0) {
+    const plural = regressions === 1 ? "" : "S";
+    return `${regressions} REGRESSION${plural}`;
+  }
+  if (anythingLoud) return "no regressions (see lines above)";
+  return "no change vs baseline";
+}
+
+/** Exported for the rebaseline path, cost is shown on EVERY spend. */
 export function renderCostLine(
   input: Pick<ReportInput, "key" | "billing" | "usage" | "costUsd">,
 ): string {
   if (input.billing.kind === BillingKinds.SUBSCRIPTION) {
     // The harness cannot verify which account the CLI authenticated with, so
-    // it must never assert "subscription" as fact — an env API key may be
+    // it must never assert "subscription" as fact, an env API key may be
     // billing a different account entirely.
     return `cost: billed to the ${input.key} CLI's authenticated account — check its usage page`;
   }

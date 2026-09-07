@@ -1,8 +1,7 @@
-// Read-command tests: passthrough byte-fidelity against the REAL api app
-// (pr list / pr meta / groups / conversation / diff), the TTY-vs-`--json`
-// split, `diff --json` rejection, and the `delta` union — both arms — over
-// controlled PR-meta bodies (the arms are pure CLI logic; the passthrough
-// tests cover the real wire).
+// Read-command tests: passthrough byte-fidelity against the REAL api app, the
+// TTY versus --json split, `diff --json` rejection, and both arms of the delta
+// union over controlled PR-meta bodies. The arms are pure CLI logic; the
+// passthrough tests cover the real wire.
 import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -32,6 +31,7 @@ import { ExitCodes } from "../src/exit";
 import { runDelta } from "../src/commands/read";
 import { runCli, type CliDeps } from "../src/program";
 import { testLogger } from "./logging";
+import { getRequestUrl } from "./helpers";
 
 const KEY_REF = "SESSION_KEY_V1";
 const INSTALLATION_ID = 987654;
@@ -90,12 +90,7 @@ function stubGitHub(): void {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: string | URL | Request): Promise<Response> => {
-      const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url;
+      const url = getRequestUrl(input);
       if (
         url.includes("/user/installations/") &&
         url.includes("/repositories")
@@ -299,7 +294,7 @@ describe("read commands over the real api app", () => {
     return createApiClient({ fetch: appFetch, baseUrl: BASE_URL, token });
   }
 
-  it("pr --json / pr <n> --json are byte-identical passthrough; TTY renders lines", async () => {
+  it("pr --json is byte-identical passthrough and TTY renders lines", async () => {
     await seedBriefedPr(harness.handle);
     await login();
 
@@ -358,7 +353,7 @@ describe("read commands over the real api app", () => {
     expect(result.out).toBe(wire.bodyText);
   });
 
-  it("diff rejects --json (exit 2) and passes the raw diff through otherwise", async () => {
+  it("diff rejects --json with exit 2 and passes the raw diff otherwise", async () => {
     await seedBriefedPr(harness.handle);
     await login();
 
@@ -399,7 +394,7 @@ describe("read commands over the real api app", () => {
     expect(unknown.err[0]).toContain('change group "nope"');
   });
 
-  it("delta with explicit --baseline/--head wraps the artifact verbatim; unmodeled 404 exits 4", async () => {
+  it("delta with explicit baseline and head wraps the artifact verbatim", async () => {
     await seedBriefedPr(harness.handle);
     const deltaBody = '{"artifactKind":"delta","changedGroups":[]}';
     const prRow = await createTenantRepository(
@@ -464,7 +459,7 @@ function sinkPair() {
   };
 }
 
-describe("delta checkpoint resolution (controlled PR-meta bodies)", () => {
+describe("delta checkpoint resolution over controlled PR-meta bodies", () => {
   function controlledClient(meta: unknown, deltaBody?: string) {
     return createApiClient({
       fetch: async (input) => {
@@ -490,7 +485,7 @@ describe("delta checkpoint resolution (controlled PR-meta bodies)", () => {
     briefAvailable: true,
   };
 
-  it("no checkpoint at all → {available:false, reason:'no-checkpoint'} (exit 0 arm)", async () => {
+  it("no checkpoint reports available false with reason no-checkpoint", async () => {
     const { out, io: sinks } = sinkPair();
     await runDelta(
       controlledClient({ ...READY_META, comparisons: {} }),
@@ -542,7 +537,7 @@ describe("delta checkpoint resolution (controlled PR-meta bodies)", () => {
     });
   });
 
-  it("resolved checkpoint → fetches (baseline, head) and wraps the artifact", async () => {
+  it("a resolved checkpoint fetches the span and wraps the artifact", async () => {
     const { out, io: sinks } = sinkPair();
     const body = '{"artifactKind":"delta"}';
     await runDelta(

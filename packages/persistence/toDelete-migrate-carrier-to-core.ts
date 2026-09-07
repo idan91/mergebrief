@@ -1,15 +1,7 @@
-// One-off data migration for the carrier -> core role rename. Rewrites kept
-// generations: `brief` and `delta` rows plus local artifact JSON
-// (*.brief.json, *.revchanges.json, *.delta.json). Idempotent — a second run
-// finds nothing
-// left to change. Delete at the OSS launch cutover.
-//
-// Run from the repo root with the app env loaded:
-//   set -a && . ./.env && set +a
-//   pnpm -C apps/worker exec tsx ../persistence/toDelete-migrate-carrier-to-core.ts [out-dir]
-//
-// [out-dir] defaults to MERGEBRIEF_OUT_DIR, then tools/categorizer/out.
-// Without a resolvable DATABASE_URL the DB pass is skipped.
+// One-off idempotent migration for the carrier to core role rename, over kept
+// brief and delta rows plus their local artifact JSON; delete at the OSS cutover.
+// Run from the repo root with the app env loaded (`set -a && . ./.env && set +a`)
+// via `pnpm -C apps/worker exec tsx ../persistence/<this file> [out-dir]`.
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,7 +19,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 /**
  * Rename `carrierChunkIds` keys and flip `role: "carrier"` values, deep.
- * Only those two shapes move — prose fields that merely contain the word
+ * Only those two shapes move, prose fields that merely contain the word
  * "carrier" are left alone.
  */
 function migrateTree(value: unknown): Migrated {
@@ -130,15 +122,21 @@ async function migrateFiles(dir: string): Promise<void> {
   );
 }
 
+function deriveOutDir(
+  repoRoot: string,
+  outDirArg: string | undefined,
+  outDirEnv: string | undefined,
+): string {
+  if (outDirArg) return resolve(outDirArg);
+  if (outDirEnv) return resolve(outDirEnv);
+  return join(repoRoot, "tools/categorizer/out");
+}
+
 async function main(): Promise<void> {
   const repoRoot = resolve(fileURLToPath(import.meta.url), "../../..");
   const outDirArg = process.argv[2];
   const outDirEnv = process.env["MERGEBRIEF_OUT_DIR"];
-  const outDir = outDirArg
-    ? resolve(outDirArg)
-    : outDirEnv
-      ? resolve(outDirEnv)
-      : join(repoRoot, "tools/categorizer/out");
+  const outDir = deriveOutDir(repoRoot, outDirArg, outDirEnv);
 
   await migrateFiles(outDir);
 

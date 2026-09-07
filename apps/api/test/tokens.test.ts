@@ -30,6 +30,7 @@ import {
   buildAuthDeps,
   createKeyProvider,
   hashSha256Hex,
+  getRequestUrl,
 } from "./fixtures";
 
 const REPO_A = 42001;
@@ -114,12 +115,7 @@ function stubGitHub(cfg: StubConfig): StubCounts {
   };
   const fetchFn = vi.fn(
     async (input: string | URL | Request): Promise<Response> => {
-      const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url;
+      const url = getRequestUrl(input);
       if (url.includes("/login/oauth/access_token")) {
         const i = counts.token++;
         return cfg.token

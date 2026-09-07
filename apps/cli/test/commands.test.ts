@@ -1,8 +1,7 @@
-// Command tests over the REAL api Hono app (the injected-fetch boundary:
-// `app.request` is fetch-shaped) on PGlite — true integration, no network,
-// no mock drift. Assertions live on the contract surface: captured stdout /
-// stderr + exit code, passthrough byte-fidelity, and the repos cache's
-// self-healing triggers.
+// Command tests over the REAL api Hono app on PGlite: true integration, no
+// network, no mock drift. Assertions live on the contract surface, meaning
+// captured stdout and stderr, exit code, passthrough byte-fidelity, and the
+// repos cache's self-healing triggers.
 import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync, readFileSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -24,6 +23,7 @@ import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ExitCodes } from "../src/exit";
 import { testLogger } from "./logging";
+import { getRequestUrl } from "./helpers";
 import { runCli, type CliDeps } from "../src/program";
 
 const KEY_REF = "SESSION_KEY_V1";
@@ -65,12 +65,7 @@ function stubGitHub(
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: string | URL | Request): Promise<Response> => {
-      const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url;
+      const url = getRequestUrl(input);
       if (
         url.includes("/user/installations/") &&
         url.includes("/repositories")
@@ -221,7 +216,7 @@ describe("mergebrief commands over the real api app", () => {
     expect(readFileSync(configPath, "utf8")).toContain(token);
   });
 
-  it("auth login rejects a non-mergebrief paste as usage (exit 2, empty stdout)", async () => {
+  it("auth login rejects a non-mergebrief paste as exit 2 with empty stdout", async () => {
     const { deps: d, io } = deps({ readStdin: async () => "ghp_not_ours\n" });
     const code = await runCli(
       ["auth", "login", "--base-url", BASE_URL, "--json"],
@@ -232,7 +227,7 @@ describe("mergebrief commands over the real api app", () => {
     expect(io.err).toHaveLength(1);
   });
 
-  it("auth status models a dead token as DATA (exit 0, authenticated:false)", async () => {
+  it("auth status models a dead token as data with exit 0", async () => {
     stubGitHub(() => []);
     await login(await seedToken());
     // Sabotage: a well-formed but unknown token via the env override.
@@ -253,7 +248,7 @@ describe("mergebrief commands over the real api app", () => {
     });
   });
 
-  it("an unknown flag is a usage error (exit 2)", async () => {
+  it("an unknown flag is a usage error with exit 2", async () => {
     const { deps: d } = deps();
     expect(await runCli(["repos", "--bogus"], d)).toBe(ExitCodes.USAGE);
   });

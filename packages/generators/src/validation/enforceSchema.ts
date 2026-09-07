@@ -5,21 +5,14 @@ import { GeneratorError, GeneratorErrorKinds } from "../contract/errors";
 import { parseStructuredText, validationError } from "./jsonSchema";
 import { salvageDroppableEnums } from "./enumRecovery";
 
-/** Progress sink — defaults to no-op so callers stay usable in tests. */
+/** Progress sink, defaults to no-op so callers stay usable in tests. */
 type Logger = (message: string) => void;
 
 /**
- * The shared schema-floor pipeline: validate → salvage droppable enum slips
- * → ONE feedback retry → dump-and-throw. Every adapter runs generation
- * through this — native provider enforcement is a bonus layer on top, never
- * the mechanism.
- *
- * The injected `attempt` closure absorbs transport differences: an API
- * adapter turns feedback into an assistant/user message pair on the same
- * conversation; a CLI adapter stitches it into a fresh process's prompt.
- * `attempt` REJECTIONS pass through untouched — aborts are not generation
- * failures, and transport-level errors carry their own classification. Only
- * a resolved attempt whose output fails the schema enters salvage/retry.
+ * The schema floor every adapter runs generation through: validate, salvage
+ * droppable enum slips, ONE feedback retry, then dump and throw. Native
+ * provider enforcement is a bonus layer, never the mechanism. `attempt`
+ * rejections pass through untouched; only a resolved attempt enters salvage.
  */
 
 /** The failed output + validation error the retry attempt must present to the model. */
@@ -29,20 +22,17 @@ export interface FloorFeedback {
 }
 
 /**
- * One transport attempt's outcome. `parsed` is a fast-path CANDIDATE (e.g. a
- * CLI's natively-enforced structured output) — the pipeline still validates
- * it against the schema before returning it; native enforcement is never the
- * mechanism. It is typed `unknown` because it IS untrusted —
- * the schema decides. `invalidReason` lets a transport override the
- * pipeline's parse-error message when it knows better why the output is
- * unusable (e.g. "No structured output (stop_reason=max_tokens)").
+ * One transport attempt's outcome. `parsed` is an untrusted CANDIDATE, typed
+ * `unknown` because the schema decides; the pipeline validates it even when a
+ * CLI enforced structure natively. `invalidReason` lets a transport override
+ * the parse-error message when it knows why the output is unusable.
  */
 export interface FloorAttempt {
   raw: string;
   parsed?: unknown;
   invalidReason?: string;
   /**
-   * false when the raw output must not be salvage-eligible — e.g. a
+   * false when the raw output must not be salvage-eligible, e.g. a
    * truncated/content-filtered stream (finish_reason length/content_filter):
    * a droppable-enum salvage of INCOMPLETE output would return a fragment
    * as a completed generation. The raw still feeds retry feedback/dumps.
@@ -81,7 +71,7 @@ let dumpCounter = 0;
 /**
  * Persist a failed attempt's raw output so a schema failure is debuggable
  * after the fact (the Zod error alone doesn't show what the model actually
- * emitted). Best-effort — never throws.
+ * emitted). Best-effort, never throws.
  */
 function dumpFailure(
   failureDir: string,
@@ -112,7 +102,7 @@ function tryJsonParse(text: string): unknown {
 }
 
 /**
- * JSON.stringify that never throws — an untrusted candidate can be cyclic,
+ * JSON.stringify that never throws, an untrusted candidate can be cyclic,
  * hold a BigInt, or carry a throwing toJSON; the pipeline must still dump,
  * retry, and classify rather than reject.
  */
@@ -127,6 +117,12 @@ function safeStringify(value: unknown): string {
       return "[unserializable output]";
     }
   }
+}
+
+function deriveEffectiveRaw(raw: string, parsed: unknown): string {
+  if (raw !== "") return raw;
+  if (parsed !== undefined) return safeStringify(parsed);
+  return "";
 }
 
 export async function runWithSchemaFloor<S extends z.ZodType>(
@@ -145,7 +141,7 @@ export async function runWithSchemaFloor<S extends z.ZodType>(
     if (outcome.invalidReason !== undefined) {
       parseError = new Error(outcome.invalidReason);
     } else if (outcome.parsed !== undefined) {
-      // Candidate first — the floor is the enforcement mechanism, so a
+      // Candidate first, the floor is the enforcement mechanism, so a
       // transport-parsed value is validated like any other.
       const checked = args.schema.safeParse(outcome.parsed);
       if (checked.success) return checked.data;
@@ -168,14 +164,7 @@ export async function runWithSchemaFloor<S extends z.ZodType>(
       }
     }
 
-    // What the model actually produced, for dump/feedback: raw when the
-    // transport gave one, else the serialized candidate.
-    const effectiveRaw =
-      raw !== ""
-        ? raw
-        : outcome.parsed !== undefined
-          ? safeStringify(outcome.parsed)
-          : "";
+    const effectiveRaw = deriveEffectiveRaw(raw, outcome.parsed);
 
     // Salvage prefers the transport's parsed candidate (its raw may be an
     // envelope or decorated form that no longer JSON-parses to the payload)

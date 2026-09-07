@@ -1,8 +1,7 @@
-// Session-write command tests: the draft CRUD (`draft create|update|
-// reanchor|delete`) and `chunk-read` against the REAL api app — payload
-// plumbing (convenience flags XOR `-F`), the span requirement firing before
-// target resolution, receipt passthrough, and the relay posture on refusals
-// the server owns (human-only 403 → exit 5; validation 400 → exit 5).
+// Session-write command tests against the REAL api app: draft CRUD and
+// chunk-read, payload plumbing with convenience flags XOR -F, the span
+// requirement firing before target resolution, receipt passthrough, and the
+// relay posture on refusals the server owns.
 import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -31,6 +30,7 @@ import { ExitCodes } from "../src/exit";
 import { buildReanchorPayload } from "../src/commands/session-write/utils";
 import { runCli, type CliDeps } from "../src/program";
 import { testLogger } from "./logging";
+import { getRequestUrl } from "./helpers";
 
 const KEY_REF = "SESSION_KEY_V1";
 const INSTALLATION_ID = 987654;
@@ -68,12 +68,7 @@ function stubGitHub(): void {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: string | URL | Request): Promise<Response> => {
-      const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url;
+      const url = getRequestUrl(input);
       if (
         url.includes("/user/installations/") &&
         url.includes("/repositories")
@@ -273,7 +268,7 @@ describe("session write commands over the real api app", () => {
     "tighten this",
   ];
 
-  it("draft create with flags posts (side defaults to new); receipt verbatim", async () => {
+  it("draft create with flags posts with side new and a verbatim receipt", async () => {
     await seedSessionedPr(harness.handle);
     await login();
     const result = await run([
@@ -315,7 +310,7 @@ describe("session write commands over the real api app", () => {
     expect(session.out).toContain('"startSide":"old"');
   });
 
-  it("draft create rejects -F mixed with --start-side (exit 2)", async () => {
+  it("draft create rejects -F mixed with --start-side, exit 2", async () => {
     await seedSessionedPr(harness.handle);
     await login();
     const result = await run(
@@ -326,7 +321,7 @@ describe("session write commands over the real api app", () => {
     expect(result.err.join("")).toContain("mutually exclusive");
   });
 
-  it("buildReanchorPayload carries --start-side (reanchor itself is human-only)", () => {
+  it("buildReanchorPayload carries --start-side for a human-only reanchor", () => {
     expect(
       buildReanchorPayload({
         file: "src/a.ts",
@@ -363,7 +358,7 @@ describe("session write commands over the real api app", () => {
     expect(draftIdOf(result.out)).toMatch(/^\d+$/);
   });
 
-  it("a -F payload reaches the server untouched — no side default injected", async () => {
+  it("a -F payload reaches the server untouched, no side default injected", async () => {
     await seedSessionedPr(harness.handle);
     await login();
     const payload = JSON.stringify({
@@ -384,7 +379,7 @@ describe("session write commands over the real api app", () => {
     expect(session.out).not.toContain('"side":"new"');
   });
 
-  it("draft reanchor rejects -F mixed with anchor flags (exit 2)", async () => {
+  it("draft reanchor rejects -F mixed with anchor flags, exit 2", async () => {
     await seedSessionedPr(harness.handle);
     await login();
     const result = await run(
@@ -407,7 +402,7 @@ describe("session write commands over the real api app", () => {
     expect(result.err[0]).toContain("mutually exclusive");
   });
 
-  it("draft create --start 0 exits 2 (positive integers only)", async () => {
+  it("draft create --start 0 exits 2, positive integers only", async () => {
     await seedSessionedPr(harness.handle);
     await login();
     const result = await run([
@@ -430,7 +425,7 @@ describe("session write commands over the real api app", () => {
     expect(result.err[0]).toContain("--start");
   });
 
-  it("draft create rejects -F mixed with convenience flags (exit 2)", async () => {
+  it("draft create rejects -F mixed with convenience flags, exit 2", async () => {
     await seedSessionedPr(harness.handle);
     await login();
     const result = await run(
@@ -498,7 +493,7 @@ describe("session write commands over the real api app", () => {
     expect(result.err).toHaveLength(1);
   });
 
-  it("a server validation rejection relays as exit 5 (self-correcting)", async () => {
+  it("a server validation rejection relays as a self-correcting exit 5", async () => {
     await seedSessionedPr(harness.handle);
     await login();
     // Flags without a body → createDraftSchema 400s deterministically.
@@ -555,7 +550,7 @@ describe("session write commands over the real api app", () => {
     expect(draftIdOf(filed.out)).toBe(draftId);
   });
 
-  it("draft update rejects -F mixed with --body (exit 2)", async () => {
+  it("draft update rejects -F mixed with --body, exit 2", async () => {
     await seedSessionedPr(harness.handle);
     await login();
     const result = await run(
@@ -578,7 +573,7 @@ describe("session write commands over the real api app", () => {
     expect(result.err[0]).toContain("mutually exclusive");
   });
 
-  it("draft reanchor relays the server's human-only refusal (exit 5)", async () => {
+  it("draft reanchor relays the server's human-only refusal as exit 5", async () => {
     await seedSessionedPr(harness.handle);
     await login();
     const created = await run([
@@ -610,7 +605,7 @@ describe("session write commands over the real api app", () => {
     expect(result.err[0]).toContain("403");
   });
 
-  it("draft delete relays the server's human-only refusal (exit 5)", async () => {
+  it("draft delete relays the server's human-only refusal as exit 5", async () => {
     await seedSessionedPr(harness.handle);
     await login();
     const created = await run([
@@ -636,7 +631,7 @@ describe("session write commands over the real api app", () => {
     expect(result.err[0]).toContain("403");
   });
 
-  it("chunk-read marks read by default and --unread flips it; receipts verbatim", async () => {
+  it("chunk-read marks read by default and --unread flips it", async () => {
     await seedSessionedPr(harness.handle);
     await login();
     const marked = await run(["chunk-read", "7", "chunk-1", ...SPAN, "--json"]);
@@ -659,7 +654,7 @@ describe("session write commands over the real api app", () => {
     });
   });
 
-  it("chunk-read rejects --read with --unread (exit 2)", async () => {
+  it("chunk-read rejects --read with --unread, exit 2", async () => {
     await seedSessionedPr(harness.handle);
     await login();
     const result = await run([

@@ -6,6 +6,7 @@ import {
   type GeneratorContractHarness,
 } from "./contract";
 import { createOpenAiCore } from "../src/adapters/openai";
+import { getRequestUrl } from "./helpers";
 
 /**
  * The shared Generator conformance suite against FETCH-LEVEL fixtures: a
@@ -36,11 +37,6 @@ function sseBody(content: string, refusal?: string): string {
 
 interface RecordedRequest {
   messages: { role: string; content: string }[];
-}
-
-function getRequestUrl(input: Parameters<typeof fetch>[0]): string {
-  if (typeof input === "string") return input;
-  return input instanceof URL ? input.href : input.url;
 }
 
 function isRecordedMessage(

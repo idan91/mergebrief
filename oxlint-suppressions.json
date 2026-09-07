@@ -642,31 +642,9 @@
       "count": 1
     }
   },
-  "apps/api/test/auth.test.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 8
-    },
-    "house/test-title": {
-      "count": 12
-    }
-  },
   "apps/api/test/capabilities.test.ts": {
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "apps/api/test/collaborators.test.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 6
-    },
-    "house/test-title": {
-      "count": 11
     }
   },
   "apps/api/test/compose-catalog.ts": {
@@ -750,38 +728,14 @@
       "count": 1
     }
   },
-  "apps/api/test/repos.test.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 4
-    },
-    "house/test-title": {
-      "count": 2
-    }
-  },
   "apps/api/test/request-logging.test.ts": {
     "house/test-title": {
       "count": 1
     }
   },
-  "apps/api/test/resolve-thread.test.ts": {
-    "house/no-em-dash": {
-      "count": 5
-    },
-    "house/test-title": {
-      "count": 21
-    }
-  },
   "apps/api/test/session/attention.test.ts": {
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "apps/api/test/session/fixtures.ts": {
-    "house/no-em-dash": {
-      "count": 5
     }
   },
   "apps/api/test/session/payload.test.ts": {
@@ -904,39 +858,12 @@
       "count": 2
     }
   },
-  "apps/cli/test/closeout-commands.test.ts": {
-    "house/test-title": {
-      "count": 1
-    }
-  },
-  "apps/cli/test/commands.test.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 1
-    },
-    "house/test-title": {
-      "count": 4
-    }
-  },
   "apps/cli/test/diff-filter.test.ts": {
     "house/comment-run": {
       "count": 1
     },
     "house/no-em-dash": {
       "count": 4
-    },
-    "house/test-title": {
-      "count": 5
-    }
-  },
-  "apps/cli/test/disposition-commands.test.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 1
     },
     "house/test-title": {
       "count": 5
@@ -952,64 +879,12 @@
       "count": 1
     }
   },
-  "apps/cli/test/read-commands.test.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 1
-    },
-    "house/test-title": {
-      "count": 7
-    }
-  },
-  "apps/cli/test/repos-cache.test.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 5
-    },
-    "house/test-title": {
-      "count": 4
-    }
-  },
-  "apps/cli/test/session-read-commands.test.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/test-title": {
-      "count": 3
-    }
-  },
-  "apps/cli/test/session-write-commands.test.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 2
-    },
-    "house/test-title": {
-      "count": 13
-    }
-  },
   "apps/cli/test/units.test.ts": {
     "house/no-em-dash": {
       "count": 2
     },
     "house/test-title": {
       "count": 1
-    }
-  },
-  "apps/cli/test/write-commands.test.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 2
-    },
-    "house/test-title": {
-      "count": 7
     }
   },
   "apps/cli/tsup.config.ts": {
@@ -3540,14 +3415,6 @@
       "count": 14
     }
   },
-  "packages/generators/src/adapters/codex.ts": {
-    "house/comment-run": {
-      "count": 3
-    },
-    "house/no-em-dash": {
-      "count": 7
-    }
-  },
   "packages/generators/src/adapters/cursor.ts": {
     "house/comment-run": {
       "count": 5
@@ -3628,14 +3495,6 @@
     },
     "house/no-em-dash": {
       "count": 6
-    }
-  },
-  "packages/generators/src/validation/enforceSchema.ts": {
-    "house/comment-run": {
-      "count": 2
-    },
-    "house/no-em-dash": {
-      "count": 7
     }
   },
   "packages/generators/src/validation/enumRecovery.ts": {
@@ -3752,17 +3611,6 @@
       "count": 1
     }
   },
-  "packages/generators/test/openai.test.ts": {
-    "house/comment-run": {
-      "count": 2
-    },
-    "house/no-em-dash": {
-      "count": 4
-    },
-    "house/test-title": {
-      "count": 2
-    }
-  },
   "packages/generators/test/registry.test.ts": {
     "house/no-em-dash": {
       "count": 2
@@ -3793,17 +3641,6 @@
     },
     "house/no-em-dash": {
       "count": 3
-    }
-  },
-  "packages/generators/test/usage.test.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 7
-    },
-    "house/test-title": {
-      "count": 5
     }
   },
   "packages/github/src/auth/app.ts": {
@@ -3989,17 +3826,6 @@
       "count": 5
     }
   },
-  "packages/github/test/oauth.test.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 1
-    },
-    "house/test-title": {
-      "count": 4
-    }
-  },
   "packages/github/test/repo-file.test.ts": {
     "house/no-em-dash": {
       "count": 1
@@ -4128,14 +3954,6 @@
     },
     "house/no-em-dash": {
       "count": 10
-    }
-  },
-  "packages/persistence/src/auth/grant.ts": {
-    "house/comment-run": {
-      "count": 5
-    },
-    "house/no-em-dash": {
-      "count": 11
     }
   },
   "packages/persistence/src/auth/session.ts": {
@@ -4625,17 +4443,6 @@
       "count": 1
     }
   },
-  "packages/persistence/test/purge.test.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 17
-    },
-    "house/test-title": {
-      "count": 3
-    }
-  },
   "packages/persistence/test/review-session.test.ts": {
     "house/no-em-dash": {
       "count": 9
@@ -4688,14 +4495,6 @@
     },
     "house/test-title": {
       "count": 4
-    }
-  },
-  "packages/persistence/toDelete-migrate-carrier-to-core.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 2
     }
   },
   "packages/repo-config/src/constants.ts": {
@@ -4956,11 +4755,6 @@
   "tools/categorizer/eval/properties.ts": {
     "house/no-em-dash": {
       "count": 3
-    }
-  },
-  "tools/categorizer/eval/report.ts": {
-    "house/no-em-dash": {
-      "count": 8
     }
   },
   "tools/categorizer/eval/run.ts": {

@@ -34,6 +34,7 @@ import {
   SECRET,
   buildAuthDeps,
   createKeyProvider,
+  getRequestUrl,
 } from "./fixtures";
 
 vi.setConfig({ testTimeout: 20_000 });
@@ -91,13 +92,6 @@ function stringOrNull(value: unknown): string | null {
 }
 
 const CLI_AGENT = "mergebrief/0.1.0";
-
-function getRequestUrl(input: string | URL | Request): string {
-  if (typeof input === "string") {
-    return input;
-  }
-  return input instanceof URL ? input.href : input.url;
-}
 
 /** One private-write action: the whole suite acts through it. */
 async function readMark(

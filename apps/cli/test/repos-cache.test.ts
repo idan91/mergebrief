@@ -1,6 +1,6 @@
 // Repos command + cache tests over the REAL api app behind the injected
 // fetch, plus CONTROLLED bodies for the trigger table. Includes the
-// stream/exit invariant pin (exit ≠ 0 ⇒ empty stdout, ONE stderr line) — the
+// stream/exit invariant pin (exit ≠ 0 ⇒ empty stdout, ONE stderr line), the
 // revoked-token arm drives the repos command.
 import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync } from "node:fs";
@@ -26,6 +26,7 @@ import { ExitCodes } from "../src/exit";
 import { resolveRepoId, type RepoCacheDeps } from "../src/profile/repos";
 import { runCli, type CliDeps } from "../src/program";
 import { testLogger } from "./logging";
+import { getRequestUrl } from "./helpers";
 
 const KEY_REF = "SESSION_KEY_V1";
 const INSTALLATION_ID = 987654;
@@ -66,12 +67,7 @@ function stubGitHub(
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: string | URL | Request): Promise<Response> => {
-      const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url;
+      const url = getRequestUrl(input);
       if (
         url.includes("/user/installations/") &&
         url.includes("/repositories")
@@ -196,13 +192,13 @@ describe("mergebrief repos command + cache", () => {
     expect(code).toBe(ExitCodes.OK);
   }
 
-  it("repos --json is BYTE-IDENTICAL passthrough and populates the no-TTL cache", async () => {
+  it("repos --json is byte-identical and populates the no-TTL cache", async () => {
     stubGitHub(() => [{ id: REPO_A, full_name: "octo/hello" }]);
     const token = await seedToken();
     await login(token);
 
     // Count /api/repos hits at the CLI's OWN fetch boundary (the server has its
-    // separate 60s allowed-set cache — that boundary is the api suite's concern).
+    // separate 60s allowed-set cache, that boundary is the api suite's concern).
     let apiRepoHits = 0;
     const countingFetch: CliDeps["fetch"] = async (input, init) => {
       if (input.endsWith("/api/repos")) apiRepoHits += 1;
@@ -221,7 +217,7 @@ describe("mergebrief repos command + cache", () => {
     expect(first.io.out.join("")).toBe(reference.bodyText);
     expect(apiRepoHits).toBe(1);
 
-    // Second run: served from DISK — no /api/repos request at all (no TTL),
+    // Second run: served from DISK, no /api/repos request at all (no TTL),
     // and STILL byte-identical: the cache returns raw bytes, never
     // re-serialized.
     const second = deps({ fetch: countingFetch });
@@ -237,7 +233,7 @@ describe("mergebrief repos command + cache", () => {
     expect(apiRepoHits).toBe(2);
   });
 
-  it("exit ≠ 0 ⇒ stdout is EMPTY and stderr carries one line (revoked token → 3)", async () => {
+  it("a revoked token exits 3 with empty stdout and one stderr line", async () => {
     stubGitHub(() => []);
     const token = await seedToken();
     await login(token);
@@ -255,11 +251,10 @@ describe("mergebrief repos command + cache", () => {
   });
 
   describe("resolveRepoId self-healing triggers", () => {
-    // The triggers are CLI-side logic — drive them with a CONTROLLED
-    // /api/repos fetch so each server body is exact. (Against the real app
-    // the server's own 60s allowed-set cache masks a rename within its TTL —
-    // that boundary belongs to the api suite; the real-app path is covered by
-    // the command tests above.)
+    // The triggers are CLI-side logic, so drive them with a CONTROLLED
+    // /api/repos fetch and an exact server body each time. Against the real app
+    // the server's own 60s allowed-set cache masks a rename within its TTL, and
+    // that boundary belongs to the api suite.
     function controlled(
       bodies: () => { repos: { repoId: string; fullName: string }[] },
     ): {
@@ -295,7 +290,7 @@ describe("mergebrief repos command + cache", () => {
       expect(hits()).toBe(1);
     });
 
-    it("slug mismatch (rename) → refresh once → self-heal", async () => {
+    it("a renamed slug refreshes once and self-heals", async () => {
       let renamed = false;
       const { d, hits } = controlled(() => ({
         repos: [

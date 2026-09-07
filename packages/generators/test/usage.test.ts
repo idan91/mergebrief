@@ -10,13 +10,13 @@ import type { AnthropicStreamingClient } from "../src/adapters/anthropic";
 import { createOpenAiCore } from "../src/adapters/openai";
 import { createOpenRouterCore } from "../src/adapters/openrouter";
 import type { TokenUsage } from "../src/contract/generator";
+import { getRequestUrl } from "./helpers";
 
 /**
- * onUsage reporting: adapters with provider-reported usage
- * invoke the optional callback once per underlying request (retries
- * included — callers sum). CLI adapters never call it; the OpenAI-compatible
- * core asks the wire for usage ONLY when a callback is present, so existing
- * callers see zero wire change.
+ * onUsage reporting: adapters with provider-reported usage invoke the callback
+ * once per underlying request, retries included, and callers sum. CLI adapters
+ * never call it, and the OpenAI-compatible core asks the wire for usage only
+ * when a callback is present, so existing callers see zero wire change.
  */
 
 const Schema = z.object({ ok: z.boolean() });
@@ -34,7 +34,7 @@ afterEach(() => {
 });
 
 // ---------------------------------------------------------------------------
-// Anthropic: usage is on every final response — no wire change at all.
+// Anthropic: usage is on every final response, no wire change at all.
 // ---------------------------------------------------------------------------
 
 interface AnthropicWireUsage {
@@ -197,7 +197,7 @@ describe("anthropic usage reporting", () => {
     ]);
   });
 
-  it("reports once per attempt across a feedback retry — callers sum", async () => {
+  it("reports once per attempt across a feedback retry, callers sum", async () => {
     const seen: TokenUsage[] = [];
     const generator = new AnthropicGenerator(
       usageStubClient([
@@ -219,7 +219,7 @@ describe("anthropic usage reporting", () => {
     expect(seen[1]?.inputTokens).toBe(150);
   });
 
-  it("reports stream-event usage when the SDK's eager parse rejects the attempt", async () => {
+  it("reports stream-event usage when the SDK's eager parse rejects", async () => {
     const seen: TokenUsage[] = [];
     const generator = new AnthropicGenerator(
       usageStubClient([
@@ -248,7 +248,7 @@ describe("anthropic usage reporting", () => {
       onUsage: (usage) => seen.push(usage),
     });
     // The pathological attempt (e.g. max_tokens truncation) is the expensive
-    // one — its usage must not vanish from the sum.
+    // one, its usage must not vanish from the sum.
     expect(seen).toEqual([
       { inputTokens: 2000, outputTokens: 31999, cacheReadTokens: 1500 },
       { inputTokens: 2000, outputTokens: 20, cacheReadTokens: 0 },
@@ -258,7 +258,7 @@ describe("anthropic usage reporting", () => {
 
 // ---------------------------------------------------------------------------
 // OpenAI-compatible core: usage exists on the wire only when requested via
-// stream_options.include_usage — sent iff the caller passed onUsage.
+// stream_options.include_usage, sent iff the caller passed onUsage.
 // ---------------------------------------------------------------------------
 
 function sse(content: string, usage?: unknown, model?: string): Response {
@@ -298,12 +298,7 @@ async function openAiGenerator(
     failureDir: tempDir(),
     provider: "openai",
     fetch: async (input, init) => {
-      const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url;
+      const url = getRequestUrl(input);
       if (url.includes("/models/")) {
         return new Response(JSON.stringify({ id: "m" }), {
           status: 200,
@@ -338,7 +333,7 @@ describe("openai-core usage reporting", () => {
     expect(body["stream_options"]).toBeUndefined();
   });
 
-  it("requests usage and reports the final chunk's counts when onUsage is set", async () => {
+  it("reports the final chunk's counts when onUsage is set", async () => {
     const bodies: unknown[] = [];
     const seen: TokenUsage[] = [];
     const generator = await openAiGenerator(bodies, () =>
@@ -379,12 +374,12 @@ describe("openai-core usage reporting", () => {
     expect(seen).toEqual([]);
   });
 
-  it("ignores malformed usage from a compatible server instead of reporting NaN", async () => {
+  it("ignores malformed usage instead of reporting NaN", async () => {
     const bodies: unknown[] = [];
     const seen: TokenUsage[] = [];
     const generator = await openAiGenerator(bodies, () =>
       // A self-hosted "compatible" server emitting a usage object without
-      // numeric counts — the declared chunk shape is wire data, not truth.
+      // numeric counts, the declared chunk shape is wire data, not truth.
       sse('{"ok":true}', { prompt_tokens: "800", completion_tokens: null }),
     );
     await generator.generate({
@@ -426,7 +421,7 @@ describe("openai-core usage reporting", () => {
     ]);
   });
 
-  it("omits reasoningTokens when unreported or malformed — 0 must stay distinguishable from unreported", async () => {
+  it("omits reasoningTokens when unreported or malformed, keeping 0 distinct", async () => {
     const bodies: unknown[] = [];
     const seen: TokenUsage[] = [];
     const generator = await openAiGenerator(bodies, (call) =>
@@ -486,7 +481,7 @@ describe("openai-core usage reporting", () => {
 const SLUG = "test/model";
 
 describe("openrouter usage passthrough", () => {
-  it("forwards stream_options and reports the usage chunk through the transport", async () => {
+  it("forwards stream_options and reports the usage chunk", async () => {
     const bodies: Record<string, unknown>[] = [];
     const seen: TokenUsage[] = [];
     const result = await createOpenRouterCore({
@@ -494,12 +489,7 @@ describe("openrouter usage passthrough", () => {
       model: SLUG,
       failureDir: tempDir(),
       fetch: async (input, init) => {
-        const url =
-          typeof input === "string"
-            ? input
-            : input instanceof URL
-              ? input.href
-              : input.url;
+        const url = getRequestUrl(input);
         if (url.endsWith("/models")) {
           return new Response(
             JSON.stringify({

@@ -1,6 +1,6 @@
 // The Review Session suites' shared world: one tenant, one repo, one PR, and
 // the seeds that put Briefs and a previous session's work behind it. Shared
-// because the read suite and the write suite must agree on the fixture — a
+// because the read suite and the write suite must agree on the fixture, a
 // carry-over the read reports and a write writes is the same work.
 import { createHash, randomBytes } from "node:crypto";
 import {
@@ -29,11 +29,12 @@ import {
   brandInstallationId,
   brandRepoId,
   brandReviewerId,
+  getRequestUrl,
 } from "../fixtures";
 
 export const REPO_ID = 424242;
 
-/** Two flags firing on one file, and one change group — the carry inputs. */
+/** Two flags firing on one file, and one change group, the carry inputs. */
 export const BRIEF_BODY = JSON.stringify({
   summary: "the brief",
   changeGroups: [{ id: "g1", title: "t" }],
@@ -70,11 +71,6 @@ function jsonResponse(body: unknown, status = 200): Response {
       date: new Date().toUTCString(),
     },
   });
-}
-
-function getRequestUrl(input: string | URL | Request): string {
-  if (typeof input === "string") return input;
-  return input instanceof URL ? input.href : input.url;
 }
 
 /** The gate's only outward call: the repo access check. */
@@ -206,7 +202,7 @@ export async function seedBrief(
 
 /**
  * The durable hop between two Brief heads. Its one hunk sits above every
- * anchor the fixtures place, so the chain links and nothing moves — which is
+ * anchor the fixtures place, so the chain links and nothing moves, which is
  * what lets a carried decision settle rather than reopen.
  */
 export async function seedHop(
@@ -258,7 +254,7 @@ export async function seedHopInsideFlaggedRegion(
 
 /**
  * A second draft on the previous session, orphaning the same way the first
- * does — an attention list with more than one item to walk.
+ * does, an attention list with more than one item to walk.
  */
 export async function seedOrphanedDraft(
   handle: AppDatabase,
@@ -282,7 +278,7 @@ export async function seedOrphanedDraft(
 /**
  * A previous session holding work that cannot be re-placed: no `hunk_span`
  * row links the two heads, so the chain is untrustworthy and every anchor
- * orphans — an orphaned draft comment and a reopened disposition.
+ * orphans, an orphaned draft comment and a reopened disposition.
  */
 export async function seedPreviousWork(
   handle: AppDatabase,

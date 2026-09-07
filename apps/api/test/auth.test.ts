@@ -1,9 +1,7 @@
-// Reviewer-auth integration tests: `app.request()` against `createApp` over the
-// persistence PGlite harness, GitHub mocked at the HTTP boundary via a stubbed
-// global `fetch` — both `@octokit/oauth-app` and the user-scoped `Octokit` read
-// `globalThis.fetch` at call time, so stubbing there covers both.
-// Asserts NO GitHub token/secret leaks into any response beyond the opaque
-// session cookie.
+// Reviewer-auth integration tests against `createApp` over the PGlite harness.
+// GitHub is mocked at the HTTP boundary through a stubbed global fetch, which
+// covers both `@octokit/oauth-app` and the user-scoped Octokit. Asserts no
+// GitHub token or secret leaks into any response beyond the session cookie.
 import { randomBytes } from "node:crypto";
 import {
   decryptToken,
@@ -37,6 +35,7 @@ import {
   buildAuthDeps,
   createKeyProvider,
   hashSha256Hex,
+  getRequestUrl,
 } from "./fixtures";
 
 // ---------------------------------------------------------------------------
@@ -45,7 +44,7 @@ import {
 
 const OTHER_INSTALLATION_ID = 111222;
 
-// GitHub token plaintexts the stub hands back — asserted ABSENT from responses.
+// GitHub token plaintexts the stub hands back, asserted ABSENT from responses.
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
 const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
 const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
@@ -101,12 +100,7 @@ function stubGitHub(opts: StubOptions): ReturnType<typeof vi.fn> {
       input: string | URL | Request,
       _init?: RequestInit,
     ): Promise<Response> => {
-      const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url;
+      const url = getRequestUrl(input);
       if (url.includes("/login/oauth/access_token")) {
         return jsonResponse(opts.token);
       }
@@ -193,7 +187,7 @@ describe("reviewer auth routes", () => {
     await harness.close();
   });
 
-  it("a session with no installation resolves the owner scope — the fail-closed empty list, never 500", async () => {
+  it("resolves the owner scope to an empty list without an installation", async () => {
     const token = randomBytes(32).toString("base64url");
     const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
     const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
@@ -254,7 +248,7 @@ describe("reviewer auth routes", () => {
     expect(await countRows(harness, "auth_session")).toBe(0);
   });
 
-  it("happy callback → session row (both ciphertexts, refresh expiry) + rs_session cookie", async () => {
+  it("stores both ciphertexts, refresh expiry and the session cookie", async () => {
     stubGitHub({ token: tokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN) });
     const state = "matching-state-nonce";
     const before = Date.now();
@@ -352,7 +346,7 @@ describe("reviewer auth routes", () => {
     );
   });
 
-  it("falls back to the first accessible installation when the default is not accessible", async () => {
+  it("falls back to the first accessible installation", async () => {
     stubGitHub({
       token: tokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN),
       installations: [{ id: INSTALLATION_ID }], // OTHER not in the live set
@@ -376,7 +370,7 @@ describe("reviewer auth routes", () => {
     );
   });
 
-  it("POST /api/auth/logout deletes the session (and its orphaned grant) and clears the cookie", async () => {
+  it("logout deletes the session and its orphaned grant, clearing the cookie", async () => {
     const token = randomBytes(32).toString("base64url");
     const hash = hashSha256Hex(token);
     const sealed = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
@@ -412,7 +406,7 @@ describe("reviewer auth routes", () => {
     expect(setCookie).toMatch(/Max-Age=0|Expires=/i);
   });
 
-  it("refreshSessionToken rotates both ciphertexts and returns the fresh access token", async () => {
+  it("refresh rotates both ciphertexts and returns the fresh access token", async () => {
     stubGitHub({ token: tokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH) });
     // The observed access ciphertext still matches the stored row (no concurrent
     // rotation), so the compare-and-swap guard lets a real refresh proceed.
@@ -496,8 +490,8 @@ describe("reviewer auth routes", () => {
     expect(line?.["reviewerId"]).toBe(String(resolved.session.reviewerId));
   });
 
-  it("refreshSessionToken short-circuits on a stale CAS seed: no GitHub exchange, stored token returned, expiry mirrored", async () => {
-    // The token endpoint is stubbed to FAIL — if the orchestrator attempted a
+  it("a stale CAS seed returns the stored token with no GitHub exchange", async () => {
+    // The token endpoint is stubbed to FAIL, if the orchestrator attempted a
     // real exchange the test would fail, proving the short-circuit path.
     stubGitHub({
       token: {
@@ -545,7 +539,7 @@ describe("reviewer auth routes", () => {
     if (!result.ok) throw new Error("unreachable");
     // The stored (fresh) token comes back decrypted, no second exchange.
     expect(result.value.accessToken).toBe(ROTATED_ACCESS);
-    // The mirror runs on the short-circuit path too — the rotation may have
+    // The mirror runs on the short-circuit path too, the rotation may have
     // been won by the Bearer channel, which never mirrors.
     const sessionRow = await harness.raw("select expires_at from auth_session");
     expect(epochMs(sessionRow[0]?.["expires_at"])).toBe(
@@ -553,7 +547,7 @@ describe("reviewer auth routes", () => {
     );
   });
 
-  it("refreshSessionToken (cookie) returns NOT_FOUND when the session vanished mid-rotation", async () => {
+  it("cookie refresh returns NOT_FOUND when the session vanishes", async () => {
     stubGitHub({ token: tokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH) });
     const hash = await seedSession(harness.handle, kp, {
       expiresAt: new Date("2000-01-01T00:00:00Z"),
@@ -563,7 +557,7 @@ describe("reviewer auth routes", () => {
     const resolved = await createSessionAuth(harness.handle).findSession(hash);
     if (resolved === undefined) throw new Error("seeded session not found");
     // A minted token shares the grant, so the grant SURVIVES the logout and
-    // the rotation proceeds — only the session-expiry mirror can notice.
+    // the rotation proceeds, only the session-expiry mirror can notice.
     await createTokenAuth(harness.handle).mintToken({
       scope: WriteClassifications.EXTERNAL_WRITE,
       installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
@@ -584,7 +578,7 @@ describe("reviewer auth routes", () => {
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe("not-found");
-    // The rotation itself stood — it benefits the surviving token referent.
+    // The rotation itself stood, it benefits the surviving token referent.
     const grantRow = await harness.raw(
       "select gh_token_ciphertext from github_grant",
     );
@@ -597,7 +591,7 @@ describe("reviewer auth routes", () => {
     expect(decrypted.value).toBe(ROTATED_ACCESS);
   });
 
-  it("refreshSessionToken (bearer) denies a token revoked mid-rotation without deleting the row", async () => {
+  it("bearer refresh denies a token revoked mid-rotation and keeps the row", async () => {
     stubGitHub({ token: tokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH) });
     const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
     const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
@@ -642,7 +636,7 @@ describe("reviewer auth routes", () => {
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe("refresh-failed");
-    // Bearer posture: the row is NEVER deleted — its owner sees and revokes.
+    // Bearer posture: the row is NEVER deleted, its owner sees and revokes.
     const rows = await harness.raw("select revoked_at from api_token");
     expect(rows).toHaveLength(1);
     expect(rows[0]?.["revoked_at"]).not.toBeNull();

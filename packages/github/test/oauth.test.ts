@@ -1,8 +1,7 @@
-// OAuth helper mapping + sanitization. The `OAuthApp` is stubbed at the
-// injected interface. Asserts: octokit's `authentication` result maps to the
-// sanitized `OAuthTokens`; a missing refresh token (App without token
-// expiration) is a clear `EXPIRATION_NOT_ENABLED`; and a thrown
-// exchange/refresh error never leaks the code/token/secret it carried.
+// OAuth helper mapping and sanitization, with `OAuthApp` stubbed at the injected
+// interface. Asserts that octokit's authentication result maps to the sanitized
+// `OAuthTokens`, that a missing refresh token is a clear EXPIRATION_NOT_ENABLED,
+// and that a thrown exchange or refresh error never leaks what it carried.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   exchangeWebFlowCode,
@@ -50,7 +49,7 @@ function mockOAuthApp(overrides: {
 }
 
 describe("exchangeWebFlowCode", () => {
-  it("maps octokit's authentication result to OAuthTokens (ISO → Date)", async () => {
+  it("maps octokit's authentication result to OAuthTokens with Date expiry", async () => {
     const createToken = vi.fn().mockResolvedValue({
       authentication: {
         clientType: "github-app",
@@ -86,7 +85,7 @@ describe("exchangeWebFlowCode", () => {
     expect(result.error.code).toBe(OAuthErrorCodes.EXPIRATION_NOT_ENABLED);
   });
 
-  it("maps a thrown exchange error to a sanitized EXCHANGE_FAILED (no leaks)", async () => {
+  it("maps a thrown exchange error to a sanitized EXCHANGE_FAILED", async () => {
     const createToken = vi.fn().mockRejectedValue(leakyError());
     const app = mockOAuthApp({ createToken });
 
@@ -125,7 +124,7 @@ describe("refreshUserToken", () => {
     expect(refreshFn).toHaveBeenCalledWith({ refreshToken: REFRESH_TOKEN });
   });
 
-  it("maps a thrown refresh error to a sanitized REFRESH_FAILED (no leaks)", async () => {
+  it("maps a thrown refresh error to a sanitized REFRESH_FAILED", async () => {
     const refreshFn = vi.fn().mockRejectedValue(leakyError());
     const app = mockOAuthApp({ refreshToken: refreshFn });
 
@@ -140,7 +139,7 @@ describe("refreshUserToken", () => {
 });
 
 // `listUserInstallations` builds its own user-scoped Octokit, which reads the
-// global `fetch` at call time — so it is stubbed at the HTTP boundary.
+// global `fetch` at call time, so it is stubbed at the HTTP boundary.
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -149,6 +148,12 @@ function jsonResponse(body: unknown, status = 200): Response {
       date: new Date().toUTCString(),
     },
   });
+}
+
+function getRequestUrl(input: string | URL | Request): string {
+  if (typeof input === "string") return input;
+  if (input instanceof URL) return input.href;
+  return input.url;
 }
 
 describe("listUserInstallations", () => {
@@ -160,12 +165,7 @@ describe("listUserInstallations", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: string | URL | Request) => {
-        const url =
-          typeof input === "string"
-            ? input
-            : input instanceof URL
-              ? input.href
-              : input.url;
+        const url = getRequestUrl(input);
         expect(url).toContain("/user/installations");
         return jsonResponse({
           total_count: 2,
@@ -186,7 +186,7 @@ describe("listUserInstallations", () => {
     ]);
   });
 
-  it("maps a 401 to a sanitized UNAUTHORIZED (drives the caller's refresh)", async () => {
+  it("maps a 401 to a sanitized UNAUTHORIZED for the caller's refresh", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => jsonResponse({ message: "Bad credentials" }, 401)),

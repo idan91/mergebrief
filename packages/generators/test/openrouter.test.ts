@@ -13,6 +13,7 @@ import {
   type ContractTurn,
   type GeneratorContractHarness,
 } from "./contract";
+import { getRequestUrl } from "./helpers";
 
 /**
  * Fetch fixtures cover preflight plus transport assembly and shared conformance.
@@ -34,11 +35,6 @@ afterEach(() => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
-
-function getRequestUrl(input: Parameters<typeof fetch>[0]): string {
-  if (typeof input === "string") return input;
-  return input instanceof URL ? input.href : input.url;
-}
 
 function getRequestBody(init: RequestInit | undefined): string {
   const body = init?.body;

@@ -23,6 +23,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ExitCodes } from "../src/exit";
 import { runCli, type CliDeps } from "../src/program";
 import { testLogger } from "./logging";
+import { getRequestUrl } from "./helpers";
 
 const KEY_REF = "SESSION_KEY_V1";
 const INSTALLATION_ID = 987654;
@@ -59,12 +60,7 @@ function stubGitHub(): void {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: string | URL | Request): Promise<Response> => {
-      const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url;
+      const url = getRequestUrl(input);
       if (
         url.includes("/user/installations/") &&
         url.includes("/repositories")
@@ -243,7 +239,7 @@ describe("generate + collaborators over the real api app", () => {
     expect(typeof Reflect.get(parsed, "prNumber")).toBe("number");
   });
 
-  it("generate with a non-PR URL relays the 400 (exit 5)", async () => {
+  it("generate with a non-PR URL relays the 400 as exit 5", async () => {
     await login();
     const result = await run([
       "generate",

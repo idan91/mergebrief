@@ -1,9 +1,7 @@
-// Collaborators-surface integration tests: `app.request()` against `createApp`
-// over the PGlite harness. The installation-token GraphQL read enters through
-// the injected `InstallationGitHubPort` (stubbed — the wire→domain mapping is
-// the github package's suite); the gate's access check hits the global-fetch
-// stub. The viewerCanPush guard must deny with NO port call — GitHub denies
-// roster reads to non-push viewers, so must we.
+// Collaborators-surface integration tests against `createApp` over the PGlite
+// harness. The installation-token GraphQL read enters through the injected and
+// stubbed `InstallationGitHubPort`, and the gate's access check hits the
+// global-fetch stub. viewerCanPush must deny with NO port call.
 import { randomBytes } from "node:crypto";
 import type { ListRepoCollaboratorsInput, RepoCollaborators } from "github";
 import {
@@ -33,6 +31,7 @@ import {
   buildAuthDeps,
   createKeyProvider,
   hashSha256Hex,
+  getRequestUrl,
 } from "./fixtures";
 
 const REPO_ID = 424242;
@@ -41,7 +40,7 @@ const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
 const CTX = { installationId: brandInstallationId(BigInt(INSTALLATION_ID)) };
 
 // ---------------------------------------------------------------------------
-// Port stub — canned results, call log for cache/guard asserts.
+// Port stub, canned results, call log for cache/guard asserts.
 // ---------------------------------------------------------------------------
 
 function rosterFixture(): RepoCollaborators {
@@ -90,7 +89,7 @@ function stubPort(
 }
 
 // ---------------------------------------------------------------------------
-// GitHub HTTP stub (global fetch) — the gate's access check only.
+// GitHub HTTP stub (global fetch), the gate's access check only.
 // ---------------------------------------------------------------------------
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -119,12 +118,7 @@ function stubGitHub(repositories: (call: number) => Response): {
   const counts = { repositories: 0 };
   const fetchFn = vi.fn(
     async (input: string | URL | Request): Promise<Response> => {
-      const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url;
+      const url = getRequestUrl(input);
       if (url.includes("/repositories/")) {
         const i = counts.repositories++;
         return repositories(i);
@@ -226,7 +220,7 @@ describe("GET /api/repos/:repoId/collaborators", () => {
     expect(log.calls).toHaveLength(0);
   });
 
-  it("404s when the viewer has no repo access (gate collapse), port untouched", async () => {
+  it("404s without repo access and leaves the port untouched", async () => {
     const { port, log } = stubPort([okResult()]);
     stubGitHub(() => jsonResponse({ message: "denied" }, 404));
     const { cookie } = await seedSession(harness.handle, kp);
@@ -236,7 +230,7 @@ describe("GET /api/repos/:repoId/collaborators", () => {
     expect(log.calls).toHaveLength(0);
   });
 
-  it("404s for a read-only viewer WITHOUT calling the port (GitHub's own roster rule)", async () => {
+  it("404s for a read-only viewer without calling the port", async () => {
     const { port, log } = stubPort([okResult()]);
     stubGitHub(() => repoOk(false));
     const { cookie } = await seedSession(harness.handle, kp);
@@ -246,7 +240,7 @@ describe("GET /api/repos/:repoId/collaborators", () => {
     expect(log.calls).toHaveLength(0);
   });
 
-  it("returns the roster with no-store for a push viewer, fetched on the installation token", async () => {
+  it("returns the roster with no-store for a push viewer", async () => {
     const { port, log } = stubPort([okResult()]);
     stubGitHub(() => repoOk(true));
     const { cookie } = await seedSession(harness.handle, kp);
@@ -271,7 +265,7 @@ describe("GET /api/repos/:repoId/collaborators", () => {
     expect(log.calls[0]?.input).toEqual({ owner: "octo", repo: "hello" });
   });
 
-  it("shares the per-repo cache across viewers (one port call inside the TTL)", async () => {
+  it("shares the per-repo cache across viewers within the TTL", async () => {
     const { port, log } = stubPort([okResult()]);
     stubGitHub(() => repoOk(true));
     const { cookie } = await seedSession(harness.handle, kp);
@@ -282,7 +276,7 @@ describe("GET /api/repos/:repoId/collaborators", () => {
     const app = makeApp(port);
     const first = await getCollaborators(app, cookie);
     // A DIFFERENT push viewer (own session, own gate probe) rides the same
-    // roster entry — the point of the installation-token read.
+    // roster entry, the point of the installation-token read.
     const second = await getCollaborators(app, otherCookie);
     expect(first.status).toBe(200);
     expect(second.status).toBe(200);
@@ -291,7 +285,7 @@ describe("GET /api/repos/:repoId/collaborators", () => {
     expect(log.calls).toHaveLength(1);
   });
 
-  it("keeps a warm cache behind the push guard (read-only viewer 404s, no cache read)", async () => {
+  it("keeps a warm cache behind the push guard for a read-only viewer", async () => {
     const { port, log } = stubPort([okResult()]);
     // Gate probes arrive in request order: push viewer first, read-only second.
     stubGitHub((call) => repoOk(call === 0));
@@ -303,7 +297,7 @@ describe("GET /api/repos/:repoId/collaborators", () => {
     const app = makeApp(port);
     expect((await getCollaborators(app, cookie)).status).toBe(200);
     // The roster is now cached repo-wide. A read-only viewer must still be
-    // denied — the guard runs BEFORE the cache lookup, or the shared entry
+    // denied, the guard runs BEFORE the cache lookup, or the shared entry
     // would leak the roster to any read-access viewer.
     const denied = await getCollaborators(app, readOnlyCookie);
     expect(denied.status).toBe(404);
@@ -340,7 +334,7 @@ describe("GET /api/repos/:repoId/collaborators", () => {
     expect(failedRes.headers.get("cache-control")).toBe("no-store");
   });
 
-  it("does not cache failures (a later read retries the port)", async () => {
+  it("does not cache failures, so a later read retries the port", async () => {
     const failed = {
       ok: false as const,
       error: {
@@ -357,7 +351,7 @@ describe("GET /api/repos/:repoId/collaborators", () => {
     expect(log.calls).toHaveLength(2);
   });
 
-  it("traverses exactly ONE authz gate (single access probe on a cold read)", async () => {
+  it("traverses exactly ONE authz gate on a cold read", async () => {
     const { port } = stubPort([okResult()]);
     const { counts } = stubGitHub(() => repoOk(true));
     const { cookie } = await seedSession(harness.handle, kp);

@@ -169,18 +169,21 @@ async function authStatusBody(
   };
 }
 
+function describeAuthState(authenticated: boolean | null): string {
+  if (authenticated === true) return "authenticated";
+  if (authenticated === false) {
+    return "NOT authenticated (re-mint at <baseUrl>/settings)";
+  }
+  return "server unreachable";
+}
+
 function emitStatus(deps: CliDeps, json: boolean, body: AuthStatusBody): void {
   if (json) {
     deps.stdout(`${JSON.stringify(body)}\n`);
     return;
   }
   // TTY rendering, explicitly NON-contractual.
-  const auth =
-    body.server.authenticated === true
-      ? "authenticated"
-      : body.server.authenticated === false
-        ? "NOT authenticated (re-mint at <baseUrl>/settings)"
-        : "server unreachable";
+  const auth = describeAuthState(body.server.authenticated);
   deps.stdout(
     `profile ${body.profile} → ${body.baseUrl}\n` +
       `token: ${body.tokenConfigured ? "configured" : "missing"} · ${auth}` +
