@@ -79,6 +79,21 @@ const MODE_LABELS: Record<MarkdownTextareaMode, string> = {
   preview: "Preview",
 };
 
+interface PreviewPanelProps {
+  readonly renderPreview: ((value: string) => ReactNode) | undefined;
+  readonly value: string;
+}
+
+// Branches on the prop, not its return value: a custom preview that
+// legitimately renders null must not fall back to the default renderer.
+function PreviewPanel({ renderPreview, value }: PreviewPanelProps) {
+  const { t } = useTranslation();
+
+  if (renderPreview !== undefined) return renderPreview(value);
+  if (value.trim()) return <Markdown content={value} renderSuggestions />;
+  return <p className={styles["empty"]}>{t("shell.nothingToPreview")}</p>;
+}
+
 /**
  * The one markdown composing surface: Write/Preview tabs, a formatting
  * toolbar, and keyboard shortcuts around a plain controlled textarea.
@@ -176,14 +191,6 @@ export function MarkdownTextarea({
       {label}
     </label>
   );
-
-  // Branch on the prop, not its return value: a custom preview that
-  // legitimately renders null must not fall back to the default renderer.
-  const renderPreviewPanel = () => {
-    if (renderPreview !== undefined) return renderPreview(value);
-    if (value.trim()) return <Markdown content={value} renderSuggestions />;
-    return <p className={styles["empty"]}>{t("shell.nothingToPreview")}</p>;
-  };
 
   // Root-level shortcut scope, these must work from the textarea, the tabs,
   // AND the focused preview panel; a textarea-only handler would die the
@@ -387,7 +394,9 @@ export function MarkdownTextarea({
         // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex
         tabIndex={0}
       >
-        {facade.mode === "preview" ? renderPreviewPanel() : null}
+        {facade.mode === "preview" ? (
+          <PreviewPanel renderPreview={renderPreview} value={value} />
+        ) : null}
       </div>
     </div>
   );

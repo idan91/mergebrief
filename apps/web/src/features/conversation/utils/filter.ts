@@ -3,7 +3,7 @@
 // Facet counts exclude their own selection and follow recency reduction.
 // Latest-per-reviewer is the default; active verdict filters hide chipless DISMISSED reviews.
 import { toggleSet } from "@web/utils/collections";
-import { buildInlineThreads } from "./digest";
+import { buildInlineThreads, type DigestRow } from "./digest";
 import type { Mutable } from "types";
 import {
   ReviewVerdictStates,
@@ -323,15 +323,20 @@ export function countHiddenInlineThreads(
     ownThreadIds: NO_OWN_THREADS,
   }).values()) {
     for (const row of rows) {
-      if (row.kind === "bot-group") {
-        if (!filter.reviewers.has(row.author)) hidden += row.threads.length;
-        continue;
-      }
-      const author = row.thread.comments[0]?.author;
-      if (author === undefined || !matchesReviewer(author, filter)) hidden += 1;
+      hidden += countHiddenInRow(row, filter);
     }
   }
   return hidden;
+}
+
+/** Threads the reviewer filter removes from one inline row. */
+function countHiddenInRow(row: DigestRow, filter: ConversationFilter): number {
+  if (row.kind === "bot-group") {
+    return filter.reviewers.has(row.author) ? 0 : row.threads.length;
+  }
+  const author = row.thread.comments[0]?.author;
+  const shown = author !== undefined && matchesReviewer(author, filter);
+  return shown ? 0 : 1;
 }
 
 /** Whether anything is being filtered out right now. */

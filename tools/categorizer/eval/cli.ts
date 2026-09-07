@@ -39,19 +39,15 @@ import { persistRunBriefs } from "./specimens";
 import { withUsageSink } from "./usageSink";
 
 /**
- * `pnpm -C tools/categorizer eval` — the generation regression runner.
- *
- *   eval [--config <mergebrief.config.yaml>] [--case <id>] [--runs N]
- *        [--rebaseline] [--no-baseline] [--prices <prices.json>]
- *
- * Exit codes: 0 clean · 1 = ≥1 REGRESSION · 2 = config/usage error.
- * On-demand only, never wired into CI — every run is live API spend. Report
- * artifacts land in out/eval-report.{json,md}.
+ * `pnpm -C tools/categorizer eval`, the generation regression runner, taking
+ * --config, --case, --runs, --rebaseline, --no-baseline and --prices. Exit 0 is
+ * clean, 1 is at least one regression, 2 is a config or usage error. On-demand
+ * only, never wired into CI, every run is live API spend.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
 const CASES_DIR = join(here, "cases");
-/** Revision-pair source — one pair = TWO generations per run. */
+/** Revision-pair source, one pair = TWO generations per run. */
 const PAIRS_DIR = join(here, "pair-cases");
 const OUT_DIR = "out";
 /**
@@ -59,7 +55,7 @@ const OUT_DIR = "out";
  * the generations have to agree on effort.
  */
 const DEFAULT_EFFORT: Effort = "medium";
-/** Providers billed by subscription — no meterable marginal cost.
+/** Providers billed by subscription, no meterable marginal cost.
  * Construction is checked against the closed Provider vocabulary; lookup
  * takes the origin's provider string. */
 const SUBSCRIPTION_PROVIDERS: ReadonlySet<string> = new Set<Provider>([
@@ -76,17 +72,37 @@ export interface EvalArgs {
   rebaseline: boolean;
   /**
    * Characterization: run a generator key with NO committed baseline (a
-   * cross-model run) — skips the key preflight and the comparison; verdicts
+   * cross-model run), skips the key preflight and the comparison; verdicts
    * render as no-baseline. Never combinable with --rebaseline.
    */
   noBaseline: boolean;
   pricesPath: string;
   /**
-   * Vacuous-pass probe: pair cases run BOTH generations fresh — no anchor
+   * Vacuous-pass probe: pair cases run BOTH generations fresh, no anchor
    * view, no stitch. Anchoring-dependent properties MUST fail under this flag;
    * one that still passes is vacuous. Never combinable with --rebaseline.
    */
   pairFresh: boolean;
+}
+
+function parseRunsValue(value: string): Result<number, string> {
+  const runs = Number(value);
+  if (!Number.isInteger(runs) || runs < 1) {
+    return { ok: false, error: `--runs must be a positive integer` };
+  }
+  return { ok: true, value: runs };
+}
+
+function resolveValuedFlag(
+  flag: "--case" | "--runs" | "--prices",
+  value: string,
+): Result<Partial<EvalArgs>, string> {
+  if (flag === "--case") return { ok: true, value: { caseId: value } };
+  if (flag === "--prices") return { ok: true, value: { pricesPath: value } };
+
+  const runs = parseRunsValue(value);
+  if (!runs.ok) return runs;
+  return { ok: true, value: { runs: runs.value } };
 }
 
 export function parseEvalArgs(argv: string[]): Result<EvalArgs, string> {
@@ -114,15 +130,9 @@ export function parseEvalArgs(argv: string[]): Result<EvalArgs, string> {
       if (value === undefined || value.startsWith("-")) {
         return { ok: false, error: `${flag} needs a value` };
       }
-      if (flag === "--case") args.caseId = value;
-      else if (flag === "--prices") args.pricesPath = value;
-      else {
-        const runs = Number(value);
-        if (!Number.isInteger(runs) || runs < 1) {
-          return { ok: false, error: `--runs must be a positive integer` };
-        }
-        args.runs = runs;
-      }
+      const valued = resolveValuedFlag(flag, value);
+      if (!valued.ok) return valued;
+      Object.assign(args, valued.value);
     } else {
       return { ok: false, error: `unknown argument "${flag}"` };
     }
@@ -147,7 +157,7 @@ function loadEnv(): void {
   try {
     process.loadEnvFile(".env");
   } catch {
-    // no .env file — the key may still be set in the ambient environment
+    // no .env file, the key may still be set in the ambient environment
   }
 }
 
@@ -232,7 +242,7 @@ async function evaluateCase(
       progress(`  ${evalCase.id}: baseline written (${key})`);
     }
   }
-  // NONE: characterization — scores report with no comparison.
+  // NONE: characterization, scores report with no comparison.
   return {
     ok: true,
     value: {
@@ -278,7 +288,7 @@ async function main(): Promise<void> {
     ? BillingKinds.SUBSCRIPTION
     : BillingKinds.API;
 
-  // Load BOTH case sets unfiltered, then select — `--case` may name a single
+  // Load BOTH case sets unfiltered, then select, `--case` may name a single
   // OR a revision-pair case; an id in neither is the error.
   const allCases = await loadCases(CASES_DIR);
   if (!allCases.ok) {

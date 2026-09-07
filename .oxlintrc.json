@@ -32,6 +32,9 @@
   "rules": {
     "react-hooks/rules-of-hooks": "error",
     "react-hooks/exhaustive-deps": "error",
+    "react/jsx-no-constructed-context-values": "error",
+    "react/no-unstable-nested-components": "error",
+    "react/no-object-type-as-default-prop": "error",
     // Vite uses the automatic JSX runtime — no React import needed for JSX.
     "react/react-in-jsx-scope": "off",
     // div[role=status] is the standard WAI-ARIA live-region idiom; <output>
@@ -68,6 +71,9 @@
     "house/test-title": ["error", { "maxLength": 70 }],
     "house/comment-run": ["error", { "maxContentLines": 4 }],
     "house/no-em-dash": "error",
+    // Config enters at the composition root; the roots are listed in the
+    // overrides. Off until the last step of the lint stack flips it.
+    "house/no-process-env": "off",
     // Off until the last step of the lint stack flips it on.
     "house/no-conditional-spread": "off",
     // Named exports only; the framework-required default exports are carved
@@ -233,7 +239,9 @@
       "files": ["apps/web/src/**/*.tsx"],
       "rules": {
         "house/no-raw-button": "error",
-        "house/no-blank-target": "error"
+        "house/no-blank-target": "error",
+        // A render-prefixed function in a React tree is a sub-component.
+        "house/no-render-function": "error"
       }
     },
     {
@@ -269,6 +277,8 @@
       ],
       "rules": {
         "i18next/no-literal-string": "off",
+        "house/no-render-function": "off",
+        "house/no-process-env": "off",
         "typescript/no-non-null-assertion": "off",
         // Sequential awaits in tests are usually the point (step-by-step UI
         // flows where each action depends on the previous one settling).
@@ -312,6 +322,26 @@
           "error",
           { "allow": ["__typename", "__COMMIT_STATS__", "__COMMIT_TRACKING__"] }
         ]
+      }
+    },
+    {
+      // Composition roots and hand-run scripts: the only readers of
+      // `process.env`. Everything else takes its values as parameters.
+      "files": [
+        "apps/worker/src/main.ts",
+        "apps/web/src/server/env.ts",
+        "apps/cli/src/bin.ts",
+        "packages/brief-core/src/cli/categorize.ts",
+        "packages/brief-core/src/cli/delta.ts",
+        "tools/ingest-briefs/src/main.ts",
+        "tools/categorizer/eval/cli.ts",
+        "tools/categorizer/scripts/**",
+        "packages/generators/smoke/**",
+        "**/*.config.{ts,js,mjs}",
+        "apps/web/e2e/**"
+      ],
+      "rules": {
+        "house/no-process-env": "off"
       }
     },
     {

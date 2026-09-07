@@ -686,6 +686,26 @@ interface DepEntry {
   line: number;
 }
 
+interface JsonSection {
+  name: string;
+  indent: number;
+}
+
+/** The JSON section open after `content`: an opener enters one, a closer at or above its indent leaves it. */
+function advanceJsonSection(
+  content: string,
+  current: JsonSection | undefined,
+): JsonSection | undefined {
+  const open = /^(\s*)"([^"]+)"\s*:\s*\{/.exec(content);
+  if (open) {
+    return { name: open[2] ?? "", indent: (open[1] ?? "").length };
+  }
+  if (current === undefined || !/^\s*[}\]]/.test(content)) return current;
+
+  const indent = content.length - content.trimStart().length;
+  return indent <= current.indent ? undefined : current;
+}
+
 /**
  * Scan one side of a file patch for dependency entries. The side's "file
  * view" (context lines + that side's changed lines) drives both the line
@@ -701,7 +721,7 @@ function collectDepEntries(
   const changedMarker = side === "added" ? "+" : "-";
   const oppositeMarker = side === "added" ? "-" : "+";
   let lineNo = 0;
-  let jsonSection: { name: string; indent: number } | undefined;
+  let jsonSection: JsonSection | undefined;
   let tomlTable: string | undefined;
   let inPomDependencies = false;
 
@@ -726,13 +746,7 @@ function collectDepEntries(
     const content = raw.slice(1);
 
     if (format === "json") {
-      const open = /^(\s*)"([^"]+)"\s*:\s*\{/.exec(content);
-      if (open) {
-        jsonSection = { name: open[2] ?? "", indent: (open[1] ?? "").length };
-      } else if (jsonSection !== undefined && /^\s*[}\]]/.test(content)) {
-        const indent = content.length - content.trimStart().length;
-        if (indent <= jsonSection.indent) jsonSection = undefined;
-      }
+      jsonSection = advanceJsonSection(content, jsonSection);
     } else if (format === "toml") {
       const table = /^\s*\[+([^\]]+)\]/.exec(content);
       if (table) tomlTable = table[1];

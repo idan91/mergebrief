@@ -33,26 +33,30 @@ import {
 } from "../harness/run";
 import type { Effort, Generation } from "../contract/generation";
 
+/* oxlint-disable house/comment-run -- six adapter invariants, among them the
+   no-secrets-in-errors rule and the lockdown profile, decide whether a change
+   here is safe */
 /**
  * Cursor CLI adapter: one `cursor-agent -p` process per attempt, stream-json
  * envelopes on stdout, prompt via stdin.
  *
  * Invariants:
- * 1. Schema floor is hard — no CLI schema flag exists, so
+ * 1. Schema floor is hard, no CLI schema flag exists, so
  *    `runWithSchemaFloor` is the ONLY enforcement.
  * 2. Abort rejections propagate untouched.
- * 3. Origin is a declaration — no served-model signal exists, so no
+ * 3. Origin is a declaration, no served-model signal exists, so no
  *    mismatch hook; unset model stamps "cursor-default". Effort rides the
  *    model-id VARIANT (`--model` accepts only `--list-models` ids, no
  *    bracket overrides); the stamp parses the id's suffix.
  * 4. No secrets in errors: stderr classifies via allowlist to fixed text
  *    (redacted tail only via `harnessTimeoutError`); the probe's
  *    `userEmail` never leaves it.
- * 5. Lockdown is `--mode plan` from a fresh empty temp cwd — bare print
+ * 5. Lockdown is `--mode plan` from a fresh empty temp cwd, bare print
  *    mode writes files; `--trust` prevents the trust-prompt hang.
- * 6. The stream is pipe-silent until exit — inactivity defaults to the
+ * 6. The stream is pipe-silent until exit, inactivity defaults to the
  *    hard ceiling, wall-clock is the only watchdog.
  */
+/* oxlint-enable house/comment-run */
 
 const CURSOR_DEFAULT_MODEL_TOKEN = "cursor-default";
 
@@ -70,7 +74,7 @@ const CURSOR_OUTPUT_CONTRACT =
  * The `--list-models` id vocabulary bakes effort into the id
  * (`gpt-5.2-high`, `cursor-grok-4.6-low-fast`). Parse the suffix back into
  * the normalized vocabulary; anything outside it (bare ids, `-xhigh`)
- * stamps null — the id itself carries the full truth either way.
+ * stamps null, the id itself carries the full truth either way.
  */
 const BAKED_EFFORT_SHAPE = /-(low|medium|high|xhigh)(?:-fast)?$/;
 
@@ -88,7 +92,7 @@ export interface CursorGeneratorOptions {
   /** Binary path or name (PATH-resolved by spawn). */
   command: string;
   /**
-   * Model id for --model, VERBATIM from `--list-models` — effort rides the
+   * Model id for --model, VERBATIM from `--list-models`, effort rides the
    * id variant (`gpt-5.2-high`, `cursor-grok-4.6-low`); bracket overrides
    * are rejected by the CLI (execution-verified). Absent → the CLI's
    * configured default runs (the origin stamp shows "cursor-default").
@@ -96,8 +100,8 @@ export interface CursorGeneratorOptions {
   model?: string | undefined;
   failureDir: string;
   timeouts?: HarnessTimeoutOverrides | undefined;
-  /** Spawn env; defaults to process.env (the CLI needs HOME/keychain). */
-  env?: Record<string, string | undefined> | undefined;
+  /** Spawn env, from the composition root (the CLI needs HOME for its login). */
+  env: Record<string, string | undefined>;
 }
 
 export class CursorGenerator implements Generator {
@@ -105,7 +109,7 @@ export class CursorGenerator implements Generator {
   private readonly model: string | undefined;
   private readonly failureDir: string;
   private readonly timeouts: HarnessTimeouts;
-  private readonly env: Record<string, string | undefined> | undefined;
+  private readonly env: Record<string, string | undefined>;
 
   constructor(options: CursorGeneratorOptions) {
     this.command = options.command;
@@ -116,7 +120,7 @@ export class CursorGenerator implements Generator {
   }
 
   origin(effort: Effort): Generation {
-    // Effort rides the model-id VARIANT, never a knob of its own — the
+    // Effort rides the model-id VARIANT, never a knob of its own, the
     // stamp echoes what the id itself declares, not what was requested.
     void effort;
     if (this.model === undefined) {
@@ -138,7 +142,7 @@ export class CursorGenerator implements Generator {
   ): Promise<z.infer<S>> {
     const log = req.log ?? (() => {});
 
-    // The CLI has no schema flag, so the wire schema rides the PROMPT —
+    // The CLI has no schema flag, so the wire schema rides the PROMPT,
     // this adapter's equivalent of claude's --json-schema / codex's
     // --output-schema. Without it the model is told to conform to a schema
     // it never received (prompt.ts says "the provided JSON schema").
@@ -167,7 +171,7 @@ export class CursorGenerator implements Generator {
       failureDir: this.failureDir,
       log,
       attempt: async (feedback) => {
-        // Stateless CLI: every retry is a fresh process — system, schema,
+        // Stateless CLI: every retry is a fresh process, system, schema,
         // feedback stitch into stdin; the output contract sits LAST
         // (the final instruction carries the most weight).
         const base = `${req.system}\n\n${schemaBlock}\n\n${req.user}`;
@@ -186,7 +190,7 @@ export class CursorGenerator implements Generator {
           "--trust",
         ];
         if (this.model !== undefined) {
-          // VERBATIM — the CLI accepts only --list-models ids; bracket
+          // VERBATIM, the CLI accepts only --list-models ids; bracket
           // overrides are rejected outright (execution-verified).
           argv.push("--model", this.model);
           if (parseBakedEffort(this.model) !== req.effort) {
@@ -196,6 +200,7 @@ export class CursorGenerator implements Generator {
           }
         }
         const runArgs: HarnessRunArgs = {
+          env: this.env,
           command: this.command,
           argv,
           stdin: prompt,
@@ -203,7 +208,6 @@ export class CursorGenerator implements Generator {
           cwd: workDir,
           log,
         };
-        if (this.env) runArgs.env = this.env;
         if (req.signal) runArgs.signal = req.signal;
         const run = await runHarnessProcess(runArgs);
         const interpretArgs: InterpretCursorRunArgs = {
@@ -233,7 +237,7 @@ export class CursorGenerator implements Generator {
 
 /**
  * Failures arrive as exit 1 + stderr prefixes, not in-band JSON. The tail is
- * untrusted — matches render FIXED text, never the stderr itself.
+ * untrusted, matches render FIXED text, never the stderr itself.
  */
 function classifyStderr(
   command: string,
@@ -247,7 +251,7 @@ function classifyStderr(
     );
   }
   // Both needles: the rejection lists ~200 available ids after the prefix,
-  // which flushes "Cannot use this model" out of the 4KB rolling tail —
+  // which flushes "Cannot use this model" out of the 4KB rolling tail,
   // "Available models" is what survives at the end.
   if (
     stderrTail.includes("Cannot use this model") ||
@@ -275,12 +279,10 @@ function renderApiKeySource(source: string): string {
 }
 
 /**
- * Lockdown trust-but-verify (the verifyServedModel posture): `system/init`
- * echoes the permission mode — the one lockdown claim the CLI makes
- * checkable. Anything but "plan" warns; a warning, not a throw, because the
- * echo is a claim, not proof, and refusing on drift would brick a CLI whose
- * generation is otherwise sound. Rendered text is fixed — the mode string is
- * untrusted and never rides along.
+ * Lockdown trust-but-verify: `system/init` echoes the permission mode, the one
+ * lockdown claim the CLI makes checkable. Anything but "plan" warns rather than
+ * throws, because the echo is a claim and refusing on drift would brick a CLI
+ * whose generation is sound. Rendered text is fixed; the mode never rides along.
  */
 function describePermissionModeDrift(mode: string | null): string | null {
   if (mode === "plan") return null;
@@ -417,7 +419,7 @@ function interpretCursorRun(args: InterpretCursorRunArgs): FloorAttempt {
         ? "without a result envelope"
         : "after a result envelope";
     // stderr is this CLI's ONLY error channel (nothing rides in-band), so an
-    // unclassified failure carries the head (where the cause is stated) —
+    // unclassified failure carries the head (where the cause is stated),
     // redacted BEFORE truncating, same boundary as harnessTimeoutError.
     const detail = redactSecrets(
       (run.stderrHead === "" ? run.stderrTail : run.stderrHead).trim(),
@@ -442,7 +444,7 @@ function interpretCursorRun(args: InterpretCursorRunArgs): FloorAttempt {
   }
   // No native schema enforcement + plan-mode framing ⇒ the model narrates
   // around the JSON ("I'll inspect the workspace…{…}"). Hand the floor the
-  // first balanced JSON object as a CANDIDATE — the floor still validates
+  // first balanced JSON object as a CANDIDATE, the floor still validates
   // it and falls back to the raw text; extraction is never the mechanism.
   const attempt: FloorAttempt = { raw: envelope.result };
   const candidate = extractJsonCandidate(envelope.result);
@@ -451,12 +453,10 @@ function interpretCursorRun(args: InterpretCursorRunArgs): FloorAttempt {
 }
 
 /**
- * LAST parseable balanced top-level JSON object in the text, respecting
- * strings and escapes; undefined when none parses. Last, not first: the
- * answer follows the narration, and with the wire schema riding the prompt
- * a model may echo the schema object before it — every earlier span
- * (narration braces, the echo) must not shadow the answer. The floor still
- * validates whatever this picks. Bounded single pass — no regex.
+ * LAST parseable balanced top-level JSON object in the text, respecting strings
+ * and escapes; undefined when none parses. Last, not first, because the answer
+ * follows the narration and a model may echo the schema object before it. The
+ * floor still validates the pick. Bounded single pass, no regex.
  */
 function extractJsonCandidate(text: string): unknown {
   let candidate: unknown;
@@ -523,11 +523,9 @@ export function resolveCursorTimeouts(
   };
 }
 
-// ---------------------------------------------------------------------------
-// Boot-probe interpreters: a headless-contract version floor (warn-only) and
-// the auth verdict. Both exist because the CLI's own exits are auth-blind:
-// `about` exits 0 logged out — the verdict lives in its JSON body.
-// ---------------------------------------------------------------------------
+// Boot-probe interpreters: a warn-only headless-contract version floor and the
+// auth verdict. Both exist because the CLI's own exits are auth-blind: `about`
+// exits 0 while logged out, and the verdict lives in its JSON body.
 
 /** Boot-probe wiring shared with the registry entry (CODEX_PROBE pattern). */
 export const CURSOR_PROBE = {
@@ -548,7 +546,7 @@ export const CURSOR_VERSION_FLOOR = "2026.08.25";
 const DATE_VERSION_SHAPE = /(\d{4})\.(\d{2})\.(\d{2})/;
 
 interface DateVersion {
-  /** The matched YYYY.MM.DD text — regex-constrained, safe to render. */
+  /** The matched YYYY.MM.DD text, regex-constrained, safe to render. */
   date: string;
   parts: [number, number, number];
 }
@@ -562,7 +560,7 @@ function parseCursorVersion(text: string): DateVersion | null {
 
 /**
  * Version-floor check, warn-only: the floor is about contract verification,
- * not ability to run. Unparseable output warns too — "could not verify"
+ * not ability to run. Unparseable output warns too, "could not verify"
  * must surface, never silently pass.
  */
 export function buildCursorVersionWarning(stdout: string): string | null {
@@ -584,7 +582,7 @@ export function buildCursorVersionWarning(stdout: string): string | null {
 }
 
 /**
- * The `about --format json` fields the verdict reads (lenient shape —
+ * The `about --format json` fields the verdict reads (lenient shape,
  * unknown fields ignored; a drifted field degrades that field to absent, so
  * positive evidence in the OTHER field still decides).
  */
@@ -600,11 +598,10 @@ const ABOUT_UNVERIFIABLE_WARNING =
   "warning: could not read the account identity from `cursor-agent about --format json` — authentication is unverifiable before the first generation (envelope drift?); update the CLI";
 
 /**
- * Auth verdict — `about` is exit-blind, so this JSON read IS the preflight.
- * Null identity fields are the positive logged-out signal and refuse boot;
- * output without them warns "unverifiable" instead (refusing on a parse gap
- * would brick every pre-floor CLI). The email itself is PII and never
- * appears in a verdict.
+ * Auth verdict: `about` is exit-blind, so this JSON read IS the preflight. Null
+ * identity fields are the positive logged-out signal and refuse boot; output
+ * without them warns unverifiable instead, since refusing on a parse gap would
+ * brick every pre-floor CLI. The email is PII and never appears in a verdict.
  */
 export function interpretCursorAbout(
   stdout: string,

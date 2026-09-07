@@ -6,6 +6,8 @@ import { noBlankTarget } from "./rules/no-blank-target.mjs";
 import { noConditionalSpread } from "./rules/no-conditional-spread.mjs";
 import { noEmDash } from "./rules/no-em-dash.mjs";
 import { noEnum } from "./rules/no-enum.mjs";
+import { noProcessEnv } from "./rules/no-process-env.mjs";
+import { noRenderFunction } from "./rules/no-render-function.mjs";
 import { noRawButton } from "./rules/no-raw-button.mjs";
 import { testTitle } from "./rules/test-title.mjs";
 
@@ -21,6 +23,8 @@ const plugin = {
     "test-title": testTitle,
     "comment-run": commentRun,
     "no-em-dash": noEmDash,
+    "no-render-function": noRenderFunction,
+    "no-process-env": noProcessEnv,
   },
 };
 

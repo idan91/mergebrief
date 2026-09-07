@@ -509,6 +509,38 @@ export interface AttributeRail {
   floorFired: boolean;
 }
 
+interface LoudFiring {
+  groupId: string;
+  attr: RiskToken;
+  source: AttributeSource;
+}
+
+/** One chunk's LOUD firings in risk-surface order; DE-EMPHASIZED ones drop. */
+function listChunkFirings(
+  model: BriefViewModel,
+  groupId: string,
+  chunk: BriefChunk,
+): LoudFiring[] {
+  const firings: LoudFiring[] = [];
+  for (const attr of chunk.riskSurface) {
+    const meta = model.riskMetaByChunk.get(chunk.id)?.get(attr);
+    if (meta?.deEmphasized) continue;
+    firings.push({ groupId, attr, source: meta?.source ?? "built-in" });
+  }
+  return firings;
+}
+
+/** Every LOUD firing in story (display) order. */
+function listLoudFirings(model: BriefViewModel): LoudFiring[] {
+  const firings: LoudFiring[] = [];
+  for (const group of model.groups) {
+    for (const chunk of group.chunks) {
+      firings.push(...listChunkFirings(model, group.id, chunk));
+    }
+  }
+  return firings;
+}
+
 /**
  * Build the attribute-keyed jump-rail: fired attributes with
  * their carrying groups in story order, floor pinned first, then first
@@ -518,18 +550,12 @@ export interface AttributeRail {
 export function buildAttributeRail(model: BriefViewModel): AttributeRail {
   const groupsByAttr = new Map<RiskToken, string[]>();
   const sourceByAttr = new Map<RiskToken, AttributeSource>();
-  for (const group of model.groups) {
-    for (const chunk of group.chunks) {
-      for (const attr of chunk.riskSurface) {
-        const meta = model.riskMetaByChunk.get(chunk.id)?.get(attr);
-        if (meta?.deEmphasized) continue;
-        const groupIds = groupsByAttr.get(attr) ?? [];
-        if (!groupIds.includes(group.id)) groupIds.push(group.id);
-        groupsByAttr.set(attr, groupIds);
-        if (!sourceByAttr.has(attr)) {
-          sourceByAttr.set(attr, meta?.source ?? "built-in");
-        }
-      }
+  for (const firing of listLoudFirings(model)) {
+    const groupIds = groupsByAttr.get(firing.attr) ?? [];
+    if (!groupIds.includes(firing.groupId)) groupIds.push(firing.groupId);
+    groupsByAttr.set(firing.attr, groupIds);
+    if (!sourceByAttr.has(firing.attr)) {
+      sourceByAttr.set(firing.attr, firing.source);
     }
   }
   const ordered = floorFirst([...groupsByAttr.keys()]);

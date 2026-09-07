@@ -1,5 +1,5 @@
 /**
- * Public reuse surface of the categorizer engine — the package entry point
+ * Public reuse surface of the categorizer engine, the package entry point
  * for other front doors (currently: the web app's server fn) that need the
  * same fetch→categorize→write pipeline the CLI runs, without shelling out to
  * the CLI itself.
@@ -127,7 +127,11 @@ export {
   type AssignGroupIdsArgs,
   type DescentGroup,
 } from "./diff/descent";
-export { isHugeSpan, hugeSpanRatio } from "./generation/huge-span";
+export {
+  DEFAULT_HUGE_SPAN_RATIO,
+  isHugeSpan,
+  parseHugeSpanRatio,
+} from "./generation/huge-span";
 export {
   CUSTOM_ATTRIBUTE_NAME_PATTERN,
   INSTRUCTIONS_INJECTION_BUDGET_BYTES,
@@ -141,7 +145,7 @@ export {
   type RepoInstructionsInput,
 } from "./generation/repo-context";
 export {
-  revisionNarrativeConfig,
+  parseRevisionNarrativeFlag,
   type RevisionNarrativeConfig,
 } from "./generation/config";
 // Pure warn-issue validators the worker re-runs on a merged artifact.

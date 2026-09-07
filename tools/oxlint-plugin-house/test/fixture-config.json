@@ -10,6 +10,8 @@
     "house/no-conditional-spread": "error",
     "house/test-title": ["error", { "maxLength": 70 }],
     "house/comment-run": ["error", { "maxContentLines": 4 }],
-    "house/no-em-dash": "error"
+    "house/no-em-dash": "error",
+    "house/no-render-function": "error",
+    "house/no-process-env": "error"
   }
 }

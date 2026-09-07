@@ -2,7 +2,6 @@
 // command line without importing the module that runs the ingest on load.
 import { isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import process from "node:process";
 import { z } from "zod";
 
 /** Every flag is `--name`; the same two dashes alone are pnpm's separator. */
@@ -56,16 +55,19 @@ function collectFlags(
       throw new Error(`--${name} needs a value`);
     }
     args[name] = value;
-    // The value was this flag's, not the next flag — step over it.
+    // The value was this flag's, not the next flag, step over it.
     i += 1;
   }
   return args;
 }
 
-export function parseArgs(argv: readonly string[]): CliArgs {
+export function parseArgs(
+  argv: readonly string[],
+  invokerDir: string,
+): CliArgs {
   const parsed = CliArgsSchema.parse(collectFlags(argv));
   const base = {
-    dir: resolveDir(parsed.dir),
+    dir: resolveDir(parsed.dir, invokerDir),
     target: parsed.target,
     resolveRepos: parsed[RESOLVE_REPOS_FLAG],
     state: parsed.state,
@@ -76,15 +78,15 @@ export function parseArgs(argv: readonly string[]): CliArgs {
 
 /**
  * pnpm runs scripts with cwd = the package dir, so a relative `--dir`
- * resolves against the INVOKER's directory (INIT_CWD) and the default
- * resolves against this file — both land where the operator expects.
+ * resolves against the invoker's directory (`INIT_CWD`, passed by main) and
+ * the default resolves against this file.
  */
-function resolveDir(dir: string | undefined): string {
+function resolveDir(dir: string | undefined, invokerDir: string): string {
   if (dir === undefined) {
     return fileURLToPath(new URL(DEFAULT_DIR, import.meta.url));
   }
   if (isAbsolute(dir)) {
     return dir;
   }
-  return resolve(process.env["INIT_CWD"] ?? process.cwd(), dir);
+  return resolve(invokerDir, dir);
 }

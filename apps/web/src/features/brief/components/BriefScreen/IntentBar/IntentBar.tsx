@@ -227,13 +227,19 @@ function IntentBucket({
   );
 }
 
+/** One frozen default so the prop keeps its identity across renders. */
+const NO_GROUP_TITLES: Readonly<Record<string, string>> = {};
+
 /**
  * Keep the neutral bucket counts visible and the body initially collapsed.
  * Never auto-expand from model inference, which could anchor the reviewer.
  * Broad and absent intent sources show one quiet unavailability line.
  */
 export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
-  function IntentBar({ intentCheck, jumpToGroup, groupTitles = {} }, ref) {
+  function IntentBar(
+    { intentCheck, jumpToGroup, groupTitles = NO_GROUP_TITLES },
+    ref,
+  ) {
     const { t } = useTranslation();
     const [open, setOpen] = useState(false);
     const sectionRef = useRef<HTMLElement>(null);

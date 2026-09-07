@@ -35,9 +35,9 @@ import {
   isHugeSpan,
   parseChangedRanges,
   planAnchoredGeneration,
-  revisionNarrativeConfig,
   stitchBrief,
   toPrLifecycleState,
+  type AnchorPlan,
   type AnchorViewInput,
   type ContextFetch,
   type ContextProvider,
@@ -49,6 +49,7 @@ import {
   type FetchedPr,
   type PrLocator,
   type PrMetadata,
+  type RevisionNarrativeConfig,
   type RevisionNarrativeSkipped,
 } from "brief-core";
 import {
@@ -152,6 +153,10 @@ export interface GenerateTaskDeps {
   readonly contextProviders?: readonly ContextProvider[];
   /** What main.ts offers every tracker's read; GitHub's transport is bound per job. */
   readonly trackerRoot?: SharedRootDeps;
+  /** The revision-narrative gate main.ts read; absent means enabled. */
+  readonly revisionNarrative?: RevisionNarrativeConfig;
+  /** The huge-span ratio main.ts read; absent means the default. */
+  readonly hugeSpanRatio?: number;
   readonly log?: Logger;
 }
 
@@ -888,58 +893,20 @@ async function runGeneration(
           log.info(
             `generate: fresh restart — model swapped (${prevRow.provider}/${prevRow.model} → ${current.provider}/${current.model})`,
           );
-        } else {
-          if (previousBody !== undefined) {
-            const compareFilesResult = await source.fetchCompareFiles(
-              prevBrief.headSha,
-              headSha,
-            );
-            if (!compareFilesResult.ok) {
-              log.warn(
-                `generate: compare files fetch failed (anchoring degrades to full re-look) — ${compareFilesResult.error.message}`,
-              );
-            }
-            const planArgs: Mutable<AnchorPlanArgs> = {
-              previousBrief: previousBody,
-              chainGroupIds,
-              baseShaMoved: prevBrief.baseSha !== info.baseSha,
-            };
-
-            if (prevSpanFetch?.ok === true) {
-              planArgs.incrementalDiff = prevSpanFetch.value;
-            }
-            if (compareFilesResult.ok) {
-              planArgs.compareFiles = compareFilesResult.value;
-            }
-
-            anchorPlan = planAnchoredGeneration(planArgs);
-            anchor = { state: AnchorStates.ANCHORED };
-            // The prompt contract: the model receives the trimmed previous
-            // brief plus the mechanical frozen partition.
-            anchorView = {
-              previousBrief: previousBody,
-              frozenGroupIds: anchorPlan.frozen.map((carry) => carry.group.id),
-            };
-            log.info(
-              `generate: anchored generation — ${anchorPlan.frozen.length} frozen, ${anchorPlan.reLook.length} re-look group(s)`,
-            );
-            // The hop lands BEFORE the model call, like comparison marks: a
-            // failed generation still leaves the coordinates a later session
-            // needs. Coordinates only, so no snapshot gate.
-            if (anchorPlan.hunkSpans !== undefined) {
-              const hopWritten = await store.hunkSpans.write({
-                pullRequestId,
-                baselineSha: prevBrief.headSha,
-                headSha,
-                spans: anchorPlan.hunkSpans,
-              });
-              // Both failure codes are deterministic writer defects against a
-              // fixed shape and a resolved parent, no retry can fix either.
-              if (!hopWritten.ok) {
-                throw new PermanentJobError(hopWritten.error.message);
-              }
-            }
-          }
+        } else if (previousBody !== undefined) {
+          const anchored = await planAnchoredRun(payload, {
+            store,
+            source,
+            prevBrief,
+            previousBrief: previousBody,
+            chainGroupIds,
+            prevSpanFetch,
+            baseSha: info.baseSha,
+            log,
+          });
+          anchorPlan = anchored.plan;
+          anchor = { state: AnchorStates.ANCHORED };
+          anchorView = anchored.view;
         }
       }
       await projection.markRunning(target, GenerationPhases.GENERATING);
@@ -1085,6 +1052,8 @@ async function runGeneration(
         marksWritten: true,
       };
       await writeRevisionArtifacts(payload, {
+        revisionNarrative: deps.revisionNarrative,
+        hugeSpanRatio: deps.hugeSpanRatio,
         store,
         locator,
         meta,
@@ -1103,6 +1072,7 @@ async function runGeneration(
 
     // ---- Delta cores: one per distinct checkpoint SHA -----------------------
     const deltaCount = await warmDeltaCores(payload, {
+      hugeSpanRatio: deps.hugeSpanRatio,
       store,
       repo,
       locator,
@@ -1276,6 +1246,98 @@ function isBrief(value: unknown): value is Brief {
   );
 }
 
+interface AnchoredRunInputs {
+  readonly store: ArtifactStore;
+  readonly source: PullRequestSource;
+  readonly prevBrief: BriefSpanRow;
+  /** The previous brief's recovered body. */
+  readonly previousBrief: Brief;
+  readonly chainGroupIds: readonly string[];
+  /** The prevHead...head compare diff Result, fetched once by the caller. */
+  readonly prevSpanFetch: Result<string, GitHubApiError> | undefined;
+  /** This run's PR base; a move since the previous brief untrusts three-dot data. */
+  readonly baseSha: string;
+  readonly log: Logger;
+}
+
+interface AnchoredRun {
+  readonly plan: AnchorPlan;
+  /** The prompt contract: the trimmed previous brief plus the mechanical frozen partition. */
+  readonly view: AnchorViewInput;
+}
+
+/**
+ * Partition the previous brief into frozen and re-look groups. The hop lands
+ * BEFORE the model call, like comparison marks: a failed generation still
+ * leaves the coordinates a later session needs. Coordinates only, so no
+ * snapshot gate.
+ */
+async function planAnchoredRun(
+  payload: ParsedGeneratePayload,
+  inputs: AnchoredRunInputs,
+): Promise<AnchoredRun> {
+  const {
+    store,
+    source,
+    prevBrief,
+    previousBrief,
+    chainGroupIds,
+    prevSpanFetch,
+    baseSha,
+    log,
+  } = inputs;
+  const { pullRequestId, headSha } = payload;
+
+  const compareFilesResult = await source.fetchCompareFiles(
+    prevBrief.headSha,
+    headSha,
+  );
+  if (!compareFilesResult.ok) {
+    log.warn(
+      `generate: compare files fetch failed (anchoring degrades to full re-look) — ${compareFilesResult.error.message}`,
+    );
+  }
+
+  const planArgs: Mutable<AnchorPlanArgs> = {
+    previousBrief,
+    chainGroupIds,
+    baseShaMoved: prevBrief.baseSha !== baseSha,
+  };
+  if (prevSpanFetch?.ok === true) {
+    planArgs.incrementalDiff = prevSpanFetch.value;
+  }
+  if (compareFilesResult.ok) {
+    planArgs.compareFiles = compareFilesResult.value;
+  }
+
+  const plan = planAnchoredGeneration(planArgs);
+  log.info(
+    `generate: anchored generation — ${plan.frozen.length} frozen, ${plan.reLook.length} re-look group(s)`,
+  );
+
+  if (plan.hunkSpans !== undefined) {
+    const hopWritten = await store.hunkSpans.write({
+      pullRequestId,
+      baselineSha: prevBrief.headSha,
+      headSha,
+      spans: plan.hunkSpans,
+    });
+    // Both failure codes are deterministic writer defects against a fixed
+    // shape and a resolved parent, no retry can fix either.
+    if (!hopWritten.ok) {
+      throw new PermanentJobError(hopWritten.error.message);
+    }
+  }
+
+  return {
+    plan,
+    view: {
+      previousBrief,
+      frozenGroupIds: plan.frozen.map((carry) => carry.group.id),
+    },
+  };
+}
+
 /**
  * Every group id the PR's chain has used, read off the previous row. NULL
  * (a row predating the column) heals from the recovered body's groups,
@@ -1355,6 +1417,10 @@ interface PrefetchedSpan {
 
 interface RevisionArtifactInputs {
   readonly store: ArtifactStore;
+  /** The revision-narrative gate main.ts read; absent means enabled. */
+  readonly revisionNarrative?: RevisionNarrativeConfig | undefined;
+  /** The huge-span ratio main.ts read; absent means the default. */
+  readonly hugeSpanRatio?: number | undefined;
   readonly locator: PrLocator;
   readonly meta: PrMetadata;
   /** The prevHead...head compare diff, fetched once by the caller. */
@@ -1456,14 +1522,20 @@ async function writeRevisionArtifacts(
     }
   };
 
-  if (!revisionNarrativeConfig().enabled) {
+  const narrativeGate = inputs.revisionNarrative ?? { enabled: true };
+  if (!narrativeGate.enabled) {
     await writeNarrative(
       JSON.stringify(skipStub("disabled by config")),
       generatedBrief.generation,
     );
     return;
   }
-  if (isHugeSpan(countChangedLines(revDiff), inputs.wholePrChangedLines)) {
+  const revSpanHuge = isHugeSpan(
+    countChangedLines(revDiff),
+    inputs.wholePrChangedLines,
+    inputs.hugeSpanRatio,
+  );
+  if (revSpanHuge) {
     await writeNarrative(
       JSON.stringify(skipStub("span too large")),
       generatedBrief.generation,
@@ -1510,8 +1582,35 @@ async function writeRevisionArtifacts(
   }
 }
 
+/**
+ * The checkpoint span diff, or undefined when GitHub can no longer render it:
+ * a single unrenderable/GC'd span must not sink the whole job (the brief is
+ * already stored); the view falls back to the full Brief.
+ */
+async function resolveDeltaSpanDiff(
+  source: PullRequestSource,
+  baselineSha: string,
+  headSha: string,
+  log: Logger,
+): Promise<string | undefined> {
+  const spanDiff = await source.fetchCompareDiff(baselineSha, headSha);
+  if (spanDiff.ok) {
+    return spanDiff.value;
+  }
+
+  if (isPermanentGitHubError(spanDiff.error)) {
+    log.warn(
+      `generate: delta span ${baselineSha.slice(0, 8)} unavailable — skipping`,
+    );
+    return undefined;
+  }
+  throw new Error(spanDiff.error.message);
+}
+
 interface DeltaWarmInputs {
   readonly store: ArtifactStore;
+  /** The huge-span ratio main.ts read; absent means the default. */
+  readonly hugeSpanRatio?: number | undefined;
   readonly repo: TenantRepository;
   readonly locator: PrLocator;
   readonly meta: PrMetadata;
@@ -1567,19 +1666,16 @@ async function warmDeltaCores(
       incrementalDiff = prefetched.diff;
     } else {
       // oxlint-disable-next-line no-await-in-loop
-      const spanDiff = await source.fetchCompareDiff(baselineSha, headSha);
-      if (!spanDiff.ok) {
-        if (isPermanentGitHubError(spanDiff.error)) {
-          // A single unrenderable/GC'd span must not sink the whole job (the
-          // brief is already stored); the view falls back to the full Brief.
-          log.warn(
-            `generate: delta span ${baselineSha.slice(0, 8)} unavailable — skipping`,
-          );
-          continue;
-        }
-        throw new Error(spanDiff.error.message);
+      const spanDiff = await resolveDeltaSpanDiff(
+        source,
+        baselineSha,
+        headSha,
+        log,
+      );
+      if (spanDiff === undefined) {
+        continue;
       }
-      incrementalDiff = spanDiff.value;
+      incrementalDiff = spanDiff;
     }
 
     const baselineIndex =
@@ -1608,9 +1704,12 @@ async function warmDeltaCores(
       }
     }
 
-    if (
-      isHugeSpan(countChangedLines(incrementalDiff), inputs.wholePrChangedLines)
-    ) {
+    const deltaSpanHuge = isHugeSpan(
+      countChangedLines(incrementalDiff),
+      inputs.wholePrChangedLines,
+      inputs.hugeSpanRatio,
+    );
+    if (deltaSpanHuge) {
       log.info(
         `generate: delta span ${baselineSha.slice(0, 8)} is huge — full-brief fallback`,
       );

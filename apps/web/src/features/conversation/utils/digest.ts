@@ -215,27 +215,33 @@ export function buildInlineThreads(
   const byChunk = new Map<string, DigestRow[]>();
   for (const group of groups) {
     if (group.kind !== "chunk" || group.chunkId === undefined) continue;
-    const rows: DigestRow[] = [];
-    for (const row of group.rows) {
-      if (row.kind === "thread") {
-        if (!row.thread.isOutdated) rows.push(row);
-        continue;
-      }
-      const openThreads = row.threads.filter(
-        (botThread) =>
-          !botThread.thread.isResolved && !botThread.thread.isOutdated,
-      );
-      if (openThreads.length > 0) {
-        rows.push({
-          ...row,
-          threads: openThreads,
-          openCount: openThreads.length,
-        });
-      }
-    }
+    const rows = selectInlineRows(group.rows);
     if (rows.length > 0) byChunk.set(group.chunkId, rows);
   }
   return byChunk;
+}
+
+/** The digest rows that render inline at a chunk, in digest order. */
+function selectInlineRows(rows: readonly DigestRow[]): DigestRow[] {
+  const inline: DigestRow[] = [];
+  for (const row of rows) {
+    if (row.kind === "thread") {
+      if (!row.thread.isOutdated) inline.push(row);
+      continue;
+    }
+    const openThreads = row.threads.filter(
+      (botThread) =>
+        !botThread.thread.isResolved && !botThread.thread.isOutdated,
+    );
+    if (openThreads.length > 0) {
+      inline.push({
+        ...row,
+        threads: openThreads,
+        openCount: openThreads.length,
+      });
+    }
+  }
+  return inline;
 }
 
 export interface InlineRowSplit {

@@ -385,21 +385,32 @@ export function scorePairRuns(
   const scores = new Map<string, { passes: number; runs: number }>();
   const notes: string[] = [];
   for (const property of properties) {
-    let passes = 0;
-    for (const [index, pair] of pairs.entries()) {
-      try {
-        if (property.check(pair)) passes += 1;
-      } catch (error) {
-        notes.push(
-          `property "${property.id}" threw on run ${index + 1}: ${
-            error instanceof Error ? error.message : String(error)
-          } (counted as fail)`,
-        );
-      }
-    }
-    scores.set(property.id, { passes, runs: pairs.length });
+    const scored = scorePairProperty(property, pairs);
+    notes.push(...scored.notes);
+    scores.set(property.id, { passes: scored.passes, runs: pairs.length });
   }
   return { scores, notes };
+}
+
+/** One property over every pair: a throwing check is a fail plus a note. */
+function scorePairProperty(
+  property: PairEvalProperty,
+  pairs: readonly RevisionPair[],
+): { passes: number; notes: string[] } {
+  let passes = 0;
+  const notes: string[] = [];
+  for (const [index, pair] of pairs.entries()) {
+    try {
+      if (property.check(pair)) passes += 1;
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      notes.push(
+        `property "${property.id}" threw on run ${index + 1}: ${reason} (counted as fail)`,
+      );
+    }
+  }
+
+  return { passes, notes };
 }
 
 /** Generic case shape the source selector needs. */

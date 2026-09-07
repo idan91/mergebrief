@@ -94,3 +94,23 @@ describe("house/no-em-dash", () => {
     expectLines("no-em-dash", "good.ts", []);
   });
 });
+
+describe("house/no-render-function", () => {
+  it("reports a render-prefixed arrow const and function declaration", () => {
+    expectLines("no-render-function", "bad.tsx", [2, 4]);
+  });
+
+  it("passes a sub-component and a render-prefixed prop", () => {
+    expectLines("no-render-function", "good.tsx", []);
+  });
+});
+
+describe("house/no-process-env", () => {
+  it("reports both process imports and every way of reaching env", () => {
+    expectLines("no-process-env", "bad.ts", [1, 2, 4, 5, 6, 7, 8, 9, 10, 11]);
+  });
+
+  it("passes an injected env map and other process members", () => {
+    expectLines("no-process-env", "good.ts", []);
+  });
+});

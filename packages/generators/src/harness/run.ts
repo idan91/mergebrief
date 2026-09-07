@@ -78,8 +78,8 @@ export interface HarnessRunArgs {
   signal?: AbortSignal;
   /** Complete stdout lines, in order, the adapters' envelope boundary. */
   onStdoutLine?: (line: string) => void;
-  /** Spawn env; defaults to process.env (CLIs need HOME/keychain for auth). */
-  env?: Record<string, string | undefined>;
+  /** Spawn env, from the composition root (CLIs need HOME/keychain for auth). */
+  env: Record<string, string | undefined>;
   cwd?: string;
   log?: Logger;
   /** Cap on accumulated stdout, UTF-16 code units. Default 16M. */
@@ -420,9 +420,9 @@ export const HARNESS_STRIPPED_CREDENTIAL_VARS = [
  * credential vars above (billing-route guarantee).
  */
 function envForSpawn(
-  env: Record<string, string | undefined> | undefined,
+  env: Record<string, string | undefined>,
 ): Record<string, string> {
-  const source = env ?? process.env;
+  const source = env;
   const stripped = new Set<string>(HARNESS_STRIPPED_CREDENTIAL_VARS);
   const out: Record<string, string> = {};
   for (const [key, value] of Object.entries(source)) {

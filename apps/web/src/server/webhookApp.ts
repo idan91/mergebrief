@@ -1,8 +1,5 @@
-// The webhook startup wiring: the ONE place the injected libraries meet real
-// env and a real database. `apps/web` reads `process.env` here; the `api`,
-// `github`, and `persistence` packages stay env-INJECTED. The server entry
-// delegates `/api/*` — the app's ONE registered namespace — to the Hono app
-// this module builds.
+// The web tier's composition root: the one place injected libraries meet real
+// env and a real database. api, github and persistence stay env-injected.
 import "@tanstack/react-start/server-only";
 
 import { appInstallationPort, createApp, migrateQueue } from "api";
@@ -16,6 +13,7 @@ import {
   pingDb,
   type AppDatabase,
 } from "persistence";
+import { getServerEnv } from "./env";
 import { getServerLogger } from "./logger";
 
 /** The env var name the reviewer session tokens seal under. */
@@ -30,27 +28,9 @@ interface WebhookComposition {
   readonly handle: AppDatabase;
 }
 
-/**
- * Load `apps/web/.env` if present, then return the ambient env. The file is
- * optional — vars may already be set in the environment.
- */
-function readEnv(): NodeJS.ProcessEnv {
-  try {
-    process.loadEnvFile();
-  } catch {
-    // No .env file — the required vars may still be set in the ambient env.
-  }
-  return process.env;
-}
-
-/**
- * Build the webhook app ONCE: read env, parse both configs (a misconfigured
- * server must fail LOUDLY — a bad env throws here rather than serving a broken
- * webhook), open one pooled db handle, install the `graphile_worker` schema so
- * the enqueue side works, then compose the Hono app over the injected deps.
- */
+/** A misconfigured server fails here, loudly, rather than serving a broken webhook. */
 async function buildWebhookApp(): Promise<WebhookComposition> {
-  const env = readEnv();
+  const env = getServerEnv();
   const logger = getServerLogger();
 
   const githubConfig = loadGitHubConfig(env);
@@ -60,7 +40,6 @@ async function buildWebhookApp(): Promise<WebhookComposition> {
     );
   }
 
-  // The DATABASE_URL_FILE shadow warning must reach the operator.
   const persistenceConfig = loadPersistenceConfig(env, {
     onWarning: (message) => logger.warn(message),
   });
@@ -70,10 +49,8 @@ async function buildWebhookApp(): Promise<WebhookComposition> {
     );
   }
 
-  // The NARROW policy loader: only the `drafts` block is read here — the
-  // generator block stays the worker's concern, so this process needs no
-  // adapter validation and no provider keys. Unset MERGEBRIEF_CONFIG yields
-  // the zero-config default.
+  // Only the `drafts` block: the generator block is the worker's concern, so
+  // this process needs no adapter validation and no provider keys.
   const instancePolicy = loadInstancePolicy(env);
   if (!instancePolicy.ok) {
     throw new Error(
@@ -81,7 +58,7 @@ async function buildWebhookApp(): Promise<WebhookComposition> {
     );
   }
 
-  // The public origin the OAuth callback URL is built from — must match the
+  // The public origin the OAuth callback URL is built from, must match the
   // App's registered callback, so fail loudly if absent.
   const publicBaseUrl = env["PUBLIC_BASE_URL"];
   if (publicBaseUrl === undefined || publicBaseUrl.length === 0) {
@@ -90,11 +67,8 @@ async function buildWebhookApp(): Promise<WebhookComposition> {
     );
   }
 
-  // Validate the session-sealing key eagerly: a missing or malformed key must
-  // fail HERE, not on the first token seal, and a key changed post-deploy makes
-  // every stored ciphertext undecryptable (the gate reads that as a burned
-  // session — mass logout). The resolved bytes are discarded; the provider
-  // re-resolves per seal.
+  // Eager: a key changed post-deploy makes every stored ciphertext
+  // undecryptable, which the gate reads as a mass logout.
   const keyProvider = createEnvKeyProvider(env);
   const sessionKey = await keyProvider.resolveKey(SESSION_KEY_REF);
   if (!sessionKey.ok) {
@@ -104,10 +78,8 @@ async function buildWebhookApp(): Promise<WebhookComposition> {
   }
 
   const { databaseUrl } = persistenceConfig.value;
-  // Boot migrations, both idempotent — every startup wiring may run them;
-  // whoever boots first applies, the rest no-op. Under
-  // MERGEBRIEF_AUTO_MIGRATE=false the app-schema step is a read-only check
-  // that refuses composition when the database is behind.
+  // Idempotent: whoever boots first applies, the rest no-op. Under
+  // MERGEBRIEF_AUTO_MIGRATE=false this is a read-only check instead.
   const ensured = await ensureAppSchema(databaseUrl, {
     autoMigrate: persistenceConfig.value.autoMigrate,
   });
@@ -115,8 +87,6 @@ async function buildWebhookApp(): Promise<WebhookComposition> {
     throw new Error(`webhook composition: ${ensured.error.message}`);
   }
   await migrateQueue(databaseUrl);
-  // The pool error observer keeps a DB restart from crashing the process — the
-  // blip surfaces as warn lines and a 503 /readyz, not a dead /healthz.
   const handle = createDb(databaseUrl, {
     onError: (error) =>
       logger.warn("postgres pool error (idle client)", { err: error }),
@@ -125,29 +95,17 @@ async function buildWebhookApp(): Promise<WebhookComposition> {
   const app = createApp({
     handle,
     webhookSecret: githubConfig.value.webhookSecret,
-    // One process logger for the whole web tier; the api package derives
-    // per-request children from it.
+
     logger,
-    // Enforced at the enqueue path.
     draftPolicy: instancePolicy.value.draftPolicy,
-    // The audit knobs: private writes on by default, caller ip off. External
-    // writes and denials are recorded regardless of either.
     audit: {
       privateWrites: persistenceConfig.value.auditPrivateWrites,
       callerIp: persistenceConfig.value.auditCallerIp,
     },
-    // Skew visibility: surfaced by GET /api/version and the CLI's `auth
-    // status`; the api changelog is keyed to it.
-    serverVersion: process.env["SERVER_VERSION"] ?? "dev",
-    // Conversation and collaborator reads run as the App on the installation
-    // token: one rate budget and one cache entry per PR, gate-authorized per
-    // viewer.
+    serverVersion: env["SERVER_VERSION"] ?? "dev",
     github: appInstallationPort(createAppClient(githubConfig.value)),
-    // The url-box door's operator PAT backstop for its viewer-token resolve;
-    // the worker holds the same backstop for the generation reads.
-    urlBoxFallbackToken: process.env["MERGEBRIEF_URL_BOX_TOKEN"] || undefined,
-    // OAuth creds from the GitHub config, the env-backed key provider for
-    // token sealing (validated eagerly above), and the cookie/redirect policy.
+    urlBoxFallbackToken: env["MERGEBRIEF_URL_BOX_TOKEN"] || undefined,
+
     auth: {
       oauthClientId: githubConfig.value.oauthClientId,
       oauthClientSecret: githubConfig.value.oauthClientSecret,
@@ -163,21 +121,15 @@ async function buildWebhookApp(): Promise<WebhookComposition> {
 /**
  * Cooldown after a build failure before another `buildWebhookApp()` is
  * attempted. Without it a persistent I/O failure would re-run `createDb` plus
- * migrations on EVERY inbound request — and GitHub redelivers failed webhooks
- * aggressively — storming an already-struggling database.
+ * migrations on EVERY inbound request, and GitHub redelivers failed webhooks
+ * aggressively, storming an already-struggling database.
  */
 const FAILURE_COOLDOWN_MS = 5000;
 
 let compositionPromise: Promise<WebhookComposition> | undefined;
 let lastFailureAt: number | undefined;
 
-/**
- * Lazily-initialized singleton accessor for the webhook composition. The first
- * request builds it (one db handle, one migration); later requests reuse the
- * memoized promise. A build FAILURE is negative-cached for
- * `FAILURE_COOLDOWN_MS` so a transient fault self-heals without hammering the
- * database in between.
- */
+/** A build failure is negative-cached, so a transient fault self-heals. */
 function getComposition(): Promise<WebhookComposition> {
   if (compositionPromise) {
     return compositionPromise;
@@ -186,7 +138,6 @@ function getComposition(): Promise<WebhookComposition> {
     lastFailureAt !== undefined &&
     Date.now() - lastFailureAt < FAILURE_COOLDOWN_MS
   ) {
-    // Within the cooldown: fail fast without reopening a pool / re-migrating.
     return Promise.reject(
       new Error("webhook composition unavailable; retry shortly"),
     );
@@ -213,7 +164,7 @@ export function getWebhookApp(): Promise<WebhookApp> {
 /**
  * The /readyz probe: the composition resolves AND one `SELECT 1` round-trips
  * through its handle. `false` covers both a failed composition and an
- * unreachable database — the caller answers 503 either way, leaking neither
+ * unreachable database, the caller answers 503 either way, leaking neither
  * distinction.
  */
 export async function checkReadiness(): Promise<boolean> {

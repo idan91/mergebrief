@@ -28,19 +28,22 @@ import {
 import { enumPreservingJsonSchema } from "../validation/jsonSchema";
 import type { Effort, Generation } from "../contract/generation";
 
+/* oxlint-disable house/comment-run -- five adapter invariants, among them the
+   no-secrets-in-errors rule and the auth lockdown profile, decide whether a
+   change here is safe */
 /**
  * Claude Code CLI adapter: one `claude -p` process per attempt, stream-json
  * envelopes on stdout, prompt via stdin.
  *
  * Invariants:
- * 1. The schema floor is hard — the CLI's own `--json-schema` enforcement is
+ * 1. The schema floor is hard, the CLI's own `--json-schema` enforcement is
  *    a bonus layer; every terminal answer still runs `runWithSchemaFloor`
  *    (validate → salvage → one feedback retry → dump + throw).
- * 2. Abort rejections propagate UNTOUCHED — the harness rejects with the
+ * 2. Abort rejections propagate UNTOUCHED, the harness rejects with the
  *    signal's reason and nothing here wraps it.
  * 3. Origin is honest: `effort: null` (headless claude has no effort knob);
  *    the model stamp is the declaration, and the envelope's `modelUsage`
- *    keys are compared post-run — a served-model mismatch logs a warning and
+ *    keys are compared post-run, a served-model mismatch logs a warning and
  *    fires the surfacing hook, never silently rewrites the stamp.
  * 4. No secrets in errors: messages carry subtypes/categories/exit codes;
  *    stderr reaches messages only through `harnessTimeoutError` (redacted).
@@ -50,6 +53,7 @@ import type { Effort, Generation } from "../contract/generation";
  *    `--system-prompt-file` (argv would re-expose ARG_MAX for long
  *    taxonomies); the user prompt via stdin.
  */
+/* oxlint-enable house/comment-run */
 
 /** In-band `system/api_retry` categories → taxonomy kinds. */
 const API_RETRY_KIND: Record<string, GeneratorErrorKind> = {
@@ -66,7 +70,7 @@ const API_RETRY_KIND: Record<string, GeneratorErrorKind> = {
 
 /**
  * Documented result subtypes. Error messages render subtype/category
- * strings ONLY through these allowlists — envelope fields
+ * strings ONLY through these allowlists, envelope fields
  * are untrusted CLI output and must never carry arbitrary text into errors.
  */
 const KNOWN_RESULT_SUBTYPES = new Set([
@@ -83,7 +87,7 @@ function renderSubtype(subtype: string): string {
 /**
  * Own-property lookup only: the category is untrusted CLI output, and a
  * plain `in`/index read would resolve inherited Object members ("constructor",
- * "toString") — the kind must never become a function.
+ * "toString"), the kind must never become a function.
  */
 function apiRetryKind(category: string): GeneratorErrorKind | undefined {
   return Object.hasOwn(API_RETRY_KIND, category)
@@ -97,7 +101,7 @@ function renderCategory(category: string): string {
     : "an unrecognized error category";
 }
 
-/** Same default as the SDK adapter — the stamp must name a real model. */
+/** Same default as the SDK adapter, the stamp must name a real model. */
 const DEFAULT_MODEL = "claude-opus-4-8";
 
 export interface ClaudeCodeGeneratorOptions {
@@ -106,8 +110,8 @@ export interface ClaudeCodeGeneratorOptions {
   model?: string | undefined;
   failureDir: string;
   timeouts?: HarnessTimeoutOverrides | undefined;
-  /** Spawn env; defaults to process.env (the CLI needs HOME/keychain). */
-  env?: Record<string, string | undefined> | undefined;
+  /** Spawn env, from the composition root (the CLI needs HOME for its login). */
+  env: Record<string, string | undefined>;
   /**
    * Served-model mismatch surfacing hook (trust-but-verify): fired when the
    * result envelope's `modelUsage` keys don't include the requested model.
@@ -139,7 +143,7 @@ export class ClaudeCodeGenerator implements Generator {
   private readonly onModelMismatch:
     | ((requested: string, served: string[]) => void)
     | undefined;
-  private readonly env: Record<string, string | undefined> | undefined;
+  private readonly env: Record<string, string | undefined>;
 
   constructor(options: ClaudeCodeGeneratorOptions) {
     this.command = options.command;
@@ -151,7 +155,7 @@ export class ClaudeCodeGenerator implements Generator {
   }
 
   origin(effort: Effort): Generation {
-    // Honest capability gap: no headless effort knob — the requested effort
+    // Honest capability gap: no headless effort knob, the requested effort
     // is deliberately NOT echoed into the stamp.
     void effort;
     return { provider: "claude-code", model: this.model, effort: null };
@@ -195,6 +199,7 @@ export class ClaudeCodeGenerator implements Generator {
           `${feedback ? "retrying" : "generating"} ${req.label} via ${this.command}…`,
         );
         const runArgs: HarnessRunArgs = {
+          env: this.env,
           command: this.command,
           argv: [
             "-p",
@@ -214,7 +219,6 @@ export class ClaudeCodeGenerator implements Generator {
           timeouts: this.timeouts,
           log,
         };
-        if (this.env) runArgs.env = this.env;
         if (req.signal) runArgs.signal = req.signal;
         const run = await runHarnessProcess(runArgs);
         return this.interpret(req.label, run, log);
@@ -227,7 +231,7 @@ export class ClaudeCodeGenerator implements Generator {
       return await runWithSchemaFloor(floorArgs);
     } finally {
       // Best-effort: a throw here would REPLACE the in-flight rejection
-      // (JS finally semantics) — an abort or classified failure must never
+      // (JS finally semantics), an abort or classified failure must never
       // be clobbered by a temp-dir I/O error.
       try {
         rmSync(workDir, { recursive: true, force: true });
@@ -279,7 +283,7 @@ export class ClaudeCodeGenerator implements Generator {
     this.verifyServedModel(envelope, log);
 
     if (envelope.subtype === "error_max_structured_output_retries") {
-      // The CLI exhausted its own enforcement retries — but our floor is
+      // The CLI exhausted its own enforcement retries, but our floor is
       // stricter AND more forgiving in different places (salvage): hand the
       // raw text over for normal parse/salvage/retry rather than declaring
       // it invalid here. invalidReason only when there is nothing to parse.
@@ -300,7 +304,7 @@ export class ClaudeCodeGenerator implements Generator {
     if (envelope.hasStructuredOutput) {
       // Parsed candidate + raw fallback: the floor validates the candidate
       // first and falls back to the raw text if it was reshaped in flight.
-      // An explicit null candidate rides through — it is schema-valid for
+      // An explicit null candidate rides through, it is schema-valid for
       // null-accepting schemas and the floor is the judge, not this boundary.
       return { raw: envelope.result, parsed: envelope.structuredOutput };
     }
@@ -317,7 +321,7 @@ export class ClaudeCodeGenerator implements Generator {
   private verifyServedModel(envelope: ResultEnvelope, log: Logger): void {
     if (envelope.modelUsage === null) {
       // Missing/drifted modelUsage: verification is UNAVAILABLE, which must
-      // surface rather than silently pass — served [] means "could not
+      // surface rather than silently pass, served [] means "could not
       // verify", distinct from a concrete mismatch.
       log(
         `warning: result envelope carried no modelUsage — served model for ${this.model} is unverifiable`,
@@ -380,13 +384,10 @@ function parseEventLine(line: string): StreamEvent | null {
   return null;
 }
 
-// ---------------------------------------------------------------------------
 // Boot-probe billing checks: a version-floor warning and a billing-route
-// assertion, both reading stdout the probe already produces. The route
-// assertion is what closes the `apiKeyHelper` residual hole at verification
-// time — a settings-file override is invisible to the env strip, but
-// `auth status --json` reports it as the active auth method.
-// ---------------------------------------------------------------------------
+// assertion, both reading stdout the probe already produces. The route assertion
+// closes the `apiKeyHelper` residual hole, since a settings-file override is
+// invisible to the env strip but `auth status --json` reports it.
 
 /** Boot-probe wiring shared with the registry entry (CODEX_PROBE pattern). */
 export const CLAUDE_PROBE = {
@@ -414,7 +415,7 @@ function parseCliVersion(text: string): [number, number, number] | null {
 
 /**
  * Version-floor check, warn-only: the floor is about billing attribution,
- * not ability to run. Unparseable output warns too — "could not verify"
+ * not ability to run. Unparseable output warns too, "could not verify"
  * must surface, never silently pass.
  */
 export function buildClaudeVersionWarning(stdout: string): string | null {
@@ -437,14 +438,13 @@ export function buildClaudeVersionWarning(stdout: string): string | null {
 }
 
 /**
- * The `auth status --json` fields the assertion reads (lenient shape —
- * unknown fields ignored, missing fields degrade to "unverifiable").
- * Route table verified at CLI 2.1.226:
- * keychain login = `claude.ai`, CLAUDE_CODE_OAUTH_TOKEN = `oauth_token`
- * (both subscription); `api_key_helper` and any `apiKeySource` = API key.
+ * The `auth status --json` fields the assertion reads; unknown fields are ignored
+ * and missing ones degrade to unverifiable. Route table verified at CLI 2.1.226:
+ * keychain login is `claude.ai` and CLAUDE_CODE_OAUTH_TOKEN is `oauth_token`,
+ * both subscription, while `api_key_helper` and any apiKeySource are API key.
  */
 const authStatusShape = z.object({
-  // Per-field `catch`: one drifted field (e.g. `authMethod: null` — the CLI
+  // Per-field `catch`: one drifted field (e.g. `authMethod: null`, the CLI
   // does emit null for absent-ish fields) must not collapse the whole parse
   // and drop positive API-key evidence in the OTHER field to "unverifiable".
   authMethod: z.string().nullish().catch(undefined),
@@ -467,7 +467,7 @@ function refuseBillingRoute(detail: string): ReturnType<typeof configError> {
 }
 
 /**
- * Billing-route assertion — refuse on mismatch. Positive-evidence refusals
+ * Billing-route assertion, refuse on mismatch. Positive-evidence refusals
  * only: output that doesn't carry the fields warns "unverifiable" instead of
  * refusing, since refusing on a parse gap would brick every pre-floor CLI.
  */

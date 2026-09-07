@@ -13,7 +13,10 @@ import {
   buildSignatureLine,
   submitBlockedReason,
   type SubmitReviewAction,
+  type SubmitReviewResult,
 } from "../utils/submit";
+
+type SubmittedReview = Extract<SubmitReviewResult, { kind: "submitted" }>;
 
 export interface UseReviewSubmitInput {
   /** The DB route's transport; `undefined` on the local demo path. */
@@ -23,59 +26,27 @@ export interface UseReviewSubmitInput {
   outcome: ReviewOutcome;
   comments: ReviewComment[];
   receipt: Receipt;
-  /**
-   * Reads the reviewer's free-text review comment. A GETTER, not the string:
-   * the draft changes per keystroke and the owning screen must not re-render
-   * with it — the editing surface subscribes to the raw text itself.
-   */
+  /** A getter, not the string: the owning screen must not re-render per keystroke. */
   getReviewComment: () => string;
-  /**
-   * Clears the review-comment draft after a successful submit — called with
-   * the text CAPTURED at click time, so the owner can keep an edit made
-   * while the request was in flight.
-   */
+  /** Called with the text captured at click time, so an in-flight edit survives. */
   consumeReviewComment: (sent: string) => void;
-  /**
-   * Flips exactly the given comment ids to `submitted` — the hook passes the
-   * draft ids it CAPTURED at click time, so a draft added or edited while
-   * the request was in flight is never falsely marked as posted.
-   */
+  /** Ids captured at click time: a draft added mid-flight is never marked posted. */
   markSubmitted: (ids: readonly string[]) => void;
-  /**
-   * Records the created review id — the own-comment join key for
-   * conversation reconciliation.
-   */
+  /** The own-comment join key for conversation reconciliation. */
   recordSubmittedReview: (reviewId: number) => void;
-  /**
-   * Page-level live-region channel (the toast) — carries success AND failure
-   * copy, because the drawer that renders the inline error may already be
-   * closed (and inert) by the time the request settles.
-   */
+  /** Carries failure copy too: the drawer may be inert by the time it settles. */
   announce: (message: string) => void;
-  /**
-   * Refetches the live conversation after a successful submit. Undefined off
-   * the DB path. Local submitted cards keep rendering until the refetched
-   * threads actually contain them (GitHub's read-after-write lag).
-   */
+  /** Local submitted cards keep rendering until the refetch contains them. */
   invalidateConversation: (() => void) | undefined;
   closeSubmit: () => void;
-  /**
-   * Resets the session outcome to `comment` after a VERDICT was delivered —
-   * a follow-up submit defaults to a comment-only review instead of posting
-   * the same approval/request-changes again.
-   */
+  /** A follow-up submit must not re-post the same approval or request-changes. */
   resetOutcome: () => void;
-  /**
-   * A screen-owned reason Submit must not proceed right now, folded into
-   * `blockedReasonWith` and hard-guarding `submit()` itself — e.g. a post-now
-   * request still in flight, where the capture would ship a still-draft
-   * comment that the settling 201 then flips (duplicate on GitHub).
-   */
+  /** Hard-guards `submit()`: e.g. a post-now in flight would duplicate on GitHub. */
   blockedExternally?: string | undefined;
 }
 
 export interface UseReviewSubmitValue {
-  /** False on the local demo path — the caller keeps its mock behavior. */
+  /** False on the local demo path, the caller keeps its mock behavior. */
   available: boolean;
   pending: boolean;
   /**
@@ -96,8 +67,6 @@ export function useReviewSubmit(
   input: UseReviewSubmitInput,
 ): UseReviewSubmitValue {
   const { t } = useTranslation();
-  // One memoized object so the submit callback takes a single stable dep
-  // instead of ten string members.
   const COPY = useMemo(
     () => ({
       posted: t("review.submitResult.posted"),
@@ -138,15 +107,11 @@ export function useReviewSubmit(
   const [note, setNote] = useState<string | null>(null);
   // Synchronous double-click guard: state updates are async, a ref is not.
   const inFlight = useRef(false);
-  // The brief can change UNDER a live request now that the subtree survives
-  // revision steps: settle-time writes compare the click-time briefId against
-  // this live ref, and live-store/display writes stand down on a mismatch —
-  // ids collide across revisions, so an unguarded markSubmitted would flip
-  // the SUCCESSOR brief's colliding draft. The durable snapshot write is the
-  // originating brief's record and stays unconditional.
+  // Ids collide across revisions, so settle-time writes compare the click-time
+  // briefId against this ref. The durable snapshot write stays unconditional.
   const currentBriefIdRef = useLatestRef(briefId);
   // A previous revision's failure copy (or degradation note) must not render
-  // over the new one — same render-phase adjustment as the screen's resets.
+  // over the new one, same render-phase adjustment as the screen's resets.
   const [displayBriefId, setDisplayBriefId] = useState(briefId);
   if (displayBriefId !== briefId) {
     setDisplayBriefId(briefId);
@@ -154,8 +119,6 @@ export function useReviewSubmit(
     setNote(null);
   }
 
-  // The external block wins the display: it is transient, and the content
-  // reasons re-surface once it clears.
   const blockedReasonWith = useCallback(
     (reviewComment: string) =>
       blockedExternally ??
@@ -167,7 +130,7 @@ export function useReviewSubmit(
     if (action === undefined || inFlight.current) {
       return;
     }
-    // Guard against the CURRENT draft, read at click time — the modal's
+    // Guard against the CURRENT draft, read at click time, the modal's
     // rendered blocked state may lag the keystroke.
     if (
       blockedExternally !== undefined ||
@@ -179,29 +142,42 @@ export function useReviewSubmit(
     inFlight.current = true;
     setPending(true);
     setError(null);
-    // A fresh submit invalidates the previous run's degradation note — it
-    // describes THIS submit's outcome only.
     setNote(null);
     // Captured at click time: exactly this set ships, exactly this set flips.
     const drafts = comments.filter((comment) => comment.status === "draft");
     const draftIds = drafts.map((comment) => comment.id);
-    // Same capture rule for the review comment: exactly this text ships, and
-    // only this text is consumed from the draft on success.
     const reviewCommentAtClick = getReviewComment();
-    // Failures land in the inline alert AND the page live region — the
-    // drawer may be closed (inert) by the time the request settles.
     const briefCurrent = () => currentBriefIdRef.current === briefId;
     const fail = (copy: string) => {
-      // Announce regardless (the outcome concerns the reviewer wherever they
-      // are); render the inline copy only while the originating brief shows.
+      // Announce regardless; render inline only on the originating brief.
       if (briefCurrent()) setError(copy);
       announce(copy);
     };
+    const settleSubmitted = (result: SubmittedReview) => {
+      // A delivered verdict is spent: never a repeat approval.
+      const verdictDelivered = outcome !== "comment";
+      if (briefCurrent()) {
+        // Consume first, or the next submit prefills already-posted text.
+        consumeReviewComment(reviewCommentAtClick);
+        markSubmitted(draftIds);
+        recordSubmittedReview(result.reviewId);
+        if (verdictDelivered) {
+          resetOutcome();
+        }
+      }
+      closeSubmit();
+      invalidateConversation?.();
+      if (result.commentsDegraded) {
+        if (briefCurrent()) setNote(COPY.degradedNote);
+        announce(COPY.postedDegraded);
+      } else {
+        announce(COPY.posted);
+      }
+    };
     void (async () => {
       try {
-        // The transport catch covers ONLY the awaited action: once GitHub
-        // reports the review created, a local failure must never be rendered
-        // as "nothing was posted".
+        // Once GitHub reports the review created, a local failure must never
+        // render as "nothing was posted".
         let result: Awaited<ReturnType<typeof action>>;
         try {
           result = await action({
@@ -217,31 +193,7 @@ export function useReviewSubmit(
         }
         switch (result.kind) {
           case "submitted": {
-            // A delivered verdict is spent: the follow-up submit defaults to
-            // a comment-only review, never a repeat approval.
-            const verdictDelivered = outcome !== "comment";
-            // Live-store writes only while the store still holds the
-            // originating brief.
-            if (briefCurrent()) {
-              // Consume first: a stale review-comment draft surviving here
-              // would prefill the next submit with already-posted text.
-              consumeReviewComment(reviewCommentAtClick);
-              markSubmitted(draftIds);
-              recordSubmittedReview(result.reviewId);
-              if (verdictDelivered) {
-                resetOutcome();
-              }
-            }
-            closeSubmit();
-            // Live on GitHub now — refetch so posted comments render as
-            // their real threads.
-            invalidateConversation?.();
-            if (result.commentsDegraded) {
-              if (briefCurrent()) setNote(COPY.degradedNote);
-              announce(COPY.postedDegraded);
-            } else {
-              announce(COPY.posted);
-            }
+            settleSubmitted(result);
             break;
           }
           case "rewritten": {

@@ -1,30 +1,33 @@
+/* oxlint-disable house/comment-run -- the encryption model, the key-ref rotation
+   path and the no-throw posture are what make this boundary safe to change */
 // GitHub OAuth token encryption for `auth_session.gh_token_ciphertext`.
 // AES-256-GCM (authenticated encryption) behind a key-provider interface.
 //
-// ENCRYPTION MODEL: DIRECT encryption with a provider-resolved key — NOT a
+// ENCRYPTION MODEL: DIRECT encryption with a provider-resolved key, NOT a
 // per-row envelope DEK. Reviewer tokens are short-lived and deleted on
 // expiry/logout, so rotation rides on natural token churn.
 //
 // KEY ROTATION WITHOUT A MIGRATION: every row stores the `key_ref` that sealed
 // it and passes it back into `decryptToken`, so publishing a new key is a
-// config change only — old rows keep decrypting under their own `key_ref`.
+// config change only, old rows keep decrypting under their own `key_ref`.
 //
 // KEY PROVIDER SEAM: `resolveKey(keyRef)` is the swap point; it returns a
 // `MaybePromise` so an async (KMS) provider drops in without call-site change.
 //
 // SECURITY: every expected failure is a `Result`, never a throw, and NO error
 // message ever contains plaintext or key material.
+/* oxlint-enable house/comment-run */
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import type { MaybePromise, Result, ValueOf } from "../types";
 
 // ---------------------------------------------------------------------------
-// Constants — AES-256-GCM parameters. All lengths are in bytes.
+// Constants, AES-256-GCM parameters. All lengths are in bytes.
 // ---------------------------------------------------------------------------
 
 const ALGORITHM = "aes-256-gcm";
 /** AES-256 key size. Enforced on the resolved key. */
 const KEY_BYTES = 32;
-/** GCM standard nonce size — 96-bit IV, one random IV per encryption. */
+/** GCM standard nonce size, 96-bit IV, one random IV per encryption. */
 const IV_BYTES = 12;
 /** GCM authentication tag size. */
 const TAG_BYTES = 16;
@@ -63,7 +66,7 @@ export interface KeyProvider {
   resolveKey(keyRef: string): MaybePromise<Result<Buffer, KeyError>>;
 }
 
-/** Environment source — injectable so tests need not mutate `process.env`. */
+/** Environment source: the composition root passes it in. */
 type EnvSource = Record<string, string | undefined>;
 
 /**
@@ -71,9 +74,7 @@ type EnvSource = Record<string, string | undefined>;
  * value is base64-encoded 32 bytes. Missing / non-base64 / wrong-length all
  * yield a `KeyError` (never a throw).
  */
-export function createEnvKeyProvider(
-  env: EnvSource = process.env,
-): KeyProvider {
+export function createEnvKeyProvider(env: EnvSource): KeyProvider {
   return {
     resolveKey(keyRef: string): Result<Buffer, KeyError> {
       const raw = env[keyRef];
@@ -111,7 +112,7 @@ export function createEnvKeyProvider(
 }
 
 // ---------------------------------------------------------------------------
-// Crypto errors — expected failures. Messages never carry plaintext/key bytes.
+// Crypto errors, expected failures. Messages never carry plaintext/key bytes.
 // ---------------------------------------------------------------------------
 
 export const CryptoErrorCodes = {
@@ -121,7 +122,7 @@ export const CryptoErrorCodes = {
   MALFORMED_CIPHERTEXT: "malformed-ciphertext",
   /** The version prefix is not one this module understands. */
   UNKNOWN_VERSION: "unknown-version",
-  /** GCM tag verification failed — tampering or wrong key. No plaintext. */
+  /** GCM tag verification failed, tampering or wrong key. No plaintext. */
   AUTHENTICATION_FAILED: "authentication-failed",
 } as const;
 export type CryptoErrorCode = ValueOf<typeof CryptoErrorCodes>;
@@ -145,15 +146,10 @@ function cryptoFail(
   };
 }
 
-// ---------------------------------------------------------------------------
-// Encrypt / decrypt.
-//
-// Ciphertext format (compact, single string, self-describing):
-//   v1.<iv_b64>.<ct_b64>.<tag_b64>
-// where iv = 12 random bytes, ct = AES-256-GCM ciphertext, tag = 16-byte GCM
-// auth tag. The version prefix lets a future scheme (v2) coexist; an unknown
-// prefix is a clean `unknownVersion` error, not a misparse.
-// ---------------------------------------------------------------------------
+// Ciphertext format, compact and self-describing: v1.<iv_b64>.<ct_b64>.<tag_b64>
+// with iv 12 random bytes, ct AES-256-GCM and tag the 16-byte GCM auth tag. The
+// version prefix lets a future scheme coexist, and an unknown prefix is a clean
+// `unknownVersion` error rather than a misparse.
 
 /**
  * Encrypt `plaintext` (the GitHub OAuth token) under the key named by `keyRef`.
@@ -249,8 +245,8 @@ export async function decryptToken(
     return { ok: true, value: plaintext.toString("utf8") };
   } catch {
     // `final()` throws on tag mismatch (tampered ciphertext/tag, or wrong key).
-    // Swallow the underlying error — it carries nothing useful and we must not
-    // leak key/plaintext state — and return a uniform authentication failure.
+    // Swallow the underlying error, it carries nothing useful and we must not
+    // leak key/plaintext state, and return a uniform authentication failure.
     return cryptoFail(
       CryptoErrorCodes.AUTHENTICATION_FAILED,
       "ciphertext authentication failed",
@@ -258,11 +254,9 @@ export async function decryptToken(
   }
 }
 
-// ---------------------------------------------------------------------------
-// Base64 — strict, canonical decode. `Buffer.from(s, "base64")` silently drops
-// invalid characters, so we validate the shape and round-trip to reject
-// non-canonical input (the malformed-input guard depends on this).
-// ---------------------------------------------------------------------------
+// Strict canonical base64 decode. `Buffer.from(s, "base64")` silently drops
+// invalid characters, so validate the shape and round-trip to reject
+// non-canonical input; the malformed-input guard depends on this.
 
 const BASE64_SHAPE = /^[A-Za-z0-9+/]+={0,2}$/;
 

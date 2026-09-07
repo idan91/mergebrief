@@ -64,8 +64,8 @@ export interface CodexGeneratorOptions {
   model?: string | undefined;
   failureDir: string;
   timeouts?: HarnessTimeoutOverrides | undefined;
-  /** Spawn env; defaults to process.env (the CLI needs HOME/auth.json). */
-  env?: Record<string, string | undefined> | undefined;
+  /** Spawn env, from the composition root (the CLI needs HOME for its login). */
+  env: Record<string, string | undefined>;
 }
 
 export class CodexGenerator implements Generator {
@@ -73,7 +73,7 @@ export class CodexGenerator implements Generator {
   private readonly model: string | undefined;
   private readonly failureDir: string;
   private readonly timeouts: HarnessTimeouts;
-  private readonly env: Record<string, string | undefined> | undefined;
+  private readonly env: Record<string, string | undefined>;
 
   constructor(options: CodexGeneratorOptions) {
     this.command = options.command;
@@ -150,13 +150,13 @@ export class CodexGenerator implements Generator {
           argv.push("--model", this.model);
         }
         const runArgs: HarnessRunArgs = {
+          env: this.env,
           command: this.command,
           argv,
           stdin: prompt,
           timeouts: this.timeouts,
           log,
         };
-        if (this.env) runArgs.env = this.env;
         if (req.signal) runArgs.signal = req.signal;
         const run = await runHarnessProcess(runArgs);
         return interpretCodexRun(this.command, req.label, run, wireSchema);

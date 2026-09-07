@@ -230,6 +230,7 @@ describe("runHarnessProcess", () => {
     const controller = new AbortController();
     const reason = new Error("aborted before spawn settled");
     const promise = runHarnessProcess({
+      env: process.env,
       command: join(dir, "definitely-not-a-real-binary"),
       argv: [],
       stdin: "",
@@ -261,6 +262,7 @@ describe("runHarnessProcess", () => {
     // and must NOT signal the (post-close, possibly reused) process group.
     const boom = new Error("final-line consumer failure");
     const promise = runHarnessProcess({
+      env: process.env,
       command: process.execPath,
       argv: ["-e", "process.stdout.write('unterminated-final')"],
       stdin: "",
@@ -276,6 +278,7 @@ describe("runHarnessProcess", () => {
     const controller = new AbortController();
     const reason = new Error("aborted from the final flush");
     const promise = runHarnessProcess({
+      env: process.env,
       command: process.execPath,
       argv: ["-e", "process.stdout.write('unterminated-final')"],
       stdin: "",
@@ -302,6 +305,7 @@ describe("runHarnessProcess", () => {
     // Steady large chunks keep resetting the inactivity watchdog, the cap
     // must terminate the run long before the hard timer.
     const promise = runHarnessProcess({
+      env: process.env,
       command: process.execPath,
       argv: [
         "-e",
@@ -324,6 +328,7 @@ describe("runHarnessProcess", () => {
     // returned partial stdout must still respect the cap.
     const cap = 64 * 1024;
     const result = await runHarnessProcess({
+      env: process.env,
       command: process.execPath,
       argv: [
         "-e",
@@ -352,6 +357,7 @@ describe("runHarnessProcess", () => {
 
   it("classifies a missing binary as cli-missing", async () => {
     const promise = runHarnessProcess({
+      env: process.env,
       command: join(dir, "definitely-not-a-real-binary"),
       argv: [],
       stdin: "",
@@ -571,6 +577,7 @@ describe("harnessTimeoutError / redactSecrets", () => {
 
 describe("probeHarnessCli", () => {
   const probeArgs = {
+    env: process.env,
     command: process.execPath,
     versionArgv: [FAKE_CLAUDE, "--version"],
     authArgv: [FAKE_CLAUDE, "auth", "status"],

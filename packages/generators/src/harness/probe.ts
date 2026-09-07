@@ -25,7 +25,7 @@ export interface HarnessProbeArgs {
   authFailureHint: string;
   /** Probe ceiling per invocation (default 10 s). */
   timeoutMs?: number;
-  env?: Record<string, string | undefined>;
+  env: Record<string, string | undefined>;
   /** Sink for interpreter warnings; absent = warnings are dropped. */
   log?: Logger;
   /**
@@ -55,9 +55,8 @@ export async function probeHarnessCli(
     command: args.command,
     stdin: "",
     timeouts,
+    env: args.env,
   };
-
-  if (args.env) base.env = args.env;
 
   let version: HarnessRunResult;
   try {

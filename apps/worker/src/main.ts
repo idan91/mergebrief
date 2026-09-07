@@ -2,7 +2,12 @@
 // This is the ONE place env is read and real dependencies are wired, the
 // library modules stay env-INJECTED. A misconfigured worker must fail LOUDLY
 // at boot, never limp into draining jobs it cannot complete.
-import { checkConfiguredTrackerReads, NotionTransports } from "brief-core";
+import {
+  checkConfiguredTrackerReads,
+  NotionTransports,
+  parseHugeSpanRatio,
+  parseRevisionNarrativeFlag,
+} from "brief-core";
 import { createGenerator } from "generators";
 import { createAppClient, loadConfig as loadGitHubConfig } from "github";
 import { Logger as GraphileLogger } from "graphile-worker";
@@ -135,6 +140,10 @@ async function main(): Promise<void> {
     // No `spend` block → uncapped.
     spend: config.value.spend,
     trackerRoot,
+    revisionNarrative: parseRevisionNarrativeFlag(
+      env["REVISION_NARRATIVE_ENABLED"],
+    ),
+    hugeSpanRatio: parseHugeSpanRatio(env["HUGE_SPAN_RATIO"]),
     log: logger,
   };
 

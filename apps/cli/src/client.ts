@@ -62,24 +62,31 @@ function isKnownErrorCode(value: string): value is keyof typeof en.errors {
  * interpolated); an unknown/absent code, or a render that comes back
  * empty, relays the `error` field verbatim.
  */
+function resolveCatalogErrorLine(
+  body: Record<string, unknown>,
+  status: number,
+): string | undefined {
+  const code = body["code"];
+  const params = body["params"];
+  if (typeof code !== "string" || !isKnownErrorCode(code)) return undefined;
+
+  // `replace` isolates interpolation variables from i18next OPTIONS,
+  // a wire param named `count`/`context` must not steer the lookup.
+  const rendered = i18n.t(`errors.${code}`, {
+    replace: isRecord(params) ? params : {},
+  });
+  // Missing params leave literal {{tokens}} (skipOnVariables default):
+  // an unrendered template relays the server's line instead.
+  if (rendered.trim() === "" || rendered.includes("{{")) return undefined;
+  return `${rendered} (HTTP ${status})`;
+}
+
 function serverErrorLine(bodyText: string, status: number): string {
   try {
     const parsed: unknown = JSON.parse(bodyText);
     if (isRecord(parsed)) {
-      const code = parsed["code"];
-      const params = parsed["params"];
-      if (typeof code === "string" && isKnownErrorCode(code)) {
-        // `replace` isolates interpolation variables from i18next OPTIONS,
-        // a wire param named `count`/`context` must not steer the lookup.
-        const rendered = i18n.t(`errors.${code}`, {
-          replace: isRecord(params) ? params : {},
-        });
-        // Missing params leave literal {{tokens}} (skipOnVariables default):
-        // an unrendered template relays the server's line instead.
-        if (rendered.trim() !== "" && !rendered.includes("{{")) {
-          return `${rendered} (HTTP ${status})`;
-        }
-      }
+      const catalogLine = resolveCatalogErrorLine(parsed, status);
+      if (catalogLine !== undefined) return catalogLine;
       const error = parsed["error"];
       if (typeof error === "string") {
         return `${error} (HTTP ${status})`;

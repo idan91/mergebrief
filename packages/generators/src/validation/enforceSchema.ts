@@ -125,6 +125,23 @@ function deriveEffectiveRaw(raw: string, parsed: unknown): string {
   return "";
 }
 
+type RawParse<S extends z.ZodType> =
+  | { readonly ok: true; readonly value: z.infer<S> }
+  | { readonly ok: false };
+
+/** Raw output against the schema; empty raw or any parse failure is a refusal. */
+function tryParseStructuredText<S extends z.ZodType>(
+  schema: S,
+  raw: string,
+): RawParse<S> {
+  if (raw === "") return { ok: false };
+  try {
+    return { ok: true, value: parseStructuredText(schema, raw) };
+  } catch {
+    return { ok: false };
+  }
+}
+
 export async function runWithSchemaFloor<S extends z.ZodType>(
   args: RunWithSchemaFloorArgs<S>,
 ): Promise<z.infer<S>> {
@@ -148,13 +165,8 @@ export async function runWithSchemaFloor<S extends z.ZodType>(
       // Fall back to raw when it validates independently; otherwise keep
       // the CANDIDATE's validation errors (raw may be an envelope whose
       // JSON.parse failure would drown the real issues).
-      if (raw !== "") {
-        try {
-          return parseStructuredText(args.schema, raw);
-        } catch {
-          // Keep the candidate's error below.
-        }
-      }
+      const rawParse = tryParseStructuredText(args.schema, raw);
+      if (rawParse.ok) return rawParse.value;
       parseError = validationError(checked.error);
     } else {
       try {

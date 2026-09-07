@@ -1,6 +1,3 @@
-// SSR-prefetch the linked meta/span; live diff and status polling stay client-side.
-// Render when the artifact exists; status only controls the waiting state.
-// Keep the body switch and plan assembly in features/pulls.
 import { useSuspenseQuery, type QueryClient } from "@tanstack/react-query";
 import {
   createFileRoute,
@@ -42,17 +39,12 @@ import {
 } from "@web/features/conversation/utils/filter";
 import type { Mutable } from "types";
 
-/** One lightweight PR-meta read per tick. */
 const META_POLL_MS = 4000;
 
 interface PrBriefSearch extends BriefSearchParams, ConversationFilterSearch {
   base?: string;
   head?: string;
-  /**
-   * The outdated-thread jump target: the thread's databaseId. This route owns
-   * head navigation and reserves the param; the conversation section reads it
-   * to open/flash the thread.
-   */
+  /** This route reserves the param; the conversation section reads it. */
   thread?: number;
 }
 
@@ -67,14 +59,12 @@ function spanFromSearch(search: PrBriefSearch): Span | undefined {
     : undefined;
 }
 
-/** A number as given, a string through `Number`, anything else NaN. */
 function coerceNumber(value: unknown): number {
   if (typeof value === "number") return value;
   if (typeof value === "string") return Number(value);
   return NaN;
 }
 
-/** A positive-int thread databaseId, or undefined. */
 function resolveThreadParam(value: unknown): number | undefined {
   const parsed = coerceNumber(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
@@ -96,16 +86,11 @@ function assertRepoId(raw: string): string {
   return raw;
 }
 
-/** A read-API NOT_FOUND (the artifact/PR does not exist for this viewer). */
 function isNotFoundError(error: unknown): boolean {
   return error instanceof ApiError && error.code === ApiErrorCodes.NOT_FOUND;
 }
 
-/**
- * Loader error mapping: an unauthenticated read sends the viewer to login; a
- * missing PR/brief becomes the router's 404 (a real HTTP 404 on SSR, not a
- * 500). Everything else propagates to the error component.
- */
+/** A missing PR/brief becomes a real 404 on SSR, not a 500. */
 function mapLoaderError(error: unknown): never {
   if (error instanceof ApiError && error.code === ApiErrorCodes.UNAUTHORIZED) {
     throw redirect({ href: "/api/auth/github" });
@@ -116,12 +101,29 @@ function mapLoaderError(error: unknown): never {
   throw error;
 }
 
+/** Degrades: a failed read disables writes rather than failing the route. */
 /**
- * The Review Session, read alongside the Brief artifact so the first paint is
- * already marked. It DEGRADES: a failed read leaves an error in the cache,
- * which the screen renders as an unavailable session with writes off, it
- * never fails the route. The read creates nothing.
+ * The cached error entry is dropped: the query is retry:false with staleTime
+ * Infinity, so `useSuspenseQuery` would throw it instead of refetching.
  */
+function dropMissingBriefPrefetch(
+  queryClient: QueryClient,
+  reason: unknown,
+  repoId: string,
+  prNumber: number,
+  span: Span,
+): void {
+  if (!isNotFoundError(reason)) {
+    mapLoaderError(reason);
+  }
+
+  queryClient.removeQueries({
+    queryKey: dbBriefQueryOptions(repoId, prNumber, span.base, span.head)
+      .queryKey,
+    exact: true,
+  });
+}
+
 function prefetchSession(
   queryClient: QueryClient,
   repoId: string,
@@ -157,8 +159,6 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
 
     return {
       ...parsed,
-      // Parsed and re-projected, so unknown tokens drop and the surviving
-      // selection lands in canonical order.
       ...conversationFilterSearch(parseConversationFilter(search)),
     };
   },
@@ -176,8 +176,6 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
     const explicit = spanFromSearch(deps);
     try {
       if (explicit !== undefined) {
-        // A linked span may still be generating: swallow only the brief-query NOT_FOUND.
-        // Missing PRs remain real 404s and every other brief failure propagates.
         const [metaResult, briefResult] = await Promise.allSettled([
           context.queryClient.ensureQueryData(
             prMetaQueryOptions(repoId, prNumber),
@@ -191,31 +189,21 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
           mapLoaderError(metaResult.reason);
         }
         if (briefResult.status === "rejected") {
-          if (!isNotFoundError(briefResult.reason)) {
-            mapLoaderError(briefResult.reason);
-          }
-          // Drop the cached brief error so the first render fetches again.
-          // With retry:false and infinite staleTime, useSuspenseQuery would otherwise throw it.
-          context.queryClient.removeQueries({
-            queryKey: dbBriefQueryOptions(
-              repoId,
-              prNumber,
-              explicit.base,
-              explicit.head,
-            ).queryKey,
-            exact: true,
-          });
+          dropMissingBriefPrefetch(
+            context.queryClient,
+            briefResult.reason,
+            repoId,
+            prNumber,
+            explicit,
+          );
         }
         return;
       }
-      // Span unknown: the meta names it, then the brief prefetches only when
-      // it is actually renderable (a wait state needs nothing else).
       const meta = await context.queryClient.ensureQueryData(
         prMetaQueryOptions(repoId, prNumber),
       );
       // Prefetch the SELECTED revision's brief with ITS OWN base (`deps.base`
       // disambiguates duplicate-head rows) so a historical head SSRs correctly.
-      // An unknown head degrades to latest, never a 404.
       const timeline = resolveDbTimeline(meta.revisions, deps.head, deps.base);
       if (timeline !== undefined) {
         const span = {
@@ -271,17 +259,13 @@ function PrBriefRoute() {
   const prNumber = parsePrNumber(params.prNumber);
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  // Pending only while a navigation TARGETING a PR-brief page runs its
-  // loader (a revision select re-runs it via loaderDeps): leaving the page
-  // never dims the brief.
+  // Leaving the page must not dim the brief.
   const revisionPending = useRouterState({
     select: (state) =>
       state.status === "pending" &&
       PR_BRIEF_PATH_PATTERN.test(state.location.pathname),
   });
-  // Memoized on the primitives: `state`/`pinnedSpan` identity chains hang off
-  // this object, and a fresh literal per render re-runs the span-pinning
-  // effect whenever ?base=&head= are present.
+  // A fresh literal per render re-runs the span-pinning effect.
   const explicit = useMemo(
     () =>
       search.base !== undefined && search.head !== undefined
@@ -298,15 +282,11 @@ function PrBriefRoute() {
         : false,
   }).data;
 
-  // `?head=` (+ `base`, which disambiguates duplicate-head rows from a
-  // retarget re-brief) selects a timeline point; an unknown head degrades to
-  // latest. Absent, the legacy explicit-span / current-head flow applies.
   const timeline = useMemo(
     () => resolveDbTimeline(meta.revisions, search.head, search.base),
     [meta.revisions, search.base, search.head],
   );
 
-  // Full SPAN identity: duplicate-head revisions differ only by base.
   const selectedSpanKey =
     timeline === undefined
       ? undefined
@@ -326,36 +306,28 @@ function PrBriefRoute() {
     [explicit, meta, timeline],
   );
 
-  // Head drift permits submission behind an acknowledgement; base drift stays read-only
-  // because the rendered anchors may be wrong. Compare against meta.baseSha only when
-  // a brief exists; a null base cannot veto. Use primitives to survive poll-created timelines.
+  // Base drift stays read-only because the rendered anchors may be wrong;
+  // head drift only needs an acknowledgement.
   const selectedHeadIsCurrent =
     timeline !== undefined && timeline.selected.headSha === meta.headSha;
   const selectedBaseIsCurrent =
     timeline !== undefined &&
     (meta.baseSha === null || timeline.selected.baseSha === meta.baseSha);
   const baseDrift = selectedHeadIsCurrent && !selectedBaseIsCurrent;
-  // Unified across the timeline and legacy explicit-span paths: any rendered
-  // span whose head is not the PR's current head submits behind the ack.
   const renderedHead = state.kind === "render" ? state.span.head : undefined;
   const staleHead =
     renderedHead !== undefined &&
     meta.headSha !== null &&
     meta.headSha !== renderedHead;
-  // Whether a stale head has anywhere to go; see StaleRevisionChipProps.
   const newerRevisionSelectable =
     timeline === undefined ||
     timeline.selectedIndex < timeline.points.length - 1;
-  // Memoized so its reference is stable across PR-meta poll ticks, an inline
-  // literal would recreate the composer wiring downstream and bust every
-  // ChunkCard's memo boundary on each tick.
+  // An inline literal busts every ChunkCard's memo boundary per poll tick.
   const readOnly = useMemo(
     () => (baseDrift ? { reason: BASE_DRIFT_REASON } : undefined),
     [baseDrift],
   );
 
-  // Hoisted: an inline literal is a new object per render, busting the memo
-  // boundaries downstream on every poll tick.
   const briefSearch = useMemo<BriefSearchParams>(
     () => buildBriefSearchParams(search.view, search.compare),
     [search.view, search.compare],
@@ -390,8 +362,6 @@ function PrBriefRoute() {
     [navigate],
   );
 
-  // Jump only to known briefed heads using their own bases; never guess a missing revision.
-  // Memoize on a primitive span fingerprint so poll-created objects do not rerender cards.
   // Hex SHAs cannot collide with its separators.
   const revisionSpansKey = useMemo(
     () =>

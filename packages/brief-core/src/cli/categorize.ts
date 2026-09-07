@@ -45,8 +45,11 @@ import { splitDiffByFile } from "../diff/diff";
 import { assignBriefIndex, lookupBriefShaByIndex } from "../artifacts/manifest";
 import { countChangedLines, type RevisionChanges } from "../diff/revchanges";
 import { buildComparisonMarks, writeComparisonMarks } from "../diff/comparison";
-import { isHugeSpan } from "../generation/huge-span";
-import { revisionNarrativeConfig } from "../generation/config";
+import { isHugeSpan, parseHugeSpanRatio } from "../generation/huge-span";
+import {
+  parseRevisionNarrativeFlag,
+  type RevisionNarrativeConfig,
+} from "../generation/config";
 import {
   commentsName,
   diffsName,
@@ -88,7 +91,7 @@ function loadEnv(): void {
   try {
     process.loadEnvFile(".env");
   } catch {
-    // no .env file — ANTHROPIC_API_KEY may still be set in the environment
+    // no .env file, ANTHROPIC_API_KEY may still be set in the environment
   }
 }
 
@@ -164,13 +167,7 @@ async function buildInputs(
   return { pr: { locator, meta, diff, ...context }, comments, commitRange };
 }
 
-/**
- * Generate one brief and write its artifacts (the diff/metadata fetch, the
- * model call, and the brief/diffs/comments sidecars) under `outDir`. The
- * shared engine body for both the CLI and any other front door (e.g. the web
- * app's server fn) — the only thing a caller supplies beyond the PR is where
- * to write.
- */
+/** The options `generateAndWrite` reads beyond the PR and its output directory. */
 export interface GenerateOptions {
   /** The repo's `tracker:` block; absent means ticket keys never match. */
   readonly tracker?: TrackerConfig | undefined;
@@ -180,8 +177,18 @@ export interface GenerateOptions {
   readonly contextProviders?: readonly ContextProvider[] | undefined;
   /** The root's reads by tracker; absent means every primary is reported unread. */
   readonly reads?: TrackerReads | undefined;
+  /** The revision-narrative gate the root read; absent means enabled. */
+  readonly revisionNarrative?: RevisionNarrativeConfig | undefined;
+  /** The huge-span ratio the root read; absent means the default. */
+  readonly hugeSpanRatio?: number | undefined;
 }
 
+/**
+ * Generate one brief and write its artifacts under `outDir`: the diff and
+ * metadata fetch, the model call, and the brief, diffs and comments sidecars.
+ * This is the shared engine body for the CLI and any other front door, so a
+ * caller supplies nothing beyond the PR except where to write.
+ */
 export async function generateAndWrite(
   outDir: string,
   url: string,
@@ -246,7 +253,7 @@ export async function generateAndWrite(
   log(`wrote ${diffsFile} (${fileDiffs.length} files)`);
   log(`wrote ${commentsFile} (${comments.length} comments)`);
 
-  // Comparison marks + revision narrative — absent on the first brief (no
+  // Comparison marks + revision narrative, absent on the first brief (no
   // previous head). Marks use the same three-dot compare diff as the delta.
   if (index > 1) {
     const prevHeadSha = await lookupBriefShaByIndex(outDir, stem, index - 1);
@@ -269,7 +276,7 @@ export async function generateAndWrite(
       await writeComparisonMarks(outDir, stem, marks, log);
 
       // Back-compat alias kept while the FE migrates off `.revchanges.json`.
-      // Derived from the marks above — the diff is never scanned twice.
+      // Derived from the marks above, the diff is never scanned twice.
       const revChanges: RevisionChanges = {
         headSha: commitRange.head,
         prevHeadSha,
@@ -291,6 +298,8 @@ export async function generateAndWrite(
         generator,
         log,
         effort,
+        revisionNarrative: options.revisionNarrative,
+        hugeSpanRatio: options.hugeSpanRatio,
       });
     }
   }
@@ -300,7 +309,7 @@ export async function generateAndWrite(
 /**
  * Generate and write the revision narrative for a non-first brief, or a skip
  * stub when config-disabled or the incremental span is huge-span territory.
- * Never throws — a narrative failure must not fail the full brief, whose
+ * Never throws, a narrative failure must not fail the full brief, whose
  * artifacts are already written by the time this runs.
  */
 async function generateAndWriteRevisionNarrative(args: {
@@ -314,6 +323,8 @@ async function generateAndWriteRevisionNarrative(args: {
   generator: Generator;
   log: (msg: string) => void;
   effort: Effort | undefined;
+  revisionNarrative?: RevisionNarrativeConfig | undefined;
+  hugeSpanRatio?: number | undefined;
 }): Promise<void> {
   const {
     outDir,
@@ -340,7 +351,7 @@ async function generateAndWriteRevisionNarrative(args: {
     skipped,
   });
 
-  const config = revisionNarrativeConfig();
+  const config = args.revisionNarrative ?? { enabled: true };
   if (!config.enabled) {
     await writeFile(
       narrativeFile,
@@ -354,13 +365,18 @@ async function generateAndWriteRevisionNarrative(args: {
 
   // Whole-PR denominator from PR metadata (per-file additions+deletions), NOT
   // from `pr.diff`: in range mode the fetched diff covers only the explicit
-  // base..head span, which would skew the ratio — the metadata file list is
+  // base..head span, which would skew the ratio, the metadata file list is
   // whole-PR regardless of how the brief's diff was fetched.
   const wholePrChangedLines = pr.meta.files.reduce(
     (sum, f) => sum + f.additions + f.deletions,
     0,
   );
-  if (isHugeSpan(countChangedLines(incrementalDiff), wholePrChangedLines)) {
+  const hugeSpan = isHugeSpan(
+    countChangedLines(incrementalDiff),
+    wholePrChangedLines,
+    args.hugeSpanRatio,
+  );
+  if (hugeSpan) {
     await writeFile(
       narrativeFile,
       `${JSON.stringify(skipStub("span too large"), null, 2)}\n`,
@@ -525,9 +541,13 @@ async function main(): Promise<void> {
     suppliedPrimary,
     contextProviders: createCliContextProviders(),
     reads: reads.value,
+    revisionNarrative: parseRevisionNarrativeFlag(
+      process.env["REVISION_NARRATIVE_ENABLED"],
+    ),
+    hugeSpanRatio: parseHugeSpanRatio(process.env["HUGE_SPAN_RATIO"]),
   };
 
-  // PRs are independent — run them in parallel, sharing one generator so the
+  // PRs are independent, run them in parallel, sharing one generator so the
   // SDK's connection pool is reused. A single bad URL must not kill the batch.
   const generator = constructed.value;
   const effort = loaded.value.generator.effort;
@@ -574,7 +594,7 @@ async function main(): Promise<void> {
   if (failures > 0) process.exit(1);
 }
 
-// Only run the CLI when this file is the process entry point — `generateAndWrite`
+// Only run the CLI when this file is the process entry point, `generateAndWrite`
 // (and the entry re-exports in ../index.ts) must be importable by other front doors
 // (e.g. the web app's server fn) without triggering argv parsing / process.exit.
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

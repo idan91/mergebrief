@@ -5,25 +5,13 @@
 import "@tanstack/react-start/server-only";
 
 import { createLogger, type Logger } from "logging";
+import { getServerEnv } from "./env";
 
 let cached: Logger | undefined;
 
-/**
- * Load `apps/web/.env` if present so `LOG_LEVEL`/`NODE_ENV` from the file are
- * honored no matter which module touches the logger first.
- */
-function readEnv(): NodeJS.ProcessEnv {
-  try {
-    process.loadEnvFile();
-  } catch {
-    // No .env file — the vars may still be set in the ambient env.
-  }
-  return process.env;
-}
-
 export function getServerLogger(): Logger {
   if (cached === undefined) {
-    cached = createLogger({ env: readEnv() });
+    cached = createLogger({ env: getServerEnv() });
   }
   return cached;
 }

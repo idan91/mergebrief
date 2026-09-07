@@ -20,7 +20,7 @@ import type * as GithubModule from "../../src/github";
 import type { PrMetadata } from "../../src/github";
 
 // Mock the github module so generateAndWrite / generateAndWriteDelta never
-// shell out to `gh` — same fixtures serve both the whole-PR and incremental
+// shell out to `gh`, same fixtures serve both the whole-PR and incremental
 // fetches. `parsePrUrl` and friends stay real (pure functions).
 const fetched = vi.hoisted(() => ({
   meta: undefined as PrMetadata | undefined,
@@ -41,7 +41,7 @@ vi.mock("../../src/github", async (importOriginal) => {
   return {
     ...actual,
     ...mocked,
-    // The default PrSource must ride the SAME mocks — the real `ghPrSource`
+    // The default PrSource must ride the SAME mocks, the real `ghPrSource`
     // binds the unmocked gh functions at module init.
     ghPrSource: { ...actual.ghPrSource, ...mocked },
   };
@@ -344,7 +344,7 @@ describe("categorizeRevisionNarrative", () => {
     expect(unstamped.users[0]).not.toContain("regenerated fresh");
   });
 
-  it("warns (never throws) when a chunk references an unknown briefChangeGroupId", async () => {
+  it("warns without throwing on an unknown briefChangeGroupId reference", async () => {
     const brief: Brief = { ...input.brief, changeGroups: [] };
     const logs: string[] = [];
     const narrative = await categorizeRevisionNarrative(
@@ -416,7 +416,7 @@ describe("categorizeRevisionNarrative", () => {
 
 // --- effort threading ------------------------------------------------------
 
-describe("effort threading — delta + narrative", () => {
+describe("effort threading, delta + narrative", () => {
   const deltaInput = {
     locator: { owner: "o", repo: "r", number: 1 },
     meta: makeMeta(HEAD_2),
@@ -450,7 +450,7 @@ describe("effort threading — delta + narrative", () => {
     }),
   };
 
-  it("delta defaults to medium in request and origin (byte-identical pin)", async () => {
+  it("delta defaults to medium in request and origin, pinned byte-identical", async () => {
     const generator = new FakeGenerator();
     const delta = await categorizeDelta(deltaInput, generator);
     expect(generator.efforts).toEqual(["medium"]);
@@ -477,9 +477,9 @@ describe("effort threading — delta + narrative", () => {
   });
 });
 
-// --- text length floor — delta + narrative pipelines -----------------------
+// --- text length floor, delta + narrative pipelines -----------------------
 
-describe("text length floor — delta + narrative pipelines", () => {
+describe("text length floor, delta + narrative pipelines", () => {
   /** FakeGenerator with per-label fixture overrides for over-cap text. */
   class OverridingGenerator extends FakeGenerator {
     constructor(private readonly overrides: Record<string, unknown>) {
@@ -593,11 +593,9 @@ describe("generateAndWrite comparison artifacts", () => {
     dir = await mkdtemp(join(tmpdir(), "narrative-"));
     fetched.prDiff = wholePrDiff;
     fetched.compareDiff = incrementalDiff;
-    delete process.env["REVISION_NARRATIVE_ENABLED"];
   });
   afterEach(async () => {
     await rm(dir, { recursive: true, force: true });
-    delete process.env["REVISION_NARRATIVE_ENABLED"];
   });
 
   /** Run the first brief (index 1) so a follow-up run gets index 2. */
@@ -617,7 +615,7 @@ describe("generateAndWrite comparison artifacts", () => {
     );
   });
 
-  it("writes previous-brief marks, the .revchanges.json compat alias, and the narrative for a non-first brief", async () => {
+  it("writes marks, the compat alias and the narrative for a non-first brief", async () => {
     const generator = new FakeGenerator();
     await firstBrief(generator);
     fetched.meta = makeMeta(HEAD_2);
@@ -651,7 +649,7 @@ describe("generateAndWrite comparison artifacts", () => {
 
   // Pins the CLI call-site wiring of `marksFiles`: if the caller drops it, both
   // overlap directions silently stop running and no other assertion notices.
-  it("lands coverage warnings in the written narrative when the model under-covers the span", async () => {
+  it("lands coverage warnings when the model under-covers the span", async () => {
     class UnderCoveringGenerator extends FakeGenerator {
       override async generate<S extends z.ZodType>(
         req: GenerateRequest<S>,
@@ -680,7 +678,7 @@ describe("generateAndWrite comparison artifacts", () => {
     ).toBe(true);
   });
 
-  it("does not fail the brief when narrative generation fails; marks stay on disk", async () => {
+  it("keeps the brief and the on-disk marks when narrative generation fails", async () => {
     const generator = new FakeGenerator(["revision narrative"]);
     await firstBrief(generator);
     fetched.meta = makeMeta(HEAD_2);
@@ -704,7 +702,7 @@ describe("generateAndWrite comparison artifacts", () => {
     ).toBe(true);
   });
 
-  it("writes marks + a 'span too large' stub (no LLM call) for an over-threshold span", async () => {
+  it("writes marks and a span-too-large stub with no LLM call", async () => {
     const generator = new FakeGenerator();
     await firstBrief(generator);
     fetched.meta = makeMeta(HEAD_2);
@@ -724,12 +722,20 @@ describe("generateAndWrite comparison artifacts", () => {
     expect(stub["skipped"]).toBe("span too large");
   });
 
-  it("writes marks + a 'disabled by config' stub when the narrative gate is off", async () => {
+  it("writes marks and a disabled-by-config stub when the gate is off", async () => {
     const generator = new FakeGenerator();
     await firstBrief(generator);
     fetched.meta = makeMeta(HEAD_2);
-    process.env["REVISION_NARRATIVE_ENABLED"] = "false";
-    await generateAndWrite(dir, URL, undefined, generator, () => {});
+    await generateAndWrite(
+      dir,
+      URL,
+      undefined,
+      generator,
+      () => {},
+      undefined,
+      undefined,
+      { revisionNarrative: { enabled: false } },
+    );
 
     expect(generator.labels).toEqual(["brief", "brief"]); // no narrative call
     expect(

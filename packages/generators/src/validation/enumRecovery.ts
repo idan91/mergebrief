@@ -1,16 +1,10 @@
 import type { z } from "zod/v4";
 
 /**
- * Salvage for structured-output payloads that fail strict schema parsing.
- *
- * Closed vocabularies are enforced server-side via
- * `enumPreservingOutputFormat`; this salvage is defense-in-depth for a
- * residual invalid token inside an otherwise valid payload. For
- * *supplementary* array fields the posture is warn-and-drop: drop the
- * offending array element, keep the artifact, surface a warning.
- *
- * Only elements inside the caller-named droppable fields are ever removed;
- * a bad token anywhere else (e.g. `dominantCategory`) stays a hard failure.
+ * Salvage for structured-output payloads that fail strict schema parsing. Closed
+ * vocabularies are enforced server-side, so this is defense in depth for a
+ * residual bad token: caller-named droppable array fields warn and drop the
+ * element, while a bad token anywhere else stays a hard failure.
  */
 
 export interface SalvageResult<T> {
@@ -55,6 +49,23 @@ interface IssueLike {
   path: readonly PropertyKey[];
 }
 
+/** The nearest enclosing droppable array element on `path`, innermost first. */
+function findDroppableElement(
+  path: readonly (string | number)[],
+  droppable: ReadonlySet<string>,
+): Removal | undefined {
+  for (let i = path.length - 1; i > 0; i--) {
+    const index = path[i];
+    const field = path[i - 1];
+    const droppableElement =
+      typeof index === "number" &&
+      typeof field === "string" &&
+      droppable.has(field);
+    if (droppableElement) return { parent: path.slice(0, i), index };
+  }
+  return undefined;
+}
+
 function collectRemovals(
   issues: readonly IssueLike[],
   droppable: ReadonlySet<string>,
@@ -65,23 +76,13 @@ function collectRemovals(
     const path = issue.path.filter(
       (p): p is string | number => typeof p !== "symbol",
     );
-    for (let i = path.length - 1; i > 0; i--) {
-      const index = path[i];
-      const field = path[i - 1];
-      if (
-        typeof index === "number" &&
-        typeof field === "string" &&
-        droppable.has(field)
-      ) {
-        const parent = path.slice(0, i);
-        const key = `${pathKey(parent)}#${index}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          removals.push({ parent, index });
-        }
-        break;
-      }
-    }
+    const removal = findDroppableElement(path, droppable);
+    if (removal === undefined) continue;
+
+    const key = `${pathKey(removal.parent)}#${removal.index}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    removals.push(removal);
   }
   removals.sort((a, b) => {
     const ka = pathKey(a.parent);
@@ -102,7 +103,7 @@ function describeElement(element: unknown): string {
  * Repeatedly drop bad elements from the droppable array fields and re-parse,
  * until the payload parses clean or no fixable issue remains. Returns null
  * when the payload cannot be salvaged (structural failure, or an invalid
- * token outside a droppable field). Pure — the input is never mutated.
+ * token outside a droppable field). Pure, the input is never mutated.
  */
 export function salvageDroppableEnums<S extends z.ZodType>(
   raw: unknown,

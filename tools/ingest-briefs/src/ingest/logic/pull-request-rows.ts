@@ -1,5 +1,5 @@
 // Phase 2: one `pull_request` row per (repo, number). PR-base = the LATEST
-// brief's span base — a retarget moves it, and the newest brief is what the
+// brief's span base, a retarget moves it, and the newest brief is what the
 // route renders.
 import type { PullRequestRow } from "persistence";
 import type {
@@ -11,6 +11,20 @@ import type {
 import { buildPrKey } from "../utils";
 
 /** The highest-index brief for the same PR as `brief`. */
+/** Names of every brief file on the PR `key` addresses. */
+function listBriefFileNames(
+  briefFiles: readonly ParsedBriefFile[],
+  key: string,
+): string[] {
+  const names: string[] = [];
+  for (const file of briefFiles) {
+    if (buildPrKey(file.meta.pr.repo, file.meta.pr.number) === key) {
+      names.push(file.name);
+    }
+  }
+  return names;
+}
+
 function findNewestBrief(
   briefFiles: readonly ParsedBriefFile[],
   brief: ParsedBriefFile,
@@ -53,18 +67,14 @@ export async function writePullRequestRows(
       brief.meta.pr.number,
     );
     // A pre-index brief carries no base SHA; the resolution is the only
-    // source. Without one the PR is left alone entirely — a half-ingested row
+    // source. Without one the PR is left alone entirely, a half-ingested row
     // would be worse than a loud miss.
     const baseSha =
       newest.legacy === true
         ? resolution.baseSha
         : newest.meta.commitRange.base;
     if (baseSha === undefined) {
-      for (const file of briefFiles) {
-        if (buildPrKey(file.meta.pr.repo, file.meta.pr.number) === key) {
-          run.unmapped.push(file.name);
-        }
-      }
+      run.unmapped.push(...listBriefFileNames(briefFiles, key));
       continue;
     }
 

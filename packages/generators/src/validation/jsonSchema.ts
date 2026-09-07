@@ -1,18 +1,10 @@
 import { z } from "zod/v4";
 
 /**
- * Enum-preserving structured-output format.
- *
- * The SDK's `zodOutputFormat` runs the JSON schema through a keyword whitelist
- * (`transformJSONSchema`) that **drops `enum`/`const`**, demoting closed
- * vocabularies to description text the model may ignore. The Anthropic platform
- * *does* support `enum`/`const` in structured-output schemas, so decoding can be
- * constrained server-side — invalid tokens then cannot be generated at all.
- *
- * This module rebuilds the SDK transform verbatim with one difference: `enum`
- * and `const` are carried through. `parse` mirrors the SDK's message shape
- * exactly — retry feedback echoes it to the model and salvage re-parses
- * independently, so both must stay identical.
+ * Enum-preserving structured-output format. The SDK's `zodOutputFormat` drops
+ * `enum`/`const`, demoting closed vocabularies to description text; the platform
+ * supports them and constrains decoding server-side, so this rebuilds the
+ * transform carrying them through. `parse` must mirror the SDK's message shape.
  */
 
 /** Structural stand-in for the SDK's AutoParseableOutputFormat (not publicly exported). */
@@ -53,6 +45,17 @@ function pop(source: Record<string, unknown>, key: string): unknown {
  * `working` is mutated (keys are popped as they are consumed); any leftover keys
  * are demoted into `description`, matching the SDK.
  */
+/** Every record-valued property transformed; non-record entries drop. */
+function transformProperties(
+  properties: Record<string, unknown>,
+): Record<string, unknown> {
+  const strictProps: Record<string, unknown> = {};
+  for (const [key, propSchema] of Object.entries(properties)) {
+    if (isRecord(propSchema)) strictProps[key] = transformNode(propSchema);
+  }
+  return strictProps;
+}
+
 function transformNode(
   working: Record<string, unknown>,
 ): Record<string, unknown> {
@@ -107,13 +110,9 @@ function transformNode(
 
   if (type === "object") {
     const properties = pop(working, "properties");
-    const strictProps: Record<string, unknown> = {};
-    if (isRecord(properties)) {
-      for (const [key, propSchema] of Object.entries(properties)) {
-        if (isRecord(propSchema)) strictProps[key] = transformNode(propSchema);
-      }
-    }
-    strict["properties"] = strictProps;
+    strict["properties"] = isRecord(properties)
+      ? transformProperties(properties)
+      : {};
     pop(working, "additionalProperties");
     strict["additionalProperties"] = false;
     const required = pop(working, "required");
@@ -208,7 +207,7 @@ export function parseStructuredText<S extends z.ZodType>(
 }
 
 /**
- * The SDK-shaped validation failure for a Zod error — one message shape
+ * The SDK-shaped validation failure for a Zod error, one message shape
  * whether the payload arrived as text or as a transport-parsed candidate.
  */
 export function validationError(error: z.ZodError): Error {
@@ -218,12 +217,10 @@ export function validationError(error: z.ZodError): Error {
 }
 
 /**
- * The enum-preserving strict JSON schema for a Zod schema — the wire payload
- * for Anthropic `output_config.format.schema`, claude's `--json-schema`, and
- * codex's `--output-schema` alike. Bare schema, no client parse callback:
- * SDK ≥0.101 parses eagerly at message_stop, so a `parse` member would turn
- * an invalid output into a stream rejection that bypasses the schema-floor
- * pipeline (salvage/retry/dump).
+ * The enum-preserving strict JSON schema, the wire payload for Anthropic's
+ * `output_config.format.schema`, claude's `--json-schema` and codex's
+ * `--output-schema` alike. Bare schema, no parse callback: the SDK parses eagerly
+ * at message_stop, so a `parse` member would bypass the schema-floor pipeline.
  */
 export function enumPreservingJsonSchema(
   zodSchema: z.ZodType,
@@ -238,12 +235,10 @@ export function enumPreservingJsonSchema(
 }
 
 /**
- * Build an enum-preserving output format from a Zod schema. Same call shape as
- * the SDK's `zodOutputFormat`, and the returned object is a drop-in replacement:
- * `{ type: "json_schema", schema, parse }`, where `parse` yields typed data or
- * throws with the SDK's exact message shape on invalid output. NOTE: do not
- * hand this to `messages.stream()` — the `parse` member triggers the SDK's
- * eager client-side parse (see `enumPreservingJsonSchema`).
+ * Build an enum-preserving output format from a Zod schema, a drop-in for the
+ * SDK's `zodOutputFormat`, where `parse` yields typed data or throws with the
+ * SDK's exact message shape. Do not hand this to `messages.stream()`, where the
+ * `parse` member triggers the SDK's eager client-side parse.
  */
 export function enumPreservingOutputFormat<S extends z.ZodType>(
   zodSchema: S,

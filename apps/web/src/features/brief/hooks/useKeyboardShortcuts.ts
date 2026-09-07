@@ -1,44 +1,28 @@
 import { useEffect, useRef } from "react";
 
 export interface KeyboardShortcutsOptions {
-  /** Reading-ordered-groups × within-group chunk ids; J/K step through this list. */
   chunkIds: string[];
-  /**
-   * Indices into `chunkIds` where each group starts, in the same (Reading)
-   * order as `chunkIds` — e.g. `[0, 3, 5]` for groups of 3, 2, and N chunks.
-   * Shift+J/Shift+K jump to the next/prev group's first chunk via this list.
-   */
+  /** Indices into `chunkIds` where each group starts, e.g. `[0, 3, 5]`. */
   groupBoundaries: number[];
-  /** Read at keydown time (store `getState`) — a position change must never
-   * re-render the host screen just to keep this hook current. */
+  /** A getter: a position change must not re-render the host screen. */
   getActiveChunkId: () => string | null;
-  /** True while a modal/drawer/composer holds focus — shortcuts stand down. */
   disabled: boolean;
-  /** True while the narrow Sidebar sheet is open: only S still fires. */
   sheetOpen: boolean;
   focusModeActive: boolean;
   jumpToChunk: (chunkId: string) => void;
   toggleFocusMode: () => void;
   toggleHelp: () => void;
-  /**
-   * Mark the active chunk viewed (focus mode's confirm-and-advance path);
-   * the session's markReviewed already advances while focus mode is on.
-   */
   markViewed: (chunkId: string) => void;
-  /** Jump to the Conversation section; absent on the local path (no section). */
   jumpToConversation?: (() => void) | undefined;
-  /** Toggle the Sidebar; absent while no Sidebar is mounted. */
   toggleSidebar?: (() => void) | undefined;
 }
 
-/** The minimal slice of a keydown event the decision logic needs. */
 export interface ShortcutEvent {
   key: string;
   metaKey: boolean;
   ctrlKey: boolean;
   altKey: boolean;
   shiftKey: boolean;
-  /** Whether the event originated from a text-input-like element. */
   isTyping: boolean;
 }
 
@@ -51,6 +35,8 @@ export interface ShortcutState {
   focusModeActive: boolean;
 }
 
+export type StepKey = "j" | "k";
+
 export type ShortcutAction =
   | { type: "jump"; chunkId: string }
   | { type: "toggleFocus" }
@@ -62,7 +48,7 @@ export type ShortcutAction =
 const TYPING_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
 
 // Focus parked on a click-operated input (the Viewed checkbox) must not kill
-// single-key shortcuts — only actual text entry stands them down.
+// single-key shortcuts, only actual text entry stands them down.
 const CLICK_INPUT_TYPES = new Set(["checkbox", "radio", "button", "submit"]);
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -73,15 +59,37 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return TYPING_TAGS.has(target.tagName) || target.isContentEditable;
 }
 
-/**
- * Pure decision: given a keystroke and the current reading state, what should
- * happen — or nothing? Extracted from the hook so the branching (key mapping,
- * J/K index clamping, the typing/overlay/modifier stand-downs, and Escape
- * layering) is unit-testable without a DOM. Returns null for "ignore this key".
- *
- * Escape exits focus mode only when no overlay is claiming the key (`disabled`),
- * so closing a modal with Escape doesn't also drop you out of focus mode.
- */
+function resolveGroupJump(
+  key: StepKey,
+  state: ShortcutState,
+): ShortcutAction | null {
+  const { chunkIds, groupBoundaries, activeChunkId } = state;
+  if (groupBoundaries.length === 0) return null;
+
+  const activeIndex = activeChunkId ? chunkIds.indexOf(activeChunkId) : -1;
+  let currentGroup = -1;
+  for (const [groupIndex, boundary] of groupBoundaries.entries()) {
+    if (activeIndex >= boundary) currentGroup = groupIndex;
+  }
+
+  const nextGroup =
+    key === "j"
+      ? Math.min(currentGroup + 1, groupBoundaries.length - 1)
+      : Math.max(currentGroup - 1, 0);
+
+  const targetIndex = groupBoundaries[nextGroup];
+  const next = targetIndex === undefined ? undefined : chunkIds[targetIndex];
+  if (!next || next === activeChunkId) return null;
+
+  return { type: "jump", chunkId: next };
+}
+
+const FLAT_ACTIONS: Readonly<Record<string, ShortcutAction>> = {
+  z: { type: "toggleFocus" },
+  "?": { type: "toggleHelp" },
+  c: { type: "jumpToConversation" },
+};
+
 export function resolveShortcut(
   event: ShortcutEvent,
   state: ShortcutState,
@@ -99,58 +107,38 @@ export function resolveShortcut(
   if (state.sheetOpen && key !== "s") return null;
 
   if (key === "j" || key === "k") {
-    const { chunkIds, groupBoundaries, activeChunkId } = state;
-    // Shift+J/Shift+K: same "jump" action, targeting the next/prev group's
-    // first chunk in Reading order instead of the next/prev chunk.
-    if (event.shiftKey) {
-      if (groupBoundaries.length === 0) return null;
-      const activeIndex = activeChunkId ? chunkIds.indexOf(activeChunkId) : -1;
-      let currentGroup = -1;
-      for (const [groupIndex, boundary] of groupBoundaries.entries()) {
-        if (activeIndex >= boundary) currentGroup = groupIndex;
-      }
-      const nextGroup =
-        key === "j"
-          ? Math.min(currentGroup + 1, groupBoundaries.length - 1)
-          : Math.max(currentGroup - 1, 0);
-      const targetIndex = groupBoundaries[nextGroup];
-      const next =
-        targetIndex === undefined ? undefined : chunkIds[targetIndex];
-      if (!next || next === activeChunkId) return null;
-      return { type: "jump", chunkId: next };
-    }
+    if (event.shiftKey) return resolveGroupJump(key, state);
+
+    const { chunkIds, activeChunkId } = state;
     if (chunkIds.length === 0) return null;
+
     const index = activeChunkId ? chunkIds.indexOf(activeChunkId) : -1;
     const next =
       key === "j"
         ? chunkIds[Math.min(index + 1, chunkIds.length - 1)]
         : chunkIds[Math.max(index - 1, 0)];
     if (!next || next === activeChunkId) return null;
+
     return { type: "jump", chunkId: next };
   }
 
-  if (key === "z") return { type: "toggleFocus" };
-  if (key === "?") return { type: "toggleHelp" };
-  if (key === "c") return { type: "jumpToConversation" };
+  const flat = FLAT_ACTIONS[key];
+  if (flat) return flat;
+
   if (key === "s" && !event.shiftKey) return { type: "toggleSidebar" };
-  // Focus mode only — a global V would silently collapse arbitrary chunks.
+
+  // Focus mode only, a global V would silently collapse arbitrary chunks.
   if (key === "v" && state.focusModeActive && state.activeChunkId !== null) {
     return { type: "markViewed", chunkId: state.activeChunkId };
   }
+
   return null;
 }
 
 /**
- * Global J/K (next/prev chunk), Shift+J/Shift+K (next/prev group in Reading
- * order — Read-through), Z (focus mode), V (mark viewed + advance, focus mode
- * only), S (sidebar), ? (shortcuts hint), Esc (exit focus
- * mode). Modeled on Atlas's reading shortcuts. Stands down while typing or
- * while an overlay (drawer/modal/composer) holds focus, so it never steals keys
- * mid-edit.
- *
- * The listener binds once and reads the latest options through a ref, so it does
- * not churn `addEventListener` on every navigation (the handler is on a hot path
- * — every keystroke on the page).
+ * Stands down while typing or while an overlay holds focus, so it never steals
+ * keys mid-edit. The listener binds once and reads options through a ref, so
+ * navigation does not churn the handler.
  */
 export function useKeyboardShortcuts(options: KeyboardShortcutsOptions): void {
   const latest = useRef(options);
@@ -180,8 +168,6 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions): void {
         },
       );
       if (!action) return;
-      // C is a no-op without a section to jump to (local path) — don't
-      // swallow the key.
       if (action.type === "jumpToConversation" && !current.jumpToConversation) {
         return;
       }

@@ -9,7 +9,7 @@ import { filterDiffByChunks, type ChunkSpan } from "./diff-filter";
 
 // ---------------------------------------------------------------------------
 // The PR-meta slices these commands consume (tolerant-read: only the fields
-// the CLI actually joins on — everything else passes through untouched).
+// the CLI actually joins on, everything else passes through untouched).
 // ---------------------------------------------------------------------------
 
 const prMetaSliceSchema = z.object({
@@ -104,7 +104,7 @@ export interface ReadIo {
 export async function runPrList(client: ApiClient, io: ReadIo): Promise<void> {
   const response = await client.request({ path: "/api/pulls" });
   if (io.json) {
-    io.stdout(response.bodyText); // verbatim — not one byte more
+    io.stdout(response.bodyText); // verbatim, not one byte more
     return;
   }
   renderPrList(response.bodyText, io);
@@ -118,7 +118,7 @@ export async function runPrMeta(
   io: ReadIo,
 ): Promise<void> {
   if (io.json) {
-    // TRUE passthrough: the json arm must never parse — a shape the CLI does
+    // TRUE passthrough: the json arm must never parse, a shape the CLI does
     // not recognize still belongs to the consumer.
     const response = await client.request({
       path: `/api/repos/${repoId}/pulls/${prNumber}`,
@@ -174,12 +174,12 @@ export interface DiffOptions {
   readonly base?: string | undefined;
   readonly head?: string | undefined;
   readonly group?: string | undefined;
-  /** TTY pager hook (cosmetic only — wired by bin, absent in tests). */
+  /** TTY pager hook (cosmetic only, wired by bin, absent in tests). */
   readonly pager?: ((text: string) => Promise<void>) | undefined;
 }
 
 /**
- * `diff <n>`: the raw unified diff IS the machine format — `--json` is
+ * `diff <n>`: the raw unified diff IS the machine format, `--json` is
  * rejected by the caller (exit 2) before this runs. `--group` filters to a
  * change-group's whole hunks on the brief's OWN span; combining it with a
  * custom `--base`/`--head` is a hard usage error.
@@ -248,7 +248,7 @@ export async function runDiff(
   if (groupChunks !== undefined) {
     const filtered = filterDiffByChunks(text, groupChunks);
     if (filtered.missingFiles.length > 0) {
-      // Fail LOUD: a silently under-shown group is worse than an error — the
+      // Fail LOUD: a silently under-shown group is worse than an error, the
       // brief and the live diff disagree about files.
       throw new CliError(
         ExitCodes.GENERIC,
@@ -270,7 +270,7 @@ export interface DeltaOptions {
   readonly head?: string | undefined;
 }
 
-/** The `delta` union — one of the CLI-synthesized shapes. */
+/** The `delta` union, one of the CLI-synthesized shapes. */
 export async function runDelta(
   client: ApiClient,
   repoId: string,
@@ -297,7 +297,7 @@ export async function runDelta(
       "--baseline and --head must be given together",
     );
   } else {
-    // Checkpoint resolution via PR-meta — the CLI's own join, recorded in
+    // Checkpoint resolution via PR-meta, the CLI's own join, recorded in
     // the envelope's baselineSha.
     const meta = await fetchPrMeta(client, repoId, prNumber);
     const lastReview = meta.slice.comparisons?.lastReview;
@@ -322,11 +322,11 @@ export async function runDelta(
   }
 
   // Unmodeled 404 (the artifact vanished between reads / explicit bad span)
-  // stays exit 4 — only MODELED unavailability is data.
+  // stays exit 4, only MODELED unavailability is data.
   const artifact = await client.request({
     path: `/api/repos/${repoId}/pulls/${prNumber}/delta?baseline=${encodeURIComponent(baseline)}&head=${encodeURIComponent(head)}`,
   });
-  // Splice the artifact bytes VERBATIM into the envelope — never re-parsed.
+  // Splice the artifact bytes VERBATIM into the envelope, never re-parsed.
   emit(
     `{"available":true,"baselineSha":${JSON.stringify(baseline)},"headSha":${JSON.stringify(head)},"artifact":${artifact.bodyText}}`,
   );
@@ -349,7 +349,7 @@ export async function runCollaborators(
 }
 
 // ---------------------------------------------------------------------------
-// Minimal TTY renderings — explicitly NON-contractual.
+// Minimal TTY renderings, explicitly NON-contractual.
 // ---------------------------------------------------------------------------
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -366,12 +366,10 @@ function renderPrList(bodyText: string, io: ReadIo): void {
   try {
     const parsed: unknown = JSON.parse(bodyText);
     if (isRecord(parsed) && Array.isArray(parsed["pulls"])) {
-      for (const pull of parsed["pulls"]) {
-        if (isRecord(pull)) {
-          io.stdout(
-            `${asDisplay(pull["repoSlug"])}#${asDisplay(pull["prNumber"])}\t${asDisplay(pull["title"])}\t${asDisplay(pull["state"])}\n`,
-          );
-        }
+      for (const pull of parsed["pulls"].filter(isRecord)) {
+        io.stdout(
+          `${asDisplay(pull["repoSlug"])}#${asDisplay(pull["prNumber"])}\t${asDisplay(pull["title"])}\t${asDisplay(pull["state"])}\n`,
+        );
       }
       return;
     }
@@ -385,12 +383,8 @@ function renderGroups(bodyText: string, io: ReadIo): void {
   try {
     const parsed: unknown = JSON.parse(bodyText);
     if (isRecord(parsed) && Array.isArray(parsed["changeGroups"])) {
-      for (const group of parsed["changeGroups"]) {
-        if (isRecord(group)) {
-          io.stdout(
-            `${asDisplay(group["id"])}\t${asDisplay(group["title"])}\n`,
-          );
-        }
+      for (const group of parsed["changeGroups"].filter(isRecord)) {
+        io.stdout(`${asDisplay(group["id"])}\t${asDisplay(group["title"])}\n`);
       }
       return;
     }
