@@ -1,7 +1,3 @@
-// The mark-ready facade hook: the own-draft terminal action. Wraps
-// `useMarkReady` with the soft gate (risk flags OR unposted drafts), the
-// opt-in "post my drafts, then mark ready" batch, the gate's intent-check
-// lines, and the entry/exit/head-advance focus rescues.
 import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -19,26 +15,22 @@ import {
   markReadyBatchFailureCopy,
 } from "./utils";
 
-/** Read by the live region when an external draft-flip closes reviewer overlays. */
 export const OWN_DRAFT_ENTRY_ANNOUNCEMENT =
   "This pull request was converted to a draft. You're now viewing your own draft — review submission unlocks once it's marked ready for review.";
 
-/** Announced when the CTA is used while a historical revision is in view. */
 export const MARK_READY_HISTORICAL_REASON =
   "You're viewing an earlier revision. Switch to the latest revision to mark this pull request ready for review.";
 
-/** Announced when a head advance closes the open pre-ready check. */
 export const MARK_READY_GATE_CLOSED_REASON =
   "This pull request has newer commits — switch to the latest revision to mark it ready for review.";
 
-/** Announced when the own-draft state ends while the pre-ready check is open. */
 export const MARK_READY_EXIT_ANNOUNCEMENT =
   "This pull request is now ready for review — the pre-ready check closed.";
 
 export interface UseMarkReadyFlowInput {
   /**
    * The route's mark-ready transport; ABSENT while a historical revision is
-   * in view — the CTA then stays focusable and a click announces why.
+   * in view: the CTA then stays focusable and a click announces why.
    */
   action: MarkReadyAction | undefined;
   /** Page-level live-region channel (clear-then-set). */
@@ -46,42 +38,30 @@ export interface UseMarkReadyFlowInput {
   briefId: string;
   /**
    * Closes every reviewer overlay (drawers, pre-submit, disposition modals)
-   * when the own-draft state is entered — must be referentially stable.
+   * when the own-draft state is entered: must be referentially stable.
    */
   closeReviewerOverlays: () => void;
-  /** The current head's risk-flag count (the gate's first OPEN condition). */
   flagCount: number;
-  /** The rendered Brief's intent check (the gate's soft-gate lines). */
   intentCheck: IntentCheck | undefined;
   jumpToChunk: (chunkId: string) => void;
-  /** The plan's presence IS the state. */
   ownDraftActive: boolean;
-  /** The own-draft flow's single per-comment post path (the batch awaits it). */
   postDraft: (
     comment: ReviewComment,
     batchOwnsMessaging?: boolean,
   ) => Promise<PostDraftOutcome>;
-  /** The session's comments — unposted drafts derive here (gate reminder). */
   reviewComments: ReviewComment[];
-  /** THIS render's reviewer-overlay-open snapshot (entry focus rescue). */
   reviewerOverlayOpen: boolean;
-  /** Lands on the expanded intent bar (the screen owns the bar's handle). */
   showIntentBar: () => void;
 }
 
 export interface UseMarkReadyFlowValue {
-  /** False on a historical revision — the CTA explains instead of acting. */
   available: boolean;
   pending: boolean;
-  /** The Header CTA's entry point: gate, direct action, or explanation. */
   request: () => void;
   gateOpen: boolean;
   closeGate: () => void;
-  /** The gate's confirm: batch-post drafts first when opted in. */
   markReadyAnyway: () => void;
-  /** The running batch's progress label ("Posting 2 of 3…"), if any. */
   batchBusyLabel: string | undefined;
-  /** The gate's opt-in post-my-drafts checkbox (default unchecked). */
   postDraftsOnReady: boolean;
   setPostDraftsOnReady: (checked: boolean) => void;
   unpostedDraftCount: number;
@@ -111,14 +91,14 @@ export function useMarkReadyFlow(
     showIntentBar,
   } = input;
   const [markReadyGateOpen, setMarkReadyGateOpen] = useState(false);
-  // Default UNCHECKED — posting is an outward write.
+  // Default UNCHECKED: posting is an outward write.
   const [postDraftsOnReady, setPostDraftsOnReady] = useState(false);
   const [markReadyBatch, setMarkReadyBatch] = useState<{
     current: number;
     total: number;
   } | null>(null);
   // Brief switch without remount: the gate lists the OLD brief's flags and
-  // drafts — close it and drop the batch progress before the new brief paints.
+  // drafts: close it and drop the batch progress before the new brief paints.
   const [gateBriefId, setGateBriefId] = useState(briefId);
   if (gateBriefId !== briefId) {
     setGateBriefId(briefId);
@@ -133,18 +113,13 @@ export function useMarkReadyFlow(
     action,
     announce,
   });
-  // Entering own-draft closes every reviewer overlay: their open flags are
-  // plain local state, so a left-set flag keeps `shortcutsDisabled` stuck and
-  // resurrects the overlay once the PR is marked ready. The unmount drops
-  // focus on <body> without a blur, so orphaned focus is re-homed on the
-  // terminal-slot CTA and the live region explains the change.
+  // A left-set overlay flag keeps `shortcutsDisabled` stuck and resurrects the
+  // overlay once the PR is marked ready. The unmount drops focus on <body>
+  // without a blur, so orphaned focus is re-homed on the terminal-slot CTA.
   const overlayWasOpenRef = useLatestRef(reviewerOverlayOpen);
   const gateOpenRef = useLatestRef(markReadyGateOpen);
   useEffect(() => {
     if (!ownDraftActive) {
-      // Exit mirror of the entry path: close the gate (a left-set flag sticks
-      // `shortcutsDisabled` and resurrects the gate on a later draft flip);
-      // if it was open, rescue the focus its unmount dropped and say why.
       setMarkReadyGateOpen(false);
       if (gateOpenRef.current) {
         const activeAtExit = document.activeElement;
@@ -171,15 +146,33 @@ export function useMarkReadyFlow(
     overlayWasOpenRef,
     ownDraftActive,
   ]);
+  // A batch failure closes the gate while the modal still holds focus. The
+  // rescue must run AFTER React commits the close: a requestAnimationFrame is
+  // not ordered against the commit, so under load it read the modal as still
+  // open and left focus stranded inside an inert dialog.
+  const [batchFailureRescue, setBatchFailureRescue] = useState(false);
+  useEffect(() => {
+    if (!batchFailureRescue) return;
+    setBatchFailureRescue(false);
+
+    const active = document.activeElement;
+    const stranded =
+      active === null ||
+      active === document.body ||
+      active.closest('[data-state="closed"]') !== null ||
+      active.closest("[inert]") !== null;
+    if (stranded) {
+      document.querySelector<HTMLElement>("[data-terminal-slot]")?.focus();
+    }
+  }, [batchFailureRescue]);
+
   const unpostedDraftComments = useMemo(
     () => reviewComments.filter((comment) => comment.status === "draft"),
     [reviewComments],
   );
   const markReadyAvailable = action !== undefined;
   // Mid-gate head advance: the route withholds `markReady` WITHOUT a remount,
-  // so the modal unmounts but its open flag would stay set (stuck
-  // `shortcutsDisabled`, focus dropped on <body>). Same rescue + announcement
-  // pattern as the entry path above.
+  // so the modal unmounts while its open flag stays set.
   useEffect(() => {
     if (!ownDraftActive || markReadyAvailable) return;
     if (!gateOpenRef.current) return;
@@ -191,8 +184,6 @@ export function useMarkReadyFlow(
     announce(MARK_READY_GATE_CLOSED_REASON);
   }, [announce, gateOpenRef, markReadyAvailable, ownDraftActive]);
   const requestMarkReady = useCallback(() => {
-    // Historical revision: no action/gate — the CTA stays focusable and the
-    // click explains itself.
     if (!markReadyAvailable) {
       announce(MARK_READY_HISTORICAL_REASON);
       return;
@@ -200,7 +191,7 @@ export function useMarkReadyFlow(
     // The CTA is aria-disabled (not hard disabled) while pending, so a click
     // still lands here and would reopen the gate over the running mutation.
     if (markReadyPending) return;
-    // The gate opens for risk flags OR unposted drafts — a zero-flag brief
+    // The gate opens for risk flags OR unposted drafts: a zero-flag brief
     // with staged drafts must still offer the post-my-drafts checkbox, or the
     // drafts silently stay local while the PR goes ready.
     if (flagCount > 0 || unpostedDraftComments.length > 0) {
@@ -225,7 +216,6 @@ export function useMarkReadyFlow(
     },
     [jumpToChunk],
   );
-  // Navigation aid only — posting stays manual (no auto-post).
   const jumpToDraftsFromGate = useCallback(() => {
     setMarkReadyGateOpen(false);
     const first = unpostedDraftComments[0];
@@ -234,17 +224,13 @@ export function useMarkReadyFlow(
   // Intent lines never feed the gate's OPEN condition.
   const intentGapCount = countIntentGaps(intentCheck);
   const intentTensionCount = countIntentTensions(intentCheck);
-  // From the changes-only compare view the bar stays unmounted and the expand
-  // no-ops; leaving that mode is the user's action.
   const jumpToIntentGapsFromGate = useCallback(() => {
     setMarkReadyGateOpen(false);
     showIntentBar();
   }, [showIntentBar]);
-  // Batch posts each unposted draft SEQUENTIALLY through the SAME per-comment
-  // path (no second posting path) and marks ready ONLY if every post
-  // succeeded; any failure STOPS before mark-ready. The confirm CTA is
-  // aria-disabled while the batch runs, so a click can land before the busy
-  // state renders — the re-entrancy guard must be a ref, not state.
+  // Marks ready only if every post succeeded; any failure stops first. The
+  // confirm CTA is aria-disabled while the batch runs, so a click can land
+  // before the busy state renders: the guard must be a ref, not state.
   const batchInFlight = useRef(false);
   const runMarkReadyBatch = useCallback(
     async (drafts: readonly ReviewComment[]) => {
@@ -256,7 +242,7 @@ export function useMarkReadyFlow(
         for (const draft of drafts) {
           setMarkReadyBatch({ current: posted + 1, total });
           // Sequential BY DESIGN: a failure must STOP the run before the next
-          // outward write and before mark-ready — Promise.all would defeat
+          // outward write and before mark-ready, Promise.all would defeat
           // the stop-on-failure contract.
           // oxlint-disable-next-line no-await-in-loop
           const outcome = await postDraft(draft, true);
@@ -266,30 +252,16 @@ export function useMarkReadyFlow(
             // Per-comment copy is suppressed for the batch, so this summary
             // is the run's only live-region write.
             announce(markReadyBatchFailureCopy(t, posted, total, outcome));
-            // The closing modal may hold focus and NEITHER sibling rescue
-            // fires here (no state exit, no head advance) — re-home dropped
-            // or stranded focus onto the terminal-slot CTA after the close
-            // commits.
-            window.requestAnimationFrame(() => {
-              const active = document.activeElement;
-              if (
-                active === null ||
-                active === document.body ||
-                active.closest('[data-state="closed"]') !== null
-              ) {
-                document
-                  .querySelector<HTMLElement>("[data-terminal-slot]")
-                  ?.focus();
-              }
-            });
+            // Neither sibling rescue fires here (no state exit, no head
+            // advance), so the effect below re-homes focus once the close has
+            // committed.
+            setBatchFailureRescue(true);
             return;
           }
           posted += 1;
         }
         setMarkReadyBatch(null);
         setMarkReadyGateOpen(false);
-        // All posted → mark ready; its result copy is the terminal
-        // live-region write (batch entries drained silently).
         markReady();
       } finally {
         batchInFlight.current = false;
