@@ -25,11 +25,16 @@ export const pairProperties: PairEvalProperty[] = [
         /version/i.test(`${item.intent} ${item.quote}`),
       ),
   },
+  // The precondition the sibling actually needs: the version ask is NEW in
+  // rev2, so the base must not already carry it. The base reporting OTHER
+  // missing asks is irrelevant and was never what "fresh verdict" meant.
   {
-    id: "base-had-no-missing-ask",
-    description: "the base revision reported no missing ask (precondition)",
+    id: "base-lacks-the-edited-ask",
+    description: "the base revision did not already report the version ask",
     check: (pair) =>
       pair.base.intentCheck !== undefined &&
-      pair.base.intentCheck.statedButMissing.length === 0,
+      !pair.base.intentCheck.statedButMissing.some((item) =>
+        /version/i.test(`${item.intent} ${item.quote}`),
+      ),
   },
 ];
