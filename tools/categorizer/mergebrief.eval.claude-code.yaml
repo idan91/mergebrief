@@ -1,6 +1,6 @@
 generator:
   provider: claude-code
-  model: fable
+  model: opus
 contextSources:
   - type: notion
     tokenEnv: NOTION_TOKEN
