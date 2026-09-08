@@ -54,6 +54,7 @@ import {
   type GenerateTaskDeps,
 } from "../src/task/generate";
 import type { CompareFile } from "brief-core";
+import { GitHubApiErrorCodes } from "github";
 import type {
   GitHubApiError,
   GitHubPort,
@@ -211,6 +212,8 @@ interface StubGitHub extends GitHubPort {
   /** Scripted head SHAs consumed per fetchPullRequest call; then info.headSha. */
   nextHeads: string[];
   fetchPullRequestError?: GitHubApiError;
+  /** Scripted compare-files failure; anchoring must degrade, not fail. */
+  fetchCompareFilesError?: GitHubApiError;
   /** Live Entry comments by id (the delete+repost cycle's observable state). */
   comments: Map<bigint, string>;
   /** Every comment op in order: `post:<id>` / `delete:<id>`. */
@@ -305,13 +308,17 @@ function stubGitHub(headSha: string): StubGitHub {
       fetchDiff: async () => ok(stub.diff),
       fetchCompareDiff: async (base: string, head: string) =>
         ok(stub.compareDiffs.get(`${base}...${head}`) ?? SMALL_DIFF),
-      fetchCompareFiles: async (base: string, head: string) =>
-        ok(
+      fetchCompareFiles: async (base: string, head: string) => {
+        if (stub.fetchCompareFilesError) {
+          return { ok: false, error: stub.fetchCompareFilesError };
+        }
+        return ok(
           stub.compareFiles.get(`${base}...${head}`) ?? {
             files: [],
             complete: false,
           },
-        ),
+        );
+      },
       fetchRepoFile: async (path: string) => {
         stub.repoFileCalls.push(path);
         const scripted = stub.repoFileErrors.get(path);
@@ -2208,6 +2215,8 @@ describe("generate task, anchored generation", () => {
     };
     /** Make the second revision's model call fail (the hop must survive). */
     rev2FailWith?: unknown;
+    /** Fail the second revision's compare-files fetch. */
+    rev2CompareFilesError?: GitHubApiError;
   }) {
     const first = await trigger(HEAD_1);
     const generator = stubGenerator();
@@ -2265,6 +2274,9 @@ describe("generate task, anchored generation", () => {
         model,
         effort,
       });
+    }
+    if (options.rev2CompareFilesError !== undefined) {
+      github.fetchCompareFilesError = options.rev2CompareFilesError;
     }
     const second = await trigger(HEAD_2);
     if (options.rev2FailWith !== undefined) {
@@ -2545,6 +2557,31 @@ describe("generate task, anchored generation", () => {
     expect(briefRequests[1]?.user).toContain("<anchor_brief");
     // The frozen index names the untouched group; the summary rides verbatim.
     expect(briefRequests[1]?.user).toContain("gA");
+  });
+
+  it("degrades to a full re-look when compare files cannot be fetched", async () => {
+    const { pr, generator } = await runTwoRevisions({
+      rev2CompareFilesError: {
+        code: GitHubApiErrorCodes.REQUEST_FAILED,
+        status: 502,
+        message: "compare files unavailable",
+      },
+    });
+    const row = await createArtifactStore(harness.handle, ctx).briefs.get(
+      pr.id,
+      BASE,
+      HEAD_2,
+    );
+    // The job still runs and still anchors: the previous brief and the chain's
+    // ids survive. Nothing carries, because the compare-files list is what
+    // confirms a group untouched, and it never arrived.
+    expect(row?.anchorState).toBe("anchored");
+    const body = JSON.parse(row?.body ?? "{}") as {
+      anchoring?: { carried: string[] };
+    };
+    expect(body.anchoring?.carried).toEqual([]);
+    const briefRequests = generator.requests.filter((r) => r.label === "brief");
+    expect(briefRequests[1]?.system).toContain("Anchored regeneration");
   });
 
   it("carries nothing for diverged same-base spans but remains anchored", async () => {
