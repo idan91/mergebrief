@@ -400,7 +400,7 @@ describe("parseBrief", () => {
     });
     expect(kept.ok && kept.value.intentCheck?.alignment).toEqual(alignment);
 
-    const warnSink: ParseWarnSink = { warn: vi.fn() };
+    const warnSink: ParseWarnings = { warn: vi.fn() };
     const dropped = parseBrief(
       {
         ...twoGroupBriefInput,

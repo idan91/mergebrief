@@ -1620,14 +1620,6 @@
       "count": 1
     }
   },
-  "apps/web/src/features/brief/utils/repoConfig.test.ts": {
-    "house/no-em-dash": {
-      "count": 4
-    },
-    "house/test-title": {
-      "count": 6
-    }
-  },
   "apps/web/src/features/brief/utils/reviewComments.test.ts": {
     "house/test-title": {
       "count": 3

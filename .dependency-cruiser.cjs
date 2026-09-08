@@ -84,6 +84,14 @@ module.exports = {
       to: { path: "^(apps|packages|tools)/", pathNot: "^packages/types/" },
     },
     {
+      name: "path-matcher-imports-nothing",
+      comment:
+        "The shared path matcher is in the browser bundle: it pulls in no runtime code. A type-only import is erased and stays legal.",
+      severity: "error",
+      from: { path: "^packages/brief-core/src/path-matching\\.ts$" },
+      to: { path: ".*", dependencyTypesNot: ["type-only"] },
+    },
+    {
       name: "no-app-imports-another-app",
       comment: "Apps talk over HTTP or the job queue, never by import.",
       severity: "error",

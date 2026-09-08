@@ -8,7 +8,8 @@
     ".": "./src/index.ts",
     "./types": "./src/types.ts",
     "./remap": "./src/diff/remap.ts",
-    "./cli-config": "./src/cli/config.ts"
+    "./cli-config": "./src/cli/config.ts",
+    "./path-matching": "./src/path-matching.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

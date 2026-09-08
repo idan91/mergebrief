@@ -1,6 +1,9 @@
 // Display weights use the stored generation-time snapshot, never live policy.
-// Local types avoid pulling the generator engine into the browser bundle.
-// Lockstep tests pin the mirrored floor list and glob matcher.
+// Local types avoid pulling the generator engine into the browser bundle; the
+// path matcher comes from its owner, which is browser-safe on its own subpath.
+// A lockstep test still pins the mirrored floor list.
+import { matchesGlob } from "brief-core/path-matching";
+
 import type { Result } from "./validation";
 
 export type RepoConfigOutcome =
@@ -252,160 +255,7 @@ export function parseBriefContext(
   return { ok: true, value: { files, collisions, policy } };
 }
 
-// Mirrors the linear matcher, pinned by lockstep tests.
-// **/ matches complete segments; * and ? stay within a segment. No backtracking regex.
-
-type GlobToken =
-  | { kind: "literal"; char: string }
-  | { kind: "star" }
-  | { kind: "globstar" }
-  | { kind: "globstar-slash" }
-  | { kind: "qmark" };
-
-interface StarToken {
-  readonly token: GlobToken;
-  // Pattern characters the token spans: `*`, `**` or `**/`.
-  readonly width: number;
-}
-
-/**
- * Which star token starts at `index`, and how many characters it spans:
- * `*` one segment, `**` any run, `**\/` any run of WHOLE segments. The width
- * is returned because the three spellings are 1, 2 and 3 characters long.
- */
-function readStarToken(pattern: string, index: number): StarToken {
-  if (pattern[index + 1] !== "*") {
-    return { token: { kind: "star" }, width: 1 };
-  }
-
-  if (pattern[index + 2] === "/") {
-    return { token: { kind: "globstar-slash" }, width: 3 };
-  }
-
-  return { token: { kind: "globstar" }, width: 2 };
-}
-
-function tokenizeGlob(pattern: string): GlobToken[] {
-  const tokens: GlobToken[] = [];
-  let index = 0;
-
-  while (index < pattern.length) {
-    const char = pattern[index];
-    if (char === "*") {
-      const star = readStarToken(pattern, index);
-      tokens.push(star.token);
-      index += star.width;
-      continue;
-    }
-
-    if (char === "?") {
-      tokens.push({ kind: "qmark" });
-    } else if (char !== undefined) {
-      tokens.push({ kind: "literal", char });
-    }
-    index++;
-  }
-  return tokens;
-}
-
-/** Positions reachable after `char` consumes one path character. */
-function consumeLiteral(
-  reachable: readonly boolean[],
-  filePath: string,
-  char: string,
-): boolean[] {
-  const next = Array.from({ length: filePath.length + 1 }, () => false);
-  for (let j = 0; j < filePath.length; j++) {
-    if (reachable[j] === true && filePath[j] === char) next[j + 1] = true;
-  }
-  return next;
-}
-
-/** Positions reachable after `?` consumes one non-separator character. */
-function consumeQuestionMark(
-  reachable: readonly boolean[],
-  filePath: string,
-): boolean[] {
-  const next = Array.from({ length: filePath.length + 1 }, () => false);
-  for (let j = 0; j < filePath.length; j++) {
-    if (reachable[j] === true && filePath[j] !== "/") next[j + 1] = true;
-  }
-  return next;
-}
-
-/** Positions reachable after `*` consumes any run inside one segment. */
-function consumeStar(
-  reachable: readonly boolean[],
-  filePath: string,
-): boolean[] {
-  const next = Array.from({ length: filePath.length + 1 }, () => false);
-  let active = false;
-  for (let j = 0; j <= filePath.length; j++) {
-    active =
-      (active && j > 0 && filePath[j - 1] !== "/") || reachable[j] === true;
-    if (active) next[j] = true;
-  }
-  return next;
-}
-
-/** Positions reachable after `**` consumes anything, separators included. */
-function consumeGlobstar(
-  reachable: readonly boolean[],
-  filePath: string,
-): boolean[] {
-  const next = Array.from({ length: filePath.length + 1 }, () => false);
-  let seen = false;
-  for (let j = 0; j <= filePath.length; j++) {
-    seen = seen || reachable[j] === true;
-    if (seen) next[j] = true;
-  }
-  return next;
-}
-
-// Positions reachable after `**/` consumes zero or more complete segments.
-function consumeGlobstarSlash(
-  reachable: readonly boolean[],
-  filePath: string,
-): boolean[] {
-  const next = Array.from({ length: filePath.length + 1 }, () => false);
-  let seenBefore = false;
-  for (let j = 0; j <= filePath.length; j++) {
-    if (reachable[j] === true) next[j] = true;
-    if (seenBefore && j > 0 && filePath[j - 1] === "/") next[j] = true;
-    seenBefore = seenBefore || reachable[j] === true;
-  }
-  return next;
-}
-
-function consumeToken(
-  token: GlobToken,
-  reachable: readonly boolean[],
-  filePath: string,
-): boolean[] {
-  switch (token.kind) {
-    case "literal":
-      return consumeLiteral(reachable, filePath, token.char);
-    case "qmark":
-      return consumeQuestionMark(reachable, filePath);
-    case "star":
-      return consumeStar(reachable, filePath);
-    case "globstar":
-      return consumeGlobstar(reachable, filePath);
-    case "globstar-slash":
-      return consumeGlobstarSlash(reachable, filePath);
-  }
-}
-
-export function matchesGlob(pattern: string, filePath: string): boolean {
-  const tokens = tokenizeGlob(pattern);
-  let reachable = Array.from({ length: filePath.length + 1 }, () => false);
-  reachable[0] = true;
-
-  for (const token of tokens) {
-    reachable = consumeToken(token, reachable, filePath);
-  }
-  return reachable[filePath.length] === true;
-}
+export { matchesGlob };
 
 function ruleAppliesTo(rule: DeEmphasisRule, file: string): boolean {
   if (rule.paths === undefined || rule.paths.length === 0) return true;

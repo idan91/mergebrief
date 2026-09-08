@@ -1,7 +1,7 @@
 // Repo-config snapshot support: wire parsing, display-weight resolution, and
-// the LOCKSTEP pins — the FE's mirrored floor list and glob matcher must never
-// drift from their sources (imported here at dev time only; the app bundle
-// never imports those packages).
+// the lockstep pins. The mirrored floor list must never drift from its source,
+// which is imported here at dev time only. The path matcher is no longer
+// mirrored; the screen calls its owner.
 import { describe, expect, it } from "vitest";
 import {
   ATTRIBUTE_NAME_MAX_CHARS,
@@ -12,7 +12,6 @@ import {
   RepoConfigOutcomes,
   RepoConfigPaths,
 } from "repo-config";
-import { matchesGlob as sourceMatchesGlob } from "brief-core";
 import {
   attributeDisplayMeta,
   CRITERIA_MAX_CHARS,
@@ -120,7 +119,7 @@ describe("attributeDisplayMeta", () => {
     ).toEqual({ source: "built-in", deEmphasized: false });
   });
 
-  it("fired custom attribute → repo-policy source with criteria + implication", () => {
+  it("marks a fired custom attribute as repo-policy with its text", () => {
     const meta = attributeDisplayMeta(
       SNAPSHOT,
       "touches-billing",
@@ -133,7 +132,7 @@ describe("attributeDisplayMeta", () => {
     expect(meta.deEmphasized).toBe(false);
   });
 
-  it("unscoped de-emphasis rule quiets everywhere; scoped rule only inside its globs", () => {
+  it("quiets everywhere unscoped, and only inside the globs when scoped", () => {
     expect(
       attributeDisplayMeta(
         SNAPSHOT,
@@ -157,7 +156,7 @@ describe("attributeDisplayMeta", () => {
       ...SNAPSHOT,
       policy: {
         firedCustomAttributes: [],
-        // Malformed snapshot (writer forbids this) — display still refuses.
+        // Malformed snapshot, which the writer forbids; display still refuses.
         deEmphasize: [{ attribute: "touches-auth" }],
       },
     };
@@ -166,7 +165,7 @@ describe("attributeDisplayMeta", () => {
     ).toBe(false);
   });
 
-  it("floor co-fire un-quiets a de-emphasized attribute on the SAME chunk only", () => {
+  it("un-quiets a de-emphasized attribute on its own chunk only", () => {
     expect(
       attributeDisplayMeta(SNAPSHOT, "widens-error-handling", "a.ts", true)
         .deEmphasized,
@@ -179,7 +178,7 @@ describe("attributeDisplayMeta", () => {
 });
 
 describe("floorFirst", () => {
-  it("pins floor attributes first (declared order), keeps the rest by appearance", () => {
+  it("pins floor attributes in declared order, then the rest by appearance", () => {
     expect(
       floorFirst([
         "no-tests",
@@ -191,13 +190,13 @@ describe("floorFirst", () => {
   });
 });
 
-describe("lockstep pins (FE copies vs their sources)", () => {
+describe("lockstep pins on the values this screen copies", () => {
   it("floor list equals repo-config's FLOOR_ATTRIBUTES", () => {
     expect([...FLOOR_ATTRIBUTES]).toEqual([...SOURCE_FLOOR_ATTRIBUTES]);
   });
 
   it("every mirrored wire-contract constant equals its repo-config source", () => {
-    // A legitimate cap/vocabulary bump upstream must turn a test red HERE —
+    // A legitimate cap or vocabulary bump upstream must turn a test red HERE:
     // the best-effort context query would otherwise silently drop every
     // source marker for new briefs.
     expect([...OUTCOMES]).toEqual(Object.values(RepoConfigOutcomes));
@@ -212,31 +211,29 @@ describe("lockstep pins (FE copies vs their sources)", () => {
     expect(IMPLICATION_MAX_CHARS).toBe(SOURCE_IMPLICATION_MAX_CHARS);
   });
 
-  it("glob matcher agrees with the categorizer's on a behavior table", () => {
-    const cases: Array<[string, string]> = [
-      ["src/**", "src/a/b.ts"],
-      ["src/**", "other/x.ts"],
-      ["**/*.sql", "db/m/0001.sql"],
-      ["**/*.sql", "x.sql"],
-      ["*.md", "docs/README.md"],
-      ["src/**/fixtures/*.json", "src/notfixtures/x.json"],
-      ["src/**/fixtures/*.json", "src/a/fixtures/x.json"],
-      ["a/**/z", "a/bz"],
-      ["a?c/x.ts", "abc/x.ts"],
-      ["services/*/handlers/**", "services/auth/handlers/login.ts"],
-      ["exact/path.ts", "exact/path.ts"],
-      ["a+b/(x)/f.ts", "a+b/(x)/f.ts"],
-      ["***z", "bbbbz"],
-    ];
-    for (const [pattern, file] of cases) {
-      expect(matchesGlob(pattern, file), `${pattern} vs ${file}`).toBe(
-        sourceMatchesGlob(pattern, file),
-      );
-    }
+  // The matcher now has one owner, so a lockstep comparison would compare a
+  // function with itself. These are the same cases with literal results: what
+  // this screen shows when a repo policy scopes an attribute by path.
+  it.each([
+    ["src/**", "src/a/b.ts", true],
+    ["src/**", "other/x.ts", false],
+    ["**/*.sql", "db/m/0001.sql", true],
+    ["**/*.sql", "x.sql", true],
+    ["*.md", "docs/README.md", false],
+    ["src/**/fixtures/*.json", "src/notfixtures/x.json", false],
+    ["src/**/fixtures/*.json", "src/a/fixtures/x.json", true],
+    ["a/**/z", "a/bz", false],
+    ["a?c/x.ts", "abc/x.ts", true],
+    ["services/*/handlers/**", "services/auth/handlers/login.ts", true],
+    ["exact/path.ts", "exact/path.ts", true],
+    ["a+b/(x)/f.ts", "a+b/(x)/f.ts", true],
+    ["***z", "bbbbz", true],
+  ])("matches %s against %s", (pattern, file, expected) => {
+    expect(matchesGlob(pattern, file)).toBe(expected);
   });
 });
 
-describe("parseBriefContext — canonical-shape tightening", () => {
+describe("parseBriefContext canonical-shape tightening", () => {
   const slots = SNAPSHOT.files;
   it.each([
     ["missing a slot", { ...SNAPSHOT, files: slots.slice(0, 2) }],
