@@ -1,5 +1,3 @@
-/* oxlint-disable house/comment-run -- the encryption model, the key-ref rotation
-   path and the no-throw posture are what make this boundary safe to change */
 // GitHub OAuth token encryption for `auth_session.gh_token_ciphertext`.
 // AES-256-GCM (authenticated encryption) behind a key-provider interface.
 //
@@ -16,7 +14,6 @@
 //
 // SECURITY: every expected failure is a `Result`, never a throw, and NO error
 // message ever contains plaintext or key material.
-/* oxlint-enable house/comment-run */
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import type { MaybePromise, Result, ValueOf } from "../types";
 

@@ -63,13 +63,6 @@ const CASES: readonly FixtureCase[] = [
     ],
   },
   {
-    rule: "comment-run",
-    bad: "bad.ts",
-    good: "good.ts",
-    lines: [1, 8],
-    messageIds: ["run", "run"],
-  },
-  {
     rule: "no-render-function",
     bad: "bad.tsx",
     good: "good.tsx",
@@ -98,6 +91,20 @@ const CASES: readonly FixtureCase[] = [
       "member",
       "member",
     ],
+  },
+  {
+    rule: "comment-run",
+    bad: "bad.ts",
+    good: "good.ts",
+    lines: [1, 8],
+    messageIds: ["run", "run"],
+  },
+  {
+    rule: "comment-density",
+    bad: "bad.ts",
+    good: "good.ts",
+    lines: [5],
+    messageIds: ["dense"],
   },
   {
     rule: "no-em-dash",

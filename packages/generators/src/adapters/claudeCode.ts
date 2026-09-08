@@ -28,9 +28,6 @@ import {
 import { enumPreservingJsonSchema } from "../validation/jsonSchema";
 import type { Effort, Generation } from "../contract/generation";
 
-/* oxlint-disable house/comment-run -- five adapter invariants, among them the
-   no-secrets-in-errors rule and the auth lockdown profile, decide whether a
-   change here is safe */
 /**
  * Claude Code CLI adapter: one `claude -p` process per attempt, stream-json
  * envelopes on stdout, prompt via stdin.
@@ -53,7 +50,6 @@ import type { Effort, Generation } from "../contract/generation";
  *    `--system-prompt-file` (argv would re-expose ARG_MAX for long
  *    taxonomies); the user prompt via stdin.
  */
-/* oxlint-enable house/comment-run */
 
 /** In-band `system/api_retry` categories → taxonomy kinds. */
 const API_RETRY_KIND: Record<string, GeneratorErrorKind> = {

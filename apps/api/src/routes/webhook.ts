@@ -1,5 +1,5 @@
 /* oxlint-disable house/comment-run -- the trust boundary and its status contract are the
-   one thing a reader must know before touching this handler, and neither fits four lines */
+   one thing a reader must know before touching this handler, and neither fits eight lines */
 // The trust boundary. Nothing is trusted until the HMAC over the RAW body verifies against
 // the configured secret; only then is the payload parsed and mapped to tenant-scoped writes.
 // Tenancy comes from the SIGNED payload's installation.id, never from a spoofable header.

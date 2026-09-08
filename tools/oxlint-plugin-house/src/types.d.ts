@@ -27,7 +27,6 @@ export interface RuleLocation {
 }
 
 export interface RuleComment {
-  readonly type: "Line" | "Block" | "Shebang";
   readonly value: string;
   readonly loc: RuleLocation;
 }

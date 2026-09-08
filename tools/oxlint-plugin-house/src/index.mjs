@@ -1,5 +1,6 @@
 // The house oxlint plugin: every repo convention oxlint has no native rule
 // for, as selector rules. `.oxlintrc.json` loads it through `jsPlugins`.
+import { commentDensity } from "./rules/comment-density.mjs";
 import { commentRun } from "./rules/comment-run.mjs";
 import { extensionlessImport } from "./rules/extensionless-import.mjs";
 import { noBlankTarget } from "./rules/no-blank-target.mjs";
@@ -23,6 +24,7 @@ const plugin = {
     "no-conditional-spread": noConditionalSpread,
     "test-title": testTitle,
     "comment-run": commentRun,
+    "comment-density": commentDensity,
     "no-em-dash": noEmDash,
     "no-render-function": noRenderFunction,
     "no-process-env": noProcessEnv,

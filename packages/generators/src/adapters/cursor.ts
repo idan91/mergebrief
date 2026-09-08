@@ -33,9 +33,6 @@ import {
 } from "../harness/run";
 import type { Effort, Generation } from "../contract/generation";
 
-/* oxlint-disable house/comment-run -- six adapter invariants, among them the
-   no-secrets-in-errors rule and the lockdown profile, decide whether a change
-   here is safe */
 /**
  * Cursor CLI adapter: one `cursor-agent -p` process per attempt, stream-json
  * envelopes on stdout, prompt via stdin.
@@ -56,7 +53,6 @@ import type { Effort, Generation } from "../contract/generation";
  * 6. The stream is pipe-silent until exit, inactivity defaults to the
  *    hard ceiling, wall-clock is the only watchdog.
  */
-/* oxlint-enable house/comment-run */
 
 const CURSOR_DEFAULT_MODEL_TOKEN = "cursor-default";
 

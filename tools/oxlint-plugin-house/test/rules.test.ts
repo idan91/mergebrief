@@ -85,6 +85,16 @@ describe("house/comment-run", () => {
   });
 });
 
+describe("house/comment-density", () => {
+  it("reports a file that is more comment than code", () => {
+    expectLines("comment-density", "bad.ts", [5]);
+  });
+
+  it("passes a file with one comment and real code", () => {
+    expectLines("comment-density", "good.ts", []);
+  });
+});
+
 describe("house/no-em-dash", () => {
   it("reports an em-dash in a line comment, a block comment and a title", () => {
     expectLines("no-em-dash", "bad.ts", [3, 6, 9]);

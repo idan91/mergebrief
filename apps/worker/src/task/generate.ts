@@ -1,5 +1,5 @@
 /* oxlint-disable house/comment-run -- the projection state model and the idempotency
-   contract decide whether a retry re-spends tokens; neither fits four lines */
+   contract decide whether a retry re-spends tokens; neither fits eight lines */
 // One job = bring this PR's artifacts up to date at this head: the shared brief, the
 // mechanical comparison marks and revision narrative when a previous briefed head exists,
 // then one pre-warmed delta core per DISTINCT checkpoint SHA, each guarded by the huge-span
