@@ -133,6 +133,29 @@ describe("SubmitModal views", () => {
     );
   });
 
+  it("keeps the review comment across a receipt preview and back", () => {
+    renderModal();
+    const field = screen.getByRole("textbox", { name: /review comment/i });
+    fireEvent.change(field, { target: { value: "worth a second look" } });
+    fireEvent.click(screen.getByRole("button", { name: /preview receipt/i }));
+    fireEvent.click(screen.getByRole("button", { name: /back to verdict/i }));
+    expect(
+      screen.getByRole("textbox", { name: /review comment/i }).textContent,
+    ).toBe("worth a second look");
+  });
+
+  it("names the dialog per view and closes on Escape from the receipt", () => {
+    const close = vi.fn();
+    renderModal({ close });
+    expect(screen.getByRole("dialog", { name: /submit review/i })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /preview receipt/i }));
+    expect(
+      screen.getByRole("dialog", { name: /verification receipt/i }),
+    ).toBeTruthy();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(close).toHaveBeenCalled();
+  });
+
   it("reopening lands on the verdict view again", () => {
     const { rerender } = renderModal();
     fireEvent.click(screen.getByRole("button", { name: /preview receipt/i }));
