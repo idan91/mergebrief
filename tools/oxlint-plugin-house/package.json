@@ -9,11 +9,13 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --coverage"
+    "test": "vitest run --coverage",
+    "test:config": "vitest run package-layers root-config --coverage.enabled=false"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "@vitest/coverage-v8": "^4.1.8",
+    "dependency-cruiser": "18.2.0",
     "oxlint": "1.72.0",
     "typescript": "^5.7.0",
     "vitest": "^4.1.8"
