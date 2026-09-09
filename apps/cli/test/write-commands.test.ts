@@ -6,11 +6,9 @@ import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createApp, type AuthDeps } from "api";
 import {
   createArtifactStore,
   encryptToken,
-  createEnvKeyProvider,
   createTenantRepository,
   createGrantAuth,
   isInstallationId,
@@ -23,19 +21,21 @@ import {
   type ReviewerId,
   type TenantContext,
 } from "persistence";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
+import type { PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ExitCodes } from "../src/exit";
 import { buildSubmitPayload, requireSpan } from "../src/commands/write";
+import {
+  BASE_URL,
+  KEY_REF,
+  startCliApiHarness,
+  type CliApiHarness,
+} from "./harness/api";
 import { runCli, type CliDeps } from "../src/program";
-import { testLogger } from "./logging";
-import { getRequestUrl } from "./helpers";
 
-const KEY_REF = "SESSION_KEY_V1";
 const INSTALLATION_ID = 987654;
 const REVIEWER_ID = 555;
 const REPO_A = 42001;
-const BASE_URL = "https://mb.example";
 const COMMIT = "c".repeat(40);
 const BASE = "d".repeat(40);
 const SPAN = ["--base", BASE, "--head", COMMIT];
@@ -110,6 +110,7 @@ describe("write commands over the real api app", () => {
   // Octokit's write-path throttle spaces consecutive review POSTs ~3s.
   vi.setConfig({ testTimeout: 30_000 });
 
+  let world: CliApiHarness;
   let harness: PgliteHarness;
   let kp: KeyProvider;
   let appFetch: CliDeps["fetch"];
@@ -117,76 +118,44 @@ describe("write commands over the real api app", () => {
   let cacheDir: string;
 
   beforeEach(async () => {
-    harness = await createPgliteHarness();
-    kp = createEnvKeyProvider({
-      [KEY_REF]: randomBytes(32).toString("base64"),
-    });
-    const auth: AuthDeps = {
-      oauthClientId: "Iv1.test-client-id",
-      oauthClientSecret: "test-client-secret",
-      keyProvider: kp,
-      sessionKeyRef: KEY_REF,
-      publicBaseUrl: BASE_URL,
-      cookieSecure: true,
-    };
-    const app = createApp({
-      logger: testLogger(),
-      handle: harness.handle,
-      webhookSecret: "test-webhook-secret",
-      auth,
-      github: {
-        fetchPullRequestConversation: async () => {
-          throw new Error("conversation port must not be called in this suite");
-        },
-        listRepoCollaborators: async () => {
-          throw new Error(
-            "collaborators port must not be called in this suite",
-          );
-        },
-      },
-      serverVersion: "test-version",
-    });
-    appFetch = async (input, init) => app.request(input, init);
+    world = await startCliApiHarness();
+    harness = world.harness;
+    kp = world.keyProvider;
+    appFetch = world.fetch;
     configDir = mkdtempSync(join(tmpdir(), "mb-config-"));
     cacheDir = mkdtempSync(join(tmpdir(), "mb-cache-"));
-
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (input: string | URL | Request): Promise<Response> => {
-        const url = getRequestUrl(input);
-        if (
-          url.includes("/user/installations/") &&
-          url.includes("/repositories")
-        ) {
-          return jsonResponse({
-            total_count: 1,
-            repositories: [{ id: REPO_A, full_name: "octo/hello" }],
-          });
-        }
-        if (/\/repositories\/\d+$/.test(url)) {
-          return jsonResponse({
-            id: REPO_A,
-            full_name: "octo/hello",
-            private: true,
-          });
-        }
-        if (/\/repos\/[^/]+\/[^/]+\/pulls\/\d+\/reviews$/.test(url)) {
-          return jsonResponse({ id: 987001 });
-        }
-        if (
-          /\/pulls\/comments\/\d+\/replies$/.test(url) ||
-          /\/comments\/\d+\/replies$/.test(url)
-        ) {
-          return jsonResponse({ id: 987002 }, 201);
-        }
-        return jsonResponse({ message: "unexpected endpoint" }, 404);
-      }),
-    );
+    world.github.serve((url) => {
+      if (
+        url.includes("/user/installations/") &&
+        url.includes("/repositories")
+      ) {
+        return jsonResponse({
+          total_count: 1,
+          repositories: [{ id: REPO_A, full_name: "octo/hello" }],
+        });
+      }
+      if (/\/repositories\/\d+$/.test(url)) {
+        return jsonResponse({
+          id: REPO_A,
+          full_name: "octo/hello",
+          private: true,
+        });
+      }
+      if (/\/repos\/[^/]+\/[^/]+\/pulls\/\d+\/reviews$/.test(url)) {
+        return jsonResponse({ id: 987001 });
+      }
+      if (
+        /\/pulls\/comments\/\d+\/replies$/.test(url) ||
+        /\/comments\/\d+\/replies$/.test(url)
+      ) {
+        return jsonResponse({ id: 987002 }, 201);
+      }
+      return jsonResponse({ message: "unexpected endpoint" }, 404);
+    });
   });
 
   afterEach(async () => {
-    vi.unstubAllGlobals();
-    await harness.close();
+    await world.close();
   });
 
   async function seedToken(): Promise<string> {

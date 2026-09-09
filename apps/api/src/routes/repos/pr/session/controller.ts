@@ -1,5 +1,5 @@
 // The machinery every session write shares, Hono-free: bind the write to the
-// Brief the request names. Failures ride the Result — the handler owns the
+// Brief the request names. Failures ride the Result, the handler owns the
 // wire posture.
 import {
   createTenantRepository,
@@ -17,7 +17,8 @@ import {
   resolveSessionTarget,
 } from "./logic/brief-target";
 import { UnreadableBriefError } from "./logic/carry-over-inputs";
-import { buildSessionPayload, type SessionPayload } from "./logic/payload";
+import type { SessionPayload } from "contract";
+import { buildSessionPayload } from "./logic/payload";
 import type { SessionWriteFailure } from "./types";
 
 /** A write bound to the named Brief and reviewer; it writes if needed. */
@@ -27,7 +28,7 @@ export type SessionWrite = <T>(
 
 export interface ResolvedSessionWrite {
   readonly run: SessionWrite;
-  /** The named Brief's head — the commit the reviewer read, and the one a
+  /** The named Brief's head, the commit the reviewer read, and the one a
    * GitHub write pins to. */
   readonly head: string;
 }
@@ -94,7 +95,7 @@ function bindSessionWriter(
 
 export default {
   /**
-   * The session read — PURE: it NEVER creates a session. Before the first
+   * The session read. PURE: it NEVER creates a session. Before the first
    * write the payload carries the carry-over verdicts evaluated in memory
    * (`preview`), still writing nothing.
    */
@@ -142,7 +143,7 @@ export default {
 
   /**
    * Resolve the PR and the Brief the request names, and bind the write to
-   * them. An unknown PR/Brief is `target-not-found` — the subtree's
+   * them. An unknown PR/Brief is `target-not-found`, the subtree's
    * hint-free 404 is the handler's judgment.
    */
   async resolveWrite(deps: AuthRouteDeps, input: ResolveWriteInput) {

@@ -2,7 +2,7 @@ import {
   rowId,
   type CommentAnchor,
   type ReviewComment,
-} from "@web/features/review/utils/comments";
+} from "@web/features/review/utils";
 import { reviewCommentMatchesDiffLine } from "../../../utils/reviewComments";
 import { DIFF_LINE_SIGNS } from "../utils";
 import {

@@ -8,7 +8,7 @@ import type { ThreadComposerWiring } from "@web/features/conversation";
 import {
   buildInlineThreads,
   splitInlineRows,
-} from "@web/features/conversation/utils/digest";
+} from "@web/features/conversation/utils";
 import type {
   ConversationThread,
   PrConversation,
@@ -185,7 +185,7 @@ function renderTable(
   return { view, openCommentComposer, flowStore };
 }
 
-describe("DiffTable — stable comparison column", () => {
+describe("DiffTable stable comparison column", () => {
   it("keeps the revision column when comparison is off", () => {
     const { view } = renderTable();
 
@@ -233,7 +233,7 @@ describe("DiffTable — stable comparison column", () => {
   });
 });
 
-describe("DiffTable — a draft restored from the server", () => {
+describe("DiffTable draft restored from the server", () => {
   it("renders on the row its coordinates name, with no row ids to go on", () => {
     // The session read lands BEFORE the diff does, so a restored draft carries
     // coordinates and no row ids. Matching on ids alone would hide it, and a
@@ -288,14 +288,14 @@ describe("DiffTable — a draft restored from the server", () => {
   });
 });
 
-describe("DiffTable — read-only comment affordances", () => {
+describe("DiffTable read-only comment affordances", () => {
   const REASON = "You're viewing an earlier revision.";
 
   it("rows stay focusable but are aria-disabled with a reachable reason", () => {
     const { view } = renderTable({}, { composerDisabledReason: REASON });
     const row = view.container.querySelector('tr[aria-disabled="true"]');
     expect(row).not.toBeNull();
-    // Still keyboard-reachable — the reason is discoverable BEFORE activation.
+    // Still keyboard-reachable, so the reason is discoverable BEFORE activation.
     expect(row?.getAttribute("tabindex")).toBe("0");
     const reasonId = row?.getAttribute("aria-describedby") ?? "";
     expect(document.getElementById(reasonId)?.textContent).toBe(REASON);
@@ -303,7 +303,7 @@ describe("DiffTable — read-only comment affordances", () => {
     expect(view.container.querySelector("[data-commentable]")).toBeNull();
   });
 
-  it("keeps composer entry inert on activation (Enter and click)", () => {
+  it("keeps composer entry inert on Enter and on click", () => {
     const { view, openCommentComposer } = renderTable(
       {},
       { composerDisabledReason: REASON },
@@ -338,7 +338,7 @@ function selectTextIn(cell: Element) {
   selection?.addRange(range);
 }
 
-describe("DiffTable — selectable code text", () => {
+describe("DiffTable selectable code text", () => {
   afterEach(() => {
     window.getSelection()?.removeAllRanges();
   });
@@ -375,7 +375,7 @@ describe("DiffTable — selectable code text", () => {
     expect(openCommentComposer).toHaveBeenCalledTimes(1);
   });
 
-  it("reserves the code column for text selection (no drag, no composer)", () => {
+  it("reserves the code column for text selection, no drag or composer", () => {
     const {
       view: { container },
       openCommentComposer,
@@ -432,15 +432,15 @@ describe("DiffTable — selectable code text", () => {
   });
 });
 
-describe("DiffTable — row-level conversation threads", () => {
+describe("DiffTable row-level conversation threads", () => {
   it("renders the thread under its line with the jump-target attribute", () => {
     const {
       view: { container },
     } = renderTable();
     const row = container.querySelector('[data-conversation-thread="9001"]');
     expect(row).not.toBeNull();
-    // The inline render must NOT emit the SECTION's landing attribute — and
-    // vice versa — or one would shadow the other in document order.
+    // The inline render must NOT emit the SECTION's landing attribute, and
+    // vice versa, or one would shadow the other in document order.
     expect(
       container.querySelector("[data-conversation-section-thread]"),
     ).toBeNull();
@@ -452,7 +452,7 @@ describe("DiffTable — row-level conversation threads", () => {
     expect(disclosure.getAttribute("aria-expanded")).toBe("false");
     fireEvent.click(disclosure);
     expect(disclosure.getAttribute("aria-expanded")).toBe("true");
-    // Row-level detail hides the jump — the row already is the destination.
+    // Row-level detail hides the jump, because the row already is the target.
     expect(screen.queryByRole("button", { name: /Jump to/ })).toBeNull();
   });
 

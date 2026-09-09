@@ -3,11 +3,10 @@
 // rather than guessed at.
 import { describe, expect, it } from "vitest";
 
-import type { SessionPayload as ApiSessionPayload } from "api";
+import type { SessionPayload } from "contract";
 import type { Equals } from "types";
-import { briefFixture } from "@web/features/brief/utils/fixtures";
-import { buildBriefViewModel } from "@web/features/brief/utils";
-import { GroupViewKinds } from "@web/features/brief/utils/remainder";
+import { briefFixture } from "@web/features/brief/fixtures";
+import { buildBriefViewModel, GroupViewKinds } from "@web/features/brief/utils";
 import {
   emptySessionPayload,
   parseReviewSessionPayload,
@@ -17,16 +16,16 @@ import {
 } from "./serverState";
 
 type Mutable<T> = { -readonly [K in keyof T]: T[K] };
-/** The api route's draft payload, minus `anchorStatus` — the one field this
- * mirror deliberately drops (the attention list renders it instead). */
+/** The contract's draft payload, minus `anchorStatus`, the one field this
+ * store shape deliberately drops; the attention list renders it instead. */
 type SourceDraftComment = Mutable<
-  Omit<ApiSessionPayload["draftComments"][number], "anchorStatus">
+  Omit<SessionPayload["draftComments"][number], "anchorStatus">
 >;
 /**
- * Lockstep pin: the mirror is hand-rolled and CI is path-filtered per
- * package, so a field added or retyped in the api payload would otherwise
- * ship green while this bundle's guard rejects the whole session read.
- * `Equals` is exact — it fails when the optional `startSide` half drifts.
+ * Lockstep pin: this store shape is hand-rolled, so a field added or retyped
+ * on the wire would otherwise ship green while the bundle's guard rejects the
+ * whole session read. `Equals` is exact and fails when the optional
+ * `startSide` half drifts.
  */
 const draftCommentPin: Equals<SessionDraftComment, SourceDraftComment> = true;
 void draftCommentPin;
@@ -85,7 +84,7 @@ describe("sessionInitialState", () => {
             body: "carried draft",
             status: "draft",
           },
-          // No chunk in this Brief owns this file — dropped, not guessed.
+          // No chunk in this Brief owns this file, dropped, not guessed.
           {
             id: "42",
             filePath: "src/deleted-since.ts",
@@ -105,7 +104,7 @@ describe("sessionInitialState", () => {
     expect(anchor?.selectedText.length).toBeGreaterThan(0);
   });
 
-  it("lands a leftover-line draft on the remainder chunk, not a spanning attributed envelope", () => {
+  it("lands a leftover-line draft on the remainder chunk", () => {
     const brief = structuredClone(briefFixture);
     const chunk = brief.chunks[0];
     if (chunk === undefined) throw new Error("fixture has no chunk");

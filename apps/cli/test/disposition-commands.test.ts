@@ -6,11 +6,9 @@ import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createApp, type AuthDeps } from "api";
 import {
   createArtifactStore,
   encryptToken,
-  createEnvKeyProvider,
   createTenantRepository,
   createGrantAuth,
   isInstallationId,
@@ -24,18 +22,20 @@ import {
   type ReviewerId,
   type TenantContext,
 } from "persistence";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { PgliteHarness } from "persistence/testing";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ExitCodes } from "../src/exit";
+import {
+  BASE_URL,
+  KEY_REF,
+  startCliApiHarness,
+  type CliApiHarness,
+} from "./harness/api";
 import { runCli, type CliDeps } from "../src/program";
-import { testLogger } from "./logging";
-import { getRequestUrl } from "./helpers";
 
-const KEY_REF = "SESSION_KEY_V1";
 const INSTALLATION_ID = 987654;
 const REVIEWER_ID = 555;
 const REPO_A = 42001;
-const BASE_URL = "https://mb.example";
 const BASE_SHA = "a".repeat(40);
 const HEAD_SHA = "b".repeat(40);
 const SPAN = ["--base", BASE_SHA, "--head", HEAD_SHA];
@@ -91,42 +91,39 @@ function threadWalkPage(): unknown {
  * GitHub stub: the gate's REST endpoints plus a scripted GraphQL sequence
  * (each POST /graphql answers the next response in order).
  */
-function stubGitHub(graphql: readonly unknown[] = []): void {
+function stubGitHub(
+  world: CliApiHarness,
+  graphql: readonly unknown[] = [],
+): void {
   let graphqlCall = 0;
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (input: string | URL | Request): Promise<Response> => {
-      const url = getRequestUrl(input);
-      if (
-        url.includes("/user/installations/") &&
-        url.includes("/repositories")
-      ) {
-        return jsonResponse({
-          total_count: 1,
-          repositories: [{ id: REPO_A, full_name: "octo/hello" }],
-        });
+  world.github.serve((url) => {
+    if (url.includes("/user/installations/") && url.includes("/repositories")) {
+      return jsonResponse({
+        total_count: 1,
+        repositories: [{ id: REPO_A, full_name: "octo/hello" }],
+      });
+    }
+    if (/\/repositories\/\d+$/.test(url)) {
+      return jsonResponse({
+        id: REPO_A,
+        full_name: "octo/hello",
+        private: true,
+      });
+    }
+    if (url.endsWith("/graphql")) {
+      const data = graphql[graphqlCall];
+      graphqlCall += 1;
+      if (data === undefined) {
+        return jsonResponse({ data: null, errors: [{ message: "boom" }] });
       }
-      if (/\/repositories\/\d+$/.test(url)) {
-        return jsonResponse({
-          id: REPO_A,
-          full_name: "octo/hello",
-          private: true,
-        });
-      }
-      if (url.endsWith("/graphql")) {
-        const data = graphql[graphqlCall];
-        graphqlCall += 1;
-        if (data === undefined) {
-          return jsonResponse({ data: null, errors: [{ message: "boom" }] });
-        }
-        return jsonResponse({ data });
-      }
-      return jsonResponse({ message: "unexpected endpoint" }, 404);
-    }),
-  );
+      return jsonResponse({ data });
+    }
+    return jsonResponse({ message: "unexpected endpoint" }, 404);
+  });
 }
 
 describe("disposition commands over the real api app", () => {
+  let world: CliApiHarness;
   let harness: PgliteHarness;
   let kp: KeyProvider;
   let appFetch: CliDeps["fetch"];
@@ -134,44 +131,17 @@ describe("disposition commands over the real api app", () => {
   let cacheDir: string;
 
   beforeEach(async () => {
-    harness = await createPgliteHarness();
-    kp = createEnvKeyProvider({
-      [KEY_REF]: randomBytes(32).toString("base64"),
-    });
-    const auth: AuthDeps = {
-      oauthClientId: "Iv1.test-client-id",
-      oauthClientSecret: "test-client-secret",
-      keyProvider: kp,
-      sessionKeyRef: KEY_REF,
-      publicBaseUrl: BASE_URL,
-      cookieSecure: true,
-    };
-    const app = createApp({
-      logger: testLogger(),
-      handle: harness.handle,
-      webhookSecret: "test-webhook-secret",
-      auth,
-      github: {
-        fetchPullRequestConversation: async () => {
-          throw new Error("conversation port must not be called in this suite");
-        },
-        listRepoCollaborators: async () => {
-          throw new Error(
-            "collaborators port must not be called in this suite",
-          );
-        },
-      },
-      serverVersion: "test-version",
-    });
-    appFetch = async (input, init) => app.request(input, init);
+    world = await startCliApiHarness();
+    harness = world.harness;
+    kp = world.keyProvider;
+    appFetch = world.fetch;
     configDir = mkdtempSync(join(tmpdir(), "mb-config-"));
     cacheDir = mkdtempSync(join(tmpdir(), "mb-cache-"));
-    stubGitHub();
+    stubGitHub(world);
   });
 
   afterEach(async () => {
-    vi.unstubAllGlobals();
-    await harness.close();
+    await world.close();
   });
 
   async function seedToken(): Promise<string> {
@@ -493,7 +463,7 @@ describe("disposition commands over the real api app", () => {
   it("thread resolve flips over GitHub with a verbatim receipt, no span", async () => {
     await seedSessionedPr(harness.handle);
     await login();
-    stubGitHub([
+    stubGitHub(world, [
       threadWalkPage(),
       { resolveReviewThread: { thread: { isResolved: true } } },
     ]);
@@ -515,7 +485,7 @@ describe("disposition commands over the real api app", () => {
   it("thread unresolve mirrors resolve", async () => {
     await seedSessionedPr(harness.handle);
     await login();
-    stubGitHub([
+    stubGitHub(world, [
       {
         repository: {
           pullRequest: {
@@ -553,7 +523,7 @@ describe("disposition commands over the real api app", () => {
   it("ready marks the PR ready over GitHub; receipt verbatim; no span taken", async () => {
     await seedSessionedPr(harness.handle);
     await login();
-    stubGitHub([
+    stubGitHub(world, [
       { repository: { pullRequest: { id: "PR_node1", isDraft: true } } },
       { markPullRequestReadyForReview: { pullRequest: { isDraft: false } } },
     ]);

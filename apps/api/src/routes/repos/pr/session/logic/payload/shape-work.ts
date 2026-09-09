@@ -11,11 +11,8 @@ import {
   type ReviewSessionSnapshot,
 } from "persistence";
 import type { Mutable } from "types";
-import type {
-  DraftCommentPayload,
-  DraftCommentSource,
-  SessionWork,
-} from "./types";
+import type { DraftCommentPayload } from "contract";
+import type { DraftCommentSource, SessionWork } from "./types";
 
 function shapeDraftComment(row: DraftCommentSource): DraftCommentPayload {
   const comment: Mutable<DraftCommentPayload> = {
@@ -72,7 +69,7 @@ export function shapeStoredWork(snapshot: ReviewSessionSnapshot): SessionWork {
 
 /**
  * The same lists from verdicts that are not rows yet. A draft still names a
- * row — the previous session's, which the copy points back at. A disposition
+ * row, the previous session's, which the copy points back at. A disposition
  * has no id: every operation that clears one addresses it by its anchor.
  */
 export function shapeCarriedWork(carried: CarriedWork): SessionWork {
@@ -104,6 +101,6 @@ export function shapeCarriedWork(carried: CarriedWork): SessionWork {
 }
 
 /**
- * `headIndex` is the CURRENT Brief's — the revision count is the distance to
+ * `headIndex` is the CURRENT Brief's, the revision count is the distance to
  * the Brief the work carried from, which is what the carry-over row states.
  */

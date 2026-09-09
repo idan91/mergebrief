@@ -5,7 +5,7 @@ import {
   type CreateReviewError,
   type ReviewValidationClass,
 } from "github";
-import { ApiErrorCodes } from "../../../../../error-response";
+import { ApiErrorCodes } from "contract";
 import {
   BadGateway,
   Conflict,

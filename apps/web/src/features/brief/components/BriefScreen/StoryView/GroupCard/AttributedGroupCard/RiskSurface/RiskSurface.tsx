@@ -1,10 +1,14 @@
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 
-import type { ReviewComment } from "@web/features/review/utils/comments";
-import type { Disposition } from "@web/features/review/session";
-import type { ReviewFlowActions } from "@web/features/review/session/flow/store";
-import { riskEvidenceLabel } from "@web/features/review/utils/state";
+import {
+  type ReviewComment,
+  riskEvidenceLabel,
+} from "@web/features/review/utils";
+import type {
+  Disposition,
+  ReviewFlowActions,
+} from "@web/features/review/session";
 import { Button } from "@web/components/Button/Button";
 import { LinkButton } from "@web/components/LinkButton/LinkButton";
 import type { BriefChunk } from "../../../../../../types";

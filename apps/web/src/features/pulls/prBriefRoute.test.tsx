@@ -17,7 +17,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { briefFixture } from "@web/features/brief/utils/fixtures";
+import { briefFixture } from "@web/features/brief/fixtures";
 import { routeTree } from "../../routeTree.gen";
 import {
   dbBriefQueryOptions,

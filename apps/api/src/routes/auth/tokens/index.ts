@@ -1,11 +1,8 @@
-// API-token mint/list/revoke — the BROWSER-ONLY management surface for the
+// API-token mint/list/revoke, the BROWSER-ONLY management surface for the
 // second presentation channel. Cookie-authed by construction: these live
-// under `/api/auth/*`, where the session layer IGNORES Bearer headers — a
+// under `/api/auth/*`, where the session layer IGNORES Bearer headers, a
 // token can never mint tokens. Composition only.
-import {
-  ProductActionIds,
-  ProductQueryIds,
-} from "../../../product-operations/ids";
+import { ProductActionIds, ProductQueryIds } from "contract";
 import {
   productRouter,
   type ProductRouter,

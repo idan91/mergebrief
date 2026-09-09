@@ -1,11 +1,11 @@
 // The group-scoped comment selection must resolve everything the old
 // whole-list subscription could: in particular, an addressed flag whose
-// evidence links a comment anchored in ANOTHER group's chunk — dropping the
+// evidence links a comment anchored in ANOTHER group's chunk, dropping the
 // linked-id half of the filter would render "evidence comment missing" for a
 // disposition the reviewer legitimately recorded.
 import { describe, expect, it } from "vitest";
 
-import type { ReviewComment } from "@web/features/review/utils/comments";
+import type { ReviewComment } from "@web/features/review/utils";
 import type { RiskFlag } from "../../../../utils/viewModel";
 import { selectGroupReviewComments } from "./utils";
 

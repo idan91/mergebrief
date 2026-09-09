@@ -4,6 +4,26 @@ Board ticket: [Bring the codebase to release quality (BRIEF-256)](https://app.no
 Decisions: [Wayfinder map: Standards and lint baseline (U0)](https://app.notion.com/p/3d25e9400eeb81b7bd4bf028cc2b458e). Every rule wording, tool choice and fix list below comes from a closed ticket on that map; the map wins where this plan disagrees, and this plan gets fixed.
 Evidence: `logs/audit-2026-09-04/` (gitignored). `BACKLOG.md` section 5 holds D1 to D14, `sub-agents-md.md` the AGENTS.md corpus audit, `pr-review-mining.md` section 4 the review asks.
 
+## Status, 2026-09-08
+
+Recorded here because this plan is the completion record, not because anything
+in it below this line changed. Statements below stay as they were written.
+
+- **Superseded.** `house/comment-run` shipped at eight content lines, not the
+  four this plan names, and a `house/comment-density` cap of 40% shipped
+  alongside it. That pairing is the accepted policy; a later plan's proposal to
+  retire the comment-length gate entirely was not taken.
+- **Completed since.** The boundary baseline is gone: the graph runs
+  unsuppressed with zero violations, the records file is deleted, and
+  `--ignore-known` is off the lint command. The API runs as its own process and
+  `packages/contract` owns the HTTP agreement, both of which this plan listed as
+  out of scope. `pnpm check:baselines` now enforces the promises the baselines
+  only stated, and CI runs it.
+- **Still open.** The title and comment baseline survives, at 563 files, and
+  shrinks one edited file at a time under cleanup-on-edit. Generation-eval
+  evidence for the shared validation, salvage and repo-config work is not in
+  this repository and remains an owner-run step.
+
 ## What ships
 
 Three PRs; the third is a stack of nine.

@@ -23,10 +23,10 @@ import conversationController from "./controller";
 import type { ReadConversationResult } from "./types";
 import { CONVERSATION_CACHE_TTL_MS } from "./consts";
 import { buildConversationCacheKey } from "./utils";
-import { ApiErrorCodes } from "../../../../error-response";
+import { ApiErrorCodes } from "contract";
 import { resolvePrScopeFrom } from "../scope";
 
-/** A cached/serialized conversation body, per-viewer gated — `no-store`. */
+/** A cached/serialized conversation body, per-viewer gated, `no-store`. */
 function conversationJson(c: Context<AuthzEnv>, body: string): Response {
   return c.body(body, 200, {
     "content-type": "application/json; charset=utf-8",
@@ -63,7 +63,7 @@ export default function createHandlers(
         return conversationJson(c, cached);
       }
 
-      // Fetch by the AUTHZ-VERIFIED full name (read posture — ≤60s staleness is
+      // Fetch by the AUTHZ-VERIFIED full name (read posture, ≤60s staleness is
       // the same budget as the gate's own positive cache).
       const target = parseOwnerAndName(c.get("repoFullName"));
       if (target === undefined) {
@@ -102,7 +102,7 @@ export default function createHandlers(
       if (!fetched.ok) {
         // Re-auth territory, same as every sibling viewer-token read: an
         // unreadable stored token or an upstream 401 prompts sign-in, never
-        // a retry-looking 502 or a phantom 404. VIEWER path only — on the
+        // a retry-looking 502 or a phantom 404. VIEWER path only, on the
         // App branch a 401 means the App's own credential failed, which
         // re-auth cannot fix, so it stays an honest upstream error.
         if (isTokenUnreadableFailure(fetched.error)) {

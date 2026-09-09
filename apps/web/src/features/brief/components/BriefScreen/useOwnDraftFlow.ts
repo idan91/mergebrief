@@ -5,10 +5,12 @@ import { useTranslation } from "react-i18next";
 import type { TranslationKey } from "i18n";
 import { useCallback } from "react";
 
-import type { ReviewComment } from "@web/features/review/utils/comments";
-import { postCommentBlockedReason } from "@web/features/review/utils/comments";
+import {
+  postCommentBlockedReason,
+  type ReviewComment,
+} from "@web/features/review/utils";
 import type { ReviewSessionActions } from "@web/features/review/session";
-import type { PostCommentResult } from "@web/features/pulls/transport/postComment";
+import type { PostCommentResult } from "@web/features/pulls/transport";
 import type { InFlightDraftPosts } from "./useInFlightDraftPosts";
 
 /** Toast keys for per-comment post-now: failures always keep the draft. */
@@ -18,21 +20,21 @@ export const POST_COMMENT_COPY_KEYS = {
   notFound: "brief.postComment.notFound",
   stale: "brief.postComment.stale",
   // Deterministic route reject: retrying the SAME draft can never succeed
-  // (unlike `upstream`) — ask for an edit, never a plain retry.
+  // (unlike `upstream`), ask for an edit, never a plain retry.
   invalid: "brief.postComment.invalid",
   // Deterministic 409s of their own: neither is stale, and neither becomes
-  // postable by retrying — "try again shortly" would invite a pointless
+  // postable by retrying, so "try again shortly" would invite a pointless
   // re-post.
   orphanedAnchor: "brief.postComment.orphanedAnchor",
   alreadyPublished: "brief.postComment.alreadyPublished",
   upstream: "brief.postComment.upstream",
   // Deliberately INDETERMINATE: the catch can land AFTER the POST reached
-  // GitHub — a confident retry prompt could double-post.
+  // GitHub, where a confident retry prompt could double-post.
   failed: "brief.postComment.failed",
   // Blocks Submit review while a post-now settles: the payload capture would
   // re-ship the still-draft comment.
   submitWhilePosting: "brief.postComment.submitWhilePosting",
-  // Symmetric block: a Submit review in flight already CAPTURED the drafts —
+  // Symmetric block: a Submit review in flight already CAPTURED the drafts,
   // posting one now would double-post when the review lands.
   postWhileSubmitting: "brief.postComment.postWhileSubmitting",
 } as const satisfies Record<string, TranslationKey>;
@@ -86,20 +88,20 @@ const POST_FAILURES = {
 >;
 
 export interface UseOwnDraftFlowInput {
-  /** The live session store's actions — a posted comment flips through these. */
+  /** The live session store's actions, which a posted comment flips through. */
   actions: ReviewSessionActions;
   /** Page-level live-region channel (clear-then-set) for outcome copy. */
   announce: (message: string) => void;
   /**
    * Refetches the conversation after a posted inline comment (a conversation
-   * write — the new thread must render). Absent on the local path.
+   * write, the new thread must render). Absent on the local path.
    */
   invalidateConversation: (() => void) | undefined;
-  /** The screen's in-flight gate — one post per draft. */
+  /** The screen's in-flight gate, one post per draft. */
   inFlight: InFlightDraftPosts;
   /** The route's post-now transport (`ownDraft.postComment`); absent hides Post. */
   postComment: ((draftId: string) => Promise<PostCommentResult>) | undefined;
-  /** A Submit review in flight already captured the drafts — posting blocks. */
+  /** A Submit review in flight already captured the drafts, so posting blocks. */
   submitPending: boolean;
 }
 
@@ -107,7 +109,7 @@ export interface UseOwnDraftFlowValue {
   /**
    * Posts one staged draft NOW as a standalone inline review comment and
    * returns the post's OUTCOME (posted / deterministic reject /
-   * indeterminate) — the single per-comment path reused by both the inline
+   * indeterminate), the single per-comment path reused by both the inline
    * Post button (fire-and-forget: the return is ignored) and the mark-ready
    * batch (awaited sequentially; the outcome branches the summary's
    * stop-cause copy).
@@ -132,7 +134,7 @@ export function useOwnDraftFlow(
   } = input;
 
   // Double-post guard, keyed by comment id so distinct drafts still post
-  // concurrently. Per-TAB only — cross-tab dedupe would need a server-side
+  // concurrently. Per-TAB only, since cross-tab dedupe would need a server-side
   // idempotency key. With `batchOwnsMessaging` nothing announces here, so the
   // batch's summary toast is the last live-region write.
   const postDraftComment = useCallback(
@@ -144,7 +146,7 @@ export function useOwnDraftFlow(
       if (postComment === undefined || comment.status !== "draft") {
         return "rejected";
       }
-      // Cap mirror: an over-cap body/anchor is a deterministic route 400 —
+      // Cap mirror: an over-cap body/anchor is a deterministic route 400,
       // same copy as the disabled Post button, guarding the programmatic
       // path. In a batch the reason is suppressed (the summary owns it).
       const blocked = postCommentBlockedReason(t, comment);
@@ -152,7 +154,7 @@ export function useOwnDraftFlow(
         if (!batchOwnsMessaging) announce(blocked);
         return "rejected";
       }
-      // A Submit review in flight already CAPTURED this draft — posting now
+      // A Submit review in flight already CAPTURED this draft, posting now
       // would double-post when the review lands.
       if (submitPending) {
         if (!batchOwnsMessaging) {
@@ -160,7 +162,7 @@ export function useOwnDraftFlow(
         }
         return "rejected";
       }
-      // A duplicate in-flight post's outcome is unknowable from here — a
+      // A duplicate in-flight post's outcome is unknowable from here, and a
       // batch must stop with the indeterminate summary.
       if (!inFlight.begin(comment.id)) return "indeterminate";
       const say = (key: TranslationKey) => {
@@ -177,7 +179,7 @@ export function useOwnDraftFlow(
             actions.recordSubmittedReview(result.reviewId);
           }
           say(POST_COMMENT_COPY_KEYS.posted);
-          // Conversation write — refetch so the new thread renders.
+          // Conversation write, refetch so the new thread renders.
           invalidateConversation?.();
           return "posted";
         }

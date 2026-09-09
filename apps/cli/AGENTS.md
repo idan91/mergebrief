@@ -6,14 +6,14 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 
 ## Map
 
-**Entry point: `src/bin.ts`** (the tsup bundle entry — shebang + real-world deps wired here and ONLY here). The whole CLI stays testable behind `runCli` in `src/program.ts` (injected-deps boundary; command tests run it against the REAL api Hono app via its fetch-shaped `app.request`).
+**Entry point: `src/bin.ts`** (the tsup bundle entry — shebang + real-world deps wired here and ONLY here). The whole CLI stays testable behind `runCli` in `src/program.ts` (injected-deps boundary; command tests run it against the REAL API, started as its own process by `test/harness/`, over HTTP).
 
 What the layout can't show:
 
 - `src/client.ts` is the API-client boundary (injected fetch, `CliError` mapping, the `mergebrief/<version>` user-agent pinned by a test).
 - `src/exit.ts` is the PUBLIC exit-code contract.
 - `commands/diff-filter.ts`'s `--group` filter keeps output a valid diff.
-- `test/` holds runCli-level contract tests (stdout/stderr + exit code).
+- `test/` holds runCli-level contract tests (stdout/stderr + exit code). `test/harness/` starts the API from its own executable against a migrated PGlite served over a socket, with GitHub answered by a stub in the test process; a suite writes its GitHub responses as plain functions over a URL, as before. One world per TEST, not per file, because the API's own caches would otherwise carry a previous test's gate verdict into the next one.
 - `scripts/` holds the README-appendix regenerator and the product-operation mapping gate.
 
 `product-operations.map.json` (committed, package root) is the CLI half of that gate: EVERY operation in api's manifest carries exactly one entry — absence is an error. The entry is one of three shapes:

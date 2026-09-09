@@ -1,17 +1,10 @@
-// Cross-package test harness — exported via the dedicated `persistence/testing`
-// subpath so consumer packages can integration-test against a real migrated
-// schema without reaching this package's internals: a fresh in-memory PGlite
-// carrying the checked-in `drizzle/` migrations, wrapped as the opaque
-// `AppDatabase`, plus a `graphile_worker` STUB so `add_job` calls succeed and
-// enqueued jobs are assertable as rows.
-//
-// The stub exists because real graphile-worker needs a real Postgres
-// (LISTEN/NOTIFY, advisory locks) and cannot run on PGlite. It stands in for
-// real graphile ONLY in tests.
-//
-// `raw` intentionally exposes an unscoped SQL surface — for TEST ASSERTIONS
-// only. It is the harness's escape hatch, not a query API; production code
-// never sees this module (dev-only subpath, PGlite is a devDependency).
+// Cross-package test harness on the `persistence/testing` subpath: an
+// in-memory PGlite carrying the checked-in migrations, wrapped as the opaque
+// `AppDatabase`, plus a `graphile_worker` STUB so `add_job` succeeds and
+// enqueued jobs are assertable as rows. A caller that runs graphile's own
+// migrations turns the stub off. `raw` is an unscoped SQL surface for TEST
+// ASSERTIONS only, and production never sees this module.
+import type { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { type AppDatabase, fromDrizzle } from "./db/handle";
 import { createMigratedPglite } from "./pglite-snapshot";
@@ -48,24 +41,44 @@ $$;
 `;
 
 export interface PgliteHarness {
-  /** Opaque handle — feed it to `createTenantRepository`/`createIngestRoutines`/`createPurgeRoutines`. */
+  /** Opaque handle: feed it to the tenant, ingest and purge factories. */
   readonly handle: AppDatabase;
   /** Unscoped raw query FOR TEST ASSERTIONS ONLY; returns the result rows. */
   raw(query: string, params?: unknown[]): Promise<Record<string, unknown>[]>;
+  /**
+   * The database itself, for a harness that must SERVE it to another process
+   * over a socket. Nothing else should reach for it: `handle` is the API and
+   * `raw` is the assertion window.
+   */
+  readonly database: PGlite;
   close(): Promise<void>;
+}
+
+export interface PgliteHarnessOptions {
+  /**
+   * Install the `graphile_worker` STUB schema. Default true. A caller that
+   * SERVES this database to a process which runs graphile's own migrations
+   * passes false, or the real migration collides with the stub's tables.
+   */
+  readonly graphileStub?: boolean;
 }
 
 /**
  * A migrated, isolated in-memory database (app schema + graphile_worker stub)
  * wrapped as the opaque `AppDatabase`, with a raw assertion window.
  */
-export async function createPgliteHarness(): Promise<PgliteHarness> {
+export async function createPgliteHarness(
+  options: PgliteHarnessOptions = {},
+): Promise<PgliteHarness> {
   // Applied per instance rather than baked into the snapshot (~0ms next to the
   // ~120ms restore), keeping the snapshot the migrated app schema alone.
   const client = await createMigratedPglite();
-  await client.exec(GRAPHILE_WORKER_STUB_SQL);
+  if (options.graphileStub !== false) {
+    await client.exec(GRAPHILE_WORKER_STUB_SQL);
+  }
   return {
     handle: fromDrizzle(drizzle(client, { schema })),
+    database: client,
     async raw(query, params) {
       const result = await client.query<Record<string, unknown>>(query, params);
       return result.rows;

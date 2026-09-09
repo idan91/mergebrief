@@ -38,9 +38,18 @@ importers:
 
   apps/api:
     dependencies:
+      '@hono/node-server':
+        specifier: ^2.1.1
+        version: 2.1.1(hono@4.12.27)
       brief-core:
         specifier: workspace:*
         version: link:../../packages/brief-core
+      contract:
+        specifier: workspace:*
+        version: link:../../packages/contract
+      generators:
+        specifier: workspace:*
+        version: link:../../packages/generators
       github:
         specifier: workspace:*
         version: link:../../packages/github
@@ -72,9 +81,6 @@ importers:
       '@vitest/coverage-v8':
         specifier: ^4.1.8
         version: 4.1.8(vitest@4.1.8)
-      i18n:
-        specifier: workspace:*
-        version: link:../../packages/i18n
       tsx:
         specifier: ^4.19.0
         version: 4.22.4
@@ -97,18 +103,18 @@ importers:
         specifier: ^3.25.0
         version: 3.25.76
     devDependencies:
+      '@electric-sql/pglite':
+        specifier: ^0.5.4
+        version: 0.5.4
+      '@electric-sql/pglite-socket':
+        specifier: ^0.2.11
+        version: 0.2.11(@electric-sql/pglite-age@0.0.9(@electric-sql/pglite@0.5.4))(@electric-sql/pglite-pg_hashids@0.0.9(@electric-sql/pglite@0.5.4))(@electric-sql/pglite-pg_ivm@0.0.9(@electric-sql/pglite@0.5.4))(@electric-sql/pglite-pg_textsearch@0.0.10(@electric-sql/pglite@0.5.4))(@electric-sql/pglite-pg_uuidv7@0.0.9(@electric-sql/pglite@0.5.4))(@electric-sql/pglite-pgtap@0.0.9(@electric-sql/pglite@0.5.4))(@electric-sql/pglite-pgvector@0.0.9(@electric-sql/pglite@0.5.4))(@electric-sql/pglite@0.5.4)
       '@types/node':
         specifier: ^22.10.0
         version: 22.19.21
       '@vitest/coverage-v8':
         specifier: ^4.1.8
         version: 4.1.8(vitest@4.1.8)
-      api:
-        specifier: workspace:*
-        version: link:../api
-      logging:
-        specifier: workspace:*
-        version: link:../../packages/logging
       persistence:
         specifier: workspace:*
         version: link:../../packages/persistence
@@ -148,21 +154,15 @@ importers:
       '@tanstack/react-virtual':
         specifier: ^3.14.9
         version: 3.14.9(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      api:
-        specifier: workspace:*
-        version: link:../api
       brief-core:
         specifier: workspace:*
         version: link:../../packages/brief-core
       clsx:
         specifier: 2.1.1
         version: 2.1.1
-      generators:
+      contract:
         specifier: workspace:*
-        version: link:../../packages/generators
-      github:
-        specifier: workspace:*
-        version: link:../../packages/github
+        version: link:../../packages/contract
       i18n:
         specifier: workspace:*
         version: link:../../packages/i18n
@@ -172,9 +172,6 @@ importers:
       logging:
         specifier: workspace:*
         version: link:../../packages/logging
-      persistence:
-        specifier: workspace:*
-        version: link:../../packages/persistence
       react:
         specifier: ^19.0.0
         version: 19.2.7
@@ -230,12 +227,18 @@ importers:
       '@vitest/coverage-v8':
         specifier: 4.1.8
         version: 4.1.8(vitest@4.1.8)
+      github:
+        specifier: workspace:*
+        version: link:../../packages/github
       ingest-briefs:
         specifier: workspace:*
         version: link:../../tools/ingest-briefs
       jsdom:
         specifier: 29.1.1
         version: 29.1.1
+      persistence:
+        specifier: workspace:*
+        version: link:../../packages/persistence
       repo-config:
         specifier: workspace:*
         version: link:../../packages/repo-config
@@ -337,6 +340,31 @@ importers:
       '@vitest/coverage-v8':
         specifier: ^4.1.8
         version: 4.1.8(vitest@4.1.8)
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.8
+        version: 4.1.8(@types/node@22.19.21)(@vitest/coverage-v8@4.1.8)(jsdom@29.1.1)(vite@8.0.16(@types/node@22.19.21)(esbuild@0.28.1)(jiti@2.7.0)(less@4.8.0)(sass@1.101.0)(stylus@0.62.0)(tsx@4.22.4)(yaml@2.9.0))
+
+  packages/contract:
+    dependencies:
+      persistence:
+        specifier: workspace:*
+        version: link:../persistence
+      types:
+        specifier: workspace:*
+        version: link:../types
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.19.21
+      '@vitest/coverage-v8':
+        specifier: ^4.1.8
+        version: 4.1.8(vitest@4.1.8)
+      i18n:
+        specifier: workspace:*
+        version: link:../i18n
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
@@ -541,6 +569,28 @@ importers:
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
+
+  tools/baselines:
+    dependencies:
+      types:
+        specifier: workspace:*
+        version: link:../../packages/types
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.19.21
+      '@vitest/coverage-v8':
+        specifier: ^4.1.8
+        version: 4.1.8(vitest@4.1.8)
+      tsx:
+        specifier: ^4.19.0
+        version: 4.22.4
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.8
+        version: 4.1.8(@types/node@22.19.21)(@vitest/coverage-v8@4.1.8)(jsdom@29.1.1)(vite@8.0.16(@types/node@22.19.21)(esbuild@0.28.1)(jiti@2.7.0)(less@4.8.0)(sass@1.101.0)(stylus@0.62.0)(tsx@4.22.4)(yaml@2.9.0))
 
   tools/categorizer:
     dependencies:
@@ -802,6 +852,54 @@ packages:
 
   '@drizzle-team/brocli@0.10.2':
     resolution: {integrity: sha512-z33Il7l5dKjUgGULTqBsQBQwckHh5AbIuxhdsIxDDiZAzBOrZO6q9ogcWC65kU382AfynTfgNumVcNIjuIua6w==}
+
+  '@electric-sql/pglite-age@0.0.9':
+    resolution: {integrity: sha512-IdNy5P5nxwKVeSPLjDLXkp/eYffH5roympM7fTG+g9ehzBrDnQ9TT2tfCJ2vRVcOSPQBp4oURzfRE19cs/x8ZA==}
+    peerDependencies:
+      '@electric-sql/pglite': 0.5.8
+
+  '@electric-sql/pglite-pg_hashids@0.0.9':
+    resolution: {integrity: sha512-NffsZH+FaRLp0WzsYG35BW/wOHLsTs325zjgp+PnKlWeGyW523Mbw4EZ1Awm02C3QWBU9p8Y2Fk02Al5NpRGUg==}
+    peerDependencies:
+      '@electric-sql/pglite': 0.5.8
+
+  '@electric-sql/pglite-pg_ivm@0.0.9':
+    resolution: {integrity: sha512-mbTcDLQyzeOG4rX6LLHhWDPJeQUv2xHvayKtf4oE7xujWEGWEDUEJP1+U0pXXELtIoWiUzzPBWjzKY1mRisqkQ==}
+    peerDependencies:
+      '@electric-sql/pglite': 0.5.8
+
+  '@electric-sql/pglite-pg_textsearch@0.0.10':
+    resolution: {integrity: sha512-tsL1rTYU4tzIC44htL7/0nS6C2XC5Srz0tfxU1LJelCqNIBkpFI9Esw1JbuVCaQKUHGDbPgAz8JYavNxwbuRVw==}
+    peerDependencies:
+      '@electric-sql/pglite': 0.5.8
+
+  '@electric-sql/pglite-pg_uuidv7@0.0.9':
+    resolution: {integrity: sha512-n/JbzoQMF9jFKFxGLRIzUfC1O4V2vTE0Pt3uoAO6/EP7dX5m1h4zBdezQAcT2JFostD0YWUdzHj9iYvcbUGM1A==}
+    peerDependencies:
+      '@electric-sql/pglite': 0.5.8
+
+  '@electric-sql/pglite-pgtap@0.0.9':
+    resolution: {integrity: sha512-VIyclfOawUN0IJROKiCnrVxsZQEG7tixgiC8c8nxp9TlBhI79MZqotoqlqvdPzGHmjWZlcgJ7tC8InOcy+2A/A==}
+    peerDependencies:
+      '@electric-sql/pglite': 0.5.8
+
+  '@electric-sql/pglite-pgvector@0.0.9':
+    resolution: {integrity: sha512-ue4iBW651gDQwBwn97Ekv1lYGPvXa1ymHbRbTCSL0Ib286PRDD1VDOwzwEoekZuO/wctMbTzKzlwdgDwYrqZ8A==}
+    peerDependencies:
+      '@electric-sql/pglite': 0.5.8
+
+  '@electric-sql/pglite-socket@0.2.11':
+    resolution: {integrity: sha512-DKnJBf7+5zFCXXGZAGUvGoWKetPPvaQ7fLSGVqP5onzgBhV9vvTcHigireMROMglgovvhoXHaMOKqt69/vts4A==}
+    hasBin: true
+    peerDependencies:
+      '@electric-sql/pglite': 0.5.8
+      '@electric-sql/pglite-age': 0.0.9
+      '@electric-sql/pglite-pg_hashids': 0.0.9
+      '@electric-sql/pglite-pg_ivm': 0.0.9
+      '@electric-sql/pglite-pg_textsearch': 0.0.10
+      '@electric-sql/pglite-pg_uuidv7': 0.0.9
+      '@electric-sql/pglite-pgtap': 0.0.9
+      '@electric-sql/pglite-pgvector': 0.0.9
 
   '@electric-sql/pglite@0.5.4':
     resolution: {integrity: sha512-yYZUyyXrHU7tPlCjwZQJ6hIG9DscdCCn7Uk0mYKwC1FeHX286AbcmFveMiRBEak8e9iPupjsoVImN3yJZVed2g==}
@@ -1464,6 +1562,12 @@ packages:
 
   '@graphile/logger@0.2.0':
     resolution: {integrity: sha512-jjcWBokl9eb1gVJ85QmoaQ73CQ52xAaOCF29ukRbYNl6lY+ts0ErTaDYOBlejcbUs2OpaiqYLO5uDhyLFzWw4w==}
+
+  '@hono/node-server@2.1.1':
+    resolution: {integrity: sha512-ELuehkj5VCBdgEw9zs+ivkKwyzzUCSQuE96YmiPvn1ECBoZCczbFXJLeEGMTYjphP6gydh4pHMqEYPVMYUVgQg==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      hono: ^4
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
@@ -5303,6 +5407,45 @@ snapshots:
 
   '@drizzle-team/brocli@0.10.2': {}
 
+  '@electric-sql/pglite-age@0.0.9(@electric-sql/pglite@0.5.4)':
+    dependencies:
+      '@electric-sql/pglite': 0.5.4
+
+  '@electric-sql/pglite-pg_hashids@0.0.9(@electric-sql/pglite@0.5.4)':
+    dependencies:
+      '@electric-sql/pglite': 0.5.4
+
+  '@electric-sql/pglite-pg_ivm@0.0.9(@electric-sql/pglite@0.5.4)':
+    dependencies:
+      '@electric-sql/pglite': 0.5.4
+
+  '@electric-sql/pglite-pg_textsearch@0.0.10(@electric-sql/pglite@0.5.4)':
+    dependencies:
+      '@electric-sql/pglite': 0.5.4
+
+  '@electric-sql/pglite-pg_uuidv7@0.0.9(@electric-sql/pglite@0.5.4)':
+    dependencies:
+      '@electric-sql/pglite': 0.5.4
+
+  '@electric-sql/pglite-pgtap@0.0.9(@electric-sql/pglite@0.5.4)':
+    dependencies:
+      '@electric-sql/pglite': 0.5.4
+
+  '@electric-sql/pglite-pgvector@0.0.9(@electric-sql/pglite@0.5.4)':
+    dependencies:
+      '@electric-sql/pglite': 0.5.4
+
+  '@electric-sql/pglite-socket@0.2.11(@electric-sql/pglite-age@0.0.9(@electric-sql/pglite@0.5.4))(@electric-sql/pglite-pg_hashids@0.0.9(@electric-sql/pglite@0.5.4))(@electric-sql/pglite-pg_ivm@0.0.9(@electric-sql/pglite@0.5.4))(@electric-sql/pglite-pg_textsearch@0.0.10(@electric-sql/pglite@0.5.4))(@electric-sql/pglite-pg_uuidv7@0.0.9(@electric-sql/pglite@0.5.4))(@electric-sql/pglite-pgtap@0.0.9(@electric-sql/pglite@0.5.4))(@electric-sql/pglite-pgvector@0.0.9(@electric-sql/pglite@0.5.4))(@electric-sql/pglite@0.5.4)':
+    dependencies:
+      '@electric-sql/pglite': 0.5.4
+      '@electric-sql/pglite-age': 0.0.9(@electric-sql/pglite@0.5.4)
+      '@electric-sql/pglite-pg_hashids': 0.0.9(@electric-sql/pglite@0.5.4)
+      '@electric-sql/pglite-pg_ivm': 0.0.9(@electric-sql/pglite@0.5.4)
+      '@electric-sql/pglite-pg_textsearch': 0.0.10(@electric-sql/pglite@0.5.4)
+      '@electric-sql/pglite-pg_uuidv7': 0.0.9(@electric-sql/pglite@0.5.4)
+      '@electric-sql/pglite-pgtap': 0.0.9(@electric-sql/pglite@0.5.4)
+      '@electric-sql/pglite-pgvector': 0.0.9(@electric-sql/pglite@0.5.4)
+
   '@electric-sql/pglite@0.5.4': {}
 
   '@emnapi/core@1.10.0':
@@ -5675,6 +5818,10 @@ snapshots:
   '@floating-ui/utils@0.2.11': {}
 
   '@graphile/logger@0.2.0': {}
+
+  '@hono/node-server@2.1.1(hono@4.12.27)':
+    dependencies:
+      hono: 4.12.27
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
@@ -7275,10 +7422,6 @@ snapshots:
   fd-package-json@2.0.0:
     dependencies:
       walk-up-path: 4.0.0
-
-  fdir@6.5.0(picomatch@4.0.4):
-    optionalDependencies:
-      picomatch: 4.0.4
 
   fdir@6.5.0(picomatch@4.0.5):
     optionalDependencies:
@@ -8996,8 +9139,8 @@ snapshots:
 
   tinyglobby@0.2.17:
     dependencies:
-      fdir: 6.5.0(picomatch@4.0.4)
-      picomatch: 4.0.4
+      fdir: 6.5.0(picomatch@4.0.5)
+      picomatch: 4.0.5
 
   tinyrainbow@3.1.0: {}
 

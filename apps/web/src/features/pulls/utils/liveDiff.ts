@@ -4,10 +4,10 @@ import {
   parseUnifiedDiffPatch,
   sliceChunkDiff,
   splitUnifiedDiffByFile,
-} from "../../brief/utils/diffSlicing";
+} from "@web/features/brief/utils";
 import type { Brief } from "../../brief/types";
 
-export { splitUnifiedDiffByFile } from "../../brief/utils/diffSlicing";
+export { splitUnifiedDiffByFile } from "@web/features/brief/utils";
 
 /**
  * Attach sliced per-chunk diff rows from the live whole-PR diff. Pure, the

@@ -1,15 +1,12 @@
-// GitHub OAuth (user-to-server) login, mounted at `/api/auth/github`:
-//   GET  /          → CSRF nonce cookie + 302 to GitHub
-//   GET  /callback  → verify state, exchange code, create the encrypted
-//                     session, set the session cookie
+// GitHub user-to-server OAuth login. The entry sets a CSRF nonce cookie and
+// redirects to GitHub; the callback verifies state, exchanges the code and
+// sets the session cookie. The tenant derives from GitHub itself, never from
+// a caller-supplied value.
 //
-// On login the tenant derives from GitHub itself (`GET /user/installations`),
-// never from a caller-supplied value.
-//
-// SECURITY DISCIPLINE (mirrors the webhook route): all query parsing via Zod;
-// expected failures throw ApiError subclasses (sanitized bodies via
-// `app.onError`); NO token, code, or secret
-// is ever logged or placed in a response beyond the opaque session cookie.
+// SECURITY DISCIPLINE, mirroring the webhook route: Zod parses every query,
+// expected failures throw ApiError subclasses, and NO token or secret is ever
+// logged or placed in a response BODY. Both cookies are httpOnly; the state
+// nonce also rides the outbound Location, which is what OAuth state is.
 import { randomBytes } from "node:crypto";
 import { Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
@@ -29,7 +26,7 @@ import {
   createUserSettingsStore,
 } from "persistence";
 import { z } from "zod";
-import { ApiErrorCodes } from "../../error-response";
+import { ApiErrorCodes } from "contract";
 import {
   BadGateway,
   BadRequest,
@@ -41,7 +38,7 @@ const STATE_COOKIE = "rs_oauth_state";
 /** Entropy for the CSRF state nonce and the session token (bytes). */
 const STATE_BYTES = 32;
 const SESSION_TOKEN_BYTES = 32;
-/** The state cookie is short-lived — it only has to survive the round-trip. */
+/** The state cookie is short-lived, it only has to survive the round-trip. */
 const STATE_TTL_SECONDS = 600;
 
 const callbackQuerySchema = z.object({
@@ -118,7 +115,7 @@ export function oauthRoute(deps: AuthRouteDeps): Hono {
     const firstAccessible = accessible[0];
     // Bind the session to the user's DEFAULT installation when it is still in
     // their LIVE accessible set, else the first accessible one. The default is
-    // NEVER trusted as an id on its own — a dangling default degrades to the
+    // NEVER trusted as an id on its own, a dangling default degrades to the
     // first accessible installation rather than binding to something GitHub no
     // longer grants. No accessible installation at all is a LEGAL login since
     // the url-box world: the session binds to the owner scope (their GitHub
@@ -175,7 +172,7 @@ export function oauthRoute(deps: AuthRouteDeps): Hono {
     } catch (error) {
       // Compensation: a grant that never gained its referent would linger
       // forever (lifecycle cleanup only runs on referent DELETE). Best-effort
-      // — a failure here just leaves an inert, unreferenced ciphertext row.
+      // a failure here just leaves an inert, unreferenced ciphertext row.
       await grants.deleteIfOrphaned(grant.id).catch(() => undefined);
       throw error;
     }

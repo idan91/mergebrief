@@ -6,7 +6,7 @@ import type { ValueOf } from "types";
 import type {
   RiskEvidence,
   RiskEvidenceKind,
-} from "@web/features/review/utils/state";
+} from "@web/features/review/utils";
 import {
   ViewportBands,
   type ViewportBand,

@@ -1,51 +1,27 @@
-// Client fetch attaches the session cookie; SSR forwards it through the same Hono authz gate.
+// Client fetch attaches the session cookie; SSR forwards it to the API over
+// HTTP, through the same authorization gate the browser meets.
 // Do not read persistence directly from a server function.
-// Hono routes on the path, so the synthesized origin is irrelevant.
-// Composition failures return a sanitized 503 without internal details.
+// A transport failure returns a sanitized 503 without internal details.
 import { createIsomorphicFn } from "@tanstack/react-start";
+import { ApiErrorCodes } from "contract";
 import type { ValueOf } from "types";
 
-// Hand-rolled mirror of the api package's wire vocabulary plus the ONE
-// web-local member: `malformed` (a 2xx whose body failed to parse, a
-// programmer/contract error surfaced as data; never on the wire). The
-// Equals + runtime pins in apiFetch.test.ts fail on any drift.
-export const ApiErrorCodes = {
-  UNAUTHORIZED: "unauthorized",
-  INVALID_SIGNATURE: "invalid-signature",
-  FORBIDDEN: "forbidden",
-  GITHUB_PERMISSION: "github-permission",
-  SCOPE_EXCEEDED: "scope-exceeded",
-  HUMAN_ONLY: "human-only",
-  NO_REPO_WRITE_ACCESS: "no-repo-write-access",
-  NOT_FOUND: "not-found",
-  INVALID_REQUEST: "invalid-request",
-  NOT_A_PR_URL: "not-a-pr-url",
-  SIGN_IN_FAILED: "sign-in-failed",
-  REQUEST_TOO_LARGE: "request-too-large",
-  DIFF_TOO_LARGE: "diff-too-large",
-  DRAFT_ALREADY_PUBLISHED: "draft-already-published",
-  DRAFT_ANCHOR_ORPHANED: "draft-anchor-orphaned",
-  DRAFT_LIMIT_REACHED: "draft-limit-reached",
-  PR_CHANGED_SINCE_READ: "pr-changed-since-read",
-  PR_REWRITTEN_SINCE_READ: "pr-rewritten-since-read",
-  APP_NOT_INSTALLED: "app-not-installed",
-  GITHUB_UNAVAILABLE: "github-unavailable",
-  GENERATION_FAILED: "generation-failed",
-  GENERATION_UNAVAILABLE: "generation-unavailable",
-  GENERATION_CONFIG: "generation-config",
-  INTERNAL_ERROR: "internal-error",
+// The wire vocabulary, owned by `contract`, plus the ONE web-local member:
+// `malformed` is a 2xx whose body failed to parse, a contract error surfaced
+// as data and never seen on the wire.
+const WebApiErrorCodes = {
+  ...ApiErrorCodes,
   MALFORMED: "malformed",
 } as const;
-export type ApiErrorCode = ValueOf<typeof ApiErrorCodes>;
+export { WebApiErrorCodes as ApiErrorCodes };
+export type ApiErrorCode = ValueOf<typeof WebApiErrorCodes>;
 
 export interface ApiErrorParams {
   readonly detail: string;
 }
 
 function isWireCode(value: string): value is ApiErrorCode {
-  return Object.values(ApiErrorCodes).some(
-    (code) => code === value && code !== ApiErrorCodes.MALFORMED,
-  );
+  return Object.values(ApiErrorCodes).some((code) => code === value);
 }
 
 /** Typed expected-failure for read-API calls; queryFns throw it (react-query idiom). */
@@ -89,23 +65,23 @@ function configParams(value: unknown): ApiErrorParams | undefined {
 function codeForStatus(status: number): ApiErrorCode {
   switch (status) {
     case 400:
-      return ApiErrorCodes.INVALID_REQUEST;
+      return WebApiErrorCodes.INVALID_REQUEST;
     case 401:
-      return ApiErrorCodes.UNAUTHORIZED;
+      return WebApiErrorCodes.UNAUTHORIZED;
     case 403:
-      return ApiErrorCodes.FORBIDDEN;
+      return WebApiErrorCodes.FORBIDDEN;
     case 404:
-      return ApiErrorCodes.NOT_FOUND;
+      return WebApiErrorCodes.NOT_FOUND;
     case 409:
-      return ApiErrorCodes.PR_CHANGED_SINCE_READ;
+      return WebApiErrorCodes.PR_CHANGED_SINCE_READ;
     case 413:
-      return ApiErrorCodes.REQUEST_TOO_LARGE;
+      return WebApiErrorCodes.REQUEST_TOO_LARGE;
     case 500:
-      return ApiErrorCodes.INTERNAL_ERROR;
+      return WebApiErrorCodes.INTERNAL_ERROR;
     // A codeless 503 is typically a proxy answering for a down backend, not
     // the generation feature, bucket it with unreachable, never a coded 503.
     default:
-      return ApiErrorCodes.GITHUB_UNAVAILABLE;
+      return WebApiErrorCodes.GITHUB_UNAVAILABLE;
   }
 }
 
@@ -131,7 +107,7 @@ export async function errorFromResponse(
       isWireCode(body.code)
     ) {
       code = body.code;
-      if (code === ApiErrorCodes.GENERATION_CONFIG) {
+      if (code === WebApiErrorCodes.GENERATION_CONFIG) {
         params = configParams(body);
       }
     }
@@ -139,11 +115,6 @@ export async function errorFromResponse(
     // Non-JSON error body, the status bucket stands.
   }
   return new ApiError(code, response.status, path, params);
-}
-
-/** The Hono-shaped surface the SSR branch dispatches against. */
-interface DispatchableApp {
-  fetch(request: Request): Promise<Response> | Response;
 }
 
 /**
@@ -157,76 +128,16 @@ export interface ApiFetchInit {
   readonly body?: string;
 }
 
-/**
- * The slice of the `packages/logging` `Logger` the SSR branch needs. Injected,
- * never imported: this module is isomorphic and `server/logger` is
- * `server-only`, so importing it here would drag the server entry into the
- * client bundle. The real `Logger` satisfies this structurally.
- */
-export interface DispatchLogSink {
-  error(msg: string, fields?: Record<string, unknown>): void;
-}
-
-/**
- * SSR dispatch, factored for tests: synthesize a Request against the
- * in-process app with the viewer's cookie forwarded verbatim (plus any
- * mutation method/body). A composition failure becomes the sanitized 503
- * (mirrors `src/server.ts`).
- */
-export async function dispatchInProcess(
-  path: string,
-  cookie: string | undefined,
-  getApp: () => Promise<DispatchableApp>,
-  logger: DispatchLogSink,
-  init?: ApiFetchInit,
-): Promise<Response> {
-  let app: DispatchableApp;
-  try {
-    app = await getApp();
-  } catch (error) {
-    // `error` can quote DATABASE_URL back on a Postgres misconfig, so it rides
-    // as a FIELD, the logging boundary's `err` serializer scrubs URL-shaped
-    // substrings; `msg` bypasses redaction.
-    logger.error("apiFetch: webhook app composition failed", { err: error });
-    return new Response(JSON.stringify({ error: "service unavailable" }), {
-      status: 503,
-      headers: { "content-type": "application/json" },
-    });
-  }
-  // Header names are case-insensitive: build a real Headers object and set
-  // the forwarded viewer cookie LAST, after deleting any caller-supplied
-  // `Cookie`/`cookie`, a plain object spread would keep both variants and
-  // let a stale caller cookie merge ahead of the real one.
-  const headers = new Headers(init?.headers ?? {});
-  headers.delete("cookie");
-  if (cookie !== undefined) {
-    headers.set("cookie", cookie);
-  }
-  const request: RequestInit = { method: init?.method ?? "GET", headers };
-
-  if (init?.body !== undefined) request.body = init.body;
-
-  return app.fetch(new Request(`http://internal${path}`, request));
-}
-
 const dispatch = createIsomorphicFn()
   .client(
     (path: string, init?: ApiFetchInit): Promise<Response> => fetch(path, init),
   )
   .server(async (path: string, init?: ApiFetchInit): Promise<Response> => {
-    const [{ getRequestHeader }, { getWebhookApp }, { getServerLogger }] =
-      await Promise.all([
-        import("@tanstack/react-start/server"),
-        import("../server/webhookApp"),
-        import("../server/logger"),
-      ]);
-    return dispatchInProcess(
-      path,
-      getRequestHeader("cookie"),
-      getWebhookApp,
-      getServerLogger(),
-      init,
-    );
+    const [{ getRequestHeader }, { fetchFromApi }] = await Promise.all([
+      import("@tanstack/react-start/server"),
+      import("../server/api/transport"),
+    ]);
+    return fetchFromApi(path, getRequestHeader("cookie"), init);
   });
 
 /** Fetch a read-API path (or POST a mutation) on whichever side we render. */
@@ -248,7 +159,7 @@ export async function apiJsonFromResponse(
     const body: unknown = await response.json();
     return body;
   } catch {
-    throw new ApiError(ApiErrorCodes.MALFORMED, response.status, path);
+    throw new ApiError(WebApiErrorCodes.MALFORMED, response.status, path);
   }
 }
 

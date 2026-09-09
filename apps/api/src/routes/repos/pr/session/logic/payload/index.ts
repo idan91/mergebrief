@@ -8,7 +8,7 @@ export * from "./types";
 import { type ReviewSessionView } from "persistence";
 import { deriveAttentionItems } from "../attention";
 import { shapeCarriedWork, shapeStoredWork } from "./shape-work";
-import type { SessionPayload } from "./types";
+import type { SessionPayload } from "contract";
 
 export function buildSessionPayload(
   view: ReviewSessionView,

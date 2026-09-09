@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { describe, expect, it, vi } from "vitest";
 import type { Logger } from "logging";
-import { ApiErrorCodes } from "../error-response";
+import { ApiErrorCodes } from "contract";
 import type { RequestLogEnv } from "../request-logging";
 import { NotFound, ServiceUnavailable } from "./api-error";
 import { createErrorHandler } from "./on-error";
@@ -59,7 +59,7 @@ describe("createErrorHandler", () => {
     });
   });
 
-  it("renders a non-ApiError throw as a sanitized 500, internals to the log only", async () => {
+  it("renders a non-ApiError throw as a sanitized 500, internals logged", async () => {
     const { app, errorSpy } = buildApp();
     const res = await app.request("/boom");
     expect(res.status).toBe(500);
@@ -72,7 +72,7 @@ describe("createErrorHandler", () => {
 });
 
 describe("middleware above the throw", () => {
-  it("sees next() resolve with the rendered response and the code stamp", async () => {
+  it("sees next resolve with the rendered response and the code stamp", async () => {
     const { app } = buildApp();
     let observedStatus: number | undefined;
     let observedCode: string | undefined;

@@ -1,11 +1,11 @@
-// The session-scoped PR list: `GET /api/pulls` — the ONE read that cannot
+// The session-scoped PR list: `GET /api/pulls`, the ONE read that cannot
 // reuse the per-repo gate (there is no `:repoId` yet). Composition only.
 //
 // TENANCY: the authorized repo set comes from the SHARED allowed-set resolver
 // (`allowed-repos.ts`, one cache with `/api/repos`). A GitHub failure fails
-// the list (401/502) — NEVER a DB-only listing, which would leak rows the
+// the list (401/502). NEVER a DB-only listing, which would leak rows the
 // viewer can no longer see.
-import { ProductQueryIds } from "../../product-operations/ids";
+import { ProductQueryIds } from "contract";
 import {
   productRouter,
   type ProductRouter,

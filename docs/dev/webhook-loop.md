@@ -18,9 +18,10 @@ docker compose up -d postgres
 This brings up the loopback-only Postgres from `docker-compose.yml`
 (`postgres://code_review:code_review@127.0.0.1:5432/code_review`).
 
-## 2. Configure `apps/web/.env`
+## 2. Configure `apps/api/.env`
 
-Copy `apps/web/.env.example` to `apps/web/.env` and fill in the dev-App values. **Placeholders
+The credentials belong to the API process, not the web tier. Copy
+`apps/api/.env.example` to `apps/api/.env` and fill in the dev-App values. **Placeholders
 below — never commit real values.** Idan's live dev credentials live in 1Password, not here.
 
 ```sh
@@ -37,20 +38,27 @@ GITHUB_OAUTH_CLIENT_ID=Iv1.replace-me
 GITHUB_OAUTH_CLIENT_SECRET=replace-me
 ```
 
-The startup wiring (`apps/web/src/server/webhookApp.ts`) reads these once on the first
-webhook request: it parses both configs, opens the DB, and installs the `graphile_worker`
-schema. A missing/invalid var makes the first request **fail loudly** rather than serve a
-broken webhook — so if the endpoint 500s on the first delivery, check the server log for the
-config-error message.
+The API's composition root (`apps/api/src/main.ts`) reads these at BOOT, not on the first
+request: it parses every config block, resolves the session key, migrates, and only then
+listens. A missing or invalid var stops the process with a `field: reason` line instead of
+serving a broken webhook — so if `pnpm dev` shows the api pane exiting immediately, that
+line is why.
+
+The web tier needs none of this. It reads `MERGEBRIEF_API_ORIGIN`, `LOG_LEVEL` and the
+dev-only `MERGEBRIEF_OUT_DIR` from `apps/web/.env`. `PUBLIC_BASE_URL` is NOT one of them:
+vite reads it from the ambient environment when the dev server boots, so export it in the
+shell rather than putting it in that file.
 
 ## 3. Run the app
 
 ```sh
-pnpm dev            # web app on http://localhost:3000
+pnpm dev            # api on http://127.0.0.1:3001, web app on http://localhost:3000
 ```
 
-The webhook route is mounted on the web origin at `POST /api/webhooks/github` (via the custom
-TanStack Start server entry, `apps/web/src/server.ts`). No separate API process.
+Two processes now. The webhook route lives on the API (`POST /api/webhooks/github`), and the
+web tier's server entry (`apps/web/src/server.ts`) proxies `/api/*` to it, streaming the raw
+body so the HMAC still verifies over the bytes GitHub signed. Point the tunnel at the web
+origin as before: nothing about the public URL changes.
 
 ## 4. Open a public tunnel
 

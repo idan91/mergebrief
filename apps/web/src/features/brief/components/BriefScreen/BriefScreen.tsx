@@ -4,10 +4,10 @@ import { Button } from "@web/components/Button/Button";
 import { ConversationSection } from "@web/features/conversation";
 import { SubmitModal } from "@web/features/review";
 import { ReviewFlowProvider } from "@web/features/review/session";
-// Direct component import, not the pulls barrel: the barrel now exports the
-// PrBrief tree, which renders BriefView — importing it from here would close
-// a brief -> pulls -> brief module cycle.
-import { MarkReadyModal } from "@web/features/pulls/components/MarkReadyModal/MarkReadyModal";
+// Through the pulls COMPONENT entry, not the feature index: the index also
+// exports the PrBrief tree, which renders BriefView, so importing it here
+// would close a brief -> pulls -> brief module cycle.
+import { MarkReadyModal } from "@web/features/pulls/components";
 import { ChunkWindowProvider } from "./chunkWindows";
 import { ChangesOnlyView } from "./ChangesOnlyView/ChangesOnlyView";
 import { ConcernStrip } from "./ConcernStrip/ConcernStrip";

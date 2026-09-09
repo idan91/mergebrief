@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-// Per-group changed-since marker: when a reviewer checkpoint
-// exists, each group header says whether anything in it changed since the
-// checkpoint — WITHOUT the Compare lens being active. The delta data was
-// always computed; this pins that it is finally visible where people read.
+// Per-group changed-since marker: when a reviewer checkpoint exists, each
+// group header says whether anything in it changed since that checkpoint,
+// WITHOUT the Compare lens being active. The delta data was always computed;
+// this pins that it is finally visible where people read.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   cleanup,
@@ -19,7 +19,7 @@ import { BriefView } from "./BriefView";
 import { SinceMarker } from "../BriefScreen/StoryView/GroupCard/SinceMarker/SinceMarker";
 import { useComparisonOverlay } from "../BriefScreen/useComparisonOverlay";
 import { localComparisonMarksQueryOptions } from "../../queries";
-import { briefFixture } from "../../utils/fixtures";
+import { briefFixture } from "@web/features/brief/fixtures";
 
 afterEach(() => {
   cleanup();
@@ -66,7 +66,7 @@ function renderBriefView(comparisonPlan?: BriefComparisonPlan) {
         artifacts={[]}
         brief={briefFixture}
         briefId="since-marker-test"
-        // Explicit Full Brief + Compare OFF — the state the marker exists
+        // Explicit Full Brief + Compare OFF, the state the marker exists
         // for (with a checkpoint the DEFAULT search is the delta lens).
         searchParams={{ view: "full", compare: "off" }}
         {...(comparisonPlan === undefined ? {} : { comparisonPlan })}
@@ -151,7 +151,7 @@ describe("per-group changed-since marker", () => {
   });
 
   it("renders plain text, never a button, without a navigation callback", () => {
-    // The local demo path passes no openDeltaLens — unlinked by design.
+    // The local demo path passes no openDeltaLens, unlinked by design.
     render(<SinceMarker baselineShortSha="chk1234" changedFileCount={2} />);
     expect(screen.getByText(/2 files changed since chk1234/i)).toBeTruthy();
     expect(screen.queryByRole("button")).toBeNull();

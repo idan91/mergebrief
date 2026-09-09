@@ -1,13 +1,13 @@
 import { useMemo, type ReactNode } from "react";
 
 import type { ConversationPlan } from "@web/features/conversation";
-import type { ConversationFilter } from "@web/features/conversation/utils/filter";
+import type { ConversationFilter } from "@web/features/conversation/utils";
 import {
   ReviewSessionProvider,
   type ReviewSessionPayload,
   type SessionWrites,
 } from "@web/features/review/session";
-import type { SubmitReviewAction } from "@web/features/review/utils/submit";
+import type { SubmitReviewAction } from "@web/features/review/utils";
 import type { BriefSearchParams } from "../../comparison/compareState";
 import type { RepoConfigContext } from "../../utils/repoConfig";
 import type { Brief, LivePrState, LocalBriefSummary } from "../../types";

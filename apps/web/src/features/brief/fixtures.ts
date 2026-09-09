@@ -4,7 +4,7 @@ import {
   Roles,
   type Brief,
   type LocalBriefSummary,
-} from "../types";
+} from "./types";
 
 /**
  * Hand-built brief used by the screen characterization suite (and reusable by

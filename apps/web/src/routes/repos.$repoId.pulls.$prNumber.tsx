@@ -14,29 +14,27 @@ import {
   parseViewParam,
   type BriefSearch,
   type BriefSearchParams,
-} from "../features/brief/comparison/compareState";
+} from "@web/features/brief/comparison";
 import {
+  type DbTimelinePoint,
   deriveBriefRouteState,
+  resolveDbTimeline,
   shouldPollMeta,
   type Span,
-} from "../features/pulls/utils/briefRouteState";
+} from "@web/features/pulls/utils";
 import { PrBriefBody, PrBriefError } from "@web/features/pulls";
 import {
   dbBriefQueryOptions,
   prMetaQueryOptions,
   sessionQueryOptions,
 } from "../features/pulls/queries";
-import {
-  resolveDbTimeline,
-  type DbTimelinePoint,
-} from "../features/pulls/utils/dbTimeline";
 import { useUnsavedComposerBlocker } from "@web/hooks/useUnsavedComposerGuard";
 import {
   conversationFilterSearch,
   parseConversationFilter,
   type ConversationFilter,
   type ConversationFilterSearch,
-} from "@web/features/conversation/utils/filter";
+} from "@web/features/conversation/utils";
 import type { Mutable } from "types";
 
 const META_POLL_MS = 4000;

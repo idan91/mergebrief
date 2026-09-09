@@ -12,7 +12,7 @@ import type { AuthRouteDeps } from "../session";
 import tokensController from "./controller";
 import { mintBodySchema } from "./schemas";
 import { buildTokenView, parseTokenId } from "./utils";
-import { ApiErrorCodes } from "../../../error-response";
+import { ApiErrorCodes } from "contract";
 
 // Every response is per-viewer state → `no-store`, error paths included.
 const NO_STORE = { "cache-control": "no-store" } as const;

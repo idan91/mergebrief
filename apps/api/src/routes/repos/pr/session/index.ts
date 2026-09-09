@@ -1,21 +1,13 @@
-// The Review Session routes (`/session`) — the reviewer's private work on
-// one Brief. Composition only; the read and the writes share the target
-// resolution, the span contract and the freeze rule through the session
-// seam.
+// The Review Session routes, the reviewer's private work on one Brief.
+// Composition only: read and writes share the target resolution, the span
+// contract and the freeze rule through the session seam.
 //
-// Three rules shape every write:
-//   - Each write NAMES its Brief (`?base=&head=`, the same span the read
-//     takes). Resolving "the newest Brief" instead would redirect a stale
-//     tab into a session it has never seen.
-//   - Each write binds through the session controller, so whichever one
-//     lands first creates the session and copies the carried work in the
-//     same transaction. Materialization belongs to no single operation.
-//   - A frozen session — the reviewer has already written against a newer
-//     Brief — refuses every write with `pr-changed-since-read` (409).
-import {
-  ProductActionIds,
-  ProductQueryIds,
-} from "../../../../product-operations/ids";
+// Three rules shape every write. Each NAMES its Brief, since resolving "the
+// newest Brief" would redirect a stale tab into a session it has never seen.
+// Each binds through the session controller, so whichever lands first creates
+// the session and copies the carried work in one transaction. And a frozen
+// session refuses every write with `pr-changed-since-read`.
+import { ProductActionIds, ProductQueryIds } from "contract";
 import {
   productRouter,
   type ProductRouter,
@@ -93,7 +85,7 @@ export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   );
   // The three risk operations. Three, not one carrying a mode: a reason, a
   // per-flag evidence claim and a bare undo are different payloads recording
-  // different judgments. Each takes an ARRAY — bulk is one call, which is
+  // different judgments. Each takes an ARRAY, bulk is one call, which is
   // the operation's shape and not batching.
   app.action(
     {

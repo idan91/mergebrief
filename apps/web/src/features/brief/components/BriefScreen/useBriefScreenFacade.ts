@@ -8,8 +8,8 @@ import {
   useReviewSession,
   useSyncReviewFlowPosture,
 } from "@web/features/review/session";
-import { useReviewSubmit } from "@web/features/review/hooks/useReviewSubmit";
-import type { UnresolvedItem } from "@web/features/review/utils/state";
+import { useReviewSubmit } from "@web/features/review/hooks";
+import type { UnresolvedItem } from "@web/features/review/utils";
 import { useLatestRef } from "@web/hooks/useLatestRef";
 import {
   useViewportBoundary,
@@ -35,7 +35,7 @@ import { groupSinceMarkers, resolveSidebarLayout } from "./utils";
 
 /**
  * Own-draft composer block on a stale view: post-now exists only at the
- * current head, so a stale-staged draft would have no exit — unlike reviewer
+ * current head, so a stale-staged draft would have no exit, unlike reviewer
  * views, whose exit is Submit behind the ack.
  */
 export const OWN_DRAFT_STALE_COMPOSER_REASON_KEY: TranslationKey =

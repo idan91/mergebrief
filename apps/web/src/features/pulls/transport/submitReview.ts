@@ -1,6 +1,6 @@
 // The submit mutation over the isomorphic apiFetch boundary. Expected failure
-// statuses are RESULT KINDS the flow renders — the fail-closed 409, the clean
-// 401 re-login, and upstream rejections — never throws for those; only a
+// statuses are RESULT KINDS the flow renders, the fail-closed 409, the clean
+// 401 re-login, and upstream rejections, never throws for those; only a
 // malformed 2xx throws (contract violation).
 import {
   ApiError,
@@ -12,9 +12,9 @@ import {
 import type {
   SubmitPayload,
   SubmitReviewResult,
-} from "../../review/utils/submit";
+} from "@web/features/review/utils";
 
-export type { SubmitReviewResult } from "../../review/utils/submit";
+export type { SubmitReviewResult } from "@web/features/review/utils";
 
 type SubmitFailureKind = Exclude<SubmitReviewResult["kind"], "submitted">;
 
@@ -22,7 +22,7 @@ type SubmitFailureKind = Exclude<SubmitReviewResult["kind"], "submitted">;
 // here instead of silently becoming "try again shortly". Three 409s reach
 // this route: the orphaned anchor is its own refusal; a frozen session
 // (pr-changed) and a fail-closed unknown commit (pr-rewritten) both mean the
-// read went stale — and pr-changed is what a codeless 409 synthesizes to. A
+// read went stale, and pr-changed is what a codeless 409 synthesizes to. A
 // 413 is deterministic (over-long body): edit, never retry-as-is.
 const KindForCode = {
   [ApiErrorCodes.UNAUTHORIZED]: "unauthorized",
@@ -49,7 +49,7 @@ const KindForCode = {
   [ApiErrorCodes.GENERATION_UNAVAILABLE]: "upstream",
   [ApiErrorCodes.GENERATION_CONFIG]: "upstream",
   [ApiErrorCodes.INTERNAL_ERROR]: "upstream",
-  // Web-local; never on the wire — errorFromResponse cannot produce it.
+  // Web-local; never on the wire, errorFromResponse cannot produce it.
   [ApiErrorCodes.MALFORMED]: "upstream",
 } as const satisfies Record<ApiErrorCode, SubmitFailureKind>;
 

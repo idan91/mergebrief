@@ -12,7 +12,7 @@ import {
   ReviewFlowProvider,
   type ReviewFlowStore,
 } from "@web/features/review/session";
-import { briefFixture } from "../../../utils/fixtures";
+import { briefFixture } from "@web/features/brief/fixtures";
 import { buildBriefViewModel } from "../../../utils/viewModel";
 import { useRiskFlagModalsFacade } from "./useRiskFlagModalsFacade";
 
@@ -56,7 +56,7 @@ function firstFlagId(): string {
   return flagId;
 }
 
-describe("useRiskFlagModalsFacade — dismiss input", () => {
+describe("useRiskFlagModalsFacade dismiss input", () => {
   it("warns once on a short reason, then commits on the second confirm", () => {
     const { flowStore, hook } = setup();
     const flagId = firstFlagId();

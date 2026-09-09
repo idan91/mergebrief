@@ -2,8 +2,7 @@ import { appI18n } from "../../../i18n/I18nProvider";
 import { describe, expect, it } from "vitest";
 
 import { Roles, type BriefChunk } from "../../brief/types";
-import { GroupViewKinds } from "../../brief/utils/remainder";
-import type { RiskFlag } from "@web/features/brief/utils";
+import { GroupViewKinds, type RiskFlag } from "@web/features/brief/utils";
 import type { ReviewComment } from "./comments";
 import type {
   AttentionItemKind,
@@ -111,7 +110,7 @@ const remainderChunk = {
 } satisfies BriefChunk;
 
 describe("deriveUnresolvedItems", () => {
-  it("finds open risks, addressed risks without evidence, unreviewed core chunks, draft comments, and thin dismissals", () => {
+  it("finds open risks, evidence gaps, unread core, drafts and thin reasons", () => {
     expect(
       deriveUnresolvedItems({
         chunks: [coreChunk, supportingChunk],
@@ -222,7 +221,7 @@ describe("deriveUnresolvedItems", () => {
     ).toEqual([]);
   });
 
-  it("never labels a remainder chunk as unreviewed-core, even when it is also in chunks", () => {
+  it("never labels a remainder chunk as unreviewed-core", () => {
     const items = deriveUnresolvedItems({
       chunks: [coreChunk, remainderChunk],
       remainderChunks: [remainderChunk],
@@ -336,7 +335,7 @@ describe("deriveCarriedItems", () => {
     ).toEqual([]);
   });
 
-  it("keeps an orphan the Brief renders no file for, and marks it unplaceable", () => {
+  it("keeps an orphan with no rendered file and marks it unplaceable", () => {
     const items = deriveCarriedItems(
       buildCarriedInput([buildOrphanItem()], {
         comments: [],

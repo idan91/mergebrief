@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, renderHook } from "@testing-library/react";
+import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ViewportBand } from "@web/hooks/useViewportBoundary";
@@ -7,6 +7,10 @@ import { SIDEBAR_STORAGE_KEY } from "./storage";
 import { useSidebarState } from "./useSidebarState";
 
 afterEach(() => {
+  // Every hook here is rendered, and nothing auto-unmounts: a hook left
+  // mounted past the file lets React flush scheduled work after the jsdom
+  // window is gone, which surfaces as an unhandled `window is not defined`.
+  cleanup();
   window.localStorage.clear();
   vi.restoreAllMocks();
 });
@@ -46,7 +50,7 @@ describe("useSidebarState at narrow width", () => {
     expect(stored()).toEqual({ expanded: true, tab: "this-pr" });
   });
 
-  it("crossing to narrow shows a closed sheet and crossing back restores the preference", () => {
+  it("crossing to narrow closes the sheet, crossing back restores the choice", () => {
     const { result, rerender } = renderHook(
       ({ band }) => useSidebarState(band, true),
       { initialProps: { band: "desktop" as ViewportBand } },
@@ -70,7 +74,7 @@ describe("useSidebarState at narrow width", () => {
 });
 
 describe("useSidebarState while the sidebar is hidden", () => {
-  it("the sheet closes when the sidebar leaves and stays closed when it returns", () => {
+  it("the sheet closes when the sidebar leaves and stays closed on return", () => {
     const { result, rerender } = renderHook(
       ({ visible }) => useSidebarState("narrow", visible),
       { initialProps: { visible: true } },

@@ -294,7 +294,7 @@ export function attributeDisplayMeta(
   file: string,
   chunkFiresFloor: boolean,
 ): AttributeDisplayMeta {
-  if (context == null || context.policy === null) {
+  if (context === null || context === undefined || context.policy === null) {
     return BUILT_IN_META;
   }
   const fired = context.policy.firedCustomAttributes.find(

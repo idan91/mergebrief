@@ -37,15 +37,16 @@ changes get a breaking-change entry in
 
 | `evt` | level | process | key fields | alert? |
 |---|---|---|---|---|
-| `webhook.verify.fail` | warn | web | `deliveryId`, `reqId` | on **sustained rate** — raw hits are internet scanner noise; a sustained rate after a secret rotation means webhook-secret drift |
-| `webhook.dispatch.fail` | error | web | `deliveryId`, `reqId`, `err` | yes — a signed delivery failed to persist/enqueue |
+| `webhook.verify.fail` | warn | api | `deliveryId`, `reqId` | on **sustained rate** — raw hits are internet scanner noise; a sustained rate after a secret rotation means webhook-secret drift |
+| `webhook.dispatch.fail` | error | api | `deliveryId`, `reqId`, `err` | yes — a signed delivery failed to persist/enqueue |
 | `job.fail` | error | worker | `prId`, `headSha`, `permanent`, `attempt`, `maxAttempts` | yes |
 | `job.retries.exhausted` | error | worker | `prId`, `headSha`, `attempt` | **THE worker alert** — the queue gave up on this job |
 | `provider.error` | error | worker | `provider`, `status`, `kind`, job bindings | 401/403 = credentials/config broken, alert now; sustained 429/5xx = provider degraded |
-| `token.refresh.fail` | error | web | `reqId`, `reviewerId` | yes — a reviewer session or API token could not rotate its GitHub credentials |
-| `audit.fail` | error | web | `reqId`, `operation` | yes — the action completed but its audit row never landed (data integrity) |
+| `token.refresh.fail` | error | api | `reqId`, `reviewerId` | yes — a reviewer session or API token could not rotate its GitHub credentials |
+| `audit.fail` | error | api | `reqId`, `operation` | yes — the action completed but its audit row never landed (data integrity) |
 | `spend.cap.trip` | warn | worker | `repo`, `prId`, `headSha`, `cap`, `dayUtc` | on **sustained rate** — the cap is working as configured, but a repo stuck at it produces no briefs all day |
-| `api.access` | info | web | `method`, `path`, `status`, `durationMs`, `decision`, `operation`, `repoId`, `reviewerId`, `reqId` | no — this is the access log |
+| `generation.complete` | info | worker | `kind`, `outcome`, `durationMs` | no — the model-call duration line; nothing else records how long a generation took |
+| `api.access` | info | api | `method`, `path`, `status`, `durationMs`, `decision`, `operation`, `repoId`, `reviewerId`, `reqId` | no — this is the access log |
 
 `api.access` is the per-request access line (numeric ids only, never a
 token or cookie). `decision` is the auth gate's outcome; `status` is what
@@ -87,17 +88,21 @@ trace; there is no tracing system (OTel is a deliberate non-goal for now).
 
 ## Health endpoints
 
-Two bare, **unauthenticated** top-level paths on the web tier — outside
-`/api`, no session or token interaction, constant tiny JSON either way:
+Two bare, **unauthenticated** top-level paths on **each** of the API and the
+web tier — outside `/api`, no session or token interaction, constant tiny
+JSON either way:
 
-- `GET /healthz` — liveness. Static 200 `{"ok":true}` with zero
-  dependencies; stays up even while the app composition is failing.
-- `GET /readyz` — readiness. 200 when the app composition resolves AND one
-  `SELECT 1` round-trips to Postgres; 503 `{"ok":false}` otherwise.
+- `GET /healthz` — liveness on both. Static 200 `{"ok":true}` with zero
+  dependencies; stays up even while the database is unreachable.
+- `GET /readyz` on the **API** — readiness. 200 when one `SELECT 1`
+  round-trips to Postgres; 503 `{"ok":false}` otherwise.
+- `GET /readyz` on the **web tier** — 200 when it reaches the API's own
+  `/readyz` within 2s. A web tier that cannot reach the API is not ready,
+  even when its own process is fine.
 
 Wire **restart policies and the compose healthcheck to `/healthz` only** —
 a database blip must flip you out of the load balancer (`/readyz`), never
-restart-churn the web tier. `/api/version` is unrelated: it is the CLI's
+restart-churn either tier. `/api/version` is unrelated: it is the CLI's
 authenticated liveness probe, not orchestrator health.
 
 The **worker has no HTTP surface** by design (cohort norm): its liveness is

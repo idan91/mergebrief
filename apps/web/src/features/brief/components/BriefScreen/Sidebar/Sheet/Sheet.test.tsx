@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { briefFixture } from "../../../../utils/fixtures";
+import { briefFixture } from "@web/features/brief/fixtures";
 import { buildBriefViewModel } from "../../../../utils/viewModel";
 import { Sheet, type SheetProps } from "./Sheet";
 
@@ -29,7 +29,7 @@ function renderSheet(overrides: Partial<SheetProps> = {}) {
 }
 
 describe("Sheet", () => {
-  it("is a modal dialog that opens at half height with focus on the active tab", () => {
+  it("opens as a half-height modal dialog focused on the active tab", () => {
     renderSheet();
     const dialog = screen.getByRole("dialog", { name: "Sidebar" });
     expect(dialog.getAttribute("aria-modal")).toBe("true");

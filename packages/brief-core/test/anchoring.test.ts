@@ -112,7 +112,7 @@ describe("planAnchoredGeneration", () => {
     expect(plan.reLook.map((r) => r.id)).toEqual(["g2"]);
   });
 
-  it("re-looks everything when the base SHA moved (rebase noise)", () => {
+  it("re-looks everything when the base SHA moved", () => {
     const plan = planAnchoredGeneration({
       previousBrief: previous,
       incrementalDiff: DIFF_B,
@@ -141,7 +141,7 @@ describe("planAnchoredGeneration", () => {
     expect(plan.frozen).toEqual([]);
   });
 
-  it("forces groups sharing a file to re-look (coverage exclusivity)", () => {
+  it("forces groups sharing a file to re-look", () => {
     const shared = brief(
       [group("g1", "alpha"), group("g2", "beta"), group("g3", "gamma")],
       [
@@ -160,7 +160,7 @@ describe("planAnchoredGeneration", () => {
     expect(plan.reLook.map((r) => r.id).toSorted()).toEqual(["g1", "g2"]);
   });
 
-  it("re-looks everything when the compare span is not a fast-forward (force-push, same base)", () => {
+  it("re-looks everything when the compare span is not a fast-forward", () => {
     const plan = planAnchoredGeneration({
       previousBrief: previous,
       incrementalDiff: DIFF_B,
@@ -181,10 +181,10 @@ describe("planAnchoredGeneration", () => {
     expect(plan.frozen).toEqual([]);
   });
 
-  it("demotes to re-look when a truncated patch's hunk overlaps carried ranges (remap invariant)", () => {
+  it("demotes to re-look when a truncated hunk overlaps carried ranges", () => {
     // A patch whose hunk header exists but whose body carries no +/- lines:
     // parseChangedRanges drops the file (no changed lines) and the compare
-    // list is silent, so the partition freezes g1 — the remap invariant is
+    // list is silent, so the partition freezes g1. The remap invariant is
     // the last line of defense and must demote, never carry wrong lines.
     const truncated = [
       "diff --git a/a.ts b/a.ts",
@@ -215,7 +215,7 @@ describe("planAnchoredGeneration", () => {
     const plan = planAnchoredGeneration({
       previousBrief: contradictory,
       incrementalDiff: diffTouchingA,
-      // Compare list claims nothing changed — contradicts the raw diff. The
+      // Compare list claims nothing changed, contradicting the raw diff. The
       // predicate's evidence union catches it: the group re-looks.
       compareFiles: { files: [], complete: true, status: "ahead" },
       baseShaMoved: false,
@@ -238,7 +238,7 @@ describe("planAnchoredGeneration", () => {
   });
 });
 
-describe("planAnchoredGeneration — the durable hop", () => {
+describe("planAnchoredGeneration, the durable hop", () => {
   const previous = brief(
     [group("g1", "alpha"), group("g2", "beta")],
     [chunk("c1", "g1", "a.ts", 5, 8), chunk("c2", "g2", "b.ts", 1, 2)],
@@ -259,7 +259,7 @@ describe("planAnchoredGeneration — the durable hop", () => {
     ]);
   });
 
-  it("demotes an anchor on a rename's previous path, even when that path is re-added", () => {
+  it("demotes an anchor on a rename's previous path even if re-added", () => {
     // The dangerous shape: a.ts is renamed to new.ts AND a fresh a.ts appears.
     // Without the old path winning, the anchor would settle on brand-new code.
     const diff = [
@@ -319,7 +319,7 @@ describe("planAnchoredGeneration — the durable hop", () => {
     }
   });
 
-  it("gives a listed file with no parsable patch zero hunks (demote, never pass through)", () => {
+  it("gives a listed file with no parsable patch zero hunks", () => {
     const plan = planAnchoredGeneration({
       previousBrief: previous,
       incrementalDiff: DIFF_B,
@@ -337,7 +337,7 @@ describe("planAnchoredGeneration — the durable hop", () => {
   });
 });
 
-describe("planAnchoredGeneration — chain id reservation", () => {
+describe("planAnchoredGeneration, chain id reservation", () => {
   const previous = brief(
     [group("g1", "alpha"), group("g2", "beta")],
     [chunk("c1", "g1", "a.ts", 5, 8), chunk("c2", "g2", "b.ts", 1, 2)],
@@ -364,7 +364,7 @@ describe("planAnchoredGeneration — chain id reservation", () => {
   });
 });
 
-describe("stitchBrief — chain id reservation", () => {
+describe("stitchBrief, chain id reservation", () => {
   it("never re-mints an id the chain retired", () => {
     // g3 was minted at an earlier revision and retired since: absent from the
     // previous brief, present in the chain. A brand-new group must skip it.
@@ -418,7 +418,7 @@ describe("stitchBrief", () => {
     });
   }
 
-  it("carries frozen groups verbatim, keeps regenerated groups, rewrites ids by descent", () => {
+  it("carries frozen groups verbatim and rewrites ids by descent", () => {
     // The model, unaware of freezing, re-emitted BOTH regions.
     const generated = brief(
       [group("tmpA", "alpha rewritten"), group("tmpB", "beta v2")],
@@ -439,7 +439,7 @@ describe("stitchBrief", () => {
       regeneratedGroupIds,
     } = result.value;
 
-    // Frozen g1 carried VERBATIM — the model's rewrite discarded.
+    // Frozen g1 carried VERBATIM; the model's rewrite is discarded.
     const g1 = merged.changeGroups.find((g) => g.id === "g1");
     expect(g1?.title).toBe("alpha");
     // The re-looked region survives under its descended id (g2).
@@ -485,7 +485,7 @@ describe("stitchBrief", () => {
   });
 
   it("recomputes the text length floor over the MERGED artifact", () => {
-    // The CARRIED group's summary is over-cap — categorize() never saw it,
+    // The CARRIED group's summary is over-cap: categorize() never saw it,
     // so only the merged-artifact recompute can stamp it.
     const verbosePrevious = brief(
       [
@@ -649,7 +649,7 @@ describe("stitchBrief", () => {
     expect(result.value.brief.intentCheck?.accomplished).toEqual([]);
   });
 
-  it("drops a readingOrder that is no longer a permutation of the merged groups", () => {
+  it("drops a readingOrder that is no longer a permutation", () => {
     const generated = brief(
       [group("tmpA", "alpha rewritten"), group("tmpB", "beta v2")],
       [chunk("x1", "tmpA", "a.ts", 5, 8), chunk("x2", "tmpB", "b.ts", 1, 3)],
@@ -668,7 +668,7 @@ describe("stitchBrief", () => {
     });
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    // tmpA maps to frozen g1, tmpB → g2 — a valid permutation SURVIVES.
+    // tmpA maps to frozen g1 and tmpB to g2, a valid permutation, SURVIVES.
     expect(result.value.brief.readingOrder).toEqual([
       { groupId: "g1", why: "first" },
       { groupId: "g2", why: "second" },
@@ -689,7 +689,7 @@ describe("stitchBrief", () => {
     expect(partial.value.brief.readingOrder).toBeUndefined();
   });
 
-  it("fails coverage when a PR file lands in no group", () => {
+  it("warns and names a PR file that lands in no group", () => {
     const generated = brief(
       [group("tmpB", "beta v2")],
       [chunk("x2", "tmpB", "b.ts", 1, 3)],
@@ -700,9 +700,33 @@ describe("stitchBrief", () => {
       prFiles: ["a.ts", "b.ts", "missing.ts"],
       changedFiles: CHANGED_AB,
     });
-    expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
-    expect(result.error.message).toContain("missing.ts");
+    // The remainder is a modelled state, not an incoherent one: failing here
+    // would trade an honest partial brief for no brief at all.
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    const warnings = result.value.brief.generationWarnings ?? [];
+    expect(warnings.join(" ")).toContain("missing.ts");
+    expect(warnings.join(" ")).toContain("in no group");
+  });
+
+  it("still names an ungrouped file with no parsed ranges", () => {
+    const generated = brief(
+      [group("tmpB", "beta v2")],
+      [chunk("x2", "tmpB", "b.ts", 1, 3)],
+    );
+    // `binary.png` is in the PR but carries no changed ranges, so the
+    // unattributed remainder cannot see it. The warning is its only report.
+    const result = stitchBrief({
+      generated,
+      plan: planFor(),
+      prFiles: ["a.ts", "b.ts", "binary.png"],
+      changedFiles: CHANGED_AB,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect((result.value.brief.generationWarnings ?? []).join(" ")).toContain(
+      "binary.png",
+    );
   });
 
   it("fails coverage when a PR file lands in two groups", () => {
@@ -721,7 +745,7 @@ describe("stitchBrief", () => {
     expect(result.error.message).toContain("b.ts");
   });
 
-  it("a claimed frozen id unfreezes the group — model version wins, carry cancelled", () => {
+  it("a claimed frozen id unfreezes the group and cancels the carry", () => {
     // The model claimed frozen g1 (new file c.ts belongs to it) and
     // re-emitted it fully, alongside its re-look take on g2.
     const generated = brief(
@@ -757,7 +781,7 @@ describe("stitchBrief", () => {
     );
   });
 
-  it("a frozen-id reuse WITHOUT the group's files is a numbering slip, not a claim", () => {
+  it("a frozen-id reuse without its files is a slip, not a claim", () => {
     // The model reused frozen id g1 for an unrelated all-new file: the carry
     // survives and the slip is renamed by descent.
     const generated = brief(
@@ -788,7 +812,7 @@ describe("stitchBrief", () => {
     ).toBe(true);
   });
 
-  it("a frozen-id re-emission with ONLY its own files is not a claim — the carry survives", () => {
+  it("a frozen-id re-emission with only its own files keeps the carry", () => {
     // The model re-emitted frozen g1 with just its previous file. Nothing in
     // the re-look diff touches a.ts, so the "claim" carries no evidence and
     // must not cancel the carry.
@@ -816,7 +840,7 @@ describe("stitchBrief", () => {
     ).toBe(true);
   });
 
-  it("scrubs generated chunks on files outside the PR and drops groups they empty", () => {
+  it("scrubs chunks on files outside the PR and drops emptied groups", () => {
     // The revision reverted a file out of the PR, but the model kept
     // narrating it from the anchor brief.
     const generated = brief(
@@ -845,7 +869,7 @@ describe("stitchBrief", () => {
   });
 
   it("a departed-file chunk cannot serve as claim evidence", () => {
-    // The model claims frozen g1 with its old file plus a departed file —
+    // The model claims frozen g1 with its old file plus a departed file,
     // after the scrub the claim has no new evidence, so the carry survives.
     const generated = brief(
       [group("g1", "alpha stretched"), group("tmpB", "beta v2")],
@@ -871,7 +895,7 @@ describe("stitchBrief", () => {
     ).toBeUndefined();
   });
 
-  it("another frozen group's file is not claim evidence — both carries survive", () => {
+  it("another frozen group's file is not claim evidence", () => {
     // The model merges two frozen groups into one re-emission under g1. No
     // frozen file can be evidence (the re-look diff never touches them), so
     // the claim is rejected and both carries stay verbatim.
@@ -936,7 +960,7 @@ describe("stitchBrief", () => {
   });
 });
 
-describe("stitchBrief — unattributed remainder", () => {
+describe("stitchBrief, unattributed remainder", () => {
   const previous = brief(
     [group("g1", "alpha"), group("g2", "beta")],
     [chunk("c1", "g1", "a.ts", 5, 8), chunk("c2", "g2", "b.ts", 1, 2)],
@@ -1038,7 +1062,7 @@ describe("stitchBrief — unattributed remainder", () => {
   });
 });
 
-describe("stitchBrief — overlap replacement discipline", () => {
+describe("stitchBrief, overlap replacement discipline", () => {
   it("re-derives overlap warnings over merged chunks and strips categorize's", () => {
     const previous = brief(
       [group("g1", "alpha"), group("g2", "beta")],
@@ -1084,7 +1108,7 @@ describe("stitchBrief — overlap replacement discipline", () => {
   });
 });
 
-describe("stitchBrief — diffTotals", () => {
+describe("stitchBrief, diffTotals", () => {
   it("stamps whole-diff totals from changedFiles on the stitched brief", () => {
     const previous = brief(
       [group("g1", "alpha"), group("g2", "beta")],
@@ -1113,7 +1137,7 @@ describe("stitchBrief — diffTotals", () => {
   });
 });
 
-describe("stitchBrief — stale warning clearing", () => {
+describe("stitchBrief, stale warning clearing", () => {
   it("deletes generationWarnings when every filtered line has no replacement", () => {
     const previous = brief(
       [group("g1", "alpha"), group("g2", "beta")],
@@ -1148,7 +1172,7 @@ describe("stitchBrief — stale warning clearing", () => {
   });
 });
 
-describe("stitchBrief — the carried chunk set", () => {
+describe("stitchBrief, the carried chunk set", () => {
   const previous = brief(
     [group("g1", "alpha"), group("g2", "beta")],
     [chunk("c1", "g1", "a.ts", 5, 8), chunk("c2", "g2", "b.ts", 1, 2)],
@@ -1163,7 +1187,7 @@ describe("stitchBrief — the carried chunk set", () => {
     });
   }
 
-  it("reports exactly the chunks that carried — not the re-minted ones", () => {
+  it("reports exactly the chunks that carried, not the re-minted ones", () => {
     // The model re-emits b.ts under a colliding chunk id: the mint moves it,
     // and a carried set naming it would mark unopened code as read.
     const generated = brief(

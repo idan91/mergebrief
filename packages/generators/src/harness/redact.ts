@@ -2,9 +2,8 @@ import { GeneratorError, GeneratorErrorKinds } from "../contract/errors";
 import type { HarnessRunResult } from "./run";
 
 /**
- * Classified failure for a timer kill: kind timeout, with which timer fired
- * and the stderr tail (partial output goes to the failure dump at the
- * adapter, not into the message).
+ * Classified failure for a timer kill: which timer, how long, stderr tail.
+ * Partial output goes to the adapter's failure dump, never the message.
  */
 export function harnessTimeoutError(
   label: string,
@@ -20,39 +19,35 @@ export function harnessTimeoutError(
   const stderrNote = tail === "" ? "" : `; stderr tail: ${tail}`;
   return new GeneratorError(
     GeneratorErrorKinds.TIMEOUT,
-    `${label}: ${which} fired and the process was killed${stderrNote}`,
+    `${label}: ${which} fired after ${String(result.durationMs)}ms and the ` +
+      `process was killed${stderrNote}`,
   );
 }
 
 /**
- * Third-party CLI stderr is untrusted diagnostics — strip credential-shaped
- * substrings before any of it reaches an error message (the no-secrets rule
- * outranks diagnosability; the FULL tail still reaches failure dumps).
+ * Untrusted third-party stderr: strip credential-shaped substrings before any
+ * of it reaches an error message. No-secrets outranks diagnosability, and the
+ * FULL tail still reaches failure dumps.
  */
 export function redactSecrets(text: string): string {
   return (
     text
       // Scheme-carrying forms FIRST: `token: Bearer abc` must fall to the
-      // Bearer rule as a unit, not have the assignment rule eat "Bearer"
-      // and strand the credential. Authorization headers are taken whole —
-      // Digest carries a comma-separated param list, not one token.
-      // ["']? before the separator admits JSON-shaped headers/keys, e.g.
-      // {"Authorization":"Basic x"} — CLIs dump JSON error bodies to stderr.
+      // Bearer rule whole, not have the assignment rule eat "Bearer" and
+      // strand the credential. Authorization is taken whole because Digest
+      // carries a comma-separated param list. ["']? admits JSON-shaped keys.
       .replace(
         /\b((?:proxy-)?authorization["']?\s*[=:]\s*)[^\n]+/gi,
         "$1(redacted)",
       )
-      // Cookie headers carry session credentials in arbitrary attr=value
-      // pairs the assignment rule's name list can't anticipate — take the
-      // whole line.
+      // Cookies carry credentials in arbitrary attr=value pairs the
+      // assignment rule's name list cannot anticipate: take the whole line.
       .replace(/\b((?:set-)?cookie["']?\s*[=:]\s*)[^\n]+/gi, "$1(redacted)")
       .replace(/Bearer\s+\S+/gi, "Bearer (redacted)")
-      // Standalone `Basic <credential>`: the scheme name is case-flexible
-      // (RFC 7235: schemes are case-insensitive) but the token check is NOT
-      // — an /i flag would let any 8+ lowercase word match. Requiring an
-      // encoded-looking token (≥1 uppercase/digit/+/=) keeps text like
-      // "Basic usage failed" — common in stderr diagnostics — while
-      // base64("user:pass") never survives.
+      // Standalone `Basic <credential>`. RFC 7235 schemes are case-insensitive
+      // but the TOKEN check is not: an /i flag would match any 8+ lowercase
+      // word. Requiring an encoded-looking token keeps prose like "Basic usage
+      // failed" intact, while base64("user:pass") never survives.
       .replace(
         /\b([Bb][Aa][Ss][Ii][Cc])\s+(?=[A-Za-z0-9+/=]*[A-Z0-9+/=])[A-Za-z0-9+/=]{8,}(?![\w+/=])/g,
         "$1 (redacted)",
@@ -62,11 +57,10 @@ export function redactSecrets(text: string): string {
       .replace(/\beyJ[\w-]+\.[\w-]+\.[\w-]*/g, "(redacted)")
       .replace(/(\w+:\/\/)[^\s/@]+:[^\s/@]+@/g, "$1(redacted)@")
       .replace(
-        // [\w-]* prefix: matches AWS_ACCESS_KEY_ID etc. (underscores are
-        // word chars, so \b alone would miss prefixed credential names).
-        // Quoted values match BEFORE \S+ — password="hunter 2" must be
-        // consumed to its closing quote, not stranded at the first space.
-        // ["']? after the name admits JSON-shaped keys: "password":"x".
+        // [\w-]* prefix matches AWS_ACCESS_KEY_ID and kin: underscores are
+        // word chars, so \b alone would miss prefixed names. Quoted values
+        // match BEFORE \S+ so password="hunter 2" is consumed to its closing
+        // quote. ["']? after the name admits JSON keys: "password":"x".
         /([\w-]*(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key(?:[_-]?id)?|client[_-]?secret|auth))["']?(\s*[=:]\s*)(?!Bearer \(redacted\))("[^"\n]*"|'[^'\n]*'|\S+)/gi,
         "$1$2(redacted)",
       )

@@ -1,0 +1,22 @@
+{
+  "name": "baselines",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The baseline gate: the suppression and boundary records only ever lose entries, and a file this branch edits leaves none behind.",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage",
+    "check": "tsx src/main.ts"
+  },
+  "dependencies": {
+    "types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@vitest/coverage-v8": "^4.1.8",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.8"
+  }
+}

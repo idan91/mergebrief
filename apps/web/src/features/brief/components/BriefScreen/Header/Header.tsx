@@ -173,6 +173,7 @@ export function Header({
     "--progress-scale": `${progress / 100}`,
   };
   const prLink = isHttpUrl(brief.pr.url) ? brief.pr.url : null;
+  const hasRepoConfig = repoConfig !== null && repoConfig !== undefined;
   const remainderGroup = model.groups.find(
     (group): group is UnattributedRemainderGroupView =>
       group.kind === GroupViewKinds.UNATTRIBUTED_REMAINDER,
@@ -225,7 +226,7 @@ export function Header({
                 totalCoreAdded={model.totalCoreAdded}
                 totalCoreDeleted={model.totalCoreDeleted}
               />
-              {repoConfig != null ? (
+              {hasRepoConfig ? (
                 <RepoConfigChip repoConfig={repoConfig} />
               ) : null}
             </span>

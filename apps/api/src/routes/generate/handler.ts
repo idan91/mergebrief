@@ -1,6 +1,6 @@
 import { parsePrUrl, type PrLocator } from "brief-core";
 import type { Context } from "hono";
-import { ApiErrorCodes } from "../../error-response";
+import { ApiErrorCodes } from "contract";
 import {
   BadGateway,
   BadRequest,

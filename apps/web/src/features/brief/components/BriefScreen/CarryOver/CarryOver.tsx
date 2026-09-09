@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 
 import type { BriefViewModel } from "@web/features/brief/utils";
 import type { ReviewSessionPayload } from "@web/features/review/session";
-import type { CarriedItem } from "@web/features/review/utils/state";
+import type { CarriedItem } from "@web/features/review/utils";
 import { AttentionList } from "./AttentionList/AttentionList";
 import styles from "./CarryOver.module.scss";
 import { useCarryOver } from "./useCarryOver";
@@ -12,7 +12,7 @@ export interface CarryOverProps {
   /** The session read. No `carriedFrom` = a first-ever session, no row. */
   session: ReviewSessionPayload;
   model: BriefViewModel;
-  /** This Brief's head — the far end of the span the row states. */
+  /** This Brief's head, the far end of the span the row states. */
   headSha: string;
   jumpToItem: (item: CarriedItem) => void;
 }
@@ -22,7 +22,7 @@ export interface CarryOverProps {
  * the attention list in its place while carried items still need a re-look.
  *
  * No dismiss control. Silent carry-over is invisible, and an unseen carry
- * gets re-checked by hand — the exact cost the carry-over removes.
+ * gets re-checked by hand, which is the exact cost the carry-over removes.
  */
 export function CarryOver({
   session,
@@ -36,7 +36,7 @@ export function CarryOver({
   if (view === null) return null;
 
   // Every state says the same three things; only the verdict changes, and it
-  // never becomes "nothing" — the last cleared item lands back on the receipt.
+  // never becomes "nothing", because the last cleared item lands back on it.
   const getVerdict = (): string => {
     if (view.items.length === 0) return t("brief.carryOver.clean");
     return t("brief.carryOver.pending", { count: view.items.length });

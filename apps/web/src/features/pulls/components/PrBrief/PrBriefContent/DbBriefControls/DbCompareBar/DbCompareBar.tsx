@@ -15,7 +15,7 @@ import {
   type CompareOptionFlags,
   type CompareParam,
   type ViewParam,
-} from "../../../../../../brief/comparison/compareState";
+} from "@web/features/brief/comparison";
 import {
   SegmentedControl,
   type SegmentedOption,
@@ -31,7 +31,7 @@ export interface DbCompareBarProps {
    * option is unavailable.
    */
   lastReviewDisabledReason?: string | undefined;
-  /** Route-owned navigation — receives the next normalized View/Compare state. */
+  /** Route-owned navigation, receives the next normalized View/Compare state. */
   onNavigate: (next: BriefSearch) => void;
 }
 

@@ -92,6 +92,24 @@ describe("runHarnessProcess", () => {
     expect(result.exitCode).not.toBe(0);
   });
 
+  it("measures the wall clock from spawn to close", async () => {
+    // The hang is killed by the 400ms inactivity watchdog, so the run cannot
+    // have been shorter than that budget.
+    const result = await run("hang");
+    expect(result.durationMs).toBeGreaterThanOrEqual(
+      TEST_TIMEOUTS.inactivityMs,
+    );
+    expect(Number.isFinite(result.durationMs)).toBe(true);
+  });
+
+  it("names the duration in the timeout error message", async () => {
+    const result = await run("hang");
+    const error = harnessTimeoutError("brief", result);
+    expect(error.kind).toBe(GeneratorErrorKinds.TIMEOUT);
+    expect(error.message).toContain(`${String(result.durationMs)}ms`);
+    expect(error.message).toContain("output-inactivity watchdog");
+  });
+
   it("does not fire the watchdog while output drips slower than the hard cap", async () => {
     // Total drip time (12 x 100ms = 1.2s) far exceeds inactivityMs (400ms):
     // only the resets keep it alive. Then the shim exits cleanly.

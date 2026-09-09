@@ -1,14 +1,11 @@
 // @vitest-environment jsdom
-// The own-draft Brief view: one Brief view for every viewer; the author
-// surface is state-derived affordances inside it. This suite pins the state's
-// contract through the rendered screen:
-//   - the state is visibly labeled (self-review chip) and non-dismissible;
-//   - submit-review machinery + receipt are HIDDEN, not broken — nothing
-//     dangling that references submit;
-//   - risk flags are a read-only mirror (no disposition controls);
-//   - chunk tracking and comment drafting stay available (role-free);
-//   - when the PrView flips draft=false under a live session (mark-ready or
-//     ready-elsewhere), the affordances vanish and the reviewer view appears.
+// The own-draft Brief view: one Brief view for every viewer, with the author
+// surface as state-derived affordances inside it. This suite pins that
+// contract through the rendered screen: the state is visibly labeled and
+// non-dismissible, submit machinery and receipt are HIDDEN rather than
+// broken, risk flags are a read-only mirror, chunk tracking and drafting stay
+// available, and flipping draft=false under a live session brings the
+// reviewer view back.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
@@ -20,8 +17,10 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { MarkReadyResult } from "../../../pulls/transport/markReady";
-import type { PostCommentResult } from "../../../pulls/transport/postComment";
+import type {
+  MarkReadyResult,
+  PostCommentResult,
+} from "@web/features/pulls/transport";
 import { appI18n, I18nProvider } from "../../../../i18n/I18nProvider";
 
 const MARK_READY_COPY = {
@@ -36,7 +35,7 @@ import {
   POST_COMMENT_COPY_KEYS,
 } from "../BriefScreen/BriefScreen";
 import type { Brief } from "../../types";
-import { briefFixture } from "../../utils/fixtures";
+import { briefFixture } from "@web/features/brief/fixtures";
 
 afterEach(() => {
   cleanup();
@@ -85,7 +84,7 @@ function markReadyCta(): HTMLButtonElement {
   }) as HTMLButtonElement;
 }
 
-/** A review comment anchored on `chunkId` — session-store seeding shape. */
+/** A review comment anchored on `chunkId`, session-store seeding shape. */
 /** One draft on a fixture chunk, addressed the way the wire addresses it. */
 function comment(
   id: string,
@@ -107,7 +106,7 @@ function comment(
   };
 }
 
-/** The same Brief with an empty risk surface — the zero-flag bypass case. */
+/** The same Brief with an empty risk surface, the zero-flag bypass case. */
 const flaglessBrief: Brief = {
   ...briefFixture,
   chunks: briefFixture.chunks.map((chunk) => ({ ...chunk, riskSurface: [] })),
@@ -164,7 +163,7 @@ describe("own-draft Brief view", () => {
 
   it("keeps the composer read-only on a stale own-draft view", () => {
     // Post-now exists only at the current head, so a stale-staged draft would
-    // have no exit — the composer blocks with a reachable reason. A stale
+    // have no exit, the composer blocks with a reachable reason. A stale
     // REVIEWER view stays writable (its exit is Submit behind the receipt ack).
     // `{}` mirrors real plumbing: off the current head the plan carries no
     // actions (usePrBriefPlans withholds markReady/postComment).
@@ -180,7 +179,7 @@ describe("own-draft Brief view", () => {
     ).toBeNull();
   });
 
-  it("hides the submit machinery and the receipt entirely — nothing dangling", () => {
+  it("hides the submit machinery and the receipt entirely", () => {
     renderBriefView({ markReady: vi.fn() });
     // The submit modal and its Submit button are not in the DOM at all.
     expect(
@@ -194,7 +193,7 @@ describe("own-draft Brief view", () => {
     expect(screen.queryByRole("button", { name: /more actions/i })).toBeNull();
   });
 
-  it("renders risk flags as a read-only mirror — visible, no disposition controls", () => {
+  it("renders risk flags as a read-only mirror, no disposition controls", () => {
     renderBriefView({ markReady: vi.fn() });
     // The flags stay fully visible (the mirror)…
     expect(screen.getAllByText("no-tests").length).toBeGreaterThan(0);
@@ -209,14 +208,14 @@ describe("own-draft Brief view", () => {
     ).toBeNull();
   });
 
-  it("keeps chunk tracking available (local session state is role-free)", () => {
+  it("keeps chunk tracking available since session state is role-free", () => {
     renderBriefView({ markReady: vi.fn() });
     expect(screen.getAllByText("Viewed").length).toBeGreaterThan(0);
   });
 
-  it("progress reaches 100% from chunk read-through alone (flags excluded in own-draft)", () => {
+  it("progress reaches 100% from chunk read-through alone", () => {
     renderBriefView({ markReady: vi.fn() });
-    // View every chunk — with dispositions unreachable, chunks are the whole
+    // View every chunk, with dispositions unreachable, chunks are the whole
     // denominator; counting flags would cap this below 100% forever.
     for (const viewed of screen.getAllByText("Viewed")) {
       const input = viewed.closest("label")?.querySelector("input");
@@ -227,7 +226,7 @@ describe("own-draft Brief view", () => {
     expect(bar?.getAttribute("style")).toContain("--progress-scale: 1");
   });
 
-  it("soft gate: flags on the Brief → the CTA opens the modal, nothing posted yet", () => {
+  it("soft gate: flags on the Brief open the modal, nothing posted", () => {
     const markReady = vi.fn();
     renderBriefView({ markReady });
     fireEvent.click(
@@ -235,14 +234,14 @@ describe("own-draft Brief view", () => {
     );
     expect(screen.getByText("Before marking ready")).toBeTruthy();
     expect(markReady).toHaveBeenCalledTimes(0);
-    // "Mark ready anyway" — one click runs the mutation.
+    // "Mark ready anyway", one click runs the mutation.
     fireEvent.click(screen.getByRole("button", { name: "Mark ready anyway" }));
     expect(markReady).toHaveBeenCalledTimes(1);
   });
 
-  it("soft gate: zero flags AND zero drafts → the modal is skipped entirely, the CTA acts directly", () => {
+  it("soft gate: zero flags and zero drafts skip the modal entirely", () => {
     // The direct bypass survives the owner amendment only when there is
-    // nothing to gate on at all — no flags and no unposted drafts.
+    // nothing to gate on at all, no flags and no unposted drafts.
     const markReady = vi.fn(() =>
       Promise.resolve<MarkReadyResult>({ kind: "ready" }),
     );
@@ -254,13 +253,13 @@ describe("own-draft Brief view", () => {
     expect(markReady).toHaveBeenCalledTimes(1);
   });
 
-  it("soft gate: intent gaps OR TENSIONS alone never open the modal — the fallible signal never drives the gate", () => {
+  it("soft gate: intent gaps or tensions alone never open the modal", () => {
     // A flagless, draft-free Brief that DOES carry precise stated-but-missing
     // asks AND a precise unacknowledged deviation. The intent check is the
     // AI's fallible read; both kinds of finding surface as secondary lines
-    // inside the gate, but neither may ever be the thing that OPENS it — the
+    // inside the gate, but neither may ever be the thing that OPENS it, the
     // CTA still acts directly. Adding `|| intentTensionCount > 0` to
-    // `requestMarkReady` must fail here — never part of the gate's open
+    // `requestMarkReady` must fail here, never part of the gate's open
     // condition.
     const intentGapBrief: Brief = {
       ...flaglessBrief,
@@ -303,11 +302,11 @@ describe("own-draft Brief view", () => {
     expect(markReady).toHaveBeenCalledTimes(1);
   });
 
-  it("soft gate: the intent line rides an open gate, and clicking it closes the gate AND expands the intent bar", () => {
+  it("soft gate: clicking the intent line closes the gate and expands it", () => {
     // The gate opens because of the flags (briefFixture carries them); the
     // intent line rides inside, proving the caller's computed intentGapCount
     // flows through. Clicking it dismisses the gate and, after
-    // the deferred handle fires, lands the author on the EXPANDED intent bar —
+    // the deferred handle fires, lands the author on the EXPANDED intent bar,
     // pinning the full jumpToIntentGapsFromGate glue (setFocusMode
     // + setTimeout → expandAndScrollTo), not just the close.
     vi.useFakeTimers();
@@ -360,10 +359,10 @@ describe("own-draft Brief view", () => {
     vi.useRealTimers();
   });
 
-  it("soft gate: the tension line counts unacknowledged deviations + claimed-but-unachieved, and EXCLUDES acknowledged ones", () => {
+  it("soft gate: the tension line excludes acknowledged deviations", () => {
     // The caller derives the count, so this pins the derivation itself, not
     // just the modal's rendering. An acknowledged deviation is a
-    // reversal the PR description already owns — nudging the author about
+    // reversal the PR description already owns, nudging the author about
     // their own words at the gate would be nagging, so it must not count.
     const briefWithTensions: Brief = {
       ...briefFixture,
@@ -409,11 +408,11 @@ describe("own-draft Brief view", () => {
     // 1 unacknowledged deviation + 1 claimed-but-unachieved = 2. The
     // acknowledged deviation is excluded, so this is NOT 3.
     expect(screen.getByText("2 intent tensions flagged")).toBeTruthy();
-    // The gap line stays absent — the two lines are independent.
+    // The gap line stays absent, the two lines are independent.
     expect(screen.queryByText(/stated ask.* not found/)).toBeNull();
   });
 
-  it("soft gate: a broad set of sources contributes no tension count (precise-only, like the gap line)", () => {
+  it("soft gate: a broad source set contributes no tension count", () => {
     const briefBroad: Brief = {
       ...briefFixture,
       intentCheck: {
@@ -445,9 +444,9 @@ describe("own-draft Brief view", () => {
     expect(screen.queryByText(/intent tension.* flagged/)).toBeNull();
   });
 
-  it("soft gate: zero flags but unposted drafts → the gate OPENS with the checkbox, batch posts then mark-ready", async () => {
+  it("soft gate: unposted drafts open the gate with the batch checkbox", async () => {
     // A flags-only bypass would skip the gate on a zero-flag brief, leaving
-    // the post-my-drafts checkbox unreachable — drafts silently stay local
+    // the post-my-drafts checkbox unreachable, drafts silently stay local
     // while the PR goes ready. Drafts alone must open the gate.
     seedDrafts([
       comment("c1", "chunk-a", "draft"),
@@ -463,7 +462,7 @@ describe("own-draft Brief view", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Mark ready for review" }),
     );
-    // The gate opened — nothing posted, nothing marked ready yet…
+    // The gate opened, nothing posted, nothing marked ready yet…
     expect(screen.getByText("Before marking ready")).toBeTruthy();
     expect(markReady).toHaveBeenCalledTimes(0);
     // …with the drafts-focused advisory, NOT risk-flag copy over an empty list.
@@ -481,7 +480,7 @@ describe("own-draft Brief view", () => {
     expect(postComment).toHaveBeenCalledTimes(2);
   });
 
-  it("failure: toast copy through the live region, CTA re-enabled, state kept", async () => {
+  it("failure: toast through the live region, CTA re-enabled", async () => {
     const markReady = vi.fn(() =>
       Promise.resolve<MarkReadyResult>({ kind: "upstream" }),
     );
@@ -493,7 +492,7 @@ describe("own-draft Brief view", () => {
       expect(screen.getByText(MARK_READY_COPY.upstream)).toBeTruthy(),
     );
     // Stay in-state: the chip is still up and the CTA is re-enabled (the CTA
-    // is never hard-disabled — aria-disabled is the pending signal).
+    // is never hard-disabled, aria-disabled is the pending signal).
     expect(screen.getByText(CHIP_COPY)).toBeTruthy();
     const cta = screen.getByRole("button", { name: "Mark ready for review" });
     expect(cta.getAttribute("aria-disabled")).toBe("false");
@@ -513,16 +512,16 @@ describe("own-draft Brief view", () => {
     );
 
     // The CTA is aria-disabled (not hard disabled), so this click lands in
-    // requestMarkReady — it must not reopen the gate over the in-flight
+    // requestMarkReady, it must not reopen the gate over the in-flight
     // mutation (whose "Mark ready anyway" would silently no-op).
     fireEvent.click(markReadyCta());
     expect(overlayState("Before marking ready")).toBe("closed");
     expect(markReady).toHaveBeenCalledTimes(1);
   });
 
-  it("soft gate: counts only unposted drafts; the jump link closes the gate and lands on the first draft's chunk", async () => {
+  it("soft gate: the jump link closes the gate on the first draft chunk", async () => {
     // Seed the persisted session for THIS briefId: two drafts + one already
-    // posted — only the drafts may count.
+    // posted, only the drafts may count.
     seedDrafts([
       comment("c1", "chunk-b", "draft"),
       comment("c2", "chunk-a", "draft"),
@@ -549,7 +548,7 @@ describe("own-draft Brief view", () => {
     );
   });
 
-  it("batch (checked, all succeed): posts every draft, THEN marks ready", async () => {
+  it("batch checked and all succeed: posts every draft, then marks ready", async () => {
     seedDrafts([
       comment("c1", "chunk-a", "draft"),
       comment("c2", "chunk-b", "draft"),
@@ -577,7 +576,7 @@ describe("own-draft Brief view", () => {
     expect(postComment).toHaveBeenCalledTimes(2);
   });
 
-  it("batch (checked, one fails midway): posts STOP, mark-ready NOT called, honest-counts toast", async () => {
+  it("batch with one failure midway: posts stop and mark-ready is skipped", async () => {
     seedDrafts([
       comment("c1", "chunk-a", "draft"),
       comment("c2", "chunk-b", "draft"),
@@ -589,7 +588,7 @@ describe("own-draft Brief view", () => {
     let call = 0;
     const postComment = vi.fn((_draftId: string) => {
       call += 1;
-      // The second post fails — the batch must stop before the third.
+      // The second post fails, the batch must stop before the third.
       return Promise.resolve<PostCommentResult>(
         call === 2 ? { kind: "upstream" } : { kind: "posted", commentId: call },
       );
@@ -611,7 +610,7 @@ describe("own-draft Brief view", () => {
     const summary = markReadyBatchFailureCopy(appI18n.t, 1, 3, "indeterminate");
     expect(await screen.findByText(summary)).toBeTruthy();
     // The summary must be the SETTLED live-region message, not a transient
-    // 30ms window — flush the failed post's drain and every pending
+    // 30ms window, flush the failed post's drain and every pending
     // clear-then-set announce tick, then assert the summary still stands and
     // the per-comment upstream copy never took the region over.
     await act(() => new Promise((resolve) => setTimeout(resolve, 120)));
@@ -627,8 +626,8 @@ describe("own-draft Brief view", () => {
     expect(overlayState("Before marking ready")).toBe("closed");
   });
 
-  it("batch (checked, deterministic 400 midway): the summary says rejected-before-posting, not indeterminate", async () => {
-    // An `invalid` route reject is deterministic — the comment definitively
+  it("batch with a deterministic 400 says rejected, not indeterminate", async () => {
+    // An `invalid` route reject is deterministic, the comment definitively
     // did NOT post, so the summary must be actionable ("edit the draft"),
     // never the indeterminate check-GitHub warning.
     seedDrafts([
@@ -662,13 +661,13 @@ describe("own-draft Brief view", () => {
         markReadyBatchFailureCopy(appI18n.t, 1, 2, "rejected"),
       ),
     ).toBeTruthy();
-    // Not the indeterminate wording — the reject was deterministic.
+    // Not the indeterminate wording, the reject was deterministic.
     expect(screen.queryByText(/may or may not have posted/)).toBeNull();
     expect(markReady).toHaveBeenCalledTimes(0);
   });
 
-  it("batch (checked, guard-blocked draft): no per-comment noise, the deterministic summary is the message", async () => {
-    // A guard-path rejection (over-cap body — the deterministic-400 mirror)
+  it("batch with a guard-blocked draft states the deterministic summary", async () => {
+    // A guard-path rejection (over-cap body, the deterministic-400 mirror)
     // inside a batch must not announce its blocked reason before the summary;
     // the summary carries the stop-cause.
     seedDrafts([
@@ -703,7 +702,7 @@ describe("own-draft Brief view", () => {
     expect(postComment).toHaveBeenCalledTimes(1);
     expect(markReady).toHaveBeenCalledTimes(0);
     // …and the per-comment blocked reason never injected noise into the live
-    // region (the thread still shows it inline next to its disabled Post —
+    // region (the thread still shows it inline next to its disabled Post,
     // that adjacency is unchanged): after the drain + announce ticks settle,
     // the toast reads exactly the summary.
     await act(() => new Promise((resolve) => setTimeout(resolve, 120)));
@@ -716,9 +715,9 @@ describe("own-draft Brief view", () => {
     );
   });
 
-  it("batch failure summary carries the failing cause's own recovery (401 sign-in, 409 reload)", async () => {
+  it("batch failure summary carries the failing cause's own recovery", async () => {
     // Batch mode suppresses the per-comment copy, so the summary is the ONLY
-    // message — a blanket "edit the draft" is wrong for a session expiry or a
+    // message, a blanket "edit the draft" is wrong for a session expiry or a
     // stale head. Each deterministic cause branches.
     const cases = [
       { kind: "unauthorized", copy: /sign in again to continue/ },
@@ -759,9 +758,9 @@ describe("own-draft Brief view", () => {
     }
   });
 
-  it("batch failure rescues focus from the closing gate onto the terminal-slot CTA", async () => {
+  it("batch failure rescues focus onto the terminal-slot CTA", async () => {
     // The failure branch closes the gate while the modal holds focus (the
-    // confirm CTA) — the box goes inert and focus drops with NEITHER sibling
+    // confirm CTA), the box goes inert and focus drops with NEITHER sibling
     // rescue firing (state didn't exit, head didn't advance).
     seedDrafts([
       comment("c1", "chunk-a", "draft"),
@@ -798,8 +797,8 @@ describe("own-draft Brief view", () => {
     await waitFor(() => expect(document.activeElement).toBe(markReadyCta()));
   });
 
-  it("Escape is a no-op while the batch runs; the gate stays up with its progress", async () => {
-    // Modal wires Escape to close only when a handler is provided — mid-batch
+  it("Escape is a no-op while the batch runs, the gate stays up", async () => {
+    // Modal wires Escape to close only when a handler is provided, mid-batch
     // the gate withholds it, matching the disabled controls, so progress
     // feedback cannot vanish while writes continue.
     seedDrafts([
@@ -838,7 +837,7 @@ describe("own-draft Brief view", () => {
     ).toBeTruthy();
   });
 
-  it("batch (unchecked): marks ready WITHOUT posting anything (existing behavior)", async () => {
+  it("batch unchecked marks ready without posting anything", async () => {
     seedDrafts([
       comment("c1", "chunk-a", "draft"),
       comment("c2", "chunk-b", "draft"),
@@ -856,20 +855,20 @@ describe("own-draft Brief view", () => {
     expect(
       await screen.findByText("You have 2 unposted draft comments."),
     ).toBeTruthy();
-    // Leave the checkbox unchecked — confirm posts nothing.
+    // Leave the checkbox unchecked, confirm posts nothing.
     fireEvent.click(screen.getByRole("button", { name: "Mark ready anyway" }));
     await waitFor(() => expect(markReady).toHaveBeenCalledTimes(1));
     expect(postComment).toHaveBeenCalledTimes(0);
   });
 
-  it("plan without an action (historical revision): CTA reads disabled, click announces, gate never mounts", async () => {
-    // A plan with no `markReady` — the route withholds the action while a
+  it("a plan with no action reads disabled and never mounts the gate", async () => {
+    // A plan with no `markReady`, the route withholds the action while a
     // historical revision is in view.
     renderBriefView({});
     const cta = markReadyCta();
     expect(cta.getAttribute("aria-disabled")).toBe("true");
     // Flags exist on this Brief, but the gate is not the viewed revision's
-    // to show — nothing gate-shaped in the DOM, and the click explains.
+    // to show, nothing gate-shaped in the DOM, and the click explains.
     expect(screen.queryByText("Before marking ready")).toBeNull();
     fireEvent.click(cta);
     expect(
@@ -878,13 +877,13 @@ describe("own-draft Brief view", () => {
     expect(screen.queryByText("Before marking ready")).toBeNull();
   });
 
-  it("head advances while the gate is open: modal unmounts, flag resets, focus rescued, shortcuts revive", async () => {
+  it("head advancing under an open gate unmounts it and rescues focus", async () => {
     const { rerenderWith } = renderBriefView({ markReady: vi.fn() });
     fireEvent.click(markReadyCta());
     expect(overlayState("Before marking ready")).toBe("open");
 
     // The author pushes mid-gate: the poll advances meta.headSha, the route
-    // keeps the plan (still the viewer's draft) but withholds the action —
+    // keeps the plan (still the viewer's draft) but withholds the action,
     // no remount, the span keys the mount.
     rerenderWith({});
     expect(screen.queryByText("Before marking ready")).toBeNull();
@@ -899,7 +898,7 @@ describe("own-draft Brief view", () => {
     expect(overlayState("Keyboard shortcuts")).toBe("open");
   });
 
-  it("ready-elsewhere while the gate is open: the modal unmounts cleanly, focus rescued, announced, shortcuts revive, no resurrection", async () => {
+  it("ready elsewhere under an open gate unmounts it without resurrection", async () => {
     const { rerenderWith } = renderBriefView({ markReady: vi.fn() });
     fireEvent.click(
       screen.getByRole("button", { name: "Mark ready for review" }),
@@ -933,7 +932,7 @@ describe("own-draft Brief view", () => {
   it("vanishes the affordances when draft flips under a live session", () => {
     const { rerenderWith } = renderBriefView({ markReady: vi.fn() });
     expect(screen.getByText(CHIP_COPY)).toBeTruthy();
-    // The refreshed PrView (draft=false) turns the plan undefined — the same
+    // The refreshed PrView (draft=false) turns the plan undefined, the same
     // view swaps to reviewer affordances without remounting anything else.
     rerenderWith(undefined);
     expect(screen.queryByText(CHIP_COPY)).toBeNull();
@@ -943,14 +942,14 @@ describe("own-draft Brief view", () => {
     ).toBeNull();
   });
 
-  it("rescues focus from an unmounting overlay onto the terminal-slot CTA, with an announcement", async () => {
+  it("rescues focus from an unmounting overlay onto the CTA and announces", async () => {
     const { rerenderWith } = renderBriefView(undefined);
     // Open the submit modal: the Modal claims focus on open.
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
     expect(document.activeElement === document.body).toBe(false);
 
     // The PR converts to draft on GitHub while focus lives in the overlay:
-    // the overlay unmounts (no blur fires) — focus must land on the
+    // the overlay unmounts (no blur fires), focus must land on the
     // terminal-slot CTA instead of dropping to <body> silently…
     rerenderWith({ markReady: vi.fn() });
     expect(document.activeElement).toBe(
@@ -962,9 +961,9 @@ describe("own-draft Brief view", () => {
     );
   });
 
-  it("flip INTO own-draft under an open overlay: state clears, shortcuts revive, no resurrection", () => {
+  it("flipping into own-draft under an open overlay clears the state", () => {
     const { rerenderWith } = renderBriefView(undefined);
-    // Open the submit modal on the reviewer view (Submit CTA) — the fixture
+    // Open the submit modal on the reviewer view (Submit CTA), the fixture
     // has open flags, so it lands on the advisory view.
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
     expect(overlayState("Before you submit")).toBe("open");
@@ -973,7 +972,7 @@ describe("own-draft Brief view", () => {
     rerenderWith({ markReady: vi.fn() });
     expect(screen.queryByText("Before you submit")).toBeNull();
     // The open flag was RESET, not merely unmounted: page shortcuts are not
-    // stuck disabled — "?" opens the shortcuts modal.
+    // stuck disabled, "?" opens the shortcuts modal.
     fireEvent.keyDown(window, { key: "?" });
     expect(overlayState("Keyboard shortcuts")).toBe("open");
     fireEvent.keyDown(window, { key: "Escape" });
@@ -985,7 +984,7 @@ describe("own-draft Brief view", () => {
     expect(screen.queryByText("Before you submit")).toBeNull();
   });
 
-  it("one in-flight post per draft: the button disables and a second click fires nothing", async () => {
+  it("one in-flight post per draft, a second click fires nothing", async () => {
     // The replacement for the per-tab in-flight registry: a disabled button,
     // not a protocol.
     seedDrafts([comment("c1", "chunk-a", "draft")]);
@@ -1027,7 +1026,7 @@ describe("own-draft Brief view", () => {
   });
 
   it("a failed post releases the gate: the draft stays and Post works again", async () => {
-    // The gate must release on EVERY settle, not just success — a leak here
+    // The gate must release on EVERY settle, not just success, a leak here
     // reads as "Posting…" forever and blocks submit for the rest of the
     // session.
     seedDrafts([comment("c1", "chunk-a", "draft")]);

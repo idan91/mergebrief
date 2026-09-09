@@ -10,7 +10,7 @@ import styles from "./BriefDetailsPanel.module.scss";
 
 export interface BriefDetailsPanelProps {
   brief: Brief;
-  /** Adjusted-line totals from the view model — the Artifact section's LOC line. */
+  /** Adjusted-line totals from the view model, the Artifact section's LOC line. */
   totalAdded: number;
   totalDeleted: number;
   /** Core-chunk derived-line totals from the view model. */
@@ -22,11 +22,11 @@ export interface BriefDetailsPanelProps {
 
 /**
  * The ⓘ Brief-details disclosure and its second trigger, the
- * generation-warnings count chip — co-located so ONE close path owns focus
+ * generation-warnings count chip, co-located so ONE close path owns focus
  * return; a close that leaves keyboard focus on an unmounted portal node
  * would dump it on <body>.
  *
- * One anchored callout in the RiskChipDisclosure grammar — hover previews,
+ * One anchored callout in the RiskChipDisclosure grammar: hover previews,
  * click is canonical, Escape-at-capture dismisses without reaching page
  * shortcuts.
  */
@@ -44,7 +44,7 @@ export function BriefDetailsPanel({
   const [landing, setLanding] = useState<"warnings" | null>(null);
   const [triggerEl, setTriggerEl] = useState<HTMLButtonElement | null>(null);
   const chipRef = useRef<HTMLButtonElement>(null);
-  /** Which trigger opened the current panel — the close path's focus home. */
+  /** Which trigger opened the current panel, the close path's focus home. */
   const openerRef = useRef<"info" | "chip" | null>(null);
   /** The mounted warnings node (portal content), for already-open landings. */
   const warningsNodeRef = useRef<HTMLDivElement | null>(null);
@@ -52,7 +52,7 @@ export function BriefDetailsPanel({
 
   const close = () => {
     // Focus return: if focus lives inside the portal (a chip landing put it
-    // there), the unmount would drop it on <body> — send it back to the
+    // there), the unmount would drop it on <body>, so send it back to the
     // trigger that opened the panel instead.
     const panelEl = document.getElementById(detailId);
     const focusWasInside = panelEl?.contains(document.activeElement) ?? false;
@@ -76,7 +76,7 @@ export function BriefDetailsPanel({
     setLanding("warnings");
     setOpen(true);
     // Already open (plain or re-landing): the node is mounted, so the
-    // callback ref below will never re-fire — land directly.
+    // callback ref below will never re-fire, so land directly.
     const node = warningsNodeRef.current;
     if (node) {
       landedRef.current = true;
@@ -99,7 +99,7 @@ export function BriefDetailsPanel({
     }
   };
 
-  // Escape must dismiss a hover-opened callout too — focus may be anywhere,
+  // Escape must dismiss a hover-opened callout too, and focus may be anywhere,
   // so listen at the document while open, capture phase, and consume the key
   // so it never reaches page-level handling.
   useEffect(() => {
@@ -124,7 +124,7 @@ export function BriefDetailsPanel({
         className={styles["hoverArea"]}
         onPointerEnter={(event) => {
           // Hover preview is a MOUSE affordance; touch/pen go through click
-          // (touch browsers synthesize mouseenter before click — a
+          // (touch browsers synthesize mouseenter before click, so a
           // hover-open would be immediately toggled shut). Never clobber an
           // already-open panel's landing state.
           if (event.pointerType === "mouse" && !open) openPlain();
@@ -159,7 +159,7 @@ export function BriefDetailsPanel({
       </span>
       {warnings.length > 0 ? (
         // Opens the SAME panel, landed on the warnings block. A landed-open
-        // chip click closes again — a button announcing aria-expanded must
+        // chip click closes again: a button announcing aria-expanded must
         // collapse on activation.
         <Chip
           aria-controls={open ? detailId : undefined}
@@ -199,6 +199,10 @@ function ArtifactSection({
   totalCoreDeleted: number;
 }) {
   const { t } = useTranslation();
+  const hasBaselineIndex =
+    brief.baselineIndex !== null && brief.baselineIndex !== undefined;
+  const hasHeadIndex =
+    brief.headIndex !== null && brief.headIndex !== undefined;
   return (
     <section className={styles["section"]} data-details-section="artifact">
       <h2 className={styles["heading"]}>
@@ -207,7 +211,7 @@ function ArtifactSection({
       <dl className={styles["facts"]}>
         <dt>{t("brief.details.kind")}</dt>
         <dd>{brief.artifactKind}</dd>
-        {brief.artifactKind === "brief" && brief.index != null ? (
+        {brief.artifactKind === "brief" && brief.index !== undefined ? (
           <>
             <dt>{t("brief.details.briefIndex")}</dt>
             <dd>_{brief.index}</dd>
@@ -236,13 +240,11 @@ function ArtifactSection({
           <>
             <dt>{t("brief.details.span")}</dt>
             <dd>
-              {brief.baselineIndex != null
+              {hasBaselineIndex
                 ? `_${brief.baselineIndex}`
                 : short(brief.baselineSha)}
               {" → "}
-              {brief.headIndex != null
-                ? `_${brief.headIndex}`
-                : short(brief.headSha)}
+              {hasHeadIndex ? `_${brief.headIndex}` : short(brief.headSha)}
             </dd>
             <dt>{t("brief.details.fullShas")}</dt>
             <dd className={styles["shas"]}>
@@ -327,7 +329,8 @@ function RepoConfigSection({
 }) {
   const { t } = useTranslation();
   const anyPresent =
-    repoConfig != null &&
+    repoConfig !== null &&
+    repoConfig !== undefined &&
     (repoConfig.files.some((file) => file.outcome !== "absent") ||
       repoConfig.collisions.length > 0);
   return (

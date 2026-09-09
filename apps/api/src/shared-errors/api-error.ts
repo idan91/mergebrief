@@ -1,14 +1,14 @@
 // The thrown wire-error family: abstract `ApiError` + exactly one subclass
 // per HTTP status in `ApiErrorStatusByCode`. `CodeFor<status>` constrains each
 // class to codes of its status, so class, status, and code can never
-// disagree — the status table stays the single source of truth.
+// disagree, the status table stays the single source of truth.
 import type { ValueOf } from "types";
 import {
   ApiErrorCodes,
   type ApiErrorCode,
   type ApiErrorParams,
   type ApiErrorStatusByCode,
-} from "../error-response";
+} from "contract";
 
 export type ApiErrorStatus = ValueOf<typeof ApiErrorStatusByCode>;
 
@@ -19,16 +19,14 @@ export type CodeFor<S extends ApiErrorStatus> = {
   [C in ApiErrorCode]: (typeof ApiErrorStatusByCode)[C] extends S ? C : never;
 }[ApiErrorCode];
 
-// A class whose code IS its status restated defaults to it (`new
-// NotFound()`); a status whose codes are distinct reasons (409, 413, 502,
-// 503) keeps the code required — no reason is the obvious one.
-// Some codes need extra data for their message (today only one:
-// `generation-config` needs `{ detail }`). These two split a status's codes
-// by that: `PlainCodeFor<S>` = the codes that take nothing, `ParamCodeFor<S>`
-// = the codes that require their data. Each class builds its constructor
-// overloads from the pair — `new ServiceUnavailable("generation-unavailable")`
-// compiles with one argument, `new ServiceUnavailable("generation-config")`
-// refuses to compile until you pass the `{ detail }`.
+// A class whose code IS its status restated defaults to it; a status whose
+// codes are distinct reasons keeps the code required, since no reason is the
+// obvious one. These two split a status's codes by whether the message needs
+// extra data: `PlainCodeFor<S>` takes nothing, `ParamCodeFor<S>` requires it.
+// Each class builds its constructor overloads from the pair, so
+// `new ServiceUnavailable("generation-unavailable")` compiles with one
+// argument and `new ServiceUnavailable("generation-config")` refuses until
+// you pass the `{ detail }`.
 type PlainCodeFor<S extends ApiErrorStatus> = Exclude<CodeFor<S>, ParamCode>;
 type ParamCodeFor<S extends ApiErrorStatus> = Extract<CodeFor<S>, ParamCode>;
 

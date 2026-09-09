@@ -1,6 +1,6 @@
 // Perf measurement harness: the same seeded-database server as the e2e
 // suite, booted over the GENERATED large fixture, running only `*.perf.ts`.
-// Local instrument, not a CI gate — numbers land in PR bodies. The suite
+// Local instrument, not a CI gate. Numbers land in PR bodies. The suite
 // overrides come in through env (see `perf:measure` in package.json).
 import { existsSync } from "node:fs";
 import { defineConfig, devices } from "@playwright/test";
@@ -37,13 +37,18 @@ export default defineConfig({
     storageState: STORAGE_STATE_PATH,
   },
   projects: [{ name: "chromium", use: devices["Desktop Chrome"] }],
-  webServer: {
-    command: `pnpm exec vite dev --port ${String(E2E_PORT)} --strictPort`,
-    url: `http://localhost:${String(E2E_PORT)}/healthz`,
-    reuseExistingServer: false,
-    timeout: 120_000,
-    stdout: "ignore",
-    stderr: "pipe",
-    env: buildWebServerEnv(),
-  },
+  // Only the web tier. The API is started by `globalSetup`, after the database
+  // exists: Playwright starts and awaits every webServer entry BEFORE
+  // globalSetup runs, and the API connects to Postgres before it listens.
+  webServer: [
+    {
+      command: `pnpm exec vite dev --port ${String(E2E_PORT)} --strictPort`,
+      url: `http://localhost:${String(E2E_PORT)}/healthz`,
+      reuseExistingServer: false,
+      timeout: 120_000,
+      stdout: "ignore",
+      stderr: "pipe",
+      env: buildWebServerEnv(),
+    },
+  ],
 });

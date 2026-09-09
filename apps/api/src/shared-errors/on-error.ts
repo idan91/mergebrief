@@ -1,10 +1,11 @@
 // The one `app.onError` seam: a thrown `ApiError` renders through the wire
-// producer; anything else is a sanitized 500 — internals go to the log,
+// producer; anything else is a sanitized 500, internals go to the log,
 // never the response. Enclosing middleware sees `next()` resolve with the
 // rendered response, so audit emit and the access line survive throws.
 import type { Context } from "hono";
 import type { Logger } from "logging";
-import { ApiErrorCodes, buildErrorResponse } from "../error-response";
+import { ApiErrorCodes } from "contract";
+import { buildErrorResponse } from "../error-response";
 import type { RequestLogEnv } from "../request-logging";
 import { ApiError } from "./api-error";
 

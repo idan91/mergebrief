@@ -1,5 +1,5 @@
 // Hono-free artifact reads. A missing PR row or artifact is genuinely absent
-// behind the gate — terminal and posture-free — so these ops THROW NotFound;
+// behind the gate, terminal and posture-free, so these ops THROW NotFound;
 // stored bodies return verbatim (already JSON, never re-parsed).
 import { createUserOctokit, fetchCompareDiff } from "github";
 import type { GenerationProjection, RepoId, ReviewerId } from "persistence";
@@ -9,12 +9,11 @@ import { isGitHubDenial } from "../../../../shared-errors/failures";
 import type { ReviewerGitHubClient } from "../../../auth/reviewer-github-client";
 import { buildPrView } from "../../../pr-view";
 import type { TtlCache } from "../../../ttl-cache";
+import type { RevisionComparisons, RevisionView } from "contract";
 import {
   comparisonSpanSet,
   makeLatestPendingProbe,
   narrativeSpanSet,
-  type RevisionComparisons,
-  type RevisionView,
 } from "./logic/revision-comparisons";
 import { buildDiffCacheKey, composeBriefContextBody } from "./logic/keys";
 import { buildRevisionView } from "./logic/revision-views";
@@ -114,7 +113,7 @@ export default {
   },
 
   /**
-   * The brief's repo-config snapshot as a pre-composed JSON envelope — the
+   * The brief's repo-config snapshot as a pre-composed JSON envelope, the
    * column already holds validated JSON, never re-parsed per request.
    * `repoConfig` is null for older rows.
    */
@@ -135,7 +134,7 @@ export default {
   },
 
   /**
-   * PR meta — the PR row + current-span derivation + latest brief-kind
+   * PR meta, the PR row + current-span derivation + latest brief-kind
    * generation summary, plus per-revision comparison availability derived
    * from ONE lean listing per artifact kind joined in memory.
    */
@@ -171,7 +170,7 @@ export default {
       // The viewer's verified login from the session; `viewerIsAuthor` is
       // derived per request, never cached.
       input.reviewerLogin,
-      // Push capability from the gate's access check — ≤60s stale via the
+      // Push capability from the gate's access check, ≤60s stale via the
       // positive cache, same budget as `repoFullName`.
       input.viewerCanPush,
     );
@@ -198,7 +197,7 @@ export default {
         deps.tenant.checkpoints.get(pullRequestId, input.reviewerId),
         deps.generations.listBriefsForPullRequest(pullRequestId),
       ]);
-      // `created_at` is the first enqueue for that head — the earliest bound
+      // `created_at` is the first enqueue for that head, the earliest bound
       // of what the brief's acquisition could have seen. One row per head,
       // shared by duplicate-head (retarget) revisions.
       const generatedAtByHead = new Map(
@@ -209,7 +208,7 @@ export default {
       const narrativeSpans = narrativeSpanSet(narrativeRows);
       // The generation-pending refinement (a DB probe) is wired for the
       // CURRENT head SHA only: history is never actively warming. Gated by
-      // headSha — not row identity — because lastReview is a pure function of
+      // headSha, not row identity, because lastReview is a pure function of
       // (checkpoint, headSha), so duplicate rows sharing the current head must
       // report identical state. The probe memoizes per baseline.
       const latestPendingProbe = makeLatestPendingProbe(
@@ -244,7 +243,7 @@ export default {
   },
 
   /**
-   * The LIVE diff proxy for the requested `base...head` span — the viewer's
+   * The LIVE diff proxy for the requested `base...head` span, the viewer's
    * token, cached per session (~60s), NEVER persisted. Serve always; cache
    * only when small enough (oversized diffs are rare and cheap to re-proxy).
    */

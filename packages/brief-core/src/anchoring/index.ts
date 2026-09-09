@@ -550,7 +550,14 @@ export function stitchBrief(
     };
   }
 
-  // ---- coverage: every PR file in exactly one group (hard) ----------------
+  // ---- coverage over the merged chunk set ---------------------------------
+  // Two different conditions, and only one of them is incoherent.
+  //
+  // A file in TWO groups is a contradiction the reader cannot resolve, so it
+  // stays hard. A file in NO group is the Unattributed remainder, which this
+  // brief already carries as a first-class field: failing the whole
+  // generation for it throws away an honest partial brief and, on a large
+  // PR, means no brief at all. It warns and is named instead.
   const ownersByFile = new Map<string, Set<string>>();
   for (const chunk of mergedChunks) {
     const owners = ownersByFile.get(chunk.file) ?? new Set<string>();
@@ -558,15 +565,23 @@ export function stitchBrief(
     ownersByFile.set(chunk.file, owners);
   }
   const coverageIssues: string[] = [];
+  const ungrouped: string[] = [];
   for (const file of prFiles) {
     const owners = ownersByFile.get(file);
     if (owners === undefined || owners.size === 0) {
-      coverageIssues.push(`${file}: in no group`);
+      ungrouped.push(file);
     } else if (owners.size > 1) {
       coverageIssues.push(
         `${file}: in ${owners.size} groups (${[...owners].toSorted().join(", ")})`,
       );
     }
+  }
+  if (ungrouped.length > 0) {
+    // Named, not counted: a file with no parsed ranges never reaches the
+    // remainder above, so this line is the only place it is reported.
+    warnings.push(
+      `anchored stitch: ${String(ungrouped.length)} file(s) in no group — ${ungrouped.toSorted().join(", ")}`,
+    );
   }
   // Backstop for the mechanical guarantee: a carried group may only describe
   // files the PR still changes, a stale carry (e.g. an undetected history

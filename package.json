@@ -7,8 +7,8 @@
   },
   "scripts": {
     "app:docker": "docker compose up -d",
-    "app:host": "pnpm -C apps/api manifest && docker compose up -d postgres && docker compose stop web worker && set -a && . ./.env && set +a && concurrently -k -n worker,web -c blue,green \"pnpm -C apps/worker start\" \"pnpm -C apps/web dev\"",
-    "dev": "pnpm -C apps/api manifest && pnpm -C apps/web dev",
+    "app:host": "pnpm -C apps/api manifest && docker compose up -d postgres && docker compose stop api web worker && set -a && . ./.env && set +a && concurrently -k -n api,worker,web -c magenta,blue,green \"pnpm -C apps/api start\" \"pnpm -C apps/worker start\" \"pnpm -C apps/web dev\"",
+    "dev": "pnpm -C apps/api manifest && concurrently -k -n api,web -c magenta,green \"pnpm -C apps/api start\" \"pnpm -C apps/web dev\"",
     "build": "pnpm -C apps/api manifest:check && pnpm -C apps/web build",
     "typecheck": "pnpm -C apps/web typecheck",
     "test": "pnpm -C tools/categorizer test",
@@ -16,9 +16,10 @@
     "test:persistence": "pnpm -C packages/persistence test",
     "typecheck:worker": "pnpm -C apps/worker typecheck",
     "test:worker": "pnpm -C apps/worker test",
-    "lint": "oxlint --type-aware --report-unused-disable-directives && depcruise --config .dependency-cruiser.cjs --cache --cache-strategy metadata --ignore-known .dependency-cruiser-known-violations.json apps packages tools && knip --no-config-hints && pnpm format:check && pnpm -C apps/web lint && pnpm check:catalog && pnpm check:config",
+    "lint": "oxlint --type-aware --report-unused-disable-directives && depcruise --config .dependency-cruiser.cjs --cache --cache-strategy metadata apps packages tools && knip --no-config-hints && pnpm format:check && pnpm -C apps/web lint && pnpm check:catalog && pnpm check:config && pnpm check:baselines",
     "check:catalog": "pnpm -C apps/api manifest:check && pnpm -C apps/cli map:check",
     "check:config": "pnpm -C tools/oxlint-plugin-house test:config",
+    "check:baselines": "pnpm -C tools/baselines check",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

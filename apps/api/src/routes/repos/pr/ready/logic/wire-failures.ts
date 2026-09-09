@@ -1,6 +1,6 @@
 // The ready domain's failure->throw mapper (gated-route posture).
 import { GitHubApiErrorCodes } from "github";
-import { ApiErrorCodes } from "../../../../../error-response";
+import { ApiErrorCodes } from "contract";
 import {
   BadGateway,
   Forbidden,
@@ -10,15 +10,13 @@ import {
 import type { MarkReadyFailure } from "../types";
 
 /**
- * Map a GraphQL MUTATION-stage failure. This runs AFTER both the gate and
- * the fresh re-resolve succeeded — the viewer has already proven they can
- * see the repo, so there is no existence to leak by being specific. A
- * FORBIDDEN here is a genuine App permission gap:
- * `markPullRequestReadyForReview` requires the App to hold `contents: write`
- * (GitHub's own permission granularity — MergeBrief never pushes code), so
- * it surfaces as a distinct, honestly-actionable 403 instead of collapsing
- * into "no longer accessible". A NOT_FOUND still means the PR is genuinely
- * gone → 404.
+ * Map a GraphQL MUTATION-stage failure. This runs AFTER both the gate and the
+ * fresh re-resolve succeeded, so the viewer has already proven repo access
+ * and there is no existence to leak by being specific. A FORBIDDEN here is a
+ * genuine App permission gap: `markPullRequestReadyForReview` requires
+ * `contents: write`, GitHub's own granularity, so it surfaces as an honestly
+ * actionable 403 rather than collapsing into "no longer accessible". A
+ * NOT_FOUND still means the PR is genuinely gone.
  */
 export function throwMarkReadyFailure(failure: MarkReadyFailure): never {
   if (failure.kind === "token-unreadable") {

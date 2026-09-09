@@ -46,3 +46,19 @@ depended on an app.
 - `api` has no process entry, Dockerfile or start script yet. Its placement
   records the design, not the deployment.
 - The eval harness depends on `brief-core` and `generators` only.
+
+## Update, 2026-09-08
+
+Both consequences the decision deferred have landed, so the text above reads as
+history from here on.
+
+- The three baselined `api` edges are gone. `apps/web` reaches the API over
+  HTTP through a server-side proxy, the CLI suites drive the API from its own
+  executable, and the catalog wording pin moved to `packages/contract`. The
+  known-violations file is deleted and dependency-cruiser runs unsuppressed.
+- `packages/contract` exists and carries the wire vocabulary and response
+  shapes the API produces and its clients read. It imports `persistence`
+  type-only, and `contract-imports-no-runtime` holds that, because `apps/web`
+  reaches the package through an isomorphic module.
+- `api` now has the process entry, Dockerfile and start script this ADR said it
+  lacked.

@@ -25,6 +25,7 @@ export {
 export {
   createReviewFlowStore,
   initialReviewFlowState,
+  type ReviewFlowActions,
   type ReviewFlowState,
   type ReviewFlowStore,
 } from "./flow/store";

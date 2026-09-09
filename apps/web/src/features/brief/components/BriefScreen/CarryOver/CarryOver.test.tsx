@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The carry-over row's four states, the span it always states, and the
-// attention list's clearing affordances — driven through the real screen,
+// attention list's clearing affordances, driven through the real screen,
 // because the list is what replaces the row and both are one region.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { I18nProvider } from "../../../../../i18n/I18nProvider";
 import type { ReviewSessionPayload } from "@web/features/review/session";
 import { BriefView } from "../../BriefView/BriefView";
-import { briefFixture } from "../../../utils/fixtures";
+import { briefFixture } from "@web/features/brief/fixtures";
 
 afterEach(cleanup);
 
@@ -144,7 +144,7 @@ describe("carry-over row", () => {
     expect(screen.queryByTestId("carry-over-row")).toBeNull();
   });
 
-  it("states the receipt — work, count, span, and that nothing needs a re-look", () => {
+  it("states the receipt work, count, span, and nothing to re-look at", () => {
     renderScreen(buildPayload({}));
     expect(getRowText()).toContain("Your review carried forward · 4 items");
     expect(getRowText()).toContain("a84c1de → abcdef1");
@@ -181,7 +181,7 @@ describe("carry-over row", () => {
     expect(getRowText()).not.toContain("revisions");
   });
 
-  it("replaces the receipt's verdict with the pending items, and states the span still", () => {
+  it("replaces the receipt verdict with pending items and keeps the span", () => {
     renderScreen(buildOrphanedDraft());
     expect(getRowText()).toContain("1 item needs a re-look");
     expect(getRowText()).toContain("a84c1de → abcdef1");

@@ -1,12 +1,12 @@
 import type { TranslationKey } from "i18n";
 
 import type { AttentionItemKind } from "@web/features/review/session";
-import type { CarriedItem } from "@web/features/review/utils/state";
+import type { CarriedItem } from "@web/features/review/utils";
 
 /**
  * The operations this screen can run, by the id the server uses. The client
- * NEVER decides which operations clear which kind — `clearedBy` says that —
- * so this map only answers "can the browser do that one, and what is it
+ * NEVER decides which operations clear which kind, `clearedBy` says that.
+ * This map only answers "can the browser do that one, and what is it
  * called". An id absent here renders no control rather than a dead one.
  */
 export const ATTENTION_ACTION_COPY = {
@@ -29,9 +29,9 @@ export function getKindCopyKey(item: CarriedItem): TranslationKey {
 }
 
 export function isRunnableAction(id: string): id is AttentionActionId {
-  // `hasOwn`, not `in`: `clearedBy` is wire data, and `in` answers true for
-  // every prototype key — a stray value would render a button labelled with
-  // whatever `Object.prototype` holds.
+  // `hasOwn`, not `in`: `clearedBy` is wire data and `in` answers true for
+  // every prototype key, so a stray value would render a button labelled
+  // with whatever `Object.prototype` holds.
   return Object.hasOwn(ATTENTION_ACTION_COPY, id);
 }
 

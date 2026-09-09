@@ -100,6 +100,12 @@ export interface HarnessRunResult {
   exitSignal: NodeJS.Signals | null;
   /** Which timer killed the run, if any. */
   timedOut: "hard" | "inactivity" | null;
+  /**
+   * Wall-clock from spawn to close. A timeout says WHICH timer fired; this
+   * says how far the run got before it did, which is the difference between
+   * a wedged CLI and one that was still working when the budget ran out.
+   */
+  durationMs: number;
 }
 
 /**
@@ -128,6 +134,7 @@ export async function runHarnessProcess(
 
     if (args.cwd) spawnOptions.cwd = args.cwd;
 
+    const startedAt = Date.now();
     const child = spawn(args.command, [...args.argv], spawnOptions);
 
     let stdout = "";
@@ -341,6 +348,7 @@ export async function runHarnessProcess(
         exitCode,
         exitSignal,
         timedOut,
+        durationMs: Date.now() - startedAt,
       });
     });
   });

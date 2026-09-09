@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 // The seam this file pins: reading position lives in the position store, so
-// a scroll-spy tick re-renders position SUBSCRIBERS — never the component
+// a scroll-spy tick re-renders position SUBSCRIBERS, never the component
 // hosting this hook (the screen shell).
 import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ReviewSessionProvider } from "@web/features/review/session";
-import { briefFixture } from "../../utils/fixtures";
+import { briefFixture } from "@web/features/brief/fixtures";
 import { buildBriefViewModel } from "../../utils/viewModel";
 import { deriveGroupHeadingId, deriveGroupSectionId } from "./utils";
 import {
@@ -74,7 +74,7 @@ describe("useReadingSession reading position", () => {
         <SessionHost position={position} onRender={onRender} />
       </ReviewSessionProvider>,
     );
-    // The spy's mount pass already reported the crossing chunk — with the
+    // The spy's mount pass already reported the crossing chunk, with the
     // derived group riding along in the same write.
     expect(position.getState().activeChunkId).toBe("chunk-a");
     expect(position.getState().activeGroupId).toBe(
@@ -145,7 +145,7 @@ describe("useReadingSession heading landing", () => {
     return { position, session: session as UseReadingSessionValue };
   }
 
-  it("lands on the group section, focuses the heading, and marks the first chunk", () => {
+  it("lands on the group section, focuses the heading, marks a chunk", () => {
     vi.useFakeTimers();
     const { section, chunk, heading } = mountGroup(true);
     const { position, session } = renderSession();

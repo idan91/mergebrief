@@ -26,7 +26,7 @@ import { RoleBadge } from "./RoleBadge/RoleBadge";
 import {
   splitInlineRows,
   type DigestRow,
-} from "@web/features/conversation/utils/digest";
+} from "@web/features/conversation/utils";
 import { InlineThreads } from "@web/features/conversation";
 import type { ThreadComposerWiring } from "@web/features/conversation";
 import { DiffTable } from "../../DiffTable/DiffTable";
@@ -133,13 +133,13 @@ export const ChunkCard = memo(function ChunkCard({
   const active = useReadingPosition(
     (state) => state.activeChunkId === chunk.id,
   );
-  // Selection identity when the toggle gesture started — only a selection
+  // Selection identity when the toggle gesture started. Only a selection
   // CHANGED by this gesture suppresses the click. A stale selection that
   // survives the mousedown untouched (Firefox/Safari keep selections
   // across mousedowns on unselectable content) must not swallow the click.
   const selectionAtMouseDown = useRef<SelectionSnapshot | null>(null);
   // Unsuppressed toggles within the current click pair (reset on the
-  // pair's first mousedown) — the dblclick compensator must know what the
+  // pair's first mousedown). The dblclick compensator must know what the
   // pair actually did, not infer it from selection presence.
   const togglesThisPair = useRef(0);
   // Selected per chunk so this card re-renders only when ITS slice changes,
@@ -166,12 +166,12 @@ export const ChunkCard = memo(function ChunkCard({
   const topReviewComments = hasLinkedAddressedComments
     ? chunkReviewComments
     : chunkReviewComments.filter(
-        (comment) => comment.outdated || comment.line == null,
+        (comment) => comment.outdated || comment.line === null,
       );
   const inlineReviewComments = hasLinkedAddressedComments
     ? chunkReviewComments
     : chunkReviewComments.filter(
-        (comment) => !comment.outdated && comment.line != null,
+        (comment) => !comment.outdated && comment.line !== null,
       );
   return (
     <article
@@ -223,7 +223,7 @@ export const ChunkCard = memo(function ChunkCard({
             // toggle (its first click preceded the word selection, the
             // second was suppressed) toggles again so the pair nets to
             // zero. Pairs that netted zero (both suppressed) or two (no
-            // selection change — already net zero) are left alone.
+            // selection change, already net zero) are left alone.
             if (togglesThisPair.current === 1) toggleChunk(chunk.id);
           }}
         >

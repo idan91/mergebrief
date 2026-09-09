@@ -6,7 +6,7 @@ import {
   DEFAULT_CONVERSATION_FILTER,
   parseConversationFilter,
   type ConversationFilter,
-} from "@web/features/conversation/utils/filter";
+} from "@web/features/conversation/utils";
 import {
   FilterDisclosure,
   type FilterDisclosureProps,
@@ -47,7 +47,7 @@ describe("FilterDisclosure trigger", () => {
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
   });
 
-  it("carries the active receipt — families then the hidden count last", () => {
+  it("carries the active receipt, families then the hidden count last", () => {
     renderDisclosure({
       filter: parseConversationFilter({
         verdicts: "approved",
@@ -60,7 +60,7 @@ describe("FilterDisclosure trigger", () => {
     expect(trigger.textContent).toContain("1 verdict");
     expect(trigger.textContent).toContain("2 reviewers");
     expect(trigger.textContent).toContain("4 hidden");
-    // The hidden count gets a screen-reader referent — "4 hidden" alone has
+    // The hidden count gets a screen-reader referent, because "4 hidden" has
     // none when read from the trigger.
     expect(trigger.textContent).toContain("threads in the diff");
   });
@@ -95,7 +95,7 @@ describe("FilterDisclosure panel", () => {
     expect(screen.queryByTestId("conversation-filter-panel")).toBeNull();
   });
 
-  it("stays open across chip clicks — filtering is iterative", () => {
+  it("stays open across chip clicks because filtering is iterative", () => {
     const { onChange } = renderDisclosure();
     fireEvent.click(screen.getByRole("button", { name: /^Filter/ }));
     fireEvent.click(screen.getByRole("button", { name: /approved/ }));
@@ -114,7 +114,7 @@ describe("FilterDisclosure panel", () => {
       // jsdom's click does not focus the button the way a browser does.
       trigger.focus();
       fireEvent.click(trigger);
-      // Real keyboard events target the focused element, never document —
+      // Real keyboard events target the focused element, never document,
       // useDismiss's capture-phase claim defers to an at-target listener,
       // so the pin dispatches from the trigger (focused on open).
       fireEvent.keyDown(trigger, { key: "Escape" });
@@ -127,9 +127,9 @@ describe("FilterDisclosure panel", () => {
     }
   });
 
-  it("focus sits on the trigger when the panel opens — never moved into it", () => {
+  it("focus stays on the trigger when the panel opens", () => {
     // Disclosure grammar: opening must not hijack focus; Tab is the way in
-    // (FloatingFocusManager initialFocus={-1} — the default steals focus
+    // (FloatingFocusManager initialFocus={-1}, since the default steals focus
     // into the panel in a microtask).
     renderDisclosure();
     const trigger = screen.getByRole("button", { name: /^Filter/ });
@@ -155,7 +155,7 @@ describe("FilterDisclosure panel", () => {
 });
 
 describe("FilterDisclosure live region", () => {
-  it("mounts the status region ALWAYS, so the first hidden count lands as an update", () => {
+  it("mounts the status region always, so the first count is an update", () => {
     const { view } = renderDisclosure();
     const status = screen.getByRole("status");
     expect(status.textContent).toBe("");

@@ -14,9 +14,11 @@ import {
   parseCompareParam,
   parseViewParam,
   type BriefSearchParams,
-} from "../features/brief/comparison/compareState";
-import { briefErrorDetail } from "@web/features/brief/utils/briefErrors";
-import { resolveLegacyDeltaRedirect } from "@web/features/brief/utils";
+} from "@web/features/brief/comparison";
+import {
+  briefErrorDetail,
+  resolveLegacyDeltaRedirect,
+} from "@web/features/brief/utils";
 import {
   localBriefQueryOptions,
   localBriefsQueryOptions,

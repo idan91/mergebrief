@@ -17,7 +17,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Brief, BriefChunk } from "@web/features/brief/types";
 import { buildBriefViewModel } from "@web/features/brief/utils";
-import type { ReviewComment } from "@web/features/review/utils/comments";
+import type { ReviewComment } from "@web/features/review/utils";
 import {
   createReviewFlowStore,
   ReviewSessionProvider,
@@ -190,7 +190,7 @@ function SessionTapProbe({ tap }: { tap: SessionTap }) {
 function renderSection(
   overrides: Partial<ConversationSectionProps> & {
     plan: ConversationPlan;
-    /** Seeded into sessionStorage — the composer's only draft source. */
+    /** Seeded into sessionStorage, the composer's only draft source. */
     replyDrafts?: Record<string, string>;
   },
 ) {
@@ -198,7 +198,7 @@ function renderSection(
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  // The reply composer reads announce from the ReviewFlow store — wrap the
+  // The reply composer reads announce from the ReviewFlow store, wrap the
   // real action so copy is observable as a call.
   const flowStore = createReviewFlowStore(
     {
@@ -251,7 +251,7 @@ function renderSection(
   }
   const view = render(ui(props));
   // Unmounts ONLY the section: the probe stays mounted, so the composer's
-  // unmount write to the store is observable — which it would not be if the
+  // unmount write to the store is observable, which it would not be if the
   // whole tree (the store with it) went away.
   const unmountSection = () => {
     act(() => {
@@ -289,7 +289,7 @@ describe("ConversationSection", () => {
     ).toBeDefined();
   });
 
-  it("omits the count line without a cutoff and marks nothing (local path)", async () => {
+  it("omits the count line without a cutoff and marks nothing", async () => {
     renderSection({ plan: plan([ready()]) });
     await screen.findByText("changes requested");
     expect(screen.queryByText(/arrived after this brief/)).toBeNull();
@@ -309,7 +309,7 @@ describe("ConversationSection", () => {
         "2 comments arrived after this brief was generated",
       ),
     ).toBeDefined();
-    // Expand alice's (human) thread row — its detail chips the comment.
+    // Expand alice's (human) thread row, its detail chips the comment.
     fireEvent.click(
       screen.getByRole("button", {
         name: /This null check looks inverted/,
@@ -318,7 +318,7 @@ describe("ConversationSection", () => {
     expect(await screen.findByText("after this brief")).toBeDefined();
   });
 
-  it("expands a thread row via aria-expanded disclosure and jumps to its chunk", async () => {
+  it("expands a thread row via aria-expanded and jumps to its chunk", async () => {
     const { props } = renderSection({ plan: plan([ready()]) });
     const row = await screen.findByRole("button", {
       name: /This null check looks inverted/,
@@ -335,7 +335,7 @@ describe("ConversationSection", () => {
     });
   });
 
-  it("keeps expansion across a refetch (state, not entry-path memory)", async () => {
+  it("keeps expansion across a refetch from state, not entry path", async () => {
     const { client } = renderSection({ plan: plan([ready(), ready()]) });
     const row = await screen.findByRole("button", {
       name: /This null check looks inverted/,
@@ -482,7 +482,7 @@ describe("ConversationSection", () => {
     expect(screen.getByText(/beyond the budget/)).toBeDefined();
   });
 
-  it("flips drafts the reconciliation proved posted (server-backed wins)", async () => {
+  it("flips drafts the reconciliation proved posted", async () => {
     const localDraft: ReviewComment = {
       id: "ghost-draft",
       anchor: {
@@ -657,7 +657,7 @@ describe("ReplyComposer", () => {
     );
   });
 
-  it("persists the draft as it is typed (navigation survival)", async () => {
+  it("persists the draft as it is typed so navigation survives it", async () => {
     renderSection({ plan: plan([ready()]) });
     await openThread();
     const textarea = screen.getByLabelText(/Reply \(posts to GitHub/);
@@ -665,7 +665,7 @@ describe("ReplyComposer", () => {
     expect(getReplyDraft(9001)).toBe("half a thought");
   });
 
-  it("keeps the draft and announces on failure (indeterminate copy on throw)", async () => {
+  it("keeps the draft and announces indeterminate copy on failure", async () => {
     const failingPlan = plan([ready()]);
     (failingPlan.postReply as ReturnType<typeof vi.fn>).mockRejectedValue(
       new Error("boom"),
@@ -688,7 +688,7 @@ describe("ReplyComposer", () => {
     );
   });
 
-  it("blocks an over-cap reply with associated error copy (mirrored 400)", async () => {
+  it("blocks an over-cap reply with associated error copy", async () => {
     renderSection({
       plan: plan([ready()]),
       replyDrafts: { "9001": "x".repeat(65_537) },
@@ -706,7 +706,7 @@ describe("ReplyComposer", () => {
     expect(button.getAttribute("aria-disabled")).toBe("true");
   });
 
-  it("keeps focus on the Reply button through posting (focusable-disabled)", async () => {
+  it("keeps focus on the Reply button through posting", async () => {
     renderSection({
       plan: plan([ready(), ready()]),
       replyDrafts: { "9001": "a follow-up" },
@@ -729,7 +729,7 @@ describe("ReplyComposer", () => {
     );
   });
 
-  it("blocks an empty reply (button disabled)", async () => {
+  it("blocks an empty reply with a disabled button", async () => {
     renderSection({ plan: plan([ready()]) });
     await openThread();
     const button = screen.getByRole("button", { name: "Reply" });
@@ -739,13 +739,13 @@ describe("ReplyComposer", () => {
 });
 
 describe("disclosure and focus behaviour", () => {
-  it("the heading is a natively focusable disclosure with the summary visible collapsed", async () => {
+  it("the heading is a focusable disclosure, summary visible collapsed", async () => {
     const onToggle = vi.fn();
     renderSection({ plan: plan([ready()]), open: false, onToggle });
     const toggle = await screen.findByRole("button", {
       name: /Conversation.*2 threads.*1.*open/,
     });
-    // A button is natively focusable — the C shortcut's focus target.
+    // A button is natively focusable, the C shortcut's focus target.
     expect(toggle.id).toBe("conversation-heading");
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
     // Collapsed: the digest is hidden, the summary is not.
@@ -757,7 +757,7 @@ describe("disclosure and focus behaviour", () => {
   it("an untouched composer twin never clobbers the saved draft on unmount", async () => {
     // sessionStorage holds a draft; this composer instance mounts WITH it and
     // the user never edits here (the twin at the chunk did the typing). Its
-    // unmount must not write anything — especially not an empty body.
+    // unmount must not write anything, especially not an empty body.
     const { unmountSection } = renderSection({
       plan: plan([ready()]),
       replyDrafts: { "9001": "typed at the chunk twin" },
@@ -774,7 +774,7 @@ describe("disclosure and focus behaviour", () => {
     });
     await openThread();
     const textarea = screen.getByLabelText(/Reply \(posts to GitHub/);
-    // Instance-scoped (useId, now inside MarkdownTextarea) — a thread-derived
+    // Instance-scoped (useId, now inside MarkdownTextarea), a thread-derived
     // id would duplicate when the same thread renders inline at its chunk and
     // in the section. Distinctness across instances is pinned in
     // MarkdownTextarea.test.tsx.
@@ -832,7 +832,7 @@ function jumpPlan(
   };
 }
 
-describe("ConversationSection — outdated-thread revision jump", () => {
+describe("ConversationSection outdated-thread revision jump", () => {
   it("offers an enabled jump when the anchor was a briefed head", async () => {
     const { plan: jp, onJump } = jumpPlan("anchor-1", ["anchor-1"]);
     renderSection({ plan: jp });
@@ -848,7 +848,7 @@ describe("ConversationSection — outdated-thread revision jump", () => {
     expect(onJump).toHaveBeenCalledWith("anchor-1", 7777);
   });
 
-  it("disables the jump (focusably, with a reason) when the anchor was never briefed", async () => {
+  it("disables the jump focusably when the anchor was never briefed", async () => {
     const { plan: jp, onJump } = jumpPlan("anchor-x", ["anchor-1"]);
     renderSection({ plan: jp });
     const row = await screen.findByRole("button", {
@@ -867,9 +867,9 @@ describe("ConversationSection — outdated-thread revision jump", () => {
     expect(onJump).not.toHaveBeenCalled();
   });
 
-  it("reveals a target hidden behind the group's show-more cap before landing", async () => {
+  it("reveals a target behind the show-more cap before landing", async () => {
     // 51 unresolved threads + a resolved target: sorted last (resolved sinks),
-    // it falls past the 50-row cap and would never render — the landing
+    // it falls past the 50-row cap and would never render, the landing
     // effect must lift the cap for its group first.
     const filler = Array.from({ length: 51 }, (_, i) => {
       const id = 20_000 + i;
@@ -960,10 +960,10 @@ describe("ConversationSection — outdated-thread revision jump", () => {
     }
   });
 
-  it("lands on the ?thread= target by auto-expanding its row (reads thread=)", async () => {
+  it("lands on the ?thread= target by auto-expanding its row", async () => {
     const { plan: jp } = jumpPlan("anchor-1", ["anchor-1"]);
     renderSection({ plan: jp, focusThreadId: 7777 });
-    // The targeted thread expands on its own — the reply composer (rendered
+    // The targeted thread expands on its own, the reply composer (rendered
     // only inside an expanded thread detail) appears with no manual click.
     expect(
       await screen.findByLabelText(/Reply \(posts to GitHub/),
@@ -1006,7 +1006,7 @@ describe("ConversationSection — outdated-thread revision jump", () => {
       };
     }
 
-    /** The filter rides as SECTION props — never on the plan, whose identity
+    /** The filter rides as SECTION props, never on the plan, whose identity
      * feeds the memo boundaries that keep the diff off the render path. */
     function filterProps(filter: ConversationFilter) {
       const onFilterChange = vi.fn<(next: ConversationFilter) => void>();
@@ -1029,7 +1029,7 @@ describe("ConversationSection — outdated-thread revision jump", () => {
       renderSection(
         filterProps(parseConversationFilter({ reviewers: "nobody-here" })),
       );
-      // An unmatched login reconciles away, so the section stays populated —
+      // An unmatched login reconciles away, so the section stays populated,
       // the empty state belongs to a filter that matched a real reviewer.
       expect(await screen.findByText("needs work")).toBeDefined();
       cleanup();
@@ -1046,15 +1046,15 @@ describe("ConversationSection — outdated-thread revision jump", () => {
       ).toBeDefined();
     });
 
-    it("keeps a standing approval that a later empty COMMENTED envelope would hide", async () => {
+    it("keeps a standing approval a later empty envelope would hide", async () => {
       // Alice's newest review is GitHub's inline-comment envelope, which
-      // renders nothing — her change-request is what still stands.
+      // renders nothing, her change-request is what still stands.
       renderSection(filterProps(DEFAULT_CONVERSATION_FILTER));
       expect(await screen.findByText("needs work")).toBeDefined();
       expect(screen.getByText("ship it")).toBeDefined();
     });
 
-    it("keeps unfiltered totals in the header — filter state never appears there", async () => {
+    it("keeps unfiltered totals in the header, filter state stays out", async () => {
       // The toolbar trigger is the ONE place filter state renders; the
       // header keeps describing the whole conversation, so a hard filter
       // cannot dress totals up as data loss.

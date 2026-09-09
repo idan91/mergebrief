@@ -3,7 +3,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { Roles, type Brief } from "@web/features/brief/types";
-import { briefFixture } from "@web/features/brief/utils/fixtures";
+import { briefFixture } from "@web/features/brief/fixtures";
 import { I18nProvider } from "@web/i18n/I18nProvider";
 import type { SessionSnapshot } from "../../session";
 import { SummaryPreview } from "./SummaryPreview";
@@ -45,7 +45,7 @@ function metricValue(label: string): string {
 }
 
 describe("SummaryPreview remainder totals", () => {
-  it("lets chunks reviewed exceed core plus supporting when a remainder exists", () => {
+  it("lets reviewed chunks exceed core plus supporting with a remainder", () => {
     render(
       <I18nProvider>
         <SummaryPreview brief={remainderBrief()} snapshot={snapshot()} />

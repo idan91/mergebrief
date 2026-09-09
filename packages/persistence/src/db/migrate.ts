@@ -1,13 +1,11 @@
 // Programmatic app-schema migration at BOOT, without shelling out to
-// drizzle-kit. Wraps drizzle-orm's node-postgres migrator over the
-// package-owned migrations folder, so a consumer never needs to know where the
-// SQL lives.
+// drizzle-kit, over the package-owned migrations folder.
 //
 // Idempotent by construction: drizzle records applied migrations in
-// `drizzle.__drizzle_migrations` and no-ops when current — safe for every
-// process to call at startup. Scoped to the app schema only: the
-// `graphile_worker` schema is graphile-owned and migrated by graphile's own
-// `runMigrations`, never here — drizzle must not manage it.
+// `drizzle.__drizzle_migrations` and no-ops when current, so every process may
+// call it at startup. Scope is the app schema only; the `graphile_worker`
+// schema is graphile-owned, migrated by graphile's own `runMigrations`, and
+// drizzle must not manage it.
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
@@ -20,12 +18,12 @@ import type { Result, ValueOf } from "../types";
 
 /**
  * Locate the checked-in `drizzle/` folder at RUNTIME. Two cases:
- * (a) this module runs from package source (worker via tsx, tests) —
- *     `import.meta.url` sits in `src/`, so `../drizzle` is right;
+ * (a) this module runs from package source (worker via tsx, tests), so
+ *     `import.meta.url` sits in `src/` and `../drizzle` is right;
  * (b) this module was BUNDLED into a consumer's server build (the web app's
  *     vite SSR bundle), where `import.meta.url` points into the consumer's
- *     dist — then resolve the package itself through node's resolver and
- *     take `drizzle/` beside its entry (`src/index.ts`).
+ *     dist, so resolve the package itself through node's resolver and take
+ *     `drizzle/` beside its entry (`src/index.ts`).
  */
 function migrationsFolder(): string {
   const fromModule = fileURLToPath(new URL("../drizzle", import.meta.url));
@@ -40,9 +38,9 @@ function migrationsFolder(): string {
 /**
  * Session-scoped advisory-lock key serializing concurrent `migrateApp` runs.
  * Drizzle's node-postgres migrator takes NO lock of its own (unlike
- * graphile's `runMigrations`), so two composition roots booting together —
- * the compose `worker` at startup and `web` on its first webhook — would
- * race CREATE TABLEs and one would die on "already exists". Arbitrary but
+ * graphile's `runMigrations`), so two composition roots booting together (the
+ * compose `worker` at startup and `web` on its first webhook) would race
+ * CREATE TABLEs and one would die on "already exists". Arbitrary but
  * stable int64; only this function uses it.
  */
 const MIGRATE_LOCK_KEY = 0x62726965_66n; // "brief"
@@ -50,8 +48,8 @@ const MIGRATE_LOCK_KEY = 0x62726965_66n; // "brief"
 /**
  * Idempotently apply the checked-in app-schema migrations to the target
  * database, serialized across processes by a Postgres advisory lock. Opens
- * its own short-lived single connection and releases it before resolving —
- * it does NOT return a handle; open one with `createDb` after.
+ * its own short-lived single connection and releases it before resolving. It
+ * does NOT return a handle; open one with `createDb` after.
  */
 export async function migrateApp(databaseUrl: string): Promise<void> {
   const pool = new Pool({ connectionString: databaseUrl, max: 1 });
@@ -79,20 +77,14 @@ export async function migrateApp(databaseUrl: string): Promise<void> {
 // ---------------------------------------------------------------------------
 // Check-only mode: `MERGEBRIEF_AUTO_MIGRATE=false`.
 //
-// Deployments whose RUNTIME role has no DDL (managed Postgres, least
-// privilege) cannot let the boot path apply migrations. Check-only compares
-// the drizzle ledger (`drizzle.__drizzle_migrations`) against the checked-in
-// `drizzle/meta/_journal.json` READ-ONLY and refuses boot when behind —
-// never limping into a half-migrated schema, never attempting DDL. The
-// comparison mirrors the drizzle migrator's own rule: an entry is pending
-// when its journal `when` is newer than the latest ledger `created_at`. A
-// database AHEAD of the journal (newer code already migrated it) passes —
-// exactly what `migrateApp` would no-op on. Scope: the app schema only; the
-// `graphile_worker` schema stays graphile-owned (its migrator no-ops
-// read-only when current).
+// A RUNTIME role without DDL cannot apply migrations at boot, so this path
+// compares the drizzle ledger against `drizzle/meta/_journal.json` READ-ONLY
+// and refuses boot when behind. An entry is pending when its journal `when` is
+// newer than the latest ledger `created_at`, the drizzle migrator's own rule;
+// a database AHEAD of the journal passes. App schema only.
 // ---------------------------------------------------------------------------
 
-/** The journal shape the check consumes — `when` (ms) is the ordering key
+/** The journal shape the check consumes; `when` (ms) is the ordering key
  * drizzle's own migrator applies by. */
 const JournalSchema = z.object({
   entries: z.array(z.object({ when: z.number(), tag: z.string() })),
@@ -126,14 +118,15 @@ async function latestAppliedMillis(
   const presence = await executor(
     "select to_regclass('drizzle.__drizzle_migrations') as ledger",
   );
-  if (presence[0]?.["ledger"] == null) {
+  const ledger = presence[0]?.["ledger"];
+  if (ledger === null || ledger === undefined) {
     return undefined;
   }
   const rows = await executor(
     "select max(created_at) as latest from drizzle.__drizzle_migrations",
   );
   const latest = rows[0]?.["latest"];
-  if (latest == null) {
+  if (latest === null || latest === undefined) {
     return undefined;
   }
   // bigint columns arrive as string (pg) or number/bigint (PGlite).
@@ -145,7 +138,7 @@ async function latestAppliedMillis(
  * Read-only schema check over an injected executor. `ok` when every
  * checked-in migration is recorded as applied (or the ledger is ahead);
  * `PENDING_MIGRATIONS` with the count and the manual command when behind.
- * Infra failures (unreachable database, bad permissions on the READ) throw —
+ * Infra failures (unreachable database, bad permissions on the READ) throw;
  * they are not a "behind" verdict.
  */
 export async function checkAppSchemaWith(
@@ -170,7 +163,7 @@ export async function checkAppSchemaWith(
       pendingCount: pending,
       message:
         `database schema is ${pending} migration(s) behind the checked-in set ` +
-        "and MERGEBRIEF_AUTO_MIGRATE=false forbids applying at boot — run " +
+        "and MERGEBRIEF_AUTO_MIGRATE=false forbids applying at boot. Run " +
         "`pnpm -C packages/persistence migrate` with a DDL-capable " +
         "DATABASE_URL, then restart the worker (the web tier recovers on " +
         "its next request)",
@@ -198,7 +191,7 @@ export interface EnsureAppSchemaOptions {
   readonly autoMigrate: boolean;
 }
 
-/** Injectable apply/check implementations — a TEST interface (the real ones need
+/** Injectable apply/check implementations, a TEST interface (the real ones need
  * a live pg). Not re-exported from `index.ts`; production callers omit it. */
 export interface EnsureAppSchemaDeps {
   readonly apply: (databaseUrl: string) => Promise<void>;
@@ -209,7 +202,7 @@ export interface EnsureAppSchemaDeps {
 
 /**
  * The one boot-time boundary both startup-wiring paths call: apply the
- * app-schema migrations, or — under `MERGEBRIEF_AUTO_MIGRATE=false` — verify
+ * app-schema migrations, or, under `MERGEBRIEF_AUTO_MIGRATE=false`, verify
  * read-only that nothing is pending. The returned error is the operator
  * refusal; infra failures still throw.
  */

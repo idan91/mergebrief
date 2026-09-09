@@ -1,9 +1,9 @@
 // The reviewer read API, behind the pr subtree's shared gate: PR meta, the
 // stored artifacts (brief / brief-context / marks / delta / narrative), and
 // the LIVE diff proxy (viewer token, per-session ~60s cache, NEVER
-// persisted). Composition only; the diff cache is created here — once per
-// `createApp` — so it is scoped to the app instance.
-import { ProductQueryIds } from "../../../../product-operations/ids";
+// persisted). Composition only; the diff cache is created here, once per
+// `createApp`, so it is scoped to the app instance.
+import { ProductQueryIds } from "contract";
 import {
   productRouter,
   type ProductRouter,

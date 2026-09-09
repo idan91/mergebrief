@@ -7,7 +7,7 @@ import {
 } from "persistence";
 import type { AppDatabase } from "persistence";
 import { DEFAULT_DRAFT_POLICY } from "../../../../draft-policy";
-import { ApiErrorCodes } from "../../../../error-response";
+import { ApiErrorCodes } from "contract";
 import {
   BadGateway,
   NotFound,
@@ -33,7 +33,7 @@ import { parseQuery, parsePrNumber } from "./utils";
 
 /**
  * Return a stored artifact `body` verbatim as JSON. The body is ALREADY a
- * JSON string (persistence passthrough) — do NOT re-parse/re-serialize it.
+ * JSON string (persistence passthrough), do NOT re-parse/re-serialize it.
  * `no-store`: these are per-viewer, authz-gated responses.
  */
 function artifactJson(c: Context<AuthzEnv>, body: string): Response {
@@ -163,7 +163,7 @@ export default function createHandlers(
     const query = parseQuery(c, diffQuerySchema, ["base", "head"]);
     const prNumber = parsePrNumber(c);
     // Fetch by the AUTHZ-VERIFIED full name (set by the gate from its GitHub
-    // access check / positive cache), never the row's stored repo_slug — a
+    // access check / positive cache), never the row's stored repo_slug, a
     // rename + name-reuse could point the stored slug at a different repo
     // than the numeric id the gate authorized.
     const target = parseOwnerAndName(c.get("repoFullName"));
@@ -198,7 +198,7 @@ export default function createHandlers(
       }
       const denied = result.error;
       // 406 = GitHub refuses to render the diff (too large: >300 files/20k
-      // lines) — a PERMANENT condition for this span, so surface it as 413
+      // lines), a PERMANENT condition for this span, so surface it as 413
       // rather than a retryable-looking 502.
       if (denied.error.status === 406) {
         throw new PayloadTooLarge(ApiErrorCodes.DIFF_TOO_LARGE);

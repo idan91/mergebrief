@@ -14,7 +14,7 @@ import type { BriefViewModel, RiskFlag } from "../../../utils/viewModel";
 import { GroupViewKinds } from "../../../utils/viewModel";
 import { resolveGroupName } from "../../../utils/resolveGroupName";
 import { isUnattributedRemainderChunk } from "../../../utils/remainder";
-import type { DigestRow } from "@web/features/conversation/utils/digest";
+import type { DigestRow } from "@web/features/conversation/utils";
 import type { ThreadComposerWiring } from "@web/features/conversation";
 import { useReviewFlow } from "@web/features/review/session";
 import { ChunkCard } from "./ChunkCard/ChunkCard";

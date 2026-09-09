@@ -2,7 +2,9 @@
 
 The Hono HTTP surface for the self-host backend. Its **webhook trust boundary** — `POST /api/webhooks/github` — verifies the HMAC over the raw body and parses the event through `github`'s Zod boundary. The event then maps, transactionally, to `persistence`'s tenant-scoped writes plus one debounced graphile `generate` job (`createIngestRoutines`).
 
-Deliberately NOT here: the `apps/web` catch-all mount, real-Postgres/graphile startup wiring, and any worker/LLM code.
+This app owns its own process: `src/main.ts` is the startup wiring (`pnpm start`, the compose `api` service), the one place env is read and a real database is constructed, and it serves the top-level `/healthz` and `/readyz` ahead of the `/api` mount. `apps/web` proxies `/api/*` here and holds no credentials.
+
+Deliberately NOT here: page rendering, and any worker/LLM code.
 
 Repo-wide conventions apply (root AGENTS.md); refinements below.
 
@@ -23,9 +25,9 @@ Layering: controllers are Hono-free and return `Result<T, XxxFailure>` for anyth
 
 **Adding a new error code** (the recipe):
 
-1. Add the kebab-case code to `ApiErrorCodes`, its status to `ApiErrorStatusByCode` (1:1 — a code needing two statuses is two codes), and its English template to `ApiErrorEnglishByCode` (i18next `{{param}}` syntax for any params, typed in `ApiErrorParams`). The status places the code in its class's `CodeFor<status>` automatically — throw it via that class.
-2. Add the identical template as `errors.<code>` in `packages/i18n/locales/en.json` — the i18n suite pins completeness and wording equality against the exported maps.
-3. Mirror the code in `apps/web`'s hand-rolled `ApiErrorCode` (its Equals pin fails to compile otherwise), and add the matching `pulls.briefError.<code>` copy. That lookup is total by a template-literal key type, so a missing entry breaks `apps/web`'s typecheck. The two catalog blocks are different copy: `errors.<code>` is the wire line, `pulls.briefError.<code>` is what a reader sees.
+1. Add the kebab-case code to `ApiErrorCodes` in `packages/contract/src/errors.ts`, its status to `ApiErrorStatusByCode` (1:1 — a code needing two statuses is two codes), and its English template to `ApiErrorEnglishByCode` (i18next `{{param}}` syntax for any params, typed in `ApiErrorParams`). The status places the code in its class's `CodeFor<status>` automatically — throw it via that class.
+2. Add the identical template as `errors.<code>` in `packages/i18n/locales/en.json` — `packages/contract/test/wire-pin.test.ts` pins completeness and wording equality against the exported maps.
+3. Add the matching `pulls.briefError.<code>` copy in the catalog. `apps/web` needs no code mirror: it spreads `contract`'s map and adds only its own `malformed`. The copy lookup is total by a template-literal key type, so a missing entry breaks `apps/web`'s typecheck. The two catalog blocks are different copy: `errors.<code>` is the wire line, `pulls.briefError.<code>` is what a reader sees.
 4. A param value must never carry free-form upstream text unless pre-sanitized (`sanitizeErrorDetail` from `logging`).
 
 Security collapses stay at the per-domain handlers, BEFORE the wire: internal vocabularies (`GitHubApiErrorCodes`, the `GenerateFailure` kind union in `src/routes/generate/types.ts`, `RefreshErrorCodes`) map to thrown classes there. That keeps the uniform-404 posture. A wire code is already the public posture, never the internal cause.

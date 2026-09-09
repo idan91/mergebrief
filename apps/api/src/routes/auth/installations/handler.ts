@@ -13,7 +13,7 @@ import installationsController from "./controller";
 import { switchBodySchema } from "./schemas";
 import type { InstallationsFailure } from "./types";
 import { toInstallationId } from "./utils";
-import { ApiErrorCodes } from "../../../error-response";
+import { ApiErrorCodes } from "contract";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
@@ -55,7 +55,7 @@ export default function createHandlers(deps: AuthRouteDeps) {
       throw new BadRequest();
     }
     // The audit row is written at the choke point under the credential's
-    // tenant — the one that authorized the switch, not the one it lands on.
+    // tenant, the one that authorized the switch, not the one it lands on.
     stampAuditTarget(c, "installation", target);
 
     const result = await installationsController.selectInstallation(

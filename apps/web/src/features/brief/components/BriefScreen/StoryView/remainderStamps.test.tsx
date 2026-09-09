@@ -9,7 +9,7 @@ import {
   ReviewSessionProvider,
 } from "@web/features/review/session";
 import type { ComparisonOverlayState } from "../../../comparison/comparisonOverlay";
-import { briefFixture } from "../../../utils/fixtures";
+import { briefFixture } from "@web/features/brief/fixtures";
 import { GroupViewKinds, buildBriefViewModel } from "../../../utils/viewModel";
 import {
   createReadingPositionStore,

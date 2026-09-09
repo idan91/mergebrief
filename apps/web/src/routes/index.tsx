@@ -8,7 +8,7 @@ import {
   generateBriefViaApi,
   localBriefsQueryOptions,
 } from "../features/brief/queries";
-import { briefErrorDetail } from "@web/features/brief/utils/briefErrors";
+import { briefErrorDetail } from "@web/features/brief/utils";
 import { LocalBriefsSection } from "@web/features/brief";
 import { OrgSwitcher } from "@web/features/installations";
 import { LocalePicker } from "../i18n/LocalePicker/LocalePicker";
@@ -21,7 +21,7 @@ import sharedStyles from "./routeShared.module.scss";
 import styles from "./index.module.scss";
 
 export const Route = createFileRoute("/")({
-  // Both lists prefetch in parallel — the session list SSRs through the
+  // Both lists prefetch in parallel, the session list SSRs through the
   // in-process apiFetch interface (same authz gate), never a client waterfall.
   loader: async ({ context }) => {
     const prefetches: Promise<unknown>[] = [
@@ -44,7 +44,7 @@ export const Route = createFileRoute("/")({
   errorComponent: BriefPickerError,
 });
 
-// The product name — an identifier, never translated.
+// The product name, an identifier, never translated.
 const PRODUCT_NAME = "MergeBrief";
 const PRODUCT_SUFFIX = " / review";
 
@@ -64,7 +64,7 @@ function BriefPicker() {
     try {
       // Signed-in only: the api door resolves with the viewer's token and
       // enqueues the worker; the repo route's meta poll shows progress. The
-      // signed-out gh-CLI door is gone — the box asks for sign-in instead.
+      // signed-out gh-CLI door is gone, the box asks for sign-in instead.
       const accepted = await generateBriefViaApi(url);
       await navigate({
         to: "/repos/$repoId/pulls/$prNumber",
@@ -74,7 +74,7 @@ function BriefPicker() {
         },
       });
     } catch (caught) {
-      // The server function rejects with a CODE, never a sentence — render
+      // The server function rejects with a CODE, never a sentence, render
       // it through the catalog (unmapped reasons fall back to the unexpected
       // line) rather than putting a raw token in a `role="alert"`.
       setError(briefErrorDetail(t, caught));

@@ -1,7 +1,7 @@
 // Server-backed threads win on exact review-id joins while local records retain links.
 // Matching drafts must become submitted so a missed local flip cannot resurrect a post.
 import { describe, expect, it } from "vitest";
-import type { ReviewComment } from "../../review/utils/comments";
+import type { ReviewComment } from "@web/features/review/utils";
 import type { ConversationComment, ConversationThread } from "../types";
 import type { Mutable } from "types";
 import {

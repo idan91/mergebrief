@@ -9,7 +9,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { briefFixture } from "../../../utils/fixtures";
+import { briefFixture } from "@web/features/brief/fixtures";
 import { buildBriefViewModel, GroupViewKinds } from "../../../utils/viewModel";
 import {
   createReadingPositionStore,
@@ -145,7 +145,7 @@ describe("Sidebar", () => {
     expect(chevron().getAttribute("aria-expanded")).toBe("true");
   });
 
-  it("Escape inside the expanded sidebar collapses it, returns focus to the chevron, and never reaches the window", () => {
+  it("Escape in the expanded sidebar collapses it and returns focus", () => {
     const windowListener = vi.fn();
     window.addEventListener("keydown", windowListener);
     renderSidebar();
@@ -302,7 +302,7 @@ describe("Sidebar below the tablet breakpoint", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("the chevron opens the sheet with focus on the active tab, and Escape returns focus to the chevron", () => {
+  it("the chevron opens the sheet on the active tab, Escape returns focus", () => {
     const windowListener = vi.fn();
     window.addEventListener("keydown", windowListener);
     renderSidebar({ band: "narrow" });
@@ -338,7 +338,7 @@ describe("Sidebar below the tablet breakpoint", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("a jump from the sheet collapses it; a tap returns focus to the chevron, a key press takes the heading landing", () => {
+  it("a jump from the sheet collapses it and returns focus by input kind", () => {
     const jumpToGroup = vi.fn();
     const jumpToGroupHeading = vi.fn();
     renderSidebar({ band: "narrow", jumpToGroup, jumpToGroupHeading });

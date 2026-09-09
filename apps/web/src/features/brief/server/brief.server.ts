@@ -145,13 +145,15 @@ async function readLocalBriefSummaries(): Promise<LocalBriefSummary[]> {
         sha: brief.pr.sha,
       };
 
-      if (brief.index != null) summary.index = brief.index;
+      if (brief.index !== undefined) summary.index = brief.index;
       if (brief.baselineSha) summary.baselineSha = brief.baselineSha;
       if (brief.headSha) summary.headSha = brief.headSha;
-      if (brief.baselineIndex != null) {
+      if (brief.baselineIndex !== null && brief.baselineIndex !== undefined) {
         summary.baselineIndex = brief.baselineIndex;
       }
-      if (brief.headIndex != null) summary.headIndex = brief.headIndex;
+      if (brief.headIndex !== null && brief.headIndex !== undefined) {
+        summary.headIndex = brief.headIndex;
+      }
 
       return summary;
     }),
@@ -284,7 +286,7 @@ async function readLocalComparisonMarksEntries(
  * Reconstructing from repo and number is ambiguous when repo names contain hyphens.
  */
 function briefStemFromSummary(summary: LocalBriefSummary): string | undefined {
-  if (summary.index == null) return undefined;
+  if (summary.index === undefined) return undefined;
   const suffix = `_${summary.index}_${summary.sha.slice(0, 8)}`;
   return summary.id.endsWith(suffix)
     ? summary.id.slice(0, -suffix.length)
@@ -316,7 +318,7 @@ function buildComparisonAvailability(
   const previousBriefMarks = marksForHead.find(
     (mark) => mark.baselineLabel === "previous-brief",
   );
-  if (previousBriefMarks && previousBriefMarks.baselineIndex != null) {
+  if (previousBriefMarks && previousBriefMarks.baselineIndex !== null) {
     const previousBrief: PreviousBriefComparisonAvailability = {
       marksId: previousBriefMarks.id,
       baselineSha: previousBriefMarks.baselineSha,

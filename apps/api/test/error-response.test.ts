@@ -1,11 +1,11 @@
 import { Hono, type Context } from "hono";
 import { describe, expect, it } from "vitest";
 import {
+  ApiErrorCodes,
   ApiErrorEnglishByCode,
   ApiErrorStatusByCode,
-  ApiErrorCodes,
-  errorJson,
-} from "../src/error-response";
+} from "contract";
+import { errorJson } from "../src/error-response";
 
 function appFor(handler: (c: Context) => Response): Hono {
   const app = new Hono();
@@ -52,7 +52,7 @@ describe("errorJson", () => {
     }
   });
 
-  it("pins the full code→status table — a flip is a contract decision", () => {
+  it("pins the full code to status table, a flip is a contract decision", () => {
     expect(ApiErrorStatusByCode).toEqual({
       unauthorized: 401,
       "invalid-signature": 401,

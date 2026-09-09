@@ -1,10 +1,7 @@
 // Curated feature entry: the externally consumed components only. Internal
 // pulls files import their targets directly, never this index
 // (import/no-cycle).
-export {
-  MarkReadyModal,
-  type MarkReadyModalProps,
-} from "./components/MarkReadyModal/MarkReadyModal";
+export { MarkReadyModal, type MarkReadyModalProps } from "./components";
 export {
   PrBriefBody,
   type PrBriefBodyProps,

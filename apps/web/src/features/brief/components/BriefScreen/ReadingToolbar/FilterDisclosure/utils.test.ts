@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_CONVERSATION_FILTER,
   parseConversationFilter,
-} from "@web/features/conversation/utils/filter";
+} from "@web/features/conversation/utils";
 import { filterTriggerSegments } from "./utils";
 import { createI18n } from "i18n";
 

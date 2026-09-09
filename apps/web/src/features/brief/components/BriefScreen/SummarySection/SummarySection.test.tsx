@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { briefFixture } from "../../../utils/fixtures";
+import { briefFixture } from "@web/features/brief/fixtures";
 import { SummarySection } from "./SummarySection";
 
 let contentHeight = 0;
@@ -41,7 +41,7 @@ afterEach(() => {
 });
 
 describe("single-column render", () => {
-  it("renders a changelog-bearing summary single-column, changelog as plain markdown", () => {
+  it("renders a changelog summary single-column, changelog as markdown", () => {
     const withChangelog = {
       ...briefFixture,
       summary: "A short lede.\n\n## Changelog\n\n- one\n- two",
@@ -54,13 +54,13 @@ describe("single-column render", () => {
       level: 4,
       name: "Changelog",
     });
-    // Structural pin: lede and changelog live in the SAME markdown root —
+    // Structural pin: lede and changelog live in the SAME markdown root,
     // any re-split into two containers fails this regardless of naming.
     const lede = screen.getByText("A short lede.");
     expect(lede.closest("[dir='auto']")).toBe(heading.closest("[dir='auto']"));
   });
 
-  it("renders DeltaContext on the single path for delta briefs, inside the capped body", () => {
+  it("renders DeltaContext for delta briefs inside the capped body", () => {
     const deltaBrief = {
       ...briefFixture,
       artifactKind: "delta" as const,
@@ -89,7 +89,7 @@ describe("SummarySection expandable-content adoption", () => {
     expect(screen.queryByTestId("pr-description")).toBeNull();
   });
 
-  it("opens the description only through its own toggle, announcing the state", () => {
+  it("opens the description only through its toggle, announcing state", () => {
     render(<SummarySection brief={briefFixture} />);
     const toggle = screen.getByTestId("pr-description-toggle");
     expect(toggle.getAttribute("aria-expanded")).toBe("false");

@@ -5,13 +5,13 @@
 // This drives the REAL Review Session store through the exact action sequence
 // the own-draft `postDraftComment` handler applies on a `posted` result, and
 // asserts against the SAME `status === "draft"` predicate the MarkReadyModal
-// counts by — the store-level contract post-now depends on, not a re-test of a
+// counts by, the store-level contract post-now depends on, not a re-test of a
 // single action in isolation.
 import { describe, expect, it } from "vitest";
 
-import { briefFixture } from "@web/features/brief/utils/fixtures";
+import { briefFixture } from "@web/features/brief/fixtures";
 import { buildBriefViewModel } from "@web/features/brief/utils";
-import type { CommentAnchor, ReviewComment } from "../../review/utils/comments";
+import type { CommentAnchor, ReviewComment } from "@web/features/review/utils";
 import {
   createReviewSessionStore,
   deriveInitialState,
@@ -39,7 +39,7 @@ const ANCHOR: CommentAnchor = {
 };
 
 describe("post-now success effect on the Review Session store", () => {
-  it("drops the unposted-draft count and records the review id on a posted comment", () => {
+  it("drops the unposted-draft count and records the review id", () => {
     const s = store();
     const { actions } = s.getState();
     void actions.saveComment({
@@ -58,15 +58,15 @@ describe("post-now success effect on the Review Session store", () => {
     actions.markCommentsSubmitted([draft.id]);
     actions.recordSubmittedReview(555);
 
-    // Count drops — the draft is now server-owned, not unposted.
+    // Count drops, the draft is now server-owned, not unposted.
     expect(unpostedDraftCount(s.getState().reviewComments)).toBe(0);
     // The comment is retained as a submitted (read-only) record, not deleted.
     expect(s.getState().reviewComments[0]?.status).toBe("submitted");
-    // The wrapping review id is recorded — the "yours" reconciliation join key.
+    // The wrapping review id is recorded, the "yours" reconciliation join key.
     expect(s.getState().submittedReviewIds).toContain(555);
   });
 
-  it("only clears the posted draft — other staged drafts still count", () => {
+  it("only clears the posted draft, other staged drafts still count", () => {
     const s = store();
     const { actions } = s.getState();
     void actions.saveComment({

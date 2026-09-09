@@ -1,7 +1,9 @@
 import type { TFunction } from "i18next";
 import { Roles, type BriefChunk } from "../../brief/types";
-import { isUnattributedRemainderChunk } from "../../brief/utils/remainder";
-import type { RiskFlag } from "@web/features/brief/utils";
+import {
+  isUnattributedRemainderChunk,
+  type RiskFlag,
+} from "@web/features/brief/utils";
 import type { ReviewComment } from "./comments";
 import type { Disposition } from "../session/disposition";
 import type {
@@ -26,7 +28,7 @@ export type UnresolvedItemKind =
 /**
  * @description A batch of flags a dismiss modal is open FOR, with its display
  * label. Owned here (disposition domain): the modal renders it, the flow
- * store holds it — neither may reach into the other's subtree.
+ * store holds it, neither may reach into the other's subtree.
  */
 export interface DismissTarget {
   flagIds: string[];
@@ -75,7 +77,7 @@ export interface RiskDispositionCounts {
   open: number;
 }
 
-/** A chunk's whole diff span — the region a flag's disposition anchors on. */
+/** A chunk's whole diff span, the region a flag's disposition anchors on. */
 export interface ChunkRegion {
   start: number;
   end: number;
@@ -193,11 +195,11 @@ export function deriveUnresolvedItems(
 
 /**
  * A carried item: the submit list's shape plus what the server said about it.
- * `clearedBy` is carried verbatim — the operations that clear an item are the
+ * `clearedBy` is carried verbatim, the operations that clear an item are the
  * server's answer, never a table the client keeps.
  */
 export interface CarriedItem extends Omit<UnresolvedItem, "kind"> {
-  /** The three carried kinds — never the submit list's own. */
+  /** The three carried kinds, never the submit list's own. */
   kind: AttentionItemKind;
   clearedBy: readonly string[];
   /**
@@ -205,7 +207,7 @@ export interface CarriedItem extends Omit<UnresolvedItem, "kind"> {
    * brief-local flag id whose disposition the item is about.
    */
   actionTargetId: string;
-  /** This Brief renders nothing for the item's file — there is no jump. */
+  /** This Brief renders nothing for the item's file, there is no jump. */
   unplaceable: boolean;
 }
 
@@ -231,8 +233,8 @@ export interface FlagAnchor {
  * Does this flag sit under that anchor? OVERLAP, not equality: a carried
  * decision is remapped to the lines it landed on, and chunk boundaries are
  * re-derived per Brief, so demanding an exact region would silently drop a
- * decision the server still holds. ONE predicate for both resolutions — the
- * store's and the attention list's — or the row claims nothing needs a
+ * decision the server still holds. ONE predicate for both resolutions, the
+ * store's and the attention list's, or the row claims nothing needs a
  * re-look while the server's list says otherwise.
  */
 export function isFlagUnderAnchor(
@@ -247,7 +249,7 @@ export function isFlagUnderAnchor(
   return region.start <= anchor.endLine && region.end >= anchor.startLine;
 }
 
-/** The flags an attention item's anchor covers — file, attribute, region. */
+/** The flags an attention item's anchor covers by file, attribute and region. */
 function getFlagsAtAnchor(
   input: CarriedInput,
   item: SessionAttentionItem,
@@ -377,7 +379,7 @@ export function reviewOutcomeLabel(
 
 /**
  * The PREVIEW's signature line. The one actually posted to GitHub lives in
- * `submit.ts` and stays English — it is written into an external system, not
+ * `submit.ts` and stays English, it is written into an external system, not
  * rendered to the viewer.
  */
 export function summarySignatureLine(

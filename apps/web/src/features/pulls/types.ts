@@ -1,6 +1,10 @@
 // Read-API PR shapes + boundary guards. Mirrors the api package's `pr-view`
 // response contract. Hand-rolled guards returning `Result` (no zod in this
 // bundle); API responses are parsed at the boundary, never cast.
+import {
+  LastReviewUnavailableReasons,
+  type LastReviewUnavailableReason,
+} from "contract";
 import type { Mutable, Result as SharedResult, ValueOf } from "types";
 
 type Result<T> = SharedResult<T, string>;
@@ -75,15 +79,6 @@ export interface PreviousBriefComparison {
   readonly baselineIndex: number;
   readonly narrativeAvailable: boolean;
 }
-
-/** Why lastReview is unavailable despite a recorded checkpoint. */
-export const LastReviewUnavailableReasons = {
-  PENDING: "pending",
-  BASELINE_UNAVAILABLE: "baseline-unavailable",
-} as const;
-export type LastReviewUnavailableReason = ValueOf<
-  typeof LastReviewUnavailableReasons
->;
 
 /**
  * The wire discriminates by the unavailable key; parsing adds kind for consumers.

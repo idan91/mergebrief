@@ -1,8 +1,8 @@
 # Self-hosting with docker compose
 
 One command brings up the whole product: Postgres (the single stateful
-dependency), the web/API tier, and the background worker that
-generates Briefs on every push.
+dependency), the API, the web tier that proxies to it, and the background
+worker that generates Briefs on every push.
 
 ```sh
 cp .env.example .env      # fill in (see the env table below)
@@ -30,7 +30,8 @@ the background — push code, Brief appears, reviewer opens it.
 | service | what it does | port |
 |---|---|---|
 | `postgres` | store + job queue + locks, in one vanilla Postgres 17 | 127.0.0.1:5432 |
-| `web` | TanStack Start SSR + the Hono API (webhooks, OAuth, reviewer reads) | 127.0.0.1:3000 |
+| `api` | the Hono API (webhooks, OAuth, reviewer reads); holds the credentials and the database | in-network only |
+| `web` | TanStack Start SSR; proxies `/api/*` to `api` and holds no credentials | 127.0.0.1:3000 |
 | `worker` | long-lived graphile-worker runner draining `generate` jobs | — |
 
 All published ports bind **loopback-only** — put a reverse proxy (or a
@@ -41,32 +42,41 @@ config error logs its reason and exits 0, staying down instead of
 restart-looping — see [generators.md](./generators.md)'s "When something
 degrades" for the triage.
 
+The `api` port is deliberately unpublished: it is reachable on the compose
+network but from no published port, so nothing outside the project reaches it
+without a route you add yourself. `web` reaches it through
+`MERGEBRIEF_API_ORIGIN`, which compose sets to `http://api:3001`.
+
 Migrations (app schema + graphile queue schema) run **idempotently at boot**
-in both `web` and `worker` — whoever starts first applies them, the other
+in both `api` and `worker` — whoever starts first applies them, the other
 no-ops. There is no separate migrate step. (Exception: restricted database
 roles can opt out with `MERGEBRIEF_AUTO_MIGRATE=false` — see the external
 Postgres section below.)
 
 ## Environment (`.env` at the repo root)
 
-Compose loads `.env` into both services (`env_file`) and for `${...}`
-interpolation. Leave a variable OUT entirely (don't set it empty) when it
+Compose loads `.env` into `api` and `worker` (`env_file`) and uses it for
+`${...}` interpolation everywhere. `web` gets no `env_file`: it is the
+internet-facing tier, and the only two variables it reads are set on it
+directly. Leave a variable OUT entirely (don't set it empty) when it
 doesn't apply — several loaders distinguish unset from empty.
 
 | var | needed by | notes |
 |---|---|---|
-| `GITHUB_APP_ID` | web, worker | numeric App id |
-| `GITHUB_APP_PRIVATE_KEY` / `..._PATH` | web, worker | exactly ONE of the two |
-| `GITHUB_WEBHOOK_SECRET` | web | HMAC for inbound deliveries |
-| `GITHUB_OAUTH_CLIENT_ID` / `_SECRET` | web | reviewer login |
-| `SESSION_KEY_V1` | web | `openssl rand -base64 32` |
-| `PUBLIC_BASE_URL` | web + worker | must match the App's OAuth callback origin; the worker builds the Entry comment's deep link from it |
-| `ANTHROPIC_API_KEY` | worker + web | your model key (BYOK — your spend; the zero-config default) |
-| `MERGEBRIEF_CONFIG` | worker + web | optional; path to `mergebrief.config.yaml` selecting another provider/model — see [generators.md](./generators.md) (its `generator.apiKeyEnv` names a different key var; CLI backends are local-only and not available to the deployed worker). The web/api side reads only its `drafts:` block (draft-PR policy) via a narrow loader — no provider keys needed there |
+| `GITHUB_APP_ID` | api, worker | numeric App id |
+| `GITHUB_APP_PRIVATE_KEY` / `..._PATH` | api, worker | exactly ONE of the two |
+| `GITHUB_WEBHOOK_SECRET` | api | HMAC for inbound deliveries |
+| `GITHUB_OAUTH_CLIENT_ID` / `_SECRET` | api | reviewer login |
+| `SESSION_KEY_V1` | api | `openssl rand -base64 32` |
+| `PUBLIC_BASE_URL` | api + web + worker | must match the App's OAuth callback origin; the worker builds the Entry comment's deep link from it |
+| `ANTHROPIC_API_KEY` | worker | your model key (BYOK — your spend; the zero-config default) |
+| `MERGEBRIEF_CONFIG` | worker + api | optional; path to `mergebrief.config.yaml` selecting another provider/model — see [generators.md](./generators.md) (its `generator.apiKeyEnv` names a different key var; CLI backends are local-only and not available to the deployed worker). The API reads only its `drafts:` block (draft-PR policy) via a narrow loader — no provider keys needed there |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | postgres | optional; default to `code_review` each. Compose DERIVES both services' in-network `DATABASE_URL` from them (with `sslmode=disable` pinned — the compose bridge is the private-network case, and `postgres` is a non-loopback hostname the TLS gate would otherwise refuse), so one edit moves every side. First-boot only (see the callout above); use the raw output of `openssl rand -hex 24` — the value lands in a connection string unescaped, and percent-encoding it breaks auth (see §1) |
 | `DATABASE_URL` | — | ignored in the DEFAULT compose (overridden to the DSN derived from the `POSTGRES_*` values); the input for the external-database compose file. Non-loopback hosts must carry an explicit `sslmode` or boot is refused |
-| `DATABASE_URL_FILE` | web, worker | optional; path to a file holding the DSN (compose `secrets:` mount). Wins over `DATABASE_URL` with a boot warning; surrounding whitespace trimmed |
-| `MERGEBRIEF_AUTO_MIGRATE` | web, worker | optional, default `true`. `false` = check-only boot for DDL-less runtime roles: refuse with the pending count instead of applying migrations |
+| `DATABASE_URL_FILE` | api, worker | optional; path to a file holding the DSN (compose `secrets:` mount). Wins over `DATABASE_URL` with a boot warning; surrounding whitespace trimmed |
+| `MERGEBRIEF_AUTO_MIGRATE` | api, worker | optional, default `true`. `false` = check-only boot for DDL-less runtime roles: refuse with the pending count instead of applying migrations |
+| `MERGEBRIEF_API_HOST` / `MERGEBRIEF_API_PORT` | api | optional; where the API listens. Compose sets `0.0.0.0:3001` so `web` can reach it; the default is loopback |
+| `MERGEBRIEF_API_ORIGIN` | web | optional; where `/api/*` is proxied. Compose sets `http://api:3001`; the default is the API's loopback default |
 
 ## External Postgres (managed database)
 
@@ -156,17 +166,17 @@ pending count when it is behind. The apply workflow moves to you; see
 ### Deployment shapes: what is supported
 
 Supported: (1) the all-in-one compose, (2) compose + external Postgres —
-this section. Beyond that: both services are env-configured and stateless
-outside Postgres, so splitting web and worker across machines (or into
+this section. Beyond that: every service is env-configured and stateless
+outside Postgres, so splitting them across machines (or into
 another orchestrator) works in principle — it is untested and unsupported;
 you are off the map, though probably not far off. Kubernetes/Helm
 packaging is out of scope until real demand shows up.
 
 ## The lifecycle of a push
 
-1. GitHub delivers `pull_request` → `web` verifies the HMAC, upserts the PR,
-   and enqueues ONE debounced `generate` job (~60s trailing — rapid pushes
-   coalesce).
+1. GitHub delivers `pull_request` → `web` proxies it to `api`, which verifies
+   the HMAC over the exact bytes GitHub signed, upserts the PR, and enqueues
+   ONE debounced `generate` job (~60s trailing — rapid pushes coalesce).
 2. `worker` picks the job up: fetches the PR via your App installation,
    generates the shared Brief (plus comparison marks / revision narrative
    against the previous briefed head, and pre-warmed re-review deltas per
@@ -179,15 +189,17 @@ the model stream** (stopping token spend), records the run as `superseded`
 
 ## Verifying / troubleshooting
 
-The web healthcheck probes `GET /healthz` (static liveness — deliberately
-not `/readyz`, so a database blip degrades reads instead of restart-churning
-the web tier). Logs are structured JSON on stdout with `json-file` rotation
+Both HTTP services probe `GET /healthz` (static liveness — deliberately not
+`/readyz`, so a database blip degrades reads instead of restart-churning the
+tier). The two `/readyz` endpoints differ: `api`'s is one `SELECT 1`, and
+`web`'s is `api`'s answer, so an unreachable API and an unreachable database
+are one answer from the outside. Logs are structured JSON on stdout with `json-file` rotation
 defaults (`10m` × 3 per service); the event vocabulary, correlation ids,
 health-endpoint semantics, and Grafana/Datadog/CloudWatch recipes live in
 [`observability.md`](./observability.md).
 
 ```sh
-docker compose ps                     # web healthy, worker running
+docker compose ps                     # api + web healthy, worker running
 docker compose logs -f worker        # job pickup, generation progress
 docker compose exec postgres \
   sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \

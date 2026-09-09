@@ -1,6 +1,7 @@
 // Package and feature boundaries. Package edges come from each member's
 // package.json at load; the hand rules hold the workspace kinds and the
-// apps/web feature shape. The known-violations file only loses entries.
+// apps/web feature shape. There is no baseline: the graph is clean, and
+// `check:baselines` refuses a new records file.
 const fs = require("node:fs");
 const path = require("node:path");
 
@@ -92,6 +93,18 @@ module.exports = {
       to: { path: ".*", dependencyTypesNot: ["type-only"] },
     },
     {
+      name: "contract-imports-no-runtime",
+      comment:
+        "The wire contract rides in the browser bundle through apps/web's isomorphic fetch boundary: it pulls in no runtime code. A type-only import is erased and stays legal.",
+      severity: "error",
+      from: { path: "^packages/contract/src/" },
+      to: {
+        path: ".*",
+        pathNot: "^packages/(contract|types)/",
+        dependencyTypesNot: ["type-only"],
+      },
+    },
+    {
       name: "no-app-imports-another-app",
       comment: "Apps talk over HTTP or the job queue, never by import.",
       severity: "error",
@@ -137,10 +150,13 @@ module.exports = {
     },
   ],
   options: {
+    // `doNotFollow`, not `exclude`: an excluded dependency is dropped from the
+    // graph before the rules run, which would make an npm value import from
+    // `packages/contract` invisible to `contract-imports-no-runtime`. Not
+    // following keeps each npm dependency as a leaf the rules can still see.
     doNotFollow: { path: "node_modules" },
     exclude: {
       path: [
-        "node_modules",
         "\\.gen\\.",
         "^apps/web/e2e/",
         "^tools/oxlint-plugin-house/test/fixtures/",

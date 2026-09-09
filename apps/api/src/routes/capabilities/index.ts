@@ -1,6 +1,6 @@
-// `GET /api/capabilities` — itself a registered Product Query: the endpoint
+// `GET /api/capabilities`, itself a registered Product Query: the endpoint
 // appears in its own output. Composition only.
-import { ProductQueryIds } from "../../product-operations/ids";
+import { ProductQueryIds } from "contract";
 import { productOperationRegistry } from "../../product-operations/registry";
 import {
   productRouter,

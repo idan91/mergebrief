@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { DEFAULT_CONVERSATION_FILTER } from "@web/features/conversation/utils/filter";
+import { DEFAULT_CONVERSATION_FILTER } from "@web/features/conversation/utils";
 import type { ComparisonOverlayState } from "../../../comparison/comparisonOverlay";
 import type { AttributeRail } from "../../../utils/viewModel";
 import {
@@ -91,7 +91,7 @@ describe("ReadingToolbar height publication", () => {
 });
 
 describe("ReadingToolbar clusters", () => {
-  it("renders the filter disclosure when the conversation wiring provides one", () => {
+  it("renders the filter disclosure when the wiring provides one", () => {
     renderToolbar({
       filter: {
         filter: DEFAULT_CONVERSATION_FILTER,
@@ -104,7 +104,7 @@ describe("ReadingToolbar clusters", () => {
     expect(screen.getByRole("button", { name: "Filter" })).toBeTruthy();
   });
 
-  it("renders no filter surface at all without the wiring (local path)", () => {
+  it("renders no filter surface at all without the wiring", () => {
     renderToolbar();
     expect(screen.queryByRole("button", { name: /Filter/ })).toBeNull();
   });
@@ -177,7 +177,7 @@ describe("ReadingToolbar risk-attrs disclosure", () => {
     ).toBeNull();
   });
 
-  it("opens the anchored panel; chips cycle through carrying groups in story order", () => {
+  it("opens the anchored panel, chips cycle carrying groups in order", () => {
     const jump = vi.fn();
     renderToolbar({ jumpToGroup: jump });
     fireEvent.click(screen.getByRole("button", { name: /Risk attrs/ }));
@@ -210,7 +210,7 @@ describe("ReadingToolbar risk-attrs disclosure", () => {
     trigger.focus();
     fireEvent.click(trigger);
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
-    // Real keyboard events target the focused element, never document —
+    // Real keyboard events target the focused element, never document,
     // useDismiss's capture-phase claim defers to an at-target listener, so
     // the pin dispatches from the trigger (focused on open).
     fireEvent.keyDown(trigger, { key: "Escape" });
@@ -219,7 +219,7 @@ describe("ReadingToolbar risk-attrs disclosure", () => {
     expect(document.activeElement).toBe(trigger);
   });
 
-  it("Escape with the panel open never leaks to bubble-phase shortcut listeners", () => {
+  it("Escape with the panel open never leaks to bubble-phase listeners", () => {
     // The focus-mode exit shortcut listens on window at bubble phase, so
     // dismissing the panel must consume Escape.
     const windowSpy = vi.fn();
@@ -243,9 +243,9 @@ describe("ReadingToolbar risk-attrs disclosure", () => {
     }
   });
 
-  it("focus sits on the trigger when the panel opens — never moved into the panel", () => {
+  it("focus stays on the trigger when the panel opens", () => {
     // Disclosure grammar: opening must not hijack focus; Tab is the way in
-    // (FloatingFocusManager initialFocus={-1} — the default steals focus
+    // (FloatingFocusManager initialFocus={-1}, since the default steals focus
     // into the panel in a microtask).
     renderToolbar();
     const trigger = screen.getByRole("button", { name: /Risk attrs/ });

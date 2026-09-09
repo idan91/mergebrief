@@ -1,8 +1,9 @@
 // The e2e database seed, run by the global setup (via tsx) after postgres is
-// up and before the web server boots: migrate, ingest the committed fixture
-// artifacts under the owner world, and create the browser session.
+// up and before the servers boot: migrate, ingest the committed fixture
+// artifacts under the owner world, and create the browser session. The
+// `graphile_worker` schema is not this script's to install: the API installs
+// it at boot, which happens before any test can enqueue.
 import { createHash } from "node:crypto";
-import { migrateQueue } from "api";
 import { ingestBriefDirectory } from "ingest-briefs";
 import {
   closeDb,
@@ -38,7 +39,6 @@ async function main(): Promise<void> {
   if (!ensured.ok) {
     throw new Error(`migrate failed: ${ensured.error.message}`);
   }
-  await migrateQueue(E2E_DATABASE_URL);
 
   const handle = createDb(E2E_DATABASE_URL);
   try {

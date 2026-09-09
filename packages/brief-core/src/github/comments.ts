@@ -3,7 +3,7 @@ import { execFileAsync, MAX_BUFFER } from "./exec";
 import { repoSlug } from "./fetch";
 import type { PrLocator, ReviewComment } from "./types";
 
-/** Cap on comments fed to generation (prompt-cost bound) — every PrSource
+/** Cap on comments fed to generation (prompt-cost bound). Every PrSource
  * implementation must apply it (the octokit source slices with it too). */
 export const MAX_COMMENTS = 100;
 const MAX_COMMENT_CHARS = 2_000;
@@ -23,7 +23,7 @@ const GhCommentSchema = z.object({
 });
 
 /**
- * GitHub marks a *line* comment outdated by nulling its `line` — the line it
+ * GitHub marks a *line* comment outdated by nulling its `line`: the line it
  * anchored to is no longer in the diff at the PR's current head. Read, never
  * recomputed; the legacy `position` field is unreliable for this. *File*-level
  * comments carry a null `line` by design and are never outdated.
@@ -33,7 +33,7 @@ export function isCommentOutdated(
   subjectType: string | null,
 ): boolean {
   if ((subjectType ?? "line") !== "line") return false;
-  return line == null;
+  return line === null;
 }
 
 export function normalizeReviewComment(value: unknown): ReviewComment {
@@ -47,7 +47,10 @@ export function normalizeReviewComment(value: unknown): ReviewComment {
     originalLine: c.original_line ?? null,
     author: c.user?.login ?? "unknown",
     body: (c.body ?? "").slice(0, MAX_COMMENT_CHARS),
-    inReplyToId: c.in_reply_to_id != null ? String(c.in_reply_to_id) : null,
+    inReplyToId:
+      c.in_reply_to_id !== null && c.in_reply_to_id !== undefined
+        ? String(c.in_reply_to_id)
+        : null,
     outdated: isCommentOutdated(c.line ?? null, c.subject_type ?? null),
   };
 }
@@ -59,7 +62,7 @@ export function normalizeReviewComment(value: unknown): ReviewComment {
  * `outdated` is read straight from GitHub, never recomputed. GitHub computes it
  * relative to the PR's CURRENT head: exact for a full brief, but for a delta at
  * an arbitrary (base, head) it is relative to the current PR head, not the
- * delta's — a known limitation.
+ * delta's, a known limitation.
  */
 export async function fetchReviewComments(
   loc: PrLocator,

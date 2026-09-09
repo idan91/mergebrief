@@ -6,11 +6,9 @@ import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createApp, type AuthDeps } from "api";
 import {
   createArtifactStore,
   encryptToken,
-  createEnvKeyProvider,
   createTenantRepository,
   createGrantAuth,
   isInstallationId,
@@ -24,20 +22,22 @@ import {
   type ReviewerId,
   type TenantContext,
 } from "persistence";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { PgliteHarness } from "persistence/testing";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApiClient } from "../src/client";
 import { ExitCodes } from "../src/exit";
 import { runDelta } from "../src/commands/read";
+import {
+  BASE_URL,
+  KEY_REF,
+  startCliApiHarness,
+  type CliApiHarness,
+} from "./harness/api";
 import { runCli, type CliDeps } from "../src/program";
-import { testLogger } from "./logging";
-import { getRequestUrl } from "./helpers";
 
-const KEY_REF = "SESSION_KEY_V1";
 const INSTALLATION_ID = 987654;
 const REVIEWER_ID = 555;
 const REPO_A = 42001;
-const BASE_URL = "https://mb.example";
 const BASE_SHA = "a".repeat(40);
 const HEAD_SHA = "b".repeat(40);
 
@@ -86,39 +86,60 @@ const RAW_DIFF =
   " ctx\n";
 
 /** GitHub stub: allowed-set + compare-diff endpoints. */
-function stubGitHub(): void {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (input: string | URL | Request): Promise<Response> => {
-      const url = getRequestUrl(input);
-      if (
-        url.includes("/user/installations/") &&
-        url.includes("/repositories")
-      ) {
-        return jsonResponse({
-          total_count: 1,
-          repositories: [{ id: REPO_A, full_name: "octo/hello" }],
-        });
-      }
-      if (/\/repositories\/\d+$/.test(url)) {
-        return jsonResponse({
-          id: REPO_A,
-          full_name: "octo/hello",
-          private: true,
-        });
-      }
-      if (url.includes("/compare/")) {
-        return new Response(RAW_DIFF, {
-          status: 200,
-          headers: {
-            "content-type": "application/vnd.github.v3.diff; charset=utf-8",
-            date: new Date().toUTCString(),
+function stubGitHub(world: CliApiHarness): void {
+  world.github.serve((url) => {
+    if (url.includes("/user/installations/") && url.includes("/repositories")) {
+      return jsonResponse({
+        total_count: 1,
+        repositories: [{ id: REPO_A, full_name: "octo/hello" }],
+      });
+    }
+    if (/\/repositories\/\d+$/.test(url)) {
+      return jsonResponse({
+        id: REPO_A,
+        full_name: "octo/hello",
+        private: true,
+      });
+    }
+    if (url.includes("/compare/")) {
+      return new Response(RAW_DIFF, {
+        status: 200,
+        headers: {
+          "content-type": "application/vnd.github.v3.diff; charset=utf-8",
+          date: new Date().toUTCString(),
+        },
+      });
+    }
+    // The conversation read travels the real path: the API mints an
+    // installation token and asks GitHub's GraphQL, so the stub answers in
+    // GitHub's own shapes rather than short-circuiting the port.
+    if (url.endsWith("/access_tokens")) {
+      return jsonResponse(
+        {
+          token: "ghs_installation_token",
+          expires_at: "2099-01-01T00:00:00Z",
+        },
+        201,
+      );
+    }
+    if (url.endsWith("/graphql")) {
+      return jsonResponse({
+        data: {
+          repository: {
+            pullRequest: {
+              reviewThreads: {
+                pageInfo: { hasNextPage: false, endCursor: null },
+                nodes: [],
+              },
+              reviews: { pageInfo: { hasNextPage: false }, nodes: [] },
+              comments: { pageInfo: { hasNextPage: false }, nodes: [] },
+            },
           },
-        });
-      }
-      return jsonResponse({ message: "unexpected endpoint" }, 404);
-    }),
-  );
+        },
+      });
+    }
+    return jsonResponse({ message: "unexpected endpoint" }, 404);
+  });
 }
 
 const BRIEF_BODY = JSON.stringify({
@@ -137,16 +158,8 @@ const BRIEF_BODY = JSON.stringify({
   ],
 });
 
-const CONVERSATION_BODY = {
-  threads: [],
-  reviews: [],
-  prComments: [],
-  hasMoreThreads: false,
-  hasMoreReviews: false,
-  hasMorePrComments: false,
-};
-
 describe("read commands over the real api app", () => {
+  let world: CliApiHarness;
   let harness: PgliteHarness;
   let kp: KeyProvider;
   let appFetch: CliDeps["fetch"];
@@ -154,45 +167,17 @@ describe("read commands over the real api app", () => {
   let cacheDir: string;
 
   beforeEach(async () => {
-    harness = await createPgliteHarness();
-    kp = createEnvKeyProvider({
-      [KEY_REF]: randomBytes(32).toString("base64"),
-    });
-    const auth: AuthDeps = {
-      oauthClientId: "Iv1.test-client-id",
-      oauthClientSecret: "test-client-secret",
-      keyProvider: kp,
-      sessionKeyRef: KEY_REF,
-      publicBaseUrl: BASE_URL,
-      cookieSecure: true,
-    };
-    const app = createApp({
-      logger: testLogger(),
-      handle: harness.handle,
-      webhookSecret: "test-webhook-secret",
-      auth,
-      github: {
-        fetchPullRequestConversation: async () => ({
-          ok: true as const,
-          value: CONVERSATION_BODY,
-        }),
-        listRepoCollaborators: async () => {
-          throw new Error(
-            "collaborators port must not be called in this suite",
-          );
-        },
-      },
-      serverVersion: "test-version",
-    });
-    appFetch = async (input, init) => app.request(input, init);
+    world = await startCliApiHarness();
+    harness = world.harness;
+    kp = world.keyProvider;
+    appFetch = world.fetch;
     configDir = mkdtempSync(join(tmpdir(), "mb-config-"));
     cacheDir = mkdtempSync(join(tmpdir(), "mb-cache-"));
-    stubGitHub();
+    stubGitHub(world);
   });
 
   afterEach(async () => {
-    vi.unstubAllGlobals();
-    await harness.close();
+    await world.close();
   });
 
   async function seedToken(): Promise<string> {

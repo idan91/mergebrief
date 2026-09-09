@@ -61,9 +61,13 @@ git clone https://github.com/Idan91/code-review.git
 cd code-review
 pnpm install
 
+# The API process holds the credentials; the web tier holds none.
+cp apps/api/.env.example apps/api/.env
+# edit apps/api/.env: the GitHub App and OAuth values, and SESSION_KEY_V1
+
 # Anthropic API key — get one (and credits) from https://console.anthropic.com
-cp apps/web/.env.example apps/web/.env
-# edit apps/web/.env and set ANTHROPIC_API_KEY=sk-ant-...
+# It belongs to the worker, which is what generates. `pnpm dev` runs api + web
+# only; add it to the root .env when you run the worker or docker compose.
 
 pnpm dev
 ```

@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { briefFixture } from "../../../../utils/fixtures";
+import { briefFixture } from "@web/features/brief/fixtures";
 import {
   buildBriefViewModel,
   GroupViewKinds,

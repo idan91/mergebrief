@@ -4,10 +4,10 @@
 //
 // Placement is a pure function of (thread anchor revision, viewed revision):
 // fresh threads land inline at their chunk row; outdated threads are
-// digest-only — their coordinates describe the ANCHOR-TIME diff, so no row
+// digest-only, their coordinates describe the ANCHOR-TIME diff, so no row
 // match is ever attempted. Unanchored threads render only in the digest.
 import type { BriefChunk } from "../../brief/types";
-import { rowId } from "../../review/utils/comments";
+import { rowId } from "@web/features/review/utils";
 import type { ConversationThread, ThreadSide } from "../types";
 
 export type UnanchoredReason =
@@ -19,7 +19,7 @@ export type ThreadPlacement =
   | { readonly kind: "chunk"; readonly chunkId: string; readonly rowId: string }
   | { readonly kind: "unanchored"; readonly reason: UnanchoredReason };
 
-/** LEFT reads old-side numbering, RIGHT new-side — the submit map, inverted. */
+/** LEFT reads old-side numbering and RIGHT new-side: the submit map inverted. */
 function lineOfRow(
   row: { oldLine?: number; newLine?: number },
   side: ThreadSide,
@@ -28,7 +28,7 @@ function lineOfRow(
 }
 
 /**
- * Place one thread against the Brief's chunks (reading order — first match
+ * Place one thread against the Brief's chunks (reading order, first match
  * wins). Multi-line threads place by their END line, mirroring
  * `mapAnchorToWire` which anchors on `endLine`.
  */

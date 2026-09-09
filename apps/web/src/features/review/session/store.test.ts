@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { briefFixture } from "@web/features/brief/utils/fixtures";
+import { briefFixture } from "@web/features/brief/fixtures";
 import { buildBriefViewModel } from "@web/features/brief/utils";
 import type { ReviewComment } from "../utils/comments";
 import type { RiskEvidence } from "../utils/state";
@@ -57,7 +57,7 @@ describe("disposeFlag", () => {
     });
   });
 
-  it("reopens a flag (open carries no evidence by construction)", () => {
+  it("reopens a flag, and open carries no evidence by construction", () => {
     const store = freshStore();
     store.getState().actions.addressFlags(
       new Map([
@@ -144,7 +144,7 @@ describe("comments + outcome", () => {
     expect(store.getState().reviewOutcome).toBe("approve");
   });
 
-  it("a two-side anchor gets its own id — no collision with same-side", () => {
+  it("a two-side anchor gets its own id with no same-side collision", () => {
     const store = freshStore();
     const anchor = {
       chunkId: "chunk-a",
@@ -171,7 +171,7 @@ describe("comments + outcome", () => {
     expect(ids).toEqual(["chunk-a-new-10-12-1", "chunk-a-old-new-10-12-1"]);
   });
 
-  it("submitted comments are immutable — update/delete no-op", () => {
+  it("submitted comments are immutable, update and delete no-op", () => {
     const store = freshStore();
     const comment: Omit<ReviewComment, "id"> = {
       anchor: {
@@ -221,7 +221,7 @@ describe("comments + outcome", () => {
     if (submittedId === undefined) throw new Error("expected a saved comment");
 
     // A draft added AFTER the submit was captured (mid-flight edit) must NOT
-    // flip — it was never posted.
+    // flip, it was never posted.
     void store
       .getState()
       .actions.saveComment({ ...comment, body: "mid-flight" });
@@ -397,7 +397,7 @@ describe("per-action writes", () => {
 
 describe("deleteMissingDraft", () => {
   it("writes for a carried draft the Brief renders nowhere", async () => {
-    // The store never held it — no chunk covers its file — so the ordinary
+    // The store never held it, no chunk covers its file, so the ordinary
     // delete has nothing to act on and the attention item could never clear.
     const { calls, store } = gatewayMock();
     store.getState().actions.deleteMissingDraft("4001");

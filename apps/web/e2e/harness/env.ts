@@ -1,6 +1,6 @@
 // Shared constants for the e2e harness: the playwright config, the global
 // setup, and the seed script must agree on every one of these. Values are
-// fixed test-only identities — nothing here is a real credential.
+// fixed test-only identities, nothing here is a real credential.
 import { generateKeyPairSync } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -22,6 +22,10 @@ function readEnvNumber(name: string, fallback: number): number {
 export const E2E_PORT = readEnvNumber("MERGEBRIEF_E2E_PORT", 3311);
 export const E2E_BASE_URL = `http://localhost:${String(E2E_PORT)}`;
 
+/** The API runs as its own process now; the web tier proxies `/api/*` to it. */
+export const E2E_API_PORT = readEnvNumber("MERGEBRIEF_E2E_API_PORT", 3312);
+export const E2E_API_ORIGIN = `http://127.0.0.1:${String(E2E_API_PORT)}`;
+
 // ONE container + port for both suites: e2e and perf recreate it, so they
 // must never run at the same time.
 export const E2E_PG_CONTAINER = "mergebrief-e2e-pg";
@@ -30,7 +34,7 @@ export const E2E_PG_LABEL = "mergebrief-e2e=1";
 export const E2E_PG_PORT = 55432;
 export const E2E_DATABASE_URL = `postgres://e2e:e2e@127.0.0.1:${String(E2E_PG_PORT)}/e2e?sslmode=disable`;
 
-/** 32 bytes, base64 — a fixed TEST key, never a secret. */
+/** 32 bytes, base64, a fixed TEST key, never a secret. */
 export const E2E_SESSION_KEY = Buffer.alloc(32, 7).toString("base64");
 
 /** The seeded session's cookie value (stored hashed; test-only). */
@@ -54,7 +58,7 @@ export const GITHUB_APP_KEY_PATH = `${ARTIFACTS_DIR}/github-app-key.pem`;
 /**
  * Written by the setup that CREATED the container, read by the teardown that
  * removes it. Absent = this invocation created nothing, so it removes nothing
- * — playwright runs the teardown even when the setup refused.
+ * playwright runs the teardown even when the setup refused.
  *
  * Keyed by PID, and that is the whole point: a shared path would hold the
  * OTHER run's container id at exactly the moment this run refused because
@@ -63,6 +67,8 @@ export const GITHUB_APP_KEY_PATH = `${ARTIFACTS_DIR}/github-app-key.pem`;
  * them and nothing else can read this run's file.
  */
 export const CONTAINER_ID_PATH = `${ARTIFACTS_DIR}/pg-container-id-${String(process.pid)}`;
+/** Same pid-keyed shape as the container id, for the same reason. */
+export const API_PID_PATH = `${ARTIFACTS_DIR}/api-pid-${String(process.pid)}`;
 
 /**
  * A throwaway RSA key so the GitHub App client construction has a valid PEM.
@@ -81,20 +87,39 @@ export function writeThrowawayGitHubKey(): string {
   return GITHUB_APP_KEY_PATH;
 }
 
-/** The webServer env — one builder so config and docs cannot drift. */
-export function buildWebServerEnv(): Record<string, string> {
+/**
+ * The API process env. It holds every credential and the database, because
+ * that is where they now live; the GitHub stub intercepts `api.github.com`
+ * inside this process, which is what keeps the suite network-free.
+ */
+export function buildApiServerEnv(): Record<string, string> {
   return {
     DATABASE_URL: E2E_DATABASE_URL,
     SESSION_KEY_V1: E2E_SESSION_KEY,
     PUBLIC_BASE_URL: E2E_BASE_URL,
+    MERGEBRIEF_API_PORT: String(E2E_API_PORT),
     GITHUB_APP_ID: "1",
     GITHUB_APP_PRIVATE_KEY_PATH: writeThrowawayGitHubKey(),
     GITHUB_WEBHOOK_SECRET: "e2e-webhook-secret",
     GITHUB_OAUTH_CLIENT_ID: "Iv1.e2e-client-id",
     GITHUB_OAUTH_CLIENT_SECRET: "e2e-client-secret",
-    // The GitHub stub: intercepts api.github.com fetches inside the server
-    // process (SSR + the in-process api) — the suite stays network-free.
     NODE_OPTIONS: `--import ${fileURLToPath(new URL("./github-stub.mjs", import.meta.url))}`,
+    // The stub is preloaded into THIS process, so the fixture surface it
+    // serves has to be described here and not on the web tier.
+    MERGEBRIEF_E2E_FIXTURES: FIXTURE_DIR,
+    MERGEBRIEF_E2E_REPO_ID: String(E2E_REPO_ID),
+    MERGEBRIEF_E2E_REPO_SLUG: E2E_REPO_SLUG,
+  };
+}
+
+/**
+ * The web process env. No credentials and no database: the tier proxies
+ * `/api/*` to the API and reads only the file-backed fixture surface.
+ */
+export function buildWebServerEnv(): Record<string, string> {
+  return {
+    PUBLIC_BASE_URL: E2E_BASE_URL,
+    MERGEBRIEF_API_ORIGIN: E2E_API_ORIGIN,
     MERGEBRIEF_E2E_FIXTURES: FIXTURE_DIR,
     MERGEBRIEF_E2E_REPO_ID: String(E2E_REPO_ID),
     MERGEBRIEF_E2E_REPO_SLUG: E2E_REPO_SLUG,

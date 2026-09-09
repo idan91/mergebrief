@@ -1,6 +1,6 @@
 // The catalog's id vocabulary. Declaration sites reference these constants
 // instead of inline strings, and the router accepts ONLY the derived
-// unions — an id outside the vocabulary is a compile error, so adding an
+// unions, so an id outside the vocabulary is a compile error and adding an
 // operation starts here.
 import type { ValueOf } from "types";
 

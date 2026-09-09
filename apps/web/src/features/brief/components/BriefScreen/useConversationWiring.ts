@@ -9,23 +9,21 @@ import type {
   ThreadComposerWiring,
 } from "@web/features/conversation";
 import {
-  buildInlineThreads,
-  type DigestRow,
-} from "@web/features/conversation/utils/digest";
-import { reconcileOwnComments } from "@web/features/conversation/utils/ownComments";
-import {
   applyConversationFilter,
+  buildInlineThreads,
+  type ConversationFilter,
   countHiddenInlineThreads,
   DEFAULT_CONVERSATION_FILTER,
+  type DigestRow,
+  reconcileOwnComments,
   reconcileReviewers,
-  reviewerFacets,
-  verdictFacets,
-  type ConversationFilter,
   type ReviewerFacet,
+  reviewerFacets,
   type VerdictFacet,
-} from "@web/features/conversation/utils/filter";
+  verdictFacets,
+} from "@web/features/conversation/utils";
 import type { ConversationResult } from "@web/features/conversation/queries";
-import { useMentionPool } from "@web/features/conversation/hooks/useMentionPool";
+import { useMentionPool } from "@web/features/conversation/hooks";
 import { prefersReducedMotion } from "@web/utils/motion";
 import type { BriefViewModel } from "../../utils/viewModel";
 import type { Mutable } from "types";

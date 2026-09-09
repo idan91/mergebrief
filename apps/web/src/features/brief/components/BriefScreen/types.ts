@@ -1,11 +1,13 @@
 import type { ReactNode } from "react";
 
 import type { ConversationPlan } from "@web/features/conversation";
-import type { ConversationFilter } from "@web/features/conversation/utils/filter";
-import type { SubmitReviewAction } from "@web/features/review/utils/submit";
+import type { ConversationFilter } from "@web/features/conversation/utils";
+import type { SubmitReviewAction } from "@web/features/review/utils";
 import type { ReviewSessionPayload } from "@web/features/review/session";
-import type { MarkReadyAction } from "@web/features/pulls/transport/markReady";
-import type { PostCommentResult } from "@web/features/pulls/transport/postComment";
+import type {
+  MarkReadyAction,
+  PostCommentResult,
+} from "@web/features/pulls/transport";
 import type { BriefSearchParams } from "../../comparison/compareState";
 import type { Brief, LivePrState, LocalBriefSummary } from "../../types";
 import type { buildBriefViewModel } from "../../utils/viewModel";
@@ -17,7 +19,7 @@ import type { BriefComparisonPlan } from "./useComparisonOverlay";
  * flags read-only, and puts Mark ready in the terminal-action slot.
  */
 export interface OwnDraftPlan {
-  /** Absent on a historical revision — the soft gate lists current-head flags. */
+  /** Absent on a historical revision, the soft gate lists current-head flags. */
   readonly markReady?: MarkReadyAction;
   /** Same absence as `markReady`; hides the Post affordance. */
   readonly postComment?: (draftId: string) => Promise<PostCommentResult>;

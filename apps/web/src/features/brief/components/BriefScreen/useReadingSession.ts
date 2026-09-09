@@ -15,8 +15,14 @@ import { createI18n } from "i18n";
 import { useLatestRef } from "@web/hooks/useLatestRef";
 import { useScrollSpy } from "@web/hooks/useScrollSpy";
 import { prefersReducedMotion } from "@web/utils/motion";
-import type { ReviewComment } from "@web/features/review/utils/comments";
-import { buildReceipt, type Receipt } from "@web/features/review/utils/receipt";
+import {
+  buildReceipt,
+  deriveUnresolvedItems,
+  type Receipt,
+  type ReviewComment,
+  type ReviewOutcome,
+  type UnresolvedItem,
+} from "@web/features/review/utils";
 import {
   serializeSnapshot,
   useReviewSession,
@@ -24,11 +30,6 @@ import {
   type ReviewSessionActions,
   type SessionSnapshot,
 } from "@web/features/review/session";
-import {
-  deriveUnresolvedItems,
-  type ReviewOutcome,
-  type UnresolvedItem,
-} from "@web/features/review/utils/state";
 
 const receiptArtifactI18n = createI18n();
 import { summarizeProgress, type ProgressTotals } from "../../utils/progress";
@@ -68,7 +69,7 @@ function numericCssVar(name: string): number {
 
 function focusScrollOffset(): number {
   // The whole pinned stack, read as one registered length rather than
-  // re-added from its parts here — the parts drifting apart between call
+  // re-added from its parts here, the parts drifting apart between call
   // sites is what put a landing underneath the toolbar.
   return numericCssVar("--sticky-stack-h") + 40;
 }
@@ -78,7 +79,7 @@ function scrollElementToTop(
   behavior: ScrollBehavior,
 ): void {
   // A target inside a hidden kept-warm scope pane must no-op like
-  // scrollIntoView does natively on box-less elements — its zero rect would
+  // scrollIntoView does natively on box-less elements, its zero rect would
   // scroll to ~page top. Attribute check, not getClientRects: jsdom has no
   // layout, so a rect check would also veto every legitimate test scroll.
   if (element.closest("[hidden]") !== null) return;
@@ -101,9 +102,9 @@ interface PendingChunkScroll {
 }
 
 /** Frames to wait for a window-jumped chunk to mount and the scroll to
- * settle before giving up (~1.5s at 60Hz — smooth long jumps take ~1s). */
+ * settle before giving up (~1.5s at 60Hz, smooth long jumps take ~1s). */
 const MOUNT_POLL_FRAMES = 90;
-/** Below this landing miss, no correction — a nudge would read as jitter. */
+/** Below this landing miss, no correction, a nudge would read as jitter. */
 const CORRECTION_THRESHOLD_PX = 8;
 /** Consecutive still frames that count as "scroll stopped". */
 const SETTLE_FRAMES = 3;
@@ -114,7 +115,7 @@ function correctLanding(element: HTMLElement, align: ChunkScrollAlign): void {
   const desiredTop = align === "top" ? focusScrollOffset() : 0;
   const delta = element.getBoundingClientRect().top - desiredTop;
   if (Math.abs(delta) <= CORRECTION_THRESHOLD_PX) return;
-  // "instant", not "auto" — "auto" defers to the page's smooth behavior.
+  // "instant", not "auto", "auto" defers to the page's smooth behavior.
   window.scrollBy({ behavior: "instant", top: delta });
 }
 
@@ -136,7 +137,7 @@ function useChunkScroller(
   const cancelPendingScroll = useCallback(() => {
     const current = pending.current;
     // First: a stale settle poll's abort listeners must not survive into
-    // the next jump — one firing would kill the NEW jump's poll.
+    // the next jump, one firing would kill the NEW jump's poll.
     current.stopSettle?.();
     if (current.timeout !== null) {
       window.clearTimeout(current.timeout);
@@ -159,7 +160,7 @@ function useChunkScroller(
   useEffect(() => cancelPendingScroll, [cancelPendingScroll]);
 
   // After a far jump: wait until the card mounts AND the scroll stops, then
-  // nudge once onto the real element. The user's own input aborts — a late
+  // nudge once onto the real element. The user's own input aborts, a late
   // correction would hijack a scroll they already took over.
   const settleAndCorrect = useCallback(
     (chunkId: string, align: ChunkScrollAlign) => {
@@ -223,7 +224,7 @@ function useChunkScroller(
         pending.current.timeout = null;
         // Far jumps are instant, never smooth: windowed lists mount and
         // measure cards as the viewport passes, and every measurement
-        // scroll-adjustment CANCELS an in-flight smooth animation — a
+        // scroll-adjustment CANCELS an in-flight smooth animation, a
         // smooth far jump dies a few thousand px in. Near targets keep the
         // smooth glide (short flight, no mount churn to cancel it).
         const resolveJump = (align_: ChunkScrollAlign) => {
@@ -285,43 +286,43 @@ export interface UseReadingSessionInput {
   chunkWindows?: ChunkWindowRegistry | null | undefined;
   /**
    * The reading-position store this session WRITES (scroll-spy + explicit
-   * nav). Never subscribed here — position consumers subscribe themselves, so
+   * nav). Never subscribed here, position consumers subscribe themselves, so
    * a spy tick re-renders them and not the screen shell hosting this hook.
    */
   position: ReadingPositionStore;
 }
 
 export interface UseReadingSessionValue {
-  // — store surface the screen still wires directly —
+  // store surface the screen still wires directly,
   actions: ReviewSessionActions;
   reviewComments: ReviewComment[];
   submittedReviewIds: number[];
   reviewOutcome: ReviewOutcome;
-  // — progress / receipt derivation —
+  // progress / receipt derivation,
   totals: ProgressTotals;
   progress: number;
   unresolvedItems: UnresolvedItem[];
   snapshot: SessionSnapshot;
   receipt: Receipt;
-  // — reading order —
-  /** Chunks in the RENDERED (grouped) order — the sequence J/K walks. */
+  // reading order,
+  /** Chunks in the RENDERED (grouped) order, the sequence J/K walks. */
   readingOrderedChunks: GroupView["chunks"];
   chunkIds: string[];
   /** Index into `chunkIds` where each group starts (Shift+J/Shift+K). */
   groupBoundaries: number[];
-  // — view / focus state —
+  // view / focus state,
   layoutMode: LayoutMode;
   focusMode: boolean;
   /** The focus banner strip's measurement target (publishes --focus-banner-h). */
   focusBannerRef: RefObject<HTMLDivElement | null>;
   openChunks: Set<string>;
-  /** Bulk action over `openChunks`, never an override — derived state. */
+  /** Bulk action over `openChunks`, never an override, derived state. */
   supportingCollapse: SupportingCollapseState;
   toggleCollapseSupporting: () => void;
   shortcutsOpen: boolean;
   toggleShortcuts: () => void;
   closeShortcuts: () => void;
-  // — navigation —
+  // navigation,
   toggleChunk: (chunkId: string) => void;
   markReviewed: (chunkId: string) => void;
   jumpToChunk: (
@@ -369,7 +370,7 @@ export function useReadingSession(
   const reviewOutcome = useReviewSession((state) => state.reviewOutcome);
   const actions = useReviewSessionActions();
   const scrollToChunk = useChunkScroller(chunkWindows ?? null);
-  // RENDERED (grouped) order, not raw brief order — the StoryView lays chunks
+  // RENDERED (grouped) order, not raw brief order, the StoryView lays chunks
   // out by group, so J/K must follow the same sequence.
   const readingOrderedChunks = useMemo(
     () => model.groups.flatMap((group) => group.chunks),
@@ -428,7 +429,7 @@ export function useReadingSession(
   const [focusMode, setFocusMode] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   // Brief switch without remount: reading posture is per-brief and used to
-  // reset via the subtree remount — adjust during render so the new brief
+  // reset via the subtree remount, adjust during render so the new brief
   // never paints with the old brief's open set, active chunk, or focus mode.
   const [sessionBriefId, setSessionBriefId] = useState(briefId);
   if (sessionBriefId !== briefId) {
@@ -573,7 +574,7 @@ export function useReadingSession(
     (chunkId: string) => {
       const alreadyReviewed = reviewedChunksRef.current.has(chunkId);
       // Focus mode: checking collapses + advances (never wraps); un-checking
-      // is a correction — reopen and stay put.
+      // is a correction, reopen and stay put.
       if (focusModeRef.current) {
         if (alreadyReviewed) {
           actions.reviewChunk(chunkId);
@@ -612,7 +613,7 @@ export function useReadingSession(
     ],
   );
 
-  /** Ensure-open, never a toggle — row-target jumps (conversation threads,
+  /** Ensure-open, never a toggle, row-target jumps (conversation threads,
    * revision rails, unresolved submit items) land INSIDE the diff, which
    * only exists on an open card. */
   const openChunk = useCallback((chunkId: string) => {
@@ -627,7 +628,7 @@ export function useReadingSession(
       behavior: ScrollBehavior = "smooth",
       align: ChunkScrollAlign = "native",
     ) => {
-      // Focus mode must open the target — every other card is display:none,
+      // Focus mode must open the target, every other card is display:none,
       // so a collapsed landing would show nothing. Outside focus mode a
       // collapsed card is the user's triage: wayfinding jumps (toc, group
       // stepper, risk attrs) land on it WITHOUT re-expanding.
@@ -662,7 +663,7 @@ export function useReadingSession(
     scrollToChunk(target, "smooth", "top");
   };
   const toggleShortcuts = () => setShortcutsOpen((current) => !current);
-  // Stable: Modal's Escape-listener effect deps on `close` — an unstable
+  // Stable: Modal's Escape-listener effect deps on `close`, an unstable
   // identity would re-bind a document listener on every session render
   // while the shortcuts modal is open.
   const closeShortcuts = useCallback(() => setShortcutsOpen(false), []);

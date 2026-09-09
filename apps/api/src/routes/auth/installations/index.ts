@@ -1,11 +1,8 @@
-// Multi-org session endpoints (GET current/accessible set, POST rebind) —
+// Multi-org session endpoints (GET current/accessible set, POST rebind),
 // composition only. The session row's `installation_id` IS the tenant stamp,
 // so the rebinding is an atomic `auth_session` UPDATE and the switch emits
 // an `auth` audit row at the choke point.
-import {
-  ProductActionIds,
-  ProductQueryIds,
-} from "../../../product-operations/ids";
+import { ProductActionIds, ProductQueryIds } from "contract";
 import {
   productRouter,
   type ProductRouter,
@@ -15,7 +12,7 @@ import { accessStampLayer, sessionLayer, type AuthzEnv } from "../../authz";
 import type { AuthRouteDeps } from "../session";
 import createInstallationsHandlers from "./handler";
 
-/** Mount over the session gate (no `:repoId` — same composition as the PR list). */
+/** Mount over the session gate (no `:repoId`, same composition as the PR list). */
 export function installationsRoutes(
   deps: AuthRouteDeps,
 ): ProductRouter<AuthzEnv> {

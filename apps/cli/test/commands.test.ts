@@ -1,15 +1,14 @@
-// Command tests over the REAL api Hono app on PGlite: true integration, no
-// network, no mock drift. Assertions live on the contract surface, meaning
-// captured stdout and stderr, exit code, passthrough byte-fidelity, and the
-// repos cache's self-healing triggers.
+// Command tests over the REAL API, running as its own process against a
+// migrated database this file seeds: true integration, no network, no mock
+// drift. Assertions live on the contract surface, meaning captured stdout and
+// stderr, exit code, passthrough byte-fidelity, and the repos cache's
+// self-healing triggers.
 import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync, readFileSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createApp, type AuthDeps } from "api";
 import {
   encryptToken,
-  createEnvKeyProvider,
   createGrantAuth,
   isInstallationId,
   isReviewerId,
@@ -19,18 +18,20 @@ import {
   type ReviewerId,
   type TenantContext,
 } from "persistence";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { PgliteHarness } from "persistence/testing";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ExitCodes } from "../src/exit";
-import { testLogger } from "./logging";
-import { getRequestUrl } from "./helpers";
+import {
+  BASE_URL,
+  KEY_REF,
+  startCliApiHarness,
+  type CliApiHarness,
+} from "./harness/api";
 import { runCli, type CliDeps } from "../src/program";
 
-const KEY_REF = "SESSION_KEY_V1";
 const INSTALLATION_ID = 987654;
 const REVIEWER_ID = 555;
 const REPO_A = 42001;
-const BASE_URL = "https://mb.example";
 
 function brand<T extends bigint>(
   guard: (v: bigint) => v is T,
@@ -55,28 +56,22 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-/** GitHub stub at the GLOBAL fetch boundary (the api app's octokit uses it). */
+/** The GitHub responses this file's API process gets, and the call counts. */
 function stubGitHub(
+  world: CliApiHarness,
   repos: () => ReadonlyArray<{ id: number; full_name: string }>,
 ): {
   counts: { installationRepos: number };
 } {
   const counts = { installationRepos: 0 };
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (input: string | URL | Request): Promise<Response> => {
-      const url = getRequestUrl(input);
-      if (
-        url.includes("/user/installations/") &&
-        url.includes("/repositories")
-      ) {
-        counts.installationRepos += 1;
-        const list = repos();
-        return jsonResponse({ total_count: list.length, repositories: list });
-      }
-      return jsonResponse({ message: "unexpected endpoint" }, 404);
-    }),
-  );
+  world.github.serve((url) => {
+    if (url.includes("/user/installations/") && url.includes("/repositories")) {
+      counts.installationRepos += 1;
+      const list = repos();
+      return jsonResponse({ total_count: list.length, repositories: list });
+    }
+    return jsonResponse({ message: "unexpected endpoint" }, 404);
+  });
   return { counts };
 }
 
@@ -85,7 +80,8 @@ interface Captured {
   readonly err: string[];
 }
 
-describe("mergebrief commands over the real api app", () => {
+describe("mergebrief commands over the real api", () => {
+  let world: CliApiHarness;
   let harness: PgliteHarness;
   let kp: KeyProvider;
   let appFetch: CliDeps["fetch"];
@@ -93,43 +89,16 @@ describe("mergebrief commands over the real api app", () => {
   let cacheDir: string;
 
   beforeEach(async () => {
-    harness = await createPgliteHarness();
-    kp = createEnvKeyProvider({
-      [KEY_REF]: randomBytes(32).toString("base64"),
-    });
-    const auth: AuthDeps = {
-      oauthClientId: "Iv1.test-client-id",
-      oauthClientSecret: "test-client-secret",
-      keyProvider: kp,
-      sessionKeyRef: KEY_REF,
-      publicBaseUrl: BASE_URL,
-      cookieSecure: true,
-    };
-    const app = createApp({
-      logger: testLogger(),
-      handle: harness.handle,
-      webhookSecret: "test-webhook-secret",
-      auth,
-      github: {
-        fetchPullRequestConversation: async () => {
-          throw new Error("conversation port must not be called in this suite");
-        },
-        listRepoCollaborators: async () => {
-          throw new Error(
-            "collaborators port must not be called in this suite",
-          );
-        },
-      },
-      serverVersion: "test-version",
-    });
-    appFetch = async (input, init) => app.request(input, init);
+    world = await startCliApiHarness({ serverVersion: "test-version" });
+    harness = world.harness;
+    kp = world.keyProvider;
+    appFetch = world.fetch;
     configDir = mkdtempSync(join(tmpdir(), "mb-config-"));
     cacheDir = mkdtempSync(join(tmpdir(), "mb-cache-"));
   });
 
   afterEach(async () => {
-    vi.unstubAllGlobals();
-    await harness.close();
+    await world.close();
   });
 
   async function seedToken(): Promise<string> {
@@ -191,7 +160,7 @@ describe("mergebrief commands over the real api app", () => {
   }
 
   it("auth login stores the token 0600 and reports the status shape", async () => {
-    stubGitHub(() => [{ id: REPO_A, full_name: "octo/hello" }]);
+    stubGitHub(world, () => [{ id: REPO_A, full_name: "octo/hello" }]);
     const token = await seedToken();
     const { deps: d, io } = deps({ readStdin: async () => `${token}\n` });
 
@@ -228,7 +197,7 @@ describe("mergebrief commands over the real api app", () => {
   });
 
   it("auth status models a dead token as data with exit 0", async () => {
-    stubGitHub(() => []);
+    stubGitHub(world, () => []);
     await login(await seedToken());
     // Sabotage: a well-formed but unknown token via the env override.
     const { deps: d, io } = deps({
@@ -258,7 +227,8 @@ function freshIo(): { out: string[]; err: string[] } {
   return { out: [], err: [] };
 }
 
-describe("auth login profile selection + verification", () => {
+describe("auth login profile selection and verification", () => {
+  let world: CliApiHarness;
   let harness: PgliteHarness;
   let kp: KeyProvider;
   let appFetch: CliDeps["fetch"];
@@ -266,42 +236,16 @@ describe("auth login profile selection + verification", () => {
   let cacheDir: string;
 
   beforeEach(async () => {
-    harness = await createPgliteHarness();
-    kp = createEnvKeyProvider({
-      [KEY_REF]: randomBytes(32).toString("base64"),
-    });
-    const app = createApp({
-      logger: testLogger(),
-      handle: harness.handle,
-      webhookSecret: "test-webhook-secret",
-      auth: {
-        oauthClientId: "Iv1.test-client-id",
-        oauthClientSecret: "test-client-secret",
-        keyProvider: kp,
-        sessionKeyRef: KEY_REF,
-        publicBaseUrl: BASE_URL,
-        cookieSecure: true,
-      },
-      github: {
-        fetchPullRequestConversation: async () => {
-          throw new Error("conversation port must not be called in this suite");
-        },
-        listRepoCollaborators: async () => {
-          throw new Error(
-            "collaborators port must not be called in this suite",
-          );
-        },
-      },
-      serverVersion: "test-version",
-    });
-    appFetch = async (input, init) => app.request(input, init);
+    world = await startCliApiHarness({ serverVersion: "test-version" });
+    harness = world.harness;
+    kp = world.keyProvider;
+    appFetch = world.fetch;
     configDir = mkdtempSync(join(tmpdir(), "mb-config-"));
     cacheDir = mkdtempSync(join(tmpdir(), "mb-cache-"));
   });
 
   afterEach(async () => {
-    vi.unstubAllGlobals();
-    await harness.close();
+    await world.close();
   });
 
   it("MERGEBRIEF_PROFILE selects the login target like --profile", async () => {

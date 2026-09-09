@@ -46,9 +46,9 @@
     // One condition per ternary. Replacements, in order: a `Record<State,
     // Value>` lookup, if/else, an early return.
     "no-nested-ternary": "error",
-    // Loose equality never; `== null` stays legal for the wire shapes that
-    // carry null, converted at the boundary.
-    "eqeqeq": ["error", "always", { "null": "ignore" }],
+    // Loose equality never, `null` included: a value that can be either
+    // absent form is checked against both, so the two stay distinguishable.
+    "eqeqeq": ["error", "always"],
     // Blocks nest at most three deep inside a function; tests included.
     "max-depth": ["error", { "max": 3 }],
     "typescript/no-explicit-any": "error",
@@ -270,7 +270,7 @@
       // frozen format.
       "files": [
         "apps/web/src/routes/__root.tsx",
-        "apps/web/src/features/brief/utils/fixtures.ts",
+        "apps/web/src/features/brief/fixtures.ts",
         "apps/web/src/features/review/utils/receipt.ts",
         "apps/web/src/features/review/utils/submit.ts",
         "**/characterization/**"
@@ -385,11 +385,13 @@
       // Composition roots and hand-run scripts: the only readers of
       // `process.env`. Everything else takes its values as parameters.
       "files": [
+        "apps/api/src/main.ts",
         "apps/worker/src/main.ts",
         "apps/web/src/server/env.ts",
         "apps/cli/src/bin.ts",
         "packages/brief-core/src/cli/categorize.ts",
         "packages/brief-core/src/cli/delta.ts",
+        "tools/baselines/src/main.ts",
         "tools/ingest-briefs/src/main.ts",
         "tools/categorizer/eval/cli.ts",
         "tools/categorizer/scripts/**",

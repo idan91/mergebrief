@@ -2,6 +2,18 @@
 
 Prepared on 2026-09-06 from the stack review and the owner's subsequent decisions.
 
+## Status, 2026-09-08
+
+- **Decision 2 was not taken.** `house/comment-run` stayed, at eight content
+  lines, and `house/comment-density` was added beside it at 40%. Comment length
+  is gated, not reviewer-held. F1 as written no longer describes the code.
+- **Boundary work completed elsewhere.** The dependency-cruiser records file is
+  deleted and the graph is clean, so the entries F-series items expected to
+  remove no longer exist. Suppression debt survives under all four enforced
+  rules, not the two most visible ones: `house/no-em-dash`,
+  `house/test-title`, `house/comment-run` and `house/comment-density`.
+  `pnpm check:baselines` prints the current split rather than this file.
+
 ## Scope and stopping point
 
 This session writes an **uncommitted plan only**. Implementation, commits, PR publication, tracker changes, merging and branch deletion are separate phases. Leave the existing [U0 plan](u0-standards-plan.md) untouched and do not change the current checkout to save this file.

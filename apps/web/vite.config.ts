@@ -27,6 +27,12 @@ function previewAllowedHosts(): string[] | undefined {
 export default defineConfig({
   test: {
     setupFiles: ["./src/test/setup.ts"],
+    // The route suites render a real router under jsdom and legitimately take
+    // seconds. `pnpm -r test` runs every package's workers at once, and under
+    // that contention the 5s default times a passing test out; the failure
+    // then leaks a mounted DOM into the next test's queries, so one slow
+    // machine reads as a cascade of unrelated assertion failures.
+    testTimeout: 20_000,
     coverage: {
       // Whole-tree measurement: without an explicit `include`, vitest 4 only
       // reports files a test happened to import, so untested modules would
@@ -55,16 +61,14 @@ export default defineConfig({
     })(),
   },
   preview: {
-    // The compose web service serves REAL traffic through `vite preview`
-    // behind a tunnel/reverse proxy, so Host headers carry the public domain
-    // and vite's default preview allow-list (localhost/IP literals) would
-    // 403 every webhook delivery and OAuth callback before they reach Hono.
-    // Allow exactly the deployment's own public hostname — derived from
-    // PUBLIC_BASE_URL (the same env the OAuth callback origin is built
-    // from), read when `vite preview` loads this config. localhost and IP
-    // literals stay allowed by vite regardless, so the compose healthcheck
-    // (127.0.0.1) and local browsing are unaffected; an unset/invalid
-    // PUBLIC_BASE_URL just keeps vite's rebinding-guard defaults.
+    // `vite preview` serves REAL traffic behind a tunnel or reverse proxy, so
+    // Host carries the public domain and vite's default preview allow-list of
+    // localhost and IP literals would 403 every webhook delivery and OAuth
+    // callback. Allow exactly this deployment's own public hostname, derived
+    // from PUBLIC_BASE_URL, the same env the OAuth callback origin is built
+    // from. Localhost and IP literals stay allowed regardless, so the
+    // healthcheck and local browsing are unaffected, and an unset or invalid
+    // value keeps vite's rebinding-guard defaults.
     ...(() => {
       const hosts = previewAllowedHosts();
       return hosts ? { allowedHosts: hosts } : {};

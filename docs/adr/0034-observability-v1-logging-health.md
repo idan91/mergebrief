@@ -170,3 +170,29 @@ LOG_FORMAT, structured-logger adoption) a contained, non-breaking upgrade.
   the 401 path is silent.
 - Root AGENTS.md becomes the canonical repo-standards file (CLAUDE.md a
   symlink to it) and carries the log-level judgment standard.
+
+## Update, 2026-09-08
+
+The health endpoints kept their semantics; what changed is which process
+answers them, on the ticket that gave the API its own process.
+
+- `/healthz` and `/readyz` now exist on BOTH `apps/api` and `apps/web`, ahead
+  of each entry's own routing. The API's `/readyz` still resolves its handle
+  and runs `SELECT 1`; the web tier's calls the API origin's `/readyz`
+  directly, not through `/api/*`, with a 2s budget, because a web tier that cannot reach the API is not
+  ready even when its own process is fine.
+- `getWebhookApp()` is gone with `apps/web/src/server/webhookApp.ts`. The
+  API's composition root is `apps/api/src/main.ts`, and it validates config,
+  resolves the session key and migrates BEFORE it listens, so the
+  "unmigrated window" this ADR accepted no longer exists for the API.
+- The compose healthcheck still probes `/healthz` only, on both services, for
+  the reason recorded above: an upstream blip must not restart the web tier.
+- **Why health still sits ahead of the routing, now that the original reason
+  is spent.** This ADR justified the position by saying health must answer
+  while the Hono app fails to compose. In the API's own process, composition
+  completes before `serve()` runs, so that no longer applies. The position is
+  kept for a different reason: `createApp` mounts request-id, the `api.access`
+  line and the audit middleware at `*`, so health answered as an ordinary
+  route would be logged and audited on every probe. At a 15s healthcheck that
+  is thousands of access lines a day for a static 200. Converting these to
+  routes is not the cleanup it looks like.

@@ -1,7 +1,7 @@
 // The gated-route fresh re-resolve, shared by every mutating pr route: the
 // gate's cached slug may be up to 60s stale, and a rename + name-reuse
 // inside that window would point an outward write at the wrong repository.
-// The matching handler-side posture mapper lives here too — a denial at this
+// The matching handler-side posture mapper lives here too, a denial at this
 // stage runs BEFORE the viewer has re-proven access this request, so 403 and
 // 404 both collapse to the gate's uniform 404 posture.
 import {
@@ -12,7 +12,7 @@ import {
 } from "github";
 import type { RepoId } from "persistence";
 import type { Result } from "types";
-import { ApiErrorCodes } from "../../../../error-response";
+import { ApiErrorCodes } from "contract";
 import { buildGitHubDeniedResult } from "../../../../shared-errors/failures";
 import {
   BadGateway,
@@ -38,7 +38,7 @@ export interface RepoOwnerAndName {
 
 /**
  * The repo's CURRENT `{ owner, repo }` name pair, fetched by numeric id with
- * the viewer's token. Call it immediately before an outward write — the
+ * the viewer's token. Call it immediately before an outward write, the
  * gate's cached slug may be up to 60s stale.
  */
 export async function resolveRepoOwnerAndName(
@@ -61,7 +61,7 @@ export async function resolveRepoOwnerAndName(
 
 /**
  * `urlBoxOnly` says the gate passed this request on the operator PAT, so the
- * reader is already looking at the brief, the title and the diff — there is
+ * reader is already looking at the brief, the title and the diff, there is
  * no existence left for the uniform 404 to hide, and collapsing to it would
  * send them hunting for a deleted pull request. The write still cannot
  * happen (posting under the operator's token would misattribute their

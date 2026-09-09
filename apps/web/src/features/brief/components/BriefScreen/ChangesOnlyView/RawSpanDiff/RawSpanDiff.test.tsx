@@ -16,7 +16,7 @@ import {
   ReviewFlowProvider,
 } from "@web/features/review/session";
 import type { ComparisonQuery } from "../../../../comparison/comparisonQuery";
-import { briefFixture } from "../../../../utils/fixtures";
+import { briefFixture } from "@web/features/brief/fixtures";
 import { buildBriefViewModel } from "../../../../utils/viewModel";
 import { RawSpanDiff } from "./RawSpanDiff";
 
@@ -84,7 +84,7 @@ function renderRaw(query: ComparisonQuery<string>, client?: QueryClient) {
   );
 }
 
-/** The toggle button: its accessible NAME is stable — only aria-pressed flips. */
+/** The toggle button: its accessible NAME is stable, only aria-pressed flips. */
 function toggleButton() {
   return screen.getByRole("button", { name: "Raw diff" });
 }
@@ -111,7 +111,7 @@ describe("RawSpanDiff toggle", () => {
     });
   });
 
-  it("renders the raw diff read-only — rows are aria-disabled, not commentable", async () => {
+  it("renders the raw diff read-only, rows aria-disabled not commentable", async () => {
     const { container } = renderRaw(diffQuery("chk", "head"));
     fireEvent.click(toggleButton());
     await waitFor(() => expect(screen.getByText("validate(a);")).toBeTruthy());
@@ -133,8 +133,8 @@ describe("RawSpanDiff toggle", () => {
     expect(screen.queryByText("src/a.ts")).toBeNull();
   });
 
-  it("names a successful empty diff honestly — a no-change span is not a failure", async () => {
-    // Identical base/head content: the fetch succeeds with an empty body —
+  it("names a successful empty diff honestly, not as a failure", async () => {
+    // Identical base/head content: the fetch succeeds with an empty body,
     // success-empty must not wear the error copy.
     renderRaw(diffQuery("prev", "head", ""));
     fireEvent.click(toggleButton());
@@ -163,7 +163,7 @@ describe("RawSpanDiff toggle", () => {
     expect(screen.queryByText(/No raw changes in this span/)).toBeNull();
   });
 
-  it("a guarded descriptor vetoes CACHED data — the guard wins over the cache", async () => {
+  it("a guarded descriptor vetoes cached data, the guard wins", async () => {
     // enabled: false only blocks FETCHING; react-query still serves a
     // previously-cached body for the same key.
     const queryKey = ["pr-diff", "424242", 7, "prev", "head"];
@@ -190,7 +190,7 @@ describe("RawSpanDiff toggle", () => {
     expect(screen.queryByText("src/a.ts")).toBeNull();
   });
 
-  it("never fetches a descriptor that disabled itself — opening degrades honestly", async () => {
+  it("never fetches a descriptor that disabled itself", async () => {
     const queryFn = vi.fn(async (): Promise<string> => DIFF);
     renderRaw({
       queryKey: ["pr-diff", "424242", 7, "gone", "head"],

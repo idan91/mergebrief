@@ -1,13 +1,15 @@
-// Shapes one browsable revision entry from the pre-joined artifact listings —
+// Shapes one browsable revision entry from the pre-joined artifact listings,
 // pure composition over the tested derivations in revision-comparisons.
 import type { BriefSpanRow } from "persistence";
+import type {
+  LastReviewComparisonView,
+  PreviousBriefComparisonView,
+  RevisionView,
+} from "contract";
 import {
   derivePreviousBriefComparison,
   deriveLastReviewComparison,
   type CheckpointBaseline,
-  type LastReviewComparisonView,
-  type PreviousBriefComparisonView,
-  type RevisionView,
 } from "./revision-comparisons";
 
 export interface RevisionViewContext {
@@ -56,7 +58,7 @@ export async function buildRevisionView(
     headIndex: entry.headIndex,
     createdAt: entry.createdAt.toISOString(),
     // Missing projection row: the artifact's own write time is the honest
-    // late fallback — never earlier than the real generation start, so it
+    // late fallback, never earlier than the real generation start, so it
     // can only under-mark.
     generatedAt: (
       ctx.generatedAtByHead.get(entry.headSha) ?? entry.createdAt

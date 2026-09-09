@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { briefFixture } from "../../../utils/fixtures";
+import { briefFixture } from "@web/features/brief/fixtures";
 import { buildBriefViewModel } from "../../../utils/viewModel";
 import { buildReadThroughSegments } from "./ReadThroughProgress";
 
@@ -15,7 +15,7 @@ describe("buildReadThroughSegments", () => {
     expect(segments.every((segment) => segment.fillPercent === 0)).toBe(true);
   });
 
-  it("fills the current segment by within-group chunk position, not completion", () => {
+  it("fills the segment by within-group chunk position, not completion", () => {
     const [group] = model.groups;
     if (!group) throw new Error("fixture has no groups");
     const secondChunk = group.chunks[1];
@@ -38,7 +38,7 @@ describe("buildReadThroughSegments", () => {
     );
   });
 
-  it("flags hasReadingOrder false in the source-order fallback (fixture has no readingOrder)", () => {
+  it("flags hasReadingOrder false in the source-order fallback", () => {
     const segments = buildReadThroughSegments(model.groups, null, titleOf);
     expect(segments.every((segment) => !segment.hasReadingOrder)).toBe(true);
   });

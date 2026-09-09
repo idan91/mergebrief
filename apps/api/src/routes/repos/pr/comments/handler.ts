@@ -4,7 +4,7 @@ import {
   DraftCommentStatuses,
   createTenantRepository,
 } from "persistence";
-import { ApiErrorCodes } from "../../../../error-response";
+import { ApiErrorCodes } from "contract";
 import {
   BadRequest,
   Conflict,
@@ -83,7 +83,7 @@ async function resolvePublishableDraft(
 
 /**
  * The GitHub write is the commit point; flipping the row is how the session
- * records it. A failure here leaves a draft that is on GitHub — logged,
+ * records it. A failure here leaves a draft that is on GitHub, logged,
  * never an error response, which would invite a second post.
  */
 async function recordPublishedDraft(
@@ -246,7 +246,7 @@ export default function createHandlers(
       throwReplyFailure(created.error);
     }
 
-    // The write happened: the cached conversation is stale — drop it so the
+    // The write happened: the cached conversation is stale, drop it so the
     // FE's post-reply refetch reflects the reply inside the TTL.
     evictConversation(ctx, repoId, pr.prNumber);
 
@@ -312,7 +312,7 @@ function setThreadResolution(
     }
 
     // The thread state changed (or was confirmed) on GitHub: the cached
-    // conversation is stale either way — drop it so the FE's refetch shows
+    // conversation is stale either way, drop it so the FE's refetch shows
     // the slim-row transition immediately.
     evictConversation(ctx, repoId, pr.prNumber);
 

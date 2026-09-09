@@ -2,7 +2,7 @@
 // report a decision as saved when it had nothing sendable to send.
 import { describe, expect, it, vi } from "vitest";
 
-import { briefFixture } from "@web/features/brief/utils/fixtures";
+import { briefFixture } from "@web/features/brief/fixtures";
 import { buildBriefViewModel } from "@web/features/brief/utils";
 import { createSessionWriteGateway } from "./writeGateway";
 import type { SessionWrites } from "./writes";

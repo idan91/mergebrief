@@ -24,9 +24,10 @@
       // The CI/weekly workflows install browsers with `pnpm -C apps/web exec
       // playwright ...`. knip attributes a workflow's binaries to the root
       // workspace, which does not (and should not) depend on Playwright —
-      // apps/web owns it. `manifest` is likewise not a binary: the dev/build
-      // scripts invoke `pnpm -C apps/api manifest`, a package script.
-      "ignoreBinaries": ["playwright", "manifest"],
+      // apps/web owns it. `manifest` and `check` are likewise not binaries:
+      // the dev/build/lint scripts invoke `pnpm -C apps/api manifest` and
+      // `pnpm -C tools/baselines check`, both package scripts.
+      "ignoreBinaries": ["playwright", "manifest", "check"],
     },
     "apps/web": {
       // Routes are the app's entry surface; the feature `index.tsx` barrels
@@ -54,6 +55,7 @@
     "apps/api": {
       "entry": ["src/index.ts", "scripts/generate-manifest.ts"],
     },
+    "packages/contract": { "entry": ["src/index.ts"] },
     "packages/brief-core": {
       "entry": ["src/index.ts", "src/types.ts", "src/cli/*.ts"],
     },
@@ -87,6 +89,7 @@
     "packages/repo-config": { "entry": ["src/index.ts"] },
     "packages/types": { "entry": ["src/index.ts"] },
     "apps/worker": { "entry": ["src/index.ts", "src/main.ts"] },
+    "tools/baselines": { "entry": ["src/main.ts"] },
     "tools/ingest-briefs": { "entry": ["src/index.ts", "src/main.ts"] },
     "tools/oxlint-plugin-house": {
       "entry": ["src/index.mjs"],

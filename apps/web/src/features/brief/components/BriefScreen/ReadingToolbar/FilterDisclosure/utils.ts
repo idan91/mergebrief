@@ -1,5 +1,5 @@
 // Closure-free trigger-label logic, so it is directly unit-testable.
-import type { ConversationFilter } from "@web/features/conversation/utils/filter";
+import type { ConversationFilter } from "@web/features/conversation/utils";
 import type { TFunction } from "i18next";
 
 /**

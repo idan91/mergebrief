@@ -18,7 +18,7 @@ import {
   ConversationFilterPanel,
   type ConversationFilterPanelProps,
 } from "@web/features/conversation";
-import { isFilterActive } from "@web/features/conversation/utils/filter";
+import { isFilterActive } from "@web/features/conversation/utils";
 import { filterTriggerSegments } from "./utils";
 import styles from "./FilterDisclosure.module.scss";
 

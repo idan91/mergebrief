@@ -2,12 +2,12 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 
-import type { Disposition } from "@web/features/review/session";
 import {
-  useReviewSession,
-  useReviewSessionActions,
+  type Disposition,
   useReviewActions,
   useReviewFlow,
+  useReviewSession,
+  useReviewSessionActions,
 } from "@web/features/review/session";
 import type { Category } from "../../../../../types";
 import type {

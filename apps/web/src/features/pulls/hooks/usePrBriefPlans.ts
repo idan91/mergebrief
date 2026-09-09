@@ -11,12 +11,12 @@ import {
 import {
   lastReviewUnavailableReasonTitle,
   type CompareOptionFlags,
-} from "../../brief/comparison/compareState";
+} from "@web/features/brief/comparison";
 import {
   buildSubmitPayload,
   type SubmitDraftInput,
   type SubmitReviewAction,
-} from "../../review/utils/submit";
+} from "@web/features/review/utils";
 import type {
   ConversationPlan,
   ThreadRevisionJump,

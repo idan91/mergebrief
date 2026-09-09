@@ -6,9 +6,9 @@ import { useTranslation } from "react-i18next";
 import type {
   BriefSearch,
   BriefSearchParams,
-} from "../../../../brief/comparison/compareState";
+} from "@web/features/brief/comparison";
 import type { ThreadRevisionJump } from "@web/features/conversation";
-import type { ConversationFilter } from "@web/features/conversation/utils/filter";
+import type { ConversationFilter } from "@web/features/conversation/utils";
 import type { deriveBriefRouteState } from "../../../utils/briefRouteState";
 import { comparisonsWarming } from "../../../utils/briefRouteState";
 import type {
@@ -59,7 +59,7 @@ export function stateAnnouncement(
   const notice = metaPolicyNotice(t, meta);
   switch (state.kind) {
     case "render":
-      // Warming is a property of the LATEST generation — on a stale span the
+      // Warming is a property of the LATEST generation, on a stale span the
       // chip is suppressed (PrBriefContent), so the announcement matches.
       return comparisonsWarming(meta) && !staleHead
         ? t("pulls.announce.briefReadyWarming")
@@ -217,7 +217,7 @@ export function PrBriefBody(props: PrBriefBodyProps) {
   return (
     <>
       {/* One PERSISTENT live region ahead of the switch: state swaps update
-          its text in place — a per-branch region would remount and never be
+          its text in place. A per-branch region would remount and never be
           announced. */}
       <span
         aria-atomic="true"

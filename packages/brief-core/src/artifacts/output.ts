@@ -10,13 +10,13 @@ function shortSha(sha: string): string {
   return sha.slice(0, 8);
 }
 
-/** `<owner>-<repo>-<number>` — shared stem for a PR's output files. */
+/** `<owner>-<repo>-<number>`, the shared stem for a PR's output files. */
 export function prStem(repo: string, number: number): string {
   return `${repo.replace("/", "-")}-${number}`;
 }
 
 /**
- * `<stem>_<index>_<head8>` — versioned id for one brief's artifacts, from just
+ * `<stem>_<index>_<head8>`, the versioned id for one brief's artifacts, from just
  * the pieces a caller may have before a full `Brief` exists (e.g. a dedupe
  * lookup before generation has run).
  */
@@ -141,7 +141,7 @@ export function deltaSummaryLines(delta: DeltaBrief): string[] {
   // Label the endpoints by brief index when both ends were briefed (e.g. _1→_2),
   // falling back to the SHA otherwise.
   const endpoint = (idx: number | null, sha: string): string =>
-    idx != null ? `_${idx} (${shortSha(sha)})` : shortSha(sha);
+    idx !== null ? `_${idx} (${shortSha(sha)})` : shortSha(sha);
   lines.push(
     `DELTA  ${delta.pr.repo}#${delta.pr.number} — ${endpoint(delta.baselineIndex, delta.baselineSha)} → ${endpoint(delta.headIndex, delta.headSha)}`,
   );

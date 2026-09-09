@@ -508,14 +508,14 @@ function renderComments(comments: ReviewComment[]): string {
 }
 
 function commentLocation(comment: ReviewComment): string {
-  if (comment.startLine != null && comment.line != null) {
+  if (comment.startLine !== null && comment.line !== null) {
     return `:${comment.startLine}-${comment.line}`;
   }
-  if (comment.line != null) return `:${comment.line}`;
-  if (comment.originalStartLine != null && comment.originalLine != null) {
+  if (comment.line !== null) return `:${comment.line}`;
+  if (comment.originalStartLine !== null && comment.originalLine !== null) {
     return `:original ${comment.originalStartLine}-${comment.originalLine}`;
   }
-  if (comment.originalLine != null) return `:original ${comment.originalLine}`;
+  if (comment.originalLine !== null) return `:original ${comment.originalLine}`;
   return "";
 }
 

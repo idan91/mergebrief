@@ -84,6 +84,8 @@ import {
   type BriefRowId,
   type BriefSpanRow,
   type BriefWriteInput,
+  type GenerationKind,
+  type GenerationStatus,
   type GenerationTarget,
   type PullRequestRow,
   type TenantRepository,
@@ -540,7 +542,7 @@ async function runGeneration(
     // primary use.
     throw new SupersededSignal(`pull_request ${pr.prNumber} is ${pr.state}`);
   }
-  if (pr.repoSlug == null || splitRepoSlug(pr.repoSlug) === undefined) {
+  if (pr.repoSlug === null || splitRepoSlug(pr.repoSlug) === undefined) {
     throw new PermanentJobError("pull_request row has no usable repo slug");
   }
   // Re-bind post-guard so the narrowing survives into the inner closure.
@@ -918,17 +920,24 @@ async function runGeneration(
       const { links, primaryTicket } = await loadContext();
       const fetchedPr: FetchedPr = { locator, meta, diff, links };
       if (primaryTicket !== undefined) fetchedPr.primaryTicket = primaryTicket;
-      const brief = await runGenerator(() =>
-        categorize(
-          fetchedPr,
-          headIndex,
-          { base: info.baseSha, head: headSha, commitCount: info.commitCount },
-          generator,
-          coreLog,
-          repoConfig?.repoContext,
-          deps.effort,
-          anchorView,
-        ),
+      const brief = await runGenerator(
+        () =>
+          categorize(
+            fetchedPr,
+            headIndex,
+            {
+              base: info.baseSha,
+              head: headSha,
+              commitCount: info.commitCount,
+            },
+            generator,
+            coreLog,
+            repoConfig?.repoContext,
+            deps.effort,
+            anchorView,
+          ),
+        log,
+        GenerationKinds.BRIEF,
       );
       await projection.markRunning(target, GenerationPhases.WRITING);
       // Anchored stitch: carry frozen groups verbatim over the model's take,
@@ -1294,11 +1303,32 @@ function locatorFor(pr: PullRequestRow): PrLocator {
   return { owner: split.owner, repo: split.repo, number: pr.prNumber };
 }
 
-/** Run a generator call, classifying its throw as transient or permanent. */
-async function runGenerator<T>(call: () => Promise<T>): Promise<T> {
+/**
+ * Run a generator call, classifying its throw as transient or permanent, and
+ * time it. Nothing downstream records how long a model call took: the
+ * generation row's `updated_at` is the last write of any phase, so a finished
+ * brief and a timeout are indistinguishable in duration after the fact.
+ */
+async function runGenerator<T>(
+  call: () => Promise<T>,
+  log: Logger,
+  kind: GenerationKind,
+): Promise<T> {
+  const startedAt = Date.now();
+  const emit = (outcome: GenerationStatus): void => {
+    log.info("generator call finished", {
+      evt: "generation.complete",
+      kind,
+      outcome,
+      durationMs: Date.now() - startedAt,
+    });
+  };
   try {
-    return await call();
+    const value = await call();
+    emit(GenerationStatuses.SUCCEEDED);
+    return value;
   } catch (error) {
+    emit(GenerationStatuses.FAILED);
     if (isTransientGenerationError(error)) {
       throw error instanceof Error ? error : new Error(String(error));
     }
@@ -1639,13 +1669,16 @@ async function warmDeltaCores(
     // oxlint-disable-next-line no-await-in-loop
     await inputs.watch.assertCurrent();
     // oxlint-disable-next-line no-await-in-loop
-    const delta = await runGenerator(() =>
-      categorizeDelta(
-        deltaInput,
-        inputs.generator,
-        (message) => log.info(message),
-        inputs.effort,
-      ),
+    const delta = await runGenerator(
+      () =>
+        categorizeDelta(
+          deltaInput,
+          inputs.generator,
+          (message) => log.info(message),
+          inputs.effort,
+        ),
+      log,
+      GenerationKinds.DELTA,
     );
     // oxlint-disable-next-line no-await-in-loop
     const written = await store.deltas.write({

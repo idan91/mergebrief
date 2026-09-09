@@ -18,19 +18,17 @@ import {
 import { getSsrWarnSink } from "../../data/ssrWarnSink";
 import {
   parseBrief,
+  parseBriefContext,
   parseComparisonMarks,
   parseDeltaBrief,
   parseRevisionNarrativeArtifact,
-} from "../brief/utils/validation";
+  type RepoConfigContext,
+} from "@web/features/brief/utils";
 import {
   hasPendingSessionWrite,
   parseReviewSessionPayload,
   type ReviewSessionPayload,
 } from "../review/session";
-import {
-  parseBriefContext,
-  type RepoConfigContext,
-} from "../brief/utils/repoConfig";
 import type {
   Brief,
   ComparisonMarks,
@@ -53,7 +51,7 @@ function prPath(repoId: string, prNumber: number): string {
 
 /**
  * The picker's list. A 401 (logged out) and a 502/503 (backend/GitHub down)
- * are EXPECTED states the picker renders inline — they must not blow away the
+ * are EXPECTED states the picker renders inline, they must not blow away the
  * whole route (the local-briefs section still works). Only contract
  * violations (malformed 200) throw.
  */
@@ -82,7 +80,7 @@ export function pullsSessionQueryOptions() {
 }
 
 /**
- * The viewer's own url-box briefs — the "your briefs" home list. Same
+ * The viewer's own url-box briefs, the "your briefs" home list. Same
  * expected-state envelope as the pulls list; rows are the same wire shape.
  */
 export function urlBriefsQueryOptions() {
@@ -121,7 +119,7 @@ export async function deleteUrlBrief(
   }
 }
 
-/** PR meta — the single generation-status poll target. */
+/** PR meta, the single generation-status poll target. */
 export function prMetaQueryOptions(repoId: string, prNumber: number) {
   return queryOptions({
     queryKey: ["pr-meta", repoId, prNumber],
@@ -139,7 +137,7 @@ export function prMetaQueryOptions(repoId: string, prNumber: number) {
   });
 }
 
-/** A DB-stored Brief artifact for an exact span — immutable once written. */
+/** A DB-stored Brief artifact for an exact span, immutable once written. */
 export function dbBriefQueryOptions(
   repoId: string,
   prNumber: number,
@@ -168,8 +166,9 @@ export function dbBriefQueryOptions(
 }
 
 /**
- * The span's repo-config snapshot — origin + policy display weights. Best-effort: a failure renders the Brief without source markers
- * or de-emphasis, never blocks it. Immutable per span (like the brief).
+ * The span's repo-config snapshot, origin plus policy display weights.
+ * Best-effort: a failure renders the Brief without source markers or
+ * de-emphasis, never blocks it. Immutable per span, like the brief.
  */
 export function dbBriefContextQueryOptions(
   repoId: string,
@@ -195,7 +194,7 @@ export function dbBriefContextQueryOptions(
 }
 
 /**
- * The reviewer's Review Session on this Brief — read in the route loader so
+ * The reviewer's Review Session on this Brief, read in the route loader so
  * the first paint already carries marks, drafts and dispositions. The read is
  * PURE: it never creates the session row. Live rather than immutable (a CLI
  * write lands in the same session), so it holds only briefly.
@@ -227,7 +226,7 @@ export function sessionQueryOptions(
     // background appears when the reviewer comes back. No polling and no live
     // channel: the payload scales with reviewer actions, not PR size. The
     // refetch REPLACES the store, which is safe because every action already
-    // wrote through — composer text is component state and survives it.
+    // wrote through, composer text is component state and survives it.
     staleTime: 0,
     // Suppressed while this tab has a write in flight: the refetch replaces
     // the store, and a payload computed before that write lands would take
@@ -242,18 +241,15 @@ export function sessionQueryOptions(
 }
 
 /**
- * Comparison marks for a (baseline, head) span — immutable once written.
- * The key is deliberately widened to `QueryKey`: these descriptors cross the
- * `BriefComparisonPlan` boundary typed as plain `UseQueryOptions`, and a narrower
- * inferred key breaks that assignment (queryFn context contravariance).
+ * Comparison marks for a (baseline, head) span, immutable once written.
+ * The key is widened to `QueryKey` because these descriptors cross the
+ * `BriefComparisonPlan` boundary as plain `UseQueryOptions`, and a narrower
+ * inferred key breaks that assignment through queryFn context contravariance.
  *
- * The DB body is coordinates-only (`{ baselineSha, headSha, files }` —
- * persistence REJECTS `baselineLabel`/`baselineIndex` at write time), while
- * the renderer's `ComparisonMarks` carries both summary fields. They are
- * synthesized here from what the caller already knows: which comparison this
- * query IS (`previous-brief` or the `checkpoint` baseline), and the index
- * from PR-meta's availability (null when the checkpoint SHA was never a
- * briefed head).
+ * The DB body is coordinates-only, `{ baselineSha, headSha, files }`, because
+ * persistence REJECTS `baselineLabel` and `baselineIndex` at write time; both
+ * are synthesized here from the comparison this query IS and PR-meta's index,
+ * null when the checkpoint SHA was never a briefed head.
  */
 export function dbComparisonMarksQueryOptions(
   repoId: string,
@@ -297,9 +293,9 @@ export function dbComparisonMarksQueryOptions(
 }
 
 /**
- * The pre-warmed delta core for (baseline = checkpoint SHA, head) — immutable
+ * The pre-warmed delta core for (baseline = checkpoint SHA, head), immutable
  * once written. The body is the DELTA artifact shape (`changedGroups`,
- * `baselineSha`, `commentsAddressed` — `parseDeltaBrief`, NOT `parseBrief`).
+ * `baselineSha`, `commentsAddressed`, `parseDeltaBrief`, NOT `parseBrief`).
  * The caller only mounts this when PR-meta said `deltaAvailable`, so a 404
  * here is a real error, not a tier.
  */
@@ -334,7 +330,7 @@ export function dbDeltaQueryOptions(
   });
 }
 
-/** Revision narrative for (prevHead, head) — real narrative or a skip stub. */
+/** Revision narrative for (prevHead, head), real narrative or a skip stub. */
 export function dbRevisionNarrativeQueryOptions(
   repoId: string,
   prNumber: number,

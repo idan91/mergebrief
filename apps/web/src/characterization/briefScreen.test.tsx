@@ -23,7 +23,7 @@ import {
 import {
   briefFixture,
   briefSummaryFixture,
-} from "@web/features/brief/utils/fixtures";
+} from "@web/features/brief/fixtures";
 import { routeTree } from "../routeTree.gen";
 import { BriefView } from "../features/brief";
 import { emptySessionPayload } from "../features/review/session";
@@ -88,7 +88,7 @@ async function renderBriefScreen(brief = briefFixture) {
 }
 
 /**
- * Characterization suite — pins the screen's critical couplings. Asserts
+ * Characterization suite for the screen's critical couplings. Asserts
  * behaviour observable through the rendered screen, not store internals.
  */
 function statText(label: string): string | null {
@@ -210,7 +210,7 @@ describe("brief screen characterization", () => {
     // Regression: toggleFocusMode/startReadThrough used to scroll with the
     // default "native" alignment (plain scrollIntoView), which doesn't
     // reserve space for the focus banner that only mounts once focus mode is
-    // active — the banner then rendered on top of the chunk just scrolled
+    // active, and the banner then rendered on top of the chunk just scrolled
     // to. Entering focus mode must use the offset-aware "top" alignment,
     // same as J/K navigation while focus mode is already active.
     await waitFor(() =>
@@ -224,8 +224,8 @@ describe("brief screen characterization", () => {
   });
 
   it("offers no comment composer: a file-backed brief is read-only", async () => {
-    // No `brief` row, no installation, no reviewer — there is no session to
-    // save a comment into, so the gutter never opens one.
+    // No `brief` row, no installation and no reviewer, so there is no session
+    // to save a comment into and the gutter never opens one.
     await renderBriefScreen();
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
 
@@ -235,7 +235,7 @@ describe("brief screen characterization", () => {
     });
     expect(document.querySelector("[data-commentable]")).toBeNull();
 
-    // The keyboard walk still works — read-only is not inert.
+    // The keyboard walk still works. Read-only is not inert.
     fireEvent.keyDown(window, { key: "j" });
     await waitFor(() =>
       expect(document.querySelector("article[data-current]")?.id).toBe(
@@ -266,7 +266,7 @@ describe("brief screen characterization", () => {
   });
 
   it("offers no disposition controls: a file-backed brief is read-only", async () => {
-    // Same reason the composer never opens here — there is no session to
+    // Same reason the composer never opens here, since there is no session to
     // record a dismissal in, so the affordance does not render at all.
     await renderBriefScreen();
     expect(statText("flags")).toBe("0/2");
@@ -299,7 +299,7 @@ describe("brief screen characterization", () => {
   });
 
   it("lists unique risk-attribute names in the toolbar's risk-attrs panel", async () => {
-    // The panel stays closed until the trigger opens it — never auto-open,
+    // The panel stays closed until the trigger opens it, never auto-open,
     // even on floor fire.
     await renderBriefScreen();
     expect(document.querySelector("[data-attribute-jump-rail]")).toBeNull();
@@ -376,7 +376,7 @@ describe("brief screen characterization", () => {
     );
   });
 
-  it("S expands the sidebar and focus mode hides it without touching the preference", async () => {
+  it("S expands the sidebar and focus mode hides it, preference kept", async () => {
     await renderBriefScreen();
 
     fireEvent.keyDown(window, { key: "s" });
@@ -407,7 +407,7 @@ describe("brief screen characterization", () => {
     );
   });
 
-  it("hiding the sidebar with focus inside it lands focus on the content region", async () => {
+  it("hiding the sidebar with focus inside lands focus on the content", async () => {
     await renderBriefScreen();
     const chevron = screen.getByRole("button", { name: "Expand sidebar" });
     chevron.focus();
@@ -434,7 +434,7 @@ describe("brief screen characterization", () => {
       (node) => node.textContent,
     );
     expect(bolded).toContain("bugfix vs logic-refactor");
-    // Whole sentence, so the separator spacing is pinned too — losing the
+    // Whole sentence, so the separator spacing is pinned too, because losing the
     // space around the slot welds the categories to the preceding colon.
     expect(screen.getByText(/categorizer is split/).textContent).toBe(
       "The categorizer is split on this group\u2019s intent: bugfix vs logic-refactor. Your call; the receipt records the override.",

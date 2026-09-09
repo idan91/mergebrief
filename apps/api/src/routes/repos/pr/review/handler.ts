@@ -4,7 +4,7 @@ import {
   DraftCommentStatuses,
   createTenantRepository,
 } from "persistence";
-import { ApiErrorCodes } from "../../../../error-response";
+import { ApiErrorCodes } from "contract";
 import {
   BadRequest,
   Conflict,
@@ -95,7 +95,7 @@ function assertSubmitRepresentable(
 
 /**
  * The review is live on GitHub; this is the session's own bookkeeping. A
- * failure here is logged, never an error response — that would invite a
+ * failure here is logged, never an error response, that would invite a
  * retry that posts the review twice.
  */
 async function recordSubmittedDrafts(
@@ -192,14 +192,14 @@ export default function createHandlers(
 
     // The review is on GitHub: the drafts it carried are published, and the
     // review id is what the session's own comments join on. A failure here
-    // leaves drafts that are already posted — logged, never an error
+    // leaves drafts that are already posted, logged, never an error
     // response, which would invite a second review.
     // Nothing past this line may reach the error path: the review is live,
     // and an error response would invite a retry that posts it twice.
     stampAuditTarget(c, "pull_request", pr.id);
     await recordSubmittedDrafts(c, resolved, drafts, created.value.reviewId);
 
-    // A submitted review is a conversation write — the cached conversation
+    // A submitted review is a conversation write, the cached conversation
     // is stale the moment it lands.
     evictConversation(ctx, c.get("repoId"), pr.prNumber);
 

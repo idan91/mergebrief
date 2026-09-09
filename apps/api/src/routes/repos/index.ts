@@ -1,14 +1,11 @@
-// The `/repos` subtree. `GET /` — owner/name → repoId resolution for the CLI:
-// the installation∩user-access intersection via the SHARED allowed-set resolver
-// (one cache with /pulls); `repoId` stringified (bigint is not JSON-native);
-// a FLAT array, deliberately unpaginated (an installation's repo grant is a
-// bounded set); `no-store` (per-viewer state); a GitHub failure is a 401/502 —
-// never a DB-only fallback. Lives under `/api/*`, so both presentation channels
-// (cookie + Bearer) authenticate.
-//
-// Beneath it: the per-repo collaborators leaf and the per-PR subtree, each
-// behind its per-repo gate.
-import { ProductQueryIds } from "../../product-operations/ids";
+// The `/repos` subtree, owner/name to repoId resolution for the CLI. The
+// installation and user-access intersection comes from the SHARED allowed-set
+// resolver, one cache with /pulls. `repoId` is stringified because bigint is
+// not JSON-native, the array is deliberately unpaginated, the response is
+// `no-store`, and a GitHub failure is a 401 or 502 rather than a DB-only
+// fallback. Beneath it sit the per-repo collaborators leaf and the per-PR
+// subtree, each behind its per-repo gate.
+import { ProductQueryIds } from "contract";
 import {
   productRouter,
   type ProductRouter,
@@ -27,7 +24,7 @@ export interface ReposRouteDeps extends AuthRouteDeps {
   readonly github: InstallationGitHubPort;
 }
 
-/** Mount the repos subtree: the list over the session gate (no `:repoId` —
+/** Mount the repos subtree: the list over the session gate (no `:repoId`,
  * the whole point is discovering them, sharing the injected allowed-set
  * resolver) plus the per-repo leaves. */
 export function reposRoutes(

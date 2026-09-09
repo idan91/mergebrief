@@ -1,12 +1,12 @@
 // The /comments write family behind the pr subtree's shared gate:
-//   POST /                                  — publish one held draft comment
-//   POST /:commentId/replies                — reply to a review comment
-//   POST /:commentId/{resolve,unresolve}    — flip a thread's state
+//   POST /, publish one held draft comment
+//   POST /:commentId/replies, reply to a review comment
+//   POST /:commentId/{resolve,unresolve}, flip a thread's state
 // All run with the VIEWER's token (authorship stays the reviewer's), NOT
 // gated on viewerIsAuthor or draft: GitHub separately authorizes each
-// write. Every one IS a conversation write — success calls the injected
+// write. Every one IS a conversation write, success calls the injected
 // `evictConversation` hook.
-import { ProductActionIds } from "../../../../product-operations/ids";
+import { ProductActionIds } from "contract";
 import {
   productRouter,
   type ProductRouter,

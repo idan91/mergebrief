@@ -1,19 +1,16 @@
 // The capabilities command: the third CLI-synthesized shape. Join arms per
-// map entry, the --require fail-closed matrix (exit 6 + stream invariant),
-// the fingerprint warning, and tolerant-read on unknown server fields —
-// over a stub client; one runCli pass wires the real command + real map.
+// map entry, the --require fail-closed matrix, the fingerprint warning, and
+// tolerant-read on unknown server fields, over a stub client. One runCli pass
+// wires the real command against the real map.
 import { createHash, randomBytes } from "node:crypto";
-import { createApp } from "api";
 import {
   encryptToken,
-  createEnvKeyProvider,
   createGrantAuth,
   isInstallationId,
   isReviewerId,
   createTokenAuth,
   WriteClassifications,
 } from "persistence";
-import { createPgliteHarness } from "persistence/testing";
 import { describe, expect, it } from "vitest";
 import type { ApiClient } from "../src/client";
 import { CLI_VERSION } from "../src/client";
@@ -25,7 +22,7 @@ import { CliError, ExitCodes } from "../src/exit";
 import type { ReadIo } from "../src/commands/read";
 import { CLI_CATALOG_FINGERPRINT } from "../src/generated-catalog-fingerprint";
 import { runCli, type CliDeps } from "../src/program";
-import { testLogger } from "./logging";
+import { startCliApiHarness } from "./harness/api";
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -116,7 +113,7 @@ function deps(overrides: Partial<CapabilitiesRunDeps>): CapabilitiesRunDeps {
   };
 }
 
-describe("runCapabilities — the synthesized join", () => {
+describe("runCapabilities, the synthesized join", () => {
   it("joins every arm: command, gap, webOnly, unknownToCli", async () => {
     const c = capture(true);
     await runCapabilities(deps({ io: c.io }));
@@ -147,7 +144,7 @@ describe("runCapabilities — the synthesized join", () => {
     expect(body).toMatchObject({ fingerprintMatch: false });
   });
 
-  it("renders a human table without --json (non-contractual)", async () => {
+  it("renders a human table without --json, which is non-contractual", async () => {
     const c = capture(false);
     await runCapabilities(deps({ io: c.io }));
     const text = c.out.join("");
@@ -157,7 +154,7 @@ describe("runCapabilities — the synthesized join", () => {
   });
 });
 
-describe("runCapabilities --require — fail-closed", () => {
+describe("runCapabilities --require is fail-closed", () => {
   it("passes when every required id maps to a command the server registers", async () => {
     const c = capture(true);
     await runCapabilities(deps({ io: c.io, requireIds: ["read-pull"] }));
@@ -191,7 +188,7 @@ describe("runCapabilities --require — fail-closed", () => {
     expect(c.out).toEqual([]);
   });
 
-  it("suppresses the fingerprint warning when the require check already fails", async () => {
+  it("suppresses the fingerprint warning when the require check fails", async () => {
     const c = capture(true);
     await runCapabilities(
       deps({
@@ -287,35 +284,12 @@ describe("mergebrief capabilities through runCli", () => {
   });
 });
 
-describe("mergebrief capabilities against the real api app", () => {
-  it("exit 0 with fingerprintMatch true — the wire-shape drift tripwire", async () => {
-    const harness = await createPgliteHarness();
+describe("mergebrief capabilities against the real api", () => {
+  it("exit 0 with fingerprintMatch true, the wire-shape drift tripwire", async () => {
+    const world = await startCliApiHarness();
+    const harness = world.harness;
+    const kp = world.keyProvider;
     try {
-      const kp = createEnvKeyProvider({
-        SESSION_KEY_V1: randomBytes(32).toString("base64"),
-      });
-      const app = createApp({
-        logger: testLogger(),
-        handle: harness.handle,
-        webhookSecret: "test-webhook-secret",
-        auth: {
-          oauthClientId: "Iv1.test-client-id",
-          oauthClientSecret: "test-client-secret",
-          keyProvider: kp,
-          sessionKeyRef: "SESSION_KEY_V1",
-          publicBaseUrl: "https://mb.example",
-          cookieSecure: true,
-        },
-        github: {
-          fetchPullRequestConversation: async () => {
-            throw new Error("github port must not be called in this suite");
-          },
-          listRepoCollaborators: async () => {
-            throw new Error("github port must not be called in this suite");
-          },
-        },
-      });
-
       const installationId = BigInt(987654);
       if (!isInstallationId(installationId)) throw new Error("bad id");
       const reviewerId = BigInt(555);
@@ -346,7 +320,7 @@ describe("mergebrief capabilities against the real api app", () => {
         ["capabilities", "--json", "--require", "read-capabilities"],
         {
           ...d,
-          fetch: async (input, init) => app.request(input, init),
+          fetch: world.fetch,
           env: { MERGEBRIEF_TOKEN: plaintext },
         },
       );
@@ -359,7 +333,7 @@ describe("mergebrief capabilities against the real api app", () => {
         fingerprintMatch: true,
       });
     } finally {
-      await harness.close();
+      await world.close();
     }
   });
 });

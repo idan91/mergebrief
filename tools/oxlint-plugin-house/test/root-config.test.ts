@@ -90,6 +90,10 @@ function ruleIdOf(code: string): string | undefined {
   if (house?.[1] !== undefined) return `house/${house[1]}`;
   const plugin = /^eslint-plugin-i18next\((.+)\)$/.exec(code);
   if (plugin?.[1] !== undefined) return `i18next/${plugin[1]}`;
+  // Core rules the root config configures itself, so a rule option the
+  // config text promises is provable against a real run.
+  const core = /^eslint\((.+)\)$/.exec(code);
+  if (core?.[1] !== undefined) return `eslint/${core[1]}`;
   return undefined;
 }
 
@@ -180,6 +184,18 @@ const CAP_COMMENT = Array.from(
 /** Nine: one past the cap, which must report. */
 const OVER_CAP_COMMENT = `${CAP_COMMENT}\n// invariant line 9`;
 
+/** The absence check the standard bans: one operator matching both forms. */
+const LOOSE_ABSENCE = `export function isAbsent(value: number | null | undefined): boolean {
+  return value == null;
+}
+`;
+
+/** The same intent spelled so null and undefined stay distinguishable. */
+const EXPLICIT_ABSENCE = `export function isAbsent(value: number | null | undefined): boolean {
+  return value === null || value === undefined;
+}
+`;
+
 function emDashComment(name: string): string {
   return `// A comment carrying an em dash — right here.\nexport const ${name} = 1;\n`;
 }
@@ -200,6 +216,8 @@ const MATRIX_FILES = {
   "packages/brief-core/src/wall.ts": `${OVER_CAP_COMMENT}\nexport const b = 1;\n`,
   "apps/web/src/features/brief/Widget.tsx": RAW_BUTTON,
   "apps/web/src/components/Button/Button.tsx": RAW_BUTTON,
+  "packages/brief-core/src/loose-absence.ts": LOOSE_ABSENCE,
+  "packages/brief-core/src/explicit-absence.ts": EXPLICIT_ABSENCE,
 };
 
 let matrix: LintResult | undefined;
@@ -272,6 +290,20 @@ describe("shared-button allowlist", () => {
     expect(
       rulesFor(lintMatrix(), "apps/web/src/components/Button/Button.tsx"),
     ).not.toContainEqual(expect.stringMatching(/^house\/no-raw-button@/));
+  });
+});
+
+describe("absence checks", () => {
+  it("reports a loose null comparison", () => {
+    expect(
+      rulesFor(lintMatrix(), "packages/brief-core/src/loose-absence.ts"),
+    ).toContain("eslint/eqeqeq@error");
+  });
+
+  it("passes explicit null and undefined checks", () => {
+    expect(
+      rulesFor(lintMatrix(), "packages/brief-core/src/explicit-absence.ts"),
+    ).not.toContainEqual(expect.stringMatching(/^eslint\/eqeqeq@/));
   });
 });
 

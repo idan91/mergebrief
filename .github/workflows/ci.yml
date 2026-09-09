@@ -34,6 +34,10 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # The baseline gate inside `pnpm lint` resolves
+          # `merge-base(base.sha, HEAD)`, so the base branch's history has to
+          # be here. A shallow checkout makes the gate fail, not pass.
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Set up pnpm
@@ -57,6 +61,10 @@ jobs:
       # Prettier and knip read files no package owns — docs, root config —
       # so there is no change set that provably cannot break it.
       - name: Run lint
+        env:
+          # The PR base, named explicitly: the gate's local default is `main`,
+          # which is not the base of a stacked PR.
+          MERGEBRIEF_BASELINE_BASE: ${{ github.event.pull_request.base.sha }}
         run: pnpm lint
 
   catalog:
@@ -183,6 +191,16 @@ jobs:
             echo "Root-level change detected; running the full workspace."
           else
             filters+=(--filter "...[$BASE]")
+            # The two cross-process consumers. Their suites start the real
+            # `api` executable over HTTP, and pnpm's graph cannot see an edge
+            # that is not an import, so an API-only change would otherwise
+            # run neither.
+            selected="$(pnpm -r --filter "!$WORKSPACE_ROOT_PROJECT" \
+              --filter "...[$BASE]" list --depth -1 --json | jq -r '.[].name')"
+            if grep -qx 'api' <<<"$selected"; then
+              echo "API changed; adding its HTTP consumers to the selection."
+              filters+=(--filter "@code-review/web" --filter "mergebrief")
+            fi
           fi
 
           # `--if-present` because the matrix is one script name across the
@@ -242,11 +260,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # The suite exercises apps/web only, so it runs when apps/web is in the
-      # affected selection — which, via `...[<ref>]`, includes every change to
-      # a package apps/web depends on. The selection is read from the real
-      # workspace graph rather than a path glob, so a new dependency edge
-      # cannot silently drop the gate.
+      # The suite drives apps/web AND starts the real `api` executable, so it
+      # runs when either is in the affected selection. `...[<ref>]` covers
+      # every package each of them depends on. `api` has to be named
+      # explicitly: web reaches it over HTTP now, and pnpm's graph cannot see
+      # a dependency that is not an import.
       - name: Decide whether the browser suite applies
         id: applies
         env:
@@ -268,7 +286,7 @@ jobs:
             list --depth -1 --json | jq -r '.[].name')"
           printf 'Affected packages:\n%s\n' "$selected"
 
-          if grep -qx '@code-review/web' <<<"$selected"; then
+          if grep -qxE '@code-review/web|api' <<<"$selected"; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"

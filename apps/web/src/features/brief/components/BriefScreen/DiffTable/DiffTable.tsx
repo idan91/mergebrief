@@ -16,13 +16,15 @@ import {
   ThreadRowView,
   type ThreadComposerWiring,
 } from "@web/features/conversation";
-import type { DigestThreadRow } from "@web/features/conversation/utils/digest";
-import { demotedSubmittedCommentIds } from "@web/features/conversation/utils/ownComments";
+import {
+  demotedSubmittedCommentIds,
+  type DigestThreadRow,
+} from "@web/features/conversation/utils";
 
-// Row-level threads already sit AT their line — the detail's jump is hidden.
+// Row-level threads already sit AT their line, so the detail's jump is hidden.
 const noJump = () => undefined;
 import { AddressedDiffComment } from "@web/features/review";
-import { createCommentAnchor } from "@web/features/review/utils/comments";
+import { createCommentAnchor } from "@web/features/review/utils";
 import {
   useChunkReviewComments,
   useReviewActions,
@@ -66,7 +68,7 @@ export interface DiffTableProps {
   /**
    * Hard read-only override (the RawSpanDiff case): every write affordance
    * stands down with THIS reason regardless of the flow store's posture, and
-   * no review comments render — a raw-span chunk id could collide with a
+   * no review comments render, a raw-span chunk id could collide with a
    * brief chunk id, so the store's chunk-keyed reads must not apply.
    */
   readOnlyReason?: string | undefined;
@@ -139,7 +141,7 @@ export function DiffTable({
     (state) => state.postBlockedExternally,
   );
   // In-flight post-now ids scoped to THIS chunk's comments (the registry's
-  // set covers the whole brief — an unscoped read would re-render every
+  // set covers the whole brief, so an unscoped read would re-render every
   // expanded table on any post).
   const postingCommentIds = useReviewFlow(
     useShallow((state) =>
@@ -150,7 +152,7 @@ export function DiffTable({
   );
   const [dragStart, setDragStart] = useState<number | null>(null);
   // Instance-scoped id for the read-only reason the disabled rows point at
-  // (declared before the no-diff early return — hooks order).
+  // (declared before the no-diff early return, for hooks order).
   const composerDisabledReasonId = `${useId()}-composer-disabled`;
   // Store-owned so it survives this card unmounting offscreen; the key is
   // file-qualified because a bare chunk id can collide across diff sources.
@@ -171,7 +173,7 @@ export function DiffTable({
     return () => window.removeEventListener("scroll", close, { capture: true });
   }, [railHover]);
 
-  // Reset the drag when the mouse is released anywhere — without this, releasing
+  // Reset the drag when the mouse is released anywhere. Without this, releasing
   // outside a commentable row leaves the selection highlight stuck on.
   useEffect(() => {
     if (dragStart === null) return;
@@ -212,7 +214,7 @@ export function DiffTable({
 
   function finishSelection(rowIndex: number) {
     // Read-only revision: composer entry is inert (the affordance itself is
-    // aria-disabled with the reason — this guards the activation path).
+    // aria-disabled with the reason, which guards the activation path).
     if (composerDisabledReason !== undefined) return;
     const indexes =
       dragStart === null ? [rowIndex] : rangeBetween(dragStart, rowIndex);
@@ -233,7 +235,7 @@ export function DiffTable({
   return (
     <>
       {/* The reason the commentable rows are inert (aria-describedby target).
-          Visible — not sr-only — so pointer users learn it too. */}
+          Visible rather than sr-only, so pointer users learn it too. */}
       {composerDisabledReason !== undefined ? (
         <p
           className={styles["composerDisabledNote"]}
@@ -318,8 +320,8 @@ export function DiffTable({
                     }}
                     onMouseDown={(event) => {
                       if (composerDisabledReason !== undefined) return;
-                      // Range anchoring starts from a comment anchor — the
-                      // line-number gutter or the +/− sign column — never
+                      // Range anchoring starts from a comment anchor, the
+                      // line-number gutter or the +/− sign column, never
                       // the code text, which stays natively selectable.
                       if (
                         !(event.target instanceof Element) ||
@@ -327,7 +329,7 @@ export function DiffTable({
                       ) {
                         return;
                       }
-                      // Anchoring intent: drop any stale text selection —
+                      // Anchoring intent: drop any stale text selection,
                       // preventDefault keeps it alive otherwise, and it
                       // would trip the mouseup suppression guard.
                       window.getSelection()?.removeAllRanges();
@@ -346,7 +348,7 @@ export function DiffTable({
                         return;
                       }
                       // Plain mouseup: composer entry is anchor-only (gutter
-                      // or sign column) — the code text is reserved for
+                      // or sign column), the code text is reserved for
                       // selection, so a double-click word-select never pops
                       // the composer. Keyboard entry stays row-level (Enter).
                       if (

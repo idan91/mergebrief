@@ -11,7 +11,7 @@ vi.mock("../../../data/apiFetch", async (importOriginal) => {
 });
 
 import { apiFetch, ApiError } from "../../../data/apiFetch";
-import type { SubmitPayload } from "../../review/utils/submit";
+import type { SubmitPayload } from "@web/features/review/utils";
 import { submitReview } from "./submitReview";
 
 const apiFetchMock = vi.mocked(apiFetch);
@@ -94,7 +94,7 @@ describe("submitReview", () => {
     await expect(run()).resolves.toEqual({ kind: "orphaned-draft" });
   });
 
-  it("maps 401 to unauthorized (clean re-login)", async () => {
+  it("maps 401 to unauthorized for a clean re-login", async () => {
     apiFetchMock.mockResolvedValue(new Response("{}", { status: 401 }));
     await expect(run()).resolves.toEqual({ kind: "unauthorized" });
   });
@@ -104,7 +104,7 @@ describe("submitReview", () => {
     await expect(run()).resolves.toEqual({ kind: "not-found" });
   });
 
-  it("maps 502 (and other upstream failures) to upstream", async () => {
+  it("maps 502 and other upstream failures to upstream", async () => {
     apiFetchMock.mockResolvedValue(new Response("{}", { status: 502 }));
     await expect(run()).resolves.toEqual({ kind: "upstream" });
   });

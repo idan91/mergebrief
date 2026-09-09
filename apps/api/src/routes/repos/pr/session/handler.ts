@@ -1,4 +1,4 @@
-// The session op handlers — parse, bind through the controller via the
+// The session op handlers, parse, bind through the controller via the
 // shared write seam, and map refusals onto the wire as throws. Composition
 // stays in `index.ts`.
 import type { Context } from "hono";
@@ -9,7 +9,7 @@ import {
   type ReviewDraftCommentRow,
   type SessionWriter,
 } from "persistence";
-import { ApiErrorCodes } from "../../../../error-response";
+import { ApiErrorCodes } from "contract";
 import {
   BadRequest,
   Conflict,
@@ -76,7 +76,7 @@ function assertHuman(c: Context<AuthzEnv>): void {
 }
 
 /**
- * Run one risk operation's whole array as ONE session write — the array is
+ * Run one risk operation's whole array as ONE session write, the array is
  * the operation, so a half-applied bulk is not a state the reviewer asked
  * for. The writes go out together; the transaction is what makes them
  * atomic. The reply counts the rows that changed, which an undo can
@@ -106,7 +106,7 @@ async function readJsonBody(c: Context<AuthzEnv>) {
 }
 
 export default function createHandlers(deps: AuthRouteDeps) {
-  /** GET the session — a query: it reads, it projects, it creates nothing. */
+  /** GET the session, a query: it reads, it projects, it creates nothing. */
   const readSession = async (c: Context<AuthzEnv>) => {
     const span = spanQuerySchema.safeParse({
       base: c.req.query("base"),
@@ -283,7 +283,7 @@ export default function createHandlers(deps: AuthRouteDeps) {
     }
 
     const resolved = await resolveSessionWrite(deps, c);
-    // Overrides only — the Brief supplies every default, so an unchanged
+    // Overrides only, the Brief supplies every default, so an unchanged
     // group never reaches this route.
     const written = await resolved.run((writer) =>
       writer.putReclassification({

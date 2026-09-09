@@ -45,7 +45,7 @@ import {
   type TenantContext,
   type TriggerGenerationInput,
 } from "persistence";
-import { ApiErrorCodes } from "../error-response";
+import { ApiErrorCodes } from "contract";
 import {
   BadRequest,
   InternalError,

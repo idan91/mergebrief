@@ -6,10 +6,8 @@ import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createApp, type AuthDeps } from "api";
 import {
   encryptToken,
-  createEnvKeyProvider,
   createGrantAuth,
   isInstallationId,
   isReviewerId,
@@ -19,20 +17,22 @@ import {
   type ReviewerId,
   type TenantContext,
 } from "persistence";
-import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { PgliteHarness } from "persistence/testing";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApiClient } from "../src/client";
 import { ExitCodes } from "../src/exit";
 import { resolveRepoId, type RepoCacheDeps } from "../src/profile/repos";
+import {
+  BASE_URL,
+  KEY_REF,
+  startCliApiHarness,
+  type CliApiHarness,
+} from "./harness/api";
 import { runCli, type CliDeps } from "../src/program";
-import { testLogger } from "./logging";
-import { getRequestUrl } from "./helpers";
 
-const KEY_REF = "SESSION_KEY_V1";
 const INSTALLATION_ID = 987654;
 const REVIEWER_ID = 555;
 const REPO_A = 42001;
-const BASE_URL = "https://mb.example";
 
 function brand<T extends bigint>(
   guard: (v: bigint) => v is T,
@@ -59,26 +59,20 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 /** GitHub stub at the GLOBAL fetch boundary (the api app's octokit uses it). */
 function stubGitHub(
+  world: CliApiHarness,
   repos: () => ReadonlyArray<{ id: number; full_name: string }>,
 ): {
   counts: { installationRepos: number };
 } {
   const counts = { installationRepos: 0 };
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (input: string | URL | Request): Promise<Response> => {
-      const url = getRequestUrl(input);
-      if (
-        url.includes("/user/installations/") &&
-        url.includes("/repositories")
-      ) {
-        counts.installationRepos += 1;
-        const list = repos();
-        return jsonResponse({ total_count: list.length, repositories: list });
-      }
-      return jsonResponse({ message: "unexpected endpoint" }, 404);
-    }),
-  );
+  world.github.serve((url) => {
+    if (url.includes("/user/installations/") && url.includes("/repositories")) {
+      counts.installationRepos += 1;
+      const list = repos();
+      return jsonResponse({ total_count: list.length, repositories: list });
+    }
+    return jsonResponse({ message: "unexpected endpoint" }, 404);
+  });
   return { counts };
 }
 
@@ -88,6 +82,7 @@ interface Captured {
 }
 
 describe("mergebrief repos command + cache", () => {
+  let world: CliApiHarness;
   let harness: PgliteHarness;
   let kp: KeyProvider;
   let appFetch: CliDeps["fetch"];
@@ -95,43 +90,16 @@ describe("mergebrief repos command + cache", () => {
   let cacheDir: string;
 
   beforeEach(async () => {
-    harness = await createPgliteHarness();
-    kp = createEnvKeyProvider({
-      [KEY_REF]: randomBytes(32).toString("base64"),
-    });
-    const auth: AuthDeps = {
-      oauthClientId: "Iv1.test-client-id",
-      oauthClientSecret: "test-client-secret",
-      keyProvider: kp,
-      sessionKeyRef: KEY_REF,
-      publicBaseUrl: BASE_URL,
-      cookieSecure: true,
-    };
-    const app = createApp({
-      logger: testLogger(),
-      handle: harness.handle,
-      webhookSecret: "test-webhook-secret",
-      auth,
-      github: {
-        fetchPullRequestConversation: async () => {
-          throw new Error("conversation port must not be called in this suite");
-        },
-        listRepoCollaborators: async () => {
-          throw new Error(
-            "collaborators port must not be called in this suite",
-          );
-        },
-      },
-      serverVersion: "test-version",
-    });
-    appFetch = async (input, init) => app.request(input, init);
+    world = await startCliApiHarness();
+    harness = world.harness;
+    kp = world.keyProvider;
+    appFetch = world.fetch;
     configDir = mkdtempSync(join(tmpdir(), "mb-config-"));
     cacheDir = mkdtempSync(join(tmpdir(), "mb-cache-"));
   });
 
   afterEach(async () => {
-    vi.unstubAllGlobals();
-    await harness.close();
+    await world.close();
   });
 
   async function seedToken(): Promise<string> {
@@ -193,7 +161,7 @@ describe("mergebrief repos command + cache", () => {
   }
 
   it("repos --json is byte-identical and populates the no-TTL cache", async () => {
-    stubGitHub(() => [{ id: REPO_A, full_name: "octo/hello" }]);
+    stubGitHub(world, () => [{ id: REPO_A, full_name: "octo/hello" }]);
     const token = await seedToken();
     await login(token);
 
@@ -234,7 +202,7 @@ describe("mergebrief repos command + cache", () => {
   });
 
   it("a revoked token exits 3 with empty stdout and one stderr line", async () => {
-    stubGitHub(() => []);
+    stubGitHub(world, () => []);
     const token = await seedToken();
     await login(token);
     const rows = await harness.raw(

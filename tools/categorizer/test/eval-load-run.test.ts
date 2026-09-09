@@ -29,6 +29,7 @@ describe("the shipped case set", () => {
       "intent-primary-plus-refs",
       "multi-package-types",
       "pure-move-persistence",
+      "repo-policy-scoped-attribute",
       "schema-change-provenance",
     ]);
     for (const evalCase of loaded.value) {
@@ -70,7 +71,7 @@ describe("runCase", () => {
     });
     const result = await runCase(generate, 3);
     expect(result.briefs).toHaveLength(2);
-    // Provenance numbering survives the failed run — briefs[1] came from run 3.
+    // Provenance numbering survives the failed run, briefs[1] came from run 3.
     expect(result.runNumbers).toEqual([1, 3]);
     expect(result.generationFailures).toBe(1);
     expect(result.failureMessages[0]).toContain("provider hiccup");
@@ -147,7 +148,7 @@ describe("prices", () => {
     expect(cost).toBeCloseTo(13.8);
   });
 
-  it("ignores anthropic cache reads when no cache rate is configured — never guesses", () => {
+  it("ignores anthropic cache reads when no cache rate is configured", () => {
     const cost = priceUsage(
       "anthropic:claude-opus-4-8",
       {
@@ -161,7 +162,7 @@ describe("prices", () => {
     expect(cost).toBeCloseTo(3);
   });
 
-  it("prices openai-family by subtraction: cached tokens are a SUBSET of input", () => {
+  it("prices openai-family by subtraction, cached tokens being a subset", () => {
     const cost = priceUsage(
       "openai:gpt-x",
       {
@@ -172,11 +173,11 @@ describe("prices", () => {
       },
       { inputPerMTok: 5, outputPerMTok: 25, cacheReadPerMTok: 0.5 },
     );
-    // (800k − 600k)×$5 + 600k×$0.50 = 1.0 + 0.3 — NOT 800k×$5 + 600k×$0.50
+    // (800k − 600k)×$5 + 600k×$0.50 = 1.0 + 0.3. NOT 800k×$5 + 600k×$0.50
     expect(cost).toBeCloseTo(1.3);
   });
 
-  it("openai-family without a cache rate bills the whole prompt at input rate (honest overcount)", () => {
+  it("openai-family without a cache rate bills the whole prompt at input", () => {
     const cost = priceUsage(
       "openrouter:some/model",
       {
@@ -190,7 +191,7 @@ describe("prices", () => {
     expect(cost).toBeCloseTo(4);
   });
 
-  it("clamps a pathological cached>input report to zero uncached — never negative", () => {
+  it("clamps a pathological cached-over-input report to zero uncached", () => {
     const cost = priceUsage(
       "openai:gpt-x",
       { calls: 1, inputTokens: 100, outputTokens: 0, cacheReadTokens: 900_000 },
@@ -199,7 +200,7 @@ describe("prices", () => {
     expect(cost).toBeCloseTo(0.45); // 0 uncached + 900k×$0.50
   });
 
-  it("returns null for a missing prices file (tokens-only mode), errors on malformed", () => {
+  it("returns null for a missing prices file and errors on a malformed one", () => {
     const missing = loadPrices(join(FIXTURES, "no-prices.json"));
     expect(missing).toEqual({ ok: true, value: null });
   });

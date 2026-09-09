@@ -2,7 +2,7 @@
 // Escape must leave the composer AND give the reading shortcuts back: it
 // clears `activeCommentAnchor`, and while that is set every key belongs to
 // the composer. The case lives on the DB path because that is where a
-// composer exists at all — a file-backed Brief has no session to write into.
+// composer exists at all, a file-backed Brief has no session to write into.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   cleanup,
@@ -19,7 +19,7 @@ import {
   type ReviewSessionPayload,
 } from "@web/features/review/session";
 import { BriefView } from "./BriefView";
-import { briefFixture } from "../../utils/fixtures";
+import { briefFixture } from "@web/features/brief/fixtures";
 
 afterEach(cleanup);
 
@@ -46,7 +46,7 @@ it("keeps J/K/Z working after leaving a comment composer via Escape", async () =
   vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
   renderScreen(emptySessionPayload());
 
-  // Composer entry is gutter-only — the code column is reserved for text
+  // Composer entry is gutter-only, the code column is reserved for text
   // selection.
   const gutter = document.querySelector(
     "[data-commentable] [data-line-number]",

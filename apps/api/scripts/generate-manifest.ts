@@ -16,16 +16,26 @@ import {
 const PACKAGE_ROOT = fileURLToPath(new URL("..", import.meta.url));
 const MANIFEST = join(PACKAGE_ROOT, "product-operations.manifest.json");
 
-// Everything composition can reach inside this package: the source tree it
-// walks, the harness and logger under `test/` that drive it, the generator
-// itself, and the manifest of deps it composes over. Deliberately wider than
-// the declaration sites — a false "stale" costs one compose, a false "fresh"
-// would hide drift until the build's `--check`.
+// Everything composition can reach: this package's source tree, the harness
+// and logger under `test/` that drive it, the generator itself, the manifest
+// of deps it composes over, and the id vocabulary the declarations name, which
+// lives in `contract`. Deliberately wider than the declaration sites, because
+// a false "stale" costs one compose while a false "fresh" would hide drift
+// until the build's `--check`.
 const SOURCE_ROOTS = [
   join(PACKAGE_ROOT, "src"),
   join(PACKAGE_ROOT, "test"),
   join(PACKAGE_ROOT, "scripts"),
   join(PACKAGE_ROOT, "package.json"),
+  join(
+    PACKAGE_ROOT,
+    "..",
+    "..",
+    "packages",
+    "contract",
+    "src",
+    "operations.ts",
+  ),
 ];
 
 const OUTCOME_LINE = {

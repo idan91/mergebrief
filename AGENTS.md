@@ -10,8 +10,9 @@ Three of them are judgment calls instead of fixed answers: when to split support
 
 ## Workspace
 
-- `apps/` holds members that run as their own process or ship as their own binary (`web`, `api`, `worker`, `cli`). `packages/` holds code apps share. `tools/` holds repo-local scripts run by hand, never deployed, never imported. Nothing imports an app, tests included: apps talk over HTTP or the Postgres job queue. The HTTP contract between apps is a package both sides import. `no-app-imports-another-app` holds this at error, and the edges that predate the rule are listed in the known-violations file, which only ever loses entries.
-- Package edges: `types` imports no workspace package; `logging`, `i18n` and `generators` import only `types`; `api` never imports `cli`, `worker` or `web`. The apps/web-to-api imports in `src/server/**` and in tests are grandfathered debt, not a permitted shape: they are in the known-violations file and no new one may be added.
+- `apps/` holds members that run as their own process or ship as their own binary (`web`, `api`, `worker`, `cli`). `packages/` holds code apps share. `tools/` holds repo-local scripts run by hand, never deployed, never imported. Nothing imports an app, tests included: apps talk over HTTP or the Postgres job queue. The HTTP contract between apps is `packages/contract`, which both sides import. `no-app-imports-another-app` holds this at error over an unsuppressed graph; there is no baseline, and `check:baselines` refuses one being re-created.
+- Package edges: `types` imports no workspace package; `logging`, `i18n` and `generators` import only `types`; `api` never imports `cli`, `worker` or `web`. `apps/web` reaches the API over HTTP and shares its shapes through `contract`; it imports the API package nowhere, tests included.
+- `packages/contract` is the HTTP agreement between apps that run as their own process: wire vocabulary and response shapes only, no handler, no middleware, no database access, no re-export of an app. It imports `types`, and `persistence` TYPE-ONLY for the column vocabularies a payload field is typed by; `contract-imports-no-runtime` holds that at error, because apps/web reaches it through an isomorphic module and a value import would pull drizzle into the browser bundle.
 - `packages/types` is types only with zero dependencies: `ValueOf`, `Result`, `Brand` and kin, plus two cross-package shapes no single domain owns. `GenerateJobPayload` is the enqueue-to-drain handshake between `persistence` and `worker`; `DraftPolicy` is parsed in `generators`, enforced in `api` and mirrored in apps/web. Domain types stay with their domain.
 - A value two packages both need moves to the nearest package both already depend on, under a domain subfolder. Shapes and type helpers (`ValueOf`) go to `packages/types`. A new package is the exception, not the default, and names its reason.
 - Config enters via injection at the composition root; nothing else reads `process.env`. A member that consumes config names its composition root in its own `AGENTS.md`.
@@ -19,7 +20,7 @@ Three of them are judgment calls instead of fixed answers: when to split support
 
 ## Imports and exports
 
-- Package imports use the package root or a subpath its `exports` declares. Feature imports in apps/web use the feature index or one segment below it. dependency-cruiser holds the existing violations in the root known-violations file; a PR that removes one regenerates the file, and the file only loses entries.
+- Package imports use the package root or a subpath its `exports` declares. Feature imports in apps/web use the feature index or one segment below it, which for a support folder means its curated `index.ts`. dependency-cruiser runs unsuppressed, so a new violation is a red gate rather than a baseline entry.
 - Extensionless relative imports everywhere (`from "./tenant"`, never `from "./tenant.js"`); every package is bundler-resolved end to end. Extensions only for non-TS assets.
 - One import statement per package; no star imports; no aliasing an enum-like map on import; no deep import into another package's internals.
 - Import the owner: never re-declare an existing exported type, schema, regex or fixture inline. Shared test fixtures live in test utils.
@@ -94,6 +95,7 @@ Three of them are judgment calls instead of fixed answers: when to split support
 ## Gates
 
 - oxlint is the only linter. A convention oxlint has no native rule for lives in the house JS plugin as a selector rule; user-facing copy is gated by eslint-plugin-i18next loaded through oxlint. Every deterministic rule runs at error.
+- The two baseline files only ever lose entries, and a file a PR edits leaves none behind: `pnpm check:baselines` holds both, inside `pnpm lint`. It compares the WORKING TREE against `merge-base(<base>, HEAD)`; the base is `--base`, else `MERGEBRIEF_BASELINE_BASE`, else `main`. A base it cannot resolve fails the gate rather than passing quietly, and its report splits retired entries into fixed, retired-by-policy and file-deleted so a green run is not read as more progress than it is.
 - `.nvmrc` is the one node version: local shells and CI both read it, and `engines` states the range the boundary gate tolerates. A gate run on an out-of-range node fails with a message about the tool, not the requirement.
 - Judge a gate by its exit code, never by grepping output (`pnpm lint` short-circuits on `&&`; prettier reports violations as `[warn]`). Run `cmd >/dev/null 2>&1; echo $?`. In stacked work lint each branch bottom-up; a rule can pass at the tip and fail mid-stack.
 - Coverage floors ride inside `pnpm test`: every package's vitest config commits a lines threshold; 75% is the standard. A package still under it carries a temporary floor plus a catch-up ticket. Never lower a floor to absorb a drop. A `v8 ignore` comment needs a stated reason and is reviewed like a lint-disable.
@@ -112,7 +114,6 @@ Reviewer checklist for a standards PR: name the gate you ran and its exit code; 
 
 | Debt | Measure now | Closes on |
 | --- | --- | --- |
-| Enforced-rule baselines in `oxlint-suppressions.json` | The file's own entries: `house/no-em-dash`, `house/test-title`, `house/comment-run` and `house/comment-density` | The file is deleted, one edited file at a time under the cleanup-on-edit rule |
-| dependency-cruiser known violations | The root known-violations file, which only ever loses entries | The file is deleted |
+| Enforced-rule baselines in `oxlint-suppressions.json` | The file's own entries for `house/no-em-dash`, `house/test-title`, `house/comment-run` and `house/comment-density`. `pnpm check:baselines` prints the count and holds the promise | The file is deleted, one edited file at a time under the cleanup-on-edit rule |
 | Support-file placement and casing migrations | Existing names are renamed on their own ticket | Their own tickets, not opportunistic diffs |
 | Package coverage floors below 75% | Each such package carries a temporary floor plus a catch-up ticket | The floor reaches 75% |

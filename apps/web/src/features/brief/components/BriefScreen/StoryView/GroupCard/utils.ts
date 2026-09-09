@@ -1,10 +1,10 @@
 import type { Disposition } from "@web/features/review/session";
-import type { ReviewComment } from "@web/features/review/utils/comments";
+import type { ReviewComment } from "@web/features/review/utils";
 import type { RiskFlag } from "../../../../utils/viewModel";
 
 /**
  * The comments a group's card can need to render: those anchored on its own
- * chunks, PLUS any comment an addressed flag's evidence links — evidence may
+ * chunks, PLUS any comment an addressed flag's evidence links, evidence may
  * point at a comment anchored in ANOTHER group, and the evidence label
  * resolves it by exact id. A superset of every lookup `riskEvidenceLabel`
  * can perform for this group's flags.

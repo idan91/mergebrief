@@ -14,7 +14,7 @@ import type { AllowedRepoResolver } from "../allowed-repos";
 import type { AuthzEnv } from "../authz";
 import pullsController from "./controller";
 import { listQuerySchema } from "./schemas";
-import { ApiErrorCodes } from "../../error-response";
+import { ApiErrorCodes } from "contract";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 

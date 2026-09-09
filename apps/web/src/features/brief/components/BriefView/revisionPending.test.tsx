@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The revision-pending treatment: while a revision navigation outlasts the
-// pending delay, the stale content stays visible but goes non-interactive —
+// pending delay, the stale content stays visible but goes non-interactive,
 // dim (data-pending) + inert + aria-busy on the content region ONLY. The
 // sticky header (revision controls, lenses) must stay live so the reviewer
 // can keep stepping; a small decorative spinner rides beside the controls.
@@ -22,7 +22,7 @@ import {
   PENDING_APPEAR_MS,
   PENDING_MIN_HOLD_MS,
 } from "../BriefScreen/useDelayedPending";
-import { briefFixture } from "../../utils/fixtures";
+import { briefFixture } from "@web/features/brief/fixtures";
 
 afterEach(() => {
   cleanup();
@@ -54,7 +54,7 @@ function renderWithPending(revisionPending: boolean) {
 
 function main(): HTMLElement {
   // Two landmarks render (the screen's content region and the summary-preview
-  // drawer's) — the treatment targets the one with the content id.
+  // drawer's), the treatment targets the one with the content id.
   const region = document.getElementById("main-content");
   if (region === null) throw new Error("main-content not rendered");
   return region;
@@ -104,7 +104,7 @@ describe("revision-pending treatment", () => {
   });
 
   it("stands the window-level keyboard shortcuts down while pending", () => {
-    // `inert` does not stop a window keydown listener — the shortcut layer
+    // `inert` does not stop a window keydown listener, the shortcut layer
     // must disable itself, or `?`/j/k would act on the stale brief.
     renderWithPending(true);
     act(() => {

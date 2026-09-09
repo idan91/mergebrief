@@ -18,7 +18,7 @@ export function summarizeProgress(
   // count past flagTotal. Mirrors riskDispositionCounts.
   const flagsResolved = model.flags.filter((flag) => {
     const disposition = dispositions[flag.id];
-    return disposition != null && disposition.kind !== "open";
+    return disposition !== undefined && disposition.kind !== "open";
   }).length;
 
   return {

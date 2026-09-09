@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The session read through the real route: the loader reads it beside the
-// Brief, so the FIRST paint is already marked — and when the read fails the
+// Brief, so the FIRST paint is already marked, and when the read fails the
 // Brief still renders, with writes off. Flat at the feature root for the same
 // reason as its sibling route suites: a .test file under src/routes would
 // trip route generation.
@@ -24,7 +24,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { briefFixture } from "@web/features/brief/utils/fixtures";
+import { briefFixture } from "@web/features/brief/fixtures";
 import { routeTree } from "../../routeTree.gen";
 import type { ReviewSessionPayload } from "../review/session";
 import { emptySessionPayload } from "../review/session";
@@ -35,7 +35,7 @@ import {
 } from "./queries";
 import type { PrSummary } from "./types";
 
-// The client leg of `apiFetch` is `fetch` — stubbing it is what puts this
+// The client leg of `apiFetch` is `fetch`, stubbing it is what puts this
 // suite on the real wire path, parser included.
 const fetchMock = vi.fn<typeof fetch>();
 vi.stubGlobal("fetch", fetchMock);
@@ -142,7 +142,7 @@ describe("the session read in the route loader", () => {
     expect(viewedCheckboxes().some((box) => box.disabled)).toBe(false);
   });
 
-  it("first paint already carries the session — no unmarked flash", async () => {
+  it("first paint already carries the session, with no unmarked flash", async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify(workedSession()), { status: 200 }),
     );
@@ -240,7 +240,7 @@ describe("per-action writes through the route", () => {
       expect(viewedCheckboxes().every((box) => box.disabled)).toBe(true),
     );
     expect(viewedCheckboxes()[0]?.checked).toBe(false);
-    // …and it SAYS why through the page live region — a control that
+    // …and it SAYS why through the page live region, a control that
     // disables without explanation is worse than one that refuses loudly.
     expect(
       (await screen.findAllByText(/superseded and read-only/i)).length,

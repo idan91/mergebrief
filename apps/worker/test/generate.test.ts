@@ -2605,7 +2605,8 @@ describe("generate task, anchored generation", () => {
   });
 
   it("a coverage failure is a permanent pipeline error, not salvage", async () => {
-    // Rev2 output covers only a.ts (which is frozen), b.ts lands nowhere.
+    // b.ts lands in TWO groups, which no reader can resolve. A file in NO
+    // group is the unattributed remainder and warns instead; see below.
     const rev2Output = {
       summary: "stub brief",
       intentCheck: {
@@ -2626,16 +2627,36 @@ describe("generate task, anchored generation", () => {
           uncertain: false,
           uncertainBetween: [],
         },
+        {
+          id: "tmpB",
+          title: "also beta",
+          summary: "s",
+          dominantCategory: "bugfix",
+          secondaryCategories: [],
+          uncertain: false,
+          uncertainBetween: [],
+        },
       ],
       chunks: [
         {
           id: "c9",
           changeGroupId: "tmpA",
-          file: "a.ts",
+          file: "b.ts",
           concern: "implementation",
           role: "core",
-          loc: { added: 4, deleted: 0 },
-          addedRanges: [{ start: 5, end: 8 }],
+          loc: { added: 2, deleted: 0 },
+          addedRanges: [{ start: 1, end: 2 }],
+          removedRanges: [],
+          riskSurface: [],
+        },
+        {
+          id: "c10",
+          changeGroupId: "tmpB",
+          file: "b.ts",
+          concern: "implementation",
+          role: "core",
+          loc: { added: 2, deleted: 0 },
+          addedRanges: [{ start: 3, end: 4 }],
           removedRanges: [],
           riskSurface: [],
         },
@@ -3296,6 +3317,49 @@ describe("generate task, observability", () => {
     );
   });
 
+  it("logs generation.complete with the model call duration", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const { logger, lines } = captureLogger();
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator: stubGenerator(),
+      github: stubGitHub(HEAD_1),
+      log: logger,
+    });
+
+    await task(payload);
+
+    const done = lines().find((l) => l["evt"] === "generation.complete");
+    expect(done?.["level"]).toBe("info");
+    expect(done?.["kind"]).toBe("brief");
+    expect(done?.["outcome"]).toBe("succeeded");
+    expect(typeof done?.["durationMs"]).toBe("number");
+  });
+
+  it("logs generation.complete when the model call throws", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    generator.generate = () => {
+      throw new Error("provider exploded");
+    };
+    const { logger, lines } = captureLogger();
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github: stubGitHub(HEAD_1),
+      log: logger,
+    });
+
+    // A permanent provider failure is recorded, not rethrown.
+    await task(payload);
+
+    const done = lines().find((l) => l["evt"] === "generation.complete");
+    expect(done?.["outcome"]).toBe("failed");
+    expect(typeof done?.["durationMs"]).toBe("number");
+  });
+
   it("logs permanent job.fail without rethrowing", async () => {
     const { payload } = await trigger(HEAD_1);
     const github = stubGitHub(HEAD_1);
@@ -3552,7 +3616,8 @@ describe("generate task, daily generation cap", () => {
     // Re-seed the live comment the first run posted into this run's stub.
     const liveId = prRow?.entryCommentId;
     expect(liveId).not.toBeNull();
-    if (liveId == null) throw new Error("no entry comment to update");
+    if (liveId === null || liveId === undefined)
+      throw new Error("no entry comment to update");
     github.comments.set(liveId, "the ready body from the previous run");
 
     await createGenerateTask({

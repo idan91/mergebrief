@@ -13,7 +13,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { I18nProvider } from "../../../../i18n/I18nProvider";
 import type { BriefSearchParams } from "../../comparison/compareState";
 import type { ComparisonMarks } from "../../types";
-import { briefFixture } from "../../utils/fixtures";
+import { briefFixture } from "@web/features/brief/fixtures";
 import { BriefView } from "../BriefView/BriefView";
 
 afterEach(() => {

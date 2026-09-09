@@ -8,13 +8,13 @@ import type { TtlCache } from "../../ttl-cache";
 import collaboratorsController from "./controller";
 import { COLLABORATORS_CACHE_TTL_MS } from "./consts";
 import { parseOwnerAndName } from "../utils";
-import { ApiErrorCodes } from "../../../error-response";
+import { ApiErrorCodes } from "contract";
 
 function cacheKey(installationId: InstallationId, repoId: RepoId): string {
   return `${String(installationId)}:${String(repoId)}`;
 }
 
-/** A cached/serialized roster body, per-viewer gated — `no-store`. */
+/** A cached/serialized roster body, per-viewer gated, `no-store`. */
 function rosterJson(c: Context<AuthzEnv>, body: string): Response {
   return c.body(body, 200, {
     "content-type": "application/json; charset=utf-8",
@@ -22,7 +22,7 @@ function rosterJson(c: Context<AuthzEnv>, body: string): Response {
   });
 }
 
-/** The gated live-fetch — installation token, serialized bodies cached. */
+/** The gated live-fetch, installation token, serialized bodies cached. */
 export default function createHandlers(
   github: InstallationGitHubPort,
   cache: TtlCache<string>,
@@ -45,7 +45,7 @@ export default function createHandlers(
         return rosterJson(c, cached);
       }
 
-      // Fetch by the AUTHZ-VERIFIED full name (read posture — ≤60s staleness is
+      // Fetch by the AUTHZ-VERIFIED full name (read posture, ≤60s staleness is
       // the same budget as the gate's own positive cache).
       const target = parseOwnerAndName(c.get("repoFullName"));
       if (target === undefined) {

@@ -1,12 +1,10 @@
 // @vitest-environment jsdom
 // Flat at the feature root with reason: the subject is src/routes' file-based
-// route, where a .test file could trip route generation, so it is exercised
-// from the owning feature instead. The revision-timeline path through the real
-// router: a multi-revision PR-meta exposes the navigator, `?head=` selects a
-// historical revision (with ITS OWN base), unknown heads degrade to latest
-// with a note. Stale-head views (historical, or head advanced past the newest
-// brief) are WRITABLE with a submit ack; only a superseded base stays hard
-// read-only.
+// route, where a .test file could trip route generation, so it runs from the
+// owning feature instead. The revision-timeline path through the real router:
+// `?head=` selects a historical revision with its own base, and unknown heads
+// degrade to latest with a note. Stale-head views are WRITABLE behind a
+// submit ack; only a superseded base stays hard read-only.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
@@ -22,7 +20,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { briefFixture } from "@web/features/brief/utils/fixtures";
+import { briefFixture } from "@web/features/brief/fixtures";
 import type { ComparisonMarks } from "@web/features/brief/types";
 import { routeTree } from "../../routeTree.gen";
 import {
@@ -133,7 +131,7 @@ async function renderTimeline(
   return router;
 }
 
-describe("DB brief route — revision timeline", () => {
+describe("DB brief route revision timeline", () => {
   afterEach(() => cleanup());
 
   it("renders the navigator with every revision in order, latest selected", async () => {
@@ -146,7 +144,7 @@ describe("DB brief route — revision timeline", () => {
     expect(picker.value).toBe("1");
   });
 
-  it("selects a historical revision from ?head= — writable, submit gated by the stale ack", async () => {
+  it("selects a historical revision from ?head=, submit gated by the ack", async () => {
     await renderTimeline(
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV1.headSha}`,
     );
@@ -172,7 +170,7 @@ describe("DB brief route — revision timeline", () => {
     ).toBeTruthy();
   });
 
-  it("the latest revision is writable (no read-only reason)", async () => {
+  it("the latest revision is writable with no read-only reason", async () => {
     await renderTimeline(
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}`,
     );
@@ -182,7 +180,7 @@ describe("DB brief route — revision timeline", () => {
     expect(screen.queryByText(/viewing an earlier revision/i)).toBeNull();
   });
 
-  it("surfaces the head-advanced notice while a historical revision is selected", async () => {
+  it("surfaces the head-advanced notice on a historical revision", async () => {
     await renderTimeline(
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV1.headSha}`,
     );
@@ -192,7 +190,7 @@ describe("DB brief route — revision timeline", () => {
   });
 
   it("surfaces the notice when meta.headSha ran past the newest revision", async () => {
-    // The timeline's own latest point is behind the PR head — the case the
+    // The timeline's own latest point is behind the PR head, the case the
     // navigator alone cannot signal, since its last dot reads as selected.
     await renderTimeline(
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}`,
@@ -225,7 +223,7 @@ describe("DB brief route — revision timeline", () => {
     expect(screen.queryByTestId("stale-revision-chip")).toBeNull();
   });
 
-  it("the notice returns to the latest revision and keeps the View/Compare lens", async () => {
+  it("the notice returns to the latest revision, keeping the lens", async () => {
     const router = await renderTimeline(
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV1.headSha}&view=changes&thread=42`,
     );
@@ -236,7 +234,7 @@ describe("DB brief route — revision timeline", () => {
       const search = searchRecord(router.state.location.search);
       // A jump target is spent once a revision is selected.
       expect(search["thread"]).toBeUndefined();
-      // The span is dropped, then re-pinned by the resolve effect — landing
+      // The span is dropped, then re-pinned by the resolve effect, landing
       // on latest either way; the lens must survive the round trip.
       expect(search["head"]).toBe(REV2.headSha);
       expect(search["view"]).toBe("changes");
@@ -301,7 +299,7 @@ describe("DB brief route — revision timeline", () => {
     );
   });
 
-  it("selects without resetting scroll — a revision is a lateral move", async () => {
+  it("selects without resetting scroll, a revision is a lateral move", async () => {
     const router = await renderTimeline(
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}`,
     );
@@ -340,9 +338,9 @@ describe("DB brief route — revision timeline", () => {
     );
   });
 
-  it("gates submit behind the ack when meta.headSha advanced past the newest revision", async () => {
+  it("gates submit behind the ack when headSha passed the newest revision", async () => {
     // The newest revision is not the PR's current head (next brief still
-    // generating): writable, but the receipt requires the stale ack —
+    // generating): writable, but the receipt requires the stale ack,
     // comments would anchor to the reviewed head.
     await renderTimeline(
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}`,
@@ -357,7 +355,7 @@ describe("DB brief route — revision timeline", () => {
     // The advisory view fronts the modal when unresolved items exist;
     // Continue reaches the verdict view, which carries the ack.
     fireEvent.click(screen.getByRole("button", { name: /^continue$/i }));
-    // The ack gate reached the drawer (plumbing proof — the disabled-until-
+    // The ack gate reached the drawer (plumbing proof, the disabled-until-
     // acked mechanics are pinned in SubmitModal.test).
     expect(
       screen.getByText(/comments will anchor to the revision you reviewed/i),
@@ -371,7 +369,7 @@ describe("DB brief route — revision timeline", () => {
 
   it("group since-marker links into the delta lens", async () => {
     // A checkpoint exists on the latest revision; the viewer is on Full
-    // Brief with Compare OFF — the marker must still show and its link
+    // Brief with Compare OFF, the marker must still show and its link
     // must flip the search to the delta lens.
     const metaValue = timelineMeta({
       revisions: [
@@ -430,7 +428,7 @@ describe("DB brief route — revision timeline", () => {
     });
   });
 
-  it("opens the conversation section when ?thread= arrives via in-app navigation", async () => {
+  it("opens the conversation section when ?thread= arrives in-app", async () => {
     const router = await renderTimeline(
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}`,
     );
@@ -439,7 +437,7 @@ describe("DB brief route — revision timeline", () => {
       if (el === null) throw new Error("no conversation heading yet");
       return el;
     });
-    // Collapsed by default — no thread target in the URL.
+    // Collapsed by default, no thread target in the URL.
     expect(heading.getAttribute("aria-expanded")).toBe("false");
     // The jump navigates in-app (same mounted route): the section must open
     // from the effect, not only the initializer.
@@ -457,7 +455,7 @@ describe("DB brief route — revision timeline", () => {
     );
   });
 
-  it("keeps the selected historical head when view/compare changes (search updater merges)", async () => {
+  it("keeps the selected historical head when view or compare changes", async () => {
     // The Brief view/compare controls navigate through a FUNCTIONAL search
     // updater (`(current) => ({ ...current, ...next })`), so changing a lens
     // must never drop head/base and silently re-resolve to latest.
@@ -465,7 +463,7 @@ describe("DB brief route — revision timeline", () => {
     // regression that drops head/base would re-resolve to that same span and
     // the assertions below would pass for the wrong reason. REV2 here is a
     // middle revision carrying a baseline, so "Previous brief" is a real
-    // change to make — a radio navigates only when the selection moves.
+    // change to make, a radio navigates only when the selection moves.
     const REV3: RevisionSummary = {
       headSha: "head-3",
       baseSha: "base-3",
@@ -542,7 +540,7 @@ describe("DB brief route — revision timeline", () => {
     });
   });
 
-  it("addresses duplicate-head revisions by exact span, read-only on the stale base (retarget re-brief)", async () => {
+  it("addresses duplicate-head revisions by span, stale base read-only", async () => {
     // The brief natural key is (pr, base, head): after a retarget re-brief
     // the SAME head appears twice with different bases.
     const oldSpan: RevisionSummary = {
@@ -578,14 +576,14 @@ describe("DB brief route — revision timeline", () => {
     expect(
       screen.getByRole("option", { name: /revision 2.*base base-ol/i }),
     ).toBeDefined();
-    // …and although its head IS the current head, its base is superseded —
+    // …and although its head IS the current head, its base is superseded,
     // writes stay disabled with the base-drift reason (anchors would be read
     // against a diff that is not the PR's current one).
     expect(
       screen.getAllByText(/generated against a superseded base/i).length,
     ).toBeGreaterThan(0);
     // Same head, different base: the selection resolves by full span, no
-    // remount — the operated picker keeps focus.
+    // remount, the operated picker keeps focus.
     picker.focus();
     expect(document.activeElement).toBe(picker);
     fireEvent.change(picker, { target: { value: "2" } });

@@ -5,9 +5,10 @@ description: Drive this repo's API/web surface end-to-end locally — postgres, 
 
 # Verifying changes at the runtime surface
 
-The HTTP surface (webhook, auth, read API) is served by `apps/web`'s dev
-server, which mounts the `api` Hono app in-process (`src/server.ts` →
-`getWebhookApp()`).
+The HTTP surface (webhook, auth, read API) is served by `apps/api`, which runs
+as its own process. `apps/web`'s dev server proxies `/api/*` to it
+(`apps/web/src/server/api/proxy.ts`), so drive either origin: the web one to
+exercise the hop, the API one to cut it out while isolating a fault.
 
 ## Launch
 
@@ -15,24 +16,27 @@ server, which mounts the `api` Hono app in-process (`src/server.ts` →
 docker compose up -d postgres          # loopback Postgres (matches .env.example URL)
 set -a; source .env; set +a            # root .env: GitHub App/OAuth creds + SESSION_KEY_V1 (agents: see gotcha below)
 DATABASE_URL=postgres://code_review:code_review@127.0.0.1:5432/code_review \
-  pnpm -C apps/web dev                 # port 3000; run in background, log to a file
+  pnpm dev                             # api on 3001, web on 3000; background it, log to a file
 ```
 
 Gotchas:
 
-- `DATABASE_URL` is NOT in any `.env` — pass it explicitly (value above, from
-  `.env.example`).
-- Secrets split: root `.env` has the GitHub/auth vars; `apps/web/.env` has only
-  `ANTHROPIC_API_KEY`. The startup wiring loads cwd `.env` then ambient env,
-  so source the root one into the shell.
+- `DATABASE_URL` is NOT in the root `.env` — pass it explicitly (value above),
+  or put it in `apps/api/.env`.
+- Credentials belong to the API: `apps/api/.env` is the file that carries the
+  GitHub App key, the webhook secret, the OAuth pair and `SESSION_KEY_V1`.
+  `apps/web` holds none and reads only `MERGEBRIEF_API_ORIGIN`,
+  `PUBLIC_BASE_URL` and `LOG_LEVEL`. Each process loads its own cwd `.env`
+  then the ambient env, so sourcing the root one into the shell still works.
 - Agents cannot read OR `source` `.env` — the `Read(./**/.env)` deny rule blocks
   both. Don't fight it: generate synthetic parse-only secrets instead. The read
   path only needs values that PARSE (auth happens via the viewer's `gh` token):
   a fresh `SESSION_KEY_V1`, a throwaway RSA PEM for the GitHub App key, and
   placeholder App/OAuth ids. Export those and skip the `source` line entirely
   (verified working, BRIEF-24 smoke 2026-07-08). Never print real `.env` contents.
-- First request builds the app (runs migrations); a bad env fails loudly on
-  that request, not at boot.
+- The API validates every config block and migrates AT BOOT, so a bad env kills
+  the process instead of failing the first request. If the api pane exits
+  immediately, read its last line: it is `field: reason`.
 
 ## Seeding an authorized auth session (read-API verification)
 

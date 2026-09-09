@@ -1,14 +1,10 @@
 // Boundary-guard tests for the read-API PR shapes. The API is trusted
-// infrastructure but still an external boundary to this bundle — responses
+// infrastructure but still an external boundary to this bundle, so responses
 // are parsed, never cast.
 import { describe, expect, it } from "vitest";
-import {
-  LastReviewUnavailableReasons as ApiLastReviewUnavailableReasons,
-  type LastReviewComparisonView,
-} from "api";
+import type { LastReviewComparisonView } from "contract";
 import type { Equals } from "types";
 import {
-  LastReviewUnavailableReasons,
   parsePrSummary,
   parsePullsList,
   type LastReviewComparison,
@@ -115,7 +111,7 @@ describe("parsePrSummary", () => {
     expect(parsePrSummary(withoutDraft).ok).toBe(false);
     const { viewerIsAuthor: _noViewer, ...withoutViewer } = ROW;
     expect(parsePrSummary(withoutViewer).ok).toBe(false);
-    // A non-boolean must be rejected, not coerced — this gates affordances.
+    // A non-boolean must be rejected, not coerced, this gates affordances.
     expect(parsePrSummary({ ...ROW, viewerIsAuthor: "true" }).ok).toBe(false);
   });
 
@@ -130,19 +126,19 @@ describe("parsePrSummary", () => {
     expect(denied.value.viewerCanResolve).toBe(false);
 
     // Absent = a server predating the field: no capability, so no affordance.
-    // Unlike draft/viewerIsAuthor this is NOT a contract violation — the row
+    // Unlike draft/viewerIsAuthor this is NOT a contract violation, the row
     // parses, it just carries no permission.
     const older = parsePrSummary(ROW);
     if (!older.ok) throw new Error("unreachable");
     expect(older.value.viewerCanResolve).toBe(false);
 
-    // Present but not a boolean IS malformed — coercing a truthy string into a
+    // Present but not a boolean IS malformed, coercing a truthy string into a
     // capability would hand out affordances the server never granted.
     expect(parsePrSummary({ ...ROW, viewerCanResolve: "true" }).ok).toBe(false);
     expect(parsePrSummary({ ...ROW, viewerCanResolve: null }).ok).toBe(false);
   });
 
-  it("accepts nullable fields (waiting row: no brief, no title, null span)", () => {
+  it("accepts nullable fields on a waiting row with no brief and no title", () => {
     const parsed = parsePrSummary({
       ...ROW,
       title: null,
@@ -171,15 +167,15 @@ describe("parsePrSummary", () => {
     expect(parsePrSummary({ ...ROW, state: "reopened" }).ok).toBe(false);
   });
 
-  it("rejects a non-numeric repoId (it is interpolated into route URLs)", () => {
+  it("rejects a non-numeric repoId, which is interpolated into route URLs", () => {
     expect(parsePrSummary({ ...ROW, repoId: "123/extra" }).ok).toBe(false);
     expect(parsePrSummary({ ...ROW, repoId: "?x=1" }).ok).toBe(false);
     expect(parsePrSummary({ ...ROW, repoId: "" }).ok).toBe(false);
   });
 });
 
-describe("parsePrSummary draftPolicy (PR-meta only)", () => {
-  it("accepts an absent draftPolicy (list rows)", () => {
+describe("parsePrSummary draftPolicy on PR-meta", () => {
+  it("accepts an absent draftPolicy on list rows", () => {
     const parsed = parsePrSummary(ROW);
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) throw new Error("unreachable");
@@ -199,7 +195,7 @@ describe("parsePrSummary draftPolicy (PR-meta only)", () => {
     });
   });
 
-  it("parses the zero-config policy (null debounceSeconds)", () => {
+  it("parses the zero-config policy with a null debounceSeconds", () => {
     const parsed = parsePrSummary({
       ...ROW,
       draftPolicy: { generate: true, debounceSeconds: null },
@@ -225,8 +221,8 @@ describe("parsePrSummary draftPolicy (PR-meta only)", () => {
   });
 });
 
-describe("parsePrSummary comparisons (PR-meta only)", () => {
-  it("accepts an absent comparisons key (list rows) and an empty envelope", () => {
+describe("parsePrSummary comparisons on PR-meta", () => {
+  it("accepts an absent comparisons key and an empty envelope", () => {
     expect(parsePrSummary(ROW).ok).toBe(true);
     const empty = parsePrSummary({ ...ROW, comparisons: {} });
     expect(empty.ok).toBe(true);
@@ -319,7 +315,7 @@ describe("parsePrSummary comparisons (PR-meta only)", () => {
     ).toBe(false);
   });
 
-  it("rejects a malformed lastReview (neither arm of the union)", () => {
+  it("rejects a malformed lastReview matching neither arm of the union", () => {
     expect(
       parsePrSummary({
         ...ROW,
@@ -332,7 +328,7 @@ describe("parsePrSummary comparisons (PR-meta only)", () => {
   });
 });
 
-describe("parsePrSummary revisions (PR-meta only)", () => {
+describe("parsePrSummary revisions on PR-meta", () => {
   const REVISION = {
     headSha: "head-1",
     baseSha: "base-1",
@@ -341,19 +337,19 @@ describe("parsePrSummary revisions (PR-meta only)", () => {
     comparisons: {},
   };
 
-  it("accepts an absent revisions key (list rows / no brief)", () => {
+  it("accepts an absent revisions key on a row with no brief", () => {
     const parsed = parsePrSummary(ROW);
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) throw new Error("unreachable");
     expect(parsed.value.revisions).toBeUndefined();
   });
 
-  it("parses an ordered revision timeline preserving each entry's own baseSha", () => {
+  it("parses an ordered timeline preserving each entry's own baseSha", () => {
     const parsed = parsePrSummary({
       ...ROW,
       revisions: [
         { ...REVISION, headSha: "head-0", baseSha: "base-0", headIndex: 1 },
-        // base drifts across revisions (base-branch advance / retarget) — the
+        // base drifts across revisions (base-branch advance / retarget), the
         // per-entry base must survive verbatim, never be borrowed.
         { ...REVISION, headSha: "head-1", baseSha: "base-1b", headIndex: 2 },
       ],
@@ -378,7 +374,7 @@ describe("parsePrSummary revisions (PR-meta only)", () => {
     ]);
   });
 
-  it("parses per-revision comparison availability (same envelope as top-level)", () => {
+  it("parses per-revision comparison availability, same envelope as above", () => {
     const parsed = parsePrSummary({
       ...ROW,
       revisions: [
@@ -405,7 +401,7 @@ describe("parsePrSummary revisions (PR-meta only)", () => {
     });
   });
 
-  it("carries generatedAt through, tolerates its absence, rejects a non-string", () => {
+  it("carries generatedAt through, tolerates absence, rejects non-string", () => {
     const withCutoff = parsePrSummary({
       ...ROW,
       revisions: [{ ...REVISION, generatedAt: "2026-07-06T11:58:00.000Z" }],
@@ -459,7 +455,7 @@ describe("parsePullsList", () => {
   });
 });
 
-// The api route's `lastReview` union, minus its unavailable branch — the
+// The contract's `lastReview` union, minus its unavailable branch: the
 // payload the FE's `available` branch mirrors field for field.
 type SourceAvailableLastReview = Exclude<
   LastReviewComparisonView,
@@ -468,7 +464,7 @@ type SourceAvailableLastReview = Exclude<
 /**
  * The FE re-shapes the wire union into a discriminated one (`kind`) so
  * consumers switch without re-probing keys, so the two unions are NOT
- * identical by design — but the available branch's PAYLOAD must be. `Equals`
+ * identical by design, but the available branch's PAYLOAD must be. `Equals`
  * is exact: it fails on a renamed or retyped field, and unlike mutual
  * assignability it also fails when the OPTIONAL `baselineIndex` half drifts.
  */
@@ -477,21 +473,8 @@ const availableBranchPin: Equals<
   SourceAvailableLastReview
 > = true;
 
-describe("lockstep pins (mirrored wire contract vs its api source)", () => {
-  it("LastReviewUnavailableReasons equals the api route's reason map", () => {
-    // The mirror is hand-rolled (no zod in this bundle) and CI is
-    // path-filtered per package, so an added or renamed reason in
-    // `apps/api/src/routes/reads.ts` would otherwise ship green while the
-    // picker's guard rejects the whole PR-meta response.
-    // `toEqual` on the maps forgives declaration order (the two sides declare
-    // the keys in opposite order today) but catches a key rename, a dropped
-    // reason, and a changed wire value.
-    expect({ ...LastReviewUnavailableReasons }).toEqual({
-      ...ApiLastReviewUnavailableReasons,
-    });
-  });
-
-  it("the available lastReview branch mirrors the api view's payload exactly", () => {
+describe("lockstep pin against the wire contract", () => {
+  it("the available lastReview branch mirrors the contract payload exactly", () => {
     // Compile-time pin (gated by `pnpm -C apps/web typecheck`, which includes
     // test files); asserted at runtime so it stays visible in the suite.
     expect(availableBranchPin).toBe(true);

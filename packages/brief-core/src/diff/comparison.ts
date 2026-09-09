@@ -1,6 +1,6 @@
 /**
  * Comparison marks: the mechanical baseline→head changed-line ranges per file,
- * parsed straight from a unified diff — no model call. Covers both the
+ * parsed straight from a unified diff, with no model call. Covers both the
  * previous-brief and the per-reviewer checkpoint span, keyed by
  * `(baselineSha, headSha)`, so both baselines share one artifact shape. Wraps
  * `revchanges.ts`'s parser rather than duplicating it.
@@ -17,7 +17,7 @@ import {
 /** Which comparison baseline these marks are relative to. */
 export type ComparisonBaselineLabel = "previous-brief" | "checkpoint";
 
-/** Per-file marks — structurally identical to a `RevisionChangeFile`. */
+/** Per-file marks, structurally identical to a `RevisionChangeFile`. */
 export type ComparisonMarksFile = RevisionChangeFile;
 
 export interface ComparisonMarks {
@@ -32,7 +32,7 @@ export interface ComparisonMarks {
 
 /**
  * Build marks from a raw unified diff, or from per-file patches a caller has
- * already split with `splitDiffByFile` for another sidecar — so the same diff
+ * already split with `splitDiffByFile` for another sidecar, so the same diff
  * text is never scanned twice.
  */
 export function buildComparisonMarks(
@@ -57,7 +57,7 @@ export function buildComparisonMarks(
 /**
  * Marks sidecar filename: `<stem>_<baselineLabel>_<base8>-<head8>.comparison.json`.
  * Span-keyed AND label-keyed so a checkpoint coinciding with prevHead cannot
- * clobber the previous-brief marks. No ".." — hostile to globbing.
+ * clobber the previous-brief marks. No "..", which is hostile to globbing.
  */
 export function comparisonMarksName(
   stem: string,
@@ -69,8 +69,8 @@ export function comparisonMarksName(
 }
 
 /**
- * Write the marks sidecar for one `(baselineSha, headSha)` span under `outDir` —
- * the single writer for the rule that whoever fetches a compare diff writes the
+ * Write the marks sidecar for one `(baselineSha, headSha)` span under `outDir`.
+ * The single writer for the rule that whoever fetches a compare diff writes the
  * marks. Callers never catch failures: a marks failure means comparison data is
  * unavailable and must surface loudly. Returns the written path.
  */
@@ -83,7 +83,7 @@ export async function writeComparisonMarks(
   const file = join(outDir, comparisonMarksName(stem, marks));
   await writeFile(file, `${JSON.stringify(marks, null, 2)}\n`);
   const baseline =
-    marks.baselineLabel === "previous-brief" && marks.baselineIndex != null
+    marks.baselineLabel === "previous-brief" && marks.baselineIndex !== null
       ? `_${marks.baselineIndex}`
       : marks.baselineLabel;
   log(`wrote ${file} (${marks.files.length} files changed since ${baseline})`);

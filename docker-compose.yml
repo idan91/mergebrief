@@ -1,10 +1,12 @@
 # One-command self-host: `docker compose up` brings up
-# Postgres (the single stateful dependency), the web/API tier, and the
-# long-lived generation worker. Credentials come from a repo-root `.env`
+# Postgres (the single stateful dependency), the API, the web tier that
+# proxies to it, and the long-lived generation worker. Credentials come from a
+# repo-root `.env`
 # (copy `.env.example`; compose reads it automatically for ${...}
-# interpolation AND both services load it via env_file, so a var you leave
-# out of .env is genuinely ABSENT in the container — the config loaders
+# interpolation AND `api` and `worker` load it via env_file, so a var you
+# leave out of .env is genuinely ABSENT in the container — the config loaders
 # treat empty-string and unset differently, e.g. the private-key one-of).
+# The web tier is deliberately left off that list; it holds no credentials.
 #
 # All published ports bind loopback-only: dev/self-host credentials must not
 # be reachable from the LAN. Put a reverse proxy in front for real exposure.
@@ -35,12 +37,17 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  web:
+  api:
     build:
       context: .
-      dockerfile: apps/web/Dockerfile
-    ports:
-      - "127.0.0.1:3000:3000"
+      dockerfile: apps/api/Dockerfile
+    # The boot path is written for this policy: a config error exits 0 and
+    # stays down, a transient fault exits 1 and self-heals on the restart.
+    restart: on-failure
+    # No published port: the API is reached through the web tier on the
+    # compose network, and it holds every credential this deployment has.
+    expose:
+      - "3001"
     depends_on:
       postgres:
         condition: service_healthy
@@ -57,20 +64,22 @@ services:
       # the private-network case explicit disable exists for. The bundled
       # postgres image does not speak TLS.
       DATABASE_URL: postgres://${POSTGRES_USER:-code_review}:${POSTGRES_PASSWORD:-code_review}@postgres:5432/${POSTGRES_DB:-code_review}?sslmode=disable
+      # The public origin, not the in-network one: the OAuth callback URL is
+      # built from it and must match the App's registered callback.
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
-    # Instance config (mergebrief.config.yaml + MERGEBRIEF_CONFIG in .env):
-    # the image already bakes the repo-root file via `COPY . .`; this mount
-    # shadows it so edits apply on restart instead of rebuild. Uncomment
-    # here AND in the worker service — both read the same file.
+      # Reachable from the web service, not from the host.
+      MERGEBRIEF_API_HOST: 0.0.0.0
+      MERGEBRIEF_API_PORT: "3001"
+    # See the web service's mergebrief.config.yaml mount note.
     # volumes:
     #   - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
-    # Liveness only: /healthz is static — never /readyz here,
-    # or a DB blip would trigger web restart churn.
+    # Liveness only: /healthz is static — never /readyz here, or a DB blip
+    # would trigger restart churn on the tier that owns the database.
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "wget -qO /dev/null http://127.0.0.1:3000/healthz || exit 1",
+          "wget -qO /dev/null http://127.0.0.1:3001/healthz || exit 1",
         ]
       interval: 15s
       timeout: 5s
@@ -81,6 +90,46 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: on-failure
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      api:
+        # `service_healthy`, not `service_started`: the API does not listen
+        # until the schema and queue migrations finish, so `up --wait` would
+        # otherwise call the stack ready while `/api/*` still refuses.
+        condition: service_healthy
+    # No `env_file` on purpose. This tier is the internet-facing one and it
+    # holds no credentials, so `.env` never reaches its process environment.
+    # The two it needs are set below; LOG_LEVEL and NODE_ENV fall back to
+    # their defaults, which is what this service wants anyway.
+    environment:
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
+      MERGEBRIEF_API_ORIGIN: http://api:3001
+    # Instance config (mergebrief.config.yaml + MERGEBRIEF_CONFIG in .env):
+    # the image already bakes the repo-root file via `COPY . .`; this mount
+    # shadows it so edits apply on restart instead of rebuild. Uncomment
+    # here AND in the worker service — both read the same file.
+    # volumes:
+    #   - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
+    # Liveness only: /healthz is static — never /readyz here,
+    # or an upstream blip would trigger web restart churn.
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO /dev/null http://127.0.0.1:3000/healthz || exit 1",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging: *log-rotation
 
   worker:
     build:

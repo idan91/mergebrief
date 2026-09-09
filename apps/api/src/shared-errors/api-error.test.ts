@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { ApiErrorStatusByCode, ApiErrorCodes } from "../error-response";
+import { ApiErrorCodes, ApiErrorStatusByCode } from "contract";
 import {
   ApiError,
   BadGateway,
@@ -76,11 +76,11 @@ describe("ApiError classes", () => {
     expectTypeOf<CodeFor<401>>().toEqualTypeOf<
       "unauthorized" | "invalid-signature"
     >();
-    // @ts-expect-error — a 403 code cannot construct a NotFound
+    // @ts-expect-error, a 403 code cannot construct a NotFound
     void new NotFound(ApiErrorCodes.FORBIDDEN);
-    // @ts-expect-error — a paramful code requires its params
+    // @ts-expect-error, a paramful code requires its params
     void new ServiceUnavailable(ApiErrorCodes.GENERATION_CONFIG);
-    // @ts-expect-error — a paramless code takes no params
+    // @ts-expect-error, a paramless code takes no params
     void new NotFound(ApiErrorCodes.NOT_FOUND, { detail: "x" });
   });
 });

@@ -27,6 +27,9 @@ export interface RuleLocation {
 }
 
 export interface RuleComment {
+  // `Line` or `Block` today; typed loosely like `RuleNode.type` so a kind the
+  // parser adds later reaches the rules as data rather than a cast.
+  readonly type: string;
   readonly value: string;
   readonly loc: RuleLocation;
 }

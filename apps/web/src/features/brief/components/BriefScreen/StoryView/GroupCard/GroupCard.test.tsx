@@ -22,7 +22,7 @@ import {
   type ReviewSessionActions,
   type SessionWrites,
 } from "@web/features/review/session";
-import { briefFixture } from "../../../../utils/fixtures";
+import { briefFixture } from "@web/features/brief/fixtures";
 import { buildBriefViewModel } from "../../../../utils/viewModel";
 import { GroupCard } from "./GroupCard";
 
@@ -109,7 +109,7 @@ function dismiss(tap: Tap, flagId: string) {
   });
 }
 
-describe("GroupCard — reopen a dismissed risk", () => {
+describe("GroupCard reopen a dismissed risk", () => {
   it("offers no Reopen while the risk is open", () => {
     renderCard(writesSpy());
     expect(screen.queryByRole("button", { name: /^Reopen the/ })).toBeNull();
@@ -123,7 +123,7 @@ describe("GroupCard — reopen a dismissed risk", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /^Reopen the/ }));
 
-    // Back to open locally AND on the wire — the store branch's first caller.
+    // Back to open locally AND on the wire: the store branch's first caller.
     expect(tap.dispositionKind(flagId)).toBe("open");
     expect(writes.reopenRisks).toHaveBeenCalledTimes(1);
     const [flags] = vi.mocked(writes.reopenRisks).mock.calls[0]!;

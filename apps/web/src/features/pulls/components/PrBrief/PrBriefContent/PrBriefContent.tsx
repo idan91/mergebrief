@@ -7,16 +7,14 @@ import { useCallback, useMemo } from "react";
 
 import { BriefView } from "@web/features/brief";
 import { createSessionWrites } from "@web/features/review/session";
-import type {
-  BriefSearch,
-  BriefSearchParams,
-} from "../../../../brief/comparison/compareState";
 import {
+  type BriefSearch,
+  type BriefSearchParams,
   buildBriefSearchParams,
   resolveBriefSearch,
   withCompare,
   withView,
-} from "../../../../brief/comparison/compareState";
+} from "@web/features/brief/comparison";
 import type { ThreadRevisionJump } from "@web/features/conversation";
 import type { Span } from "../../../utils/briefRouteState";
 import { comparisonsWarming } from "../../../utils/briefRouteState";
@@ -35,7 +33,7 @@ import {
 import type { PrSummary } from "../../../types";
 import { DbBriefControls } from "./DbBriefControls/DbBriefControls";
 import { WarmingChip } from "../WarmingChip/WarmingChip";
-import type { ConversationFilter } from "@web/features/conversation/utils/filter";
+import type { ConversationFilter } from "@web/features/conversation/utils";
 
 export interface PrBriefContentProps {
   repoId: string;

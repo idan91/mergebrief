@@ -1,8 +1,10 @@
 import type { TranslationKey } from "i18n";
 import type { TFunction } from "i18next";
-import type { RepoConfigContext } from "../../brief/utils/repoConfig";
+import type {
+  BriefViewModel,
+  RepoConfigContext,
+} from "@web/features/brief/utils";
 import type { Brief } from "../../brief/types";
-import type { BriefViewModel } from "@web/features/brief/utils";
 import type { CommentSide } from "./comments";
 import type { SessionSnapshot } from "../session";
 import {
@@ -281,7 +283,7 @@ export function receiptRiskGroups(
 function buildReceiptRepoConfig(
   repoConfig: RepoConfigContext | null | undefined,
 ): ReceiptRepoConfig | undefined {
-  if (repoConfig == null) return undefined;
+  if (repoConfig === null || repoConfig === undefined) return undefined;
   const anyPresent =
     repoConfig.files.some((file) => file.outcome !== "absent") ||
     repoConfig.collisions.length > 0;
@@ -312,7 +314,6 @@ function renderDeEmphasisLine(
 ): string | null {
   if (attributes === 0) return null;
 
-  // oxlint-disable-next-line house/no-hand-built-plural -- frozen format
   const noun = attributes === 1 ? "attribute" : "attributes";
   const at = policySha === null ? "" : ` @ ${policySha.slice(0, 7)}`;
 

@@ -1,9 +1,8 @@
 import { createI18n } from "i18n";
 import { describe, expect, it } from "vitest";
 
-import { briefFixture } from "@web/features/brief/utils/fixtures";
-import { buildBriefViewModel } from "@web/features/brief/utils";
-import { GroupViewKinds } from "@web/features/brief/utils/remainder";
+import { briefFixture } from "@web/features/brief/fixtures";
+import { buildBriefViewModel, GroupViewKinds } from "@web/features/brief/utils";
 import { Roles, type Brief } from "@web/features/brief/types";
 import { buildReceipt } from "./receipt";
 
@@ -123,7 +122,7 @@ describe("buildReceipt", () => {
     ]);
   });
 
-  it("keeps addressed-pending-evidence (no evidence key)", () => {
+  it("keeps addressed-pending-evidence with no evidence key", () => {
     const receipt = buildReceipt(
       t,
       snapshot({ dispositions: { [flagId]: { kind: "addressed" } } }),
@@ -135,7 +134,7 @@ describe("buildReceipt", () => {
     ]);
   });
 
-  it("counts reclassified groups and maps comments to first lines with status", () => {
+  it("counts reclassified groups and maps comments to first lines", () => {
     const anchor = {
       chunkId: "chunk-a",
       file: "src/leak.ts",
@@ -158,7 +157,7 @@ describe("buildReceipt", () => {
             collapsed: false,
           },
           {
-            // Posted by an earlier submit — the receipt must distinguish it
+            // Posted by an earlier submit, the receipt must distinguish it
             // from the drafts the NEXT submit will ship.
             id: "c0",
             anchor,
@@ -290,7 +289,7 @@ describe("receipt de-emphasis count dedupes path-scoped rules", () => {
     );
   });
 
-  it("includes remainder chunks in chunkTotal so the total may exceed core plus supporting", () => {
+  it("includes remainder chunks in chunkTotal, so it may exceed core", () => {
     const brief = remainderBrief();
     const remainderModel = buildBriefViewModel(brief);
     const remainderGroup = remainderModel.groups.find(

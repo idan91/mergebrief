@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // The in-place brief switch at the screen level: with the subtree no longer
 // keyed by brief id, screen-local overlay state and the reading session must
-// reset explicitly when briefId swaps — an open submit surface or a Viewed
+// reset explicitly when briefId swaps, an open submit surface or a Viewed
 // mark surviving into the next brief is exactly the class of bug the old
 // remount masked. Ids collide across briefs on purpose (positional c1..cN).
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -12,7 +12,7 @@ import { I18nProvider } from "../../../../i18n/I18nProvider";
 import type { BriefSearchParams } from "../../comparison/compareState";
 import { BriefView } from "./BriefView";
 import type { Brief, LocalBriefSummary } from "../../types";
-import { briefFixture } from "../../utils/fixtures";
+import { briefFixture } from "@web/features/brief/fixtures";
 
 afterEach(() => {
   cleanup();
@@ -49,7 +49,7 @@ function renderView(briefId: string, brief: Brief) {
 }
 
 describe("in-place brief switch through the screen", () => {
-  it("clears Viewed marks — same chunk ids, different brief", () => {
+  it("clears Viewed marks for the same chunk ids in a different brief", () => {
     const { switchTo } = renderView("brief-a", briefFixture);
     const viewed = screen.getAllByRole("checkbox", { name: /^Viewed/ })[0];
     if (!viewed) throw new Error("no Viewed checkbox rendered");
@@ -93,7 +93,7 @@ describe("in-place brief switch through the screen", () => {
   });
 });
 
-/** One timeline summary granting brief-a a previous-brief comparison —
+/** One timeline summary granting brief-a a previous-brief comparison,
  * a single point, so the router-dependent prev/next links never render. */
 const artifactSummaries: LocalBriefSummary[] = [
   {
@@ -139,7 +139,7 @@ describe("kept-warm scope panes", () => {
   }
 
   // The pane's marker: with no narrative fetchable in jsdom, the changes
-  // pane renders its unavailable empty state — presence in the DOM is what
+  // pane renders its unavailable empty state, presence in the DOM is what
   // the keep-warm latch controls.
   const changesPane = () => {
     const lead = [...document.querySelectorAll("b")].find(
@@ -148,7 +148,7 @@ describe("kept-warm scope panes", () => {
     return lead ?? null;
   };
 
-  it("keeps the changes pane mounted but hidden after leaving Changes scope, and drops it on a brief switch", () => {
+  it("keeps the changes pane hidden after leaving scope, drops it on switch", () => {
     const { rerenderWith } = renderScoped({
       view: "changes",
       compare: "previous-brief",
@@ -156,8 +156,8 @@ describe("kept-warm scope panes", () => {
     expect(changesPane()).not.toBeNull();
     expect(changesPane()?.closest("[hidden]")).toBeNull();
 
-    // Back to full scope: still in the DOM — the flip back must not pay a
-    // remount — but display:none'd out of paint and the AT tree.
+    // Back to full scope: still in the DOM, the flip back must not pay a
+    // remount, but display:none'd out of paint and the AT tree.
     rerenderWith("brief-a", briefFixture, {});
     expect(changesPane()).not.toBeNull();
     expect(changesPane()?.closest("[hidden]")).not.toBeNull();

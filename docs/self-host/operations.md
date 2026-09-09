@@ -65,11 +65,11 @@ both services stop applying: they compare the checked-in migrations
 against `drizzle.__drizzle_migrations` read-only and **refuse when the
 database is behind**, naming the pending count. The refusal surfaces
 asymmetrically, matching how each service composes: the **worker refuses
-to start** (crash-loops until migrated); the **web tier boots and stays
-"healthy"** (its `/healthz` is static) but refuses composition on the
-first `/api` request — `/readyz` red, webhooks 503 — and **recovers on
-its next request** once migrations apply, no restart needed. The upgrade
-workflow becomes:
+to start** (crash-loops until migrated); the **API refuses to start** as
+well, since it migrates before it listens, so `web` answers `/api/*` with a
+sanitized 503 and its own `/readyz` goes red while `/healthz` stays static.
+Once migrations apply, the API starts and the web tier recovers with no
+restart of its own. The upgrade workflow becomes:
 
 ```sh
 git pull && docker compose -f docker-compose.external-db.yml build
@@ -191,9 +191,10 @@ docker compose up -d                      # web + worker; they no-op on migratio
 
 Notes that matter:
 
-- Start `postgres` ALONE for the restore. If `web` or `worker` are up they
+- Start `postgres` ALONE for the restore. If `api` or `worker` are up they
   will migrate (and the worker will start draining jobs) against the
-  database you are in the middle of replacing.
+  database you are in the middle of replacing. `web` holds no database, but
+  bring it down too so nothing serves from a half-restored one.
 - `--wait` is critical: plain `up -d` returns as soon as the container
   is CREATED, several seconds before Postgres accepts connections, and the
   `pg_restore` would fail on a closed socket. `--wait` blocks until the
@@ -219,8 +220,9 @@ docker compose exec postgres \
 curl -sf localhost:3000/readyz && echo " readyz ok"
 ```
 
-`/readyz` checks app composition plus a live `SELECT 1` — a 200 there means
-the web tier reached the restored database. Then open a PR you know had a
+The API's `/readyz` runs a live `SELECT 1`, and the web tier's `/readyz`
+answers 200 only when it reaches the API's. So a 200 on port 3000 means the
+whole chain reached the restored database. Then open a PR you know had a
 brief and confirm it renders.
 
 ## Retention (what grows, and what does not prune itself)
@@ -271,17 +273,17 @@ Three knobs, all instance environment variables:
 | `AUDIT_PRIVATE_WRITES` | `true` | Record writes that stay inside this instance. Writes that leave for GitHub, and every denial, are recorded either way — that is not configurable. |
 | `AUDIT_CALLER_IP` | `false` | Populate `caller_ip`. Off by default: in a self-host deployment the credential identifies the caller better than an address does, and the address costs the most privacy of any field. |
 
-**`caller_ip` records nothing in the Docker deployment.** The address has to
-come from the serving adapter, and the web tier's server entry does not hand
-one to the API. Turning the flag on there is honest but empty; the column
-fills only where the app is served by a Node adapter that exposes the socket.
+**`caller_ip` records the WEB TIER's address, not the visitor's.** The address
+comes from the serving adapter, and the API is reached through the web tier's
+proxy, so the socket it sees belongs to that proxy. Expect one address for
+every visitor and read the credential columns instead.
 
-**When it does record, `caller_ip` is the SOCKET address.** Behind a reverse proxy that is the
-proxy's address, not the visitor's — this instance does not read
+**`caller_ip` is the SOCKET address, always.** This instance does not read
 `X-Forwarded-For`, because a header the client can set is not evidence, and
-deciding which proxy to trust is a separate decision nobody has made here. If
-your web tier is fronted by a proxy, expect one address for everyone, and read
-the credential columns instead.
+deciding which proxy to trust is a separate decision nobody has made here. The
+web tier's proxy drops `X-Forwarded-For`, `X-Real-IP` and `Forwarded` rather
+than forwarding them, so adding a reverse proxy in front changes nothing about
+what lands in the column.
 
 Erasing one person's rows is a query, not a feature:
 

@@ -2,7 +2,7 @@ import { useId } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@web/components/Button/Button";
-import type { CarriedItem } from "@web/features/review/utils/state";
+import type { CarriedItem } from "@web/features/review/utils";
 import styles from "./AttentionList.module.scss";
 import {
   getActionCopyKey,
@@ -15,7 +15,7 @@ export interface AttentionListProps {
   items: CarriedItem[];
   /** The draft waiting for its new home; its control reads as armed. */
   armedDraftId: string | null;
-  /** Jumps to the item's location — the submit list's own mechanic. */
+  /** Jumps to the item's location, which is the submit list's own mechanic. */
   jumpToItem: (item: CarriedItem) => void;
   runAction: (item: CarriedItem, action: AttentionActionId) => void;
 }

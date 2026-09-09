@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { describe, expect, it } from "vitest";
-import { ApiErrorCodes } from "../../../../error-response";
+import { ApiErrorCodes } from "contract";
 import { BadRequest } from "../../../../shared-errors/api-error";
 import type { AuthzEnv } from "../../../authz";
 import { parseQuery, parsePrNumber } from "./utils";

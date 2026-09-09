@@ -1,17 +1,11 @@
-// The viewer's url-box world, session-gated ONLY:
-//   GET    /api/briefs                      — the "your briefs" home list
-//   DELETE /api/briefs/:repoId/:prNumber   — the owner-delete
-// Deliberately outside the per-repo GitHub gate: ownership of the rows
-// (owner_user_id = the credential's user) is the whole authorization. The
-// list is the DISCOVERY surface for url-box briefs (the fail-closed
-// allowed-repos list can never include them), and a viewer who has lost
-// GitHub access to a repo — or whose repo is gone — must still see and be
-// able to erase their own stored data. On the delete, a tenant row, another
-// owner's row, and a nonexistent row are one indistinguishable 404.
-import {
-  ProductActionIds,
-  ProductQueryIds,
-} from "../../product-operations/ids";
+// The viewer's url-box world, session-gated ONLY: the "your briefs" home
+// list and the owner-delete. Deliberately outside the per-repo GitHub gate,
+// because row ownership is the whole authorization. The list is the DISCOVERY
+// surface for url-box briefs, and a viewer who has lost GitHub access to a
+// repo must still see and erase their own stored data. On the delete, a
+// tenant row, another owner's row and a nonexistent row are one
+// indistinguishable 404.
+import { ProductActionIds, ProductQueryIds } from "contract";
 import {
   productRouter,
   type ProductRouter,

@@ -11,7 +11,7 @@ import {
 import {
   deriveCarriedItems,
   type CarriedItem,
-} from "@web/features/review/utils/state";
+} from "@web/features/review/utils";
 import type { AttentionActionId } from "./AttentionList/utils";
 
 export interface CarryOverParams {
@@ -49,7 +49,7 @@ export function useCarryOver({
 
   // Both store fields get a new reference on EVERY comment or disposition
   // action anywhere in the Brief, and almost none of them touch a carried
-  // item — so the derivation runs only when one of its inputs actually moved.
+  // item, so the derivation runs only when one of its inputs actually moved.
   const items = useMemo(
     () =>
       deriveCarriedItems({
@@ -64,7 +64,7 @@ export function useCarryOver({
   );
 
   // A first-ever session carried nothing, and neither did a previous one that
-  // wrote only an outcome — a row claiming otherwise is worse than the
+  // wrote only an outcome, so a row claiming otherwise is worse than the
   // header's progress alone.
   if (carriedFrom === null || carriedFrom.items === 0) return null;
 

@@ -2,9 +2,9 @@ import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useLatestRef } from "@web/hooks/useLatestRef";
-import type { ReviewComment } from "@web/features/review/utils/comments";
-import type { MarkReadyAction } from "@web/features/pulls/transport/markReady";
-import { useMarkReady } from "@web/features/pulls/hooks/useMarkReady";
+import type { ReviewComment } from "@web/features/review/utils";
+import type { MarkReadyAction } from "@web/features/pulls/transport";
+import { useMarkReady } from "@web/features/pulls/hooks";
 import type { IntentCheck } from "../../types";
 import type { RiskFlag } from "../../utils/viewModel";
 import type { PostDraftOutcome } from "./useOwnDraftFlow";

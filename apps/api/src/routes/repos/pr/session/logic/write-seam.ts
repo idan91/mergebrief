@@ -1,10 +1,10 @@
 // The shared session write seam: the session op handlers plus the comments
 // and review-submit handlers all reach the same session through these two
-// functions — resolve the write target, and map the store's refusals onto
+// functions, resolve the write target, and map the store's refusals onto
 // the wire as throws.
 import type { Context } from "hono";
 import { ReviewSessionErrorCodes } from "persistence";
-import { ApiErrorCodes } from "../../../../../error-response";
+import { ApiErrorCodes } from "contract";
 import {
   BadRequest,
   Conflict,

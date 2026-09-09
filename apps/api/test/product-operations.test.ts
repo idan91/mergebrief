@@ -1,15 +1,12 @@
 // The catalog seam: registry semantics (invalid id / conflicting descriptor =
 // programmer error = throw; identical re-registration = no-op) and the product
-// router — declaration and mounting as one statement, endpoints stamped from
+// router, declaration and mounting as one statement, endpoints stamped from
 // the mount prefixes at the root commit.
 import type { Env, Hono, MiddlewareHandler } from "hono";
 import type { WriteClassification } from "persistence";
 import { describe, expect, it } from "vitest";
 import { createProductOperationRegistry } from "../src/product-operations/registry";
-import {
-  ProductActionIds,
-  ProductQueryIds,
-} from "../src/product-operations/ids";
+import { ProductActionIds, ProductQueryIds } from "contract";
 import { productRouter } from "../src/product-operations/product-router";
 import {
   OperationKinds,
@@ -104,7 +101,7 @@ describe("product operation registry", () => {
     },
   );
 
-  it("list() is a snapshot — later registrations do not mutate it", () => {
+  it("a listing is a snapshot, later registrations do not mutate it", () => {
     const registry = createProductOperationRegistry();
     registry.register({
       id: "read-pull",
@@ -256,7 +253,7 @@ describe("product router", () => {
       router.query(
         {
           id: ProductQueryIds.LIST_PULLS,
-          // @ts-expect-error — a query must declare READ, not a write classification
+          // @ts-expect-error, a query must declare READ, not a write classification
           classification: WriteClassifications.EXTERNAL_WRITE,
         },
         "/pulls",
@@ -267,7 +264,7 @@ describe("product router", () => {
       router.action(
         {
           id: ProductActionIds.SUBMIT_REVIEW,
-          // @ts-expect-error — an action must declare a write classification, not READ
+          // @ts-expect-error, an action must declare a write classification, not READ
           classification: WriteClassifications.READ,
         },
         "post",
@@ -282,7 +279,7 @@ describe("product router", () => {
     const router = productRouter();
     router.query(
       {
-        // @ts-expect-error — a query id must come from ProductQueryIds
+        // @ts-expect-error, a query id must come from ProductQueryIds
         id: "not-in-the-vocabulary",
         classification: WriteClassifications.READ,
       },
@@ -291,7 +288,7 @@ describe("product router", () => {
     );
     router.action(
       {
-        // @ts-expect-error — an action id must come from ProductActionIds
+        // @ts-expect-error, an action id must come from ProductActionIds
         id: ProductQueryIds.LIST_PULLS,
         classification: WriteClassifications.PRIVATE_WRITE,
       },
@@ -304,7 +301,7 @@ describe("product router", () => {
     expect(registry.list()).toHaveLength(2);
   });
 
-  it("a mounted child is sealed — late declarations throw", () => {
+  it("a mounted child is sealed, so late declarations throw", () => {
     const child = productRouter();
     child.query(QUERY, "/pulls", (c) => c.body(null, 204));
     const root = productRouter();
@@ -314,7 +311,7 @@ describe("product router", () => {
     ).toThrowError(/mounted/);
   });
 
-  it("a mounted child is sealed — late mounts and commits throw", () => {
+  it("a mounted child is sealed, so late mounts and commits throw", () => {
     const child = productRouter();
     child.query(QUERY, "/pulls", (c) => c.body(null, 204));
     const root = productRouter();
@@ -328,7 +325,7 @@ describe("product router", () => {
     );
   });
 
-  it("a mounted child is sealed — late middleware throws", () => {
+  it("a mounted child is sealed, so late middleware throws", () => {
     const child = productRouter();
     child.query(QUERY, "/pulls", (c) => c.body(null, 204));
     const root = productRouter();
@@ -361,11 +358,11 @@ describe("product router", () => {
     expect(res.headers.get("x-gate")).toBe("on");
   });
 
-  it("a committed router is sealed — later declarations throw", () => {
+  it("a committed router is sealed, so later declarations throw", () => {
     const root = productRouter();
     root.query(QUERY, "/pulls", (c) => c.body(null, 204));
     root.commit(createProductOperationRegistry());
-    // Anything added now is served but never registered — silent drift.
+    // Anything added now is served but never registered, silent drift.
     expect(() =>
       root.action(ACTION, "post", "/review", (c) => c.body(null, 204)),
     ).toThrowError(/committed/);
@@ -442,7 +439,7 @@ describe("product router", () => {
     },
   );
 
-  it("use() applies middleware ahead of declared handlers", async () => {
+  it("middleware applies ahead of declared handlers", async () => {
     const router = productRouter();
     router.use(async (c, next) => {
       c.header("x-probe", "on");
@@ -453,7 +450,7 @@ describe("product router", () => {
     expect(res.headers.get("x-probe")).toBe("on");
   });
 
-  it("route() mounts a bare Hono without registering anything", async () => {
+  it("a bare Hono mounts without registering anything", async () => {
     const { Hono } = await import("hono");
     const bare = new Hono();
     bare.get("/version", (c) => c.json({ version: "dev" }));
@@ -466,7 +463,7 @@ describe("product router", () => {
   });
 });
 
-/** Wrap a child under one extra prefix — composition-index shorthand. */
+/** Wrap a child under one extra prefix, composition-index shorthand. */
 function productRouterWrapping(
   prefix: string,
   child: ReturnType<typeof productRouter>,

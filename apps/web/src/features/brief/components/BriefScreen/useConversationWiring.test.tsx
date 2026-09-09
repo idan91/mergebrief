@@ -10,7 +10,7 @@ import type { PrConversation } from "@web/features/conversation/types";
 import {
   parseConversationFilter,
   type ConversationFilter,
-} from "@web/features/conversation/utils/filter";
+} from "@web/features/conversation/utils";
 import type { Brief, BriefChunk } from "../../types";
 import { buildBriefViewModel } from "../../utils";
 import { useConversationWiring } from "./useConversationWiring";

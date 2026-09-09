@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { createRef } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { briefFixture } from "../../../../utils/fixtures";
+import { briefFixture } from "@web/features/brief/fixtures";
 import {
   buildBriefViewModel,
   GroupViewKinds,
@@ -39,7 +39,7 @@ function renderBar(overrides: Partial<NarrowBarProps> = {}) {
 }
 
 describe("NarrowBar", () => {
-  it("lays out chevron, arrows, position, scroll-to-top and shortcuts in order", () => {
+  it("lays out chevron, arrows, position, scroll-to-top and shortcuts", () => {
     renderBar({ activeGroupId: second.id });
     const names = screen
       .getAllByRole("button")
