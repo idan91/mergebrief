@@ -10,11 +10,13 @@ import {
   AnchorStatuses,
   DispositionCarryStatuses,
   DispositionEvidenceStatuses,
+  CommentAnchorKinds,
   DraftCommentStatuses,
   type DispositionDecision,
   type AnchorStatus,
   type DispositionCarryStatus,
   type DispositionEvidenceStatus,
+  type DraftAnchor,
   type DraftCommentStatus,
 } from "persistence";
 import {
@@ -50,9 +52,7 @@ const CLEARED_BY_KIND = {
  */
 export interface AttentionDraftComment {
   readonly id: bigint;
-  readonly filePath: string;
-  readonly startLine: number;
-  readonly endLine: number;
+  readonly anchor: DraftAnchor;
   readonly status: DraftCommentStatus;
   readonly anchorStatus: AnchorStatus | null;
 }
@@ -101,6 +101,24 @@ function classifyDisposition(
   return undefined;
 }
 
+function deriveDraftLocation(
+  comment: AttentionDraftComment,
+): AttentionLocation {
+  const { anchor } = comment;
+  if (anchor.kind === CommentAnchorKinds.FILE) {
+    return {
+      kind: CommentAnchorKinds.FILE,
+      filePath: anchor.file,
+    };
+  }
+  return {
+    kind: CommentAnchorKinds.LINE,
+    filePath: anchor.file,
+    startLine: anchor.startLine,
+    endLine: anchor.endLine,
+  };
+}
+
 export function deriveAttentionItems(input: AttentionInput): AttentionItem[] {
   const items: AttentionItem[] = [];
   for (const comment of input.draftComments) {
@@ -118,11 +136,7 @@ export function deriveAttentionItems(input: AttentionInput): AttentionItem[] {
           id: String(comment.id),
           attribute: null,
         },
-        {
-          filePath: comment.filePath,
-          startLine: comment.startLine,
-          endLine: comment.endLine,
-        },
+        deriveDraftLocation(comment),
       ),
     );
   }
@@ -141,6 +155,7 @@ export function deriveAttentionItems(input: AttentionInput): AttentionItem[] {
           attribute: row.attribute,
         },
         {
+          kind: CommentAnchorKinds.LINE,
           filePath: row.filePath,
           startLine: row.regionStart,
           endLine: row.regionEnd,

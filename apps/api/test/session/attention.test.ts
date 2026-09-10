@@ -5,6 +5,8 @@ import {
   DispositionCarryStatuses,
   DispositionDecisions,
   DispositionEvidenceStatuses,
+  CommentAnchorKinds,
+  DraftCommentSides,
   DraftCommentStatuses,
 } from "persistence";
 import { describe, expect, it } from "vitest";
@@ -16,9 +18,13 @@ import {
 
 const COMMENT: AttentionDraftComment = {
   id: 41n,
-  filePath: "src/app.ts",
-  startLine: 10,
-  endLine: 12,
+  anchor: {
+    kind: CommentAnchorKinds.LINE,
+    file: "src/app.ts",
+    side: DraftCommentSides.NEW,
+    startLine: 10,
+    endLine: 12,
+  },
   status: DraftCommentStatuses.DRAFT,
   anchorStatus: AnchorStatuses.ORPHANED,
 };
@@ -125,7 +131,7 @@ describe("deriveAttentionItems", () => {
       ],
     });
 
-    // Same location, same kind — the attribute is the whole difference, and
+    // Same location, same kind: the attribute is the whole difference, and
     // the operations that clear them need it in the payload.
     expect(items.map((row) => row.subject)).toEqual([
       { type: "disposition", id: null, attribute: "no-tests" },

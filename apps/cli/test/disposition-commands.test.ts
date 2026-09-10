@@ -195,7 +195,7 @@ describe("disposition commands over the real api app", () => {
       {
         briefId: brief.value.id,
         reviewerId: REVIEWER,
-        brief: async () => ({ groupIds: [], flags: [] }),
+        brief: async () => ({ groupIds: [], flags: [], filePaths: [] }),
       },
       () => Promise.resolve(),
     );

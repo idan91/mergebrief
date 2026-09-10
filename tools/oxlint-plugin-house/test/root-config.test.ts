@@ -218,6 +218,10 @@ const MATRIX_FILES = {
   "apps/web/src/components/Button/Button.tsx": RAW_BUTTON,
   "packages/brief-core/src/loose-absence.ts": LOOSE_ABSENCE,
   "packages/brief-core/src/explicit-absence.ts": EXPLICIT_ABSENCE,
+  "packages/types/src/helper.ts":
+    "export function helper() {\n  return 1;\n}\n",
+  "packages/types/src/maps.ts":
+    'export const Kinds = { LINE: "line", FILE: "file" } as const;\n',
 };
 
 let matrix: LintResult | undefined;
@@ -290,6 +294,18 @@ describe("shared-button allowlist", () => {
     expect(
       rulesFor(lintMatrix(), "apps/web/src/components/Button/Button.tsx"),
     ).not.toContainEqual(expect.stringMatching(/^house\/no-raw-button@/));
+  });
+});
+
+describe("types package runtime", () => {
+  it("reports a function in packages/types", () => {
+    expect(rulesFor(lintMatrix(), "packages/types/src/helper.ts")).toContain(
+      "house/types-const-maps@error",
+    );
+  });
+
+  it("passes an as const map in packages/types", () => {
+    expect(rulesFor(lintMatrix(), "packages/types/src/maps.ts")).toEqual([]);
   });
 });
 

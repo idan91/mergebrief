@@ -84,6 +84,7 @@ function workedSession(): ReviewSessionPayload {
       {
         id: "41",
         filePath: "src/leak.ts",
+        kind: "line",
         side: "new",
         startLine: 10,
         endLine: 10,

@@ -404,6 +404,13 @@
       }
     },
     {
+      // Runtime in packages/types is as const maps only.
+      "files": ["packages/types/**"],
+      "rules": {
+        "house/types-const-maps": "error"
+      }
+    },
+    {
       // The plugin itself is Node-resolved, not bundler-resolved: its `.mjs`
       // modules must carry their extension.
       "files": ["tools/oxlint-plugin-house/**"],

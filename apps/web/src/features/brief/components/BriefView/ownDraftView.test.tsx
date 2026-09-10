@@ -97,6 +97,7 @@ function comment(
       : { filePath: "src/leak.test.ts", startLine: 1 };
   return {
     id,
+    kind: "line",
     filePath: anchor.filePath,
     side: "new",
     startLine: anchor.startLine,

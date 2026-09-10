@@ -10,6 +10,7 @@ import type {
   DispositionDecision,
   DispositionEvidence,
   DispositionEvidenceStatus,
+  CommentAnchorKind,
   DraftCommentSide,
   DraftCommentStatus,
   ReviewOutcome,
@@ -47,19 +48,31 @@ export interface SessionPayload {
   readonly attention: readonly AttentionItem[];
 }
 
-export interface DraftCommentPayload {
+export interface DraftCommentPayloadBase {
   /** The row holding this draft, the previous session's before materializing. */
   readonly id: string;
   readonly filePath: string;
+  readonly body: string;
+  readonly status: DraftCommentStatus;
+  readonly anchorStatus: AnchorStatus | null;
+}
+
+export interface LineDraftCommentPayload extends DraftCommentPayloadBase {
+  readonly kind: Extract<CommentAnchorKind, "line">;
   readonly side: DraftCommentSide;
   /** Present only when the range genuinely crosses sides. */
   readonly startSide?: DraftCommentSide;
   readonly startLine: number;
   readonly endLine: number;
-  readonly body: string;
-  readonly status: DraftCommentStatus;
-  readonly anchorStatus: AnchorStatus | null;
 }
+
+export interface FileDraftCommentPayload extends DraftCommentPayloadBase {
+  readonly kind: Extract<CommentAnchorKind, "file">;
+}
+
+export type DraftCommentPayload =
+  | LineDraftCommentPayload
+  | FileDraftCommentPayload;
 
 export interface ReclassificationPayload {
   readonly changeGroupId: string;

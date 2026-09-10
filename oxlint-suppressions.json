@@ -269,11 +269,6 @@
       "count": 2
     }
   },
-  "apps/api/src/routes/repos/pr/session/logic/carry-over-inputs.ts": {
-    "house/no-em-dash": {
-      "count": 4
-    }
-  },
   "apps/api/src/routes/repos/pr/session/schemas.ts": {
     "house/no-em-dash": {
       "count": 4
@@ -378,24 +373,6 @@
     }
   },
   "apps/api/test/request-logging.test.ts": {
-    "house/test-title": {
-      "count": 1
-    }
-  },
-  "apps/api/test/session/attention.test.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "apps/api/test/session/payload.test.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
-  "apps/api/test/session/read.test.ts": {
-    "house/no-em-dash": {
-      "count": 9
-    },
     "house/test-title": {
       "count": 1
     }
@@ -1481,11 +1458,6 @@
       "count": 4
     }
   },
-  "apps/web/src/features/review/components/CommentComposer/CommentComposer.test.tsx": {
-    "house/no-em-dash": {
-      "count": 4
-    }
-  },
   "apps/web/src/features/review/components/CommentComposer/CommentComposer.tsx": {
     "house/no-em-dash": {
       "count": 3
@@ -1535,11 +1507,6 @@
       "count": 11
     }
   },
-  "apps/web/src/features/review/session/attention.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "apps/web/src/features/review/session/briefSwitch.test.tsx": {
     "house/no-em-dash": {
       "count": 4
@@ -1571,11 +1538,6 @@
   "apps/web/src/features/review/session/flow/store.ts": {
     "house/no-em-dash": {
       "count": 8
-    }
-  },
-  "apps/web/src/features/review/session/payloadGuards.ts": {
-    "house/no-em-dash": {
-      "count": 1
     }
   },
   "apps/web/src/features/review/session/snapshot.ts": {
@@ -2089,11 +2051,6 @@
       "count": 1
     }
   },
-  "packages/generators/src/config/instancePolicy.ts": {
-    "house/no-em-dash": {
-      "count": 5
-    }
-  },
   "packages/generators/src/config/loader.ts": {
     "house/comment-run": {
       "count": 1
@@ -2312,11 +2269,6 @@
     },
     "house/no-em-dash": {
       "count": 9
-    }
-  },
-  "packages/github/src/types.ts": {
-    "house/no-em-dash": {
-      "count": 1
     }
   },
   "packages/github/src/webhook/verify.ts": {
@@ -2657,22 +2609,12 @@
       "count": 3
     }
   },
-  "packages/persistence/src/schema/index.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "packages/persistence/src/schema/pull-request.ts": {
     "house/comment-density": {
       "count": 1
     },
     "house/no-em-dash": {
       "count": 6
-    }
-  },
-  "packages/persistence/src/schema/review-draft-comment.ts": {
-    "house/no-em-dash": {
-      "count": 2
     }
   },
   "packages/persistence/src/schema/review-group-reclassification.ts": {
@@ -2725,14 +2667,6 @@
     },
     "house/no-em-dash": {
       "count": 12
-    }
-  },
-  "packages/persistence/src/stores/carry-over.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 13
     }
   },
   "packages/persistence/src/stores/generation.ts": {
@@ -2791,11 +2725,6 @@
     },
     "house/no-em-dash": {
       "count": 2
-    }
-  },
-  "packages/persistence/src/types.ts": {
-    "house/no-em-dash": {
-      "count": 17
     }
   },
   "packages/persistence/test/artifact-store.test.ts": {
@@ -2930,14 +2859,6 @@
       "count": 1
     }
   },
-  "packages/persistence/test/review-session.test.ts": {
-    "house/no-em-dash": {
-      "count": 9
-    },
-    "house/test-title": {
-      "count": 1
-    }
-  },
   "packages/persistence/test/schema.test.ts": {
     "house/no-em-dash": {
       "count": 3
@@ -3035,14 +2956,6 @@
   "packages/repo-config/test/settings.test.ts": {
     "house/test-title": {
       "count": 2
-    }
-  },
-  "packages/types/src/index.ts": {
-    "house/comment-density": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 6
     }
   },
   "tools/categorizer/eval/baseline.ts": {

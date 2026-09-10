@@ -4,7 +4,7 @@
 //
 // `clearedBy` is a LIST because two of the three kinds clear by either of two
 // operations, and a scalar would put a CLI back into guessing which.
-import type { DispositionEvidenceStatus } from "persistence";
+import type { DispositionEvidenceStatus, CommentAnchorKind } from "persistence";
 import type { ValueOf } from "types";
 import type { ProductActionId } from "./operations";
 
@@ -47,11 +47,22 @@ export interface AttentionSubject {
   readonly attribute: string | null;
 }
 
-export interface AttentionLocation {
+export interface AttentionLocationBase {
+  readonly kind: CommentAnchorKind;
   readonly filePath: string;
+}
+
+export interface LineAttentionLocation extends AttentionLocationBase {
+  readonly kind: Extract<CommentAnchorKind, "line">;
   readonly startLine: number;
   readonly endLine: number;
 }
+
+export interface FileAttentionLocation extends AttentionLocationBase {
+  readonly kind: Extract<CommentAnchorKind, "file">;
+}
+
+export type AttentionLocation = LineAttentionLocation | FileAttentionLocation;
 
 export interface AttentionItem {
   readonly kind: AttentionItemKind;

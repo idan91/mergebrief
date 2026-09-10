@@ -12,6 +12,7 @@ import { noProcessEnv } from "./rules/no-process-env.mjs";
 import { noRenderFunction } from "./rules/no-render-function.mjs";
 import { noRawButton } from "./rules/no-raw-button.mjs";
 import { testTitle } from "./rules/test-title.mjs";
+import { typesConstMaps } from "./rules/types-const-maps.mjs";
 
 /** @type {import("./types").HousePlugin} */
 const plugin = {
@@ -29,6 +30,7 @@ const plugin = {
     "no-render-function": noRenderFunction,
     "no-process-env": noProcessEnv,
     "no-hand-built-plural": noHandBuiltPlural,
+    "types-const-maps": typesConstMaps,
   },
 };
 

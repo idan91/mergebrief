@@ -3,7 +3,7 @@
 // accounted for. The wire shapes themselves live in `contract`.
 import type {
   AnchorStatus,
-  DraftCommentSide,
+  DraftAnchor,
   DraftCommentStatus,
 } from "persistence";
 import type { SessionPayload } from "contract";
@@ -11,11 +11,7 @@ import type { SessionPayload } from "contract";
 /** The row fields a draft payload is shaped from, either side of materialization. */
 export interface DraftCommentSource {
   readonly id: bigint;
-  readonly filePath: string;
-  readonly side: DraftCommentSide;
-  readonly startSide: DraftCommentSide | null;
-  readonly startLine: number;
-  readonly endLine: number;
+  readonly anchor: DraftAnchor;
   readonly body: string;
   readonly status: DraftCommentStatus;
   readonly anchorStatus: AnchorStatus | null;

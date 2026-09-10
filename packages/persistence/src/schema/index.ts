@@ -1,5 +1,5 @@
 // Every app table. `graphile_worker.*` is owned and migrated by
-// graphile-worker — never present here.
+// graphile-worker, never present here.
 export { apiToken } from "./api-token";
 export { auditLog } from "./audit-log";
 export { authSession } from "./auth-session";

@@ -45,6 +45,7 @@ function buildOrphanedDraft(): ReviewSessionPayload {
       {
         id: DRAFT_ID,
         filePath: FLAG_FILE,
+        kind: "line",
         side: "new",
         startLine: 10,
         endLine: 10,
@@ -56,7 +57,12 @@ function buildOrphanedDraft(): ReviewSessionPayload {
       {
         kind: "orphaned-anchor",
         subject: { type: "draft-comment", id: DRAFT_ID, attribute: null },
-        location: { filePath: FLAG_FILE, startLine: 10, endLine: 10 },
+        location: {
+          kind: "line",
+          filePath: FLAG_FILE,
+          startLine: 10,
+          endLine: 10,
+        },
         clearedBy: ["reanchor-draft-comment", "delete-draft-comment"],
       },
     ],
@@ -89,7 +95,12 @@ function buildCarriedDisposition(
           id: null,
           attribute: FLAG_ATTRIBUTE,
         },
-        location: { filePath: FLAG_FILE, startLine: 10, endLine: 13 },
+        location: {
+          kind: "line",
+          filePath: FLAG_FILE,
+          startLine: 10,
+          endLine: 13,
+        },
         clearedBy: ["address-risk", "dismiss-risk"],
       },
     ],

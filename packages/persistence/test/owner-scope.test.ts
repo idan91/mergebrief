@@ -450,7 +450,7 @@ describe("owner-scoped review sessions", () => {
     const key = {
       briefId: brief.value.id,
       reviewerId: OWNER_A,
-      brief: async () => ({ groupIds: [], flags: [] }),
+      brief: async () => ({ groupIds: [], flags: [], filePaths: [] }),
     };
 
     const created = await a.reviewSessions.writeToSession(

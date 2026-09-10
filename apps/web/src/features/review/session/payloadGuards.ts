@@ -15,7 +15,7 @@ import type {
 } from "./serverState";
 
 // The sets take arbitrary strings at `.has` (the input is unvalidated wire
-// bytes), but every VALUE is pinned to its vocabulary type by `satisfies` —
+// bytes), but every VALUE is pinned to its vocabulary type by `satisfies`:
 // a renamed or added literal fails the build.
 const DRAFT_STATUSES = new Set<string>([
   "draft",
@@ -58,11 +58,14 @@ export function isDraftComment(value: unknown): value is SessionDraftComment {
   if (typeof value["filePath"] !== "string") return false;
   if (typeof value["body"] !== "string") return false;
 
-  if (!isSide(value["side"])) return false;
-  if (!isAbsentOrSide(value["startSide"])) return false;
-
   if (typeof value["status"] !== "string") return false;
   if (!DRAFT_STATUSES.has(value["status"])) return false;
+
+  if (value["kind"] === "file") return true;
+  if (value["kind"] !== "line") return false;
+
+  if (!isSide(value["side"])) return false;
+  if (!isAbsentOrSide(value["startSide"])) return false;
 
   return isLine(value["startLine"]) && isLine(value["endLine"]);
 }

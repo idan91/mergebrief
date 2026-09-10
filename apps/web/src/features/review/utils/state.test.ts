@@ -278,7 +278,12 @@ function buildOrphanItem(): SessionAttentionItem {
   return {
     kind: "orphaned-anchor",
     subject: { type: "draft-comment", id: "comment-1", attribute: null },
-    location: { filePath: "src/a.ts", startLine: 12, endLine: 12 },
+    location: {
+      kind: "line",
+      filePath: "src/a.ts",
+      startLine: 12,
+      endLine: 12,
+    },
     clearedBy: ["reanchor-draft-comment", "delete-draft-comment"],
   };
 }
@@ -287,7 +292,12 @@ function buildDispositionItem(kind: AttentionItemKind): SessionAttentionItem {
   return {
     kind,
     subject: { type: "disposition", id: null, attribute: "no-tests" },
-    location: { filePath: "src/a.ts", startLine: 10, endLine: 13 },
+    location: {
+      kind: "line",
+      filePath: "src/a.ts",
+      startLine: 10,
+      endLine: 13,
+    },
     clearedBy: ["address-risk", "dismiss-risk"],
   };
 }
@@ -367,7 +377,12 @@ describe("deriveCarriedItems", () => {
     const item = buildDispositionItem("reopened-disposition");
     const shifted: SessionAttentionItem = {
       ...item,
-      location: { filePath: "src/a.ts", startLine: 12, endLine: 30 },
+      location: {
+        kind: "line",
+        filePath: "src/a.ts",
+        startLine: 12,
+        endLine: 30,
+      },
     };
     expect(deriveCarriedItems(buildCarriedInput([shifted]))).toHaveLength(1);
   });

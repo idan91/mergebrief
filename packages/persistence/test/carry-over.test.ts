@@ -22,6 +22,7 @@ import * as schema from "../src/schema/index";
 import {
   ChangeGroupCategories,
   DispositionDecisions,
+  CommentAnchorKinds,
   DraftCommentSides,
   DraftCommentStatuses,
   ReviewOutcomes,
@@ -196,6 +197,7 @@ async function seedPreviousComment(
     briefId,
     (writer) =>
       writer.addDraftComment({
+        kind: CommentAnchorKinds.LINE,
         filePath: "src/app.ts",
         side: DraftCommentSides.NEW,
         startLine: 10,
@@ -210,8 +212,9 @@ async function seedPreviousComment(
 function artifact(
   groupIds: readonly string[],
   flags: readonly FlagKey[],
+  filePaths: readonly string[] = [],
 ): () => Promise<CarryOverInputs> {
-  return async () => ({ groupIds, flags });
+  return async () => ({ groupIds, flags, filePaths });
 }
 
 const NO_ARTIFACT = { brief: artifact([], []) } as const;
@@ -225,10 +228,30 @@ function createCountingArtifact(): {
   return {
     brief: async () => {
       calls++;
-      return { groupIds: [], flags: [] };
+      return { groupIds: [], flags: [], filePaths: [] };
     },
     calls: () => calls,
   };
+}
+
+/** A previous session holding one File comment on `src/app.ts`. */
+async function seedPreviousFileComment(
+  world: World,
+  briefId: BriefRowId,
+  reviewerId: ReviewerId = REVIEWER,
+): Promise<void> {
+  await openSession(world, briefId, reviewerId);
+  await write(
+    world,
+    briefId,
+    (writer) =>
+      writer.addDraftComment({
+        kind: CommentAnchorKinds.FILE,
+        filePath: "src/app.ts",
+        body: "comment on the file",
+      }),
+    reviewerId,
+  );
 }
 
 describe("preview, the read-side evaluation creates nothing", () => {
@@ -271,9 +294,11 @@ describe("preview, the read-side evaluation creates nothing", () => {
     expect(view.session).toBeUndefined();
     expect(view.carried.draftComments).toEqual([
       expect.objectContaining({
-        filePath: "src/app.ts",
-        startLine: 13,
-        endLine: 15,
+        anchor: expect.objectContaining({
+          file: "src/app.ts",
+          startLine: 13,
+          endLine: 15,
+        }),
         anchorStatus: "moved",
         body: "this allocation is unbounded",
       }),
@@ -301,6 +326,85 @@ describe("preview, the read-side evaluation creates nothing", () => {
   });
 });
 
+describe("preview, a File comment follows the path not a line-map", () => {
+  it("attaches a File comment whose path is still in the Brief", async () => {
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 1);
+    const current = await seedBrief(world, 2);
+    await seedHop(world, 1, 2);
+    await seedPreviousFileComment(world, previous);
+
+    const view = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.preview({
+      briefId: current,
+      reviewerId: REVIEWER,
+      brief: artifact([], [], ["src/app.ts"]),
+    });
+
+    expect(view.carried.draftComments).toEqual([
+      expect.objectContaining({
+        anchor: {
+          kind: CommentAnchorKinds.FILE,
+          file: "src/app.ts",
+        },
+        anchorStatus: null,
+        body: "comment on the file",
+      }),
+    ]);
+  });
+
+  it("orphans a File comment whose path left the Brief", async () => {
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 1);
+    const current = await seedBrief(world, 2);
+    await seedHop(world, 1, 2);
+    await seedPreviousFileComment(world, previous);
+
+    const view = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.preview({
+      briefId: current,
+      reviewerId: REVIEWER,
+      brief: artifact([], [], ["src/other.ts"]),
+    });
+
+    expect(view.carried.draftComments).toEqual([
+      expect.objectContaining({
+        anchor: {
+          kind: CommentAnchorKinds.FILE,
+          file: "src/app.ts",
+        },
+        anchorStatus: "orphaned",
+      }),
+    ]);
+  });
+
+  it("does not mark a File comment moved when hops would shift lines", async () => {
+    const world = await freshWorld();
+    const previous = await seedBrief(world, 1);
+    const current = await seedBrief(world, 2);
+    await seedHop(world, 1, 2);
+    await seedPreviousFileComment(world, previous);
+
+    const view = await createTenantRepository(
+      world.handle,
+      CTX,
+    ).reviewSessions.preview({
+      briefId: current,
+      reviewerId: REVIEWER,
+      brief: artifact([], [], ["src/app.ts"]),
+    });
+
+    expect(view.carried.draftComments[0]?.anchorStatus).toBeNull();
+    expect(view.carried.draftComments[0]?.anchor.kind).toBe(
+      CommentAnchorKinds.FILE,
+    );
+  });
+});
+
 describe("preview, several pushes are ONE evaluation", () => {
   it("composes 7 → 8 → 9 → 10 into a single remap", async () => {
     const world = await freshWorld();
@@ -323,8 +427,10 @@ describe("preview, several pushes are ONE evaluation", () => {
     // Three hops of +3 each, composed once, never three lists summed.
     expect(view.carried.draftComments).toEqual([
       expect.objectContaining({
-        startLine: 19,
-        endLine: 21,
+        anchor: expect.objectContaining({
+          startLine: 19,
+          endLine: 21,
+        }),
         anchorStatus: "moved",
       }),
     ]);
@@ -349,8 +455,10 @@ describe("preview, several pushes are ONE evaluation", () => {
 
     expect(view.carried.draftComments).toEqual([
       expect.objectContaining({
-        startLine: 10,
-        endLine: 12,
+        anchor: expect.objectContaining({
+          startLine: 10,
+          endLine: 12,
+        }),
         anchorStatus: "orphaned",
       }),
     ]);
@@ -380,8 +488,10 @@ describe("preview, several pushes are ONE evaluation", () => {
 
     expect(view.carried.draftComments).toEqual([
       expect.objectContaining({
-        startLine: 16,
-        endLine: 18,
+        anchor: expect.objectContaining({
+          startLine: 16,
+          endLine: 18,
+        }),
         anchorStatus: "moved",
       }),
     ]);
@@ -398,6 +508,7 @@ async function seedPreviousWork(
   await write(world, briefId, async (writer) => {
     await writer.setReviewOutcome(ReviewOutcomes.APPROVE);
     await writer.addDraftComment({
+      kind: CommentAnchorKinds.LINE,
       filePath: "src/app.ts",
       side: DraftCommentSides.NEW,
       startLine: 10,
@@ -405,6 +516,7 @@ async function seedPreviousWork(
       body: "draft",
     });
     await writer.addDraftComment({
+      kind: CommentAnchorKinds.LINE,
       filePath: "src/app.ts",
       side: DraftCommentSides.NEW,
       startLine: 40,
@@ -903,6 +1015,7 @@ describe("preview, the rules a multi-push chain must not loosen", () => {
     await openSession(world, previous);
     await write(world, previous, (writer) =>
       writer.addDraftComment({
+        kind: CommentAnchorKinds.LINE,
         filePath: "src/app.ts",
         side: DraftCommentSides.OLD,
         startLine: 10,
@@ -918,7 +1031,10 @@ describe("preview, the rules a multi-push chain must not loosen", () => {
     });
 
     expect(view.carried.draftComments).toEqual([
-      expect.objectContaining({ startLine: 10, anchorStatus: "orphaned" }),
+      expect.objectContaining({
+        anchor: expect.objectContaining({ startLine: 10 }),
+        anchorStatus: "orphaned",
+      }),
     ]);
   });
 
@@ -1066,6 +1182,7 @@ describe("old-side drafts against the PR base", () => {
     await openSession(world, briefId);
     await write(world, briefId, (writer) =>
       writer.addDraftComment({
+        kind: CommentAnchorKinds.LINE,
         filePath: "src/app.ts",
         side: DraftCommentSides.OLD,
         startLine: 10,
@@ -1094,8 +1211,10 @@ describe("old-side drafts against the PR base", () => {
     // The hops say nothing about the base, and the base did not move.
     expect(view.carried.draftComments).toEqual([
       expect.objectContaining({
-        startLine: 10,
-        endLine: 12,
+        anchor: expect.objectContaining({
+          startLine: 10,
+          endLine: 12,
+        }),
         anchorStatus: null,
       }),
     ]);
@@ -1121,8 +1240,10 @@ describe("old-side drafts against the PR base", () => {
 
     expect(view.carried.draftComments).toEqual([
       expect.objectContaining({
-        startLine: 10,
-        endLine: 12,
+        anchor: expect.objectContaining({
+          startLine: 10,
+          endLine: 12,
+        }),
         anchorStatus: "orphaned",
       }),
     ]);
@@ -1144,6 +1265,7 @@ describe("two-side drafts, both legs or orphan", () => {
     await openSession(world, briefId);
     await write(world, briefId, (writer) =>
       writer.addDraftComment({
+        kind: CommentAnchorKinds.LINE,
         filePath: "src/app.ts",
         ...anchor,
         body: "spans both sides",
@@ -1179,9 +1301,11 @@ describe("two-side drafts, both legs or orphan", () => {
     // The old leg rides the base, which held; the new leg shifts by three.
     expect(view.carried.draftComments).toEqual([
       expect.objectContaining({
-        startSide: DraftCommentSides.OLD,
-        startLine: 10,
-        endLine: 15,
+        anchor: expect.objectContaining({
+          startSide: DraftCommentSides.OLD,
+          startLine: 10,
+          endLine: 15,
+        }),
         anchorStatus: "moved",
       }),
     ]);
@@ -1203,9 +1327,11 @@ describe("two-side drafts, both legs or orphan", () => {
 
     expect(view.carried.draftComments).toEqual([
       expect.objectContaining({
-        startSide: DraftCommentSides.NEW,
-        startLine: 13,
-        endLine: 20,
+        anchor: expect.objectContaining({
+          startSide: DraftCommentSides.NEW,
+          startLine: 13,
+          endLine: 20,
+        }),
         anchorStatus: "moved",
       }),
     ]);
@@ -1232,9 +1358,11 @@ describe("two-side drafts, both legs or orphan", () => {
 
     expect(view.carried.draftComments).toEqual([
       expect.objectContaining({
-        startSide: DraftCommentSides.OLD,
-        startLine: 10,
-        endLine: 12,
+        anchor: expect.objectContaining({
+          startSide: DraftCommentSides.OLD,
+          startLine: 10,
+          endLine: 12,
+        }),
         anchorStatus: null,
       }),
     ]);
@@ -1263,9 +1391,11 @@ describe("two-side drafts, both legs or orphan", () => {
 
     expect(view.carried.draftComments).toEqual([
       expect.objectContaining({
-        startSide: DraftCommentSides.OLD,
-        startLine: 10,
-        endLine: 12,
+        anchor: expect.objectContaining({
+          startSide: DraftCommentSides.OLD,
+          startLine: 10,
+          endLine: 12,
+        }),
         anchorStatus: "orphaned",
       }),
     ]);
@@ -1288,9 +1418,11 @@ describe("two-side drafts, both legs or orphan", () => {
     // The old leg lost its base; the placeable new leg must not survive alone.
     expect(view.carried.draftComments).toEqual([
       expect.objectContaining({
-        startSide: DraftCommentSides.NEW,
-        startLine: 10,
-        endLine: 20,
+        anchor: expect.objectContaining({
+          startSide: DraftCommentSides.NEW,
+          startLine: 10,
+          endLine: 20,
+        }),
         anchorStatus: "orphaned",
       }),
     ]);
@@ -1339,6 +1471,7 @@ describe("writeToSession, the first write, one transaction", () => {
       { briefId: current, reviewerId: REVIEWER, ...QUERY },
       (writer) =>
         writer.addDraftComment({
+          kind: CommentAnchorKinds.LINE,
           filePath: "src/other.ts",
           side: DraftCommentSides.NEW,
           startLine: 1,
@@ -1360,7 +1493,12 @@ describe("writeToSession, the first write, one transaction", () => {
       "the triggering write",
     ]);
     const carried = snapshot?.draftComments[0];
-    expect(carried?.startLine).toBe(13);
+    expect(carried?.anchor).toEqual(
+      expect.objectContaining({
+        kind: CommentAnchorKinds.LINE,
+        startLine: 13,
+      }),
+    );
     expect(carried?.anchorStatus).toBe("moved");
     expect(carried?.carriedFromSessionId).not.toBeNull();
     expect(snapshot?.readMarks.map((row) => row.chunkId)).toEqual(["c5"]);
@@ -1469,6 +1607,7 @@ describe("writeToSession, the first write, one transaction", () => {
     await repo.reviewSessions.preview(key);
     await write(world, await briefIdFor(world, 1), (writer) =>
       writer.addDraftComment({
+        kind: CommentAnchorKinds.LINE,
         filePath: "src/app.ts",
         side: DraftCommentSides.NEW,
         startLine: 20,
@@ -1517,9 +1656,11 @@ describe("writeToSession, the first write, one transaction", () => {
     // row keeps the file and line it was last placed at.
     expect(snapshot?.draftComments[0]).toEqual(
       expect.objectContaining({
-        filePath: "src/app.ts",
-        startLine: 10,
-        endLine: 12,
+        anchor: expect.objectContaining({
+          file: "src/app.ts",
+          startLine: 10,
+          endLine: 12,
+        }),
         anchorStatus: "orphaned",
       }),
     );

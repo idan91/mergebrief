@@ -6,10 +6,15 @@ export interface RuleNode {
   readonly type: string;
   readonly name?: string;
   readonly value?: unknown;
+  readonly kind?: string;
   readonly callee?: RuleNode;
   readonly arguments?: readonly RuleNode[];
   readonly object?: RuleNode;
   readonly property?: RuleNode;
+  readonly init?: RuleNode;
+  readonly expression?: RuleNode;
+  readonly typeAnnotation?: RuleNode;
+  readonly typeName?: RuleNode;
   readonly expressions?: readonly RuleNode[];
   readonly quasis?: readonly {
     readonly value: { readonly cooked: string | null };

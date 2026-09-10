@@ -5,6 +5,7 @@ import { randomBytes } from "node:crypto";
 import {
   AnchorStatuses,
   createArtifactStore,
+  CommentAnchorKinds,
   DraftCommentSides,
   DraftCommentStatuses,
   encryptToken,
@@ -223,10 +224,11 @@ async function seedDraft(
     {
       briefId: brief.value.id,
       reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-      brief: async () => ({ groupIds: [], flags: [] }),
+      brief: async () => ({ groupIds: [], flags: [], filePaths: [] }),
     },
     (writer) =>
       writer.addDraftComment({
+        kind: CommentAnchorKinds.LINE,
         filePath: "src/index.ts",
         side: DraftCommentSides.NEW,
         startSide,
@@ -277,7 +279,7 @@ async function freezeWithNewerBrief(handle: AppDatabase): Promise<void> {
     {
       briefId: newer.value.id,
       reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-      brief: async () => ({ groupIds: [], flags: [] }),
+      brief: async () => ({ groupIds: [], flags: [], filePaths: [] }),
     },
     (writer) => writer.putReadMark({ chunkId: "c1" }),
   );

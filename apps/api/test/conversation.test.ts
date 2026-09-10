@@ -351,7 +351,7 @@ async function seedBriefSession(handle: AppDatabase): Promise<void> {
     {
       briefId: brief.value.id,
       reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-      brief: async () => ({ groupIds: [], flags: [] }),
+      brief: async () => ({ groupIds: [], flags: [], filePaths: [] }),
     },
     (writer) => writer.putReadMark({ chunkId: "c1" }),
   );

@@ -255,12 +255,14 @@ function getFlagsAtAnchor(
   item: SessionAttentionItem,
   regions: ReadonlyMap<string, ChunkRegion>,
 ): RiskFlag[] {
+  const { location } = item;
+  if (location.kind !== "line") return [];
   return input.flags.filter((flag) =>
     isFlagUnderAnchor(flag, regions.get(flag.chunkId), {
-      filePath: item.location.filePath,
+      filePath: location.filePath,
       attribute: item.subject.attribute,
-      startLine: item.location.startLine,
-      endLine: item.location.endLine,
+      startLine: location.startLine,
+      endLine: location.endLine,
     }),
   );
 }
@@ -288,10 +290,7 @@ function buildCarriedDraftItem(
   if (live !== undefined) {
     // Re-anchored: the draft the reviewer re-placed no longer sits where the
     // carry-over left it, and the item is what asked them to move it.
-    if (
-      live.anchor.startLine !== item.location.startLine ||
-      live.anchor.endLine !== item.location.endLine
-    ) {
+    if (draftMovedFromAttention(live, item)) {
       return undefined;
     }
     return {
@@ -313,12 +312,33 @@ function buildCarriedDraftItem(
   return {
     id: `carried:${id}`,
     kind: AttentionItemKinds.ORPHANED_ANCHOR,
-    label: `${item.location.filePath}:${String(item.location.startLine)}`,
+    label: attentionLocationLabel(item.location),
     targetId: "",
     clearedBy: item.clearedBy,
     actionTargetId: id,
     unplaceable: true,
   };
+}
+
+function draftMovedFromAttention(
+  live: ReviewComment,
+  item: SessionAttentionItem,
+): boolean {
+  const { location } = item;
+  if (location.kind === "file") {
+    return live.anchor.file !== location.filePath;
+  }
+  return (
+    live.anchor.startLine !== location.startLine ||
+    live.anchor.endLine !== location.endLine
+  );
+}
+
+function attentionLocationLabel(
+  location: SessionAttentionItem["location"],
+): string {
+  if (location.kind === "file") return location.filePath;
+  return `${location.filePath}:${String(location.startLine)}`;
 }
 
 function buildCarriedDispositionItem(

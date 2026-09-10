@@ -6,6 +6,7 @@ import {
   type ReviewCommentSide,
 } from "github";
 import {
+  CommentAnchorKinds,
   DraftCommentSides,
   type ReviewDraftCommentRow,
   type DraftCommentSide,
@@ -31,17 +32,22 @@ export interface SubmitComment {
 export function shapeSubmitComment(
   draft: ReviewDraftCommentRow,
 ): SubmitComment {
+  if (draft.anchor.kind !== CommentAnchorKinds.LINE) {
+    throw new Error("file-arm draft reached line submit shaping");
+  }
+  const { anchor } = draft;
   const comment: Mutable<SubmitComment> = {
-    path: draft.filePath,
-    line: draft.endLine,
-    side: SideOnGithub[draft.side],
+    path: anchor.file,
+    line: anchor.endLine,
+    side: SideOnGithub[anchor.side],
     body: draft.body,
   };
   // A two-side range is multi-line by definition; same-side needs the span.
-  const multiLine = draft.startSide !== null || draft.startLine < draft.endLine;
+  const multiLine =
+    anchor.startSide !== undefined || anchor.startLine < anchor.endLine;
   if (multiLine) {
-    comment.startLine = draft.startLine;
-    comment.startSide = SideOnGithub[draft.startSide ?? draft.side];
+    comment.startLine = anchor.startLine;
+    comment.startSide = SideOnGithub[anchor.startSide ?? anchor.side];
   }
   return comment;
 }

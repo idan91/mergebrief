@@ -5,6 +5,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import {
   DispositionDecisions,
+  CommentAnchorKinds,
   DraftCommentSides,
   ChangeGroupCategories,
   PrStates,
@@ -56,7 +57,7 @@ export const BRIEF_BODY = JSON.stringify({
   ],
 });
 
-export const NO_ARTIFACT = { groupIds: [], flags: [] };
+export const NO_ARTIFACT = { groupIds: [], flags: [], filePaths: [] };
 
 export const CTX: TenantContext = {
   installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
@@ -265,6 +266,7 @@ export async function seedOrphanedDraft(
     { briefId, reviewerId: REVIEWER, brief: async () => NO_ARTIFACT },
     (writer) =>
       writer.addDraftComment({
+        kind: CommentAnchorKinds.LINE,
         filePath: "src/other.ts",
         side: DraftCommentSides.NEW,
         startLine: 10,
@@ -289,6 +291,7 @@ export async function seedPreviousWork(
     { briefId, reviewerId: REVIEWER, brief: async () => NO_ARTIFACT },
     async (writer) => {
       await writer.addDraftComment({
+        kind: CommentAnchorKinds.LINE,
         filePath: "src/app.ts",
         side: DraftCommentSides.NEW,
         startLine: 10,

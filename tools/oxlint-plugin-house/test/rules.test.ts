@@ -125,6 +125,16 @@ describe("house/no-process-env", () => {
   });
 });
 
+describe("house/types-const-maps", () => {
+  it("reports functions, classes and values that are not as const maps", () => {
+    expectLines("types-const-maps", "bad.ts", [1, 5, 7, 9, 11]);
+  });
+
+  it("passes an as const map plus type and interface exports", () => {
+    expectLines("types-const-maps", "good.ts", []);
+  });
+});
+
 describe("house/no-hand-built-plural", () => {
   it("reports a conditional whose branches are the empty string and s", () => {
     expectLines("no-hand-built-plural", "bad.ts", [2, 3]);

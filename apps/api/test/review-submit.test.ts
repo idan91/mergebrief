@@ -6,6 +6,7 @@ import { randomBytes } from "node:crypto";
 import {
   AnchorStatuses,
   createArtifactStore,
+  CommentAnchorKinds,
   DraftCommentSides,
   encryptToken,
   createTenantRepository,
@@ -230,12 +231,14 @@ async function seedSessionDrafts(
   if (!brief.ok) throw new Error("seed: brief write failed");
   const anchors = [
     {
+      kind: CommentAnchorKinds.LINE,
       filePath: "src/a.ts",
       side: DraftCommentSides.NEW,
       startLine: 12,
       endLine: 12,
     },
     {
+      kind: CommentAnchorKinds.LINE,
       filePath: "src/b.ts",
       side: DraftCommentSides.OLD,
       startLine: 25,
@@ -246,7 +249,7 @@ async function seedSessionDrafts(
     {
       briefId: brief.value.id,
       reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-      brief: async () => ({ groupIds: [], flags: [] }),
+      brief: async () => ({ groupIds: [], flags: [], filePaths: [] }),
     },
     async (writer) => {
       for (const [index, body] of bodies.entries()) {
@@ -322,10 +325,11 @@ async function seedCarriedDraft(
     {
       briefId,
       reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-      brief: async () => ({ groupIds: [], flags: [] }),
+      brief: async () => ({ groupIds: [], flags: [], filePaths: [] }),
     },
     async (writer) =>
       await writer.addDraftComment({
+        kind: CommentAnchorKinds.LINE,
         filePath: "src/c.ts",
         side: DraftCommentSides.NEW,
         startLine: 40,
@@ -351,10 +355,11 @@ async function seedTwoSideDraft(
     {
       briefId,
       reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-      brief: async () => ({ groupIds: [], flags: [] }),
+      brief: async () => ({ groupIds: [], flags: [], filePaths: [] }),
     },
     async (writer) =>
       await writer.addDraftComment({
+        kind: CommentAnchorKinds.LINE,
         filePath: "src/c.ts",
         side: DraftCommentSides.NEW,
         startSide: DraftCommentSides.OLD,
@@ -730,7 +735,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
       {
         briefId,
         reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-        brief: async () => ({ groupIds: [], flags: [] }),
+        brief: async () => ({ groupIds: [], flags: [], filePaths: [] }),
       },
       async (writer) => {
         const first = (await writer.draftComments())[0];
@@ -854,7 +859,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
       {
         briefId: newer.value.id,
         reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
-        brief: async () => ({ groupIds: [], flags: [] }),
+        brief: async () => ({ groupIds: [], flags: [], filePaths: [] }),
       },
       (writer) => writer.putReadMark({ chunkId: "c1" }),
     );

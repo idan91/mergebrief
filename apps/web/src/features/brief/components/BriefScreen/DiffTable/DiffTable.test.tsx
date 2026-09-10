@@ -244,6 +244,7 @@ describe("DiffTable draft restored from the server", () => {
         {
           id: "41",
           filePath: "src/a.ts",
+          kind: "line",
           side: "new",
           startLine: 10,
           endLine: 10,
@@ -275,6 +276,7 @@ describe("DiffTable draft restored from the server", () => {
         {
           id: "42",
           filePath: "src/a.ts",
+          kind: "line",
           side: "new",
           startLine: 25,
           endLine: 25,

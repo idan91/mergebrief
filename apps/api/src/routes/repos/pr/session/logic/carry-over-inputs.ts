@@ -1,5 +1,5 @@
 // The slice of a Brief's body the carry-over evaluation reads, and nothing
-// else. Pure: a string in, group ids and flags out — the parse the session
+// else. Pure: a string in, group ids and flags out; the parse the session
 // read defers until a previous session makes it necessary.
 import type { FlagKey } from "persistence";
 import { parseJson } from "../../../../../utils";
@@ -7,7 +7,7 @@ import { z } from "zod";
 
 /**
  * The change groups a reclassification may descend into, and the flags a
- * disposition may still hang off. Unknown keys are dropped — this is a lean
+ * disposition may still hang off. Unknown keys are dropped: this is a lean
  * read of a large document, never the artifact contract.
  *
  * The two top-level keys are REQUIRED, unlike everything under them. A body
@@ -31,18 +31,19 @@ const carryOverInputsSchema = z.object({
 export interface CarryOverInputs {
   readonly groupIds: string[];
   readonly flags: FlagKey[];
+  readonly filePaths: string[];
 }
 
 /**
  * A stored Brief artifact that will not parse. Thrown rather than answered
  * with empty facts: no flags firing is indistinguishable from every flag
  * having stopped firing, which turns every carried decision into a silent
- * `DROPPED`. The route boundary catches it and answers a typed 500 — a failed
+ * `DROPPED`. The route boundary catches it and answers a typed 500: a failed
  * read the reviewer can retry, never work quietly discarded.
  */
 export class UnreadableBriefError extends Error {}
 
-/** The chunk's whole diff span — the region its flags' dispositions anchor on. */
+/** The chunk's whole diff span: the region its flags' dispositions anchor on. */
 export function deriveChunkRegion(chunk: {
   addedRanges: readonly { start: number; end: number }[];
   removedRanges: readonly { start: number; end: number }[];
@@ -69,5 +70,10 @@ export function readCarryOverInputs(body: string): CarryOverInputs {
       regionEnd: region.end,
     }));
   });
-  return { groupIds: parsed.data.changeGroups.map((group) => group.id), flags };
+  const filePaths = [...new Set(parsed.data.chunks.map((chunk) => chunk.file))];
+  return {
+    groupIds: parsed.data.changeGroups.map((group) => group.id),
+    flags,
+    filePaths,
+  };
 }

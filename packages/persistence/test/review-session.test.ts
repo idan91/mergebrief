@@ -25,6 +25,7 @@ import {
   DispositionCarryStatuses,
   DispositionEvidenceKinds,
   DispositionEvidenceStatuses,
+  CommentAnchorKinds,
   DraftCommentSides,
   DraftCommentStatuses,
   isInstallationId,
@@ -40,7 +41,7 @@ import {
 import { brandWith, freshPglite } from "./helpers";
 
 /**
- * The handle plus the PGlite client behind it — the raw client is how these
+ * The handle plus the PGlite client behind it: the raw client is how these
  * tests read `pg_constraint` and row counts the repository deliberately does
  * not expose.
  */
@@ -88,10 +89,10 @@ async function seedBrief(
 }
 
 /** No previous session in these fixtures, so the facts are never consulted. */
-const NO_FACTS = { groupIds: [], flags: [] };
+const NO_FACTS = { groupIds: [], flags: [], filePaths: [] };
 
 /**
- * A materialized session — the ONLY way one is created. The write is the
+ * A materialized session: the ONLY way one is created. The write is the
  * identity read, so the seed is exactly what a first product write does.
  */
 async function openSession(
@@ -154,10 +155,11 @@ async function countRows(client: PGlite, table: string): Promise<number> {
   return result.rows[0]?.n ?? -1;
 }
 
-describe("review-session vocabularies — map and CHECK in lockstep", () => {
+describe("review-session vocabularies match CHECK constraints", () => {
   it.each([
     ["review_session_review_outcome_check", ReviewOutcomes],
     ["review_draft_comment_status_check", DraftCommentStatuses],
+    ["review_draft_comment_kind_check", CommentAnchorKinds],
     ["review_draft_comment_side_check", DraftCommentSides],
     ["review_draft_comment_start_side_check", DraftCommentSides],
     ["review_draft_comment_anchor_status_check", AnchorStatuses],
@@ -186,10 +188,11 @@ describe("review-session vocabularies — map and CHECK in lockstep", () => {
     const briefId = await seedBrief(handle, CTX_A);
     await openSession(handle, CTX_A, briefId);
 
-    // The coordinates ARE the GitHub POST payload — a bad range must not reach
+    // The coordinates ARE the GitHub POST payload: a bad range must not reach
     // publish time, so the DB refuses it.
     const rejection: unknown = await write(handle, CTX_A, briefId, (writer) =>
       writer.addDraftComment({
+        kind: CommentAnchorKinds.LINE,
         filePath: "src/app.ts",
         side: DraftCommentSides.NEW,
         startLine: start,
@@ -212,6 +215,7 @@ describe("review-session vocabularies — map and CHECK in lockstep", () => {
     // which only the conditional range CHECK permits.
     const written = await write(handle, CTX_A, briefId, (writer) =>
       writer.addDraftComment({
+        kind: CommentAnchorKinds.LINE,
         filePath: "src/app.ts",
         side: DraftCommentSides.OLD,
         startSide: DraftCommentSides.NEW,
@@ -220,10 +224,16 @@ describe("review-session vocabularies — map and CHECK in lockstep", () => {
         body: "crosses sides",
       }),
     );
-    expect(written.startSide).toBe(DraftCommentSides.NEW);
+    expect(written.anchor).toEqual(
+      expect.objectContaining({
+        kind: CommentAnchorKinds.LINE,
+        startSide: DraftCommentSides.NEW,
+      }),
+    );
 
     const inverted = await write(handle, CTX_A, briefId, (writer) =>
       writer.addDraftComment({
+        kind: CommentAnchorKinds.LINE,
         filePath: "src/app.ts",
         side: DraftCommentSides.NEW,
         startSide: DraftCommentSides.OLD,
@@ -232,17 +242,141 @@ describe("review-session vocabularies — map and CHECK in lockstep", () => {
         body: "old start after new end",
       }),
     );
-    expect(inverted.startLine).toBe(25);
-    expect(inverted.endLine).toBe(3);
+    expect(inverted.anchor).toEqual(
+      expect.objectContaining({
+        startLine: 25,
+        endLine: 3,
+      }),
+    );
   });
 
-  it("rejects a start_side equal to side — normalization is the store's contract", async () => {
+  it("round-trips a file-arm draft with no line columns", async () => {
+    const { handle } = await freshPair();
+    const briefId = await seedBrief(handle, CTX_A);
+    await openSession(handle, CTX_A, briefId);
+
+    const written = await write(handle, CTX_A, briefId, (writer) =>
+      writer.addDraftComment({
+        kind: CommentAnchorKinds.FILE,
+        filePath: "src/app.ts",
+        body: "comment on the file",
+      }),
+    );
+
+    expect(written.anchor).toEqual({
+      kind: CommentAnchorKinds.FILE,
+      file: "src/app.ts",
+    });
+
+    const snapshot = await createTenantRepository(
+      handle,
+      CTX_A,
+    ).reviewSessions.get({ briefId, reviewerId: REVIEWER });
+    expect(snapshot?.draftComments).toEqual([
+      expect.objectContaining({
+        anchor: {
+          kind: CommentAnchorKinds.FILE,
+          file: "src/app.ts",
+        },
+        body: "comment on the file",
+      }),
+    ]);
+  });
+
+  it("rejects a line-arm row with null coordinates", async () => {
+    const { client, handle } = await freshPair();
+    const briefId = await seedBrief(handle, CTX_A);
+    const session = await openSession(handle, CTX_A, briefId);
+
+    const rejection: unknown = await client
+      .query(
+        `insert into review_draft_comment (
+           review_session_id, file_path, kind, body
+         ) values ($1, 'src/app.ts', 'line', 'no coords')`,
+        [session.id],
+      )
+      .then(
+        () => null,
+        (error: unknown) => error,
+      );
+    expect(rejection).not.toBeNull();
+  });
+
+  it("rejects a line-arm row with a null side", async () => {
+    const { client, handle } = await freshPair();
+    const briefId = await seedBrief(handle, CTX_A);
+    const session = await openSession(handle, CTX_A, briefId);
+
+    const rejection: unknown = await client
+      .query(
+        `insert into review_draft_comment (
+           review_session_id, file_path, kind, start_line, end_line, body
+         ) values ($1, 'src/app.ts', 'line', 1, 1, 'no side')`,
+        [session.id],
+      )
+      .then(
+        () => null,
+        (error: unknown) => error,
+      );
+    expect(rejection).not.toBeNull();
+  });
+
+  it("rejects a line-arm update that nulls coordinates", async () => {
+    const { client, handle } = await freshPair();
+    const briefId = await seedBrief(handle, CTX_A);
+    await openSession(handle, CTX_A, briefId);
+    const written = await write(handle, CTX_A, briefId, (writer) =>
+      writer.addDraftComment({
+        kind: CommentAnchorKinds.LINE,
+        filePath: "src/app.ts",
+        side: DraftCommentSides.NEW,
+        startLine: 1,
+        endLine: 2,
+        body: "valid line",
+      }),
+    );
+
+    const rejection: unknown = await client
+      .query(
+        `update review_draft_comment
+         set side = null, start_line = null, end_line = null
+         where id = $1`,
+        [written.id],
+      )
+      .then(
+        () => null,
+        (error: unknown) => error,
+      );
+    expect(rejection).not.toBeNull();
+  });
+
+  it("rejects a file-arm row that still carries a line", async () => {
+    const { client, handle } = await freshPair();
+    const briefId = await seedBrief(handle, CTX_A);
+    const session = await openSession(handle, CTX_A, briefId);
+
+    const rejection: unknown = await client
+      .query(
+        `insert into review_draft_comment (
+           review_session_id, file_path, kind, side, start_line, end_line, body
+         ) values ($1, 'src/app.ts', 'file', 'new', 1, 1, 'mixed')`,
+        [session.id],
+      )
+      .then(
+        () => null,
+        (error: unknown) => error,
+      );
+    expect(rejection).not.toBeNull();
+  });
+
+  it("rejects a start_side equal to side", async () => {
     const { handle } = await freshPair();
     const briefId = await seedBrief(handle, CTX_A);
     await openSession(handle, CTX_A, briefId);
 
     const rejection: unknown = await write(handle, CTX_A, briefId, (writer) =>
       writer.addDraftComment({
+        kind: CommentAnchorKinds.LINE,
         filePath: "src/app.ts",
         side: DraftCommentSides.NEW,
         startSide: DraftCommentSides.NEW,
@@ -273,12 +407,12 @@ describe("review-session vocabularies — map and CHECK in lockstep", () => {
 });
 
 /**
- * `disposition` has no store yet — the carry-over writer arrives with the
+ * `disposition` has no store yet: the carry-over writer arrives with the
  * evaluation transaction. What must hold now is the amended key: a decision is
  * unique per (session, file, attribute, region), and the SAME coordinates in a
  * second session are a second row rather than a conflict.
  */
-describe("disposition — the session-owned natural key", () => {
+describe("disposition uses a session-owned natural key", () => {
   async function insertDisposition(
     client: PGlite,
     sessionId: bigint,
@@ -335,7 +469,7 @@ describe("disposition — the session-owned natural key", () => {
   });
 });
 
-describe("reviewSessions — session semantics", () => {
+describe("reviewSessions session semantics", () => {
   it("creates on the first write and reuses the row on the second", async () => {
     const { handle } = await freshPair();
     const briefId = await seedBrief(handle, CTX_A);
@@ -394,6 +528,7 @@ describe("reviewSessions — session semantics", () => {
 
     await write(handle, CTX_A, briefId, async (writer) => {
       await writer.addDraftComment({
+        kind: CommentAnchorKinds.LINE,
         filePath: "src/app.ts",
         side: DraftCommentSides.NEW,
         startLine: 10,
@@ -463,6 +598,7 @@ describe("reviewSessions — session semantics", () => {
 
     const published = await write(handle, CTX_A, briefId, async (writer) => {
       const first = await writer.addDraftComment({
+        kind: CommentAnchorKinds.LINE,
         filePath: "src/app.ts",
         side: DraftCommentSides.NEW,
         startLine: 1,
@@ -470,6 +606,7 @@ describe("reviewSessions — session semantics", () => {
         body: "publish me",
       });
       await writer.addDraftComment({
+        kind: CommentAnchorKinds.LINE,
         filePath: "src/app.ts",
         side: DraftCommentSides.NEW,
         startLine: 2,
@@ -504,7 +641,7 @@ describe("reviewSessions — session semantics", () => {
   });
 });
 
-describe("reviewSessions — tenancy containment", () => {
+describe("reviewSessions tenancy containment", () => {
   it("B cannot open a session against A's brief", async () => {
     const { client, handle } = await freshPair();
     const briefId = await seedBrief(handle, CTX_A);

@@ -5,28 +5,46 @@
 // covers both and `materialized` is what tells them apart.
 import {
   ReviewOutcomes,
+  CommentAnchorKinds,
   type CarriedWork,
   type DispositionEvidence,
   type DispositionEvidenceKind,
   type ReviewSessionSnapshot,
 } from "persistence";
 import type { Mutable } from "types";
-import type { DraftCommentPayload } from "contract";
+import type {
+  DraftCommentPayload,
+  FileDraftCommentPayload,
+  LineDraftCommentPayload,
+} from "contract";
 import type { DraftCommentSource, SessionWork } from "./types";
 
 function shapeDraftComment(row: DraftCommentSource): DraftCommentPayload {
-  const comment: Mutable<DraftCommentPayload> = {
+  const { anchor } = row;
+  if (anchor.kind === CommentAnchorKinds.FILE) {
+    const comment: FileDraftCommentPayload = {
+      id: String(row.id),
+      kind: CommentAnchorKinds.FILE,
+      filePath: anchor.file,
+      body: row.body,
+      status: row.status,
+      anchorStatus: row.anchorStatus,
+    };
+    return comment;
+  }
+  const comment: Mutable<LineDraftCommentPayload> = {
     id: String(row.id),
-    filePath: row.filePath,
-    side: row.side,
-    startLine: row.startLine,
-    endLine: row.endLine,
+    kind: CommentAnchorKinds.LINE,
+    filePath: anchor.file,
+    side: anchor.side,
+    startLine: anchor.startLine,
+    endLine: anchor.endLine,
     body: row.body,
     status: row.status,
     anchorStatus: row.anchorStatus,
   };
-  if (row.startSide !== null) {
-    comment.startSide = row.startSide;
+  if (anchor.startSide !== undefined) {
+    comment.startSide = anchor.startSide;
   }
   return comment;
 }

@@ -7,7 +7,11 @@ import type { AppDrizzle } from "../db/handle";
 import { brief } from "../schema/brief";
 import { disposition } from "../schema/disposition";
 import { hunkSpan } from "../schema/hunk-span";
-import { reviewDraftComment } from "../schema/review-draft-comment";
+import {
+  isLineDraftCommentRow,
+  reviewDraftComment,
+  type LineDraftCommentRow,
+} from "../schema/review-draft-comment";
 import { reviewGroupReclassification } from "../schema/review-group-reclassification";
 import { reviewReadMark } from "../schema/review-read-mark";
 import { reviewSession } from "../schema/review-session";
@@ -23,15 +27,18 @@ import {
 import { AnchorStates } from "brief-core";
 import { StoredIdsSchema } from "./artifact-store";
 import type { RowScope } from "./scope";
-import { DraftCommentStatuses } from "../types";
+import { CommentAnchorKinds, DraftCommentStatuses } from "../types";
 import type {
   AnchorStatus,
   BriefRowId,
   ChangeGroupCategory,
   DispositionDecision,
   DispositionEvidence,
+  DraftAnchor,
+  CommentAnchorKind,
   DraftCommentSide,
   DraftCommentStatus,
+  LineDraftAnchor,
   PullRequestRowId,
   ReviewOutcome,
   ReviewSessionId,
@@ -69,7 +76,11 @@ type Tx = Parameters<Parameters<AppDrizzle["transaction"]>[0]>[0];
 type Reader = Tx | AppDrizzle;
 
 export type ReviewSessionRow = typeof reviewSession.$inferSelect;
-export type ReviewDraftCommentRow = typeof reviewDraftComment.$inferSelect;
+type DraftCommentSqlRow = typeof reviewDraftComment.$inferSelect;
+export type ReviewDraftCommentRow = Omit<
+  DraftCommentSqlRow,
+  "kind" | "filePath" | "side" | "startSide" | "startLine" | "endLine"
+> & { readonly anchor: DraftAnchor };
 export type ReviewReadMarkRow = typeof reviewReadMark.$inferSelect;
 export type ReviewGroupReclassificationRow =
   typeof reviewGroupReclassification.$inferSelect;
@@ -83,32 +94,52 @@ export interface ReviewSessionKey {
   readonly reviewerId: ReviewerId;
 }
 
-export interface DraftCommentInput {
+export interface DraftCommentInputBase {
   readonly reviewSessionId: ReviewSessionId;
   readonly filePath: string;
-  readonly side: DraftCommentSide;
-  /** Non-null only when the range genuinely crosses sides. */
-  readonly startSide?: DraftCommentSide | null;
-  readonly startLine: number;
-  readonly endLine: number;
   readonly body: string;
   readonly status?: DraftCommentStatus;
   readonly anchorStatus?: AnchorStatus | null;
   readonly carriedFromSessionId?: ReviewSessionId | null;
 }
 
+export interface LineDraftCommentInput extends DraftCommentInputBase {
+  readonly kind: typeof CommentAnchorKinds.LINE;
+  readonly side: DraftCommentSide;
+  /** Non-null only when the range genuinely crosses sides. */
+  readonly startSide?: DraftCommentSide | null;
+  readonly startLine: number;
+  readonly endLine: number;
+}
+
+export interface FileDraftCommentInput extends DraftCommentInputBase {
+  readonly kind: typeof CommentAnchorKinds.FILE;
+}
+
+export type DraftCommentInput = LineDraftCommentInput | FileDraftCommentInput;
+
+/** `Omit` on the union would drop arm-only fields; distribute it by hand. */
+type DraftCommentInsert =
+  | Omit<LineDraftCommentInput, "reviewSessionId">
+  | Omit<FileDraftCommentInput, "reviewSessionId">;
+type DraftCommentWrite =
+  | Omit<LineDraftCommentInput, "reviewSessionId" | "carriedFromSessionId">
+  | Omit<FileDraftCommentInput, "reviewSessionId" | "carriedFromSessionId">;
+
 /**
  * An edit to a stored draft, only the named fields move. A re-anchor names
  * the coordinates AND clears `anchorStatus`: the human placed it, so the
- * carry-over's verdict on it is settled.
+ * carry-over's verdict on it is settled. A File comment clears the line
+ * columns; a Line comment writes them.
  */
 export interface DraftCommentPatch {
   readonly body?: string;
+  readonly kind?: CommentAnchorKind;
   readonly filePath?: string;
-  readonly side?: DraftCommentSide;
+  readonly side?: DraftCommentSide | null;
   readonly startSide?: DraftCommentSide | null;
-  readonly startLine?: number;
-  readonly endLine?: number;
+  readonly startLine?: number | null;
+  readonly endLine?: number | null;
   readonly anchorStatus?: AnchorStatus | null;
 }
 
@@ -167,6 +198,8 @@ export interface CarryOverInputs {
   readonly groupIds: readonly string[];
   /** Risk-surface flags the current Brief emits. */
   readonly flags: readonly FlagKey[];
+  /** Paths the current Brief still shows; a File comment keys on these. */
+  readonly filePaths: readonly string[];
 }
 
 /**
@@ -225,9 +258,7 @@ export interface SessionWriter {
    * the session it read, which is tenant-filtered. Accepting it here would
    * take an unchecked `review_session` id inside an open transaction.
    */
-  addDraftComment(
-    input: Omit<DraftCommentInput, "reviewSessionId" | "carriedFromSessionId">,
-  ): Promise<ReviewDraftCommentRow>;
+  addDraftComment(input: DraftCommentWrite): Promise<ReviewDraftCommentRow>;
   /**
    * Edit a draft this session holds, its own row, or the copy of a carried
    * one named by the id it was copied from. `undefined` when it holds neither.
@@ -358,9 +389,7 @@ interface SessionInserts extends Omit<
   SessionWriter,
   "session" | "addDraftComment"
 > {
-  addDraftComment(
-    input: Omit<DraftCommentInput, "reviewSessionId">,
-  ): Promise<ReviewDraftCommentRow>;
+  addDraftComment(input: DraftCommentInsert): Promise<ReviewDraftCommentRow>;
 }
 
 /** The one row a `.returning()` insert owes; its absence is an infra error. */
@@ -368,6 +397,113 @@ function only<TRow>(rows: TRow[], subject: string): TRow {
   const row = rows[0];
   if (row === undefined) throw new Error(`${subject} write returned no row`);
   return row;
+}
+
+function isFileDraftCommentInput(
+  input: DraftCommentInsert,
+): input is Omit<FileDraftCommentInput, "reviewSessionId"> {
+  return input.kind === CommentAnchorKinds.FILE;
+}
+
+function draftAnchorFromInsert(input: DraftCommentInsert): DraftAnchor {
+  if (isFileDraftCommentInput(input)) {
+    return { kind: CommentAnchorKinds.FILE, file: input.filePath };
+  }
+  if (input.startSide !== undefined && input.startSide !== null) {
+    return {
+      kind: CommentAnchorKinds.LINE,
+      file: input.filePath,
+      side: input.side,
+      startLine: input.startLine,
+      endLine: input.endLine,
+      startSide: input.startSide,
+    };
+  }
+  return {
+    kind: CommentAnchorKinds.LINE,
+    file: input.filePath,
+    side: input.side,
+    startLine: input.startLine,
+    endLine: input.endLine,
+  };
+}
+
+function shapeDraftCommentValues(
+  anchor: DraftAnchor,
+): Pick<
+  typeof reviewDraftComment.$inferInsert,
+  "kind" | "filePath" | "side" | "startSide" | "startLine" | "endLine"
+> {
+  if (anchor.kind === CommentAnchorKinds.FILE) {
+    return {
+      kind: CommentAnchorKinds.FILE,
+      filePath: anchor.file,
+      side: null,
+      startSide: null,
+      startLine: null,
+      endLine: null,
+    };
+  }
+  return {
+    kind: CommentAnchorKinds.LINE,
+    filePath: anchor.file,
+    side: anchor.side,
+    startSide: anchor.startSide ?? null,
+    startLine: anchor.startLine,
+    endLine: anchor.endLine,
+  };
+}
+
+function normalizeDraftCommentPatch(
+  patch: DraftCommentPatch,
+): DraftCommentPatch {
+  if (patch.kind !== CommentAnchorKinds.FILE) return patch;
+  return {
+    ...patch,
+    side: null,
+    startSide: null,
+    startLine: null,
+    endLine: null,
+  };
+}
+
+function parseLineDraftAnchor(row: LineDraftCommentRow): LineDraftAnchor {
+  const anchor: LineDraftAnchor = {
+    kind: CommentAnchorKinds.LINE,
+    file: row.filePath,
+    side: row.side,
+    startLine: row.startLine,
+    endLine: row.endLine,
+  };
+  if (row.startSide !== null) {
+    return { ...anchor, startSide: row.startSide };
+  }
+  return anchor;
+}
+
+function parseDraftAnchor(row: DraftCommentSqlRow): DraftAnchor {
+  if (row.kind === CommentAnchorKinds.FILE) {
+    return { kind: CommentAnchorKinds.FILE, file: row.filePath };
+  }
+  if (!isLineDraftCommentRow(row)) {
+    throw new Error("line-arm draft missing coordinates");
+  }
+  return parseLineDraftAnchor(row);
+}
+
+function parseDraftCommentRow(row: DraftCommentSqlRow): ReviewDraftCommentRow {
+  return {
+    id: row.id,
+    installationId: row.installationId,
+    reviewSessionId: row.reviewSessionId,
+    anchor: parseDraftAnchor(row),
+    body: row.body,
+    status: row.status,
+    anchorStatus: row.anchorStatus,
+    carriedFromSessionId: row.carriedFromSessionId,
+    carriedFromCommentId: row.carriedFromCommentId,
+    createdAt: row.createdAt,
+  };
 }
 
 function fail(
@@ -502,17 +638,7 @@ export function createReviewSessionRepository(
     const [comments, marks, reclassifications, dispositions] =
       await Promise.all([
         tx
-          .select({
-            id: reviewDraftComment.id,
-            filePath: reviewDraftComment.filePath,
-            side: reviewDraftComment.side,
-            startSide: reviewDraftComment.startSide,
-            startLine: reviewDraftComment.startLine,
-            endLine: reviewDraftComment.endLine,
-            body: reviewDraftComment.body,
-            status: reviewDraftComment.status,
-            carriedFromCommentId: reviewDraftComment.carriedFromCommentId,
-          })
+          .select()
           .from(reviewDraftComment)
           .where(
             and(
@@ -567,7 +693,16 @@ export function createReviewSessionRepository(
           .orderBy(asc(disposition.id)),
       ]);
     return {
-      draftComments: comments,
+      draftComments: comments.map((row) => {
+        const parsed = parseDraftCommentRow(row);
+        return {
+          id: parsed.id,
+          anchor: parsed.anchor,
+          body: parsed.body,
+          status: parsed.status,
+          carriedFromCommentId: parsed.carriedFromCommentId,
+        };
+      }),
       readMarks: marks.map((mark) => mark.chunkId),
       reclassifications,
       dispositions: dispositions.map(
@@ -604,6 +739,7 @@ export function createReviewSessionRepository(
       groupIdsDescended: descendedThroughChain(chain, previous.headIndex),
       groupIds: artifact.groupIds,
       flags: artifact.flags,
+      filePaths: artifact.filePaths,
       hops,
       baseShaMoved: previous.baseSha !== facts.baseSha,
     });
@@ -642,11 +778,7 @@ export function createReviewSessionRepository(
         const values: typeof reviewDraftComment.$inferInsert = {
           installationId: scope.installationId,
           reviewSessionId: sessionId,
-          filePath: input.filePath,
-          side: input.side,
-          startSide: input.startSide ?? null,
-          startLine: input.startLine,
-          endLine: input.endLine,
+          ...shapeDraftCommentValues(draftAnchorFromInsert(input)),
           body: input.body,
           anchorStatus: input.anchorStatus ?? null,
           carriedFromSessionId: input.carriedFromSessionId ?? null,
@@ -654,18 +786,21 @@ export function createReviewSessionRepository(
 
         if (input.status !== undefined) values.status = input.status;
 
-        return only(
-          await tx.insert(reviewDraftComment).values(values).returning(),
-          "review_draft_comment",
+        return parseDraftCommentRow(
+          only(
+            await tx.insert(reviewDraftComment).values(values).returning(),
+            "review_draft_comment",
+          ),
         );
       },
       async updateDraftComment(id, patch) {
         const rows = await tx
           .update(reviewDraftComment)
-          .set(patch)
+          .set(normalizeDraftCommentPatch(patch))
           .where(addressedDraft(sessionId, id))
           .returning();
-        return rows[0];
+        const row = rows[0];
+        return row === undefined ? undefined : parseDraftCommentRow(row);
       },
       async deleteDraftComment(id) {
         const rows = await tx
@@ -675,11 +810,12 @@ export function createReviewSessionRepository(
         return rows[0]?.id;
       },
       async draftComments() {
-        return await tx
+        const rows = await tx
           .select()
           .from(reviewDraftComment)
           .where(ownedBy(sessionId))
           .orderBy(asc(reviewDraftComment.id));
+        return rows.map(parseDraftCommentRow);
       },
       async publishDraftComments(ids) {
         if (ids.length === 0) return;
@@ -863,11 +999,7 @@ export function createReviewSessionRepository(
         tx.insert(reviewDraftComment).values(
           carried.draftComments.map((row) => ({
             ...owned,
-            filePath: row.filePath,
-            side: row.side,
-            startSide: row.startSide,
-            startLine: row.startLine,
-            endLine: row.endLine,
+            ...shapeDraftCommentValues(row.anchor),
             body: row.body,
             anchorStatus: row.anchorStatus,
             carriedFromSessionId,
@@ -1015,7 +1147,7 @@ export function createReviewSessionRepository(
       return undefined;
     }
     const [
-      draftComments,
+      draftCommentRows,
       readMarks,
       reclassifications,
       submittedReviews,
@@ -1074,7 +1206,7 @@ export function createReviewSessionRepository(
     ]);
     return {
       session,
-      draftComments,
+      draftComments: draftCommentRows.map(parseDraftCommentRow),
       readMarks,
       reclassifications,
       submittedReviews,

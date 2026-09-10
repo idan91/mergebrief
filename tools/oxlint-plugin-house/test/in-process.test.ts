@@ -93,6 +93,13 @@ const CASES: readonly FixtureCase[] = [
     ],
   },
   {
+    rule: "types-const-maps",
+    bad: "bad.ts",
+    good: "good.ts",
+    lines: [1, 5, 7, 9, 11],
+    messageIds: ["helper", "notMap", "helper", "notMap", "notMap"],
+  },
+  {
     rule: "comment-run",
     bad: "bad.ts",
     good: "good.ts",

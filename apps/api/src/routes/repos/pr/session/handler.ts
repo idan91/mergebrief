@@ -4,6 +4,7 @@
 import type { Context } from "hono";
 import {
   DispositionDecisions,
+  CommentAnchorKinds,
   DraftCommentStatuses,
   type DispositionAnchor,
   type ReviewDraftCommentRow,
@@ -150,7 +151,15 @@ export default function createHandlers(deps: AuthRouteDeps) {
       if (unposted.length >= MAX_SESSION_DRAFTS) {
         return undefined;
       }
-      return await writer.addDraftComment(parsed.data);
+      return await writer.addDraftComment({
+        kind: CommentAnchorKinds.LINE,
+        filePath: parsed.data.filePath,
+        side: parsed.data.side,
+        startSide: parsed.data.startSide,
+        startLine: parsed.data.startLine,
+        endLine: parsed.data.endLine,
+        body: parsed.data.body,
+      });
     });
     if (!written.ok) {
       throwSessionWriteFailure(written.error);

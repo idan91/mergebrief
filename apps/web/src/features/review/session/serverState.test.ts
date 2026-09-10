@@ -3,7 +3,10 @@
 // rather than guessed at.
 import { describe, expect, it } from "vitest";
 
-import type { SessionPayload } from "contract";
+import type {
+  FileDraftCommentPayload,
+  LineDraftCommentPayload,
+} from "contract";
 import type { Equals } from "types";
 import { briefFixture } from "@web/features/brief/fixtures";
 import { buildBriefViewModel, GroupViewKinds } from "@web/features/brief/utils";
@@ -19,7 +22,8 @@ type Mutable<T> = { -readonly [K in keyof T]: T[K] };
 /** The contract's draft payload, minus `anchorStatus`, the one field this
  * store shape deliberately drops; the attention list renders it instead. */
 type SourceDraftComment = Mutable<
-  Omit<SessionPayload["draftComments"][number], "anchorStatus">
+  | Omit<LineDraftCommentPayload, "anchorStatus">
+  | Omit<FileDraftCommentPayload, "anchorStatus">
 >;
 /**
  * Lockstep pin: this store shape is hand-rolled, so a field added or retyped
@@ -78,6 +82,7 @@ describe("sessionInitialState", () => {
           {
             id: "41",
             filePath: chunk.file,
+            kind: "line",
             side: "new",
             startLine: line,
             endLine: line,
@@ -88,6 +93,7 @@ describe("sessionInitialState", () => {
           {
             id: "42",
             filePath: "src/deleted-since.ts",
+            kind: "line",
             side: "new",
             startLine: 1,
             endLine: 1,
@@ -132,6 +138,7 @@ describe("sessionInitialState", () => {
           {
             id: "61",
             filePath: chunk.file,
+            kind: "line",
             side: "new",
             startLine: 50,
             endLine: 50,
@@ -214,6 +221,7 @@ describe("sessionInitialState", () => {
           {
             id: "51",
             filePath: chunk.file,
+            kind: "line",
             side: "new",
             startSide: "old",
             startLine: 10,
@@ -258,6 +266,7 @@ describe("sessionInitialState", () => {
           {
             id: "53",
             filePath: chunk.file,
+            kind: "line",
             side: "old",
             startSide: "new",
             startLine: 10,
@@ -284,6 +293,7 @@ describe("sessionInitialState", () => {
           {
             id: "52",
             filePath: firstChunk?.file ?? "",
+            kind: "line",
             side: "new",
             startSide: "old",
             // No rendered row carries old line 5: the start anchor cannot
@@ -309,6 +319,7 @@ describe("sessionInitialState", () => {
         {
           id: "1",
           filePath: "a.ts",
+          kind: "line",
           side: "new",
           startSide: "old",
           startLine: 10,
@@ -328,6 +339,7 @@ describe("sessionInitialState", () => {
         {
           id: "1",
           filePath: "a.ts",
+          kind: "line",
           side: "new",
           startSide: "sideways",
           startLine: 10,

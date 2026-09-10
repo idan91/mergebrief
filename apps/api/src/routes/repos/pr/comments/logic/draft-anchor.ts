@@ -1,5 +1,6 @@
 import { ReviewCommentSides, type ReviewCommentSide } from "github";
 import {
+  CommentAnchorKinds,
   DraftCommentSides,
   type ReviewDraftCommentRow,
   type DraftCommentSide,
@@ -21,16 +22,21 @@ export function readDraftAnchor(draft: ReviewDraftCommentRow): {
   startLine?: number;
   startSide?: ReviewCommentSide;
 } {
-  const anchor: ReturnType<typeof readDraftAnchor> = {
-    path: draft.filePath,
-    line: draft.endLine,
-    side: SideOnGithub[draft.side],
+  if (draft.anchor.kind !== CommentAnchorKinds.LINE) {
+    throw new Error("file-arm draft reached line submit shaping");
+  }
+  const { anchor } = draft;
+  const githubAnchor: ReturnType<typeof readDraftAnchor> = {
+    path: anchor.file,
+    line: anchor.endLine,
+    side: SideOnGithub[anchor.side],
   };
   // A two-side range is multi-line by definition; same-side needs the span.
-  const multiLine = draft.startSide !== null || draft.startLine < draft.endLine;
+  const multiLine =
+    anchor.startSide !== undefined || anchor.startLine < anchor.endLine;
   if (multiLine) {
-    anchor.startLine = draft.startLine;
-    anchor.startSide = SideOnGithub[draft.startSide ?? draft.side];
+    githubAnchor.startLine = anchor.startLine;
+    githubAnchor.startSide = SideOnGithub[anchor.startSide ?? anchor.side];
   }
-  return anchor;
+  return githubAnchor;
 }

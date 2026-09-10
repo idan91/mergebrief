@@ -64,7 +64,7 @@ How a prior **Flag** is classified in a **Delta Brief** relative to this reviewe
 _Avoid_: still-resolved, cleared, gone, stale, resolved (as state names)
 
 **Comment anchoring**:
-How a prior comment is placed in a **Delta Brief** once head has moved. A shipped **Comment** (GitHub-native) carries GitHub's own position/outdated tracking — we read it, not recompute it. A **Flag** or an unshipped draft (**Review Session**) is anchored by us via the span's positional line-map: **moved** (relocated to a new line) or **orphaned** (its target line is gone). Ambiguous → orphaned / needs re-look, never silently dropped.
+How a prior comment is placed in a **Delta Brief** once head has moved. A shipped **Comment** (GitHub-native) carries GitHub's own position/outdated tracking — we read it, not recompute it. A **Flag** or an unshipped **Line comment** draft (**Review Session**) is anchored by us via the span's positional line-map: **moved** (relocated to a new line) or **orphaned** (its target line is gone). Ambiguous → orphaned / needs re-look, never silently dropped. A **File comment** has no line: GitHub never marks it outdated; a draft follows the path, not a line-map.
 _Avoid_: re-anchor (informal), outdated (GitHub's word, only for shipped comments)
 
 **Chunk**:
@@ -211,8 +211,16 @@ A transient, non-blocking nudge shown to the **Author** at the ready-for-review 
 _Avoid_: pre-submit gate, block, author approval
 
 **Comment**:
-Reviewer-authored text that ships to the PR. In this product, comments are never AI-authored — the agent provides structure (seeds) and post-hoc validation, but the reviewer writes the sentence.
-_Avoid_: review comment, feedback (informal only)
+Reviewer-authored text that ships to the PR. Either a **Line comment** or a **File comment** — same object, same **Review Session** lifecycle (draft, edit, publish with the rest of the review); only the anchor shape differs. Never AI-authored — the agent provides structure (seeds) and post-hoc validation, but the reviewer writes the sentence.
+_Avoid_: review comment, feedback (informal only), scope (that is Full vs Changes)
+
+**Line comment**:
+A **Comment** anchored to a line or a line range on a file. One line and a range are the same shape. GitHub `subject_type: line`.
+_Avoid_: inline comment (informal), span comment, scope (that is Full vs Changes)
+
+**File comment**:
+A **Comment** anchored to a file with no line range. Same lifecycle as any other Comment. Never outdated: there is no line to go stale against. GitHub `subject_type: file`.
+_Avoid_: whole-file comment, file-scoped, scope (that is Full vs Changes)
 
 **Seed**:
 A structured, non-text hint from the agent — `{ category, location, issue-shape }` — that a stuck reviewer can expand into their own comment. Seeds are scaffolding, not drafts.
@@ -304,7 +312,7 @@ _Avoid_: script (bare), dev package
 - A **Comparison overlay** applies one **Comparison baseline** to the current **Brief**; **Previous Brief** uses shared **Revision changes** + **Revision narrative**, while **Checkpoint** uses the reviewer's personal **Delta Brief** and matching changed-line marks.
 - **Revision changes** and a **Revision narrative** both span the shared **Previous Brief** → current-head revision; the former marks lines mechanically, while the latter explains those marked changes.
 - Each (PR × Reviewer) pairing has one private **Review Session**.
-- A **Comment** belongs to a reviewer and ships to the PR. A **Seed** belongs to a chunk in the brief and never ships.
+- A **Comment** belongs to a reviewer and ships to the PR. It is a **Line comment** or a **File comment**; a **Chunk** does not own it. A **Seed** belongs to a chunk in the brief and never ships.
 - A reviewer records a **Disposition** on a **Flag**: **addressed** (a **Comment** targets it) or **dismissed** (with reason). Dispositions are frozen into the **Receipt** on **Submit**.
 - On submit, the review lands **natively on GitHub** (comments + approve/request-changes) authored by the reviewer. A **Signature line** links to the static **Review Summary**, which renders the **Receipt**. The review otherwise reads as a normal human review. Receipt aggregates across all reviewers when multi-reviewer.
 - A **Brief**'s **Trigger** (compute) is independent of its **Entry** (human reach): compute fires eagerly on every push; the reviewer **Entry** comment posts only when the PR is ready. **Draft-first** changes only the Entry timing, never the Trigger.
@@ -329,7 +337,8 @@ _Avoid_: script (bare), dev package
 - **Intent lived on the chunk** in the original model. Resolved: intent (**Category**, **Summary**) lives on the **Change-group**; the chunk carries **Concern**, **Role**, and **LoC**. A test/doc chunk supports a group's intent rather than re-deriving its own.
 - **`test-only` / `config-only` / `generated-code` as Categories** conflated *artifact* with *intent*. Resolved: these are **Concern** values, not Categories. Category is purely intent (what kind of change); Concern is artifact (what kind of file).
 - **"spec" is overloaded** — `.spec.ts` test files vs specification documents. Resolved default: `spec` Concern = specification document; `.spec.ts`/`.test.ts` → `test` Concern.
-- **"A file with multiple changes/concerns"** — resolved: the **Chunk** (not the file) is the atomic unit and is sub-file. Separable multiplicity (different intents or concerns in different parts of a file) is handled by splitting into multiple chunks across groups/concerns. *Interleaved* multiplicity within one inseparable contiguous span is the one unhandled case → deferred sub-operation tree.
+- **"A file with multiple changes/concerns"**: resolved: the **Chunk** (not the file) is the atomic unit and is sub-file. Separable multiplicity (different intents or concerns in different parts of a file) is handled by splitting into multiple chunks across groups/concerns. *Interleaved* multiplicity within one inseparable contiguous span is the one unhandled case, deferred to a sub-operation tree.
+- **"Scope" for line vs file** was proposed for a Comment's extent. Rejected: **Scope** is Full vs Changes on the Brief page. Resolved: a Comment is a **Line comment** or a **File comment** — same object, different anchor shape; a Chunk does not own it.
 - **"Leftover lines as a coverage disclosure, not a group"** was the pre-feature shape (`UnattributedBanner` + header stat). Resolved: they are the **Unattributed remainder** — a last **Change-group** of unattributed **Chunks**, same product language as any other group, with the caveat that the model made no intent claim. Concern, Role, and Risk Surface on those chunks are not implied here.
 - **"production" rejected** as the core-concern name — bakes in a deployment assumption. Resolved: `implementation`.
 - **"Activation"** was one word for three independent things — *what fires compute*, *how a human reaches the brief*, and *turning draft-first on*. The old definition (compute-on-first-click) also contradicted the eager-on-push generation model. Resolved into **Trigger** (eager-on-push compute), **Entry** (the branded deep-link comment, posts on ready), and **Draft-first** (per-repo opt-in that gates Entry until `ready_for_review`, never the Trigger). "Activation" is retired.

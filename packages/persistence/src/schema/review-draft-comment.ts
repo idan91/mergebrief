@@ -1,15 +1,16 @@
-// `review_draft_comment` — an unposted review comment. Keeps the
-// file-and-line coordinate whatever else changes: it is the GitHub POST
+// `review_draft_comment`: an unposted review comment. Keeps the file
+// coordinate, and a line range when `kind` is line: that is the GitHub POST
 // payload and what `remapRanges` consumes at carry-over. `anchor_status` is
 // NULL while the anchor still holds exactly.
 import { bigint, index, integer, pgTable, text } from "drizzle-orm/pg-core";
 import type {
   AnchorStatus,
+  CommentAnchorKind,
   DraftCommentSide,
   DraftCommentStatus,
   ReviewSessionId,
 } from "../types";
-import { DraftCommentStatuses } from "../types";
+import { CommentAnchorKinds, DraftCommentStatuses } from "../types";
 import { stampColumns, tenantColumns } from "./columns";
 import { reviewSession } from "./review-session";
 
@@ -23,11 +24,15 @@ export const reviewDraftComment = pgTable(
       .references(() => reviewSession.id, { onDelete: "cascade" }),
     /** Canonical within the Brief's artifact; not rename-stable. */
     filePath: text("file_path").notNull(),
-    side: text("side").$type<DraftCommentSide>().notNull(),
+    kind: text("kind")
+      .$type<CommentAnchorKind>()
+      .notNull()
+      .default(CommentAnchorKinds.LINE),
+    side: text("side").$type<DraftCommentSide>(),
     /** Non-null only when the range genuinely crosses sides (GitHub `start_side`). */
     startSide: text("start_side").$type<DraftCommentSide>(),
-    startLine: integer("start_line").notNull(),
-    endLine: integer("end_line").notNull(),
+    startLine: integer("start_line"),
+    endLine: integer("end_line"),
     body: text("body").notNull(),
     status: text("status")
       .$type<DraftCommentStatus>()
@@ -40,7 +45,7 @@ export const reviewDraftComment = pgTable(
       .$type<ReviewSessionId>()
       .references(() => reviewSession.id, { onDelete: "set null" }),
     /**
-     * The row this one was copied from — how a write naming the id a
+     * The row this one was copied from: how a write naming the id a
      * pre-materialization read handed out reaches this copy. No FK: the source
      * may be erased, and the id is never reissued.
      */
@@ -53,3 +58,23 @@ export const reviewDraftComment = pgTable(
     index("review_draft_comment_session_idx").on(table.reviewSessionId),
   ],
 );
+
+type DraftCommentSqlRow = typeof reviewDraftComment.$inferSelect;
+
+export interface LineDraftCommentRow extends DraftCommentSqlRow {
+  readonly kind: typeof CommentAnchorKinds.LINE;
+  readonly side: DraftCommentSide;
+  readonly startLine: number;
+  readonly endLine: number;
+}
+
+export function isLineDraftCommentRow(
+  row: DraftCommentSqlRow,
+): row is LineDraftCommentRow {
+  return (
+    row.kind === CommentAnchorKinds.LINE &&
+    row.side !== null &&
+    row.startLine !== null &&
+    row.endLine !== null
+  );
+}

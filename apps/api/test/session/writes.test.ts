@@ -3,6 +3,7 @@
 // Repeated read marks are idempotent and every write inherits the router scope gate.
 import {
   ChangeGroupCategories,
+  CommentAnchorKinds,
   DraftCommentSides,
   createTenantRepository,
   WriteClassifications,
@@ -337,8 +338,10 @@ describe("the Review Session writes", () => {
     });
     expect(snapshot?.draftComments[0]).toMatchObject({
       body: "on reflection, bounded",
-      startLine: 40,
-      endLine: 41,
+      anchor: expect.objectContaining({
+        startLine: 40,
+        endLine: 41,
+      }),
       // The human placed it, so the carry-over verdict is settled.
       anchorStatus: null,
     });
@@ -539,6 +542,7 @@ describe("the Review Session writes", () => {
       async (writer) => {
         for (let i = 0; i < 100; i++) {
           await writer.addDraftComment({
+            kind: CommentAnchorKinds.LINE,
             ...DRAFT,
             side: DraftCommentSides.NEW,
           });

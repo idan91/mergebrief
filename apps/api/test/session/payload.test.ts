@@ -1,4 +1,4 @@
-// The session read's wire shape before materialization — the side no row
+// The session read's wire shape before materialization: the side no row
 // exists for, where the payload is an in-memory verdict. The integration
 // suite covers a materialized session end to end; this pins what only the
 // projection decides: the revision distance, the id a carried subject
@@ -9,6 +9,7 @@ import {
   DispositionCarryStatuses,
   DispositionDecisions,
   DispositionEvidenceStatuses,
+  CommentAnchorKinds,
   DraftCommentSides,
   DraftCommentStatuses,
   isReviewSessionId,
@@ -33,11 +34,13 @@ const CARRIED: CarriedWork = {
   draftComments: [
     {
       id: 71n,
-      filePath: "src/app.ts",
-      side: DraftCommentSides.NEW,
-      startSide: null,
-      startLine: 10,
-      endLine: 12,
+      anchor: {
+        kind: CommentAnchorKinds.LINE,
+        file: "src/app.ts",
+        side: DraftCommentSides.NEW,
+        startLine: 10,
+        endLine: 12,
+      },
       body: "this leaks",
       status: DraftCommentStatuses.DRAFT,
       anchorStatus: AnchorStatuses.ORPHANED,
@@ -105,7 +108,7 @@ describe("buildSessionPayload", () => {
     expect(draft?.id).toBe("71");
   });
 
-  it("gives a carried disposition no id — its anchor addresses it", () => {
+  it("gives a carried disposition no id because its anchor addresses it", () => {
     const [disposition] = buildSessionPayload(CARRIED_VIEW, 5).dispositions;
     expect(disposition?.id).toBeNull();
     expect(disposition?.decidedAt).toBe(DECIDED_AT.toISOString());
@@ -122,13 +125,23 @@ describe("buildSessionPayload", () => {
       {
         kind: "orphaned-anchor",
         subject: { type: "draft-comment", id: "71", attribute: null },
-        location: { filePath: "src/app.ts", startLine: 10, endLine: 12 },
+        location: {
+          kind: "line",
+          filePath: "src/app.ts",
+          startLine: 10,
+          endLine: 12,
+        },
         clearedBy: ["reanchor-draft-comment", "delete-draft-comment"],
       },
       {
         kind: "reopened-disposition",
         subject: { type: "disposition", id: null, attribute: "auth" },
-        location: { filePath: "src/app.ts", startLine: 4, endLine: 20 },
+        location: {
+          kind: "line",
+          filePath: "src/app.ts",
+          startLine: 4,
+          endLine: 20,
+        },
         clearedBy: ["address-risk", "dismiss-risk"],
       },
     ]);

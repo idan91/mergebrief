@@ -7,14 +7,14 @@ import { readConfigRoot, renderKey, resolveEnvConfigPath } from "./readRoot";
  * The narrow instance-policy loader: the api startup wiring reads ONLY the
  * `drafts` block out of
  * `mergebrief.config.yaml`. Deliberately tolerant of everything else in the
- * file — an invalid generator block or an unknown root key is the FULL
+ * file. An invalid generator block or an unknown root key is the FULL
  * loader's (worker's) problem; the api process must boot without adapter
  * validation and without provider keys. Its own key is strict: bad drafts
  * values refuse boot here exactly as they do in the full loader.
  */
 
 /** The zero-config draft policy: drafts generate, no damping. Lives here
- * (not `types`) — that package is types-only, zero runtime. */
+ * (not `types`). That package holds vocab maps, not defaults. */
 export const DEFAULT_DRAFT_POLICY: DraftPolicy = {
   generate: true,
   debounceSeconds: null,
@@ -27,7 +27,7 @@ export interface LoadedInstancePolicy {
 }
 
 /**
- * `generate: on|off` — YAML 1.2 parses `on`/`off` as STRINGS (the 1.1
+ * `generate: on|off`. YAML 1.2 parses `on`/`off` as STRINGS (the 1.1
  * boolean idiom is gone), so both the string forms and real booleans are
  * accepted and normalized. SHOUT/kebab vocab does not apply: these are
  * operator-facing YAML values, mirroring the compose on/off idiom.
@@ -56,8 +56,8 @@ export function validateDraftsBlock(
   if (!parsed.success) {
     return configError(
       parsed.error.issues.map((issue) => {
-        // Zod's unrecognized_keys message interpolates the raw key text —
-        // a pasted credential used as a stray key must not echo (same
+        // Zod's unrecognized_keys message interpolates the raw key text.
+        // A pasted credential used as a stray key must not echo (same
         // token-gated posture as the root-key strictness in the loader).
         if (issue.code === "unrecognized_keys") {
           return `drafts: unrecognized key${issue.keys.length > 1 ? "s" : ""} ${issue.keys
@@ -82,7 +82,7 @@ export function loadInstancePolicy(
       value: { draftPolicy: DEFAULT_DRAFT_POLICY, source: null },
     };
   }
-  // Same workspace-root anchoring as the generator loader — the api and
+  // Same workspace-root anchoring as the generator loader. The api and
   // worker processes must read the SAME file for one env value.
   const resolved = resolveEnvConfigPath(path, process.cwd());
   if (!resolved.ok) return resolved;

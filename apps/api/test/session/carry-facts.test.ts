@@ -25,6 +25,7 @@ describe("readCarryFacts", () => {
   it("reads group ids and one flag per risk-surface attribute", () => {
     expect(readCarryFacts(JSON.stringify(BODY))).toEqual({
       groupIds: ["group-a", "group-b"],
+      filePaths: ["src/app.ts"],
       flags: [
         {
           filePath: "src/app.ts",

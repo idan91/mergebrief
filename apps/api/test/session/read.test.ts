@@ -1,6 +1,6 @@
 // The session read, end to end over the PGlite harness: it answers on both
 // sides of materialization, projects the Attention List off the rows it
-// returns, and — the invariant the suite exists for — CREATES NOTHING. Every
+// returns, and creates nothing (the invariant the suite exists for). Every
 // case asserts the `review_session` row count across the call.
 import {
   AnchorStatuses,
@@ -31,7 +31,7 @@ import {
 } from "../fixtures";
 import type { KeyProvider } from "persistence";
 
-/** The payload's shape as the assertions read it — the test-side boundary. */
+/** The payload's shape as the assertions read it: the test-side boundary. */
 interface SessionBody {
   readonly materialized: boolean;
   readonly carriedFrom: {
@@ -117,13 +117,13 @@ describe("read-review-session", () => {
     const body = await readBody(res);
     expect(body.materialized).toBe(false);
     // Null here is what tells a first-ever session from one that carried and
-    // has nothing pending — two different rows in the UI.
+    // has nothing pending: two different rows in the UI.
     expect(body.carriedFrom).toBeNull();
     expect(body.attention).toEqual([]);
     expect(await sessionRows()).toBe(0);
   });
 
-  it("returns the evaluated carry-over and its attention list, creating nothing", async () => {
+  it("returns evaluated carry-over and attention without creating a row", async () => {
     const previous = await seedBrief(harness.handle, 1);
     await seedBrief(harness.handle, 2);
     await seedPreviousWork(harness.handle, previous);
@@ -140,7 +140,7 @@ describe("read-review-session", () => {
       sessionId: expect.any(String),
       headSha: "head-1",
       revisions: 1,
-      // What CARRIED, so the row's receipt can state it — the draft, the
+      // What CARRIED, so the row's receipt can state it: the draft, the
       // disposition AND the reclassification, and the same number after the
       // write that writes this session.
       items: 3,
@@ -151,7 +151,7 @@ describe("read-review-session", () => {
       { changeGroupId: "g1", category: "logic-refactor" },
     ]);
     expect(body.submittedReviewIds).toEqual([]);
-    // The id is the PREVIOUS session's row — it exists, and a write naming it
+    // The id is the PREVIOUS session's row: it exists, and a write naming it
     // resolves through the copy the first write makes. Only a disposition,
     // which every operation addresses by its anchor, reports none.
     expect(body.draftComments).toEqual([
@@ -168,14 +168,24 @@ describe("read-review-session", () => {
           id: expect.stringMatching(/^\d+$/),
           attribute: null,
         },
-        location: { filePath: "src/app.ts", startLine: 10, endLine: 12 },
+        location: {
+          kind: "line",
+          filePath: "src/app.ts",
+          startLine: 10,
+          endLine: 12,
+        },
         clearedBy: ["reanchor-draft-comment", "delete-draft-comment"],
       },
       {
         kind: "reopened-disposition",
         // The attribute is the half of the anchor `location` cannot state.
         subject: { type: "disposition", id: null, attribute: "no-tests" },
-        location: { filePath: "src/app.ts", startLine: 10, endLine: 12 },
+        location: {
+          kind: "line",
+          filePath: "src/app.ts",
+          startLine: 10,
+          endLine: 12,
+        },
         clearedBy: ["address-risk", "dismiss-risk"],
       },
     ]);
@@ -213,12 +223,12 @@ describe("read-review-session", () => {
     expect(body.submittedReviewIds).toEqual(["7700"]);
     // Carried in, and it still says so after the write that materialized it.
     expect(body.carriedFrom?.headSha).toBe("head-1");
-    // The count is what CARRIED, stamped at materialization — the read mark
+    // The count is what CARRIED, stamped at materialization: the read mark
     // this session wrote itself must never inflate a receipt that claims to
     // state what came across, and it is the same number the pre-materialized
     // read returned.
     expect(body.carriedFrom?.items).toBe(2);
-    // The same list, now off the session's own rows — the subject has an id
+    // The same list, now off the session's own rows: the subject has an id
     // to act on. The carried disposition dropped: the write that materialized
     // this session named no flags, so it is silent rather than unclearable.
     expect(body.attention).toEqual([
@@ -229,7 +239,12 @@ describe("read-review-session", () => {
           id: expect.stringMatching(/^\d+$/),
           attribute: null,
         },
-        location: { filePath: "src/app.ts", startLine: 10, endLine: 12 },
+        location: {
+          kind: "line",
+          filePath: "src/app.ts",
+          startLine: 10,
+          endLine: 12,
+        },
         clearedBy: ["reanchor-draft-comment", "delete-draft-comment"],
       },
     ]);
@@ -239,7 +254,7 @@ describe("read-review-session", () => {
   it("counts a read mark as carried, so a clean carry still has a receipt", async () => {
     // Read marks and reclassifications have no marker column. Leaving them
     // out of the count reports zero, the carry-over row renders nothing, and
-    // a carried session looks first-ever — the one collapse the row forbids.
+    // a carried session looks first-ever: the one collapse the row forbids.
     // Both sides of materialization, because the row must not vanish mid-use.
     const previous = await seedBrief(harness.handle, 1);
     // `c1` is in the new Brief's persisted carried set, so the mark carries.
@@ -299,7 +314,7 @@ describe("read-review-session", () => {
 
   it("fails the read rather than dropping decisions on an unreadable Brief", async () => {
     // Empty facts would read as "no flag fires any more" and mark every
-    // carried decision DROPPED — silently, and on a path that also
+    // carried decision DROPPED, silently, and on a path that also
     // writes. A failed read the reviewer can retry is the only
     // acceptable answer.
     const previous = await seedBrief(harness.handle, 1);

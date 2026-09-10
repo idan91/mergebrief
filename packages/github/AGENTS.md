@@ -16,7 +16,7 @@ What the layout can't show:
 
 ## Invariants (enforced, don't weaken)
 
-- **No DB imports.** This package never imports `drizzle-orm`, `pg`, or any query surface from `persistence` at runtime. The sole exception is **type-only** imports of branded ids (e.g. `InstallationId`) — `import type { InstallationId } from "persistence"` — used to keep id types aligned across packages without pulling in the DB layer. `Result`/`ValueOf` come from the zero-runtime `types` package via `src/types.ts`.
+- **No DB imports.** This package never imports `drizzle-orm`, `pg`, or any query surface from `persistence` at runtime. The sole exception is **type-only** imports of branded ids (e.g. `InstallationId`) — `import type { InstallationId } from "persistence"` — used to keep id types aligned across packages without pulling in the DB layer. `Result`/`ValueOf` come from the zero-dependency `types` package via `src/types.ts`.
 - **`loadConfig(env)` takes an explicit env map** — never implicit `process.env` at import time. Composition roots (web app, worker) decide when and what to read.
 - **All external input validated with Zod** at the boundary it enters — config now; webhook payloads and API responses in later stages.
 - **Errors:** expected failures (bad/missing env) return `Result`, never throw. Error messages never carry key material, tokens, or credentials — `ConfigError.issues` lists `field: reason` only, never the offending value (the private key, webhook secret, and OAuth client secret are all credentials).

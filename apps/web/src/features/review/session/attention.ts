@@ -8,7 +8,7 @@ import type { ValueOf } from "types";
 
 /**
  * The displayed kind. `missing-evidence` is the persistence vocabulary's own
- * token rather than a new name — a carried decision whose evidence target is
+ * token rather than a new name: a carried decision whose evidence target is
  * gone lands in exactly the condition the submit list already names.
  */
 export const AttentionItemKinds = {
@@ -24,7 +24,7 @@ export const AttentionSubjectTypes = {
 } as const;
 export type AttentionSubjectType = ValueOf<typeof AttentionSubjectTypes>;
 
-/** `disposition.carry_status` — the carry-over verdict on a carried row. */
+/** `disposition.carry_status`: the carry-over verdict on a carried row. */
 export const DispositionCarryStatuses = {
   NEW: "new",
   REOPENED: "reopened",
@@ -32,6 +32,22 @@ export const DispositionCarryStatuses = {
   DROPPED: "dropped",
 } as const;
 export type DispositionCarryStatus = ValueOf<typeof DispositionCarryStatuses>;
+
+export interface SessionLineAttentionLocation {
+  kind: "line";
+  filePath: string;
+  startLine: number;
+  endLine: number;
+}
+
+export interface SessionFileAttentionLocation {
+  kind: "file";
+  filePath: string;
+}
+
+export type SessionAttentionLocation =
+  | SessionLineAttentionLocation
+  | SessionFileAttentionLocation;
 
 export interface SessionAttentionItem {
   kind: AttentionItemKind;
@@ -42,7 +58,7 @@ export interface SessionAttentionItem {
     /** The flag's attribute, on a disposition only. */
     attribute: string | null;
   };
-  location: { filePath: string; startLine: number; endLine: number };
+  location: SessionAttentionLocation;
   /** Non-empty: an item nothing can clear is not an item. */
   clearedBy: string[];
 }
@@ -74,9 +90,11 @@ function isSubject(value: unknown): value is SessionAttentionItem["subject"] {
 }
 
 function isLocation(value: unknown): value is SessionAttentionItem["location"] {
+  if (!isRecord(value)) return false;
+  if (typeof value["filePath"] !== "string") return false;
+  if (value["kind"] === "file") return true;
   return (
-    isRecord(value) &&
-    typeof value["filePath"] === "string" &&
+    value["kind"] === "line" &&
     isLine(value["startLine"]) &&
     isLine(value["endLine"])
   );

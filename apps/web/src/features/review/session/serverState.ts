@@ -30,17 +30,29 @@ import {
 } from "./payloadGuards";
 import { deriveInitialState, type ReviewSessionState } from "./store";
 
-export interface SessionDraftComment {
+export interface SessionDraftCommentBase {
   id: string;
   filePath: string;
+  body: string;
+  status: ReviewComment["status"];
+}
+
+export interface SessionLineDraftComment extends SessionDraftCommentBase {
+  kind: "line";
   side: CommentSide;
   /** Present only when the range genuinely crosses sides. */
   startSide?: CommentSide;
   startLine: number;
   endLine: number;
-  body: string;
-  status: ReviewComment["status"];
 }
+
+export interface SessionFileDraftComment extends SessionDraftCommentBase {
+  kind: "file";
+}
+
+export type SessionDraftComment =
+  | SessionLineDraftComment
+  | SessionFileDraftComment;
 
 export interface SessionDisposition {
   filePath: string;
@@ -109,7 +121,10 @@ function lineOnSide(row: DiffLine, side: CommentSide): number | undefined {
   return side === "old" ? row.oldLine : row.newLine;
 }
 
-function rangesOnDraftStartSide(chunk: BriefChunk, draft: SessionDraftComment) {
+function rangesOnDraftStartSide(
+  chunk: BriefChunk,
+  draft: SessionLineDraftComment,
+) {
   const startSide = draft.startSide ?? draft.side;
   return startSide === CommentSides.OLD
     ? chunk.removedRanges
@@ -118,7 +133,7 @@ function rangesOnDraftStartSide(chunk: BriefChunk, draft: SessionDraftComment) {
 
 function chunkOwnsDraftStart(
   chunk: BriefChunk,
-  draft: SessionDraftComment,
+  draft: SessionLineDraftComment,
 ): boolean {
   return rangesOnDraftStartSide(chunk, draft).some(
     (range) => draft.startLine >= range.start && draft.startLine <= range.end,
@@ -129,10 +144,11 @@ function chunkOwnsDraftStart(
  * Prefer actual changed ranges over envelopes so disjoint ranges cannot claim another
  * chunk's leftover line. Envelope coverage is only the fallback for context lines.
  * Files outside this brief have no home and remain in the attention list.
+ * A File comment has no line: path-in-brief is the only home test.
  */
 function chunkForDraft(
   chunks: BriefChunk[],
-  draft: SessionDraftComment,
+  draft: SessionLineDraftComment,
 ): BriefChunk | undefined {
   const inFile = chunks.filter((chunk) => chunk.file === draft.filePath);
   const covering = inFile.find((chunk) => chunkOwnsDraftStart(chunk, draft));
@@ -156,7 +172,7 @@ interface CoveredRow {
 /** Same-side: every row whose line on the draft's side is inside the range. */
 function collectSameSideRows(
   rows: DiffLine[],
-  draft: SessionDraftComment,
+  draft: SessionLineDraftComment,
 ): CoveredRow[] {
   const covered: CoveredRow[] = [];
 
@@ -177,7 +193,7 @@ function collectSameSideRows(
  */
 function collectCrossSideRows(
   rows: DiffLine[],
-  draft: SessionDraftComment,
+  draft: SessionLineDraftComment,
   startSide: CommentSide,
 ): CoveredRow[] {
   const startIndex = rows.findIndex(
@@ -208,7 +224,7 @@ function collectCrossSideRows(
  */
 function rowsForDraft(
   chunk: BriefChunk,
-  draft: SessionDraftComment,
+  draft: SessionLineDraftComment,
 ): { rowIds: string[]; selectedText: string } {
   const rows = chunk.diff ?? [];
   const startSide = draft.startSide ?? draft.side;
@@ -229,6 +245,7 @@ function toReviewComments(
   chunks: BriefChunk[],
 ): ReviewComment[] {
   return payload.draftComments.flatMap((draft) => {
+    if (draft.kind === "file") return [];
     const chunk = chunkForDraft(chunks, draft);
     if (chunk === undefined) return [];
 

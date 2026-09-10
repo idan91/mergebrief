@@ -10,6 +10,8 @@ export {
   type AttentionSubject,
   type AttentionSubjectType,
   type ClearedBy,
+  type FileAttentionLocation,
+  type LineAttentionLocation,
 } from "./attention";
 export {
   ApiErrorCodes,
@@ -31,6 +33,8 @@ export type {
   CarriedFromPayload,
   DispositionPayload,
   DraftCommentPayload,
+  FileDraftCommentPayload,
+  LineDraftCommentPayload,
   ReclassificationPayload,
   SessionPayload,
 } from "./session";
