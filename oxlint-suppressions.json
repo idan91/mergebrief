@@ -2084,14 +2084,6 @@
       "count": 3
     }
   },
-  "packages/github/src/auth/oauth.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 7
-    }
-  },
   "packages/github/src/auth/retry.ts": {
     "house/no-em-dash": {
       "count": 1
@@ -2100,11 +2092,6 @@
   "packages/github/src/config.ts": {
     "house/no-em-dash": {
       "count": 5
-    }
-  },
-  "packages/github/src/errors.ts": {
-    "house/no-em-dash": {
-      "count": 7
     }
   },
   "packages/github/src/ids.ts": {
@@ -2138,14 +2125,6 @@
   "packages/github/src/webhook/verify.ts": {
     "house/no-em-dash": {
       "count": 3
-    }
-  },
-  "packages/github/test/api.test.ts": {
-    "house/no-em-dash": {
-      "count": 6
-    },
-    "house/test-title": {
-      "count": 22
     }
   },
   "packages/github/test/collaborators.test.ts": {
@@ -2203,11 +2182,6 @@
       "count": 6
     }
   },
-  "packages/github/test/inline-comment.test.ts": {
-    "house/test-title": {
-      "count": 4
-    }
-  },
   "packages/github/test/mark-ready.test.ts": {
     "house/no-em-dash": {
       "count": 2
@@ -2230,11 +2204,6 @@
     },
     "house/test-title": {
       "count": 6
-    }
-  },
-  "packages/github/test/retry.test.ts": {
-    "house/test-title": {
-      "count": 1
     }
   },
   "packages/github/test/webhook.test.ts": {

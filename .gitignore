@@ -62,3 +62,6 @@ mergebrief.config.yaml
 
 # Local render proofs (screenshots for PR bodies), never committed
 .screenshots/
+
+# Nested git worktrees (other checkouts of this repo).
+.worktrees/

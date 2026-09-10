@@ -9,6 +9,7 @@ coverage
 # Agent/tool session state; .claude also holds throwaway worktrees whose
 # copies of the repo would otherwise be scanned as source.
 .claude
+.worktrees
 .pnpm-store
 .serena
 .impeccable

@@ -22,12 +22,6 @@ import {
   resolveCommitSha,
 } from "../src/operations/pull-request";
 import {
-  createPullRequestReview,
-  ReviewCommentSides,
-  ReviewEvents,
-  ReviewValidationClasses,
-} from "../src/operations/review";
-import {
   fetchRepositoryById,
   listInstallationRepositoriesForUser,
 } from "../src/operations/repo";
@@ -64,7 +58,6 @@ function mockOctokit(overrides: {
   getComment?: ReturnType<typeof vi.fn>;
   issuesGet?: ReturnType<typeof vi.fn>;
   pullsGet?: ReturnType<typeof vi.fn>;
-  createReview?: ReturnType<typeof vi.fn>;
   compareBasehead?: ReturnType<typeof vi.fn>;
   getCommit?: ReturnType<typeof vi.fn>;
   listReviewComments?: ReturnType<typeof vi.fn>;
@@ -84,7 +77,6 @@ function mockOctokit(overrides: {
       pulls: {
         get: overrides.pullsGet ?? vi.fn(),
         listFiles: vi.fn(),
-        createReview: overrides.createReview ?? vi.fn(),
         listReviewComments: overrides.listReviewComments ?? vi.fn(),
       },
       repos: {
@@ -128,7 +120,7 @@ describe("postEntryComment", () => {
     });
   });
 
-  it("rejects a comment id past the safe-integer range (rounded by JSON.parse)", async () => {
+  it("rejects a comment id past the safe-integer range", async () => {
     const createComment = vi
       .fn()
       .mockResolvedValue({ data: { id: 9007199254740992 } });
@@ -178,7 +170,7 @@ describe("deleteComment", () => {
     });
   });
 
-  it("treats a 404 as idempotent success (already gone)", async () => {
+  it("treats a 404 on an already-gone comment as idempotent success", async () => {
     const deleteFn = vi.fn().mockRejectedValue(requestError(404));
     const octokit = mockOctokit({ deleteComment: deleteFn });
     const result = await deleteComment(octokit, {
@@ -226,7 +218,7 @@ describe("fetchComment", () => {
     });
   });
 
-  it("maps a 404 (comment gone) to ok undefined", async () => {
+  it("maps a 404 for a gone comment to ok undefined", async () => {
     const getComment = vi.fn().mockRejectedValue(requestError(404));
     const octokit = mockOctokit({ getComment });
     const result = await fetchComment(octokit, {
@@ -270,9 +262,9 @@ describe("fetchRepositoryById", () => {
     expect(request).toHaveBeenCalledWith("GET /repositories/{id}", { id: 1 });
   });
 
-  it("captures permissions.push as viewerCanPush when GitHub returns permissions", async () => {
+  it("captures permissions.push as viewerCanPush", async () => {
     // A user-to-server read includes the VIEWER's effective `permissions`
-    // block — `push` is the write-capability signal.
+    // block, `push` is the write-capability signal.
     const request = vi.fn().mockResolvedValue({
       data: {
         id: 1,
@@ -288,7 +280,7 @@ describe("fetchRepositoryById", () => {
     expect(result.value.viewerCanPush).toBe(true);
   });
 
-  it("viewerCanPush is false when the permissions block is absent (fail closed)", async () => {
+  it("fails closed to viewerCanPush false without a permissions block", async () => {
     const request = vi.fn().mockResolvedValue({
       data: { id: 1, full_name: "o/r", private: true },
     });
@@ -299,8 +291,8 @@ describe("fetchRepositoryById", () => {
     expect(result.value.viewerCanPush).toBe(false);
   });
 
-  it("a permissions block WITHOUT push degrades to false, never fails the parse", async () => {
-    // This fetch is the authz gate's only probe — a capability-signal glitch
+  it("degrades a permissions block without push to false, never a failure", async () => {
+    // This fetch is the authz gate's only probe, so a capability-signal glitch
     // must not become a full access denial.
     const request = vi.fn().mockResolvedValue({
       data: {
@@ -359,9 +351,9 @@ describe("fetchRepositoryById", () => {
 describe("listInstallationRepositoriesForUser", () => {
   const INSTALLATION = toInstallationId(987654n);
 
-  it("returns the FULL paginated repo-id → verified-name map (exhausts pages)", async () => {
+  it("returns the full paginated repo-id to verified-name map", async () => {
     // `octokit.paginate` follows Link headers to exhaustion and returns the
-    // flattened item array — the mock returns what an >100-repo installation
+    // flattened item array; the mock returns what an >100-repo installation
     // would produce across two pages.
     const paginate = vi.fn().mockResolvedValue([
       { id: 101, full_name: "octo/alpha" },
@@ -386,7 +378,7 @@ describe("listInstallationRepositoriesForUser", () => {
     expect(params).toMatchObject({ installation_id: 987654, per_page: 100 });
   });
 
-  it("maps a 401 to a sanitized unauthorized error (refresh trigger)", async () => {
+  it("maps a 401 to a sanitized unauthorized error, the refresh trigger", async () => {
     const paginate = vi.fn().mockRejectedValue(requestError(401));
     const octokit = mockOctokit({ paginate });
     const result = await listInstallationRepositoriesForUser(
@@ -428,7 +420,7 @@ describe("listInstallationRepositoriesForUser", () => {
   });
 });
 
-describe("mapRequestError — rate-limit classification", () => {
+describe("mapRequestError rate-limit classification", () => {
   it("classifies a 403 with an exhausted primary limit as rate-limited", async () => {
     const request = vi
       .fn()
@@ -442,7 +434,7 @@ describe("mapRequestError — rate-limit classification", () => {
     expect(JSON.stringify(result.error)).not.toContain(LEAKED_TOKEN);
   });
 
-  it("classifies a 403 carrying retry-after (secondary limit) as rate-limited", async () => {
+  it("classifies a secondary-limit 403 carrying retry-after as rate-limited", async () => {
     const request = vi
       .fn()
       .mockRejectedValue(requestError(403, { "retry-after": "60" }));
@@ -453,7 +445,7 @@ describe("mapRequestError — rate-limit classification", () => {
     expect(result.error.code).toBe(GitHubApiErrorCodes.RATE_LIMITED);
   });
 
-  it("keeps a plain 403 (with remaining budget) as forbidden", async () => {
+  it("keeps a plain 403 with remaining budget as forbidden", async () => {
     const request = vi
       .fn()
       .mockRejectedValue(requestError(403, { "x-ratelimit-remaining": "42" }));
@@ -508,7 +500,7 @@ describe("fetchPullRequest / fetchDiff", () => {
     });
   });
 
-  it("captures merged on a merged (closed) PR", async () => {
+  it("captures merged on a merged and closed PR", async () => {
     const pullsGet = vi.fn().mockResolvedValue({
       data: {
         head: { sha: "head-sha" },
@@ -715,7 +707,7 @@ describe("fetchCompareFiles", () => {
     });
   });
 
-  it("maps the compare span status through (fast-forward detection)", async () => {
+  it("maps the compare span status through for fast-forward detection", async () => {
     const compareBasehead = vi.fn().mockResolvedValue({
       data: {
         status: "diverged",
@@ -734,7 +726,7 @@ describe("fetchCompareFiles", () => {
     expect(result.value.status).toBe("diverged");
   });
 
-  it("flags a possibly-truncated list (300-file compare cap) as incomplete", async () => {
+  it("flags a list at the 300-file compare cap as incomplete", async () => {
     const files = Array.from({ length: 300 }, (_, i) => ({
       filename: `f${i}.ts`,
       status: "modified",
@@ -753,7 +745,7 @@ describe("fetchCompareFiles", () => {
     expect(result.value.files).toHaveLength(300);
   });
 
-  it("treats a missing files array as INCOMPLETE — absence proves nothing", async () => {
+  it("treats a missing files array as incomplete, absence proves nothing", async () => {
     const compareBasehead = vi.fn().mockResolvedValue({ data: {} });
     const octokit = mockOctokit({ compareBasehead });
     const result = await fetchCompareFiles(octokit, {
@@ -904,204 +896,6 @@ describe("fetchReviewCommentsRaw / fetchCompareCommitCount / resolveCommitSha", 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
-    expect(result.error.message).not.toContain(LEAKED_TOKEN);
-  });
-});
-
-// A 422 as GitHub's create-review endpoint actually shapes it: top-level
-// "Validation Failed" + an `errors` array of strings and/or objects. The body
-// (like every response body) must never surface in the sanitized Result.
-function validation422(errors: unknown): RequestError {
-  return new RequestError("Validation Failed", 422, {
-    request: {
-      method: "POST",
-      url: "https://api.github.com/repos/o/r/pulls/7/reviews",
-      headers: { authorization: `token ${LEAKED_TOKEN}` },
-    },
-    response: {
-      status: 422,
-      url: "https://api.github.com/repos/o/r/pulls/7/reviews",
-      headers: {},
-      data: { message: "Validation Failed", errors, token: LEAKED_TOKEN },
-    },
-  });
-}
-
-describe("createPullRequestReview", () => {
-  const baseInput = {
-    owner: "o",
-    repo: "r",
-    prNumber: 7,
-    commitId: "c".repeat(40),
-    event: ReviewEvents.REQUEST_CHANGES,
-    body: "overall verdict",
-    comments: [
-      {
-        path: "src/a.ts",
-        line: 12,
-        side: ReviewCommentSides.RIGHT,
-        body: "anchored note",
-      },
-      {
-        path: "src/b.ts",
-        line: 30,
-        side: ReviewCommentSides.LEFT,
-        startLine: 25,
-        startSide: ReviewCommentSides.LEFT,
-        body: "multi-line note",
-      },
-    ],
-  };
-
-  it("posts one grouped formal review pinned to commit_id and returns its id", async () => {
-    const createReview = vi.fn().mockResolvedValue({ data: { id: 512 } });
-    const octokit = mockOctokit({ createReview });
-    const result = await createPullRequestReview(octokit, baseInput);
-    expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
-    expect(result.value.reviewId).toBe(512n);
-    expect(createReview).toHaveBeenCalledWith({
-      owner: "o",
-      repo: "r",
-      pull_number: 7,
-      commit_id: "c".repeat(40),
-      event: "REQUEST_CHANGES",
-      body: "overall verdict",
-      comments: [
-        { path: "src/a.ts", line: 12, side: "RIGHT", body: "anchored note" },
-        {
-          path: "src/b.ts",
-          line: 30,
-          side: "LEFT",
-          start_line: 25,
-          start_side: "LEFT",
-          body: "multi-line note",
-        },
-      ],
-    });
-    // A single-line comment must not carry start_line/start_side keys at all —
-    // GitHub 422s a start_line equal to or past line.
-    const sent = createReview.mock.calls[0]?.[0]?.comments?.[0];
-    if (sent === undefined) throw new Error("expected a sent comment");
-    expect("start_line" in sent).toBe(false);
-    expect("start_side" in sent).toBe(false);
-  });
-
-  it("omits body and comments entirely when absent (bare APPROVE)", async () => {
-    const createReview = vi.fn().mockResolvedValue({ data: { id: 513 } });
-    const octokit = mockOctokit({ createReview });
-    const result = await createPullRequestReview(octokit, {
-      owner: "o",
-      repo: "r",
-      prNumber: 7,
-      commitId: "c".repeat(40),
-      event: ReviewEvents.APPROVE,
-    });
-    expect(result.ok).toBe(true);
-    const sent = createReview.mock.calls[0]?.[0];
-    if (sent === undefined) throw new Error("expected a createReview call");
-    expect("body" in sent).toBe(false);
-    expect("comments" in sent).toBe(false);
-  });
-
-  it("rejects a review id past the safe-integer range", async () => {
-    const createReview = vi
-      .fn()
-      .mockResolvedValue({ data: { id: 9007199254740992 } });
-    const octokit = mockOctokit({ createReview });
-    const result = await createPullRequestReview(octokit, baseInput);
-    expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
-  });
-
-  it("classifies a commit_id 422 as unknown-commit without leaking the body", async () => {
-    const createReview = vi.fn().mockRejectedValue(
-      validation422([
-        {
-          resource: "PullRequestReview",
-          code: "invalid",
-          field: "commit_id",
-        },
-      ]),
-    );
-    const octokit = mockOctokit({ createReview });
-    const result = await createPullRequestReview(octokit, baseInput);
-    expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
-    expect(result.error.status).toBe(422);
-    expect(result.error.validation).toBe(
-      ReviewValidationClasses.UNKNOWN_COMMIT,
-    );
-    const serialized = JSON.stringify(result.error);
-    expect(serialized).not.toContain(LEAKED_TOKEN);
-    expect(serialized).not.toContain("Validation Failed");
-    expect(serialized).not.toContain("commit_id");
-  });
-
-  it("classifies an anchoring 422 (string errors) as invalid-comments", async () => {
-    const createReview = vi
-      .fn()
-      .mockRejectedValue(
-        validation422([
-          "Pull request review thread line must be part of the diff",
-        ]),
-      );
-    const octokit = mockOctokit({ createReview });
-    const result = await createPullRequestReview(octokit, baseInput);
-    expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
-    expect(result.error.validation).toBe(
-      ReviewValidationClasses.INVALID_COMMENTS,
-    );
-    expect(JSON.stringify(result.error)).not.toContain("thread line");
-  });
-
-  it("classifies a 422 whose only signal is the top-level message (empty errors)", async () => {
-    // GitHub sometimes reports an unknown SHA solely in the top-level message,
-    // e.g. { message: "No commit found for SHA: deadbeef", errors: [] }.
-    const createReview = vi.fn().mockRejectedValue(
-      new RequestError("Validation Failed", 422, {
-        request: {
-          method: "POST",
-          url: "https://api.github.com/repos/o/r/pulls/7/reviews",
-          headers: { authorization: `token ${LEAKED_TOKEN}` },
-        },
-        response: {
-          status: 422,
-          url: "https://api.github.com/repos/o/r/pulls/7/reviews",
-          headers: {},
-          data: { message: "No commit found for SHA: deadbeef", errors: [] },
-        },
-      }),
-    );
-    const octokit = mockOctokit({ createReview });
-    const result = await createPullRequestReview(octokit, baseInput);
-    expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
-    expect(result.error.validation).toBe(
-      ReviewValidationClasses.UNKNOWN_COMMIT,
-    );
-    expect(JSON.stringify(result.error)).not.toContain("deadbeef");
-  });
-
-  it("classifies an unrecognizable 422 body as unknown", async () => {
-    const createReview = vi.fn().mockRejectedValue(validation422(undefined));
-    const octokit = mockOctokit({ createReview });
-    const result = await createPullRequestReview(octokit, baseInput);
-    expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
-    expect(result.error.validation).toBe(ReviewValidationClasses.UNKNOWN);
-  });
-
-  it("maps a non-422 failure through the shared taxonomy with no validation class", async () => {
-    const createReview = vi.fn().mockRejectedValue(requestError(403));
-    const octokit = mockOctokit({ createReview });
-    const result = await createPullRequestReview(octokit, baseInput);
-    expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
-    expect(result.error.validation).toBeUndefined();
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
   });
 });

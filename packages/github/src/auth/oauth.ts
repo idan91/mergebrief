@@ -1,16 +1,12 @@
 // GitHub OAuth (user-to-server) helpers for reviewer login, wrapping
 // `@octokit/oauth-app` for the web flow, plus the user-token REST reads the
-// callback needs to resolve the tenant.
-//
-// SECURITY: no error message ever echoes a code, token, or client secret — the
-// octokit errors thrown by `createToken`/`refreshToken` carry the exchanged
-// credentials in their request options, so they are swallowed and replaced with
-// a static message. REST failures funnel through `mapRequestError`.
-//
-// EXPIRATION REQUIRED: these helpers assume the App has "Expire user
-// authorization tokens" enabled — that is what makes GitHub return a
-// `refreshToken` + expiries. Without it `exchangeWebFlowCode` errors rather
-// than silently minting a non-expiring session.
+// callback needs to resolve the tenant. No error message ever echoes a code,
+// token or client secret: the octokit errors thrown by `createToken` and
+// `refreshToken` carry the exchanged credentials in their request options, so
+// they are swallowed and replaced with a static message. The App must have
+// "Expire user authorization tokens" enabled, which is what makes GitHub
+// return a refresh token plus expiries.
+import { createHash } from "node:crypto";
 import { Octokit } from "octokit";
 import { OAuthApp, type Options } from "@octokit/oauth-app";
 import { retryOptions } from "./retry";
@@ -45,14 +41,14 @@ export const OAuthErrorCodes = {
   EXCHANGE_FAILED: "exchange-failed",
   /** The refresh-token rotation failed (revoked/expired refresh token, etc.). */
   REFRESH_FAILED: "refresh-failed",
-  /** GitHub returned no refresh token — token expiration is not enabled. */
+  /** GitHub returned no refresh token; token expiration is not enabled. */
   EXPIRATION_NOT_ENABLED: "expiration-not-enabled",
 } as const;
 export type OAuthErrorCode = ValueOf<typeof OAuthErrorCodes>;
 
 export interface OAuthError {
   readonly code: OAuthErrorCode;
-  /** Static, safe-to-log summary — never carries the code/token/secret. */
+  /** Static, safe-to-log summary; never carries the code/token/secret. */
   readonly message: string;
 }
 
@@ -113,7 +109,7 @@ function toOAuthTokens(
       error: {
         code: OAuthErrorCodes.EXPIRATION_NOT_ENABLED,
         message:
-          "GitHub returned no refresh token — enable 'Expire user authorization tokens' on the App",
+          "GitHub returned no refresh token; enable 'Expire user authorization tokens' on the App",
       },
     };
   }
@@ -230,7 +226,7 @@ const installationsResponseSchema = z.object({
 
 /**
  * List the app installations reachable to the user, branding each numeric id.
- * Empty is a valid `ok` result — the caller decides what "no installations"
+ * Empty is a valid `ok` result; the caller decides what "no installations"
  * means.
  */
 export async function listAppInstallationsForUser(
@@ -327,12 +323,42 @@ export async function listUserInstallations(
 }
 
 /**
- * A thin user-scoped `Octokit` for an access token — exposed so the viewer
+ * A thin user-scoped `Octokit` for an access token, exposed so the viewer
  * authorization gate reuses the same construction.
  */
 export function createUserOctokit(accessToken: string): Octokit {
-  // Same permanent-status retry tuning as the App's installation clients —
+  // Same permanent-status retry tuning as the App's installation clients,
   // notably 406 (diff too large): the read API's diff proxy must fail fast to
   // its 413 mapping, not retry an unrenderable span.
-  return new Octokit({ auth: accessToken, retry: retryOptions() });
+  // The throttle id keys every octokit limiter group, not only the write
+  // queue (one mutation per second, GraphQL included): without it every
+  // viewer shares one queue, with it the global cap of ten concurrent calls
+  // is per token too, which is the ceiling GitHub itself meters per user.
+  // `throttle` shallow-replaces octokit's defaults, so the handlers ride too.
+  return new Octokit({
+    auth: accessToken,
+    retry: retryOptions(),
+    throttle: {
+      id: deriveThrottleKey(accessToken),
+      onRateLimit: retryOnceAfterLimit,
+      onSecondaryRateLimit: retryOnceAfterLimit,
+    },
+  });
+}
+
+/** A stable per-token limiter key that never carries the token itself. */
+export function deriveThrottleKey(accessToken: string): string {
+  return createHash("sha256").update(accessToken).digest("hex");
+}
+
+interface ThrottledRequest {
+  readonly request: { readonly retryCount: number };
+}
+
+/** octokit's own default: honour retry-after once, then give up. */
+export function retryOnceAfterLimit(
+  _retryAfter: number,
+  options: ThrottledRequest,
+): boolean {
+  return options.request.retryCount === 0;
 }

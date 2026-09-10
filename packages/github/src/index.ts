@@ -129,24 +129,54 @@ export type {
 export { fetchIssue } from "./operations/issue";
 export type { IssueInfo, IssueRef } from "./operations/issue";
 
-// Review-submit primitive: one grouped formal review, pinned to the reviewed
-// commit; 422s carry a best-effort validation class.
+// Review-submit primitives, three GitHub objects: the pending review (REST,
+// pinned to the reviewed commit; 422s carry a best-effort validation class),
+// the review thread (GraphQL; a rejected anchor is a Result, not a throw) and
+// the submit event (GraphQL).
 export {
   createPullRequestReview,
-  ReviewEvents,
-  ReviewCommentSides,
-  ReviewSubjectTypes,
   ReviewValidationClasses,
 } from "./operations/review";
 export type {
   CreatePullRequestReviewInput,
-  ReviewCommentInput,
-  LineReviewCommentInput,
+  PendingReview,
   CreateReviewError,
-  ReviewEvent,
-  ReviewCommentSide,
   ReviewValidationClass,
 } from "./operations/review";
+export {
+  addPullRequestReviewThread,
+  ReviewCommentSides,
+  ReviewSubjectTypes,
+  ReviewThreadFailureKinds,
+} from "./operations/review-thread";
+export type {
+  AddReviewThreadInput,
+  LineReviewThreadInput,
+  FileReviewThreadInput,
+  ReviewThread,
+  ReviewThreadFailure,
+  ReviewThreadFailureKind,
+  ReviewThreadAnchorRejected,
+  ReviewThreadRequestFailed,
+  ReviewCommentSide,
+  ReviewSubjectType,
+} from "./operations/review-thread";
+export {
+  findPendingPullRequestReview,
+  deletePendingPullRequestReview,
+} from "./operations/review-pending";
+export type {
+  PullRequestReviewRef,
+  DeletePendingPullRequestReviewInput,
+} from "./operations/review-pending";
+export {
+  submitPullRequestReview,
+  ReviewEvents,
+} from "./operations/review-submit";
+export type {
+  SubmitPullRequestReviewInput,
+  ReviewEvent,
+} from "./operations/review-submit";
 
 // Inline review-comment write: one standalone comment on a PR's diff, pinned
 // to the anchor's commit, with the viewer's token. Returns the comment id plus

@@ -6,7 +6,7 @@ import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
 import { createInlineReviewComment } from "../src/operations/inline-comment";
 import { GitHubApiErrorCodes } from "../src/errors";
-import { ReviewCommentSides } from "../src/operations/review";
+import { ReviewCommentSides } from "../src/operations/review-thread";
 
 function mockOctokit(createReviewComment: ReturnType<typeof vi.fn>): Octokit {
   const stub = { rest: { pulls: { createReviewComment } } };
@@ -74,7 +74,7 @@ describe("createInlineReviewComment", () => {
     expect(call).not.toHaveProperty("start_side");
   });
 
-  it("returns commentId with reviewId absent when GitHub assigns no review id", async () => {
+  it("returns commentId without reviewId when GitHub assigns no review id", async () => {
     const createReviewComment = vi
       .fn()
       .mockResolvedValue({ data: { id: 999, pull_request_review_id: null } });
@@ -88,7 +88,7 @@ describe("createInlineReviewComment", () => {
     expect(result.value.reviewId).toBeUndefined();
   });
 
-  it("rejects a lossy (unsafe-integer) comment id as an unexpected shape", async () => {
+  it("rejects an unsafe-integer comment id as an unexpected shape", async () => {
     const createReviewComment = vi.fn().mockResolvedValue({
       data: { id: Number.MAX_SAFE_INTEGER + 2, pull_request_review_id: 1 },
     });
@@ -115,7 +115,7 @@ describe("createInlineReviewComment", () => {
     expect(result.value.reviewId).toBeUndefined();
   });
 
-  it("flags a 422 as a stale anchor (the diff moved under the pinned commit)", async () => {
+  it("flags a 422 as a stale anchor under the pinned commit", async () => {
     const createReviewComment = vi.fn().mockRejectedValue(requestError(422));
     const result = await createInlineReviewComment(
       mockOctokit(createReviewComment),
@@ -131,7 +131,7 @@ describe("createInlineReviewComment", () => {
     );
   });
 
-  it("maps a 403 to a sanitized forbidden error without the stale-anchor flag", async () => {
+  it("maps a 403 to a sanitized forbidden error, no stale-anchor flag", async () => {
     const createReviewComment = vi.fn().mockRejectedValue(requestError(403));
     const result = await createInlineReviewComment(
       mockOctokit(createReviewComment),

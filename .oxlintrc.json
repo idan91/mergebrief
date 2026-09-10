@@ -110,6 +110,8 @@
     "**/dist/**",
     "**/out/**",
     "**/.playwright-cli/**",
+    // Nested git worktrees are other checkouts of this repo, never source.
+    "**/.worktrees/**",
     "**/routeTree.gen.ts",
     // Each house rule's own counter-examples; the plugin's tests lint them.
     "tools/oxlint-plugin-house/test/fixtures/**"

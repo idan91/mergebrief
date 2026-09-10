@@ -1,6 +1,6 @@
 // The single sanitization chokepoint for GitHub API failures: every thrown
 // error funnels through `mapRequestError`/`mapGraphqlError` so no auth header,
-// token, request URL, or raw response body reaches a `Result` error — only an
+// token, request URL, or raw response body reaches a `Result` error, only an
 // HTTP status and a static, caller-supplied context string.
 import { RequestError } from "octokit";
 import type { ValueOf } from "./types";
@@ -20,7 +20,7 @@ export interface GitHubApiError {
   readonly status?: number;
   /**
    * Sanitized summary. Derived only from the HTTP status and a static context
-   * label — never the upstream message, response body, or request headers
+   * label, never the upstream message, response body, or request headers
    * (which may carry the installation token).
    */
   readonly message: string;
@@ -29,7 +29,7 @@ export interface GitHubApiError {
 /**
  * GitHub signals throttling with a 403 (NOT 429) plus rate-limit headers:
  * `x-ratelimit-remaining: 0` for the primary limit, or `retry-after` for a
- * secondary/abuse limit. Headers only — never the body.
+ * secondary/abuse limit. Headers only, never the body.
  */
 function isRateLimited403(error: RequestError): boolean {
   const headers = error.response?.headers;
@@ -65,7 +65,7 @@ function codeForStatus(status: number): GitHubApiErrorCode {
 /**
  * Map any thrown value from an octokit request into a sanitized
  * `GitHubApiError`. `context` must be a STATIC verb phrase supplied by the
- * caller — never interpolated from user/GitHub input.
+ * caller, never interpolated from user/GitHub input.
  */
 export function mapRequestError(
   error: unknown,
@@ -96,7 +96,7 @@ export function unexpectedResponseError(context: string): GitHubApiError {
   };
 }
 
-// GraphQL failures arrive as `GraphqlResponseError` — HTTP 200 with an
+// GraphQL failures arrive as `GraphqlResponseError`: HTTP 200 with an
 // `errors` array carrying a `type` discriminator. The octokit umbrella does
 // not export the class, so detection is structural (name + errors array)
 // rather than `instanceof`.
@@ -108,7 +108,7 @@ function isGraphqlResponseError(error: unknown): error is {
   readonly name: string;
   readonly errors: readonly GraphqlErrorEntry[];
 } {
-  // Fully structural — `instanceof Error` would reject a wrapped or
+  // Fully structural: `instanceof Error` would reject a wrapped or
   // cross-realm error carrying the same shape.
   if (typeof error !== "object" || error === null) {
     return false;
@@ -118,6 +118,20 @@ function isGraphqlResponseError(error: unknown): error is {
     error.name === "GraphqlResponseError" &&
     "errors" in error &&
     Array.isArray(error.errors)
+  );
+}
+
+/**
+ * Whether a thrown GraphQL response carries entries of `type` and nothing
+ * else; a mixed array keeps its rate-limit or auth classification.
+ */
+export function hasOnlyGraphqlErrorType(error: unknown, type: string): boolean {
+  if (!isGraphqlResponseError(error) || error.errors.length === 0) {
+    return false;
+  }
+  return error.errors.every(
+    (entry) =>
+      typeof entry === "object" && entry !== null && entry.type === type,
   );
 }
 
@@ -134,7 +148,7 @@ const GRAPHQL_TYPE_PRECEDENCE: ReadonlyArray<{
 
 /**
  * Sanitizing sibling of `mapRequestError` for `octokit.graphql` calls: same
- * contract — `context` is a STATIC verb phrase, and no upstream message,
+ * contract: `context` is a STATIC verb phrase, and no upstream message,
  * token, or response text reaches the result.
  */
 export function mapGraphqlError(

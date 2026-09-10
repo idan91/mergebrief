@@ -10,7 +10,7 @@ import {
   unexpectedResponseError,
   type GitHubApiError,
 } from "../errors";
-import { ReviewCommentSides, type ReviewCommentSide } from "./review";
+import { ReviewCommentSides, type ReviewCommentSide } from "./review-thread";
 import type { Result, ValueOf } from "../types";
 import type { Mutable } from "types";
 

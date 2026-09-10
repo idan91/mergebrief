@@ -4,10 +4,15 @@
 // construction with an injected fetch counting calls.
 import { describe, expect, it, vi } from "vitest";
 import { Octokit } from "octokit";
+import {
+  createUserOctokit,
+  deriveThrottleKey,
+  retryOnceAfterLimit,
+} from "../src/auth/oauth";
 import { DO_NOT_RETRY_STATUSES, retryOptions } from "../src/auth/retry";
 import { fetchDiff } from "../src/operations/pull-request";
 
-function countingFetch(status: number) {
+function stubCountingFetch(status: number) {
   return vi.fn(
     async () =>
       new Response(JSON.stringify({ message: "nope" }), {
@@ -18,7 +23,7 @@ function countingFetch(status: number) {
 }
 
 /** Same construction shape as `createUserOctokit`, with a countable fetch. */
-function clientWith(fetchImpl: typeof fetch): Octokit {
+function makeClientWith(fetchImpl: typeof fetch): Octokit {
   return new Octokit({
     auth: "token",
     retry: { ...retryOptions(), retryAfterBaseValue: 1 },
@@ -27,9 +32,9 @@ function clientWith(fetchImpl: typeof fetch): Octokit {
 }
 
 describe("406 retry tuning", () => {
-  it("does not retry a 406 (permanent: diff too large)", async () => {
-    const fetchImpl = countingFetch(406);
-    const result = await fetchDiff(clientWith(fetchImpl), {
+  it("does not retry a 406, the permanent diff-too-large status", async () => {
+    const fetchImpl = stubCountingFetch(406);
+    const result = await fetchDiff(makeClientWith(fetchImpl), {
       owner: "o",
       repo: "r",
       prNumber: 1,
@@ -41,8 +46,8 @@ describe("406 retry tuning", () => {
   });
 
   it("still retries a transient 500", async () => {
-    const fetchImpl = countingFetch(500);
-    const result = await fetchDiff(clientWith(fetchImpl), {
+    const fetchImpl = stubCountingFetch(500);
+    const result = await fetchDiff(makeClientWith(fetchImpl), {
       owner: "o",
       repo: "r",
       prNumber: 1,
@@ -58,5 +63,32 @@ describe("406 retry tuning", () => {
     expect(DO_NOT_RETRY_STATUSES).toEqual([
       400, 401, 403, 404, 406, 410, 422, 451,
     ]);
+  });
+});
+
+describe("deriveThrottleKey", () => {
+  it("gives distinct tokens distinct keys and never leaks the token", () => {
+    const token = "ghu_PLANTED_USER_TOKEN";
+    const key = deriveThrottleKey(token);
+
+    expect(key).toMatch(/^[0-9a-f]{64}$/);
+    expect(key).toBe(deriveThrottleKey(token));
+    expect(key).not.toBe(deriveThrottleKey("ghu_OTHER_TOKEN"));
+    expect(key).not.toContain(token);
+  });
+});
+
+describe("retryOnceAfterLimit", () => {
+  it("retries a rate-limited request once, then gives up", () => {
+    expect(retryOnceAfterLimit(60, { request: { retryCount: 0 } })).toBe(true);
+    expect(retryOnceAfterLimit(60, { request: { retryCount: 1 } })).toBe(false);
+  });
+});
+
+describe("createUserOctokit", () => {
+  it("constructs with a throttle id and the rate-limit handlers intact", () => {
+    // `throttle` is shallow-merged over octokit's defaults: an id alone would
+    // drop the handlers and the throttling plugin refuses to build.
+    expect(() => createUserOctokit("ghu_token")).not.toThrow();
   });
 });
