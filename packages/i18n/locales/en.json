@@ -597,7 +597,10 @@
       "reviewComment": "review comment",
       "addressed": "addressed",
       "addressedCount": "{{count}} addressed",
-      "reviewCount": "{{count}} review"
+      "reviewCount": "{{count}} review",
+      "ariaLabelAddFileComment": "Add a comment on {{file}}",
+      "collapseFileComments": "Collapse file comments",
+      "expandFileComments": "Expand file comments"
     },
     "coreLines": {
       "core": "core lines",
@@ -796,6 +799,8 @@
       "lines_one": "{{count}} line",
       "lines_other": "{{count}} lines",
       "composerLabel": "Comment",
+      "addCommentOnFile": "Add comment on file",
+      "commentOnFile": "Comment on file",
       "cancel": "Cancel",
       "postedToGithub": "@you posted to GitHub",
       "pending": "@you pending",

@@ -10,7 +10,7 @@ import {
   type ApiErrorCode,
   type ApiFetchInit,
 } from "../../../data/apiFetch";
-import type { Mutable } from "types";
+import type { CommentAnchorKinds, Mutable } from "types";
 import type { ReviewOutcome, RiskEvidence } from "../utils/state";
 import type { CommentSide } from "../utils/comments";
 import type { Category } from "../../brief/types";
@@ -56,7 +56,8 @@ const UNKNOWN: SessionWriteFailure = {
   copy: "review.writeError.failed",
 };
 
-export interface DraftAnchorWire {
+export interface LineDraftAnchorWire {
+  kind?: typeof CommentAnchorKinds.LINE;
   filePath: string;
   side: CommentSide;
   /** Present only when the range genuinely crosses sides. */
@@ -64,6 +65,13 @@ export interface DraftAnchorWire {
   startLine: number;
   endLine: number;
 }
+
+export interface FileDraftAnchorWire {
+  kind: typeof CommentAnchorKinds.FILE;
+  filePath: string;
+}
+
+export type DraftAnchorWire = LineDraftAnchorWire | FileDraftAnchorWire;
 
 export interface FlagAnchorWire {
   filePath: string;

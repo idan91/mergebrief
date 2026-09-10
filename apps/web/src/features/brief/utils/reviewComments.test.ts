@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  pathOnlyFileCommentsForChunk,
   reviewCommentMatchesDiffLine,
   reviewCommentsForChunk,
 } from "./reviewComments";
@@ -32,7 +33,7 @@ const comment = {
 } satisfies AddressedReviewComment;
 
 describe("reviewCommentsForChunk", () => {
-  it("falls back to same-file comments when the chunk has no addressed comment ids", () => {
+  it("falls back to same-file comments without addressed ids", () => {
     const otherFileComment = {
       ...comment,
       id: "other",
@@ -46,7 +47,7 @@ describe("reviewCommentsForChunk", () => {
     ).toEqual(["3419186366"]);
   });
 
-  it("associates outdated comments with new-file chunks without making them inline anchors", () => {
+  it("associates outdated comments with new-file chunks", () => {
     const outdated = {
       ...comment,
       line: null,
@@ -126,7 +127,7 @@ describe("reviewCommentMatchesDiffLine", () => {
     ).toBe(true);
   });
 
-  it("does not match outdated comments on added lines when the chunk has no old-side anchor", () => {
+  it("does not match outdated comments on added lines", () => {
     const outdated = {
       ...comment,
       line: null,
@@ -142,5 +143,50 @@ describe("reviewCommentMatchesDiffLine", () => {
     expect(
       reviewCommentMatchesDiffLine(outdated, chunk.file, addLine, [addLine]),
     ).toBe(false);
+  });
+});
+
+describe("file-level GitHub comments", () => {
+  it("does not attach a path-only comment to the chunk diff", () => {
+    const fileComment = {
+      ...comment,
+      id: "file-1",
+      line: null,
+      originalLine: null,
+      startLine: null,
+      originalStartLine: null,
+    } satisfies AddressedReviewComment;
+
+    expect(reviewCommentsForChunk([fileComment], chunk)).toEqual([]);
+    expect(
+      reviewCommentMatchesDiffLine(fileComment, chunk.file, {
+        kind: "add",
+        newLine: 103,
+        content: "x",
+      }),
+    ).toBe(false);
+  });
+
+  it("selects path-only comments for the matching file", () => {
+    const fileComment = {
+      ...comment,
+      id: "file-1",
+      line: null,
+      originalLine: null,
+      startLine: null,
+      originalStartLine: null,
+    } satisfies AddressedReviewComment;
+    const otherFile = {
+      ...fileComment,
+      id: "file-2",
+      file: "src/other.ts",
+    } satisfies AddressedReviewComment;
+
+    expect(
+      pathOnlyFileCommentsForChunk(
+        [fileComment, otherFile, comment],
+        chunk,
+      ).map((item) => item.id),
+    ).toEqual(["file-1"]);
   });
 });

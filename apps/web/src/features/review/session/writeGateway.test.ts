@@ -6,6 +6,8 @@ import { briefFixture } from "@web/features/brief/fixtures";
 import { buildBriefViewModel } from "@web/features/brief/utils";
 import { createSessionWriteGateway } from "./writeGateway";
 import type { SessionWrites } from "./writes";
+import { CommentAnchorKinds } from "types";
+import { ReviewCommentStatuses } from "../utils/comments";
 
 const model = buildBriefViewModel(briefFixture);
 const flagId = model.flags[0]?.id;
@@ -58,5 +60,21 @@ describe("createSessionWriteGateway", () => {
     );
     expect(result.ok).toBe(false);
     expect(writes.addressRisks).not.toHaveBeenCalled();
+  });
+
+  it("posts a file comment as kind file with no line fields", async () => {
+    const writes = writesMock();
+    const gateway = createSessionWriteGateway(model, writes);
+    await gateway.createComment({
+      anchor: { kind: CommentAnchorKinds.FILE, file: "src/leak.ts" },
+      body: "on the file",
+      status: ReviewCommentStatuses.DRAFT,
+      collapsed: false,
+    });
+    expect(writes.createDraft).toHaveBeenCalledWith({
+      kind: CommentAnchorKinds.FILE,
+      filePath: "src/leak.ts",
+      body: "on the file",
+    });
   });
 });

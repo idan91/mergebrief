@@ -1,7 +1,7 @@
 /* oxlint-disable jsx-a11y/no-autofocus --
    Single deliberate use: the edit surface mounts in response to an explicit
    Edit click, so moving focus into the textarea is the expected next
-   action — not a page-load focus steal. */
+   action, not a page-load focus steal. */
 import { useTranslation } from "react-i18next";
 import { useId, useState } from "react";
 
@@ -12,6 +12,7 @@ import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMenti
 import { useUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
 import {
   postCommentBlockedReason,
+  isFileCommentAnchor,
   type ReviewComment,
 } from "../../utils/comments";
 import { commentLocation } from "../../utils/state";
@@ -37,7 +38,7 @@ export interface CommentThreadProps {
    */
   posting?: boolean | undefined;
   /**
-   * A screen-owned, wait-shaped reason Post must not run right now — a
+   * A screen-owned, wait-shaped reason Post must not run right now: a
    * Submit review in flight already CAPTURED the drafts it ships, so posting
    * one mid-submit would double-post it when the review lands. Wins the
    * blocked display; content reasons re-surface once it clears.
@@ -78,14 +79,14 @@ export function CommentThread({
     setBody(comment.body);
     setEditing(false);
   };
-  // Posted to GitHub — GitHub holds the text now, so the local record is
+  // Posted to GitHub. GitHub holds the text now, so the local record is
   // read-only (an edit here would silently diverge: re-submits ship drafts).
   const submitted = comment.status === "submitted";
   // Why Post is blocked right now, or `undefined` when it may proceed:
   // - Submit review in flight (screen-owned, wins the display) → the review
   //   already captured this draft; posting would double-post it;
   // - editor open → Post ships the last SAVED body, and the success flip
-  //   would silently discard the unsaved amendment — save or cancel first;
+  //   would silently discard the unsaved amendment. Save or cancel first;
   // - over-cap body/path → deterministic route 400; the UI would resubmit
   //   the same draft, so it must block here with recoverable copy.
   const postBlocked =
@@ -102,6 +103,15 @@ export function CommentThread({
   const postingReason = posting ? t("review.comment.postingReason") : undefined;
   const postReasonId = useId();
   const postDescribed = postingReason ?? postBlocked;
+  const locationLabel = isFileCommentAnchor(comment.anchor)
+    ? t("review.comment.commentOnFile")
+    : commentLocation(comment);
+  const editSuggestionSeed = isFileCommentAnchor(comment.anchor)
+    ? undefined
+    : comment.anchor.selectedText;
+  const collapsedWhere = isFileCommentAnchor(comment.anchor)
+    ? t("review.comment.commentOnFile")
+    : `${t("review.comment.commentOn")}${(comment.anchor.startSide ?? comment.anchor.side) === "new" ? "+" : "-"}${comment.anchor.startLine}`;
 
   if (comment.collapsed) {
     return (
@@ -112,11 +122,7 @@ export function CommentThread({
           onClick={() => toggle(comment.id)}
         >
           {submitted ? t("review.comment.posted") : t("review.comment.draft")}{" "}
-          {t("review.comment.commentOn")}
-          {(comment.anchor.startSide ?? comment.anchor.side) === "new"
-            ? "+"
-            : "-"}
-          {comment.anchor.startLine}
+          {collapsedWhere}
         </LinkButton>
       </div>
     );
@@ -130,7 +136,7 @@ export function CommentThread({
             ? t("review.comment.postedToGithub")
             : t("review.comment.pending")}
         </span>
-        <span>{commentLocation(comment)}</span>
+        <span>{locationLabel}</span>
       </div>
       {/* An open editor dies with the draft: if a submit lands while the
           textarea is up, the posted record renders read-only regardless. */}
@@ -143,7 +149,7 @@ export function CommentThread({
             renderPreview={(previewBody) => (
               <MarkdownPreview anchor={comment.anchor} body={previewBody} />
             )}
-            suggestionSeed={comment.anchor.selectedText}
+            suggestionSeed={editSuggestionSeed}
             value={body}
             onChange={setBody}
             onEscape={cancelEdit}
@@ -222,7 +228,7 @@ export function CommentThread({
             </Button>
           </div>
         ) : null}
-        {/* Post-now: own-draft state only — a submitted comment is already on
+        {/* Post-now: own-draft state only. A submitted comment is already on
             GitHub, so it never shows Post. While in flight the button stays
             visible (pending label) but inert. */}
         {post !== undefined && !submitted ? (

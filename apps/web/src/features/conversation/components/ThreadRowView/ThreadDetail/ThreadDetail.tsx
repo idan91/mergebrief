@@ -5,6 +5,7 @@ import { Button } from "@web/components/Button/Button";
 import { Markdown } from "@web/components/Markdown/Markdown";
 import { formatDate, renderedLocale } from "@web/i18n/locale";
 import type { DigestThreadRow } from "../../../utils/digest";
+import { ThreadPlacementKinds } from "../../../utils/anchor";
 import rowStyles from "../../../rows.module.scss";
 import type { ThreadComposerWiring } from "../../../wiring";
 import { RevisionJumpAction } from "../RevisionJumpAction/RevisionJumpAction";
@@ -46,7 +47,7 @@ export function ThreadDetail({
     resolution: composer.resolution,
   });
   // The standalone control's node, handed to the composer as its focus rescue
-  // target — this detail is the only place that knows both controls exist.
+  // target. This detail is the only place that knows both controls exist.
   const resolveButtonRef = useRef<HTMLButtonElement | null>(null);
   const focusResolveAction = useCallback(() => {
     resolveButtonRef.current?.focus();
@@ -102,7 +103,7 @@ export function ThreadDetail({
       ) {
         return;
       }
-      // An open modal owns the keyboard — R must not act behind it.
+      // An open modal owns the keyboard. R must not act behind it.
       if (document.querySelector('[aria-modal="true"]') !== null) return;
       // Containment scopes the shortcut: with the same thread rendered inline
       // AND in the section, only the detail holding the selection reacts.
@@ -120,6 +121,21 @@ export function ThreadDetail({
   // The parser guarantees a root comment; guard anyway rather than render a
   // self-opening href="".
   const rootCommentUrl = thread.comments[0]?.url;
+  const showJump =
+    !hideJump &&
+    (placement.kind === ThreadPlacementKinds.CHUNK ||
+      placement.kind === ThreadPlacementKinds.FILE_HEADER);
+  const jumpToPlacedThread = () => {
+    if (placement.kind === ThreadPlacementKinds.FILE_HEADER) {
+      jumpToChunk(placement.chunkId);
+      return;
+    }
+    if (placement.kind !== ThreadPlacementKinds.CHUNK) return;
+    jumpToChunk(placement.chunkId, {
+      rowId: placement.rowId,
+      threadId: thread.rootCommentId,
+    });
+  };
   return (
     <div className={rowStyles["detail"]} ref={detailRef}>
       {thread.comments.map((comment) => (
@@ -132,7 +148,7 @@ export function ThreadDetail({
         >
           <header className={rowStyles["commentHead"]}>
             {comment.author.avatarUrl === undefined ? null : (
-              // Decorative — the adjacent login carries the identity.
+              // Decorative. The adjacent login carries the identity.
               <img
                 alt=""
                 className={rowStyles["commentAvatar"]}
@@ -175,16 +191,8 @@ export function ThreadDetail({
         <p className={rowStyles["note"]}>{t("conversation.longerThread")}</p>
       ) : null}
       <div className={rowStyles["detailActions"]}>
-        {placement.kind === "chunk" && !hideJump ? (
-          <Button
-            variant="quiet"
-            onClick={() =>
-              jumpToChunk(placement.chunkId, {
-                rowId: placement.rowId,
-                threadId: thread.rootCommentId,
-              })
-            }
-          >
+        {showJump ? (
+          <Button variant="quiet" onClick={jumpToPlacedThread}>
             {t("conversation.jumpToComment")}
           </Button>
         ) : null}
@@ -205,7 +213,7 @@ export function ThreadDetail({
         quote={quote}
         onPosted={composer.onPosted}
         post={composer.post}
-        // The combo closes an open thread — never offered on a resolved one
+        // The combo closes an open thread. Never offered on a resolved one
         // (Unresolve is that thread's action) nor without the capability.
         resolveAfterPost={
           resolution.available && !thread.isResolved

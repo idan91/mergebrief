@@ -22,14 +22,17 @@ export const IconButtonSizes = {
 export type IconButtonSize = ValueOf<typeof IconButtonSizes>;
 
 export type IconButtonBaseProps = {
-  /** Required accessible name; a caller-passed aria-label overrides it. */
+  /**
+   * Compact callout text and default accessible name. A caller-passed
+   * aria-label overrides the button name only; the callout still shows this.
+   */
   label: string;
   variant?: IconButtonVariant;
   /** sm 24px (default) / md 32px / lg 34px circle. */
   size?: IconButtonSize;
   /** Width follows the content (labeled icon, e.g. "↳ g1"); height keeps the size. */
   autoWidth?: boolean;
-  /** aria-disabled + interaction guard — never the native attribute. */
+  /** aria-disabled plus an interaction guard, never the native attribute. */
   disabled?: boolean;
   /** Show the label in a compact callout on hover and focus, on this side. */
   callout?: Placement;
@@ -106,7 +109,7 @@ export function IconButton(props: IconButtonProps) {
           placement={callout}
           onClose={() => setCalloutOpen(false)}
         >
-          <Callout.Title>{ariaLabel ?? label}</Callout.Title>
+          <Callout.Title>{label}</Callout.Title>
         </Callout>
       ) : null}
     </>

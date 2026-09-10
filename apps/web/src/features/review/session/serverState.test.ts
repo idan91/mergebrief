@@ -7,9 +7,16 @@ import type {
   FileDraftCommentPayload,
   LineDraftCommentPayload,
 } from "contract";
-import type { Equals } from "types";
+import { CommentAnchorKinds, type Equals } from "types";
 import { briefFixture } from "@web/features/brief/fixtures";
 import { buildBriefViewModel, GroupViewKinds } from "@web/features/brief/utils";
+import {
+  createFileCommentAnchor,
+  isLineCommentAnchor,
+  type ReviewComment,
+  CommentSides,
+  ReviewCommentStatuses,
+} from "../utils/comments";
 import {
   emptySessionPayload,
   parseReviewSessionPayload,
@@ -40,6 +47,14 @@ const firstChunk = model.groups[0]?.chunks[0];
 
 function payload(overrides: Partial<ReviewSessionPayload>) {
   return { ...emptySessionPayload(), ...overrides };
+}
+
+function lineAnchorOf(comment: ReviewComment | undefined) {
+  const anchor = comment?.anchor;
+  if (anchor === undefined || !isLineCommentAnchor(anchor)) {
+    throw new Error("expected a line comment");
+  }
+  return anchor;
 }
 
 describe("sessionInitialState", () => {
@@ -82,32 +97,62 @@ describe("sessionInitialState", () => {
           {
             id: "41",
             filePath: chunk.file,
-            kind: "line",
-            side: "new",
+            kind: CommentAnchorKinds.LINE,
+            side: CommentSides.NEW,
             startLine: line,
             endLine: line,
             body: "carried draft",
-            status: "draft",
+            status: ReviewCommentStatuses.DRAFT,
           },
           // No chunk in this Brief owns this file, dropped, not guessed.
           {
             id: "42",
             filePath: "src/deleted-since.ts",
-            kind: "line",
-            side: "new",
+            kind: CommentAnchorKinds.LINE,
+            side: CommentSides.NEW,
             startLine: 1,
             endLine: 1,
             body: "orphan",
-            status: "draft",
+            status: ReviewCommentStatuses.DRAFT,
           },
         ],
       }),
     );
     expect(state.reviewComments.map((comment) => comment.id)).toEqual(["41"]);
-    const anchor = state.reviewComments[0]?.anchor;
+    const anchor = lineAnchorOf(state.reviewComments[0]);
     expect(anchor?.chunkId).toBe(chunk.id);
     expect(anchor?.rowIds.length).toBeGreaterThan(0);
     expect(anchor?.selectedText.length).toBeGreaterThan(0);
+  });
+
+  it("lands a file draft on every path in the Brief, never a line", () => {
+    const chunk = firstChunk;
+    if (chunk === undefined) throw new Error("fixture has no chunk");
+    const state = sessionInitialState(
+      model,
+      payload({
+        draftComments: [
+          {
+            id: "51",
+            filePath: chunk.file,
+            kind: CommentAnchorKinds.FILE,
+            body: "whole file",
+            status: ReviewCommentStatuses.DRAFT,
+          },
+          {
+            id: "52",
+            filePath: "src/deleted-since.ts",
+            kind: CommentAnchorKinds.FILE,
+            body: "orphan file",
+            status: ReviewCommentStatuses.DRAFT,
+          },
+        ],
+      }),
+    );
+    expect(state.reviewComments.map((comment) => comment.id)).toEqual(["51"]);
+    expect(state.reviewComments[0]?.anchor).toEqual(
+      createFileCommentAnchor(chunk.file),
+    );
   });
 
   it("lands a leftover-line draft on the remainder chunk", () => {
@@ -138,17 +183,17 @@ describe("sessionInitialState", () => {
           {
             id: "61",
             filePath: chunk.file,
-            kind: "line",
-            side: "new",
+            kind: CommentAnchorKinds.LINE,
+            side: CommentSides.NEW,
             startLine: 50,
             endLine: 50,
             body: "leftover line",
-            status: "draft",
+            status: ReviewCommentStatuses.DRAFT,
           },
         ],
       }),
     );
-    expect(state.reviewComments[0]?.anchor.chunkId).toBe(remainder.id);
+    expect(lineAnchorOf(state.reviewComments[0]).chunkId).toBe(remainder.id);
   });
 
   it("lands a disposition on the flag its anchor names, and only that one", () => {
@@ -221,18 +266,18 @@ describe("sessionInitialState", () => {
           {
             id: "51",
             filePath: chunk.file,
-            kind: "line",
-            side: "new",
-            startSide: "old",
+            kind: CommentAnchorKinds.LINE,
+            side: CommentSides.NEW,
+            startSide: CommentSides.OLD,
             startLine: 10,
             endLine: 12,
             body: "spans both sides",
-            status: "draft",
+            status: ReviewCommentStatuses.DRAFT,
           },
         ],
       }),
     );
-    const anchor = state.reviewComments[0]?.anchor;
+    const anchor = lineAnchorOf(state.reviewComments[0]);
     expect(anchor?.startSide).toBe("old");
     // Every row from the del at old 10 through the add at new 12.
     expect(anchor?.rowIds).toEqual(
@@ -266,18 +311,18 @@ describe("sessionInitialState", () => {
           {
             id: "53",
             filePath: chunk.file,
-            kind: "line",
-            side: "old",
-            startSide: "new",
+            kind: CommentAnchorKinds.LINE,
+            side: CommentSides.OLD,
+            startSide: CommentSides.NEW,
             startLine: 10,
             endLine: 20,
             body: "backwards across blocks",
-            status: "draft",
+            status: ReviewCommentStatuses.DRAFT,
           },
         ],
       }),
     );
-    const anchor = state.reviewComments[0]?.anchor;
+    const anchor = lineAnchorOf(state.reviewComments[0]);
     // The second hunk's header sits inside the span; it must not ride along.
     expect(anchor?.rowIds).toEqual([1, 3, 4].map((i) => `${chunk.id}:${i}`));
     expect(anchor?.selectedText).toBe(
@@ -293,20 +338,20 @@ describe("sessionInitialState", () => {
           {
             id: "52",
             filePath: firstChunk?.file ?? "",
-            kind: "line",
-            side: "new",
-            startSide: "old",
+            kind: CommentAnchorKinds.LINE,
+            side: CommentSides.NEW,
+            startSide: CommentSides.OLD,
             // No rendered row carries old line 5: the start anchor cannot
             // resolve, and a guessed span would attach to the wrong rows.
             startLine: 5,
             endLine: 10,
             body: "unresolvable start",
-            status: "draft",
+            status: ReviewCommentStatuses.DRAFT,
           },
         ],
       }),
     );
-    const anchor = state.reviewComments[0]?.anchor;
+    const anchor = lineAnchorOf(state.reviewComments[0]);
     expect(anchor?.startSide).toBe("old");
     expect(anchor?.rowIds).toEqual([]);
     expect(anchor?.selectedText).toBe("");
@@ -319,13 +364,13 @@ describe("sessionInitialState", () => {
         {
           id: "1",
           filePath: "a.ts",
-          kind: "line",
-          side: "new",
-          startSide: "old",
+          kind: CommentAnchorKinds.LINE,
+          side: CommentSides.NEW,
+          startSide: CommentSides.OLD,
           startLine: 10,
           endLine: 12,
           body: "x",
-          status: "draft",
+          status: ReviewCommentStatuses.DRAFT,
         },
       ],
     });
@@ -339,13 +384,13 @@ describe("sessionInitialState", () => {
         {
           id: "1",
           filePath: "a.ts",
-          kind: "line",
-          side: "new",
+          kind: CommentAnchorKinds.LINE,
+          side: CommentSides.NEW,
           startSide: "sideways",
           startLine: 10,
           endLine: 12,
           body: "x",
-          status: "draft",
+          status: ReviewCommentStatuses.DRAFT,
         },
       ],
     });

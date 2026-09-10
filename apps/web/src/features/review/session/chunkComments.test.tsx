@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The per-chunk comment selector must keep a stable array identity while the
-// chunk's own slice is unchanged — that identity is what lets React.memo on
+// chunk's own slice is unchanged. That identity is what lets React.memo on
 // ChunkCard actually skip re-renders.
 import { act, cleanup, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -8,10 +8,16 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { Brief } from "../../brief/types";
 import { buildBriefViewModel } from "@web/features/brief/utils";
-import type { CommentAnchor } from "../utils/comments";
+import {
+  CommentSides,
+  ReviewCommentStatuses,
+  type CommentAnchor,
+} from "../utils/comments";
+import { CommentAnchorKinds } from "types";
 import {
   ReviewSessionProvider,
   useChunkReviewComments,
+  useFileReviewComments,
   useReviewSession,
 } from ".";
 
@@ -70,9 +76,10 @@ const brief: Brief = {
 
 function anchorFor(chunkId: string, line: number): CommentAnchor {
   return {
+    kind: CommentAnchorKinds.LINE,
     chunkId,
     file: `src/${chunkId.slice(-1)}.ts`,
-    side: "new",
+    side: CommentSides.NEW,
     startLine: line,
     endLine: line,
     rowIds: [`${chunkId}-row-0`],
@@ -113,7 +120,7 @@ describe("useChunkReviewComments", () => {
         anchor: anchorFor("chunk-a", 11),
         body: "first",
         collapsed: false,
-        status: "draft",
+        status: ReviewCommentStatuses.DRAFT,
       });
     });
     const aAfterSave = result.current.a;
@@ -153,16 +160,39 @@ describe("useChunkReviewComments", () => {
         anchor: anchorFor("chunk-a", 11),
         body: "on a",
         collapsed: false,
-        status: "draft",
+        status: ReviewCommentStatuses.DRAFT,
       });
       void result.current.actions.saveComment({
         anchor: anchorFor("chunk-b", 21),
         body: "on b",
         collapsed: false,
-        status: "draft",
+        status: ReviewCommentStatuses.DRAFT,
       });
     });
     expect(result.current.a.map((comment) => comment.body)).toEqual(["on a"]);
     expect(result.current.b.map((comment) => comment.body)).toEqual(["on b"]);
+  });
+
+  it("does not include file comments in the chunk slice", () => {
+    const { result } = renderHook(
+      () => ({
+        a: useChunkReviewComments("chunk-a"),
+        file: useFileReviewComments("src/a.ts"),
+        actions: useReviewSession((state) => state.actions),
+      }),
+      { wrapper: ReviewSessionTestWrapper },
+    );
+    act(() => {
+      void result.current.actions.saveComment({
+        anchor: { kind: CommentAnchorKinds.FILE, file: "src/a.ts" },
+        body: "on the file",
+        collapsed: false,
+        status: ReviewCommentStatuses.DRAFT,
+      });
+    });
+    expect(result.current.a).toEqual([]);
+    expect(result.current.file.map((comment) => comment.body)).toEqual([
+      "on the file",
+    ]);
   });
 });

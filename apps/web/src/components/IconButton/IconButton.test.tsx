@@ -24,6 +24,23 @@ describe("IconButton", () => {
     expect(screen.getByRole("button", { name: "Next revision" })).toBeTruthy();
   });
 
+  it("keeps the compact callout on label when aria-label is longer", () => {
+    render(
+      <IconButton
+        aria-label="Add a comment on src/deeply/nested/path/a.ts"
+        callout="left"
+        label="Comment on file"
+      >
+        +
+      </IconButton>,
+    );
+    const button = screen.getByRole("button", {
+      name: "Add a comment on src/deeply/nested/path/a.ts",
+    });
+    fireEvent.pointerEnter(button);
+    expect(screen.getByRole("tooltip").textContent).toBe("Comment on file");
+  });
+
   it("autoWidth stamps data-width for labeled icon content", () => {
     render(
       <IconButton autoWidth label="go to change-group g1">
@@ -36,7 +53,7 @@ describe("IconButton", () => {
     expect(button.getAttribute("data-width")).toBe("auto");
   });
 
-  it("disabled renders aria-disabled, never the native attribute, and guards clicks", () => {
+  it("disabled uses aria-disabled and ignores clicks", () => {
     const onClick = vi.fn();
     render(
       <IconButton disabled label="Go" onClick={onClick}>
@@ -50,7 +67,7 @@ describe("IconButton", () => {
     expect(onClick).not.toHaveBeenCalled();
   });
 
-  it("caller-passed aria-disabled without the disabled prop keeps clicks live", () => {
+  it("aria-disabled without disabled still fires clicks", () => {
     const onClick = vi.fn();
     render(
       <IconButton aria-disabled label="Prev" onClick={onClick}>

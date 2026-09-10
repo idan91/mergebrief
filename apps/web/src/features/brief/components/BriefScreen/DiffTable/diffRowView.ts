@@ -1,6 +1,8 @@
 import {
+  isLineCommentAnchor,
   rowId,
   type CommentAnchor,
+  type LineCommentAnchor,
   type ReviewComment,
 } from "@web/features/review/utils";
 import { reviewCommentMatchesDiffLine } from "../../../utils/reviewComments";
@@ -49,13 +51,13 @@ export interface DiffRowView {
  * came from the server: row ids belong to the render that created them, and a
  * session read lands before the diff does, so the coordinates are all it has.
  */
-function anchorEndsOnRow(anchor: CommentAnchor, line: DiffLine): boolean {
+function anchorEndsOnRow(anchor: LineCommentAnchor, line: DiffLine): boolean {
   return resolveSideLine(line, anchor) === anchor.endLine;
 }
 
 function resolveSideLine(
   line: DiffLine,
-  anchor: CommentAnchor,
+  anchor: LineCommentAnchor,
 ): number | undefined {
   return anchor.side === "old" ? line.oldLine : line.newLine;
 }
@@ -74,6 +76,7 @@ export function resolveStrandedRows(
   if (rows.length === 0) return stranded;
   for (const comment of comments) {
     const anchor = comment.anchor;
+    if (!isLineCommentAnchor(anchor)) continue;
     if (anchor.rowIds.length > 0) continue;
     if (rows.some((line) => anchorEndsOnRow(anchor, line))) continue;
     let adopted = 0;
@@ -107,6 +110,7 @@ export function getDiffRowView({
   const isRevStart = revRun !== undefined && revRun.rowIndexes[0] === index;
   const isRevEnd = revRun !== undefined && revRun.rowIndexes.at(-1) === index;
   const rowComments = comments.filter((comment) => {
+    if (!isLineCommentAnchor(comment.anchor)) return false;
     if (comment.anchor.rowIds.length > 0) {
       return comment.anchor.rowIds.at(-1) === id;
     }
@@ -118,7 +122,9 @@ export function getDiffRowView({
   );
   const isSelected = dragIndexes.includes(index) || activeRowIds.has(id);
   const showComposer =
-    activeCommentAnchor?.chunkId === chunk.id &&
+    activeCommentAnchor !== null &&
+    isLineCommentAnchor(activeCommentAnchor) &&
+    activeCommentAnchor.chunkId === chunk.id &&
     activeCommentAnchor.rowIds.at(-1) === id;
 
   return {

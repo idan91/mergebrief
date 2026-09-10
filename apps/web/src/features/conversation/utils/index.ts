@@ -3,6 +3,7 @@
 export {
   buildInlineThreads,
   splitInlineRows,
+  DigestRowKinds,
   type DigestRow,
   type DigestThreadRow,
 } from "./digest";
@@ -25,3 +26,4 @@ export {
   demotedSubmittedCommentIds,
   reconcileOwnComments,
 } from "./ownComments";
+export { ThreadPlacementKinds } from "./anchor";

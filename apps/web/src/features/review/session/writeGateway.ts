@@ -1,10 +1,15 @@
-// Store vocabulary → wire vocabulary for the session writes. The store keys
+// Store vocabulary to wire vocabulary for the session writes. The store keys
 // by brief-local ids; the wire keys by content anchor (file, attribute, line
-// region), so the model resolves one into the other here — the same anchors
+// region), so the model resolves one into the other here, the same anchors
 // the read resolved back.
 import type { BriefViewModel } from "@web/features/brief/utils";
 import type { Category } from "../../brief/types";
-import type { CommentAnchor, ReviewComment } from "../utils/comments";
+import { CommentAnchorKinds } from "types";
+import {
+  isFileCommentAnchor,
+  type CommentAnchor,
+  type ReviewComment,
+} from "../utils/comments";
 import type { ReviewOutcome, RiskEvidence } from "../utils/state";
 import type { BulkDisposition } from "./disposition";
 import { getChunkRegion } from "../utils/state";
@@ -12,11 +17,12 @@ import type {
   DraftAnchorWire,
   EvidenceWire,
   FlagAnchorWire,
+  LineDraftAnchorWire,
   SessionWriteResult,
   SessionWrites,
 } from "./writes";
 
-/** The write side of the store — one method per user action. */
+/** The write side of the store, one method per user action. */
 export interface SessionWriteGateway {
   setRead(chunkId: string, read: boolean): Promise<SessionWriteResult>;
   dispose(
@@ -39,7 +45,7 @@ export interface SessionWriteGateway {
   setOutcome(outcome: ReviewOutcome): Promise<SessionWriteResult>;
 }
 
-/** The ref a stored evidence row carries — the kind decides which field. */
+/** The ref a stored evidence row carries: the kind decides which field. */
 function evidenceRef(evidence: RiskEvidence): string {
   if (evidence.kind === "linked-comment") return evidence.commentId ?? "";
   if (evidence.kind === "chunk-reviewed") return evidence.chunkId ?? "";
@@ -74,13 +80,30 @@ function flagAnchors(model: BriefViewModel): Map<string, FlagAnchorWire> {
 /**
  * A decision that resolved to nothing sendable. NEVER reported as success:
  * the store would keep the disposition, the receipt would count it, and the
- * next read would silently drop it — a risk the reviewer believes is settled
+ * next read would silently drop it, a risk the reviewer believes is settled
  * and the server never heard about.
  */
 const UNRESOLVED: SessionWriteResult = {
   ok: false,
   failure: { frozen: false, copy: "review.writeError.unresolvedRisk" },
 };
+
+function toDraftAnchorWire(anchor: CommentAnchor): DraftAnchorWire {
+  if (isFileCommentAnchor(anchor)) {
+    return { kind: CommentAnchorKinds.FILE, filePath: anchor.file };
+  }
+  const wire: LineDraftAnchorWire = {
+    kind: CommentAnchorKinds.LINE,
+    filePath: anchor.file,
+    side: anchor.side,
+    startLine: anchor.startLine,
+    endLine: anchor.endLine,
+  };
+  if (anchor.startSide !== undefined) {
+    wire.startSide = anchor.startSide;
+  }
+  return wire;
+}
 
 export function createSessionWriteGateway(
   model: BriefViewModel,
@@ -120,31 +143,12 @@ export function createSessionWriteGateway(
     },
     reclassify: (groupId, category) => writes.reclassify(groupId, category),
     createComment: (comment) => {
-      const draft: DraftAnchorWire & { body: string } = {
-        filePath: comment.anchor.file,
-        side: comment.anchor.side,
-        startLine: comment.anchor.startLine,
-        endLine: comment.anchor.endLine,
-        body: comment.body,
-      };
-      if (comment.anchor.startSide !== undefined) {
-        draft.startSide = comment.anchor.startSide;
-      }
-      return writes.createDraft(draft);
+      const draft = toDraftAnchorWire(comment.anchor);
+      return writes.createDraft({ ...draft, body: comment.body });
     },
     updateComment: (id, body) => writes.updateDraft(id, body),
-    reanchorComment: (id, anchor) => {
-      const wire: DraftAnchorWire = {
-        filePath: anchor.file,
-        side: anchor.side,
-        startLine: anchor.startLine,
-        endLine: anchor.endLine,
-      };
-      if (anchor.startSide !== undefined) {
-        wire.startSide = anchor.startSide;
-      }
-      return writes.reanchorDraft(id, wire);
-    },
+    reanchorComment: (id, anchor) =>
+      writes.reanchorDraft(id, toDraftAnchorWire(anchor)),
     deleteComment: (id) => writes.deleteDraft(id),
     setOutcome: (outcome) => writes.setOutcome(outcome),
   };

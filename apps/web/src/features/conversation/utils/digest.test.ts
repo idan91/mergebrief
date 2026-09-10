@@ -5,10 +5,17 @@ import {
   buildConversationDigest,
   buildInlineThreads,
   splitInlineRows,
+  DigestRowKinds,
 } from "./digest";
-import type { ConversationThread, PrConversation } from "../types";
+import {
+  ThreadSubjectTypes,
+  ThreadSides,
+  type ConversationThread,
+  type PrConversation,
+} from "../types";
 import type { Mutable } from "types";
 import { createI18n } from "i18n";
+import { ThreadPlacementKinds } from "./anchor";
 
 const t = createI18n().t;
 
@@ -42,13 +49,15 @@ function thread(overrides: {
   isBot?: boolean;
   body?: string;
   anchorSha?: string;
+  subjectType?: ConversationThread["subjectType"];
 }): ConversationThread {
   nextId += 1;
+  const subjectType = overrides.subjectType ?? ThreadSubjectTypes.LINE;
   const conversationThread: Mutable<ConversationThread> = {
     rootCommentId: nextId,
     path: overrides.path ?? "src/a.ts",
-    side: "RIGHT",
-    subjectType: "LINE",
+    side: ThreadSides.RIGHT,
+    subjectType,
     isResolved: overrides.isResolved ?? false,
     isOutdated: overrides.isOutdated ?? false,
     comments: [
@@ -66,7 +75,9 @@ function thread(overrides: {
     hasMoreComments: false,
   };
 
-  if (!overrides.isOutdated) conversationThread.line = overrides.line ?? 10;
+  if (subjectType !== ThreadSubjectTypes.FILE && !overrides.isOutdated) {
+    conversationThread.line = overrides.line ?? 10;
+  }
   if (overrides.anchorSha !== undefined) {
     conversationThread.anchorSha = overrides.anchorSha;
   }
@@ -158,7 +169,7 @@ describe("buildConversationDigest", () => {
     // newLine 10 (row 1), even though 11 > 10 numerically.
     const leftThread: ConversationThread = {
       ...thread({ line: 11 }),
-      side: "LEFT",
+      side: ThreadSides.LEFT,
     };
     const rightThread = thread({ line: 10 });
     const groups = buildConversationDigest(t, {
@@ -332,5 +343,51 @@ describe("splitInlineRows", () => {
     );
     expect(split.botGroups).toHaveLength(1);
     expect(split.botGroups[0]?.author).toBe("coderabbitai");
+    expect(split.fileHeader).toEqual([]);
+  });
+
+  it("keeps FILE threads in the header slot, not a diff row", () => {
+    const fileThread = thread({
+      path: "src/a.ts",
+      subjectType: ThreadSubjectTypes.FILE,
+    });
+    const rows =
+      buildInlineThreads({
+        conversation: conversation([fileThread]),
+        chunks: CHUNKS,
+        ownThreadIds: new Set(),
+      }).get("c1") ?? [];
+    const split = splitInlineRows(rows);
+    expect([...split.byRow.keys()]).toEqual([]);
+    expect(split.fileHeader).toHaveLength(1);
+    expect(split.fileHeader[0]?.thread.rootCommentId).toBe(
+      fileThread.rootCommentId,
+    );
+  });
+
+  it("duplicates a FILE thread under every header for a split file", () => {
+    const splitChunks = [
+      chunk("c1", "src/a.ts"),
+      chunk("c1b", "src/a.ts"),
+      chunk("c2", "src/b.ts"),
+    ];
+    const fileThread = thread({
+      path: "src/a.ts",
+      subjectType: ThreadSubjectTypes.FILE,
+    });
+    const inline = buildInlineThreads({
+      conversation: conversation([fileThread]),
+      chunks: splitChunks,
+      ownThreadIds: new Set(),
+    });
+    expect(inline.get("c1")?.[0]).toMatchObject({
+      kind: DigestRowKinds.THREAD,
+      placement: { kind: ThreadPlacementKinds.FILE_HEADER, chunkId: "c1" },
+    });
+    expect(inline.get("c1b")?.[0]).toMatchObject({
+      kind: DigestRowKinds.THREAD,
+      placement: { kind: ThreadPlacementKinds.FILE_HEADER, chunkId: "c1b" },
+    });
+    expect(inline.get("c2")).toBeUndefined();
   });
 });

@@ -6,16 +6,22 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { hasUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
-import type { ReviewComment } from "../../utils/comments";
+import {
+  CommentSides,
+  ReviewCommentStatuses,
+  type ReviewComment,
+} from "../../utils/comments";
 import { CommentThread } from "./CommentThread";
+import { CommentAnchorKinds } from "types";
 
 function comment(status: ReviewComment["status"]): ReviewComment {
   return {
     id: "c1",
     anchor: {
+      kind: CommentAnchorKinds.LINE,
       chunkId: "chunk-a",
       file: "src/a.ts",
-      side: "new",
+      side: CommentSides.NEW,
       startLine: 3,
       endLine: 3,
       rowIds: ["chunk-a:0"],
@@ -44,19 +50,19 @@ describe("CommentThread", () => {
   afterEach(cleanup);
 
   it("offers Edit and Delete on a draft", () => {
-    renderThread("draft");
+    renderThread(ReviewCommentStatuses.DRAFT);
     expect(screen.getByRole("button", { name: "Edit" })).toBeDefined();
     expect(screen.getByRole("button", { name: "Delete" })).toBeDefined();
   });
 
   it("moves focus into the editor when Edit opens it", () => {
-    renderThread("draft");
+    renderThread(ReviewCommentStatuses.DRAFT);
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
     expect(document.activeElement).toBe(screen.getByLabelText("Edit comment"));
   });
 
   it("registers a diverged edit with the navigation guard; Cancel releases", () => {
-    renderThread("draft");
+    renderThread(ReviewCommentStatuses.DRAFT);
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
     expect(hasUnsavedComposerText()).toBe(false);
     fireEvent.change(screen.getByLabelText("Edit comment"), {
@@ -71,7 +77,7 @@ describe("CommentThread", () => {
     const deleteComment = vi.fn();
     render(
       <CommentThread
-        comment={comment("draft")}
+        comment={comment(ReviewCommentStatuses.DRAFT)}
         deleteComment={deleteComment}
         toggle={vi.fn()}
         update={vi.fn()}
@@ -89,12 +95,12 @@ describe("CommentThread", () => {
 
   it("Cmd+Enter must not save while a Post is in flight", () => {
     // The Save button disables while posting, but Cmd+Enter reaches
-    // saveEdit directly — the guard lives in the handler, not the button
+    // saveEdit directly. The guard lives in the handler, not the button
     // (capture-at-initiation rule: a mid-flight save would flip the record
     // to `submitted` with a body the request never shipped).
     const update = vi.fn();
     const props = {
-      comment: comment("draft"),
+      comment: comment(ReviewCommentStatuses.DRAFT),
       deleteComment: vi.fn(),
       post: vi.fn(),
       toggle: vi.fn(),
@@ -116,23 +122,23 @@ describe("CommentThread", () => {
     expect(update).toHaveBeenCalledWith("c1", "note");
   });
 
-  it("is read-only once submitted — no Edit/Delete, posted label", () => {
-    renderThread("submitted");
+  it("is read-only once submitted with a posted label", () => {
+    renderThread(ReviewCommentStatuses.SUBMITTED);
     expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
     expect(screen.getByText(/posted to GitHub/i)).toBeDefined();
   });
 
   // The Post affordance exists ONLY when the own-draft route injected the
-  // `post` action — its absence keeps the reviewer state untouched.
-  it("shows no Post button when the post action is absent (reviewer state)", () => {
-    renderThread("draft");
+  // `post` action. Its absence keeps the reviewer state untouched.
+  it("shows no Post button when the post action is absent", () => {
+    renderThread(ReviewCommentStatuses.DRAFT);
     expect(screen.queryByRole("button", { name: "Post" })).toBeNull();
   });
 
   it("offers Post on a draft when the post action is injected, and calls it", () => {
     const post = vi.fn();
-    const draft = comment("draft");
+    const draft = comment(ReviewCommentStatuses.DRAFT);
     render(
       <CommentThread
         comment={draft}
@@ -153,7 +159,7 @@ describe("CommentThread", () => {
     const post = vi.fn();
     render(
       <CommentThread
-        comment={comment("draft")}
+        comment={comment(ReviewCommentStatuses.DRAFT)}
         deleteComment={vi.fn()}
         post={post}
         toggle={vi.fn()}
@@ -180,7 +186,7 @@ describe("CommentThread", () => {
     const post = vi.fn();
     render(
       <CommentThread
-        comment={comment("draft")}
+        comment={comment(ReviewCommentStatuses.DRAFT)}
         deleteComment={vi.fn()}
         post={post}
         posting
@@ -212,12 +218,12 @@ describe("CommentThread", () => {
   });
 
   it("blocks Post while the inline editor is open, re-enabling on cancel", async () => {
-    // Post ships the last SAVED body — with unsaved text in the editor, a
+    // Post ships the last SAVED body. With unsaved text in the editor, a
     // post would silently discard the amendment when the success flip lands.
     const post = vi.fn();
     render(
       <CommentThread
-        comment={comment("draft")}
+        comment={comment(ReviewCommentStatuses.DRAFT)}
         deleteComment={vi.fn()}
         post={post}
         toggle={vi.fn()}
@@ -245,10 +251,13 @@ describe("CommentThread", () => {
 
   it("blocks Post with recoverable copy when the body exceeds the route cap", () => {
     // Deterministic-400 mirror: an over-cap body would
-    // 400 at the route and the UI would resubmit the same draft — the
+    // 400 at the route and the UI would resubmit the same draft. The
     // affordance must block client-side with a reason instead.
     const post = vi.fn();
-    const overlong = { ...comment("draft"), body: "x".repeat(65_537) };
+    const overlong = {
+      ...comment(ReviewCommentStatuses.DRAFT),
+      body: "x".repeat(65_537),
+    };
     render(
       <CommentThread
         comment={overlong}
@@ -267,11 +276,11 @@ describe("CommentThread", () => {
     expect(screen.getByText(/65,536-character limit/)).toBeDefined();
   });
 
-  it("blocks Post with delete-the-draft copy when the anchor path exceeds the route cap", () => {
+  it("blocks Post when the path exceeds the route cap", () => {
     // Route MAX_PATH_LENGTH mirror: an over-long path is a deterministic 400
-    // no edit can fix — the only recovery is deleting the draft.
+    // no edit can fix. The only recovery is deleting the draft.
     const post = vi.fn();
-    const base = comment("draft");
+    const base = comment(ReviewCommentStatuses.DRAFT);
     const overlongPath = {
       ...base,
       anchor: { ...base.anchor, file: `src/${"x".repeat(1_025)}.ts` },
@@ -294,15 +303,15 @@ describe("CommentThread", () => {
     expect(screen.getByText(/path is too long to post/)).toBeDefined();
   });
 
-  it("blocks Post with the external wait reason while a review submit is in flight", () => {
-    // The reverse race: a Submit review in flight already CAPTURED this draft
-    // — posting it mid-submit would double-post it when the review lands.
+  it("blocks Post with the wait reason while a review is submitting", () => {
+    // The reverse race: a Submit review in flight already CAPTURED this draft.
+    // Posting it mid-submit would double-post it when the review lands.
     const post = vi.fn();
     const reason =
       "A review is being submitted — wait for it to finish before posting this comment.";
     render(
       <CommentThread
-        comment={comment("draft")}
+        comment={comment(ReviewCommentStatuses.DRAFT)}
         deleteComment={vi.fn()}
         post={post}
         postBlockedExternally={reason}
@@ -319,14 +328,14 @@ describe("CommentThread", () => {
     expect(screen.getByText(reason)).toBeDefined();
   });
 
-  it("keeps the posting lockdown when the post action is gone (own-draft exit mid-post)", () => {
+  it("keeps posting lockdown when the post action is gone", () => {
     // The own-draft state can exit while a post is settling (same span → no
     // remount). The ACTION vanishes, but Edit/Delete must stay locked on the
-    // still-posting draft — re-enabled controls could flip a submitted record
+    // still-posting draft. Re-enabled controls could flip a submitted record
     // whose edited body never posted, or orphan the GitHub comment on delete.
     render(
       <CommentThread
-        comment={comment("draft")}
+        comment={comment(ReviewCommentStatuses.DRAFT)}
         deleteComment={vi.fn()}
         posting
         toggle={vi.fn()}
@@ -351,7 +360,7 @@ describe("CommentThread", () => {
   it("never offers Post on an already-submitted comment", () => {
     render(
       <CommentThread
-        comment={comment("submitted")}
+        comment={comment(ReviewCommentStatuses.SUBMITTED)}
         deleteComment={vi.fn()}
         post={vi.fn()}
         toggle={vi.fn()}
@@ -366,7 +375,7 @@ describe("CommentThread", () => {
     // posted record must render read-only, not a live Save/Cancel editor.
     const { rerender } = render(
       <CommentThread
-        comment={comment("draft")}
+        comment={comment(ReviewCommentStatuses.DRAFT)}
         deleteComment={vi.fn()}
         toggle={vi.fn()}
         update={vi.fn()}
@@ -377,7 +386,7 @@ describe("CommentThread", () => {
 
     rerender(
       <CommentThread
-        comment={comment("submitted")}
+        comment={comment(ReviewCommentStatuses.SUBMITTED)}
         deleteComment={vi.fn()}
         toggle={vi.fn()}
         update={vi.fn()}

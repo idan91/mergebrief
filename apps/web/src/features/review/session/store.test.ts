@@ -2,12 +2,17 @@ import { describe, expect, it, vi } from "vitest";
 
 import { briefFixture } from "@web/features/brief/fixtures";
 import { buildBriefViewModel } from "@web/features/brief/utils";
-import type { ReviewComment } from "../utils/comments";
+import {
+  CommentSides,
+  ReviewCommentStatuses,
+  type ReviewComment,
+} from "../utils/comments";
 import type { RiskEvidence } from "../utils/state";
 import { createReviewSessionStore, deriveInitialState } from "./store";
 import { serializeSnapshot } from "./snapshot";
 import type { SessionWriteGateway } from "./writeGateway";
 import type { SessionWriteResult } from "./writes";
+import { CommentAnchorKinds } from "types";
 
 const model = buildBriefViewModel(briefFixture);
 const firstFlag = model.flags[0];
@@ -118,16 +123,17 @@ describe("comments + outcome", () => {
     const store = freshStore();
     const comment: Omit<ReviewComment, "id"> = {
       anchor: {
+        kind: CommentAnchorKinds.LINE,
         chunkId: "chunk-a",
         file: "src/leak.ts",
-        side: "new",
+        side: CommentSides.NEW,
         startLine: 10,
         endLine: 10,
         rowIds: ["chunk-a:1"],
         selectedText: "validate(a);",
       },
       body: "first",
-      status: "draft",
+      status: ReviewCommentStatuses.DRAFT,
       collapsed: false,
     };
     const commentId = "chunk-a-new-10-10-1";
@@ -147,24 +153,25 @@ describe("comments + outcome", () => {
   it("a two-side anchor gets its own id with no same-side collision", () => {
     const store = freshStore();
     const anchor = {
+      kind: CommentAnchorKinds.LINE,
       chunkId: "chunk-a",
       file: "src/leak.ts",
-      side: "new" as const,
+      side: CommentSides.NEW,
       startLine: 10,
       endLine: 12,
-      rowIds: [],
+      rowIds: [] as string[],
       selectedText: "",
     };
     void store.getState().actions.saveComment({
       anchor,
       body: "same-side",
-      status: "draft",
+      status: ReviewCommentStatuses.DRAFT,
       collapsed: false,
     });
     void store.getState().actions.saveComment({
-      anchor: { ...anchor, startSide: "old" as const },
+      anchor: { ...anchor, startSide: CommentSides.OLD },
       body: "two-side",
-      status: "draft",
+      status: ReviewCommentStatuses.DRAFT,
       collapsed: false,
     });
     const ids = store.getState().reviewComments.map((comment) => comment.id);
@@ -175,16 +182,17 @@ describe("comments + outcome", () => {
     const store = freshStore();
     const comment: Omit<ReviewComment, "id"> = {
       anchor: {
+        kind: CommentAnchorKinds.LINE,
         chunkId: "chunk-a",
         file: "src/leak.ts",
-        side: "new",
+        side: CommentSides.NEW,
         startLine: 10,
         endLine: 10,
         rowIds: ["chunk-a:1"],
         selectedText: "validate(a);",
       },
       body: "posted text",
-      status: "draft",
+      status: ReviewCommentStatuses.DRAFT,
       collapsed: false,
     };
     void store.getState().actions.saveComment(comment);
@@ -204,16 +212,17 @@ describe("comments + outcome", () => {
     const store = freshStore();
     const comment: Omit<ReviewComment, "id"> = {
       anchor: {
+        kind: CommentAnchorKinds.LINE,
         chunkId: "chunk-a",
         file: "src/leak.ts",
-        side: "new",
+        side: CommentSides.NEW,
         startLine: 10,
         endLine: 10,
         rowIds: ["chunk-a:1"],
         selectedText: "validate(a);",
       },
       body: "first",
-      status: "draft",
+      status: ReviewCommentStatuses.DRAFT,
       collapsed: false,
     };
     void store.getState().actions.saveComment(comment);
@@ -229,6 +238,17 @@ describe("comments + outcome", () => {
 
     const statuses = store.getState().reviewComments.map((c) => c.status);
     expect(statuses).toEqual(["submitted", "draft"]);
+  });
+
+  it("keys a file comment id on kind, path, and suffix", () => {
+    const store = freshStore();
+    void store.getState().actions.saveComment({
+      anchor: { kind: CommentAnchorKinds.FILE, file: "src/leak.ts" },
+      body: "on the file",
+      status: ReviewCommentStatuses.DRAFT,
+      collapsed: false,
+    });
+    expect(store.getState().reviewComments[0]?.id).toBe("file-src/leak.ts-1");
   });
 });
 
@@ -271,9 +291,10 @@ describe("recordSubmittedReview", () => {
 
 function anchorFor(chunkId: string): ReviewComment["anchor"] {
   return {
+    kind: CommentAnchorKinds.LINE,
     chunkId,
     file: "src/leak.ts",
-    side: "new",
+    side: CommentSides.NEW,
     startLine: 10,
     endLine: 10,
     rowIds: [`${chunkId}:1`],
@@ -359,7 +380,7 @@ describe("per-action writes", () => {
     const saved = await store.getState().actions.saveComment({
       anchor: anchorFor("c1"),
       body: "look here",
-      status: "draft",
+      status: ReviewCommentStatuses.DRAFT,
       collapsed: false,
     });
     expect(saved).toBe(true);
@@ -371,7 +392,7 @@ describe("per-action writes", () => {
     const saved = await store.getState().actions.saveComment({
       anchor: anchorFor("c1"),
       body: "look here",
-      status: "draft",
+      status: ReviewCommentStatuses.DRAFT,
       collapsed: false,
     });
     expect(saved).toBe(false);

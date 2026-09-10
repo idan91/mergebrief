@@ -3,7 +3,13 @@ import { createStore, type StoreApi } from "zustand/vanilla";
 
 import type { Category } from "../../brief/types";
 import { type BriefViewModel, GroupViewKinds } from "@web/features/brief/utils";
-import type { CommentAnchor, ReviewComment } from "../utils/comments";
+import {
+  isFileCommentAnchor,
+  ReviewCommentStatuses,
+  type CommentAnchor,
+  type LineCommentAnchor,
+  type ReviewComment,
+} from "../utils/comments";
 import type { ReviewOutcome, RiskEvidence } from "../utils/state";
 import type { BulkDisposition, Disposition } from "./disposition";
 import type { SessionWriteGateway } from "./writeGateway";
@@ -125,15 +131,23 @@ function getUniqueCommentId(
   anchor: CommentAnchor,
   existing: ReviewComment[],
 ): string {
+  const base = isFileCommentAnchor(anchor)
+    ? `file-${anchor.file}`
+    : buildLineCommentIdBase(anchor);
+  const taken = new Set(existing.map((comment) => comment.id));
+  let suffix = 1;
+  while (taken.has(`${base}-${suffix}`)) {
+    suffix += 1;
+  }
+  return `${base}-${suffix}`;
+}
+
+function buildLineCommentIdBase(anchor: LineCommentAnchor): string {
   const crossing =
     anchor.startSide !== undefined && anchor.startSide !== anchor.side
       ? `${anchor.startSide}-`
       : "";
-  const base = `${anchor.chunkId}-${crossing}${anchor.side}-${anchor.startLine}-${anchor.endLine}`;
-  const taken = new Set(existing.map((comment) => comment.id));
-  let n = 1;
-  while (taken.has(`${base}-${n}`)) n += 1;
-  return `${base}-${n}`;
+  return `${anchor.chunkId}-${crossing}${anchor.side}-${anchor.startLine}-${anchor.endLine}`;
 }
 
 /** Initial session state derived from the brief view model (snapshot overrides). */
@@ -364,14 +378,17 @@ export function createReviewSessionStore(
         },
         updateComment(id, body) {
           const before = get().reviewComments.find(
-            (comment) => comment.id === id && comment.status === "draft",
+            (comment) =>
+              comment.id === id &&
+              comment.status === ReviewCommentStatuses.DRAFT,
           );
           if (before === undefined) return;
           set((state) => ({
             reviewComments: state.reviewComments.map((comment) =>
               // Submitted comments are immutable: GitHub holds the posted text,
               // and a local edit would never ship (re-submits are drafts-only).
-              comment.id === id && comment.status === "draft"
+              comment.id === id &&
+              comment.status === ReviewCommentStatuses.DRAFT
                 ? { ...comment, body, collapsed: false }
                 : comment,
             ),
@@ -389,12 +406,15 @@ export function createReviewSessionStore(
         },
         reanchorComment(id, anchor) {
           const before = get().reviewComments.find(
-            (comment) => comment.id === id && comment.status === "draft",
+            (comment) =>
+              comment.id === id &&
+              comment.status === ReviewCommentStatuses.DRAFT,
           );
           if (before === undefined) return false;
           set((state) => ({
             reviewComments: state.reviewComments.map((comment) =>
-              comment.id === id && comment.status === "draft"
+              comment.id === id &&
+              comment.status === ReviewCommentStatuses.DRAFT
                 ? { ...comment, anchor, collapsed: false }
                 : comment,
             ),
@@ -428,13 +448,17 @@ export function createReviewSessionStore(
         deleteComment(id) {
           const comments = get().reviewComments;
           const index = comments.findIndex(
-            (comment) => comment.id === id && comment.status === "draft",
+            (comment) =>
+              comment.id === id &&
+              comment.status === ReviewCommentStatuses.DRAFT,
           );
           const removed = comments[index];
           if (removed === undefined) return;
           set((state) => ({
             reviewComments: state.reviewComments.filter(
-              (comment) => comment.id !== id || comment.status === "submitted",
+              (comment) =>
+                comment.id !== id ||
+                comment.status === ReviewCommentStatuses.SUBMITTED,
             ),
           }));
           void landed(
@@ -464,7 +488,7 @@ export function createReviewSessionStore(
           set((state) => ({
             reviewComments: state.reviewComments.map((comment) =>
               flipped.has(comment.id)
-                ? { ...comment, status: "submitted" }
+                ? { ...comment, status: ReviewCommentStatuses.SUBMITTED }
                 : comment,
             ),
           }));

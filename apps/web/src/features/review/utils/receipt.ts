@@ -5,7 +5,13 @@ import type {
   RepoConfigContext,
 } from "@web/features/brief/utils";
 import type { Brief } from "../../brief/types";
-import type { CommentSide } from "./comments";
+import { CommentAnchorKinds } from "types";
+import {
+  isFileCommentAnchor,
+  ReviewCommentStatuses,
+  type CommentSide,
+  type ReviewCommentStatus,
+} from "./comments";
 import type { SessionSnapshot } from "../session";
 import {
   riskDispositionCounts,
@@ -55,21 +61,31 @@ export interface ReceiptOpenFlag {
   file: string;
 }
 
-export interface ReceiptComment {
+export interface ReceiptCommentBase {
   id: string;
   file: string;
-  side: CommentSide;
-  /** Present only when the range genuinely crosses sides. */
-  startSide?: CommentSide;
-  startLine: number;
-  endLine: number;
   firstLine: string;
   /**
    * @description `draft` ships on the NEXT submit; `submitted` was already
    * posted to GitHub by an earlier one.
    */
-  status: "draft" | "submitted";
+  status: ReviewCommentStatus;
 }
+
+export interface ReceiptLineComment extends ReceiptCommentBase {
+  kind: typeof CommentAnchorKinds.LINE;
+  side: CommentSide;
+  /** Present only when the range genuinely crosses sides. */
+  startSide?: CommentSide;
+  startLine: number;
+  endLine: number;
+}
+
+export interface ReceiptFileComment extends ReceiptCommentBase {
+  kind: typeof CommentAnchorKinds.FILE;
+}
+
+export type ReceiptComment = ReceiptLineComment | ReceiptFileComment;
 
 /** The permanent repo-config record on the Receipt. */
 export interface ReceiptRepoConfig {
@@ -157,8 +173,18 @@ export function buildReceipt(
   }
 
   const comments: ReceiptComment[] = snapshot.reviewComments.map((comment) => {
-    const receiptComment: ReceiptComment = {
+    if (isFileCommentAnchor(comment.anchor)) {
+      return {
+        id: comment.id,
+        kind: CommentAnchorKinds.FILE,
+        file: comment.anchor.file,
+        firstLine: comment.body.split("\n")[0] ?? "",
+        status: comment.status,
+      };
+    }
+    const receiptComment: ReceiptLineComment = {
       id: comment.id,
+      kind: CommentAnchorKinds.LINE,
       file: comment.anchor.file,
       side: comment.anchor.side,
       startLine: comment.anchor.startLine,
@@ -208,6 +234,7 @@ export function buildReceipt(
  * prints no side sign.
  */
 export function receiptCommentLabel(comment: ReceiptComment): string {
+  if (comment.kind === CommentAnchorKinds.FILE) return comment.file;
   const sign = comment.side === "new" ? "+" : "-";
   if (comment.startSide !== undefined && comment.startSide !== comment.side) {
     const startSign = comment.startSide === "new" ? "+" : "-";
@@ -327,6 +354,9 @@ export function shortFile(path: string): string {
 }
 
 function renderCommentLine(label: string, comment: ReceiptComment): string {
+  if (comment.kind === CommentAnchorKinds.FILE) {
+    return `      ${label}: ${comment.file} — ${comment.firstLine}`;
+  }
   const range =
     comment.endLine === comment.startLine ? "" : `-${comment.endLine}`;
   return `      ${label}: ${comment.file}:${comment.startLine}${range} — ${comment.firstLine}`;
@@ -336,9 +366,13 @@ function renderProgressLines(receipt: Receipt): string[] {
   const { progress, addressed, dismissed, comments } = receipt;
   const chunksDone = progress.reviewedChunks >= progress.chunkTotal;
   const surfaceDone = addressed.length + dismissed.length >= progress.flagTotal;
-  const posted = comments.filter((comment) => comment.status === "submitted");
+  const posted = comments.filter(
+    (comment) => comment.status === ReviewCommentStatuses.SUBMITTED,
+  );
   const postedPart = posted.length > 0 ? ` · ${posted.length} posted` : "";
-  const drafts = comments.filter((comment) => comment.status === "draft");
+  const drafts = comments.filter(
+    (comment) => comment.status === ReviewCommentStatuses.DRAFT,
+  );
 
   return [
     `  ${chunksDone ? "✓" : "•"} chunks read: ${progress.reviewedChunks}/${progress.chunkTotal}`,
@@ -381,8 +415,12 @@ function rawReceiptText(receipt: Receipt): string {
   const { subject, comments, addressed, dismissed } = receipt;
   // Drafts ship on the next submit; submitted ones were already posted and
   // are listed as the record they are.
-  const drafts = comments.filter((comment) => comment.status === "draft");
-  const posted = comments.filter((comment) => comment.status === "submitted");
+  const drafts = comments.filter(
+    (comment) => comment.status === ReviewCommentStatuses.DRAFT,
+  );
+  const posted = comments.filter(
+    (comment) => comment.status === ReviewCommentStatuses.SUBMITTED,
+  );
 
   // One array entry per receipt line. An empty section contributes an empty
   // string, and receiptText collapses the blank runs those leave behind.

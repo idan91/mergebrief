@@ -57,9 +57,13 @@ export function useAttributedGroupCardFacade({
     () => new Set(group.chunks.map((chunk) => chunk.id)),
     [group.chunks],
   );
+  const groupFiles = useMemo(
+    () => new Set(group.chunks.map((chunk) => chunk.file)),
+    [group.chunks],
+  );
   const reviewComments = useReviewSession(
     useShallow((state) =>
-      selectGroupReviewComments(state, groupFlags, groupChunkIds),
+      selectGroupReviewComments(state, groupFlags, groupChunkIds, groupFiles),
     ),
   );
   const actions = useReviewSessionActions();

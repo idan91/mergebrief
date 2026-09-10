@@ -70,7 +70,7 @@ describe("owner-scoped pull_request rows", () => {
     expect(row.source).toBe(PullRequestSources.APP_INSTALLATION);
   });
 
-  it("owner upsert is idempotent — same (owner, repo, number) is one row", async () => {
+  it("owner upsert is idempotent: one row per owner, repo and number", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);
 
@@ -83,7 +83,7 @@ describe("owner-scoped pull_request rows", () => {
     expect(second.title).toBe("second");
   });
 
-  it("two owners and a tenant hold independent rows for one (repo, number)", async () => {
+  it("two owners and a tenant hold independent rows for one repo and number", async () => {
     const handle = await freshDatabase();
     const t = createTenantRepository(handle, TENANT_CTX);
     const a = createTenantRepository(handle, CTX_A);
@@ -164,7 +164,7 @@ describe("owner-scoped child writes verify the parent across worlds", () => {
 });
 
 describe("owner-scoped artifact store", () => {
-  it("writes and re-reads a brief under the owner scope; upsert is idempotent", async () => {
+  it("writes and re-reads a brief under owner scope; upsert is idempotent", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);
     const store = createArtifactStore(handle, CTX_A);
@@ -302,8 +302,8 @@ describe("owner-scoped generation projection", () => {
   });
 });
 
-describe("owner-scoped purge (the owner-delete operation's backing)", () => {
-  it("purges the owner's PR, cascades children, and audits with source url-box", async () => {
+describe("owner-scoped purge, the owner-delete operation's backing", () => {
+  it("purges the owner's PR, cascades children, audits with source url-box", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);
     const store = createArtifactStore(handle, CTX_A);
@@ -401,7 +401,7 @@ describe("pull_request owner-shape CHECK", () => {
   });
 });
 
-describe("parseScopeContext — boundary validation", () => {
+describe("parseScopeContext boundary validation", () => {
   it("parses an installation scope from either casing", () => {
     expect(parseScopeContext({ installationId: 42n })).toEqual({
       installationId: 42n,
@@ -460,7 +460,7 @@ describe("owner-scoped review sessions", () => {
     expect(created.ok).toBe(true);
 
     // A guessed (briefId, reviewerId) pair reads nothing across owners or
-    // worlds — the brief-ownership join is the isolation.
+    // worlds; the brief-ownership join is the isolation.
     expect(await b.reviewSessions.get(key)).toBeUndefined();
     expect(await t.reviewSessions.get(key)).toBeUndefined();
     expect(await a.reviewSessions.get(key)).toBeDefined();
@@ -496,7 +496,7 @@ describe("owner-scoped sessions", () => {
     expect(await a.sessions.getByTokenHash("hash-owner")).toBeDefined();
     expect(await t.sessions.getByTokenHash("hash-owner")).toBeUndefined();
 
-    // Another owner's scope cannot delete it — by foreign reviewer id or by
+    // Another owner's scope cannot delete it: by foreign reviewer id or by
     // its own sweep.
     const b = createTenantRepository(handle, CTX_B);
     expect(await b.sessions.deleteByReviewer(OWNER_A)).toBe(0);
@@ -536,7 +536,7 @@ describe("url-box instance visibility", () => {
   });
 });
 
-describe("listOwned — the your-briefs home list", () => {
+describe("listOwned: the your-briefs home list", () => {
   it("lists only the owner's rows, newest first; installation scope refuses", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);

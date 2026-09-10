@@ -3,8 +3,13 @@
 // a comment the reviewer writes a second time.
 import { Categories } from "../../brief/types";
 import { isRecord } from "@web/utils/typeGuards";
-import type { CommentSide } from "../utils/comments";
-import type { ReviewComment } from "../utils/comments";
+import { CommentAnchorKinds } from "types";
+import {
+  CommentSides,
+  ReviewCommentStatuses,
+  type CommentSide,
+  type ReviewComment,
+} from "../utils/comments";
 import type { ReviewOutcome, RiskEvidence } from "../utils/state";
 import { isCarryStatus } from "./attention";
 import type {
@@ -17,11 +22,12 @@ import type {
 // The sets take arbitrary strings at `.has` (the input is unvalidated wire
 // bytes), but every VALUE is pinned to its vocabulary type by `satisfies`:
 // a renamed or added literal fails the build.
-const DRAFT_STATUSES = new Set<string>([
-  "draft",
-  "submitted",
-] satisfies ReviewComment["status"][]);
-const SIDES = new Set<string>(["old", "new"] satisfies CommentSide[]);
+const DRAFT_STATUSES = new Set<string>(
+  Object.values(ReviewCommentStatuses) satisfies ReviewComment["status"][],
+);
+const SIDES = new Set<string>(
+  Object.values(CommentSides) satisfies CommentSide[],
+);
 const DECISIONS = new Set<string>([
   "addressed",
   "dismissed",
@@ -61,8 +67,8 @@ export function isDraftComment(value: unknown): value is SessionDraftComment {
   if (typeof value["status"] !== "string") return false;
   if (!DRAFT_STATUSES.has(value["status"])) return false;
 
-  if (value["kind"] === "file") return true;
-  if (value["kind"] !== "line") return false;
+  if (value["kind"] === CommentAnchorKinds.FILE) return true;
+  if (value["kind"] !== CommentAnchorKinds.LINE) return false;
 
   if (!isSide(value["side"])) return false;
   if (!isAbsentOrSide(value["startSide"])) return false;

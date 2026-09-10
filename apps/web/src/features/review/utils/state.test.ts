@@ -3,12 +3,17 @@ import { describe, expect, it } from "vitest";
 
 import { Roles, type BriefChunk } from "../../brief/types";
 import { GroupViewKinds, type RiskFlag } from "@web/features/brief/utils";
-import type { ReviewComment } from "./comments";
+import {
+  CommentSides,
+  ReviewCommentStatuses,
+  type ReviewComment,
+} from "./comments";
 import type {
   AttentionItemKind,
   SessionAttentionItem,
 } from "../session/attention";
 import type { Disposition } from "../session/disposition";
+import { CommentAnchorKinds } from "types";
 import {
   deriveCarriedItems,
   deriveUnresolvedItems,
@@ -55,16 +60,17 @@ const riskFlag = {
 const reviewComment = {
   id: "comment-1",
   anchor: {
+    kind: CommentAnchorKinds.LINE,
     chunkId: "chunk-a",
     file: "src/a.ts",
-    side: "new",
+    side: CommentSides.NEW,
     startLine: 12,
     endLine: 12,
     rowIds: ["chunk-a:2"],
     selectedText: "return next;",
   },
   body: "Could we cover this branch?",
-  status: "draft",
+  status: ReviewCommentStatuses.DRAFT,
   collapsed: false,
 } satisfies ReviewComment;
 
@@ -279,7 +285,7 @@ function buildOrphanItem(): SessionAttentionItem {
     kind: "orphaned-anchor",
     subject: { type: "draft-comment", id: "comment-1", attribute: null },
     location: {
-      kind: "line",
+      kind: CommentAnchorKinds.LINE,
       filePath: "src/a.ts",
       startLine: 12,
       endLine: 12,
@@ -293,7 +299,7 @@ function buildDispositionItem(kind: AttentionItemKind): SessionAttentionItem {
     kind,
     subject: { type: "disposition", id: null, attribute: "no-tests" },
     location: {
-      kind: "line",
+      kind: CommentAnchorKinds.LINE,
       filePath: "src/a.ts",
       startLine: 10,
       endLine: 13,
@@ -378,7 +384,7 @@ describe("deriveCarriedItems", () => {
     const shifted: SessionAttentionItem = {
       ...item,
       location: {
-        kind: "line",
+        kind: CommentAnchorKinds.LINE,
         filePath: "src/a.ts",
         startLine: 12,
         endLine: 30,

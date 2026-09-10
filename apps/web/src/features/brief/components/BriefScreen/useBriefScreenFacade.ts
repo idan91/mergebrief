@@ -318,6 +318,7 @@ export function useBriefScreenFacade({
     flagCount: model.flags.length,
     intentCheck: brief.intentCheck,
     jumpToChunk,
+    chunks: readingOrderedChunks,
     ownDraftActive,
     postDraft: postDraftComment,
     reviewComments,

@@ -2,7 +2,11 @@ import type { TranslationKey } from "i18n";
 import { createStore, type StoreApi } from "zustand/vanilla";
 
 import { toggleSet } from "@web/utils/collections";
-import type { CommentAnchor, ReviewComment } from "../../utils/comments";
+import {
+  ReviewCommentStatuses,
+  type CommentAnchor,
+  type ReviewComment,
+} from "../../utils/comments";
 import type { DismissTarget, EvidenceTarget } from "../../utils/state";
 import type { ReviewSessionActions } from "../store";
 
@@ -14,7 +18,7 @@ const ANNOUNCE_CLEAR_MS = 30;
 /**
  * @description Posture the screen syncs in every render-relevant change:
  * read-only reasons, own-draft mirror, and the post-now family. None of it is
- * owned here — the screen derives it from route plans and its own in-flight
+ * owned here; the screen derives it from route plans and its own in-flight
  * gate; the store is its distribution channel to the card tree.
  */
 export interface ReviewFlowPosture {
@@ -33,7 +37,7 @@ export interface ReviewFlowPosture {
 /**
  * @description Ephemeral review-flow UI state: composer anchoring,
  * risk-disposition targets/selection, and the page toast. Deliberately
- * OUTSIDE the persisted Review Session snapshot — none of this survives a
+ * OUTSIDE the persisted Review Session snapshot; none of this survives a
  * reload.
  */
 export interface ReviewFlowState extends ReviewFlowPosture {
@@ -52,7 +56,7 @@ export interface ReviewFlowState extends ReviewFlowPosture {
   dismissTarget: DismissTarget | null;
   evidenceTarget: EvidenceTarget | null;
   /** Open inline conversation threads per file-qualified chunk key
-   * (`file#chunkId` — a bare chunk id can collide across diff sources).
+   * (`file#chunkId`; a bare chunk id can collide across diff sources).
    * Store-owned, not card state: a virtualized card unmounts offscreen and
    * its disclosure state must survive the round trip. */
   expandedConversations: ReadonlyMap<string, ReadonlySet<number>>;
@@ -70,7 +74,7 @@ export interface ReviewFlowState extends ReviewFlowPosture {
  */
 export interface ReviewFlowActions {
   /**
-   * @description Opens the composer at the anchor — unless the read-only
+   * @description Opens the composer at the anchor, unless the read-only
    * posture blocks composition, in which case the reason is announced instead
    * (surface WHY through the live region, never a dead control).
    */
@@ -80,10 +84,10 @@ export interface ReviewFlowActions {
   startReanchor: (draftId: string) => void;
   /**
    * @description Trim-and-save a draft at the anchor; an empty body announces
-   * and keeps the composer open. The composer closes when the WRITE lands —
+   * and keeps the composer open. The composer closes when the WRITE lands;
    * a failure leaves it open holding its text, with the same Save available.
    */
-  saveComment: (anchor: CommentAnchor, body: string) => void;
+  saveComment: (anchor: CommentAnchor, body: string) => Promise<boolean>;
   updateComment: (commentId: string, body: string) => void;
   deleteComment: (commentId: string) => void;
   toggleComment: (commentId: string) => void;
@@ -121,7 +125,7 @@ export interface ReviewFlowStoreValue extends ReviewFlowState {
 export type ReviewFlowStore = StoreApi<ReviewFlowStoreValue>;
 
 /**
- * @description The session-store actions the flow delegates comment CRUD to —
+ * @description The session-store actions the flow delegates comment CRUD to:
  * a narrow pick so the flow cannot reach dispositions or submit bookkeeping.
  */
 export type ReviewFlowSessionActions = Pick<
@@ -154,7 +158,7 @@ export function initialReviewFlowState(
  * Ephemeral review-flow store (zustand-in-context, the ReviewSessionProvider
  * pattern): created once per screen mount, never a module singleton. The
  * comment CRUD actions delegate the durable half to the injected session
- * actions and keep the UI half (composer close, toast copy) here — one call
+ * actions and keep the UI half (composer close, toast copy) here: one call
  * site per gesture, state next to the action that mutates it.
  */
 export function createReviewFlowStore(
@@ -226,32 +230,32 @@ export function createReviewFlowStore(
           set({ composerAnchor: null, reanchorDraftId: draftId });
           announce(translate("review.announce.reanchorArmed"));
         },
-        saveComment(anchor, body) {
+        async saveComment(anchor, body) {
           const trimmed = body.trim();
           if (!trimmed) {
             announce(translate("review.announce.commentEmpty"));
-            return;
+            return false;
           }
-          // One in-flight save per composer — a disabled control, not a
-          // protocol: a second click while the first is unresolved could
+          // One in-flight save per composer: a disabled control, not a
+          // protocol. A second click while the first is unresolved could
           // stage the same draft twice.
-          if (get().composerSaving) return;
+          if (get().composerSaving) return false;
           set({ composerSaving: true });
-          void session
-            .saveComment({
+          try {
+            const saved = await session.saveComment({
               anchor,
               body: trimmed,
-              status: "draft",
+              status: ReviewCommentStatuses.DRAFT,
               collapsed: false,
-            })
-            .then((saved) => {
-              if (saved) {
-                set({ composerAnchor: null });
-                announce(translate("review.announce.commentAdded"));
-              }
-              return saved;
-            })
-            .finally(() => set({ composerSaving: false }));
+            });
+            if (saved) {
+              set({ composerAnchor: null });
+              announce(translate("review.announce.commentAdded"));
+            }
+            return saved;
+          } finally {
+            set({ composerSaving: false });
+          }
         },
         updateComment(commentId, body) {
           const trimmed = body.trim();

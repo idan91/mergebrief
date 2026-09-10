@@ -2,18 +2,36 @@
 // Outdated threads need revision labels because anchor-time coordinates are untrusted.
 // Unanchored fresh threads and PR-level comments belong in the general group.
 import type { BriefChunk } from "../../brief/types";
-import { placeThread, type ThreadPlacement } from "./anchor";
+import {
+  placeThread,
+  ThreadPlacementKinds,
+  UnanchoredReasons,
+  type FileOrChunkPlacement,
+  type ThreadPlacement,
+} from "./anchor";
 import { deriveDigestLine } from "./digestLine";
 import type {
   ConversationThread,
   PrConversation,
   PrLevelComment,
 } from "../types";
-import type { Mutable } from "types";
+import type { Mutable, ValueOf } from "types";
 import type { TFunction } from "i18next";
 
+export const DigestRowKinds = {
+  THREAD: "thread",
+  BOT_GROUP: "bot-group",
+} as const;
+
+export const DigestGroupKinds = {
+  CHUNK: "chunk",
+  OUTDATED: "outdated",
+  GENERAL: "general",
+} as const;
+export type DigestGroupKind = ValueOf<typeof DigestGroupKinds>;
+
 export interface DigestThreadRow {
-  readonly kind: "thread";
+  readonly kind: typeof DigestRowKinds.THREAD;
   readonly thread: ConversationThread;
   /** The one-liner for the row (digest-line spec over the root body). */
   readonly digestLine: string;
@@ -30,7 +48,7 @@ export interface DigestThreadRow {
 }
 
 export interface DigestBotGroupRow {
-  readonly kind: "bot-group";
+  readonly kind: typeof DigestRowKinds.BOT_GROUP;
   readonly author: string;
   /** Per-thread rows revealed on expand, already sorted. */
   readonly threads: readonly DigestThreadRow[];
@@ -42,7 +60,7 @@ export type DigestRow = DigestThreadRow | DigestBotGroupRow;
 export interface DigestGroup {
   /** Stable id for expansion bookkeeping: `chunk:<id>` | `outdated` | `general`. */
   readonly id: string;
-  readonly kind: "chunk" | "outdated" | "general";
+  readonly kind: DigestGroupKind;
   readonly label: string;
   readonly chunkId?: string;
   readonly rows: readonly DigestRow[];
@@ -72,7 +90,7 @@ function threadRow(
       ? thread.anchorSha.slice(0, SHORT_SHA_LENGTH)
       : undefined;
   const row: Mutable<DigestThreadRow> = {
-    kind: "thread",
+    kind: DigestRowKinds.THREAD,
     thread,
     digestLine: deriveDigestLine(rootBody),
     placement,
@@ -91,7 +109,10 @@ function threadRow(
  * not comparable; the placement already resolved both to a row position.
  */
 function placementRowIndex(row: DigestThreadRow): number {
-  if (row.placement.kind !== "chunk") return Number.MAX_SAFE_INTEGER;
+  if (row.placement.kind === ThreadPlacementKinds.FILE_HEADER) return -1;
+  if (row.placement.kind !== ThreadPlacementKinds.CHUNK) {
+    return Number.MAX_SAFE_INTEGER;
+  }
   const index = Number(row.placement.rowId.split(":").at(-1));
   return Number.isNaN(index) ? Number.MAX_SAFE_INTEGER : index;
 }
@@ -126,7 +147,7 @@ function toRows(rows: readonly DigestThreadRow[]): DigestRow[] {
   }
   const botGroups: DigestBotGroupRow[] = [...byBot.entries()].map(
     ([author, threads]) => ({
-      kind: "bot-group",
+      kind: DigestRowKinds.BOT_GROUP,
       author,
       threads,
       openCount: threads.filter((row) => !row.thread.isResolved).length,
@@ -136,13 +157,19 @@ function toRows(rows: readonly DigestThreadRow[]): DigestRow[] {
   // sort by their first open thread, fully-resolved groups sink.
   const rowsOut: DigestRow[] = [...humans, ...botGroups];
   rowsOut.sort((left, right) => {
-    const leftRow = left.kind === "thread" ? left : left.threads[0];
-    const rightRow = right.kind === "thread" ? right : right.threads[0];
+    const leftRow =
+      left.kind === DigestRowKinds.THREAD ? left : left.threads[0];
+    const rightRow =
+      right.kind === DigestRowKinds.THREAD ? right : right.threads[0];
     if (leftRow === undefined || rightRow === undefined) return 0;
     const leftOpen =
-      left.kind === "thread" ? !left.thread.isResolved : left.openCount > 0;
+      left.kind === DigestRowKinds.THREAD
+        ? !left.thread.isResolved
+        : left.openCount > 0;
     const rightOpen =
-      right.kind === "thread" ? !right.thread.isResolved : right.openCount > 0;
+      right.kind === DigestRowKinds.THREAD
+        ? !right.thread.isResolved
+        : right.openCount > 0;
     if (leftOpen !== rightOpen) return leftOpen ? -1 : 1;
     return compareRows(leftRow, rightRow);
   });
@@ -150,7 +177,41 @@ function toRows(rows: readonly DigestThreadRow[]): DigestRow[] {
 }
 
 /** Build the digest groups: chunks in reading order, then outdated, then general. */
-type DigestGroupLabel = (kind: "outdated" | "general") => string;
+type DigestGroupLabel = (
+  kind: typeof DigestGroupKinds.OUTDATED | typeof DigestGroupKinds.GENERAL,
+) => string;
+
+function appendPlacedThread(
+  byChunk: Map<string, DigestThreadRow[]>,
+  chunks: readonly BriefChunk[],
+  thread: ConversationThread,
+  row: DigestThreadRow,
+  placement: FileOrChunkPlacement,
+): void {
+  const matchingChunks =
+    placement.kind === ThreadPlacementKinds.FILE_HEADER
+      ? chunks.filter((chunk) => chunk.file === thread.path)
+      : chunks.filter((chunk) => chunk.id === placement.chunkId);
+
+  for (const chunk of matchingChunks) {
+    const list = byChunk.get(chunk.id) ?? [];
+
+    if (placement.kind === ThreadPlacementKinds.FILE_HEADER) {
+      const headerRow: DigestThreadRow = {
+        ...row,
+        placement: {
+          kind: ThreadPlacementKinds.FILE_HEADER,
+          chunkId: chunk.id,
+        },
+      };
+      list.push(headerRow);
+    } else {
+      list.push(row);
+    }
+
+    byChunk.set(chunk.id, list);
+  }
+}
 
 function collectDigestGroups(
   input: BuildConversationDigestInput,
@@ -164,11 +225,12 @@ function collectDigestGroups(
   for (const thread of conversation.threads) {
     const placement = placeThread(thread, chunks);
     const row = threadRow(thread, placement, ownThreadIds, briefGeneratedAt);
-    if (placement.kind === "chunk") {
-      const list = byChunk.get(placement.chunkId) ?? [];
-      list.push(row);
-      byChunk.set(placement.chunkId, list);
-    } else if (placement.reason === "outdated") {
+    if (
+      placement.kind === ThreadPlacementKinds.CHUNK ||
+      placement.kind === ThreadPlacementKinds.FILE_HEADER
+    ) {
+      appendPlacedThread(byChunk, chunks, thread, row, placement);
+    } else if (placement.reason === UnanchoredReasons.OUTDATED) {
       outdated.push(row);
     } else {
       general.push(row);
@@ -181,7 +243,7 @@ function collectDigestGroups(
     if (rows === undefined || rows.length === 0) continue;
     groups.push({
       id: `chunk:${chunk.id}`,
-      kind: "chunk",
+      kind: DigestGroupKinds.CHUNK,
       label: chunk.file,
       chunkId: chunk.id,
       rows: toRows(rows.toSorted(compareRows)),
@@ -189,17 +251,17 @@ function collectDigestGroups(
   }
   if (outdated.length > 0) {
     groups.push({
-      id: "outdated",
-      kind: "outdated",
-      label: labelFor("outdated"),
+      id: DigestGroupKinds.OUTDATED,
+      kind: DigestGroupKinds.OUTDATED,
+      label: labelFor(DigestGroupKinds.OUTDATED),
       rows: toRows(outdated.toSorted(compareRows)),
     });
   }
   if (general.length > 0 || conversation.prComments.length > 0) {
     groups.push({
-      id: "general",
-      kind: "general",
-      label: labelFor("general"),
+      id: DigestGroupKinds.GENERAL,
+      kind: DigestGroupKinds.GENERAL,
+      label: labelFor(DigestGroupKinds.GENERAL),
       rows: toRows(general.toSorted(compareRows)),
       prComments: conversation.prComments,
     });
@@ -217,7 +279,7 @@ export function buildConversationDigest(
   input: BuildConversationDigestInput,
 ): DigestGroup[] {
   return collectDigestGroups(input, (kind) =>
-    kind === "outdated"
+    kind === DigestGroupKinds.OUTDATED
       ? t("conversation.digestOutdated")
       : t("conversation.digestGeneral"),
   );
@@ -230,7 +292,9 @@ export function buildInlineThreads(
   const groups = collectDigestGroups(input, () => "");
   const byChunk = new Map<string, DigestRow[]>();
   for (const group of groups) {
-    if (group.kind !== "chunk" || group.chunkId === undefined) continue;
+    if (group.kind !== DigestGroupKinds.CHUNK || group.chunkId === undefined) {
+      continue;
+    }
     const rows = selectInlineRows(group.rows);
     if (rows.length > 0) byChunk.set(group.chunkId, rows);
   }
@@ -241,7 +305,7 @@ export function buildInlineThreads(
 function selectInlineRows(rows: readonly DigestRow[]): DigestRow[] {
   const inline: DigestRow[] = [];
   for (const row of rows) {
-    if (row.kind === "thread") {
+    if (row.kind === DigestRowKinds.THREAD) {
       if (!row.thread.isOutdated) inline.push(row);
       continue;
     }
@@ -263,6 +327,8 @@ function selectInlineRows(rows: readonly DigestRow[]): DigestRow[] {
 export interface InlineRowSplit {
   /** Human threads keyed by their diff-row index, rendered UNDER the row. */
   readonly byRow: ReadonlyMap<number, DigestThreadRow[]>;
+  /** FILE threads for the ChunkCard header band, not a diff row. */
+  readonly fileHeader: readonly DigestThreadRow[];
   /** Bot groups, ONE aggregated chunk-level disclosure per bot. */
   readonly botGroups: readonly DigestBotGroupRow[];
 }
@@ -275,18 +341,23 @@ export interface InlineRowSplit {
  */
 export function splitInlineRows(rows: readonly DigestRow[]): InlineRowSplit {
   const byRow = new Map<number, DigestThreadRow[]>();
+  const fileHeader: DigestThreadRow[] = [];
   const botGroups: DigestBotGroupRow[] = [];
   for (const row of rows) {
-    if (row.kind === "bot-group") {
+    if (row.kind === DigestRowKinds.BOT_GROUP) {
       botGroups.push(row);
       continue;
     }
-    if (row.placement.kind !== "chunk") continue;
+    if (row.placement.kind === ThreadPlacementKinds.FILE_HEADER) {
+      fileHeader.push(row);
+      continue;
+    }
+    if (row.placement.kind !== ThreadPlacementKinds.CHUNK) continue;
     const index = Number(row.placement.rowId.split(":").at(-1));
     if (Number.isNaN(index)) continue;
     const list = byRow.get(index) ?? [];
     list.push(row);
     byRow.set(index, list);
   }
-  return { byRow, botGroups };
+  return { byRow, fileHeader, botGroups };
 }

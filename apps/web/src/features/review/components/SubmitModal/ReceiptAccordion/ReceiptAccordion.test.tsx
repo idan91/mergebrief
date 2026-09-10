@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 // The accordion receipt view: outcome pinned, folds carry their counts in
 // the summaries, coverage open by default, raw artifact behind a disclosure.
-// Importing I18nProvider registers appI18n as the react-i18next default —
-// the bare-rendered subtree below resolves it without a provider.
+// Importing I18nProvider registers appI18n as the react-i18next default.
+// The bare-rendered subtree below resolves it without a provider.
 // oxlint-disable-next-line import/no-unassigned-import -- registration is the point.
 import "../../../../../i18n/I18nProvider";
 import { cleanup, render, screen } from "@testing-library/react";
@@ -10,6 +10,11 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { Receipt } from "../../../utils/receipt";
 import { ReceiptAccordion } from "./ReceiptAccordion";
+import { CommentAnchorKinds } from "types";
+import {
+  CommentSides,
+  ReviewCommentStatuses,
+} from "@web/features/review/utils";
 
 const RAW =
   "Reviewed by @you (human) · octo/hello #7 @ aaaaaaa\n  not checked: business intent";
@@ -39,21 +44,23 @@ function receipt(): Receipt {
     comments: [
       {
         id: "comment:1",
+        kind: CommentAnchorKinds.LINE,
         file: "src/a.ts",
-        side: "new",
+        side: CommentSides.NEW,
         startLine: 3,
         endLine: 5,
         firstLine: "Race on refresh.",
-        status: "draft",
+        status: ReviewCommentStatuses.DRAFT,
       },
       {
         id: "comment:2",
+        kind: CommentAnchorKinds.LINE,
         file: "src/b.ts",
-        side: "old",
+        side: CommentSides.OLD,
         startLine: 9,
         endLine: 9,
         firstLine: "Dead branch.",
-        status: "submitted",
+        status: ReviewCommentStatuses.SUBMITTED,
       },
     ],
     reclassifiedCount: 0,

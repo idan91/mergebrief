@@ -4,7 +4,7 @@
 // `clearedBy` is read, never inferred: the server sends the operations that
 // clear an item precisely so no client has to keep a kind-to-action table of
 // its own, and a client that guesses drifts the moment a kind gains one.
-import type { ValueOf } from "types";
+import { CommentAnchorKinds, type ValueOf } from "types";
 
 /**
  * The displayed kind. `missing-evidence` is the persistence vocabulary's own
@@ -34,14 +34,14 @@ export const DispositionCarryStatuses = {
 export type DispositionCarryStatus = ValueOf<typeof DispositionCarryStatuses>;
 
 export interface SessionLineAttentionLocation {
-  kind: "line";
+  kind: typeof CommentAnchorKinds.LINE;
   filePath: string;
   startLine: number;
   endLine: number;
 }
 
 export interface SessionFileAttentionLocation {
-  kind: "file";
+  kind: typeof CommentAnchorKinds.FILE;
   filePath: string;
 }
 
@@ -92,9 +92,9 @@ function isSubject(value: unknown): value is SessionAttentionItem["subject"] {
 function isLocation(value: unknown): value is SessionAttentionItem["location"] {
   if (!isRecord(value)) return false;
   if (typeof value["filePath"] !== "string") return false;
-  if (value["kind"] === "file") return true;
+  if (value["kind"] === CommentAnchorKinds.FILE) return true;
   return (
-    value["kind"] === "line" &&
+    value["kind"] === CommentAnchorKinds.LINE &&
     isLine(value["startLine"]) &&
     isLine(value["endLine"])
   );

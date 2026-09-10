@@ -1,7 +1,7 @@
 /* oxlint-disable jsx-a11y/no-autofocus --
    Single deliberate use: the composer mounts in response to an explicit
    click on a diff line, so moving focus into the textarea is the expected
-   next action — not a page-load focus steal. */
+   next action, not a page-load focus steal. */
 import { useTranslation } from "react-i18next";
 import { useEffect, useId } from "react";
 
@@ -11,6 +11,7 @@ import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMenti
 import { useUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
 import {
   commentAnchorLabel,
+  isFileCommentAnchor,
   reviewCommentSubmitLabel,
   type CommentAnchor,
 } from "../../utils/comments";
@@ -40,10 +41,10 @@ export function CommentComposer({
   const composer = useCommentComposerFacade(anchor, save);
   const errorId = useId();
   const guardId = useId();
-  // The composer's text exists nowhere else until saved as a draft —
+  // The composer's text exists nowhere else until saved as a draft.
   // navigation would destroy it.
   useUnsavedComposerText(guardId, composer.body.trim() !== "");
-  // Selected here — the only consumer — so the count doesn't thread through
+  // Selected here, the only consumer, so the count doesn't thread through
   // four component layers and bust every ChunkCard's memo on save/delete;
   // only a mounted (open) composer subscribes.
   const existingReviewCommentCount = useReviewSession(
@@ -61,13 +62,18 @@ export function CommentComposer({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [cancel]);
 
+  const lineCount = isFileCommentAnchor(anchor)
+    ? undefined
+    : t("review.comment.lines", { count: anchor.rowIds.length });
+  const suggestionSeed = isFileCommentAnchor(anchor)
+    ? undefined
+    : anchor.selectedText;
+
   return (
     <div className={styles["composer"]}>
       <div className={styles["meta"]}>
         <span>{commentAnchorLabel(t, anchor)}</span>
-        <span>
-          {t("review.comment.lines", { count: anchor.rowIds.length })}
-        </span>
+        {lineCount !== undefined ? <span>{lineCount}</span> : null}
       </div>
       <MarkdownTextarea
         ariaBusy={saving}
@@ -81,7 +87,7 @@ export function CommentComposer({
           <MarkdownPreview anchor={anchor} body={body} />
         )}
         readOnly={saving}
-        suggestionSeed={anchor.selectedText}
+        suggestionSeed={suggestionSeed}
         value={composer.body}
         onChange={composer.onBodyChange}
         onSubmit={composer.submit}

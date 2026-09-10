@@ -1,7 +1,11 @@
 import type { TFunction } from "i18next";
 
 import type { SuggestionDiffRow } from "@web/components/Markdown/utils";
-import type { ValueOf } from "types";
+import {
+  CommentAnchorKinds,
+  type CommentAnchorKind,
+  type ValueOf,
+} from "types";
 import { DiffLineKinds, type DiffLine } from "../../brief/types";
 
 export const CommentSides = {
@@ -10,9 +14,14 @@ export const CommentSides = {
 } as const;
 export type CommentSide = ValueOf<typeof CommentSides>;
 
-export interface CommentAnchor {
-  chunkId: string;
+export interface CommentAnchorBase {
+  kind: CommentAnchorKind;
   file: string;
+}
+
+export interface LineCommentAnchor extends CommentAnchorBase {
+  kind: typeof CommentAnchorKinds.LINE;
+  chunkId: string;
   side: CommentSide;
   /** Present only when the range genuinely crosses sides. */
   startSide?: CommentSide;
@@ -22,12 +31,40 @@ export interface CommentAnchor {
   selectedText: string;
 }
 
+export interface FileCommentAnchor extends CommentAnchorBase {
+  kind: typeof CommentAnchorKinds.FILE;
+}
+
+export type CommentAnchor = LineCommentAnchor | FileCommentAnchor;
+
+export const ReviewCommentStatuses = {
+  DRAFT: "draft",
+  SUBMITTED: "submitted",
+} as const;
+export type ReviewCommentStatus = ValueOf<typeof ReviewCommentStatuses>;
+
 export interface ReviewComment {
   id: string;
   anchor: CommentAnchor;
   body: string;
-  status: "draft" | "submitted";
+  status: ReviewCommentStatus;
   collapsed: boolean;
+}
+
+export function isLineCommentAnchor(
+  anchor: CommentAnchor,
+): anchor is LineCommentAnchor {
+  return anchor.kind === CommentAnchorKinds.LINE;
+}
+
+export function isFileCommentAnchor(
+  anchor: CommentAnchor,
+): anchor is FileCommentAnchor {
+  return anchor.kind === CommentAnchorKinds.FILE;
+}
+
+export function createFileCommentAnchor(file: string): FileCommentAnchor {
+  return { kind: CommentAnchorKinds.FILE, file };
 }
 
 export function createCommentAnchor(
@@ -35,7 +72,7 @@ export function createCommentAnchor(
   file: string,
   rows: DiffLine[],
   selectedIndexes: number[],
-): CommentAnchor | null {
+): LineCommentAnchor | null {
   const orderedIndexes = [...new Set(selectedIndexes)].toSorted(
     (left, right) => left - right,
   );
@@ -65,7 +102,8 @@ export function createCommentAnchor(
   const endLine = lineForSide(last, side);
   if (typeof startLine !== "number" || typeof endLine !== "number") return null;
 
-  const anchor: CommentAnchor = {
+  const anchor: LineCommentAnchor = {
+    kind: CommentAnchorKinds.LINE,
     chunkId,
     file,
     side,
@@ -88,10 +126,28 @@ export function rowId(chunkId: string, rowIndex: number): string {
   return `${chunkId}:${rowIndex}`;
 }
 
+export interface ChunkLocator {
+  readonly id: string;
+  readonly file: string;
+}
+
+/**
+ * The chunk a comment jumps to. Line comments name their chunk; a File
+ * comment names the first Brief chunk for that path, never an invented id.
+ */
+export function resolveJumpChunkId(
+  comment: ReviewComment,
+  chunks: readonly ChunkLocator[],
+): string {
+  if (isLineCommentAnchor(comment.anchor)) return comment.anchor.chunkId;
+  return chunks.find((chunk) => chunk.file === comment.anchor.file)?.id ?? "";
+}
+
 export function buildSuggestionDiffRows(
   anchor: CommentAnchor,
   suggestionText: string,
 ): SuggestionDiffRow[] {
+  if (!isLineCommentAnchor(anchor)) return [];
   return [
     ...splitDiffText(anchor.selectedText).map(
       (content, index) =>
@@ -113,7 +169,7 @@ export function buildSuggestionDiffRows(
 }
 
 /**
- * Mirrors of the post-now route's Zod caps — keep in lockstep. An over-cap
+ * Mirrors of the post-now route's Zod caps. Keep in lockstep. An over-cap
  * payload is a deterministic 400 there and the UI would resubmit the same
  * draft, so it must block HERE with recoverable copy instead.
  */
@@ -159,6 +215,9 @@ export function commentAnchorLabel(
   t: TFunction,
   anchor: CommentAnchor,
 ): string {
+  if (isFileCommentAnchor(anchor)) {
+    return t("review.comment.addCommentOnFile");
+  }
   const sign = getSignForSide(anchor.side);
   if (anchor.startSide !== undefined && anchor.startSide !== anchor.side) {
     // Each endpoint carries its own sign; bare numbers would lie about sides.
@@ -192,10 +251,10 @@ function isContinuous(indexes: number[]): boolean {
 }
 
 function suggestionLineNumber(
-  anchor: CommentAnchor,
+  anchor: LineCommentAnchor,
   lineOffset: number,
 ): Pick<SuggestionDiffRow, "oldLine" | "newLine"> {
-  // A crossing range has no single side to number from — counting from
+  // A crossing range has no single side to number from: counting from
   // startLine on `side` would put one side's numbers in the other's gutter.
   if (anchor.startSide !== undefined && anchor.startSide !== anchor.side) {
     return {};

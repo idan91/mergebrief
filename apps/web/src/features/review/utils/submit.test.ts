@@ -1,8 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { createI18n } from "i18n";
+import { CommentAnchorKinds } from "types";
 
-import type { CommentAnchor, ReviewComment } from "./comments";
+import {
+  createFileCommentAnchor,
+  type LineCommentAnchor,
+  type ReviewComment,
+  CommentSides,
+  ReviewCommentStatuses,
+} from "./comments";
 import type { Receipt } from "./receipt";
+import { ThreadSides } from "@web/features/conversation/types";
 import {
   buildReviewBody,
   buildSignatureLine,
@@ -13,11 +21,12 @@ import {
 
 const t = createI18n().t;
 
-function anchor(overrides: Partial<CommentAnchor> = {}): CommentAnchor {
+function anchor(overrides: Partial<LineCommentAnchor> = {}): LineCommentAnchor {
   return {
+    kind: CommentAnchorKinds.LINE,
     chunkId: "chunk-1",
     file: "src/a.ts",
-    side: "new",
+    side: CommentSides.NEW,
     startLine: 12,
     endLine: 12,
     rowIds: ["chunk-1:0"],
@@ -28,14 +37,14 @@ function anchor(overrides: Partial<CommentAnchor> = {}): CommentAnchor {
 
 function comment(
   id: string,
-  anchorOverrides: Partial<CommentAnchor> = {},
+  anchorOverrides: Partial<LineCommentAnchor> = {},
   body = "note",
 ): ReviewComment {
   return {
     id,
     anchor: anchor(anchorOverrides),
     body,
-    status: "draft",
+    status: ReviewCommentStatuses.DRAFT,
     collapsed: false,
   };
 }
@@ -43,55 +52,66 @@ function comment(
 describe("mapAnchorToWire", () => {
   it("maps a single-line new-side anchor to RIGHT with no startLine", () => {
     const wire = mapAnchorToWire(
-      anchor({ side: "new", startLine: 12, endLine: 12 }),
+      anchor({ side: CommentSides.NEW, startLine: 12, endLine: 12 }),
     );
     expect(wire).toEqual({
       path: "src/a.ts",
       line: 12,
-      side: "RIGHT",
+      side: ThreadSides.RIGHT,
       selectedText: "const x = 1;",
     });
   });
 
   it("maps a crossing anchor with its own start side, even on equal lines", () => {
     const wire = mapAnchorToWire(
-      anchor({ side: "new", startSide: "old", startLine: 10, endLine: 10 }),
+      anchor({
+        side: CommentSides.NEW,
+        startSide: CommentSides.OLD,
+        startLine: 10,
+        endLine: 10,
+      }),
     );
     expect(wire).toEqual({
       path: "src/a.ts",
       line: 10,
-      side: "RIGHT",
+      side: ThreadSides.RIGHT,
       startLine: 10,
-      startSide: "LEFT",
+      startSide: ThreadSides.LEFT,
       selectedText: "const x = 1;",
     });
   });
 
   it("maps an old-side anchor to LEFT", () => {
     const wire = mapAnchorToWire(
-      anchor({ side: "old", startLine: 5, endLine: 5 }),
+      anchor({ side: CommentSides.OLD, startLine: 5, endLine: 5 }),
     );
-    expect(wire.side).toBe("LEFT");
+    expect(wire.side).toBe(ThreadSides.LEFT);
     expect(wire.line).toBe(5);
   });
 
   it("maps a multi-line anchor to line=end + startLine/startSide", () => {
     const wire = mapAnchorToWire(
-      anchor({ side: "new", startLine: 10, endLine: 14 }),
+      anchor({ side: CommentSides.NEW, startLine: 10, endLine: 14 }),
     );
     expect(wire).toEqual({
       path: "src/a.ts",
       line: 14,
-      side: "RIGHT",
+      side: ThreadSides.RIGHT,
       startLine: 10,
-      startSide: "RIGHT",
+      startSide: ThreadSides.RIGHT,
       selectedText: "const x = 1;",
+    });
+  });
+
+  it("maps a file anchor to path only, with no line", () => {
+    expect(mapAnchorToWire(createFileCommentAnchor("src/a.ts"))).toEqual({
+      path: "src/a.ts",
     });
   });
 });
 
 describe("buildSubmitPayload", () => {
-  it("carries the outcome and the body — never the drafts, which the session holds", () => {
+  it("carries the outcome and body, never the drafts the session holds", () => {
     expect(
       buildSubmitPayload({
         outcome: "request-changes",
@@ -110,10 +130,10 @@ describe("buildSubmitPayload", () => {
   });
 });
 
-describe("mapAnchorToWire — route-cap alignment", () => {
+describe("mapAnchorToWire route-cap alignment", () => {
   it("trims an oversized selectedText to the route's quote budget", () => {
-    // The route caps selectedText at 4000 chars (quote metadata only) — an
-    // over-long selection must not 400 an otherwise valid comment.
+    // The route caps selectedText at 4000 chars. An over-long selection
+    // must not 400 an otherwise valid comment.
     const wire = mapAnchorToWire(anchor({ selectedText: "x".repeat(9_000) }));
     expect(wire.selectedText?.length).toBe(4_000);
   });
@@ -139,7 +159,7 @@ describe("buildSignatureLine", () => {
     expect(line).not.toContain("\n");
   });
 
-  it("is never empty (the review body requirement rides on it)", () => {
+  it("is never empty because the review body requires it", () => {
     const empty: Receipt = {
       ...receipt,
       progress: { reviewedChunks: 0, chunkTotal: 0, flagTotal: 0 },
@@ -160,8 +180,11 @@ describe("submitBlockedReason", () => {
     expect(submitBlockedReason(t, "comment", [comment("a")])).toBeUndefined();
   });
 
-  it("blocks a comment-outcome submit whose drafts were all already submitted", () => {
-    const submitted: ReviewComment = { ...comment("a"), status: "submitted" };
+  it("blocks a comment submit whose drafts were already submitted", () => {
+    const submitted: ReviewComment = {
+      ...comment("a"),
+      status: ReviewCommentStatuses.SUBMITTED,
+    };
     expect(submitBlockedReason(t, "comment", [submitted])).toMatch(
       /at least one comment/i,
     );
@@ -193,9 +216,9 @@ describe("submitBlockedReason", () => {
     ).toBeUndefined();
   });
 
-  it("blocks a submit whose folded rendering would exceed the route's body budget", () => {
+  it("blocks a submit whose fold would exceed the route body budget", () => {
     // Two comments within every per-field cap, but together past the fold
-    // budget the route pre-validates — the route would 400 this same payload
+    // budget the route pre-validates. The route would 400 this same payload
     // on every retry, so it must block HERE with recoverable copy.
     const drafts = [
       comment("a", {}, "x".repeat(40_000)),
@@ -218,7 +241,7 @@ describe("submitBlockedReason", () => {
     );
   });
 
-  it("counts the review comment toward the fold budget, naming it in the copy", () => {
+  it("counts the review comment toward the fold budget in the copy", () => {
     // One inline draft near the budget: an oversize review comment must tip
     // the same pre-validation the route runs, with copy that points at the
     // review comment as a thing to shorten.

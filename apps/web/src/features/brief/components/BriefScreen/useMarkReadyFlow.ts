@@ -2,7 +2,11 @@ import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useLatestRef } from "@web/hooks/useLatestRef";
-import type { ReviewComment } from "@web/features/review/utils";
+import {
+  resolveJumpChunkId,
+  type ChunkLocator,
+  type ReviewComment,
+} from "@web/features/review/utils";
 import type { MarkReadyAction } from "@web/features/pulls/transport";
 import { useMarkReady } from "@web/features/pulls/hooks";
 import type { IntentCheck } from "../../types";
@@ -44,6 +48,7 @@ export interface UseMarkReadyFlowInput {
   flagCount: number;
   intentCheck: IntentCheck | undefined;
   jumpToChunk: (chunkId: string) => void;
+  chunks: readonly ChunkLocator[];
   ownDraftActive: boolean;
   postDraft: (
     comment: ReviewComment,
@@ -84,6 +89,7 @@ export function useMarkReadyFlow(
     flagCount,
     intentCheck,
     jumpToChunk,
+    chunks,
     ownDraftActive,
     postDraft,
     reviewComments,
@@ -219,8 +225,10 @@ export function useMarkReadyFlow(
   const jumpToDraftsFromGate = useCallback(() => {
     setMarkReadyGateOpen(false);
     const first = unpostedDraftComments[0];
-    if (first) jumpToChunk(first.anchor.chunkId);
-  }, [jumpToChunk, unpostedDraftComments]);
+    if (first === undefined) return;
+    const chunkId = resolveJumpChunkId(first, chunks);
+    if (chunkId !== "") jumpToChunk(chunkId);
+  }, [chunks, jumpToChunk, unpostedDraftComments]);
   // Intent lines never feed the gate's OPEN condition.
   const intentGapCount = countIntentGaps(intentCheck);
   const intentTensionCount = countIntentTensions(intentCheck);

@@ -1,13 +1,14 @@
 // Resolve durable wire anchors into brief-local ids against this view model.
 // Drop anchors with no rendered chunk; the attention list explains the missing placement.
 import type { BriefChunk, Category, DiffLine } from "../../brief/types";
-import type { Result } from "types";
+import { CommentAnchorKinds, type Result } from "types";
 import type { BriefViewModel } from "@web/features/brief/utils";
 import {
   CommentSides,
+  createFileCommentAnchor,
   rowId,
-  type CommentAnchor,
   type CommentSide,
+  type LineCommentAnchor,
   type ReviewComment,
 } from "../utils/comments";
 import { getChunkRegion, isFlagUnderAnchor } from "../utils/state";
@@ -38,7 +39,7 @@ export interface SessionDraftCommentBase {
 }
 
 export interface SessionLineDraftComment extends SessionDraftCommentBase {
-  kind: "line";
+  kind: typeof CommentAnchorKinds.LINE;
   side: CommentSide;
   /** Present only when the range genuinely crosses sides. */
   startSide?: CommentSide;
@@ -47,7 +48,7 @@ export interface SessionLineDraftComment extends SessionDraftCommentBase {
 }
 
 export interface SessionFileDraftComment extends SessionDraftCommentBase {
-  kind: "file";
+  kind: typeof CommentAnchorKinds.FILE;
 }
 
 export type SessionDraftComment =
@@ -244,13 +245,26 @@ function toReviewComments(
   payload: ReviewSessionPayload,
   chunks: BriefChunk[],
 ): ReviewComment[] {
-  return payload.draftComments.flatMap((draft) => {
-    if (draft.kind === "file") return [];
+  const comments: ReviewComment[] = [];
+  for (const draft of payload.draftComments) {
+    if (draft.kind === CommentAnchorKinds.FILE) {
+      const inBrief = chunks.some((chunk) => chunk.file === draft.filePath);
+      if (!inBrief) continue;
+      comments.push({
+        id: draft.id,
+        anchor: createFileCommentAnchor(draft.filePath),
+        body: draft.body,
+        status: draft.status,
+        collapsed: false,
+      });
+      continue;
+    }
     const chunk = chunkForDraft(chunks, draft);
-    if (chunk === undefined) return [];
+    if (chunk === undefined) continue;
 
     const { rowIds, selectedText } = rowsForDraft(chunk, draft);
-    const anchor: CommentAnchor = {
+    const anchor: LineCommentAnchor = {
+      kind: CommentAnchorKinds.LINE,
       chunkId: chunk.id,
       file: draft.filePath,
       side: draft.side,
@@ -262,17 +276,15 @@ function toReviewComments(
     if (draft.startSide !== undefined) {
       anchor.startSide = draft.startSide;
     }
-
-    return [
-      {
-        id: draft.id,
-        anchor,
-        body: draft.body,
-        status: draft.status,
-        collapsed: false,
-      },
-    ];
-  });
+    comments.push({
+      id: draft.id,
+      anchor,
+      body: draft.body,
+      status: draft.status,
+      collapsed: false,
+    });
+  }
+  return comments;
 }
 
 /** The store's evidence shape from the row's two columns. */

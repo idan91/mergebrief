@@ -134,7 +134,7 @@ function selectFilePath(toggle: HTMLElement) {
   selection?.addRange(range);
 }
 
-describe("ChunkCard — selectable file path", () => {
+describe("ChunkCard selectable file path", () => {
   it("copies the full file path without toggling the chunk", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {
@@ -150,8 +150,8 @@ describe("ChunkCard — selectable file path", () => {
 
   it("keeps the chunk closed when the gesture selected the file path", () => {
     const { toggleChunk } = renderCard();
-    const toggle = screen.getByRole("button", { name: /src\/deeply/ });
-    // Collapsed selection at mousedown, selected by click time — the
+    const toggle = screen.getByTestId("chunk-toggle");
+    // Collapsed selection at mousedown, selected by click time. The
     // gesture created the selection.
     fireEvent.mouseDown(toggle);
     selectFilePath(toggle);
@@ -161,7 +161,7 @@ describe("ChunkCard — selectable file path", () => {
 
   it("toggles on a plain click", () => {
     const { toggleChunk } = renderCard();
-    const toggle = screen.getByRole("button", { name: /src\/deeply/ });
+    const toggle = screen.getByTestId("chunk-toggle");
     fireEvent.mouseDown(toggle);
     fireEvent.click(toggle, { detail: 1 });
     expect(toggleChunk).toHaveBeenCalledWith(chunk.id);
@@ -169,7 +169,7 @@ describe("ChunkCard — selectable file path", () => {
 
   it("suppresses a shift-click extension whose focus lands in the button", () => {
     const { toggleChunk } = renderCard();
-    const toggle = screen.getByRole("button", { name: /src\/deeply/ });
+    const toggle = screen.getByTestId("chunk-toggle");
     // Anchor outside the button (selection started elsewhere), focus
     // extended onto the file path by a shift-click.
     const outside = document.createElement("p");
@@ -191,7 +191,7 @@ describe("ChunkCard — selectable file path", () => {
 
   it("toggles on keyboard activation even with a live selection", () => {
     const { toggleChunk } = renderCard();
-    const toggle = screen.getByRole("button", { name: /src\/deeply/ });
+    const toggle = screen.getByTestId("chunk-toggle");
     selectFilePath(toggle);
     // Keyboard-synthesized clicks carry detail 0 and no prior mousedown.
     fireEvent.click(toggle, { detail: 0 });
@@ -200,7 +200,7 @@ describe("ChunkCard — selectable file path", () => {
 
   it("stays suppressed when the gesture re-selects a different range", () => {
     const { toggleChunk } = renderCard();
-    const toggle = screen.getByRole("button", { name: /src\/deeply/ });
+    const toggle = screen.getByTestId("chunk-toggle");
     // First selection made and suppressed; still live at the next mousedown.
     selectFilePath(toggle);
     fireEvent.mouseDown(toggle);
@@ -220,46 +220,46 @@ describe("ChunkCard — selectable file path", () => {
 
   it("nets to zero when a double-click word-selects the file path", () => {
     const { toggleChunk } = renderCard();
-    const toggle = screen.getByRole("button", { name: /src\/deeply/ });
-    // click(1): collapsed caret — the guard is skipped, toggle fires.
+    const toggle = screen.getByTestId("chunk-toggle");
+    // click(1): collapsed caret. The guard is skipped, toggle fires.
     fireEvent.mouseDown(toggle, { detail: 1 });
     fireEvent.click(toggle, { detail: 1 });
     expect(toggleChunk).toHaveBeenCalledTimes(1);
     // mousedown(2) precedes the browser's word selection.
     fireEvent.mouseDown(toggle, { detail: 2 });
     selectFilePath(toggle);
-    // click(2): selection changed during the gesture — suppressed.
+    // click(2): selection changed during the gesture, so it is suppressed.
     fireEvent.click(toggle, { detail: 2 });
     expect(toggleChunk).toHaveBeenCalledTimes(1);
-    // The pair netted one toggle — dblclick undoes it.
+    // The pair netted one toggle. dblclick undoes it.
     fireEvent.dblClick(toggle);
     expect(toggleChunk).toHaveBeenCalledTimes(2);
   });
 
-  it("leaves a both-toggled pair alone (stale selection, chip double-click)", () => {
+  it("leaves a both-toggled pair with a stale chip double-click", () => {
     const { toggleChunk } = renderCard();
-    const toggle = screen.getByRole("button", { name: /src\/deeply/ });
+    const toggle = screen.getByTestId("chunk-toggle");
     // Firefox/Safari: a stale selection survives mousedowns on
-    // unselectable chips — both clicks pass the snapshot compare.
+    // unselectable chips. Both clicks pass the snapshot compare.
     selectFilePath(toggle);
     fireEvent.mouseDown(toggle, { detail: 1 });
     fireEvent.click(toggle, { detail: 1 });
     fireEvent.mouseDown(toggle, { detail: 2 });
     fireEvent.click(toggle, { detail: 2 });
     expect(toggleChunk).toHaveBeenCalledTimes(2);
-    // Already net zero — no compensation.
+    // Already net zero. No compensation.
     fireEvent.dblClick(toggle);
     expect(toggleChunk).toHaveBeenCalledTimes(2);
   });
 
   it("never toggles on a jittery double-click that only selected text", () => {
     const { toggleChunk } = renderCard();
-    const toggle = screen.getByRole("button", { name: /src\/deeply/ });
-    // First press drags across a character — click(1) suppressed.
+    const toggle = screen.getByTestId("chunk-toggle");
+    // First press drags across a character. click(1) is suppressed.
     fireEvent.mouseDown(toggle, { detail: 1 });
     selectFilePath(toggle);
     fireEvent.click(toggle, { detail: 1 });
-    // Second press word-selects a different range — click(2) suppressed.
+    // Second press word-selects a different range. click(2) is suppressed.
     fireEvent.mouseDown(toggle, { detail: 2 });
     const file = within(toggle).getByText(chunk.file);
     const text = file.firstChild;
@@ -271,16 +271,16 @@ describe("ChunkCard — selectable file path", () => {
     selection?.removeAllRanges();
     selection?.addRange(range);
     fireEvent.click(toggle, { detail: 2 });
-    // The pair netted zero — the compensator stays quiet.
+    // The pair netted zero. The compensator stays quiet.
     fireEvent.dblClick(toggle);
     expect(toggleChunk).not.toHaveBeenCalled();
   });
 
   it("toggles on a re-click when a stale selection survives the mousedown", () => {
     const { toggleChunk } = renderCard();
-    const toggle = screen.getByRole("button", { name: /src\/deeply/ });
+    const toggle = screen.getByTestId("chunk-toggle");
     // Firefox/Safari keep the selection across mousedowns on unselectable
-    // content — the selection predates the gesture, so the click counts.
+    // content. The selection predates the gesture, so the click counts.
     selectFilePath(toggle);
     fireEvent.mouseDown(toggle);
     fireEvent.click(toggle, { detail: 1 });
@@ -288,7 +288,7 @@ describe("ChunkCard — selectable file path", () => {
   });
 });
 
-describe("ChunkCard — reading position", () => {
+describe("ChunkCard reading position", () => {
   it("marks itself current from the position store, not a prop", () => {
     const { positionStore } = renderCard();
     const card = screen.getByTestId("brief-chunk");

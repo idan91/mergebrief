@@ -19,6 +19,7 @@ export {
 export {
   ReviewSessionProvider,
   useChunkReviewComments,
+  useFileReviewComments,
   useReviewSession,
   useReviewSessionActions,
 } from "./provider";

@@ -1,5 +1,17 @@
 import type { AddressedReviewComment, BriefChunk, DiffLine } from "../types";
 
+export function pathOnlyFileCommentsForChunk(
+  comments: AddressedReviewComment[],
+  chunk: BriefChunk,
+): AddressedReviewComment[] {
+  return comments.filter(
+    (comment) =>
+      comment.file === chunk.file &&
+      comment.line === null &&
+      comment.originalLine === null,
+  );
+}
+
 export function reviewCommentsForChunk(
   comments: AddressedReviewComment[],
   chunk: BriefChunk,
@@ -42,7 +54,7 @@ function reviewCommentBelongsToChunk(
   if (currentLine !== null) return lineInRanges(currentLine, chunk.addedRanges);
 
   const originalLine = comment.originalLine;
-  if (originalLine === null) return true;
+  if (originalLine === null) return false;
   return (
     lineInRanges(originalLine, chunk.removedRanges) ||
     lineInRanges(originalLine, chunk.addedRanges)

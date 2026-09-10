@@ -24,7 +24,10 @@ import {
 // Row-level threads already sit AT their line, so the detail's jump is hidden.
 const noJump = () => undefined;
 import { AddressedDiffComment } from "@web/features/review";
-import { createCommentAnchor } from "@web/features/review/utils";
+import {
+  createCommentAnchor,
+  isLineCommentAnchor,
+} from "@web/features/review/utils";
 import {
   useChunkReviewComments,
   useReviewActions,
@@ -120,9 +123,11 @@ export function DiffTable({
   }, [allComments, ownChunkThreads]);
   // Anchor-match selector: null (stable) unless the composer is on THIS chunk.
   const composerSaving = useReviewFlow((state) => state.composerSaving);
-  const anchorForChunk = useReviewFlow((state) =>
-    state.composerAnchor?.chunkId === chunk.id ? state.composerAnchor : null,
-  );
+  const anchorForChunk = useReviewFlow((state) => {
+    const anchor = state.composerAnchor;
+    if (anchor === null || !isLineCommentAnchor(anchor)) return null;
+    return anchor.chunkId === chunk.id ? anchor : null;
+  });
   const activeCommentAnchor = readOnly ? null : anchorForChunk;
   /**
    * Why comment composition is disabled. When set, commentable rows stay

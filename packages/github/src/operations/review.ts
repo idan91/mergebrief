@@ -31,7 +31,6 @@ export const ReviewSubjectTypes = {
   LINE: "line",
   FILE: "file",
 } as const;
-export type ReviewSubjectType = ValueOf<typeof ReviewSubjectTypes>;
 
 export interface LineReviewCommentInput {
   readonly path: string;

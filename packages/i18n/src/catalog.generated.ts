@@ -163,6 +163,7 @@ export type Catalog = typeof en & {
       drafts_other: "{{count}} drafts";
       addressedCount: "{{count}} addressed";
       reviewCount: "{{count}} review";
+      ariaLabelAddFileComment: "Add a comment on {{file}}";
     };
     progress: (typeof en)["brief"]["progress"] & {
       segmentLabel: "{{label}} {{step}} of {{total}}: {{title}}";

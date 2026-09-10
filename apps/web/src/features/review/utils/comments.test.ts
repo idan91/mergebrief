@@ -1,14 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { createI18n } from "i18n";
+import { CommentAnchorKinds } from "types";
 
 import type { DiffLine } from "../../brief/types";
 import {
   buildSuggestionDiffRows,
   commentAnchorLabel,
+  resolveJumpChunkId,
   createCommentAnchor,
+  createFileCommentAnchor,
   MAX_POSTED_COMMENT_LENGTH,
   postCommentBlockedReason,
   reviewCommentSubmitLabel,
+  CommentSides,
+  ReviewCommentStatuses,
 } from "./comments";
 
 const diffRows: DiffLine[] = [
@@ -24,9 +29,10 @@ const t = createI18n().t;
 describe("createCommentAnchor", () => {
   it("anchors a single added line", () => {
     expect(createCommentAnchor("chunk-1", "src/a.ts", diffRows, [3])).toEqual({
+      kind: CommentAnchorKinds.LINE,
       chunkId: "chunk-1",
       file: "src/a.ts",
-      side: "new",
+      side: CommentSides.NEW,
       startLine: 11,
       endLine: 11,
       rowIds: ["chunk-1:3"],
@@ -38,7 +44,7 @@ describe("createCommentAnchor", () => {
     expect(
       createCommentAnchor("chunk-1", "src/a.ts", diffRows, [3, 4, 5]),
     ).toMatchObject({
-      side: "new",
+      side: CommentSides.NEW,
       startLine: 11,
       endLine: 13,
       selectedText:
@@ -52,14 +58,15 @@ describe("createCommentAnchor", () => {
     ).toBeNull();
   });
 
-  it("anchors a mixed selection across sides — del start, add end", () => {
+  it("anchors a mixed selection across sides, del start and add end", () => {
     expect(
       createCommentAnchor("chunk-1", "src/a.ts", diffRows, [2, 3]),
     ).toEqual({
+      kind: CommentAnchorKinds.LINE,
       chunkId: "chunk-1",
       file: "src/a.ts",
-      side: "new",
-      startSide: "old",
+      side: CommentSides.NEW,
+      startSide: CommentSides.OLD,
       startLine: 11,
       endLine: 11,
       rowIds: ["chunk-1:2", "chunk-1:3"],
@@ -73,7 +80,7 @@ describe("createCommentAnchor", () => {
     expect(
       createCommentAnchor("chunk-1", "src/a.ts", diffRows, [1, 2, 3, 4, 5]),
     ).toMatchObject({
-      side: "new",
+      side: CommentSides.NEW,
       startLine: 10,
       endLine: 13,
     });
@@ -86,10 +93,19 @@ describe("createCommentAnchor", () => {
     expect(
       createCommentAnchor("chunk-1", "src/a.ts", diffRows, [1, 2]),
     ).toMatchObject({
-      side: "old",
-      startSide: "new",
+      side: CommentSides.OLD,
+      startSide: CommentSides.NEW,
       startLine: 10,
       endLine: 11,
+    });
+  });
+});
+
+describe("createFileCommentAnchor", () => {
+  it("names the path only and invents no chunk or line", () => {
+    expect(createFileCommentAnchor("src/a.ts")).toEqual({
+      kind: CommentAnchorKinds.FILE,
+      file: "src/a.ts",
     });
   });
 });
@@ -98,10 +114,11 @@ describe("buildSuggestionDiffRows", () => {
   it("suppresses gutter numbers on a crossing anchor", () => {
     const rows = buildSuggestionDiffRows(
       {
+        kind: CommentAnchorKinds.LINE,
         chunkId: "chunk-1",
         file: "src/a.ts",
-        side: "new",
-        startSide: "old",
+        side: CommentSides.NEW,
+        startSide: CommentSides.OLD,
         startLine: 11,
         endLine: 13,
         rowIds: [],
@@ -114,13 +131,14 @@ describe("buildSuggestionDiffRows", () => {
     ).toBe(true);
   });
 
-  it("renders suggestion previews with diff gutters anchored to the selected lines", () => {
+  it("renders suggestion previews with gutters on the selected lines", () => {
     expect(
       buildSuggestionDiffRows(
         {
+          kind: CommentAnchorKinds.LINE,
           chunkId: "chunk-1",
           file: "src/a.ts",
-          side: "new",
+          side: CommentSides.NEW,
           startLine: 21,
           endLine: 22,
           rowIds: ["chunk-1:3", "chunk-1:4"],
@@ -135,6 +153,12 @@ describe("buildSuggestionDiffRows", () => {
       { kind: "add", newLine: 22, content: "return label.trim();" },
     ]);
   });
+
+  it("builds no suggestion rows for a file comment", () => {
+    expect(
+      buildSuggestionDiffRows(createFileCommentAnchor("src/a.ts"), "c"),
+    ).toEqual([]);
+  });
 });
 
 describe("reviewCommentSubmitLabel", () => {
@@ -148,9 +172,10 @@ describe("postCommentBlockedReason", () => {
   it("renders recoverable route-cap failures through the catalog", () => {
     const comment = {
       anchor: {
+        kind: CommentAnchorKinds.LINE,
         chunkId: "c1",
         file: "src/a.ts",
-        side: "new" as const,
+        side: CommentSides.NEW,
         startLine: 1,
         endLine: 1,
         rowIds: [],
@@ -169,9 +194,10 @@ describe("commentAnchorLabel", () => {
   it("includes the file and selected line range", () => {
     expect(
       commentAnchorLabel(t, {
+        kind: CommentAnchorKinds.LINE,
         chunkId: "c1",
         file: "src/a.ts",
-        side: "new",
+        side: CommentSides.NEW,
         startLine: 11,
         endLine: 13,
         rowIds: [],
@@ -180,9 +206,10 @@ describe("commentAnchorLabel", () => {
     ).toBe("src/a.ts · +11-13");
     expect(
       commentAnchorLabel(t, {
+        kind: CommentAnchorKinds.LINE,
         chunkId: "c1",
         file: "src/a.ts",
-        side: "old",
+        side: CommentSides.OLD,
         startLine: 7,
         endLine: 7,
         rowIds: [],
@@ -191,13 +218,20 @@ describe("commentAnchorLabel", () => {
     ).toBe("src/a.ts · -7");
   });
 
+  it("labels a file anchor as a comment on the file", () => {
+    expect(commentAnchorLabel(t, createFileCommentAnchor("src/a.ts"))).toBe(
+      "Add comment on file",
+    );
+  });
+
   it("spells both signs on a range that crosses sides", () => {
     expect(
       commentAnchorLabel(t, {
+        kind: CommentAnchorKinds.LINE,
         chunkId: "c1",
         file: "src/a.ts",
-        side: "new",
-        startSide: "old",
+        side: CommentSides.NEW,
+        startSide: CommentSides.OLD,
         startLine: 10,
         endLine: 12,
         rowIds: [],
@@ -206,15 +240,75 @@ describe("commentAnchorLabel", () => {
     ).toBe("src/a.ts · -10 → +12");
     expect(
       commentAnchorLabel(t, {
+        kind: CommentAnchorKinds.LINE,
         chunkId: "c1",
         file: "src/a.ts",
-        side: "old",
-        startSide: "new",
+        side: CommentSides.OLD,
+        startSide: CommentSides.NEW,
         startLine: 10,
         endLine: 20,
         rowIds: [],
         selectedText: "",
       }),
     ).toBe("src/a.ts · +10 → -20");
+  });
+});
+
+describe("resolveJumpChunkId", () => {
+  it("returns the line comment's own chunk id", () => {
+    expect(
+      resolveJumpChunkId(
+        {
+          id: "c1",
+          anchor: {
+            kind: CommentAnchorKinds.LINE,
+            chunkId: "chunk-1",
+            file: "src/a.ts",
+            side: CommentSides.NEW,
+            startLine: 11,
+            endLine: 11,
+            rowIds: [],
+            selectedText: "",
+          },
+          body: "note",
+          status: ReviewCommentStatuses.DRAFT,
+          collapsed: false,
+        },
+        [{ id: "other", file: "src/a.ts" }],
+      ),
+    ).toBe("chunk-1");
+  });
+
+  it("returns the first brief chunk for a file comment path", () => {
+    expect(
+      resolveJumpChunkId(
+        {
+          id: "c1",
+          anchor: createFileCommentAnchor("src/a.ts"),
+          body: "note",
+          status: ReviewCommentStatuses.DRAFT,
+          collapsed: false,
+        },
+        [
+          { id: "first", file: "src/a.ts" },
+          { id: "second", file: "src/a.ts" },
+        ],
+      ),
+    ).toBe("first");
+  });
+
+  it("returns empty when the file is not in the brief", () => {
+    expect(
+      resolveJumpChunkId(
+        {
+          id: "c1",
+          anchor: createFileCommentAnchor("gone.ts"),
+          body: "note",
+          status: ReviewCommentStatuses.DRAFT,
+          collapsed: false,
+        },
+        [{ id: "first", file: "src/a.ts" }],
+      ),
+    ).toBe("");
   });
 });

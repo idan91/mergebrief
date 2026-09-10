@@ -9,7 +9,11 @@ import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 
 import type { BriefViewModel } from "@web/features/brief/utils";
-import type { ReviewComment } from "../utils/comments";
+import {
+  isFileCommentAnchor,
+  isLineCommentAnchor,
+  type ReviewComment,
+} from "../utils/comments";
 import {
   createReviewSessionStore,
   type ReviewSessionActions,
@@ -130,7 +134,25 @@ export function useChunkReviewComments(chunkId: string): ReviewComment[] {
   return useReviewSession(
     useShallow((state) =>
       state.reviewComments.filter(
-        (comment) => comment.anchor.chunkId === chunkId,
+        (comment) =>
+          isLineCommentAnchor(comment.anchor) &&
+          comment.anchor.chunkId === chunkId,
+      ),
+    ),
+  );
+}
+
+/**
+ * File comments for one path. Split-file headers share this slice: the
+ * Comment is one, shown under every header for that path.
+ */
+export function useFileReviewComments(filePath: string): ReviewComment[] {
+  return useReviewSession(
+    useShallow((state) =>
+      state.reviewComments.filter(
+        (comment) =>
+          isFileCommentAnchor(comment.anchor) &&
+          comment.anchor.file === filePath,
       ),
     ),
   );

@@ -4,7 +4,14 @@ import {
   isUnattributedRemainderChunk,
   type RiskFlag,
 } from "@web/features/brief/utils";
-import type { ReviewComment } from "./comments";
+import { CommentAnchorKinds } from "types";
+import {
+  ReviewCommentStatuses,
+  resolveJumpChunkId,
+  isFileCommentAnchor,
+  isLineCommentAnchor,
+  type ReviewComment,
+} from "./comments";
 import type { Disposition } from "../session/disposition";
 import type {
   AttentionItemKind,
@@ -102,7 +109,7 @@ export function riskEvidenceLabel(
     const comment = comments.find((item) => item.id === evidence.commentId);
     if (!comment) return t("review.summary.evidenceLinkedCommentMissing");
     return t("review.summary.evidenceLinkedComment", {
-      location: `${comment.anchor.file}:${(comment.anchor.startSide ?? comment.anchor.side) === "new" ? "+" : "-"}${comment.anchor.startLine}`,
+      location: commentLocation(comment),
     });
   }
   if (evidence.kind === "chunk-reviewed") {
@@ -180,12 +187,12 @@ export function deriveUnresolvedItems(
   }
 
   for (const comment of input.comments) {
-    if (comment.status === "draft") {
+    if (comment.status === ReviewCommentStatuses.DRAFT) {
       items.push({
         id: `comment:${comment.id}`,
         kind: "draft-comment",
         label: commentLocation(comment),
-        targetId: comment.anchor.chunkId,
+        targetId: resolveJumpChunkId(comment, input.chunks),
       });
     }
   }
@@ -256,7 +263,7 @@ function getFlagsAtAnchor(
   regions: ReadonlyMap<string, ChunkRegion>,
 ): RiskFlag[] {
   const { location } = item;
-  if (location.kind !== "line") return [];
+  if (location.kind !== CommentAnchorKinds.LINE) return [];
   return input.flags.filter((flag) =>
     isFlagUnderAnchor(flag, regions.get(flag.chunkId), {
       filePath: location.filePath,
@@ -285,19 +292,20 @@ function buildCarriedDraftItem(
   const id = item.subject.id;
   if (id === null) return undefined;
   const live = input.comments.find(
-    (comment) => comment.id === id && comment.status === "draft",
+    (comment) =>
+      comment.id === id && comment.status === ReviewCommentStatuses.DRAFT,
   );
   if (live !== undefined) {
     // Re-anchored: the draft the reviewer re-placed no longer sits where the
     // carry-over left it, and the item is what asked them to move it.
-    if (draftMovedFromAttention(live, item)) {
+    if (hasDraftMovedFromAttention(live, item)) {
       return undefined;
     }
     return {
       id: `carried:${id}`,
       kind: AttentionItemKinds.ORPHANED_ANCHOR,
       label: commentLocation(live),
-      targetId: live.anchor.chunkId,
+      targetId: resolveJumpChunkId(live, input.chunks),
       clearedBy: item.clearedBy,
       actionTargetId: id,
       unplaceable: false,
@@ -312,7 +320,7 @@ function buildCarriedDraftItem(
   return {
     id: `carried:${id}`,
     kind: AttentionItemKinds.ORPHANED_ANCHOR,
-    label: attentionLocationLabel(item.location),
+    label: formatAttentionLocationLabel(item.location),
     targetId: "",
     clearedBy: item.clearedBy,
     actionTargetId: id,
@@ -320,24 +328,25 @@ function buildCarriedDraftItem(
   };
 }
 
-function draftMovedFromAttention(
+function hasDraftMovedFromAttention(
   live: ReviewComment,
   item: SessionAttentionItem,
 ): boolean {
   const { location } = item;
-  if (location.kind === "file") {
+  if (location.kind === CommentAnchorKinds.FILE) {
     return live.anchor.file !== location.filePath;
   }
+  if (!isLineCommentAnchor(live.anchor)) return true;
   return (
     live.anchor.startLine !== location.startLine ||
     live.anchor.endLine !== location.endLine
   );
 }
 
-function attentionLocationLabel(
+function formatAttentionLocationLabel(
   location: SessionAttentionItem["location"],
 ): string {
-  if (location.kind === "file") return location.filePath;
+  if (location.kind === CommentAnchorKinds.FILE) return location.filePath;
   return `${location.filePath}:${String(location.startLine)}`;
 }
 
@@ -434,6 +443,7 @@ export function isThinReason(reason: string): boolean {
 
 export function commentLocation(comment: ReviewComment): string {
   const { anchor } = comment;
+  if (isFileCommentAnchor(anchor)) return anchor.file;
   const sign = anchor.side === "new" ? "+" : "-";
   if (anchor.startSide !== undefined && anchor.startSide !== anchor.side) {
     const startSign = anchor.startSide === "new" ? "+" : "-";

@@ -2,7 +2,11 @@ import { useTranslation } from "react-i18next";
 import { memo, useMemo, useRef } from "react";
 
 import { CopyButton } from "@web/components/CopyButton/CopyButton";
-import { reviewCommentsForChunk } from "../../../../utils/reviewComments";
+import { IconButton } from "@web/components/IconButton/IconButton";
+import {
+  pathOnlyFileCommentsForChunk,
+  reviewCommentsForChunk,
+} from "../../../../utils/reviewComments";
 import { buildChunkComparisonView } from "../../../../comparison/comparison";
 import { isUnattributedRemainderChunk } from "../../../../utils/remainder";
 import type {
@@ -23,6 +27,9 @@ import { RiskBadge } from "../../RiskBadge/RiskBadge";
 import { RiskChipDisclosure } from "../../RiskChipDisclosure/RiskChipDisclosure";
 import { RiskDetailList } from "../../RiskDetailList/RiskDetailList";
 import { RoleBadge } from "./RoleBadge/RoleBadge";
+import { FileCommentBand } from "./FileCommentBand/FileCommentBand";
+import { useFileCommentComposer } from "./useFileCommentComposer";
+import CommentOnFileIcon from "./comment-on-file.svg?react";
 import {
   splitInlineRows,
   type DigestRow,
@@ -146,6 +153,14 @@ export const ChunkCard = memo(function ChunkCard({
   // instead of trusting a parent-built map whose array identities churn on
   // every comment interaction anywhere.
   const comments = useChunkReviewComments(chunk.id);
+  const fileComposer = useFileCommentComposer({
+    chunk,
+    chunkOpen: open,
+    toggleChunk,
+  });
+  const addFileCommentLabel = t("brief.chunk.ariaLabelAddFileComment", {
+    file: chunk.file,
+  });
 
   const riskChips = riskChipView(chunk.riskSurface);
   const comparisonView = useMemo(
@@ -163,11 +178,16 @@ export const ChunkCard = memo(function ChunkCard({
     chunk,
   );
   const hasLinkedAddressedComments = Boolean(chunk.addressesComments?.length);
+  const pathOnlyFileComments =
+    conversationComposer === undefined
+      ? pathOnlyFileCommentsForChunk(addressedReviewComments, chunk)
+      : [];
+  const unlinkedSummaryComments = chunkReviewComments.filter(
+    (comment) => comment.outdated || comment.line === null,
+  );
   const topReviewComments = hasLinkedAddressedComments
     ? chunkReviewComments
-    : chunkReviewComments.filter(
-        (comment) => comment.outdated || comment.line === null,
-      );
+    : unlinkedSummaryComments.concat(pathOnlyFileComments);
   const inlineReviewComments = hasLinkedAddressedComments
     ? chunkReviewComments
     : chunkReviewComments.filter(
@@ -311,12 +331,29 @@ export const ChunkCard = memo(function ChunkCard({
           <span>{t("brief.chunk.viewed")}</span>
           <ScreenReaderOnly>{` ${chunk.file}`}</ScreenReaderOnly>
         </label>
+        <IconButton
+          aria-label={addFileCommentLabel}
+          aria-pressed={fileComposer.composerOpen}
+          callout="left"
+          className={styles["fileCommentControl"]}
+          label={t("review.comment.commentOnFile")}
+          onClick={fileComposer.requestComposer}
+        >
+          <CommentOnFileIcon aria-hidden="true" />
+        </IconButton>
       </div>
       {!open ? (
         <ScreenReaderOnly>{t("brief.chunk.collapsed")}</ScreenReaderOnly>
       ) : null}
       {open ? (
         <div className={styles["body"]}>
+          <FileCommentBand
+            chunk={chunk}
+            composerOpen={fileComposer.composerOpen}
+            conversationComposer={conversationComposer}
+            inboundRows={conversationSplit.fileHeader}
+            onCancelComposer={fileComposer.cancelComposer}
+          />
           {chunk.summary ||
           chunk.addressesComments?.length ||
           topReviewComments.length > 0 ? (

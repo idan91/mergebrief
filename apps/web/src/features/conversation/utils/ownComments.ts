@@ -4,8 +4,19 @@
 // tiebreak, collision worst case is display-level only. A local DRAFT
 // matching an own server thread is reported for flipping, so a missed
 // sessionStorage flip can never re-ship posted comments.
-import type { ReviewComment } from "@web/features/review/utils";
-import type { ConversationThread, ThreadSide } from "../types";
+import {
+  CommentSides,
+  ReviewCommentStatuses,
+  isLineCommentAnchor,
+  type CommentSide,
+  type ReviewComment,
+} from "@web/features/review/utils";
+import {
+  ThreadSides,
+  ThreadSubjectTypes,
+  type ConversationThread,
+  type ThreadSide,
+} from "../types";
 
 export interface OwnCommentReconciliation {
   /** Root comment ids of threads created by this reviewer's recorded submits. */
@@ -24,18 +35,25 @@ export interface OwnCommentReconciliation {
   readonly resurrectedDraftIds: readonly string[];
 }
 
-const LOCAL_SIDE_TO_WIRE: Record<ReviewComment["anchor"]["side"], ThreadSide> =
-  {
-    old: "LEFT",
-    new: "RIGHT",
-  };
+const LOCAL_SIDE_TO_WIRE: Record<CommentSide, ThreadSide> = {
+  [CommentSides.OLD]: ThreadSides.LEFT,
+  [CommentSides.NEW]: ThreadSides.RIGHT,
+};
 
 function anchorMatchesThread(
   comment: ReviewComment,
   thread: ConversationThread,
 ): boolean {
+  if (!isLineCommentAnchor(comment.anchor)) {
+    return (
+      comment.anchor.file === thread.path &&
+      thread.subjectType === ThreadSubjectTypes.FILE &&
+      thread.line === undefined
+    );
+  }
   return (
     comment.anchor.file === thread.path &&
+    thread.subjectType === ThreadSubjectTypes.LINE &&
     thread.line !== undefined &&
     // The outbound map anchors on endLine; the thread's line IS that anchor.
     comment.anchor.endLine === thread.line &&
@@ -63,7 +81,11 @@ export function reconcileOwnComments(
 
   const pointers = matchLocalsToOwnThreads(localComments, ownThreads);
   const resurrectedDraftIds = localComments
-    .filter((comment) => comment.status === "draft" && pointers.has(comment.id))
+    .filter(
+      (comment) =>
+        comment.status === ReviewCommentStatuses.DRAFT &&
+        pointers.has(comment.id),
+    )
     .map((comment) => comment.id);
 
   return { ownThreadIds, pointers, resurrectedDraftIds };
@@ -126,7 +148,7 @@ export function demotedSubmittedCommentIds(
   ownThreads: readonly ConversationThread[],
 ): ReadonlySet<string> {
   const submitted = localComments.filter(
-    (comment) => comment.status === "submitted",
+    (comment) => comment.status === ReviewCommentStatuses.SUBMITTED,
   );
   return new Set(matchLocalsToOwnThreads(submitted, ownThreads).keys());
 }

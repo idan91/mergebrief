@@ -12,6 +12,7 @@ vi.mock("../../../data/apiFetch", async (importOriginal) => {
 
 import { apiFetch } from "../../../data/apiFetch";
 import { createSessionWrites } from "./writes";
+import { CommentSides } from "../utils/comments";
 
 const apiFetchMock = vi.mocked(apiFetch);
 const TARGET = {
@@ -57,12 +58,12 @@ describe("createSessionWrites", () => {
     );
   });
 
-  it("returns the server's draft id — the key post-now addresses", async () => {
+  it("returns the server draft id that post-now addresses", async () => {
     respond(201, { draftId: "9001" });
     await expect(
       writes.createDraft({
         filePath: "a.ts",
-        side: "new",
+        side: CommentSides.NEW,
         startLine: 3,
         endLine: 3,
         body: "look here",
@@ -95,7 +96,7 @@ describe("createSessionWrites", () => {
     }
   });
 
-  it("reports a thrown request as indeterminate — never as nothing happened", async () => {
+  it("reports a thrown request as indeterminate, not as nothing happened", async () => {
     apiFetchMock.mockReset();
     apiFetchMock.mockRejectedValue(new Error("offline"));
     await expect(writes.setRead("chunk-a", false)).resolves.toEqual({

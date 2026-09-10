@@ -4,14 +4,20 @@
 //
 // This drives the REAL Review Session store through the exact action sequence
 // the own-draft `postDraftComment` handler applies on a `posted` result, and
-// asserts against the SAME `status === "draft"` predicate the MarkReadyModal
-// counts by, the store-level contract post-now depends on, not a re-test of a
-// single action in isolation.
+// asserts against the SAME `status === ReviewCommentStatuses.DRAFT` predicate
+// the MarkReadyModal counts by, the store-level contract post-now depends on,
+// not a re-test of a single action in isolation.
 import { describe, expect, it } from "vitest";
 
 import { briefFixture } from "@web/features/brief/fixtures";
 import { buildBriefViewModel } from "@web/features/brief/utils";
-import type { CommentAnchor, ReviewComment } from "@web/features/review/utils";
+import {
+  CommentSides,
+  ReviewCommentStatuses,
+  type CommentAnchor,
+  type ReviewComment,
+} from "@web/features/review/utils";
+import { CommentAnchorKinds } from "types";
 import {
   createReviewSessionStore,
   deriveInitialState,
@@ -25,13 +31,16 @@ function store() {
 
 /** The MarkReadyModal's unposted-draft count (BriefPage.unpostedDraftComments). */
 function unpostedDraftCount(comments: readonly ReviewComment[]): number {
-  return comments.filter((comment) => comment.status === "draft").length;
+  return comments.filter(
+    (comment) => comment.status === ReviewCommentStatuses.DRAFT,
+  ).length;
 }
 
 const ANCHOR: CommentAnchor = {
+  kind: CommentAnchorKinds.LINE,
   chunkId: "chunk-a",
   file: "src/a.ts",
-  side: "new",
+  side: CommentSides.NEW,
   startLine: 3,
   endLine: 3,
   rowIds: ["chunk-a:0"],
@@ -45,7 +54,7 @@ describe("post-now success effect on the Review Session store", () => {
     void actions.saveComment({
       anchor: ANCHOR,
       body: "post me now",
-      status: "draft",
+      status: ReviewCommentStatuses.DRAFT,
       collapsed: false,
     });
 
@@ -72,13 +81,13 @@ describe("post-now success effect on the Review Session store", () => {
     void actions.saveComment({
       anchor: ANCHOR,
       body: "first",
-      status: "draft",
+      status: ReviewCommentStatuses.DRAFT,
       collapsed: false,
     });
     void actions.saveComment({
       anchor: { ...ANCHOR, startLine: 9, endLine: 9, rowIds: ["chunk-a:6"] },
       body: "second",
-      status: "draft",
+      status: ReviewCommentStatuses.DRAFT,
       collapsed: false,
     });
     expect(unpostedDraftCount(s.getState().reviewComments)).toBe(2);

@@ -17,6 +17,11 @@ import { isUnattributedRemainderChunk } from "../../../utils/remainder";
 import type { DigestRow } from "@web/features/conversation/utils";
 import type { ThreadComposerWiring } from "@web/features/conversation";
 import { useReviewFlow } from "@web/features/review/session";
+import {
+  isLineCommentAnchor,
+  type ChunkLocator,
+  type CommentAnchor,
+} from "@web/features/review/utils";
 import { ChunkCard } from "./ChunkCard/ChunkCard";
 import { GroupCard } from "./GroupCard/GroupCard";
 import { RiskBadge } from "../RiskBadge/RiskBadge";
@@ -169,6 +174,51 @@ interface WindowedChunkListProps {
   addressedReviewComments: AddressedReviewComment[];
 }
 
+function pinComposerChunks(
+  pinned: Set<string>,
+  composerAnchor: CommentAnchor,
+  chunks: readonly ChunkLocator[],
+  keyByChunkId: ReadonlyMap<string, string>,
+): void {
+  if (isLineCommentAnchor(composerAnchor)) {
+    const key = keyByChunkId.get(composerAnchor.chunkId);
+    if (key !== undefined) {
+      pinned.add(key);
+    }
+    return;
+  }
+
+  for (const chunk of chunks) {
+    if (chunk.file !== composerAnchor.file) {
+      continue;
+    }
+    pinned.add(`${chunk.file}#${chunk.id}`);
+  }
+}
+
+function collectPinnedChunkKeys(
+  focusedKey: string | null,
+  composerAnchor: CommentAnchor | null,
+  chunks: readonly ChunkLocator[],
+  keyByChunkId: ReadonlyMap<string, string>,
+): Set<string> | undefined {
+  const pinned = new Set<string>();
+
+  if (focusedKey !== null) {
+    pinned.add(focusedKey);
+  }
+
+  if (composerAnchor !== null) {
+    pinComposerChunks(pinned, composerAnchor, chunks, keyByChunkId);
+  }
+
+  if (pinned.size === 0) {
+    return undefined;
+  }
+
+  return pinned;
+}
+
 /**
  * Mount viewport-adjacent cards while preserving the estimated column height.
  * Keep the focused card and open composer mounted.
@@ -193,15 +243,16 @@ function WindowedChunkList({
 
   const composerAnchor = useReviewFlow((state) => state.composerAnchor);
   const [focusedKey, setFocusedKey] = useState<string | null>(null);
-  const pinnedKeys = useMemo(() => {
-    const pinned = new Set<string>();
-    if (focusedKey !== null) pinned.add(focusedKey);
-    if (composerAnchor) {
-      const key = keyByChunkId.get(composerAnchor.chunkId);
-      if (key !== undefined) pinned.add(key);
-    }
-    return pinned.size > 0 ? pinned : undefined;
-  }, [composerAnchor, focusedKey, keyByChunkId]);
+  const pinnedKeys = useMemo(
+    () =>
+      collectPinnedChunkKeys(
+        focusedKey,
+        composerAnchor,
+        group.chunks,
+        keyByChunkId,
+      ),
+    [composerAnchor, focusedKey, group.chunks, keyByChunkId],
+  );
 
   const { openChunks } = view;
   const estimateChunk = useCallback(

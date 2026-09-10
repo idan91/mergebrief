@@ -4,8 +4,13 @@
 // linked-id half of the filter would render "evidence comment missing" for a
 // disposition the reviewer legitimately recorded.
 import { describe, expect, it } from "vitest";
+import { CommentAnchorKinds } from "types";
 
-import type { ReviewComment } from "@web/features/review/utils";
+import {
+  CommentSides,
+  ReviewCommentStatuses,
+  type ReviewComment,
+} from "@web/features/review/utils";
 import type { RiskFlag } from "../../../../utils/viewModel";
 import { selectGroupReviewComments } from "./utils";
 
@@ -13,16 +18,17 @@ function comment(id: string, chunkId: string): ReviewComment {
   return {
     id,
     anchor: {
+      kind: CommentAnchorKinds.LINE,
       chunkId,
       file: "src/x.ts",
-      side: "new",
+      side: CommentSides.NEW,
       startLine: 1,
       endLine: 1,
       rowIds: [],
       selectedText: "",
     },
     body: `${id} body`,
-    status: "draft",
+    status: ReviewCommentStatuses.DRAFT,
     collapsed: false,
   };
 }
@@ -37,6 +43,8 @@ const FLAG: RiskFlag = {
   deEmphasized: false,
 };
 
+const FILES = new Set<string>();
+
 describe("selectGroupReviewComments", () => {
   it("keeps comments anchored on the group's own chunks", () => {
     const result = selectGroupReviewComments(
@@ -46,6 +54,7 @@ describe("selectGroupReviewComments", () => {
       },
       [],
       new Set(["c1"]),
+      FILES,
     );
     expect(result.map((entry) => entry.id)).toEqual(["own"]);
   });
@@ -63,6 +72,7 @@ describe("selectGroupReviewComments", () => {
       },
       [FLAG],
       new Set(["c1"]),
+      FILES,
     );
     expect(result.map((entry) => entry.id)).toEqual(["own", "foreign"]);
   });
@@ -80,7 +90,28 @@ describe("selectGroupReviewComments", () => {
       },
       [FLAG],
       new Set(["c1"]),
+      FILES,
     );
     expect(result).toEqual([]);
+  });
+
+  it("keeps a file comment whose path is in the group", () => {
+    const fileComment: ReviewComment = {
+      id: "file-1",
+      anchor: {
+        kind: CommentAnchorKinds.FILE,
+        file: "src/x.ts",
+      },
+      body: "on the file",
+      status: ReviewCommentStatuses.DRAFT,
+      collapsed: false,
+    };
+    const result = selectGroupReviewComments(
+      { dispositions: {}, reviewComments: [fileComment, comment("own", "c1")] },
+      [],
+      new Set(["c1"]),
+      new Set(["src/x.ts"]),
+    );
+    expect(result.map((entry) => entry.id)).toEqual(["file-1", "own"]);
   });
 });

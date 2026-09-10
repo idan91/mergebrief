@@ -1,13 +1,15 @@
 import { createI18n } from "i18n";
 import { describe, expect, it } from "vitest";
+import { CommentAnchorKinds } from "types";
 
 import { briefFixture } from "@web/features/brief/fixtures";
 import { buildBriefViewModel, GroupViewKinds } from "@web/features/brief/utils";
 import { Roles, type Brief } from "@web/features/brief/types";
+import type { SessionSnapshot } from "../session";
+import { CommentSides, ReviewCommentStatuses } from "./comments";
 import { buildReceipt } from "./receipt";
 
 const t = createI18n().t;
-import type { SessionSnapshot } from "../session";
 
 const model = buildBriefViewModel(briefFixture);
 const flagId = model.flags[0]!.id;
@@ -136,9 +138,10 @@ describe("buildReceipt", () => {
 
   it("counts reclassified groups and maps comments to first lines", () => {
     const anchor = {
+      kind: CommentAnchorKinds.LINE,
       chunkId: "chunk-a",
       file: "src/leak.ts",
-      side: "new" as const,
+      side: CommentSides.NEW,
       startLine: 10,
       endLine: 12,
       rowIds: ["chunk-a:1"],
@@ -153,7 +156,7 @@ describe("buildReceipt", () => {
             id: "c1",
             anchor,
             body: "Please add a test.\nSecond line.",
-            status: "draft",
+            status: ReviewCommentStatuses.DRAFT,
             collapsed: false,
           },
           {
@@ -162,7 +165,7 @@ describe("buildReceipt", () => {
             id: "c0",
             anchor,
             body: "Already posted.",
-            status: "submitted",
+            status: ReviewCommentStatuses.SUBMITTED,
             collapsed: false,
           },
         ],
@@ -174,21 +177,23 @@ describe("buildReceipt", () => {
     expect(receipt.comments).toEqual([
       {
         id: "c1",
+        kind: CommentAnchorKinds.LINE,
         file: "src/leak.ts",
-        side: "new",
+        side: CommentSides.NEW,
         startLine: 10,
         endLine: 12,
         firstLine: "Please add a test.",
-        status: "draft",
+        status: ReviewCommentStatuses.DRAFT,
       },
       {
         id: "c0",
+        kind: CommentAnchorKinds.LINE,
         file: "src/leak.ts",
-        side: "new",
+        side: CommentSides.NEW,
         startLine: 10,
         endLine: 12,
         firstLine: "Already posted.",
-        status: "submitted",
+        status: ReviewCommentStatuses.SUBMITTED,
       },
     ]);
   });

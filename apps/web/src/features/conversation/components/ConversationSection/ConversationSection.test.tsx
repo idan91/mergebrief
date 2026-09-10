@@ -17,7 +17,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Brief, BriefChunk } from "@web/features/brief/types";
 import { buildBriefViewModel } from "@web/features/brief/utils";
-import type { ReviewComment } from "@web/features/review/utils";
+import {
+  CommentSides,
+  ReviewCommentStatuses,
+  type ReviewComment,
+} from "@web/features/review/utils";
 import {
   createReviewFlowStore,
   ReviewSessionProvider,
@@ -26,7 +30,12 @@ import {
   type ReviewSessionActions,
 } from "@web/features/review/session";
 import type { ConversationResult } from "../../queries";
-import type { PrConversation } from "../../types";
+import {
+  ThreadSubjectTypes,
+  ThreadSides,
+  type PrConversation,
+} from "../../types";
+import { CommentAnchorKinds } from "types";
 import {
   DEFAULT_CONVERSATION_FILTER,
   parseConversationFilter,
@@ -75,8 +84,8 @@ function conversation(): PrConversation {
         rootCommentId: 9001,
         path: "src/a.ts",
         line: 10,
-        side: "RIGHT",
-        subjectType: "LINE",
+        side: ThreadSides.RIGHT,
+        subjectType: ThreadSubjectTypes.LINE,
         isResolved: false,
         isOutdated: false,
         comments: [
@@ -94,8 +103,8 @@ function conversation(): PrConversation {
         rootCommentId: 9002,
         path: "src/a.ts",
         line: 10,
-        side: "RIGHT",
-        subjectType: "LINE",
+        side: ThreadSides.RIGHT,
+        subjectType: ThreadSubjectTypes.LINE,
         isResolved: true,
         isOutdated: false,
         comments: [
@@ -486,16 +495,17 @@ describe("ConversationSection", () => {
     const localDraft: ReviewComment = {
       id: "ghost-draft",
       anchor: {
+        kind: CommentAnchorKinds.LINE,
         chunkId: "c1",
         file: "src/a.ts",
-        side: "new",
+        side: CommentSides.NEW,
         startLine: 10,
         endLine: 10,
         rowIds: ["c1:1"],
         selectedText: "b",
       },
       body: "This null check looks inverted.",
-      status: "draft",
+      status: ReviewCommentStatuses.DRAFT,
       collapsed: false,
     };
     const withOwn = conversation();
@@ -792,7 +802,7 @@ function outdatedHumanConversation(anchorSha: string): PrConversation {
       {
         rootCommentId: 7777,
         path: "src/a.ts",
-        subjectType: "LINE",
+        subjectType: ThreadSubjectTypes.LINE,
         isResolved: false,
         isOutdated: true,
         anchorSha,
@@ -877,8 +887,8 @@ describe("ConversationSection outdated-thread revision jump", () => {
         rootCommentId: id,
         path: "src/a.ts",
         line: 10,
-        side: "RIGHT" as const,
-        subjectType: "LINE" as const,
+        side: ThreadSides.RIGHT,
+        subjectType: ThreadSubjectTypes.LINE,
         isResolved: false,
         isOutdated: false,
         comments: [
@@ -897,8 +907,8 @@ describe("ConversationSection outdated-thread revision jump", () => {
       rootCommentId: 30_001,
       path: "src/a.ts",
       line: 10,
-      side: "RIGHT" as const,
-      subjectType: "LINE" as const,
+      side: ThreadSides.RIGHT,
+      subjectType: ThreadSubjectTypes.LINE,
       isResolved: true,
       isOutdated: false,
       comments: [

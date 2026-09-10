@@ -1,0 +1,44 @@
+@use "functions";
+
+@layer components {
+  .band {
+    display: grid;
+    gap: functions.to-rem(8px);
+    padding-block: functions.to-rem(12px);
+    padding-inline: functions.to-rem(16px);
+    border-block-end: 1px solid var(--line);
+    background: var(--color-surface-1);
+  }
+
+  .head {
+    display: flex;
+    align-items: center;
+    gap: functions.to-rem(8px);
+  }
+
+  .twist {
+    flex: none;
+    color: var(--faint);
+    font-size: var(--font-size-xs);
+    transition: transform 0.2s;
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+  }
+
+  .band[data-state="open"] .twist {
+    transform: rotate(90deg);
+  }
+
+  .title {
+    color: var(--dim);
+    font-size: var(--font-size-md);
+    font-weight: 500;
+  }
+
+  .threads {
+    display: grid;
+    gap: functions.to-rem(8px);
+  }
+}

@@ -2,7 +2,12 @@
 import { appI18n } from "../../../../i18n/I18nProvider";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { CommentAnchor } from "../../utils/comments";
+import {
+  CommentSides,
+  ReviewCommentStatuses,
+  type CommentAnchor,
+} from "../../utils/comments";
+import { CommentAnchorKinds } from "types";
 import {
   createReviewFlowStore,
   type ReviewFlowPosture,
@@ -11,9 +16,10 @@ import {
 } from "./store";
 
 const anchor: CommentAnchor = {
+  kind: CommentAnchorKinds.LINE,
   chunkId: "chunk-a",
   file: "src/a.ts",
-  side: "new",
+  side: CommentSides.NEW,
   startLine: 10,
   endLine: 10,
   rowIds: ["row-1"],
@@ -73,11 +79,11 @@ describe("ReviewFlow store", () => {
 
     it("closes the composer on write SUCCESS, not on click", async () => {
       store.getState().actions.openComposer(anchor);
-      store.getState().actions.saveComment(anchor, "  looks wrong  ");
+      void store.getState().actions.saveComment(anchor, "  looks wrong  ");
       expect(session.saveComment).toHaveBeenCalledWith({
         anchor,
         body: "looks wrong",
-        status: "draft",
+        status: ReviewCommentStatuses.DRAFT,
         collapsed: false,
       });
       // Still open, and saying so, while the write is in flight.
@@ -92,11 +98,11 @@ describe("ReviewFlow store", () => {
       );
     });
 
-    it("leaves the composer open when the write fails — Save is available again", async () => {
+    it("leaves the composer open when the write fails", async () => {
       session.saveComment = vi.fn(() => Promise.resolve(false));
       store = createReviewFlowStore(session, writablePosture(), appI18n.t);
       store.getState().actions.openComposer(anchor);
-      store.getState().actions.saveComment(anchor, "looks wrong");
+      void store.getState().actions.saveComment(anchor, "looks wrong");
       await vi.runAllTimersAsync();
       expect(store.getState().composerAnchor).toEqual(anchor);
       expect(store.getState().composerSaving).toBe(false);
@@ -104,15 +110,15 @@ describe("ReviewFlow store", () => {
 
     it("refuses a second save while one is in flight", async () => {
       store.getState().actions.openComposer(anchor);
-      store.getState().actions.saveComment(anchor, "one");
-      store.getState().actions.saveComment(anchor, "two");
+      void store.getState().actions.saveComment(anchor, "one");
+      void store.getState().actions.saveComment(anchor, "two");
       expect(session.saveComment).toHaveBeenCalledTimes(1);
       await vi.runAllTimersAsync();
     });
 
     it("rejects an empty body and keeps the composer open", () => {
       store.getState().actions.openComposer(anchor);
-      store.getState().actions.saveComment(anchor, "   ");
+      void store.getState().actions.saveComment(anchor, "   ");
       expect(session.saveComment).not.toHaveBeenCalled();
       expect(store.getState().composerAnchor).toEqual(anchor);
       flushAnnounce();
@@ -187,7 +193,7 @@ describe("ReviewFlow store", () => {
       ).toBe(false);
     });
 
-    it("keeps chunk keys independent — same thread id, different chunks", () => {
+    it("keeps chunk keys independent across chunks", () => {
       store.getState().actions.toggleConversationThread(CHUNK_A, 9001);
       store.getState().actions.toggleConversationThread(CHUNK_B, 9001);
       store.getState().actions.toggleConversationThread(CHUNK_B, 9001);
@@ -247,8 +253,8 @@ describe("ReviewFlow store", () => {
     });
 
     it("keeps an edit made after the shipped text was captured", () => {
-      // Capture-at-initiation: a mid-flight edit is user content —
-      // the success sweep must not silently drop it.
+      // Capture-at-initiation: a mid-flight edit is user content.
+      // The success sweep must not silently drop it.
       store.getState().actions.setReviewComment("Solid change.");
       store.getState().actions.setReviewComment("Solid change, but check X.");
       store.getState().actions.consumeReviewComment("Solid change.");

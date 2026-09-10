@@ -1,5 +1,8 @@
 import type { Disposition } from "@web/features/review/session";
-import type { ReviewComment } from "@web/features/review/utils";
+import {
+  isLineCommentAnchor,
+  type ReviewComment,
+} from "@web/features/review/utils";
 import type { RiskFlag } from "../../../../utils/viewModel";
 
 /**
@@ -16,6 +19,7 @@ export function selectGroupReviewComments(
   },
   groupFlags: readonly RiskFlag[],
   groupChunkIds: ReadonlySet<string>,
+  groupFiles: ReadonlySet<string>,
 ): ReviewComment[] {
   const linked = new Set<string>();
   for (const flag of groupFlags) {
@@ -27,8 +31,11 @@ export function selectGroupReviewComments(
       linked.add(disposition.evidence.commentId);
     }
   }
-  return state.reviewComments.filter(
-    (comment) =>
-      groupChunkIds.has(comment.anchor.chunkId) || linked.has(comment.id),
-  );
+  return state.reviewComments.filter((comment) => {
+    if (linked.has(comment.id)) return true;
+    if (isLineCommentAnchor(comment.anchor)) {
+      return groupChunkIds.has(comment.anchor.chunkId);
+    }
+    return groupFiles.has(comment.anchor.file);
+  });
 }

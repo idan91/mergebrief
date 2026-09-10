@@ -3,15 +3,24 @@
 // shape only): side old→LEFT / new→RIGHT, multi-line ranges as
 // start_line..line, commitId = the Brief's viewed head.
 import type { TFunction } from "i18next";
+import { ThreadSides, type ThreadSide } from "@web/features/conversation/types";
 
-import type { CommentAnchor, ReviewComment } from "./comments";
+import {
+  CommentSides,
+  isFileCommentAnchor,
+  type CommentAnchor,
+  type CommentSide,
+  type FileCommentAnchor,
+  type LineCommentAnchor,
+  type ReviewComment,
+} from "./comments";
 import type { Receipt } from "./receipt";
 import type { ReviewOutcome } from "./state";
 
 /** GitHub's diff-side wire values. */
-export type WireSide = "LEFT" | "RIGHT";
+export type WireSide = ThreadSide;
 
-export interface WireComment {
+export interface WireLineComment {
   path: string;
   /** The anchor line, the END line of a multi-line range. */
   line: number;
@@ -23,6 +32,12 @@ export interface WireComment {
   selectedText: string;
   body?: string;
 }
+
+export interface WireFileComment {
+  path: string;
+}
+
+export type WireComment = WireLineComment | WireFileComment;
 
 /**
  * The submit route's body. It carries NO comments: the session already holds
@@ -40,9 +55,9 @@ export interface BuildSubmitPayloadInput {
   body?: string;
 }
 
-const SIDE_TO_WIRE: Record<CommentAnchor["side"], WireSide> = {
-  old: "LEFT",
-  new: "RIGHT",
+const SIDE_TO_WIRE: Record<CommentSide, ThreadSide> = {
+  [CommentSides.OLD]: ThreadSides.LEFT,
+  [CommentSides.NEW]: ThreadSides.RIGHT,
 };
 
 /**
@@ -60,13 +75,19 @@ const MAX_PATH_LENGTH = 1_024;
 const FOLD_BUDGET = 63_000;
 
 /** Map one anchor to GitHub's path/line/side (+ start for multi-line). */
+export function mapAnchorToWire(anchor: LineCommentAnchor): WireLineComment;
+export function mapAnchorToWire(anchor: FileCommentAnchor): WireFileComment;
+export function mapAnchorToWire(anchor: CommentAnchor): WireComment;
 export function mapAnchorToWire(anchor: CommentAnchor): WireComment {
+  if (isFileCommentAnchor(anchor)) {
+    return { path: anchor.file };
+  }
   const side = SIDE_TO_WIRE[anchor.side];
   const crossing =
     anchor.startSide !== undefined && anchor.startSide !== anchor.side;
   // A crossing range is multi-line even when the two sides' numbers agree.
   const multiLine = crossing || anchor.startLine !== anchor.endLine;
-  const wire: WireComment = {
+  const wire: WireLineComment = {
     path: anchor.file,
     line: anchor.endLine,
     side,
@@ -187,11 +208,11 @@ function reviewCommentFoldCost(reviewComment: string): number {
 function foldedLengthEstimate(drafts: readonly ReviewComment[]): number {
   return drafts.reduce((total, comment) => {
     const wire = mapAnchorToWire(comment.anchor);
+    const selectedText = "selectedText" in wire ? wire.selectedText : undefined;
     const quoted =
-      wire.selectedText === undefined
+      selectedText === undefined
         ? 0
-        : wire.selectedText.length +
-          2 * (wire.selectedText.split("\n").length + 1);
+        : selectedText.length + 2 * (selectedText.split("\n").length + 1);
     // 48 covers the marker's decorations plus a two-side range with both
     // sides spelled out (`LEFT n-RIGHT n`), which outgrows the bare numbers.
     const commentCost =

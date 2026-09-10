@@ -5,10 +5,16 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { CommentAnchor, ReviewComment } from "../utils/comments";
+import {
+  CommentSides,
+  ReviewCommentStatuses,
+  type CommentAnchor,
+  type ReviewComment,
+} from "../utils/comments";
 import type { Receipt } from "../utils/receipt";
 import type { SubmitReviewResult } from "../utils/submit";
 import { useReviewSubmit, type UseReviewSubmitInput } from "./useReviewSubmit";
+import { CommentAnchorKinds } from "types";
 
 const RECEIPT: Receipt = {
   subject: { repo: "octo/hello", number: 7, sha: "c".repeat(40) },
@@ -22,9 +28,10 @@ const RECEIPT: Receipt = {
 };
 
 const ANCHOR: CommentAnchor = {
+  kind: CommentAnchorKinds.LINE,
   chunkId: "chunk-a",
   file: "src/a.ts",
-  side: "new",
+  side: CommentSides.NEW,
   startLine: 3,
   endLine: 3,
   rowIds: ["chunk-a:0"],
@@ -36,7 +43,7 @@ function draft(id: string): ReviewComment {
     id,
     anchor: ANCHOR,
     body: "note",
-    status: "draft",
+    status: ReviewCommentStatuses.DRAFT,
     collapsed: false,
   };
 }
@@ -85,12 +92,12 @@ function setup(overrides: Partial<UseReviewSubmitInput> = {}) {
 }
 
 describe("useReviewSubmit", () => {
-  it("is unavailable without an injected action (local demo path)", () => {
+  it("is unavailable without an injected action", () => {
     const { rendered } = setup({ action: undefined });
     expect(rendered.result.current.available).toBe(false);
   });
 
-  it("blocks a neutral comment submit with no drafts, with a reachable reason", () => {
+  it("blocks a comment submit with no drafts and a reachable reason", () => {
     const { rendered, action } = setup({ outcome: "comment", comments: [] });
     expect(rendered.result.current.blockedReasonWith("")).toMatch(
       /at least one comment/i,
@@ -99,7 +106,7 @@ describe("useReviewSubmit", () => {
     expect(action).not.toHaveBeenCalled();
   });
 
-  it("blocks submit while blocked externally, unblocking when the reason clears", () => {
+  it("blocks submit while blocked, then unblocks when it clears", () => {
     // Same-tab re-ship window: a post-now still in flight when the submit
     // machinery mounts would ship the still-draft comment, so submit must
     // both surface the reason AND refuse to run until it clears.
@@ -194,7 +201,7 @@ describe("useReviewSubmit", () => {
     await waitFor(() => expect(rendered.result.current.pending).toBe(false));
 
     // An unhandled kind leaves `error` null and the reviewer with no message
-    // at all — the failure this pins is silence, not the wrong words.
+    // at all. The failure this pins is silence, not the wrong words.
     expect(rendered.result.current.error).toMatch(
       /no longer points at any code/i,
     );
@@ -203,7 +210,7 @@ describe("useReviewSubmit", () => {
     expect(closeSubmit).not.toHaveBeenCalled();
   });
 
-  it("ignores a second click while pending (double-post guard)", async () => {
+  it("ignores a second click while pending", async () => {
     const { rendered, action } = setup();
     let release: ((value: SubmitReviewResult) => void) | undefined;
     action.mockImplementation(
@@ -223,7 +230,7 @@ describe("useReviewSubmit", () => {
     await waitFor(() => expect(rendered.result.current.pending).toBe(false));
   });
 
-  it("spends the verdict on success — outcome resets to comment", async () => {
+  it("spends the verdict on success and resets to comment", async () => {
     const { rendered, action, resetOutcome } = setup({ outcome: "approve" });
     action.mockResolvedValue({
       kind: "submitted",
@@ -235,7 +242,7 @@ describe("useReviewSubmit", () => {
     expect(resetOutcome).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps a comment outcome as-is on success (nothing to spend)", async () => {
+  it("keeps a comment outcome as-is on success", async () => {
     const { rendered, action, resetOutcome } = setup({
       outcome: "comment",
       comments: [draft("a")],
@@ -279,7 +286,7 @@ describe("useReviewSubmit", () => {
     expect(rendered.result.current.note).toBeNull();
   });
 
-  it("announces failures through the page live region (drawer may be closed)", async () => {
+  it("announces failures through the page live region", async () => {
     const { rendered, action, announce } = setup();
     action.mockResolvedValue({ kind: "rewritten" });
     act(() => rendered.result.current.submit());
@@ -289,14 +296,14 @@ describe("useReviewSubmit", () => {
     );
   });
 
-  it("maps a thrown transport error to indeterminate copy (may have posted)", async () => {
+  it("maps a thrown transport error to indeterminate copy", async () => {
     const { rendered, action } = setup();
     action.mockRejectedValue(new Error("boom"));
 
     act(() => rendered.result.current.submit());
     await waitFor(() => expect(rendered.result.current.pending).toBe(false));
 
-    // A throw can land AFTER the POST reached GitHub — the copy must not
+    // A throw can land AFTER the POST reached GitHub. The copy must not
     // claim nothing was posted, and must point at GitHub before a retry.
     expect(rendered.result.current.error).toMatch(
       /may or may not have posted/i,
@@ -356,7 +363,7 @@ describe("useReviewSubmit", () => {
     ).toBeUndefined();
   });
 
-  it("re-reads the draft at click time — a keystroke after the render unblocks", async () => {
+  it("re-reads the draft at click so a later keystroke unblocks", async () => {
     // The owning screen renders with an empty draft (blocked), then the user
     // types in the editing surface (store-only change, no screen re-render)
     // and clicks Submit: the guard must re-read the getter, not the value
@@ -385,9 +392,9 @@ describe("useReviewSubmit", () => {
     );
   });
 
-  it("evaluates blockedReasonWith per caller draft (editing-surface contract)", () => {
+  it("evaluates blockedReasonWith per caller draft", () => {
     // The editing surface subscribes to the raw text and re-derives the
-    // disabled state per keystroke — without the owning screen re-rendering.
+    // disabled state per keystroke, without the owning screen re-rendering.
     const { rendered } = setup({ outcome: "comment", comments: [] });
     expect(
       rendered.result.current.blockedReasonWith("typed just now"),
@@ -397,7 +404,7 @@ describe("useReviewSubmit", () => {
     );
   });
 
-  it("mentions the own-PR rule only for verdict outcomes on upstream rejection", async () => {
+  it("mentions the own-PR rule only for verdicts on rejection", async () => {
     const { rendered, action } = setup({ outcome: "approve" });
     action.mockResolvedValue({ kind: "upstream" });
     act(() => rendered.result.current.submit());
