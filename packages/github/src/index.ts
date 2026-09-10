@@ -1,9 +1,9 @@
-// ENTRY POINT — the package's ONLY export (`package.json` `exports["."]`).
+// ENTRY POINT: the package's ONLY export (`package.json` `exports["."]`).
 // Everything importable from `"github"` is re-exported here, grouped by folder.
 
-// --- root — cross-cutting plumbing ------------------------------------------
+// --- root: cross-cutting plumbing ------------------------------------------
 
-// Local `Result`/`ValueOf` — never imported from `persistence` at runtime
+// Local `Result`/`ValueOf`, never imported from `persistence` at runtime
 // (type-only imports of branded ids are the sole exception).
 export type { Result, ValueOf } from "./types";
 
@@ -11,11 +11,11 @@ export type { Result, ValueOf } from "./types";
 export { loadConfig, ConfigErrorCodes } from "./config";
 export type { GitHubConfig, ConfigError, ConfigErrorCode } from "./config";
 
-// Shared sanitized API-error shape — the single sanitization chokepoint.
+// Shared sanitized API-error shape: the single sanitization chokepoint.
 export { GitHubApiErrorCodes } from "./errors";
 export type { GitHubApiError, GitHubApiErrorCode } from "./errors";
 
-// --- auth/ — how a client gets CONSTRUCTED + AUTHENTICATED ------------------
+// --- auth/: how a client gets CONSTRUCTED + AUTHENTICATED ------------------
 
 // GitHub App authentication. JWT signing and installation-token
 // minting/caching are owned by octokit's `App` class, not hand-rolled here.
@@ -44,9 +44,9 @@ export type {
   UserInstallation,
 } from "./auth/oauth";
 
-// --- webhook/ — what GitHub PUSHES at us -------------------------------------
+// --- webhook/: what GitHub PUSHES at us -------------------------------------
 
-// Webhook HMAC verification — constant-time, over the RAW body.
+// Webhook HMAC verification: constant-time, over the RAW body.
 export {
   verifyWebhookSignature,
   WebhookVerifyErrorCodes,
@@ -82,7 +82,7 @@ export type {
   InstallationRepositoriesAction,
 } from "./webhook/events";
 
-// --- operations/ — what we CALL on GitHub (REST + GraphQL) -------------------
+// --- operations/: what we CALL on GitHub (REST + GraphQL) -------------------
 
 // REST primitives: Entry-comment ops, repo lookup, PR + diff fetch.
 export {
@@ -135,11 +135,13 @@ export {
   createPullRequestReview,
   ReviewEvents,
   ReviewCommentSides,
+  ReviewSubjectTypes,
   ReviewValidationClasses,
 } from "./operations/review";
 export type {
   CreatePullRequestReviewInput,
   ReviewCommentInput,
+  LineReviewCommentInput,
   CreateReviewError,
   ReviewEvent,
   ReviewCommentSide,
@@ -153,6 +155,7 @@ export type {
 export { createInlineReviewComment } from "./operations/inline-comment";
 export type {
   CreateInlineReviewCommentInput,
+  CreateLineInlineReviewCommentInput,
   InlineReviewCommentResult,
   InlineReviewCommentError,
 } from "./operations/inline-comment";

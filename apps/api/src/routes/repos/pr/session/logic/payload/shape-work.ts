@@ -5,13 +5,12 @@
 // covers both and `materialized` is what tells them apart.
 import {
   ReviewOutcomes,
-  CommentAnchorKinds,
   type CarriedWork,
   type DispositionEvidence,
   type DispositionEvidenceKind,
   type ReviewSessionSnapshot,
 } from "persistence";
-import type { Mutable } from "types";
+import { CommentAnchorKinds, type Mutable } from "types";
 import type {
   DraftCommentPayload,
   FileDraftCommentPayload,

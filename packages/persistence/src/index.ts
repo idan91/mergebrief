@@ -111,6 +111,7 @@ export type {
   ReviewGroupReclassificationRow,
   ReviewSubmittedReviewRow,
   DraftCommentInput,
+  DraftCommentWrite,
   ReadMarkInput,
   ReclassificationInput,
   SubmittedReviewInput,

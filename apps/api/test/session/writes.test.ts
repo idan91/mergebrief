@@ -3,12 +3,12 @@
 // Repeated read marks are idempotent and every write inherits the router scope gate.
 import {
   ChangeGroupCategories,
-  CommentAnchorKinds,
   DraftCommentSides,
   createTenantRepository,
   WriteClassifications,
 } from "persistence";
 import type { KeyProvider } from "persistence";
+import { CommentAnchorKinds } from "types";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
@@ -354,6 +354,72 @@ describe("the Review Session writes", () => {
     expect(
       (await write("DELETE", `/comments/${draftId}`, "head-1")).status,
     ).toBe(404);
+  });
+
+  it("stores a File comment with no line columns", async () => {
+    const briefId = await seedBrief(harness.handle, 1);
+    const created = await write("POST", "/comments", "head-1", {
+      kind: CommentAnchorKinds.FILE,
+      filePath: "src/app.ts",
+      body: "on the file",
+    });
+    expect(created.status).toBe(201);
+
+    const snapshot = await createTenantRepository(
+      harness.handle,
+      CTX,
+    ).reviewSessions.get({
+      briefId,
+      reviewerId: REVIEWER,
+    });
+    expect(snapshot?.draftComments[0]).toMatchObject({
+      anchor: {
+        kind: CommentAnchorKinds.FILE,
+        file: "src/app.ts",
+      },
+      body: "on the file",
+    });
+  });
+
+  it("400s mixing the file kind with a line span", async () => {
+    await seedBrief(harness.handle, 1);
+    const mixed = await write("POST", "/comments", "head-1", {
+      kind: CommentAnchorKinds.FILE,
+      filePath: "src/app.ts",
+      startLine: 10,
+      body: "on the file",
+    });
+    expect(mixed.status).toBe(400);
+    expect(await countRows("review_draft_comment")).toBe(0);
+  });
+
+  it("reanchors a Line comment onto a file", async () => {
+    const briefId = await seedBrief(harness.handle, 1);
+    const draftId = await readDraftId(
+      await write("POST", "/comments", "head-1", DRAFT),
+    );
+    const reanchored = await write(
+      "PUT",
+      `/comments/${draftId}/anchor`,
+      "head-1",
+      { kind: CommentAnchorKinds.FILE, filePath: "src/app.ts" },
+    );
+    expect(reanchored.status).toBe(200);
+
+    const snapshot = await createTenantRepository(
+      harness.handle,
+      CTX,
+    ).reviewSessions.get({
+      briefId,
+      reviewerId: REVIEWER,
+    });
+    expect(snapshot?.draftComments[0]).toMatchObject({
+      anchor: {
+        kind: CommentAnchorKinds.FILE,
+        file: "src/app.ts",
+      },
+      anchorStatus: null,
+    });
   });
 
   it("stores a group reclassification as an override", async () => {

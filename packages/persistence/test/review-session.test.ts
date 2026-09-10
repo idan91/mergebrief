@@ -5,6 +5,7 @@
 import type { PGlite } from "@electric-sql/pglite";
 import { Categories } from "brief-core";
 import { drizzle } from "drizzle-orm/pglite";
+import { CommentAnchorKinds } from "types";
 import { describe, expect, it } from "vitest";
 import { fromDrizzle } from "../src/db/handle";
 import {
@@ -25,7 +26,6 @@ import {
   DispositionCarryStatuses,
   DispositionEvidenceKinds,
   DispositionEvidenceStatuses,
-  CommentAnchorKinds,
   DraftCommentSides,
   DraftCommentStatuses,
   isInstallationId,

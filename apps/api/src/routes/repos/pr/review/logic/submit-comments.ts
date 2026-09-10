@@ -2,16 +2,17 @@
 // becomes a quoted block in the review body when GitHub 422s the anchors.
 import {
   ReviewCommentSides,
+  ReviewSubjectTypes,
+  type LineReviewCommentInput,
   type ReviewCommentInput,
   type ReviewCommentSide,
 } from "github";
 import {
-  CommentAnchorKinds,
   DraftCommentSides,
   type ReviewDraftCommentRow,
   type DraftCommentSide,
 } from "persistence";
-import type { Mutable } from "types";
+import { CommentAnchorKinds, type Mutable } from "types";
 
 /** The stored side vocabulary as GitHub names it. */
 const SideOnGithub: Readonly<Record<DraftCommentSide, ReviewCommentSide>> = {
@@ -19,8 +20,7 @@ const SideOnGithub: Readonly<Record<DraftCommentSide, ReviewCommentSide>> = {
   [DraftCommentSides.NEW]: ReviewCommentSides.RIGHT,
 };
 
-/** One held draft as the review's comment payload. */
-export interface SubmitComment {
+export interface LineSubmitComment {
   readonly path: string;
   readonly line: number;
   readonly side: ReviewCommentSide;
@@ -29,14 +29,35 @@ export interface SubmitComment {
   readonly body: string;
 }
 
+export interface FileSubmitComment {
+  readonly path: string;
+  readonly body: string;
+  readonly subjectType: typeof ReviewSubjectTypes.FILE;
+}
+
+/** One held draft as the review's comment payload. */
+export type SubmitComment = LineSubmitComment | FileSubmitComment;
+
+function isFileSubmitComment(
+  comment: SubmitComment,
+): comment is FileSubmitComment {
+  return (
+    "subjectType" in comment && comment.subjectType === ReviewSubjectTypes.FILE
+  );
+}
+
 export function shapeSubmitComment(
   draft: ReviewDraftCommentRow,
 ): SubmitComment {
-  if (draft.anchor.kind !== CommentAnchorKinds.LINE) {
-    throw new Error("file-arm draft reached line submit shaping");
-  }
   const { anchor } = draft;
-  const comment: Mutable<SubmitComment> = {
+  if (anchor.kind === CommentAnchorKinds.FILE) {
+    return {
+      path: anchor.file,
+      body: draft.body,
+      subjectType: ReviewSubjectTypes.FILE,
+    };
+  }
+  const comment: Mutable<LineSubmitComment> = {
     path: anchor.file,
     line: anchor.endLine,
     side: SideOnGithub[anchor.side],
@@ -53,6 +74,9 @@ export function shapeSubmitComment(
 }
 
 function foldedCommentBlock(comment: SubmitComment): string {
+  if (isFileSubmitComment(comment)) {
+    return [`**\`${comment.path}\`**`, "", comment.body].join("\n");
+  }
   const twoSide =
     comment.startSide !== undefined && comment.startSide !== comment.side;
   let range = String(comment.line);
@@ -84,7 +108,14 @@ export function toPrimitiveComments(
   comments: readonly SubmitComment[],
 ): ReviewCommentInput[] {
   return comments.map((comment) => {
-    const primitive: Mutable<ReviewCommentInput> = {
+    if (isFileSubmitComment(comment)) {
+      return {
+        path: comment.path,
+        body: comment.body,
+        subjectType: ReviewSubjectTypes.FILE,
+      };
+    }
+    const primitive: Mutable<LineReviewCommentInput> = {
       path: comment.path,
       line: comment.line,
       side: comment.side,

@@ -9,7 +9,6 @@ import {
   DispositionCarryStatuses,
   DispositionDecisions,
   DispositionEvidenceStatuses,
-  CommentAnchorKinds,
   DraftCommentSides,
   DraftCommentStatuses,
   isReviewSessionId,
@@ -18,6 +17,7 @@ import {
   type ReviewSessionId,
   type ReviewSessionView,
 } from "persistence";
+import { CommentAnchorKinds } from "types";
 import { describe, expect, it } from "vitest";
 import { buildSessionPayload } from "../../src/routes/repos/pr/session/payload";
 

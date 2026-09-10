@@ -10,7 +10,6 @@ import {
   AnchorStatuses,
   DispositionCarryStatuses,
   DispositionEvidenceStatuses,
-  CommentAnchorKinds,
   DraftCommentStatuses,
   type DispositionDecision,
   type AnchorStatus,
@@ -19,6 +18,7 @@ import {
   type DraftAnchor,
   type DraftCommentStatus,
 } from "persistence";
+import { CommentAnchorKinds } from "types";
 import {
   AttentionItemKinds,
   AttentionSubjectTypes,

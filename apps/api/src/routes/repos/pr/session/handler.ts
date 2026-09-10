@@ -4,7 +4,6 @@
 import type { Context } from "hono";
 import {
   DispositionDecisions,
-  CommentAnchorKinds,
   DraftCommentStatuses,
   type DispositionAnchor,
   type ReviewDraftCommentRow,
@@ -40,6 +39,7 @@ import {
   resolveSessionWrite,
   throwSessionWriteFailure,
 } from "./logic/write-seam";
+import { createDraftWrite, reanchorDraftPatch } from "./logic/draft-write";
 import { resolvePrScopeFrom } from "../scope";
 
 const NO_STORE = { "cache-control": "no-store" };
@@ -151,15 +151,7 @@ export default function createHandlers(deps: AuthRouteDeps) {
       if (unposted.length >= MAX_SESSION_DRAFTS) {
         return undefined;
       }
-      return await writer.addDraftComment({
-        kind: CommentAnchorKinds.LINE,
-        filePath: parsed.data.filePath,
-        side: parsed.data.side,
-        startSide: parsed.data.startSide,
-        startLine: parsed.data.startLine,
-        endLine: parsed.data.endLine,
-        body: parsed.data.body,
-      });
+      return await writer.addDraftComment(createDraftWrite(parsed.data));
     });
     if (!written.ok) {
       throwSessionWriteFailure(written.error);
@@ -217,10 +209,10 @@ export default function createHandlers(deps: AuthRouteDeps) {
         return held;
       }
       // The human placed it, so the carry-over's verdict is settled.
-      return await writer.updateDraftComment(draftId.data, {
-        ...parsed.data,
-        anchorStatus: null,
-      });
+      return await writer.updateDraftComment(
+        draftId.data,
+        reanchorDraftPatch(parsed.data),
+      );
     });
     if (!written.ok) {
       throwSessionWriteFailure(written.error);

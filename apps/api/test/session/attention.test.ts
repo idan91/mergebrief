@@ -5,10 +5,10 @@ import {
   DispositionCarryStatuses,
   DispositionDecisions,
   DispositionEvidenceStatuses,
-  CommentAnchorKinds,
   DraftCommentSides,
   DraftCommentStatuses,
 } from "persistence";
+import { CommentAnchorKinds } from "types";
 import { describe, expect, it } from "vitest";
 import {
   deriveAttentionItems,
@@ -152,5 +152,23 @@ describe("deriveAttentionItems", () => {
         ],
       ),
     ).toEqual(["reopened-disposition"]);
+  });
+
+  it("locates an orphaned File comment by path only", () => {
+    const [item] = deriveAttentionItems({
+      draftComments: [
+        {
+          id: 41n,
+          anchor: { kind: CommentAnchorKinds.FILE, file: "src/app.ts" },
+          status: DraftCommentStatuses.DRAFT,
+          anchorStatus: AnchorStatuses.ORPHANED,
+        },
+      ],
+      dispositions: [],
+    });
+    expect(item?.location).toEqual({
+      kind: CommentAnchorKinds.FILE,
+      filePath: "src/app.ts",
+    });
   });
 });

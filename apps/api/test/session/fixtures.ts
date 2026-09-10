@@ -5,7 +5,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import {
   DispositionDecisions,
-  CommentAnchorKinds,
   DraftCommentSides,
   ChangeGroupCategories,
   PrStates,
@@ -20,6 +19,7 @@ import {
   type TenantContext,
   type WriteClassification,
 } from "persistence";
+import { CommentAnchorKinds } from "types";
 import { vi } from "vitest";
 import {
   INSTALLATION_ID,

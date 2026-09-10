@@ -3,14 +3,14 @@
 // payload and what `remapRanges` consumes at carry-over. `anchor_status` is
 // NULL while the anchor still holds exactly.
 import { bigint, index, integer, pgTable, text } from "drizzle-orm/pg-core";
-import type {
-  AnchorStatus,
-  CommentAnchorKind,
-  DraftCommentSide,
-  DraftCommentStatus,
-  ReviewSessionId,
+import { CommentAnchorKinds, type CommentAnchorKind } from "types";
+import {
+  DraftCommentStatuses,
+  type AnchorStatus,
+  type DraftCommentSide,
+  type DraftCommentStatus,
+  type ReviewSessionId,
 } from "../types";
-import { CommentAnchorKinds, DraftCommentStatuses } from "../types";
 import { stampColumns, tenantColumns } from "./columns";
 import { reviewSession } from "./review-session";
 
@@ -68,6 +68,14 @@ export interface LineDraftCommentRow extends DraftCommentSqlRow {
   readonly endLine: number;
 }
 
+export interface FileDraftCommentRow extends DraftCommentSqlRow {
+  readonly kind: typeof CommentAnchorKinds.FILE;
+  readonly side: null;
+  readonly startSide: null;
+  readonly startLine: null;
+  readonly endLine: null;
+}
+
 export function isLineDraftCommentRow(
   row: DraftCommentSqlRow,
 ): row is LineDraftCommentRow {
@@ -76,5 +84,17 @@ export function isLineDraftCommentRow(
     row.side !== null &&
     row.startLine !== null &&
     row.endLine !== null
+  );
+}
+
+export function isFileDraftCommentRow(
+  row: DraftCommentSqlRow,
+): row is FileDraftCommentRow {
+  return (
+    row.kind === CommentAnchorKinds.FILE &&
+    row.side === null &&
+    row.startSide === null &&
+    row.startLine === null &&
+    row.endLine === null
   );
 }

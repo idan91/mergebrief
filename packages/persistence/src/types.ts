@@ -4,9 +4,7 @@
 import type { Brand, CommentAnchorKind, ValueOf } from "types";
 
 export {
-  CommentAnchorKinds,
   type Brand,
-  type CommentAnchorKind,
   type MaybePromise,
   type Result,
   type ValueOf,

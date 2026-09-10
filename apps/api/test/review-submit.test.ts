@@ -6,7 +6,6 @@ import { randomBytes } from "node:crypto";
 import {
   AnchorStatuses,
   createArtifactStore,
-  CommentAnchorKinds,
   DraftCommentSides,
   encryptToken,
   createTenantRepository,
@@ -17,6 +16,7 @@ import {
   type KeyProvider,
   type AnchorStatus,
 } from "persistence";
+import { CommentAnchorKinds } from "types";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
@@ -371,6 +371,30 @@ async function seedTwoSideDraft(
   if (!written.ok) throw new Error("seed: two-side draft failed");
 }
 
+async function seedFileDraft(
+  handle: AppDatabase,
+  briefId: BriefRowId,
+  body = "on the file",
+): Promise<void> {
+  const written = await createTenantRepository(
+    handle,
+    CTX,
+  ).reviewSessions.writeToSession(
+    {
+      briefId,
+      reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
+      brief: async () => ({ groupIds: [], flags: [], filePaths: [] }),
+    },
+    async (writer) =>
+      await writer.addDraftComment({
+        kind: CommentAnchorKinds.FILE,
+        filePath: "src/app.ts",
+        body,
+      }),
+  );
+  if (!written.ok) throw new Error("seed: file draft failed");
+}
+
 function sessionPath(suffix: string): string {
   return `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/session${suffix}?base=${BASE_SHA}&head=${COMMIT_ID}`;
 }
@@ -717,6 +741,55 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     // Cross-side line numbers mean nothing without their sides.
     expect(retry.body).toContain("src/c.ts:LEFT 10-RIGHT 12");
     expect(retry.body).toContain("crosses sides");
+  });
+
+  it("posts a File comment with subject_type file and no line", async () => {
+    const counts = stubGitHub({
+      repositories: () => repoOk(),
+      createReview: () => reviewCreated(987005),
+    });
+    await seedPullRequest(harness.handle);
+    const { cookie } = await seedSession(harness.handle, kp);
+    const briefId = await seedSessionDrafts(harness.handle, []);
+    await seedFileDraft(harness.handle, briefId);
+
+    const res = await submit(app, cookie, validBody());
+    expect(res.status).toBe(201);
+    const posted = z
+      .object({ comments: z.array(z.record(z.string(), z.unknown())) })
+      .parse(counts.reviewBodies[0]);
+    expect(posted.comments).toEqual([
+      {
+        path: "src/app.ts",
+        body: "on the file",
+        subject_type: "file",
+      },
+    ]);
+    const sent = posted.comments[0];
+    if (sent === undefined) throw new Error("expected a sent comment");
+    expect("line" in sent).toBe(false);
+    expect("side" in sent).toBe(false);
+    expect("start_line" in sent).toBe(false);
+    expect("start_side" in sent).toBe(false);
+  });
+
+  it("folds a File comment as path with no range", async () => {
+    const counts = stubGitHub({
+      repositories: () => repoOk(),
+      createReview: (call) =>
+        call === 0 ? anchoring422() : reviewCreated(987006),
+    });
+    await seedPullRequest(harness.handle);
+    const { cookie } = await seedSession(harness.handle, kp);
+    const briefId = await seedSessionDrafts(harness.handle, []);
+    await seedFileDraft(harness.handle, briefId);
+
+    const res = await submit(app, cookie, validBody());
+    expect(res.status).toBe(201);
+    const retry = z.object({ body: z.string() }).parse(counts.reviewBodies[1]);
+    expect(retry.body).toContain("**`src/app.ts`**");
+    expect(retry.body).not.toContain("src/app.ts:");
+    expect(retry.body).toContain("on the file");
   });
 
   it("publishes exactly the held drafts and records the review id", async () => {

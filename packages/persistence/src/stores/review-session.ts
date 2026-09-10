@@ -2,12 +2,15 @@
 // first writes materialize them. Resolve parent ownership inside the same transaction
 // and return Result errors for cross-tenant parents before any write.
 import { and, asc, desc, eq, gt, gte, inArray, lt, lte, or } from "drizzle-orm";
+import { AnchorStates } from "brief-core";
 import type { Hop } from "brief-core/remap";
+import { CommentAnchorKinds, type CommentAnchorKind } from "types";
 import type { AppDrizzle } from "../db/handle";
 import { brief } from "../schema/brief";
 import { disposition } from "../schema/disposition";
 import { hunkSpan } from "../schema/hunk-span";
 import {
+  isFileDraftCommentRow,
   isLineDraftCommentRow,
   reviewDraftComment,
   type LineDraftCommentRow,
@@ -24,27 +27,25 @@ import {
   type FlagKey,
   type PreviousWork,
 } from "./carry-over";
-import { AnchorStates } from "brief-core";
 import { StoredIdsSchema } from "./artifact-store";
 import type { RowScope } from "./scope";
-import { CommentAnchorKinds, DraftCommentStatuses } from "../types";
-import type {
-  AnchorStatus,
-  BriefRowId,
-  ChangeGroupCategory,
-  DispositionDecision,
-  DispositionEvidence,
-  DraftAnchor,
-  CommentAnchorKind,
-  DraftCommentSide,
-  DraftCommentStatus,
-  LineDraftAnchor,
-  PullRequestRowId,
-  ReviewOutcome,
-  ReviewSessionId,
-  ReviewerId,
-  Result,
-  ValueOf,
+import {
+  DraftCommentStatuses,
+  type AnchorStatus,
+  type BriefRowId,
+  type ChangeGroupCategory,
+  type DispositionDecision,
+  type DispositionEvidence,
+  type DraftAnchor,
+  type DraftCommentSide,
+  type DraftCommentStatus,
+  type LineDraftAnchor,
+  type PullRequestRowId,
+  type ReviewOutcome,
+  type ReviewSessionId,
+  type ReviewerId,
+  type Result,
+  type ValueOf,
 } from "../types";
 
 // ---------------------------------------------------------------------------
@@ -122,7 +123,7 @@ export type DraftCommentInput = LineDraftCommentInput | FileDraftCommentInput;
 type DraftCommentInsert =
   | Omit<LineDraftCommentInput, "reviewSessionId">
   | Omit<FileDraftCommentInput, "reviewSessionId">;
-type DraftCommentWrite =
+export type DraftCommentWrite =
   | Omit<LineDraftCommentInput, "reviewSessionId" | "carriedFromSessionId">
   | Omit<FileDraftCommentInput, "reviewSessionId" | "carriedFromSessionId">;
 
@@ -483,6 +484,9 @@ function parseLineDraftAnchor(row: LineDraftCommentRow): LineDraftAnchor {
 
 function parseDraftAnchor(row: DraftCommentSqlRow): DraftAnchor {
   if (row.kind === CommentAnchorKinds.FILE) {
+    if (!isFileDraftCommentRow(row)) {
+      throw new Error("file-arm draft carries line columns");
+    }
     return { kind: CommentAnchorKinds.FILE, file: row.filePath };
   }
   if (!isLineDraftCommentRow(row)) {

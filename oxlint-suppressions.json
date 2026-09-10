@@ -269,11 +269,6 @@
       "count": 2
     }
   },
-  "apps/api/src/routes/repos/pr/session/schemas.ts": {
-    "house/no-em-dash": {
-      "count": 4
-    }
-  },
   "apps/api/src/routes/repos/pr/wire-bounds.ts": {
     "house/no-em-dash": {
       "count": 1
@@ -375,11 +370,6 @@
   "apps/api/test/request-logging.test.ts": {
     "house/test-title": {
       "count": 1
-    }
-  },
-  "apps/api/test/session/write-input.test.ts": {
-    "house/no-em-dash": {
-      "count": 3
     }
   },
   "apps/api/test/ttl-cache.test.ts": {
@@ -2241,11 +2231,6 @@
   "packages/github/src/ids.ts": {
     "house/no-em-dash": {
       "count": 5
-    }
-  },
-  "packages/github/src/index.ts": {
-    "house/no-em-dash": {
-      "count": 8
     }
   },
   "packages/github/src/operations/comments.ts": {

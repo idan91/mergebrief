@@ -8,25 +8,36 @@ import {
   unexpectedResponseError,
   type GitHubApiError,
 } from "../errors";
-import type { ReviewCommentSide } from "./review";
+import { ReviewSubjectTypes, type ReviewCommentSide } from "./review";
 import type { Result } from "../types";
 import type { Mutable } from "types";
 
-export interface CreateInlineReviewCommentInput {
+export interface CreateInlineReviewCommentBase {
   readonly owner: string;
   readonly repo: string;
   readonly prNumber: number;
   /** The head the anchor was read against, pins the comment to that diff. */
   readonly commitId: string;
   readonly path: string;
+  readonly body: string;
+}
+
+export interface CreateLineInlineReviewCommentInput extends CreateInlineReviewCommentBase {
   /** The anchor line (the END line for a multi-line comment). */
   readonly line: number;
   readonly side: ReviewCommentSide;
   /** First line of a multi-line comment; omit for single-line. */
   readonly startLine?: number;
   readonly startSide?: ReviewCommentSide;
-  readonly body: string;
 }
+
+export interface CreateFileInlineReviewCommentInput extends CreateInlineReviewCommentBase {
+  readonly subjectType: typeof ReviewSubjectTypes.FILE;
+}
+
+export type CreateInlineReviewCommentInput =
+  | CreateLineInlineReviewCommentInput
+  | CreateFileInlineReviewCommentInput;
 
 export interface InlineReviewCommentResult {
   /** REST `databaseId` of the created comment. */
@@ -52,6 +63,38 @@ type CreateReviewCommentParams = NonNullable<
   Parameters<Octokit["rest"]["pulls"]["createReviewComment"]>[0]
 >;
 
+function isFileInlineComment(
+  input: CreateInlineReviewCommentInput,
+): input is CreateFileInlineReviewCommentInput {
+  return (
+    "subjectType" in input && input.subjectType === ReviewSubjectTypes.FILE
+  );
+}
+
+function shapeInlineCommentParams(
+  input: CreateInlineReviewCommentInput,
+): CreateReviewCommentParams {
+  const params: CreateReviewCommentParams = {
+    owner: input.owner,
+    repo: input.repo,
+    pull_number: input.prNumber,
+    commit_id: input.commitId,
+    path: input.path,
+    body: input.body,
+  };
+
+  if (isFileInlineComment(input)) {
+    params.subject_type = ReviewSubjectTypes.FILE;
+    return params;
+  }
+
+  params.line = input.line;
+  params.side = input.side;
+  if (input.startLine !== undefined) params.start_line = input.startLine;
+  if (input.startSide !== undefined) params.start_side = input.startSide;
+  return params;
+}
+
 /**
  * Post one inline review comment pinned to `commitId`. Returns the created
  * comment id and (when GitHub assigns one) the wrapping review id. Failures are
@@ -61,19 +104,7 @@ export async function createInlineReviewComment(
   octokit: Octokit,
   input: CreateInlineReviewCommentInput,
 ): Promise<Result<InlineReviewCommentResult, InlineReviewCommentError>> {
-  const params: CreateReviewCommentParams = {
-    owner: input.owner,
-    repo: input.repo,
-    pull_number: input.prNumber,
-    commit_id: input.commitId,
-    path: input.path,
-    line: input.line,
-    side: input.side,
-    body: input.body,
-  };
-
-  if (input.startLine !== undefined) params.start_line = input.startLine;
-  if (input.startSide !== undefined) params.start_side = input.startSide;
+  const params = shapeInlineCommentParams(input);
 
   try {
     const response = await octokit.rest.pulls.createReviewComment(params);

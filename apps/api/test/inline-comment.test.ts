@@ -5,7 +5,6 @@ import { randomBytes } from "node:crypto";
 import {
   AnchorStatuses,
   createArtifactStore,
-  CommentAnchorKinds,
   DraftCommentSides,
   DraftCommentStatuses,
   encryptToken,
@@ -19,6 +18,7 @@ import {
   type DraftCommentSide,
   type DraftCommentStatus,
 } from "persistence";
+import { CommentAnchorKinds } from "types";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
@@ -240,6 +240,45 @@ async function seedDraft(
       }),
   );
   if (!written.ok) throw new Error("seedDraft: draft write failed");
+  return { briefId: brief.value.id, draftId: written.value.id };
+}
+
+async function seedFileDraft(
+  handle: AppDatabase,
+  body = "post now",
+): Promise<{ briefId: BriefRowId; draftId: bigint }> {
+  const repo = createTenantRepository(handle, CTX);
+  const pr = await repo.pullRequests.getByNumber(
+    brandRepoId(BigInt(REPO_ID)),
+    PR_NUMBER,
+  );
+  if (pr === undefined) throw new Error("seedFileDraft: pr missing");
+  const brief = await createArtifactStore(handle, CTX).briefs.write({
+    pullRequestId: pr.id,
+    baseSha: BASE_SHA,
+    headSha: COMMIT_ID,
+    headIndex: 1,
+    commitCount: 1,
+    provider: "anthropic",
+    model: "claude",
+    effort: "high",
+    body: "{}",
+  });
+  if (!brief.ok) throw new Error("seedFileDraft: brief write failed");
+  const written = await repo.reviewSessions.writeToSession(
+    {
+      briefId: brief.value.id,
+      reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
+      brief: async () => ({ groupIds: [], flags: [], filePaths: [] }),
+    },
+    (writer) =>
+      writer.addDraftComment({
+        kind: CommentAnchorKinds.FILE,
+        filePath: "src/app.ts",
+        body,
+      }),
+  );
+  if (!written.ok) throw new Error("seedFileDraft: draft write failed");
   return { briefId: brief.value.id, draftId: written.value.id };
 }
 
@@ -471,6 +510,31 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       start_side: "LEFT",
       body: "spans both sides",
     });
+  });
+
+  it("posts a File comment with subject_type file and no line", async () => {
+    const counts = stubGitHub({
+      repositories: () => repoOk(),
+      comments: () => commentOk(),
+    });
+    await seedPr(harness.handle);
+    const { cookie } = await seedSession(harness.handle, kp);
+    const { draftId } = await seedFileDraft(harness.handle);
+
+    const res = await post(app, cookie, named(draftId));
+    expect(res.status).toBe(201);
+    const body = counts.commentBodies[0];
+    expect(body).toEqual({
+      commit_id: COMMIT_ID,
+      path: "src/app.ts",
+      body: "post now",
+      subject_type: "file",
+    });
+    if (body === undefined) throw new Error("expected a posted comment");
+    expect("line" in body).toBe(false);
+    expect("side" in body).toBe(false);
+    expect("start_line" in body).toBe(false);
+    expect("start_side" in body).toBe(false);
   });
 
   it("keeps 201 and logs audit.fail when post-commit auditing fails", async () => {

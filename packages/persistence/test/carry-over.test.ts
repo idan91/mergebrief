@@ -2,6 +2,7 @@
 // so include negative cases where a re-minted chunk merely reused an id.
 import type { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
+import { CommentAnchorKinds, type Mutable } from "types";
 import { describe, expect, it } from "vitest";
 import { fromDrizzle } from "../src/db/handle";
 import {
@@ -17,12 +18,10 @@ import type {
   SessionWriter,
   TenantContext,
 } from "../src/index";
-import type { Mutable } from "types";
 import * as schema from "../src/schema/index";
 import {
   ChangeGroupCategories,
   DispositionDecisions,
-  CommentAnchorKinds,
   DraftCommentSides,
   DraftCommentStatuses,
   ReviewOutcomes,

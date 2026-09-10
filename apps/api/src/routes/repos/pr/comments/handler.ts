@@ -36,7 +36,7 @@ import {
   resolveRepoOwnerAndName,
   throwRepoResolveFailure,
 } from "../logic/resolve-repo-owner-and-name";
-import { readDraftAnchor } from "./logic/draft-anchor";
+import { shapeInlineCommentWrite } from "./logic/draft-anchor";
 import { resolvePrScopeFrom } from "../scope";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
@@ -159,14 +159,12 @@ export default function createHandlers(
 
     const posted = await commentsController.postInlineComment(
       { github },
-      {
+      shapeInlineCommentWrite(draft, {
         owner: resolvedName.value.owner,
         repo: resolvedName.value.repo,
         prNumber: pr.prNumber,
         commitId: commitId.data,
-        ...readDraftAnchor(draft),
-        body: draft.body,
-      },
+      }),
     );
     if (!posted.ok) {
       throwPublishFailure(posted.error);

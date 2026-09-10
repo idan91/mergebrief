@@ -7,10 +7,10 @@
 // orphaned work is never deleted, only unplaced. Nothing here may ever settle
 // or mark-read on a guess.
 import { RemapOutcomes, remapThroughHops, type Hop } from "brief-core/remap";
+import { CommentAnchorKinds } from "types";
 import {
   AnchorStatuses,
   DispositionCarryStatuses,
-  CommentAnchorKinds,
   DraftCommentSides,
   DispositionEvidenceKinds,
   DispositionEvidenceStatuses,

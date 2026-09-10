@@ -26,7 +26,14 @@ export const ReviewCommentSides = {
 } as const;
 export type ReviewCommentSide = ValueOf<typeof ReviewCommentSides>;
 
-export interface ReviewCommentInput {
+/** GitHub `subject_type` on a review comment. File comments omit line and side. */
+export const ReviewSubjectTypes = {
+  LINE: "line",
+  FILE: "file",
+} as const;
+export type ReviewSubjectType = ValueOf<typeof ReviewSubjectTypes>;
+
+export interface LineReviewCommentInput {
   readonly path: string;
   /** The anchor line (the END line for a multi-line comment). */
   readonly line: number;
@@ -36,6 +43,16 @@ export interface ReviewCommentInput {
   readonly startSide?: ReviewCommentSide;
   readonly body: string;
 }
+
+export interface FileReviewCommentInput {
+  readonly path: string;
+  readonly body: string;
+  readonly subjectType: typeof ReviewSubjectTypes.FILE;
+}
+
+export type ReviewCommentInput =
+  | LineReviewCommentInput
+  | FileReviewCommentInput;
 
 export interface CreatePullRequestReviewInput {
   readonly owner: string;
@@ -122,11 +139,30 @@ type CreateReviewParams = NonNullable<
   Parameters<Octokit["rest"]["pulls"]["createReview"]>[0]
 >;
 type ReviewCommentParams = NonNullable<CreateReviewParams["comments"]>[number];
+type FileReviewCommentParams = ReviewCommentParams & {
+  subject_type: typeof ReviewSubjectTypes.FILE;
+};
+
+function isFileReviewComment(
+  comment: ReviewCommentInput,
+): comment is FileReviewCommentInput {
+  return (
+    "subjectType" in comment && comment.subjectType === ReviewSubjectTypes.FILE
+  );
+}
 
 /** One grouped-review comment on the wire; the start pair rides only on ranges. */
 function shapeReviewCommentParams(
   comment: ReviewCommentInput,
 ): ReviewCommentParams {
+  if (isFileReviewComment(comment)) {
+    const params: FileReviewCommentParams = {
+      path: comment.path,
+      body: comment.body,
+      subject_type: ReviewSubjectTypes.FILE,
+    };
+    return params;
+  }
   const params: ReviewCommentParams = {
     path: comment.path,
     line: comment.line,

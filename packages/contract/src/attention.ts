@@ -4,8 +4,8 @@
 //
 // `clearedBy` is a LIST because two of the three kinds clear by either of two
 // operations, and a scalar would put a CLI back into guessing which.
-import type { DispositionEvidenceStatus, CommentAnchorKind } from "persistence";
-import type { ValueOf } from "types";
+import type { DispositionEvidenceStatus } from "persistence";
+import type { CommentAnchorKind, ValueOf } from "types";
 import type { ProductActionId } from "./operations";
 
 /**

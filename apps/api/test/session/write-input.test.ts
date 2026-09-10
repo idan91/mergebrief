@@ -1,8 +1,11 @@
 // What a session write may say on the wire. The integration suite proves a
-// rejected payload is a 400; this pins the edges that decide it — the int8
+// rejected payload is a 400; this pins the edges that decide it, the int8
 // ceiling a row id must stay under, the line ordering an anchor must hold,
 // and the closed category vocabulary.
-import { ChangeGroupCategories, DraftCommentSides } from "persistence";
+import {
+  ChangeGroupCategories,
+  DraftCommentSides,
+} from "persistence";
 import { describe, expect, it } from "vitest";
 import {
   anchorSchema,
@@ -81,16 +84,16 @@ describe("anchorSchema", () => {
   });
 });
 
-describe("anchorSchema — two-side ranges", () => {
+describe("anchorSchema two-side ranges", () => {
   it("accepts old\u2192new and keeps the crossing startSide", () => {
     const parsed = anchorSchema.parse({
       ...ANCHOR,
       startSide: DraftCommentSides.OLD,
     });
-    expect(parsed.startSide).toBe(DraftCommentSides.OLD);
+    expect(parsed).toMatchObject({ startSide: DraftCommentSides.OLD });
   });
 
-  it("accepts new\u2192old with lines out of order — cross-side is unordered", () => {
+  it("accepts a cross-side range with lines out of order", () => {
     const parsed = anchorSchema.parse({
       ...ANCHOR,
       side: DraftCommentSides.OLD,
@@ -108,13 +111,12 @@ describe("anchorSchema — two-side ranges", () => {
 
   it("normalizes a startSide equal to side to null", () => {
     expect(
-      anchorSchema.parse({ ...ANCHOR, startSide: DraftCommentSides.NEW })
-        .startSide,
-    ).toBe(null);
+      anchorSchema.parse({ ...ANCHOR, startSide: DraftCommentSides.NEW }),
+    ).toMatchObject({ startSide: null });
   });
 
   it("defaults an absent startSide to null", () => {
-    expect(anchorSchema.parse(ANCHOR).startSide).toBe(null);
+    expect(anchorSchema.parse(ANCHOR)).toMatchObject({ startSide: null });
   });
 
   it("still rejects an inverted range once startSide collapses to side", () => {
@@ -144,8 +146,8 @@ describe("createDraftSchema", () => {
         ...ANCHOR,
         startSide: DraftCommentSides.NEW,
         body: "hi",
-      }).startSide,
-    ).toBe(null);
+      }),
+    ).toMatchObject({ startSide: null });
   });
 
   it("holds the anchor's line ordering too", () => {

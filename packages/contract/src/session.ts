@@ -10,11 +10,11 @@ import type {
   DispositionDecision,
   DispositionEvidence,
   DispositionEvidenceStatus,
-  CommentAnchorKind,
   DraftCommentSide,
   DraftCommentStatus,
   ReviewOutcome,
 } from "persistence";
+import type { CommentAnchorKind } from "types";
 import type { AttentionItem } from "./attention";
 
 /**
