@@ -171,12 +171,15 @@ Payload via `-F <file>` / `-F -` (stdin), or the convenience flags —
 mutually exclusive (exit 2):
 
 - `create <n> --file <path> --start <line> --end <line> --body <text>`
-  (`--side old|new`, default `new` — `old` only for deleted lines).
-  Receipt: `{"draftId":"41"}`.
+  (`--side old|new`, default `new`, `old` only for deleted lines).
+  `--file` without `--start`/`--end` is a File comment. Mixing `--file`
+  with only one of `--start`/`--end` is exit 2. `--file` without a span
+  cannot take `--side` or `--start-side` (exit 2). Receipt: `{"draftId":"41"}`.
 - `update <n> <draftId> --body <text>` — edit a held draft's body.
 - `reanchor <n> <draftId> --file --start --end [--side]` — move a held
-  draft's anchor. Server-gated to signed-in reviewers (a token gets the
-  relayed 403 → exit 5).
+  draft's anchor. `--file` without a span converts it to a File comment.
+  `--file` without a span cannot take `--side` or `--start-side` (exit 2).
+  Server-gated to signed-in reviewers (a token gets the relayed 403 → exit 5).
 - `delete <n> <draftId>` — no payload. Same signed-in-reviewer gate.
 
 ### `chunk-read <n> <chunkId>`

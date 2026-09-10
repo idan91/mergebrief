@@ -23,9 +23,13 @@ import {
   type TenantContext,
 } from "persistence";
 import type { PgliteHarness } from "persistence/testing";
+import { CommentAnchorKinds } from "types";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ExitCodes } from "../src/exit";
-import { buildReanchorPayload } from "../src/commands/session-write/utils";
+import {
+  buildCreateDraftPayload,
+  buildReanchorPayload,
+} from "../src/commands/session-write/utils";
 import {
   BASE_URL,
   KEY_REF,
@@ -306,6 +310,56 @@ describe("session write commands over the real api app", () => {
     });
   });
 
+  it("buildCreateDraftPayload sends --file with no span as file", () => {
+    expect(
+      buildCreateDraftPayload({
+        file: "src/a.ts",
+        body: "on the file",
+      }),
+    ).toEqual({
+      kind: CommentAnchorKinds.FILE,
+      filePath: "src/a.ts",
+      body: "on the file",
+    });
+  });
+
+  it("buildCreateDraftPayload rejects --file mixed with a partial span", () => {
+    expect(() =>
+      buildCreateDraftPayload({
+        file: "src/a.ts",
+        start: "10",
+        body: "on the file",
+      }),
+    ).toThrow(/only one of --start\/--end/);
+  });
+
+  it("buildCreateDraftPayload rejects --file mixed with only --end", () => {
+    expect(() =>
+      buildCreateDraftPayload({
+        file: "src/a.ts",
+        end: "12",
+        body: "on the file",
+      }),
+    ).toThrow(/only one of --start\/--end/);
+  });
+
+  it("buildCreateDraftPayload rejects --file mixed with --side", () => {
+    expect(() =>
+      buildCreateDraftPayload({
+        file: "src/a.ts",
+        side: "new",
+        body: "on the file",
+      }),
+    ).toThrow(/cannot take --side or --start-side/);
+  });
+
+  it("buildReanchorPayload converts a Line comment onto a file", () => {
+    expect(buildReanchorPayload({ file: "src/a.ts" })).toEqual({
+      kind: CommentAnchorKinds.FILE,
+      filePath: "src/a.ts",
+    });
+  });
+
   it("draft create -F - takes the full payload from stdin", async () => {
     await seedSessionedPr(harness.handle);
     await login();
@@ -344,6 +398,24 @@ describe("session write commands over the real api app", () => {
     expect(session.code).toBe(ExitCodes.OK);
     expect(session.out).toContain('"side":"old"');
     expect(session.out).not.toContain('"side":"new"');
+  });
+
+  it("draft create -F relays a File comment for the server", async () => {
+    await seedSessionedPr(harness.handle);
+    await login();
+    const payload = JSON.stringify({
+      kind: CommentAnchorKinds.FILE,
+      filePath: "src/a.ts",
+      body: "on the file",
+    });
+    const result = await run(
+      ["draft", "create", "7", "-F", "-", ...SPAN, "--json"],
+      payload,
+    );
+    expect(result.err).toEqual([]);
+    expect(result.code).toBe(ExitCodes.OK);
+    const session = await run(["session", "7", ...SPAN, "--json"]);
+    expect(session.out).toContain('"kind":"file"');
   });
 
   it("draft reanchor rejects -F mixed with anchor flags, exit 2", async () => {
@@ -390,6 +462,91 @@ describe("session write commands over the real api app", () => {
     expect(result.code).toBe(ExitCodes.USAGE);
     expect(result.out).toBe("");
     expect(result.err[0]).toContain("--start");
+  });
+
+  it("draft create --file without a span stores a File comment", async () => {
+    await seedSessionedPr(harness.handle);
+    await login();
+    const result = await run([
+      "draft",
+      "create",
+      "7",
+      "--file",
+      "src/a.ts",
+      "--body",
+      "on the file",
+      ...SPAN,
+      "--json",
+    ]);
+    expect(result.err).toEqual([]);
+    expect(result.code).toBe(ExitCodes.OK);
+    const session = await run(["session", "7", ...SPAN, "--json"]);
+    expect(session.out).toContain('"kind":"file"');
+    expect(session.out).toContain('"filePath":"src/a.ts"');
+    expect(session.out).not.toContain('"startLine"');
+  });
+
+  it("draft create --file with only --start exits 2 before HTTP", async () => {
+    await seedSessionedPr(harness.handle);
+    await login();
+    const result = await run([
+      "draft",
+      "create",
+      "7",
+      "--file",
+      "src/a.ts",
+      "--start",
+      "10",
+      "--body",
+      "on the file",
+      ...SPAN,
+      "--json",
+    ]);
+    expect(result.code).toBe(ExitCodes.USAGE);
+    expect(result.out).toBe("");
+    expect(result.err[0]).toContain("only one of --start/--end");
+  });
+
+  it("draft create --file with only --end exits 2 before HTTP", async () => {
+    await seedSessionedPr(harness.handle);
+    await login();
+    const result = await run([
+      "draft",
+      "create",
+      "7",
+      "--file",
+      "src/a.ts",
+      "--end",
+      "12",
+      "--body",
+      "on the file",
+      ...SPAN,
+      "--json",
+    ]);
+    expect(result.code).toBe(ExitCodes.USAGE);
+    expect(result.out).toBe("");
+    expect(result.err[0]).toContain("only one of --start/--end");
+  });
+
+  it("draft create --file with --side and no span exits 2", async () => {
+    await seedSessionedPr(harness.handle);
+    await login();
+    const result = await run([
+      "draft",
+      "create",
+      "7",
+      "--file",
+      "src/a.ts",
+      "--side",
+      "new",
+      "--body",
+      "on the file",
+      ...SPAN,
+      "--json",
+    ]);
+    expect(result.code).toBe(ExitCodes.USAGE);
+    expect(result.out).toBe("");
+    expect(result.err[0]).toContain("cannot take --side or --start-side");
   });
 
   it("draft create rejects -F mixed with convenience flags, exit 2", async () => {

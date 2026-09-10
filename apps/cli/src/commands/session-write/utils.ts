@@ -1,18 +1,27 @@
-// Payload assembly — convenience flags XOR `-F`, one builder per command.
+// Payload assembly: convenience flags XOR `-F`, one builder per command.
 // Builders return `unknown` because the `-F` arm IS unknown: the payload is
 // the user's bytes, relayed for the server to validate. Only the flag arm
 // has a shape the CLI knows (`FlagAnchor`).
+import { CommentAnchorKinds } from "types";
 import { CliError, ExitCodes } from "../../exit";
 import type {
   AnchorFlags,
   CreateDraftInput,
+  FileFlagAnchor,
   FlagAnchor,
+  LineFlagAnchor,
   ReanchorInput,
   UpdateDraftInput,
 } from "./types";
 
 const EXCLUSIVE =
-  "-F and the convenience flags are mutually exclusive — send the whole payload one way";
+  "-F and the convenience flags are mutually exclusive: send the whole payload one way";
+
+const FILE_PARTIAL_SPAN =
+  "--file with only one of --start/--end is not a File comment; pass both for a Line comment, or neither for a File comment";
+
+const FILE_LINE_FLAGS =
+  "--file without --start/--end cannot take --side or --start-side";
 
 function parseLine(flag: string, raw: string): number {
   if (!/^[1-9]\d*$/.test(raw)) {
@@ -24,13 +33,41 @@ function parseLine(flag: string, raw: string): number {
   return Number(raw);
 }
 
+function isFileFlagForm(flags: AnchorFlags): boolean {
+  return (
+    flags.file !== undefined &&
+    flags.start === undefined &&
+    flags.end === undefined
+  );
+}
+
+function hasPartialSpan(flags: AnchorFlags): boolean {
+  const hasStart = flags.start !== undefined;
+  const hasEnd = flags.end !== undefined;
+  return hasStart !== hasEnd;
+}
+
 /**
- * The anchor coordinates a flag form carries; `--side` defaults to `new`
- * (comments land on the added lines unless you say otherwise). Absent flags
- * stay absent — the server's schema is the validator (exit 5), not this.
+ * The anchor coordinates a flag form carries. `--file` with no span is a
+ * File comment. `--side` defaults to `new` on the line arm only. Absent line
+ * flags stay absent: the server's schema is the validator (exit 5), not this.
  */
 function anchorFromFlags(flags: AnchorFlags): FlagAnchor {
-  const anchor: FlagAnchor = { side: flags.side ?? "new" };
+  const filePath = flags.file;
+  if (filePath !== undefined && hasPartialSpan(flags)) {
+    throw new CliError(ExitCodes.USAGE, FILE_PARTIAL_SPAN);
+  }
+  if (filePath !== undefined && isFileFlagForm(flags)) {
+    if (flags.side !== undefined || flags.startSide !== undefined) {
+      throw new CliError(ExitCodes.USAGE, FILE_LINE_FLAGS);
+    }
+    const anchor: FileFlagAnchor = {
+      kind: CommentAnchorKinds.FILE,
+      filePath,
+    };
+    return anchor;
+  }
+  const anchor: LineFlagAnchor = { side: flags.side ?? "new" };
   if (flags.file !== undefined) {
     anchor.filePath = flags.file;
   }
@@ -92,7 +129,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * A risk operation's payload: `-F` is REQUIRED — the flags array names its
+ * A risk operation's payload: `-F` is REQUIRED. The flags array names its
  * anchors verbatim from `session --json`, which no flag form can carry.
  * `dismiss` takes a `--reason` convenience, refused when the payload already
  * carries one (a defined precedence beats a silent overwrite).
@@ -101,7 +138,7 @@ export function buildRiskPayload(payload: unknown, reason?: string): unknown {
   if (payload === undefined) {
     throw new CliError(
       ExitCodes.USAGE,
-      "-F is required — risk operations take a JSON payload with the flags array (anchors copy through from `session --json`)",
+      "-F is required: risk operations take a JSON payload with the flags array (anchors copy through from `session --json`)",
     );
   }
   if (reason === undefined) {
@@ -112,13 +149,13 @@ export function buildRiskPayload(payload: unknown, reason?: string): unknown {
   if (!isRecord(payload) || Array.isArray(payload)) {
     throw new CliError(
       ExitCodes.USAGE,
-      '--reason needs a JSON object payload to merge into — send {"flags":[…]} (or put reason in the payload)',
+      '--reason needs a JSON object payload to merge into: send {"flags":[…]} (or put reason in the payload)',
     );
   }
   if (payload["reason"] !== undefined) {
     throw new CliError(
       ExitCodes.USAGE,
-      "--reason and a reason in the -F payload are mutually exclusive — provide it once",
+      "--reason and a reason in the -F payload are mutually exclusive: provide it once",
     );
   }
   return { ...payload, reason };

@@ -415,11 +415,6 @@
       "count": 2
     }
   },
-  "apps/cli/src/commands/session-write/utils.ts": {
-    "house/no-em-dash": {
-      "count": 3
-    }
-  },
   "apps/cli/src/exit.ts": {
     "house/comment-density": {
       "count": 1

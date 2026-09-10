@@ -26,7 +26,7 @@ What the layout can't show:
 
 - **Stream/exit contract:** exit 0 ⇒ stdout is documented JSON; exit ≠ 0 ⇒ empty stdout, ONE stderr line. The exit codes are a public surface — additive-only, never renumbered.
 - **Passthrough by default:** response bodies relay VERBATIM; the CLI synthesizes shapes only where documented (e.g. `delta`).
-- **One client-side shape check family**: the span flags every span-addressed command requires (exit 2), plus flag XOR `-F` payload exclusivity. Everything else relays the server's locked validation (4xx → exit 5).
+- **One client-side shape check family**: the span flags every span-addressed command requires (exit 2), plus flag XOR `-F` payload exclusivity, plus `--file` without a span refusing `--side`/`--start-side` (exit 2; otherwise the line-arm `--side` default would swallow a no-op flag). Everything else relays the server's locked validation (4xx → exit 5).
 - **Single-file bundle:** workspace runtime deps are limited to `i18n` (the string catalog — tsup bundles it in; the bundle stays one file) plus compile-time `types`. Assets ship as constants, never file reads.
 - **Secrets:** the profile token is plaintext-on-disk by design (0600, v1, disclaimed at mint) — but it never appears in stdout, stderr, or errors.
 
