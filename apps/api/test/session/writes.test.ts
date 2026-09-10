@@ -600,13 +600,13 @@ describe("the Review Session writes", () => {
     expect(rows[0]?.["body"]).toBe(DRAFT.body);
   });
 
-  it("refuses the 101st unposted draft the session would hold", async () => {
+  it("refuses the 65th unposted draft the session would hold", async () => {
     const briefId = await seedBrief(harness.handle, 1);
     const repo = createTenantRepository(harness.handle, CTX);
     await repo.reviewSessions.writeToSession(
       { briefId, reviewerId: REVIEWER, brief: async () => NO_ARTIFACT },
       async (writer) => {
-        for (let i = 0; i < 100; i++) {
+        for (let i = 0; i < 64; i++) {
           await writer.addDraftComment({
             kind: CommentAnchorKinds.LINE,
             ...DRAFT,

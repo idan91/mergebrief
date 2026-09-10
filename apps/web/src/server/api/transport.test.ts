@@ -45,6 +45,7 @@ function deps(): ApiTransportDeps {
     fetch: globalThis.fetch,
     logger: { error: vi.fn() },
     timeoutMs: 5000,
+    submitTimeoutMs: 5000,
   };
 }
 

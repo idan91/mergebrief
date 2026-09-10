@@ -85,10 +85,48 @@ describe("retryOnceAfterLimit", () => {
   });
 });
 
+describe("createUserOctokit with retry off", () => {
+  it("sends a request once and never replays it on a 5xx", async () => {
+    const fetchImpl = stubCountingFetch(502);
+    const octokit = createUserOctokit("ghu_token", {
+      retry: false,
+      throttle: false,
+      fetch: fetchImpl,
+    });
+    const result = await fetchDiff(octokit, {
+      owner: "o",
+      repo: "r",
+      prNumber: 1,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("createUserOctokit", () => {
   it("constructs with a throttle id and the rate-limit handlers intact", () => {
     // `throttle` is shallow-merged over octokit's defaults: an id alone would
     // drop the handlers and the throttling plugin refuses to build.
     expect(() => createUserOctokit("ghu_token")).not.toThrow();
+  });
+
+  it("runs back-to-back mutations unpaced when throttling is off", async () => {
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    const octokit = createUserOctokit("ghu_token", {
+      throttle: false,
+      fetch: fetchImpl,
+    });
+    const started = Date.now();
+    await octokit.graphql("mutation { noop }");
+    await octokit.graphql("mutation { noop }");
+    expect(Date.now() - started).toBeLessThan(500);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 });

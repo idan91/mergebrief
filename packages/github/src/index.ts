@@ -42,6 +42,7 @@ export type {
   OAuthError,
   OAuthErrorCode,
   UserInstallation,
+  UserOctokitOptions,
 } from "./auth/oauth";
 
 // --- webhook/: what GitHub PUSHES at us -------------------------------------
@@ -162,6 +163,8 @@ export type {
   ReviewSubjectType,
 } from "./operations/review-thread";
 export {
+  countPendingReviewComments,
+  hasPullRequestReviewPublished,
   findPendingPullRequestReview,
   deletePendingPullRequestReview,
 } from "./operations/review-pending";

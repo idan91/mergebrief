@@ -14,6 +14,11 @@ import { apiUnavailable, requestApi, type ApiTransportDeps } from "./proxy";
  * than holding a render open until the browser gives up.
  */
 const UPSTREAM_TIMEOUT_MS = 30_000;
+// The API posts one GitHub mutation per draft, each at least one second
+// (octokit's write pacing) plus GitHub's own latency, so a submit at the
+// 64-draft session cap runs ~66 s; the budget allows about 2 s per mutation
+// sustained.
+const SUBMIT_TIMEOUT_MS = 150_000;
 
 const TRANSPORT_UNAVAILABLE_MSG = "apiFetch: api transport unavailable";
 
@@ -34,6 +39,7 @@ export function getApiTransport(): ApiTransportDeps {
       fetch: globalThis.fetch,
       logger: getServerLogger(),
       timeoutMs: UPSTREAM_TIMEOUT_MS,
+      submitTimeoutMs: SUBMIT_TIMEOUT_MS,
     };
   }
   return cached;

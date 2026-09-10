@@ -72,7 +72,7 @@ async function resolveSubmittableDrafts(
 /**
  * The two deterministic 400s an accepted submit must clear: a neutral
  * review that says nothing, and a fold that would blow GitHub's body cap
- * if the anchors 422 and every comment moves into the one review body.
+ * if GitHub rejects every anchor and every comment moves into the body.
  */
 function assertSubmitRepresentable(
   submitBody: { outcome: ReviewOutcome; body?: string | undefined },
@@ -85,10 +85,12 @@ function assertSubmitRepresentable(
   ) {
     throw new BadRequest();
   }
-  if (
-    comments.length > 0 &&
-    foldCommentsIntoBody(submitBody.body, comments).length > MAX_BODY_LENGTH
-  ) {
+  const worstFold = foldCommentsIntoBody(
+    submitBody.body,
+    comments,
+    comments.length,
+  );
+  if (worstFold !== undefined && worstFold.length > MAX_BODY_LENGTH) {
     throw new BadRequest();
   }
 }
@@ -129,7 +131,7 @@ export default function createHandlers(
   deps: AuthRouteDeps,
   evictConversation: EvictConversation,
 ) {
-  /** Post ONE grouped formal review with the VIEWER's token. */
+  /** Post ONE formal review with the VIEWER's token: pending, threads, submit. */
   const submitReview = async (c: Context<AuthzEnv>) => {
     const parsedBody = submitBodySchema.safeParse(
       await c.req.json().catch(() => undefined),
@@ -161,7 +163,7 @@ export default function createHandlers(
     assertSubmitRepresentable(submitBody, comments);
 
     // One refresh-once budget for the WHOLE request, shared across the fresh
-    // slug resolve, the anchored attempt, AND the degradation retry.
+    // slug resolve, the pending review, every thread and the submit.
     const github = createReviewerGitHubClient(
       deps,
       c.get("session"),
@@ -173,15 +175,15 @@ export default function createHandlers(
     }
 
     const created = await reviewController.submitReview(
-      { github },
+      { github, log: c.get("logger") },
       {
-        base: {
+        target: {
           owner: target.value.owner,
           repo: target.value.repo,
           prNumber: pr.prNumber,
           commitId: commitId.data,
-          event: OutcomeToEvent[submitBody.outcome],
         },
+        event: OutcomeToEvent[submitBody.outcome],
         body: submitBody.body,
         comments,
       },
@@ -203,10 +205,14 @@ export default function createHandlers(
     // is stale the moment it lands.
     evictConversation(ctx, c.get("repoId"), pr.prNumber);
 
+    // `commentsDegraded` stays one release for the CLI receipt; the counts
+    // are what the web copy reads.
     return c.json(
       {
         reviewId: Number(created.value.reviewId),
-        commentsDegraded: created.value.commentsDegraded,
+        commentsDegraded: created.value.commentsFolded > 0,
+        commentsFolded: created.value.commentsFolded,
+        commentsTotal: created.value.commentsTotal,
       },
       201,
       NO_STORE,

@@ -1,21 +1,11 @@
-// Thread-resolution transport: POSTs the resolve/unresolve routes with the
-// viewer's token. Expected failure statuses are RESULT KINDS the affordances
-// render; only a malformed 200 throws (contract violation).
-//
-// The 403 is its OWN kind, not folded into `upstream`/`not-found`: the route
-// only returns it at the MUTATION stage, after the viewer re-proved repo
-// access, so it carries a real capability signal (raced revocation, read-only
-// collaborator) that the FE answers with honest copy plus a capability
-// refetch. The reply route's 403 collapses to 404 server-side because it
-// carries none.
-//
-// The routes' only 400 is a malformed `:prNumber`/`:commentId`, both from
-// already-parsed server data — unreachable from a valid UI state, so there is
-// no cap to mirror; it surfaces as its own recoverable kind rather than a
-// silent throw.
-//
-// Both directions are idempotent server-side (a converged state answers 200
-// with `alreadyInTargetState`), so retrying after ANY failure kind is safe.
+// Thread-resolution transport: POSTs resolve/unresolve with the viewer's
+// token; expected failure statuses are result kinds, only a malformed 200 throws.
+// The 403 is its own kind: the route returns it only at the mutation stage,
+// after the viewer re-proved repo access, so it carries a real capability
+// signal the FE answers with honest copy and a capability refetch.
+// The only 400 is a malformed route param from already-parsed server data,
+// so there is no cap to mirror. Both directions are idempotent server-side
+// (a converged state answers 200), so a retry after any failure is safe.
 import {
   ApiError,
   ApiErrorCodes,
@@ -26,7 +16,7 @@ import {
 
 export type ResolveThreadResult =
   /**
-   * The thread is in the requested state — a fresh flip or a converged one
+   * The thread is in the requested state, a fresh flip or a converged one
    * (`alreadyInTargetState`). Both are success and share the refetch path;
    * the flag exists so copy can stay honest if it ever needs to differ.
    */
@@ -35,17 +25,17 @@ export type ResolveThreadResult =
       readonly resolved: boolean;
       readonly alreadyInTargetState: boolean;
     }
-  /** 401 — session expired; sign in again. */
+  /** 401: session expired; sign in again. */
   | { readonly kind: "unauthorized" }
-  /** 403 — GitHub refused the mutation (permissions changed under the viewer). */
+  /** 403: GitHub refused the mutation (permissions changed under the viewer). */
   | { readonly kind: "github-permission" }
-  /** 404 — the thread (or the PR) is gone. */
+  /** 404: the thread (or the PR) is gone. */
   | { readonly kind: "not-found" }
-  /** 400 — the route rejected the shape (unreachable from valid UI state). */
+  /** 400: the route rejected the shape (unreachable from valid UI state). */
   | { readonly kind: "invalid" }
-  /** 502/anything else — GitHub rejected or is unreachable. */
+  /** 502/anything else: GitHub rejected or is unreachable. */
   /**
-   * 403 — a url-box brief for a repo the reader's own GitHub account cannot
+   * 403: a url-box brief for a repo the reader's own GitHub account cannot
    * write to. Never a retry: it clears by installing the App there.
    */
   | { readonly kind: "no-write-access" }
@@ -73,6 +63,7 @@ const KindForCode = {
   [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]: "upstream",
   [ApiErrorCodes.DRAFT_ANCHOR_ORPHANED]: "upstream",
   [ApiErrorCodes.DRAFT_LIMIT_REACHED]: "upstream",
+  [ApiErrorCodes.PENDING_REVIEW_HELD]: "upstream",
   [ApiErrorCodes.PR_CHANGED_SINCE_READ]: "upstream",
   [ApiErrorCodes.PR_REWRITTEN_SINCE_READ]: "upstream",
   [ApiErrorCodes.APP_NOT_INSTALLED]: "upstream",
@@ -81,7 +72,7 @@ const KindForCode = {
   [ApiErrorCodes.GENERATION_UNAVAILABLE]: "upstream",
   [ApiErrorCodes.GENERATION_CONFIG]: "upstream",
   [ApiErrorCodes.INTERNAL_ERROR]: "upstream",
-  // Web-local; never on the wire — errorFromResponse cannot produce it.
+  // Web-local; never on the wire: errorFromResponse cannot produce it.
   [ApiErrorCodes.MALFORMED]: "upstream",
 } as const satisfies Record<ApiErrorCode, ResolveFailureKind>;
 
@@ -121,7 +112,7 @@ export async function setThreadResolution(
     throw new ApiError(ApiErrorCodes.MALFORMED, response.status, path);
   }
   // A body echoing the OTHER direction would have the UI announce a state the
-  // server never set — a contract violation, so it throws rather than lying.
+  // server never set: a contract violation, so it throws rather than lying.
   if (!isResolutionBody(parsed) || parsed.resolved !== resolved) {
     throw new ApiError(ApiErrorCodes.MALFORMED, response.status, path);
   }

@@ -31,10 +31,10 @@ function parseLocale(file: string): object {
 }
 
 // ---------------------------------------------------------------------------
-// Hard-fail gates — the mechanical review bar for every shipped locale file.
+// Hard-fail gates: the mechanical review bar for every shipped locale file.
 // ---------------------------------------------------------------------------
 
-describe("catalog gates (hard-fail)", () => {
+describe("hard-fail catalog gates", () => {
   it("every locale file parses as a nested string catalog", () => {
     for (const file of localeFiles()) {
       expect(() => flattenCatalog(parseLocale(file))).not.toThrow();
@@ -46,7 +46,7 @@ describe("catalog gates (hard-fail)", () => {
     const registryIds = LOCALES.map((entry) => entry.id);
     expect(fileIds.toSorted()).toEqual(registryIds.toSorted());
     // A LOCALES row without a RESOURCES entry renders English under a
-    // translated picker label — the silent half of the bijection.
+    // translated picker label, the silent half of the bijection.
     expect(Object.keys(RESOURCES).toSorted()).toEqual(fileIds.toSorted());
   });
 
@@ -61,7 +61,7 @@ describe("catalog gates (hard-fail)", () => {
     // A slot-bearing key read through a bare `t()` renders its tags as text,
     // and a slot with no component renders as NOTHING. Pinning counts (not
     // just the key set) forces a slot change to be re-checked against the
-    // call site's `components` arity by hand — nothing here reaches one.
+    // call site's `components` arity by hand; nothing here reaches one.
     const flat = flattenCatalog(parseLocale("en.json"));
     const slotted = Object.entries(flat)
       .filter(([, template]) => tagIndices(template).length > 0)
@@ -89,7 +89,7 @@ describe("catalog gates (hard-fail)", () => {
   it("en carries every wire-error and generation-failure template", () => {
     // Scaffold pin: counts only. The vocabulary-equality pins against the
     // api contract module and the persistence failure codes land with those
-    // modules — this catches a template dropped from en.json in the interim.
+    // modules; this catches a template dropped from en.json in the interim.
     const flat = flattenCatalog(parseLocale("en.json"));
     const errorKeys = Object.keys(flat).filter((key) =>
       key.startsWith("errors."),
@@ -97,16 +97,16 @@ describe("catalog gates (hard-fail)", () => {
     const generationKeys = Object.keys(flat).filter((key) =>
       key.startsWith("generationError."),
     );
-    expect(errorKeys).toHaveLength(24);
+    expect(errorKeys).toHaveLength(25);
     expect(generationKeys).toHaveLength(11);
   });
 });
 
 // ---------------------------------------------------------------------------
-// Report-only — completeness never blocks a locale from shipping.
+// Report-only: completeness never blocks a locale from shipping.
 // ---------------------------------------------------------------------------
 
-describe("catalog completeness (report-only)", () => {
+describe("report-only catalog completeness", () => {
   it("prints per-locale coverage", () => {
     const en = parseLocale("en.json");
     const total = new Set(Object.keys(flattenCatalog(en)).map(pluralBase)).size;
@@ -115,7 +115,7 @@ describe("catalog completeness (report-only)", () => {
       const covered = total - missing.length;
       const percent = ((covered / total) * 100).toFixed(1);
       console.info(
-        `${file}: ${percent}% (${covered}/${total})${missing.length > 0 ? ` — missing: ${missing.join(", ")}` : ""}`,
+        `${file}: ${percent}% (${covered}/${total})${missing.length > 0 ? `, missing: ${missing.join(", ")}` : ""}`,
       );
     }
     expect(total).toBeGreaterThan(0);
@@ -123,7 +123,7 @@ describe("catalog completeness (report-only)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Checker behaviour — fixtures exercising each failure mode the gates rely on.
+// Checker behaviour: fixtures exercising each failure mode the gates rely on.
 // ---------------------------------------------------------------------------
 
 function carriesMarkup(locale: object, source: object): boolean {
@@ -148,7 +148,7 @@ describe("checkLocale", () => {
     expect(checkLocale({ attempts_few: "{{count}} pokusy" }, en)).toEqual([]);
   });
 
-  it("flags a plural variant of a non-plural en key — silently dead", () => {
+  it("flags a plural variant of a non-plural en key as silently dead", () => {
     const issues = checkLocale({ plain_few: "hallo" }, en);
     expect(issues).toHaveLength(1);
     expect(issues[0]?.problem).toContain("not pluralized");
@@ -193,7 +193,7 @@ describe("checkLocale", () => {
     ).toEqual([]);
   });
 
-  it("flags an emptied or blank paired slot — the element would have no name", () => {
+  it("flags an emptied or blank paired slot that leaves the element unnamed", () => {
     const paired = { linked: "read the <0>guide</0>" };
     expect(carriesMarkup({ linked: "lies <0></0>" }, paired)).toBe(true);
     expect(carriesMarkup({ linked: "lies <0> </0>" }, paired)).toBe(true);
@@ -207,34 +207,34 @@ describe("checkLocale", () => {
       { linked: "<0>Se connecter</0> et <1>gérer</1>." },
       selfClosing,
     );
-    // Every reshaped slot is reported, not only the first — otherwise a
+    // Every reshaped slot is reported, not only the first; otherwise a
     // multi-slot value costs one round trip per slot.
     expect(
       issues.filter((issue) => issue.problem.includes("self-closing")),
     ).toHaveLength(2);
   });
 
-  it("flags a slot dropped by a translation — the link stops being one", () => {
+  it("flags a slot a translation dropped so the link stops being one", () => {
     const slotted = { linked: "read the <0>guide</0> first" };
     const issues = checkLocale({ linked: "erst den Leitfaden lesen" }, slotted);
     expect(issues).toHaveLength(1);
     expect(issues[0]?.problem).toContain("slot set differs");
   });
 
-  it("flags a gap in slot indices — the wrapped text renders bare", () => {
+  it("flags a gap in slot indices that renders the wrapped text bare", () => {
     const slotted = { linked: "<0>a</0> and <1>b</1>" };
     const issues = checkLocale({ linked: "<1>b</1> und <2>c</2>" }, slotted);
     expect(issues.some((issue) => issue.problem.includes("0..n-1"))).toBe(true);
   });
 
-  it("flags a repeated slot — the element would render twice", () => {
+  it("flags a repeated slot that would render the element twice", () => {
     const slotted = { linked: "read the <0>guide</0>" };
     const issues = checkLocale({ linked: "<0>a</0> und <0>b</0>" }, slotted);
     expect(issues.some((issue) => issue.problem.includes("0..n-1"))).toBe(true);
   });
 
   it("compares slots per plural form, never unioned across them", () => {
-    // `_one` carrying fewer slots than `_other` is a legitimate structure —
+    // `_one` carrying fewer slots than `_other` is a legitimate structure;
     // unioning would fail en against itself.
     const plural = {
       skipped_one: "<0>{{count}} file</0> skipped",

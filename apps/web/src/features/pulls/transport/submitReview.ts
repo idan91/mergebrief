@@ -18,6 +18,10 @@ export type { SubmitReviewResult } from "@web/features/review/utils";
 
 type SubmitFailureKind = Exclude<SubmitReviewResult["kind"], "submitted">;
 
+// The web proxy answers 504 when its upstream budget runs out; the API keeps
+// posting threads and may still submit, so a retry here would post twice.
+const PROXY_TIMEOUT_STATUS = 504;
+
 // Total over the wire vocabulary: a new ApiErrorCode member fails to compile
 // here instead of silently becoming "try again shortly". Three 409s reach
 // this route: the orphaned anchor is its own refusal; a frozen session
@@ -41,6 +45,7 @@ const KindForCode = {
   [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]: "upstream",
   [ApiErrorCodes.DRAFT_ANCHOR_ORPHANED]: "orphaned-draft",
   [ApiErrorCodes.DRAFT_LIMIT_REACHED]: "upstream",
+  [ApiErrorCodes.PENDING_REVIEW_HELD]: "pending-review-held",
   [ApiErrorCodes.PR_CHANGED_SINCE_READ]: "rewritten",
   [ApiErrorCodes.PR_REWRITTEN_SINCE_READ]: "rewritten",
   [ApiErrorCodes.APP_NOT_INSTALLED]: "upstream",
@@ -55,7 +60,8 @@ const KindForCode = {
 
 interface SubmittedBody {
   reviewId: number;
-  commentsDegraded: boolean;
+  commentsFolded: number;
+  commentsTotal: number;
 }
 
 function isSubmittedBody(value: unknown): value is SubmittedBody {
@@ -64,8 +70,10 @@ function isSubmittedBody(value: unknown): value is SubmittedBody {
     value !== null &&
     "reviewId" in value &&
     typeof value.reviewId === "number" &&
-    "commentsDegraded" in value &&
-    typeof value.commentsDegraded === "boolean"
+    "commentsFolded" in value &&
+    typeof value.commentsFolded === "number" &&
+    "commentsTotal" in value &&
+    typeof value.commentsTotal === "number"
   );
 }
 
@@ -85,6 +93,9 @@ export async function submitReview(
     headers: { "content-type": "application/json" },
     body: JSON.stringify(payload),
   });
+  if (response.status === PROXY_TIMEOUT_STATUS) {
+    return { kind: "indeterminate" };
+  }
   if (!response.ok) {
     const { code } = await errorFromResponse(response, path);
     return { kind: KindForCode[code] };
@@ -101,6 +112,7 @@ export async function submitReview(
   return {
     kind: "submitted",
     reviewId: body.reviewId,
-    commentsDegraded: body.commentsDegraded,
+    commentsFolded: body.commentsFolded,
+    commentsTotal: body.commentsTotal,
   };
 }

@@ -7,6 +7,7 @@ import type { Octokit } from "octokit";
 import { RequestError } from "octokit";
 import { z } from "zod";
 import {
+  mapGraphqlError,
   mapRequestError,
   unexpectedResponseError,
   type GitHubApiError,
@@ -33,6 +34,24 @@ const reviewListEntrySchema = z.object({
   state: z.string(),
 });
 
+async function readReviewList(
+  octokit: Octokit,
+  ref: PullRequestReviewRef,
+  context: string,
+): Promise<Result<unknown[], GitHubApiError>> {
+  try {
+    const reviews = await octokit.paginate(octokit.rest.pulls.listReviews, {
+      owner: ref.owner,
+      repo: ref.repo,
+      pull_number: ref.prNumber,
+      per_page: REVIEWS_PER_PAGE,
+    });
+    return { ok: true, value: reviews };
+  } catch (error) {
+    return { ok: false, error: mapRequestError(error, context) };
+  }
+}
+
 /**
  * The viewer's pending review on a PR, `undefined` when there is none. Only
  * the create-review 422 path calls this, to clear a pending review a
@@ -43,19 +62,12 @@ export async function findPendingPullRequestReview(
   ref: PullRequestReviewRef,
 ): Promise<Result<PendingReview | undefined, GitHubApiError>> {
   const context = "find pending pull request review";
-  let reviews: unknown[];
-  try {
-    reviews = await octokit.paginate(octokit.rest.pulls.listReviews, {
-      owner: ref.owner,
-      repo: ref.repo,
-      pull_number: ref.prNumber,
-      per_page: REVIEWS_PER_PAGE,
-    });
-  } catch (error) {
-    return { ok: false, error: mapRequestError(error, context) };
+  const listed = await readReviewList(octokit, ref, context);
+  if (!listed.ok) {
+    return listed;
   }
 
-  for (const entry of reviews) {
+  for (const entry of listed.value) {
     const parsed = reviewListEntrySchema.safeParse(entry);
     if (!parsed.success || parsed.data.state !== PENDING_STATE) {
       continue;
@@ -73,6 +85,74 @@ export async function findPendingPullRequestReview(
     };
   }
   return { ok: true, value: undefined };
+}
+
+/**
+ * Whether the review with this id is listed in a state other than PENDING:
+ * the proof a submit whose acknowledgement was lost still published it. A
+ * review missing from the list was deleted, never published.
+ */
+export async function hasPullRequestReviewPublished(
+  octokit: Octokit,
+  input: DeletePendingPullRequestReviewInput,
+): Promise<Result<boolean, GitHubApiError>> {
+  const context = "check pull request review state";
+  const listed = await readReviewList(octokit, input, context);
+  if (!listed.ok) {
+    return listed;
+  }
+
+  const reviewId = Number(input.reviewId);
+  const published = listed.value.some((entry) => {
+    const parsed = reviewListEntrySchema.safeParse(entry);
+    return (
+      parsed.success &&
+      parsed.data.id === reviewId &&
+      parsed.data.state !== PENDING_STATE
+    );
+  });
+  return { ok: true, value: published };
+}
+
+const REVIEW_COMMENT_COUNT_QUERY = `
+query PullRequestReviewCommentCount($id: ID!) {
+  node(id: $id) {
+    ... on PullRequestReview {
+      comments {
+        totalCount
+      }
+    }
+  }
+}`;
+
+const commentCountResponseSchema = z.object({
+  node: z.object({ comments: z.object({ totalCount: z.number() }) }).nullable(),
+});
+
+/**
+ * How many comments a pending review carries. A viewer reads their own
+ * pending review through GraphQL; zero is the shape of a review a crashed
+ * request left behind, anything else is work the viewer has not sent.
+ */
+export async function countPendingReviewComments(
+  octokit: Octokit,
+  reviewNodeId: string,
+): Promise<Result<number, GitHubApiError>> {
+  const context = "count pending review comments";
+  let response: unknown;
+  try {
+    response = await octokit.graphql(REVIEW_COMMENT_COUNT_QUERY, {
+      id: reviewNodeId,
+    });
+  } catch (error) {
+    return { ok: false, error: mapGraphqlError(error, context) };
+  }
+
+  const parsed = commentCountResponseSchema.safeParse(response);
+  if (!parsed.success || parsed.data.node === null) {
+    return { ok: false, error: unexpectedResponseError(context) };
+  }
+  return { ok: true, value: parsed.data.node.comments.totalCount };
 }
 
 /** Delete a pending review; one already gone (404) is a success. */

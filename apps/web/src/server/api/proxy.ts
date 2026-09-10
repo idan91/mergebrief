@@ -57,6 +57,21 @@ export interface ApiTransportDeps {
   };
   /** Upstream budget for one request. */
   readonly timeoutMs: number;
+  /** Budget for the review submit POST, which posts one thread per draft. */
+  readonly submitTimeoutMs: number;
+}
+
+const REVIEW_SUBMIT_PATH = /^\/api\/repos\/[^/]+\/pulls\/\d+\/review$/;
+
+/** The submit is the one route whose upstream time grows with the payload. */
+function resolveUpstreamBudget(
+  request: Request,
+  deps: ApiTransportDeps,
+): number {
+  const isSubmit =
+    request.method.toUpperCase() === "POST" &&
+    REVIEW_SUBMIT_PATH.test(new URL(request.url).pathname);
+  return isSubmit ? deps.submitTimeoutMs : deps.timeoutMs;
 }
 
 function forwardedRequestHeaders(source: Headers): Headers {
@@ -148,7 +163,7 @@ export async function requestApi(
   request: Request,
   deps: ApiTransportDeps,
 ): Promise<Response> {
-  const timeout = AbortSignal.timeout(deps.timeoutMs);
+  const timeout = AbortSignal.timeout(resolveUpstreamBudget(request, deps));
   const signal = AbortSignal.any([request.signal, timeout]);
   const upstream = buildUpstreamRequest(request, deps, signal);
 

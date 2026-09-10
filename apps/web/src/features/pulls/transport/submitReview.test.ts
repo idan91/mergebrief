@@ -30,7 +30,12 @@ describe("submitReview", () => {
   it("POSTs the payload to the submit route and parses the 201", async () => {
     apiFetchMock.mockResolvedValue(
       new Response(
-        JSON.stringify({ reviewId: 987001, commentsDegraded: false }),
+        JSON.stringify({
+          reviewId: 987001,
+          commentsDegraded: false,
+          commentsFolded: 0,
+          commentsTotal: 2,
+        }),
         {
           status: 201,
         },
@@ -39,7 +44,8 @@ describe("submitReview", () => {
     await expect(run()).resolves.toEqual({
       kind: "submitted",
       reviewId: 987001,
-      commentsDegraded: false,
+      commentsFolded: 0,
+      commentsTotal: 2,
     });
     expect(apiFetchMock).toHaveBeenCalledWith(
       `/api/repos/424242/pulls/7/review?base=${SPAN.base}&head=${SPAN.head}`,
@@ -51,13 +57,31 @@ describe("submitReview", () => {
     );
   });
 
-  it("surfaces commentsDegraded for the receipt note", async () => {
+  it("surfaces the folded and total counts for the receipt note", async () => {
     apiFetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ reviewId: 5, commentsDegraded: true }), {
+      new Response(
+        JSON.stringify({
+          reviewId: 5,
+          commentsDegraded: true,
+          commentsFolded: 1,
+          commentsTotal: 3,
+        }),
+        { status: 201 },
+      ),
+    );
+    await expect(run()).resolves.toMatchObject({
+      commentsFolded: 1,
+      commentsTotal: 3,
+    });
+  });
+
+  it("throws malformed on a 201 that carries no counts", async () => {
+    apiFetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ reviewId: 5, commentsDegraded: false }), {
         status: 201,
       }),
     );
-    await expect(run()).resolves.toMatchObject({ commentsDegraded: true });
+    await expect(run()).rejects.toMatchObject({ code: "malformed" });
   });
 
   it("maps the fail-closed 409 to the rewritten state", async () => {
@@ -76,6 +100,19 @@ describe("submitReview", () => {
       ),
     );
     await expect(run()).resolves.toEqual({ kind: "rewritten" });
+  });
+
+  it("maps pending-review-held to its own state, never upstream", async () => {
+    apiFetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: "an unsubmitted review of yours is open on GitHub",
+          code: "pending-review-held",
+        }),
+        { status: 409 },
+      ),
+    );
+    await expect(run()).resolves.toEqual({ kind: "pending-review-held" });
   });
 
   it("maps draft-anchor-orphaned to its own state, never upstream", async () => {
@@ -102,6 +139,11 @@ describe("submitReview", () => {
   it("maps 404 to not-found", async () => {
     apiFetchMock.mockResolvedValue(new Response("{}", { status: 404 }));
     await expect(run()).resolves.toEqual({ kind: "not-found" });
+  });
+
+  it("maps the proxy's 504 to indeterminate, never a retryable upstream", async () => {
+    apiFetchMock.mockResolvedValue(new Response("", { status: 504 }));
+    await expect(run()).resolves.toEqual({ kind: "indeterminate" });
   });
 
   it("maps 502 and other upstream failures to upstream", async () => {

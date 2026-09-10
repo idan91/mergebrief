@@ -72,12 +72,17 @@ async function startUpstream(): Promise<Upstream> {
   };
 }
 
-function transportFor(origin: string, timeoutMs = 5000): ApiTransportDeps {
+function transportFor(
+  origin: string,
+  timeoutMs = 5000,
+  submitTimeoutMs = timeoutMs,
+): ApiTransportDeps {
   return {
     origin,
     fetch: globalThis.fetch,
     logger: { error: vi.fn() },
     timeoutMs,
+    submitTimeoutMs,
   };
 }
 
@@ -221,6 +226,28 @@ describe("requestApi", () => {
     expect(body).not.toContain("127.0.0.1");
     expect(deps.logger.error).toHaveBeenCalledTimes(1);
     upstream = await startUpstream();
+  });
+
+  it("gives the review submit POST its own longer budget", async () => {
+    upstream.reply(
+      (_request, respond) =>
+        new Promise<void>((resolve) => {
+          setTimeout(() => {
+            respond(200, {}, "{}");
+            resolve();
+          }, 120);
+        }),
+    );
+    const deps = transportFor(upstream.origin, 40, 2000);
+    const submitPath =
+      "https://public.example/api/repos/42/pulls/7/review?base=a&head=b";
+    const submitted = await requestApi(
+      new Request(submitPath, { method: "POST", body: "{}" }),
+      deps,
+    );
+    expect(submitted.status).toBe(200);
+    const read = await requestApi(new Request(submitPath), deps);
+    expect(read.status).toBe(504);
   });
 
   it("answers a sanitized 504 once the upstream budget runs out", async () => {

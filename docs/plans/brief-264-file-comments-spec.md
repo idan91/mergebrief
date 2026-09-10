@@ -122,16 +122,16 @@ Shipped File comments: GitHub never marks them outdated (`isCommentOutdated` alr
 
 Never send a line on the file arm. Both write paths:
 
-1. Submit: `createPullRequestReview` `comments[]` (`shapeSubmitComment` / `ReviewCommentInput` / `shapeReviewCommentParams`).
+1. Submit: one GraphQL `addPullRequestReviewThread` per comment on a pending review, `subjectType: FILE` for the file arm (`shapeSubmitComment` / `toThreadInput`). REST's grouped `comments[]` drops `subject_type`, so a file comment cannot ride it.
 2. Post-now: `createInlineReviewComment`.
 
-File arm on the wire: `path`, `body`, `commit_id`, `subject_type: "file"`. Omit `line`, `side`, `start_line`, `start_side`.
+File arm on the wire: `path`, `body`, `subjectType: FILE` on the thread mutation; `path`, `body`, `commit_id`, `subject_type: "file"` on post-now. Omit `line`, `side`, `start_line`, `start_side`.
 
 Line arm unchanged: omit `start_line` when the range is a single line (GitHub 422s `start_line` equal to `line`).
 
 ### Degradation fold
 
-A File comment has no selected text. Fold as `` **`path`** `` plus the body, no `:range`. File comments can still 422 (path not in the diff); they ride the same all-comments-folded retry.
+A File comment has no selected text. Fold as `` **`path`** `` plus the body, no `:range`. GitHub can still reject a File comment (path not in the diff, `thread: null`); only that comment folds, and the response counts it in `commentsFolded` of `commentsTotal`.
 
 ### Receipt and attention
 

@@ -23,6 +23,7 @@ export const ApiErrorCodes = {
   DRAFT_ALREADY_PUBLISHED: "draft-already-published",
   DRAFT_ANCHOR_ORPHANED: "draft-anchor-orphaned",
   DRAFT_LIMIT_REACHED: "draft-limit-reached",
+  PENDING_REVIEW_HELD: "pending-review-held",
   PR_CHANGED_SINCE_READ: "pr-changed-since-read",
   PR_REWRITTEN_SINCE_READ: "pr-rewritten-since-read",
   APP_NOT_INSTALLED: "app-not-installed",
@@ -77,6 +78,7 @@ export const ApiErrorStatusByCode = {
   [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]: 409,
   [ApiErrorCodes.DRAFT_ANCHOR_ORPHANED]: 409,
   [ApiErrorCodes.DRAFT_LIMIT_REACHED]: 409,
+  [ApiErrorCodes.PENDING_REVIEW_HELD]: 409,
   [ApiErrorCodes.PR_CHANGED_SINCE_READ]: 409,
   [ApiErrorCodes.PR_REWRITTEN_SINCE_READ]: 409,
   [ApiErrorCodes.APP_NOT_INSTALLED]: 403,
@@ -114,6 +116,8 @@ export const ApiErrorEnglishByCode = {
     "this review holds a comment whose anchor no longer points at any code",
   [ApiErrorCodes.DRAFT_LIMIT_REACHED]:
     "this review already holds as many unposted comments as it can carry",
+  [ApiErrorCodes.PENDING_REVIEW_HELD]:
+    "an unsubmitted review of yours is open on GitHub for this pull request",
   [ApiErrorCodes.PR_CHANGED_SINCE_READ]:
     "pull request changed since it was read",
   [ApiErrorCodes.PR_REWRITTEN_SINCE_READ]:

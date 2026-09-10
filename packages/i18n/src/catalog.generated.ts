@@ -209,6 +209,10 @@ export type Catalog = typeof en & {
       risksAddressed_one: "{{count}} risk marked addressed with evidence.";
       risksAddressed_other: "{{count}} risks marked addressed with evidence.";
     };
+    submitResult: (typeof en)["review"]["submitResult"] & {
+      postedDegraded: "Review posted. GitHub couldn't anchor {{folded}} of {{total}} comments to the diff, so they were folded into the review body. Nothing was dropped.";
+      anchorsFolded: "{{folded}} of {{total}} comments couldn't be anchored on GitHub's side and were folded into the review body. Nothing was dropped.";
+    };
   };
   conversation: (typeof en)["conversation"] & {
     jumpToRevision: "Jump to revision {{sha}}";

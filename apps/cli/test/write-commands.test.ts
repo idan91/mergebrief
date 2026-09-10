@@ -142,7 +142,17 @@ describe("write commands over the real api app", () => {
         });
       }
       if (/\/repos\/[^/]+\/[^/]+\/pulls\/\d+\/reviews$/.test(url)) {
-        return jsonResponse({ id: 987001 });
+        return jsonResponse({ id: 987001, node_id: "PRR_stub" });
+      }
+      // URL-only dispatch: one payload satisfies both the thread and the
+      // submit mutation parsers.
+      if (url.endsWith("/graphql")) {
+        return jsonResponse({
+          data: {
+            addPullRequestReviewThread: { thread: { id: "PRRT_stub" } },
+            submitPullRequestReview: { pullRequestReview: { id: "PRR_stub" } },
+          },
+        });
       }
       if (
         /\/pulls\/comments\/\d+\/replies$/.test(url) ||
@@ -277,6 +287,8 @@ describe("write commands over the real api app", () => {
     expect(JSON.parse(result.out)).toEqual({
       reviewId: 987001,
       commentsDegraded: false,
+      commentsFolded: 0,
+      commentsTotal: 0,
     });
   });
 
@@ -309,6 +321,8 @@ describe("write commands over the real api app", () => {
     expect(JSON.parse(result.out)).toEqual({
       reviewId: 987001,
       commentsDegraded: false,
+      commentsFolded: 0,
+      commentsTotal: 0,
     });
   });
 

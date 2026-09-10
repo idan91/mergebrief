@@ -26,6 +26,9 @@ export function throwSubmitFailure(failure: SubmitFailure): never {
   if (failure.kind === "token-unreadable") {
     throw new Unauthorized();
   }
+  if (failure.kind === "pending-review-held") {
+    throw new Conflict(ApiErrorCodes.PENDING_REVIEW_HELD);
+  }
   const error = failure.error;
   // Unknown commit → the PR was rewritten since it was read. Fail closed;
   // the FE tells the reviewer to reload (drafts survive via sessionStorage).

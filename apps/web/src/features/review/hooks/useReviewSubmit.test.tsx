@@ -122,7 +122,8 @@ describe("useReviewSubmit", () => {
     action.mockResolvedValue({
       kind: "submitted",
       reviewId: 1,
-      commentsDegraded: false,
+      commentsFolded: 0,
+      commentsTotal: 1,
     });
     act(() => rendered.result.current.submit());
     expect(action).toHaveBeenCalledTimes(1);
@@ -141,7 +142,8 @@ describe("useReviewSubmit", () => {
     action.mockResolvedValue({
       kind: "submitted",
       reviewId: 5,
-      commentsDegraded: false,
+      commentsFolded: 0,
+      commentsTotal: 1,
     });
 
     act(() => rendered.result.current.submit());
@@ -167,7 +169,8 @@ describe("useReviewSubmit", () => {
     action.mockResolvedValue({
       kind: "submitted",
       reviewId: 5,
-      commentsDegraded: true,
+      commentsFolded: 1,
+      commentsTotal: 2,
     });
 
     act(() => rendered.result.current.submit());
@@ -225,7 +228,12 @@ describe("useReviewSubmit", () => {
     expect(action).toHaveBeenCalledTimes(1);
 
     act(() =>
-      release?.({ kind: "submitted", reviewId: 5, commentsDegraded: false }),
+      release?.({
+        kind: "submitted",
+        reviewId: 5,
+        commentsFolded: 0,
+        commentsTotal: 1,
+      }),
     );
     await waitFor(() => expect(rendered.result.current.pending).toBe(false));
   });
@@ -235,7 +243,8 @@ describe("useReviewSubmit", () => {
     action.mockResolvedValue({
       kind: "submitted",
       reviewId: 5,
-      commentsDegraded: false,
+      commentsFolded: 0,
+      commentsTotal: 1,
     });
     act(() => rendered.result.current.submit());
     await waitFor(() => expect(rendered.result.current.pending).toBe(false));
@@ -250,7 +259,8 @@ describe("useReviewSubmit", () => {
     action.mockResolvedValue({
       kind: "submitted",
       reviewId: 5,
-      commentsDegraded: false,
+      commentsFolded: 0,
+      commentsTotal: 1,
     });
     act(() => rendered.result.current.submit());
     await waitFor(() => expect(rendered.result.current.pending).toBe(false));
@@ -270,7 +280,8 @@ describe("useReviewSubmit", () => {
     action.mockResolvedValueOnce({
       kind: "submitted",
       reviewId: 5,
-      commentsDegraded: true,
+      commentsFolded: 1,
+      commentsTotal: 2,
     });
     act(() => rendered.result.current.submit());
     await waitFor(() => expect(rendered.result.current.pending).toBe(false));
@@ -279,7 +290,8 @@ describe("useReviewSubmit", () => {
     action.mockResolvedValueOnce({
       kind: "submitted",
       reviewId: 6,
-      commentsDegraded: false,
+      commentsFolded: 0,
+      commentsTotal: 1,
     });
     act(() => rendered.result.current.submit());
     await waitFor(() => expect(rendered.result.current.pending).toBe(false));
@@ -319,7 +331,8 @@ describe("useReviewSubmit", () => {
     action.mockResolvedValue({
       kind: "submitted",
       reviewId: 5,
-      commentsDegraded: false,
+      commentsFolded: 0,
+      commentsTotal: 1,
     });
     act(() => rendered.result.current.submit());
     await waitFor(() => expect(rendered.result.current.pending).toBe(false));
@@ -339,7 +352,8 @@ describe("useReviewSubmit", () => {
     action.mockResolvedValue({
       kind: "submitted",
       reviewId: 5,
-      commentsDegraded: false,
+      commentsFolded: 0,
+      commentsTotal: 1,
     });
     act(() => rendered.result.current.submit());
     await waitFor(() => expect(rendered.result.current.pending).toBe(false));
@@ -380,7 +394,8 @@ describe("useReviewSubmit", () => {
     action.mockResolvedValue({
       kind: "submitted",
       reviewId: 5,
-      commentsDegraded: false,
+      commentsFolded: 0,
+      commentsTotal: 1,
     });
     draftText = "typed after render";
     act(() => rendered.result.current.submit());
@@ -401,6 +416,25 @@ describe("useReviewSubmit", () => {
     ).toBeUndefined();
     expect(rendered.result.current.blockedReasonWith("")).toMatch(
       /at least one comment/i,
+    );
+  });
+
+  it("renders the finish-on-GitHub copy on a held pending review", async () => {
+    const { rendered, action, markSubmitted } = setup();
+    action.mockResolvedValue({ kind: "pending-review-held" });
+    act(() => rendered.result.current.submit());
+    await waitFor(() => expect(rendered.result.current.pending).toBe(false));
+    expect(rendered.result.current.error).toMatch(/unsubmitted review/i);
+    expect(markSubmitted).not.toHaveBeenCalled();
+  });
+
+  it("renders the indeterminate copy when the proxy times out", async () => {
+    const { rendered, action } = setup({ outcome: "approve" });
+    action.mockResolvedValue({ kind: "indeterminate" });
+    act(() => rendered.result.current.submit());
+    await waitFor(() => expect(rendered.result.current.pending).toBe(false));
+    expect(rendered.result.current.error).toMatch(
+      /may or may not have posted/i,
     );
   });
 

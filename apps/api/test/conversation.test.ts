@@ -1,6 +1,7 @@
 // Installation conversation reads use the injected port; viewer replies and access checks
 // use the HTTP boundary. The github suite owns installation wire-to-domain mapping.
 import { randomBytes } from "node:crypto";
+import type * as GithubModule from "github";
 import type { FetchPullRequestConversationInput, PrConversation } from "github";
 import {
   createArtifactStore,
@@ -36,10 +37,20 @@ import {
   getRequestUrl,
 } from "./fixtures";
 
-// POST .../comments/{id}/replies is on octokit's `triggersNotification` list:
-// the throttling plugin spaces consecutive reply POSTs ~3s apart through
-// MODULE-GLOBAL Bottleneck groups (shared across this whole file, unfakeable,
-// freezing Date.now poisons the shared limiters). Give the file headroom.
+// Nothing in this file reaches GitHub, so octokit's one-mutation-per-second
+// pacing buys no safety and would only stretch every landing case.
+vi.mock("github", async (importOriginal) => {
+  const actual = await importOriginal<typeof GithubModule>();
+  return {
+    ...actual,
+    createUserOctokit: (
+      token: string,
+      options?: GithubModule.UserOctokitOptions,
+    ) => actual.createUserOctokit(token, { ...options, throttle: false }),
+  };
+});
+
+// Headroom for the PGlite harness; fake clocks stay out, they poison octokit.
 vi.setConfig({ testTimeout: 30_000 });
 
 const REPO_ID = 424242;
@@ -194,7 +205,12 @@ function tokenSuccess(): Response {
   });
 }
 function reviewCreated(id = 987001): Response {
-  return jsonResponse({ id }, 200);
+  return jsonResponse({ id, node_id: `PRR_${String(id)}` }, 200);
+}
+function reviewSubmitted(): Response {
+  return jsonResponse({
+    data: { submitPullRequestReview: { pullRequestReview: { id: "PRR" } } },
+  });
 }
 
 interface StubConfig {
@@ -251,6 +267,9 @@ function stubGitHub(cfg: StubConfig): StubCounts {
           counts.replyBodies.push(JSON.parse(raw));
         }
         return cfg.reply ? cfg.reply(i) : replyStatus(500);
+      }
+      if (url.endsWith("/graphql")) {
+        return reviewSubmitted();
       }
       if (/\/repos\/[^/]+\/[^/]+\/pulls\/\d+\/reviews$/.test(url)) {
         const i = counts.createReview++;

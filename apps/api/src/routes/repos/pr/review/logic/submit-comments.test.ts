@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 import {
   foldCommentsIntoBody,
   shapeSubmitComment,
-  toPrimitiveComments,
+  toThreadInput,
 } from "./submit-comments";
 
 const STAMP = new Date("2026-01-01T00:00:00Z");
@@ -67,29 +67,97 @@ describe("shapeSubmitComment", () => {
   });
 });
 
-describe("toPrimitiveComments", () => {
-  it("sends subjectType file without line fields", () => {
-    const [primitive] = toPrimitiveComments([
+describe("toThreadInput", () => {
+  it("shapes a File comment as a FILE thread without line fields", () => {
+    const thread = toThreadInput(
+      "PRR_node",
       shapeSubmitComment(makeFileDraft()),
-    ]);
-    expect(primitive).toEqual({
+    );
+    expect(thread).toEqual({
+      reviewNodeId: "PRR_node",
+      subjectType: ReviewSubjectTypes.FILE,
       path: "src/app.ts",
       body: "on the file",
-      subjectType: ReviewSubjectTypes.FILE,
     });
-    if (primitive === undefined) throw new Error("expected a primitive");
-    expect("line" in primitive).toBe(false);
-    expect("side" in primitive).toBe(false);
+    expect("line" in thread).toBe(false);
+    expect("side" in thread).toBe(false);
+  });
+
+  it("shapes a range draft as a LINE thread with the start pair", () => {
+    const thread = toThreadInput(
+      "PRR_node",
+      shapeSubmitComment(
+        makeLineDraft({
+          anchor: {
+            kind: CommentAnchorKinds.LINE,
+            file: "src/b.ts",
+            side: DraftCommentSides.OLD,
+            startLine: 25,
+            endLine: 30,
+          },
+        }),
+      ),
+    );
+    expect(thread).toEqual({
+      reviewNodeId: "PRR_node",
+      subjectType: ReviewSubjectTypes.LINE,
+      path: "src/b.ts",
+      line: 30,
+      side: ReviewCommentSides.LEFT,
+      startLine: 25,
+      startSide: ReviewCommentSides.LEFT,
+      body: "anchored note",
+    });
+  });
+
+  it("keeps a single-line draft free of the start pair", () => {
+    const thread = toThreadInput(
+      "PRR_node",
+      shapeSubmitComment(makeLineDraft()),
+    );
+    expect("startLine" in thread).toBe(false);
+    expect("startSide" in thread).toBe(false);
   });
 });
 
 describe("foldCommentsIntoBody", () => {
+  it("returns the body untouched when nothing was rejected", () => {
+    expect(foldCommentsIntoBody("overall verdict", [], 3)).toBe(
+      "overall verdict",
+    );
+    expect(foldCommentsIntoBody(undefined, [], 3)).toBeUndefined();
+  });
+
+  it("names how many of the total were folded", () => {
+    const folded = foldCommentsIntoBody(
+      "overall verdict",
+      [shapeSubmitComment(makeFileDraft())],
+      3,
+    );
+    expect(folded).toContain(
+      "1 of 3 comments could not be anchored to the diff and were folded into this review body (nothing was dropped):",
+    );
+    expect(folded?.startsWith("overall verdict")).toBe(true);
+  });
+
   it("folds a File comment as path with no range", () => {
-    const folded = foldCommentsIntoBody("overall verdict", [
-      shapeSubmitComment(makeFileDraft()),
-    ]);
+    const folded = foldCommentsIntoBody(
+      "overall verdict",
+      [shapeSubmitComment(makeFileDraft())],
+      1,
+    );
     expect(folded).toContain("**`src/app.ts`**");
     expect(folded).not.toContain("src/app.ts:");
     expect(folded).toContain("on the file");
+  });
+
+  it("folds without a body when the review has none", () => {
+    const folded = foldCommentsIntoBody(
+      undefined,
+      [shapeSubmitComment(makeLineDraft())],
+      1,
+    );
+    expect(folded?.startsWith("---")).toBe(true);
+    expect(folded).toContain("**`src/a.ts:12`**");
   });
 });

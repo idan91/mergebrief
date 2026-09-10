@@ -19,6 +19,7 @@
     "draft-already-published": "this draft has already been published to github",
     "draft-anchor-orphaned": "this review holds a comment whose anchor no longer points at any code",
     "draft-limit-reached": "this review already holds as many unposted comments as it can carry",
+    "pending-review-held": "an unsubmitted review of yours is open on GitHub for this pull request",
     "pr-changed-since-read": "pull request changed since it was read",
     "pr-rewritten-since-read": "pull request was rewritten since it was read",
     "app-not-installed": "the app is not installed for this account",
@@ -135,6 +136,7 @@
       "draft-already-published": "This comment is already posted on GitHub — reload to see it.",
       "draft-anchor-orphaned": "One of your comments no longer points at any code in this revision — re-place it or delete it, then submit.",
       "draft-limit-reached": "This review is holding all the unposted comments it can — submit or delete some before adding another.",
+      "pending-review-held": "You have an unsubmitted review open on GitHub for this pull request — submit or discard it there, then try again.",
       "pr-changed-since-read": "This pull request changed since it was read — reload to pick up the latest revision, then try again.",
       "pr-rewritten-since-read": "This pull request was rewritten since it was read — reload to pick up the latest revision, then try again.",
       "generation-failed": "Generating this brief failed — try again shortly.",
@@ -833,8 +835,8 @@
     },
     "submitResult": {
       "posted": "Review posted to GitHub under your account.",
-      "postedDegraded": "Review posted — GitHub couldn't anchor the inline comments to the diff, so they were folded into the review body. Nothing was dropped.",
-      "anchorsFolded": "Anchors didn't apply on GitHub's side: the inline comments were folded into the review body. Nothing was dropped.",
+      "postedDegraded": "Review posted. GitHub couldn't anchor {{folded}} of {{total}} comments to the diff, so they were folded into the review body. Nothing was dropped.",
+      "anchorsFolded": "{{folded}} of {{total}} comments couldn't be anchored on GitHub's side and were folded into the review body. Nothing was dropped.",
       "rewritten": "This pull request was rewritten since you read it — reload to re-read it at the new head. Your drafts are saved locally.",
       "orphanedDraft": "One of your comments no longer points at any code in this revision — nothing was posted. Re-place it or delete it, then submit.",
       "unauthorized": "Your GitHub session expired — sign in again. Your drafts are saved locally.",
@@ -842,7 +844,8 @@
       "invalid": "The review couldn't be submitted as sent — edit it (or shorten it) and submit again.",
       "upstream": "GitHub rejected the review or is unreachable — try again shortly.",
       "ownPr": "GitHub rejected the review — note you can't approve or request changes on your own pull request. Try again, or switch the outcome to Comment.",
-      "indeterminate": "Something went wrong submitting the review — it may or may not have posted. Check the pull request on GitHub before retrying."
+      "indeterminate": "Something went wrong submitting the review — it may or may not have posted. Check the pull request on GitHub before retrying.",
+      "pendingReviewHeld": "You have an unsubmitted review open on GitHub for this pull request — submit or discard it there, then try again. Your drafts are saved locally."
     },
     "writeError": {
       "frozen": "This pull request has new commits and your review moved to the newer brief — this view is read-only now. Open the newest brief to carry on.",

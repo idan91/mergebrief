@@ -241,11 +241,6 @@
       "count": 1
     }
   },
-  "apps/api/src/routes/repos/pr/review/controller.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "apps/api/src/routes/repos/pr/review/schemas.ts": {
     "house/no-em-dash": {
       "count": 2
@@ -257,11 +252,6 @@
     },
     "house/no-em-dash": {
       "count": 2
-    }
-  },
-  "apps/api/src/routes/repos/pr/session/consts.ts": {
-    "house/no-em-dash": {
-      "count": 1
     }
   },
   "apps/api/src/routes/repos/pr/session/logic/brief-target.ts": {
@@ -1152,22 +1142,9 @@
       "count": 1
     }
   },
-  "apps/web/src/features/conversation/reply.ts": {
-    "house/no-em-dash": {
-      "count": 8
-    }
-  },
   "apps/web/src/features/conversation/resolve.test.ts": {
     "house/no-em-dash": {
       "count": 2
-    }
-  },
-  "apps/web/src/features/conversation/resolve.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 10
     }
   },
   "apps/web/src/features/conversation/types.test.ts": {
@@ -1353,11 +1330,6 @@
     },
     "house/test-title": {
       "count": 8
-    }
-  },
-  "apps/web/src/features/pulls/transport/markReady.ts": {
-    "house/no-em-dash": {
-      "count": 10
     }
   },
   "apps/web/src/features/pulls/transport/postComment.test.ts": {
@@ -2229,14 +2201,6 @@
   "packages/i18n/src/pseudo.ts": {
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "packages/i18n/test/catalog.test.ts": {
-    "house/no-em-dash": {
-      "count": 13
-    },
-    "house/test-title": {
-      "count": 2
     }
   },
   "packages/i18n/test/create.test.ts": {

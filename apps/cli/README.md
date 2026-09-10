@@ -247,12 +247,14 @@ required and never auto-fetched** (exit 2 without them): carry the span
 through from `pr <n>`. Receipt verbatim:
 
 ```json
-{"reviewId":990012,"commentsDegraded":false}
+{"reviewId":990012,"commentsDegraded":false,"commentsFolded":0,"commentsTotal":2}
 ```
 
-`commentsDegraded: true` means GitHub rejected the inline anchors and your
-comments were folded into the review body — the review **did** post (a
-stderr warning fires in both output modes; do not re-submit). GitHub
+`commentsFolded` counts the comments GitHub refused to anchor out of
+`commentsTotal`; those were folded into the review body, the rest landed
+as threads — the review **did** post (a stderr warning fires in both
+output modes when the count is above zero; do not re-submit).
+`commentsDegraded` mirrors `commentsFolded > 0` for one release. GitHub
 rejects `approve`/`request-changes` on your own PR (`comment` passes) —
 that relays as a server error; don't retry-loop it.
 

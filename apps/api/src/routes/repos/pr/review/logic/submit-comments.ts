@@ -1,10 +1,10 @@
-// The draft→review-comment shaping and the degradation fold: every comment
-// becomes a quoted block in the review body when GitHub 422s the anchors.
+// The draft to review-thread shaping and the partial fold: a comment whose
+// anchor GitHub rejects becomes a quoted block in the review body.
 import {
   ReviewCommentSides,
   ReviewSubjectTypes,
-  type LineReviewCommentInput,
-  type ReviewCommentInput,
+  type AddReviewThreadInput,
+  type LineReviewThreadInput,
   type ReviewCommentSide,
 } from "github";
 import {
@@ -89,44 +89,53 @@ function foldedCommentBlock(comment: SubmitComment): string {
   return [`**\`${comment.path}:${range}\`**`, "", comment.body].join("\n");
 }
 
-/** The review body with every anchored comment folded in as a quoted block. */
+/**
+ * The review body with the rejected comments folded in as quoted blocks.
+ * Nothing rejected returns the body as given, `undefined` included.
+ */
 export function foldCommentsIntoBody(
   body: string | undefined,
-  comments: readonly SubmitComment[],
-): string {
-  const preamble =
-    "The comments below could not be anchored to the diff and were folded into this review body (nothing was dropped):";
+  rejected: readonly SubmitComment[],
+  total: number,
+): string | undefined {
+  if (rejected.length === 0) {
+    return body;
+  }
+  const preamble = `${String(rejected.length)} of ${String(total)} comments could not be anchored to the diff and were folded into this review body (nothing was dropped):`;
   const sections: string[] = [];
   if (body !== undefined && body.trim() !== "") {
     sections.push(body);
   }
-  sections.push("---", preamble, ...comments.map(foldedCommentBlock));
+  sections.push("---", preamble, ...rejected.map(foldedCommentBlock));
   return sections.join("\n\n");
 }
 
-export function toPrimitiveComments(
-  comments: readonly SubmitComment[],
-): ReviewCommentInput[] {
-  return comments.map((comment) => {
-    if (isFileSubmitComment(comment)) {
-      return {
-        path: comment.path,
-        body: comment.body,
-        subjectType: ReviewSubjectTypes.FILE,
-      };
-    }
-    const primitive: Mutable<LineReviewCommentInput> = {
+/** The thread-mutation input for one comment on a pending review. */
+export function toThreadInput(
+  reviewNodeId: string,
+  comment: SubmitComment,
+): AddReviewThreadInput {
+  if (isFileSubmitComment(comment)) {
+    return {
+      reviewNodeId,
+      subjectType: ReviewSubjectTypes.FILE,
       path: comment.path,
-      line: comment.line,
-      side: comment.side,
       body: comment.body,
     };
-    if (comment.startLine !== undefined) {
-      primitive.startLine = comment.startLine;
-    }
-    if (comment.startSide !== undefined) {
-      primitive.startSide = comment.startSide;
-    }
-    return primitive;
-  });
+  }
+  const thread: Mutable<LineReviewThreadInput> = {
+    reviewNodeId,
+    subjectType: ReviewSubjectTypes.LINE,
+    path: comment.path,
+    line: comment.line,
+    side: comment.side,
+    body: comment.body,
+  };
+  if (comment.startLine !== undefined) {
+    thread.startLine = comment.startLine;
+  }
+  if (comment.startSide !== undefined) {
+    thread.startSide = comment.startSide;
+  }
+  return thread;
 }

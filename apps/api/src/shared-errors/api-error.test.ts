@@ -31,6 +31,7 @@ describe("ApiError classes", () => {
     new Conflict(ApiErrorCodes.DRAFT_ALREADY_PUBLISHED),
     new Conflict(ApiErrorCodes.DRAFT_ANCHOR_ORPHANED),
     new Conflict(ApiErrorCodes.DRAFT_LIMIT_REACHED),
+    new Conflict(ApiErrorCodes.PENDING_REVIEW_HELD),
     new Conflict(ApiErrorCodes.PR_CHANGED_SINCE_READ),
     new Conflict(ApiErrorCodes.PR_REWRITTEN_SINCE_READ),
     new PayloadTooLarge(ApiErrorCodes.REQUEST_TOO_LARGE),

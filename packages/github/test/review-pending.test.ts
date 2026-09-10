@@ -5,6 +5,8 @@ import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
 import { GitHubApiErrorCodes } from "../src/errors";
 import {
+  countPendingReviewComments,
+  hasPullRequestReviewPublished,
   deletePendingPullRequestReview,
   findPendingPullRequestReview,
 } from "../src/operations/review-pending";
@@ -13,10 +15,12 @@ import { LEAKED_TOKEN } from "./fixtures/graphql-error";
 function mockOctokit(overrides: {
   paginate?: ReturnType<typeof vi.fn>;
   deletePendingReview?: ReturnType<typeof vi.fn>;
+  graphql?: ReturnType<typeof vi.fn>;
 }): Octokit {
   const listReviews = vi.fn();
   const stub = {
     paginate: overrides.paginate ?? vi.fn(),
+    graphql: overrides.graphql ?? vi.fn(),
     rest: {
       pulls: {
         listReviews,
@@ -97,6 +101,92 @@ describe("findPendingPullRequestReview", () => {
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
     expect(JSON.stringify(result.error)).not.toContain(LEAKED_TOKEN);
+  });
+});
+
+describe("hasPullRequestReviewPublished", () => {
+  it("is true once the review is listed in a non-pending state", async () => {
+    const paginate = vi
+      .fn()
+      .mockResolvedValue([{ id: 12, node_id: "PRR_a", state: "COMMENTED" }]);
+    const result = await hasPullRequestReviewPublished(
+      mockOctokit({ paginate }),
+      { ...REF, reviewId: 12n },
+    );
+
+    expect(result).toEqual({ ok: true, value: true });
+  });
+
+  it("is false while the review is pending or missing from the list", async () => {
+    const pending = vi
+      .fn()
+      .mockResolvedValue([{ id: 12, node_id: "PRR_a", state: "PENDING" }]);
+    const missing = vi
+      .fn()
+      .mockResolvedValue([{ id: 99, node_id: "PRR_z", state: "APPROVED" }]);
+
+    expect(
+      await hasPullRequestReviewPublished(mockOctokit({ paginate: pending }), {
+        ...REF,
+        reviewId: 12n,
+      }),
+    ).toEqual({ ok: true, value: false });
+    expect(
+      await hasPullRequestReviewPublished(mockOctokit({ paginate: missing }), {
+        ...REF,
+        reviewId: 12n,
+      }),
+    ).toEqual({ ok: true, value: false });
+  });
+
+  it("maps a list failure to a sanitized error", async () => {
+    const paginate = vi.fn().mockRejectedValue(makeRequestError(502));
+    const result = await hasPullRequestReviewPublished(
+      mockOctokit({ paginate }),
+      { ...REF, reviewId: 12n },
+    );
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.error.status).toBe(502);
+  });
+});
+
+describe("countPendingReviewComments", () => {
+  it("reads the comment count off the review node", async () => {
+    const graphql = vi
+      .fn()
+      .mockResolvedValue({ node: { comments: { totalCount: 3 } } });
+    const result = await countPendingReviewComments(
+      mockOctokit({ graphql }),
+      "PRR_kwDOpending",
+    );
+
+    expect(result).toEqual({ ok: true, value: 3 });
+    const [, variables] = graphql.mock.calls[0] ?? [];
+    expect(variables).toEqual({ id: "PRR_kwDOpending" });
+  });
+
+  it("flags a missing node as an unexpected shape", async () => {
+    const graphql = vi.fn().mockResolvedValue({ node: null });
+    const result = await countPendingReviewComments(
+      mockOctokit({ graphql }),
+      "PRR_kwDOpending",
+    );
+
+    expect(result.ok).toBe(false);
+  });
+
+  it("maps a GraphQL failure to a sanitized error", async () => {
+    const graphql = vi.fn().mockRejectedValue(makeRequestError(502));
+    const result = await countPendingReviewComments(
+      mockOctokit({ graphql }),
+      "PRR_kwDOpending",
+    );
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.error.status).toBe(502);
   });
 });
 

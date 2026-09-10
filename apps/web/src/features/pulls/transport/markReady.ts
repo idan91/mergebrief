@@ -1,9 +1,9 @@
 // The mark-ready mutation over the isomorphic apiFetch boundary. Expected
-// failure statuses are RESULT KINDS the own-draft flow renders as toast copy —
+// failure statuses are RESULT KINDS the own-draft flow renders as toast copy,
 // never throws for those; only a malformed 2xx throws (contract violation).
 //
 // Deterministic-400 mirroring: the ready route's only 400 is a malformed
-// :prNumber — unreachable from a valid UI state — so there is no cap/budget
+// :prNumber: unreachable from a valid UI state, so there is no cap/budget
 // mirror to keep in lockstep. A 400 collapses into the generic upstream kind.
 //
 // The operation is idempotent server-side, so retrying after any failure kind
@@ -20,18 +20,18 @@ import {
 import { prMetaQueryOptions } from "../queries";
 
 export type MarkReadyResult =
-  /** The PR is ready — fresh flip or already-ready convergence (indistinguishable). */
+  /** The PR is ready: fresh flip or already-ready convergence (indistinguishable). */
   | { kind: "ready" }
   | { kind: "unauthorized" }
   | { kind: "not-found" }
   /**
-   * 403 — the App lacks `contents: write`. A distinct kind so the FE gives
+   * 403: the App lacks `contents: write`. A distinct kind so the FE gives
    * actionable copy instead of the "no longer accessible" 404 copy: the viewer
    * proved repo access, so this is not an existence miss.
    */
   | { kind: "github-permission" }
   /**
-   * 403 — a url-box brief for a repo the reader's own GitHub account cannot
+   * 403: a url-box brief for a repo the reader's own GitHub account cannot
    * write to. Never a retry: it clears by installing the App there.
    */
   | { kind: "no-write-access" }
@@ -43,8 +43,8 @@ type MarkReadyFailureKind = Exclude<MarkReadyResult["kind"], "ready">;
 // here instead of silently becoming "try again shortly". A 403 on this route
 // is ONLY the missing `contents: write` (the fresh-resolve denial collapses
 // to 404 server-side); `forbidden` covers the codeless-403 fallback. The
-// route's only 400 is a malformed :prNumber — unreachable from a valid UI
-// state — so invalid-request stays in the generic upstream bucket. Retrying
+// route's only 400 is a malformed :prNumber, unreachable from a valid UI
+// state: so invalid-request stays in the generic upstream bucket. Retrying
 // any kind is safe: the operation is idempotent server-side.
 const KindForCode = {
   [ApiErrorCodes.UNAUTHORIZED]: "unauthorized",
@@ -63,6 +63,7 @@ const KindForCode = {
   [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]: "upstream",
   [ApiErrorCodes.DRAFT_ANCHOR_ORPHANED]: "upstream",
   [ApiErrorCodes.DRAFT_LIMIT_REACHED]: "upstream",
+  [ApiErrorCodes.PENDING_REVIEW_HELD]: "upstream",
   [ApiErrorCodes.PR_CHANGED_SINCE_READ]: "upstream",
   [ApiErrorCodes.PR_REWRITTEN_SINCE_READ]: "upstream",
   [ApiErrorCodes.APP_NOT_INSTALLED]: "upstream",
@@ -71,7 +72,7 @@ const KindForCode = {
   [ApiErrorCodes.GENERATION_UNAVAILABLE]: "upstream",
   [ApiErrorCodes.GENERATION_CONFIG]: "upstream",
   [ApiErrorCodes.INTERNAL_ERROR]: "upstream",
-  // Web-local; never on the wire — errorFromResponse cannot produce it.
+  // Web-local; never on the wire: errorFromResponse cannot produce it.
   [ApiErrorCodes.MALFORMED]: "upstream",
 } as const satisfies Record<ApiErrorCode, MarkReadyFailureKind>;
 
@@ -109,14 +110,14 @@ export async function markPrReady(
   return { kind: "ready" };
 }
 
-/** The invalidation boundary the action needs — a `QueryClient` satisfies it. */
+/** The invalidation boundary the action needs, a `QueryClient` satisfies it. */
 export interface PrMetaInvalidator {
   invalidateQueries(filters: { queryKey: QueryKey }): Promise<void>;
 }
 
 /**
  * Build the route-injected mark-ready action. On success it invalidates the
- * PR-meta query and AWAITS the refetch before resolving — the own-draft UI
+ * PR-meta query and AWAITS the refetch before resolving, the own-draft UI
  * keys off PR-meta, so pending must hold until the flip is real (no optimistic
  * clear, no flicker). Every failure kind resolves WITHOUT touching the cache.
  */

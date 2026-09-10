@@ -1,4 +1,4 @@
-// Reply transport: replies post IMMEDIATELY with the viewer's token —
+// Reply transport: replies post IMMEDIATELY with the viewer's token,
 // GitHub's create-review comments[] has no in_reply_to, so there is no
 // batched alternative. Expected failure statuses are RESULT KINDS the
 // composer renders; only a malformed 2xx throws (contract violation).
@@ -12,22 +12,22 @@ import {
 
 export type ReplyResult =
   | { readonly kind: "posted"; readonly commentId: number }
-  /** 401 — session expired; sign in again. Draft stays. */
+  /** 401: session expired; sign in again. Draft stays. */
   | { readonly kind: "unauthorized" }
-  /** 404 — the thread's root comment (or the PR) is gone. */
+  /** 404: the thread's root comment (or the PR) is gone. */
   | { readonly kind: "not-found" }
-  /** 400 (shape; mirrored client-side) or deterministic 413 — edit the body, retry-as-is never clears. */
+  /** 400 (shape; mirrored client-side) or deterministic 413, edit the body, retry-as-is never clears. */
   | { readonly kind: "invalid" }
   /**
-   * 403 — the reader is on a url-box brief for a repo their own GitHub
+   * 403: the reader is on a url-box brief for a repo their own GitHub
    * account cannot write to. Never a retry: it clears by installing the App
    * on that repository, not by trying again.
    */
   | { readonly kind: "no-write-access" }
-  /** 502/anything else — GitHub rejected or is unreachable. */
+  /** 502/anything else: GitHub rejected or is unreachable. */
   | { readonly kind: "upstream" };
 
-/** Mirror of the route's Zod cap — a deterministic 400 must block client-side. */
+/** Mirror of the route's Zod cap: a deterministic 400 must block client-side. */
 export const MAX_REPLY_LENGTH = 65_536;
 
 type ReplyFailureKind = Exclude<ReplyResult["kind"], "posted">;
@@ -52,6 +52,7 @@ const KindForCode = {
   [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]: "upstream",
   [ApiErrorCodes.DRAFT_ANCHOR_ORPHANED]: "upstream",
   [ApiErrorCodes.DRAFT_LIMIT_REACHED]: "upstream",
+  [ApiErrorCodes.PENDING_REVIEW_HELD]: "upstream",
   [ApiErrorCodes.PR_CHANGED_SINCE_READ]: "upstream",
   [ApiErrorCodes.PR_REWRITTEN_SINCE_READ]: "upstream",
   [ApiErrorCodes.APP_NOT_INSTALLED]: "upstream",
@@ -60,7 +61,7 @@ const KindForCode = {
   [ApiErrorCodes.GENERATION_UNAVAILABLE]: "upstream",
   [ApiErrorCodes.GENERATION_CONFIG]: "upstream",
   [ApiErrorCodes.INTERNAL_ERROR]: "upstream",
-  // Web-local; never on the wire — errorFromResponse cannot produce it.
+  // Web-local; never on the wire: errorFromResponse cannot produce it.
   [ApiErrorCodes.MALFORMED]: "upstream",
 } as const satisfies Record<ApiErrorCode, ReplyFailureKind>;
 

@@ -326,7 +326,18 @@ export async function listUserInstallations(
  * A thin user-scoped `Octokit` for an access token, exposed so the viewer
  * authorization gate reuses the same construction.
  */
-export function createUserOctokit(accessToken: string): Octokit {
+export interface UserOctokitOptions {
+  /** False only where no GitHub is on the other end, such as a test stub. */
+  readonly throttle?: boolean;
+  /** False on a mutation path: a replayed mutation is a second mutation. */
+  readonly retry?: boolean;
+  readonly fetch?: typeof fetch;
+}
+
+export function createUserOctokit(
+  accessToken: string,
+  options: UserOctokitOptions = {},
+): Octokit {
   // Same permanent-status retry tuning as the App's installation clients,
   // notably 406 (diff too large): the read API's diff proxy must fail fast to
   // its 413 mapping, not retry an unrenderable span.
@@ -335,16 +346,23 @@ export function createUserOctokit(accessToken: string): Octokit {
   // viewer shares one queue, with it the global cap of ten concurrent calls
   // is per token too, which is the ceiling GitHub itself meters per user.
   // `throttle` shallow-replaces octokit's defaults, so the handlers ride too.
-  return new Octokit({
+  const octokitOptions: OctokitOptions = {
     auth: accessToken,
-    retry: retryOptions(),
+    retry: options.retry === false ? { enabled: false } : retryOptions(),
     throttle: {
+      enabled: options.throttle ?? true,
       id: deriveThrottleKey(accessToken),
       onRateLimit: retryOnceAfterLimit,
       onSecondaryRateLimit: retryOnceAfterLimit,
     },
-  });
+  };
+  if (options.fetch !== undefined) {
+    octokitOptions.request = { fetch: options.fetch };
+  }
+  return new Octokit(octokitOptions);
 }
+
+type OctokitOptions = NonNullable<ConstructorParameters<typeof Octokit>[0]>;
 
 /** A stable per-token limiter key that never carries the token itself. */
 export function deriveThrottleKey(accessToken: string): string {

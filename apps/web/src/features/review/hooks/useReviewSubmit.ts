@@ -70,8 +70,6 @@ export function useReviewSubmit(
   const COPY = useMemo(
     () => ({
       posted: t("review.submitResult.posted"),
-      postedDegraded: t("review.submitResult.postedDegraded"),
-      degradedNote: t("review.submitResult.anchorsFolded"),
       rewritten: t("review.submitResult.rewritten"),
       orphanedDraft: t("review.submitResult.orphanedDraft"),
       unauthorized: t("review.submitResult.unauthorized"),
@@ -83,6 +81,7 @@ export function useReviewSubmit(
       // Deliberately INDETERMINATE: a throw can land after the POST reached
       // GitHub, so this copy must not claim "nothing was posted".
       failed: t("review.submitResult.indeterminate"),
+      pendingReviewHeld: t("review.submitResult.pendingReviewHeld"),
     }),
     [t],
   );
@@ -167,9 +166,15 @@ export function useReviewSubmit(
       }
       closeSubmit();
       invalidateConversation?.();
-      if (result.commentsDegraded) {
-        if (briefCurrent()) setNote(COPY.degradedNote);
-        announce(COPY.postedDegraded);
+      if (result.commentsFolded > 0) {
+        const counts = {
+          folded: result.commentsFolded,
+          total: result.commentsTotal,
+        };
+        if (briefCurrent()) {
+          setNote(t("review.submitResult.anchorsFolded", counts));
+        }
+        announce(t("review.submitResult.postedDegraded", counts));
       } else {
         announce(COPY.posted);
       }
@@ -226,6 +231,14 @@ export function useReviewSubmit(
                 ? COPY.upstreamNeutral
                 : COPY.upstreamVerdict,
             );
+            break;
+          }
+          case "indeterminate": {
+            fail(COPY.failed);
+            break;
+          }
+          case "pending-review-held": {
+            fail(COPY.pendingReviewHeld);
             break;
           }
         }

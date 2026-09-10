@@ -195,13 +195,13 @@ describe("submitBlockedReason", () => {
     expect(submitBlockedReason(t, "request-changes", [])).toBeUndefined();
   });
 
-  it("blocks a submit past the route's 100-comment cap with reachable copy", () => {
-    const drafts = Array.from({ length: 101 }, (_, index) =>
+  it("blocks a submit past the route's 64-comment cap with reachable copy", () => {
+    const drafts = Array.from({ length: 65 }, (_, index) =>
       comment(`c${index}`),
     );
-    expect(submitBlockedReason(t, "approve", drafts)).toMatch(/100/);
+    expect(submitBlockedReason(t, "approve", drafts)).toMatch(/64/);
     expect(
-      submitBlockedReason(t, "approve", drafts.slice(0, 100)),
+      submitBlockedReason(t, "approve", drafts.slice(0, 64)),
     ).toBeUndefined();
   });
 

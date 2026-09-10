@@ -66,7 +66,7 @@ const SIDE_TO_WIRE: Record<CommentSide, ThreadSide> = {
  * the UI resubmits the same draft set, so a route 400 is unrecoverable there.
  */
 const MAX_SELECTED_TEXT_LENGTH = 4_000;
-const MAX_COMMENTS_PER_SUBMIT = 100;
+const MAX_COMMENTS_PER_SUBMIT = 64;
 const MAX_PATH_LENGTH = 1_024;
 /**
  * The route's fold budget (65536) minus a safety margin covering the
@@ -122,7 +122,13 @@ export function buildSubmitPayload(
  * vocabulary.
  */
 export type SubmitReviewResult =
-  | { kind: "submitted"; reviewId: number; commentsDegraded: boolean }
+  | {
+      kind: "submitted";
+      reviewId: number;
+      /** Comments GitHub would not anchor, folded into the body; 0 = none. */
+      commentsFolded: number;
+      commentsTotal: number;
+    }
   /** 409, the PR was rewritten since it was read; reload to re-anchor. */
   | { kind: "rewritten" }
   | { kind: "unauthorized" }
@@ -137,7 +143,15 @@ export type SubmitReviewResult =
    * write to. Never a retry: it clears by installing the App there.
    */
   | { kind: "no-write-access" }
-  | { kind: "upstream" };
+  | { kind: "upstream" }
+  /**
+   * 504 from the web proxy: its budget ran out while the API was still
+   * posting threads, so the review may land after this answer. Never a
+   * plain retry.
+   */
+  | { kind: "indeterminate" }
+  /** 409, the reader holds an unsubmitted review on GitHub; finish it there. */
+  | { kind: "pending-review-held" };
 
 /** What the review screen hands the transport. The drafts are already saved. */
 export interface SubmitDraftInput {
