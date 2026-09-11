@@ -1659,11 +1659,6 @@
       "count": 6
     }
   },
-  "packages/brief-core/src/generation/prompt.ts": {
-    "house/no-em-dash": {
-      "count": 8
-    }
-  },
   "packages/brief-core/src/github/exec.ts": {
     "house/no-em-dash": {
       "count": 2
@@ -1799,14 +1794,6 @@
     },
     "house/test-title": {
       "count": 1
-    }
-  },
-  "packages/brief-core/test/generation/prompt.test.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    },
-    "house/test-title": {
-      "count": 16
     }
   },
   "packages/brief-core/test/generation/repo-context.test.ts": {

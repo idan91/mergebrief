@@ -1,0 +1,19 @@
+@use "functions";
+
+@layer components {
+  .number {
+    flex: none;
+    margin-inline-end: functions.to-rem(8px);
+    color: var(--faint);
+    font-family: var(--mono);
+    font-size: var(--font-size-xs);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .title {
+    min-inline-size: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

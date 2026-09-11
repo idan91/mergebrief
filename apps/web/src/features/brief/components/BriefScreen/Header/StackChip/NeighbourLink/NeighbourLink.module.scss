@@ -1,11 +1,39 @@
+@use "functions";
+
 @layer components {
-  .link {
-    color: var(--accent);
+  .row {
+    display: flex;
+    align-items: baseline;
+    min-block-size: functions.to-rem(24px);
+    padding-block: functions.to-rem(7px);
+    padding-inline: functions.to-rem(10px);
+    color: var(--text);
+    font-size: var(--font-size-sm);
+    line-height: 1.35;
     text-decoration: none;
+    transition: background-color 150ms cubic-bezier(0.22, 1, 0.36, 1);
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+  }
+
+  .link {
+    cursor: pointer;
+
+    &:hover,
+    &:focus-visible {
+      background: color-mix(in srgb, var(--line2) 55%, transparent);
+    }
+
+    &:active {
+      background: color-mix(in srgb, var(--line2) 70%, transparent);
+    }
   }
 
   .current {
-    color: var(--text);
     font-weight: 600;
+    background: color-mix(in srgb, var(--line2) 45%, transparent);
+    cursor: default;
   }
 }

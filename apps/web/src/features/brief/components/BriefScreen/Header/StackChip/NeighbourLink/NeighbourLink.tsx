@@ -1,7 +1,10 @@
+import { useTranslation } from "react-i18next";
 import { Link } from "@tanstack/react-router";
+import clsx from "clsx";
 
 import { AccessibleLink } from "@web/components/AccessibleLink/AccessibleLink";
 import type { PrStackMember } from "../../../../../types";
+import { MemberRow } from "../MemberRow/MemberRow";
 import { rewritePullUrl } from "../utils";
 import styles from "./NeighbourLink.module.scss";
 
@@ -20,11 +23,20 @@ export function NeighbourLink({
   repoId,
   label,
 }: NeighbourLinkProps) {
+  const { t } = useTranslation();
   const isCurrent = member.number === currentNumber;
+  const rowClass = clsx(styles["row"], styles["link"]);
+  const currentClass = clsx(styles["row"], styles["current"]);
+
   if (isCurrent) {
     return (
-      <span aria-current="true" className={styles["current"]}>
-        {label}
+      <span
+        aria-current="true"
+        aria-label={label}
+        className={currentClass}
+        title={label}
+      >
+        <MemberRow member={member} />
       </span>
     );
   }
@@ -33,22 +45,35 @@ export function NeighbourLink({
     const params = { repoId, prNumber: String(member.number) };
     return (
       <Link
-        className={styles["link"]}
+        aria-label={label}
+        className={rowClass}
         params={params}
+        title={label}
         to="/repos/$repoId/pulls/$prNumber"
       >
-        {label}
+        <MemberRow member={member} />
       </Link>
     );
   }
 
   const href = rewritePullUrl(prUrl, member.number);
   if (href === undefined) {
-    return <span>{label}</span>;
+    return (
+      <span aria-label={label} className={styles["row"]} title={label}>
+        <MemberRow member={member} />
+      </span>
+    );
   }
+  const githubLabel = `${label}${t("a11y.opensInNewTab")}`;
   return (
-    <AccessibleLink className={styles["link"]} href={href} target="_blank">
-      {label}
+    <AccessibleLink
+      aria-label={githubLabel}
+      className={rowClass}
+      href={href}
+      title={label}
+      target="_blank"
+    >
+      <MemberRow member={member} />
     </AccessibleLink>
   );
 }

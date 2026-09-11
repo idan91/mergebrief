@@ -61,6 +61,13 @@ import type {
   PrMetadata,
   ReviewComment,
 } from "../github";
+import {
+  isLinearPrStack,
+  type ForkPrStack,
+  type LinearPrStack,
+  type PrStack,
+  type PrStackMember,
+} from "../pr-stack";
 import type {
   ContextSnippet,
   PrimarySnippet,
@@ -228,6 +235,74 @@ function acceptRepoContext(
   };
 }
 
+function renderStackMember(member: PrStackMember): string {
+  return `#${String(member.number)} "${member.title}"`;
+}
+
+function renderBranchesLine(meta: PrMetadata): string | undefined {
+  const parts: string[] = [];
+  if (meta.baseRef !== undefined && meta.baseRef !== "") {
+    parts.push(`base=\`${meta.baseRef}\``);
+  }
+  if (meta.headRef !== undefined && meta.headRef !== "") {
+    parts.push(`head=\`${meta.headRef}\``);
+  }
+
+  if (parts.length === 0) return undefined;
+  return `Branches: ${parts.join(" ")}`;
+}
+
+function renderLinearStackLine(stack: LinearPrStack): string {
+  const selfIndex = stack.index - 1;
+  const parent = stack.members[selfIndex - 1];
+  const child = stack.members[selfIndex + 1];
+
+  const neighbours: string[] = [];
+  if (parent !== undefined) {
+    neighbours.push(`parent ${renderStackMember(parent)}`);
+  }
+  if (child !== undefined) {
+    neighbours.push(`child ${renderStackMember(child)}`);
+  }
+
+  const position = `${String(stack.index)} of ${String(stack.members.length)}`;
+  if (neighbours.length === 0) return `Stack: ${position}`;
+  return `Stack: ${position} (${neighbours.join("; ")})`;
+}
+
+function renderForkStackLine(stack: ForkPrStack): string {
+  const parts: string[] = [];
+  if (stack.parent !== undefined) {
+    parts.push(`parent ${renderStackMember(stack.parent)}`);
+  }
+
+  const children = stack.children
+    .map((member) => renderStackMember(member))
+    .join(", ");
+  parts.push(`children ${children}`);
+
+  return `Stack: ${parts.join("; ")}`;
+}
+
+function renderStackLine(stack: PrStack | undefined): string | undefined {
+  if (stack === undefined) return undefined;
+  if (isLinearPrStack(stack)) return renderLinearStackLine(stack);
+  return renderForkStackLine(stack);
+}
+
+function renderBranchFacts(meta: PrMetadata): string {
+  const lines: string[] = [];
+
+  const branches = renderBranchesLine(meta);
+  if (branches !== undefined) lines.push(branches);
+
+  const stack = renderStackLine(meta.stack);
+  if (stack !== undefined) lines.push(stack);
+
+  if (lines.length === 0) return "";
+  return `\n${lines.join("\n")}`;
+}
+
 function renderUser(
   pr: FetchedPr,
   repoBlocks = "",
@@ -246,7 +321,7 @@ function renderUser(
   return `PR: ${pr.meta.url}
 Repo: ${pr.locator.owner}/${pr.locator.repo}
 Number: ${pr.locator.number}
-Title: ${clean(pr.meta.title)}
+Title: ${clean(pr.meta.title)}${clean(renderBranchFacts(pr.meta))}
 
 ## Description
 ${clean(pr.meta.body.trim()) || "(no description)"}
@@ -526,7 +601,7 @@ function renderDeltaUser(input: DeltaInput): string {
   return `PR: ${input.meta.url}
 Repo: ${input.locator.owner}/${input.locator.repo}
 Number: ${input.locator.number}
-Title: ${input.meta.title}
+Title: ${input.meta.title}${renderBranchFacts(input.meta)}
 Baseline SHA: ${input.baselineSha}
 Head SHA: ${input.headSha}
 
@@ -675,7 +750,7 @@ function renderRevisionNarrativeUser(input: RevisionNarrativeInput): string {
   return `PR: ${input.meta.url}
 Repo: ${input.locator.owner}/${input.locator.repo}
 Number: ${input.locator.number}
-Title: ${input.meta.title}
+Title: ${input.meta.title}${renderBranchFacts(input.meta)}
 Previous head SHA: ${input.prevHeadSha} (brief _${input.prevIndex})
 Head SHA: ${input.headSha} (brief _${input.headIndex})${renderAnchorDiscontinuity(input.brief)}
 

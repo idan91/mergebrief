@@ -255,7 +255,7 @@ describe("branch pair", () => {
     expect(screen.queryByTestId("branch-pair")).toBeNull();
   });
 
-  it("renders the pair on the meta line when both refs are stamped", async () => {
+  it("renders the pair first on the meta line when both refs are stamped", async () => {
     await renderHeader({
       brief: makeBriefWithRefs({ baseRef: "main", headRef: "feature/thing" }),
     });
@@ -264,6 +264,7 @@ describe("branch pair", () => {
     const metaLine = titleLine?.parentElement?.lastElementChild;
     expect(metaLine?.contains(pair)).toBe(true);
     expect(titleLine?.contains(pair)).toBe(false);
+    expect(metaLine?.firstElementChild).toBe(pair);
     expect(pair?.textContent).toContain("main");
     expect(pair?.textContent).toContain("←");
     expect(pair?.textContent).toContain("feature/thing");
@@ -366,14 +367,37 @@ describe("stack chip", () => {
     expect(screen.queryByTestId("stack-chip")).toBeNull();
   });
 
-  it("renders the linear chip on the title line after the badge", async () => {
+  it("renders the linear chip first on the meta line", async () => {
     await renderHeader({ brief: briefWithStack(linear) });
     const chip = screen.getByTestId("stack-chip");
-    const badge = document.querySelector("[data-state-badge]");
-    expect(chip?.textContent).toBe("2/3");
-    expect(badge?.nextElementSibling?.contains(chip)).toBe(true);
     const titleLine = screen.getByRole("heading", { level: 1 }).parentElement;
-    expect(titleLine?.contains(chip)).toBe(true);
+    const metaLine = titleLine?.parentElement?.lastElementChild;
+    expect(chip?.textContent).toBe("2/3");
+    expect(titleLine?.contains(chip)).toBe(false);
+    expect(metaLine?.contains(chip)).toBe(true);
+    expect(metaLine?.firstElementChild?.contains(chip)).toBe(true);
+  });
+
+  it("keeps stack then branches left of generation on the meta line", async () => {
+    const stacked = briefWithStack(linear);
+    await renderHeader({
+      brief: {
+        ...stacked,
+        pr: {
+          ...stacked.pr,
+          baseRef: "main",
+          headRef: "feature/thing",
+        },
+      },
+    });
+    const titleLine = screen.getByRole("heading", { level: 1 }).parentElement;
+    const metaLine = titleLine?.parentElement?.lastElementChild;
+    const chipWrap = screen.getByTestId("stack-chip").parentElement;
+    const pair = screen.getByTestId("branch-pair");
+    const provider = document.querySelector("[data-provider-badge]");
+    expect(metaLine?.firstElementChild).toBe(chipWrap);
+    expect(chipWrap?.nextElementSibling).toBe(pair);
+    expect(pair?.nextElementSibling).toBe(provider);
   });
 
   it("renders a fork chip without a fraction", async () => {
@@ -388,9 +412,11 @@ describe("stack chip", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "pull request 2 of 3 in the stack" }),
     );
-    expect(screen.getByText("#6 Parent")).toBeTruthy();
-    expect(screen.getByText("#7 Tighten the cross-param leak")).toBeTruthy();
-    expect(screen.getByText("#8 Child")).toBeTruthy();
+    expect(screen.getByLabelText("#6 Parent")).toBeTruthy();
+    expect(
+      screen.getByLabelText("#7 Tighten the cross-param leak"),
+    ).toBeTruthy();
+    expect(screen.getByLabelText("#8 Child")).toBeTruthy();
   });
 
   it("keeps the current PR from being a link", async () => {
@@ -399,7 +425,7 @@ describe("stack chip", () => {
       screen.getByRole("button", { name: "pull request 2 of 3 in the stack" }),
     );
     expect(
-      screen.getByText("#7 Tighten the cross-param leak").closest("a"),
+      screen.getByLabelText("#7 Tighten the cross-param leak").closest("a"),
     ).toBeNull();
   });
 

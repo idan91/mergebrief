@@ -34,7 +34,7 @@ export function NeighbourList({
   return (
     <ul aria-label={listLabel} className={styles["list"]}>
       {rows.map((row) => (
-        <li key={row.member.number}>
+        <li className={styles["item"]} key={row.member.number}>
           <NeighbourLink
             currentNumber={currentNumber}
             label={row.label}

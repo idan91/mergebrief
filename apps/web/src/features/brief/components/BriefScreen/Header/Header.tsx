@@ -199,14 +199,6 @@ export function Header({
             <div className={styles["titleLine"]}>
               <h1 className={styles["title"]}>{brief.pr.title}</h1>
               <StateBadge live={livePrState} pr={brief.pr} />
-              {brief.pr.stack !== undefined ? (
-                <StackChip
-                  currentNumber={brief.pr.number}
-                  prUrl={brief.pr.url}
-                  repoId={repoId}
-                  stack={brief.pr.stack}
-                />
-              ) : null}
               {ownDraft !== undefined ? <SelfReviewChip /> : null}
               <span className={styles["repoRef"]}>
                 <b>{brief.pr.repo}</b>{" "}
@@ -223,11 +215,23 @@ export function Header({
                 )}
               </span>
             </div>
-            {/* How the brief was GENERATED. Its source, title, state, repo and
-                PR link, stays on the line above. Never wraps above 880px: a
-                second wrap would put the block at three lines at rest and two
-                collapsed, which moves the published --top-bar-h mid-scroll. */}
+            {/* PR identity (stack, branches) left; how the brief was
+                GENERATED (provider, details, repo-config) after. Never wraps
+                above 880px: a second wrap would put the block at three lines
+                at rest and two collapsed, which moves --top-bar-h mid-scroll. */}
             <span className={styles["metaLine"]}>
+              {brief.pr.stack !== undefined ? (
+                <StackChip
+                  currentNumber={brief.pr.number}
+                  prUrl={brief.pr.url}
+                  repoId={repoId}
+                  stack={brief.pr.stack}
+                />
+              ) : null}
+              <BranchPair
+                baseRef={brief.pr.baseRef}
+                headRef={brief.pr.headRef}
+              />
               <ProviderBadge generation={brief.generation} />
               <BriefDetailsPanel
                 brief={brief}
@@ -236,10 +240,6 @@ export function Header({
                 totalDeleted={model.totalDeleted}
                 totalCoreAdded={model.totalCoreAdded}
                 totalCoreDeleted={model.totalCoreDeleted}
-              />
-              <BranchPair
-                baseRef={brief.pr.baseRef}
-                headRef={brief.pr.headRef}
               />
               {hasRepoConfig ? (
                 <RepoConfigChip repoConfig={repoConfig} />

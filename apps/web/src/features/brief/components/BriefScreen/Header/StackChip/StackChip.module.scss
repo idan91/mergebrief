@@ -5,13 +5,29 @@
     display: inline-flex;
     flex: none;
     align-items: center;
+
+    button {
+      gap: functions.to-rem(5px);
+      min-height: var(--header-meta-control-h);
+      block-size: var(--header-meta-control-h);
+      padding-block: 0;
+      padding-inline: functions.to-rem(8px);
+      font-size: var(--header-meta-font);
+    }
+  }
+
+  .mark {
+    flex: none;
+    inline-size: 12px;
+    block-size: 12px;
   }
 
   .panel {
     display: flex;
     flex-direction: column;
     gap: functions.to-rem(8px);
-    min-inline-size: functions.to-rem(160px);
+    min-inline-size: functions.to-rem(196px);
+    max-inline-size: functions.to-rem(280px);
     outline: none;
   }
 }

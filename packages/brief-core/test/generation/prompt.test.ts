@@ -11,7 +11,7 @@ import {
 } from "../../src/generation/repo-context";
 
 describe("prompt role guidance", () => {
-  it("does not classify types, context, or CSS as supporting by file kind alone", () => {
+  it("does not treat types, context, or CSS as supporting by file kind", () => {
     const text = `${buildSystemPrompt()}\n${buildDeltaSystemPrompt()}`;
 
     expect(text).toContain(
@@ -34,7 +34,7 @@ describe("prompt risk-attribute trio", () => {
     }
   });
 
-  it("carries the firing discipline and riskNotes instruction in both prompts", () => {
+  it("carries firing discipline and riskNotes instruction in both prompts", () => {
     for (const text of prompts) {
       // never on relocations; never a version-only bump; cite both sides
       expect(text).toContain("version-only bump");
@@ -47,7 +47,7 @@ describe("prompt risk-attribute trio", () => {
     }
   });
 
-  it("carries the removes-validation additive-chunk discipline in both prompts", () => {
+  it("carries removes-validation additive-chunk discipline in both prompts", () => {
     for (const text of prompts) {
       expect(text).toContain(
         "`removes-validation` fires only when the diff deletes or rewrites an existing check",
@@ -55,7 +55,7 @@ describe("prompt risk-attribute trio", () => {
     }
   });
 
-  it("never mentions AI authorship (authorship-agnostic prompts)", () => {
+  it("never mentions AI authorship anywhere in the prompts", () => {
     for (const text of prompts) {
       expect(text.toLowerCase()).not.toContain("ai-authored");
       expect(text.toLowerCase()).not.toContain("ai authorship");
@@ -83,7 +83,7 @@ describe("repo-context prompt sections", () => {
     );
   });
 
-  it("renders EVERY instruction-class line verbatim when instructions are present (the const is the operative source of truth)", () => {
+  it("renders every instruction-class line verbatim when present", () => {
     const text = buildSystemPrompt(instructionsOnly);
     for (const line of REPO_INSTRUCTION_CLASSES.MAY_FOLLOW) {
       expect(text).toContain(`- ${line}`);
@@ -112,7 +112,7 @@ describe("repo-context prompt sections", () => {
     );
   });
 
-  it("keeps the delta prompt free of repo-context sections (brief-only scope)", () => {
+  it("keeps the delta prompt free of repo-context sections", () => {
     expect(buildDeltaSystemPrompt()).not.toContain("Repo instructions");
     expect(buildDeltaSystemPrompt()).not.toContain("repo_custom_attributes");
   });
@@ -133,7 +133,7 @@ describe("authoring docs stay lockstep with REPO_INSTRUCTION_CLASSES", () => {
     }
   });
 
-  it("the template's class list is verbatim too (the file authors actually copy)", async () => {
+  it("the template class list is verbatim too", async () => {
     const { readFile } = await import("node:fs/promises");
     const doc = await readFile(
       new URL(
@@ -177,12 +177,12 @@ describe("summary succinctness", () => {
     expect(narrative).not.toContain("lede");
   });
 
-  it("asks for the shortest verbatim span with a clause floor and one-sentence intent text", () => {
+  it("asks for the shortest verbatim span and one-sentence intent", () => {
     const brief = buildSystemPrompt();
     expect(brief).toContain("SHORTEST verbatim span");
     expect(brief).toContain("a full clause, never a bare fragment");
     expect(brief).toMatch(/`intent` text to one sentence/);
-    // the ceiling must stay a ceiling — this exact clause is the framing
+    // the ceiling must stay a ceiling: this exact clause is the framing
     expect(brief).toContain("~200 chars is a ceiling, never a target");
   });
 });
@@ -229,7 +229,7 @@ describe("text length caps", () => {
     expect(buildSystemPrompt()).not.toContain("minimal edit (HARD RULE)");
   });
 
-  it("carves out over-cap previous text from the minimal-edit rule (an anchored chain must heal, not preserve violations)", () => {
+  it("carves over-cap previous text out of the minimal-edit rule", () => {
     const anchored = buildSystemPrompt(undefined, true);
     // Both statements of the carve-out: the re-examined-groups bullet and
     // the minimal-edit hard-rule block.
@@ -262,7 +262,7 @@ describe("intent-check prompt section", () => {
     expect(brief).toMatch(/ticketTitles[\s\S]*?""/);
   });
 
-  it("glosses all three specificity levels and forces empty buckets on broad/none", () => {
+  it("glosses specificity levels and empties buckets on broad or none", () => {
     for (const token of ["precise", "broad", "none"]) {
       expect(brief).toContain(`\`${token}\``);
     }
@@ -282,6 +282,9 @@ describe("intent-check prompt section", () => {
   it("bounds scopeNote to one sentence of scope facts", () => {
     expect(brief).toMatch(/scopeNote.*one sentence/is);
     expect(brief).toMatch(/scopeNote[\s\S]*?usually empty|usually.*""/i);
+    expect(brief).toMatch(/scopeNote[\s\S]*?`stack`/);
+    expect(brief).toContain("`baseRef`");
+    expect(brief).toContain("`headRef`");
   });
 
   it("re-states the untrusted-ticket boundary for the intent buckets", () => {
@@ -290,7 +293,7 @@ describe("intent-check prompt section", () => {
     );
   });
 
-  it("fences the primary ticket separately and restates the untrusted boundary for it", () => {
+  it("fences the primary ticket and restates its untrusted boundary", () => {
     expect(brief).toMatch(/## Primary ticket/);
     expect(brief).toMatch(/<primary_ticket url="…" key="…" tracker="…">/);
     expect(brief).toMatch(
@@ -311,6 +314,9 @@ describe("intent-check prompt section", () => {
     );
     expect(brief).toContain(
       "When you cannot tell `partial` from `misaligned`, say `partial` — a false `misaligned` costs more than a miss.",
+    );
+    expect(brief).toContain(
+      "A user-message `stack` block that places this PR in a series is evidence for that slice",
     );
     expect(brief).toContain(
       "Emit a read only when the primary ticket itself states a goal you can quote",
@@ -361,7 +367,7 @@ describe("intent-check alarm buckets in the prompt", () => {
     expect(brief).toMatch(/partial delivery ⇒ statedButMissing/);
   });
 
-  it("states the masking evidence bar — all three conditions", () => {
+  it("states the masking evidence bar with all three conditions", () => {
     expect(brief).toMatch(/only on the problem's signal or check path/);
     for (const example of [
       "catching-and-swallowing",
@@ -387,7 +393,7 @@ describe("intent-check alarm buckets in the prompt", () => {
     );
   });
 
-  it("keeps the alarm buckets out of the delta and revision-narrative prompts", () => {
+  it("keeps alarm buckets out of the delta and revision-narrative prompts", () => {
     for (const prompt of [
       buildDeltaSystemPrompt(),
       buildRevisionNarrativeSystemPrompt(),

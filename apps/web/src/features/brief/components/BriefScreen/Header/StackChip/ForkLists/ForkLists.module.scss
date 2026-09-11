@@ -1,6 +1,9 @@
+@use "functions";
+
 @layer components {
   .leadIn {
+    padding-block: functions.to-rem(2px) functions.to-rem(4px);
     color: var(--faint);
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-xs);
   }
 }

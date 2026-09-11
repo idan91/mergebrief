@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { z } from "zod/v4";
-import { categorize } from "../../src/generation/categorize";
+import {
+  categorize,
+  categorizeDelta,
+  categorizeRevisionNarrative,
+} from "../../src/generation/categorize";
 import type { GenerateRequest, Generator, Logger } from "generators";
-import type { Effort, Generation } from "../../src/types";
+import type { Brief, Effort, Generation } from "../../src/types";
 import type { FetchedPr } from "../../src/github";
 import type { PrimaryTicketOutcome } from "../../src/context/types";
 import { IntentCheckGenerationSchema } from "../../src/types";
@@ -1683,5 +1687,150 @@ describe("categorize, the alignment read", () => {
     );
     expect(brief.intentCheck?.alignment).toBeUndefined();
     expect(brief.generationWarnings).toBeUndefined();
+  });
+});
+
+describe("branch facts in the user message", () => {
+  const linearStack = {
+    members: [
+      { number: 12, title: "Bottom" },
+      { number: 13, title: "Middle" },
+      { number: 14, title: "Top" },
+    ],
+    index: 2,
+  };
+  const forkStack = {
+    parent: { number: 10, title: "Base" },
+    children: [
+      { number: 14, title: "Left" },
+      { number: 15, title: "Right" },
+    ],
+  };
+  const branchesLine = "Branches: base=`main` head=`feature/foo`";
+  const linearStackLine =
+    'Stack: 2 of 3 (parent #12 "Bottom"; child #14 "Top")';
+  const forkStackLine =
+    'Stack: parent #10 "Base"; children #14 "Left", #15 "Right"';
+  const stampedMeta = {
+    ...pr.meta,
+    baseRef: "main",
+    headRef: "feature/foo",
+    stack: linearStack,
+  };
+
+  async function captureUser(fetched: FetchedPr): Promise<string> {
+    const generator = new CapturingGenerator(twoGroupBriefGen);
+    await categorize(fetched, 1, commitRange, generator);
+    return generator.lastRequest?.user ?? "";
+  }
+
+  it("omits Branches and Stack when refs and stack are absent", async () => {
+    const user = await captureUser(pr);
+    expect(user).not.toContain("Branches:");
+    expect(user).not.toContain("Stack:");
+  });
+
+  it("puts a Branches line on user when baseRef and headRef exist", async () => {
+    const user = await captureUser({
+      ...pr,
+      meta: { ...pr.meta, baseRef: "main", headRef: "feature/foo" },
+    });
+    expect(user).toContain(branchesLine);
+    expect(user).not.toContain("Stack:");
+  });
+
+  it("puts a linear Stack line with parent and child", async () => {
+    const user = await captureUser({
+      ...pr,
+      meta: stampedMeta,
+    });
+    expect(user).toContain(branchesLine);
+    expect(user).toContain(linearStackLine);
+  });
+
+  it("puts a fork Stack line without an n of m fraction", async () => {
+    const user = await captureUser({
+      ...pr,
+      meta: { ...stampedMeta, stack: forkStack },
+    });
+    expect(user).toContain(forkStackLine);
+    expect(user).not.toMatch(/Stack: \d+ of \d+/);
+  });
+
+  it("delta and narrative user share the same branch facts", async () => {
+    const deltaGen = {
+      summary: "s",
+      commentsAddressed: "",
+      changedGroups: twoGroupBriefGen.changeGroups,
+      chunks: twoGroupBriefGen.chunks.map((chunk) => ({
+        ...chunk,
+        summary: "adds a line",
+        addressesComments: [],
+      })),
+      wholePrImpact: "completes the original intent",
+    };
+    const narrativeGen = {
+      overview: "In this revision, two lines were added to the module.",
+      chunks: [
+        {
+          id: "rc1",
+          briefChangeGroupId: "g1",
+          file: "src/a.ts",
+          addedRanges: [{ start: 1, end: 1 }],
+          removedRanges: [],
+          summary: "Adds a line handling the extra case.",
+        },
+      ],
+    };
+    const narrativeBrief: Brief = {
+      ...twoGroupBriefGen,
+      chunks: twoGroupBriefGen.chunks.map((chunk) => ({
+        ...chunk,
+        loc: { added: 0, deleted: 0 },
+      })),
+      concernView: [{ concern: "implementation", added: 0, deleted: 0 }],
+      pr: {
+        repo: "o/r",
+        number: 1,
+        title: "t",
+        url: pr.meta.url,
+        sha: pr.meta.sha,
+        description: "d",
+      },
+      index: 1,
+      commitRange,
+      generation: { provider: "fake", model: "fake-model", effort: "medium" },
+    };
+    const deltaGenerator = new CapturingGenerator(deltaGen);
+    const narrativeGenerator = new CapturingGenerator(narrativeGen);
+    await categorizeDelta(
+      {
+        locator: pr.locator,
+        meta: stampedMeta,
+        baselineSha: "base0000000000000",
+        headSha: pr.meta.sha,
+        incrementalDiff: pr.diff,
+      },
+      deltaGenerator,
+    );
+    await categorizeRevisionNarrative(
+      {
+        locator: pr.locator,
+        meta: stampedMeta,
+        prevHeadSha: "prev000000000000",
+        headSha: pr.meta.sha,
+        prevIndex: 1,
+        headIndex: 2,
+        incrementalDiff: pr.diff,
+        brief: narrativeBrief,
+      },
+      narrativeGenerator,
+    );
+    const deltaUser = deltaGenerator.lastRequest?.user ?? "";
+    const narrativeUser = narrativeGenerator.lastRequest?.user ?? "";
+    expect(deltaUser).toContain(branchesLine);
+    expect(deltaUser).toContain(linearStackLine);
+    expect(narrativeUser).toContain(branchesLine);
+    expect(narrativeUser).toContain(linearStackLine);
   });
 });

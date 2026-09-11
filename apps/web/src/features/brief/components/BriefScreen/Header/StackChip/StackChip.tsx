@@ -5,6 +5,7 @@ import { ForkLists } from "./ForkLists/ForkLists";
 import { NeighbourList } from "./NeighbourList/NeighbourList";
 import { useStackChipFacade } from "./useStackChipFacade";
 import { isLinearPrStack } from "./utils";
+import StackIcon from "./stack.svg?react";
 import styles from "./StackChip.module.scss";
 
 export interface StackChipProps {
@@ -48,10 +49,11 @@ export function StackChip({
         ref={setTriggerEl}
         onClick={handleTriggerClick}
       >
+        <StackIcon aria-hidden="true" className={styles["mark"]} />
         {visibleLabel}
       </Chip>
       {open && triggerEl ? (
-        <Callout anchor={triggerEl} fit interactive onClose={close}>
+        <Callout anchor={triggerEl} compact fit interactive onClose={close}>
           <span
             aria-label={panelAriaLabel}
             className={styles["panel"]}

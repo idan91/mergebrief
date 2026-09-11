@@ -66,6 +66,11 @@ describe("StackChip", () => {
       screen.getByRole("button", { name: "pull request 2 of 3 in the stack" })
         .textContent,
     ).toBe("2/3");
+    expect(
+      screen
+        .getByRole("button", { name: "pull request 2 of 3 in the stack" })
+        .querySelector("svg[aria-hidden='true']"),
+    ).toBeTruthy();
   });
 
   it("shows stacked without a fraction on a fork", async () => {
@@ -92,13 +97,12 @@ describe("StackChip", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "pull request 2 of 3 in the stack" }),
     );
-    expect(screen.getByText("#12 Bottom")).toBeTruthy();
-    expect(screen.getByText("#13 Middle")).toBeTruthy();
-    expect(screen.getByText("#14 Tip")).toBeTruthy();
-    expect(screen.getByText("#13 Middle").closest("a")).toBeNull();
-    expect(screen.getByText("#13 Middle").getAttribute("aria-current")).toBe(
-      "true",
-    );
+    expect(screen.getByRole("link", { name: /#12 Bottom/ })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /#14 Tip/ })).toBeTruthy();
+    const current = screen.getByText("Middle").closest("[aria-current='true']");
+    expect(current).toBeTruthy();
+    expect(current?.closest("a")).toBeNull();
+    expect(current?.getAttribute("aria-label")).toBe("#13 Middle");
   });
 
   it("links a neighbour through the in-app repo pull route", async () => {

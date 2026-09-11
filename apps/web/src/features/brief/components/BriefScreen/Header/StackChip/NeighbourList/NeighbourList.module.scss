@@ -4,9 +4,19 @@
   .list {
     display: flex;
     flex-direction: column;
-    gap: functions.to-rem(4px);
     margin: 0;
     padding: 0;
     list-style: none;
+
+    // Compact Callout padding is 10px inline; pull rules to the panel edge.
+    margin-inline: functions.to-rem(-10px);
+  }
+
+  .item {
+    border-block-end: 1px solid var(--line);
+
+    &:last-child {
+      border-block-end: 0;
+    }
   }
 }
