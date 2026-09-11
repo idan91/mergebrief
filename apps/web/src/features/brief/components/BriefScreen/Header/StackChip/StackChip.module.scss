@@ -1,0 +1,17 @@
+@use "functions";
+
+@layer components {
+  .hoverArea {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+  }
+
+  .panel {
+    display: flex;
+    flex-direction: column;
+    gap: functions.to-rem(8px);
+    min-inline-size: functions.to-rem(160px);
+    outline: none;
+  }
+}

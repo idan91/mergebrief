@@ -59,6 +59,8 @@ export type Catalog = typeof en & {
     header: (typeof en)["brief"]["header"] & {
       repoConfigChipAt: "repo config @ {{sha}}";
       branchPairAria: "{{head}} into {{base}}";
+      stackIndexAria: "pull request {{index}} of {{total}} in the stack";
+      stackMember: "#{{number}} {{title}}";
     };
     details: (typeof en)["brief"]["details"] & {
       commits_one: "{{count}} commit";

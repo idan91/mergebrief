@@ -2,67 +2,41 @@
 // uses the `application/vnd.github.diff` media type, which returns the raw
 // diff as a string body. Failures are sanitized via `mapRequestError`.
 import type { Octokit } from "octokit";
-import type { RepoId } from "persistence";
-import { z } from "zod";
+import type { CompareFile, CompareFiles, RepoIdentity } from "brief-core";
+import type { Mutable } from "types";
 import {
   mapRequestError,
   unexpectedResponseError,
   type GitHubApiError,
-} from "../errors";
-import { repoIdSchema } from "../ids";
-import type { Result } from "../types";
-import type { CompareFile, CompareFiles } from "brief-core";
-import type { Mutable } from "types";
+} from "../../errors";
+import { repoIdSchema } from "../../ids";
+import type { Result } from "../../types";
 
-export interface PullRequestRef {
-  readonly owner: string;
-  readonly repo: string;
-  readonly prNumber: number;
-}
+import {
+  compareFilesSchema,
+  gitHubRepoSchema,
+  openPullRequestListSchema,
+  type OpenPullRequestRow,
+} from "./schemas";
+import type {
+  CommitRef,
+  CompareDiffRef,
+  OpenPullRequest,
+  PullRequestFile,
+  PullRequestInfo,
+  PullRequestRef,
+  RepositoryRef,
+} from "./types";
 
-export interface CompareDiffRef {
-  readonly owner: string;
-  readonly repo: string;
-  /** The span endpoints, any two refs (SHAs/branches) GitHub can compare. */
-  readonly base: string;
-  readonly head: string;
-}
-
-export interface PullRequestInfo {
-  /** The base repo's immutable numeric id, the row key the doors upsert by. */
-  readonly repoId: RepoId;
-  /** The base repo's `owner/name` as GitHub verified it (rename-proof-ish). */
-  readonly repoFullName: string;
-  readonly headSha: string;
-  /** Head branch name, as GitHub reports it. */
-  readonly headRef: string;
-  readonly baseSha: string;
-  /** Base branch name; omitted when GitHub sends none or empty. */
-  readonly baseRef?: string;
-  /** GitHub PR state (`open` / `closed`). */
-  readonly state: string;
-  readonly draft: boolean;
-  /** Whether the PR has been merged (a merged PR's `state` is `closed`). */
-  readonly merged: boolean;
-  readonly title: string;
-  /** PR description body; GitHub sends null for an empty description. */
-  readonly body: string;
-  /** The PR's html page URL (generation metadata, never fetched from). */
-  readonly htmlUrl: string;
-  /** Number of commits on the PR at this head. */
-  readonly commitCount: number;
-  /** PR author login; null when the account is gone. */
-  readonly authorLogin: string | null;
-  /** When the PR closed/merged; null while open. */
-  readonly closedAt: Date | null;
-}
-
-/** One changed file's path + churn, as the generation inputs need it. */
-export interface PullRequestFile {
-  readonly path: string;
-  readonly additions: number;
-  readonly deletions: number;
-}
+export type {
+  CommitRef,
+  CompareDiffRef,
+  OpenPullRequest,
+  PullRequestFile,
+  PullRequestInfo,
+  PullRequestRef,
+  RepositoryRef,
+} from "./types";
 
 /** Fetch the PR fields the webhook mapping and generation inputs need. */
 export async function fetchPullRequest(
@@ -102,6 +76,10 @@ export async function fetchPullRequest(
     if (typeof data.base.ref === "string" && data.base.ref !== "") {
       info.baseRef = data.base.ref;
     }
+    const baseRepo = readRepoIdentity(data.base.repo);
+    if (baseRepo !== undefined) info.baseRepo = baseRepo;
+    const headRepo = readRepoIdentity(data.head.repo);
+    if (headRepo !== undefined) info.headRepo = headRepo;
     return {
       ok: true,
       value: info,
@@ -138,6 +116,67 @@ export async function fetchPullRequestFiles(
     return {
       ok: false,
       error: mapRequestError(error, "list pull request files"),
+    };
+  }
+}
+
+function readRepoIdentity(repo: unknown): RepoIdentity | undefined {
+  const parsed = gitHubRepoSchema.safeParse(repo);
+  if (!parsed.success) return undefined;
+  return { owner: parsed.data.owner.login, repo: parsed.data.name };
+}
+
+function mapListedPullRequest(
+  item: OpenPullRequestRow,
+): OpenPullRequest | undefined {
+  if (item.head.repo === null) return undefined;
+  return {
+    number: item.number,
+    title: item.title,
+    headRef: item.head.ref,
+    baseRef: item.base.ref,
+    headRepo: {
+      owner: item.head.repo.owner.login,
+      repo: item.head.repo.name,
+    },
+    baseRepo: {
+      owner: item.base.repo.owner.login,
+      repo: item.base.repo.name,
+    },
+  };
+}
+
+export async function listOpenPullRequests(
+  octokit: Octokit,
+  repo: RepositoryRef,
+): Promise<Result<OpenPullRequest[], GitHubApiError>> {
+  try {
+    const listed = await octokit.paginate(octokit.rest.pulls.list, {
+      owner: repo.owner,
+      repo: repo.repo,
+      state: "open",
+      per_page: 100,
+    });
+    const parsed = openPullRequestListSchema.safeParse(listed);
+    if (!parsed.success) {
+      return {
+        ok: false,
+        error: unexpectedResponseError("list open pull requests"),
+      };
+    }
+    const value: OpenPullRequest[] = [];
+    for (const item of parsed.data) {
+      const mapped = mapListedPullRequest(item);
+      if (mapped !== undefined) value.push(mapped);
+    }
+    return {
+      ok: true,
+      value,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: mapRequestError(error, "list open pull requests"),
     };
   }
 }
@@ -217,13 +256,6 @@ export async function fetchCompareCommitCount(
   }
 }
 
-export interface CommitRef {
-  readonly owner: string;
-  readonly repo: string;
-  /** A commit-ish (possibly abbreviated SHA) to resolve. */
-  readonly ref: string;
-}
-
 /**
  * Resolve a possibly-abbreviated commit-ish to its full 40-char SHA,
  * artifacts are keyed by full SHAs and joined by exact equality.
@@ -274,19 +306,6 @@ export async function fetchCompareDiff(
 
 /** GitHub caps the compare response's `files[]` at this many entries. */
 const COMPARE_FILES_CAP = 300;
-
-const compareFilesSchema = z.object({
-  status: z.string().optional(),
-  files: z
-    .array(
-      z.object({
-        filename: z.string(),
-        status: z.string(),
-        previous_filename: z.string().optional(),
-      }),
-    )
-    .optional(),
-});
 
 /**
  * Per-file JSON metadata for a `base...head` span, the signals the raw diff

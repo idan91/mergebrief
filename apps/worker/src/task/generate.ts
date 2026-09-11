@@ -20,6 +20,7 @@
 /* oxlint-enable house/comment-run */
 import { APIConnectionError } from "@anthropic-ai/sdk";
 import {
+  attachPrStack,
   categorize,
   categorizeDelta,
   categorizeRevisionNarrative,
@@ -690,6 +691,7 @@ async function runGeneration(
     watch.startPolling();
     const files = unwrapGitHub(await source.fetchPullRequestFiles());
     const diff = unwrapGitHub(await source.fetchDiff());
+    const openListed = await source.listOpenPullRequests();
 
     const locator: PrLocator = locatorFor(prRow);
     const state = toPrLifecycleState(info.state);
@@ -708,6 +710,16 @@ async function runGeneration(
 
     if (state !== undefined) meta.state = state;
     if (info.baseRef !== undefined) meta.baseRef = info.baseRef;
+    if (info.headRepo !== undefined) meta.headRepo = info.headRepo;
+    if (info.baseRepo !== undefined) meta.baseRepo = info.baseRepo;
+    if (!openListed.ok) {
+      log.warn("generate: open pull request list failed", {
+        code: openListed.error.code,
+        status: openListed.error.status,
+      });
+    } else {
+      attachPrStack(meta, prRow.prNumber, openListed.value);
+    }
 
     const coreLog: CoreLog = (message) => log.info(message);
 

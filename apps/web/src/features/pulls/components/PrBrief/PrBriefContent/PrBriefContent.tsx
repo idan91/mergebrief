@@ -219,6 +219,7 @@ export function PrBriefContent({
         brief={assembled}
         repoConfig={repoConfig.data ?? null}
         briefId={briefId}
+        repoId={repoId}
         comparisonPlan={comparisonPlan}
         conversation={conversationPlan}
         conversationFilter={conversationFilter}

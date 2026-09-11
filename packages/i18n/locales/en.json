@@ -250,7 +250,13 @@
       "repoConfigChipAt": "repo config @ {{sha}}",
       "copyBaseBranch": "Copy base branch",
       "copyHeadBranch": "Copy head branch",
-      "branchPairAria": "{{head}} into {{base}}"
+      "branchPairAria": "{{head}} into {{base}}",
+      "stackIndexAria": "pull request {{index}} of {{total}} in the stack",
+      "stacked": "Stacked",
+      "stackedOn": "Stacked on",
+      "stackedWith": "Stacked with",
+      "stackDisclosureAria": "Pull requests in this stack",
+      "stackMember": "#{{number}} {{title}}"
     },
     "details": {
       "ariaLabelTrigger": "Brief details",

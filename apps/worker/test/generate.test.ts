@@ -59,6 +59,7 @@ import type {
   GitHubApiError,
   GitHubPort,
   IssueInfo,
+  OpenPullRequest,
   PullRequestFile,
   PullRequestSource,
   PullRequestInfo,
@@ -233,6 +234,9 @@ interface StubGitHub extends GitHubPort {
   urlBoxCalls: { grantId: bigint; repoSlug: string; prNumber: number }[];
   /** Issues by `owner/repo#n`; missing = not found (404). */
   issues: Map<string, IssueInfo>;
+  /** Open PRs in the repo; empty means no stack. */
+  openPullRequests: OpenPullRequest[];
+  listOpenPullRequestsError?: GitHubApiError;
 }
 
 function ok<T>(value: T): Result<T, GitHubApiError> {
@@ -257,6 +261,8 @@ function stubGitHub(headSha: string): StubGitHub {
       commitCount: 3,
       authorLogin: "octocat",
       closedAt: null,
+      headRepo: { owner: "acme", repo: "widget" },
+      baseRepo: { owner: "acme", repo: "widget" },
     },
     files: [{ path: "a.ts", additions: 8, deletions: 2 }],
     diff: SMALL_DIFF,
@@ -270,6 +276,7 @@ function stubGitHub(headSha: string): StubGitHub {
     repoFileCalls: [],
     urlBoxCalls: [],
     issues: new Map(),
+    openPullRequests: [],
     async openPullRequestSource() {
       return buildSource();
     },
@@ -292,6 +299,12 @@ function stubGitHub(headSha: string): StubGitHub {
         );
       },
       fetchPullRequestFiles: async () => ok(stub.files),
+      listOpenPullRequests: async () => {
+        if (stub.listOpenPullRequestsError) {
+          return { ok: false, error: stub.listOpenPullRequestsError };
+        }
+        return ok(stub.openPullRequests);
+      },
       fetchIssue: async (owner: string, repo: string, number: number) => {
         const issue = stub.issues.get(`${owner}/${repo}#${number}`);
         if (issue === undefined) {
@@ -1061,6 +1074,104 @@ describe("generate task", () => {
       target_type: "brief",
     });
     expect(generator.calls).toEqual(["brief"]);
+  });
+
+  it("stamps a linear open-PR stack onto the envelope", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = stubGitHub(HEAD_1);
+    github.info = { ...github.info, baseRef: "feature/a" };
+    github.openPullRequests = [
+      {
+        number: 6,
+        title: "Parent",
+        headRef: "feature/a",
+        baseRef: "main",
+        headRepo: { owner: "acme", repo: "widget" },
+        baseRepo: { owner: "acme", repo: "widget" },
+      },
+      {
+        number: 7,
+        title: "stub PR",
+        headRef: "feature/stub",
+        baseRef: "feature/a",
+        headRepo: { owner: "acme", repo: "widget" },
+        baseRepo: { owner: "acme", repo: "widget" },
+      },
+      {
+        number: 8,
+        title: "Child",
+        headRef: "feature/c",
+        baseRef: "feature/stub",
+        headRepo: { owner: "acme", repo: "widget" },
+        baseRepo: { owner: "acme", repo: "widget" },
+      },
+    ];
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator: stubGenerator(),
+      github,
+    });
+
+    await task(payload);
+
+    const brief = await createArtifactStore(harness.handle, ctx).briefs.get(
+      pr.id,
+      BASE,
+      HEAD_1,
+    );
+    expect(JSON.parse(brief?.body ?? "{}")).toMatchObject({
+      pr: {
+        headRef: "feature/stub",
+        baseRef: "feature/a",
+        stack: {
+          index: 2,
+          members: [
+            { number: 6, title: "Parent" },
+            { number: 7, title: "stub PR" },
+            { number: 8, title: "Child" },
+          ],
+        },
+      },
+    });
+  });
+
+  it("omits stack and still stamps refs when the open list fails", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = stubGitHub(HEAD_1);
+    github.listOpenPullRequestsError = {
+      code: GitHubApiErrorCodes.FORBIDDEN,
+      status: 403,
+      message:
+        "failed to list open pull requests: GitHub API returned status 403",
+    };
+    const { logger, lines } = captureLogger();
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator: stubGenerator(),
+      github,
+      log: logger,
+    });
+
+    await task(payload);
+
+    const brief = await createArtifactStore(harness.handle, ctx).briefs.get(
+      pr.id,
+      BASE,
+      HEAD_1,
+    );
+    const body = JSON.parse(brief?.body ?? "{}") as {
+      pr?: Record<string, unknown>;
+    };
+    expect(body.pr?.["headRef"]).toBe("feature/stub");
+    expect(body.pr?.["baseRef"]).toBe("main");
+    expect("stack" in (body.pr ?? {})).toBe(false);
+    expect(
+      lines().some(
+        (line) => line["msg"] === "generate: open pull request list failed",
+      ),
+    ).toBe(true);
   });
 
   it("threads the instance-config effort into the stored brief's origin", async () => {

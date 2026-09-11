@@ -258,6 +258,46 @@ describe("parseBrief", () => {
     expect("baseRef" in parsed.value.pr).toBe(false);
   });
 
+  it("carries a linear stack through when members and index are valid", () => {
+    const stack = {
+      members: [
+        { number: 12, title: "Bottom" },
+        { number: 13, title: "Middle" },
+      ],
+      index: 2,
+    };
+    const parsed = parseBrief({
+      pr: { ...pr, stack },
+      summary: "Adds accordion and collapsible components.",
+      changeGroups: [newShapeGroup],
+      chunks: [newShapeChunk],
+      concernView: [{ concern: "implementation", added: 7, deleted: 0 }],
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.pr.stack).toEqual(stack);
+  });
+
+  it("drops a malformed stack and still keeps branch refs", () => {
+    const parsed = parseBrief({
+      pr: {
+        ...pr,
+        headRef: "feature/thing",
+        baseRef: "main",
+        stack: { index: "two" },
+      },
+      summary: "Adds accordion and collapsible components.",
+      changeGroups: [newShapeGroup],
+      chunks: [newShapeChunk],
+      concernView: [{ concern: "implementation", added: 7, deleted: 0 }],
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.pr.headRef).toBe("feature/thing");
+    expect(parsed.value.pr.baseRef).toBe("main");
+    expect("stack" in parsed.value.pr).toBe(false);
+  });
+
   it("rejects pr urls that are not http or https", () => {
     const parsed = parseBrief({
       pr: { ...pr, url: "javascript:alert(1)" },

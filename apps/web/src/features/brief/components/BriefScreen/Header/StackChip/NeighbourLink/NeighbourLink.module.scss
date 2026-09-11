@@ -1,0 +1,11 @@
+@layer components {
+  .link {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  .current {
+    color: var(--text);
+    font-weight: 600;
+  }
+}

@@ -159,6 +159,38 @@ describe("categorize, PR lifecycle stamping", () => {
     expect("headRef" in brief.pr).toBe(false);
     expect("baseRef" in brief.pr).toBe(false);
   });
+
+  it("stamps stack from PrMetadata into the envelope pr block", async () => {
+    const stack = {
+      members: [
+        { number: 12, title: "Bottom" },
+        { number: 13, title: "Middle" },
+        { number: 14, title: "Tip" },
+      ],
+      index: 2,
+    };
+    const stamped: FetchedPr = {
+      ...pr,
+      meta: { ...pr.meta, stack },
+    };
+    const brief = await categorize(
+      stamped,
+      1,
+      commitRange,
+      new FakeGenerator(twoGroupBriefGen),
+    );
+    expect(brief.pr.stack).toEqual(stack);
+  });
+
+  it("omits stack absent from legacy metadata", async () => {
+    const brief = await categorize(
+      pr,
+      1,
+      commitRange,
+      new FakeGenerator(twoGroupBriefGen),
+    );
+    expect("stack" in brief.pr).toBe(false);
+  });
 });
 
 describe("categorize, text length floor", () => {

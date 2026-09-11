@@ -1544,11 +1544,6 @@
       "count": 4
     }
   },
-  "apps/worker/src/task/github-port.ts": {
-    "house/no-em-dash": {
-      "count": 8
-    }
-  },
   "apps/worker/src/task/owner-follow-up.ts": {
     "house/no-em-dash": {
       "count": 1

@@ -37,6 +37,8 @@ export interface BriefScreenProps {
   brief: Brief;
   repoConfig?: RepoConfigContext | null | undefined;
   briefId: string;
+  /** DB route identity for in-app neighbour links; absent on the file path. */
+  repoId?: string | undefined;
   comparisonPlan?: BriefComparisonPlan | undefined;
   model: ReturnType<typeof buildBriefViewModel>;
   searchParams: BriefSearchParams;

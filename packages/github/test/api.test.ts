@@ -19,6 +19,7 @@ import {
   fetchCompareFiles,
   fetchCompareCommitCount,
   fetchReviewCommentsRaw,
+  listOpenPullRequests,
   resolveCommitSha,
 } from "../src/operations/pull-request";
 import {
@@ -58,6 +59,7 @@ function mockOctokit(overrides: {
   getComment?: ReturnType<typeof vi.fn>;
   issuesGet?: ReturnType<typeof vi.fn>;
   pullsGet?: ReturnType<typeof vi.fn>;
+  pullsList?: ReturnType<typeof vi.fn>;
   compareBasehead?: ReturnType<typeof vi.fn>;
   getCommit?: ReturnType<typeof vi.fn>;
   listReviewComments?: ReturnType<typeof vi.fn>;
@@ -76,6 +78,7 @@ function mockOctokit(overrides: {
       },
       pulls: {
         get: overrides.pullsGet ?? vi.fn(),
+        list: overrides.pullsList ?? vi.fn(),
         listFiles: vi.fn(),
         listReviewComments: overrides.listReviewComments ?? vi.fn(),
       },
@@ -461,11 +464,20 @@ describe("fetchPullRequest / fetchDiff", () => {
   it("extracts the minimal PR fields", async () => {
     const pullsGet = vi.fn().mockResolvedValue({
       data: {
-        head: { sha: "head-sha", ref: "feature/thing" },
+        head: {
+          sha: "head-sha",
+          ref: "feature/thing",
+          repo: { name: "fork", owner: { login: "contributor" } },
+        },
         base: {
           sha: "base-sha",
           ref: "main",
-          repo: { id: 424242, full_name: "o/r" },
+          repo: {
+            id: 424242,
+            full_name: "o/r",
+            name: "r",
+            owner: { login: "o" },
+          },
         },
         state: "open",
         draft: false,
@@ -502,6 +514,8 @@ describe("fetchPullRequest / fetchDiff", () => {
       commitCount: 4,
       authorLogin: "octocat",
       closedAt: null,
+      headRepo: { owner: "contributor", repo: "fork" },
+      baseRepo: { owner: "o", repo: "r" },
     });
   });
 
@@ -634,7 +648,193 @@ describe("fetchPullRequest / fetchDiff", () => {
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_FOUND);
   });
+});
 
+describe("listOpenPullRequests", () => {
+  it("maps number, title, branch refs, and repository identity", async () => {
+    const paginate = vi.fn().mockResolvedValue([
+      {
+        number: 12,
+        title: "Bottom of the stack",
+        head: {
+          ref: "feature/a",
+          repo: { name: "r", owner: { login: "o" } },
+        },
+        base: {
+          ref: "main",
+          repo: { name: "r", owner: { login: "o" } },
+        },
+      },
+      {
+        number: 13,
+        title: "Middle",
+        head: {
+          ref: "feature/b",
+          repo: { name: "r", owner: { login: "o" } },
+        },
+        base: {
+          ref: "feature/a",
+          repo: { name: "r", owner: { login: "o" } },
+        },
+      },
+    ]);
+    const octokit = mockOctokit({ paginate });
+    const result = await listOpenPullRequests(octokit, {
+      owner: "o",
+      repo: "r",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value).toEqual([
+      {
+        number: 12,
+        title: "Bottom of the stack",
+        headRef: "feature/a",
+        baseRef: "main",
+        headRepo: { owner: "o", repo: "r" },
+        baseRepo: { owner: "o", repo: "r" },
+      },
+      {
+        number: 13,
+        title: "Middle",
+        headRef: "feature/b",
+        baseRef: "feature/a",
+        headRepo: { owner: "o", repo: "r" },
+        baseRepo: { owner: "o", repo: "r" },
+      },
+    ]);
+    expect(paginate).toHaveBeenCalledWith(
+      octokit.rest.pulls.list,
+      expect.objectContaining({
+        owner: "o",
+        repo: "r",
+        state: "open",
+        per_page: 100,
+      }),
+    );
+  });
+
+  it("keeps a fork head repo distinct from the base repo", async () => {
+    const paginate = vi.fn().mockResolvedValue([
+      {
+        number: 10,
+        title: "From a fork",
+        head: {
+          ref: "main",
+          repo: { name: "fork", owner: { login: "contributor" } },
+        },
+        base: {
+          ref: "main",
+          repo: { name: "r", owner: { login: "o" } },
+        },
+      },
+    ]);
+    const octokit = mockOctokit({ paginate });
+    const result = await listOpenPullRequests(octokit, {
+      owner: "o",
+      repo: "r",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value).toEqual([
+      {
+        number: 10,
+        title: "From a fork",
+        headRef: "main",
+        baseRef: "main",
+        headRepo: { owner: "contributor", repo: "fork" },
+        baseRepo: { owner: "o", repo: "r" },
+      },
+    ]);
+  });
+
+  it("omits a listed PR whose head repository is gone", async () => {
+    const paginate = vi.fn().mockResolvedValue([
+      {
+        number: 10,
+        title: "Deleted fork",
+        head: { ref: "main", repo: null },
+        base: {
+          ref: "main",
+          repo: { name: "r", owner: { login: "o" } },
+        },
+      },
+    ]);
+    const octokit = mockOctokit({ paginate });
+    const result = await listOpenPullRequests(octokit, {
+      owner: "o",
+      repo: "r",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value).toEqual([]);
+  });
+
+  it("returns every page concatenated by paginate", async () => {
+    const paginate = vi.fn().mockResolvedValue([
+      {
+        number: 1,
+        title: "first page",
+        head: {
+          ref: "a",
+          repo: { name: "r", owner: { login: "o" } },
+        },
+        base: {
+          ref: "main",
+          repo: { name: "r", owner: { login: "o" } },
+        },
+      },
+      {
+        number: 2,
+        title: "second page",
+        head: {
+          ref: "b",
+          repo: { name: "r", owner: { login: "o" } },
+        },
+        base: {
+          ref: "a",
+          repo: { name: "r", owner: { login: "o" } },
+        },
+      },
+    ]);
+    const octokit = mockOctokit({ paginate });
+    const result = await listOpenPullRequests(octokit, {
+      owner: "o",
+      repo: "r",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value.map((item) => item.number)).toEqual([1, 2]);
+  });
+
+  it("sanitizes a list failure so tokens never escape", async () => {
+    const paginate = vi.fn().mockRejectedValue(requestError(403));
+    const octokit = mockOctokit({ paginate });
+    const result = await listOpenPullRequests(octokit, {
+      owner: "o",
+      repo: "r",
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.error.code).toBe(GitHubApiErrorCodes.FORBIDDEN);
+    expect(result.error.message).not.toContain(LEAKED_TOKEN);
+  });
+
+  it("rejects an ill-shaped list item as an unexpected response", async () => {
+    const paginate = vi.fn().mockResolvedValue([{ number: "twelve" }]);
+    const octokit = mockOctokit({ paginate });
+    const result = await listOpenPullRequests(octokit, {
+      owner: "o",
+      repo: "r",
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
+    expect(result.error.message).toContain("unexpected");
+  });
+});
+
+describe("fetchDiff / compareDiff", () => {
   it("returns the raw diff string", async () => {
     const diff = "diff --git a/f b/f\n@@ -1 +1 @@\n-a\n+b\n";
     const pullsGet = vi.fn().mockResolvedValue({ data: diff });

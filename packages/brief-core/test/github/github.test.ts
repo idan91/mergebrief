@@ -4,6 +4,7 @@ import {
   isCommentOutdated,
   isCommitish,
   metadataFromView,
+  parseGhOpenPullRequests,
   normalizeReviewComment,
   parsePrUrl,
 } from "../../src/github";
@@ -120,6 +121,83 @@ describe("metadataFromView maps gh pr view JSON to PrMetadata", () => {
     const meta = metadataFromView({ ...baseView, state: "LOCKED" });
     expect("state" in meta).toBe(false);
     expect("merged" in meta).toBe(false);
+  });
+});
+
+describe("parseGhOpenPullRequests", () => {
+  const listing = { owner: "upstream", repo: "app" };
+
+  it("maps gh list JSON onto number title refs and repo identity", () => {
+    expect(
+      parseGhOpenPullRequests(
+        [
+          {
+            number: 12,
+            title: "Bottom",
+            headRefName: "feature/a",
+            baseRefName: "main",
+            headRepository: { name: "app" },
+            headRepositoryOwner: { login: "upstream" },
+          },
+        ],
+        listing,
+      ),
+    ).toEqual({
+      ok: true,
+      value: [
+        {
+          number: 12,
+          title: "Bottom",
+          headRef: "feature/a",
+          baseRef: "main",
+          headRepo: { owner: "upstream", repo: "app" },
+          baseRepo: { owner: "upstream", repo: "app" },
+        },
+      ],
+    });
+  });
+
+  it("returns a failure Result when the payload is not a list", () => {
+    expect(parseGhOpenPullRequests({ number: 1 }, listing)).toEqual({
+      ok: false,
+      error: { reason: "invalid-shape" },
+    });
+  });
+
+  it("omits a row that lacks head repository identity", () => {
+    expect(
+      parseGhOpenPullRequests(
+        [
+          {
+            number: 10,
+            title: "Deleted fork",
+            headRefName: "main",
+            baseRefName: "main",
+          },
+          {
+            number: 11,
+            title: "Kept",
+            headRefName: "feature",
+            baseRefName: "main",
+            headRepository: { name: "app" },
+            headRepositoryOwner: { login: "upstream" },
+          },
+        ],
+        listing,
+      ),
+    ).toEqual({
+      ok: true,
+      value: [
+        {
+          number: 11,
+          title: "Kept",
+          headRef: "feature",
+          baseRef: "main",
+          headRepo: { owner: "upstream", repo: "app" },
+          baseRepo: { owner: "upstream", repo: "app" },
+        },
+      ],
+    });
   });
 });
 

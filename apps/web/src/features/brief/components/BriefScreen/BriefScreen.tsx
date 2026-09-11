@@ -49,6 +49,7 @@ export function BriefScreen({
   brief,
   repoConfig,
   briefId,
+  repoId,
   comparisonPlan,
   model,
   searchParams,
@@ -133,6 +134,7 @@ export function BriefScreen({
           livePrState={livePrState}
           repoConfig={repoConfig}
           briefId={briefId}
+          repoId={repoId}
           timeline={overlay.timeline}
           model={model}
           totals={session.totals}

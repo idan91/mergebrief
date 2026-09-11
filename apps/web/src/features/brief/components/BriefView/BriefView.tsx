@@ -28,6 +28,8 @@ export interface BriefViewProps {
   livePrState?: LivePrState | undefined;
   artifacts?: LocalBriefSummary[] | undefined;
   briefId: string;
+  /** DB route identity for in-app neighbour links; absent on the file path. */
+  repoId?: string | undefined;
   searchParams: BriefSearchParams;
   brief: Brief;
   comparisonPlan?: BriefComparisonPlan;
@@ -61,6 +63,7 @@ export function BriefView({
   artifacts = NO_ARTIFACTS,
   brief,
   briefId,
+  repoId,
   comparisonPlan,
   conversation,
   conversationFocusThreadId,
@@ -96,6 +99,7 @@ export function BriefView({
         brief={brief}
         repoConfig={repoConfig}
         briefId={briefId}
+        repoId={repoId}
         comparisonPlan={comparisonPlan}
         conversation={conversation}
         conversationFilter={conversationFilter}

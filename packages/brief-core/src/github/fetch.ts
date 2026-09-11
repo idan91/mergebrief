@@ -8,6 +8,8 @@ import { execFileAsync, MAX_BUFFER, SEGMENT } from "./exec";
 import type { ContextProvider } from "../context/types";
 import { createGitHubRead, GitHubTransports } from "../context/trackers/github";
 import { listReadableTrackers, type TrackerReads } from "../context/trackers";
+import type { Result } from "types";
+import { attachPrStack, type OpenPullRequest } from "../pr-stack";
 import type { FetchedPr, Log, PrLocator, PrMetadata } from "./types";
 
 const PR_URL = new RegExp(
@@ -49,6 +51,8 @@ const GhViewSchema = z.object({
   url: z.string(),
   headRefOid: z.string(),
   headRefName: z.string().nullish(),
+  headRepository: z.object({ name: z.string().min(1) }).nullish(),
+  headRepositoryOwner: z.object({ login: z.string().min(1) }).nullish(),
   baseRefOid: z.string(),
   baseRefName: z.string().nullish(),
   // `commits` carries one entry per commit in the PR; we only need the count.
@@ -94,8 +98,85 @@ export function metadataFromView(raw: unknown): PrMetadata {
   if (typeof view.isDraft === "boolean") meta.draft = view.isDraft;
   if (typeof view.headRefName === "string") meta.headRef = view.headRefName;
   if (typeof view.baseRefName === "string") meta.baseRef = view.baseRefName;
+  const headOwner = view.headRepositoryOwner?.login;
+  const headName = view.headRepository?.name;
+  if (headOwner !== undefined && headName !== undefined) {
+    meta.headRepo = { owner: headOwner, repo: headName };
+  }
 
   return meta;
+}
+
+export const OPEN_PR_LIST_LIMIT = 100;
+
+const GhOpenPullRequestSchema = z.object({
+  number: z.number().int(),
+  title: z.string(),
+  headRefName: z.string(),
+  baseRefName: z.string(),
+  headRepository: z.object({ name: z.string().min(1) }).nullish(),
+  headRepositoryOwner: z.object({ login: z.string().min(1) }).nullish(),
+});
+
+export interface GhOpenPullRequestParseError {
+  readonly reason: "invalid-shape";
+}
+
+function mapGhOpenPullRequest(
+  item: z.infer<typeof GhOpenPullRequestSchema>,
+  listing: Pick<PrLocator, "owner" | "repo">,
+): OpenPullRequest | undefined {
+  const headOwner = item.headRepositoryOwner?.login;
+  const headName = item.headRepository?.name;
+  if (headOwner === undefined || headName === undefined) return undefined;
+  return {
+    number: item.number,
+    title: item.title,
+    headRef: item.headRefName,
+    baseRef: item.baseRefName,
+    headRepo: { owner: headOwner, repo: headName },
+    baseRepo: { owner: listing.owner, repo: listing.repo },
+  };
+}
+
+export function parseGhOpenPullRequests(
+  raw: unknown,
+  listing: Pick<PrLocator, "owner" | "repo">,
+): Result<OpenPullRequest[], GhOpenPullRequestParseError> {
+  const parsed = z.array(GhOpenPullRequestSchema).safeParse(raw);
+  if (!parsed.success) {
+    return { ok: false, error: { reason: "invalid-shape" } };
+  }
+  const value: OpenPullRequest[] = [];
+  for (const item of parsed.data) {
+    const mapped = mapGhOpenPullRequest(item, listing);
+    if (mapped !== undefined) value.push(mapped);
+  }
+  return { ok: true, value };
+}
+
+async function fetchOpenPullRequests(
+  loc: PrLocator,
+): Promise<OpenPullRequest[] | undefined> {
+  const { stdout } = await execFileAsync(
+    "gh",
+    [
+      "pr",
+      "list",
+      "--repo",
+      repoSlug(loc),
+      "--state",
+      "open",
+      "--limit",
+      String(OPEN_PR_LIST_LIMIT),
+      "--json",
+      "number,title,headRefName,baseRefName,headRepository,headRepositoryOwner",
+    ],
+    { maxBuffer: MAX_BUFFER },
+  );
+  const parsed = parseGhOpenPullRequests(JSON.parse(stdout), loc);
+  if (!parsed.ok) return undefined;
+  return parsed.value;
 }
 
 export async function fetchPrMetadata(loc: PrLocator): Promise<PrMetadata> {
@@ -108,11 +189,19 @@ export async function fetchPrMetadata(loc: PrLocator): Promise<PrMetadata> {
       "--repo",
       repoSlug(loc),
       "--json",
-      "title,body,url,headRefOid,headRefName,baseRefOid,baseRefName,commits,files,state,isDraft",
+      "title,body,url,headRefOid,headRefName,headRepository,headRepositoryOwner,baseRefOid,baseRefName,commits,files,state,isDraft",
     ],
     { maxBuffer: MAX_BUFFER },
   );
-  return metadataFromView(JSON.parse(stdout));
+  const meta = metadataFromView(JSON.parse(stdout));
+  meta.baseRepo = { owner: loc.owner, repo: loc.repo };
+  try {
+    const open = await fetchOpenPullRequests(loc);
+    if (open !== undefined) attachPrStack(meta, loc.number, open);
+  } catch {
+    // Listing is best-effort: a stack miss must not fail metadata.
+  }
+  return meta;
 }
 
 /** A commit-ish we will interpolate into a `gh api` path, restrict to hex SHAs. */

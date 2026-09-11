@@ -1,0 +1,12 @@
+@use "functions";
+
+@layer components {
+  .list {
+    display: flex;
+    flex-direction: column;
+    gap: functions.to-rem(4px);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+}

@@ -113,6 +113,7 @@ export type {
 export {
   fetchPullRequest,
   fetchPullRequestFiles,
+  listOpenPullRequests,
   fetchDiff,
   fetchCompareDiff,
   fetchCompareFiles,
@@ -124,6 +125,8 @@ export type {
   PullRequestRef,
   PullRequestInfo,
   PullRequestFile,
+  OpenPullRequest,
+  RepositoryRef,
   CompareDiffRef,
   CommitRef,
 } from "./operations/pull-request";

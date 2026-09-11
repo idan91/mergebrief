@@ -127,8 +127,13 @@ async function renderHeader(overrides: Partial<HeaderProps> = {}) {
     path: "/briefs/$briefId/summary-preview",
     component: () => null,
   });
+  const prRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/repos/$repoId/pulls/$prNumber",
+    component: () => null,
+  });
   const router = createRouter({
-    routeTree: rootRoute.addChildren([headerRoute, previewRoute]),
+    routeTree: rootRoute.addChildren([headerRoute, previewRoute, prRoute]),
     history: createMemoryHistory({ initialEntries: ["/"] }),
   });
   await router.load();
@@ -329,6 +334,83 @@ describe("branch pair", () => {
       sentinel.remove();
       document.documentElement.style.removeProperty("--sticky-stack-h");
     }
+  });
+});
+
+describe("stack chip", () => {
+  const linear = {
+    members: [
+      { number: 6, title: "Parent" },
+      { number: 7, title: "Tighten the cross-param leak" },
+      { number: 8, title: "Child" },
+    ],
+    index: 2,
+  };
+  const fork = {
+    parent: { number: 6, title: "Parent" },
+    children: [
+      { number: 8, title: "Child" },
+      { number: 9, title: "Other child" },
+    ],
+  };
+
+  function briefWithStack(
+    stack: typeof linear | typeof fork,
+    state: "open" | "closed" = "open",
+  ): Brief {
+    return { ...brief, pr: { ...brief.pr, stack, state } };
+  }
+
+  it("renders no chip when stack is absent", async () => {
+    await renderHeader();
+    expect(screen.queryByTestId("stack-chip")).toBeNull();
+  });
+
+  it("renders the linear chip on the title line after the badge", async () => {
+    await renderHeader({ brief: briefWithStack(linear) });
+    const chip = screen.getByTestId("stack-chip");
+    const badge = document.querySelector("[data-state-badge]");
+    expect(chip?.textContent).toBe("2/3");
+    expect(badge?.nextElementSibling?.contains(chip)).toBe(true);
+    const titleLine = screen.getByRole("heading", { level: 1 }).parentElement;
+    expect(titleLine?.contains(chip)).toBe(true);
+  });
+
+  it("renders a fork chip without a fraction", async () => {
+    await renderHeader({ brief: briefWithStack(fork) });
+    const chip = screen.getByTestId("stack-chip");
+    expect(chip?.textContent).toBe("Stacked");
+    expect(chip?.textContent).not.toMatch(/\d+\/\d+/);
+  });
+
+  it("lists neighbour titles in the disclosure", async () => {
+    await renderHeader({ brief: briefWithStack(linear) });
+    fireEvent.click(
+      screen.getByRole("button", { name: "pull request 2 of 3 in the stack" }),
+    );
+    expect(screen.getByText("#6 Parent")).toBeTruthy();
+    expect(screen.getByText("#7 Tighten the cross-param leak")).toBeTruthy();
+    expect(screen.getByText("#8 Child")).toBeTruthy();
+  });
+
+  it("keeps the current PR from being a link", async () => {
+    await renderHeader({ brief: briefWithStack(linear), repoId: "424242" });
+    fireEvent.click(
+      screen.getByRole("button", { name: "pull request 2 of 3 in the stack" }),
+    );
+    expect(
+      screen.getByText("#7 Tighten the cross-param leak").closest("a"),
+    ).toBeNull();
+  });
+
+  it("points neighbour links at the in-app repo pull path", async () => {
+    await renderHeader({ brief: briefWithStack(linear), repoId: "424242" });
+    fireEvent.click(
+      screen.getByRole("button", { name: "pull request 2 of 3 in the stack" }),
+    );
+    expect(
+      screen.getByRole("link", { name: "#6 Parent" }).getAttribute("href"),
+    ).toBe("/repos/424242/pulls/6");
   });
 });
 

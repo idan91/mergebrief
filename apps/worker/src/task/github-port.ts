@@ -2,8 +2,8 @@
 // one PR so the task logic never handles octokit instances or repo
 // coordinates. Two credential worlds share one binding: an App-installation
 // job mints an installation-scoped client (the worker acts as the App); a
-// url-box job resolves its `grant_id` into the VIEWER's token — decrypted
-// lazily, per job, never stored — with the operator PAT as the documented
+// url-box job resolves its `grant_id` into the VIEWER's token, decrypted
+// lazily, per job, never stored, with the operator PAT as the documented
 // backstop. Tests substitute an in-memory port.
 import {
   createUserOctokit,
@@ -18,10 +18,12 @@ import {
   getInstallationClient,
   getRepoFile,
   GitHubApiErrorCodes,
+  listOpenPullRequests,
   postEntryComment,
   type AppClient,
   type GitHubApiError,
   type IssueInfo,
+  type OpenPullRequest,
   type PullRequestFile,
   type PullRequestInfo,
   type RepoFileResult,
@@ -42,6 +44,7 @@ import { PermanentJobError } from "./failure";
 export type {
   GitHubApiError,
   IssueInfo,
+  OpenPullRequest,
   PullRequestFile,
   PullRequestInfo,
   RepoFileResult,
@@ -51,6 +54,7 @@ export type {
 export interface PullRequestSource {
   fetchPullRequest(): Promise<Result<PullRequestInfo, GitHubApiError>>;
   fetchPullRequestFiles(): Promise<Result<PullRequestFile[], GitHubApiError>>;
+  listOpenPullRequests(): Promise<Result<OpenPullRequest[], GitHubApiError>>;
   /**
    * One issue by number, in any repo the bound credential can see: the
    * primary ticket may live in a sibling repo of the installation.
@@ -68,7 +72,7 @@ export interface PullRequestSource {
     head: string,
   ): Promise<Result<string, GitHubApiError>>;
   /**
-   * The `base...head` compare per-file status metadata — the rename/binary/
+   * The `base...head` compare per-file status metadata: the rename/binary/
    * mode signals the anchoring predicate needs and the raw diff cannot carry.
    */
   fetchCompareFiles(
@@ -107,11 +111,11 @@ export interface GitHubPort {
   ): Promise<PullRequestSource>;
   /**
    * Open a source for a url-box job: resolve the grant, decrypt the viewer's
-   * access token, and probe the PR once — a viewer denial falls back to the
+   * access token, and probe the PR once. A viewer denial falls back to the
    * operator PAT when one is configured (a GitHub App user token is
    * installation-scoped and cannot read a private repo the App is not
    * installed on, even for the repo's owner). A missing/unreadable grant is a
-   * permanent `github-access` failure — the fix is a fresh paste, not a retry.
+   * permanent `github-access` failure: the fix is a fresh paste, not a retry.
    */
   openUrlBoxPullRequestSource(
     grantId: GrantRowId,
@@ -165,6 +169,8 @@ function bindPullRequestSource(
   return {
     fetchPullRequest: () => fetchPullRequest(octokit, ref),
     fetchPullRequestFiles: () => fetchPullRequestFiles(octokit, ref),
+    listOpenPullRequests: () =>
+      listOpenPullRequests(octokit, { owner: ref.owner, repo: ref.repo }),
     fetchIssue: (owner, repo, number) =>
       fetchIssue(octokit, { owner, repo, number }),
     fetchDiff: () => fetchDiff(octokit, ref),
@@ -214,7 +220,7 @@ function bindPullRequestSource(
 /**
  * Serve one already-fetched `fetchPullRequest` result before delegating: the
  * fallback probe's read must not cost the task a second identical GitHub
- * call. One-shot on purpose — the supersession watch's later reads need the
+ * call. One-shot on purpose: the supersession watch's later reads need the
  * LIVE head, never a cached one.
  */
 function serveProbeOnce(
@@ -244,7 +250,7 @@ function buildPermanentAccessFailure(message: string): PermanentJobError {
 /**
  * The production port: App-JWT client for installation jobs; grant-resolved
  * viewer token (+ PAT backstop) for url-box jobs. `urlBox` absent = url-box
- * jobs fail permanently — the operator wired no credential path.
+ * jobs fail permanently: the operator wired no credential path.
  */
 export function appGitHubPort(
   app: AppClient,
@@ -290,8 +296,8 @@ export function appGitHubPort(
       }
       // One probe decides the fallback: a GitHub App user token cannot read a
       // private repo the App is not installed on, so a denial here retries as
-      // the operator PAT. Any other outcome keeps the viewer binding — with
-      // the probe result served once, so the task's first read is free — and
+      // the operator PAT. Any other outcome keeps the viewer binding, with
+      // the probe result served once, so the task's first read is free, and
       // lets the task's own reads surface any real error.
       const probe = await viewerSource.fetchPullRequest();
       if (

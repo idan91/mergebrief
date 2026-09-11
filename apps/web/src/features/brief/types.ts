@@ -84,7 +84,25 @@ export interface PrRef {
   headRef?: string;
   /** Base branch name; absent on pre-stamping artifacts. */
   baseRef?: string;
+  stack?: PrStack;
 }
+
+export interface PrStackMember {
+  number: number;
+  title: string;
+}
+
+export interface LinearPrStack {
+  members: PrStackMember[];
+  index: number;
+}
+
+export interface ForkPrStack {
+  parent?: PrStackMember;
+  children: PrStackMember[];
+}
+
+export type PrStack = LinearPrStack | ForkPrStack;
 
 export interface ChunkLoc {
   added: number;

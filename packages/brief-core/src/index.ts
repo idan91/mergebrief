@@ -173,6 +173,19 @@ export {
 // The worker builds AnchorViewInput from its plan; renderAnchorView is
 // exported for tests/CLI.
 export { renderAnchorView, type AnchorViewInput } from "./generation/prompt";
+export {
+  attachPrStack,
+  isLinearPrStack,
+  resolvePrStack,
+  PrStackSchema,
+  type ForkPrStack,
+  type LinearPrStack,
+  type OpenPullRequest,
+  type RepoIdentity,
+  type PrStack,
+  type PrStackMember,
+  type PrStackSelf,
+} from "./pr-stack";
 export { generateAndWrite, type Range } from "./cli/categorize";
 // Anchored generation: the pure plan + stitch helpers the worker's generate
 // task and the eval harness's revision-pair runner both run.

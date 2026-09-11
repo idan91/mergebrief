@@ -9,6 +9,7 @@ export type {
   PrMetadata,
   ReviewComment,
 } from "./types";
+export type { GhOpenPullRequestParseError } from "./fetch";
 export {
   fetchCompareCommitCount,
   fetchCompareDiff,
@@ -17,6 +18,8 @@ export {
   fetchPrMetadata,
   isCommitish,
   metadataFromView,
+  OPEN_PR_LIST_LIMIT,
+  parseGhOpenPullRequests,
   parsePrUrl,
   resolveFullSha,
 } from "./fetch";

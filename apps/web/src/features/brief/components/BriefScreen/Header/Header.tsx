@@ -35,6 +35,7 @@ import { RiskChipDisclosure } from "../RiskChipDisclosure/RiskChipDisclosure";
 import { BranchPair } from "./BranchPair/BranchPair";
 import { BriefDetailsPanel } from "./BriefDetailsPanel/BriefDetailsPanel";
 import { ProviderBadge } from "./ProviderBadge/ProviderBadge";
+import { StackChip } from "./StackChip/StackChip";
 import { StateBadge } from "./StateBadge/StateBadge";
 import { TimelineNavigator } from "./TimelineNavigator/TimelineNavigator";
 import styles from "./Header.module.scss";
@@ -52,6 +53,7 @@ export interface HeaderProps {
   repoConfig?: RepoConfigContext | null | undefined;
   livePrState?: LivePrState | undefined;
   briefId: string;
+  repoId?: string | undefined;
   timeline: BriefTimeline;
   model: BriefViewModel;
   totals: ProgressTotals;
@@ -89,6 +91,7 @@ export function Header({
   repoConfig,
   livePrState,
   briefId,
+  repoId,
   timeline,
   model,
   totals,
@@ -196,7 +199,14 @@ export function Header({
             <div className={styles["titleLine"]}>
               <h1 className={styles["title"]}>{brief.pr.title}</h1>
               <StateBadge live={livePrState} pr={brief.pr} />
-              {/* The self-review chip must stay adjacent to the Draft badge. */}
+              {brief.pr.stack !== undefined ? (
+                <StackChip
+                  currentNumber={brief.pr.number}
+                  prUrl={brief.pr.url}
+                  repoId={repoId}
+                  stack={brief.pr.stack}
+                />
+              ) : null}
               {ownDraft !== undefined ? <SelfReviewChip /> : null}
               <span className={styles["repoRef"]}>
                 <b>{brief.pr.repo}</b>{" "}

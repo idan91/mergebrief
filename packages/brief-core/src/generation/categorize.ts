@@ -110,6 +110,7 @@ function buildPrRef(locator: PrLocator, meta: PrMetadata, sha: string): PrRef {
   if (meta.merged !== undefined) ref.merged = meta.merged;
   if (meta.headRef !== undefined) ref.headRef = meta.headRef;
   if (meta.baseRef !== undefined) ref.baseRef = meta.baseRef;
+  if (meta.stack !== undefined) ref.stack = meta.stack;
 
   return ref;
 }

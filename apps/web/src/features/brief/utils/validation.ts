@@ -29,6 +29,10 @@ import {
   type TicketAlignment,
   TicketTrackers,
   TicketUnreadReasons,
+  type PrStack,
+  type PrStackMember,
+  type ForkPrStack,
+  type LinearPrStack,
   type RevisionChangeFile,
   type UnattributedFile,
   type RevisionChanges,
@@ -41,7 +45,7 @@ import {
 } from "../types";
 
 import { NAME_MAX_CHARS, NAME_PATTERN } from "./repoConfig";
-import type { Result as SharedResult } from "types";
+import type { Mutable, Result as SharedResult } from "types";
 
 /** Shared `Result` with this module's fixed error type (a message string). */
 export type Result<T> = SharedResult<T, string>;
@@ -191,8 +195,70 @@ function parsePrRef(value: unknown): Result<PrRef> {
   if (typeof merged === "boolean") pr.merged = merged;
   if (typeof headRef === "string") pr.headRef = headRef;
   if (typeof baseRef === "string") pr.baseRef = baseRef;
+  const stack = parsePrStack(value["stack"]);
+  if (stack !== undefined) pr.stack = stack;
 
   return { ok: true, value: pr };
+}
+
+function isStackMember(value: unknown): value is PrStackMember {
+  return (
+    isRecord(value) && isInteger(value["number"]) && isString(value["title"])
+  );
+}
+
+function parseLinearPrStack(
+  value: Record<string, unknown>,
+): LinearPrStack | undefined {
+  if (!("members" in value || "index" in value)) return undefined;
+
+  const membersValue = value["members"];
+  const index = value["index"];
+  if (!Array.isArray(membersValue) || !isInteger(index)) return undefined;
+
+  const members: PrStackMember[] = [];
+  for (const item of membersValue) {
+    if (!isStackMember(item)) return undefined;
+    members.push(item);
+  }
+
+  if (members.length < 2) return undefined;
+  if (index < 1 || index > members.length) return undefined;
+
+  return { members, index };
+}
+
+function parseForkPrStack(
+  value: Record<string, unknown>,
+): ForkPrStack | undefined {
+  const childrenValue = value["children"];
+  if (!Array.isArray(childrenValue)) return undefined;
+
+  const children: PrStackMember[] = [];
+  for (const item of childrenValue) {
+    if (!isStackMember(item)) return undefined;
+    children.push(item);
+  }
+
+  if (children.length < 2) return undefined;
+
+  const fork: Mutable<ForkPrStack> = { children };
+  if ("parent" in value) {
+    if (!isStackMember(value["parent"])) return undefined;
+    fork.parent = value["parent"];
+  }
+
+  return fork;
+}
+
+function parsePrStack(value: unknown): PrStack | undefined {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) return undefined;
+
+  const linear = parseLinearPrStack(value);
+  if (linear !== undefined) return linear;
+
+  return parseForkPrStack(value);
 }
 
 export function parseAddressedReviewComment(

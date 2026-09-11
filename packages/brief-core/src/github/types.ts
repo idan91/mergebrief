@@ -1,4 +1,5 @@
 import type { ContextSnippet, PrimaryTicketOutcome } from "../context/types";
+import type { PrStack, RepoIdentity } from "../pr-stack";
 import { type PrLifecycleState, type ReviewComment } from "../types";
 
 export type { ReviewComment };
@@ -28,6 +29,12 @@ export interface PrMetadata {
   headRef?: string;
   /** Base branch name; absent on older fetch paths and artifacts. */
   baseRef?: string;
+  /** Head repository; used to match stack parents and children. */
+  headRepo?: RepoIdentity;
+  /** Base repository; used to match stack parents and children. */
+  baseRepo?: RepoIdentity;
+  /** Stack snapshot at fetch; omitted when unconnected or listing failed. */
+  stack?: PrStack;
   files: PrFile[];
   /**
    * PR lifecycle snapshot at fetch time, stamped into the artifact envelope's

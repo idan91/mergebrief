@@ -1,6 +1,7 @@
 import { z } from "zod/v4";
 import { AnchorSchema, GenerationSchema } from "generators";
 import type { ValueOf } from "types";
+import { PrStackSchema } from "./pr-stack";
 
 // Port vocabulary lives in packages/generators; re-exported here so existing
 // import paths keep working.
@@ -190,6 +191,9 @@ export const PrRefSchema = z.object({
     .describe(
       "base branch name at generation time. CLI-assigned, optional: older artifacts omit it.",
     ),
+  stack: PrStackSchema.optional().describe(
+    "open-PR stack snapshot at generation time. CLI-assigned, optional: older artifacts omit it.",
+  ),
 });
 
 /** A contiguous run of line numbers (1-based, inclusive) on one side of the diff. */
