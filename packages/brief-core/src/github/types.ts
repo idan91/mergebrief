@@ -20,12 +20,14 @@ export interface PrMetadata {
   body: string;
   url: string;
   sha: string;
-  /** PR base commit SHA — the start of the whole-PR commit range. */
+  /** PR base commit SHA - the start of the whole-PR commit range. */
   baseSha: string;
   /** Number of commits in the PR at this head. */
   commitCount: number;
   /** Head branch name; absent on older fetch paths and artifacts. */
   headRef?: string;
+  /** Base branch name; absent on older fetch paths and artifacts. */
+  baseRef?: string;
   files: PrFile[];
   /**
    * PR lifecycle snapshot at fetch time, stamped into the artifact envelope's
@@ -46,5 +48,5 @@ export interface FetchedPr {
   primaryTicket?: PrimaryTicketOutcome;
 }
 
-/** Minimal logger — structural so callers (CLI) can pass a tagged sink. */
+/** Minimal logger - structural so callers (CLI) can pass a tagged sink. */
 export type Log = (message: string) => void;

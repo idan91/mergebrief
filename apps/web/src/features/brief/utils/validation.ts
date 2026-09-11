@@ -182,11 +182,15 @@ function parsePrRef(value: unknown): Result<PrRef> {
   const state = value["state"];
   const draft = value["draft"];
   const merged = value["merged"];
+  const headRef = value["headRef"];
+  const baseRef = value["baseRef"];
   const pr: PrRef = { repo, number, title, url, sha, description };
 
   if (state === "open" || state === "closed") pr.state = state;
   if (typeof draft === "boolean") pr.draft = draft;
   if (typeof merged === "boolean") pr.merged = merged;
+  if (typeof headRef === "string") pr.headRef = headRef;
+  if (typeof baseRef === "string") pr.baseRef = baseRef;
 
   return { ok: true, value: pr };
 }

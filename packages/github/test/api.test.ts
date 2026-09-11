@@ -462,7 +462,11 @@ describe("fetchPullRequest / fetchDiff", () => {
     const pullsGet = vi.fn().mockResolvedValue({
       data: {
         head: { sha: "head-sha", ref: "feature/thing" },
-        base: { sha: "base-sha", repo: { id: 424242, full_name: "o/r" } },
+        base: {
+          sha: "base-sha",
+          ref: "main",
+          repo: { id: 424242, full_name: "o/r" },
+        },
         state: "open",
         draft: false,
         merged: false,
@@ -487,6 +491,7 @@ describe("fetchPullRequest / fetchDiff", () => {
       repoFullName: "o/r",
       headSha: "head-sha",
       headRef: "feature/thing",
+      baseRef: "main",
       baseSha: "base-sha",
       state: "open",
       draft: false,
@@ -499,6 +504,40 @@ describe("fetchPullRequest / fetchDiff", () => {
       closedAt: null,
     });
   });
+
+  it.each([undefined, ""])(
+    "omits baseRef when GitHub sends no usable base.ref",
+    async (baseRef) => {
+      const pullsGet = vi.fn().mockResolvedValue({
+        data: {
+          head: { sha: "head-sha", ref: "feature/thing" },
+          base: {
+            sha: "base-sha",
+            ref: baseRef,
+            repo: { id: 424242, full_name: "o/r" },
+          },
+          state: "open",
+          draft: false,
+          merged: false,
+          title: "A PR",
+          body: "does a thing",
+          html_url: "https://github.com/o/r/pull/3",
+          commits: 4,
+          user: { login: "octocat" },
+          closed_at: null,
+        },
+      });
+      const octokit = mockOctokit({ pullsGet });
+      const result = await fetchPullRequest(octokit, {
+        owner: "o",
+        repo: "r",
+        prNumber: 3,
+      });
+      expect(result.ok).toBe(true);
+      if (!result.ok) throw new Error("unreachable");
+      expect("baseRef" in result.value).toBe(false);
+    },
+  );
 
   it("captures merged on a merged and closed PR", async () => {
     const pullsGet = vi.fn().mockResolvedValue({

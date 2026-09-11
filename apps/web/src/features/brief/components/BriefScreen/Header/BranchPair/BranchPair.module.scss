@@ -1,0 +1,20 @@
+@use "functions";
+
+@layer components {
+  .pair {
+    display: inline-flex;
+    flex: 0 1 auto;
+    min-inline-size: 0;
+    align-items: center;
+    gap: functions.to-rem(4px);
+    block-size: var(--header-meta-control-h);
+    color: var(--dim);
+    font-size: var(--header-meta-font);
+    white-space: nowrap;
+  }
+
+  .arrow {
+    flex: none;
+    color: var(--dim);
+  }
+}

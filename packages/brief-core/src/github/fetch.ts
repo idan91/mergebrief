@@ -50,6 +50,7 @@ const GhViewSchema = z.object({
   headRefOid: z.string(),
   headRefName: z.string().nullish(),
   baseRefOid: z.string(),
+  baseRefName: z.string().nullish(),
   // `commits` carries one entry per commit in the PR; we only need the count.
   commits: z.array(z.unknown()).nullish(),
   files: z
@@ -92,6 +93,7 @@ export function metadataFromView(raw: unknown): PrMetadata {
   }
   if (typeof view.isDraft === "boolean") meta.draft = view.isDraft;
   if (typeof view.headRefName === "string") meta.headRef = view.headRefName;
+  if (typeof view.baseRefName === "string") meta.baseRef = view.baseRefName;
 
   return meta;
 }
@@ -106,7 +108,7 @@ export async function fetchPrMetadata(loc: PrLocator): Promise<PrMetadata> {
       "--repo",
       repoSlug(loc),
       "--json",
-      "title,body,url,headRefOid,headRefName,baseRefOid,commits,files,state,isDraft",
+      "title,body,url,headRefOid,headRefName,baseRefOid,baseRefName,commits,files,state,isDraft",
     ],
     { maxBuffer: MAX_BUFFER },
   );

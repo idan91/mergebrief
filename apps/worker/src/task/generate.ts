@@ -707,6 +707,7 @@ async function runGeneration(
     };
 
     if (state !== undefined) meta.state = state;
+    if (info.baseRef !== undefined) meta.baseRef = info.baseRef;
 
     const coreLog: CoreLog = (message) => log.info(message);
 

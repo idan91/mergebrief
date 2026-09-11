@@ -247,7 +247,10 @@
       "summaryPreview": "Summary preview",
       "submitReviewCta": "Submit",
       "repoConfigChip": "repo config",
-      "repoConfigChipAt": "repo config @ {{sha}}"
+      "repoConfigChipAt": "repo config @ {{sha}}",
+      "copyBaseBranch": "Copy base branch",
+      "copyHeadBranch": "Copy head branch",
+      "branchPairAria": "{{head}} into {{base}}"
     },
     "details": {
       "ariaLabelTrigger": "Brief details",

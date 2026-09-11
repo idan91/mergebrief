@@ -246,6 +246,7 @@ function stubGitHub(headSha: string): StubGitHub {
       repoFullName: "acme/widget",
       headSha,
       headRef: "feature/stub",
+      baseRef: "main",
       baseSha: BASE,
       state: "open",
       draft: false,
@@ -1037,7 +1038,13 @@ describe("generate task", () => {
       index: 1,
       // The PR lifecycle snapshot, pins the info→PrMetadata stamping
       // wiring, not just the widened interface.
-      pr: { state: "open", draft: false, merged: false },
+      pr: {
+        state: "open",
+        draft: false,
+        merged: false,
+        headRef: "feature/stub",
+        baseRef: "main",
+      },
     });
 
     const row = await createGenerationProjection(harness.handle, ctx).get(

@@ -66,7 +66,7 @@ const brief: Brief = {
   concernView: [],
 };
 
-/** A full prop set keyed on the own-draft state — for rerender-based tests.
+/** A full prop set keyed on the own-draft state - for rerender-based tests.
  * Router-less on purpose: safe only while the menu stays CLOSED (the
  * summary-preview menu entry is a Link and needs the renderHeader harness). */
 function headerProps(ownDraft: HeaderProps["ownDraft"]): HeaderProps {
@@ -137,7 +137,7 @@ async function renderHeader(overrides: Partial<HeaderProps> = {}) {
 }
 
 describe("Header identity row", () => {
-  it("renders the one-line identity: wordmark, title, repo + PR link — no context line", async () => {
+  it("renders wordmark, title, repo and PR link on one line", async () => {
     await renderHeader();
     expect(screen.getByText("MergeBrief").textContent).toBe("MergeBrief");
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
@@ -237,6 +237,101 @@ describe("Header identity row", () => {
   });
 });
 
+describe("branch pair", () => {
+  function makeBriefWithRefs(refs: {
+    baseRef?: string;
+    headRef?: string;
+  }): Brief {
+    return { ...brief, pr: { ...brief.pr, ...refs } };
+  }
+
+  it("renders nothing without stamped refs", async () => {
+    await renderHeader();
+    expect(screen.queryByTestId("branch-pair")).toBeNull();
+  });
+
+  it("renders the pair on the meta line when both refs are stamped", async () => {
+    await renderHeader({
+      brief: makeBriefWithRefs({ baseRef: "main", headRef: "feature/thing" }),
+    });
+    const pair = screen.getByTestId("branch-pair");
+    const titleLine = screen.getByRole("heading", { level: 1 }).parentElement;
+    const metaLine = titleLine?.parentElement?.lastElementChild;
+    expect(metaLine?.contains(pair)).toBe(true);
+    expect(titleLine?.contains(pair)).toBe(false);
+    expect(pair?.textContent).toContain("main");
+    expect(pair?.textContent).toContain("←");
+    expect(pair?.textContent).toContain("feature/thing");
+  });
+
+  it("renders head-only without an arrow", async () => {
+    await renderHeader({
+      brief: makeBriefWithRefs({ headRef: "feature/thing" }),
+    });
+    const pair = screen.getByTestId("branch-pair");
+    expect(pair?.textContent).toContain("feature/thing");
+    expect(pair?.textContent).not.toContain("←");
+  });
+
+  it("copy clicks write the bare branch name", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    await renderHeader({
+      brief: makeBriefWithRefs({ baseRef: "main", headRef: "feature/thing" }),
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Copy base branch" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith("main"));
+    fireEvent.click(screen.getByRole("button", { name: "Copy head branch" }));
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith("feature/thing"),
+    );
+  });
+
+  it("keeps the pair on the meta line when collapsed", async () => {
+    document.documentElement.style.setProperty("--sticky-stack-h", "120px");
+    const sentinel = document.createElement("div");
+    sentinel.setAttribute(CONTENT_START_ATTR, "");
+    document.body.append(sentinel);
+    intersectionObservers.length = 0;
+    try {
+      await renderHeader({
+        brief: makeBriefWithRefs({ baseRef: "main", headRef: "feature/thing" }),
+      });
+      await waitFor(() => expect(intersectionObservers.length).toBe(1));
+      const observed = intersectionObservers[0];
+      act(() => {
+        observed?.callback(
+          [
+            {
+              boundingClientRect: new DOMRect(0, -1, 10, 10),
+              intersectionRatio: 0,
+              intersectionRect: new DOMRect(),
+              isIntersecting: false,
+              rootBounds: new DOMRect(0, 0, 100, 100),
+              target: sentinel,
+              time: 0,
+            },
+          ],
+          observed as never,
+        );
+      });
+      expect(
+        document.querySelector("header")?.hasAttribute("data-collapsed"),
+      ).toBe(true);
+      const pair = screen.getByTestId("branch-pair");
+      const titleLine = screen.getByRole("heading", { level: 1 }).parentElement;
+      const metaLine = titleLine?.parentElement?.lastElementChild;
+      expect(metaLine?.contains(pair)).toBe(true);
+    } finally {
+      sentinel.remove();
+      document.documentElement.style.removeProperty("--sticky-stack-h");
+    }
+  });
+});
+
 describe("state badge", () => {
   const stamped = (
     state: "open" | "closed",
@@ -244,12 +339,12 @@ describe("state badge", () => {
     merged: boolean,
   ) => ({ ...brief, pr: { ...brief.pr, state, draft, merged } });
 
-  it("renders no badge on a pre-stamping artifact (no state)", async () => {
+  it("renders no badge on a pre-stamping artifact", async () => {
     await renderHeader();
     expect(document.querySelector("[data-state-badge]")).toBeNull();
   });
 
-  it("keeps the self-review chip adjacent to the Draft badge (own-draft)", async () => {
+  it("keeps the self-review chip adjacent to the Draft badge", async () => {
     await renderHeader({
       brief: stamped("open", true, false),
       ownDraft: { markReady: vi.fn(), pending: false },
@@ -285,8 +380,8 @@ describe("state badge", () => {
     },
   );
 
-  it("renders from LIVE webhook state on an UNSTAMPED artifact (DB route)", async () => {
-    // A DB brief generated before stamping has no pr.state — the badge must
+  it("renders from live webhook state on an unstamped artifact", async () => {
+    // A DB brief generated before stamping has no pr.state - the badge must
     // come from the live pull-request row there.
     await renderHeader({ livePrState: { state: "open", draft: false } });
     const badge = document.querySelector("[data-state-badge]");
@@ -314,7 +409,7 @@ describe("state badge", () => {
 
   it("live state SUPERSEDES a stale artifact stamp", async () => {
     // Artifact stamped open at generation; the PR merged since. The DB
-    // route shows live truth — staleness is only accepted on the local
+    // route shows live truth - staleness is only accepted on the local
     // file path, where no live source exists.
     await renderHeader({
       brief: stamped("open", false, false),
@@ -334,7 +429,7 @@ describe("generation warnings chip", () => {
     generationWarnings: [
       "⚠ salvaged brief: dropped 1 invalid tags entry",
       "warning: requested model m-1 but modelUsage reports m-2 — origin stamp stays the declaration",
-      // Duplicate — the chip counts unique events.
+      // Duplicate - the chip counts unique events.
       "⚠ salvaged brief: dropped 1 invalid tags entry",
     ],
   };
@@ -387,11 +482,11 @@ describe("generation warnings chip", () => {
 });
 
 describe("Header menu and stats", () => {
-  it("shows the progress facts on the lens row, LOC as the core-lines disclosure", async () => {
+  it("shows progress facts on the lens row with core-lines LOC", async () => {
     await renderHeader();
     expect(screen.getByText("chunks").textContent).toContain("1/2");
     expect(screen.getByText("flags").textContent).toContain("0/1");
-    // The LOC cell is the core-lines disclosure trigger — a real button.
+    // The LOC cell is the core-lines disclosure trigger - a real button.
     const loc = screen.getByTestId("core-lines-disclosure");
     expect(loc.textContent).toContain("core lines");
     expect(loc.textContent).toContain("+3");
@@ -401,7 +496,7 @@ describe("Header menu and stats", () => {
     expect(screen.getByText(/derived from the diff/)).toBeTruthy();
   });
 
-  it("shows the unattributed stat with title, note, and Jump when a remainder exists", async () => {
+  it("shows the unattributed stat when a remainder exists", async () => {
     const model = buildBriefViewModel({
       ...brief,
       unattributed: [
@@ -510,7 +605,7 @@ describe("Header menu and stats", () => {
   });
 
   it("offers no summary-preview entry on a DB brief", async () => {
-    // The standalone preview route resolves through the local file store —
+    // The standalone preview route resolves through the local file store ,
     // a db: id gets no menu entry; the submit flow is its receipt surface.
     await renderHeader({ briefId: "db:acme/widgets:7:base:head" });
     // Summary preview is the menu's only entry, so the trigger goes with it
@@ -581,7 +676,7 @@ describe("Header own-draft state", () => {
     );
   });
 
-  it("tooltip dismisses on Escape while focused without leaking the key, and re-arms (WCAG 1.4.13)", async () => {
+  it("Escape dismisses a focused tooltip without leaking the key", async () => {
     await renderHeader({ ownDraft: { markReady: vi.fn(), pending: false } });
     const info = screen.getByRole("button", { name: "About self-review" });
     const wrap = info.parentElement;
@@ -591,7 +686,7 @@ describe("Header own-draft state", () => {
     window.addEventListener("keydown", onWindowKeyDown);
     fireEvent.focus(info);
     fireEvent.keyDown(info, { key: "Escape" });
-    // Dismissed — and the key never reached the page (focus-mode Escape).
+    // Dismissed - and the key never reached the page (focus-mode Escape).
     expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(true);
     expect(onWindowKeyDown).not.toHaveBeenCalled();
     window.removeEventListener("keydown", onWindowKeyDown);
@@ -623,7 +718,7 @@ describe("Header own-draft state", () => {
     if (wrap) fireEvent.mouseLeave(wrap);
     expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(true);
 
-    // The inverse: re-hover, then blur while the pointer stays — still
+    // The inverse: re-hover, then blur while the pointer stays - still
     // dismissed (focus left, hover holds).
     if (wrap) fireEvent.mouseEnter(wrap);
     fireEvent.blur(info);
@@ -634,7 +729,7 @@ describe("Header own-draft state", () => {
     expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(false);
   });
 
-  it("tooltip dismisses on Escape while HOVERED without focus (WCAG 1.4.13)", async () => {
+  it("Escape dismisses a hovered tooltip without leaking the key", async () => {
     await renderHeader({ ownDraft: { markReady: vi.fn(), pending: false } });
     const info = screen.getByRole("button", { name: "About self-review" });
     const wrap = info.parentElement;
@@ -642,7 +737,7 @@ describe("Header own-draft state", () => {
 
     const onWindowKeyDown = vi.fn();
     window.addEventListener("keydown", onWindowKeyDown);
-    // Pointer hover only — focus never moves off <body>.
+    // Pointer hover only - focus never moves off <body>.
     if (wrap) fireEvent.mouseEnter(wrap);
     fireEvent.keyDown(document.body, { key: "Escape" });
     // Dismissed, key claimed: it must NOT fall through to the page's
@@ -670,7 +765,7 @@ describe("Header own-draft state", () => {
     expect(openSubmit).toHaveBeenCalledTimes(0);
   });
 
-  it("marks the CTA aria-disabled (never hard disabled) while pending — focus survives", async () => {
+  it("marks the pending CTA aria-disabled so focus survives", async () => {
     await renderHeader({ ownDraft: { markReady: vi.fn(), pending: true } });
     const cta = screen.getByRole("button", { name: /marking ready/i });
     // Hard `disabled` would dump keyboard focus on <body> mid-mutation; the
@@ -681,7 +776,7 @@ describe("Header own-draft state", () => {
     expect(document.activeElement).toBe(cta);
   });
 
-  it("keeps the pending CTA's click live — the flow announces its own reason", async () => {
+  it("keeps the pending CTA click live so the flow can announce", async () => {
     // Caller-owned aria-disabled, not the Button `disabled` prop: a press
     // while pending/unavailable must still reach markReady, whose guard
     // no-ops repeats and announces why.
@@ -691,7 +786,7 @@ describe("Header own-draft state", () => {
     expect(markReady).toHaveBeenCalledTimes(1);
   });
 
-  it("moves focus to the swapped-in Receipt CTA when the own-draft state ends on the focused slot", async () => {
+  it("moves focus to Receipt when own-draft ends on the focused slot", async () => {
     const { rerender } = render(
       <Header {...headerProps({ markReady: vi.fn(), pending: false })} />,
     );
@@ -699,7 +794,7 @@ describe("Header own-draft state", () => {
     cta.focus();
 
     // The refreshed PrView flips draft=false: the CTA unmounts, Receipt
-    // mounts in the terminal-action slot — focus follows the slot instead of
+    // mounts in the terminal-action slot - focus follows the slot instead of
     // dropping to <body>.
     rerender(<Header {...headerProps(undefined)} />);
     expect(document.activeElement).toBe(
@@ -707,12 +802,12 @@ describe("Header own-draft state", () => {
     );
   });
 
-  it("keeps slot focus continuity on the flip INTO own-draft too (symmetric)", async () => {
+  it("keeps slot focus continuity on the flip into own-draft", async () => {
     const { rerender } = render(<Header {...headerProps(undefined)} />);
     screen.getByRole("button", { name: "Submit" }).focus();
 
     // The PR converts to draft under focus: Receipt unmounts, the mark-ready
-    // CTA mounts in the same slot — focus follows.
+    // CTA mounts in the same slot - focus follows.
     rerender(
       <Header {...headerProps({ markReady: vi.fn(), pending: false })} />,
     );
@@ -721,7 +816,7 @@ describe("Header own-draft state", () => {
     );
   });
 
-  it("a consumed slot-focus flag never goes stale: a later external flip must not steal focus", async () => {
+  it("a consumed slot-focus flag does not steal focus on a later flip", async () => {
     const { rerender } = render(<Header {...headerProps(undefined)} />);
     // Focus Receipt, then flip INTO own-draft (slot continuity moves focus
     // onto the CTA and consumes the flag)…
@@ -735,7 +830,7 @@ describe("Header own-draft state", () => {
     const elsewhere = screen.getByRole("button", { name: "Brief details" });
     elsewhere.focus();
 
-    // A LATER external ready flip must leave the user's focus alone — a
+    // A LATER external ready flip must leave the user's focus alone - a
     // stale `true` from the earlier swap would yank it onto Receipt.
     rerender(<Header {...headerProps(undefined)} />);
     expect(document.activeElement).toBe(
@@ -752,15 +847,15 @@ describe("Header own-draft state", () => {
     expect(document.activeElement).toBe(document.body);
   });
 
-  it("shows a count-only flags stat (dispositions are unreachable in own-draft)", async () => {
+  it("shows a count-only flags stat in own-draft", async () => {
     await renderHeader({ ownDraft: { markReady: vi.fn(), pending: false } });
     const stat = screen.getByText("flags");
-    // No resolved/total fraction — it would sit at a permanent 0/N.
+    // No resolved/total fraction - it would sit at a permanent 0/N.
     expect(stat.textContent).toBe("flags1");
     expect(stat.textContent).not.toContain("/");
   });
 
-  it("drops the overflow menu whole (Summary preview was its only entry)", async () => {
+  it("drops the overflow menu in own-draft", async () => {
     await renderHeader({ ownDraft: { markReady: vi.fn(), pending: false } });
     expect(screen.queryByRole("button", { name: /more actions/i })).toBeNull();
   });
@@ -789,7 +884,7 @@ describe("repo-config origin chip", () => {
     policy: null,
   };
 
-  it("renders NO chip in the ok state — ok lives in the details panel", async () => {
+  it("renders no chip in the ok state", async () => {
     await renderHeader({ repoConfig: APPLIED });
     expect(document.querySelector("[data-repo-config-chip]")).toBeNull();
     // The panel's Repo config section carries the ok-state instead.
@@ -863,7 +958,7 @@ describe("repo-config origin chip", () => {
   });
 });
 
-describe("repo-config chip — applied-with-warning flips to warning state", () => {
+describe("repo-config chip flips to warning when an applied file warns", () => {
   it("a warning on an applied file is a config error the author must see", async () => {
     await renderHeader({
       repoConfig: {

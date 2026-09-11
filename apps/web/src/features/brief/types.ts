@@ -1,8 +1,3 @@
-// Brief artifact shapes + closed vocabularies. Mirrors brief-core's `types.ts`
-// with the SAME wire values, hand-rolled by design — this feature parses
-// artifacts with its own guards (`validation.ts`) rather than importing the
-// generator's Zod schemas, which would drag brief-core into the client bundle.
-// `types.test.ts` pins the mirror against the source at dev time.
 export const Categories = {
   BUGFIX: "bugfix",
   LOGIC_REFACTOR: "logic-refactor",
@@ -50,8 +45,6 @@ export const RiskSurfaceAttributes = {
   RELEASE_IMMINENT: "release-imminent",
 } as const;
 
-// Re-exported from the shared types-only package; kept on this module so
-// existing `import { type ValueOf } from "./types"` sites stay valid.
 export type { ValueOf } from "types";
 import type { ValueOf } from "types";
 
@@ -60,26 +53,13 @@ export type Concern = ValueOf<typeof Concerns>;
 export type Role = ValueOf<typeof Roles>;
 export type RiskSurfaceAttribute = ValueOf<typeof RiskSurfaceAttributes>;
 
-/**
- * @description A risk-surface token on a stored chunk: a built-in
- * `RiskSurfaceAttribute` or a repo-policy custom attribute name. The closed
- * vocabulary is per-generation and enforced server-side, so the static type
- * here is honestly `string`; source and display weight derive from the
- * artifact's policy snapshot (see repoConfig.ts).
- */
+/** Built-in or repo-policy risk token; the closed vocabulary is per-generation. */
 export type RiskToken = string;
 
-/** GitHub PR lifecycle states — a merged PR's `state` is `closed`. */
+/** GitHub PR lifecycle states. A merged PR's `state` is `closed`. */
 export type PrLifecycleState = "open" | "closed";
 
-/**
- * @description Live PR lifecycle from the DB route's webhook-maintained
- * pull-request row — folds merged into the state like the DB
- * vocabulary does. When present it
- * SUPERSEDES the artifact's stamped snapshot; the local file path never
- * has it and falls back to the stamp. Structural on purpose: the pulls
- * feature's `PrSummary` slice assigns without a lateral import.
- */
+/** Live DB-route PR state. When present it supersedes the artifact stamp. */
 export interface LivePrState {
   state: "open" | "closed" | "merged";
   draft: boolean;
@@ -93,13 +73,17 @@ export interface PrRef {
   sha: string;
   description: string;
   /**
-   * @description PR lifecycle snapshot stamped at generation time — a
+   * @description PR lifecycle snapshot stamped at generation time - a
    * snapshot by design, no staleness hint. Absent on pre-stamping
    * artifacts; the state badge simply doesn't render.
    */
   state?: PrLifecycleState;
   draft?: boolean;
   merged?: boolean;
+  /** Head branch name; absent on pre-stamping artifacts. */
+  headRef?: string;
+  /** Base branch name; absent on pre-stamping artifacts. */
+  baseRef?: string;
 }
 
 export interface ChunkLoc {
@@ -113,7 +97,7 @@ export interface LineRange {
 }
 
 /**
- * @description Changed lines no chunk claims, as per-file ranges —
+ * @description Changed lines no chunk claims, as per-file ranges ,
  * pipeline-derived, counts always derive from the ranges.
  */
 export interface UnattributedFile {
@@ -123,7 +107,7 @@ export interface UnattributedFile {
   /** @description Old-side changed lines no chunk claims. */
   removedRanges: LineRange[];
   /**
-   * @description Sliced diff rows for the unattributed ranges — attached
+   * @description Sliced diff rows for the unattributed ranges - attached
    * where the diff is available (server sidecar / live diff), like
    * `BriefChunk.diff`; never part of the stored artifact.
    */
@@ -175,7 +159,7 @@ export interface DiffLine {
 
 /**
  * @description One short factual note evidencing a risk-surface attribute on
- * a chunk — e.g. the both-sides citation required for
+ * a chunk - e.g. the both-sides citation required for
  * `comment-contradicts-code`.
  */
 export interface RiskNote {
@@ -293,7 +277,7 @@ export interface PrimaryTicket {
 }
 
 /**
- * @description One item shared by all three intent buckets — a per-bucket
+ * @description One item shared by all three intent buckets - a per-bucket
  * shape overflowed the structured-output grammar, so one shape carries every
  * bucket. The per-bucket field rules (`statedButMissing` has no `groupIds`;
  * `doneButUnstated` has no `quote`/`sourceUrl`) are enforced server-side and
@@ -305,7 +289,7 @@ export interface IntentItem {
   sourceUrl: string;
   groupIds: string[];
   /**
-   * @description Meaningful only on `deviations` — the PR description
+   * @description Meaningful only on `deviations` - the PR description
    * acknowledges the reversal, making the item a quiet receipt rather than an
    * alarm. Generation forces it `false` in every other bucket; older Briefs
    * have no such field and read as `false`.
@@ -316,7 +300,7 @@ export interface IntentItem {
 /**
  * @description The ticket-gated intent check: did this PR do what
  * its stated intent asked? Factual buckets, never a verdict. Full Brief
- * only — never present on a Delta Brief. Boundary-parsed defensively
+ * only - never present on a Delta Brief. Boundary-parsed defensively
  * (`validation.ts`): a malformed field is dropped to `undefined`, so by the
  * time a `Brief` reaches the app this is either well-formed or absent (a
  * pre-feature Brief renders no intent bar).
@@ -325,7 +309,7 @@ export interface IntentCheck {
   ticketUrls: string[];
   /**
    * @description Display title per `ticketUrls` entry, same order and length
-   * (the boundary parser realigns). `""` = no usable title — the renderer
+   * (the boundary parser realigns). `""` = no usable title - the renderer
    * falls back to the id alone. Empty strings throughout on older Briefs.
    */
   ticketTitles: string[];
@@ -398,7 +382,7 @@ export interface BriefAnchor {
 }
 
 /**
- * @description One text field exceeding the length caps —
+ * @description One text field exceeding the length caps ,
  * pipeline-stamped (warn-only floor), never model-produced. The FE renders
  * a single muted "consider a stronger model" line when any are present;
  * the entries themselves are diagnostic, not itemized in the UI.
@@ -418,13 +402,13 @@ export interface Brief {
   chunks: BriefChunk[];
   concernView: ConcernRollup[];
   /**
-   * @description Changed lines no chunk claims — pipeline-derived (`[]` =
+   * @description Changed lines no chunk claims - pipeline-derived (`[]` =
    * fully attributed); absent on pre-feature briefs.
    */
   unattributed?: UnattributedFile[];
   /**
    * @description Whole-diff added/removed totals derived from the parsed
-   * diff — exact even when chunk overlaps double-count per-chunk sums.
+   * diff - exact even when chunk overlaps double-count per-chunk sums.
    * Absent on pre-feature briefs.
    */
   diffTotals?: ChunkLoc;
@@ -434,13 +418,13 @@ export interface Brief {
   anchor?: BriefAnchor;
   /**
    * @description Warning lines the generation pipeline emitted (salvage,
-   * feedback retry, served-model mismatch) — CLI-collected.
+   * feedback retry, served-model mismatch) - CLI-collected.
    * Rendered under the header meta line so a degraded generation is
    * visible, not just finished.
    */
   generationWarnings?: string[];
   /**
-   * @description Text fields exceeding the length caps — pipeline-stamped;
+   * @description Text fields exceeding the length caps - pipeline-stamped;
    * absent when everything fits.
    */
   lengthViolations?: LengthViolation[];
@@ -453,7 +437,7 @@ export interface Brief {
   wholePrImpact?: string;
   /**
    * @description Reading order over `changeGroups`, full Brief
-   * only — never present on a Delta Brief. Boundary-parsed defensively: a
+   * only - never present on a Delta Brief. Boundary-parsed defensively: a
    * present-but-invalid permutation is dropped client-side (`validation.ts`),
    * so by the time a `Brief` reaches the rest of the app this is either a
    * verified permutation of `changeGroups` ids or `undefined`.
@@ -461,7 +445,7 @@ export interface Brief {
   readingOrder?: ReadingOrderStep[];
   /**
    * @description The ticket-gated intent check, full Brief only.
-   * Absent on pre-feature Briefs and on Delta Briefs — the intent bar
+   * Absent on pre-feature Briefs and on Delta Briefs - the intent bar
    * renders only when this is present.
    */
   intentCheck?: IntentCheck;
@@ -473,7 +457,7 @@ export type ComparisonBaselineLabel = "previous-brief" | "checkpoint";
 /**
  * @description Top-level fields of a `.comparison.json` marks sidecar
  * needed to determine comparison availability. `files` is intentionally omitted
- * here — availability only needs the header; readers that need per-line marks
+ * here - availability only needs the header; readers that need per-line marks
  * fetch the full sidecar separately.
  */
 export interface ComparisonMarksSummary {
@@ -487,7 +471,7 @@ export interface ComparisonMarksSummary {
  * @description Full `.comparison.json` marks sidecar: the header fields plus
  * the per-file mechanical changed-line ranges. Structurally the same `files`
  * shape as `RevisionChanges`, so both feed the same FE mark-join. These marks
- * are the *sole* source of truth for which lines are highlighted — narrative
+ * are the *sole* source of truth for which lines are highlighted - narrative
  * and Delta summaries never decide marks.
  */
 export interface ComparisonMarks extends ComparisonMarksSummary {
@@ -525,7 +509,7 @@ export interface RevisionNarrative {
   generation: Generation;
   generationWarnings?: string[];
   /**
-   * @description Text fields exceeding the length caps — pipeline-stamped;
+   * @description Text fields exceeding the length caps - pipeline-stamped;
    * absent when everything fits.
    */
   lengthViolations?: LengthViolation[];
@@ -565,14 +549,14 @@ export type RevisionNarrativeArtifact =
 
 /**
  * @description Availability of the shared Previous-Brief comparison for one
- * Brief head: the mechanical marks exist (source of truth), and — when
- * generated — the matching Revision narrative sidecar id (real narrative or
+ * Brief head: the mechanical marks exist (source of truth), and - when
+ * generated - the matching Revision narrative sidecar id (real narrative or
  * skip stub; callers discriminate on `artifactKind` after fetching).
  */
 export interface PreviousBriefComparisonAvailability {
   marksId: string;
   /**
-   * @description Present whenever a `.revision-narrative.json` sidecar exists —
+   * @description Present whenever a `.revision-narrative.json` sidecar exists ,
    * INCLUDING skip stubs (`artifactKind: "revisionNarrativeSkipped"`, written
    * for huge spans or when disabled by config). narrativeId-present means
    * "there is a narrative artifact to fetch", NOT "a summary is available":
@@ -589,7 +573,7 @@ export interface PreviousBriefComparisonAvailability {
  * one Brief head, approximated locally from available Delta artifacts.
  * `deltaId` is optional: `delta-cli` writes checkpoint marks before the Delta
  * LLM call, so marks can exist without a Delta.
- * A marks-only baseline is still "available" — the marks are the comparison.
+ * A marks-only baseline is still "available" - the marks are the comparison.
  */
 export interface LastReviewComparisonAvailability {
   marksId: string;
@@ -600,7 +584,7 @@ export interface LastReviewComparisonAvailability {
 
 /**
  * @description Comparison availability for one Brief head. Absent
- * keys mean that baseline has no mechanical marks for this head — the FE
+ * keys mean that baseline has no mechanical marks for this head - the FE
  * disables the corresponding Compare option.
  */
 export interface ComparisonAvailability {

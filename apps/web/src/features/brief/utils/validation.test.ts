@@ -39,7 +39,7 @@ const newShapeChunk = {
 };
 
 describe("parseBrief", () => {
-  it("accepts categorizer output with group ids and chunk changeGroupId membership", () => {
+  it("accepts categorizer output with group ids and chunk membership", () => {
     const parsed = parseBrief({
       pr,
       summary: "Adds accordion and collapsible components.",
@@ -230,7 +230,35 @@ describe("parseBrief", () => {
     expect("merged" in parsed.value.pr).toBe(false);
   });
 
-  it("rejects pr urls that are not http(s)", () => {
+  it("carries headRef and baseRef through when they are strings", () => {
+    const parsed = parseBrief({
+      pr: { ...pr, headRef: "feature/thing", baseRef: "main" },
+      summary: "Adds accordion and collapsible components.",
+      changeGroups: [newShapeGroup],
+      chunks: [newShapeChunk],
+      concernView: [{ concern: "implementation", added: 7, deleted: 0 }],
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.pr.headRef).toBe("feature/thing");
+    expect(parsed.value.pr.baseRef).toBe("main");
+  });
+
+  it("drops malformed branch refs instead of failing the artifact", () => {
+    const parsed = parseBrief({
+      pr: { ...pr, headRef: 1, baseRef: { name: "main" } },
+      summary: "Adds accordion and collapsible components.",
+      changeGroups: [newShapeGroup],
+      chunks: [newShapeChunk],
+      concernView: [{ concern: "implementation", added: 7, deleted: 0 }],
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect("headRef" in parsed.value.pr).toBe(false);
+    expect("baseRef" in parsed.value.pr).toBe(false);
+  });
+
+  it("rejects pr urls that are not http or https", () => {
     const parsed = parseBrief({
       pr: { ...pr, url: "javascript:alert(1)" },
       summary: "Adds accordion and collapsible components.",
@@ -246,7 +274,7 @@ describe("parseBrief", () => {
     });
   });
 
-  it("normalizes legacy group chunk-id arrays to chunk changeGroupId membership", () => {
+  it("normalizes legacy group chunk-id arrays to chunk membership", () => {
     const parsed = parseBrief({
       pr,
       summary: "Adds accordion and collapsible components.",
@@ -286,7 +314,7 @@ describe("parseBrief", () => {
     concernView: [{ concern: "implementation", added: 7, deleted: 0 }],
   };
 
-  it("keeps a readingOrder that is a valid permutation of the emitted group ids", () => {
+  it("keeps a readingOrder that is a valid permutation of group ids", () => {
     const parsed = parseBrief({
       ...twoGroupBriefInput,
       readingOrder: [
@@ -303,7 +331,7 @@ describe("parseBrief", () => {
     ]);
   });
 
-  it("drops a readingOrder missing a group (Brief stays valid)", () => {
+  it("drops a readingOrder missing a group and keeps the Brief", () => {
     const parsed = parseBrief({
       ...twoGroupBriefInput,
       readingOrder: [
@@ -316,7 +344,7 @@ describe("parseBrief", () => {
     expect(parsed.value.readingOrder).toBeUndefined();
   });
 
-  it("drops a readingOrder referencing an unknown group id (Brief stays valid)", () => {
+  it("drops a readingOrder with an unknown group id", () => {
     const parsed = parseBrief({
       ...twoGroupBriefInput,
       readingOrder: [
@@ -330,7 +358,7 @@ describe("parseBrief", () => {
     expect(parsed.value.readingOrder).toBeUndefined();
   });
 
-  it("drops a readingOrder with a duplicated group id (Brief stays valid)", () => {
+  it("drops a readingOrder with a duplicated group id", () => {
     const parsed = parseBrief({
       ...twoGroupBriefInput,
       readingOrder: [
@@ -344,7 +372,7 @@ describe("parseBrief", () => {
     expect(parsed.value.readingOrder).toBeUndefined();
   });
 
-  it("drops a malformed readingOrder step (Brief stays valid)", () => {
+  it("drops a malformed readingOrder step and keeps the Brief", () => {
     const parsed = parseBrief({
       ...twoGroupBriefInput,
       readingOrder: [{ groupId: "g1" }, { groupId: "g2", why: "next" }],
@@ -480,7 +508,7 @@ describe("parseBrief", () => {
       },
     ],
   ])(
-    "drops a malformed primaryTicket (%s) and keeps the intentCheck",
+    "drops a malformed primaryTicket %s and keeps the intentCheck",
     (_label, primaryTicket) => {
       const warnings: ParseWarnings = { warn: vi.fn() };
       const parsed = parseBrief(
@@ -500,7 +528,7 @@ describe("parseBrief", () => {
     },
   );
 
-  it("keeps a well-formed intentCheck (full Brief)", () => {
+  it("keeps a well-formed intentCheck on a full Brief", () => {
     const parsed = parseBrief({
       ...twoGroupBriefInput,
       intentCheck: preciseIntentCheck,
@@ -531,7 +559,7 @@ describe("parseBrief", () => {
     expect(parsed.value.intentCheck?.specificity).toBe("broad");
   });
 
-  // Back-compat: `preciseIntentCheck` above is deliberately an older shape —
+  // Back-compat: `preciseIntentCheck` above is deliberately an older shape ,
   // no alarm arrays, no `acknowledged` on its items. Every one of these
   // asserts that such a Brief keeps working.
   it("defaults the alarm buckets to empty on an older intentCheck", () => {
@@ -542,7 +570,7 @@ describe("parseBrief", () => {
 
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
-    // Absent arrays must NOT drop the whole check — the bar still renders.
+    // Absent arrays must NOT drop the whole check - the bar still renders.
     expect(parsed.value.intentCheck?.deviations).toEqual([]);
     expect(parsed.value.intentCheck?.claimedButUnachieved).toEqual([]);
   });
@@ -555,11 +583,11 @@ describe("parseBrief", () => {
 
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
-    // One "" per URL — the renderer's id-only fallback, never a dropped check.
+    // One "" per URL - the renderer's id-only fallback, never a dropped check.
     expect(parsed.value.intentCheck?.ticketTitles).toEqual([""]);
   });
 
-  it("keeps ticketTitles paired with ticketUrls, realigning a length mismatch", () => {
+  it("keeps ticketTitles paired with ticketUrls after a length mismatch", () => {
     const parsed = parseBrief({
       ...twoGroupBriefInput,
       intentCheck: {
@@ -598,7 +626,7 @@ describe("parseBrief", () => {
     );
   });
 
-  it("keeps `acknowledged: true` on a deviation (the quiet-receipt signal)", () => {
+  it("keeps acknowledged true on a deviation as a quiet receipt", () => {
     const parsed = parseBrief({
       ...twoGroupBriefInput,
       intentCheck: {
@@ -620,7 +648,7 @@ describe("parseBrief", () => {
     expect(parsed.value.intentCheck?.deviations[0]?.acknowledged).toBe(true);
   });
 
-  it("reads a non-boolean `acknowledged` as false rather than dropping the check", () => {
+  it("reads a non-boolean acknowledged as false instead of dropping", () => {
     const parsed = parseBrief({
       ...twoGroupBriefInput,
       intentCheck: {
@@ -643,9 +671,9 @@ describe("parseBrief", () => {
     expect(parsed.value.intentCheck?.deviations[0]?.acknowledged).toBe(false);
   });
 
-  it("re-sweeps `acknowledged` off the four non-deviations buckets (dead field)", () => {
+  it("re-sweeps acknowledged off the four non-deviation buckets", () => {
     // Generation forces this, but the file-backed demo path parses arbitrary
-    // local JSON — so the read path re-sweeps rather than trusting it.
+    // local JSON - so the read path re-sweeps rather than trusting it.
     const ackEverywhere = {
       intent: "x",
       quote: "keep the widget cache",
@@ -684,12 +712,12 @@ describe("parseBrief", () => {
 
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
-    // Absent is lenient; present-but-wrong is not — same posture as the four
+    // Absent is lenient; present-but-wrong is not - same posture as the four
     // required buckets.
     expect(parsed.value.intentCheck).toBeUndefined();
   });
 
-  it("drops a malformed intentCheck (bad specificity) but keeps the Brief valid", () => {
+  it("drops a malformed intentCheck and keeps the Brief valid", () => {
     const parsed = parseBrief({
       ...twoGroupBriefInput,
       intentCheck: { ...preciseIntentCheck, specificity: "vague" },
@@ -714,7 +742,7 @@ describe("parseBrief", () => {
     expect(parsed.value.intentCheck).toBeUndefined();
   });
 
-  it("omits intentCheck from the parsed value when the field is absent (pre-feature Brief)", () => {
+  it("omits intentCheck when the field is absent on a pre-feature Brief", () => {
     const parsed = parseBrief(twoGroupBriefInput);
 
     expect(parsed.ok).toBe(true);
@@ -764,8 +792,8 @@ describe("parseBrief", () => {
     ).toBe(true);
   });
 
-  it("stays silent when the caller injects no sink (the client path)", () => {
-    // No sink and no console noise — the BROWSER contract only. Coverage is
+  it("stays silent when the caller injects no sink", () => {
+    // No sink and no console noise - the BROWSER contract only. Coverage is
     // per call site: a caller that passes nothing on the server gets NO
     // signal, so passing a sink is the caller's job.
     const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -782,10 +810,10 @@ describe("parseBrief", () => {
   });
 });
 
-describe("parseRevisionNarrativeArtifact — reason narrowing", () => {
+describe("parseRevisionNarrativeArtifact reason narrowing", () => {
   it("narrows the skip reason without a cast", () => {
     // `isOneOf` is a type predicate, so the parsed stub's `skipped` is already
-    // the union — this asserts the value survives the guard unchanged.
+    // the union - this asserts the value survives the guard unchanged.
     const parsed = parseRevisionNarrativeArtifact({
       artifactKind: "revisionNarrativeSkipped",
       pr,
@@ -935,7 +963,7 @@ function briefWith(riskSurface: unknown) {
   };
 }
 
-describe("risk tokens (widened vocabulary)", () => {
+describe("risk tokens accept a widened vocabulary", () => {
   it("accepts a repo-defined kebab-case token alongside built-ins", () => {
     expect(parseBrief(briefWith(["touches-auth", "touches-billing"])).ok).toBe(
       true,
@@ -952,7 +980,7 @@ describe("risk tokens (widened vocabulary)", () => {
   });
 });
 
-describe("parseBrief — unattributed", () => {
+describe("parseBrief unattributed", () => {
   const base = {
     pr,
     summary: "s",
@@ -983,7 +1011,7 @@ describe("parseBrief — unattributed", () => {
     ]);
   });
 
-  it("keeps an empty array (fully attributed) distinct from absent (pre-feature)", () => {
+  it("keeps an empty unattributed array distinct from absent", () => {
     const withEmpty = parseBrief({ ...base, unattributed: [] });
     expect(withEmpty.ok).toBe(true);
     if (!withEmpty.ok) return;
@@ -1008,7 +1036,7 @@ describe("parseBrief — unattributed", () => {
   });
 });
 
-describe("parseBrief — unattributed canonical-range guard", () => {
+describe("parseBrief unattributed canonical-range guard", () => {
   const base = {
     pr,
     summary: "s",
@@ -1062,7 +1090,7 @@ describe("parseBrief — unattributed canonical-range guard", () => {
     expect(warnings.length).toBeGreaterThan(0);
   });
 
-  it("drops the field on a zero or negative start (1-based)", () => {
+  it("drops the field on a zero or negative start", () => {
     const parsed = parseBrief(
       {
         ...base,
@@ -1082,7 +1110,7 @@ describe("parseBrief — unattributed canonical-range guard", () => {
   });
 });
 
-describe("parseBrief — diffTotals", () => {
+describe("parseBrief diffTotals", () => {
   const base = {
     pr,
     summary: "s",

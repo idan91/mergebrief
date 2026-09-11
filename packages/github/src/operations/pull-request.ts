@@ -37,6 +37,8 @@ export interface PullRequestInfo {
   /** Head branch name, as GitHub reports it. */
   readonly headRef: string;
   readonly baseSha: string;
+  /** Base branch name; omitted when GitHub sends none or empty. */
+  readonly baseRef?: string;
   /** GitHub PR state (`open` / `closed`). */
   readonly state: string;
   readonly draft: boolean;
@@ -81,24 +83,28 @@ export async function fetchPullRequest(
         error: unexpectedResponseError("fetch pull request"),
       };
     }
+    const info: Mutable<PullRequestInfo> = {
+      repoId: repoId.data,
+      repoFullName: data.base.repo.full_name,
+      headSha: data.head.sha,
+      headRef: data.head.ref,
+      baseSha: data.base.sha,
+      state: data.state,
+      draft: data.draft ?? false,
+      merged: data.merged,
+      title: data.title,
+      body: data.body ?? "",
+      htmlUrl: data.html_url,
+      commitCount: data.commits,
+      authorLogin: data.user?.login ?? null,
+      closedAt: data.closed_at === null ? null : new Date(data.closed_at),
+    };
+    if (typeof data.base.ref === "string" && data.base.ref !== "") {
+      info.baseRef = data.base.ref;
+    }
     return {
       ok: true,
-      value: {
-        repoId: repoId.data,
-        repoFullName: data.base.repo.full_name,
-        headSha: data.head.sha,
-        headRef: data.head.ref,
-        baseSha: data.base.sha,
-        state: data.state,
-        draft: data.draft ?? false,
-        merged: data.merged,
-        title: data.title,
-        body: data.body ?? "",
-        htmlUrl: data.html_url,
-        commitCount: data.commits,
-        authorLogin: data.user?.login ?? null,
-        closedAt: data.closed_at === null ? null : new Date(data.closed_at),
-      },
+      value: info,
     };
   } catch (error) {
     return { ok: false, error: mapRequestError(error, "fetch pull request") };

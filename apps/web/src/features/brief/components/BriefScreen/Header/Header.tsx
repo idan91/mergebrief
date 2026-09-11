@@ -32,6 +32,7 @@ import { IconButton } from "@web/components/IconButton/IconButton";
 import { CoreLinesDisclosure } from "../CoreLinesDisclosure/CoreLinesDisclosure";
 import { UnattributedDisclosure } from "../UnattributedDisclosure/UnattributedDisclosure";
 import { RiskChipDisclosure } from "../RiskChipDisclosure/RiskChipDisclosure";
+import { BranchPair } from "./BranchPair/BranchPair";
 import { BriefDetailsPanel } from "./BriefDetailsPanel/BriefDetailsPanel";
 import { ProviderBadge } from "./ProviderBadge/ProviderBadge";
 import { StateBadge } from "./StateBadge/StateBadge";
@@ -225,6 +226,10 @@ export function Header({
                 totalDeleted={model.totalDeleted}
                 totalCoreAdded={model.totalCoreAdded}
                 totalCoreDeleted={model.totalCoreDeleted}
+              />
+              <BranchPair
+                baseRef={brief.pr.baseRef}
+                headRef={brief.pr.headRef}
               />
               {hasRepoConfig ? (
                 <RepoConfigChip repoConfig={repoConfig} />

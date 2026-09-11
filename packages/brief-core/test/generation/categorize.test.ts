@@ -133,6 +133,32 @@ describe("categorize, PR lifecycle stamping", () => {
     expect("draft" in brief.pr).toBe(false);
     expect("merged" in brief.pr).toBe(false);
   });
+
+  it("stamps headRef and baseRef from PrMetadata into the envelope", async () => {
+    const stamped: FetchedPr = {
+      ...pr,
+      meta: { ...pr.meta, headRef: "feature/thing", baseRef: "main" },
+    };
+    const brief = await categorize(
+      stamped,
+      1,
+      commitRange,
+      new FakeGenerator(twoGroupBriefGen),
+    );
+    expect(brief.pr.headRef).toBe("feature/thing");
+    expect(brief.pr.baseRef).toBe("main");
+  });
+
+  it("omits branch refs absent from legacy metadata", async () => {
+    const brief = await categorize(
+      pr,
+      1,
+      commitRange,
+      new FakeGenerator(twoGroupBriefGen),
+    );
+    expect("headRef" in brief.pr).toBe(false);
+    expect("baseRef" in brief.pr).toBe(false);
+  });
 });
 
 describe("categorize, text length floor", () => {

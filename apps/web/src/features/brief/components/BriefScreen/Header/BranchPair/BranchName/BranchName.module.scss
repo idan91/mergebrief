@@ -1,0 +1,25 @@
+@use "functions";
+
+@layer components {
+  .branchName {
+    display: inline-flex;
+    min-inline-size: 0;
+    flex: 0 1 auto;
+    align-items: center;
+    gap: functions.to-rem(2px);
+  }
+
+  .name {
+    overflow: hidden;
+    min-inline-size: 0;
+    text-overflow: ellipsis;
+  }
+
+  .branchName[data-variant="base"] {
+    color: var(--faint);
+  }
+
+  .branchName[data-variant="head"] {
+    color: var(--accent);
+  }
+}

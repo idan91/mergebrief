@@ -56,7 +56,7 @@ describe("parsePrUrl", () => {
   });
 });
 
-describe("metadataFromView (gh pr view JSON → PrMetadata)", () => {
+describe("metadataFromView maps gh pr view JSON to PrMetadata", () => {
   const baseView = {
     title: "t",
     body: "d",
@@ -102,7 +102,14 @@ describe("metadataFromView (gh pr view JSON → PrMetadata)", () => {
     expect("headRef" in metadataFromView(baseView)).toBe(false);
   });
 
-  it("omits lifecycle fields when gh sends no state (fail-open)", () => {
+  it("carries baseRefName as baseRef and omits it when gh sends none", () => {
+    expect(metadataFromView({ ...baseView, baseRefName: "main" }).baseRef).toBe(
+      "main",
+    );
+    expect("baseRef" in metadataFromView(baseView)).toBe(false);
+  });
+
+  it("omits lifecycle fields when gh sends no state", () => {
     const meta = metadataFromView(baseView);
     expect("state" in meta).toBe(false);
     expect("merged" in meta).toBe(false);
@@ -140,7 +147,7 @@ describe("isCommentOutdated", () => {
   it("treats a line comment with a live line as current", () => {
     expect(isCommentOutdated(42, "line")).toBe(false);
   });
-  it("never marks a file-level comment outdated (null line by design)", () => {
+  it("never marks a file-level comment outdated", () => {
     expect(isCommentOutdated(null, "file")).toBe(false);
   });
 });
