@@ -30,18 +30,6 @@ import {
 
 export { GroupViewKinds } from "./remainder";
 
-/**
- * The group header's deduped union of member-chunk attribute chips: floor
- * first, fully-de-emphasized attributes collapsed behind "+n". Never
- * counts-as-severity, never an aggregate glyph.
- */
-export interface GroupHeaderRisk {
-  /** Chips rendered individually, floor-first, then first appearance. */
-  shown: RiskToken[];
-  /** Attributes whose every firing in this group is de-emphasized ("+n"). */
-  deEmphasized: RiskToken[];
-}
-
 interface GroupViewBase {
   kind: GroupViewKind;
   id: string;
@@ -61,7 +49,6 @@ export interface AttributedGroupView extends GroupViewBase {
   /** Derived-line sums over the group's core chunks. */
   coreAdded: number;
   coreDeleted: number;
-  headerRisk: GroupHeaderRisk;
   /** The Reading-order step's why-line; unset without a valid Reading order. */
   readingOrderWhy?: string | undefined;
 }
@@ -134,11 +121,6 @@ export interface BriefViewModel {
   chunkToGroup: Map<string, string>;
   /** Per-chunk attribute display meta, keyed `chunkId` → `attr`. */
   riskMetaByChunk: Map<string, Map<string, AttributeDisplayMeta>>;
-}
-
-export interface RiskAttributeGroup {
-  attr: RiskToken;
-  flags: RiskFlag[];
 }
 
 const RISK_DESCRIPTION_KEYS: Record<RiskSurfaceAttribute, TranslationKey> = {
@@ -239,7 +221,6 @@ export function buildBriefViewModel(
       deleted: sumLoc(groupChunks, "deleted"),
       coreAdded: sumLoc(coreChunks, "added"),
       coreDeleted: sumLoc(coreChunks, "deleted"),
-      headerRisk: buildGroupHeaderRisk(groupChunks, riskMetaByChunk),
     } satisfies AttributedGroupView;
   });
 
@@ -313,34 +294,6 @@ export function buildBriefViewModel(
   return viewModel;
 }
 
-/**
- * Deduped union of a group's member-chunk attributes: floor first, then
- * first appearance; an attribute goes behind "+n" only when EVERY firing of
- * it in this group is de-emphasized (one loud firing un-collapses it).
- */
-function buildGroupHeaderRisk(
-  groupChunks: readonly BriefChunk[],
-  riskMetaByChunk: ReadonlyMap<
-    string,
-    ReadonlyMap<string, AttributeDisplayMeta>
-  >,
-): GroupHeaderRisk {
-  const seen: RiskToken[] = [];
-  const hasLoudFiring = new Set<string>();
-  for (const chunk of groupChunks) {
-    for (const attr of chunk.riskSurface) {
-      if (!seen.includes(attr)) seen.push(attr);
-      const meta = riskMetaByChunk.get(chunk.id)?.get(attr);
-      if (meta === undefined || !meta.deEmphasized) hasLoudFiring.add(attr);
-    }
-  }
-  const ordered = floorFirst(seen);
-  return {
-    shown: ordered.filter((attr) => hasLoudFiring.has(attr)),
-    deEmphasized: ordered.filter((attr) => !hasLoudFiring.has(attr)),
-  };
-}
-
 export function categoryLabel(category: Category): string {
   return category.replace("-", " ");
 }
@@ -368,19 +321,6 @@ export function riskChipView(risks: RiskToken[]): RiskChipView {
     shown: risks.slice(0, MAX_HEADER_RISK_CHIPS),
     overflow: risks.slice(MAX_HEADER_RISK_CHIPS),
   };
-}
-
-export function groupRiskByAttribute(flags: RiskFlag[]): RiskAttributeGroup[] {
-  const groups = new Map<RiskToken, RiskFlag[]>();
-  for (const flag of flags) {
-    const groupedFlags = groups.get(flag.attr);
-    if (groupedFlags) groupedFlags.push(flag);
-    else groups.set(flag.attr, [flag]);
-  }
-  return [...groups.entries()].map(([attr, groupedFlags]) => ({
-    attr,
-    flags: groupedFlags,
-  }));
 }
 
 function buildConcernRank(): Map<Concern, number> {

@@ -15,7 +15,6 @@ import type {
   BriefViewModel,
   RiskFlag,
 } from "../../../../../utils/viewModel";
-import { selectGroupReviewComments } from "../utils";
 
 const EMPTY_RISK_FLAGS: RiskFlag[] = [];
 
@@ -53,27 +52,9 @@ export function useAttributedGroupCardFacade({
     });
     return byId;
   }, [groupDispositions, groupFlags]);
-  const groupChunkIds = useMemo(
-    () => new Set(group.chunks.map((chunk) => chunk.id)),
-    [group.chunks],
-  );
-  const groupFiles = useMemo(
-    () => new Set(group.chunks.map((chunk) => chunk.file)),
-    [group.chunks],
-  );
-  const reviewComments = useReviewSession(
-    useShallow((state) =>
-      selectGroupReviewComments(state, groupFlags, groupChunkIds, groupFiles),
-    ),
-  );
   const actions = useReviewSessionActions();
-  const {
-    announce,
-    setDismissTarget,
-    setEvidenceTarget,
-    toggleRiskFlag,
-    toggleRiskGroup,
-  } = useReviewActions();
+  const { announce, setDismissTarget, setEvidenceTarget, toggleRiskGroup } =
+    useReviewActions();
   const flagsReadOnly = useReviewFlow((state) => state.flagsReadOnly);
 
   const groupFlagIds = useMemo(
@@ -105,14 +86,12 @@ export function useAttributedGroupCardFacade({
     dominant,
     isReclassified,
     dispositions,
-    reviewComments,
     flagsReadOnly,
     selectedFlagSet,
     reopenFlag,
     chooseDominant,
     setDismissTarget,
     setEvidenceTarget,
-    toggleRiskFlag,
     toggleRiskGroup,
   };
 }

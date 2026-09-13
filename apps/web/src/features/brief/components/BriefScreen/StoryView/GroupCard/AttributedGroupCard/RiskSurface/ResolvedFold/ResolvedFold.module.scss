@@ -1,0 +1,51 @@
+@use "functions";
+
+@layer components {
+  .fold {
+    margin-block-start: functions.to-rem(16px);
+    padding-block-start: functions.to-rem(12px);
+    border-block-start: 1px solid var(--line);
+  }
+
+  .resolvedList {
+    display: grid;
+    margin: functions.to-rem(10px) 0 0;
+    padding: 0;
+    list-style: none;
+    gap: functions.to-rem(10px);
+  }
+
+  .resolvedFile {
+    display: grid;
+    min-inline-size: 0;
+    gap: functions.to-rem(4px);
+  }
+
+  .resolvedMeta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: functions.to-rem(8px);
+  }
+
+  .path {
+    display: inline-block;
+    max-inline-size: 100%;
+    min-inline-size: 0;
+    overflow: hidden;
+    color: var(--faint);
+    direction: rtl;
+    font-family: var(--mono);
+    font-size: var(--font-size-sm);
+    text-align: start;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    &:hover {
+      color: var(--dim);
+      text-decoration: underline;
+      text-underline-offset: functions.to-rem(3px);
+    }
+  }
+}

@@ -54,7 +54,7 @@ interface Tap {
   dispositionKind: (flagId: string) => string | undefined;
 }
 
-function renderCard(writes: SessionWrites) {
+function renderCard(writes: SessionWrites, flagsReadOnly = false) {
   const group = model.groups[0];
   if (group === undefined) throw new Error("fixture has no groups");
   const firstFlag = (model.flagsByGroup.get(group.id) ?? [])[0];
@@ -77,7 +77,7 @@ function renderCard(writes: SessionWrites) {
     },
     {
       composerDisabledReason: undefined,
-      flagsReadOnly: false,
+      flagsReadOnly,
       postingCommentIds: new Set(),
       postBlockedExternally: undefined,
       postComment: undefined,
@@ -109,6 +109,27 @@ function dismiss(tap: Tap, flagId: string) {
   });
 }
 
+describe("GroupCard Flag list chooser", () => {
+  it("shows Risk surface counts and hides the header union", () => {
+    renderCard(writesSpy());
+    expect(screen.getByRole("heading", { name: "Risk surface" })).toBeTruthy();
+    expect(screen.getByText("1 file")).toBeTruthy();
+    expect(screen.getByText("2 flags")).toBeTruthy();
+    expect(screen.queryByText(/attributes, not verdicts/)).toBeNull();
+    expect(screen.queryByTestId("group-risk-union")).toBeNull();
+  });
+
+  it("own-draft keeps the list and strips disposition controls", () => {
+    renderCard(writesSpy(), true);
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Address selected" }),
+    ).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Reopen the/ })).toBeNull();
+    expect(screen.getByRole("heading", { name: "Risk surface" })).toBeTruthy();
+  });
+});
+
 describe("GroupCard reopen a dismissed risk", () => {
   it("offers no Reopen while the risk is open", () => {
     renderCard(writesSpy());
@@ -118,18 +139,30 @@ describe("GroupCard reopen a dismissed risk", () => {
   it("reopens through the wire: reopen-risk carries the flag's anchor", async () => {
     const writes = writesSpy();
     const { flagId, flowStore, tap } = renderCard(writes);
-    dismiss(tap, flagId);
+    const group = model.groups[0];
+    if (group === undefined) throw new Error("fixture has no groups");
+    const file = model.flagsById.get(flagId)?.file;
+    const sameFileFlags = (model.flagsByGroup.get(group.id) ?? []).filter(
+      (flag) => flag.file === file,
+    );
+    for (const flag of sameFileFlags) dismiss(tap, flag.id);
     expect(tap.dispositionKind(flagId)).toBe("dismissed");
 
-    fireEvent.click(screen.getByRole("button", { name: /^Reopen the/ }));
+    fireEvent.click(screen.getByRole("button", { name: "1 resolved" }));
+    const flag = model.flagsById.get(flagId);
+    if (flag === undefined) throw new Error("missing flag");
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: `Reopen the ${flag.attr} risk on ${flag.file}`,
+      }),
+    );
 
     // Back to open locally AND on the wire: the store branch's first caller.
     expect(tap.dispositionKind(flagId)).toBe("open");
     expect(writes.reopenRisks).toHaveBeenCalledTimes(1);
     const [flags] = vi.mocked(writes.reopenRisks).mock.calls[0]!;
-    const flag = model.flagsById.get(flagId);
     expect(flags).toHaveLength(1);
-    expect(flags[0]?.filePath).toBe(flag?.file);
+    expect(flags[0]?.filePath).toBe(flag.file);
     expect(flags[0]?.attribute).toBe(flag?.attr);
     // …and the reviewer is told, through the page's live region (which
     // clears before it sets, so the copy lands a tick later).

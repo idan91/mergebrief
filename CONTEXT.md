@@ -325,7 +325,7 @@ _Avoid_: script (bare), dev package
 - **Revision changes** and a **Revision narrative** both span the shared **Previous Brief** → current-head revision; the former marks lines mechanically, while the latter explains those marked changes.
 - Each (PR × Reviewer) pairing has one private **Review Session**.
 - A **Comment** belongs to a reviewer and ships to the PR. It is a **Line comment** or a **File comment**; a **Chunk** does not own it. A **Seed** belongs to a chunk in the brief and never ships.
-- A reviewer records a **Disposition** on a **Flag**: **addressed** (a **Comment** targets it) or **dismissed** (with reason). Dispositions are frozen into the **Receipt** on **Submit**.
+- A reviewer records a **Disposition** on a **Flag**: **addressed** (a **Comment** targets it) or **dismissed** (with reason). Dispositions are frozen into the **Receipt** on **Submit**. A Flag may carry a **Risk note**.
 - On submit, the review lands **natively on GitHub** (comments + approve/request-changes) authored by the reviewer. A **Signature line** links to the static **Review Summary**, which renders the **Receipt**. The review otherwise reads as a normal human review. Receipt aggregates across all reviewers when multi-reviewer.
 - A **Brief**'s **Trigger** (compute) is independent of its **Entry** (human reach): compute fires eagerly on every push; the reviewer **Entry** comment posts only when the PR is ready. **Draft-first** changes only the Entry timing, never the Trigger.
 - The **Analysis Layer** is reviewer-agnostic. A human reviewer consumes it through the **Engagement Layer** (v1). An AI-agent reviewer consumes it directly via API (v1.5+ headless) — the no-AI-text rule and Review Session are human-mode only and do not apply to agent-mode.

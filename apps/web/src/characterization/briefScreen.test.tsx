@@ -252,17 +252,18 @@ describe("brief screen characterization", () => {
     await waitFor(() => expect(stat()).toBe("1/2"));
   });
 
-  it("dismissing a flag advances the flags progress stat", async () => {
+  it("dismissing selected flags advances the flags progress stat", async () => {
     await renderWritableScreen();
     const stat = () => statText("flags");
     expect(stat()).toBe("0/2");
-    fireEvent.click(screen.getAllByText("Dismiss…")[0]!);
+    fireEvent.click(screen.getByRole("checkbox", { name: /Select flags on/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss selected…" }));
     const reason = await screen.findByPlaceholderText(/Your reason lands/);
     fireEvent.change(reason, {
       target: { value: "Not applicable in this local fixture." },
     });
     fireEvent.click(screen.getByText("Dismiss with reason"));
-    await waitFor(() => expect(stat()).toBe("1/2"));
+    await waitFor(() => expect(stat()).toBe("2/2"));
   });
 
   it("offers no disposition controls: a file-backed brief is read-only", async () => {
@@ -310,11 +311,12 @@ describe("brief screen characterization", () => {
     expect(section?.textContent).toContain("comment-contradicts-code");
   });
 
-  it("renders a flag's riskNotes evidence as a secondary line in the rail", async () => {
+  it("renders a flag's risk note after the notes twist opens", async () => {
     await renderBriefScreen();
+    fireEvent.click(screen.getByRole("button", { name: "Risk notes" }));
     expect(
       screen.getByText(
-        "comment says the param is optional (L10), code throws when absent (L12)",
+        "Comment says the param is optional (L10), code throws when absent (L12)",
       ),
     ).toBeTruthy();
   });

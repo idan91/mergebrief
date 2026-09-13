@@ -1,0 +1,178 @@
+@use "functions";
+
+@layer components {
+  .file {
+    --twist-col: 12px;
+    --identity-gap: #{functions.to-rem(8px)};
+
+    display: grid;
+    grid-template-columns: functions.to-rem(24px) minmax(0, 1fr);
+    gap: functions.to-rem(4px);
+    min-inline-size: 0;
+    align-items: start;
+  }
+
+  .check {
+    display: grid;
+    grid-column: 1;
+    inline-size: functions.to-rem(24px);
+    block-size: functions.to-rem(24px);
+    place-items: center;
+    cursor: pointer;
+
+    input {
+      inline-size: 14px;
+      block-size: 14px;
+      accent-color: var(--amber);
+      cursor: pointer;
+
+      &:disabled {
+        cursor: not-allowed;
+        opacity: 0.35;
+      }
+    }
+  }
+
+  .identity {
+    grid-column: 2;
+    min-inline-size: 0;
+    overflow: hidden;
+  }
+
+  .notesToggle {
+    position: relative;
+    display: grid;
+    flex: none;
+    inline-size: var(--twist-col);
+    min-block-size: functions.to-rem(24px);
+    place-items: center;
+    padding: 0;
+    overflow: visible;
+    border: 0;
+    background: transparent;
+    color: var(--faint);
+    cursor: pointer;
+
+    &::before {
+      position: absolute;
+      inset-block: 0;
+      inset-inline: 0 functions.to-rem(-12px);
+      content: "";
+    }
+
+    &:hover,
+    &[aria-expanded="true"] {
+      color: var(--dim);
+    }
+
+    &:focus-visible {
+      outline: none;
+    }
+
+    &:focus-visible::before {
+      border-radius: var(--radius-xs);
+      outline: 2px solid var(--focus-ring);
+      outline-offset: 1px;
+    }
+  }
+
+  .twistSlot {
+    flex: none;
+    inline-size: var(--twist-col);
+  }
+
+  .twist {
+    display: block;
+    inline-size: 10px;
+    block-size: 10px;
+    transition: transform 0.2s;
+    transform-origin: 50% 50%;
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+  }
+
+  .file[data-notes-open] .twist {
+    transform: rotate(90deg);
+  }
+
+  .path {
+    display: inline-block;
+    max-inline-size: 100%;
+    min-inline-size: 0;
+    overflow: hidden;
+    color: var(--faint);
+    direction: rtl;
+    font-family: var(--mono);
+    font-size: var(--font-size-sm);
+    text-align: start;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    &:hover {
+      color: var(--dim);
+      text-decoration: underline;
+      text-underline-offset: functions.to-rem(3px);
+    }
+  }
+
+  .chipsRow {
+    display: flex;
+    grid-column: 2;
+    min-inline-size: 0;
+    align-items: start;
+    gap: var(--identity-gap);
+  }
+
+  .chips {
+    display: flex;
+    flex: 1;
+    flex-wrap: wrap;
+    gap: functions.to-rem(6px);
+    min-inline-size: 0;
+
+    [data-resolved] {
+      opacity: 0.62;
+    }
+  }
+
+  .chipItem {
+    display: inline-flex;
+    align-items: center;
+    gap: functions.to-rem(6px);
+  }
+
+  .notes {
+    display: grid;
+    grid-column: 2;
+    gap: functions.to-rem(6px);
+    margin: functions.to-rem(4px) 0 0;
+    padding: 0;
+    padding-inline-start: calc(var(--twist-col) + var(--identity-gap));
+    list-style: none;
+    color: var(--dim);
+    font-size: var(--font-size-md);
+    line-height: 1.45;
+  }
+
+  .noteAttr {
+    display: block;
+    color: var(--amber);
+    font-family: var(--mono);
+    font-size: var(--font-size-sm);
+  }
+
+  .reopen {
+    color: var(--dim);
+    font-size: var(--font-size-sm);
+    text-decoration: none;
+
+    &:hover {
+      color: var(--text);
+      text-decoration: underline;
+      text-underline-offset: functions.to-rem(3px);
+    }
+  }
+}

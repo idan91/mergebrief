@@ -1,11 +1,7 @@
 import { Trans, useTranslation } from "react-i18next";
 import { memo } from "react";
 
-import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import { CoreLinesDisclosure } from "../../../CoreLinesDisclosure/CoreLinesDisclosure";
-import { RiskBadge } from "../../../RiskBadge/RiskBadge";
-import { RiskChipDisclosure } from "../../../RiskChipDisclosure/RiskChipDisclosure";
-import { RiskDetailList } from "../../../RiskDetailList/RiskDetailList";
 import { SinceMarker } from "../SinceMarker/SinceMarker";
 import { Button } from "@web/components/Button/Button";
 import styles from "../GroupCard.module.scss";
@@ -24,7 +20,6 @@ export interface AttributedGroupCardProps extends Omit<
 
 export const AttributedGroupCard = memo(function AttributedGroupCard({
   group,
-  brief,
   model,
   jumpToChunk,
   sinceChangedFileCount,
@@ -37,14 +32,12 @@ export const AttributedGroupCard = memo(function AttributedGroupCard({
     dominant,
     isReclassified,
     dispositions,
-    reviewComments,
     flagsReadOnly,
     selectedFlagSet,
     reopenFlag,
     chooseDominant,
     setDismissTarget,
     setEvidenceTarget,
-    toggleRiskFlag,
     toggleRiskGroup,
   } = useAttributedGroupCardFacade({ group, model });
 
@@ -120,70 +113,6 @@ export const AttributedGroupCard = memo(function AttributedGroupCard({
             </span>
           ) : null}
         </div>
-        {group.headerRisk.shown.length > 0 ||
-        group.headerRisk.deEmphasized.length > 0 ? (
-          <div
-            aria-label={t("brief.group.ariaLabelGroupRisks")}
-            className={styles["groupRiskRow"]}
-            data-testid="group-risk-union"
-            role="group"
-          >
-            {group.headerRisk.shown.map((attr) => {
-              const metas = group.chunks
-                .map((chunk) => model.riskMetaByChunk.get(chunk.id)?.get(attr))
-                .filter((m) => m !== undefined);
-              const meta = metas.find((m) => !m.deEmphasized) ?? metas[0];
-              if (meta?.source === "repo-policy") {
-                return (
-                  <RiskChipDisclosure
-                    detail={
-                      meta.implication !== undefined
-                        ? t("brief.riskBadge.repoPolicyWithImplication", {
-                            implication: meta.implication,
-                          })
-                        : t("brief.riskBadge.repoPolicyLead")
-                    }
-                    key={attr}
-                  >
-                    <RiskBadge meta={meta}>{attr}</RiskBadge>
-                  </RiskChipDisclosure>
-                );
-              }
-              return (
-                <RiskBadge key={attr} meta={meta}>
-                  {attr}
-                </RiskBadge>
-              );
-            })}
-            {group.headerRisk.deEmphasized.length > 0 ? (
-              <RiskChipDisclosure
-                detail={
-                  <RiskDetailList
-                    attrs={group.headerRisk.deEmphasized}
-                    metaFor={(attr) =>
-                      group.chunks
-                        .map((chunk) =>
-                          model.riskMetaByChunk.get(chunk.id)?.get(attr),
-                        )
-                        .find((m) => m !== undefined)
-                    }
-                  />
-                }
-              >
-                <RiskBadge meta={{ source: "built-in", deEmphasized: true }}>
-                  {t("brief.group.deEmphasizedCount", {
-                    count: group.headerRisk.deEmphasized.length,
-                  })}
-                  <ScreenReaderOnly>
-                    {t("brief.group.srDeEmphasizedList", {
-                      attrs: group.headerRisk.deEmphasized.join(", "),
-                    })}
-                  </ScreenReaderOnly>
-                </RiskBadge>
-              </RiskChipDisclosure>
-            ) : null}
-          </div>
-        ) : null}
         {group.group.uncertain && !isReclassified && !flagsReadOnly ? (
           <div className={styles["uncertainPanel"]}>
             <span className={styles["question"]}>
@@ -209,18 +138,15 @@ export const AttributedGroupCard = memo(function AttributedGroupCard({
         ) : null}
       </div>
       <RiskSurface
-        chunks={brief.chunks}
         dispositions={dispositions}
         flagsReadOnly={flagsReadOnly}
         group={group}
         groupFlags={groupFlags}
         jumpToChunk={jumpToChunk}
         reopenFlag={reopenFlag}
-        reviewComments={reviewComments}
         selectedFlagSet={selectedFlagSet}
         setDismissTarget={setDismissTarget}
         setEvidenceTarget={setEvidenceTarget}
-        toggleRiskFlag={toggleRiskFlag}
         toggleRiskGroup={toggleRiskGroup}
       />
     </article>

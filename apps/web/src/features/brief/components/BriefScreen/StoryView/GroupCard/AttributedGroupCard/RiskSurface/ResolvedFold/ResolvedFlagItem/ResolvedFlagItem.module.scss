@@ -1,0 +1,31 @@
+@use "functions";
+
+@layer components {
+  .resolvedItem {
+    display: inline-flex;
+    align-items: center;
+    gap: functions.to-rem(6px);
+  }
+
+  .resolvedChip {
+    opacity: 0.62;
+  }
+
+  .resolvedState {
+    color: var(--faint);
+    font-family: var(--mono);
+    font-size: var(--font-size-xs);
+  }
+
+  .reopen {
+    color: var(--dim);
+    font-size: var(--font-size-sm);
+    text-decoration: none;
+
+    &:hover {
+      color: var(--text);
+      text-decoration: underline;
+      text-underline-offset: functions.to-rem(3px);
+    }
+  }
+}

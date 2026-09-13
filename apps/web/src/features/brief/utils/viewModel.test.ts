@@ -405,41 +405,11 @@ describe("buildBriefViewModel, repo-config display weight", () => {
     ).toBe(false);
   });
 
-  it("orders floor chips first and collapses fully quiet attributes", () => {
-    const model = buildBriefViewModel(briefWithRisk(), snapshot);
-    const g1 = requireAttributed(
-      model.groups.find((group) => group.id === "g1"),
-    );
-    const g2 = requireAttributed(
-      model.groups.find((group) => group.id === "g2"),
-    );
-
-    // g1 (c1 only): billing loud, widens-error-handling fully quiet → +n bucket.
-    expect(g1.headerRisk.shown).toEqual(["touches-billing"]);
-    expect(g1.headerRisk.deEmphasized).toEqual(["widens-error-handling"]);
-
-    // g2 (c2): touches-auth is floor → pinned first; widens-error-handling is
-    // loud there (co-fire) → stays a chip.
-    expect(g2.headerRisk.shown).toEqual([
-      "touches-auth",
-      "widens-error-handling",
-    ]);
-    expect(g2.headerRisk.deEmphasized).toEqual([]);
-  });
-
-  it("renders loud built-in chips when the snapshot is absent", () => {
+  it("renders loud built-in flags when the snapshot is absent", () => {
     const model = buildBriefViewModel(briefWithRisk());
     expect(
       model.flags.every((f) => f.source === "built-in" && !f.deEmphasized),
     ).toBe(true);
-    const g1 = requireAttributed(
-      model.groups.find((group) => group.id === "g1"),
-    );
-    expect(g1.headerRisk.deEmphasized).toEqual([]);
-    expect(g1.headerRisk.shown).toEqual([
-      "touches-billing",
-      "widens-error-handling",
-    ]);
   });
 });
 

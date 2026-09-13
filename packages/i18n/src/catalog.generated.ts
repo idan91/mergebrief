@@ -109,17 +109,20 @@ export type Catalog = typeof en & {
     };
     group: (typeof en)["brief"]["group"] & {
       ariaLabelGroupRiskSurface: "{{title}} — risk surface";
-      ariaLabelSelectFlag: "Select {{attr}} flag for {{file}}";
       changeGroupOf: "Change-group {{index}} of {{total}}";
       stepOf: "Step {{step}} of {{total}}";
       secondary: "secondary {{category}}";
-      riskSurfaceCount: "Risk surface — {{count}} flags";
       chunkCounts: "{{core}} core · {{supporting}} supporting";
-      deEmphasizedCount: "+{{count}} de-emphasized";
-      srDeEmphasizedList: ": {{attrs}} — de-emphasized by repo policy";
       flagsIn_one: "{{count}} flag in {{attr}}";
       flagsIn_other: "{{count}} flags in {{attr}}";
       ariaLabelReopen: "Reopen the {{attr}} risk on {{file}}";
+      filesCount_one: "{{count}} file";
+      filesCount_other: "{{count}} files";
+      flagsCount_one: "{{count}} flag";
+      flagsCount_other: "{{count}} flags";
+      resolved_one: "{{count}} resolved";
+      resolved_other: "{{count}} resolved";
+      selectFile: "Select flags on {{file}}";
     };
     story: (typeof en)["brief"]["story"] & {
       stepLabel: "Step {{step}}";
