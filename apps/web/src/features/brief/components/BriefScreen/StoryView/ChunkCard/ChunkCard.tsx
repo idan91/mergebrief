@@ -3,6 +3,7 @@ import { memo, useMemo, useRef } from "react";
 
 import { CopyButton } from "@web/components/CopyButton/CopyButton";
 import { IconButton } from "@web/components/IconButton/IconButton";
+import { LocSign, LocSigns } from "@web/components/LocSign/LocSign";
 import {
   pathOnlyFileCommentsForChunk,
   reviewCommentsForChunk,
@@ -367,8 +368,8 @@ export const ChunkCard = memo(function ChunkCard({
             </span>
           ) : null}
           <span className={`${styles["chip"]} ${styles["loc"]}`}>
-            <span className="a">+{chunk.loc.added}</span>{" "}
-            <span className="d">−{chunk.loc.deleted}</span>
+            <LocSign sign={LocSigns.ADD} count={chunk.loc.added} />{" "}
+            <LocSign sign={LocSigns.DEL} count={chunk.loc.deleted} />
           </span>
         </span>
         <label className={styles["reviewToggle"]}>

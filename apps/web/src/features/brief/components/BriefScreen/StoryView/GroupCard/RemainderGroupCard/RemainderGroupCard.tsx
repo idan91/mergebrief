@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 
+import { LocSign, LocSigns } from "@web/components/LocSign/LocSign";
 import { resolveGroupName } from "../../../../../utils/resolveGroupName";
 import type { UnattributedRemainderGroupView } from "../../../../../utils/viewModel";
 import { deriveGroupHeadingId } from "../../../utils";
@@ -31,8 +32,8 @@ export function RemainderGroupCard({
           </span>
           <div className={styles["metrics"]}>
             <span className={styles["loc"]}>
-              <span className="green">+{group.added}</span> /{" "}
-              <span className="red">−{group.deleted}</span>
+              <LocSign sign={LocSigns.ADD} count={group.added} /> /{" "}
+              <LocSign sign={LocSigns.DEL} count={group.deleted} />
             </span>
             {sinceBaselineShortSha !== undefined ? (
               <SinceMarker

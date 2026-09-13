@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Callout } from "@web/components/Callout/Callout";
 import { Chip } from "@web/components/Chip/Chip";
 import { IconButton } from "@web/components/IconButton/IconButton";
+import { LocSign, LocSigns } from "@web/components/LocSign/LocSign";
 import type { Brief } from "../../../../types";
 import type { RepoConfigContext } from "../../../../utils/repoConfig";
 import styles from "./BriefDetailsPanel.module.scss";
@@ -256,13 +257,13 @@ function ArtifactSection({
         ) : null}
         <dt>{t("brief.details.changedLines")}</dt>
         <dd>
-          <span className="green">+{totalAdded}</span>{" "}
-          <span className="red">−{totalDeleted}</span>
+          <LocSign sign={LocSigns.ADD} count={totalAdded} />{" "}
+          <LocSign sign={LocSigns.DEL} count={totalDeleted} />
         </dd>
         <dt>{t("brief.details.coreLines")}</dt>
         <dd>
-          <span className="green">+{totalCoreAdded}</span>{" "}
-          <span className="red">−{totalCoreDeleted}</span>
+          <LocSign sign={LocSigns.ADD} count={totalCoreAdded} />{" "}
+          <LocSign sign={LocSigns.DEL} count={totalCoreDeleted} />
         </dd>
       </dl>
       <p className={styles["caveat"]}>

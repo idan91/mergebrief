@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 
+import { LocSign, LocSigns } from "@web/components/LocSign/LocSign";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 
 import { categoryLabel, GroupViewKinds } from "../../../../../utils/viewModel";
@@ -61,8 +62,8 @@ export function ThisPr({
                     </>
                   ) : (
                     <span className={styles["counts"]}>
-                      <span className="green">+{group.added}</span>{" "}
-                      <span className="red">−{group.deleted}</span>
+                      <LocSign sign={LocSigns.ADD} count={group.added} />{" "}
+                      <LocSign sign={LocSigns.DEL} count={group.deleted} />
                     </span>
                   )}
                 </span>

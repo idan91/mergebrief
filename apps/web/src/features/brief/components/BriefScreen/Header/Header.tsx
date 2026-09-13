@@ -29,6 +29,7 @@ import {
 import { AccessibleLink } from "@web/components/AccessibleLink/AccessibleLink";
 import { Button } from "@web/components/Button/Button";
 import { IconButton } from "@web/components/IconButton/IconButton";
+import { LocSign, LocSigns } from "@web/components/LocSign/LocSign";
 import { CoreLinesDisclosure } from "../CoreLinesDisclosure/CoreLinesDisclosure";
 import { UnattributedDisclosure } from "../UnattributedDisclosure/UnattributedDisclosure";
 import { RiskChipDisclosure } from "../RiskChipDisclosure/RiskChipDisclosure";
@@ -318,9 +319,9 @@ export function Header({
             >
               {t("brief.header.coreLines")}
               <b>
-                <span className="green">+{model.totalCoreAdded}</span>{" "}
+                <LocSign sign={LocSigns.ADD} count={model.totalCoreAdded} />{" "}
                 <span className="faint">/</span>{" "}
-                <span className="red">−{model.totalCoreDeleted}</span>
+                <LocSign sign={LocSigns.DEL} count={model.totalCoreDeleted} />
               </b>
             </CoreLinesDisclosure>
             {remainderGroup !== undefined ? (

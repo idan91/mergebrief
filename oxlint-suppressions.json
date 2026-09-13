@@ -673,19 +673,9 @@
       "count": 2
     }
   },
-  "apps/web/src/features/brief/components/BriefScreen/ConcernStrip/ConcernStrip.tsx": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "apps/web/src/features/brief/components/BriefScreen/CoreLinesDisclosure/CoreLinesDisclosure.test.tsx": {
     "house/test-title": {
       "count": 1
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/CoreLinesDisclosure/CoreLinesDisclosure.tsx": {
-    "house/no-em-dash": {
-      "count": 5
     }
   },
   "apps/web/src/features/brief/components/BriefScreen/Header/BriefDetailsPanel/BriefDetailsPanel.test.tsx": {
@@ -783,11 +773,6 @@
   "apps/web/src/features/brief/components/BriefScreen/UnattributedDisclosure/UnattributedDisclosure.test.tsx": {
     "house/test-title": {
       "count": 1
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/UnattributedDisclosure/UnattributedDisclosure.tsx": {
-    "house/no-em-dash": {
-      "count": 3
     }
   },
   "apps/web/src/features/brief/components/BriefScreen/chunkHeightModel.test.ts": {

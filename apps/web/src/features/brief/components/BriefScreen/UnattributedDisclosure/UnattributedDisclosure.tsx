@@ -10,6 +10,7 @@ import {
 
 import { Button } from "@web/components/Button/Button";
 import { Callout } from "@web/components/Callout/Callout";
+import { LocSign, LocSigns } from "@web/components/LocSign/LocSign";
 import { GroupViewKinds } from "../../../utils/remainder";
 import { resolveGroupName } from "../../../utils/resolveGroupName";
 import type { UnattributedRemainderGroupView } from "../../../utils/viewModel";
@@ -26,7 +27,7 @@ export interface UnattributedDisclosureProps {
 
 /**
  * The header's "unattributed" stat + Jump callout, in the
- * CoreLinesDisclosure grammar — hover previews (mouse only), click is
+ * CoreLinesDisclosure grammar: hover previews (mouse only), click is
  * canonical for touch, keyboard focus opens, Escape-at-capture dismisses,
  * scroll closes.
  */
@@ -49,7 +50,7 @@ export function UnattributedDisclosure({
   const detailId = useId();
 
   useEffect(() => {
-    // Escape must dismiss a hover-opened panel too — focus may be anywhere,
+    // Escape must dismiss a hover-opened panel too: focus may be anywhere,
     // so listen at the document while open, capture phase, and consume the
     // key so it never reaches page-level shortcut handling.
     if (anchor === null) return;
@@ -106,7 +107,7 @@ export function UnattributedDisclosure({
     // pointer can travel into it.
     <span
       onPointerEnter={(event) => {
-        // Touch browsers synthesize mouseenter before click — hover preview
+        // Touch browsers synthesize mouseenter before click: hover preview
         // is a MOUSE affordance; touch/pen go through click.
         if (event.pointerType === "mouse") setAnchor(triggerRef.current);
       }}
@@ -146,9 +147,9 @@ export function UnattributedDisclosure({
         </span>
 
         <b>
-          <span className="green">+{group.added}</span>{" "}
+          <LocSign sign={LocSigns.ADD} count={group.added} />{" "}
           <span className="faint">/</span>{" "}
-          <span className="red">−{group.deleted}</span>
+          <LocSign sign={LocSigns.DEL} count={group.deleted} />
         </b>
       </button>
       {anchor ? (

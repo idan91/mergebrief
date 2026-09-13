@@ -1,11 +1,12 @@
 import { useTranslation } from "react-i18next";
 
+import { LocSign, LocSigns } from "@web/components/LocSign/LocSign";
 import type { ConcernRollup } from "../../../types";
 import { SplitSegmentKinds, concernShares } from "./utils";
 import styles from "./ConcernStrip.module.scss";
 
 export interface ConcernStripProps {
-  /** The brief's full rollup — always the whole brief, never a scope cut. */
+  /** The brief's full rollup: always the whole brief, never a scope cut. */
   rollup: ConcernRollup[];
   remainder?: { added: number; deleted: number } | undefined;
 }
@@ -13,7 +14,7 @@ export interface ConcernStripProps {
 /**
  * The one-line attention-split strip between the banner lane and the
  * toolbar: per-concern share of the changed lines, plus the Unattributed
- * remainder as a last neutral segment. Informational only — no filtering,
+ * remainder as a last neutral segment. Informational only: no filtering,
  * navigation, or disclosure. Absent entirely below two concerns (a
  * single-concern split says nothing; residue does not count).
  */
@@ -51,8 +52,8 @@ export function ConcernStrip({ rollup, remainder }: ConcernStripProps) {
               </span>
               <span className={styles["percent"]}>{share.percent}%</span>
               <span className={styles["loc"]}>
-                <span className="green">+{share.added}</span>{" "}
-                <span className="red">−{share.deleted}</span>
+                <LocSign sign={LocSigns.ADD} count={share.added} />{" "}
+                <LocSign sign={LocSigns.DEL} count={share.deleted} />
               </span>
             </span>
           );
@@ -70,8 +71,8 @@ export function ConcernStrip({ rollup, remainder }: ConcernStripProps) {
             </span>
             <span className={styles["percent"]}>{share.percent}%</span>
             <span className={styles["loc"]}>
-              <span className="green">+{share.added}</span>{" "}
-              <span className="red">−{share.deleted}</span>
+              <LocSign sign={LocSigns.ADD} count={share.added} />{" "}
+              <LocSign sign={LocSigns.DEL} count={share.deleted} />
             </span>
           </span>
         );

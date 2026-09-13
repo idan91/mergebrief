@@ -4,6 +4,7 @@ import { memo } from "react";
 import { CoreLinesDisclosure } from "../../../CoreLinesDisclosure/CoreLinesDisclosure";
 import { SinceMarker } from "../SinceMarker/SinceMarker";
 import { Button } from "@web/components/Button/Button";
+import { LocSign, LocSigns } from "@web/components/LocSign/LocSign";
 import styles from "../GroupCard.module.scss";
 import { deriveGroupHeadingId } from "../../../utils";
 import type { GroupCardProps } from "../types";
@@ -59,8 +60,8 @@ export const AttributedGroupCard = memo(function AttributedGroupCard({
               coreAdded={group.coreAdded}
               coreDeleted={group.coreDeleted}
             >
-              <span className="green">+{group.coreAdded}</span> /{" "}
-              <span className="red">−{group.coreDeleted}</span>{" "}
+              <LocSign sign={LocSigns.ADD} count={group.coreAdded} /> /{" "}
+              <LocSign sign={LocSigns.DEL} count={group.coreDeleted} />{" "}
               {t("brief.group.coreSuffix")} ·{" "}
               {t("brief.group.chunkCounts", {
                 core: group.coreChunks.length,

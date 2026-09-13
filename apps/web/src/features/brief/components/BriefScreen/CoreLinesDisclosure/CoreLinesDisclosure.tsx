@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 import { Callout } from "@web/components/Callout/Callout";
+import { LocSign, LocSigns } from "@web/components/LocSign/LocSign";
 import styles from "./CoreLinesDisclosure.module.scss";
 
 export interface CoreLinesDisclosureProps {
@@ -11,9 +12,9 @@ export interface CoreLinesDisclosureProps {
   /** The matching all-chunks derived-line sums. */
   allAdded: number;
   allDeleted: number;
-  /** Visible trigger content — its text IS the button's accessible name. */
+  /** Visible trigger content: its text IS the button's accessible name. */
   children: ReactNode;
-  /** Styles the wrapper span — the consumer's layout slot (flex item). */
+  /** Styles the wrapper span: the consumer's layout slot (flex item). */
   className?: string | undefined;
   /** Styles the trigger button; the consumer owns the content's look. */
   triggerClassName?: string | undefined;
@@ -21,7 +22,7 @@ export interface CoreLinesDisclosureProps {
 
 /**
  * The core-lines mini panel: both line scopes plus the derivation caveat,
- * anchored to a real-button trigger in the RiskChipDisclosure grammar —
+ * anchored to a real-button trigger in the RiskChipDisclosure grammar:
  * hover previews (mouse only), click is canonical for touch, keyboard focus
  * opens, Escape-at-capture dismisses without reaching page shortcuts.
  */
@@ -42,7 +43,7 @@ export function CoreLinesDisclosure({
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const detailId = useId();
   useEffect(() => {
-    // Escape must dismiss a hover-opened panel too — focus may be anywhere,
+    // Escape must dismiss a hover-opened panel too: focus may be anywhere,
     // so listen at the document while open, capture phase, and consume the
     // key so it never reaches page-level shortcut handling.
     if (anchor === null) return;
@@ -69,7 +70,7 @@ export function CoreLinesDisclosure({
     <span
       className={className}
       onPointerEnter={(event) => {
-        // Touch browsers synthesize mouseenter before click — a hover-open
+        // Touch browsers synthesize mouseenter before click: a hover-open
         // there would be immediately toggled shut by the click. Hover
         // preview is a MOUSE affordance; touch/pen go through click.
         if (event.pointerType === "mouse") setAnchor(triggerRef.current);
@@ -116,13 +117,13 @@ export function CoreLinesDisclosure({
             <dl className={styles["rows"]}>
               <dt>{t("brief.coreLines.core")}</dt>
               <dd>
-                <span className="green">+{coreAdded}</span>{" "}
-                <span className="red">−{coreDeleted}</span>
+                <LocSign sign={LocSigns.ADD} count={coreAdded} />{" "}
+                <LocSign sign={LocSigns.DEL} count={coreDeleted} />
               </dd>
               <dt>{t("brief.coreLines.allLines")}</dt>
               <dd>
-                <span className="green">+{allAdded}</span>{" "}
-                <span className="red">−{allDeleted}</span>
+                <LocSign sign={LocSigns.ADD} count={allAdded} />{" "}
+                <LocSign sign={LocSigns.DEL} count={allDeleted} />
               </dd>
             </dl>
             <span className={styles["caveat"]}>

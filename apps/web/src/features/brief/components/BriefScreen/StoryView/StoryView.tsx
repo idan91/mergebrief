@@ -1,6 +1,7 @@
 import { countSplitRows } from "@web/components/DiffRows/pairSplitRows";
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
 import { hasPairedSides } from "@web/components/DiffRows/utils";
+import { LocSign, LocSigns } from "@web/components/LocSign/LocSign";
 import { useMergedRef } from "@web/hooks/useMergedRef";
 import { useSplitWidth } from "./useSplitWidth";
 import type { DiffLine } from "@web/utils/diffTokens/types";
@@ -540,8 +541,8 @@ function FocusGroupRail({
           >
             <div className={styles["railStats"]}>
               <span>
-                <span className="green">+{group.added}</span> /{" "}
-                <span className="red">−{group.deleted}</span>
+                <LocSign sign={LocSigns.ADD} count={group.added} /> /{" "}
+                <LocSign sign={LocSigns.DEL} count={group.deleted} />
               </span>
               {isRemainder ? null : (
                 <span>
@@ -610,8 +611,8 @@ function FocusGroupRail({
                     {isUnattributedRemainderChunk(chunk) ? null : (
                       <>{chunk.role} · </>
                     )}
-                    <span className="green">+{chunk.loc.added}</span> /{" "}
-                    <span className="red">−{chunk.loc.deleted}</span>
+                    <LocSign sign={LocSigns.ADD} count={chunk.loc.added} /> /{" "}
+                    <LocSign sign={LocSigns.DEL} count={chunk.loc.deleted} />
                   </span>
                 </button>
               ))}
