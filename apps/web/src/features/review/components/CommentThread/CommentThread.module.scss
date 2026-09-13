@@ -2,6 +2,7 @@
 
 @layer components {
   .thread {
+    container-type: inline-size;
     overflow: hidden;
     margin-block: functions.to-rem(8px) functions.to-rem(4px);
     border: 1px solid var(--color-outline-2);
@@ -24,6 +25,10 @@
 
   .head {
     display: flex;
+
+    // The band between the container query's 360px stack and full width,
+    // where the head has room to wrap but not to become a column.
+    flex-wrap: wrap;
     justify-content: space-between;
     gap: functions.to-rem(16px);
     padding-block: functions.to-rem(10px);
@@ -86,5 +91,14 @@
     margin-inline: functions.to-rem(12px);
     color: var(--faint);
     font-size: var(--font-size-md);
+  }
+
+  // Half a split diff at 1440 leaves a card near 345px; the head stacks so the
+  // author and the actions stop fighting for one line.
+  @container (max-width: 360px) {
+    .head {
+      flex-direction: column;
+      align-items: flex-start;
+    }
   }
 }

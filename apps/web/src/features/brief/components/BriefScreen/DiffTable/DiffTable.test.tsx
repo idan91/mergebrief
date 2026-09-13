@@ -25,7 +25,8 @@ import {
 } from "@web/features/review/session";
 import type { Brief, BriefChunk } from "../../../types";
 import { buildBriefViewModel } from "../../../utils/viewModel";
-import { DiffTable, type DiffTableProps } from "./DiffTable";
+import { DiffTable } from "./DiffTable";
+import type { DiffTableProps } from "./types";
 
 afterEach(cleanup);
 
@@ -471,5 +472,352 @@ describe("DiffTable row-level conversation threads", () => {
     const second = renderTable({}, {}, first.flowStore);
     expect(disclosure().getAttribute("aria-expanded")).toBe("true");
     second.view.unmount();
+  });
+});
+
+function splitChunk(): BriefChunk {
+  return {
+    ...chunk(),
+    diff: [
+      { kind: "ctx", content: "a", oldLine: 9, newLine: 9 },
+      { kind: "del", content: "old", oldLine: 10 },
+      { kind: "add", content: "new", newLine: 10 },
+      { kind: "add", content: "more", newLine: 11 },
+    ],
+  } as BriefChunk;
+}
+
+function twoHunkChunk(): BriefChunk {
+  const base = splitChunk();
+  return {
+    ...base,
+    diff: [
+      { kind: "hunk", content: "@@ -9,3 +9,3 @@" },
+      ...(base.diff ?? []),
+      { kind: "hunk", content: "@@ -40,1 +41,1 @@" },
+      { kind: "ctx", content: "tail", oldLine: 40, newLine: 41 },
+    ],
+  } as BriefChunk;
+}
+
+function sideCells(container: HTMLElement, side: string, kind: string) {
+  const number = container.querySelector<HTMLElement>(
+    `td[data-side="${side}"][data-line-number][data-line-kind="${kind}"]`,
+  );
+  const code = container.querySelector<HTMLElement>(
+    `td[data-side="${side}"][class*="code"][data-line-kind="${kind}"]`,
+  );
+  if (!number || !code) throw new Error(`expected ${side} ${kind} cells`);
+  return { number, code };
+}
+
+describe("DiffTable split selection", () => {
+  it("anchors a left-side click on the old line", () => {
+    const {
+      view: { container },
+      openCommentComposer,
+    } = renderTable({ chunk: splitChunk(), view: "split" });
+    const left = sideCells(container, "left", "del");
+    fireEvent.mouseDown(left.number);
+    fireEvent.mouseUp(left.number);
+
+    expect(openCommentComposer).toHaveBeenCalledTimes(1);
+    expect(openCommentComposer.mock.calls[0]?.[0]).toMatchObject({
+      side: "old",
+      startLine: 10,
+      endLine: 10,
+    });
+    expect(openCommentComposer.mock.calls[0]?.[0]).not.toHaveProperty(
+      "startSide",
+    );
+  });
+
+  it("anchors a same-side drag on that side's lines only", () => {
+    const {
+      view: { container },
+      openCommentComposer,
+    } = renderTable({ chunk: splitChunk(), view: "split" });
+    const first = sideCells(container, "right", "add");
+    const rows = container.querySelectorAll(
+      'td[data-side="right"][data-line-number]',
+    );
+    const last = rows[rows.length - 1];
+    if (!(last instanceof HTMLElement)) throw new Error("expected a last cell");
+    fireEvent.mouseDown(first.number);
+    fireEvent.mouseEnter(last);
+    expect(
+      container.querySelectorAll('td[data-side="right"][data-selected]').length,
+    ).toBe(4);
+    expect(
+      container.querySelectorAll('td[data-side="left"][data-selected]').length,
+    ).toBe(0);
+    fireEvent.mouseUp(last);
+
+    expect(openCommentComposer.mock.calls[0]?.[0]).toMatchObject({
+      side: "new",
+      startLine: 10,
+      endLine: 11,
+    });
+  });
+
+  it("spans the unified range when a drag crosses sides", () => {
+    const {
+      view: { container },
+      openCommentComposer,
+    } = renderTable({ chunk: splitChunk(), view: "split" });
+    const left = sideCells(container, "left", "del");
+    const right = sideCells(container, "right", "add");
+    fireEvent.mouseDown(left.number);
+    fireEvent.mouseEnter(right.number);
+    fireEvent.mouseUp(right.number);
+
+    expect(openCommentComposer.mock.calls[0]?.[0]).toMatchObject({
+      startSide: "old",
+      side: "new",
+      startLine: 10,
+      endLine: 10,
+    });
+  });
+
+  it("opens the composer under the side the anchor names", () => {
+    const {
+      view: { container },
+    } = renderTable({ chunk: splitChunk(), view: "split" });
+    const left = sideCells(container, "left", "del");
+    fireEvent.mouseDown(left.number);
+    fireEvent.mouseUp(left.number);
+
+    expect(container.querySelector('tr[data-placement="left"]')).not.toBeNull();
+  });
+
+  it("gives a context row one stop, on the right, and hops with the arrows", () => {
+    const {
+      view: { container },
+    } = renderTable({ chunk: splitChunk(), view: "split" });
+    const leftCtx = sideCells(container, "left", "ctx");
+    const rightCtx = sideCells(container, "right", "ctx");
+    const left = sideCells(container, "left", "del");
+    const right = sideCells(container, "right", "add");
+
+    expect(leftCtx.code.getAttribute("tabindex")).toBe("-1");
+    expect(rightCtx.code.getAttribute("tabindex")).toBe("0");
+    left.code.focus();
+    fireEvent.keyDown(left.code, { key: "ArrowRight" });
+    expect(document.activeElement).toBe(right.code);
+    fireEvent.keyDown(right.code, { key: "ArrowLeft" });
+    expect(document.activeElement).toBe(left.code);
+  });
+
+  it("anchors on Enter from the focused side's line", () => {
+    const {
+      view: { container },
+      openCommentComposer,
+    } = renderTable({ chunk: splitChunk(), view: "split" });
+    const right = sideCells(container, "right", "add");
+    fireEvent.keyDown(right.code, { key: "Enter" });
+
+    expect(openCommentComposer.mock.calls[0]?.[0]).toMatchObject({
+      side: "new",
+      startLine: 10,
+      endLine: 10,
+    });
+  });
+
+  it("drops a same-side drag that crosses a hunk header", () => {
+    const {
+      view: { container },
+      openCommentComposer,
+    } = renderTable({ chunk: twoHunkChunk(), view: "split" });
+    const numbers = container.querySelectorAll<HTMLElement>(
+      'td[data-side="right"][data-line-number]',
+    );
+    const first = numbers[0];
+    const last = numbers[numbers.length - 1];
+    if (!first || !last) throw new Error("expected right-side cells");
+    fireEvent.mouseDown(first);
+    fireEvent.mouseEnter(last);
+    expect(container.querySelectorAll("td[data-selected]").length).toBe(0);
+    fireEvent.mouseUp(last);
+
+    expect(openCommentComposer).not.toHaveBeenCalled();
+  });
+
+  it("anchors a plain click on a left context cell to the old line", () => {
+    const {
+      view: { container },
+      openCommentComposer,
+    } = renderTable({ chunk: splitChunk(), view: "split" });
+    const leftCtx = sideCells(container, "left", "ctx");
+    fireEvent.mouseUp(leftCtx.number);
+
+    expect(openCommentComposer.mock.calls[0]?.[0]).toMatchObject({
+      side: "old",
+      startLine: 9,
+      endLine: 9,
+    });
+  });
+
+  it("spans a crossing composer across the whole row", () => {
+    const {
+      view: { container },
+    } = renderTable({ chunk: splitChunk(), view: "split" });
+    const left = sideCells(container, "left", "del");
+    const right = sideCells(container, "right", "add");
+    fireEvent.mouseDown(left.number);
+    fireEvent.mouseEnter(right.number);
+    fireEvent.mouseUp(right.number);
+    const row = container.querySelector("textarea")?.closest("tr");
+    const columns = container.querySelectorAll("colgroup col").length;
+
+    expect(row?.getAttribute("data-placement")).toBeNull();
+    expect(row?.querySelector("td")?.colSpan).toBe(columns);
+  });
+
+  it("refuses a crossing drag that spans a hunk header", () => {
+    const {
+      view: { container },
+      openCommentComposer,
+    } = renderTable({ chunk: twoHunkChunk(), view: "split" });
+    const numbers = container.querySelectorAll<HTMLElement>(
+      "td[data-line-number]",
+    );
+    const first = numbers[1];
+    const last = numbers[numbers.length - 1];
+    if (!first || !last) throw new Error("expected number cells");
+    fireEvent.mouseDown(first);
+    fireEvent.mouseEnter(last);
+    expect(container.querySelectorAll("td[data-selected]").length).toBe(0);
+    fireEvent.mouseUp(last);
+
+    expect(openCommentComposer).not.toHaveBeenCalled();
+  });
+
+  it("insets a left card past the rail and its numbers", () => {
+    const {
+      view: { container },
+    } = renderTable({ chunk: splitChunk(), view: "split" });
+    const left = sideCells(container, "left", "del");
+    fireEvent.mouseDown(left.number);
+    fireEvent.mouseUp(left.number);
+    const row = container.querySelector('tr[data-placement="left"]');
+    const cells = Array.from(row?.querySelectorAll("td") ?? []);
+    const columns = container.querySelectorAll("colgroup col").length;
+
+    expect(cells.map((cell) => cell.colSpan)).toEqual([columns - 2, 2]);
+  });
+
+  it("lays a side thread beside its side and a gap the other way", () => {
+    const {
+      view: { container },
+    } = renderTable({ chunk: splitChunk(), view: "split" });
+    const right = sideCells(container, "right", "add");
+    fireEvent.mouseDown(right.number);
+    fireEvent.mouseUp(right.number);
+    const row = container.querySelector('tr[data-placement="right"]');
+    const cells = Array.from(row?.querySelectorAll("td") ?? []);
+    const columns = container.querySelectorAll("colgroup col").length;
+
+    expect(cells.map((cell) => cell.colSpan)).toEqual([columns - 2, 2]);
+  });
+
+  it("renders a restored crossing draft across the whole row", () => {
+    const session: ReviewSessionPayload = {
+      ...emptySessionPayload(),
+      draftComments: [
+        {
+          id: "43",
+          filePath: "src/a.ts",
+          kind: "line",
+          side: "new",
+          startSide: "old",
+          startLine: 10,
+          endLine: 10,
+          body: "crossing draft",
+          status: "draft",
+        },
+      ],
+    };
+    renderTable({ chunk: splitChunk(), view: "split" }, {}, undefined, session);
+    const row = screen.getByText("crossing draft").closest("tr");
+
+    expect(row?.getAttribute("data-placement")).toBeNull();
+  });
+
+  it("carries the read-only reason on the focusable cell of each side", () => {
+    const REASON = "You're viewing an earlier revision.";
+    const {
+      view: { container },
+    } = renderTable(
+      { chunk: splitChunk(), view: "split" },
+      { composerDisabledReason: REASON },
+    );
+    const left = sideCells(container, "left", "del");
+    const leftCtx = sideCells(container, "left", "ctx");
+
+    expect(container.querySelector("tr[aria-disabled]")).toBeNull();
+    expect(left.code.getAttribute("aria-disabled")).toBe("true");
+    const reasonId = left.code.getAttribute("aria-describedby") ?? "";
+    expect(document.getElementById(reasonId)?.textContent).toBe(REASON);
+    expect(leftCtx.code.getAttribute("aria-disabled")).toBe("true");
+  });
+
+  it("anchors Enter on the left context cell to the old line", () => {
+    const {
+      view: { container },
+      openCommentComposer,
+    } = renderTable({ chunk: splitChunk(), view: "split" });
+    const rightCtx = sideCells(container, "right", "ctx");
+    const leftCtx = sideCells(container, "left", "ctx");
+    rightCtx.code.focus();
+    fireEvent.keyDown(rightCtx.code, { key: "ArrowLeft" });
+    expect(document.activeElement).toBe(leftCtx.code);
+    fireEvent.keyDown(leftCtx.code, { key: "Enter" });
+
+    expect(openCommentComposer.mock.calls[0]?.[0]).toMatchObject({
+      side: "old",
+      startLine: 9,
+      endLine: 9,
+    });
+  });
+
+  it("lays a left-side context thread under the old half", () => {
+    const thread: ConversationThread = {
+      ...conversation().threads[0]!,
+      rootCommentId: 9002,
+      line: 9,
+      side: "LEFT",
+    };
+    const rows =
+      buildInlineThreads({
+        conversation: { ...conversation(), threads: [thread] },
+        chunks: [splitChunk()],
+        ownThreadIds: new Set(),
+      }).get("c1") ?? [];
+    const {
+      view: { container },
+    } = renderTable({
+      chunk: splitChunk(),
+      view: "split",
+      conversationThreadsByRow: splitInlineRows(rows).byRow,
+    });
+    const row = container.querySelector('tr[data-conversation-thread="9002"]');
+
+    expect(row?.getAttribute("data-placement")).toBe("left");
+  });
+
+  it("keeps a text selection begun on one side off the other", () => {
+    const {
+      view: { container },
+    } = renderTable({ chunk: splitChunk(), view: "split" });
+    const left = sideCells(container, "left", "del");
+    fireEvent.mouseDown(left.code);
+
+    expect(
+      container.querySelector("table")?.getAttribute("data-selecting"),
+    ).toBe("left");
+    fireEvent.mouseUp(window);
+    expect(
+      container.querySelector("table")?.getAttribute("data-selecting"),
+    ).toBeNull();
   });
 });

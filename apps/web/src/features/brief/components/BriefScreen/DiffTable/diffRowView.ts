@@ -22,7 +22,7 @@ export interface DiffRowViewParams {
   comparisonView: ChunkComparisonView;
   comments: ReviewComment[];
   addressedComments: AddressedReviewComment[];
-  dragIndexes: number[];
+  dragIndexes: ReadonlySet<number>;
   activeRowIds: Set<string>;
   activeCommentAnchor: CommentAnchor | null;
   /** Rows adopted by drafts that land on no rendered line, see below. */
@@ -114,7 +114,7 @@ export function getDiffRowView({
   const rowAddressedComments = addressedComments.filter((comment) =>
     reviewCommentMatchesDiffLine(comment, chunk.file, line, chunk.diff),
   );
-  const isSelected = dragIndexes.includes(index) || activeRowIds.has(id);
+  const isSelected = dragIndexes.has(index) || activeRowIds.has(id);
   const showComposer =
     activeCommentAnchor !== null &&
     isLineCommentAnchor(activeCommentAnchor) &&

@@ -1,10 +1,10 @@
-import { Fragment, type ReactNode } from "react";
+import { Fragment, type KeyboardEvent, type ReactNode } from "react";
 
 import type { DiffLine, RowTokenMap } from "@web/utils/diffTokens/types";
 import { DiffCodeText } from "../DiffCodeText/DiffCodeText";
 import { DIFF_LINE_SIGNS } from "@web/utils/diffTokens/consts";
-import { pairSplitRows } from "../pairSplitRows";
 import {
+  type DiffRowAttributes,
   type DiffRowAttributeSlot,
   type DiffRowSlot,
   type DiffUnderRowSlot,
@@ -13,6 +13,7 @@ import {
   type SplitSide,
   SplitSides,
 } from "../types";
+import { pairSplitRows } from "../pairSplitRows";
 import rowStyles from "../DiffRows.module.scss";
 import styles from "./SplitRows.module.scss";
 
@@ -26,17 +27,23 @@ export interface SplitRowsProps {
   codeTrailer?: DiffRowSlot | undefined;
   underRow?: DiffUnderRowSlot | undefined;
   rowAttributes?: DiffRowAttributeSlot | undefined;
+  anchorAttributes: Record<string, string>;
 }
 
-const SIDE_COLUMNS = 2;
+/** Each side spans a number cell and a code cell. */
+export const SPLIT_SIDE_COLUMNS = 2;
+const GUTTER_COLUMNS = 1;
 // A zero-width space keeps an empty side a real cell in the table's tree.
 const EMPTY_SIDE = "\u200B";
-const GUTTER_COLUMNS = 1;
+/** Off the Tab order, reachable by the arrow hop from the other side. */
+const ARROW_ONLY_STOP = -1;
+const NO_ATTRIBUTES: DiffRowAttributes = {};
 
 /**
  * Two sides per row, paired positionally per hunk. The pair is one `<tr>` so
- * a wrapped line on one side keeps the other side's row aligned. Kind, tint
- * and hue ride the cells, never the row.
+ * a wrapped line on one side keeps the other side's row aligned. Kind, tint,
+ * hue, selection and the handlers ride the cells, never the row: each side
+ * anchors on its own line.
  */
 export function SplitRows({
   rows,
@@ -47,10 +54,11 @@ export function SplitRows({
   codeTrailer,
   underRow,
   rowAttributes,
+  anchorAttributes,
 }: SplitRowsProps) {
   const pairs = givenPairs ?? pairSplitRows(rows);
   const gutterColumns = gutterCell === undefined ? 0 : GUTTER_COLUMNS;
-  const columnCount = gutterColumns + SIDE_COLUMNS * 2;
+  const columnCount = gutterColumns + SPLIT_SIDE_COLUMNS * 2;
 
   return (
     <tbody
@@ -72,40 +80,53 @@ export function SplitRows({
 
         const lead = pair.right ?? pair.left;
         if (lead === undefined) return null;
-        const attributes = rowAttributes?.(lead.line, lead.index) ?? {};
-        const leftAttributes =
-          pair.left === undefined || pair.left === pair.right
-            ? attributes
-            : (rowAttributes?.(pair.left.line, pair.left.index) ?? {});
+        const leftAttributes = readSideAttributes(
+          rowAttributes,
+          pair.left,
+          SplitSides.LEFT,
+        );
+        const rightAttributes = readSideAttributes(
+          rowAttributes,
+          pair.right,
+          SplitSides.RIGHT,
+        );
 
         return (
           <Fragment key={pair.key}>
-            <tr
-              aria-describedby={joinDescribedBy(leftAttributes, attributes)}
-              aria-disabled={attributes.disabled ? true : undefined}
-              className={`${rowStyles["line"]} ${styles["pair"]}`}
-            >
+            <tr className={`${rowStyles["line"]} ${styles["pair"]}`}>
               {gutterCell?.(lead.line, lead.index)}
               <SideCells
+                anchorAttributes={anchorAttributes}
+                attributes={leftAttributes}
                 cell={pair.left}
                 codeTrailer={codeTrailer}
-                revision={leftAttributes.revision}
                 side={SplitSides.LEFT}
                 tokensByRow={tokensByRow}
               />
               <SideCells
+                anchorAttributes={anchorAttributes}
+                attributes={rightAttributes}
                 cell={pair.right}
                 codeTrailer={codeTrailer}
-                revision={attributes.revision}
                 side={SplitSides.RIGHT}
                 tokensByRow={tokensByRow}
               />
             </tr>
             {pair.left !== undefined && pair.left !== pair.right
-              ? underRow?.(pair.left.line, pair.left.index, columnCount)
+              ? underRow?.(
+                  pair.left.line,
+                  pair.left.index,
+                  columnCount,
+                  SPLIT_SIDE_COLUMNS,
+                )
               : null}
             {pair.right !== undefined
-              ? underRow?.(pair.right.line, pair.right.index, columnCount)
+              ? underRow?.(
+                  pair.right.line,
+                  pair.right.index,
+                  columnCount,
+                  SPLIT_SIDE_COLUMNS,
+                )
               : null}
           </Fragment>
         );
@@ -114,22 +135,32 @@ export function SplitRows({
   );
 }
 
+function readSideAttributes(
+  slot: DiffRowAttributeSlot | undefined,
+  cell: SplitCell | undefined,
+  side: SplitSide,
+): DiffRowAttributes {
+  if (slot === undefined || cell === undefined) return NO_ATTRIBUTES;
+
+  return slot(cell.line, cell.index, side);
+}
+
 interface SideCellsProps {
   cell: SplitCell | undefined;
   side: SplitSide;
+  attributes: DiffRowAttributes;
   tokensByRow: RowTokenMap | undefined;
   codeTrailer: DiffRowSlot | undefined;
-  revision: string | undefined;
+  anchorAttributes: Record<string, string>;
 }
 
-// Read-only sides: no anchor attributes or handlers until the split view
-// learns selection, so a click on the left half cannot anchor on the right.
 function SideCells({
   cell,
   side,
+  attributes,
   tokensByRow,
   codeTrailer,
-  revision,
+  anchorAttributes,
 }: SideCellsProps): ReactNode {
   if (cell === undefined) {
     return (
@@ -154,24 +185,47 @@ function SideCells({
 
   const { line, index } = cell;
   const number = side === SplitSides.LEFT ? line.oldLine : line.newLine;
+  const selected = attributes.selected ? "" : undefined;
+  const commentable = attributes.commentable ? "" : undefined;
+  const focusable = attributes.focusable;
 
   return (
     <>
       <td
         className={rowStyles["lineNumber"]}
+        {...anchorAttributes}
+        data-commentable={commentable}
         data-line-kind={line.kind}
         data-line-number=""
+        data-selected={selected}
         data-side={side}
+        onMouseDown={attributes.onMouseDown}
+        onMouseEnter={attributes.onMouseEnter}
+        onMouseUp={attributes.onMouseUp}
       >
         {number ?? ""}
       </td>
       <td
+        aria-describedby={attributes.describedById}
+        aria-disabled={attributes.disabled ? true : undefined}
         className={rowStyles["code"]}
+        data-commentable={commentable}
         data-line-kind={line.kind}
-        data-rev={revision}
+        data-rev={attributes.revision}
+        data-selected={selected}
         data-side={side}
+        onKeyDown={(event) => {
+          hopAcrossSides(event);
+          attributes.onKeyDown?.(event);
+        }}
+        onMouseDown={attributes.onMouseDown}
+        onMouseEnter={attributes.onMouseEnter}
+        onMouseUp={attributes.onMouseUp}
+        tabIndex={focusable ? 0 : ARROW_ONLY_STOP}
       >
-        <span className={rowStyles["sign"]}>{DIFF_LINE_SIGNS[line.kind]}</span>
+        <span className={rowStyles["sign"]} {...anchorAttributes}>
+          {DIFF_LINE_SIGNS[line.kind]}
+        </span>
         <DiffCodeText content={line.content} tokens={tokensByRow?.get(index)} />
         {codeTrailer?.(line, index)}
       </td>
@@ -179,15 +233,27 @@ function SideCells({
   );
 }
 
-/** Both halves' reasons, so a thread under the removed line is still named. */
-function joinDescribedBy(
-  left: { describedById?: string | undefined },
-  lead: { describedById?: string | undefined },
-): string | undefined {
-  const ids = [lead.describedById, left.describedById].filter(
-    (id) => id !== undefined,
-  );
-  const unique = [...new Set(ids)];
+const HOP_KEYS: Record<string, SplitSide> = {
+  ArrowLeft: SplitSides.LEFT,
+  ArrowRight: SplitSides.RIGHT,
+};
 
-  return unique.length === 0 ? undefined : unique.join(" ");
+/** Left and Right move focus to the other side's line cell on the same row. */
+function hopAcrossSides(event: KeyboardEvent<HTMLTableCellElement>): void {
+  const target = HOP_KEYS[event.key];
+  if (target === undefined) return;
+  // A modified arrow belongs to the reader's assistive tech or the browser's
+  // own selection chords, and a hop to the side already focused is not a hop:
+  // taking either would swallow a key this row has no business claiming.
+  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+  if (event.currentTarget.dataset["side"] === target) return;
+
+  const row = event.currentTarget.closest("tr");
+  const cell = row?.querySelector<HTMLElement>(
+    `td[data-side="${target}"][tabindex]`,
+  );
+  if (cell === null || cell === undefined) return;
+
+  event.preventDefault();
+  cell.focus();
 }

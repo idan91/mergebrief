@@ -36,6 +36,8 @@ export type DiffUnderRowSlot = (
   row: DiffLine,
   index: number,
   columnCount: number,
+  /** Present in the split view: the columns one side spans. */
+  sideColumns?: number,
 ) => ReactNode;
 
 /**
@@ -50,15 +52,17 @@ export interface DiffRowAttributes {
   revision?: string | undefined;
   selected?: boolean;
   focusable?: boolean;
-  onKeyDown?: KeyboardEventHandler<HTMLTableRowElement>;
-  onMouseDown?: MouseEventHandler<HTMLTableRowElement>;
-  onMouseEnter?: MouseEventHandler<HTMLTableRowElement>;
-  onMouseUp?: MouseEventHandler<HTMLTableRowElement>;
+  onKeyDown?: KeyboardEventHandler<HTMLElement>;
+  onMouseDown?: MouseEventHandler<HTMLElement>;
+  onMouseEnter?: MouseEventHandler<HTMLElement>;
+  onMouseUp?: MouseEventHandler<HTMLElement>;
 }
 
 export type DiffRowAttributeSlot = (
   row: DiffLine,
   index: number,
+  /** Present in the split view: which side of the pair asks. */
+  side?: SplitSide,
 ) => DiffRowAttributes;
 
 export interface DiffRowsProps {

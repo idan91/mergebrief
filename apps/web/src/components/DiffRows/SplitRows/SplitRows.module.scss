@@ -4,21 +4,25 @@
   // The pair stays transparent; each side's cells carry the kind and hue.
   .pair {
     --row-hue: var(--text);
+    --row-hover-tint: 6%;
 
     // Earned: the same 2px edge DiffRows paints, declared here because the
     // hue is set per cell in this file.
     --change-edge-bar: inset 2px 0 0 var(--row-hue);
+    --selected-edge-bar: inset 3px 0 0 var(--blue);
 
     background: transparent;
 
     > td[data-line-kind="add"] {
       --row-hue: var(--green);
+      --row-hover-tint: 13%;
 
       background: color-mix(in srgb, var(--green) 5%, transparent);
     }
 
     > td[data-line-kind="del"] {
       --row-hue: var(--red);
+      --row-hover-tint: 13%;
 
       background: color-mix(in srgb, var(--red) 5%, transparent);
     }
@@ -39,6 +43,35 @@
 
     > td[data-line-kind="del"][data-line-number] {
       color: var(--red);
+    }
+
+    > td[data-commentable] {
+      cursor: cell;
+    }
+
+    // :not([data-selected]) keeps the selection tint on a row the drag passes.
+    &:has(> td[data-side="left"][data-commentable]:hover)
+      > td[data-side="left"]:not([data-selected]),
+    &:has(> td[data-side="right"][data-commentable]:hover)
+      > td[data-side="right"]:not([data-selected]) {
+      background: color-mix(
+        in srgb,
+        var(--row-hue) var(--row-hover-tint),
+        transparent
+      );
+    }
+
+    > td[data-selected] {
+      background: color-mix(in srgb, var(--blue) 12%, transparent);
+    }
+
+    > td[data-selected][class*="code"] {
+      box-shadow: var(--selected-edge-bar);
+    }
+
+    > td:focus-visible {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: -2px;
     }
 
     > td[data-rev="added"] {

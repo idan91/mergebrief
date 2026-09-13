@@ -118,6 +118,50 @@ export function createCommentAnchor(
   return anchor;
 }
 
+/**
+ * A range that stays on one side of a split diff anchors on that side's line
+ * numbers, context rows included, the way a same-side GitHub selection does.
+ */
+export function createSideAnchor(
+  chunkId: string,
+  file: string,
+  rows: DiffLine[],
+  selectedIndexes: number[],
+  side: CommentSide,
+): LineCommentAnchor | null {
+  const orderedIndexes = [...new Set(selectedIndexes)].toSorted(
+    (left, right) => left - right,
+  );
+  if (orderedIndexes.length === 0) return null;
+
+  const selectedRows = orderedIndexes.map((index) => rows[index]);
+  const sideLines = selectedRows.map((row) => lineForSide(row, side));
+  if (!isConsecutiveRun(sideLines)) return null;
+  const startLine = sideLines[0];
+  const endLine = sideLines.at(-1);
+  if (typeof startLine !== "number" || typeof endLine !== "number") return null;
+
+  return {
+    kind: CommentAnchorKinds.LINE,
+    chunkId,
+    file,
+    side,
+    startLine,
+    endLine,
+    rowIds: orderedIndexes.map((index) => rowId(chunkId, index)),
+    selectedText: selectedRows.map((row) => row?.content ?? "").join("\n"),
+  };
+}
+
+/** Every entry numbered and each one more than the last: no header crossed. */
+function isConsecutiveRun(lines: (number | undefined)[]): lines is number[] {
+  return lines.every((line, at) => {
+    if (typeof line !== "number") return false;
+    const previous = lines[at - 1];
+    return at === 0 || previous === line - 1;
+  });
+}
+
 function getRowSide(row: DiffLine): CommentSide {
   return row.kind === DiffLineKinds.DEL ? CommentSides.OLD : CommentSides.NEW;
 }

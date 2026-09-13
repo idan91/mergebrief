@@ -5,45 +5,34 @@ import {
   useId,
   useMemo,
   useState,
-  type CSSProperties,
   type ReactNode,
+  useRef,
 } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import { rangeBetween } from "@web/utils/collections";
 import { CommentComposer } from "@web/features/review";
 import { CommentThread } from "@web/features/review";
-import {
-  ThreadRowView,
-  type ThreadComposerWiring,
-} from "@web/features/conversation";
-import {
-  demotedSubmittedCommentIds,
-  type DigestThreadRow,
-} from "@web/features/conversation/utils";
+import { ThreadRowView } from "@web/features/conversation";
+import { demotedSubmittedCommentIds } from "@web/features/conversation/utils";
 
 // Row-level threads already sit AT their line, so the detail's jump is hidden.
 const noJump = () => undefined;
 import { AddressedDiffComment } from "@web/features/review";
 import {
+  CommentSides,
   createCommentAnchor,
+  createSideAnchor,
   isLineCommentAnchor,
+  rowId,
+  type LineCommentAnchor,
 } from "@web/features/review/utils";
 import {
   useChunkReviewComments,
   useReviewActions,
   useReviewFlow,
 } from "@web/features/review/session";
-import {
-  type ChunkComparisonView,
-  type ComparisonRun,
-  type ComparisonSource,
-} from "../../../comparison/comparison";
-import type {
-  AddressedReviewComment,
-  BriefChunk,
-  RevisionNarrativeSkipReason,
-} from "../../../types";
+import { type ComparisonRun } from "../../../comparison/comparison";
 import { ComparisonCallout } from "./ComparisonCallout/ComparisonCallout";
 import { RevisionGutterCell } from "./RevisionGutterCell/RevisionGutterCell";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
@@ -52,55 +41,40 @@ import {
   resolveStrandedRows,
   type DiffRowView,
 } from "./diffRowView";
-import type { RowTokenMap } from "@web/utils/diffTokens/types";
 import { pairSplitRows } from "@web/components/DiffRows/pairSplitRows";
 import { isFullWidthDiffRow } from "@web/components/DiffRows/utils";
 import {
   type DiffRowAttributes,
-  type DiffView,
   DiffViews,
-  type SplitRow,
+  type SplitSide,
+  SplitSides,
 } from "@web/components/DiffRows/types";
 import { DiffRows } from "@web/components/DiffRows/DiffRows";
 import styles from "./DiffTable.module.scss";
-
-// csstype's CSSProperties has no `--*` index; a typed extension keeps the
-// custom property cast-free.
-interface DiffViewportStyle extends CSSProperties {
-  "--diff-rows": number;
-}
-
-const EMPTY_REVIEW_COMMENTS: never[] = [];
-const NO_PAIRS: SplitRow[] = [];
-const NO_DIFF: DiffLine[] = [];
-
-/** Marks the cells range anchoring may start from, read by the row handlers. */
-const COMMENT_ANCHOR_ATTRIBUTES = { "data-comment-anchor": "" };
-const EMPTY_EXPANDED_THREADS: ReadonlySet<number> = new Set();
-
-export interface DiffTableProps {
-  chunk: BriefChunk;
-  comparisonView: ChunkComparisonView;
-  comparisonSource: ComparisonSource;
-  comparisonSkipReason: RevisionNarrativeSkipReason | null;
-  addressedComments: AddressedReviewComment[];
-  /** Live conversation threads under their diff rows. */
-  conversationThreadsByRow?: ReadonlyMap<number, DigestThreadRow[]> | undefined;
-  conversationComposer?: ThreadComposerWiring | undefined;
-  reviewCommentLabel: string;
-  /**
-   * Hard read-only override (the RawSpanDiff case): every write affordance
-   * stands down with THIS reason regardless of the flow store's posture, and
-   * no review comments render, a raw-span chunk id could collide with a
-   * brief chunk id, so the store's chunk-keyed reads must not apply.
-   */
-  readOnlyReason?: string | undefined;
-  /** Syntax tokens keyed by row index; absent renders every row plain. */
-  tokensByRow?: RowTokenMap | undefined;
-  tokensPending?: boolean;
-  /** Paired sides per hunk; the caller resolves the minimum width. */
-  view?: DiffView;
-}
+import type {
+  DiffTableProps,
+  DiffViewportStyle,
+  UnderRowLayout,
+  UnderRowProps,
+} from "./types";
+import {
+  COMMENT_ANCHOR_ATTRIBUTES,
+  EMPTY_EXPANDED_THREADS,
+  EMPTY_GAP,
+  EMPTY_REVIEW_COMMENTS,
+  NO_DIFF,
+  NO_PAIRS,
+} from "./consts";
+import {
+  buildPairPartners,
+  collectSideIndexes,
+  isSideFocusable,
+  placementForAnchor,
+  placementForThread,
+  resolveDragSelection,
+  spanForPlacement,
+  unionRail,
+} from "./utils";
 
 export function DiffTable({
   tokensByRow,
@@ -190,6 +164,11 @@ export function DiffTable({
     ),
   );
   const [dragStart, setDragStart] = useState<number | null>(null);
+  const [dragSide, setDragSide] = useState<SplitSide | undefined>(undefined);
+  const [dragCurrentSide, setDragCurrentSide] = useState<SplitSide | undefined>(
+    undefined,
+  );
+  const tableRef = useRef<HTMLTableElement>(null);
   // Instance-scoped id for the read-only reason the disabled rows point at
   // (declared before the no-diff early return, for hooks order).
   const composerDisabledReasonId = `${useId()}-composer-disabled`;
@@ -219,10 +198,21 @@ export function DiffTable({
     const reset = () => {
       setDragStart(null);
       setDragCurrent(null);
+      setDragSide(undefined);
+      setDragCurrentSide(undefined);
     };
     window.addEventListener("mouseup", reset);
     return () => window.removeEventListener("mouseup", reset);
   }, [dragStart]);
+
+  // A text selection begun on one side must not spill into the other. The
+  // side rides the table as an attribute set by hand: a state write here
+  // would re-render every row on the pointer-down of a text selection.
+  useEffect(() => {
+    const release = () => tableRef.current?.removeAttribute("data-selecting");
+    window.addEventListener("mouseup", release);
+    return () => window.removeEventListener("mouseup", release);
+  }, []);
 
   const handleRailEnter = (run: ComparisonRun, el: HTMLElement) => {
     setRailHover({ run, el });
@@ -240,31 +230,64 @@ export function DiffTable({
     );
   }
 
-  const dragIndexes =
-    dragStart === null || dragCurrent === null
-      ? []
-      : rangeBetween(dragStart, dragCurrent);
+  const dragSelection = resolveDragSelection(
+    pairs,
+    dragStart,
+    dragCurrent,
+    dragSide,
+    dragCurrentSide,
+  );
+  const dragIndexes = new Set(dragSelection.indexes);
+  const activePlacement =
+    activeCommentAnchor === null
+      ? undefined
+      : placementForAnchor(activeCommentAnchor);
   const activeRowIds = new Set(activeCommentAnchor?.rowIds ?? []);
   const strandedRowIds = resolveStrandedRows(chunk, comments);
   const handleToggleConversationThread = (threadId: number) =>
     toggleConversationThread(chunkKey, threadId);
   const overlayActive = comparisonView.runs.length > 0;
 
-  function finishSelection(rowIndex: number) {
+  function finishSelection(rowIndex: number, side?: SplitSide) {
     // Read-only revision: composer entry is inert (the affordance itself is
     // aria-disabled with the reason, which guards the activation path).
     if (composerDisabledReason !== undefined) return;
-    const indexes =
-      dragStart === null ? [rowIndex] : rangeBetween(dragStart, rowIndex);
+    const startIndex = dragStart ?? rowIndex;
+    const startSide = dragStart === null ? side : dragSide;
     setDragStart(null);
     setDragCurrent(null);
-    const anchor = createCommentAnchor(
+    setDragSide(undefined);
+    setDragCurrentSide(undefined);
+    const anchor = resolveAnchor(startIndex, startSide, rowIndex, side);
+    if (anchor) openComposer(anchor);
+  }
+
+  // GitHub's rule: a range that stays on one side anchors on that side's
+  // lines; a range that crosses sides is the unified span between the ends.
+  function resolveAnchor(
+    startIndex: number,
+    startSide: SplitSide | undefined,
+    endIndex: number,
+    endSide: SplitSide | undefined,
+  ): LineCommentAnchor | null {
+    const diff = chunk.diff ?? [];
+    if (startSide !== undefined && startSide === endSide) {
+      const indexes = collectSideIndexes(
+        pairs,
+        startSide,
+        startIndex,
+        endIndex,
+      );
+      const commentSide =
+        startSide === SplitSides.LEFT ? CommentSides.OLD : CommentSides.NEW;
+      return createSideAnchor(chunk.id, chunk.file, diff, indexes, commentSide);
+    }
+    return createCommentAnchor(
       chunk.id,
       chunk.file,
-      chunk.diff ?? [],
-      indexes,
+      diff,
+      rangeBetween(startIndex, endIndex),
     );
-    if (anchor) openComposer(anchor);
   }
 
   const rowViews = chunk.diff.map(buildRowView);
@@ -290,21 +313,21 @@ export function DiffTable({
   }
 
   function buildRowAttributes(
-    _line: DiffLine,
+    line: DiffLine,
     index: number,
+    side?: SplitSide,
   ): DiffRowAttributes {
     const view = rowViews[index];
     const commentable = composerDisabledReason === undefined;
     const attributes: DiffRowAttributes = {
       commentable,
-      focusable: true,
+      focusable: isSideFocusable(line, side),
       revision: view?.revMark,
-      selected: view?.isSelected === true,
+      selected: isSideSelected(view, index, side),
       onKeyDown: (event) => {
-        if (event.key === "Enter") finishSelection(index);
+        if (event.key === "Enter") finishSelection(index, side);
       },
       onMouseDown: (event) => {
-        if (!commentable) return;
         // Range anchoring starts from a comment anchor, the line-number
         // gutter or the +/− sign column, never the code text, which stays
         // natively selectable.
@@ -312,8 +335,10 @@ export function DiffTable({
           !(event.target instanceof Element) ||
           event.target.closest("[data-comment-anchor]") === null
         ) {
+          if (side !== undefined) markSelectingSide(side);
           return;
         }
+        if (!commentable) return;
         // Anchoring intent: drop any stale text selection, preventDefault
         // keeps it alive otherwise, and it would trip the mouseup
         // suppression guard.
@@ -321,15 +346,20 @@ export function DiffTable({
         event.preventDefault();
         setDragStart(index);
         setDragCurrent(index);
+        setDragSide(side);
+        setDragCurrentSide(side);
       },
       onMouseEnter: () => {
-        if (dragStart !== null) setDragCurrent(index);
+        if (dragStart !== null) {
+          setDragCurrent(index);
+          setDragCurrentSide(side);
+        }
       },
       onMouseUp: (event) => {
         // A gutter-initiated drag is unambiguous comment intent (the gutter
         // mousedown cleared any selection).
         if (dragStart !== null) {
-          finishSelection(index);
+          finishSelection(index, side);
           return;
         }
         // Plain mouseup: composer entry is anchor-only (gutter or sign
@@ -356,7 +386,7 @@ export function DiffTable({
         ) {
           return;
         }
-        finishSelection(index);
+        finishSelection(index, side);
       },
     };
     if (!commentable) {
@@ -364,6 +394,26 @@ export function DiffTable({
       attributes.disabled = true;
     }
     return attributes;
+  }
+
+  function markSelectingSide(side: SplitSide): void {
+    tableRef.current?.setAttribute("data-selecting", side);
+  }
+
+  function isSideSelected(
+    view: DiffRowView | undefined,
+    index: number,
+    side: SplitSide | undefined,
+  ): boolean {
+    if (side === undefined) return view?.isSelected === true;
+    const dragged =
+      dragIndexes.has(index) &&
+      (dragSelection.placement === undefined ||
+        dragSelection.placement === side);
+    const active =
+      activeRowIds.has(rowId(chunk.id, index)) &&
+      (activePlacement === undefined || activePlacement === side);
+    return dragged || active;
   }
 
   function buildGutterCell(_line: DiffLine, index: number): ReactNode {
@@ -398,75 +448,78 @@ export function DiffTable({
   }
 
   function buildUnderRow(
-    _line: DiffLine,
+    line: DiffLine,
     index: number,
     columnCount: number,
+    sideColumns?: number,
   ): ReactNode {
     const view = rowViews[index];
     if (view === undefined) return null;
     const conversationRows = conversationThreadsByRow?.get(index) ?? [];
+    const layout: UnderRowLayout = { columnCount, sideColumns };
+    const composerPlacement =
+      activeCommentAnchor === null
+        ? undefined
+        : placementForAnchor(activeCommentAnchor);
     return (
       <>
-        {view.showComposer && activeCommentAnchor && !split ? (
-          <tr className={styles["commentRow"]}>
-            <td colSpan={columnCount}>
-              <CommentComposer
-                anchor={activeCommentAnchor}
-                cancel={cancelComposer}
-                saving={composerSaving}
-                mentionCandidates={conversationComposer?.mentionPool}
-                save={saveComment}
-              />
-            </td>
-          </tr>
+        {view.showComposer && activeCommentAnchor ? (
+          <UnderRow layout={layout} placement={composerPlacement}>
+            <CommentComposer
+              anchor={activeCommentAnchor}
+              cancel={cancelComposer}
+              saving={composerSaving}
+              mentionCandidates={conversationComposer?.mentionPool}
+              save={saveComment}
+            />
+          </UnderRow>
         ) : null}
         {view.rowComments.map((comment) => (
-          <tr className={styles["commentRow"]} key={comment.id}>
-            <td colSpan={columnCount}>
-              <CommentThread
-                comment={comment}
-                deleteComment={deleteComment}
-                mentionCandidates={conversationComposer?.mentionPool}
-                post={postReviewComment}
-                posting={postingCommentIds.includes(comment.id)}
-                postBlockedExternally={postBlockedExternally}
-                toggle={toggleComment}
-                update={updateComment}
-              />
-            </td>
-          </tr>
+          <UnderRow
+            key={comment.id}
+            layout={layout}
+            placement={placementForAnchor(comment.anchor)}
+          >
+            <CommentThread
+              comment={comment}
+              deleteComment={deleteComment}
+              mentionCandidates={conversationComposer?.mentionPool}
+              post={postReviewComment}
+              posting={postingCommentIds.includes(comment.id)}
+              postBlockedExternally={postBlockedExternally}
+              toggle={toggleComment}
+              update={updateComment}
+            />
+          </UnderRow>
         ))}
         {conversationRows.map((row) =>
           conversationComposer !== undefined ? (
-            <tr
-              className={styles["commentRow"]}
+            <UnderRow
               // Addressable target for the digest's "Jump to comment"
               // (BriefPage descends to this row).
-              data-conversation-thread={row.thread.rootCommentId}
+              conversationThread={row.thread.rootCommentId}
               key={`conversation-${row.thread.rootCommentId}`}
+              layout={layout}
+              placement={placementForThread(row.thread, line)}
             >
-              <td colSpan={columnCount}>
-                <ThreadRowView
-                  composer={conversationComposer}
-                  expanded={expandedConversation.has(row.thread.rootCommentId)}
-                  hideJump
-                  jumpToChunk={noJump}
-                  row={row}
-                  toggle={handleToggleConversationThread}
-                />
-              </td>
-            </tr>
+              <ThreadRowView
+                composer={conversationComposer}
+                expanded={expandedConversation.has(row.thread.rootCommentId)}
+                hideJump
+                jumpToChunk={noJump}
+                row={row}
+                toggle={handleToggleConversationThread}
+              />
+            </UnderRow>
           ) : null,
         )}
         {view.rowAddressedComments.map((comment) => (
-          <tr className={styles["commentRow"]} key={`addressed-${comment.id}`}>
-            <td colSpan={columnCount}>
-              <AddressedDiffComment
-                comment={comment}
-                label={reviewCommentLabel}
-              />
-            </td>
-          </tr>
+          <UnderRow key={`addressed-${comment.id}`} layout={layout}>
+            <AddressedDiffComment
+              comment={comment}
+              label={reviewCommentLabel}
+            />
+          </UnderRow>
         ))}
       </>
     );
@@ -488,7 +541,7 @@ export function DiffTable({
         </p>
       ) : null}
       <div className={styles["viewport"]} style={viewportStyle}>
-        <table className={styles["diff"]} data-view={diffView}>
+        <table className={styles["diff"]} ref={tableRef} data-view={diffView}>
           {split ? (
             <colgroup>
               <col className={styles["colRail"]} />
@@ -552,42 +605,36 @@ export function DiffTable({
   );
 }
 
-/** The other side of each paired row, so one rail can speak for both. */
-function buildPairPartners(pairs: SplitRow[]): ReadonlyMap<number, number> {
-  const partners = new Map<number, number>();
+/** A thread, composer or addressed comment under a row, on its side if any. */
+function UnderRow({
+  layout,
+  placement,
+  conversationThread,
+  children,
+}: UnderRowProps) {
+  const { columnCount, sideColumns } = layout;
+  const beside = placement !== undefined && sideColumns !== undefined;
+  const leadColumns = columnCount - (sideColumns ?? 0);
 
-  for (const pair of pairs) {
-    if (pair.left === undefined || pair.right === undefined) continue;
-    if (pair.left === pair.right) continue;
-    partners.set(pair.left.index, pair.right.index);
-    partners.set(pair.right.index, pair.left.index);
-  }
-
-  return partners;
-}
-
-interface RailView {
-  run: ComparisonRun | undefined;
-  isStart: boolean;
-  isEnd: boolean;
-}
-
-/**
- * One rail for a pair: the run of whichever side has one, and a cap wherever
- * either side starts or ends that same run, so a run that begins on a
- * deletion paired with an addition still gets its jump target.
- */
-function unionRail(
-  own: DiffRowView | undefined,
-  other: DiffRowView | undefined,
-): RailView {
-  const run = own?.revRun ?? other?.revRun;
-  if (run === undefined) return { run, isStart: false, isEnd: false };
-
-  const ownIn = own?.revRun === run;
-  const otherIn = other?.revRun === run;
-  const isStart = (ownIn && own.isRevStart) || (otherIn && other.isRevStart);
-  const isEnd = (ownIn && own.isRevEnd) || (otherIn && other.isRevEnd);
-
-  return { run, isStart, isEnd };
+  return (
+    <tr
+      className={styles["commentRow"]}
+      data-conversation-thread={conversationThread}
+      data-placement={beside ? placement : undefined}
+    >
+      {beside && placement === SplitSides.RIGHT ? (
+        <td className={styles["commentGap"]} colSpan={leadColumns}>
+          {EMPTY_GAP}
+        </td>
+      ) : null}
+      <td colSpan={beside ? spanForPlacement(placement, layout) : columnCount}>
+        {children}
+      </td>
+      {beside && placement === SplitSides.LEFT ? (
+        <td className={styles["commentGap"]} colSpan={sideColumns}>
+          {EMPTY_GAP}
+        </td>
+      ) : null}
+    </tr>
+  );
 }

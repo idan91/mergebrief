@@ -25,7 +25,8 @@ import { createCommentAnchor } from "@web/features/review/utils";
 import type { AddressedReviewComment } from "../../../types";
 import type { Brief, BriefChunk } from "../../../types";
 import { buildBriefViewModel } from "../../../utils/viewModel";
-import { DiffTable, type DiffTableProps } from "./DiffTable";
+import { DiffTable } from "./DiffTable";
+import type { DiffTableProps } from "./types";
 
 afterEach(cleanup);
 

@@ -31,6 +31,7 @@ export function DiffRows({
   if (view === DiffViews.SPLIT) {
     return (
       <SplitRows
+        anchorAttributes={anchorAttributes}
         codeTrailer={codeTrailer}
         gutterCell={gutterCell}
         pairs={pairs}

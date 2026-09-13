@@ -5,6 +5,7 @@ export {
   ReviewCommentStatuses,
   resolveJumpChunkId,
   createCommentAnchor,
+  createSideAnchor,
   createFileCommentAnchor,
   isFileCommentAnchor,
   isLineCommentAnchor,

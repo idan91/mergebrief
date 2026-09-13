@@ -9,6 +9,7 @@ import {
   resolveJumpChunkId,
   createCommentAnchor,
   createFileCommentAnchor,
+  createSideAnchor,
   MAX_POSTED_COMMENT_LENGTH,
   postCommentBlockedReason,
   reviewCommentSubmitLabel,
@@ -98,6 +99,71 @@ describe("createCommentAnchor", () => {
       startLine: 10,
       endLine: 11,
     });
+  });
+});
+
+describe("createSideAnchor", () => {
+  const twoHunks: DiffLine[] = [
+    ...diffRows,
+    { kind: "hunk", content: "@@ -40,2 +41,2 @@" },
+    { kind: "ctx", content: "tail", oldLine: 40, newLine: 41 },
+  ];
+
+  it("anchors a same-side run on that side's numbers", () => {
+    expect(
+      createSideAnchor(
+        "chunk-1",
+        "src/a.ts",
+        diffRows,
+        [1, 2],
+        CommentSides.OLD,
+      ),
+    ).toMatchObject({ side: CommentSides.OLD, startLine: 10, endLine: 11 });
+    expect(
+      createSideAnchor(
+        "chunk-1",
+        "src/a.ts",
+        diffRows,
+        [1, 2],
+        CommentSides.OLD,
+      ),
+    ).not.toHaveProperty("startSide");
+  });
+
+  it("rejects a run that crosses a hunk header", () => {
+    expect(
+      createSideAnchor(
+        "chunk-1",
+        "src/a.ts",
+        twoHunks,
+        [5, 6, 7],
+        CommentSides.NEW,
+      ),
+    ).toBeNull();
+  });
+
+  it("rejects a gap in the side's numbering", () => {
+    expect(
+      createSideAnchor(
+        "chunk-1",
+        "src/a.ts",
+        diffRows,
+        [1, 5],
+        CommentSides.NEW,
+      ),
+    ).toBeNull();
+  });
+
+  it("rejects a row with no number on the side", () => {
+    expect(
+      createSideAnchor(
+        "chunk-1",
+        "src/a.ts",
+        diffRows,
+        [2, 3],
+        CommentSides.OLD,
+      ),
+    ).toBeNull();
   });
 });
 

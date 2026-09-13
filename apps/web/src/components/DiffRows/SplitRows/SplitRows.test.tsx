@@ -20,7 +20,7 @@ function stubRows(): DiffLine[] {
 function renderSplit(props: Partial<Parameters<typeof SplitRows>[0]> = {}) {
   return render(
     <table>
-      <SplitRows rows={stubRows()} {...props} />
+      <SplitRows anchorAttributes={{}} rows={stubRows()} {...props} />
     </table>,
   );
 }
@@ -68,15 +68,27 @@ describe("SplitRows", () => {
     ).toBe("added");
   });
 
-  it("carries no anchors or handlers while the split view is read-only", () => {
+  it("asks the attribute slot once per side and marks that side only", () => {
+    const seen: string[] = [];
     const view = renderSplit({
-      rowAttributes: () => ({ commentable: true, focusable: true }),
+      rowAttributes: (_row, index, side) => {
+        seen.push(`${String(index)}:${side ?? "none"}`);
+        return { selected: side === "left", focusable: true };
+      },
     });
+    const pair = view.container.querySelectorAll("tbody > tr")[2];
 
+    expect(seen).toContain("2:left");
+    expect(seen).toContain("3:right");
     expect(
-      view.container.querySelectorAll("[data-comment-anchor]"),
+      pair?.querySelectorAll('td[data-side="left"][data-selected]'),
+    ).toHaveLength(2);
+    expect(
+      pair?.querySelectorAll('td[data-side="right"][data-selected]'),
     ).toHaveLength(0);
-    expect(view.container.querySelectorAll("tr[tabindex]")).toHaveLength(0);
+    expect(
+      pair?.querySelectorAll('td[data-side="right"][tabindex="0"]'),
+    ).toHaveLength(1);
   });
 
   it("spans a hunk row across every column", () => {
