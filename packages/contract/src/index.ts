@@ -23,7 +23,7 @@ export {
   type ApiErrorParamlessCode,
   type ApiErrorParams,
 } from "./errors";
-export type { FileRangeView } from "./file-range";
+export { MAX_FILE_RANGE_LINES, type FileRangeView } from "./file-range";
 export {
   ProductActionIds,
   ProductQueryIds,

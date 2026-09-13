@@ -241,6 +241,27 @@ describe("requestChunkTokens", () => {
     expect(readWorker().sent).toHaveLength(1);
   });
 
+  it("never serves an expanded chunk from the folded chunk's cache", async () => {
+    const folded = requestChunkTokens(makeRequest());
+    deliverReply(makeTokensReply(readSentRequestId(0)));
+    await folded.promise;
+
+    requestChunkTokens(makeRequest({ expansionKey: "3:down@2-21" }));
+
+    expect(readWorker().sent).toHaveLength(2);
+  });
+
+  it("serves a second mount of one expanded chunk from the cache", async () => {
+    const expansionKey = "3:down@2-21";
+    const first = requestChunkTokens(makeRequest({ expansionKey }));
+    deliverReply(makeTokensReply(readSentRequestId(0)));
+    await first.promise;
+
+    requestChunkTokens(makeRequest({ expansionKey }));
+
+    expect(readWorker().sent).toHaveLength(1);
+  });
+
   it("asks again for a chunk whose grammar failed to load", async () => {
     const first = requestChunkTokens(makeRequest());
     deliverReply({

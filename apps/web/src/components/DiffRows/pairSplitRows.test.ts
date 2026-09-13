@@ -90,3 +90,28 @@ describe("pairSplitRows", () => {
     expect(countSplitRows(diff)).toBe(pairSplitRows(diff).length);
   });
 });
+
+describe("pairSplitRows with expanded context", () => {
+  it("sits expanded context on both sides like a context row", () => {
+    const rows = pairSplitRows([
+      {
+        kind: "expanded-context",
+        content: "read",
+        oldLine: 9,
+        newLine: 9,
+      },
+    ]);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.left).toBe(rows[0]?.right);
+  });
+
+  it("counts an expanded context row as one split row", () => {
+    expect(
+      countSplitRows([
+        { kind: "expanded-context", content: "a", oldLine: 1, newLine: 1 },
+        { kind: "expanded-context", content: "b", oldLine: 2, newLine: 2 },
+      ]),
+    ).toBe(2);
+  });
+});

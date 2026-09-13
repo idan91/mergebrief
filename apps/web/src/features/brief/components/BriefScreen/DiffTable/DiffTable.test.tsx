@@ -323,6 +323,28 @@ describe("DiffTable read-only comment affordances", () => {
     expect(openCommentComposer).not.toHaveBeenCalled();
   });
 
+  it("refuses composer entry on a row read from the file", () => {
+    const expanded: BriefChunk = {
+      ...chunk(),
+      diff: [
+        { kind: "expanded-context", content: "read", oldLine: 8, newLine: 8 },
+        { kind: "ctx", content: "a", oldLine: 9, newLine: 9 },
+      ],
+    };
+    const { view, openCommentComposer } = renderTable({ chunk: expanded });
+    const rows = view.container.querySelectorAll("tbody tr");
+    const row = rows[0];
+    if (!(row instanceof HTMLElement)) throw new Error("expected a diff row");
+
+    expect(row.getAttribute("data-commentable")).toBeNull();
+    expect(row.getAttribute("aria-describedby")).toBeNull();
+    fireEvent.keyDown(row, { key: "Enter" });
+    fireEvent.mouseDown(row);
+    fireEvent.mouseUp(row);
+
+    expect(openCommentComposer).not.toHaveBeenCalled();
+  });
+
   it("stays writable when no reason is given", () => {
     const { view, openCommentComposer } = renderTable();
     const row = view.container.querySelector("tr[data-commentable]");

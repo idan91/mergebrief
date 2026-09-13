@@ -5,9 +5,7 @@ export const DIFF_CACHE_MAX_ENTRIES = 2_000;
 /** The entry-count cap alone doesn't bound bytes; an oversized diff is served
  * but NOT cached. */
 export const DIFF_CACHE_MAX_ENTRY_BYTES = 1_000_000;
-/** The expander steps 20 lines per click and caps its own "expand all", so
- * this refuses draining a 100k-line file without refusing an honest ask. */
-export const MAX_FILE_RANGE_LINES = 400;
+export { MAX_FILE_RANGE_LINES } from "contract";
 /** Fetch cap, and the never-cache threshold: a blob past it is refused rather
  * than served uncached, which would re-fetch the whole file per hunk edge. */
 export const FILE_BLOB_MAX_BYTES = 1_000_000;

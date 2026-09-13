@@ -2,6 +2,8 @@ import type { TranslationKey } from "i18n";
 import { createStore, type StoreApi } from "zustand/vanilla";
 
 import { toggleSet } from "@web/utils/collections";
+import { unionExpanded } from "@web/features/brief/utils";
+import type { LineRange } from "@web/features/brief/types";
 import {
   ReviewCommentStatuses,
   type CommentAnchor,
@@ -60,6 +62,13 @@ export interface ReviewFlowState extends ReviewFlowPosture {
    * Store-owned, not card state: a virtualized card unmounts offscreen and
    * its disclosure state must survive the round trip. */
   expandedConversations: ReadonlyMap<string, ReadonlySet<number>>;
+  /**
+   * Head-file lines each hunk edge has expanded, keyed
+   * `chunkId:rowIndex:direction`. Ranges, not rows: the splice is pure and
+   * memoized per chunk, so holding one range per edge keeps a re-render cheap
+   * without duplicating the diff in the store.
+   */
+  expandedEdges: ReadonlyMap<string, LineRange>;
   /** The free-text review-comment draft: survives the submit modal closing,
    * deliberately not a reload. */
   reviewComment: string;
@@ -93,6 +102,11 @@ export interface ReviewFlowActions {
   toggleComment: (commentId: string) => void;
   /** @description Flip one inline thread's disclosure under its chunk key. */
   toggleConversationThread: (chunkKey: string, threadId: number) => void;
+  /**
+   * @description Widen one hunk edge's expanded window by the lines a click
+   * just read. Ranges union, so a repeat of the same read changes nothing.
+   */
+  expandEdge: (edgeKey: string, range: LineRange) => void;
   setDismissTarget: (target: DismissTarget | null) => void;
   setEvidenceTarget: (target: EvidenceTarget | null) => void;
   toggleRiskFlag: (flagId: string) => void;
@@ -137,6 +151,14 @@ export type ReviewFlowSessionActions = Pick<
   | "reanchorComment"
 >;
 
+/** What one hunk edge has expanded so far; absent until its first click. */
+export function readExpansion(
+  state: ReviewFlowState,
+  edgeKey: string,
+): LineRange | undefined {
+  return state.expandedEdges.get(edgeKey);
+}
+
 export function initialReviewFlowState(
   posture: ReviewFlowPosture,
 ): ReviewFlowState {
@@ -148,6 +170,7 @@ export function initialReviewFlowState(
     dismissTarget: null,
     evidenceTarget: null,
     expandedConversations: new Map(),
+    expandedEdges: new Map(),
     reviewComment: "",
     selectedRiskFlags: new Set(),
     toast: "",
@@ -284,6 +307,17 @@ export function createReviewFlowStore(
               ),
             );
             return { expandedConversations: next };
+          });
+        },
+        expandEdge(edgeKey, range) {
+          set((state) => {
+            const next = new Map(state.expandedEdges);
+            const widened = unionExpanded(
+              state.expandedEdges.get(edgeKey),
+              range,
+            );
+            next.set(edgeKey, widened);
+            return { expandedEdges: next };
           });
         },
         setDismissTarget(target) {

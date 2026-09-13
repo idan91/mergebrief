@@ -1,4 +1,4 @@
-import type { DiffLine } from "@web/utils/diffTokens/types";
+import { DiffLineKinds, type DiffLine } from "@web/utils/diffTokens/types";
 import {
   isLineCommentAnchor,
   rowId,
@@ -39,6 +39,11 @@ export interface DiffRowView {
   rowAddressedComments: AddressedReviewComment[];
   isSelected: boolean;
   showComposer: boolean;
+  /**
+   * Expanded context came from the file at head, not from the PR diff, and
+   * GitHub rejects a comment on a line the diff does not carry.
+   */
+  isCommentable: boolean;
 }
 
 /**
@@ -123,6 +128,7 @@ export function getDiffRowView({
 
   return {
     id,
+    isCommentable: line.kind !== DiffLineKinds.EXPANDED_CONTEXT,
     revRun,
     revMark,
     isRevStart,

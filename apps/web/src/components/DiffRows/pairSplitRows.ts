@@ -1,4 +1,5 @@
 import { DiffLineKinds, type DiffLine } from "@web/utils/diffTokens/types";
+import { isContextKind } from "@web/utils/diffTokens/utils";
 import { isFullWidthDiffRow } from "./utils";
 import type { SplitCell, SplitRow } from "./types";
 
@@ -24,7 +25,7 @@ export function pairSplitRows(diff: readonly DiffLine[]): SplitRow[] {
       continue;
     }
 
-    if (line.kind === DiffLineKinds.CTX) {
+    if (isContextKind(line.kind)) {
       const cell = { line, index: cursor };
       rows.push({ key: `ctx-${String(cursor)}`, left: cell, right: cell });
       cursor += 1;

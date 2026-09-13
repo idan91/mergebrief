@@ -10,6 +10,7 @@ import {
 import { CommentAnchorKinds } from "types";
 import {
   createReviewFlowStore,
+  readExpansion,
   type ReviewFlowPosture,
   type ReviewFlowSessionActions,
   type ReviewFlowStore,
@@ -61,6 +62,38 @@ describe("ReviewFlow store", () => {
   });
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  describe("hunk edge expansion", () => {
+    it("records the lines an edge just read", () => {
+      store.getState().actions.expandEdge("chunk-a:3:down", {
+        start: 2,
+        end: 21,
+      });
+
+      expect(readExpansion(store.getState(), "chunk-a:3:down")).toEqual({
+        start: 2,
+        end: 21,
+      });
+    });
+
+    it("widens an edge that has already expanded once", () => {
+      const actions = store.getState().actions;
+      actions.expandEdge("chunk-a:3:down", { start: 2, end: 21 });
+      actions.expandEdge("chunk-a:3:down", { start: 22, end: 41 });
+
+      expect(readExpansion(store.getState(), "chunk-a:3:down")).toEqual({
+        start: 2,
+        end: 41,
+      });
+    });
+
+    it("keeps each edge of each chunk apart", () => {
+      const actions = store.getState().actions;
+      actions.expandEdge("chunk-a:3:down", { start: 2, end: 21 });
+
+      expect(readExpansion(store.getState(), "chunk-a:3:up")).toBeUndefined();
+    });
   });
 
   describe("composer", () => {

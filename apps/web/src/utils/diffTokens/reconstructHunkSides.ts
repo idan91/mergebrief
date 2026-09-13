@@ -1,3 +1,4 @@
+import { isContextKind } from "./utils";
 import {
   DiffLineKinds,
   HunkSideNames,
@@ -28,12 +29,12 @@ export function reconstructHunkSides(rows: DiffLine[]): HunkSide[] {
       return;
     }
 
-    if (row.kind === DiffLineKinds.DEL || row.kind === DiffLineKinds.CTX) {
+    if (row.kind === DiffLineKinds.DEL || isContextKind(row.kind)) {
       oldSide.text.push(row.content);
       oldSide.rowIndexes.push(index);
     }
 
-    if (row.kind === DiffLineKinds.ADD || row.kind === DiffLineKinds.CTX) {
+    if (row.kind === DiffLineKinds.ADD || isContextKind(row.kind)) {
       newSide.text.push(row.content);
       newSide.rowIndexes.push(index);
     }

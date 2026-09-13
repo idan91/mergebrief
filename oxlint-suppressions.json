@@ -867,11 +867,6 @@
       "count": 6
     }
   },
-  "apps/web/src/features/brief/queries.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "apps/web/src/features/brief/server/brief.functions.ts": {
     "house/no-em-dash": {
       "count": 1
@@ -1276,11 +1271,6 @@
   "apps/web/src/features/review/session/disposition.ts": {
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "apps/web/src/features/review/session/flow/provider.tsx": {
-    "house/no-em-dash": {
-      "count": 2
     }
   },
   "apps/web/src/features/review/session/snapshot.ts": {

@@ -9,6 +9,15 @@ export {
   sliceChunkDiff,
   splitUnifiedDiffByFile,
 } from "./diffSlicing";
+export {
+  EXPAND_STEP,
+  findExpansionGaps,
+  formatExpansionKey,
+  resolveExpansionWindow,
+  spliceAllExpandedRows,
+  spliceExpandedRows,
+  unionExpanded,
+} from "./expandRows";
 export { resolveLegacyDeltaRedirect } from "./legacyRedirect";
 export {
   GroupViewKinds,

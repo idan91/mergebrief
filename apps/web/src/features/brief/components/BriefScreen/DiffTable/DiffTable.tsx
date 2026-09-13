@@ -273,6 +273,8 @@ export function DiffTable({
     // Read-only revision: composer entry is inert (the affordance itself is
     // aria-disabled with the reason, which guards the activation path).
     if (composerDisabledReason !== undefined) return;
+    // Expanded context is not in the diff, so no comment can anchor to it.
+    if (rowViews[rowIndex]?.isCommentable !== true) return;
     const startIndex = dragStart ?? rowIndex;
     const startSide = dragStart === null ? side : dragSide;
     setDragStart(null);
@@ -299,16 +301,19 @@ export function DiffTable({
         startIndex,
         endIndex,
       );
+      if (!isCommentableRange(indexes)) return null;
       const commentSide =
         startSide === SplitSides.LEFT ? CommentSides.OLD : CommentSides.NEW;
       return createSideAnchor(chunk.id, chunk.file, diff, indexes, commentSide);
     }
-    return createCommentAnchor(
-      chunk.id,
-      chunk.file,
-      diff,
-      rangeBetween(startIndex, endIndex),
-    );
+    const span = rangeBetween(startIndex, endIndex);
+    if (!isCommentableRange(span)) return null;
+    return createCommentAnchor(chunk.id, chunk.file, diff, span);
+  }
+
+  /** One expanded row in a drag refuses the whole range: GitHub takes none. */
+  function isCommentableRange(indexes: readonly number[]): boolean {
+    return indexes.every((index) => rowViews[index]?.isCommentable === true);
   }
 
   const rowViews = chunk.diff.map(buildRowView);
@@ -339,7 +344,8 @@ export function DiffTable({
     side?: SplitSide,
   ): DiffRowAttributes {
     const view = rowViews[index];
-    const commentable = composerDisabledReason === undefined;
+    const commentable =
+      composerDisabledReason === undefined && view?.isCommentable === true;
     const attributes: DiffRowAttributes = {
       commentable,
       focusable: isSideFocusable(line, side),
@@ -410,8 +416,12 @@ export function DiffTable({
         finishSelection(index, side);
       },
     };
-    if (!commentable) {
+    // The reason node only renders on the read-only path, so a row inert for
+    // any other reason must not point at an id nothing renders.
+    if (composerDisabledReason !== undefined) {
       attributes.describedById = composerDisabledReasonId;
+      attributes.disabled = true;
+    } else if (!commentable) {
       attributes.disabled = true;
     }
     return attributes;

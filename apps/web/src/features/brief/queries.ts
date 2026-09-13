@@ -1,11 +1,19 @@
 // Flat at the feature root: it touches server/ and must stay out of the barrels.
-import { queryOptions } from "@tanstack/react-query";
+import { queryOptions, type QueryKey } from "@tanstack/react-query";
+import {
+  MAX_FILE_RANGE_LINES,
+  ProductQueryIds,
+  type FileRangeView,
+} from "contract";
+import { z } from "zod/v4";
 
 import {
   ApiError,
   ApiErrorCodes,
   apiFetch,
   apiJsonFromResponse,
+  errorFromResponse,
+  type ApiErrorCode,
 } from "../../data/apiFetch";
 import {
   getLocalBrief,
@@ -30,7 +38,7 @@ export interface GenerateAccepted {
 }
 
 /**
- * The url-box door: resolve + enqueue with the VIEWER's token — works for
+ * The url-box door: resolve + enqueue with the VIEWER's token: it works for
  * any repo the account can read, no App installation. Generation runs in the
  * worker; the coords point at the repo route, whose meta poll shows progress.
  */
@@ -106,4 +114,128 @@ export function localBriefsQueryOptions() {
     gcTime: Number.POSITIVE_INFINITY,
     retry: false,
   });
+}
+
+const HEAD_SHA = /^[\da-f]{40}$/;
+
+// Annotated, not inferred: the annotation is the compile-time proof that what
+// this parser answers is the shape the contract promises.
+const fileRangeSchema: z.ZodType<FileRangeView> = z
+  .object({
+    path: z.string(),
+    ref: z.string(),
+    from: z.number().int().min(1),
+    to: z.number().int(),
+    lines: z.array(z.string()),
+    totalLines: z.number().int(),
+  })
+  .refine((range) => range.lines.length === range.to - range.from + 1);
+
+export type FileRange = FileRangeView;
+
+export interface FileRangeParams {
+  repoId: string;
+  prNumber: number;
+  /** The head commit sha, 40 hex: the route serves no other ref. */
+  ref: string;
+  path: string;
+  from: number;
+  to: number;
+}
+
+export type FileRangeResult =
+  | { readonly kind: "ready"; readonly range: FileRange }
+  /** `file-too-large`: past the expander's budget; the edge stays folded. */
+  | { readonly kind: "too-large" }
+  /** `file-not-text`: binary or non-utf8, there is nothing to show as lines. */
+  | { readonly kind: "not-text" }
+  /** `file-not-found`: the path is gone at this commit (or never existed). */
+  | { readonly kind: "not-found" }
+  /** Any other refusal: auth, upstream, or a 400 this build cannot name. */
+  | { readonly kind: "unavailable" };
+
+export function fileRangeQueryKey(params: FileRangeParams) {
+  return [
+    ProductQueryIds.READ_FILE_RANGE,
+    params.repoId,
+    params.prNumber,
+    params.ref,
+    params.path,
+    params.from,
+    params.to,
+  ] as const;
+}
+
+/**
+ * One window of one file at the head commit, for hunk-edge expansion. The
+ * read is immutable at a sha, so a window once fetched never goes stale.
+ * Callers gate windows with `isFileRangeReadable` first; the route refuses
+ * the rest as 400, which reads back as `unavailable`.
+ */
+export function fileRangeQueryOptions(params: FileRangeParams) {
+  const queryKey: QueryKey = fileRangeQueryKey(params);
+  return queryOptions({
+    queryKey,
+    queryFn: async (): Promise<FileRangeResult> => {
+      const path = buildFileRangePath(params);
+      const response = await apiFetch(path);
+      if (!response.ok) return await readFileRangeFailure(response, path);
+
+      const body = await apiJsonFromResponse(response, path);
+      const parsed = fileRangeSchema.safeParse(body);
+      if (!parsed.success) {
+        throw new ApiError(ApiErrorCodes.MALFORMED, response.status, path);
+      }
+      return { kind: "ready", range: parsed.data };
+    },
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: 5 * 60 * 1000,
+    retry: false,
+  });
+}
+
+/** Whether this window is one the route will serve at all. */
+export function isFileRangeReadable(params: FileRangeParams): boolean {
+  if (!HEAD_SHA.test(params.ref)) return false;
+  if (params.from < 1 || params.to < params.from) return false;
+
+  return params.to - params.from + 1 <= MAX_FILE_RANGE_LINES;
+}
+
+function buildFileRangePath(params: FileRangeParams): string {
+  const repo = encodeURIComponent(params.repoId);
+  const pull = String(params.prNumber);
+  const query = new URLSearchParams({
+    ref: params.ref,
+    path: params.path,
+    from: String(params.from),
+    to: String(params.to),
+  });
+
+  return `/api/repos/${repo}/pulls/${pull}/file-range?${query.toString()}`;
+}
+
+/** Every refusal this read answers with a reader-facing state of its own. */
+type FileRangeFailure = Exclude<FileRangeResult, { readonly kind: "ready" }>;
+
+const UNAVAILABLE: FileRangeFailure = { kind: "unavailable" };
+
+const FILE_RANGE_FAILURES: Partial<Record<ApiErrorCode, FileRangeFailure>> = {
+  [ApiErrorCodes.FILE_TOO_LARGE]: { kind: "too-large" },
+  [ApiErrorCodes.FILE_NOT_TEXT]: { kind: "not-text" },
+  [ApiErrorCodes.FILE_NOT_FOUND]: { kind: "not-found" },
+};
+
+/**
+ * The CODE names the refusal, not the status: the route answers 400 for a
+ * non-text blob and for a malformed query alike, and only the first has a
+ * reader-facing answer.
+ */
+async function readFileRangeFailure(
+  response: Response,
+  path: string,
+): Promise<FileRangeResult> {
+  const error = await errorFromResponse(response, path);
+
+  return FILE_RANGE_FAILURES[error.code] ?? UNAVAILABLE;
 }

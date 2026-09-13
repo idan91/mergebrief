@@ -14,6 +14,8 @@ export const DiffLineKinds = {
   ADD: "add",
   DEL: "del",
   CTX: "ctx",
+  /** A context row read from the file at the head ref, outside the PR diff. */
+  EXPANDED_CONTEXT: "expanded-context",
   NOTE: "note",
 } as const;
 export type DiffLineKind = ValueOf<typeof DiffLineKinds>;
@@ -192,6 +194,13 @@ export interface ChunkTokensRequest {
   rows: DiffLine[];
   /** The grammars this brief's budget admitted, from `planBriefGrammars`. */
   admitted: ReadonlySet<GrammarName>;
+  /**
+   * Names this chunk's expanded rows. A spliced chunk is a DIFFERENT set of
+   * rows under the same chunk id, and its reply reconstructs both hunk sides
+   * across the seam, so it cannot reuse the unexpanded chunk's reply. Absent
+   * leaves the key byte-identical to a chunk that never expanded.
+   */
+  expansionKey?: string;
 }
 
 /**

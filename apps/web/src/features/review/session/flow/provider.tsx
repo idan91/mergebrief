@@ -21,7 +21,7 @@ const ReviewFlowContext = createContext<ReviewFlowStore | null>(null);
 
 /**
  * Creates the screen's ReviewFlow store (once per mount, never a module
- * singleton). Returned to the HOST component — the screen both provides the
+ * singleton). Returned to the HOST component: the screen both provides the
  * store (via `ReviewFlowProvider`) and subscribes to it directly with
  * `useStore(store, selector)`, since it sits above its own provider. Creation
  * and posture sync are separate hooks because the full posture (post-now
@@ -52,6 +52,7 @@ export function useCreateReviewFlowStore(
       dismissTarget: null,
       evidenceTarget: null,
       expandedConversations: new Map(),
+      expandedEdges: new Map(),
       reviewComment: "",
       selectedRiskFlags: new Set(),
       toast: "",
@@ -63,7 +64,7 @@ export function useCreateReviewFlowStore(
 /**
  * Keeps the store's posture slice in sync with the screen's derived values.
  * Effect-timed (per-field deps): render output reading posture lags the prop
- * by one commit, which only matters within a single frame — every consumer
+ * by one commit, which only matters within a single frame, because every consumer
  * path is interaction-driven, and the fields that affect first paint
  * (read-only reason, flags mirror) are already correct at creation.
  */

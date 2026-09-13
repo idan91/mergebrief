@@ -9,6 +9,7 @@ import { resolveClassId } from "./palette";
 import { derivePrelude } from "./prelude";
 import { reconstructHunkSides } from "./reconstructHunkSides";
 import { MERGEBRIEF_THEME_NAME } from "./theme";
+import { isContextKind } from "./utils";
 import {
   DiffLineKinds,
   TokenizeModes,
@@ -89,7 +90,7 @@ function isCodeDiffRow(row: DiffLine): boolean {
   return (
     row.kind === DiffLineKinds.ADD ||
     row.kind === DiffLineKinds.DEL ||
-    row.kind === DiffLineKinds.CTX
+    isContextKind(row.kind)
   );
 }
 

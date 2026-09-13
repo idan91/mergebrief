@@ -60,3 +60,17 @@ describe("reconstructHunkSides", () => {
     );
   });
 });
+
+describe("reconstructHunkSides with expanded context", () => {
+  it("sends expanded context to both sides like a context row", () => {
+    const sides = reconstructHunkSides([
+      makeRow(DiffLineKinds.EXPANDED_CONTEXT, "const a = 1;"),
+      makeRow(DiffLineKinds.ADD, "keep(a);"),
+    ]);
+
+    expect(sides).toEqual([
+      { side: "old", text: ["const a = 1;"], rowIndexes: [0] },
+      { side: "new", text: ["const a = 1;", "keep(a);"], rowIndexes: [0, 1] },
+    ]);
+  });
+});

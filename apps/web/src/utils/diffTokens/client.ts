@@ -137,12 +137,18 @@ export function requestChunkTokens(
 ): ChunkTokensHandle {
   return requestTokens({
     briefKey: request.briefKey,
-    sourceId: request.chunkId,
+    sourceId: shapeChunkSourceId(request),
     filePath: request.filePath,
     rows: request.rows,
     admitted: request.admitted,
     mode: TokenizeModes.HUNK,
   });
+}
+
+function shapeChunkSourceId(request: ChunkTokensRequest): string {
+  if (request.expansionKey === undefined) return request.chunkId;
+
+  return `${request.chunkId}@${request.expansionKey}`;
 }
 
 /**

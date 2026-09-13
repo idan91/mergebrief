@@ -160,6 +160,34 @@ export interface RevisionChanges {
   files: RevisionChangeFile[];
 }
 
+export const ExpansionDirections = {
+  UP: "up",
+  DOWN: "down",
+} as const;
+export type ExpansionDirection = ValueOf<typeof ExpansionDirections>;
+
+/**
+ * Where expanded context enters a chunk's rows. A chunk's diff is SLICED, so
+ * a gap is not always a hunk boundary: the edge names the insertion point in
+ * the rows the chunk actually carries, which a hunk index cannot.
+ */
+export interface ExpansionEdge {
+  /** Insertion index into the chunk's `diff`. */
+  rowIndex: number;
+  direction: ExpansionDirection;
+}
+
+/** One edge of one hole in a chunk's rows, in head-file line numbers. */
+export interface ExpansionGap {
+  edge: ExpansionEdge;
+  /** First missing line, inclusive. */
+  from: number;
+  /** Last missing line, inclusive; absent where the hole runs to end of file. */
+  to?: number;
+  /** `oldLine - newLine` in force at this edge. */
+  offset: number;
+}
+
 /**
  * @description One short factual note evidencing a risk-surface attribute on
  * a chunk - e.g. the both-sides citation required for
@@ -609,4 +637,42 @@ export interface LocalBriefSummary {
   headIndex?: number | null;
   /** Only populated for `artifactKind: "brief"` entries. */
   comparisons?: ComparisonAvailability;
+}
+
+/** The head-file lines one click asks the file-range read for. */
+export interface ExpansionWindow {
+  from: number;
+  to: number;
+}
+
+export interface ResolveExpansionWindowParams {
+  gap: ExpansionGap;
+  /** Head-file lines this edge has already taken. */
+  expanded?: LineRange;
+  /** Head-file lines another chunk of the same file already renders. */
+  claimed?: readonly LineRange[];
+}
+
+/** A slice of the file at the head ref, as the file-range read returns it. */
+export interface FileRangeSlice {
+  from: number;
+  to: number;
+  lines: readonly string[];
+}
+
+export interface SpliceExpandedRowsParams {
+  diff: readonly DiffLine[];
+  gap: ExpansionGap;
+  range: FileRangeSlice;
+  claimed?: readonly LineRange[];
+  /** The last hole line the sibling read covers; the hole closes together. */
+  coveredTo?: number;
+}
+
+/** One edge's read, ready to splice. */
+export interface ExpansionApplication {
+  gap: ExpansionGap;
+  range: FileRangeSlice;
+  claimed?: readonly LineRange[];
+  coveredTo?: number;
 }

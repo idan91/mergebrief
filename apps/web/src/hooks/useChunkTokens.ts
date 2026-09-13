@@ -1,5 +1,6 @@
 import { requestChunkTokens } from "@web/utils/diffTokens/client";
 import type {
+  ChunkTokensRequest,
   ChunkTokensState,
   DiffLine,
   GrammarName,
@@ -14,18 +15,31 @@ export interface ChunkTokensInput {
   rows: DiffLine[];
   /** The grammars this brief's budget admitted, from `planBriefGrammars`. */
   admitted: ReadonlySet<GrammarName>;
+  /** Names the rows expansion spliced in; absent while the chunk is folded. */
+  expansionKey?: string;
 }
 
 /** Colour for one chunk of one brief, reconstructed from both hunk sides. */
 export function useChunkTokens(input: ChunkTokensInput): ChunkTokensState {
-  const { briefKey, chunkId, filePath, rows, admitted } = input;
+  const { briefKey, chunkId, filePath, rows, admitted, expansionKey } = input;
+  const request: ChunkTokensRequest = {
+    briefKey,
+    chunkId,
+    filePath,
+    rows,
+    admitted,
+  };
+  let requestKey = `${briefKey}:${chunkId}`;
+  if (expansionKey !== undefined) {
+    request.expansionKey = expansionKey;
+    requestKey = `${requestKey}:${expansionKey}`;
+  }
 
   return useTokenRequestState({
-    requestKey: `${briefKey}:${chunkId}`,
+    requestKey,
     filePath,
     rowCount: rows.length,
     admitted,
-    startRequest: () =>
-      requestChunkTokens({ briefKey, chunkId, filePath, rows, admitted }),
+    startRequest: () => requestChunkTokens(request),
   });
 }

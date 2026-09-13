@@ -17,6 +17,7 @@ import {
 } from "@web/components/DiffRows/types";
 import type { DragSelection, RailView, UnderRowLayout } from "./types";
 import { NO_SELECTION } from "./consts";
+import { isContextKind } from "@web/utils/diffTokens/utils";
 
 /** The other side of each paired row, so one rail can speak for both. */
 export function buildPairPartners(
@@ -95,7 +96,7 @@ export function isSideFocusable(
   side: SplitSide | undefined,
 ): boolean {
   if (side === undefined) return true;
-  if (line.kind === DiffLineKinds.CTX) return side === SplitSides.RIGHT;
+  if (isContextKind(line.kind)) return side === SplitSides.RIGHT;
   return true;
 }
 
