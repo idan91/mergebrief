@@ -2,6 +2,13 @@ import { GrammarNames, type DiffLineKind, type GrammarName } from "./types";
 
 export const GRAMMAR_BUDGET_BYTES = 100 * 1024;
 
+/**
+ * How long a row may stay transparent waiting for colour. A worker that
+ * never answers must not leave code invisible, so the row falls back to
+ * plain text at this point.
+ */
+export const PENDING_CEILING_MS = 400;
+
 /** Chunks above this row count are rendered plain, never tokenized. */
 export const CHUNK_ROW_CEILING = 1000;
 

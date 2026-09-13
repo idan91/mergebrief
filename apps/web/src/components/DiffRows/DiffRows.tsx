@@ -1,6 +1,7 @@
 import { Fragment } from "react";
 import { DiffLineKinds, type DiffLine } from "@web/utils/diffTokens/types";
 import { DIFF_LINE_SIGNS } from "@web/utils/diffTokens/consts";
+import { DiffCodeText } from "./DiffCodeText/DiffCodeText";
 import type { DiffRowsProps } from "./types";
 import styles from "./DiffRows.module.scss";
 
@@ -11,6 +12,8 @@ const LINE_NUMBER_COLUMNS = 2;
 
 export function DiffRows({
   rows,
+  tokensByRow,
+  tokensPending = false,
   gutterCell,
   codeTrailer,
   underRow,
@@ -23,7 +26,7 @@ export function DiffRows({
   const columnCount = CODE_COLUMNS + gutterColumns + numberColumns;
 
   return (
-    <tbody>
+    <tbody data-tokens={tokensPending ? "pending" : undefined}>
       {rows.map((row, index) => {
         const key = `${row.kind}-${index}`;
         if (isFullWidthDiffRow(row)) {
@@ -74,7 +77,10 @@ export function DiffRows({
                 <span {...anchorAttributes} className={styles["sign"]}>
                   {DIFF_LINE_SIGNS[row.kind]}
                 </span>
-                {row.content}
+                <DiffCodeText
+                  content={row.content}
+                  tokens={tokensByRow?.get(index)}
+                />
                 {codeTrailer?.(row, index)}
               </td>
             </tr>

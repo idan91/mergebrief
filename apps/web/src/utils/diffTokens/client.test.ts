@@ -92,6 +92,7 @@ function makeTokensReply(requestId: number): TokensReply {
     requestId,
     chunkId: "chunk-1",
     tokensByRow: [[1, [{ text: "const", classId: 4 }]]],
+    tokenizeMs: 3,
   };
 }
 
@@ -183,6 +184,7 @@ describe("requestChunkTokens", () => {
       requestId: readSentRequestId(0),
       chunkId: "chunk-1",
       tokensByRow: ["not a pair"],
+      tokenizeMs: 3,
     });
 
     await expect(handle.promise).resolves.toEqual({

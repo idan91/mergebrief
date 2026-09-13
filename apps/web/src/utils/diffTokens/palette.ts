@@ -11,6 +11,10 @@ export interface SyntaxPaletteEntry {
 
 export const TEXT_CLASS_ID = 0;
 
+// github-dark pairs `markup.ignored` and `carriage-return` with a coloured
+// background we do not render, so their foregrounds are dark-on-dark here
+// (1.5:1 and 1.3:1). They are absent, which resolves them to the row's own
+// text colour rather than to a colour the theme never specified.
 export const SYNTAX_PALETTE = [
   { hex: "#e1e4e8", token: "text" },
   { hex: "#8b949e", token: "comment" },
@@ -23,8 +27,6 @@ export const SYNTAX_PALETTE = [
   { hex: "#fdaeb7", token: "invalid" },
   { hex: "#dbedff", token: "regexp" },
   { hex: "#d1d5da", token: "bracket" },
-  { hex: "#2f363d", token: "ignored" },
-  { hex: "#24292e", token: "carriage-return" },
 ] as const satisfies readonly SyntaxPaletteEntry[];
 
 const CLASS_IDS_BY_HEX: ReadonlyMap<string, number> = new Map(

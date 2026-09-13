@@ -34,13 +34,22 @@ describe("mapTokensToRows", () => {
   it("lets the new side win a context row present on both sides", () => {
     const old = stubSide(HunkSideNames.OLD, ["ctx"], [1]);
     const next = stubSide(HunkSideNames.NEW, ["ctx"], [1]);
+    const oldTokens = [[{ text: "ctx", classId: 1 }]];
+    const newTokens = [[{ text: "ctx", classId: 2 }]];
 
-    const byRow = mapTokensToRows(
-      [old, next],
-      [[makeLine("old")], [makeLine("new")]],
-    );
+    const byRow = mapTokensToRows([old, next], [oldTokens, newTokens]);
 
-    expect(byRow.get(1)).toEqual(makeLine("new"));
+    expect(byRow.get(1)).toEqual(newTokens[0]);
+  });
+
+  it("drops a line whose tokens do not spell the row's text", () => {
+    const side = stubSide(HunkSideNames.NEW, ["const a", "b"], [0, 1]);
+    const lines = [makeLine("const", " a"), makeLine("shifted")];
+
+    const byRow = mapTokensToRows([side], [lines]);
+
+    expect(byRow.get(0)).toEqual(makeLine("const", " a"));
+    expect(byRow.has(1)).toBe(false);
   });
 
   it("skips a row whose side has no tokenized line", () => {

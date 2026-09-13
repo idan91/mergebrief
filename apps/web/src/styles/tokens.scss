@@ -70,6 +70,21 @@
     --color-diff-add-text: #d6efe1;
     --color-diff-del-text: #eed3d3;
 
+    // Syntax palette: one token per colour the diff tokenizer can emit, in
+    // the palette's own order. The syntaxTokens test holds both sides in
+    // lockstep; comment grey is the AA-lifted value, not github-dark's.
+    --syn-text: #e1e4e8;
+    --syn-comment: #8b949e;
+    --syn-constant: #79b8ff;
+    --syn-entity: #b392f0;
+    --syn-keyword: #f97583;
+    --syn-string: #9ecbff;
+    --syn-tag: #85e89d;
+    --syn-variable: #ffab70;
+    --syn-invalid: #fdaeb7;
+    --syn-regexp: #dbedff;
+    --syn-bracket: #d1d5da;
+
     // Near-white fill for solid indicators (progress bar, concern dot).
     // Earned: folding into --color-text-1 (Δ~20) would visibly brighten both.
     --color-fill-bright: #d8d8de;

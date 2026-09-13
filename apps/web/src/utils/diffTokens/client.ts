@@ -69,6 +69,14 @@ let nextRequestId = 0;
  * failed once is never rebuilt: colour is an enhancement, and a restart loop
  * would leave every later chunk waiting on a reply it never gets.
  */
+/**
+ * Synchronous so a first render can already read plain where no worker will
+ * ever answer: SSR, jsdom, or a worker that has failed for the session.
+ */
+export function canTokenizeChunks(): boolean {
+  return typeof Worker !== "undefined" && !workerFailed;
+}
+
 export function getDiffTokenWorker(): DiffTokenWorkerHandle {
   if (typeof Worker === "undefined") return undefined;
   if (workerFailed) return undefined;
@@ -182,6 +190,11 @@ function buildChunkKey(briefKey: string, chunkId: string): string {
 // Two phases: collect, then drop. Releasing a record deletes from the map
 // being walked.
 function evictOtherBriefs(briefKey: string): void {
+  // The reader left this brief, so its tokenize measures have no consumer.
+  // Clearing here bounds a long session without emptying the buffer the perf
+  // harness reads for the brief it is measuring.
+  clearTokenizeMeasures();
+
   const staleResults: string[] = [];
   for (const [key, entry] of settledResults) {
     if (entry.briefKey !== briefKey) staleResults.push(key);
@@ -299,6 +312,27 @@ function receiveReply(data: unknown): void {
     });
   }
   record.settle(result);
+  recordTokenTiming(envelope.data);
+}
+
+const TOKENIZE_MEASURE = "diff-tokens:tokenize";
+
+function clearTokenizeMeasures(): void {
+  if (typeof performance.clearMeasures !== "function") return;
+
+  performance.clearMeasures(TOKENIZE_MEASURE);
+}
+
+// Performance entries are the one channel the perf harness can read a
+// worker-side duration through; a runtime without measure() skips them.
+function recordTokenTiming(reply: ReplyEnvelope): void {
+  if (reply.kind !== TokenMessageKinds.TOKENS) return;
+  if (typeof performance.measure !== "function") return;
+
+  performance.measure(TOKENIZE_MEASURE, {
+    start: performance.now() - reply.tokenizeMs,
+    duration: reply.tokenizeMs,
+  });
 }
 
 /**

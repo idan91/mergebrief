@@ -41,11 +41,10 @@ import {
   type RevisionNarrativeChunk,
   type RiskNote,
   type RiskToken,
-  type ValueOf,
 } from "../types";
 
 import { NAME_MAX_CHARS, NAME_PATTERN } from "./repoConfig";
-import type { Mutable, Result as SharedResult } from "types";
+import type { Mutable, Result as SharedResult, ValueOf } from "types";
 
 /** Shared `Result` with this module's fixed error type (a message string). */
 export type Result<T> = SharedResult<T, string>;

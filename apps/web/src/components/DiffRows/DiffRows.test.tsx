@@ -163,4 +163,27 @@ describe("DiffRows", () => {
 
     expect(gutters).toHaveLength(rows.length - fullWidth);
   });
+
+  it("paints a row's tokens as spans keyed by its row index", () => {
+    const tokensByRow = new Map([[3, [{ text: "fresh", classId: 4 }]]]);
+    const view = renderRows({ tokensByRow });
+    const rows = view.container.querySelectorAll("tr[data-line-kind]");
+    const painted = rows[3]?.querySelectorAll('span[class*="syn-"]') ?? [];
+    const plain = rows[2]?.querySelectorAll('span[class*="syn-"]') ?? [];
+
+    expect(painted).toHaveLength(1);
+    expect(painted[0]?.textContent).toBe("fresh");
+    expect(plain).toHaveLength(0);
+  });
+
+  it("marks the body pending while tokens are on their way", () => {
+    const view = renderRows({ tokensPending: true });
+
+    expect(view.container.querySelector("tbody")?.dataset["tokens"]).toBe(
+      "pending",
+    );
+    expect(
+      renderRows().container.querySelector("tbody")?.dataset["tokens"],
+    ).toBe(undefined);
+  });
 });

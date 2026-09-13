@@ -55,6 +55,7 @@ export const tokensReplySchema = z.object({
   requestId: requestIdSchema,
   chunkId: z.string(),
   tokensByRow: z.array(rowTokenEntrySchema),
+  tokenizeMs: z.number().nonnegative(),
 });
 
 export const failedReplySchema = z.object({
@@ -78,6 +79,7 @@ export const replyEnvelopeSchema = z.discriminatedUnion("kind", [
     kind: z.literal(TokenMessageKinds.TOKENS),
     requestId: requestIdSchema,
     chunkId: z.string(),
+    tokenizeMs: z.number().nonnegative(),
   }),
   failedReplySchema,
 ]);

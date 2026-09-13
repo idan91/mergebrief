@@ -18,6 +18,9 @@
 
     // Hover deepens the row's OWN hue — grey over green/red is invisible.
     --row-hue: var(--text);
+
+    // Earned: a 2px edge in the row's own hue, so a changed block reads as one.
+    --change-edge-bar: inset 2px 0 0 var(--row-hue);
     --row-hover-tint: 6%;
 
     &[data-line-kind="add"] {
@@ -28,6 +31,7 @@
 
       .code {
         color: var(--color-diff-add-text);
+        box-shadow: var(--change-edge-bar);
       }
 
       // 45% measured 2.7:1 against the added-row tint — a WCAG 1.4.3 failure.
@@ -45,6 +49,7 @@
 
       .code {
         color: var(--color-diff-del-text);
+        box-shadow: var(--change-edge-bar);
       }
 
       // Same measurement as the added-row gutter above: 40% read at 2.1:1,
@@ -134,6 +139,7 @@
   .sign {
     display: inline-block;
     inline-size: functions.to-rem(16px);
+    color: var(--row-hue);
     opacity: 0.6;
 
     // Comment anchor like the gutter.
@@ -144,5 +150,13 @@
     // stylelint-disable-next-line property-no-vendor-prefix
     -webkit-user-select: none;
     user-select: none;
+  }
+}
+
+@layer components {
+  // Colour before render: the rows exist, threads and height included, and
+  // only the code text waits for its tokens, so nothing repaints uncoloured.
+  tbody[data-tokens="pending"] .line .code {
+    color: transparent;
   }
 }

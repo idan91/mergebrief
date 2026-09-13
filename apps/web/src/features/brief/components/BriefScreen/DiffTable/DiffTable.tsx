@@ -52,6 +52,7 @@ import {
   resolveStrandedRows,
   type DiffRowView,
 } from "./diffRowView";
+import type { RowTokenMap } from "@web/utils/diffTokens/types";
 import {
   DiffRows,
   isFullWidthDiffRow,
@@ -88,9 +89,14 @@ export interface DiffTableProps {
    * brief chunk id, so the store's chunk-keyed reads must not apply.
    */
   readOnlyReason?: string | undefined;
+  /** Syntax tokens keyed by row index; absent renders every row plain. */
+  tokensByRow?: RowTokenMap | undefined;
+  tokensPending?: boolean;
 }
 
 export function DiffTable({
+  tokensByRow,
+  tokensPending = false,
   chunk,
   comparisonView,
   comparisonSource,
@@ -482,6 +488,8 @@ export function DiffTable({
           </ScreenReaderOnly>
           <DiffRows
             rows={chunk.diff}
+            tokensByRow={tokensByRow}
+            tokensPending={tokensPending}
             anchorAttributes={COMMENT_ANCHOR_ATTRIBUTES}
             codeTrailer={buildCodeTrailer}
             gutterCell={buildGutterCell}

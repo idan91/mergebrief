@@ -1,7 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { useLatestRef } from "@web/hooks/useLatestRef";
-import { requestChunkTokens } from "@web/utils/diffTokens/client";
+import {
+  canTokenizeChunks,
+  requestChunkTokens,
+} from "@web/utils/diffTokens/client";
 import { resolveGrammar } from "@web/utils/diffTokens/grammarMap";
 import {
   ChunkTokenStatuses,
@@ -11,6 +14,7 @@ import {
   type DiffLine,
   type GrammarName,
 } from "@web/utils/diffTokens/types";
+import { PENDING_CEILING_MS } from "@web/utils/diffTokens/consts";
 import { isChunkTokenizable } from "@web/utils/diffTokens/utils";
 
 export interface ChunkTokensInput {
@@ -56,19 +60,36 @@ export function useChunkTokens(input: ChunkTokensInput): ChunkTokensState {
   const { briefKey, chunkId, filePath, rows, admitted } = input;
   const chunkKey = `${briefKey}:${chunkId}`;
   const rowCount = rows.length;
-  const tokenizable = isTokenizableChunk(filePath, rowCount, admitted);
+  const workerAvailable = useSyncExternalStore(
+    subscribeToNothing,
+    canTokenizeChunks,
+    readServerSnapshot,
+  );
+  const tokenizable =
+    workerAvailable && isTokenizableChunk(filePath, rowCount, admitted);
   const [settled, setSettled] = useState<SettledChunkTokens>(NOTHING_SETTLED);
   // The client does not cache a grammar-load failure so the next request can
   // retry; settling plain here would spend that chance without taking it.
   // Counted per chunk: a card the virtualizer reuses starts its retry fresh.
   const [retry, setRetry] = useState<ChunkRetry>(NO_RETRY);
   const attempt = retry.chunkKey === chunkKey ? retry.attempt : 0;
+  // A worker that never answers must not leave the row transparent: past the
+  // ceiling the chunk reads plain, whatever the reply would have been.
+  const [lapsed, setLapsed] = useState<string | undefined>(undefined);
 
   // A chunk's rows never change in place, so the chunk key plus the row count
   // identifies the request. Depending on the array and the Set themselves
   // would cancel and re-post on every render an unmemoized caller makes.
   const latestRows = useLatestRef(rows);
   const latestAdmitted = useLatestRef(admitted);
+
+  useEffect(() => {
+    if (!tokenizable || settled.chunkKey === chunkKey) return undefined;
+
+    const ceiling = setTimeout(() => setLapsed(chunkKey), PENDING_CEILING_MS);
+
+    return () => clearTimeout(ceiling);
+  }, [chunkKey, settled.chunkKey, tokenizable]);
 
   useEffect(() => {
     if (!tokenizable) return undefined;
@@ -115,8 +136,9 @@ export function useChunkTokens(input: ChunkTokensInput): ChunkTokensState {
   ]);
 
   if (!tokenizable) return PLAIN_STATE;
+  if (settled.chunkKey === chunkKey) return settled.state;
 
-  return settled.chunkKey === chunkKey ? settled.state : PENDING_STATE;
+  return lapsed === chunkKey ? PLAIN_STATE : PENDING_STATE;
 }
 
 function isTokenizableChunk(
@@ -141,4 +163,15 @@ function shapeState(result: ChunkTokensResult): ChunkTokensState {
   if (result.status === ChunkTokenStatuses.READY) return result;
 
   return PLAIN_STATE;
+}
+
+// The worker's availability never changes under React, so nothing to
+// subscribe to; the server snapshot is false so hydration paints plain
+// first and the client re-renders into pending on its own.
+function subscribeToNothing(): () => void {
+  return () => undefined;
+}
+
+function readServerSnapshot(): boolean {
+  return false;
 }

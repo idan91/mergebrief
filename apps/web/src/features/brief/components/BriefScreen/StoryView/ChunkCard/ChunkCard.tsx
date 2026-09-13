@@ -37,6 +37,9 @@ import {
 import { InlineThreads } from "@web/features/conversation";
 import type { ThreadComposerWiring } from "@web/features/conversation";
 import { DiffTable } from "../../DiffTable/DiffTable";
+import { useTokenPlan } from "../../tokenPlan";
+import { useChunkTokens } from "@web/hooks/useChunkTokens";
+import { ChunkTokenStatuses, type DiffLine } from "@web/utils/diffTokens/types";
 import { useReadingPosition } from "../../readingPosition";
 import styles from "./ChunkCard.module.scss";
 
@@ -119,6 +122,8 @@ function isSameSnapshot(
   );
 }
 
+const NO_ROWS: DiffLine[] = [];
+
 export const ChunkCard = memo(function ChunkCard({
   chunk,
   comparison,
@@ -158,6 +163,20 @@ export const ChunkCard = memo(function ChunkCard({
     chunkOpen: open,
     toggleChunk,
   });
+  const tokenPlan = useTokenPlan();
+  const diffRows = chunk.diff ?? NO_ROWS;
+  const chunkTokens = useChunkTokens({
+    briefKey: tokenPlan.briefKey,
+    chunkId: chunk.id,
+    filePath: chunk.file,
+    rows: open ? diffRows : NO_ROWS,
+    admitted: tokenPlan.admitted,
+  });
+  const diffPending = chunkTokens.status === ChunkTokenStatuses.PENDING;
+  const tokensByRow =
+    chunkTokens.status === ChunkTokenStatuses.READY
+      ? chunkTokens.tokensByRow
+      : undefined;
   const addFileCommentLabel = t("brief.chunk.ariaLabelAddFileComment", {
     file: chunk.file,
   });
@@ -379,6 +398,8 @@ export const ChunkCard = memo(function ChunkCard({
             />
           ) : null}
           <DiffTable
+            tokensByRow={tokensByRow}
+            tokensPending={diffPending}
             conversationComposer={conversationComposer}
             conversationThreadsByRow={conversationSplit.byRow}
             addressedComments={inlineReviewComments}

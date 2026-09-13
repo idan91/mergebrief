@@ -1,5 +1,5 @@
 import type { KeyboardEventHandler, MouseEventHandler, ReactNode } from "react";
-import type { DiffLine } from "@web/utils/diffTokens/types";
+import type { DiffLine, RowTokenMap } from "@web/utils/diffTokens/types";
 
 /** Content a composer hangs off one row, given that row and its index. */
 export type DiffRowSlot = (row: DiffLine, index: number) => ReactNode;
@@ -36,6 +36,10 @@ export type DiffRowAttributeSlot = (
 
 export interface DiffRowsProps {
   rows: DiffLine[];
+  /** Syntax tokens keyed by row index; a row without an entry renders plain. */
+  tokensByRow?: RowTokenMap | undefined;
+  /** Tokens are on their way: the code text holds its space but stays unpainted. */
+  tokensPending?: boolean;
   /**
    * Leading cell per row: exactly one `<td>` for every row that has columns,
    * never null, because the column count is fixed for the whole table. Rows

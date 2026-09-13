@@ -36,6 +36,7 @@ const TOKENS_REPLY: TokensReply = {
   requestId: 3,
   chunkId: "chunk-1",
   tokensByRow: [[1, [{ text: "const", classId: 4 }]]],
+  tokenizeMs: 3,
 };
 
 describe("workerRequestSchema", () => {
@@ -95,6 +96,7 @@ describe("replyEnvelopeSchema", () => {
       kind: TokenMessageKinds.TOKENS,
       requestId: 3,
       chunkId: "chunk-1",
+      tokenizeMs: 3,
     });
   });
 
@@ -145,6 +147,7 @@ describe("workerReplySchema", () => {
     const parsed = workerReplySchema.safeParse({
       ...TOKENS_REPLY,
       tokensByRow: [[1]],
+      tokenizeMs: 3,
     });
 
     expect(parsed.success).toBe(false);
@@ -155,6 +158,7 @@ describe("workerReplySchema", () => {
       kind: TokenMessageKinds.TOKENS,
       chunkId: "chunk-1",
       tokensByRow: [],
+      tokenizeMs: 3,
     });
 
     expect(parsed.success).toBe(false);

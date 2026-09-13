@@ -1,0 +1,45 @@
+@layer components {
+  .syn-text {
+    color: var(--syn-text);
+  }
+
+  .syn-comment {
+    color: var(--syn-comment);
+  }
+
+  .syn-constant {
+    color: var(--syn-constant);
+  }
+
+  .syn-entity {
+    color: var(--syn-entity);
+  }
+
+  .syn-keyword {
+    color: var(--syn-keyword);
+  }
+
+  .syn-string {
+    color: var(--syn-string);
+  }
+
+  .syn-tag {
+    color: var(--syn-tag);
+  }
+
+  .syn-variable {
+    color: var(--syn-variable);
+  }
+
+  .syn-invalid {
+    color: var(--syn-invalid);
+  }
+
+  .syn-regexp {
+    color: var(--syn-regexp);
+  }
+
+  .syn-bracket {
+    color: var(--syn-bracket);
+  }
+}

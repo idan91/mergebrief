@@ -12,6 +12,12 @@ const DEFAULT_TEXT = "#e1e4e8";
 // and is the only colour here that github-dark does not already ship.
 const RECOLOURED: Record<string, string> = {
   "#6a737d": "#8b949e",
+  // github-dark pairs these two with a coloured background (blue for an
+  // ignored line, red for a carriage return) that a diff row does not paint,
+  // so on our ground they measure 1.5:1 and 1.3:1. They take the row's own
+  // text colour rather than a lifted one the theme never specified.
+  "#2f363d": DEFAULT_TEXT,
+  "#24292e": DEFAULT_TEXT,
 };
 
 type ThemeRule = NonNullable<ThemeRegistrationRaw["tokenColors"]>[number];

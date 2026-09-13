@@ -18,7 +18,10 @@ const { requestChunkTokens, cancel } = vi.hoisted(() => ({
   cancel: vi.fn(),
 }));
 
-vi.mock("@web/utils/diffTokens/client", () => ({ requestChunkTokens }));
+vi.mock("@web/utils/diffTokens/client", () => ({
+  canTokenizeChunks: () => true,
+  requestChunkTokens,
+}));
 
 const TS_ROWS: DiffLine[] = [
   { kind: DiffLineKinds.HUNK, content: "@@ -1 +1 @@" },

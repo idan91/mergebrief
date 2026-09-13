@@ -127,13 +127,16 @@ async function runTokenize(
   if (readCancelled(request.requestId)) return undefined;
 
   try {
+    const startedAt = performance.now();
     const byRow = tokenizeChunkRows(highlighter, request.rows, request.grammar);
+    const tokenizeMs = performance.now() - startedAt;
 
     return {
       kind: TokenMessageKinds.TOKENS,
       requestId: request.requestId,
       chunkId: request.chunkId,
       tokensByRow: [...byRow.entries()],
+      tokenizeMs,
     };
   } catch {
     return shapeFailure(request, TokenFailureReasons.TOKENIZE);

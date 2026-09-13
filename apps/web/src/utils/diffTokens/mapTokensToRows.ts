@@ -8,7 +8,9 @@ import {
 /**
  * `tokensBySide[i]` holds the tokenized lines of `sides[i]` in `text` order.
  * The old side is read first whatever order the caller passes, so a context
- * row present on both always ends up carrying the new side's tokens.
+ * row present on both always ends up carrying the new side's tokens. A line
+ * whose tokens do not spell the row's own text is dropped, so a misaligned
+ * side never paints another row's code.
  */
 export function mapTokensToRows(
   sides: HunkSide[],
@@ -24,7 +26,9 @@ export function mapTokensToRows(
 
     side.rowIndexes.forEach((rowIndex, lineIndex) => {
       const line = lines[lineIndex];
-      if (line !== undefined) byRow.set(rowIndex, line);
+      const text = side.text[lineIndex];
+      if (line !== undefined && spellsText(line, text))
+        byRow.set(rowIndex, line);
     });
   }
 
@@ -42,4 +46,13 @@ function rankOldSideFirst(sides: readonly HunkSide[]): number[] {
 
 function rankSide(sides: readonly HunkSide[], index: number): number {
   return sides[index]?.side === HunkSideNames.OLD ? 0 : 1;
+}
+
+function spellsText(line: RowTokenLine, text: string | undefined): boolean {
+  if (text === undefined) return false;
+
+  let joined = "";
+  for (const token of line) joined += token.text;
+
+  return joined === text;
 }
