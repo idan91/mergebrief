@@ -1,6 +1,5 @@
 // Closure-free BriefScreen logic: derivations extracted from the screen/hooks
 // so they are unit-testable directly, without rendering.
-import type { DiffLineKind } from "@web/utils/diffTokens/types";
 import type { TFunction } from "i18next";
 import type { TranslationKey } from "i18n";
 import type { ValueOf } from "types";
@@ -159,15 +158,6 @@ export function deriveBriefProgress(input: DeriveBriefProgressInput): number {
     : totals.reviewed + totals.flagsResolved;
   return totalWork === 0 ? 0 : (done / totalWork) * 100;
 }
-
-/** The gutter sign of a diff row; hunk, context and note rows carry a space. */
-export const DIFF_LINE_SIGNS: Record<DiffLineKind, string> = {
-  add: "+",
-  del: "−",
-  ctx: " ",
-  hunk: " ",
-  note: " ",
-};
 
 export interface LocalComparisonIds {
   marksId: string | undefined;

@@ -1,11 +1,12 @@
+import type { DiffLine } from "@web/utils/diffTokens/types";
 import { useTranslation } from "react-i18next";
 import {
-  Fragment,
   useEffect,
   useId,
   useMemo,
   useState,
   type CSSProperties,
+  type ReactNode,
 } from "react";
 import { useShallow } from "zustand/react/shallow";
 
@@ -46,7 +47,16 @@ import type {
 import { ComparisonCallout } from "./ComparisonCallout/ComparisonCallout";
 import { RevisionGutterCell } from "./RevisionGutterCell/RevisionGutterCell";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
-import { getDiffRowView, resolveStrandedRows } from "./diffRowView";
+import {
+  getDiffRowView,
+  resolveStrandedRows,
+  type DiffRowView,
+} from "./diffRowView";
+import {
+  DiffRows,
+  isFullWidthDiffRow,
+} from "@web/components/DiffRows/DiffRows";
+import type { DiffRowAttributes } from "@web/components/DiffRows/types";
 import styles from "./DiffTable.module.scss";
 
 // csstype's CSSProperties has no `--*` index; a typed extension keeps the
@@ -56,6 +66,9 @@ interface DiffViewportStyle extends CSSProperties {
 }
 
 const EMPTY_REVIEW_COMMENTS: never[] = [];
+
+/** Marks the cells range anchoring may start from, read by the row handlers. */
+const COMMENT_ANCHOR_ATTRIBUTES = { "data-comment-anchor": "" };
 const EMPTY_EXPANDED_THREADS: ReadonlySet<number> = new Set();
 
 export interface DiffTableProps {
@@ -215,7 +228,6 @@ export function DiffTable({
   const handleToggleConversationThread = (threadId: number) =>
     toggleConversationThread(chunkKey, threadId);
   const overlayActive = comparisonView.runs.length > 0;
-  const metaColSpan = 4;
 
   function finishSelection(rowIndex: number) {
     // Read-only revision: composer entry is inert (the affordance itself is
@@ -232,6 +244,208 @@ export function DiffTable({
       indexes,
     );
     if (anchor) openComposer(anchor);
+  }
+
+  const rowViews = chunk.diff.map(buildRowView);
+
+  function buildRowView(
+    line: DiffLine,
+    index: number,
+  ): DiffRowView | undefined {
+    if (isFullWidthDiffRow(line)) return undefined;
+    return getDiffRowView({
+      line,
+      index,
+      chunk,
+      overlayActive,
+      comparisonView,
+      comments,
+      addressedComments,
+      dragIndexes,
+      activeRowIds,
+      activeCommentAnchor,
+      strandedRowIds,
+    });
+  }
+
+  function buildRowAttributes(
+    _line: DiffLine,
+    index: number,
+  ): DiffRowAttributes {
+    const view = rowViews[index];
+    const commentable = composerDisabledReason === undefined;
+    const attributes: DiffRowAttributes = {
+      commentable,
+      focusable: true,
+      revision: view?.revMark,
+      selected: view?.isSelected === true,
+      onKeyDown: (event) => {
+        if (event.key === "Enter") finishSelection(index);
+      },
+      onMouseDown: (event) => {
+        if (!commentable) return;
+        // Range anchoring starts from a comment anchor, the line-number
+        // gutter or the +/− sign column, never the code text, which stays
+        // natively selectable.
+        if (
+          !(event.target instanceof Element) ||
+          event.target.closest("[data-comment-anchor]") === null
+        ) {
+          return;
+        }
+        // Anchoring intent: drop any stale text selection, preventDefault
+        // keeps it alive otherwise, and it would trip the mouseup
+        // suppression guard.
+        window.getSelection()?.removeAllRanges();
+        event.preventDefault();
+        setDragStart(index);
+        setDragCurrent(index);
+      },
+      onMouseEnter: () => {
+        if (dragStart !== null) setDragCurrent(index);
+      },
+      onMouseUp: (event) => {
+        // A gutter-initiated drag is unambiguous comment intent (the gutter
+        // mousedown cleared any selection).
+        if (dragStart !== null) {
+          finishSelection(index);
+          return;
+        }
+        // Plain mouseup: composer entry is anchor-only (gutter or sign
+        // column), the code text is reserved for selection, so a
+        // double-click word-select never pops the composer. Keyboard entry
+        // stays row-level (Enter).
+        if (
+          !(event.target instanceof Element) ||
+          event.target.closest("[data-comment-anchor]") === null
+        ) {
+          return;
+        }
+        // A text-selection drag released over the gutter: if either endpoint
+        // of a non-collapsed selection touches this table, the reviewer was
+        // selecting text.
+        const selection = window.getSelection();
+        const table = event.currentTarget.closest("table");
+        if (
+          selection &&
+          !selection.isCollapsed &&
+          table !== null &&
+          (table.contains(selection.anchorNode) ||
+            table.contains(selection.focusNode))
+        ) {
+          return;
+        }
+        finishSelection(index);
+      },
+    };
+    if (!commentable) {
+      attributes.describedById = composerDisabledReasonId;
+      attributes.disabled = true;
+    }
+    return attributes;
+  }
+
+  function buildGutterCell(_line: DiffLine, index: number): ReactNode {
+    const view = rowViews[index];
+    return (
+      <RevisionGutterCell
+        run={overlayActive ? view?.revRun : undefined}
+        isStart={view?.isRevStart === true}
+        isEnd={view?.isRevEnd === true}
+        chunk={chunk}
+        onRailEnter={handleRailEnter}
+        onRailLeave={handleRailLeave}
+      />
+    );
+  }
+
+  function buildCodeTrailer(_line: DiffLine, index: number): ReactNode {
+    const view = rowViews[index];
+    if (view === undefined || !view.isRevStart || !view.revRun) return null;
+    const label =
+      view.revRun.kind === "removed"
+        ? t("brief.diff.revRemoved")
+        : t("brief.diff.revNew");
+    return (
+      <span className={styles["newTag"]} data-kind={view.revRun.kind}>
+        {label}
+      </span>
+    );
+  }
+
+  function buildUnderRow(
+    _line: DiffLine,
+    index: number,
+    columnCount: number,
+  ): ReactNode {
+    const view = rowViews[index];
+    if (view === undefined) return null;
+    const conversationRows = conversationThreadsByRow?.get(index) ?? [];
+    return (
+      <>
+        {view.showComposer && activeCommentAnchor ? (
+          <tr className={styles["commentRow"]}>
+            <td colSpan={columnCount}>
+              <CommentComposer
+                anchor={activeCommentAnchor}
+                cancel={cancelComposer}
+                saving={composerSaving}
+                mentionCandidates={conversationComposer?.mentionPool}
+                save={saveComment}
+              />
+            </td>
+          </tr>
+        ) : null}
+        {view.rowComments.map((comment) => (
+          <tr className={styles["commentRow"]} key={comment.id}>
+            <td colSpan={columnCount}>
+              <CommentThread
+                comment={comment}
+                deleteComment={deleteComment}
+                mentionCandidates={conversationComposer?.mentionPool}
+                post={postReviewComment}
+                posting={postingCommentIds.includes(comment.id)}
+                postBlockedExternally={postBlockedExternally}
+                toggle={toggleComment}
+                update={updateComment}
+              />
+            </td>
+          </tr>
+        ))}
+        {conversationRows.map((row) =>
+          conversationComposer !== undefined ? (
+            <tr
+              className={styles["commentRow"]}
+              // Addressable target for the digest's "Jump to comment"
+              // (BriefPage descends to this row).
+              data-conversation-thread={row.thread.rootCommentId}
+              key={`conversation-${row.thread.rootCommentId}`}
+            >
+              <td colSpan={columnCount}>
+                <ThreadRowView
+                  composer={conversationComposer}
+                  expanded={expandedConversation.has(row.thread.rootCommentId)}
+                  hideJump
+                  jumpToChunk={noJump}
+                  row={row}
+                  toggle={handleToggleConversationThread}
+                />
+              </td>
+            </tr>
+          ) : null,
+        )}
+        {view.rowAddressedComments.map((comment) => (
+          <tr className={styles["commentRow"]} key={`addressed-${comment.id}`}>
+            <td colSpan={columnCount}>
+              <AddressedDiffComment
+                comment={comment}
+                label={reviewCommentLabel}
+              />
+            </td>
+          </tr>
+        ))}
+      </>
+    );
   }
 
   const viewportStyle: DiffViewportStyle = {
@@ -266,229 +480,14 @@ export function DiffTable({
               <th scope="col">{t("brief.diff.colContent")}</th>
             </tr>
           </ScreenReaderOnly>
-          <tbody>
-            {chunk.diff.map((line, index) => {
-              if (line.kind === "hunk" || line.kind === "note") {
-                return (
-                  <tr
-                    className={styles["line"]}
-                    data-line-kind={line.kind}
-                    key={`${line.kind}-${index}`}
-                  >
-                    <td colSpan={metaColSpan}>{line.content}</td>
-                  </tr>
-                );
-              }
-              const {
-                sign,
-                revRun,
-                revMark,
-                isRevStart,
-                isRevEnd,
-                rowComments,
-                rowAddressedComments,
-                isSelected,
-                showComposer,
-              } = getDiffRowView({
-                line,
-                index,
-                chunk,
-                overlayActive,
-                comparisonView,
-                comments,
-                addressedComments,
-                dragIndexes,
-                activeRowIds,
-                activeCommentAnchor,
-                strandedRowIds,
-              });
-              return (
-                <Fragment key={`${line.kind}-${index}`}>
-                  <tr
-                    aria-describedby={
-                      composerDisabledReason !== undefined
-                        ? composerDisabledReasonId
-                        : undefined
-                    }
-                    aria-disabled={
-                      composerDisabledReason !== undefined ? true : undefined
-                    }
-                    className={styles["line"]}
-                    data-commentable={
-                      composerDisabledReason === undefined ? "" : undefined
-                    }
-                    data-line-kind={line.kind}
-                    data-rev={revMark}
-                    data-selected={isSelected ? "" : undefined}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") finishSelection(index);
-                    }}
-                    onMouseDown={(event) => {
-                      if (composerDisabledReason !== undefined) return;
-                      // Range anchoring starts from a comment anchor, the
-                      // line-number gutter or the +/− sign column, never
-                      // the code text, which stays natively selectable.
-                      if (
-                        !(event.target instanceof Element) ||
-                        event.target.closest("[data-comment-anchor]") === null
-                      ) {
-                        return;
-                      }
-                      // Anchoring intent: drop any stale text selection,
-                      // preventDefault keeps it alive otherwise, and it
-                      // would trip the mouseup suppression guard.
-                      window.getSelection()?.removeAllRanges();
-                      event.preventDefault();
-                      setDragStart(index);
-                      setDragCurrent(index);
-                    }}
-                    onMouseEnter={() => {
-                      if (dragStart !== null) setDragCurrent(index);
-                    }}
-                    onMouseUp={(event) => {
-                      // A gutter-initiated drag is unambiguous comment
-                      // intent (the gutter mousedown cleared any selection).
-                      if (dragStart !== null) {
-                        finishSelection(index);
-                        return;
-                      }
-                      // Plain mouseup: composer entry is anchor-only (gutter
-                      // or sign column), the code text is reserved for
-                      // selection, so a double-click word-select never pops
-                      // the composer. Keyboard entry stays row-level (Enter).
-                      if (
-                        !(event.target instanceof Element) ||
-                        event.target.closest("[data-comment-anchor]") === null
-                      ) {
-                        return;
-                      }
-                      // A text-selection drag released over the gutter: if
-                      // either endpoint of a non-collapsed selection touches
-                      // this table, the reviewer was selecting text.
-                      const selection = window.getSelection();
-                      const table = event.currentTarget.closest("table");
-                      if (
-                        selection &&
-                        !selection.isCollapsed &&
-                        table !== null &&
-                        (table.contains(selection.anchorNode) ||
-                          table.contains(selection.focusNode))
-                      ) {
-                        return;
-                      }
-                      finishSelection(index);
-                    }}
-                    tabIndex={0}
-                  >
-                    <RevisionGutterCell
-                      run={overlayActive ? revRun : undefined}
-                      isStart={isRevStart}
-                      isEnd={isRevEnd}
-                      chunk={chunk}
-                      onRailEnter={handleRailEnter}
-                      onRailLeave={handleRailLeave}
-                    />
-                    <td
-                      className={styles["lineNumber"]}
-                      data-comment-anchor=""
-                      data-line-number=""
-                    >
-                      {line.oldLine ?? ""}
-                    </td>
-                    <td
-                      className={styles["lineNumber"]}
-                      data-comment-anchor=""
-                      data-line-number=""
-                    >
-                      {line.newLine ?? ""}
-                    </td>
-                    <td className={styles["code"]}>
-                      <span className={styles["sign"]} data-comment-anchor="">
-                        {sign}
-                      </span>
-                      {line.content}
-                      {isRevStart && revRun ? (
-                        <span
-                          className={styles["newTag"]}
-                          data-kind={revRun.kind}
-                        >
-                          {revRun.kind === "removed"
-                            ? t("brief.diff.revRemoved")
-                            : t("brief.diff.revNew")}
-                        </span>
-                      ) : null}
-                    </td>
-                  </tr>
-                  {showComposer && activeCommentAnchor ? (
-                    <tr className={styles["commentRow"]}>
-                      <td colSpan={metaColSpan}>
-                        <CommentComposer
-                          anchor={activeCommentAnchor}
-                          cancel={cancelComposer}
-                          saving={composerSaving}
-                          mentionCandidates={conversationComposer?.mentionPool}
-                          save={saveComment}
-                        />
-                      </td>
-                    </tr>
-                  ) : null}
-                  {rowComments.map((comment) => (
-                    <tr className={styles["commentRow"]} key={comment.id}>
-                      <td colSpan={metaColSpan}>
-                        <CommentThread
-                          comment={comment}
-                          deleteComment={deleteComment}
-                          mentionCandidates={conversationComposer?.mentionPool}
-                          post={postReviewComment}
-                          posting={postingCommentIds.includes(comment.id)}
-                          postBlockedExternally={postBlockedExternally}
-                          toggle={toggleComment}
-                          update={updateComment}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                  {(conversationThreadsByRow?.get(index) ?? []).map((row) =>
-                    conversationComposer !== undefined ? (
-                      <tr
-                        className={styles["commentRow"]}
-                        // Addressable target for the digest's "Jump to
-                        // comment" (BriefPage descends to this row).
-                        data-conversation-thread={row.thread.rootCommentId}
-                        key={`conversation-${row.thread.rootCommentId}`}
-                      >
-                        <td colSpan={metaColSpan}>
-                          <ThreadRowView
-                            composer={conversationComposer}
-                            expanded={expandedConversation.has(
-                              row.thread.rootCommentId,
-                            )}
-                            hideJump
-                            jumpToChunk={noJump}
-                            row={row}
-                            toggle={handleToggleConversationThread}
-                          />
-                        </td>
-                      </tr>
-                    ) : null,
-                  )}
-                  {rowAddressedComments.map((comment) => (
-                    <tr
-                      className={styles["commentRow"]}
-                      key={`addressed-${comment.id}`}
-                    >
-                      <td colSpan={metaColSpan}>
-                        <AddressedDiffComment
-                          comment={comment}
-                          label={reviewCommentLabel}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </Fragment>
-              );
-            })}
-          </tbody>
+          <DiffRows
+            rows={chunk.diff}
+            anchorAttributes={COMMENT_ANCHOR_ATTRIBUTES}
+            codeTrailer={buildCodeTrailer}
+            gutterCell={buildGutterCell}
+            rowAttributes={buildRowAttributes}
+            underRow={buildUnderRow}
+          />
         </table>
       </div>
       {railHover && (

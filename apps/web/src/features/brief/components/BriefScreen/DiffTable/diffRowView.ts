@@ -7,7 +7,6 @@ import {
   type ReviewComment,
 } from "@web/features/review/utils";
 import { reviewCommentMatchesDiffLine } from "../../../utils/reviewComments";
-import { DIFF_LINE_SIGNS } from "../utils";
 import {
   type ChunkComparisonView,
   type ComparisonRowKind,
@@ -31,7 +30,6 @@ export interface DiffRowViewParams {
 }
 
 export interface DiffRowView {
-  sign: string;
   id: string;
   revRun: ComparisonRun | undefined;
   revMark: ComparisonRowKind | undefined;
@@ -100,7 +98,6 @@ export function getDiffRowView({
   activeCommentAnchor,
   strandedRowIds,
 }: DiffRowViewParams): DiffRowView {
-  const sign = DIFF_LINE_SIGNS[line.kind];
   const id = rowId(chunk.id, index);
   const revRun = overlayActive ? comparisonView.runByRow.get(index) : undefined;
   const revMark = overlayActive ? comparisonView.marks.get(index) : undefined;
@@ -125,7 +122,6 @@ export function getDiffRowView({
     activeCommentAnchor.rowIds.at(-1) === id;
 
   return {
-    sign,
     id,
     revRun,
     revMark,

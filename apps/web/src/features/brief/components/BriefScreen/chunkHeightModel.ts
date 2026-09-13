@@ -1,8 +1,9 @@
 // Shared height model for chunk cards: the CSS paint-skip estimate and the
 // window virtualizer must agree on what a not-yet-rendered card is worth, or
 // scroll targets drift as real heights reveal.
-// DIFF_ROW_HEIGHT_PX is in lockstep with `DiffTable.module.scss`'s
-// `contain-intrinsic-block-size` row height — change both or neither.
+// DIFF_ROW_HEIGHT_PX is in lockstep with the row line-height in
+// `DiffRows.module.scss` and with `DiffTable.module.scss`'s
+// `contain-intrinsic-block-size` estimate: change all three or none.
 
 export const DIFF_ROW_HEIGHT_PX = 22;
 

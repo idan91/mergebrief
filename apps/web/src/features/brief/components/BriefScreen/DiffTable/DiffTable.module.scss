@@ -49,143 +49,6 @@
     font-family: var(--mono);
     font-size: var(--font-size-lg);
     line-height: 1.7;
-
-    td {
-      padding-block: 0;
-      padding-inline: functions.to-rem(14px);
-      vertical-align: top;
-      white-space: pre;
-    }
-  }
-
-  .line {
-    // Hover deepens the row's OWN hue — grey over green/red is invisible.
-    --row-hue: var(--text);
-    --row-hover-tint: 6%;
-
-    &[data-line-kind="add"] {
-      --row-hue: var(--green);
-      --row-hover-tint: 13%;
-
-      background: color-mix(in srgb, var(--green) 5%, transparent);
-
-      .code {
-        color: var(--color-diff-add-text);
-      }
-
-      // 45% measured 2.7:1 against the added-row tint — a WCAG 1.4.3 failure.
-      // 75% lands at 5.3:1 and keeps the gutter tinted.
-      .lineNumber {
-        color: color-mix(in srgb, var(--green) 75%, transparent);
-      }
-    }
-
-    &[data-line-kind="del"] {
-      --row-hue: var(--red);
-      --row-hover-tint: 13%;
-
-      background: color-mix(in srgb, var(--red) 5%, transparent);
-
-      .code {
-        color: var(--color-diff-del-text);
-      }
-
-      // Same measurement as the added-row gutter above: 40% read at 2.1:1,
-      // full strength at 5.6:1.
-      .lineNumber {
-        color: var(--red);
-      }
-    }
-
-    &[data-line-kind="hunk"] td {
-      padding-block: functions.to-rem(6px);
-      padding-inline: functions.to-rem(14px);
-      background: var(--color-surface-1);
-      color: var(--faint);
-      font-size: var(--font-size-sm);
-    }
-
-    &[data-line-kind="note"] td {
-      padding-block: functions.to-rem(7px);
-      padding-inline: functions.to-rem(14px);
-      color: var(--faint);
-      font-size: var(--font-size-sm);
-      font-style: italic;
-    }
-
-    &[data-commentable] {
-      cursor: cell;
-
-      &:hover {
-        background: color-mix(
-          in srgb,
-          var(--row-hue) var(--row-hover-tint),
-          transparent
-        );
-      }
-    }
-
-    // The :hover arm matches the commentable-hover rule's specificity so
-    // the selection tint wins on the row currently under the cursor —
-    // otherwise a drag's newest row reads as unselected until mouseup.
-    &[data-selected],
-    &[data-selected]:hover {
-      background: color-mix(in srgb, var(--blue) 12%, transparent);
-
-      // An INSET leading-edge bar, not a drop shadow — no counterpart on the
-      // elevation scale.
-      --selected-edge-bar: inset 3px 0 0 var(--blue);
-
-      box-shadow: var(--selected-edge-bar);
-    }
-
-    &[data-rev="added"] .code {
-      background: linear-gradient(
-        90deg,
-        color-mix(in srgb, var(--blue) 10%, transparent),
-        color-mix(in srgb, var(--blue) 1.5%, transparent) 60%
-      );
-    }
-  }
-
-  .lineNumber {
-    inline-size: functions.to-rem(42px);
-    min-inline-size: functions.to-rem(42px);
-
-    // The gutter carries line numbers, so it is text under WCAG 1.4.3 —
-    // `--color-text-4` measured 1.7:1 here. It is the lowest step of the
-    // scale that clears AA against the chunk body (5.5:1).
-    color: var(--color-text-3);
-    text-align: end;
-
-    // Safari only honors the prefixed form (WebKit bug 208677); without it a
-    // multi-line code selection copies the gutter numbers too.
-    // stylelint-disable-next-line property-no-vendor-prefix
-    -webkit-user-select: none;
-    user-select: none;
-  }
-
-  .code {
-    color: var(--color-text-1);
-
-    // Code text is selectable; the row keeps `cell` for the gutter, where
-    // range anchoring starts.
-    cursor: text;
-  }
-
-  .sign {
-    display: inline-block;
-    inline-size: functions.to-rem(16px);
-    opacity: 0.6;
-
-    // Comment anchor like the gutter.
-    cursor: cell;
-
-    // Copied code must be the code: the sign is a literal text node with
-    // no separating space, so a selection would paste `+code` fused.
-    // stylelint-disable-next-line property-no-vendor-prefix
-    -webkit-user-select: none;
-    user-select: none;
   }
 
   .newTag {
@@ -211,7 +74,9 @@
     }
   }
 
+  // 98px tracks DiffRows: the gutter column plus two 42px line-number cells.
   .commentRow td {
+    vertical-align: top;
     padding-block: 0 functions.to-rem(12px);
     padding-inline: functions.to-rem(98px) functions.to-rem(14px);
     white-space: normal;

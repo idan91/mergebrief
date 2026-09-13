@@ -838,11 +838,6 @@
       "count": 1
     }
   },
-  "apps/web/src/features/brief/components/BriefScreen/chunkHeightModel.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "apps/web/src/features/brief/components/BriefScreen/chunkWindows.test.ts": {
     "house/test-title": {
       "count": 2

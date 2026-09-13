@@ -1,4 +1,4 @@
-import { GrammarNames, type GrammarName } from "./types";
+import { GrammarNames, type DiffLineKind, type GrammarName } from "./types";
 
 export const GRAMMAR_BUDGET_BYTES = 100 * 1024;
 
@@ -34,4 +34,13 @@ export const GRAMMAR_GZIP_BYTES: Record<GrammarName, number> = {
   [GrammarNames.VUE]: 61477,
   [GrammarNames.GRAPHQL]: 68195,
   [GrammarNames.ASTRO]: 71273,
+};
+
+/** The gutter sign of a diff row; hunk, context and note rows carry a space. */
+export const DIFF_LINE_SIGNS: Record<DiffLineKind, string> = {
+  add: "+",
+  del: "−",
+  ctx: " ",
+  hunk: " ",
+  note: " ",
 };

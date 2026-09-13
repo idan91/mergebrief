@@ -4,7 +4,7 @@ import { useCallback, useMemo } from "react";
 import { Markdown } from "@web/components/Markdown/Markdown";
 import { estimateNarrativeCardHeight } from "../chunkHeightModel";
 import { useGroupWindow } from "../useGroupWindow";
-import { DIFF_LINE_SIGNS } from "../utils";
+import { DIFF_LINE_SIGNS } from "@web/utils/diffTokens/consts";
 import { categoryLabel, GroupViewKinds } from "../../../utils/viewModel";
 import type { BriefViewModel } from "../../../utils/viewModel";
 import { buildBriefViewModel } from "../../../utils/viewModel";
