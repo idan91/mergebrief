@@ -13,6 +13,24 @@ The contract discipline (ADR 0029): response shapes change additively
 within a major; removals/renames ship expand/contract — new field first,
 deprecation note here, removal only at a major.
 
+## dev (2026-09-11)
+
+- **Added** `GET /api/repos/:repoId/pulls/:prNumber/file-range?ref&path&from&to`
+  → `{path, ref, from, to, lines, totalLines}`: one file's line window at a
+  ref, read live with the viewer's token behind the per-PR gate, `no-store`.
+  Backs hunk-edge expansion in the diff view. `from`/`to` are 1-based
+  inclusive and both ends clamp to the file, so `lines` always holds
+  `to - from + 1` entries and a window past the end answers
+  `from = totalLines + 1`, `to = totalLines`. A span wider than 400 lines is
+  a 400 `invalid-request`. `ref` is a 40-hex commit SHA, never a branch name,
+  so a push cannot serve newer lines at the old line numbers; `path` must be
+  repo-relative with no empty, `.` or `..` segment and no control character.
+  A path absent at that commit is 404 `file-not-found` (told apart from the
+  gate's bare 404 for a repo the reader may not see); a blob over 1 MB is 413
+  `file-too-large`; a blob that is not text is 400 `file-not-text`.
+- **Added** wire error codes `file-not-found` (404), `file-too-large` (413)
+  and `file-not-text` (400).
+
 ## dev (2026-08-21 — BRIEF-198)
 
 - **Added** `GET /api/capabilities` → `{operations:[{id, kind,

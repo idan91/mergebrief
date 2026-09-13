@@ -1,7 +1,7 @@
 // Pure key/body builders for the reads ops.
 import type { RepoId } from "persistence";
 
-/** Per-session diff-cache key — the session hash scopes it to one viewer. */
+/** Per-session diff-cache key; the session hash scopes it to one viewer. */
 export function buildDiffCacheKey(input: {
   readonly sessionTokenHash: string;
   readonly repoId: RepoId;
@@ -14,8 +14,22 @@ export function buildDiffCacheKey(input: {
 
 /**
  * The brief-context envelope. `repoConfig` is ALREADY validated JSON from
- * the column (or null for older rows) — composed, never re-parsed.
+ * the column (or null for older rows), composed, never re-parsed.
  */
 export function composeBriefContextBody(repoConfig: string | null): string {
   return `{"repoConfig":${repoConfig ?? "null"}}`;
+}
+
+/**
+ * Per-session file-blob cache key. `path` may carry a `:`, but it is the last
+ * field and the three before it are fixed-format (hex hash, digits, 40-hex
+ * sha), so no two (ref, path) pairs can collide on one key.
+ */
+export function buildFileBlobCacheKey(input: {
+  readonly sessionTokenHash: string;
+  readonly repoId: RepoId;
+  readonly ref: string;
+  readonly path: string;
+}): string {
+  return `${input.sessionTokenHash}:${String(input.repoId)}:${input.ref}:${input.path}`;
 }

@@ -45,7 +45,7 @@ describe("errorJson", () => {
 
   it("maps every code to exactly one status and one template", () => {
     const codes = Object.values(ApiErrorCodes);
-    expect(codes).toHaveLength(25);
+    expect(codes).toHaveLength(28);
     for (const code of codes) {
       expect(ApiErrorStatusByCode[code]).toBeGreaterThanOrEqual(400);
       expect(ApiErrorEnglishByCode[code]).toBeTruthy();
@@ -67,6 +67,9 @@ describe("errorJson", () => {
       "sign-in-failed": 400,
       "request-too-large": 413,
       "diff-too-large": 413,
+      "file-not-found": 404,
+      "file-too-large": 413,
+      "file-not-text": 400,
       "draft-already-published": 409,
       "draft-anchor-orphaned": 409,
       "draft-limit-reached": 409,

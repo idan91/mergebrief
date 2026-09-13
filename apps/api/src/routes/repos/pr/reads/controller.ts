@@ -1,24 +1,52 @@
 // Hono-free artifact reads. A missing PR row or artifact is genuinely absent
 // behind the gate, terminal and posture-free, so these ops THROW NotFound;
 // stored bodies return verbatim (already JSON, never re-parsed).
-import { createUserOctokit, fetchCompareDiff } from "github";
+import {
+  createUserOctokit,
+  fetchCompareDiff,
+  getRepoFile,
+  GitHubApiErrorCodes,
+  RepoFileKinds,
+} from "github";
 import type { GenerationProjection, RepoId, ReviewerId } from "persistence";
-import type { DraftPolicy } from "types";
+import type { DraftPolicy, Result } from "types";
 import { NotFound } from "../../../../shared-errors/api-error";
 import { isGitHubDenial } from "../../../../shared-errors/failures";
 import type { ReviewerGitHubClient } from "../../../auth/reviewer-github-client";
 import { buildPrView } from "../../../pr-view";
 import type { TtlCache } from "../../../ttl-cache";
-import type { RevisionComparisons, RevisionView } from "contract";
+import type {
+  FileRangeView,
+  RevisionComparisons,
+  RevisionView,
+} from "contract";
 import {
   comparisonSpanSet,
   makeLatestPendingProbe,
   narrativeSpanSet,
 } from "./logic/revision-comparisons";
-import { buildDiffCacheKey, composeBriefContextBody } from "./logic/keys";
+import {
+  buildDiffCacheKey,
+  buildFileBlobCacheKey,
+  composeBriefContextBody,
+} from "./logic/keys";
+import {
+  classifyRepoFile,
+  sliceFileRange,
+  splitFileLines,
+} from "./logic/file-range";
 import { buildRevisionView } from "./logic/revision-views";
-import { DIFF_CACHE_MAX_ENTRY_BYTES, DIFF_CACHE_TTL_MS } from "./consts";
-import type { DiffFailure, ReadsControllerDeps } from "./types";
+import {
+  DIFF_CACHE_MAX_ENTRY_BYTES,
+  DIFF_CACHE_TTL_MS,
+  FILE_BLOB_CACHE_TTL_MS,
+  FILE_BLOB_MAX_BYTES,
+} from "./consts";
+import type {
+  DiffFailure,
+  FileRangeFailure,
+  ReadsControllerDeps,
+} from "./types";
 
 interface SpanInput {
   readonly repoId: RepoId;
@@ -312,5 +340,88 @@ export default {
       deps.diffCache.set(cacheKey, diff.value, now + DIFF_CACHE_TTL_MS, now);
     }
     return { ok: true, body: diff.value } satisfies ReadDiffResult;
+  },
+  /**
+   * One file's line window at `ref`, read with the viewer's token. The
+   * decoded blob is held per session (~60s) so the file's OTHER hunk edge
+   * costs no GitHub call; only the range crosses the wire.
+   */
+  async readFileRange(
+    deps: ReadsControllerDeps & {
+      readonly github: ReviewerGitHubClient;
+      readonly fileCache: TtlCache<readonly string[]>;
+    },
+    input: SpanInput & {
+      readonly owner: string;
+      readonly repo: string;
+      readonly ref: string;
+      readonly path: string;
+      readonly from: number;
+      readonly to: number;
+      readonly sessionTokenHash: string;
+    },
+  ): Promise<Result<FileRangeView, FileRangeFailure>> {
+    const pr = await deps.tenant.pullRequests.getByNumber(
+      input.repoId,
+      input.prNumber,
+    );
+    if (pr === undefined) {
+      throw new NotFound();
+    }
+
+    const cacheKey = buildFileBlobCacheKey({
+      sessionTokenHash: input.sessionTokenHash,
+      repoId: input.repoId,
+      ref: input.ref,
+      path: input.path,
+    });
+    const now = Date.now();
+    const cached = deps.fileCache.get(cacheKey, now);
+    if (cached !== undefined) {
+      return { ok: true, value: sliceFileRange(cached, input) };
+    }
+
+    let attempts = 0;
+    const fetched = await deps.github.runRead((token) => {
+      attempts += 1;
+      return getRepoFile(createUserOctokit(token), {
+        owner: input.owner,
+        repo: input.repo,
+        path: input.path,
+        ref: input.ref,
+        maxBytes: FILE_BLOB_MAX_BYTES,
+      });
+    }, isGitHubDenial);
+    if (!fetched.ok) {
+      if ("kind" in fetched.error) {
+        return { ok: false, error: { kind: "token-unreadable" } };
+      }
+      // A directory, symlink or submodule at this path is PERMANENT for this
+      // commit, so it must not reach the retryable upstream posture.
+      if (
+        fetched.error.code === GitHubApiErrorCodes.NOT_A_BLOB ||
+        fetched.error.code === GitHubApiErrorCodes.NOT_TEXT
+      ) {
+        return { ok: false, error: { kind: "file-not-text" } };
+      }
+      const denied: FileRangeFailure = {
+        kind: "github-denied",
+        error: fetched.error,
+        retried: attempts > 1,
+      };
+      return { ok: false, error: denied };
+    }
+
+    const file = fetched.value;
+    const refused = classifyRepoFile(file);
+    if (refused !== undefined) {
+      return { ok: false, error: refused };
+    }
+    if (file.kind !== RepoFileKinds.FILE) {
+      return { ok: false, error: { kind: "file-absent" } };
+    }
+    const lines = splitFileLines(file.content);
+    deps.fileCache.set(cacheKey, lines, now + FILE_BLOB_CACHE_TTL_MS, now);
+    return { ok: true, value: sliceFileRange(lines, input) };
   },
 };

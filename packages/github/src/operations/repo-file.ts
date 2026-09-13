@@ -5,6 +5,8 @@ import { RequestError } from "octokit";
 import { z } from "zod";
 import {
   mapRequestError,
+  notABlobError,
+  notTextError,
   unexpectedResponseError,
   type GitHubApiError,
 } from "../errors";
@@ -109,7 +111,8 @@ type RepoContentsParams = {
  * Fetch one repo file's decoded content via the contents API. A 404 is the
  * `absent` outcome (expected, most repos carry no `.mergebrief/`); a blob
  * over `maxBytes` is `too-large` (rejected before decode); a non-file path
- * (directory/symlink/submodule) or non-base64 payload is a sanitized error.
+ * (directory/symlink/submodule) is the PERMANENT `not-a-blob` error, and a
+ * blob that does not decode as UTF-8 text is the PERMANENT `not-text` error.
  */
 export async function getRepoFile(
   octokit: Octokit,
@@ -139,16 +142,20 @@ export async function getRepoFile(
 
   if (Array.isArray(body)) {
     // Directory listing, the path is not a file.
-    return { ok: false, error: unexpectedResponseError("fetch repo file") };
+    return { ok: false, error: notABlobError("fetch repo file") };
   }
   const parsed = contentsFileSchema.safeParse(body);
+  if (!parsed.success) {
+    return { ok: false, error: unexpectedResponseError("fetch repo file") };
+  }
+  // Told apart from an ill-shaped payload: this one parsed, and says the path
+  // holds a symlink, submodule or directory. Permanent, not a transport fault.
   if (
-    !parsed.success ||
     parsed.data.type !== "file" ||
     parsed.data.target !== undefined ||
     parsed.data.submodule_git_url !== undefined
   ) {
-    return { ok: false, error: unexpectedResponseError("fetch repo file") };
+    return { ok: false, error: notABlobError("fetch repo file") };
   }
   const { size, sha, content, encoding } = parsed.data;
   if (size > input.maxBytes) {
@@ -162,8 +169,9 @@ export async function getRepoFile(
   }
   const decoded = decodeBase64Utf8(content);
   if (decoded === undefined) {
-    // Malformed base64 or non-UTF-8 bytes: not a text config file.
-    return { ok: false, error: unexpectedResponseError("fetch repo file") };
+    // Malformed base64 or non-UTF-8 bytes. Permanent for these bytes, so it
+    // is its own code rather than the transport failure a caller retries.
+    return { ok: false, error: notTextError("fetch repo file") };
   }
   if (decoded.bytes > input.maxBytes) {
     // The reported `size` passed the guard but the actual payload is bigger,

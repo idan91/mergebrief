@@ -70,7 +70,7 @@ describe("getRepoFile", () => {
     });
   });
 
-  it("omits ref from the request when not given (default-branch semantics)", async () => {
+  it("omits ref from the request to read the default branch", async () => {
     const request = vi.fn().mockResolvedValue(fileResponse("x"));
     await getRepoFile(mockOctokit(request), {
       owner: "o",
@@ -121,13 +121,13 @@ describe("getRepoFile", () => {
     expect(result.value).toEqual({ kind: RepoFileKinds.ABSENT });
   });
 
-  it("rejects an oversize file before decode (TOO_LARGE, size + sha kept)", async () => {
+  it("rejects an oversize file before decode, keeping size and sha", async () => {
     const request = vi.fn().mockResolvedValue({
       data: {
         type: "file",
         size: 5000,
         sha: "bigblob",
-        // Deliberately NOT valid base64 for the claimed size — the guard
+        // Deliberately NOT valid base64 for the claimed size: the guard
         // must fire on `size` alone, before any decode.
         content: "!!!",
         encoding: "base64",
@@ -163,7 +163,7 @@ describe("getRepoFile", () => {
   });
 
   it("round-trips multibyte UTF-8 content", async () => {
-    const text = "glossary: 予約 — “réservation” ✓\n";
+    const text = "glossary: 予約, “réservation” ✓\n";
     const request = vi.fn().mockResolvedValue(fileResponse(text));
     const result = await getRepoFile(mockOctokit(request), {
       owner: "o",
@@ -178,7 +178,7 @@ describe("getRepoFile", () => {
     expect(result.value.content).toBe(text);
   });
 
-  it("rejects a directory response (array body) as a sanitized error", async () => {
+  it("rejects a directory listing as a permanent not-a-blob", async () => {
     const request = vi
       .fn()
       .mockResolvedValue({ data: [{ type: "file", name: "a" }] });
@@ -190,11 +190,11 @@ describe("getRepoFile", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_A_BLOB);
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
   });
 
-  it("rejects a symlink response as a sanitized error", async () => {
+  it("rejects a symlink response as a permanent not-a-blob", async () => {
     const request = vi.fn().mockResolvedValue({
       data: { type: "symlink", size: 20, sha: "s", target: "../elsewhere" },
     });
@@ -206,10 +206,10 @@ describe("getRepoFile", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_A_BLOB);
   });
 
-  it("rejects a followed symlink reported as type 'file' with a target field", async () => {
+  it("rejects a followed symlink carrying a target field", async () => {
     const request = vi
       .fn()
       .mockResolvedValue(fileResponse("x", { target: "../outside" }));
@@ -221,10 +221,10 @@ describe("getRepoFile", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_A_BLOB);
   });
 
-  it("rejects a submodule payload carrying submodule_git_url", async () => {
+  it("rejects a submodule pointer as a permanent not-a-blob", async () => {
     const request = vi.fn().mockResolvedValue(
       fileResponse("x", {
         submodule_git_url: "https://github.com/o/other.git",
@@ -238,7 +238,7 @@ describe("getRepoFile", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_A_BLOB);
   });
 
   it("rejects malformed base64 content as a sanitized error", async () => {
@@ -259,7 +259,7 @@ describe("getRepoFile", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_TEXT);
   });
 
   it("rejects non-UTF-8 bytes instead of silently substituting U+FFFD", async () => {
@@ -282,10 +282,10 @@ describe("getRepoFile", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(GitHubApiErrorCodes.REQUEST_FAILED);
+    expect(result.error.code).toBe(GitHubApiErrorCodes.NOT_TEXT);
   });
 
-  it("re-guards on the DECODED byte count when the reported size understates it", async () => {
+  it("re-guards on the DECODED byte count when size understates it", async () => {
     const text = "a".repeat(100);
     const request = vi.fn().mockResolvedValue(
       // GitHub claims 10 bytes; the payload decodes to 100.
@@ -306,7 +306,7 @@ describe("getRepoFile", () => {
     });
   });
 
-  it("rejects a non-base64 encoding (e.g. 'none' for giant blobs) as a sanitized error", async () => {
+  it("rejects a non-base64 encoding as a sanitized error", async () => {
     const request = vi.fn().mockResolvedValue({
       data: {
         type: "file",

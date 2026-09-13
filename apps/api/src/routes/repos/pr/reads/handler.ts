@@ -23,9 +23,11 @@ import {
   briefQuerySchema,
   deltaQuerySchema,
   diffQuerySchema,
+  fileRangeQuerySchema,
   marksQuerySchema,
   narrativeQuerySchema,
 } from "./schemas";
+import { toFileRangeError } from "./logic/wire-failures";
 import type { ReadsControllerDeps } from "./types";
 import { parseOwnerAndName } from "../../utils";
 import { resolvePrScopeFrom } from "../scope";
@@ -60,6 +62,7 @@ async function buildDeps(
 export default function createHandlers(
   deps: AuthRouteDeps,
   diffCache: TtlCache<string>,
+  fileCache: TtlCache<readonly string[]>,
 ) {
   const handle = deps.handle;
   const readBrief = async (c: Context<AuthzEnv>) => {
@@ -223,6 +226,51 @@ export default function createHandlers(
     });
   };
 
+  const readFileRange = async (c: Context<AuthzEnv>) => {
+    const query = parseQuery(c, fileRangeQuerySchema, [
+      "ref",
+      "path",
+      "from",
+      "to",
+    ]);
+    const prNumber = parsePrNumber(c);
+    // The AUTHZ-VERIFIED full name, never the row's stored slug: see readDiff.
+    const target = parseOwnerAndName(c.get("repoFullName"));
+    if (target === undefined) {
+      throw new NotFound();
+    }
+
+    const session = c.get("session");
+    const result = await readsController.readFileRange(
+      {
+        ...(await buildDeps(c, deps.handle, prNumber)),
+        github: createReviewerGitHubClient(
+          deps,
+          session,
+          c.get("logger"),
+          readFallbackTokenFor(c, deps),
+        ),
+        fileCache,
+      },
+      {
+        repoId: c.get("repoId"),
+        prNumber,
+        owner: target.owner,
+        repo: target.repo,
+        ref: query.ref,
+        path: query.path,
+        from: query.from,
+        to: query.to,
+        sessionTokenHash: session.sessionTokenHash,
+      },
+    );
+
+    if (!result.ok) {
+      throw toFileRangeError(result.error);
+    }
+    return c.json(result.value, 200, { "cache-control": "no-store" });
+  };
+
   return {
     readPull,
     readBrief,
@@ -231,5 +279,6 @@ export default function createHandlers(
     readDelta,
     readNarrative,
     readDiff,
+    readFileRange,
   };
 }

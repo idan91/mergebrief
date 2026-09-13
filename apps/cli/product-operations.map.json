@@ -80,6 +80,12 @@
   "read-diff": {
     "command": "mergebrief diff <number>"
   },
+  "read-file-range": {
+    "webOnly": {
+      "reason": "The hunk-edge expander is a diff-viewer affordance; the CLI has no rendered diff to expand around",
+      "owner": "idan"
+    }
+  },
   "read-marks": {
     "command": "mergebrief marks <number>"
   },

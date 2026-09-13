@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { isRepoId, type RepoId } from "persistence";
-import { buildDiffCacheKey, composeBriefContextBody } from "./keys";
+import {
+  buildDiffCacheKey,
+  buildFileBlobCacheKey,
+  composeBriefContextBody,
+} from "./keys";
 
 function mintRepoId(value: bigint): RepoId {
   if (!isRepoId(value)) {
@@ -29,5 +33,17 @@ describe("composeBriefContextBody", () => {
 
   it("renders null for rows without a snapshot", () => {
     expect(composeBriefContextBody(null)).toBe('{"repoConfig":null}');
+  });
+});
+
+describe("buildFileBlobCacheKey", () => {
+  it("scopes the key to session, repo, ref and path", () => {
+    const key = buildFileBlobCacheKey({
+      sessionTokenHash: "hash",
+      repoId: mintRepoId(7n),
+      ref: "abc123",
+      path: "src/app.ts",
+    });
+    expect(key).toBe("hash:7:abc123:src/app.ts");
   });
 });

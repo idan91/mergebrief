@@ -12,14 +12,19 @@ import { WriteClassifications } from "../../../../product-operations/types";
 import type { AuthRouteDeps } from "../../../auth/session";
 import type { AuthzEnv } from "../../../authz";
 import { createTtlCache } from "../../../ttl-cache";
-import { DIFF_CACHE_MAX_ENTRIES } from "./consts";
+import { DIFF_CACHE_MAX_ENTRIES, FILE_BLOB_CACHE_MAX_ENTRIES } from "./consts";
 import createReadsHandlers from "./handler";
 
 export function readsRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   const app = productRouter<AuthzEnv>();
   // key `${sessionHash}:${repoId}:${prNumber}:${base}:${head}` → cached diff.
   const diffCache = createTtlCache<string>(DIFF_CACHE_MAX_ENTRIES);
-  const handlers = createReadsHandlers(deps, diffCache);
+  // key `${sessionHash}:${repoId}:${ref}:${path}` → the SPLIT blob, so the
+  // second edge of one file costs neither a GitHub call nor a re-split.
+  const fileCache = createTtlCache<readonly string[]>(
+    FILE_BLOB_CACHE_MAX_ENTRIES,
+  );
+  const handlers = createReadsHandlers(deps, diffCache, fileCache);
   app.query(
     {
       id: ProductQueryIds.READ_PULL,
@@ -75,6 +80,14 @@ export function readsRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
     },
     "/diff",
     handlers.readDiff,
+  );
+  app.query(
+    {
+      id: ProductQueryIds.READ_FILE_RANGE,
+      classification: WriteClassifications.READ,
+    },
+    "/file-range",
+    handlers.readFileRange,
   );
   return app;
 }

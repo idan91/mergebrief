@@ -42,6 +42,10 @@ const KindForCode = {
   [ApiErrorCodes.SIGN_IN_FAILED]: "upstream",
   [ApiErrorCodes.REQUEST_TOO_LARGE]: "invalid",
   [ApiErrorCodes.DIFF_TOO_LARGE]: "upstream",
+  // Read-only codes: this write transport cannot receive any of them.
+  [ApiErrorCodes.FILE_NOT_FOUND]: "upstream",
+  [ApiErrorCodes.FILE_TOO_LARGE]: "upstream",
+  [ApiErrorCodes.FILE_NOT_TEXT]: "upstream",
   [ApiErrorCodes.DRAFT_ALREADY_PUBLISHED]: "upstream",
   [ApiErrorCodes.DRAFT_ANCHOR_ORPHANED]: "orphaned-draft",
   [ApiErrorCodes.DRAFT_LIMIT_REACHED]: "upstream",

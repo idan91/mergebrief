@@ -21,6 +21,7 @@ export const ProductQueryIds = {
   READ_DIFF: "read-diff",
   READ_REVIEW_SESSION: "read-review-session",
   READ_CAPABILITIES: "read-capabilities",
+  READ_FILE_RANGE: "read-file-range",
 } as const;
 export type ProductQueryId = ValueOf<typeof ProductQueryIds>;
 

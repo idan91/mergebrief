@@ -10,6 +10,10 @@ export const GitHubApiErrorCodes = {
   FORBIDDEN: "forbidden",
   UNAUTHORIZED: "unauthorized",
   RATE_LIMITED: "rate-limited",
+  /** A 200 whose payload is a directory, symlink or submodule, not a blob. */
+  NOT_A_BLOB: "not-a-blob",
+  /** A blob whose base64 payload does not decode as UTF-8 text. */
+  NOT_TEXT: "not-text",
   REQUEST_FAILED: "request-failed",
 } as const;
 export type GitHubApiErrorCode = ValueOf<typeof GitHubApiErrorCodes>;
@@ -85,6 +89,30 @@ export function mapRequestError(
   return {
     code: GitHubApiErrorCodes.REQUEST_FAILED,
     message: `failed to ${context}: GitHub API request did not complete`,
+  };
+}
+
+/**
+ * A 200 the caller asked to read as a file that is something else: a
+ * directory listing, a symlink, a submodule pointer. PERMANENT for this path
+ * and ref, so a caller answers rather than inviting a retry.
+ */
+export function notABlobError(context: string): GitHubApiError {
+  return {
+    code: GitHubApiErrorCodes.NOT_A_BLOB,
+    message: `failed to ${context}: path is not a file blob`,
+  };
+}
+
+/**
+ * A blob that arrived but is not UTF-8 text: malformed base64, or bytes no
+ * decoder accepts. PERMANENT for this path and ref, like `not-a-blob`, so a
+ * caller answers rather than retrying against the same bytes.
+ */
+export function notTextError(context: string): GitHubApiError {
+  return {
+    code: GitHubApiErrorCodes.NOT_TEXT,
+    message: `failed to ${context}: file is not utf-8 text`,
   };
 }
 

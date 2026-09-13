@@ -23,6 +23,7 @@ export {
   type ApiErrorParamlessCode,
   type ApiErrorParams,
 } from "./errors";
+export type { FileRangeView } from "./file-range";
 export {
   ProductActionIds,
   ProductQueryIds,

@@ -1,5 +1,5 @@
 // The audited catalog, pinned as data: composing the app is what registers
-// every operation, and this snapshot IS the audit list — reviewed here,
+// every operation, and this snapshot IS the audit list, reviewed here,
 // emitted verbatim by the manifest generator. Each descriptor carries its
 // router-stamped endpoint, so the snapshot is also the endpoint map.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -136,6 +136,12 @@ const EXPECTED_CATALOG = [
     endpoint: "GET /api/repos/:repoId/pulls/:prNumber/diff",
   },
   {
+    id: "read-file-range",
+    kind: "query",
+    classification: "read",
+    endpoint: "GET /api/repos/:repoId/pulls/:prNumber/file-range",
+  },
+  {
     id: "read-marks",
     kind: "query",
     classification: "read",
@@ -262,13 +268,13 @@ describe("product operation catalog", () => {
     expect(productOperationRegistry.list()).toEqual(EXPECTED_CATALOG);
   });
 
-  it("every non-exempt endpoint is registered — the derived backstop", () => {
+  it("every non-exempt endpoint is registered: the derived backstop", () => {
     const mounted = composed.app.routes
       .filter((route) => route.method !== "ALL")
       .map((route) => `${route.method} ${route.path}`)
       .filter((endpoint) => !EXEMPT_ENDPOINTS.has(endpoint));
     // The mounted surface (minus the ADR-listed exempt set) must equal the
-    // registry's stamped endpoints EXACTLY — an unregistered route or a
+    // registry's stamped endpoints EXACTLY: an unregistered route or a
     // stamped path that drifts from the real mount both fail here.
     expect(new Set(mounted).size).toBe(mounted.length);
     expect(mounted.toSorted()).toEqual(

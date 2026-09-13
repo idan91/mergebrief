@@ -211,26 +211,6 @@
       "count": 1
     }
   },
-  "apps/api/src/routes/repos/pr/reads/consts.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "apps/api/src/routes/repos/pr/reads/logic/keys.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
-  "apps/api/src/routes/repos/pr/reads/schemas.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "apps/api/src/routes/repos/pr/reads/types.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "apps/api/src/routes/repos/pr/ready/controller.ts": {
     "house/no-em-dash": {
       "count": 1
@@ -339,11 +319,6 @@
       "count": 3
     }
   },
-  "apps/api/test/product-operation-catalog.test.ts": {
-    "house/no-em-dash": {
-      "count": 3
-    }
-  },
   "apps/api/test/product-operation-manifest.test.ts": {
     "house/test-title": {
       "count": 1
@@ -373,11 +348,6 @@
   "apps/cli/scripts/embed-help.ts": {
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "apps/cli/scripts/operations-map-lib.ts": {
-    "house/no-em-dash": {
-      "count": 3
     }
   },
   "apps/cli/src/bin.ts": {
@@ -413,11 +383,6 @@
       "count": 5
     }
   },
-  "apps/cli/src/generated-catalog-fingerprint.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "apps/cli/src/profile/config.ts": {
     "house/no-em-dash": {
       "count": 5
@@ -434,11 +399,6 @@
     },
     "house/test-title": {
       "count": 5
-    }
-  },
-  "apps/cli/test/operations-map.test.ts": {
-    "house/test-title": {
-      "count": 1
     }
   },
   "apps/cli/test/units.test.ts": {
@@ -2035,14 +1995,6 @@
     },
     "house/test-title": {
       "count": 5
-    }
-  },
-  "packages/github/test/repo-file.test.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    },
-    "house/test-title": {
-      "count": 6
     }
   },
   "packages/github/test/resolve-thread.test.ts": {

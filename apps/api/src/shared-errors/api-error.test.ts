@@ -36,6 +36,9 @@ describe("ApiError classes", () => {
     new Conflict(ApiErrorCodes.PR_REWRITTEN_SINCE_READ),
     new PayloadTooLarge(ApiErrorCodes.REQUEST_TOO_LARGE),
     new PayloadTooLarge(ApiErrorCodes.DIFF_TOO_LARGE),
+    new NotFound(ApiErrorCodes.FILE_NOT_FOUND),
+    new PayloadTooLarge(ApiErrorCodes.FILE_TOO_LARGE),
+    new BadRequest(ApiErrorCodes.FILE_NOT_TEXT),
     new InternalError(),
     new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE),
     new BadGateway(ApiErrorCodes.GENERATION_FAILED),
@@ -73,7 +76,9 @@ describe("ApiError classes", () => {
   });
 
   it("CodeFor pins class-code agreement at the type level", () => {
-    expectTypeOf<CodeFor<404>>().toEqualTypeOf<"not-found">();
+    expectTypeOf<CodeFor<404>>().toEqualTypeOf<
+      "not-found" | "file-not-found"
+    >();
     expectTypeOf<CodeFor<401>>().toEqualTypeOf<
       "unauthorized" | "invalid-signature"
     >();

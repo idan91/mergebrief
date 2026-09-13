@@ -127,6 +127,12 @@
       "endpoint": "GET /api/repos/:repoId/pulls/:prNumber/diff"
     },
     {
+      "id": "read-file-range",
+      "kind": "query",
+      "classification": "read",
+      "endpoint": "GET /api/repos/:repoId/pulls/:prNumber/file-range"
+    },
+    {
       "id": "read-marks",
       "kind": "query",
       "classification": "read",

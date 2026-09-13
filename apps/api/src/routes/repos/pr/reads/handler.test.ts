@@ -1,6 +1,11 @@
 import { randomBytes } from "node:crypto";
 import { Hono } from "hono";
-import { GitHubApiErrorCodes, fetchCompareDiff } from "github";
+import {
+  GitHubApiErrorCodes,
+  RepoFileKinds,
+  fetchCompareDiff,
+  getRepoFile,
+} from "github";
 import type * as githubModule from "github";
 import type { Logger } from "logging";
 import {
@@ -36,12 +41,15 @@ import {
   type ViewerPrincipal,
 } from "../../../auth/session";
 import type { AuthzEnv } from "../../../authz";
-import { createTtlCache } from "../../../ttl-cache";
+import { createTtlCache, type TtlCache } from "../../../ttl-cache";
+import { FILE_BLOB_CACHE_MAX_ENTRIES } from "./consts";
+import { buildFileBlobCacheKey } from "./logic/keys";
 import createReadsHandlers from "./handler";
 
 vi.mock("github", async (importOriginal) => ({
   ...(await importOriginal<typeof githubModule>()),
   fetchCompareDiff: vi.fn(),
+  getRepoFile: vi.fn(),
 }));
 
 vi.mock("../../../auth/session", async (importOriginal) => ({
@@ -73,6 +81,7 @@ function brand<T extends bigint>(
 }
 
 let harness: PgliteHarness;
+let lastSessionTokenHash = "";
 let repoId: RepoId;
 const PR_NUMBER = 7;
 const INSTALLATION_ID = 606n;
@@ -98,15 +107,19 @@ afterAll(async () => {
   await harness.close();
 });
 
-async function buildApp(ciphertextOverride?: string): Promise<Hono<AuthzEnv>> {
+async function buildApp(
+  ciphertextOverride?: string,
+  fileCacheOverride?: TtlCache<readonly string[]>,
+): Promise<Hono<AuthzEnv>> {
   const sealed = await encryptToken(keyProvider, KEY_REF, "stale-token");
   if (!sealed.ok) {
     throw new Error("fixture seal failed");
   }
+  lastSessionTokenHash = `hash-${randomBytes(4).toString("hex")}`;
   const session: ViewerPrincipal = {
     id: 1n,
     installationId: brand(INSTALLATION_ID, isInstallationId),
-    sessionTokenHash: `hash-${randomBytes(4).toString("hex")}`,
+    sessionTokenHash: lastSessionTokenHash,
     reviewerId: brand(42n, isReviewerId),
     reviewerLogin: "octocat",
     grantId: brand(7n, isGrantRowId),
@@ -139,10 +152,13 @@ async function buildApp(ciphertextOverride?: string): Promise<Hono<AuthzEnv>> {
     c.set("viewerCanPush", true);
     await next();
   });
-  app.get(
-    "/:prNumber/diff",
-    createReadsHandlers(deps, createTtlCache<string>(10)).readDiff,
+  const handlers = createReadsHandlers(
+    deps,
+    createTtlCache<string>(10),
+    fileCacheOverride ?? createTtlCache<readonly string[]>(10),
   );
+  app.get("/:prNumber/diff", handlers.readDiff);
+  app.get("/:prNumber/file-range", handlers.readFileRange);
   return app;
 }
 
@@ -162,6 +178,7 @@ const DIFF_PATH = `/${PR_NUMBER}/diff?base=aaa&head=bbb`;
 
 beforeEach(() => {
   vi.mocked(fetchCompareDiff).mockReset();
+  vi.mocked(getRepoFile).mockReset();
   vi.mocked(refreshSessionToken).mockReset();
 });
 
@@ -207,5 +224,200 @@ describe("diff proxy posture split", () => {
     const res = await (await buildApp("not-a-ciphertext")).request(DIFF_PATH);
     expect(res.status).toBe(401);
     expect(fetchCompareDiff).not.toHaveBeenCalled();
+  });
+});
+
+const HEAD_SHA = `${"0".repeat(39)}a`;
+const RANGE_PATH = `/${PR_NUMBER}/file-range?ref=${HEAD_SHA}&path=src/app.ts&from=2&to=3`;
+
+function stubFile(
+  content: string,
+): Result<githubModule.RepoFileResult, githubModule.GitHubApiError> {
+  return {
+    ok: true,
+    value: {
+      kind: RepoFileKinds.FILE,
+      content,
+      blobSha: "blob-sha",
+      size: content.length,
+    },
+  };
+}
+
+describe("file range read", () => {
+  it("serves the asked window and the file's line count", async () => {
+    vi.mocked(getRepoFile).mockResolvedValue(stubFile("a\nb\nc\nd\n"));
+    const res = await (await buildApp()).request(RANGE_PATH);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(await res.json()).toEqual({
+      path: "src/app.ts",
+      ref: HEAD_SHA,
+      from: 2,
+      to: 3,
+      lines: ["b", "c"],
+      totalLines: 4,
+    });
+  });
+
+  it("reads the blob once for two ranges of the same file", async () => {
+    vi.mocked(getRepoFile).mockResolvedValue(stubFile("a\nb\nc\nd\n"));
+    const app = await buildApp();
+    const first = await app.request(RANGE_PATH);
+    const second = await app.request(
+      `/${PR_NUMBER}/file-range?ref=${HEAD_SHA}&path=src/app.ts&from=1&to=1`,
+    );
+    expect(first.status).toBe(200);
+    expect(await second.json()).toMatchObject({ lines: ["a"] });
+    expect(getRepoFile).toHaveBeenCalledTimes(1);
+  });
+
+  it("caches the split lines, so a second range never re-splits", async () => {
+    vi.mocked(getRepoFile).mockResolvedValue(stubFile("a\nb\nc\nd\n"));
+    const fileCache = createTtlCache<readonly string[]>(
+      FILE_BLOB_CACHE_MAX_ENTRIES,
+    );
+    const app = await buildApp(undefined, fileCache);
+    await app.request(RANGE_PATH);
+    const key = buildFileBlobCacheKey({
+      sessionTokenHash: lastSessionTokenHash,
+      repoId,
+      ref: HEAD_SHA,
+      path: "src/app.ts",
+    });
+    expect(fileCache.get(key)).toEqual(["a", "b", "c", "d"]);
+  });
+
+  it("holds its entry cap, so one reader cannot pin the heap", () => {
+    const fileCache = createTtlCache<readonly string[]>(
+      FILE_BLOB_CACHE_MAX_ENTRIES,
+    );
+    const expiresAt = Date.now() + 60_000;
+    const overflow = FILE_BLOB_CACHE_MAX_ENTRIES + 10;
+    for (let index = 0; index < overflow; index += 1) {
+      fileCache.set(`key-${String(index)}`, ["line"], expiresAt);
+    }
+    expect(fileCache.get("key-0")).toBeUndefined();
+    expect(fileCache.get(`key-${String(overflow - 1)}`)).toEqual(["line"]);
+  });
+
+  it("refuses a span wider than one read may serve", async () => {
+    const res = await (
+      await buildApp()
+    ).request(
+      `/${PR_NUMBER}/file-range?ref=${HEAD_SHA}&path=src/app.ts&from=1&to=401`,
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ code: "invalid-request" });
+    expect(getRepoFile).not.toHaveBeenCalled();
+  });
+
+  it("refuses a branch name in place of a commit SHA", async () => {
+    const res = await (
+      await buildApp()
+    ).request(`/${PR_NUMBER}/file-range?ref=main&path=src/app.ts&from=1&to=2`);
+    expect(res.status).toBe(400);
+    expect(getRepoFile).not.toHaveBeenCalled();
+  });
+
+  it("tells an absent path apart from a repo the reader cannot see", async () => {
+    vi.mocked(getRepoFile).mockResolvedValue({
+      ok: true,
+      value: { kind: RepoFileKinds.ABSENT },
+    });
+    const res = await (await buildApp()).request(RANGE_PATH);
+    expect(res.status).toBe(404);
+    expect(await res.json()).toMatchObject({ code: "file-not-found" });
+  });
+
+  it("never serves one session the blob another session cached", async () => {
+    vi.mocked(getRepoFile).mockResolvedValue(stubFile("a\nb\nc\nd\n"));
+    const fileCache = createTtlCache<readonly string[]>(
+      FILE_BLOB_CACHE_MAX_ENTRIES,
+    );
+    const sessionA = await buildApp(undefined, fileCache);
+    const sessionB = await buildApp(undefined, fileCache);
+    await sessionA.request(RANGE_PATH);
+    await sessionB.request(RANGE_PATH);
+    expect(getRepoFile).toHaveBeenCalledTimes(2);
+  });
+
+  it("answers 413 for a blob over the byte cap", async () => {
+    vi.mocked(getRepoFile).mockResolvedValue({
+      ok: true,
+      value: { kind: RepoFileKinds.TOO_LARGE, blobSha: "s", size: 9_000_000 },
+    });
+    const res = await (await buildApp()).request(RANGE_PATH);
+    expect(res.status).toBe(413);
+    expect(await res.json()).toMatchObject({ code: "file-too-large" });
+  });
+
+  it("answers 400 for a blob that is not text", async () => {
+    vi.mocked(getRepoFile).mockResolvedValue(stubFile("a\u0000b"));
+    const res = await (await buildApp()).request(RANGE_PATH);
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ code: "file-not-text" });
+  });
+
+  it("answers 400 for a blob that does not decode, with no retry", async () => {
+    vi.mocked(getRepoFile).mockResolvedValue({
+      ok: false,
+      error: {
+        code: GitHubApiErrorCodes.NOT_TEXT,
+        message: "not text",
+      },
+    });
+    const res = await (await buildApp()).request(RANGE_PATH);
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ code: "file-not-text" });
+    expect(getRepoFile).toHaveBeenCalledTimes(1);
+  });
+
+  it("answers 400 for a submodule pointer, with no retry", async () => {
+    vi.mocked(getRepoFile).mockResolvedValue({
+      ok: false,
+      error: {
+        code: GitHubApiErrorCodes.NOT_A_BLOB,
+        message: "not a blob",
+      },
+    });
+    const res = await (await buildApp()).request(RANGE_PATH);
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ code: "file-not-text" });
+    expect(getRepoFile).toHaveBeenCalledTimes(1);
+  });
+
+  const denials = [
+    ["not found", GitHubApiErrorCodes.NOT_FOUND, 404],
+    ["forbidden", GitHubApiErrorCodes.FORBIDDEN, 403],
+  ] as const;
+
+  // The BARE 404, never file-not-found: a reader must not be able to tell a
+  // repo they cannot see from a path that is not there.
+  it.each(denials)(
+    "collapses a %s denial to the gate's bare 404",
+    async (_label, code, status) => {
+      vi.mocked(getRepoFile).mockResolvedValue({
+        ok: false,
+        error: { code, status, message: "denied" },
+      });
+      const res = await (await buildApp()).request(RANGE_PATH);
+      expect(res.status).toBe(404);
+      expect(await res.json()).toMatchObject({ code: "not-found" });
+    },
+  );
+
+  it("surfaces a rate-limited read as an upstream 502", async () => {
+    vi.mocked(getRepoFile).mockResolvedValue({
+      ok: false,
+      error: {
+        code: GitHubApiErrorCodes.RATE_LIMITED,
+        status: 403,
+        message: "denied",
+      },
+    });
+    const res = await (await buildApp()).request(RANGE_PATH);
+    expect(res.status).toBe(502);
+    expect(await res.json()).toMatchObject({ code: "github-unavailable" });
   });
 });
