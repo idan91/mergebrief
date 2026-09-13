@@ -74,6 +74,9 @@ export default defineConfig({
       return hosts ? { allowedHosts: hosts } : {};
     })(),
   },
+  // The token worker code-splits one chunk per grammar, so it must ship as an
+  // ES module; vite's default iife worker format cannot carry a dynamic import.
+  worker: { format: "es" },
   resolve: {
     alias: {
       "@web": fileURLToPath(new URL("./src", import.meta.url)),

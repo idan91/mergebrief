@@ -1,4 +1,13 @@
 import type { ValueOf } from "types";
+import type { z } from "zod/v4";
+import type {
+  tokenizeRequestSchema,
+  warmRequestSchema,
+  cancelRequestSchema,
+  tokensReplySchema,
+  workerReplySchema,
+  replyEnvelopeSchema,
+} from "./schemas";
 
 export const DiffLineKinds = {
   HUNK: "hunk",
@@ -79,6 +88,10 @@ export interface RowToken {
 
 export type RowTokenLine = RowToken[];
 
+/** One row's tokens as they cross the worker boundary: a Map clones, but only
+ * an array can be stated as a schema. */
+export type RowTokenEntry = [number, RowTokenLine];
+
 export type RowTokenMap = Map<number, RowTokenLine>;
 
 export interface FileGrammarRows {
@@ -89,4 +102,102 @@ export interface FileGrammarRows {
 export interface GrammarBudgetPlan {
   admitted: GrammarName[];
   spentBytes: number;
+}
+
+/** The diff row fields a tokenizer reads; line numbers stay on the main thread. */
+export interface TokenizableRow {
+  kind: DiffLineKind;
+  content: string;
+}
+
+export const TokenMessageKinds = {
+  TOKENIZE: "tokenize",
+  TOKENS: "tokens",
+  FAILED: "failed",
+  WARM: "warm",
+  CANCEL: "cancel",
+} as const;
+/** @public */
+export type TokenMessageKind = ValueOf<typeof TokenMessageKinds>;
+
+export const TokenFailureReasons = {
+  GRAMMAR_LOAD: "grammar-load",
+  TOKENIZE: "tokenize",
+  WORKER_ERROR: "worker-error",
+  CANCELLED: "cancelled",
+} as const;
+export type TokenFailureReason = ValueOf<typeof TokenFailureReasons>;
+
+export const ChunkTokenStatuses = {
+  PENDING: "pending",
+  READY: "ready",
+  PLAIN: "plain",
+  FAILED: "failed",
+} as const;
+/** @public */
+export type ChunkTokenStatus = ValueOf<typeof ChunkTokenStatuses>;
+
+export interface ChunkTokensReady {
+  status: typeof ChunkTokenStatuses.READY;
+  tokensByRow: RowTokenMap;
+}
+
+export interface ChunkTokensPlain {
+  status: typeof ChunkTokenStatuses.PLAIN;
+}
+
+export interface ChunkTokensPending {
+  status: typeof ChunkTokenStatuses.PENDING;
+}
+
+export interface ChunkTokensFailed {
+  status: typeof ChunkTokenStatuses.FAILED;
+  reason: TokenFailureReason;
+}
+
+export type ChunkTokensResult =
+  | ChunkTokensReady
+  | ChunkTokensPlain
+  | ChunkTokensFailed;
+
+export type ChunkTokensState =
+  | ChunkTokensReady
+  | ChunkTokensPlain
+  | ChunkTokensPending;
+
+// The wire shapes are the schemas; a consumer never names schemas.ts for a type.
+export type TokenizeRequest = z.infer<typeof tokenizeRequestSchema>;
+export type WarmRequest = z.infer<typeof warmRequestSchema>;
+export type CancelRequest = z.infer<typeof cancelRequestSchema>;
+export type TokensReply = z.infer<typeof tokensReplySchema>;
+export type WorkerReply = z.infer<typeof workerReplySchema>;
+export type ReplyEnvelope = z.infer<typeof replyEnvelopeSchema>;
+
+export interface ChunkTokensRequest {
+  /** The brief this chunk belongs to; chunk ids restart per brief. */
+  briefKey: string;
+  chunkId: string;
+  filePath: string;
+  rows: DiffLine[];
+  /** The grammars this brief's budget admitted, from `planBriefGrammars`. */
+  admitted: ReadonlySet<GrammarName>;
+}
+
+/**
+ * `cancel` carries the caller's interest, not the request: two mounts of one
+ * virtualized chunk share a promise, and only the last one to let go cancels
+ * the work. A handle rather than an `AbortSignal` parameter because the
+ * refused paths hand back a settled promise with nothing to abort.
+ */
+export interface ChunkTokensHandle {
+  promise: Promise<ChunkTokensResult>;
+  cancel: () => void;
+}
+
+export type DiffTokenWorkerHandle = Worker | undefined;
+
+/** One file's tokenizable size, as the screen sees it before any worker runs. */
+export interface BriefChunkSize {
+  file: string;
+  rowCount: number;
 }

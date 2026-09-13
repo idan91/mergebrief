@@ -17,6 +17,7 @@ import {
   countIntentGaps,
   countIntentTensions,
   deriveBriefProgress,
+  deriveChunkSizes,
   disabledComparisonQuery,
   discriminateNarrativeArtifact,
   groupSinceMarkers,
@@ -58,7 +59,7 @@ function intentCheck(overrides: Partial<IntentCheck> = {}): IntentCheck {
 const t = appI18n.t;
 
 describe("countIntentGaps", () => {
-  it("returns 0 for a pre-feature Brief (no intent check)", () => {
+  it("returns 0 for a pre-feature Brief with no intent check", () => {
     expect(countIntentGaps(undefined)).toBe(0);
   });
 
@@ -83,7 +84,7 @@ describe("countIntentGaps", () => {
 });
 
 describe("countIntentTensions", () => {
-  it("returns 0 for a pre-feature Brief (no intent check)", () => {
+  it("returns 0 for a pre-feature Brief with no intent check", () => {
     expect(countIntentTensions(undefined)).toBe(0);
   });
 
@@ -99,7 +100,7 @@ describe("countIntentTensions", () => {
     ).toBe(0);
   });
 
-  it("counts unacknowledged deviations plus claimed-but-unachieved; acknowledged deviations are excluded", () => {
+  it("counts unacknowledged deviations and claimed-but-unachieved", () => {
     expect(
       countIntentTensions(
         intentCheck({
@@ -114,6 +115,16 @@ describe("countIntentTensions", () => {
     ).toBe(3);
   });
 });
+
+function stubChunk(id: string, file: string, rowCount: number): BriefChunk {
+  return {
+    ...chunk(id, file),
+    diff: Array.from({ length: rowCount }, () => ({
+      kind: "ctx" as const,
+      content: "x",
+    })),
+  };
+}
 
 function chunk(id: string, file: string): BriefChunk {
   return {
@@ -160,7 +171,7 @@ describe("countComparisonRuns", () => {
   it("sums each chunk's contiguous marked runs", () => {
     // The scenario marks rows add@11+add@12 (one contiguous added run) and
     // the standalone deletion old@12 after an unmarked context row (a second
-    // run) — 2 runs per matching chunk, 0 for a chunk in an unmarked file.
+    // run): 2 runs per matching chunk, 0 for a chunk in an unmarked file.
     expect(countComparisonRuns([chunk("c1", "src/a.ts")], marks)).toBe(2);
     expect(
       countComparisonRuns(
@@ -397,7 +408,7 @@ describe("markReadyBatchFailureCopy", () => {
     );
   });
 
-  it("keeps the indeterminate cause indeterminate — never a confident 'not posted'", () => {
+  it("keeps the indeterminate cause indeterminate", () => {
     expect(markReadyBatchFailureCopy(t, 2, 3, "indeterminate")).toContain(
       "may or may not have posted — check GitHub before retrying",
     );
@@ -484,7 +495,7 @@ describe("conversationGroupIds", () => {
     expect(conversationGroupIds(undefined, groups)).toBeUndefined();
   });
 
-  it("returns undefined for an empty digest (no TocBar markers)", () => {
+  it("returns undefined for an empty digest with no TocBar markers", () => {
     expect(conversationGroupIds(new Map(), groups)).toBeUndefined();
   });
 });
@@ -495,7 +506,7 @@ describe("groupSinceMarkers", () => {
       id: "g1",
       chunks: [
         { file: "src/a.ts" },
-        { file: "src/a.ts" }, // same file twice — counted once
+        { file: "src/a.ts" }, // same file twice, counted once
         { file: "src/b.ts" },
       ],
     },
@@ -530,14 +541,14 @@ describe("groupSinceMarkers", () => {
     );
   });
 
-  it("ignores a marks entry with empty ranges (no mechanical change)", () => {
+  it("ignores a marks entry whose ranges are empty", () => {
     const sinceMarks = {
       files: [{ file: "src/c.ts", addedRanges: [], removedRanges: [] }],
     };
     expect(groupSinceMarkers(groups, sinceMarks)?.get("g2")).toBe(0);
   });
 
-  it("returns undefined without marks — no checkpoint, no marker", () => {
+  it("returns undefined without marks, so no checkpoint and no marker", () => {
     expect(groupSinceMarkers(groups, null)).toBeUndefined();
   });
 });
@@ -559,5 +570,30 @@ describe("resolveSidebarLayout", () => {
     expect(resolveSidebarLayout(ViewportBands.DESKTOP, false)).toBe(
       SidebarLayouts.COLLAPSED,
     );
+  });
+});
+
+describe("deriveChunkSizes", () => {
+  it("reports one size per chunk that carries a diff", () => {
+    const chunks = [
+      stubChunk("a", "src/a.ts", 3),
+      stubChunk("b", "src/b.scss", 1),
+    ];
+
+    expect(deriveChunkSizes(chunks)).toEqual([
+      { file: "src/a.ts", rowCount: 3 },
+      { file: "src/b.scss", rowCount: 1 },
+    ]);
+  });
+
+  it("skips a chunk with no diff rows", () => {
+    expect(deriveChunkSizes([stubChunk("a", "src/a.ts", 0)])).toEqual([]);
+  });
+
+  it("skips a chunk whose diff never loaded", () => {
+    const bare: BriefChunk = { ...chunk("a", "src/a.ts") };
+    delete bare.diff;
+
+    expect(deriveChunkSizes([bare])).toEqual([]);
   });
 });

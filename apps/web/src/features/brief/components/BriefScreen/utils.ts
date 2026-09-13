@@ -18,6 +18,7 @@ import {
   buildChunkComparisonView,
   type ComparisonMarkFiles,
 } from "../../comparison/comparison";
+import type { BriefChunkSize } from "@web/utils/diffTokens/types";
 import type { ProgressTotals } from "../../utils/progress";
 import type {
   BriefChunk,
@@ -325,4 +326,18 @@ export function resolveSidebarLayout(
 ): SidebarLayout {
   if (band === ViewportBands.NARROW) return SidebarLayouts.BAR;
   return expanded ? SidebarLayouts.EXPANDED : SidebarLayouts.COLLAPSED;
+}
+
+/** The file and row count the grammar budget reads, per chunk that has a diff. */
+export function deriveChunkSizes(chunks: BriefChunk[]): BriefChunkSize[] {
+  const sizes: BriefChunkSize[] = [];
+
+  for (const chunk of chunks) {
+    const rowCount = chunk.diff?.length ?? 0;
+    if (rowCount === 0) continue;
+
+    sizes.push({ file: chunk.file, rowCount });
+  }
+
+  return sizes;
 }

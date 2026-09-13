@@ -907,14 +907,6 @@
       "count": 3
     }
   },
-  "apps/web/src/features/brief/components/BriefScreen/utils.test.ts": {
-    "house/no-em-dash": {
-      "count": 4
-    },
-    "house/test-title": {
-      "count": 6
-    }
-  },
   "apps/web/src/features/brief/hooks/useKeyboardShortcuts.hook.test.tsx": {
     "house/no-em-dash": {
       "count": 5

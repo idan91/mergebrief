@@ -39,6 +39,9 @@
         "src/routes/**/*.tsx",
         "src/features/*/index.tsx",
         "src/features/*/utils/index.ts",
+        // Reached by the browser through `new Worker(new URL(...))`, never by
+        // an import statement.
+        "src/utils/diffTokens/worker.ts",
         // The browser suite (BRIEF-113) is run by Playwright, not imported:
         // its config and specs are entries, and `e2e/support` + `e2e/fixtures`
         // hang off them.

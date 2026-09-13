@@ -1,5 +1,6 @@
-import { memo } from "react";
+import { memo, useEffect, useMemo } from "react";
 
+import { useLatestRef } from "@web/hooks/useLatestRef";
 import { Button } from "@web/components/Button/Button";
 import { ConversationSection } from "@web/features/conversation";
 import { SubmitModal } from "@web/features/review";
@@ -20,7 +21,11 @@ import { RiskFlagModals } from "./RiskFlagModals/RiskFlagModals";
 import { ShortcutsModal } from "./ShortcutsModal/ShortcutsModal";
 import { Sidebar } from "./Sidebar";
 import { StoryView } from "./StoryView/StoryView";
-import { CONTENT_START_ATTR } from "./utils";
+import {
+  planBriefGrammars,
+  warmDiffTokenWorker,
+} from "@web/utils/diffTokens/client";
+import { CONTENT_START_ATTR, deriveChunkSizes } from "./utils";
 import { SummarySection } from "./SummarySection/SummarySection";
 import { ReadingPositionProvider } from "./readingPosition";
 import styles from "./BriefScreen.module.scss";
@@ -125,6 +130,21 @@ export function BriefScreen({
     staleHead,
     submitReview,
   });
+
+  // Cold-starting the worker here overlaps the engine, theme and grammar
+  // fetches with the brief query and first paint, so the first chunk a reader
+  // opens is not also the first chunk to pay for them.
+  const warmGrammars = useMemo(
+    () => planBriefGrammars(deriveChunkSizes(brief.chunks)).admitted,
+    [brief.chunks],
+  );
+  // Keyed on what the worker is told, not on the chunks array: a parent that
+  // rebuilds an identical array would otherwise re-post the same warm.
+  const warmKey = warmGrammars.join(",");
+  const latestWarmGrammars = useLatestRef(warmGrammars);
+  useEffect(() => {
+    warmDiffTokenWorker(briefId, latestWarmGrammars.current);
+  }, [briefId, warmKey, latestWarmGrammars]);
 
   return (
     <ReviewFlowProvider store={flowStore}>
