@@ -134,6 +134,46 @@ function selectFilePath(toggle: HTMLElement) {
   selection?.addRange(range);
 }
 
+describe("ChunkCard file status", () => {
+  it("marks a new file with a chip in the header lane", () => {
+    renderCard({
+      chunk: {
+        ...chunk,
+        diff: [
+          { kind: "hunk", content: "@@ -0,0 +1,1 @@" },
+          { kind: "add", content: "validate(a);", newLine: 1 },
+        ],
+      },
+    });
+
+    const chip = screen.getByText("New file");
+    expect(chip.getAttribute("data-status")).toBe("new");
+    expect(chip.getAttribute("data-color")).toBe("positive");
+  });
+
+  it("marks a deleted file", () => {
+    renderCard({
+      chunk: {
+        ...chunk,
+        diff: [
+          { kind: "hunk", content: "@@ -1,1 +0,0 @@" },
+          { kind: "del", content: "validate(a);", oldLine: 1 },
+        ],
+      },
+    });
+
+    expect(screen.getByText("Deleted file").getAttribute("data-color")).toBe(
+      "negative",
+    );
+  });
+
+  it("marks nothing on an ordinary chunk", () => {
+    renderCard();
+
+    expect(screen.queryByText(/New file|Deleted file/)).toBeNull();
+  });
+});
+
 describe("ChunkCard selectable file path", () => {
   it("copies the full file path without toggling the chunk", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);

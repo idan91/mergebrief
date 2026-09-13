@@ -92,6 +92,24 @@ describe("ReviewFlow store", () => {
       });
     });
 
+    it("records the file end by path when the read names it", () => {
+      const actions = store.getState().actions;
+      actions.expandEdge(
+        "chunk-a:3:down",
+        { start: 2, end: 21 },
+        60,
+        "src/a.ts",
+      );
+      actions.expandEdge(
+        "chunk-b:9:up",
+        { start: 30, end: 49 },
+        undefined,
+        "src/a.ts",
+      );
+
+      expect(store.getState().fileEnds.get("src/a.ts")).toBe(60);
+    });
+
     it("keeps the file end once a read has reported it", () => {
       const actions = store.getState().actions;
       actions.expandEdge("chunk-a:3:down", { start: 2, end: 21 }, 60);

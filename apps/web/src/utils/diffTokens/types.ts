@@ -41,6 +41,8 @@ export interface HunkSide {
   side: HunkSideName;
   text: string[];
   rowIndexes: number[];
+  /** The file line the side's first row sits on; 1 means the file's start. */
+  startLine?: number;
 }
 
 export const Preludes = {

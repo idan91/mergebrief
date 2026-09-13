@@ -626,6 +626,8 @@
       "roleCore": "core",
       "roleSupporting": "supporting",
       "copyFilePath": "Copy file path",
+      "fileNew": "New file",
+      "fileDeleted": "Deleted file",
       "drafts_one": "{{count}} draft",
       "drafts_other": "{{count}} drafts",
       "reviewComment": "review comment",

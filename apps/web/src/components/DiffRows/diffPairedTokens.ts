@@ -1,5 +1,6 @@
 import type { RowTokenMap } from "@web/utils/diffTokens/types";
 import {
+  INTRA_LINE_BRIDGE_LENGTH,
   INTRA_LINE_CHARACTER_CAP,
   INTRA_LINE_EMPHASIS_SHARE,
   INTRA_LINE_TOKEN_CAP,
@@ -14,6 +15,21 @@ import type {
   TokenSide,
 } from "./types";
 
+/** UTF-16 units that changed on each side; bridged punctuation is not counted. */
+interface SideUnits {
+  left: number;
+  right: number;
+}
+
+interface Comparison {
+  emphasis: PairedEmphasis;
+  changed: SideUnits;
+}
+
+const NO_COMPARISON: Comparison = {
+  emphasis: NO_EMPHASIS,
+  changed: { left: 0, right: 0 },
+};
 /**
  * The characters that changed between a deleted line and the added line it
  * pairs with. Tokens are the unit; a lone changed token on each side narrows
@@ -34,9 +50,9 @@ export function diffPairedTokens(
   if (leftTokens.length > INTRA_LINE_TOKEN_CAP) return NO_EMPHASIS;
   if (rightTokens.length > INTRA_LINE_TOKEN_CAP) return NO_EMPHASIS;
 
-  const emphasis = compareTokenRuns(leftTokens, rightTokens);
-  if (isMostOfLine(emphasis.left, left.text)) return NO_EMPHASIS;
-  if (isMostOfLine(emphasis.right, right.text)) return NO_EMPHASIS;
+  const { emphasis, changed } = compareTokenRuns(leftTokens, rightTokens);
+  if (isMostOfLine(changed.left, left.text)) return NO_EMPHASIS;
+  if (isMostOfLine(changed.right, right.text)) return NO_EMPHASIS;
 
   return emphasis;
 }
@@ -78,31 +94,59 @@ function readTokens(side: TokenSide): readonly string[] {
 function compareTokenRuns(
   left: readonly string[],
   right: readonly string[],
-): PairedEmphasis {
+): Comparison {
   const prefix = countCommonPrefix(left, right);
   const suffix = countCommonSuffix(left, right, prefix);
   const leftMiddle = left.slice(prefix, left.length - suffix);
   const rightMiddle = right.slice(prefix, right.length - suffix);
-  if (leftMiddle.length === 0 && rightMiddle.length === 0) return NO_EMPHASIS;
+  if (leftMiddle.length === 0 && rightMiddle.length === 0) return NO_COMPARISON;
 
   const leftStart = measure(left.slice(0, prefix));
   const rightStart = measure(right.slice(0, prefix));
   if (leftMiddle.length <= 1 && rightMiddle.length <= 1) {
-    return compareCharacters(
+    const emphasis = compareCharacters(
       leftMiddle.join(""),
       rightMiddle.join(""),
       leftStart,
       rightStart,
     );
+
+    return { emphasis, changed: measureRanges(emphasis) };
   }
 
   const shared = findSharedTokens(leftMiddle, rightMiddle);
-  if (shared === undefined) return NO_EMPHASIS;
+  if (shared === undefined) return NO_COMPARISON;
 
   return {
-    left: collectChangedRanges(leftMiddle, shared.left, leftStart),
-    right: collectChangedRanges(rightMiddle, shared.right, rightStart),
+    emphasis: {
+      left: collectChangedRanges(leftMiddle, shared.left, leftStart),
+      right: collectChangedRanges(rightMiddle, shared.right, rightStart),
+    },
+    changed: {
+      left: measureUnshared(leftMiddle, shared.left),
+      right: measureUnshared(rightMiddle, shared.right),
+    },
   };
+}
+
+function measureRanges(emphasis: PairedEmphasis): SideUnits {
+  return { left: sumRanges(emphasis.left), right: sumRanges(emphasis.right) };
+}
+
+function sumRanges(ranges: readonly CharRange[]): number {
+  return ranges.reduce((sum, range) => sum + range.to - range.from, 0);
+}
+
+function measureUnshared(
+  tokens: readonly string[],
+  shared: ReadonlySet<number>,
+): number {
+  let units = 0;
+  tokens.forEach((token, position) => {
+    if (!shared.has(position)) units += token.length;
+  });
+
+  return units;
 }
 
 /** A single changed token per side narrows to the run that differs. */
@@ -212,13 +256,21 @@ function collectChangedRanges(
 ): CharRange[] {
   const ranges: CharRange[] = [];
   let offset = start;
+  let bridge: number | undefined;
 
   tokens.forEach((token, position) => {
     const end = offset + token.length;
     const open = ranges.at(-1);
     if (!shared.has(position) && token.length > 0) {
-      if (open !== undefined && open.to === offset) open.to = end;
+      const touches =
+        open !== undefined && (open.to === offset || bridge === offset);
+      if (touches && open !== undefined) open.to = end;
       else ranges.push({ from: offset, to: end });
+      bridge = undefined;
+    } else if (open?.to === offset && isBridgeToken(token)) {
+      bridge = end;
+    } else {
+      bridge = undefined;
     }
     offset = end;
   });
@@ -226,11 +278,21 @@ function collectChangedRanges(
   return ranges;
 }
 
-function isMostOfLine(ranges: readonly CharRange[], text: string): boolean {
-  if (ranges.length === 0 || text.length === 0) return false;
-  const covered = ranges.reduce((sum, range) => sum + range.to - range.from, 0);
+const BRIDGE_TOKEN = /^[\s\p{P}]+$/u;
 
-  return covered / text.length > INTRA_LINE_EMPHASIS_SHARE;
+/** `range: {` and `start: 2` read as one change when only `, ` sits between. */
+function isBridgeToken(token: string): boolean {
+  return (
+    token.length > 0 &&
+    token.length <= INTRA_LINE_BRIDGE_LENGTH &&
+    BRIDGE_TOKEN.test(token)
+  );
+}
+
+function isMostOfLine(changed: number, text: string): boolean {
+  if (changed === 0 || text.length === 0) return false;
+
+  return changed / text.length > INTRA_LINE_EMPHASIS_SHARE;
 }
 
 function countCommonPrefix(

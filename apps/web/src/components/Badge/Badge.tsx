@@ -10,6 +10,8 @@ export const BadgeColors = {
   BLUE: "blue",
   VIOLET: "violet",
   AMBER: "amber",
+  POSITIVE: "positive",
+  NEGATIVE: "negative",
 } as const;
 
 export type BadgeColor = ValueOf<typeof BadgeColors>;

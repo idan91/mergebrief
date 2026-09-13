@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useReviewFlow } from "@web/features/review/session";
 import type { ExpandableEdge, LineRange } from "../types";
 import { findExpansionGaps } from "../utils/expandRows";
+import { resolveFileStatus } from "../utils/fileStatus";
 import {
   buildExpansionKey,
   collectStoredEdges,
@@ -32,6 +33,7 @@ export interface ExpandedRows {
 }
 
 const NO_WINDOWS: LineRange[] = [];
+const NO_EDGES: ExpandableEdge[] = [];
 
 /**
  * A chunk's rows with every edge the reader expanded spliced in. The flow
@@ -41,6 +43,14 @@ export function useExpandedRows(input: UseExpandedRowsInput): ExpandedRows {
   const { chunkId, path, rows, claimed } = input;
   const source = useExpansionSource();
   const expandedEdges = useReviewFlow((state) => state.expandedEdges);
+  const fileEnd = useReviewFlow((state) => state.fileEnds.get(path));
+  // A file the diff creates or removes shows every line it has. An expanded
+  // row paints as unchanged context with an old-side number, which such a
+  // file cannot have, so the chunk offers no edge at all, holes included.
+  const wholeFile = useMemo(
+    () => resolveFileStatus(rows) !== undefined,
+    [rows],
+  );
   const baseGaps = useMemo(() => findExpansionGaps(rows), [rows]);
   const stored = useMemo(
     () => collectStoredEdges(chunkId, baseGaps, expandedEdges),
@@ -67,13 +77,14 @@ export function useExpandedRows(input: UseExpandedRowsInput): ExpandedRows {
             claimed,
           });
     const edges =
-      source === undefined
-        ? []
+      source === undefined || wholeFile
+        ? NO_EDGES
         : placeExpandableEdges(
             chunkId,
             baseGaps,
             findExpansionGaps(spliced),
             expandedEdges,
+            fileEnd,
           );
 
     return {
@@ -92,5 +103,7 @@ export function useExpandedRows(input: UseExpandedRowsInput): ExpandedRows {
     baseGaps,
     expandedEdges,
     expansionKey,
+    wholeFile,
+    fileEnd,
   ]);
 }

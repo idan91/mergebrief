@@ -11,3 +11,5 @@ export const NO_EMPHASIS: PairedEmphasis = { left: [], right: [] };
 
 /** Above this many middle-token products the LCS is not worth its cost. */
 export const LCS_CELL_CAP = 10_000;
+/** An unchanged token this short, all punctuation or space, joins the runs around it. */
+export const INTRA_LINE_BRIDGE_LENGTH = 2;

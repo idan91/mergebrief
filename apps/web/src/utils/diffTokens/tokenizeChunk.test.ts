@@ -86,6 +86,21 @@ describe("tokenizeSide", () => {
     expect(token?.classId).not.toBe(resolvePaletteClassId("tag"));
   });
 
+  it("keeps code before an unclosed template as code", () => {
+    const lines = tokenizeSide(
+      highlighter,
+      "const prompt = `Review this:\n  be terse",
+      GrammarNames.TYPESCRIPT,
+    );
+
+    expect(readClassIdFor(lines, "const")).toBe(
+      resolvePaletteClassId("keyword"),
+    );
+    expect(readClassIdFor(lines, "prompt")).not.toBe(
+      resolvePaletteClassId("string"),
+    );
+  });
+
   it("emits one token line per input line", () => {
     const lines = tokenizeSide(
       highlighter,

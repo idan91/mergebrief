@@ -53,6 +53,18 @@ describe("reconstructHunkSides", () => {
     expect(sides[1]?.side).toBe("new");
   });
 
+  it("stamps each side with the file line its first row sits on", () => {
+    const sides = reconstructHunkSides([
+      { kind: "hunk", content: "@@ -0,0 +1,2 @@" },
+      { kind: "add", content: "a", newLine: 1 },
+      { kind: "add", content: "b", newLine: 2 },
+    ]);
+
+    expect(sides.map((side) => [side.side, side.startLine])).toEqual([
+      ["new", 1],
+    ]);
+  });
+
   it("returns no sides for rows that carry no code", () => {
     expect(reconstructHunkSides([])).toEqual([]);
     expect(reconstructHunkSides([makeRow(DiffLineKinds.HUNK, "@@")])).toEqual(

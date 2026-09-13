@@ -60,7 +60,7 @@ export function useExpandEdge(input: UseExpandEdgeInput): ExpandEdgeControl {
         start: result.range.from,
         end: result.range.to,
       };
-      expandEdge(edge.edgeKey, read, result.range.totalLines);
+      expandEdge(edge.edgeKey, read, result.range.totalLines, path);
       setFailure(undefined);
       return true;
     } catch (error) {

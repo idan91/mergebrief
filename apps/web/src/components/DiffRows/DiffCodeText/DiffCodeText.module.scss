@@ -5,6 +5,10 @@
 
   .syn-comment {
     color: var(--syn-comment);
+
+    mark & {
+      color: var(--emphasis-comment);
+    }
   }
 
   .syn-constant {

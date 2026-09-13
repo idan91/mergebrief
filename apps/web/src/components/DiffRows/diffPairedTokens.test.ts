@@ -54,6 +54,92 @@ describe("diffPairedTokens", () => {
     });
   });
 
+  it("joins two changed runs across a short punctuation token", () => {
+    const left = stubSide(
+      "range",
+      ": ",
+      "{",
+      " start: ",
+      "2",
+      ", ",
+      "end",
+      "}",
+    );
+    const right = stubSide(
+      "span",
+      ": ",
+      "[",
+      " start: ",
+      "3",
+      ", ",
+      "stop",
+      "}",
+    );
+
+    expect(diffPairedTokens(left, right)).toEqual({
+      left: [
+        { from: 0, to: 8 },
+        { from: 16, to: 22 },
+      ],
+      right: [
+        { from: 0, to: 7 },
+        { from: 15, to: 22 },
+      ],
+    });
+  });
+
+  it("keeps a ring that bridges push past the share cap", () => {
+    // Five one-character edits change 5 of 12 characters; the bridged ring
+    // covers 9, past the cap, and the share counts the edits, not the ring.
+    const left = stubSide(
+      "f(",
+      "a",
+      ",",
+      "b",
+      ",",
+      "c",
+      ",",
+      "d",
+      ",",
+      "e",
+      ")",
+    );
+    const right = stubSide(
+      "f(",
+      "v",
+      ",",
+      "w",
+      ",",
+      "x",
+      ",",
+      "y",
+      ",",
+      "z",
+      ")",
+    );
+
+    expect(diffPairedTokens(left, right)).toEqual({
+      left: [{ from: 2, to: 11 }],
+      right: [{ from: 2, to: 11 }],
+    });
+  });
+
+  it("keeps two runs apart across a longer unchanged token", () => {
+    const left = stubSide("a", " while ", "b");
+    const right = stubSide("x", " while ", "y");
+
+    expect(diffPairedTokens(left, right)).toEqual({
+      left: [
+        { from: 0, to: 1 },
+        { from: 8, to: 9 },
+      ],
+      right: [
+        { from: 0, to: 1 },
+        { from: 8, to: 9 },
+      ],
+    });
+  });
+
   it("marks an insertion on the side that gained characters only", () => {
     const left = stubSide("call(", "a", ")");
     const right = stubSide("call(", "a, b", ")");

@@ -36,3 +36,4 @@ export {
   type BriefViewModel,
   type RiskFlag,
 } from "./viewModel";
+export { resolveFileStatus } from "./fileStatus";

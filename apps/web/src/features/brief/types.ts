@@ -160,6 +160,13 @@ export interface RevisionChanges {
   files: RevisionChangeFile[];
 }
 
+/** What a file's first hunk header says about the file as a whole. */
+export const FileStatuses = {
+  NEW: "new",
+  DELETED: "deleted",
+} as const;
+export type FileStatus = ValueOf<typeof FileStatuses>;
+
 export const ExpansionDirections = {
   UP: "up",
   DOWN: "down",
@@ -697,6 +704,8 @@ export interface StoredEdge {
 
 /** An edge as the table renders it: placed by the spliced rows. */
 export interface ExpandableEdge {
+  /** The file's line count once any read on the file has reported it. */
+  fileEnd?: number;
   /** Insertion index into the SPLICED rows. */
   rowIndex: number;
   /** The base-row gap the store and the read are keyed on. */

@@ -93,12 +93,12 @@ export function ExpandControl({
   const upControl = useExpandEdge({ edge: up ?? NO_EDGE, path, claimed });
   const downControl = useExpandEdge({ edge: down ?? NO_EDGE, path, claimed });
   const noteId = useId();
-  const upNoteId = `${noteId}-up`;
-  const downNoteId = `${noteId}-down`;
+  const failures = listFailures(upControl.failure, downControl.failure);
+  const resolveNoteId = (failure: ExpandFailure | undefined) =>
+    failure === undefined ? undefined : `${noteId}-${failure}`;
   const nearest = nearestEdge(edges, reachable, hiddenThreadLines ?? []);
   const nearestIsUp = nearest !== undefined && nearest === up;
   const chipControl = nearestIsUp ? upControl : downControl;
-  const chipNoteId = nearestIsUp ? upNoteId : downNoteId;
 
   return (
     <td
@@ -112,7 +112,7 @@ export function ExpandControl({
             <ExpandArrow
               control={upControl}
               edge={up}
-              noteId={upControl.failure === undefined ? undefined : upNoteId}
+              noteId={resolveNoteId(upControl.failure)}
               onAbandoned={onAbandoned}
               onExpanded={onExpanded}
             />
@@ -121,9 +121,7 @@ export function ExpandControl({
             <ExpandArrow
               control={downControl}
               edge={down}
-              noteId={
-                downControl.failure === undefined ? undefined : downNoteId
-              }
+              noteId={resolveNoteId(downControl.failure)}
               onAbandoned={onAbandoned}
               onExpanded={onExpanded}
             />
@@ -137,22 +135,22 @@ export function ExpandControl({
             control={chipControl}
             count={hidden}
             edge={nearest}
-            noteId={chipControl.failure === undefined ? undefined : chipNoteId}
+            noteId={resolveNoteId(chipControl.failure)}
             onAbandoned={onAbandoned}
             onExpanded={onExpanded}
           />
         ) : null}
       </div>
-      {upControl.failure !== undefined ? (
-        <p className={styles["note"]} id={upNoteId} role="status">
-          {t(FAILURE_KEYS[upControl.failure])}
+      {failures.map((failure) => (
+        <p
+          className={styles["note"]}
+          id={resolveNoteId(failure)}
+          key={failure}
+          role="status"
+        >
+          {t(FAILURE_KEYS[failure])}
         </p>
-      ) : null}
-      {downControl.failure !== undefined ? (
-        <p className={styles["note"]} id={downNoteId} role="status">
-          {t(FAILURE_KEYS[downControl.failure])}
-        </p>
-      ) : null}
+      ))}
     </td>
   );
 }
@@ -266,6 +264,20 @@ function HiddenThreadsChip({
       {label}
     </button>
   );
+}
+
+/** One note per distinct refusal: both arrows failing the same way share it. */
+function listFailures(
+  ...failures: (ExpandFailure | undefined)[]
+): ExpandFailure[] {
+  const distinct: ExpandFailure[] = [];
+  for (const failure of failures) {
+    if (failure !== undefined && !distinct.includes(failure)) {
+      distinct.push(failure);
+    }
+  }
+
+  return distinct;
 }
 
 function resolveArrowLabel(

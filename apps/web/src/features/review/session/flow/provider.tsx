@@ -53,6 +53,7 @@ export function useCreateReviewFlowStore(
       evidenceTarget: null,
       expandedConversations: new Map(),
       expandedEdges: new Map(),
+      fileEnds: new Map(),
       reviewComment: "",
       selectedRiskFlags: new Set(),
       toast: "",

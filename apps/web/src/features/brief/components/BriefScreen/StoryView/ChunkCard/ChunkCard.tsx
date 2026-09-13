@@ -16,6 +16,7 @@ import type {
   RiskToken,
 } from "../../../../types";
 import { useExpandedRows } from "../../../../hooks/useExpandedRows";
+import { resolveFileStatus } from "../../../../utils/fileStatus";
 import type { AttributeDisplayMeta } from "../../../../utils/repoConfig";
 import type { ComparisonOverlayState } from "../../../../comparison/comparisonOverlay";
 import { AddressedComments, ReviewComments } from "@web/features/review";
@@ -32,6 +33,7 @@ import { RoleBadge } from "./RoleBadge/RoleBadge";
 import { FileCommentBand } from "./FileCommentBand/FileCommentBand";
 import { useFileCommentComposer } from "./useFileCommentComposer";
 import CommentOnFileIcon from "./comment-on-file.svg?react";
+import { FileStatusBadge } from "./FileStatusBadge/FileStatusBadge";
 import {
   splitInlineRows,
   type DigestRow,
@@ -179,6 +181,7 @@ export const ChunkCard = memo(function ChunkCard({
   });
   const tokenPlan = useTokenPlan();
   const diffRows = chunk.diff ?? NO_ROWS;
+  const fileStatus = useMemo(() => resolveFileStatus(diffRows), [diffRows]);
   const expansion = useExpandedRows({
     chunkId: chunk.id,
     path: chunk.file,
@@ -342,6 +345,9 @@ export const ChunkCard = memo(function ChunkCard({
                 {chunk.concern}
               </span>
               <RoleBadge role={chunk.role} />
+              {fileStatus !== undefined ? (
+                <FileStatusBadge status={fileStatus} />
+              ) : null}
             </>
           )}
           {comments.length > 0 ? (

@@ -69,6 +69,8 @@ export interface ReviewFlowState extends ReviewFlowPosture {
    * without duplicating the diff in the store.
    */
   expandedEdges: ReadonlyMap<string, EdgeExpansion>;
+  /** Line counts the file-range reads have reported, by path. */
+  fileEnds: ReadonlyMap<string, number>;
   /** The free-text review-comment draft: survives the submit modal closing,
    * deliberately not a reload. */
   reviewComment: string;
@@ -106,7 +108,12 @@ export interface ReviewFlowActions {
    * @description Widen one hunk edge's expanded window by the lines a click
    * just read. Ranges union, so a repeat of the same read changes nothing.
    */
-  expandEdge: (edgeKey: string, range: LineRange, totalLines?: number) => void;
+  expandEdge: (
+    edgeKey: string,
+    range: LineRange,
+    totalLines?: number,
+    path?: string,
+  ) => void;
   setDismissTarget: (target: DismissTarget | null) => void;
   setEvidenceTarget: (target: EvidenceTarget | null) => void;
   toggleRiskFlag: (flagId: string) => void;
@@ -171,6 +178,7 @@ export function initialReviewFlowState(
     evidenceTarget: null,
     expandedConversations: new Map(),
     expandedEdges: new Map(),
+    fileEnds: new Map(),
     reviewComment: "",
     selectedRiskFlags: new Set(),
     toast: "",
@@ -309,8 +317,12 @@ export function createReviewFlowStore(
             return { expandedConversations: next };
           });
         },
-        expandEdge(edgeKey, range, totalLines) {
+        expandEdge(edgeKey, range, totalLines, path) {
           set((state) => {
+            const fileEnds =
+              totalLines === undefined || path === undefined
+                ? state.fileEnds
+                : new Map(state.fileEnds).set(path, totalLines);
             const next = new Map(state.expandedEdges);
             const current = state.expandedEdges.get(edgeKey);
             const windows = current?.windows ?? [];
@@ -325,7 +337,7 @@ export function createReviewFlowStore(
             const fileEnd = totalLines ?? current?.totalLines;
             if (fileEnd !== undefined) widened.totalLines = fileEnd;
             next.set(edgeKey, widened);
-            return { expandedEdges: next };
+            return { expandedEdges: next, fileEnds };
           });
         },
         setDismissTarget(target) {

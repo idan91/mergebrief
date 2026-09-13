@@ -46,7 +46,12 @@ export function tokenizeChunkRows(
 ): RowTokenMap {
   const sides = reconstructHunkSides(rows);
   const tokensBySide = sides.map((side) =>
-    tokenizeSide(highlighter, side.text.join("\n"), grammar),
+    tokenizeSide(
+      highlighter,
+      side.text.join("\n"),
+      grammar,
+      side.startLine === 1,
+    ),
   );
 
   return mapTokensToRows(sides, tokensBySide);
@@ -102,8 +107,9 @@ export function tokenizeSide(
   highlighter: HighlighterCore,
   text: string,
   grammar: GrammarName,
+  atFileStart = false,
 ): RowTokenLine[] {
-  const prelude = derivePrelude(text, grammar);
+  const prelude = atFileStart ? undefined : derivePrelude(text, grammar);
 
   const options: CodeToTokensBaseOptions = {
     lang: grammar,

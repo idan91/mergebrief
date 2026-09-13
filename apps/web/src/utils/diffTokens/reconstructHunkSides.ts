@@ -32,11 +32,17 @@ export function reconstructHunkSides(rows: DiffLine[]): HunkSide[] {
     if (row.kind === DiffLineKinds.DEL || isContextKind(row.kind)) {
       oldSide.text.push(row.content);
       oldSide.rowIndexes.push(index);
+      if (oldSide.startLine === undefined && row.oldLine !== undefined) {
+        oldSide.startLine = row.oldLine;
+      }
     }
 
     if (row.kind === DiffLineKinds.ADD || isContextKind(row.kind)) {
       newSide.text.push(row.content);
       newSide.rowIndexes.push(index);
+      if (newSide.startLine === undefined && row.newLine !== undefined) {
+        newSide.startLine = row.newLine;
+      }
     }
   });
 

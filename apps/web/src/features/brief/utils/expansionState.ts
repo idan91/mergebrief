@@ -7,6 +7,7 @@ import {
   type ExpansionApplication,
   ExpansionDirections,
   type ExpansionGap,
+  type ExpansionWindow,
   type FileRangeSlice,
   type LineRange,
   type ResolveExpansionWindowParams,
@@ -99,6 +100,7 @@ export function placeExpandableEdges(
   baseGaps: readonly ExpansionGap[],
   splicedGaps: readonly ExpansionGap[],
   expandedEdges: ReadonlyMap<string, EdgeExpansion>,
+  fileEnd?: number,
 ): ExpandableEdge[] {
   const edges: ExpandableEdge[] = [];
 
@@ -118,6 +120,7 @@ export function placeExpandableEdges(
         ? undefined
         : expandedEdges.get(formatExpansionKey(chunkId, other.edge));
     if (sibling !== undefined) edge.sibling = sibling.range;
+    if (fileEnd !== undefined) edge.fileEnd = fileEnd;
     edges.push(edge);
   }
 
@@ -190,18 +193,37 @@ export function resolveExpanderStep(
   if (edge.expansion !== undefined) params.expanded = edge.expansion.range;
   const window = resolveExpansionWindow(params);
   if (window === undefined) return undefined;
-  const span = window.to - window.from + 1;
+  const bounded = clampToFileEnd(window, edge);
+  if (bounded === undefined) return undefined;
+  const span = bounded.to - bounded.from + 1;
   const openEnded =
     edge.gap.to === undefined &&
     edge.gap.edge.direction === ExpansionDirections.DOWN;
+  const reachesEnd = edge.fileEnd !== undefined && bounded.to === edge.fileEnd;
 
-  return { window, takesAll: !openEnded && span < EXPAND_STEP };
+  return {
+    window: bounded,
+    takesAll: openEnded ? reachesEnd : span < EXPAND_STEP,
+  };
+}
+
+/** Once any read has named the file end, the last step reads exactly to it. */
+function clampToFileEnd(
+  window: ExpansionWindow,
+  edge: ExpandableEdge,
+): ExpansionWindow | undefined {
+  if (edge.fileEnd === undefined) return window;
+  if (edge.gap.edge.direction !== ExpansionDirections.DOWN) return window;
+  if (window.from > edge.fileEnd) return undefined;
+
+  return { from: window.from, to: Math.min(window.to, edge.fileEnd) };
 }
 
 function isPastFileEnd(edge: ExpandableEdge): boolean {
+  if (edge.gap.edge.direction !== ExpansionDirections.DOWN) return false;
+  if (edge.fileEnd !== undefined && edge.gap.from > edge.fileEnd) return true;
   const expansion = edge.expansion;
   if (expansion?.totalLines === undefined) return false;
-  if (edge.gap.edge.direction !== ExpansionDirections.DOWN) return false;
 
   return expansion.range.end >= expansion.totalLines;
 }

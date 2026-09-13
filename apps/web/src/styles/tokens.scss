@@ -85,6 +85,9 @@
     --syn-regexp: #dbedff;
     --syn-bracket: #d1d5da;
 
+    // Inside an emphasis fill the two dim syntax classes step up to keep 4.5:1.
+    --emphasis-comment: #a8b1ba;
+
     // Near-white fill for solid indicators (progress bar, concern dot).
     // Earned: folding into --color-text-1 (Δ~20) would visibly brighten both.
     --color-fill-bright: #d8d8de;

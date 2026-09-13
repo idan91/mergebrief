@@ -71,6 +71,75 @@ function stubShortChunk(): BriefChunk {
   } as BriefChunk;
 }
 
+/** One hunk sliced around another chunk's rows: a hole with no header. */
+function stubInnerHoleChunk(): BriefChunk {
+  return {
+    ...stubChunk(),
+    addedRanges: [
+      { start: 2, end: 2 },
+      { start: 51, end: 51 },
+    ],
+    removedRanges: [],
+    diff: [
+      { kind: "hunk", content: "@@ -1,200 +1,203 @@" },
+      { kind: "ctx", content: "a", oldLine: 1, newLine: 1 },
+      { kind: "add", content: "b", newLine: 2 },
+      { kind: "ctx", content: "c", oldLine: 2, newLine: 3 },
+      { kind: "ctx", content: "d", oldLine: 46, newLine: 50 },
+      { kind: "add", content: "e", newLine: 51 },
+    ],
+  } as BriefChunk;
+}
+
+function stubNewFileChunk(): BriefChunk {
+  return {
+    ...stubChunk(),
+    loc: { added: 3, deleted: 0 },
+    addedRanges: [{ start: 1, end: 3 }],
+    removedRanges: [],
+    diff: [
+      { kind: "hunk", content: "@@ -0,0 +1,3 @@" },
+      { kind: "add", content: "a", newLine: 1 },
+      { kind: "add", content: "b", newLine: 2 },
+      { kind: "add", content: "c", newLine: 3 },
+    ],
+  } as BriefChunk;
+}
+
+function stubDeletedFileChunk(): BriefChunk {
+  return {
+    ...stubChunk(),
+    loc: { added: 0, deleted: 2 },
+    addedRanges: [],
+    removedRanges: [{ start: 1, end: 2 }],
+    diff: [
+      { kind: "hunk", content: "@@ -1,2 +0,0 @@" },
+      { kind: "del", content: "a", oldLine: 1 },
+      { kind: "del", content: "b", oldLine: 2 },
+    ],
+  } as BriefChunk;
+}
+
+/** A new file sliced with a hole: additions on both sides of it. */
+function stubNewFileHoleChunk(): BriefChunk {
+  return {
+    ...stubChunk(),
+    loc: { added: 4, deleted: 0 },
+    addedRanges: [
+      { start: 1, end: 2 },
+      { start: 51, end: 52 },
+    ],
+    removedRanges: [],
+    diff: [
+      { kind: "hunk", content: "@@ -0,0 +1,60 @@" },
+      { kind: "add", content: "a", newLine: 1 },
+      { kind: "add", content: "b", newLine: 2 },
+      { kind: "add", content: "c", newLine: 51 },
+      { kind: "add", content: "d", newLine: 52 },
+    ],
+  } as BriefChunk;
+}
+
 function stubBrief(chunk: BriefChunk): Brief {
   const { diff: _rows, ...stored } = chunk;
   return {
@@ -571,6 +640,69 @@ describe("DiffTable expansion click", () => {
         .getByRole("button", { name: "Show 20 more lines below" })
         .getAttribute("aria-describedby"),
     ).toBeNull();
+  });
+
+  it("shares one note when both arrows of a hole fail the same way", async () => {
+    const { queryClient } = renderHarness({
+      chunk: stubInnerHoleChunk(),
+      view: "unified",
+    });
+    seedRange(queryClient, 4, 23, 80, { kind: "too-large" });
+    seedRange(queryClient, 30, 49, 80, { kind: "too-large" });
+    const above = () =>
+      screen.getByRole("button", { name: "Show 20 more lines above" });
+    const below = () =>
+      screen.getAllByRole("button", { name: "Show 20 more lines below" })[0];
+    fireEvent.click(below()!);
+    await waitFor(() => expect(screen.getAllByRole("status")).toHaveLength(1));
+    fireEvent.click(above());
+    await waitFor(() =>
+      expect(above().getAttribute("aria-describedby")).not.toBeNull(),
+    );
+
+    const notes = screen.getAllByRole("status");
+    expect(notes).toHaveLength(1);
+    expect(above().closest("tr")).toBe(below()?.closest("tr"));
+    expect(above().getAttribute("aria-describedby")).toBe(notes[0]?.id);
+    expect(below()?.getAttribute("aria-describedby")).toBe(notes[0]?.id);
+  });
+
+  it("offers no expander on a new file", () => {
+    renderHarness({ chunk: stubNewFileChunk(), view: "unified" });
+
+    expect(screen.queryByRole("button", { name: /more lines/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /hidden line/ })).toBeNull();
+  });
+
+  it("offers no expander on a deleted file", () => {
+    renderHarness({ chunk: stubDeletedFileChunk(), view: "unified" });
+
+    expect(screen.queryByRole("button", { name: /more lines/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /hidden line/ })).toBeNull();
+  });
+
+  it("offers no expander for a hole inside a new file", () => {
+    renderHarness({ chunk: stubNewFileHoleChunk(), view: "unified" });
+
+    expect(screen.queryByRole("button", { name: /more lines/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /hidden line/ })).toBeNull();
+  });
+
+  it("retires the trailing arrow once a read has named the file end", async () => {
+    const { queryClient } = renderHarness({
+      chunk: stubChunk(),
+      view: "unified",
+    });
+    seedRange(queryClient, 33, 52, 32);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Show 20 more lines below" }),
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: "Show 20 more lines below" }),
+      ).toBeNull(),
+    );
   });
 
   it("retries on the next click and clears the note once lines land", async () => {

@@ -35,6 +35,14 @@
     --badge-color: var(--amber);
   }
 
+  .badge[data-color="positive"] {
+    --badge-color: var(--green);
+  }
+
+  .badge[data-color="negative"] {
+    --badge-color: var(--red);
+  }
+
   .badge[data-fill] {
     background: color-mix(in srgb, var(--badge-color) 14%, transparent);
     border-color: color-mix(in srgb, var(--badge-color) 30%, transparent);

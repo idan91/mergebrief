@@ -293,3 +293,55 @@ describe("collectClaimedLines with sibling expansions", () => {
     });
   });
 });
+
+describe("file end", () => {
+  it("retires a trailing edge whose hole starts past the file end", () => {
+    const edge = placeExpandableEdges(
+      "c1",
+      findExpansionGaps(TAIL_ONLY),
+      findExpansionGaps(TAIL_ONLY),
+      new Map(),
+      3,
+    ).find((candidate) => candidate.gap.to === undefined);
+
+    expect(edge?.fileEnd).toBe(3);
+    expect(edge && resolveExpanderStep(edge, [])).toBeUndefined();
+  });
+
+  it("clamps a trailing step to a file end a sibling read named", () => {
+    const edge = placeExpandableEdges(
+      "c1",
+      findExpansionGaps(TAIL_ONLY),
+      findExpansionGaps(TAIL_ONLY),
+      new Map(),
+      12,
+    ).find((candidate) => candidate.gap.to === undefined);
+
+    expect(edge && resolveExpanderStep(edge, [])).toEqual({
+      window: { from: 4, to: 12 },
+      takesAll: true,
+    });
+  });
+
+  it("keeps a trailing edge that still has lines below it", () => {
+    const edge = placeExpandableEdges(
+      "c1",
+      findExpansionGaps(TAIL_ONLY),
+      findExpansionGaps(TAIL_ONLY),
+      new Map(),
+      40,
+    ).find((candidate) => candidate.gap.to === undefined);
+
+    expect(edge && resolveExpanderStep(edge, [])?.window).toEqual({
+      from: 4,
+      to: 23,
+    });
+  });
+});
+
+const TAIL_ONLY: DiffLine[] = [
+  { kind: "hunk", content: "@@ -1,3 +1,3 @@" },
+  { kind: "ctx", content: "a", oldLine: 1, newLine: 1 },
+  { kind: "add", content: "b", newLine: 2 },
+  { kind: "ctx", content: "c", oldLine: 2, newLine: 3 },
+];

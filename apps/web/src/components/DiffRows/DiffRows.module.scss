@@ -169,21 +169,22 @@
 }
 
 @layer components {
-  // A ring, not a fill: a 28% fill of the hue over the add row puts the
-  // comment colour at 3.2:1 and the entity colour at 3.8:1; an 8% fill holds
-  // 5.0:1 but is indistinguishable from the row's own 5% tint.
+  // 18% is the strongest fill every palette colour keeps at 4.5:1 over the
+  // add and del tints once comment and ignored tokens take their lifted
+  // colours (keyword lands at 4.64:1 on add); without the lift the comment
+  // colour caps the fill at 12%.
   .emphasis {
     border-radius: var(--radius-xs);
-    outline: 1px solid color-mix(in srgb, var(--row-hue) 55%, transparent);
-    outline-offset: 0;
-    background: transparent;
+    background: color-mix(in srgb, var(--row-hue) 18%, transparent);
     color: inherit;
     text-decoration: none;
   }
 
   @media (prefers-contrast: more) {
     .emphasis {
+      background: transparent;
       outline: 2px solid currentcolor;
+      outline-offset: 0;
     }
   }
 }
