@@ -902,27 +902,9 @@
       "count": 3
     }
   },
-  "apps/web/src/features/brief/hooks/useKeyboardShortcuts.hook.test.tsx": {
-    "house/no-em-dash": {
-      "count": 5
-    },
-    "house/test-title": {
-      "count": 1
-    }
-  },
-  "apps/web/src/features/brief/hooks/useKeyboardShortcuts.test.ts": {
-    "house/test-title": {
-      "count": 7
-    }
-  },
   "apps/web/src/features/brief/hooks/useRevisionNavigation.ts": {
     "house/no-em-dash": {
       "count": 6
-    }
-  },
-  "apps/web/src/features/brief/index.tsx": {
-    "house/no-em-dash": {
-      "count": 2
     }
   },
   "apps/web/src/features/brief/queries.ts": {

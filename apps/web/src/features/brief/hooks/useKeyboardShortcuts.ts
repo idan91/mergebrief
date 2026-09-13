@@ -15,6 +15,7 @@ export interface KeyboardShortcutsOptions {
   markViewed: (chunkId: string) => void;
   jumpToConversation?: (() => void) | undefined;
   toggleSidebar?: (() => void) | undefined;
+  toggleDiffView?: (() => void) | undefined;
 }
 
 export interface ShortcutEvent {
@@ -43,6 +44,7 @@ export type ShortcutAction =
   | { type: "toggleHelp" }
   | { type: "jumpToConversation" }
   | { type: "toggleSidebar" }
+  | { type: "toggleDiffView" }
   | { type: "markViewed"; chunkId: string };
 
 const TYPING_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
@@ -88,6 +90,7 @@ const FLAT_ACTIONS: Readonly<Record<string, ShortcutAction>> = {
   z: { type: "toggleFocus" },
   "?": { type: "toggleHelp" },
   c: { type: "jumpToConversation" },
+  d: { type: "toggleDiffView" },
 };
 
 export function resolveShortcut(
@@ -172,12 +175,14 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions): void {
         return;
       }
       if (action.type === "toggleSidebar" && !current.toggleSidebar) return;
+      if (action.type === "toggleDiffView" && !current.toggleDiffView) return;
       event.preventDefault();
       if (action.type === "jump") current.jumpToChunk(action.chunkId);
       else if (action.type === "toggleFocus") current.toggleFocusMode();
       else if (action.type === "jumpToConversation")
         current.jumpToConversation?.();
       else if (action.type === "toggleSidebar") current.toggleSidebar?.();
+      else if (action.type === "toggleDiffView") current.toggleDiffView?.();
       else if (action.type === "markViewed") current.markViewed(action.chunkId);
       else current.toggleHelp();
     }

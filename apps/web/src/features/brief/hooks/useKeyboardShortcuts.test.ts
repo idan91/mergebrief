@@ -40,7 +40,7 @@ describe("resolveShortcut", () => {
     expect(resolveShortcut(key("s"), open)).toEqual({
       type: "toggleSidebar",
     });
-    for (const k of ["j", "k", "z", "c", "?"]) {
+    for (const k of ["j", "k", "z", "c", "d", "?"]) {
       expect(resolveShortcut(key(k), open)).toBeNull();
     }
     expect(resolveShortcut(key("J", { shiftKey: true }), open)).toBeNull();
@@ -81,11 +81,11 @@ describe("resolveShortcut", () => {
     });
   });
 
-  it("j clamps at the last chunk (no jump)", () => {
+  it("j clamps at the last chunk", () => {
     expect(resolveShortcut(key("j"), state({ activeChunkId: "c" }))).toBeNull();
   });
 
-  it("k clamps at the first chunk (no jump)", () => {
+  it("k clamps at the first chunk", () => {
     expect(resolveShortcut(key("k"), state({ activeChunkId: "a" }))).toBeNull();
   });
 
@@ -135,7 +135,7 @@ describe("resolveShortcut", () => {
     ).toEqual({ type: "toggleFocus" });
   });
 
-  it("Escape is ignored while an overlay is open, so the overlay closes first", () => {
+  it("Escape is ignored while an overlay is open", () => {
     expect(
       resolveShortcut(
         key("Escape"),
@@ -186,7 +186,7 @@ describe("resolveShortcut", () => {
     ).toEqual({ type: "jump", chunkId: "a" });
   });
 
-  it("Shift+J from the middle of a group jumps forward, not to the group's own start", () => {
+  it("Shift+J from mid group jumps forward, not to its own start", () => {
     expect(
       resolveShortcut(
         key("j", { shiftKey: true }),
@@ -195,7 +195,7 @@ describe("resolveShortcut", () => {
     ).toEqual({ type: "jump", chunkId: "e" });
   });
 
-  it("Shift+J clamps at the last group (no jump)", () => {
+  it("Shift+J clamps at the last group", () => {
     expect(
       resolveShortcut(
         key("j", { shiftKey: true }),
@@ -204,7 +204,7 @@ describe("resolveShortcut", () => {
     ).toBeNull();
   });
 
-  it("Shift+K clamps at the first group (no jump)", () => {
+  it("Shift+K clamps at the first group", () => {
     expect(
       resolveShortcut(
         key("k", { shiftKey: true }),
@@ -226,7 +226,7 @@ describe("resolveShortcut", () => {
     expect(resolveShortcut(key("j", { shiftKey: true }), state())).toBeNull();
   });
 
-  it("plain J/K ignore shiftKey-less chords exactly as before, unaffected by groupBoundaries", () => {
+  it("plain J/K stay unaffected by group boundaries", () => {
     expect(
       resolveShortcut(key("j"), groupedState({ activeChunkId: "a" })),
     ).toEqual({ type: "jump", chunkId: "b" });
@@ -289,5 +289,21 @@ describe("conversation shortcut", () => {
         { ...shortcutState, disabled: true },
       ),
     ).toBeNull();
+  });
+});
+
+describe("resolveShortcut for the diff view", () => {
+  it("d asks for the other diff view", () => {
+    expect(resolveShortcut(key("d"), state())).toEqual({
+      type: "toggleDiffView",
+    });
+  });
+
+  it("d stands down while typing", () => {
+    expect(resolveShortcut(key("d", { isTyping: true }), state())).toBeNull();
+  });
+
+  it("d stands down under a modifier", () => {
+    expect(resolveShortcut(key("d", { metaKey: true }), state())).toBeNull();
   });
 });

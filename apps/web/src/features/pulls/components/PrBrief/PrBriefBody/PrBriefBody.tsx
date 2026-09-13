@@ -91,6 +91,8 @@ export interface PrBriefBodyProps {
   state: BriefRouteState;
   searchParams: BriefSearchParams;
   onNavigateSearch: (next: BriefSearch) => void;
+  /** Drops the `diff` deep link once the viewer picks a view; route-owned. */
+  clearDiffParam?: (() => void) | undefined;
   /** Hard read-only posture + reason (base drift only). */
   readOnly?: { reason: string } | undefined;
   /**
@@ -121,6 +123,7 @@ function PrBriefBodyState({
   state,
   searchParams,
   onNavigateSearch,
+  clearDiffParam,
   readOnly,
   staleHead,
   onGoToNewest,
@@ -143,6 +146,7 @@ function PrBriefBodyState({
           onConversationFilterChange={onConversationFilterChange}
           meta={meta}
           onNavigateSearch={onNavigateSearch}
+          clearDiffParam={clearDiffParam}
           onSelectRevision={onSelectRevision}
           prNumber={prNumber}
           readOnly={readOnly}

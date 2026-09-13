@@ -9,6 +9,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
 import { briefFixture } from "@web/features/brief/fixtures";
 import { buildBriefViewModel, GroupViewKinds } from "../../../utils/viewModel";
 import {
@@ -41,6 +42,10 @@ interface HarnessProps {
   conversationGroupIds?: ReadonlySet<string>;
   band?: ViewportBand;
   pending?: boolean;
+  diffView?: DiffView;
+  toggleDiffView?: () => void;
+  /** False renders the foot without the split view control. */
+  diffToggleWired?: boolean;
 }
 
 function noop(): void {}
@@ -52,6 +57,9 @@ function Harness({
   conversationGroupIds,
   band = "desktop",
   pending = false,
+  diffView = DiffViews.UNIFIED,
+  toggleDiffView = noop,
+  diffToggleWired = true,
 }: HarnessProps) {
   const state = useSidebarState(band, true);
   return (
@@ -68,6 +76,8 @@ function Harness({
         pending={pending}
         state={state}
         toggleShortcuts={toggleShortcuts}
+        diffView={diffView}
+        toggleDiffView={diffToggleWired ? toggleDiffView : undefined}
       />
     </>
   );
@@ -379,5 +389,37 @@ describe("Sidebar below the tablet breakpoint", () => {
     fireEvent.click(chevronNarrow());
     fireEvent.click(chevronNarrow());
     expect(setItem).not.toHaveBeenCalled();
+  });
+});
+
+describe("the split view control", () => {
+  it("offers the unified view, turned a quarter, while split", () => {
+    renderSidebar({ diffView: DiffViews.SPLIT });
+    const control = screen.getByRole("button", {
+      name: "Switch to unified view",
+    });
+    expect(control.getAttribute("data-target")).toBe("unified");
+  });
+
+  it("offers the split view, upright, while unified", () => {
+    renderSidebar();
+    const control = screen.getByRole("button", {
+      name: "Switch to split view",
+    });
+    expect(control.getAttribute("data-target")).toBe("split");
+  });
+
+  it("asks for the other view on click", () => {
+    const toggleDiffView = vi.fn();
+    renderSidebar({ toggleDiffView });
+
+    fireEvent.click(screen.getByTestId("sidebar-diff-view"));
+
+    expect(toggleDiffView).toHaveBeenCalledTimes(1);
+  });
+
+  it("stays out of the foot where rows cannot split", () => {
+    renderSidebar({ diffToggleWired: false });
+    expect(screen.queryByTestId("sidebar-diff-view")).toBeNull();
   });
 });

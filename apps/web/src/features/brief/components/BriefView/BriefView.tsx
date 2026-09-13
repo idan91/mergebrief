@@ -41,6 +41,8 @@ export interface BriefViewProps {
   staleHead?: boolean | undefined;
   openDeltaLens?: (() => void) | undefined;
   exitChangesScope?: (() => void) | undefined;
+  /** Drops the `diff` deep link once the viewer picks a view; route-owned. */
+  clearDiffParam?: (() => void) | undefined;
   conversationFocusThreadId?: number | undefined;
   conversationFilter?: ConversationFilter | undefined;
   onConversationFilterChange?: ((next: ConversationFilter) => void) | undefined;
@@ -72,6 +74,7 @@ export function BriefView({
   headerControls,
   openDeltaLens,
   exitChangesScope,
+  clearDiffParam,
   ownDraft,
   readOnly,
   repoConfig,
@@ -109,6 +112,7 @@ export function BriefView({
         model={model}
         openDeltaLens={openDeltaLens}
         exitChangesScope={exitChangesScope}
+        clearDiffParam={clearDiffParam}
         ownDraft={ownDraft}
         readOnly={readOnly}
         reviewSession={session}

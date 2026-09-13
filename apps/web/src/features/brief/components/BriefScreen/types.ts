@@ -60,6 +60,8 @@ export interface BriefScreenProps {
    * through this; absent where no navigation is wired.
    */
   exitChangesScope?: (() => void) | undefined;
+  /** Drops the `diff` deep link once the viewer picks a view; route-owned. */
+  clearDiffParam?: (() => void) | undefined;
   /** Content goes inert; the sticky header stays live. */
   revisionPending?: boolean | undefined;
 }

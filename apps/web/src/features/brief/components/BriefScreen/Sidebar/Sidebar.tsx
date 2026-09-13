@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, type FocusEvent, type KeyboardEvent } from "react";
 
+import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
 import { IconButton } from "@web/components/IconButton/IconButton";
 import { Tabs } from "@web/components/Tabs/Tabs";
 import {
@@ -14,6 +15,7 @@ import { SIDEBAR_PANEL_ID } from "./consts";
 import { GroupLines } from "./GroupLines/GroupLines";
 import ArrowUpIcon from "./icons/arrow-up.svg?react";
 import ChevronLeftIcon from "./icons/chevron-left.svg?react";
+import SplitViewIcon from "./icons/split-view.svg?react";
 import { NarrowBar } from "./NarrowBar/NarrowBar";
 import { Sheet } from "./Sheet/Sheet";
 import { ThisPr } from "./Tabs/ThisPr/ThisPr";
@@ -29,6 +31,12 @@ function scrollWindowToTop(): void {
   });
 }
 
+/** The control names and shows the view a click switches to. */
+const DIFF_VIEW_SWITCH_LABELS = {
+  [DiffViews.SPLIT]: "brief.sidebar.diffViewToSplit",
+  [DiffViews.UNIFIED]: "brief.sidebar.diffViewToUnified",
+} as const;
+
 export interface SidebarProps {
   groups: GroupView[];
   jumpToGroup: (groupId: string) => void;
@@ -40,6 +48,10 @@ export interface SidebarProps {
   /** A revision load is pending: the aside goes inert with the content. */
   pending: boolean;
   toggleShortcuts: () => void;
+  /** Rows unified or paired per hunk; the foot control toggles it. */
+  diffView: DiffView;
+  /** Absent where rows cannot split; the control stays out of the foot. */
+  toggleDiffView?: (() => void) | undefined;
 }
 
 /**
@@ -57,8 +69,12 @@ export function Sidebar({
   band,
   pending,
   toggleShortcuts,
+  diffView,
+  toggleDiffView,
 }: SidebarProps) {
   const { t } = useTranslation();
+  const otherDiffView =
+    diffView === DiffViews.SPLIT ? DiffViews.UNIFIED : DiffViews.SPLIT;
   const activeGroupId = useReadingPosition(
     (position) => position.activeGroupId,
   );
@@ -209,6 +225,19 @@ export function Sidebar({
           >
             <ArrowUpIcon aria-hidden="true" />
           </IconButton>
+          {toggleDiffView === undefined ? null : (
+            <IconButton
+              callout="left"
+              className={styles["viewSwitch"]}
+              data-target={otherDiffView}
+              data-testid="sidebar-diff-view"
+              label={t(DIFF_VIEW_SWITCH_LABELS[otherDiffView])}
+              size="md"
+              onClick={toggleDiffView}
+            >
+              <SplitViewIcon aria-hidden="true" />
+            </IconButton>
+          )}
           <IconButton
             callout="left"
             className={styles["shortcutsTrigger"]}

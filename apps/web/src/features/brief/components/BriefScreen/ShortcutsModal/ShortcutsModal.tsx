@@ -36,6 +36,7 @@ const SECTIONS: ShortcutSection[] = [
       { keys: ["C"], descriptionKey: "brief.shortcuts.jumpConversation" },
       { keys: ["S"], descriptionKey: "brief.shortcuts.toggleSidebar" },
       { keys: ["R"], descriptionKey: "brief.shortcuts.quoteThread" },
+      { keys: ["D"], descriptionKey: "brief.shortcuts.toggleDiffView" },
       { keys: ["?"], descriptionKey: "brief.shortcuts.toggleShortcuts" },
       { keys: ["Esc"], descriptionKey: "brief.shortcuts.closeDialog" },
     ],

@@ -240,7 +240,7 @@
   // Beside a split diff the card narrows to full content at 400px so the
   // halves keep prettier's line; the stack thresholds below re-derive for it
   // (a 1004px column: 586px of diff, the card and its gap).
-  .main[data-diff-view="split"] .story-group {
+  .main .story-group[data-diff-view="split"] {
     grid-template-columns: minmax(0, 1fr) functions.to-rem(400px);
   }
 
@@ -264,15 +264,13 @@
   // threshold is that column plus the 96px of gutters plus the sidebar's
   // reserve.
   @mixin stack-split {
-    .story-group {
-      display: flex;
+    display: flex;
 
-      .group-chunks {
-        order: 2;
-      }
+    .group-chunks {
+      order: 2;
     }
 
-    .story-group > article {
+    > article {
       position: static;
       order: 1;
       max-block-size: none;
@@ -280,37 +278,37 @@
   }
 
   @media (width <= 1220px) {
-    .main:not([data-diff-view="split"]) {
+    .main .story-group:not([data-diff-view="split"]) {
       @include stack-split;
     }
   }
 
   @media (width <= 1268px) {
-    .main[data-sidebar="collapsed"]:not([data-diff-view="split"]) {
+    .main[data-sidebar="collapsed"] .story-group:not([data-diff-view="split"]) {
       @include stack-split;
     }
   }
 
   @media (width <= 1644px) {
-    .main[data-sidebar="expanded"]:not([data-diff-view="split"]) {
+    .main[data-sidebar="expanded"] .story-group:not([data-diff-view="split"]) {
       @include stack-split;
     }
   }
 
   @media (width <= 1100px) {
-    .main[data-diff-view="split"] {
+    .main .story-group[data-diff-view="split"] {
       @include stack-split;
     }
   }
 
   @media (width <= 1148px) {
-    .main[data-sidebar="collapsed"][data-diff-view="split"] {
+    .main[data-sidebar="collapsed"] .story-group[data-diff-view="split"] {
       @include stack-split;
     }
   }
 
   @media (width <= 1524px) {
-    .main[data-sidebar="expanded"][data-diff-view="split"] {
+    .main[data-sidebar="expanded"] .story-group[data-diff-view="split"] {
       @include stack-split;
     }
   }

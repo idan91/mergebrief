@@ -286,6 +286,14 @@ _Avoid_: zen mode (code-internal only), distraction-free, reading mode (every mo
 Which slice of the Brief the page shows: **Full** is the whole story flow; **Changes** is the compare view between two revisions, keeping only the summary. Scope and **Focus mode** are the two reading modes that together decide which page regions render; that decision is made once, never per region.
 _Avoid_: view (the URL param's name, not the concept), tab (that is a **Sidebar** surface), filter (the toolbar Filter governs inline threads)
 
+**Unified view**:
+The default diff rendering: one column of rows, added and removed lines interleaved in file order. Per viewer, remembered in browser storage, overridable for one visit by the `diff` URL param.
+_Avoid_: inline view, single view, list view
+
+**Split view**:
+The paired diff rendering: each hunk's removed and added lines positioned side by side, one row per pair. Same per-viewer preference and same `diff` param as **Unified view**; needs a viewport wide enough for two halves.
+_Avoid_: side-by-side (informal only), two-up, dual pane
+
 ### Workspace
 
 **App**:

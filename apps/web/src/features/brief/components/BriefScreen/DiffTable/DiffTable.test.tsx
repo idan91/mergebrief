@@ -170,7 +170,7 @@ function renderTable(
     reviewCommentLabel: "review comment",
     ...overrides,
   };
-  const view = render(
+  const tree = (next: DiffTableProps) => (
     <QueryClientProvider client={new QueryClient()}>
       <ReviewSessionProvider
         briefId="test-brief"
@@ -178,12 +178,16 @@ function renderTable(
         session={session}
       >
         <ReviewFlowProvider store={flowStore}>
-          <DiffTable {...props} />
+          <DiffTable {...next} />
         </ReviewFlowProvider>
       </ReviewSessionProvider>
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
-  return { view, openCommentComposer, flowStore };
+  const view = render(tree(props));
+  const setProps = (patch: Partial<DiffTableProps>) =>
+    view.rerender(tree({ ...props, ...patch }));
+
+  return { view, openCommentComposer, flowStore, setProps };
 }
 
 describe("DiffTable stable comparison column", () => {
@@ -805,6 +809,26 @@ describe("DiffTable split selection", () => {
     expect(row?.getAttribute("data-placement")).toBe("left");
   });
 
+  it("drops a live drag when the view flips under it", () => {
+    const { view, openCommentComposer, setProps } = renderTable({
+      chunk: splitChunk(),
+      view: "split",
+    });
+    const left = sideCells(view.container, "left", "del");
+    fireEvent.mouseDown(left.number);
+    expect(
+      view.container.querySelectorAll("td[data-selected]").length,
+    ).toBeGreaterThan(0);
+
+    setProps({ view: "unified" });
+
+    expect(view.container.querySelectorAll("[data-selected]").length).toBe(0);
+    expect(
+      view.container.querySelector("table")?.getAttribute("data-selecting"),
+    ).toBeNull();
+    expect(openCommentComposer).not.toHaveBeenCalled();
+  });
+
   it("keeps a text selection begun on one side off the other", () => {
     const {
       view: { container },
@@ -819,5 +843,33 @@ describe("DiffTable split selection", () => {
     expect(
       container.querySelector("table")?.getAttribute("data-selecting"),
     ).toBeNull();
+  });
+
+  it("reads unified for a chunk with no deletions", () => {
+    const {
+      view: { container },
+    } = renderTable({ view: "split" });
+
+    expect(container.querySelector("table")?.getAttribute("data-view")).toBe(
+      "unified",
+    );
+    expect(container.querySelector('tbody[data-view="split"]')).toBeNull();
+  });
+
+  it("reads unified for a chunk with no additions", () => {
+    const deletionsOnly = {
+      ...chunk(),
+      diff: [
+        { kind: "ctx", content: "a", oldLine: 9, newLine: 9 },
+        { kind: "del", content: "b", oldLine: 10 },
+      ],
+    } as BriefChunk;
+    const {
+      view: { container },
+    } = renderTable({ chunk: deletionsOnly, view: "split" });
+
+    expect(container.querySelector("table")?.getAttribute("data-view")).toBe(
+      "unified",
+    );
   });
 });

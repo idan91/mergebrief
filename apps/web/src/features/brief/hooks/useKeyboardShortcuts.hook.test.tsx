@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The hook half of the C-shortcut contract: without a section to jump to
-// (local path) the key is a no-op that must NOT be swallowed — the early
+// (local path) the key is a no-op that must NOT be swallowed: the early
 // return sits before preventDefault, which the pure resolver tests cannot
 // reach.
 import { renderHook } from "@testing-library/react";
@@ -35,8 +35,8 @@ function pressC(): KeyboardEvent {
   return event;
 }
 
-describe("useKeyboardShortcuts — C dispatch", () => {
-  it("does not swallow C on the local path (no jumpToConversation wired)", () => {
+describe("useKeyboardShortcuts C dispatch", () => {
+  it("does not swallow C while no conversation jump is wired", () => {
     renderHook(() => useKeyboardShortcuts(options({})));
     const event = pressC();
     expect(event.defaultPrevented).toBe(false);
@@ -57,7 +57,7 @@ function pressS(): KeyboardEvent {
   return event;
 }
 
-describe("useKeyboardShortcuts — S dispatch", () => {
+describe("useKeyboardShortcuts S dispatch", () => {
   it("does not swallow S while no sidebar toggle is wired", () => {
     renderHook(() => useKeyboardShortcuts(options({})));
     const event = pressS();
@@ -73,7 +73,7 @@ describe("useKeyboardShortcuts — S dispatch", () => {
   });
 });
 
-describe("useKeyboardShortcuts — click-input focus", () => {
+describe("useKeyboardShortcuts click-input focus", () => {
   it("V still fires with focus parked on the Viewed checkbox", () => {
     // Clicking the checkbox leaves it focused; a blanket INPUT stand-down
     // would kill every shortcut right after un-checking a chunk.
@@ -103,7 +103,7 @@ describe("useKeyboardShortcuts — click-input focus", () => {
   });
 
   it("reads the active chunk at keydown time, not at bind time", () => {
-    // The getter exists so a position change never re-renders the host —
+    // The getter exists so a position change never re-renders the host,
     // which only holds if the hook calls it per keystroke instead of
     // capturing one value when the listener binds.
     const jumpToChunk = vi.fn();
@@ -144,5 +144,27 @@ describe("useKeyboardShortcuts — click-input focus", () => {
     );
     expect(jumpToChunk).not.toHaveBeenCalled();
     field.remove();
+  });
+});
+
+function pressD(): KeyboardEvent {
+  const event = new KeyboardEvent("keydown", { key: "d", cancelable: true });
+  window.dispatchEvent(event);
+  return event;
+}
+
+describe("useKeyboardShortcuts D dispatch", () => {
+  it("does not swallow D while no diff view toggle is wired", () => {
+    renderHook(() => useKeyboardShortcuts(options({})));
+    const event = pressD();
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it("consumes D and toggles when the diff view is wired", () => {
+    const toggleDiffView = vi.fn();
+    renderHook(() => useKeyboardShortcuts(options({ toggleDiffView })));
+    const event = pressD();
+    expect(event.defaultPrevented).toBe(true);
+    expect(toggleDiffView).toHaveBeenCalledTimes(1);
   });
 });

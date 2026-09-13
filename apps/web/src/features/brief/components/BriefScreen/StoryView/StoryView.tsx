@@ -1,5 +1,6 @@
 import { countSplitRows } from "@web/components/DiffRows/pairSplitRows";
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
+import { hasPairedSides } from "@web/components/DiffRows/utils";
 import { useMergedRef } from "@web/hooks/useMergedRef";
 import { useSplitWidth } from "./useSplitWidth";
 import type { DiffLine } from "@web/utils/diffTokens/types";
@@ -14,7 +15,7 @@ import {
 } from "react";
 
 import type { ComparisonOverlayState } from "../../../comparison/comparisonOverlay";
-import type { AddressedReviewComment, Brief } from "../../../types";
+import type { AddressedReviewComment, Brief, BriefChunk } from "../../../types";
 import type { BriefViewModel, RiskFlag } from "../../../utils/viewModel";
 import { GroupViewKinds } from "../../../utils/viewModel";
 import { resolveGroupName } from "../../../utils/resolveGroupName";
@@ -115,12 +116,14 @@ export function StoryView(props: StoryViewProps) {
       {props.model.groups.map((group) => {
         const isActiveFocusGroup =
           props.focusMode && group.id === activeFocusGroupId;
+        const groupView = resolveGroupDiffView(diffView, group.chunks);
         return (
           <section
             className="story-group reveal"
             id={deriveGroupSectionId(group.id)}
             key={group.id}
             data-active-group={isActiveFocusGroup ? "" : undefined}
+            data-diff-view={groupView}
             data-focus-rail={focusRailAttr}
           >
             {props.focusMode ? (
@@ -136,7 +139,7 @@ export function StoryView(props: StoryViewProps) {
                     chunk={chunk}
                     riskMeta={props.model.riskMetaByChunk.get(chunk.id)}
                     comparison={props.comparison}
-                    diffView={diffView}
+                    diffView={groupView}
                     open={props.openChunks.has(chunk.id)}
                     addressedReviewComments={addressedReviewComments}
                     conversationComposer={props.conversationComposer}
@@ -149,7 +152,7 @@ export function StoryView(props: StoryViewProps) {
               </div>
             ) : (
               <WindowedChunkList
-                diffView={diffView}
+                diffView={groupView}
                 attachWrapper={splitWidth.attachWrapper}
                 addressedReviewComments={addressedReviewComments}
                 group={group}
@@ -583,4 +586,19 @@ function FocusGroupRail({
       ) : null}
     </aside>
   );
+}
+
+/**
+ * The view a group actually renders: split only when some chunk in it has a
+ * line on each side, matching the rule each table applies to itself.
+ */
+function resolveGroupDiffView(
+  diffView: DiffView,
+  chunks: readonly BriefChunk[],
+): DiffView {
+  if (diffView !== DiffViews.SPLIT) return DiffViews.UNIFIED;
+  const anyPairable = chunks.some((chunk) =>
+    hasPairedSides(chunk.diff ?? NO_DIFF),
+  );
+  return anyPairable ? DiffViews.SPLIT : DiffViews.UNIFIED;
 }

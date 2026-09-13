@@ -144,6 +144,16 @@ export type Catalog = typeof en & {
       railNew_other: "New this revision. {{count}} lines.";
       railRemoved_one: "Removed this revision. {{count}} line.";
       railRemoved_other: "Removed this revision. {{count}} lines.";
+      expandUp: "Show {{count}} more lines above";
+      expandDown: "Show {{count}} more lines below";
+      expandAllUp_one: "Show the {{count}} hidden line above";
+      expandAllUp_other: "Show all {{count}} hidden lines above";
+      expandAllDown_one: "Show the {{count}} hidden line below";
+      expandAllDown_other: "Show all {{count}} hidden lines below";
+      expandShown_one: "{{count}} line shown";
+      expandShown_other: "{{count}} lines shown";
+      expandHiddenThreads_one: "{{count}} comment in the hidden lines";
+      expandHiddenThreads_other: "{{count}} comments in the hidden lines";
     };
     markReadyBatch: (typeof en)["brief"]["markReadyBatch"] & {
       counts: "Posted {{posted}} of {{total}}.";

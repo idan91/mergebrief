@@ -94,12 +94,21 @@ function BriefRoute() {
   const exitChangesScope = useCallback(() => {
     void navigate({ search: (prev) => ({ ...prev, view: "full" as const }) });
   }, [navigate]);
+  // Dropping the key, not blanking it: the stored preference only shows once
+  // the deep link stops naming a view. A posture gesture, so no history step.
+  const clearDiffParam = useCallback(() => {
+    void navigate({
+      search: ({ diff: _diff, ...rest }) => rest,
+      replace: true,
+    });
+  }, [navigate]);
   return (
     <BriefPage
       artifacts={artifacts}
       briefId={briefId}
       searchParams={searchParams}
       exitChangesScope={exitChangesScope}
+      clearDiffParam={clearDiffParam}
       revisionPending={revisionPending}
     />
   );

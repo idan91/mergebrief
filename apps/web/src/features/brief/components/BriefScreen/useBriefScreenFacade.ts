@@ -15,6 +15,7 @@ import {
   useViewportBoundary,
   ViewportBands,
 } from "@web/hooks/useViewportBoundary";
+import { DiffViews } from "@web/components/DiffRows/types";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { useRevisionNavigation } from "../../hooks/useRevisionNavigation";
 import { buildAttributeRail } from "../../utils/viewModel";
@@ -27,6 +28,7 @@ import type { BriefScreenProps } from "./types";
 import { useComparisonOverlay } from "./useComparisonOverlay";
 import { useConversationWiring } from "./useConversationWiring";
 import { useDelayedPending } from "./useDelayedPending";
+import { useDiffViewPreference } from "./useDiffViewPreference";
 import { useInFlightDraftPosts } from "./useInFlightDraftPosts";
 import { useMarkReadyFlow } from "./useMarkReadyFlow";
 import { POST_COMMENT_COPY_KEYS, useOwnDraftFlow } from "./useOwnDraftFlow";
@@ -55,6 +57,7 @@ export function useBriefScreenFacade({
   conversationFocusThreadId,
   conversationFilter,
   exitChangesScope,
+  clearDiffParam,
   ownDraft,
   readOnly,
   revisionPending,
@@ -342,6 +345,29 @@ export function useBriefScreenFacade({
     );
   };
 
+  const diffPreference = useDiffViewPreference({
+    search: searchParams.diff,
+    clearDiffParam,
+  });
+  const diffView = diffPreference.view;
+  const setDiffView = diffPreference.setView;
+
+  const requestOtherDiffView = () => {
+    const next =
+      diffView === DiffViews.SPLIT ? DiffViews.UNIFIED : DiffViews.SPLIT;
+    setDiffView(next);
+    announce(
+      next === DiffViews.SPLIT
+        ? t("brief.diff.viewSplit")
+        : t("brief.diff.viewUnified"),
+    );
+  };
+
+  // Only the story lens pairs rows. The Changes lens renders raw span diffs
+  // that never split, so both entry points stand down there rather than
+  // announcing a view the screen cannot show.
+  const toggleDiffView = inChangesScope ? undefined : requestOtherDiffView;
+
   const shortcutsDisabled =
     submitOpen ||
     markReady.gateOpen ||
@@ -365,6 +391,7 @@ export function useBriefScreenFacade({
         ? conversationWiring.jumpToConversation
         : undefined,
     toggleSidebar: regions.sidebar ? sidebar.toggle : undefined,
+    toggleDiffView,
   });
 
   const submitFromModal = () => {
@@ -427,5 +454,7 @@ export function useBriefScreenFacade({
     jumpToSubmitItem,
     conversationReadOnly,
     announce,
+    diffView,
+    toggleDiffView,
   };
 }

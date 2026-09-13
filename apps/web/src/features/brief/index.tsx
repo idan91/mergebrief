@@ -7,7 +7,7 @@ import type { LocalBriefSummary } from "./types";
 import { BriefView } from "./components/BriefView/BriefView";
 
 // Curated feature entry: components only. NEVER re-export anything that
-// touches server/ — a server edge here fails the import-protection build.
+// touches server/: a server edge here fails the import-protection build.
 // Internal brief files import their targets directly, never this index.
 export {
   BriefView,
@@ -25,6 +25,8 @@ export interface BriefPageProps {
   searchParams: BriefSearchParams;
   /** Navigates the Scope axis to `full`; route-owned. */
   exitChangesScope?: (() => void) | undefined;
+  /** Drops the `diff` deep link once the viewer picks a view; route-owned. */
+  clearDiffParam?: (() => void) | undefined;
   /** A revision navigation is in flight (router pending); route-owned. */
   revisionPending?: boolean | undefined;
 }
@@ -35,12 +37,13 @@ export function BriefPage({
   briefId,
   searchParams,
   exitChangesScope,
+  clearDiffParam,
   revisionPending,
 }: BriefPageProps) {
   const { t } = useTranslation();
   const brief = useSuspenseQuery(localBriefQueryOptions(briefId)).data;
   // A file-backed Brief has no `brief` row, no installation and no reviewer,
-  // so it carries no Review Session — and with nowhere to keep the work, the
+  // so it carries no Review Session, and with nowhere to keep the work the
   // screen reads rather than writes.
   return (
     <BriefView
@@ -50,6 +53,7 @@ export function BriefPage({
       readOnly={{ reason: t("brief.screen.fileBriefReadOnly") }}
       searchParams={searchParams}
       exitChangesScope={exitChangesScope}
+      clearDiffParam={clearDiffParam}
       revisionPending={revisionPending}
     />
   );

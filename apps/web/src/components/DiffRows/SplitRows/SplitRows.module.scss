@@ -5,17 +5,16 @@
   .pair {
     --row-hue: var(--text);
     --row-hover-tint: 6%;
-
-    // Earned: the same 2px edge DiffRows paints, declared here because the
-    // hue is set per cell in this file.
-    --change-edge-bar: inset 2px 0 0 var(--row-hue);
     --selected-edge-bar: inset 3px 0 0 var(--blue);
 
     background: transparent;
 
+    // Earned: the same 2px edge DiffRows paints, declared on the cell so
+    // it resolves against the cell's hue, not the row's text colour.
     > td[data-line-kind="add"] {
       --row-hue: var(--green);
       --row-hover-tint: 13%;
+      --change-edge-bar: inset 2px 0 0 var(--row-hue);
 
       background: color-mix(in srgb, var(--green) 5%, transparent);
     }
@@ -23,6 +22,7 @@
     > td[data-line-kind="del"] {
       --row-hue: var(--red);
       --row-hover-tint: 13%;
+      --change-edge-bar: inset 2px 0 0 var(--row-hue);
 
       background: color-mix(in srgb, var(--red) 5%, transparent);
     }

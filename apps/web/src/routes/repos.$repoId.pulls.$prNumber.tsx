@@ -445,6 +445,15 @@ function PrBriefRoute() {
     [navigate],
   );
 
+  // Dropping the key, not blanking it: the stored preference only shows once
+  // the deep link stops naming a view. A posture gesture, so no history step.
+  const clearDiffParam = useCallback(() => {
+    void navigate({
+      search: ({ diff: _diff, ...rest }) => rest,
+      replace: true,
+    });
+  }, [navigate]);
+
   // Identity is stabilized on the raw param STRINGS: the parsed filter holds
   // fresh Sets every render, and it rides into the memo boundaries that keep
   // inline threads off the render path.
@@ -486,6 +495,7 @@ function PrBriefRoute() {
     <PrBriefBody
       meta={meta}
       onNavigateSearch={onNavigateSearch}
+      clearDiffParam={clearDiffParam}
       conversationFilter={conversationFilter}
       onConversationFilterChange={onConversationFilterChange}
       conversationFocusThreadId={search.thread}

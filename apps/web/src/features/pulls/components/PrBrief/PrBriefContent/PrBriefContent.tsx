@@ -42,6 +42,8 @@ export interface PrBriefContentProps {
   meta: PrSummary;
   searchParams: BriefSearchParams;
   onNavigateSearch: (next: BriefSearch) => void;
+  /** Drops the `diff` deep link once the viewer picks a view; route-owned. */
+  clearDiffParam?: (() => void) | undefined;
   readOnly?: { reason: string } | undefined;
   /** Head mismatch: writable, Submit gated by the receipt ack. */
   staleHead?: boolean | undefined;
@@ -65,6 +67,7 @@ export function PrBriefContent({
   meta,
   searchParams,
   onNavigateSearch,
+  clearDiffParam,
   readOnly,
   staleHead,
   onGoToNewest,
@@ -228,6 +231,7 @@ export function PrBriefContent({
         headerControls={headerControls}
         openDeltaLens={openDeltaLens}
         exitChangesScope={exitChangesScope}
+        clearDiffParam={clearDiffParam}
         ownDraft={ownDraft}
         readOnly={readOnly ?? sessionReadOnly}
         revisionPending={revisionPending}

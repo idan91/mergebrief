@@ -299,7 +299,8 @@
       "exitFocusMode": "Exit focus mode",
       "toggleSidebar": "Toggle the sidebar",
       "sectionGeneral": "General",
-      "sectionFocusMode": "Focus mode"
+      "sectionFocusMode": "Focus mode",
+      "toggleDiffView": "Switch between unified and split diff view"
     },
     "intent": {
       "title": "Intent check",
@@ -521,7 +522,9 @@
       "railRemoved_one": "Removed this revision. {{count}} line.",
       "railRemoved_other": "Removed this revision. {{count}} lines.",
       "noContentChanges": "File changed without content changes.",
-      "captionSuggestion": "Suggested change diff"
+      "captionSuggestion": "Suggested change diff",
+      "viewUnified": "Unified view",
+      "viewSplit": "Split view"
     },
     "summarySection": {
       "eyebrowDelta": "Delta brief",
@@ -639,7 +642,9 @@
       "sheet": {
         "expandToFull": "Expand the sheet to full height",
         "shrinkToHalf": "Shrink the sheet to half height"
-      }
+      },
+      "diffViewToSplit": "Switch to split view",
+      "diffViewToUnified": "Switch to unified view"
     },
     "progress": {
       "ariaLabel": "Read-through progress",

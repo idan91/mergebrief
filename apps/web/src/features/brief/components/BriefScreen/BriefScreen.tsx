@@ -2,7 +2,6 @@ import { memo, useMemo } from "react";
 
 import { Button } from "@web/components/Button/Button";
 import { TokenPlanProvider } from "@web/hooks/useTokenPlan";
-import { DiffViews } from "@web/components/DiffRows/types";
 import { ConversationSection } from "@web/features/conversation";
 import { SubmitModal } from "@web/features/review";
 import { ReviewFlowProvider } from "@web/features/review/session";
@@ -62,6 +61,7 @@ export function BriefScreen({
   headerControls,
   openDeltaLens,
   exitChangesScope,
+  clearDiffParam,
   ownDraft,
   readOnly,
   reviewSession,
@@ -104,6 +104,8 @@ export function BriefScreen({
     jumpToSubmitItem,
     conversationReadOnly,
     announce,
+    diffView,
+    toggleDiffView,
   } = useBriefScreenFacade({
     livePrState,
     artifacts,
@@ -120,6 +122,7 @@ export function BriefScreen({
     headerControls,
     openDeltaLens,
     exitChangesScope,
+    clearDiffParam,
     ownDraft,
     readOnly,
     reviewSession,
@@ -177,7 +180,7 @@ export function BriefScreen({
           ) : null}
           <main
             className="main"
-            data-diff-view={searchParams.diff ?? DiffViews.UNIFIED}
+            data-diff-view={diffView}
             id="main-content"
             tabIndex={-1}
             data-zen={session.focusMode ? "on" : undefined}
@@ -302,7 +305,7 @@ export function BriefScreen({
                   <LensPane frozen={inChangesScope}>
                     <StoryView
                       brief={brief}
-                      diffView={searchParams.diff ?? DiffViews.UNIFIED}
+                      diffView={diffView}
                       model={model}
                       comparison={overlay.comparison}
                       focusMode={session.focusMode}
@@ -341,6 +344,8 @@ export function BriefScreen({
               pending={pendingShown}
               state={sidebar}
               toggleShortcuts={session.toggleShortcuts}
+              diffView={diffView}
+              toggleDiffView={toggleDiffView}
             />
           ) : null}
           {ownDraftActive ? null : (

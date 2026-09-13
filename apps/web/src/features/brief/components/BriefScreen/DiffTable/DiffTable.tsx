@@ -42,7 +42,10 @@ import {
   type DiffRowView,
 } from "./diffRowView";
 import { pairSplitRows } from "@web/components/DiffRows/pairSplitRows";
-import { isFullWidthDiffRow } from "@web/components/DiffRows/utils";
+import {
+  hasPairedSides,
+  isFullWidthDiffRow,
+} from "@web/components/DiffRows/utils";
 import {
   type DiffRowAttributes,
   DiffViews,
@@ -91,7 +94,13 @@ export function DiffTable({
   readOnlyReason,
 }: DiffTableProps) {
   const { t } = useTranslation();
-  const split = diffView === DiffViews.SPLIT;
+  const canPairSides = useMemo(
+    () => hasPairedSides(chunk.diff ?? NO_DIFF),
+    [chunk.diff],
+  );
+  const split = diffView === DiffViews.SPLIT && canPairSides;
+  const resolvedView = split ? DiffViews.SPLIT : DiffViews.UNIFIED;
+
   const pairs = useMemo(
     () => (split ? pairSplitRows(chunk.diff ?? NO_DIFF) : NO_PAIRS),
     [chunk.diff, split],
@@ -190,6 +199,18 @@ export function DiffTable({
     window.addEventListener("scroll", close, { capture: true, passive: true });
     return () => window.removeEventListener("scroll", close, { capture: true });
   }, [railHover]);
+
+  // The row model a drag was resolved against can change under it: the view
+  // toggle is a window shortcut and can fire mid-drag, and a revision switch
+  // rebuilds the rows. Either way the drag goes with the model it belonged
+  // to, rather than anchoring a comment on rows it never covered.
+  useEffect(() => {
+    setDragStart(null);
+    setDragCurrent(null);
+    setDragSide(undefined);
+    setDragCurrentSide(undefined);
+    tableRef.current?.removeAttribute("data-selecting");
+  }, [chunk.diff, resolvedView]);
 
   // Reset the drag when the mouse is released anywhere. Without this, releasing
   // outside a commentable row leaves the selection highlight stuck on.
@@ -541,7 +562,11 @@ export function DiffTable({
         </p>
       ) : null}
       <div className={styles["viewport"]} style={viewportStyle}>
-        <table className={styles["diff"]} ref={tableRef} data-view={diffView}>
+        <table
+          className={styles["diff"]}
+          ref={tableRef}
+          data-view={resolvedView}
+        >
           {split ? (
             <colgroup>
               <col className={styles["colRail"]} />
@@ -579,7 +604,7 @@ export function DiffTable({
           </ScreenReaderOnly>
           <DiffRows
             rows={chunk.diff}
-            view={diffView}
+            view={resolvedView}
             pairs={pairs}
             tokensByRow={tokensByRow}
             tokensPending={tokensPending}
