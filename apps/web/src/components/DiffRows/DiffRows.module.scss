@@ -167,3 +167,23 @@
     color: transparent;
   }
 }
+
+@layer components {
+  // A ring, not a fill: a 28% fill of the hue over the add row puts the
+  // comment colour at 3.2:1 and the entity colour at 3.8:1; an 8% fill holds
+  // 5.0:1 but is indistinguishable from the row's own 5% tint.
+  .emphasis {
+    border-radius: var(--radius-xs);
+    outline: 1px solid color-mix(in srgb, var(--row-hue) 55%, transparent);
+    outline-offset: 0;
+    background: transparent;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  @media (prefers-contrast: more) {
+    .emphasis {
+      outline: 2px solid currentcolor;
+    }
+  }
+}

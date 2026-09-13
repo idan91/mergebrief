@@ -25,6 +25,34 @@ function renderRows(props: Partial<Parameters<typeof DiffRows>[0]> = {}) {
   );
 }
 
+describe("DiffRows intra-line emphasis", () => {
+  const emphasisByRow = new Map([
+    [2, [{ from: 0, to: 4 }]],
+    [3, [{ from: 0, to: 5 }]],
+  ]);
+
+  it("marks the emphasised runs of paired rows in unified view", () => {
+    const view = renderRows({ emphasisByRow });
+    const marks = view.container.querySelectorAll("mark");
+
+    expect([...marks].map((mark) => mark.textContent)).toEqual([
+      "gone",
+      "fresh",
+    ]);
+    expect(view.container.textContent).toContain("−gone");
+    expect(view.container.textContent).toContain("+fresh");
+  });
+
+  it("marks the same runs inside the split cells", () => {
+    const view = renderRows({ emphasisByRow, view: "split" });
+    const left = view.container.querySelector('td[data-side="left"] mark');
+    const right = view.container.querySelector('td[data-side="right"] mark');
+
+    expect(left?.textContent).toBe("gone");
+    expect(right?.textContent).toBe("fresh");
+  });
+});
+
 describe("DiffRows row slots", () => {
   it("lets a full-row slot replace the hunk cell and keeps the plain note", () => {
     const view = renderRows({

@@ -16,6 +16,7 @@ export function DiffRows({
   view = DiffViews.UNIFIED,
   pairs,
   tokensByRow,
+  emphasisByRow,
   tokensPending = false,
   gutterCell,
   codeTrailer,
@@ -41,6 +42,7 @@ export function DiffRows({
         rowAttributes={rowAttributes}
         rows={rows}
         tokensByRow={tokensByRow}
+        emphasisByRow={emphasisByRow}
         tokensPending={tokensPending}
         underRow={underRow}
         fullRow={fullRow}
@@ -112,6 +114,7 @@ export function DiffRows({
                 </span>
                 <DiffCodeText
                   content={row.content}
+                  emphasis={emphasisByRow?.get(index)}
                   tokens={tokensByRow?.get(index)}
                 />
                 {codeTrailer?.(row, index)}

@@ -11,6 +11,7 @@ import {
   type DiffRowAttributeSlot,
   type DiffRowSlot,
   type DiffUnderRowSlot,
+  type EmphasisByRow,
   type SplitCell,
   type SplitRow,
   type SplitSide,
@@ -24,6 +25,7 @@ export interface SplitRowsProps {
   /** Pairs built by the caller once per diff; computed here when absent. */
   pairs?: SplitRow[] | undefined;
   tokensByRow?: RowTokenMap | undefined;
+  emphasisByRow?: EmphasisByRow | undefined;
   tokensPending?: boolean | undefined;
   gutterCell?: DiffRowSlot | undefined;
   codeTrailer?: DiffRowSlot | undefined;
@@ -54,6 +56,7 @@ export function SplitRows({
   rows,
   pairs: givenPairs,
   tokensByRow,
+  emphasisByRow,
   tokensPending = false,
   gutterCell,
   codeTrailer,
@@ -123,6 +126,7 @@ export function SplitRows({
                 cell={pair.left}
                 codeTrailer={codeTrailer}
                 side={SplitSides.LEFT}
+                emphasisByRow={emphasisByRow}
                 tokensByRow={tokensByRow}
               />
               <SideCells
@@ -131,6 +135,7 @@ export function SplitRows({
                 cell={pair.right}
                 codeTrailer={codeTrailer}
                 side={SplitSides.RIGHT}
+                emphasisByRow={emphasisByRow}
                 tokensByRow={tokensByRow}
               />
             </tr>
@@ -173,6 +178,7 @@ interface SideCellsProps {
   side: SplitSide;
   attributes: DiffRowAttributes;
   tokensByRow: RowTokenMap | undefined;
+  emphasisByRow: EmphasisByRow | undefined;
   codeTrailer: DiffRowSlot | undefined;
   anchorAttributes: Record<string, string>;
 }
@@ -182,6 +188,7 @@ function SideCells({
   side,
   attributes,
   tokensByRow,
+  emphasisByRow,
   codeTrailer,
   anchorAttributes,
 }: SideCellsProps): ReactNode {
@@ -249,7 +256,11 @@ function SideCells({
         <span className={rowStyles["sign"]} {...anchorAttributes}>
           {DIFF_LINE_SIGNS[line.kind]}
         </span>
-        <DiffCodeText content={line.content} tokens={tokensByRow?.get(index)} />
+        <DiffCodeText
+          content={line.content}
+          emphasis={emphasisByRow?.get(index)}
+          tokens={tokensByRow?.get(index)}
+        />
         {codeTrailer?.(line, index)}
       </td>
     </>

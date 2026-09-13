@@ -47,6 +47,7 @@ import {
   resolveStrandedRows,
 } from "./diffRowView";
 import { DiffLineKinds } from "@web/utils/diffTokens/types";
+import { computeIntraLineEmphasis } from "@web/components/DiffRows/diffPairedTokens";
 import { pairSplitRows } from "@web/components/DiffRows/pairSplitRows";
 import {
   hasPairedSides,
@@ -133,6 +134,15 @@ export function DiffTable({
     [rows, split],
   );
   const pairPartners = useMemo(() => buildPairPartners(pairs), [pairs]);
+  // Unified pairs the same rows for emphasis without rendering them paired.
+  const emphasisByRow = useMemo(
+    () =>
+      computeIntraLineEmphasis(
+        split ? pairs : pairSplitRows(rows),
+        tokensByRow,
+      ),
+    [pairs, rows, split, tokensByRow],
+  );
   const readOnly = readOnlyReason !== undefined;
   // Every stateful read below is chunk-scoped so this table re-renders for
   // ITS composer/posts only, never a sibling's.
@@ -781,6 +791,7 @@ export function DiffTable({
             view={resolvedView}
             pairs={pairs}
             tokensByRow={tokensByRow}
+            emphasisByRow={emphasisByRow}
             tokensPending={tokensPending}
             anchorAttributes={COMMENT_ANCHOR_ATTRIBUTES}
             codeTrailer={buildCodeTrailer}

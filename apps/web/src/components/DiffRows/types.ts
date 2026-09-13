@@ -1,6 +1,10 @@
 import type { ValueOf } from "types";
 import type { KeyboardEventHandler, MouseEventHandler, ReactNode } from "react";
-import type { DiffLine, RowTokenMap } from "@web/utils/diffTokens/types";
+import type {
+  DiffLine,
+  RowToken,
+  RowTokenMap,
+} from "@web/utils/diffTokens/types";
 
 export const DiffViews = {
   UNIFIED: "unified",
@@ -83,6 +87,8 @@ export interface DiffRowsProps {
   pairs?: SplitRow[] | undefined;
   /** Syntax tokens keyed by row index; a row without an entry renders plain. */
   tokensByRow?: RowTokenMap | undefined;
+  /** Changed character runs per row against its paired line. */
+  emphasisByRow?: EmphasisByRow | undefined;
   /** Tokens are on their way: the code text holds its space but stays unpainted. */
   tokensPending?: boolean;
   /**
@@ -115,3 +121,22 @@ export interface DiffRowsProps {
    */
   anchorAttributes?: Record<`data-${string}`, string>;
 }
+
+/** Character offsets into a row's text, `to` exclusive. */
+export interface CharRange {
+  from: number;
+  to: number;
+}
+
+export interface PairedEmphasis {
+  left: CharRange[];
+  right: CharRange[];
+}
+
+/** One side of a pair: its text, and its tokens when the worker gave any. */
+export interface TokenSide {
+  text: string;
+  tokens?: readonly RowToken[] | undefined;
+}
+
+export type EmphasisByRow = ReadonlyMap<number, readonly CharRange[]>;
