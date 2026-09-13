@@ -1,8 +1,9 @@
 import { Fragment } from "react";
-import { DiffLineKinds, type DiffLine } from "@web/utils/diffTokens/types";
 import { DIFF_LINE_SIGNS } from "@web/utils/diffTokens/consts";
 import { DiffCodeText } from "./DiffCodeText/DiffCodeText";
-import type { DiffRowsProps } from "./types";
+import { SplitRows } from "./SplitRows/SplitRows";
+import { type DiffRowsProps, DiffViews } from "./types";
+import { isFullWidthDiffRow } from "./utils";
 import styles from "./DiffRows.module.scss";
 
 const NO_ANCHOR_ATTRIBUTES: Record<`data-${string}`, string> = {};
@@ -12,6 +13,8 @@ const LINE_NUMBER_COLUMNS = 2;
 
 export function DiffRows({
   rows,
+  view = DiffViews.UNIFIED,
+  pairs,
   tokensByRow,
   tokensPending = false,
   gutterCell,
@@ -24,6 +27,21 @@ export function DiffRows({
   const gutterColumns = gutterCell === undefined ? 0 : GUTTER_COLUMNS;
   const numberColumns = lineNumbers ? LINE_NUMBER_COLUMNS : 0;
   const columnCount = CODE_COLUMNS + gutterColumns + numberColumns;
+
+  if (view === DiffViews.SPLIT) {
+    return (
+      <SplitRows
+        codeTrailer={codeTrailer}
+        gutterCell={gutterCell}
+        pairs={pairs}
+        rowAttributes={rowAttributes}
+        rows={rows}
+        tokensByRow={tokensByRow}
+        tokensPending={tokensPending}
+        underRow={underRow}
+      />
+    );
+  }
 
   return (
     <tbody data-tokens={tokensPending ? "pending" : undefined}>
@@ -90,9 +108,4 @@ export function DiffRows({
       })}
     </tbody>
   );
-}
-
-/** Hunk and note rows span every column and take no slot content. */
-export function isFullWidthDiffRow(row: DiffLine): boolean {
-  return row.kind === DiffLineKinds.HUNK || row.kind === DiffLineKinds.NOTE;
 }

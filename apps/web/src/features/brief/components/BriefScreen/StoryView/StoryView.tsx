@@ -1,3 +1,8 @@
+import { countSplitRows } from "@web/components/DiffRows/pairSplitRows";
+import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
+import { useMergedRef } from "@web/hooks/useMergedRef";
+import { useSplitWidth } from "./useSplitWidth";
+import type { DiffLine } from "@web/utils/diffTokens/types";
 import { useTranslation } from "react-i18next";
 import {
   useCallback,
@@ -41,6 +46,7 @@ const EMPTY_RISK_FLAGS: RiskFlag[] = [];
 
 export interface StoryViewProps {
   brief: Brief;
+  diffView?: DiffView;
   model: BriefViewModel;
   comparison: ComparisonOverlayState;
   focusMode: boolean;
@@ -68,6 +74,12 @@ export interface StoryViewProps {
 }
 
 export function StoryView(props: StoryViewProps) {
+  const requestedView = props.diffView ?? DiffViews.UNIFIED;
+  const splitWidth = useSplitWidth(requestedView === DiffViews.SPLIT);
+  const diffView =
+    requestedView === DiffViews.SPLIT && splitWidth.wideEnough
+      ? DiffViews.SPLIT
+      : DiffViews.UNIFIED;
   const { t } = useTranslation();
   const [focusRailOpen, setFocusRailOpen] = useState(true);
   const addressedReviewComments =
@@ -112,7 +124,7 @@ export function StoryView(props: StoryViewProps) {
             data-focus-rail={focusRailAttr}
           >
             {props.focusMode ? (
-              <div className="group-chunks">
+              <div className="group-chunks" ref={splitWidth.attachWrapper}>
                 {/**
                  * Focus mode hides sections with CSS, which the windowing latch cannot detect.
                  * Use a plain list to avoid a fixed-height empty track, and mount only
@@ -124,6 +136,7 @@ export function StoryView(props: StoryViewProps) {
                     chunk={chunk}
                     riskMeta={props.model.riskMetaByChunk.get(chunk.id)}
                     comparison={props.comparison}
+                    diffView={diffView}
                     open={props.openChunks.has(chunk.id)}
                     addressedReviewComments={addressedReviewComments}
                     conversationComposer={props.conversationComposer}
@@ -136,6 +149,8 @@ export function StoryView(props: StoryViewProps) {
               </div>
             ) : (
               <WindowedChunkList
+                diffView={diffView}
+                attachWrapper={splitWidth.attachWrapper}
                 addressedReviewComments={addressedReviewComments}
                 group={group}
                 view={props}
@@ -168,9 +183,17 @@ export function StoryView(props: StoryViewProps) {
   );
 }
 
+const NO_DIFF: DiffLine[] = [];
+
+function countDiffRows(diff: DiffLine[], view: DiffView): number {
+  return view === DiffViews.SPLIT ? countSplitRows(diff) : diff.length;
+}
+
 interface WindowedChunkListProps {
   group: BriefViewModel["groups"][number];
   view: StoryViewProps;
+  diffView: DiffView;
+  attachWrapper: (node: HTMLElement | null) => (() => void) | undefined;
   addressedReviewComments: AddressedReviewComment[];
 }
 
@@ -227,6 +250,8 @@ function collectPinnedChunkKeys(
 function WindowedChunkList({
   group,
   view,
+  diffView,
+  attachWrapper,
   addressedReviewComments,
 }: WindowedChunkListProps) {
   const chunkKeys = useMemo(
@@ -255,16 +280,25 @@ function WindowedChunkList({
   );
 
   const { openChunks } = view;
+  // Counted once per group: the virtualizer asks for every unmeasured card
+  // on each measurement pass.
+  const diffRowCounts = useMemo(
+    () =>
+      group.chunks.map((chunk) =>
+        countDiffRows(chunk.diff ?? NO_DIFF, diffView),
+      ),
+    [group.chunks, diffView],
+  );
   const estimateChunk = useCallback(
     (index: number) => {
       const chunk = group.chunks[index];
       if (!chunk) return 0;
       return estimateChunkCardHeight({
-        diffRowCount: chunk.diff?.length ?? 0,
+        diffRowCount: diffRowCounts[index] ?? 0,
         open: openChunks.has(chunk.id),
       });
     },
-    [group.chunks, openChunks],
+    [group.chunks, openChunks, diffRowCounts],
   );
 
   const window = useGroupWindow({ chunkKeys, estimateChunk, pinnedKeys });
@@ -303,10 +337,12 @@ function WindowedChunkList({
     setFocusedKey(null);
   };
 
+  const listRef = useMergedRef(attachWrapper, window.listRef);
+
   return (
     <div
       className="group-chunks"
-      ref={window.listRef}
+      ref={listRef}
       style={{
         position: "relative",
         blockSize: window.totalSize,
@@ -345,6 +381,7 @@ function WindowedChunkList({
               chunk={chunk}
               riskMeta={view.model.riskMetaByChunk.get(chunk.id)}
               comparison={view.comparison}
+              diffView={diffView}
               open={view.openChunks.has(chunk.id)}
               addressedReviewComments={addressedReviewComments}
               conversationComposer={view.conversationComposer}

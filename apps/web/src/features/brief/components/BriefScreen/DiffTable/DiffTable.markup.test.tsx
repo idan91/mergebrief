@@ -122,6 +122,8 @@ interface RenderOverrides {
   addressedComments?: AddressedReviewComment[];
   flowState?: Partial<ReviewFlowState>;
   session?: ReviewSessionPayload;
+  comparisonView?: DiffTableProps["comparisonView"];
+  view?: DiffTableProps["view"];
 }
 
 function renderTable(overrides: RenderOverrides = {}) {
@@ -157,7 +159,7 @@ function renderTable(overrides: RenderOverrides = {}) {
   };
   const props: DiffTableProps = {
     chunk: makeChunk(),
-    comparisonView: {
+    comparisonView: overrides.comparisonView ?? {
       marks: new Map([[3, "added"]]),
       runs: [run],
       runByRow: new Map([[3, run]]),
@@ -169,6 +171,7 @@ function renderTable(overrides: RenderOverrides = {}) {
     conversationComposer: stubComposer(),
     reviewCommentLabel: "review comment",
   };
+  if (overrides.view !== undefined) props.view = overrides.view;
   return render(
     <QueryClientProvider client={new QueryClient()}>
       <ReviewSessionProvider
@@ -241,5 +244,31 @@ describe("DiffTable markup", () => {
     });
 
     expect(stripStyleHashes(view.container.innerHTML)).toMatchSnapshot();
+  });
+
+  it("caps a split pair's rail where the run starts on the deleted side", () => {
+    const run = {
+      chunkId: "c1",
+      file: "src/a.ts",
+      rowIndexes: [2, 3],
+      kind: "added" as const,
+    };
+    const { container } = renderTable({
+      comparisonView: {
+        marks: new Map([
+          [2, "removed"],
+          [3, "added"],
+        ]),
+        runs: [run],
+        runByRow: new Map([
+          [2, run],
+          [3, run],
+        ]),
+      },
+      view: "split",
+    });
+    const pair = container.querySelector('tbody[data-view="split"]');
+
+    expect(pair?.querySelectorAll("[data-jump-target]")).toHaveLength(1);
   });
 });

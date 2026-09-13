@@ -1,0 +1,61 @@
+@use "functions";
+
+@layer components {
+  // The pair stays transparent; each side's cells carry the kind and hue.
+  .pair {
+    --row-hue: var(--text);
+
+    // Earned: the same 2px edge DiffRows paints, declared here because the
+    // hue is set per cell in this file.
+    --change-edge-bar: inset 2px 0 0 var(--row-hue);
+
+    background: transparent;
+
+    > td[data-line-kind="add"] {
+      --row-hue: var(--green);
+
+      background: color-mix(in srgb, var(--green) 5%, transparent);
+    }
+
+    > td[data-line-kind="del"] {
+      --row-hue: var(--red);
+
+      background: color-mix(in srgb, var(--red) 5%, transparent);
+    }
+
+    > td[data-line-kind="add"][class*="code"] {
+      color: var(--color-diff-add-text);
+      box-shadow: var(--change-edge-bar);
+    }
+
+    > td[data-line-kind="del"][class*="code"] {
+      color: var(--color-diff-del-text);
+      box-shadow: var(--change-edge-bar);
+    }
+
+    > td[data-line-kind="add"][data-line-number] {
+      color: color-mix(in srgb, var(--green) 75%, transparent);
+    }
+
+    > td[data-line-kind="del"][data-line-number] {
+      color: var(--red);
+    }
+
+    > td[data-rev="added"] {
+      background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--blue) 10%, transparent),
+        color-mix(in srgb, var(--blue) 1.5%, transparent) 60%
+      );
+    }
+  }
+
+  .filler {
+    background: color-mix(in srgb, var(--color-surface-1) 60%, transparent);
+    background-image: repeating-linear-gradient(
+      -45deg,
+      transparent 0 6px,
+      color-mix(in srgb, var(--line) 50%, transparent) 6px 7px
+    );
+  }
+}

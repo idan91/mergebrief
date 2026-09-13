@@ -237,6 +237,13 @@
   // Sticky, viewport-capped column; the card is a flex column so its body
   // (GroupCard .body) can be the inner scroll region while the head stays
   // fixed — the card itself never scrolls.
+  // Beside a split diff the card narrows to full content at 400px so the
+  // halves keep prettier's line; the stack thresholds below re-derive for it
+  // (a 1004px column: 586px of diff, the card and its gap).
+  .main[data-diff-view="split"] .story-group {
+    grid-template-columns: minmax(0, 1fr) functions.to-rem(400px);
+  }
+
   .main .story-group > article {
     position: sticky;
 
@@ -273,19 +280,37 @@
   }
 
   @media (width <= 1220px) {
-    .main {
+    .main:not([data-diff-view="split"]) {
       @include stack-split;
     }
   }
 
   @media (width <= 1268px) {
-    .main[data-sidebar="collapsed"] {
+    .main[data-sidebar="collapsed"]:not([data-diff-view="split"]) {
       @include stack-split;
     }
   }
 
   @media (width <= 1644px) {
-    .main[data-sidebar="expanded"] {
+    .main[data-sidebar="expanded"]:not([data-diff-view="split"]) {
+      @include stack-split;
+    }
+  }
+
+  @media (width <= 1100px) {
+    .main[data-diff-view="split"] {
+      @include stack-split;
+    }
+  }
+
+  @media (width <= 1148px) {
+    .main[data-sidebar="collapsed"][data-diff-view="split"] {
+      @include stack-split;
+    }
+  }
+
+  @media (width <= 1524px) {
+    .main[data-sidebar="expanded"][data-diff-view="split"] {
       @include stack-split;
     }
   }

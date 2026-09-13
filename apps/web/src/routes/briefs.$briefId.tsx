@@ -12,6 +12,7 @@ import { BriefPage } from "@web/features/brief";
 import {
   buildBriefSearchParams,
   parseCompareParam,
+  parseDiffParam,
   parseViewParam,
   type BriefSearchParams,
 } from "@web/features/brief/comparison";
@@ -35,8 +36,9 @@ export const Route = createFileRoute("/briefs/$briefId")({
   // tell "nothing chosen yet" apart from an explicit choice.
   validateSearch: (search: Record<string, unknown>): BriefSearchParams => {
     const view = parseViewParam(search["view"]);
+    const diff = parseDiffParam(search["diff"]);
     const compare = parseCompareParam(search["compare"]);
-    return buildBriefSearchParams(view, compare);
+    return buildBriefSearchParams(view, compare, diff);
   },
   // A Delta artifact id is no longer a route target. Redirect before the
   // loader runs so the old URL never renders the superseded shape.

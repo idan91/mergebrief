@@ -1,3 +1,4 @@
+import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
 import type { TFunction } from "i18next";
 import type { TranslationKey } from "i18n";
 import type { BriefTimelinePoint } from "../utils/timeline";
@@ -27,6 +28,8 @@ export interface BriefSearch {
 export interface BriefSearchParams {
   view?: ViewParam;
   compare?: CompareParam;
+  /** Rows unified or paired per hunk; absent means the viewer's default. */
+  diff?: DiffView;
 }
 
 /**
@@ -66,15 +69,23 @@ export function parseViewParam(value: unknown): ViewParam | undefined {
   return value === "full" || value === "changes" ? value : undefined;
 }
 
+export function parseDiffParam(value: unknown): DiffView | undefined {
+  return value === DiffViews.UNIFIED || value === DiffViews.SPLIT
+    ? value
+    : undefined;
+}
+
 /** Only a present param lands as a key; absent stays absent, never `undefined`. */
 export function buildBriefSearchParams(
   view: ViewParam | undefined,
   compare: CompareParam | undefined,
+  diff?: DiffView,
 ): BriefSearchParams {
   const search: BriefSearchParams = {};
 
   if (view !== undefined) search.view = view;
   if (compare !== undefined) search.compare = compare;
+  if (diff !== undefined) search.diff = diff;
 
   return search;
 }

@@ -11,6 +11,7 @@ import { ApiError, ApiErrorCodes } from "../data/apiFetch";
 import {
   buildBriefSearchParams,
   parseCompareParam,
+  parseDiffParam,
   parseViewParam,
   type BriefSearch,
   type BriefSearchParams,
@@ -146,6 +147,7 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
     // Retain a supplied base only with a head. Unknown heads degrade to latest, not 404.
     const view = parseViewParam(search["view"]);
     const compare = parseCompareParam(search["compare"]);
+    const diff = parseDiffParam(search["diff"]);
     const thread = resolveThreadParam(search["thread"]);
     const parsed: PrBriefSearch = {};
 
@@ -153,6 +155,7 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
     if (nonEmpty(head) && nonEmpty(base)) parsed.base = base;
     if (view !== undefined) parsed.view = view;
     if (compare !== undefined) parsed.compare = compare;
+    if (diff !== undefined) parsed.diff = diff;
     if (thread !== undefined) parsed.thread = thread;
 
     return {
@@ -327,8 +330,8 @@ function PrBriefRoute() {
   );
 
   const briefSearch = useMemo<BriefSearchParams>(
-    () => buildBriefSearchParams(search.view, search.compare),
-    [search.view, search.compare],
+    () => buildBriefSearchParams(search.view, search.compare, search.diff),
+    [search.view, search.compare, search.diff],
   );
 
   /** Drop the pinned span so it re-resolves to latest. */

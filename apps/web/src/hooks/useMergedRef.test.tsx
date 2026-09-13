@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
-import { renderHook } from "@testing-library/react";
+import { cleanup, render, renderHook } from "@testing-library/react";
 import { createRef } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useMergedRef } from "./useMergedRef";
+
+afterEach(cleanup);
 
 describe("useMergedRef", () => {
   it("feeds a callback ref and an object ref the same node", () => {
@@ -30,5 +32,23 @@ describe("useMergedRef", () => {
 
     expect(result.current).toBe(first);
     expect(callback).toHaveBeenCalledWith(null);
+  });
+
+  it("forwards a callback ref's cleanup so an owned observer detaches", () => {
+    const torn: string[] = [];
+    const owning = (node: HTMLDivElement | null) => {
+      if (node === null) return undefined;
+      return () => {
+        torn.push("cleanup");
+      };
+    };
+    function Probe({ mounted }: { mounted: boolean }) {
+      const ref = useMergedRef<HTMLDivElement>(owning, undefined);
+      return mounted ? <div ref={ref} /> : null;
+    }
+    const view = render(<Probe mounted />);
+    view.rerender(<Probe mounted={false} />);
+
+    expect(torn).toEqual(["cleanup"]);
   });
 });

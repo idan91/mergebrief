@@ -51,6 +51,26 @@
     line-height: 1.7;
   }
 
+  // Equal halves by construction: the two code columns share what the rail
+  // and number columns leave, and a long line wraps inside its half.
+  .diff[data-view="split"] {
+    table-layout: fixed;
+  }
+
+  .colRail {
+    inline-size: functions.to-rem(26px);
+  }
+
+  .colNumber {
+    inline-size: functions.to-rem(42px);
+  }
+
+  .colCode {
+    inline-size: calc(
+      (100% - functions.to-rem(26px) - 2 * functions.to-rem(42px)) / 2
+    );
+  }
+
   .newTag {
     padding-block: 0;
     padding-inline: functions.to-rem(6px);

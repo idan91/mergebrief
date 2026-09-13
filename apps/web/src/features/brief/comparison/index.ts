@@ -6,6 +6,7 @@ export {
   isCompareAvailable,
   lastReviewUnavailableReasonTitle,
   parseCompareParam,
+  parseDiffParam,
   parseViewParam,
   resolveBriefSearch,
   withCompare,

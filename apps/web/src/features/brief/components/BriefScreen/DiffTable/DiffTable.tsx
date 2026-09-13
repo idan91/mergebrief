@@ -53,11 +53,15 @@ import {
   type DiffRowView,
 } from "./diffRowView";
 import type { RowTokenMap } from "@web/utils/diffTokens/types";
+import { pairSplitRows } from "@web/components/DiffRows/pairSplitRows";
+import { isFullWidthDiffRow } from "@web/components/DiffRows/utils";
 import {
-  DiffRows,
-  isFullWidthDiffRow,
-} from "@web/components/DiffRows/DiffRows";
-import type { DiffRowAttributes } from "@web/components/DiffRows/types";
+  type DiffRowAttributes,
+  type DiffView,
+  DiffViews,
+  type SplitRow,
+} from "@web/components/DiffRows/types";
+import { DiffRows } from "@web/components/DiffRows/DiffRows";
 import styles from "./DiffTable.module.scss";
 
 // csstype's CSSProperties has no `--*` index; a typed extension keeps the
@@ -67,6 +71,8 @@ interface DiffViewportStyle extends CSSProperties {
 }
 
 const EMPTY_REVIEW_COMMENTS: never[] = [];
+const NO_PAIRS: SplitRow[] = [];
+const NO_DIFF: DiffLine[] = [];
 
 /** Marks the cells range anchoring may start from, read by the row handlers. */
 const COMMENT_ANCHOR_ATTRIBUTES = { "data-comment-anchor": "" };
@@ -92,11 +98,14 @@ export interface DiffTableProps {
   /** Syntax tokens keyed by row index; absent renders every row plain. */
   tokensByRow?: RowTokenMap | undefined;
   tokensPending?: boolean;
+  /** Paired sides per hunk; the caller resolves the minimum width. */
+  view?: DiffView;
 }
 
 export function DiffTable({
   tokensByRow,
   tokensPending = false,
+  view: diffView = DiffViews.UNIFIED,
   chunk,
   comparisonView,
   comparisonSource,
@@ -108,6 +117,12 @@ export function DiffTable({
   readOnlyReason,
 }: DiffTableProps) {
   const { t } = useTranslation();
+  const split = diffView === DiffViews.SPLIT;
+  const pairs = useMemo(
+    () => (split ? pairSplitRows(chunk.diff ?? NO_DIFF) : NO_PAIRS),
+    [chunk.diff, split],
+  );
+  const pairPartners = useMemo(() => buildPairPartners(pairs), [pairs]);
   const readOnly = readOnlyReason !== undefined;
   // Every stateful read below is chunk-scoped so this table re-renders for
   // ITS composer/posts only, never a sibling's.
@@ -352,12 +367,15 @@ export function DiffTable({
   }
 
   function buildGutterCell(_line: DiffLine, index: number): ReactNode {
-    const view = rowViews[index];
+    const own = rowViews[index];
+    const partner = pairPartners.get(index);
+    const other = partner === undefined ? undefined : rowViews[partner];
+    const rail = unionRail(own, other);
     return (
       <RevisionGutterCell
-        run={overlayActive ? view?.revRun : undefined}
-        isStart={view?.isRevStart === true}
-        isEnd={view?.isRevEnd === true}
+        run={overlayActive ? rail.run : undefined}
+        isStart={rail.isStart}
+        isEnd={rail.isEnd}
         chunk={chunk}
         onRailEnter={handleRailEnter}
         onRailLeave={handleRailLeave}
@@ -389,7 +407,7 @@ export function DiffTable({
     const conversationRows = conversationThreadsByRow?.get(index) ?? [];
     return (
       <>
-        {view.showComposer && activeCommentAnchor ? (
+        {view.showComposer && activeCommentAnchor && !split ? (
           <tr className={styles["commentRow"]}>
             <td colSpan={columnCount}>
               <CommentComposer
@@ -455,7 +473,7 @@ export function DiffTable({
   }
 
   const viewportStyle: DiffViewportStyle = {
-    "--diff-rows": chunk.diff.length,
+    "--diff-rows": split ? pairs.length : chunk.diff.length,
   };
   return (
     <>
@@ -470,7 +488,16 @@ export function DiffTable({
         </p>
       ) : null}
       <div className={styles["viewport"]} style={viewportStyle}>
-        <table className={styles["diff"]}>
+        <table className={styles["diff"]} data-view={diffView}>
+          {split ? (
+            <colgroup>
+              <col className={styles["colRail"]} />
+              <col className={styles["colNumber"]} />
+              <col className={styles["colCode"]} />
+              <col className={styles["colNumber"]} />
+              <col className={styles["colCode"]} />
+            </colgroup>
+          ) : null}
           {/* Sr-only caption + column headers (the LiveDiffPreview pattern):
               without them AT table navigation reads bare cell soup. */}
           <ScreenReaderOnly as="caption">
@@ -481,13 +508,26 @@ export function DiffTable({
               <th aria-hidden={overlayActive ? undefined : true} scope="col">
                 {overlayActive ? t("brief.diff.colRevision") : null}
               </th>
-              <th scope="col">{t("brief.diff.colOld")}</th>
-              <th scope="col">{t("brief.diff.colNew")}</th>
-              <th scope="col">{t("brief.diff.colContent")}</th>
+              {split ? (
+                <>
+                  <th scope="col">{t("brief.diff.colOld")}</th>
+                  <th scope="col">{t("brief.diff.colContentOld")}</th>
+                  <th scope="col">{t("brief.diff.colNew")}</th>
+                  <th scope="col">{t("brief.diff.colContentNew")}</th>
+                </>
+              ) : (
+                <>
+                  <th scope="col">{t("brief.diff.colOld")}</th>
+                  <th scope="col">{t("brief.diff.colNew")}</th>
+                  <th scope="col">{t("brief.diff.colContent")}</th>
+                </>
+              )}
             </tr>
           </ScreenReaderOnly>
           <DiffRows
             rows={chunk.diff}
+            view={diffView}
+            pairs={pairs}
             tokensByRow={tokensByRow}
             tokensPending={tokensPending}
             anchorAttributes={COMMENT_ANCHOR_ATTRIBUTES}
@@ -510,4 +550,44 @@ export function DiffTable({
       )}
     </>
   );
+}
+
+/** The other side of each paired row, so one rail can speak for both. */
+function buildPairPartners(pairs: SplitRow[]): ReadonlyMap<number, number> {
+  const partners = new Map<number, number>();
+
+  for (const pair of pairs) {
+    if (pair.left === undefined || pair.right === undefined) continue;
+    if (pair.left === pair.right) continue;
+    partners.set(pair.left.index, pair.right.index);
+    partners.set(pair.right.index, pair.left.index);
+  }
+
+  return partners;
+}
+
+interface RailView {
+  run: ComparisonRun | undefined;
+  isStart: boolean;
+  isEnd: boolean;
+}
+
+/**
+ * One rail for a pair: the run of whichever side has one, and a cap wherever
+ * either side starts or ends that same run, so a run that begins on a
+ * deletion paired with an addition still gets its jump target.
+ */
+function unionRail(
+  own: DiffRowView | undefined,
+  other: DiffRowView | undefined,
+): RailView {
+  const run = own?.revRun ?? other?.revRun;
+  if (run === undefined) return { run, isStart: false, isEnd: false };
+
+  const ownIn = own?.revRun === run;
+  const otherIn = other?.revRun === run;
+  const isStart = (ownIn && own.isRevStart) || (otherIn && other.isRevStart);
+  const isEnd = (ownIn && own.isRevEnd) || (otherIn && other.isRevEnd);
+
+  return { run, isStart, isEnd };
 }

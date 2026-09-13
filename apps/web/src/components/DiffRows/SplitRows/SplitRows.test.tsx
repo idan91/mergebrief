@@ -1,0 +1,120 @@
+// @vitest-environment jsdom
+import { cleanup, render } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
+
+import type { DiffLine } from "@web/utils/diffTokens/types";
+import { SplitRows } from "./SplitRows";
+
+afterEach(cleanup);
+
+function stubRows(): DiffLine[] {
+  return [
+    { kind: "hunk", content: "@@ -1,2 +1,3 @@" },
+    { kind: "ctx", content: "keep", oldLine: 1, newLine: 1 },
+    { kind: "del", content: "gone", oldLine: 2 },
+    { kind: "add", content: "fresh", newLine: 2 },
+    { kind: "add", content: "more", newLine: 3 },
+  ];
+}
+
+function renderSplit(props: Partial<Parameters<typeof SplitRows>[0]> = {}) {
+  return render(
+    <table>
+      <SplitRows rows={stubRows()} {...props} />
+    </table>,
+  );
+}
+
+describe("SplitRows", () => {
+  it("pairs a deletion with its replacement on one row", () => {
+    const view = renderSplit();
+    const rows = view.container.querySelectorAll("tbody > tr");
+    const pair = rows[2];
+
+    expect(pair?.querySelector('td[data-side="left"]')?.textContent).toBe("2");
+    expect(pair?.querySelector('td[data-side="right"]')?.textContent).toBe("2");
+    expect(pair?.textContent).toContain("gone");
+    expect(pair?.textContent).toContain("fresh");
+  });
+
+  it("fills the empty side of an unmatched addition with exposed cells", () => {
+    const view = renderSplit();
+    const rows = view.container.querySelectorAll("tbody > tr");
+    const fillers = rows[3]?.querySelectorAll('td[data-side="left"]') ?? [];
+
+    expect(fillers).toHaveLength(2);
+    expect(fillers[0]?.getAttribute("aria-hidden")).toBeNull();
+    expect(fillers[0]?.textContent?.replace(/\u200B/g, "")).toBe("");
+  });
+
+  it("marks each side's code cell with its own revision", () => {
+    const view = renderSplit({
+      rowAttributes: (_row, index) => ({
+        revision: index === 2 ? "removed" : "added",
+      }),
+    });
+    const pair = view.container.querySelectorAll("tbody > tr")[2];
+
+    expect(pair?.getAttribute("data-rev")).toBeNull();
+    expect(
+      pair
+        ?.querySelector('td[data-side="left"][data-rev]')
+        ?.getAttribute("data-rev"),
+    ).toBe("removed");
+    expect(
+      pair
+        ?.querySelector('td[data-side="right"][data-rev]')
+        ?.getAttribute("data-rev"),
+    ).toBe("added");
+  });
+
+  it("carries no anchors or handlers while the split view is read-only", () => {
+    const view = renderSplit({
+      rowAttributes: () => ({ commentable: true, focusable: true }),
+    });
+
+    expect(
+      view.container.querySelectorAll("[data-comment-anchor]"),
+    ).toHaveLength(0);
+    expect(view.container.querySelectorAll("tr[tabindex]")).toHaveLength(0);
+  });
+
+  it("spans a hunk row across every column", () => {
+    const view = renderSplit({ gutterCell: () => <td>g</td> });
+    const hunk = view.container.querySelector("tbody > tr > td");
+
+    expect(hunk?.getAttribute("colspan")).toBe("5");
+  });
+
+  it("carries the kind on the cells, not the row", () => {
+    const view = renderSplit();
+    const pair = view.container.querySelectorAll("tbody > tr")[2];
+
+    expect(pair?.getAttribute("data-line-kind")).toBeNull();
+    expect(pair?.querySelectorAll('td[data-line-kind="del"]')).toHaveLength(2);
+    expect(pair?.querySelectorAll('td[data-line-kind="add"]')).toHaveLength(2);
+  });
+
+  it("hands the slots the unified index of each side", () => {
+    const seen: number[] = [];
+    renderSplit({
+      underRow: (_row, index) => {
+        seen.push(index);
+        return null;
+      },
+    });
+
+    expect(seen).toEqual([1, 2, 3, 4]);
+  });
+
+  it("paints a side's tokens by its unified index", () => {
+    const tokensByRow = new Map([[3, [{ text: "fresh", classId: 4 }]]]);
+    const view = renderSplit({ tokensByRow });
+    const spans = view.container.querySelectorAll(
+      'td[data-side="right"] span[class*="syn-"]',
+    );
+
+    expect(spans).toHaveLength(1);
+    expect(spans[0]?.textContent).toBe("fresh");
+  });
+});

@@ -1,5 +1,32 @@
+import type { ValueOf } from "types";
 import type { KeyboardEventHandler, MouseEventHandler, ReactNode } from "react";
 import type { DiffLine, RowTokenMap } from "@web/utils/diffTokens/types";
+
+export const DiffViews = {
+  UNIFIED: "unified",
+  SPLIT: "split",
+} as const;
+export type DiffView = ValueOf<typeof DiffViews>;
+
+export const SplitSides = {
+  LEFT: "left",
+  RIGHT: "right",
+} as const;
+export type SplitSide = ValueOf<typeof SplitSides>;
+
+/** One side of a paired row; `index` is the row's place in the unified diff. */
+export interface SplitCell {
+  line: DiffLine;
+  index: number;
+}
+
+/** A hunk or note row spans both sides; a context row sits on both. */
+export interface SplitRow {
+  key: string;
+  full?: SplitCell;
+  left?: SplitCell;
+  right?: SplitCell;
+}
 
 /** Content a composer hangs off one row, given that row and its index. */
 export type DiffRowSlot = (row: DiffLine, index: number) => ReactNode;
@@ -36,6 +63,10 @@ export type DiffRowAttributeSlot = (
 
 export interface DiffRowsProps {
   rows: DiffLine[];
+  /** Unified rows, or sides paired per hunk on one row each. */
+  view?: DiffView;
+  /** The pairs for the split view, built once by the caller. */
+  pairs?: SplitRow[] | undefined;
   /** Syntax tokens keyed by row index; a row without an entry renders plain. */
   tokensByRow?: RowTokenMap | undefined;
   /** Tokens are on their way: the code text holds its space but stays unpainted. */

@@ -2,7 +2,8 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DiffLine } from "@web/utils/diffTokens/types";
-import { DiffRows, isFullWidthDiffRow } from "./DiffRows";
+import { DiffRows } from "./DiffRows";
+import { isFullWidthDiffRow } from "./utils";
 
 afterEach(cleanup);
 

@@ -497,6 +497,8 @@
       "colOld": "Old line",
       "colNew": "New line",
       "colContent": "Content",
+      "colContentOld": "Removed content",
+      "colContentNew": "Added content",
       "rawReadOnlyReason": "This is the raw diff for the comparison — comment from the brief itself.",
       "summarySkipped": "Summary skipped — {{reason}}.",
       "summaryUnavailable": "Summary unavailable for this span.",

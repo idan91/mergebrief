@@ -40,12 +40,14 @@ import { DiffTable } from "../../DiffTable/DiffTable";
 
 import { useChunkTokens } from "@web/hooks/useChunkTokens";
 import { useTokenPlan } from "@web/hooks/useTokenPlan";
+import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
 import { ChunkTokenStatuses, type DiffLine } from "@web/utils/diffTokens/types";
 import { useReadingPosition } from "../../readingPosition";
 import styles from "./ChunkCard.module.scss";
 
 export interface ChunkCardProps {
   chunk: BriefChunk;
+  diffView?: DiffView;
   comparison: ComparisonOverlayState;
   open: boolean;
   addressedReviewComments: AddressedReviewComment[];
@@ -127,6 +129,7 @@ const NO_ROWS: DiffLine[] = [];
 
 export const ChunkCard = memo(function ChunkCard({
   chunk,
+  diffView = DiffViews.UNIFIED,
   comparison,
   open,
   addressedReviewComments,
@@ -401,6 +404,7 @@ export const ChunkCard = memo(function ChunkCard({
           <DiffTable
             tokensByRow={tokensByRow}
             tokensPending={diffPending}
+            view={diffView}
             conversationComposer={conversationComposer}
             conversationThreadsByRow={conversationSplit.byRow}
             addressedComments={inlineReviewComments}
