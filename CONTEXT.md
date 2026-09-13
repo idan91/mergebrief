@@ -122,6 +122,10 @@ _Avoid_: critical area, hot spot, risky code, severity tag
 A single AI-surfaced item from the brief that requires reviewer attention. In v1 this means a risk-surface attribute on a specific hunk; unvisited-playbook-item flags are parked with the playbook layer.
 _Avoid_: issue, warning, finding
 
+**Risk note**:
+Chunk-specific factual evidence for why a **Risk Surface** attribute fired on that **Chunk**. Carried on the chunk (`riskNotes`) and copied onto the matching **Flag**. Distinct from the attribute's catalog implication, which is the same sentence on every file.
+_Avoid_: description (ambiguous with the catalog implication), reason (collides with Dismissal)
+
 **Disposition**:
 A reviewer's recorded decision on a **Flag** — either *addressed* (a **Comment** now targets it) or *dismissed* (with a reason). Anchored to the flagged code region (file, attribute, region@SHA), never to a brief-local id, so it survives regeneration and carries forward across re-reviews. Frozen into the **Receipt** on **Submit**.
 _Avoid_: resolution (informal), flag status, decision (bare)
@@ -337,6 +341,7 @@ _Avoid_: script (bare), dev package
 ## Flagged ambiguities
 
 - **"Critical area"** was rejected as terminology. It bundled *verdict* into what should be *attributes*. Resolved: split into **Risk Surface** (factual per-chunk attributes) and **Flag** (a specific item needing attention or dismissal).
+- **"Risk category"** was used for a Risk Surface attribute. **Category** is the Change-group's intent (`bugfix`, `lib-bump`). Resolved: say **attribute**. The catalog implication is what the attribute means; a **Risk note** is why it fired on this Chunk.
 - **"Approval"** was used ambiguously to mean reviewer judgment AND AI verification. Resolved: only humans **Approve**. The tool issues a **Receipt**, scoped to mechanical claims.
 - **"Dismissal" vs "Disposition"** — *Dismissal* was used for the whole flag-decision concept. Resolved: **Disposition** is the umbrella (*addressed* or *dismissed*); **Dismissal** is only the *dismissed* value.
 - **"User"** in early scope was ambiguous (author vs reviewer). Resolved: **Reviewer** is the primary v1 surface; the **Author** self-review surface is a *secondary* v1 surface (see `center-of-gravity.md`), consuming the same shared **Brief** plus the **Intent check** and **Soft gate**. Both are named explicitly when referenced.
