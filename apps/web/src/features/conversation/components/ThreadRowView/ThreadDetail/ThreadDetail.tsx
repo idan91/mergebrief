@@ -184,7 +184,11 @@ export function ThreadDetail({
               {t("conversation.quoteReply")}
             </Button>
           </header>
-          <Markdown content={comment.body} renderSuggestions />
+          <Markdown
+            content={comment.body}
+            filePath={thread.path}
+            renderSuggestions
+          />
         </article>
       ))}
       {thread.hasMoreComments ? (

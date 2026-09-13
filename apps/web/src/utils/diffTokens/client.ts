@@ -5,6 +5,7 @@ import { replyEnvelopeSchema } from "./schemas";
 import {
   ChunkTokenStatuses,
   TokenFailureReasons,
+  TokenizeModes,
   TokenMessageKinds,
   type BriefChunkSize,
   type CancelRequest,
@@ -18,19 +19,31 @@ import {
   type GrammarName,
   type ReplyEnvelope,
   type RowTokenEntry,
+  type SnippetTokensRequest,
   type TokenizableRow,
+  type TokenizeMode,
   type TokenizeRequest,
   type WarmRequest,
 } from "./types";
 import { isChunkTokenizable } from "./utils";
+
+/** What the two entries share once each has named its source and mode. */
+interface TokenRequest {
+  briefKey: string;
+  sourceId: string;
+  filePath: string;
+  rows: DiffLine[];
+  admitted: ReadonlySet<GrammarName>;
+  mode: TokenizeMode;
+}
 
 type SettleChunkTokens = (result: ChunkTokensResult) => void;
 
 interface ChunkRequestRecord {
   requestId: number;
   briefKey: string;
-  chunkKey: string;
-  chunkId: string;
+  cacheKey: string;
+  sourceId: string;
   promise: Promise<ChunkTokensResult>;
   settle: SettleChunkTokens;
   waiters: number;
@@ -54,7 +67,7 @@ interface SettledEntry {
 }
 
 const settledResults = new Map<string, SettledEntry>();
-const recordsByChunk = new Map<string, ChunkRequestRecord>();
+const recordsBySource = new Map<string, ChunkRequestRecord>();
 const recordsByRequest = new Map<number, ChunkRequestRecord>();
 
 let workerHandle: DiffTokenWorkerHandle;
@@ -122,8 +135,37 @@ export function warmDiffTokenWorker(
 export function requestChunkTokens(
   request: ChunkTokensRequest,
 ): ChunkTokensHandle {
-  const chunkKey = buildChunkKey(request.briefKey, request.chunkId);
-  const settled = settledResults.get(chunkKey);
+  return requestTokens({
+    briefKey: request.briefKey,
+    sourceId: request.chunkId,
+    filePath: request.filePath,
+    rows: request.rows,
+    admitted: request.admitted,
+    mode: TokenizeModes.HUNK,
+  });
+}
+
+/**
+ * Colour for rows that arrived without a hunk: a suggestion block, a
+ * narrative added-only slice, a wait-screen preview. Same refusals as a
+ * chunk, so a language the brief's budget skipped renders plain here too.
+ */
+export function requestSnippetTokens(
+  request: SnippetTokensRequest,
+): ChunkTokensHandle {
+  return requestTokens({
+    briefKey: request.briefKey,
+    sourceId: request.snippetKey,
+    filePath: request.filePath,
+    rows: request.rows,
+    admitted: request.admitted,
+    mode: request.mode ?? TokenizeModes.STANDALONE,
+  });
+}
+
+function requestTokens(request: TokenRequest): ChunkTokensHandle {
+  const cacheKey = buildCacheKey(request);
+  const settled = settledResults.get(cacheKey);
   if (settled !== undefined) return shapeSettledHandle(settled.result);
 
   const grammar = resolveGrammar(request.filePath);
@@ -136,10 +178,10 @@ export function requestChunkTokens(
   const worker = getDiffTokenWorker();
   if (worker === undefined) return shapeSettledHandle(PLAIN_RESULT);
 
-  const running = recordsByChunk.get(chunkKey);
+  const running = recordsBySource.get(cacheKey);
   if (running !== undefined) return joinRecord(running);
 
-  return startRecord(worker, request, chunkKey, grammar);
+  return startRecord(worker, request, cacheKey, grammar);
 }
 
 /** The grammars a whole brief may load, decided once before any chunk opens. */
@@ -166,7 +208,7 @@ export function resetDiffTokenWorker(): void {
   workerFailed = false;
   currentBriefKey = undefined;
   settledResults.clear();
-  recordsByChunk.clear();
+  recordsBySource.clear();
   recordsByRequest.clear();
   nextRequestId = 0;
 }
@@ -183,14 +225,15 @@ function joinRecord(record: ChunkRequestRecord): ChunkTokensHandle {
   return { promise: record.promise, cancel: () => releaseRecord(record) };
 }
 
-function buildChunkKey(briefKey: string, chunkId: string): string {
-  return `${briefKey}:${chunkId}`;
+// The mode sits in the key so a snippet keyed by a chunk's own id can never
+// serve that chunk's reply, or the other way round.
+function buildCacheKey(request: TokenRequest): string {
+  return `${request.briefKey}:${request.mode}:${request.sourceId}`;
 }
 
 // Two phases: collect, then drop. Releasing a record deletes from the map
 // being walked.
 function evictOtherBriefs(briefKey: string): void {
-  // The reader left this brief, so its tokenize measures have no consumer.
   // Clearing here bounds a long session without emptying the buffer the perf
   // harness reads for the brief it is measuring.
   clearTokenizeMeasures();
@@ -202,7 +245,7 @@ function evictOtherBriefs(briefKey: string): void {
   for (const key of staleResults) settledResults.delete(key);
 
   const staleRecords: ChunkRequestRecord[] = [];
-  for (const record of recordsByChunk.values()) {
+  for (const record of recordsBySource.values()) {
     if (record.briefKey !== briefKey) staleRecords.push(record);
   }
   for (const record of staleRecords) releaseRecord(record, record.waiters);
@@ -210,8 +253,8 @@ function evictOtherBriefs(briefKey: string): void {
 
 function startRecord(
   worker: Worker,
-  request: ChunkTokensRequest,
-  chunkKey: string,
+  request: TokenRequest,
+  cacheKey: string,
   grammar: GrammarName,
 ): ChunkTokensHandle {
   const requestId = nextRequestId;
@@ -224,20 +267,21 @@ function startRecord(
   const record: ChunkRequestRecord = {
     requestId,
     briefKey: request.briefKey,
-    chunkKey,
-    chunkId: request.chunkId,
+    cacheKey,
+    sourceId: request.sourceId,
     promise,
     settle,
     waiters: 1,
   };
-  recordsByChunk.set(chunkKey, record);
+  recordsBySource.set(cacheKey, record);
   recordsByRequest.set(requestId, record);
 
   const message: TokenizeRequest = {
     kind: TokenMessageKinds.TOKENIZE,
     requestId,
-    chunkId: request.chunkId,
+    sourceId: request.sourceId,
     grammar,
+    mode: request.mode,
     rows: request.rows.map(shapeTokenizableRow),
   };
   // A Worker's postMessage takes no target origin; the rule reads window's.
@@ -268,8 +312,8 @@ function releaseRecord(record: ChunkRequestRecord, released = 1): void {
 
 function forgetRecord(record: ChunkRequestRecord): void {
   recordsByRequest.delete(record.requestId);
-  if (recordsByChunk.get(record.chunkKey) === record) {
-    recordsByChunk.delete(record.chunkKey);
+  if (recordsBySource.get(record.cacheKey) === record) {
+    recordsBySource.delete(record.cacheKey);
   }
 }
 
@@ -306,7 +350,7 @@ function receiveReply(data: unknown): void {
   forgetRecord(record);
   const result = shapeResult(envelope.data, data);
   if (isWorthCaching(result)) {
-    settledResults.set(record.chunkKey, {
+    settledResults.set(record.cacheKey, {
       briefKey: record.briefKey,
       result,
     });
@@ -355,7 +399,7 @@ function retireWorker(): void {
 
   const owed = [...recordsByRequest.values()];
   recordsByRequest.clear();
-  recordsByChunk.clear();
+  recordsBySource.clear();
 
   for (const record of owed) {
     record.settle({

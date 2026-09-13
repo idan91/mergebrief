@@ -8,7 +8,7 @@ import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 
 import { unreadableRequestSchema, workerRequestSchema } from "./schemas";
 import { MERGEBRIEF_DARK } from "./theme";
-import { tokenizeChunkRows } from "./tokenizeChunk";
+import { tokenizeRows } from "./tokenizeChunk";
 import {
   GrammarNames,
   TokenFailureReasons,
@@ -128,13 +128,18 @@ async function runTokenize(
 
   try {
     const startedAt = performance.now();
-    const byRow = tokenizeChunkRows(highlighter, request.rows, request.grammar);
+    const byRow = tokenizeRows(
+      highlighter,
+      request.rows,
+      request.grammar,
+      request.mode,
+    );
     const tokenizeMs = performance.now() - startedAt;
 
     return {
       kind: TokenMessageKinds.TOKENS,
       requestId: request.requestId,
-      chunkId: request.chunkId,
+      sourceId: request.sourceId,
       tokensByRow: [...byRow.entries()],
       tokenizeMs,
     };
@@ -150,7 +155,7 @@ function shapeFailure(
   return {
     kind: TokenMessageKinds.FAILED,
     requestId: request.requestId,
-    chunkId: request.chunkId,
+    sourceId: request.sourceId,
     reason,
   };
 }
@@ -229,7 +234,7 @@ function replyToUnreadable(data: unknown): void {
   const reply: WorkerReply = {
     kind: TokenMessageKinds.FAILED,
     requestId: parsed.data.requestId,
-    chunkId: parsed.data.chunkId,
+    sourceId: parsed.data.sourceId,
     reason: TokenFailureReasons.TOKENIZE,
   };
   // A worker scope's postMessage takes no target origin; the rule reads window's.

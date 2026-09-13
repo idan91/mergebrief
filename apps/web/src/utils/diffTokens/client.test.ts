@@ -4,6 +4,7 @@ import {
   getDiffTokenWorker,
   planBriefGrammars,
   requestChunkTokens,
+  requestSnippetTokens,
   resetDiffTokenWorker,
   warmDiffTokenWorker,
 } from "./client";
@@ -12,10 +13,12 @@ import {
   DiffLineKinds,
   GrammarNames,
   TokenFailureReasons,
+  TokenizeModes,
   TokenMessageKinds,
   type ChunkTokensRequest,
   type DiffLine,
   type GrammarName,
+  type SnippetTokensRequest,
   type TokensReply,
 } from "./types";
 
@@ -86,11 +89,33 @@ function makeRequest(
   };
 }
 
+function makeSnippetRequest(
+  overrides: Partial<SnippetTokensRequest> = {},
+): SnippetTokensRequest {
+  return {
+    briefKey: "brief-a",
+    snippetKey: "snippet-1",
+    filePath: "src/a.ts",
+    rows: TS_ROWS,
+    admitted: makeAdmitted(GrammarNames.TYPESCRIPT),
+    ...overrides,
+  };
+}
+
+function readSentMessage(index: number): Record<string, unknown> {
+  const message = readWorker().sent[index];
+  if (typeof message !== "object" || message === null) {
+    throw new Error("no message was posted");
+  }
+
+  return { ...message };
+}
+
 function makeTokensReply(requestId: number): TokensReply {
   return {
     kind: TokenMessageKinds.TOKENS,
     requestId,
-    chunkId: "chunk-1",
+    sourceId: "chunk-1",
     tokensByRow: [[1, [{ text: "const", classId: 4 }]]],
     tokenizeMs: 3,
   };
@@ -148,7 +173,7 @@ describe("requestChunkTokens", () => {
     deliverReply({
       kind: TokenMessageKinds.FAILED,
       requestId: readSentRequestId(0),
-      chunkId: "chunk-1",
+      sourceId: "chunk-1",
       reason: TokenFailureReasons.GRAMMAR_LOAD,
     });
 
@@ -182,7 +207,7 @@ describe("requestChunkTokens", () => {
     deliverReply({
       kind: TokenMessageKinds.TOKENS,
       requestId: readSentRequestId(0),
-      chunkId: "chunk-1",
+      sourceId: "chunk-1",
       tokensByRow: ["not a pair"],
       tokenizeMs: 3,
     });
@@ -221,7 +246,7 @@ describe("requestChunkTokens", () => {
     deliverReply({
       kind: TokenMessageKinds.FAILED,
       requestId: readSentRequestId(0),
-      chunkId: "chunk-1",
+      sourceId: "chunk-1",
       reason: TokenFailureReasons.GRAMMAR_LOAD,
     });
     await first.promise;
@@ -236,7 +261,7 @@ describe("requestChunkTokens", () => {
     deliverReply({
       kind: TokenMessageKinds.FAILED,
       requestId: readSentRequestId(0),
-      chunkId: "chunk-1",
+      sourceId: "chunk-1",
       reason: TokenFailureReasons.TOKENIZE,
     });
     await first.promise;
@@ -417,5 +442,76 @@ describe("planBriefGrammars", () => {
     const plan = planBriefGrammars([{ file: "src/a.ts", rowCount: 5000 }]);
 
     expect(plan.admitted).toEqual([]);
+  });
+});
+
+describe("requestSnippetTokens", () => {
+  it("asks the worker to tokenize standalone", () => {
+    void requestSnippetTokens(makeSnippetRequest());
+
+    expect(readSentMessage(0)["mode"]).toBe(TokenizeModes.STANDALONE);
+    expect(readSentMessage(0)["sourceId"]).toBe("snippet-1");
+  });
+
+  it("tokenizes as a hunk when the caller names that mode", () => {
+    void requestSnippetTokens(makeSnippetRequest({ mode: TokenizeModes.HUNK }));
+
+    expect(readSentMessage(0)["mode"]).toBe(TokenizeModes.HUNK);
+  });
+
+  it("renders plain for a language the brief did not admit", async () => {
+    const handle = requestSnippetTokens(
+      makeSnippetRequest({ admitted: makeAdmitted() }),
+    );
+
+    await expect(handle.promise).resolves.toEqual({
+      status: ChunkTokenStatuses.PLAIN,
+    });
+  });
+
+  it("renders plain for a path with no grammar", async () => {
+    const handle = requestSnippetTokens(
+      makeSnippetRequest({ filePath: "docs/logo.png" }),
+    );
+
+    await expect(handle.promise).resolves.toEqual({
+      status: ChunkTokenStatuses.PLAIN,
+    });
+  });
+
+  it("renders plain past the chunk row ceiling", async () => {
+    const rows: DiffLine[] = Array.from({ length: 1001 }, () => ({
+      kind: DiffLineKinds.CTX,
+      content: "x",
+    }));
+
+    const handle = requestSnippetTokens(makeSnippetRequest({ rows }));
+
+    await expect(handle.promise).resolves.toEqual({
+      status: ChunkTokenStatuses.PLAIN,
+    });
+  });
+
+  it("serves a second render of one snippet from the cache", async () => {
+    const first = requestSnippetTokens(makeSnippetRequest());
+    deliverReply(makeTokensReply(readSentRequestId(0)));
+    await first.promise;
+
+    const second = requestSnippetTokens(makeSnippetRequest());
+
+    await expect(second.promise).resolves.toMatchObject({
+      status: ChunkTokenStatuses.READY,
+    });
+    expect(readWorker().sent).toHaveLength(1);
+  });
+
+  it("never serves a chunk reply to a snippet of the same id", async () => {
+    const chunk = requestChunkTokens(makeRequest({ chunkId: "same" }));
+    deliverReply(makeTokensReply(readSentRequestId(0)));
+    await chunk.promise;
+
+    void requestSnippetTokens(makeSnippetRequest({ snippetKey: "same" }));
+
+    expect(readWorker().sent).toHaveLength(2);
   });
 });

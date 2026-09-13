@@ -1,6 +1,7 @@
-import { memo } from "react";
+import { memo, useMemo } from "react";
 
 import { Button } from "@web/components/Button/Button";
+import { TokenPlanProvider } from "@web/hooks/useTokenPlan";
 import { ConversationSection } from "@web/features/conversation";
 import { SubmitModal } from "@web/features/review";
 import { ReviewFlowProvider } from "@web/features/review/session";
@@ -20,8 +21,7 @@ import { RiskFlagModals } from "./RiskFlagModals/RiskFlagModals";
 import { ShortcutsModal } from "./ShortcutsModal/ShortcutsModal";
 import { Sidebar } from "./Sidebar";
 import { StoryView } from "./StoryView/StoryView";
-import { CONTENT_START_ATTR } from "./utils";
-import { TokenPlanProvider } from "./tokenPlan";
+import { CONTENT_START_ATTR, deriveChunkSizes } from "./utils";
 import { SummarySection } from "./SummarySection/SummarySection";
 import { ReadingPositionProvider } from "./readingPosition";
 import styles from "./BriefScreen.module.scss";
@@ -127,9 +127,15 @@ export function BriefScreen({
     submitReview,
   });
 
+  // The provider memoizes on this identity, so it has to be stable itself.
+  const chunkSizes = useMemo(
+    () => deriveChunkSizes(brief.chunks),
+    [brief.chunks],
+  );
+
   return (
     <ReviewFlowProvider store={flowStore}>
-      <TokenPlanProvider briefKey={briefId} chunks={brief.chunks}>
+      <TokenPlanProvider briefKey={briefId} chunkSizes={chunkSizes}>
         <ReadingPositionProvider store={readingPosition}>
           <Header
             brief={brief}

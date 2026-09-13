@@ -37,8 +37,9 @@ import {
 import { InlineThreads } from "@web/features/conversation";
 import type { ThreadComposerWiring } from "@web/features/conversation";
 import { DiffTable } from "../../DiffTable/DiffTable";
-import { useTokenPlan } from "../../tokenPlan";
+
 import { useChunkTokens } from "@web/hooks/useChunkTokens";
+import { useTokenPlan } from "@web/hooks/useTokenPlan";
 import { ChunkTokenStatuses, type DiffLine } from "@web/utils/diffTokens/types";
 import { useReadingPosition } from "../../readingPosition";
 import styles from "./ChunkCard.module.scss";

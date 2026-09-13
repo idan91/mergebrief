@@ -4,6 +4,7 @@ import {
   DiffLineKinds,
   GrammarNames,
   TokenFailureReasons,
+  TokenizeModes,
   TokenMessageKinds,
 } from "./types";
 
@@ -29,8 +30,9 @@ const requestIdSchema = z.int().nonnegative();
 export const tokenizeRequestSchema = z.object({
   kind: z.literal(TokenMessageKinds.TOKENIZE),
   requestId: requestIdSchema,
-  chunkId: z.string(),
+  sourceId: z.string(),
   grammar: z.enum(GrammarNames),
+  mode: z.enum(TokenizeModes),
   rows: z.array(tokenizableRowSchema),
 });
 
@@ -53,7 +55,7 @@ export const workerRequestSchema = z.discriminatedUnion("kind", [
 export const tokensReplySchema = z.object({
   kind: z.literal(TokenMessageKinds.TOKENS),
   requestId: requestIdSchema,
-  chunkId: z.string(),
+  sourceId: z.string(),
   tokensByRow: z.array(rowTokenEntrySchema),
   tokenizeMs: z.number().nonnegative(),
 });
@@ -61,7 +63,7 @@ export const tokensReplySchema = z.object({
 export const failedReplySchema = z.object({
   kind: z.literal(TokenMessageKinds.FAILED),
   requestId: requestIdSchema,
-  chunkId: z.string(),
+  sourceId: z.string(),
   reason: z.enum(TokenFailureReasons),
 });
 
@@ -78,7 +80,7 @@ export const replyEnvelopeSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal(TokenMessageKinds.TOKENS),
     requestId: requestIdSchema,
-    chunkId: z.string(),
+    sourceId: z.string(),
     tokenizeMs: z.number().nonnegative(),
   }),
   failedReplySchema,
@@ -88,5 +90,5 @@ export const replyEnvelopeSchema = z.discriminatedUnion("kind", [
 export const unreadableRequestSchema = z.object({
   kind: z.literal(TokenMessageKinds.TOKENIZE),
   requestId: z.number().int().nonnegative(),
-  chunkId: z.string(),
+  sourceId: z.string(),
 });

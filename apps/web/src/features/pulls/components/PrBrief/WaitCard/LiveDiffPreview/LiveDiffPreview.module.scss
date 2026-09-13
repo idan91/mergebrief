@@ -9,6 +9,9 @@
   }
 
   .diffFile {
+    // DiffRows keeps code on one line, so the table has to scroll inside the
+    // card instead of widening it past the viewport.
+    overflow-x: auto;
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
     background: var(--color-surface-1);
@@ -28,41 +31,5 @@
   .diffTable {
     inline-size: 100%;
     border-collapse: collapse;
-    font-family: var(--mono);
-    font-size: var(--font-size-md);
-    line-height: 1.5;
-
-    // Deliberate non-token colors: the raw-PR diff tints rows with GitHub's
-    // own add/del greens and reds so it reads like the diff it mirrors.
-    --gh-diff-add: #2ea043;
-    --gh-diff-del: #f85149;
-
-    tr[data-kind="add"] {
-      background: color-mix(in srgb, var(--gh-diff-add) 12%, transparent);
-    }
-
-    tr[data-kind="del"] {
-      background: color-mix(in srgb, var(--gh-diff-del) 10%, transparent);
-    }
-
-    tr[data-kind="hunk"] {
-      color: var(--faint);
-      background: var(--panel2);
-    }
-  }
-
-  .lineNo {
-    inline-size: functions.to-rem(44px);
-    padding-inline: functions.to-rem(8px);
-    color: var(--faint);
-    text-align: end;
-    user-select: none;
-  }
-
-  .lineContent {
-    padding-inline: functions.to-rem(8px);
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-    color: var(--dim);
   }
 }

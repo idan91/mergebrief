@@ -10,6 +10,7 @@ import {
   GrammarNames,
   TokenFailureReasons,
   type TokenizeRequest,
+  TokenizeModes,
   TokenMessageKinds,
   type TokensReply,
   type WarmRequest,
@@ -18,8 +19,9 @@ import {
 const TOKENIZE_REQUEST: TokenizeRequest = {
   kind: TokenMessageKinds.TOKENIZE,
   requestId: 3,
-  chunkId: "chunk-1",
+  sourceId: "chunk-1",
   grammar: GrammarNames.TYPESCRIPT,
+  mode: TokenizeModes.HUNK,
   rows: [
     { kind: DiffLineKinds.HUNK, content: "@@ -1 +1 @@" },
     { kind: DiffLineKinds.ADD, content: "const a = 1;" },
@@ -34,7 +36,7 @@ const WARM_REQUEST: WarmRequest = {
 const TOKENS_REPLY: TokensReply = {
   kind: TokenMessageKinds.TOKENS,
   requestId: 3,
-  chunkId: "chunk-1",
+  sourceId: "chunk-1",
   tokensByRow: [[1, [{ text: "const", classId: 4 }]]],
   tokenizeMs: 3,
 };
@@ -95,7 +97,7 @@ describe("replyEnvelopeSchema", () => {
     expect(replyEnvelopeSchema.parse(TOKENS_REPLY)).toEqual({
       kind: TokenMessageKinds.TOKENS,
       requestId: 3,
-      chunkId: "chunk-1",
+      sourceId: "chunk-1",
       tokenizeMs: 3,
     });
   });
@@ -125,7 +127,7 @@ describe("workerReplySchema", () => {
     const reply = {
       kind: TokenMessageKinds.FAILED,
       requestId: 3,
-      chunkId: "chunk-1",
+      sourceId: "chunk-1",
       reason: TokenFailureReasons.TOKENIZE,
     };
 
@@ -136,7 +138,7 @@ describe("workerReplySchema", () => {
     const parsed = workerReplySchema.safeParse({
       kind: TokenMessageKinds.FAILED,
       requestId: 3,
-      chunkId: "chunk-1",
+      sourceId: "chunk-1",
       reason: "it exploded",
     });
 
@@ -156,7 +158,7 @@ describe("workerReplySchema", () => {
   it("rejects a reply with no request id", () => {
     const parsed = workerReplySchema.safeParse({
       kind: TokenMessageKinds.TOKENS,
-      chunkId: "chunk-1",
+      sourceId: "chunk-1",
       tokensByRow: [],
       tokenizeMs: 3,
     });

@@ -2,9 +2,8 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { GrammarNames } from "@web/utils/diffTokens/types";
-import type { BriefChunk } from "../../types";
-import { TokenPlanProvider, useTokenPlan } from "./tokenPlan";
+import { GrammarNames, type BriefChunkSize } from "@web/utils/diffTokens/types";
+import { TokenPlanProvider, useTokenPlan } from "./useTokenPlan";
 
 const warmDiffTokenWorker = vi.hoisted(() => vi.fn());
 
@@ -18,13 +17,8 @@ afterEach(() => {
   warmDiffTokenWorker.mockClear();
 });
 
-function makeChunk(file: string, rowCount: number): BriefChunk {
-  const diff = Array.from({ length: rowCount }, (_, index) => ({
-    kind: "add" as const,
-    content: `line ${String(index)}`,
-    newLine: index + 1,
-  }));
-  return { id: `c-${file}`, file, diff } as BriefChunk;
+function makeChunkSize(file: string, rowCount: number): BriefChunkSize {
+  return { file, rowCount };
 }
 
 function PlanProbe() {
@@ -39,7 +33,10 @@ function PlanProbe() {
 describe("TokenPlanProvider", () => {
   it("admits the grammars the brief's chunks need", () => {
     render(
-      <TokenPlanProvider briefKey="brief-1" chunks={[makeChunk("a.ts", 3)]}>
+      <TokenPlanProvider
+        briefKey="brief-1"
+        chunkSizes={[makeChunkSize("a.ts", 3)]}
+      >
         <PlanProbe />
       </TokenPlanProvider>,
     );
@@ -51,7 +48,10 @@ describe("TokenPlanProvider", () => {
 
   it("warms the worker once with the admitted grammars", () => {
     render(
-      <TokenPlanProvider briefKey="brief-1" chunks={[makeChunk("a.ts", 3)]}>
+      <TokenPlanProvider
+        briefKey="brief-1"
+        chunkSizes={[makeChunkSize("a.ts", 3)]}
+      >
         <PlanProbe />
       </TokenPlanProvider>,
     );

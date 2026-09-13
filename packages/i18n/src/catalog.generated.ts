@@ -15,7 +15,6 @@ export type Catalog = typeof en & {
     };
     wait: (typeof en)["pulls"]["wait"] & {
       generatingPhase: "Generating the brief — {{phase}}…";
-      diffCaption: "Diff for {{file}}";
     };
     capped: (typeof en)["pulls"]["capped"] & {
       resumes: "Daily generation cap reached — resumes {{resetsAt, datetime(dateStyle: medium; timeStyle: short)}}";

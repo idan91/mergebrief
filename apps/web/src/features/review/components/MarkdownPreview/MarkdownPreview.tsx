@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { SuggestionCard } from "@web/components/Markdown/SuggestionCard/SuggestionCard";
+import { TokenizeModes } from "@web/utils/diffTokens/types";
 import {
   parseSuggestionBlocks,
   stripSuggestionBlocks,
@@ -20,8 +21,8 @@ export interface MarkdownPreviewProps {
 
 /**
  * The ANCHORED preview: drafts know the diff lines they sit on, so the
- * shared SuggestionCard gets full del+add rows with line numbers — the
- * anchor-less path (pulled comments) lives in the shared Markdown renderer.
+ * shared SuggestionCard gets full del+add rows with line numbers. The
+ * anchor-less path lives in the shared Markdown renderer.
  */
 export function MarkdownPreview({ anchor, body }: MarkdownPreviewProps) {
   const { t } = useTranslation();
@@ -37,7 +38,9 @@ export function MarkdownPreview({ anchor, body }: MarkdownPreviewProps) {
       )}
       {suggestions.map((suggestion) => (
         <SuggestionCard
+          filePath={anchor.file}
           key={suggestion.index}
+          mode={TokenizeModes.HUNK}
           rows={buildSuggestionDiffRows(anchor, suggestion.body)}
         />
       ))}

@@ -4,7 +4,11 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 import { SYNTAX_PALETTE, resolveClassId } from "./palette";
 import { MERGEBRIEF_DARK, MERGEBRIEF_THEME_NAME } from "./theme";
-import { tokenizeChunkRows, tokenizeSide } from "./tokenizeChunk";
+import {
+  tokenizeChunkRows,
+  tokenizeSide,
+  tokenizeStandaloneRows,
+} from "./tokenizeChunk";
 import { DiffLineKinds, GrammarNames, type DiffLine } from "./types";
 
 const MID_TAG_ROWS: DiffLine[] = [
@@ -138,3 +142,58 @@ describe("tokenizeChunkRows", () => {
     expect(token?.classId).toBe(resolvePaletteClassId("tag"));
   });
 });
+
+describe("tokenizeStandaloneRows", () => {
+  const SNIPPET_ROWS: DiffLine[] = [
+    { kind: DiffLineKinds.ADD, content: 'const label = "ship";' },
+    { kind: DiffLineKinds.ADD, content: "export function run() {}" },
+  ];
+
+  it("colours a keyword and a string in a tsx snippet", () => {
+    const byRow = tokenizeStandaloneRows(
+      highlighter,
+      SNIPPET_ROWS,
+      GrammarNames.TSX,
+    );
+
+    expect(readRowClassId(byRow, 0, "const")).toBe(
+      resolvePaletteClassId("keyword"),
+    );
+    expect(readRowClassId(byRow, 0, '"ship"')).toBe(
+      resolvePaletteClassId("string"),
+    );
+  });
+
+  it("takes rows in order with nothing reconstructed", () => {
+    const byRow = tokenizeStandaloneRows(
+      highlighter,
+      SNIPPET_ROWS,
+      GrammarNames.TSX,
+    );
+
+    expect([...byRow.keys()].toSorted((a, b) => a - b)).toEqual([0, 1]);
+  });
+
+  it("leaves a hunk row untokenized", () => {
+    const rows: DiffLine[] = [
+      { kind: DiffLineKinds.HUNK, content: "@@ -1 +1 @@" },
+      ...SNIPPET_ROWS,
+    ];
+
+    const byRow = tokenizeStandaloneRows(highlighter, rows, GrammarNames.TSX);
+
+    expect(byRow.has(0)).toBe(false);
+    expect(byRow.has(1)).toBe(true);
+  });
+});
+
+function readRowClassId(
+  byRow: ReturnType<typeof tokenizeStandaloneRows>,
+  rowIndex: number,
+  content: string,
+): number {
+  const tokens = byRow.get(rowIndex);
+  if (tokens === undefined) throw new Error(`no tokens for row ${rowIndex}`);
+
+  return readClassIdFor([tokens], content);
+}

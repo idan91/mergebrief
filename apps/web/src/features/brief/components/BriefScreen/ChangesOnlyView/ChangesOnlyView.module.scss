@@ -90,30 +90,20 @@
     border: 1px solid var(--line2);
     border-radius: var(--radius-md);
     background: var(--panel);
-    font-family: var(--mono);
-    font-size: var(--font-size-md);
-    line-height: 1.5;
   }
 
-  .row {
-    display: grid;
-    grid-template-columns: 44px 1fr;
-    gap: functions.to-rem(8px);
-    padding-inline: functions.to-rem(10px);
-    white-space: pre-wrap;
-
-    &[data-kind="add"] {
-      background: color-mix(in srgb, var(--color-positive) 12%, transparent);
-    }
-
-    &[data-kind="del"] {
-      background: color-mix(in srgb, var(--color-negative) 12%, transparent);
-    }
+  .diffTable {
+    inline-size: 100%;
+    border-collapse: collapse;
   }
 
   .lineNo {
+    inline-size: functions.to-rem(44px);
+    min-inline-size: functions.to-rem(44px);
+    padding-inline-end: functions.to-rem(8px);
     color: var(--faint);
     text-align: end;
+    user-select: none;
   }
 
   .removedNote {

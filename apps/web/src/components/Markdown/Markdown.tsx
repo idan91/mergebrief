@@ -11,6 +11,8 @@ import styles from "./Markdown.module.scss";
 
 export interface MarkdownProps {
   content: string;
+  /** The file any suggestion block belongs to; its language follows it. */
+  filePath?: string | undefined;
   /**
    * Render ```suggestion fences as Suggested-change cards. Addition rows
    * only: the fence holds just the replacement text; the old side needs the
@@ -22,6 +24,7 @@ export interface MarkdownProps {
 /** Generic GFM markdown renderer used across briefs, descriptions, and comments. */
 export function Markdown({
   content,
+  filePath,
   renderSuggestions = false,
 }: MarkdownProps) {
   const suggestions = renderSuggestions ? parseSuggestionBlocks(content) : [];
@@ -41,6 +44,7 @@ export function Markdown({
       </ReactMarkdown>
       {suggestions.map((suggestion) => (
         <SuggestionCard
+          filePath={filePath}
           key={suggestion.index}
           rows={buildSuggestionAdditionRows(suggestion.body)}
         />

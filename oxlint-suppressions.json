@@ -1313,11 +1313,6 @@
       "count": 4
     }
   },
-  "apps/web/src/features/review/components/MarkdownPreview/MarkdownPreview.tsx": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "apps/web/src/features/review/components/SubmitModal/ReceiptAccordion/ReceiptAccordion.tsx": {
     "house/no-em-dash": {
       "count": 1

@@ -110,6 +110,17 @@ export interface TokenizableRow {
   content: string;
 }
 
+/**
+ * `hunk` reconstructs the two sides of a diff before tokenizing. `standalone`
+ * is for rows that never came from a hunk: they are one side already, so they
+ * tokenize in row order with nothing to reconstruct.
+ */
+export const TokenizeModes = {
+  HUNK: "hunk",
+  STANDALONE: "standalone",
+} as const;
+export type TokenizeMode = ValueOf<typeof TokenizeModes>;
+
 export const TokenMessageKinds = {
   TOKENIZE: "tokenize",
   TOKENS: "tokens",
@@ -181,6 +192,21 @@ export interface ChunkTokensRequest {
   rows: DiffLine[];
   /** The grammars this brief's budget admitted, from `planBriefGrammars`. */
   admitted: ReadonlySet<GrammarName>;
+}
+
+/**
+ * A snippet has no hunk to reconstruct and no chunk id: its rows are one
+ * side of one file, and `snippetKey` is whatever identity its renderer can
+ * state, scoped to the brief the caller reads under.
+ */
+export interface SnippetTokensRequest {
+  briefKey: string;
+  snippetKey: string;
+  filePath: string;
+  rows: DiffLine[];
+  admitted: ReadonlySet<GrammarName>;
+  /** `standalone` unless the rows are a real diff with hunk headers. */
+  mode?: TokenizeMode;
 }
 
 /**

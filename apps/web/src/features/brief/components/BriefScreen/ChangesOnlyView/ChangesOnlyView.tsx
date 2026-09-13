@@ -1,10 +1,19 @@
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import { useTranslation } from "react-i18next";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, type ReactNode } from "react";
 import { Markdown } from "@web/components/Markdown/Markdown";
 import { estimateNarrativeCardHeight } from "../chunkHeightModel";
 import { useGroupWindow } from "../useGroupWindow";
-import { DIFF_LINE_SIGNS } from "@web/utils/diffTokens/consts";
+import { DiffRows } from "@web/components/DiffRows/DiffRows";
+import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
+import { useSnippetTokens } from "@web/hooks/useSnippetTokens";
+import { useTokenPlan } from "@web/hooks/useTokenPlan";
+import {
+  ChunkTokenStatuses,
+  TokenizeModes,
+  type TokenizeMode,
+} from "@web/utils/diffTokens/types";
+import { buildSnippetKey } from "@web/utils/diffTokens/utils";
 import { categoryLabel, GroupViewKinds } from "../../../utils/viewModel";
 import type { BriefViewModel } from "../../../utils/viewModel";
 import { buildBriefViewModel } from "../../../utils/viewModel";
@@ -262,13 +271,19 @@ interface NarrativeChunkCardProps {
 
 function NarrativeChunkCard({ brief, chunk }: NarrativeChunkCardProps) {
   const { t } = useTranslation();
-  const addedRows = addedRowsForNarrativeChunk(brief, chunk);
+  // The snippet key is derived from this array's identity.
+  const addedRows = useMemo(
+    () => addedRowsForNarrativeChunk(brief, chunk),
+    [brief, chunk],
+  );
   const removedCount = countLines(chunk.removedRanges);
   return (
     <div className={styles["chunk"]}>
       <div className={styles["chunkFile"]}>{chunk.file}</div>
       <p className={styles["chunkSummary"]}>{chunk.summary}</p>
-      {addedRows.length > 0 ? <ReadonlyDiff rows={addedRows} /> : null}
+      {addedRows.length > 0 ? (
+        <ReadonlyDiff file={chunk.file} rows={addedRows} />
+      ) : null}
       {removedCount > 0 ? (
         <div className={styles["removedNote"]}>
           {t("brief.changes.removedLines", { count: removedCount })}
@@ -337,9 +352,7 @@ function LastReviewChanges({ delta }: LastReviewChangesProps) {
                 {chunk.summary ? (
                   <p className={styles["chunkSummary"]}>{chunk.summary}</p>
                 ) : null}
-                {chunk.diff && chunk.diff.length > 0 ? (
-                  <ReadonlyDiff rows={chunk.diff.filter(isCodeRow)} />
-                ) : null}
+                <DeltaChunkDiff chunk={chunk} />
               </div>
             ))}
           </section>
@@ -349,30 +362,76 @@ function LastReviewChanges({ delta }: LastReviewChangesProps) {
   );
 }
 
-interface ReadonlyDiffProps {
-  rows: DiffLine[];
+interface DeltaChunkDiffProps {
+  chunk: BriefChunk;
 }
 
-/** Compact, read-only diff slice, no comment machinery (Changes Only is a read view). */
-function ReadonlyDiff({ rows }: ReadonlyDiffProps) {
+/**
+ * A delta chunk carries del rows beside their add replacements, so its rows
+ * reconstruct as a hunk. The filtered array is memoized because the snippet
+ * key is derived from its identity.
+ */
+function DeltaChunkDiff({ chunk }: DeltaChunkDiffProps) {
+  const rows = useMemo(
+    () => (chunk.diff ?? []).filter(isCodeRow),
+    [chunk.diff],
+  );
+
+  if (rows.length === 0) return null;
+
+  return (
+    <ReadonlyDiff file={chunk.file} mode={TokenizeModes.HUNK} rows={rows} />
+  );
+}
+
+interface ReadonlyDiffProps {
+  file: string;
+  rows: DiffLine[];
+  /**
+   * Added-only rows are one side already. Rows carrying del beside its add
+   * replacement have to reconstruct, or the two spell one broken statement.
+   */
+  mode?: TokenizeMode | undefined;
+}
+
+/** Compact, read-only diff slice; Changes Only is a read view with no comment machinery. */
+function ReadonlyDiff({ file, rows, mode }: ReadonlyDiffProps) {
+  const { t } = useTranslation();
+  const plan = useTokenPlan();
+  const snippetKey = useMemo(() => buildSnippetKey(file, rows), [file, rows]);
+  const tokens = useSnippetTokens({
+    briefKey: plan.briefKey,
+    snippetKey,
+    filePath: file,
+    rows,
+    admitted: plan.admitted,
+    mode,
+  });
+  const tokensByRow =
+    tokens.status === ChunkTokenStatuses.READY ? tokens.tokensByRow : undefined;
+
   return (
     <div className={styles["diff"]}>
-      {rows.map((row, index) => (
-        <div
-          className={styles["row"]}
-          data-kind={row.kind}
-          key={`${row.kind}-${index}`}
-        >
-          <span className={styles["lineNo"]}>
-            {row.newLine ?? row.oldLine ?? ""}
-          </span>
-          <span>
-            {DIFF_LINE_SIGNS[row.kind]}
-            {row.content}
-          </span>
-        </div>
-      ))}
+      <table className={styles["diffTable"]}>
+        <ScreenReaderOnly as="caption">
+          {t("brief.diff.caption", { file })}
+        </ScreenReaderOnly>
+        <DiffRows
+          gutterCell={buildNarrativeLineNumber}
+          lineNumbers={false}
+          rows={rows}
+          tokensByRow={tokensByRow}
+          tokensPending={tokens.status === ChunkTokenStatuses.PENDING}
+        />
+      </table>
     </div>
+  );
+}
+
+/** One line number per row: the narrative slice is one side of the file. */
+function buildNarrativeLineNumber(row: DiffLine): ReactNode {
+  return (
+    <td className={styles["lineNo"]}>{row.newLine ?? row.oldLine ?? ""}</td>
   );
 }
 

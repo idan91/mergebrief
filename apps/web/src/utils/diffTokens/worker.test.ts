@@ -4,6 +4,7 @@ import { workerReplySchema } from "./schemas";
 import {
   DiffLineKinds,
   GrammarNames,
+  TokenizeModes,
   TokenMessageKinds,
   type TokenizableRow,
 } from "./types";
@@ -69,8 +70,9 @@ describe("diff token worker", () => {
     sendToWorker({
       kind: TokenMessageKinds.TOKENIZE,
       requestId: 7,
-      chunkId: "chunk-1",
+      sourceId: "chunk-1",
       grammar: GrammarNames.TSX,
+      mode: TokenizeModes.HUNK,
       rows: TSX_ROWS,
     });
 
@@ -94,18 +96,18 @@ describe("diff token worker", () => {
 
   it("fails a request it cannot read that still names its id", async () => {
     await startWorkerModule();
-    sendToWorker({ kind: "tokenize", requestId: 7, chunkId: "c7" });
+    sendToWorker({ kind: "tokenize", requestId: 7, sourceId: "c7" });
     await Promise.resolve();
 
     expect(sent).toEqual([
-      { kind: "failed", requestId: 7, chunkId: "c7", reason: "tokenize" },
+      { kind: "failed", requestId: 7, sourceId: "c7", reason: "tokenize" },
     ]);
   });
 
   it("stays silent on an unreadable cancel that names an id", async () => {
     await startWorkerModule();
-    sendToWorker({ kind: "cancel", requestId: 7, chunkId: "c7", extra: 1 });
-    sendToWorker({ kind: "warm", requestId: 8, chunkId: "c8" });
+    sendToWorker({ kind: "cancel", requestId: 7, sourceId: "c7", extra: 1 });
+    sendToWorker({ kind: "warm", requestId: 8, sourceId: "c8" });
     await Promise.resolve();
 
     expect(sent).toEqual([]);
@@ -127,8 +129,9 @@ describe("diff token worker", () => {
     sendToWorker({
       kind: TokenMessageKinds.TOKENIZE,
       requestId: 4,
-      chunkId: "chunk-1",
+      sourceId: "chunk-1",
       grammar: GrammarNames.TYPESCRIPT,
+      mode: TokenizeModes.HUNK,
       rows: TSX_ROWS,
     });
     sendToWorker({ kind: TokenMessageKinds.CANCEL, requestId: 4 });
@@ -143,16 +146,18 @@ describe("diff token worker", () => {
     sendToWorker({
       kind: TokenMessageKinds.TOKENIZE,
       requestId: 4,
-      chunkId: "chunk-1",
+      sourceId: "chunk-1",
       grammar: GrammarNames.TYPESCRIPT,
+      mode: TokenizeModes.HUNK,
       rows: TSX_ROWS,
     });
     sendToWorker({ kind: TokenMessageKinds.CANCEL, requestId: 4 });
     sendToWorker({
       kind: TokenMessageKinds.TOKENIZE,
       requestId: 5,
-      chunkId: "chunk-1",
+      sourceId: "chunk-1",
       grammar: GrammarNames.TYPESCRIPT,
+      mode: TokenizeModes.HUNK,
       rows: TSX_ROWS,
     });
 
@@ -166,8 +171,9 @@ describe("diff token worker", () => {
     sendToWorker({
       kind: TokenMessageKinds.TOKENIZE,
       requestId: 1,
-      chunkId: "chunk-1",
+      sourceId: "chunk-1",
       grammar: GrammarNames.TYPESCRIPT,
+      mode: TokenizeModes.HUNK,
       rows: TSX_ROWS,
     });
     await readOneReply();
@@ -175,8 +181,9 @@ describe("diff token worker", () => {
     sendToWorker({
       kind: TokenMessageKinds.TOKENIZE,
       requestId: 2,
-      chunkId: "chunk-2",
+      sourceId: "chunk-2",
       grammar: GrammarNames.TYPESCRIPT,
+      mode: TokenizeModes.HUNK,
       rows: TSX_ROWS,
     });
 
@@ -194,13 +201,37 @@ describe("diff token worker", () => {
     sendToWorker({
       kind: TokenMessageKinds.TOKENIZE,
       requestId: 1,
-      chunkId: "chunk-1",
+      sourceId: "chunk-1",
       grammar: GrammarNames.TYPESCRIPT,
+      mode: TokenizeModes.HUNK,
       rows: TSX_ROWS,
     });
 
     const reply = workerReplySchema.parse(await readOneReply());
 
     expect(reply.kind).toBe(TokenMessageKinds.TOKENS);
+  });
+
+  it("tokenizes a standalone snippet in row order", async () => {
+    await startWorkerModule();
+    sendToWorker({
+      kind: TokenMessageKinds.TOKENIZE,
+      requestId: 11,
+      sourceId: "snippet-1",
+      grammar: GrammarNames.TSX,
+      mode: TokenizeModes.STANDALONE,
+      rows: [
+        { kind: DiffLineKinds.ADD, content: "const a = 1;" },
+        { kind: DiffLineKinds.ADD, content: "const b = 2;" },
+      ],
+    });
+
+    const reply = workerReplySchema.parse(await readOneReply());
+
+    expect(reply.kind).toBe(TokenMessageKinds.TOKENS);
+    if (reply.kind !== TokenMessageKinds.TOKENS) return;
+    expect(
+      reply.tokensByRow.map(([row]) => row).toSorted((a, b) => a - b),
+    ).toEqual([0, 1]);
   });
 });

@@ -18,69 +18,35 @@
     font-weight: 650;
   }
 
+  // DiffRows keeps code on one line, and the card sits in a narrow comment
+  // column, so a long suggested line scrolls here rather than spilling out.
+  .suggestionScroll {
+    overflow-x: auto;
+  }
+
   .suggestionDiff {
     // Off-scale: one step below --color-background so the diff reads as
-    // sunken inside its card — the only surface darker than the page.
+    // sunken inside the card — the only surface darker than the page.
     --diff-fill: #0b0b0e;
 
     inline-size: 100%;
     border-collapse: collapse;
     background: var(--diff-fill);
-    font-family: var(--mono);
-    font-size: var(--font-size-md);
-
-    // Diff rows are code, not text: without this the enclosing renderer's
-    // text line-height (1.6+) leaks in and inflates every row.
-    line-height: 1.45;
     table-layout: fixed;
 
-    td {
-      padding-block: functions.to-rem(1px);
-      padding-inline: 0;
-      white-space: pre;
+    // A suggestion sits inside a comment card, so it runs a step below the
+    // reviewable diff's own type scale. Specificity has to clear DiffRows.
+    tbody tr {
+      font-size: var(--font-size-md);
+      line-height: 1.45;
+    }
+
+    tbody td {
+      padding-inline: functions.to-rem(8px);
     }
   }
 
   .lineCol {
     inline-size: functions.to-rem(32px);
-  }
-
-  .lineNumber {
-    inline-size: functions.to-rem(32px);
-    min-inline-size: functions.to-rem(32px);
-    padding-inline-end: functions.to-rem(8px);
-
-    // Line numbers are text under WCAG 1.4.3, not decoration: text-4 sits at
-    // ~1.7:1 and fails.
-    color: var(--color-text-3);
-    text-align: end;
-    user-select: none;
-  }
-
-  .code {
-    padding-inline: functions.to-rem(8px) functions.to-rem(12px);
-    color: var(--color-text-3);
-  }
-
-  .sign {
-    display: inline-block;
-    inline-size: functions.to-rem(18px);
-    opacity: 0.6;
-  }
-
-  .line[data-line-kind="add"] {
-    background: color-mix(in srgb, var(--green) 5%, transparent);
-
-    .code {
-      color: var(--color-diff-add-text);
-    }
-  }
-
-  .line[data-line-kind="del"] {
-    background: color-mix(in srgb, var(--red) 5%, transparent);
-
-    .code {
-      color: var(--color-diff-del-text);
-    }
   }
 }
