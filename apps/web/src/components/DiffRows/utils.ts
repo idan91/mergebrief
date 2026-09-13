@@ -5,9 +5,41 @@ export function isFullWidthDiffRow(row: DiffLine): boolean {
   return row.kind === DiffLineKinds.HUNK || row.kind === DiffLineKinds.NOTE;
 }
 
-/** A diff pairs only with a line on each side; one side alone reads unified. */
+/** A diff pairs only with both sides to pair: additions-only or deletions-only reads unified. */
 export function hasPairedSides(rows: readonly DiffLine[]): boolean {
-  const deletes = rows.some((row) => row.kind === DiffLineKinds.DEL);
-  const adds = rows.some((row) => row.kind === DiffLineKinds.ADD);
-  return deletes && adds;
+  const hasAdd = rows.some((row) => row.kind === DiffLineKinds.ADD);
+  const hasDel = rows.some((row) => row.kind === DiffLineKinds.DEL);
+
+  return hasAdd && hasDel;
+}
+
+/**
+ * A row's identity across re-renders. Line numbers, not the index: expansion
+ * splices rows above, and an index key would remount every row below the
+ * splice, dropping focus and any scroll anchor with it.
+ */
+export function buildDiffRowKey(row: DiffLine, index: number): string {
+  if (row.kind === DiffLineKinds.HUNK) return `hunk-${row.content}`;
+  if (row.kind === DiffLineKinds.NOTE) return `note-${String(index)}`;
+  const oldLine = row.oldLine === undefined ? "" : String(row.oldLine);
+  const newLine = row.newLine === undefined ? "" : String(row.newLine);
+
+  return `${row.kind}-${oldLine}-${newLine}`;
+}
+
+/**
+ * A key per row, unique within the diff: a synthetic or malformed diff can
+ * repeat a line number, and a repeat takes an occurrence suffix that stays
+ * put across a splice, since expanded rows never repeat a changed line.
+ */
+export function buildDiffRowKeys(rows: readonly DiffLine[]): string[] {
+  const seen = new Map<string, number>();
+
+  return rows.map((row, index) => {
+    const key = buildDiffRowKey(row, index);
+    const count = seen.get(key) ?? 0;
+    seen.set(key, count + 1);
+
+    return count === 0 ? key : `${key}#${String(count)}`;
+  });
 }

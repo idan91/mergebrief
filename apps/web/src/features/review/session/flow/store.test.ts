@@ -72,20 +72,34 @@ describe("ReviewFlow store", () => {
       });
 
       expect(readExpansion(store.getState(), "chunk-a:3:down")).toEqual({
-        start: 2,
-        end: 21,
+        range: { start: 2, end: 21 },
+        windows: [{ start: 2, end: 21 }],
       });
     });
 
     it("widens an edge that has already expanded once", () => {
       const actions = store.getState().actions;
       actions.expandEdge("chunk-a:3:down", { start: 2, end: 21 });
-      actions.expandEdge("chunk-a:3:down", { start: 22, end: 41 });
+      actions.expandEdge("chunk-a:3:down", { start: 22, end: 41 }, 60);
 
       expect(readExpansion(store.getState(), "chunk-a:3:down")).toEqual({
-        start: 2,
-        end: 41,
+        range: { start: 2, end: 41 },
+        windows: [
+          { start: 2, end: 21 },
+          { start: 22, end: 41 },
+        ],
+        totalLines: 60,
       });
+    });
+
+    it("keeps the file end once a read has reported it", () => {
+      const actions = store.getState().actions;
+      actions.expandEdge("chunk-a:3:down", { start: 2, end: 21 }, 60);
+      actions.expandEdge("chunk-a:3:down", { start: 22, end: 41 });
+
+      expect(
+        readExpansion(store.getState(), "chunk-a:3:down")?.totalLines,
+      ).toBe(60);
     });
 
     it("keeps each edge of each chunk apart", () => {

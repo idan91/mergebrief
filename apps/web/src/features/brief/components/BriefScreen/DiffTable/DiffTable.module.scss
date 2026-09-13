@@ -17,6 +17,10 @@
     }
   }
 
+  .expandRow td {
+    padding: 0;
+  }
+
   .composerDisabledNote {
     margin: 0;
     padding-block: functions.to-rem(8px);

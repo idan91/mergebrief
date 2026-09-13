@@ -12,8 +12,10 @@ import { isUnattributedRemainderChunk } from "../../../../utils/remainder";
 import type {
   AddressedReviewComment,
   BriefChunk,
+  LineRange,
   RiskToken,
 } from "../../../../types";
+import { useExpandedRows } from "../../../../hooks/useExpandedRows";
 import type { AttributeDisplayMeta } from "../../../../utils/repoConfig";
 import type { ComparisonOverlayState } from "../../../../comparison/comparisonOverlay";
 import { AddressedComments, ReviewComments } from "@web/features/review";
@@ -33,6 +35,7 @@ import CommentOnFileIcon from "./comment-on-file.svg?react";
 import {
   splitInlineRows,
   type DigestRow,
+  type DigestThreadRow,
 } from "@web/features/conversation/utils";
 import { InlineThreads } from "@web/features/conversation";
 import type { ThreadComposerWiring } from "@web/features/conversation";
@@ -63,6 +66,10 @@ export interface ChunkCardProps {
    * de-emphasis, implication. Absent = plain built-in chips.
    */
   riskMeta?: ReadonlyMap<string, AttributeDisplayMeta> | undefined;
+  /** Head-file lines sibling chunks of this file render; expansion stops there. */
+  claimed?: readonly LineRange[] | undefined;
+  /** Live threads on lines no chunk renders; expansion reveals them. */
+  hiddenThreads?: readonly DigestThreadRow[] | undefined;
 }
 
 /**
@@ -126,6 +133,7 @@ function isSameSnapshot(
 }
 
 const NO_ROWS: DiffLine[] = [];
+const NO_CLAIMED: LineRange[] = [];
 
 export const ChunkCard = memo(function ChunkCard({
   chunk,
@@ -139,6 +147,8 @@ export const ChunkCard = memo(function ChunkCard({
   conversationRows,
   conversationComposer,
   riskMeta,
+  claimed = NO_CLAIMED,
+  hiddenThreads,
 }: ChunkCardProps) {
   const { t } = useTranslation();
   const reviewed = useReviewSession((state) =>
@@ -169,13 +179,24 @@ export const ChunkCard = memo(function ChunkCard({
   });
   const tokenPlan = useTokenPlan();
   const diffRows = chunk.diff ?? NO_ROWS;
-  const chunkTokens = useChunkTokens({
+  const expansion = useExpandedRows({
+    chunkId: chunk.id,
+    path: chunk.file,
+    rows: diffRows,
+    claimed,
+  });
+  const tokenRequest = {
     briefKey: tokenPlan.briefKey,
     chunkId: chunk.id,
     filePath: chunk.file,
-    rows: open ? diffRows : NO_ROWS,
+    rows: open ? expansion.rows : NO_ROWS,
     admitted: tokenPlan.admitted,
-  });
+  };
+  const chunkTokens = useChunkTokens(
+    expansion.expansionKey === undefined
+      ? tokenRequest
+      : { ...tokenRequest, expansionKey: expansion.expansionKey },
+  );
   const diffPending = chunkTokens.status === ChunkTokenStatuses.PENDING;
   const tokensByRow =
     chunkTokens.status === ChunkTokenStatuses.READY
@@ -405,6 +426,9 @@ export const ChunkCard = memo(function ChunkCard({
             tokensByRow={tokensByRow}
             tokensPending={diffPending}
             view={diffView}
+            expansion={expansion}
+            claimed={claimed}
+            hiddenThreads={hiddenThreads}
             conversationComposer={conversationComposer}
             conversationThreadsByRow={conversationSplit.byRow}
             addressedComments={inlineReviewComments}

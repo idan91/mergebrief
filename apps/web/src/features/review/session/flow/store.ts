@@ -3,7 +3,7 @@ import { createStore, type StoreApi } from "zustand/vanilla";
 
 import { toggleSet } from "@web/utils/collections";
 import { unionExpanded } from "@web/features/brief/utils";
-import type { LineRange } from "@web/features/brief/types";
+import type { EdgeExpansion, LineRange } from "@web/features/brief/types";
 import {
   ReviewCommentStatuses,
   type CommentAnchor,
@@ -68,7 +68,7 @@ export interface ReviewFlowState extends ReviewFlowPosture {
    * memoized per chunk, so holding one range per edge keeps a re-render cheap
    * without duplicating the diff in the store.
    */
-  expandedEdges: ReadonlyMap<string, LineRange>;
+  expandedEdges: ReadonlyMap<string, EdgeExpansion>;
   /** The free-text review-comment draft: survives the submit modal closing,
    * deliberately not a reload. */
   reviewComment: string;
@@ -106,7 +106,7 @@ export interface ReviewFlowActions {
    * @description Widen one hunk edge's expanded window by the lines a click
    * just read. Ranges union, so a repeat of the same read changes nothing.
    */
-  expandEdge: (edgeKey: string, range: LineRange) => void;
+  expandEdge: (edgeKey: string, range: LineRange, totalLines?: number) => void;
   setDismissTarget: (target: DismissTarget | null) => void;
   setEvidenceTarget: (target: EvidenceTarget | null) => void;
   toggleRiskFlag: (flagId: string) => void;
@@ -155,7 +155,7 @@ export type ReviewFlowSessionActions = Pick<
 export function readExpansion(
   state: ReviewFlowState,
   edgeKey: string,
-): LineRange | undefined {
+): EdgeExpansion | undefined {
   return state.expandedEdges.get(edgeKey);
 }
 
@@ -309,13 +309,21 @@ export function createReviewFlowStore(
             return { expandedConversations: next };
           });
         },
-        expandEdge(edgeKey, range) {
+        expandEdge(edgeKey, range, totalLines) {
           set((state) => {
             const next = new Map(state.expandedEdges);
-            const widened = unionExpanded(
-              state.expandedEdges.get(edgeKey),
-              range,
+            const current = state.expandedEdges.get(edgeKey);
+            const windows = current?.windows ?? [];
+            const seen = windows.some(
+              (window) =>
+                window.start === range.start && window.end === range.end,
             );
+            const widened: EdgeExpansion = {
+              range: unionExpanded(current?.range, range),
+              windows: seen ? windows : [...windows, range],
+            };
+            const fileEnd = totalLines ?? current?.totalLines;
+            if (fileEnd !== undefined) widened.totalLines = fileEnd;
             next.set(edgeKey, widened);
             return { expandedEdges: next };
           });

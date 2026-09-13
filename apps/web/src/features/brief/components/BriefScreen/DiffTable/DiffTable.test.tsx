@@ -883,7 +883,7 @@ describe("DiffTable split selection", () => {
       ...chunk(),
       diff: [
         { kind: "ctx", content: "a", oldLine: 9, newLine: 9 },
-        { kind: "del", content: "b", oldLine: 10 },
+        { kind: "del", content: "gone", oldLine: 10 },
       ],
     } as BriefChunk;
     const {
@@ -893,5 +893,6 @@ describe("DiffTable split selection", () => {
     expect(container.querySelector("table")?.getAttribute("data-view")).toBe(
       "unified",
     );
+    expect(container.querySelector('tbody[data-view="split"]')).toBeNull();
   });
 });

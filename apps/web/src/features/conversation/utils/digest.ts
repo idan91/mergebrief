@@ -10,10 +10,11 @@ import {
   type ThreadPlacement,
 } from "./anchor";
 import { deriveDigestLine } from "./digestLine";
-import type {
-  ConversationThread,
-  PrConversation,
-  PrLevelComment,
+import {
+  ThreadSides,
+  type ConversationThread,
+  type PrConversation,
+  type PrLevelComment,
 } from "../types";
 import type { Mutable, ValueOf } from "types";
 import type { TFunction } from "i18next";
@@ -283,6 +284,32 @@ export function buildConversationDigest(
       ? t("conversation.digestOutdated")
       : t("conversation.digestGeneral"),
   );
+}
+
+/**
+ * Live threads on lines no chunk renders, per file: what hunk-edge
+ * expansion can reveal. Old-side threads are left out, their numbers only
+ * map to the head file through a hunk offset this has no view of.
+ */
+export function buildThreadsOutsideChunks(
+  input: BuildConversationDigestInput,
+): Map<string, DigestThreadRow[]> {
+  const byFile = new Map<string, DigestThreadRow[]>();
+
+  for (const thread of input.conversation.threads) {
+    if (thread.line === undefined) continue;
+    if ((thread.side ?? ThreadSides.RIGHT) !== ThreadSides.RIGHT) continue;
+    const placement = placeThread(thread, input.chunks);
+    if (placement.kind !== ThreadPlacementKinds.UNANCHORED) continue;
+    if (placement.reason !== UnanchoredReasons.LINE_OUTSIDE_CHUNKS) continue;
+    const rows = byFile.get(thread.path) ?? [];
+    rows.push(
+      threadRow(thread, placement, input.ownThreadIds, input.briefGeneratedAt),
+    );
+    byFile.set(thread.path, rows);
+  }
+
+  return byFile;
 }
 
 export function buildInlineThreads(

@@ -3,7 +3,10 @@ import { Fragment, type KeyboardEvent, type ReactNode } from "react";
 import type { DiffLine, RowTokenMap } from "@web/utils/diffTokens/types";
 import { DiffCodeText } from "../DiffCodeText/DiffCodeText";
 import { DIFF_LINE_SIGNS } from "@web/utils/diffTokens/consts";
+import { pairSplitRows } from "../pairSplitRows";
 import {
+  type DiffEdgeRowSlot,
+  type DiffFullRowSlot,
   type DiffRowAttributes,
   type DiffRowAttributeSlot,
   type DiffRowSlot,
@@ -13,7 +16,6 @@ import {
   type SplitSide,
   SplitSides,
 } from "../types";
-import { pairSplitRows } from "../pairSplitRows";
 import rowStyles from "../DiffRows.module.scss";
 import styles from "./SplitRows.module.scss";
 
@@ -28,6 +30,9 @@ export interface SplitRowsProps {
   underRow?: DiffUnderRowSlot | undefined;
   rowAttributes?: DiffRowAttributeSlot | undefined;
   anchorAttributes: Record<string, string>;
+  fullRow?: DiffFullRowSlot | undefined;
+  beforeRow?: DiffFullRowSlot | undefined;
+  trailingRow?: DiffEdgeRowSlot | undefined;
 }
 
 /** Each side spans a number cell and a code cell. */
@@ -55,6 +60,9 @@ export function SplitRows({
   underRow,
   rowAttributes,
   anchorAttributes,
+  fullRow,
+  beforeRow,
+  trailingRow,
 }: SplitRowsProps) {
   const pairs = givenPairs ?? pairSplitRows(rows);
   const gutterColumns = gutterCell === undefined ? 0 : GUTTER_COLUMNS;
@@ -67,19 +75,28 @@ export function SplitRows({
     >
       {pairs.map((pair) => {
         if (pair.full !== undefined) {
+          const { line, index } = pair.full;
           return (
-            <tr
-              className={rowStyles["line"]}
-              data-line-kind={pair.full.line.kind}
-              key={pair.key}
-            >
-              <td colSpan={columnCount}>{pair.full.line.content}</td>
-            </tr>
+            <Fragment key={pair.key}>
+              {beforeRow?.(line, index, columnCount)}
+              <tr className={rowStyles["line"]} data-line-kind={line.kind}>
+                {fullRow?.(line, index, columnCount) ?? (
+                  <td colSpan={columnCount}>{line.content}</td>
+                )}
+              </tr>
+            </Fragment>
           );
         }
 
         const lead = pair.right ?? pair.left;
         if (lead === undefined) return null;
+        // A hole can open at either unified index the pair covers.
+        const before: { cell: SplitCell; side: SplitSide }[] = [
+          { cell: pair.left ?? lead, side: SplitSides.LEFT },
+        ];
+        if (pair.right !== undefined && pair.right !== pair.left) {
+          before.push({ cell: pair.right, side: SplitSides.RIGHT });
+        }
         const leftAttributes = readSideAttributes(
           rowAttributes,
           pair.left,
@@ -93,6 +110,11 @@ export function SplitRows({
 
         return (
           <Fragment key={pair.key}>
+            {before.map(({ cell, side }) => (
+              <Fragment key={side}>
+                {beforeRow?.(cell.line, cell.index, columnCount)}
+              </Fragment>
+            ))}
             <tr className={`${rowStyles["line"]} ${styles["pair"]}`}>
               {gutterCell?.(lead.line, lead.index)}
               <SideCells
@@ -131,6 +153,7 @@ export function SplitRows({
           </Fragment>
         );
       })}
+      {trailingRow?.(columnCount)}
     </tbody>
   );
 }

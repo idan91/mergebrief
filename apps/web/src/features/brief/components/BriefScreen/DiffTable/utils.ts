@@ -9,7 +9,7 @@ import {
   isLineCommentAnchor,
 } from "@web/features/review/utils";
 import type { DiffRowView } from "./diffRowView";
-import { DiffLineKinds, type DiffLine } from "@web/utils/diffTokens/types";
+import { type DiffLine, DiffLineKinds } from "@web/utils/diffTokens/types";
 import {
   type SplitRow,
   type SplitSide,
@@ -18,6 +18,13 @@ import {
 import type { DragSelection, RailView, UnderRowLayout } from "./types";
 import { NO_SELECTION } from "./consts";
 import { isContextKind } from "@web/utils/diffTokens/utils";
+import {
+  type ExpandableEdge,
+  ExpansionDirections,
+  type LineRange,
+} from "../../../types";
+import { isClaimedLine } from "../../../utils/expansionState";
+import type { DigestThreadRow } from "@web/features/conversation/utils";
 
 /** The other side of each paired row, so one rail can speak for both. */
 export function buildPairPartners(
@@ -155,4 +162,96 @@ export function collectSideIndexes(
   }
 
   return indexes;
+}
+
+/** A row from the file at head: focusable, never commentable, nothing on it. */
+export function buildExpandedRowView(
+  chunkId: string,
+  index: number,
+): DiffRowView {
+  return {
+    id: `${chunkId}:expanded:${String(index)}`,
+    isCommentable: false,
+    revRun: undefined,
+    revMark: undefined,
+    isRevStart: false,
+    isRevEnd: false,
+    rowComments: [],
+    rowAddressedComments: [],
+    isSelected: false,
+    showComposer: false,
+  };
+}
+
+export function groupEdgesByRow(
+  edges: readonly ExpandableEdge[],
+): ReadonlyMap<number, ExpandableEdge[]> {
+  const byRow = new Map<number, ExpandableEdge[]>();
+
+  for (const edge of edges) {
+    const own = byRow.get(edge.rowIndex) ?? [];
+    own.push(edge);
+    byRow.set(edge.rowIndex, own);
+  }
+
+  return byRow;
+}
+
+export function isUpEdge(edge: ExpandableEdge): boolean {
+  return edge.gap.edge.direction === ExpansionDirections.UP;
+}
+
+/**
+ * The focusable cell of the expanded row showing this head-file line. The
+ * kind sits on the row in the unified view and on the cells in split; the
+ * NEW-side number is the one to match, an old number can equal it.
+ */
+export function focusExpandedLine(
+  table: HTMLTableElement | null,
+  line: number,
+  options: FocusOptions,
+): void {
+  if (table === null) return;
+  const wanted = String(line);
+  const unified = table.querySelectorAll(
+    'tr[data-line-kind="expanded-context"]',
+  );
+  for (const row of unified) {
+    const numbers = row.querySelectorAll("[data-line-number]");
+    if (numbers[1]?.textContent !== wanted) continue;
+    if (row instanceof HTMLElement) row.focus(options);
+    return;
+  }
+  const cells = table.querySelectorAll(
+    'td[data-side="right"][data-line-kind="expanded-context"][data-line-number]',
+  );
+  for (const cell of cells) {
+    if (cell.textContent !== wanted) continue;
+    const target = cell.nextElementSibling;
+    if (target instanceof HTMLElement && target.matches("[tabindex]")) {
+      target.focus(options);
+    }
+    return;
+  }
+}
+
+export function collectThreadLines(rows: readonly DigestThreadRow[]): number[] {
+  const lines: number[] = [];
+  for (const row of rows) {
+    if (row.thread.line !== undefined) lines.push(row.thread.line);
+  }
+
+  return lines;
+}
+
+/** A hidden thread belongs to the expanded row showing its line, unless a sibling chunk claimed that line first. */
+export function showsHiddenThread(
+  row: DigestThreadRow,
+  line: DiffLine,
+  claimed: readonly LineRange[],
+): boolean {
+  const threadLine = row.thread.line;
+  if (threadLine === undefined || threadLine !== line.newLine) return false;
+
+  return !isClaimedLine(threadLine, claimed);
 }

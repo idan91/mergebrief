@@ -1,12 +1,13 @@
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import { useTranslation } from "react-i18next";
 import {
+  type ReactNode,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
-  useState,
-  type ReactNode,
   useRef,
+  useState,
 } from "react";
 import { useShallow } from "zustand/react/shallow";
 
@@ -24,8 +25,8 @@ import {
   createCommentAnchor,
   createSideAnchor,
   isLineCommentAnchor,
-  rowId,
   type LineCommentAnchor,
+  rowId,
 } from "@web/features/review/utils";
 import {
   useChunkReviewComments,
@@ -33,14 +34,19 @@ import {
   useReviewFlow,
 } from "@web/features/review/session";
 import { type ComparisonRun } from "../../../comparison/comparison";
+import {
+  ExpandControl,
+  type ExpandedEvent,
+} from "./ExpandControl/ExpandControl";
 import { ComparisonCallout } from "./ComparisonCallout/ComparisonCallout";
 import { RevisionGutterCell } from "./RevisionGutterCell/RevisionGutterCell";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import {
+  type DiffRowView,
   getDiffRowView,
   resolveStrandedRows,
-  type DiffRowView,
 } from "./diffRowView";
+import { DiffLineKinds } from "@web/utils/diffTokens/types";
 import { pairSplitRows } from "@web/components/DiffRows/pairSplitRows";
 import {
   hasPairedSides,
@@ -66,15 +72,24 @@ import {
   EMPTY_GAP,
   EMPTY_REVIEW_COMMENTS,
   NO_DIFF,
+  NO_EDGES,
+  NO_HIDDEN_THREADS,
   NO_PAIRS,
+  NO_RANGES,
 } from "./consts";
 import {
+  buildExpandedRowView,
   buildPairPartners,
   collectSideIndexes,
+  collectThreadLines,
+  focusExpandedLine,
+  groupEdgesByRow,
   isSideFocusable,
+  isUpEdge,
   placementForAnchor,
   placementForThread,
   resolveDragSelection,
+  showsHiddenThread,
   spanForPlacement,
   unionRail,
 } from "./utils";
@@ -92,18 +107,30 @@ export function DiffTable({
   conversationComposer,
   reviewCommentLabel,
   readOnlyReason,
+  expansion,
+  claimed = NO_RANGES,
+  hiddenThreads = NO_HIDDEN_THREADS,
 }: DiffTableProps) {
-  const { t } = useTranslation();
-  const canPairSides = useMemo(
-    () => hasPairedSides(chunk.diff ?? NO_DIFF),
-    [chunk.diff],
+  const hiddenThreadLines = useMemo(
+    () => collectThreadLines(hiddenThreads),
+    [hiddenThreads],
   );
+  const { t } = useTranslation();
+  const baseRows = chunk.diff ?? NO_DIFF;
+  // Rendered rows are the spliced ones; comments, marks and threads stay
+  // keyed on base indexes and translate through `baseIndexOf`.
+  const rows = expansion?.rows ?? baseRows;
+  const baseIndexOf = expansion?.baseIndexOf;
+  const edges = expansion?.edges ?? NO_EDGES;
+  const edgesByRow = useMemo(() => groupEdgesByRow(edges), [edges]);
+  const hasExpandedRows = baseIndexOf?.includes(-1) === true;
+  const canPairSides = useMemo(() => hasPairedSides(rows), [rows]);
   const split = diffView === DiffViews.SPLIT && canPairSides;
   const resolvedView = split ? DiffViews.SPLIT : DiffViews.UNIFIED;
 
   const pairs = useMemo(
-    () => (split ? pairSplitRows(chunk.diff ?? NO_DIFF) : NO_PAIRS),
-    [chunk.diff, split],
+    () => (split ? pairSplitRows(rows) : NO_PAIRS),
+    [rows, split],
   );
   const pairPartners = useMemo(() => buildPairPartners(pairs), [pairs]);
   const readOnly = readOnlyReason !== undefined;
@@ -117,6 +144,7 @@ export function DiffTable({
     toggleComment,
     toggleConversationThread,
     updateComment,
+    announce,
   } = useReviewActions();
   const chunkComments = useChunkReviewComments(chunk.id);
   const allComments = readOnly ? EMPTY_REVIEW_COMMENTS : chunkComments;
@@ -181,6 +209,12 @@ export function DiffTable({
   // Instance-scoped id for the read-only reason the disabled rows point at
   // (declared before the no-diff early return, for hooks order).
   const composerDisabledReasonId = `${useId()}-composer-disabled`;
+  const expandedReasonId = `${useId()}-outside-diff`;
+  // What a click just expanded, settled in the layout effect once the rows
+  // land: the control's row keeps its viewport top, or, when the row went
+  // with the closed gap, focus moves onto the first line that arrived.
+  const landingRef = useRef<ExpandedEvent | null>(null);
+  const landingTopRef = useRef(0);
   // Store-owned so it survives this card unmounting offscreen; the key is
   // file-qualified because a bare chunk id can collide across diff sources.
   const chunkKey = `${chunk.file}#${chunk.id}`;
@@ -234,6 +268,39 @@ export function DiffTable({
     window.addEventListener("mouseup", release);
     return () => window.removeEventListener("mouseup", release);
   }, []);
+
+  useLayoutEffect(() => {
+    const landing = landingRef.current;
+    if (landing === null) return;
+    landingRef.current = null;
+    const count = landing.window.end - landing.window.start + 1;
+    const row = landing.row;
+    const anchored = row !== null && row.isConnected;
+    if (anchored) {
+      const delta = row.getBoundingClientRect().top - landingTopRef.current;
+      if (delta !== 0) window.scrollBy({ top: delta, behavior: "instant" });
+    }
+    // A spent edge unmounts its control while its row stays, so focus is
+    // checked against the row, not the row against the document. An
+    // anchored row keeps its viewport: the focus must not scroll again.
+    const kept = row?.contains(document.activeElement) === true;
+    if (!kept) {
+      focusExpandedLine(tableRef.current, landing.window.start, {
+        preventScroll: anchored,
+      });
+    }
+    if (count > 0) announce(t("brief.diff.expandShown", { count }));
+  }, [rows, announce, t]);
+
+  // Registered at click time, before the read: the store write that lands
+  // the rows renders synchronously, and the layout effect must find it then.
+  const handleExpanded = (event: ExpandedEvent) => {
+    landingTopRef.current = event.top;
+    landingRef.current = event;
+  };
+  const handleAbandoned = (edgeKey: string) => {
+    if (landingRef.current?.edgeKey === edgeKey) landingRef.current = null;
+  };
 
   const handleRailEnter = (run: ComparisonRun, el: HTMLElement) => {
     setRailHover({ run, el });
@@ -293,45 +360,60 @@ export function DiffTable({
     endIndex: number,
     endSide: SplitSide | undefined,
   ): LineCommentAnchor | null {
-    const diff = chunk.diff ?? [];
     if (startSide !== undefined && startSide === endSide) {
-      const indexes = collectSideIndexes(
-        pairs,
-        startSide,
-        startIndex,
-        endIndex,
+      const indexes = toBaseIndexes(
+        collectSideIndexes(pairs, startSide, startIndex, endIndex),
       );
-      if (!isCommentableRange(indexes)) return null;
+      if (indexes === undefined) return null;
       const commentSide =
         startSide === SplitSides.LEFT ? CommentSides.OLD : CommentSides.NEW;
-      return createSideAnchor(chunk.id, chunk.file, diff, indexes, commentSide);
+      return createSideAnchor(
+        chunk.id,
+        chunk.file,
+        baseRows,
+        indexes,
+        commentSide,
+      );
     }
-    const span = rangeBetween(startIndex, endIndex);
-    if (!isCommentableRange(span)) return null;
-    return createCommentAnchor(chunk.id, chunk.file, diff, span);
+    const indexes = toBaseIndexes(rangeBetween(startIndex, endIndex));
+    if (indexes === undefined) return null;
+    return createCommentAnchor(chunk.id, chunk.file, baseRows, indexes);
   }
 
-  /** One expanded row in a drag refuses the whole range: GitHub takes none. */
-  function isCommentableRange(indexes: readonly number[]): boolean {
-    return indexes.every((index) => rowViews[index]?.isCommentable === true);
+  // Anchors are built on base rows: an expanded row inside a range has no
+  // line the diff carries, so the range is refused rather than trimmed.
+  function toBaseIndexes(indexes: number[]): number[] | undefined {
+    if (baseIndexOf === undefined) return indexes;
+    const mapped = indexes.map((index) => baseIndexOf[index] ?? -1);
+    return mapped.includes(-1) ? undefined : mapped;
   }
 
-  const rowViews = chunk.diff.map(buildRowView);
+  const dragBaseIndexes =
+    baseIndexOf === undefined
+      ? dragIndexes
+      : new Set(
+          [...dragIndexes]
+            .map((index) => baseIndexOf[index] ?? -1)
+            .filter((index) => index >= 0),
+        );
+  const rowViews = rows.map(buildRowView);
 
   function buildRowView(
     line: DiffLine,
     index: number,
   ): DiffRowView | undefined {
     if (isFullWidthDiffRow(line)) return undefined;
+    const baseIndex = baseIndexOf?.[index] ?? index;
+    if (baseIndex < 0) return buildExpandedRowView(chunk.id, index);
     return getDiffRowView({
       line,
-      index,
+      index: baseIndex,
       chunk,
       overlayActive,
       comparisonView,
       comments,
       addressedComments,
-      dragIndexes,
+      dragIndexes: dragBaseIndexes,
       activeRowIds,
       activeCommentAnchor,
       strandedRowIds,
@@ -344,8 +426,8 @@ export function DiffTable({
     side?: SplitSide,
   ): DiffRowAttributes {
     const view = rowViews[index];
-    const commentable =
-      composerDisabledReason === undefined && view?.isCommentable === true;
+    const outsideDiff = view?.isCommentable !== true;
+    const commentable = composerDisabledReason === undefined && !outsideDiff;
     const attributes: DiffRowAttributes = {
       commentable,
       focusable: isSideFocusable(line, side),
@@ -416,15 +498,86 @@ export function DiffTable({
         finishSelection(index, side);
       },
     };
-    // The reason node only renders on the read-only path, so a row inert for
-    // any other reason must not point at an id nothing renders.
     if (composerDisabledReason !== undefined) {
       attributes.describedById = composerDisabledReasonId;
       attributes.disabled = true;
-    } else if (!commentable) {
+    } else if (outsideDiff) {
+      // The reason renders once the table holds spliced rows; a row that
+      // arrived in the diff itself carries the state alone.
+      if (hasExpandedRows) attributes.describedById = expandedReasonId;
       attributes.disabled = true;
     }
     return attributes;
+  }
+
+  function buildExpandRow(
+    row: DiffLine,
+    index: number,
+    columnCount: number,
+  ): ReactNode {
+    const hosted = edgesByRow.get(index) ?? [];
+    if (row.kind !== DiffLineKinds.HUNK) return null;
+    const above = edgesByRow.get(index + 1) ?? [];
+    const own = hosted.concat(above.filter(isUpEdge));
+    if (own.length === 0) return null;
+    return (
+      <ExpandControl
+        claimed={claimed}
+        columnCount={columnCount}
+        edges={own}
+        header={row.content}
+        hiddenThreadLines={hiddenThreadLines}
+        onAbandoned={handleAbandoned}
+        onExpanded={handleExpanded}
+        path={chunk.file}
+      />
+    );
+  }
+
+  function buildRowBefore(
+    row: DiffLine,
+    index: number,
+    columnCount: number,
+  ): ReactNode {
+    const hosted = edgesByRow.get(index) ?? [];
+    if (hosted.length === 0 || row.kind === DiffLineKinds.HUNK) return null;
+    // An up edge right under a header rides the header's own row.
+    const own =
+      rows[index - 1]?.kind === DiffLineKinds.HUNK
+        ? hosted.filter((edge) => !isUpEdge(edge))
+        : hosted;
+    if (own.length === 0) return null;
+    return (
+      <tr className={styles["expandRow"]} data-line-kind="expand">
+        <ExpandControl
+          claimed={claimed}
+          columnCount={columnCount}
+          edges={own}
+          hiddenThreadLines={hiddenThreadLines}
+          onAbandoned={handleAbandoned}
+          onExpanded={handleExpanded}
+          path={chunk.file}
+        />
+      </tr>
+    );
+  }
+
+  function buildTrailingRow(columnCount: number): ReactNode {
+    const own = edgesByRow.get(rows.length) ?? [];
+    if (own.length === 0) return null;
+    return (
+      <tr className={styles["expandRow"]} data-line-kind="expand">
+        <ExpandControl
+          claimed={claimed}
+          columnCount={columnCount}
+          edges={own}
+          hiddenThreadLines={hiddenThreadLines}
+          onAbandoned={handleAbandoned}
+          onExpanded={handleExpanded}
+          path={chunk.file}
+        />
+      </tr>
+    );
   }
 
   function markSelectingSide(side: SplitSide): void {
@@ -486,7 +639,13 @@ export function DiffTable({
   ): ReactNode {
     const view = rowViews[index];
     if (view === undefined) return null;
-    const conversationRows = conversationThreadsByRow?.get(index) ?? [];
+    const baseIndex = baseIndexOf?.[index] ?? index;
+    // An expanded row has no base index: its threads are the hidden ones
+    // whose head-file line it now shows.
+    const conversationRows =
+      baseIndex < 0
+        ? hiddenThreads.filter((row) => showsHiddenThread(row, line, claimed))
+        : (conversationThreadsByRow?.get(baseIndex) ?? []);
     const layout: UnderRowLayout = { columnCount, sideColumns };
     const composerPlacement =
       activeCommentAnchor === null
@@ -557,7 +716,7 @@ export function DiffTable({
   }
 
   const viewportStyle: DiffViewportStyle = {
-    "--diff-rows": split ? pairs.length : chunk.diff.length,
+    "--diff-rows": split ? pairs.length : rows.length,
   };
   return (
     <>
@@ -570,6 +729,11 @@ export function DiffTable({
         >
           {composerDisabledReason}
         </p>
+      ) : null}
+      {hasExpandedRows ? (
+        <ScreenReaderOnly as="p" id={expandedReasonId}>
+          {t("brief.diff.expandOutsideDiff")}
+        </ScreenReaderOnly>
       ) : null}
       <div className={styles["viewport"]} style={viewportStyle}>
         <table
@@ -613,7 +777,7 @@ export function DiffTable({
             </tr>
           </ScreenReaderOnly>
           <DiffRows
-            rows={chunk.diff}
+            rows={rows}
             view={resolvedView}
             pairs={pairs}
             tokensByRow={tokensByRow}
@@ -623,6 +787,9 @@ export function DiffTable({
             gutterCell={buildGutterCell}
             rowAttributes={buildRowAttributes}
             underRow={buildUnderRow}
+            fullRow={buildExpandRow}
+            beforeRow={buildRowBefore}
+            trailingRow={buildTrailingRow}
           />
         </table>
       </div>

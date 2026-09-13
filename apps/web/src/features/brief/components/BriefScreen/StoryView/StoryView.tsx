@@ -15,12 +15,24 @@ import {
 } from "react";
 
 import type { ComparisonOverlayState } from "../../../comparison/comparisonOverlay";
-import type { AddressedReviewComment, Brief, BriefChunk } from "../../../types";
+import type {
+  AddressedReviewComment,
+  Brief,
+  BriefChunk,
+  LineRange,
+} from "../../../types";
+import {
+  collectClaimedLines,
+  countExpandedLines,
+} from "../../../utils/expansionState";
 import type { BriefViewModel, RiskFlag } from "../../../utils/viewModel";
 import { GroupViewKinds } from "../../../utils/viewModel";
 import { resolveGroupName } from "../../../utils/resolveGroupName";
 import { isUnattributedRemainderChunk } from "../../../utils/remainder";
-import type { DigestRow } from "@web/features/conversation/utils";
+import type {
+  DigestRow,
+  DigestThreadRow,
+} from "@web/features/conversation/utils";
 import type { ThreadComposerWiring } from "@web/features/conversation";
 import { useReviewFlow } from "@web/features/review/session";
 import {
@@ -62,6 +74,8 @@ export interface StoryViewProps {
   toggleChunk: (chunkId: string) => void;
   /** Inline conversation threads per chunk; absent on the local path. */
   conversationByChunk?: ReadonlyMap<string, DigestRow[]> | undefined;
+  /** Head-file lines of live threads no chunk renders, per file. */
+  hiddenThreadsByFile?: ReadonlyMap<string, DigestThreadRow[]> | undefined;
   conversationComposer?: ThreadComposerWiring | undefined;
   /**
    * Per-group changed-since data; absent without a checkpoint. Split into
@@ -83,6 +97,17 @@ export function StoryView(props: StoryViewProps) {
       : DiffViews.UNIFIED;
   const { t } = useTranslation();
   const [focusRailOpen, setFocusRailOpen] = useState(true);
+  // Siblings' expanded lines are claimed too, so two chunks of one file never
+  // expand into the same lines; hence the store read at this level.
+  const expandedEdges = useReviewFlow((state) => state.expandedEdges);
+  const claimedByChunk = useMemo(
+    () =>
+      collectClaimedLines(
+        props.model.groups.flatMap((group) => group.chunks),
+        expandedEdges,
+      ),
+    [props.model, expandedEdges],
+  );
   const addressedReviewComments =
     props.addressedReviewComments ?? EMPTY_ADDRESSED_REVIEW_COMMENTS;
   // Gated on focus mode: outside it the selector pins null, so scroll-spy
@@ -144,6 +169,8 @@ export function StoryView(props: StoryViewProps) {
                     addressedReviewComments={addressedReviewComments}
                     conversationComposer={props.conversationComposer}
                     conversationRows={props.conversationByChunk?.get(chunk.id)}
+                    claimed={claimedByChunk.get(chunk.id)}
+                    hiddenThreads={props.hiddenThreadsByFile?.get(chunk.file)}
                     markReviewed={props.markReviewed}
                     marksDisabled={props.marksDisabled}
                     toggleChunk={props.toggleChunk}
@@ -155,6 +182,7 @@ export function StoryView(props: StoryViewProps) {
                 diffView={groupView}
                 attachWrapper={splitWidth.attachWrapper}
                 addressedReviewComments={addressedReviewComments}
+                claimedByChunk={claimedByChunk}
                 group={group}
                 view={props}
               />
@@ -198,6 +226,7 @@ interface WindowedChunkListProps {
   diffView: DiffView;
   attachWrapper: (node: HTMLElement | null) => (() => void) | undefined;
   addressedReviewComments: AddressedReviewComment[];
+  claimedByChunk: ReadonlyMap<string, LineRange[]>;
 }
 
 function pinComposerChunks(
@@ -256,6 +285,7 @@ function WindowedChunkList({
   diffView,
   attachWrapper,
   addressedReviewComments,
+  claimedByChunk,
 }: WindowedChunkListProps) {
   const chunkKeys = useMemo(
     () => group.chunks.map((chunk) => `${chunk.file}#${chunk.id}`),
@@ -283,14 +313,17 @@ function WindowedChunkList({
   );
 
   const { openChunks } = view;
+  const expandedEdges = useReviewFlow((state) => state.expandedEdges);
   // Counted once per group: the virtualizer asks for every unmeasured card
-  // on each measurement pass.
+  // on each measurement pass. Expanded context charges the same row height.
   const diffRowCounts = useMemo(
     () =>
-      group.chunks.map((chunk) =>
-        countDiffRows(chunk.diff ?? NO_DIFF, diffView),
+      group.chunks.map(
+        (chunk) =>
+          countDiffRows(chunk.diff ?? NO_DIFF, diffView) +
+          countExpandedLines(expandedEdges, chunk.id),
       ),
-    [group.chunks, diffView],
+    [group.chunks, diffView, expandedEdges],
   );
   const estimateChunk = useCallback(
     (index: number) => {
@@ -389,6 +422,8 @@ function WindowedChunkList({
               addressedReviewComments={addressedReviewComments}
               conversationComposer={view.conversationComposer}
               conversationRows={view.conversationByChunk?.get(chunk.id)}
+              claimed={claimedByChunk.get(chunk.id)}
+              hiddenThreads={view.hiddenThreadsByFile?.get(chunk.file)}
               markReviewed={view.markReviewed}
               marksDisabled={view.marksDisabled}
               toggleChunk={view.toggleChunk}

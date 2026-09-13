@@ -11,6 +11,8 @@ import type {
 import {
   applyConversationFilter,
   buildInlineThreads,
+  buildThreadsOutsideChunks,
+  type DigestThreadRow,
   type ConversationFilter,
   countHiddenInlineThreads,
   DEFAULT_CONVERSATION_FILTER,
@@ -71,6 +73,8 @@ export interface ConversationFilterFacets {
 
 export interface UseConversationWiringValue {
   conversationByChunk: ReadonlyMap<string, DigestRow[]> | undefined;
+  /** Live threads on lines no chunk renders, per file. */
+  hiddenThreadsByFile: ReadonlyMap<string, DigestThreadRow[]> | undefined;
   /** Facets for the Filter disclosure; absent until the conversation resolves. */
   conversationFilterFacets: ConversationFilterFacets | undefined;
   conversationComposer: ThreadComposerWiring | undefined;
@@ -167,6 +171,28 @@ export function useConversationWiring(
   }, [
     conversationData,
     conversationFilter,
+    readingOrderedChunks,
+    submittedReviewIds,
+    conversation?.briefGeneratedAt,
+  ]);
+
+  // Unfiltered on purpose: a hidden thread is hidden whoever wrote it, and
+  // an expansion surfaces it the same way.
+  const hiddenThreadsByFile = useMemo(() => {
+    if (conversationData === undefined) return undefined;
+    const ownThreadIds = reconcileOwnComments(
+      [],
+      conversationData.threads,
+      submittedReviewIds,
+    ).ownThreadIds;
+    return buildThreadsOutsideChunks({
+      conversation: conversationData,
+      chunks: readingOrderedChunks,
+      ownThreadIds,
+      briefGeneratedAt: conversation?.briefGeneratedAt,
+    });
+  }, [
+    conversationData,
     readingOrderedChunks,
     submittedReviewIds,
     conversation?.briefGeneratedAt,
@@ -359,6 +385,7 @@ export function useConversationWiring(
 
   return {
     conversationByChunk,
+    hiddenThreadsByFile,
     conversationFilterFacets,
     conversationComposer,
     conversationGroupIds: groupIds,

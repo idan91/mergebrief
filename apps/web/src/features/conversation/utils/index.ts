@@ -2,6 +2,7 @@
 // Internal conversation files import the modules directly.
 export {
   buildInlineThreads,
+  buildThreadsOutsideChunks,
   splitInlineRows,
   DigestRowKinds,
   type DigestRow,

@@ -1,0 +1,68 @@
+@use "functions";
+
+@layer components {
+  // A hunk row is 31px on the 22px row grid the height model and the perf
+  // gates measure; the lane pins that height so the arrows never grow it.
+  .cell {
+    padding-block: 0;
+    padding-inline: functions.to-rem(6px) functions.to-rem(14px);
+    background: var(--color-surface-1);
+    color: var(--faint);
+    font-size: var(--font-size-sm);
+  }
+
+  .lane {
+    display: flex;
+    align-items: center;
+    gap: functions.to-rem(6px);
+    block-size: functions.to-rem(31px);
+  }
+
+  .arrows {
+    display: inline-flex;
+    flex: none;
+    gap: functions.to-rem(2px);
+  }
+
+  .header {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .threads {
+    flex: none;
+    padding-block: 0;
+    padding-inline: functions.to-rem(8px);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-pill);
+    background: transparent;
+    color: var(--dim);
+    font: inherit;
+    line-height: functions.to-rem(22px);
+    cursor: pointer;
+
+    &:hover {
+      color: var(--text);
+      border-color: var(--dim);
+    }
+  }
+
+  // A refusal is its own line under the lane, ruled off from the header
+  // text it would otherwise blend into.
+  .note {
+    margin-block: 0 functions.to-rem(6px);
+    padding-inline-start: functions.to-rem(8px);
+    border-inline-start: 2px solid var(--dim);
+    color: var(--dim);
+    font-size: var(--font-size-sm);
+    line-height: functions.to-rem(20px);
+  }
+
+  .plain {
+    flex: none;
+    color: var(--dim);
+  }
+}

@@ -3,7 +3,7 @@ import { DIFF_LINE_SIGNS } from "@web/utils/diffTokens/consts";
 import { DiffCodeText } from "./DiffCodeText/DiffCodeText";
 import { SplitRows } from "./SplitRows/SplitRows";
 import { type DiffRowsProps, DiffViews } from "./types";
-import { isFullWidthDiffRow } from "./utils";
+import { buildDiffRowKeys, isFullWidthDiffRow } from "./utils";
 import styles from "./DiffRows.module.scss";
 
 const NO_ANCHOR_ATTRIBUTES: Record<`data-${string}`, string> = {};
@@ -23,6 +23,9 @@ export function DiffRows({
   rowAttributes,
   anchorAttributes = NO_ANCHOR_ATTRIBUTES,
   lineNumbers = true,
+  fullRow,
+  beforeRow,
+  trailingRow,
 }: DiffRowsProps) {
   const gutterColumns = gutterCell === undefined ? 0 : GUTTER_COLUMNS;
   const numberColumns = lineNumbers ? LINE_NUMBER_COLUMNS : 0;
@@ -40,25 +43,36 @@ export function DiffRows({
         tokensByRow={tokensByRow}
         tokensPending={tokensPending}
         underRow={underRow}
+        fullRow={fullRow}
+        beforeRow={beforeRow}
+        trailingRow={trailingRow}
       />
     );
   }
 
+  const keys = buildDiffRowKeys(rows);
+
   return (
     <tbody data-tokens={tokensPending ? "pending" : undefined}>
       {rows.map((row, index) => {
-        const key = `${row.kind}-${index}`;
+        const key = keys[index] ?? String(index);
         if (isFullWidthDiffRow(row)) {
           return (
-            <tr className={styles["line"]} data-line-kind={row.kind} key={key}>
-              <td colSpan={columnCount}>{row.content}</td>
-            </tr>
+            <Fragment key={key}>
+              {beforeRow?.(row, index, columnCount)}
+              <tr className={styles["line"]} data-line-kind={row.kind}>
+                {fullRow?.(row, index, columnCount) ?? (
+                  <td colSpan={columnCount}>{row.content}</td>
+                )}
+              </tr>
+            </Fragment>
           );
         }
         const attributes = rowAttributes?.(row, index) ?? {};
 
         return (
           <Fragment key={key}>
+            {beforeRow?.(row, index, columnCount)}
             <tr
               aria-describedby={attributes.describedById}
               aria-disabled={attributes.disabled ? true : undefined}
@@ -107,6 +121,7 @@ export function DiffRows({
           </Fragment>
         );
       })}
+      {trailingRow?.(columnCount)}
     </tbody>
   );
 }

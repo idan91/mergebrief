@@ -188,8 +188,10 @@ export function fileRangeQueryOptions(params: FileRangeParams) {
       }
       return { kind: "ready", range: parsed.data };
     },
+    // Never collected: a window refetched after eviction would render its
+    // rows blank while the read is in flight.
     staleTime: Number.POSITIVE_INFINITY,
-    gcTime: 5 * 60 * 1000,
+    gcTime: Number.POSITIVE_INFINITY,
     retry: false,
   });
 }

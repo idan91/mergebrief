@@ -530,7 +530,22 @@
       "noContentChanges": "File changed without content changes.",
       "captionSuggestion": "Suggested change diff",
       "viewUnified": "Unified view",
-      "viewSplit": "Split view"
+      "viewSplit": "Split view",
+      "expandUp": "Show {{count}} more lines above",
+      "expandDown": "Show {{count}} more lines below",
+      "expandAllUp_one": "Show the {{count}} hidden line above",
+      "expandAllUp_other": "Show all {{count}} hidden lines above",
+      "expandAllDown_one": "Show the {{count}} hidden line below",
+      "expandAllDown_other": "Show all {{count}} hidden lines below",
+      "expandShown_one": "{{count}} line shown",
+      "expandShown_other": "{{count}} lines shown",
+      "expandHiddenThreads_one": "{{count}} comment in the hidden lines",
+      "expandHiddenThreads_other": "{{count}} comments in the hidden lines",
+      "expandTooLarge": "This file is too large to expand.",
+      "expandNotText": "This path is not an expandable text file.",
+      "expandNotFound": "This file is not in the commit this brief was built from.",
+      "expandUnavailable": "Could not read the file right now. Try again.",
+      "expandOutsideDiff": "Outside the diff; comments need a changed line."
     },
     "summarySection": {
       "eyebrowDelta": "Delta brief",

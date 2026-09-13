@@ -177,6 +177,17 @@ export interface ExpansionEdge {
   direction: ExpansionDirection;
 }
 
+/**
+ * What one hunk edge has expanded: the union the height model reads, the
+ * windows each click read (the query cache holds their lines) and, once a
+ * read reached it, where the file ends.
+ */
+export interface EdgeExpansion {
+  range: LineRange;
+  windows: readonly LineRange[];
+  totalLines?: number;
+}
+
 /** One edge of one hole in a chunk's rows, in head-file line numbers. */
 export interface ExpansionGap {
   edge: ExpansionEdge;
@@ -675,4 +686,36 @@ export interface ExpansionApplication {
   range: FileRangeSlice;
   claimed?: readonly LineRange[];
   coveredTo?: number;
+}
+
+/** A gap of the base rows and what the store holds for its edge. */
+export interface StoredEdge {
+  gap: ExpansionGap;
+  edgeKey: string;
+  expansion: EdgeExpansion;
+}
+
+/** An edge as the table renders it: placed by the spliced rows. */
+export interface ExpandableEdge {
+  /** Insertion index into the SPLICED rows. */
+  rowIndex: number;
+  /** The base-row gap the store and the read are keyed on. */
+  gap: ExpansionGap;
+  edgeKey: string;
+  expansion: EdgeExpansion | undefined;
+  /** What the other edge of the same hole already took; this edge stops there. */
+  sibling?: LineRange;
+}
+
+export interface SpliceStoredEdgesParams {
+  rows: readonly DiffLine[];
+  edges: readonly StoredEdge[];
+  lines: ReadonlyMap<number, string>;
+  claimed: readonly LineRange[];
+}
+
+export interface ExpanderStep {
+  window: ExpansionWindow;
+  /** The click takes the whole remainder of the hole. */
+  takesAll: boolean;
 }

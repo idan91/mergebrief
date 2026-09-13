@@ -31,6 +31,16 @@ export interface SplitRow {
 /** Content a composer hangs off one row, given that row and its index. */
 export type DiffRowSlot = (row: DiffLine, index: number) => ReactNode;
 
+/** A whole row of the caller's own: hunk headers and expansion controls. */
+export type DiffFullRowSlot = (
+  row: DiffLine,
+  index: number,
+  columnCount: number,
+) => ReactNode;
+
+/** A row placed before one of the diff's rows, or after the last. */
+export type DiffEdgeRowSlot = (columnCount: number) => ReactNode;
+
 /** Under-row content; `columnCount` is what a full-width cell must span. */
 export type DiffUnderRowSlot = (
   row: DiffLine,
@@ -85,6 +95,15 @@ export interface DiffRowsProps {
   codeTrailer?: DiffRowSlot;
   /** Full-width rows rendered under one row, threads and composers today. */
   underRow?: DiffUnderRowSlot;
+  /**
+   * Replaces the plain spanning cell of a hunk or note row; null keeps the
+   * plain cell. The row's `<tr>` and kind attribute stay with DiffRows.
+   */
+  fullRow?: DiffFullRowSlot;
+  /** A whole row before the row at this index; null renders nothing. */
+  beforeRow?: DiffFullRowSlot;
+  /** A whole row after the last row; null renders nothing. */
+  trailingRow?: DiffEdgeRowSlot;
   /** Line-number columns. Chunk-less rows carry no numbers to show. */
   lineNumbers?: boolean;
   rowAttributes?: DiffRowAttributeSlot;

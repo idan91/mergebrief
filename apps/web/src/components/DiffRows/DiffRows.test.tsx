@@ -25,6 +25,99 @@ function renderRows(props: Partial<Parameters<typeof DiffRows>[0]> = {}) {
   );
 }
 
+describe("DiffRows row slots", () => {
+  it("lets a full-row slot replace the hunk cell and keeps the plain note", () => {
+    const view = renderRows({
+      fullRow: (row, _index, columnCount) =>
+        row.kind === "hunk" ? (
+          <td colSpan={columnCount} data-testid="expander">
+            {row.content}
+          </td>
+        ) : null,
+    });
+
+    const expander = view.getByTestId("expander");
+    expect(expander.closest("tr")?.getAttribute("data-line-kind")).toBe("hunk");
+    expect(expander.getAttribute("colspan")).toBe("3");
+    const note = view.container.querySelector('tr[data-line-kind="note"] td');
+    expect(note?.textContent).toBe("truncated");
+  });
+
+  it("renders a before-row ahead of the row it names", () => {
+    const view = renderRows({
+      beforeRow: (_row, index, columnCount) =>
+        index === 1 ? (
+          <tr data-testid="before">
+            <td colSpan={columnCount}>{"\u200B"}</td>
+          </tr>
+        ) : null,
+    });
+
+    const before = view.getByTestId("before");
+    expect(before.nextElementSibling?.getAttribute("data-line-kind")).toBe(
+      "ctx",
+    );
+    expect(before.querySelector("td")?.getAttribute("colspan")).toBe("3");
+  });
+
+  it("renders a trailing row after the last row in both views", () => {
+    const trailingRow = (columnCount: number) => (
+      <tr data-testid="trailing">
+        <td colSpan={columnCount}>{"\u200B"}</td>
+      </tr>
+    );
+    const unified = renderRows({ trailingRow });
+    expect(unified.container.querySelector("tbody")?.lastElementChild).toBe(
+      unified.getByTestId("trailing"),
+    );
+    cleanup();
+    const split = renderRows({ trailingRow, view: "split" });
+    expect(split.container.querySelector("tbody")?.lastElementChild).toBe(
+      split.getByTestId("trailing"),
+    );
+    expect(split.getByTestId("trailing").querySelector("td")?.colSpan).toBe(4);
+  });
+
+  it("keys rows by line so a row keeps its element across a splice above", () => {
+    const rows = stubRows();
+    const view = renderRows({ rows });
+    const fresh = view.container.querySelector('tr[data-line-kind="add"]');
+    const spliced: DiffLine[] = [
+      { kind: "expanded-context", content: "above", oldLine: 0, newLine: 0 },
+      ...rows,
+    ];
+    view.rerender(
+      <table>
+        <DiffRows rows={spliced} />
+      </table>,
+    );
+
+    expect(view.container.querySelector('tr[data-line-kind="add"]')).toBe(
+      fresh,
+    );
+  });
+});
+
+describe("DiffRows repeated line numbers", () => {
+  it("keys a repeated line by occurrence and warns about nothing", () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const rows: DiffLine[] = [
+      { kind: "add", content: "one", newLine: 146 },
+      { kind: "hunk", content: "@@ -200,1 +146,1 @@" },
+      { kind: "add", content: "two", newLine: 146 },
+    ];
+    for (const view of ["unified", "split"] as const) {
+      const rendered = renderRows({ rows, view });
+      expect(rendered.container.querySelectorAll("tr").length).toBe(3);
+      cleanup();
+    }
+    expect(
+      errors.mock.calls.some((call) => String(call[0]).includes("same key")),
+    ).toBe(false);
+    errors.mockRestore();
+  });
+});
+
 describe("DiffRows", () => {
   it("renders one row per line with its kind and line numbers", () => {
     const view = renderRows();
