@@ -1,3 +1,4 @@
+import { type DiffLine, DiffLineKinds } from "@web/utils/diffTokens/types";
 import type { TFunction } from "i18next";
 
 import type { SuggestionDiffRow } from "@web/components/Markdown/utils";
@@ -6,7 +7,6 @@ import {
   type CommentAnchorKind,
   type ValueOf,
 } from "types";
-import { DiffLineKinds, type DiffLine } from "../../brief/types";
 
 export const CommentSides = {
   OLD: "old",

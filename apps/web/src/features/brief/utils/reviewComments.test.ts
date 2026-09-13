@@ -1,3 +1,4 @@
+import type { DiffLine } from "@web/utils/diffTokens/types";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -5,7 +6,7 @@ import {
   reviewCommentMatchesDiffLine,
   reviewCommentsForChunk,
 } from "./reviewComments";
-import type { AddressedReviewComment, BriefChunk, DiffLine } from "../types";
+import type { AddressedReviewComment, BriefChunk } from "../types";
 
 const chunk = {
   id: "c1",

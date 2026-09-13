@@ -1,10 +1,10 @@
+import type { DiffLine } from "@web/utils/diffTokens/types";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import { parseUnifiedDiffPatch } from "@web/features/brief/utils";
-import type { DiffLine } from "../../../../../brief/types";
 import type { Span } from "../../../../utils/briefRouteState";
 import { splitUnifiedDiffByFile } from "../../../../utils/liveDiff";
 import { prDiffQueryOptions } from "../../../../queries";

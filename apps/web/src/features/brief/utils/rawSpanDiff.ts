@@ -2,8 +2,9 @@
 // compare baseline → selected head, turned into one read-only chunk per file
 // so the EXISTING pipeline renders it. No I/O, no framework imports, the
 // toggle component owns the fetch and the render.
+import type { DiffLine } from "@web/utils/diffTokens/types";
 import { parseUnifiedDiffPatch, splitUnifiedDiffByFile } from "./diffSlicing";
-import type { BriefChunk, DiffLine } from "../types";
+import type { BriefChunk } from "../types";
 import type { TFunction } from "i18next";
 
 /**

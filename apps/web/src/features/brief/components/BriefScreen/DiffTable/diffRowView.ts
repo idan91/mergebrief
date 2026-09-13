@@ -1,3 +1,4 @@
+import type { DiffLine } from "@web/utils/diffTokens/types";
 import {
   isLineCommentAnchor,
   rowId,
@@ -12,11 +13,7 @@ import {
   type ComparisonRowKind,
   type ComparisonRun,
 } from "../../../comparison/comparison";
-import type {
-  AddressedReviewComment,
-  BriefChunk,
-  DiffLine,
-} from "../../../types";
+import type { AddressedReviewComment, BriefChunk } from "../../../types";
 
 export interface DiffRowViewParams {
   line: DiffLine;

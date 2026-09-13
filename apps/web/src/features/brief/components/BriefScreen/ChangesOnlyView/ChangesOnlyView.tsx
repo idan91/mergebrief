@@ -1,3 +1,4 @@
+import type { DiffLine } from "@web/utils/diffTokens/types";
 import { useTranslation } from "react-i18next";
 import { useCallback, useMemo } from "react";
 import { Markdown } from "@web/components/Markdown/Markdown";
@@ -11,7 +12,6 @@ import type {
   Brief,
   BriefChunk,
   ComparisonMarks,
-  DiffLine,
   LengthViolation,
   LineRange,
   RevisionNarrative,

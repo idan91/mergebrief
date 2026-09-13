@@ -1,6 +1,7 @@
 // Resolve durable wire anchors into brief-local ids against this view model.
 // Drop anchors with no rendered chunk; the attention list explains the missing placement.
-import type { BriefChunk, Category, DiffLine } from "../../brief/types";
+import type { DiffLine } from "@web/utils/diffTokens/types";
+import type { BriefChunk, Category } from "../../brief/types";
 import { CommentAnchorKinds, type Result } from "types";
 import type { BriefViewModel } from "@web/features/brief/utils";
 import {

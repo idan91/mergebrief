@@ -1,8 +1,9 @@
 // Pure unified-diff parsing + per-chunk slicing. Shared by two paths: the
 // local-brief server functions slice sidecar patches on the server; the
 // DB-brief route slices the LIVE proxied diff on the client (the diff is never
-// persisted). No I/O, no framework imports — keep it that way.
-import type { BriefChunk, DiffLine, LineRange } from "../types";
+// persisted). No I/O, no framework imports; keep it that way.
+import type { DiffLine } from "@web/utils/diffTokens/types";
+import type { BriefChunk, LineRange } from "../types";
 
 /**
  * Slice a file's parsed diff down to the rows a chunk claims: changed rows
@@ -126,7 +127,7 @@ const DIFF_HEADER = /^diff --git a\/(?<pre>.+?) b\/(?<post>.+)$/;
 /**
  * Split a multi-file unified diff into per-file patch bodies, keyed by the
  * POST-change path (chunks reference files by their new name); a deleted
- * file (post side `/dev/null`) keys by its pre-change path. Pure — a sibling
+ * file (post side `/dev/null`) keys by its pre-change path. Pure; a sibling
  * of `parseUnifiedDiffPatch`: the two together turn a whole-PR diff into
  * per-file display rows.
  */
@@ -144,7 +145,7 @@ export function splitUnifiedDiffByFile(
   const flush = (): void => {
     if (currentKey !== undefined) {
       // Deleted file: the post path in the `diff --git` header is the same as
-      // the pre path, but `+++ /dev/null` marks it — keep the pre path key.
+      // the pre path, but `+++ /dev/null` marks it; keep the pre path key.
       const key =
         sawDevNullPost && pendingPrePath !== undefined
           ? pendingPrePath

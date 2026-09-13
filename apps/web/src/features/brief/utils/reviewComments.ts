@@ -1,4 +1,5 @@
-import type { AddressedReviewComment, BriefChunk, DiffLine } from "../types";
+import type { DiffLine } from "@web/utils/diffTokens/types";
+import type { AddressedReviewComment, BriefChunk } from "../types";
 
 export function pathOnlyFileCommentsForChunk(
   comments: AddressedReviewComment[],

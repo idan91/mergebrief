@@ -1,7 +1,7 @@
+import type { DiffLine } from "@web/utils/diffTokens/types";
 import type {
   Brief,
   BriefChunk,
-  DiffLine,
   LineRange,
   RevisionChangeFile,
   RevisionNarrative,
@@ -9,14 +9,12 @@ import type {
 import { isUnattributedRemainderChunk } from "../utils/remainder";
 
 /**
- * The full-Brief comparison overlay: join a baseline's shared, mechanical
- * changed-line set onto a chunk's base→head diff rows by head line
- * number (added/context) or old line number (deletions), group the marked rows
- * into contiguous runs, and bind a run to its callout content behind a
- * per-baseline adapter (Previous Brief → Revision narrative; Your last review →
- * Delta Brief).
+ * The full-Brief comparison overlay: join a baseline's mechanical changed-line
+ * set onto a chunk's base→head diff rows (head line for added/context, old
+ * line for deletions), group the marked rows into contiguous runs, and bind
+ * each run to callout content behind a per-baseline adapter.
  *
- * Pure; highlighting comes ONLY from the mechanical marks — a run's callout is
+ * Pure; highlighting comes ONLY from the mechanical marks; a run's callout is
  * additive and never decides which lines are marked.
  */
 
@@ -71,7 +69,7 @@ export interface ComparisonCalloutContent {
   summary?: string;
   /**
    * @description True when the span has no narrative coverage and the content
-   * degraded to the full Brief's chunk/group at that head line — the callout
+   * degraded to the full Brief's chunk/group at that head line; the callout
    * renders, with a note that the span summary is missing.
    */
   degraded?: boolean;
@@ -82,7 +80,7 @@ export interface ComparisonCalloutContent {
  * by the active Compare baseline. `previous-brief` resolves the title from the
  * *full Brief's* Change-group (the taxonomy owner) and the body from the
  * Revision narrative chunk; `last-review` reuses the existing Delta matching
- * logic behind an adapter — deliberately not unified, to keep the Delta
+ * logic behind an adapter, deliberately not unified, to keep the Delta
  * boundary honest.
  */
 export type ComparisonSource =
@@ -133,7 +131,7 @@ export function markComparisonRows(
 /**
  * Collapse marked rows into contiguous runs (one rail per run). A run that
  * contains any added row reads as "added" (covers a modification's del+add
- * pair — the new side carries it); a run of only removed rows is a standalone
+ * pair, the new side carries it); a run of only removed rows is a standalone
  * deletion ("removed", case B).
  */
 export function groupComparisonRuns(
@@ -185,7 +183,7 @@ export function buildChunkComparisonView(
 /**
  * The rail button's behavioral attribute: rendered by RevisionGutterCell,
  * queried by revision navigation. Exported constant per the repo rule for
- * runtime-queried attributes — never a bare literal at a query site.
+ * runtime-queried attributes, never a bare literal at a query site.
  */
 export const REVISION_JUMP_ATTR = "data-jump-target";
 
@@ -241,15 +239,13 @@ function runLines(
 }
 
 /**
- * Degraded fallback: the run always lives inside a full-Brief
- * chunk's rendered diff, so when the narrative under-covers the span the
- * callout falls back to that chunk's own Change-group — group title plus the
- * chunk's summary (or the group's, mirroring the Delta adapter's `??`) —
- * instead of the unavailable copy. A removed run gets NO summary: chunk/group
- * summaries describe the net base→head change ("Adds retry logic …"), which
- * would affirmatively misdescribe a deletion under the "Removed this
- * revision" eyebrow — group title + the degraded note is the honest floor.
- * Only a Brief whose group reference is itself broken stays unavailable.
+ * Degraded fallback: the run lives inside a full-Brief chunk's rendered diff,
+ * so when the narrative under-covers the span the callout falls back to that
+ * chunk's own Change-group: group title plus the chunk's summary (or the
+ * group's, mirroring the Delta adapter's `??`). A removed run gets NO summary:
+ * summaries describe the net base→head change and would misdescribe a
+ * deletion under the "Removed this revision" eyebrow, so group title plus the
+ * degraded note is the floor. Only a broken group reference stays unavailable.
  */
 function bindBriefChunkFallback(
   run: ComparisonRun,
@@ -294,7 +290,7 @@ function bindRemainderFallback(
 
 /**
  * Previous-Brief callout: title from the full Brief's Change-group, body from
- * the matching Revision narrative chunk summary. Degrades honestly — no
+ * the matching Revision narrative chunk summary. Degrades honestly: no
  * narrative at all (null / failed) → unavailable; no chunk matching the span →
  * degraded fallback to the full Brief's own chunk/group; a matched chunk whose
  * `briefChangeGroupId` is not in the rendered Brief keeps its span summary
@@ -327,7 +323,7 @@ export function bindRevisionNarrativeCallout(
     (candidate) => candidate.id === narrativeChunk.briefChangeGroupId,
   );
   if (!group) {
-    // Dangling `briefChangeGroupId`: the span summary itself is real — keep
+    // Dangling `briefChangeGroupId`: the span summary itself is real, keep
     // it, titled by the chunk's own group, instead of dropping the callout.
     // Not `degraded`: that note would claim the span summary is unavailable
     // while showing it.

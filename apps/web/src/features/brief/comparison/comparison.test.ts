@@ -1,3 +1,4 @@
+import type { DiffLine } from "@web/utils/diffTokens/types";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -13,7 +14,6 @@ import {
 import type {
   Brief,
   BriefChunk,
-  DiffLine,
   RevisionChanges,
   RevisionNarrative,
 } from "../types";
@@ -93,7 +93,7 @@ describe("markComparisonRows", () => {
 });
 
 describe("groupComparisonRuns", () => {
-  it("groups contiguous adds into one run and a standalone deletion into another", () => {
+  it("groups contiguous adds into one run and a lone deletion into another", () => {
     const runs = groupComparisonRuns(
       scenario,
       markComparisonRows(scenario, marks),
@@ -103,7 +103,7 @@ describe("groupComparisonRuns", () => {
     expect(runs[1]).toMatchObject({ rowIndexes: [5], kind: "removed" });
   });
 
-  it("reads a modification (del+add pair) as a single 'added' run", () => {
+  it("reads a del and add pair as one added run", () => {
     const mod = chunk("src/a.ts", [
       { kind: "del", content: "old", oldLine: 20 },
       { kind: "add", content: "new", newLine: 20 },
@@ -175,7 +175,7 @@ const delta: Brief = {
 };
 
 describe("bindDeltaCallout", () => {
-  it("resolves the delta change-group for an added run when a delta is loaded", () => {
+  it("resolves the delta change-group for an added run once a delta loads", () => {
     expect(bindDeltaCallout(firstRun(), scenario, delta)).toEqual({
       available: true,
       groupTitle: "Typed state",
@@ -266,7 +266,7 @@ describe("bindRevisionNarrativeCallout", () => {
     ],
   };
 
-  it("degrades to the chunk's own group when no narrative chunk matches the span", () => {
+  it("degrades to the chunk's own group when no narrative chunk matches", () => {
     const elsewhere: RevisionNarrative = {
       ...narrative,
       chunks: [
@@ -303,12 +303,12 @@ describe("bindRevisionNarrativeCallout", () => {
     });
   });
 
-  it("keeps the span summary under the chunk's own group when the narrative group is dangling", () => {
+  it("keeps the span summary under the chunk's group when the group dangles", () => {
     const orphan: RevisionNarrative = {
       ...narrative,
       chunks: [{ ...narrative.chunks[0]!, briefChangeGroupId: "missing" }],
     };
-    // The span summary is real — no degraded note, only the title is re-homed.
+    // The span summary is real: no degraded note, only the title is re-homed.
     expect(
       bindRevisionNarrativeCallout(
         firstRun(),
@@ -323,7 +323,7 @@ describe("bindRevisionNarrativeCallout", () => {
     });
   });
 
-  it("omits the summary in the removed-run degraded fallback (a net-change summary would misdescribe a deletion)", () => {
+  it("omits the summary in the removed-run degraded fallback", () => {
     const removedRun = groupComparisonRuns(
       scenario,
       markComparisonRows(scenario, marks),
@@ -343,32 +343,32 @@ describe("bindRevisionNarrativeCallout", () => {
     });
   });
 
-  it("stays unavailable when the fallback group is also missing from the Brief", () => {
+  it("stays unavailable when the fallback group is missing from the Brief", () => {
     const orphan: RevisionNarrative = {
       ...narrative,
       chunks: [{ ...narrative.chunks[0]!, briefChangeGroupId: "missing" }],
     };
-    // fullBrief has no "g1" (the scenario chunk's group) — nothing to degrade to.
+    // fullBrief has no "g1" (the scenario chunk's group), nothing to degrade to.
     expect(
       bindRevisionNarrativeCallout(firstRun(), scenario, fullBrief, orphan),
     ).toEqual({ available: false });
   });
 
-  it("is unavailable when the narrative is absent (marks still render upstream)", () => {
+  it("is unavailable when the narrative is absent", () => {
     expect(
       bindRevisionNarrativeCallout(firstRun(), scenario, fullBrief, null),
     ).toEqual({ available: false });
   });
 });
 
-describe("bindRevisionNarrativeCallout — remainder", () => {
+describe("bindRevisionNarrativeCallout remainder rows", () => {
   const remainderChunk: BriefChunk = {
     ...scenario,
     id: "u-3f0d7c10",
     changeGroupId: "unattributed-remainder",
   };
 
-  it("titles a remainder row with the remainder marker when a narrative covers the span", () => {
+  it("titles a remainder row with the marker when a narrative covers it", () => {
     expect(
       bindRevisionNarrativeCallout(
         firstRun(),
@@ -383,7 +383,7 @@ describe("bindRevisionNarrativeCallout — remainder", () => {
     });
   });
 
-  it("degrades a remainder row with the remainder marker when no narrative covers the span", () => {
+  it("degrades a remainder row with the marker when no narrative covers it", () => {
     expect(
       bindRevisionNarrativeCallout(firstRun(), remainderChunk, fullBrief, {
         ...narrative,

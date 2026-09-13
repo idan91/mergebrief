@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
+import type { DiffLine } from "@web/utils/diffTokens/types";
 import { cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ComparisonMarkFiles } from "../comparison/comparison";
-import type { BriefChunk, DiffLine } from "../types";
+import type { BriefChunk } from "../types";
 import {
   pickRevisionTargetIndex,
   useRevisionNavigation,
@@ -30,7 +31,7 @@ describe("pickRevisionTargetIndex", () => {
 
   it("steps to the UNMOUNTED next target when every mounted rail is above", () => {
     // Mounted rails cover model indexes 0-2 of 6; the reading line is below
-    // them all — the next target exists but has no DOM yet.
+    // them all; the next target exists but has no DOM yet.
     expect(
       pickRevisionTargetIndex({
         targetCount: 6,
@@ -66,7 +67,7 @@ describe("pickRevisionTargetIndex", () => {
     ).toBe(1);
   });
 
-  it("steps to the UNMOUNTED previous target when every mounted rail is below", () => {
+  it("steps to the unmounted previous target when mounted rails sit below", () => {
     const deepMounted = [
       { index: 3, top: 1000 },
       { index: 4, top: 1200 },
@@ -148,7 +149,7 @@ function renderRails(): HTMLButtonElement[] {
 }
 
 /** One marked run per chunk, its rail at diff-row `railRow` (rail keys are
- * `file#chunkId:<firstRowIndex>` — matching the DOM fixture above). */
+ * `file#chunkId:<firstRowIndex>`, matching the DOM fixture above). */
 function chunkWithRail(
   id: string,
   file: string,
@@ -270,7 +271,7 @@ describe("useRevisionNavigation", () => {
   });
 
   it("reads the active chunk at jump time, not at bind time", () => {
-    // The getter exists so a position change never re-renders the host —
+    // The getter exists so a position change never re-renders the host;
     // which only holds if each jump reads it fresh for the fallback anchor.
     document.body.innerHTML = "<main></main>";
     const scrollTowardChunk = vi.fn(() => true);

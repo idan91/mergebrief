@@ -1,3 +1,4 @@
+import type { DiffLine } from "@web/utils/diffTokens/types";
 import "@tanstack/react-start/server-only";
 
 import { readFile, readdir } from "node:fs/promises";
@@ -13,7 +14,6 @@ import type {
   ComparisonAvailability,
   ComparisonMarks,
   ComparisonMarksSummary,
-  DiffLine,
   LastReviewComparisonAvailability,
   LocalBriefSummary,
   PreviousBriefComparisonAvailability,

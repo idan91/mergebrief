@@ -1,3 +1,5 @@
+import type { DiffLine } from "../../utils/diffTokens/types";
+
 export const Categories = {
   BUGFIX: "bugfix",
   LOGIC_REFACTOR: "logic-refactor",
@@ -157,22 +159,6 @@ export interface RevisionChanges {
   prevHeadSha: string;
   prevIndex: number;
   files: RevisionChangeFile[];
-}
-
-export const DiffLineKinds = {
-  HUNK: "hunk",
-  ADD: "add",
-  DEL: "del",
-  CTX: "ctx",
-  NOTE: "note",
-} as const;
-export type DiffLineKind = ValueOf<typeof DiffLineKinds>;
-
-export interface DiffLine {
-  kind: DiffLineKind;
-  content: string;
-  oldLine?: number;
-  newLine?: number;
 }
 
 /**
