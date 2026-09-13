@@ -40,8 +40,6 @@ import { StateBadge } from "./StateBadge/StateBadge";
 import { TimelineNavigator } from "./TimelineNavigator/TimelineNavigator";
 import styles from "./Header.module.scss";
 
-export type LayoutMode = "stacked" | "split";
-
 export interface OwnDraftHeaderProps {
   markReady: () => void;
   pending: boolean;

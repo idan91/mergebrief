@@ -175,9 +175,7 @@ export function BriefScreen({
             />
           ) : null}
           <main
-            className={
-              session.layoutMode === "split" ? "main split-main" : "main"
-            }
+            className="main"
             id="main-content"
             tabIndex={-1}
             data-zen={session.focusMode ? "on" : undefined}

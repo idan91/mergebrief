@@ -16,6 +16,13 @@
       white-space: pre;
     }
 
+    // Long lines wrap inside the code cell like the split halves do; the row
+    // grows and the height model's estimate corrects after first paint.
+    > .code {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
     // Hover deepens the row's OWN hue — grey over green/red is invisible.
     --row-hue: var(--text);
 

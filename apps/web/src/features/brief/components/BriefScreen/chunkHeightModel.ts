@@ -3,7 +3,9 @@
 // scroll targets drift as real heights reveal.
 // DIFF_ROW_HEIGHT_PX is in lockstep with the row line-height in
 // `DiffRows.module.scss` and with `DiffTable.module.scss`'s
-// `contain-intrinsic-block-size` estimate: change all three or none.
+// `contain-intrinsic-block-size` estimate: change all three or none. It is
+// one line; a wrapped row is a multiple, so the estimate is a lower bound
+// that `measureElement` and the painted size correct after first paint.
 
 export const DIFF_ROW_HEIGHT_PX = 22;
 

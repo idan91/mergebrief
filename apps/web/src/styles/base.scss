@@ -171,28 +171,20 @@
   }
 
   .main {
-    --main-gutter: clamp(
-      #{functions.to-rem(18px)},
-      4vw,
-      #{functions.to-rem(28px)}
-    );
+    --main-gutter: #{functions.to-rem(48px)};
 
     // The body is a column flexbox (footer pinning), where auto inline
     // margins disable stretch: without an explicit inline-size the region
     // shrinks to fit its CONTENT and the page width shifts whenever content
     // changes (revision steps, live diff arriving). Fill, cap, center.
     inline-size: 100%;
-    max-inline-size: calc(functions.to-rem(980px) + var(--sidebar-w));
+    max-inline-size: none;
     padding-block: functions.to-rem(36px)
       calc(functions.to-rem(140px) + var(--sidebar-reserve-bottom));
     padding-inline: var(--main-gutter)
       calc(var(--main-gutter) + var(--sidebar-w));
     margin-inline: auto;
     transition: opacity 0.15s ease;
-
-    &.split-main {
-      max-inline-size: calc(1560px + var(--sidebar-w));
-    }
 
     &[data-sidebar-motion] {
       transition:
@@ -229,7 +221,7 @@
     }
   }
 
-  .split-main .story-group {
+  .main .story-group {
     display: grid;
     grid-template-columns: minmax(0, 1fr) max(520px, 28%);
     align-items: start;
@@ -245,7 +237,7 @@
   // Sticky, viewport-capped column; the card is a flex column so its body
   // (GroupCard .body) can be the inner scroll region while the head stays
   // fixed — the card itself never scrolls.
-  .split-main .story-group > article {
+  .main .story-group > article {
     position: sticky;
 
     // The pinned stack, not a constant. This was 132px — the header plus a
@@ -260,10 +252,12 @@
     max-block-size: calc(100vh - var(--sticky-stack-h) - 24px);
   }
 
-  // The split stacks once the reading column is narrower than a 1180px
-  // viewport leaves it, so each Sidebar state shifts the flip by its reserve.
+  // The card stacks under the diff once the reading column falls below
+  // 1124px, the width it stacked at before the gutters widened. Each
+  // threshold is that column plus the 96px of gutters plus the sidebar's
+  // reserve.
   @mixin stack-split {
-    &.split-main .story-group {
+    .story-group {
       display: flex;
 
       .group-chunks {
@@ -271,26 +265,26 @@
       }
     }
 
-    &.split-main .story-group > article {
+    .story-group > article {
       position: static;
       order: 1;
       max-block-size: none;
     }
   }
 
-  @media (width <= 1180px) {
+  @media (width <= 1220px) {
     .main {
       @include stack-split;
     }
   }
 
-  @media (width <= 1228px) {
+  @media (width <= 1268px) {
     .main[data-sidebar="collapsed"] {
       @include stack-split;
     }
   }
 
-  @media (width <= 1604px) {
+  @media (width <= 1644px) {
     .main[data-sidebar="expanded"] {
       @include stack-split;
     }

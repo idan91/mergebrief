@@ -42,7 +42,6 @@ import {
 import type { RepoConfigContext } from "../../utils/repoConfig";
 import type { ChunkWindowRegistry } from "./chunkWindows";
 import type { ReadingPositionStore } from "./readingPosition";
-import type { LayoutMode } from "./Header/Header";
 import {
   SupportingCollapseStates,
   type SupportingCollapseState,
@@ -311,7 +310,6 @@ export interface UseReadingSessionValue {
   /** Index into `chunkIds` where each group starts (Shift+J/Shift+K). */
   groupBoundaries: number[];
   // view / focus state,
-  layoutMode: LayoutMode;
   focusMode: boolean;
   /** The focus banner strip's measurement target (publishes --focus-banner-h). */
   focusBannerRef: RefObject<HTMLDivElement | null>;
@@ -388,7 +386,6 @@ export function useReadingSession(
   );
 
   // Transient UI state stays local and colocated.
-  const [layoutMode] = useState<LayoutMode>("split");
   const [openChunks, setOpenChunks] = useState<Set<string>>(
     () => new Set(chunkIds),
   );
@@ -551,12 +548,10 @@ export function useReadingSession(
   }, [briefId]);
 
   // The position has two write sources: scroll-spy (below) and explicit nav
-  // (toggleChunk/jumpToChunk). Scroll-spy only runs in the full-scope split
-  // view outside focus mode.
+  // (toggleChunk/jumpToChunk). Scroll-spy only runs on the full brief outside
+  // focus mode.
   useScrollSpy(
-    layoutMode === "split" && !focusMode && compareViewFull
-      ? chunkIds
-      : EMPTY_CHUNK_IDS,
+    !focusMode && compareViewFull ? chunkIds : EMPTY_CHUNK_IDS,
     setActivePosition,
     undefined,
     briefId,
@@ -727,7 +722,6 @@ export function useReadingSession(
     readingOrderedChunks,
     chunkIds,
     groupBoundaries,
-    layoutMode,
     focusMode,
     focusBannerRef,
     openChunks,
