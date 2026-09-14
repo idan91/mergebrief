@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 
 // Kept equal to $breakpoints.tablet in styles/_functions.scss by styles/breakpoints.test.ts.
 export const TABLET_BREAKPOINT_PX = 1120;

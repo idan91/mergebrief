@@ -1,4 +1,4 @@
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import { configError, type ConfigError } from "../contract/errors";
 import {
   DEFAULT_CONTEXT_SOURCES,
@@ -18,29 +18,10 @@ import {
   type GeneratorConfig,
 } from "./registry";
 
-/**
- * The instance-config loader: ONE optional YAML file,
- * conventionally `mergebrief.config.yaml` next to the compose file, pointed
- * at by `MERGEBRIEF_CONFIG`. The env var unset means zero-config defaults —
- * today's behavior exactly. Every boot-knowable problem returns a
- * ConfigError with per-field issues, values omitted:
- *
- * - path set but unreadable
- * - not valid YAML (position only — never file content, which can carry
- *   keys pasted by mistake)
- * - unknown root keys (strict; single `x-*` carve-out, the compose-file
- *   convention for vendored extensions)
- * - a `generator:` block failing the registry-derived union (strict per
- *   adapter; token-gated key echoes)
- * - a `contextSources:` block with an unknown type or a malformed entry
- *
- * The `yaml` dependency lives HERE only.
- */
-
 export interface LoadedGeneratorConfig {
   generator: GeneratorConfig;
   /**
-   * The instance spend policy — enforced by the worker's generation gate.
+   * The instance spend policy; enforced by the worker's generation gate.
    * Uncapped when the block is absent.
    */
   spend: SpendPolicy;
@@ -70,7 +51,7 @@ export function loadGeneratorConfig(
     };
   }
   // Set-but-empty is NOT unset (repo convention: loaders distinguish the
-  // two — an operator who set it believes it points somewhere); the
+  // two; an operator who set it believes it points somewhere); the
   // resolver rejects it with its own arm. Relative values are
   // workspace-root-anchored so the same env value names the same file in
   // every process.
@@ -115,7 +96,7 @@ export function loadGeneratorConfigFile(
   if (issues.length > 0) return configError(issues);
 
   // The drafts block is ENFORCED by the api process, but bad values refuse
-  // boot here too — a worker-only deployment must not carry a
+  // boot here too; a worker-only deployment must not carry a
   // silently-broken policy the operator believes is active.
   const drafts = root["drafts"];
   if (drafts !== undefined) {

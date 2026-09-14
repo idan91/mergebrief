@@ -1,5 +1,5 @@
 import { z } from "zod/v4";
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import type { Log } from "../../../github/types";
 import { TicketUnreadReasons } from "../../../types";
 import { TicketTrackers } from "../../tracker";

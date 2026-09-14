@@ -11,7 +11,7 @@ import {
   type Provider,
   type TokenUsage,
 } from "generators";
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import { categorize } from "brief-core";
 import { extractConfigFlag } from "brief-core/cli-config";
 import {

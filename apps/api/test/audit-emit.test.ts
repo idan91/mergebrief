@@ -11,7 +11,7 @@ import {
   deriveClient,
   deriveRequestId,
 } from "../src/product-operations/audit";
-import type { Mutable } from "types";
+import type { Mutable } from "types/utils";
 import {
   createApp,
   type ApiApp,

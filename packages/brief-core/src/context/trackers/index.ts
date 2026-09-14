@@ -1,4 +1,4 @@
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import type { ConfigError } from "generators";
 import {
   TicketTrackers,

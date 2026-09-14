@@ -2,7 +2,7 @@ import { isIP, type LookupFunction } from "node:net";
 import { lookup as dnsLookup, type LookupAddress } from "node:dns";
 import { get as httpGet } from "node:http";
 import { get as httpsGet } from "node:https";
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import { canonicalizeTicketUrl } from "../references";
 import {
   ContextProviderTypes,
@@ -14,7 +14,7 @@ import {
   type ProviderSnippet,
 } from "../types";
 
-/** Bound how many links we chase per PR — cost and latency control. */
+/** Bound how many links we chase per PR; cost and latency control. */
 const MAX_LINKS = 5;
 const LINK_TIMEOUT_MS = 10_000;
 
@@ -48,7 +48,7 @@ function isPrivateAddr(addr: string): boolean {
 
 /**
  * Synchronous pre-filter for a candidate link. Rejects non-http(s) schemes,
- * embedded credentials (userinfo — almost never a real public reference, and a
+ * embedded credentials (userinfo; almost never a real public reference, and a
  * credential-leak hazard), localhost/`.local`, and literal private IPs. This is
  * a fast gate only; the authoritative SSRF defense is `validatingLookup`, which
  * checks the address at *connect* time and so is immune to DNS-rebinding TOCTOU.
@@ -170,7 +170,7 @@ export function extractLinks(body: string): string[] {
 /**
  * Fetch the text behind each link in the PR description. Best-effort: any
  * failure (network, non-OK status, timeout, binary body, SSRF block) is logged
- * and skipped — a brief must still be producible from the diff alone. URLs are
+ * and skipped; a brief must still be producible from the diff alone. URLs are
  * credential-stripped before they reach a log line or the stored context.
  */
 async function fetchUrlSnippets(

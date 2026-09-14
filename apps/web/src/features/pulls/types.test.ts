@@ -3,7 +3,7 @@
 // are parsed, never cast.
 import { describe, expect, it } from "vitest";
 import type { LastReviewComparisonView } from "contract";
-import type { Equals } from "types";
+import type { Equals } from "types/utils";
 import {
   parsePrSummary,
   parsePullsList,

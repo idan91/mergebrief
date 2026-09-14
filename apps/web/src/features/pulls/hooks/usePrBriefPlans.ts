@@ -28,7 +28,7 @@ import {
 import { postConversationReply } from "../../conversation/reply";
 import { setThreadResolution } from "../../conversation/resolve";
 import type { Span } from "../utils/briefRouteState";
-import type { Mutable } from "types";
+import type { Mutable } from "types/utils";
 
 type PreviousBriefPlan = Mutable<
   NonNullable<BriefComparisonPlan["previousBrief"]>

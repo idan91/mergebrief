@@ -13,7 +13,7 @@ import type {
   SessionAttentionItem,
 } from "../session/attention";
 import type { Disposition } from "../session/disposition";
-import { CommentAnchorKinds } from "types";
+import { CommentAnchorKinds } from "types/comments";
 import {
   deriveCarriedItems,
   deriveUnresolvedItems,

@@ -15,7 +15,7 @@ import {
   type RepoId,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createErrorHandler } from "../../../../shared-errors/on-error";
 import { AuthChannels, type ViewerPrincipal } from "../../../auth/session";
@@ -147,7 +147,7 @@ function deniedFetch(
 }
 
 describe("conversation handler wire posture", () => {
-  it("serves the serialized body with json content-type and no-store, cached on repeat", async () => {
+  it("serves cached JSON with no-store on repeat reads", async () => {
     const fetch = okFetch();
     const app = buildApp(fetch);
     const first = await app.request(`/${PR_NUMBER}/conversation`);
@@ -184,7 +184,7 @@ describe("conversation handler wire posture", () => {
   });
 });
 
-describe("readConversation — installation-path 401 stays an upstream error", () => {
+describe("readConversation; installation-path 401 stays an upstream error", () => {
   it("an App-credential 401 is a 502, never a sign-in prompt", async () => {
     const app = buildApp(
       vi.fn(async () => ({
@@ -209,7 +209,7 @@ vi.mock("github", async (importOriginal) => ({
   fetchPullRequestConversation: vi.fn(),
 }));
 
-describe("readConversation — owner world (viewer token)", () => {
+describe("readConversation with an owner viewer token", () => {
   async function buildOwnerApp(input: {
     plaintext: string | undefined;
     fetchResult: Result<typeof EMPTY_CONVERSATION, GitHubApiError>;
@@ -330,7 +330,7 @@ describe("readConversation — owner world (viewer token)", () => {
     expect(built.tokensSeen).toEqual(["ghu_viewer_token"]);
   });
 
-  it("an unreadable stored token is re-auth territory (401), never a 404", async () => {
+  it("returns 401 when the stored token cannot be read", async () => {
     const built = await buildOwnerApp({
       plaintext: undefined,
       fetchResult: { ok: true, value: EMPTY_CONVERSATION },

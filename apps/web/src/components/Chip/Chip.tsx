@@ -1,5 +1,5 @@
 import type { ComponentPropsWithRef, MouseEvent } from "react";
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 import clsx from "clsx";
 
 import styles from "./Chip.module.scss";
@@ -25,7 +25,7 @@ export type ChipAsButtonProps = {
   as?: typeof ChipElements.BUTTON;
   /** Controlled toggle state → aria-pressed; never inferred from clicks. */
   pressed?: boolean;
-  /** aria-disabled + interaction guard — never the native attribute. */
+  /** aria-disabled + interaction guard; never the native attribute. */
   disabled?: boolean;
 } & ChipBaseProps &
   Omit<ComponentPropsWithRef<"button">, "disabled" | "aria-pressed">;

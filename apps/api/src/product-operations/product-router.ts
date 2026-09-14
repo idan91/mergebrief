@@ -10,7 +10,7 @@ import { Hono } from "hono";
 import { every } from "hono/combine";
 import type { Env, H, MiddlewareHandler } from "hono/types";
 import type { WriteClassification } from "persistence";
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 import type { ProductActionId, ProductQueryId } from "contract";
 import type { ProductOperationRegistry } from "./registry";
 import {

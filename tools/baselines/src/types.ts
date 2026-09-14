@@ -1,4 +1,4 @@
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 
 /** One baseline file as `path -> rule -> count`. */
 export type SuppressionBaseline = ReadonlyMap<

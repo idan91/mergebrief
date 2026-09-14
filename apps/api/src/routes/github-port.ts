@@ -1,5 +1,5 @@
 // The installation-octokit interface: every installation-token read this
-// package performs enters through this port — injected by the startup wiring
+// package performs enters through this port; injected by the startup wiring
 // over the App-JWT client, substituted in tests. This package never constructs
 // App auth itself. A shared installation token means one rate budget and one
 // cache entry per resource, reused across viewers.
@@ -16,7 +16,7 @@ import {
   type RepoCollaborators,
 } from "github";
 import type { InstallationId } from "persistence";
-import type { Result } from "types";
+import type { Result } from "types/utils";
 
 /** The installation-token reads this package performs (test interface). */
 export interface InstallationGitHubPort {
@@ -31,7 +31,7 @@ export interface InstallationGitHubPort {
 }
 
 /**
- * Minting the installation token talks to GitHub and can reject — that
+ * Minting the installation token talks to GitHub and can reject; that
  * rejection must become a sanitized Result (the route's 502), never an
  * unhandled 500 outside the no-store policy. The static messages carry nothing
  * from the thrown error.

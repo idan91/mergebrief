@@ -1,4 +1,4 @@
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import { ENV_VAR_NAME, type ConfigError } from "generators";
 import { refuseTrackerRead } from "./refusal";
 

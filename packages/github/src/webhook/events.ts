@@ -10,7 +10,7 @@ import {
   reviewerIdSchema,
 } from "../ids";
 import type { Result, ValueOf } from "../types";
-import type { Mutable } from "types";
+import type { Mutable } from "types/utils";
 
 // ---------------------------------------------------------------------------
 // Closed vocabularies (kebab-case values; SHOUT_CASE keys).

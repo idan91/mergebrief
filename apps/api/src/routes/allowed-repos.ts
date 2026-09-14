@@ -11,7 +11,7 @@ import {
 } from "github";
 import type { Logger } from "logging";
 import { createSessionAuth, type RepoId } from "persistence";
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import type { AuthRouteDeps, ViewerPrincipal } from "./auth/session";
 import { createReviewerGitHubClient } from "./auth/reviewer-github-client";
 import { AUTHZ_CACHE_TTL_MS } from "./authz";
@@ -34,7 +34,7 @@ export interface AllowedRepoResolver {
   /**
    * Resolve the viewer's allowed set (cache → GitHub with refresh-once).
    * Failure carries the HTTP status the route must return: 401 (auth dead)
-   * or 502 (GitHub upstream) — the caller NEVER falls back to the DB.
+   * or 502 (GitHub upstream); the caller NEVER falls back to the DB.
    */
   resolve(
     session: ViewerPrincipal,
@@ -43,13 +43,13 @@ export interface AllowedRepoResolver {
 }
 
 /**
- * Build the shared resolver. ONE instance per app — the cache identity is what
+ * Build the shared resolver. ONE instance per app; the cache identity is what
  * makes `/api/pulls` and `/api/repos` share fetches.
  */
 export function createAllowedRepoResolver(
   deps: AuthRouteDeps,
 ): AllowedRepoResolver {
-  // POSITIVE results only (a failed fetch is never cached), 60s — the same
+  // POSITIVE results only (a failed fetch is never cached), 60s; the same
   // revocation-staleness budget as the per-repo positive cache.
   const cache = createTtlCache<ReadonlyMap<RepoId, string>>(
     ALLOWED_SET_CACHE_MAX_ENTRIES,
@@ -74,7 +74,7 @@ export function createAllowedRepoResolver(
 
       // The per-request client: lazy single decrypt, expired ~8h access token
       // → serialized refresh, retry ONCE. The installation is the one this
-      // request authorized — a concurrent rebind must not swap it mid-call.
+      // request authorized; a concurrent rebind must not swap it mid-call.
       const client = createReviewerGitHubClient(deps, session, log);
       const repos = await client.run((accessToken) =>
         listInstallationRepositoriesForUser(
@@ -84,7 +84,7 @@ export function createAllowedRepoResolver(
       );
       if (!repos.ok) {
         if ("kind" in repos.error) {
-          // Unreadable token burns the session — same posture as the repo
+          // Unreadable token burns the session; same posture as the repo
           // gate. (On the Bearer channel this delete is a no-op by hash
           // namespace; the api_token row stays for its owner to see and
           // revoke.)
@@ -93,7 +93,7 @@ export function createAllowedRepoResolver(
           );
           return { ok: false, error: { status: 401 } };
         }
-        // Fail closed — a DB-only fallback would leak rows.
+        // Fail closed; a DB-only fallback would leak rows.
         const status =
           repos.error.code === GitHubApiErrorCodes.UNAUTHORIZED ? 401 : 502;
         return { ok: false, error: { status } };

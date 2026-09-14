@@ -6,7 +6,10 @@
   "description": "Shared type helpers, cross-package shapes, and as const maps for closed vocabularies two packages both need as values. Zero dependencies.",
   "exports": {
     ".": "./src/index.ts",
-    "./comments": "./src/comments.ts"
+    "./comments": "./src/comments.ts",
+    "./drafts": "./src/drafts.ts",
+    "./jobs": "./src/jobs.ts",
+    "./utils": "./src/utils.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

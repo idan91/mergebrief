@@ -1,13 +1,13 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod/v4";
-import type { Result, ValueOf } from "types";
+import type { Result, ValueOf } from "types/utils";
 
 /**
  * How a run relates to the checked-in baseline: `compare` (the default
- * regression gate), `rebaseline` (overwrite — an explicit, reviewed commit),
+ * regression gate), `rebaseline` (overwrite; an explicit, reviewed commit),
  * or `none` (characterization: a generator key with no committed baseline,
- * e.g. a cross-model run — scores report, verdicts render as no-baseline).
+ * e.g. a cross-model run; scores report, verdicts render as no-baseline).
  */
 export const BaselineModes = {
   COMPARE: "compare",
@@ -18,7 +18,7 @@ export type BaselineMode = ValueOf<typeof BaselineModes>;
 
 /**
  * A case's checked-in baseline: property pass counts from main at a given
- * provider:model key. Re-baselining is an explicit, reviewed commit —
+ * provider:model key. Re-baselining is an explicit, reviewed commit;
  * `saveBaseline` writes sorted, newline-terminated JSON so the diff reads
  * like a snapshot update.
  */
@@ -38,7 +38,7 @@ const CaseBaselineSchema = z.object({
 
 /**
  * Absent file → `{ ok: true, value: null }` (a new case has no baseline
- * yet). A key mismatch or malformed file is a refusal — cross-model
+ * yet). A key mismatch or malformed file is a refusal; cross-model
  * comparison must fail loudly, never silently mislead.
  */
 export function loadBaseline(

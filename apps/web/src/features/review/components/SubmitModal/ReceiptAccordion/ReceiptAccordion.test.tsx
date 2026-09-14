@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { Receipt } from "../../../utils/receipt";
 import { ReceiptAccordion } from "./ReceiptAccordion";
-import { CommentAnchorKinds } from "types";
+import { CommentAnchorKinds } from "types/comments";
 import {
   CommentSides,
   ReviewCommentStatuses,

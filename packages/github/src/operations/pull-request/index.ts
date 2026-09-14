@@ -3,7 +3,7 @@
 // diff as a string body. Failures are sanitized via `mapRequestError`.
 import type { Octokit } from "octokit";
 import type { CompareFile, CompareFiles, RepoIdentity } from "brief-core";
-import type { Mutable } from "types";
+import type { Mutable } from "types/utils";
 import {
   mapRequestError,
   unexpectedResponseError,

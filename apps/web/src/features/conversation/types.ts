@@ -2,7 +2,7 @@
 // Guards parse at the boundary without adding Zod to the bundle.
 // GitHub state names differ from Review Session dispositions; linked-comment bridges them.
 import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
-import type { Mutable, Result as SharedResult, ValueOf } from "types";
+import type { Mutable, Result as SharedResult, ValueOf } from "types/utils";
 
 type Result<T> = SharedResult<T, string>;
 

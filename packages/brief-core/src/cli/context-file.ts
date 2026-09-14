@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { z } from "zod/v4";
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import { createI18n } from "i18n";
 import { ContextProviderTypes, type PrimarySnippet } from "../context/types";
 import {
@@ -82,7 +82,7 @@ const i18n = createI18n();
 
 /**
  * The stderr line for an unread primary: `error: <key> could not be read
- * (<code>) — <sentence>`, the same sentence the web copy renders. The run
+ * (<code>); <sentence>`, the same sentence the web copy renders. The run
  * still exits 0: the brief was generated, the read is absent.
  */
 export function describeUnreadPrimary(ticket: PrimaryTicket): string {

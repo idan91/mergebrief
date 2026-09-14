@@ -18,7 +18,7 @@ import {
   type DraftAnchor,
   type DraftCommentStatus,
 } from "persistence";
-import { CommentAnchorKinds } from "types";
+import { CommentAnchorKinds } from "types/comments";
 import {
   AttentionItemKinds,
   AttentionSubjectTypes,

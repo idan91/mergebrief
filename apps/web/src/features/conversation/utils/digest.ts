@@ -16,7 +16,7 @@ import {
   type PrConversation,
   type PrLevelComment,
 } from "../types";
-import type { Mutable, ValueOf } from "types";
+import type { Mutable, ValueOf } from "types/utils";
 import type { TFunction } from "i18next";
 
 export const DigestRowKinds = {

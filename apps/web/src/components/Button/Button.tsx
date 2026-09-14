@@ -1,5 +1,5 @@
 import type { ComponentPropsWithRef, MouseEvent } from "react";
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 import clsx from "clsx";
 
 import { AccessibleLink } from "../AccessibleLink/AccessibleLink";
@@ -28,7 +28,7 @@ export type ButtonSize = ValueOf<typeof ButtonSizes>;
 export type ButtonBaseProps = {
   variant?: ButtonVariant;
   size?: ButtonSize;
-  /** aria-disabled + interaction guard — never the native attribute. */
+  /** aria-disabled + interaction guard; never the native attribute. */
   disabled?: boolean;
   /** aria-busy + the same guard; the label swap is the call site's. */
   loading?: boolean;
@@ -60,8 +60,8 @@ type ButtonSharedProps<E extends HTMLElement> = ButtonBaseProps & {
   onClick?: ((event: MouseEvent<E>) => void) | undefined;
 };
 
-/** The whole shared surface — presentation attrs + the inert-state click
-    guard — declared once; the per-element branches only pick the tag. */
+/** The whole shared surface; presentation attrs + the inert-state click
+    guard; declared once; the per-element branches only pick the tag. */
 function buttonAttributes<
   E extends HTMLElement,
   P extends ButtonSharedProps<E>,
@@ -99,7 +99,7 @@ export function Button(props: ButtonProps) {
   if (isAnchorProps(props)) {
     const { as: element, ...anchorProps } = props;
     void element;
-    // The announcement logic lives once — AccessibleLink owns the anchor.
+    // The announcement logic lives once; AccessibleLink owns the anchor.
     return <AccessibleLink {...buttonAttributes(anchorProps)} />;
   }
   const { as: element, type = "button", ...buttonProps } = props;

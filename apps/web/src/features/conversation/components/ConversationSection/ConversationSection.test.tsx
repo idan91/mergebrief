@@ -35,7 +35,7 @@ import {
   ThreadSides,
   type PrConversation,
 } from "../../types";
-import { CommentAnchorKinds } from "types";
+import { CommentAnchorKinds } from "types/comments";
 import {
   DEFAULT_CONVERSATION_FILTER,
   parseConversationFilter,

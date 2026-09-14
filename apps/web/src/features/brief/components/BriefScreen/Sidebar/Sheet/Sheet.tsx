@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 
 import { Tabs } from "@web/components/Tabs/Tabs";
 import { useBodyScrollLock } from "@web/hooks/useBodyScrollLock";

@@ -18,7 +18,7 @@ import {
   type DraftCommentSide,
   type DraftCommentStatus,
 } from "persistence";
-import { CommentAnchorKinds } from "types";
+import { CommentAnchorKinds } from "types/comments";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";

@@ -1,5 +1,5 @@
 import type { ComponentPropsWithRef, MouseEvent } from "react";
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 import clsx from "clsx";
 
 import styles from "./RowButton.module.scss";
@@ -20,7 +20,7 @@ export type RowButtonBaseProps = {
   variant?: RowButtonVariant;
   /** Row-only axis; card ignores it. */
   density?: RowButtonDensity;
-  /** aria-disabled + interaction guard — never the native attribute. */
+  /** aria-disabled + interaction guard; never the native attribute. */
   disabled?: boolean;
 };
 

@@ -8,7 +8,7 @@ import {
   GrammarNames,
   TokenizeModes,
 } from "@web/utils/diffTokens/types";
-import { CommentAnchorKinds } from "types";
+import { CommentAnchorKinds } from "types/comments";
 import { CommentSides, type CommentAnchor } from "../../utils/comments";
 import { MarkdownPreview } from "./MarkdownPreview";
 

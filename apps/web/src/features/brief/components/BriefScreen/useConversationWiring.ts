@@ -28,7 +28,7 @@ import type { ConversationResult } from "@web/features/conversation/queries";
 import { useMentionPool } from "@web/features/conversation/hooks";
 import { prefersReducedMotion } from "@web/utils/motion";
 import type { BriefViewModel } from "../../utils/viewModel";
-import type { Mutable } from "types";
+import type { Mutable } from "types/utils";
 import type { BriefChunk } from "../../types";
 import {
   conversationGroupIds,

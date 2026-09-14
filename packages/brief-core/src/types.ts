@@ -1,6 +1,6 @@
 import { z } from "zod/v4";
 import { AnchorSchema, GenerationSchema } from "generators";
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 import { PrStackSchema } from "./pr-stack";
 
 // Port vocabulary lives in packages/generators; re-exported here so existing

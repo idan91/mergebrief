@@ -1,6 +1,6 @@
 import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
 import type { ConversationThread } from "../types";
-import type { Mutable } from "types";
+import type { Mutable } from "types/utils";
 
 /**
  * Mention-autocomplete pool for a thread's reply box: the humans already in

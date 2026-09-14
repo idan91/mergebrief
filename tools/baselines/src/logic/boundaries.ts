@@ -1,4 +1,4 @@
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import { BOUNDARY_IGNORE_FLAG } from "../consts";
 import {
   FindingKinds,

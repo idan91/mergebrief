@@ -1,4 +1,4 @@
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import { TicketUnreadReasons } from "../../../types";
 import { TicketTrackers } from "../../tracker";
 import type { ConfigError } from "generators";

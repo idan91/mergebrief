@@ -13,7 +13,7 @@ import { createAppClient, loadConfig as loadGitHubConfig } from "github";
 import { Logger as GraphileLogger } from "graphile-worker";
 import { createGraphileLogFactory, createLogger } from "logging";
 import { closeDb, createDb, createEnvKeyProvider } from "persistence";
-import type { Mutable } from "types";
+import type { Mutable } from "types/utils";
 import { loadConfig } from "./config";
 import { appGitHubPort, type UrlBoxAuthDeps } from "./task/github-port";
 import { createGenerateTask, type GenerateTaskDeps } from "./task/generate";

@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod/v4";
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import {
   configError,
   GeneratorError,
@@ -28,28 +28,8 @@ import {
 import { enumPreservingJsonSchema } from "../validation/jsonSchema";
 import type { Effort, Generation } from "../contract/generation";
 
-/**
- * Claude Code CLI adapter: one `claude -p` process per attempt, stream-json
- * envelopes on stdout, prompt via stdin.
- *
- * Invariants:
- * 1. The schema floor is hard, the CLI's own `--json-schema` enforcement is
- *    a bonus layer; every terminal answer still runs `runWithSchemaFloor`
- *    (validate → salvage → one feedback retry → dump + throw).
- * 2. Abort rejections propagate UNTOUCHED, the harness rejects with the
- *    signal's reason and nothing here wraps it.
- * 3. Origin is honest: `effort: null` (headless claude has no effort knob);
- *    the model stamp is the declaration, and the envelope's `modelUsage`
- *    keys are compared post-run, a served-model mismatch logs a warning and
- *    fires the surfacing hook, never silently rewrites the stamp.
- * 4. No secrets in errors: messages carry subtypes/categories/exit codes;
- *    stderr reaches messages only through `harnessTimeoutError` (redacted).
- * 5. Effort-independent lockdown profile: `--tools ""` (pure generation, no
- *    built-in tools), NO `--bare` (OAuth/keychain auth is the point of this
- *    adapter; `--bare` reads only API-key auth). System prompt goes via
- *    `--system-prompt-file` (argv would re-expose ARG_MAX for long
- *    taxonomies); the user prompt via stdin.
- */
+// Do not use --bare: this adapter relies on OAuth/keychain subscription auth.
+// The system prompt uses a file to avoid ARG_MAX; the user prompt uses stdin.
 
 /** In-band `system/api_retry` categories → taxonomy kinds. */
 const API_RETRY_KIND: Record<string, GeneratorErrorKind> = {

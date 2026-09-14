@@ -17,7 +17,7 @@ import {
   type ReviewSessionId,
   type ReviewSessionView,
 } from "persistence";
-import { CommentAnchorKinds } from "types";
+import { CommentAnchorKinds } from "types/comments";
 import { describe, expect, it } from "vitest";
 import { buildSessionPayload } from "../../src/routes/repos/pr/session/payload";
 

@@ -8,7 +8,7 @@ import {
   DraftCommentSides,
   DraftCommentStatuses,
 } from "persistence";
-import { CommentAnchorKinds } from "types";
+import { CommentAnchorKinds } from "types/comments";
 import { describe, expect, it } from "vitest";
 import {
   deriveAttentionItems,

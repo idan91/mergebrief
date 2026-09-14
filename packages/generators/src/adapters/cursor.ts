@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod/v4";
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import {
   configError,
   GeneratorError,
@@ -33,26 +33,8 @@ import {
 } from "../harness/run";
 import type { Effort, Generation } from "../contract/generation";
 
-/**
- * Cursor CLI adapter: one `cursor-agent -p` process per attempt, stream-json
- * envelopes on stdout, prompt via stdin.
- *
- * Invariants:
- * 1. Schema floor is hard, no CLI schema flag exists, so
- *    `runWithSchemaFloor` is the ONLY enforcement.
- * 2. Abort rejections propagate untouched.
- * 3. Origin is a declaration, no served-model signal exists, so no
- *    mismatch hook; unset model stamps "cursor-default". Effort rides the
- *    model-id VARIANT (`--model` accepts only `--list-models` ids, no
- *    bracket overrides); the stamp parses the id's suffix.
- * 4. No secrets in errors: stderr classifies via allowlist to fixed text
- *    (redacted tail only via `harnessTimeoutError`); the probe's
- *    `userEmail` never leaves it.
- * 5. Lockdown is `--mode plan` from a fresh empty temp cwd, bare print
- *    mode writes files; `--trust` prevents the trust-prompt hang.
- * 6. The stream is pipe-silent until exit, inactivity defaults to the
- *    hard ceiling, wall-clock is the only watchdog.
- */
+// Bare print mode writes files; plan mode with an empty cwd is the lockdown.
+// The stream stays silent until exit, so inactivity defaults to the hard limit.
 
 const CURSOR_DEFAULT_MODEL_TOKEN = "cursor-default";
 

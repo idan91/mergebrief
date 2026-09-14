@@ -5,7 +5,7 @@ import type {
   RepoConfigContext,
 } from "@web/features/brief/utils";
 import type { Brief } from "../../brief/types";
-import { CommentAnchorKinds } from "types";
+import { CommentAnchorKinds } from "types/comments";
 import {
   isFileCommentAnchor,
   ReviewCommentStatuses,

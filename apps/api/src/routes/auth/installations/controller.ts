@@ -1,7 +1,7 @@
 // Hono-free. The accessible set is ALWAYS re-derived live (the shared
 // resolver); a switch target is honoured ONLY if it is in that set, with NO
-// session/settings mutation otherwise — the handler owns the wire posture.
-import type { Result } from "types";
+// session/settings mutation otherwise; the handler owns the wire posture.
+import type { Result } from "types/utils";
 import { resolveAccessibleInstallations } from "../accessible-installations";
 import type {
   InstallationsControllerDeps,
@@ -58,7 +58,7 @@ export default {
     }
     const { installations, session: currentSession } = resolved.value;
 
-    // Validate against the LIVE set — never trust the caller's id. A target
+    // Validate against the LIVE set; never trust the caller's id. A target
     // the viewer can no longer reach mutates NOTHING.
     const targetIsAccessible = installations.some(
       (installation) => installation.installationId === input.target,

@@ -1,4 +1,4 @@
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import type { ContextReadFailure } from "../../../types";
 
 export type ReadResult<Value> = Result<Value, ContextReadFailure>;

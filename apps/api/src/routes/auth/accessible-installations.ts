@@ -1,4 +1,4 @@
-// The live accessible-installation set — ALWAYS re-derived from GitHub with
+// The live accessible-installation set; ALWAYS re-derived from GitHub with
 // the viewer's own token, never taken from the caller. Shared by the
 // installations and tokens domains (switch/mint validate targets against it).
 import {
@@ -8,7 +8,7 @@ import {
 } from "github";
 import type { Logger } from "logging";
 import { createSessionAuth } from "persistence";
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import { createReviewerGitHubClient } from "./reviewer-github-client";
 import type { AuthRouteDeps, ViewerPrincipal } from "./session";
 
@@ -18,14 +18,14 @@ export interface AccessibleSet {
   readonly session: ViewerPrincipal;
 }
 
-/** Semantic failure kinds — the caller's handler owns the wire mapping. */
+/** Semantic failure kinds; the caller's handler owns the wire mapping. */
 export type AccessibleSetFailure =
   | { readonly kind: "auth-dead" }
   | { readonly kind: "upstream-failed" };
 
 /**
- * `auth-dead` = re-login territory (unreadable stored token — which burns
- * the session, same posture as the repo gate — or a still-unauthorized
+ * `auth-dead` = re-login territory (unreadable stored token; which burns
+ * the session, same posture as the repo gate; or a still-unauthorized
  * GitHub answer); `upstream-failed` = GitHub upstream error.
  */
 export async function resolveAccessibleInstallations(

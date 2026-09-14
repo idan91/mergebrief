@@ -1,5 +1,5 @@
 // Boundary guard for the conversation GET's wire body, parsed against a
-// REALISTIC wire body — route tests that seed the query cache bypass the
+// REALISTIC wire body; route tests that seed the query cache bypass the
 // parser, so this is the contract test.
 import { describe, expect, it } from "vitest";
 import {
@@ -13,7 +13,7 @@ import {
   type PrComment as GithubPrComment,
   type PrConversation as GithubPrConversation,
 } from "github";
-import type { Equals } from "types";
+import type { Equals } from "types/utils";
 import {
   parseConversation,
   ReviewVerdictStates,
@@ -149,7 +149,7 @@ describe("parseConversation", () => {
     if (!parsed.ok) throw new Error("unreachable");
     const [root, reply] = parsed.value.threads[0]?.comments ?? [];
     expect(root?.author.avatarUrl).toBe("https://avatars.example/alice.png");
-    // Entry survives, the field doesn't — img-src defense.
+    // Entry survives, the field doesn't; img-src defense.
     expect(reply?.author.login).toBe("mallory");
     expect(reply?.author.avatarUrl).toBeUndefined();
   });
@@ -173,7 +173,7 @@ describe("parseConversation", () => {
     expect(parsed.ok).toBe(false);
   });
 
-  it("rejects a fresh LINE thread without a line (contract: line absent only for outdated/file-level)", () => {
+  it("rejects a fresh LINE thread without a line", () => {
     const body = wireConversation();
     const threads = (body as { threads: Array<Record<string, unknown>> })
       .threads;
@@ -181,7 +181,7 @@ describe("parseConversation", () => {
     expect(parseConversation(body).ok).toBe(false);
   });
 
-  it("rejects a FILE thread carrying a line (would be placed inline)", () => {
+  it("rejects a FILE thread carrying a line", () => {
     const body = wireConversation();
     const threads = (body as { threads: Array<Record<string, unknown>> })
       .threads;
@@ -189,7 +189,7 @@ describe("parseConversation", () => {
     expect(parseConversation(body).ok).toBe(false);
   });
 
-  it("rejects a thread whose root id differs from its first comment (reply-target mismatch)", () => {
+  it("rejects a thread whose root id differs from its first comment", () => {
     const body = wireConversation();
     const threads = (body as { threads: Array<Record<string, unknown>> })
       .threads;
@@ -254,9 +254,9 @@ const SHAPE_PINS = {
   PrConversation: true satisfies Equals<PrConversation, GithubPrConversation>,
 } as const;
 
-describe("lockstep pins (conversation mirror vs its github source)", () => {
+describe("conversation vocabulary matches its github source", () => {
   // This module mirrors the github package's `PrConversation` domain shape,
-  // and nothing structurally couples the two — CI's per-package path filter
+  // and nothing structurally couples the two; CI's per-package path filter
   // does not run this suite when `packages/github` changes. These pins import
   // the source at dev time (never in the client bundle) so either side moving
   // turns the other red.
@@ -270,7 +270,7 @@ describe("lockstep pins (conversation mirror vs its github source)", () => {
   );
 
   it.each(Object.entries(SHAPE_PINS))(
-    "%s is exactly its github counterpart (key set, types, modifiers)",
+    "%s matches github keys, types, and modifiers",
     (_shape, pinned) => {
       // The pin itself is compile-time (typecheck includes test files); this
       // asserts each one is present, so a pin cannot be silently deleted.

@@ -14,7 +14,7 @@ import {
 import type { Brief, BriefChunk } from "../../types";
 import { buildBriefViewModel } from "../../utils";
 import { useConversationWiring } from "./useConversationWiring";
-import type { Mutable } from "types";
+import type { Mutable } from "types/utils";
 
 afterEach(cleanup);
 

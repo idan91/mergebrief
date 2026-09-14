@@ -2,7 +2,7 @@
 // per HTTP status in `ApiErrorStatusByCode`. `CodeFor<status>` constrains each
 // class to codes of its status, so class, status, and code can never
 // disagree, the status table stays the single source of truth.
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 import {
   ApiErrorCodes,
   type ApiErrorCode,

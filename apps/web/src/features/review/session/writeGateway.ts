@@ -4,7 +4,7 @@
 // the read resolved back.
 import type { BriefViewModel } from "@web/features/brief/utils";
 import type { Category } from "../../brief/types";
-import { CommentAnchorKinds } from "types";
+import { CommentAnchorKinds } from "types/comments";
 import {
   isFileCommentAnchor,
   type CommentAnchor,

@@ -7,7 +7,7 @@ import {
   ReviewCommentStatuses,
   type CommentAnchor,
 } from "../../utils/comments";
-import { CommentAnchorKinds } from "types";
+import { CommentAnchorKinds } from "types/comments";
 import {
   createReviewFlowStore,
   readExpansion,

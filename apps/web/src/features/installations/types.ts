@@ -1,5 +1,5 @@
 // Shapes + boundary guards for the /api/auth/installations endpoints.
-import type { Result as SharedResult } from "types";
+import type { Result as SharedResult } from "types/utils";
 
 type Result<T> = SharedResult<T, string>;
 

@@ -92,7 +92,7 @@ import {
   type TenantRepository,
 } from "persistence";
 import { GitHubApiErrorCodes } from "github";
-import type { Mutable, Result } from "types";
+import type { Mutable, Result } from "types/utils";
 import {
   entryCommentBody,
   entryCommentCappedBody,

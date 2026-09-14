@@ -1,4 +1,4 @@
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import { configError, type ConfigError } from "../contract/errors";
 import { GeneratorError, GeneratorErrorKinds } from "../contract/errors";
 import type { Logger } from "../contract/generator";

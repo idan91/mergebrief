@@ -31,7 +31,7 @@ import {
   type Generator,
 } from "generators";
 import { createLogger } from "logging";
-import type { Mutable, Result } from "types";
+import type { Mutable, Result } from "types/utils";
 import {
   CUSTOM_ATTRIBUTE_NAME_PATTERN,
   INSTRUCTIONS_INJECTION_BUDGET_BYTES,

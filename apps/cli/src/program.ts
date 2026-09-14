@@ -2,7 +2,7 @@
 // run it against the REAL api Hono app and assert the contract surface:
 // exit 0 ⇒ stdout is documented JSON; exit ≠ 0 ⇒ empty stdout, ONE stderr line.
 import { Command } from "commander";
-import type { Mutable } from "types";
+import type { Mutable } from "types/utils";
 import operationsMap from "../product-operations.map.json";
 import {
   CLI_VERSION,

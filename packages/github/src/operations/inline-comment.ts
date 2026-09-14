@@ -10,7 +10,7 @@ import {
 } from "../errors";
 import { ReviewSubjectTypes, type ReviewCommentSide } from "./review-thread";
 import type { Result } from "../types";
-import type { Mutable } from "types";
+import type { Mutable } from "types/utils";
 
 export interface CreateInlineReviewCommentBase {
   readonly owner: string;

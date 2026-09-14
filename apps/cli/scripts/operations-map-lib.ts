@@ -5,7 +5,7 @@
 // web-only note); every map key exists in the manifest. Expected failures
 // return Result; the bin boundary owns exit codes.
 import { createHash } from "node:crypto";
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import { z } from "zod";
 
 const manifestSchema = z.object({

@@ -23,7 +23,7 @@ import {
   type TenantContext,
 } from "persistence";
 import type { PgliteHarness } from "persistence/testing";
-import { CommentAnchorKinds } from "types";
+import { CommentAnchorKinds } from "types/comments";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ExitCodes } from "../src/exit";
 import {

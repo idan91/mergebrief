@@ -1,11 +1,11 @@
 /**
  * Line-offset remapper: carries a frozen chunk's old-side (prevHead) line ranges
  * into new-side (head) coordinates using ONLY the incremental diff's `@@` hunk
- * headers — no content inspection. Any hunk overlapping a carried range returns
+ * headers; no content inspection. Any hunk overlapping a carried range returns
  * a demotion verdict instead of a guessed range: the FE joins on exact line
  * numbers, so a wrong range is worse than a re-look.
  */
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 import type { LineRange } from "../types";
 
 export const RemapOutcomes = {
@@ -73,7 +73,7 @@ function hunkBefore(range: LineRange, hunk: HunkSpan): boolean {
 
 /**
  * Remap old-side ranges through the file's hunks. All-or-nothing: ANY
- * ambiguous range demotes the whole call — a partially-remapped chunk would
+ * ambiguous range demotes the whole call; a partially-remapped chunk would
  * mix coordinate systems.
  */
 export function remapRanges(
@@ -115,7 +115,7 @@ export interface FileHunkSpans {
 
 /**
  * One push's durable hop: the spans of every file that push touched. A file
- * with no entry is read as untouched, so the writer owes two things — a
+ * with no entry is read as untouched, so the writer owes two things; a
  * renamed file listed under its OLD path (zero hunks is enough), and `null`
  * instead of a hop whose file list may be incomplete (truncated compare,
  * force-push, retarget).
@@ -128,7 +128,7 @@ function demoted(reason: string): RemapResult {
 
 /**
  * Compose a chain of hops (oldest → newest) into one remap for ONE anchor's
- * ranges — the reviewer may have missed several pushes. A hop carries no
+ * ranges; the reviewer may have missed several pushes. A hop carries no
  * entry for files it did not touch, so those pass through unchanged; the
  * first hop that demotes ends the chain. Deliberately more conservative than
  * a direct prev→newest span: a range touched then reverted demotes.

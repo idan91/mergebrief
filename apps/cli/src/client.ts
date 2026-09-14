@@ -2,7 +2,7 @@
 // Known wire codes use catalog templates and HTTP status; unknown ones relay server error text.
 // Inject fetch so CLI tests exercise the real Hono app without network calls.
 import { createI18n, en } from "i18n";
-import type { Mutable } from "types";
+import type { Mutable } from "types/utils";
 import { CliError, ExitCodes, exitCodeForStatus } from "./exit";
 
 // One instance for the process, resources are baked in, init is sync.

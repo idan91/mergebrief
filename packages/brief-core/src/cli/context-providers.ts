@@ -1,4 +1,4 @@
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import type { ConfigError, ContextSourcesConfig } from "generators";
 import { createBuiltInContextProviders } from "../context/registry";
 import { resolveTrackerReads, type TrackerReads } from "../context/trackers";

@@ -1,4 +1,4 @@
-import type { Mutable } from "types";
+import type { Mutable } from "types/utils";
 
 import type {
   ForkPrStack,

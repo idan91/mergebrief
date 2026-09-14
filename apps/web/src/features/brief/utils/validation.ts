@@ -44,7 +44,7 @@ import {
 } from "../types";
 
 import { NAME_MAX_CHARS, NAME_PATTERN } from "./repoConfig";
-import type { Mutable, Result as SharedResult, ValueOf } from "types";
+import type { Mutable, Result as SharedResult, ValueOf } from "types/utils";
 
 /** Shared `Result` with this module's fixed error type (a message string). */
 export type Result<T> = SharedResult<T, string>;

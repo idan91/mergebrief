@@ -3,7 +3,7 @@
 // it only collects mtimes.
 import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 
 export const ManifestFreshnesses = {
   FRESH: "fresh",

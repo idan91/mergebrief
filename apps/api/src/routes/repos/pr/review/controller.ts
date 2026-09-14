@@ -23,7 +23,7 @@ import {
   type ReviewThreadFailure,
   type SubmitPullRequestReviewInput,
 } from "github";
-import type { Mutable, Result } from "types";
+import type { Mutable, Result } from "types/utils";
 import {
   buildGitHubDeniedResult,
   isTokenUnreadableFailure,

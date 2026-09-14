@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { z } from "zod/v4";
-import type { Mutable, Result } from "types";
+import type { Mutable, Result } from "types/utils";
 import {
   ContextProviderTypes,
   type ContextSnippet,

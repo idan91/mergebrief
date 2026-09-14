@@ -9,7 +9,7 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import type { Logger } from "logging";
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import { GitHubApiErrorCodes, type GitHubApiError } from "github";
 import {
   afterAll,
@@ -123,7 +123,7 @@ function isDeniedError(error: GitHubApiError): boolean {
   return error.code === GitHubApiErrorCodes.NOT_FOUND;
 }
 
-/** Answers 200 for the PAT alone — a repo outside the App installation. */
+/** Answers 200 for the PAT alone; a repo outside the App installation. */
 function patOnlyCall() {
   return vi.fn(
     async (token: string): Promise<Result<string, GitHubApiError>> =>
@@ -182,7 +182,7 @@ describe("createReviewerGitHubClient", () => {
     expect(call).not.toHaveBeenCalled();
   });
 
-  it("refreshes once on an expired call and re-runs it with the rotated token", async () => {
+  it("retries an expired call once with the refreshed token", async () => {
     const { deps, session } = await setup("stale");
     const rotated = { ...session, sessionTokenHash: "hash-2" };
     vi.mocked(refreshSessionToken).mockResolvedValue({

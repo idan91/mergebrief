@@ -1,6 +1,6 @@
 import "@tanstack/react-start/server-only";
 
-import type { Result, ValueOf } from "types";
+import type { Result, ValueOf } from "types/utils";
 
 /** The API's own default: loopback, the port `apps/api` listens on. */
 export const DEFAULT_API_ORIGIN = "http://127.0.0.1:3001";

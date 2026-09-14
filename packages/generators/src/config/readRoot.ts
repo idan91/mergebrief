@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { parse as parseYaml, YAMLParseError } from "yaml";
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import { configError, type ConfigError } from "../contract/errors";
 
 /**
@@ -9,27 +9,15 @@ import { configError, type ConfigError } from "../contract/errors";
  * generator loader and the narrow policy loader): read the file, parse the
  * YAML, and require a mapping (or empty) root. Sanitization
  * posture lives HERE once: io errors echo only the code, YAML errors echo
- * only the position — file content can carry pasted credentials.
+ * only the position; file content can carry pasted credentials.
  */
 
 /** `null` root = empty file, a valid zero-config choice. */
 export type ConfigRoot = Record<string, unknown> | null;
 
-/**
- * Resolves a `MERGEBRIEF_CONFIG` value to the file to read.
- * Absolute paths pass through. A relative path is anchored at the
- * WORKSPACE ROOT — the nearest ancestor of `cwd` containing
- * `pnpm-workspace.yaml` — never at bare cwd: worker and web run with
- * different working directories (`pnpm --dir`), so cwd-relative would make
- * one env value silently mean a different file per process. Every runtime
- * surface today (local pnpm, the docker images' `COPY . .`) is a full
- * workspace checkout, so the anchor is well-defined; a packaged
- * distribution outside a checkout has no anchor and must use an absolute
- * path (docs/self-host/generators.md).
- *
- * CLI `--config` deliberately does NOT come through here — an interactive
- * shell's cwd is unambiguous.
- */
+// Relative paths anchor at the workspace root because processes have different
+// working directories. Outside a checkout, use an absolute path.
+// Interactive CLI --config paths deliberately use their own cwd resolver.
 export function resolveEnvConfigPath(
   path: string,
   cwd: string,
@@ -75,12 +63,12 @@ export function readConfigRoot(path: string): Result<ConfigRoot, ConfigError> {
   let root: unknown;
   try {
     // logLevel "error": the parser's default WARNING channel prints source
-    // excerpts to stderr (e.g. unresolved tags echo the whole line) — a
+    // excerpts to stderr (e.g. unresolved tags echo the whole line); a
     // config file is where a pasted credential could sit. Errors still
     // throw and are position-sanitized below.
     root = parseYaml(text, { logLevel: "error" });
   } catch (error) {
-    // Position only — YAML error messages embed source snippets.
+    // Position only; YAML error messages embed source snippets.
     const position =
       error instanceof YAMLParseError && error.linePos?.[0]
         ? ` at line ${error.linePos[0].line}`
@@ -97,7 +85,7 @@ export function readConfigRoot(path: string): Result<ConfigRoot, ConfigError> {
   return { ok: true, value: rootRecord(root) };
 }
 
-/** Keys echo only when token-shaped: short, letters and dashes ONLY — key
+/** Keys echo only when token-shaped: short, letters and dashes ONLY; key
  * material is digit-bearing (sk-or-abc123…), so digits disqualify. Same
  * grammar as the registry's CONFIG_KEY_TOKEN. */
 const CONFIG_KEY_ECHO_TOKEN = /^[A-Za-z][A-Za-z-]{0,19}$/;

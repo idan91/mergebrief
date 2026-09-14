@@ -15,7 +15,7 @@ import {
   type KeyProvider,
   type AnchorStatus,
 } from "persistence";
-import { CommentAnchorKinds } from "types";
+import { CommentAnchorKinds } from "types/comments";
 import type * as GithubModule from "github";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

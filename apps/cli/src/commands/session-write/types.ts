@@ -1,5 +1,5 @@
 // The shapes the session-write payload builders speak.
-import type { CommentAnchorKinds } from "types";
+import type { CommentAnchorKinds } from "types/comments";
 
 /**
  * The anchor flags `draft create`/`draft reanchor` share. The explicit

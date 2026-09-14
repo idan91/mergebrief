@@ -1,6 +1,6 @@
 // The PR-meta revision and comparison views: what a client reads off a
 // revision, and why a comparison is unavailable.
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 
 /** Response vocabulary only, never stored, so no DB CHECK and no migration. */
 export const LastReviewUnavailableReasons = {

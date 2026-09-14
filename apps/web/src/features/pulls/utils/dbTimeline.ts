@@ -1,7 +1,7 @@
 // Timeline points represent brief heads; a Delta is a comparison lens.
 // The selected revision's own base drives the brief GET because bases can drift.
 import type { PrComparisons, RevisionSummary } from "../types";
-import type { Mutable } from "types";
+import type { Mutable } from "types/utils";
 
 export interface DbTimelinePoint {
   readonly headSha: string;

@@ -6,7 +6,7 @@ import { briefFixture } from "@web/features/brief/fixtures";
 import { buildBriefViewModel } from "@web/features/brief/utils";
 import { createSessionWriteGateway } from "./writeGateway";
 import type { SessionWrites } from "./writes";
-import { CommentAnchorKinds } from "types";
+import { CommentAnchorKinds } from "types/comments";
 import { ReviewCommentStatuses } from "../utils/comments";
 
 const model = buildBriefViewModel(briefFixture);

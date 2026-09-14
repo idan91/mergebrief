@@ -12,7 +12,7 @@ import { createReviewSessionStore, deriveInitialState } from "./store";
 import { serializeSnapshot } from "./snapshot";
 import type { SessionWriteGateway } from "./writeGateway";
 import type { SessionWriteResult } from "./writes";
-import { CommentAnchorKinds } from "types";
+import { CommentAnchorKinds } from "types/comments";
 
 const model = buildBriefViewModel(briefFixture);
 const firstFlag = model.flags[0];

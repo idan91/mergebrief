@@ -1,6 +1,6 @@
 // Hono-free. URL validation and posture live in the handler; this op owns
 // the viewer-token resolve (with the PAT backstop), the owner-scoped upsert,
-// and the enqueue — the worker does the generation.
+// and the enqueue; the worker does the generation.
 import type { PrLocator } from "brief-core";
 import {
   createUserOctokit,
@@ -15,7 +15,7 @@ import {
   type PullRequestLifecycle,
   type ReviewerId,
 } from "persistence";
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import { isGitHubDenial } from "../../shared-errors/failures";
 import type { ReviewerTokenFailure } from "../auth/reviewer-github-client";
 import type {
@@ -38,7 +38,7 @@ interface GenerateBriefInput {
 
 /**
  * The PR lifecycle as the live GitHub read reports it. Unlike the webhook
- * door, terminal states are first-class here — briefing a merged PR is the
+ * door, terminal states are first-class here; briefing a merged PR is the
  * url-box's primary use.
  */
 function buildLifecycle(info: PullRequestInfo): PullRequestLifecycle {
@@ -62,7 +62,7 @@ function buildLifecycle(info: PullRequestInfo): PullRequestLifecycle {
 /**
  * The PAT backstop covers the one case a GitHub App user token structurally
  * cannot: a private repo with no App installation. Tried once, only after the
- * viewer is denied, and deliberately OUTSIDE `run` — a 401 from the operator's
+ * viewer is denied, and deliberately OUTSIDE `run`; a 401 from the operator's
  * key is not the viewer's expiry, and letting `run` see it would spend the
  * request's one refresh and then tell the reader to sign in again. On that
  * rejection the viewer's own denial stands, matching `runRead`.
@@ -122,7 +122,7 @@ export default {
     const info = resolved.value;
 
     // The owner scope and the grant come from the SAME authenticated session
-    // — the binding the worker cannot verify is minted here, nowhere else.
+    // the binding the worker cannot verify is minted here, nowhere else.
     const principal = deps.github.session();
     const ownerUserId: ReviewerId = principal.reviewerId;
     const prFields = {
@@ -150,7 +150,7 @@ export default {
       grantId: principal.grantId,
     });
     if (!outcome.ok) {
-      // The only expected failure is an invalid debounce — ours is constant.
+      // The only expected failure is an invalid debounce; ours is constant.
       throw new Error(outcome.error.message);
     }
     return {

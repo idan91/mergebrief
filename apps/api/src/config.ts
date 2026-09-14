@@ -2,7 +2,7 @@
 // address it listens on and the values `createApp` needs that no other loader
 // owns. Every other config block comes from the package that owns it.
 import { z } from "zod";
-import type { Result, ValueOf } from "types";
+import type { Result, ValueOf } from "types/utils";
 
 /** Loopback by default: the API is reached through the web tier, not directly. */
 export const DEFAULT_API_HOST = "127.0.0.1";

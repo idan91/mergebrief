@@ -12,7 +12,7 @@ import {
 } from "../errors";
 import { ReviewCommentSides, type ReviewCommentSide } from "./review-thread";
 import type { Result, ValueOf } from "../types";
-import type { Mutable } from "types";
+import type { Mutable } from "types/utils";
 
 /** GitHub wire values for a review thread's subject (line-anchored or file-level). */
 export const ThreadSubjectTypes = {

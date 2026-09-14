@@ -1,6 +1,6 @@
 import type { GitHubApiError } from "github";
 import type { InstallationId } from "persistence";
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import type { InstallationGitHubPort } from "../../../github-port";
 
 /** Narrow slice: the installation-token channel is the only dependency. */
@@ -8,7 +8,7 @@ export interface ConversationControllerDeps {
   readonly github: InstallationGitHubPort;
 }
 
-/** Op-specific failure — the whole lower-layer error rides the Result. */
+/** Op-specific failure; the whole lower-layer error rides the Result. */
 export type ConversationFailure =
   | { readonly kind: "github-denied"; readonly error: GitHubApiError }
   | { readonly kind: "token-unreadable" };

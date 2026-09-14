@@ -8,7 +8,7 @@
 // match is ever attempted. Unanchored threads render only in the digest.
 import type { BriefChunk } from "../../brief/types";
 import { rowId } from "@web/features/review/utils";
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 import {
   ThreadSides,
   ThreadSubjectTypes,

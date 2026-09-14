@@ -3,7 +3,7 @@
 // a comment the reviewer writes a second time.
 import { Categories } from "../../brief/types";
 import { isRecord } from "@web/utils/typeGuards";
-import { CommentAnchorKinds } from "types";
+import { CommentAnchorKinds } from "types/comments";
 import {
   CommentSides,
   ReviewCommentStatuses,

@@ -10,7 +10,7 @@ import {
   type ApiTokenRowId,
   type TokenMintInput,
 } from "persistence";
-import type { Mutable, Result } from "types";
+import type { Mutable, Result } from "types/utils";
 import { resolveAccessibleInstallations } from "../accessible-installations";
 import { sha256Hex } from "../session";
 import { DEFAULT_EXPIRY_DAYS, MS_PER_DAY, TOKEN_BYTES } from "./consts";

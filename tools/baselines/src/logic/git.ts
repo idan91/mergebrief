@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import {
   BaseErrorCodes,
   ChangeKinds,

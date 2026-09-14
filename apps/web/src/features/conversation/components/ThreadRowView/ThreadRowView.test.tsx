@@ -15,7 +15,7 @@ import {
 import type { DigestThreadRow } from "../../utils/digest";
 import type { ConversationThread } from "../../types";
 import type { ThreadComposerWiring } from "../../wiring";
-import type { Mutable } from "types";
+import type { Mutable } from "types/utils";
 import { ThreadRowView } from "./ThreadRowView";
 
 const BRIEF_ID = "db:42:7:base:head";

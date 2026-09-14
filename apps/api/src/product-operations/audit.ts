@@ -1,4 +1,4 @@
-import type { Mutable } from "types";
+import type { Mutable } from "types/utils";
 // ONE emit for every Product Action and every denial of one.
 //
 // Mounted at the ROOT, not inside `action()`: the per-repo gate refuses
@@ -6,7 +6,7 @@ import type { Mutable } from "types";
 // record that denial. The operation still comes from the router's descriptor.
 //
 // Never a read. Never a body, never free text. A row this cannot attribute to
-// a tenant is not written at all — an unauthenticated or unresolvable
+// a tenant is not written at all; an unauthenticated or unresolvable
 // credential leaves only its `api.access` line.
 import type { Context, MiddlewareHandler } from "hono";
 import { matchedRoutes } from "hono/route";
@@ -55,11 +55,11 @@ export const AUDIT_REASON_NO_REPO_ACCESS = "no-repo-access";
 
 /** Which audit rows this instance writes. Both knobs are instance config. */
 export interface AuditEmitConfig {
-  /** `AUDIT_PRIVATE_WRITES` — default on. External writes and denials are
+  /** `AUDIT_PRIVATE_WRITES`; default on. External writes and denials are
    * never switchable: an instance able to post to GitHub with no record is
    * not a configuration. */
   readonly privateWrites: boolean;
-  /** `AUDIT_CALLER_IP` — default off. Socket address only; see
+  /** `AUDIT_CALLER_IP`; default off. Socket address only; see
    * `docs/self-host/operations.md` for the reverse-proxy caveat. */
   readonly callerIp: boolean;
 }
@@ -75,7 +75,7 @@ export interface AuditEmitDeps {
   readonly audit?: AuditEmitConfig;
 }
 
-/** Record the row an action acted on — ids only, never a body. */
+/** Record the row an action acted on; ids only, never a body. */
 export function stampAuditTarget(
   c: { set(key: "auditTarget", value: { type: string; id?: bigint }): void },
   type: string,
@@ -124,7 +124,7 @@ function getOutcome(status: number): AuditOutcome {
 }
 
 /**
- * The one client this instance can attest: its own CLI. Forensic only —
+ * The one client this instance can attest: its own CLI. Forensic only;
  * NOTHING MAY EVER BRANCH ON IT. Matched against a fixed product name, never
  * a shape: a shape admits `192.168.4.17/24`, writing a caller's own address
  * into the ledger with the PII flag off. Stays inside `AuditClientSchema`, so
@@ -196,7 +196,7 @@ function isAuditChannel(value: unknown): value is AuditChannel {
   return Object.values(AuditChannels).some((known) => known === value);
 }
 
-/** One variable out of the context bag, unnarrowed — the callers guard it. */
+/** One variable out of the context bag, unnarrowed; the callers guard it. */
 function readVar(variables: unknown, key: string): unknown {
   if (typeof variables !== "object" || variables === null) return undefined;
   if (!(key in variables)) return undefined;
@@ -371,7 +371,7 @@ export function createAuditMiddleware(
     try {
       await writeAudit(deps.handle, row);
     } catch (error) {
-      // The action already happened — an external write may already have left
+      // The action already happened; an external write may already have left
       // the instance. Never turn a landed action into an error response over
       // the ledger; a missing row is a data-integrity signal instead.
       c.get("logger").error("audit emit failed after a completed action", {

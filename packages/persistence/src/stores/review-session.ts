@@ -4,7 +4,7 @@
 import { and, asc, desc, eq, gt, gte, inArray, lt, lte, or } from "drizzle-orm";
 import { AnchorStates } from "brief-core";
 import type { Hop } from "brief-core/remap";
-import { CommentAnchorKinds, type CommentAnchorKind } from "types";
+import { CommentAnchorKinds, type CommentAnchorKind } from "types/comments";
 import type { AppDrizzle } from "../db/handle";
 import { brief } from "../schema/brief";
 import { disposition } from "../schema/disposition";

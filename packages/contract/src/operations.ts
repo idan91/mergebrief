@@ -2,7 +2,7 @@
 // instead of inline strings, and the router accepts ONLY the derived
 // unions, so an id outside the vocabulary is a compile error and adding an
 // operation starts here.
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 
 export const ProductQueryIds = {
   LIST_PULLS: "list-pulls",

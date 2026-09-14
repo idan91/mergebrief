@@ -22,7 +22,7 @@ import {
   type RepoId,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import {
   afterAll,
   beforeAll,

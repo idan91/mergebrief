@@ -1,12 +1,12 @@
 import { useTranslation } from "react-i18next";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 import type { LivePrState, PrRef } from "../../../../types";
 import styles from "./StateBadge.module.scss";
 
 export interface StateBadgeProps {
   /**
-   * The artifact's stamped `pr` block — the LOCAL path's data source.
+   * The artifact's stamped `pr` block; the LOCAL path's data source.
    * Pre-stamping artifacts carry no `state`, and without a live overlay the
    * badge simply doesn't render; there is no fallback.
    */

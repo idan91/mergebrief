@@ -1,9 +1,9 @@
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 
 /**
  * Rule-based verdicts, no statistics theater: at n=5 a proportion test has no
  * power, so the harness detects CLIFFS (stable → broken), never drifts. Flaky
- * properties are informational by construction — flakiness is itself a
+ * properties are informational by construction; flakiness is itself a
  * finding, either in the prompt or in the property.
  */
 

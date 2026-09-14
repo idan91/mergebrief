@@ -2,7 +2,7 @@
 // Builders return `unknown` because the `-F` arm IS unknown: the payload is
 // the user's bytes, relayed for the server to validate. Only the flag arm
 // has a shape the CLI knows (`FlagAnchor`).
-import { CommentAnchorKinds } from "types";
+import { CommentAnchorKinds } from "types/comments";
 import { CliError, ExitCodes } from "../../exit";
 import type {
   AnchorFlags,

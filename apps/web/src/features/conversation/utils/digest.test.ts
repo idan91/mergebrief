@@ -13,7 +13,7 @@ import {
   type ConversationThread,
   type PrConversation,
 } from "../types";
-import type { Mutable } from "types";
+import type { Mutable } from "types/utils";
 import { createI18n } from "i18n";
 import { ThreadPlacementKinds } from "./anchor";
 

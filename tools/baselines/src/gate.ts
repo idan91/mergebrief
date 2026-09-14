@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import {
   BOUNDARY_RECORDS_PATH,
   LINT_CONFIG_PATH,

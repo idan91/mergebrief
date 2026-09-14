@@ -14,7 +14,7 @@ import {
   type ScopeContext,
 } from "persistence";
 import type { Logger } from "logging";
-import type { Mutable } from "types";
+import type { Mutable } from "types/utils";
 
 // Matches the paste door's window: coalesces a push burst into one follow-up
 // instead of chasing every intermediate head.
@@ -73,7 +73,7 @@ export async function enqueueOwnerHeadFollowUp(
     grantId: input.grantId,
   });
   if (!outcome.ok) {
-    // The only expected failure is an invalid debounce — ours is constant.
+    // The only expected failure is an invalid debounce; ours is constant.
     throw new Error(outcome.error.message);
   }
   input.log.info(

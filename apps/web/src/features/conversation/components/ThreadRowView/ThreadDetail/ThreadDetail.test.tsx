@@ -22,7 +22,7 @@ import type { DigestThreadRow } from "../../../utils/digest";
 import type { ReplyResult } from "../../../reply";
 import type { ResolveThreadResult } from "../../../resolve";
 import type { ConversationThread } from "../../../types";
-import type { Mutable } from "types";
+import type { Mutable } from "types/utils";
 import type {
   ThreadComposerWiring,
   ThreadResolutionWiring,

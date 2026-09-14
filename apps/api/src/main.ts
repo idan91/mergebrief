@@ -20,7 +20,7 @@ import {
   type AppDatabase,
   type PersistenceConfig,
 } from "persistence";
-import type { DraftPolicy } from "types";
+import type { DraftPolicy } from "types/drafts";
 import { createApp } from "./app";
 import { loadConfig, SESSION_KEY_REF, type ApiConfig } from "./config";
 import { handleHealthRequest } from "./health";

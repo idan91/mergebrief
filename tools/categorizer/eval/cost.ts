@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { z } from "zod/v4";
 import { Providers, type Provider } from "generators";
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import type { InvocationUsage } from "./report";
 
 /**
@@ -47,7 +47,7 @@ const perTok = (tokens: number, perMTok: number): number =>
 /**
  * Providers whose reported `inputTokens` EXCLUDE cache reads (the two are
  * disjoint and price additively). OpenAI-compatible providers instead
- * report cached tokens as a SUBSET of prompt_tokens — their cache reads
+ * report cached tokens as a SUBSET of prompt_tokens; their cache reads
  * must be re-priced by subtraction, never added (adding would double-count).
  * Construction is checked against the generators' closed Provider vocabulary;
  * lookup takes the untyped provider half of a "provider:model" key.
@@ -56,7 +56,7 @@ const INPUT_EXCLUDES_CACHE: ReadonlySet<string> = new Set<Provider>([
   Providers.ANTHROPIC,
 ]);
 
-/** `key` is the invocation's `provider:model` — pricing semantics follow
+/** `key` is the invocation's `provider:model`; pricing semantics follow
  * the provider family (see INPUT_EXCLUDES_CACHE). */
 export function priceUsage(
   key: string,
@@ -75,11 +75,11 @@ export function priceUsage(
     );
   }
   if (cacheRate === undefined) {
-    // No cache rate: the whole prompt bills at the input rate — an honest
+    // No cache rate: the whole prompt bills at the input rate; an honest
     // overcount, since cost must never be understated.
     return perTok(usage.inputTokens, row.inputPerMTok) + output;
   }
-  // Guard a pathological wire report (cached > prompt) from going negative —
+  // Guard a pathological wire report (cached > prompt) from going negative;
   // failing toward overcounting, consistent with never-understate.
   const uncached = Math.max(0, usage.inputTokens - usage.cacheReadTokens);
   return (

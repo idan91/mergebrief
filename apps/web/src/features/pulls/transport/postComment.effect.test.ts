@@ -17,7 +17,7 @@ import {
   type CommentAnchor,
   type ReviewComment,
 } from "@web/features/review/utils";
-import { CommentAnchorKinds } from "types";
+import { CommentAnchorKinds } from "types/comments";
 import {
   createReviewSessionStore,
   deriveInitialState,

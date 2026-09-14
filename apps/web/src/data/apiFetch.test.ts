@@ -6,7 +6,7 @@ import {
   ApiErrorCodes as WireErrorCodes,
   type ApiErrorCode as WireErrorCode,
 } from "contract";
-import type { Equals } from "types";
+import type { Equals } from "types/utils";
 import {
   ApiError,
   ApiErrorCodes,

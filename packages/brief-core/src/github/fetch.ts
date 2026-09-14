@@ -8,7 +8,7 @@ import { execFileAsync, MAX_BUFFER, SEGMENT } from "./exec";
 import type { ContextProvider } from "../context/types";
 import { createGitHubRead, GitHubTransports } from "../context/trackers/github";
 import { listReadableTrackers, type TrackerReads } from "../context/trackers";
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import { attachPrStack, type OpenPullRequest } from "../pr-stack";
 import type { FetchedPr, Log, PrLocator, PrMetadata } from "./types";
 

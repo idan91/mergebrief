@@ -6,7 +6,7 @@
 import type { TFunction } from "i18next";
 import type { TranslationKey } from "i18n";
 import { sanitizeErrorDetail } from "logging/sanitize";
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 import { ApiError, ApiErrorCodes } from "../../../data/apiFetch";
 
 /**

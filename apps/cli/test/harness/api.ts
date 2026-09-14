@@ -6,7 +6,7 @@
 import { generateKeyPairSync, randomBytes } from "node:crypto";
 import { createEnvKeyProvider, type KeyProvider } from "persistence";
 import type { PgliteHarness } from "persistence/testing";
-import type { Mutable } from "types";
+import type { Mutable } from "types/utils";
 import {
   findFreePort,
   startApiProcess,

@@ -1,4 +1,4 @@
-import type { Mutable, ValueOf } from "types";
+import type { Mutable, ValueOf } from "types/utils";
 
 /**
  * Construction returns Result; generate throws this shared transport-independent taxonomy.

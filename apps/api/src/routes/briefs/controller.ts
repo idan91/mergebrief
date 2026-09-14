@@ -1,5 +1,5 @@
 // Hono-free. The viewer's own url-box world: list it, or erase one row
-// through the owner-scoped purge — the FK cascade takes every artifact and
+// through the owner-scoped purge; the FK cascade takes every artifact and
 // session with it, and the purge appends its own `delete` audit entry
 // atomically.
 import {
@@ -12,7 +12,7 @@ import {
   type RepoId,
   type ReviewerId,
 } from "persistence";
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import { buildPrView, type PrView } from "../pr-view";
 
 interface DeleteUrlBriefInput {

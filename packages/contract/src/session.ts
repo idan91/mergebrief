@@ -14,7 +14,7 @@ import type {
   DraftCommentStatus,
   ReviewOutcome,
 } from "persistence";
-import type { CommentAnchorKind } from "types";
+import type { CommentAnchorKind } from "types/comments";
 import type { AttentionItem } from "./attention";
 
 /**

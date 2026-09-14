@@ -4,7 +4,7 @@
 // A transport failure returns a sanitized 503 without internal details.
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { ApiErrorCodes } from "contract";
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 
 // The wire vocabulary, owned by `contract`, plus the ONE web-local member:
 // `malformed` is a 2xx whose body failed to parse, a contract error surfaced

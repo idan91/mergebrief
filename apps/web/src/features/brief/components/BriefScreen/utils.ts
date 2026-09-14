@@ -2,7 +2,7 @@
 // so they are unit-testable directly, without rendering.
 import type { TFunction } from "i18next";
 import type { TranslationKey } from "i18n";
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 import type {
   RiskEvidence,
   RiskEvidenceKind,

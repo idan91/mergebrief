@@ -4,7 +4,7 @@
 
 import { parse as parseYaml } from "yaml";
 import { RiskSurfaceAttributes } from "brief-core";
-import type { Mutable, Result } from "types";
+import type { Mutable, Result } from "types/utils";
 import type { z } from "zod/v4";
 import {
   BUDGET_WARN_FRACTION,

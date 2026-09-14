@@ -1,5 +1,5 @@
 import { z } from "zod/v4";
-import type { Result, ValueOf } from "types";
+import type { Result, ValueOf } from "types/utils";
 import type { ConfigError } from "../contract/errors";
 import { renderKey } from "./readRoot";
 import { ENV_VAR_NAME } from "./registry";

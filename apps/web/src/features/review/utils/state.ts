@@ -4,7 +4,7 @@ import {
   isUnattributedRemainderChunk,
   type RiskFlag,
 } from "@web/features/brief/utils";
-import { CommentAnchorKinds } from "types";
+import { CommentAnchorKinds } from "types/comments";
 import {
   ReviewCommentStatuses,
   resolveJumpChunkId,

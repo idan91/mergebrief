@@ -20,7 +20,7 @@ import {
   type PullRequestUpsertInput,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import type { Mutable } from "types";
+import type { Mutable } from "types/utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
 import { testLogger } from "./logging";

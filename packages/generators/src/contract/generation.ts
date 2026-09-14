@@ -1,15 +1,8 @@
 import { z } from "zod/v4";
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 
 /**
- * The port's cross-provider vocabulary: the normalized effort knob and the
- * Generation origin shape every artifact records. Domain schemas
- * (Brief, Delta, …) stay in their own packages — only what every adapter and
- * every artifact shares lives here.
- */
-
-/**
- * Effort — the normalized, cross-provider reasoning-effort knob. Each adapter
+ * Effort; the normalized, cross-provider reasoning-effort knob. Each adapter
  * maps it to its provider's own setting (Anthropic `output_config.effort`,
  * OpenAI `reasoning_effort`, …); a provider without the concept ignores it.
  */
@@ -18,7 +11,7 @@ export const Efforts = ["low", "medium", "high"] as const;
 export type Effort = (typeof Efforts)[number];
 
 /**
- * Generation origin — which provider/model/effort produced this artifact.
+ * Generation origin; which provider/model/effort produced this artifact.
  * CLI-owned metadata (the model never produces it); surfaced on the Receipt and
  * as an understated header label so the analysis is never mistaken for a verdict.
  */
@@ -37,12 +30,6 @@ export const GenerationSchema = z.object({
 
 export type Generation = z.infer<typeof GenerationSchema>;
 
-/**
- * Anchor origin: how a brief relates to its predecessor. `none` = no
- * anchoring was performed; `anchored` = incremental regeneration against the
- * previous brief; `fresh-restart` = a deliberate from-scratch run (the anchor
- * chain restarts here), always with a reason.
- */
 export const AnchorStates = {
   ANCHORED: "anchored",
   FRESH_RESTART: "fresh-restart",
@@ -52,13 +39,13 @@ export type AnchorState = ValueOf<typeof AnchorStates>;
 
 /** Why an anchored-capable generation ran fresh instead. */
 export const FreshRestartReasons = {
-  /** `full-regeneration: on-model-swap` fired — stamped provider/model moved. */
+  /** `full-regeneration: on-model-swap` fired; stamped provider/model moved. */
   MODEL_SWAP: "model-swap",
 } as const;
 export type FreshRestartReason = ValueOf<typeof FreshRestartReasons>;
 
 /**
- * The anchor stamp — CLI/worker-assigned like `Generation`, never
+ * The anchor stamp; CLI/worker-assigned like `Generation`, never
  * model-produced. Strict: `reason` exists exactly on `fresh-restart`.
  */
 export const AnchorSchema = z.discriminatedUnion("state", [

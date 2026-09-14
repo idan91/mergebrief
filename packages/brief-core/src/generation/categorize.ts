@@ -18,7 +18,7 @@ import {
   type RepoContext,
 } from "./repo-context";
 import { AnthropicGenerator, type Generator, type Logger } from "generators";
-import type { Mutable } from "types";
+import type { Mutable } from "types/utils";
 import {
   buildSystemPrompt,
   renderAnchorView,

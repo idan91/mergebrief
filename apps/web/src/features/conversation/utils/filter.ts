@@ -4,7 +4,7 @@
 // Latest-per-reviewer is the default; active verdict filters hide chipless DISMISSED reviews.
 import { toggleSet } from "@web/utils/collections";
 import { buildInlineThreads, type DigestRow } from "./digest";
-import type { Mutable } from "types";
+import type { Mutable, ValueOf } from "types/utils";
 import {
   ReviewVerdictStates,
   type ConversationAuthor,
@@ -12,7 +12,6 @@ import {
   type PrConversation,
 } from "../types";
 import type { BriefChunk } from "../../brief/types";
-import type { ValueOf } from "types";
 
 /**
  * The verdict states that earn a chip, in render order. DISMISSED is absent,

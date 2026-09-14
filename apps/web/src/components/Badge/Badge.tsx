@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import type { ReactNode } from "react";
 
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 import styles from "./Badge.module.scss";
 
 export const BadgeColors = {

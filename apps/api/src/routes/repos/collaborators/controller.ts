@@ -1,6 +1,6 @@
 // Hono-free. The gate proved viewer access and the handler owns posture +
 // the serialized-body cache; this op is the installation-token roster read.
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import type {
   CollaboratorsControllerDeps,
   CollaboratorsFailure,

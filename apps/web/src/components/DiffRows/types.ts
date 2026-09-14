@@ -1,4 +1,4 @@
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 import type { KeyboardEventHandler, MouseEventHandler, ReactNode } from "react";
 import type {
   DiffLine,

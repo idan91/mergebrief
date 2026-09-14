@@ -4,7 +4,7 @@
 // linked-id half of the filter would render "evidence comment missing" for a
 // disposition the reviewer legitimately recorded.
 import { describe, expect, it } from "vitest";
-import { CommentAnchorKinds } from "types";
+import { CommentAnchorKinds } from "types/comments";
 
 import {
   CommentSides,

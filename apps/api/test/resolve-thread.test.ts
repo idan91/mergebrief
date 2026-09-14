@@ -18,7 +18,7 @@ import type {
   GitHubApiError,
   PrConversation,
 } from "github";
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import { createApp, type ApiApp } from "../src/index";
 import { testLogger, testLogging } from "./logging";
 import {

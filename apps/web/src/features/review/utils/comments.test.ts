@@ -1,7 +1,7 @@
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import { describe, expect, it } from "vitest";
 import { createI18n } from "i18n";
-import { CommentAnchorKinds } from "types";
+import { CommentAnchorKinds } from "types/comments";
 
 import {
   buildSuggestionDiffRows,

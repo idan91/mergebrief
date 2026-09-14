@@ -9,7 +9,7 @@ import {
   errorFromResponse,
   type ApiErrorCode,
 } from "../../../data/apiFetch";
-import type { Mutable } from "types";
+import type { Mutable } from "types/utils";
 
 /** 201, posted; `reviewId` is the wrapping review id when GitHub assigns one. */
 export interface PostedComment {

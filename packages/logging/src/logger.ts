@@ -1,7 +1,7 @@
 // The structured-logging boundary: pino is constructed here and nowhere else,
 // and no pino type or value ever appears in an exported signature.
 import { pino, stdSerializers, type LoggerOptions } from "pino";
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 import { scrubSecrets, URL_SHAPED_LOG } from "./scrub";
 
 /** Structured fields riding a log line. Secrets go HERE, never in `msg`. */

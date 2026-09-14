@@ -1,15 +1,15 @@
 // Per-profile config: Zod-validated JSON at `<configDir>/config.json`,
-// written 0600 — the token is stored PLAINTEXT by design (no OS keychain in
+// written 0600; the token is stored PLAINTEXT by design (no OS keychain in
 // v1; the mint UI carries the disclaimer). Profile resolution order is LOCKED:
 //   explicit `--profile` flag / MERGEBRIEF_PROFILE env
 //     → `owners:` match on the git-remote owner
 //       → the default profile.
 // `MERGEBRIEF_TOKEN` overrides the STORED TOKEN of whatever profile resolved
-// — it never changes which profile resolves.
+// it never changes which profile resolves.
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import { CliError, ExitCodes } from "../exit";
 
 const profileSchema = z.object({
@@ -17,12 +17,12 @@ const profileSchema = z.object({
   /** Plaintext by design (0600 file); MERGEBRIEF_TOKEN overrides it. */
   token: z.string().optional(),
   /**
-   * GitHub owners (org/user slugs) this profile serves — the `owners:`
+   * GitHub owners (org/user slugs) this profile serves; the `owners:`
    * arm of profile resolution.
    */
   owners: z.array(z.string().min(1)).optional(),
   /**
-   * Extra static headers on every request — the IdP escape hatch for
+   * Extra static headers on every request; the IdP escape hatch for
    * proxies that need e.g. a client-id header alongside the Bearer.
    */
   headers: z.record(z.string(), z.string()).optional(),
@@ -69,7 +69,7 @@ export function saveConfig(configDir: string, config: CliConfig): void {
   mkdirSync(configDir, { recursive: true, mode: 0o700 });
   const path = join(configDir, "config.json");
   writeFileSync(path, `${JSON.stringify(config, null, 2)}\n`, { mode: 0o600 });
-  // `mode` only applies on CREATE — an existing file keeps its old
+  // `mode` only applies on CREATE; an existing file keeps its old
   // permissions through the rewrite, so enforce 0600 explicitly.
   chmodSync(path, 0o600);
 }

@@ -18,7 +18,7 @@ import {
   type ReviewSessionPayload,
 } from "../../session";
 import { CommentComposer } from "./CommentComposer";
-import { CommentAnchorKinds } from "types";
+import { CommentAnchorKinds } from "types/comments";
 
 afterEach(cleanup);
 

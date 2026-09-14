@@ -1,7 +1,7 @@
-import type { DraftPolicy } from "types";
+import type { DraftPolicy } from "types/drafts";
 
 /**
- * Mirrors `generators`' DEFAULT_DRAFT_POLICY — this package cannot depend on
+ * Mirrors `generators`' DEFAULT_DRAFT_POLICY; this package cannot depend on
  * generators (it would pull the adapter family into the api process), so the
  * literal is deliberately duplicated. Keep both sides in sync.
  */

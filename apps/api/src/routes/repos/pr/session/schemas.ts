@@ -10,7 +10,7 @@ import {
   type DispositionEvidence,
   type DraftCommentSide,
 } from "persistence";
-import { CommentAnchorKinds } from "types";
+import { CommentAnchorKinds } from "types/comments";
 import { z } from "zod";
 import {
   MAX_BODY_LENGTH,

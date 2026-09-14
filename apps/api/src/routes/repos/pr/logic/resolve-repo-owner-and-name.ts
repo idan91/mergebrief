@@ -11,7 +11,7 @@ import {
   type GitHubApiError,
 } from "github";
 import type { RepoId } from "persistence";
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import { ApiErrorCodes } from "contract";
 import { buildGitHubDeniedResult } from "../../../../shared-errors/failures";
 import {

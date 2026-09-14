@@ -1,12 +1,12 @@
 /**
  * Touched-ness predicate: previous-brief groups × incremental-diff evidence →
  * frozen | re-look per group, computed mechanically. Conservative by
- * construction — a group freezes ONLY when every one of its files is positively
+ * construction; a group freezes ONLY when every one of its files is positively
  * confirmed untouched by the prevHead→head span. Renames, binary/mode-only
  * changes, unrecognized statuses, and a missing or possibly-truncated compare
  * file list all demote to re-look: wasteful, never wrong.
  */
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 import type { RevisionChangeFile } from "./revchanges";
 
 export const GroupVerdicts = {
@@ -24,7 +24,7 @@ export type GroupVerdict = ValueOf<typeof GroupVerdicts>;
 export interface CompareFileEntry {
   readonly file: string;
   readonly status: string;
-  /** `previous_filename` — present on renamed/copied entries. */
+  /** `previous_filename`; present on renamed/copied entries. */
   readonly previousFile?: string;
 }
 
@@ -40,13 +40,13 @@ export interface PartitionInput {
   readonly incrementalFiles: readonly RevisionChangeFile[];
   /**
    * The compare endpoint's JSON per-file entries. `undefined` = unavailable
-   * (fetch failed / not attempted) — nothing is confirmable, everything
+   * (fetch failed / not attempted); nothing is confirmable, everything
    * re-looks.
    */
   readonly compareFiles?: readonly CompareFileEntry[];
   /**
    * False when the compare file list may be truncated (GitHub caps it at
-   * 300 files) — absence from the list then proves nothing.
+   * 300 files); absence from the list then proves nothing.
    */
   readonly compareComplete?: boolean;
 }
@@ -54,7 +54,7 @@ export interface PartitionInput {
 export interface GroupPartition {
   readonly id: string;
   readonly verdict: GroupVerdict;
-  /** Present exactly on re-look — the first confirming evidence, for logs. */
+  /** Present exactly on re-look; the first confirming evidence, for logs. */
   readonly reason?: string;
 }
 
@@ -84,7 +84,7 @@ export function partitionGroups(
   }
 
   // Every path named by ANY evidence source counts as touched: parsed hunks
-  // (the raw diff) plus every compare entry — added/removed/modified/renamed/
+  // (the raw diff) plus every compare entry; added/removed/modified/renamed/
   // copied/mode-only/binary all appear there, and an unrecognized status is
   // still an entry. Renames/copies touch BOTH sides.
   const touched = new Map<string, string>();

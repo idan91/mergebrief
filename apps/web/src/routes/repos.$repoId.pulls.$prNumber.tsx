@@ -36,7 +36,7 @@ import {
   type ConversationFilter,
   type ConversationFilterSearch,
 } from "@web/features/conversation/utils";
-import type { Mutable } from "types";
+import type { Mutable } from "types/utils";
 
 const META_POLL_MS = 4000;
 

@@ -9,7 +9,7 @@ import type {
 } from "../src/stores/ingest";
 import { createIngestRoutines } from "../src/stores/ingest";
 import type { PullRequestUpsertInput } from "../src/stores/tenant";
-import type { Mutable } from "types";
+import type { Mutable } from "types/utils";
 import {
   createTenantRepository,
   parseTenantContext,

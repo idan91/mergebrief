@@ -4,7 +4,7 @@ import {
   DraftCommentStatuses,
   type ReviewDraftCommentRow,
 } from "persistence";
-import { CommentAnchorKinds } from "types";
+import { CommentAnchorKinds } from "types/comments";
 import { describe, expect, it } from "vitest";
 import { readDraftAnchor, shapeInlineCommentWrite } from "./draft-anchor";
 

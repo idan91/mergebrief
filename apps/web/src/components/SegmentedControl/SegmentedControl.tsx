@@ -2,7 +2,7 @@
 // supplies group semantics, one tab stop, and arrow-key movement. The inputs
 // are visually hidden; the labels carry the chrome.
 import { useId, useState } from "react";
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import styles from "./SegmentedControl.module.scss";

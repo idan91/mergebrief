@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod/v4";
-import type { Result, ValueOf } from "types";
+import type { Result, ValueOf } from "types/utils";
 import {
   ClaudeCodeGenerator,
   CLAUDE_PROBE,
@@ -21,20 +21,6 @@ import { Efforts } from "../contract/generation";
 import { AnthropicGenerator } from "../adapters/anthropic";
 import type { Generator, Logger } from "../contract/generator";
 import { probeHarnessCli } from "../harness/probe";
-
-/**
- * The static compiled-in generator registry: each entry = a provider token,
- * a strict Zod options schema (carrying the provider literal as
- * discriminant), and an async `create`. The config union is DERIVED from the
- * registry — one source of truth for the provider vocabulary, the config
- * schema, and unknown-provider errors. Adding an adapter = one class + one
- * options schema + one entry (+ one dispatch case, which the compiler
- * enforces via exhaustiveness).
- *
- * Construction returns `Result` — a misconfigured instance must refuse to
- * boot loudly at the startup wiring, never limp into jobs. `generate()`
- * keeps throwing (GeneratorError) — Result is for construction only.
- */
 
 /** Provider vocabulary. */
 export const Providers = {
@@ -105,7 +91,7 @@ const DEFAULT_ANTHROPIC_KEY_ENV = "ANTHROPIC_API_KEY";
 /**
  * Normalized reasoning effort: the closed contract vocabulary
  * (`low | medium | high`), requested per generation. Optional on every
- * adapter — the DEFAULT (`medium`) lives at the consumption site in
+ * adapter; the DEFAULT (`medium`) lives at the consumption site in
  * brief-core, not here. Adapters that cannot honor it stay honest via
  * the origin stamp (`effort: null`), never a config rejection.
  */
@@ -186,7 +172,7 @@ const DEFAULT_CODEX_COMMAND = "codex";
 const cursorOptions = z
   .object({
     provider: z.literal(Providers.CURSOR),
-    /** Model id VERBATIM from `cursor-agent --list-models` — effort rides
+    /** Model id VERBATIM from `cursor-agent --list-models`; effort rides
      * the id variant; bracketed ids refuse boot (the CLI rejects them). */
     model: z
       .string()
@@ -216,7 +202,7 @@ const DEFAULT_OPENAI_KEY_ENV = "OPENAI_API_KEY";
 const openaiOptions = z
   .object({
     provider: z.literal(Providers.OPENAI),
-    /** Model id — REQUIRED: there is no honest universal default here. */
+    /** Model id; REQUIRED: there is no honest universal default here. */
     model: z.string().min(1),
     /** NAME of the env var holding the key (BYOK-by-env-name). */
     apiKeyEnv: z.string().min(1).optional(),
@@ -236,7 +222,7 @@ const DEFAULT_OPENROUTER_KEY_ENV = "OPENROUTER_API_KEY";
 const openrouterOptions = z
   .object({
     provider: z.literal(Providers.OPENROUTER),
-    /** Full OpenRouter slug (e.g. "anthropic/claude-opus-4.8") — REQUIRED. */
+    /** Full OpenRouter slug (e.g. "anthropic/claude-opus-4.8"); REQUIRED. */
     model: z.string().min(1),
     apiKeyEnv: z.string().min(1).optional(),
     /**
@@ -442,7 +428,7 @@ export const defaultGeneratorConfig: GeneratorConfig = {
 /**
  * Runtime marker: the compose worker image bakes
  * `MERGEBRIEF_RUNTIME=compose-worker`, and `createGenerator` refuses harness
- * providers under it — the image ships no CLI binaries, so the generic
+ * providers under it; the image ships no CLI binaries, so the generic
  * missing-binary probe error would misdiagnose a deliberate boundary.
  */
 export const RUNTIME_MARKER_VAR = "MERGEBRIEF_RUNTIME";
@@ -460,14 +446,14 @@ function registeredProviders(): string[] {
 }
 
 /**
- * Provider tokens are short kebab-case words (no digits — key material like
+ * Provider tokens are short kebab-case words (no digits; key material like
  * `sk-ant-api03-…` is kebab-shaped but digit-bearing and long); anything
  * outside this grammar is echoed redacted.
  */
 const PROVIDER_TOKEN = /^[a-z][a-z-]{0,19}$/;
 
 function describeConfigIssues(error: z.ZodError, config: unknown): string[] {
-  // An unknown provider gets a purpose-built message naming the vocabulary —
+  // An unknown provider gets a purpose-built message naming the vocabulary;
   // the raw discriminated-union error is cryptic. The rejected value is
   // echoed ONLY when it looks like a token (a pasted credential must never
   // reach errors or logs).
@@ -487,7 +473,7 @@ function describeConfigIssues(error: z.ZodError, config: unknown): string[] {
   }
   return error.issues.map((issue) => {
     const path = issue.path.join(".") || "config";
-    // Strict-object rejections list the offending KEY NAMES — render them
+    // Strict-object rejections list the offending KEY NAMES; render them
     // through the same token gate so a credential pasted as a key never
     // reaches errors or logs (typos like "modle" still echo).
     if (issue.code === "unrecognized_keys") {
@@ -542,7 +528,7 @@ export async function createGenerator(
       `provider: harness CLIs (${[...HARNESS_PROVIDERS].join(", ")}) are not available in the compose worker — use an API provider, or point the worker at its own MERGEBRIEF_CONFIG (see docs/self-host/generators.md)`,
     ]);
   }
-  // Dispatch by discriminant — the switch keeps option-to-create type
+  // Dispatch by discriminant; the switch keeps option-to-create type
   // correlation without casts; exhaustiveness is compiler-checked.
   switch (parsed.data.provider) {
     case Providers.ANTHROPIC:

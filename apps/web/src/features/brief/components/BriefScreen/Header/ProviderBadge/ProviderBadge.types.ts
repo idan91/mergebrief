@@ -1,5 +1,5 @@
 import type { ComponentType, SVGProps } from "react";
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 
 export type MarkComponent = ComponentType<SVGProps<SVGSVGElement>>;
 

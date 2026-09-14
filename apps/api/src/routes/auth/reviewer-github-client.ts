@@ -1,7 +1,7 @@
-// The per-request reviewer-identity GitHub channel — counterpart of
+// The per-request reviewer-identity GitHub channel; counterpart of
 // `InstallationGitHubPort`. One instance per request: the stored token is
 // decrypted lazily ONCE, and an expired call spends the request's single
-// refresh (`refreshSessionToken`) before re-running — the token can expire
+// refresh (`refreshSessionToken`) before re-running; the token can expire
 // between calls, and per-call-site refresh logic either misses that or
 // refreshes more than once. Hand-rolled refresh locals are banned.
 import { GitHubApiErrorCodes } from "github";
@@ -11,7 +11,7 @@ import {
 } from "../../shared-errors/failures";
 import type { Logger } from "logging";
 import { decryptToken } from "persistence";
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import {
   refreshSessionToken,
   type AuthRouteDeps,
@@ -20,7 +20,7 @@ import {
   type ViewerPrincipal,
 } from "./session";
 
-/** The stored ciphertext could not be decrypted — re-auth territory; the
+/** The stored ciphertext could not be decrypted; re-auth territory; the
  * caller owns the posture (burn the session, 401, …). One shape with the
  * shared failure vocabulary so the two can never drift. */
 export type ReviewerTokenFailure = TokenUnreadableFailure;
@@ -124,7 +124,7 @@ export function createReviewerGitHubClient(
       }
       currentSession = refreshed.value.session;
       accessToken = refreshed.value.accessToken;
-      // Re-run ONLY a call that ran on the pre-rotation token — a 401 on the
+      // Re-run ONLY a call that ran on the pre-rotation token; a 401 on the
       // rotated token itself gets no second spend.
       if (accessToken === usedToken) {
         return result;
@@ -149,7 +149,7 @@ export function createReviewerGitHubClient(
       }
       // The OPERATOR's key is what GitHub rejected. Returning its 401 would
       // send the reader to re-authenticate, which cannot repair a credential
-      // that is not theirs — the reader's own denial is the honest answer.
+      // that is not theirs; the reader's own denial is the honest answer.
       log.warn(
         "url-box fallback token rejected by GitHub — check the operator PAT",
       );

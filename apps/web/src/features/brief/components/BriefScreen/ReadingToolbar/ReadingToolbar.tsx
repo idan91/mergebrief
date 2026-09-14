@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef } from "react";
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 
 import { IconButton } from "@web/components/IconButton/IconButton";
 import { ToolbarButton } from "@web/components/ToolbarButton/ToolbarButton";
@@ -37,7 +37,7 @@ export interface ReadingToolbarProps {
   filter?: FilterDisclosureProps | undefined;
   rail: AttributeRail;
   jumpToGroup: (groupId: string) => void;
-  /** Bulk status, never a lock — chunks stay individually expandable. */
+  /** Bulk status, never a lock; chunks stay individually expandable. */
   supportingCollapse: SupportingCollapseState;
   /** All collapsed → expand all; otherwise collapse all. */
   toggleCollapseSupporting: () => void;
@@ -67,7 +67,7 @@ export function ReadingToolbar({
   const barRef = useRef<HTMLDivElement | null>(null);
 
   // Sticky chunk headers pin below the bar via the measured height; 0px
-  // whenever the bar unmounts. The CSS-side fallback is 0px too — there is
+  // whenever the bar unmounts. The CSS-side fallback is 0px too; there is
   // no one honest static value, so a pre-hydration scroll pins chunk headers
   // barless until this effect publishes.
   useEffect(() => {

@@ -12,7 +12,7 @@ import {
   WriteClassifications,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import {
   afterAll,
   beforeAll,
@@ -130,7 +130,7 @@ beforeEach(() => {
 });
 
 describe("repoAuthzLayer refresh disambiguation", () => {
-  it("collapses a still-401 retry AFTER a successful refresh to the uniform 404", async () => {
+  it("collapses a 401 after successful refresh to 404", async () => {
     const app = await buildGateApp();
     vi.mocked(fetchRepositoryById).mockResolvedValue(denied(401));
     vi.mocked(refreshSessionToken).mockImplementation(async (_d, session) => ({

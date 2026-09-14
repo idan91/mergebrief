@@ -20,7 +20,7 @@ import {
   type Specificity as BriefCoreSpecificity,
   type RevisionNarrativeSkipReason as BriefCoreRevisionNarrativeSkipReason,
 } from "brief-core";
-import type { Equals } from "types";
+import type { Equals } from "types/utils";
 import {
   AlignmentReads,
   Categories,
@@ -79,12 +79,12 @@ const VOCABULARY_PINS: readonly VocabularyPin[] = [
   },
 ];
 
-describe("lockstep pins (brief vocabulary mirror vs brief-core)", () => {
+describe("brief vocabulary matches brief-core", () => {
   it.each(VOCABULARY_PINS)(
     "$label mirrors brief-core's wire values exactly",
     ({ mirror, source }) => {
       // Sorted comparison is MULTISET equality: it catches an added, removed,
-      // renamed, or duplicated token. Only the order is forgiven — the FE
+      // renamed, or duplicated token. Only the order is forgiven; the FE
       // map's declaration order is local, so an upstream reorder is not drift.
       expect(Object.values(mirror).toSorted()).toEqual(source.toSorted());
     },
@@ -114,7 +114,7 @@ describe("lockstep pins (brief vocabulary mirror vs brief-core)", () => {
     > = true;
     expect(specificityPin && skipReasonPin).toBe(true);
     // Runtime half: the wire values themselves, against literals from the
-    // spec — so a token renamed on BOTH sides in lockstep (type pins happy,
+    // spec; so a token renamed on BOTH sides in lockstep (type pins happy,
     // stored artifacts broken) still fails here.
     expect(Object.values(BriefCoreSpecificities).toSorted()).toEqual([
       "broad",

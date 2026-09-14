@@ -1,4 +1,4 @@
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import type { Log } from "../github/types";
 import { TicketUnreadReasons } from "../types";
 import { resolvePrimaryTicket, type TicketReference } from "./references";

@@ -1,5 +1,5 @@
 import type { MouseEvent } from "react";
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 
 export const SidebarTabs = {
   THIS_PR: "this-pr",

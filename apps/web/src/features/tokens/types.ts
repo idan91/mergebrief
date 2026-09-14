@@ -1,5 +1,5 @@
 // Shapes + boundary guards for the /api/auth/tokens endpoints.
-import type { Result as SharedResult, ValueOf } from "types";
+import type { Result as SharedResult, ValueOf } from "types/utils";
 
 type Result<T> = SharedResult<T, string>;
 
@@ -19,7 +19,7 @@ function isTokenScope(value: unknown): value is TokenScope {
   return Object.values(TokenScopes).some((known) => known === value);
 }
 
-/** One token as the settings list shows it — metadata only, never material. */
+/** One token as the settings list shows it; metadata only, never material. */
 export interface ApiTokenView {
   readonly id: string;
   readonly name: string;
@@ -37,7 +37,7 @@ export interface TokensView {
   readonly tokens: ApiTokenView[];
 }
 
-/** The mint response — the ONE body that ever carries token material. */
+/** The mint response; the ONE body that ever carries token material. */
 export interface MintedToken {
   readonly token: string;
   readonly apiToken: ApiTokenView;

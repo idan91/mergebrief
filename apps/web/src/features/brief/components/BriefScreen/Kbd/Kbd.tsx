@@ -1,7 +1,7 @@
 import { Children, Fragment, type ReactNode } from "react";
 import clsx from "clsx";
 
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 import styles from "./Kbd.module.scss";
 
 export const KbdSizes = {

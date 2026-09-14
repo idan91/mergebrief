@@ -19,7 +19,7 @@ import {
   type TenantContext,
   type WriteClassification,
 } from "persistence";
-import { CommentAnchorKinds } from "types";
+import { CommentAnchorKinds } from "types/comments";
 import { vi } from "vitest";
 import {
   INSTALLATION_ID,

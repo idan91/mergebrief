@@ -1,7 +1,7 @@
 import type { Placement } from "@floating-ui/react";
 import type { ComponentPropsWithRef, MouseEvent } from "react";
 import { useState } from "react";
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 import clsx from "clsx";
 
 import { useMergedRef } from "@web/hooks/useMergedRef";

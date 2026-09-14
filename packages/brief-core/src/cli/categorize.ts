@@ -25,7 +25,7 @@ import {
   extractContextFlag,
   extractOutFlag,
 } from "./config";
-import type { Mutable } from "types";
+import type { Mutable } from "types/utils";
 import { describeUnreadPrimary, readContextFile } from "./context-file";
 import {
   buildContextQuery,

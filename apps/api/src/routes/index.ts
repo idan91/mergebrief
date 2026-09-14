@@ -1,9 +1,9 @@
-// The `/api` router — composition only, no handlers. Every path inside a
+// The `/api` router; composition only, no handlers. Every path inside a
 // route file is its LOCAL segment; `/api` itself exists in exactly one line
 // of app.ts.
 import type { Logger } from "logging";
 import type { AppDatabase } from "persistence";
-import type { DraftPolicy } from "types";
+import type { DraftPolicy } from "types/drafts";
 import type { RequestLogEnv } from "../request-logging";
 import type { AuditEmitConfig } from "../product-operations/audit";
 import {
@@ -40,8 +40,8 @@ export interface AppDeps {
   readonly audit?: AuditEmitConfig;
   /**
    * Operator PAT backstop (`MERGEBRIEF_URL_BOX_TOKEN`) for the url-box door's
-   * viewer-token resolve, the per-repo gate's second rung, and — in the
-   * worker — the generation reads. Absent disables the fallback.
+   * viewer-token resolve, the per-repo gate's second rung, and; in the
+   * worker; the generation reads. Absent disables the fallback.
    */
   readonly urlBoxFallbackToken?: string | undefined;
 }

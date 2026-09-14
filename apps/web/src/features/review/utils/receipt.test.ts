@@ -1,6 +1,6 @@
 import { createI18n } from "i18n";
 import { describe, expect, it } from "vitest";
-import { CommentAnchorKinds } from "types";
+import { CommentAnchorKinds } from "types/comments";
 
 import { briefFixture } from "@web/features/brief/fixtures";
 import { buildBriefViewModel, GroupViewKinds } from "@web/features/brief/utils";

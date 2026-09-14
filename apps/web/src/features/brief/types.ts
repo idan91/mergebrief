@@ -47,7 +47,7 @@ export const RiskSurfaceAttributes = {
   RELEASE_IMMINENT: "release-imminent",
 } as const;
 
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 
 export type Category = ValueOf<typeof Categories>;
 export type Concern = ValueOf<typeof Concerns>;

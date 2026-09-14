@@ -1,7 +1,7 @@
 // Read the three fixed default-branch paths fresh and validate for injection and snapshots.
 // Failures must never reject acquisition: degrade to no config with explicit per-file outcomes.
 import type { CustomRiskAttributeInput, RepoContext } from "brief-core";
-import type { Mutable } from "types";
+import type { Mutable } from "types/utils";
 import { RepoFileKinds } from "github";
 import {
   INSTRUCTIONS_BUDGET_BYTES,

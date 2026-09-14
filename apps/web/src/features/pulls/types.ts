@@ -5,7 +5,7 @@ import {
   LastReviewUnavailableReasons,
   type LastReviewUnavailableReason,
 } from "contract";
-import type { Mutable, Result as SharedResult, ValueOf } from "types";
+import type { Mutable, Result as SharedResult, ValueOf } from "types/utils";
 
 type Result<T> = SharedResult<T, string>;
 

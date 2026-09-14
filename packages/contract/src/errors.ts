@@ -4,7 +4,7 @@
 //
 // A code needing two statuses is two codes, so `ApiErrorStatusByCode` is 1:1
 // and `ApiErrorBody` is what a client can rely on being handed.
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 
 export const ApiErrorCodes = {
   UNAUTHORIZED: "unauthorized",

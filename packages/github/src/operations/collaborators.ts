@@ -9,7 +9,7 @@ import {
   type GitHubApiError,
 } from "../errors";
 import type { Result } from "../types";
-import type { Mutable } from "types";
+import type { Mutable } from "types/utils";
 
 export interface RepoCollaborator {
   readonly login: string;

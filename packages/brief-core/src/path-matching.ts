@@ -2,7 +2,7 @@
 // apps/web presents the same repo configuration. Pure and browser-safe: no
 // Node globals, no runtime imports.
 
-import type { ValueOf } from "types";
+import type { ValueOf } from "types/utils";
 
 const GlobTokenKinds = {
   LITERAL: "literal",

@@ -1,4 +1,4 @@
-import type { Mutable } from "types";
+import type { Mutable } from "types/utils";
 // Dependencies are INJECTED: this module never reads `process.env` and never
 // constructs a DB.
 import type { Hono } from "hono";

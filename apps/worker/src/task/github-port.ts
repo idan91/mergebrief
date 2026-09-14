@@ -38,7 +38,7 @@ import {
   type InstallationId,
   type KeyProvider,
 } from "persistence";
-import type { Result } from "types";
+import type { Result } from "types/utils";
 import { PermanentJobError } from "./failure";
 
 export type {

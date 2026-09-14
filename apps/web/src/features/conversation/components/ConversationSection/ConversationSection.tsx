@@ -37,7 +37,7 @@ import type {
 import { DigestGroupView } from "./DigestGroupView/DigestGroupView";
 import { headSummary } from "./utils";
 import styles from "./ConversationSection.module.scss";
-import type { Mutable } from "types";
+import type { Mutable } from "types/utils";
 
 /** The route-injected data plan (absent on the local demo path). */
 export interface ConversationPlan {

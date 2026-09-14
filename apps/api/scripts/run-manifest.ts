@@ -2,7 +2,7 @@
 // every source, `--check` always composes because it is the enforcement path.
 // Exit codes live at the bin boundary.
 import { readFile, writeFile } from "node:fs/promises";
-import type { Result, ValueOf } from "types";
+import type { Result, ValueOf } from "types/utils";
 import {
   EmptyCatalogError,
   renderManifest,
@@ -39,7 +39,7 @@ export interface RunManifestOptions {
   readonly manifestPath: string;
   /** Files/directories whose mtimes gate the write path's short-circuit. */
   readonly sourceRoots: readonly string[];
-  /** Composing the app IS registering — the caller owns that cost. */
+  /** Composing the app IS registering; the caller owns that cost. */
   readonly collectOperations: () => Promise<
     readonly ProductOperationDescriptor[]
   >;

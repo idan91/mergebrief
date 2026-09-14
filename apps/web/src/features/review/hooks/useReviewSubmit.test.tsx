@@ -14,7 +14,7 @@ import {
 import type { Receipt } from "../utils/receipt";
 import type { SubmitReviewResult } from "../utils/submit";
 import { useReviewSubmit, type UseReviewSubmitInput } from "./useReviewSubmit";
-import { CommentAnchorKinds } from "types";
+import { CommentAnchorKinds } from "types/comments";
 
 const RECEIPT: Receipt = {
   subject: { repo: "octo/hello", number: 7, sha: "c".repeat(40) },

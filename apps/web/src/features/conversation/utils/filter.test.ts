@@ -26,7 +26,7 @@ import type {
   PrLevelComment,
   ReviewVerdictState,
 } from "../types";
-import type { Mutable } from "types";
+import type { Mutable } from "types/utils";
 
 function review(
   reviewId: number,
