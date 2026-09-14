@@ -12,9 +12,9 @@ import type { GitHubApiError } from "github";
 import type { Logger } from "logging";
 import type { ArtifactStore, BriefSpanRow } from "persistence";
 import type { Mutable, Result } from "types/utils";
-import { PermanentJobError } from "./failure";
-import type { PullRequestSource } from "./github-port";
-import type { ParsedGeneratePayload } from "./payload";
+import { PermanentJobError } from "../../failure";
+import type { PullRequestSource } from "../../github-port";
+import type { ParsedGeneratePayload } from "../../payload";
 
 export interface AnchoredRunInputs {
   readonly store: ArtifactStore;

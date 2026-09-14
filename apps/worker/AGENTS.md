@@ -10,7 +10,7 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 
 What the layout can't show:
 
-- `task/generate.ts` orchestrates payload → tenancy → idempotent skip → brief/marks/narrative/delta cores → projection + errors.
+- `task/generate/` is the job. `index.ts` orchestrates payload → tenancy → spend gate → supersession → brief → entry comment → revision artifacts → delta cores → projection + errors; `types.ts`, `consts.ts` and `utils.ts` hold its shapes, tokens and pure helpers. `logic/` holds the steps, most taking the payload and an inputs record: `job-failure` (mark failed, the job.fail and retries-exhausted events), `spend-gate` (the daily cap, before markRunning), `supersession-watch` (the abort controller and head polls), `errors` (permanent vs transient classification, the provider.error event, the timed generator call), `pr-metadata`, `ticket-context` (the memoized tracker read), `entry-comment-gate` (draft opt-in and the delete-only sweep), `entry-comment-manager` (the four operations over one live comment id; body builders stay in `task/entry-comment.ts`), `brief-generation` (fresh brief: `anchor-decision` for whether to anchor and `anchored-run` for how, then the model call, stitch and write; plus the skip path's retry-resume), `revision-artifacts` (marks + narrative) and `checkpoint-deltas` (one core per checkpoint SHA).
 - `task/github-port.ts` is the testable GitHub boundary spanning both credential worlds (App installation client, or a url-box job's grant-resolved viewer token with operator-PAT probe fallback).
 - `runner.ts` owns boot order (app-schema → queue-schema migrations) and the long-lived graphile runner.
 

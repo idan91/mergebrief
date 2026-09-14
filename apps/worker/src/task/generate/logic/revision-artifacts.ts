@@ -1,0 +1,189 @@
+import {
+  buildComparisonMarks,
+  categorizeRevisionNarrative,
+  countChangedLines,
+  isHugeSpan,
+  type Brief,
+  type RevisionNarrativeSkipped,
+} from "brief-core";
+import type { Logger } from "logging";
+import { PermanentJobError } from "../../failure";
+import type { PullRequestSource } from "../../github-port";
+import type { ParsedGeneratePayload } from "../../payload";
+import type { RevisionArtifactInputs } from "../types";
+import { getGenerationOrigin } from "../utils";
+import { isPermanentGitHubError } from "./errors";
+
+/**
+ * Comparison marks (mechanical, always) + revision narrative (generated,
+ * best-effort, a narrative failure never fails the Brief, mirroring
+ * `generateAndWrite`). Marks are written BEFORE the narrative call so a
+ * failed narrative still leaves highlights available.
+ */
+export async function writeRevisionArtifacts(
+  payload: ParsedGeneratePayload,
+  inputs: RevisionArtifactInputs,
+): Promise<void> {
+  const {
+    store,
+    locator,
+    meta,
+    revDiff,
+    prevBrief,
+    briefRef,
+    generatedBrief,
+    log,
+  } = inputs;
+  const { pullRequestId, headSha } = payload;
+  const prevHeadSha = prevBrief.headSha;
+
+  const marks = buildComparisonMarks(
+    headSha,
+    prevHeadSha,
+    "previous-brief",
+    prevBrief.headIndex,
+    revDiff,
+  );
+  // Persistence's strict schema is coordinates-only: pass exactly the SHA
+  // pair + files, never the read-time label/index context.
+  const marksWritten = await store.comparisonMarks.write({
+    pullRequestId,
+    marks: {
+      baselineSha: marks.baselineSha,
+      headSha: marks.headSha,
+      files: marks.files,
+    },
+  });
+  if (!marksWritten.ok) {
+    // Marks are critical for the comparison UI: surface loudly, but classify
+    // as permanent, the same inputs would fail identically on retry.
+    throw new PermanentJobError(marksWritten.error.message);
+  }
+
+  if (generatedBrief === undefined) {
+    // Either the narrative for this span is already stored (retry after a
+    // fully-successful revision pass) or the stored brief body couldn't be
+    // recovered, marks (above) are idempotently refreshed either way.
+    return;
+  }
+
+  const skipStub = (
+    skipped: RevisionNarrativeSkipped["skipped"],
+  ): RevisionNarrativeSkipped => ({
+    artifactKind: "revisionNarrativeSkipped",
+    pr: generatedBrief.pr,
+    prevHeadSha,
+    headSha,
+    prevIndex: prevBrief.headIndex,
+    headIndex: briefRef.headIndex,
+    skipped,
+  });
+
+  const writeNarrative = async (
+    body: string,
+    origin: Brief["generation"],
+  ): Promise<void> => {
+    const written = await store.revisionNarratives.write({
+      pullRequestId,
+      briefId: briefRef.id,
+      prevHeadSha,
+      headSha,
+      ...getGenerationOrigin(origin),
+      body,
+    });
+    if (!written.ok) {
+      throw new PermanentJobError(written.error.message);
+    }
+  };
+
+  const narrativeGate = inputs.revisionNarrative ?? { enabled: true };
+  if (!narrativeGate.enabled) {
+    const disabledStub = JSON.stringify(skipStub("disabled by config"));
+    await writeNarrative(disabledStub, generatedBrief.generation);
+    return;
+  }
+  const revSpanHuge = isHugeSpan(
+    countChangedLines(revDiff),
+    inputs.wholePrChangedLines,
+    inputs.hugeSpanRatio,
+  );
+  if (revSpanHuge) {
+    const hugeSpanStub = JSON.stringify(skipStub("span too large"));
+    await writeNarrative(hugeSpanStub, generatedBrief.generation);
+    log.info("generate: revision span too large; wrote skip stub");
+    return;
+  }
+
+  // Supersession gate BEFORE spending on the narrative call; deliberately
+  // outside the try, a supersession must propagate, never be swallowed as a
+  // narrative failure.
+  await inputs.watch.assertCurrent();
+  const { links, primaryTicket } = await inputs.loadContext();
+  try {
+    const narrative = await categorizeRevisionNarrative(
+      {
+        locator,
+        meta,
+        prevHeadSha,
+        headSha,
+        prevIndex: prevBrief.headIndex,
+        headIndex: briefRef.headIndex,
+        incrementalDiff: revDiff,
+        links,
+        primaryTicket,
+        brief: generatedBrief,
+        marksFiles: marks.files,
+      },
+      inputs.generator,
+      (message) => log.info(message),
+      inputs.effort,
+    );
+    await writeNarrative(JSON.stringify(narrative), narrative.generation);
+  } catch (error) {
+    if (inputs.watch.signal.aborted) {
+      // A mid-stream abort is a supersession, not a narrative failure.
+      throw error;
+    }
+    log.warn(
+      `generate: revision narrative failed (Brief unaffected): ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+}
+
+/**
+ * The checkpoint span diff, or undefined when GitHub can no longer render it:
+ * a single unrenderable/GC'd span must not sink the whole job (the brief is
+ * already stored); the view falls back to the full Brief.
+ */
+export async function resolveDeltaSpanDiff(
+  source: PullRequestSource,
+  baselineSha: string,
+  headSha: string,
+  log: Logger,
+): Promise<string | undefined> {
+  const spanDiff = await source.fetchCompareDiff(baselineSha, headSha);
+  if (spanDiff.ok) {
+    return spanDiff.value;
+  }
+
+  if (isPermanentGitHubError(spanDiff.error)) {
+    log.warn(
+      `generate: delta span ${baselineSha.slice(0, 8)} unavailable — skipping`,
+    );
+    return undefined;
+  }
+  throw new Error(spanDiff.error.message);
+}
+
+/** Whole-PR churn, the huge-span denominator (metadata, not span diff). */
+export function countPrChangedLines(
+  files: readonly { additions: number; deletions: number }[],
+): number {
+  const changedLines = files.reduce(
+    (sum, file) => sum + file.additions + file.deletions,
+    0,
+  );
+  return changedLines;
+}

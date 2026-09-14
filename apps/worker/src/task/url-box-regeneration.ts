@@ -20,7 +20,7 @@ import type { Mutable } from "types/utils";
 // instead of chasing every intermediate head.
 const FOLLOW_UP_DEBOUNCE_SECONDS = 10;
 
-export interface OwnerHeadFollowUpInput {
+export interface UrlBoxRegenerationInput {
   readonly repoId: RepoId;
   readonly prNumber: number;
   readonly grantId: GrantRowId;
@@ -48,10 +48,10 @@ function buildLifecycle(info: PullRequestInfo): PullRequestLifecycle {
   return { state: PrStates.OPEN };
 }
 
-export async function enqueueOwnerHeadFollowUp(
+export async function scheduleUrlBoxRegeneration(
   handle: AppDatabase,
   ctx: ScopeContext,
-  input: OwnerHeadFollowUpInput,
+  input: UrlBoxRegenerationInput,
 ): Promise<void> {
   const { info } = input;
   const pullRequest: Mutable<PullRequestUpsertInput> = {
