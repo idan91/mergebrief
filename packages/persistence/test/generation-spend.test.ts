@@ -2,7 +2,7 @@
 // generation runs that STARTED, plus the terminal `capped` transition. The
 // boundary cases (23:59:59.999 vs 00:00:00.000) are the whole point of the
 // half-open window, so `created_at` is backdated through the raw harness
-// client — nothing in the store surface sets it.
+// client, since nothing in the store surface sets it.
 import { drizzle } from "drizzle-orm/pglite";
 import { describe, expect, it } from "vitest";
 import { fromDrizzle, type AppDatabase } from "../src/db/handle";
@@ -14,6 +14,7 @@ import {
 } from "../src/index";
 import {
   GenerationKinds,
+  GenerationPhases,
   GenerationStatuses,
   isInstallationId,
   isRepoId,
@@ -23,7 +24,7 @@ import {
   type PullRequestRowId,
   type RepoId,
 } from "../src/types";
-import { brandWith, freshPglite } from "./helpers";
+import { brandWith, freshPglite, makeBriefTarget } from "./helpers";
 
 const TENANT: InstallationId = brandWith(isInstallationId, 1000n);
 const OTHER_TENANT: InstallationId = brandWith(isInstallationId, 2000n);
@@ -111,7 +112,7 @@ describe("countStartedRunsForRepo", () => {
     await run({
       pullRequestId,
       headSha: "c",
-      // Superseded runs SPENT — they count.
+      // Superseded runs SPENT, so they count.
       status: GenerationStatuses.SUPERSEDED,
       createdAt: inside,
     });
@@ -124,7 +125,7 @@ describe("countStartedRunsForRepo", () => {
     await run({
       pullRequestId,
       headSha: "e",
-      // Enqueued but never drained — nothing spent yet.
+      // Enqueued but never drained, so nothing spent yet.
       status: GenerationStatuses.QUEUED,
       createdAt: inside,
     });
@@ -179,7 +180,7 @@ describe("countStartedRunsForRepo", () => {
     expect(count).toBe(4);
   });
 
-  it("counts no attempts from queued or capped rows however high their attempts", async () => {
+  it("queued and capped rows count nothing however high their attempts", async () => {
     const { handle, pullRequestId, run } = await harness();
     const inside = new Date("2026-08-03T12:00:00.000Z");
     await run({
@@ -246,7 +247,7 @@ describe("countStartedRunsForRepo", () => {
     expect(count).toBe(2);
   });
 
-  it("counts per repo — one shared pool across tenants and worlds", async () => {
+  it("counts per repo, one shared pool across tenants and worlds", async () => {
     const { handle, pullRequestId, run, backdate } = await harness();
     const inside = new Date("2026-08-03T09:00:00.000Z");
     await run({
@@ -256,7 +257,7 @@ describe("countStartedRunsForRepo", () => {
       createdAt: inside,
     });
 
-    // Same tenant, a different repo — never counted into REPO's pool.
+    // Same tenant, a different repo, never counted into REPO's pool.
     const sibling = await createTenantRepository(
       handle,
       CTX,
@@ -329,5 +330,129 @@ describe("markCapped", () => {
     expect(capped.value.phase).toBeNull();
     expect(capped.value.errorCode).toBeNull();
     expect(capped.value.id).toBe(queued.value.id);
+  });
+});
+
+describe("startRun", () => {
+  const WINDOW = { from: DAY_START, to: new Date("2100-01-01T00:00:00.000Z") };
+
+  it("starts under the cap and marks the row running with its created_at", async () => {
+    const { handle, pullRequestId } = await harness();
+    const projection = createGenerationProjection(handle, CTX);
+    const target = makeBriefTarget(pullRequestId, "first");
+    await projection.upsertQueued(target);
+
+    const started = await projection.startRun({
+      target,
+      phase: GenerationPhases.FETCHING,
+      repoId: REPO,
+      cap: 1,
+      ...WINDOW,
+    });
+
+    if (!started.ok) throw new Error(started.error.message);
+    expect(started.value.started).toBe(true);
+    if (!started.value.started) throw new Error("unreachable");
+    expect(started.value.createdAt).toBeInstanceOf(Date);
+    const row = await projection.get(target);
+    expect(row?.status).toBe(GenerationStatuses.RUNNING);
+    expect(row?.phase).toBe(GenerationPhases.FETCHING);
+  });
+
+  it("refuses the second run at cap 1 and reports one started", async () => {
+    const { handle, pullRequestId } = await harness();
+    const projection = createGenerationProjection(handle, CTX);
+    const first = makeBriefTarget(pullRequestId, "first");
+    const second = makeBriefTarget(pullRequestId, "second");
+    await projection.upsertQueued(first);
+    await projection.upsertQueued(second);
+    await projection.startRun({
+      target: first,
+      repoId: REPO,
+      cap: 1,
+      ...WINDOW,
+    });
+
+    const refused = await projection.startRun({
+      target: second,
+      repoId: REPO,
+      cap: 1,
+      ...WINDOW,
+    });
+
+    if (!refused.ok) throw new Error(refused.error.message);
+    expect(refused.value).toEqual({ started: false, startedRuns: 1 });
+    const row = await projection.get(second);
+    expect(row?.status).toBe(GenerationStatuses.QUEUED);
+  });
+
+  it("an absent cap starts without counting", async () => {
+    const { handle, pullRequestId, run } = await harness();
+    const inside = new Date("2026-08-03T12:00:00.000Z");
+    await run({
+      pullRequestId,
+      headSha: "spent",
+      status: GenerationStatuses.SUCCEEDED,
+      createdAt: inside,
+      attempts: 50,
+    });
+    const projection = createGenerationProjection(handle, CTX);
+    const target = makeBriefTarget(pullRequestId, "uncapped");
+    await projection.upsertQueued(target);
+
+    const started = await projection.startRun({
+      target,
+      repoId: REPO,
+      ...WINDOW,
+    });
+
+    if (!started.ok) throw new Error(started.error.message);
+    expect(started.value.started).toBe(true);
+    const row = await projection.get(target);
+    expect(row?.status).toBe(GenerationStatuses.RUNNING);
+  });
+
+  it("capped and queued rows never count against the cap", async () => {
+    const { handle, pullRequestId, run } = await harness();
+    const inside = new Date("2026-08-03T12:00:00.000Z");
+    await run({
+      pullRequestId,
+      headSha: "skipped",
+      status: GenerationStatuses.CAPPED,
+      createdAt: inside,
+    });
+    await run({
+      pullRequestId,
+      headSha: "waiting",
+      status: GenerationStatuses.QUEUED,
+      createdAt: inside,
+    });
+    const projection = createGenerationProjection(handle, CTX);
+    const target = makeBriefTarget(pullRequestId, "next");
+    await projection.upsertQueued(target);
+
+    const started = await projection.startRun({
+      target,
+      repoId: REPO,
+      cap: 1,
+      ...WINDOW,
+    });
+
+    if (!started.ok) throw new Error(started.error.message);
+    expect(started.value.started).toBe(true);
+  });
+
+  it("a missing projection row returns notFound", async () => {
+    const { handle, pullRequestId } = await harness();
+    const projection = createGenerationProjection(handle, CTX);
+
+    const result = await projection.startRun({
+      target: makeBriefTarget(pullRequestId, "ghost"),
+      repoId: REPO,
+      cap: 1,
+      ...WINDOW,
+    });
+
+    expect(result.ok).toBe(false);
   });
 });

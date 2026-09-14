@@ -144,10 +144,11 @@ budget on its own. Runs that were superseded or failed DO count: they spent.
 Queued-but-not-yet-drained jobs and capped skips do not — a burst of
 webhooks must not trip the cap before a single token is spent.
 
-The count is a guardrail, not an invoice: it errs toward capping slightly
-early, and it does not observe the queue's own internal retries of a single
-run. Treat it as a ceiling on the order of magnitude you are willing to
-spend per repo per day, not as an exact call count. Cost reporting is a
+The count is exact per repo across slots and worker processes: the start and
+the `running` mark share one transaction under a per-repo advisory lock. It is
+still a guardrail, not an invoice, and it does not observe the queue's own
+internal retries of a single run. Treat it as a ceiling on what you are
+willing to spend per repo per day, not as a bill. Cost reporting is a
 separate, later concern.
 
 The window resets at 00:00 UTC. A push skipped today is not retried
@@ -159,9 +160,7 @@ settled push (or any event that re-queues it).
 `WORKER_CONCURRENCY` sets how many generate jobs one worker process drains at
 once. Default 1. Each slot holds a live provider child for the length of a
 generation, so memory and spend scale with the number you set; the range for
-this machine is filled in after the Before-merge check on the ticket. Until
-cap admission takes its per-repo lock, N slots can admit up to `cap + N - 1`
-runs on one repo.
+this machine is filled in after the Before-merge check on the ticket.
 
 ## The six providers
 

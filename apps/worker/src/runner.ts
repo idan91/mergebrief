@@ -12,11 +12,7 @@ import {
 } from "graphile-worker";
 import { ensureAppSchema } from "persistence";
 
-/**
- * One slot keeps a self-hosted worker's spend and memory bounded, and the
- * daily generation cap's accuracy assumes it: at concurrency C the gate admits
- * up to `cap + C - 1` runs.
- */
+/** One slot keeps a self-hosted worker's spend and memory bounded by default. */
 const DEFAULT_CONCURRENCY = 1;
 
 export interface StartWorkerOptions {

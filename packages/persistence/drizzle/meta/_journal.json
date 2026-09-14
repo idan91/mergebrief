@@ -239,6 +239,13 @@
       "when": 1788890000000,
       "tag": "0034_draft-comment-kind",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1789391840381,
+      "tag": "0035_generation-cap-indexes",
+      "breakpoints": true
     }
   ]
 }

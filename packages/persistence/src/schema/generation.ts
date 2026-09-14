@@ -1,11 +1,12 @@
-// `generation` — mutable status projection of a worker job. NOT a queue, NOT
+// `generation` is the mutable status projection of a worker job. NOT a queue, NOT
 // a lock, NOT a domain entity: graphile-worker deletes succeeded jobs, so the
 // web tier polls this instead. The unique key is NULLS NOT DISTINCT because
-// `baseline_sha` is null for briefs — without it Postgres would treat every
+// `baseline_sha` is null for briefs; without it Postgres would treat every
 // brief row as distinct and the single-row-per-key upsert could never
 // conflict.
 import {
   bigint,
+  index,
   integer,
   jsonb,
   pgTable,
@@ -45,7 +46,7 @@ export const generation = pgTable(
     errorParams: jsonb("error_params").$type<GenerationFailureParams>(),
     /**
      * Repo-config per-file origin: JSON `{files, collisions}` written right
-     * after acquisition — BEFORE generation — so failed and superseded runs
+     * after acquisition, BEFORE generation, so failed and superseded runs
      * still show their outcomes. The policy snapshot lives on the brief
      * artifact, not here.
      */
@@ -68,5 +69,11 @@ export const generation = pgTable(
         table.baselineSha,
       )
       .nullsNotDistinct(),
+    // The daily cap's count runs under the per-repo start lock; this
+    // keeps that locked section an index scan over the day's rows.
+    index("generation_pull_request_created_at_idx").on(
+      table.pullRequestId,
+      table.createdAt,
+    ),
   ],
 );

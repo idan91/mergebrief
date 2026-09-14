@@ -1946,11 +1946,6 @@
       "count": 3
     }
   },
-  "packages/persistence/src/schema/generation.ts": {
-    "house/no-em-dash": {
-      "count": 3
-    }
-  },
   "packages/persistence/src/schema/github-grant.ts": {
     "house/comment-density": {
       "count": 1
@@ -1965,14 +1960,6 @@
   "packages/persistence/src/schema/hunk-span.ts": {
     "house/no-em-dash": {
       "count": 3
-    }
-  },
-  "packages/persistence/src/schema/pull-request.ts": {
-    "house/comment-density": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 6
     }
   },
   "packages/persistence/src/schema/review-group-reclassification.ts": {
@@ -2025,14 +2012,6 @@
     },
     "house/no-em-dash": {
       "count": 12
-    }
-  },
-  "packages/persistence/src/stores/generation.ts": {
-    "house/comment-run": {
-      "count": 2
-    },
-    "house/no-em-dash": {
-      "count": 13
     }
   },
   "packages/persistence/src/stores/ingest.ts": {
@@ -2117,14 +2096,6 @@
       "count": 4
     }
   },
-  "packages/persistence/test/generation-spend.test.ts": {
-    "house/no-em-dash": {
-      "count": 5
-    },
-    "house/test-title": {
-      "count": 1
-    }
-  },
   "packages/persistence/test/generation.test.ts": {
     "house/no-em-dash": {
       "count": 7
@@ -2147,11 +2118,6 @@
     },
     "house/test-title": {
       "count": 6
-    }
-  },
-  "packages/persistence/test/helpers.ts": {
-    "house/no-em-dash": {
-      "count": 1
     }
   },
   "packages/persistence/test/list-reads.test.ts": {

@@ -7,6 +7,7 @@ import { expect, onTestFinished } from "vitest";
 import { type AppDatabase, fromDrizzle } from "../src/db/handle";
 import { createMigratedPglite } from "../src/pglite-snapshot";
 import * as schema from "../src/schema/index";
+import { GenerationKinds, type PullRequestRowId } from "../src/types";
 
 /**
  * A migrated, isolated PGlite that closes itself when the test ends.
@@ -29,7 +30,7 @@ export async function freshDatabase(): Promise<AppDatabase> {
   return fromDrizzle(drizzle(await freshPglite(), { schema }));
 }
 
-/** Brand a bigint via its guard — the sanctioned no-`as` path. */
+/** Brand a bigint via its guard, the sanctioned no-`as` path. */
 export function brandWith<T extends bigint>(
   guard: (value: bigint) => value is T,
   value: bigint,
@@ -62,4 +63,17 @@ export async function expectCheckViolation(
     current = current.cause;
   }
   expect(found, `no error in the cause chain names ${constraint}`).toBe(true);
+}
+
+/** The brief-kind projection target for one head: the natural key with a null baseline. */
+export function makeBriefTarget(
+  pullRequestId: PullRequestRowId,
+  headSha: string,
+) {
+  return {
+    pullRequestId,
+    kind: GenerationKinds.BRIEF,
+    headSha,
+    baselineSha: null,
+  } as const;
 }

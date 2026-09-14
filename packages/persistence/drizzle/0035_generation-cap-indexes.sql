@@ -1,0 +1,2 @@
+CREATE INDEX "generation_pull_request_created_at_idx" ON "generation" USING btree ("pull_request_id","created_at");--> statement-breakpoint
+CREATE INDEX "pull_request_repo_idx" ON "pull_request" USING btree ("repo_id");

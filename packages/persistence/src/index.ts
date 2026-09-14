@@ -180,6 +180,8 @@ export type {
   GenerationErrorCode,
   GenerationTarget,
   GenerationRow,
+  StartRunInput,
+  StartRunOutcome,
 } from "./stores/generation";
 
 // The append-only audit emit. `AuditMetadataSchema` is the value enforcement

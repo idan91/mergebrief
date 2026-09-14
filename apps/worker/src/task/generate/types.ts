@@ -241,6 +241,7 @@ export interface SpendGateInputs {
   /** The row's slug after the usable-slug guard narrowed it. */
   readonly repoSlug: string;
   readonly entryCommentManager: EntryCommentManager;
+  readonly job: GenerateTaskHelpers["job"];
   readonly log: Logger;
 }
 

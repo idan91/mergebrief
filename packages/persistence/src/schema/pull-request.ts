@@ -1,10 +1,10 @@
-// `pull_request` — the mutable aggregate root. Parent of every immutable
-// per-PR artifact; the retention/cascade anchor. The partial index on
-// `purge_after` (the sweep target) is raw SQL in the hardening migration.
+// `pull_request` is the mutable aggregate root and the retention anchor. The
+// partial index on `purge_after` is raw SQL in the hardening migration.
 import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
+  index,
   integer,
   pgTable,
   text,
@@ -27,10 +27,8 @@ export const pullRequest = pgTable(
   {
     ...tenantColumns<PullRequestRowId>(),
     /**
-     * The owning GitHub user for a url-box row; NULL for App-installation
-     * rows. Exactly one of `installation_id`/`owner_user_id` is set — the
-     * `pull_request_owner_shape` CHECK (raw SQL migration) pairs each with
-     * its `source` value.
+     * The owning user for a url-box row; NULL for App-installation rows. The
+     * `pull_request_owner_shape` CHECK pairs exactly one with `source`.
      */
     ownerUserId: bigint("owner_user_id", {
       mode: "bigint",
@@ -44,39 +42,22 @@ export const pullRequest = pgTable(
     prNumber: integer("pr_number").notNull(),
     /** Purgeable display label, refreshed on webhook. */
     repoSlug: text("repo_slug"),
-    /**
-     * PR title — same purgeable-display-label class as `repo_slug`, refreshed
-     * on every webhook. Nullable: rows ingested before the column existed
-     * backfill on their next event.
-     */
+    /** Purgeable display label like `repo_slug`; backfills on the next event. */
     title: text("title"),
     /**
-     * The PR-base SHA from the last `pull_request` event: PR-meta's span lower
-     * bound regardless of brief existence. Nullable: rows ingested before the
-     * column backfill on their next event; `pull_request_review` events don't
-     * carry it and never overwrite a stored value.
+     * The PR-base SHA from the last `pull_request` event. Review events carry
+     * none and never overwrite a stored value.
      */
     baseSha: text("base_sha"),
-    /**
-     * Whether the PR is a GitHub draft, from the last `pull_request` event —
-     * the FE derives own-draft author affordances from it. Rows ingested by an
-     * event that doesn't carry it take the default and are corrected on the
-     * PR's next `pull_request` event, same refresh pattern as `title`.
-     */
+    /** From the last `pull_request` event; events without it keep the stored value. */
     draft: boolean("draft").notNull().default(false),
     /**
-     * The PR author's GitHub login, refreshed on every `pull_request` event.
-     * Purgeable display-label class like `title`/`repo_slug`, but NEVER
-     * exposed to the FE — it is server-side input to the per-request
-     * `viewerIsAuthor` derivation only. Nullable: rows missing it backfill on
-     * the next `pull_request` event.
+     * NEVER exposed to the FE: server-side input to `viewerIsAuthor` only.
+     * Purgeable like `title`; backfills on the next `pull_request` event.
      */
     authorLogin: text("author_login"),
     state: text("state").$type<PrState>().notNull(),
-    /**
-     * The branded Entry comment id. Nullable: the delete+repost flow self-heals
-     * a dangling id. A GitHub comment id — plain `bigint`, not branded.
-     */
+    /** Nullable: the delete+repost flow self-heals a dangling id. */
     entryCommentId: bigint("entry_comment_id", { mode: "bigint" }),
     closedAt: timestamp("closed_at", { withTimezone: true }),
     /** Nullable: null while open or when retention is "never". */
@@ -94,11 +75,12 @@ export const pullRequest = pgTable(
       table.repoId,
       table.prNumber,
     ),
-    // Owner-world natural key: partial, so the two worlds keep independent
-    // rows for the same (repo, number). Owner upserts conflict-target THIS
-    // index (`targetWhere` must match its predicate).
+    // Partial so the two worlds keep independent rows for one (repo, number);
+    // owner upserts conflict-target this index and must match its predicate.
     uniqueIndex("pull_request_owner_natural_key")
       .on(table.ownerUserId, table.repoId, table.prNumber)
       .where(sql`${table.installationId} is null`),
+    // The daily cap counts across scope worlds by repo_id alone.
+    index("pull_request_repo_idx").on(table.repoId),
   ],
 );
