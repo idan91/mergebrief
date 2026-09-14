@@ -45,6 +45,7 @@ changes get a breaking-change entry in
 | `token.refresh.fail` | error | api | `reqId`, `reviewerId` | yes — a reviewer session or API token could not rotate its GitHub credentials |
 | `audit.fail` | error | api | `reqId`, `operation` | yes — the action completed but its audit row never landed (data integrity) |
 | `spend.cap.trip` | warn | worker | `repo`, `prId`, `headSha`, `cap`, `dayUtc` | on **sustained rate** — the cap is working as configured, but a repo stuck at it produces no briefs all day |
+| `generation.start` | info | worker | `prId`, `headSha`, `waitMs`, `attempt` | no: the queue-wait line; pair with generation.complete for end-to-end time |
 | `generation.complete` | info | worker | `kind`, `outcome`, `durationMs` | no — the model-call duration line; nothing else records how long a generation took |
 | `api.access` | info | api | `method`, `path`, `status`, `durationMs`, `decision`, `operation`, `repoId`, `reviewerId`, `reqId` | no — this is the access log |
 

@@ -1,4 +1,5 @@
 import { type Brief, type PrLocator } from "brief-core";
+import type { LogFields } from "logging";
 import { scheduleUrlBoxRegeneration } from "../url-box-regeneration";
 import {
   createArtifactStore,
@@ -82,7 +83,14 @@ export function createGenerateTask(deps: GenerateTaskDeps): GenerateTask {
     const target = getBriefTarget(payload);
 
     try {
-      await runGeneration(deps, payload, target, helpers?.abortSignal, jobLog);
+      await runGeneration(
+        deps,
+        payload,
+        target,
+        helpers?.abortSignal,
+        helpers?.job,
+        jobLog,
+      );
     } catch (error) {
       if (error instanceof SupersededSignal) {
         await projection.markSuperseded(target);
@@ -112,11 +120,27 @@ export function createGenerateTask(deps: GenerateTaskDeps): GenerateTask {
   };
 }
 
+/**
+ * Time between the job becoming runnable and this slot picking it up. The
+ * projection row's created_at is the fallback for a job-less call; it counts
+ * from the first push of that head, so a re-triggered head reads long.
+ * Postgres stamps both while this reads the process clock, so skew is
+ * clamped rather than surfacing as a negative wait.
+ */
+function measureQueueWait(
+  job: GenerateTaskHelpers["job"],
+  createdAt: Date,
+): number {
+  const since = job === undefined ? createdAt : job.run_at;
+  return Math.max(0, Date.now() - since.getTime());
+}
+
 async function runGeneration(
   deps: GenerateTaskDeps,
   payload: ParsedGeneratePayload,
   target: GenerationTarget,
   shutdownSignal: AbortSignal | undefined,
+  job: GenerateTaskHelpers["job"],
   log: Logger,
 ): Promise<void> {
   const { handle, github } = deps;
@@ -190,7 +214,18 @@ async function runGeneration(
     return;
   }
 
-  await projection.markRunning(target, GenerationPhases.FETCHING);
+  const running = await projection.markRunning(
+    target,
+    GenerationPhases.FETCHING,
+  );
+  if (running.ok) {
+    const startFields: LogFields = {
+      evt: "generation.start",
+      waitMs: measureQueueWait(job, running.value.createdAt),
+    };
+    if (job !== undefined) startFields["attempt"] = job.attempts;
+    log.info("generate: run started", startFields);
+  }
 
   // Installation jobs rely on the newer push webhook. Url-box jobs may have no webhook,
   // so every supersession path must schedule the observed head before standing down.

@@ -20,6 +20,9 @@ export interface WorkerConfig {
   readonly databaseUrl: string;
   /** Apply migrations at boot vs check-only refusal (MERGEBRIEF_AUTO_MIGRATE). */
   readonly autoMigrate: boolean;
+  /** Slots the runner drains jobs into (WORKER_CONCURRENCY). Each slot is one
+   * live provider child, so memory and spend scale with it. */
+  readonly concurrency: number;
   /** Audit retention window the scheduled sweep enforces; null = keep forever
    * (the default). Validated; floor included; by persistence's loader. */
   readonly auditRetentionDays: number | null;
@@ -58,9 +61,31 @@ export interface ConfigError {
   readonly issues: readonly string[];
 }
 
+/** One slot: the bounded default a self-hosted worker boots with. */
+const DEFAULT_CONCURRENCY = 1;
+/** Zero slots would drain nothing, so the knob's floor is one. */
+const MIN_CONCURRENCY = 1;
+
 const publicBaseUrlSchema = z
   .string({ required_error: "required (the Entry comment's deep-link base)" })
   .url("must be a valid URL");
+
+/**
+ * Read the slot count. Unset and empty both mean the default: compose passes an
+ * unset variable through as an empty string.
+ */
+function parseConcurrency(raw: string | undefined): Result<number, string> {
+  if (raw === undefined || raw.trim() === "") {
+    return { ok: true, value: DEFAULT_CONCURRENCY };
+  }
+
+  const slots = Number(raw);
+  if (!Number.isInteger(slots) || slots < MIN_CONCURRENCY) {
+    return { ok: false, error: "must be a whole number of at least 1" };
+  }
+
+  return { ok: true, value: slots };
+}
 
 // ---------------------------------------------------------------------------
 // Loader.
@@ -97,6 +122,11 @@ export function loadConfig(
     issues.push(...generatorConfig.error.issues);
   }
 
+  const concurrency = parseConcurrency(env["WORKER_CONCURRENCY"]);
+  if (!concurrency.ok) {
+    issues.push(`WORKER_CONCURRENCY: ${concurrency.error}`);
+  }
+
   const baseUrlParsed = publicBaseUrlSchema.safeParse(env["PUBLIC_BASE_URL"]);
   if (!baseUrlParsed.success) {
     // Only the reason is echoed, never the value; as on every field here.
@@ -111,6 +141,7 @@ export function loadConfig(
     issues.length > 0 ||
     !persistence.ok ||
     !generatorConfig.ok ||
+    !concurrency.ok ||
     !baseUrlParsed.success
   ) {
     return {
@@ -128,6 +159,7 @@ export function loadConfig(
     value: {
       databaseUrl: persistence.value.databaseUrl,
       autoMigrate: persistence.value.autoMigrate,
+      concurrency: concurrency.value,
       auditRetentionDays: persistence.value.auditRetentionDays,
       generator: generatorConfig.value.generator,
       publicBaseUrl: baseUrlParsed.data,

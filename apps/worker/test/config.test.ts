@@ -25,7 +25,7 @@ afterEach(() => {
 
 describe("loadConfig", () => {
   it("parses a valid env into the zero-config generator default", () => {
-    // Key presence is createGenerator's boot check now, not loadConfig's —
+    // Key presence is createGenerator's boot check now, not loadConfig's;
     // the generator block just selects the adapter.
     const result = loadConfig(VALID_ENV);
     expect(result.ok).toBe(true);
@@ -82,7 +82,7 @@ describe("loadConfig", () => {
 
   it("refuses boot when the removed GENERATOR_API_KEY_ENV is still set", () => {
     // Loud migration: a stale deployment believes it controls the key
-    // source — silently ignoring it would fall back to the default var.
+    // source, and silently ignoring it falls back to the default var.
     const result = loadConfig({
       ...VALID_ENV,
       GENERATOR_API_KEY_ENV: "MY_PROVIDER_KEY",
@@ -94,7 +94,7 @@ describe("loadConfig", () => {
     expect(text).toContain("generator.apiKeyEnv");
   });
 
-  it("rejects a missing PUBLIC_BASE_URL (the Entry comment's deep-link base)", () => {
+  it("rejects a missing PUBLIC_BASE_URL", () => {
     const { PUBLIC_BASE_URL: _omitted, ...withoutBaseUrl } = VALID_ENV;
     const result = loadConfig(withoutBaseUrl);
     expect(result.ok).toBe(false);
@@ -123,6 +123,30 @@ describe("loadConfig", () => {
       DATABASE_URL: "mysql://localhost/db",
     });
     expect(result.ok).toBe(false);
+  });
+
+  it("defaults the slot count to one when unset", () => {
+    const result = loadConfig(VALID_ENV);
+    expect(result.ok && result.value.concurrency).toBe(1);
+  });
+
+  it("parses a slot count above one", () => {
+    const result = loadConfig({ ...VALID_ENV, WORKER_CONCURRENCY: "3" });
+    expect(result.ok && result.value.concurrency).toBe(3);
+  });
+
+  it("rejects a slot count below one", () => {
+    const result = loadConfig({ ...VALID_ENV, WORKER_CONCURRENCY: "0" });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.issues.join(";")).toContain("WORKER_CONCURRENCY");
+  });
+
+  it("rejects a non-integer slot count", () => {
+    const result = loadConfig({ ...VALID_ENV, WORKER_CONCURRENCY: "abc" });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.issues.join(";")).toContain("WORKER_CONCURRENCY");
   });
 
   it("collects issues from multiple surfaces at once", () => {

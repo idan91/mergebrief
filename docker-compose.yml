@@ -147,6 +147,9 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-code_review}:${POSTGRES_PASSWORD:-code_review}@postgres:5432/${POSTGRES_DB:-code_review}?sslmode=disable
       # The Entry comment's deep-link base — same value the web tier uses.
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
+      # Slots this worker drains jobs into. Each slot holds a live provider
+      # child, so memory and spend scale with it.
+      # WORKER_CONCURRENCY: 1
     # See the web service's mergebrief.config.yaml mount note — uncomment
     # both together.
     # volumes:

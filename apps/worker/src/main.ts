@@ -166,6 +166,7 @@ async function main(): Promise<void> {
     databaseUrl: config.value.databaseUrl,
     // MERGEBRIEF_AUTO_MIGRATE=false → read-only schema check at boot.
     autoMigrate: config.value.autoMigrate,
+    concurrency: config.value.concurrency,
     // helpers.abortSignal is graphile's graceful-shutdown signal: SIGTERM
     // aborts an in-flight stream (job back to queue) instead of riding out the
     // kill grace into a stuck job lock. helpers.job carries the attempt counts

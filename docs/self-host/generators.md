@@ -154,6 +154,15 @@ The window resets at 00:00 UTC. A push skipped today is not retried
 automatically when the cap resets — the PR gets its brief on its next
 settled push (or any event that re-queues it).
 
+## Worker slots
+
+`WORKER_CONCURRENCY` sets how many generate jobs one worker process drains at
+once. Default 1. Each slot holds a live provider child for the length of a
+generation, so memory and spend scale with the number you set; the range for
+this machine is filled in after the Before-merge check on the ticket. Until
+cap admission takes its per-repo lock, N slots can admit up to `cap + N - 1`
+runs on one repo.
+
 ## The six providers
 
 | provider | class | auth | effort knob | notes |

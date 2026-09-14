@@ -3420,7 +3420,9 @@ describe("generate task, observability", () => {
     });
 
     await expect(
-      task(payload, { job: { attempts: 1, max_attempts: 25 } }),
+      task(payload, {
+        job: { attempts: 1, max_attempts: 25, run_at: new Date() },
+      }),
     ).rejects.toThrow("502");
 
     const fail = lines().find((l) => l["evt"] === "job.fail");
@@ -3496,7 +3498,9 @@ describe("generate task, observability", () => {
     });
 
     await expect(
-      task(payload, { job: { attempts: 1, max_attempts: 25 } }),
+      task(payload, {
+        job: { attempts: 1, max_attempts: 25, run_at: new Date() },
+      }),
     ).resolves.toBeUndefined();
 
     const fail = lines().find((l) => l["evt"] === "job.fail");
@@ -3521,7 +3525,9 @@ describe("generate task, observability", () => {
     });
 
     await expect(
-      task(payload, { job: { attempts: 25, max_attempts: 25 } }),
+      task(payload, {
+        job: { attempts: 25, max_attempts: 25, run_at: new Date() },
+      }),
     ).rejects.toThrow("502");
 
     const exhausted = lines().find((l) => l["evt"] === "job.retries.exhausted");
@@ -3554,7 +3560,9 @@ describe("generate task, observability", () => {
     });
 
     await expect(
-      task(payload, { job: { attempts: 1, max_attempts: 25 } }),
+      task(payload, {
+        job: { attempts: 1, max_attempts: 25, run_at: new Date() },
+      }),
     ).rejects.toThrow("rate limited");
 
     const provider = lines().find((l) => l["evt"] === "provider.error");
@@ -3597,6 +3605,53 @@ describe("generate task, observability", () => {
     expect(provider?.["kind"]).toBe("auth");
     const fail = lines().find((l) => l["evt"] === "job.fail");
     expect(fail?.["permanent"]).toBe(true);
+  });
+
+  it("logs generation.start once with the queue wait", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const { logger, lines } = captureLogger();
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator: stubGenerator(),
+      github: stubGitHub(HEAD_1),
+      log: logger,
+    });
+
+    await task(payload, {
+      job: { attempts: 0, max_attempts: 25, run_at: new Date() },
+    });
+
+    const starts = lines().filter((l) => l["evt"] === "generation.start");
+    expect(starts.length).toBe(1);
+    const start = starts[0];
+    expect(start?.["level"]).toBe("info");
+    expect(typeof start?.["waitMs"]).toBe("number");
+    expect(start?.["waitMs"]).toBeGreaterThanOrEqual(0);
+    expect(start?.["attempt"]).toBe(0);
+    expect(start?.["prId"]).toBe(String(pr.id));
+    expect(start?.["headSha"]).toBe(HEAD_1);
+  });
+
+  it("waitMs counts from the job's run_at, not the row's created_at", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const { logger, lines } = captureLogger();
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator: stubGenerator(),
+      github: stubGitHub(HEAD_1),
+      log: logger,
+    });
+    const runAt = new Date(Date.now() - 5_000);
+
+    await task(payload, {
+      job: { attempts: 0, max_attempts: 25, run_at: runAt },
+    });
+
+    const start = lines().find((l) => l["evt"] === "generation.start");
+    expect(start?.["waitMs"]).toBeGreaterThanOrEqual(5_000);
+    expect(start?.["waitMs"]).toBeLessThan(60_000);
   });
 
   it("success-path lines ride the {prId, headSha} bindings", async () => {

@@ -178,6 +178,22 @@ _Avoid_: activation (as "the click"), deep-link gate
 A per-repo opt-in (repo YAML; org default + per-repo override; off by default) that holds the reviewer-facing **Entry** until the author marks `ready_for_review`, turning the draft window into the author's self-review pass. It does **not** change the **Trigger** — the **Brief** still computes on every push during draft; draft-first only gates *when reviewers are notified*. Native-draft only (never a custom lock), so a generation failure leaves a normal GitHub draft the author controls.
 _Avoid_: activation (as "turning the tool on"), draft mode, draft gate
 
+**Generation**:
+One attempt to produce a **Brief** for one head of one PR; the persisted record the worker projects its progress onto. A Generation is pending, running, or finished (succeeded, failed, superseded, capped). It is a record of an attempt, never a queue and never a lock.
+_Avoid_: job (that is the **Job**), run, generation job
+
+**Job**:
+The unit of queued work the worker picks up to drive one **Generation**. A Job is queued until its debounce elapses, then held by one **Slot** while it runs. One Job per PR at a time; a new push coalesces into the existing queued Job.
+_Avoid_: task, generation (the record), queued generation
+
+**Slot**:
+One concurrent **Job** a worker process admits. The slot count is the operator's throughput knob; one slot serializes every Brief behind whichever Job holds it.
+_Avoid_: thread, concurrency (as a noun for the thing), lane
+
+**Queued**:
+Said of a **Job** waiting on its debounce or on a free **Slot**, never of a **Generation**. A Generation whose Job has started is running.
+_Avoid_: queued generation, pending job
+
 **Triage**:
 The cheap cascade run on every PR (and every follow-up) *before* any expensive generation, deciding both the *experience* and the *spend*: a free deterministic floor (dependency/migration/auth-config paths + size) → a small-model (**Haiku**) pass that judges trivial-vs-escalate and, when trivial, emits the **Fast-lane** view. Escalation produces the full **Brief** / **Delta Brief** (Opus); otherwise the fast-lane is shown with a manual upgrade. **Risk decides escalation, size decides spend**; for follow-ups, touching a reviewer's prior **Flag** or **Comment** (carry-over) is itself an escalation. Never a verdict, never a gate — the human can always upgrade.
 _Avoid_: gate, pre-filter (informal), severity score

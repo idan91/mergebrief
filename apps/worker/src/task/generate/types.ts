@@ -100,6 +100,8 @@ export interface GenerateTaskHelpers {
   readonly job?: {
     readonly attempts: number;
     readonly max_attempts: number;
+    /** When graphile made the job runnable; the queue wait counts from here. */
+    readonly run_at: Date;
   };
 }
 

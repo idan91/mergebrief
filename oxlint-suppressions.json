@@ -1276,14 +1276,6 @@
       "count": 3
     }
   },
-  "apps/worker/test/config.test.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    },
-    "house/test-title": {
-      "count": 1
-    }
-  },
   "apps/worker/test/failure.test.ts": {
     "house/test-title": {
       "count": 1
