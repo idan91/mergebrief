@@ -3232,6 +3232,30 @@ describe("generate task, entry-comment draft gate", () => {
     expect(body).toBeTruthy();
   });
 
+  it("posts the ready Entry when the draft flips during the run", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const github = stubGitHub(HEAD_1);
+    github.info = { ...github.info, draft: true };
+    const inner = stubGenerator();
+    const flipping: Generator = {
+      ...inner,
+      async generate<S extends z.ZodType>(request: GenerateRequest<S>) {
+        github.info = { ...github.info, draft: false };
+        return inner.generate(request);
+      },
+    };
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator: flipping,
+      github,
+    });
+
+    await task(payload);
+
+    expect(github.comments.size).toBe(1);
+  });
+
   it("lazily reads draft skip settings and posts only with opt-in", async () => {
     const { payload } = await trigger(HEAD_1);
     const generator = stubGenerator();

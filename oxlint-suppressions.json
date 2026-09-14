@@ -2014,14 +2014,6 @@
       "count": 12
     }
   },
-  "packages/persistence/src/stores/ingest.ts": {
-    "house/comment-run": {
-      "count": 3
-    },
-    "house/no-em-dash": {
-      "count": 14
-    }
-  },
   "packages/persistence/src/stores/purge.ts": {
     "house/comment-run": {
       "count": 2

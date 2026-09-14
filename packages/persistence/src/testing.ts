@@ -15,7 +15,7 @@ import * as schema from "./schema/index";
 // every worker at once under coverage instrumentation.
 export { warmPgliteSnapshot } from "./pglite-snapshot";
 
-// Mirrors `job_key_mode => 'replace'`; parameter names match the
+// Mirrors `job_key_mode` 'replace' and 'preserve_run_at'; parameter names match the
 // named-notation call in `ingest.ts`. `language sql` (not plpgsql) because
 // plpgsql raises 42702 on the bare `on conflict (job_key)` column list when a
 // parameter shares the column's name; SQL functions resolve it to the COLUMN.
@@ -35,7 +35,8 @@ returns graphile_worker.jobs language sql as $$
   on conflict (job_key) do update
     set task_identifier = excluded.task_identifier,
         payload = excluded.payload,
-        run_at = excluded.run_at
+        run_at = case when add_job.job_key_mode = 'preserve_run_at'
+                      then graphile_worker.jobs.run_at else excluded.run_at end
   returning *;
 $$;
 `;

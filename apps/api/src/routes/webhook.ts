@@ -169,10 +169,10 @@ function windowOverrides(
   policy: DraftPolicy,
 ): Pick<
   TriggerGenerationInput,
-  "debounceSeconds" | "regenerationDebounceSeconds"
+  "debounceSeconds" | "regenerationDebounceSeconds" | "refreshRunAt"
 > {
   if (event.action === PullRequestActions.READY_FOR_REVIEW) {
-    return { debounceSeconds: READY_FLIP_DEBOUNCE_SECONDS };
+    return { debounceSeconds: READY_FLIP_DEBOUNCE_SECONDS, refreshRunAt: true };
   }
   if (isDraft && policy.debounceSeconds !== null) {
     return { regenerationDebounceSeconds: policy.debounceSeconds };
@@ -232,7 +232,7 @@ async function triggerGeneration(
   event: ParsedPullRequestEvent | ParsedPullRequestReviewEvent,
   overrides: Pick<
     TriggerGenerationInput,
-    "debounceSeconds" | "regenerationDebounceSeconds"
+    "debounceSeconds" | "regenerationDebounceSeconds" | "refreshRunAt"
   >,
 ): Promise<void> {
   // Only a `reopened` pull_request event may transition a terminal PR back to

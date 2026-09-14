@@ -442,7 +442,7 @@ describe("POST /api/webhooks/github", () => {
     expect(again[0]?.["draft"]).toBe(true);
   });
 
-  it("redelivery increments attempts and defers the single existing job", async () => {
+  it("redelivery increments attempts and keeps the single job's run_at", async () => {
     const payload = pullRequestPayload({ action: "opened" });
     expect((await deliver(app, "pull_request", payload)).status).toBe(200);
     const firstJobs = await harness.raw(
@@ -460,7 +460,7 @@ describe("POST /api/webhooks/github", () => {
 
     const jobs = await harness.raw("select run_at from graphile_worker.jobs");
     expect(jobs).toHaveLength(1);
-    expect(epochMs(jobs[0]?.["run_at"])).toBeGreaterThan(firstRunAt);
+    expect(epochMs(jobs[0]?.["run_at"])).toBe(firstRunAt);
   });
 
   it("200s submitted reviews on known PRs and queues generation", async () => {
@@ -835,6 +835,7 @@ describe("POST /api/webhooks/github", () => {
         pullRequestPayload({ action: "opened", draft: true }),
       );
       await harness.raw("update generation set status = 'succeeded'");
+      await harness.raw("delete from graphile_worker.jobs");
       const before = Date.now();
       await deliver(
         damped,
@@ -962,6 +963,7 @@ describe("POST /api/webhooks/github", () => {
         pullRequestPayload({ action: "opened", draft: true }),
       );
       await harness.raw("update generation set status = 'succeeded'");
+      await harness.raw("delete from graphile_worker.jobs");
       await deliver(
         damped,
         "pull_request",

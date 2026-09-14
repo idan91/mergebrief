@@ -20,7 +20,10 @@ import { splitRepoSlug, type PullRequestInfo } from "../github-port";
 import { PermanentJobError } from "../failure";
 import { parseGeneratePayload, type ParsedGeneratePayload } from "../payload";
 import { generateBrief, recoverStoredBrief } from "./logic/brief-generation";
-import { resolveEntryCommentAllowed } from "./logic/entry-comment-gate";
+import {
+  resolveEntryCommentAllowed,
+  resolveReadyEntryAllowed,
+} from "./logic/entry-comment-gate";
 import { createEntryCommentManager } from "./logic/entry-comment-manager";
 import { generateCheckpointDeltas } from "./logic/checkpoint-deltas";
 import { throwOnGitHubFailure } from "./logic/errors";
@@ -387,7 +390,13 @@ async function runGeneration(
     // Check supersession first. On skip reruns, an identical ready body must not re-ping.
     // Only skips need the read: fresh runs still carry a generating body and always refresh.
     await watch.assertCurrent();
-    if (entryCommentAllowed) {
+    const readyEntryAllowed = await resolveReadyEntryAllowed(payload, {
+      prInfo,
+      source,
+      entryCommentAllowed,
+      log,
+    });
+    if (readyEntryAllowed) {
       const readyBody = entryCommentBody(
         entryCommentManager.buildDeepLink(prInfo.baseSha),
       );

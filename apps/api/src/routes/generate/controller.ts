@@ -25,9 +25,9 @@ import type {
 } from "./types";
 
 // A paste is deliberate human intent, so it takes the App door's short
-// intent window (ready_for_review), not its 60s push-storm window. Zero is
-// wrong: job_key replaces a PENDING job only, so a re-paste that lands after
-// the worker claimed the first one buys a second full generation.
+// intent window (ready_for_review), not its 60s push-storm window. A re-paste
+// of a head that is already running is dropped by ingest; a re-paste of the
+// same queued head only refreshes the payload.
 const PASTE_DEBOUNCE_SECONDS = 10;
 
 type GenerateBriefResult = Result<GenerateOutcome, GenerateFailure>;

@@ -323,3 +323,10 @@ export interface EntryCommentGateInputs {
   readonly entryCommentManager: EntryCommentManager;
   readonly log: Logger;
 }
+
+export interface ReadyEntryInputs {
+  readonly prInfo: PullRequestInfo;
+  readonly source: PullRequestSource;
+  readonly entryCommentAllowed: boolean;
+  readonly log: Logger;
+}

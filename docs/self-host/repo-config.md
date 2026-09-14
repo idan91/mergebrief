@@ -148,8 +148,10 @@ meta meanwhile. **Precedence:** `generate: off` makes the repo-level
 no entry comment, automatically. Spend knobs are instance config — a repo
 file may narrow instance behavior, never widen spend.
 
-`debounceSeconds` damps WIP push-storm spend: draft regenerations wait out
-the long trailing window instead of the normal one. A draft's first brief
+`debounceSeconds` damps WIP push-storm spend: a draft's first push in a
+storm fixes the start time and later pushes within the window only update
+the head the run will brief, so the long window bounds how late a run can
+start rather than deferring it. A draft's first brief
 always uses the normal window, and `ready_for_review` always enqueues on a
 short (~10s) flip window so a just-readied PR is fresh when the reviewer
 arrives.
