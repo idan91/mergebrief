@@ -412,9 +412,9 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     const gen = createGenerationProjection(harness.handle, CTX);
     const store = createArtifactStore(harness.handle, CTX);
 
-    // Brief generated for head-1, then a new push queued head-2 → the CURRENT
+    // Brief generated for head-1, then a new push enqueued head-2 → the CURRENT
     // span has no brief yet: briefAvailable=false, headSha=head-2, base=null.
-    await gen.upsertQueued({
+    await gen.upsertPending({
       pullRequestId: pr.id,
       kind: GenerationKinds.BRIEF,
       headSha: "head-1",
@@ -438,7 +438,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
       baselineSha: null,
     });
     await new Promise((r) => setTimeout(r, 5));
-    await gen.upsertQueued({
+    await gen.upsertPending({
       pullRequestId: pr.id,
       kind: GenerationKinds.BRIEF,
       headSha: "head-2",
@@ -454,7 +454,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
       baseSha: null,
       briefAvailable: false,
       generation: {
-        status: GenerationStatuses.QUEUED,
+        status: GenerationStatuses.PENDING,
         phase: null,
         attempts: 0,
         errorCode: null,
@@ -650,7 +650,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
       baseSha: "base-1",
     });
     const gen = createGenerationProjection(harness.handle, CTX);
-    await gen.upsertQueued({
+    await gen.upsertPending({
       pullRequestId: pr.id,
       kind: GenerationKinds.BRIEF,
       headSha: "head-1",
@@ -671,7 +671,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
       // Persisted at ingest, the span is known before any brief.
       baseSha: "base-1",
       briefAvailable: false,
-      generation: { status: GenerationStatuses.QUEUED, attempts: 0 },
+      generation: { status: GenerationStatuses.PENDING, attempts: 0 },
     });
 
     await createArtifactStore(harness.handle, CTX).briefs.write({
@@ -1069,13 +1069,13 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
 
     // A non-terminal delta generation for the exact span flips it to pending.
     const gen = createGenerationProjection(harness.handle, CTX);
-    const queued = await gen.upsertQueued({
+    const pending = await gen.upsertPending({
       pullRequestId: pr.id,
       kind: GenerationKinds.DELTA,
       headSha: "head-2",
       baselineSha: "gone-sha",
     });
-    if (!queued.ok) throw new Error("generation seed failed");
+    if (!pending.ok) throw new Error("generation seed failed");
     expect(await metaLastReview(cookie)).toEqual({ unavailable: "pending" });
 
     // Terminal failure → back to baseline-unavailable (nothing is coming).
@@ -1108,13 +1108,13 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     await seedCheckpoint(pr.id, REVIEWER_ID, "head-1");
 
     const gen = createGenerationProjection(harness.handle, CTX);
-    const queued = await gen.upsertQueued({
+    const pending = await gen.upsertPending({
       pullRequestId: pr.id,
       kind: GenerationKinds.BRIEF,
       headSha: "head-2",
       baselineSha: null,
     });
-    if (!queued.ok) throw new Error("generation seed failed");
+    if (!pending.ok) throw new Error("generation seed failed");
     expect(await metaLastReview(cookie)).toEqual({ unavailable: "pending" });
 
     // Brief job finished, still no marks → nothing is coming for this span.
@@ -1196,7 +1196,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
 
     // No brief yet → no revisions key at all.
     const gen = createGenerationProjection(harness.handle, CTX);
-    await gen.upsertQueued({
+    await gen.upsertPending({
       pullRequestId: pr.id,
       kind: GenerationKinds.BRIEF,
       headSha: "head-1",
@@ -1210,7 +1210,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     await writeBrief(pr.id, "base-a", "head-1", 1);
     await writeBrief(pr.id, "base-b", "head-2", 2);
     await writeBrief(pr.id, "base-c", "head-3", 3);
-    await gen.upsertQueued({
+    await gen.upsertPending({
       pullRequestId: pr.id,
       kind: GenerationKinds.BRIEF,
       headSha: "head-3",
@@ -1483,13 +1483,13 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     // generation is still warming (marks land before it succeeds).
     await seedCheckpoint(pr.id, REVIEWER_ID, "gone-sha");
     const gen = createGenerationProjection(harness.handle, CTX);
-    const queued = await gen.upsertQueued({
+    const pending = await gen.upsertPending({
       pullRequestId: pr.id,
       kind: GenerationKinds.BRIEF,
       headSha: "head-2",
       baselineSha: null,
     });
-    if (!queued.ok) throw new Error("generation seed failed");
+    if (!pending.ok) throw new Error("generation seed failed");
 
     const warming = await metaBody(cookie);
     // Both head-2 entries (idx 1 and idx 3): identical pending state.

@@ -204,7 +204,7 @@ export type {
   AuditLogRow,
 } from "./stores/audit";
 
-// The transactional ingest boundary: webhook trigger → PR upsert + queued
+// The transactional ingest boundary: webhook trigger → PR upsert + pending
 // `generation` projection + debounced graphile `generate` job, in ONE
 // transaction. Calls `graphile_worker.add_job` by name; no graphile-worker
 // npm dependency here.

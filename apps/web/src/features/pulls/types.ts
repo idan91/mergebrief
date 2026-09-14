@@ -22,7 +22,7 @@ export type PrState = ValueOf<typeof PrStates>;
  * the view says when generation resumes.
  */
 export const GenerationStatuses = {
-  QUEUED: "queued",
+  PENDING: "pending",
   RUNNING: "running",
   SUCCEEDED: "succeeded",
   FAILED: "failed",

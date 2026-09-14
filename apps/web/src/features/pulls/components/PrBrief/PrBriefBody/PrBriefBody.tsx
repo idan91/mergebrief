@@ -166,7 +166,7 @@ function PrBriefBodyState({
           <WaitCard
             phase={state.phase}
             prNumber={prNumber}
-            queuedNotice={
+            pendingNotice={
               policyNotice?.kind === "damped" ? policyNotice.text : undefined
             }
             repoId={repoId}

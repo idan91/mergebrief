@@ -85,8 +85,8 @@ describe.skipIf(databaseUrl === undefined)("startRun on real Postgres", () => {
         makeBriefTarget(pr.id, headSha),
       );
       for (const target of targets) {
-        const queued = await projection.upsertQueued(target);
-        if (!queued.ok) throw new Error(queued.error.message);
+        const pending = await projection.upsertPending(target);
+        if (!pending.ok) throw new Error(pending.error.message);
       }
 
       const outcomes = await Promise.all(
@@ -128,8 +128,8 @@ describe.skipIf(databaseUrl === undefined)("startRun on real Postgres", () => {
       });
       const projection = createGenerationProjection(handle, ctx);
       const target = makeBriefTarget(pr.id, "held");
-      const queued = await projection.upsertQueued(target);
-      if (!queued.ok) throw new Error(queued.error.message);
+      const pending = await projection.upsertPending(target);
+      if (!pending.ok) throw new Error(pending.error.message);
       await holding.query("begin");
       await holding.query("select pg_advisory_xact_lock(hashtext($1))", [
         `generation-cap:${repoId}`,

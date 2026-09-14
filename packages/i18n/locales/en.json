@@ -57,7 +57,7 @@
     "status": {
       "ready": "brief ready",
       "none": "no brief yet",
-      "queued": "queued",
+      "pending": "pending",
       "running": "generating…",
       "failed": "failed",
       "superseded": "newer push on the way",
@@ -70,7 +70,7 @@
       "merged": "merged"
     },
     "wait": {
-      "queued": "Queued — the brief will start generating shortly.",
+      "pending": "Pending: the brief will start generating shortly.",
       "generating": "Generating the brief…",
       "generatingPhase": "Generating the brief — {{phase}}…",
       "diffPending": "The diff preview appears here once the span is known; the brief replaces it when ready.",

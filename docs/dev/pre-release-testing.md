@@ -83,7 +83,7 @@ rather than repeated four times.
 - [ ] `docker compose up -d` → postgres/web/worker all running; migrations
       apply idempotently at boot.
 - [ ] Push to an open PR → webhook 200 → ONE debounced generate job → Brief
-      appears without manual reload (queued → generating → rendered).
+      appears without manual reload (pending → generating → rendered).
 - [ ] Push mid-generation → run recorded `superseded` (not failed), newer
       head generates; `attempts` untouched.
 - [ ] Exactly ONE branded Entry comment on the PR thread, replaced (never
@@ -192,7 +192,7 @@ release` — stated once here.
         window; nothing changed from before;
       - `drafts: { debounceSeconds: 900 }` → a FRESH draft's first brief
         still arrives on the normal window; a push after that brief shows
-        the queued heading "can take up to about 15 minutes" (own-draft
+        the pending heading "can take up to about 15 minutes" (own-draft
         view only) and the job's `run_at` sits ~15 min out (check
         `graphile_worker.jobs`);
       - mark ready (our CTA or GitHub's button) while the damped job is

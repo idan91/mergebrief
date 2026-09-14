@@ -164,7 +164,7 @@ export type GenerationKind = ValueOf<typeof GenerationKinds>;
  * attempt.
  */
 export const GenerationStatuses = {
-  QUEUED: "queued",
+  PENDING: "pending",
   RUNNING: "running",
   SUCCEEDED: "succeeded",
   FAILED: "failed",

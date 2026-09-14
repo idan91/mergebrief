@@ -501,13 +501,13 @@ describe("generate task, url-box world", () => {
       repoSlug: "acme/widget",
       state: PrStates.OPEN,
     });
-    // The queued projection row the enqueue door writes (PR-3 side of the
+    // The pending projection row the enqueue door writes (the ingest side of the
     // handshake), the drain transitions it, never creates it.
-    const queued = await createGenerationProjection(
+    const pending = await createGenerationProjection(
       harness.handle,
       ownerCtx,
-    ).upsertQueued(target(pr, HEAD_1));
-    expect(queued.ok).toBe(true);
+    ).upsertPending(target(pr, HEAD_1));
+    expect(pending.ok).toBe(true);
     const payload = {
       owner_user_id: "555",
       grant_id: "31",
@@ -577,7 +577,7 @@ describe("generate task, url-box world", () => {
       state: PrStates.OPEN,
     });
     const projection = createGenerationProjection(harness.handle, ownerCtx);
-    expect((await projection.upsertQueued(target(pr, HEAD_1))).ok).toBe(true);
+    expect((await projection.upsertPending(target(pr, HEAD_1))).ok).toBe(true);
     const queries: ContextQuery[] = [];
     const provider: ContextProvider = {
       providerId: "url",
@@ -623,7 +623,7 @@ describe("generate task, url-box world", () => {
       state: PrStates.OPEN,
     });
     const projection = createGenerationProjection(harness.handle, ownerCtx);
-    expect((await projection.upsertQueued(target(pr, HEAD_1))).ok).toBe(true);
+    expect((await projection.upsertPending(target(pr, HEAD_1))).ok).toBe(true);
     const generator = stubGenerator();
     const task = createGenerateTask({
       handle: harness.handle,
@@ -644,7 +644,7 @@ describe("generate task, url-box world", () => {
       GenerationStatuses.SUPERSEDED,
     );
     expect((await projection.get(target(pr, HEAD_2)))?.status).toBe(
-      GenerationStatuses.QUEUED,
+      GenerationStatuses.PENDING,
     );
     const jobs = await harness.raw(
       "select payload from graphile_worker.jobs where task_identifier = 'generate'",
@@ -671,7 +671,7 @@ describe("generate task, url-box world", () => {
       state: PrStates.OPEN,
     });
     const projection = createGenerationProjection(harness.handle, ownerCtx);
-    expect((await projection.upsertQueued(target(pr, HEAD_1))).ok).toBe(true);
+    expect((await projection.upsertPending(target(pr, HEAD_1))).ok).toBe(true);
     const github = stubGitHub(HEAD_1);
     // The pre-flight read sees the job's head; every poll after it sees the
     // push that supersedes this run.
@@ -716,7 +716,7 @@ describe("generate task, url-box world", () => {
       GenerationStatuses.SUPERSEDED,
     );
     expect((await projection.get(target(pr, HEAD_2)))?.status).toBe(
-      GenerationStatuses.QUEUED,
+      GenerationStatuses.PENDING,
     );
     const jobs = await harness.raw(
       "select payload from graphile_worker.jobs where task_identifier = 'generate'",
@@ -745,7 +745,7 @@ describe("generate task, url-box world", () => {
       state: PrStates.OPEN,
     });
     const projection = createGenerationProjection(harness.handle, ownerCtx);
-    expect((await projection.upsertQueued(target(pr, HEAD_1))).ok).toBe(true);
+    expect((await projection.upsertPending(target(pr, HEAD_1))).ok).toBe(true);
     const github = stubGitHub(HEAD_1);
     github.nextHeads = [HEAD_1];
     github.info = { ...github.info, headSha: HEAD_2 };
@@ -791,7 +791,7 @@ describe("generate task, url-box world", () => {
     });
 
     expect((await projection.get(target(pr, HEAD_2)))?.status).toBe(
-      GenerationStatuses.QUEUED,
+      GenerationStatuses.PENDING,
     );
   });
 
@@ -879,7 +879,7 @@ describe("generate task", () => {
       repoSlug: "acme/widget",
       state: PrStates.OPEN,
     });
-    await createGenerationProjection(harness.handle, ownerCtx).upsertQueued(
+    await createGenerationProjection(harness.handle, ownerCtx).upsertPending(
       target(pr, HEAD_1),
     );
     const payload = {
@@ -931,7 +931,7 @@ describe("generate task", () => {
       repoSlug: "acme/widget",
       state: PrStates.OPEN,
     });
-    await createGenerationProjection(harness.handle, ownerCtx).upsertQueued(
+    await createGenerationProjection(harness.handle, ownerCtx).upsertPending(
       target(pr, HEAD_1),
     );
     const payload = {
@@ -1320,7 +1320,7 @@ describe("generate task", () => {
     const afterFirstRun = github.commentCalls.length;
     const [readyId] = [...github.comments.entries()][0] ?? [];
 
-    // Same head re-queued (review-submitted gap-filler / redelivery): the
+    // The same head is enqueued again (review-submitted gap-filler or redelivery): the
     // brief is already stored and the ready comment is already live, the
     // rerun verifies the body via one fetch and posts NOTHING, delete+repost
     // here would re-ping the thread with no new information.
@@ -2174,7 +2174,7 @@ describe("generate task", () => {
   });
 
   it("supersedes replaced projections after the newer head succeeds", async () => {
-    const first = await trigger(HEAD_1); // queued row for head 1; job replaced below
+    const first = await trigger(HEAD_1); // pending row for head 1; job replaced below
     const second = await trigger(HEAD_2); // same job_key, payload now carries head 2
     expect(second.pr.id).toBe(first.pr.id);
 
@@ -3855,7 +3855,7 @@ describe("generate task, daily generation cap", () => {
     expect(github.commentCalls).toEqual([]);
   });
 
-  it("counts ATTEMPTS: one row re-queued to attempts=3 fills a cap of 3", async () => {
+  it("counts ATTEMPTS: one row re-run to attempts=3 fills a cap of 3", async () => {
     // graphile/webhook re-queues make ONE row several paid runs; the gate
     // must see the spend, not the row count.
     await burnOneRun();

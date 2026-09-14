@@ -74,7 +74,7 @@ export function derivePreviousBriefComparison(
 
 function isNonTerminal(status: GenerationStatus): boolean {
   return (
-    status === GenerationStatuses.QUEUED ||
+    status === GenerationStatuses.PENDING ||
     status === GenerationStatuses.RUNNING
   );
 }

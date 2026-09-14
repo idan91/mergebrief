@@ -202,7 +202,7 @@ function buildJobPayload(
 export interface TriggerGenerationInput {
   /** The PR the event describes; a trigger carries `state: open`. */
   readonly pullRequest: PullRequestUpsertInput;
-  /** The head SHA the queued brief generation targets. */
+  /** The head SHA the pending brief generation targets. */
   readonly headSha: string;
   /** Trailing-debounce window; defaults to 60s. */
   readonly debounceSeconds?: number;
@@ -210,7 +210,7 @@ export interface TriggerGenerationInput {
    * Trailing-debounce window applied INSTEAD of `debounceSeconds` when a prior
    * brief generation for this PR has SUCCEEDED (push-storm damping). The
    * condition is deliberately "a brief exists to look at":
-   * queued/failed/superseded priors don't damp. Policy is the caller's; this
+   * pending/failed/superseded priors don't damp. Policy is the caller's; this
    * store owns only the transactional prior-success check.
    */
   readonly regenerationDebounceSeconds?: number;
@@ -245,7 +245,7 @@ export interface IngestOutcome {
   readonly pullRequest: PullRequestRow;
   /**
    * Absent when the trigger landed on a PR whose terminal lifecycle was
-   * preserved: nothing is queued and no job is enqueued. Present with status
+   * preserved: nothing is projected and no job is enqueued. Present with status
    * `running` when the head is mid-run: the row was kept and no job added.
    */
   readonly generation?: GenerationRow;
@@ -254,7 +254,7 @@ export interface IngestOutcome {
 export interface IngestRoutines {
   readonly ctx: ScopeContext;
   /**
-   * Atomically upsert the PR row, project the brief generation as `queued`,
+   * Atomically upsert the PR row, project the brief generation as `pending`,
    * and enqueue/replace the debounced `generate` job. See the module header
    * for the idempotency contract.
    */
@@ -265,7 +265,7 @@ export interface IngestRoutines {
    * Persist PR state fields through the same terminal-preserving upsert as
    * `triggerGeneration` WITHOUT touching the projection or enqueueing work,
    * because re-triggering the worker's skip path is not a no-op (Entry-comment
-   * ping, compare-diff spend, phantom `queued`). Terminal lifecycles are kept
+   * ping, compare-diff spend, phantom `pending`). Terminal lifecycles are kept
    * unless `reopen` is set: a `reopened` delivery where policy suppresses the
    * enqueue would otherwise wedge the row closed forever.
    */
@@ -325,8 +325,8 @@ export function createIngestRoutines(
         );
 
         // Terminal preserved → the trigger was stale. Stop here: projecting a
-        // `queued` generation row and scheduling the job for a closed/merged PR
-        // would leave a forever-queued row and dead work (there is nothing to
+        // `pending` generation row and scheduling the job for a closed/merged PR
+        // would leave a forever-pending row and dead work (there is nothing to
         // generate for). The PR upsert above still refreshed repo_slug.
         if (
           preserveTerminal &&
@@ -338,7 +338,7 @@ export function createIngestRoutines(
         // 1b. The regeneration window applies only when a prior brief for this
         // PR SUCCEEDED, checked on THIS tx so the read and the enqueue can't
         // interleave with another trigger's projection write. Must run before
-        // step 2, which upserts the current head's own (queued) row.
+        // step 2, which upserts the current head's own (pending) row.
         let effectiveDebounceSeconds = debounceSeconds;
         if (input.regenerationDebounceSeconds !== undefined) {
           const prior = await tx
@@ -361,8 +361,8 @@ export function createIngestRoutines(
           }
         }
 
-        // 2. Project the brief generation as `queued`, replicating
-        // `generation.ts#upsertQueued`'s insert/onConflict INLINE on this tx.
+        // 2. Project the brief generation as `pending`, replicating
+        // `generation.ts#upsertPending`'s insert/onConflict INLINE on this tx.
         // No parent-in-tenant check: the parent row was written by THIS
         // transaction one statement ago.
         const genRows = await tx
@@ -373,7 +373,7 @@ export function createIngestRoutines(
             kind: GenerationKinds.BRIEF,
             headSha: input.headSha,
             baselineSha: null,
-            status: GenerationStatuses.QUEUED,
+            status: GenerationStatuses.PENDING,
           })
           .onConflictDoUpdate({
             target: [
@@ -386,7 +386,7 @@ export function createIngestRoutines(
             set: {
               status: keepWhileRunning(
                 generation.status,
-                GenerationStatuses.QUEUED,
+                GenerationStatuses.PENDING,
               ),
               attempts: keepWhileRunning(
                 generation.attempts,
@@ -404,7 +404,7 @@ export function createIngestRoutines(
           .returning();
         const genRow = genRows[0];
         if (genRow === undefined) {
-          throw new Error("generation upsertQueued returned no row");
+          throw new Error("generation upsertPending returned no row");
         }
         // A running head is never re-enqueued, refreshRunAt included: under N
         // slots a fresh job for the same head would run beside the live one.

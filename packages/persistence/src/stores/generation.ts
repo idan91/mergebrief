@@ -59,7 +59,7 @@ export type StartRunOutcome =
 // ---------------------------------------------------------------------------
 
 export const GenerationErrorCodes = {
-  /** `upsertQueued` named a `pull_request` that is not in ctx's tenant. */
+  /** `upsertPending` named a `pull_request` that is not in ctx's tenant. */
   PARENT_NOT_IN_TENANT: "parent-not-in-tenant",
   /** A transition targeted a projection row absent from ctx's tenant. */
   NOT_FOUND: "not-found",
@@ -117,11 +117,11 @@ export type GenerationTarget = BriefGenerationTarget | SpanGenerationTarget;
 export interface GenerationProjection {
   readonly ctx: ScopeContext;
   /**
-   * Project a job as `queued`. First call inserts (`attempts = 0`); a re-queue
+   * Project a job as `pending`. First call inserts (`attempts = 0`); a re-queue
    * of the same key conflicts (NULLS NOT DISTINCT) and increments `attempts`,
    * resetting `phase` and the error columns. Verifies the parent PR is in ctx's tenant.
    */
-  upsertQueued(
+  upsertPending(
     target: GenerationTarget,
   ): Promise<Result<GenerationRow, GenerationError>>;
   /** Reflect `running`, optionally with a determinate `phase`. */
@@ -175,8 +175,8 @@ export interface GenerationProjection {
   /**
    * The daily spend cap's counter for ONE repo over the half-open window
    * `[from, to)`. Sums ATTEMPTS (`GREATEST(attempts, 1)`), not rows, since each
-   * re-queue is another paid run on the same key. "Started" excludes `queued`
-   * (the run being decided is still queued, so counting it turns cap N into
+   * re-queue is another paid run on the same key. "Started" excludes `pending`
+   * (the run being decided is still pending, so counting it turns cap N into
    * N-1) and `capped` (the skip must not feed the counter that produced it).
    * Keyed by `repo_id`, not the slug, and counted ACROSS scope worlds: one
    * repo has one daily budget whichever door spends it.
@@ -219,10 +219,10 @@ export interface GenerationProjection {
   /**
    * Terminalize STALE brief projections after a newer head succeeded: any
    * brief-kind row on the PR whose head differs and is still non-terminal
-   * (`queued`/`running`) becomes `superseded`. Covers the pre-drain replace
+   * (`pending`/`running`) becomes `superseded`. Covers the pre-drain replace
    * case: push B inside the debounce window swaps the job's payload
    * (`job_key_mode => 'replace'`), so no worker run ever carries head A and
-   * its queued row would otherwise sit non-terminal forever. Same abort
+   * its pending row would otherwise sit non-terminal forever. Same abort
    * semantics as `markSuperseded` (attempts untouched, phase/errors cleared).
    * Returns the number of rows swept.
    */
@@ -260,7 +260,7 @@ async function countStartedRuns(
         eq(pullRequest.repoId, repoId),
         eq(generation.kind, GenerationKinds.BRIEF),
         notInArray(generation.status, [
-          GenerationStatuses.QUEUED,
+          GenerationStatuses.PENDING,
           GenerationStatuses.CAPPED,
         ]),
         gte(generation.createdAt, from),
@@ -325,7 +325,7 @@ export function createGenerationProjection(
   return {
     ctx,
 
-    async upsertQueued(target) {
+    async upsertPending(target) {
       return db.transaction(async (tx) => {
         const parents = await tx
           .select({ id: pullRequest.id })
@@ -351,7 +351,7 @@ export function createGenerationProjection(
             kind: target.kind,
             headSha: target.headSha,
             baselineSha: target.baselineSha,
-            status: GenerationStatuses.QUEUED,
+            status: GenerationStatuses.PENDING,
           })
           .onConflictDoUpdate({
             target: [
@@ -362,7 +362,7 @@ export function createGenerationProjection(
               generation.baselineSha,
             ],
             set: {
-              status: GenerationStatuses.QUEUED,
+              status: GenerationStatuses.PENDING,
               attempts: sql`${generation.attempts} + 1`,
               phase: null,
               errorCode: null,
@@ -374,7 +374,7 @@ export function createGenerationProjection(
           .returning();
         const row = rows[0];
         if (row === undefined) {
-          throw new Error("generation upsertQueued returned no row");
+          throw new Error("generation upsertPending returned no row");
         }
         return { ok: true, value: row };
       });
@@ -537,7 +537,7 @@ export function createGenerationProjection(
             eq(generation.kind, GenerationKinds.BRIEF),
             ne(generation.headSha, currentHeadSha),
             inArray(generation.status, [
-              GenerationStatuses.QUEUED,
+              GenerationStatuses.PENDING,
               GenerationStatuses.RUNNING,
             ]),
           ),

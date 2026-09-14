@@ -212,14 +212,6 @@
       "count": 1
     }
   },
-  "apps/api/test/generate.test.ts": {
-    "house/no-em-dash": {
-      "count": 6
-    },
-    "house/test-title": {
-      "count": 1
-    }
-  },
   "apps/api/test/logging.ts": {
     "house/no-em-dash": {
       "count": 1
@@ -980,35 +972,12 @@
       "count": 1
     }
   },
-  "apps/web/src/features/pulls/components/PrBrief/WaitCard/WaitCard.test.tsx": {
-    "house/no-em-dash": {
-      "count": 1
-    },
-    "house/test-title": {
-      "count": 1
-    }
-  },
-  "apps/web/src/features/pulls/components/PrBrief/WaitCard/WaitCard.tsx": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
-  "apps/web/src/features/pulls/components/PullsSection/PullsSection.tsx": {
-    "house/no-em-dash": {
-      "count": 4
-    }
-  },
   "apps/web/src/features/pulls/components/YourBriefsSection/YourBriefsSection.test.tsx": {
     "house/no-em-dash": {
       "count": 1
     },
     "house/test-title": {
       "count": 1
-    }
-  },
-  "apps/web/src/features/pulls/components/YourBriefsSection/YourBriefsSection.tsx": {
-    "house/no-em-dash": {
-      "count": 3
     }
   },
   "apps/web/src/features/pulls/hooks/useMarkReady.test.tsx": {
@@ -1056,19 +1025,6 @@
       "count": 2
     }
   },
-  "apps/web/src/features/pulls/utils/briefRouteState.test.ts": {
-    "house/no-em-dash": {
-      "count": 5
-    },
-    "house/test-title": {
-      "count": 15
-    }
-  },
-  "apps/web/src/features/pulls/utils/briefRouteState.ts": {
-    "house/no-em-dash": {
-      "count": 11
-    }
-  },
   "apps/web/src/features/pulls/utils/dbTimeline.test.ts": {
     "house/no-em-dash": {
       "count": 2
@@ -1088,11 +1044,6 @@
     },
     "house/test-title": {
       "count": 2
-    }
-  },
-  "apps/web/src/features/pulls/utils/ownDraft.ts": {
-    "house/no-em-dash": {
-      "count": 4
     }
   },
   "apps/web/src/features/review/components/SubmitModal/ReceiptAccordion/ReceiptAccordion.tsx": {
@@ -2088,14 +2039,6 @@
       "count": 4
     }
   },
-  "packages/persistence/test/generation.test.ts": {
-    "house/no-em-dash": {
-      "count": 7
-    },
-    "house/test-title": {
-      "count": 6
-    }
-  },
   "packages/persistence/test/global-setup.ts": {
     "house/no-em-dash": {
       "count": 1
@@ -2110,14 +2053,6 @@
     },
     "house/test-title": {
       "count": 6
-    }
-  },
-  "packages/persistence/test/list-reads.test.ts": {
-    "house/no-em-dash": {
-      "count": 5
-    },
-    "house/test-title": {
-      "count": 5
     }
   },
   "packages/persistence/test/migration-0013.test.ts": {
@@ -2165,14 +2100,6 @@
   "packages/persistence/test/ping.test.ts": {
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "packages/persistence/test/schema.test.ts": {
-    "house/no-em-dash": {
-      "count": 3
-    },
-    "house/test-title": {
-      "count": 12
     }
   },
   "packages/persistence/test/session.test.ts": {

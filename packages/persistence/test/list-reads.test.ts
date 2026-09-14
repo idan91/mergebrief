@@ -1,5 +1,5 @@
 // Read boundaries (PGlite): the list endpoint's tenant query
-// (`pullRequests.listForRepos` — allowed-repo filter, updated_at ordering,
+// (`pullRequests.listForRepos`: allowed-repo filter, updated_at ordering,
 // cap) and the per-PR "current span" enrichment batches
 // (`briefs.latestForPullRequests`, `generation.latestBriefForPullRequests`).
 // Also: `title` is persisted and refreshed by both upsert paths (a purgeable
@@ -56,7 +56,7 @@ describe("pull_request title persistence", () => {
 });
 
 describe("pull_request base_sha persistence", () => {
-  it("persists baseSha, refreshes it when provided, preserves it when omitted", async () => {
+  it("persists baseSha, refreshing it only when one is provided", async () => {
     const handle = await freshDatabase();
     const repo = createTenantRepository(handle, CTX_A);
 
@@ -88,7 +88,7 @@ describe("pull_request base_sha persistence", () => {
 });
 
 describe("pullRequests.listForRepos", () => {
-  it("returns only ctx-tenant rows in the allowed repo set, newest first, capped", async () => {
+  it("returns only ctx-tenant rows in the allowed repo set, newest first", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);
     const b = createTenantRepository(handle, CTX_B);
@@ -113,7 +113,7 @@ describe("pullRequests.listForRepos", () => {
       title: "a-r2-p3",
       state: PrStates.OPEN,
     });
-    // Tenant B: same repo id — must NEVER surface for ctx A.
+    // Tenant B: same repo id, must NEVER surface for ctx A.
     await b.pullRequests.upsert({
       repoId: REPO_1,
       prNumber: 9,
@@ -201,7 +201,7 @@ describe("briefs.latestForPullRequests", () => {
 });
 
 describe("comparison existence seams", () => {
-  it("comparisonMarks.existsForSpan / revisionNarratives.existsForSpan reflect writes, lean", async () => {
+  it("the existsForSpan reads reflect writes and stay lean", async () => {
     const handle = await freshDatabase();
     const repo = createTenantRepository(handle, CTX_A);
     const store = createArtifactStore(handle, CTX_A);
@@ -284,7 +284,7 @@ describe("comparison existence seams", () => {
     expect(await store.deltas.existsForSpan(pr.id, "cp-1", "head-2")).toBe(
       true,
     );
-    // Span mismatch stays false — the natural key is the whole span.
+    // Span mismatch stays false: the natural key is the whole span.
     expect(await store.deltas.existsForSpan(pr.id, "cp-1", "head-3")).toBe(
       false,
     );
@@ -336,8 +336,8 @@ describe("comparison existence seams", () => {
   });
 });
 
-describe("batched span listings — per-revision joins", () => {
-  it("briefs.listForPullRequest carries createdAt and orders by headIndex, lean", async () => {
+describe("batched span listings and per-revision joins", () => {
+  it("briefs.listForPullRequest carries createdAt and orders by headIndex", async () => {
     const handle = await freshDatabase();
     const repo = createTenantRepository(handle, CTX_A);
     const store = createArtifactStore(handle, CTX_A);
@@ -368,14 +368,14 @@ describe("batched span listings — per-revision joins", () => {
 
     const rows = await store.briefs.listForPullRequest(pr.id);
     expect(rows.map((row) => row.headIndex)).toEqual([1, 2]); // ordered asc
-    // baseSha is per-entry (drift fidelity) — never one shared base.
+    // baseSha is per-entry for drift fidelity, never one shared base.
     expect(rows.map((row) => row.baseSha)).toEqual(["base-1", "base-2"]);
     for (const row of rows) {
       expect(row.createdAt).toBeInstanceOf(Date);
     }
   });
 
-  it("marks/deltas/narratives listForPullRequest return lean SHA pairs, tenant-scoped", async () => {
+  it("the per-PR listings return lean SHA pairs, tenant-scoped", async () => {
     const handle = await freshDatabase();
     const repo = createTenantRepository(handle, CTX_A);
     const store = createArtifactStore(handle, CTX_A);
@@ -456,14 +456,14 @@ describe("generation.latestBriefForPullRequests", () => {
       state: PrStates.OPEN,
     });
 
-    await gen.upsertQueued({
+    await gen.upsertPending({
       pullRequestId: pr.id,
       kind: GenerationKinds.BRIEF,
       headSha: "head-1",
       baselineSha: null,
     });
     await new Promise((r) => setTimeout(r, 5));
-    await gen.upsertQueued({
+    await gen.upsertPending({
       pullRequestId: pr.id,
       kind: GenerationKinds.BRIEF,
       headSha: "head-2",
@@ -471,7 +471,7 @@ describe("generation.latestBriefForPullRequests", () => {
     });
     // A newer DELTA row must not shadow the brief-kind projection.
     await new Promise((r) => setTimeout(r, 5));
-    await gen.upsertQueued({
+    await gen.upsertPending({
       pullRequestId: pr.id,
       kind: GenerationKinds.DELTA,
       headSha: "head-2",
@@ -482,7 +482,7 @@ describe("generation.latestBriefForPullRequests", () => {
     const row = latest.get(pr.id);
     expect(row?.kind).toBe(GenerationKinds.BRIEF);
     expect(row?.headSha).toBe("head-2");
-    expect(row?.status).toBe(GenerationStatuses.QUEUED);
+    expect(row?.status).toBe(GenerationStatuses.PENDING);
   });
 
   it("never returns another tenant's projections", async () => {
@@ -493,7 +493,7 @@ describe("generation.latestBriefForPullRequests", () => {
       prNumber: 1,
       state: PrStates.OPEN,
     });
-    await createGenerationProjection(handle, CTX_B).upsertQueued({
+    await createGenerationProjection(handle, CTX_B).upsertPending({
       pullRequestId: bPr.id,
       kind: GenerationKinds.BRIEF,
       headSha: "head",

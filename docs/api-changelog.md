@@ -13,6 +13,12 @@ The contract discipline (ADR 0029): response shapes change additively
 within a major; removals/renames ship expand/contract — new field first,
 deprecation note here, removal only at a major.
 
+## dev (2026-09-14)
+
+- **Changed** the `generation.status` wire value `queued` is now `pending`: a
+  Job is queued, a Generation is pending. Pre-release rename with no
+  compatibility value, so a client matching on `queued` must be updated.
+
 ## dev (2026-09-11)
 
 - **Added** `GET /api/repos/:repoId/pulls/:prNumber/file-range?ref&path&from&to`

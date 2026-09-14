@@ -238,7 +238,7 @@ describe("owner-scoped artifact store", () => {
 });
 
 describe("owner-scoped generation projection", () => {
-  it("projects queued → running → succeeded for an owner PR", async () => {
+  it("projects pending → running → succeeded for an owner PR", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);
     const projection = createGenerationProjection(handle, CTX_A);
@@ -250,8 +250,8 @@ describe("owner-scoped generation projection", () => {
       headSha: "h".repeat(40),
       baselineSha: null,
     } as const;
-    const queued = await projection.upsertQueued(target);
-    expect(queued.ok).toBe(true);
+    const pending = await projection.upsertPending(target);
+    expect(pending.ok).toBe(true);
     expect((await projection.markRunning(target)).ok).toBe(true);
     const done = await projection.markSucceeded(target);
     expect(done.ok).toBe(true);
@@ -272,7 +272,7 @@ describe("owner-scoped generation projection", () => {
       headSha: "h".repeat(40),
       baselineSha: null,
     } as const;
-    expect((await projA.upsertQueued(target)).ok).toBe(true);
+    expect((await projA.upsertPending(target)).ok).toBe(true);
     expect((await projA.markRunning(target)).ok).toBe(true);
 
     const window = {
@@ -292,13 +292,13 @@ describe("owner-scoped generation projection", () => {
     const projB = createGenerationProjection(handle, CTX_B);
 
     const pr = await a.pullRequests.upsert(upsertInput(7));
-    const queued = await projB.upsertQueued({
+    const refused = await projB.upsertPending({
       pullRequestId: pr.id,
       kind: "brief",
       headSha: "h".repeat(40),
       baselineSha: null,
     });
-    expect(queued.ok).toBe(false);
+    expect(refused.ok).toBe(false);
   });
 });
 

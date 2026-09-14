@@ -18,7 +18,7 @@ export interface YourBriefsSectionProps {
   session: PullsSession;
 }
 
-/** Human status for a row — never color-only; rendered as text. */
+/** Human status for a row, never color-only; rendered as text. */
 function statusLabel(
   t: TFunction,
   briefAvailable: boolean,
@@ -27,8 +27,8 @@ function statusLabel(
   if (briefAvailable) return t("pulls.status.ready");
   if (generation === null) return t("pulls.status.none");
   switch (generation.status) {
-    case "queued":
-      return t("pulls.status.queued");
+    case "pending":
+      return t("pulls.status.pending");
     case "running":
       return t("pulls.status.running");
     case "failed":
@@ -42,7 +42,7 @@ function statusLabel(
   }
 }
 
-/** The PR's lifecycle as copy — the wire token is never rendered raw. */
+/** The PR's lifecycle as copy; the wire token is never rendered raw. */
 function stateLabel(t: TFunction, state: PrState): string {
   switch (state) {
     case "open":
@@ -61,7 +61,7 @@ function rowTitle(t: TFunction, pull: PrSummary): string {
 export function YourBriefsSection({ session }: YourBriefsSectionProps) {
   const { t } = useTranslation();
   const flow = useYourBriefs();
-  // Signed out ⇒ no owner world to list; unavailable degrades quietly — the
+  // Signed out means no owner world to list; unavailable degrades quietly, as the
   // pulls section on the same page already surfaces the backend state.
   if (session.kind !== "ready") {
     return null;

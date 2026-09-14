@@ -239,7 +239,7 @@ describe("POST /api/webhooks/github", () => {
     const generations = await harness.raw("select * from generation");
     expect(generations).toHaveLength(1);
     expect(generations[0]?.["kind"]).toBe("brief");
-    expect(generations[0]?.["status"]).toBe("queued");
+    expect(generations[0]?.["status"]).toBe("pending");
     expect(generations[0]?.["head_sha"]).toBe(HEAD_SHA);
     expect(generations[0]?.["baseline_sha"]).toBeNull();
 
@@ -374,7 +374,7 @@ describe("POST /api/webhooks/github", () => {
 
   it("updates draft state without touching generation or enqueueing", async () => {
     // Ready-to-draft transitions update state only. Preserve the generation projection
-    // and the earlier job without phantom queued status or an attempts increment.
+    // and the earlier job without phantom pending status or an attempts increment.
     expect(
       (
         await deliver(

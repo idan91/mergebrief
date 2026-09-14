@@ -100,7 +100,7 @@ Expect a `pull_request` row for your PR and a `graphile_worker.jobs` row with
 The queue also **drains**: run the worker (`pnpm -C apps/worker start`
 with the same env, or the compose `worker` service — see
 [`../self-host/compose.md`](../self-host/compose.md)) and the job disappears after the
-debounce, the `generation` row walks `queued → running → succeeded`, and the Brief lands in
+debounce, the `generation` row walks `pending → running → succeeded`, and the Brief lands in
 the `brief` table. Without a worker running, the row sits in the queue — still correct for
 webhook-only debugging.
 

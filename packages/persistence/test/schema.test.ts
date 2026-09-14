@@ -41,7 +41,7 @@ import {
 import { expectCheckViolation, freshPglite } from "./helpers";
 
 /**
- * Drizzle wraps driver errors (DrizzleQueryError) — walk the `cause` chain
+ * Drizzle wraps driver errors in DrizzleQueryError, so walk the `cause` chain
  * for the Postgres unique-violation message naming the constraint.
  */
 function isUniqueViolationOf(error: unknown, constraint: string): boolean {
@@ -55,7 +55,7 @@ function isUniqueViolationOf(error: unknown, constraint: string): boolean {
   return false;
 }
 
-/** Brand a bigint via its guard — the sanctioned no-`as` path. */
+/** Brand a bigint via its guard, the sanctioned no-`as` path. */
 function brandWith<T extends bigint>(
   guard: (value: bigint) => value is T,
   value: bigint,
@@ -290,7 +290,7 @@ describe("M1 schema migrations", () => {
     expect(names).toEqual([...M1_TABLES]);
   });
 
-  it("creates the partial purge_after sweep index (raw-sql-hardening)", async () => {
+  it("creates the partial purge_after sweep index", async () => {
     const db = await freshDb();
     const result = await db.execute(
       sql`select indexdef from pg_indexes where indexname = 'pull_request_purge_after_idx'`,
@@ -329,7 +329,7 @@ describe("M1 schema migrations", () => {
     expect(isUniqueViolationOf(rejection, "brief_natural_key")).toBe(true);
   });
 
-  it("cascades a pull_request delete to every per-PR child but spares audit_log and auth_session", async () => {
+  it("a pull_request delete spares audit_log and auth_session", async () => {
     const db = await freshDb();
     const pullRequestId = await insertPullRequest(db);
     await seedFullGraph(db, pullRequestId);
@@ -366,7 +366,7 @@ describe("M1 schema migrations", () => {
     ).toHaveLength(1);
   });
 
-  it("cascades a brief delete to its revision_narrative but not the pull_request", async () => {
+  it("a brief delete cascades to revision_narrative only", async () => {
     const db = await freshDb();
     const pullRequestId = await insertPullRequest(db);
     await seedFullGraph(db, pullRequestId);
@@ -388,7 +388,7 @@ describe("M1 schema migrations", () => {
     expect(await db.select({ id: delta.id }).from(delta)).toHaveLength(1);
   });
 
-  it("accepts an audit_log row whose target row does not exist (no outbound FKs)", async () => {
+  it("accepts an audit_log row whose target row does not exist", async () => {
     const db = await freshDb();
     await db.insert(auditLog).values({
       installationId: INSTALLATION,
@@ -414,7 +414,7 @@ describe("closed-vocabulary + shape CHECK constraints", () => {
     );
   });
 
-  it("rejects an open pull_request armed for the sweep (lifecycle shape)", async () => {
+  it("rejects an open pull_request armed for the sweep", async () => {
     const db = await freshDb();
     await expectCheckViolation(
       db.execute(
@@ -436,20 +436,20 @@ describe("closed-vocabulary + shape CHECK constraints", () => {
     // delta without a baseline: forbidden.
     await expectCheckViolation(
       db.execute(
-        sql`insert into generation (installation_id, pull_request_id, kind, head_sha, status) values (1000, ${prId}, 'delta', 'head', 'queued')`,
+        sql`insert into generation (installation_id, pull_request_id, kind, head_sha, status) values (1000, ${prId}, 'delta', 'head', 'pending')`,
       ),
       "generation_kind_baseline_shape",
     );
     // brief WITH a baseline: forbidden.
     await expectCheckViolation(
       db.execute(
-        sql`insert into generation (installation_id, pull_request_id, kind, head_sha, baseline_sha, status) values (1000, ${prId}, 'brief', 'head', 'chk', 'queued')`,
+        sql`insert into generation (installation_id, pull_request_id, kind, head_sha, baseline_sha, status) values (1000, ${prId}, 'brief', 'head', 'chk', 'pending')`,
       ),
       "generation_kind_baseline_shape",
     );
     // revision-narrative WITH its prevHead baseline: allowed.
     await db.execute(
-      sql`insert into generation (installation_id, pull_request_id, kind, head_sha, baseline_sha, status) values (1000, ${prId}, 'revision-narrative', 'head', 'prev', 'queued')`,
+      sql`insert into generation (installation_id, pull_request_id, kind, head_sha, baseline_sha, status) values (1000, ${prId}, 'revision-narrative', 'head', 'prev', 'pending')`,
     );
   });
 
@@ -515,7 +515,7 @@ describe("closed-vocabulary + shape CHECK constraints", () => {
   it("accepts generation.status 'superseded' after the 0003 vocab swap", async () => {
     const db = await freshDb();
     const prId = await insertPullRequest(db);
-    // In-vocab — the migration-0003 CHECK swap admits it.
+    // In-vocab: the migration-0003 CHECK swap admits it.
     await db.execute(
       sql`insert into generation (installation_id, pull_request_id, kind, head_sha, status) values (1000, ${prId}, 'brief', 'head', 'superseded')`,
     );
@@ -526,8 +526,8 @@ describe("closed-vocabulary + shape CHECK constraints", () => {
   });
 });
 
-describe("schema additions (migration 0003)", () => {
-  it("pull_request.entry_comment_id is selectable and defaults to null (no writer)", async () => {
+describe("schema additions from migration 0003", () => {
+  it("pull_request.entry_comment_id is selectable and defaults to null", async () => {
     const db = await freshDb();
     const prId = await insertPullRequest(db);
     const rows = await db
@@ -538,7 +538,7 @@ describe("schema additions (migration 0003)", () => {
     expect(rows[0]?.entryCommentId).toBeNull();
   });
 
-  it("rejects an auth_session insert omitting grant_id (NOT NULL)", async () => {
+  it("rejects an auth_session insert omitting grant_id", async () => {
     const db = await freshDb();
     await expectCheckViolation(
       db.execute(
@@ -548,7 +548,7 @@ describe("schema additions (migration 0003)", () => {
     );
   });
 
-  it("rejects a github_grant insert omitting gh_refresh_token_ciphertext (NOT NULL)", async () => {
+  it("rejects a github_grant insert omitting the refresh-token ciphertext", async () => {
     const db = await freshDb();
     await expectCheckViolation(
       db.execute(

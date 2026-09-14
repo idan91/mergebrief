@@ -1,4 +1,4 @@
-// POST /api/generate route tests: the url-box door end to end over PGlite —
+// POST /api/generate route tests: the url-box door end to end over PGlite,
 // viewer-token resolve (GitHub stubbed at global fetch), owner-scoped
 // upsert, and the enqueued worker job. Harness mirrors installations.test.ts.
 import { randomBytes, createHash } from "node:crypto";
@@ -41,7 +41,7 @@ function brand<T extends bigint>(
 const REVIEWER: ReviewerId = brand(isReviewerId, 555);
 const OTHER_REVIEWER: ReviewerId = brand(isReviewerId, 556);
 
-/** An OWNER-world session (no installation) — the url-box viewer's shape. */
+/** An OWNER-world session with no installation: the url-box viewer's shape. */
 async function seedSession(
   handle: AppDatabase,
   kp: KeyProvider,
@@ -202,7 +202,7 @@ async function post(
   });
 }
 
-describe("POST /api/generate — the url-box door", () => {
+describe("POST /api/generate: the url-box door", () => {
   let harness: PgliteHarness;
   let kp: KeyProvider;
 
@@ -270,7 +270,7 @@ describe("POST /api/generate — the url-box door", () => {
     const generations = await harness.raw(
       "select status, head_sha from generation",
     );
-    expect(generations).toEqual([{ status: "queued", head_sha: HEAD }]);
+    expect(generations).toEqual([{ status: "pending", head_sha: HEAD }]);
 
     const jobs = await harness.raw(
       "select payload, run_at from graphile_worker.jobs where task_identifier = 'generate'",
@@ -303,9 +303,9 @@ describe("POST /api/generate — the url-box door", () => {
     });
   });
 
-  it("an installation-bound viewer's paste lands owner-world AND reads back on the repo route", async () => {
+  it("an installation-bound paste lands owner-world and reads back", async () => {
     stubGitHub();
-    // Same shape as seedSession but bound to a tenant — the pre-url-box norm.
+    // Same shape as seedSession but bound to a tenant, the pre-url-box norm.
     const cookie = await (async () => {
       const raw = randomBytes(32).toString("base64url");
       const hash = createHash("sha256").update(raw).digest("hex");
@@ -341,7 +341,7 @@ describe("POST /api/generate — the url-box door", () => {
       { installation_id: null, owner_user_id: Number(REVIEWER) },
     ]);
 
-    // The read-back: the tenant ctx misses, the owner fallback resolves —
+    // The read-back: the tenant ctx misses and the owner fallback resolves,
     // the poll-after-paste loop must work for exactly this viewer.
     const meta = await app.request(`/api/repos/${REPO_ID}/pulls/7`, {
       headers: { Cookie: `rs_session=${cookie}` },
@@ -352,7 +352,7 @@ describe("POST /api/generate — the url-box door", () => {
       repoId: String(REPO_ID),
       prNumber: 7,
       briefAvailable: false,
-      generation: { status: "queued" },
+      generation: { status: "pending" },
     });
   });
 
@@ -406,7 +406,7 @@ describe("POST /api/generate — the url-box door", () => {
       headers: { Cookie: `rs_session=${cookie}` },
     });
     expect(meta.status).toBe(200);
-    // The stored title is the row marker — the tenant row must win.
+    // The stored title is the row marker, so the tenant row must win.
     expect(await meta.json()).toMatchObject({ title: "tenant title" });
   });
 

@@ -207,7 +207,7 @@ docker compose exec postgres \
   -c "select kind, status, phase, error from generation order by updated_at desc limit 5;"'
 ```
 
-- `generation.status` walks `queued → running → succeeded` (or `superseded`
+- `generation.status` walks `pending → running → succeeded` (or `superseded`
   after a superseding push; `failed` carries a sanitized reason; `capped`
   means the repo hit its daily generation cap and the run was skipped — see
   [generators.md](./generators.md#daily-generation-cap)).

@@ -80,21 +80,21 @@ async function harness(): Promise<
         headSha,
         baselineSha: null,
       } as const;
-      const queued = await projection.upsertQueued(target);
-      if (!queued.ok) throw new Error(queued.error.message);
+      const pending = await projection.upsertPending(target);
+      if (!pending.ok) throw new Error(pending.error.message);
       // `created_at` defaults to now() and `attempts` only moves on a
       // re-queue; the counter windows on the first and SUMS the second, so
       // the fixture stamps both directly.
       await client.query(
         "update generation set status = $1, created_at = $2, attempts = $3 where id = $4",
-        [status, createdAt.toISOString(), attempts, queued.value.id],
+        [status, createdAt.toISOString(), attempts, pending.value.id],
       );
     },
   };
 }
 
 describe("countStartedRunsForRepo", () => {
-  it("counts started runs and excludes queued and capped ones", async () => {
+  it("counts started runs and excludes pending and capped ones", async () => {
     const { handle, pullRequestId, run } = await harness();
     const inside = new Date("2026-08-03T12:00:00.000Z");
     await run({
@@ -125,8 +125,8 @@ describe("countStartedRunsForRepo", () => {
     await run({
       pullRequestId,
       headSha: "e",
-      // Enqueued but never drained, so nothing spent yet.
-      status: GenerationStatuses.QUEUED,
+      // The job is enqueued but never drained, so nothing spent yet.
+      status: GenerationStatuses.PENDING,
       createdAt: inside,
     });
     await run({
@@ -148,10 +148,10 @@ describe("countStartedRunsForRepo", () => {
     expect(count).toBe(4);
   });
 
-  it("counts ATTEMPTS, not rows: a re-queued row spends once per attempt", async () => {
+  it("counts ATTEMPTS, not rows: a re-run row spends once per attempt", async () => {
     const { handle, pullRequestId, run } = await harness();
     const inside = new Date("2026-08-03T12:00:00.000Z");
-    // One row, re-queued twice after its first run: three paid runs against
+    // One row, re-run twice after its first run: three paid runs against
     // one natural key. Counting rows would report 1 and let a hot PR spend a
     // multiple of the cap.
     await run({
@@ -180,13 +180,13 @@ describe("countStartedRunsForRepo", () => {
     expect(count).toBe(4);
   });
 
-  it("queued and capped rows count nothing however high their attempts", async () => {
+  it("pending and capped rows count nothing however high their attempts", async () => {
     const { handle, pullRequestId, run } = await harness();
     const inside = new Date("2026-08-03T12:00:00.000Z");
     await run({
       pullRequestId,
-      headSha: "requeued",
-      status: GenerationStatuses.QUEUED,
+      headSha: "re-run",
+      status: GenerationStatuses.PENDING,
       createdAt: inside,
       attempts: 9,
     });
@@ -293,10 +293,10 @@ describe("countStartedRunsForRepo", () => {
       headSha: "foreign",
       baselineSha: null,
     } as const;
-    const queued = await foreign.upsertQueued(foreignTarget);
-    if (!queued.ok) throw new Error(queued.error.message);
+    const pending = await foreign.upsertPending(foreignTarget);
+    if (!pending.ok) throw new Error(pending.error.message);
     await foreign.markSucceeded(foreignTarget);
-    await backdate(queued.value.id, inside);
+    await backdate(pending.value.id, inside);
 
     const count = await createGenerationProjection(
       handle,
@@ -320,16 +320,16 @@ describe("markCapped", () => {
       headSha: "capped-head",
       baselineSha: null,
     } as const;
-    const queued = await projection.upsertQueued(target);
-    if (!queued.ok) throw new Error(queued.error.message);
+    const pending = await projection.upsertPending(target);
+    if (!pending.ok) throw new Error(pending.error.message);
 
     const capped = await projection.markCapped(target);
     if (!capped.ok) throw new Error(capped.error.message);
     expect(capped.value.status).toBe(GenerationStatuses.CAPPED);
-    expect(capped.value.attempts).toBe(queued.value.attempts);
+    expect(capped.value.attempts).toBe(pending.value.attempts);
     expect(capped.value.phase).toBeNull();
     expect(capped.value.errorCode).toBeNull();
-    expect(capped.value.id).toBe(queued.value.id);
+    expect(capped.value.id).toBe(pending.value.id);
   });
 });
 
@@ -340,7 +340,7 @@ describe("startRun", () => {
     const { handle, pullRequestId } = await harness();
     const projection = createGenerationProjection(handle, CTX);
     const target = makeBriefTarget(pullRequestId, "first");
-    await projection.upsertQueued(target);
+    await projection.upsertPending(target);
 
     const started = await projection.startRun({
       target,
@@ -364,8 +364,8 @@ describe("startRun", () => {
     const projection = createGenerationProjection(handle, CTX);
     const first = makeBriefTarget(pullRequestId, "first");
     const second = makeBriefTarget(pullRequestId, "second");
-    await projection.upsertQueued(first);
-    await projection.upsertQueued(second);
+    await projection.upsertPending(first);
+    await projection.upsertPending(second);
     await projection.startRun({
       target: first,
       repoId: REPO,
@@ -383,7 +383,7 @@ describe("startRun", () => {
     if (!refused.ok) throw new Error(refused.error.message);
     expect(refused.value).toEqual({ started: false, startedRuns: 1 });
     const row = await projection.get(second);
-    expect(row?.status).toBe(GenerationStatuses.QUEUED);
+    expect(row?.status).toBe(GenerationStatuses.PENDING);
   });
 
   it("an absent cap starts without counting", async () => {
@@ -398,7 +398,7 @@ describe("startRun", () => {
     });
     const projection = createGenerationProjection(handle, CTX);
     const target = makeBriefTarget(pullRequestId, "uncapped");
-    await projection.upsertQueued(target);
+    await projection.upsertPending(target);
 
     const started = await projection.startRun({
       target,
@@ -412,7 +412,7 @@ describe("startRun", () => {
     expect(row?.status).toBe(GenerationStatuses.RUNNING);
   });
 
-  it("capped and queued rows never count against the cap", async () => {
+  it("capped and pending rows never count against the cap", async () => {
     const { handle, pullRequestId, run } = await harness();
     const inside = new Date("2026-08-03T12:00:00.000Z");
     await run({
@@ -424,12 +424,12 @@ describe("startRun", () => {
     await run({
       pullRequestId,
       headSha: "waiting",
-      status: GenerationStatuses.QUEUED,
+      status: GenerationStatuses.PENDING,
       createdAt: inside,
     });
     const projection = createGenerationProjection(handle, CTX);
     const target = makeBriefTarget(pullRequestId, "next");
-    await projection.upsertQueued(target);
+    await projection.upsertPending(target);
 
     const started = await projection.startRun({
       target,

@@ -1,4 +1,4 @@
-// The transactional ingest boundary: PR upsert + queued generation
+// The transactional ingest boundary: PR upsert + pending generation
 // projection + debounced graphile `generate` job, atomically. Runs on the
 // PGlite harness because it provides the `graphile_worker` stub the enqueue
 // step calls by name.
@@ -132,7 +132,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
     });
   }
 
-  it("atomically writes PR, queued generation and debounced job rows", async () => {
+  it("atomically writes PR, pending generation and debounced job rows", async () => {
     const before = Date.now();
     const outcome = unwrap(await trigger());
 
@@ -143,11 +143,11 @@ describe("createIngestRoutines.triggerGeneration", () => {
     expect(outcome.pullRequest.title).toBe("feat: add widgets");
     expect(outcome.pullRequest.state).toBe(PrStates.OPEN);
 
-    // The returned generation row: kind brief, queued, baseline null.
+    // The returned generation row: kind brief, pending, baseline null.
     const generation = expectGeneration(outcome);
     expect(generation.pullRequestId).toBe(outcome.pullRequest.id);
     expect(generation.kind).toBe(GenerationKinds.BRIEF);
-    expect(generation.status).toBe(GenerationStatuses.QUEUED);
+    expect(generation.status).toBe(GenerationStatuses.PENDING);
     expect(generation.headSha).toBe(HEAD_SHA);
     expect(generation.baselineSha).toBeNull();
     expect(generation.attempts).toBe(0);
@@ -200,11 +200,11 @@ describe("createIngestRoutines.triggerGeneration", () => {
 
     const second = unwrap(await trigger());
 
-    // Same aggregate root, projection re-queued with attempts bumped.
+    // Same aggregate root, projection reset to pending with attempts bumped.
     expect(second.pullRequest.id).toBe(first.pullRequest.id);
     expect(expectGeneration(second).id).toBe(expectGeneration(first).id);
     expect(expectGeneration(second).attempts).toBe(1);
-    expect(expectGeneration(second).status).toBe(GenerationStatuses.QUEUED);
+    expect(expectGeneration(second).status).toBe(GenerationStatuses.PENDING);
 
     const prs = await harness.raw("select id from pull_request");
     const generations = await harness.raw("select id from generation");
@@ -292,7 +292,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
     expect(epochMs(jobs[0]?.["run_at"])).toBe(firstRunAt);
   });
 
-  it("a succeeded head is reset to queued and enqueued again", async () => {
+  it("a succeeded head is reset to pending and enqueued again", async () => {
     const first = unwrap(await trigger());
     const target = briefTarget(first.pullRequest.id);
     const projection = createGenerationProjection(harness.handle, CTX);
@@ -303,14 +303,14 @@ describe("createIngestRoutines.triggerGeneration", () => {
     const second = unwrap(await trigger());
 
     const row = expectGeneration(second);
-    expect(row.status).toBe(GenerationStatuses.QUEUED);
+    expect(row.status).toBe(GenerationStatuses.PENDING);
     expect(row.phase).toBeNull();
     expect(row.attempts).toBe(1);
     const jobs = await harness.raw("select id from graphile_worker.jobs");
     expect(jobs).toHaveLength(1);
   });
 
-  it("a failed head is reset to queued with its error cleared", async () => {
+  it("a failed head is reset to pending with its error cleared", async () => {
     const first = unwrap(await trigger());
     const target = briefTarget(first.pullRequest.id);
     const projection = createGenerationProjection(harness.handle, CTX);
@@ -324,7 +324,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
     const second = unwrap(await trigger());
 
     const row = expectGeneration(second);
-    expect(row.status).toBe(GenerationStatuses.QUEUED);
+    expect(row.status).toBe(GenerationStatuses.PENDING);
     expect(row.errorCode).toBeNull();
     expect(row.errorParams).toBeNull();
     const jobs = await harness.raw("select id from graphile_worker.jobs");
@@ -340,7 +340,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
 
     // A redelivered synchronize / a review on the now-closed PR: writes
     // state:open too, but must leave the terminal lifecycle intact AND queue
-    // nothing (no forever-queued generation row, no dead job).
+    // nothing (no forever-pending generation row, no dead job).
     const outcome = unwrap(await trigger());
     expect(outcome.pullRequest.state).toBe(PrStates.CLOSED);
     expect(outcome.pullRequest.closedAt).not.toBeNull();
@@ -478,7 +478,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
       expect(delta).toBeLessThan(70_000);
     });
 
-    it("keeps the normal window while the prior generation is only queued", async () => {
+    it("keeps the normal window while the prior generation is only pending", async () => {
       await trigger();
       const before = Date.now();
       const result = await trigger({

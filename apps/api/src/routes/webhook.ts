@@ -133,7 +133,7 @@ async function handlePullRequest(
   }
   if (event.action === PullRequestActions.CONVERTED_TO_DRAFT) {
     // Draft re-entry updates lifecycle only. Enqueueing can repost Entry comments, spend on
-    // comparisons, create phantom queued state or retry a previously failed generation.
+    // comparisons, create phantom pending state or retry a previously failed generation.
     await createIngestRoutines(handle, ctx).recordState(
       shapePullRequestUpsert(event, { state: PrStates.OPEN }),
     );

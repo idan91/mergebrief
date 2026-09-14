@@ -40,7 +40,7 @@ function generation(overrides: Partial<GenerationSummary>): GenerationSummary {
 }
 
 describe("deriveBriefRouteState", () => {
-  it("an explicit span always renders (deep link to an older span included)", () => {
+  it("an explicit span always renders, an older-span deep link included", () => {
     const state = deriveBriefRouteState(
       meta({ briefAvailable: false, generation: generation({}) }),
       { base: "b1", head: "h1" },
@@ -48,7 +48,7 @@ describe("deriveBriefRouteState", () => {
     expect(state).toEqual({ kind: "render", span: { base: "b1", head: "h1" } });
   });
 
-  it("an explicit span naming the CURRENT head degrades to the wait state while its first Brief is still generating (no 404)", () => {
+  it("the current head degrades to the wait state while the first Brief runs", () => {
     // The Entry-comment "Brief is generating…" link points at the current
     // head whose artifact does not exist yet; rendering it would 404 the
     // page, so it degrades to the same diff-first wait a span-unknown load of a
@@ -70,10 +70,10 @@ describe("deriveBriefRouteState", () => {
     });
   });
 
-  it("degrades on a matching head even when the explicit BASE mismatches the meta's (base drift must not veto)", () => {
+  it("degrades on a matching head even when the explicit BASE drifts", () => {
     // The link's base comes from the generation task's fresh PR fetch, while
     // meta.baseSha falls back to the ingest-time row when no brief exists yet
-    // — a drift between the two must not re-open the 404 (head is the
+    // and a drift between the two must not re-open the 404 (head is the
     // revision-selection key; base is a pinned convenience).
     const state = deriveBriefRouteState(
       meta({
@@ -92,7 +92,7 @@ describe("deriveBriefRouteState", () => {
     });
   });
 
-  it("an explicit span naming the current span STILL renders once its artifact exists", () => {
+  it("the current span STILL renders once its artifact exists", () => {
     const state = deriveBriefRouteState(
       meta({ briefAvailable: true, baseSha: "b2", headSha: "head-2" }),
       { base: "b2", head: "head-2" },
@@ -103,7 +103,7 @@ describe("deriveBriefRouteState", () => {
     });
   });
 
-  it("briefAvailable + known span renders even while generation still runs (artifact EXISTS beats status)", () => {
+  it("a known span renders while generation runs: the artifact beats status", () => {
     const state = deriveBriefRouteState(
       meta({
         briefAvailable: true,
@@ -119,20 +119,20 @@ describe("deriveBriefRouteState", () => {
     });
   });
 
-  it("no generation row and no brief → empty (activation hint)", () => {
+  it("no generation row and no brief lands on the empty activation hint", () => {
     expect(deriveBriefRouteState(meta({}), undefined)).toEqual({
       kind: "empty",
     });
   });
 
-  it("queued/running → waiting with phase; span undefined while base unknown", () => {
+  it("pending and running wait with phase; span undefined while base unknown", () => {
     const state = deriveBriefRouteState(
-      meta({ generation: generation({ status: "queued" }) }),
+      meta({ generation: generation({ status: "pending" }) }),
       undefined,
     );
     expect(state).toMatchObject({
       kind: "waiting",
-      status: "queued",
+      status: "pending",
       span: undefined,
     });
 
@@ -165,7 +165,7 @@ describe("deriveBriefRouteState", () => {
     });
   });
 
-  it("superseded → superseded (newer revision coming)", () => {
+  it("superseded stays superseded while the newer revision is coming", () => {
     const state = deriveBriefRouteState(
       meta({ generation: generation({ status: "superseded" }) }),
       undefined,
@@ -173,7 +173,7 @@ describe("deriveBriefRouteState", () => {
     expect(state).toEqual({ kind: "superseded" });
   });
 
-  it("capped → capped, carrying the skip time (never a fake failure)", () => {
+  it("capped carries the skip time and is never a fake failure", () => {
     const state = deriveBriefRouteState(
       meta({
         generation: generation({
@@ -202,9 +202,9 @@ describe("deriveBriefRouteState", () => {
 });
 
 describe("shouldPollMeta", () => {
-  it("polls while queued/running (even when the brief already renders — warming chip)", () => {
+  it("polls while pending or running even once the brief renders", () => {
     expect(
-      shouldPollMeta(meta({ generation: generation({ status: "queued" }) })),
+      shouldPollMeta(meta({ generation: generation({ status: "pending" }) })),
     ).toBe(true);
     expect(
       shouldPollMeta(
@@ -232,14 +232,14 @@ describe("shouldPollMeta", () => {
     ).toBe(false);
   });
 
-  it("never polls a capped row — the skip is terminal, nothing is coming", () => {
+  it("never polls a capped row: the skip is terminal, nothing is coming", () => {
     expect(
       shouldPollMeta(meta({ generation: generation({ status: "capped" }) })),
     ).toBe(false);
   });
 
   it("polls the viewer's OWN draft: external ready flips must propagate", () => {
-    // A fully settled generation on the author's own draft still polls —
+    // A fully settled generation on the author's own draft still polls, as
     // this is exactly the state an author sits in while self-reviewing, and
     // a ready-elsewhere flip (marked ready on GitHub) must reach a focused
     // tab without a window-focus refetch.
@@ -253,7 +253,7 @@ describe("shouldPollMeta", () => {
         }),
       ),
     ).toBe(true);
-    // Someone ELSE's draft does not poll — no draft-keyed affordances there;
+    // Someone ELSE's draft does not poll: no draft-keyed affordances there;
     // a flip INTO own-draft arrives via the focus refetch, as before.
     expect(
       shouldPollMeta(
@@ -278,7 +278,7 @@ describe("shouldPollMeta", () => {
     ).toBe(false);
   });
 
-  it("polls while lastReview is pending even after the brief generation is terminal (codex PR-46 finding)", () => {
+  it("polls while lastReview is pending after the generation is terminal", () => {
     expect(
       shouldPollMeta(
         meta({

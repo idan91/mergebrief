@@ -115,7 +115,7 @@ installed for your user?).
 On `/` while signed in, **expect per row**: PR title (new rows only —
 pre-migration rows say `PR #N` until their next webhook refreshes the title),
 `owner/repo #N · state · short-sha`, a status pill (`brief ready` /
-`queued` / `generating…` / `no brief yet`), and the row links to
+`pending` / `generating…` / `no brief yet`), and the row links to
 `/repos/<repoId>/pulls/<N>`.
 
 ## 5. Fresh generation + wait UX (live transition)
@@ -131,7 +131,7 @@ fake generator adapter exists.
 3. **Immediately** open the PR's row from the picker
    (`/repos/<repoId>/pulls/<N>`).
 4. **Expect, in sequence, without any manual reload:**
-   - "Queued — the Brief will start generating shortly." card, then
+   - "Pending: the brief will start generating shortly." card, then
    - "Generating the Brief — <phase>…" with a spinner
      (phase-only — no diff preview yet; known follow-up, base SHA not
      persisted),
@@ -143,7 +143,7 @@ fake generator adapter exists.
 5. **Expect in the URL:** `?base=<sha>&head=<sha>` appears (span pinning)
    once the brief renders.
 
-**If it never leaves queued:** `docker compose logs -f worker` — the generate
+**If it never leaves pending:** `docker compose logs -f worker` — the generate
 job should pick up after the ~60s debounce. No job at all → check the
 webhook delivered (ngrok 4040) and the web log for the enqueue.
 

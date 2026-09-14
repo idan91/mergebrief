@@ -154,7 +154,7 @@ async function runGeneration(
     (pr.state === PrStates.CLOSED || pr.state === PrStates.MERGED)
   ) {
     // App world: a brief for a terminal PR would never be read (same rule as
-    // the enqueue gate); the queued projection row must not sit forever.
+    // the enqueue gate); the pending projection row must not sit forever.
     // Url-box jobs generate regardless, briefing a merged PR is that door's
     // primary use.
     throw new SupersededSignal(`pull_request ${pr.prNumber} is ${pr.state}`);
@@ -480,7 +480,7 @@ async function runGeneration(
     // `superseded` applies the same as to a drained abort.
     const swept = await projection.supersedeStaleBriefs(pullRequestId, headSha);
     if (swept > 0) {
-      log.info(`generate: swept ${swept} stale queued brief projection(s)`);
+      log.info(`generate: swept ${swept} stale pending brief projection(s)`);
     }
     log.info(
       `generate: succeeded for ${prRow.prNumber}@${headSha.slice(0, 8)}`,

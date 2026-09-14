@@ -43,7 +43,7 @@ git push -u origin brief-43-manual
 gh pr create --draft --title "BRIEF-43 manual test" --fill
 ```
 
-- [ ] Webhook 200 → one debounced generate job → Brief renders (queued →
+- [ ] Webhook 200 → one debounced generate job → Brief renders (pending →
       generating → rendered) without a manual reload.
 - [ ] In the DB, the PR row carries the new columns:
       ```sh

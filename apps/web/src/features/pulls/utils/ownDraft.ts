@@ -1,5 +1,5 @@
 // The SINGLE source for "the viewer is reading their own draft PR". Derived
-// at read time from the PrView booleans the server computes per request —
+// at read time from the PrView booleans the server computes per request,
 // never stored, never a self-declared toggle, never dependent on how the page
 // was entered (behavior follows visible state). Everything the own-draft state
 // changes keys off this one predicate.
@@ -32,10 +32,10 @@ export interface DraftPolicyNotice {
 
 /**
  * The own-draft policy notice: explains why the brief is absent (instance has
- * drafts off) or slow to refresh (damping window) —
+ * drafts off) or slow to refresh (damping window). It is shown
  * to the DRAFT'S OWN AUTHOR only; reviewers of someone else's draft and any
  * ready-PR view get nothing. The damped text states the CONFIGURED window
- * (never a hardcoded duration — the operator picks it). Null when there is
+ * (never a hardcoded duration, since the operator picks it). Null when there is
  * nothing to explain: no policy on the row (list rows) or the zero-config
  * default.
  */
@@ -52,9 +52,9 @@ export function draftPolicyNotice(
     };
   }
   if (policy.debounceSeconds !== null) {
-    // "can take up to" — an upper bound, deliberately: the FE cannot tell a
-    // damped regeneration from the two never-damped queued cases (first
-    // generation, review-triggered regen — plan decisions 3/7), where the
+    // "can take up to" is an upper bound, deliberately: the FE cannot tell a
+    // damped regeneration from the two never-damped pending cases (first
+    // generation, review-triggered regen), where the
     // job fires on the normal window. An exact claim would over-promise the
     // wait there; the bound is true in every case. Revisit trigger recorded
     // in the plan (echo the applied window on the generation summary).

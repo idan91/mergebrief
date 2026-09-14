@@ -1,6 +1,6 @@
-// Generation-projection tests (PGlite): the queued→running→succeeded
+// Generation-projection tests (PGlite): the pending→running→succeeded
 // transitions with attempts/updated_at maintenance, and the
-// NULLS-NOT-DISTINCT proof: a brief-kind re-queue (null baseline_sha) conflicts
+// NULLS-NOT-DISTINCT proof: a brief-kind re-push (null baseline_sha) conflicts
 // on the natural key rather than inserting a second row.
 import { describe, expect, it, onTestFinished } from "vitest";
 import {
@@ -33,8 +33,8 @@ const REPO: RepoId = brandWith(isRepoId, 777n);
 const CTX_A: TenantContext = { installationId: TENANT_A };
 const CTX_B: TenantContext = { installationId: TENANT_B };
 
-describe("createGenerationProjection — status transitions", () => {
-  it("queued → running → succeeded, attempts stable, updated_at advances", async () => {
+describe("createGenerationProjection status transitions", () => {
+  it("pending → running → succeeded, attempts stable, updated_at advances", async () => {
     const handle = await freshDatabase();
     const repo = createTenantRepository(handle, CTX_A);
     const gen = createGenerationProjection(handle, CTX_A);
@@ -51,18 +51,18 @@ describe("createGenerationProjection — status transitions", () => {
       baselineSha: "checkpoint",
     };
 
-    const queued = await gen.upsertQueued(target);
-    expect(queued.ok).toBe(true);
-    if (!queued.ok) throw new Error("queue failed");
-    expect(queued.value.status).toBe(GenerationStatuses.QUEUED);
-    expect(queued.value.attempts).toBe(0);
+    const pending = await gen.upsertPending(target);
+    expect(pending.ok).toBe(true);
+    if (!pending.ok) throw new Error("projection failed");
+    expect(pending.value.status).toBe(GenerationStatuses.PENDING);
+    expect(pending.value.attempts).toBe(0);
 
     const running = await gen.markRunning(target, GenerationPhases.GENERATING);
     if (!running.ok) throw new Error("markRunning failed");
     expect(running.value.status).toBe(GenerationStatuses.RUNNING);
     expect(running.value.phase).toBe(GenerationPhases.GENERATING);
     expect(running.value.updatedAt.getTime()).toBeGreaterThanOrEqual(
-      queued.value.updatedAt.getTime(),
+      pending.value.updatedAt.getTime(),
     );
 
     const done = await gen.markSucceeded(target);
@@ -70,7 +70,7 @@ describe("createGenerationProjection — status transitions", () => {
     expect(done.value.status).toBe(GenerationStatuses.SUCCEEDED);
     // A terminal row must not advertise the phase it was mid-way through.
     expect(done.value.phase).toBeNull();
-    expect(done.value.id).toBe(queued.value.id); // one row throughout
+    expect(done.value.id).toBe(pending.value.id); // one row throughout
   });
 
   it("re-queue increments attempts and resets phase/error", async () => {
@@ -89,22 +89,22 @@ describe("createGenerationProjection — status transitions", () => {
       baselineSha: "checkpoint",
     };
 
-    const first = await gen.upsertQueued(target);
+    const first = await gen.upsertPending(target);
     await gen.markFailed(target, {
       code: GenerationFailureCodes.UNKNOWN,
       params: { detail: "boom" },
     });
-    const requeued = await gen.upsertQueued(target);
+    const second = await gen.upsertPending(target);
 
-    if (!first.ok || !requeued.ok) throw new Error("queue failed");
-    expect(requeued.value.id).toBe(first.value.id);
-    expect(requeued.value.attempts).toBe(1);
-    expect(requeued.value.status).toBe(GenerationStatuses.QUEUED);
-    expect(requeued.value.errorCode).toBeNull();
-    expect(requeued.value.errorParams).toBeNull();
+    if (!first.ok || !second.ok) throw new Error("projection failed");
+    expect(second.value.id).toBe(first.value.id);
+    expect(second.value.attempts).toBe(1);
+    expect(second.value.status).toBe(GenerationStatuses.PENDING);
+    expect(second.value.errorCode).toBeNull();
+    expect(second.value.errorParams).toBeNull();
   });
 
-  it("brief-kind (null baseline_sha) upsert conflicts — NULLS NOT DISTINCT proof", async () => {
+  it("a null baseline_sha upsert conflicts, proving NULLS NOT DISTINCT", async () => {
     const handle = await freshDatabase();
     const repo = createTenantRepository(handle, CTX_A);
     const gen = createGenerationProjection(handle, CTX_A);
@@ -120,8 +120,8 @@ describe("createGenerationProjection — status transitions", () => {
       baselineSha: null,
     };
 
-    const first = await gen.upsertQueued(target);
-    const second = await gen.upsertQueued(target);
+    const first = await gen.upsertPending(target);
+    const second = await gen.upsertPending(target);
 
     if (!first.ok || !second.ok) throw new Error("queue failed");
     // Without NULLS NOT DISTINCT these would be two rows; here it is one.
@@ -130,7 +130,7 @@ describe("createGenerationProjection — status transitions", () => {
     expect(await gen.get(target)).toBeDefined();
   });
 
-  it("rejects upsertQueued whose pull_request is in another tenant", async () => {
+  it("rejects upsertPending whose pull_request is in another tenant", async () => {
     const handle = await freshDatabase();
     const b = createTenantRepository(handle, CTX_B);
     const genA = createGenerationProjection(handle, CTX_A);
@@ -140,7 +140,7 @@ describe("createGenerationProjection — status transitions", () => {
       state: PrStates.OPEN,
     });
 
-    const result = await genA.upsertQueued({
+    const result = await genA.upsertPending({
       pullRequestId: bPr.id,
       kind: GenerationKinds.BRIEF,
       headSha: "head",
@@ -166,7 +166,7 @@ describe("createGenerationProjection — status transitions", () => {
       headSha: "head",
       baselineSha: null,
     };
-    await gen.upsertQueued(target);
+    await gen.upsertPending(target);
 
     const raw = [
       "connect ECONNREFUSED postgres://user:pass@host/db retrying",
@@ -182,7 +182,7 @@ describe("createGenerationProjection — status transitions", () => {
     expect(failed.value.errorCode).toBe(GenerationFailureCodes.UNKNOWN);
     const stored = failed.value.errorParams?.detail;
     expect(stored).toBe("connect ECONNREFUSED [redacted-url] retrying");
-    expect(stored).not.toContain("\n"); // one line — stack trace dropped
+    expect(stored).not.toContain("\n"); // one line, stack trace dropped
     expect(stored).not.toContain("pass"); // credentials gone
     expect(stored).not.toContain("postgres://");
     expect((stored ?? "").length).toBeLessThanOrEqual(300);
@@ -203,7 +203,7 @@ describe("createGenerationProjection — status transitions", () => {
       headSha: "head-8",
       baselineSha: null,
     };
-    await gen.upsertQueued(target);
+    await gen.upsertPending(target);
     const failed = await gen.markFailed(target, {
       code: GenerationFailureCodes.PROVIDER_RATE_LIMIT,
     });
@@ -214,7 +214,7 @@ describe("createGenerationProjection — status transitions", () => {
     expect(failed.value.errorParams).toBeNull();
   });
 
-  it("drops an empty sanitized detail to null params — readers fall back to the code", async () => {
+  it("drops an empty sanitized detail to null params", async () => {
     const handle = await freshDatabase();
     const repo = createTenantRepository(handle, CTX_A);
     const gen = createGenerationProjection(handle, CTX_A);
@@ -229,7 +229,7 @@ describe("createGenerationProjection — status transitions", () => {
       headSha: "head-10",
       baselineSha: null,
     };
-    await gen.upsertQueued(target);
+    await gen.upsertPending(target);
     const failed = await gen.markFailed(target, {
       code: GenerationFailureCodes.UNKNOWN,
       params: { detail: "\nreal message on line two" },
@@ -272,21 +272,21 @@ describe("createGenerationProjection — status transitions", () => {
       baselineSha: "checkpoint",
     };
 
-    await gen.upsertQueued(target);
+    await gen.upsertPending(target);
     // A prior failure sets attempts/error; supersession must not disturb either.
-    const requeued = await gen.upsertQueued(target); // attempts → 1 (already ran once)
-    await gen.markRunning(target, GenerationPhases.GENERATING); // mid-run abort — phase is set
+    const second = await gen.upsertPending(target); // attempts → 1 (already ran once)
+    await gen.markRunning(target, GenerationPhases.GENERATING); // mid-run abort, phase is set
     await gen.markFailed(target, {
       code: GenerationFailureCodes.UNKNOWN,
       params: { detail: "boom" },
     });
-    if (!requeued.ok) throw new Error("requeue failed");
-    const attemptsBefore = requeued.value.attempts;
+    if (!second.ok) throw new Error("second projection failed");
+    const attemptsBefore = second.value.attempts;
 
     const superseded = await gen.markSuperseded(target);
     if (!superseded.ok) throw new Error("markSuperseded failed");
     expect(superseded.value.status).toBe(GenerationStatuses.SUPERSEDED);
-    // An abort is NOT a failure: attempts untouched, error cleared — and the
+    // An abort is NOT a failure: attempts untouched, error cleared, and the
     // mid-run phase must not survive into the terminal row.
     expect(superseded.value.attempts).toBe(attemptsBefore);
     expect(superseded.value.errorCode).toBeNull();
@@ -294,7 +294,7 @@ describe("createGenerationProjection — status transitions", () => {
     expect(superseded.value.phase).toBeNull();
   });
 
-  it("supersedeStaleBriefs terminalizes stale non-terminal briefs and clears their phase", async () => {
+  it("supersedeStaleBriefs terminalizes stale briefs and clears the phase", async () => {
     const handle = await freshDatabase();
     const repo = createTenantRepository(handle, CTX_A);
     const gen = createGenerationProjection(handle, CTX_A);
@@ -316,9 +316,9 @@ describe("createGenerationProjection — status transitions", () => {
       baselineSha: null,
     } as const;
 
-    await gen.upsertQueued(stale);
+    await gen.upsertPending(stale);
     await gen.markRunning(stale, GenerationPhases.GENERATING); // sweep catches it mid-run
-    await gen.upsertQueued(current);
+    await gen.upsertPending(current);
     await gen.markSucceeded(current);
 
     const swept = await gen.supersedeStaleBriefs(pr.id, "new-head");
@@ -331,9 +331,9 @@ describe("createGenerationProjection — status transitions", () => {
     expect((await gen.get(current))?.status).toBe(GenerationStatuses.SUCCEEDED);
   });
 
-  it("a swept stale brief never shadows the current head in latestBriefForPullRequests", async () => {
-    // Live repro (Idan91/components#5, 2026-07-06): two rapid pushes — the
-    // old head's queued row is swept AFTER the new head succeeds, stamping
+  it("a swept stale brief never shadows the current head", async () => {
+    // Live repro from two rapid pushes: the
+    // old head's pending row is swept AFTER the new head succeeds, stamping
     // the STALE row with the newest updated_at. "Latest" must still be the
     // current head, or PR-meta reports superseded forever and the wait UX
     // spins on a push that will never finish.
@@ -358,8 +358,8 @@ describe("createGenerationProjection — status transitions", () => {
       baselineSha: null,
     } as const;
 
-    await gen.upsertQueued(stale);
-    await gen.upsertQueued(current);
+    await gen.upsertPending(stale);
+    await gen.upsertPending(current);
     await gen.markRunning(current, GenerationPhases.GENERATING);
     await gen.markSucceeded(current);
     // The sweep's updated_at must be strictly newer than the success's.
@@ -371,7 +371,7 @@ describe("createGenerationProjection — status transitions", () => {
     expect(latest?.status).toBe(GenerationStatuses.SUCCEEDED);
   });
 
-  it("listBriefsForPullRequest: brief-kind rows only, tenant-scoped, created_at survives a re-queue", async () => {
+  it("listBriefsForPullRequest returns tenant-scoped brief rows only", async () => {
     const handle = await freshDatabase();
     const repo = createTenantRepository(handle, CTX_A);
     const gen = createGenerationProjection(handle, CTX_A);
@@ -399,12 +399,12 @@ describe("createGenerationProjection — status transitions", () => {
       headSha: "head-b",
       baselineSha: "head-a",
     };
-    const first = await gen.upsertQueued(briefA);
+    const first = await gen.upsertPending(briefA);
     if (!first.ok) throw new Error("queue failed");
-    await gen.upsertQueued(briefB);
-    await gen.upsertQueued(delta);
+    await gen.upsertPending(briefB);
+    await gen.upsertPending(delta);
     // Re-queue of head-a: same row, created_at must stay the first enqueue.
-    await gen.upsertQueued(briefA);
+    await gen.upsertPending(briefA);
 
     const rows = await gen.listBriefsForPullRequest(pr.id);
     expect(rows.map((row) => row.headSha)).toEqual(["head-a", "head-b"]);
@@ -432,7 +432,7 @@ describe("createGenerationProjection — status transitions", () => {
     const result = await gen.markRunning({
       pullRequestId: pr.id,
       kind: GenerationKinds.BRIEF,
-      headSha: "never-queued",
+      headSha: "never-projected",
       baselineSha: null,
     });
     expect(result.ok).toBe(false);

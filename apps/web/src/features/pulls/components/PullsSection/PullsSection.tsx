@@ -1,5 +1,5 @@
 // The picker's DB-backed PR section. Renders one of the three expected
-// session states inline — logged-out (login CTA), unavailable (degraded note;
+// session states inline: logged-out (login CTA), unavailable (degraded note;
 // the local section below still works), ready (PR list or the activation
 // hint). Rows are plain anchors carrying the same deep links the PR-comment
 // Entry uses.
@@ -13,7 +13,7 @@ export interface PullsSectionProps {
   session: PullsSession;
 }
 
-/** Human status for a row — never color-only; rendered as text. */
+/** Human status for a row, never color-only; rendered as text. */
 function statusLabel(
   t: TFunction,
   briefAvailable: boolean,
@@ -22,8 +22,8 @@ function statusLabel(
   if (briefAvailable) return t("pulls.status.ready");
   if (generation === null) return t("pulls.status.none");
   switch (generation.status) {
-    case "queued":
-      return t("pulls.status.queued");
+    case "pending":
+      return t("pulls.status.pending");
     case "running":
       return t("pulls.status.running");
     case "failed":
@@ -31,11 +31,11 @@ function statusLabel(
     case "superseded":
       return t("pulls.status.superseded");
     case "capped":
-      // The daily generation cap skipped this push — the row says so plainly
+      // The daily generation cap skipped this push, so the row says so plainly
       // rather than borrowing the failure word.
       return t("pulls.status.capped");
     case "succeeded":
-      // Succeeded but the artifact is for another span — treat as pending.
+      // Succeeded but the artifact is for another span, so treat as pending.
       return t("pulls.status.none");
   }
 }

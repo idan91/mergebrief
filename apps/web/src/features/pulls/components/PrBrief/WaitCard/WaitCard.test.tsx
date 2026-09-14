@@ -16,7 +16,7 @@ describe("waitLabel", () => {
     expect(waitLabel(t, "running", null)).toBe("Generating the brief…");
   });
 
-  it("shows a distinct phase (kebab normalized) after the em dash", () => {
+  it("shows a distinct kebab-normalized phase after the separator", () => {
     expect(waitLabel(t, "running", "writing")).toBe(
       "Generating the brief — writing…",
     );
@@ -26,7 +26,7 @@ describe("waitLabel", () => {
   });
 
   it("keeps informative phases that merely CONTAIN the verb", () => {
-    // Only the exact echo collapses — a substring match would eat
+    // Only the exact echo collapses; a substring match would eat
     // "generating-summary", which is real signal.
     expect(waitLabel(t, "running", "generating-summary")).toBe(
       "Generating the brief — generating summary…",
@@ -35,20 +35,20 @@ describe("waitLabel", () => {
     expect(waitLabel(t, "running", "Generating")).toBe("Generating the brief…");
   });
 
-  it("lowercases the artifact noun mid-sentence in the queued heading", () => {
-    expect(waitLabel(t, "queued", null)).toBe(
-      "Queued — the brief will start generating shortly.",
+  it("lowercases the artifact noun mid-sentence in the pending heading", () => {
+    expect(waitLabel(t, "pending", null)).toBe(
+      "Pending: the brief will start generating shortly.",
     );
   });
 
-  it("a queued notice replaces the misleading 'shortly' heading", () => {
-    expect(waitLabel(t, "queued", null, "Queued — draft mode note.")).toBe(
-      "Queued — draft mode note.",
+  it("a pending notice replaces the misleading 'shortly' heading", () => {
+    expect(waitLabel(t, "pending", null, "Pending: draft mode note.")).toBe(
+      "Pending: draft mode note.",
     );
   });
 
-  it("a queued notice never touches the running heading", () => {
-    expect(waitLabel(t, "running", null, "Queued — draft mode note.")).toBe(
+  it("a pending notice never touches the running heading", () => {
+    expect(waitLabel(t, "running", null, "Pending: draft mode note.")).toBe(
       "Generating the brief…",
     );
   });

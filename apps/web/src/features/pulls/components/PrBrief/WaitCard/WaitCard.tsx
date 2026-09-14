@@ -7,35 +7,35 @@ import cardStyles from "../stateCard.module.scss";
 import { LiveDiffPreview } from "./LiveDiffPreview/LiveDiffPreview";
 
 export interface WaitCardProps {
-  status: "queued" | "running";
+  status: "pending" | "running";
   phase: string | null;
   /** Known span → diff-first wait; unknown (first brief) → phase-only. */
   span: Span | undefined;
   repoId: string;
   prNumber: number;
   /**
-   * Draft-damping notice (own-draft only): replaces the queued heading, whose
+   * Draft-damping notice (own-draft only): replaces the pending heading, whose
    * "shortly" is wrong while the configured window runs.
    */
-  queuedNotice?: string | undefined;
+  pendingNotice?: string | undefined;
 }
 
 /**
  * Human label for the generation heading. A phase that is EXACTLY the verb
- * ("generating") would read "Generating the brief — generating…", so that
+ * ("generating") would echo the verb straight back in the heading, so that
  * echo collapses to the phase-less heading; any other phase is informative
- * and still shows after the em dash.
+ * and still shows after the separator.
  */
 export function waitLabel(
   t: TFunction,
-  status: "queued" | "running",
+  status: "pending" | "running",
   phase: string | null,
-  queuedNotice?: string,
+  pendingNotice?: string,
 ): string {
-  if (status === "queued")
-    // Under draft damping "shortly" would lie — the notice text (which
-    // states the configured window) replaces the queued heading.
-    return queuedNotice ?? t("pulls.wait.queued");
+  if (status === "pending")
+    // Under draft damping "shortly" would lie, so the notice text (which
+    // states the configured window) replaces the pending heading.
+    return pendingNotice ?? t("pulls.wait.pending");
   if (phase === null) return t("pulls.wait.generating");
   const phaseText = phase.replaceAll("-", " ");
   return phaseText.toLowerCase() === "generating"
@@ -49,13 +49,13 @@ export function WaitCard({
   span,
   repoId,
   prNumber,
-  queuedNotice,
+  pendingNotice,
 }: WaitCardProps) {
   const { t } = useTranslation();
   return (
     <section aria-labelledby="wait-heading" className={cardStyles["card"]}>
       <h1 className={cardStyles["heading"]} id="wait-heading">
-        {waitLabel(t, status, phase, queuedNotice)}
+        {waitLabel(t, status, phase, pendingNotice)}
       </h1>
       <span aria-hidden="true" className={cardStyles["spinner"]} />
       <p className={cardStyles["copy"]}>
