@@ -3187,12 +3187,49 @@ describe("generate task, repo-config origin on the generation record", () => {
 
 describe("generate task, entry-comment draft gate", () => {
   const OPT_IN_SETTINGS = "version: 1\nentryCommentOnDrafts: true\n";
+  const OPT_OUT_SETTINGS = "version: 1\nentryCommentOnDrafts: false\n";
 
-  it("generates drafts without settings while suppressing both Entries", async () => {
+  function optOut(github: StubGitHub): void {
+    github.repoFiles.set(RepoConfigPaths.SETTINGS, {
+      kind: "file",
+      content: OPT_OUT_SETTINGS,
+      blobSha: "sha-s",
+      size: OPT_OUT_SETTINGS.length,
+    });
+  }
+
+  it("posts draft Entries without settings, the default is on", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
     github.info = { ...github.info, draft: true };
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github,
+    });
+
+    await task(payload);
+
+    expect(
+      github.commentCalls.filter((c) => c.startsWith("post:")),
+    ).toHaveLength(2);
+    expect(github.comments.size).toBe(1);
+    const brief = await createArtifactStore(harness.handle, ctx).briefs.get(
+      pr.id,
+      BASE,
+      HEAD_1,
+    );
+    expect(brief).toBeDefined();
+  });
+
+  it("generates drafts that opt out while suppressing both Entries", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    github.info = { ...github.info, draft: true };
+    optOut(github);
     const task = createGenerateTask({
       handle: harness.handle,
       publicBaseUrl: PUBLIC_URL,
@@ -3216,7 +3253,7 @@ describe("generate task, entry-comment draft gate", () => {
     expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
   });
 
-  it("posts draft Entries only when repo settings opt in", async () => {
+  it("posts draft Entries when repo settings opt in explicitly", async () => {
     const { payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
@@ -3248,6 +3285,7 @@ describe("generate task, entry-comment draft gate", () => {
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
     github.info = { ...github.info, draft: true };
+    optOut(github);
     const task = createGenerateTask({
       handle: harness.handle,
       publicBaseUrl: PUBLIC_URL,
@@ -3271,6 +3309,7 @@ describe("generate task, entry-comment draft gate", () => {
     const { payload } = await trigger(HEAD_1);
     const github = stubGitHub(HEAD_1);
     github.info = { ...github.info, draft: true };
+    optOut(github);
     const inner = stubGenerator();
     const flipping: Generator = {
       ...inner,
@@ -3291,11 +3330,12 @@ describe("generate task, entry-comment draft gate", () => {
     expect(github.comments.size).toBe(1);
   });
 
-  it("lazily reads draft skip settings and posts only with opt-in", async () => {
+  it("lazily reads draft skip settings and posts once the opt-out lifts", async () => {
     const { payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
     github.info = { ...github.info, draft: true };
+    optOut(github);
     const task = createGenerateTask({
       handle: harness.handle,
       publicBaseUrl: PUBLIC_URL,
@@ -3312,7 +3352,7 @@ describe("generate task, entry-comment draft gate", () => {
     expect(github.comments.size).toBe(0);
     expect(github.repoFileCalls.length).toBeGreaterThan(fetchesAfterFirst);
 
-    // Opt in and re-drain (skip path): the ready-flip refresh now posts.
+    // Lift the opt-out and re-drain (skip path): the refresh now posts.
     github.repoFiles.set(RepoConfigPaths.SETTINGS, {
       kind: "file",
       content: OPT_IN_SETTINGS,
@@ -3356,7 +3396,7 @@ describe("generate task, entry-comment draft gate", () => {
     expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
   });
 
-  it("deletes lingering Entries when converting to draft", async () => {
+  it("deletes lingering Entries when converting to draft under an opt-out", async () => {
     const { payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
@@ -3369,8 +3409,9 @@ describe("generate task, entry-comment draft gate", () => {
     await task(payload); // non-draft: entry comment live
     expect(github.comments.size).toBe(1);
 
-    // Convert to draft, push a new head: fresh generation, gate closed,
-    // the stale comment (deep-linking the OLD head) must be deleted.
+    // Convert to draft under an opt-out, push a new head: fresh generation,
+    // gate closed, the stale comment (deep-linking the OLD head) is deleted.
+    optOut(github);
     github.info = { ...github.info, draft: true, headSha: HEAD_2 };
     const second = await trigger(HEAD_2);
     await task(second.payload);

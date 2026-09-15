@@ -18,11 +18,11 @@ describe("settings.yaml validation", () => {
     expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcomes.APPLIED);
   });
 
-  it("applies the default entryCommentOnDrafts=false when omitted", () => {
+  it("applies the default entryCommentOnDrafts=true when omitted", () => {
     const result = validate(yaml({ version: 1 }));
     expect(result.settings).toEqual({
       version: 1,
-      entryCommentOnDrafts: false,
+      entryCommentOnDrafts: true,
     });
   });
 

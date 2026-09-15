@@ -126,6 +126,8 @@ Residual risk, stated honestly: a malicious maintainer can degrade *their own re
 
 ### 13. `settings.yaml` v1 and the ADR 0020 closure
 
+> **Amended 2026-09-15:** the default flipped to `entryCommentOnDrafts: true`. In practice every PR opens as a draft and the Entry is the reader's way into the brief, so an off default meant no comment until ready-for-review on most PRs. Repos that keep drafts private opt out with `false`; the gate, ready-flip and sweep semantics below are unchanged, with the sweep now firing only on an explicit `false`.
+
 v1 carries one key: **`entryCommentOnDrafts` (default `false`)**. The default implements ADR 0020 #4's documented-not-built universal rule — the branded entry comment stays off draft PRs (verified: no draft gate exists in `generate.ts` today); the comment posts when `ready_for_review` arrives (webhook already parses it). Repos that genuinely review drafts opt in with `true`. ADR 0020 #5's per-repo draft-first opt-in is **retired as absorbed**: its Entry-holding semantics ARE the universal rule, and its author-side residual shipped via BRIEF-43 (own-draft view, mark-ready CTA). ADR 0020 is amended accordingly.
 
 ## Why This Way

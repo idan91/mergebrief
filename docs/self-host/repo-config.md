@@ -42,14 +42,16 @@ truncated.
 
 ```yaml
 version: 1
-entryCommentOnDrafts: false   # default
+entryCommentOnDrafts: true   # default
 ```
 
-`entryCommentOnDrafts` — the branded Entry comment stays **off draft PRs**
-by default; it posts when the PR flips to ready-for-review. Repos that
-genuinely review drafts opt in with `true`. Generation itself always runs
-for drafts (subject to the instance `drafts:` knob below); this gates the
-comment only.
+`entryCommentOnDrafts` — the branded Entry comment posts on draft PRs by
+default, the same as on ready ones. A repo that keeps drafts private opts
+out with `false`; the comment then posts when the PR flips to
+ready-for-review, and an existing draft Entry is removed on the next run.
+Generation itself always runs for drafts (subject to the instance `drafts:`
+knob below); this gates the comment only. When the settings file cannot be
+fetched the comment stays off drafts for that run and nothing is removed.
 
 ### `trackers:` — where this repo's tickets live
 
@@ -169,7 +171,7 @@ depends on draft generations existing. Under `generate: off` a draft PR is
 state-tracked only and gets its **first** brief when marked ready (the
 `ready_for_review` trigger); the web view still shows PR conversation and
 meta meanwhile. **Precedence:** `generate: off` makes the repo-level
-`entryCommentOnDrafts: true` above moot until ready — no generation means
+default-on `entryCommentOnDrafts` above moot until ready — no generation means
 no entry comment, automatically. Spend knobs are instance config — a repo
 file may narrow instance behavior, never widen spend.
 

@@ -207,7 +207,7 @@ release` — stated once here.
         generates; a review on the draft writes its checkpoint but does
         not enqueue; close then REOPEN the draft → the PR returns to open
         (the wedge regression);
-      - `generate: off` beats repo `entryCommentOnDrafts: true` (no brief
+      - `generate: off` beats the default-on `entryCommentOnDrafts` (no brief
         → no entry comment on the draft, automatically);
       - a non-author viewing the same draft sees no policy copy anywhere.
 

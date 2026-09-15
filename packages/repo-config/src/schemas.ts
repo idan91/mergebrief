@@ -30,7 +30,7 @@ import {
 export const settingsV1Schema = z
   .object({
     version: z.literal(1),
-    entryCommentOnDrafts: z.boolean().default(false),
+    entryCommentOnDrafts: z.boolean().default(true),
     tracker: TrackerConfigSchema.optional(),
     trackers: TrackerListSchema.optional(),
   })

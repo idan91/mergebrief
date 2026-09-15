@@ -54,5 +54,5 @@ risk-surface vocabulary for your repo's briefs:
 
 ## `settings.yaml` — workflow taste
 
-One knob in v1: `entryCommentOnDrafts` (default `false`) — see
+One knob in v1: `entryCommentOnDrafts` (default `true`) — see
 `docs/self-host/repo-config.md`.
