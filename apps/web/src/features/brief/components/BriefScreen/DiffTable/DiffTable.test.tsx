@@ -238,6 +238,42 @@ describe("DiffTable stable comparison column", () => {
   });
 });
 
+describe("DiffTable revision rail callout", () => {
+  it("keeps the next row's callout when the previous row's hover closes", () => {
+    const run = {
+      chunkId: "c1",
+      file: "src/a.ts",
+      rowIndexes: [0, 1],
+      kind: "added" as const,
+    };
+    const { view } = renderTable({
+      comparisonView: {
+        marks: new Map([
+          [0, "added"],
+          [1, "added"],
+        ]),
+        runs: [run],
+        runByRow: new Map([
+          [0, run],
+          [1, run],
+        ]),
+      },
+    });
+    const [first, second] = view.container.querySelectorAll(
+      'tbody td[data-rev="added"]',
+    );
+    if (!first || !second) throw new Error("expected two rail cells");
+    const jump = view.container.querySelector("[data-jump-target]");
+    if (!jump) throw new Error("expected the rail jump button");
+
+    fireEvent.focus(jump);
+    fireEvent.mouseEnter(second);
+    fireEvent.blur(jump);
+
+    expect(screen.getByRole("tooltip")).toBeTruthy();
+  });
+});
+
 describe("DiffTable draft restored from the server", () => {
   it("renders on the row its coordinates name, with no row ids to go on", () => {
     // The session read lands BEFORE the diff does, so a restored draft carries

@@ -235,7 +235,9 @@ export function DiffTable({
   const [railHover, setRailHover] = useState<{
     run: ComparisonRun;
     el: HTMLElement;
+    key: number;
   } | null>(null);
+  const railHoverSeq = useRef(0);
 
   useEffect(() => {
     if (!railHover) return;
@@ -313,11 +315,15 @@ export function DiffTable({
   };
 
   const handleRailEnter = (run: ComparisonRun, el: HTMLElement) => {
-    setRailHover({ run, el });
+    railHoverSeq.current += 1;
+    setRailHover({ run, el, key: railHoverSeq.current });
   };
   // Mouse-leave is owned by the Callout's hover system (safePolygon), so the
   // pointer can travel into the callout; this closes the keyboard path (blur).
-  const handleRailLeave = () => setRailHover(null);
+  // A close names its anchor: the previous cell's leave lands after the next
+  // cell's enter, and must not clear the callout that cell just opened.
+  const handleRailLeave = (el: HTMLElement) =>
+    setRailHover((current) => (current?.el === el ? null : current));
 
   if (!chunk.diff || chunk.diff.length === 0) {
     return (
@@ -807,7 +813,8 @@ export function DiffTable({
       {railHover && (
         <ComparisonCallout
           anchor={railHover.el}
-          onClose={handleRailLeave}
+          key={railHover.key}
+          onClose={() => handleRailLeave(railHover.el)}
           run={railHover.run}
           chunk={chunk}
           source={comparisonSource}

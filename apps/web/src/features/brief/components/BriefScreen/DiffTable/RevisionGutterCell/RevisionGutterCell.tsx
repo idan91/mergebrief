@@ -17,7 +17,7 @@ export interface RevisionGutterCellProps {
   isEnd: boolean;
   chunk: BriefChunk;
   onRailEnter: (run: ComparisonRun, el: HTMLElement) => void;
-  onRailLeave: () => void;
+  onRailLeave: (el: HTMLElement) => void;
 }
 
 export function RevisionGutterCell({
@@ -46,7 +46,7 @@ export function RevisionGutterCell({
           type="button"
           aria-label={t(railKey, { count })}
           onFocus={(e) => onRailEnter(run, e.currentTarget)}
-          onBlur={onRailLeave}
+          onBlur={(e) => onRailLeave(e.currentTarget)}
           onKeyDown={(e) => {
             if (e.key === "Escape") e.currentTarget.blur();
           }}
