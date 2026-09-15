@@ -316,6 +316,24 @@ docker compose exec postgres \
     order by pg_total_relation_size(c.oid) desc limit 10;"'
 ```
 
+## Running more than one worker
+
+`WORKER_COUNT=2` (or `docker compose up --scale worker=2`) starts two
+runner processes against the same queue. That is safe by construction:
+graphile-worker claims a job with row locking, so no two runners drain the
+same job. Two jobs for one PR can overlap briefly: a newer head enqueues a
+successor behind its debounce window (60s for a push, 10s for a ready flip,
+a paste or an owner follow-up) while the running job's head watch, a 20s
+poll that aborts the run on a newer head, stands the older run down. Up to
+one poll of overlap in the normal case (longer while head reads are
+failing) costs spend, never correctness, and the daily cap stays exact
+because every start takes the same instance-wide advisory lock. The scheduled
+`sweep-audit` still runs once per tick: each runner tries to record the
+tick in graphile's `_private_known_crontabs` table, and only the runner
+that advances `last_execution` enqueues the job. Each worker opens its own
+connection pool, so count that against Postgres's `max_connections`.
+Prefer more slots over more workers unless you want the restart isolation.
+
 ## See also
 
 - [compose.md](./compose.md) — services, environment, hardening before

@@ -20,8 +20,8 @@ export interface WorkerConfig {
   readonly databaseUrl: string;
   /** Apply migrations at boot vs check-only refusal (MERGEBRIEF_AUTO_MIGRATE). */
   readonly autoMigrate: boolean;
-  /** Slots the runner drains jobs into (WORKER_CONCURRENCY). Each slot is one
-   * live provider child, so memory and spend scale with it. */
+  /** Slots the runner drains jobs into (WORKER_CONCURRENCY). A slot is one
+   * in-flight generation: an API stream, or a CLI child for CLI providers. */
   readonly concurrency: number;
   /** Audit retention window the scheduled sweep enforces; null = keep forever
    * (the default). Validated; floor included; by persistence's loader. */

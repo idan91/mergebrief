@@ -82,6 +82,12 @@ services:
       # Defaulted (not pass-through): parity with the default compose, so an
       # .env that omits it keeps working after switching files.
       - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-http://localhost:3000}
+      # Slots per worker; same contract as the default compose.
+      # - WORKER_CONCURRENCY
+    # Worker containers, same contract as the default compose:
+    # `--scale worker=N` wins for that run.
+    deploy:
+      replicas: ${WORKER_COUNT:-1}
     # secrets:
     #   - database-url
     # volumes:

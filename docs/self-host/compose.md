@@ -71,13 +71,28 @@ doesn't apply — several loaders distinguish unset from empty.
 | `PUBLIC_BASE_URL` | api + web + worker | must match the App's OAuth callback origin; the worker builds the Entry comment's deep link from it |
 | `ANTHROPIC_API_KEY` | worker | your model key (BYOK — your spend; the zero-config default) |
 | `MERGEBRIEF_CONFIG` | worker + api | optional; path to `mergebrief.config.yaml` selecting another provider/model — see [generators.md](./generators.md) (its `generator.apiKeyEnv` names a different key var; CLI backends are local-only and not available to the deployed worker). The API reads only its `drafts:` block (draft-PR policy) via a narrow loader — no provider keys needed there |
-| `WORKER_CONCURRENCY` | worker | optional; generate jobs one worker process drains at once, default 1; each slot is a live provider child, see [generators.md](./generators.md) |
+| `WORKER_CONCURRENCY` | worker | optional; generate jobs one worker process drains at once, default 1. What a slot costs depends on the provider class, see [generators.md](./generators.md#worker-slots) |
+| `WORKER_COUNT` | compose | optional; worker containers compose starts, default 1. Concurrent generations = `WORKER_COUNT` x `WORKER_CONCURRENCY`; `docker compose up --scale worker=N` wins for that run |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | postgres | optional; default to `code_review` each. Compose DERIVES both services' in-network `DATABASE_URL` from them (with `sslmode=disable` pinned — the compose bridge is the private-network case, and `postgres` is a non-loopback hostname the TLS gate would otherwise refuse), so one edit moves every side. First-boot only (see the callout above); use the raw output of `openssl rand -hex 24` — the value lands in a connection string unescaped, and percent-encoding it breaks auth (see §1) |
 | `DATABASE_URL` | — | ignored in the DEFAULT compose (overridden to the DSN derived from the `POSTGRES_*` values); the input for the external-database compose file. Non-loopback hosts must carry an explicit `sslmode` or boot is refused |
 | `DATABASE_URL_FILE` | api, worker | optional; path to a file holding the DSN (compose `secrets:` mount). Wins over `DATABASE_URL` with a boot warning; surrounding whitespace trimmed |
 | `MERGEBRIEF_AUTO_MIGRATE` | api, worker | optional, default `true`. `false` = check-only boot for DDL-less runtime roles: refuse with the pending count instead of applying migrations |
 | `MERGEBRIEF_API_HOST` / `MERGEBRIEF_API_PORT` | api | optional; where the API listens. Compose sets `0.0.0.0:3001` so `web` can reach it; the default is loopback |
 | `MERGEBRIEF_API_ORIGIN` | web | optional; where `/api/*` is proxied. Compose sets `http://api:3001`; the default is the API's loopback default |
+
+### Who owns which setting
+
+Capacity and secrets are env; policy and provider are yaml; nothing lives
+in both.
+
+| setting | owner | precedence |
+|---|---|---|
+| slots per worker (`WORKER_CONCURRENCY`) | `.env` | env only |
+| worker count (`WORKER_COUNT`) | `.env` | `docker compose up --scale worker=N` wins for that run |
+| daily generation cap (`spend.maxGenerationsPerDay`) | `mergebrief.config.yaml` | yaml only; no env and no `.mergebrief/` override |
+| provider, model, effort (`generator.*`) | `mergebrief.config.yaml` | yaml only; the key VALUE comes from the env var the yaml names |
+| credentials, DSN, public origin | `.env` | `DATABASE_URL_FILE` wins over `DATABASE_URL` |
+| `MERGEBRIEF_CONFIG` (the yaml's own path) | `.env` | unset = zero-config defaults |
 
 ## External Postgres (managed database)
 

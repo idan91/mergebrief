@@ -153,10 +153,38 @@ settled push (or any event that re-queues it).
 
 ## Worker slots
 
-`WORKER_CONCURRENCY` sets how many generate jobs one worker process drains at
-once. Default 1. Each slot holds a live provider child for the length of a
-generation, so memory and spend scale with the number you set; the range for
-this machine is filled in after the Before-merge check on the ticket.
+Two dials, both env, both optional:
+
+- `WORKER_CONCURRENCY`: generate jobs one worker process drains at once.
+  Default 1.
+- `WORKER_COUNT`: worker containers compose starts. Default 1.
+
+Concurrent generations = `WORKER_COUNT` x `WORKER_CONCURRENCY`. Prefer one
+worker and more slots: a slot is cheaper than a process. A second worker
+buys restart isolation, not throughput slots could not give you.
+
+What a slot costs depends on the provider class:
+
+- **API providers** (`anthropic`, `openai`, `openrouter`) hold one
+  in-process stream per slot. Memory grows by one response buffer per slot;
+  the bounds that matter are the provider's rate limit and the daily cap.
+- **CLI providers** (`claude-code`, `codex`, `cursor`; local dev loop only,
+  the compose worker refuses them at boot) hold one child process per slot
+  for the length of a generation. Size the host so that
+  `slots x child RSS + worker baseline` fits. Peak child RSS per provider,
+  measured on the host from a real generation (`/usr/bin/time -l` on macOS,
+  `/usr/bin/time -v` on Linux, around `pnpm categorize --config
+  ./mergebrief.config.yaml <pr-url>` with that provider configured; a
+  one-word prompt measures the idle floor, not the peak):
+
+  | provider | peak child RSS |
+  |---|---|
+  | `claude-code` | not yet measured |
+  | `codex` | not yet measured |
+  | `cursor` | not yet measured |
+
+The daily cap is exact whatever the two dials say: every start serializes
+under one instance-wide lock, so N slots cannot start past it together.
 
 ## The six providers
 
