@@ -17,6 +17,11 @@ import {
   validateGeneratorConfig,
   type GeneratorConfig,
 } from "./registry";
+import {
+  DEFAULT_TRACKERS,
+  validateTrackersBlock,
+  type TrackerConfig,
+} from "./trackers";
 
 export interface LoadedGeneratorConfig {
   generator: GeneratorConfig;
@@ -30,6 +35,8 @@ export interface LoadedGeneratorConfig {
    * empty default still reads URLs and GitHub issues.
    */
   contextSources: ContextSourcesConfig;
+  /** The boards every repo on this instance reads by default; a repo's own settings replace the list. */
+  trackers: readonly TrackerConfig[];
   /** The file the config came from; null for zero-config defaults. */
   source: string | null;
 }
@@ -46,6 +53,7 @@ export function loadGeneratorConfig(
         generator: defaultGeneratorConfig,
         spend: DEFAULT_SPEND_POLICY,
         contextSources: DEFAULT_CONTEXT_SOURCES,
+        trackers: DEFAULT_TRACKERS,
         source: null,
       },
     };
@@ -76,6 +84,7 @@ export function loadGeneratorConfigFile(
         generator: defaultGeneratorConfig,
         spend: DEFAULT_SPEND_POLICY,
         contextSources: DEFAULT_CONTEXT_SOURCES,
+        trackers: DEFAULT_TRACKERS,
         source: path,
       },
     };
@@ -88,6 +97,7 @@ export function loadGeneratorConfigFile(
       key === "drafts" ||
       key === "spend" ||
       key === "contextSources" ||
+      key === "trackers" ||
       key.startsWith("x-")
     )
       continue;
@@ -125,6 +135,20 @@ export function loadGeneratorConfigFile(
     contextSources = validated.value;
   }
 
+  // Boards are read per job by the trackers' reads; the shape is refused
+  // here so a bad entry stops boot rather than every generation.
+  const trackersBlock = root["trackers"];
+  let trackers = DEFAULT_TRACKERS;
+  if (trackersBlock !== undefined) {
+    const validated = validateTrackersBlock(trackersBlock);
+    if (!validated.ok) {
+      return configError(
+        validated.error.issues.map((issue) => `trackers.${issue}`),
+      );
+    }
+    trackers = validated.value;
+  }
+
   const block = root["generator"];
   if (block === undefined) {
     return {
@@ -133,6 +157,7 @@ export function loadGeneratorConfigFile(
         generator: defaultGeneratorConfig,
         spend,
         contextSources,
+        trackers,
         source: path,
       },
     };
@@ -146,6 +171,12 @@ export function loadGeneratorConfigFile(
   }
   return {
     ok: true,
-    value: { generator: validated.value, spend, contextSources, source: path },
+    value: {
+      generator: validated.value,
+      spend,
+      contextSources,
+      trackers,
+      source: path,
+    },
   };
 }

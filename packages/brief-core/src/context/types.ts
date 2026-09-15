@@ -43,7 +43,7 @@ export interface ContextQuery {
   /** Head branch name; "" when unknown. */
   readonly headRef: string;
   readonly repo: TicketReferenceRepo;
-  readonly tracker?: TrackerConfig | undefined;
+  readonly trackers: readonly TrackerConfig[];
   /** The one ticket this PR is about, when a reference was found. */
   readonly primary?: TicketReference | undefined;
   /** Every reference found, primary first; the read falls through when the primary is not a ticket. */

@@ -1,5 +1,6 @@
 import { z } from "zod/v4";
 import { AnchorSchema, GenerationSchema } from "generators";
+import { TicketTrackers, type TicketTracker } from "types/trackers";
 import type { ValueOf } from "types/utils";
 import { PrStackSchema } from "./pr-stack";
 
@@ -465,12 +466,7 @@ export const IntentItemSchema = z.object({
     ),
 });
 
-/** Which tracker a ticket lives in. */
-export const TicketTrackers = {
-  GITHUB: "github",
-  NOTION: "notion",
-} as const;
-export type TicketTracker = ValueOf<typeof TicketTrackers>;
+export { TicketTrackers, type TicketTracker };
 
 /** Where in the PR the primary ticket's reference was first found. */
 export const ReferenceLocations = {

@@ -9,12 +9,13 @@ unread, never guessed.
 
 Two halves of configuration:
 
-- **Repo side** — `.mergebrief/settings.yaml`'s `tracker:` block names the
-  tracker and the board a key resolves in. Non-secret, committed with the
-  repo. See [repo-config.md](repo-config.md).
-- **Instance side** — `mergebrief.config.yaml`'s `contextSources:` block
-  lists the trackers that need a deployment credential, by env-var NAME.
-  See [generators.md](generators.md) for how the file is found.
+- **Instance side** — `mergebrief.config.yaml`'s `trackers:` list names
+  the boards every repo on the instance reads by default, and its
+  `contextSources:` block lists the trackers that need a deployment
+  credential, by env-var NAME. See [generators.md](generators.md).
+- **Repo side** — `.mergebrief/settings.yaml`'s `trackers:` list (or
+  `tracker:` for one) replaces the instance list for that repo. Non-secret,
+  committed with the repo. See [repo-config.md](repo-config.md).
 
 ## What the read is, and is not
 
@@ -22,9 +23,9 @@ Two halves of configuration:
   (`primaryTicket.status: unread` with a reason) and generation continues
   from the diff alone. Nothing blocks, nothing fails, nothing is retried
   across runs.
-- **Every readable tracker is read.** The repo's `tracker:` block names the
-  tracker whose references rank first, GitHub when there is no block, and
-  the deployment must be able to read it. Any other tracker the deployment
+- **Every readable tracker is read.** The repo's `trackers:` list names the
+  trackers whose references rank first, GitHub when there is none, and
+  the deployment must be able to read them. Any other tracker the deployment
   can read is read too, so a Notion repo whose PR says only `Fixes #12`
   still reads the issue. A reference to a tracker the deployment cannot
   read stays ordinary text.
@@ -41,7 +42,7 @@ Two halves of configuration:
 
 ## GitHub Issues
 
-Built in, and the default: a repo with no `tracker:` block reads GitHub. Nothing to configure and no config entry: the read runs
+Built in, and the default: a repo with no `trackers:` list reads GitHub. Nothing to configure and no config entry: the read runs
 wherever a GitHub credential is already bound.
 
 ### What is read
@@ -162,6 +163,10 @@ tracker:
   databaseId: 3935e940-0eeb-80b0-ad46-000b1ce17b37 # data source id or database id
 ```
 
+A repo whose tickets live on several boards lists them under `trackers:`
+instead, one entry per board with its own `keyPrefix` and `databaseId`; see
+[repo-config.md](repo-config.md).
+
 `databaseId` takes either id Notion offers for the board: the data source id
 from `•••` → **Manage data sources** → **Copy data source ID**, or the
 32-hex database id in the board's URL. Dashes are optional. A database
@@ -171,7 +176,7 @@ found and asks for the data source id instead.
 
 `keyPrefix` is the prefix of the board's **ID** property (the unique-id
 property Notion numbers rows with). A key like `BRIEF-12` matches only when
-the prefix equals `keyPrefix`; without a `tracker:` block keys never match. A
+the prefix equals a listed `keyPrefix`; without one keys never match. A
 Notion page URL in the PR needs no board: it resolves whenever a Notion token
 is configured.
 

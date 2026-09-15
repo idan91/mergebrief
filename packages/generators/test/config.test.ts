@@ -39,6 +39,7 @@ describe("loadGeneratorConfig from env", () => {
       generator: { provider: "anthropic" },
       spend: { maxGenerationsPerDay: null },
       contextSources: [],
+      trackers: [],
       source: null,
     });
   });
@@ -276,6 +277,49 @@ describe("loadGeneratorConfigFile", () => {
     if (result.ok) return;
     expect(result.error.message).toBe("invalid context source configuration");
     expect(result.error.issues.join("; ")).toContain("contextSources");
+  });
+
+  it("accepts a trackers root key block in file order", () => {
+    const result = loadGeneratorConfigFile(
+      configFile(
+        "generator:\n  provider: anthropic\ntrackers:\n  - kind: notion\n    keyPrefix: BRIEF\n    databaseId: 3935e940-0eeb-80b0-ad46-000b1ce17b37\n  - kind: github\n",
+      ),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.trackers).toEqual([
+      {
+        kind: "notion",
+        keyPrefix: "BRIEF",
+        databaseId: "3935e9400eeb80b0ad46000b1ce17b37",
+      },
+      { kind: "github" },
+    ]);
+  });
+
+  it("defaults trackers to none when the block is absent", () => {
+    const result = loadGeneratorConfigFile(
+      configFile("generator:\n  provider: anthropic\n"),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.trackers).toEqual([]);
+  });
+
+  it("refuses boot on a trackers list that names one prefix twice", () => {
+    const result = loadGeneratorConfigFile(
+      configFile(
+        "trackers:\n  - kind: notion\n    keyPrefix: BRIEF\n    databaseId: " +
+          "a".repeat(32) +
+          "\n  - kind: notion\n    keyPrefix: brief\n    databaseId: " +
+          "b".repeat(32) +
+          "\n",
+      ),
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.issues.join("; ")).toContain("trackers.");
+    expect(result.error.issues.join("; ")).not.toContain("a".repeat(32));
   });
 
   it("defaults the generator when the block is absent", () => {

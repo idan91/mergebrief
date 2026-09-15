@@ -40,6 +40,7 @@ import {
   createCliRootDeps,
   resolveCliTrackerReads,
 } from "./context-providers";
+import { resolveEffectiveTrackers } from "../context/tracker";
 import { readLocalTracker } from "./settings";
 import { splitDiffByFile } from "../diff/diff";
 import { assignBriefIndex, lookupBriefShaByIndex } from "../artifacts/manifest";
@@ -149,7 +150,7 @@ async function buildInputs(
     body: meta.body,
     branch: meta.headRef ?? "",
     repo: locator,
-    tracker: options.tracker,
+    trackers: options.trackers ?? [],
     readable: listReadableTrackers(options.reads ?? {}),
   });
   const fetchOptions: Mutable<FetchContextSnippetsOptions> = {
@@ -169,8 +170,8 @@ async function buildInputs(
 
 /** The options `generateAndWrite` reads beyond the PR and its output directory. */
 export interface GenerateOptions {
-  /** The repo's `tracker:` block; absent means ticket keys never match. */
-  readonly tracker?: TrackerConfig | undefined;
+  /** The repo's trackers; absent or empty means ticket keys never match. */
+  readonly trackers?: readonly TrackerConfig[] | undefined;
   /** A primary ticket supplied by `--context <file>`; replaces the fetch. */
   readonly suppliedPrimary?: PrimarySnippet | undefined;
   /** The providers the composition root built; absent means the CLI defaults. */
@@ -501,6 +502,7 @@ async function main(): Promise<void> {
           ok: true as const,
           value: {
             generator: defaultGeneratorConfig,
+            trackers: [],
             contextSources: DEFAULT_CONTEXT_SOURCES,
           },
         };
@@ -523,11 +525,12 @@ async function main(): Promise<void> {
   // Local-only mode: the working tree's settings.yaml names the tracker.
   const local = readLocalTracker(process.cwd());
   if (local.warning !== undefined) console.error(`warning: ${local.warning}`);
+  const trackers = resolveEffectiveTrackers(local, loaded.value.trackers);
   // Same spot, same rule: tracker tokens resolve by env-var NAME here only.
   const suppliedPrimary = supplied?.ok ? supplied.value : undefined;
   const reads = resolveCliTrackerReads(
     suppliedPrimary,
-    local.tracker,
+    trackers,
     createCliRootDeps(process.env, loaded.value.contextSources),
   );
   if (!reads.ok) {
@@ -537,7 +540,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
   const options: GenerateOptions = {
-    tracker: local.tracker,
+    trackers,
     suppliedPrimary,
     contextProviders: createCliContextProviders(),
     reads: reads.value,

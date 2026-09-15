@@ -5,6 +5,7 @@ import {
   GitHubTransports,
   listReadableTrackers,
   NotionTransports,
+  resolveEffectiveTrackers,
   resolveTrackerReads,
   type ContextFetch,
   type TrackerRootDeps,
@@ -59,7 +60,11 @@ export function createTicketContextLoader(
               { onlyRepo: locator },
             ),
           };
-    const reads = resolveTrackerReads(config?.settings?.tracker, {
+    const trackers = resolveEffectiveTrackers(
+      config?.settings,
+      trackerRoot.trackers ?? [],
+    );
+    const reads = resolveTrackerReads(trackers, {
       ...trackerRoot,
       transports,
     });
@@ -76,7 +81,7 @@ export function createTicketContextLoader(
         body: meta.body,
         branch: prInfo.headRef,
         repo: locator,
-        tracker: config?.settings?.tracker,
+        trackers,
         readable,
       }),
       deps.contextProviders ?? createBuiltInContextProviders(),

@@ -22,6 +22,7 @@ function makeInput(
     body: "",
     branch: "",
     repo: REPO,
+    trackers: [],
     readable: ["github"],
     ...overrides,
   };
@@ -38,7 +39,9 @@ describe("collectTicketReferences: shapes", () => {
     ["slug-tailed BRIEF-12-fix-the-loop", ["BRIEF-12"]],
     ["digit-tailed BRIEF-12x", []],
   ])("key: %s", (body, keys) => {
-    const refs = collectTicketReferences(makeInput({ body, tracker: NOTION }));
+    const refs = collectTicketReferences(
+      makeInput({ body, trackers: [NOTION] }),
+    );
     expect(refs.map((r) => r.key)).toEqual(keys);
   });
 
@@ -50,7 +53,9 @@ describe("collectTicketReferences: shapes", () => {
 
   it("keys never match when the tracker is github", () => {
     expect(
-      collectTicketReferences(makeInput({ body: "BRIEF-12", tracker: GITHUB })),
+      collectTicketReferences(
+        makeInput({ body: "BRIEF-12", trackers: [GITHUB] }),
+      ),
     ).toEqual([]);
   });
 
@@ -68,7 +73,7 @@ describe("collectTicketReferences: shapes", () => {
 
   it("#N resolves against tracker.issuesRepo when set", () => {
     const refs = collectTicketReferences(
-      makeInput({ body: "#7", tracker: GITHUB }),
+      makeInput({ body: "#7", trackers: [GITHUB] }),
     );
     expect(refs[0]?.url).toBe("https://github.com/acme/tracker/issues/7");
   });
@@ -121,7 +126,7 @@ describe("collectTicketReferences: shapes", () => {
     const refs = collectTicketReferences(
       makeInput({
         branch: "feature/BRIEF-269/1-instance-cap",
-        tracker: NOTION,
+        trackers: [NOTION],
         readable: ["github", "notion"],
       }),
     );
@@ -132,7 +137,7 @@ describe("collectTicketReferences: shapes", () => {
     const refs = collectTicketReferences(
       makeInput({
         branch: "feature/BRIEF-269/1-instance-cap",
-        tracker: NOTION,
+        trackers: [NOTION],
         readable: ["github", "notion"],
       }),
     );
@@ -160,7 +165,7 @@ describe("collectTicketReferences: shapes", () => {
     const refs = collectTicketReferences(
       makeInput({
         body: "BRIEF-12 and #4",
-        tracker: NOTION,
+        trackers: [NOTION],
         readable: ["notion"],
       }),
     );
@@ -171,7 +176,7 @@ describe("collectTicketReferences: shapes", () => {
     const refs = collectTicketReferences(
       makeInput({
         branch: "feature/BRIEF-239-ticket-references",
-        tracker: NOTION,
+        trackers: [NOTION],
       }),
     );
     expect(refs[0]).toMatchObject({ key: "BRIEF-239", foundIn: "branch" });
@@ -179,7 +184,7 @@ describe("collectTicketReferences: shapes", () => {
 
   it("branch: a key matches in the branch name", () => {
     const refs = collectTicketReferences(
-      makeInput({ branch: "feature/BRIEF-239/card", tracker: NOTION }),
+      makeInput({ branch: "feature/BRIEF-239/card", trackers: [NOTION] }),
     );
     expect(refs[0]).toMatchObject({ key: "BRIEF-239", foundIn: "branch" });
   });
@@ -257,6 +262,38 @@ describe("collectTicketReferences: shapes", () => {
   });
 });
 
+describe("collectTicketReferences: several boards", () => {
+  const DS = {
+    kind: "notion",
+    keyPrefix: "DS",
+    databaseId: "b".repeat(32),
+  } as const;
+
+  it("matches every configured prefix, each key on its own board", () => {
+    const refs = collectTicketReferences(
+      makeInput({ body: "BRIEF-12 pairs with DS-7", trackers: [NOTION, DS] }),
+    );
+    expect(refs.map((r) => [r.key, r.databaseId])).toEqual([
+      ["BRIEF-12", "a".repeat(32)],
+      ["DS-7", "b".repeat(32)],
+    ]);
+  });
+
+  it("keeps reading order across boards when picking the primary", () => {
+    const refs = collectTicketReferences(
+      makeInput({ body: "DS-7 then BRIEF-12", trackers: [NOTION, DS] }),
+    );
+    expect(resolvePrimaryTicket(refs, ["notion"])?.key).toBe("DS-7");
+  });
+
+  it("a bare #N resolves against a listed github entry's issuesRepo", () => {
+    const refs = collectTicketReferences(
+      makeInput({ body: "#7", trackers: [NOTION, GITHUB] }),
+    );
+    expect(refs[0]?.url).toBe("https://github.com/acme/tracker/issues/7");
+  });
+});
+
 describe("resolvePrimaryTicket", () => {
   it("returns undefined with no references", () => {
     expect(resolvePrimaryTicket([])).toBeUndefined();
@@ -309,28 +346,48 @@ describe("resolvePrimaryTicket", () => {
 
   it("with a notion tracker, a key in the title outranks a bare #N in the description", () => {
     const refs = collectTicketReferences(
-      makeInput({ title: "[BRIEF-239] x", body: "on #467", tracker: NOTION }),
+      makeInput({
+        title: "[BRIEF-239] x",
+        body: "on #467",
+        trackers: [NOTION],
+      }),
     );
-    expect(resolvePrimaryTicket(refs, NOTION.kind)?.key).toBe("BRIEF-239");
+    expect(resolvePrimaryTicket(refs, [NOTION.kind])?.key).toBe("BRIEF-239");
   });
 
   it("with a notion tracker, a closing #N still loses to a key", () => {
     const refs = collectTicketReferences(
-      makeInput({ title: "[BRIEF-239] x", body: "Fixes #12", tracker: NOTION }),
+      makeInput({
+        title: "[BRIEF-239] x",
+        body: "Fixes #12",
+        trackers: [NOTION],
+      }),
     );
-    expect(resolvePrimaryTicket(refs, NOTION.kind)?.key).toBe("BRIEF-239");
+    expect(resolvePrimaryTicket(refs, [NOTION.kind])?.key).toBe("BRIEF-239");
   });
 
-  it("with a notion tracker and no key anywhere, a bare #N still resolves", () => {
+  it("with a notion tracker and no github entry, short GitHub forms are text", () => {
     const refs = collectTicketReferences(
-      makeInput({ body: "see #4", tracker: NOTION }),
+      makeInput({
+        title: "#5",
+        body: "see #4 and other/thing#3 and https://github.com/o/r/issues/9",
+        branch: "12-fix",
+        trackers: [NOTION],
+      }),
     );
-    expect(resolvePrimaryTicket(refs, NOTION.kind)?.number).toBe(4);
+    expect(refs.map((r) => r.url)).toEqual(["https://github.com/o/r/issues/9"]);
+  });
+
+  it("with a github entry beside notion, a bare #N resolves again", () => {
+    const refs = collectTicketReferences(
+      makeInput({ body: "see #4", trackers: [NOTION, GITHUB] }),
+    );
+    expect(refs[0]?.url).toBe("https://github.com/acme/tracker/issues/4");
   });
 
   it("with no keyword the first reference in reading order wins", () => {
     const refs = collectTicketReferences(
-      makeInput({ body: "BRIEF-7 then #3", tracker: NOTION }),
+      makeInput({ body: "BRIEF-7 then #3", trackers: [NOTION] }),
     );
     expect(resolvePrimaryTicket(refs)?.key).toBe("BRIEF-7");
   });

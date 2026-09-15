@@ -116,6 +116,43 @@ describe("settings.yaml validation", () => {
     expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcomes.INVALID);
   });
 
+  it("applies a trackers list and keeps file order", () => {
+    const trackers = [
+      { kind: "notion", keyPrefix: "BRIEF", databaseId: "a".repeat(32) },
+      { kind: "notion", keyPrefix: "DS", databaseId: "b".repeat(32) },
+      { kind: "github", issuesRepo: "acme/tracker" },
+    ];
+    const result = validate(yaml({ version: 1, trackers }));
+    expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcomes.APPLIED);
+    expect(result.settings?.trackers).toEqual(trackers);
+    expect(result.settings?.tracker).toBeUndefined();
+  });
+
+  it.each([
+    [
+      "both spellings",
+      { tracker: { kind: "github" }, trackers: [{ kind: "github" }] },
+    ],
+    ["an empty list", { trackers: [] }],
+    [
+      "two boards on one prefix",
+      {
+        trackers: [
+          { kind: "notion", keyPrefix: "BRIEF", databaseId: "a".repeat(32) },
+          { kind: "notion", keyPrefix: "brief", databaseId: "b".repeat(32) },
+        ],
+      },
+    ],
+    [
+      "two github entries",
+      { trackers: [{ kind: "github" }, { kind: "github" }] },
+    ],
+  ])("rejects the whole file for %s", (_label, block) => {
+    const result = validate(yaml({ version: 1, ...block }));
+    expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcomes.INVALID);
+    expect(result.settings).toBeUndefined();
+  });
+
   it("applies at exactly the byte cap", () => {
     const content = padYamlToBytes(yaml({ version: 1 }), SETTINGS_MAX_BYTES);
     expect(Buffer.byteLength(content, "utf8")).toBe(SETTINGS_MAX_BYTES);

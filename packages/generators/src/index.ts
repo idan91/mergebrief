@@ -78,6 +78,18 @@ export {
   type ContextSourcesConfig,
   type NotionContextSourceConfig,
 } from "./config/context-sources";
+export {
+  DEFAULT_TRACKERS,
+  MAX_TRACKERS,
+  refineTrackerSettings,
+  resolveEffectiveTrackers,
+  resolveTrackerConfigs,
+  TrackerConfigSchema,
+  TrackerListSchema,
+  validateTrackersBlock,
+  type TrackerConfig,
+  type TrackerSettings,
+} from "./config/trackers";
 
 // --- adapters/: the six implementations ------------------------------------
 // (Constructed via createGenerator in normal use; exported for tests and

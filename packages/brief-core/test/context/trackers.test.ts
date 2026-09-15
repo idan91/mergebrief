@@ -56,18 +56,18 @@ describe("trackers", () => {
       keyPrefix: "BRIEF",
       databaseId: "a".repeat(32),
     };
-    const both = resolveTrackerReads(undefined, root);
+    const both = resolveTrackerReads([], root);
     expect(both.ok && Object.keys(both.value).toSorted()).toEqual([
       "github",
       "notion",
     ]);
 
     const noSlots = { ...root, transports: {} };
-    expect(resolveTrackerReads(undefined, noSlots)).toEqual({
+    expect(resolveTrackerReads([], noSlots)).toEqual({
       ok: true,
       value: {},
     });
-    expect(resolveTrackerReads(notionBlock, noSlots)).toEqual({
+    expect(resolveTrackerReads([notionBlock], noSlots)).toEqual({
       ok: true,
       value: {},
     });
@@ -82,13 +82,13 @@ describe("trackers", () => {
         notion: NotionTransports.HTTP.create(),
       },
     };
-    const github = resolveTrackerReads(undefined, noToken);
+    const github = resolveTrackerReads([], noToken);
     expect(github.ok && Object.keys(github.value)).toEqual(["github"]);
     const notionBlock = {
       kind: "notion" as const,
       keyPrefix: "BRIEF",
       databaseId: "a".repeat(32),
     };
-    expect(resolveTrackerReads(notionBlock, noToken).ok).toBe(false);
+    expect(resolveTrackerReads([notionBlock], noToken).ok).toBe(false);
   });
 });

@@ -4,7 +4,11 @@
 // validate.ts); these schemas own STRUCTURAL validity only.
 
 import { z } from "zod/v4";
-import { TrackerConfigSchema } from "brief-core";
+import {
+  refineTrackerSettings,
+  TrackerConfigSchema,
+  TrackerListSchema,
+} from "brief-core";
 import {
   ATTRIBUTE_NAME_MAX_CHARS,
   ATTRIBUTE_NAME_PATTERN,
@@ -28,8 +32,10 @@ export const settingsV1Schema = z
     version: z.literal(1),
     entryCommentOnDrafts: z.boolean().default(false),
     tracker: TrackerConfigSchema.optional(),
+    trackers: TrackerListSchema.optional(),
   })
-  .strict();
+  .strict()
+  .superRefine(refineTrackerSettings);
 
 export type RepoSettingsV1 = z.infer<typeof settingsV1Schema>;
 

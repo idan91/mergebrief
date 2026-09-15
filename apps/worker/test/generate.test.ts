@@ -966,6 +966,41 @@ describe("generate task", () => {
     expect(body).not.toContain("Secret roadmap");
   });
 
+  it("reads a key on the instance's default board when the repo names none", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = stubGitHub(HEAD_1);
+    github.info = { ...github.info, body: "Fixes BRIEF-1" };
+    const notion = stubNotionFetch();
+    try {
+      await createGenerateTask({
+        handle: harness.handle,
+        publicBaseUrl: PUBLIC_URL,
+        generator: stubGenerator(),
+        github,
+        trackerRoot: {
+          ...NOTION_ROOT,
+          trackers: [
+            { kind: "notion", keyPrefix: "BRIEF", databaseId: "a".repeat(32) },
+          ],
+        },
+      })(payload);
+    } finally {
+      notion.restore();
+    }
+
+    const brief = await createArtifactStore(harness.handle, ctx).briefs.get(
+      pr.id,
+      BASE,
+      HEAD_1,
+    );
+    expect(notion.calls[0]).toContain(`/v1/data_sources/${"a".repeat(32)}`);
+    expect(JSON.parse(brief?.body ?? "{}")).toMatchObject({
+      intentCheck: {
+        primaryTicket: { key: "BRIEF-1", tracker: "notion", status: "unread" },
+      },
+    });
+  });
+
   it("reads installation-job Notion tickets through deployment credentials", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const github = stubGitHub(HEAD_1);

@@ -27,10 +27,11 @@ function resolveIssuesRepo(input: TicketReferenceInput): {
   owner: string;
   repo: string;
 } {
+  const github = input.trackers.find(
+    (tracker) => tracker.kind === TicketTrackers.GITHUB,
+  );
   const configured =
-    input.tracker?.kind === TicketTrackers.GITHUB
-      ? input.tracker.issuesRepo
-      : undefined;
+    github?.kind === TicketTrackers.GITHUB ? github.issuesRepo : undefined;
   if (configured === undefined) return input.repo;
 
   const [owner = "", repo = ""] = configured.split("/");
@@ -57,6 +58,7 @@ function buildHit(
 function collectMentions(
   text: string,
   input: TicketReferenceInput,
+  short: boolean,
 ): ReferenceHit[] {
   const hits: ReferenceHit[] = [];
   const own = resolveIssuesRepo(input);
@@ -66,6 +68,8 @@ function collectMentions(
       buildHit(match.index, match[1] ?? "", match[2] ?? "", Number(match[3])),
     );
   }
+  if (!short) return hits;
+
   for (const match of text.matchAll(OWNER_REPO_HASH)) {
     hits.push(
       buildHit(match.index, match[1] ?? "", match[2] ?? "", Number(match[3])),
@@ -93,9 +97,21 @@ function collectBranchSegments(
 }
 
 /**
- * `#N`, `owner/repo#N`, issue URLs and a branch starting `N-`, only where
- * the deployment can read GitHub: a reference no read can follow stays
- * ordinary text rather than becoming an unread primary.
+ * Whether `#N`, `owner/repo#N` and a branch's `N-` count as tickets. A repo
+ * that names other trackers and no github entry keeps its tickets there,
+ * and a bare number in its PRs is nearly always another pull request.
+ */
+function readsShortReferences(input: TicketReferenceInput): boolean {
+  if (input.trackers.length === 0) return true;
+  return input.trackers.some(
+    (tracker) => tracker.kind === TicketTrackers.GITHUB,
+  );
+}
+
+/**
+ * Issue URLs wherever the deployment can read GitHub, since a reference no
+ * read can follow stays ordinary text; the short forms only where GitHub is
+ * the repo's tracker or one of them.
  */
 export function collectGitHubReferences(
   text: string,
@@ -103,10 +119,11 @@ export function collectGitHubReferences(
   input: TicketReferenceInput,
 ): ReferenceHit[] {
   if (!input.readable.includes(TicketTrackers.GITHUB)) return [];
+  const short = readsShortReferences(input);
   if (location === ReferenceLocations.BRANCH) {
-    return collectBranchSegments(text, input);
+    return short ? collectBranchSegments(text, input) : [];
   }
-  return collectMentions(text, input);
+  return collectMentions(text, input, short);
 }
 
 export function canonicalizeGitHubUrl(raw: string): string | undefined {

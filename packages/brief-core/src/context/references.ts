@@ -103,16 +103,18 @@ export function canonicalizeTicketUrl(raw: string): string {
 }
 
 /**
- * The one ticket the PR is about. References to the repo's own tracker come
+ * The one ticket the PR is about. References to the repo's own trackers come
  * first (a bare `#N` in a Notion repo is usually a pull request); within
  * that pool a closing-keyword reference wins, else the first, since the list
  * is already in description, title, branch order.
  */
 export function resolvePrimaryTicket(
   references: readonly TicketReference[],
-  tracker?: TicketTracker,
+  trackers: readonly TicketTracker[] = [],
 ): TicketReference | undefined {
-  const own = references.filter((reference) => reference.tracker === tracker);
+  const own = references.filter((reference) =>
+    trackers.includes(reference.tracker),
+  );
   const pool = own.length > 0 ? own : references;
 
   return pool.find((reference) => reference.closing) ?? pool[0];

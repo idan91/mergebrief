@@ -5,6 +5,7 @@
 import {
   checkConfiguredTrackerReads,
   NotionTransports,
+  resolveTrackerReads,
   parseHugeSpanRatio,
   parseRevisionNarrativeFlag,
 } from "brief-core";
@@ -105,14 +106,30 @@ async function main(): Promise<void> {
   // Tracker reads: every `contextSources:` entry must be able to build its
   // read here, tokens by env-var NAME. An unset token refuses boot like a
   // missing generator key.
-  const trackerRoot = { env, contextSources: config.value.contextSources };
+  const trackerRoot = {
+    env,
+    contextSources: config.value.contextSources,
+    trackers: config.value.trackers,
+  };
+  const trackerTransports = { notion: NotionTransports.HTTP.create() };
   const trackerReads = checkConfiguredTrackerReads({
     ...trackerRoot,
-    transports: { notion: NotionTransports.HTTP.create() },
+    transports: trackerTransports,
   });
   if (!trackerReads.ok) {
     exitOnConfigError(
       `worker composition: invalid tracker configuration — ${trackerReads.error.issues.join("; ")}`,
+    );
+  }
+  // The instance's default boards must be readable here too, or every job
+  // on a repo without its own settings would warn instead of read.
+  const defaultBoards = resolveTrackerReads(config.value.trackers, {
+    ...trackerRoot,
+    transports: trackerTransports,
+  });
+  if (!defaultBoards.ok) {
+    exitOnConfigError(
+      `worker composition: trackers — ${defaultBoards.error.issues.join("; ")}`,
     );
   }
 

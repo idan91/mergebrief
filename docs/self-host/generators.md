@@ -66,9 +66,19 @@ generator:
 #   - type: notion
 #     tokenEnv: NOTION_TOKEN
 
+# trackers: — the FIFTH root block: the boards every repo on this instance
+# reads tickets from, one entry per board. A repo whose own
+# .mergebrief/settings.yaml names trackers replaces this list. Same entry
+# shape as the repo file; see self-host/repo-config.md.
+# trackers:
+#   - kind: notion
+#     keyPrefix: BRIEF
+#     databaseId: 3935e9400eeb80b0ad46000b1ce17b37
+#   - kind: github
+
 # x-*: root keys starting with "x-" are ignored (compose-style extension
 # slot); ANY other unknown key — root or inside generator:/drafts:/spend:/
-# contextSources: — refuses boot.
+# contextSources:/trackers: — refuses boot.
 x-notes: anything here is yours
 ```
 

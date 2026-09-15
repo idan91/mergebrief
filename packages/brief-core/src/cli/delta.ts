@@ -32,6 +32,7 @@ import {
   createCliRootDeps,
   resolveCliTrackerReads,
 } from "./context-providers";
+import { resolveEffectiveTrackers } from "../context/tracker";
 import { readLocalTracker } from "./settings";
 import { splitDiffByFile } from "../diff/diff";
 import { lookupBriefIndex } from "../artifacts/manifest";
@@ -72,7 +73,7 @@ export async function generateAndWriteDelta(
   generator: Generator,
   log: (msg: string) => void,
   effort?: Effort,
-  tracker?: TrackerConfig,
+  trackers: readonly TrackerConfig[] = [],
   fetchOptions: FetchContextSnippetsOptions = {},
   contextProviders: readonly ContextProvider[] = createCliContextProviders(),
 ): Promise<DeltaBrief> {
@@ -99,7 +100,7 @@ export async function generateAndWriteDelta(
     body: meta.body,
     branch: meta.headRef ?? "",
     repo: locator,
-    tracker,
+    trackers,
     readable: listReadableTrackers(fetchOptions.reads ?? {}),
   });
   const { links, primaryTicket } = await fetchContextSnippets(
@@ -197,6 +198,7 @@ async function main(): Promise<void> {
           ok: true as const,
           value: {
             generator: defaultGeneratorConfig,
+            trackers: [],
             contextSources: DEFAULT_CONTEXT_SOURCES,
           },
         };
@@ -220,11 +222,12 @@ async function main(): Promise<void> {
 
   // Local-only mode: the working tree's settings.yaml names the tracker.
   const local = readLocalTracker(process.cwd());
+  const trackers = resolveEffectiveTrackers(local, loaded.value.trackers);
   // Same spot, same rule: tracker tokens resolve by env-var NAME here only.
   const suppliedPrimary = supplied?.ok ? supplied.value : undefined;
   const reads = resolveCliTrackerReads(
     suppliedPrimary,
-    local.tracker,
+    trackers,
     createCliRootDeps(process.env, loaded.value.contextSources),
   );
   if (!reads.ok) {
@@ -243,7 +246,7 @@ async function main(): Promise<void> {
     constructed.value,
     log,
     loaded.value.generator.effort,
-    local.tracker,
+    trackers,
     { ...fetchOptions, reads: reads.value },
     createCliContextProviders(),
   );

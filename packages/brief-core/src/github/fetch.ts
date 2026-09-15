@@ -320,6 +320,7 @@ export async function fetchPr(
     body: meta.body,
     branch: meta.headRef ?? "",
     repo: locator,
+    trackers: [],
     readable: listReadableTrackers(reads),
   });
   const context = await fetchContextSnippets(query, providers, log, {

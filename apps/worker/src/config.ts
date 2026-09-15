@@ -3,6 +3,7 @@ import {
   type ContextSourcesConfig,
   type GeneratorConfig,
   type SpendPolicy,
+  type TrackerConfig,
 } from "generators";
 import {
   loadConfig as loadPersistenceConfig,
@@ -38,6 +39,8 @@ export interface WorkerConfig {
   readonly spend: SpendPolicy;
   /** The credentialed context providers to construct; empty = built-ins only. */
   readonly contextSources: ContextSourcesConfig;
+  /** The instance's default boards; a repo's own settings replace them. */
+  readonly trackers: readonly TrackerConfig[];
   /** Operator PAT backstop for url-box jobs; undefined disables it. */
   readonly urlBoxToken: string | undefined;
 }
@@ -165,6 +168,7 @@ export function loadConfig(
       publicBaseUrl: baseUrlParsed.data,
       spend: generatorConfig.value.spend,
       contextSources: generatorConfig.value.contextSources,
+      trackers: generatorConfig.value.trackers,
       urlBoxToken: env["MERGEBRIEF_URL_BOX_TOKEN"] || undefined,
     },
   };

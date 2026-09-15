@@ -41,9 +41,9 @@ export function createCliContextProviders(): ContextProvider[] {
  */
 export function resolveCliTrackerReads(
   supplied: PrimarySnippet | undefined,
-  tracker: TrackerConfig | undefined,
+  trackers: readonly TrackerConfig[],
   root: TrackerRootDeps,
 ): Result<TrackerReads | undefined, ConfigError> {
   if (supplied !== undefined) return { ok: true, value: undefined };
-  return resolveTrackerReads(tracker, root);
+  return resolveTrackerReads(trackers, root);
 }

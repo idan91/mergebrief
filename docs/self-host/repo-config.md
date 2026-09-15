@@ -10,7 +10,7 @@ repo's** briefs loudly when invalid, never the instance.
 ```
 .mergebrief/
   instructions.md    # text guidance to generation (semi-trusted, bounded)
-  settings.yaml      # workflow behavior (v1: entryCommentOnDrafts, tracker)
+  settings.yaml      # workflow behavior (v1: entryCommentOnDrafts, trackers)
   policy.yaml        # risk policy: custom attributes + display de-emphasis
   rules/             # RESERVED for future generated output — leave empty
 ```
@@ -51,33 +51,58 @@ genuinely review drafts opt in with `true`. Generation itself always runs
 for drafts (subject to the instance `drafts:` knob below); this gates the
 comment only.
 
-### `tracker:` — where this repo's tickets live
+### `trackers:` — where this repo's tickets live
+
+```yaml
+version: 1
+trackers:
+  - kind: notion
+    keyPrefix: BRIEF        # notion: required; keys never match without it
+    databaseId: 3935e9400eeb80b0ad46000b1ce17b37   # notion: required; database or data source id, dashes optional
+  - kind: notion
+    keyPrefix: DS           # a second board: its own prefix, its own database
+    databaseId: 4935e9400eeb80b0ad46000b1ce17b37
+  - kind: github
+    issuesRepo: owner/name  # optional: where a bare #N resolves
+```
+
+`tracker:` with one block is the same thing for a repo with one board, and
+every existing file keeps working unchanged. A file carries one spelling or
+the other, never both.
+
+An instance whose repos share boards lists them once in
+`mergebrief.config.yaml`'s `trackers:` instead (see
+[generators.md](generators.md)). A repo file that names any tracker
+replaces that list whole for the repo; a repo with no file reads the
+instance's.
 
 ```yaml
 version: 1
 tracker:
-  kind: notion            # notion | github
-  keyPrefix: BRIEF        # notion: required; keys never match without it
-  databaseId: 3935e9400eeb80b0ad46000b1ce17b37   # notion: required; database or data source id, dashes optional
-  # kind: github
-  # issuesRepo: owner/name   # optional: where a bare #N resolves
+  kind: notion
+  keyPrefix: BRIEF
+  databaseId: 3935e9400eeb80b0ad46000b1ce17b37
 ```
 
 The brief's Intent check names one **primary ticket** per PR, found in the
 description, title or branch name, and reads it through a tracker
 provider (see [trackers.md](trackers.md)). This block tells it which
-tracker the repo uses:
+trackers the repo uses:
 
-- `PREFIX-N` keys match **only** the configured `keyPrefix`
-  (case-insensitive, word-bounded). With no `tracker:` block, keys never
-  match.
-- `#N`, `owner/repo#N`, GitHub issue URLs and a branch segment starting
-  `N-` always match, whatever the kind. A bare `#N` resolves against
+- `PREFIX-N` keys match **only** a configured `keyPrefix`
+  (case-insensitive, word-bounded), each on the board its entry names. With
+  no entry, keys never match. A prefix may appear once; at most one
+  `github` entry; at most 8 entries.
+- GitHub issue URLs match wherever the deployment can read GitHub. The
+  short forms, `#N`, `owner/repo#N` and a branch starting `N-` (or
+  `type/N-slug`), match only when no tracker is listed or a `github` entry
+  is: in a repo that lists Notion boards alone, a bare number is nearly
+  always another pull request and stays text. A bare `#N` resolves against
   `issuesRepo` when set, else the PR's own repo.
-- When a PR names several references, ones on the configured tracker
-  come first: in a Notion repo, `[BRIEF-12]` in the title outranks `#467`
+- When a PR names several references, ones on a listed tracker come
+  first: in a Notion repo, `[BRIEF-12]` in the title outranks `#467`
   in the description, which is usually a pull request. Within that pool a
-  closing keyword wins, then reading order.
+  closing keyword wins, then reading order, across boards alike.
 - An invalid block rejects the whole file, like any other key.
 
 ## `policy.yaml` (32 KB, versioned)
@@ -123,7 +148,7 @@ generates without repo config, recorded loudly as `fetch-failed`.
 
 The dotdir also serves a second mode: the `categorize` and `delta` CLIs
 read `.mergebrief/settings.yaml` from the **working tree** they run in
-(your own machine, your own trust context). Today they read the `tracker:`
+(your own machine, your own trust context). Today they read the `trackers:`
 block only, version-gated, ignoring other keys; a file that does not parse
 yields no tracker and one warning line, never a failed run. Instructions
 and policy still come only from the server's default-branch fetch.

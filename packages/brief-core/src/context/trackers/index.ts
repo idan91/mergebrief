@@ -67,10 +67,13 @@ export function listReadableTrackers(reads: TrackerReads): TicketTracker[] {
  * simply not a read.
  */
 export function resolveTrackerReads(
-  tracker: TrackerConfig | undefined,
+  trackers: readonly TrackerConfig[],
   root: TrackerRootDeps,
 ): Result<TrackerReads, ConfigError> {
-  const configured = tracker?.kind ?? TicketTrackers.GITHUB;
+  const configured = new Set<TicketTracker>(
+    trackers.map((tracker) => tracker.kind),
+  );
+  if (configured.size === 0) configured.add(TicketTrackers.GITHUB);
   const reads: { [Kind in TicketTracker]?: PrimaryRead | undefined } = {};
 
   for (const { kind } of TRACKERS) {
@@ -78,7 +81,7 @@ export function resolveTrackerReads(
     const read = createTrackerRead(kind, root);
     if (read.ok) {
       reads[kind] = read.value;
-    } else if (kind === configured) {
+    } else if (configured.has(kind)) {
       return read;
     }
   }

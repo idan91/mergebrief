@@ -145,10 +145,9 @@ async function readPrimaryTicket(
   );
   const deadline = Date.now() + timeoutMs;
   for (let tried = 0; tried < MAX_PRIMARY_CANDIDATES; tried += 1) {
-    const candidate = resolvePrimaryTicket(
-      remainingReferences,
+    const candidate = resolvePrimaryTicket(remainingReferences, [
       reference.tracker,
-    );
+    ]);
     const read = candidate === undefined ? undefined : reads[candidate.tracker];
     if (candidate === undefined || read === undefined) return undefined;
     remainingReferences = remainingReferences.filter((r) => r !== candidate);

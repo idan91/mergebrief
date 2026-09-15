@@ -29,7 +29,7 @@ describe("the CLIs' context root", () => {
   });
 
   it("offers GitHub through gh, so a repo with no tracker block reads GitHub", () => {
-    const reads = resolveTrackerReads(undefined, createCliRootDeps({}, []));
+    const reads = resolveTrackerReads([], createCliRootDeps({}, []));
     expect(reads.ok && Object.keys(reads.value)).toEqual([
       TicketTrackers.GITHUB,
     ]);
@@ -37,7 +37,7 @@ describe("the CLIs' context root", () => {
 
   it("reads Notion when the repo names it and the config lists it with a token", () => {
     const reads = resolveTrackerReads(
-      NOTION_BLOCK,
+      [NOTION_BLOCK],
       createCliRootDeps({ NOTION_TOKEN: "ntn_x" }, [{ type: "notion" }]),
     );
     expect(reads.ok && Object.keys(reads.value).toSorted()).toEqual([
@@ -48,7 +48,7 @@ describe("the CLIs' context root", () => {
 
   it("refuses a Notion repo whose config lists no token, naming the var and never a value", () => {
     const read = resolveTrackerReads(
-      NOTION_BLOCK,
+      [NOTION_BLOCK],
       createCliRootDeps({ NOTION_TOKEN: "ntn_should_not_leak" }, [
         { type: "notion", tokenEnv: "MY_NOTION" },
       ]),
@@ -77,9 +77,9 @@ describe("the CLIs' context root", () => {
       foundIn: "description" as const,
     };
     const root = createCliRootDeps({}, []);
-    const read = resolveCliTrackerReads(supplied, NOTION_BLOCK, root);
+    const read = resolveCliTrackerReads(supplied, [NOTION_BLOCK], root);
     expect(read).toEqual({ ok: true, value: undefined });
-    const live = resolveCliTrackerReads(undefined, NOTION_BLOCK, root);
+    const live = resolveCliTrackerReads(undefined, [NOTION_BLOCK], root);
     expect(live.ok).toBe(false);
   });
 });

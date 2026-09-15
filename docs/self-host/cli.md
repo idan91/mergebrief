@@ -92,7 +92,7 @@ lives in a secret store, not on disk.
 
 The `categorize` and `delta` dev CLIs (`tools/categorizer`) resolve the PR's
 primary ticket from the working tree's `.mergebrief/settings.yaml`
-(`tracker:` block, see [repo-config.md](repo-config.md)). Tracker reads use
+(`trackers:` list, see [repo-config.md](repo-config.md)). Tracker reads use
 the same env as the worker (`gh auth` for GitHub Issues, `NOTION_TOKEN` for
 Notion); `--context <file>` supplies the ticket text directly when neither
 is available. Details in `tools/categorizer/README.md`.

@@ -26,8 +26,8 @@ export interface TicketReferenceInput {
   readonly branch: string;
   /** The PR's own repo: where a bare `#N` resolves without `issuesRepo`. */
   readonly repo: TicketReferenceRepo;
-  /** The repo's `tracker:` block; absent means keys never match. */
-  readonly tracker?: TrackerConfig | undefined;
+  /** The repo's trackers, in file order; empty means keys never match. */
+  readonly trackers: readonly TrackerConfig[];
   /** The trackers this root can read; a tracker whose URLs are plain links without a read checks for its kind here. */
   readonly readable: readonly TicketTracker[];
 }
@@ -55,10 +55,12 @@ export interface ReferenceHit {
   readonly reference: Omit<TicketReference, "foundIn" | "closing">;
 }
 
-/** What every root offers every tracker: tokens by NAME from `env`, and the instance config's `contextSources:` entries. */
+/** What every root offers every tracker: tokens by NAME from `env`, the instance config's `contextSources:` entries and its default `trackers:`. */
 export interface SharedRootDeps {
   readonly env: Record<string, string | undefined>;
   readonly contextSources: ContextSourcesConfig;
+  /** The instance's boards; a repo whose settings name none reads these. */
+  readonly trackers?: readonly TrackerConfig[];
 }
 
 /**

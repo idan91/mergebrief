@@ -32,10 +32,21 @@ export function parseNotionPageId(raw: string): string | undefined {
 
 function collectKeys(
   text: string,
-  tracker: TrackerConfig | undefined,
+  trackers: readonly TrackerConfig[],
 ): ReferenceHit[] {
-  if (tracker === undefined || tracker.kind !== TicketTrackers.NOTION)
-    return [];
+  const hits: ReferenceHit[] = [];
+
+  for (const tracker of trackers) {
+    if (tracker.kind !== TicketTrackers.NOTION) continue;
+    hits.push(...collectBoardKeys(text, tracker));
+  }
+  return hits;
+}
+
+function collectBoardKeys(
+  text: string,
+  tracker: Extract<TrackerConfig, { kind: typeof TicketTrackers.NOTION }>,
+): ReferenceHit[] {
   const prefix = tracker.keyPrefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   // A trailing hyphen is a branch or slug separator, never part of the key.
   const pattern = new RegExp(`(?<![\\w-])(${prefix})-(\\d+)(?!\\w)`, "gi");
@@ -82,7 +93,7 @@ export function collectNotionReferences(
   location: ReferenceLocation,
   input: TicketReferenceInput,
 ): ReferenceHit[] {
-  const keys = collectKeys(text, input.tracker);
+  const keys = collectKeys(text, input.trackers);
   if (location === ReferenceLocations.BRANCH) return keys;
   return [
     ...keys,

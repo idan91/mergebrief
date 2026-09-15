@@ -12,14 +12,17 @@ import type { ContextQuery } from "./types";
  */
 export function buildContextQuery(input: TicketReferenceInput): ContextQuery {
   const references = collectTicketReferences(input);
-  const primary = resolvePrimaryTicket(references, input.tracker?.kind);
+  const primary = resolvePrimaryTicket(
+    references,
+    input.trackers.map((tracker) => tracker.kind),
+  );
 
   const query: ContextQuery = {
     title: input.title,
     body: input.body,
     headRef: input.branch,
     repo: input.repo,
-    tracker: input.tracker,
+    trackers: input.trackers,
     references,
   };
   if (primary !== undefined) return { ...query, primary };
