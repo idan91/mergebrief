@@ -3700,9 +3700,9 @@ describe("generate task, observability", () => {
 });
 
 describe("generate task, daily generation cap", () => {
-  const UNCAPPED = { dailyGenerationCap: null, perRepo: {} };
+  const UNCAPPED = { maxGenerationsPerDay: null };
 
-  /** Burn one STARTED run for acme/widget so the cap has something to count. */
+  /** Burn one STARTED run so the instance cap has something to count. */
   async function burnOneRun(): Promise<void> {
     const { payload } = await trigger(HEAD_1);
     await createGenerateTask({
@@ -3714,7 +3714,7 @@ describe("generate task, daily generation cap", () => {
     })(payload);
   }
 
-  it("proceeds while the repo is under its cap", async () => {
+  it("proceeds while the instance is under its cap", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const task = createGenerateTask({
@@ -3722,7 +3722,7 @@ describe("generate task, daily generation cap", () => {
       publicBaseUrl: PUBLIC_URL,
       generator,
       github: stubGitHub(HEAD_1),
-      spend: { dailyGenerationCap: 5, perRepo: {} },
+      spend: { maxGenerationsPerDay: 5 },
     });
 
     await task(payload);
@@ -3742,7 +3742,7 @@ describe("generate task, daily generation cap", () => {
       publicBaseUrl: PUBLIC_URL,
       generator,
       github: stubGitHub(HEAD_1),
-      spend: { dailyGenerationCap: 1, perRepo: {} },
+      spend: { maxGenerationsPerDay: 1 },
     })(payload);
 
     expect(generator.calls).toEqual(["brief"]);
@@ -3766,7 +3766,7 @@ describe("generate task, daily generation cap", () => {
       publicBaseUrl: PUBLIC_URL,
       generator,
       github,
-      spend: { dailyGenerationCap: 1, perRepo: {} },
+      spend: { maxGenerationsPerDay: 1 },
       log: logger,
     });
 
@@ -3822,7 +3822,7 @@ describe("generate task, daily generation cap", () => {
       publicBaseUrl: PUBLIC_URL,
       generator: stubGenerator(),
       github,
-      spend: { dailyGenerationCap: 1, perRepo: {} },
+      spend: { maxGenerationsPerDay: 1 },
     })(payload);
 
     // Replace-never-duplicate: still exactly ONE comment, now the capped body.
@@ -3848,7 +3848,7 @@ describe("generate task, daily generation cap", () => {
       publicBaseUrl: PUBLIC_URL,
       generator: stubGenerator(),
       github,
-      spend: { dailyGenerationCap: 1, perRepo: {} },
+      spend: { maxGenerationsPerDay: 1 },
     })(payload);
 
     expect(github.comments.size).toBe(0);
@@ -3871,7 +3871,7 @@ describe("generate task, daily generation cap", () => {
       publicBaseUrl: PUBLIC_URL,
       generator,
       github,
-      spend: { dailyGenerationCap: 3, perRepo: {} },
+      spend: { maxGenerationsPerDay: 3 },
     })(payload);
 
     expect(generator.calls).toEqual([]);
@@ -3886,8 +3886,8 @@ describe("generate task, daily generation cap", () => {
 
   it("preserves failed rows when retries reach the cap", async () => {
     await burnOneRun();
-    // The PR's own run failed; graphile will retry it. Meanwhile the repo
-    // sits at its cap, so the retry lands in the gate.
+    // The PR's own run failed; graphile will retry it. Meanwhile the
+    // instance sits at its cap, so the retry lands in the gate.
     const { pr, payload } = await trigger(HEAD_2);
     const failing = stubGenerator();
     failing.failNextWith = new APIConnectionError({});
@@ -3912,7 +3912,7 @@ describe("generate task, daily generation cap", () => {
       publicBaseUrl: PUBLIC_URL,
       generator,
       github: stubGitHub(HEAD_2),
-      spend: { dailyGenerationCap: 1, perRepo: {} },
+      spend: { maxGenerationsPerDay: 1 },
     })(payload);
 
     expect(generator.calls).toEqual([]);
@@ -3922,29 +3922,6 @@ describe("generate task, daily generation cap", () => {
     ).get(target(pr, HEAD_2));
     expect(afterRetry?.status).toBe(GenerationStatuses.FAILED);
     expect(afterRetry?.errorCode).toBe(failed?.errorCode);
-  });
-
-  it("a per-repo override beats the instance default", async () => {
-    await burnOneRun();
-    const { pr, payload } = await trigger(HEAD_2);
-    const generator = stubGenerator();
-    await createGenerateTask({
-      handle: harness.handle,
-      publicBaseUrl: PUBLIC_URL,
-      generator,
-      github: stubGitHub(HEAD_2),
-      // The default would cap this run; the override raises it.
-      spend: { dailyGenerationCap: 1, perRepo: { "acme/widget": 10 } },
-    })(payload);
-
-    expect(generator.calls).toContain("brief");
-    expect(
-      (
-        await createGenerationProjection(harness.handle, ctx).get(
-          target(pr, HEAD_2),
-        )
-      )?.status,
-    ).toBe(GenerationStatuses.SUCCEEDED);
   });
 
   it("leaves zero-config jobs uncapped", async () => {

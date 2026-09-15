@@ -12,7 +12,7 @@ import { resolveEnvConfigPath } from "../src/config/readRoot";
  * The instance-config loader table: every fail-fast
  * arm, the zero-config default, the x-* carve-out, and the strictness
  * gates. Adapter-level option validation is the registry's (already-tested)
- * job — one representative valid/invalid block each suffices here.
+ * job; one representative valid/invalid block each suffices here.
  */
 
 const tempDirs: string[] = [];
@@ -30,20 +30,20 @@ afterEach(() => {
   }
 });
 
-describe("loadGeneratorConfig (env-driven)", () => {
+describe("loadGeneratorConfig from env", () => {
   it("returns zero-config defaults when MERGEBRIEF_CONFIG is unset", () => {
     const result = loadGeneratorConfig({});
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value).toEqual({
       generator: { provider: "anthropic" },
-      spend: { dailyGenerationCap: null, perRepo: {} },
+      spend: { maxGenerationsPerDay: null },
       contextSources: [],
       source: null,
     });
   });
 
-  it("fails fast on a set-but-empty MERGEBRIEF_CONFIG (unset ≠ empty)", () => {
+  it("fails fast on a set-but-empty MERGEBRIEF_CONFIG, unset is not empty", () => {
     const result = loadGeneratorConfig({ MERGEBRIEF_CONFIG: "" });
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -79,7 +79,7 @@ describe("loadGeneratorConfig (env-driven)", () => {
 
   it("anchors a relative MERGEBRIEF_CONFIG at the workspace root, not cwd", () => {
     // Fake workspace: root marker + config at root, cwd deep inside a
-    // package dir — the exact worker/web shape (`pnpm --dir`).
+    // package dir, the exact worker/web shape (`pnpm --dir`).
     const root = mkdtempSync(join(tmpdir(), "mergebrief-ws-"));
     tempDirs.push(root);
     writeFileSync(
@@ -162,8 +162,8 @@ describe("loadGeneratorConfigFile", () => {
     expect(text).not.toContain("SENTINEL");
   });
 
-  it("keeps parser warnings (which embed source lines) off stderr", () => {
-    // An unresolved tag triggers a WARNING whose text quotes the line —
+  it("keeps parser warnings, which embed source lines, off stderr", () => {
+    // An unresolved tag triggers a WARNING whose text quotes the line;
     // exactly where a pasted credential could sit. logLevel "error" must
     // silence the warning channel entirely.
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -217,7 +217,7 @@ describe("loadGeneratorConfigFile", () => {
     expect(text).not.toContain("sk-or-abc");
   });
 
-  it("lets x-* root keys pass (compose convention)", () => {
+  it("lets x-* root keys pass, the compose convention", () => {
     const result = loadGeneratorConfigFile(
       configFile(
         "x-anchors:\n  shared: 1\ngenerator:\n  provider: anthropic\n",
@@ -235,7 +235,7 @@ describe("loadGeneratorConfigFile", () => {
     expect(result.ok).toBe(true);
   });
 
-  it("refuses boot on an invalid drafts block (bad values caught at worker too)", () => {
+  it("refuses boot on an invalid drafts block", () => {
     const result = loadGeneratorConfigFile(
       configFile(
         "generator:\n  provider: anthropic\ndrafts:\n  debounceSeconds: -5\n",

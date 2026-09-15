@@ -85,8 +85,10 @@ generator:
 #   debounceSeconds: 900
 
 # --- Daily generation cap ----------------------------------------------------
-# The spend guardrail: at most N generations per REPO per UTC calendar day.
-# Omit the block (or both keys) for no cap at all — the default.
+# The spend guardrail: at most N generations per UTC calendar day, counted
+# across every repo this instance serves. Omit the block for no cap at all,
+# the default. One number, not fair share: a busy repo can use the day for
+# the others.
 #
 # At the cap the worker SKIPS the generation: the PR view shows a "daily
 # generation cap reached" state carrying the reset time, an Entry comment that
@@ -94,14 +96,7 @@ generator:
 # `evt: spend.cap.trip` at warn. The count resets at 00:00 UTC; a PR skipped
 # today gets its brief on its next push after the reset.
 # spend:
-#   # Instance-wide default, applied to every repo without an override.
-#   dailyGenerationCap: 50
-#
-#   # Per-repo overrides, keyed owner/name (case-insensitive). Beats the
-#   # default. Keys naming repos this instance never sees are ignored.
-#   perRepo:
-#     acme/payments-api: 200
-#     acme/sandbox: 5
+#   maxGenerationsPerDay: 50
 
 # --- Context sources (ticket trackers needing a credential) -----------------
 # The URL and GitHub Issues providers are built in and need no entry; this

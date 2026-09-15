@@ -1,4 +1,4 @@
-// Spend-cap counter: the repo-scoped, UTC-day-windowed count of
+// Spend-cap counter: the instance-wide, UTC-day-windowed count of
 // generation runs that STARTED, plus the terminal `capped` transition. The
 // boundary cases (23:59:59.999 vs 00:00:00.000) are the whole point of the
 // half-open window, so `created_at` is backdated through the raw harness
@@ -93,7 +93,7 @@ async function harness(): Promise<
   };
 }
 
-describe("countStartedRunsForRepo", () => {
+describe("countStartedRuns", () => {
   it("counts started runs and excludes pending and capped ones", async () => {
     const { handle, pullRequestId, run } = await harness();
     const inside = new Date("2026-08-03T12:00:00.000Z");
@@ -140,8 +140,7 @@ describe("countStartedRunsForRepo", () => {
     const count = await createGenerationProjection(
       handle,
       CTX,
-    ).countStartedRunsForRepo({
-      repoId: REPO,
+    ).countStartedRuns({
       from: DAY_START,
       to: DAY_END,
     });
@@ -172,8 +171,7 @@ describe("countStartedRunsForRepo", () => {
     const count = await createGenerationProjection(
       handle,
       CTX,
-    ).countStartedRunsForRepo({
-      repoId: REPO,
+    ).countStartedRuns({
       from: DAY_START,
       to: DAY_END,
     });
@@ -201,8 +199,7 @@ describe("countStartedRunsForRepo", () => {
     const count = await createGenerationProjection(
       handle,
       CTX,
-    ).countStartedRunsForRepo({
-      repoId: REPO,
+    ).countStartedRuns({
       from: DAY_START,
       to: DAY_END,
     });
@@ -239,15 +236,14 @@ describe("countStartedRunsForRepo", () => {
     const count = await createGenerationProjection(
       handle,
       CTX,
-    ).countStartedRunsForRepo({
-      repoId: REPO,
+    ).countStartedRuns({
       from: DAY_START,
       to: DAY_END,
     });
     expect(count).toBe(2);
   });
 
-  it("counts per repo, one shared pool across tenants and worlds", async () => {
+  it("counts every repo and every tenant into one instance pool", async () => {
     const { handle, pullRequestId, run, backdate } = await harness();
     const inside = new Date("2026-08-03T09:00:00.000Z");
     await run({
@@ -257,7 +253,7 @@ describe("countStartedRunsForRepo", () => {
       createdAt: inside,
     });
 
-    // Same tenant, a different repo, never counted into REPO's pool.
+    // Same tenant, a different repo: the cap is the INSTANCE's budget.
     const sibling = await createTenantRepository(
       handle,
       CTX,
@@ -274,8 +270,8 @@ describe("countStartedRunsForRepo", () => {
       createdAt: inside,
     });
 
-    // Another tenant that sees the SAME repo (same numeric id): the cap is
-    // the REPO's budget, so this run DOES count into the shared pool.
+    // Another installation entirely: the operator pays one bill, so its
+    // run counts into the same pool.
     const otherCtx: TenantContext = { installationId: OTHER_TENANT };
     const foreignPr = await createTenantRepository(
       handle,
@@ -301,12 +297,8 @@ describe("countStartedRunsForRepo", () => {
     const count = await createGenerationProjection(
       handle,
       CTX,
-    ).countStartedRunsForRepo({
-      repoId: REPO,
-      from: DAY_START,
-      to: DAY_END,
-    });
-    expect(count).toBe(2);
+    ).countStartedRuns({ from: DAY_START, to: DAY_END });
+    expect(count).toBe(3);
   });
 });
 
@@ -345,7 +337,6 @@ describe("startRun", () => {
     const started = await projection.startRun({
       target,
       phase: GenerationPhases.FETCHING,
-      repoId: REPO,
       cap: 1,
       ...WINDOW,
     });
@@ -368,14 +359,12 @@ describe("startRun", () => {
     await projection.upsertPending(second);
     await projection.startRun({
       target: first,
-      repoId: REPO,
       cap: 1,
       ...WINDOW,
     });
 
     const refused = await projection.startRun({
       target: second,
-      repoId: REPO,
       cap: 1,
       ...WINDOW,
     });
@@ -402,7 +391,6 @@ describe("startRun", () => {
 
     const started = await projection.startRun({
       target,
-      repoId: REPO,
       ...WINDOW,
     });
 
@@ -433,7 +421,6 @@ describe("startRun", () => {
 
     const started = await projection.startRun({
       target,
-      repoId: REPO,
       cap: 1,
       ...WINDOW,
     });
@@ -442,13 +429,39 @@ describe("startRun", () => {
     expect(started.value.started).toBe(true);
   });
 
+  it("a run started in another repo counts against this start", async () => {
+    const { handle, pullRequestId: _own, run } = await harness();
+    const sibling = await createTenantRepository(
+      handle,
+      CTX,
+    ).pullRequests.upsert({
+      repoId: OTHER_REPO,
+      prNumber: 9,
+      state: PrStates.OPEN,
+      repoSlug: "acme/web",
+    });
+    await run({
+      pullRequestId: sibling.id,
+      headSha: "elsewhere",
+      status: GenerationStatuses.SUCCEEDED,
+      createdAt: new Date("2026-08-03T12:00:00.000Z"),
+    });
+    const projection = createGenerationProjection(handle, CTX);
+    const target = makeBriefTarget(_own, "mine");
+    await projection.upsertPending(target);
+
+    const refused = await projection.startRun({ target, cap: 1, ...WINDOW });
+
+    if (!refused.ok) throw new Error(refused.error.message);
+    expect(refused.value).toEqual({ started: false, startedRuns: 1 });
+  });
+
   it("a missing projection row returns notFound", async () => {
     const { handle, pullRequestId } = await harness();
     const projection = createGenerationProjection(handle, CTX);
 
     const result = await projection.startRun({
       target: makeBriefTarget(pullRequestId, "ghost"),
-      repoId: REPO,
       cap: 1,
       ...WINDOW,
     });

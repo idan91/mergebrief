@@ -1,4 +1,3 @@
-import { capForRepo } from "generators";
 import type { LogFields } from "logging";
 import {
   type StartRunInput,
@@ -12,25 +11,23 @@ import { utcDayBounds } from "../../spend";
 import type { SpendGateInputs } from "../types";
 
 /**
- * The daily generation cap. The start and the `running` mark happen in one
- * store transaction under the repo's advisory lock, so a run never counts
- * itself and N slots or processes cannot start past the cap together. Returns
- * true when the run is capped: the projection is terminal `capped` (or left
- * `failed`) and the caller stops.
+ * The daily generation cap, one number for the whole instance. The start and
+ * the `running` mark happen in one store transaction under the instance
+ * advisory lock, so a run never counts itself and N slots or processes cannot
+ * start past the cap together. Returns true when the run is capped: the
+ * projection is terminal `capped` (or left `failed`) and the caller stops.
  */
 export async function applySpendGate(
   payload: ParsedGeneratePayload,
   inputs: SpendGateInputs,
 ): Promise<boolean> {
-  const { deps, projection, target, prRow, repoSlug, job, log } = inputs;
+  const { deps, projection, target, job, log } = inputs;
 
-  const cap =
-    deps.spend === undefined ? null : capForRepo(deps.spend, repoSlug);
+  const cap = deps.spend?.maxGenerationsPerDay ?? null;
   const day = utcDayBounds(new Date());
   const startInput: Mutable<StartRunInput> = {
     target,
     phase: GenerationPhases.FETCHING,
-    repoId: prRow.repoId,
     from: day.from,
     to: day.to,
   };

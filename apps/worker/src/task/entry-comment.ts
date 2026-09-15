@@ -1,4 +1,4 @@
-// The Entry comment — ONE branded comment per PR, maintained by delete+repost
+// The Entry comment: ONE branded comment per PR, maintained by delete+repost
 // per settled head; the deep link is navigation, never a compute trigger.
 // Pure builders only; the delete+repost orchestration lives in `generate.ts`.
 // The body carries no secrets: a public deep link and public SHAs.
@@ -33,15 +33,15 @@ export interface EntryCommentPrLink {
   readonly publicBaseUrl: string;
   readonly repoId: bigint;
   readonly prNumber: number;
-  /** The head that was skipped — named so the thread knows which push. */
+  /** The head that was skipped, named so the thread knows which push. */
   readonly headSha: string;
   /** When generation resumes, as an ISO instant (the next UTC midnight). */
   readonly resetsAt: Date;
 }
 
 /**
- * The capped body: this push got no brief because the repo hit its daily
- * generation cap. Used ONLY to UPDATE an Entry comment that already exists —
+ * The capped body: this push got no brief because the instance hit its daily
+ * generation cap. Used ONLY to UPDATE an Entry comment that already exists;
  * a capped PR never gets one created for it, so the cap can never make
  * MergeBrief louder on a thread than it already was. Spanless link: there is
  * no brief for this head to deep-link at.

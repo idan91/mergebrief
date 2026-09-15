@@ -1199,11 +1199,6 @@
       "count": 7
     }
   },
-  "apps/worker/src/task/entry-comment.ts": {
-    "house/no-em-dash": {
-      "count": 3
-    }
-  },
   "apps/worker/src/task/failure.ts": {
     "house/no-em-dash": {
       "count": 4
@@ -1462,11 +1457,6 @@
       "count": 6
     }
   },
-  "packages/generators/src/index.ts": {
-    "house/no-em-dash": {
-      "count": 6
-    }
-  },
   "packages/generators/src/validation/openaiStrict.ts": {
     "house/comment-run": {
       "count": 1
@@ -1491,14 +1481,6 @@
   "packages/generators/test/codex.contract.test.ts": {
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "packages/generators/test/config.test.ts": {
-    "house/no-em-dash": {
-      "count": 3
-    },
-    "house/test-title": {
-      "count": 6
     }
   },
   "packages/generators/test/context-sources.test.ts": {

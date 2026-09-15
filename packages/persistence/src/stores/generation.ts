@@ -30,7 +30,6 @@ import {
   type GenerationFailure,
   type GenerationPhase,
   type PullRequestRowId,
-  type RepoId,
   type Result,
   type ValueOf,
 } from "../types";
@@ -43,7 +42,6 @@ type GenerationExecutor = Pick<AppDrizzle, "select" | "update">;
 export interface StartRunInput {
   readonly target: GenerationTarget;
   readonly phase?: GenerationPhase;
-  readonly repoId: RepoId;
   /** Absent skips the count and the lock: the run is marked outright. */
   readonly cap?: number;
   readonly from: Date;
@@ -143,7 +141,7 @@ export interface GenerationProjection {
     target: GenerationTarget,
   ): Promise<Result<GenerationRow, GenerationError>>;
   /**
-   * Reflect `capped`, the terminal skip a repo's daily generation cap
+   * Reflect `capped`, the terminal skip the instance's daily generation cap
    * produces. Like `markSuperseded` this is NOT a failure:
    * `attempts` is untouched and `phase` + error columns are cleared, so a capped run
    * consumes no retry and shows no error text.
@@ -173,26 +171,26 @@ export interface GenerationProjection {
   /** Tenant-scoped read of the projection row; absence is `undefined`. */
   get(target: GenerationTarget): Promise<GenerationRow | undefined>;
   /**
-   * The daily spend cap's counter for ONE repo over the half-open window
-   * `[from, to)`. Sums ATTEMPTS (`GREATEST(attempts, 1)`), not rows, since each
-   * re-queue is another paid run on the same key. "Started" excludes `pending`
-   * (the run being decided is still pending, so counting it turns cap N into
-   * N-1) and `capped` (the skip must not feed the counter that produced it).
-   * Keyed by `repo_id`, not the slug, and counted ACROSS scope worlds: one
-   * repo has one daily budget whichever door spends it.
+   * The daily spend cap's counter for the WHOLE instance over the half-open
+   * window `[from, to)`. Sums ATTEMPTS (`GREATEST(attempts, 1)`), not rows,
+   * since each re-queue is another paid run on the same key. "Started"
+   * excludes `pending` (the run being decided is still pending, so counting
+   * it turns cap N into N-1) and `capped` (the skip must not feed the counter
+   * that produced it). Counted ACROSS repos, tenants and scope worlds: the
+   * operator pays one bill whichever door spends it.
    */
-  countStartedRunsForRepo(input: {
-    readonly repoId: RepoId;
+  countStartedRuns(input: {
     readonly from: Date;
     readonly to: Date;
   }): Promise<number>;
   /**
-   * Start a run under the daily cap: count started runs for the repo and, while
+   * Start a run under the daily cap: count started runs and, while
    * `started < cap`, mark the target `running` in the SAME transaction under
-   * `pg_advisory_xact_lock(hashtext('generation-cap:' || repo_id))`. The lock
-   * serializes starts per repo across every slot and every worker
-   * process, so the cap is exact rather than `cap + slots - 1`. Refusal
-   * leaves the row untouched and reports the count that refused it.
+   * `pg_advisory_xact_lock(hashtext('generation-cap'))`. The one lock
+   * serializes every start on the instance across every slot and every
+   * worker process, so the cap is exact rather than `cap + slots - 1`; a
+   * busy repo can spend the day for the others, a ceiling, not fair share.
+   * Refusal leaves the row untouched and reports the count that refused it.
    */
   startRun(
     input: StartRunInput,
@@ -236,28 +234,26 @@ export interface GenerationProjection {
 // Factory.
 // ---------------------------------------------------------------------------
 
-/** Build a tenant-scoped `generation` projection over the opaque handle. */
+const INSTANCE_CAP_LOCK_KEY = "generation-cap";
+
 async function countStartedRuns(
   executor: GenerationExecutor,
-  { repoId, from, to }: { repoId: RepoId; from: Date; to: Date },
+  { from, to }: { from: Date; to: Date },
 ): Promise<number> {
   const rows = await executor
     // GREATEST(attempts, 1): a first run carries attempts = 0 but is one
     // paid run; every increment past that is another one.
     //
     // Deliberately UNSCOPED, the one cross-world aggregate in this
-    // store. The daily cap is spend protection for a REPO: every started
-    // run for `repo_id` counts, whichever door paid for it, so N
-    // signed-in viewers cannot each spend a full budget on one repo.
-    // Only a count leaves the query; no row data crosses scopes.
+    // store. The daily cap is spend protection for the INSTANCE: every
+    // started run counts, whichever repo or door paid for it. Only a count
+    // leaves the query; no row data crosses scopes.
     .select({
       total: sql<number>`coalesce(sum(greatest(${generation.attempts}, 1)), 0)::int`,
     })
     .from(generation)
-    .innerJoin(pullRequest, eq(pullRequest.id, generation.pullRequestId))
     .where(
       and(
-        eq(pullRequest.repoId, repoId),
         eq(generation.kind, GenerationKinds.BRIEF),
         notInArray(generation.status, [
           GenerationStatuses.PENDING,
@@ -282,6 +278,7 @@ function shapeStart(
   };
 }
 
+/** Build a tenant-scoped `generation` projection over the opaque handle. */
 export function createGenerationProjection(
   handle: AppDatabase,
   ctx: ScopeContext,
@@ -446,11 +443,11 @@ export function createGenerationProjection(
       return rows[0];
     },
 
-    async countStartedRunsForRepo(input) {
+    async countStartedRuns(input) {
       return countStartedRuns(db, input);
     },
 
-    async startRun({ target, phase, repoId, cap, from, to }) {
+    async startRun({ target, phase, cap, from, to }) {
       const set = { status: GenerationStatuses.RUNNING, phase: phase ?? null };
       if (cap === undefined) {
         return shapeStart(await transition(target, set));
@@ -458,9 +455,9 @@ export function createGenerationProjection(
 
       return db.transaction(async (tx) => {
         await tx.execute(
-          sql`select pg_advisory_xact_lock(hashtext(${`generation-cap:${repoId}`}))`,
+          sql`select pg_advisory_xact_lock(hashtext(${INSTANCE_CAP_LOCK_KEY}))`,
         );
-        const started = await countStartedRuns(tx, { repoId, from, to });
+        const started = await countStartedRuns(tx, { from, to });
         if (started >= cap) {
           return { ok: true, value: { started: false, startedRuns: started } };
         }

@@ -1,14 +1,14 @@
 /**
- * ENTRY POINT — the generators package's ONLY export (`package.json`
+ * ENTRY POINT: the generators package's ONLY export (`package.json`
  * `exports["."]`). Everything importable from `"generators"` is re-exported
  * here, grouped by the folder it lives in. Map + glossary: `AGENTS.md`.
  *
- * The package: structured generation —
- * `(schema, system, user) → object valid against the schema` — behind one
+ * The package: structured generation,
+ * `(schema, system, user) → object valid against the schema`, behind one
  * `Generator` contract, with six interchangeable adapters.
  */
 
-// --- contract/ — what an adapter IS -----------------------------------------
+// --- contract/: what an adapter IS -----------------------------------------
 export {
   type Generator,
   type GenerateRequest,
@@ -33,7 +33,7 @@ export {
   type GeneratorErrorKind,
 } from "./contract/errors";
 
-// --- config/ — how an instance CHOOSES an adapter ---------------------------
+// --- config/: how an instance CHOOSES an adapter ---------------------------
 export {
   COMPOSE_WORKER_RUNTIME,
   createGenerator,
@@ -62,7 +62,6 @@ export {
   type LoadedInstancePolicy,
 } from "./config/instancePolicy";
 export {
-  capForRepo,
   DEFAULT_SPEND_POLICY,
   validateSpendBlock,
   type SpendPolicy,
@@ -80,7 +79,7 @@ export {
   type NotionContextSourceConfig,
 } from "./config/context-sources";
 
-// --- adapters/ — the six implementations ------------------------------------
+// --- adapters/: the six implementations ------------------------------------
 // (Constructed via createGenerator in normal use; exported for tests and
 // direct composition.)
 export {
@@ -114,7 +113,7 @@ export {
   type OpenRouterAssemblyOptions,
 } from "./adapters/openrouter";
 
-// --- validation/ — what every adapter's OUTPUT passes through ---------------
+// --- validation/: what every adapter's OUTPUT passes through ---------------
 export {
   runWithSchemaFloor,
   schemaFeedbackMessage,
@@ -134,7 +133,7 @@ export {
   type ParseableOutputFormat,
 } from "./validation/jsonSchema";
 
-// --- harness/ — how the CLI adapters RUN local binaries ---------------------
+// --- harness/: how the CLI adapters RUN local binaries ---------------------
 export {
   DEFAULT_HARNESS_TIMEOUTS,
   resolveHarnessTimeouts,

@@ -1,0 +1,1 @@
+CREATE INDEX "generation_created_at_idx" ON "generation" USING btree ("created_at");

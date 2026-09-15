@@ -159,7 +159,7 @@ export type GenerationKind = ValueOf<typeof GenerationKinds>;
 
 /**
  * `generation.status`. `superseded` = a mid-call generation aborted because
- * the PR head advanced; `capped` = a skip because the repo hit its daily
+ * the PR head advanced; `capped` = a skip because the instance hit its daily
  * generation cap. Neither is a failure; both are terminal and consume no
  * attempt.
  */

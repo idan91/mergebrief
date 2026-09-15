@@ -53,13 +53,11 @@ generator:
 #   generate: on
 #   debounceSeconds: 900
 
-# spend: — the THIRD root block: the daily generation cap, at
-# most N generations per repo per UTC day. Both keys optional; omitting the
-# block means uncapped. See the "Daily generation cap" section below.
+# spend: — the THIRD root block: the daily generation cap, at most N
+# generations per UTC calendar day across every repo this instance serves.
+# Omitting the block means uncapped. See "Daily generation cap" below.
 # spend:
-#   dailyGenerationCap: 50
-#   perRepo:
-#     acme/sandbox: 5
+#   maxGenerationsPerDay: 50
 
 # contextSources: — the FOURTH root block: ticket trackers that need a
 # deployment credential, by env-var NAME. URLs and GitHub issues are built
@@ -108,22 +106,20 @@ the key value never lives in this file, the DB, or repo config.
 
 ## Daily generation cap
 
-The one spend guardrail v1 ships: **at most N generations per repo per UTC
-calendar day**. It is instance config — the operator pays the
-bill, so no `.mergebrief/` repo file can set, raise, or lower it.
+The one spend guardrail v1 ships: **at most N generations per UTC calendar
+day, counted across every repo this instance serves**. It is instance
+config — the operator pays the bill, so no `.mergebrief/` repo file can
+set, raise, or lower it.
 
 ```yaml
 spend:
-  dailyGenerationCap: 50      # applies to every repo without an override
-  perRepo:
-    acme/payments-api: 200    # owner/name, case-insensitive; beats the default
-    acme/sandbox: 5
+  maxGenerationsPerDay: 50
 ```
 
-Both keys are optional and both must be positive whole numbers; omitting
-the block leaves the instance **uncapped** (the default). A `perRepo` key
-naming a repo this instance never sees is ignored — the installation set
-changes without you editing this file.
+The key is optional and must be a positive whole number; omitting the block
+leaves the instance **uncapped** (the default). There is no per-repo
+override: the cap is a ceiling, not fair share, so a busy repo can use the
+day's budget for the others. If that bites, raise the number.
 
 At the cap the worker **skips** the generation before any provider call:
 
@@ -136,20 +132,20 @@ At the cap the worker **skips** the generation before any provider call:
   [observability.md](./observability.md));
 - nothing is queued for later.
 
-The counter is the generation store itself: **provider attempts** by that
-repo on the current UTC day — not distinct pull requests, and not distinct
-pushes. A push that is re-queued (another push lands, a review is submitted)
+The counter is the generation store itself: **provider attempts** on the
+current UTC day, whichever repo made them — not distinct pull requests, and
+not distinct pushes. A push that is re-queued (another push lands, a review is submitted)
 spends again and counts again, so a single busy PR can consume a day's
 budget on its own. Runs that were superseded or failed DO count: they spent.
 Queued-but-not-yet-drained jobs and capped skips do not — a burst of
 webhooks must not trip the cap before a single token is spent.
 
-The count is exact per repo across slots and worker processes: the start and
-the `running` mark share one transaction under a per-repo advisory lock. It is
-still a guardrail, not an invoice, and it does not observe the queue's own
-internal retries of a single run. Treat it as a ceiling on what you are
-willing to spend per repo per day, not as a bill. Cost reporting is a
-separate, later concern.
+The count is exact across slots and worker processes: the start and the
+`running` mark share one transaction under one instance-wide advisory lock,
+so N slots cannot start past the cap together. It is still a guardrail, not
+an invoice, and it does not observe the queue's own internal retries of a
+single run. Treat it as a ceiling on what you are willing to spend per day,
+not as a bill. Cost reporting is a separate, later concern.
 
 The window resets at 00:00 UTC. A push skipped today is not retried
 automatically when the cap resets — the PR gets its brief on its next

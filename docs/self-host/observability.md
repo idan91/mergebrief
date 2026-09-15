@@ -44,7 +44,7 @@ changes get a breaking-change entry in
 | `provider.error` | error | worker | `provider`, `status`, `kind`, job bindings | 401/403 = credentials/config broken, alert now; sustained 429/5xx = provider degraded |
 | `token.refresh.fail` | error | api | `reqId`, `reviewerId` | yes — a reviewer session or API token could not rotate its GitHub credentials |
 | `audit.fail` | error | api | `reqId`, `operation` | yes — the action completed but its audit row never landed (data integrity) |
-| `spend.cap.trip` | warn | worker | `repo`, `prId`, `headSha`, `cap`, `dayUtc` | on **sustained rate** — the cap is working as configured, but a repo stuck at it produces no briefs all day |
+| `spend.cap.trip` | warn | worker | `repo`, `prId`, `headSha`, `cap`, `dayUtc` | on **sustained rate** — the cap is working as configured, but the instance stuck at it produces no briefs all day |
 | `generation.start` | info | worker | `prId`, `headSha`, `waitMs`, `attempt` | no: the queue-wait line; pair with generation.complete for end-to-end time |
 | `generation.complete` | info | worker | `kind`, `outcome`, `durationMs` | no — the model-call duration line; nothing else records how long a generation took |
 | `api.access` | info | api | `method`, `path`, `status`, `durationMs`, `decision`, `operation`, `repoId`, `reviewerId`, `reqId` | no — this is the access log |
@@ -170,8 +170,8 @@ groups:
         expr: sum(count_over_time({service="web"} | json | evt = `audit.fail` [15m])) > 0
         labels: { severity: critical }
       - alert: SpendCapSustained
-        # only if you set a cap (spend.dailyGenerationCap) — a repo pinned at
-        # it produces no briefs until 00:00 UTC
+        # only if you set a cap (spend.maxGenerationsPerDay) — an instance
+        # pinned at it produces no briefs until 00:00 UTC
         expr: sum(count_over_time({service="worker"} | json | evt = `spend.cap.trip` [1h])) > 5
         labels: { severity: warning }
 ```

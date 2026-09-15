@@ -91,7 +91,7 @@ describe.skipIf(databaseUrl === undefined)("startRun on real Postgres", () => {
 
       const outcomes = await Promise.all(
         targets.map((target) =>
-          projection.startRun({ target, repoId, cap: 1, ...WINDOW }),
+          projection.startRun({ target, cap: 1, ...WINDOW }),
         ),
       );
 
@@ -112,7 +112,52 @@ describe.skipIf(databaseUrl === undefined)("startRun on real Postgres", () => {
     }
   });
 
-  it("a start waits on the repo's advisory lock while another holds it", async () => {
+  it("two parallel starts in different repos at cap 1 start exactly one", async () => {
+    if (databaseUrl === undefined) throw new Error("unreachable");
+    const { tenant, repoId, ctx } = makeFixture();
+    const otherRepoId: RepoId = brandWith(isRepoId, repoId + 1n);
+    const handle = await connectMigrated(databaseUrl);
+
+    try {
+      const pullRequests = createTenantRepository(handle, ctx).pullRequests;
+      const prA = await pullRequests.upsert({
+        repoId,
+        prNumber: 1,
+        state: PrStates.OPEN,
+        repoSlug: "acme/lock",
+      });
+      const prB = await pullRequests.upsert({
+        repoId: otherRepoId,
+        prNumber: 1,
+        state: PrStates.OPEN,
+        repoSlug: "acme/other",
+      });
+      const projection = createGenerationProjection(handle, ctx);
+      const targets = [
+        makeBriefTarget(prA.id, "one"),
+        makeBriefTarget(prB.id, "two"),
+      ];
+      for (const target of targets) {
+        const pending = await projection.upsertPending(target);
+        if (!pending.ok) throw new Error(pending.error.message);
+      }
+
+      const outcomes = await Promise.all(
+        targets.map((target) =>
+          projection.startRun({ target, cap: 1, ...WINDOW }),
+        ),
+      );
+
+      const started = outcomes.filter(
+        (outcome) => outcome.ok && outcome.value.started,
+      );
+      expect(started).toHaveLength(1);
+    } finally {
+      await deleteTenantRows(handle, tenant);
+    }
+  });
+
+  it("a start waits on the instance advisory lock while another holds it", async () => {
     if (databaseUrl === undefined) throw new Error("unreachable");
     const { tenant, repoId, ctx } = makeFixture();
     const handle = await connectMigrated(databaseUrl);
@@ -132,15 +177,10 @@ describe.skipIf(databaseUrl === undefined)("startRun on real Postgres", () => {
       if (!pending.ok) throw new Error(pending.error.message);
       await holding.query("begin");
       await holding.query("select pg_advisory_xact_lock(hashtext($1))", [
-        `generation-cap:${repoId}`,
+        "generation-cap",
       ]);
 
-      const start = projection.startRun({
-        target,
-        repoId,
-        cap: 1,
-        ...WINDOW,
-      });
+      const start = projection.startRun({ target, cap: 1, ...WINDOW });
       const whileHeld = await Promise.race([start, waitMs(HOLD_MS)]);
       await holding.query("commit");
       const released = await start;

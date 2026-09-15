@@ -253,6 +253,13 @@
       "when": 1789406820894,
       "tag": "0036_generation-pending",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1789458761085,
+      "tag": "0037_generation-cap-instance-index",
+      "breakpoints": true
     }
   ]
 }

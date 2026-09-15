@@ -13,6 +13,15 @@ The contract discipline (ADR 0029): response shapes change additively
 within a major; removals/renames ship expand/contract — new field first,
 deprecation note here, removal only at a major.
 
+## dev (2026-09-15)
+
+- **Changed** the instance config key `spend.dailyGenerationCap` is now
+  `spend.maxGenerationsPerDay`, and the cap counts generations across every
+  repo the instance serves instead of per repo. `spend.perRepo` is removed;
+  a file still carrying either old key refuses boot (the block is strict).
+  The `capped` status and the `spend.cap.trip` event are unchanged, `repo`
+  field included. Pre-release rename with no compatibility value.
+
 ## dev (2026-09-14)
 
 - **Changed** the `generation.status` wire value `queued` is now `pending`: a

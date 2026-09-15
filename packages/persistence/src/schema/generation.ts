@@ -69,11 +69,12 @@ export const generation = pgTable(
         table.baselineSha,
       )
       .nullsNotDistinct(),
-    // The daily cap's count runs under the per-repo start lock; this
-    // keeps that locked section an index scan over the day's rows.
     index("generation_pull_request_created_at_idx").on(
       table.pullRequestId,
       table.createdAt,
     ),
+    // The daily cap's count runs under the instance-wide start lock; this
+    // keeps that locked section an index scan over the day's rows.
+    index("generation_created_at_idx").on(table.createdAt),
   ],
 );

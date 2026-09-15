@@ -209,7 +209,7 @@ docker compose exec postgres \
 
 - `generation.status` walks `pending → running → succeeded` (or `superseded`
   after a superseding push; `failed` carries a sanitized reason; `capped`
-  means the repo hit its daily generation cap and the run was skipped — see
+  means the instance hit its daily generation cap and the run was skipped — see
   [generators.md](./generators.md#daily-generation-cap)).
 - Misconfiguration surfaces differently per service: the **worker fails
   loudly at boot** (`docker compose logs worker` names the rejected env

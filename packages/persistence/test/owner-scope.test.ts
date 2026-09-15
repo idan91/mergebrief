@@ -259,7 +259,7 @@ describe("owner-scoped generation projection", () => {
     expect(done.value.installationId).toBeNull();
   });
 
-  it("spend counting is one shared per-repo pool across worlds", async () => {
+  it("spend counting is one shared instance pool across worlds", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);
     const projA = createGenerationProjection(handle, CTX_A);
@@ -276,14 +276,13 @@ describe("owner-scoped generation projection", () => {
     expect((await projA.markRunning(target)).ok).toBe(true);
 
     const window = {
-      repoId: REPO,
       from: new Date(Date.now() - 60_000),
       to: new Date(Date.now() + 60_000),
     };
-    // The cap is the REPO's budget: the owner's started run is visible from
-    // every scope, so N viewers cannot multiply one repo's daily spend.
-    expect(await projA.countStartedRunsForRepo(window)).toBe(1);
-    expect(await projT.countStartedRunsForRepo(window)).toBe(1);
+    // The cap is the INSTANCE's budget: the owner's started run is visible
+    // from every scope, so N viewers cannot multiply the daily spend.
+    expect(await projA.countStartedRuns(window)).toBe(1);
+    expect(await projT.countStartedRuns(window)).toBe(1);
   });
 
   it("an owner cannot enqueue against another owner's PR", async () => {
