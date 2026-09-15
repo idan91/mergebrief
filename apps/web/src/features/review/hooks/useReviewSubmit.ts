@@ -5,7 +5,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 
 import { useLatestRef } from "@web/hooks/useLatestRef";
 
-import type { ReviewComment } from "../utils/comments";
+import { listDraftComments, type ReviewComment } from "../utils/comments";
 import type { Receipt } from "../utils/receipt";
 import type { ReviewOutcome } from "../utils/state";
 import {
@@ -143,7 +143,7 @@ export function useReviewSubmit(
     setError(null);
     setNote(null);
     // Captured at click time: exactly this set ships, exactly this set flips.
-    const drafts = comments.filter((comment) => comment.status === "draft");
+    const drafts = listDraftComments(comments);
     const draftIds = drafts.map((comment) => comment.id);
     const reviewCommentAtClick = getReviewComment();
     const briefCurrent = () => currentBriefIdRef.current === briefId;

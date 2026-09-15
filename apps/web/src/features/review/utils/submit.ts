@@ -8,6 +8,7 @@ import { ThreadSides, type ThreadSide } from "@web/features/conversation/types";
 import {
   CommentSides,
   isFileCommentAnchor,
+  listDraftComments,
   type CommentAnchor,
   type CommentSide,
   type FileCommentAnchor,
@@ -246,7 +247,7 @@ export function submitBlockedReason(
   comments: ReviewComment[],
   reviewComment = "",
 ): string | undefined {
-  const drafts = comments.filter((comment) => comment.status === "draft");
+  const drafts = listDraftComments(comments);
   if (drafts.length > MAX_COMMENTS_PER_SUBMIT) {
     return t("review.submit.tooManyComments", {
       max: MAX_COMMENTS_PER_SUBMIT,

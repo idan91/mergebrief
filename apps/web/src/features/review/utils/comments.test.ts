@@ -15,6 +15,8 @@ import {
   reviewCommentSubmitLabel,
   CommentSides,
   ReviewCommentStatuses,
+  countDraftComments,
+  type ReviewComment,
 } from "./comments";
 
 const diffRows: DiffLine[] = [
@@ -376,5 +378,54 @@ describe("resolveJumpChunkId", () => {
         [{ id: "first", file: "src/a.ts" }],
       ),
     ).toBe("");
+  });
+});
+
+function comment(input: {
+  id: string;
+  status: ReviewComment["status"];
+  file?: boolean;
+}): ReviewComment {
+  const anchor = input.file
+    ? createFileCommentAnchor("src/a.ts")
+    : {
+        kind: CommentAnchorKinds.LINE,
+        chunkId: "chunk-1",
+        file: "src/a.ts",
+        side: CommentSides.NEW,
+        startLine: 11,
+        endLine: 11,
+        rowIds: [],
+        selectedText: "",
+      };
+  return {
+    id: input.id,
+    anchor,
+    body: "note",
+    status: input.status,
+    collapsed: false,
+  };
+}
+
+describe("countDraftComments", () => {
+  it("counts draft line and file comments and ignores submitted", () => {
+    expect(
+      countDraftComments([
+        comment({ id: "line-draft", status: ReviewCommentStatuses.DRAFT }),
+        comment({
+          id: "file-draft",
+          status: ReviewCommentStatuses.DRAFT,
+          file: true,
+        }),
+        comment({
+          id: "submitted",
+          status: ReviewCommentStatuses.SUBMITTED,
+        }),
+      ]),
+    ).toBe(2);
+  });
+
+  it("counts an empty list as zero", () => {
+    expect(countDraftComments([])).toBe(0);
   });
 });

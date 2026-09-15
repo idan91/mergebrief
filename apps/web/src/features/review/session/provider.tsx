@@ -10,6 +10,7 @@ import { useShallow } from "zustand/react/shallow";
 
 import type { BriefViewModel } from "@web/features/brief/utils";
 import {
+  countDraftComments,
   isFileCommentAnchor,
   isLineCommentAnchor,
   type ReviewComment,
@@ -156,4 +157,8 @@ export function useFileReviewComments(filePath: string): ReviewComment[] {
       ),
     ),
   );
+}
+
+export function useDraftCommentCount(): number {
+  return useReviewSession((state) => countDraftComments(state.reviewComments));
 }

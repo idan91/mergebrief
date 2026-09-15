@@ -103,6 +103,7 @@ export function BriefScreen({
     flowStore,
     readingPosition,
     openSubmit,
+    draftCommentCount,
     closeSubmit,
     submitFromModal,
     jumpToSubmitItem,
@@ -163,6 +164,7 @@ export function BriefScreen({
               totals={session.totals}
               progress={session.progress}
               openSubmit={openSubmit}
+              draftCommentCount={draftCommentCount}
               availability={overlay.availability}
               compareState={overlay.compareState}
               controlsSlot={headerControls}

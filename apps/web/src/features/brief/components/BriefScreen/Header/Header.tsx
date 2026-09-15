@@ -38,6 +38,7 @@ import { BriefDetailsPanel } from "./BriefDetailsPanel/BriefDetailsPanel";
 import { ProviderBadge } from "./ProviderBadge/ProviderBadge";
 import { StackChip } from "./StackChip/StackChip";
 import { StateBadge } from "./StateBadge/StateBadge";
+import { SubmitReviewCta } from "./SubmitReviewCta/SubmitReviewCta";
 import { TimelineNavigator } from "./TimelineNavigator/TimelineNavigator";
 import styles from "./Header.module.scss";
 
@@ -58,6 +59,7 @@ export interface HeaderProps {
   totals: ProgressTotals;
   progress: number;
   openSubmit: () => void;
+  draftCommentCount: number;
   availability: CompareOptionFlags;
   compareState: BriefSearch;
   /**
@@ -96,6 +98,7 @@ export function Header({
   totals,
   progress,
   openSubmit,
+  draftCommentCount,
   availability,
   compareState,
   controlsSlot,
@@ -270,20 +273,17 @@ export function Header({
               : t("brief.header.markReady")}
           </Button>
         ) : (
-          <Button
-            data-terminal-slot=""
-            ref={terminalSlotRef}
-            variant="primary"
+          <SubmitReviewCta
+            count={draftCommentCount}
+            slotRef={terminalSlotRef}
             onBlur={() => {
               terminalSlotFocused.current = false;
             }}
+            onClick={openSubmit}
             onFocus={() => {
               terminalSlotFocused.current = true;
             }}
-            onClick={openSubmit}
-          >
-            {t("brief.header.submitReviewCta")}
-          </Button>
+          />
         )}
         <LocalePicker />
         <HeaderMenu

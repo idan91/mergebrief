@@ -5,6 +5,7 @@ import { useStore } from "zustand";
 
 import {
   useCreateReviewFlowStore,
+  useDraftCommentCount,
   useReviewSession,
   useSyncReviewFlowPosture,
 } from "@web/features/review/session";
@@ -88,6 +89,7 @@ export function useBriefScreenFacade({
   const ownDraftActive = ownDraft !== undefined;
 
   const sessionFrozen = useReviewSession((state) => state.frozen);
+  const draftCommentCount = useDraftCommentCount();
   const frozenReason = sessionFrozen
     ? t("brief.screen.sessionFrozen")
     : undefined;
@@ -449,6 +451,7 @@ export function useBriefScreenFacade({
     flowStore,
     readingPosition,
     openSubmit,
+    draftCommentCount,
     closeSubmit,
     submitFromModal,
     jumpToSubmitItem,

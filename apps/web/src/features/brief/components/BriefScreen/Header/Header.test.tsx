@@ -83,6 +83,7 @@ function headerProps(ownDraft: HeaderProps["ownDraft"]): HeaderProps {
     },
     progress: 50,
     openSubmit: vi.fn(),
+    draftCommentCount: 0,
     availability: { previousBrief: false, lastReview: false },
     compareState: { view: "full", compare: "off" },
     ownDraft,
@@ -109,6 +110,7 @@ async function renderHeader(overrides: Partial<HeaderProps> = {}) {
     },
     progress: 50,
     openSubmit,
+    draftCommentCount: 0,
     availability: { previousBrief: false, lastReview: false },
     compareState: { view: "full", compare: "off" },
     controlsSlot: <div data-testid="controls-slot" />,
@@ -755,6 +757,48 @@ describe("Header menu and stats", () => {
     const { openSubmit } = await renderHeader();
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
     expect(openSubmit).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Header Submit CTA draft count", () => {
+  it("shows Submit with no count chip at zero drafts", async () => {
+    await renderHeader();
+    expect(screen.getByRole("button", { name: "Submit" })).toBeTruthy();
+    expect(screen.queryByTestId("submit-count-chip")).toBeNull();
+  });
+
+  it("names the Submit CTA with one draft comment", async () => {
+    await renderHeader({ draftCommentCount: 1 });
+    const cta = screen.getByRole("button", {
+      name: "Submit review, 1 draft comment",
+    });
+    expect(cta.textContent).toContain("Submit");
+    const chip = screen.getByTestId("submit-count-chip");
+    expect(chip.textContent).toBe("1");
+    expect(chip.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("names the Submit CTA with many draft comments", async () => {
+    await renderHeader({ draftCommentCount: 12 });
+    const cta = screen.getByRole("button", {
+      name: "Submit review, 12 draft comments",
+    });
+    expect(cta.textContent).toContain("Submit");
+    const chip = screen.getByTestId("submit-count-chip");
+    expect(chip.textContent).toBe("12");
+    expect(chip.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("keeps Mark ready without a count chip", async () => {
+    await renderHeader({
+      draftCommentCount: 12,
+      ownDraft: { markReady: vi.fn(), pending: false },
+    });
+    expect(
+      screen.getByRole("button", { name: "Mark ready for review" }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Submit" })).toBeNull();
+    expect(screen.queryByTestId("submit-count-chip")).toBeNull();
   });
 });
 

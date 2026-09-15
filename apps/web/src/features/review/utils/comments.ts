@@ -51,6 +51,20 @@ export interface ReviewComment {
   collapsed: boolean;
 }
 
+export function listDraftComments(
+  comments: readonly ReviewComment[],
+): ReviewComment[] {
+  return comments.filter(
+    (comment) => comment.status === ReviewCommentStatuses.DRAFT,
+  );
+}
+
+export function countDraftComments(
+  comments: readonly ReviewComment[],
+): number {
+  return listDraftComments(comments).length;
+}
+
 export function isLineCommentAnchor(
   anchor: CommentAnchor,
 ): anchor is LineCommentAnchor {

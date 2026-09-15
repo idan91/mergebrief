@@ -56,6 +56,8 @@ export type Catalog = typeof en & {
   };
   brief: (typeof en)["brief"] & {
     header: (typeof en)["brief"]["header"] & {
+      ariaLabelSubmitReview_one: "Submit review, {{count}} draft comment";
+      ariaLabelSubmitReview_other: "Submit review, {{count}} draft comments";
       repoConfigChipAt: "repo config @ {{sha}}";
       branchPairAria: "{{head}} into {{base}}";
       stackIndexAria: "pull request {{index}} of {{total}} in the stack";

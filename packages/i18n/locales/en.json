@@ -248,6 +248,8 @@
       "ariaLabelMoreActions": "More actions",
       "summaryPreview": "Summary preview",
       "submitReviewCta": "Submit",
+      "ariaLabelSubmitReview_one": "Submit review, {{count}} draft comment",
+      "ariaLabelSubmitReview_other": "Submit review, {{count}} draft comments",
       "repoConfigChip": "repo config",
       "repoConfigChipAt": "repo config @ {{sha}}",
       "copyBaseBranch": "Copy base branch",
