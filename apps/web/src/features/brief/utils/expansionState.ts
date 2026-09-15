@@ -20,6 +20,7 @@ import {
   resolveExpansionWindow,
   spliceAllExpandedRows,
 } from "./expandRows";
+import { isUnattributedRemainderChunk } from "./remainder";
 
 /** The base gaps paired with what the store holds for each, if anything. */
 export function collectStoredEdges(
@@ -232,6 +233,9 @@ function isPastFileEnd(edge: ExpandableEdge): boolean {
  * For each chunk, the head-file lines its sibling chunks of the same file
  * render: one envelope per sibling plus whatever each sibling has expanded.
  * An expansion stops at the first of them, so no line ever shows twice.
+ * The unattributed remainder claims nothing: it holds whatever lines the
+ * model failed to place, often the tail of a statement an attributed chunk
+ * opens, and a chunk must still be able to read past its own last row.
  */
 export function collectClaimedLines(
   chunks: readonly BriefChunk[],
@@ -247,6 +251,7 @@ export function collectClaimedLines(
     const others: LineRange[] = [];
     for (const sibling of chunks) {
       if (sibling === chunk || sibling.file !== chunk.file) continue;
+      if (isUnattributedRemainderChunk(sibling)) continue;
       const envelope = envelopes.get(sibling.id);
       if (envelope !== undefined) others.push(envelope);
       others.push(...collectExpandedRanges(expandedEdges, sibling.id));

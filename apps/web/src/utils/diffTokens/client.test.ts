@@ -168,6 +168,24 @@ describe("requestChunkTokens", () => {
     });
   });
 
+  it("posts each row's file line numbers beside its kind and content", () => {
+    void requestChunkTokens(
+      makeRequest({
+        rows: [
+          { kind: DiffLineKinds.HUNK, content: "@@ -3 +4 @@" },
+          { kind: DiffLineKinds.CTX, content: "a", oldLine: 3, newLine: 4 },
+          { kind: DiffLineKinds.ADD, content: "b", newLine: 5 },
+        ],
+      }),
+    );
+
+    expect(readSentMessage(0)["rows"]).toEqual([
+      { kind: "hunk", content: "@@ -3 +4 @@" },
+      { kind: "ctx", content: "a", oldLine: 3, newLine: 4 },
+      { kind: "add", content: "b", newLine: 5 },
+    ]);
+  });
+
   it("resolves failed with the reason the worker named", async () => {
     const handle = requestChunkTokens(makeRequest());
     deliverReply({

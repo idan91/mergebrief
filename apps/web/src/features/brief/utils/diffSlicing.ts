@@ -67,8 +67,12 @@ export function parseUnifiedDiffPatch(patch: string): DiffLine[] {
   const rows: DiffLine[] = [];
   let oldLine = 0;
   let newLine = 0;
+  // A patch ends with a newline, so the split leaves one empty string behind
+  // the last row; read as a line it would become a context row past the hunk.
+  const lines = patch.split("\n");
+  if (lines.at(-1) === "") lines.pop();
 
-  for (const line of patch.split("\n")) {
+  for (const line of lines) {
     if (
       line.startsWith("diff --git ") ||
       line.startsWith("--- ") ||

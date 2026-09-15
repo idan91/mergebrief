@@ -471,5 +471,9 @@ function isRowTokenEntry(value: unknown): value is RowTokenEntry {
 }
 
 function shapeTokenizableRow(row: DiffLine): TokenizableRow {
-  return { kind: row.kind, content: row.content };
+  const shaped: TokenizableRow = { kind: row.kind, content: row.content };
+  if (row.oldLine !== undefined) shaped.oldLine = row.oldLine;
+  if (row.newLine !== undefined) shaped.newLine = row.newLine;
+
+  return shaped;
 }

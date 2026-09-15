@@ -11,7 +11,12 @@ const GITHUB_ISSUE_URL =
 const OWNER_REPO_HASH =
   /(?<![\w/.-])([A-Za-z0-9_.-]{1,39})\/([A-Za-z0-9_.-]{1,100})#(\d{1,12})(?!\w)/g;
 const BARE_HASH = /(?<![\w/#])#(\d{1,12})(?!\w)/g;
-const BRANCH_SEGMENT = /(?:^|\/)(\d+)-/g;
+/**
+ * `12-fix` or `feature/12-fix`: the number leads the branch or sits under
+ * one type prefix, the shapes GitHub's "create a branch" and the common
+ * `type/N-slug` produce. Deeper segments are stack positions or slugs.
+ */
+const BRANCH_SEGMENT = /^(?:[^/]+\/)?(\d+)-/g;
 
 function buildIssueUrl(owner: string, repo: string, number: number): string {
   return `https://github.com/${owner}/${repo}/issues/${number}`;
@@ -80,17 +85,24 @@ function collectBranchSegments(
   const hits: ReferenceHit[] = [];
 
   for (const match of branch.matchAll(BRANCH_SEGMENT)) {
-    hits.push(buildHit(match.index, own.owner, own.repo, Number(match[1])));
+    const number = match[1] ?? "";
+    const index = match.index + match[0].length - number.length - 1;
+    hits.push(buildHit(index, own.owner, own.repo, Number(number)));
   }
   return hits;
 }
 
-/** `#N`, `owner/repo#N`, issue URLs and a branch segment starting `N-`, on every deployment. */
+/**
+ * `#N`, `owner/repo#N`, issue URLs and a branch starting `N-`, only where
+ * the deployment can read GitHub: a reference no read can follow stays
+ * ordinary text rather than becoming an unread primary.
+ */
 export function collectGitHubReferences(
   text: string,
   location: ReferenceLocation,
   input: TicketReferenceInput,
 ): ReferenceHit[] {
+  if (!input.readable.includes(TicketTrackers.GITHUB)) return [];
   if (location === ReferenceLocations.BRANCH) {
     return collectBranchSegments(text, input);
   }

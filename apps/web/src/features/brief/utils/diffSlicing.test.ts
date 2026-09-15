@@ -63,8 +63,16 @@ describe("parseUnifiedDiffPatch", () => {
   });
 
   it("returns an empty list for an empty patch body", () => {
-    expect(parseUnifiedDiffPatch("")).toEqual([
-      { kind: "ctx", content: "", oldLine: 0, newLine: 0 },
+    expect(parseUnifiedDiffPatch("")).toEqual([]);
+  });
+
+  it("drops the empty line behind the final newline, never a phantom row", () => {
+    const rows = parseUnifiedDiffPatch("@@ -0,0 +1,2 @@\n+a\n+b\n");
+
+    expect(rows).toEqual([
+      { kind: "hunk", content: "@@ -0,0 +1,2 @@" },
+      { kind: "add", content: "a", newLine: 1 },
+      { kind: "add", content: "b", newLine: 2 },
     ]);
   });
 });

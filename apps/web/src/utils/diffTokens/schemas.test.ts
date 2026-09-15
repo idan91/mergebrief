@@ -64,6 +64,25 @@ describe("workerRequestSchema", () => {
     expect(parsed.success).toBe(false);
   });
 
+  it("carries a row's file line numbers, zero included", () => {
+    const rows = [
+      { kind: DiffLineKinds.CTX, content: "a", oldLine: 0, newLine: 9 },
+      { kind: DiffLineKinds.ADD, content: "b", newLine: 10 },
+    ];
+
+    expect(
+      workerRequestSchema.parse({ ...TOKENIZE_REQUEST, rows }),
+    ).toMatchObject({ rows });
+  });
+
+  it("rejects a row whose line number is negative", () => {
+    const rows = [{ kind: DiffLineKinds.ADD, content: "b", newLine: -1 }];
+
+    expect(
+      workerRequestSchema.safeParse({ ...TOKENIZE_REQUEST, rows }).success,
+    ).toBe(false);
+  });
+
   it("rejects a row kind outside the diff vocabulary", () => {
     const parsed = workerRequestSchema.safeParse({
       ...TOKENIZE_REQUEST,

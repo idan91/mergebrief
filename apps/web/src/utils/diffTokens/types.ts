@@ -108,10 +108,16 @@ export interface GrammarBudgetPlan {
   spentBytes: number;
 }
 
-/** The diff row fields a tokenizer reads; line numbers stay on the main thread. */
+/**
+ * The diff row fields a tokenizer reads. Line numbers ride along so the
+ * worker can see where a chunk slice skipped file lines and where a side
+ * starts at the file's first line.
+ */
 export interface TokenizableRow {
   kind: DiffLineKind;
   content: string;
+  oldLine?: number | undefined;
+  newLine?: number | undefined;
 }
 
 /**

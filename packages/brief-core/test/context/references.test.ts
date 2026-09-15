@@ -22,7 +22,7 @@ function makeInput(
     body: "",
     branch: "",
     repo: REPO,
-    readable: [],
+    readable: ["github"],
     ...overrides,
   };
 }
@@ -106,6 +106,67 @@ describe("collectTicketReferences: shapes", () => {
     expect(collectTicketReferences(makeInput({ branch: "12fix" }))).toEqual([]);
   });
 
+  it("branch: a numeric segment under two prefixes is a stack position", () => {
+    expect(
+      collectTicketReferences(
+        makeInput({ branch: "feature/BRIEF-269/1-instance-cap" }),
+      ),
+    ).toEqual([]);
+    expect(
+      collectTicketReferences(makeInput({ branch: "a/b/12-fix" })),
+    ).toEqual([]);
+  });
+
+  it("branch: a key under the tracker prefix wins over a stack position", () => {
+    const refs = collectTicketReferences(
+      makeInput({
+        branch: "feature/BRIEF-269/1-instance-cap",
+        tracker: NOTION,
+        readable: ["github", "notion"],
+      }),
+    );
+    expect(refs.map((r) => r.key)).toEqual(["BRIEF-269"]);
+  });
+
+  it("branch: a key under the tracker prefix wins over a stack position", () => {
+    const refs = collectTicketReferences(
+      makeInput({
+        branch: "feature/BRIEF-269/1-instance-cap",
+        tracker: NOTION,
+        readable: ["github", "notion"],
+      }),
+    );
+    expect(refs.map((r) => r.key)).toEqual(["BRIEF-269"]);
+  });
+
+  it("branch: the whole name may start with N-", () => {
+    const refs = collectTicketReferences(makeInput({ branch: "12-fix-thing" }));
+    expect(refs[0]).toMatchObject({ number: 12, foundIn: "branch" });
+  });
+
+  it("GitHub references stay text where GitHub is unreadable", () => {
+    const refs = collectTicketReferences(
+      makeInput({
+        title: "#5",
+        body: "fixes #12, other/thing#3, https://github.com/o/r/issues/9",
+        branch: "12-fix",
+        readable: [],
+      }),
+    );
+    expect(refs).toEqual([]);
+  });
+
+  it("keys still match where only notion is readable", () => {
+    const refs = collectTicketReferences(
+      makeInput({
+        body: "BRIEF-12 and #4",
+        tracker: NOTION,
+        readable: ["notion"],
+      }),
+    );
+    expect(refs.map((r) => r.key)).toEqual(["BRIEF-12"]);
+  });
+
   it("branch: a Jira-style segment carries the key", () => {
     const refs = collectTicketReferences(
       makeInput({
@@ -146,7 +207,7 @@ describe("collectTicketReferences: shapes", () => {
     ],
   ])("notion URL %s → page id", (body, pageId) => {
     const refs = collectTicketReferences(
-      makeInput({ body, readable: ["notion"] }),
+      makeInput({ body, readable: ["github", "notion"] }),
     );
     expect(refs[0]).toMatchObject({
       tracker: "notion",
@@ -170,7 +231,7 @@ describe("collectTicketReferences: shapes", () => {
       collectTicketReferences(
         makeInput({
           body: "https://www.notion.so/product",
-          readable: ["notion"],
+          readable: ["github", "notion"],
         }),
       ),
     ).toEqual([]);

@@ -145,6 +145,32 @@ describe("tokenizeChunkRows", () => {
     expect(byRow.has(0)).toBe(false);
   });
 
+  it("keeps code after a line gap out of the comment opened before it", () => {
+    const byRow = tokenizeChunkRows(
+      highlighter,
+      [
+        { kind: DiffLineKinds.HUNK, content: "@@ -1,4 +1,3 @@" },
+        { kind: DiffLineKinds.CTX, content: "/**", oldLine: 14, newLine: 13 },
+        { kind: DiffLineKinds.DEL, content: " * old cap", oldLine: 15 },
+        { kind: DiffLineKinds.ADD, content: " * new cap", newLine: 14 },
+        {
+          kind: DiffLineKinds.CTX,
+          content: "  return true;",
+          oldLine: 23,
+          newLine: 22,
+        },
+      ],
+      GrammarNames.TYPESCRIPT,
+    );
+    const afterGap = byRow.get(4) ?? [];
+    const token = afterGap.find((candidate) => candidate.text === "true");
+
+    expect(token?.classId).not.toBe(resolvePaletteClassId("comment"));
+    expect(readClassIdFor([byRow.get(3) ?? []], "* new cap")).toBe(
+      resolvePaletteClassId("comment"),
+    );
+  });
+
   it("rebuilds the added side so its attribute name is a tag", () => {
     const byRow = tokenizeChunkRows(
       highlighter,

@@ -65,6 +65,46 @@ describe("reconstructHunkSides", () => {
     ]);
   });
 
+  it("starts a fresh pair where file lines are missing between rows", () => {
+    const sides = reconstructHunkSides([
+      { kind: "ctx", content: "/**", oldLine: 14, newLine: 13 },
+      { kind: "del", content: " * old", oldLine: 15 },
+      { kind: "add", content: " * new", newLine: 14 },
+      { kind: "ctx", content: "  inputs,", oldLine: 23, newLine: 22 },
+      { kind: "del", content: "  const cap =", oldLine: 24 },
+    ]);
+
+    expect(sides.map((side) => [side.side, side.startLine, side.text])).toEqual(
+      [
+        ["old", 14, ["/**", " * old"]],
+        ["new", 13, ["/**", " * new"]],
+        ["old", 23, ["  inputs,", "  const cap ="]],
+        ["new", 22, ["  inputs,"]],
+      ],
+    );
+    expect(sides.map((side) => side.rowIndexes)).toEqual([
+      [0, 1],
+      [0, 2],
+      [3, 4],
+      [3],
+    ]);
+  });
+
+  it("keeps one pair while a del run and an add run stay contiguous", () => {
+    const sides = reconstructHunkSides([
+      { kind: "ctx", content: "a", oldLine: 10, newLine: 10 },
+      { kind: "del", content: "b", oldLine: 11 },
+      { kind: "del", content: "c", oldLine: 12 },
+      { kind: "add", content: "d", newLine: 11 },
+      { kind: "ctx", content: "e", oldLine: 13, newLine: 12 },
+    ]);
+
+    expect(sides.map((side) => side.text)).toEqual([
+      ["a", "b", "c", "e"],
+      ["a", "d", "e"],
+    ]);
+  });
+
   it("returns no sides for rows that carry no code", () => {
     expect(reconstructHunkSides([])).toEqual([]);
     expect(reconstructHunkSides([makeRow(DiffLineKinds.HUNK, "@@")])).toEqual(

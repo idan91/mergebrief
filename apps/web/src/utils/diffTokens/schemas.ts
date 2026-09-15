@@ -8,9 +8,13 @@ import {
   TokenMessageKinds,
 } from "./types";
 
+const fileLineSchema = z.int().nonnegative();
+
 const tokenizableRowSchema = z.object({
   kind: z.enum(DiffLineKinds),
   content: z.string(),
+  oldLine: fileLineSchema.optional(),
+  newLine: fileLineSchema.optional(),
 });
 
 const rowTokenSchema = z.object({

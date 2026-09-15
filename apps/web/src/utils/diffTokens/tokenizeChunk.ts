@@ -13,7 +13,7 @@ import { isContextKind } from "./utils";
 import {
   DiffLineKinds,
   TokenizeModes,
-  type DiffLine,
+  type TokenizableRow,
   type GrammarName,
   type RowTokenLine,
   type RowTokenMap,
@@ -27,7 +27,7 @@ import {
  */
 export function tokenizeRows(
   highlighter: HighlighterCore,
-  rows: DiffLine[],
+  rows: TokenizableRow[],
   grammar: GrammarName,
   mode: TokenizeMode,
 ): RowTokenMap {
@@ -41,7 +41,7 @@ export function tokenizeRows(
 /** Colours one chunk's rows through both reconstructed hunk sides. */
 export function tokenizeChunkRows(
   highlighter: HighlighterCore,
-  rows: DiffLine[],
+  rows: TokenizableRow[],
   grammar: GrammarName,
 ): RowTokenMap {
   const sides = reconstructHunkSides(rows);
@@ -66,7 +66,7 @@ export function tokenizeChunkRows(
  */
 export function tokenizeStandaloneRows(
   highlighter: HighlighterCore,
-  rows: DiffLine[],
+  rows: TokenizableRow[],
   grammar: GrammarName,
 ): RowTokenMap {
   const rowIndexes: number[] = [];
@@ -91,7 +91,7 @@ export function tokenizeStandaloneRows(
   return byRow;
 }
 
-function isCodeDiffRow(row: DiffLine): boolean {
+function isCodeDiffRow(row: TokenizableRow): boolean {
   return (
     row.kind === DiffLineKinds.ADD ||
     row.kind === DiffLineKinds.DEL ||

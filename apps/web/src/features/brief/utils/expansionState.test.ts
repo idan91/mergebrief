@@ -194,6 +194,29 @@ describe("collectClaimedLines", () => {
     expect(claimed.get("c2")).toEqual([{ start: 30, end: 32 }]);
     expect(claimed.get("c3")).toEqual([]);
   });
+
+  it("lets an unattributed remainder sibling claim nothing", () => {
+    const remainder = {
+      id: "u-1",
+      changeGroupId: "unattributed-remainder",
+      file: "src/a.ts",
+      diff: base.slice(5),
+    } as BriefChunk;
+    const own = {
+      id: "c1",
+      changeGroupId: "g1",
+      file: "src/a.ts",
+      diff: base.slice(0, 5),
+    } as BriefChunk;
+    const expanded = new Map<string, EdgeExpansion>([
+      ["u-1:0:up", { range: { start: 50, end: 59 }, windows: [] }],
+    ]);
+
+    const claimed = collectClaimedLines([own, remainder], expanded);
+
+    expect(claimed.get("c1")).toEqual([]);
+    expect(claimed.get("u-1")).toEqual([{ start: 30, end: 32 }]);
+  });
 });
 
 describe("two edges of one hole", () => {
