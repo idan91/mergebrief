@@ -27,9 +27,16 @@
       background: var(--text);
       color: var(--color-on-primary);
 
+      // Mixed from the fill itself so both colour schemes step the same way;
+      // a swap to the page colour left the label unreadable on hover.
       &:hover {
-        border-color: light-dark(var(--color-background), var(--color-inverse));
-        background: light-dark(var(--color-background), var(--color-inverse));
+        border-color: color-mix(in srgb, var(--text) 84%, var(--bg));
+        background: color-mix(in srgb, var(--text) 84%, var(--bg));
+      }
+
+      &:active {
+        border-color: color-mix(in srgb, var(--text) 74%, var(--bg));
+        background: color-mix(in srgb, var(--text) 74%, var(--bg));
       }
     }
 

@@ -186,6 +186,9 @@
     --header-meta-font-sm: var(--font-size-sm);
     --header-identity-min: #{functions.to-rem(52px)};
     --header-lens-min: #{functions.to-rem(44px)};
+
+    // The identity row's action controls share one box in both header states.
+    --header-control-h: #{functions.to-rem(32px)};
     --header-title-font: var(--font-size-4xl);
 
     // The 1.2 mirrors .title's line-height.

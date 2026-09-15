@@ -161,11 +161,14 @@
     min-inline-size: 0;
   }
 
-  // Button's default makes this 38px beside 24px controls. Trimmed here, not
-  // on Button, which every other surface uses.
+  // Pinned to the row's control box rather than Button's own padding, which
+  // every other surface uses; the label centres inside whatever it holds.
   .identityRow > [data-terminal-slot] {
-    padding-block: functions.to-rem(5px);
-    padding-inline: functions.to-rem(12px);
+    display: inline-flex;
+    align-items: center;
+    min-block-size: var(--header-control-h);
+    padding-block: 0;
+    padding-inline: functions.to-rem(14px);
   }
 
   .ghlink {
