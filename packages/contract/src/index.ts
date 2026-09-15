@@ -39,6 +39,13 @@ export type {
   ReclassificationPayload,
   SessionPayload,
 } from "./session";
+export type {
+  ForkPrStackView,
+  LinearPrStackView,
+  PrStackMemberView,
+  PrStackView,
+  PullStackView,
+} from "./stack";
 export {
   LastReviewUnavailableReasons,
   type LastReviewComparisonView,

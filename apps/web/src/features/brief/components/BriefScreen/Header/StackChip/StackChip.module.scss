@@ -30,4 +30,21 @@
     max-inline-size: functions.to-rem(280px);
     outline: none;
   }
+
+  .snapshot {
+    display: flex;
+    flex-direction: column;
+    gap: functions.to-rem(4px);
+    padding-block-start: functions.to-rem(8px);
+    border-block-start: 1px solid var(--line);
+  }
+
+  .changed {
+    font-size: var(--font-size-xs);
+  }
+
+  .leadIn {
+    color: var(--faint);
+    font-size: var(--font-size-xs);
+  }
 }

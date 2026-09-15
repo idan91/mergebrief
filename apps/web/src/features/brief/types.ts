@@ -64,6 +64,8 @@ export type PrLifecycleState = "open" | "closed";
 export interface LivePrState {
   state: "open" | "closed" | "merged";
   draft: boolean;
+  /** GitHub's stack now: null is not stacked, absent is not read yet or failed. */
+  stack?: PrStack | null;
 }
 
 export interface PrRef {

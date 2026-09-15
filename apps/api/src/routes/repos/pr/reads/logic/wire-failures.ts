@@ -10,7 +10,7 @@ import {
   Unauthorized,
   type ApiError,
 } from "../../../../../shared-errors/api-error";
-import type { FileRangeFailure } from "../types";
+import type { FileRangeFailure, StackFailure } from "../types";
 
 /**
  * A GitHub denial collapses to the gate's bare 404, so a reader cannot tell a
@@ -38,6 +38,13 @@ export function toFileRangeError(failure: FileRangeFailure): ApiError {
       return toDeniedError(failure.error.code, failure.retried);
     }
   }
+}
+
+export function toStackError(failure: StackFailure): ApiError {
+  if (failure.kind === "token-unreadable") {
+    return new Unauthorized();
+  }
+  return toDeniedError(failure.error.code, failure.retried);
 }
 
 function toDeniedError(

@@ -9,7 +9,8 @@ export interface NeighbourListProps {
   currentNumber: number;
   prUrl: string;
   repoId: string | undefined;
-  labelled?: boolean;
+  /** Accessible name for the list; absent inside a labelled panel. */
+  label?: string | undefined;
 }
 
 export function NeighbourList({
@@ -17,12 +18,9 @@ export function NeighbourList({
   currentNumber,
   prUrl,
   repoId,
-  labelled = false,
+  label,
 }: NeighbourListProps) {
   const { t } = useTranslation();
-  const listLabel = labelled
-    ? t("brief.header.stackDisclosureAria")
-    : undefined;
   const rows = members.map((member) => ({
     member,
     label: t("brief.header.stackMember", {
@@ -32,7 +30,7 @@ export function NeighbourList({
   }));
 
   return (
-    <ul aria-label={listLabel} className={styles["list"]}>
+    <ul aria-label={label} className={styles["list"]}>
       {rows.map((row) => (
         <li className={styles["item"]} key={row.member.number}>
           <NeighbourLink

@@ -166,6 +166,12 @@ const EXPECTED_CATALOG = [
     endpoint: "GET /api/repos/:repoId/pulls/:prNumber/session",
   },
   {
+    id: "read-stack",
+    kind: "query",
+    classification: "read",
+    endpoint: "GET /api/repos/:repoId/pulls/:prNumber/stack",
+  },
+  {
     id: "reanchor-draft-comment",
     kind: "action",
     classification: "private-write",

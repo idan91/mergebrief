@@ -17,6 +17,9 @@ export type DiffFailure =
       readonly retried: boolean;
     };
 
+/** Result-side failures of the live stack read; the same two the diff proxy has. */
+export type StackFailure = DiffFailure;
+
 /** Result-side failures of the file-range read; the handler owns posture. */
 export type FileRangeFailure =
   | { readonly kind: "token-unreadable" }

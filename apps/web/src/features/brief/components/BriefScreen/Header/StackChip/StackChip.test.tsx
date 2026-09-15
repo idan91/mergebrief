@@ -138,6 +138,54 @@ describe("StackChip", () => {
     ).toBe("https://github.com/o/r/pull/12");
   });
 
+  it("notes the generation-time stack when it differs from the live one", async () => {
+    const snapshot: LinearPrStack = {
+      members: [
+        { number: 12, title: "Bottom" },
+        { number: 13, title: "Middle" },
+      ],
+      index: 2,
+    };
+    await renderChip(
+      <StackChip
+        currentNumber={13}
+        prUrl="https://github.com/o/r/pull/13"
+        snapshot={snapshot}
+        stack={LINEAR}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "pull request 2 of 3 in the stack" }),
+    );
+    expect(
+      screen.getByText("Stack changed since this brief was generated"),
+    ).toBeTruthy();
+    const live = screen.getByRole("list", {
+      name: "Pull requests in this stack",
+    });
+    const then = screen.getByRole("list", {
+      name: "Pull requests in the stack when this brief was generated",
+    });
+    expect(live.querySelectorAll("li")).toHaveLength(3);
+    expect(then.querySelectorAll("li")).toHaveLength(2);
+  });
+
+  it("shows no note when the stacks agree", async () => {
+    await renderChip(
+      <StackChip
+        currentNumber={13}
+        prUrl="https://github.com/o/r/pull/13"
+        stack={LINEAR}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "pull request 2 of 3 in the stack" }),
+    );
+    expect(
+      screen.queryByText("Stack changed since this brief was generated"),
+    ).toBeNull();
+  });
+
   it("keeps the panel open on the first click after hover", async () => {
     await renderChip(
       <StackChip

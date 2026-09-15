@@ -32,11 +32,13 @@ import {
 import type {
   Brief,
   ComparisonMarks,
+  PrStack,
   RevisionNarrativeArtifact,
 } from "../brief/types";
 import {
   parsePrSummary,
   parsePullsList,
+  parsePullStack,
   type PrSummary,
   type PullsSession,
 } from "./types";
@@ -133,6 +135,24 @@ export function prMetaQueryOptions(repoId: string, prNumber: number) {
       return parsed.value;
     },
     staleTime: 2_000,
+    retry: false,
+  });
+}
+
+/** The PR's stack on GitHub now: navigation only, so a minute stale is fine. */
+export function prStackQueryOptions(repoId: string, prNumber: number) {
+  return queryOptions({
+    queryKey: ["pr-stack", repoId, prNumber],
+    queryFn: async (): Promise<PrStack | null> => {
+      const path = `${prPath(repoId, prNumber)}/stack`;
+      const body = await apiFetchJson(path);
+      const parsed = parsePullStack(body);
+      if (!parsed.ok) {
+        throw new ApiError(ApiErrorCodes.MALFORMED, 200, path);
+      }
+      return parsed.value;
+    },
+    staleTime: 60_000,
     retry: false,
   });
 }

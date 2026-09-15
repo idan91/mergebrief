@@ -4,7 +4,9 @@ import {
   GitHubApiErrorCodes,
   RepoFileKinds,
   fetchCompareDiff,
+  fetchPullRequest,
   getRepoFile,
+  listOpenPullRequests,
 } from "github";
 import type * as githubModule from "github";
 import type { Logger } from "logging";
@@ -41,6 +43,7 @@ import {
   type ViewerPrincipal,
 } from "../../../auth/session";
 import type { AuthzEnv } from "../../../authz";
+import type { OpenPullRequest } from "github";
 import { createTtlCache, type TtlCache } from "../../../ttl-cache";
 import { FILE_BLOB_CACHE_MAX_ENTRIES } from "./consts";
 import { buildFileBlobCacheKey } from "./logic/keys";
@@ -49,7 +52,9 @@ import createReadsHandlers from "./handler";
 vi.mock("github", async (importOriginal) => ({
   ...(await importOriginal<typeof githubModule>()),
   fetchCompareDiff: vi.fn(),
+  fetchPullRequest: vi.fn(),
   getRepoFile: vi.fn(),
+  listOpenPullRequests: vi.fn(),
 }));
 
 vi.mock("../../../auth/session", async (importOriginal) => ({
@@ -110,6 +115,7 @@ afterAll(async () => {
 async function buildApp(
   ciphertextOverride?: string,
   fileCacheOverride?: TtlCache<readonly string[]>,
+  openPullsCacheOverride?: TtlCache<readonly OpenPullRequest[]>,
 ): Promise<Hono<AuthzEnv>> {
   const sealed = await encryptToken(keyProvider, KEY_REF, "stale-token");
   if (!sealed.ok) {
@@ -156,9 +162,11 @@ async function buildApp(
     deps,
     createTtlCache<string>(10),
     fileCacheOverride ?? createTtlCache<readonly string[]>(10),
+    openPullsCacheOverride ?? createTtlCache<readonly OpenPullRequest[]>(10),
   );
   app.get("/:prNumber/diff", handlers.readDiff);
   app.get("/:prNumber/file-range", handlers.readFileRange);
+  app.get("/:prNumber/stack", handlers.readStack);
   return app;
 }
 
@@ -168,7 +176,9 @@ function deriveDeniedCode(status: number): githubModule.GitHubApiErrorCode {
   return GitHubApiErrorCodes.REQUEST_FAILED;
 }
 
-function denied(status: number): Result<string, githubModule.GitHubApiError> {
+function denied<T = string>(
+  status: number,
+): Result<T, githubModule.GitHubApiError> {
   const code = deriveDeniedCode(status);
 
   return { ok: false, error: { code, status, message: "denied" } };
@@ -178,7 +188,9 @@ const DIFF_PATH = `/${PR_NUMBER}/diff?base=aaa&head=bbb`;
 
 beforeEach(() => {
   vi.mocked(fetchCompareDiff).mockReset();
+  vi.mocked(fetchPullRequest).mockReset();
   vi.mocked(getRepoFile).mockReset();
+  vi.mocked(listOpenPullRequests).mockReset();
   vi.mocked(refreshSessionToken).mockReset();
 });
 
@@ -417,6 +429,134 @@ describe("file range read", () => {
       },
     });
     const res = await (await buildApp()).request(RANGE_PATH);
+    expect(res.status).toBe(502);
+    expect(await res.json()).toMatchObject({ code: "github-unavailable" });
+  });
+});
+
+const STACK_PATH = `/${PR_NUMBER}/stack`;
+const REPO = { owner: "acme", repo: "app" };
+
+function stubOpenPull(
+  number: number,
+  headRef: string,
+  baseRef: string,
+): OpenPullRequest {
+  return {
+    number,
+    title: `PR ${number}`,
+    headRef,
+    baseRef,
+    headRepo: REPO,
+    baseRepo: REPO,
+  };
+}
+
+function stubOpenList(
+  pulls: readonly OpenPullRequest[],
+): Result<OpenPullRequest[], githubModule.GitHubApiError> {
+  return { ok: true, value: [...pulls] };
+}
+
+describe("live stack read", () => {
+  it("derives the stack from the open list when the PR is in it", async () => {
+    vi.mocked(listOpenPullRequests).mockResolvedValue(
+      stubOpenList([
+        stubOpenPull(6, "feature/base", "main"),
+        stubOpenPull(PR_NUMBER, "feature/mid", "feature/base"),
+        stubOpenPull(8, "feature/tip", "feature/mid"),
+      ]),
+    );
+    const res = await (await buildApp()).request(STACK_PATH);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      stack: {
+        members: [
+          { number: 6, title: "PR 6" },
+          { number: PR_NUMBER, title: `PR ${PR_NUMBER}` },
+          { number: 8, title: "PR 8" },
+        ],
+        index: 2,
+      },
+    });
+    expect(fetchPullRequest).not.toHaveBeenCalled();
+  });
+
+  it("answers a null stack for a PR with no open neighbours", async () => {
+    vi.mocked(listOpenPullRequests).mockResolvedValue(
+      stubOpenList([stubOpenPull(PR_NUMBER, "feature/solo", "main")]),
+    );
+    const res = await (await buildApp()).request(STACK_PATH);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ stack: null });
+  });
+
+  it("fetches a PR missing from the open list for its refs", async () => {
+    vi.mocked(listOpenPullRequests).mockResolvedValue(
+      stubOpenList([stubOpenPull(8, "feature/tip", "feature/mid")]),
+    );
+    vi.mocked(fetchPullRequest).mockResolvedValue({
+      ok: true,
+      value: {
+        repoId,
+        repoFullName: "acme/app",
+        headSha: "head",
+        headRef: "feature/mid",
+        baseSha: "base",
+        baseRef: "main",
+        state: "closed",
+        draft: false,
+        merged: true,
+        title: "Add thing",
+        body: "",
+        htmlUrl: "https://github.com/acme/app/pull/7",
+        commitCount: 1,
+        authorLogin: "octocat",
+        closedAt: new Date(),
+        headRepo: REPO,
+        baseRepo: REPO,
+      },
+    });
+    const res = await (await buildApp()).request(STACK_PATH);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      stack: {
+        members: [
+          { number: PR_NUMBER, title: "Add thing" },
+          { number: 8, title: "PR 8" },
+        ],
+        index: 1,
+      },
+    });
+    expect(fetchPullRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it("reuses the open list across reads in one session", async () => {
+    vi.mocked(listOpenPullRequests).mockResolvedValue(
+      stubOpenList([
+        stubOpenPull(PR_NUMBER, "feature/mid", "main"),
+        stubOpenPull(8, "feature/tip", "feature/mid"),
+      ]),
+    );
+    const app = await buildApp();
+    expect((await app.request(STACK_PATH)).status).toBe(200);
+    expect((await app.request(STACK_PATH)).status).toBe(200);
+    expect(listOpenPullRequests).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the 404 collapse when the list is denied", async () => {
+    vi.mocked(listOpenPullRequests).mockResolvedValue(
+      denied<OpenPullRequest[]>(404),
+    );
+    const res = await (await buildApp()).request(STACK_PATH);
+    expect(res.status).toBe(404);
+  });
+
+  it("surfaces an upstream list failure as 502", async () => {
+    vi.mocked(listOpenPullRequests).mockResolvedValue(
+      denied<OpenPullRequest[]>(500),
+    );
+    const res = await (await buildApp()).request(STACK_PATH);
     expect(res.status).toBe(502);
     expect(await res.json()).toMatchObject({ code: "github-unavailable" });
   });

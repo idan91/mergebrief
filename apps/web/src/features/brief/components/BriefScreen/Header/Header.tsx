@@ -37,6 +37,7 @@ import { BranchPair } from "./BranchPair/BranchPair";
 import { BriefDetailsPanel } from "./BriefDetailsPanel/BriefDetailsPanel";
 import { ProviderBadge } from "./ProviderBadge/ProviderBadge";
 import { StackChip } from "./StackChip/StackChip";
+import { resolveStackView } from "./StackChip/utils";
 import { StateBadge } from "./StateBadge/StateBadge";
 import { SubmitReviewCta } from "./SubmitReviewCta/SubmitReviewCta";
 import { TimelineNavigator } from "./TimelineNavigator/TimelineNavigator";
@@ -108,6 +109,7 @@ export function Header({
   jumpToGroupHeading,
 }: HeaderProps) {
   const { t } = useTranslation();
+  const stackView = resolveStackView(brief.pr.stack, livePrState?.stack);
   const headerRef = useRef<HTMLElement>(null);
   const [collapsed, setCollapsed] = useState(false);
   const collapsedRef = useRef(false);
@@ -222,12 +224,13 @@ export function Header({
                 above 880px: a second wrap would put the block at three lines
                 at rest and two collapsed, which moves --top-bar-h mid-scroll. */}
             <span className={styles["metaLine"]}>
-              {brief.pr.stack !== undefined ? (
+              {stackView !== undefined ? (
                 <StackChip
                   currentNumber={brief.pr.number}
                   prUrl={brief.pr.url}
                   repoId={repoId}
-                  stack={brief.pr.stack}
+                  snapshot={stackView.snapshot}
+                  stack={stackView.stack}
                 />
               ) : null}
               <BranchPair

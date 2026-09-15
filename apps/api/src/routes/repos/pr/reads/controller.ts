@@ -4,10 +4,15 @@
 import {
   createUserOctokit,
   fetchCompareDiff,
+  fetchPullRequest,
   getRepoFile,
   GitHubApiErrorCodes,
+  listOpenPullRequests,
   RepoFileKinds,
+  type GitHubApiError,
+  type OpenPullRequest,
 } from "github";
+import { resolvePrStack, type PrStackSelf } from "brief-core";
 import type { GenerationProjection, RepoId, ReviewerId } from "persistence";
 import type { DraftPolicy, Result } from "types";
 import { NotFound } from "../../../../shared-errors/api-error";
@@ -17,6 +22,7 @@ import { buildPrView } from "../../../pr-view";
 import type { TtlCache } from "../../../ttl-cache";
 import type {
   FileRangeView,
+  PullStackView,
   RevisionComparisons,
   RevisionView,
 } from "contract";
@@ -28,6 +34,7 @@ import {
 import {
   buildDiffCacheKey,
   buildFileBlobCacheKey,
+  buildOpenPullsCacheKey,
   composeBriefContextBody,
 } from "./logic/keys";
 import {
@@ -41,11 +48,13 @@ import {
   DIFF_CACHE_TTL_MS,
   FILE_BLOB_CACHE_TTL_MS,
   FILE_BLOB_MAX_BYTES,
+  OPEN_PULLS_CACHE_TTL_MS,
 } from "./consts";
 import type {
   DiffFailure,
   FileRangeFailure,
   ReadsControllerDeps,
+  StackFailure,
 } from "./types";
 
 interface SpanInput {
@@ -70,6 +79,32 @@ async function resolvePullRequestId(
 type ReadDiffResult =
   | { readonly ok: true; readonly body: string }
   | { readonly ok: false; readonly error: DiffFailure };
+
+/** One viewer-token read shaped into the stack failure vocabulary. */
+async function readWithViewer<T>(
+  github: ReviewerGitHubClient,
+  read: (
+    octokit: ReturnType<typeof createUserOctokit>,
+  ) => Promise<Result<T, GitHubApiError>>,
+): Promise<Result<T, StackFailure>> {
+  let attempts = 0;
+  const result = await github.runRead((token) => {
+    attempts += 1;
+    return read(createUserOctokit(token));
+  }, isGitHubDenial);
+  if (result.ok) return result;
+  if ("kind" in result.error) {
+    return { ok: false, error: { kind: "token-unreadable" } };
+  }
+  return {
+    ok: false,
+    error: {
+      kind: "github-denied",
+      error: result.error,
+      retried: attempts > 1,
+    },
+  };
+}
 
 export default {
   /** The whole-PR span artifact body for (base, head). */
@@ -340,6 +375,78 @@ export default {
       deps.diffCache.set(cacheKey, diff.value, now + DIFF_CACHE_TTL_MS, now);
     }
     return { ok: true, body: diff.value } satisfies ReadDiffResult;
+  },
+  /**
+   * The PR's stack as GitHub has it now, from the repo's open-PR list read
+   * with the viewer's token and held per session (~60s) so walking a stack
+   * costs one list, not one per PR. A PR missing from the list (closed or
+   * merged) is fetched once for its refs so its open neighbours still resolve.
+   */
+  async readStack(
+    deps: ReadsControllerDeps & {
+      readonly github: ReviewerGitHubClient;
+      readonly openPullsCache: TtlCache<readonly OpenPullRequest[]>;
+    },
+    input: SpanInput & {
+      readonly owner: string;
+      readonly repo: string;
+      readonly sessionTokenHash: string;
+    },
+  ): Promise<Result<PullStackView, StackFailure>> {
+    const pr = await deps.tenant.pullRequests.getByNumber(
+      input.repoId,
+      input.prNumber,
+    );
+    if (pr === undefined) {
+      throw new NotFound();
+    }
+    const target = { owner: input.owner, repo: input.repo };
+    const cacheKey = buildOpenPullsCacheKey({
+      sessionTokenHash: input.sessionTokenHash,
+      repoId: input.repoId,
+    });
+    const now = Date.now();
+    let open = deps.openPullsCache.get(cacheKey, now);
+    if (open === undefined) {
+      const listed = await readWithViewer(deps.github, (octokit) =>
+        listOpenPullRequests(octokit, target),
+      );
+      if (!listed.ok) return listed;
+      open = listed.value;
+      deps.openPullsCache.set(
+        cacheKey,
+        open,
+        now + OPEN_PULLS_CACHE_TTL_MS,
+        now,
+      );
+    }
+
+    const listedSelf = open.find((item) => item.number === input.prNumber);
+    let self: PrStackSelf;
+    if (listedSelf !== undefined) {
+      self = listedSelf;
+    } else {
+      const fetched = await readWithViewer(deps.github, (octokit) =>
+        fetchPullRequest(octokit, { ...target, prNumber: input.prNumber }),
+      );
+      if (!fetched.ok) return fetched;
+      self = {
+        number: input.prNumber,
+        title: fetched.value.title,
+        headRef: fetched.value.headRef,
+      };
+      if (fetched.value.baseRef !== undefined) {
+        self.baseRef = fetched.value.baseRef;
+      }
+      if (fetched.value.headRepo !== undefined) {
+        self.headRepo = fetched.value.headRepo;
+      }
+      if (fetched.value.baseRepo !== undefined) {
+        self.baseRepo = fetched.value.baseRepo;
+      }
+    }
+    const stack = resolvePrStack(self, open);
+    return { ok: true, value: { stack: stack ?? null } };
   },
   /**
    * One file's line window at `ref`, read with the viewer's token. The

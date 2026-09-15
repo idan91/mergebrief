@@ -1,15 +1,17 @@
+import { useTranslation } from "react-i18next";
+
 import { Callout } from "@web/components/Callout/Callout";
 import { Chip } from "@web/components/Chip/Chip";
 import type { PrStack } from "../../../../types";
-import { ForkLists } from "./ForkLists/ForkLists";
-import { NeighbourList } from "./NeighbourList/NeighbourList";
+import { StackLists } from "./StackLists/StackLists";
 import { useStackChipFacade } from "./useStackChipFacade";
-import { isLinearPrStack } from "./utils";
 import StackIcon from "./stack.svg?react";
 import styles from "./StackChip.module.scss";
 
 export interface StackChipProps {
   stack: PrStack;
+  /** The generation-time stack, when it differs from `stack`. */
+  snapshot?: PrStack | undefined;
   currentNumber: number;
   prUrl: string;
   repoId?: string | undefined;
@@ -17,10 +19,12 @@ export interface StackChipProps {
 
 export function StackChip({
   stack,
+  snapshot,
   currentNumber,
   prUrl,
   repoId,
 }: StackChipProps) {
+  const { t } = useTranslation();
   const {
     chipLabel,
     close,
@@ -61,22 +65,30 @@ export function StackChip({
             ref={landOnPanel}
             tabIndex={-1}
           >
-            {isLinearPrStack(stack) ? (
-              <NeighbourList
-                currentNumber={currentNumber}
-                labelled
-                members={stack.members}
-                prUrl={prUrl}
-                repoId={repoId}
-              />
-            ) : (
-              <ForkLists
-                currentNumber={currentNumber}
-                prUrl={prUrl}
-                repoId={repoId}
-                stack={stack}
-              />
-            )}
+            <StackLists
+              currentNumber={currentNumber}
+              listLabel={t("brief.header.stackDisclosureAria")}
+              prUrl={prUrl}
+              repoId={repoId}
+              stack={stack}
+            />
+            {snapshot !== undefined ? (
+              <span className={styles["snapshot"]}>
+                <span className={styles["changed"]}>
+                  {t("brief.header.stackChanged")}
+                </span>
+                <span className={styles["leadIn"]}>
+                  {t("brief.header.stackAtGeneration")}
+                </span>
+                <StackLists
+                  currentNumber={currentNumber}
+                  listLabel={t("brief.header.stackAtGenerationAria")}
+                  prUrl={prUrl}
+                  repoId={repoId}
+                  stack={snapshot}
+                />
+              </span>
+            ) : null}
           </span>
         </Callout>
       ) : null}

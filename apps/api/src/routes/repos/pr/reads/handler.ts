@@ -17,6 +17,7 @@ import {
 import { createReviewerGitHubClient } from "../../../auth/reviewer-github-client";
 import type { AuthRouteDeps } from "../../../auth/session";
 import { readFallbackTokenFor, type AuthzEnv } from "../../../authz";
+import type { OpenPullRequest } from "github";
 import type { TtlCache } from "../../../ttl-cache";
 import readsController from "./controller";
 import {
@@ -27,7 +28,7 @@ import {
   marksQuerySchema,
   narrativeQuerySchema,
 } from "./schemas";
-import { toFileRangeError } from "./logic/wire-failures";
+import { toFileRangeError, toStackError } from "./logic/wire-failures";
 import type { ReadsControllerDeps } from "./types";
 import { parseOwnerAndName } from "../../utils";
 import { resolvePrScopeFrom } from "../scope";
@@ -63,6 +64,7 @@ export default function createHandlers(
   deps: AuthRouteDeps,
   diffCache: TtlCache<string>,
   fileCache: TtlCache<readonly string[]>,
+  openPullsCache: TtlCache<readonly OpenPullRequest[]>,
 ) {
   const handle = deps.handle;
   const readBrief = async (c: Context<AuthzEnv>) => {
@@ -226,6 +228,39 @@ export default function createHandlers(
     });
   };
 
+  const readStack = async (c: Context<AuthzEnv>) => {
+    const prNumber = parsePrNumber(c);
+    // The authz-verified full name, as the diff proxy reads it.
+    const target = parseOwnerAndName(c.get("repoFullName"));
+    if (target === undefined) {
+      throw new NotFound();
+    }
+    const session = c.get("session");
+    const result = await readsController.readStack(
+      {
+        ...(await buildDeps(c, deps.handle, prNumber)),
+        github: createReviewerGitHubClient(
+          deps,
+          session,
+          c.get("logger"),
+          readFallbackTokenFor(c, deps),
+        ),
+        openPullsCache,
+      },
+      {
+        repoId: c.get("repoId"),
+        prNumber,
+        owner: target.owner,
+        repo: target.repo,
+        sessionTokenHash: session.sessionTokenHash,
+      },
+    );
+    if (!result.ok) {
+      throw toStackError(result.error);
+    }
+    return c.json(result.value, 200, { "cache-control": "no-store" });
+  };
+
   const readFileRange = async (c: Context<AuthzEnv>) => {
     const query = parseQuery(c, fileRangeQuerySchema, [
       "ref",
@@ -280,5 +315,6 @@ export default function createHandlers(
     readNarrative,
     readDiff,
     readFileRange,
+    readStack,
   };
 }

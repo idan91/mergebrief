@@ -7,6 +7,7 @@ import type { Equals } from "types/utils";
 import {
   parsePrSummary,
   parsePullsList,
+  parsePullStack,
   type LastReviewComparison,
 } from "./types";
 
@@ -478,5 +479,47 @@ describe("lockstep pin against the wire contract", () => {
     // Compile-time pin (gated by `pnpm -C apps/web typecheck`, which includes
     // test files); asserted at runtime so it stays visible in the suite.
     expect(availableBranchPin).toBe(true);
+  });
+});
+
+describe("parsePullStack", () => {
+  it("parses a null stack, a chain and a fork", () => {
+    expect(parsePullStack({ stack: null })).toEqual({ ok: true, value: null });
+    const chain = {
+      members: [
+        { number: 6, title: "Bottom" },
+        { number: 7, title: "Top" },
+      ],
+      index: 2,
+    };
+    expect(parsePullStack({ stack: chain })).toEqual({
+      ok: true,
+      value: chain,
+    });
+    const fork = {
+      parent: { number: 6, title: "Bottom" },
+      children: [
+        { number: 8, title: "Left" },
+        { number: 9, title: "Right" },
+      ],
+    };
+    expect(parsePullStack({ stack: fork })).toEqual({ ok: true, value: fork });
+    expect(parsePullStack({ stack: { children: fork.children } })).toEqual({
+      ok: true,
+      value: { children: fork.children },
+    });
+  });
+
+  it("refuses a malformed member or a missing index", () => {
+    expect(
+      parsePullStack({
+        stack: { members: [{ number: "6", title: "x" }], index: 1 },
+      }).ok,
+    ).toBe(false);
+    expect(
+      parsePullStack({ stack: { members: [{ number: 6, title: "x" }] } }).ok,
+    ).toBe(false);
+    expect(parsePullStack({ stack: "nope" }).ok).toBe(false);
+    expect(parsePullStack([]).ok).toBe(false);
   });
 });

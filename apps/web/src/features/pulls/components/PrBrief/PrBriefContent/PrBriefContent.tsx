@@ -6,6 +6,7 @@ import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 
 import { BriefView } from "@web/features/brief";
+import type { LivePrState } from "@web/features/brief/types";
 import { createSessionWrites } from "@web/features/review/session";
 import {
   type BriefSearch,
@@ -28,6 +29,7 @@ import {
   dbBriefContextQueryOptions,
   dbBriefQueryOptions,
   prDiffQueryOptions,
+  prStackQueryOptions,
   sessionQueryOptions,
 } from "../../../queries";
 import type { PrSummary } from "../../../types";
@@ -133,6 +135,11 @@ export function PrBriefContent({
     ownDraft,
   } = usePrBriefPlans({ repoId, prNumber, span, meta, timeline, revisionJump });
   const compareState = resolveBriefSearch(searchParams, availability);
+  // The stack GitHub has now, not the one the artifact saw at generation. A
+  // failed read leaves it absent and the header keeps the snapshot.
+  const liveStack = useQuery(prStackQueryOptions(repoId, prNumber));
+  const livePrState: LivePrState = { state: meta.state, draft: meta.draft };
+  if (liveStack.data !== undefined) livePrState.stack = liveStack.data;
   // Deps are PRIMITIVES: `availability` and `searchParams` are per-render
   // literals, and this callback rides into GroupCard's memo boundary, which
   // must survive PR-meta poll ticks.
@@ -218,7 +225,7 @@ export function PrBriefContent({
       <BriefView
         // Live webhook state, the badge never shows the artifact's stale
         // snapshot.
-        livePrState={{ state: meta.state, draft: meta.draft }}
+        livePrState={livePrState}
         brief={assembled}
         repoConfig={repoConfig.data ?? null}
         briefId={briefId}

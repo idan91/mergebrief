@@ -11,8 +11,13 @@ import {
 import { WriteClassifications } from "../../../../product-operations/types";
 import type { AuthRouteDeps } from "../../../auth/session";
 import type { AuthzEnv } from "../../../authz";
+import type { OpenPullRequest } from "github";
 import { createTtlCache } from "../../../ttl-cache";
-import { DIFF_CACHE_MAX_ENTRIES, FILE_BLOB_CACHE_MAX_ENTRIES } from "./consts";
+import {
+  DIFF_CACHE_MAX_ENTRIES,
+  FILE_BLOB_CACHE_MAX_ENTRIES,
+  OPEN_PULLS_CACHE_MAX_ENTRIES,
+} from "./consts";
 import createReadsHandlers from "./handler";
 
 export function readsRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
@@ -24,7 +29,16 @@ export function readsRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   const fileCache = createTtlCache<readonly string[]>(
     FILE_BLOB_CACHE_MAX_ENTRIES,
   );
-  const handlers = createReadsHandlers(deps, diffCache, fileCache);
+  // key `${sessionHash}:${repoId}` → the repo's open PRs, one list per stack walk.
+  const openPullsCache = createTtlCache<readonly OpenPullRequest[]>(
+    OPEN_PULLS_CACHE_MAX_ENTRIES,
+  );
+  const handlers = createReadsHandlers(
+    deps,
+    diffCache,
+    fileCache,
+    openPullsCache,
+  );
   app.query(
     {
       id: ProductQueryIds.READ_PULL,
@@ -88,6 +102,14 @@ export function readsRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
     },
     "/file-range",
     handlers.readFileRange,
+  );
+  app.query(
+    {
+      id: ProductQueryIds.READ_STACK,
+      classification: WriteClassifications.READ,
+    },
+    "/stack",
+    handlers.readStack,
   );
   return app;
 }

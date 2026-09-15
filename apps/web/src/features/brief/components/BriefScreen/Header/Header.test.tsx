@@ -369,6 +369,34 @@ describe("stack chip", () => {
     expect(screen.queryByTestId("stack-chip")).toBeNull();
   });
 
+  it("prefers the live stack over the generation-time one", async () => {
+    const grown = {
+      members: [...linear.members, { number: 9, title: "Newest" }],
+      index: 2,
+    };
+    await renderHeader({
+      brief: briefWithStack(linear),
+      livePrState: { state: "open", draft: false, stack: grown },
+    });
+    expect(screen.getByTestId("stack-chip").textContent).toBe("2/4");
+  });
+
+  it("keeps the generation-time stack while the live one is unread", async () => {
+    await renderHeader({
+      brief: briefWithStack(linear),
+      livePrState: { state: "open", draft: false },
+    });
+    expect(screen.getByTestId("stack-chip").textContent).toBe("2/3");
+  });
+
+  it("drops the chip when GitHub reports no stack", async () => {
+    await renderHeader({
+      brief: briefWithStack(linear),
+      livePrState: { state: "open", draft: false, stack: null },
+    });
+    expect(screen.queryByTestId("stack-chip")).toBeNull();
+  });
+
   it("renders the linear chip first on the meta line", async () => {
     await renderHeader({ brief: briefWithStack(linear) });
     const chip = screen.getByTestId("stack-chip");

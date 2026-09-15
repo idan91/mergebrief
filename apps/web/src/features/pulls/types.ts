@@ -6,6 +6,12 @@ import {
   type LastReviewUnavailableReason,
 } from "contract";
 import type { Mutable, Result as SharedResult, ValueOf } from "types/utils";
+import type {
+  ForkPrStack,
+  LinearPrStack,
+  PrStack,
+  PrStackMember,
+} from "@web/features/brief/types";
 
 type Result<T> = SharedResult<T, string>;
 
@@ -530,4 +536,73 @@ export function parsePullsList(value: unknown): Result<PrSummary[]> {
     pulls.push(parsed.value);
   }
   return { ok: true, value: pulls };
+}
+
+function parseStackMember(value: unknown): Result<PrStackMember> {
+  if (!isRecord(value)) {
+    return { ok: false, error: "stack member must be an object" };
+  }
+  if (typeof value["number"] !== "number") {
+    return { ok: false, error: "stack member.number must be a number" };
+  }
+  if (typeof value["title"] !== "string") {
+    return { ok: false, error: "stack member.title must be a string" };
+  }
+  return {
+    ok: true,
+    value: { number: value["number"], title: value["title"] },
+  };
+}
+
+function parseStackMembers(value: unknown): Result<PrStackMember[]> {
+  if (!Array.isArray(value)) {
+    return { ok: false, error: "stack members must be an array" };
+  }
+  const members: PrStackMember[] = [];
+  for (const item of value) {
+    const parsed = parseStackMember(item);
+    if (!parsed.ok) return parsed;
+    members.push(parsed.value);
+  }
+  return { ok: true, value: members };
+}
+
+function parseLinearStack(
+  value: Record<string, unknown>,
+): Result<LinearPrStack> {
+  const members = parseStackMembers(value["members"]);
+  if (!members.ok) return members;
+  if (typeof value["index"] !== "number") {
+    return { ok: false, error: "stack.index must be a number" };
+  }
+  return { ok: true, value: { members: members.value, index: value["index"] } };
+}
+
+function parseForkStack(value: Record<string, unknown>): Result<ForkPrStack> {
+  const children = parseStackMembers(value["children"]);
+  if (!children.ok) return children;
+  const fork: ForkPrStack = { children: children.value };
+
+  if (value["parent"] !== undefined) {
+    const parent = parseStackMember(value["parent"]);
+    if (!parent.ok) return parent;
+    fork.parent = parent.value;
+  }
+
+  return { ok: true, value: fork };
+}
+
+/** The live stack read: `{ stack }`, null when the PR sits in no open stack. */
+export function parsePullStack(value: unknown): Result<PrStack | null> {
+  if (!isRecord(value)) {
+    return { ok: false, error: "stack response must be an object" };
+  }
+  const stack = value["stack"];
+  if (stack === null) return { ok: true, value: null };
+  if (!isRecord(stack)) {
+    return { ok: false, error: "stack must be an object or null" };
+  }
+  // The wire union discriminates on `members`: a chain carries them, a fork
+  // carries `children`.
+  return "members" in stack ? parseLinearStack(stack) : parseForkStack(stack);
 }
