@@ -477,7 +477,9 @@
       "railActiveRisks": "Active chunk risks",
       "railNoRisks": "No risk-surface attributes on this chunk.",
       "railChunks": "Chunks",
-      "railSecondary": "secondary {{category}}"
+      "railSecondary": "secondary {{category}}",
+      "splitterLabel": "Resize the change-group column beside the diffs",
+      "splitterValueText": "Change-group column {{width}} pixels wide"
     },
     "changes": {
       "regeneratedModelChange": "Regenerated fresh — model change.",

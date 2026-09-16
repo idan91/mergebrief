@@ -1,9 +1,10 @@
 @use "functions";
+@use "layout";
 
 @layer components {
   .chunk {
     overflow: clip;
-    margin-block-end: functions.to-rem(12px);
+    margin-block-end: functions.to-rem(layout.$chunk-card-gap);
     border: 1px solid var(--line);
 
     // The sticky head OWNS the box's top edge, so it keeps that edge while

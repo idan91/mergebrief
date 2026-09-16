@@ -13,6 +13,7 @@ export interface RemainderGroupCardProps extends Omit<GroupCardProps, "group"> {
 }
 
 export function RemainderGroupCard({
+  id,
   group,
   model,
   sinceChangedFileCount,
@@ -21,7 +22,7 @@ export function RemainderGroupCard({
 }: RemainderGroupCardProps) {
   const { t } = useTranslation();
   return (
-    <article className={`${styles["card"]} reveal`}>
+    <article className={`${styles["card"]} reveal`} id={id}>
       <div className={styles["head"]}>
         <div className={styles["eyebrow"]}>
           <span className={styles["number"]}>

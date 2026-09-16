@@ -30,6 +30,7 @@ import { useComparisonOverlay } from "./useComparisonOverlay";
 import { useConversationWiring } from "./useConversationWiring";
 import { useDelayedPending } from "./useDelayedPending";
 import { useDiffViewPreference } from "./useDiffViewPreference";
+import { useStoryCardTrack } from "./useStoryCardTrack";
 import { useInFlightDraftPosts } from "./useInFlightDraftPosts";
 import { useMarkReadyFlow } from "./useMarkReadyFlow";
 import { POST_COMMENT_COPY_KEYS, useOwnDraftFlow } from "./useOwnDraftFlow";
@@ -347,6 +348,8 @@ export function useBriefScreenFacade({
     );
   };
 
+  const cardTrack = useStoryCardTrack();
+
   const diffPreference = useDiffViewPreference({
     search: searchParams.diff,
     clearDiffParam,
@@ -459,5 +462,6 @@ export function useBriefScreenFacade({
     announce,
     diffView,
     toggleDiffView,
+    cardTrack,
   };
 }

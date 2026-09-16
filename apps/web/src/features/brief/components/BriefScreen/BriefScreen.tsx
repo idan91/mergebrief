@@ -33,7 +33,7 @@ import {
   useBriefScreenFacade,
   OWN_DRAFT_STALE_COMPOSER_REASON_KEY,
 } from "./useBriefScreenFacade";
-import type { BriefScreenProps, LensPaneProps } from "./types";
+import type { BriefScreenProps, LensPaneProps, StoryMainStyle } from "./types";
 
 export type { BriefComparisonPlan } from "./useComparisonOverlay";
 export { markReadyBatchFailureCopy } from "./utils";
@@ -111,6 +111,7 @@ export function BriefScreen({
     announce,
     diffView,
     toggleDiffView,
+    cardTrack,
   } = useBriefScreenFacade({
     livePrState,
     artifacts,
@@ -147,6 +148,11 @@ export function BriefScreen({
     if (repoId === undefined) return undefined;
     return { repoId, prNumber: brief.pr.number, ref: brief.pr.sha };
   }, [repoId, brief.pr.number, brief.pr.sha]);
+
+  const mainStyle: StoryMainStyle =
+    cardTrack.track === undefined
+      ? {}
+      : { "--story-card-track": `${cardTrack.track}px` };
 
   return (
     <ReviewFlowProvider store={flowStore}>
@@ -193,6 +199,7 @@ export function BriefScreen({
             ) : null}
             <main
               className="main"
+              style={mainStyle}
               data-diff-view={diffView}
               id="main-content"
               tabIndex={-1}
@@ -324,6 +331,8 @@ export function BriefScreen({
                         model={model}
                         comparison={overlay.comparison}
                         focusMode={session.focusMode}
+                        sidebar={sidebarLayout}
+                        cardTrack={cardTrack}
                         openDeltaLens={openDeltaLens}
                         sinceMarkers={sinceMarkers}
                         openChunks={session.openChunks}

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 import type { ConversationPlan } from "@web/features/conversation";
 import type { ConversationFilter } from "@web/features/conversation/utils";
@@ -23,6 +23,12 @@ export interface OwnDraftPlan {
   readonly markReady?: MarkReadyAction;
   /** Same absence as `markReady`; hides the Post affordance. */
   readonly postComment?: (draftId: string) => Promise<PostCommentResult>;
+}
+
+// csstype's CSSProperties has no `--*` index; a typed extension keeps the
+// custom property cast-free.
+export interface StoryMainStyle extends CSSProperties {
+  "--story-card-track"?: string;
 }
 
 export interface LensPaneProps {

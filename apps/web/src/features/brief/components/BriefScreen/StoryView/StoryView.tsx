@@ -43,6 +43,7 @@ import {
 } from "@web/features/review/utils";
 import { ChunkCard } from "./ChunkCard/ChunkCard";
 import { GroupCard } from "./GroupCard/GroupCard";
+import { StorySplitter } from "./StorySplitter/StorySplitter";
 import { RiskBadge } from "../RiskBadge/RiskBadge";
 import { RiskChipDisclosure } from "../RiskChipDisclosure/RiskChipDisclosure";
 import { RiskDetailList } from "../RiskDetailList/RiskDetailList";
@@ -50,7 +51,7 @@ import { estimateChunkCardHeight } from "../chunkHeightModel";
 import { useChunkWindows } from "../chunkWindows";
 import { useReadingPosition } from "../readingPosition";
 import { CHUNK_WINDOW_INDEX_ATTR, useGroupWindow } from "../useGroupWindow";
-import { deriveGroupSectionId } from "../utils";
+import { deriveGroupSectionId, type SidebarLayout } from "../utils";
 import { Button } from "@web/components/Button/Button";
 import { ToolbarButton } from "@web/components/ToolbarButton/ToolbarButton";
 import styles from "./StoryView.module.scss";
@@ -87,6 +88,15 @@ export interface StoryViewProps {
     | undefined;
   /** Opens the delta lens; route-owned, absent on the local path. */
   openDeltaLens?: (() => void) | undefined;
+  /** Sidebar layout the stacked breakpoints key on. */
+  sidebar?: SidebarLayout | undefined;
+  /** Card column width control; absent leaves the groups without a splitter. */
+  cardTrack?: StoryCardTrackControl | undefined;
+}
+
+export interface StoryCardTrackControl {
+  setTrack: (px: number) => void;
+  resetTrack: () => void;
 }
 
 export function StoryView(props: StoryViewProps) {
@@ -143,10 +153,12 @@ export function StoryView(props: StoryViewProps) {
         const isActiveFocusGroup =
           props.focusMode && group.id === activeFocusGroupId;
         const groupView = resolveGroupDiffView(diffView, group.chunks);
+        const sectionId = deriveGroupSectionId(group.id);
+        const cardId = `${sectionId}-card`;
         return (
           <section
             className="story-group reveal"
-            id={deriveGroupSectionId(group.id)}
+            id={sectionId}
             key={group.id}
             data-active-group={isActiveFocusGroup ? "" : undefined}
             data-diff-view={groupView}
@@ -197,8 +209,17 @@ export function StoryView(props: StoryViewProps) {
                 jumpToChunk={props.jumpToChunk}
               />
             ) : null}
+            {props.focusMode || props.cardTrack === undefined ? null : (
+              <StorySplitter
+                sidebar={props.sidebar}
+                cardId={cardId}
+                setTrack={props.cardTrack.setTrack}
+                resetTrack={props.cardTrack.resetTrack}
+              />
+            )}
             {props.focusMode ? null : (
               <GroupCard
+                id={cardId}
                 group={group}
                 brief={props.brief}
                 model={props.model}

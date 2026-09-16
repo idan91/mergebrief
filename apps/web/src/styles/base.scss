@@ -1,5 +1,9 @@
 @use "functions";
+@use "layout";
 @use "mixins";
+
+$story-diff-reserve: layout.$story-diff-floor + layout.$story-diff-headroom;
+$story-gap-rem: functions.to-rem(layout.$story-group-gap);
 
 @layer base {
   * {
@@ -213,9 +217,19 @@
 
   .main .story-group {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) max(#{functions.to-rem(450px)}, 28%);
+    grid-template-columns:
+      minmax(0, 1fr)
+      clamp(
+        #{layout.$story-card-floor},
+        var(--story-card-track, max(#{functions.to-rem(450px)}, 28%)),
+        min(
+          #{layout.$story-card-ceiling},
+          calc(100% - #{$story-diff-reserve} - #{$story-gap-rem})
+        )
+      );
+    position: relative;
     align-items: start;
-    gap: functions.to-rem(18px);
+    gap: $story-gap-rem;
 
     .group-chunks {
       order: initial;
@@ -257,6 +271,10 @@
       position: static;
       order: 1;
       max-block-size: none;
+    }
+
+    .story-splitter {
+      display: none;
     }
   }
 

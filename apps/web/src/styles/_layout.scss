@@ -1,0 +1,14 @@
+// Story-group geometry the splitter's JS mirrors: the card bounds track
+// STORY_CARD_* in StoryView/StorySplitter/consts.ts and the diff floor tracks
+// SPLIT_MIN_WIDTH_PX in StoryView/useSplitWidth.ts. Bounds stay px so the
+// mirror holds at any root font size; the headroom keeps the diff column off
+// the split-versus-unified threshold when the ceiling binds.
+$story-card-floor: 360px;
+$story-card-ceiling: 750px;
+$story-diff-floor: 500px;
+$story-diff-headroom: 2px;
+$story-group-gap: 18px;
+
+// The chunk card's trailing margin; the splitter stops above it so the line
+// ends with the last chunk instead of the column's margin.
+$chunk-card-gap: 12px;

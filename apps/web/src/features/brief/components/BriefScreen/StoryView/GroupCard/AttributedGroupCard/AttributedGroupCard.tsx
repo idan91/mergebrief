@@ -20,6 +20,7 @@ export interface AttributedGroupCardProps extends Omit<
 }
 
 export const AttributedGroupCard = memo(function AttributedGroupCard({
+  id,
   group,
   model,
   jumpToChunk,
@@ -43,7 +44,7 @@ export const AttributedGroupCard = memo(function AttributedGroupCard({
   } = useAttributedGroupCardFacade({ group, model });
 
   return (
-    <article className={`${styles["card"]} reveal`}>
+    <article className={`${styles["card"]} reveal`} id={id}>
       <div className={styles["head"]}>
         <div className={styles["eyebrow"]}>
           <span className={styles["number"]}>

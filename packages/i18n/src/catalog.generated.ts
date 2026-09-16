@@ -136,6 +136,7 @@ export type Catalog = typeof en & {
       flags_one: "{{count}} flag";
       flags_other: "{{count}} flags";
       railSecondary: "secondary {{category}}";
+      splitterValueText: "Change-group column {{width}} pixels wide";
     };
     changes: (typeof en)["brief"]["changes"] & {
       removedLines_one: "−{{count}} line removed";

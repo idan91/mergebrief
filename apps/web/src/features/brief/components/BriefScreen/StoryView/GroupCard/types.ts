@@ -2,6 +2,8 @@ import type { BriefChunk } from "../../../../types";
 import type { BriefViewModel, GroupView } from "../../../../utils/viewModel";
 
 export interface GroupCardProps {
+  /** Set on the article so the story splitter can name it as its pane. */
+  id?: string | undefined;
   group: GroupView;
   brief: { chunks: BriefChunk[] };
   model: BriefViewModel;
