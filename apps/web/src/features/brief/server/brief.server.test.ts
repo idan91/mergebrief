@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { readLocalBrief, readLocalFileDiffs } from "./brief.server";
-import { BriefErrorCodes } from "../utils/briefErrors";
+import { LocalBriefErrorCodes } from "../utils/briefErrors";
 
 const TEST_BRIEF_ID = "test-review-comments";
 const OUT_DIR = resolve(process.cwd(), "../../tools/categorizer/out");
@@ -168,6 +168,6 @@ describe("readLocalBrief", () => {
   it("refuses an id with no diffs sidecar under either name", async () => {
     await expect(
       readLocalFileDiffs("no-such-diffs_1_deadbeef"),
-    ).rejects.toThrow(BriefErrorCodes.UNREADABLE);
+    ).rejects.toThrow(LocalBriefErrorCodes.UNREADABLE);
   });
 });

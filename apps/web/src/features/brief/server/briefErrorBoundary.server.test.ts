@@ -1,15 +1,16 @@
 // The local-brief error boundary. A server function's rejection is SERIALIZED
 // TO THE BROWSER, so the assertions here are about what must NOT be in the
 // message: absolute paths, node error codes, and reflected caller input.
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { appI18n } from "../../../i18n/I18nProvider";
 
 import { readComparisonMarks, readLocalBrief } from "./brief.server";
+import { requireLocalBriefsDir } from "./outDir.server";
 import {
   briefErrorCode,
   briefErrorDetail,
-  BriefErrorCodes,
+  LocalBriefErrorCodes,
   clampConfigMessage,
   GenerateErrorCodes,
   isCuratedBriefError,
@@ -27,7 +28,7 @@ describe("readLocalBrief on a missing artifact", () => {
     // A raw rejection here would be `ENOENT: … open '<abs>/…delta.json'`,
     // handing the deployment's filesystem layout to any visitor.
     await expect(readLocalBrief(ABSENT_ID)).rejects.toThrow(
-      BriefErrorCodes.NOT_FOUND,
+      LocalBriefErrorCodes.NOT_FOUND,
     );
     const error = await readLocalBrief(ABSENT_ID).catch((caught: unknown) =>
       caught instanceof Error ? caught.message : String(caught),
@@ -44,15 +45,15 @@ describe("brief id validation", () => {
     const error = await readComparisonMarks(hostile).catch((caught: unknown) =>
       caught instanceof Error ? caught.message : String(caught),
     );
-    expect(error).toBe(BriefErrorCodes.INVALID_ID);
+    expect(error).toBe(LocalBriefErrorCodes.INVALID_ID);
     expect(error).not.toContain("passwd");
   });
 });
 
 describe("briefErrorCode / briefErrorDetail", () => {
   it("passes a curated code through and renders its catalog copy", () => {
-    const error = new Error(BriefErrorCodes.NOT_FOUND);
-    expect(briefErrorCode(error)).toBe(BriefErrorCodes.NOT_FOUND);
+    const error = new Error(LocalBriefErrorCodes.NOT_FOUND);
+    expect(briefErrorCode(error)).toBe(LocalBriefErrorCodes.NOT_FOUND);
     expect(briefErrorDetail(appI18n.t, error)).toBe(
       appI18n.t("briefError.not-found"),
     );
@@ -62,7 +63,7 @@ describe("briefErrorCode / briefErrorDetail", () => {
     const raw = new Error(
       "ENOENT: no such file or directory, open '/app/tools/categorizer/out/x.json'",
     );
-    expect(briefErrorCode(raw)).toBe(BriefErrorCodes.UNEXPECTED);
+    expect(briefErrorCode(raw)).toBe(LocalBriefErrorCodes.UNEXPECTED);
     // The rendered sentence must never carry the raw path.
     expect(briefErrorDetail(appI18n.t, raw)).toBe(
       appI18n.t("briefError.unexpected"),
@@ -80,7 +81,7 @@ describe("briefErrorCode / briefErrorDetail", () => {
   });
 
   it("handles a non-Error rejection", () => {
-    expect(briefErrorCode("boom")).toBe(BriefErrorCodes.UNEXPECTED);
+    expect(briefErrorCode("boom")).toBe(LocalBriefErrorCodes.UNEXPECTED);
   });
 
   it.each([
@@ -108,5 +109,31 @@ describe("briefErrorCode / briefErrorDetail", () => {
   it("redacts token-shaped config detail before it reaches the browser", () => {
     const leaked = "bad sk-ant-api03-abcdefghijkl";
     expect(clampConfigMessage(t, leaked)).toBe("bad [redacted-token]");
+  });
+});
+
+describe("a production build", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("refuses the file surface with a curated code", () => {
+    vi.stubEnv("PROD", true);
+    expect(() => requireLocalBriefsDir()).toThrow(
+      LocalBriefErrorCodes.DISABLED,
+    );
+  });
+
+  it("passes that refusal through the render gate unchanged", () => {
+    vi.stubEnv("PROD", true);
+    const error = (() => {
+      try {
+        requireLocalBriefsDir();
+        return undefined;
+      } catch (caught) {
+        return caught;
+      }
+    })();
+    expect(briefErrorCode(error)).toBe(LocalBriefErrorCodes.DISABLED);
   });
 });

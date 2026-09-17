@@ -1,6 +1,7 @@
 // The DEV file surface's list: the artifacts in MERGEBRIEF_OUT_DIR, as the
-// picker showed them before the DB list replaced it. Renders nothing when the
-// directory is unset (the query refuses) or empty. Callers gate on
+// picker showed them before the DB list replaced it. Renders nothing without
+// a session (the readers refuse; `enabled` keeps the query idle), when the
+// directory is unset (the query refuses) or when it is empty. Callers gate on
 // `import.meta.env.PROD`, a build-time constant, so this leaves a production
 // bundle entirely.
 import { useQuery } from "@tanstack/react-query";
@@ -10,9 +11,16 @@ import { useTranslation } from "react-i18next";
 import { buildLocalBriefsQueryOptions } from "../../queries";
 import styles from "../../../../routes/index.module.scss";
 
-export function LocalBriefsSection() {
+export interface LocalBriefsSectionProps {
+  enabled: boolean;
+}
+
+export function LocalBriefsSection({ enabled }: LocalBriefsSectionProps) {
   const { t } = useTranslation();
-  const { data: briefs } = useQuery(buildLocalBriefsQueryOptions());
+  const { data: briefs } = useQuery({
+    ...buildLocalBriefsQueryOptions(),
+    enabled,
+  });
 
   if (briefs === undefined || briefs.length === 0) {
     return null;

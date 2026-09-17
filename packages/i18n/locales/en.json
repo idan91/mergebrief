@@ -1091,6 +1091,8 @@
     "invalid-id": "That brief link isn't valid.",
     "unreadable": "That brief's files are unreadable — regenerate it.",
     "unexpected": "Something went wrong reading this brief — check the server logs.",
+    "unauthenticated": "Sign in with GitHub to view local briefs.",
+    "local-briefs-disabled": "Local briefs are served only by a development build.",
     "not-a-pr-url": "That doesn't look like a GitHub pull request URL — expected https://github.com/OWNER/REPO/pull/NUMBER.",
     "url-too-long": "That URL is too long to be a GitHub pull request link.",
     "no-gh-cli": "This deployment has no gh CLI — sign in with GitHub to generate with your account.",

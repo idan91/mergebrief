@@ -15,15 +15,17 @@ import { ApiError, ApiErrorCodes } from "../../../data/apiFetch";
  * catalog, so the cross-boundary allowlist check stays an identity test on
  * a stable token instead of on translatable prose.
  */
-export const BriefErrorCodes = {
+export const LocalBriefErrorCodes = {
   /** No artifact for that id, the browser gets a 404-shaped sentence. */
   NOT_FOUND: "not-found",
   /** The id itself failed the charset guard (never echoed back). */
   INVALID_ID: "invalid-id",
   UNREADABLE: "unreadable",
   UNEXPECTED: "unexpected",
+  UNAUTHENTICATED: "unauthenticated",
+  DISABLED: "local-briefs-disabled",
 } as const;
-export type BriefErrorCode = ValueOf<typeof BriefErrorCodes>;
+export type LocalBriefErrorCode = ValueOf<typeof LocalBriefErrorCodes>;
 
 /**
  * The URL-box generation path's own closed set. Separate map, same rule:
@@ -41,7 +43,7 @@ export const GenerateErrorCodes = {
 export type GenerateErrorCode = ValueOf<typeof GenerateErrorCodes>;
 
 const CURATED: ReadonlySet<string> = new Set([
-  ...Object.values(BriefErrorCodes),
+  ...Object.values(LocalBriefErrorCodes),
   ...Object.values(GenerateErrorCodes),
 ]);
 
@@ -63,20 +65,27 @@ export function clampConfigMessage(t: TFunction, message: string): string {
 
 export function briefErrorCode(error: unknown): string {
   const message = error instanceof Error ? error.message : "";
-  return isCuratedBriefError(message) ? message : BriefErrorCodes.UNEXPECTED;
+  return isCuratedBriefError(message)
+    ? message
+    : LocalBriefErrorCodes.UNEXPECTED;
 }
 
 const DETAIL_KEYS = {
-  [BriefErrorCodes.NOT_FOUND]: "briefError.not-found",
-  [BriefErrorCodes.INVALID_ID]: "briefError.invalid-id",
-  [BriefErrorCodes.UNREADABLE]: "briefError.unreadable",
-  [BriefErrorCodes.UNEXPECTED]: "briefError.unexpected",
+  [LocalBriefErrorCodes.NOT_FOUND]: "briefError.not-found",
+  [LocalBriefErrorCodes.INVALID_ID]: "briefError.invalid-id",
+  [LocalBriefErrorCodes.UNREADABLE]: "briefError.unreadable",
+  [LocalBriefErrorCodes.UNEXPECTED]: "briefError.unexpected",
+  [LocalBriefErrorCodes.UNAUTHENTICATED]: "briefError.unauthenticated",
+  [LocalBriefErrorCodes.DISABLED]: "briefError.local-briefs-disabled",
   [GenerateErrorCodes.NOT_A_PR_URL]: "briefError.not-a-pr-url",
   [GenerateErrorCodes.URL_TOO_LONG]: "briefError.url-too-long",
   [GenerateErrorCodes.NO_GH_CLI]: "briefError.no-gh-cli",
   [GenerateErrorCodes.FETCH_FAILED]: "briefError.fetch-failed",
   [GenerateErrorCodes.GENERATION_FAILED]: "briefError.generation-failed",
-} as const satisfies Record<BriefErrorCode | GenerateErrorCode, TranslationKey>;
+} as const satisfies Record<
+  LocalBriefErrorCode | GenerateErrorCode,
+  TranslationKey
+>;
 
 function isKnownDetailCode(code: string): code is keyof typeof DETAIL_KEYS {
   return Object.hasOwn(DETAIL_KEYS, code);

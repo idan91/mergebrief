@@ -21,6 +21,8 @@ import {
   buildLocalBriefsQueryOptions,
   buildLocalRevisionChangesQueryOptions,
 } from "../features/brief/queries";
+import { buildPullsSessionQueryOptions } from "../features/pulls/queries";
+import type { PullsSession } from "../features/pulls/types";
 import {
   briefFixture,
   briefSummaryFixture,
@@ -29,6 +31,8 @@ import { routeTree } from "../routeTree.gen";
 import { BriefView } from "../features/brief";
 import { emptySessionPayload } from "../features/review/session";
 import { I18nProvider } from "../i18n/I18nProvider";
+
+const READY_SESSION: PullsSession = { kind: "ready", pulls: [] };
 
 const BRIEF_ID = briefSummaryFixture.id;
 
@@ -80,6 +84,10 @@ async function renderBriefScreen(
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
+  queryClient.setQueryData(
+    buildPullsSessionQueryOptions().queryKey,
+    READY_SESSION,
+  );
   queryClient.setQueryData(
     buildLocalBriefQueryOptions(BRIEF_ID).queryKey,
     brief,

@@ -3,6 +3,7 @@ import "@tanstack/react-start/server-only";
 import { existsSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { getServerEnv } from "../../../server/env";
+import { LocalBriefErrorCodes } from "../utils/briefErrors";
 
 // The dev file surface. A production build never serves it whatever the
 // environment says: a forgotten variable must not expose `readFile`.
@@ -51,7 +52,7 @@ export function localBriefsDir(): string | undefined {
 export function requireLocalBriefsDir(): string {
   const dir = localBriefsDir();
   if (dir === undefined) {
-    throw new Error("local-briefs-disabled");
+    throw new Error(LocalBriefErrorCodes.DISABLED);
   }
   return dir;
 }

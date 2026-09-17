@@ -26,6 +26,7 @@ import {
   buildLocalBriefsQueryOptions,
   buildLocalRevisionChangesQueryOptions,
 } from "../features/brief/queries";
+import { buildPullsSessionQueryOptions } from "../features/pulls/queries";
 import styles from "./routeShared.module.scss";
 import { useUnsavedComposerBlocker } from "@web/hooks/useUnsavedComposerGuard";
 
@@ -49,6 +50,14 @@ export const Route = createFileRoute("/briefs/$briefId")({
     // ordinary 404 and not a 500 that looks like a broken deployment.
     if (import.meta.env.PROD) {
       throw notFound();
+    }
+    // The readers refuse without a session; redirecting first keeps a
+    // logged-out visit an ordinary navigation instead of a 500.
+    const session = await context.queryClient.ensureQueryData(
+      buildPullsSessionQueryOptions(),
+    );
+    if (session.kind !== "ready") {
+      throw redirect({ to: "/" });
     }
     const artifacts = await context.queryClient.ensureQueryData(
       buildLocalBriefsQueryOptions(),

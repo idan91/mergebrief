@@ -1,9 +1,15 @@
 import { useTranslation } from "react-i18next";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, notFound, Link } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  notFound,
+  redirect,
+  Link,
+} from "@tanstack/react-router";
 import { useMemo } from "react";
 
 import { buildLocalBriefQueryOptions } from "../features/brief/queries";
+import { buildPullsSessionQueryOptions } from "../features/pulls/queries";
 import type { Brief } from "../features/brief/types";
 import { buildBriefViewModel } from "@web/features/brief/utils";
 import { SummaryPreview } from "@web/features/review";
@@ -12,9 +18,15 @@ import styles from "./routeShared.module.scss";
 
 export const Route = createFileRoute("/briefs/$briefId_/summary-preview")({
   // Development-only, same as the brief route it previews.
-  beforeLoad: () => {
+  beforeLoad: async ({ context }) => {
     if (import.meta.env.PROD) {
       throw notFound();
+    }
+    const session = await context.queryClient.ensureQueryData(
+      buildPullsSessionQueryOptions(),
+    );
+    if (session.kind !== "ready") {
+      throw redirect({ to: "/" });
     }
   },
   loader: ({ context, params }) =>

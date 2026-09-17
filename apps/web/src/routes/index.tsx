@@ -28,13 +28,20 @@ export const Route = createFileRoute("/")({
       context.queryClient.ensureQueryData(buildUrlBriefsQueryOptions()),
       context.queryClient.ensureQueryData(buildPullsSessionQueryOptions()),
     ];
-    // The DEV file surface, and never allowed to fail the page: an unset
-    // MERGEBRIEF_OUT_DIR refuses and the list simply does not render. The
-    // `if` is a build-time constant, so production keeps the original two.
+    // The DEV file surface, prefetched only behind a session (the readers
+    // refuse without one) and never allowed to fail the page. The `if` is a
+    // build-time constant, so production keeps the original two.
     if (!import.meta.env.PROD) {
       prefetches.push(
         context.queryClient
-          .ensureQueryData(buildLocalBriefsQueryOptions())
+          .ensureQueryData(buildPullsSessionQueryOptions())
+          .then((session) =>
+            session.kind === "ready"
+              ? context.queryClient.ensureQueryData(
+                  buildLocalBriefsQueryOptions(),
+                )
+              : undefined,
+          )
           .catch(() => undefined),
       );
     }
@@ -131,7 +138,9 @@ function BriefPicker() {
         <OrgSwitcher enabled={session.kind === "ready"} />
         <YourBriefsSection session={yourBriefs} />
         <PullsSection session={session} />
-        {import.meta.env.PROD ? null : <LocalBriefsSection />}
+        {import.meta.env.PROD ? null : (
+          <LocalBriefsSection enabled={session.kind === "ready"} />
+        )}
       </section>
     </main>
   );

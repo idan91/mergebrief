@@ -48,6 +48,8 @@ The web tier needs none of this. It reads `MERGEBRIEF_API_ORIGIN`, `LOG_LEVEL` a
 dev-only `MERGEBRIEF_OUT_DIR` from `apps/web/.env`. `PUBLIC_BASE_URL` is NOT one of them:
 vite reads it from the ambient environment when the dev server boots, so export it in the
 shell rather than putting it in that file.
+Local briefs are served only to a signed-in session, so the tunnel does not expose
+`MERGEBRIEF_OUT_DIR` to a cookieless visitor.
 
 ## 3. Run the app
 

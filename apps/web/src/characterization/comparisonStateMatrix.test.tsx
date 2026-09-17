@@ -22,6 +22,8 @@ import {
   buildLocalRevisionChangesQueryOptions,
   buildLocalRevisionNarrativeQueryOptions,
 } from "../features/brief/queries";
+import { buildPullsSessionQueryOptions } from "../features/pulls/queries";
+import type { PullsSession } from "../features/pulls/types";
 import type {
   Brief,
   BriefChunk,
@@ -29,6 +31,8 @@ import type {
   LocalBriefSummary,
 } from "../features/brief/types";
 import { routeTree } from "../routeTree.gen";
+
+const READY_SESSION: PullsSession = { kind: "ready", pulls: [] };
 
 const PR = {
   repo: "acme/widgets",
@@ -260,6 +264,10 @@ function buildQueryClient() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
+  queryClient.setQueryData(
+    buildPullsSessionQueryOptions().queryKey,
+    READY_SESSION,
+  );
   queryClient.setQueryData(
     buildLocalBriefsQueryOptions().queryKey,
     ALL_ARTIFACTS,

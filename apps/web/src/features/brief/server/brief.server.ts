@@ -28,7 +28,10 @@ import {
   parseRevisionNarrativeArtifact,
 } from "../utils/validation";
 import { getServerLogger } from "../../../server/logger";
-import { BriefErrorCodes, type BriefErrorCode } from "../utils/briefErrors";
+import {
+  LocalBriefErrorCodes,
+  type LocalBriefErrorCode,
+} from "../utils/briefErrors";
 
 const logger = getServerLogger();
 
@@ -45,8 +48,8 @@ class BriefReadError extends Error {}
  * warn rate. A broken or unparsable artifact is different, that IS degraded.
  */
 const ROUTINE_REASONS: ReadonlySet<string> = new Set<string>([
-  BriefErrorCodes.NOT_FOUND,
-  BriefErrorCodes.INVALID_ID,
+  LocalBriefErrorCodes.NOT_FOUND,
+  LocalBriefErrorCodes.INVALID_ID,
 ]);
 
 /**
@@ -55,7 +58,7 @@ const ROUTINE_REASONS: ReadonlySet<string> = new Set<string>([
  * logging boundary redacts and serializes fields, and `msg` bypasses that.
  */
 function failRead(
-  reason: BriefErrorCode,
+  reason: LocalBriefErrorCode,
   context: string,
   raw: unknown,
 ): never {
@@ -96,7 +99,7 @@ async function readLocalBriefSummaries(): Promise<LocalBriefSummary[]> {
       return [];
     }
     return failRead(
-      BriefErrorCodes.UNREADABLE,
+      LocalBriefErrorCodes.UNREADABLE,
       "local brief directory not readable",
       error,
     );
@@ -382,7 +385,7 @@ export async function readRevisionChanges(
   } catch (error) {
     if (isNodeError(error) && error.code === "ENOENT") return null;
     return failRead(
-      BriefErrorCodes.UNREADABLE,
+      LocalBriefErrorCodes.UNREADABLE,
       `unreadable revision-changes sidecar ${briefId}`,
       error,
     );
@@ -423,7 +426,7 @@ export async function readComparisonMarks(
       return readLegacyRevisionChangesAsMarks(marksId);
     }
     return failRead(
-      BriefErrorCodes.UNREADABLE,
+      LocalBriefErrorCodes.UNREADABLE,
       `unreadable comparison marks ${marksId}`,
       error,
     );
@@ -485,7 +488,7 @@ export async function readRevisionNarrative(
   } catch (error) {
     if (isNodeError(error) && error.code === "ENOENT") return null;
     return failRead(
-      BriefErrorCodes.UNREADABLE,
+      LocalBriefErrorCodes.UNREADABLE,
       `unreadable revision narrative ${narrativeId}`,
       error,
     );
@@ -518,7 +521,7 @@ async function readBriefFile(briefId: string): Promise<Brief> {
     const parsedBrief = parseBrief(parsedJson, logger);
     if (!parsedBrief.ok) {
       return failRead(
-        BriefErrorCodes.UNREADABLE,
+        LocalBriefErrorCodes.UNREADABLE,
         `invalid local brief ${briefId}`,
         parsedBrief.error,
       );
@@ -528,7 +531,7 @@ async function readBriefFile(briefId: string): Promise<Brief> {
     if (error instanceof BriefReadError) throw error;
     if (!isNodeError(error) || error.code !== "ENOENT") {
       return failRead(
-        BriefErrorCodes.UNREADABLE,
+        LocalBriefErrorCodes.UNREADABLE,
         `unreadable local brief ${briefId}`,
         error,
       );
@@ -546,8 +549,8 @@ async function readBriefFile(briefId: string): Promise<Brief> {
     // message names the container's absolute out-dir path.
     return failRead(
       isNodeError(error) && error.code === "ENOENT"
-        ? BriefErrorCodes.NOT_FOUND
-        : BriefErrorCodes.UNREADABLE,
+        ? LocalBriefErrorCodes.NOT_FOUND
+        : LocalBriefErrorCodes.UNREADABLE,
       `local brief ${briefId} not readable`,
       error,
     );
@@ -557,7 +560,7 @@ async function readBriefFile(briefId: string): Promise<Brief> {
     parsedJson = JSON.parse(raw);
   } catch (error) {
     return failRead(
-      BriefErrorCodes.UNREADABLE,
+      LocalBriefErrorCodes.UNREADABLE,
       `invalid local delta JSON ${briefId}`,
       error,
     );
@@ -565,7 +568,7 @@ async function readBriefFile(briefId: string): Promise<Brief> {
   const parsedDelta = parseDeltaBrief(parsedJson);
   if (!parsedDelta.ok) {
     return failRead(
-      BriefErrorCodes.UNREADABLE,
+      LocalBriefErrorCodes.UNREADABLE,
       `invalid local delta ${briefId}`,
       parsedDelta.error,
     );
@@ -577,7 +580,7 @@ function assertValidBriefId(briefId: string): void {
   if (!isValidBriefId(briefId)) {
     // The id is caller-supplied: echoing it back would reflect arbitrary
     // input into the page. Logged, never returned.
-    failRead(BriefErrorCodes.INVALID_ID, "invalid brief id", briefId);
+    failRead(LocalBriefErrorCodes.INVALID_ID, "invalid brief id", briefId);
   }
 }
 
@@ -612,7 +615,7 @@ async function readReviewComments(
   } catch (error) {
     if (isNodeError(error) && error.code === "ENOENT") return undefined;
     return failRead(
-      BriefErrorCodes.UNREADABLE,
+      LocalBriefErrorCodes.UNREADABLE,
       `unreadable comments sidecar ${briefId}`,
       error,
     );
@@ -622,7 +625,7 @@ async function readReviewComments(
     parsedJson = JSON.parse(raw);
   } catch (error) {
     return failRead(
-      BriefErrorCodes.UNREADABLE,
+      LocalBriefErrorCodes.UNREADABLE,
       `invalid comments sidecar JSON ${briefId}`,
       error,
     );
@@ -630,7 +633,7 @@ async function readReviewComments(
   const parsedComments = parseAddressedReviewComments(parsedJson);
   if (!parsedComments.ok) {
     return failRead(
-      BriefErrorCodes.UNREADABLE,
+      LocalBriefErrorCodes.UNREADABLE,
       `invalid comments sidecar ${briefId}`,
       parsedComments.error,
     );
@@ -655,14 +658,14 @@ export async function readLocalFileDiffs(
     parsedJson = JSON.parse(raw);
   } catch (error) {
     return failRead(
-      BriefErrorCodes.UNREADABLE,
+      LocalBriefErrorCodes.UNREADABLE,
       `invalid diffs sidecar JSON ${briefId}`,
       error,
     );
   }
   if (!Array.isArray(parsedJson)) {
     return failRead(
-      BriefErrorCodes.UNREADABLE,
+      LocalBriefErrorCodes.UNREADABLE,
       `invalid diffs sidecar ${briefId}`,
       "expected an array",
     );
@@ -672,7 +675,7 @@ export async function readLocalFileDiffs(
   for (const item of parsedJson) {
     if (!isFileDiffPatch(item)) {
       return failRead(
-        BriefErrorCodes.UNREADABLE,
+        LocalBriefErrorCodes.UNREADABLE,
         `invalid diffs sidecar ${briefId}`,
         "expected file and patch strings",
       );
@@ -692,7 +695,7 @@ async function readDiffsSidecar(briefId: string): Promise<string> {
     } catch (error) {
       if (isNodeError(error) && error.code === "ENOENT") continue;
       return failRead(
-        BriefErrorCodes.UNREADABLE,
+        LocalBriefErrorCodes.UNREADABLE,
         `unreadable diffs sidecar ${briefId}`,
         error,
       );
@@ -703,7 +706,7 @@ async function readDiffsSidecar(briefId: string): Promise<string> {
   // artifact set, not a missing brief, but either way the browser must not
   // learn the out-dir path.
   return failRead(
-    BriefErrorCodes.UNREADABLE,
+    LocalBriefErrorCodes.UNREADABLE,
     `missing diffs sidecar ${briefId}`,
     "no diffs sidecar under either name",
   );
