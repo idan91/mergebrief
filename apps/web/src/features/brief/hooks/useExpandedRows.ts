@@ -12,8 +12,10 @@ import {
   placeExpandableEdges,
   spliceStoredEdges,
 } from "../utils/expansionState";
+import { isWindowCovered } from "../utils/fileWindowRows";
 import { useFileRange } from "./useFileRange";
 import { useExpansionSource } from "./useExpansionSource";
+import { useFileRows } from "./useFileRows";
 
 export interface UseExpandedRowsInput {
   chunkId: string;
@@ -42,6 +44,7 @@ const NO_EDGES: ExpandableEdge[] = [];
 export function useExpandedRows(input: UseExpandedRowsInput): ExpandedRows {
   const { chunkId, path, rows, claimed } = input;
   const source = useExpansionSource();
+  const fileRows = useFileRows()?.getFileRows(path);
   const expandedEdges = useReviewFlow((state) => state.expandedEdges);
   const fileEnd = useReviewFlow((state) => state.fileEnds.get(path));
   // A file the diff creates or removes shows every line it has. An expanded
@@ -57,12 +60,22 @@ export function useExpandedRows(input: UseExpandedRowsInput): ExpandedRows {
     [chunkId, baseGaps, expandedEdges],
   );
   const expansionKey = buildExpansionKey(stored);
+  // A window the file's own diff covers end to end needs no read.
   const windows = useMemo(
     () =>
       stored.length === 0
         ? NO_WINDOWS
-        : stored.flatMap((edge) => edge.expansion.windows),
-    [stored],
+        : stored
+            .flatMap((edge) => edge.expansion.windows)
+            .filter(
+              (window) =>
+                fileRows === undefined ||
+                !isWindowCovered(fileRows, {
+                  from: window.start,
+                  to: window.end,
+                }),
+            ),
+    [stored, fileRows],
   );
   const lines = useFileRange({ source, path, windows });
 
@@ -74,6 +87,7 @@ export function useExpandedRows(input: UseExpandedRowsInput): ExpandedRows {
             rows,
             edges: stored,
             lines,
+            fileRows,
             claimed,
           });
     const edges =
@@ -97,6 +111,7 @@ export function useExpandedRows(input: UseExpandedRowsInput): ExpandedRows {
     stored,
     rows,
     lines,
+    fileRows,
     claimed,
     source,
     chunkId,

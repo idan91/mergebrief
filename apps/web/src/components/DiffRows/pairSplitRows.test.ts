@@ -128,3 +128,24 @@ describe("pairSplitRows with expanded context", () => {
     ).toBe(2);
   });
 });
+
+describe("pairSplitRows with expanded changed rows", () => {
+  const spliced: DiffLine[] = [
+    { kind: "ctx", origin: "expanded", content: "k", oldLine: 9, newLine: 9 },
+    { kind: "del", origin: "expanded", content: "old", oldLine: 10 },
+    { kind: "add", origin: "expanded", content: "new", newLine: 10 },
+    { kind: "ctx", content: "keep", oldLine: 11, newLine: 11 },
+  ];
+
+  it("pairs an expanded deletion with the expanded addition after it", () => {
+    const rows = pairSplitRows(spliced);
+
+    expect(rows).toHaveLength(3);
+    expect(rows[1]?.left?.index).toBe(1);
+    expect(rows[1]?.right?.index).toBe(2);
+  });
+
+  it("counts the expanded pair as one split row", () => {
+    expect(countSplitRows(spliced)).toBe(3);
+  });
+});

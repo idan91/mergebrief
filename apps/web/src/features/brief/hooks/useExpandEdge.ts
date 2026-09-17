@@ -4,8 +4,10 @@ import { useReviewActions } from "@web/features/review/session";
 import type { ExpandableEdge, ExpanderStep, LineRange } from "../types";
 import { resolveExpanderStep } from "../utils/expansionState";
 import type { FileRangeResult } from "../queries";
+import { isWindowCovered } from "../utils/fileWindowRows";
 import { useFileRangeReader } from "./useFileRange";
 import { useExpansionSource } from "./useExpansionSource";
+import { useFileRows } from "./useFileRows";
 
 /** Why an edge cannot expand; the file-range read's refusals, curated. */
 export type ExpandFailure = Exclude<FileRangeResult["kind"], "ready">;
@@ -33,6 +35,7 @@ export interface ExpandEdgeControl {
 export function useExpandEdge(input: UseExpandEdgeInput): ExpandEdgeControl {
   const { edge, path, claimed } = input;
   const source = useExpansionSource();
+  const fileRows = useFileRows()?.getFileRows(path);
   const readWindow = useFileRangeReader(source, path);
   const { expandEdge } = useReviewActions();
   const [busy, setBusy] = useState(false);
@@ -43,6 +46,16 @@ export function useExpandEdge(input: UseExpandEdgeInput): ExpandEdgeControl {
   // clears only on a result: a click never blanks it into a silent wait.
   async function expand(): Promise<boolean> {
     if (step === undefined || busy) return false;
+    // The diff already holds every line of this window: nothing to read.
+    if (fileRows !== undefined && isWindowCovered(fileRows, step.window)) {
+      const window: LineRange = {
+        start: step.window.from,
+        end: step.window.to,
+      };
+      expandEdge(edge.edgeKey, window, undefined, path);
+      setFailure(undefined);
+      return true;
+    }
     setBusy(true);
     try {
       const result = await readWindow({

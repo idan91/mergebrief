@@ -25,12 +25,15 @@ import {
   EXPANDED_ROW_SELECTOR,
 } from "@web/components/DiffRows/consts";
 import type { DiffView } from "@web/components/DiffRows/types";
+import type { DiffLine } from "@web/utils/diffTokens/types";
 import { fileRangeQueryKey, type FileRangeResult } from "../../../queries";
 import { useExpandedRows } from "../../../hooks/useExpandedRows";
 import {
   ExpansionSourceProvider,
   type ExpansionSource,
 } from "../../../hooks/useExpansionSource";
+import { FileRowsProvider } from "../../../hooks/useFileRows";
+import type { FileRowsCache } from "../../../utils/fileRows";
 import type { DigestThreadRow } from "@web/features/conversation/utils";
 import type { Brief, BriefChunk, LineRange } from "../../../types";
 import { buildBriefViewModel } from "../../../utils/viewModel";
@@ -287,6 +290,7 @@ function renderHarness(
   options: {
     source?: ExpansionSource | undefined;
     session?: ReviewSessionPayload | undefined;
+    fileRows?: FileRowsCache | undefined;
   } = {},
 ) {
   const queryClient = new QueryClient();
@@ -318,15 +322,17 @@ function renderHarness(
   const view = render(
     <QueryClientProvider client={queryClient}>
       <ExpansionSourceProvider source={source}>
-        <ReviewSessionProvider
-          briefId="test-brief"
-          model={buildBriefViewModel(stubBrief(props.chunk))}
-          session={options.session}
-        >
-          <ReviewFlowProvider store={flowStore}>
-            <Harness {...props} />
-          </ReviewFlowProvider>
-        </ReviewSessionProvider>
+        <FileRowsProvider cache={options.fileRows}>
+          <ReviewSessionProvider
+            briefId="test-brief"
+            model={buildBriefViewModel(stubBrief(props.chunk))}
+            session={options.session}
+          >
+            <ReviewFlowProvider store={flowStore}>
+              <Harness {...props} />
+            </ReviewFlowProvider>
+          </ReviewSessionProvider>
+        </FileRowsProvider>
       </ExpansionSourceProvider>
     </QueryClientProvider>,
   );
@@ -458,6 +464,77 @@ describe("DiffTable expansion controls", () => {
     expect(
       screen.getByRole("button", { name: "Show 20 more lines above" }),
     ).toBeTruthy();
+  });
+});
+
+describe("DiffTable expansion into a sibling hunk", () => {
+  const fileRows: DiffLine[] = [
+    { kind: "hunk", content: "@@ -13,3 +10,4 @@" },
+    { kind: "ctx", content: "keep", oldLine: 13, newLine: 10 },
+    { kind: "del", content: "old", oldLine: 14 },
+    { kind: "add", content: "n1", newLine: 11 },
+    { kind: "add", content: "n2", newLine: 12 },
+    { kind: "ctx", content: "keep", oldLine: 15, newLine: 13 },
+    ...(stubChunk().diff ?? []),
+  ];
+  const cache: FileRowsCache = { isEmpty: false, getFileRows: () => fileRows };
+
+  it("shows the hunk's add and del rows without reading the file", async () => {
+    const { view, queryClient } = renderHarness(
+      { chunk: stubChunk(), view: "unified" },
+      { fileRows: cache },
+    );
+    seedRange(queryClient, 10, 29, 80);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Show 20 more lines above" }),
+    );
+
+    await waitFor(() => expect(expandedRows(view.container)).toHaveLength(21));
+    const kinds = expandedRows(view.container).map((row) =>
+      row.getAttribute("data-line-kind"),
+    );
+    expect(kinds.slice(0, 5)).toEqual(["ctx", "del", "add", "add", "ctx"]);
+    expect(numberCells(expandedRows(view.container)[1]!)).toEqual(["14", ""]);
+    expect(numberCells(expandedRows(view.container)[5]!)).toEqual(["16", "14"]);
+  });
+
+  it("records a covered window without a file-range read", async () => {
+    const short = {
+      ...stubChunk(),
+      diff: [
+        { kind: "hunk", content: "@@ -16,3 +13,3 @@" },
+        { kind: "ctx", content: "d", oldLine: 16, newLine: 13 },
+        { kind: "add", content: "e", newLine: 14 },
+        { kind: "ctx", content: "f", oldLine: 17, newLine: 15 },
+      ],
+    } as BriefChunk;
+    const covered: DiffLine[] = [
+      { kind: "hunk", content: "@@ -1,15 +1,12 @@" },
+      ...Array.from({ length: 12 }, (_unused, index) => ({
+        kind: "ctx" as const,
+        content: `k${String(index + 1)}`,
+        oldLine: index + 1,
+        newLine: index + 1,
+      })),
+      { kind: "del", content: "x", oldLine: 13 },
+      { kind: "del", content: "y", oldLine: 14 },
+      { kind: "del", content: "z", oldLine: 15 },
+      ...(short.diff ?? []),
+    ];
+    const { view, queryClient, flowStore } = renderHarness(
+      { chunk: short, view: "unified" },
+      { fileRows: { isEmpty: false, getFileRows: () => covered } },
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Show all 12 hidden lines above" }),
+    );
+
+    await waitFor(() => expect(expandedRows(view.container)).toHaveLength(15));
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(0);
+    expect(flowStore.getState().expandedEdges.get("c1:1:up")?.range).toEqual({
+      start: 1,
+      end: 12,
+    });
   });
 });
 
@@ -885,7 +962,7 @@ describe("DiffTable comments across expanded rows", () => {
       row.getAttribute("aria-describedby") ?? "",
     );
     expect(reason?.textContent).toBe(
-      "Outside the diff; comments need a changed line.",
+      "Read from the file; comments need a line of this chunk's own diff.",
     );
     expect(
       view.container

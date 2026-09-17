@@ -7,7 +7,7 @@ import {
   buildExpansionKey,
   collectClaimedLines,
   collectStoredEdges,
-  countExpandedLines,
+  countExpandedRows,
   mapBaseIndexes,
   placeExpandableEdges,
   resolveExpanderStep,
@@ -162,17 +162,49 @@ describe("resolveExpanderStep", () => {
   });
 });
 
-describe("countExpandedLines and buildExpansionKey", () => {
-  it("count the chunk's own edges only and name the state", () => {
+describe("buildExpansionKey", () => {
+  it("names the chunk's own edges only", () => {
     const edges = new Map<string, EdgeExpansion>([
       ["c1:1:up", stubExpansion(10, 29)],
       ["c2:1:up", stubExpansion(1, 5)],
     ]);
     const stored = collectStoredEdges("c1", findExpansionGaps(base), edges);
 
-    expect(countExpandedLines(edges, "c1")).toBe(20);
     expect(buildExpansionKey(stored)).toBe("c1:1:up=10-29");
     expect(buildExpansionKey([])).toBeUndefined();
+  });
+});
+
+describe("countExpandedRows", () => {
+  const fileRows: DiffLine[] = [
+    { kind: "hunk", content: "@@ -10,6 +10,3 @@" },
+    { kind: "ctx", content: "keep", oldLine: 10, newLine: 10 },
+    { kind: "del", content: "gone", oldLine: 11 },
+    { kind: "del", content: "gone", oldLine: 12 },
+    { kind: "del", content: "gone", oldLine: 13 },
+    { kind: "ctx", content: "keep", oldLine: 14, newLine: 11 },
+    { kind: "ctx", content: "keep", oldLine: 15, newLine: 12 },
+    ...base,
+  ];
+  const edges = new Map<string, EdgeExpansion>([
+    ["c1:1:up", stubExpansion(10, 29)],
+    ["c2:1:up", stubExpansion(1, 5)],
+  ]);
+
+  it("counts the deletions a window brings, not only its lines", () => {
+    expect(countExpandedRows(edges, "c1", base, fileRows, "unified")).toBe(23);
+  });
+
+  it("counts a deletion run beside the lines it precedes once in split", () => {
+    expect(countExpandedRows(edges, "c1", base, fileRows, "split")).toBe(23);
+  });
+
+  it("falls back to the window's lines without the file's rows", () => {
+    expect(countExpandedRows(edges, "c1", base, undefined, "unified")).toBe(20);
+  });
+
+  it("counts nothing for a chunk with no stored edge", () => {
+    expect(countExpandedRows(edges, "c9", base, fileRows, "unified")).toBe(0);
   });
 });
 

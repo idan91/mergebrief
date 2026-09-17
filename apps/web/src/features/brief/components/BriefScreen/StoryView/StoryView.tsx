@@ -24,7 +24,7 @@ import type {
 } from "../../../types";
 import {
   collectClaimedLines,
-  countExpandedLines,
+  countExpandedRows,
 } from "../../../utils/expansionState";
 import type { BriefViewModel, RiskFlag } from "../../../utils/viewModel";
 import { GroupViewKinds } from "../../../utils/viewModel";
@@ -48,6 +48,7 @@ import { RiskBadge } from "../RiskBadge/RiskBadge";
 import { RiskChipDisclosure } from "../RiskChipDisclosure/RiskChipDisclosure";
 import { RiskDetailList } from "../RiskDetailList/RiskDetailList";
 import { estimateChunkCardHeight } from "../chunkHeightModel";
+import { useFileRows } from "../../../hooks/useFileRows";
 import { useChunkWindows } from "../chunkWindows";
 import { useReadingPosition } from "../readingPosition";
 import { CHUNK_WINDOW_INDEX_ATTR, useGroupWindow } from "../useGroupWindow";
@@ -238,7 +239,7 @@ export function StoryView(props: StoryViewProps) {
 
 const NO_DIFF: DiffLine[] = [];
 
-function countDiffRows(diff: DiffLine[], view: DiffView): number {
+function countDiffRows(diff: readonly DiffLine[], view: DiffView): number {
   return view === DiffViews.SPLIT ? countSplitRows(diff) : diff.length;
 }
 
@@ -336,16 +337,25 @@ function WindowedChunkList({
 
   const { openChunks } = view;
   const expandedEdges = useReviewFlow((state) => state.expandedEdges);
+  const fileRowsCache = useFileRows();
   // Counted once per group: the virtualizer asks for every unmeasured card
-  // on each measurement pass. Expanded context charges the same row height.
+  // on each measurement pass. Expanded rows charge the same row height.
   const diffRowCounts = useMemo(
     () =>
-      group.chunks.map(
-        (chunk) =>
-          countDiffRows(chunk.diff ?? NO_DIFF, diffView) +
-          countExpandedLines(expandedEdges, chunk.id),
-      ),
-    [group.chunks, diffView, expandedEdges],
+      group.chunks.map((chunk) => {
+        const base = chunk.diff ?? NO_DIFF;
+        return (
+          countDiffRows(base, diffView) +
+          countExpandedRows(
+            expandedEdges,
+            chunk.id,
+            base,
+            fileRowsCache?.getFileRows(chunk.file),
+            diffView,
+          )
+        );
+      }),
+    [group.chunks, diffView, expandedEdges, fileRowsCache],
   );
   const estimateChunk = useCallback(
     (index: number) => {

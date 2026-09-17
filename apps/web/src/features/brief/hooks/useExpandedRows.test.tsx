@@ -17,6 +17,8 @@ import {
   ExpansionSourceProvider,
   type ExpansionSource,
 } from "./useExpansionSource";
+import { FileRowsProvider } from "./useFileRows";
+import type { FileRowsCache } from "../utils/fileRows";
 
 const HEAD = "b".repeat(40);
 const SOURCE: ExpansionSource = { repoId: "repo-1", prNumber: 7, ref: HEAD };
@@ -26,7 +28,7 @@ const rows: DiffLine[] = [
   { kind: "add", content: "c", newLine: 31 },
 ];
 
-function setup(source: ExpansionSource | undefined) {
+function setup(source: ExpansionSource | undefined, fileRows?: FileRowsCache) {
   const queryClient = new QueryClient();
   const flowStore = createReviewFlowStore(
     {
@@ -49,7 +51,11 @@ function setup(source: ExpansionSource | undefined) {
     return (
       <QueryClientProvider client={queryClient}>
         <ExpansionSourceProvider source={source}>
-          <ReviewFlowProvider store={flowStore}>{children}</ReviewFlowProvider>
+          <FileRowsProvider cache={fileRows}>
+            <ReviewFlowProvider store={flowStore}>
+              {children}
+            </ReviewFlowProvider>
+          </FileRowsProvider>
         </ExpansionSourceProvider>
       </QueryClientProvider>
     );
@@ -120,5 +126,43 @@ describe("useExpandedRows", () => {
     expect(result.current.expansionKey).toBe("c1:1:up=25-29");
     const up = result.current.edges.find((edge) => edge.edgeKey === "c1:1:up");
     expect(up).toMatchObject({ rowIndex: 1, gap: { from: 1, to: 29 } });
+  });
+
+  it("splices a hunk's rows from the file diff without a range read", () => {
+    const fileRows: DiffLine[] = [
+      { kind: "hunk", content: "@@ -28,2 +25,3 @@" },
+      { kind: "ctx", content: "k", oldLine: 28, newLine: 25 },
+      { kind: "del", content: "old", oldLine: 29 },
+      { kind: "add", content: "n1", newLine: 26 },
+      { kind: "add", content: "n2", newLine: 27 },
+      ...rows,
+    ];
+    const cache: FileRowsCache = {
+      isEmpty: false,
+      getFileRows: () => fileRows,
+    };
+    const { queryClient, flowStore, wrapper } = setup(SOURCE, cache);
+    const { result } = renderHook(
+      () =>
+        useExpandedRows({ chunkId: "c1", path: "src/a.ts", rows, claimed: [] }),
+      { wrapper },
+    );
+    act(() => {
+      flowStore
+        .getState()
+        .actions.expandEdge("c1:1:up", { start: 25, end: 27 });
+    });
+
+    expect(result.current.rows.map((row) => [row.kind, row.origin])).toEqual([
+      ["hunk", undefined],
+      ["ctx", "expanded"],
+      ["del", "expanded"],
+      ["add", "expanded"],
+      ["add", "expanded"],
+      ["ctx", undefined],
+      ["add", undefined],
+    ]);
+    expect(result.current.baseIndexOf).toEqual([0, -1, -1, -1, -1, 1, 2]);
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(0);
   });
 });

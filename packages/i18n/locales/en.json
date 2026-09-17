@@ -545,7 +545,7 @@
       "expandNotText": "This path is not an expandable text file.",
       "expandNotFound": "This file is not in the commit this brief was built from.",
       "expandUnavailable": "Could not read the file right now. Try again.",
-      "expandOutsideDiff": "Outside the diff; comments need a changed line."
+      "expandOutsideDiff": "Read from the file; comments need a line of this chunk's own diff."
     },
     "summarySection": {
       "eyebrowDelta": "Delta brief",

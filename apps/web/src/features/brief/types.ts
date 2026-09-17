@@ -690,6 +690,8 @@ export interface SpliceExpandedRowsParams {
   diff: readonly DiffLine[];
   gap: ExpansionGap;
   range: FileRangeSlice;
+  /** The file's whole diff; absent falls back to range lines with the edge offset. */
+  fileRows?: readonly DiffLine[];
   claimed?: readonly LineRange[];
   /** The last hole line the sibling read covers; the hole closes together. */
   coveredTo?: number;
@@ -699,6 +701,7 @@ export interface SpliceExpandedRowsParams {
 export interface ExpansionApplication {
   gap: ExpansionGap;
   range: FileRangeSlice;
+  fileRows?: readonly DiffLine[];
   claimed?: readonly LineRange[];
   coveredTo?: number;
 }
@@ -728,7 +731,22 @@ export interface SpliceStoredEdgesParams {
   rows: readonly DiffLine[];
   edges: readonly StoredEdge[];
   lines: ReadonlyMap<number, string>;
+  fileRows?: readonly DiffLine[] | undefined;
   claimed: readonly LineRange[];
+}
+
+/** Where an expansion window's rows come from: the file's diff and the chunk's own rows. */
+export interface WindowRowSources {
+  fileRows: readonly DiffLine[];
+  window: ExpansionWindow;
+  /** The hole's first line: a deletion anchored just above it rides the first read. */
+  holeStart: number;
+  /** The chunk's own rows; a deletion they carry is never repeated. */
+  base: readonly DiffLine[];
+}
+
+export interface CollectWindowRowsParams extends WindowRowSources {
+  range: FileRangeSlice;
 }
 
 export interface ExpanderStep {

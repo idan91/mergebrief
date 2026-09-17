@@ -101,16 +101,13 @@ export function parseUnifiedDiffPatch(patch: string): DiffLine[] {
   // the last row; read as a line it would become a context row past the hunk.
   const lines = patch.split("\n");
   if (lines.at(-1) === "") lines.pop();
+  // Git writes any number of header lines before a file's first hunk
+  // (rename, mode, similarity, binary); none of them is content.
+  let inHunk = false;
 
   for (const line of lines) {
-    if (
-      line.startsWith("diff --git ") ||
-      line.startsWith("--- ") ||
-      line.startsWith("+++ ") ||
-      line.startsWith("index ") ||
-      line.startsWith("new file mode ") ||
-      line.startsWith("deleted file mode ")
-    ) {
+    if (line.startsWith("diff --git ")) {
+      inHunk = false;
       continue;
     }
     if (line.startsWith("@@")) {
@@ -118,8 +115,10 @@ export function parseUnifiedDiffPatch(patch: string): DiffLine[] {
       oldLine = parsedHunk.oldStart;
       newLine = parsedHunk.newStart;
       rows.push({ kind: "hunk", content: line });
+      inHunk = true;
       continue;
     }
+    if (!inHunk) continue;
     if (line.startsWith("\\ No newline")) {
       rows.push({ kind: "note", content: line });
       continue;

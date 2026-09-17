@@ -18,6 +18,7 @@ import {
   type ResolveExpansionWindowParams,
   type SpliceExpandedRowsParams,
 } from "../types";
+import { collectWindowRows } from "./fileWindowRows";
 
 /** Lines one click reads; a hole with no more than this left opens whole. */
 export const EXPAND_STEP = 20;
@@ -132,7 +133,16 @@ export function spliceExpandedRows(
   );
   if (bounded === undefined) return [...diff];
 
-  const rows = buildExpandedRows(bounded, range, gap.offset);
+  const rows =
+    params.fileRows === undefined
+      ? buildExpandedRows(bounded, range, gap.offset)
+      : collectWindowRows({
+          fileRows: params.fileRows,
+          window: bounded,
+          holeStart: gap.from,
+          base: diff,
+          range,
+        });
   if (rows.length === 0) return [...diff];
 
   const index = gap.edge.rowIndex;
@@ -165,6 +175,7 @@ export function spliceAllExpandedRows(
       gap: entry.gap,
       range: entry.range,
     };
+    if (entry.fileRows !== undefined) params.fileRows = entry.fileRows;
     if (entry.claimed !== undefined) params.claimed = entry.claimed;
     if (entry.coveredTo !== undefined) params.coveredTo = entry.coveredTo;
     rows = spliceExpandedRows(params);

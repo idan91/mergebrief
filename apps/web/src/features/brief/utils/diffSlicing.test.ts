@@ -68,6 +68,19 @@ describe("parseUnifiedDiffPatch", () => {
     expect(note?.content).toBe("\\ No newline at end of file");
   });
 
+  it("keeps a removed or added line that starts with two dashes or pluses", () => {
+    const rows = parseUnifiedDiffPatch(
+      ["@@ -1,2 +1,2 @@", "--- foo", "+++ bar", " keep"].join("\n"),
+    );
+
+    expect(rows).toEqual([
+      { kind: "hunk", content: "@@ -1,2 +1,2 @@" },
+      { kind: "del", content: "-- foo", oldLine: 1 },
+      { kind: "add", content: "++ bar", newLine: 1 },
+      { kind: "ctx", content: "keep", oldLine: 2, newLine: 2 },
+    ]);
+  });
+
   it("returns an empty list for an empty patch body", () => {
     expect(parseUnifiedDiffPatch("")).toEqual([]);
   });
@@ -80,6 +93,38 @@ describe("parseUnifiedDiffPatch", () => {
       { kind: "add", content: "a", newLine: 1 },
       { kind: "add", content: "b", newLine: 2 },
     ]);
+  });
+});
+
+describe("parseUnifiedDiffPatch with git extended headers", () => {
+  it("ignores every header line before a file's first hunk", () => {
+    const rows = parseUnifiedDiffPatch(
+      [
+        "diff --git a/src/old.ts b/src/new.ts",
+        "similarity index 92%",
+        "rename from src/old.ts",
+        "rename to src/new.ts",
+        "old mode 100644",
+        "new mode 100755",
+        "--- a/src/old.ts",
+        "+++ b/src/new.ts",
+        "@@ -3,2 +3,2 @@",
+        " keep",
+        "-old",
+        "+new",
+      ].join("\n"),
+    );
+
+    expect(rows.map((row) => row.kind)).toEqual(["hunk", "ctx", "del", "add"]);
+    expect(rows[1]).toMatchObject({ oldLine: 3, newLine: 3 });
+  });
+
+  it("yields no rows for a binary or mode-only file", () => {
+    const rows = parseUnifiedDiffPatch(
+      ["diff --git a/logo.png b/logo.png", "Binary files differ"].join("\n"),
+    );
+
+    expect(rows).toEqual([]);
   });
 });
 

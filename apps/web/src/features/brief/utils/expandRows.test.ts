@@ -630,3 +630,105 @@ describe("spliceAllExpandedRows", () => {
     expect(rows.map((row) => row.newLine)).toEqual([1, 2, 3, 28, 29, 30]);
   });
 });
+
+describe("spliceExpandedRows from the file's own rows", () => {
+  const fileRows: DiffLine[] = [
+    makeHunk(20, 20),
+    makeCtx(20, 20),
+    makeDel(21),
+    makeAdd(21),
+    makeCtx(22, 22),
+    makeHunk(40, 40),
+    makeCtx(40, 40),
+    makeAdd(41),
+    makeCtx(41, 42),
+  ];
+  const diff = [
+    makeHunk(40, 40),
+    makeCtx(40, 40),
+    makeAdd(41),
+    makeCtx(41, 42),
+  ];
+
+  it("splices a hunk's add and del rows where the window overlaps it", () => {
+    const gap = findExpansionGaps(diff).find(
+      (candidate) => candidate.from === 1,
+    )!;
+    const rows = spliceExpandedRows({
+      diff,
+      gap,
+      range: { from: 20, to: 39, lines: makeLines(20, 39) },
+      fileRows,
+    });
+
+    expect(rows.slice(1, 5)).toEqual([
+      { ...makeCtx(20, 20), origin: DiffRowOrigins.EXPANDED },
+      { ...makeDel(21), origin: DiffRowOrigins.EXPANDED },
+      { ...makeAdd(21), origin: DiffRowOrigins.EXPANDED },
+      { ...makeCtx(22, 22), origin: DiffRowOrigins.EXPANDED },
+    ]);
+    expect(rows[5]).toMatchObject({
+      kind: "ctx",
+      oldLine: 23,
+      newLine: 23,
+      content: "file 23",
+    });
+    expect(rows).toHaveLength(diff.length + 21);
+  });
+
+  it("still drops the seam header when the reads meet through a hunk", () => {
+    const gaps = findExpansionGaps(diff);
+    const up = gaps.find((gap) => gap.from === 1)!;
+    const rows = spliceAllExpandedRows(diff, [
+      {
+        gap: up,
+        range: { from: 1, to: 39, lines: makeLines(1, 39) },
+        fileRows,
+      },
+    ]);
+
+    expect(rows.filter((row) => row.kind === DiffLineKinds.HUNK)).toHaveLength(
+      0,
+    );
+    expect(rows.filter((row) => row.kind === DiffLineKinds.DEL)).toHaveLength(
+      1,
+    );
+  });
+
+  it("takes each side of a hole through a hunk once and drops the seam", () => {
+    const gaps = findExpansionGaps(diff);
+    const up = gaps.find((gap) => gap.from === 1)!;
+    const hole = [makeHunk(1, 1), makeCtx(1, 1), ...diff];
+    const holeGaps = findExpansionGaps(hole);
+    const down = holeGaps.find(
+      (gap) =>
+        gap.from === 2 && gap.edge.direction === ExpansionDirections.DOWN,
+    )!;
+    const upEdge = holeGaps.find(
+      (gap) => gap.from === 2 && gap.edge.direction === ExpansionDirections.UP,
+    )!;
+    const rows = spliceAllExpandedRows(hole, [
+      {
+        gap: down,
+        range: { from: 2, to: 21, lines: makeLines(2, 21) },
+        fileRows,
+      },
+      {
+        gap: upEdge,
+        range: { from: 22, to: 39, lines: makeLines(22, 39) },
+        fileRows,
+      },
+    ]);
+
+    expect(up.from).toBe(1);
+    expect(rows.filter((row) => row.kind === DiffLineKinds.HUNK)).toHaveLength(
+      1,
+    );
+    expect(rows.filter((row) => row.kind === DiffLineKinds.DEL)).toHaveLength(
+      1,
+    );
+    expect(
+      rows.filter((row) => row.origin === DiffRowOrigins.EXPANDED),
+    ).toHaveLength(39);
+  });
+});

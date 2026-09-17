@@ -1,4 +1,5 @@
 import { type DiffLine, DiffRowOrigins } from "@web/utils/diffTokens/types";
+import type { DiffView } from "@web/components/DiffRows/types";
 import {
   type BriefChunk,
   type EdgeExpansion,
@@ -20,6 +21,7 @@ import {
   resolveExpansionWindow,
   spliceAllExpandedRows,
 } from "./expandRows";
+import { countWindowRows } from "./fileWindowRows";
 import { isUnattributedRemainderChunk } from "./remainder";
 
 /** The base gaps paired with what the store holds for each, if anything. */
@@ -45,11 +47,15 @@ export function collectStoredEdges(
  * reads that meet drop the seam header) and applies them bottom-up.
  */
 export function spliceStoredEdges(params: SpliceStoredEdgesParams): DiffLine[] {
-  const applications: ExpansionApplication[] = params.edges.map((edge) => ({
-    gap: edge.gap,
-    range: sliceLines(edge.expansion.range, params.lines),
-    claimed: params.claimed,
-  }));
+  const applications: ExpansionApplication[] = params.edges.map((edge) => {
+    const application: ExpansionApplication = {
+      gap: edge.gap,
+      range: sliceLines(edge.expansion.range, params.lines),
+      claimed: params.claimed,
+    };
+    if (params.fileRows !== undefined) application.fileRows = params.fileRows;
+    return application;
+  });
 
   return spliceAllExpandedRows(params.rows, applications);
 }
@@ -145,17 +151,32 @@ function contains(outer: ExpansionGap, inner: ExpansionGap): boolean {
   return inner.to !== undefined && inner.to <= outer.to;
 }
 
-/** The rows expansion has added to a chunk, for the height model. */
-export function countExpandedLines(
+/**
+ * The rows a chunk's stored expansions add, for the height model, counted
+ * without building them. Without the file's rows a window counts its lines;
+ * the hole's top is taken as the union's start, close enough for an estimate.
+ */
+export function countExpandedRows(
   expandedEdges: ReadonlyMap<string, EdgeExpansion>,
   chunkId: string,
+  base: readonly DiffLine[],
+  fileRows: readonly DiffLine[] | undefined,
+  view: DiffView,
 ): number {
   const prefix = `${chunkId}:`;
   let count = 0;
 
   for (const [edgeKey, expansion] of expandedEdges) {
     if (!edgeKey.startsWith(prefix)) continue;
-    count += expansion.range.end - expansion.range.start + 1;
+    const { start, end } = expansion.range;
+    if (fileRows === undefined) {
+      count += end - start + 1;
+      continue;
+    }
+    count += countWindowRows(
+      { fileRows, window: { from: start, to: end }, holeStart: start, base },
+      view,
+    );
   }
 
   return count;
