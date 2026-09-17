@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties } from "react";
 import type { ThreadComposerWiring } from "@web/features/conversation";
 import type { DigestThreadRow } from "@web/features/conversation/utils";
 import type {
@@ -65,16 +65,6 @@ export interface RailView {
 export interface UnderRowLayout {
   columnCount: number;
   sideColumns: number | undefined;
-}
-
-export interface UnderRowProps {
-  layout: UnderRowLayout;
-  /** Under one side in the split view; absent spans the whole row. */
-  placement?: SplitSide | undefined;
-  conversationThread?: number | undefined;
-  /** Inside a sibling span's frame, so the row carries the frame's edges. */
-  spanned?: boolean;
-  children: ReactNode;
 }
 
 export interface DragSelection {

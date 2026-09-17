@@ -1,12 +1,19 @@
 import { describe, expect, it } from "vitest";
 
 import type { DiffLine } from "@web/utils/diffTokens/types";
+import type { BriefChunk, ExpandableEdge } from "../../../types";
+import type { DiffRowView } from "./diffRowView";
 import { pairSplitRows } from "@web/components/DiffRows/pairSplitRows";
 import type { SiblingSpan } from "../../../utils/siblingSpans";
 import {
+  collectDragBaseIndexes,
   frameSpans,
   frameSpansOnPairs,
+  resolveBeforeRowEdges,
+  resolveHunkRowEdges,
   resolveSpanLines,
+  resolveSpanRangeOwner,
+  mapToBaseIndexes,
   unzipPairsByOwner,
 } from "./utils";
 
@@ -140,5 +147,105 @@ describe("unzipPairsByOwner", () => {
     const pairs = unzipPairsByOwner(pairSplitRows(ROWS), () => undefined);
 
     expect(pairs).toHaveLength(4);
+  });
+});
+
+describe("mapToBaseIndexes", () => {
+  it("returns the indexes untouched when nothing is spliced", () => {
+    expect(mapToBaseIndexes([2, 3], undefined)).toEqual([2, 3]);
+  });
+
+  it("maps rendered indexes to base ones through the splice", () => {
+    expect(mapToBaseIndexes([1, 2], [0, 5, 6, -1])).toEqual([5, 6]);
+  });
+
+  it("answers nothing when a picked row is expanded context", () => {
+    expect(mapToBaseIndexes([2, 3], [0, 5, 6, -1])).toBeUndefined();
+  });
+});
+
+describe("collectDragBaseIndexes", () => {
+  it("keeps the base rows of a drag and drops the expanded ones", () => {
+    expect([
+      ...collectDragBaseIndexes(new Set([0, 1, 3]), [4, -1, 5, 6]),
+    ]).toEqual([4, 6]);
+  });
+});
+
+describe("resolveSpanRangeOwner", () => {
+  const owners = new Map([["c2", { id: "c2" }]]) as unknown as ReadonlyMap<
+    string,
+    BriefChunk
+  >;
+  const views = [
+    { isCommentable: true },
+    { isCommentable: true },
+    { isCommentable: false },
+  ] as unknown as DiffRowView[];
+
+  it("names the one owner of a commentable range inside a span", () => {
+    const byRow = new Map([
+      [0, "c2"],
+      [1, "c2"],
+    ]);
+
+    expect(resolveSpanRangeOwner([0, 1], byRow, views, owners)?.id).toBe("c2");
+  });
+
+  it("refuses a range that leaves the span or crosses context", () => {
+    const byRow = new Map([
+      [0, "c2"],
+      [1, "c3"],
+      [2, "c2"],
+    ]);
+
+    expect(resolveSpanRangeOwner([0, 1], byRow, views, owners)).toBeUndefined();
+    expect(
+      resolveSpanRangeOwner(
+        [0, 2],
+        new Map([
+          [0, "c2"],
+          [2, "c2"],
+        ]),
+        views,
+        owners,
+      ),
+    ).toBeUndefined();
+  });
+});
+
+describe("expand slot edges", () => {
+  const makeEdge = (direction: "up" | "down") =>
+    ({ gap: { edge: { direction } } }) as unknown as ExpandableEdge;
+  const byRow = new Map([
+    [3, [makeEdge("down")]],
+    [4, [makeEdge("up"), makeEdge("down")]],
+    [7, [makeEdge("up")]],
+  ]);
+
+  it("gives a hunk row its own edges plus the up edge right under it", () => {
+    const own = resolveHunkRowEdges(byRow, 3);
+
+    expect(own.map((candidate) => candidate.gap.edge.direction)).toEqual([
+      "down",
+      "up",
+    ]);
+  });
+
+  it("keeps a row's up edge off the row under a hunk header", () => {
+    const ctx = { kind: "ctx", content: "" } as DiffLine;
+    const hunk = { kind: "hunk", content: "" } as DiffLine;
+
+    expect(resolveBeforeRowEdges(byRow, 4, ctx, hunk)).toHaveLength(1);
+    expect(resolveBeforeRowEdges(byRow, 7, ctx, ctx)).toHaveLength(1);
+    expect(resolveBeforeRowEdges(byRow, 3, hunk, ctx)).toHaveLength(0);
+  });
+
+  it("hosts nothing when the header above took the row's only up edge", () => {
+    const ctx = { kind: "ctx", content: "" } as DiffLine;
+    const hunk = { kind: "hunk", content: "" } as DiffLine;
+
+    expect(resolveBeforeRowEdges(byRow, 7, ctx, hunk)).toHaveLength(0);
+    expect(resolveBeforeRowEdges(byRow, 7, ctx, undefined)).toHaveLength(1);
   });
 });

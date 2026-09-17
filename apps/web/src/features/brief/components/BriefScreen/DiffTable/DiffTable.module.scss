@@ -17,15 +17,6 @@
     }
   }
 
-  .spanEnd td {
-    padding: functions.to-rem(5px) 0 0;
-    border-block-end: 1px solid var(--span-rule);
-    border-inline-end: 1px solid var(--span-rule);
-    font-size: 0;
-    line-height: 0;
-    box-shadow: var(--span-edge-bar);
-  }
-
   // The frame's right rule rides the spanned gutter cell's attribute, or the
   // row's own for a comment row, which has no gutter cell: a border, not a
   // shadow, because the code cell's own edge bar is one.
@@ -66,8 +57,8 @@
 
   .diff {
     // Earned: the sibling span frame's edge, the same inset the spanned
-    // gutter cells paint, and its rule, a step below; the end row and the
-    // spanned comment rows read both from here.
+    // gutter cells paint, and its rule, a step below; the spanned comment
+    // rows read both from here.
     --span-edge-bar: inset 1px 0 0 var(--dim);
     --span-rule: color-mix(in srgb, var(--dim) 45%, transparent);
 
@@ -99,104 +90,15 @@
     user-select: none;
   }
 
-  // A card under one side: no sticky pinning, it scrolls with its side, and
-  // the inset clears whatever columns that side's cell spans, so the card's
-  // edge meets its own code column. Right clears its 42px number column.
-  .commentRow[data-placement] td {
-    padding-inline: functions.to-rem(42px) functions.to-rem(14px);
-
-    > * {
-      position: static;
-      max-inline-size: none;
-    }
-  }
-
-  // The left card spans the union rail as well as its numbers, so it clears
-  // 26px of rail plus 42px of number to meet the same code edge.
-  .commentRow[data-placement="left"] td {
-    padding-inline-start: functions.to-rem(68px);
-  }
-
-  .commentRow[data-placement] td.commentGap {
-    padding: 0;
-  }
-
-  .colRail {
-    inline-size: functions.to-rem(26px);
-  }
-
-  .colNumber {
-    inline-size: functions.to-rem(42px);
-  }
-
-  .colCode {
-    inline-size: calc(
-      (100% - functions.to-rem(26px) - 2 * functions.to-rem(42px)) / 2
-    );
-  }
-
-  .newTag {
-    padding-block: 0;
-    padding-inline: functions.to-rem(6px);
-
-    // Same as .sign: the badge text would fuse onto copied code.
-    // stylelint-disable-next-line property-no-vendor-prefix
-    -webkit-user-select: none;
-    user-select: none;
-    border: 1px solid color-mix(in srgb, var(--blue) 45%, transparent);
-    border-radius: var(--radius-pill);
-    margin-inline-start: functions.to-rem(10px);
-    color: var(--blue);
-    font-family: var(--sans);
-    font-size: var(--font-size-xs);
-    font-weight: 600;
-    vertical-align: 1px;
-
-    &[data-kind="removed"] {
-      border-color: color-mix(in srgb, var(--red) 50%, transparent);
-      color: var(--red);
-    }
-  }
-
-  // 98px tracks DiffRows: the gutter column plus two 42px line-number cells.
-  .commentRow td {
-    vertical-align: top;
-    padding-block: 0 functions.to-rem(12px);
-    padding-inline: functions.to-rem(98px) functions.to-rem(14px);
-    white-space: normal;
-
-    // The colSpan cell is as wide as the table, so the composer pins to the
-    // scrollport width (100cqw minus this cell's padding) instead of
-    // stretching with it.
-    > * {
-      position: sticky;
-      inset-inline-start: functions.to-rem(98px);
-      max-inline-size: calc(100cqw - functions.to-rem(112px));
-    }
-  }
-
-  /* Inset ring — an outer box-shadow on a table row clips against
-     adjacent rows. */
-  .commentRow[data-conversation-flash] > td > * {
-    animation: conversation-row-flash 1.4s ease-out 1;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .commentRow[data-conversation-flash] > td > * {
-      animation: none;
-      box-shadow: var(--shadow-ring-highlight);
-    }
-  }
-
   /* A landed diff row flashes its cells' background: a ring on a table
      row clips, and the cells already carry inset edge bars. */
-  .diff tr[data-conversation-flash]:not(.commentRow) > td,
+  .diff tr[data-conversation-flash]:not([data-under-row]) > td,
   .diff td[data-conversation-flash] {
     animation: conversation-cell-flash 1.4s ease-out 1;
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .diff tr[data-conversation-flash]:not(.commentRow) > td,
+    .diff tr[data-conversation-flash]:not([data-under-row]) > td,
     .diff td[data-conversation-flash] {
       animation: none;
       background-color: color-mix(
@@ -219,15 +121,5 @@
 
   100% {
     background-color: transparent;
-  }
-}
-
-@keyframes conversation-row-flash {
-  0% {
-    box-shadow: var(--shadow-ring-highlight);
-  }
-
-  100% {
-    box-shadow: var(--shadow-ring-clear);
   }
 }

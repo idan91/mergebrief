@@ -1,0 +1,26 @@
+@use "functions";
+
+@layer components {
+  .tag {
+    padding-block: 0;
+    padding-inline: functions.to-rem(6px);
+
+    // Same as the sign column: the badge text would fuse onto copied code.
+    // stylelint-disable-next-line property-no-vendor-prefix
+    -webkit-user-select: none;
+    user-select: none;
+    border: 1px solid color-mix(in srgb, var(--blue) 45%, transparent);
+    border-radius: var(--radius-pill);
+    margin-inline-start: functions.to-rem(10px);
+    color: var(--blue);
+    font-family: var(--sans);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    vertical-align: 1px;
+
+    &[data-kind="removed"] {
+      border-color: color-mix(in srgb, var(--red) 50%, transparent);
+      color: var(--red);
+    }
+  }
+}

@@ -10,6 +10,8 @@ import {
   isLineCommentAnchor,
   type LineCommentAnchor,
   type ReviewComment,
+  createCommentAnchor,
+  createSideAnchor,
   rowId,
 } from "@web/features/review/utils";
 import {
@@ -34,7 +36,10 @@ import type { DragSelection, RailView, UnderRowLayout } from "./types";
 import { NO_SELECTION } from "./consts";
 import { isContextKind } from "@web/utils/diffTokens/utils";
 import { type ExpandableEdge, ExpansionDirections } from "../../../types";
-import type { DigestThreadRow } from "@web/features/conversation/utils";
+import {
+  type DigestThreadRow,
+  demotedSubmittedCommentIds,
+} from "@web/features/conversation/utils";
 import type { SiblingSpan } from "../../../utils/siblingSpans";
 
 /** The other side of each paired row, so one rail can speak for both. */
@@ -340,10 +345,6 @@ export function groupEdgesByRow(
   return byRow;
 }
 
-export function isUpEdge(edge: ExpandableEdge): boolean {
-  return edge.gap.edge.direction === ExpansionDirections.UP;
-}
-
 /**
  * The focusable cell of the expanded row showing this head-file line. The
  * NEW-side number is the one to match, an old number can equal it.
@@ -575,4 +576,120 @@ export function collectSpannedRows(
   }
 
   return spanned;
+}
+
+/**
+ * Base rows anchor on base indexes; a range holding an expanded row has no
+ * base index and is answered by the span path instead.
+ */
+export function mapToBaseIndexes(
+  indexes: readonly number[],
+  baseIndexOf: readonly number[] | undefined,
+): number[] | undefined {
+  if (baseIndexOf === undefined) return [...indexes];
+  const mapped = indexes.map((index) => baseIndexOf[index] ?? -1);
+
+  return mapped.includes(-1) ? undefined : mapped;
+}
+
+/** The base rows a drag covers; expanded rows drop out. */
+export function collectDragBaseIndexes(
+  dragIndexes: ReadonlySet<number>,
+  baseIndexOf: readonly number[] | undefined,
+): Set<number> {
+  if (baseIndexOf === undefined) return new Set(dragIndexes);
+
+  return new Set(
+    [...dragIndexes]
+      .map((index) => baseIndexOf[index] ?? -1)
+      .filter((index) => index >= 0),
+  );
+}
+
+/**
+ * The one sibling that owns every picked row, when all of them are
+ * commentable: a range that leaves the span, or crosses into expanded
+ * context, has no owner.
+ */
+export function resolveSpanRangeOwner(
+  indexes: readonly number[],
+  spanOwnerByRow: ReadonlyMap<number, string>,
+  rowViews: readonly (DiffRowView | undefined)[],
+  ownerChunkById: ReadonlyMap<string, BriefChunk>,
+): BriefChunk | undefined {
+  const ownerIds = new Set(indexes.map((index) => spanOwnerByRow.get(index)));
+  if (ownerIds.size !== 1) return undefined;
+  const [ownerId] = ownerIds;
+  if (ownerId === undefined) return undefined;
+  if (indexes.some((index) => rowViews[index]?.isCommentable !== true)) {
+    return undefined;
+  }
+
+  return ownerChunkById.get(ownerId);
+}
+
+function isUpEdge(edge: ExpandableEdge): boolean {
+  return edge.gap.edge.direction === ExpansionDirections.UP;
+}
+
+/** A hunk row's control carries its own edges and the up edge of the row under it. */
+export function resolveHunkRowEdges(
+  edgesByRow: ReadonlyMap<number, readonly ExpandableEdge[]>,
+  index: number,
+): ExpandableEdge[] {
+  const hosted = edgesByRow.get(index) ?? [];
+  const above = edgesByRow.get(index + 1) ?? [];
+
+  return hosted.concat(above.filter(isUpEdge));
+}
+
+/**
+ * The edges a row of its own hosts above a line: none for a hunk row (its
+ * control is the row itself), and an up edge right under a header rides
+ * the header's own row.
+ */
+export function resolveBeforeRowEdges(
+  edgesByRow: ReadonlyMap<number, readonly ExpandableEdge[]>,
+  index: number,
+  row: DiffLine,
+  previousRow: DiffLine | undefined,
+): ExpandableEdge[] {
+  const hosted = edgesByRow.get(index) ?? [];
+  if (hosted.length === 0 || row.kind === DiffLineKinds.HUNK) return [];
+  if (previousRow?.kind !== DiffLineKinds.HUNK) return [...hosted];
+
+  return hosted.filter((edge) => !isUpEdge(edge));
+}
+
+/**
+ * Server-backed wins: once a posted comment's own GitHub thread renders,
+ * the local submitted card demotes out of display.
+ */
+export function demoteSubmitted(
+  comments: ReviewComment[],
+  ownThreads: readonly ConversationThread[],
+): ReviewComment[] {
+  if (ownThreads.length === 0) return comments;
+  const demoted = demotedSubmittedCommentIds(comments, ownThreads);
+
+  return demoted.size === 0
+    ? comments
+    : comments.filter((comment) => !demoted.has(comment.id));
+}
+
+/** A line anchor on the given rows, on one side when the pick stayed on one. */
+export function buildLineAnchor(
+  chunkId: string,
+  file: string,
+  sourceRows: DiffLine[],
+  indexes: number[],
+  side: SplitSide | undefined,
+): LineCommentAnchor | null {
+  if (side === undefined) {
+    return createCommentAnchor(chunkId, file, sourceRows, indexes);
+  }
+  const commentSide =
+    side === SplitSides.LEFT ? CommentSides.OLD : CommentSides.NEW;
+
+  return createSideAnchor(chunkId, file, sourceRows, indexes, commentSide);
 }
