@@ -72,6 +72,8 @@ export interface UnderRowProps {
   /** Under one side in the split view; absent spans the whole row. */
   placement?: SplitSide | undefined;
   conversationThread?: number | undefined;
+  /** Inside a sibling span's frame, so the row carries the frame's edges. */
+  spanned?: boolean;
   children: ReactNode;
 }
 

@@ -7,18 +7,22 @@
   }
 
   .cell {
-    // Earned: the frame's 2px edge, the same inset the spanned gutter cells paint.
-    --span-edge-bar: inset 2px 0 0 var(--dim);
+    // Earned: the frame's edge, the same inset the spanned gutter cells paint.
+    --span-edge-bar: inset 1px 0 0 var(--dim);
+
+    // Earned: the frame's rule, a step below its edge; DiffTable.module.scss
+    // declares the same value for the table.
+    --span-rule: color-mix(in srgb, var(--dim) 45%, transparent);
 
     padding-block: 0;
     padding-inline: functions.to-rem(14px);
-    border-block-start: 1px solid var(--line);
-    background: var(--color-surface-1);
+    border-block-start: 1px solid var(--span-rule);
+    border-inline-end: 1px solid var(--span-rule);
+    background: var(--color-background);
     color: var(--dim);
     box-shadow: var(--span-edge-bar);
   }
 
-  // A hunk row is 31px on the 22px row grid; the lane pins the same height.
   // Sticky to the scrollport like the comment rows: the cell spans a table
   // that can be wider than the viewport, and the control must stay in reach.
   .lane {
@@ -28,14 +32,19 @@
     flex-wrap: wrap;
     align-items: center;
     gap: functions.to-rem(4px) functions.to-rem(10px);
-    min-block-size: functions.to-rem(31px);
+    min-block-size: functions.to-rem(38px);
     max-inline-size: calc(100cqw - functions.to-rem(28px));
   }
 
   .label {
     flex: 0 1 auto;
     min-inline-size: 0;
+    color: var(--dim);
+  }
+
+  .name {
     color: var(--text);
+    font-weight: 600;
   }
 
   .summary {
@@ -46,8 +55,11 @@
     text-overflow: ellipsis;
   }
 
-  .jump {
+  // Outranks the button's own size rule; its pointer-target floors stay.
+  .lane .jump[data-size] {
     flex: none;
     margin-inline-start: auto;
+    padding-block: functions.to-rem(1px);
+    font-size: var(--font-size-sm);
   }
 }

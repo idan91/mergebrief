@@ -161,14 +161,10 @@ export type Catalog = typeof en & {
       expandHiddenThreads_one: "{{count}} comment in the hidden lines";
       expandHiddenThreads_other: "{{count}} comments in the hidden lines";
       siblingSpanRange: "{{from}} to {{to}}";
-      siblingSpanGroup_one: "Line {{lines}} belongs to {{group}}";
-      siblingSpanGroup_other: "Lines {{lines}} belong to {{group}}";
-      siblingSpanRemainder_one: "Line {{lines}} belongs to the unattributed remainder";
-      siblingSpanRemainder_other: "Lines {{lines}} belong to the unattributed remainder";
-      siblingSpanGroupRemoved_one: "Removed line {{lines}} belongs to {{group}}";
-      siblingSpanGroupRemoved_other: "Removed lines {{lines}} belong to {{group}}";
-      siblingSpanRemainderRemoved_one: "Removed line {{lines}} belongs to the unattributed remainder";
-      siblingSpanRemainderRemoved_other: "Removed lines {{lines}} belong to the unattributed remainder";
+      siblingSpanGroup_one: "Line {{lines}} belongs to <0/> (group {{index}} of {{total}})";
+      siblingSpanGroup_other: "Lines {{lines}} belong to <0/> (group {{index}} of {{total}})";
+      siblingSpanGroupRemoved_one: "Removed line {{lines}} belongs to <0/> (group {{index}} of {{total}})";
+      siblingSpanGroupRemoved_other: "Removed lines {{lines}} belong to <0/> (group {{index}} of {{total}})";
       siblingSpanJumpGroup: "Go to chunk in {{group}}";
     };
     markReadyBatch: (typeof en)["brief"]["markReadyBatch"] & {

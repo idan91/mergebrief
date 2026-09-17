@@ -1,4 +1,4 @@
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 
 import type { MouseEvent } from "react";
@@ -35,15 +35,35 @@ export function SiblingSpanHeader({
   jumpToLine,
 }: SiblingSpanHeaderProps) {
   const { t } = useTranslation();
-  const label = resolveSpanLabel(t, owner, side, from, to);
+  const count = to - from + 1;
+  const lines =
+    count === 1 ? String(from) : t("brief.diff.siblingSpanRange", { from, to });
   const jumpName = resolveJumpName(t, owner);
+  const labelKey =
+    side === "old"
+      ? "brief.diff.siblingSpanGroupRemoved"
+      : "brief.diff.siblingSpanGroup";
 
   return (
     <tr className={styles["header"]} data-testid="sibling-span">
       <td className={styles["cell"]} colSpan={columnCount}>
         <div className={styles["lane"]}>
           <span className={styles["label"]} data-testid="sibling-span-label">
-            {label}
+            <Trans
+              components={[
+                <strong className={styles["name"]} key="group">
+                  {owner.groupName}
+                </strong>,
+              ]}
+              count={count}
+              i18nKey={labelKey}
+              values={{
+                count,
+                lines,
+                index: owner.groupIndex,
+                total: owner.groupCount,
+              }}
+            />
           </span>
           {owner.summary === undefined ? null : (
             <span className={styles["summary"]}>{owner.summary}</span>
@@ -74,30 +94,6 @@ export function SiblingSpanHeader({
   );
 }
 
-/** A span that only deletes is numbered on the old side, and the copy says so. */
-function resolveSpanLabel(
-  t: TFunction,
-  owner: SpanOwner,
-  side: LineSide,
-  from: number,
-  to: number,
-): string {
-  const count = to - from + 1;
-  const lines =
-    count === 1 ? String(from) : t("brief.diff.siblingSpanRange", { from, to });
-  const group = owner.groupName;
-  if (owner.remainder) {
-    return side === "old"
-      ? t("brief.diff.siblingSpanRemainderRemoved", { count, lines })
-      : t("brief.diff.siblingSpanRemainder", { count, lines });
-  }
-
-  return side === "old"
-    ? t("brief.diff.siblingSpanGroupRemoved", { count, lines, group })
-    : t("brief.diff.siblingSpanGroup", { count, lines, group });
-}
-
-/** The control's accessible name; it starts with the visible label. */
 function resolveJumpName(t: TFunction, owner: SpanOwner): string {
   if (owner.remainder) return t("brief.diff.siblingSpanJumpRemainder");
 

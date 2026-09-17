@@ -17,6 +17,9 @@ export interface LineTarget {
 export interface SpanOwner {
   chunkId: string;
   groupName: string;
+  /** The group's 1-based place in reading order and how many groups there are. */
+  groupIndex: number;
+  groupCount: number;
   summary?: string;
   remainder: boolean;
 }
@@ -47,7 +50,13 @@ export function buildLineOwnersByFile(
     const remainder = group.kind === GroupViewKinds.UNATTRIBUTED_REMAINDER;
 
     for (const chunk of group.chunks) {
-      const owner: SpanOwner = { chunkId: chunk.id, groupName, remainder };
+      const owner: SpanOwner = {
+        chunkId: chunk.id,
+        groupName,
+        groupIndex: group.index + 1,
+        groupCount: model.groups.length,
+        remainder,
+      };
       if (chunk.summary !== undefined) {
         owner.summary = chunk.summary;
       }

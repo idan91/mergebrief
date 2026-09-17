@@ -634,6 +634,8 @@ describe("DiffTable sibling spans", () => {
         {
           chunkId: "c2",
           groupName: "Fix the leak",
+          groupIndex: 2,
+          groupCount: 3,
           summary: "Adds the guard",
           remainder: false,
         },
@@ -643,6 +645,8 @@ describe("DiffTable sibling spans", () => {
         {
           chunkId: "u-1",
           groupName: "Unattributed remainder",
+          groupIndex: 3,
+          groupCount: 3,
           remainder: true,
         },
       ],
@@ -705,11 +709,14 @@ describe("DiffTable sibling spans", () => {
     );
 
     expect(headers[0]?.textContent).toContain(
-      "Lines 11 to 12 belong to Fix the leak",
+      "Lines 11 to 12 belong to Fix the leak (group 2 of 3)",
     );
     expect(headers[0]?.textContent).toContain("Adds the guard");
+    expect(headers[0]?.querySelector("strong")?.textContent).toBe(
+      "Fix the leak",
+    );
     expect(headers[1]?.textContent).toContain(
-      "Line 16 belongs to the unattributed remainder",
+      "Line 16 belongs to Unattributed remainder (group 3 of 3)",
     );
     expect(view.container.querySelectorAll("td[data-span]")).toHaveLength(4);
     expect(headers[0]?.nextElementSibling?.getAttribute("data-line-kind")).toBe(
@@ -851,8 +858,26 @@ describe("DiffTable sibling spans", () => {
     const owners: FileLineOwners = {
       chunks: [stubChunk(), deleter, adder],
       owners: new Map([
-        ["c2", { chunkId: "c2", groupName: "Fix the leak", remainder: false }],
-        ["c3", { chunkId: "c3", groupName: "Add the guard", remainder: false }],
+        [
+          "c2",
+          {
+            chunkId: "c2",
+            groupName: "Fix the leak",
+            groupIndex: 2,
+            groupCount: 3,
+            remainder: false,
+          },
+        ],
+        [
+          "c3",
+          {
+            chunkId: "c3",
+            groupName: "Add the guard",
+            groupIndex: 3,
+            groupCount: 3,
+            remainder: false,
+          },
+        ],
       ]),
     };
     const harness = renderHarness(
@@ -881,8 +906,8 @@ describe("DiffTable sibling spans", () => {
             ?.textContent,
       ),
     ).toEqual([
-      "Removed lines 14 to 15 belong to Fix the leak",
-      "Lines 11 to 12 belong to Add the guard",
+      "Removed lines 14 to 15 belong to Fix the leak (group 2 of 3)",
+      "Lines 11 to 12 belong to Add the guard (group 3 of 3)",
     ]);
     for (const row of harness.view.container.querySelectorAll("tr")) {
       if (row.querySelector(`td${EXPANDED_ORIGIN_SELECTOR}`) === null) {
@@ -919,6 +944,18 @@ describe("DiffTable sibling spans", () => {
     });
     expect(openCommentComposer.mock.calls[0]?.[1]).toBe("c1");
     expect(row.nextElementSibling?.querySelector("textarea")).not.toBeNull();
+  });
+
+  it("keeps a composer row inside a span in the frame", async () => {
+    const { view } = await expandIntoSiblings("unified");
+    const row = findSpanRow(view.container, "11");
+    const number = row.querySelector("[data-line-number]")!;
+    fireEvent.mouseDown(number);
+    fireEvent.mouseUp(number);
+
+    const composerRow = row.nextElementSibling!;
+    expect(composerRow.querySelector("textarea")).not.toBeNull();
+    expect(composerRow.hasAttribute("data-span")).toBe(true);
   });
 
   it("anchors a deletion picked inside a span on the old side", async () => {

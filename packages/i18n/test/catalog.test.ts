@@ -67,6 +67,10 @@ describe("hard-fail catalog gates", () => {
       .filter(([, template]) => tagIndices(template).length > 0)
       .map(([key, template]) => [key, tagIndices(template).length]);
     expect(Object.fromEntries(slotted)).toEqual({
+      "brief.diff.siblingSpanGroupRemoved_one": 1,
+      "brief.diff.siblingSpanGroupRemoved_other": 1,
+      "brief.diff.siblingSpanGroup_one": 1,
+      "brief.diff.siblingSpanGroup_other": 1,
       "brief.focusBanner.hint": 5,
       "brief.group.splitIntent": 1,
       "brief.intent.accomplished_one": 1,

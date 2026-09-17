@@ -1,12 +1,16 @@
 @use "functions";
 
 @layer components {
-  // A hunk row is 31px on the 22px row grid the height model and the perf
-  // gates measure; the lane pins that height so the arrows never grow it.
-  .cell {
+  // Qualified by the row attribute every diff row carries, to outrank
+  // DiffRows' hunk-row padding: the lane alone sets the height, and the
+  // arrows sit at the same inset in a hunk row and in a row of their own.
+  tr[data-line-kind] > td.cell {
     padding-block: 0;
     padding-inline: functions.to-rem(6px) functions.to-rem(14px);
-    background: var(--color-surface-1);
+  }
+
+  .cell {
+    background: var(--color-surface-2);
     color: var(--faint);
     font-size: var(--font-size-sm);
   }

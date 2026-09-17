@@ -743,7 +743,7 @@ export function DiffTable({
         : hosted;
     if (own.length === 0) return null;
     return (
-      <tr className={styles["expandRow"]} data-line-kind="expand">
+      <tr data-line-kind="expand">
         <ExpandControl
           columnCount={columnCount}
           edges={own}
@@ -760,7 +760,7 @@ export function DiffTable({
     const own = edgesByRow.get(rows.length) ?? [];
     if (own.length === 0) return null;
     return (
-      <tr className={styles["expandRow"]} data-line-kind="expand">
+      <tr data-line-kind="expand">
         <ExpandControl
           columnCount={columnCount}
           edges={own}
@@ -849,7 +849,11 @@ export function DiffTable({
     return (
       <>
         {view.showComposer && activeCommentAnchor ? (
-          <UnderRow layout={layout} placement={composerPlacement}>
+          <UnderRow
+            layout={layout}
+            placement={composerPlacement}
+            spanned={spannedRows.has(index)}
+          >
             <CommentComposer
               anchor={activeCommentAnchor}
               cancel={cancelComposer}
@@ -864,6 +868,7 @@ export function DiffTable({
             key={comment.id}
             layout={layout}
             placement={placementForAnchor(comment.anchor)}
+            spanned={spannedRows.has(index)}
           >
             <CommentThread
               comment={comment}
@@ -886,6 +891,7 @@ export function DiffTable({
               key={`conversation-${row.thread.rootCommentId}`}
               layout={layout}
               placement={placementForThread(row.thread, line)}
+              spanned={spannedRows.has(index)}
             >
               <ThreadRowView
                 composer={conversationComposer}
@@ -899,7 +905,11 @@ export function DiffTable({
           ) : null,
         )}
         {view.rowAddressedComments.map((comment) => (
-          <UnderRow key={`addressed-${comment.id}`} layout={layout}>
+          <UnderRow
+            key={`addressed-${comment.id}`}
+            layout={layout}
+            spanned={spannedRows.has(index)}
+          >
             <AddressedDiffComment
               comment={comment}
               label={reviewCommentLabel}
@@ -1014,6 +1024,7 @@ function UnderRow({
   layout,
   placement,
   conversationThread,
+  spanned = false,
   children,
 }: UnderRowProps) {
   const { columnCount, sideColumns } = layout;
@@ -1025,6 +1036,7 @@ function UnderRow({
       className={styles["commentRow"]}
       data-conversation-thread={conversationThread}
       data-placement={beside ? placement : undefined}
+      data-span={spanned ? "" : undefined}
     >
       {beside && placement === SplitSides.RIGHT ? (
         <td className={styles["commentGap"]} colSpan={leadColumns}>

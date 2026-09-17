@@ -86,12 +86,14 @@ describe("buildLineOwnersByFile and resolveSpanOwner", () => {
     groups: [
       {
         kind: GroupViewKinds.ATTRIBUTED,
+        index: 0,
         id: "g2",
         group: { title: "Fix the leak", summary: "" },
         chunks: [{ ...CHUNKS[1]!, summary: "Adds the guard" }],
       },
       {
         kind: GroupViewKinds.UNATTRIBUTED_REMAINDER,
+        index: 1,
         id: "unattributed-remainder",
         chunks: [CHUNKS[3]!],
       },
@@ -107,6 +109,8 @@ describe("buildLineOwnersByFile and resolveSpanOwner", () => {
     ).toEqual({
       chunkId: "c2",
       groupName: "Fix the leak",
+      groupIndex: 1,
+      groupCount: 2,
       summary: "Adds the guard",
       remainder: false,
     });
@@ -120,6 +124,8 @@ describe("buildLineOwnersByFile and resolveSpanOwner", () => {
     ).toEqual({
       chunkId: "u-1",
       groupName: "Unattributed remainder",
+      groupIndex: 2,
+      groupCount: 2,
       remainder: true,
     });
   });

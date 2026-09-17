@@ -17,15 +17,25 @@
     }
   }
 
-  .expandRow td {
-    padding: 0;
-  }
-
   .spanEnd td {
-    padding: 0;
-    border-block-end: 1px solid var(--line);
+    padding: functions.to-rem(5px) 0 0;
+    border-block-end: 1px solid var(--span-rule);
+    border-inline-end: 1px solid var(--span-rule);
     font-size: 0;
     line-height: 0;
+    box-shadow: var(--span-edge-bar);
+  }
+
+  // The frame's right rule rides the spanned gutter cell's attribute, or the
+  // row's own for a comment row, which has no gutter cell: a border, not a
+  // shadow, because the code cell's own edge bar is one.
+  .diff tr:has(> [data-span]) > td:last-child,
+  .diff tr[data-span] > td:last-child {
+    border-inline-end: 1px solid var(--span-rule);
+  }
+
+  .diff tr[data-span] > td:first-child {
+    box-shadow: var(--span-edge-bar);
   }
 
   .composerDisabledNote {
@@ -55,8 +65,23 @@
   }
 
   .diff {
+    // Earned: the sibling span frame's edge, the same inset the spanned
+    // gutter cells paint, and its rule, a step below; the end row and the
+    // spanned comment rows read both from here.
+    --span-edge-bar: inset 1px 0 0 var(--dim);
+    --span-rule: color-mix(in srgb, var(--dim) 45%, transparent);
+
+    // Earned: a quarter step below the card, so the code sits in a shallow
+    // well and the span header, on the well itself, still reads deeper.
+    --diff-well: color-mix(
+      in srgb,
+      var(--color-background) 25%,
+      var(--color-surface-1)
+    );
+
     inline-size: 100%;
     border-collapse: collapse;
+    background: var(--diff-well);
     font-family: var(--mono);
     font-size: var(--font-size-lg);
     line-height: 1.7;
