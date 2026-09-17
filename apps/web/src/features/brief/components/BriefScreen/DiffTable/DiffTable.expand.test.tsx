@@ -34,8 +34,9 @@ import {
 } from "../../../hooks/useExpansionSource";
 import { FileRowsProvider } from "../../../hooks/useFileRows";
 import type { FileRowsCache } from "../../../utils/fileRows";
+import type { FileLineOwners } from "../../../utils/lineOwner";
 import type { DigestThreadRow } from "@web/features/conversation/utils";
-import type { Brief, BriefChunk, LineRange } from "../../../types";
+import type { Brief, BriefChunk } from "../../../types";
 import { buildBriefViewModel } from "../../../utils/viewModel";
 import { DiffTable } from "./DiffTable";
 
@@ -205,7 +206,8 @@ function seedRange(
 interface HarnessProps {
   chunk: BriefChunk;
   view: DiffView;
-  claimed?: readonly LineRange[];
+  lineOwners?: FileLineOwners;
+  jumpToChunk?: (chunkId: string) => void;
   hiddenThreads?: readonly DigestThreadRow[];
 }
 
@@ -250,7 +252,6 @@ function stubHeaderlessChunk(): BriefChunk {
   } as BriefChunk;
 }
 
-const NO_CLAIMED: LineRange[] = [];
 const COMPOSER = {
   post: vi.fn(async () => ({ kind: "posted", commentId: 1 }) as const),
   onPosted: vi.fn(),
@@ -259,26 +260,27 @@ const COMPOSER = {
 function Harness({
   chunk,
   view,
-  claimed = NO_CLAIMED,
+  lineOwners,
+  jumpToChunk,
   hiddenThreads,
 }: HarnessProps) {
   const expansion = useExpandedRows({
     chunkId: chunk.id,
     path: chunk.file,
     rows: chunk.diff ?? [],
-    claimed,
   });
   return (
     <DiffTable
       addressedComments={[]}
       chunk={chunk}
-      claimed={claimed}
       comparisonSkipReason={null}
       comparisonSource={{ kind: "last-review", delta: null }}
       comparisonView={{ marks: new Map(), runs: [], runByRow: new Map() }}
       conversationComposer={COMPOSER}
       expansion={expansion}
       hiddenThreads={hiddenThreads}
+      jumpToChunk={jumpToChunk}
+      lineOwners={lineOwners}
       reviewCommentLabel="review comment"
       view={view}
     />
@@ -396,39 +398,27 @@ describe("DiffTable expansion controls", () => {
     ).toBeTruthy();
   });
 
-  it("leaves out a thread another chunk's rows keep out of reach", () => {
-    renderHarness({
-      chunk: stubChunk(),
-      view: "unified",
-      claimed: [{ start: 10, end: 28 }],
-      hiddenThreads: [20].map(stubHiddenThread),
-    });
-
-    expect(screen.queryByRole("button", { name: /hidden lines/ })).toBeNull();
-  });
-
-  it("counts and reveals only the hidden threads a sibling has not claimed", async () => {
+  it("counts and reveals hidden threads through a sibling's lines", async () => {
     const { view, queryClient } = renderHarness({
       chunk: stubChunk(),
       view: "unified",
-      claimed: [{ start: 20, end: 24 }],
       hiddenThreads: [22, 27].map(stubHiddenThread),
     });
     expect(
-      screen.getByRole("button", { name: "1 comment in the hidden lines" }),
+      screen.getByRole("button", { name: "2 comments in the hidden lines" }),
     ).toBeTruthy();
-    seedRange(queryClient, 25, 29, 80);
+    seedRange(queryClient, 10, 29, 80);
     fireEvent.click(
-      screen.getByRole("button", { name: "Show all 5 hidden lines above" }),
+      screen.getByRole("button", { name: "Show 20 more lines above" }),
     );
 
-    await waitFor(() => expect(expandedRows(view.container)).toHaveLength(5));
+    await waitFor(() => expect(expandedRows(view.container)).toHaveLength(20));
     expect(
       view.container.querySelector('tr[data-conversation-thread="9027"]'),
     ).not.toBeNull();
     expect(
       view.container.querySelector('tr[data-conversation-thread="9022"]'),
-    ).toBeNull();
+    ).not.toBeNull();
   });
 
   it("routes the chip through the arrow's read and shows its failure", async () => {
@@ -538,6 +528,242 @@ describe("DiffTable expansion into a sibling hunk", () => {
   });
 });
 
+describe("DiffTable sibling spans", () => {
+  const sibling: BriefChunk = {
+    ...stubChunk(),
+    id: "c2",
+    changeGroupId: "g2",
+    summary: "Adds the guard",
+    addedRanges: [{ start: 11, end: 12 }],
+    removedRanges: [{ start: 14, end: 14 }],
+  };
+  const remainder: BriefChunk = {
+    ...stubChunk(),
+    id: "u-1",
+    changeGroupId: "unattributed-remainder",
+    addedRanges: [{ start: 16, end: 16 }],
+    removedRanges: [],
+  };
+  const fileRows: DiffLine[] = [
+    { kind: "hunk", content: "@@ -13,4 +10,7 @@" },
+    { kind: "ctx", content: "keep", oldLine: 13, newLine: 10 },
+    { kind: "del", content: "old", oldLine: 14 },
+    { kind: "add", content: "n1", newLine: 11 },
+    { kind: "add", content: "n2", newLine: 12 },
+    { kind: "ctx", content: "keep", oldLine: 15, newLine: 13 },
+    { kind: "ctx", content: "keep", oldLine: 16, newLine: 14 },
+    { kind: "ctx", content: "keep", oldLine: 17, newLine: 15 },
+    { kind: "add", content: "stray", newLine: 16 },
+    ...(stubChunk().diff ?? []),
+  ];
+  const cache: FileRowsCache = { isEmpty: false, getFileRows: () => fileRows };
+  const lineOwners: FileLineOwners = {
+    chunks: [stubChunk(), sibling, remainder],
+    owners: new Map([
+      [
+        "c2",
+        {
+          chunkId: "c2",
+          groupName: "Fix the leak",
+          summary: "Adds the guard",
+          remainder: false,
+        },
+      ],
+      [
+        "u-1",
+        {
+          chunkId: "u-1",
+          groupName: "Unattributed remainder",
+          remainder: true,
+        },
+      ],
+    ]),
+  };
+
+  async function expandIntoSiblings(view: DiffView) {
+    const jumpToChunk = vi.fn();
+    const harness = renderHarness(
+      { chunk: stubChunk(), view, lineOwners, jumpToChunk },
+      { fileRows: cache },
+    );
+    seedRange(harness.queryClient, 10, 29, 80);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Show 20 more lines above" }),
+    );
+    await waitFor(() =>
+      expect(
+        harness.view.container.querySelectorAll('[data-testid="sibling-span"]'),
+      ).toHaveLength(2),
+    );
+    return { ...harness, jumpToChunk };
+  }
+
+  it("frames each owner's expanded changed rows under a header naming it", async () => {
+    const { view } = await expandIntoSiblings("unified");
+    const headers = view.container.querySelectorAll(
+      '[data-testid="sibling-span"]',
+    );
+
+    expect(headers[0]?.textContent).toContain(
+      "Lines 11 to 12 belong to Fix the leak",
+    );
+    expect(headers[0]?.textContent).toContain("Adds the guard");
+    expect(headers[1]?.textContent).toContain(
+      "Line 16 belongs to the unattributed remainder",
+    );
+    expect(view.container.querySelectorAll("td[data-span]")).toHaveLength(4);
+    expect(headers[0]?.nextElementSibling?.getAttribute("data-line-kind")).toBe(
+      "del",
+    );
+  });
+
+  it("keeps the expanded context around a span outside the frame", async () => {
+    const { view } = await expandIntoSiblings("unified");
+    const rows = expandedRows(view.container);
+
+    expect(rows[0]?.querySelector("td[data-span]")).toBeNull();
+    expect(rows[4]?.querySelector("td[data-span]")).toBeNull();
+  });
+
+  it("jumps to the owning chunk and keeps focus on the control", async () => {
+    const { jumpToChunk } = await expandIntoSiblings("unified");
+    const control = screen.getByRole("button", {
+      name: "Go to chunk in Fix the leak",
+    });
+    control.focus();
+    fireEvent.click(control);
+
+    expect(jumpToChunk).toHaveBeenCalledWith("c2");
+    expect(document.activeElement).toBe(control);
+    expect(
+      screen.getByRole("button", {
+        name: "Go to chunk in the unattributed remainder",
+      }),
+    ).toBeTruthy();
+  });
+
+  it("frames the span in split view without breaking the pairs", async () => {
+    const { view } = await expandIntoSiblings("split");
+    const header = view.container.querySelector('[data-testid="sibling-span"]');
+    const pair = header?.nextElementSibling;
+
+    expect(pair?.querySelectorAll('td[data-line-kind="del"]')).toHaveLength(2);
+    expect(pair?.querySelectorAll('td[data-line-kind="add"]')).toHaveLength(2);
+    expect(pair?.querySelector("td[data-span]")).not.toBeNull();
+  });
+
+  it("offers the arrow past a sibling's lines instead of a dead end", async () => {
+    await expandIntoSiblings("unified");
+
+    expect(
+      screen.getByRole("button", { name: "Show all 9 hidden lines above" }),
+    ).toBeTruthy();
+  });
+
+  it("never frames a line the chunk's own ranges hold", async () => {
+    const own: BriefChunk = {
+      ...stubChunk(),
+      addedRanges: [
+        { start: 31, end: 31 },
+        { start: 16, end: 16 },
+      ],
+    };
+    const jumpToChunk = vi.fn();
+    const harness = renderHarness(
+      {
+        chunk: own,
+        view: "unified",
+        lineOwners: { ...lineOwners, chunks: [own, sibling, remainder] },
+        jumpToChunk,
+      },
+      { fileRows: cache },
+    );
+    seedRange(harness.queryClient, 10, 29, 80);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Show 20 more lines above" }),
+    );
+
+    await waitFor(() =>
+      expect(expandedRows(harness.view.container)).toHaveLength(21),
+    );
+    expect(
+      harness.view.container.querySelectorAll('[data-testid="sibling-span"]'),
+    ).toHaveLength(1);
+    expect(jumpToChunk).not.toHaveBeenCalled();
+  });
+
+  it("unzips a split pair whose sides belong to different owners", async () => {
+    const replaced: DiffLine[] = [
+      { kind: "hunk", content: "@@ -13,4 +10,4 @@" },
+      { kind: "ctx", content: "keep", oldLine: 13, newLine: 10 },
+      { kind: "del", content: "x1", oldLine: 14 },
+      { kind: "del", content: "x2", oldLine: 15 },
+      { kind: "add", content: "y1", newLine: 11 },
+      { kind: "add", content: "y2", newLine: 12 },
+      { kind: "ctx", content: "keep", oldLine: 16, newLine: 13 },
+      ...(stubChunk().diff ?? []),
+    ];
+    const deleter: BriefChunk = {
+      ...sibling,
+      id: "c2",
+      addedRanges: [],
+      removedRanges: [{ start: 14, end: 15 }],
+    };
+    const adder: BriefChunk = {
+      ...sibling,
+      id: "c3",
+      changeGroupId: "g3",
+      addedRanges: [{ start: 11, end: 12 }],
+      removedRanges: [],
+    };
+    const owners: FileLineOwners = {
+      chunks: [stubChunk(), deleter, adder],
+      owners: new Map([
+        ["c2", { chunkId: "c2", groupName: "Fix the leak", remainder: false }],
+        ["c3", { chunkId: "c3", groupName: "Add the guard", remainder: false }],
+      ]),
+    };
+    const harness = renderHarness(
+      { chunk: stubChunk(), view: "split", lineOwners: owners },
+      { fileRows: { isEmpty: false, getFileRows: () => replaced } },
+    );
+    seedRange(harness.queryClient, 10, 29, 80);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Show 20 more lines above" }),
+    );
+
+    await waitFor(() =>
+      expect(
+        harness.view.container.querySelectorAll(
+          'td[data-side="left"][data-line-kind="del"][data-line-number]',
+        ),
+      ).toHaveLength(3),
+    );
+    const headers = harness.view.container.querySelectorAll(
+      '[data-testid="sibling-span"]',
+    );
+    expect([...headers].map((header) => header.textContent)).toEqual([
+      "Removed lines 14 to 15 belong to Fix the leak",
+      "Lines 11 to 12 belong to Add the guard",
+    ]);
+    for (const row of harness.view.container.querySelectorAll("tr")) {
+      if (row.querySelector(`td${EXPANDED_ORIGIN_SELECTOR}`) === null) {
+        continue;
+      }
+      const del = row.querySelector(
+        'td[data-side="left"][data-line-kind="del"]',
+      );
+      const add = row.querySelector(
+        'td[data-side="right"][data-line-kind="add"]',
+      );
+      expect(del === null || add === null).toBe(true);
+    }
+    expect(
+      harness.view.container.querySelectorAll("td[data-span]"),
+    ).toHaveLength(4);
+  });
+});
+
 describe("DiffTable expansion click", () => {
   it("splices twenty lines above with old numbers from the hunk offset", async () => {
     const { view, queryClient } = renderHarness({
@@ -608,21 +834,17 @@ describe("DiffTable expansion click", () => {
 
   it("focuses the first new line when a spent arrow leaves its header", async () => {
     const { view, queryClient } = renderHarness({
-      chunk: stubChunk(),
+      chunk: stubShortChunk(),
       view: "unified",
-      claimed: [{ start: 1, end: 20 }],
     });
-    seedRange(queryClient, 21, 29, 80);
+    seedRange(queryClient, 1, 4, 80);
     const arrow = screen.getByRole("button", {
-      name: "Show all 9 hidden lines above",
+      name: "Show all 4 hidden lines above",
     });
     arrow.focus();
     fireEvent.click(arrow);
 
-    await waitFor(() => expect(expandedRows(view.container)).toHaveLength(9));
-    expect(
-      view.container.querySelector('tr[data-line-kind="hunk"]'),
-    ).not.toBeNull();
+    await waitFor(() => expect(expandedRows(view.container)).toHaveLength(4));
     expect(screen.queryByRole("button", { name: /lines above/ })).toBeNull();
     expect(document.activeElement).toBe(expandedRows(view.container)[0]);
   });

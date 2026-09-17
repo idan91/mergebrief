@@ -545,7 +545,19 @@
       "expandNotText": "This path is not an expandable text file.",
       "expandNotFound": "This file is not in the commit this brief was built from.",
       "expandUnavailable": "Could not read the file right now. Try again.",
-      "expandOutsideDiff": "Read from the file; comments need a line of this chunk's own diff."
+      "expandOutsideDiff": "Read from the file; comments need a line of this chunk's own diff.",
+      "siblingSpanRange": "{{from}} to {{to}}",
+      "siblingSpanGroup_one": "Line {{lines}} belongs to {{group}}",
+      "siblingSpanGroup_other": "Lines {{lines}} belong to {{group}}",
+      "siblingSpanRemainder_one": "Line {{lines}} belongs to the unattributed remainder",
+      "siblingSpanRemainder_other": "Lines {{lines}} belong to the unattributed remainder",
+      "siblingSpanGroupRemoved_one": "Removed line {{lines}} belongs to {{group}}",
+      "siblingSpanGroupRemoved_other": "Removed lines {{lines}} belong to {{group}}",
+      "siblingSpanRemainderRemoved_one": "Removed line {{lines}} belongs to the unattributed remainder",
+      "siblingSpanRemainderRemoved_other": "Removed lines {{lines}} belong to the unattributed remainder",
+      "siblingSpanJump": "Go to chunk",
+      "siblingSpanJumpGroup": "Go to chunk in {{group}}",
+      "siblingSpanJumpRemainder": "Go to chunk in the unattributed remainder"
     },
     "summarySection": {
       "eyebrowDelta": "Delta brief",

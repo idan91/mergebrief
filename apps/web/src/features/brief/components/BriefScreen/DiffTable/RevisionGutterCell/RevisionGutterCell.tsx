@@ -18,6 +18,8 @@ export interface RevisionGutterCellProps {
   chunk: BriefChunk;
   onRailEnter: (run: ComparisonRun, el: HTMLElement) => void;
   onRailLeave: (el: HTMLElement) => void;
+  /** The row sits inside a sibling span; the gutter carries the frame's edge. */
+  spanned?: boolean | undefined;
 }
 
 export function RevisionGutterCell({
@@ -26,9 +28,12 @@ export function RevisionGutterCell({
   isEnd,
   onRailEnter,
   onRailLeave,
+  spanned = false,
 }: RevisionGutterCellProps) {
   const { t } = useTranslation();
-  if (!run) return <td className={styles["gutter"]} />;
+  const spanAttribute = spanned ? "" : undefined;
+  if (!run)
+    return <td className={styles["gutter"]} data-span={spanAttribute} />;
   const count = run.rowIndexes.length;
   const railKey =
     run.kind === "removed" ? "brief.diff.railRemoved" : "brief.diff.railNew";
@@ -36,6 +41,7 @@ export function RevisionGutterCell({
     <td
       className={styles["gutter"]}
       data-rev={run.kind}
+      data-span={spanAttribute}
       onMouseEnter={(e) => onRailEnter(run, e.currentTarget)}
     >
       {isStart ? (

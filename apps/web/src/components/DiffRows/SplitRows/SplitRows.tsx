@@ -93,10 +93,11 @@ export function SplitRows({
 
         const lead = pair.right ?? pair.left;
         if (lead === undefined) return null;
-        // A hole can open at either unified index the pair covers.
-        const before: { cell: SplitCell; side: SplitSide }[] = [
-          { cell: pair.left ?? lead, side: SplitSides.LEFT },
-        ];
+        // A hole can open at either unified index the pair covers, once each.
+        const before: { cell: SplitCell; side: SplitSide }[] = [];
+        if (pair.left !== undefined) {
+          before.push({ cell: pair.left, side: SplitSides.LEFT });
+        }
         if (pair.right !== undefined && pair.right !== pair.left) {
           before.push({ cell: pair.right, side: SplitSides.RIGHT });
         }

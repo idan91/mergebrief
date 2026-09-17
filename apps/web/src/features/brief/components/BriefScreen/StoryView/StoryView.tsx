@@ -16,16 +16,8 @@ import {
 } from "react";
 
 import type { ComparisonOverlayState } from "../../../comparison/comparisonOverlay";
-import type {
-  AddressedReviewComment,
-  Brief,
-  BriefChunk,
-  LineRange,
-} from "../../../types";
-import {
-  collectClaimedLines,
-  countExpandedRows,
-} from "../../../utils/expansionState";
+import type { AddressedReviewComment, Brief, BriefChunk } from "../../../types";
+import { countExpandedRows } from "../../../utils/expansionState";
 import type { BriefViewModel, RiskFlag } from "../../../utils/viewModel";
 import { GroupViewKinds } from "../../../utils/viewModel";
 import { resolveGroupName } from "../../../utils/resolveGroupName";
@@ -49,6 +41,10 @@ import { RiskChipDisclosure } from "../RiskChipDisclosure/RiskChipDisclosure";
 import { RiskDetailList } from "../RiskDetailList/RiskDetailList";
 import { estimateChunkCardHeight } from "../chunkHeightModel";
 import { useFileRows } from "../../../hooks/useFileRows";
+import {
+  buildLineOwnersByFile,
+  type FileLineOwners,
+} from "../../../utils/lineOwner";
 import { useChunkWindows } from "../chunkWindows";
 import { useReadingPosition } from "../readingPosition";
 import { CHUNK_WINDOW_INDEX_ATTR, useGroupWindow } from "../useGroupWindow";
@@ -109,16 +105,10 @@ export function StoryView(props: StoryViewProps) {
       : DiffViews.UNIFIED;
   const { t } = useTranslation();
   const [focusRailOpen, setFocusRailOpen] = useState(true);
-  // Siblings' expanded lines are claimed too, so two chunks of one file never
-  // expand into the same lines; hence the store read at this level.
-  const expandedEdges = useReviewFlow((state) => state.expandedEdges);
-  const claimedByChunk = useMemo(
-    () =>
-      collectClaimedLines(
-        props.model.groups.flatMap((group) => group.chunks),
-        expandedEdges,
-      ),
-    [props.model, expandedEdges],
+  // Per file, so a card frames a sibling's expanded rows with its owner.
+  const lineOwnersByFile = useMemo(
+    () => buildLineOwnersByFile(props.model, t),
+    [props.model, t],
   );
   const addressedReviewComments =
     props.addressedReviewComments ?? EMPTY_ADDRESSED_REVIEW_COMMENTS;
@@ -183,8 +173,9 @@ export function StoryView(props: StoryViewProps) {
                     addressedReviewComments={addressedReviewComments}
                     conversationComposer={props.conversationComposer}
                     conversationRows={props.conversationByChunk?.get(chunk.id)}
-                    claimed={claimedByChunk.get(chunk.id)}
                     hiddenThreads={props.hiddenThreadsByFile?.get(chunk.file)}
+                    jumpToChunk={props.jumpToChunk}
+                    lineOwners={lineOwnersByFile.get(chunk.file)}
                     markReviewed={props.markReviewed}
                     marksDisabled={props.marksDisabled}
                     toggleChunk={props.toggleChunk}
@@ -196,8 +187,8 @@ export function StoryView(props: StoryViewProps) {
                 diffView={groupView}
                 attachWrapper={splitWidth.attachWrapper}
                 addressedReviewComments={addressedReviewComments}
-                claimedByChunk={claimedByChunk}
                 group={group}
+                lineOwnersByFile={lineOwnersByFile}
                 view={props}
               />
             )}
@@ -249,7 +240,7 @@ interface WindowedChunkListProps {
   diffView: DiffView;
   attachWrapper: (node: HTMLElement | null) => (() => void) | undefined;
   addressedReviewComments: AddressedReviewComment[];
-  claimedByChunk: ReadonlyMap<string, LineRange[]>;
+  lineOwnersByFile: ReadonlyMap<string, FileLineOwners>;
 }
 
 function pinComposerChunks(
@@ -308,7 +299,7 @@ function WindowedChunkList({
   diffView,
   attachWrapper,
   addressedReviewComments,
-  claimedByChunk,
+  lineOwnersByFile,
 }: WindowedChunkListProps) {
   const chunkKeys = useMemo(
     () => group.chunks.map((chunk) => `${chunk.file}#${chunk.id}`),
@@ -454,8 +445,9 @@ function WindowedChunkList({
               addressedReviewComments={addressedReviewComments}
               conversationComposer={view.conversationComposer}
               conversationRows={view.conversationByChunk?.get(chunk.id)}
-              claimed={claimedByChunk.get(chunk.id)}
               hiddenThreads={view.hiddenThreadsByFile?.get(chunk.file)}
+              jumpToChunk={view.jumpToChunk}
+              lineOwners={lineOwnersByFile.get(chunk.file)}
               markReviewed={view.markReviewed}
               marksDisabled={view.marksDisabled}
               toggleChunk={view.toggleChunk}

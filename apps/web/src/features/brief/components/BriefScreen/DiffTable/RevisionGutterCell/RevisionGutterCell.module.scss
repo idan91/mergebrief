@@ -12,6 +12,13 @@
       cursor: pointer;
     }
 
+    &[data-span] {
+      // Earned: the sibling span's 2px edge, continuous with its header row.
+      --span-edge-bar: inset 2px 0 0 var(--dim);
+
+      box-shadow: var(--span-edge-bar);
+    }
+
     // Hover, not focus: the `focus-ring` mixin's prefers-contrast bump
     // belongs to focus states only, so this ring is hand-rolled.
     &:hover .rail {

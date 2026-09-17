@@ -1,11 +1,10 @@
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import { describe, expect, it } from "vitest";
 
-import type { BriefChunk, EdgeExpansion } from "../types";
+import type { EdgeExpansion } from "../types";
 import { findExpansionGaps } from "./expandRows";
 import {
   buildExpansionKey,
-  collectClaimedLines,
   collectStoredEdges,
   countExpandedRows,
   mapBaseIndexes,
@@ -48,7 +47,6 @@ describe("spliceStoredEdges", () => {
       rows: base,
       edges: stored,
       lines: stubLines(1, 70),
-      claimed: [],
     });
 
     const expanded = rows
@@ -105,7 +103,6 @@ describe("placeExpandableEdges", () => {
       rows: base,
       edges: collectStoredEdges("c1", baseGaps, edges),
       lines: stubLines(1, 70),
-      claimed: [],
     });
     const placed = placeExpandableEdges(
       "c1",
@@ -129,13 +126,13 @@ describe("resolveExpanderStep", () => {
     const top = placed.find((edge) => edge.edgeKey === "c1:1:up")!;
     const lower = placed.find((edge) => edge.edgeKey === "c1:6:up")!;
 
-    expect(resolveExpanderStep(top, [])).toEqual({
+    expect(resolveExpanderStep(top)).toEqual({
       window: { from: 10, to: 29 },
       takesAll: false,
     });
-    expect(resolveExpanderStep(lower, [{ start: 33, end: 50 }])).toEqual({
-      window: { from: 51, to: 59 },
-      takesAll: true,
+    expect(resolveExpanderStep(lower)).toEqual({
+      window: { from: 40, to: 59 },
+      takesAll: false,
     });
   });
 
@@ -147,7 +144,7 @@ describe("resolveExpanderStep", () => {
     const placed = placeExpandableEdges("c1", baseGaps, baseGaps, edges);
     const tail = placed.find((edge) => edge.edgeKey === "c1:8:down")!;
 
-    expect(resolveExpanderStep(tail, [])).toBeUndefined();
+    expect(resolveExpanderStep(tail)).toBeUndefined();
   });
 
   it("never calls an open tail a whole remainder", () => {
@@ -155,7 +152,7 @@ describe("resolveExpanderStep", () => {
     const placed = placeExpandableEdges("c1", baseGaps, baseGaps, new Map());
     const tail = placed.find((edge) => edge.edgeKey === "c1:8:down")!;
 
-    expect(resolveExpanderStep(tail, [])).toEqual({
+    expect(resolveExpanderStep(tail)).toEqual({
       window: { from: 62, to: 81 },
       takesAll: false,
     });
@@ -208,55 +205,6 @@ describe("countExpandedRows", () => {
   });
 });
 
-describe("collectClaimedLines", () => {
-  it("gives each chunk its same-file siblings' new-line envelopes", () => {
-    const sibling = {
-      id: "c2",
-      file: "src/a.ts",
-      diff: base.slice(5),
-    } as BriefChunk;
-    const other = {
-      id: "c3",
-      file: "src/b.ts",
-      diff: [{ kind: "ctx", content: "z", oldLine: 1, newLine: 1 }],
-    } as BriefChunk;
-    const own = {
-      id: "c1",
-      file: "src/a.ts",
-      diff: base.slice(0, 5),
-    } as BriefChunk;
-
-    const claimed = collectClaimedLines([own, sibling, other]);
-
-    expect(claimed.get("c1")).toEqual([{ start: 60, end: 61 }]);
-    expect(claimed.get("c2")).toEqual([{ start: 30, end: 32 }]);
-    expect(claimed.get("c3")).toEqual([]);
-  });
-
-  it("lets an unattributed remainder sibling claim nothing", () => {
-    const remainder = {
-      id: "u-1",
-      changeGroupId: "unattributed-remainder",
-      file: "src/a.ts",
-      diff: base.slice(5),
-    } as BriefChunk;
-    const own = {
-      id: "c1",
-      changeGroupId: "g1",
-      file: "src/a.ts",
-      diff: base.slice(0, 5),
-    } as BriefChunk;
-    const expanded = new Map<string, EdgeExpansion>([
-      ["u-1:0:up", { range: { start: 50, end: 59 }, windows: [] }],
-    ]);
-
-    const claimed = collectClaimedLines([own, remainder], expanded);
-
-    expect(claimed.get("c1")).toEqual([]);
-    expect(claimed.get("u-1")).toEqual([{ start: 30, end: 32 }]);
-  });
-});
-
 describe("two edges of one hole", () => {
   const hole: DiffLine[] = [
     { kind: "hunk", content: "@@ -99,1 +99,1 @@" },
@@ -271,7 +219,6 @@ describe("two edges of one hole", () => {
       rows: hole,
       edges: collectStoredEdges("c1", baseGaps, edges),
       lines: stubLines(1, 200),
-      claimed: [],
     });
     const placed = placeExpandableEdges(
       "c1",
@@ -280,7 +227,7 @@ describe("two edges of one hole", () => {
       edges,
     );
     const edge = placed.find((candidate) => candidate.edgeKey === edgeKey)!;
-    const step = resolveExpanderStep(edge, [])!;
+    const step = resolveExpanderStep(edge)!;
     const current = edges.get(edgeKey)?.range;
     const start = Math.min(current?.start ?? Infinity, step.window.from);
     const end = Math.max(current?.end ?? -Infinity, step.window.to);
@@ -305,7 +252,6 @@ describe("two edges of one hole", () => {
       rows: hole,
       edges: collectStoredEdges("c1", findExpansionGaps(hole), edges),
       lines: stubLines(1, 200),
-      claimed: [],
     });
     const shown = rows
       .filter((row) => row.origin === "expanded")
@@ -320,41 +266,6 @@ describe("two edges of one hole", () => {
   });
 });
 
-describe("collectClaimedLines with sibling expansions", () => {
-  const top = {
-    id: "a",
-    file: "src/a.ts",
-    diff: [{ kind: "ctx", content: "t", oldLine: 20, newLine: 20 }],
-  } as BriefChunk;
-  const bottom = {
-    id: "b",
-    file: "src/a.ts",
-    diff: [{ kind: "ctx", content: "u", oldLine: 50, newLine: 50 }],
-  } as BriefChunk;
-
-  it("stops each chunk at what the other has already expanded", () => {
-    const edges = new Map<string, EdgeExpansion>([
-      ["b:0:up", stubExpansion(30, 49)],
-    ]);
-    const claimed = collectClaimedLines([top, bottom], edges);
-    const tail = placeExpandableEdges(
-      "a",
-      findExpansionGaps(top.diff!),
-      findExpansionGaps(top.diff!),
-      new Map(),
-    ).find((edge) => edge.gap.edge.direction === "down")!;
-
-    expect(claimed.get("a")).toEqual([
-      { start: 50, end: 50 },
-      { start: 30, end: 49 },
-    ]);
-    expect(resolveExpanderStep(tail, claimed.get("a")!)?.window).toEqual({
-      from: 21,
-      to: 29,
-    });
-  });
-});
-
 describe("file end", () => {
   it("retires a trailing edge whose hole starts past the file end", () => {
     const edge = placeExpandableEdges(
@@ -366,7 +277,7 @@ describe("file end", () => {
     ).find((candidate) => candidate.gap.to === undefined);
 
     expect(edge?.fileEnd).toBe(3);
-    expect(edge && resolveExpanderStep(edge, [])).toBeUndefined();
+    expect(edge && resolveExpanderStep(edge)).toBeUndefined();
   });
 
   it("clamps a trailing step to a file end a sibling read named", () => {
@@ -378,7 +289,7 @@ describe("file end", () => {
       12,
     ).find((candidate) => candidate.gap.to === undefined);
 
-    expect(edge && resolveExpanderStep(edge, [])).toEqual({
+    expect(edge && resolveExpanderStep(edge)).toEqual({
       window: { from: 4, to: 12 },
       takesAll: true,
     });
@@ -393,7 +304,7 @@ describe("file end", () => {
       40,
     ).find((candidate) => candidate.gap.to === undefined);
 
-    expect(edge && resolveExpanderStep(edge, [])?.window).toEqual({
+    expect(edge && resolveExpanderStep(edge)?.window).toEqual({
       from: 4,
       to: 23,
     });

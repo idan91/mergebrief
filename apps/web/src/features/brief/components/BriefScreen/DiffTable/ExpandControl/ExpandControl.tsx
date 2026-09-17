@@ -34,7 +34,6 @@ export interface ExpandControlProps {
   /** The edges this hole exposes: up, down, or both. */
   edges: readonly ExpandableEdge[];
   path: string;
-  claimed: readonly LineRange[];
   columnCount: number;
   /** The hunk header this control shares its row with, if any. */
   header?: string | undefined;
@@ -74,7 +73,6 @@ const FAILURE_KEYS: Record<ExpandFailure, TranslationKey> = {
 export function ExpandControl({
   edges,
   path,
-  claimed,
   columnCount,
   header,
   hiddenThreadLines,
@@ -88,10 +86,10 @@ export function ExpandControl({
     (edge) => edge.gap.edge.direction === ExpansionDirections.DOWN,
   );
   const { t } = useTranslation();
-  const reachable = resolveReachableLines(edges, claimed);
+  const reachable = resolveReachableLines(edges);
   const hidden = countHiddenThreads(reachable, hiddenThreadLines);
-  const upControl = useExpandEdge({ edge: up ?? NO_EDGE, path, claimed });
-  const downControl = useExpandEdge({ edge: down ?? NO_EDGE, path, claimed });
+  const upControl = useExpandEdge({ edge: up ?? NO_EDGE, path });
+  const downControl = useExpandEdge({ edge: down ?? NO_EDGE, path });
   const noteId = useId();
   const failures = listFailures(upControl.failure, downControl.failure);
   const resolveNoteId = (failure: ExpandFailure | undefined) =>

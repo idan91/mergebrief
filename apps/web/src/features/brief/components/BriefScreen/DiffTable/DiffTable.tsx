@@ -2,6 +2,7 @@ import type { DiffLine } from "@web/utils/diffTokens/types";
 import { useTranslation } from "react-i18next";
 import {
   type ReactNode,
+  useCallback,
   useEffect,
   useId,
   useLayoutEffect,
@@ -40,6 +41,9 @@ import {
 } from "./ExpandControl/ExpandControl";
 import { ComparisonCallout } from "./ComparisonCallout/ComparisonCallout";
 import { RevisionGutterCell } from "./RevisionGutterCell/RevisionGutterCell";
+import { SiblingSpanHeader } from "./SiblingSpanHeader/SiblingSpanHeader";
+import { groupSiblingSpans } from "../../../utils/siblingSpans";
+import { resolveSpanOwner } from "../../../utils/lineOwner";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import {
   type DiffRowView,
@@ -76,21 +80,26 @@ import {
   NO_EDGES,
   NO_HIDDEN_THREADS,
   NO_PAIRS,
-  NO_RANGES,
+  NO_SPANS,
 } from "./consts";
 import {
   buildExpandedRowView,
   buildPairPartners,
   collectSideIndexes,
+  collectSpannedRows,
   collectThreadLines,
   focusExpandedLine,
+  frameSpans,
+  frameSpansOnPairs,
   groupEdgesByRow,
   isSideFocusable,
   isUpEdge,
   placementForAnchor,
   placementForThread,
   resolveDragSelection,
+  resolveSpanLines,
   showsHiddenThread,
+  unzipPairsByOwner,
   spanForPlacement,
   unionRail,
 } from "./utils";
@@ -109,8 +118,9 @@ export function DiffTable({
   reviewCommentLabel,
   readOnlyReason,
   expansion,
-  claimed = NO_RANGES,
   hiddenThreads = NO_HIDDEN_THREADS,
+  lineOwners,
+  jumpToChunk,
 }: DiffTableProps) {
   const hiddenThreadLines = useMemo(
     () => collectThreadLines(hiddenThreads),
@@ -125,23 +135,63 @@ export function DiffTable({
   const edges = expansion?.edges ?? NO_EDGES;
   const edgesByRow = useMemo(() => groupEdgesByRow(edges), [edges]);
   const hasExpandedRows = baseIndexOf?.includes(-1) === true;
+  // A line the chunk's own ranges hold is never a sibling's, whatever the
+  // owner index says about it.
+  const spans = useMemo(
+    () =>
+      lineOwners === undefined || !hasExpandedRows
+        ? NO_SPANS
+        : groupSiblingSpans(rows, (line) => {
+            const owner = resolveSpanOwner(lineOwners, line)?.chunkId;
+            return owner === chunk.id ? undefined : owner;
+          }),
+    [rows, lineOwners, hasExpandedRows, chunk.id],
+  );
+  const spanOwnerByRow = useMemo(() => {
+    const byRow = new Map<number, string>();
+    for (const span of spans) {
+      for (const index of rangeBetween(span.start, span.end)) {
+        byRow.set(index, span.owner);
+      }
+    }
+    return byRow;
+  }, [spans]);
   const canPairSides = useMemo(() => hasPairedSides(rows), [rows]);
   const split = diffView === DiffViews.SPLIT && canPairSides;
   const resolvedView = split ? DiffViews.SPLIT : DiffViews.UNIFIED;
 
+  const pairRows = useCallback(
+    () =>
+      unzipPairsByOwner(pairSplitRows(rows), (index) =>
+        spanOwnerByRow.get(index),
+      ),
+    [rows, spanOwnerByRow],
+  );
   const pairs = useMemo(
-    () => (split ? pairSplitRows(rows) : NO_PAIRS),
-    [rows, split],
+    () => (split ? pairRows() : NO_PAIRS),
+    [split, pairRows],
+  );
+  const spanFrames = useMemo(
+    () => (split ? frameSpansOnPairs(spans, pairs) : frameSpans(spans)),
+    [spans, split, pairs],
+  );
+  const spanStarts = useMemo(
+    () => new Map(spanFrames.map((frame) => [frame.headerAt, frame])),
+    [spanFrames],
+  );
+  const spanEnds = useMemo(
+    () => new Set(spanFrames.map((frame) => frame.endAt)),
+    [spanFrames],
+  );
+  const spannedRows = useMemo(
+    () => collectSpannedRows(spanFrames),
+    [spanFrames],
   );
   const pairPartners = useMemo(() => buildPairPartners(pairs), [pairs]);
   // Unified pairs the same rows for emphasis without rendering them paired.
   const emphasisByRow = useMemo(
-    () =>
-      computeIntraLineEmphasis(
-        split ? pairs : pairSplitRows(rows),
-        tokensByRow,
-      ),
-    [pairs, rows, split, tokensByRow],
+    () => computeIntraLineEmphasis(split ? pairs : pairRows(), tokensByRow),
+    [pairs, pairRows, split, tokensByRow],
   );
   const readOnly = readOnlyReason !== undefined;
   // Every stateful read below is chunk-scoped so this table re-renders for
@@ -538,7 +588,6 @@ export function DiffTable({
     if (own.length === 0) return null;
     return (
       <ExpandControl
-        claimed={claimed}
         columnCount={columnCount}
         edges={own}
         header={row.content}
@@ -555,6 +604,42 @@ export function DiffTable({
     index: number,
     columnCount: number,
   ): ReactNode {
+    const header = buildSpanHeader(index, columnCount);
+    const expand = buildExpandBefore(row, index, columnCount);
+    if (header === null && expand === null) return null;
+    // The control belongs to the hole above the row, the header to the rows
+    // below it.
+    return (
+      <>
+        {expand}
+        {header}
+      </>
+    );
+  }
+
+  function buildSpanHeader(index: number, columnCount: number): ReactNode {
+    const frame = spanStarts.get(index);
+    const owner =
+      frame === undefined ? undefined : lineOwners?.owners.get(frame.owner);
+    if (frame === undefined || owner === undefined) return null;
+    const lines = resolveSpanLines(rows, frame.rows);
+    return (
+      <SiblingSpanHeader
+        columnCount={columnCount}
+        from={lines.from}
+        jumpToChunk={jumpToChunk}
+        owner={owner}
+        side={lines.side}
+        to={lines.to}
+      />
+    );
+  }
+
+  function buildExpandBefore(
+    row: DiffLine,
+    index: number,
+    columnCount: number,
+  ): ReactNode {
     const hosted = edgesByRow.get(index) ?? [];
     if (hosted.length === 0 || row.kind === DiffLineKinds.HUNK) return null;
     // An up edge right under a header rides the header's own row.
@@ -566,7 +651,6 @@ export function DiffTable({
     return (
       <tr className={styles["expandRow"]} data-line-kind="expand">
         <ExpandControl
-          claimed={claimed}
           columnCount={columnCount}
           edges={own}
           hiddenThreadLines={hiddenThreadLines}
@@ -584,7 +668,6 @@ export function DiffTable({
     return (
       <tr className={styles["expandRow"]} data-line-kind="expand">
         <ExpandControl
-          claimed={claimed}
           columnCount={columnCount}
           edges={own}
           hiddenThreadLines={hiddenThreadLines}
@@ -629,6 +712,7 @@ export function DiffTable({
         chunk={chunk}
         onRailEnter={handleRailEnter}
         onRailLeave={handleRailLeave}
+        spanned={spannedRows.has(index)}
       />
     );
   }
@@ -660,7 +744,7 @@ export function DiffTable({
     // whose head-file line it now shows.
     const conversationRows =
       baseIndex < 0
-        ? hiddenThreads.filter((row) => showsHiddenThread(row, line, claimed))
+        ? hiddenThreads.filter((row) => showsHiddenThread(row, line))
         : (conversationThreadsByRow?.get(baseIndex) ?? []);
     const layout: UnderRowLayout = { columnCount, sideColumns };
     const composerPlacement =
@@ -727,6 +811,11 @@ export function DiffTable({
             />
           </UnderRow>
         ))}
+        {spanEnds.has(index) ? (
+          <tr aria-hidden="true" className={styles["spanEnd"]}>
+            <td colSpan={columnCount}>{EMPTY_GAP}</td>
+          </tr>
+        ) : null}
       </>
     );
   }

@@ -675,8 +675,8 @@ export interface ResolveExpansionWindowParams {
   gap: ExpansionGap;
   /** Head-file lines this edge has already taken. */
   expanded?: LineRange;
-  /** Head-file lines another chunk of the same file already renders. */
-  claimed?: readonly LineRange[];
+  /** Lines the other edge of the same hole already read; this edge stops there. */
+  blocked?: readonly LineRange[];
 }
 
 /** A slice of the file at the head ref, as the file-range read returns it. */
@@ -692,7 +692,6 @@ export interface SpliceExpandedRowsParams {
   range: FileRangeSlice;
   /** The file's whole diff; absent falls back to range lines with the edge offset. */
   fileRows?: readonly DiffLine[];
-  claimed?: readonly LineRange[];
   /** The last hole line the sibling read covers; the hole closes together. */
   coveredTo?: number;
 }
@@ -702,7 +701,6 @@ export interface ExpansionApplication {
   gap: ExpansionGap;
   range: FileRangeSlice;
   fileRows?: readonly DiffLine[];
-  claimed?: readonly LineRange[];
   coveredTo?: number;
 }
 
@@ -732,7 +730,6 @@ export interface SpliceStoredEdgesParams {
   edges: readonly StoredEdge[];
   lines: ReadonlyMap<number, string>;
   fileRows?: readonly DiffLine[] | undefined;
-  claimed: readonly LineRange[];
 }
 
 /** Where an expansion window's rows come from: the file's diff and the chunk's own rows. */

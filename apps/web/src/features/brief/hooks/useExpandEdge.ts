@@ -15,7 +15,6 @@ export type ExpandFailure = Exclude<FileRangeResult["kind"], "ready">;
 export interface UseExpandEdgeInput {
   edge: ExpandableEdge;
   path: string;
-  claimed: readonly LineRange[];
 }
 
 export interface ExpandEdgeControl {
@@ -33,14 +32,14 @@ export interface ExpandEdgeControl {
  * the control, never the live region: the reader is looking right at it.
  */
 export function useExpandEdge(input: UseExpandEdgeInput): ExpandEdgeControl {
-  const { edge, path, claimed } = input;
+  const { edge, path } = input;
   const source = useExpansionSource();
   const fileRows = useFileRows()?.getFileRows(path);
   const readWindow = useFileRangeReader(source, path);
   const { expandEdge } = useReviewActions();
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<ExpandFailure | undefined>(undefined);
-  const step = resolveExpanderStep(edge, claimed);
+  const step = resolveExpanderStep(edge);
 
   // The note from a failed read stays up through the retry it invites and
   // clears only on a result: a click never blanks it into a silent wait.

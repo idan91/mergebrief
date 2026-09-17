@@ -21,6 +21,13 @@
     padding: 0;
   }
 
+  .spanEnd td {
+    padding: 0;
+    border-block-end: 1px solid var(--line);
+    font-size: 0;
+    line-height: 0;
+  }
+
   .composerDisabledNote {
     margin: 0;
     padding-block: functions.to-rem(8px);

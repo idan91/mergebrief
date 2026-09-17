@@ -13,11 +13,11 @@ import { isUnattributedRemainderChunk } from "../../../../utils/remainder";
 import type {
   AddressedReviewComment,
   BriefChunk,
-  LineRange,
   RiskToken,
 } from "../../../../types";
 import { useExpandedRows } from "../../../../hooks/useExpandedRows";
 import { resolveFileStatus } from "../../../../utils/fileStatus";
+import type { FileLineOwners } from "../../../../utils/lineOwner";
 import type { AttributeDisplayMeta } from "../../../../utils/repoConfig";
 import type { ComparisonOverlayState } from "../../../../comparison/comparisonOverlay";
 import { AddressedComments, ReviewComments } from "@web/features/review";
@@ -69,10 +69,12 @@ export interface ChunkCardProps {
    * de-emphasis, implication. Absent = plain built-in chips.
    */
   riskMeta?: ReadonlyMap<string, AttributeDisplayMeta> | undefined;
-  /** Head-file lines sibling chunks of this file render; expansion stops there. */
-  claimed?: readonly LineRange[] | undefined;
   /** Live threads on lines no chunk renders; expansion reveals them. */
   hiddenThreads?: readonly DigestThreadRow[] | undefined;
+  /** The file's chunks and labels, for framing a sibling's expanded rows. */
+  lineOwners?: FileLineOwners | undefined;
+  /** Where a sibling span's control lands. */
+  jumpToChunk?: ((chunkId: string) => void) | undefined;
 }
 
 /**
@@ -136,7 +138,6 @@ function isSameSnapshot(
 }
 
 const NO_ROWS: DiffLine[] = [];
-const NO_CLAIMED: LineRange[] = [];
 
 export const ChunkCard = memo(function ChunkCard({
   chunk,
@@ -150,8 +151,9 @@ export const ChunkCard = memo(function ChunkCard({
   conversationRows,
   conversationComposer,
   riskMeta,
-  claimed = NO_CLAIMED,
   hiddenThreads,
+  lineOwners,
+  jumpToChunk,
 }: ChunkCardProps) {
   const { t } = useTranslation();
   const reviewed = useReviewSession((state) =>
@@ -187,7 +189,6 @@ export const ChunkCard = memo(function ChunkCard({
     chunkId: chunk.id,
     path: chunk.file,
     rows: diffRows,
-    claimed,
   });
   const tokenRequest = {
     briefKey: tokenPlan.briefKey,
@@ -434,8 +435,9 @@ export const ChunkCard = memo(function ChunkCard({
             tokensPending={diffPending}
             view={diffView}
             expansion={expansion}
-            claimed={claimed}
             hiddenThreads={hiddenThreads}
+            jumpToChunk={jumpToChunk}
+            lineOwners={lineOwners}
             conversationComposer={conversationComposer}
             conversationThreadsByRow={conversationSplit.byRow}
             addressedComments={inlineReviewComments}

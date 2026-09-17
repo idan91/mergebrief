@@ -92,7 +92,7 @@ export function findExpansionGaps(diff: readonly DiffLine[]): ExpansionGap[] {
 /**
  * The window this click reads: one step from the edge, the whole remainder
  * where a step or less is left, and nothing at all where the reader has
- * already reached the hole's end or another chunk's first line.
+ * already reached the hole's end or what the other edge read.
  */
 export function resolveExpansionWindow(
   params: ResolveExpansionWindowParams,
@@ -101,7 +101,7 @@ export function resolveExpansionWindow(
   const remaining = resolveRemaining(params.gap, params.expanded);
   if (remaining === undefined) return undefined;
 
-  const bounded = applyStopRule(remaining, direction, params.claimed ?? []);
+  const bounded = applyStopRule(remaining, direction, params.blocked ?? []);
   if (bounded === undefined) return undefined;
 
   return takeStep(bounded, direction);
@@ -109,8 +109,8 @@ export function resolveExpansionWindow(
 
 /**
  * The chunk's rows with the read's lines spliced in at the edge. Lines the
- * chunk already carries, lines past the hole and lines another chunk claims
- * are dropped, so no line is ever rendered twice.
+ * chunk already carries and lines past the hole are dropped, so no line is
+ * ever rendered twice.
  *
  * `gap.edge.rowIndex` indexes the rows PASSED IN, so applying several edges
  * by hand must go bottom-up or a later index lands in the wrong place.
@@ -121,17 +121,11 @@ export function spliceExpandedRows(
 ): DiffLine[] {
   const { diff, gap, range } = params;
   const limit = gap.to ?? Number.POSITIVE_INFINITY;
-  const wanted = {
+  const bounded = {
     from: Math.max(range.from, gap.from),
     to: Math.min(range.to, limit),
   };
-
-  const bounded = applyStopRule(
-    wanted,
-    gap.edge.direction,
-    params.claimed ?? [],
-  );
-  if (bounded === undefined) return [...diff];
+  if (bounded.from > bounded.to) return [...diff];
 
   const rows =
     params.fileRows === undefined
@@ -176,7 +170,6 @@ export function spliceAllExpandedRows(
       range: entry.range,
     };
     if (entry.fileRows !== undefined) params.fileRows = entry.fileRows;
-    if (entry.claimed !== undefined) params.claimed = entry.claimed;
     if (entry.coveredTo !== undefined) params.coveredTo = entry.coveredTo;
     rows = spliceExpandedRows(params);
   }
@@ -465,13 +458,13 @@ function resolveRemainingAbove(
 function applyStopRule(
   window: ExpansionWindow,
   direction: ExpansionDirection,
-  claimed: readonly LineRange[],
+  blocked: readonly LineRange[],
 ): ExpansionWindow | undefined {
   if (window.from > window.to) return undefined;
   const bounded =
     direction === ExpansionDirections.DOWN
-      ? stopBelow(window, claimed)
-      : stopAbove(window, claimed);
+      ? stopBelow(window, blocked)
+      : stopAbove(window, blocked);
   if (bounded.from > bounded.to) return undefined;
 
   return bounded;
@@ -479,11 +472,11 @@ function applyStopRule(
 
 function stopBelow(
   window: ExpansionWindow,
-  claimed: readonly LineRange[],
+  blocked: readonly LineRange[],
 ): ExpansionWindow {
   let to = window.to;
 
-  for (const range of claimed) {
+  for (const range of blocked) {
     if (range.end < window.from || range.start > to) continue;
     to = Math.min(to, range.start - 1);
   }
@@ -493,11 +486,11 @@ function stopBelow(
 
 function stopAbove(
   window: ExpansionWindow,
-  claimed: readonly LineRange[],
+  blocked: readonly LineRange[],
 ): ExpansionWindow {
   let from = window.from;
 
-  for (const range of claimed) {
+  for (const range of blocked) {
     if (range.start > window.to || range.end < from) continue;
     from = Math.max(from, range.end + 1);
   }

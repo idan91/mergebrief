@@ -11,6 +11,7 @@ import {
 import type { DiffRowView } from "./diffRowView";
 import { type DiffLine, DiffLineKinds } from "@web/utils/diffTokens/types";
 import {
+  type SplitCell,
   type SplitRow,
   type SplitSide,
   SplitSides,
@@ -22,13 +23,10 @@ import {
 import type { DragSelection, RailView, UnderRowLayout } from "./types";
 import { NO_SELECTION } from "./consts";
 import { isContextKind } from "@web/utils/diffTokens/utils";
-import {
-  type ExpandableEdge,
-  ExpansionDirections,
-  type LineRange,
-} from "../../../types";
-import { isClaimedLine } from "../../../utils/expansionState";
+import { type ExpandableEdge, ExpansionDirections } from "../../../types";
 import type { DigestThreadRow } from "@web/features/conversation/utils";
+import type { SiblingSpan } from "../../../utils/siblingSpans";
+import type { LineSide } from "../../../utils/lineOwner";
 
 /** The other side of each paired row, so one rail can speak for both. */
 export function buildPairPartners(
@@ -243,14 +241,193 @@ export function collectThreadLines(rows: readonly DigestThreadRow[]): number[] {
   return lines;
 }
 
-/** A hidden thread belongs to the expanded row showing its line, unless a sibling chunk claimed that line first. */
+/** A hidden thread belongs to the expanded row showing its line. */
 export function showsHiddenThread(
   row: DigestThreadRow,
   line: DiffLine,
-  claimed: readonly LineRange[],
 ): boolean {
   const threadLine = row.thread.line;
-  if (threadLine === undefined || threadLine !== line.newLine) return false;
 
-  return !isClaimedLine(threadLine, claimed);
+  return threadLine !== undefined && threadLine === line.newLine;
+}
+
+/** Where one span's header, gutter edge and end rule render. */
+export interface SpanFrame {
+  owner: string;
+  /** The row whose before-row slot carries the header. */
+  headerAt: number;
+  /** The row whose under-row slot carries the end rule. */
+  endAt: number;
+  /** In pair order, not row order: a split pair lists left then right. */
+  rows: readonly number[];
+}
+
+/** Unified rows: a frame is the span itself. */
+export function frameSpans(spans: readonly SiblingSpan[]): SpanFrame[] {
+  return spans.map((span) => ({
+    owner: span.owner,
+    headerAt: span.start,
+    endAt: span.end,
+    rows: rangeBetween(span.start, span.end),
+  }));
+}
+
+/**
+ * Split pairs: a pair zips a deletion with the addition that follows it, so
+ * its two cells can belong to different spans. A frame takes only pairs
+ * whose every cell sits in one span, and opens and closes once per pair.
+ */
+export function frameSpansOnPairs(
+  spans: readonly SiblingSpan[],
+  pairs: readonly SplitRow[],
+): SpanFrame[] {
+  const spanOfRow = new Map<number, SiblingSpan>();
+  for (const span of spans) {
+    for (const index of rangeBetween(span.start, span.end)) {
+      spanOfRow.set(index, span);
+    }
+  }
+  const frames: SpanFrame[] = [];
+  let open: { span: SiblingSpan; frame: SpanFrame; rows: number[] } | undefined;
+
+  for (const pair of pairs) {
+    const cells = collectPairCells(pair);
+    const span = resolvePairSpan(cells, spanOfRow);
+    if (span === undefined) {
+      open = undefined;
+      continue;
+    }
+    const indexes = cells.map((cell) => cell.index);
+    const endAt = indexes.at(-1) ?? 0;
+    if (open?.span === span) {
+      open.frame.endAt = endAt;
+      open.rows.push(...indexes);
+      continue;
+    }
+    const frame: SpanFrame = {
+      owner: span.owner,
+      headerAt: indexes[0] ?? 0,
+      endAt,
+      rows: indexes,
+    };
+    frames.push(frame);
+    open = { span, frame, rows: indexes };
+  }
+
+  return frames;
+}
+
+/** A pair's cells in the order the row slots fire: left, then right. */
+function collectPairCells(pair: SplitRow): SplitCell[] {
+  const cells: SplitCell[] = [];
+  if (pair.left !== undefined) cells.push(pair.left);
+  if (pair.right !== undefined && pair.right !== pair.left) {
+    cells.push(pair.right);
+  }
+
+  return cells;
+}
+
+function resolvePairSpan(
+  cells: readonly SplitCell[],
+  spanOfRow: ReadonlyMap<number, SiblingSpan>,
+): SiblingSpan | undefined {
+  const first = cells[0];
+  if (first === undefined) return undefined;
+  const span = spanOfRow.get(first.index);
+  if (span === undefined) return undefined;
+  const shared = cells.every((cell) => spanOfRow.get(cell.index) === span);
+
+  return shared ? span : undefined;
+}
+
+/**
+ * A pair zips a deletion with the addition after it because they abut, but
+ * two owners' changes are not one replacement. A run of such pairs renders
+ * as its left sides then its right sides, one-sided rows all, so each side
+ * frames, pairs and emphasises on its own.
+ */
+export function unzipPairsByOwner(
+  pairs: readonly SplitRow[],
+  ownerOf: (index: number) => string | undefined,
+): SplitRow[] {
+  const rows: SplitRow[] = [];
+  let straddling: SplitRow[] = [];
+  const flush = () => {
+    for (const pair of straddling) {
+      if (pair.left !== undefined) {
+        rows.push({ key: `${pair.key}:left`, left: pair.left });
+      }
+    }
+    for (const pair of straddling) {
+      if (pair.right !== undefined) {
+        rows.push({ key: `${pair.key}:right`, right: pair.right });
+      }
+    }
+    straddling = [];
+  };
+
+  for (const pair of pairs) {
+    if (sharesOwner(pair, ownerOf)) {
+      flush();
+      rows.push(pair);
+      continue;
+    }
+    straddling.push(pair);
+  }
+  flush();
+
+  return rows;
+}
+
+function sharesOwner(
+  pair: SplitRow,
+  ownerOf: (index: number) => string | undefined,
+): boolean {
+  const { left, right } = pair;
+  if (left === undefined || right === undefined || left === right) return true;
+
+  return ownerOf(left.index) === ownerOf(right.index);
+}
+
+export interface SpanLines {
+  side: LineSide;
+  from: number;
+  to: number;
+}
+
+/**
+ * The first and last changed line a frame shows: new-side numbers where it
+ * adds anything, old-side numbers for a frame that only deletes. Context
+ * rows inside the frame never name it.
+ */
+export function resolveSpanLines(
+  rows: readonly DiffLine[],
+  indexes: readonly number[],
+): SpanLines {
+  const changed = indexes
+    .map((index) => rows[index])
+    .filter((row): row is DiffLine => row !== undefined)
+    .filter(
+      (row) => row.kind === DiffLineKinds.ADD || row.kind === DiffLineKinds.DEL,
+    );
+  const adds = changed.filter((row) => row.kind === DiffLineKinds.ADD);
+  const side: LineSide = adds.length > 0 ? "new" : "old";
+  const numbers = (adds.length > 0 ? adds : changed).map((row) =>
+    side === "new" ? row.newLine : row.oldLine,
+  );
+
+  return { side, from: numbers[0] ?? 0, to: numbers.at(-1) ?? 0 };
+}
+
+/** Every row index a frame covers, for the gutter edge. */
+export function collectSpannedRows(
+  frames: readonly SpanFrame[],
+): ReadonlySet<number> {
+  const spanned = new Set<number>();
+  for (const frame of frames) {
+    for (const index of frame.rows) spanned.add(index);
+  }
+
+  return spanned;
 }

@@ -21,8 +21,6 @@ export interface UseExpandedRowsInput {
   chunkId: string;
   path: string;
   rows: readonly DiffLine[];
-  /** Head-file lines other chunks of this file render; expansion stops there. */
-  claimed: readonly LineRange[];
 }
 
 export interface ExpandedRows {
@@ -42,7 +40,7 @@ const NO_EDGES: ExpandableEdge[] = [];
  * store holds which lines each edge took; the query cache holds the lines.
  */
 export function useExpandedRows(input: UseExpandedRowsInput): ExpandedRows {
-  const { chunkId, path, rows, claimed } = input;
+  const { chunkId, path, rows } = input;
   const source = useExpansionSource();
   const fileRows = useFileRows()?.getFileRows(path);
   const expandedEdges = useReviewFlow((state) => state.expandedEdges);
@@ -88,7 +86,6 @@ export function useExpandedRows(input: UseExpandedRowsInput): ExpandedRows {
             edges: stored,
             lines,
             fileRows,
-            claimed,
           });
     const edges =
       source === undefined || wholeFile
@@ -112,7 +109,6 @@ export function useExpandedRows(input: UseExpandedRowsInput): ExpandedRows {
     rows,
     lines,
     fileRows,
-    claimed,
     source,
     chunkId,
     baseGaps,

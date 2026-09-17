@@ -9,12 +9,12 @@ import type {
 import type {
   AddressedReviewComment,
   BriefChunk,
-  LineRange,
   RevisionNarrativeSkipReason,
 } from "../../../types";
 import type { RowTokenMap } from "@web/utils/diffTokens/types";
 import type { DiffView, SplitSide } from "@web/components/DiffRows/types";
 import type { ExpandedRows } from "../../../hooks/useExpandedRows";
+import type { FileLineOwners } from "../../../utils/lineOwner";
 
 // csstype's CSSProperties has no `--*` index; a typed extension keeps the
 // custom property cast-free.
@@ -46,10 +46,12 @@ export interface DiffTableProps {
   view?: DiffView;
   /** The chunk's rows with expanded context spliced in; absent renders `chunk.diff`. */
   expansion?: ExpandedRows | undefined;
-  /** Head-file lines other chunks of this file render; expansion stops there. */
-  claimed?: readonly LineRange[] | undefined;
   /** Shipped threads on lines no chunk renders; they show once expanded. */
   hiddenThreads?: readonly DigestThreadRow[] | undefined;
+  /** The file's chunks and their labels; absent leaves expanded changed rows unframed. */
+  lineOwners?: FileLineOwners | undefined;
+  /** Where a sibling span's control lands; absent renders the header without one. */
+  jumpToChunk?: ((chunkId: string) => void) | undefined;
 }
 
 export interface RailView {

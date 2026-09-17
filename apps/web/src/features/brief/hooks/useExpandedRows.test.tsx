@@ -67,8 +67,7 @@ describe("useExpandedRows", () => {
   it("returns the base rows, no edges and no key without a source", () => {
     const { wrapper } = setup(undefined);
     const { result } = renderHook(
-      () =>
-        useExpandedRows({ chunkId: "c1", path: "src/a.ts", rows, claimed: [] }),
+      () => useExpandedRows({ chunkId: "c1", path: "src/a.ts", rows }),
       { wrapper },
     );
 
@@ -95,8 +94,7 @@ describe("useExpandedRows", () => {
       },
     );
     const { result } = renderHook(
-      () =>
-        useExpandedRows({ chunkId: "c1", path: "src/a.ts", rows, claimed: [] }),
+      () => useExpandedRows({ chunkId: "c1", path: "src/a.ts", rows }),
       { wrapper },
     );
     act(() => {
@@ -143,8 +141,7 @@ describe("useExpandedRows", () => {
     };
     const { queryClient, flowStore, wrapper } = setup(SOURCE, cache);
     const { result } = renderHook(
-      () =>
-        useExpandedRows({ chunkId: "c1", path: "src/a.ts", rows, claimed: [] }),
+      () => useExpandedRows({ chunkId: "c1", path: "src/a.ts", rows }),
       { wrapper },
     );
     act(() => {

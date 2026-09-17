@@ -1,7 +1,6 @@
 import { type DiffLine, DiffRowOrigins } from "@web/utils/diffTokens/types";
 import type { DiffView } from "@web/components/DiffRows/types";
 import {
-  type BriefChunk,
   type EdgeExpansion,
   type ExpandableEdge,
   type ExpanderStep,
@@ -22,7 +21,6 @@ import {
   spliceAllExpandedRows,
 } from "./expandRows";
 import { countWindowRows } from "./fileWindowRows";
-import { isUnattributedRemainderChunk } from "./remainder";
 
 /** The base gaps paired with what the store holds for each, if anything. */
 export function collectStoredEdges(
@@ -51,7 +49,6 @@ export function spliceStoredEdges(params: SpliceStoredEdgesParams): DiffLine[] {
     const application: ExpansionApplication = {
       gap: edge.gap,
       range: sliceLines(edge.expansion.range, params.lines),
-      claimed: params.claimed,
     };
     if (params.fileRows !== undefined) application.fileRows = params.fileRows;
     return application;
@@ -198,20 +195,15 @@ export function buildExpansionKey(
 
 /**
  * What the next click at an edge reads, or undefined when the edge is spent:
- * the hole is closed, another chunk's rows sit right behind it, or a read
+ * the hole is closed, the other edge already read up to here, or a read
  * already reached the end of the file.
  */
 export function resolveExpanderStep(
   edge: ExpandableEdge,
-  claimed: readonly LineRange[],
 ): ExpanderStep | undefined {
   if (isPastFileEnd(edge)) return undefined;
-  const stops =
-    edge.sibling === undefined ? claimed : [...claimed, edge.sibling];
-  const params: ResolveExpansionWindowParams = {
-    gap: edge.gap,
-    claimed: stops,
-  };
+  const params: ResolveExpansionWindowParams = { gap: edge.gap };
+  if (edge.sibling !== undefined) params.blocked = [edge.sibling];
   if (edge.expansion !== undefined) params.expanded = edge.expansion.range;
   const window = resolveExpansionWindow(params);
   if (window === undefined) return undefined;
@@ -251,104 +243,16 @@ function isPastFileEnd(edge: ExpandableEdge): boolean {
 }
 
 /**
- * For each chunk, the head-file lines its sibling chunks of the same file
- * render: one envelope per sibling plus whatever each sibling has expanded.
- * An expansion stops at the first of them, so no line ever shows twice.
- * The unattributed remainder claims nothing: it holds whatever lines the
- * model failed to place, often the tail of a statement an attributed chunk
- * opens, and a chunk must still be able to read past its own last row.
- */
-export function collectClaimedLines(
-  chunks: readonly BriefChunk[],
-  expandedEdges: ReadonlyMap<string, EdgeExpansion> = NO_EXPANSIONS,
-): ReadonlyMap<string, LineRange[]> {
-  const envelopes = new Map<string, LineRange | undefined>();
-  for (const chunk of chunks) {
-    envelopes.set(chunk.id, resolveNewLineEnvelope(chunk.diff ?? []));
-  }
-  const claimed = new Map<string, LineRange[]>();
-
-  for (const chunk of chunks) {
-    const others: LineRange[] = [];
-    for (const sibling of chunks) {
-      if (sibling === chunk || sibling.file !== chunk.file) continue;
-      if (isUnattributedRemainderChunk(sibling)) continue;
-      const envelope = envelopes.get(sibling.id);
-      if (envelope !== undefined) others.push(envelope);
-      others.push(...collectExpandedRanges(expandedEdges, sibling.id));
-    }
-    claimed.set(chunk.id, others);
-  }
-
-  return claimed;
-}
-
-const NO_EXPANSIONS: ReadonlyMap<string, EdgeExpansion> = new Map();
-
-function collectExpandedRanges(
-  expandedEdges: ReadonlyMap<string, EdgeExpansion>,
-  chunkId: string,
-): LineRange[] {
-  const prefix = `${chunkId}:`;
-  const ranges: LineRange[] = [];
-  for (const [edgeKey, expansion] of expandedEdges) {
-    if (edgeKey.startsWith(prefix)) ranges.push(expansion.range);
-  }
-
-  return ranges;
-}
-
-/** Whether a head-file line sits inside any claimed range. */
-export function isClaimedLine(
-  line: number,
-  claimed: readonly LineRange[],
-): boolean {
-  return claimed.some((range) => line >= range.start && line <= range.end);
-}
-
-function resolveNewLineEnvelope(
-  rows: readonly DiffLine[],
-): LineRange | undefined {
-  let start: number | undefined;
-  let end: number | undefined;
-
-  for (const row of rows) {
-    if (row.newLine === undefined) continue;
-    if (start === undefined || row.newLine < start) start = row.newLine;
-    if (end === undefined || row.newLine > end) end = row.newLine;
-  }
-
-  return start === undefined || end === undefined ? undefined : { start, end };
-}
-
-/**
- * The lines of a hole a click can still reach: from the hole's top down to
- * the first claimed range, and from the last claimed range up to its bottom,
- * less what each edge already took. A thread elsewhere in the hole stays
- * hidden whatever the reader clicks, so it is not counted.
+ * The lines of a hole a click can still reach: the whole hole, less what
+ * each edge already took.
  */
 export function resolveReachableLines(
   edges: readonly ExpandableEdge[],
-  claimed: readonly LineRange[],
 ): LineRange[] {
   const first = edges[0];
   if (first === undefined) return [];
   const holeStart = first.gap.from;
   const holeEnd = first.gap.to ?? Number.POSITIVE_INFINITY;
-  const blocking = claimed
-    .filter((range) => range.end >= holeStart && range.start <= holeEnd)
-    .toSorted((left, right) => left.start - right.start);
-  let fromTop = { start: holeStart, end: holeEnd };
-  let fromBottom = { start: holeStart, end: holeEnd };
-  const firstBlock = blocking[0];
-  const lastBlock = blocking.at(-1);
-  if (firstBlock !== undefined) {
-    fromTop = { start: holeStart, end: firstBlock.start - 1 };
-  }
-  if (lastBlock !== undefined) {
-    fromBottom = { start: lastBlock.end + 1, end: holeEnd };
-  }
-
   const reachable: LineRange[] = [];
   const down = edges.find(
     (edge) => edge.gap.edge.direction === ExpansionDirections.DOWN,
@@ -358,14 +262,13 @@ export function resolveReachableLines(
   );
   if (down !== undefined) {
     const taken = down.expansion?.range;
-    const start = taken === undefined ? fromTop.start : taken.end + 1;
-    if (start <= fromTop.end) reachable.push({ start, end: fromTop.end });
+    const start = taken === undefined ? holeStart : taken.end + 1;
+    if (start <= holeEnd) reachable.push({ start, end: holeEnd });
   }
   if (up !== undefined) {
     const taken = up.expansion?.range;
-    const end = taken === undefined ? fromBottom.end : taken.start - 1;
-    if (fromBottom.start <= end)
-      reachable.push({ start: fromBottom.start, end });
+    const end = taken === undefined ? holeEnd : taken.start - 1;
+    if (holeStart <= end) reachable.push({ start: holeStart, end });
   }
 
   return reachable;

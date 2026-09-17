@@ -382,15 +382,15 @@ describe("resolveExpansionWindow", () => {
     });
   });
 
-  it("stops at the first line another chunk already claims", () => {
+  it("stops where the other edge of the hole already read", () => {
     expect(
-      resolveExpansionWindow({ gap, claimed: [{ start: 15, end: 40 }] }),
+      resolveExpansionWindow({ gap, blocked: [{ start: 15, end: 40 }] }),
     ).toEqual({ from: 10, to: 14 });
   });
 
-  it("refuses an edge whose every line is claimed", () => {
+  it("refuses an edge whose every line the other edge read", () => {
     expect(
-      resolveExpansionWindow({ gap, claimed: [{ start: 1, end: 400 }] }),
+      resolveExpansionWindow({ gap, blocked: [{ start: 1, end: 400 }] }),
     ).toBeUndefined();
   });
 
@@ -557,7 +557,7 @@ describe("spliceExpandedRows", () => {
     expect(rows).toEqual(diff);
   });
 
-  it("stops at the first line another chunk already claims", () => {
+  it("walks through lines another chunk of the file renders", () => {
     const diff = [makeCtx(1, 1), makeCtx(30, 30)];
     const gap: ExpansionGap = {
       edge: { rowIndex: 1, direction: ExpansionDirections.DOWN },
@@ -570,10 +570,13 @@ describe("spliceExpandedRows", () => {
       diff,
       gap,
       range: { from: 2, to: 21, lines: makeLines(2, 21) },
-      claimed: [{ start: 6, end: 29 }],
     });
 
-    expect(rows.map((row) => row.newLine)).toEqual([1, 2, 3, 4, 5, 30]);
+    expect(rows.map((row) => row.newLine)).toEqual([
+      1,
+      ...Array.from({ length: 20 }, (_unused, offset) => 2 + offset),
+      30,
+    ]);
   });
 });
 

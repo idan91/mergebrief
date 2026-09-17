@@ -72,6 +72,10 @@ A contiguous run of changed lines sharing **one Concern and one Change-group** â
 _Avoid_: hunk (a chunk may be finer than a git hunk), file, diff block
 _Limitation_: a chunk cannot express multiplicity *interleaved within one inseparable contiguous span* (e.g., move and logic-fix woven line-by-line). That is the deferred sub-operation tree; until then, express it via dominant+secondary Categorization on the group plus a text callout in the Summary.
 
+**Sibling span**:
+A contiguous stretch of expanded rows that belongs to another chunk of the same file, framed and labelled with its owner. Never a chunk of its own: its rows keep their add and del colours, and the frame's control jumps to that chunk.
+_Avoid_: borrowed lines, foreign hunk
+
 **Change-group**:
 A cluster of chunks that together accomplish one coherent piece of work (e.g., "fix the cross-param leak"). The unit of *intent* â€” it carries the Categorization and the summary. Spans files and Concerns: one or more core chunks (the intent's implementation may span files) plus zero or more supporting test/doc/spec chunks. The Story view pivots the brief by Change-group.
 **Boundary rule:** one group = the largest chunk set expressible as ONE Summary + ONE Dominant Category. If a set needs two unrelated summaries, split it. Author commit structure is a *hint* for understanding intent, never the boundary itself. A single-intent PR is one group; a grab-bag PR (fix + lib bump + README typo) is several.

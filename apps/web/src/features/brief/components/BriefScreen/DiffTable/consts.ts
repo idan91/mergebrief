@@ -1,7 +1,8 @@
+import type { SiblingSpan } from "../../../utils/siblingSpans";
 import type { DiffLine } from "@web/utils/diffTokens/types";
 import type { SplitRow } from "@web/components/DiffRows/types";
 import type { DragSelection } from "./types";
-import type { ExpandableEdge, LineRange } from "../../../types";
+import type { ExpandableEdge } from "../../../types";
 import type { DigestThreadRow } from "@web/features/conversation/utils";
 
 export const EMPTY_REVIEW_COMMENTS: never[] = [];
@@ -23,8 +24,8 @@ export const NO_SELECTION: DragSelection = {
   placement: undefined,
 };
 
-export const NO_RANGES: LineRange[] = [];
-
 export const NO_EDGES: ExpandableEdge[] = [];
 
 export const NO_HIDDEN_THREADS: DigestThreadRow[] = [];
+
+export const NO_SPANS: SiblingSpan[] = [];
