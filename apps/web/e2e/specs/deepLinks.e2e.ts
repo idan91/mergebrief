@@ -39,7 +39,7 @@ test("unrecognized params fall back to the product default", async ({
   await gotoBrief(page, `${FIXTURE_ROUTE_REV2}&view=bogus&compare=bogus`);
 
   // Unparseable keys read as "nothing chosen yet", so the fresh-arrival
-  // default applies — the page renders rather than 404ing or erroring.
+  // default applies: the page renders rather than 404ing or erroring.
   await expect(page.getByRole("radio", { name: "Changes Only" })).toBeChecked();
   await expect(
     page.getByRole("radio", { name: "Previous brief", exact: true }),
@@ -90,4 +90,30 @@ test("the timeline navigates between the fixture's revisions", async ({
       name: "Add J/K/Z/? keyboard navigation and CSS-only focus mode to the brief screen",
     }),
   ).toBeVisible();
+});
+
+test("a chunk hash lands on that chunk's card", async ({ page }) => {
+  // Plain goto: the interactive wait opens and closes the shortcuts dialog,
+  // which would move focus off the landed card.
+  await page.goto(`${FIXTURE_ROUTE_REV1}#chunk-c3`);
+
+  const card = page.locator("#c3");
+  await expect(card).toBeFocused({ timeout: 15_000 });
+  await expect(card).toHaveAttribute("data-state", "open");
+  await expect(card).toBeInViewport();
+});
+
+test("a chunk hash lands after leaving Changes Only", async ({ page }) => {
+  await page.goto(
+    `${FIXTURE_ROUTE_REV2}&view=changes&compare=previous-brief#chunk-c2`,
+  );
+
+  const card = page.locator("#c2");
+  await expect(card).toBeFocused({ timeout: 15_000 });
+  await expect(page.getByRole("radio", { name: "Full brief" })).toBeChecked();
+  await expect(card).toBeInViewport();
+
+  // The scope exit replaced the arrival entry: one Back leaves the brief.
+  await page.goBack();
+  await expect(page).not.toHaveURL(/\/repos\//);
 });

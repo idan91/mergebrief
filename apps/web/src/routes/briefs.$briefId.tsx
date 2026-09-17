@@ -8,7 +8,7 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 
-import { BriefPage } from "@web/features/brief";
+import { BriefPage, type ScopeExitOptions } from "@web/features/brief";
 import {
   buildBriefSearchParams,
   parseCompareParam,
@@ -95,9 +95,15 @@ function BriefRoute() {
       BRIEF_PATH_PATTERN.test(state.location.pathname),
   });
   // Route-owned: the brief feature never touches the router.
-  const exitChangesScope = useCallback(() => {
-    void navigate({ search: (prev) => ({ ...prev, view: "full" as const }) });
-  }, [navigate]);
+  const exitChangesScope = useCallback(
+    (options?: ScopeExitOptions) => {
+      void navigate({
+        search: (prev) => ({ ...prev, view: "full" as const }),
+        replace: options?.replace ?? false,
+      });
+    },
+    [navigate],
+  );
   // Dropping the key, not blanking it: the stored preference only shows once
   // the deep link stops naming a view. A posture gesture, so no history step.
   const clearDiffParam = useCallback(() => {

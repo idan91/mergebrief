@@ -29,6 +29,8 @@ import {
   toggleSetMember,
   resolveSidebarLayout,
   SidebarLayouts,
+  deriveChunkHash,
+  resolveChunkIdFromHash,
 } from "./utils";
 
 function intentItem(overrides: { acknowledged?: boolean } = {}) {
@@ -595,5 +597,20 @@ describe("deriveChunkSizes", () => {
     delete bare.diff;
 
     expect(deriveChunkSizes([bare])).toEqual([]);
+  });
+});
+
+describe("chunk deep links", () => {
+  it("names a chunk in the hash and reads it back", () => {
+    expect(deriveChunkHash("c3")).toBe("#chunk-c3");
+    expect(resolveChunkIdFromHash("#chunk-c3")).toBe("c3");
+    expect(resolveChunkIdFromHash("#chunk-u-1")).toBe("u-1");
+  });
+
+  it("answers undefined for a hash that names no chunk", () => {
+    expect(resolveChunkIdFromHash("")).toBeUndefined();
+    expect(resolveChunkIdFromHash("#main-content")).toBeUndefined();
+    expect(resolveChunkIdFromHash("#chunk-")).toBeUndefined();
+    expect(resolveChunkIdFromHash("#chunk-not%20safe")).toBeUndefined();
   });
 });

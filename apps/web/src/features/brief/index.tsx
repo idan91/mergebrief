@@ -7,7 +7,10 @@ import { localBriefDiffsQueryOptions, localBriefQueryOptions } from "./queries";
 import type { LocalBriefSummary } from "./types";
 import { attachSlicedDiffs } from "./utils/diffSlicing";
 import { createFileRowsCache } from "./utils/fileRows";
-import { BriefView } from "./components/BriefView/BriefView";
+import {
+  BriefView,
+  type ScopeExitOptions,
+} from "./components/BriefView/BriefView";
 
 // Curated feature entry: components only. NEVER re-export anything that
 // touches server/: a server edge here fails the import-protection build.
@@ -16,6 +19,7 @@ export {
   BriefView,
   type BriefComparisonPlan,
   type BriefViewProps,
+  type ScopeExitOptions,
 } from "./components/BriefView/BriefView";
 export { DB_BRIEF_ID_PREFIX, isDbBriefId } from "./utils/briefIdentity";
 export { LocalBriefsSection } from "./components/LocalBriefsSection/LocalBriefsSection";
@@ -27,7 +31,7 @@ export interface BriefPageProps {
    * resolved against comparison availability in BriefScreen's comparison overlay hook. */
   searchParams: BriefSearchParams;
   /** Navigates the Scope axis to `full`; route-owned. */
-  exitChangesScope?: (() => void) | undefined;
+  exitChangesScope?: ((options?: ScopeExitOptions) => void) | undefined;
   /** Drops the `diff` deep link once the viewer picks a view; route-owned. */
   clearDiffParam?: (() => void) | undefined;
   /** A revision navigation is in flight (router pending); route-owned. */

@@ -1,11 +1,15 @@
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 
+import type { MouseEvent } from "react";
+
 import {
   Button,
+  ButtonElements,
   ButtonSizes,
   ButtonVariants,
 } from "@web/components/Button/Button";
+import { deriveChunkHash } from "../../utils";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import type { LineSide } from "@web/components/DiffRows/types";
 import type { LineTarget, SpanOwner } from "../../../../utils/lineOwner";
@@ -38,14 +42,25 @@ export function SiblingSpanHeader({
     <tr className={styles["header"]} data-testid="sibling-span">
       <td className={styles["cell"]} colSpan={columnCount}>
         <div className={styles["lane"]}>
-          <span className={styles["label"]}>{label}</span>
+          <span className={styles["label"]} data-testid="sibling-span-label">
+            {label}
+          </span>
           {owner.summary === undefined ? null : (
             <span className={styles["summary"]}>{owner.summary}</span>
           )}
           {jumpToLine === undefined ? null : (
             <Button
+              as={ButtonElements.ANCHOR}
               className={styles["jump"]}
-              onClick={() => jumpToLine(owner.chunkId, { side, line: from })}
+              href={deriveChunkHash(owner.chunkId)}
+              onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+                // A modified click keeps its link meaning (new tab, new
+                // window); a plain one runs the in-app landing, which finds
+                // a windowed card the browser's own hash scroll cannot.
+                if (isModifiedClick(event)) return;
+                event.preventDefault();
+                jumpToLine(owner.chunkId, { side, line: from });
+              }}
               size={ButtonSizes.SM}
               variant={ButtonVariants.QUIET}
             >
@@ -87,4 +102,14 @@ function resolveJumpName(t: TFunction, owner: SpanOwner): string {
   if (owner.remainder) return t("brief.diff.siblingSpanJumpRemainder");
 
   return t("brief.diff.siblingSpanJumpGroup", { group: owner.groupName });
+}
+
+function isModifiedClick(event: MouseEvent<HTMLAnchorElement>): boolean {
+  return (
+    event.button !== 0 ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey
+  );
 }

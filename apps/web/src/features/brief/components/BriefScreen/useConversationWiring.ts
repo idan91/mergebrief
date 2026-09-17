@@ -99,6 +99,7 @@ export interface UseConversationWiringValue {
   jumpToChunkFromConversation: (
     chunkId: string,
     target?: ConversationLanding,
+    behavior?: ScrollBehavior,
   ) => void;
   jumpToConversation: () => void;
   open: boolean;
@@ -346,7 +347,11 @@ export function useConversationWiring(
   useEffect(() => cancelLanding, [briefId, cancelLanding]);
 
   const jumpToChunkFromConversation = useCallback(
-    (chunkId: string, target?: ConversationLanding) => {
+    (
+      chunkId: string,
+      target?: ConversationLanding,
+      behavior: ScrollBehavior = "smooth",
+    ) => {
       cancelLanding();
       // Row target: the thread row only renders on an open card.
       ensureChunkOpen(chunkId);
@@ -379,7 +384,7 @@ export function useConversationWiring(
         flashConversationTarget(el);
       };
       if (target === undefined) {
-        jumpToChunk(chunkId);
+        jumpToChunk(chunkId, behavior);
         landingFrameRef.current = window.requestAnimationFrame(() => {
           landOnChunk(LANDING_POLL_FRAMES);
         });

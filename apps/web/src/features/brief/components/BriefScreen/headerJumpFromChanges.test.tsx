@@ -40,6 +40,44 @@ const briefWithRemainder = {
   ],
 };
 
+describe("Chunk deep link from Changes scope", () => {
+  it("leaves the scope by replacing the arrival entry", async () => {
+    vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+    window.location.hash = "#chunk-chunk-b";
+    const exitChangesScope = vi.fn();
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    render(
+      <I18nProvider>
+        <QueryClientProvider client={queryClient}>
+          <BriefView
+            artifacts={[]}
+            brief={briefWithRemainder}
+            briefId="fixture-brief-2"
+            comparisonPlan={{
+              lastReview: {
+                marks: {
+                  queryKey: ["test-last-review-marks"],
+                  queryFn: () => Promise.resolve(lastReviewMarks),
+                },
+              },
+            }}
+            exitChangesScope={exitChangesScope}
+            searchParams={{ view: "changes", compare: "last-review" }}
+          />
+        </QueryClientProvider>
+      </I18nProvider>,
+    );
+
+    await waitFor(() =>
+      expect(exitChangesScope).toHaveBeenCalledWith({ replace: true }),
+    );
+    window.location.hash = "";
+  });
+});
+
 describe("Header Jump from Changes scope", () => {
   it("exits to Full and focuses the remainder heading", async () => {
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);

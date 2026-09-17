@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 
-import { BriefView } from "@web/features/brief";
+import { BriefView, type ScopeExitOptions } from "@web/features/brief";
 import {
   attachSlicedDiffs,
   createFileRowsCache,
@@ -47,7 +47,7 @@ export interface PrBriefContentProps {
   span: Span;
   meta: PrSummary;
   searchParams: BriefSearchParams;
-  onNavigateSearch: (next: BriefSearch) => void;
+  onNavigateSearch: (next: BriefSearch, options?: ScopeExitOptions) => void;
   /** Drops the `diff` deep link once the viewer picks a view; route-owned. */
   clearDiffParam?: (() => void) | undefined;
   readOnly?: { reason: string } | undefined;
@@ -185,28 +185,32 @@ export function PrBriefContent({
   ]);
   // Scope-axis exit for the IntentBar's jumps: the same normalized search
   // write the header View control makes, pinned to `full`.
-  const exitChangesScope = useCallback(() => {
-    const flags = {
-      previousBrief: previousBriefAvailable,
-      lastReview: lastReviewAvailable,
-    };
-    onNavigateSearch(
-      withView(
-        resolveBriefSearch(
-          buildBriefSearchParams(searchView, searchCompare),
+  const exitChangesScope = useCallback(
+    (options?: ScopeExitOptions) => {
+      const flags = {
+        previousBrief: previousBriefAvailable,
+        lastReview: lastReviewAvailable,
+      };
+      onNavigateSearch(
+        withView(
+          resolveBriefSearch(
+            buildBriefSearchParams(searchView, searchCompare),
+            flags,
+          ),
+          "full",
           flags,
         ),
-        "full",
-        flags,
-      ),
-    );
-  }, [
-    lastReviewAvailable,
-    onNavigateSearch,
-    previousBriefAvailable,
-    searchCompare,
-    searchView,
-  ]);
+        options,
+      );
+    },
+    [
+      lastReviewAvailable,
+      onNavigateSearch,
+      previousBriefAvailable,
+      searchCompare,
+      searchView,
+    ],
+  );
   // Renders in the STICKY header's control slot so the controls are never
   // scrolled out of reach by the selection focus effect.
   const headerControls = (

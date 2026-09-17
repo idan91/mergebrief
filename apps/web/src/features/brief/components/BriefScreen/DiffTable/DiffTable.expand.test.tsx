@@ -725,20 +725,53 @@ describe("DiffTable sibling spans", () => {
     expect(rows[4]?.querySelector("td[data-span]")).toBeNull();
   });
 
-  it("jumps to the span's first line in the owning chunk", async () => {
+  it("links to the owning chunk and lands in the app on click", async () => {
     const { jumpToLine } = await expandIntoSiblings("unified");
-    const control = screen.getByRole("button", {
+    const control = screen.getByRole("link", {
       name: "Go to chunk in Fix the leak",
     });
     control.focus();
-    fireEvent.click(control);
+    const navigated = fireEvent.click(control);
 
+    expect(control.getAttribute("href")).toBe("#chunk-c2");
+    expect(navigated).toBe(false);
     expect(jumpToLine).toHaveBeenCalledWith("c2", { side: "new", line: 11 });
     expect(
-      screen.getByRole("button", {
-        name: "Go to chunk in the unattributed remainder",
-      }),
-    ).toBeTruthy();
+      screen
+        .getByRole("link", {
+          name: "Go to chunk in the unattributed remainder",
+        })
+        .getAttribute("href"),
+    ).toBe("#chunk-u-1");
+  });
+
+  it("keeps a modified click a link, not an in-app landing", async () => {
+    const { jumpToLine } = await expandIntoSiblings("unified");
+    const control = screen.getByRole("link", {
+      name: "Go to chunk in Fix the leak",
+    });
+    const navigated = fireEvent.click(control, { metaKey: true });
+
+    expect(navigated).toBe(true);
+    expect(jumpToLine).not.toHaveBeenCalled();
+  });
+
+  it("renders no control when nothing can land", async () => {
+    const harness = renderHarness(
+      { chunk: stubChunk(), view: "unified", lineOwners },
+      { fileRows: cache },
+    );
+    seedRange(harness.queryClient, 10, 29, 80);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Show 20 more lines above" }),
+    );
+
+    await waitFor(() =>
+      expect(
+        harness.view.container.querySelectorAll('[data-testid="sibling-span"]'),
+      ).toHaveLength(2),
+    );
+    expect(screen.queryByRole("link", { name: /Go to chunk/ })).toBeNull();
   });
 
   it("frames the span in split view without breaking the pairs", async () => {
@@ -841,7 +874,13 @@ describe("DiffTable sibling spans", () => {
     const headers = harness.view.container.querySelectorAll(
       '[data-testid="sibling-span"]',
     );
-    expect([...headers].map((header) => header.textContent)).toEqual([
+    expect(
+      [...headers].map(
+        (header) =>
+          header.querySelector('[data-testid="sibling-span-label"]')
+            ?.textContent,
+      ),
+    ).toEqual([
       "Removed lines 14 to 15 belong to Fix the leak",
       "Lines 11 to 12 belong to Add the guard",
     ]);

@@ -23,6 +23,7 @@ import {
   shouldPollMeta,
   type Span,
 } from "@web/features/pulls/utils";
+import type { ScopeExitOptions } from "@web/features/brief";
 import { PrBriefBody, PrBriefError } from "@web/features/pulls";
 import {
   dbBriefQueryOptions,
@@ -436,10 +437,10 @@ function PrBriefRoute() {
   // Stable across renders (navigate is): GroupCard's memo boundary rides on
   // the identity PrBriefContent derives from this.
   const onNavigateSearch = useCallback(
-    (next: BriefSearch) => {
+    (next: BriefSearch, options?: ScopeExitOptions) => {
       void navigate({
         search: (current) => ({ ...current, ...next }),
-        replace: false,
+        replace: options?.replace ?? false,
       });
     },
     [navigate],

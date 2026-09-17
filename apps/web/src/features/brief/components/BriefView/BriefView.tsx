@@ -17,11 +17,13 @@ import {
   BriefScreen,
   type BriefComparisonPlan,
   type OwnDraftPlan,
+  type ScopeExitOptions,
 } from "../BriefScreen/BriefScreen";
 
 export type {
   BriefComparisonPlan,
   OwnDraftPlan,
+  ScopeExitOptions,
 } from "../BriefScreen/BriefScreen";
 
 // Optional props are the DB route's: the local file path wires none of them.
@@ -43,7 +45,7 @@ export interface BriefViewProps {
   /** Head drift: writable, but batch Submit requires an explicit ack. */
   staleHead?: boolean | undefined;
   openDeltaLens?: (() => void) | undefined;
-  exitChangesScope?: (() => void) | undefined;
+  exitChangesScope?: ((options?: ScopeExitOptions) => void) | undefined;
   /** Drops the `diff` deep link once the viewer picks a view; route-owned. */
   clearDiffParam?: (() => void) | undefined;
   conversationFocusThreadId?: number | undefined;

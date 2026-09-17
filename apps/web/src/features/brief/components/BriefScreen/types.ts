@@ -37,6 +37,11 @@ export interface LensPaneProps {
   children: ReactNode;
 }
 
+/** How a scope exit writes the URL: a gesture pushes, an arrival replaces. */
+export interface ScopeExitOptions {
+  replace: boolean;
+}
+
 export interface BriefScreenProps {
   /** DB route; absent on the file path. */
   livePrState?: LivePrState | undefined;
@@ -68,7 +73,7 @@ export interface BriefScreenProps {
    * Screen never touches the router. IntentBar and Header Jump leave Changes
    * through this; absent where no navigation is wired.
    */
-  exitChangesScope?: (() => void) | undefined;
+  exitChangesScope?: ((options?: ScopeExitOptions) => void) | undefined;
   /** Drops the `diff` deep link once the viewer picks a view; route-owned. */
   clearDiffParam?: (() => void) | undefined;
   /** Content goes inert; the sticky header stays live. */

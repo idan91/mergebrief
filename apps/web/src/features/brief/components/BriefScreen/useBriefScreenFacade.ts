@@ -27,6 +27,7 @@ import { deriveVisibleRegions } from "./regions";
 import { useSidebarState } from "./Sidebar";
 import type { BriefScreenProps } from "./types";
 import { useComparisonOverlay } from "./useComparisonOverlay";
+import { useChunkDeepLink } from "./useChunkDeepLink";
 import { useConversationWiring } from "./useConversationWiring";
 import { useDelayedPending } from "./useDelayedPending";
 import { useDiffViewPreference } from "./useDiffViewPreference";
@@ -185,12 +186,17 @@ export function useBriefScreenFacade({
     exitChangesScope();
   };
 
+  // A chunk parked by a deep-link arrival in Changes scope, landed once the
+  // story pane renders.
+  const [pendingDeepLink, setPendingDeepLink] = useState<string | null>(null);
+
   const [submitOpen, setSubmitOpen] = useState(false);
   const [screenBriefId, setScreenBriefId] = useState(briefId);
   if (screenBriefId !== briefId) {
     setScreenBriefId(briefId);
     setSubmitOpen(false);
     setPendingScopeJump(null);
+    setPendingDeepLink(null);
     changesEverShownRef.current = false;
     storyEverShownRef.current = false;
   }
@@ -248,6 +254,39 @@ export function useBriefScreenFacade({
     model,
     readingOrderedChunks,
     submittedReviewIds,
+  });
+
+  // A hash naming a chunk lands through the conversation landing: open the
+  // card, scroll, focus, flash. Instant, not smooth: the windowed lists
+  // mount and measure cards as the viewport passes, and each measurement
+  // scroll-adjustment cancels a smooth scroll in flight. Cards exist only
+  // in the story pane, so an arrival in Changes scope leaves it first,
+  // replacing the URL since that scope was never a chosen destination, and
+  // lands once the pane renders. A thread target owns its own arrival.
+  const { jumpToChunkFromConversation } = conversationWiring;
+  useEffect(() => {
+    if (pendingDeepLink === null || inChangesScope) return;
+    jumpToChunkFromConversation(pendingDeepLink, undefined, "instant");
+    setPendingDeepLink(null);
+  }, [inChangesScope, jumpToChunkFromConversation, pendingDeepLink]);
+  const landOnDeepLink = useCallback(
+    (chunkId: string): boolean => {
+      if (!inChangesScope) {
+        jumpToChunkFromConversation(chunkId, undefined, "instant");
+        return true;
+      }
+      if (exitChangesScope === undefined) return false;
+      setPendingDeepLink(chunkId);
+      exitChangesScope({ replace: true });
+      return true;
+    },
+    [exitChangesScope, inChangesScope, jumpToChunkFromConversation],
+  );
+  useChunkDeepLink({
+    briefId,
+    chunkIds: session.chunkIds,
+    enabled: conversationFocusThreadId === undefined,
+    land: landOnDeepLink,
   });
 
   const revisionNav = useRevisionNavigation({

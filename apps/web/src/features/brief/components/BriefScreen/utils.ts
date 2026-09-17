@@ -300,6 +300,22 @@ export function deriveGroupSectionId(groupId: string): string {
   return `${groupId}-section`;
 }
 
+const CHUNK_HASH_PREFIX = "#chunk-";
+/** The charset chunk ids are generated from; anything else is not a deep link. */
+const CHUNK_ID_PATTERN = /^[A-Za-z0-9._-]+$/;
+
+/** The URL hash that deep-links a chunk; the app lands it, never the browser. */
+export function deriveChunkHash(chunkId: string): string {
+  return `${CHUNK_HASH_PREFIX}${chunkId}`;
+}
+
+export function resolveChunkIdFromHash(hash: string): string | undefined {
+  if (!hash.startsWith(CHUNK_HASH_PREFIX)) return undefined;
+  const chunkId = hash.slice(CHUNK_HASH_PREFIX.length);
+
+  return CHUNK_ID_PATTERN.test(chunkId) ? chunkId : undefined;
+}
+
 /** What the reading column reserves for the Sidebar. */
 export const SidebarLayouts = {
   COLLAPSED: "collapsed",
