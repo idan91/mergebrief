@@ -1,6 +1,6 @@
 // The feature's queryOptions door, referenced by routes. The read goes through
 // the isomorphic boundary; the switch is a client-only POST, after which the
-// caller invalidates EVERYTHING — a tenant switch changes what every query is
+// caller invalidates EVERYTHING: a tenant switch changes what every query is
 // allowed to see.
 import { queryOptions } from "@tanstack/react-query";
 
@@ -12,7 +12,7 @@ import {
 } from "../../data/apiFetch";
 import { parseInstallationsView, type InstallationsView } from "./types";
 
-export function installationsQueryOptions() {
+export function buildInstallationsQueryOptions() {
   return queryOptions({
     queryKey: ["installations"],
     queryFn: async (): Promise<InstallationsView> => {

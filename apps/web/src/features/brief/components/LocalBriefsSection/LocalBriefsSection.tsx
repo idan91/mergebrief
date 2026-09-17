@@ -7,12 +7,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
-import { localBriefsQueryOptions } from "../../queries";
+import { buildLocalBriefsQueryOptions } from "../../queries";
 import styles from "../../../../routes/index.module.scss";
 
 export function LocalBriefsSection() {
   const { t } = useTranslation();
-  const { data: briefs } = useQuery(localBriefsQueryOptions());
+  const { data: briefs } = useQuery(buildLocalBriefsQueryOptions());
 
   if (briefs === undefined || briefs.length === 0) {
     return null;

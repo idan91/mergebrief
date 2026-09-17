@@ -1,5 +1,5 @@
 // Hunk-edge expansion, pure. A chunk's rows are a SLICE of the file's diff,
-// so the holes between them are not always hunk boundaries: every edge here
+// so the gaps between them are not always hunk boundaries: every edge here
 // is named by an insertion point into the rows the chunk actually carries.
 import {
   type DiffLine,
@@ -12,15 +12,15 @@ import {
   ExpansionDirections,
   type ExpansionEdge,
   type ExpansionGap,
-  type ExpansionWindow,
+  type ExpansionRange,
   type FileRangeSlice,
   type LineRange,
-  type ResolveExpansionWindowParams,
+  type ResolveExpansionRangeParams,
   type SpliceExpandedRowsParams,
 } from "../types";
-import { collectWindowRows } from "./fileWindowRows";
+import { collectExpansionRows } from "./expansion-rows";
 
-/** Lines one click reads; a hole with no more than this left opens whole. */
+/** Lines one click reads; a gap with no more than this left opens whole. */
 export const EXPAND_STEP = 20;
 
 const HUNK_HEADER =
@@ -31,7 +31,7 @@ interface NewSideAnchor {
   newLine: number;
 }
 
-/** The widest window covering both; a repeat read leaves it unchanged. */
+/** The widest range covering both; a repeat read leaves it unchanged. */
 export function unionExpanded(
   current: LineRange | undefined,
   added: LineRange,
@@ -90,13 +90,13 @@ export function findExpansionGaps(diff: readonly DiffLine[]): ExpansionGap[] {
 }
 
 /**
- * The window this click reads: one step from the edge, the whole remainder
+ * The range this click reads: one step from the edge, the whole remainder
  * where a step or less is left, and nothing at all where the reader has
- * already reached the hole's end or what the other edge read.
+ * already reached the gap's end or what the other edge read.
  */
-export function resolveExpansionWindow(
-  params: ResolveExpansionWindowParams,
-): ExpansionWindow | undefined {
+export function resolveExpansionRange(
+  params: ResolveExpansionRangeParams,
+): ExpansionRange | undefined {
   const direction = params.gap.edge.direction;
   const remaining = resolveRemaining(params.gap, params.expanded);
   if (remaining === undefined) return undefined;
@@ -109,7 +109,7 @@ export function resolveExpansionWindow(
 
 /**
  * The chunk's rows with the read's lines spliced in at the edge. Lines the
- * chunk already carries and lines past the hole are dropped, so no line is
+ * chunk already carries and lines past the gap are dropped, so no line is
  * ever rendered twice.
  *
  * `gap.edge.rowIndex` indexes the rows PASSED IN, so applying several edges
@@ -119,23 +119,23 @@ export function resolveExpansionWindow(
 export function spliceExpandedRows(
   params: SpliceExpandedRowsParams,
 ): DiffLine[] {
-  const { diff, gap, range } = params;
+  const { diff, gap, slice } = params;
   const limit = gap.to ?? Number.POSITIVE_INFINITY;
   const bounded = {
-    from: Math.max(range.from, gap.from),
-    to: Math.min(range.to, limit),
+    from: Math.max(slice.from, gap.from),
+    to: Math.min(slice.to, limit),
   };
   if (bounded.from > bounded.to) return [...diff];
 
   const rows =
     params.fileRows === undefined
-      ? buildExpandedRows(bounded, range, gap.offset)
-      : collectWindowRows({
+      ? buildExpandedRows(bounded, slice, gap.offset)
+      : collectExpansionRows({
           fileRows: params.fileRows,
-          window: bounded,
-          holeStart: gap.from,
+          range: bounded,
+          gapStart: gap.from,
           base: diff,
-          range,
+          slice,
         });
   if (rows.length === 0) return [...diff];
 
@@ -148,10 +148,10 @@ export function spliceExpandedRows(
 }
 
 /**
- * Every edge's read applied to one chunk. The two edges of one hole are
+ * Every edge's read applied to one chunk. The two edges of one gap are
  * reconciled first: the upward read starts after the downward one ends, and
- * reads that meet close the hole between them so the seam header drops. Each
- * edge keeps its own offset: the run below a hole can open on deletions the
+ * reads that meet close the gap between them so the seam header drops. Each
+ * edge keeps its own offset: the run below a gap can open on deletions the
  * run above knows nothing about. Then bottom-up, so each edge's index still
  * addresses the rows it was found in; where two edges share an index the
  * upward one goes first.
@@ -160,14 +160,14 @@ export function spliceAllExpandedRows(
   diff: readonly DiffLine[],
   entries: readonly ExpansionApplication[],
 ): DiffLine[] {
-  const ordered = reconcileHoles(entries).toSorted(compareApplications);
+  const ordered = reconcileGaps(entries).toSorted(compareApplications);
   let rows = [...diff];
 
   for (const entry of ordered) {
     const params: SpliceExpandedRowsParams = {
       diff: rows,
       gap: entry.gap,
-      range: entry.range,
+      slice: entry.slice,
     };
     if (entry.fileRows !== undefined) params.fileRows = entry.fileRows;
     if (entry.coveredTo !== undefined) params.coveredTo = entry.coveredTo;
@@ -177,7 +177,7 @@ export function spliceAllExpandedRows(
   return rows;
 }
 
-function reconcileHoles(
+function reconcileGaps(
   entries: readonly ExpansionApplication[],
 ): ExpansionApplication[] {
   const reconciled: ExpansionApplication[] = [];
@@ -186,8 +186,7 @@ function reconcileHoles(
   for (const entry of entries) {
     if (merged.has(entry)) continue;
     const sibling = entries.find(
-      (candidate) =>
-        candidate !== entry && isSameHole(candidate.gap, entry.gap),
+      (candidate) => candidate !== entry && isSameGap(candidate.gap, entry.gap),
     );
     if (sibling === undefined) {
       reconciled.push(entry);
@@ -196,13 +195,13 @@ function reconcileHoles(
     merged.add(sibling);
     const down = isDownward(entry) ? entry : sibling;
     const up = isDownward(entry) ? sibling : entry;
-    reconciled.push(...joinHoleReads(down, up));
+    reconciled.push(...joinGapReads(down, up));
   }
 
   return reconciled;
 }
 
-function isSameHole(left: ExpansionGap, right: ExpansionGap): boolean {
+function isSameGap(left: ExpansionGap, right: ExpansionGap): boolean {
   return (
     left.edge.direction !== right.edge.direction &&
     left.from === right.from &&
@@ -214,25 +213,25 @@ function isDownward(entry: ExpansionApplication): boolean {
   return entry.gap.edge.direction === ExpansionDirections.DOWN;
 }
 
-/** The upward read clipped to start after the downward one; reads that meet close the hole. */
-function joinHoleReads(
+/** The upward read clipped to start after the downward one; reads that meet close the gap. */
+function joinGapReads(
   down: ExpansionApplication,
   up: ExpansionApplication,
 ): ExpansionApplication[] {
-  const upFrom = Math.max(up.range.from, down.range.to + 1);
-  const clipped = { ...up, range: sliceRange(up.range, upFrom, up.range.to) };
-  const meet = down.range.to + 1 >= up.range.from;
+  const upFrom = Math.max(up.slice.from, down.slice.to + 1);
+  const clipped = { ...up, slice: sliceRange(up.slice, upFrom, up.slice.to) };
+  const meet = down.slice.to + 1 >= up.slice.from;
   const covers =
     down.gap.to !== undefined &&
-    down.range.from <= down.gap.from &&
-    up.range.to >= down.gap.to;
+    down.slice.from <= down.gap.from &&
+    up.slice.to >= down.gap.to;
   if (!meet || !covers) return [down, clipped];
 
-  return [{ ...down, coveredTo: up.range.to }, clipped];
+  return [{ ...down, coveredTo: up.slice.to }, clipped];
 }
 
 function sliceRange(
-  range: FileRangeSlice,
+  slice: FileRangeSlice,
   from: number,
   to: number,
 ): FileRangeSlice {
@@ -241,7 +240,7 @@ function sliceRange(
   return {
     from,
     to,
-    lines: range.lines.slice(from - range.from, to - range.from + 1),
+    lines: slice.lines.slice(from - slice.from, to - slice.from + 1),
   };
 }
 
@@ -290,7 +289,7 @@ function findInnerGaps(
 }
 
 /**
- * The first row of the run below a hole, whatever its kind: the row after
+ * The first row of the run below a gap, whatever its kind: the row after
  * the header, or, with no header, the first row after the run above that is
  * not a deletion continuing the run above's old numbering.
  */
@@ -370,7 +369,7 @@ function listNewSideAnchors(diff: readonly DiffLine[]): NewSideAnchor[] {
 /**
  * `oldLine - newLine` in force after each row. A row carrying both numbers
  * STATES the offset and re-derives it: slicing drops whole runs of another
- * chunk's rows, so a running count alone drifts across every hole.
+ * chunk's rows, so a running count alone drifts across every gap.
  */
 function traceOffsets(diff: readonly DiffLine[]): number[] {
   const trail: number[] = [];
@@ -424,20 +423,20 @@ function findHeaderBetween(
 function resolveRemaining(
   gap: ExpansionGap,
   expanded: LineRange | undefined,
-): ExpansionWindow | undefined {
-  const window =
+): ExpansionRange | undefined {
+  const range =
     gap.edge.direction === ExpansionDirections.DOWN
       ? resolveRemainingBelow(gap, expanded)
       : resolveRemainingAbove(gap, expanded);
-  if (window.from > window.to) return undefined;
+  if (range.from > range.to) return undefined;
 
-  return window;
+  return range;
 }
 
 function resolveRemainingBelow(
   gap: ExpansionGap,
   expanded: LineRange | undefined,
-): ExpansionWindow {
+): ExpansionRange {
   const from = expanded === undefined ? gap.from : expanded.end + 1;
   // An open-ended tail has no known last line, so it can only ever take one
   // step: the read itself reports where the file ends.
@@ -449,77 +448,77 @@ function resolveRemainingBelow(
 function resolveRemainingAbove(
   gap: ExpansionGap,
   expanded: LineRange | undefined,
-): ExpansionWindow {
+): ExpansionRange {
   const to = expanded === undefined ? (gap.to ?? gap.from) : expanded.start - 1;
 
   return { from: gap.from, to };
 }
 
 function applyStopRule(
-  window: ExpansionWindow,
+  range: ExpansionRange,
   direction: ExpansionDirection,
   blocked: readonly LineRange[],
-): ExpansionWindow | undefined {
-  if (window.from > window.to) return undefined;
+): ExpansionRange | undefined {
+  if (range.from > range.to) return undefined;
   const bounded =
     direction === ExpansionDirections.DOWN
-      ? stopBelow(window, blocked)
-      : stopAbove(window, blocked);
+      ? stopBelow(range, blocked)
+      : stopAbove(range, blocked);
   if (bounded.from > bounded.to) return undefined;
 
   return bounded;
 }
 
 function stopBelow(
-  window: ExpansionWindow,
+  range: ExpansionRange,
   blocked: readonly LineRange[],
-): ExpansionWindow {
-  let to = window.to;
+): ExpansionRange {
+  let to = range.to;
 
-  for (const range of blocked) {
-    if (range.end < window.from || range.start > to) continue;
-    to = Math.min(to, range.start - 1);
+  for (const block of blocked) {
+    if (block.end < range.from || block.start > to) continue;
+    to = Math.min(to, block.start - 1);
   }
 
-  return { from: window.from, to };
+  return { from: range.from, to };
 }
 
 function stopAbove(
-  window: ExpansionWindow,
+  range: ExpansionRange,
   blocked: readonly LineRange[],
-): ExpansionWindow {
-  let from = window.from;
+): ExpansionRange {
+  let from = range.from;
 
-  for (const range of blocked) {
-    if (range.start > window.to || range.end < from) continue;
-    from = Math.max(from, range.end + 1);
+  for (const block of blocked) {
+    if (block.start > range.to || block.end < from) continue;
+    from = Math.max(from, block.end + 1);
   }
 
-  return { from, to: window.to };
+  return { from, to: range.to };
 }
 
 function takeStep(
-  window: ExpansionWindow,
+  range: ExpansionRange,
   direction: ExpansionDirection,
-): ExpansionWindow {
-  const span = window.to - window.from + 1;
-  if (span <= EXPAND_STEP) return window;
+): ExpansionRange {
+  const span = range.to - range.from + 1;
+  if (span <= EXPAND_STEP) return range;
   if (direction === ExpansionDirections.DOWN) {
-    return { from: window.from, to: window.from + EXPAND_STEP - 1 };
+    return { from: range.from, to: range.from + EXPAND_STEP - 1 };
   }
 
-  return { from: window.to - EXPAND_STEP + 1, to: window.to };
+  return { from: range.to - EXPAND_STEP + 1, to: range.to };
 }
 
 function buildExpandedRows(
-  window: ExpansionWindow,
-  range: FileRangeSlice,
+  range: ExpansionRange,
+  slice: FileRangeSlice,
   offset: number,
 ): DiffLine[] {
   const rows: DiffLine[] = [];
 
-  for (let line = window.from; line <= window.to; line += 1) {
-    const content = range.lines[line - range.from];
+  for (let line = range.from; line <= range.to; line += 1) {
+    const content = slice.lines[line - slice.from];
     if (content === undefined) continue;
     rows.push({
       kind: DiffLineKinds.CTX,
@@ -533,14 +532,14 @@ function buildExpandedRows(
   return rows;
 }
 
-function closesGap(gap: ExpansionGap, window: ExpansionWindow): boolean {
+function closesGap(gap: ExpansionGap, range: ExpansionRange): boolean {
   if (gap.to === undefined) return false;
 
-  return window.from <= gap.from && window.to >= gap.to;
+  return range.from <= gap.from && range.to >= gap.to;
 }
 
 /**
- * A closed hole has no discontinuity left to announce and the header's counts
+ * A closed gap has no discontinuity left to announce and the header's counts
  * no longer describe the rows around it, so the row goes rather than gets
  * rewritten into a second claim the diff cannot back.
  */

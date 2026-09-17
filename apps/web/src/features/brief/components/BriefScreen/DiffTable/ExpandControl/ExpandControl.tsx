@@ -24,20 +24,20 @@ import styles from "./ExpandControl.module.scss";
 /** What a click just did, for the table to keep the reader's place. */
 export interface ExpandedEvent {
   edgeKey: string;
-  window: LineRange;
+  range: LineRange;
   /** The control's row top before the rows landed, viewport-relative. */
   top: number;
   row: HTMLTableRowElement | null;
 }
 
 export interface ExpandControlProps {
-  /** The edges this hole exposes: up, down, or both. */
+  /** The edges this gap exposes: up, down, or both. */
   edges: readonly ExpandableEdge[];
   path: string;
   columnCount: number;
   /** The hunk header this control shares its row with, if any. */
   header?: string | undefined;
-  /** Head-file lines of shipped threads the hole hides. */
+  /** Head-file lines of shipped threads the gap hides. */
   hiddenThreadLines?: readonly number[] | undefined;
   /** Fires at click time, before the read, so the landing is known when rows arrive. */
   onExpanded: (event: ExpandedEvent) => void;
@@ -45,7 +45,7 @@ export interface ExpandControlProps {
   onAbandoned?: ((edgeKey: string) => void) | undefined;
 }
 
-/** Stands in for a side the hole has no edge on; its step is never taken. */
+/** Stands in for a side the gap has no edge on; its step is never taken. */
 const NO_EDGE: ExpandableEdge = {
   rowIndex: -1,
   gap: {
@@ -67,8 +67,8 @@ const FAILURE_KEYS: Record<ExpandFailure, TranslationKey> = {
 
 /**
  * The spanning cell of a hunk row, or of a row of its own: one arrow per
- * edge of the hole, the header text when there is one, and a count of the
- * shipped threads the hole hides.
+ * edge of the gap, the header text when there is one, and a count of the
+ * shipped threads the gap hides.
  */
 export function ExpandControl({
   edges,
@@ -198,7 +198,7 @@ function ExpandArrow({
 }
 
 /**
- * One click: the landing (row, top, window) is registered BEFORE the read,
+ * One click: the landing (row, top, range) is registered BEFORE the read,
  * because the store write that lands the rows renders on its own, and the
  * table's layout effect has to find the landing on that commit.
  */
@@ -214,7 +214,7 @@ async function startExpansion(
   const row = event.currentTarget.closest("tr");
   onExpanded({
     edgeKey: edge.edgeKey,
-    window: { start: step.window.from, end: step.window.to },
+    range: { start: step.range.from, end: step.range.to },
     top: row?.getBoundingClientRect().top ?? 0,
     row,
   });
@@ -285,7 +285,7 @@ function resolveArrowLabel(
 ): string {
   const isUp = edge.gap.edge.direction === ExpansionDirections.UP;
   if (step === undefined) return "";
-  const span = step.window.to - step.window.from + 1;
+  const span = step.range.to - step.range.from + 1;
   if (step.takesAll) {
     return t(isUp ? "brief.diff.expandAllUp" : "brief.diff.expandAllDown", {
       count: span,
@@ -297,7 +297,7 @@ function resolveArrowLabel(
   });
 }
 
-/** Threads whose head-file line a click at this hole can still reveal. */
+/** Threads whose head-file line a click at this gap can still reveal. */
 function countHiddenThreads(
   reachable: readonly LineRange[],
   lines: readonly number[] | undefined,

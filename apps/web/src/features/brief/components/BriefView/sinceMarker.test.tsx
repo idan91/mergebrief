@@ -18,7 +18,7 @@ import type { BriefComparisonPlan } from "./BriefView";
 import { BriefView } from "./BriefView";
 import { SinceMarker } from "../BriefScreen/StoryView/GroupCard/SinceMarker/SinceMarker";
 import { useComparisonOverlay } from "../BriefScreen/useComparisonOverlay";
-import { localComparisonMarksQueryOptions } from "../../queries";
+import { buildLocalComparisonMarksQueryOptions } from "../../queries";
 import { briefFixture } from "@web/features/brief/fixtures";
 
 afterEach(() => {
@@ -122,7 +122,7 @@ describe("per-group changed-since marker", () => {
       defaultOptions: { queries: { retry: false } },
     });
     queryClient.setQueryData(
-      localComparisonMarksQueryOptions("marks-1").queryKey,
+      buildLocalComparisonMarksQueryOptions("marks-1").queryKey,
       checkpointMarks(),
     );
     const { result } = renderHook(

@@ -19,7 +19,7 @@ vi.mock("../../queries", async (importOriginal) => {
 });
 
 import {
-  installationsQueryOptions,
+  buildInstallationsQueryOptions,
   reloadToPicker,
   switchInstallation,
 } from "../../queries";
@@ -52,7 +52,7 @@ function renderSwitcher(view: InstallationsView = VIEW) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
-  queryClient.setQueryData(installationsQueryOptions().queryKey, view);
+  queryClient.setQueryData(buildInstallationsQueryOptions().queryKey, view);
   render(
     <QueryClientProvider client={queryClient}>
       <OrgSwitcher enabled />
@@ -103,7 +103,7 @@ describe("OrgSwitcher", () => {
     await waitFor(() => expect(reloadMock).toHaveBeenCalled());
   });
 
-  it("remember-as-default is a menu-native checkbox item that rides the switch", async () => {
+  it("remember-as-default is a menu-native checkbox item riding the switch", async () => {
     switchMock.mockResolvedValue(undefined);
     renderSwitcher();
     fireEvent.click(screen.getByRole("button", { name: /acme/i }));

@@ -6,7 +6,7 @@ import { useState, type FormEvent } from "react";
 import { Button } from "@web/components/Button/Button";
 import {
   generateBriefViaApi,
-  localBriefsQueryOptions,
+  buildLocalBriefsQueryOptions,
 } from "../features/brief/queries";
 import { briefErrorDetail } from "@web/features/brief/utils";
 import { LocalBriefsSection } from "@web/features/brief";
@@ -14,8 +14,8 @@ import { OrgSwitcher } from "@web/features/installations";
 import { LocalePicker } from "../i18n/LocalePicker/LocalePicker";
 import { PullsSection, YourBriefsSection } from "@web/features/pulls";
 import {
-  pullsSessionQueryOptions,
-  urlBriefsQueryOptions,
+  buildPullsSessionQueryOptions,
+  buildUrlBriefsQueryOptions,
 } from "../features/pulls/queries";
 import sharedStyles from "./routeShared.module.scss";
 import styles from "./index.module.scss";
@@ -25,8 +25,8 @@ export const Route = createFileRoute("/")({
   // in-process apiFetch interface (same authz gate), never a client waterfall.
   loader: async ({ context }) => {
     const prefetches: Promise<unknown>[] = [
-      context.queryClient.ensureQueryData(urlBriefsQueryOptions()),
-      context.queryClient.ensureQueryData(pullsSessionQueryOptions()),
+      context.queryClient.ensureQueryData(buildUrlBriefsQueryOptions()),
+      context.queryClient.ensureQueryData(buildPullsSessionQueryOptions()),
     ];
     // The DEV file surface, and never allowed to fail the page: an unset
     // MERGEBRIEF_OUT_DIR refuses and the list simply does not render. The
@@ -34,7 +34,7 @@ export const Route = createFileRoute("/")({
     if (!import.meta.env.PROD) {
       prefetches.push(
         context.queryClient
-          .ensureQueryData(localBriefsQueryOptions())
+          .ensureQueryData(buildLocalBriefsQueryOptions())
           .catch(() => undefined),
       );
     }
@@ -50,8 +50,8 @@ const PRODUCT_SUFFIX = " / review";
 
 function BriefPicker() {
   const { t } = useTranslation();
-  const yourBriefs = useSuspenseQuery(urlBriefsQueryOptions()).data;
-  const session = useSuspenseQuery(pullsSessionQueryOptions()).data;
+  const yourBriefs = useSuspenseQuery(buildUrlBriefsQueryOptions()).data;
+  const session = useSuspenseQuery(buildPullsSessionQueryOptions()).data;
   const navigate = useNavigate();
   const [url, setUrl] = useState("");
   const [pending, setPending] = useState(false);

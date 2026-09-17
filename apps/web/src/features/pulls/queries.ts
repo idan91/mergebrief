@@ -57,7 +57,7 @@ function prPath(repoId: string, prNumber: number): string {
  * whole route (the local-briefs section still works). Only contract
  * violations (malformed 200) throw.
  */
-export function pullsSessionQueryOptions() {
+export function buildPullsSessionQueryOptions() {
   return queryOptions({
     queryKey: ["pulls", "session-list"],
     queryFn: async (): Promise<PullsSession> => {
@@ -85,7 +85,7 @@ export function pullsSessionQueryOptions() {
  * The viewer's own url-box briefs, the "your briefs" home list. Same
  * expected-state envelope as the pulls list; rows are the same wire shape.
  */
-export function urlBriefsQueryOptions() {
+export function buildUrlBriefsQueryOptions() {
   return queryOptions({
     queryKey: ["briefs", "url-box"],
     queryFn: async (): Promise<PullsSession> => {
@@ -122,7 +122,7 @@ export async function deleteUrlBrief(
 }
 
 /** PR meta, the single generation-status poll target. */
-export function prMetaQueryOptions(repoId: string, prNumber: number) {
+export function buildPrMetaQueryOptions(repoId: string, prNumber: number) {
   return queryOptions({
     queryKey: ["pr-meta", repoId, prNumber],
     queryFn: async (): Promise<PrSummary> => {
@@ -140,7 +140,7 @@ export function prMetaQueryOptions(repoId: string, prNumber: number) {
 }
 
 /** The PR's stack on GitHub now: navigation only, so a minute stale is fine. */
-export function prStackQueryOptions(repoId: string, prNumber: number) {
+export function buildPrStackQueryOptions(repoId: string, prNumber: number) {
   return queryOptions({
     queryKey: ["pr-stack", repoId, prNumber],
     queryFn: async (): Promise<PrStack | null> => {
@@ -158,7 +158,7 @@ export function prStackQueryOptions(repoId: string, prNumber: number) {
 }
 
 /** A DB-stored Brief artifact for an exact span, immutable once written. */
-export function dbBriefQueryOptions(
+export function buildDbBriefQueryOptions(
   repoId: string,
   prNumber: number,
   base: string,
@@ -190,7 +190,7 @@ export function dbBriefQueryOptions(
  * Best-effort: a failure renders the Brief without source markers or
  * de-emphasis, never blocks it. Immutable per span, like the brief.
  */
-export function dbBriefContextQueryOptions(
+export function buildDbBriefContextQueryOptions(
   repoId: string,
   prNumber: number,
   base: string,
@@ -219,7 +219,7 @@ export function dbBriefContextQueryOptions(
  * PURE: it never creates the session row. Live rather than immutable (a CLI
  * write lands in the same session), so it holds only briefly.
  */
-export function sessionQueryOptions(
+export function buildSessionQueryOptions(
   repoId: string,
   prNumber: number,
   base: string,
@@ -271,7 +271,7 @@ export function sessionQueryOptions(
  * are synthesized here from the comparison this query IS and PR-meta's index,
  * null when the checkpoint SHA was never a briefed head.
  */
-export function dbComparisonMarksQueryOptions(
+export function buildDbComparisonMarksQueryOptions(
   repoId: string,
   prNumber: number,
   baselineSha: string,
@@ -319,7 +319,7 @@ export function dbComparisonMarksQueryOptions(
  * The caller only mounts this when PR-meta said `deltaAvailable`, so a 404
  * here is a real error, not a tier.
  */
-export function dbDeltaQueryOptions(
+export function buildDbDeltaQueryOptions(
   repoId: string,
   prNumber: number,
   baselineSha: string,
@@ -351,7 +351,7 @@ export function dbDeltaQueryOptions(
 }
 
 /** Revision narrative for (prevHead, head), real narrative or a skip stub. */
-export function dbRevisionNarrativeQueryOptions(
+export function buildDbRevisionNarrativeQueryOptions(
   repoId: string,
   prNumber: number,
   prevHeadSha: string,
@@ -387,7 +387,7 @@ export function dbRevisionNarrativeQueryOptions(
  * never persisted; match that staleness here. The client slices it per chunk
  * with the shared `diffSlicing` module.
  */
-export function prDiffQueryOptions(
+export function buildPrDiffQueryOptions(
   repoId: string,
   prNumber: number,
   base: string,

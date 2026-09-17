@@ -48,7 +48,7 @@ net — store unit tests alone don't prove the *screen* still works.
   disk, which doesn't exist under jsdom — so the test must (a) render the real route component
   (in Slice A that is **`BriefApp`/`BriefRoute`**, *not* `BriefPage`, which doesn't exist until
   Slice B), (b) wrap it in `QueryClientProvider` with the client **pre-seeded** (`setQueryData`)
-  for `localBriefQueryOptions(fixtureId)` + `localRevisionChangesQueryOptions(fixtureId)` from a
+  for `buildLocalBriefQueryOptions(fixtureId)` + `buildLocalRevisionChangesQueryOptions(fixtureId)` from a
   committed JSON fixture (or mock `brief.functions`), plus the router context and
   `MindMapProvider`, and (c) resolve Suspense. Assert the critical couplings end-to-end:
   groups render; disposing a flag moves the receipt counts; marking a core chunk reviewed

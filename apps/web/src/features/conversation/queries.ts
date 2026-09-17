@@ -1,6 +1,6 @@
 // react-query descriptors for the live conversation GET, referenced by
 // routes. Refresh policy: refetch on navigation and window-focus plus a
-// manual refresh control (the section invalidates this key) — NO background
+// manual refresh control (the section invalidates this key): NO background
 // poll. Expected failure statuses are RESULT KINDS the section renders as its
 // error state; only a malformed 200 throws (contract violation).
 import { queryOptions, type QueryKey } from "@tanstack/react-query";
@@ -20,14 +20,14 @@ import {
 
 export type ConversationResult =
   | { readonly kind: "ready"; readonly conversation: PrConversation }
-  /** 401 — the session expired mid-review; sign in again. */
+  /** 401: the session expired mid-review; sign in again. */
   | { readonly kind: "unauthorized" }
-  /** 404 — the PR (or its conversation) is no longer accessible. */
+  /** 404: the PR (or its conversation) is no longer accessible. */
   | { readonly kind: "not-found" }
-  /** 502/503 — GitHub or the backend is unreachable; the section's error state. */
+  /** 502/503: GitHub or the backend is unreachable; the section's error state. */
   | { readonly kind: "unavailable" };
 
-export function conversationQueryKey(repoId: string, prNumber: number) {
+export function buildConversationQueryKey(repoId: string, prNumber: number) {
   return ["conversation", repoId, prNumber] as const;
 }
 
@@ -36,11 +36,14 @@ export function conversationQueryKey(repoId: string, prNumber: number) {
  * installation token; the short client staleTime keeps focus/navigation
  * refetches honest without hammering the shared budget.
  */
-export function conversationQueryOptions(repoId: string, prNumber: number) {
+export function buildConversationQueryOptions(
+  repoId: string,
+  prNumber: number,
+) {
   // Deliberately widened to `QueryKey`: the descriptor crosses plan
   // boundaries typed as plain UseQueryOptions, and a narrower inferred key
   // breaks that assignment (queryFn context contravariance).
-  const queryKey: QueryKey = conversationQueryKey(repoId, prNumber);
+  const queryKey: QueryKey = buildConversationQueryKey(repoId, prNumber);
   return queryOptions({
     queryKey,
     queryFn: async (): Promise<ConversationResult> => {
@@ -73,28 +76,28 @@ export function conversationQueryOptions(repoId: string, prNumber: number) {
 }
 
 export type CollaboratorsResult =
-  /** Alphabetical by login — pool order is the autocomplete ranking. */
+  /** Alphabetical by login: pool order is the autocomplete ranking. */
   | { readonly kind: "ready"; readonly candidates: readonly MentionCandidate[] }
   /**
-   * 401/404/502/503 — all EXPECTED: 404 is the route's viewerCanPush denial,
+   * 401/404/502/503, all EXPECTED: 404 is the route's viewerCanPush denial,
    * the rest auth/upstream blips. The pool falls back to thread participants;
    * a mention pool never earns an error surface.
    */
   | { readonly kind: "unavailable" };
 
-export function collaboratorsQueryKey(repoId: string) {
+export function buildCollaboratorsQueryKey(repoId: string) {
   return ["collaborators", repoId] as const;
 }
 
 /**
  * The repo's collaborator roster as mention candidates. Server-side it is
  * cached ~60s per repo on the installation token; the long client staleTime
- * reflects how slowly a roster churns — no focus-refetch, no poll.
+ * reflects how slowly a roster churns: no focus-refetch, no poll.
  */
-export function collaboratorsQueryOptions(repoId: string) {
+export function buildCollaboratorsQueryOptions(repoId: string) {
   // Widened to `QueryKey` for the same contravariance reason as
-  // conversationQueryOptions above.
-  const queryKey: QueryKey = collaboratorsQueryKey(repoId);
+  // buildConversationQueryOptions above.
+  const queryKey: QueryKey = buildCollaboratorsQueryKey(repoId);
   return queryOptions({
     queryKey,
     queryFn: async (): Promise<CollaboratorsResult> => {

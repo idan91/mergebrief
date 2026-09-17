@@ -22,8 +22,8 @@ import type {
   ThreadRevisionJump,
 } from "@web/features/conversation";
 import {
-  collaboratorsQueryOptions,
-  conversationQueryOptions,
+  buildCollaboratorsQueryOptions,
+  buildConversationQueryOptions,
 } from "../../conversation/queries";
 import { postConversationReply } from "../../conversation/reply";
 import { setThreadResolution } from "../../conversation/resolve";
@@ -39,11 +39,11 @@ import { createMarkReadyAction } from "../transport/markReady";
 import { isOwnDraft } from "../utils/ownDraft";
 import { postInlineComment } from "../transport/postComment";
 import {
-  dbComparisonMarksQueryOptions,
-  dbDeltaQueryOptions,
-  dbRevisionNarrativeQueryOptions,
-  prDiffQueryOptions,
-  prMetaQueryOptions,
+  buildDbComparisonMarksQueryOptions,
+  buildDbDeltaQueryOptions,
+  buildDbRevisionNarrativeQueryOptions,
+  buildPrDiffQueryOptions,
+  buildPrMetaQueryOptions,
 } from "../queries";
 import { submitReview } from "../transport/submitReview";
 import type { LastReviewComparison, PrSummary } from "../types";
@@ -122,7 +122,7 @@ export function usePrBriefPlans(
 
     if (previous !== undefined) {
       const previousBrief: PreviousBriefPlan = {
-        marks: dbComparisonMarksQueryOptions(
+        marks: buildDbComparisonMarksQueryOptions(
           repoId,
           prNumber,
           previous.baselineSha,
@@ -131,7 +131,7 @@ export function usePrBriefPlans(
           previous.baselineIndex,
         ),
         // Raw span diff toggle: previous head → selected head.
-        rawDiff: prDiffQueryOptions(
+        rawDiff: buildPrDiffQueryOptions(
           repoId,
           prNumber,
           previous.baselineSha,
@@ -140,7 +140,7 @@ export function usePrBriefPlans(
       };
 
       if (previous.narrativeAvailable) {
-        previousBrief.narrative = dbRevisionNarrativeQueryOptions(
+        previousBrief.narrative = buildDbRevisionNarrativeQueryOptions(
           repoId,
           prNumber,
           previous.baselineSha,
@@ -153,7 +153,7 @@ export function usePrBriefPlans(
 
     if (lastReview !== undefined && lastReview.kind === "available") {
       const lastReviewPlan: LastReviewPlan = {
-        marks: dbComparisonMarksQueryOptions(
+        marks: buildDbComparisonMarksQueryOptions(
           repoId,
           prNumber,
           lastReview.baselineSha,
@@ -162,7 +162,7 @@ export function usePrBriefPlans(
           lastReview.baselineIndex ?? null,
         ),
         // Raw span diff toggle: checkpoint → selected head.
-        rawDiff: prDiffQueryOptions(
+        rawDiff: buildPrDiffQueryOptions(
           repoId,
           prNumber,
           lastReview.baselineSha,
@@ -173,7 +173,7 @@ export function usePrBriefPlans(
       // Marks-only tier: no delta descriptor, the delta pane
       // degrades honestly ("absence IS the signal").
       if (lastReview.deltaAvailable) {
-        lastReviewPlan.delta = dbDeltaQueryOptions(
+        lastReviewPlan.delta = buildDbDeltaQueryOptions(
           repoId,
           prNumber,
           lastReview.baselineSha,
@@ -255,10 +255,10 @@ export function usePrBriefPlans(
   const viewerCanResolve = meta.viewerCanResolve;
   const conversationPlan = useMemo<ConversationPlan>(() => {
     const plan: Mutable<ConversationPlan> = {
-      queryOptions: conversationQueryOptions(repoId, prNumber),
+      queryOptions: buildConversationQueryOptions(repoId, prNumber),
       // Collaborator mention pool: repo-scoped, shared by the section and the
       // inline composers through one query key.
-      collaborators: collaboratorsQueryOptions(repoId),
+      collaborators: buildCollaboratorsQueryOptions(repoId),
       postReply: (rootCommentId: number, body: string) =>
         postConversationReply(repoId, prNumber, rootCommentId, body),
       resolution: {
@@ -267,7 +267,7 @@ export function usePrBriefPlans(
           setThreadResolution(repoId, prNumber, rootCommentId, resolved),
         refetchCapability: () =>
           void queryClient.invalidateQueries({
-            queryKey: prMetaQueryOptions(repoId, prNumber).queryKey,
+            queryKey: buildPrMetaQueryOptions(repoId, prNumber).queryKey,
           }),
       },
     };

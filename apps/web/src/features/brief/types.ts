@@ -194,21 +194,21 @@ export interface ExpansionEdge {
 
 /**
  * What one hunk edge has expanded: the union the height model reads, the
- * windows each click read (the query cache holds their lines) and, once a
+ * ranges each click read (the query cache holds their lines) and, once a
  * read reached it, where the file ends.
  */
 export interface EdgeExpansion {
   range: LineRange;
-  windows: readonly LineRange[];
+  ranges: readonly LineRange[];
   totalLines?: number;
 }
 
-/** One edge of one hole in a chunk's rows, in head-file line numbers. */
+/** One edge of one gap in a chunk's rows, in head-file line numbers. */
 export interface ExpansionGap {
   edge: ExpansionEdge;
   /** First missing line, inclusive. */
   from: number;
-  /** Last missing line, inclusive; absent where the hole runs to end of file. */
+  /** Last missing line, inclusive; absent where the gap runs to end of file. */
   to?: number;
   /** `oldLine - newLine` in force at this edge. */
   offset: number;
@@ -666,16 +666,16 @@ export interface LocalBriefSummary {
 }
 
 /** The head-file lines one click asks the file-range read for. */
-export interface ExpansionWindow {
+export interface ExpansionRange {
   from: number;
   to: number;
 }
 
-export interface ResolveExpansionWindowParams {
+export interface ResolveExpansionRangeParams {
   gap: ExpansionGap;
   /** Head-file lines this edge has already taken. */
   expanded?: LineRange;
-  /** Lines the other edge of the same hole already read; this edge stops there. */
+  /** Lines the other edge of the same gap already read; this edge stops there. */
   blocked?: readonly LineRange[];
 }
 
@@ -689,17 +689,17 @@ export interface FileRangeSlice {
 export interface SpliceExpandedRowsParams {
   diff: readonly DiffLine[];
   gap: ExpansionGap;
-  range: FileRangeSlice;
-  /** The file's whole diff; absent falls back to range lines with the edge offset. */
+  slice: FileRangeSlice;
+  /** The file's whole diff; absent falls back to the slice's lines with the edge offset. */
   fileRows?: readonly DiffLine[];
-  /** The last hole line the sibling read covers; the hole closes together. */
+  /** The last gap line the sibling read covers; the gap closes together. */
   coveredTo?: number;
 }
 
 /** One edge's read, ready to splice. */
 export interface ExpansionApplication {
   gap: ExpansionGap;
-  range: FileRangeSlice;
+  slice: FileRangeSlice;
   fileRows?: readonly DiffLine[];
   coveredTo?: number;
 }
@@ -721,7 +721,7 @@ export interface ExpandableEdge {
   gap: ExpansionGap;
   edgeKey: string;
   expansion: EdgeExpansion | undefined;
-  /** What the other edge of the same hole already took; this edge stops there. */
+  /** What the other edge of the same gap already took; this edge stops there. */
   sibling?: LineRange;
 }
 
@@ -732,22 +732,22 @@ export interface SpliceStoredEdgesParams {
   fileRows?: readonly DiffLine[] | undefined;
 }
 
-/** Where an expansion window's rows come from: the file's diff and the chunk's own rows. */
-export interface WindowRowSources {
+/** Where an expansion range's rows come from: the file's diff and the chunk's own rows. */
+export interface ExpansionRowSources {
   fileRows: readonly DiffLine[];
-  window: ExpansionWindow;
-  /** The hole's first line: a deletion anchored just above it rides the first read. */
-  holeStart: number;
+  range: ExpansionRange;
+  /** The gap's first line: a deletion anchored just above it rides the first read. */
+  gapStart: number;
   /** The chunk's own rows; a deletion they carry is never repeated. */
   base: readonly DiffLine[];
 }
 
-export interface CollectWindowRowsParams extends WindowRowSources {
-  range: FileRangeSlice;
+export interface CollectExpansionRowsParams extends ExpansionRowSources {
+  slice: FileRangeSlice;
 }
 
 export interface ExpanderStep {
-  window: ExpansionWindow;
-  /** The click takes the whole remainder of the hole. */
+  range: ExpansionRange;
+  /** The click takes the whole remainder of the gap. */
   takesAll: boolean;
 }

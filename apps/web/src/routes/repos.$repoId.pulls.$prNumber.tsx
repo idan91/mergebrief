@@ -26,9 +26,9 @@ import {
 import type { ScopeExitOptions } from "@web/features/brief";
 import { PrBriefBody, PrBriefError } from "@web/features/pulls";
 import {
-  dbBriefQueryOptions,
-  prMetaQueryOptions,
-  sessionQueryOptions,
+  buildDbBriefQueryOptions,
+  buildPrMetaQueryOptions,
+  buildSessionQueryOptions,
 } from "../features/pulls/queries";
 import { useUnsavedComposerBlocker } from "@web/hooks/useUnsavedComposerGuard";
 import {
@@ -118,7 +118,7 @@ function dropMissingBriefPrefetch(
   }
 
   queryClient.removeQueries({
-    queryKey: dbBriefQueryOptions(repoId, prNumber, span.base, span.head)
+    queryKey: buildDbBriefQueryOptions(repoId, prNumber, span.base, span.head)
       .queryKey,
     exact: true,
   });
@@ -135,7 +135,7 @@ function prefetchSession(
   // same-route search write (a filter chip, a View/Compare toggle) would block
   // the router on a session round-trip and dim the screen behind it.
   return queryClient.prefetchQuery({
-    ...sessionQueryOptions(repoId, prNumber, span.base, span.head),
+    ...buildSessionQueryOptions(repoId, prNumber, span.base, span.head),
     staleTime: 30_000,
   });
 }
@@ -180,10 +180,15 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
       if (explicit !== undefined) {
         const [metaResult, briefResult] = await Promise.allSettled([
           context.queryClient.ensureQueryData(
-            prMetaQueryOptions(repoId, prNumber),
+            buildPrMetaQueryOptions(repoId, prNumber),
           ),
           context.queryClient.ensureQueryData(
-            dbBriefQueryOptions(repoId, prNumber, explicit.base, explicit.head),
+            buildDbBriefQueryOptions(
+              repoId,
+              prNumber,
+              explicit.base,
+              explicit.head,
+            ),
           ),
           prefetchSession(context.queryClient, repoId, prNumber, explicit),
         ]);
@@ -202,7 +207,7 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
         return;
       }
       const meta = await context.queryClient.ensureQueryData(
-        prMetaQueryOptions(repoId, prNumber),
+        buildPrMetaQueryOptions(repoId, prNumber),
       );
       // Prefetch the SELECTED revision's brief with ITS OWN base (`deps.base`
       // disambiguates duplicate-head rows) so a historical head SSRs correctly.
@@ -214,7 +219,7 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
         };
         await Promise.all([
           context.queryClient.ensureQueryData(
-            dbBriefQueryOptions(repoId, prNumber, span.base, span.head),
+            buildDbBriefQueryOptions(repoId, prNumber, span.base, span.head),
           ),
           prefetchSession(context.queryClient, repoId, prNumber, span),
         ]);
@@ -224,7 +229,7 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
       if (state.kind === "render") {
         await Promise.all([
           context.queryClient.ensureQueryData(
-            dbBriefQueryOptions(
+            buildDbBriefQueryOptions(
               repoId,
               prNumber,
               state.span.base,
@@ -277,7 +282,7 @@ function PrBriefRoute() {
   );
 
   const meta = useSuspenseQuery({
-    ...prMetaQueryOptions(repoId, prNumber),
+    ...buildPrMetaQueryOptions(repoId, prNumber),
     refetchInterval: (query) =>
       query.state.data !== undefined && shouldPollMeta(query.state.data)
         ? META_POLL_MS

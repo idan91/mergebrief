@@ -58,7 +58,7 @@ The **only** non-FE / generation-side change. Mechanical git tree diff, **no LLM
 **Work:**
 - Add `interface RevisionChanges { headSha: string; prevHeadSha: string; prevIndex: number; files: RevisionChangeFile[] }` and `RevisionChangeFile { file: string; addedRanges: LineRange[]; removedRanges: LineRange[] }` (reuse existing `LineRange`).
 - Add a boundary validator (`isRevisionChanges(data: unknown): data is RevisionChanges`) — no `as` on the loaded JSON.
-- Query `revisionChangesQueryOptions(briefId)` that resolves the sidecar for the selected head; returns `null` when absent (first brief / no sidecar). Local: read the artifact; production: a head-keyed `GET` (ADR 0008 fetch shape, shared cacheable blob).
+- Query `buildLocalRevisionChangesQueryOptions(briefId)` that resolves the sidecar for the selected head; returns `null` when absent (first brief / no sidecar). Local: read the artifact; production: a head-keyed `GET` (ADR 0008 fetch shape, shared cacheable blob).
 - Full route loader resolves `{ brief, revisionChanges }`; absence is a normal state, never an error.
 
 **Acceptance:** loader returns `revisionChanges: null` on the first brief and a validated object on later heads; malformed JSON fails closed (overlay simply absent), not a thrown route error.

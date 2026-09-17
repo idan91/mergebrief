@@ -21,7 +21,7 @@ import {
   splitUnifiedDiffByFile,
 } from "@web/features/brief/utils";
 import type { Span } from "../../../../utils/briefRouteState";
-import { prDiffQueryOptions } from "../../../../queries";
+import { buildPrDiffQueryOptions } from "../../../../queries";
 import cardStyles from "../../stateCard.module.scss";
 import styles from "./LiveDiffPreview.module.scss";
 
@@ -44,7 +44,7 @@ export function LiveDiffPreview({
 }: LiveDiffPreviewProps) {
   const { t } = useTranslation();
   const diff = useQuery(
-    prDiffQueryOptions(repoId, prNumber, span.base, span.head),
+    buildPrDiffQueryOptions(repoId, prNumber, span.base, span.head),
   );
   const files: FileRows[] = useMemo(() => {
     if (diff.data === undefined) return [];

@@ -17,7 +17,7 @@ import {
   type TokenScope,
 } from "./types";
 
-export function tokensQueryOptions() {
+export function buildTokensQueryOptions() {
   return queryOptions({
     queryKey: ["api-tokens"],
     queryFn: async (): Promise<TokensView> => {
@@ -36,7 +36,7 @@ export function tokensQueryOptions() {
 
 export interface MintTokenInput {
   readonly name: string;
-  /** REQUIRED — the server refuses a mint that names no reach. */
+  /** REQUIRED: the server refuses a mint that names no reach. */
   readonly scope: TokenScope;
   readonly installationId: string;
   /** Whole days, or null for NO expiry; omitted = the server's 90d default. */

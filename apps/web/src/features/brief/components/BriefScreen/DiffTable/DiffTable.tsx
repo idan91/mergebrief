@@ -386,7 +386,7 @@ export function DiffTable({
     const landing = landingRef.current;
     if (landing === null) return;
     landingRef.current = null;
-    const count = landing.window.end - landing.window.start + 1;
+    const count = landing.range.end - landing.range.start + 1;
     const row = landing.row;
     const anchored = row !== null && row.isConnected;
     if (anchored) {
@@ -398,7 +398,7 @@ export function DiffTable({
     // anchored row keeps its viewport: the focus must not scroll again.
     const kept = row?.contains(document.activeElement) === true;
     if (!kept) {
-      focusExpandedLine(tableRef.current, landing.window.start, {
+      focusExpandedLine(tableRef.current, landing.range.start, {
         preventScroll: anchored,
       });
     }
@@ -701,7 +701,7 @@ export function DiffTable({
     const header = buildSpanHeader(index, columnCount);
     const expand = buildExpandBefore(row, index, columnCount);
     if (header === null && expand === null) return null;
-    // The control belongs to the hole above the row, the header to the rows
+    // The control belongs to the gap above the row, the header to the rows
     // below it.
     return (
       <>

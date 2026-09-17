@@ -20,11 +20,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { briefFixture } from "@web/features/brief/fixtures";
 import { routeTree } from "../../routeTree.gen";
 import {
-  dbBriefQueryOptions,
-  dbComparisonMarksQueryOptions,
-  dbDeltaQueryOptions,
-  prDiffQueryOptions,
-  prMetaQueryOptions,
+  buildDbBriefQueryOptions,
+  buildDbComparisonMarksQueryOptions,
+  buildDbDeltaQueryOptions,
+  buildPrDiffQueryOptions,
+  buildPrMetaQueryOptions,
 } from "./queries";
 import type { PrSummary } from "./types";
 
@@ -63,15 +63,15 @@ async function renderRoute(metaValue: PrSummary, path: string) {
     defaultOptions: { queries: { retry: false } },
   });
   queryClient.setQueryData(
-    prMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
+    buildPrMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
     metaValue,
   );
   queryClient.setQueryData(
-    dbBriefQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
+    buildDbBriefQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
     briefFixture,
   );
   queryClient.setQueryData(
-    prDiffQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
+    buildPrDiffQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
     "",
   );
 
@@ -95,19 +95,19 @@ async function renderRouteWithMarks(metaValue: PrSummary, path: string) {
     defaultOptions: { queries: { retry: false } },
   });
   queryClient.setQueryData(
-    prMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
+    buildPrMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
     metaValue,
   );
   queryClient.setQueryData(
-    dbBriefQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
+    buildDbBriefQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
     briefFixture,
   );
   queryClient.setQueryData(
-    prDiffQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
+    buildPrDiffQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
     "",
   );
   queryClient.setQueryData(
-    dbComparisonMarksQueryOptions(
+    buildDbComparisonMarksQueryOptions(
       REPO_ID,
       PR_NUMBER,
       "head-0",
@@ -342,19 +342,21 @@ describe("DB brief route", () => {
       },
     });
     queryClient.setQueryData(
-      prMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
+      buildPrMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
       withLastReview,
     );
     queryClient.setQueryData(
-      dbBriefQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
+      buildDbBriefQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head)
+        .queryKey,
       briefFixture,
     );
     queryClient.setQueryData(
-      prDiffQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
+      buildPrDiffQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head)
+        .queryKey,
       "",
     );
     queryClient.setQueryData(
-      dbComparisonMarksQueryOptions(
+      buildDbComparisonMarksQueryOptions(
         REPO_ID,
         PR_NUMBER,
         "cp-1",
@@ -401,7 +403,7 @@ describe("DB brief route", () => {
       defaultOptions: { queries: { retry: false } },
     });
     queryClient.setQueryData(
-      prMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
+      buildPrMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
       meta({
         comparisons: {
           lastReview: {
@@ -413,15 +415,17 @@ describe("DB brief route", () => {
       }),
     );
     queryClient.setQueryData(
-      dbBriefQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
+      buildDbBriefQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head)
+        .queryKey,
       briefFixture,
     );
     queryClient.setQueryData(
-      prDiffQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
+      buildPrDiffQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head)
+        .queryKey,
       "",
     );
     queryClient.setQueryData(
-      dbComparisonMarksQueryOptions(
+      buildDbComparisonMarksQueryOptions(
         REPO_ID,
         PR_NUMBER,
         "cp-1",
@@ -439,7 +443,7 @@ describe("DB brief route", () => {
     );
     // The delta core: same Brief shape, artifactKind "delta".
     queryClient.setQueryData(
-      dbDeltaQueryOptions(REPO_ID, PR_NUMBER, "cp-1", SPAN.head).queryKey,
+      buildDbDeltaQueryOptions(REPO_ID, PR_NUMBER, "cp-1", SPAN.head).queryKey,
       {
         ...briefFixture,
         artifactKind: "delta",
@@ -667,11 +671,12 @@ describe("DB brief route, explicit-span deep link while generating", () => {
         // Meta is seeded (present): the loader resolves it from cache and only
         // the still-generating brief hits the network → 404.
         client.setQueryData(
-          prMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
+          buildPrMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
           generatingMeta,
         );
         client.setQueryData(
-          prDiffQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
+          buildPrDiffQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head)
+            .queryKey,
           "",
         );
       },
@@ -697,11 +702,12 @@ describe("DB brief route, explicit-span deep link while generating", () => {
     const { queryClient } = await renderRouteWithFetch(
       (client) => {
         client.setQueryData(
-          prMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
+          buildPrMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
           generatingMeta,
         );
         client.setQueryData(
-          prDiffQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
+          buildPrDiffQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head)
+            .queryKey,
           "",
         );
       },
@@ -721,7 +727,8 @@ describe("DB brief route, explicit-span deep link while generating", () => {
     // cached error. No entry (neither data nor error) must remain.
     expect(
       queryClient.getQueryState(
-        dbBriefQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
+        buildDbBriefQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head)
+          .queryKey,
       ),
     ).toBeUndefined();
   });
@@ -731,11 +738,12 @@ describe("DB brief route, explicit-span deep link while generating", () => {
     const { queryClient } = await renderRouteWithFetch(
       (client) => {
         client.setQueryData(
-          prMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
+          buildPrMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
           generatingMeta,
         );
         client.setQueryData(
-          prDiffQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
+          buildPrDiffQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head)
+            .queryKey,
           "",
         );
       },
@@ -759,7 +767,7 @@ describe("DB brief route, explicit-span deep link while generating", () => {
     // briefAvailable → the route swaps to the render state and DbBrief mounts.
     briefReady = true;
     queryClient.setQueryData(
-      prMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
+      buildPrMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
       meta({}),
     );
 

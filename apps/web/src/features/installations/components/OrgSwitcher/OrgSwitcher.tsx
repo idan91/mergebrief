@@ -6,7 +6,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import {
-  installationsQueryOptions,
+  buildInstallationsQueryOptions,
   reloadToPicker,
   switchInstallation,
 } from "../../queries";
@@ -29,7 +29,7 @@ export function OrgSwitcher({ enabled }: OrgSwitcherProps) {
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  const view = useQuery({ ...installationsQueryOptions(), enabled }).data;
+  const view = useQuery({ ...buildInstallationsQueryOptions(), enabled }).data;
 
   const close = useCallback((refocus: boolean) => {
     setOpen(false);

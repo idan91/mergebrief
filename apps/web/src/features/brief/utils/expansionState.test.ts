@@ -32,7 +32,7 @@ function stubLines(from: number, to: number): Map<number, string> {
 }
 
 function stubExpansion(start: number, end: number): EdgeExpansion {
-  return { range: { start, end }, windows: [{ start, end }] };
+  return { range: { start, end }, ranges: [{ start, end }] };
 }
 
 describe("spliceStoredEdges", () => {
@@ -127,11 +127,11 @@ describe("resolveExpanderStep", () => {
     const lower = placed.find((edge) => edge.edgeKey === "c1:6:up")!;
 
     expect(resolveExpanderStep(top)).toEqual({
-      window: { from: 10, to: 29 },
+      range: { from: 10, to: 29 },
       takesAll: false,
     });
     expect(resolveExpanderStep(lower)).toEqual({
-      window: { from: 40, to: 59 },
+      range: { from: 40, to: 59 },
       takesAll: false,
     });
   });
@@ -153,7 +153,7 @@ describe("resolveExpanderStep", () => {
     const tail = placed.find((edge) => edge.edgeKey === "c1:8:down")!;
 
     expect(resolveExpanderStep(tail)).toEqual({
-      window: { from: 62, to: 81 },
+      range: { from: 62, to: 81 },
       takesAll: false,
     });
   });
@@ -188,7 +188,7 @@ describe("countExpandedRows", () => {
     ["c2:1:up", stubExpansion(1, 5)],
   ]);
 
-  it("counts the deletions a window brings, not only its lines", () => {
+  it("counts the deletions a range brings, not only its lines", () => {
     expect(countExpandedRows(edges, "c1", base, fileRows, "unified")).toBe(23);
   });
 
@@ -196,7 +196,7 @@ describe("countExpandedRows", () => {
     expect(countExpandedRows(edges, "c1", base, fileRows, "split")).toBe(23);
   });
 
-  it("falls back to the window's lines without the file's rows", () => {
+  it("falls back to the range's lines without the file's rows", () => {
     expect(countExpandedRows(edges, "c1", base, undefined, "unified")).toBe(20);
   });
 
@@ -205,8 +205,8 @@ describe("countExpandedRows", () => {
   });
 });
 
-describe("two edges of one hole", () => {
-  const hole: DiffLine[] = [
+describe("two edges of one gap", () => {
+  const gappedDiff: DiffLine[] = [
     { kind: "hunk", content: "@@ -99,1 +99,1 @@" },
     { kind: "ctx", content: "top", oldLine: 99, newLine: 99 },
     { kind: "hunk", content: "@@ -145,1 +145,1 @@" },
@@ -214,9 +214,9 @@ describe("two edges of one hole", () => {
   ];
 
   function click(edges: Map<string, EdgeExpansion>, edgeKey: string) {
-    const baseGaps = findExpansionGaps(hole);
+    const baseGaps = findExpansionGaps(gappedDiff);
     const spliced = spliceStoredEdges({
-      rows: hole,
+      rows: gappedDiff,
       edges: collectStoredEdges("c1", baseGaps, edges),
       lines: stubLines(1, 200),
     });
@@ -229,8 +229,8 @@ describe("two edges of one hole", () => {
     const edge = placed.find((candidate) => candidate.edgeKey === edgeKey)!;
     const step = resolveExpanderStep(edge)!;
     const current = edges.get(edgeKey)?.range;
-    const start = Math.min(current?.start ?? Infinity, step.window.from);
-    const end = Math.max(current?.end ?? -Infinity, step.window.to);
+    const start = Math.min(current?.start ?? Infinity, step.range.from);
+    const end = Math.max(current?.end ?? -Infinity, step.range.to);
     edges.set(edgeKey, stubExpansion(start, end));
     return { step, spliced };
   }
@@ -240,17 +240,17 @@ describe("two edges of one hole", () => {
     const down = "c1:2:down";
     const up = "c1:3:up";
 
-    expect(click(edges, down).step.window).toEqual({ from: 100, to: 119 });
-    expect(click(edges, up).step.window).toEqual({ from: 125, to: 144 });
+    expect(click(edges, down).step.range).toEqual({ from: 100, to: 119 });
+    expect(click(edges, up).step.range).toEqual({ from: 125, to: 144 });
     const last = click(edges, down);
     expect(last.step).toEqual({
-      window: { from: 120, to: 124 },
+      range: { from: 120, to: 124 },
       takesAll: true,
     });
 
     const rows = spliceStoredEdges({
-      rows: hole,
-      edges: collectStoredEdges("c1", findExpansionGaps(hole), edges),
+      rows: gappedDiff,
+      edges: collectStoredEdges("c1", findExpansionGaps(gappedDiff), edges),
       lines: stubLines(1, 200),
     });
     const shown = rows
@@ -267,7 +267,7 @@ describe("two edges of one hole", () => {
 });
 
 describe("file end", () => {
-  it("retires a trailing edge whose hole starts past the file end", () => {
+  it("retires a trailing edge whose gap starts past the file end", () => {
     const edge = placeExpandableEdges(
       "c1",
       findExpansionGaps(TAIL_ONLY),
@@ -290,7 +290,7 @@ describe("file end", () => {
     ).find((candidate) => candidate.gap.to === undefined);
 
     expect(edge && resolveExpanderStep(edge)).toEqual({
-      window: { from: 4, to: 12 },
+      range: { from: 4, to: 12 },
       takesAll: true,
     });
   });
@@ -304,7 +304,7 @@ describe("file end", () => {
       40,
     ).find((candidate) => candidate.gap.to === undefined);
 
-    expect(edge && resolveExpanderStep(edge)?.window).toEqual({
+    expect(edge && resolveExpanderStep(edge)?.range).toEqual({
       from: 4,
       to: 23,
     });

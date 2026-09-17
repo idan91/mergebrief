@@ -7,8 +7,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { ApiError, ApiErrorCodes } from "../../../data/apiFetch";
-import { installationsQueryOptions } from "../../installations/queries";
-import { mintToken, revokeToken, tokensQueryOptions } from "../queries";
+import { buildInstallationsQueryOptions } from "../../installations/queries";
+import { buildTokensQueryOptions, mintToken, revokeToken } from "../queries";
 import type { ApiTokenView, MintedToken, TokenScope } from "../types";
 
 /** The server's name cap (mirrored, see the mint route's Zod schema). */
@@ -68,9 +68,9 @@ export function useTokenSettings(enabled: boolean): TokenSettingsState {
   const queryClient = useQueryClient();
   // `enabled` gates the fetches too: a disabled mount must never hit the
   // protected /api/auth/* endpoints.
-  const tokensQuery = useQuery({ ...tokensQueryOptions(), enabled });
+  const tokensQuery = useQuery({ ...buildTokensQueryOptions(), enabled });
   const installationsQuery = useQuery({
-    ...installationsQueryOptions(),
+    ...buildInstallationsQueryOptions(),
     enabled,
   });
 
@@ -96,7 +96,7 @@ export function useTokenSettings(enabled: boolean): TokenSettingsState {
       setMintedToken(minted);
       setName("");
       void queryClient.invalidateQueries({
-        queryKey: tokensQueryOptions().queryKey,
+        queryKey: buildTokensQueryOptions().queryKey,
       });
     },
   });
@@ -107,7 +107,7 @@ export function useTokenSettings(enabled: boolean): TokenSettingsState {
     onSettled: () => {
       setRevokePendingId(null);
       void queryClient.invalidateQueries({
-        queryKey: tokensQueryOptions().queryKey,
+        queryKey: buildTokensQueryOptions().queryKey,
       });
     },
   });

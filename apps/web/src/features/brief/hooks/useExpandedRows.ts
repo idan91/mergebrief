@@ -12,7 +12,7 @@ import {
   placeExpandableEdges,
   spliceStoredEdges,
 } from "../utils/expansionState";
-import { isWindowCovered } from "../utils/fileWindowRows";
+import { isExpansionCovered } from "../utils/expansion-rows";
 import { useFileRange } from "./useFileRange";
 import { useExpansionSource } from "./useExpansionSource";
 import { useFileRows } from "./useFileRows";
@@ -32,7 +32,7 @@ export interface ExpandedRows {
   expansionKey: string | undefined;
 }
 
-const NO_WINDOWS: LineRange[] = [];
+const NO_RANGES: LineRange[] = [];
 const NO_EDGES: ExpandableEdge[] = [];
 
 /**
@@ -47,7 +47,7 @@ export function useExpandedRows(input: UseExpandedRowsInput): ExpandedRows {
   const fileEnd = useReviewFlow((state) => state.fileEnds.get(path));
   // A file the diff creates or removes shows every line it has. An expanded
   // row paints as unchanged context with an old-side number, which such a
-  // file cannot have, so the chunk offers no edge at all, holes included.
+  // file cannot have, so the chunk offers no edge at all, gaps included.
   const wholeFile = useMemo(
     () => resolveFileStatus(rows) !== undefined,
     [rows],
@@ -58,24 +58,24 @@ export function useExpandedRows(input: UseExpandedRowsInput): ExpandedRows {
     [chunkId, baseGaps, expandedEdges],
   );
   const expansionKey = buildExpansionKey(stored);
-  // A window the file's own diff covers end to end needs no read.
-  const windows = useMemo(
+  // A range the file's own diff covers end to end needs no read.
+  const ranges = useMemo(
     () =>
       stored.length === 0
-        ? NO_WINDOWS
+        ? NO_RANGES
         : stored
-            .flatMap((edge) => edge.expansion.windows)
+            .flatMap((edge) => edge.expansion.ranges)
             .filter(
-              (window) =>
+              (range) =>
                 fileRows === undefined ||
-                !isWindowCovered(fileRows, {
-                  from: window.start,
-                  to: window.end,
+                !isExpansionCovered(fileRows, {
+                  from: range.start,
+                  to: range.end,
                 }),
             ),
     [stored, fileRows],
   );
-  const lines = useFileRange({ source, path, windows });
+  const lines = useFileRange({ source, path, ranges });
 
   return useMemo(() => {
     const spliced =

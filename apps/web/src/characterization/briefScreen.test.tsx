@@ -16,10 +16,10 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  localBriefDiffsQueryOptions,
-  localBriefQueryOptions,
-  localBriefsQueryOptions,
-  localRevisionChangesQueryOptions,
+  buildLocalBriefDiffsQueryOptions,
+  buildLocalBriefQueryOptions,
+  buildLocalBriefsQueryOptions,
+  buildLocalRevisionChangesQueryOptions,
 } from "../features/brief/queries";
 import {
   briefFixture,
@@ -80,16 +80,19 @@ async function renderBriefScreen(
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  queryClient.setQueryData(localBriefQueryOptions(BRIEF_ID).queryKey, brief);
   queryClient.setQueryData(
-    localBriefDiffsQueryOptions(BRIEF_ID).queryKey,
+    buildLocalBriefQueryOptions(BRIEF_ID).queryKey,
+    brief,
+  );
+  queryClient.setQueryData(
+    buildLocalBriefDiffsQueryOptions(BRIEF_ID).queryKey,
     patches,
   );
-  queryClient.setQueryData(localBriefsQueryOptions().queryKey, [
+  queryClient.setQueryData(buildLocalBriefsQueryOptions().queryKey, [
     briefSummaryFixture,
   ]);
   queryClient.setQueryData(
-    localRevisionChangesQueryOptions(BRIEF_ID).queryKey,
+    buildLocalRevisionChangesQueryOptions(BRIEF_ID).queryKey,
     null,
   );
 

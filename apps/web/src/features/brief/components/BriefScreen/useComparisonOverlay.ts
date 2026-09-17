@@ -17,10 +17,10 @@ import type { ComparisonSource } from "../../comparison/comparison";
 import type { ComparisonOverlayState } from "../../comparison/comparisonOverlay";
 import type { ComparisonQuery } from "../../comparison/comparisonQuery";
 import {
-  localBriefDiffsQueryOptions,
-  localBriefQueryOptions,
-  localComparisonMarksQueryOptions,
-  localRevisionNarrativeQueryOptions,
+  buildLocalBriefDiffsQueryOptions,
+  buildLocalBriefQueryOptions,
+  buildLocalComparisonMarksQueryOptions,
+  buildLocalRevisionNarrativeQueryOptions,
 } from "../../queries";
 import { attachSlicedDiffs } from "../../utils/diffSlicing";
 import { createFileRowsCache } from "../../utils/fileRows";
@@ -158,7 +158,7 @@ export function useComparisonOverlay(
   // path and while Compare is off → the Changes Only toggle hides.
   const activeRawSpanDiff = activePlanSlot?.rawDiff;
   const localMarks = useQuery({
-    ...localComparisonMarksQueryOptions(marksId ?? ""),
+    ...buildLocalComparisonMarksQueryOptions(marksId ?? ""),
     enabled: comparisonPlan === undefined && Boolean(marksId),
   });
   const planMarksOptions =
@@ -167,7 +167,7 @@ export function useComparisonOverlay(
   const marks =
     (comparisonPlan === undefined ? localMarks.data : planMarks.data) ?? null;
   const localNarrative = useQuery({
-    ...localRevisionNarrativeQueryOptions(narrativeId ?? ""),
+    ...buildLocalRevisionNarrativeQueryOptions(narrativeId ?? ""),
     enabled: comparisonPlan === undefined && Boolean(narrativeId),
   });
   const planNarrativeOptions =
@@ -184,13 +184,13 @@ export function useComparisonOverlay(
     (comparisonPlan === undefined ? localNarrative.data : planNarrative.data) ??
     null;
   const localDelta = useQuery({
-    ...localBriefQueryOptions(deltaId ?? ""),
+    ...buildLocalBriefQueryOptions(deltaId ?? ""),
     enabled: comparisonPlan === undefined && Boolean(deltaId),
   });
   // The delta's rows come from its own sidecar (baseline to head), never
   // from the head brief's patches (base to head).
   const localDeltaDiffs = useQuery({
-    ...localBriefDiffsQueryOptions(deltaId ?? ""),
+    ...buildLocalBriefDiffsQueryOptions(deltaId ?? ""),
     enabled: comparisonPlan === undefined && Boolean(deltaId),
   });
   const localDeltaPatches = localDeltaDiffs.data;
@@ -228,7 +228,7 @@ export function useComparisonOverlay(
     timeline.selectedPoint?.comparisons,
   );
   const localSinceMarks = useQuery({
-    ...localComparisonMarksQueryOptions(localSinceIds.marksId ?? ""),
+    ...buildLocalComparisonMarksQueryOptions(localSinceIds.marksId ?? ""),
     enabled: comparisonPlan === undefined && Boolean(localSinceIds.marksId),
   });
   const planSinceMarksOptions =

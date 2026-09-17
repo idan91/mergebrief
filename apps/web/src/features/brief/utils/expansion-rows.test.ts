@@ -2,10 +2,10 @@ import { type DiffLine, DiffLineKinds } from "@web/utils/diffTokens/types";
 import { describe, expect, it } from "vitest";
 
 import {
-  collectWindowRows,
-  countWindowRows,
-  isWindowCovered,
-} from "./fileWindowRows";
+  collectExpansionRows,
+  countExpansionRows,
+  isExpansionCovered,
+} from "./expansion-rows";
 
 // Three deletions in the first hunk put old numbers three ahead of new.
 const FILE_ROWS: DiffLine[] = [
@@ -23,20 +23,20 @@ const FILE_ROWS: DiffLine[] = [
   { kind: "ctx", content: "d", oldLine: 35, newLine: 32 },
 ];
 
-function stubRange(from: number, to: number) {
+function stubSlice(from: number, to: number) {
   const lines: string[] = [];
   for (let line = from; line <= to; line += 1) lines.push(`L${String(line)}`);
   return { from, to, lines };
 }
 
-describe("collectWindowRows", () => {
+describe("collectExpansionRows", () => {
   it("takes a hunk's real rows with the diff's own numbers", () => {
-    const rows = collectWindowRows({
+    const rows = collectExpansionRows({
       fileRows: FILE_ROWS,
-      window: { from: 10, to: 12 },
-      holeStart: 1,
+      range: { from: 10, to: 12 },
+      gapStart: 1,
       base: [],
-      range: stubRange(10, 12),
+      slice: stubSlice(10, 12),
     });
 
     expect(rows).toEqual([
@@ -68,12 +68,12 @@ describe("collectWindowRows", () => {
   });
 
   it("fills lines no hunk covers from the range, numbered by the hunk trail", () => {
-    const rows = collectWindowRows({
+    const rows = collectExpansionRows({
       fileRows: FILE_ROWS,
-      window: { from: 8, to: 14 },
-      holeStart: 1,
+      range: { from: 8, to: 14 },
+      gapStart: 1,
       base: [],
-      range: stubRange(8, 14),
+      slice: stubSlice(8, 14),
     });
 
     expect(rows.map((row) => [row.kind, row.oldLine, row.newLine])).toEqual([
@@ -92,13 +92,13 @@ describe("collectWindowRows", () => {
     expect(rows.at(-1)).toMatchObject({ content: "L14", origin: "expanded" });
   });
 
-  it("keeps a deletion whose anchor line sits just above the hole's top", () => {
-    const rows = collectWindowRows({
+  it("keeps a deletion whose anchor line sits just above the gap's top", () => {
+    const rows = collectExpansionRows({
       fileRows: FILE_ROWS,
-      window: { from: 11, to: 12 },
-      holeStart: 11,
+      range: { from: 11, to: 12 },
+      gapStart: 11,
       base: [],
-      range: stubRange(11, 12),
+      slice: stubSlice(11, 12),
     });
 
     expect(rows.map((row) => [row.kind, row.oldLine])).toEqual([
@@ -110,25 +110,25 @@ describe("collectWindowRows", () => {
     ]);
   });
 
-  it("leaves a deletion above the window out when the hole starts lower", () => {
-    const rows = collectWindowRows({
+  it("leaves a deletion above the range out when the gap starts lower", () => {
+    const rows = collectExpansionRows({
       fileRows: FILE_ROWS,
-      window: { from: 11, to: 12 },
-      holeStart: 5,
+      range: { from: 11, to: 12 },
+      gapStart: 5,
       base: [],
-      range: stubRange(11, 12),
+      slice: stubSlice(11, 12),
     });
 
     expect(rows.map((row) => row.kind)).toEqual(["ctx", "ctx"]);
   });
 
   it("never repeats a deletion the chunk already carries", () => {
-    const rows = collectWindowRows({
+    const rows = collectExpansionRows({
       fileRows: FILE_ROWS,
-      window: { from: 10, to: 12 },
-      holeStart: 1,
+      range: { from: 10, to: 12 },
+      gapStart: 1,
       base: [{ kind: DiffLineKinds.DEL, content: "gone 12", oldLine: 12 }],
-      range: stubRange(10, 12),
+      slice: stubSlice(10, 12),
     });
 
     expect(
@@ -137,12 +137,12 @@ describe("collectWindowRows", () => {
   });
 
   it("skips a range line the read did not deliver", () => {
-    const rows = collectWindowRows({
+    const rows = collectExpansionRows({
       fileRows: FILE_ROWS,
-      window: { from: 40, to: 42 },
-      holeStart: 33,
+      range: { from: 40, to: 42 },
+      gapStart: 33,
       base: [],
-      range: { from: 40, to: 41, lines: ["L40", "L41"] },
+      slice: { from: 40, to: 41, lines: ["L40", "L41"] },
     });
 
     expect(rows.map((row) => [row.oldLine, row.newLine])).toEqual([
@@ -152,40 +152,40 @@ describe("collectWindowRows", () => {
   });
 });
 
-describe("isWindowCovered", () => {
-  it("is true when every line of the window has a row in the file diff", () => {
-    expect(isWindowCovered(FILE_ROWS, { from: 10, to: 12 })).toBe(true);
-    expect(isWindowCovered(FILE_ROWS, { from: 30, to: 32 })).toBe(true);
+describe("isExpansionCovered", () => {
+  it("is true when every line of the range has a row in the file diff", () => {
+    expect(isExpansionCovered(FILE_ROWS, { from: 10, to: 12 })).toBe(true);
+    expect(isExpansionCovered(FILE_ROWS, { from: 30, to: 32 })).toBe(true);
   });
 
   it("is false when any line falls between hunks", () => {
-    expect(isWindowCovered(FILE_ROWS, { from: 12, to: 13 })).toBe(false);
-    expect(isWindowCovered(FILE_ROWS, { from: 40, to: 41 })).toBe(false);
+    expect(isExpansionCovered(FILE_ROWS, { from: 12, to: 13 })).toBe(false);
+    expect(isExpansionCovered(FILE_ROWS, { from: 40, to: 41 })).toBe(false);
   });
 });
 
-describe("countWindowRows", () => {
+describe("countExpansionRows", () => {
   const params = {
     fileRows: FILE_ROWS,
-    window: { from: 8, to: 14 },
-    holeStart: 1,
+    range: { from: 8, to: 14 },
+    gapStart: 1,
     base: [],
   };
 
-  it("counts what collectWindowRows would build, unified", () => {
-    expect(countWindowRows(params, "unified")).toBe(10);
+  it("counts what collectExpansionRows would build, unified", () => {
+    expect(countExpansionRows(params, "unified")).toBe(10);
   });
 
   it("pairs a deletion run with the addition run after it in split", () => {
-    const window = { from: 30, to: 32 };
-    const built = collectWindowRows({
+    const range = { from: 30, to: 32 };
+    const built = collectExpansionRows({
       ...params,
-      window,
-      range: stubRange(30, 32),
+      range,
+      slice: stubSlice(30, 32),
     });
 
     expect(built.map((row) => row.kind)).toEqual(["ctx", "del", "add", "ctx"]);
-    expect(countWindowRows({ ...params, window }, "split")).toBe(3);
-    expect(countWindowRows({ ...params, window }, "unified")).toBe(4);
+    expect(countExpansionRows({ ...params, range }, "split")).toBe(3);
+    expect(countExpansionRows({ ...params, range }, "unified")).toBe(4);
   });
 });

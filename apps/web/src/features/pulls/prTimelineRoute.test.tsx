@@ -24,11 +24,11 @@ import { briefFixture } from "@web/features/brief/fixtures";
 import type { ComparisonMarks } from "@web/features/brief/types";
 import { routeTree } from "../../routeTree.gen";
 import {
-  dbBriefQueryOptions,
-  dbComparisonMarksQueryOptions,
-  prDiffQueryOptions,
-  prMetaQueryOptions,
-  sessionQueryOptions,
+  buildDbBriefQueryOptions,
+  buildDbComparisonMarksQueryOptions,
+  buildPrDiffQueryOptions,
+  buildPrMetaQueryOptions,
+  buildSessionQueryOptions,
 } from "./queries";
 import { emptySessionPayload } from "@web/features/review/session";
 import type { PrSummary, RevisionSummary } from "./types";
@@ -96,23 +96,24 @@ async function renderTimeline(
     defaultOptions: { queries: { retry: false } },
   });
   queryClient.setQueryData(
-    prMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
+    buildPrMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
     metaValue,
   );
   seedExtra?.(queryClient);
   // Seed a brief + diff per revision in the meta, whatever the fixture.
   for (const rev of metaValue.revisions ?? []) {
     queryClient.setQueryData(
-      dbBriefQueryOptions(REPO_ID, PR_NUMBER, rev.baseSha, rev.headSha)
+      buildDbBriefQueryOptions(REPO_ID, PR_NUMBER, rev.baseSha, rev.headSha)
         .queryKey,
       briefFixture,
     );
     queryClient.setQueryData(
-      prDiffQueryOptions(REPO_ID, PR_NUMBER, rev.baseSha, rev.headSha).queryKey,
+      buildPrDiffQueryOptions(REPO_ID, PR_NUMBER, rev.baseSha, rev.headSha)
+        .queryKey,
       "",
     );
     queryClient.setQueryData(
-      sessionQueryOptions(REPO_ID, PR_NUMBER, rev.baseSha, rev.headSha)
+      buildSessionQueryOptions(REPO_ID, PR_NUMBER, rev.baseSha, rev.headSha)
         .queryKey,
       emptySessionPayload(),
     );
@@ -402,7 +403,7 @@ describe("DB brief route revision timeline", () => {
         ],
       };
       queryClient.setQueryData(
-        dbComparisonMarksQueryOptions(
+        buildDbComparisonMarksQueryOptions(
           REPO_ID,
           PR_NUMBER,
           "chk1234deadbeef00",

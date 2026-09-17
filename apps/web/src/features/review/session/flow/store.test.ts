@@ -73,7 +73,7 @@ describe("ReviewFlow store", () => {
 
       expect(readExpansion(store.getState(), "chunk-a:3:down")).toEqual({
         range: { start: 2, end: 21 },
-        windows: [{ start: 2, end: 21 }],
+        ranges: [{ start: 2, end: 21 }],
       });
     });
 
@@ -84,7 +84,7 @@ describe("ReviewFlow store", () => {
 
       expect(readExpansion(store.getState(), "chunk-a:3:down")).toEqual({
         range: { start: 2, end: 41 },
-        windows: [
+        ranges: [
           { start: 2, end: 21 },
           { start: 22, end: 41 },
         ],

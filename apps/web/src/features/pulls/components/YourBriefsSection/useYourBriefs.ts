@@ -2,7 +2,7 @@
 // invalidation) so the section stays wiring.
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { deleteUrlBrief, urlBriefsQueryOptions } from "../../queries";
+import { buildUrlBriefsQueryOptions, deleteUrlBrief } from "../../queries";
 
 export interface YourBriefsFlow {
   /** `repoId#prNumber` of the row whose delete is in flight; null = none. */
@@ -24,7 +24,7 @@ export function useYourBriefs(): YourBriefsFlow {
     onSettled: async () => {
       setDeletePendingKey(null);
       await queryClient.invalidateQueries({
-        queryKey: urlBriefsQueryOptions().queryKey,
+        queryKey: buildUrlBriefsQueryOptions().queryKey,
       });
     },
   });

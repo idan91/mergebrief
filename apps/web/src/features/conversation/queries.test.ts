@@ -12,12 +12,15 @@ vi.mock("../../data/apiFetch", async (importOriginal) => {
 });
 
 import { apiFetch, ApiError } from "../../data/apiFetch";
-import { collaboratorsQueryOptions, conversationQueryOptions } from "./queries";
+import {
+  buildCollaboratorsQueryOptions,
+  buildConversationQueryOptions,
+} from "./queries";
 
 const apiFetchMock = vi.mocked(apiFetch);
 
 function run(): Promise<unknown> {
-  const options = conversationQueryOptions("42", 7);
+  const options = buildConversationQueryOptions("42", 7);
   const queryFn = options.queryFn;
   if (typeof queryFn !== "function") throw new Error("expected a queryFn");
   return (queryFn as () => Promise<unknown>)();
@@ -34,7 +37,7 @@ function emptyConversation(): unknown {
   };
 }
 
-describe("conversationQueryOptions queryFn", () => {
+describe("buildConversationQueryOptions queryFn", () => {
   it("parses a 200 into the ready conversation", async () => {
     apiFetchMock.mockResolvedValue(
       new Response(JSON.stringify(emptyConversation()), { status: 200 }),
@@ -55,17 +58,17 @@ describe("conversationQueryOptions queryFn", () => {
     );
   });
 
-  it("maps a 401 to the unauthorized state (session expired mid-review)", async () => {
+  it("maps a 401 to the unauthorized state after the session expires", async () => {
     apiFetchMock.mockResolvedValue(new Response("{}", { status: 401 }));
     await expect(run()).resolves.toEqual({ kind: "unauthorized" });
   });
 
-  it("maps a 404 to not-found (PR or conversation gone)", async () => {
+  it("maps a 404 to not-found when the PR or conversation is gone", async () => {
     apiFetchMock.mockResolvedValue(new Response("{}", { status: 404 }));
     await expect(run()).resolves.toEqual({ kind: "not-found" });
   });
 
-  it("maps a 502 to the unavailable state (fetch failure = section error, no fallback)", async () => {
+  it("maps a 502 to the unavailable state with no fallback", async () => {
     apiFetchMock.mockResolvedValue(new Response("{}", { status: 502 }));
     await expect(run()).resolves.toEqual({ kind: "unavailable" });
   });
@@ -82,8 +85,8 @@ describe("conversationQueryOptions queryFn", () => {
     await expect(run()).resolves.toEqual({ kind: "unavailable" });
   });
 
-  it("locks the refresh policy: 30s staleTime, always-refetch on focus/mount, no retry", () => {
-    const options = conversationQueryOptions("42", 7);
+  it("locks refresh: 30s stale, refetch on mount and focus, no retry", () => {
+    const options = buildConversationQueryOptions("42", 7);
     expect(options.staleTime).toBe(30_000);
     expect(options.retry).toBe(false);
     expect(options.refetchOnMount).toBe("always");
@@ -91,7 +94,7 @@ describe("conversationQueryOptions queryFn", () => {
   });
 
   it("never polls: no refetchInterval on the descriptor", () => {
-    const options = conversationQueryOptions("42", 7);
+    const options = buildConversationQueryOptions("42", 7);
     expect(
       "refetchInterval" in options && options.refetchInterval !== undefined,
     ).toBe(false);
@@ -99,14 +102,14 @@ describe("conversationQueryOptions queryFn", () => {
 });
 
 function runCollaborators(): Promise<unknown> {
-  const options = collaboratorsQueryOptions("42");
+  const options = buildCollaboratorsQueryOptions("42");
   const queryFn = options.queryFn;
   if (typeof queryFn !== "function") throw new Error("expected a queryFn");
   return (queryFn as () => Promise<unknown>)();
 }
 
-describe("collaboratorsQueryOptions queryFn", () => {
-  it("parses a 200 into alphabetically-ordered candidates (order = ranking)", async () => {
+describe("buildCollaboratorsQueryOptions queryFn", () => {
+  it("parses a 200 into alphabetically ordered candidates as the ranking", async () => {
     apiFetchMock.mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -129,7 +132,7 @@ describe("collaboratorsQueryOptions queryFn", () => {
     expect(apiFetchMock).toHaveBeenCalledWith("/api/repos/42/collaborators");
   });
 
-  it("drops a non-https avatarUrl but keeps the entry (img-src defense)", async () => {
+  it("drops a non-https avatarUrl but keeps the entry", async () => {
     apiFetchMock.mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -147,7 +150,7 @@ describe("collaboratorsQueryOptions queryFn", () => {
     });
   });
 
-  it("maps every expected failure status to unavailable (404 = viewerCanPush denial)", async () => {
+  it("maps every expected failure status to unavailable, 404 included", async () => {
     for (const status of [401, 404, 502, 503]) {
       apiFetchMock.mockResolvedValue(new Response("{}", { status }));
       await expect(runCollaborators()).resolves.toEqual({
@@ -164,7 +167,7 @@ describe("collaboratorsQueryOptions queryFn", () => {
   });
 
   it("locks the refresh policy: long staleTime, no retry, no poll", () => {
-    const options = collaboratorsQueryOptions("42");
+    const options = buildCollaboratorsQueryOptions("42");
     expect(options.staleTime).toBe(5 * 60 * 1000);
     expect(options.retry).toBe(false);
     expect(

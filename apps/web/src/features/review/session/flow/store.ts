@@ -349,14 +349,13 @@ export function createReviewFlowStore(
                 : new Map(state.fileEnds).set(path, totalLines);
             const next = new Map(state.expandedEdges);
             const current = state.expandedEdges.get(edgeKey);
-            const windows = current?.windows ?? [];
-            const seen = windows.some(
-              (window) =>
-                window.start === range.start && window.end === range.end,
+            const ranges = current?.ranges ?? [];
+            const seen = ranges.some(
+              (read) => read.start === range.start && read.end === range.end,
             );
             const widened: EdgeExpansion = {
               range: unionExpanded(current?.range, range),
-              windows: seen ? windows : [...windows, range],
+              ranges: seen ? ranges : [...ranges, range],
             };
             const fileEnd = totalLines ?? current?.totalLines;
             if (fileEnd !== undefined) widened.totalLines = fileEnd;

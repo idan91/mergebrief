@@ -67,7 +67,7 @@ export async function generateBriefViaApi(
   return { repoId, prNumber };
 }
 
-export function localBriefQueryOptions(briefId: string) {
+export function buildLocalBriefQueryOptions(briefId: string) {
   return queryOptions({
     queryKey: ["brief", "local", briefId],
     queryFn: () => getLocalBrief({ data: { briefId } }),
@@ -77,7 +77,7 @@ export function localBriefQueryOptions(briefId: string) {
   });
 }
 
-export function localBriefDiffsQueryOptions(briefId: string) {
+export function buildLocalBriefDiffsQueryOptions(briefId: string) {
   return queryOptions({
     queryKey: ["briefDiffs", "local", briefId],
     queryFn: () => getLocalBriefDiffs({ data: { briefId } }),
@@ -87,7 +87,7 @@ export function localBriefDiffsQueryOptions(briefId: string) {
   });
 }
 
-export function localRevisionChangesQueryOptions(briefId: string) {
+export function buildLocalRevisionChangesQueryOptions(briefId: string) {
   return queryOptions({
     queryKey: ["revisionChanges", "local", briefId],
     queryFn: () => getLocalRevisionChanges({ data: { briefId } }),
@@ -97,7 +97,7 @@ export function localRevisionChangesQueryOptions(briefId: string) {
   });
 }
 
-export function localComparisonMarksQueryOptions(marksId: string) {
+export function buildLocalComparisonMarksQueryOptions(marksId: string) {
   return queryOptions({
     queryKey: ["comparisonMarks", "local", marksId],
     queryFn: () => getLocalComparisonMarks({ data: { id: marksId } }),
@@ -107,7 +107,7 @@ export function localComparisonMarksQueryOptions(marksId: string) {
   });
 }
 
-export function localRevisionNarrativeQueryOptions(narrativeId: string) {
+export function buildLocalRevisionNarrativeQueryOptions(narrativeId: string) {
   return queryOptions({
     queryKey: ["revisionNarrative", "local", narrativeId],
     queryFn: () => getLocalRevisionNarrative({ data: { id: narrativeId } }),
@@ -117,7 +117,7 @@ export function localRevisionNarrativeQueryOptions(narrativeId: string) {
   });
 }
 
-export function localBriefsQueryOptions() {
+export function buildLocalBriefsQueryOptions() {
   return queryOptions({
     queryKey: ["briefs", "local"],
     queryFn: () => getLocalBriefs(),
@@ -165,7 +165,7 @@ export type FileRangeResult =
   /** Any other refusal: auth, upstream, or a 400 this build cannot name. */
   | { readonly kind: "unavailable" };
 
-export function fileRangeQueryKey(params: FileRangeParams) {
+export function buildFileRangeQueryKey(params: FileRangeParams) {
   return [
     ProductQueryIds.READ_FILE_RANGE,
     params.repoId,
@@ -178,13 +178,13 @@ export function fileRangeQueryKey(params: FileRangeParams) {
 }
 
 /**
- * One window of one file at the head commit, for hunk-edge expansion. The
- * read is immutable at a sha, so a window once fetched never goes stale.
- * Callers gate windows with `isFileRangeReadable` first; the route refuses
+ * One range of one file at the head commit, for hunk-edge expansion. The
+ * read is immutable at a sha, so a range once fetched never goes stale.
+ * Callers gate ranges with `isFileRangeReadable` first; the route refuses
  * the rest as 400, which reads back as `unavailable`.
  */
-export function fileRangeQueryOptions(params: FileRangeParams) {
-  const queryKey: QueryKey = fileRangeQueryKey(params);
+export function buildFileRangeQueryOptions(params: FileRangeParams) {
+  const queryKey: QueryKey = buildFileRangeQueryKey(params);
   return queryOptions({
     queryKey,
     queryFn: async (): Promise<FileRangeResult> => {
@@ -199,7 +199,7 @@ export function fileRangeQueryOptions(params: FileRangeParams) {
       }
       return { kind: "ready", range: parsed.data };
     },
-    // Never collected: a window refetched after eviction would render its
+    // Never collected: a range refetched after eviction would render its
     // rows blank while the read is in flight.
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: Number.POSITIVE_INFINITY,
@@ -207,7 +207,7 @@ export function fileRangeQueryOptions(params: FileRangeParams) {
   });
 }
 
-/** Whether this window is one the route will serve at all. */
+/** Whether this range is one the route will serve at all. */
 export function isFileRangeReadable(params: FileRangeParams): boolean {
   if (!HEAD_SHA.test(params.ref)) return false;
   if (params.from < 1 || params.to < params.from) return false;

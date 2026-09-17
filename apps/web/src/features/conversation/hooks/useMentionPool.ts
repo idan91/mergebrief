@@ -4,17 +4,17 @@ import { useQuery, type QueryKey } from "@tanstack/react-query";
 
 import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
 import type {
-  collaboratorsQueryOptions,
+  buildCollaboratorsQueryOptions,
   CollaboratorsResult,
 } from "../queries";
 
 const EMPTY_POOL: readonly MentionCandidate[] = [];
 
-// Namespaced so it can never collide with collaboratorsQueryKey(repoId).
+// Namespaced so it can never collide with buildCollaboratorsQueryKey(repoId).
 const DISABLED_KEY: QueryKey = ["collaborators-disabled"];
 
 export function useMentionPool(
-  options: ReturnType<typeof collaboratorsQueryOptions> | undefined,
+  options: ReturnType<typeof buildCollaboratorsQueryOptions> | undefined,
 ): readonly MentionCandidate[] {
   const queryOptions = options ?? {
     queryKey: DISABLED_KEY,

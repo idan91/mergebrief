@@ -797,24 +797,6 @@
       "count": 4
     }
   },
-  "apps/web/src/features/conversation/hooks/useMentionPool.test.tsx": {
-    "house/no-em-dash": {
-      "count": 1
-    },
-    "house/test-title": {
-      "count": 2
-    }
-  },
-  "apps/web/src/features/conversation/queries.test.ts": {
-    "house/test-title": {
-      "count": 9
-    }
-  },
-  "apps/web/src/features/conversation/queries.ts": {
-    "house/no-em-dash": {
-      "count": 7
-    }
-  },
   "apps/web/src/features/conversation/reply.test.ts": {
     "house/no-em-dash": {
       "count": 1
@@ -861,17 +843,7 @@
       "count": 6
     }
   },
-  "apps/web/src/features/installations/components/OrgSwitcher/OrgSwitcher.test.tsx": {
-    "house/test-title": {
-      "count": 1
-    }
-  },
   "apps/web/src/features/installations/index.tsx": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "apps/web/src/features/installations/queries.ts": {
     "house/no-em-dash": {
       "count": 1
     }
@@ -963,14 +935,6 @@
       "count": 3
     }
   },
-  "apps/web/src/features/pulls/queries.test.ts": {
-    "house/no-em-dash": {
-      "count": 5
-    },
-    "house/test-title": {
-      "count": 7
-    }
-  },
   "apps/web/src/features/pulls/transport/markReady.test.ts": {
     "house/no-em-dash": {
       "count": 2
@@ -1031,25 +995,12 @@
       "count": 1
     }
   },
-  "apps/web/src/features/tokens/components/TokenSettings/TokenSettings.test.tsx": {
-    "house/no-em-dash": {
-      "count": 2
-    },
-    "house/test-title": {
-      "count": 1
-    }
-  },
   "apps/web/src/features/tokens/components/TokenSettings/TokenSettings.tsx": {
     "house/no-em-dash": {
       "count": 3
     }
   },
   "apps/web/src/features/tokens/index.tsx": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "apps/web/src/features/tokens/queries.ts": {
     "house/no-em-dash": {
       "count": 1
     }
@@ -1126,11 +1077,6 @@
   "apps/web/src/i18n/trans.test.tsx": {
     "house/no-em-dash": {
       "count": 2
-    }
-  },
-  "apps/web/src/routes/briefs.$briefId_.summary-preview.tsx": {
-    "house/no-em-dash": {
-      "count": 1
     }
   },
   "apps/web/src/server/health.test.ts": {

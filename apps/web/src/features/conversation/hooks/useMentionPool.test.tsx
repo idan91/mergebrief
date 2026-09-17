@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The pool hook: a plain candidate array over the shared collaborators query.
-// Disabled/local path, non-ready and ready are all pinned — every downstream
+// Disabled/local path, non-ready and ready are all pinned; every downstream
 // boundary is optional, so a dropped hand-off would silently regress to
 // participants-only.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -16,7 +16,7 @@ vi.mock("../../../data/apiFetch", async (importOriginal) => {
 });
 
 import { apiFetch } from "../../../data/apiFetch";
-import { collaboratorsQueryOptions } from "../queries";
+import { buildCollaboratorsQueryOptions } from "../queries";
 import { useMentionPool } from "./useMentionPool";
 
 const apiFetchMock = vi.mocked(apiFetch);
@@ -34,7 +34,7 @@ function wrapper({ children }: { children: ReactNode }) {
 }
 
 describe("useMentionPool", () => {
-  it("is an empty pool with no descriptor (local path) and never fetches", () => {
+  it("is an empty pool without a descriptor and never fetches", () => {
     apiFetchMock.mockClear();
     const { result } = renderHook(() => useMentionPool(undefined), { wrapper });
     expect(result.current).toEqual([]);
@@ -52,7 +52,7 @@ describe("useMentionPool", () => {
       ),
     );
     const { result } = renderHook(
-      () => useMentionPool(collaboratorsQueryOptions("42")),
+      () => useMentionPool(buildCollaboratorsQueryOptions("42")),
       { wrapper },
     );
     await waitFor(() =>
@@ -62,10 +62,10 @@ describe("useMentionPool", () => {
     );
   });
 
-  it("is an empty pool on the unavailable result (viewerCanPush 404 etc.)", async () => {
+  it("is an empty pool on the unavailable result such as a 404", async () => {
     apiFetchMock.mockResolvedValue(new Response("{}", { status: 404 }));
     const { result } = renderHook(
-      () => useMentionPool(collaboratorsQueryOptions("43")),
+      () => useMentionPool(buildCollaboratorsQueryOptions("43")),
       { wrapper },
     );
     await waitFor(() => expect(apiFetchMock).toHaveBeenCalled());

@@ -17,7 +17,7 @@ import {
   errorFromResponse,
   type ApiErrorCode,
 } from "../../../data/apiFetch";
-import { prMetaQueryOptions } from "../queries";
+import { buildPrMetaQueryOptions } from "../queries";
 
 export type MarkReadyResult =
   /** The PR is ready: fresh flip or already-ready convergence (indistinguishable). */
@@ -138,7 +138,7 @@ export function createMarkReadyAction(
     const result = await transport(repoId, prNumber);
     if (result.kind === "ready") {
       await client.invalidateQueries({
-        queryKey: prMetaQueryOptions(repoId, prNumber).queryKey,
+        queryKey: buildPrMetaQueryOptions(repoId, prNumber).queryKey,
       });
     }
     return result;

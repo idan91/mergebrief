@@ -15,12 +15,12 @@ import {
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
-  localBriefDiffsQueryOptions,
-  localBriefQueryOptions,
-  localBriefsQueryOptions,
-  localComparisonMarksQueryOptions,
-  localRevisionChangesQueryOptions,
-  localRevisionNarrativeQueryOptions,
+  buildLocalBriefDiffsQueryOptions,
+  buildLocalBriefQueryOptions,
+  buildLocalBriefsQueryOptions,
+  buildLocalComparisonMarksQueryOptions,
+  buildLocalRevisionChangesQueryOptions,
+  buildLocalRevisionNarrativeQueryOptions,
 } from "../features/brief/queries";
 import type {
   Brief,
@@ -260,45 +260,48 @@ function buildQueryClient() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  queryClient.setQueryData(localBriefsQueryOptions().queryKey, ALL_ARTIFACTS);
   queryClient.setQueryData(
-    localBriefQueryOptions(headSummary.id).queryKey,
+    buildLocalBriefsQueryOptions().queryKey,
+    ALL_ARTIFACTS,
+  );
+  queryClient.setQueryData(
+    buildLocalBriefQueryOptions(headSummary.id).queryKey,
     headBrief,
   );
   queryClient.setQueryData(
-    localBriefQueryOptions(deltaSummary.id).queryKey,
+    buildLocalBriefQueryOptions(deltaSummary.id).queryKey,
     deltaBrief,
   );
   queryClient.setQueryData(
-    localBriefQueryOptions(lonelySummary.id).queryKey,
+    buildLocalBriefQueryOptions(lonelySummary.id).queryKey,
     lonelyBrief,
   );
   for (const summary of ALL_ARTIFACTS) {
     queryClient.setQueryData(
-      localBriefDiffsQueryOptions(summary.id).queryKey,
+      buildLocalBriefDiffsQueryOptions(summary.id).queryKey,
       summary.id === deltaSummary.id
         ? [{ file: "src/a.ts", patch: DELTA_PATCH }]
         : [],
     );
   }
   queryClient.setQueryData(
-    localRevisionChangesQueryOptions(headSummary.id).queryKey,
+    buildLocalRevisionChangesQueryOptions(headSummary.id).queryKey,
     null,
   );
   queryClient.setQueryData(
-    localRevisionChangesQueryOptions(lonelySummary.id).queryKey,
+    buildLocalRevisionChangesQueryOptions(lonelySummary.id).queryKey,
     null,
   );
   queryClient.setQueryData(
-    localComparisonMarksQueryOptions("marks-prev-brief-2").queryKey,
+    buildLocalComparisonMarksQueryOptions("marks-prev-brief-2").queryKey,
     marksPrevious,
   );
   queryClient.setQueryData(
-    localComparisonMarksQueryOptions("marks-chk-brief-2").queryKey,
+    buildLocalComparisonMarksQueryOptions("marks-chk-brief-2").queryKey,
     marksCheckpoint,
   );
   queryClient.setQueryData(
-    localRevisionNarrativeQueryOptions("").queryKey,
+    buildLocalRevisionNarrativeQueryOptions("").queryKey,
     null,
   );
   return queryClient;
@@ -454,11 +457,11 @@ describe("comparison state matrix characterization", () => {
       "/briefs/head-brief-2?view=changes&compare=last-review",
       async (queryClient) => {
         queryClient.removeQueries({
-          queryKey: localBriefDiffsQueryOptions(deltaSummary.id).queryKey,
+          queryKey: buildLocalBriefDiffsQueryOptions(deltaSummary.id).queryKey,
         });
         await queryClient
           .fetchQuery({
-            ...localBriefDiffsQueryOptions(deltaSummary.id),
+            ...buildLocalBriefDiffsQueryOptions(deltaSummary.id),
             queryFn: () => Promise.reject(new Error("sidecar unreadable")),
           })
           .catch(() => undefined);

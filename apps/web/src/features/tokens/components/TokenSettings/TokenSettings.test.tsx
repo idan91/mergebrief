@@ -21,9 +21,9 @@ vi.mock("../../queries", async (importOriginal) => {
   return { ...actual, mintToken: vi.fn(), revokeToken: vi.fn() };
 });
 
-import { installationsQueryOptions } from "../../../installations/queries";
+import { buildInstallationsQueryOptions } from "../../../installations/queries";
 import type { InstallationsView } from "../../../installations/types";
-import { mintToken, revokeToken, tokensQueryOptions } from "../../queries";
+import { buildTokensQueryOptions, mintToken, revokeToken } from "../../queries";
 import type { ApiTokenView, TokensView } from "../../types";
 import { TokenSettings } from "./TokenSettings";
 
@@ -65,8 +65,11 @@ function renderSettings(tokens: TokensView = { tokens: [] }) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
-  queryClient.setQueryData(installationsQueryOptions().queryKey, INSTALLATIONS);
-  queryClient.setQueryData(tokensQueryOptions().queryKey, tokens);
+  queryClient.setQueryData(
+    buildInstallationsQueryOptions().queryKey,
+    INSTALLATIONS,
+  );
+  queryClient.setQueryData(buildTokensQueryOptions().queryKey, tokens);
   render(
     <I18nextProvider i18n={appI18n}>
       <QueryClientProvider client={queryClient}>
@@ -93,7 +96,7 @@ describe("TokenSettings", () => {
     expect(mintMock).not.toHaveBeenCalled();
   });
 
-  it("will not mint until a scope is chosen — there is no default reach", () => {
+  it("will not mint until a scope is chosen, there is no default reach", () => {
     renderSettings();
     fireEvent.change(screen.getByLabelText(/token name/i), {
       target: { value: "ci-token" },
@@ -124,7 +127,7 @@ describe("TokenSettings", () => {
     expect(row?.textContent).toMatch(/read, review, and post to github/i);
   });
 
-  it("mints with the picked installation and expiry, then shows the token ONCE", async () => {
+  it("mints with the picked installation and expiry and shows the token once", async () => {
     mintMock.mockResolvedValue({ token: SECRET, apiToken: LIVE_TOKEN });
     renderSettings();
 
@@ -175,7 +178,7 @@ describe("TokenSettings", () => {
     expect(intro.querySelector("code")?.textContent).toBe("mergebrief");
   });
 
-  it("dismissal is final — the token is not re-renderable from any state", async () => {
+  it("dismissal is final, the token cannot be shown again from any state", async () => {
     mintMock.mockResolvedValue({ token: SECRET, apiToken: LIVE_TOKEN });
     renderSettings();
 

@@ -16,7 +16,7 @@ vi.mock("./server/brief.functions", () => ({
   getLocalRevisionNarrative: vi.fn(),
 }));
 
-const { fileRangeQueryOptions, isFileRangeReadable } =
+const { buildFileRangeQueryOptions, isFileRangeReadable } =
   await import("./queries");
 
 const HEAD = "a".repeat(40);
@@ -43,7 +43,7 @@ function stubResponse(body: unknown, status: number): Response {
 async function runQuery(
   overrides: Record<string, unknown> = {},
 ): Promise<unknown> {
-  const options = fileRangeQueryOptions(stubParams(overrides));
+  const options = buildFileRangeQueryOptions(stubParams(overrides));
   const queryFn = options.queryFn;
   if (typeof queryFn !== "function") throw new Error("no queryFn");
 
@@ -63,13 +63,13 @@ describe("isFileRangeReadable", () => {
     expect(isFileRangeReadable(stubParams(capped))).toBe(true);
   });
 
-  it("accepts a window the route will serve", () => {
+  it("accepts a range the route will serve", () => {
     expect(isFileRangeReadable(stubParams())).toBe(true);
   });
 });
 
-describe("fileRangeQueryOptions", () => {
-  it("reads the window at the head sha", async () => {
+describe("buildFileRangeQueryOptions", () => {
+  it("reads the range at the head sha", async () => {
     apiFetch.mockResolvedValueOnce(
       stubResponse(
         {
@@ -130,7 +130,7 @@ describe("fileRangeQueryOptions", () => {
     await expect(runQuery()).resolves.toEqual({ kind: "not-found" });
   });
 
-  it("throws on a slice whose lines do not fill its window", async () => {
+  it("throws on a slice whose lines do not fill its range", async () => {
     apiFetch.mockResolvedValueOnce(
       stubResponse(
         {

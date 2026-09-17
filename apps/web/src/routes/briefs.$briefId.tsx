@@ -21,10 +21,10 @@ import {
   resolveLegacyDeltaRedirect,
 } from "@web/features/brief/utils";
 import {
-  localBriefDiffsQueryOptions,
-  localBriefQueryOptions,
-  localBriefsQueryOptions,
-  localRevisionChangesQueryOptions,
+  buildLocalBriefDiffsQueryOptions,
+  buildLocalBriefQueryOptions,
+  buildLocalBriefsQueryOptions,
+  buildLocalRevisionChangesQueryOptions,
 } from "../features/brief/queries";
 import styles from "./routeShared.module.scss";
 import { useUnsavedComposerBlocker } from "@web/hooks/useUnsavedComposerGuard";
@@ -51,7 +51,7 @@ export const Route = createFileRoute("/briefs/$briefId")({
       throw notFound();
     }
     const artifacts = await context.queryClient.ensureQueryData(
-      localBriefsQueryOptions(),
+      buildLocalBriefsQueryOptions(),
     );
     const legacy = resolveLegacyDeltaRedirect(artifacts, params.briefId);
     if (legacy) {
@@ -65,14 +65,14 @@ export const Route = createFileRoute("/briefs/$briefId")({
   loader: ({ context, params }) =>
     Promise.all([
       context.queryClient.ensureQueryData(
-        localBriefQueryOptions(params.briefId),
+        buildLocalBriefQueryOptions(params.briefId),
       ),
       context.queryClient.ensureQueryData(
-        localBriefDiffsQueryOptions(params.briefId),
+        buildLocalBriefDiffsQueryOptions(params.briefId),
       ),
-      context.queryClient.ensureQueryData(localBriefsQueryOptions()),
+      context.queryClient.ensureQueryData(buildLocalBriefsQueryOptions()),
       context.queryClient.ensureQueryData(
-        localRevisionChangesQueryOptions(params.briefId),
+        buildLocalRevisionChangesQueryOptions(params.briefId),
       ),
     ]),
   component: BriefRoute,
@@ -83,7 +83,7 @@ function BriefRoute() {
   useUnsavedComposerBlocker();
   const { briefId } = Route.useParams();
   const searchParams = Route.useSearch();
-  const artifacts = useSuspenseQuery(localBriefsQueryOptions()).data;
+  const artifacts = useSuspenseQuery(buildLocalBriefsQueryOptions()).data;
   const navigate = Route.useNavigate();
   // Pending only while a navigation targeting another brief page runs its
   // loader (revision links land on another briefId of the same route):

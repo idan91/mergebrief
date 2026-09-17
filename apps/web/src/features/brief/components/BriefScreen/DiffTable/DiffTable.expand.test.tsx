@@ -26,7 +26,7 @@ import {
 } from "@web/components/DiffRows/consts";
 import type { DiffView } from "@web/components/DiffRows/types";
 import type { DiffLine } from "@web/utils/diffTokens/types";
-import { fileRangeQueryKey, type FileRangeResult } from "../../../queries";
+import { buildFileRangeQueryKey, type FileRangeResult } from "../../../queries";
 import { useExpandedRows } from "../../../hooks/useExpandedRows";
 import {
   ExpansionSourceProvider,
@@ -71,7 +71,7 @@ function stubChunk(): BriefChunk {
   } as BriefChunk;
 }
 
-/** A chunk whose only hole above is short enough to close in one click. */
+/** A chunk whose only gap above is short enough to close in one click. */
 function stubShortChunk(): BriefChunk {
   return {
     ...stubChunk(),
@@ -85,8 +85,8 @@ function stubShortChunk(): BriefChunk {
   } as BriefChunk;
 }
 
-/** One hunk sliced around another chunk's rows: a hole with no header. */
-function stubInnerHoleChunk(): BriefChunk {
+/** One hunk sliced around another chunk's rows: a gap with no header. */
+function stubInnerGapChunk(): BriefChunk {
   return {
     ...stubChunk(),
     addedRanges: [
@@ -134,8 +134,8 @@ function stubDeletedFileChunk(): BriefChunk {
   } as BriefChunk;
 }
 
-/** A new file sliced with a hole: additions on both sides of it. */
-function stubNewFileHoleChunk(): BriefChunk {
+/** A new file sliced with a gap: additions on both sides of it. */
+function stubNewFileGapChunk(): BriefChunk {
   return {
     ...stubChunk(),
     loc: { added: 4, deleted: 0 },
@@ -204,7 +204,7 @@ function seedRange(
   totalLines: number,
   result?: FileRangeResult,
 ): void {
-  const key = fileRangeQueryKey({
+  const key = buildFileRangeQueryKey({
     repoId: SOURCE.repoId,
     prNumber: SOURCE.prNumber,
     ref: HEAD,
@@ -441,7 +441,7 @@ describe("DiffTable expansion controls", () => {
     ).toBeTruthy();
   });
 
-  it("counts the shipped threads the hole hides", () => {
+  it("counts the shipped threads the gap hides", () => {
     renderHarness({
       chunk: stubChunk(),
       view: "unified",
@@ -544,7 +544,7 @@ describe("DiffTable expansion into a sibling hunk", () => {
     expect(numberCells(expandedRows(view.container)[5]!)).toEqual(["16", "14"]);
   });
 
-  it("records a covered window without a file-range read", async () => {
+  it("records a covered range without a file-range read", async () => {
     const short = {
       ...stubChunk(),
       diff: [
@@ -1241,8 +1241,8 @@ describe("DiffTable expansion click", () => {
     expect(screen.queryByRole("status")).toBeNull();
   });
 
-  it("keeps a headerless hole's control in place in split and keys rows once", async () => {
-    const holed = {
+  it("keeps a headerless gap's control in place in split and keys rows once", async () => {
+    const gapped = {
       ...stubChunk(),
       diff: [
         { kind: "ctx", content: "a", oldLine: 33, newLine: 30 },
@@ -1253,7 +1253,7 @@ describe("DiffTable expansion click", () => {
       ],
     } as BriefChunk;
     const { view, queryClient } = renderHarness({
-      chunk: holed,
+      chunk: gapped,
       view: "split",
     });
     seedRange(queryClient, 33, 52, 80);
@@ -1264,7 +1264,7 @@ describe("DiffTable expansion click", () => {
       .spyOn(HTMLTableRowElement.prototype, "getBoundingClientRect")
       .mockImplementation(() => ({ top: tops.shift() ?? 540 }) as DOMRect);
     const control = screen.getAllByTestId("expand-control")[0]?.closest("tr");
-    // The inner hole's arrow comes first; the tail's is the second one.
+    // The inner gap's arrow comes first; the tail's is the second one.
     fireEvent.click(
       screen.getAllByRole("button", { name: "Show 20 more lines below" })[0]!,
     );
@@ -1317,9 +1317,9 @@ describe("DiffTable expansion click", () => {
     ).toBeNull();
   });
 
-  it("shares one note when both arrows of a hole fail the same way", async () => {
+  it("shares one note when both arrows of a gap fail the same way", async () => {
     const { queryClient } = renderHarness({
-      chunk: stubInnerHoleChunk(),
+      chunk: stubInnerGapChunk(),
       view: "unified",
     });
     seedRange(queryClient, 4, 23, 80, { kind: "too-large" });
@@ -1356,8 +1356,8 @@ describe("DiffTable expansion click", () => {
     expect(screen.queryByRole("button", { name: /hidden line/ })).toBeNull();
   });
 
-  it("offers no expander for a hole inside a new file", () => {
-    renderHarness({ chunk: stubNewFileHoleChunk(), view: "unified" });
+  it("offers no expander for a gap inside a new file", () => {
+    renderHarness({ chunk: stubNewFileGapChunk(), view: "unified" });
 
     expect(screen.queryByRole("button", { name: /more lines/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /hidden line/ })).toBeNull();

@@ -15,7 +15,7 @@ export {
   EXPAND_STEP,
   findExpansionGaps,
   formatExpansionKey,
-  resolveExpansionWindow,
+  resolveExpansionRange,
   spliceAllExpandedRows,
   spliceExpandedRows,
   unionExpanded,

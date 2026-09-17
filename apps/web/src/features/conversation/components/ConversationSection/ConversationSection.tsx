@@ -20,8 +20,8 @@ import {
 import { countCommentsAfterBrief } from "../../utils/postdate";
 import { reconcileOwnComments } from "../../utils/ownComments";
 import type {
-  collaboratorsQueryOptions,
-  conversationQueryOptions,
+  buildCollaboratorsQueryOptions,
+  buildConversationQueryOptions,
 } from "../../queries";
 import { useMentionPool } from "../../hooks/useMentionPool";
 import type { ReplyResult } from "../../reply";
@@ -41,12 +41,12 @@ import type { Mutable } from "types/utils";
 
 /** The route-injected data plan (absent on the local demo path). */
 export interface ConversationPlan {
-  readonly queryOptions: ReturnType<typeof conversationQueryOptions>;
+  readonly queryOptions: ReturnType<typeof buildConversationQueryOptions>;
   /**
    * Collaborator roster for mention autocomplete. Absent on the local demo
    * path; a non-ready result degrades to participants-only silently.
    */
-  readonly collaborators?: ReturnType<typeof collaboratorsQueryOptions>;
+  readonly collaborators?: ReturnType<typeof buildCollaboratorsQueryOptions>;
   /** Immediate viewer-token reply to a thread's root comment. */
   readonly postReply: (
     rootCommentId: number,

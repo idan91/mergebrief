@@ -6,38 +6,40 @@ import {
 } from "@web/utils/diffTokens/types";
 import { type DiffView, DiffViews } from "@web/components/DiffRows/types";
 import type {
-  CollectWindowRowsParams,
-  ExpansionWindow,
+  CollectExpansionRowsParams,
+  ExpansionRange,
   FileRangeSlice,
-  WindowRowSources,
+  ExpansionRowSources,
 } from "../types";
 
 const HUNK_HEADER =
   /^@@ -(?<oldStart>\d+)(?:,\d+)? \+(?<newStart>\d+)(?:,\d+)? @@/;
 
-/** What a pass over a window's rows does with each one. */
-interface WindowRowVisitor {
+/** What a pass over a range's rows does with each one. */
+interface ExpansionRowVisitor {
   /** A row the file's diff already has, shown as expanded context. */
   onFileRow: (row: DiffLine) => void;
-  /** A line no hunk covers; `oldOffset` turns its new line into its old one. */
-  onRangeLine: (line: number, oldOffset: number) => void;
+  /** A line no hunk covers, from the file read; `oldOffset` turns its new line into its old one. */
+  onReadLine: (line: number, oldOffset: number) => void;
 }
 
 /**
- * The rows one expansion window shows, in file order: a line a hunk covers
+ * The rows one expansion range shows, in file order: a line a hunk covers
  * comes from the diff itself, a line no hunk covers from the file-range
  * read, and a deletion rides with the new-side line it follows. A deletion
- * that follows the line just above the hole belongs to the first read into
- * that hole, since no window will ever cover its anchor.
+ * that follows the line just above the gap belongs to the first read into
+ * that gap, since no range will ever cover its anchor.
  */
-export function collectWindowRows(params: CollectWindowRowsParams): DiffLine[] {
+export function collectExpansionRows(
+  params: CollectExpansionRowsParams,
+): DiffLine[] {
   const rows: DiffLine[] = [];
-  visitWindowRows(params, {
+  visitExpansionRows(params, {
     onFileRow: (row) => {
       rows.push({ ...row, origin: DiffRowOrigins.EXPANDED });
     },
-    onRangeLine: (line, oldOffset) => {
-      const content = readRangeLine(params.range, line);
+    onReadLine: (line, oldOffset) => {
+      const content = readSliceLine(params.slice, line);
       if (content === undefined) return;
       rows.push({
         kind: DiffLineKinds.CTX,
@@ -53,12 +55,12 @@ export function collectWindowRows(params: CollectWindowRowsParams): DiffLine[] {
 }
 
 /**
- * How many rows the window would show, without building them: the height
+ * How many rows the range would show, without building them: the height
  * model asks this for every expanded card on each pass. Split rows pair a
  * deletion run with the addition run after it, as `countSplitRows` does.
  */
-export function countWindowRows(
-  params: WindowRowSources,
+export function countExpansionRows(
+  params: ExpansionRowSources,
   view: DiffView,
 ): number {
   let rows = 0;
@@ -82,9 +84,9 @@ export function countWindowRows(
     flush();
     rows += 1;
   };
-  visitWindowRows(params, {
+  visitExpansionRows(params, {
     onFileRow: (row) => tally(row.kind),
-    onRangeLine: () => tally(DiffLineKinds.CTX),
+    onReadLine: () => tally(DiffLineKinds.CTX),
   });
   flush();
 
@@ -92,28 +94,28 @@ export function countWindowRows(
 }
 
 /**
- * One pass over the rows a window shows, in file order. Two sources
+ * One pass over the rows a range shows, in file order. Two sources
  * interleave: the file's diff rows where a hunk covers a line, and the range
  * read for every line between hunks. A deletion hangs off the new-side line
- * above it, so it shows when that line is in the window, or when it hangs
- * off the line just above the hole and this window is the first read into
- * that hole.
+ * above it, so it shows when that line is in the range, or when it hangs
+ * off the line just above the gap and this range is the first read into
+ * that gap.
  */
-function visitWindowRows(
-  sources: WindowRowSources,
-  visitor: WindowRowVisitor,
+function visitExpansionRows(
+  sources: ExpansionRowSources,
+  visitor: ExpansionRowVisitor,
 ): void {
-  const { fileRows, window, holeStart, base } = sources;
+  const { fileRows, range, gapStart, base } = sources;
   const carried = collectCarriedDeletions(base);
   let oldOffset = 0;
   let anchor: number | undefined;
-  let nextRangeLine = window.from;
+  let nextReadLine = range.from;
 
-  const fillFromRange = (upTo: number): void => {
-    const last = Math.min(upTo, window.to);
-    while (nextRangeLine <= last) {
-      visitor.onRangeLine(nextRangeLine, oldOffset);
-      nextRangeLine += 1;
+  const fillFromRead = (upTo: number): void => {
+    const last = Math.min(upTo, range.to);
+    while (nextReadLine <= last) {
+      visitor.onReadLine(nextReadLine, oldOffset);
+      nextReadLine += 1;
     }
   };
 
@@ -121,21 +123,20 @@ function visitWindowRows(
     if (row.kind === DiffLineKinds.HUNK) {
       const header = readHunkHeader(row);
       if (header === undefined) continue;
-      if (header.newStart > window.to) break;
+      if (header.newStart > range.to) break;
 
-      fillFromRange(header.newStart - 1);
+      fillFromRead(header.newStart - 1);
       oldOffset = header.oldStart - header.newStart;
       anchor = header.newStart - 1;
       continue;
     }
 
     if (row.kind === DiffLineKinds.DEL) {
-      const anchorInWindow =
-        anchor !== undefined && anchor >= window.from && anchor <= window.to;
-      const anchorAboveHole =
-        anchor === holeStart - 1 && window.from === holeStart;
+      const anchorInRange =
+        anchor !== undefined && anchor >= range.from && anchor <= range.to;
+      const anchorAboveGap = anchor === gapStart - 1 && range.from === gapStart;
       const shown =
-        (anchorInWindow || anchorAboveHole) &&
+        (anchorInRange || anchorAboveGap) &&
         row.oldLine !== undefined &&
         !carried.has(row.oldLine);
 
@@ -145,33 +146,33 @@ function visitWindowRows(
     }
 
     if (row.newLine === undefined) continue;
-    if (row.newLine > window.to) break;
+    if (row.newLine > range.to) break;
 
-    fillFromRange(row.newLine - 1);
-    if (row.newLine >= window.from) {
+    fillFromRead(row.newLine - 1);
+    if (row.newLine >= range.from) {
       visitor.onFileRow(row);
-      nextRangeLine = row.newLine + 1;
+      nextReadLine = row.newLine + 1;
     }
     anchor = row.newLine;
     oldOffset = readOffsetAfter(row, oldOffset);
   }
-  fillFromRange(window.to);
+  fillFromRead(range.to);
 }
 
-/** Whether every line of the window has a row in the file's diff. */
-export function isWindowCovered(
+/** Whether every line of the range has a row in the file's diff. */
+export function isExpansionCovered(
   fileRows: readonly DiffLine[],
-  window: ExpansionWindow,
+  range: ExpansionRange,
 ): boolean {
   const covered = new Set<number>();
   for (const row of fileRows) {
     if (row.newLine === undefined || row.kind === DiffLineKinds.HUNK) continue;
-    if (row.newLine >= window.from && row.newLine <= window.to) {
+    if (row.newLine >= range.from && row.newLine <= range.to) {
       covered.add(row.newLine);
     }
   }
 
-  return covered.size === window.to - window.from + 1;
+  return covered.size === range.to - range.from + 1;
 }
 
 function collectCarriedDeletions(base: readonly DiffLine[]): Set<number> {
@@ -185,13 +186,13 @@ function collectCarriedDeletions(base: readonly DiffLine[]): Set<number> {
   return carried;
 }
 
-function readRangeLine(
-  range: FileRangeSlice,
+function readSliceLine(
+  slice: FileRangeSlice,
   line: number,
 ): string | undefined {
-  if (line < range.from || line > range.to) return undefined;
+  if (line < slice.from || line > slice.to) return undefined;
 
-  return range.lines[line - range.from];
+  return slice.lines[line - slice.from];
 }
 
 function readOffsetAfter(row: DiffLine, offset: number): number {

@@ -6,19 +6,19 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
 import { TokenSettings } from "@web/features/tokens";
-import { pullsSessionQueryOptions } from "../features/pulls/queries";
+import { buildPullsSessionQueryOptions } from "../features/pulls/queries";
 import type { PullsSession } from "../features/pulls/types";
 import styles from "./settings.module.scss";
 
 export const Route = createFileRoute("/settings")({
   loader: ({ context }) =>
-    context.queryClient.ensureQueryData(pullsSessionQueryOptions()),
+    context.queryClient.ensureQueryData(buildPullsSessionQueryOptions()),
   component: SettingsPage,
 });
 
 function SettingsPage() {
   const { t } = useTranslation();
-  const session = useSuspenseQuery(pullsSessionQueryOptions()).data;
+  const session = useSuspenseQuery(buildPullsSessionQueryOptions()).data;
 
   // A backend/GitHub failure is NOT proof the viewer is logged out, so
   // the copy stays recoverable rather than telling them to sign in.

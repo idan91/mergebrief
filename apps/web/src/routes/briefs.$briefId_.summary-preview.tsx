@@ -3,7 +3,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, notFound, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 
-import { localBriefQueryOptions } from "../features/brief/queries";
+import { buildLocalBriefQueryOptions } from "../features/brief/queries";
 import type { Brief } from "../features/brief/types";
 import { buildBriefViewModel } from "@web/features/brief/utils";
 import { SummaryPreview } from "@web/features/review";
@@ -18,16 +18,18 @@ export const Route = createFileRoute("/briefs/$briefId_/summary-preview")({
     }
   },
   loader: ({ context, params }) =>
-    context.queryClient.ensureQueryData(localBriefQueryOptions(params.briefId)),
+    context.queryClient.ensureQueryData(
+      buildLocalBriefQueryOptions(params.briefId),
+    ),
   component: SummaryPreviewRoute,
 });
 
 function SummaryPreviewRoute() {
   const { t } = useTranslation();
   const { briefId } = Route.useParams();
-  const brief = useSuspenseQuery(localBriefQueryOptions(briefId)).data;
+  const brief = useSuspenseQuery(buildLocalBriefQueryOptions(briefId)).data;
   // A file-backed Brief carries no session, so the preview renders the empty
-  // one — the shape the Receipt builder takes.
+  // one, the shape the Receipt builder takes.
   const snapshot = useMemo(
     () => emptySnapshot(briefId, brief),
     [briefId, brief],

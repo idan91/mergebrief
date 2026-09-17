@@ -29,9 +29,9 @@ import { routeTree } from "../../routeTree.gen";
 import type { ReviewSessionPayload } from "../review/session";
 import { emptySessionPayload } from "../review/session";
 import {
-  dbBriefQueryOptions,
-  prDiffQueryOptions,
-  prMetaQueryOptions,
+  buildDbBriefQueryOptions,
+  buildPrDiffQueryOptions,
+  buildPrMetaQueryOptions,
 } from "./queries";
 import type { PrSummary } from "./types";
 
@@ -101,15 +101,15 @@ async function renderRoute() {
     defaultOptions: { queries: { retry: false } },
   });
   queryClient.setQueryData(
-    prMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
+    buildPrMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
     meta(),
   );
   queryClient.setQueryData(
-    dbBriefQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
+    buildDbBriefQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
     briefFixture,
   );
   queryClient.setQueryData(
-    prDiffQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
+    buildPrDiffQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
     "",
   );
   const router = createRouter({

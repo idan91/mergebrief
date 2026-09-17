@@ -30,11 +30,11 @@ import type {
 } from "../../../utils/dbTimeline";
 import { usePrBriefPlans } from "../../../hooks/usePrBriefPlans";
 import {
-  dbBriefContextQueryOptions,
-  dbBriefQueryOptions,
-  prDiffQueryOptions,
-  prStackQueryOptions,
-  sessionQueryOptions,
+  buildDbBriefContextQueryOptions,
+  buildDbBriefQueryOptions,
+  buildPrDiffQueryOptions,
+  buildPrStackQueryOptions,
+  buildSessionQueryOptions,
 } from "../../../queries";
 import type { PrSummary } from "../../../types";
 import { DbBriefControls } from "./DbBriefControls/DbBriefControls";
@@ -87,24 +87,24 @@ export function PrBriefContent({
 }: PrBriefContentProps) {
   const { t } = useTranslation();
   const brief = useSuspenseQuery(
-    dbBriefQueryOptions(repoId, prNumber, span.base, span.head),
+    buildDbBriefQueryOptions(repoId, prNumber, span.base, span.head),
   ).data;
   // Best-effort: while loading or on failure the Brief renders without source
   // markers/de-emphasis.
   const repoConfig = useQuery(
-    dbBriefContextQueryOptions(repoId, prNumber, span.base, span.head),
+    buildDbBriefContextQueryOptions(repoId, prNumber, span.base, span.head),
   );
   // The live diff arrives client-side and attaches per-chunk rows; while it
   // loads, chunks legally render without a diff (the renderer degrades).
   const diff = useQuery(
-    prDiffQueryOptions(repoId, prNumber, span.base, span.head),
+    buildPrDiffQueryOptions(repoId, prNumber, span.base, span.head),
   );
   // The Review Session, prefetched by the route loader so the FIRST paint
   // already carries marks, drafts and dispositions. A failed read degrades:
   // the Brief renders, and the screen goes read-only, a reviewer typing into
   // a screen hiding their earlier drafts writes the same comment twice.
   const session = useQuery(
-    sessionQueryOptions(repoId, prNumber, span.base, span.head),
+    buildSessionQueryOptions(repoId, prNumber, span.base, span.head),
   );
   // No session in hand = writes off, whether the read failed or has not
   // landed. A failed BACKGROUND refetch keeps the session that is already
@@ -151,7 +151,7 @@ export function PrBriefContent({
   const compareState = resolveBriefSearch(searchParams, availability);
   // The stack GitHub has now, not the one the artifact saw at generation. A
   // failed read leaves it absent and the header keeps the snapshot.
-  const liveStack = useQuery(prStackQueryOptions(repoId, prNumber));
+  const liveStack = useQuery(buildPrStackQueryOptions(repoId, prNumber));
   const livePrState: LivePrState = { state: meta.state, draft: meta.draft };
   if (liveStack.data !== undefined) livePrState.stack = liveStack.data;
   // Deps are PRIMITIVES: `availability` and `searchParams` are per-render

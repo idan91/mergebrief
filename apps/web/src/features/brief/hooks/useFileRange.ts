@@ -3,7 +3,7 @@ import { useMemo } from "react";
 
 import type { LineRange } from "../types";
 import {
-  fileRangeQueryOptions,
+  buildFileRangeQueryOptions,
   isFileRangeReadable,
   type FileRangeParams,
   type FileRangeResult,
@@ -13,28 +13,28 @@ import type { ExpansionSource } from "./useExpansionSource";
 export interface UseFileRangeInput {
   source: ExpansionSource | undefined;
   path: string;
-  /** The windows already read at this file's edges; each is one query. */
-  windows: readonly LineRange[];
+  /** The ranges already read at this file's edges; each is one query. */
+  ranges: readonly LineRange[];
 }
 
 export type FileRangeLines = ReadonlyMap<number, string>;
 
 /**
- * The lines of every window the file's edges have read, keyed by head-file
- * line. Each window stays its own query so a repeat read is a cache hit and a
- * window the cache dropped refetches on its own.
+ * The lines of every range the file's edges have read, keyed by head-file
+ * line. Each range stays its own query so a repeat read is a cache hit and a
+ * range the cache dropped refetches on its own.
  */
 export function useFileRange(input: UseFileRangeInput): FileRangeLines {
-  const { source, path, windows } = input;
+  const { source, path, ranges } = input;
   const queries = useMemo(
     () =>
       source === undefined
         ? []
-        : windows
-            .map((window) => buildParams(source, path, window))
+        : ranges
+            .map((range) => buildParams(source, path, range))
             .filter(isFileRangeReadable)
-            .map((params) => fileRangeQueryOptions(params)),
-    [source, path, windows],
+            .map((params) => buildFileRangeQueryOptions(params)),
+    [source, path, ranges],
   );
 
   return useQueries({
@@ -43,34 +43,34 @@ export function useFileRange(input: UseFileRangeInput): FileRangeLines {
   });
 }
 
-/** Reads one window now, for the click that expands an edge. */
+/** Reads one range now, for the click that expands an edge. */
 export function useFileRangeReader(
   source: ExpansionSource | undefined,
   path: string,
-): (window: LineRange) => Promise<FileRangeResult | undefined> {
+): (range: LineRange) => Promise<FileRangeResult | undefined> {
   const queryClient = useQueryClient();
 
-  return async (window) => {
+  return async (range) => {
     if (source === undefined) return undefined;
-    const params = buildParams(source, path, window);
+    const params = buildParams(source, path, range);
     if (!isFileRangeReadable(params)) return undefined;
 
-    return queryClient.fetchQuery(fileRangeQueryOptions(params));
+    return queryClient.fetchQuery(buildFileRangeQueryOptions(params));
   };
 }
 
 function buildParams(
   source: ExpansionSource,
   path: string,
-  window: LineRange,
+  range: LineRange,
 ): FileRangeParams {
   return {
     repoId: source.repoId,
     prNumber: source.prNumber,
     ref: source.ref,
     path,
-    from: window.start,
-    to: window.end,
+    from: range.start,
+    to: range.end,
   };
 }
 

@@ -12,7 +12,7 @@ vi.mock("../../data/apiFetch", async (importOriginal) => {
 });
 
 import { ApiError, ApiErrorCodes, apiFetchJson } from "../../data/apiFetch";
-import { tokensQueryOptions } from "./queries";
+import { buildTokensQueryOptions } from "./queries";
 
 const apiFetchJsonMock = vi.mocked(apiFetchJson);
 
@@ -24,10 +24,10 @@ async function runQueryFn(): Promise<unknown> {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return client.fetchQuery(tokensQueryOptions());
+  return client.fetchQuery(buildTokensQueryOptions());
 }
 
-describe("tokensQueryOptions queryFn", () => {
+describe("buildTokensQueryOptions queryFn", () => {
   it("parses a realistic wire body through the boundary guard", async () => {
     apiFetchJsonMock.mockResolvedValue({
       tokens: [

@@ -11,7 +11,7 @@ import {
   initialReviewFlowState,
   ReviewFlowProvider,
 } from "@web/features/review/session";
-import { fileRangeQueryKey } from "../queries";
+import { buildFileRangeQueryKey } from "../queries";
 import { useExpandedRows } from "./useExpandedRows";
 import {
   ExpansionSourceProvider,
@@ -77,10 +77,10 @@ describe("useExpandedRows", () => {
     expect(result.current.baseIndexOf).toEqual([0, 1, 2]);
   });
 
-  it("splices a stored edge from the cached window and names the state", () => {
+  it("splices a stored edge from the cached range and names the state", () => {
     const { queryClient, flowStore, wrapper } = setup(SOURCE);
     queryClient.setQueryData(
-      fileRangeQueryKey({ ...SOURCE, path: "src/a.ts", from: 25, to: 29 }),
+      buildFileRangeQueryKey({ ...SOURCE, path: "src/a.ts", from: 25, to: 29 }),
       {
         kind: "ready",
         range: {

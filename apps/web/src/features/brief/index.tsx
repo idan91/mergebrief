@@ -3,7 +3,10 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { BriefSearchParams } from "./comparison/compareState";
-import { localBriefDiffsQueryOptions, localBriefQueryOptions } from "./queries";
+import {
+  buildLocalBriefDiffsQueryOptions,
+  buildLocalBriefQueryOptions,
+} from "./queries";
 import type { LocalBriefSummary } from "./types";
 import { attachSlicedDiffs } from "./utils/diffSlicing";
 import { createFileRowsCache } from "./utils/fileRows";
@@ -48,8 +51,10 @@ export function BriefPage({
   revisionPending,
 }: BriefPageProps) {
   const { t } = useTranslation();
-  const artifact = useSuspenseQuery(localBriefQueryOptions(briefId)).data;
-  const patches = useSuspenseQuery(localBriefDiffsQueryOptions(briefId)).data;
+  const artifact = useSuspenseQuery(buildLocalBriefQueryOptions(briefId)).data;
+  const patches = useSuspenseQuery(
+    buildLocalBriefDiffsQueryOptions(briefId),
+  ).data;
   // One parse per file for the page: the provider below hands the same rows
   // to hunk-edge expansion, so the identity has to hold across renders.
   const fileRows = useMemo(

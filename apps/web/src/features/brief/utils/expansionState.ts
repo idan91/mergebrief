@@ -7,20 +7,20 @@ import {
   type ExpansionApplication,
   ExpansionDirections,
   type ExpansionGap,
-  type ExpansionWindow,
+  type ExpansionRange,
   type FileRangeSlice,
   type LineRange,
-  type ResolveExpansionWindowParams,
+  type ResolveExpansionRangeParams,
   type SpliceStoredEdgesParams,
   type StoredEdge,
 } from "../types";
 import {
   EXPAND_STEP,
   formatExpansionKey,
-  resolveExpansionWindow,
+  resolveExpansionRange,
   spliceAllExpandedRows,
 } from "./expandRows";
-import { countWindowRows } from "./fileWindowRows";
+import { countExpansionRows } from "./expansion-rows";
 
 /** The base gaps paired with what the store holds for each, if anything. */
 export function collectStoredEdges(
@@ -41,14 +41,14 @@ export function collectStoredEdges(
 
 /**
  * Every stored edge spliced into the base rows. The module reconciles the
- * two edges of one hole (the upward read starts after the downward one, and
+ * two edges of one gap (the upward read starts after the downward one, and
  * reads that meet drop the seam header) and applies them bottom-up.
  */
 export function spliceStoredEdges(params: SpliceStoredEdgesParams): DiffLine[] {
   const applications: ExpansionApplication[] = params.edges.map((edge) => {
     const application: ExpansionApplication = {
       gap: edge.gap,
-      range: sliceLines(edge.expansion.range, params.lines),
+      slice: sliceLines(edge.expansion.range, params.lines),
     };
     if (params.fileRows !== undefined) application.fileRows = params.fileRows;
     return application;
@@ -96,8 +96,8 @@ export function mapBaseIndexes(
 }
 
 /**
- * The spliced gaps matched back to their base gap: a spliced hole is what is
- * left of exactly one base hole, so the direction and containment name it.
+ * The spliced gaps matched back to their base gap: a spliced gap is what is
+ * left of exactly one base gap, so the direction and containment name it.
  */
 export function placeExpandableEdges(
   chunkId: string,
@@ -118,7 +118,7 @@ export function placeExpandableEdges(
       edgeKey,
       expansion: expandedEdges.get(edgeKey),
     };
-    const other = baseGaps.find((candidate) => isSameHole(candidate, base));
+    const other = baseGaps.find((candidate) => isSameGap(candidate, base));
     const sibling =
       other === undefined
         ? undefined
@@ -131,8 +131,8 @@ export function placeExpandableEdges(
   return edges;
 }
 
-/** The other edge of the same hole: opposite direction, same lines. */
-function isSameHole(left: ExpansionGap, right: ExpansionGap): boolean {
+/** The other edge of the same gap: opposite direction, same lines. */
+function isSameGap(left: ExpansionGap, right: ExpansionGap): boolean {
   return (
     left.edge.direction !== right.edge.direction &&
     left.from === right.from &&
@@ -150,8 +150,8 @@ function contains(outer: ExpansionGap, inner: ExpansionGap): boolean {
 
 /**
  * The rows a chunk's stored expansions add, for the height model, counted
- * without building them. Without the file's rows a window counts its lines;
- * the hole's top is taken as the union's start, close enough for an estimate.
+ * without building them. Without the file's rows a range counts its lines;
+ * the gap's top is taken as the union's start, close enough for an estimate.
  */
 export function countExpandedRows(
   expandedEdges: ReadonlyMap<string, EdgeExpansion>,
@@ -170,8 +170,8 @@ export function countExpandedRows(
       count += end - start + 1;
       continue;
     }
-    count += countWindowRows(
-      { fileRows, window: { from: start, to: end }, holeStart: start, base },
+    count += countExpansionRows(
+      { fileRows, range: { from: start, to: end }, gapStart: start, base },
       view,
     );
   }
@@ -195,19 +195,19 @@ export function buildExpansionKey(
 
 /**
  * What the next click at an edge reads, or undefined when the edge is spent:
- * the hole is closed, the other edge already read up to here, or a read
+ * the gap is closed, the other edge already read up to here, or a read
  * already reached the end of the file.
  */
 export function resolveExpanderStep(
   edge: ExpandableEdge,
 ): ExpanderStep | undefined {
   if (isPastFileEnd(edge)) return undefined;
-  const params: ResolveExpansionWindowParams = { gap: edge.gap };
+  const params: ResolveExpansionRangeParams = { gap: edge.gap };
   if (edge.sibling !== undefined) params.blocked = [edge.sibling];
   if (edge.expansion !== undefined) params.expanded = edge.expansion.range;
-  const window = resolveExpansionWindow(params);
-  if (window === undefined) return undefined;
-  const bounded = clampToFileEnd(window, edge);
+  const range = resolveExpansionRange(params);
+  if (range === undefined) return undefined;
+  const bounded = clampToFileEnd(range, edge);
   if (bounded === undefined) return undefined;
   const span = bounded.to - bounded.from + 1;
   const openEnded =
@@ -216,21 +216,21 @@ export function resolveExpanderStep(
   const reachesEnd = edge.fileEnd !== undefined && bounded.to === edge.fileEnd;
 
   return {
-    window: bounded,
+    range: bounded,
     takesAll: openEnded ? reachesEnd : span < EXPAND_STEP,
   };
 }
 
 /** Once any read has named the file end, the last step reads exactly to it. */
 function clampToFileEnd(
-  window: ExpansionWindow,
+  range: ExpansionRange,
   edge: ExpandableEdge,
-): ExpansionWindow | undefined {
-  if (edge.fileEnd === undefined) return window;
-  if (edge.gap.edge.direction !== ExpansionDirections.DOWN) return window;
-  if (window.from > edge.fileEnd) return undefined;
+): ExpansionRange | undefined {
+  if (edge.fileEnd === undefined) return range;
+  if (edge.gap.edge.direction !== ExpansionDirections.DOWN) return range;
+  if (range.from > edge.fileEnd) return undefined;
 
-  return { from: window.from, to: Math.min(window.to, edge.fileEnd) };
+  return { from: range.from, to: Math.min(range.to, edge.fileEnd) };
 }
 
 function isPastFileEnd(edge: ExpandableEdge): boolean {
@@ -243,7 +243,7 @@ function isPastFileEnd(edge: ExpandableEdge): boolean {
 }
 
 /**
- * The lines of a hole a click can still reach: the whole hole, less what
+ * The lines of a gap a click can still reach: the whole gap, less what
  * each edge already took.
  */
 export function resolveReachableLines(
@@ -251,8 +251,8 @@ export function resolveReachableLines(
 ): LineRange[] {
   const first = edges[0];
   if (first === undefined) return [];
-  const holeStart = first.gap.from;
-  const holeEnd = first.gap.to ?? Number.POSITIVE_INFINITY;
+  const gapStart = first.gap.from;
+  const gapEnd = first.gap.to ?? Number.POSITIVE_INFINITY;
   const reachable: LineRange[] = [];
   const down = edges.find(
     (edge) => edge.gap.edge.direction === ExpansionDirections.DOWN,
@@ -262,13 +262,13 @@ export function resolveReachableLines(
   );
   if (down !== undefined) {
     const taken = down.expansion?.range;
-    const start = taken === undefined ? holeStart : taken.end + 1;
-    if (start <= holeEnd) reachable.push({ start, end: holeEnd });
+    const start = taken === undefined ? gapStart : taken.end + 1;
+    if (start <= gapEnd) reachable.push({ start, end: gapEnd });
   }
   if (up !== undefined) {
     const taken = up.expansion?.range;
-    const end = taken === undefined ? holeEnd : taken.start - 1;
-    if (holeStart <= end) reachable.push({ start: holeStart, end });
+    const end = taken === undefined ? gapEnd : taken.start - 1;
+    if (gapStart <= end) reachable.push({ start: gapStart, end });
   }
 
   return reachable;

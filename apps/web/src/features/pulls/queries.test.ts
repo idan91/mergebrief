@@ -16,12 +16,12 @@ vi.mock("../../data/ssrWarnSink", () => ({ getSsrWarnSink: vi.fn() }));
 import { apiFetch, apiFetchJson, ApiError } from "../../data/apiFetch";
 import { getSsrWarnSink } from "../../data/ssrWarnSink";
 import {
-  dbBriefQueryOptions,
-  dbComparisonMarksQueryOptions,
-  dbDeltaQueryOptions,
-  prMetaQueryOptions,
-  pullsSessionQueryOptions,
-  sessionQueryOptions,
+  buildDbBriefQueryOptions,
+  buildDbComparisonMarksQueryOptions,
+  buildDbDeltaQueryOptions,
+  buildPrMetaQueryOptions,
+  buildPullsSessionQueryOptions,
+  buildSessionQueryOptions,
 } from "./queries";
 
 const apiFetchMock = vi.mocked(apiFetch);
@@ -29,14 +29,14 @@ const apiFetchJsonMock = vi.mocked(apiFetchJson);
 const getSsrWarnSinkMock = vi.mocked(getSsrWarnSink);
 
 function run(): Promise<unknown> {
-  const options = pullsSessionQueryOptions();
+  const options = buildPullsSessionQueryOptions();
   const queryFn = options.queryFn;
   if (typeof queryFn !== "function") throw new Error("expected a queryFn");
   // The queryFn ignores its context for this endpoint.
   return (queryFn as () => Promise<unknown>)();
 }
 
-describe("pullsSessionQueryOptions queryFn", () => {
+describe("buildPullsSessionQueryOptions queryFn", () => {
   it("maps a 401 to the logged-out state instead of throwing", async () => {
     apiFetchMock.mockResolvedValue(new Response("{}", { status: 401 }));
     await expect(run()).resolves.toEqual({ kind: "logged-out" });
@@ -57,14 +57,14 @@ describe("pullsSessionQueryOptions queryFn", () => {
     await expect(run()).rejects.toMatchObject({ code: "malformed" });
   });
 
-  it("maps a 502 to the unavailable state (picker degrades, local briefs still render)", async () => {
+  it("maps a 502 to the unavailable state instead of throwing", async () => {
     apiFetchMock.mockResolvedValue(new Response("{}", { status: 502 }));
     await expect(run()).resolves.toEqual({ kind: "unavailable" });
   });
 });
 
 function runMarks(): Promise<unknown> {
-  const options = dbComparisonMarksQueryOptions(
+  const options = buildDbComparisonMarksQueryOptions(
     "424242",
     7,
     "head-0",
@@ -77,9 +77,9 @@ function runMarks(): Promise<unknown> {
   return (queryFn as () => Promise<unknown>)();
 }
 
-describe("dbComparisonMarksQueryOptions queryFn", () => {
+describe("buildDbComparisonMarksQueryOptions queryFn", () => {
   it("parses the coordinates-only body, synthesizing label + index", async () => {
-    // The DB body carries NO baselineLabel/baselineIndex — persistence
+    // The DB body carries NO baselineLabel/baselineIndex; persistence
     // rejects them at write time. The queryFn must still yield a
     // renderer-ready ComparisonMarks.
     apiFetchJsonMock.mockResolvedValue({
@@ -107,16 +107,16 @@ describe("dbComparisonMarksQueryOptions queryFn", () => {
 });
 
 function runPrMeta(): Promise<unknown> {
-  const options = prMetaQueryOptions("424242", 7);
+  const options = buildPrMetaQueryOptions("424242", 7);
   const queryFn = options.queryFn;
   if (typeof queryFn !== "function") throw new Error("expected a queryFn");
   return (queryFn as () => Promise<unknown>)();
 }
 
 // The resolve capability reaches the affordances THROUGH this queryFn, and
-// route tests that seed the cache bypass the parser entirely — so the wire
+// route tests that seed the cache bypass the parser entirely, so the wire
 // body is exercised here, shaped like the real pr-view response.
-describe("prMetaQueryOptions queryFn — viewerCanResolve", () => {
+describe("buildPrMetaQueryOptions queryFn and the resolve capability", () => {
   const META_BODY = {
     repoId: "424242",
     repoSlug: "octo/hello",
@@ -166,27 +166,27 @@ describe("prMetaQueryOptions queryFn — viewerCanResolve", () => {
 });
 
 function runBrief(): Promise<unknown> {
-  const options = dbBriefQueryOptions("424242", 7, "base-1", "head-1");
+  const options = buildDbBriefQueryOptions("424242", 7, "base-1", "head-1");
   const queryFn = options.queryFn;
   if (typeof queryFn !== "function") throw new Error("expected a queryFn");
   return (queryFn as () => Promise<unknown>)();
 }
 
 function runSession(): Promise<unknown> {
-  const options = sessionQueryOptions("424242", 7, "base-1", "head-1");
+  const options = buildSessionQueryOptions("424242", 7, "base-1", "head-1");
   const queryFn = options.queryFn;
   if (typeof queryFn !== "function") throw new Error("expected a queryFn");
   return (queryFn as () => Promise<unknown>)();
 }
 
 function runDelta(): Promise<unknown> {
-  const options = dbDeltaQueryOptions("424242", 7, "cp-1", "head-1");
+  const options = buildDbDeltaQueryOptions("424242", 7, "cp-1", "head-1");
   const queryFn = options.queryFn;
   if (typeof queryFn !== "function") throw new Error("expected a queryFn");
   return (queryFn as () => Promise<unknown>)();
 }
 
-describe("dbDeltaQueryOptions queryFn", () => {
+describe("buildDbDeltaQueryOptions queryFn", () => {
   const prRef = {
     repo: "octo/hello",
     number: 7,
@@ -196,7 +196,7 @@ describe("dbDeltaQueryOptions queryFn", () => {
     description: "",
   };
 
-  it("parses the DELTA artifact shape (changedGroups, not changeGroups)", async () => {
+  it("parses the delta artifact shape with changedGroups", async () => {
     // The worker stores `JSON.stringify(delta)` - the delta-CLI shape with
     // `changedGroups`/`commentsAddressed`/`wholePrImpact`. parseBrief rejects
     // it, which silently degraded the pane to marks-only.
@@ -217,7 +217,7 @@ describe("dbDeltaQueryOptions queryFn", () => {
     });
   });
 
-  it("throws typed malformed on a WHOLE-BRIEF body (wrong artifact for this endpoint)", async () => {
+  it("throws typed malformed on a whole-brief body at the delta endpoint", async () => {
     apiFetchJsonMock.mockResolvedValue({
       pr: prRef,
       summary: "brief summary",
@@ -229,7 +229,7 @@ describe("dbDeltaQueryOptions queryFn", () => {
   });
 });
 
-describe("dbBriefQueryOptions queryFn — warn sink", () => {
+describe("the SSR warn sink on the brief and session queryFns", () => {
   const prRef = {
     repo: "octo/hello",
     number: 7,
@@ -272,7 +272,7 @@ describe("dbBriefQueryOptions queryFn — warn sink", () => {
     };
   }
 
-  it("routes a lenient drop to the SSR sink, so hosted-brief drift is not silent", async () => {
+  it("routes a lenient drop to the SSR sink so hosted-brief drift is loud", async () => {
     // The route loaders SSR-prefetch this queryFn
     // (`repos.$repoId.pulls.$prNumber.tsx`), so this is the ONLY signal an
     // operator gets when a stored Brief carries a malformed optional section.
@@ -289,7 +289,7 @@ describe("dbBriefQueryOptions queryFn — warn sink", () => {
 
   it("routes a malformed session payload to the SSR sink before it throws", async () => {
     // Route-loader prefetch absorbs the rejection into cache state and the UI
-    // degrades to read-only — without this line nothing tells the operator.
+    // degrades to read-only; without this line nothing tells the operator.
     const warn = vi.fn();
     getSsrWarnSinkMock.mockResolvedValue({ warn });
     apiFetchJsonMock.mockResolvedValue({ reviewOutcome: "nonsense" });
@@ -307,7 +307,7 @@ describe("dbBriefQueryOptions queryFn — warn sink", () => {
     await expect(runSession()).rejects.toBeInstanceOf(ApiError);
   });
 
-  it("parses fine when the sink is absent (the browser refetch)", async () => {
+  it("parses fine when the sink is absent on the browser refetch", async () => {
     getSsrWarnSinkMock.mockResolvedValue(undefined);
     apiFetchJsonMock.mockResolvedValue(briefBody("not an array"));
     await expect(runBrief()).resolves.toMatchObject({ summary: "s" });
