@@ -111,7 +111,13 @@ describe("DiffRows row slots", () => {
     const view = renderRows({ rows });
     const fresh = view.container.querySelector('tr[data-line-kind="add"]');
     const spliced: DiffLine[] = [
-      { kind: "expanded-context", content: "above", oldLine: 0, newLine: 0 },
+      {
+        kind: "ctx",
+        origin: "expanded",
+        content: "above",
+        oldLine: 0,
+        newLine: 0,
+      },
       ...rows,
     ];
     view.rerender(
@@ -123,6 +129,42 @@ describe("DiffRows row slots", () => {
     expect(view.container.querySelector('tr[data-line-kind="add"]')).toBe(
       fresh,
     );
+  });
+});
+
+describe("DiffRows row origin", () => {
+  const expanded: DiffLine[] = [
+    {
+      kind: "ctx",
+      origin: "expanded",
+      content: "read",
+      oldLine: 4,
+      newLine: 4,
+    },
+    { kind: "del", content: "gone", oldLine: 5 },
+    { kind: "add", content: "fresh", newLine: 5 },
+  ];
+
+  it("marks origin on the unified expanded row and leaves diff rows bare", () => {
+    const view = renderRows({ rows: expanded });
+    const rows = view.container.querySelectorAll("tr");
+
+    expect(rows[0]?.getAttribute("data-line-origin")).toBe("expanded");
+    expect(rows[1]?.hasAttribute("data-line-origin")).toBe(false);
+  });
+
+  it("marks an expanded row's origin on both split cells", () => {
+    const view = renderRows({ rows: expanded, view: "split" });
+    const cells = view.container.querySelectorAll(
+      'td[data-line-origin="expanded"]',
+    );
+
+    expect(cells).toHaveLength(4);
+    expect(
+      view.container.querySelectorAll(
+        'td[data-line-kind="del"][data-line-origin]',
+      ),
+    ).toHaveLength(0);
   });
 });
 

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { DiffLineKinds, type DiffLine } from "@web/utils/diffTokens/types";
+import {
+  DiffLineKinds,
+  DiffRowOrigins,
+  type DiffLine,
+} from "@web/utils/diffTokens/types";
 import { getDiffRowView, type DiffRowViewParams } from "./diffRowView";
 import { Concerns, Roles, type BriefChunk } from "../../../types";
 
@@ -40,7 +44,8 @@ describe("getDiffRowView", () => {
   it("refuses comments on a row read from the file, not the diff", () => {
     const view = getDiffRowView(
       stubParams({
-        kind: DiffLineKinds.EXPANDED_CONTEXT,
+        kind: DiffLineKinds.CTX,
+        origin: DiffRowOrigins.EXPANDED,
         content: "const a = 1;",
         oldLine: 9,
         newLine: 9,

@@ -14,17 +14,22 @@ export const DiffLineKinds = {
   ADD: "add",
   DEL: "del",
   CTX: "ctx",
-  /** A context row read from the file at the head ref, outside the PR diff. */
-  EXPANDED_CONTEXT: "expanded-context",
   NOTE: "note",
 } as const;
 export type DiffLineKind = ValueOf<typeof DiffLineKinds>;
+
+/** Absent means the row came from the PR diff; the one value marks a later read of the file. */
+export const DiffRowOrigins = {
+  EXPANDED: "expanded",
+} as const;
+export type DiffRowOrigin = ValueOf<typeof DiffRowOrigins>;
 
 export interface DiffLine {
   kind: DiffLineKind;
   content: string;
   oldLine?: number;
   newLine?: number;
+  origin?: DiffRowOrigin;
 }
 
 export const HunkSideNames = {
@@ -118,6 +123,7 @@ export interface TokenizableRow {
   content: string;
   oldLine?: number | undefined;
   newLine?: number | undefined;
+  origin?: DiffRowOrigin | undefined;
 }
 
 /**

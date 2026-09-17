@@ -18,6 +18,12 @@ import {
   ReviewFlowProvider,
   type ReviewSessionPayload,
 } from "@web/features/review/session";
+import {
+  DIFF_ORIGIN_SELECTOR,
+  EXPANDED_ORIGIN_SELECTOR,
+  EXPANDED_RIGHT_NUMBER_SELECTOR,
+  EXPANDED_ROW_SELECTOR,
+} from "@web/components/DiffRows/consts";
 import type { DiffView } from "@web/components/DiffRows/types";
 import { fileRangeQueryKey, type FileRangeResult } from "../../../queries";
 import { useExpandedRows } from "../../../hooks/useExpandedRows";
@@ -329,9 +335,7 @@ function renderHarness(
 
 function expandedRows(container: HTMLElement): HTMLElement[] {
   return Array.from(
-    container.querySelectorAll<HTMLElement>(
-      'tr[data-line-kind="expanded-context"]',
-    ),
+    container.querySelectorAll<HTMLElement>(EXPANDED_ROW_SELECTOR),
   );
 }
 
@@ -594,9 +598,7 @@ describe("DiffTable expansion click", () => {
 
     await waitFor(() =>
       expect(
-        view.container.querySelectorAll(
-          'td[data-side="right"][data-line-kind="expanded-context"][data-line-number]',
-        ),
+        view.container.querySelectorAll(EXPANDED_RIGHT_NUMBER_SELECTOR),
       ).toHaveLength(20),
     );
     expect(screen.getAllByTestId("expand-control")[0]?.closest("tr")).toBe(
@@ -749,14 +751,10 @@ describe("DiffTable expansion click", () => {
 
     await waitFor(() =>
       expect(
-        view.container.querySelectorAll(
-          'td[data-side="right"][data-line-kind="expanded-context"][data-line-number]',
-        ),
+        view.container.querySelectorAll(EXPANDED_RIGHT_NUMBER_SELECTOR),
       ).toHaveLength(4),
     );
-    const number = view.container.querySelector(
-      'td[data-side="right"][data-line-kind="expanded-context"][data-line-number]',
-    );
+    const number = view.container.querySelector(EXPANDED_RIGHT_NUMBER_SELECTOR);
     expect(number?.textContent).toBe("1");
     expect(document.activeElement).toBe(number?.nextElementSibling);
   });
@@ -794,7 +792,7 @@ describe("DiffTable expansion click", () => {
 
     await waitFor(() => expect(expandedRows(view.container)).toHaveLength(0));
     const cells = view.container.querySelectorAll(
-      'td[data-line-kind="expanded-context"][data-side="right"][data-line-number]',
+      EXPANDED_RIGHT_NUMBER_SELECTOR,
     );
     expect(cells).toHaveLength(20);
     expect(cells[0]?.textContent).toBe("10");
@@ -819,9 +817,8 @@ describe("DiffTable comments across expanded rows", () => {
     );
     await waitFor(() =>
       expect(
-        harness.view.container.querySelectorAll(
-          '[data-line-kind="expanded-context"]',
-        ).length,
+        harness.view.container.querySelectorAll(EXPANDED_ORIGIN_SELECTOR)
+          .length,
       ).toBeGreaterThan(0),
     );
     return harness;
@@ -876,7 +873,7 @@ describe("DiffTable comments across expanded rows", () => {
     fireEvent.mouseDown(number);
     fireEvent.mouseUp(number);
     const context = view.container.querySelector(
-      'tr[data-line-kind="ctx"] [data-line-number]',
+      `tr[data-line-kind="ctx"]${DIFF_ORIGIN_SELECTOR} [data-line-number]`,
     )!;
     fireEvent.mouseDown(context);
     fireEvent.mouseEnter(number);
@@ -892,7 +889,7 @@ describe("DiffTable comments across expanded rows", () => {
     );
     expect(
       view.container
-        .querySelector('tr[data-line-kind="ctx"]')
+        .querySelector(`tr[data-line-kind="ctx"]${DIFF_ORIGIN_SELECTOR}`)
         ?.getAttribute("aria-disabled"),
     ).toBeNull();
   });
@@ -903,10 +900,10 @@ describe("DiffTable comments across expanded rows", () => {
       "split",
     );
     const number = view.container.querySelector(
-      'td[data-line-kind="expanded-context"][data-side="right"][data-line-number]',
+      EXPANDED_RIGHT_NUMBER_SELECTOR,
     )!;
     const code = view.container.querySelector(
-      'td[data-line-kind="expanded-context"][data-side="right"][class*="code"]',
+      `td${EXPANDED_ORIGIN_SELECTOR}[data-side="right"][class*="code"]`,
     )!;
     fireEvent.mouseDown(number);
     fireEvent.mouseUp(number);

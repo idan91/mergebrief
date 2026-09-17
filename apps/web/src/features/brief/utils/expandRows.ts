@@ -1,7 +1,11 @@
 // Hunk-edge expansion, pure. A chunk's rows are a SLICE of the file's diff,
 // so the holes between them are not always hunk boundaries: every edge here
 // is named by an insertion point into the rows the chunk actually carries.
-import { type DiffLine, DiffLineKinds } from "@web/utils/diffTokens/types";
+import {
+  type DiffLine,
+  DiffLineKinds,
+  DiffRowOrigins,
+} from "@web/utils/diffTokens/types";
 import {
   type ExpansionApplication,
   type ExpansionDirection,
@@ -514,7 +518,8 @@ function buildExpandedRows(
     const content = range.lines[line - range.from];
     if (content === undefined) continue;
     rows.push({
-      kind: DiffLineKinds.EXPANDED_CONTEXT,
+      kind: DiffLineKinds.CTX,
+      origin: DiffRowOrigins.EXPANDED,
       content,
       oldLine: line + offset,
       newLine: line,

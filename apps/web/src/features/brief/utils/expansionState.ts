@@ -1,4 +1,4 @@
-import { type DiffLine, DiffLineKinds } from "@web/utils/diffTokens/types";
+import { type DiffLine, DiffRowOrigins } from "@web/utils/diffTokens/types";
 import {
   type BriefChunk,
   type EdgeExpansion,
@@ -80,7 +80,7 @@ export function mapBaseIndexes(
   let cursor = 0;
 
   for (const row of spliced) {
-    if (row.kind === DiffLineKinds.EXPANDED_CONTEXT) {
+    if (row.origin === DiffRowOrigins.EXPANDED) {
       indexes.push(-1);
       continue;
     }

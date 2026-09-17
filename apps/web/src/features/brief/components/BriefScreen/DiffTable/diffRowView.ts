@@ -1,4 +1,4 @@
-import { DiffLineKinds, type DiffLine } from "@web/utils/diffTokens/types";
+import { DiffRowOrigins, type DiffLine } from "@web/utils/diffTokens/types";
 import {
   isLineCommentAnchor,
   rowId,
@@ -128,7 +128,7 @@ export function getDiffRowView({
 
   return {
     id,
-    isCommentable: line.kind !== DiffLineKinds.EXPANDED_CONTEXT,
+    isCommentable: line.origin !== DiffRowOrigins.EXPANDED,
     revRun,
     revMark,
     isRevStart,

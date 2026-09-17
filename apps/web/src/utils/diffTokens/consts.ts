@@ -43,12 +43,11 @@ export const GRAMMAR_GZIP_BYTES: Record<GrammarName, number> = {
   [GrammarNames.ASTRO]: 71273,
 };
 
-/** The gutter sign of a diff row; hunk, both context kinds and note rows carry a space. */
+/** The gutter sign of a diff row; hunk, context and note rows carry a space. */
 export const DIFF_LINE_SIGNS: Record<DiffLineKind, string> = {
   add: "+",
   del: "−",
   ctx: " ",
-  "expanded-context": " ",
   hunk: " ",
   note: " ",
 };

@@ -2,6 +2,7 @@ import { z } from "zod/v4";
 
 import {
   DiffLineKinds,
+  DiffRowOrigins,
   GrammarNames,
   TokenFailureReasons,
   TokenizeModes,
@@ -15,6 +16,7 @@ const tokenizableRowSchema = z.object({
   content: z.string(),
   oldLine: fileLineSchema.optional(),
   newLine: fileLineSchema.optional(),
+  origin: z.enum(DiffRowOrigins).optional(),
 });
 
 const rowTokenSchema = z.object({

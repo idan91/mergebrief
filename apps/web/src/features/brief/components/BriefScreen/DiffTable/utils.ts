@@ -15,6 +15,10 @@ import {
   type SplitSide,
   SplitSides,
 } from "@web/components/DiffRows/types";
+import {
+  EXPANDED_RIGHT_NUMBER_SELECTOR,
+  EXPANDED_ROW_SELECTOR,
+} from "@web/components/DiffRows/consts";
 import type { DragSelection, RailView, UnderRowLayout } from "./types";
 import { NO_SELECTION } from "./consts";
 import { isContextKind } from "@web/utils/diffTokens/utils";
@@ -203,7 +207,6 @@ export function isUpEdge(edge: ExpandableEdge): boolean {
 
 /**
  * The focusable cell of the expanded row showing this head-file line. The
- * kind sits on the row in the unified view and on the cells in split; the
  * NEW-side number is the one to match, an old number can equal it.
  */
 export function focusExpandedLine(
@@ -213,18 +216,14 @@ export function focusExpandedLine(
 ): void {
   if (table === null) return;
   const wanted = String(line);
-  const unified = table.querySelectorAll(
-    'tr[data-line-kind="expanded-context"]',
-  );
+  const unified = table.querySelectorAll(EXPANDED_ROW_SELECTOR);
   for (const row of unified) {
     const numbers = row.querySelectorAll("[data-line-number]");
     if (numbers[1]?.textContent !== wanted) continue;
     if (row instanceof HTMLElement) row.focus(options);
     return;
   }
-  const cells = table.querySelectorAll(
-    'td[data-side="right"][data-line-kind="expanded-context"][data-line-number]',
-  );
+  const cells = table.querySelectorAll(EXPANDED_RIGHT_NUMBER_SELECTOR);
   for (const cell of cells) {
     if (cell.textContent !== wanted) continue;
     const target = cell.nextElementSibling;

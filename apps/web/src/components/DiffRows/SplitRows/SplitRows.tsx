@@ -227,6 +227,7 @@ function SideCells({
         data-commentable={commentable}
         data-line-kind={line.kind}
         data-line-number=""
+        data-line-origin={line.origin}
         data-selected={selected}
         data-side={side}
         onMouseDown={attributes.onMouseDown}
@@ -241,6 +242,7 @@ function SideCells({
         className={rowStyles["code"]}
         data-commentable={commentable}
         data-line-kind={line.kind}
+        data-line-origin={line.origin}
         data-rev={attributes.revision}
         data-selected={selected}
         data-side={side}

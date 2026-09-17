@@ -1,13 +1,8 @@
 import { CHUNK_ROW_CEILING } from "./consts";
 import { DiffLineKinds, type DiffLineKind, type TokenizableRow } from "./types";
 
-/**
- * Both context kinds paint one unchanged line present on both sides; only
- * their provenance differs, so every side, pairing and grammar decision
- * treats them alike.
- */
 export function isContextKind(kind: DiffLineKind): boolean {
-  return kind === DiffLineKinds.CTX || kind === DiffLineKinds.EXPANDED_CONTEXT;
+  return kind === DiffLineKinds.CTX;
 }
 
 /** Above the ceiling the tokenize cost outruns what a reader can scan. */

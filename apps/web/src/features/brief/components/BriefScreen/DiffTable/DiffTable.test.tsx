@@ -363,7 +363,13 @@ describe("DiffTable read-only comment affordances", () => {
     const expanded: BriefChunk = {
       ...chunk(),
       diff: [
-        { kind: "expanded-context", content: "read", oldLine: 8, newLine: 8 },
+        {
+          kind: "ctx",
+          origin: "expanded",
+          content: "read",
+          oldLine: 8,
+          newLine: 8,
+        },
         { kind: "ctx", content: "a", oldLine: 9, newLine: 9 },
       ],
     };

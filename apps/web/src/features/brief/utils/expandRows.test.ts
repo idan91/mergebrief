@@ -1,4 +1,8 @@
-import { type DiffLine, DiffLineKinds } from "@web/utils/diffTokens/types";
+import {
+  type DiffLine,
+  DiffLineKinds,
+  DiffRowOrigins,
+} from "@web/utils/diffTokens/types";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -210,7 +214,8 @@ describe("findExpansionGaps at a run that opens on deletions", () => {
       range: { from: 45, to: 49, lines: makeLines(45, 49) },
     });
     expect(rows[2]).toMatchObject({
-      kind: "expanded-context",
+      kind: "ctx",
+      origin: "expanded",
       oldLine: 41,
       newLine: 45,
     });
@@ -265,14 +270,14 @@ describe("spliceAllExpandedRows on one hole from both sides", () => {
       0,
     );
     expect(
-      rows.filter((row) => row.kind === DiffLineKinds.EXPANDED_CONTEXT),
+      rows.filter((row) => row.origin === DiffRowOrigins.EXPANDED),
     ).toHaveLength(46);
   });
 
   it("renders an overlap once", () => {
     const rows = spliceAllExpandedRows(diff, readsFor(43));
     const shown = rows
-      .filter((row) => row.kind === DiffLineKinds.EXPANDED_CONTEXT)
+      .filter((row) => row.origin === DiffRowOrigins.EXPANDED)
       .map((row) => row.newLine);
 
     expect(shown).toEqual(
@@ -320,7 +325,7 @@ describe("spliceAllExpandedRows on a hole whose run below opens on deletions", (
     expect(readOldLine(rows, 43)).toBe(42);
     expect(readOldLine(rows, 44)).toBe(40);
     expect(
-      rows.filter((row) => row.kind === DiffLineKinds.EXPANDED_CONTEXT),
+      rows.filter((row) => row.origin === DiffRowOrigins.EXPANDED),
     ).toHaveLength(46);
   });
 });
@@ -425,19 +430,22 @@ describe("spliceExpandedRows", () => {
 
     expect(rows.slice(2, 5)).toEqual([
       {
-        kind: DiffLineKinds.EXPANDED_CONTEXT,
+        kind: DiffLineKinds.CTX,
+        origin: DiffRowOrigins.EXPANDED,
         content: "file 2",
         oldLine: 2,
         newLine: 2,
       },
       {
-        kind: DiffLineKinds.EXPANDED_CONTEXT,
+        kind: DiffLineKinds.CTX,
+        origin: DiffRowOrigins.EXPANDED,
         content: "file 3",
         oldLine: 3,
         newLine: 3,
       },
       {
-        kind: DiffLineKinds.EXPANDED_CONTEXT,
+        kind: DiffLineKinds.CTX,
+        origin: DiffRowOrigins.EXPANDED,
         content: "file 4",
         oldLine: 4,
         newLine: 4,
@@ -505,11 +513,11 @@ describe("spliceExpandedRows", () => {
       range: { from: 2, to: 2, lines: makeLines(2, 2) },
     });
 
-    expect(rows.map((row) => row.kind)).toEqual([
-      DiffLineKinds.HUNK,
-      DiffLineKinds.CTX,
-      DiffLineKinds.EXPANDED_CONTEXT,
-      DiffLineKinds.CTX,
+    expect(rows.map((row) => [row.kind, row.origin])).toEqual([
+      [DiffLineKinds.HUNK, undefined],
+      [DiffLineKinds.CTX, undefined],
+      [DiffLineKinds.CTX, DiffRowOrigins.EXPANDED],
+      [DiffLineKinds.CTX, undefined],
     ]);
   });
 

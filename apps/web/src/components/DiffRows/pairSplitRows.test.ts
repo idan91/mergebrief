@@ -95,7 +95,8 @@ describe("pairSplitRows with expanded context", () => {
   it("sits expanded context on both sides like a context row", () => {
     const rows = pairSplitRows([
       {
-        kind: "expanded-context",
+        kind: "ctx",
+        origin: "expanded",
         content: "read",
         oldLine: 9,
         newLine: 9,
@@ -109,8 +110,20 @@ describe("pairSplitRows with expanded context", () => {
   it("counts an expanded context row as one split row", () => {
     expect(
       countSplitRows([
-        { kind: "expanded-context", content: "a", oldLine: 1, newLine: 1 },
-        { kind: "expanded-context", content: "b", oldLine: 2, newLine: 2 },
+        {
+          kind: "ctx",
+          origin: "expanded",
+          content: "a",
+          oldLine: 1,
+          newLine: 1,
+        },
+        {
+          kind: "ctx",
+          origin: "expanded",
+          content: "b",
+          oldLine: 2,
+          newLine: 2,
+        },
       ]),
     ).toBe(2);
   });

@@ -53,7 +53,7 @@ describe("spliceStoredEdges", () => {
 
     const expanded = rows
       .map((row, index) => ({ row, index }))
-      .filter(({ row }) => row.kind === "expanded-context");
+      .filter(({ row }) => row.origin === "expanded");
     expect(expanded).toHaveLength(40);
     expect(expanded[0]).toMatchObject({
       index: 1,
@@ -74,7 +74,13 @@ describe("mapBaseIndexes", () => {
   it("maps spliced rows back to base rows and expanded rows to -1", () => {
     const spliced: DiffLine[] = [
       base[0]!,
-      { kind: "expanded-context", content: "x", oldLine: 32, newLine: 29 },
+      {
+        kind: "ctx",
+        origin: "expanded",
+        content: "x",
+        oldLine: 32,
+        newLine: 29,
+      },
       base[1]!,
       base[2]!,
     ];
@@ -270,7 +276,7 @@ describe("two edges of one hole", () => {
       claimed: [],
     });
     const shown = rows
-      .filter((row) => row.kind === "expanded-context")
+      .filter((row) => row.origin === "expanded")
       .map((row) => row.newLine);
     expect(shown).toEqual(
       Array.from({ length: 45 }, (_unused, offset) => 100 + offset),

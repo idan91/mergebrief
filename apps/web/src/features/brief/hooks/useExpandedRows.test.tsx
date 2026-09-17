@@ -101,9 +101,15 @@ describe("useExpandedRows", () => {
 
     expect(result.current.rows.map((row) => row.kind)).toEqual([
       "hunk",
-      ...Array<string>(5).fill("expanded-context"),
+      ...Array<string>(5).fill("ctx"),
       "ctx",
       "add",
+    ]);
+    expect(result.current.rows.map((row) => row.origin)).toEqual([
+      undefined,
+      ...Array<string>(5).fill("expanded"),
+      undefined,
+      undefined,
     ]);
     expect(result.current.rows[1]).toMatchObject({
       oldLine: 28,
