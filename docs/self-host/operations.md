@@ -142,8 +142,8 @@ Which is the whole argument for the next section.
 **External database?** The provider owns backup and restore — use its
 point-in-time recovery / snapshot tooling instead of this section (the
 `docker compose exec postgres` commands below assume the bundled service
-and have nothing to exec into). The `tools/categorizer/out/` and
-`.env`/config caveats below still apply to you.
+and have nothing to exec into). The `.env`/config caveat below still
+applies to you.
 
 One database, one command:
 
@@ -164,10 +164,6 @@ other words, everything a reviewer can see in the web app.
 
 What it does NOT contain:
 
-- **`tools/categorizer/out/`** — the file-backed briefs the URL box and the
-  categorizer CLI produce (mounted from the host in compose). Back the
-  directory up too if you use that path; it is plain JSON and can be
-  re-generated at model cost.
 - **`.env` and `mergebrief.config.yaml`** — your credentials and instance
   config. Keep them wherever you keep secrets; they are not in the volume.
 
