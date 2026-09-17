@@ -8,15 +8,15 @@ import {
 import { installationsRoutes } from "./installations";
 import { logoutRoute } from "./logout";
 import { oauthRoute } from "./oauth";
-import { sessionProbeRoute } from "./session-probe";
-import type { AuthRouteDeps } from "./session";
+import { sessionRoute } from "./session";
+import type { AuthRouteDeps } from "./session/types";
 import { tokensRoutes } from "./tokens";
 
 export function authRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   const app = productRouter<AuthzEnv>();
   app.route("/github", oauthRoute(deps));
   app.route("/logout", logoutRoute(deps));
-  app.route("/session", sessionProbeRoute(deps));
+  app.route("/session", sessionRoute(deps));
   app.route("/tokens", tokensRoutes(deps));
   app.route("/installations", installationsRoutes(deps));
   return app;

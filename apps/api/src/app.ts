@@ -11,7 +11,7 @@ import { apiRoutes, type AppDeps } from "./routes";
 import { createErrorHandler } from "./shared-errors/on-error";
 
 export type { AppDeps } from "./routes";
-export type { AuthDeps } from "./routes/auth/session";
+export type { AuthDeps } from "./routes/auth/session/types";
 
 export type ApiApp = Hono<RequestLogEnv>;
 

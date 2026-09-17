@@ -30,7 +30,7 @@ import {
   AuthChannels,
   type AuthRouteDeps,
   type ViewerPrincipal,
-} from "../../../auth/session";
+} from "../../../auth/session/types";
 import commentsController from "./controller";
 
 vi.mock("github", async (importOriginal) => ({

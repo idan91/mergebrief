@@ -21,16 +21,16 @@ import {
   vi,
 } from "vitest";
 import { createReviewerGitHubClient } from "./reviewer-github-client";
-import type * as sessionModule from "./session";
+import type * as refreshModule from "./session/logic/refresh";
 import {
   AuthChannels,
-  refreshSessionToken,
   type AuthRouteDeps,
   type ViewerPrincipal,
-} from "./session";
+} from "./session/types";
+import { refreshSessionToken } from "./session/logic/refresh";
 
-vi.mock("./session", async (importOriginal) => ({
-  ...(await importOriginal<typeof sessionModule>()),
+vi.mock("./session/logic/refresh", async (importOriginal) => ({
+  ...(await importOriginal<typeof refreshModule>()),
   refreshSessionToken: vi.fn(),
 }));
 

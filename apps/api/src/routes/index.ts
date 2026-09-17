@@ -12,7 +12,7 @@ import {
 } from "../product-operations/product-router";
 import { createAllowedRepoResolver } from "./allowed-repos";
 import { authRoutes } from "./auth";
-import type { AuthDeps } from "./auth/session";
+import type { AuthDeps } from "./auth/session/types";
 import { generateRoute } from "./generate";
 import { urlBriefRoutes } from "./briefs";
 import type { InstallationGitHubPort } from "./github-port";

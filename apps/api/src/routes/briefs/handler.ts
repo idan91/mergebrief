@@ -2,7 +2,7 @@ import type { Context } from "hono";
 import { isRepoId } from "persistence";
 import { NotFound, BadRequest } from "../../shared-errors/api-error";
 import { stampAuditTarget } from "../../product-operations/audit";
-import type { AuthRouteDeps } from "../auth/session";
+import type { AuthRouteDeps } from "../auth/session/types";
 import type { AuthzEnv } from "../authz";
 import { prNumberSchema } from "../repos/pr/wire-bounds";
 import urlBriefsController from "./controller";

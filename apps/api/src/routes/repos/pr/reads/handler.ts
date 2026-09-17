@@ -15,7 +15,7 @@ import {
   Unauthorized,
 } from "../../../../shared-errors/api-error";
 import { createReviewerGitHubClient } from "../../../auth/reviewer-github-client";
-import type { AuthRouteDeps } from "../../../auth/session";
+import type { AuthRouteDeps } from "../../../auth/session/types";
 import { readFallbackTokenFor, type AuthzEnv } from "../../../authz";
 import type { OpenPullRequest } from "github";
 import type { TtlCache } from "../../../ttl-cache";

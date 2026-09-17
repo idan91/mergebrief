@@ -12,7 +12,7 @@ import {
 } from "../../../../shared-errors/api-error";
 import { stampAuditTarget } from "../../../../product-operations/audit";
 import { createReviewerGitHubClient } from "../../../auth/reviewer-github-client";
-import type { AuthRouteDeps } from "../../../auth/session";
+import type { AuthRouteDeps } from "../../../auth/session/types";
 import type { AuthzEnv } from "../../../authz";
 import {
   resolveRepoOwnerAndName,

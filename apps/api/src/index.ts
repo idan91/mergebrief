@@ -10,18 +10,18 @@ export type { InstallationGitHubPort } from "./routes/github-port";
 
 // The serialized token-refresh orchestrator: called by the authz middleware
 // on a GitHub 401.
+export { RefreshErrorCodes } from "./routes/auth/session/types";
 export {
   derivePrincipalFromApiToken,
   derivePrincipalFromSession,
-  refreshSessionToken,
-  RefreshErrorCodes,
-} from "./routes/auth/session";
+} from "./routes/auth/session/logic/principal";
+export { refreshSessionToken } from "./routes/auth/session/logic/refresh";
 export type {
+  AuthRouteDeps,
+  RefreshedSession,
   RefreshError,
   RefreshErrorCode,
-  RefreshedSession,
-  AuthRouteDeps,
-} from "./routes/auth/session";
+} from "./routes/auth/session/types";
 
 // Installs/upgrades the `graphile_worker` schema so the webhook's by-name
 // `add_job` enqueue works against real Postgres. Composition roots call this

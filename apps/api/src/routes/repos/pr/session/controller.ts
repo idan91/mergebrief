@@ -10,7 +10,7 @@ import {
 } from "persistence";
 import type { Logger } from "logging";
 import type { Result } from "types/utils";
-import type { AuthRouteDeps } from "../../../auth/session";
+import type { AuthRouteDeps } from "../../../auth/session/types";
 import type { BriefSpan } from "./schemas";
 import {
   loadCarryOverInputs,

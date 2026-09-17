@@ -29,19 +29,6 @@
       "count": 1
     }
   },
-  "apps/api/src/routes/auth/logout.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "apps/api/src/routes/auth/session.ts": {
-    "house/comment-run": {
-      "count": 2
-    },
-    "house/no-em-dash": {
-      "count": 16
-    }
-  },
   "apps/api/src/routes/auth/tokens/consts.ts": {
     "house/no-em-dash": {
       "count": 2
@@ -55,14 +42,6 @@
   "apps/api/src/routes/auth/tokens/utils.ts": {
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "apps/api/src/routes/authz.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 29
     }
   },
   "apps/api/src/routes/capabilities/types.ts": {
@@ -120,17 +99,7 @@
       "count": 1
     }
   },
-  "apps/api/src/routes/repos/pr/index.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "apps/api/src/routes/repos/pr/ready/controller.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "apps/api/src/routes/repos/pr/ready/handler.ts": {
     "house/no-em-dash": {
       "count": 1
     }
@@ -144,11 +113,6 @@
     "house/comment-run": {
       "count": 1
     },
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
-  "apps/api/src/routes/repos/pr/session/logic/brief-target.ts": {
     "house/no-em-dash": {
       "count": 2
     }
@@ -169,11 +133,6 @@
     },
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "apps/api/src/routes/version.ts": {
-    "house/no-em-dash": {
-      "count": 2
     }
   },
   "apps/api/src/shared-errors/failures.ts": {

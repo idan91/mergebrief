@@ -7,7 +7,7 @@
 // GUARD, `viewerCanPush`: GitHub denies the roster to viewers without push
 // access, so serving it on the installation token would leak logins and names
 // to any read-access viewer. Non-push viewers get the gate's 404 first.
-import type { AuthRouteDeps } from "../../auth/session";
+import type { AuthRouteDeps } from "../../auth/session/types";
 import { createAuthzMiddleware, type AuthzEnv } from "../../authz";
 import type { InstallationGitHubPort } from "../../github-port";
 import { createTtlCache } from "../../ttl-cache";

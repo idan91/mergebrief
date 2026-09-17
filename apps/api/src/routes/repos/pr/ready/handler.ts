@@ -3,7 +3,7 @@ import { createTenantRepository } from "persistence";
 import { BadRequest, NotFound } from "../../../../shared-errors/api-error";
 import { stampAuditTarget } from "../../../../product-operations/audit";
 import { createReviewerGitHubClient } from "../../../auth/reviewer-github-client";
-import type { AuthRouteDeps } from "../../../auth/session";
+import type { AuthRouteDeps } from "../../../auth/session/types";
 import type { AuthzEnv } from "../../../authz";
 import {
   resolveRepoOwnerAndName,
@@ -61,7 +61,7 @@ export default function createHandlers(deps: AuthRouteDeps) {
 
     // Success (fresh flip OR already-ready convergence): mirror `draft=false`
     // locally so the FE's pr-view invalidation reflects it immediately. A
-    // NOT_FOUND here (PR deleted mid-request) is non-fatal — GitHub is the
+    // NOT_FOUND here (PR deleted mid-request) is non-fatal: GitHub is the
     // source of truth and the webhook reconciles; do not fail a converged
     // GitHub state on a local mirror race.
     await createTenantRepository(deps.handle, ctx).pullRequests.setDraft(

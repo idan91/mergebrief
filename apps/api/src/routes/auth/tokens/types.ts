@@ -1,7 +1,7 @@
 import type { Logger } from "logging";
 import type { WriteClassification } from "persistence";
 import type { AccessibleSetFailure } from "../accessible-installations";
-import type { AuthRouteDeps, ViewerPrincipal } from "../session";
+import type { AuthRouteDeps, ViewerPrincipal } from "../session/types";
 
 export interface TokensControllerDeps {
   readonly deps: AuthRouteDeps;

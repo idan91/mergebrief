@@ -12,7 +12,7 @@ import {
 import type { Logger } from "logging";
 import { createSessionAuth, type RepoId } from "persistence";
 import type { Result } from "types/utils";
-import type { AuthRouteDeps, ViewerPrincipal } from "./auth/session";
+import type { AuthRouteDeps, ViewerPrincipal } from "./auth/session/types";
 import { createReviewerGitHubClient } from "./auth/reviewer-github-client";
 import { AUTHZ_CACHE_TTL_MS } from "./authz";
 import { createTtlCache } from "./ttl-cache";

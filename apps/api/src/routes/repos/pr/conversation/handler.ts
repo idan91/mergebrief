@@ -13,7 +13,7 @@ import {
 } from "../../../../shared-errors/api-error";
 import { isTokenUnreadableFailure } from "../../../../shared-errors/failures";
 import { createReviewerGitHubClient } from "../../../auth/reviewer-github-client";
-import type { AuthRouteDeps } from "../../../auth/session";
+import type { AuthRouteDeps } from "../../../auth/session/types";
 import { readFallbackTokenFor, type AuthzEnv } from "../../../authz";
 import type { InstallationGitHubPort } from "../../../github-port";
 import type { TtlCache } from "../../../ttl-cache";

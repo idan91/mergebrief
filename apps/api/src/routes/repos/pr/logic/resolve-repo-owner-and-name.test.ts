@@ -27,7 +27,7 @@ import {
   AuthChannels,
   type AuthRouteDeps,
   type ViewerPrincipal,
-} from "../../../auth/session";
+} from "../../../auth/session/types";
 import { resolveRepoOwnerAndName } from "./resolve-repo-owner-and-name";
 
 vi.mock("github", async (importOriginal) => ({

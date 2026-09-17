@@ -24,21 +24,21 @@ import {
 } from "vitest";
 import { repoAuthzLayer, type AuthzEnv } from "./authz";
 import { createErrorHandler } from "../shared-errors/on-error";
-import type * as sessionModule from "./auth/session";
+import type * as refreshModule from "./auth/session/logic/refresh";
 import {
   AuthChannels,
-  refreshSessionToken,
   type AuthRouteDeps,
   type ViewerPrincipal,
-} from "./auth/session";
+} from "./auth/session/types";
+import { refreshSessionToken } from "./auth/session/logic/refresh";
 
 vi.mock("github", async (importOriginal) => ({
   ...(await importOriginal<typeof githubModule>()),
   fetchRepositoryById: vi.fn(),
 }));
 
-vi.mock("./auth/session", async (importOriginal) => ({
-  ...(await importOriginal<typeof sessionModule>()),
+vi.mock("./auth/session/logic/refresh", async (importOriginal) => ({
+  ...(await importOriginal<typeof refreshModule>()),
   refreshSessionToken: vi.fn(),
 }));
 

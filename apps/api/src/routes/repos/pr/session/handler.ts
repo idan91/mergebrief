@@ -17,7 +17,7 @@ import {
   InternalError,
   NotFound,
 } from "../../../../shared-errors/api-error";
-import { AuthChannels, type AuthRouteDeps } from "../../../auth/session";
+import { AuthChannels, type AuthRouteDeps } from "../../../auth/session/types";
 import type { AuthzEnv } from "../../../authz";
 import { prNumberSchema, rowIdSchema } from "../wire-bounds";
 import sessionController from "./controller";

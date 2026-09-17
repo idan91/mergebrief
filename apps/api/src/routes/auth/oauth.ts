@@ -32,7 +32,9 @@ import {
   BadRequest,
   InternalError,
 } from "../../shared-errors/api-error";
-import { SESSION_COOKIE, sha256Hex, type AuthRouteDeps } from "./session";
+import type { AuthRouteDeps } from "./session/types";
+import { SESSION_COOKIE } from "./session/consts";
+import { sha256Hex } from "./session/utils";
 
 const STATE_COOKIE = "rs_oauth_state";
 /** Entropy for the CSRF state nonce and the session token (bytes). */

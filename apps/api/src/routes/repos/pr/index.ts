@@ -1,4 +1,4 @@
-// The per-PR subtree (`/:repoId/pulls/:prNumber`) — composition plus the ONE
+// The per-PR subtree (`/:repoId/pulls/:prNumber`), composition plus the ONE
 // per-repo gate. The wildcard `use` is METHOD-AGNOSTIC and covers the whole
 // subtree, unmatched methods/paths included, so every request under the
 // prefix traverses exactly one gate and an unauthorized probe meets the same

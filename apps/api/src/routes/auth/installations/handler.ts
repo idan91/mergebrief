@@ -8,7 +8,7 @@ import {
 } from "../../../shared-errors/api-error";
 import { stampAuditTarget } from "../../../product-operations/audit";
 import type { AuthzEnv } from "../../authz";
-import type { AuthRouteDeps } from "../session";
+import type { AuthRouteDeps } from "../session/types";
 import installationsController from "./controller";
 import { switchBodySchema } from "./schemas";
 import type { InstallationsFailure } from "./types";

@@ -1,8 +1,10 @@
-// POST /api/auth/logout — delete the session row (if any) and clear the cookie.
+// POST /api/auth/logout: delete the session row (if any) and clear the cookie.
 import { Hono } from "hono";
 import { deleteCookie, getCookie } from "hono/cookie";
 import { createSessionAuth } from "persistence";
-import { SESSION_COOKIE, sha256Hex, type AuthRouteDeps } from "./session";
+import type { AuthRouteDeps } from "./session/types";
+import { SESSION_COOKIE } from "./session/consts";
+import { sha256Hex } from "./session/utils";
 
 export function logoutRoute(deps: AuthRouteDeps): Hono {
   const app = new Hono();

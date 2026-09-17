@@ -5,7 +5,7 @@ import type {
   UserSettingsStore,
 } from "persistence";
 import type { AccessibleSetFailure } from "../accessible-installations";
-import type { AuthRouteDeps, ViewerPrincipal } from "../session";
+import type { AuthRouteDeps, ViewerPrincipal } from "../session/types";
 
 /** Failures the handler judges; the resolver's kinds ride whole. */
 export type InstallationsFailure =

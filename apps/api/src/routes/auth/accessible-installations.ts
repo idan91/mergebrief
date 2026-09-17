@@ -10,7 +10,7 @@ import type { Logger } from "logging";
 import { createSessionAuth } from "persistence";
 import type { Result } from "types/utils";
 import { createReviewerGitHubClient } from "./reviewer-github-client";
-import type { AuthRouteDeps, ViewerPrincipal } from "./session";
+import type { AuthRouteDeps, ViewerPrincipal } from "./session/types";
 
 /** The resolved set plus the (possibly refreshed) session it was read under. */
 export interface AccessibleSet {

@@ -9,7 +9,7 @@ import {
   type RepoId,
   type ScopeContext,
 } from "persistence";
-import type { AuthRouteDeps } from "../../../../auth/session";
+import type { AuthRouteDeps } from "../../../../auth/session/types";
 import type { BriefSpan } from "../schemas";
 import {
   readCarryOverInputs,
@@ -18,7 +18,7 @@ import {
 } from "./carry-over-inputs";
 
 /**
- * The PR and the Brief a request names — never "the newest Brief". The write
+ * The PR and the Brief a request names, never "the newest Brief". The write
  * routes resolve the same way the read does: a stale tab must keep writing to
  * the Brief it is looking at, not be redirected into an unseen session.
  */
@@ -62,7 +62,7 @@ export async function resolveSessionTarget(
 }
 
 /**
- * Called only when a previous session exists — the parse the read defers.
+ * Called only when a previous session exists, the parse the read defers.
  * Every arm that cannot state the Brief's facts throws: a missing row is the
  * same hazard as an unparseable one, because empty facts read as "nothing
  * fires any more".

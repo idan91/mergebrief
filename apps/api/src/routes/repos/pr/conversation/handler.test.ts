@@ -18,7 +18,10 @@ import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import type { Result } from "types/utils";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createErrorHandler } from "../../../../shared-errors/on-error";
-import { AuthChannels, type ViewerPrincipal } from "../../../auth/session";
+import {
+  AuthChannels,
+  type ViewerPrincipal,
+} from "../../../auth/session/types";
 import type { AuthzEnv } from "../../../authz";
 import type { InstallationGitHubPort } from "../../../github-port";
 import { createTtlCache } from "../../../ttl-cache";

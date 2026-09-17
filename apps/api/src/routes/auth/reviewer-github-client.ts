@@ -12,13 +12,13 @@ import {
 import type { Logger } from "logging";
 import { decryptToken } from "persistence";
 import type { Result } from "types/utils";
-import {
-  refreshSessionToken,
-  type AuthRouteDeps,
-  type RefreshedSession,
-  type RefreshError,
-  type ViewerPrincipal,
-} from "./session";
+import type {
+  AuthRouteDeps,
+  RefreshedSession,
+  RefreshError,
+  ViewerPrincipal,
+} from "./session/types";
+import { refreshSessionToken } from "./session/logic/refresh";
 
 /** The stored ciphertext could not be decrypted; re-auth territory; the
  * caller owns the posture (burn the session, 401, …). One shape with the

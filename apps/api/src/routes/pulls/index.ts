@@ -11,7 +11,7 @@ import {
   type ProductRouter,
 } from "../../product-operations/product-router";
 import { WriteClassifications } from "../../product-operations/types";
-import type { AuthRouteDeps } from "../auth/session";
+import type { AuthRouteDeps } from "../auth/session/types";
 import type { AllowedRepoResolver } from "../allowed-repos";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "../authz";
 import createPullsHandlers from "./handler";

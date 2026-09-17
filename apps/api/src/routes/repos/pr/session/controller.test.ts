@@ -12,7 +12,7 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import type { AuthRouteDeps } from "../../../auth/session";
+import type { AuthRouteDeps } from "../../../auth/session/types";
 import sessionController from "./controller";
 
 const log: Logger = {

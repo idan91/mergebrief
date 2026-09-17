@@ -14,7 +14,7 @@ import {
 } from "../../../../product-operations/product-router";
 import { WriteClassifications } from "../../../../product-operations/types";
 import type { AuthzEnv } from "../../../authz";
-import type { AuthRouteDeps } from "../../../auth/session";
+import type { AuthRouteDeps } from "../../../auth/session/types";
 import createSessionHandlers from "./handler";
 
 export function sessionRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {

@@ -8,7 +8,7 @@ import {
 } from "../../../shared-errors/api-error";
 import { stampAuditTarget } from "../../../product-operations/audit";
 import { API_TOKEN_PREFIX, type AuthzEnv } from "../../authz";
-import type { AuthRouteDeps } from "../session";
+import type { AuthRouteDeps } from "../session/types";
 import tokensController from "./controller";
 import { mintBodySchema } from "./schemas";
 import { buildTokenView, parseTokenId } from "./utils";

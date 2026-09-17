@@ -35,13 +35,13 @@ import {
   vi,
 } from "vitest";
 import { createErrorHandler } from "../../../../shared-errors/on-error";
-import type * as sessionModule from "../../../auth/session";
+import type * as refreshModule from "../../../auth/session/logic/refresh";
 import {
   AuthChannels,
-  refreshSessionToken,
   type AuthRouteDeps,
   type ViewerPrincipal,
-} from "../../../auth/session";
+} from "../../../auth/session/types";
+import { refreshSessionToken } from "../../../auth/session/logic/refresh";
 import type { AuthzEnv } from "../../../authz";
 import type { OpenPullRequest } from "github";
 import { createTtlCache, type TtlCache } from "../../../ttl-cache";
@@ -57,8 +57,8 @@ vi.mock("github", async (importOriginal) => ({
   listOpenPullRequests: vi.fn(),
 }));
 
-vi.mock("../../../auth/session", async (importOriginal) => ({
-  ...(await importOriginal<typeof sessionModule>()),
+vi.mock("../../../auth/session/logic/refresh", async (importOriginal) => ({
+  ...(await importOriginal<typeof refreshModule>()),
   refreshSessionToken: vi.fn(),
 }));
 

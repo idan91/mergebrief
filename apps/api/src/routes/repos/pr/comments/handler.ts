@@ -11,7 +11,7 @@ import {
   NotFound,
 } from "../../../../shared-errors/api-error";
 import { stampAuditTarget } from "../../../../product-operations/audit";
-import type { AuthRouteDeps } from "../../../auth/session";
+import type { AuthRouteDeps } from "../../../auth/session/types";
 import { createReviewerGitHubClient } from "../../../auth/reviewer-github-client";
 import type { AuthzEnv } from "../../../authz";
 import { prNumberSchema } from "../wire-bounds";

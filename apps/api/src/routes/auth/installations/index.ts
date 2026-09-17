@@ -9,7 +9,7 @@ import {
 } from "../../../product-operations/product-router";
 import { WriteClassifications } from "../../../product-operations/types";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "../../authz";
-import type { AuthRouteDeps } from "../session";
+import type { AuthRouteDeps } from "../session/types";
 import createInstallationsHandlers from "./handler";
 
 /** Mount over the session gate (no `:repoId`, same composition as the PR list). */
