@@ -257,6 +257,7 @@ const EXEMPT_ENDPOINTS = new Set([
   "GET /api/auth/github",
   "GET /api/auth/github/callback",
   "POST /api/auth/logout",
+  "GET /api/auth/session",
   "GET /api/version",
   "POST /api/webhooks/github",
 ]);

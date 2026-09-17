@@ -13,6 +13,13 @@ The contract discipline (ADR 0029): response shapes change additively
 within a major; removals/renames ship expand/contract — new field first,
 deprecation note here, removal only at a major.
 
+## dev (2026-09-17)
+
+- **Added** `GET /api/auth/session`: answers `{ "ok": true }` for a request
+  carrying a live session cookie, otherwise the session gate's hint-free
+  401. Cookie-only like the rest of `/api/auth/*`; a Bearer token is
+  ignored. The web app's development-only file-brief readers gate on it.
+
 ## dev (2026-09-15)
 
 - **Changed** the instance config key `spend.dailyGenerationCap` is now

@@ -406,6 +406,41 @@ describe("reviewer auth routes", () => {
     expect(setCookie).toMatch(/Max-Age=0|Expires=/i);
   });
 
+  it("GET /api/auth/session without a cookie answers 401", async () => {
+    const res = await app.request("/api/auth/session");
+    expect(res.status).toBe(401);
+  });
+
+  it("GET /api/auth/session with a live session answers ok", async () => {
+    const token = randomBytes(32).toString("base64url");
+    const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
+    const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
+    if (!sealedAccess.ok || !sealedRefresh.ok)
+      throw new Error("seed encrypt failed");
+    const grant = await createGrantAuth(harness.handle).createGrant({
+      ghTokenCiphertext: sealedAccess.value,
+      ghRefreshTokenCiphertext: sealedRefresh.value,
+      keyRef: KEY_REF,
+      refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
+    });
+    await createTenantRepository(harness.handle, {
+      ownerUserId: brandReviewerId(BigInt(REVIEWER_ID)),
+    }).sessions.create({
+      sessionTokenHash: hashSha256Hex(token),
+      reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),
+      reviewerLogin: "octocat",
+      grantId: grant.id,
+      expiresAt: new Date("2027-01-01T00:00:00Z"),
+    });
+
+    const res = await app.request("/api/auth/session", {
+      headers: { cookie: `rs_session=${token}` },
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(await res.json()).toEqual({ ok: true });
+  });
+
   it("refresh rotates both ciphertexts and returns the fresh access token", async () => {
     stubGitHub({ token: tokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH) });
     // The observed access ciphertext still matches the stored row (no concurrent

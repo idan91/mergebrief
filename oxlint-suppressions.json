@@ -24,11 +24,6 @@
       "count": 3
     }
   },
-  "apps/api/src/routes/auth/index.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "apps/api/src/routes/auth/installations/schemas.ts": {
     "house/no-em-dash": {
       "count": 1

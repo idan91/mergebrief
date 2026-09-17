@@ -45,9 +45,10 @@ What a credential may do is its **scope** (`read` / `private-write` /
 classification — the classification IS the permission, so a new operation
 cannot be added without declaring who may call it.
 
-Not Product Operations, never registered: OAuth callbacks, logout, webhook
-ingest, version checks, UI-only presentation state, CLI profile storage, and
-bookkeeping caused automatically by review submission. A public backend
+Not Product Operations, never registered: OAuth callbacks, logout, the
+session probe, webhook ingest, version checks, UI-only presentation state,
+CLI profile storage, and bookkeeping caused automatically by review
+submission. A public backend
 composite is itself a Product Action with its own CLI command; client-only
 compositions are not.
 
