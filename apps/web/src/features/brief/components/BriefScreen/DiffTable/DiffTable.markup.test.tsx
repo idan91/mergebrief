@@ -239,6 +239,7 @@ describe("DiffTable markup", () => {
       addressedComments: [addressed],
       flowState: {
         composerAnchor: anchor,
+        composerHost: anchor?.chunkId ?? null,
         composerDisabledReason: "This revision is read-only.",
       },
       session,

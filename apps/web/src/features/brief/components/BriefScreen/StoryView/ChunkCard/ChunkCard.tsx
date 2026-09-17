@@ -17,7 +17,7 @@ import type {
 } from "../../../../types";
 import { useExpandedRows } from "../../../../hooks/useExpandedRows";
 import { resolveFileStatus } from "../../../../utils/fileStatus";
-import type { FileLineOwners } from "../../../../utils/lineOwner";
+import type { FileLineOwners, LineTarget } from "../../../../utils/lineOwner";
 import type { AttributeDisplayMeta } from "../../../../utils/repoConfig";
 import type { ComparisonOverlayState } from "../../../../comparison/comparisonOverlay";
 import { AddressedComments, ReviewComments } from "@web/features/review";
@@ -71,10 +71,12 @@ export interface ChunkCardProps {
   riskMeta?: ReadonlyMap<string, AttributeDisplayMeta> | undefined;
   /** Live threads on lines no chunk renders; expansion reveals them. */
   hiddenThreads?: readonly DigestThreadRow[] | undefined;
+  /** Every current line thread of the file; expanded rows show theirs. */
+  fileThreads?: readonly DigestThreadRow[] | undefined;
   /** The file's chunks and labels, for framing a sibling's expanded rows. */
   lineOwners?: FileLineOwners | undefined;
   /** Where a sibling span's control lands. */
-  jumpToChunk?: ((chunkId: string) => void) | undefined;
+  jumpToLine?: ((chunkId: string, target: LineTarget) => void) | undefined;
 }
 
 /**
@@ -152,8 +154,9 @@ export const ChunkCard = memo(function ChunkCard({
   conversationComposer,
   riskMeta,
   hiddenThreads,
+  fileThreads,
   lineOwners,
-  jumpToChunk,
+  jumpToLine,
 }: ChunkCardProps) {
   const { t } = useTranslation();
   const reviewed = useReviewSession((state) =>
@@ -436,7 +439,8 @@ export const ChunkCard = memo(function ChunkCard({
             view={diffView}
             expansion={expansion}
             hiddenThreads={hiddenThreads}
-            jumpToChunk={jumpToChunk}
+            fileThreads={fileThreads}
+            jumpToLine={jumpToLine}
             lineOwners={lineOwners}
             conversationComposer={conversationComposer}
             conversationThreadsByRow={conversationSplit.byRow}

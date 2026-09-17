@@ -347,6 +347,12 @@ export function BriefScreen({
                           hiddenThreadsByFile={
                             conversationWiring.hiddenThreadsByFile
                           }
+                          lineThreadsByFile={
+                            conversationWiring.lineThreadsByFile
+                          }
+                          jumpToLine={
+                            conversationWiring.jumpToChunkFromConversation
+                          }
                           conversationComposer={
                             conversationWiring.conversationComposer
                           }

@@ -1,12 +1,17 @@
 import type { TFunction } from "i18next";
 import { type DiffLine, DiffLineKinds } from "@web/utils/diffTokens/types";
+import type { LineSide } from "@web/components/DiffRows/types";
 
 import type { BriefChunk, LineRange } from "../types";
 import { GroupViewKinds, isUnattributedRemainderChunk } from "./remainder";
 import { resolveGroupName } from "./resolveGroupName";
 import type { BriefViewModel } from "./viewModel";
 
-export type LineSide = "old" | "new";
+/** One line of a file by side, where a jump lands inside a chunk. */
+export interface LineTarget {
+  side: LineSide;
+  line: number;
+}
 
 /** What a sibling span's header says about the chunk that owns its rows. */
 export interface SpanOwner {

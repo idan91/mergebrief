@@ -5,12 +5,22 @@ import {
 } from "@web/features/conversation/types";
 import {
   type CommentAnchor,
+  type CommentSide,
   CommentSides,
   isLineCommentAnchor,
+  type LineCommentAnchor,
+  type ReviewComment,
+  rowId,
 } from "@web/features/review/utils";
-import type { DiffRowView } from "./diffRowView";
+import {
+  anchorEndsOnRow,
+  isCommentableLine,
+  type DiffRowView,
+} from "./diffRowView";
+import type { BriefChunk } from "../../../types";
 import { type DiffLine, DiffLineKinds } from "@web/utils/diffTokens/types";
 import {
+  type LineSide,
   type SplitCell,
   type SplitRow,
   type SplitSide,
@@ -26,7 +36,6 @@ import { isContextKind } from "@web/utils/diffTokens/utils";
 import { type ExpandableEdge, ExpansionDirections } from "../../../types";
 import type { DigestThreadRow } from "@web/features/conversation/utils";
 import type { SiblingSpan } from "../../../utils/siblingSpans";
-import type { LineSide } from "../../../utils/lineOwner";
 
 /** The other side of each paired row, so one rail can speak for both. */
 export function buildPairPartners(
@@ -166,23 +175,155 @@ export function collectSideIndexes(
   return indexes;
 }
 
-/** A row from the file at head: focusable, never commentable, nothing on it. */
-export function buildExpandedRowView(
-  chunkId: string,
-  index: number,
-): DiffRowView {
+export interface ExpandedRowViewParams {
+  line: DiffLine;
+  index: number;
+  /** The chunk whose table renders the row. */
+  hostId: string;
+  /** The chunk that owns the row's line; absent leaves it uncommentable. */
+  owner: string | undefined;
+  /** Whether the owner's own diff carries this row, so a comment can anchor to it. */
+  commentable: boolean;
+  /** The owners' comments; the row shows the ones ending on its line. */
+  comments: readonly ReviewComment[];
+  activeCommentAnchor: CommentAnchor | null;
+  dragIndexes: ReadonlySet<number>;
+  /** Rendered indexes the active anchor covers inside a span. */
+  activeIndexes: ReadonlySet<number>;
+}
+
+/**
+ * A row spliced from outside the chunk. No marks and no revision run, those
+ * belong to the chunk's own rows. Comments match by coordinates: row ids
+ * belong to the owner's own table.
+ */
+export function buildExpandedRowView({
+  line,
+  index,
+  hostId,
+  owner,
+  commentable,
+  comments,
+  activeCommentAnchor,
+  dragIndexes,
+  activeIndexes,
+}: ExpandedRowViewParams): DiffRowView {
+  const rowComments =
+    owner === undefined
+      ? []
+      : comments.filter(
+          (comment) =>
+            isLineCommentAnchor(comment.anchor) &&
+            comment.anchor.chunkId === owner &&
+            anchorEndsOnRow(comment.anchor, line),
+        );
+  const showComposer =
+    owner !== undefined &&
+    activeCommentAnchor !== null &&
+    isLineCommentAnchor(activeCommentAnchor) &&
+    activeCommentAnchor.chunkId === owner &&
+    anchorEndsOnRow(activeCommentAnchor, line);
+
   return {
-    id: `${chunkId}:expanded:${String(index)}`,
-    isCommentable: false,
+    id: `${hostId}:expanded:${String(index)}`,
+    isCommentable: owner !== undefined && commentable,
     revRun: undefined,
     revMark: undefined,
     isRevStart: false,
     isRevEnd: false,
-    rowComments: [],
+    rowComments,
     rowAddressedComments: [],
-    isSelected: false,
-    showComposer: false,
+    isSelected: dragIndexes.has(index) || activeIndexes.has(index),
+    showComposer,
   };
+}
+
+/**
+ * The rendered rows a line anchor covers, by coordinates. Same-side: every
+ * row whose line on that side is in range. Cross-side: the rows between the
+ * start and end lines in render order, headers and notes skipped.
+ */
+export function collectAnchoredIndexes(
+  rows: readonly DiffLine[],
+  anchor: LineCommentAnchor,
+): number[] {
+  const startSide = anchor.startSide ?? anchor.side;
+  if (startSide === anchor.side) {
+    const indexes: number[] = [];
+    rows.forEach((row, index) => {
+      const line = lineOnSide(row, anchor.side);
+      if (line === undefined) return;
+      if (line >= anchor.startLine && line <= anchor.endLine) {
+        indexes.push(index);
+      }
+    });
+    return indexes;
+  }
+  const start = rows.findIndex(
+    (row) => lineOnSide(row, startSide) === anchor.startLine,
+  );
+  const end = rows.findLastIndex(
+    (row) => lineOnSide(row, anchor.side) === anchor.endLine,
+  );
+  if (start === -1 || end === -1 || end < start) return [];
+
+  return rangeBetween(start, end).filter((index) => {
+    const row = rows[index];
+    return row?.oldLine !== undefined || row?.newLine !== undefined;
+  });
+}
+
+function lineOnSide(row: DiffLine, side: CommentSide): number | undefined {
+  return side === CommentSides.OLD ? row.oldLine : row.newLine;
+}
+
+/**
+ * Row ids in the owner's own table for the rows a span selection picked,
+ * so the owner card matches the comment the way it matches its own. Empty
+ * when the owner's diff does not carry a picked row; coordinates then match.
+ */
+export function collectOwnerRowIds(
+  owner: BriefChunk,
+  rows: readonly DiffLine[],
+  indexes: readonly number[],
+): string[] {
+  const ownerRows = owner.diff ?? [];
+  const rowIds: string[] = [];
+  for (const index of indexes) {
+    const line = rows[index];
+    const at =
+      line === undefined
+        ? -1
+        : ownerRows.findIndex((row) => matchesLine(row, line));
+    if (at === -1) return [];
+    rowIds.push(rowId(owner.id, at));
+  }
+
+  return rowIds;
+}
+
+/** The same line of the same file: kind and numbers agree. */
+export function matchesLine(row: DiffLine, line: DiffLine): boolean {
+  return (
+    row.kind === line.kind &&
+    row.oldLine === line.oldLine &&
+    row.newLine === line.newLine
+  );
+}
+
+/**
+ * Whether a comment can anchor to an expanded row: the owner's own diff
+ * carries the line, context between two of its changed lines included.
+ * Without the owner's diff, kind decides: a changed line is in the diff.
+ */
+export function isSpanRowCommentable(
+  line: DiffLine,
+  owner: BriefChunk | undefined,
+): boolean {
+  if (owner === undefined) return false;
+  if (owner.diff === undefined) return isCommentableLine(line);
+
+  return owner.diff.some((row) => matchesLine(row, line));
 }
 
 export function groupEdgesByRow(
@@ -241,14 +382,18 @@ export function collectThreadLines(rows: readonly DigestThreadRow[]): number[] {
   return lines;
 }
 
-/** A hidden thread belongs to the expanded row showing its line. */
-export function showsHiddenThread(
+/** A thread belongs to the expanded row showing its line on its side. */
+export function showsThreadOnRow(
   row: DigestThreadRow,
   line: DiffLine,
 ): boolean {
   const threadLine = row.thread.line;
+  if (threadLine === undefined) return false;
+  const side = row.thread.side ?? ThreadSides.RIGHT;
 
-  return threadLine !== undefined && threadLine === line.newLine;
+  return (
+    threadLine === (side === ThreadSides.LEFT ? line.oldLine : line.newLine)
+  );
 }
 
 /** Where one span's header, gutter edge and end rule render. */

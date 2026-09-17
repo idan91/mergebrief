@@ -7,7 +7,8 @@ import {
   ButtonVariants,
 } from "@web/components/Button/Button";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
-import type { LineSide, SpanOwner } from "../../../../utils/lineOwner";
+import type { LineSide } from "@web/components/DiffRows/types";
+import type { LineTarget, SpanOwner } from "../../../../utils/lineOwner";
 import styles from "./SiblingSpanHeader.module.scss";
 
 export interface SiblingSpanHeaderProps {
@@ -17,7 +18,7 @@ export interface SiblingSpanHeaderProps {
   from: number;
   to: number;
   columnCount: number;
-  jumpToChunk?: ((chunkId: string) => void) | undefined;
+  jumpToLine?: ((chunkId: string, target: LineTarget) => void) | undefined;
 }
 
 /** The full-width row that opens a sibling span: who owns the lines, and a way there. */
@@ -27,7 +28,7 @@ export function SiblingSpanHeader({
   from,
   to,
   columnCount,
-  jumpToChunk,
+  jumpToLine,
 }: SiblingSpanHeaderProps) {
   const { t } = useTranslation();
   const label = resolveSpanLabel(t, owner, side, from, to);
@@ -41,10 +42,10 @@ export function SiblingSpanHeader({
           {owner.summary === undefined ? null : (
             <span className={styles["summary"]}>{owner.summary}</span>
           )}
-          {jumpToChunk === undefined ? null : (
+          {jumpToLine === undefined ? null : (
             <Button
               className={styles["jump"]}
-              onClick={() => jumpToChunk(owner.chunkId)}
+              onClick={() => jumpToLine(owner.chunkId, { side, line: from })}
               size={ButtonSizes.SM}
               variant={ButtonVariants.QUIET}
             >

@@ -144,6 +144,25 @@ export function useChunkReviewComments(chunkId: string): ReviewComment[] {
 }
 
 /**
+ * Line comments of several chunks at once: a table showing sibling spans
+ * reads the owners' comments beside its own. Same identity contract as the
+ * single-chunk slice.
+ */
+export function useReviewCommentsForChunks(
+  chunkIds: readonly string[],
+): ReviewComment[] {
+  return useReviewSession(
+    useShallow((state) =>
+      state.reviewComments.filter(
+        (comment) =>
+          isLineCommentAnchor(comment.anchor) &&
+          chunkIds.includes(comment.anchor.chunkId),
+      ),
+    ),
+  );
+}
+
+/**
  * File comments for one path. Split-file headers share this slice: the
  * Comment is one, shown under every header for that path.
  */

@@ -132,6 +132,14 @@ describe("ReviewFlow store", () => {
     it("opens at the anchor when writable", () => {
       store.getState().actions.openComposer(anchor);
       expect(store.getState().composerAnchor).toEqual(anchor);
+      expect(store.getState().composerHost).toBe(anchor.chunkId);
+    });
+
+    it("opens in the card that picked the rows when it is not the owner", () => {
+      store.getState().actions.openComposer(anchor, "chunk-b");
+      expect(store.getState().composerHost).toBe("chunk-b");
+      store.getState().actions.cancelComposer();
+      expect(store.getState().composerHost).toBeNull();
     });
 
     it("announces the read-only reason instead of opening", () => {

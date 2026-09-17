@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Inline composers must retain the section composer's resolution affordance and refetch target.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, renderHook, waitFor } from "@testing-library/react";
+import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 
@@ -126,6 +126,8 @@ function renderWiring(
       <QueryClientProvider client={client}>{children}</QueryClientProvider>
     );
   }
+  const jumpToChunk = vi.fn();
+  const ensureChunkOpen = vi.fn();
   const { result } = renderHook(
     () =>
       useConversationWiring({
@@ -133,15 +135,15 @@ function renderWiring(
         conversation,
         conversationFocusThreadId: undefined,
         conversationFilter,
-        jumpToChunk: vi.fn(),
-        ensureChunkOpen: vi.fn(),
+        jumpToChunk,
+        ensureChunkOpen,
         model: buildBriefViewModel(brief),
         readingOrderedChunks: [chunk()],
         submittedReviewIds: [],
       }),
     { wrapper },
   );
-  return { result, invalidate };
+  return { result, invalidate, jumpToChunk, ensureChunkOpen };
 }
 
 describe("useConversationWiring, resolution", () => {
@@ -253,5 +255,85 @@ describe("useConversationWiring, filter facets", () => {
   it("has no facets before the conversation resolves", () => {
     const { result } = renderWiring(plan());
     expect(result.current.conversationFilterFacets).toBeUndefined();
+  });
+});
+
+describe("useConversationWiring, line landing", () => {
+  afterEach(() => {
+    for (const card of document.body.querySelectorAll("section")) card.remove();
+  });
+
+  it("lands on the owner card's row for the line and moves focus there", async () => {
+    Element.prototype.scrollIntoView = vi.fn();
+    const card = document.createElement("section");
+    card.id = "c1";
+    // The production row shape: focusable, with the revision rail's button
+    // inside its gutter cell.
+    card.innerHTML =
+      '<table><tbody><tr data-line-kind="add" tabindex="0"><td><button>rail</button></td>' +
+      '<td data-line-number=""></td><td data-line-number="">10</td><td>b</td></tr></tbody></table>';
+    document.body.append(card);
+    const { result, jumpToChunk, ensureChunkOpen } = renderWiring(plan());
+    act(() => {
+      result.current.jumpToChunkFromConversation("c1", {
+        side: "new",
+        line: 10,
+      });
+    });
+    const row = card.querySelector("tr")!;
+
+    await waitFor(() => expect(document.activeElement).toBe(row));
+    expect(row.getAttribute("tabindex")).toBe("0");
+    expect(row.querySelector("button")?.hasAttribute("tabindex")).toBe(false);
+    await waitFor(() =>
+      expect(row.hasAttribute("data-conversation-flash")).toBe(true),
+    );
+    expect(ensureChunkOpen).toHaveBeenCalledWith("c1");
+    expect(jumpToChunk).toHaveBeenCalledWith("c1", "auto");
+  });
+
+  it("lands a thread target inside its own card, not a span copy", async () => {
+    Element.prototype.scrollIntoView = vi.fn();
+    const copy = document.createElement("section");
+    copy.id = "c0";
+    copy.innerHTML =
+      '<table><tbody><tr data-conversation-thread="7"><td>copy</td></tr></tbody></table>';
+    const card = document.createElement("section");
+    card.id = "c1";
+    card.innerHTML =
+      '<table><tbody><tr data-conversation-thread="7"><td><button>open</button></td></tr></tbody></table>';
+    document.body.append(copy, card);
+    const { result } = renderWiring(plan());
+    act(() => {
+      result.current.jumpToChunkFromConversation("c1", {
+        rowId: "c1:0",
+        threadId: 7,
+      });
+    });
+    const disclosure = card.querySelector("button")!;
+
+    await waitFor(() => expect(document.activeElement).toBe(disclosure));
+    expect(disclosure.hasAttribute("tabindex")).toBe(false);
+  });
+
+  it("gives a row without a tab stop one only for the landing", async () => {
+    Element.prototype.scrollIntoView = vi.fn();
+    const card = document.createElement("section");
+    card.id = "c1";
+    card.innerHTML =
+      '<table><tbody><tr data-line-kind="add"><td data-line-number=""></td>' +
+      '<td data-line-number="">10</td><td>b</td></tr></tbody></table>';
+    document.body.append(card);
+    const { result } = renderWiring(plan());
+    act(() => {
+      result.current.jumpToChunkFromConversation("c1", {
+        side: "new",
+        line: 10,
+      });
+    });
+    const row = card.querySelector("tr")!;
+
+    await waitFor(() => expect(document.activeElement).toBe(row));
+    expect(row.getAttribute("tabindex")).toBe("-1");
   });
 });

@@ -73,7 +73,7 @@ _Avoid_: hunk (a chunk may be finer than a git hunk), file, diff block
 _Limitation_: a chunk cannot express multiplicity *interleaved within one inseparable contiguous span* (e.g., move and logic-fix woven line-by-line). That is the deferred sub-operation tree; until then, express it via dominant+secondary Categorization on the group plus a text callout in the Summary.
 
 **Sibling span**:
-A contiguous stretch of expanded rows that belongs to another chunk of the same file, framed and labelled with its owner. Never a chunk of its own: its rows keep their add and del colours, and the frame's control jumps to that chunk.
+A contiguous stretch of expanded rows that belongs to another chunk of the same file, framed and labelled with its owner. Never a chunk of its own: its rows keep their add and del colours, a comment placed on them anchors to the owning chunk, and the frame's control jumps to that chunk.
 _Avoid_: borrowed lines, foreign hunk
 
 **Change-group**:

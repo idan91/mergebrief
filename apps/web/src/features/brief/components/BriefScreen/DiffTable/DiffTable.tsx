@@ -27,11 +27,15 @@ import {
   createSideAnchor,
   isLineCommentAnchor,
   type LineCommentAnchor,
+  type ReviewComment,
   rowId,
 } from "@web/features/review/utils";
+import type { ConversationThread } from "@web/features/conversation/types";
+import type { BriefChunk } from "../../../types";
 import {
   useChunkReviewComments,
   useReviewActions,
+  useReviewCommentsForChunks,
   useReviewFlow,
 } from "@web/features/review/session";
 import { type ComparisonRun } from "../../../comparison/comparison";
@@ -85,6 +89,8 @@ import {
 import {
   buildExpandedRowView,
   buildPairPartners,
+  collectAnchoredIndexes,
+  collectOwnerRowIds,
   collectSideIndexes,
   collectSpannedRows,
   collectThreadLines,
@@ -93,12 +99,13 @@ import {
   frameSpansOnPairs,
   groupEdgesByRow,
   isSideFocusable,
+  isSpanRowCommentable,
   isUpEdge,
   placementForAnchor,
   placementForThread,
   resolveDragSelection,
   resolveSpanLines,
-  showsHiddenThread,
+  showsThreadOnRow,
   unzipPairsByOwner,
   spanForPlacement,
   unionRail,
@@ -119,8 +126,9 @@ export function DiffTable({
   readOnlyReason,
   expansion,
   hiddenThreads = NO_HIDDEN_THREADS,
+  fileThreads = NO_HIDDEN_THREADS,
   lineOwners,
-  jumpToChunk,
+  jumpToLine,
 }: DiffTableProps) {
   const hiddenThreadLines = useMemo(
     () => collectThreadLines(hiddenThreads),
@@ -187,6 +195,27 @@ export function DiffTable({
     () => collectSpannedRows(spanFrames),
     [spanFrames],
   );
+  const spanOwnerIds = useMemo(
+    () => [...new Set(spans.map((span) => span.owner))].toSorted(),
+    [spans],
+  );
+  const ownerChunkById = useMemo(
+    () => new Map(lineOwners?.chunks.map((owner) => [owner.id, owner])),
+    [lineOwners],
+  );
+  // Once per row set, not per render: a drag re-renders the table on every
+  // row the pointer crosses, and the owner's diff scan is per span row.
+  const commentableSpanRows = useMemo(() => {
+    const commentable = new Set<number>();
+    for (const [index, owner] of spanOwnerByRow) {
+      const line = rows[index];
+      if (line === undefined) continue;
+      if (isSpanRowCommentable(line, ownerChunkById.get(owner))) {
+        commentable.add(index);
+      }
+    }
+    return commentable;
+  }, [rows, spanOwnerByRow, ownerChunkById]);
   const pairPartners = useMemo(() => buildPairPartners(pairs), [pairs]);
   // Unified pairs the same rows for emphasis without rendering them paired.
   const emphasisByRow = useMemo(
@@ -208,6 +237,8 @@ export function DiffTable({
   } = useReviewActions();
   const chunkComments = useChunkReviewComments(chunk.id);
   const allComments = readOnly ? EMPTY_REVIEW_COMMENTS : chunkComments;
+  const ownerComments = useReviewCommentsForChunks(spanOwnerIds);
+  const allSpanComments = readOnly ? EMPTY_REVIEW_COMMENTS : ownerComments;
   // Server-backed wins: once a posted comment's own GitHub thread renders in
   // this chunk, the local submitted card demotes out of display. With no
   // conversation loaded there are no own threads, so local cards stay.
@@ -219,21 +250,41 @@ export function DiffTable({
         .map((row) => row.thread),
     [conversationThreadsByRow],
   );
-  const comments = useMemo(() => {
-    if (ownChunkThreads.length === 0) return allComments;
-    const demoted = demotedSubmittedCommentIds(allComments, ownChunkThreads);
-    return demoted.size === 0
-      ? allComments
-      : allComments.filter((comment) => !demoted.has(comment.id));
-  }, [allComments, ownChunkThreads]);
-  // Anchor-match selector: null (stable) unless the composer is on THIS chunk.
+  const comments = useMemo(
+    () => demoteSubmitted(allComments, ownChunkThreads),
+    [allComments, ownChunkThreads],
+  );
+  // A span shows the owners' threads too, so the same demotion applies.
+  const ownFileThreads = useMemo(
+    () => fileThreads.filter((row) => row.isOwn).map((row) => row.thread),
+    [fileThreads],
+  );
+  const spanComments = useMemo(
+    () => demoteSubmitted(allSpanComments, ownFileThreads),
+    [allSpanComments, ownFileThreads],
+  );
+  // Anchor-match selector: null (stable) unless the composer is hosted by
+  // THIS table. A span row's composer anchors to the owner but opens here.
   const composerSaving = useReviewFlow((state) => state.composerSaving);
   const anchorForChunk = useReviewFlow((state) => {
     const anchor = state.composerAnchor;
     if (anchor === null || !isLineCommentAnchor(anchor)) return null;
-    return anchor.chunkId === chunk.id ? anchor : null;
+    return state.composerHost === chunk.id ? anchor : null;
   });
   const activeCommentAnchor = readOnly ? null : anchorForChunk;
+  const activeSpanIndexes = useMemo(() => {
+    if (
+      activeCommentAnchor === null ||
+      activeCommentAnchor.chunkId === chunk.id
+    ) {
+      return EMPTY_EXPANDED_THREADS;
+    }
+    return new Set(
+      collectAnchoredIndexes(rows, activeCommentAnchor).filter((index) =>
+        spanOwnerByRow.has(index),
+      ),
+    );
+  }, [activeCommentAnchor, chunk.id, rows, spanOwnerByRow]);
   /**
    * Why comment composition is disabled. When set, commentable rows stay
    * focusable but carry `aria-disabled` + an `aria-describedby` reason, and
@@ -415,7 +466,7 @@ export function DiffTable({
     setDragSide(undefined);
     setDragCurrentSide(undefined);
     const anchor = resolveAnchor(startIndex, startSide, rowIndex, side);
-    if (anchor) openComposer(anchor);
+    if (anchor) openComposer(anchor, chunk.id);
   }
 
   // GitHub's rule: a range that stays on one side anchors on that side's
@@ -426,32 +477,63 @@ export function DiffTable({
     endIndex: number,
     endSide: SplitSide | undefined,
   ): LineCommentAnchor | null {
-    if (startSide !== undefined && startSide === endSide) {
-      const indexes = toBaseIndexes(
-        collectSideIndexes(pairs, startSide, startIndex, endIndex),
-      );
-      if (indexes === undefined) return null;
-      const commentSide =
-        startSide === SplitSides.LEFT ? CommentSides.OLD : CommentSides.NEW;
-      return createSideAnchor(
-        chunk.id,
-        chunk.file,
-        baseRows,
-        indexes,
-        commentSide,
-      );
+    const sameSide = startSide !== undefined && startSide === endSide;
+    const indexes = sameSide
+      ? collectSideIndexes(pairs, startSide, startIndex, endIndex)
+      : rangeBetween(startIndex, endIndex);
+    const side = sameSide ? startSide : undefined;
+    const baseIndexes = toBaseIndexes(indexes);
+    if (baseIndexes !== undefined) {
+      return buildAnchor(chunk.id, baseRows, baseIndexes, side);
     }
-    const indexes = toBaseIndexes(rangeBetween(startIndex, endIndex));
-    if (indexes === undefined) return null;
-    return createCommentAnchor(chunk.id, chunk.file, baseRows, indexes);
+    // A range inside one sibling span anchors to the owner on the rendered
+    // rows; row ids then belong to the owner's own table.
+    const owner = resolveSpanRangeOwner(indexes);
+    if (owner === undefined) return null;
+    const anchor = buildAnchor(owner.id, rows, indexes, side);
+    if (anchor === null) return null;
+    return { ...anchor, rowIds: collectOwnerRowIds(owner, rows, indexes) };
   }
 
-  // Anchors are built on base rows: an expanded row inside a range has no
-  // line the diff carries, so the range is refused rather than trimmed.
+  function buildAnchor(
+    chunkId: string,
+    sourceRows: DiffLine[],
+    indexes: number[],
+    side: SplitSide | undefined,
+  ): LineCommentAnchor | null {
+    if (side === undefined) {
+      return createCommentAnchor(chunkId, chunk.file, sourceRows, indexes);
+    }
+    const commentSide =
+      side === SplitSides.LEFT ? CommentSides.OLD : CommentSides.NEW;
+    return createSideAnchor(
+      chunkId,
+      chunk.file,
+      sourceRows,
+      indexes,
+      commentSide,
+    );
+  }
+
+  // Base rows anchor on base indexes; a range holding an expanded row is
+  // answered by the span path instead.
   function toBaseIndexes(indexes: number[]): number[] | undefined {
     if (baseIndexOf === undefined) return indexes;
     const mapped = indexes.map((index) => baseIndexOf[index] ?? -1);
     return mapped.includes(-1) ? undefined : mapped;
+  }
+
+  // Every picked row must be a commentable row of the same owner: a range
+  // that leaves the span, or crosses into expanded context, is refused.
+  function resolveSpanRangeOwner(indexes: number[]): BriefChunk | undefined {
+    const ownerIds = new Set(indexes.map((index) => spanOwnerByRow.get(index)));
+    if (ownerIds.size !== 1) return undefined;
+    const [ownerId] = ownerIds;
+    if (ownerId === undefined) return undefined;
+    if (indexes.some((index) => rowViews[index]?.isCommentable !== true)) {
+      return undefined;
+    }
+    return ownerChunkById.get(ownerId);
   }
 
   const dragBaseIndexes =
@@ -470,7 +552,19 @@ export function DiffTable({
   ): DiffRowView | undefined {
     if (isFullWidthDiffRow(line)) return undefined;
     const baseIndex = baseIndexOf?.[index] ?? index;
-    if (baseIndex < 0) return buildExpandedRowView(chunk.id, index);
+    if (baseIndex < 0) {
+      return buildExpandedRowView({
+        line,
+        index,
+        hostId: chunk.id,
+        owner: spanOwnerByRow.get(index),
+        commentable: commentableSpanRows.has(index),
+        comments: spanComments,
+        activeCommentAnchor,
+        dragIndexes,
+        activeIndexes: activeSpanIndexes,
+      });
+    }
     return getDiffRowView({
       line,
       index: baseIndex,
@@ -627,7 +721,7 @@ export function DiffTable({
       <SiblingSpanHeader
         columnCount={columnCount}
         from={lines.from}
-        jumpToChunk={jumpToChunk}
+        jumpToLine={jumpToLine}
         owner={owner}
         side={lines.side}
         to={lines.to}
@@ -694,7 +788,8 @@ export function DiffTable({
       (dragSelection.placement === undefined ||
         dragSelection.placement === side);
     const active =
-      activeRowIds.has(rowId(chunk.id, index)) &&
+      (activeRowIds.has(rowId(chunk.id, index)) ||
+        activeSpanIndexes.has(index)) &&
       (activePlacement === undefined || activePlacement === side);
     return dragged || active;
   }
@@ -740,11 +835,11 @@ export function DiffTable({
     const view = rowViews[index];
     if (view === undefined) return null;
     const baseIndex = baseIndexOf?.[index] ?? index;
-    // An expanded row has no base index: its threads are the hidden ones
-    // whose head-file line it now shows.
+    // An expanded row has no base index: its threads are the file's whose
+    // line it now shows, a sibling's or a hidden one.
     const conversationRows =
       baseIndex < 0
-        ? hiddenThreads.filter((row) => showsHiddenThread(row, line))
+        ? fileThreads.filter((row) => showsThreadOnRow(row, line))
         : (conversationThreadsByRow?.get(baseIndex) ?? []);
     const layout: UnderRowLayout = { columnCount, sideColumns };
     const composerPlacement =
@@ -946,4 +1041,19 @@ function UnderRow({
       ) : null}
     </tr>
   );
+}
+
+/**
+ * Server-backed wins: once a posted comment's own GitHub thread renders,
+ * the local submitted card demotes out of display.
+ */
+function demoteSubmitted(
+  comments: ReviewComment[],
+  ownThreads: readonly ConversationThread[],
+): ReviewComment[] {
+  if (ownThreads.length === 0) return comments;
+  const demoted = demotedSubmittedCommentIds(comments, ownThreads);
+  return demoted.size === 0
+    ? comments
+    : comments.filter((comment) => !demoted.has(comment.id));
 }

@@ -5,7 +5,11 @@ import {
   DiffRowOrigins,
   type DiffLine,
 } from "@web/utils/diffTokens/types";
-import { getDiffRowView, type DiffRowViewParams } from "./diffRowView";
+import {
+  getDiffRowView,
+  isCommentableLine,
+  type DiffRowViewParams,
+} from "./diffRowView";
 import { Concerns, Roles, type BriefChunk } from "../../../types";
 
 function stubChunk(diff: DiffLine[]): BriefChunk {
@@ -66,5 +70,38 @@ describe("getDiffRowView", () => {
     );
 
     expect(view.isCommentable).toBe(true);
+  });
+});
+
+describe("isCommentableLine", () => {
+  it("accepts an expanded changed row, its line is in the diff", () => {
+    expect(
+      isCommentableLine({
+        kind: DiffLineKinds.ADD,
+        origin: DiffRowOrigins.EXPANDED,
+        content: "b",
+        newLine: 11,
+      }),
+    ).toBe(true);
+    expect(
+      isCommentableLine({
+        kind: DiffLineKinds.DEL,
+        origin: DiffRowOrigins.EXPANDED,
+        content: "b",
+        oldLine: 14,
+      }),
+    ).toBe(true);
+  });
+
+  it("refuses an expanded context row", () => {
+    expect(
+      isCommentableLine({
+        kind: DiffLineKinds.CTX,
+        origin: DiffRowOrigins.EXPANDED,
+        content: "b",
+        oldLine: 9,
+        newLine: 9,
+      }),
+    ).toBe(false);
   });
 });

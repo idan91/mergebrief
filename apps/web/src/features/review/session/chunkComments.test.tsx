@@ -18,6 +18,7 @@ import {
   ReviewSessionProvider,
   useChunkReviewComments,
   useFileReviewComments,
+  useReviewCommentsForChunks,
   useReviewSession,
 } from ".";
 
@@ -194,5 +195,37 @@ describe("useChunkReviewComments", () => {
     expect(result.current.file.map((comment) => comment.body)).toEqual([
       "on the file",
     ]);
+  });
+});
+
+describe("useReviewCommentsForChunks", () => {
+  it("selects the comments of every listed chunk and nothing else", () => {
+    const { result } = renderHook(
+      () => ({
+        both: useReviewCommentsForChunks(["chunk-a", "chunk-b"]),
+        none: useReviewCommentsForChunks([]),
+        actions: useReviewSession((state) => state.actions),
+      }),
+      { wrapper: ReviewSessionTestWrapper },
+    );
+    act(() => {
+      void result.current.actions.saveComment({
+        anchor: anchorFor("chunk-a", 11),
+        body: "on a",
+        collapsed: false,
+        status: ReviewCommentStatuses.DRAFT,
+      });
+      void result.current.actions.saveComment({
+        anchor: anchorFor("chunk-b", 21),
+        body: "on b",
+        collapsed: false,
+        status: ReviewCommentStatuses.DRAFT,
+      });
+    });
+    expect(result.current.both.map((comment) => comment.body)).toEqual([
+      "on a",
+      "on b",
+    ]);
+    expect(result.current.none).toEqual([]);
   });
 });

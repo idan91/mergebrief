@@ -34,7 +34,11 @@ import {
 } from "../../../hooks/useExpansionSource";
 import { FileRowsProvider } from "../../../hooks/useFileRows";
 import type { FileRowsCache } from "../../../utils/fileRows";
-import type { FileLineOwners } from "../../../utils/lineOwner";
+import type { FileLineOwners, LineTarget } from "../../../utils/lineOwner";
+import type {
+  ChunkComparisonView,
+  ComparisonRun,
+} from "../../../comparison/comparison";
 import type { DigestThreadRow } from "@web/features/conversation/utils";
 import type { Brief, BriefChunk } from "../../../types";
 import { buildBriefViewModel } from "../../../utils/viewModel";
@@ -150,8 +154,13 @@ function stubNewFileHoleChunk(): BriefChunk {
   } as BriefChunk;
 }
 
-function stubBrief(chunk: BriefChunk): Brief {
+function stubBrief(chunk: BriefChunk, sibling?: BriefChunk): Brief {
   const { diff: _rows, ...stored } = chunk;
+  const chunks = [stored];
+  if (sibling !== undefined) {
+    const { diff: _siblingRows, ...storedSibling } = sibling;
+    chunks.push(storedSibling);
+  }
   return {
     artifactKind: "brief",
     pr: {
@@ -173,8 +182,17 @@ function stubBrief(chunk: BriefChunk): Brief {
         uncertain: false,
         uncertainBetween: [],
       },
+      {
+        id: "g2",
+        title: "Fix the leak",
+        summary: "g",
+        dominantCategory: "bugfix",
+        secondaryCategories: [],
+        uncertain: false,
+        uncertainBetween: [],
+      },
     ],
-    chunks: [stored],
+    chunks,
     concernView: [],
   };
 }
@@ -207,18 +225,32 @@ interface HarnessProps {
   chunk: BriefChunk;
   view: DiffView;
   lineOwners?: FileLineOwners;
-  jumpToChunk?: (chunkId: string) => void;
+  jumpToLine?: (chunkId: string, target: LineTarget) => void;
   hiddenThreads?: readonly DigestThreadRow[];
+  fileThreads?: readonly DigestThreadRow[];
+  comparisonView?: ChunkComparisonView;
+  /** A second table for this chunk, sharing the stores, renders after the first. */
+  sibling?: BriefChunk;
 }
 
+const NO_COMPARISON: ChunkComparisonView = {
+  marks: new Map(),
+  runs: [],
+  runByRow: new Map(),
+};
+
 function stubHiddenThread(line: number): DigestThreadRow {
+  return stubFileThread(line, "RIGHT");
+}
+
+function stubFileThread(line: number, side: "LEFT" | "RIGHT"): DigestThreadRow {
   return {
     kind: "thread",
     thread: {
       rootCommentId: 9000 + line,
       path: "src/a.ts",
       line,
-      side: "RIGHT",
+      side,
       subjectType: "LINE",
       isResolved: false,
       isOutdated: false,
@@ -261,8 +293,11 @@ function Harness({
   chunk,
   view,
   lineOwners,
-  jumpToChunk,
+  jumpToLine,
   hiddenThreads,
+  fileThreads,
+  comparisonView,
+  sibling,
 }: HarnessProps) {
   const expansion = useExpandedRows({
     chunkId: chunk.id,
@@ -270,20 +305,40 @@ function Harness({
     rows: chunk.diff ?? [],
   });
   return (
-    <DiffTable
-      addressedComments={[]}
-      chunk={chunk}
-      comparisonSkipReason={null}
-      comparisonSource={{ kind: "last-review", delta: null }}
-      comparisonView={{ marks: new Map(), runs: [], runByRow: new Map() }}
-      conversationComposer={COMPOSER}
-      expansion={expansion}
-      hiddenThreads={hiddenThreads}
-      jumpToChunk={jumpToChunk}
-      lineOwners={lineOwners}
-      reviewCommentLabel="review comment"
-      view={view}
-    />
+    <>
+      <div data-testid={`table-${chunk.id}`}>
+        <DiffTable
+          addressedComments={[]}
+          chunk={chunk}
+          comparisonSkipReason={null}
+          comparisonSource={{ kind: "last-review", delta: null }}
+          comparisonView={comparisonView ?? NO_COMPARISON}
+          conversationComposer={COMPOSER}
+          expansion={expansion}
+          fileThreads={fileThreads}
+          hiddenThreads={hiddenThreads}
+          jumpToLine={jumpToLine}
+          lineOwners={lineOwners}
+          reviewCommentLabel="review comment"
+          view={view}
+        />
+      </div>
+      {sibling === undefined ? null : (
+        <div data-testid={`table-${sibling.id}`}>
+          <DiffTable
+            addressedComments={[]}
+            chunk={sibling}
+            comparisonSkipReason={null}
+            comparisonSource={{ kind: "last-review", delta: null }}
+            comparisonView={NO_COMPARISON}
+            conversationComposer={COMPOSER}
+            lineOwners={lineOwners}
+            reviewCommentLabel="review comment"
+            view={view}
+          />
+        </div>
+      )}
+    </>
   );
 }
 
@@ -327,7 +382,7 @@ function renderHarness(
         <FileRowsProvider cache={options.fileRows}>
           <ReviewSessionProvider
             briefId="test-brief"
-            model={buildBriefViewModel(stubBrief(props.chunk))}
+            model={buildBriefViewModel(stubBrief(props.chunk, props.sibling))}
             session={options.session}
           >
             <ReviewFlowProvider store={flowStore}>
@@ -403,6 +458,7 @@ describe("DiffTable expansion controls", () => {
       chunk: stubChunk(),
       view: "unified",
       hiddenThreads: [22, 27].map(stubHiddenThread),
+      fileThreads: [22, 27].map(stubHiddenThread),
     });
     expect(
       screen.getByRole("button", { name: "2 comments in the hidden lines" }),
@@ -536,6 +592,14 @@ describe("DiffTable sibling spans", () => {
     summary: "Adds the guard",
     addedRanges: [{ start: 11, end: 12 }],
     removedRanges: [{ start: 14, end: 14 }],
+    diff: [
+      { kind: "hunk", content: "@@ -13,3 +10,4 @@" },
+      { kind: "ctx", content: "keep", oldLine: 13, newLine: 10 },
+      { kind: "del", content: "old", oldLine: 14 },
+      { kind: "add", content: "n1", newLine: 11 },
+      { kind: "add", content: "n2", newLine: 12 },
+      { kind: "ctx", content: "keep", oldLine: 15, newLine: 13 },
+    ],
   };
   const remainder: BriefChunk = {
     ...stubChunk(),
@@ -543,6 +607,11 @@ describe("DiffTable sibling spans", () => {
     changeGroupId: "unattributed-remainder",
     addedRanges: [{ start: 16, end: 16 }],
     removedRanges: [],
+    diff: [
+      { kind: "hunk", content: "@@ -17,1 +15,2 @@" },
+      { kind: "ctx", content: "keep", oldLine: 17, newLine: 15 },
+      { kind: "add", content: "stray", newLine: 16 },
+    ],
   };
   const fileRows: DiffLine[] = [
     { kind: "hunk", content: "@@ -13,4 +10,7 @@" },
@@ -580,11 +649,16 @@ describe("DiffTable sibling spans", () => {
     ]),
   };
 
-  async function expandIntoSiblings(view: DiffView) {
-    const jumpToChunk = vi.fn();
+  async function expandIntoSiblings(
+    view: DiffView,
+    extra: Partial<HarnessProps> = {},
+    session?: ReviewSessionPayload,
+    rowsCache: FileRowsCache = cache,
+  ) {
+    const jumpToLine = vi.fn();
     const harness = renderHarness(
-      { chunk: stubChunk(), view, lineOwners, jumpToChunk },
-      { fileRows: cache },
+      { chunk: stubChunk(), view, lineOwners, jumpToLine, ...extra },
+      { fileRows: rowsCache, session },
     );
     seedRange(harness.queryClient, 10, 29, 80);
     fireEvent.click(
@@ -595,7 +669,33 @@ describe("DiffTable sibling spans", () => {
         harness.view.container.querySelectorAll('[data-testid="sibling-span"]'),
       ).toHaveLength(2),
     );
-    return { ...harness, jumpToChunk };
+    return { ...harness, jumpToLine };
+  }
+
+  function findSpanRow(container: HTMLElement, line: string): HTMLElement {
+    const row = expandedRows(container).find(
+      (candidate) => numberCells(candidate)[1] === line,
+    );
+    if (row === undefined) throw new Error(`no expanded row on ${line}`);
+    return row;
+  }
+
+  function stubSpanDraft(): ReviewSessionPayload {
+    return {
+      ...emptySessionPayload(),
+      draftComments: [
+        {
+          id: "51",
+          filePath: "src/a.ts",
+          kind: "line",
+          side: "new",
+          startLine: 11,
+          endLine: 11,
+          body: "span draft",
+          status: "draft",
+        },
+      ],
+    };
   }
 
   it("frames each owner's expanded changed rows under a header naming it", async () => {
@@ -625,16 +725,15 @@ describe("DiffTable sibling spans", () => {
     expect(rows[4]?.querySelector("td[data-span]")).toBeNull();
   });
 
-  it("jumps to the owning chunk and keeps focus on the control", async () => {
-    const { jumpToChunk } = await expandIntoSiblings("unified");
+  it("jumps to the span's first line in the owning chunk", async () => {
+    const { jumpToLine } = await expandIntoSiblings("unified");
     const control = screen.getByRole("button", {
       name: "Go to chunk in Fix the leak",
     });
     control.focus();
     fireEvent.click(control);
 
-    expect(jumpToChunk).toHaveBeenCalledWith("c2");
-    expect(document.activeElement).toBe(control);
+    expect(jumpToLine).toHaveBeenCalledWith("c2", { side: "new", line: 11 });
     expect(
       screen.getByRole("button", {
         name: "Go to chunk in the unattributed remainder",
@@ -668,13 +767,13 @@ describe("DiffTable sibling spans", () => {
         { start: 16, end: 16 },
       ],
     };
-    const jumpToChunk = vi.fn();
+    const jumpToLine = vi.fn();
     const harness = renderHarness(
       {
         chunk: own,
         view: "unified",
         lineOwners: { ...lineOwners, chunks: [own, sibling, remainder] },
-        jumpToChunk,
+        jumpToLine,
       },
       { fileRows: cache },
     );
@@ -689,7 +788,7 @@ describe("DiffTable sibling spans", () => {
     expect(
       harness.view.container.querySelectorAll('[data-testid="sibling-span"]'),
     ).toHaveLength(1);
-    expect(jumpToChunk).not.toHaveBeenCalled();
+    expect(jumpToLine).not.toHaveBeenCalled();
   });
 
   it("unzips a split pair whose sides belong to different owners", async () => {
@@ -761,6 +860,205 @@ describe("DiffTable sibling spans", () => {
     expect(
       harness.view.container.querySelectorAll("td[data-span]"),
     ).toHaveLength(4);
+  });
+
+  it("opens the composer on a span row under the owner's chunk id", async () => {
+    const { view, openCommentComposer } = await expandIntoSiblings("unified");
+    const row = findSpanRow(view.container, "11");
+    const number = row.querySelector("[data-line-number]")!;
+    fireEvent.mouseDown(number);
+    fireEvent.mouseUp(number);
+
+    expect(row.getAttribute("aria-disabled")).toBeNull();
+    expect(openCommentComposer.mock.calls[0]?.[0]).toMatchObject({
+      chunkId: "c2",
+      file: "src/a.ts",
+      side: "new",
+      startLine: 11,
+      endLine: 11,
+      rowIds: ["c2:3"],
+    });
+    expect(openCommentComposer.mock.calls[0]?.[1]).toBe("c1");
+    expect(row.nextElementSibling?.querySelector("textarea")).not.toBeNull();
+  });
+
+  it("anchors a deletion picked inside a span on the old side", async () => {
+    const { view, openCommentComposer } = await expandIntoSiblings("unified");
+    const row = expandedRows(view.container).find(
+      (candidate) => numberCells(candidate)[0] === "14",
+    )!;
+    fireEvent.keyDown(row, { key: "Enter" });
+
+    expect(openCommentComposer.mock.calls[0]?.[0]).toMatchObject({
+      chunkId: "c2",
+      side: "old",
+      startLine: 14,
+      endLine: 14,
+      rowIds: ["c2:2"],
+    });
+  });
+
+  it("refuses a range that leaves the span", async () => {
+    const { view, openCommentComposer } = await expandIntoSiblings("unified");
+    const inSpan = findSpanRow(view.container, "12").querySelector(
+      "[data-line-number]",
+    )!;
+    const outside = findSpanRow(view.container, "13").querySelector(
+      "[data-line-number]",
+    )!;
+    fireEvent.mouseDown(inSpan);
+    fireEvent.mouseEnter(outside);
+    fireEvent.mouseUp(outside);
+    const stray = findSpanRow(view.container, "16").querySelector(
+      "[data-line-number]",
+    )!;
+    fireEvent.mouseDown(inSpan);
+    fireEvent.mouseEnter(stray);
+    fireEvent.mouseUp(stray);
+
+    expect(openCommentComposer).not.toHaveBeenCalled();
+  });
+
+  it("lets a range cross the context the owner's own diff carries", async () => {
+    const interleaved: BriefChunk = {
+      ...sibling,
+      addedRanges: [
+        { start: 11, end: 11 },
+        { start: 13, end: 13 },
+      ],
+      removedRanges: [],
+      diff: [
+        { kind: "hunk", content: "@@ -13,3 +10,5 @@" },
+        { kind: "ctx", content: "keep", oldLine: 13, newLine: 10 },
+        { kind: "add", content: "n1", newLine: 11 },
+        { kind: "ctx", content: "mid", oldLine: 14, newLine: 12 },
+        { kind: "add", content: "n3", newLine: 13 },
+        { kind: "ctx", content: "keep", oldLine: 15, newLine: 14 },
+      ],
+    };
+    const rows: DiffLine[] = [
+      ...(interleaved.diff ?? []),
+      { kind: "ctx", content: "keep", oldLine: 16, newLine: 15 },
+      { kind: "add", content: "stray", newLine: 16 },
+      ...(stubChunk().diff ?? []),
+    ];
+    const { view, openCommentComposer } = await expandIntoSiblings(
+      "unified",
+      {
+        lineOwners: {
+          ...lineOwners,
+          chunks: [stubChunk(), interleaved, remainder],
+        },
+      },
+      undefined,
+      { isEmpty: false, getFileRows: () => rows },
+    );
+    const middle = findSpanRow(view.container, "12");
+    const first = findSpanRow(view.container, "11").querySelector(
+      "[data-line-number]",
+    )!;
+    const last = findSpanRow(view.container, "13").querySelector(
+      "[data-line-number]",
+    )!;
+    fireEvent.mouseDown(first);
+    fireEvent.mouseEnter(last);
+    fireEvent.mouseUp(last);
+
+    expect(middle.getAttribute("aria-disabled")).toBeNull();
+    expect(openCommentComposer.mock.calls[0]?.[0]).toMatchObject({
+      chunkId: "c2",
+      side: "new",
+      startLine: 11,
+      endLine: 13,
+      rowIds: ["c2:2", "c2:3", "c2:4"],
+    });
+  });
+
+  it("keeps an expanded context row uncommentable", async () => {
+    const { view } = await expandIntoSiblings("unified");
+    const row = findSpanRow(view.container, "13");
+
+    expect(row.getAttribute("aria-disabled")).toBe("true");
+    const reason = document.getElementById(
+      row.getAttribute("aria-describedby") ?? "",
+    );
+    expect(reason?.textContent).toBe(
+      "Outside this chunk's diff; comments need one of its lines or a sibling span's.",
+    );
+  });
+
+  it("shows the owner's draft in the span and in the owner card", async () => {
+    const { view } = await expandIntoSiblings(
+      "unified",
+      { sibling },
+      stubSpanDraft(),
+    );
+    const drafts = screen.getAllByText("span draft");
+
+    expect(drafts).toHaveLength(2);
+    const inSpan = drafts.find((draft) =>
+      draft.closest('[data-testid="table-c1"]'),
+    )!;
+    expect(
+      numberCells(inSpan.closest("tr")?.previousElementSibling ?? inSpan),
+    ).toEqual(["", "11"]);
+    expect(
+      view.container.querySelector(
+        '[data-testid="table-c2"] tr[data-line-kind="add"]',
+      )?.nextElementSibling?.textContent,
+    ).toContain("span draft");
+  });
+
+  it("renders a sibling's thread under the span row that shows its line", async () => {
+    const { view } = await expandIntoSiblings("unified", {
+      fileThreads: [stubFileThread(11, "RIGHT"), stubFileThread(14, "LEFT")],
+    });
+    const right = view.container.querySelector(
+      'tr[data-conversation-thread="9011"]',
+    );
+    const left = view.container.querySelector(
+      'tr[data-conversation-thread="9014"]',
+    );
+
+    expect(numberCells(right?.previousElementSibling ?? right!)).toEqual([
+      "",
+      "11",
+    ]);
+    expect(numberCells(left?.previousElementSibling ?? left!)).toEqual([
+      "14",
+      "",
+    ]);
+  });
+
+  it("keeps revision marks off the span rows", async () => {
+    const run: ComparisonRun = {
+      chunkId: "c1",
+      file: "src/a.ts",
+      rowIndexes: [2, 3],
+      kind: "added",
+    };
+    const { view } = await expandIntoSiblings("unified", {
+      comparisonView: {
+        marks: new Map([
+          [2, "added"],
+          [3, "added"],
+        ]),
+        runs: [run],
+        runByRow: new Map([
+          [2, run],
+          [3, run],
+        ]),
+      },
+    });
+
+    for (const row of expandedRows(view.container)) {
+      expect(row.getAttribute("data-rev")).toBeNull();
+    }
+    expect(
+      view.container
+        .querySelector(`tr[data-line-kind="add"]${DIFF_ORIGIN_SELECTOR}`)
+        ?.getAttribute("data-rev"),
+    ).toBe("added");
   });
 });
 
@@ -1062,7 +1360,7 @@ describe("DiffTable expansion click", () => {
     const { view, queryClient } = renderHarness({
       chunk: stubChunk(),
       view: "unified",
-      hiddenThreads: [25].map(stubHiddenThread),
+      fileThreads: [stubHiddenThread(25)],
     });
     seedRange(queryClient, 10, 29, 80);
     fireEvent.click(
@@ -1184,7 +1482,7 @@ describe("DiffTable comments across expanded rows", () => {
       row.getAttribute("aria-describedby") ?? "",
     );
     expect(reason?.textContent).toBe(
-      "Read from the file; comments need a line of this chunk's own diff.",
+      "Outside this chunk's diff; comments need one of its lines or a sibling span's.",
     );
     expect(
       view.container

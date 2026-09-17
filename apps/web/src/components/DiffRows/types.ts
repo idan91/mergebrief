@@ -12,6 +12,9 @@ export const DiffViews = {
 } as const;
 export type DiffView = ValueOf<typeof DiffViews>;
 
+/** Which side of a diff a line number belongs to. */
+export type LineSide = "old" | "new";
+
 export const SplitSides = {
   LEFT: "left",
   RIGHT: "right",

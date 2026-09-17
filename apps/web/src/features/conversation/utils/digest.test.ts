@@ -4,6 +4,7 @@ import type { BriefChunk } from "../../brief/types";
 import {
   buildConversationDigest,
   buildInlineThreads,
+  buildLineThreadsByFile,
   splitInlineRows,
   DigestRowKinds,
 } from "./digest";
@@ -389,5 +390,53 @@ describe("splitInlineRows", () => {
       placement: { kind: ThreadPlacementKinds.FILE_HEADER, chunkId: "c1b" },
     });
     expect(inline.get("c2")).toBeUndefined();
+  });
+});
+
+describe("buildLineThreadsByFile", () => {
+  it("keys every current line thread by its file, placed or not", () => {
+    const inChunk = thread({ line: 10 });
+    const outside = thread({ line: 40 });
+    const outdated = thread({ line: 11, isOutdated: true });
+    const other = thread({ path: "src/b.ts", line: 10 });
+    const rows = buildLineThreadsByFile({
+      conversation: conversation([inChunk, outside, outdated, other]),
+      chunks: CHUNKS,
+      ownThreadIds: new Set(),
+    });
+
+    expect(
+      rows.get("src/a.ts")?.map((row) => row.thread.rootCommentId),
+    ).toEqual([inChunk.rootCommentId, outside.rootCommentId]);
+    expect(rows.get("src/a.ts")?.[0]?.placement.kind).toBe(
+      ThreadPlacementKinds.CHUNK,
+    );
+    expect(rows.get("src/b.ts")).toHaveLength(1);
+  });
+
+  it("leaves bot threads to the owner card's aggregated disclosure", () => {
+    const bot = thread({ line: 10, isBot: true, login: "coderabbit" });
+    const human = thread({ line: 11 });
+    const rows = buildLineThreadsByFile({
+      conversation: conversation([bot, human]),
+      chunks: CHUNKS,
+      ownThreadIds: new Set(),
+    });
+
+    expect(
+      rows.get("src/a.ts")?.map((row) => row.thread.rootCommentId),
+    ).toEqual([human.rootCommentId]);
+  });
+
+  it("keeps a left-side thread, a deletion row can show it", () => {
+    const left: Mutable<ConversationThread> = thread({ line: 14 });
+    left.side = ThreadSides.LEFT;
+    const rows = buildLineThreadsByFile({
+      conversation: conversation([left]),
+      chunks: CHUNKS,
+      ownThreadIds: new Set(),
+    });
+
+    expect(rows.get("src/a.ts")).toHaveLength(1);
   });
 });

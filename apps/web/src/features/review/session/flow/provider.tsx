@@ -49,6 +49,7 @@ export function useCreateReviewFlowStore(
     mountedBriefId.current = briefId;
     store.setState({
       composerAnchor: null,
+      composerHost: null,
       dismissTarget: null,
       evidenceTarget: null,
       expandedConversations: new Map(),

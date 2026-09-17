@@ -44,6 +44,7 @@ import { useFileRows } from "../../../hooks/useFileRows";
 import {
   buildLineOwnersByFile,
   type FileLineOwners,
+  type LineTarget,
 } from "../../../utils/lineOwner";
 import { useChunkWindows } from "../chunkWindows";
 import { useReadingPosition } from "../readingPosition";
@@ -75,6 +76,10 @@ export interface StoryViewProps {
   conversationByChunk?: ReadonlyMap<string, DigestRow[]> | undefined;
   /** Head-file lines of live threads no chunk renders, per file. */
   hiddenThreadsByFile?: ReadonlyMap<string, DigestThreadRow[]> | undefined;
+  /** Every current line thread per file; expanded rows show theirs. */
+  lineThreadsByFile?: ReadonlyMap<string, DigestThreadRow[]> | undefined;
+  /** Lands on one line of a chunk; a sibling span's control uses it. */
+  jumpToLine?: ((chunkId: string, target: LineTarget) => void) | undefined;
   conversationComposer?: ThreadComposerWiring | undefined;
   /**
    * Per-group changed-since data; absent without a checkpoint. Split into
@@ -174,7 +179,8 @@ export function StoryView(props: StoryViewProps) {
                     conversationComposer={props.conversationComposer}
                     conversationRows={props.conversationByChunk?.get(chunk.id)}
                     hiddenThreads={props.hiddenThreadsByFile?.get(chunk.file)}
-                    jumpToChunk={props.jumpToChunk}
+                    fileThreads={props.lineThreadsByFile?.get(chunk.file)}
+                    jumpToLine={props.jumpToLine}
                     lineOwners={lineOwnersByFile.get(chunk.file)}
                     markReviewed={props.markReviewed}
                     marksDisabled={props.marksDisabled}
@@ -268,6 +274,7 @@ function pinComposerChunks(
 function collectPinnedChunkKeys(
   focusedKey: string | null,
   composerAnchor: CommentAnchor | null,
+  composerHost: string | null,
   chunks: readonly ChunkLocator[],
   keyByChunkId: ReadonlyMap<string, string>,
 ): Set<string> | undefined {
@@ -280,6 +287,11 @@ function collectPinnedChunkKeys(
   if (composerAnchor !== null) {
     pinComposerChunks(pinned, composerAnchor, chunks, keyByChunkId);
   }
+  // The composer renders in its host's table, which may be a sibling of
+  // the anchor's chunk.
+  const hostKey =
+    composerHost === null ? undefined : keyByChunkId.get(composerHost);
+  if (hostKey !== undefined) pinned.add(hostKey);
 
   if (pinned.size === 0) {
     return undefined;
@@ -314,16 +326,18 @@ function WindowedChunkList({
   );
 
   const composerAnchor = useReviewFlow((state) => state.composerAnchor);
+  const composerHost = useReviewFlow((state) => state.composerHost);
   const [focusedKey, setFocusedKey] = useState<string | null>(null);
   const pinnedKeys = useMemo(
     () =>
       collectPinnedChunkKeys(
         focusedKey,
         composerAnchor,
+        composerHost,
         group.chunks,
         keyByChunkId,
       ),
-    [composerAnchor, focusedKey, group.chunks, keyByChunkId],
+    [composerAnchor, composerHost, focusedKey, group.chunks, keyByChunkId],
   );
 
   const { openChunks } = view;
@@ -446,7 +460,8 @@ function WindowedChunkList({
               conversationComposer={view.conversationComposer}
               conversationRows={view.conversationByChunk?.get(chunk.id)}
               hiddenThreads={view.hiddenThreadsByFile?.get(chunk.file)}
-              jumpToChunk={view.jumpToChunk}
+              fileThreads={view.lineThreadsByFile?.get(chunk.file)}
+              jumpToLine={view.jumpToLine}
               lineOwners={lineOwnersByFile.get(chunk.file)}
               markReviewed={view.markReviewed}
               marksDisabled={view.marksDisabled}

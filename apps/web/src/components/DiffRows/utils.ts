@@ -1,5 +1,12 @@
 import { DiffLineKinds, type DiffLine } from "@web/utils/diffTokens/types";
 
+import {
+  LINE_NUMBER_SELECTOR,
+  SIDE_NUMBER_SELECTORS,
+  UNIFIED_NUMBER_POSITIONS,
+} from "./consts";
+import type { LineSide } from "./types";
+
 /** Hunk and note rows span every column and take no slot content. */
 export function isFullWidthDiffRow(row: DiffLine): boolean {
   return row.kind === DiffLineKinds.HUNK || row.kind === DiffLineKinds.NOTE;
@@ -42,4 +49,37 @@ export function buildDiffRowKeys(rows: readonly DiffLine[]): string[] {
 
     return count === 0 ? key : `${key}#${String(count)}`;
   });
+}
+
+/**
+ * The focus target showing a line: the unified row whose number cell on
+ * that side matches, or in split view the code cell beside the matching
+ * number cell, since a pair's row carries two lines. Only the outermost
+ * table counts: a suggestion preview inside a comment renders rows too.
+ */
+export function findRowByLine(
+  root: ParentNode,
+  side: LineSide,
+  line: number,
+): HTMLElement | null {
+  const wanted = String(line);
+  for (const cell of root.querySelectorAll(SIDE_NUMBER_SELECTORS[side])) {
+    if (cell.textContent !== wanted || isNested(cell)) continue;
+    const target = cell.nextElementSibling;
+    return target instanceof HTMLElement ? target : null;
+  }
+  for (const row of root.querySelectorAll("tr")) {
+    if (isNested(row)) continue;
+    const numbers = row.querySelectorAll(`:scope > ${LINE_NUMBER_SELECTOR}`);
+    if (numbers[UNIFIED_NUMBER_POSITIONS[side]]?.textContent !== wanted) {
+      continue;
+    }
+    return row;
+  }
+
+  return null;
+}
+
+function isNested(element: Element): boolean {
+  return element.closest("table")?.parentElement?.closest("table") !== null;
 }

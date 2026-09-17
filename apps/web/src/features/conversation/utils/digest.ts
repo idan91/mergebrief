@@ -312,6 +312,32 @@ export function buildThreadsOutsideChunks(
   return byFile;
 }
 
+/**
+ * Every current human line thread of a file, whichever chunk holds its
+ * line. An expanded row shows the thread on its line, so a sibling span
+ * carries the owner's threads and an expansion past every chunk carries the
+ * hidden ones. Bot threads stay in the owner card's aggregated disclosure;
+ * one under every line would rebuild the wall the digest collapses.
+ */
+export function buildLineThreadsByFile(
+  input: BuildConversationDigestInput,
+): Map<string, DigestThreadRow[]> {
+  const byFile = new Map<string, DigestThreadRow[]>();
+
+  for (const thread of input.conversation.threads) {
+    if (thread.line === undefined || thread.isOutdated) continue;
+    if (thread.comments[0]?.author.isBot) continue;
+    const placement = placeThread(thread, input.chunks);
+    const rows = byFile.get(thread.path) ?? [];
+    rows.push(
+      threadRow(thread, placement, input.ownThreadIds, input.briefGeneratedAt),
+    );
+    byFile.set(thread.path, rows);
+  }
+
+  return byFile;
+}
+
 export function buildInlineThreads(
   input: BuildConversationDigestInput,
 ): Map<string, DigestRow[]> {

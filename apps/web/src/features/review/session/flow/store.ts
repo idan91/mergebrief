@@ -5,6 +5,7 @@ import { toggleSet } from "@web/utils/collections";
 import { unionExpanded } from "@web/features/brief/utils";
 import type { EdgeExpansion, LineRange } from "@web/features/brief/types";
 import {
+  isLineCommentAnchor,
   ReviewCommentStatuses,
   type CommentAnchor,
   type ReviewComment,
@@ -44,6 +45,12 @@ export interface ReviewFlowPosture {
  */
 export interface ReviewFlowState extends ReviewFlowPosture {
   composerAnchor: CommentAnchor | null;
+  /**
+   * The chunk whose table shows the composer. Usually the anchor's own
+   * chunk; a row picked inside a sibling span anchors to the owner but the
+   * composer opens where the reviewer clicked, and only there.
+   */
+  composerHost: string | null;
   /**
    * A carried draft is waiting for its new home: the next row the reviewer
    * picks re-anchors THAT draft instead of opening a fresh composer.
@@ -89,7 +96,7 @@ export interface ReviewFlowActions {
    * posture blocks composition, in which case the reason is announced instead
    * (surface WHY through the live region, never a dead control).
    */
-  openComposer: (anchor: CommentAnchor) => void;
+  openComposer: (anchor: CommentAnchor, host?: string) => void;
   cancelComposer: () => void;
   /** Arms re-anchoring for a carried draft; the next picked row places it. */
   startReanchor: (draftId: string) => void;
@@ -158,6 +165,14 @@ export type ReviewFlowSessionActions = Pick<
   | "reanchorComment"
 >;
 
+function resolveHost(
+  anchor: CommentAnchor,
+  host: string | undefined,
+): string | null {
+  if (host !== undefined) return host;
+  return isLineCommentAnchor(anchor) ? anchor.chunkId : null;
+}
+
 /** What one hunk edge has expanded so far; absent until its first click. */
 export function readExpansion(
   state: ReviewFlowState,
@@ -172,6 +187,7 @@ export function initialReviewFlowState(
   return {
     ...posture,
     composerAnchor: null,
+    composerHost: null,
     composerSaving: false,
     reanchorDraftId: null,
     dismissTarget: null,
@@ -216,7 +232,7 @@ export function createReviewFlowStore(
     return {
       ...initialReviewFlowState(posture),
       actions: {
-        openComposer(anchor) {
+        openComposer(anchor, host) {
           const reason = get().composerDisabledReason;
           if (reason !== undefined) {
             announce(reason);
@@ -235,11 +251,15 @@ export function createReviewFlowStore(
               return;
             }
           }
-          set({ composerAnchor: anchor });
+          set({
+            composerAnchor: anchor,
+            composerHost: resolveHost(anchor, host),
+          });
         },
         cancelComposer() {
           set({
             composerAnchor: null,
+            composerHost: null,
             composerSaving: false,
             reanchorDraftId: null,
           });
@@ -258,7 +278,11 @@ export function createReviewFlowStore(
             announce(reason);
             return;
           }
-          set({ composerAnchor: null, reanchorDraftId: draftId });
+          set({
+            composerAnchor: null,
+            composerHost: null,
+            reanchorDraftId: draftId,
+          });
           announce(translate("review.announce.reanchorArmed"));
         },
         async saveComment(anchor, body) {
@@ -280,7 +304,7 @@ export function createReviewFlowStore(
               collapsed: false,
             });
             if (saved) {
-              set({ composerAnchor: null });
+              set({ composerAnchor: null, composerHost: null });
               announce(translate("review.announce.commentAdded"));
             }
             return saved;

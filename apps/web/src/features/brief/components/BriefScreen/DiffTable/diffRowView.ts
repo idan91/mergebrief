@@ -1,4 +1,8 @@
-import { DiffRowOrigins, type DiffLine } from "@web/utils/diffTokens/types";
+import {
+  DiffLineKinds,
+  DiffRowOrigins,
+  type DiffLine,
+} from "@web/utils/diffTokens/types";
 import {
   isLineCommentAnchor,
   rowId,
@@ -39,11 +43,19 @@ export interface DiffRowView {
   rowAddressedComments: AddressedReviewComment[];
   isSelected: boolean;
   showComposer: boolean;
-  /**
-   * Expanded context came from the file at head, not from the PR diff, and
-   * GitHub rejects a comment on a line the diff does not carry.
-   */
+  /** GitHub rejects a comment on a line the diff does not carry. */
   isCommentable: boolean;
+}
+
+/**
+ * Expanded context came from the file at head, not from the PR diff. An
+ * expanded add or del row is another chunk's line of the same diff, so a
+ * comment can anchor to it.
+ */
+export function isCommentableLine(line: DiffLine): boolean {
+  if (line.origin !== DiffRowOrigins.EXPANDED) return true;
+
+  return line.kind !== DiffLineKinds.CTX;
 }
 
 /**
@@ -51,7 +63,10 @@ export interface DiffRowView {
  * came from the server: row ids belong to the render that created them, and a
  * session read lands before the diff does, so the coordinates are all it has.
  */
-function anchorEndsOnRow(anchor: LineCommentAnchor, line: DiffLine): boolean {
+export function anchorEndsOnRow(
+  anchor: LineCommentAnchor,
+  line: DiffLine,
+): boolean {
   return resolveSideLine(line, anchor) === anchor.endLine;
 }
 
@@ -128,7 +143,7 @@ export function getDiffRowView({
 
   return {
     id,
-    isCommentable: line.origin !== DiffRowOrigins.EXPANDED,
+    isCommentable: isCommentableLine(line),
     revRun,
     revMark,
     isRevStart,

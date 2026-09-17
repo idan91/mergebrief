@@ -14,7 +14,7 @@ import type {
 import type { RowTokenMap } from "@web/utils/diffTokens/types";
 import type { DiffView, SplitSide } from "@web/components/DiffRows/types";
 import type { ExpandedRows } from "../../../hooks/useExpandedRows";
-import type { FileLineOwners } from "../../../utils/lineOwner";
+import type { FileLineOwners, LineTarget } from "../../../utils/lineOwner";
 
 // csstype's CSSProperties has no `--*` index; a typed extension keeps the
 // custom property cast-free.
@@ -46,12 +46,14 @@ export interface DiffTableProps {
   view?: DiffView;
   /** The chunk's rows with expanded context spliced in; absent renders `chunk.diff`. */
   expansion?: ExpandedRows | undefined;
-  /** Shipped threads on lines no chunk renders; they show once expanded. */
+  /** Shipped threads on lines no chunk renders; the expand control counts them. */
   hiddenThreads?: readonly DigestThreadRow[] | undefined;
+  /** Every current line thread of the file; an expanded row shows the one on its line. */
+  fileThreads?: readonly DigestThreadRow[] | undefined;
   /** The file's chunks and their labels; absent leaves expanded changed rows unframed. */
   lineOwners?: FileLineOwners | undefined;
   /** Where a sibling span's control lands; absent renders the header without one. */
-  jumpToChunk?: ((chunkId: string) => void) | undefined;
+  jumpToLine?: ((chunkId: string, target: LineTarget) => void) | undefined;
 }
 
 export interface RailView {

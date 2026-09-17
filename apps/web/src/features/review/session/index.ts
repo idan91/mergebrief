@@ -21,6 +21,7 @@ export {
   useChunkReviewComments,
   useDraftCommentCount,
   useFileReviewComments,
+  useReviewCommentsForChunks,
   useReviewSession,
   useReviewSessionActions,
 } from "./provider";

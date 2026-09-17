@@ -11,6 +11,7 @@ import type {
 import {
   applyConversationFilter,
   buildInlineThreads,
+  buildLineThreadsByFile,
   buildThreadsOutsideChunks,
   type DigestThreadRow,
   type ConversationFilter,
@@ -27,6 +28,8 @@ import {
 import type { ConversationResult } from "@web/features/conversation/queries";
 import { useMentionPool } from "@web/features/conversation/hooks";
 import { prefersReducedMotion } from "@web/utils/motion";
+import { findRowByLine } from "@web/components/DiffRows/utils";
+import type { LineTarget } from "../../utils/lineOwner";
 import type { BriefViewModel } from "../../utils/viewModel";
 import type { Mutable } from "types/utils";
 import type { BriefChunk } from "../../types";
@@ -71,10 +74,20 @@ export interface ConversationFilterFacets {
   readonly applied: ConversationFilter;
 }
 
+/** A thread's own row, addressable wherever the thread renders. */
+export interface ThreadLanding {
+  rowId: string;
+  threadId: number;
+}
+
+export type ConversationLanding = ThreadLanding | LineTarget;
+
 export interface UseConversationWiringValue {
   conversationByChunk: ReadonlyMap<string, DigestRow[]> | undefined;
   /** Live threads on lines no chunk renders, per file. */
   hiddenThreadsByFile: ReadonlyMap<string, DigestThreadRow[]> | undefined;
+  /** Every current line thread of a file; an expanded row shows the one on its line. */
+  lineThreadsByFile: ReadonlyMap<string, DigestThreadRow[]> | undefined;
   /** Facets for the Filter disclosure; absent until the conversation resolves. */
   conversationFilterFacets: ConversationFilterFacets | undefined;
   conversationComposer: ThreadComposerWiring | undefined;
@@ -85,7 +98,7 @@ export interface UseConversationWiringValue {
   invalidateConversation: (() => void) | undefined;
   jumpToChunkFromConversation: (
     chunkId: string,
-    target?: { rowId: string; threadId: number },
+    target?: ConversationLanding,
   ) => void;
   jumpToConversation: () => void;
   open: boolean;
@@ -186,6 +199,26 @@ export function useConversationWiring(
       submittedReviewIds,
     ).ownThreadIds;
     return buildThreadsOutsideChunks({
+      conversation: conversationData,
+      chunks: readingOrderedChunks,
+      ownThreadIds,
+      briefGeneratedAt: conversation?.briefGeneratedAt,
+    });
+  }, [
+    conversationData,
+    readingOrderedChunks,
+    submittedReviewIds,
+    conversation?.briefGeneratedAt,
+  ]);
+
+  const lineThreadsByFile = useMemo(() => {
+    if (conversationData === undefined) return undefined;
+    const ownThreadIds = reconcileOwnComments(
+      [],
+      conversationData.threads,
+      submittedReviewIds,
+    ).ownThreadIds;
+    return buildLineThreadsByFile({
       conversation: conversationData,
       chunks: readingOrderedChunks,
       ownThreadIds,
@@ -313,7 +346,7 @@ export function useConversationWiring(
   useEffect(() => cancelLanding, [briefId, cancelLanding]);
 
   const jumpToChunkFromConversation = useCallback(
-    (chunkId: string, target?: { rowId: string; threadId: number }) => {
+    (chunkId: string, target?: ConversationLanding) => {
       cancelLanding();
       // Row target: the thread row only renders on an open card.
       ensureChunkOpen(chunkId);
@@ -359,17 +392,14 @@ export function useConversationWiring(
       let attempts = LANDING_POLL_FRAMES;
       const landOnRow = () => {
         landingFrameRef.current = null;
-        const row = document.querySelector(
-          `[data-conversation-thread="${target.threadId}"]`,
-        );
+        const row = findLandingRow(chunkId, target);
         if (row instanceof HTMLElement) {
           // Same reduced-motion gate as every other programmatic scroll.
           row.scrollIntoView({
             behavior: prefersReducedMotion() ? "auto" : "smooth",
             block: "center",
           });
-          const disclosure = row.querySelector("button");
-          (disclosure ?? row).focus({ preventScroll: true });
+          resolveLandingFocus(row, target).focus({ preventScroll: true });
           flashConversationTarget(row);
           return;
         }
@@ -386,6 +416,7 @@ export function useConversationWiring(
   return {
     conversationByChunk,
     hiddenThreadsByFile,
+    lineThreadsByFile,
     conversationFilterFacets,
     conversationComposer,
     conversationGroupIds: groupIds,
@@ -395,4 +426,39 @@ export function useConversationWiring(
     open,
     toggleOpen,
   };
+}
+
+/**
+ * A thread lands on its disclosure; a line lands on the row itself, which
+ * gets a one-off tab stop only when it has none (an expanded row is
+ * focusable already, a revision rail's button must keep its own).
+ */
+function resolveLandingFocus(
+  row: HTMLElement,
+  target: ConversationLanding,
+): HTMLElement {
+  if ("threadId" in target) return row.querySelector("button") ?? row;
+  if (!row.hasAttribute("tabindex")) row.tabIndex = -1;
+  return row;
+}
+
+/**
+ * The landing row inside the chunk's own card: a thread renders again in
+ * every sibling span that shows its line, so the search never leaves the
+ * card. A line target is the row showing that side's number.
+ */
+function findLandingRow(
+  chunkId: string,
+  target: ConversationLanding,
+): HTMLElement | null {
+  const card = document.getElementById(chunkId);
+  if (card === null) return null;
+  if ("threadId" in target) {
+    const row = card.querySelector(
+      `[data-conversation-thread="${String(target.threadId)}"]`,
+    );
+    return row instanceof HTMLElement ? row : null;
+  }
+
+  return findRowByLine(card, target.side, target.line);
 }
