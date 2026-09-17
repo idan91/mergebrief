@@ -1228,11 +1228,6 @@
       "count": 5
     }
   },
-  "packages/brief-core/src/diff/revchanges.ts": {
-    "house/no-em-dash": {
-      "count": 4
-    }
-  },
   "packages/brief-core/src/generation/huge-span.ts": {
     "house/comment-density": {
       "count": 1

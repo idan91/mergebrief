@@ -1,15 +1,16 @@
 /**
  * Revision-changes sidecar: the mechanical prevHead→head changed-line ranges per
- * file, parsed straight from a unified diff — no model call. The full-brief view
+ * file, parsed straight from a unified diff, no model call. The full-brief view
  * joins these onto its head-line diff rows to mark what is new in this revision.
  * Absent on the first brief (no previous head).
  */
 import { splitDiffByFile, type FileDiff } from "./diff";
+import { isAddedRow, isRemovedRow, parsePatchRows } from "./patch-rows";
 import type { LineRange } from "../types";
 
 export interface RevisionChangeFile {
   file: string;
-  /** Added/changed lines in head (new-side) coords — the FE join key. */
+  /** Added/changed lines in head (new-side) coords, the FE join key. */
   addedRanges: LineRange[];
   /** Removed lines in prevHead (old-side) coords. */
   removedRanges: LineRange[];
@@ -23,8 +24,6 @@ export interface RevisionChanges {
   files: RevisionChangeFile[];
 }
 
-const HUNK = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/;
-
 /** Collapse an ascending list of line numbers into inclusive ranges. */
 function coalesce(lines: number[]): LineRange[] {
   const ranges: LineRange[] = [];
@@ -36,40 +35,14 @@ function coalesce(lines: number[]): LineRange[] {
   return ranges;
 }
 
-/**
- * Walk one file's patch, recording added lines in new-side coords and removed
- * lines in old-side coords. Only counts +/- lines **inside a hunk**, so the
- * file-header `---`/`+++`/`diff --git` lines (which begin with -/+) are ignored.
- */
+/** Added lines in new-side coords and removed lines in old-side coords. */
 function parsePatch(patch: string): { added: number[]; removed: number[] } {
   const added: number[] = [];
   const removed: number[] = [];
-  let oldLine = 0;
-  let newLine = 0;
-  let inHunk = false;
-  for (const line of patch.split("\n")) {
-    const match = HUNK.exec(line);
-    if (match) {
-      oldLine = Number(match[1]);
-      newLine = Number(match[2]);
-      inHunk = true;
-      continue;
-    }
-    if (!inHunk || line === "") continue;
-    const marker = line[0];
-    if (marker === "+") {
-      added.push(newLine);
-      newLine++;
-    } else if (marker === "-") {
-      removed.push(oldLine);
-      oldLine++;
-    } else if (marker === "\\") {
-      // "\ No newline at end of file" — metadata, advances neither side.
-      continue;
-    } else {
-      // context line (incl. a blank " " line): advances both sides.
-      oldLine++;
-      newLine++;
+  for (const row of parsePatchRows(patch)) {
+    if (isAddedRow(row) && row.newLine !== undefined) added.push(row.newLine);
+    if (isRemovedRow(row) && row.oldLine !== undefined) {
+      removed.push(row.oldLine);
     }
   }
   return { added, removed };
@@ -108,7 +81,7 @@ function rangeLength(range: LineRange): number {
 
 /**
  * Total changed lines (added + removed, both sides) across a whole unified diff
- * — the size signal the huge-span fallback compares spans with.
+ * and the size signal the huge-span fallback compares spans with.
  */
 export function countChangedLines(diff: string): number {
   return parseChangedRanges(diff).reduce(

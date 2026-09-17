@@ -41,6 +41,7 @@ import {
   unattributedTotals,
   type UnattributedFile,
 } from "./loc";
+import { snapChunkRanges } from "./snap-ranges";
 import {
   fanOutIntentCheck,
   validateIntentCheck,
@@ -383,7 +384,10 @@ export async function categorize(
   // stamped as `unattributed`. All discrepancy signals are warn-only.
   const fileDiffs = splitDiffByFile(pr.diff);
   const changedFiles = changedRangesFromFileDiffs(fileDiffs);
-  const chunksWithLoc = deriveChunkLoc(generated.chunks, changedFiles);
+  // Ranges snap over the statement tails the model left to the remainder
+  // before anything counts them, so the overlap check sees final ranges.
+  const snappedChunks = snapChunkRanges(generated.chunks, fileDiffs);
+  const chunksWithLoc = deriveChunkLoc(snappedChunks, changedFiles);
   warnIssues(detectChunkOverlaps(chunksWithLoc), collector.log, "loc overlap");
   warnIssues(
     crossCheckFileTotals(changedFiles, pr.meta.files),

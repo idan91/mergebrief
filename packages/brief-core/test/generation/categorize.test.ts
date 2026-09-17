@@ -1196,6 +1196,55 @@ describe("categorize, mechanical LoC derivation", () => {
     ]);
   });
 
+  it("snaps a range over its statement tail before counting", async () => {
+    const tailDiff = [
+      "diff --git a/src/call.ts b/src/call.ts",
+      "@@ -0,0 +1,5 @@",
+      "+const x = run(",
+      "+  a,",
+      "+  b,",
+      "+);",
+      "+next();",
+      "",
+    ].join("\n");
+    const tailPr: FetchedPr = {
+      ...pr,
+      meta: {
+        ...pr.meta,
+        files: [{ path: "src/call.ts", additions: 5, deletions: 0 }],
+      },
+      diff: tailDiff,
+    };
+    const tailGen = {
+      ...twoGroupBriefGen,
+      chunks: [
+        {
+          ...derivationGen.chunks[0],
+          file: "src/call.ts",
+          addedRanges: [{ start: 1, end: 1 }],
+        },
+      ],
+      changeGroups: [twoGroupBriefGen.changeGroups[0]],
+    };
+
+    const brief = await categorize(
+      tailPr,
+      1,
+      commitRange,
+      new FakeGenerator(tailGen),
+    );
+
+    expect(brief.chunks[0]?.addedRanges).toEqual([{ start: 1, end: 4 }]);
+    expect(brief.chunks[0]?.loc).toEqual({ added: 4, deleted: 0 });
+    expect(brief.unattributed).toEqual([
+      {
+        file: "src/call.ts",
+        addedRanges: [{ start: 5, end: 5 }],
+        removedRanges: [],
+      },
+    ]);
+  });
+
   it("stamps an empty unattributed array when chunks cover everything", async () => {
     const brief = await categorize(
       derivationPr,
