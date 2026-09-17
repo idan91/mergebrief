@@ -21,6 +21,7 @@ import {
   resolveLegacyDeltaRedirect,
 } from "@web/features/brief/utils";
 import {
+  localBriefDiffsQueryOptions,
   localBriefQueryOptions,
   localBriefsQueryOptions,
   localRevisionChangesQueryOptions,
@@ -65,6 +66,9 @@ export const Route = createFileRoute("/briefs/$briefId")({
     Promise.all([
       context.queryClient.ensureQueryData(
         localBriefQueryOptions(params.briefId),
+      ),
+      context.queryClient.ensureQueryData(
+        localBriefDiffsQueryOptions(params.briefId),
       ),
       context.queryClient.ensureQueryData(localBriefsQueryOptions()),
       context.queryClient.ensureQueryData(

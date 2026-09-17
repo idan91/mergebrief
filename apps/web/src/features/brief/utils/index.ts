@@ -5,10 +5,12 @@
 // (test-only, fixtures never ride a production barrel).
 export { briefErrorDetail } from "./briefErrors";
 export {
+  attachSlicedDiffs,
   parseUnifiedDiffPatch,
   sliceChunkDiff,
   splitUnifiedDiffByFile,
 } from "./diffSlicing";
+export { createFileRowsCache, type FileRowsCache } from "./fileRows";
 export {
   EXPAND_STEP,
   findExpansionGaps,

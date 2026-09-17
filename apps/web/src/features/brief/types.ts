@@ -135,6 +135,12 @@ export interface UnattributedFile {
   diff?: DiffLine[];
 }
 
+/** One file's unified-diff patch body, as the diffs sidecar and the live diff carry it. */
+export interface FileDiffPatch {
+  file: string;
+  patch: string;
+}
+
 /**
  * @description Mechanical prevHead→head changed lines for one file.
  */

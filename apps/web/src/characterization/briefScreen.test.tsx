@@ -16,6 +16,7 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  localBriefDiffsQueryOptions,
   localBriefQueryOptions,
   localBriefsQueryOptions,
   localRevisionChangesQueryOptions,
@@ -59,11 +60,31 @@ async function renderWritableScreen() {
   );
 }
 
-async function renderBriefScreen(brief = briefFixture) {
+const LEAK_PATCH = [
+  "diff --git a/src/leak.ts b/src/leak.ts",
+  "--- a/src/leak.ts",
+  "+++ b/src/leak.ts",
+  "@@ -9,2 +9,6 @@",
+  " const shared = read();",
+  "+guardFromPatch(shared);",
+  "+validate(shared);",
+  "+audit(shared);",
+  "+emit(shared);",
+  " return shared;",
+].join("\n");
+
+async function renderBriefScreen(
+  brief = briefFixture,
+  patches: { file: string; patch: string }[] = [],
+) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   queryClient.setQueryData(localBriefQueryOptions(BRIEF_ID).queryKey, brief);
+  queryClient.setQueryData(
+    localBriefDiffsQueryOptions(BRIEF_ID).queryKey,
+    patches,
+  );
   queryClient.setQueryData(localBriefsQueryOptions().queryKey, [
     briefSummaryFixture,
   ]);
@@ -105,6 +126,16 @@ describe("brief screen characterization", () => {
   it("renders the change-group story", async () => {
     await renderBriefScreen();
     expect(screen.getByText(briefFixture.changeGroups[0]!.title)).toBeTruthy();
+  });
+
+  it("slices each chunk's rows from the diffs sidecar on the client", async () => {
+    await renderBriefScreen(briefFixture, [
+      { file: "src/leak.ts", patch: LEAK_PATCH },
+    ]);
+
+    await waitFor(() =>
+      expect(document.body.textContent).toContain("guardFromPatch(shared);"),
+    );
   });
 
   it("enters focus mode with a visible active chunk", async () => {

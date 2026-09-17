@@ -17,10 +17,13 @@ import type { ComparisonSource } from "../../comparison/comparison";
 import type { ComparisonOverlayState } from "../../comparison/comparisonOverlay";
 import type { ComparisonQuery } from "../../comparison/comparisonQuery";
 import {
+  localBriefDiffsQueryOptions,
   localBriefQueryOptions,
   localComparisonMarksQueryOptions,
   localRevisionNarrativeQueryOptions,
 } from "../../queries";
+import { attachSlicedDiffs } from "../../utils/diffSlicing";
+import { createFileRowsCache } from "../../utils/fileRows";
 import { buildBriefTimeline, type BriefTimeline } from "../../utils/timeline";
 import type {
   Brief,
@@ -184,6 +187,26 @@ export function useComparisonOverlay(
     ...localBriefQueryOptions(deltaId ?? ""),
     enabled: comparisonPlan === undefined && Boolean(deltaId),
   });
+  // The delta's rows come from its own sidecar (baseline to head), never
+  // from the head brief's patches (base to head).
+  const localDeltaDiffs = useQuery({
+    ...localBriefDiffsQueryOptions(deltaId ?? ""),
+    enabled: comparisonPlan === undefined && Boolean(deltaId),
+  });
+  const localDeltaPatches = localDeltaDiffs.data;
+  const localDeltaFailed = localDeltaDiffs.isError;
+  const localDeltaArtifact = localDelta.data;
+  const slicedLocalDelta = useMemo(() => {
+    // A sidecar that failed to read means no delta, never row-less cards.
+    if (localDeltaFailed) return undefined;
+    if (localDeltaArtifact === undefined || localDeltaPatches === undefined) {
+      return localDeltaArtifact;
+    }
+    const patches = new Map(
+      localDeltaPatches.map((entry) => [entry.file, entry.patch]),
+    );
+    return attachSlicedDiffs(localDeltaArtifact, createFileRowsCache(patches));
+  }, [localDeltaArtifact, localDeltaFailed, localDeltaPatches]);
   const planDeltaOptions =
     planLastReview?.delta ?? disabledComparisonQuery<Brief>("delta");
   const planDelta = useQuery({
@@ -194,7 +217,7 @@ export function useComparisonOverlay(
       planLastReview?.delta !== undefined,
   });
   const delta =
-    (comparisonPlan === undefined ? localDelta.data : planDelta.data) ?? null;
+    (comparisonPlan === undefined ? slicedLocalDelta : planDelta.data) ?? null;
 
   // Since-marker source: the last-review marks, fetched whenever the
   // checkpoint slot EXISTS rather than when it is the active baseline. Shares

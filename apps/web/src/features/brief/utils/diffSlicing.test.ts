@@ -1,8 +1,14 @@
 // Unit tests for the pure diff-slicing module. Expected values are worked
 // examples from the unified-diff format, not recomputations.
 import { describe, expect, it } from "vitest";
-import { parseUnifiedDiffPatch, sliceChunkDiff } from "./diffSlicing";
-import type { BriefChunk } from "../types";
+import {
+  attachSlicedDiffs,
+  parseUnifiedDiffPatch,
+  sliceChunkDiff,
+  splitUnifiedDiffByFile,
+} from "./diffSlicing";
+import { createFileRowsCache } from "./fileRows";
+import type { Brief, BriefChunk } from "../types";
 
 const PATCH = [
   "diff --git a/src/app.ts b/src/app.ts",
@@ -23,7 +29,7 @@ const PATCH = [
   "\\ No newline at end of file",
 ].join("\n");
 
-function chunk(overrides: Partial<BriefChunk>): BriefChunk {
+function stubChunk(overrides: Partial<BriefChunk>): BriefChunk {
   return {
     id: "c1",
     changeGroupId: "g1",
@@ -39,7 +45,7 @@ function chunk(overrides: Partial<BriefChunk>): BriefChunk {
 }
 
 describe("parseUnifiedDiffPatch", () => {
-  it("parses hunks, adds, dels, context, and no-newline notes with line numbers", () => {
+  it("parses hunks, adds, dels, context and no-newline notes with numbers", () => {
     const rows = parseUnifiedDiffPatch(PATCH);
 
     // File headers are dropped entirely.
@@ -80,10 +86,10 @@ describe("parseUnifiedDiffPatch", () => {
 describe("sliceChunkDiff", () => {
   const rows = parseUnifiedDiffPatch(PATCH);
 
-  it("selects changed rows in the chunk's ranges plus ±2 context and the hunk header", () => {
+  it("keeps the changed rows, two context rows around each, and the hunk", () => {
     const sliced = sliceChunkDiff(
       rows,
-      chunk({
+      stubChunk({
         addedRanges: [{ start: 2, end: 3 }],
         removedRanges: [{ start: 2, end: 2 }],
       }),
@@ -102,8 +108,121 @@ describe("sliceChunkDiff", () => {
   it("returns [] when no changed row falls in the chunk's ranges", () => {
     const sliced = sliceChunkDiff(
       rows,
-      chunk({ addedRanges: [{ start: 999, end: 999 }], removedRanges: [] }),
+      stubChunk({ addedRanges: [{ start: 999, end: 999 }], removedRanges: [] }),
     );
     expect(sliced).toEqual([]);
+  });
+});
+
+const MULTI_FILE_DIFF = [
+  "diff --git a/src/app.ts b/src/app.ts",
+  "index 1111111..2222222 100644",
+  "--- a/src/app.ts",
+  "+++ b/src/app.ts",
+  "@@ -1,2 +1,2 @@",
+  "-const a = 1;",
+  "+const a = 10;",
+  " const b = 2;",
+  "diff --git a/docs/readme.md b/docs/readme.md",
+  "index 3333333..4444444 100644",
+  "--- a/docs/readme.md",
+  "+++ b/docs/readme.md",
+  "@@ -5,1 +5,2 @@",
+  " intro",
+  "+added line",
+  "diff --git a/gone.txt b/gone.txt",
+  "deleted file mode 100644",
+  "index 5555555..0000000",
+  "--- a/gone.txt",
+  "+++ /dev/null",
+  "@@ -1,1 +0,0 @@",
+  "-bye",
+].join("\n");
+
+describe("splitUnifiedDiffByFile", () => {
+  it("splits per file, keyed by the post-change path", () => {
+    const files = splitUnifiedDiffByFile(MULTI_FILE_DIFF);
+
+    expect([...files.keys()]).toEqual([
+      "src/app.ts",
+      "docs/readme.md",
+      "gone.txt",
+    ]);
+    expect(files.get("src/app.ts")).toContain("+const a = 10;");
+    expect(files.get("src/app.ts")).not.toContain("readme");
+    expect(files.get("docs/readme.md")).toContain("+added line");
+  });
+
+  it("keys a deleted file by its pre-change path", () => {
+    const files = splitUnifiedDiffByFile(MULTI_FILE_DIFF);
+
+    expect(files.get("gone.txt")).toContain("-bye");
+  });
+
+  it("returns an empty map for an empty body", () => {
+    expect(splitUnifiedDiffByFile("").size).toBe(0);
+  });
+});
+
+function stubBrief(chunks: BriefChunk[]): Brief {
+  return {
+    artifactKind: "brief",
+    pr: {
+      repo: "octo/hello",
+      number: 7,
+      title: "t",
+      url: "https://github.com/octo/hello/pull/7",
+      sha: "head",
+      description: "",
+    },
+    summary: "s",
+    changeGroups: [],
+    chunks,
+    concernView: [],
+  };
+}
+
+describe("attachSlicedDiffs", () => {
+  const stubCache = () =>
+    createFileRowsCache(splitUnifiedDiffByFile(MULTI_FILE_DIFF));
+
+  it("slices rows onto chunks whose file the diff carries, leaves the rest", () => {
+    const brief = stubBrief([
+      stubChunk({ addedRanges: [{ start: 1, end: 1 }] }),
+      stubChunk({ id: "c2", file: "not/in/diff.ts" }),
+    ]);
+    const attached = attachSlicedDiffs(brief, stubCache());
+
+    expect(
+      attached.chunks[0]?.diff?.some((row) => row.content === "const a = 10;"),
+    ).toBe(true);
+    expect(attached.chunks[1]?.diff).toBeUndefined();
+    expect(brief.chunks[0]?.diff).toBeUndefined();
+  });
+
+  it("slices the unattributed remainder the same way", () => {
+    const brief = stubBrief([]);
+    brief.unattributed = [
+      {
+        file: "docs/readme.md",
+        addedRanges: [{ start: 6, end: 6 }],
+        removedRanges: [],
+      },
+    ];
+    const attached = attachSlicedDiffs(brief, stubCache());
+
+    expect(attached.unattributed?.[0]?.diff?.map((row) => row.kind)).toEqual([
+      "hunk",
+      "ctx",
+      "add",
+    ]);
+  });
+
+  it("returns the brief itself when the cache holds no file", () => {
+    const brief = stubBrief([stubChunk({})]);
+
+    expect(attachSlicedDiffs(brief, createFileRowsCache(new Map()))).toBe(
+      brief,
+    );
   });
 });

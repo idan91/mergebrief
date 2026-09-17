@@ -1,9 +1,9 @@
-// Pure unified-diff parsing + per-chunk slicing. Shared by two paths: the
-// local-brief server functions slice sidecar patches on the server; the
-// DB-brief route slices the LIVE proxied diff on the client (the diff is never
-// persisted). No I/O, no framework imports; keep it that way.
+// Pure unified-diff parsing + per-chunk slicing, on the client for both the
+// local sidecar patches and the live proxied diff. No I/O, no framework
+// imports; keep it that way.
 import type { DiffLine } from "@web/utils/diffTokens/types";
-import type { BriefChunk, LineRange } from "../types";
+import type { Brief, BriefChunk, LineRange } from "../types";
+import type { FileRowsCache } from "./fileRows";
 
 /**
  * Slice a file's parsed diff down to the rows a chunk claims: changed rows
@@ -49,6 +49,36 @@ export function sliceChunkDiff(
   }
 
   return rows.filter((row) => selected.has(row));
+}
+
+/**
+ * The brief with each chunk's rows sliced from its file. Pure: a brief whose
+ * files the cache does not hold comes back as the same object.
+ */
+export function attachSlicedDiffs(
+  brief: Brief,
+  fileRows: FileRowsCache,
+): Brief {
+  if (fileRows.isEmpty) return brief;
+
+  const withDiffs: Brief = {
+    ...brief,
+    chunks: brief.chunks.map((chunk) => {
+      const rows = fileRows.getFileRows(chunk.file);
+      if (rows === undefined) return chunk;
+      return { ...chunk, diff: sliceChunkDiff(rows, chunk) };
+    }),
+  };
+
+  if (brief.unattributed !== undefined) {
+    withDiffs.unattributed = brief.unattributed.map((entry) => {
+      const rows = fileRows.getFileRows(entry.file);
+      if (rows === undefined) return entry;
+      return { ...entry, diff: sliceChunkDiff(rows, entry) };
+    });
+  }
+
+  return withDiffs;
 }
 
 function lineInRanges(line: number | undefined, ranges: LineRange[]): boolean {

@@ -392,14 +392,6 @@
       "count": 2
     }
   },
-  "apps/web/src/characterization/comparisonStateMatrix.test.tsx": {
-    "house/no-em-dash": {
-      "count": 2
-    },
-    "house/test-title": {
-      "count": 5
-    }
-  },
   "apps/web/src/characterization/readThrough.test.tsx": {
     "house/no-em-dash": {
       "count": 5
@@ -720,35 +712,10 @@
       "count": 6
     }
   },
-  "apps/web/src/features/brief/server/brief.functions.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "apps/web/src/features/brief/server/briefHandlers.backstop.server.test.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
-  "apps/web/src/features/brief/server/briefHandlers.server.test.ts": {
-    "house/no-em-dash": {
-      "count": 3
-    }
-  },
-  "apps/web/src/features/brief/server/briefHandlers.server.ts": {
-    "house/no-em-dash": {
-      "count": 3
-    }
-  },
   "apps/web/src/features/brief/server/legacyRevchangesAlias.server.test.ts": {
     "house/no-em-dash": {
       "count": 1
     },
-    "house/test-title": {
-      "count": 2
-    }
-  },
-  "apps/web/src/features/brief/utils/diffSlicing.test.ts": {
     "house/test-title": {
       "count": 2
     }
@@ -1031,11 +998,6 @@
     },
     "house/test-title": {
       "count": 4
-    }
-  },
-  "apps/web/src/features/pulls/utils/liveDiff.test.ts": {
-    "house/test-title": {
-      "count": 2
     }
   },
   "apps/web/src/features/pulls/utils/ownDraft.test.ts": {

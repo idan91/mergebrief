@@ -11,6 +11,7 @@ import type {
 import type { BriefSearchParams } from "../../comparison/compareState";
 import type { Brief, LivePrState, LocalBriefSummary } from "../../types";
 import type { buildBriefViewModel } from "../../utils/viewModel";
+import type { FileRowsCache } from "../../utils/fileRows";
 import type { RepoConfigContext } from "../../utils/repoConfig";
 import type { BriefComparisonPlan } from "./useComparisonOverlay";
 
@@ -46,6 +47,8 @@ export interface BriefScreenProps {
   /** DB route identity for in-app neighbour links; absent on the file path. */
   repoId?: string | undefined;
   comparisonPlan?: BriefComparisonPlan | undefined;
+  /** The PR diff's rows per file; absent leaves every hunk edge folded. */
+  fileRows?: FileRowsCache | undefined;
   model: ReturnType<typeof buildBriefViewModel>;
   searchParams: BriefSearchParams;
   submitReview?: SubmitReviewAction | undefined;

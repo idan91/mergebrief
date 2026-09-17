@@ -3,7 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { briefHandlers } from "./briefHandlers.server";
 
 // The RPC surface: validators plus one-line delegation to `briefHandlers`,
-// which owns the curation boundary every rejection must pass through — a
+// which owns the curation boundary every rejection must pass through: a
 // rejection here is a client-visible string. Keep handlers one-liners: a
 // `createServerFn` wrapper cannot be invoked without the Start server
 // runtime, so logic inline here is logic nothing can test.
@@ -44,6 +44,10 @@ function parseArtifactIdRequest(value: unknown): ArtifactIdRequest {
 export const getLocalBrief = createServerFn({ method: "GET" })
   .validator(parseLocalBriefRequest)
   .handler(async ({ data }) => briefHandlers.getLocalBrief(data.briefId));
+
+export const getLocalBriefDiffs = createServerFn({ method: "GET" })
+  .validator(parseLocalBriefRequest)
+  .handler(async ({ data }) => briefHandlers.getLocalBriefDiffs(data.briefId));
 
 export const getLocalBriefs = createServerFn({ method: "GET" }).handler(
   async () => briefHandlers.getLocalBriefs(),

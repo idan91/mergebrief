@@ -2,14 +2,32 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { readLocalBrief } from "./brief.server";
+import { readLocalBrief, readLocalFileDiffs } from "./brief.server";
+import { BriefErrorCodes } from "../utils/briefErrors";
 
 const TEST_BRIEF_ID = "test-review-comments";
 const OUT_DIR = resolve(process.cwd(), "../../tools/categorizer/out");
 const deltaPath = resolve(OUT_DIR, `${TEST_BRIEF_ID}.delta.json`);
 const commentsPath = resolve(OUT_DIR, `${TEST_BRIEF_ID}.delta.comments.json`);
 const diffsPath = resolve(OUT_DIR, `${TEST_BRIEF_ID}.delta.diffs.json`);
-const fixturePaths = [deltaPath, commentsPath, diffsPath];
+const BOTH_NAMES_ID = "test-both-sidecar-names";
+const briefDiffsPath = resolve(OUT_DIR, `${BOTH_NAMES_ID}.diffs.json`);
+const deltaDiffsPath = resolve(OUT_DIR, `${BOTH_NAMES_ID}.delta.diffs.json`);
+const fixturePaths = [
+  deltaPath,
+  commentsPath,
+  diffsPath,
+  briefDiffsPath,
+  deltaDiffsPath,
+];
+const ACCORDION_PATCH = [
+  "diff --git a/src/components/Accordion/Accordion.tsx b/src/components/Accordion/Accordion.tsx",
+  "--- a/src/components/Accordion/Accordion.tsx",
+  "+++ b/src/components/Accordion/Accordion.tsx",
+  "@@ -1,1 +1,2 @@",
+  '+import { useState } from "react";',
+  " export {};",
+].join("\n");
 
 describe("readLocalBrief", () => {
   beforeAll(async () => {
@@ -78,7 +96,26 @@ describe("readLocalBrief", () => {
         ]),
         "utf8",
       ),
-      writeFile(diffsPath, "[]", "utf8"),
+      writeFile(
+        briefDiffsPath,
+        JSON.stringify([{ file: "a.ts", patch: "brief" }]),
+        "utf8",
+      ),
+      writeFile(
+        deltaDiffsPath,
+        JSON.stringify([{ file: "a.ts", patch: "delta" }]),
+        "utf8",
+      ),
+      writeFile(
+        diffsPath,
+        JSON.stringify([
+          {
+            file: "src/components/Accordion/Accordion.tsx",
+            patch: ACCORDION_PATCH,
+          },
+        ]),
+        "utf8",
+      ),
     ]);
   });
 
@@ -103,5 +140,34 @@ describe("readLocalBrief", () => {
       originalLine: 103,
       body: expect.stringContaining("open-close state typesafe"),
     });
+  });
+
+  it("leaves chunks unsliced; the client slices from the patches", async () => {
+    const brief = await readLocalBrief(TEST_BRIEF_ID);
+
+    expect(brief.chunks[0]?.diff).toBeUndefined();
+  });
+
+  it("ships the diffs sidecar as per-file patches", async () => {
+    const patches = await readLocalFileDiffs(TEST_BRIEF_ID);
+
+    expect(patches).toEqual([
+      {
+        file: "src/components/Accordion/Accordion.tsx",
+        patch: ACCORDION_PATCH,
+      },
+    ]);
+  });
+
+  it("reads the brief sidecar name before the delta one", async () => {
+    const patches = await readLocalFileDiffs(BOTH_NAMES_ID);
+
+    expect(patches).toEqual([{ file: "a.ts", patch: "brief" }]);
+  });
+
+  it("refuses an id with no diffs sidecar under either name", async () => {
+    await expect(
+      readLocalFileDiffs("no-such-diffs_1_deadbeef"),
+    ).rejects.toThrow(BriefErrorCodes.UNREADABLE);
   });
 });

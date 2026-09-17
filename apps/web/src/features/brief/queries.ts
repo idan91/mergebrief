@@ -17,6 +17,7 @@ import {
 } from "../../data/apiFetch";
 import {
   getLocalBrief,
+  getLocalBriefDiffs,
   getLocalBriefs,
   getLocalComparisonMarks,
   getLocalRevisionChanges,
@@ -70,6 +71,16 @@ export function localBriefQueryOptions(briefId: string) {
   return queryOptions({
     queryKey: ["brief", "local", briefId],
     queryFn: () => getLocalBrief({ data: { briefId } }),
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: Number.POSITIVE_INFINITY,
+    retry: false,
+  });
+}
+
+export function localBriefDiffsQueryOptions(briefId: string) {
+  return queryOptions({
+    queryKey: ["briefDiffs", "local", briefId],
+    queryFn: () => getLocalBriefDiffs({ data: { briefId } }),
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: Number.POSITIVE_INFINITY,
     retry: false,

@@ -9,6 +9,7 @@ import {
 } from "@web/features/review/session";
 import type { SubmitReviewAction } from "@web/features/review/utils";
 import type { BriefSearchParams } from "../../comparison/compareState";
+import type { FileRowsCache } from "../../utils/fileRows";
 import type { RepoConfigContext } from "../../utils/repoConfig";
 import type { Brief, LivePrState, LocalBriefSummary } from "../../types";
 import { buildBriefViewModel } from "../../utils/viewModel";
@@ -32,6 +33,8 @@ export interface BriefViewProps {
   repoId?: string | undefined;
   searchParams: BriefSearchParams;
   brief: Brief;
+  /** The PR diff's rows per file; absent leaves every hunk edge folded. */
+  fileRows?: FileRowsCache | undefined;
   comparisonPlan?: BriefComparisonPlan;
   submitReview?: SubmitReviewAction;
   conversation?: ConversationPlan;
@@ -71,6 +74,7 @@ export function BriefView({
   conversationFocusThreadId,
   conversationFilter,
   onConversationFilterChange,
+  fileRows,
   headerControls,
   openDeltaLens,
   exitChangesScope,
@@ -108,6 +112,7 @@ export function BriefView({
         conversationFilter={conversationFilter}
         conversationFocusThreadId={conversationFocusThreadId}
         onConversationFilterChange={onConversationFilterChange}
+        fileRows={fileRows}
         headerControls={headerControls}
         model={model}
         openDeltaLens={openDeltaLens}

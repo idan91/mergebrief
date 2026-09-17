@@ -6,6 +6,11 @@ import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 
 import { BriefView } from "@web/features/brief";
+import {
+  attachSlicedDiffs,
+  createFileRowsCache,
+  splitUnifiedDiffByFile,
+} from "@web/features/brief/utils";
 import type { LivePrState } from "@web/features/brief/types";
 import { createSessionWrites } from "@web/features/review/session";
 import {
@@ -19,7 +24,6 @@ import {
 import type { ThreadRevisionJump } from "@web/features/conversation";
 import type { Span } from "../../../utils/briefRouteState";
 import { comparisonsWarming } from "../../../utils/briefRouteState";
-import { attachLiveDiffs } from "../../../utils/liveDiff";
 import type {
   DbTimelinePoint,
   DbTimelineSelection,
@@ -121,9 +125,19 @@ export function PrBriefContent({
       }),
     [prNumber, repoId, span.base, span.head],
   );
+  // One parse per file for the page: the slices below and the hunk-edge
+  // expansion inside the screen read the same rows, so the cache identity
+  // has to hold across renders.
+  const fileRows = useMemo(
+    () =>
+      diff.data === undefined
+        ? undefined
+        : createFileRowsCache(splitUnifiedDiffByFile(diff.data)),
+    [diff.data],
+  );
   const assembled = useMemo(
-    () => (diff.data === undefined ? brief : attachLiveDiffs(brief, diff.data)),
-    [brief, diff.data],
+    () => (fileRows === undefined ? brief : attachSlicedDiffs(brief, fileRows)),
+    [brief, fileRows],
   );
   const {
     briefId,
@@ -227,6 +241,7 @@ export function PrBriefContent({
         // snapshot.
         livePrState={livePrState}
         brief={assembled}
+        fileRows={fileRows}
         repoConfig={repoConfig.data ?? null}
         briefId={briefId}
         repoId={repoId}

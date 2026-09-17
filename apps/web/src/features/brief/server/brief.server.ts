@@ -1,4 +1,3 @@
-import type { DiffLine } from "@web/utils/diffTokens/types";
 import "@tanstack/react-start/server-only";
 
 import { readFile, readdir } from "node:fs/promises";
@@ -6,14 +5,13 @@ import { resolve } from "node:path";
 
 // ONE artifact store: the workspace-root-anchored dir generation writes to.
 import { requireLocalBriefsDir } from "./outDir.server";
-import { parseUnifiedDiffPatch, sliceChunkDiff } from "../utils/diffSlicing";
 import type {
   AddressedReviewComment,
   Brief,
-  BriefChunk,
   ComparisonAvailability,
   ComparisonMarks,
   ComparisonMarksSummary,
+  FileDiffPatch,
   LastReviewComparisonAvailability,
   LocalBriefSummary,
   PreviousBriefComparisonAvailability,
@@ -68,16 +66,6 @@ function failRead(
     logger.warn(context, fields);
   }
   throw new BriefReadError(reason);
-}
-
-interface FileDiffSidecar {
-  file: string;
-  patch: string;
-}
-
-interface ParsedFileDiff {
-  file: string;
-  rows: DiffLine[];
 }
 
 const BRIEF_ID_PATTERN = /^[A-Za-z0-9._-]+$/;
@@ -369,10 +357,10 @@ function buildComparisonAvailability(
     : undefined;
 }
 
+/** The artifact with its comments; the diff rides separately, see `readLocalFileDiffs`. */
 export async function readLocalBrief(briefId: string): Promise<Brief> {
   const brief = await readBriefFile(briefId);
-  const withComments = await attachReviewComments(brief, briefId);
-  return attachChunkDiffs(withComments, briefId);
+  return attachReviewComments(brief, briefId);
 }
 
 /**
@@ -597,33 +585,6 @@ function isValidBriefId(briefId: string): boolean {
   return BRIEF_ID_PATTERN.test(briefId);
 }
 
-async function attachChunkDiffs(brief: Brief, briefId: string): Promise<Brief> {
-  const fileDiffs = await readFileDiffs(briefId, brief.artifactKind);
-  if (fileDiffs.size === 0) return brief;
-
-  const withDiffs: Brief = {
-    ...brief,
-    chunks: brief.chunks.map((chunk) => {
-      const fileDiff = fileDiffs.get(chunk.file);
-      if (!fileDiff) return chunk;
-      return {
-        ...chunk,
-        diff: sliceChunkDiff(fileDiff.rows, chunk),
-      } satisfies BriefChunk;
-    }),
-  };
-
-  if (brief.unattributed !== undefined) {
-    withDiffs.unattributed = brief.unattributed.map((entry) => {
-      const fileDiff = fileDiffs.get(entry.file);
-      if (!fileDiff) return entry;
-      return { ...entry, diff: sliceChunkDiff(fileDiff.rows, entry) };
-    });
-  }
-
-  return withDiffs;
-}
-
 async function attachReviewComments(
   brief: Brief,
   briefId: string,
@@ -677,27 +638,18 @@ async function readReviewComments(
   return parsedComments.value;
 }
 
-async function readFileDiffs(
+const DIFFS_SUFFIXES = [".diffs.json", ".delta.diffs.json"] as const;
+
+/**
+ * The diffs sidecar as per-file patches, unparsed: the client slices every
+ * chunk and expands hunk edges from the same rows, so it parses once there.
+ * An id names one artifact, so one of the two sidecar names exists at most.
+ */
+export async function readLocalFileDiffs(
   briefId: string,
-  artifactKind: Brief["artifactKind"],
-): Promise<Map<string, ParsedFileDiff>> {
-  const suffix = artifactKind === "delta" ? ".delta.diffs.json" : ".diffs.json";
-  let raw: string;
-  try {
-    raw = await readFile(
-      resolve(requireLocalBriefsDir(), `${briefId}${suffix}`),
-      "utf8",
-    );
-  } catch (error) {
-    // The diffs sidecar is written with the brief; a missing one is a broken
-    // artifact set, not a missing brief, but either way the browser must not
-    // learn the out-dir path.
-    return failRead(
-      BriefErrorCodes.UNREADABLE,
-      `unreadable diffs sidecar ${briefId}`,
-      error,
-    );
-  }
+): Promise<FileDiffPatch[]> {
+  assertValidBriefId(briefId);
+  const raw = await readDiffsSidecar(briefId);
   let parsedJson: unknown;
   try {
     parsedJson = JSON.parse(raw);
@@ -716,24 +668,48 @@ async function readFileDiffs(
     );
   }
 
-  const diffs = new Map<string, ParsedFileDiff>();
+  const patches: FileDiffPatch[] = [];
   for (const item of parsedJson) {
-    if (!isFileDiffSidecar(item)) {
+    if (!isFileDiffPatch(item)) {
       return failRead(
         BriefErrorCodes.UNREADABLE,
         `invalid diffs sidecar ${briefId}`,
         "expected file and patch strings",
       );
     }
-    diffs.set(item.file, {
-      file: item.file,
-      rows: parseUnifiedDiffPatch(item.patch),
-    });
+    patches.push({ file: item.file, patch: item.patch });
   }
-  return diffs;
+  return patches;
 }
 
-function isFileDiffSidecar(value: unknown): value is FileDiffSidecar {
+async function readDiffsSidecar(briefId: string): Promise<string> {
+  for (const suffix of DIFFS_SUFFIXES) {
+    try {
+      return await readFile(
+        resolve(requireLocalBriefsDir(), `${briefId}${suffix}`),
+        "utf8",
+      );
+    } catch (error) {
+      if (isNodeError(error) && error.code === "ENOENT") continue;
+      return failRead(
+        BriefErrorCodes.UNREADABLE,
+        `unreadable diffs sidecar ${briefId}`,
+        error,
+      );
+    }
+  }
+
+  // The diffs sidecar is written with the brief; a missing one is a broken
+  // artifact set, not a missing brief, but either way the browser must not
+  // learn the out-dir path.
+  return failRead(
+    BriefErrorCodes.UNREADABLE,
+    `missing diffs sidecar ${briefId}`,
+    "no diffs sidecar under either name",
+  );
+}
+
+function isFileDiffPatch(value: unknown): value is FileDiffPatch {
   return (
     typeof value === "object" &&
     value !== null &&

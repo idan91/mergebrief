@@ -1,6 +1,6 @@
 // THE PIN for the curation convention: every
 // local-brief handler's rejection must be a string this codebase authored.
-// Deleting a `curated()` wrapper makes this suite fail — which is the whole
+// Deleting a `curated()` wrapper makes this suite fail, which is the whole
 // point, because the failure mode it guards (a Node error's absolute path
 // rendered into an unauthenticated page) is invisible in every other gate.
 //
@@ -14,13 +14,15 @@ import { isCuratedBriefError } from "../utils/briefErrors";
 
 /**
  * One rejecting call per handler. Ids pass the charset guard but name no
- * artifact; the URL is not a PR URL — the cheapest real failure each has.
+ * artifact; the URL is not a PR URL. The cheapest real failure each has.
  */
 const REJECTING_CALLS: Record<keyof BriefHandlers, () => Promise<unknown>> = {
   getLocalBrief: () => briefHandlers.getLocalBrief("../../etc/passwd"),
   // The listing degrades rather than throwing on a missing dir, so this one
   // is driven by an unreadable id through the same boundary.
   getLocalBriefs: () => briefHandlers.getLocalBrief("no-such_1_deadbeef"),
+  getLocalBriefDiffs: () =>
+    briefHandlers.getLocalBriefDiffs("../../etc/passwd"),
   getLocalRevisionChanges: () =>
     briefHandlers.getLocalRevisionChanges("../../etc/passwd"),
   getLocalComparisonMarks: () =>
@@ -47,7 +49,7 @@ describe("every brief handler ends at the curation boundary", () => {
     });
   }
 
-  it("covers every handler — a new one without a case fails here", () => {
+  it("covers every handler; a new one without a case fails here", () => {
     expect(Object.keys(REJECTING_CALLS).toSorted()).toEqual(
       Object.keys(briefHandlers).toSorted(),
     );

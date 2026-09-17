@@ -15,6 +15,7 @@ import {
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  localBriefDiffsQueryOptions,
   localBriefQueryOptions,
   localBriefsQueryOptions,
   localComparisonMarksQueryOptions,
@@ -123,6 +124,15 @@ const deltaSummary: LocalBriefSummary = {
   headSha: HEAD_SHA,
   baselineSha: CHECKPOINT_SHA,
 };
+
+const DELTA_PATCH = [
+  "diff --git a/src/a.ts b/src/a.ts",
+  "--- a/src/a.ts",
+  "+++ b/src/a.ts",
+  "@@ -10,1 +10,2 @@",
+  " const a = 1;",
+  "+guardFromDelta(a);",
+].join("\n");
 
 const deltaBrief: Brief = {
   artifactKind: "delta",
@@ -263,6 +273,14 @@ function buildQueryClient() {
     localBriefQueryOptions(lonelySummary.id).queryKey,
     lonelyBrief,
   );
+  for (const summary of ALL_ARTIFACTS) {
+    queryClient.setQueryData(
+      localBriefDiffsQueryOptions(summary.id).queryKey,
+      summary.id === deltaSummary.id
+        ? [{ file: "src/a.ts", patch: DELTA_PATCH }]
+        : [],
+    );
+  }
   queryClient.setQueryData(
     localRevisionChangesQueryOptions(headSummary.id).queryKey,
     null,
@@ -286,8 +304,12 @@ function buildQueryClient() {
   return queryClient;
 }
 
-async function renderAt(initialPath: string) {
+async function renderAt(
+  initialPath: string,
+  prepare?: (queryClient: QueryClient) => Promise<void>,
+) {
   const queryClient = buildQueryClient();
+  await prepare?.(queryClient);
   const router = createRouter({
     routeTree,
     context: { queryClient },
@@ -309,7 +331,7 @@ async function renderAt(initialPath: string) {
 describe("comparison state matrix characterization", () => {
   afterEach(() => cleanup());
 
-  it("renders the full Brief unchanged with compare=off, even when a comparison is available", async () => {
+  it("renders the full Brief unchanged at compare=off when one is available", async () => {
     await renderAt("/briefs/head-brief-2?view=full&compare=off");
     await waitFor(() => expect(screen.getByText(PR.title)).toBeTruthy());
 
@@ -319,7 +341,7 @@ describe("comparison state matrix characterization", () => {
     expect((offButton as HTMLInputElement).checked).toBe(true);
   });
 
-  it("offers Previous Brief on a non-first Brief and applies the overlay on selection", async () => {
+  it("offers Previous Brief on a later Brief and overlays it on selection", async () => {
     await renderAt("/briefs/head-brief-2?view=full&compare=off");
     await waitFor(() => expect(screen.getByText(PR.title)).toBeTruthy());
 
@@ -337,7 +359,7 @@ describe("comparison state matrix characterization", () => {
     expect(screen.getByText(/1 change/)).toBeTruthy();
   });
 
-  it("offers Your last review as a peer compare option when a local Delta exists", async () => {
+  it("offers Your last review as a compare option when a local Delta exists", async () => {
     await renderAt("/briefs/head-brief-2?view=full&compare=off");
     await waitFor(() => expect(screen.getByText(PR.title)).toBeTruthy());
 
@@ -353,13 +375,21 @@ describe("comparison state matrix characterization", () => {
     );
   });
 
+  it("slices the local Delta's rows from its own diffs sidecar", async () => {
+    await renderAt("/briefs/head-brief-2?view=changes&compare=last-review");
+
+    await waitFor(() =>
+      expect(document.body.textContent).toContain("guardFromDelta(a);"),
+    );
+  });
+
   it("cannot select Changes Only without an available comparison", async () => {
     await renderAt("/briefs/lonely-brief-1");
     await waitFor(() =>
       expect(screen.getByText(lonelyBrief.pr.title)).toBeTruthy(),
     );
 
-    // No comparison is available for this Brief — both Compare options are
+    // No comparison is available for this Brief, so both Compare options are
     // unavailable (focusable, with a reason), and Full Brief is the only
     // View with product meaning.
     expect(
@@ -375,7 +405,7 @@ describe("comparison state matrix characterization", () => {
 
     fireEvent.click(screen.getByRole("radio", { name: "Changes Only" }));
 
-    // Changes+off has no product meaning and there's nothing to fall back to —
+    // Changes+off has no product meaning and there's nothing to fall back to,
     // normalization keeps the page on Full Brief.
     expect(screen.getByText("Lonely group")).toBeTruthy();
     expect(screen.queryByText(/Changes Only ·/)).toBeNull();
@@ -385,7 +415,7 @@ describe("comparison state matrix characterization", () => {
     ).toBe(true);
   });
 
-  it("has keyboard-reachable, labelled segmented View/Compare controls that update route state", async () => {
+  it("keyboard-reachable View and Compare controls update the route state", async () => {
     const { router } = await renderAt(
       "/briefs/head-brief-2?view=full&compare=off",
     );
@@ -419,7 +449,28 @@ describe("comparison state matrix characterization", () => {
     );
   });
 
-  it("redirects an old Delta artifact URL to the head Brief with view=changes&compare=last-review", async () => {
+  it("shows the delta as unavailable when its diffs sidecar fails", async () => {
+    await renderAt(
+      "/briefs/head-brief-2?view=changes&compare=last-review",
+      async (queryClient) => {
+        queryClient.removeQueries({
+          queryKey: localBriefDiffsQueryOptions(deltaSummary.id).queryKey,
+        });
+        await queryClient
+          .fetchQuery({
+            ...localBriefDiffsQueryOptions(deltaSummary.id),
+            queryFn: () => Promise.reject(new Error("sidecar unreadable")),
+          })
+          .catch(() => undefined);
+      },
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText("Changes summary unavailable.")).toBeTruthy(),
+    );
+  });
+
+  it("redirects an old Delta URL to its head Brief in changes, last-review", async () => {
     const { router } = await renderAt("/briefs/delta-brief-2");
 
     await waitFor(() =>

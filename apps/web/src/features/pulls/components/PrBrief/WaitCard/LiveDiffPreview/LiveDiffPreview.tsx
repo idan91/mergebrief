@@ -16,9 +16,11 @@ import { TokenPlanProvider, useTokenPlan } from "@web/hooks/useTokenPlan";
 import { ChunkTokenStatuses, TokenizeModes } from "@web/utils/diffTokens/types";
 import type { BriefChunkSize } from "@web/utils/diffTokens/types";
 import { buildSnippetKey } from "@web/utils/diffTokens/utils";
-import { parseUnifiedDiffPatch } from "@web/features/brief/utils";
+import {
+  parseUnifiedDiffPatch,
+  splitUnifiedDiffByFile,
+} from "@web/features/brief/utils";
 import type { Span } from "../../../../utils/briefRouteState";
-import { splitUnifiedDiffByFile } from "../../../../utils/liveDiff";
 import { prDiffQueryOptions } from "../../../../queries";
 import cardStyles from "../../stateCard.module.scss";
 import styles from "./LiveDiffPreview.module.scss";
