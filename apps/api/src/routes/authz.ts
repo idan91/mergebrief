@@ -87,11 +87,6 @@ import { createReviewerGitHubClient } from "./auth/reviewer-github-client";
 // ---------------------------------------------------------------------------
 
 export interface AuthzVariables extends RequestLogVariables {
-  /**
-   * The ACTING CREDENTIAL's scope, and only that: the audit ledger keys its
-   * rows on it. The world a PR ROW lives in is a separate question answered
-   * by `resolvePrScope`; never overwrite this to steer a row lookup.
-   */
   readonly ctx: ScopeContext;
   /**
    * The gate let this request through on the operator PAT, not the reader's

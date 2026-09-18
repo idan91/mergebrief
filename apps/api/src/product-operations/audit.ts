@@ -18,7 +18,6 @@ import {
   AuditOutcomes,
   AuditRequestIdSchema,
   isInstallationId,
-  isReviewerId,
   PullRequestSources,
   WriteClassifications,
   type AppDatabase,
@@ -238,29 +237,21 @@ function readInstallationScope(value: unknown): AuditScope | undefined {
   };
 }
 
-function readOwnerScope(value: unknown): AuditScope | undefined {
-  if (typeof value !== "bigint" || !isReviewerId(value)) {
+/** The acting credential's world: its tenant, or url-box when it has none. */
+function readAuditScope(session: unknown): AuditScope | undefined {
+  if (
+    typeof session !== "object" ||
+    session === null ||
+    !("installationId" in session)
+  ) {
     return undefined;
   }
 
-  return { installationId: null, source: PullRequestSources.URL_BOX };
-}
-
-/** The acting credential's scope: tenant, or the url-box owner world. */
-function readAuditScope(value: unknown): AuditScope | undefined {
-  if (typeof value !== "object" || value === null) {
-    return undefined;
+  if (session.installationId === null) {
+    return { installationId: null, source: PullRequestSources.URL_BOX };
   }
 
-  if ("installationId" in value) {
-    return readInstallationScope(value.installationId);
-  }
-
-  if ("ownerUserId" in value) {
-    return readOwnerScope(value.ownerUserId);
-  }
-
-  return undefined;
+  return readInstallationScope(session.installationId);
 }
 
 /** `METHOD /full/path` → descriptor, built once off the committed registry. */
@@ -322,11 +313,11 @@ export function createAuditMiddleware(
     ) {
       return;
     }
-    // `ctx` and `session` belong to the auth layers, so they are read out of
-    // the variable bag and narrowed here rather than declared on this module.
-    const variables: unknown = c.var;
-    const scope = readAuditScope(readVar(variables, "ctx"));
-    const principal = readAuditPrincipal(readVar(variables, "session"));
+    // `session` belongs to the auth layers, so it is read out of the variable
+    // bag and narrowed here rather than declared on this module.
+    const session = readVar(c.var, "session");
+    const scope = readAuditScope(session);
+    const principal = readAuditPrincipal(session);
     if (scope === undefined || principal === undefined) {
       // A credential that resolves to no scope at all cannot be recorded,
       // and leaves only its `api.access` line.

@@ -6,11 +6,16 @@ import { AuditClientSchema, WriteClassifications } from "persistence";
 import type { KeyProvider } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ProductActionIds } from "contract";
 import {
+  createAuditMiddleware,
   isAuditRowWritten,
   deriveClient,
   deriveRequestId,
 } from "../src/product-operations/audit";
+import { productRouter } from "../src/product-operations/product-router";
+import type { RequestLogEnv } from "../src/request-logging";
+import { createProductOperationRegistry } from "../src/product-operations/registry";
 import type { Mutable } from "types/utils";
 import {
   createApp,
@@ -202,6 +207,7 @@ describe("the audit choke point", () => {
     expect(rows[0]).toMatchObject({
       operation: "set-chunk-read",
       outcome: "denied",
+      installation_id: String(INSTALLATION_ID),
       channel: "bearer",
       reason: "scope-exceeded",
     });
@@ -279,6 +285,62 @@ describe("the audit choke point", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.operation).toBe("set-chunk-read");
     expect(rows[0]?.request_id).toBeNull();
+  });
+});
+
+/** What a gate contributes: a principal, and a ctx that may name another world. */
+interface StubGateEnv {
+  Variables: { session: unknown; ctx: unknown };
+}
+
+describe("the ledger's tenant", () => {
+  let harness: PgliteHarness;
+
+  beforeEach(async () => {
+    harness = await createPgliteHarness();
+  });
+
+  afterEach(async () => {
+    await harness.close();
+  });
+
+  it("follows the credential when the gate's ctx names another world", async () => {
+    const registry = createProductOperationRegistry();
+    const root = productRouter<RequestLogEnv>();
+    root.use(createAuditMiddleware({ handle: harness.handle, registry }));
+    const gated = productRouter<StubGateEnv>();
+    gated.use(async (c, next) => {
+      c.set("session", {
+        id: 1n,
+        reviewerId: BigInt(REVIEWER_ID),
+        installationId: BigInt(INSTALLATION_ID),
+        scope: WriteClassifications.EXTERNAL_WRITE,
+        channel: "cookie",
+      });
+      c.set("ctx", { ownerUserId: BigInt(REVIEWER_ID) });
+      await next();
+    });
+    gated.action(
+      {
+        id: ProductActionIds.SET_CHUNK_READ,
+        classification: WriteClassifications.PRIVATE_WRITE,
+      },
+      "put",
+      "/read",
+      (c) => c.json({ ok: true }),
+    );
+    root.route("/gated", gated);
+    root.commit(registry);
+
+    const res = await root.app.request("/gated/read", { method: "PUT" });
+
+    expect(res.status).toBe(200);
+    const rows = await harness.raw(
+      "select installation_id, source from audit_log order by id",
+    );
+    expect(rows).toEqual([
+      { installation_id: INSTALLATION_ID, source: "app-installation" },
+    ]);
   });
 });
 
