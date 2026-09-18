@@ -32,6 +32,7 @@ import {
   createKeyProvider,
   hashSha256Hex,
   getRequestUrl,
+  answerInstallationRepositories,
 } from "./fixtures";
 
 const REPO_ID = 424242;
@@ -112,13 +113,20 @@ function repoOk(push: boolean): Response {
   });
 }
 
-function stubGitHub(repositories: (call: number) => Response): {
+function stubGitHub(
+  repositories: (call: number) => Response,
+  installationRepos: readonly number[] = [REPO_ID],
+): {
   counts: { repositories: number };
 } {
   const counts = { repositories: 0 };
   const fetchFn = vi.fn(
     async (input: string | URL | Request): Promise<Response> => {
       const url = getRequestUrl(input);
+      const membership = answerInstallationRepositories(url, installationRepos);
+      if (membership !== undefined) {
+        return membership;
+      }
       if (url.includes("/repositories/")) {
         const i = counts.repositories++;
         return repositories(i);
@@ -227,6 +235,15 @@ describe("GET /api/repos/:repoId/collaborators", () => {
     const res = await getCollaborators(makeApp(port), cookie);
     expect(res.status).toBe(404);
     expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(log.calls).toHaveLength(0);
+  });
+
+  it("404s for a push viewer on a repo outside the installation", async () => {
+    const { port, log } = stubPort([okResult()]);
+    stubGitHub(() => repoOk(true), []);
+    const { cookie } = await seedSession(harness.handle, kp);
+    const res = await getCollaborators(makeApp(port), cookie);
+    expect(res.status).toBe(404);
     expect(log.calls).toHaveLength(0);
   });
 

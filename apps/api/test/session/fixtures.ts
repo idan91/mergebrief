@@ -74,7 +74,7 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-/** The gate's only outward call: the repo access check. */
+/** The gate's two outward calls: the repo access check, then membership. */
 export function stubGitHub(): void {
   vi.stubGlobal(
     "fetch",
@@ -85,6 +85,15 @@ export function stubGitHub(): void {
           id: REPO_ID,
           full_name: REPO_SLUG,
           private: true,
+        });
+      }
+      if (
+        url.includes("/user/installations/") &&
+        url.includes("/repositories")
+      ) {
+        return jsonResponse({
+          total_count: 1,
+          repositories: [{ id: REPO_ID, full_name: REPO_SLUG }],
         });
       }
       if (url.includes("/user/installations")) {

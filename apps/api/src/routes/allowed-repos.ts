@@ -10,7 +10,11 @@ import {
   listInstallationRepositoriesForUser,
 } from "github";
 import type { Logger } from "logging";
-import { createSessionAuth, type RepoId } from "persistence";
+import {
+  createSessionAuth,
+  type InstallationId,
+  type RepoId,
+} from "persistence";
 import type { Result } from "types/utils";
 import type { AuthRouteDeps, ViewerPrincipal } from "./auth/session/types";
 import { createReviewerGitHubClient } from "./auth/reviewer-github-client";
@@ -30,16 +34,18 @@ export interface AllowedRepos {
   readonly session: ViewerPrincipal;
 }
 
+/**
+ * Failure carries the HTTP status the route must return: 401 (auth dead) or
+ * 502 (GitHub upstream); the caller NEVER falls back to the DB.
+ */
+export type AllowedRepoResolution = Result<AllowedRepos, { status: 401 | 502 }>;
+
 export interface AllowedRepoResolver {
-  /**
-   * Resolve the viewer's allowed set (cache → GitHub with refresh-once).
-   * Failure carries the HTTP status the route must return: 401 (auth dead)
-   * or 502 (GitHub upstream); the caller NEVER falls back to the DB.
-   */
+  /** Resolve the viewer's allowed set (cache → GitHub with refresh-once). */
   resolve(
     session: ViewerPrincipal,
     log: Logger,
-  ): Promise<Result<AllowedRepos, { status: 401 | 502 }>>;
+  ): Promise<AllowedRepoResolution>;
 }
 
 /**
@@ -54,6 +60,48 @@ export function createAllowedRepoResolver(
   const cache = createTtlCache<ReadonlyMap<RepoId, string>>(
     ALLOWED_SET_CACHE_MAX_ENTRIES,
   );
+  // One walk per key at a time: a cold brief page fans out several gated
+  // reads at once, and each would otherwise paginate the same listing.
+  const inFlight = new Map<string, Promise<AllowedRepoResolution>>();
+
+  async function fetchAllowedSet(
+    session: ViewerPrincipal,
+    installationId: InstallationId,
+    cacheKey: string,
+    log: Logger,
+  ): Promise<AllowedRepoResolution> {
+    // The per-request client: lazy single decrypt, expired ~8h access token
+    // → serialized refresh, retry ONCE. The installation is the one this
+    // request authorized; a concurrent rebind must not swap it mid-call.
+    const client = createReviewerGitHubClient(deps, session, log);
+    const repos = await client.run((accessToken) =>
+      listInstallationRepositoriesForUser(
+        createUserOctokit(accessToken),
+        installationId,
+      ),
+    );
+    if (!repos.ok) {
+      if ("kind" in repos.error) {
+        // Unreadable token burns the session; same posture as the repo
+        // gate. (On the Bearer channel this delete is a no-op by hash
+        // namespace; the api_token row stays for its owner to see and
+        // revoke.)
+        await createSessionAuth(deps.handle).deleteSession(
+          session.sessionTokenHash,
+        );
+        return { ok: false, error: { status: 401 } };
+      }
+      // Fail closed; a DB-only fallback would leak rows.
+      const status =
+        repos.error.code === GitHubApiErrorCodes.UNAUTHORIZED ? 401 : 502;
+      return { ok: false, error: { status } };
+    }
+    cache.set(cacheKey, repos.value, Date.now() + AUTHZ_CACHE_TTL_MS);
+    return {
+      ok: true,
+      value: { allowed: repos.value, session: client.session() },
+    };
+  }
 
   return {
     async resolve(session, log) {
@@ -72,37 +120,17 @@ export function createAllowedRepoResolver(
         return { ok: true, value: { allowed: cached, session } };
       }
 
-      // The per-request client: lazy single decrypt, expired ~8h access token
-      // → serialized refresh, retry ONCE. The installation is the one this
-      // request authorized; a concurrent rebind must not swap it mid-call.
-      const client = createReviewerGitHubClient(deps, session, log);
-      const repos = await client.run((accessToken) =>
-        listInstallationRepositoriesForUser(
-          createUserOctokit(accessToken),
-          installationId,
-        ),
-      );
-      if (!repos.ok) {
-        if ("kind" in repos.error) {
-          // Unreadable token burns the session; same posture as the repo
-          // gate. (On the Bearer channel this delete is a no-op by hash
-          // namespace; the api_token row stays for its owner to see and
-          // revoke.)
-          await createSessionAuth(deps.handle).deleteSession(
-            session.sessionTokenHash,
-          );
-          return { ok: false, error: { status: 401 } };
-        }
-        // Fail closed; a DB-only fallback would leak rows.
-        const status =
-          repos.error.code === GitHubApiErrorCodes.UNAUTHORIZED ? 401 : 502;
-        return { ok: false, error: { status } };
+      const pending = inFlight.get(cacheKey);
+      if (pending !== undefined) {
+        return pending;
       }
-      cache.set(cacheKey, repos.value, Date.now() + AUTHZ_CACHE_TTL_MS);
-      return {
-        ok: true,
-        value: { allowed: repos.value, session: client.session() },
-      };
+      const walk = fetchAllowedSet(session, installationId, cacheKey, log);
+      inFlight.set(cacheKey, walk);
+      try {
+        return await walk;
+      } finally {
+        inFlight.delete(cacheKey);
+      }
     },
   };
 }

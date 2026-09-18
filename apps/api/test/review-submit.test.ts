@@ -36,6 +36,7 @@ import {
   createKeyProvider,
   hashSha256Hex,
   getRequestUrl,
+  answerInstallationRepositories,
 } from "./fixtures";
 
 // Nothing in this file reaches GitHub, so octokit's one-mutation-per-second
@@ -312,6 +313,10 @@ function stubGitHub(cfg: StubConfig): StubCounts {
         return cfg.token
           ? cfg.token(i)
           : makeJsonResponse({ error: "unexpected_token" }, 500);
+      }
+      const membership = answerInstallationRepositories(url, [REPO_ID]);
+      if (membership !== undefined) {
+        return membership;
       }
       if (url.includes("/repositories/")) {
         const i = counts.repositories++;

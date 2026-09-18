@@ -35,6 +35,7 @@ import {
   createKeyProvider,
   hashSha256Hex,
   getRequestUrl,
+  answerInstallationRepositories,
 } from "./fixtures";
 
 // Every case drives a full request over the PGlite harness; the slowest
@@ -165,6 +166,10 @@ function stubGitHub(cfg: StubConfig): StubCounts {
         return cfg.token
           ? cfg.token(i)
           : jsonResponse({ error: "unexpected_token" }, 500);
+      }
+      const membership = answerInstallationRepositories(url, [REPO_ID]);
+      if (membership !== undefined) {
+        return membership;
       }
       if (url.includes("/repositories/")) {
         const i = counts.repositories++;

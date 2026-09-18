@@ -3,6 +3,7 @@
 // subtree, unmatched methods/paths included, so every request under the
 // prefix traverses exactly one gate and an unauthorized probe meets the same
 // hint-free 404 posture everywhere.
+import type { AllowedRepoResolver } from "../../allowed-repos";
 import { createAuthzMiddleware, type AuthzEnv } from "../../authz";
 import {
   productRouter,
@@ -19,9 +20,12 @@ import { markReadyRoute } from "./ready";
 import { reviewSubmitRoute } from "./review";
 import { sessionRoutes } from "./session";
 
-export function prRoutes(deps: ConversationRouteDeps): ProductRouter<AuthzEnv> {
+export function prRoutes(
+  deps: ConversationRouteDeps,
+  allowedRepos: AllowedRepoResolver,
+): ProductRouter<AuthzEnv> {
   const app = productRouter<AuthzEnv>();
-  const authz = createAuthzMiddleware(deps);
+  const authz = createAuthzMiddleware(deps, allowedRepos);
   app.use("*", authz);
 
   // Conversation built first: it owns the conversation cache, and the write

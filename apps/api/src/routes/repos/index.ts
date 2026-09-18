@@ -45,8 +45,8 @@ export function reposRoutes(
     handlers.listRepos,
   );
 
-  app.route("/:repoId/collaborators", collaboratorsRoute(deps));
-  app.route("/:repoId/pulls/:prNumber", prRoutes(deps));
+  app.route("/:repoId/collaborators", collaboratorsRoute(deps, allowedRepos));
+  app.route("/:repoId/pulls/:prNumber", prRoutes(deps, allowedRepos));
 
   return app;
 }

@@ -619,6 +619,15 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     return jsonResponse(repo);
   }
 
+  /** The gate's two calls: repo access, then the membership listing. */
+  function stubGate(canPush?: boolean): ReturnType<typeof stubGitHub> {
+    return stubGitHub({
+      installations: () =>
+        installationsOk([{ id: REPO_A, full_name: "octo/verified-a" }]),
+      repositories: () => repoOk(canPush),
+    });
+  }
+
   it("meta: uses artifact-read 404 posture for inaccessible or unknown PRs", async () => {
     stubGitHub({
       repositories: () => jsonResponse({ message: "denied" }, 404),
@@ -631,7 +640,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
       404,
     ); // no repo access
 
-    stubGitHub({ repositories: () => repoOk() });
+    stubGate();
     expect((await get(`/api/repos/${REPO_A}/pulls/999`, cookie)).status).toBe(
       404,
     ); // unknown PR
@@ -641,7 +650,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
   });
 
   it("meta: returns PR, span, brief availability and generation summary", async () => {
-    stubGitHub({ repositories: () => repoOk() });
+    stubGate();
     const cookie = await seedSession(harness.handle, kp);
     const pr = await seedPr(harness.handle, {
       repoId: REPO_A,
@@ -703,7 +712,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
   });
 
   it("meta: exposes draft status and viewer authorship for an own draft", async () => {
-    stubGitHub({ repositories: () => repoOk() });
+    stubGate();
     // The seeded session's reviewer login is "octocat".
     const cookie = await seedSession(harness.handle, kp);
     await seedPr(harness.handle, {
@@ -724,7 +733,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
   });
 
   it("meta: carries the instance draftPolicy, default and injected", async () => {
-    stubGitHub({ repositories: () => repoOk() });
+    stubGate();
     const cookie = await seedSession(harness.handle, kp);
     await seedPr(harness.handle, {
       repoId: REPO_A,
@@ -763,7 +772,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
   });
 
   it("meta: denies viewer authorship for other or absent authors", async () => {
-    stubGitHub({ repositories: () => repoOk() });
+    stubGate();
     const cookie = await seedSession(harness.handle, kp);
     // Authored by someone else.
     await seedPr(harness.handle, {
@@ -786,7 +795,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
   });
 
   it("meta: caches push-derived viewerCanResolve with the positive gate", async () => {
-    const counts = stubGitHub({ repositories: () => repoOk(true) });
+    const counts = stubGate(true);
     const cookie = await seedSession(harness.handle, kp);
     // Not the author, capability comes from `permissions.push` alone.
     await seedPr(harness.handle, {
@@ -812,7 +821,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
   });
 
   it("meta: viewerCanResolve=true for the PR author without push permission", async () => {
-    stubGitHub({ repositories: () => repoOk(false) });
+    stubGate(false);
     const cookie = await seedSession(harness.handle, kp);
     await seedPr(harness.handle, {
       repoId: REPO_A,
@@ -830,7 +839,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
   it("meta: denies resolution without push or authorship, missing included", async () => {
     // No permissions block in the repo payload at all, must parse as no
     // capability, never as a grant.
-    const counts = stubGitHub({ repositories: () => repoOk() });
+    const counts = stubGate();
     const cookie = await seedSession(harness.handle, kp);
     await seedPr(harness.handle, {
       repoId: REPO_A,
@@ -854,7 +863,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
   });
 
   it("meta: derives Previous Brief availability from marks and narratives", async () => {
-    stubGitHub({ repositories: () => repoOk() });
+    stubGate();
     const cookie = await seedSession(harness.handle, kp);
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
     const store = createArtifactStore(harness.handle, CTX);
@@ -994,7 +1003,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
   }
 
   it("meta: omits lastReview without the current reviewer's checkpoint", async () => {
-    stubGitHub({ repositories: () => repoOk() });
+    stubGate();
     const cookie = await seedSession(harness.handle, kp);
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
     await seedBriefs(pr);
@@ -1007,7 +1016,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
   });
 
   it("meta: lastReview available tiers, marks+delta, then marks-only", async () => {
-    stubGitHub({ repositories: () => repoOk() });
+    stubGate();
     const cookie = await seedSession(harness.handle, kp);
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
     await seedBriefs(pr);
@@ -1056,7 +1065,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
   });
 
   it("meta: lastReview unavailable reasons, pending vs baseline-unavailable", async () => {
-    stubGitHub({ repositories: () => repoOk() });
+    stubGate();
     const cookie = await seedSession(harness.handle, kp);
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
     await seedBriefs(pr);
@@ -1101,7 +1110,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     // Production writes no delta-kind projection rows (warmDeltaCores runs
     // inside the brief job): while that job is non-terminal and marks are
     // absent, the reason must be pending, NOT baseline-unavailable.
-    stubGitHub({ repositories: () => repoOk() });
+    stubGate();
     const cookie = await seedSession(harness.handle, kp);
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
     await seedBriefs(pr);
@@ -1131,7 +1140,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
   });
 
   it("meta: omits lastReview for a checkpoint at the current head", async () => {
-    stubGitHub({ repositories: () => repoOk() });
+    stubGate();
     const cookie = await seedSession(harness.handle, kp);
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
     await seedBriefs(pr);
@@ -1140,7 +1149,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
   });
 
   it("meta: lastReview never leaks a cross-tenant checkpoint", async () => {
-    stubGitHub({ repositories: () => repoOk() });
+    stubGate();
     const cookie = await seedSession(harness.handle, kp);
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
     await seedBriefs(pr);
@@ -1190,7 +1199,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
   }
 
   it("meta: lists revisions by headIndex only once a brief exists", async () => {
-    stubGitHub({ repositories: () => repoOk() });
+    stubGate();
     const cookie = await seedSession(harness.handle, kp);
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
 
@@ -1245,7 +1254,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
   });
 
   it("meta: per-revision previousBrief joins consecutive briefed pairs only", async () => {
-    stubGitHub({ repositories: () => repoOk() });
+    stubGate();
     const cookie = await seedSession(harness.handle, kp);
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
     const store = createArtifactStore(harness.handle, CTX);
@@ -1285,7 +1294,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
   });
 
   it("meta: offers forward-span lastReview even with marks only", async () => {
-    stubGitHub({ repositories: () => repoOk() });
+    stubGate();
     const cookie = await seedSession(harness.handle, kp);
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
     const store = createArtifactStore(harness.handle, CTX);
@@ -1330,7 +1339,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
   });
 
   it("meta: matches top-level comparisons to the latest revision's bytes", async () => {
-    stubGitHub({ repositories: () => repoOk() });
+    stubGate();
     const cookie = await seedSession(harness.handle, kp);
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
     const store = createArtifactStore(harness.handle, CTX);
@@ -1374,7 +1383,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
   });
 
   it("meta: uses the current base's comparison when a head is rebriefed", async () => {
-    stubGitHub({ repositories: () => repoOk() });
+    stubGate();
     const cookie = await seedSession(harness.handle, kp);
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
     const store = createArtifactStore(harness.handle, CTX);
@@ -1429,7 +1438,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
   it("meta: shares lastReview across revisions with the same head", async () => {
     // A checkpoint/head pair has the same marks across duplicate-head revisions.
     // Offer both even when the baseline brief index exceeds the earlier duplicate's index.
-    stubGitHub({ repositories: () => repoOk() });
+    stubGate();
     const cookie = await seedSession(harness.handle, kp);
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
     const store = createArtifactStore(harness.handle, CTX);
@@ -1472,7 +1481,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
   it("meta: marks duplicate-head lastReview pending while that head warms", async () => {
     // Pending is also a function of checkpoint/head, not revision-row identity.
     // A warming head's older duplicate must report pending before marks exist too.
-    stubGitHub({ repositories: () => repoOk() });
+    stubGate();
     const cookie = await seedSession(harness.handle, kp);
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
 
@@ -1522,7 +1531,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
   });
 
   it("meta: revisions never leak across tenants", async () => {
-    stubGitHub({ repositories: () => repoOk() });
+    stubGate();
     const cookie = await seedSession(harness.handle, kp);
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
     await writeBrief(pr.id, "base", "head-1", 1);

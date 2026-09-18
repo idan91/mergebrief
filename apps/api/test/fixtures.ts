@@ -65,3 +65,26 @@ export function getRequestUrl(input: string | URL | Request): string {
   if (input instanceof URL) return input.href;
   return input.url;
 }
+
+/**
+ * The gate's membership listing, `GET /user/installations/{id}/repositories`:
+ * the installation holds `repoIds`. `undefined` for every other URL, so a
+ * suite's own stub keeps answering the rest.
+ */
+export function answerInstallationRepositories(
+  url: string,
+  repoIds: readonly number[],
+): Response | undefined {
+  const isListing =
+    url.includes("/user/installations/") && url.includes("/repositories");
+  if (!isListing) {
+    return undefined;
+  }
+  return new Response(
+    JSON.stringify({
+      total_count: repoIds.length,
+      repositories: repoIds.map((id) => ({ id, full_name: REPO_SLUG })),
+    }),
+    { status: 200, headers: { "content-type": "application/json" } },
+  );
+}

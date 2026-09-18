@@ -17,7 +17,13 @@ import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp, type AppDeps } from "../src/index";
 import { testLogger } from "./logging";
-import { KEY_REF, SECRET, buildAuthDeps, createKeyProvider } from "./fixtures";
+import {
+  KEY_REF,
+  SECRET,
+  buildAuthDeps,
+  createKeyProvider,
+  answerInstallationRepositories,
+} from "./fixtures";
 
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
 const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
@@ -142,6 +148,10 @@ function stubGitHub(script: PrEndpointScript = {}): FetchCounts {
             },
           },
         );
+      }
+      const membership = answerInstallationRepositories(url, [REPO_ID]);
+      if (membership !== undefined) {
+        return membership;
       }
       if (url.includes("/repositories/")) {
         return new Response(

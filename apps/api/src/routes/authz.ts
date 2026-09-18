@@ -41,6 +41,7 @@
 // session-only composition appends `accessStampLayer` so its line carries the
 // reviewer id.
 /* oxlint-enable house/comment-run */
+import { ApiErrorCodes } from "contract";
 import type { Context, MiddlewareHandler } from "hono";
 import { every } from "hono/combine";
 import { getCookie } from "hono/cookie";
@@ -60,6 +61,8 @@ import {
   type ReviewerId,
   type ScopeContext,
 } from "persistence";
+import type { Logger } from "logging";
+import type { Result } from "types/utils";
 import type { AuthRouteDeps, ViewerPrincipal } from "./auth/session/types";
 import { SESSION_COOKIE } from "./auth/session/consts";
 import { sha256Hex } from "./auth/session/utils";
@@ -74,9 +77,10 @@ import {
 } from "../product-operations/audit";
 import { stampAccess, type RequestLogVariables } from "../request-logging";
 import { createTtlCache } from "./ttl-cache";
-import { NotFound, Unauthorized } from "../shared-errors/api-error";
+import { BadGateway, NotFound, Unauthorized } from "../shared-errors/api-error";
 import { isGitHubDenial } from "../shared-errors/failures";
 import { createReviewerGitHubClient } from "./auth/reviewer-github-client";
+import type { AllowedRepoResolver } from "./allowed-repos";
 
 // ---------------------------------------------------------------------------
 // Typed Hono context vars. Handlers read these safely (no `any`): `ctx`/
@@ -87,6 +91,11 @@ import { createReviewerGitHubClient } from "./auth/reviewer-github-client";
 // ---------------------------------------------------------------------------
 
 export interface AuthzVariables extends RequestLogVariables {
+  /**
+   * Behind `sessionLayer` alone, the credential's world. Behind the repo gate,
+   * the world the REPO belongs to: a visible repo outside the session's
+   * installation arrives as the owner world.
+   */
   readonly ctx: ScopeContext;
   /**
    * The gate let this request through on the operator PAT, not the reader's
@@ -186,6 +195,42 @@ function resolvePrNumberParam(raw: string | undefined): number | undefined {
   }
   const value = Number(raw);
   return Number.isSafeInteger(value) && value > 0 ? value : undefined;
+}
+
+interface InstallationMembership {
+  readonly outsideInstallation: boolean;
+  readonly session: ViewerPrincipal;
+}
+
+type InstallationMembershipResult = Result<
+  InstallationMembership,
+  { status: 401 | 502 }
+>;
+
+/**
+ * Whether a repo the viewer can read sits outside their installation. An
+ * installation-less session has no installation to be outside of.
+ */
+async function resolveInstallationMembership(
+  allowedRepos: AllowedRepoResolver,
+  session: ViewerPrincipal,
+  repoId: RepoId,
+  log: Logger,
+): Promise<InstallationMembershipResult> {
+  if (session.installationId === null) {
+    return { ok: true, value: { outsideInstallation: false, session } };
+  }
+
+  const resolved = await allowedRepos.resolve(session, log);
+  if (!resolved.ok) {
+    return resolved;
+  }
+
+  const outsideInstallation = !resolved.value.allowed.has(repoId);
+  return {
+    ok: true,
+    value: { outsideInstallation, session: resolved.value.session },
+  };
 }
 
 /**
@@ -347,6 +392,7 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
  */
 export function repoAuthzLayer(
   deps: AuthRouteDeps,
+  allowedRepos: AllowedRepoResolver,
 ): MiddlewareHandler<AuthzEnv> {
   // key `${sessionTokenHash}:${repoId}` → the GitHub-verified `owner/name` +
   // the viewer's push capability, until expiry. Positive only. Storing the
@@ -363,6 +409,8 @@ export function repoAuthzLayer(
      * the repo until the TTL expired.
      */
     readonly ownerPinnedPr: number | undefined;
+    /** The repo sits outside the session's installation; replayed on a hit. */
+    readonly outsideInstallation: boolean;
   }>(POSITIVE_CACHE_MAX_ENTRIES);
 
   return async (c, next) => {
@@ -396,6 +444,9 @@ export function repoAuthzLayer(
     if (cachedEntry !== undefined) {
       if (cachedEntry.ownerPinnedPr !== undefined) {
         c.set("urlBoxOnly", true);
+      }
+      if (cachedEntry.outsideInstallation) {
+        c.set("ctx", { ownerUserId: session.reviewerId });
       }
       c.set("repoId", repoId);
       c.set("repoFullName", cachedEntry.fullName);
@@ -451,6 +502,7 @@ export function repoAuthzLayer(
           fullName: fallbackRepo.fullName,
           viewerCanPush: false,
           ownerPinnedPr: fallbackRepo.prNumber,
+          outsideInstallation: false,
         };
         positiveCache.set(cacheKey, entry, Date.now() + AUTHZ_CACHE_TTL_MS);
         const fallbackSession = client.session();
@@ -481,18 +533,40 @@ export function repoAuthzLayer(
       throw new NotFound();
     }
 
-    // 2xx → authorized. Cache the verified full name, hand the token to the
-    // route, and log AFTER the handler so status/duration reflect it.
+    // 2xx → the viewer can read the repo. Which world it belongs to is a
+    // second question; a failure answering it is never cached.
+    const membership = await resolveInstallationMembership(
+      allowedRepos,
+      client.session(),
+      repoId,
+      c.get("logger"),
+    );
+    if (!membership.ok) {
+      const { status } = membership.error;
+      stampAccess(c, String(status), {
+        repoId,
+        reviewerId: client.session().reviewerId,
+      });
+      if (status === 401) {
+        throw new Unauthorized();
+      }
+      throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
+    }
+
+    const { outsideInstallation, session: currentSession } = membership.value;
     positiveCache.set(
       cacheKey,
       {
         fullName: repo.value.fullName,
         viewerCanPush: repo.value.viewerCanPush,
         ownerPinnedPr: undefined,
+        outsideInstallation,
       },
       Date.now() + AUTHZ_CACHE_TTL_MS,
     );
-    const currentSession = client.session();
+    if (outsideInstallation) {
+      c.set("ctx", { ownerUserId: currentSession.reviewerId });
+    }
     c.set("session", currentSession);
     c.set("repoId", repoId);
     c.set("repoFullName", repo.value.fullName);
@@ -510,8 +584,9 @@ export function repoAuthzLayer(
  */
 export function createAuthzMiddleware(
   deps: AuthRouteDeps,
+  allowedRepos: AllowedRepoResolver,
 ): MiddlewareHandler<AuthzEnv> {
-  return every(sessionLayer(deps), repoAuthzLayer(deps));
+  return every(sessionLayer(deps), repoAuthzLayer(deps, allowedRepos));
 }
 
 /**
