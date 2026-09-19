@@ -18,6 +18,7 @@ import {
   countIntentTensions,
   deriveBriefProgress,
   deriveChunkSizes,
+  deriveRowLandingCorrection,
   disabledComparisonQuery,
   discriminateNarrativeArtifact,
   groupSinceMarkers,
@@ -612,5 +613,50 @@ describe("chunk deep links", () => {
     expect(resolveChunkIdFromHash("#main-content")).toBeUndefined();
     expect(resolveChunkIdFromHash("#chunk-")).toBeUndefined();
     expect(resolveChunkIdFromHash("#chunk-not%20safe")).toBeUndefined();
+  });
+});
+
+describe("deriveRowLandingCorrection", () => {
+  // Viewport 1000 under a 190px pinned stack: the band is 190 to 1000, middle 595.
+  it("leaves a row that fits between the stack and the viewport bottom", () => {
+    expect(
+      deriveRowLandingCorrection({ top: 400, bottom: 444 }, 190, 1000),
+    ).toBe(0);
+  });
+
+  it("moves a row parked under the pinned stack just clear of it", () => {
+    expect(
+      deriveRowLandingCorrection({ top: 141, bottom: 185 }, 190, 1000),
+    ).toBe(-65);
+  });
+
+  it("moves a row past the viewport bottom just clear of it", () => {
+    expect(
+      deriveRowLandingCorrection({ top: 980, bottom: 1024 }, 190, 1000),
+    ).toBe(40);
+  });
+
+  it("moves three clipped pixels by little more than three pixels", () => {
+    expect(
+      deriveRowLandingCorrection({ top: 187, bottom: 487 }, 190, 1000),
+    ).toBe(-19);
+  });
+
+  it("leaves a tall row whose head is already in the upper band", () => {
+    expect(
+      deriveRowLandingCorrection({ top: 200, bottom: 1100 }, 190, 1000),
+    ).toBe(0);
+  });
+
+  it("puts a tall row's head under the stack, never centres it", () => {
+    expect(
+      deriveRowLandingCorrection({ top: 50, bottom: 950 }, 190, 1000),
+    ).toBe(-156);
+  });
+
+  it("pulls up a tall row whose head sits low in the band", () => {
+    expect(
+      deriveRowLandingCorrection({ top: 800, bottom: 1700 }, 190, 1000),
+    ).toBe(594);
   });
 });

@@ -51,26 +51,19 @@ import {
   deriveGroupHeadingId,
   deriveGroupSectionId,
   groupStartIndexes,
+  readNumericCssVar,
   SCROLL_ABORT_EVENTS,
+  STICKY_STACK_HEIGHT_VAR,
   toggleSetMember,
 } from "./utils";
 
 const EMPTY_CHUNK_IDS: string[] = [];
 
-function numericCssVar(name: string): number {
-  if (typeof window === "undefined") return 0;
-  const value = window
-    .getComputedStyle(document.documentElement)
-    .getPropertyValue(name);
-  const parsed = Number.parseFloat(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
 function focusScrollOffset(): number {
   // The whole pinned stack, read as one registered length rather than
   // re-added from its parts here, the parts drifting apart between call
   // sites is what put a landing underneath the toolbar.
-  return numericCssVar("--sticky-stack-h") + 40;
+  return readNumericCssVar(STICKY_STACK_HEIGHT_VAR) + 40;
 }
 
 function scrollElementToTop(
@@ -118,13 +111,20 @@ function correctLanding(element: HTMLElement, align: ChunkScrollAlign): void {
   window.scrollBy({ behavior: "instant", top: delta });
 }
 
+interface ChunkScroller {
+  scrollToChunk: (
+    chunkId: string,
+    behavior?: ScrollBehavior,
+    align?: ChunkScrollAlign,
+  ) => void;
+  /** Drops the deferred scroll and its settle nudge; a row landing calls it
+   * so the chunk's own correction cannot pull the row back under the stack. */
+  cancelChunkScroll: () => void;
+}
+
 function useChunkScroller(
   chunkWindows: ChunkWindowRegistry | null,
-): (
-  chunkId: string,
-  behavior?: ScrollBehavior,
-  align?: ChunkScrollAlign,
-) => void {
+): ChunkScroller {
   const pending = useRef<PendingChunkScroll>({
     timeout: null,
     firstFrame: null,
@@ -212,7 +212,7 @@ function useChunkScroller(
     [],
   );
 
-  return useCallback(
+  const scrollToChunk = useCallback(
     (
       chunkId: string,
       behavior: ScrollBehavior = "smooth",
@@ -267,6 +267,8 @@ function useChunkScroller(
     },
     [cancelPendingScroll, chunkWindows, settleAndCorrect],
   );
+
+  return { scrollToChunk, cancelChunkScroll: cancelPendingScroll };
 }
 
 export interface UseReadingSessionInput {
@@ -328,6 +330,8 @@ export interface UseReadingSessionValue {
     behavior?: ScrollBehavior,
     align?: ChunkScrollAlign,
   ) => void;
+  /** Drops a pending chunk scroll; a row landing takes over from it. */
+  cancelChunkScroll: () => void;
   /** The keyboard-shortcut jump: align="top" while focus mode is on. */
   jumpToChunkFromShortcut: (chunkId: string) => void;
   /** Ensure-open for row-target jumps; wayfinding jumps never call it. */
@@ -367,7 +371,9 @@ export function useReadingSession(
   );
   const reviewOutcome = useReviewSession((state) => state.reviewOutcome);
   const actions = useReviewSessionActions();
-  const scrollToChunk = useChunkScroller(chunkWindows ?? null);
+  const { scrollToChunk, cancelChunkScroll } = useChunkScroller(
+    chunkWindows ?? null,
+  );
   // RENDERED (grouped) order, not raw brief order, the StoryView lays chunks
   // out by group, so J/K must follow the same sequence.
   const readingOrderedChunks = useMemo(
@@ -733,6 +739,7 @@ export function useReadingSession(
     toggleChunk,
     markReviewed,
     jumpToChunk,
+    cancelChunkScroll,
     jumpToChunkFromShortcut,
     openChunk,
     jumpToGroup,

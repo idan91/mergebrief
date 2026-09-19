@@ -250,6 +250,7 @@ export function useBriefScreenFacade({
     conversationFocusThreadId,
     conversationFilter,
     jumpToChunk,
+    cancelChunkScroll: session.cancelChunkScroll,
     ensureChunkOpen: session.openChunk,
     model,
     readingOrderedChunks,

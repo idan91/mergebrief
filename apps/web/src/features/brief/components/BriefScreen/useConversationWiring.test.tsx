@@ -127,6 +127,7 @@ function renderWiring(
     );
   }
   const jumpToChunk = vi.fn();
+  const cancelChunkScroll = vi.fn();
   const ensureChunkOpen = vi.fn();
   const { result } = renderHook(
     () =>
@@ -136,6 +137,7 @@ function renderWiring(
         conversationFocusThreadId: undefined,
         conversationFilter,
         jumpToChunk,
+        cancelChunkScroll,
         ensureChunkOpen,
         model: buildBriefViewModel(brief),
         readingOrderedChunks: [chunk()],
@@ -143,7 +145,13 @@ function renderWiring(
       }),
     { wrapper },
   );
-  return { result, invalidate, jumpToChunk, ensureChunkOpen };
+  return {
+    result,
+    invalidate,
+    jumpToChunk,
+    cancelChunkScroll,
+    ensureChunkOpen,
+  };
 }
 
 describe("useConversationWiring, resolution", () => {
@@ -255,6 +263,134 @@ describe("useConversationWiring, filter facets", () => {
   it("has no facets before the conversation resolves", () => {
     const { result } = renderWiring(plan());
     expect(result.current.conversationFilterFacets).toBeUndefined();
+  });
+});
+
+interface MountedThreadRow {
+  row: HTMLElement;
+  measure: ReturnType<typeof vi.fn>;
+}
+
+function mountThreadCard(rowTop: number, rowHeight = 44): MountedThreadRow {
+  const card = document.createElement("section");
+  card.id = "c1";
+  card.innerHTML =
+    '<table><tbody><tr data-conversation-thread="7"><td><button>open</button></td></tr></tbody></table>';
+  document.body.append(card);
+  const row = card.querySelector("tr")!;
+  const measure = vi.fn(
+    () => ({ top: rowTop, bottom: rowTop + rowHeight }) as DOMRect,
+  );
+  row.getBoundingClientRect = measure;
+  return { row, measure };
+}
+
+// jsdom's viewport is 768 tall; under a 190px stack the band runs 190 to 768.
+describe("useConversationWiring, thread landing holds the row", () => {
+  const scrollBy = vi.fn();
+  const nativeScrollBy = window.scrollBy;
+  const nativeScrollIntoView = Element.prototype.scrollIntoView;
+  const nativeScrollY = Object.getOwnPropertyDescriptor(window, "scrollY");
+
+  function jumpToThread(result: ReturnType<typeof renderWiring>["result"]) {
+    act(() => {
+      result.current.jumpToChunkFromConversation("c1", {
+        rowId: "c1:0",
+        threadId: 7,
+      });
+    });
+  }
+
+  afterEach(() => {
+    for (const card of document.body.querySelectorAll("section")) card.remove();
+    document.documentElement.style.removeProperty("--sticky-stack-h");
+    scrollBy.mockReset();
+    window.scrollBy = nativeScrollBy;
+    Element.prototype.scrollIntoView = nativeScrollIntoView;
+    if (nativeScrollY !== undefined) {
+      Object.defineProperty(window, "scrollY", nativeScrollY);
+    }
+  });
+
+  function stubScrolling() {
+    Element.prototype.scrollIntoView = vi.fn();
+    window.scrollBy = scrollBy;
+    document.documentElement.style.setProperty("--sticky-stack-h", "190px");
+  }
+
+  it("cancels the chunk scroll once the thread row is found", async () => {
+    stubScrolling();
+    mountThreadCard(400);
+    const { result, cancelChunkScroll } = renderWiring(plan());
+    jumpToThread(result);
+
+    await waitFor(() => expect(cancelChunkScroll).toHaveBeenCalled());
+  });
+
+  it("moves a row that settled under the sticky stack clear of it", async () => {
+    stubScrolling();
+    mountThreadCard(140);
+    const { result } = renderWiring(plan());
+    jumpToThread(result);
+
+    await waitFor(() =>
+      expect(scrollBy).toHaveBeenCalledWith({ behavior: "instant", top: -66 }),
+    );
+  });
+
+  it("waits out a smooth scroll that starts late before correcting", async () => {
+    stubScrolling();
+    mountThreadCard(140);
+    // One read per polled frame: still for 6, moving for 5, then still.
+    let reads = 0;
+    Object.defineProperty(window, "scrollY", {
+      configurable: true,
+      get: () => {
+        reads += 1;
+        if (reads <= 6) return 0;
+        return Math.min(reads, 11) * 10;
+      },
+    });
+    let readsAtCorrection = 0;
+    scrollBy.mockImplementation(() => {
+      readsAtCorrection = reads;
+    });
+    const { result } = renderWiring(plan());
+    jumpToThread(result);
+
+    await waitFor(() => expect(scrollBy).toHaveBeenCalled());
+    expect(readsAtCorrection).toBeGreaterThan(11);
+  });
+
+  it("leaves a row that settled in view where it is", async () => {
+    stubScrolling();
+    const { measure } = mountThreadCard(400);
+    const { result } = renderWiring(plan());
+    jumpToThread(result);
+
+    await waitFor(() => expect(measure).toHaveBeenCalled());
+    expect(scrollBy).not.toHaveBeenCalled();
+  });
+
+  it("puts an expanded thread's head under the stack, not its middle", async () => {
+    stubScrolling();
+    mountThreadCard(40, 900);
+    const { result } = renderWiring(plan());
+    jumpToThread(result);
+
+    await waitFor(() =>
+      expect(scrollBy).toHaveBeenCalledWith({ behavior: "instant", top: -166 }),
+    );
+  });
+
+  it("leaves an expanded thread whose head is already readable", async () => {
+    stubScrolling();
+    const { measure } = mountThreadCard(200, 900);
+    const { result } = renderWiring(plan());
+    jumpToThread(result);
+
+    await waitFor(() => expect(measure).toHaveBeenCalled());
+    expect(scrollBy).not.toHaveBeenCalled();
   });
 });
 

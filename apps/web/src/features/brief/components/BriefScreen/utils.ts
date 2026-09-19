@@ -283,6 +283,56 @@ export function resolveRiskEvidence(
 /** User inputs that abort an in-flight programmatic landing. */
 export const SCROLL_ABORT_EVENTS = ["wheel", "touchstart", "keydown"] as const;
 
+/** The whole pinned stack as one registered length; the header writes it. */
+export const STICKY_STACK_HEIGHT_VAR = "--sticky-stack-h";
+
+export function readNumericCssVar(name: string): number {
+  if (typeof window === "undefined") return 0;
+  const value = window
+    .getComputedStyle(document.documentElement)
+    .getPropertyValue(name);
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export interface VerticalExtent {
+  top: number;
+  bottom: number;
+}
+
+/** Air between a corrected row and the edge of the band it was past. */
+const ROW_LANDING_GAP_PX = 16;
+
+/**
+ * How far to scroll so a landed row is readable, 0 when it already is. The
+ * band runs from the pinned stack to the viewport bottom. The move is the
+ * smallest that clears the edge the row is past, so a few clipped pixels never
+ * cost a jump. A row taller than the band can never fit: its head goes under
+ * the stack, and counts as readable anywhere in the band's upper half.
+ */
+export function deriveRowLandingCorrection(
+  extent: VerticalExtent,
+  stickyStackHeight: number,
+  viewportHeight: number,
+): number {
+  const bandHeight = viewportHeight - stickyStackHeight;
+  const bandMiddle = stickyStackHeight + bandHeight / 2;
+  const rowHeight = extent.bottom - extent.top;
+
+  if (rowHeight > bandHeight) {
+    const headReadable =
+      extent.top >= stickyStackHeight && extent.top <= bandMiddle;
+    if (headReadable) return 0;
+    return extent.top - (stickyStackHeight + ROW_LANDING_GAP_PX);
+  }
+
+  if (extent.top < stickyStackHeight)
+    return extent.top - (stickyStackHeight + ROW_LANDING_GAP_PX);
+  if (extent.bottom > viewportHeight)
+    return extent.bottom - (viewportHeight - ROW_LANDING_GAP_PX);
+  return 0;
+}
+
 /**
  * The header queries this boundary to collapse its title as content reaches it.
  * Keep this behavioral marker outside both views so switching cannot unmount it.

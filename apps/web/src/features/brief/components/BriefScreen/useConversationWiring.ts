@@ -2,7 +2,14 @@
 // conversation query and its per-chunk digest, the composer wiring, and the
 // digest→diff jump choreography.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type RefObject,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import type {
   ConversationPlan,
@@ -35,13 +42,21 @@ import type { Mutable } from "types/utils";
 import type { BriefChunk } from "../../types";
 import {
   conversationGroupIds,
+  deriveRowLandingCorrection,
   disabledComparisonQuery,
+  readNumericCssVar,
   SCROLL_ABORT_EVENTS,
+  STICKY_STACK_HEIGHT_VAR,
 } from "./utils";
 
 /** Frames to await a landing target across a windowed jump's whole flight
  * (mount happens as the smooth scroll approaches; ~1.5s at 60Hz). */
 const LANDING_POLL_FRAMES = 90;
+/** Consecutive still frames that count as "the row's scroll stopped". */
+const ROW_SETTLE_FRAMES = 3;
+// A smooth scroll can take a few frames to start; stillness before it has
+// moved is not a settled scroll. Past this many frames it is not coming.
+const ROW_SCROLL_START_FRAMES = 12;
 
 export interface UseConversationWiringInput {
   briefId: string;
@@ -55,6 +70,9 @@ export interface UseConversationWiringInput {
    * churn the plan identity the ChunkCard memos ride on. */
   conversationFilter: ConversationFilter | undefined;
   jumpToChunk: (chunkId: string, behavior?: ScrollBehavior) => void;
+  /** A found row takes the scroll over: the chunk jump's deferred scroll and
+   * settle nudge would otherwise land last and park the row under the stack. */
+  cancelChunkScroll: () => void;
   /** Conversation landings are row targets, rows only exist on open cards. */
   ensureChunkOpen: (chunkId: string) => void;
   model: BriefViewModel;
@@ -115,6 +133,7 @@ export function useConversationWiring(
     conversationFocusThreadId,
     conversationFilter,
     jumpToChunk,
+    cancelChunkScroll,
     ensureChunkOpen,
     model,
     readingOrderedChunks,
@@ -399,6 +418,7 @@ export function useConversationWiring(
         landingFrameRef.current = null;
         const row = findLandingRow(chunkId, target);
         if (row instanceof HTMLElement) {
+          cancelChunkScroll();
           // Same reduced-motion gate as every other programmatic scroll.
           row.scrollIntoView({
             behavior: prefersReducedMotion() ? "auto" : "smooth",
@@ -406,6 +426,7 @@ export function useConversationWiring(
           });
           resolveLandingFocus(row, target).focus({ preventScroll: true });
           flashConversationTarget(row);
+          settleRowLanding(row, landingFrameRef);
           return;
         }
         attempts -= 1;
@@ -415,7 +436,13 @@ export function useConversationWiring(
       };
       landingFrameRef.current = window.requestAnimationFrame(landOnRow);
     },
-    [cancelLanding, ensureChunkOpen, flashConversationTarget, jumpToChunk],
+    [
+      cancelChunkScroll,
+      cancelLanding,
+      ensureChunkOpen,
+      flashConversationTarget,
+      jumpToChunk,
+    ],
   );
 
   return {
@@ -431,6 +458,56 @@ export function useConversationWiring(
     open,
     toggleOpen,
   };
+}
+
+/**
+ * A windowed list's measurements can kill a smooth scroll mid-flight, so once
+ * the scroll stops the row gets one instant correction if it is not readable.
+ * It rides the landing's frame ref, so the user's own input cancels it too.
+ */
+function settleRowLanding(
+  row: HTMLElement,
+  frameRef: RefObject<number | null>,
+): void {
+  let framesLeft = LANDING_POLL_FRAMES;
+  let framesPolled = 0;
+  let hasMoved = false;
+  let stillFrames = 0;
+  let lastScrollY = window.scrollY;
+  const poll = () => {
+    frameRef.current = null;
+    const scrollY = window.scrollY;
+    const moved = scrollY !== lastScrollY;
+    lastScrollY = scrollY;
+    framesLeft -= 1;
+    framesPolled += 1;
+
+    if (moved) hasMoved = true;
+    const scrollStarted = hasMoved || framesPolled > ROW_SCROLL_START_FRAMES;
+    if (moved || !scrollStarted) {
+      stillFrames = 0;
+    } else {
+      stillFrames += 1;
+    }
+
+    if (stillFrames >= ROW_SETTLE_FRAMES) {
+      correctRowLanding(row);
+      return;
+    }
+    if (framesLeft > 0) frameRef.current = window.requestAnimationFrame(poll);
+  };
+  frameRef.current = window.requestAnimationFrame(poll);
+}
+
+function correctRowLanding(row: HTMLElement): void {
+  if (!row.isConnected) return;
+  const correction = deriveRowLandingCorrection(
+    row.getBoundingClientRect(),
+    readNumericCssVar(STICKY_STACK_HEIGHT_VAR),
+    window.innerHeight,
+  );
+  if (correction !== 0)
+    window.scrollBy({ behavior: "instant", top: correction });
 }
 
 /**
