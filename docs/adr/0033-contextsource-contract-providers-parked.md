@@ -116,8 +116,7 @@ story actually improves.
 - **ADR 0026** unchanged: the parked pair stays parked; collision vocabulary keeps
   reserving their names.
 - **Roadmap:** `oss-roadmap.md` gains the v1/v2 split (2026-07-18); BRIEF-13 moves
-  Next → Backlog (v2), BRIEF-61 stays Backlog (v2). Wayfinder map closed:
-  <https://app.notion.com/p/3a05e9400eeb815d8304c22cfc64aa80>.
+  Next → Backlog (v2), BRIEF-61 stays Backlog (v2). Wayfinder map closed.
 - **Revisit triggers:** local/git provider — briefs visibly starving on repos with
   thin PR hygiene (this repo was a worst-case test bed: rich descriptions, documented
   code); BRIEF-61 — post-launch demand (unchanged); structure enrichment — ≥2 real

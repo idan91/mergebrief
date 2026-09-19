@@ -282,7 +282,7 @@ describe("loadGeneratorConfigFile", () => {
   it("accepts a trackers root key block in file order", () => {
     const result = loadGeneratorConfigFile(
       configFile(
-        "generator:\n  provider: anthropic\ntrackers:\n  - kind: notion\n    keyPrefix: BRIEF\n    databaseId: 3935e940-0eeb-80b0-ad46-000b1ce17b37\n  - kind: github\n",
+        "generator:\n  provider: anthropic\ntrackers:\n  - kind: notion\n    keyPrefix: BRIEF\n    databaseId: 1a2b3c4d-5e6f-4071-8293-a4b5c6d7e8f9\n  - kind: github\n",
       ),
     );
     expect(result.ok).toBe(true);
@@ -291,7 +291,7 @@ describe("loadGeneratorConfigFile", () => {
       {
         kind: "notion",
         keyPrefix: "BRIEF",
-        databaseId: "3935e9400eeb80b0ad46000b1ce17b37",
+        databaseId: "1a2b3c4d5e6f40718293a4b5c6d7e8f9",
       },
       { kind: "github" },
     ]);

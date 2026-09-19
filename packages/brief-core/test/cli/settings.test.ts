@@ -24,14 +24,14 @@ describe("readLocalTracker", () => {
 
   it("reads the tracker block and ignores other keys", async () => {
     await writeSettings(
-      "version: 1\nentryCommentOnDrafts: true\ntracker:\n  kind: notion\n  keyPrefix: BRIEF\n  databaseId: 3935e9400eeb80b0ad46000b1ce17b37\n",
+      "version: 1\nentryCommentOnDrafts: true\ntracker:\n  kind: notion\n  keyPrefix: BRIEF\n  databaseId: 1a2b3c4d5e6f40718293a4b5c6d7e8f9\n",
     );
     expect(readLocalTracker(cwd)).toEqual({
       trackers: [
         {
           kind: "notion",
           keyPrefix: "BRIEF",
-          databaseId: "3935e9400eeb80b0ad46000b1ce17b37",
+          databaseId: "1a2b3c4d5e6f40718293a4b5c6d7e8f9",
         },
       ],
     });
@@ -39,7 +39,7 @@ describe("readLocalTracker", () => {
 
   it("reads a trackers list in file order", async () => {
     await writeSettings(
-      "version: 1\ntrackers:\n  - kind: notion\n    keyPrefix: BRIEF\n    databaseId: 3935e9400eeb80b0ad46000b1ce17b37\n  - kind: notion\n    keyPrefix: DS\n    databaseId: 4935e9400eeb80b0ad46000b1ce17b37\n  - kind: github\n",
+      "version: 1\ntrackers:\n  - kind: notion\n    keyPrefix: BRIEF\n    databaseId: 1a2b3c4d5e6f40718293a4b5c6d7e8f9\n  - kind: notion\n    keyPrefix: DS\n    databaseId: 4935e9400eeb80b0ad46000b1ce17b37\n  - kind: github\n",
     );
     expect(readLocalTracker(cwd).trackers.map((t) => t.kind)).toEqual([
       "notion",

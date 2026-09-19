@@ -160,7 +160,7 @@ version: 1
 tracker:
   kind: notion
   keyPrefix: BRIEF # keys match only this prefix
-  databaseId: 3935e940-0eeb-80b0-ad46-000b1ce17b37 # data source id or database id
+  databaseId: 1a2b3c4d-5e6f-4071-8293-a4b5c6d7e8f9 # data source id or database id
 ```
 
 A repo whose tickets live on several boards lists them under `trackers:`

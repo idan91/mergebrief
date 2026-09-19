@@ -1981,11 +1981,6 @@
       "count": 5
     }
   },
-  "packages/repo-config/test/settings.test.ts": {
-    "house/test-title": {
-      "count": 2
-    }
-  },
   "tools/categorizer/eval/briefQueries.ts": {
     "house/no-em-dash": {
       "count": 2

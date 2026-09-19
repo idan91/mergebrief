@@ -4,7 +4,7 @@
 
 Logged 2026-07-05 (BRIEF-2 grill wrap-up). The M1 backend's runtime design is currently
 spread across ADRs (0006/0015/0016/0018/0020/0024, several amended in place), two plan docs,
-and grill outcomes on Notion tickets. Once BRIEF-2 + BRIEF-3 ship, consolidate into **one
+and grill outcomes on tickets. Once BRIEF-2 + BRIEF-3 ship, consolidate into **one
 coherent system-design doc** (likely `docs/system-overview.md` §3 rewritten, or a sibling
 `docs/self-host/architecture.md`):
 

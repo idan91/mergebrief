@@ -60,7 +60,7 @@ version: 1
 trackers:
   - kind: notion
     keyPrefix: BRIEF        # notion: required; keys never match without it
-    databaseId: 3935e9400eeb80b0ad46000b1ce17b37   # notion: required; database or data source id, dashes optional
+    databaseId: 1a2b3c4d5e6f40718293a4b5c6d7e8f9   # notion: required; database or data source id, dashes optional
   - kind: notion
     keyPrefix: DS           # a second board: its own prefix, its own database
     databaseId: 4935e9400eeb80b0ad46000b1ce17b37
@@ -83,7 +83,7 @@ version: 1
 tracker:
   kind: notion
   keyPrefix: BRIEF
-  databaseId: 3935e9400eeb80b0ad46000b1ce17b37
+  databaseId: 1a2b3c4d5e6f40718293a4b5c6d7e8f9
 ```
 
 The brief's Intent check names one **primary ticket** per PR, found in the

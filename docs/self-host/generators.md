@@ -73,7 +73,7 @@ generator:
 # trackers:
 #   - kind: notion
 #     keyPrefix: BRIEF
-#     databaseId: 3935e9400eeb80b0ad46000b1ce17b37
+#     databaseId: 1a2b3c4d5e6f40718293a4b5c6d7e8f9
 #   - kind: github
 
 # x-*: root keys starting with "x-" are ignored (compose-style extension

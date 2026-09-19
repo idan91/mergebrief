@@ -26,7 +26,7 @@ describe("settings.yaml validation", () => {
     });
   });
 
-  it("rejects an unknown key (typo must not silently no-op)", () => {
+  it("rejects an unknown key so a typo cannot silently no-op", () => {
     const result = validate(yaml({ version: 1, entryCommentOnDraft: true }));
     expect(result.settings).toBeUndefined();
     expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcomes.INVALID);
@@ -51,7 +51,7 @@ describe("settings.yaml validation", () => {
     const tracker = {
       kind: "notion",
       keyPrefix: "BRIEF",
-      databaseId: "3935e9400eeb80b0ad46000b1ce17b37",
+      databaseId: "1a2b3c4d5e6f40718293a4b5c6d7e8f9",
     };
     const result = validate(yaml({ version: 1, tracker }));
     expect(result.settings?.tracker).toEqual(tracker);
@@ -62,12 +62,12 @@ describe("settings.yaml validation", () => {
     const tracker = {
       kind: "notion",
       keyPrefix: "BRIEF",
-      databaseId: "3935e940-0eeb-80b0-ad46-000b1ce17b37",
+      databaseId: "1a2b3c4d-5e6f-4071-8293-a4b5c6d7e8f9",
     };
     const result = validate(yaml({ version: 1, tracker }));
     expect(result.settings?.tracker).toEqual({
       ...tracker,
-      databaseId: "3935e9400eeb80b0ad46000b1ce17b37",
+      databaseId: "1a2b3c4d5e6f40718293a4b5c6d7e8f9",
     });
   });
 
@@ -101,7 +101,7 @@ describe("settings.yaml validation", () => {
       {
         kind: "notion",
         keyPrefix: "BRIEF",
-        databaseId: "3935e9400eeb-80b0-ad46-000b1ce17b37",
+        databaseId: "1a2b3c4d5e6f-4071-8293-a4b5c6d7e8f9",
       },
     ],
     [
@@ -174,7 +174,7 @@ describe("settings.yaml validation", () => {
     expect(result.outcomes[1]?.bytesBudget).toBe(SETTINGS_MAX_BYTES);
   });
 
-  it("warns (but stays applied) when nearing the cap (≥80%)", () => {
+  it("warns and stays applied when nearing 80% of the cap", () => {
     const content = padYamlToBytes(
       yaml({ version: 1 }),
       Math.ceil(SETTINGS_MAX_BYTES * 0.85),

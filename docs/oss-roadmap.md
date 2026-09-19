@@ -241,7 +241,7 @@ hosted arm, headless API, semantic/code-graph + diagram arms race.
 
 ---
 
-## V1 vs V2 (2026-07-18 split — aligned with the Notion board)
+## V1 vs V2 (2026-07-18 split)
 
 > P0–P4 above are **done**; the P-sequence is history. This section is the live
 > prioritization: what must land before the OSS launch cutover (v1) vs what is
@@ -394,8 +394,7 @@ should start without it firing:
   (shaped `target_type` + closed metadata value types), purge/retention routines, session-token
   crypto, docker-compose Postgres. 85 PGlite tests against the checked-in migrations; review
   hardening added vocab/shape CHECK constraints (vocab additions now need code + migration in
-  lockstep). Work tracked as BRIEF-x tickets on the Notion board (link in
-  `packages/persistence/AGENTS.md`). README gained the "Your data" section. Known gap (CI not
+  lockstep). Work tracked as BRIEF-x tickets. README gained the "Your data" section. Known gap (CI not
   covering `packages/persistence`) closed by PR #24. **Next: BRIEF-2 (GitHub App + webhooks, WS2).**
 - 2026-07-05 — **P4 WS2 done (BRIEF-2, PRs #25/#26/#27).** GitHub App + webhook ingest + reviewer
   read path land end to end: `packages/github` (App auth, webhook verify + event parsing, comment +
@@ -453,7 +452,7 @@ should start without it firing:
   "view raw span diff" affordance in the Changes Only pane rendering
   `GET /diff?base=<checkpoint-sha>&head=<head>` (the live proxy already serves arbitrary spans
   behind the same gate) — exactly the GitHub-compare view for the personal span. Slotted to
-  BRIEF-24 (span navigation/views); BRIEF-21 shipped without it. Also add to the Notion
+  BRIEF-24 (span navigation/views); BRIEF-21 shipped without it. Also add to the
   BRIEF-24 ticket (agent write was permission-blocked).
 - 2026-07-18 — **BRIEF-13 design pass done → ADR 0033; providers parked; v1/v2 split
   added above.** The ContextSource wayfinder map locked the provider contract (query

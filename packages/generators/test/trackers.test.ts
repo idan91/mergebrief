@@ -42,11 +42,11 @@ describe("resolveEffectiveTrackers", () => {
 describe("validateTrackersBlock", () => {
   it("applies a list and normalises a dashed notion id", () => {
     const result = validateTrackersBlock([
-      { ...BRIEF, databaseId: "3935e940-0eeb-80b0-ad46-000b1ce17b37" },
+      { ...BRIEF, databaseId: "1a2b3c4d-5e6f-4071-8293-a4b5c6d7e8f9" },
       { kind: "github", issuesRepo: "acme/tracker" },
     ]);
     expect(result.ok && result.value[0]).toMatchObject({
-      databaseId: "3935e9400eeb80b0ad46000b1ce17b37",
+      databaseId: "1a2b3c4d5e6f40718293a4b5c6d7e8f9",
     });
   });
 
