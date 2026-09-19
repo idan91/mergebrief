@@ -17,6 +17,7 @@ import {
   buildChunkComparisonView,
   type ComparisonMarkFiles,
 } from "../../comparison/comparison";
+import type { ConversationPlan } from "@web/features/conversation";
 import type { BriefChunkSize } from "@web/utils/diffTokens/types";
 import type { ProgressTotals } from "../../utils/progress";
 import type {
@@ -396,4 +397,24 @@ export function deriveChunkSizes(chunks: BriefChunk[]): BriefChunkSize[] {
   }
 
   return sizes;
+}
+
+/**
+ * The plan with each posted reply reporting its wrapping review id, so the
+ * reply reads as the reviewer's own before the next session read confirms it.
+ */
+export function buildReplyRecordingPlan(
+  plan: ConversationPlan,
+  recordSubmittedReview: (reviewId: number) => void,
+): ConversationPlan {
+  return {
+    ...plan,
+    postReply: async (rootCommentId, body) => {
+      const result = await plan.postReply(rootCommentId, body);
+      if (result.kind === "posted" && result.reviewId !== undefined) {
+        recordSubmittedReview(result.reviewId);
+      }
+      return result;
+    },
+  };
 }

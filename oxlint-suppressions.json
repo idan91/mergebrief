@@ -728,11 +728,6 @@
       "count": 9
     }
   },
-  "apps/web/src/features/conversation/reply.test.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "apps/web/src/features/conversation/resolve.test.ts": {
     "house/no-em-dash": {
       "count": 2

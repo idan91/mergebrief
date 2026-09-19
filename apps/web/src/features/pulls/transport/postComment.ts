@@ -9,14 +9,10 @@ import {
   errorFromResponse,
   type ApiErrorCode,
 } from "../../../data/apiFetch";
-import type { Mutable } from "types/utils";
-
-/** 201, posted; `reviewId` is the wrapping review id when GitHub assigns one. */
-export interface PostedComment {
-  readonly kind: "posted";
-  readonly commentId: number;
-  readonly reviewId?: number;
-}
+import {
+  parsePostedComment,
+  type PostedComment,
+} from "../../../data/postedComment";
 
 export type PostCommentResult =
   | PostedComment
@@ -88,26 +84,6 @@ export interface PostCommentPayload {
   readonly draftId: string;
 }
 
-function isPostedBody(
-  value: unknown,
-): value is { commentId: number; reviewId?: number } {
-  if (
-    typeof value !== "object" ||
-    value === null ||
-    !("commentId" in value) ||
-    typeof value.commentId !== "number" ||
-    !Number.isSafeInteger(value.commentId)
-  ) {
-    return false;
-  }
-  if ("reviewId" in value && value.reviewId !== undefined) {
-    return (
-      typeof value.reviewId === "number" && Number.isSafeInteger(value.reviewId)
-    );
-  }
-  return true;
-}
-
 export async function postInlineComment(
   repoId: string,
   prNumber: number,
@@ -131,15 +107,9 @@ export async function postInlineComment(
   } catch {
     throw new ApiError(ApiErrorCodes.MALFORMED, response.status, path);
   }
-  if (!isPostedBody(parsed)) {
+  const posted = parsePostedComment(parsed);
+  if (posted === undefined) {
     throw new ApiError(ApiErrorCodes.MALFORMED, response.status, path);
   }
-  const posted: Mutable<PostedComment> = {
-    kind: "posted",
-    commentId: parsed.commentId,
-  };
-
-  if (parsed.reviewId !== undefined) posted.reviewId = parsed.reviewId;
-
   return posted;
 }

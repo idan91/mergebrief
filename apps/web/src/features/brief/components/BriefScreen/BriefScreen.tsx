@@ -114,6 +114,7 @@ export function BriefScreen({
     diffView,
     toggleDiffView,
     cardTrack,
+    conversationPlan,
   } = useBriefScreenFacade({
     livePrState,
     artifacts,
@@ -284,7 +285,7 @@ export function BriefScreen({
                   />
                 ) : null}
 
-                {regions.conversation && conversation !== undefined ? (
+                {regions.conversation && conversationPlan !== undefined ? (
                   <ConversationSection
                     key={`conversation-${briefId}`}
                     {...conversationReadOnly}
@@ -298,7 +299,7 @@ export function BriefScreen({
                     }
                     open={conversationWiring.open}
                     onToggle={conversationWiring.toggleOpen}
-                    plan={conversation}
+                    plan={conversationPlan}
                     submittedReviewIds={session.submittedReviewIds}
                   />
                 ) : null}

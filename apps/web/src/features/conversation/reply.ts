@@ -9,9 +9,19 @@ import {
   errorFromResponse,
   type ApiErrorCode,
 } from "../../data/apiFetch";
+import {
+  parsePostedComment,
+  type PostedComment,
+} from "../../data/postedComment";
+
+/** The Brief a reply was written from; the API records the reply against it. */
+export interface ReplyBriefSpan {
+  readonly base: string;
+  readonly head: string;
+}
 
 export type ReplyResult =
-  | { readonly kind: "posted"; readonly commentId: number }
+  | PostedComment
   /** 401: session expired; sign in again. Draft stays. */
   | { readonly kind: "unauthorized" }
   /** 404: the thread's root comment (or the PR) is gone. */
@@ -69,23 +79,15 @@ const KindForCode = {
   [ApiErrorCodes.MALFORMED]: "upstream",
 } as const satisfies Record<ApiErrorCode, ReplyFailureKind>;
 
-function isPostedBody(value: unknown): value is { commentId: number } {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "commentId" in value &&
-    typeof value.commentId === "number" &&
-    Number.isSafeInteger(value.commentId)
-  );
-}
-
 export async function postConversationReply(
   repoId: string,
   prNumber: number,
+  span: ReplyBriefSpan,
   rootCommentId: number,
   body: string,
 ): Promise<ReplyResult> {
-  const path = `/api/repos/${encodeURIComponent(repoId)}/pulls/${String(prNumber)}/comments/${String(rootCommentId)}/replies`;
+  const query = `base=${encodeURIComponent(span.base)}&head=${encodeURIComponent(span.head)}`;
+  const path = `/api/repos/${encodeURIComponent(repoId)}/pulls/${String(prNumber)}/comments/${String(rootCommentId)}/replies?${query}`;
   const response = await apiFetch(path, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -101,8 +103,9 @@ export async function postConversationReply(
   } catch {
     throw new ApiError(ApiErrorCodes.MALFORMED, response.status, path);
   }
-  if (!isPostedBody(parsed)) {
+  const posted = parsePostedComment(parsed);
+  if (posted === undefined) {
     throw new ApiError(ApiErrorCodes.MALFORMED, response.status, path);
   }
-  return { kind: "posted", commentId: parsed.commentId };
+  return posted;
 }

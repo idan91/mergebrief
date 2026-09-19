@@ -2,7 +2,9 @@ import type { Context } from "hono";
 import {
   AnchorStatuses,
   DraftCommentStatuses,
+  ReviewSessionErrorCodes,
   createTenantRepository,
+  type ScopeContext,
 } from "persistence";
 import { ApiErrorCodes } from "contract";
 import type { InlineReviewCommentResult } from "github";
@@ -21,6 +23,10 @@ import {
   resolveSessionWrite,
   throwSessionWriteFailure,
 } from "../session/logic/write-seam";
+import sessionController, {
+  type ExistingSessionWriteFailure,
+} from "../session/controller";
+import { spanQuerySchema } from "../session/schemas";
 import commentsController from "./controller";
 import {
   throwPublishFailure,
@@ -114,6 +120,72 @@ async function recordPublishedDraft(
     c.get("logger").error("draft stayed unpublished after a posted comment", {
       commentId: String(commentId),
       err: flipError,
+    });
+  }
+}
+
+/** Refusals a reply meets in ordinary use: nothing is wrong, nothing to alert on. */
+function isOrdinaryReplyRecordRefusal(
+  failure: ExistingSessionWriteFailure,
+): boolean {
+  if (failure.kind === "target-not-found" || failure.kind === "no-session") {
+    return true;
+  }
+  return (
+    failure.kind === "session-rejected" &&
+    failure.error.code === ReviewSessionErrorCodes.SESSION_FROZEN
+  );
+}
+
+/**
+ * The reply is already on GitHub. When the request names the Brief it was
+ * written from and the reviewer holds a session there, the wrapping review id
+ * is recorded on it, so a later read knows the reply as the reviewer's own.
+ * It never creates a session, and a refusal never reaches the response.
+ */
+async function recordReplyReview(
+  deps: AuthRouteDeps,
+  c: Context<AuthzEnv>,
+  target: { readonly ctx: ScopeContext; readonly prNumber: number },
+  reviewId: number,
+) {
+  const span = spanQuerySchema.safeParse({
+    base: c.req.query("base"),
+    head: c.req.query("head"),
+  });
+  if (!span.success) return;
+
+  const log = c.get("logger");
+  try {
+    const recorded = await sessionController.writeToExistingSession(
+      deps,
+      {
+        ctx: target.ctx,
+        repoId: c.get("repoId"),
+        prNumber: target.prNumber,
+        span: span.data,
+        reviewerId: c.get("session").reviewerId,
+        log,
+      },
+      (writer) =>
+        writer.recordSubmittedReview({ githubReviewId: BigInt(reviewId) }),
+    );
+    if (recorded.ok) return;
+
+    const reason =
+      recorded.error.kind === "session-rejected"
+        ? recorded.error.error.code
+        : recorded.error.kind;
+    const fields = { reviewId: String(reviewId), reason };
+    if (isOrdinaryReplyRecordRefusal(recorded.error)) {
+      log.debug("reply review id not recorded", fields);
+    } else {
+      log.warn("reply review id stayed unrecorded", fields);
+    }
+  } catch (recordError) {
+    log.error("reply review id stayed unrecorded", {
+      reviewId: String(reviewId),
+      err: recordError,
     });
   }
 }
@@ -256,7 +328,23 @@ export default function createHandlers(
 
     stampAuditTarget(c, "review_comment", BigInt(created.value.commentId));
 
-    return c.json({ commentId: created.value.commentId }, 201, NO_STORE);
+    if (created.value.reviewId === undefined) {
+      return c.json({ commentId: created.value.commentId }, 201, NO_STORE);
+    }
+    await recordReplyReview(
+      deps,
+      c,
+      { ctx, prNumber: pr.prNumber },
+      created.value.reviewId,
+    );
+    return c.json(
+      {
+        commentId: created.value.commentId,
+        reviewId: created.value.reviewId,
+      },
+      201,
+      NO_STORE,
+    );
   };
 
   return {

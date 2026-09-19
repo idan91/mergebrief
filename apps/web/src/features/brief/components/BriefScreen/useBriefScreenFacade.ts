@@ -36,7 +36,11 @@ import { useInFlightDraftPosts } from "./useInFlightDraftPosts";
 import { useMarkReadyFlow } from "./useMarkReadyFlow";
 import { POST_COMMENT_COPY_KEYS, useOwnDraftFlow } from "./useOwnDraftFlow";
 import { useReadingSession } from "./useReadingSession";
-import { groupSinceMarkers, resolveSidebarLayout } from "./utils";
+import {
+  buildReplyRecordingPlan,
+  groupSinceMarkers,
+  resolveSidebarLayout,
+} from "./utils";
 
 /**
  * Own-draft composer block on a stale view: post-now exists only at the
@@ -244,9 +248,19 @@ export function useBriefScreenFacade({
   const openSubmit = () => setSubmitOpen(true);
   const closeSubmit = useCallback(() => setSubmitOpen(false), []);
 
+  // Identity-stable per plan: both composer wirings memo on it.
+  const recordSubmittedReview = actions.recordSubmittedReview;
+  const conversationPlan = useMemo(
+    () =>
+      conversation === undefined
+        ? undefined
+        : buildReplyRecordingPlan(conversation, recordSubmittedReview),
+    [conversation, recordSubmittedReview],
+  );
+
   const conversationWiring = useConversationWiring({
     briefId,
-    conversation,
+    conversation: conversationPlan,
     conversationFocusThreadId,
     conversationFilter,
     jumpToChunk,
@@ -466,6 +480,7 @@ export function useBriefScreenFacade({
 
   return {
     t,
+    conversationPlan,
     attributeRail,
     pendingShown,
     overlay,

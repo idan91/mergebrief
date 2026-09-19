@@ -236,6 +236,7 @@ export {
 export type {
   FetchPullRequestConversationInput,
   CreateReviewCommentReplyInput,
+  ReviewCommentReplyResult,
   PrConversation,
   ConversationThread,
   ConversationComment,

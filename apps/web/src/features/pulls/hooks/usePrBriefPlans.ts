@@ -260,7 +260,13 @@ export function usePrBriefPlans(
       // inline composers through one query key.
       collaborators: buildCollaboratorsQueryOptions(repoId),
       postReply: (rootCommentId: number, body: string) =>
-        postConversationReply(repoId, prNumber, rootCommentId, body),
+        postConversationReply(
+          repoId,
+          prNumber,
+          { base: spanBase, head: spanHead },
+          rootCommentId,
+          body,
+        ),
       resolution: {
         canResolve: viewerCanResolve,
         setResolved: (rootCommentId: number, resolved: boolean) =>
@@ -283,6 +289,8 @@ export function usePrBriefPlans(
     queryClient,
     repoId,
     revisionJump,
+    spanBase,
+    spanHead,
     viewerCanResolve,
   ]);
 

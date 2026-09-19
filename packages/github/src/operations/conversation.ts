@@ -579,6 +579,15 @@ export interface CreateReviewCommentReplyInput {
   readonly body: string;
 }
 
+export interface ReviewCommentReplyResult {
+  readonly commentId: number;
+  /**
+   * The review GitHub wraps the reply in, the own-comment join key. Absent
+   * when GitHub returns none or an unsafe one; the reply still posted.
+   */
+  readonly reviewId?: number;
+}
+
 /**
  * Reply to an existing review thread, authored by whoever the octokit's token
  * identifies. Replies post IMMEDIATELY, outside any pending review,
@@ -588,7 +597,7 @@ export interface CreateReviewCommentReplyInput {
 export async function createReviewCommentReply(
   octokit: Octokit,
   input: CreateReviewCommentReplyInput,
-): Promise<Result<{ readonly commentId: number }, GitHubApiError>> {
+): Promise<Result<ReviewCommentReplyResult, GitHubApiError>> {
   try {
     const response = await octokit.rest.pulls.createReplyForReviewComment({
       owner: input.owner,
@@ -604,7 +613,16 @@ export async function createReviewCommentReply(
         error: unexpectedResponseError("create review comment reply"),
       };
     }
-    return { ok: true, value: { commentId: response.data.id } };
+    const value: Mutable<ReviewCommentReplyResult> = {
+      commentId: response.data.id,
+    };
+    const rawReviewId = response.data.pull_request_review_id;
+    const hasSafeReviewId =
+      typeof rawReviewId === "number" && Number.isSafeInteger(rawReviewId);
+
+    if (hasSafeReviewId) value.reviewId = rawReviewId;
+
+    return { ok: true, value };
   } catch (error) {
     return {
       ok: false,

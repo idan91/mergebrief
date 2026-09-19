@@ -47,6 +47,17 @@ type ResolveWriteResult = Result<
   { readonly kind: "target-not-found" }
 >;
 
+/** Why a write meant only for a session that already exists wrote nothing. */
+export type ExistingSessionWriteFailure =
+  | { readonly kind: "target-not-found" }
+  | { readonly kind: "no-session" }
+  | SessionWriteFailure;
+
+type ExistingSessionWriteResult<Written> = Result<
+  Written,
+  ExistingSessionWriteFailure
+>;
+
 type PreviewSessionResult = Result<
   SessionPayload,
   { readonly kind: "target-not-found" } | { readonly kind: "unreadable-brief" }
@@ -167,5 +178,40 @@ export default {
         run: bindSessionWriter(deps, input, target),
       },
     } satisfies ResolveWriteResult;
+  },
+
+  /**
+   * A write for a session that already exists, and a no-op when none does. A
+   * first write materializes the session and carries the previous one's work
+   * across, which only the reviewer's own review work may set off.
+   */
+  async writeToExistingSession<Written>(
+    deps: AuthRouteDeps,
+    input: ResolveWriteInput,
+    write: (writer: SessionWriter) => Promise<Written>,
+  ): Promise<ExistingSessionWriteResult<Written>> {
+    const target = await resolveSessionTarget(
+      deps,
+      input.ctx,
+      input.repoId,
+      input.prNumber,
+      input.span,
+    );
+    if (target === undefined) {
+      return { ok: false, error: { kind: "target-not-found" } };
+    }
+
+    const existing = await createTenantRepository(
+      deps.handle,
+      input.ctx,
+    ).reviewSessions.get({
+      briefId: target.briefId,
+      reviewerId: input.reviewerId,
+    });
+    if (existing === undefined) {
+      return { ok: false, error: { kind: "no-session" } };
+    }
+
+    return bindSessionWriter(deps, input, target)(write);
   },
 };

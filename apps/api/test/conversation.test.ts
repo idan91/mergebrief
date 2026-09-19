@@ -192,6 +192,9 @@ function repoStatus(status: number): Response {
 function replyCreated(id = REPLY_ID): Response {
   return jsonResponse({ id }, 201);
 }
+function replyCreatedInReview(reviewId: number): Response {
+  return jsonResponse({ id: REPLY_ID, pull_request_review_id: reviewId }, 201);
+}
 function replyStatus(status: number): Response {
   return jsonResponse({ message: "denied" }, status);
 }
@@ -353,6 +356,14 @@ function replyPath(commentId: number | string = ROOT_COMMENT_ID): string {
 
 /** The brief the submit names, and the session opened against it. */
 async function seedBriefSession(handle: AppDatabase): Promise<void> {
+  await seedBrief(handle, true);
+}
+
+/** The brief a request names, with or without the reviewer's session on it. */
+async function seedBrief(
+  handle: AppDatabase,
+  withSession: boolean,
+): Promise<void> {
   const repo = createTenantRepository(handle, CTX);
   const pr = await repo.pullRequests.getByNumber(
     brandRepoId(BigInt(REPO_ID)),
@@ -371,6 +382,8 @@ async function seedBriefSession(handle: AppDatabase): Promise<void> {
     body: "{}",
   });
   if (!brief.ok) throw new Error("seedBriefSession: brief write failed");
+  if (!withSession) return;
+
   const written = await repo.reviewSessions.writeToSession(
     {
       briefId: brief.value.id,
@@ -654,6 +667,102 @@ describe("conversation surface", () => {
       // Mutation rule: the repo was re-resolved fresh (gate check + re-resolve).
       expect(counts.repositories).toBeGreaterThanOrEqual(2);
       expect(await replyAuditCount(harness)).toBe(1);
+    });
+
+    it("records the reply's review id on the brief the request names", async () => {
+      const { port } = stubPort([okResult()]);
+      stubGitHub({
+        repositories: () => repoOk(),
+        reply: () => replyCreatedInReview(555),
+      });
+      const { cookie } = await seedSession(harness.handle, kp);
+      await seedPullRequest(harness.handle);
+      await seedBriefSession(harness.handle);
+      const app = makeApp(port);
+
+      const res = await postReply(
+        app,
+        cookie,
+        { body: "a follow-up" },
+        `${replyPath()}?base=${BASE_SHA}&head=${HEAD_SHA}`,
+      );
+
+      expect(res.status).toBe(201);
+      expect(await res.json()).toEqual({ commentId: REPLY_ID, reviewId: 555 });
+      const rows = await harness.raw(
+        "select github_review_id from review_submitted_review",
+      );
+      expect(rows.map((row) => String(row["github_review_id"]))).toEqual([
+        "555",
+      ]);
+    });
+
+    it("still posts a reply that names no brief, recording nothing", async () => {
+      const { port } = stubPort([okResult()]);
+      stubGitHub({
+        repositories: () => repoOk(),
+        reply: () => replyCreatedInReview(555),
+      });
+      const { cookie } = await seedSession(harness.handle, kp);
+      await seedPullRequest(harness.handle);
+      await seedBriefSession(harness.handle);
+      const app = makeApp(port);
+
+      const res = await postReply(app, cookie, { body: "a follow-up" });
+
+      expect(res.status).toBe(201);
+      const rows = await harness.raw(
+        "select github_review_id from review_submitted_review",
+      );
+      expect(rows).toHaveLength(0);
+    });
+
+    it("never creates a session for a reviewer who holds none", async () => {
+      const { port } = stubPort([okResult()]);
+      stubGitHub({
+        repositories: () => repoOk(),
+        reply: () => replyCreatedInReview(555),
+      });
+      const { cookie } = await seedSession(harness.handle, kp);
+      await seedPullRequest(harness.handle);
+      await seedBrief(harness.handle, false);
+      const app = makeApp(port);
+
+      const res = await postReply(
+        app,
+        cookie,
+        { body: "a follow-up" },
+        `${replyPath()}?base=${BASE_SHA}&head=${HEAD_SHA}`,
+      );
+
+      expect(res.status).toBe(201);
+      const sessions = await harness.raw("select id from review_session");
+      const recorded = await harness.raw(
+        "select id from review_submitted_review",
+      );
+      expect(sessions).toHaveLength(0);
+      expect(recorded).toHaveLength(0);
+    });
+
+    it("keeps 201 when the named brief does not exist", async () => {
+      const { port } = stubPort([okResult()]);
+      stubGitHub({
+        repositories: () => repoOk(),
+        reply: () => replyCreatedInReview(555),
+      });
+      const { cookie } = await seedSession(harness.handle, kp);
+      await seedPullRequest(harness.handle);
+      const app = makeApp(port);
+
+      const res = await postReply(
+        app,
+        cookie,
+        { body: "a follow-up" },
+        `${replyPath()}?base=${BASE_SHA}&head=${HEAD_SHA}`,
+      );
+
+      expect(res.status).toBe(201);
+      expect(await res.json()).toEqual({ commentId: REPLY_ID, reviewId: 555 });
     });
 
     it("400s empty or oversized replies without posting", async () => {

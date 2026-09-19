@@ -292,17 +292,15 @@ describe("ConversationSection", () => {
       },
     });
     expect(
-      await screen.findByText(
-        "1 comment arrived after this brief was generated",
-      ),
+      await screen.findByText("1 new comment since this brief was generated"),
     ).toBeDefined();
   });
 
   it("omits the count line without a cutoff and marks nothing", async () => {
     renderSection({ plan: plan([ready()]) });
     await screen.findByText("changes requested");
-    expect(screen.queryByText(/arrived after this brief/)).toBeNull();
-    expect(screen.queryByText("after this brief")).toBeNull();
+    expect(screen.queryByText(/since this brief was generated/)).toBeNull();
+    expect(screen.queryByText("new since this brief")).toBeNull();
   });
 
   it("chips a postdating comment inside the expanded thread detail", async () => {
@@ -314,9 +312,7 @@ describe("ConversationSection", () => {
     });
     // Both fixture comments postdate the cutoff.
     expect(
-      await screen.findByText(
-        "2 comments arrived after this brief was generated",
-      ),
+      await screen.findByText("2 new comments since this brief was generated"),
     ).toBeDefined();
     // Expand alice's (human) thread row, its detail chips the comment.
     fireEvent.click(
@@ -324,7 +320,7 @@ describe("ConversationSection", () => {
         name: /This null check looks inverted/,
       }),
     );
-    expect(await screen.findByText("after this brief")).toBeDefined();
+    expect(await screen.findByText("new since this brief")).toBeDefined();
   });
 
   it("leaves the reviewer's own submit out of the count and the chip", async () => {
@@ -353,9 +349,7 @@ describe("ConversationSection", () => {
     });
     // Only the bot's comment is news; alice's thread is the reviewer's own.
     expect(
-      await screen.findByText(
-        "1 comment arrived after this brief was generated",
-      ),
+      await screen.findByText("1 new comment since this brief was generated"),
     ).toBeDefined();
     fireEvent.click(
       screen.getByRole("button", {
@@ -363,7 +357,7 @@ describe("ConversationSection", () => {
       }),
     );
     await screen.findByText("yours");
-    expect(screen.queryByText("after this brief")).toBeNull();
+    expect(screen.queryByText("new since this brief")).toBeNull();
   });
 
   it("expands a thread row via aria-expanded and jumps to its chunk", async () => {

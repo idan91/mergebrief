@@ -1,7 +1,8 @@
 import { appI18n } from "../../../../i18n/I18nProvider";
 import { ViewportBands } from "@web/hooks/useViewportBoundary";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
+import type { ConversationPlan } from "@web/features/conversation";
 import type { ProgressTotals } from "../../utils/progress";
 import type {
   BriefChunk,
@@ -32,6 +33,7 @@ import {
   SidebarLayouts,
   deriveChunkHash,
   resolveChunkIdFromHash,
+  buildReplyRecordingPlan,
 } from "./utils";
 
 function intentItem(overrides: { acknowledged?: boolean } = {}) {
@@ -658,5 +660,46 @@ describe("deriveRowLandingCorrection", () => {
     expect(
       deriveRowLandingCorrection({ top: 800, bottom: 1700 }, 190, 1000),
     ).toBe(594);
+  });
+});
+
+describe("buildReplyRecordingPlan", () => {
+  function stubPlan(
+    postReply: ConversationPlan["postReply"],
+  ): ConversationPlan {
+    // Structural stand-in: only postReply is exercised.
+    return { postReply } as unknown as ConversationPlan;
+  }
+
+  it("records the wrapping review id of a posted reply", async () => {
+    const record = vi.fn();
+    const plan = buildReplyRecordingPlan(
+      stubPlan(async () => ({ kind: "posted", commentId: 9, reviewId: 555 })),
+      record,
+    );
+
+    await expect(plan.postReply(1, "x")).resolves.toEqual({
+      kind: "posted",
+      commentId: 9,
+      reviewId: 555,
+    });
+    expect(record).toHaveBeenCalledWith(555);
+  });
+
+  it("records nothing for a failure or a reply without a review id", async () => {
+    const record = vi.fn();
+    const failed = buildReplyRecordingPlan(
+      stubPlan(async () => ({ kind: "upstream" })),
+      record,
+    );
+    const unwrapped = buildReplyRecordingPlan(
+      stubPlan(async () => ({ kind: "posted", commentId: 9 })),
+      record,
+    );
+
+    await failed.postReply(1, "x");
+    await unwrapped.postReply(1, "x");
+
+    expect(record).not.toHaveBeenCalled();
   });
 });
