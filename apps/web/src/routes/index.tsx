@@ -13,6 +13,7 @@ import { LocalBriefsSection } from "@web/features/brief";
 import { OrgSwitcher } from "@web/features/installations";
 import { LocalePicker } from "../i18n/LocalePicker/LocalePicker";
 import { PullsSection, YourBriefsSection } from "@web/features/pulls";
+import { getPullsRefetchInterval } from "@web/features/pulls/utils";
 import {
   buildPullsSessionQueryOptions,
   buildUrlBriefsQueryOptions,
@@ -57,8 +58,14 @@ const PRODUCT_SUFFIX = " / review";
 
 function BriefPicker() {
   const { t } = useTranslation();
-  const yourBriefs = useSuspenseQuery(buildUrlBriefsQueryOptions()).data;
-  const session = useSuspenseQuery(buildPullsSessionQueryOptions()).data;
+  const yourBriefs = useSuspenseQuery({
+    ...buildUrlBriefsQueryOptions(),
+    refetchInterval: (query) => getPullsRefetchInterval(query.state.data),
+  }).data;
+  const session = useSuspenseQuery({
+    ...buildPullsSessionQueryOptions(),
+    refetchInterval: (query) => getPullsRefetchInterval(query.state.data),
+  }).data;
   const navigate = useNavigate();
   const [url, setUrl] = useState("");
   const [pending, setPending] = useState(false);
