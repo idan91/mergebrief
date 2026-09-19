@@ -59,9 +59,7 @@ export function listDraftComments(
   );
 }
 
-export function countDraftComments(
-  comments: readonly ReviewComment[],
-): number {
+export function countDraftComments(comments: readonly ReviewComment[]): number {
   return listDraftComments(comments).length;
 }
 

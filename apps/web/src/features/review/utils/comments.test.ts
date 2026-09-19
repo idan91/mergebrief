@@ -381,7 +381,7 @@ describe("resolveJumpChunkId", () => {
   });
 });
 
-function comment(input: {
+function makeComment(input: {
   id: string;
   status: ReviewComment["status"];
   file?: boolean;
@@ -411,13 +411,13 @@ describe("countDraftComments", () => {
   it("counts draft line and file comments and ignores submitted", () => {
     expect(
       countDraftComments([
-        comment({ id: "line-draft", status: ReviewCommentStatuses.DRAFT }),
-        comment({
+        makeComment({ id: "line-draft", status: ReviewCommentStatuses.DRAFT }),
+        makeComment({
           id: "file-draft",
           status: ReviewCommentStatuses.DRAFT,
           file: true,
         }),
-        comment({
+        makeComment({
           id: "submitted",
           status: ReviewCommentStatuses.SUBMITTED,
         }),
