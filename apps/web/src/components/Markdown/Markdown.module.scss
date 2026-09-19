@@ -1,47 +1,11 @@
 @use "functions";
+@use "mixins";
 
 @layer components {
   .markdown {
-    color: var(--dim);
-    font-size: var(--font-size-xl);
-    line-height: 1.65;
     overflow-wrap: anywhere;
 
-    // The renderer demotes h1→h3 and h2→h4, and the components map cannot
-    // tell a demoted h1 from a source-authored h3 — so each level carries ONE
-    // style serving both.
-    h3,
-    h4,
-    h5,
-    h6 {
-      margin-block: functions.to-rem(18px) functions.to-rem(8px);
-      color: var(--text);
-      font-weight: 600;
-      line-height: 1.65;
-    }
-
-    h3 {
-      font-size: var(--font-size-2xl);
-    }
-
-    h4 {
-      font-size: var(--font-size-xl);
-    }
-
-    h5 {
-      font-size: var(--font-size-lg);
-    }
-
-    h6 {
-      font-size: var(--font-size-md);
-    }
-
-    h3:first-child,
-    h4:first-child,
-    h5:first-child,
-    h6:first-child {
-      margin-block-start: 0;
-    }
+    @include mixins.markdown-type;
 
     p,
     ul,
@@ -96,32 +60,10 @@
       background: var(--code-fill);
       color: var(--text);
       font-family: var(--mono);
-
-      // Earned em: inline code is sized by whichever text element encloses
-      // it, and that varies WITHIN this component — p/li at --font-size-xl,
-      // h3/h4 at --font-size-lg. A fixed step would shout inside a heading.
-      font-size: 0.9em; /* stylelint-disable-line declaration-property-value-allowed-list -- earned parent-relative exception, justified above */
     }
 
     pre {
       white-space: pre-wrap;
-    }
-
-    a {
-      color: var(--color-accent);
-      text-underline-offset: functions.to-rem(3px);
-
-      &:hover {
-        color: var(--text);
-      }
-    }
-
-    strong {
-      // Off-scale: bold text sits just under --color-text.
-      --strong-text: #d7d7dc;
-
-      color: var(--strong-text);
-      font-weight: 600;
     }
 
     blockquote {

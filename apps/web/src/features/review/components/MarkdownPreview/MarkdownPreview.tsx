@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import { DEMOTED_HEADING_COMPONENTS } from "@web/components/Markdown/consts";
 import { SuggestionCard } from "@web/components/Markdown/SuggestionCard/SuggestionCard";
 import { TokenizeModes } from "@web/utils/diffTokens/types";
 import {
@@ -32,7 +33,12 @@ export function MarkdownPreview({ anchor, body }: MarkdownPreviewProps) {
     // dir="auto": RTL-first content right-aligns, matching the composer.
     <div className={styles["preview"]} dir="auto">
       {markdown ? (
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{markdown}</ReactMarkdown>
+        <ReactMarkdown
+          components={DEMOTED_HEADING_COMPONENTS}
+          remarkPlugins={[remarkGfm]}
+        >
+          {markdown}
+        </ReactMarkdown>
       ) : (
         <p className={styles["empty"]}>{t("review.comment.previewEmpty")}</p>
       )}

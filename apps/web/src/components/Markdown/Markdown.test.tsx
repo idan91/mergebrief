@@ -6,10 +6,10 @@ import { Markdown } from "./Markdown";
 
 afterEach(cleanup);
 
-describe("Markdown — suggestion fences", () => {
+describe("Markdown suggestion fences", () => {
   const body = "Try this:\n```suggestion\nreturn next;\n```";
 
-  it("renders a Suggested-change card when opted in (comment bodies)", () => {
+  it("renders a Suggested-change card for an opted-in comment body", () => {
     render(<Markdown content={body} renderSuggestions />);
     expect(screen.getByText("Suggested change")).toBeTruthy();
     const table = screen.getByRole("table", { name: "Suggested change diff" });
@@ -19,8 +19,17 @@ describe("Markdown — suggestion fences", () => {
     expect(screen.queryByText(/```/)).toBeNull();
   });
 
-  it("leaves fences as plain code without the opt-in (brief text)", () => {
+  it("leaves fences as plain code in brief text, without the opt-in", () => {
     render(<Markdown content={body} />);
     expect(screen.queryByText("Suggested change")).toBeNull();
+  });
+});
+
+describe("Markdown headings", () => {
+  it("demotes authored headings so a body never adds a page-level h1", () => {
+    render(<Markdown content={"# Summary\n\n## Detail"} />);
+
+    expect(screen.getByRole("heading", { name: "Summary" }).tagName).toBe("H3");
+    expect(screen.getByRole("heading", { name: "Detail" }).tagName).toBe("H4");
   });
 });

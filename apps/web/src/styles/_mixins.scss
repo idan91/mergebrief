@@ -89,3 +89,69 @@
     background: var(--line2);
   }
 }
+
+// The type a rendered comment body is set in. The shared renderer and the
+// draft preview both include it, so a draft reads as it will once posted.
+// Headings arrive demoted (h1 to h3, h2 to h4), and a demoted h1 cannot be
+// told from an authored h3, so each level carries one style serving both.
+@mixin markdown-type {
+  color: var(--dim);
+  font-size: var(--font-size-xl);
+  line-height: 1.65;
+
+  h3,
+  h4,
+  h5,
+  h6 {
+    margin-block: functions.to-rem(18px) functions.to-rem(8px);
+    color: var(--text);
+    font-weight: 600;
+    line-height: 1.65;
+  }
+
+  h3 {
+    font-size: var(--font-size-2xl);
+  }
+
+  h4 {
+    font-size: var(--font-size-xl);
+  }
+
+  h5 {
+    font-size: var(--font-size-lg);
+  }
+
+  h6 {
+    font-size: var(--font-size-md);
+  }
+
+  h3:first-child,
+  h4:first-child,
+  h5:first-child,
+  h6:first-child {
+    margin-block-start: 0;
+  }
+
+  // Earned em: inline code is sized by whichever text element encloses it,
+  // a paragraph or a heading. A fixed step would shout inside a heading.
+  code {
+    font-size: 0.9em; /* stylelint-disable-line declaration-property-value-allowed-list -- earned parent-relative exception, justified above */
+  }
+
+  a {
+    color: var(--color-accent);
+    text-underline-offset: functions.to-rem(3px);
+
+    &:hover {
+      color: var(--text);
+    }
+  }
+
+  strong {
+    // Off-scale: bold text sits just under --color-text.
+    --strong-text: #d7d7dc;
+
+    color: var(--strong-text);
+    font-weight: 600;
+  }
+}

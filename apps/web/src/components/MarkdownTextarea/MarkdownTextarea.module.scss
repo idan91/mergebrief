@@ -58,8 +58,8 @@
     // Comments are text-first: the body composes in the UI sans; code stays
     // mono inside fences and the suggestion diff card.
     font-family: var(--sans);
-    font-size: var(--font-size-lg);
-    line-height: 1.6;
+    font-size: var(--font-size-xl);
+    line-height: 1.65;
 
     // Autogrow with typing (Chromium; a fixed min elsewhere), capped so a
     // long comment scrolls instead of swallowing the page; the manual

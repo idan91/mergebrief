@@ -87,3 +87,16 @@ describe("MarkdownPreview suggestion colour", () => {
     expect(screen.getByRole("table")).toBeTruthy();
   });
 });
+
+describe("MarkdownPreview headings", () => {
+  it("demotes authored headings the way a posted comment renders them", () => {
+    render(
+      <MarkdownPreview anchor={ANCHOR} body={"# Blocking\n\n## Detail"} />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Blocking" }).tagName).toBe(
+      "H3",
+    );
+    expect(screen.getByRole("heading", { name: "Detail" }).tagName).toBe("H4");
+  });
+});
