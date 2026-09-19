@@ -415,8 +415,13 @@ function mapThread(
     hasMoreComments: thread.comments.pageInfo.hasNextPage,
   };
 
-  if (thread.line !== null) conversationThread.line = thread.line;
-  if (thread.startLine !== null) {
+  // GitHub reports a file-level thread on line 1. It anchors to no line, and a
+  // reader that trusts the number would place it inline under that row.
+  const isFileLevel = thread.subjectType === ThreadSubjectTypes.FILE;
+  if (!isFileLevel && thread.line !== null) {
+    conversationThread.line = thread.line;
+  }
+  if (!isFileLevel && thread.startLine !== null) {
     conversationThread.startLine = thread.startLine;
   }
   if (thread.diffSide !== null) conversationThread.side = thread.diffSide;
