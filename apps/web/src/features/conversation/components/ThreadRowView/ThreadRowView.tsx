@@ -3,6 +3,7 @@ import { RowButton } from "@web/components/RowButton/RowButton";
 import { threadStateChip } from "../../utils/chips";
 import type { DigestThreadRow } from "../../utils/digest";
 import rowStyles from "../../rows.module.scss";
+import { type ThreadRowElement, ThreadRowElements } from "../../types";
 import type { ThreadComposerWiring } from "../../wiring";
 import { ThreadDetail } from "./ThreadDetail/ThreadDetail";
 
@@ -17,9 +18,10 @@ export interface ThreadRowViewProps {
   composer: ThreadComposerWiring;
   /** Marks the inline (at-chunk) renders, which suppress the jump action. */
   hideJump?: boolean;
+  /** A block where the host is not a list: a diff row's cell, a file band. */
+  element?: ThreadRowElement | undefined;
 }
 
-/** Decorative run separator — aria-hidden, so it stays out of the row's name. */
 function SlimSeparator() {
   return (
     <span aria-hidden="true" className={rowStyles["slimSep"]}>
@@ -32,7 +34,7 @@ function SlimSeparator() {
  * One thread's digest row: a `<button aria-expanded>` disclosure over the
  * thread detail. Also rendered at the chunk by DiffTable and InlineThreads.
  *
- * A settled thread collapses to the slim variant — one faint line, same single
+ * A settled thread collapses to the slim variant: one faint line, same single
  * button and handler; the collapsed row carries no actions of its own.
  */
 export function ThreadRowView({
@@ -42,6 +44,7 @@ export function ThreadRowView({
   jumpToChunk,
   composer,
   hideJump = false,
+  element = ThreadRowElements.LIST_ITEM,
 }: ThreadRowViewProps) {
   const { t } = useTranslation();
   const { thread } = row;
@@ -50,10 +53,12 @@ export function ThreadRowView({
   // Outdated wins over resolved: it is WHY the thread left the code view, so
   // those rows stay full. Expanding any thread restores the full row too.
   const slim = thread.isResolved && !thread.isOutdated && !expanded;
+  const RowElement = element;
+
   return (
-    <li
+    <RowElement
       className={rowStyles["row"]}
-      // The ?thread= landing target — DISTINCT from the inline diff rows'
+      // The ?thread= landing target, DISTINCT from the inline diff rows'
       // `data-conversation-thread`: the section renders above the change
       // groups, so sharing that name would shadow the diff row in document
       // order. Section rows only; `hideJump` marks the at-chunk renders.
@@ -96,7 +101,7 @@ export function ThreadRowView({
               {threadStateChip(thread)}
             </span>
             {author?.avatarUrl === undefined ? null : (
-              // Decorative — the adjacent login carries the identity.
+              // Decorative: the adjacent login carries the identity.
               <img
                 alt=""
                 className={rowStyles["rowAvatar"]}
@@ -118,7 +123,9 @@ export function ThreadRowView({
               </span>
             ) : null}
             <span className={rowStyles["count"]}>
-              {commentCount > 1 ? `${commentCount} comments` : null}
+              {commentCount > 1
+                ? t("conversation.comments", { count: commentCount })
+                : null}
             </span>
           </>
         )}
@@ -131,6 +138,6 @@ export function ThreadRowView({
           row={row}
         />
       ) : null}
-    </li>
+    </RowElement>
   );
 }

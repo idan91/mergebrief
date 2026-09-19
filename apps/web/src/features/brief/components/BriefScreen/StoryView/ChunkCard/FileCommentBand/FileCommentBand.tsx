@@ -3,6 +3,7 @@ import { useId } from "react";
 
 import { LinkButton } from "@web/components/LinkButton/LinkButton";
 import {
+  ThreadRowElements,
   ThreadRowView,
   type ThreadComposerWiring,
 } from "@web/features/conversation";
@@ -102,6 +103,7 @@ export function FileCommentBand({
             : inboundRows.map((row) => (
                 <ThreadRowView
                   composer={conversationComposer}
+                  element={ThreadRowElements.BLOCK}
                   expanded={band.expandedConversation.has(
                     row.thread.rootCommentId,
                   )}

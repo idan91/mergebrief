@@ -19,6 +19,13 @@ export const ThreadSubjectTypes = {
 } as const;
 export type ThreadSubjectType = ValueOf<typeof ThreadSubjectTypes>;
 
+/** The element a thread row renders as: a list item, or a block where the host is no list. */
+export const ThreadRowElements = {
+  LIST_ITEM: "li",
+  BLOCK: "div",
+} as const;
+export type ThreadRowElement = ValueOf<typeof ThreadRowElements>;
+
 /** Submitted-review states; PENDING never crosses the API (drafts skipped). */
 export const ReviewVerdictStates = {
   COMMENTED: "COMMENTED",

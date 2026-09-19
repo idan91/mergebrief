@@ -11,6 +11,7 @@
     display: flex;
     align-items: baseline;
     gap: functions.to-rem(8px);
+    min-inline-size: 0;
     min-height: functions.to-rem(44px);
     padding-block: functions.to-rem(8px);
     padding-inline: functions.to-rem(10px);

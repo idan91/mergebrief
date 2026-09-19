@@ -2,6 +2,7 @@ import type { ComponentProps } from "react";
 
 import {
   type ThreadComposerWiring,
+  ThreadRowElements,
   ThreadRowView,
 } from "@web/features/conversation";
 import type { DigestThreadRow } from "@web/features/conversation/utils";
@@ -130,6 +131,7 @@ export function UnderRows({
           >
             <ThreadRowView
               composer={conversationComposer}
+              element={ThreadRowElements.BLOCK}
               expanded={expandedConversation.has(row.thread.rootCommentId)}
               hideJump
               jumpToChunk={noJump}

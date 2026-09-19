@@ -741,11 +741,6 @@
       "count": 9
     }
   },
-  "apps/web/src/features/conversation/components/ThreadRowView/ThreadRowView.tsx": {
-    "house/no-em-dash": {
-      "count": 4
-    }
-  },
   "apps/web/src/features/conversation/reply.test.ts": {
     "house/no-em-dash": {
       "count": 1

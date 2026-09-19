@@ -2,11 +2,13 @@
 // the promoted ThreadRowView subtree, and InlineThreads consumers; no
 // component owns these atoms alone.
 @use "functions";
+@use "mixins";
 
 @layer components {
   .rows,
   .nested {
-    display: grid;
+    @include mixins.single-column-grid;
+
     gap: functions.to-rem(4px);
     margin: 0;
     padding: 0;
@@ -18,7 +20,8 @@
   }
 
   .row {
-    display: grid;
+    @include mixins.single-column-grid;
+
     gap: functions.to-rem(4px);
   }
 
@@ -139,7 +142,8 @@
   }
 
   .detail {
-    display: grid;
+    @include mixins.single-column-grid;
+
     gap: functions.to-rem(8px);
     margin-inline-start: functions.to-rem(12px);
     padding: functions.to-rem(10px);
@@ -147,7 +151,8 @@
   }
 
   .comment {
-    display: grid;
+    @include mixins.single-column-grid;
+
     gap: functions.to-rem(4px);
     font-size: var(--font-size-lg);
   }
@@ -157,6 +162,7 @@
      default stretch inflates pills to the action's height). */
   .commentHead {
     display: flex;
+    flex-wrap: wrap;
     align-items: baseline;
     gap: functions.to-rem(8px);
     color: var(--dim);
@@ -177,6 +183,7 @@
   }
 
   .author {
+    flex-shrink: 0;
     color: var(--text);
     font-weight: 600;
   }

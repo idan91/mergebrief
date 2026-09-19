@@ -2,10 +2,12 @@
 
 @layer components {
   // 98px tracks DiffRows: the gutter column plus two 42px line-number cells.
-  .row td {
+  .row > td {
     vertical-align: top;
     padding-block: 0 functions.to-rem(12px);
     padding-inline: functions.to-rem(98px) functions.to-rem(14px);
+    font-family: var(--sans);
+    line-height: 1.55;
     white-space: normal;
 
     // The colSpan cell is as wide as the table, so the composer pins to the
@@ -21,7 +23,7 @@
   // A card under one side: no sticky pinning, it scrolls with its side, and
   // the inset clears whatever columns that side's cell spans, so the card's
   // edge meets its own code column. Right clears its 42px number column.
-  .row[data-placement] td {
+  .row[data-placement] > td {
     padding-inline: functions.to-rem(42px) functions.to-rem(14px);
 
     > * {
@@ -32,11 +34,11 @@
 
   // The left card spans the union rail as well as its numbers, so it clears
   // 26px of rail plus 42px of number to meet the same code edge.
-  .row[data-placement="left"] td {
+  .row[data-placement="left"] > td {
     padding-inline-start: functions.to-rem(68px);
   }
 
-  .row[data-placement] td.gap {
+  .row[data-placement] > td.gap {
     padding: 0;
   }
 

@@ -5,6 +5,7 @@
     color: var(--dim);
     font-size: var(--font-size-xl);
     line-height: 1.65;
+    overflow-wrap: anywhere;
 
     // The renderer demotes h1→h3 and h2→h4, and the components map cannot
     // tell a demoted h1 from a source-authored h3 — so each level carries ONE
@@ -100,6 +101,19 @@
       // it, and that varies WITHIN this component — p/li at --font-size-xl,
       // h3/h4 at --font-size-lg. A fixed step would shout inside a heading.
       font-size: 0.9em; /* stylelint-disable-line declaration-property-value-allowed-list -- earned parent-relative exception, justified above */
+    }
+
+    pre {
+      white-space: pre-wrap;
+    }
+
+    a {
+      color: var(--color-accent);
+      text-underline-offset: functions.to-rem(3px);
+
+      &:hover {
+        color: var(--text);
+      }
     }
 
     strong {

@@ -13,7 +13,11 @@ import {
   ReviewFlowProvider,
 } from "@web/features/review/session";
 import type { DigestThreadRow } from "../../utils/digest";
-import type { ConversationThread } from "../../types";
+import {
+  type ConversationThread,
+  type ThreadRowElement,
+  ThreadRowElements,
+} from "../../types";
 import type { ThreadComposerWiring } from "../../wiring";
 import type { Mutable } from "types/utils";
 import { ThreadRowView } from "./ThreadRowView";
@@ -128,7 +132,11 @@ function composer(): ThreadComposerWiring {
   };
 }
 
-function renderRow(row: DigestThreadRow, expanded = false) {
+function renderRow(
+  row: DigestThreadRow,
+  expanded = false,
+  element?: ThreadRowElement,
+) {
   // The reply composer inside an expanded detail reads the session stores.
   const flowStore = createReviewFlowStore(
     {
@@ -148,6 +156,7 @@ function renderRow(row: DigestThreadRow, expanded = false) {
     appI18n.t,
   );
   const toggle = vi.fn();
+  const HostElement = element === ThreadRowElements.BLOCK ? "div" : "ul";
   const view = render(
     <QueryClientProvider client={new QueryClient()}>
       <ReviewSessionProvider
@@ -155,21 +164,46 @@ function renderRow(row: DigestThreadRow, expanded = false) {
         model={buildBriefViewModel(providerBrief)}
       >
         <ReviewFlowProvider store={flowStore}>
-          <ul>
+          <HostElement>
             <ThreadRowView
               composer={composer()}
+              element={element}
               expanded={expanded}
               jumpToChunk={vi.fn()}
               row={row}
               toggle={toggle}
             />
-          </ul>
+          </HostElement>
         </ReviewFlowProvider>
       </ReviewSessionProvider>
     </QueryClientProvider>,
   );
   return { view, toggle };
 }
+
+describe("ThreadRowView, host element", () => {
+  it("renders a list item by default", () => {
+    renderRow(threadRow());
+    const button = screen.getByTestId("thread-row");
+    expect(button.parentElement?.tagName).toBe("LI");
+  });
+
+  it("renders a block where the host is not a list", () => {
+    const { toggle } = renderRow(threadRow(), true, ThreadRowElements.BLOCK);
+    const button = screen.getByTestId("thread-row");
+    expect(button.parentElement?.tagName).toBe("DIV");
+    expect(button.getAttribute("aria-expanded")).toBe("true");
+    fireEvent.click(button);
+    expect(toggle).toHaveBeenCalledWith(9001);
+  });
+
+  it("reads the comment count through the catalog on a full row", () => {
+    renderRow(threadRow({ comments: 2 }));
+    expect(screen.getByTestId("thread-row").textContent).toContain(
+      "2 comments",
+    );
+  });
+});
 
 describe("ThreadRowView, slim resolved rows", () => {
   it("renders a collapsed resolved thread as the slim variant", () => {

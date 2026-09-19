@@ -14,6 +14,7 @@ export {
   ThreadRowView,
   type ThreadRowViewProps,
 } from "./components/ThreadRowView/ThreadRowView";
+export { type ThreadRowElement, ThreadRowElements } from "./types";
 export type {
   ConversationResolutionPlan,
   ThreadComposerWiring,

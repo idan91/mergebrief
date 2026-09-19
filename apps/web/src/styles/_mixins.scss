@@ -40,6 +40,15 @@
   }
 }
 
+// A one-column grid whose track may shrink below its content. The implicit
+// auto track sizes to a nowrap descendant's min-content and widens every
+// ancestor grid with it, so each grid between the scrollport and that line
+// takes this.
+@mixin single-column-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
 // Vertical scroll region inside a sticky rail. Horizontal scrolling is hard-
 // disabled: the styled scrollbar consumes inline space, which would otherwise
 // trip overflow-x: auto into a horizontal bar. The shadows sit at the viewport
