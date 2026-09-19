@@ -165,7 +165,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
     const job = jobs[0];
     if (job === undefined) throw new Error("expected a jobs row");
     expect(job["task_identifier"]).toBe("generate");
-    expect(job["job_key"]).toBe(`generate:${outcome.pullRequest.id}`);
+    expect(job["key"]).toBe(`generate:${outcome.pullRequest.id}`);
     expect(job["payload"]).toEqual({
       installation_id: String(CTX.installationId),
       pull_request_id: String(outcome.pullRequest.id),
@@ -209,14 +209,14 @@ describe("createIngestRoutines.triggerGeneration", () => {
     const prs = await harness.raw("select id from pull_request");
     const generations = await harness.raw("select id from generation");
     const jobs = await harness.raw(
-      "select job_key, run_at from graphile_worker.jobs",
+      "select key, run_at from graphile_worker.jobs",
     );
     expect(prs).toHaveLength(1);
     expect(generations).toHaveLength(1);
     expect(jobs).toHaveLength(1);
 
     // Leading-edge debounce: the first trigger fixed run_at for good.
-    expect(jobs[0]?.["job_key"]).toBe(`generate:${first.pullRequest.id}`);
+    expect(jobs[0]?.["key"]).toBe(`generate:${first.pullRequest.id}`);
     expect(epochMs(jobs[0]?.["run_at"])).toBe(firstRunAt);
   });
 

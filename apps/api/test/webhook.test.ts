@@ -246,7 +246,7 @@ describe("POST /api/webhooks/github", () => {
     const jobs = await harness.raw("select * from graphile_worker.jobs");
     expect(jobs).toHaveLength(1);
     expect(jobs[0]?.["task_identifier"]).toBe("generate");
-    expect(jobs[0]?.["job_key"]).toBe(`generate:${String(prs[0]?.["id"])}`);
+    expect(jobs[0]?.["key"]).toBe(`generate:${String(prs[0]?.["id"])}`);
     expect(jobs[0]?.["payload"]).toEqual({
       installation_id: String(INSTALLATION_ID),
       pull_request_id: String(prs[0]?.["id"]),

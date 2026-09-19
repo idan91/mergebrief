@@ -13,6 +13,16 @@ The contract discipline (ADR 0029): response shapes change additively
 within a major; removals/renames ship expand/contract — new field first,
 deprecation note here, removal only at a major.
 
+## dev (2026-09-18)
+
+- **Added** an optional `generation.waitReason` on
+  `GET /api/repos/:repoId/pulls/:prNumber`: `debouncing` while the queued
+  job's start time is still ahead, `waiting-for-slot` once it is due and no
+  worker slot has claimed it. Present only while the generation is `pending`
+  and its job is unclaimed; absent otherwise, and never on `GET /api/pulls`
+  or `GET /api/briefs` rows. No timestamp is exposed. A client that does not
+  know the field, or a value in it, shows its generic pending line.
+
 ## dev (2026-09-17)
 
 - **Added** `GET /api/auth/session`: answers `{ "ok": true }` for a request

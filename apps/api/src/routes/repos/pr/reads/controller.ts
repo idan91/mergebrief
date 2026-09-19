@@ -13,7 +13,13 @@ import {
   type OpenPullRequest,
 } from "github";
 import { resolvePrStack, type PrStackSelf } from "brief-core";
-import type { GenerationProjection, RepoId, ReviewerId } from "persistence";
+import {
+  GenerationStatuses,
+  type GenerationProjection,
+  type GenerationRow,
+  type RepoId,
+  type ReviewerId,
+} from "persistence";
 import type { DraftPolicy, Result } from "types";
 import { NotFound } from "../../../../shared-errors/api-error";
 import { isGitHubDenial } from "../../../../shared-errors/failures";
@@ -25,6 +31,7 @@ import type {
   PullStackView,
   RevisionComparisons,
   RevisionView,
+  WaitReason,
 } from "contract";
 import {
   comparisonSpanSet,
@@ -43,6 +50,7 @@ import {
   splitFileLines,
 } from "./logic/file-range";
 import { buildRevisionView } from "./logic/revision-views";
+import { deriveWaitReason } from "./logic/wait-reason";
 import {
   DIFF_CACHE_MAX_ENTRY_BYTES,
   DIFF_CACHE_TTL_MS,
@@ -79,6 +87,21 @@ async function resolvePullRequestId(
 type ReadDiffResult =
   | { readonly ok: true; readonly body: string }
   | { readonly ok: false; readonly error: DiffFailure };
+
+/** The queue is read only for a pending generation; any other poll costs no query. */
+async function readWaitReason(
+  generations: GenerationProjection,
+  latestGeneration: GenerationRow | undefined,
+): Promise<WaitReason | undefined> {
+  if (latestGeneration?.status !== GenerationStatuses.PENDING) {
+    return undefined;
+  }
+
+  const timing = await generations.getGenerateJobTiming(
+    latestGeneration.pullRequestId,
+  );
+  return deriveWaitReason(latestGeneration.status, timing);
+}
 
 /** One viewer-token read shaped into the stack failure vocabulary. */
 async function readWithViewer<T>(
@@ -225,10 +248,12 @@ export default {
       deps.artifacts.briefs.latestForPullRequests(ids),
       deps.generations.latestBriefForPullRequests(ids),
     ]);
+    const latestGeneration = latestGenerations.get(pr.id);
+    const waitReason = await readWaitReason(deps.generations, latestGeneration);
     const view = buildPrView(
       pr,
       latestBriefs.get(pr.id),
-      latestGenerations.get(pr.id),
+      latestGeneration,
       input.repoFullName,
       // The viewer's verified login from the session; `viewerIsAuthor` is
       // derived per request, never cached.
@@ -236,6 +261,7 @@ export default {
       // Push capability from the gate's access check, ≤60s stale via the
       // positive cache, same budget as `repoFullName`.
       input.viewerCanPush,
+      waitReason,
     );
     // INVARIANT: `briefAvailable` implies `headSha !== null` (`brief.head_sha`
     // is NOT NULL), so the null check below is TypeScript narrowing only and

@@ -171,7 +171,7 @@ The private (per reviewer × PR) workspace where the reviewer thinks, drafts, as
 _Avoid_: Mind-Map Space (retired 2026-08-17), workspace, scratchpad, draft space
 
 **Trigger**:
-What causes a **Brief** to compute: eager-on-push, debounced (~60s trailing), on PR-open (first push) and every subsequent push — including while the PR is a draft. No lazy "compute-on-first-click" gate; spend is bounded by debounce + **Triage** + skipping trivial/instantly-closed PRs, not by withholding compute. **Delta Briefs** are per-reviewer (from each reviewer's **Checkpoint**), not a push-triggered recompute.
+What causes a **Brief** to compute: eager-on-push, debounced (~60s from the first push, which fixes the start time; later pushes only swap the head), on PR-open (first push) and every subsequent push — including while the PR is a draft. No lazy "compute-on-first-click" gate; spend is bounded by debounce + **Triage** + skipping trivial/instantly-closed PRs, not by withholding compute. **Delta Briefs** are per-reviewer (from each reviewer's **Checkpoint**), not a push-triggered recompute.
 _Avoid_: activation (as "what fires compute"), cost gate, click-to-activate
 
 **Entry**:
@@ -197,6 +197,10 @@ _Avoid_: thread, concurrency (as a noun for the thing), lane
 **Queued**:
 Said of a **Job** waiting on its debounce or on a free **Slot**, never of a **Generation**. A Generation whose Job has started is running.
 _Avoid_: queued generation, pending job
+
+**Wait reason**:
+Why a pending **Generation** has not started, read off its **Queued** **Job**: `debouncing` while the Job's start time is still ahead, `waiting-for-slot` once it is due and no **Slot** has claimed it. The server computes it on the PR meta only; an absent reason means the generic pending line, and a Generation that is not pending never carries one.
+_Avoid_: queue status, pending reason, delay reason
 
 **Triage**:
 The cheap cascade run on every PR (and every follow-up) *before* any expensive generation, deciding both the *experience* and the *spend*: a free deterministic floor (dependency/migration/auth-config paths + size) → a small-model (**Haiku**) pass that judges trivial-vs-escalate and, when trivial, emits the **Fast-lane** view. Escalation produces the full **Brief** / **Delta Brief** (Opus); otherwise the fast-lane is shown with a manual upgrade. **Risk decides escalation, size decides spend**; for follow-ups, touching a reviewer's prior **Flag** or **Comment** (carry-over) is itself an escalation. Never a verdict, never a gate — the human can always upgrade.

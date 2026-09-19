@@ -493,3 +493,72 @@ describe("repo-config origin on the generation row", () => {
     expect((await projection.get(target))?.repoConfig).toBeNull();
   });
 });
+
+describe("getGenerateJobTiming", () => {
+  const DEBOUNCE_SECONDS = 60;
+
+  async function triggerWithDebounce(debounceSeconds: number) {
+    const harness = await createPgliteHarness();
+    onTestFinished(() => harness.close());
+    const ingest = createIngestRoutines(harness.handle, CTX_A);
+    const triggered = await ingest.triggerGeneration({
+      pullRequest: { repoId: REPO, prNumber: 11, state: PrStates.OPEN },
+      headSha: "h1",
+      debounceSeconds,
+    });
+    if (!triggered.ok) throw new Error(triggered.error.message);
+    return { harness, pullRequestId: triggered.value.pullRequest.id };
+  }
+
+  it("reports a job whose start time is still ahead", async () => {
+    const { harness, pullRequestId } =
+      await triggerWithDebounce(DEBOUNCE_SECONDS);
+    const projection = createGenerationProjection(harness.handle, CTX_A);
+
+    expect(await projection.getGenerateJobTiming(pullRequestId)).toEqual({
+      startsLater: true,
+      locked: false,
+    });
+  });
+
+  it("reports a due job no worker has claimed", async () => {
+    const { harness, pullRequestId } = await triggerWithDebounce(0);
+    const projection = createGenerationProjection(harness.handle, CTX_A);
+
+    expect(await projection.getGenerateJobTiming(pullRequestId)).toEqual({
+      startsLater: false,
+      locked: false,
+    });
+  });
+
+  it("reports a job a worker holds", async () => {
+    const { harness, pullRequestId } = await triggerWithDebounce(0);
+    await harness.raw("update graphile_worker.jobs set locked_at = now()");
+    const projection = createGenerationProjection(harness.handle, CTX_A);
+
+    expect(await projection.getGenerateJobTiming(pullRequestId)).toEqual({
+      startsLater: false,
+      locked: true,
+    });
+  });
+
+  it("returns undefined when the queue holds no job for the PR", async () => {
+    const { harness, pullRequestId } = await triggerWithDebounce(0);
+    await harness.raw("truncate graphile_worker.jobs");
+    const projection = createGenerationProjection(harness.handle, CTX_A);
+
+    const timing = await projection.getGenerateJobTiming(pullRequestId);
+
+    expect(timing).toBeUndefined();
+  });
+
+  it("returns undefined for a PR outside the caller's tenant", async () => {
+    const { harness, pullRequestId } =
+      await triggerWithDebounce(DEBOUNCE_SECONDS);
+    const projection = createGenerationProjection(harness.handle, CTX_B);
+
+    const timing = await projection.getGenerateJobTiming(pullRequestId);
+
+    expect(timing).toBeUndefined();
+  });
+});

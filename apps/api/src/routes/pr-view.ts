@@ -1,10 +1,11 @@
 // The PR view the list and PR-meta endpoints share: one `pull_request` row
 // joined with its CURRENT-SPAN derivation. The current head is the newest
 // brief-kind `generation` projection's head (written at ingest, so it exists
-// from the first webhook — before any artifact); `briefAvailable` is true only
+// from the first webhook, before any artifact); `briefAvailable` is true only
 // when the latest brief artifact IS for that head (render trigger = artifact
-// EXISTS — status is display-only). `baseSha` prefers the brief row and falls
+// EXISTS, status is display-only). `baseSha` prefers the brief row and falls
 // back to the base SHA persisted at ingest.
+import type { WaitReason } from "contract";
 import type {
   BriefSpanRow,
   GenerationFailureCode,
@@ -15,6 +16,7 @@ import type {
   PrState,
   PullRequestRow,
 } from "persistence";
+import type { Mutable } from "types/utils";
 
 /** The poll-relevant slice of a `generation` projection row. */
 export interface GenerationSummaryView {
@@ -22,7 +24,7 @@ export interface GenerationSummaryView {
   readonly phase: GenerationPhase | null;
   readonly attempts: number;
   /**
-   * The stored failure vocabulary code — MODELED DATA inside a 200, not a
+   * The stored failure vocabulary code: MODELED DATA inside a 200, not a
    * wire `ApiErrorCode`. Consumers render `generationError.<code>` from the
    * catalog; a code they do not know degrades to the generic failed line.
    */
@@ -30,10 +32,15 @@ export interface GenerationSummaryView {
   /** Interpolation params for the code's template; `detail` pre-sanitized. */
   readonly errorParams: GenerationFailureParams | null;
   readonly updatedAt: string;
+  /**
+   * Present only on the PR meta, and only while the generation is pending
+   * with a queued job no worker holds. The list endpoints never fill it.
+   */
+  readonly waitReason?: WaitReason;
 }
 
 export interface PrView {
-  /** Stringified — GitHub repo ids exceed JSON's safe-integer comfort zone. */
+  /** Stringified: GitHub repo ids exceed JSON's safe-integer comfort zone. */
   readonly repoId: string;
   readonly repoSlug: string | null;
   readonly prNumber: number;
@@ -48,23 +55,23 @@ export interface PrView {
   /** The current push's head; null only when nothing was ever projected. */
   readonly headSha: string | null;
   readonly briefAvailable: boolean;
-  /** GitHub draft state — the FE derives own-draft author affordances. */
+  /** GitHub draft state: the FE derives own-draft author affordances. */
   readonly draft: boolean;
   /**
    * Whether the requesting viewer is this PR's author, computed PER REQUEST
    * server-side by comparing the session's reviewer login to the row's stored
-   * `author_login`. The login itself is NEVER serialized — only this derived
+   * `author_login`. The login itself is NEVER serialized, only this derived
    * boolean crosses to the FE. False for any null/missing author or viewer
    * login.
    */
   readonly viewerIsAuthor: boolean;
   /**
    * Whether the requesting viewer may resolve/unresolve review threads on this
-   * PR: GitHub push permission OR PR authorship — GitHub's own rule for
+   * PR: GitHub push permission OR PR authorship, GitHub's own rule for
    * `resolveReviewThread`. Affordance only, with GitHub's mutation-time
    * enforcement as the truth. On the LIST path the per-repo capability is
    * unknown (no per-repo access check runs there), so rows fall back to
-   * authorship-only — the brief page must read this from PR meta, not the list.
+   * authorship-only: the brief page must read this from PR meta, not the list.
    */
   readonly viewerCanResolve: boolean;
   readonly generation: GenerationSummaryView | null;
@@ -73,7 +80,7 @@ export interface PrView {
 
 /**
  * The `viewerIsAuthor` truth function. True ONLY when both logins are present
- * (non-null, non-empty) and equal — so a null/missing author login and a
+ * (non-null, non-empty) and equal, so a null/missing author login and a
  * null/missing viewer login both yield false, never a spurious `null === null`.
  */
 export function deriveViewerIsAuthor(
@@ -81,6 +88,28 @@ export function deriveViewerIsAuthor(
   authorLogin: string | null,
 ): boolean {
   return Boolean(authorLogin) && authorLogin === viewerLogin;
+}
+
+function buildGenerationSummary(
+  latestGeneration: GenerationRow | undefined,
+  waitReason: WaitReason | undefined,
+): GenerationSummaryView | null {
+  if (latestGeneration === undefined) {
+    return null;
+  }
+  const summary: Mutable<GenerationSummaryView> = {
+    status: latestGeneration.status,
+    phase: latestGeneration.phase,
+    attempts: latestGeneration.attempts,
+    errorCode: latestGeneration.errorCode,
+    errorParams: latestGeneration.errorParams,
+    updatedAt: latestGeneration.updatedAt.toISOString(),
+  };
+
+  if (waitReason !== undefined) {
+    summary.waitReason = waitReason;
+  }
+  return summary;
 }
 
 /**
@@ -95,6 +124,7 @@ export function buildPrView(
   verifiedSlug: string | undefined,
   viewerLogin: string | null,
   viewerCanPush: boolean,
+  waitReason?: WaitReason,
 ): PrView {
   const headSha = latestGeneration?.headSha ?? latestBrief?.headSha ?? null;
   const briefAvailable =
@@ -112,17 +142,7 @@ export function buildPrView(
     draft: row.draft,
     viewerIsAuthor,
     viewerCanResolve: viewerCanPush || viewerIsAuthor,
-    generation:
-      latestGeneration === undefined
-        ? null
-        : {
-            status: latestGeneration.status,
-            phase: latestGeneration.phase,
-            attempts: latestGeneration.attempts,
-            errorCode: latestGeneration.errorCode,
-            errorParams: latestGeneration.errorParams,
-            updatedAt: latestGeneration.updatedAt.toISOString(),
-          },
+    generation: buildGenerationSummary(latestGeneration, waitReason),
     updatedAt: row.updatedAt.toISOString(),
   };
 }

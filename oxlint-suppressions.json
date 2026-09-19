@@ -54,11 +54,6 @@
       "count": 2
     }
   },
-  "apps/api/src/routes/pr-view.ts": {
-    "house/no-em-dash": {
-      "count": 8
-    }
-  },
   "apps/api/src/routes/pulls/controller.ts": {
     "house/no-em-dash": {
       "count": 1

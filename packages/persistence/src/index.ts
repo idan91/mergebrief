@@ -175,6 +175,7 @@ export {
   GenerationErrorCodes,
 } from "./stores/generation";
 export type {
+  GenerateJobTiming,
   GenerationProjection,
   GenerationError,
   GenerationErrorCode,

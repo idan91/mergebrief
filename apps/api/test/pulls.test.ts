@@ -6,6 +6,7 @@ import {
   encryptToken,
   createTenantRepository,
   createGenerationProjection,
+  createIngestRoutines,
   GenerationFailureCodes,
   GenerationKinds,
   GenerationStatuses,
@@ -20,6 +21,7 @@ import {
   type PullRequestUpsertInput,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
+import { WaitReasons } from "contract";
 import type { Mutable } from "types/utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
@@ -37,6 +39,7 @@ import {
 const OTHER_INSTALLATION_ID = 111222;
 const REPO_A = 424242;
 const REPO_B = 535353;
+const WAIT_DEBOUNCE_SECONDS = 60;
 
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
 const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
@@ -709,6 +712,94 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
       briefAvailable: true,
       generation: { status: GenerationStatuses.SUCCEEDED, phase: null },
     });
+  });
+
+  async function triggerPendingBrief(debounceSeconds: number) {
+    const ingest = createIngestRoutines(harness.handle, CTX);
+    const triggered = await ingest.triggerGeneration({
+      pullRequest: {
+        repoId: brand(isRepoId, REPO_A),
+        prNumber: 7,
+        state: PrStates.OPEN,
+      },
+      headSha: "head-1",
+      debounceSeconds,
+    });
+    if (!triggered.ok) throw new Error(triggered.error.message);
+    return triggered.value.pullRequest;
+  }
+
+  async function readGenerationSummary(path: string, cookie: string) {
+    const res = await get(path, cookie);
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    const body = JSON.parse(text) as {
+      generation?: Record<string, unknown>;
+      pulls?: Array<{ generation: Record<string, unknown> }>;
+    };
+    return { text, body };
+  }
+
+  it("meta: names the wait debouncing while the job start is ahead", async () => {
+    stubGate();
+    const cookie = await seedSession(harness.handle, kp);
+    await triggerPendingBrief(WAIT_DEBOUNCE_SECONDS);
+
+    const { text, body } = await readGenerationSummary(
+      `/api/repos/${REPO_A}/pulls/7`,
+      cookie,
+    );
+
+    expect(body.generation?.["waitReason"]).toBe(WaitReasons.DEBOUNCING);
+    expect(text).not.toMatch(/run_?at/i);
+  });
+
+  it("meta: names the wait waiting-for-slot once the job is due", async () => {
+    stubGate();
+    const cookie = await seedSession(harness.handle, kp);
+    await triggerPendingBrief(0);
+
+    const { body } = await readGenerationSummary(
+      `/api/repos/${REPO_A}/pulls/7`,
+      cookie,
+    );
+
+    expect(body.generation?.["waitReason"]).toBe(WaitReasons.WAITING_FOR_SLOT);
+  });
+
+  it("meta: omits the wait reason once the generation runs", async () => {
+    stubGate();
+    const cookie = await seedSession(harness.handle, kp);
+    const pr = await triggerPendingBrief(0);
+    await createGenerationProjection(harness.handle, CTX).markRunning({
+      pullRequestId: pr.id,
+      kind: GenerationKinds.BRIEF,
+      headSha: "head-1",
+      baselineSha: null,
+    });
+
+    const { body } = await readGenerationSummary(
+      `/api/repos/${REPO_A}/pulls/7`,
+      cookie,
+    );
+
+    expect(body.generation).toMatchObject({
+      status: GenerationStatuses.RUNNING,
+    });
+    expect(body.generation).not.toHaveProperty("waitReason");
+  });
+
+  it("list: never carries a wait reason on a pending row", async () => {
+    stubGate();
+    const cookie = await seedSession(harness.handle, kp);
+    await triggerPendingBrief(WAIT_DEBOUNCE_SECONDS);
+
+    const { body } = await readGenerationSummary("/api/pulls", cookie);
+
+    expect(body.pulls?.[0]?.generation).toMatchObject({
+      status: GenerationStatuses.PENDING,
+    });
+    expect(body.pulls?.[0]?.generation).not.toHaveProperty("waitReason");
   });
 
   it("meta: exposes draft status and viewer authorship for an own draft", async () => {

@@ -11,7 +11,7 @@ import type { PgColumn } from "drizzle-orm/pg-core";
 import { type AppDatabase, internal } from "../db/handle";
 import { generation } from "../schema/generation";
 import { pullRequest } from "../schema/pull-request";
-import type { GenerationRow } from "./generation";
+import { getGenerateJobKey, type GenerationRow } from "./generation";
 import {
   buildLifecycleColumns,
   type PullRequestRow,
@@ -420,7 +420,7 @@ export function createIngestRoutines(
         // notation, so extra defaulted parameters in real graphile don't
         // matter). Ids cross as STRINGS, since JSON cannot carry bigint; the worker
         // re-brands them through `TenantContextSchema`.
-        const jobKey = `generate:${prRow.id}`;
+        const jobKey = getGenerateJobKey(prRow.id);
         const payload = buildJobPayload(
           scope,
           input.grantId,

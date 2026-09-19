@@ -36,6 +36,17 @@ import {
 
 export type GenerationRow = typeof generation.$inferSelect;
 
+/** Where the PR's queued `generate` job stands, judged by the database clock. */
+export interface GenerateJobTiming {
+  readonly startsLater: boolean;
+  readonly locked: boolean;
+}
+
+/** The graphile job key: one queued `generate` job per PR. */
+export function getGenerateJobKey(pullRequestId: PullRequestRowId): string {
+  return `generate:${pullRequestId}`;
+}
+
 /** The statements `startRun` runs on one transaction, or the plain handle. */
 type GenerationExecutor = Pick<AppDrizzle, "select" | "update">;
 
@@ -228,6 +239,14 @@ export interface GenerationProjection {
     pullRequestId: PullRequestRowId,
     currentHeadSha: string,
   ): Promise<number>;
+  /**
+   * The queued `generate` job for one PR in ctx's scope; `undefined` when the
+   * queue holds none. Both answers are computed in SQL, so no `run_at` value
+   * leaves the database and no process clock is compared with it.
+   */
+  getGenerateJobTiming(
+    pullRequestId: PullRequestRowId,
+  ): Promise<GenerateJobTiming | undefined>;
 }
 
 // ---------------------------------------------------------------------------
@@ -541,6 +560,22 @@ export function createGenerationProjection(
         )
         .returning({ id: generation.id });
       return rows.length;
+    },
+
+    async getGenerateJobTiming(pullRequestId) {
+      const jobKey = getGenerateJobKey(pullRequestId);
+      const rows = await db
+        .select({
+          startsLater: sql<boolean>`job.run_at > now()`,
+          locked: sql<boolean>`job.locked_at is not null`,
+        })
+        .from(pullRequest)
+        .innerJoin(sql`graphile_worker.jobs as job`, sql`job.key = ${jobKey}`)
+        .where(
+          and(scope.matchesPullRequest(), eq(pullRequest.id, pullRequestId)),
+        )
+        .limit(1);
+      return rows[0];
     },
   };
 }

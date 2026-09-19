@@ -16,23 +16,23 @@ import * as schema from "./schema/index";
 export { warmPgliteSnapshot } from "./pglite-snapshot";
 
 // Mirrors `job_key_mode` 'replace' and 'preserve_run_at'; parameter names match the
-// named-notation call in `ingest.ts`. `language sql` (not plpgsql) because
-// plpgsql raises 42702 on the bare `on conflict (job_key)` column list when a
-// parameter shares the column's name; SQL functions resolve it to the COLUMN.
-// A NULL `job_key` never conflicts, so the keyless call degrades to a plain
-// insert.
+// named-notation call in `ingest.ts`. The columns a store reads (`key`,
+// `run_at`, `locked_at`) carry the real `graphile_worker.jobs` view's names, so
+// a read that passes here resolves in production. A NULL `key` never
+// conflicts, so the keyless call degrades to a plain insert.
 const GRAPHILE_WORKER_STUB_SQL = `
 create schema if not exists graphile_worker;
 create table graphile_worker.jobs (
   id bigserial primary key, task_identifier text not null, payload json,
-  job_key text unique, run_at timestamptz not null default now(), created_at timestamptz not null default now());
+  key text unique, run_at timestamptz not null default now(), locked_at timestamptz,
+  created_at timestamptz not null default now());
 create or replace function graphile_worker.add_job(
   identifier text, payload json default null, job_key text default null,
   run_at timestamptz default now(), job_key_mode text default 'replace')
 returns graphile_worker.jobs language sql as $$
-  insert into graphile_worker.jobs(task_identifier, payload, job_key, run_at)
+  insert into graphile_worker.jobs(task_identifier, payload, key, run_at)
     values (add_job.identifier, add_job.payload, add_job.job_key, add_job.run_at)
-  on conflict (job_key) do update
+  on conflict (key) do update
     set task_identifier = excluded.task_identifier,
         payload = excluded.payload,
         run_at = case when add_job.job_key_mode = 'preserve_run_at'
