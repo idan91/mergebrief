@@ -13,7 +13,7 @@ import {
   mentionCandidatesFromThread,
   mergeMentionCandidates,
 } from "../../../utils/mentions";
-import { postdatesBrief } from "../../../utils/postdate";
+import { NO_OWN_REVIEWS, postdatesBrief } from "../../../utils/postdate";
 import { buildQuoteBlock } from "../../../utils/quote";
 import { ReplyComposer } from "./ReplyComposer/ReplyComposer";
 import { ThreadResolveAction } from "./ThreadResolveAction/ThreadResolveAction";
@@ -39,6 +39,7 @@ export function ThreadDetail({
   const { i18n, t } = useTranslation();
   const locale = renderedLocale(i18n.resolvedLanguage);
   const { thread, placement } = row;
+  const ownReviewIds = row.ownReviewIds ?? NO_OWN_REVIEWS;
   // This detail is the nearest common ancestor of the flow's two consumers:
   // the standalone action below and the composer's Reply & resolve leg.
   const resolution = useThreadResolution({
@@ -168,7 +169,7 @@ export function ThreadDetail({
             <time dateTime={comment.createdAt}>
               {formatDate(comment.createdAt, locale)}
             </time>
-            {postdatesBrief(comment.createdAt, row.briefGeneratedAt) ? (
+            {postdatesBrief(comment, row.briefGeneratedAt, ownReviewIds) ? (
               <span className={rowStyles["chip"]} data-state="after-brief">
                 {t("conversation.afterThisBrief")}
               </span>

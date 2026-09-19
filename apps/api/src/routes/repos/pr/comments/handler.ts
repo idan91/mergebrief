@@ -5,6 +5,7 @@ import {
   createTenantRepository,
 } from "persistence";
 import { ApiErrorCodes } from "contract";
+import type { InlineReviewCommentResult } from "github";
 import {
   BadRequest,
   Conflict,
@@ -83,19 +84,24 @@ async function resolvePublishableDraft(
 
 /**
  * The GitHub write is the commit point; flipping the row is how the session
- * records it. A failure here leaves a draft that is on GitHub, logged,
- * never an error response, which would invite a second post.
+ * records it, and the wrapping review id is how a later read knows the
+ * comment as the reviewer's own. A failure here leaves a draft that is on
+ * GitHub, logged, never an error response, which would invite a second post.
  */
 async function recordPublishedDraft(
   c: Context<AuthzEnv>,
   resolved: Awaited<ReturnType<typeof resolveSessionWrite>>,
   draftRowId: bigint,
-  commentId: bigint,
+  posted: InlineReviewCommentResult,
 ) {
+  const { commentId, reviewId } = posted;
   try {
-    const flipped = await resolved.run((writer) =>
-      writer.publishDraftComments([draftRowId]),
-    );
+    const flipped = await resolved.run(async (writer) => {
+      await writer.publishDraftComments([draftRowId]);
+      if (reviewId !== undefined) {
+        await writer.recordSubmittedReview({ githubReviewId: reviewId });
+      }
+    });
     if (!flipped.ok) {
       if (flipped.error.kind === "session-rejected") {
         throw new Error(flipped.error.error.code);
@@ -170,7 +176,7 @@ export default function createHandlers(
       throwPublishFailure(posted.error);
     }
 
-    await recordPublishedDraft(c, resolved, draft.id, posted.value.commentId);
+    await recordPublishedDraft(c, resolved, draft.id, posted.value);
     evictConversation(ctx, repoId, pr.prNumber);
     stampAuditTarget(c, "review_comment", posted.value.commentId);
 

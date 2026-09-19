@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import { Markdown } from "@web/components/Markdown/Markdown";
 import { RowButton } from "@web/components/RowButton/RowButton";
 import { deriveDigestLine } from "../../../../utils/digestLine";
-import { postdatesBrief } from "../../../../utils/postdate";
+import { NO_OWN_REVIEWS, postdatesBrief } from "../../../../utils/postdate";
 import rowStyles from "../../../../rows.module.scss";
 import type { PrLevelComment } from "../../../../types";
 
@@ -15,7 +15,7 @@ export interface PrCommentRowProps {
 }
 
 /**
- * A PR-level (non-thread) comment row — same disclosure pattern as the thread
+ * A PR-level (non-thread) comment row, same disclosure pattern as the thread
  * rows, with the comment body as its detail.
  */
 export function PrCommentRow({
@@ -42,7 +42,7 @@ export function PrCommentRow({
         <span className={rowStyles["rowLine"]}>
           {deriveDigestLine(comment.body)}
         </span>
-        {postdatesBrief(comment.createdAt, briefGeneratedAt) ? (
+        {postdatesBrief(comment, briefGeneratedAt, NO_OWN_REVIEWS) ? (
           <span className={rowStyles["chip"]} data-state="after-brief">
             {t("conversation.afterThisBrief")}
           </span>

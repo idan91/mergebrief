@@ -817,6 +817,22 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       expect(rows[0]?.["status"]).toBe(DraftCommentStatuses.SUBMITTED);
     });
 
+    it("records the wrapping review id on the session", async () => {
+      stubGitHub({ repositories: () => repoOk(), comments: () => commentOk() });
+      await seedPr(harness.handle);
+      const { cookie } = await seedSession(harness.handle, kp);
+      const { draftId } = await seedDraft(harness.handle);
+
+      expect((await post(app, cookie, named(draftId))).status).toBe(201);
+
+      const rows = await harness.raw(
+        "select github_review_id from review_submitted_review",
+      );
+      expect(rows.map((row) => String(row["github_review_id"]))).toEqual([
+        "555",
+      ]);
+    });
+
     it("logs a plain error, not audit.fail, when the flip fails after the post", async () => {
       // `audit.fail` names an audit ROW that would not persist. A session-row
       // publication flip is a different failure, and raising that event for it

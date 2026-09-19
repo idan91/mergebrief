@@ -21,6 +21,8 @@ import {
 export interface OwnCommentReconciliation {
   /** Root comment ids of threads created by this reviewer's recorded submits. */
   readonly ownThreadIds: ReadonlySet<number>;
+  /** The recorded submit ids themselves, the per-comment "yours" join. */
+  readonly ownReviewIds: ReadonlySet<number>;
   /**
    * Local comment id → own thread root id. The local record demotes to this
    * pointer after the first refetch: the server thread renders, the pointer
@@ -88,7 +90,12 @@ export function reconcileOwnComments(
     )
     .map((comment) => comment.id);
 
-  return { ownThreadIds, pointers, resurrectedDraftIds };
+  return {
+    ownThreadIds,
+    ownReviewIds: recorded,
+    pointers,
+    resurrectedDraftIds,
+  };
 }
 
 /**

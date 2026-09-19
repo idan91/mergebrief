@@ -46,6 +46,8 @@ export interface DigestThreadRow {
    * detail renderers can mark comments that postdate the brief.
    */
   readonly briefGeneratedAt?: string;
+  /** This reviewer's recorded submits; their comments never mark. */
+  readonly ownReviewIds?: ReadonlySet<number>;
 }
 
 export interface DigestBotGroupRow {
@@ -75,6 +77,8 @@ export interface BuildConversationDigestInput {
   readonly ownThreadIds: ReadonlySet<number>;
   /** The viewed revision's generation cutoff; absent marks nothing. */
   readonly briefGeneratedAt?: string | undefined;
+  /** This reviewer's recorded submits; absent marks every late comment. */
+  readonly ownReviewIds?: ReadonlySet<number> | undefined;
 }
 
 const SHORT_SHA_LENGTH = 7;
@@ -82,9 +86,10 @@ const SHORT_SHA_LENGTH = 7;
 function threadRow(
   thread: ConversationThread,
   placement: ThreadPlacement,
-  ownThreadIds: ReadonlySet<number>,
-  briefGeneratedAt: string | undefined,
+  input: BuildConversationDigestInput,
 ): DigestThreadRow {
+  const { ownThreadIds, briefGeneratedAt, ownReviewIds } = input;
+
   const rootBody = thread.comments[0]?.body ?? "";
   const anchorLabel =
     thread.isOutdated && thread.anchorSha !== undefined
@@ -100,6 +105,7 @@ function threadRow(
 
   if (anchorLabel !== undefined) row.anchorLabel = anchorLabel;
   if (briefGeneratedAt !== undefined) row.briefGeneratedAt = briefGeneratedAt;
+  if (ownReviewIds !== undefined) row.ownReviewIds = ownReviewIds;
 
   return row;
 }
@@ -218,14 +224,14 @@ function collectDigestGroups(
   input: BuildConversationDigestInput,
   labelFor: DigestGroupLabel,
 ): DigestGroup[] {
-  const { conversation, chunks, ownThreadIds, briefGeneratedAt } = input;
+  const { conversation, chunks } = input;
   const byChunk = new Map<string, DigestThreadRow[]>();
   const outdated: DigestThreadRow[] = [];
   const general: DigestThreadRow[] = [];
 
   for (const thread of conversation.threads) {
     const placement = placeThread(thread, chunks);
-    const row = threadRow(thread, placement, ownThreadIds, briefGeneratedAt);
+    const row = threadRow(thread, placement, input);
     if (
       placement.kind === ThreadPlacementKinds.CHUNK ||
       placement.kind === ThreadPlacementKinds.FILE_HEADER
@@ -303,9 +309,7 @@ export function buildThreadsOutsideChunks(
     if (placement.kind !== ThreadPlacementKinds.UNANCHORED) continue;
     if (placement.reason !== UnanchoredReasons.LINE_OUTSIDE_CHUNKS) continue;
     const rows = byFile.get(thread.path) ?? [];
-    rows.push(
-      threadRow(thread, placement, input.ownThreadIds, input.briefGeneratedAt),
-    );
+    rows.push(threadRow(thread, placement, input));
     byFile.set(thread.path, rows);
   }
 
@@ -329,9 +333,7 @@ export function buildLineThreadsByFile(
     if (thread.comments[0]?.author.isBot) continue;
     const placement = placeThread(thread, input.chunks);
     const rows = byFile.get(thread.path) ?? [];
-    rows.push(
-      threadRow(thread, placement, input.ownThreadIds, input.briefGeneratedAt),
-    );
+    rows.push(threadRow(thread, placement, input));
     byFile.set(thread.path, rows);
   }
 

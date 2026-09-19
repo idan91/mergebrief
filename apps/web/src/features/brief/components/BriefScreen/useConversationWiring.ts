@@ -188,11 +188,11 @@ export function useConversationWiring(
     // pointer/resurrection outputs, so they stay OUT of these deps: a comment
     // save/toggle must not rebuild every chunk's inline rows and bust the
     // ChunkCard memo boundary.
-    const ownThreadIds = reconcileOwnComments(
+    const { ownThreadIds, ownReviewIds } = reconcileOwnComments(
       [],
       filtered.threads,
       submittedReviewIds,
-    ).ownThreadIds;
+    );
     return buildInlineThreads({
       conversation: filtered,
       chunks: readingOrderedChunks,
@@ -200,6 +200,7 @@ export function useConversationWiring(
       // The cutoff is a primitive dep (not the plan object): the plan is
       // route-memoized, but only this field affects the rows.
       briefGeneratedAt: conversation?.briefGeneratedAt,
+      ownReviewIds,
     });
   }, [
     conversationData,
@@ -213,16 +214,17 @@ export function useConversationWiring(
   // an expansion surfaces it the same way.
   const hiddenThreadsByFile = useMemo(() => {
     if (conversationData === undefined) return undefined;
-    const ownThreadIds = reconcileOwnComments(
+    const { ownThreadIds, ownReviewIds } = reconcileOwnComments(
       [],
       conversationData.threads,
       submittedReviewIds,
-    ).ownThreadIds;
+    );
     return buildThreadsOutsideChunks({
       conversation: conversationData,
       chunks: readingOrderedChunks,
       ownThreadIds,
       briefGeneratedAt: conversation?.briefGeneratedAt,
+      ownReviewIds,
     });
   }, [
     conversationData,
@@ -233,16 +235,17 @@ export function useConversationWiring(
 
   const lineThreadsByFile = useMemo(() => {
     if (conversationData === undefined) return undefined;
-    const ownThreadIds = reconcileOwnComments(
+    const { ownThreadIds, ownReviewIds } = reconcileOwnComments(
       [],
       conversationData.threads,
       submittedReviewIds,
-    ).ownThreadIds;
+    );
     return buildLineThreadsByFile({
       conversation: conversationData,
       chunks: readingOrderedChunks,
       ownThreadIds,
       briefGeneratedAt: conversation?.briefGeneratedAt,
+      ownReviewIds,
     });
   }, [
     conversationData,

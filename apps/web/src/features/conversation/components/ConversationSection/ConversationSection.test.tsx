@@ -327,6 +327,45 @@ describe("ConversationSection", () => {
     expect(await screen.findByText("after this brief")).toBeDefined();
   });
 
+  it("leaves the reviewer's own submit out of the count and the chip", async () => {
+    const withOwn = conversation();
+    const ownThread = withOwn.threads[0];
+    if (ownThread === undefined) throw new Error("fixture");
+    const ownPayload: PrConversation = {
+      ...withOwn,
+      threads: [
+        {
+          ...ownThread,
+          comments: ownThread.comments.map((comment) => ({
+            ...comment,
+            reviewId: 500,
+          })),
+        },
+        ...withOwn.threads.slice(1),
+      ],
+    };
+    renderSection({
+      plan: {
+        ...plan([{ kind: "ready", conversation: ownPayload }]),
+        briefGeneratedAt: "2026-07-01T09:00:00Z",
+      },
+      submittedReviewIds: [500],
+    });
+    // Only the bot's comment is news; alice's thread is the reviewer's own.
+    expect(
+      await screen.findByText(
+        "1 comment arrived after this brief was generated",
+      ),
+    ).toBeDefined();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /This null check looks inverted/,
+      }),
+    );
+    await screen.findByText("yours");
+    expect(screen.queryByText("after this brief")).toBeNull();
+  });
+
   it("expands a thread row via aria-expanded and jumps to its chunk", async () => {
     const { props } = renderSection({ plan: plan([ready()]) });
     const row = await screen.findByRole("button", {

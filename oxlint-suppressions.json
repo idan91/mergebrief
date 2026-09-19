@@ -692,11 +692,6 @@
       "count": 1
     }
   },
-  "apps/web/src/features/conversation/components/ConversationSection/DigestGroupView/PrCommentRow/PrCommentRow.tsx": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "apps/web/src/features/conversation/components/InlineThreads/InlineThreads.test.tsx": {
     "house/no-em-dash": {
       "count": 1
@@ -764,11 +759,6 @@
     },
     "house/test-title": {
       "count": 3
-    }
-  },
-  "apps/web/src/features/conversation/utils/postdate.test.ts": {
-    "house/test-title": {
-      "count": 2
     }
   },
   "apps/web/src/features/conversation/wiring.ts": {

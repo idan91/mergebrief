@@ -113,9 +113,12 @@ function plan(
   return conversationPlan;
 }
 
+const NO_SUBMITS: number[] = [];
+
 function renderWiring(
   conversation: ConversationPlan | undefined,
   conversationFilter?: ConversationFilter,
+  submittedReviewIds: number[] = NO_SUBMITS,
 ) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -141,7 +144,7 @@ function renderWiring(
         ensureChunkOpen,
         model: buildBriefViewModel(brief),
         readingOrderedChunks: [chunk()],
-        submittedReviewIds: [],
+        submittedReviewIds,
       }),
     { wrapper },
   );
@@ -220,6 +223,29 @@ describe("useConversationWiring, inline filtering", () => {
       parseConversationFilter({ reviewers: "departed-colleague" }),
     );
     expect(rows).toHaveLength(2);
+  });
+});
+
+describe("useConversationWiring, own submits", () => {
+  it("stamps the recorded review ids on every row under the diff", async () => {
+    const { result } = renderWiring(
+      plan(undefined, conversationWith(["alice"])),
+      undefined,
+      [77],
+    );
+    await waitFor(() =>
+      expect(result.current.conversationByChunk).toBeDefined(),
+    );
+
+    const inline = result.current.conversationByChunk?.get("c1") ?? [];
+    const byLine = result.current.lineThreadsByFile?.get("src/a.ts") ?? [];
+    const rows = [...inline, ...byLine];
+    expect(rows.length).toBeGreaterThan(1);
+    for (const row of rows) {
+      expect(row.kind === "thread" ? row.ownReviewIds?.has(77) : false).toBe(
+        true,
+      );
+    }
   });
 });
 

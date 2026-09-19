@@ -17,7 +17,7 @@ import {
   reconcileReviewers,
   type ConversationFilter,
 } from "../../utils/filter";
-import { countCommentsAfterBrief } from "../../utils/postdate";
+import { NO_OWN_REVIEWS, countCommentsAfterBrief } from "../../utils/postdate";
 import { reconcileOwnComments } from "../../utils/ownComments";
 import type {
   buildCollaboratorsQueryOptions,
@@ -210,6 +210,7 @@ export function ConversationSection({
             chunks,
             ownThreadIds: reconciliation?.ownThreadIds ?? new Set(),
             briefGeneratedAt: plan.briefGeneratedAt,
+            ownReviewIds: reconciliation?.ownReviewIds,
           }),
     [chunks, filtered, plan.briefGeneratedAt, reconciliation, t],
   );
@@ -307,8 +308,12 @@ export function ConversationSection({
     () =>
       conversation === undefined
         ? 0
-        : countCommentsAfterBrief(conversation, plan.briefGeneratedAt),
-    [conversation, plan.briefGeneratedAt],
+        : countCommentsAfterBrief(
+            conversation,
+            plan.briefGeneratedAt,
+            reconciliation?.ownReviewIds ?? NO_OWN_REVIEWS,
+          ),
+    [conversation, plan.briefGeneratedAt, reconciliation],
   );
 
   // Empty-bodied COMMENTED reviews (GitHub's envelope around inline comments)
