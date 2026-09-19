@@ -3,6 +3,7 @@
 // and NEVER `status === "succeeded"` (markSucceeded fires only after delta
 // warmup, well after the artifact is readable). Generation status drives the
 // waiting/failed/superseded display and the polling cadence only.
+import type { WaitReason } from "contract";
 import { isOwnDraft } from "./ownDraft";
 import type { GenerationFailureCode, PrSummary } from "../types";
 
@@ -25,6 +26,7 @@ export type BriefRouteState =
       readonly status: "pending" | "running";
       readonly phase: string | null;
       readonly span: Span | undefined;
+      readonly waitReason: WaitReason | undefined;
     }
   /** Terminal failure: the catalog code, when known, plus attempts. */
   | {
@@ -100,6 +102,7 @@ export function deriveBriefRouteState(
         status: generation.status,
         phase: generation.phase,
         span,
+        waitReason: generation.waitReason,
       };
     case "failed":
       return {

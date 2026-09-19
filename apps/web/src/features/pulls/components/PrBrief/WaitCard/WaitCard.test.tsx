@@ -1,55 +1,128 @@
-// The generation heading copy: a phase that restates the verb must not echo
-// it, and "brief" is lowercase for this view.
+// The wait heading matrix: reason by damped notice while pending, phase while
+// running. Expected lines are the catalog's literal copy.
 import { describe, expect, it } from "vitest";
+import { WaitReasons, type WaitReason } from "contract";
 import { appI18n } from "../../../../../i18n/I18nProvider";
 
 import { waitLabel } from "./WaitCard";
 
 const t = appI18n.t;
 
-describe("waitLabel", () => {
-  it("collapses the verb-echo phase to the phase-less heading", () => {
-    expect(waitLabel(t, "running", "generating")).toBe("Generating the brief…");
+const PENDING_LINE = "Pending: the brief will start generating shortly.";
+const DEBOUNCING_LINE =
+  "Holding briefly in case more commits land. The brief starts generating shortly.";
+const SLOT_LINE =
+  "Other briefs are generating. This one starts when a slot frees up.";
+const GENERATING_LINE = "Generating the brief…";
+const DAMPED_NOTICE = "Pending: draft mode note.";
+
+interface PendingCase {
+  readonly name: string;
+  readonly waitReason: WaitReason | undefined;
+  readonly pendingNotice: string | undefined;
+  readonly expected: string;
+}
+
+const PENDING_CASES: readonly PendingCase[] = [
+  {
+    name: "no reason and no notice shows the generic pending line",
+    waitReason: undefined,
+    pendingNotice: undefined,
+    expected: PENDING_LINE,
+  },
+  {
+    name: "no reason on a damped draft shows the notice",
+    waitReason: undefined,
+    pendingNotice: DAMPED_NOTICE,
+    expected: DAMPED_NOTICE,
+  },
+  {
+    name: "debouncing shows the debouncing line",
+    waitReason: WaitReasons.DEBOUNCING,
+    pendingNotice: undefined,
+    expected: DEBOUNCING_LINE,
+  },
+  {
+    name: "debouncing on a damped draft keeps the notice",
+    waitReason: WaitReasons.DEBOUNCING,
+    pendingNotice: DAMPED_NOTICE,
+    expected: DAMPED_NOTICE,
+  },
+  {
+    name: "waiting for a slot shows the slot line",
+    waitReason: WaitReasons.WAITING_FOR_SLOT,
+    pendingNotice: undefined,
+    expected: SLOT_LINE,
+  },
+  {
+    name: "waiting for a slot wins over a damped notice",
+    waitReason: WaitReasons.WAITING_FOR_SLOT,
+    pendingNotice: DAMPED_NOTICE,
+    expected: SLOT_LINE,
+  },
+];
+
+interface RunningCase {
+  readonly name: string;
+  readonly phase: string | null;
+  readonly expected: string;
+}
+
+const RUNNING_CASES: readonly RunningCase[] = [
+  { name: "no phase", phase: null, expected: GENERATING_LINE },
+  {
+    name: "fetching",
+    phase: "fetching",
+    expected: "Fetching the pull request…",
+  },
+  { name: "redacting", phase: "redacting", expected: "Redacting secrets…" },
+  { name: "generating", phase: "generating", expected: GENERATING_LINE },
+  { name: "writing", phase: "writing", expected: "Saving the brief…" },
+  {
+    name: "an unknown phase",
+    phase: "reading-diff",
+    expected: GENERATING_LINE,
+  },
+  {
+    name: "an object prototype key as phase",
+    phase: "constructor",
+    expected: GENERATING_LINE,
+  },
+];
+
+describe("waitLabel while pending", () => {
+  it.each(PENDING_CASES)("$name", ({ waitReason, pendingNotice, expected }) => {
+    const label = waitLabel(t, {
+      status: "pending",
+      phase: null,
+      waitReason,
+      pendingNotice,
+    });
+
+    expect(label).toBe(expected);
+  });
+});
+
+describe("waitLabel while running", () => {
+  it.each(RUNNING_CASES)("$name names its own line", ({ phase, expected }) => {
+    const label = waitLabel(t, {
+      status: "running",
+      phase,
+      waitReason: undefined,
+      pendingNotice: undefined,
+    });
+
+    expect(label).toBe(expected);
   });
 
-  it("uses the phase-less heading when there is no phase", () => {
-    expect(waitLabel(t, "running", null)).toBe("Generating the brief…");
-  });
+  it("ignores a damped notice and a stale wait reason", () => {
+    const label = waitLabel(t, {
+      status: "running",
+      phase: null,
+      waitReason: WaitReasons.WAITING_FOR_SLOT,
+      pendingNotice: DAMPED_NOTICE,
+    });
 
-  it("shows a distinct kebab-normalized phase after the separator", () => {
-    expect(waitLabel(t, "running", "writing")).toBe(
-      "Generating the brief — writing…",
-    );
-    expect(waitLabel(t, "running", "reading-diff")).toBe(
-      "Generating the brief — reading diff…",
-    );
-  });
-
-  it("keeps informative phases that merely CONTAIN the verb", () => {
-    // Only the exact echo collapses; a substring match would eat
-    // "generating-summary", which is real signal.
-    expect(waitLabel(t, "running", "generating-summary")).toBe(
-      "Generating the brief — generating summary…",
-    );
-    // Case-insensitive exact echo still collapses.
-    expect(waitLabel(t, "running", "Generating")).toBe("Generating the brief…");
-  });
-
-  it("lowercases the artifact noun mid-sentence in the pending heading", () => {
-    expect(waitLabel(t, "pending", null)).toBe(
-      "Pending: the brief will start generating shortly.",
-    );
-  });
-
-  it("a pending notice replaces the misleading 'shortly' heading", () => {
-    expect(waitLabel(t, "pending", null, "Pending: draft mode note.")).toBe(
-      "Pending: draft mode note.",
-    );
-  });
-
-  it("a pending notice never touches the running heading", () => {
-    expect(waitLabel(t, "running", null, "Pending: draft mode note.")).toBe(
-      "Generating the brief…",
-    );
+    expect(label).toBe(GENERATING_LINE);
   });
 });

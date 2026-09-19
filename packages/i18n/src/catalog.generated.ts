@@ -13,9 +13,6 @@ export type Catalog = typeof en & {
     list: (typeof en)["pulls"]["list"] & {
       fallbackTitle: "PR #{{number}}";
     };
-    wait: (typeof en)["pulls"]["wait"] & {
-      generatingPhase: "Generating the brief — {{phase}}…";
-    };
     capped: (typeof en)["pulls"]["capped"] & {
       resumes: "Daily generation cap reached — resumes {{resetsAt, datetime(dateStyle: medium; timeStyle: short)}}";
     };

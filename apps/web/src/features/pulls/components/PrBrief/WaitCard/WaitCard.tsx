@@ -1,9 +1,11 @@
 // The wait surface for the DB-brief route. Announced via the polite live
 // region the body owns; presentational.
+import { WaitReasons, type WaitReason } from "contract";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type { Span } from "../../../utils/briefRouteState";
 import cardStyles from "../stateCard.module.scss";
+import { PHASE_KEYS, WAIT_REASON_KEYS } from "./consts";
 import { LiveDiffPreview } from "./LiveDiffPreview/LiveDiffPreview";
 
 export interface WaitCardProps {
@@ -18,29 +20,48 @@ export interface WaitCardProps {
    * "shortly" is wrong while the configured window runs.
    */
   pendingNotice?: string | undefined;
+  /** Why a pending generation has not started; absent shows the generic line. */
+  waitReason?: WaitReason | undefined;
+}
+
+export interface WaitLabelInput {
+  status: "pending" | "running";
+  phase: string | null;
+  waitReason: WaitReason | undefined;
+  pendingNotice: string | undefined;
 }
 
 /**
- * Human label for the generation heading. A phase that is EXACTLY the verb
- * ("generating") would echo the verb straight back in the heading, so that
- * echo collapses to the phase-less heading; any other phase is informative
- * and still shows after the separator.
+ * The damped notice states the real draft window, so it outranks the
+ * debouncing line; once the wait is for a slot the draft wait is over and the
+ * slot line outranks the notice.
  */
-export function waitLabel(
+function getPendingLabel(
   t: TFunction,
-  status: "pending" | "running",
-  phase: string | null,
-  pendingNotice?: string,
+  waitReason: WaitReason | undefined,
+  pendingNotice: string | undefined,
 ): string {
-  if (status === "pending")
-    // Under draft damping "shortly" would lie, so the notice text (which
-    // states the configured window) replaces the pending heading.
-    return pendingNotice ?? t("pulls.wait.pending");
-  if (phase === null) return t("pulls.wait.generating");
-  const phaseText = phase.replaceAll("-", " ");
-  return phaseText.toLowerCase() === "generating"
-    ? t("pulls.wait.generating")
-    : t("pulls.wait.generatingPhase", { phase: phaseText });
+  if (waitReason === WaitReasons.WAITING_FOR_SLOT) {
+    return t(WAIT_REASON_KEYS[waitReason]);
+  }
+  if (pendingNotice !== undefined) {
+    return pendingNotice;
+  }
+  if (waitReason === undefined) {
+    return t("pulls.wait.pending");
+  }
+  return t(WAIT_REASON_KEYS[waitReason]);
+}
+
+/** The wait heading, which is also the live region's announcement. */
+export function waitLabel(t: TFunction, input: WaitLabelInput): string {
+  if (input.status === "pending") {
+    return getPendingLabel(t, input.waitReason, input.pendingNotice);
+  }
+
+  const phaseKey =
+    input.phase === null ? undefined : PHASE_KEYS.get(input.phase);
+  return t(phaseKey ?? "pulls.wait.generating");
 }
 
 export function WaitCard({
@@ -50,12 +71,14 @@ export function WaitCard({
   repoId,
   prNumber,
   pendingNotice,
+  waitReason,
 }: WaitCardProps) {
   const { t } = useTranslation();
+  const heading = waitLabel(t, { status, phase, waitReason, pendingNotice });
   return (
     <section aria-labelledby="wait-heading" className={cardStyles["card"]}>
       <h1 className={cardStyles["heading"]} id="wait-heading">
-        {waitLabel(t, status, phase, pendingNotice)}
+        {heading}
       </h1>
       <span aria-hidden="true" className={cardStyles["spinner"]} />
       <p className={cardStyles["copy"]}>

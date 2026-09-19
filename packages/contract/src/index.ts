@@ -24,7 +24,11 @@ export {
   type ApiErrorParams,
 } from "./errors";
 export { MAX_FILE_RANGE_LINES, type FileRangeView } from "./file-range";
-export { WaitReasons, type WaitReason } from "./generation";
+export {
+  WaitReasons,
+  type GenerationPhase,
+  type WaitReason,
+} from "./generation";
 export {
   ProductActionIds,
   ProductQueryIds,

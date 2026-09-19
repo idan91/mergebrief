@@ -3,7 +3,9 @@
 // bundle); API responses are parsed at the boundary, never cast.
 import {
   LastReviewUnavailableReasons,
+  WaitReasons,
   type LastReviewUnavailableReason,
+  type WaitReason,
 } from "contract";
 import type { Mutable, Result as SharedResult, ValueOf } from "types/utils";
 import type {
@@ -77,6 +79,8 @@ export interface GenerationSummary {
   readonly errorCode: GenerationFailureCode | null;
   readonly errorDetail: string | null;
   readonly updatedAt: string;
+  /** PR meta only, and only while pending; absent means the generic line. */
+  readonly waitReason?: WaitReason;
 }
 
 /** Previous-brief comparison availability on PR meta. */
@@ -226,6 +230,13 @@ function isGenerationStatus(value: unknown): value is GenerationStatus {
   );
 }
 
+function isWaitReason(value: unknown): value is WaitReason {
+  return (
+    typeof value === "string" &&
+    Object.values(WaitReasons).some((reason) => reason === value)
+  );
+}
+
 function parseGenerationSummary(
   value: unknown,
 ): Result<GenerationSummary | null> {
@@ -251,24 +262,27 @@ function parseGenerationSummary(
   if (typeof value["updatedAt"] !== "string") {
     return { ok: false, error: "generation.updatedAt must be a string" };
   }
-  return {
-    ok: true,
-    value: {
-      status: value["status"],
-      phase: value["phase"],
-      attempts: value["attempts"],
-      // Tolerant on purpose: a code this bundle predates parses as null and
-      // renders the generic failed line, rather than failing the whole view.
-      errorCode: isGenerationFailureCode(value["errorCode"])
-        ? value["errorCode"]
+  const summary: Mutable<GenerationSummary> = {
+    status: value["status"],
+    phase: value["phase"],
+    attempts: value["attempts"],
+    // Tolerant on purpose: a code this bundle predates parses as null and
+    // renders the generic failed line, rather than failing the whole view.
+    errorCode: isGenerationFailureCode(value["errorCode"])
+      ? value["errorCode"]
+      : null,
+    errorDetail:
+      isRecord(rawParams) && typeof rawParams["detail"] === "string"
+        ? rawParams["detail"]
         : null,
-      errorDetail:
-        isRecord(rawParams) && typeof rawParams["detail"] === "string"
-          ? rawParams["detail"]
-          : null,
-      updatedAt: value["updatedAt"],
-    },
+    updatedAt: value["updatedAt"],
   };
+
+  // Tolerant like errorCode: an unknown reason shows the generic pending line.
+  if (isWaitReason(value["waitReason"])) {
+    summary.waitReason = value["waitReason"];
+  }
+  return { ok: true, value: summary };
 }
 
 function parsePreviousBrief(

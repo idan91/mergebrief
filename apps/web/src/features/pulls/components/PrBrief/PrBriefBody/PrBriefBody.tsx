@@ -65,12 +65,12 @@ export function stateAnnouncement(
         ? t("pulls.announce.briefReadyWarming")
         : t("pulls.announce.briefReady");
     case "waiting":
-      return waitLabel(
-        t,
-        state.status,
-        state.phase,
-        notice?.kind === "damped" ? notice.text : undefined,
-      );
+      return waitLabel(t, {
+        status: state.status,
+        phase: state.phase,
+        waitReason: state.waitReason,
+        pendingNotice: notice?.kind === "damped" ? notice.text : undefined,
+      });
     case "failed":
       return t("pulls.announce.failed");
     case "superseded":
@@ -172,6 +172,7 @@ function PrBriefBodyState({
             repoId={repoId}
             span={state.span}
             status={state.status}
+            waitReason={state.waitReason}
           />
         </main>
       );

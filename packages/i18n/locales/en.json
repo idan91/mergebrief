@@ -71,8 +71,15 @@
     },
     "wait": {
       "pending": "Pending: the brief will start generating shortly.",
+      "debouncing": "Holding briefly in case more commits land. The brief starts generating shortly.",
+      "waitingForSlot": "Other briefs are generating. This one starts when a slot frees up.",
       "generating": "Generating the brief…",
-      "generatingPhase": "Generating the brief — {{phase}}…",
+      "phase": {
+        "fetching": "Fetching the pull request…",
+        "redacting": "Redacting secrets…",
+        "generating": "Generating the brief…",
+        "writing": "Saving the brief…"
+      },
       "diffPending": "The diff preview appears here once the span is known; the brief replaces it when ready.",
       "diffReady": "Read the raw diff while you wait — the brief replaces it when ready.",
       "diffLoading": "Loading the diff…",

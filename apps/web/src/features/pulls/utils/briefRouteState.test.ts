@@ -1,6 +1,7 @@
 // Wait-UX state machine matrix. Render trigger = artifact EXISTS, never
 // status==="succeeded".
 import { describe, expect, it } from "vitest";
+import { WaitReasons } from "contract";
 import {
   comparisonsWarming,
   deriveBriefRouteState,
@@ -143,6 +144,23 @@ describe("deriveBriefRouteState", () => {
       undefined,
     );
     expect(running).toMatchObject({ kind: "waiting", phase: "generating" });
+  });
+
+  it("a pending wait carries the wait reason the meta reports", () => {
+    const state = deriveBriefRouteState(
+      meta({
+        generation: generation({
+          status: "pending",
+          waitReason: WaitReasons.WAITING_FOR_SLOT,
+        }),
+      }),
+      undefined,
+    );
+
+    expect(state).toMatchObject({
+      kind: "waiting",
+      waitReason: WaitReasons.WAITING_FOR_SLOT,
+    });
   });
 
   it("failed → failure code + sanitized detail + attempts", () => {

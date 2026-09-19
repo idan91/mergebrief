@@ -2,7 +2,7 @@
 // infrastructure but still an external boundary to this bundle, so responses
 // are parsed, never cast.
 import { describe, expect, it } from "vitest";
-import type { LastReviewComparisonView } from "contract";
+import { WaitReasons, type LastReviewComparisonView } from "contract";
 import type { Equals } from "types/utils";
 import {
   parsePrSummary,
@@ -31,6 +31,15 @@ const ROW = {
   updatedAt: "2026-07-06T12:00:00.000Z",
   draft: false,
   viewerIsAuthor: false,
+};
+
+const PENDING_GENERATION = {
+  status: "pending",
+  phase: null,
+  attempts: 0,
+  errorCode: null,
+  errorParams: null,
+  updatedAt: "2026-07-06T12:00:00.000Z",
 };
 
 describe("parsePrSummary", () => {
@@ -87,6 +96,35 @@ describe("parsePrSummary", () => {
     });
     if (!loose.ok) throw new Error("unreachable");
     expect(loose.value.generation?.errorDetail).toBeNull();
+  });
+
+  it("parses a known wait reason off a pending generation", () => {
+    const parsed = parsePrSummary({
+      ...ROW,
+      generation: { ...PENDING_GENERATION, waitReason: "waiting-for-slot" },
+    });
+
+    if (!parsed.ok) throw new Error("unreachable");
+    expect(parsed.value.generation?.waitReason).toBe(
+      WaitReasons.WAITING_FOR_SLOT,
+    );
+  });
+
+  it("leaves the wait reason absent when the wire carries none", () => {
+    const parsed = parsePrSummary({ ...ROW, generation: PENDING_GENERATION });
+
+    if (!parsed.ok) throw new Error("unreachable");
+    expect(parsed.value.generation).not.toHaveProperty("waitReason");
+  });
+
+  it("degrades a wait reason this bundle does not know to absent", () => {
+    const parsed = parsePrSummary({
+      ...ROW,
+      generation: { ...PENDING_GENERATION, waitReason: "rate-limited" },
+    });
+
+    if (!parsed.ok) throw new Error("unreachable");
+    expect(parsed.value.generation).not.toHaveProperty("waitReason");
   });
 
   it("accepts a full row", () => {

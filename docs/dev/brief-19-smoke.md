@@ -131,8 +131,14 @@ fake generator adapter exists.
 3. **Immediately** open the PR's row from the picker
    (`/repos/<repoId>/pulls/<N>`).
 4. **Expect, in sequence, without any manual reload:**
-   - "Pending: the brief will start generating shortly." card, then
-   - "Generating the Brief — <phase>…" with a spinner
+   - the wait card's pending line: "Holding briefly in case more commits
+     land. The brief starts generating shortly." while the debounce runs,
+     "Other briefs are generating. This one starts when a slot frees up."
+     once the job is due with every slot busy, or the generic "Pending: the
+     brief will start generating shortly." when the API reports no reason,
+     then
+   - the phase line with a spinner: "Fetching the pull request…",
+     "Generating the brief…", then "Saving the brief…"
      (phase-only — no diff preview yet; known follow-up, base SHA not
      persisted),
    - PR-meta polling every ~4s (Network tab: `GET /api/repos/.../pulls/<N>`),

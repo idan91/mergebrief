@@ -219,7 +219,7 @@ describe("DB brief route", () => {
         baseSha: null,
         generation: {
           status: "running",
-          phase: "generating",
+          phase: "fetching",
           attempts: 0,
           errorCode: null,
           errorDetail: null,
@@ -228,15 +228,13 @@ describe("DB brief route", () => {
       }),
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}`,
     );
-    // The phase is "generating", the heading must NOT echo the verb
-    // ("Generating the brief, generating…"); it collapses to the phase-less
-    // heading, with a lowercase "brief" for this view.
+    // A phase whose line differs from the generic fallback, so a phase that
+    // never reaches the card fails here.
     await waitFor(() =>
       expect(
-        screen.getByRole("heading", { name: "Generating the brief…" }),
+        screen.getByRole("heading", { name: "Fetching the pull request…" }),
       ).toBeTruthy(),
     );
-    expect(screen.queryByRole("heading", { name: /— generating/i })).toBeNull();
   });
 
   it("shows the failed card with attempts and the sanitized error", async () => {
