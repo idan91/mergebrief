@@ -27,6 +27,8 @@ import {
   buildLocalRevisionChangesQueryOptions,
 } from "../features/brief/queries";
 import { buildPullsSessionQueryOptions } from "../features/pulls/queries";
+import { appI18n } from "../i18n/I18nProvider";
+import { buildPageTitle } from "@web/utils/pageTitle";
 import styles from "./routeShared.module.scss";
 import { useUnsavedComposerBlocker } from "@web/hooks/useUnsavedComposerGuard";
 
@@ -84,6 +86,11 @@ export const Route = createFileRoute("/briefs/$briefId")({
         buildLocalRevisionChangesQueryOptions(params.briefId),
       ),
     ]),
+  head: () => {
+    const pageName = appI18n.t("shell.pageTitle.localBrief");
+
+    return { meta: [{ title: buildPageTitle(appI18n.t, [pageName]) }] };
+  },
   component: BriefRoute,
   errorComponent: BriefError,
 });

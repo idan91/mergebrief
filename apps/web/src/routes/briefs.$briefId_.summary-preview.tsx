@@ -14,6 +14,8 @@ import type { Brief } from "../features/brief/types";
 import { buildBriefViewModel } from "@web/features/brief/utils";
 import { SummaryPreview } from "@web/features/review";
 import type { Disposition, SessionSnapshot } from "../features/review/session";
+import { appI18n } from "../i18n/I18nProvider";
+import { buildPageTitle } from "@web/utils/pageTitle";
 import styles from "./routeShared.module.scss";
 
 export const Route = createFileRoute("/briefs/$briefId_/summary-preview")({
@@ -33,6 +35,11 @@ export const Route = createFileRoute("/briefs/$briefId_/summary-preview")({
     context.queryClient.ensureQueryData(
       buildLocalBriefQueryOptions(params.briefId),
     ),
+  head: () => {
+    const pageName = appI18n.t("shell.pageTitle.summaryPreview");
+
+    return { meta: [{ title: buildPageTitle(appI18n.t, [pageName]) }] };
+  },
   component: SummaryPreviewRoute,
 });
 

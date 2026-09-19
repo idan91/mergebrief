@@ -267,6 +267,9 @@ export type Catalog = typeof en & {
   };
   shell: (typeof en)["shell"] & {
     footerRights: "© {{year}} Idan Ram. All rights reserved.";
+    pageTitle: (typeof en)["shell"]["pageTitle"] & {
+      prNumber: "#{{number}}";
+    };
     localePicker: (typeof en)["shell"]["localePicker"] & {
       ariaLabelTrigger: "Language: {{locale}}";
     };

@@ -8,11 +8,18 @@ import type { ReactNode } from "react";
 import { TokenSettings } from "@web/features/tokens";
 import { buildPullsSessionQueryOptions } from "../features/pulls/queries";
 import type { PullsSession } from "../features/pulls/types";
+import { appI18n } from "../i18n/I18nProvider";
+import { buildPageTitle } from "@web/utils/pageTitle";
 import styles from "./settings.module.scss";
 
 export const Route = createFileRoute("/settings")({
   loader: ({ context }) =>
     context.queryClient.ensureQueryData(buildPullsSessionQueryOptions()),
+  head: () => {
+    const pageName = appI18n.t("shell.pageTitle.settings");
+
+    return { meta: [{ title: buildPageTitle(appI18n.t, [pageName]) }] };
+  },
   component: SettingsPage,
 });
 

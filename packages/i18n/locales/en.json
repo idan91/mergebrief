@@ -1072,6 +1072,14 @@
     "signInPrompt": "<0/> to manage API tokens.",
     "artifactDelta": "delta",
     "artifactBrief": "brief",
+    "pageTitle": {
+      "product": "MergeBrief",
+      "prNumber": "#{{number}}",
+      "home": "Briefs",
+      "settings": "Settings",
+      "localBrief": "Local brief",
+      "summaryPreview": "Summary preview"
+    },
     "localePicker": {
       "ariaLabelTrigger": "Language: {{locale}}",
       "ariaLabelMenu": "Choose a language"

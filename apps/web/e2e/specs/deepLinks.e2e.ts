@@ -5,6 +5,7 @@
 import { expect, test } from "@playwright/test";
 
 import {
+  FIXTURE_PR_TITLE,
   FIXTURE_REV1_HEAD,
   FIXTURE_ROUTE_REV1,
   FIXTURE_ROUTE_REV2,
@@ -116,4 +117,16 @@ test("a chunk hash lands after leaving Changes Only", async ({ page }) => {
   // The scope exit replaced the arrival entry: one Back leaves the brief.
   await page.goBack();
   await expect(page).not.toHaveURL(/\/repos\//);
+});
+
+test("the tab title leads with the PR title, then names the home page", async ({
+  page,
+}) => {
+  await gotoBrief(page, FIXTURE_ROUTE_REV2);
+
+  await expect(page).toHaveTitle(new RegExp(`^${FIXTURE_PR_TITLE} · #\\d+`));
+
+  await page.goto("/");
+
+  await expect(page).toHaveTitle("Briefs · MergeBrief");
 });

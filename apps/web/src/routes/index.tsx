@@ -19,6 +19,8 @@ import {
   buildUrlBriefsQueryOptions,
 } from "../features/pulls/queries";
 import sharedStyles from "./routeShared.module.scss";
+import { appI18n } from "../i18n/I18nProvider";
+import { buildPageTitle } from "@web/utils/pageTitle";
 import styles from "./index.module.scss";
 
 export const Route = createFileRoute("/")({
@@ -47,6 +49,11 @@ export const Route = createFileRoute("/")({
       );
     }
     await Promise.all(prefetches);
+  },
+  head: () => {
+    const pageName = appI18n.t("shell.pageTitle.home");
+
+    return { meta: [{ title: buildPageTitle(appI18n.t, [pageName]) }] };
   },
   component: BriefPicker,
   errorComponent: BriefPickerError,

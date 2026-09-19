@@ -8,6 +8,7 @@ import {
 import { useCallback, useEffect, useMemo } from "react";
 
 import { ApiError, ApiErrorCodes } from "../data/apiFetch";
+import { appI18n } from "../i18n/I18nProvider";
 import {
   buildBriefSearchParams,
   parseCompareParam,
@@ -30,6 +31,7 @@ import {
   buildPrMetaQueryOptions,
   buildSessionQueryOptions,
 } from "../features/pulls/queries";
+import type { PrSummary } from "../features/pulls/types";
 import { useUnsavedComposerBlocker } from "@web/hooks/useUnsavedComposerGuard";
 import {
   conversationFilterSearch,
@@ -37,6 +39,7 @@ import {
   type ConversationFilter,
   type ConversationFilterSearch,
 } from "@web/features/conversation/utils";
+import { buildPrPageTitle, type PrPageTitleInput } from "@web/utils/pageTitle";
 import type { Mutable } from "types/utils";
 
 const META_POLL_MS = 4000;
@@ -124,6 +127,14 @@ function dropMissingBriefPrefetch(
   });
 }
 
+function pickPageTitleInput(meta: PrSummary): PrPageTitleInput {
+  return {
+    title: meta.title,
+    prNumber: meta.prNumber,
+    repoSlug: meta.repoSlug,
+  };
+}
+
 function prefetchSession(
   queryClient: QueryClient,
   repoId: string,
@@ -204,7 +215,7 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
             explicit,
           );
         }
-        return;
+        return pickPageTitleInput(metaResult.value);
       }
       const meta = await context.queryClient.ensureQueryData(
         buildPrMetaQueryOptions(repoId, prNumber),
@@ -223,7 +234,7 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
           ),
           prefetchSession(context.queryClient, repoId, prNumber, span),
         ]);
-        return;
+        return pickPageTitleInput(meta);
       }
       const state = deriveBriefRouteState(meta, undefined);
       if (state.kind === "render") {
@@ -239,9 +250,15 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
           prefetchSession(context.queryClient, repoId, prNumber, state.span),
         ]);
       }
+      return pickPageTitleInput(meta);
     } catch (error) {
       mapLoaderError(error);
     }
+  },
+  head: ({ loaderData }) => {
+    if (loaderData === undefined) return {};
+
+    return { meta: [{ title: buildPrPageTitle(appI18n.t, loaderData) }] };
   },
   component: PrBriefRoute,
   errorComponent: PrBriefError,
