@@ -11,9 +11,9 @@ import {
   parseConversationFilter,
   type ConversationFilter,
 } from "@web/features/conversation/utils";
-import type { Brief, BriefChunk } from "../../types";
-import { buildBriefViewModel } from "../../utils";
-import { useConversationWiring } from "./useConversationWiring";
+import type { Brief, BriefChunk } from "../../../types";
+import { buildBriefViewModel } from "../../../utils";
+import { useConversationWiring } from "./index";
 import type { Mutable } from "types/utils";
 
 afterEach(cleanup);
