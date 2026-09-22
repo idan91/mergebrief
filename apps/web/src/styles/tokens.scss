@@ -14,10 +14,10 @@
     // lightness steps below keep every contrast (DESIGN.md, the Tinted Grey
     // Rule). The accent reads as a light: high lightness, low chroma; the
     // greys carry one chroma, --gray-c.
-    --brand-hue: 70;
+    --brand-hue: 255;
     --accent-l: 91%;
     --accent-c: 0.055;
-    --gray-c: 0.008;
+    --gray-c: 0;
     --gray-950: oklch(17.2% var(--gray-c) var(--brand-hue));
     --gray-900: oklch(19.8% var(--gray-c) var(--brand-hue));
     --gray-800: oklch(24% var(--gray-c) var(--brand-hue));

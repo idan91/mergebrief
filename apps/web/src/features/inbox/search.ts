@@ -8,6 +8,8 @@ import {
   type InboxReviewState,
   type InboxSort,
   type InboxStatus,
+  InboxLayouts,
+  type InboxLayout,
 } from "types/inbox";
 
 import type {
@@ -104,6 +106,7 @@ export function parseInboxSearch(search: Record<string, unknown>): InboxSearch {
   } = {};
   const page = readPage(search["page"]);
   const sort = readOne(search["sort"], InboxSorts);
+  const layout = readOne(search["layout"], InboxLayouts);
   const states = keepKnown(readList(search["state"]), InboxStatuses);
   const repos = readIds(search["repo"]);
   const reviews = keepKnown(readList(search["review"]), InboxReviewStates);
@@ -112,6 +115,9 @@ export function parseInboxSearch(search: Record<string, unknown>): InboxSearch {
 
   if (page !== undefined) parsed.page = page;
   if (sort !== undefined && sort !== InboxSorts.UPDATED) parsed.sort = sort;
+  if (layout !== undefined && layout !== InboxLayouts.FOLDED) {
+    parsed.layout = layout;
+  }
   if (states.length > 0 && !isDefaultStates(states)) {
     parsed.state = states.join(LIST_SEPARATOR);
   }
@@ -145,6 +151,7 @@ export function readInboxParams(search: InboxSearch): InboxQueryParams {
 
   if (search.page !== undefined) params.page = search.page;
   if (search.sort !== undefined) params.sort = search.sort;
+  if (search.layout !== undefined) params.layout = search.layout;
   if (states.length > 0) params.state = states;
   if (repos.length > 0) params.repo = repos;
   if (reviews.length > 0) params.review = reviews;
@@ -157,6 +164,7 @@ export function readInboxParams(search: InboxSearch): InboxQueryParams {
 export interface InboxChoices {
   readonly page: number;
   readonly sort: InboxSort;
+  readonly layout: InboxLayout;
   readonly states: readonly InboxStatus[];
   readonly repos: readonly string[];
   readonly reviews: readonly InboxReviewState[];
@@ -169,6 +177,7 @@ export function readInboxChoices(search: InboxSearch): InboxChoices {
   return {
     page: params.page ?? FIRST_PAGE,
     sort: params.sort ?? InboxSorts.UPDATED,
+    layout: search.layout ?? InboxLayouts.FOLDED,
     states: params.state ?? DEFAULT_STATES,
     repos: params.repo ?? [],
     reviews: params.review ?? [],
@@ -201,21 +210,23 @@ export function countChangedFilters(search: InboxSearch): number {
   return keys.filter((key) => search[key] !== undefined).length;
 }
 
-/** A filter or sort change starts over from page one; only the page keeps the rest. */
+/** A filter, sort or layout change starts over from page one; the page keeps the rest. */
 export function writeInboxSearch(
   current: InboxSearch,
   change: InboxSearchChange,
 ): InboxSearch {
   const merged: Record<string, unknown> = { ...current, ...change };
-  if (!("page" in change)) delete merged["page"];
+  const touchesWire = Object.keys(change).some((key) => key !== "page");
+  if (!("page" in change) && touchesWire) delete merged["page"];
   return parseInboxSearch(merged);
 }
 
-/** Every filter back to its default; the sort stays. */
+/** Every filter back to its default; the sort and the layout stay. */
 export function clearInboxFilters(current: InboxSearch): InboxSearch {
-  return parseInboxSearch(
-    current.sort === undefined ? {} : { sort: current.sort },
-  );
+  const kept: Record<string, unknown> = {};
+  if (current.sort !== undefined) kept["sort"] = current.sort;
+  if (current.layout !== undefined) kept["layout"] = current.layout;
+  return parseInboxSearch(kept);
 }
 
 /** A multi-valued filter toggles one value; an empty set is the default. */

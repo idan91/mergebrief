@@ -7,7 +7,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { InboxReviewStates, InboxSorts } from "types/inbox";
+import { InboxLayouts, InboxReviewStates, InboxSorts } from "types/inbox";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { renderInRouter } from "../../../../test/router";
@@ -66,6 +66,7 @@ describe("InboxList", () => {
           makeItem({ prNumber: 4, reviewState: InboxReviewStates.NEW }),
         ]}
         sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
       />,
     );
 
@@ -73,7 +74,7 @@ describe("InboxList", () => {
     expect(rows.map((row) => within(row).getByText(/#\d/).textContent)).toEqual(
       ["#2", "#4", "#1", "#3"],
     );
-    expect(screen.getByText("Nothing new below")).toBeTruthy();
+    expect(screen.getByText("Reviewed and yours")).toBeTruthy();
     expect(rows[0]?.getAttribute("data-needs-you")).toBe("true");
     expect(rows[2]?.getAttribute("data-needs-you")).toBe("false");
     const tipOf = (row: HTMLElement | undefined) =>
@@ -90,6 +91,7 @@ describe("InboxList", () => {
           makeItem({ prNumber: 2, reviewState: InboxReviewStates.REVIEWED }),
         ]}
         sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
       />,
     );
 
@@ -97,15 +99,37 @@ describe("InboxList", () => {
     expect(wrapper?.querySelectorAll("ol").length).toBe(2);
   });
 
+  it("the mixed layout is one list in the server order with no fold", async () => {
+    await renderInRouter(
+      <InboxList
+        items={[
+          makeItem({ prNumber: 1, reviewState: InboxReviewStates.REVIEWED }),
+          makeItem({ prNumber: 2, reviewState: InboxReviewStates.UPDATED }),
+          makeItem({ prNumber: 3, reviewState: null, viewerIsAuthor: true }),
+        ]}
+        layout={InboxLayouts.MIXED}
+        sort={InboxSorts.UPDATED}
+      />,
+    );
+
+    const rows = readRows();
+    expect(rows.map((row) => within(row).getByText(/#\d/).textContent)).toEqual(
+      ["#1", "#2", "#3"],
+    );
+    expect(screen.queryByText("Reviewed and yours")).toBeNull();
+    expect(screen.getAllByRole("list")).toHaveLength(1);
+  });
+
   it("shows no fold line when every row sits on one side", async () => {
     await renderInRouter(
       <InboxList
         items={[makeItem({ prNumber: 1 }), makeItem({ prNumber: 2 })]}
         sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
       />,
     );
 
-    expect(screen.queryByText("Nothing new below")).toBeNull();
+    expect(screen.queryByText("Reviewed and yours")).toBeNull();
   });
 
   it("each row is one link to the brief, named by its title", async () => {
@@ -113,6 +137,7 @@ describe("InboxList", () => {
       <InboxList
         items={[makeItem({ title: "Rename `balance_minor` everywhere" })]}
         sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
       />,
     );
 
@@ -133,6 +158,7 @@ describe("InboxList", () => {
           makeItem({ prNumber: 4, state: "closed" }),
         ]}
         sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
       />,
     );
 
@@ -156,6 +182,7 @@ describe("InboxList", () => {
           }),
         ]}
         sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
       />,
     );
 
@@ -187,6 +214,7 @@ describe("InboxList", () => {
           }),
         ]}
         sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
       />,
     );
 
@@ -202,6 +230,7 @@ describe("InboxList", () => {
       <InboxList
         items={[makeItem({ behind: true })]}
         sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
       />,
     );
 
@@ -218,6 +247,7 @@ describe("InboxList", () => {
       <InboxList
         items={[makeItem({ prNumber: 1 }), makeItem({ prNumber: 2 })]}
         sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
       />,
     );
 
@@ -241,6 +271,7 @@ describe("InboxList", () => {
     await renderInRouter(
       <InboxList
         items={[makeItem({ prNumber: 1 }), makeItem({ prNumber: 2 })]}
+        layout={InboxLayouts.FOLDED}
         sort={InboxSorts.UPDATED}
       />,
     );
@@ -259,6 +290,7 @@ describe("InboxList", () => {
       <InboxList
         items={[makeItem({ prNumber: 1 })]}
         sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
       />,
     );
     fireEvent.keyDown(window, { key: "j" });
@@ -275,6 +307,7 @@ describe("InboxList", () => {
       <InboxList
         items={[makeItem({ source: "url", viewerIsAuthor: true })]}
         sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
       />,
     );
     await act(async () => {
@@ -298,6 +331,7 @@ describe("InboxList", () => {
       <InboxList
         items={[makeItem({ prNumber: 1 }), makeItem({ prNumber: 2 })]}
         sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
       />,
     );
     await act(async () => {
@@ -343,6 +377,7 @@ describe("InboxList", () => {
           }),
         ]}
         sort={InboxSorts.UPDATED}
+        layout={InboxLayouts.FOLDED}
       />,
     );
 

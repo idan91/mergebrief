@@ -95,6 +95,7 @@ export default {
       reviewerLogin: input.reviewerLogin,
       filters: input.filters,
       sort: input.sort,
+      layout: input.layout,
       page: input.page,
       pageSize: INBOX_PAGE_SIZE,
     });

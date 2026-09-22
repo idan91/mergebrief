@@ -1,5 +1,10 @@
 import { useTranslation } from "react-i18next";
-import { InboxAuthorFilters, InboxSorts, InboxStatuses } from "types/inbox";
+import {
+  InboxAuthorFilters,
+  InboxSorts,
+  InboxStatuses,
+  InboxLayouts,
+} from "types/inbox";
 
 import {
   REVIEW_MARK_ORDER,
@@ -162,5 +167,23 @@ export function useControlsFacade(
     },
   };
 
-  return { filters, sort };
+  const layout: FilterView = {
+    id: "layout",
+    name: t("home.filters.view"),
+    options: [
+      { value: InboxLayouts.FOLDED, label: t("home.filters.viewFolded") },
+      { value: InboxLayouts.MIXED, label: t("home.filters.viewMixed") },
+    ],
+    chosen: [choices.layout],
+    multiple: false,
+    changed: search.layout !== undefined,
+    onChoose: (value) => {
+      const chosenLayout = readKnown(value, InboxLayouts);
+      write({
+        layout: chosenLayout === InboxLayouts.FOLDED ? undefined : chosenLayout,
+      });
+    },
+  };
+
+  return { filters, sort, layout };
 }

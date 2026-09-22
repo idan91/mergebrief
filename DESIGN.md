@@ -160,7 +160,7 @@ Warm, low-chroma greys under one light peach accent. State colours keep a fixed 
 
 **The Four Lanes Rule.** Green, violet, red and amber belong to states. A brand hue inside one of them reads as a state. The free lanes are blue to cyan, pink to magenta, and orange to peach.
 
-**The Tinted Grey Rule.** Greys carry the accent's hue at one very low chroma, `--gray-c` (0.008; the ghost separator doubles it). When the brand hue changes, the greys move with it, at the same lightness, so contrast holds; a hue whose tint reads too strong on the greys turns `--gray-c` down, and 0 makes every grey neutral without touching the accent. In OKLCH: ground 0.172, surfaces 0.198, 0.228 and 0.268, lines 0.24 and 0.31, the ghost separator 0.329, text 0.94, 0.84, 0.71 and 0.675, accent 0.91 at chroma 0.055.
+**The Tinted Grey Rule.** Greys carry the accent's hue at one very low chroma, `--gray-c` (currently 0, so every grey is neutral; the ghost separator doubles it). When the brand hue changes, the greys move with it, at the same lightness, so contrast holds; a hue whose tint reads too strong on the greys turns `--gray-c` down, and 0 makes every grey neutral without touching the accent. In OKLCH: ground 0.172, surfaces 0.198, 0.228 and 0.268, lines 0.24 and 0.31, the ghost separator 0.329, text 0.94, 0.84, 0.71 and 0.675, accent 0.91 at chroma 0.055.
 
 **Contrast.** Text is 5:1 or better on every surface it sits on, and 5.5:1 or better on the page and the list; icons and state marks 3:1 or better. One deliberate exception: the URL box edge at rest is about 1.4:1, and the link icon, the placeholder and the slash key mark the field instead. Focus always shows a 2px accent ring.
 
@@ -192,7 +192,7 @@ One centred column, 1080px wide at most, with a 24px gutter that becomes 16px un
 
 Spacing uses one scale: 2, 4, 8, 12, 16, 24, 32, 48, 64. Blocks are grouped, not evenly spaced: the personal line and the URL box sit 16px apart as one group; the list begins 48px below them; a heading sits 12px above its list. There is always more space above a heading than below it.
 
-The list splits at a fold. Rows that need the reviewer (new, updated since your review, in progress) come first; a quiet line reading "Nothing new below" follows; reviewed rows and the viewer's own come last. Each group keeps the chosen sort.
+The list splits at a fold. Rows that need the reviewer (new, updated since your review, in progress) come first; a quiet line reading "Reviewed and yours" follows; reviewed rows and the viewer's own come last. Each group keeps the chosen sort. A View control beside Sort offers the other layout, "Mixed": one list in the sort's order with no fold. The choice rides the URL and is not a filter, so Clear leaves it.
 
 Under 760px the filters collapse behind one button, the sort drops to its own line, status labels become icons with hidden text, and long chip labels shorten. The page never scrolls sideways down to 320px.
 

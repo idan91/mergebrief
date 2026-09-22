@@ -17,6 +17,7 @@ import type { ViewerView } from "./viewer";
 export const InboxQueryKeys = {
   PAGE: "page",
   SORT: "sort",
+  LAYOUT: "layout",
   STATE: "state",
   REPO: "repo",
   REVIEW: "review",

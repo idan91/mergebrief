@@ -48,7 +48,7 @@ test("the Inbox folds, marks and prints status only when not Open", async ({
     reviewed?.title,
     yours?.title,
   ]);
-  await expect(page.getByText("Nothing new below")).toBeVisible();
+  await expect(page.getByText("Reviewed and yours")).toBeVisible();
 
   // The row link names the state before the title.
   await expect(
@@ -119,4 +119,34 @@ test("the Generate button waits for a pasted URL", async ({ page }) => {
     .getByLabel("Pull request URL")
     .fill("https://github.com/acme/payments/pull/101");
   await expect(generate).toBeVisible();
+});
+
+test("the View control unfolds the list into one", async ({ page }) => {
+  await page.goto("/");
+  await page.locator('[data-first-load="false"]').waitFor();
+  await expect(page.getByText("Reviewed and yours")).toBeVisible();
+
+  await page.getByRole("button", { name: "View", exact: true }).click();
+  await page.getByRole("menuitemradio", { name: "Mixed" }).click();
+
+  await expect(page).toHaveURL(/layout=mixed/);
+  await expect(page.getByText("Reviewed and yours")).toBeHidden();
+  await expect(page.getByRole("button", { name: "View Mixed" })).toBeVisible();
+});
+
+test("the controls never scroll the page sideways at 320px", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.goto("/?review=new&layout=mixed");
+  await page.locator('[data-first-load="false"]').waitFor();
+  await expect(page.getByRole("button", { name: "Clear" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "View Mixed" })).toBeVisible();
+
+  const overflow = await page.evaluate(
+    () =>
+      document.documentElement.scrollWidth -
+      document.documentElement.clientWidth,
+  );
+  expect(overflow).toBe(0);
 });

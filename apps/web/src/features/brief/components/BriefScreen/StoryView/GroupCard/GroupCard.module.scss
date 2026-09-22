@@ -4,10 +4,11 @@
 @layer components {
   .card {
     // Earned oddities: the card's vertical gradient stops. They bracket
-    // --color-surface-1 (#171411) one warm step either side rather than
-    // sitting on the surface ladder, so they stay local.
-    --card-gradient-from: #1b1814;
-    --card-gradient-to: #141210;
+    // --color-background (17.2%) in lightness rather than sitting on the
+    // surface ladder, so they stay local; they derive from the theme's hue
+    // and grey chroma like every other grey (DESIGN.md, the One Hue Rule).
+    --card-gradient-from: oklch(18.4% var(--gray-c) var(--brand-hue));
+    --card-gradient-to: oklch(16.5% var(--gray-c) var(--brand-hue));
 
     margin-block-end: functions.to-rem(40px);
     border: 1px solid var(--line);

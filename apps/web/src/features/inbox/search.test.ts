@@ -98,12 +98,25 @@ describe("readInboxParams and readInboxChoices", () => {
     expect(readInboxChoices(search)).toEqual({
       page: 1,
       sort: InboxSorts.UPDATED,
+      layout: "folded",
       states: ["merged"],
       repos: [],
       reviews: ["new", "updated"],
       author: InboxAuthorFilters.ALL,
       installations: [],
     });
+  });
+});
+
+describe("the layout", () => {
+  it("rides the URL off its default, never the wire, and survives a clear", () => {
+    expect(parseInboxSearch({ layout: "folded" })).toEqual({});
+    const mixed = parseInboxSearch({ layout: "mixed", repo: "424242" });
+    expect(mixed.layout).toBe("mixed");
+    expect(readInboxChoices(mixed).layout).toBe("mixed");
+    expect(readInboxParams(mixed).layout).toBe("mixed");
+    expect(clearInboxFilters(mixed)).toEqual({ layout: "mixed" });
+    expect(parseInboxSearch({ layout: "sideways" })).toEqual({});
   });
 });
 
@@ -126,6 +139,15 @@ describe("hasDefaultStatus", () => {
 });
 
 describe("writeInboxSearch", () => {
+  it("a layout change starts over from page one, since the order moves", () => {
+    const current = parseInboxSearch({ page: 3, review: "new" });
+
+    expect(writeInboxSearch(current, { layout: "mixed" })).toEqual({
+      review: "new",
+      layout: "mixed",
+    });
+  });
+
   it("a filter change starts over from page one", () => {
     const current = parseInboxSearch({ page: 4, review: "new" });
 

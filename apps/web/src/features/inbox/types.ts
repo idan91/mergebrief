@@ -1,8 +1,9 @@
-import type {
-  InboxAuthorFilter,
-  InboxReviewState,
-  InboxSort,
-  InboxStatus,
+import {
+  type InboxAuthorFilter,
+  type InboxReviewState,
+  type InboxSort,
+  type InboxStatus,
+  type InboxLayout,
 } from "types/inbox";
 import type { ValueOf } from "types/utils";
 import type { z } from "zod/v4";
@@ -76,6 +77,7 @@ export type InboxState =
 export interface InboxQueryParams {
   readonly page?: number;
   readonly sort?: InboxSort;
+  readonly layout?: InboxLayout;
   readonly state?: readonly InboxStatus[];
   readonly repo?: readonly string[];
   readonly review?: readonly InboxReviewState[];
@@ -90,6 +92,7 @@ export interface InboxQueryParams {
 export interface InboxSearch {
   readonly page?: number;
   readonly sort?: InboxSort;
+  readonly layout?: InboxLayout;
   readonly state?: string;
   readonly repo?: string;
   readonly review?: string;

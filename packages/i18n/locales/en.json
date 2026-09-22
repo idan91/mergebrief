@@ -1110,7 +1110,7 @@
     },
     "inbox": {
       "heading": "Briefs",
-      "fold": "Nothing new below",
+      "fold": "Reviewed and yours",
       "number": "#{{number}}",
       "ageMinutes": "{{count}}m ago",
       "ageHours": "{{count}}h ago",
@@ -1169,9 +1169,12 @@
       "authorEveryone": "Everyone",
       "authorMine": "Mine",
       "authorOthers": "Others",
+      "view": "View",
+      "viewFolded": "Needs you first",
+      "viewMixed": "Mixed",
       "sortUpdated": "Recently updated",
       "sortGenerated": "Recently generated",
-      "ariaLabelControls": "Filters and sort"
+      "ariaLabelControls": "Filters, view and sort"
     },
     "pager": {
       "ariaLabel": "Pages",

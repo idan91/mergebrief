@@ -9,6 +9,7 @@ import {
   InboxStatuses,
   type InboxReviewState,
   type InboxSort,
+  InboxLayouts,
 } from "types/inbox";
 import { describe, expect, it } from "vitest";
 import {
@@ -152,6 +153,7 @@ function makeListInput(overrides?: Partial<InboxListInput>): InboxListInput {
     reviewerLogin: VIEWER_LOGIN,
     filters: DEFAULT_FILTERS,
     sort: InboxSorts.UPDATED,
+    layout: InboxLayouts.FOLDED,
     page: 1,
     pageSize: 25,
     ...overrides,
@@ -426,6 +428,18 @@ describe("createInboxStore.list, fold and sort", () => {
     expect(await listNumbers(handle, { sort: InboxSorts.UPDATED })).toEqual([
       4, 3, 2, 1,
     ]);
+  });
+
+  it("the mixed layout is one list in the sort's order", async () => {
+    const handle = await freshDatabase();
+    await seedFoldFixture(handle);
+
+    expect(
+      await listNumbers(handle, {
+        sort: InboxSorts.UPDATED,
+        layout: InboxLayouts.MIXED,
+      }),
+    ).toEqual([1, 4, 3, 2]);
   });
 
   it("keeps the fold under the generated sort", async () => {

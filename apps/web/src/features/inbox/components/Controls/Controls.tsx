@@ -10,17 +10,20 @@ import { useNarrowViewport } from "./useNarrowViewport";
 export interface ControlsProps {
   filters: readonly FilterView[];
   sort: FilterView;
+  /** Folded or mixed; the control is named View. */
+  layout: FilterView;
   changedCount: number;
   onClear: () => void;
 }
 
 /**
- * The row above the list: the filters, then Clear beside Sort. Under 760px
+ * The row above the list: the filters, then Clear beside View and Sort. Under 760px
  * the filters collapse behind one button and the row takes the full width.
  */
 export function Controls({
   filters,
   sort,
+  layout,
   changedCount,
   onClear,
 }: ControlsProps) {
@@ -46,6 +49,7 @@ export function Controls({
             {t("home.filters.clear")}
           </LinkButton>
         )}
+        <Filter filter={layout} />
         <Filter filter={sort} />
       </div>
     </div>

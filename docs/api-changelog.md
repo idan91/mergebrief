@@ -13,6 +13,13 @@ The contract discipline (ADR 0029): response shapes change additively
 within a major; removals/renames ship expand/contract — new field first,
 deprecation note here, removal only at a major.
 
+## dev (2026-09-22)
+
+- **Added** `layout` query on `GET /api/inbox`: `folded` (the default) leads
+  with the rows that need the viewer before the sort; `mixed` orders the
+  page by the sort alone. Numbered pages follow the layout, so a layout
+  change is read from page one.
+
 ## dev (2026-09-21)
 
 - **Changed** `stack` on `GET /api/inbox` items: for a pull request GitHub

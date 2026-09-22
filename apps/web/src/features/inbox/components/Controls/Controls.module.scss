@@ -17,9 +17,12 @@
 
   .end {
     display: flex;
-    flex: none;
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+    min-inline-size: 0;
     gap: var(--space-3);
     align-items: center;
+    justify-content: flex-end;
   }
 
   .clear {

@@ -55,6 +55,7 @@ export default function createHandlers(
       const query = inboxQuerySchema.safeParse({
         [InboxQueryKeys.PAGE]: c.req.query(InboxQueryKeys.PAGE),
         [InboxQueryKeys.SORT]: c.req.query(InboxQueryKeys.SORT),
+        [InboxQueryKeys.LAYOUT]: c.req.query(InboxQueryKeys.LAYOUT),
         [InboxQueryKeys.STATE]: c.req.queries(InboxQueryKeys.STATE),
         [InboxQueryKeys.REPO]: c.req.queries(InboxQueryKeys.REPO),
         [InboxQueryKeys.REVIEW]: c.req.queries(InboxQueryKeys.REVIEW),
@@ -132,6 +133,7 @@ export default function createHandlers(
           reviewerLogin: session.reviewerLogin,
           filters: shapeFilters(query.data),
           sort: query.data.sort,
+          layout: query.data.layout,
           page: query.data.page,
           githubAppSlug: deps.githubAppSlug,
         },

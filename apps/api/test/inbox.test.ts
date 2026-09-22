@@ -526,10 +526,14 @@ describe("GET /api/inbox", () => {
       cookie,
     );
     const bad = await get("/api/inbox?sort=alphabetical", cookie);
+    const badLayout = await get("/api/inbox?layout=sideways", cookie);
+    const mixed = await get("/api/inbox?layout=mixed", cookie);
     const badPage = await get("/api/inbox?page=0", cookie);
 
     expect((await readBody(mine)).items.map((i) => i["prNumber"])).toEqual([1]);
     expect(bad.status).toBe(400);
+    expect(badLayout.status).toBe(400);
+    expect(mixed.status).toBe(200);
     expect(badPage.status).toBe(400);
   });
 

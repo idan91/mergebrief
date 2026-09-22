@@ -31,6 +31,9 @@ export function buildInboxSearch(params: InboxQueryParams): string {
     search.set(InboxQueryKeys.PAGE, String(params.page));
   }
   if (params.sort !== undefined) search.set(InboxQueryKeys.SORT, params.sort);
+  if (params.layout !== undefined) {
+    search.set(InboxQueryKeys.LAYOUT, params.layout);
+  }
   appendEach(search, InboxQueryKeys.STATE, params.state);
   appendEach(search, InboxQueryKeys.REPO, params.repo);
   appendEach(search, InboxQueryKeys.REVIEW, params.review);

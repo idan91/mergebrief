@@ -224,11 +224,13 @@ function SignedInHome({ page, search }: SignedInHomeProps) {
                 changedCount={changedCount}
                 filters={controls.filters}
                 sort={controls.sort}
+                layout={controls.layout}
                 onClear={state.clear}
               />
             }
             items={page.items}
             sort={state.choices.sort}
+            layout={state.choices.layout}
           >
             {list}
           </InboxList>

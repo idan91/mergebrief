@@ -103,6 +103,20 @@ describe("useControlsFacade", () => {
     });
   });
 
+  it("the layout is folded by default, named off it, and writes mixed only", () => {
+    const { facade, write } = renderFacade(makePage());
+
+    expect(facade.layout).toMatchObject({
+      changed: false,
+      chosen: ["folded"],
+    });
+    expect(facade.layout.alwaysNamed).toBeUndefined();
+    facade.layout.onChoose("mixed");
+    facade.layout.onChoose("folded");
+    expect(write).toHaveBeenNthCalledWith(1, { layout: "mixed" });
+    expect(write).toHaveBeenNthCalledWith(2, { layout: undefined });
+  });
+
   it("a tick writes from the choices the URL holds when it lands", () => {
     const { facade, write } = renderFacade(makePage());
     const review = facade.filters.find((filter) => filter.id === "review");

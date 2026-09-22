@@ -24,6 +24,8 @@ import {
   type InboxReviewState,
   type InboxSort,
   type InboxStatus,
+  InboxLayouts,
+  type InboxLayout,
 } from "types/inbox";
 import { type AppDatabase, internal } from "../db/handle";
 import { brief } from "../schema/brief";
@@ -71,6 +73,8 @@ export interface InboxListInput {
   readonly reviewerLogin: string | null;
   readonly filters: InboxFilters;
   readonly sort: InboxSort;
+  /** Folded leads with the rows that need the reviewer; mixed is the sort alone. */
+  readonly layout: InboxLayout;
   /** One-based. */
   readonly page: number;
   readonly pageSize: number;
@@ -403,16 +407,14 @@ function buildListQuery(db: InboxDb, input: InboxListInput, page: Viewable) {
       ? page.latestCreatedAt
       : page.githubUpdatedAt;
   const offset = (input.page - 1) * input.pageSize;
+  const foldFirst =
+    input.layout === InboxLayouts.FOLDED ? [desc(needsViewer)] : [];
 
   return db
     .select()
     .from(page)
     .where(buildStateFilter(input, page.reviewState))
-    .orderBy(
-      desc(needsViewer),
-      sql`${sortColumn} desc nulls last`,
-      desc(page.id),
-    )
+    .orderBy(...foldFirst, sql`${sortColumn} desc nulls last`, desc(page.id))
     .limit(input.pageSize)
     .offset(offset);
 }

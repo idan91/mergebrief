@@ -32,3 +32,10 @@ export const InboxAuthorFilters = {
   ALL: "all",
 } as const;
 export type InboxAuthorFilter = ValueOf<typeof InboxAuthorFilters>;
+
+/** How the list is laid out: rows that need the reviewer first, or one list in the sort's order. */
+export const InboxLayouts = {
+  FOLDED: "folded",
+  MIXED: "mixed",
+} as const;
+export type InboxLayout = ValueOf<typeof InboxLayouts>;

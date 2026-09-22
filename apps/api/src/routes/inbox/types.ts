@@ -6,7 +6,7 @@ import type {
   RepoId,
   ReviewerId,
 } from "persistence";
-import type { InboxSort } from "types/inbox";
+import { type InboxSort, type InboxLayout } from "types/inbox";
 import type { LiveStacks } from "./logic/live-stacks";
 
 /** Narrow slices only, never `AppDeps`. */
@@ -25,6 +25,7 @@ export interface ListInboxInput {
   readonly reviewerLogin: string | null;
   readonly filters: InboxFilters;
   readonly sort: InboxSort;
+  readonly layout: InboxLayout;
   /** One-based. */
   readonly page: number;
   /** The App's URL name; absent composes no Install link. */

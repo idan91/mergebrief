@@ -5,6 +5,7 @@ import {
   InboxReviewStates,
   InboxSorts,
   InboxStatuses,
+  InboxLayouts,
 } from "types/inbox";
 import { z } from "zod";
 import {
@@ -48,6 +49,9 @@ export const inboxQuerySchema = z.object({
     .max(MAX_INBOX_PAGE)
     .default(1),
   [InboxQueryKeys.SORT]: z.nativeEnum(InboxSorts).default(InboxSorts.UPDATED),
+  [InboxQueryKeys.LAYOUT]: z
+    .nativeEnum(InboxLayouts)
+    .default(InboxLayouts.FOLDED),
   [InboxQueryKeys.STATE]: z
     .array(z.nativeEnum(InboxStatuses))
     .max(MAX_INBOX_FILTER_VALUES)
