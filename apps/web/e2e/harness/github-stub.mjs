@@ -9,6 +9,9 @@ const FIXTURE_DIR = process.env.MERGEBRIEF_E2E_FIXTURES;
 const REPO_ID = process.env.MERGEBRIEF_E2E_REPO_ID ?? "424242";
 const REPO_SLUG =
   process.env.MERGEBRIEF_E2E_REPO_SLUG ?? "mergebrief/e2e-fixture";
+const INBOX = JSON.parse(
+  process.env.MERGEBRIEF_E2E_INBOX ?? '{"installations":[],"urlRow":null}',
+);
 const realFetch = globalThis.fetch;
 
 function jsonResponse(body, status = 200) {
@@ -41,6 +44,44 @@ function readRequestUrl(input) {
   return input.url;
 }
 
+/** The Inbox's live read names its query; the conversation read does not. */
+function isLiveRead(init) {
+  return typeof init?.body === "string" && init.body.includes("query LiveRead");
+}
+
+/**
+ * Every alias the live read asked for: the seeded URL row answers with the
+ * fixture's latest head so it stays current, anything else is null (not
+ * found) so the app marks it unreachable rather than guessing.
+ */
+function answerLiveRead(init) {
+  const { variables } = JSON.parse(init.body);
+  const data = {};
+  for (const [name, value] of Object.entries(variables)) {
+    if (!name.startsWith("n")) continue;
+    const index = name.slice(1);
+    const slug = `${variables[`o${index}`]}/${variables[`r${index}`]}`;
+    const row = INBOX.urlRow;
+    const matches =
+      row !== null && slug === row.slug && Number(value) === row.prNumber;
+    data[`p${index}`] = matches
+      ? {
+          databaseId: row.repoId,
+          nameWithOwner: row.slug,
+          pullRequest: {
+            state: "OPEN",
+            isDraft: false,
+            title: row.title,
+            closedAt: null,
+            updatedAt: new Date().toISOString(),
+            headRefOid: row.headSha,
+          },
+        }
+      : null;
+  }
+  return data;
+}
+
 globalThis.fetch = async (input, init) => {
   const url = readRequestUrl(input);
   if (!url.startsWith("https://api.github.com")) {
@@ -48,8 +89,28 @@ globalThis.fetch = async (input, init) => {
   }
   const { pathname } = new URL(url);
   if (pathname === "/user/installations") {
-    // The seeded viewer reaches no installation: every row is a URL row.
-    return jsonResponse({ total_count: 0, installations: [] });
+    return jsonResponse({
+      total_count: INBOX.installations.length,
+      installations: INBOX.installations.map((installation) => ({
+        id: installation.id,
+        account: { login: installation.account },
+      })),
+    });
+  }
+  const installationRepos =
+    /^\/user\/installations\/(?<id>\d+)\/repositories$/.exec(pathname);
+  if (installationRepos) {
+    const installation = INBOX.installations.find(
+      (candidate) => String(candidate.id) === installationRepos.groups.id,
+    );
+    const repos = installation?.repos ?? [];
+    return jsonResponse({
+      total_count: repos.length,
+      repositories: repos.map((repo) => ({
+        id: repo.id,
+        full_name: repo.slug,
+      })),
+    });
   }
   if (pathname === `/repositories/${REPO_ID}`) {
     return jsonResponse({
@@ -76,6 +137,9 @@ globalThis.fetch = async (input, init) => {
         date: new Date().toUTCString(),
       },
     });
+  }
+  if (pathname === "/graphql" && isLiveRead(init)) {
+    return jsonResponse({ data: answerLiveRead(init) });
   }
   if (pathname === "/graphql") {
     // An EMPTY conversation: the section renders its no-threads state and

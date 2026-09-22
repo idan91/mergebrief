@@ -1,50 +1,49 @@
-import { useTranslation } from "react-i18next";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
+import { InboxSorts } from "types/inbox";
 
 import { Button } from "@web/components/Button/Button";
 import { Header } from "@web/components/Header/Header";
 import { AccountMenu } from "@web/features/account";
 import { buildViewerQueryOptions } from "../features/account/queries";
-import {
-  generateBriefViaApi,
-  buildLocalBriefsQueryOptions,
-} from "../features/brief/queries";
-import { briefErrorDetail } from "@web/features/brief/utils";
 import { LocalBriefsSection } from "@web/features/brief";
-import { PullsSection, YourBriefsSection } from "@web/features/pulls";
-import { getPullsRefetchInterval } from "@web/features/pulls/utils";
-import {
-  buildPullsSessionQueryOptions,
-  buildUrlBriefsQueryOptions,
-} from "../features/pulls/queries";
-import sharedStyles from "./routeShared.module.scss";
+import { buildLocalBriefsQueryOptions } from "../features/brief/queries";
+import { briefErrorDetail } from "@web/features/brief/utils";
+import { InboxList, PersonalLine, UrlBox } from "@web/features/inbox";
+import { buildInboxQueryOptions } from "../features/inbox/queries";
+import { InboxStates } from "../features/inbox/types";
 import { appI18n } from "../i18n/I18nProvider";
 import { buildPageTitle } from "@web/utils/pageTitle";
 import styles from "./index.module.scss";
+import sharedStyles from "./routeShared.module.scss";
+
+const SIGN_IN_PATH = "/api/auth/github";
+const INBOX_PARAMS = {};
 
 export const Route = createFileRoute("/")({
-  // Both lists prefetch in parallel, the session list SSRs through the
-  // in-process apiFetch interface (same authz gate), never a client waterfall.
+  // The Inbox and the viewer prefetch in parallel through the in-process
+  // apiFetch interface, the same authz gate the browser meets.
   loader: async ({ context }) => {
+    // The server render fails fast; the client's own refetch keeps the retries.
     const prefetches: Promise<unknown>[] = [
-      context.queryClient.ensureQueryData(buildUrlBriefsQueryOptions()),
-      context.queryClient.ensureQueryData(buildPullsSessionQueryOptions()),
-      // The server render fails fast; the client's own refetch keeps the retries.
+      context.queryClient.ensureQueryData({
+        ...buildInboxQueryOptions(INBOX_PARAMS),
+        retry: false,
+      }),
       context.queryClient
         .ensureQueryData({ ...buildViewerQueryOptions(), retry: false })
         .catch(() => undefined),
     ];
     // The DEV file surface, prefetched only behind a session (the readers
     // refuse without one) and never allowed to fail the page. The `if` is a
-    // build-time constant, so production keeps the original two.
+    // build-time constant, so production keeps the two above.
     if (!import.meta.env.PROD) {
       prefetches.push(
         context.queryClient
-          .ensureQueryData(buildPullsSessionQueryOptions())
-          .then((session) =>
-            session.kind === "ready"
+          .ensureQueryData(buildInboxQueryOptions(INBOX_PARAMS))
+          .then((inbox) =>
+            inbox.kind === InboxStates.READY
               ? context.queryClient.ensureQueryData(
                   buildLocalBriefsQueryOptions(),
                 )
@@ -60,49 +59,33 @@ export const Route = createFileRoute("/")({
 
     return { meta: [{ title: buildPageTitle(appI18n.t, [pageName]) }] };
   },
-  component: BriefPicker,
-  errorComponent: BriefPickerError,
+  component: Home,
+  errorComponent: HomeError,
 });
 
-function BriefPicker() {
-  const { t } = useTranslation();
-  const yourBriefs = useSuspenseQuery({
-    ...buildUrlBriefsQueryOptions(),
-    refetchInterval: (query) => getPullsRefetchInterval(query.state.data),
-  }).data;
-  const session = useSuspenseQuery({
-    ...buildPullsSessionQueryOptions(),
-    refetchInterval: (query) => getPullsRefetchInterval(query.state.data),
-  }).data;
-  const navigate = useNavigate();
-  const [url, setUrl] = useState("");
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+function Home() {
+  const inbox = useSuspenseQuery(buildInboxQueryOptions(INBOX_PARAMS)).data;
 
-  async function handleGenerate(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setPending(true);
-    setError(null);
-    try {
-      // Signed-in only: the api door resolves with the viewer's token and
-      // enqueues the worker; the repo route's meta poll shows progress. The
-      // signed-out gh-CLI door is gone, the box asks for sign-in instead.
-      const accepted = await generateBriefViaApi(url);
-      await navigate({
-        to: "/repos/$repoId/pulls/$prNumber",
-        params: {
-          repoId: accepted.repoId,
-          prNumber: String(accepted.prNumber),
-        },
-      });
-    } catch (caught) {
-      // The server function rejects with a CODE, never a sentence, render
-      // it through the catalog (unmapped reasons fall back to the unexpected
-      // line) rather than putting a raw token in a `role="alert"`.
-      setError(briefErrorDetail(t, caught));
-      setPending(false);
-    }
-  }
+  if (inbox.kind === InboxStates.SIGNED_OUT) return <SignedOutHome />;
+
+  return (
+    <>
+      <Header end={<AccountMenu />} />
+      <main className={styles["home"]} id="main-content" tabIndex={-1}>
+        <div className={styles["lead"]}>
+          <PersonalLine counts={inbox.page.counts} />
+          <UrlBox />
+        </div>
+        <InboxList items={inbox.page.items} sort={InboxSorts.UPDATED} />
+        {import.meta.env.PROD ? null : <LocalBriefsSection enabled />}
+      </main>
+    </>
+  );
+}
+
+/** The pitch a visitor sees before signing in; the ticket's own copy replaces it later. */
+function SignedOutHome() {
+  const { t } = useTranslation();
 
   return (
     <>
@@ -117,46 +100,16 @@ function BriefPicker() {
             <li>{t("shell.landingBullet2")}</li>
             <li>{t("shell.landingBullet3")}</li>
           </ul>
-          {/* The url-box is a signed-in door: the worker generates with the
-            viewer's grant, so a signed-out visitor gets the sign-in button
-            below instead of a dead form. */}
-          {session.kind === "ready" ? (
-            <form className={styles["form"]} onSubmit={handleGenerate}>
-              <input
-                aria-label={t("shell.ariaLabelPrUrl")}
-                disabled={pending}
-                placeholder={t("shell.prUrlPlaceholder")}
-                type="url"
-                value={url}
-                onChange={(event) => setUrl(event.target.value)}
-              />
-              <Button
-                disabled={pending}
-                loading={pending}
-                type="submit"
-                variant="primary"
-              >
-                {pending ? t("shell.generating") : t("shell.generate")}
-              </Button>
-            </form>
-          ) : null}
-          {error ? (
-            <p className={styles["error"]} role="alert">
-              {error}
-            </p>
-          ) : null}
-          <YourBriefsSection session={yourBriefs} />
-          <PullsSection session={session} />
-          {import.meta.env.PROD ? null : (
-            <LocalBriefsSection enabled={session.kind === "ready"} />
-          )}
+          <Button as="a" href={SIGN_IN_PATH} variant="primary">
+            {t("shell.signInWithGithub")}
+          </Button>
         </section>
       </main>
     </>
   );
 }
 
-function BriefPickerError({ error }: { error: Error }) {
+function HomeError({ error }: { error: Error }) {
   const { t } = useTranslation();
   return (
     <main className="main" id="main-content" tabIndex={-1}>

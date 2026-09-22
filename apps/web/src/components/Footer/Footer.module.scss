@@ -3,16 +3,12 @@
 @layer components {
   // Full-bleed; pins to the page bottom via the body flex column.
   .footer {
-    // Off-scale: sits between --color-text-3 (the readable floor) and
-    // --color-text-4 (ghost). Legibility here is deliberately marginal.
-    --footer-text: #4a4a52;
-
     inline-size: 100%;
     margin-block-start: auto;
     padding-block: functions.to-rem(16px);
     padding-inline: clamp(functions.to-rem(18px), 3vw, functions.to-rem(28px));
     border-block-start: 1px solid var(--line);
-    color: var(--footer-text);
+    color: var(--color-text-3);
     font-size: var(--font-size-sm);
     text-align: center;
   }

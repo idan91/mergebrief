@@ -9,7 +9,7 @@ import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
 import { buildLocalBriefsQueryOptions } from "../../queries";
-import styles from "../../../../routes/index.module.scss";
+import styles from "./LocalBriefsSection.module.scss";
 
 export interface LocalBriefsSectionProps {
   enabled: boolean;

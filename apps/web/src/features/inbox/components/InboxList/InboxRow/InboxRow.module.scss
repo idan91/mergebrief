@@ -1,0 +1,138 @@
+@use "functions";
+
+@layer components {
+  .row {
+    position: relative;
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr) auto;
+    column-gap: var(--space-4);
+    align-items: center;
+    min-block-size: functions.to-rem(56px);
+    padding-block: functions.to-rem(9px);
+    padding-inline: var(--space-5);
+
+    & + & {
+      border-block-start: 1px solid var(--color-outline-1);
+    }
+
+    &:hover {
+      background: var(--color-surface-2);
+    }
+
+    &[data-needs-you="true"] .title {
+      color: var(--color-text-1);
+      font-weight: 500;
+    }
+
+    &[data-unreachable="true"] .titleText,
+    &[data-unreachable="true"] .sub {
+      color: var(--color-text-3);
+    }
+  }
+
+  .main {
+    display: grid;
+    min-inline-size: 0;
+    color: inherit;
+    text-decoration: none;
+    outline: 0;
+
+    > * {
+      min-inline-size: 0;
+    }
+
+    /* The whole row is the target; the link's box stays where the text is. */
+    &::after {
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      content: "";
+    }
+
+    &:focus-visible::after {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: -2px;
+    }
+  }
+
+  .title {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+    min-inline-size: 0;
+    color: var(--color-text-read);
+    font-size: var(--font-size-xl);
+    line-height: functions.to-rem(20px);
+  }
+
+  .titleText {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    code {
+      padding-block: functions.to-rem(1px);
+      padding-inline: functions.to-rem(5px);
+      border-radius: var(--radius-sm);
+      background: color-mix(in srgb, var(--color-text-1) 8%, transparent);
+      font-family: var(--mono);
+      /* stylelint-disable-next-line declaration-property-value-allowed-list -- inline code tracks the title's size, DESIGN.md's code step */
+      font-size: 0.88em;
+      font-weight: 400;
+    }
+  }
+
+  .chip {
+    flex: none;
+  }
+
+  .sub {
+    display: flex;
+    gap: var(--space-4);
+    align-items: center;
+    min-inline-size: 0;
+    color: var(--color-text-2);
+    font-size: var(--font-size-lg);
+    font-variant-numeric: tabular-nums;
+    line-height: functions.to-rem(18px);
+    white-space: nowrap;
+
+    > * {
+      flex: none;
+    }
+  }
+
+  .repo {
+    flex: 0 1 auto;
+    min-inline-size: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .source {
+    display: inline-grid;
+    place-items: center;
+    margin-inline-end: calc(var(--space-2) * -1);
+
+    svg {
+      inline-size: 13px;
+      block-size: 13px;
+    }
+  }
+
+  @media (width < 760px) {
+    .row {
+      column-gap: var(--space-3);
+      padding-inline: var(--space-4);
+    }
+
+    .sub {
+      gap: var(--space-3);
+    }
+
+    .titleText {
+      flex: 0 1 auto;
+      min-inline-size: 0;
+    }
+  }
+}

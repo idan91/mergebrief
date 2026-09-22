@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
 
+import { isTypingTarget } from "../../../utils/typingTarget";
+
 export interface KeyboardShortcutsOptions {
   chunkIds: string[];
   /** Indices into `chunkIds` where each group starts, e.g. `[0, 3, 5]`. */
@@ -46,20 +48,6 @@ export type ShortcutAction =
   | { type: "toggleSidebar" }
   | { type: "toggleDiffView" }
   | { type: "markViewed"; chunkId: string };
-
-const TYPING_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
-
-// Focus parked on a click-operated input (the Viewed checkbox) must not kill
-// single-key shortcuts, only actual text entry stands them down.
-const CLICK_INPUT_TYPES = new Set(["checkbox", "radio", "button", "submit"]);
-
-function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  if (target instanceof HTMLInputElement) {
-    return !CLICK_INPUT_TYPES.has(target.type);
-  }
-  return TYPING_TAGS.has(target.tagName) || target.isContentEditable;
-}
 
 function resolveGroupJump(
   key: StepKey,

@@ -9,6 +9,8 @@ import { gotoBrief, shortcutsDialog } from "../support/page";
 test("the picker front door is clean", async ({ page }, testInfo) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  // The rows fade up on first load; axe reads contrast through opacity.
+  await expect(page.locator('[data-first-load="false"]')).toBeAttached();
   await expectNoSeriousAxeViolations(page, testInfo, "picker");
 });
 
@@ -54,7 +56,7 @@ test("the submit modal is clean on all views", async ({ page }, testInfo) => {
   ).toBeVisible();
   // Park the cursor off the dialog before sweeping: the click leaves it where
   // the next view's Submit button lands, and axe then samples that button's
-  // :hover background mid-transition — a phantom contrast failure.
+  // :hover background mid-transition, a phantom contrast failure.
   await page.mouse.move(0, 0);
   await expectNoSeriousAxeViolations(page, testInfo, "submit-modal-verdict");
   await page.getByRole("button", { name: "Preview receipt" }).click();

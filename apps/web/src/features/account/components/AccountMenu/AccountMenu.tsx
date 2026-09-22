@@ -6,7 +6,7 @@ import { Menu } from "@web/components/Menu/Menu";
 import { MenuRow } from "@web/components/Menu/MenuRow/MenuRow";
 import { ViewerStates } from "../../types";
 import styles from "./AccountMenu.module.scss";
-import PersonIcon from "./icons/person.svg?react";
+import PersonIcon from "@web/components/icons/person.svg?react";
 import { useAccountMenuFacade } from "./useAccountMenuFacade";
 
 export interface AccountMenuProps {

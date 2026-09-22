@@ -7,17 +7,34 @@ import { createHash } from "node:crypto";
 import { ingestBriefDirectory } from "ingest-briefs";
 import {
   closeDb,
+  createArtifactStore,
   createDb,
   createGrantAuth,
   createTenantRepository,
   encryptToken,
   createEnvKeyProvider,
   ensureAppSchema,
+  isBriefRowId,
+  isInstallationId,
+  isPullRequestRowId,
   isRepoId,
   isReviewerId,
   PrStates,
+  type AppDatabase,
+  type BriefRowId,
+  type PullRequestLifecycle,
+  type PullRequestRowId,
+  type RepoId,
   type ReviewerId,
+  type ScopeContext,
 } from "persistence";
+import {
+  E2E_VIEWER_LOGIN,
+  INBOX_INSTALLATIONS,
+  INBOX_ROWS,
+  InboxSeedStates,
+  type InboxFixtureRow,
+} from "../fixtures/inbox";
 import {
   E2E_DATABASE_URL,
   E2E_OWNER_USER_ID,
@@ -26,6 +43,120 @@ import {
   E2E_SESSION_KEY,
   FIXTURE_DIR,
 } from "./env";
+
+const MINUTE_MS = 60_000;
+const NO_FACTS = { groupIds: [], flags: [], filePaths: [] };
+const OLDER_HEAD = "3333333300001111222233334444555566667777";
+const LATEST_HEAD = "4444444400001111222233334444555566667777";
+const SEED_ORIGIN = { provider: "stub", model: "stub", effort: "low" };
+
+function brandRepo(value: number): RepoId {
+  const asBigInt = BigInt(value);
+  if (!isRepoId(asBigInt)) throw new Error("bad repo id");
+  return asBigInt;
+}
+
+function resolveInstallationContext(installationId: number): ScopeContext {
+  const asBigInt = BigInt(installationId);
+  if (!isInstallationId(asBigInt)) throw new Error("bad installation id");
+  return { installationId: asBigInt };
+}
+
+async function writeBrief(
+  handle: AppDatabase,
+  ctx: ScopeContext,
+  pullRequestId: PullRequestRowId,
+  headSha: string,
+  headIndex: number,
+): Promise<BriefRowId> {
+  const written = await createArtifactStore(handle, ctx).briefs.write({
+    ...SEED_ORIGIN,
+    pullRequestId,
+    baseSha: "0000000099998888777766665555444433332222",
+    headSha,
+    headIndex,
+    commitCount: 1,
+    body: "{}",
+  });
+  if (!written.ok)
+    throw new Error(`brief seed failed: ${written.error.message}`);
+  if (!isBriefRowId(written.value.id)) throw new Error("bad brief id");
+  return written.value.id;
+}
+
+async function openSession(
+  handle: AppDatabase,
+  ctx: ScopeContext,
+  briefId: BriefRowId,
+  reviewerId: ReviewerId,
+  submit: boolean,
+): Promise<void> {
+  const result = await createTenantRepository(
+    handle,
+    ctx,
+  ).reviewSessions.writeToSession(
+    { briefId, reviewerId, brief: async () => NO_FACTS },
+    async (writer) => {
+      if (submit) await writer.recordSubmittedReview({ githubReviewId: 77n });
+      return undefined;
+    },
+  );
+  if (!result.ok) throw new Error(`session seed failed: ${result.error.code}`);
+}
+
+/**
+ * One installation row per fixture state. The review state comes from the
+ * viewer's session on the latest brief and from a submitted review on it or
+ * on an older brief, exactly as the Inbox query derives it.
+ */
+async function seedInboxRow(
+  handle: AppDatabase,
+  viewer: ReviewerId,
+  row: InboxFixtureRow,
+  seededAt: Date,
+): Promise<void> {
+  const ctx = resolveInstallationContext(row.installationId);
+  const installation = INBOX_INSTALLATIONS.find(
+    (candidate) => candidate.id === row.installationId,
+  );
+  const repo = installation?.repos.find(
+    (candidate) => candidate.id === row.repoId,
+  );
+  if (repo === undefined) throw new Error("fixture row names an unknown repo");
+  const updatedAt = new Date(
+    seededAt.getTime() - row.updatedMinutesAgo * MINUTE_MS,
+  );
+  const lifecycle: PullRequestLifecycle = { state: PrStates.OPEN };
+  const written = await createTenantRepository(handle, ctx).pullRequests.upsert(
+    {
+      repoId: brandRepo(row.repoId),
+      prNumber: row.prNumber,
+      repoSlug: repo.slug,
+      title: row.title,
+      authorLogin:
+        row.state === InboxSeedStates.YOURS ? E2E_VIEWER_LOGIN : "mira-k",
+      draft: row.draft ?? false,
+      githubUpdatedAt: updatedAt,
+      ...lifecycle,
+    },
+  );
+  if (!isPullRequestRowId(written.id)) throw new Error("bad pull request id");
+  const pullRequestId = written.id;
+
+  if (row.state === InboxSeedStates.UPDATED) {
+    const older = await writeBrief(handle, ctx, pullRequestId, OLDER_HEAD, 1);
+    await openSession(handle, ctx, older, viewer, true);
+    await writeBrief(handle, ctx, pullRequestId, LATEST_HEAD, 2);
+    return;
+  }
+  const latest = await writeBrief(handle, ctx, pullRequestId, LATEST_HEAD, 1);
+  if (row.state === InboxSeedStates.IN_PROGRESS) {
+    await openSession(handle, ctx, latest, viewer, false);
+  }
+  if (row.state === InboxSeedStates.REVIEWED) {
+    await openSession(handle, ctx, latest, viewer, true);
+  }
+}
 
 function brandReviewer(value: bigint): ReviewerId {
   if (!isReviewerId(value)) throw new Error("bad owner id");
@@ -55,6 +186,10 @@ async function main(): Promise<void> {
     });
     if (summary.briefs === 0) {
       throw new Error("seed ingested no briefs — fixture dir wrong?");
+    }
+    const seededAt = new Date();
+    for (const row of INBOX_ROWS) {
+      await seedInboxRow(handle, owner, row, seededAt);
     }
 
     // The browser session: a grant with sealed throwaway tokens + the
@@ -88,7 +223,7 @@ async function main(): Promise<void> {
         .update(E2E_SESSION_COOKIE)
         .digest("hex"),
       reviewerId: owner,
-      reviewerLogin: "e2e-viewer",
+      reviewerLogin: E2E_VIEWER_LOGIN,
       grantId: grant.id,
       expiresAt: new Date(Date.now() + 7 * 24 * 3_600_000),
     });

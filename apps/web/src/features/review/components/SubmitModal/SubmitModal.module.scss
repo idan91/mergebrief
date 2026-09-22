@@ -39,8 +39,8 @@
     }
 
     &[data-state="active"] {
-      // Off-scale: the active pick sits one warm step off --line (#25201a).
-      --active-fill: #26211b;
+      // Off-scale: the active pick sits one step off --line, and moves with it.
+      --active-fill: color-mix(in srgb, var(--line) 97%, var(--color-text-1));
 
       background: var(--active-fill);
       color: var(--text);

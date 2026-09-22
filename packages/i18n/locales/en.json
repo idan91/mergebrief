@@ -1107,5 +1107,57 @@
     "sessionExpired": "Your session expired — sign in again to generate.",
     "signedFetchFailed": "Couldn't fetch this PR — check the URL; for a private repo, make sure the app is installed and can access it.",
     "generatorConfigInvalid": "generator configuration invalid"
+  },
+  "home": {
+    "personalLine": {
+      "changed_one": "{{count}} pull request changed since you reviewed it",
+      "changed_other": "{{count}} pull requests changed since you reviewed them",
+      "changedDetailNone": "Nothing else is new.",
+      "changedDetailNew_one": "{{count}} more is new to you.",
+      "changedDetailNew_other": "{{count}} more are new to you.",
+      "new_one": "{{count}} pull request is new to you",
+      "new_other": "{{count}} pull requests are new to you",
+      "newDetail": "Nothing changed since your last review.",
+      "caughtUp": "You are all caught up",
+      "caughtUpDetail": "Nothing is new since your last review."
+    },
+    "urlBox": {
+      "ariaLabel": "Pull request URL",
+      "placeholder": "Paste a pull request URL",
+      "generate": "Generate brief",
+      "reading": "Reading the pull request from GitHub"
+    },
+    "inbox": {
+      "heading": "Briefs",
+      "fold": "Nothing new below",
+      "number": "#{{number}}",
+      "ageMinutes": "{{count}}m ago",
+      "ageHours": "{{count}}h ago",
+      "ageYesterday": "yesterday",
+      "ageDays": "{{count}}d ago",
+      "status": {
+        "draft": "Draft",
+        "merged": "Merged",
+        "closed": "Closed"
+      },
+      "generation": {
+        "queued": "Queued",
+        "generating": "Generating",
+        "failed": "Failed",
+        "capped": "Capped"
+      },
+      "stackChip": "{{index}} of {{size}}",
+      "stackChipLabel": "Place in a stack: {{index}} of {{size}}",
+      "unreachableChip": "Unreachable",
+      "unreachableChipLabel": "GitHub no longer shows this pull request to you",
+      "sourceUrl": "Added from a URL"
+    },
+    "marks": {
+      "new": "New",
+      "inProgress": "In progress",
+      "reviewed": "Reviewed",
+      "updated": "Updated since your review",
+      "yours": "Yours"
+    }
   }
 }

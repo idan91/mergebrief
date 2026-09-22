@@ -274,4 +274,22 @@ export type Catalog = typeof en & {
       ariaLabelTriggerSignedIn: "Account menu for {{login}}";
     };
   };
+  home: (typeof en)["home"] & {
+    personalLine: (typeof en)["home"]["personalLine"] & {
+      changed_one: "{{count}} pull request changed since you reviewed it";
+      changed_other: "{{count}} pull requests changed since you reviewed them";
+      changedDetailNew_one: "{{count}} more is new to you.";
+      changedDetailNew_other: "{{count}} more are new to you.";
+      new_one: "{{count}} pull request is new to you";
+      new_other: "{{count}} pull requests are new to you";
+    };
+    inbox: (typeof en)["home"]["inbox"] & {
+      number: "#{{number}}";
+      ageMinutes: "{{count}}m ago";
+      ageHours: "{{count}}h ago";
+      ageDays: "{{count}}d ago";
+      stackChip: "{{index}} of {{size}}";
+      stackChipLabel: "Place in a stack: {{index}} of {{size}}";
+    };
+  };
 };

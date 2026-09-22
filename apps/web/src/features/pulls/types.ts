@@ -24,6 +24,14 @@ export const PrStates = {
 } as const;
 export type PrState = ValueOf<typeof PrStates>;
 
+/** Where a pull request row came from: an App installation, or a pasted URL. */
+export const PullRequestSources = {
+  INSTALLATION: "installation",
+  URL: "url",
+} as const;
+/** @public */
+export type PullRequestSource = ValueOf<typeof PullRequestSources>;
+
 /**
  * `capped` = the repo hit the instance's daily generation cap and this run was
  * SKIPPED. Terminal and deliberately NOT `failed`: nothing went wrong, and

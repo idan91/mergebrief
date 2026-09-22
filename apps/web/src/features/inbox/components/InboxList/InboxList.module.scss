@@ -1,0 +1,62 @@
+@layer components {
+  .inbox {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .heading {
+    color: var(--color-text-1);
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  .list {
+    overflow: hidden;
+    border: 1px solid var(--color-outline-1);
+    border-radius: var(--radius-l);
+    background: var(--color-surface-1);
+  }
+
+  .rows {
+    padding: 0;
+    list-style: none;
+  }
+
+  .fold {
+    display: flex;
+    gap: var(--space-4);
+    align-items: center;
+    padding-block: var(--space-6) var(--space-3);
+    padding-inline: var(--space-5);
+    color: var(--color-text-2);
+    font-size: var(--font-size-lg);
+
+    &::after {
+      flex: 1;
+      block-size: 1px;
+      background: color-mix(in srgb, var(--color-text-1) 9%, transparent);
+      content: "";
+    }
+  }
+
+  .list[data-first-load="true"] .rows > li {
+    animation: row-in var(--motion-slow) var(--ease-out) backwards;
+    animation-delay: calc(min(var(--index), 12) * 30ms);
+  }
+
+  @keyframes row-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    @keyframes row-in {
+      from {
+        opacity: 0;
+      }
+    }
+  }
+}

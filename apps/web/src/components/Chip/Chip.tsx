@@ -14,11 +14,20 @@ export type ChipElement = ValueOf<typeof ChipElements>;
 export const ChipTones = {
   NEUTRAL: "neutral",
   WARNING: "warning",
+  MUTED: "muted",
 } as const;
 export type ChipTone = ValueOf<typeof ChipTones>;
 
+/** A filter chip is a control the reviewer presses; a fact chip states one thing about a row. */
+export const ChipVariants = {
+  FILTER: "filter",
+  FACT: "fact",
+} as const;
+export type ChipVariant = ValueOf<typeof ChipVariants>;
+
 export type ChipBaseProps = {
   tone?: ChipTone;
+  variant?: ChipVariant;
 };
 
 export type ChipAsButtonProps = {
@@ -39,12 +48,19 @@ export type ChipProps = ChipAsButtonProps | ChipAsSpanProps;
 
 export function Chip(props: ChipProps) {
   if (props.as === ChipElements.SPAN) {
-    const { as: Tag, tone = ChipTones.NEUTRAL, className, ...rest } = props;
+    const {
+      as: Tag,
+      tone = ChipTones.NEUTRAL,
+      variant = ChipVariants.FILTER,
+      className,
+      ...rest
+    } = props;
     return (
       <Tag
         {...rest}
         className={clsx(styles["chip"], className)}
         data-tone={tone}
+        data-variant={variant}
       />
     );
   }
@@ -52,6 +68,7 @@ export function Chip(props: ChipProps) {
   const {
     as: element = ChipElements.BUTTON,
     tone = ChipTones.NEUTRAL,
+    variant = ChipVariants.FILTER,
     pressed,
     disabled = false,
     "aria-disabled": ariaDisabled,
@@ -75,6 +92,7 @@ export function Chip(props: ChipProps) {
       aria-pressed={pressed}
       className={clsx(styles["chip"], className)}
       data-tone={tone}
+      data-variant={variant}
       type={type}
       onClick={handleClick}
     />

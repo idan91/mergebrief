@@ -7,8 +7,12 @@
   }
 
   .comment {
-    // Off-scale: one warm step off --color-surface-1 (#171411).
-    --comment-fill: #181512;
+    // Off-scale: one step off --color-surface-1, and moves with it.
+    --comment-fill: color-mix(
+      in srgb,
+      var(--color-surface-1) 97%,
+      var(--color-text-1)
+    );
 
     border: 1px solid var(--line);
     border-radius: var(--radius-md);

@@ -234,11 +234,6 @@
       "count": 7
     }
   },
-  "apps/web/e2e/specs/axeSweep.e2e.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "apps/web/e2e/specs/briefRender.e2e.ts": {
     "house/no-em-dash": {
       "count": 3

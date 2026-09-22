@@ -21,6 +21,10 @@
 
   .syn-keyword {
     color: var(--syn-keyword);
+
+    mark & {
+      color: var(--emphasis-keyword);
+    }
   }
 
   .syn-string {

@@ -171,8 +171,8 @@
 @layer components {
   // 18% is the strongest fill every palette colour keeps at 4.5:1 over the
   // add and del tints once comment and ignored tokens take their lifted
-  // colours (keyword lands at 4.64:1 on add); without the lift the comment
-  // colour caps the fill at 12%.
+  // colours (the lifted keyword lands at 5.9:1 on add); without the lift the
+  // comment colour caps the fill at 12%.
   .emphasis {
     border-radius: var(--radius-xs);
     background: color-mix(in srgb, var(--row-hue) 18%, transparent);

@@ -1,0 +1,87 @@
+@use "functions";
+
+@layer components {
+  /* Reads only; the row's link keeps the pointer under the labels. */
+  .end {
+    display: flex;
+    pointer-events: none;
+    gap: var(--space-5);
+    align-items: center;
+    color: var(--color-text-2);
+    font-size: var(--font-size-lg);
+  }
+
+  .generation,
+  .status {
+    display: inline-flex;
+    flex: none;
+    gap: functions.to-rem(6px);
+    align-items: center;
+    white-space: nowrap;
+
+    svg {
+      flex: none;
+      inline-size: 16px;
+      block-size: 16px;
+    }
+  }
+
+  .status[data-status="merged"] svg {
+    color: var(--color-merged);
+  }
+
+  .status[data-status="closed"] svg {
+    color: var(--color-negative);
+  }
+
+  .generation[data-generation="failed"] {
+    color: var(--color-negative);
+  }
+
+  .generation[data-generation="running"] {
+    color: var(--color-text-1);
+  }
+
+  .spinner {
+    flex: none;
+    inline-size: 13px;
+    block-size: 13px;
+    margin-inline: functions.to-rem(1.5px);
+    border: 1.5px solid var(--color-surface-3);
+    border-block-start-color: var(--color-accent);
+    border-radius: var(--radius-circle);
+    animation: spin 0.7s linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes pulse {
+    to {
+      opacity: 0.4;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .spinner {
+      animation: pulse 1.2s ease-in-out infinite alternate;
+    }
+  }
+
+  @media (width < 760px) {
+    .end {
+      gap: var(--space-3);
+    }
+
+    .label {
+      position: absolute;
+      inline-size: 1px;
+      block-size: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+    }
+  }
+}

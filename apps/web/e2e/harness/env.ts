@@ -5,6 +5,8 @@ import { generateKeyPairSync } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { INBOX_INSTALLATIONS } from "../fixtures/inbox";
+import { FIXTURE_PR_TITLE, FIXTURE_REV2_HEAD } from "../fixtures/ids";
 
 function readEnvNumber(name: string, fallback: number): number {
   const raw = process.env[name];
@@ -109,6 +111,18 @@ export function buildApiServerEnv(): Record<string, string> {
     MERGEBRIEF_E2E_FIXTURES: FIXTURE_DIR,
     MERGEBRIEF_E2E_REPO_ID: String(E2E_REPO_ID),
     MERGEBRIEF_E2E_REPO_SLUG: E2E_REPO_SLUG,
+    // The installations walk and the live read answer from the same fixture
+    // the seed wrote, described here because the stub runs in that process.
+    MERGEBRIEF_E2E_INBOX: JSON.stringify({
+      installations: INBOX_INSTALLATIONS,
+      urlRow: {
+        slug: E2E_REPO_SLUG,
+        repoId: E2E_REPO_ID,
+        prNumber: 1,
+        title: FIXTURE_PR_TITLE,
+        headSha: FIXTURE_REV2_HEAD,
+      },
+    }),
   };
 }
 

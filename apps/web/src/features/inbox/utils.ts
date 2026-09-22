@@ -1,0 +1,133 @@
+import { InboxQueryKeys } from "contract";
+import { InboxReviewStates, InboxSorts, type InboxSort } from "types/inbox";
+
+import {
+  AgeUnits,
+  TitleSegmentKinds,
+  type AgeUnit,
+  type InboxItem,
+  type InboxQueryParams,
+  type TitleSegmentKind,
+} from "./types";
+
+const FIRST_PAGE = 1;
+const MINUTE_MS = 60_000;
+const HOUR_MS = 60 * MINUTE_MS;
+const DAY_MS = 24 * HOUR_MS;
+const YESTERDAY_MS = 2 * DAY_MS;
+const DATE_AFTER_MS = 14 * DAY_MS;
+
+/** The wire query for a set of params; the defaults produce no search at all. */
+export function buildInboxSearch(params: InboxQueryParams): string {
+  const search = new URLSearchParams();
+
+  if (params.page !== undefined && params.page !== FIRST_PAGE) {
+    search.set(InboxQueryKeys.PAGE, String(params.page));
+  }
+  if (params.sort !== undefined) search.set(InboxQueryKeys.SORT, params.sort);
+  appendEach(search, InboxQueryKeys.STATE, params.state);
+  appendEach(search, InboxQueryKeys.REPO, params.repo);
+  appendEach(search, InboxQueryKeys.REVIEW, params.review);
+  if (params.author !== undefined) {
+    search.set(InboxQueryKeys.AUTHOR, params.author);
+  }
+  appendEach(search, InboxQueryKeys.INSTALLATION, params.installation);
+
+  const text = search.toString();
+  return text === "" ? "" : `?${text}`;
+}
+
+function appendEach(
+  search: URLSearchParams,
+  key: string,
+  values: readonly string[] | undefined,
+): void {
+  for (const value of values ?? []) search.append(key, value);
+}
+
+const ABOVE_FOLD = new Set<InboxItem["reviewState"]>([
+  InboxReviewStates.NEW,
+  InboxReviewStates.UPDATED,
+  InboxReviewStates.IN_PROGRESS,
+]);
+
+export interface FoldSplit {
+  readonly above: readonly InboxItem[];
+  readonly below: readonly InboxItem[];
+}
+
+/** Rows that need the reviewer first, then the rest; each side keeps the server order. */
+export function splitAtFold(items: readonly InboxItem[]): FoldSplit {
+  const above = items.filter((item) => ABOVE_FOLD.has(item.reviewState));
+  const below = items.filter((item) => !ABOVE_FOLD.has(item.reviewState));
+  return { above, below };
+}
+
+/** A row the reviewer has not read in its current form: the title takes Text 1. */
+export function needsReviewer(item: InboxItem): boolean {
+  return (
+    item.reviewState === InboxReviewStates.NEW ||
+    item.reviewState === InboxReviewStates.UPDATED
+  );
+}
+
+/** The timestamp the age reads, by sort; a missing one falls back to the other. */
+export function pickAgeAt(item: InboxItem, sort: InboxSort): string | null {
+  if (sort === InboxSorts.GENERATED) {
+    return item.latestBriefAt ?? item.githubUpdatedAt;
+  }
+  return item.githubUpdatedAt ?? item.latestBriefAt;
+}
+
+export interface Age {
+  readonly unit: AgeUnit;
+  readonly count: number;
+}
+
+/** How long ago a stamp was, in the unit the row prints; past two weeks it is a date. */
+export function formatAge(stamp: string, now: Date): Age {
+  const then = Date.parse(stamp);
+  const elapsed = Number.isNaN(then) ? 0 : Math.max(0, now.getTime() - then);
+
+  if (elapsed < HOUR_MS) {
+    return { unit: AgeUnits.MINUTES, count: Math.floor(elapsed / MINUTE_MS) };
+  }
+  if (elapsed < DAY_MS) {
+    return { unit: AgeUnits.HOURS, count: Math.floor(elapsed / HOUR_MS) };
+  }
+  if (elapsed < YESTERDAY_MS) return { unit: AgeUnits.YESTERDAY, count: 1 };
+  const days = Math.floor(elapsed / DAY_MS);
+  if (elapsed < DATE_AFTER_MS) return { unit: AgeUnits.DAYS, count: days };
+  return { unit: AgeUnits.DATE, count: days };
+}
+
+export interface TitleSegment {
+  readonly kind: TitleSegmentKind;
+  readonly text: string;
+}
+
+const CODE_SPAN = /`([^`]+)`/g;
+
+/** GitHub shows a backtick span in a title as code; so does the row. */
+export function splitTitleCode(title: string): readonly TitleSegment[] {
+  const segments: TitleSegment[] = [];
+  let cursor = 0;
+
+  for (const match of title.matchAll(CODE_SPAN)) {
+    const code = match[1];
+    if (code === undefined) continue;
+    if (match.index > cursor) {
+      segments.push({
+        kind: TitleSegmentKinds.TEXT,
+        text: title.slice(cursor, match.index),
+      });
+    }
+    segments.push({ kind: TitleSegmentKinds.CODE, text: code });
+    cursor = match.index + match[0].length;
+  }
+
+  if (cursor < title.length) {
+    segments.push({ kind: TitleSegmentKinds.TEXT, text: title.slice(cursor) });
+  }
+  return segments;
+}
