@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { useLatestRef } from "@web/hooks/useLatestRef";
+import { isInsideOverlay } from "../../../../utils/overlay-target";
 import { isTypingTarget } from "../../../../utils/typingTarget";
 
 const NO_CURSOR = -1;
@@ -10,8 +11,6 @@ const STEP_BY_KEY: Record<string, number> = {
   k: -1,
   ArrowUp: -1,
 };
-const OVERLAY_SELECTOR =
-  '[role="menu"], [aria-expanded="true"], [role="dialog"]';
 
 function hasModifier(event: KeyboardEvent): boolean {
   return event.metaKey || event.ctrlKey || event.altKey;
@@ -26,11 +25,6 @@ function readNextCursor(current: number, step: number, last: number): number {
     return step > 0 ? 0 : NO_CURSOR;
   }
   return Math.min(last, Math.max(0, current + step));
-}
-
-/** A key inside an open menu or dialog belongs to it, never to the list. */
-function isInsideOverlay(target: EventTarget | null): boolean {
-  return target instanceof Element && target.closest(OVERLAY_SELECTOR) !== null;
 }
 
 /**

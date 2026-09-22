@@ -4,9 +4,13 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@web/components/Button/Button";
 import { Menu } from "@web/components/Menu/Menu";
 import { MenuRow } from "@web/components/Menu/MenuRow/MenuRow";
+import CaretDownIcon from "@web/components/Menu/icons/caret-down.svg?react";
+import PersonIcon from "@web/components/icons/person.svg?react";
 import { ViewerStates } from "../../types";
 import styles from "./AccountMenu.module.scss";
-import PersonIcon from "@web/components/icons/person.svg?react";
+import GearIcon from "./icons/gear.svg?react";
+import KeyboardIcon from "./icons/keyboard.svg?react";
+import SignOutIcon from "./icons/sign-out.svg?react";
 import { useAccountMenuFacade } from "./useAccountMenuFacade";
 
 export interface AccountMenuProps {
@@ -18,9 +22,9 @@ const SIGN_IN_PATH = "/api/auth/github";
 const LANGUAGE_GROUP_LABEL_ID = "account-menu-language";
 
 /**
- * The person-anchored menu at the end of a Header: identity, Settings,
- * Language, Keyboard shortcuts, Sign out. Signed out, the slot holds a Sign
- * in button instead.
+ * The person-anchored menu at the end of a Header: who is signed in,
+ * Settings, Language, Keyboard shortcuts, Sign out. Signed out, the slot
+ * holds a Sign in button instead.
  */
 export function AccountMenu({ onOpenShortcuts }: AccountMenuProps) {
   const { t } = useTranslation();
@@ -40,21 +44,33 @@ export function AccountMenu({ onOpenShortcuts }: AccountMenuProps) {
     signedIn && viewer.login !== null
       ? t("shell.accountMenu.ariaLabelTriggerSignedIn", { login: viewer.login })
       : t("shell.accountMenu.ariaLabelTrigger");
-  const trigger = signedIn ? (
-    <img alt="" className={styles["avatar"]} src={viewer.avatarUrl} />
-  ) : (
-    <PersonIcon aria-hidden="true" className={styles["person"]} />
+  const trigger = (
+    <>
+      {signedIn ? (
+        <img alt="" className={styles["avatar"]} src={viewer.avatarUrl} />
+      ) : (
+        <PersonIcon aria-hidden="true" className={styles["person"]} />
+      )}
+      <CaretDownIcon aria-hidden="true" className={styles["caret"]} />
+    </>
   );
 
   return (
-    <Menu label={label} trigger={trigger} triggerClassName={styles["trigger"]}>
+    <Menu
+      label={label}
+      trigger={trigger}
+      triggerAutoWidth
+      triggerClassName={styles["trigger"]}
+    >
       {signedIn && viewer.login !== null ? (
-        <div className={styles["identity"]} role="presentation">
-          <img alt="" className={styles["avatar"]} src={viewer.avatarUrl} />
-          <span className={styles["login"]}>{viewer.login}</span>
-        </div>
+        <p className={styles["note"]} role="presentation">
+          {t("shell.accountMenu.signedInAs", { login: viewer.login })}
+        </p>
       ) : null}
-      <MenuRow onSelect={facade.openSettings}>
+      <MenuRow
+        glyph={<GearIcon aria-hidden="true" className={styles["icon"]} />}
+        onSelect={facade.openSettings}
+      >
         {t("shell.accountMenu.settings")}
       </MenuRow>
       {facade.localeOptions.length > 0 ? (
@@ -79,12 +95,16 @@ export function AccountMenu({ onOpenShortcuts }: AccountMenuProps) {
         </div>
       ) : null}
       {onOpenShortcuts === undefined ? null : (
-        <MenuRow onSelect={onOpenShortcuts}>
+        <MenuRow
+          glyph={<KeyboardIcon aria-hidden="true" className={styles["icon"]} />}
+          onSelect={onOpenShortcuts}
+        >
           {t("shell.accountMenu.shortcuts")}
         </MenuRow>
       )}
       <MenuRow
         disabled={facade.signingOut}
+        glyph={<SignOutIcon aria-hidden="true" className={styles["icon"]} />}
         keepOpen
         onSelect={() => {
           void facade.signOut();

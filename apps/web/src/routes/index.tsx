@@ -5,6 +5,10 @@ import { useTranslation } from "react-i18next";
 import { InboxStatuses } from "types/inbox";
 
 import { Header } from "@web/components/Header/Header";
+import {
+  ShortcutsModal,
+  type ShortcutSection,
+} from "@web/components/ShortcutsModal/ShortcutsModal";
 import { AccountMenu } from "@web/features/account";
 import { buildViewerQueryOptions } from "../features/account/queries";
 import { LocalBriefsSection } from "@web/features/brief";
@@ -22,6 +26,7 @@ import {
   UrlBox,
   useControlsFacade,
   useInboxSearchState,
+  useHomeShortcuts,
 } from "@web/features/inbox";
 import { buildInboxQueryOptions } from "../features/inbox/queries";
 import {
@@ -97,6 +102,8 @@ function Home() {
     buildInboxQueryOptions(readInboxParams(search)),
   );
   const state = inbox.data;
+  const listShown = state.kind === InboxStates.READY;
+  const shortcuts = useHomeShortcuts(listShown);
 
   let content: ReactNode;
   if (state.kind === InboxStates.SIGNED_OUT) {
@@ -120,21 +127,51 @@ function Home() {
 
   // One shell for every state, so the main landmark survives a state change
   // and focus handed to it after a retry lands on a node that stays.
-  return <HomeShell>{content}</HomeShell>;
+  return (
+    <HomeShell shortcuts={listShown ? shortcuts : undefined}>
+      {content}
+    </HomeShell>
+  );
 }
+
+const HOME_SHORTCUTS: ShortcutSection[] = [
+  {
+    id: "list",
+    headingKey: "home.shortcuts.sectionList",
+    shortcuts: [
+      { keys: ["\u2193"], descriptionKey: "home.shortcuts.cursorDown" },
+      { keys: ["J"], descriptionKey: "home.shortcuts.cursorDown" },
+      { keys: ["\u2191"], descriptionKey: "home.shortcuts.cursorUp" },
+      { keys: ["K"], descriptionKey: "home.shortcuts.cursorUp" },
+      { keys: ["Enter"], descriptionKey: "home.shortcuts.openRow" },
+      { keys: ["/"], descriptionKey: "home.shortcuts.focusUrl" },
+      { keys: ["?"], descriptionKey: "home.shortcuts.toggleShortcuts" },
+      { keys: ["Esc"], descriptionKey: "home.shortcuts.closeMenu" },
+    ],
+  },
+];
 
 export interface HomeShellProps {
   children: ReactNode;
+  /** Present only where the list is, so the bindings it names exist. */
+  shortcuts?: ReturnType<typeof useHomeShortcuts> | undefined;
 }
 
 /** The one-tier Header over the full-bleed Home column, whatever the state. */
-function HomeShell({ children }: HomeShellProps) {
+function HomeShell({ children, shortcuts }: HomeShellProps) {
   return (
     <>
-      <Header end={<AccountMenu />} />
+      <Header end={<AccountMenu onOpenShortcuts={shortcuts?.open} />} />
       <main className={styles["home"]} id="main-content" tabIndex={-1}>
         {children}
       </main>
+      {shortcuts === undefined ? null : (
+        <ShortcutsModal
+          close={shortcuts.close}
+          open={shortcuts.isOpen}
+          sections={HOME_SHORTCUTS}
+        />
+      )}
     </>
   );
 }

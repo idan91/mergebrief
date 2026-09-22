@@ -16,7 +16,7 @@ export interface ControlsProps {
 
 /**
  * The row above the list: the filters, then Clear beside Sort. Under 760px
- * the filters collapse behind one button and the sort drops to its own line.
+ * the filters collapse behind one button and the row takes the full width.
  */
 export function Controls({
   filters,

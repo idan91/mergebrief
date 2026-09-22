@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { generateBriefViaApi } from "../../../brief/queries";
 import { briefErrorDetail } from "../../../brief/utils";
+import { isInsideOverlay } from "../../../../utils/overlay-target";
 import { isTypingTarget } from "../../../../utils/typingTarget";
 
 const FOCUS_KEY = "/";
@@ -20,7 +21,9 @@ export function useUrlBoxFacade() {
   useEffect(() => {
     function focusOnSlash(event: KeyboardEvent): void {
       if (event.key !== FOCUS_KEY || event.metaKey || event.ctrlKey) return;
-      if (isTypingTarget(event.target)) return;
+      if (isTypingTarget(event.target) || isInsideOverlay(event.target)) {
+        return;
+      }
       event.preventDefault();
       inputRef.current?.focus();
     }

@@ -10,7 +10,7 @@
 
     position: relative;
     display: grid;
-    grid-template-columns: 20px minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     column-gap: var(--space-4);
     align-items: center;
     min-block-size: functions.to-rem(56px);
@@ -19,6 +19,16 @@
 
     & + & {
       border-block-start: 1px solid var(--color-outline-1);
+    }
+
+    &:first-child {
+      border-start-start-radius: var(--radius-l);
+      border-start-end-radius: var(--radius-l);
+    }
+
+    &:last-child {
+      border-end-start-radius: var(--radius-l);
+      border-end-end-radius: var(--radius-l);
     }
 
     &:hover {
@@ -47,13 +57,17 @@
 
   .main {
     display: grid;
+    grid-template-columns: 20px minmax(0, 1fr);
+    column-gap: var(--space-4);
+    align-items: center;
     min-inline-size: 0;
     color: inherit;
     text-decoration: none;
     outline: 0;
 
-    > * {
-      min-inline-size: 0;
+    > .title,
+    > .sub {
+      grid-column: 2;
     }
 
     /* The whole row is the target; the link's box stays where the text is. */
@@ -149,6 +163,10 @@
     .row {
       column-gap: var(--space-3);
       padding-inline: var(--space-4);
+    }
+
+    .main {
+      column-gap: var(--space-3);
     }
 
     .sub {

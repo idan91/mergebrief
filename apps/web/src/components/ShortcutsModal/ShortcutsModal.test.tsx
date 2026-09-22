@@ -3,15 +3,29 @@ import { I18nextProvider } from "react-i18next";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { appI18n } from "../../../../../i18n/I18nProvider";
-import { ShortcutsModal } from "./ShortcutsModal";
+import { appI18n } from "../../i18n/I18nProvider";
+import { ShortcutsModal, type ShortcutSection } from "./ShortcutsModal";
 
 afterEach(cleanup);
+
+const SECTIONS: ShortcutSection[] = [
+  {
+    id: "list",
+    headingKey: "home.shortcuts.sectionList",
+    shortcuts: [
+      { keys: ["Enter"], descriptionKey: "home.shortcuts.openRow" },
+      {
+        keys: ["Shift", "?"],
+        descriptionKey: "home.shortcuts.toggleShortcuts",
+      },
+    ],
+  },
+];
 
 function renderOpenModal(close = vi.fn()) {
   render(
     <I18nextProvider i18n={appI18n}>
-      <ShortcutsModal close={close} open />
+      <ShortcutsModal close={close} open sections={SECTIONS} />
     </I18nextProvider>,
   );
   return close;
@@ -24,33 +38,18 @@ function readSectionKeys(heading: HTMLElement): string[] {
 }
 
 describe("ShortcutsModal", () => {
-  it("groups the bindings under general, focus mode and the marks", () => {
+  it("lists the sections it is handed, then the marks", () => {
     renderOpenModal();
     const dialog = screen.getByRole("dialog", { name: "Keyboard shortcuts" });
     expect(dialog.querySelector("h2")?.textContent).toBe("Keyboard shortcuts");
     const headings = screen.getAllByRole("heading", { level: 3 });
     expect(headings.map((heading) => heading.textContent)).toEqual([
-      "General",
-      "Focus mode",
+      "Briefs",
       "Marks",
     ]);
-  });
-
-  it("keeps Z, V and Esc together in the focus-mode section", () => {
-    renderOpenModal();
-    const focusHeading = screen.getByRole("heading", {
-      level: 3,
-      name: "Focus mode",
-    });
-    expect(readSectionKeys(focusHeading)).toEqual(["Z", "V", "Esc"]);
-  });
-
-  it("lists Esc twice with one meaning per line", () => {
-    renderOpenModal();
-    const descriptions = screen
-      .getAllByText("Esc")
-      .map((cap) => cap.closest("div")?.querySelector("dd")?.textContent);
-    expect(descriptions).toEqual(["Close a dialog", "Exit focus mode"]);
+    expect(
+      readSectionKeys(screen.getByRole("heading", { name: "Briefs" })),
+    ).toEqual(["Enter", "Shift", "?"]);
   });
 
   it("closes from the Close button", () => {
@@ -61,13 +60,11 @@ describe("ShortcutsModal", () => {
 
   it("renders a chord as separate caps joined by a plus", () => {
     renderOpenModal();
-    const nextGroup = screen.getByText(
-      "Next group — Read-through, in Reading order",
-    );
-    const caps = [...(nextGroup.closest("div")?.querySelectorAll("kbd") ?? [])];
-    expect(caps.map((cap) => cap.textContent)).toEqual(["Shift", "J"]);
-    expect(nextGroup.closest("div")?.querySelector("dt")?.textContent).toBe(
-      "Shift+J",
+    const toggle = screen.getByText("Toggle this shortcuts list");
+    const caps = [...(toggle.closest("div")?.querySelectorAll("kbd") ?? [])];
+    expect(caps.map((cap) => cap.textContent)).toEqual(["Shift", "?"]);
+    expect(toggle.closest("div")?.querySelector("dt")?.textContent).toBe(
+      "Shift+?",
     );
   });
 });

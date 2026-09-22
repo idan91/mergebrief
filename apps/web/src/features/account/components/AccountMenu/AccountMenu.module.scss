@@ -2,7 +2,11 @@
 
 @layer components {
   .trigger {
-    border-radius: var(--radius-circle);
+    display: inline-flex;
+    gap: var(--space-2);
+    align-items: center;
+    padding-inline: var(--space-1) var(--space-2);
+    border-radius: var(--radius-pill);
   }
 
   .avatar {
@@ -17,20 +21,24 @@
     color: var(--color-text-2);
   }
 
-  .identity {
-    display: flex;
-    gap: var(--space-3);
-    align-items: center;
-    padding-block: var(--space-3);
-    padding-inline: var(--space-3);
-    border-block-end: 1px solid var(--color-outline-1);
-    margin-block-end: var(--space-2);
+  .caret {
+    flex: none;
+    inline-size: 12px;
+    block-size: 12px;
+    color: var(--color-text-2);
   }
 
-  .login {
-    color: var(--color-text-1);
-    font-size: var(--font-size-lg);
-    font-weight: 600;
+  .note {
+    padding-block: var(--space-3);
+    padding-inline: var(--space-3);
+    color: var(--color-text-2);
+    font-size: var(--font-size-md);
+  }
+
+  .icon {
+    inline-size: 16px;
+    block-size: 16px;
+    color: var(--color-text-2);
   }
 
   .group {

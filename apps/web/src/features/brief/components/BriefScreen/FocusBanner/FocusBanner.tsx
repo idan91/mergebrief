@@ -2,7 +2,7 @@ import { Trans, useTranslation } from "react-i18next";
 import type { Ref } from "react";
 
 import { Button } from "@web/components/Button/Button";
-import { Kbd, KbdSizes } from "../Kbd/Kbd";
+import { Kbd, KbdSizes } from "@web/components/Kbd/Kbd";
 import type { BriefViewModel } from "../../../utils/viewModel";
 import { ReadThroughProgress } from "../ReadThroughProgress/ReadThroughProgress";
 import styles from "./FocusBanner.module.scss";

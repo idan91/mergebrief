@@ -1,7 +1,11 @@
+import { useTranslation } from "react-i18next";
 import type { InboxReviewState } from "types/inbox";
 
 import PersonIcon from "@web/components/icons/person.svg?react";
-import { ReviewMarkGlyphs } from "@web/components/marks/consts";
+import {
+  ReviewMarkGlyphs,
+  ReviewMarkLabelKeys,
+} from "@web/components/marks/consts";
 import styles from "./RowMark.module.scss";
 
 export interface RowMarkProps {
@@ -12,12 +16,18 @@ export interface RowMarkProps {
 /**
  * The review mark on the 14px grid; the viewer's own rows carry the person
  * icon instead. Hidden from assistive technology: the row link names the
- * state in words.
+ * state in words. A pointer gets the same words as a callout.
  */
 export function RowMark({ reviewState }: RowMarkProps) {
+  const { t } = useTranslation();
   if (reviewState === null) {
     return (
-      <span aria-hidden="true" className={styles["mark"]} data-review="yours">
+      <span
+        aria-hidden="true"
+        className={styles["mark"]}
+        data-review="yours"
+        data-tip={t("shell.marks.yoursTip")}
+      >
         <PersonIcon />
       </span>
     );
@@ -27,6 +37,7 @@ export function RowMark({ reviewState }: RowMarkProps) {
       aria-hidden="true"
       className={styles["mark"]}
       data-review={reviewState}
+      data-tip={t(ReviewMarkLabelKeys[reviewState])}
     >
       {ReviewMarkGlyphs[reviewState]}
     </span>

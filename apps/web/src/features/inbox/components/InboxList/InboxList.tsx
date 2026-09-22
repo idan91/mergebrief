@@ -85,12 +85,12 @@ export function InboxList({ items, sort, controls, children }: InboxListProps) {
       </div>
       {children}
       <div
-        className={styles["list"]}
+        className={styles["lists"]}
         data-first-load={firstLoad}
         hidden={ordered.length === 0}
       >
         {above.length === 0 ? null : (
-          <ol className={styles["rows"]}>
+          <ol className={styles["list"]}>
             {above.map((item, index) => (
               <InboxRow
                 cursor={index === cursor}
@@ -110,7 +110,7 @@ export function InboxList({ items, sort, controls, children }: InboxListProps) {
           <p className={styles["fold"]}>{t("home.inbox.fold")}</p>
         ) : null}
         {below.length === 0 ? null : (
-          <ol className={styles["rows"]}>
+          <ol className={styles["list"]}>
             {below.map((item, index) => (
               <InboxRow
                 cursor={above.length + index === cursor}

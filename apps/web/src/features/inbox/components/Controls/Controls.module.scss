@@ -29,12 +29,12 @@
   @media (width < 760px) {
     .controls {
       flex-basis: 100%;
-      flex-wrap: wrap;
     }
+  }
 
-    .end {
-      flex-basis: 100%;
-      justify-content: flex-end;
+  @media (width < 400px) {
+    .controls {
+      flex-wrap: wrap;
     }
   }
 }

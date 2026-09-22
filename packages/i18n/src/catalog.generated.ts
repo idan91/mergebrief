@@ -266,6 +266,7 @@ export type Catalog = typeof en & {
     };
     accountMenu: (typeof en)["shell"]["accountMenu"] & {
       ariaLabelTriggerSignedIn: "Account menu for {{login}}";
+      signedInAs: "Signed in as {{login}}";
     };
   };
   home: (typeof en)["home"] & {

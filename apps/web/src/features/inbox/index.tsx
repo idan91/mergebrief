@@ -26,3 +26,4 @@ export { useControlsFacade } from "./components/Controls/useControlsFacade";
 export { Pager, type PagerProps } from "./components/Pager/Pager";
 export { UrlBox } from "./components/UrlBox/UrlBox";
 export { useInboxSearchState } from "./hooks/useInboxSearchState";
+export { useHomeShortcuts } from "./hooks/useHomeShortcuts";

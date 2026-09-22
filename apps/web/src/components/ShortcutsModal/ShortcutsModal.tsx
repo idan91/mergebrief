@@ -1,63 +1,36 @@
 import type { TranslationKey } from "i18n";
 import { useTranslation } from "react-i18next";
-import { IconButton } from "@web/components/IconButton/IconButton";
-import { Modal } from "@web/components/Modal/Modal";
+import { IconButton } from "../IconButton/IconButton";
 import { Kbd, KbdGroup } from "../Kbd/Kbd";
 import {
   REVIEW_MARK_ORDER,
   ReviewMarkGlyphs,
   ReviewMarkLabelKeys,
-} from "@web/components/marks/consts";
+} from "../marks/consts";
+import { Modal } from "../Modal/Modal";
 import CloseIcon from "./icons/close.svg?react";
 import styles from "./ShortcutsModal.module.scss";
 
 export interface ShortcutsModalProps {
   open: boolean;
   close: () => void;
+  /** The screen's own bindings; the marks legend follows on every screen. */
+  sections: readonly ShortcutSection[];
 }
 
-interface ShortcutDefinition {
+export interface ShortcutDefinition {
   keys: readonly string[];
   /** Catalog key for the binding's description. */
   descriptionKey: TranslationKey;
 }
 
-interface ShortcutSection {
+export interface ShortcutSection {
   id: string;
   headingKey: TranslationKey;
   shortcuts: ShortcutDefinition[];
 }
 
-// Esc is listed in both sections on purpose: one line says one thing.
-const SECTIONS: ShortcutSection[] = [
-  {
-    id: "general",
-    headingKey: "brief.shortcuts.sectionGeneral",
-    shortcuts: [
-      { keys: ["J"], descriptionKey: "brief.shortcuts.nextChunk" },
-      { keys: ["K"], descriptionKey: "brief.shortcuts.previousChunk" },
-      { keys: ["Shift", "J"], descriptionKey: "brief.shortcuts.nextGroup" },
-      { keys: ["Shift", "K"], descriptionKey: "brief.shortcuts.previousGroup" },
-      { keys: ["C"], descriptionKey: "brief.shortcuts.jumpConversation" },
-      { keys: ["S"], descriptionKey: "brief.shortcuts.toggleSidebar" },
-      { keys: ["R"], descriptionKey: "brief.shortcuts.quoteThread" },
-      { keys: ["D"], descriptionKey: "brief.shortcuts.toggleDiffView" },
-      { keys: ["?"], descriptionKey: "brief.shortcuts.toggleShortcuts" },
-      { keys: ["Esc"], descriptionKey: "brief.shortcuts.closeDialog" },
-    ],
-  },
-  {
-    id: "focus-mode",
-    headingKey: "brief.shortcuts.sectionFocusMode",
-    shortcuts: [
-      { keys: ["Z"], descriptionKey: "brief.shortcuts.focusMode" },
-      { keys: ["V"], descriptionKey: "brief.shortcuts.markViewed" },
-      { keys: ["Esc"], descriptionKey: "brief.shortcuts.exitFocusMode" },
-    ],
-  },
-];
-
-export function ShortcutsModal({ open, close }: ShortcutsModalProps) {
+export function ShortcutsModal({ open, close, sections }: ShortcutsModalProps) {
   const { t } = useTranslation();
   return (
     <Modal
@@ -77,7 +50,7 @@ export function ShortcutsModal({ open, close }: ShortcutsModalProps) {
         </IconButton>
       </div>
       <div className={styles["sections"]}>
-        {SECTIONS.map((section) => (
+        {sections.map((section) => (
           <section key={section.id}>
             <h3 className={styles["sectionHeading"]}>
               {t(section.headingKey)}

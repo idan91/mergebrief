@@ -47,6 +47,8 @@ export interface MenuProps {
   /** A text trigger's accessible name when its content alone would mislead, such as a bare count. */
   triggerLabel?: string | undefined;
   triggerClassName?: string | undefined;
+  /** An icon trigger wider than its square, such as an avatar with a caret. */
+  triggerAutoWidth?: boolean;
   /** Rides on the trigger as `data-state` for the caller's stylesheet. */
   triggerState?: string | undefined;
   placement?: Placement;
@@ -66,6 +68,7 @@ export function Menu({
   triggerKind = MenuTriggerKinds.ICON,
   triggerLabel,
   triggerClassName,
+  triggerAutoWidth = false,
   triggerState,
   placement = "bottom-end",
   children,
@@ -142,6 +145,7 @@ export function Menu({
       ) : (
         <IconButton
           {...getReferenceProps()}
+          autoWidth={triggerAutoWidth}
           className={triggerClassName}
           data-state={triggerState}
           label={label}

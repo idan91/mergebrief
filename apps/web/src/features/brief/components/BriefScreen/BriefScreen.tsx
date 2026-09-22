@@ -23,7 +23,8 @@ import { CarryOver } from "./CarryOver/CarryOver";
 import { Header } from "./Header/Header";
 import { ReadingToolbar } from "./ReadingToolbar/ReadingToolbar";
 import { RiskFlagModals } from "./RiskFlagModals/RiskFlagModals";
-import { ShortcutsModal } from "./ShortcutsModal/ShortcutsModal";
+import { ShortcutsModal } from "@web/components/ShortcutsModal/ShortcutsModal";
+import { BRIEF_SHORTCUT_SECTIONS } from "./consts";
 import { Sidebar } from "./Sidebar";
 import { StoryView } from "./StoryView/StoryView";
 import { CONTENT_START_ATTR, deriveChunkSizes } from "./utils";
@@ -444,6 +445,7 @@ export function BriefScreen({
               <ShortcutsModal
                 open={session.shortcutsOpen}
                 close={session.closeShortcuts}
+                sections={BRIEF_SHORTCUT_SECTIONS}
               />
               {session.focusMode ? (
                 <div className={styles["focusExit"]}>

@@ -76,6 +76,25 @@ describe("InboxList", () => {
     expect(screen.getByText("Nothing new below")).toBeTruthy();
     expect(rows[0]?.getAttribute("data-needs-you")).toBe("true");
     expect(rows[2]?.getAttribute("data-needs-you")).toBe("false");
+    const tipOf = (row: HTMLElement | undefined) =>
+      row?.querySelector("[data-review]")?.getAttribute("data-tip");
+    expect(tipOf(rows[0])).toBe("Updated since your review");
+    expect(tipOf(rows[3])).toBe("Yours: you opened this pull request");
+  });
+
+  it("the first-load stagger is keyed on the wrapper holding both cards", async () => {
+    await renderInRouter(
+      <InboxList
+        items={[
+          makeItem({ prNumber: 1, reviewState: InboxReviewStates.NEW }),
+          makeItem({ prNumber: 2, reviewState: InboxReviewStates.REVIEWED }),
+        ]}
+        sort={InboxSorts.UPDATED}
+      />,
+    );
+
+    const wrapper = document.querySelector("[data-first-load]");
+    expect(wrapper?.querySelectorAll("ol").length).toBe(2);
   });
 
   it("shows no fold line when every row sits on one side", async () => {
@@ -141,11 +160,10 @@ describe("InboxList", () => {
     );
 
     const row = readRows()[0]!;
-    expect(
-      within(row).getByRole("link", {
-        name: /^In progress\. Open\. Added from a URL\./,
-      }),
-    ).toBeTruthy();
+    const link = within(row).getByRole("link", {
+      name: /^In progress\. Open\. Added from a URL\./,
+    });
+    expect(link.querySelector("[data-review]")).not.toBeNull();
     expect(within(row).getByText("Place in a stack: 2 of 4")).toBeTruthy();
     expect(
       within(row).getByText("GitHub no longer shows this pull request to you"),

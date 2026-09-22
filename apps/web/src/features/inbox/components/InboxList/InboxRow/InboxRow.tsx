@@ -43,7 +43,9 @@ export interface InboxRowProps {
  * the fact chips. Line two: the source icon on url rows, repository, number
  * and age. The right edge carries the generation state and the status when
  * it is not Open, and the actions a hover or the cursor reveals. The whole
- * row is one link to the brief, named by its states before its title.
+ * row is one link to the brief, named by its states before its title; the
+ * mark sits inside the link, so its callout can rise above the overlay and
+ * a click on it still opens the row.
  */
 export function InboxRow({
   item,
@@ -77,13 +79,13 @@ export function InboxRow({
       ref={rowRef}
       style={rowStyle}
     >
-      <RowMark reviewState={item.reviewState} />
       <Link
         className={styles["main"]}
         params={{ repoId: item.repoId, prNumber: String(item.prNumber) }}
         to="/repos/$repoId/pulls/$prNumber"
       >
         <ScreenReaderOnly>{description}</ScreenReaderOnly>{" "}
+        <RowMark reviewState={item.reviewState} />
         <span className={styles["title"]}>
           <span className={styles["titleText"]} data-testid="inbox-row-title">
             {titleSegments.map((segment, position) =>

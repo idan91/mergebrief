@@ -1,0 +1,30 @@
+import type { ShortcutSection } from "@web/components/ShortcutsModal/ShortcutsModal";
+
+// Esc is listed in both sections on purpose: one line says one thing.
+export const BRIEF_SHORTCUT_SECTIONS: ShortcutSection[] = [
+  {
+    id: "general",
+    headingKey: "brief.shortcuts.sectionGeneral",
+    shortcuts: [
+      { keys: ["J"], descriptionKey: "brief.shortcuts.nextChunk" },
+      { keys: ["K"], descriptionKey: "brief.shortcuts.previousChunk" },
+      { keys: ["Shift", "J"], descriptionKey: "brief.shortcuts.nextGroup" },
+      { keys: ["Shift", "K"], descriptionKey: "brief.shortcuts.previousGroup" },
+      { keys: ["C"], descriptionKey: "brief.shortcuts.jumpConversation" },
+      { keys: ["S"], descriptionKey: "brief.shortcuts.toggleSidebar" },
+      { keys: ["R"], descriptionKey: "brief.shortcuts.quoteThread" },
+      { keys: ["D"], descriptionKey: "brief.shortcuts.toggleDiffView" },
+      { keys: ["?"], descriptionKey: "brief.shortcuts.toggleShortcuts" },
+      { keys: ["Esc"], descriptionKey: "brief.shortcuts.closeDialog" },
+    ],
+  },
+  {
+    id: "focus-mode",
+    headingKey: "brief.shortcuts.sectionFocusMode",
+    shortcuts: [
+      { keys: ["Z"], descriptionKey: "brief.shortcuts.focusMode" },
+      { keys: ["V"], descriptionKey: "brief.shortcuts.markViewed" },
+      { keys: ["Esc"], descriptionKey: "brief.shortcuts.exitFocusMode" },
+    ],
+  },
+];

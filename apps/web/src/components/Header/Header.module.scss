@@ -4,7 +4,6 @@
 @layer components {
   .header {
     inline-size: 100%;
-    border-block-end: 1px solid var(--color-outline-1);
   }
 
   .inner {
@@ -32,10 +31,6 @@
     line-height: 1;
     text-decoration: none;
     white-space: nowrap;
-
-    &:hover {
-      color: var(--color-accent);
-    }
 
     &:focus-visible {
       @include mixins.focus-ring;

@@ -48,9 +48,8 @@ export function UrlBox() {
         <Button
           className={styles["submit"]}
           disabled={facade.submitting}
-          size="sm"
           type="submit"
-          variant="primary"
+          variant="accent"
         >
           {t("home.urlBox.generate")}
         </Button>

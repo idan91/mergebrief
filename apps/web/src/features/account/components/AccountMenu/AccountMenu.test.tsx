@@ -55,7 +55,7 @@ describe("AccountMenu", () => {
     expect(screen.queryByRole("button")).toBeNull();
   });
 
-  it("signed in, the avatar opens identity, Settings and Sign out", async () => {
+  it("signed in, the avatar opens the note, Settings and Sign out", async () => {
     renderWithViewer(SIGNED_IN);
 
     const trigger = screen.getByRole("button", {
@@ -65,9 +65,35 @@ describe("AccountMenu", () => {
       fireEvent.click(trigger);
     });
 
-    expect(screen.getByText("octocat")).toBeTruthy();
+    expect(screen.getByText("Signed in as octocat")).toBeTruthy();
     const names = screen.getAllByRole("menuitem").map((row) => row.textContent);
     expect(names).toEqual(["Settings", "Sign out"]);
+  });
+
+  it("signed in with a modal, the menu is the note and three rows with icons", async () => {
+    const onOpenShortcuts = vi.fn();
+    renderWithViewer(SIGNED_IN, onOpenShortcuts);
+
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Account menu for octocat" }),
+      );
+    });
+
+    expect(screen.getByText("Signed in as octocat")).toBeTruthy();
+    const rows = screen.getAllByRole("menuitem");
+    expect(rows.map((row) => row.textContent)).toEqual([
+      "Settings",
+      "Keyboard shortcuts",
+      "Sign out",
+    ]);
+    expect(rows.every((row) => row.querySelector("svg") !== null)).toBe(true);
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("menuitem", { name: "Keyboard shortcuts" }),
+      );
+    });
+    expect(onOpenShortcuts).toHaveBeenCalledTimes(1);
   });
 
   it("language selection on, the rows carry lang and one is checked", async () => {
