@@ -22,6 +22,8 @@ export interface InboxListProps {
   sort: InboxSort;
   /** The filters and the sort, on the heading's line. */
   controls?: ReactNode;
+  /** What stands where the rows would, when there are none to show. */
+  children?: ReactNode;
 }
 
 /**
@@ -32,7 +34,7 @@ export interface InboxListProps {
  * nothing. The keyboard cursor counts rows straight through both sides,
  * and one live region below the list announces what a row action did.
  */
-export function InboxList({ items, sort, controls }: InboxListProps) {
+export function InboxList({ items, sort, controls, children }: InboxListProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const firstLoad = useFirstLoad();
@@ -81,7 +83,12 @@ export function InboxList({ items, sort, controls }: InboxListProps) {
         </h2>
         {controls}
       </div>
-      <div className={styles["list"]} data-first-load={firstLoad}>
+      {children}
+      <div
+        className={styles["list"]}
+        data-first-load={firstLoad}
+        hidden={ordered.length === 0}
+      >
         {above.length === 0 ? null : (
           <ol className={styles["rows"]}>
             {above.map((item, index) => (

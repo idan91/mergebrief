@@ -36,6 +36,7 @@ GITHUB_APP_PRIVATE_KEY_PATH=./secrets/dev-app.private-key.pem
 GITHUB_WEBHOOK_SECRET=replace-with-openssl-rand-hex-32
 GITHUB_OAUTH_CLIENT_ID=Iv1.replace-me
 GITHUB_OAUTH_CLIENT_SECRET=replace-me
+GITHUB_APP_SLUG=your-app-slug
 ```
 
 The API's composition root (`apps/api/src/main.ts`) reads these at BOOT, not on the first

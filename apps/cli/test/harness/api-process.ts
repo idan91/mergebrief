@@ -94,6 +94,7 @@ function buildEnv(options: ApiProcessOptions): NodeJS.ProcessEnv {
     GITHUB_WEBHOOK_SECRET: "test-webhook-secret",
     GITHUB_OAUTH_CLIENT_ID: "Iv1.test-client-id",
     GITHUB_OAUTH_CLIENT_SECRET: "test-client-secret",
+    GITHUB_APP_SLUG: "mergebrief-test",
     // Explicit, not defaulted: `main.ts` loads `apps/api/.env` from its own
     // cwd, and a developer's copy setting this to false would turn boot into
     // a read-only schema check against a database that is always fresh.

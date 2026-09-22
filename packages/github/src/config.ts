@@ -1,4 +1,4 @@
-// GitHub client env config, Zod-parsed from an INJECTED env map — this module
+// GitHub client env config, Zod-parsed from an INJECTED env map: this module
 // NEVER reads `process.env` implicitly at import time; `loadConfig(env)` takes
 // the env explicitly so the read happens where the caller decides.
 // Exactly one of GITHUB_APP_PRIVATE_KEY (PEM contents) or
@@ -19,10 +19,12 @@ export interface GitHubConfig {
   readonly webhookSecret: string;
   readonly oauthClientId: string;
   readonly oauthClientSecret: string;
+  /** The App's URL name (`github.com/apps/<slug>`); absent, Home offers no Install link. */
+  readonly appSlug: string | undefined;
 }
 
 // ---------------------------------------------------------------------------
-// Errors — expected failure (bad/missing env). Never throws.
+// Errors: expected failure (bad/missing env). Never throws.
 // ---------------------------------------------------------------------------
 
 export const ConfigErrorCodes = {
@@ -34,7 +36,7 @@ export interface ConfigError {
   readonly code: ConfigErrorCode;
   readonly message: string;
   /**
-   * Per-field problems as `field: reason` — never the offending VALUES: the
+   * Per-field problems as `field: reason`, never the offending VALUES: the
    * private key, webhook secret, and OAuth client secret are all credentials.
    */
   readonly issues: readonly string[];
@@ -43,6 +45,9 @@ export interface ConfigError {
 // ---------------------------------------------------------------------------
 // Schema.
 // ---------------------------------------------------------------------------
+
+/** GitHub lower-cases an App's name and joins its words with hyphens. */
+const APP_SLUG_PATTERN = /^[a-z0-9-]+$/;
 
 const ConfigSchema = z
   .object({
@@ -71,6 +76,14 @@ const ConfigSchema = z
     GITHUB_OAUTH_CLIENT_SECRET: z
       .string({ required_error: "GITHUB_OAUTH_CLIENT_SECRET is required" })
       .min(1, "GITHUB_OAUTH_CLIENT_SECRET is required"),
+    // Compose expands an unset `${GITHUB_APP_SLUG:-}` to an empty string; that is unset too.
+    GITHUB_APP_SLUG: z.preprocess(
+      (value) => (value === "" ? undefined : value),
+      z
+        .string()
+        .regex(APP_SLUG_PATTERN, "GITHUB_APP_SLUG must be the App's URL name")
+        .optional(),
+    ),
   })
   .superRefine((data, ctx) => {
     const hasKey = data.GITHUB_APP_PRIVATE_KEY !== undefined;
@@ -89,7 +102,7 @@ const ConfigSchema = z
 type ParsedEnv = z.infer<typeof ConfigSchema>;
 
 // ---------------------------------------------------------------------------
-// Private-key resolution — the one step that isn't pure Zod parsing.
+// Private-key resolution, the one step that isn't pure Zod parsing.
 // ---------------------------------------------------------------------------
 
 function invalidConfigError(issue: string): ConfigError {
@@ -149,7 +162,7 @@ function resolvePrivateKey(data: ParsedEnv): Result<string, ConfigError> {
 
 /**
  * Parse GitHub client config from an injected env map, or a `ConfigError`
- * listing invalid fields (values omitted — they are credentials). Never reads
+ * listing invalid fields (values omitted, they are credentials). Never reads
  * `process.env` itself; the caller passes it.
  */
 export function loadConfig(
@@ -184,6 +197,7 @@ export function loadConfig(
       webhookSecret: parsed.data.GITHUB_WEBHOOK_SECRET,
       oauthClientId: parsed.data.GITHUB_OAUTH_CLIENT_ID,
       oauthClientSecret: parsed.data.GITHUB_OAUTH_CLIENT_SECRET,
+      appSlug: parsed.data.GITHUB_APP_SLUG,
     },
   };
 }

@@ -173,6 +173,11 @@ export function readInboxChoices(search: InboxSearch): InboxChoices {
   };
 }
 
+/** Whether the Status filter is at its opening pair, the one filter with a hidden default. */
+export function hasDefaultStatus(search: InboxSearch): boolean {
+  return search.state === undefined;
+}
+
 /** How many filters sit off their default; the sort and the page are not filters. */
 export function countChangedFilters(search: InboxSearch): number {
   const keys: (keyof InboxSearch)[] = [

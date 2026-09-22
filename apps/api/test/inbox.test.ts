@@ -42,6 +42,7 @@ const REPO_A = 424242;
 const REPO_URL = 535353;
 const REPO_PRIVATE = 646464;
 const HEAD = "a".repeat(40);
+const APP_SLUG = "mergebrief-test";
 
 function brand<T extends bigint>(
   guard: (v: bigint) => v is T,
@@ -224,6 +225,7 @@ interface InboxBody {
   viewer: Record<string, unknown>;
   reachableInstallations: Array<Record<string, unknown>>;
   repositories: Array<Record<string, unknown>>;
+  installUrl: string | null;
 }
 
 describe("GET /api/inbox", () => {
@@ -241,6 +243,7 @@ describe("GET /api/inbox", () => {
       webhookSecret: SECRET,
       auth: buildAuthDeps(kp),
       github: unusedConversationPort,
+      githubAppSlug: APP_SLUG,
     });
   });
 
@@ -357,6 +360,7 @@ describe("GET /api/inbox", () => {
           accountLogin: `org-${INSTALLATION_ID}`,
         },
       ],
+      installUrl: `https://github.com/apps/${APP_SLUG}/installations/new`,
     });
     expect(
       body.repositories.toSorted((first, second) =>
@@ -366,6 +370,25 @@ describe("GET /api/inbox", () => {
       { repoId: String(REPO_A), repoSlug: "o/r" },
       { repoId: String(REPO_URL), repoSlug: expect.any(String) },
     ]);
+  });
+
+  it("an app composed without a slug serves no install link", async () => {
+    stubGitHub();
+    const cookie = await seedSession(harness.handle, kp);
+    const slugless = createApp({
+      logger: testLogger(),
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: buildAuthDeps(kp),
+      github: unusedConversationPort,
+    });
+
+    const res = await slugless.request("/api/inbox", {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
+
+    expect(res.status).toBe(200);
+    expect((await readBody(res)).installUrl).toBeNull();
   });
 
   it("a page past the end carries no items and the true total", async () => {

@@ -17,6 +17,7 @@ function makePage(overrides: Partial<InboxPage> = {}): InboxPage {
     viewer: { login: "octocat", avatarUrl: "https://a/1" },
     reachableInstallations: [{ installationId: "10", accountLogin: "acme" }],
     repositories: [{ repoId: "424242", repoSlug: "acme/payments" }],
+    installUrl: null,
     ...overrides,
   };
 }

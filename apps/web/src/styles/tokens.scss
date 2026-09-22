@@ -162,6 +162,7 @@
     --font-size-2xl: #{functions.to-rem(17px)}; // panel / drawer titles
     --font-size-3xl: #{functions.to-rem(20px)}; // page titles
     --font-size-4xl: #{functions.to-rem(24px)}; // the brief header's PR title
+    --font-size-display: #{functions.to-rem(30px)}; // the one line that owns a screen: Home's personal line and what replaces it
 
     // The document base size (body in base.scss) — the measuring stick the
     // steps above are chosen against, not a step itself. The only fluid

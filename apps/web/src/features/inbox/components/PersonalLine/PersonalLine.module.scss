@@ -1,5 +1,3 @@
-@use "functions";
-
 @layer components {
   .personal {
     display: grid;
@@ -8,8 +6,7 @@
 
   .heading {
     color: var(--color-text-1);
-    /* stylelint-disable-next-line declaration-property-value-allowed-list -- TODO: the display size, one per screen; consolidate if a second consumer appears */
-    font-size: functions.to-rem(30px);
+    font-size: var(--font-size-display);
     font-weight: 600;
     letter-spacing: -0.02em;
     line-height: 1.1;
@@ -17,6 +14,7 @@
   }
 
   .detail {
+    max-inline-size: 62ch;
     color: var(--color-text-2);
     font-size: var(--font-size-2xl);
     line-height: 1.5;

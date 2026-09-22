@@ -41,6 +41,7 @@ const WIRE_PAGE = {
   viewer: { login: "octocat", avatarUrl: "https://a/1" },
   reachableInstallations: [{ installationId: "10", accountLogin: "acme" }],
   repositories: [{ repoId: "424242", repoSlug: "o/r" }],
+  installUrl: "https://github.com/apps/mergebrief/installations/new",
 };
 
 function answerWith(status: number, body: unknown): void {
@@ -88,12 +89,38 @@ describe("buildInboxQueryOptions", () => {
     await expect(readInbox()).rejects.toMatchObject({ code: "malformed" });
   });
 
-  it("an upstream failure throws with its wire code", async () => {
+  it("a refusal is the failed state carrying its wire code", async () => {
     answerWith(502, { code: "github-unavailable" });
 
-    await expect(readInbox()).rejects.toMatchObject({
+    await expect(readInbox()).resolves.toEqual({
+      kind: InboxStates.FAILED,
       code: "github-unavailable",
-      status: 502,
     });
+  });
+
+  it("a codeless 5xx is the server's failure, never GitHub's", async () => {
+    fetchMock.mockResolvedValue(
+      new Response("service unavailable", { status: 503 }),
+    );
+    await expect(readInbox()).resolves.toEqual({
+      kind: InboxStates.FAILED,
+      code: "internal-error",
+    });
+
+    answerWith(504, { error: "service unavailable" });
+    await expect(readInbox()).resolves.toEqual({
+      kind: InboxStates.FAILED,
+      code: "internal-error",
+    });
+  });
+
+  it("a failed answer is stale at once, so a focus re-reads it", async () => {
+    answerWith(503, { code: "internal-error" });
+    const options = buildInboxQueryOptions({});
+    const staleTime = options.staleTime;
+    if (typeof staleTime !== "function") throw new Error("staleTime is fixed");
+    const query = { state: { data: await readInbox() } };
+
+    expect(staleTime(query as never)).toBe(0);
   });
 });

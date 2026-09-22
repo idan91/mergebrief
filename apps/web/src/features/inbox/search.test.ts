@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   clearInboxFilters,
   countChangedFilters,
+  hasDefaultStatus,
   listRepoOptions,
   parseInboxSearch,
   readInboxChoices,
@@ -101,6 +102,16 @@ describe("readInboxParams and readInboxChoices", () => {
       author: InboxAuthorFilters.ALL,
       installations: [],
     });
+  });
+});
+
+describe("hasDefaultStatus", () => {
+  it("is true while the address carries no status, whatever else it holds", () => {
+    expect(hasDefaultStatus(parseInboxSearch({ review: "new" }))).toBe(true);
+    expect(hasDefaultStatus(parseInboxSearch({ state: "open,draft" }))).toBe(
+      true,
+    );
+    expect(hasDefaultStatus(parseInboxSearch({ state: "merged" }))).toBe(false);
   });
 });
 

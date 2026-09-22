@@ -1,0 +1,21 @@
+@use "mixins";
+
+@layer components {
+  .line {
+    color: var(--color-text-2);
+    font-size: var(--font-size-lg);
+    line-height: 1.5;
+  }
+
+  .install {
+    color: var(--color-text-1);
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+
+    &:hover {
+      color: var(--color-accent);
+    }
+
+    @include mixins.focus-visible;
+  }
+}

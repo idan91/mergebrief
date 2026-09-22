@@ -42,8 +42,111 @@ export const E2E_SESSION_KEY = Buffer.alloc(32, 7).toString("base64");
 /** The seeded session's cookie value (stored hashed; test-only). */
 export const E2E_SESSION_COOKIE = "e2e-session-cookie-value-0123456789";
 
+/** The App's URL name the API is composed with; the Install link names it. */
+export const E2E_APP_SLUG = "mergebrief-e2e";
+
 /** The owner-world identity the fixtures are seeded under. */
 export const E2E_OWNER_USER_ID = 555n;
+
+export interface StateViewer {
+  readonly userId: bigint;
+  readonly login: string;
+  /** The session cookie value (stored hashed; test-only). */
+  readonly cookie: string;
+  /** The sealed GitHub token the stub keys its answer on (test-only). */
+  readonly token: string;
+}
+
+/**
+ * One extra viewer per Home state the seeded rows cannot show: each has its
+ * own session and a GitHub token the stub answers differently for.
+ */
+export const E2E_STATE_VIEWERS = {
+  empty: {
+    userId: 556n,
+    login: "e2e-empty",
+    cookie: "e2e-session-cookie-empty-0123456789",
+    token: "ghu_e2e_empty_token",
+  },
+  noInstallation: {
+    userId: 557n,
+    login: "e2e-alone",
+    cookie: "e2e-session-cookie-alone-0123456789",
+    token: "ghu_e2e_alone_token",
+  },
+  failed: {
+    userId: 558n,
+    login: "e2e-unlucky",
+    cookie: "e2e-session-cookie-unlucky-0123456789",
+    token: "ghu_e2e_down_token",
+  },
+  hidden: {
+    userId: 559n,
+    login: "e2e-done",
+    cookie: "e2e-session-cookie-done-0123456789",
+    token: "ghu_e2e_done_token",
+  },
+} as const satisfies Record<string, StateViewer>;
+
+/** The one installation the hidden-state viewer reaches; its only row is merged. */
+export const E2E_HIDDEN_INSTALLATION = {
+  id: 7004,
+  account: "quiet",
+  repos: [{ id: 424247, slug: "quiet/done" }],
+} as const;
+
+/** What the stub answers the installations walk with, per state viewer's token. */
+const STUB_ANSWERS_BY_TOKEN = {
+  [E2E_STATE_VIEWERS.empty.token]: {
+    installations: [
+      {
+        id: 7003,
+        account: "quiet",
+        repos: [{ id: 424246, slug: "quiet/void" }],
+      },
+    ],
+  },
+  [E2E_STATE_VIEWERS.noInstallation.token]: { installations: [] },
+  [E2E_STATE_VIEWERS.failed.token]: { status: 500 },
+  [E2E_STATE_VIEWERS.hidden.token]: {
+    installations: [E2E_HIDDEN_INSTALLATION],
+  },
+};
+
+interface SessionCookie {
+  readonly name: string;
+  readonly value: string;
+  readonly domain: string;
+  readonly path: string;
+  readonly expires: number;
+  readonly httpOnly: boolean;
+  readonly secure: boolean;
+  readonly sameSite: "Lax";
+}
+
+export interface StorageState {
+  readonly cookies: readonly SessionCookie[];
+  readonly origins: readonly never[];
+}
+
+/** A Playwright storage state carrying one seeded session's cookie. */
+export function buildStorageState(cookie: string): StorageState {
+  return {
+    cookies: [
+      {
+        name: "rs_session",
+        value: cookie,
+        domain: "localhost",
+        path: "/",
+        expires: Math.floor(Date.now() / 1000) + 7 * 24 * 3600,
+        httpOnly: true,
+        secure: false,
+        sameSite: "Lax" as const,
+      },
+    ],
+    origins: [],
+  };
+}
 export const E2E_REPO_ID = readEnvNumber("MERGEBRIEF_E2E_REPO_ID", 424242);
 export const E2E_REPO_SLUG =
   process.env["MERGEBRIEF_E2E_REPO_SLUG"] ?? "mergebrief/e2e-fixture";
@@ -105,6 +208,7 @@ export function buildApiServerEnv(): Record<string, string> {
     GITHUB_WEBHOOK_SECRET: "e2e-webhook-secret",
     GITHUB_OAUTH_CLIENT_ID: "Iv1.e2e-client-id",
     GITHUB_OAUTH_CLIENT_SECRET: "e2e-client-secret",
+    GITHUB_APP_SLUG: E2E_APP_SLUG,
     NODE_OPTIONS: `--import ${fileURLToPath(new URL("./github-stub.mjs", import.meta.url))}`,
     // The stub is preloaded into THIS process, so the fixture surface it
     // serves has to be described here and not on the web tier.
@@ -115,6 +219,7 @@ export function buildApiServerEnv(): Record<string, string> {
     // the seed wrote, described here because the stub runs in that process.
     MERGEBRIEF_E2E_INBOX: JSON.stringify({
       installations: INBOX_INSTALLATIONS,
+      byToken: STUB_ANSWERS_BY_TOKEN,
       urlRow: {
         slug: E2E_REPO_SLUG,
         repoId: E2E_REPO_ID,

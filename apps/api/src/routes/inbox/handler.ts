@@ -100,6 +100,7 @@ export default function createHandlers(
           filters: shapeFilters(query.data),
           sort: query.data.sort,
           page: query.data.page,
+          githubAppSlug: deps.githubAppSlug,
         },
       );
       return c.json(body, 200, NO_STORE);

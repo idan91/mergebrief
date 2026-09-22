@@ -1,0 +1,72 @@
+@use "functions";
+
+@layer components {
+  .signedOut {
+    display: grid;
+    gap: var(--space-8);
+  }
+
+  .copy {
+    display: grid;
+    gap: var(--space-5);
+    justify-items: start;
+    max-inline-size: functions.to-rem(704px);
+  }
+
+  .heading {
+    color: var(--color-text-1);
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- TODO: the one fluid hero size in the app, off the scale by design; fold into a token if a second hero appears */
+    font-size: clamp(
+      #{functions.to-rem(32px)},
+      1.2rem + 2.6vw,
+      #{functions.to-rem(48px)}
+    );
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.08;
+    text-wrap: balance;
+  }
+
+  .lead {
+    max-inline-size: 62ch;
+    color: var(--color-text-2);
+    font-size: var(--font-size-2xl);
+    line-height: 1.55;
+  }
+
+  .signIn {
+    display: inline-flex;
+    gap: var(--space-3);
+    align-items: center;
+    min-block-size: functions.to-rem(44px);
+    margin-block-start: var(--space-3);
+    padding-inline: var(--space-6);
+    font-size: var(--font-size-lg);
+  }
+
+  .logo {
+    inline-size: 18px;
+    block-size: 18px;
+  }
+
+  .picture {
+    margin: 0;
+    overflow: hidden;
+    border: 1px solid var(--color-outline-2);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface-1);
+    box-shadow: var(--shadow-float);
+
+    img {
+      display: block;
+      inline-size: 100%;
+      block-size: auto;
+    }
+  }
+
+  @media (width < 760px) {
+    .signedOut {
+      gap: var(--space-7);
+    }
+  }
+}

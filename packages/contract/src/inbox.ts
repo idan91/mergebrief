@@ -113,4 +113,6 @@ export interface InboxResponse extends Page<InboxItem> {
   readonly reachableInstallations: readonly ReachableInstallationView[];
   /** Sorted by slug, each once, capped by the store; the Repository filter's whole vocabulary. */
   readonly repositories: readonly InboxRepositoryView[];
+  /** Where a viewer installs the App; null only when the API was composed without a slug. */
+  readonly installUrl: string | null;
 }

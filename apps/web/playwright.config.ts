@@ -32,7 +32,22 @@ export default defineConfig({
     // The seeded session's cookie, every page is a signed-in viewer.
     storageState: STORAGE_STATE_PATH,
   },
-  projects: [{ name: "chromium", use: devices["Desktop Chrome"] }],
+  projects: [
+    {
+      name: "chromium",
+      use: devices["Desktop Chrome"],
+      testIgnore: "**/signedOut.e2e.ts",
+    },
+    {
+      // No storage state: the one project that arrives without a session.
+      name: "signed-out",
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: { cookies: [], origins: [] },
+      },
+      testMatch: "**/signedOut.e2e.ts",
+    },
+  ],
   // Both tiers, in order: the API owns the database and the credentials, the
   // web app proxies `/api/*` to it. `reuseExistingServer` is OFF
   // unconditionally on both, a reused process would be composed over the

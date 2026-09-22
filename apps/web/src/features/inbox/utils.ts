@@ -1,11 +1,17 @@
 import { InboxQueryKeys } from "contract";
 import { InboxReviewStates, InboxSorts, type InboxSort } from "types/inbox";
 
+import { ApiErrorCodes, type ApiErrorCode } from "../../data/apiFetch";
 import {
   AgeUnits,
+  FailureSides,
+  InboxEmptinesses,
   TitleSegmentKinds,
   type AgeUnit,
+  type FailureSide,
+  type InboxEmptiness,
   type InboxItem,
+  type InboxPage,
   type InboxQueryParams,
   type TitleSegmentKind,
 } from "./types";
@@ -130,4 +136,25 @@ export function splitTitleCode(title: string): readonly TitleSegment[] {
     segments.push({ kind: TitleSegmentKinds.TEXT, text: title.slice(cursor) });
   }
   return segments;
+}
+
+/** GitHub when the API said GitHub did not answer; otherwise the server itself. */
+export function readFailureSide(code: ApiErrorCode): FailureSide {
+  if (code === ApiErrorCodes.GITHUB_UNAVAILABLE) return FailureSides.GITHUB;
+  return FailureSides.SERVER;
+}
+
+/**
+ * Why the page shows no rows, if it shows none. The repository vocabulary
+ * is unfiltered, so an empty one means no row in any status; rows behind a
+ * default status filter the reviewer never touched are hidden, not filtered.
+ */
+export function readInboxEmptiness(
+  page: Pick<InboxPage, "total" | "repositories">,
+  changedCount: number,
+): InboxEmptiness {
+  if (page.total > 0) return InboxEmptinesses.ROWS;
+  if (page.repositories.length === 0) return InboxEmptinesses.EMPTY;
+  if (changedCount > 0) return InboxEmptinesses.FILTERED;
+  return InboxEmptinesses.HIDDEN_BY_DEFAULT;
 }

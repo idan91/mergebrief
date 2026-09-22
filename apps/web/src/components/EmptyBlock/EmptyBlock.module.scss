@@ -1,0 +1,34 @@
+@layer components {
+  .block {
+    display: grid;
+    gap: var(--space-3);
+    justify-items: start;
+    max-inline-size: 56ch;
+    padding-block: var(--space-8);
+
+    :is(h1, h2, h3) {
+      color: var(--color-text-1);
+      font-size: var(--font-size-xl);
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      line-height: 1.3;
+    }
+
+    h1 {
+      font-size: var(--font-size-display);
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+    }
+
+    h2 {
+      font-size: var(--font-size-3xl);
+    }
+  }
+
+  .detail {
+    margin-block-end: var(--space-2);
+    color: var(--color-text-2);
+    font-size: var(--font-size-lg);
+    line-height: 1.5;
+  }
+}

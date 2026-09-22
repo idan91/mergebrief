@@ -28,6 +28,8 @@ export interface AuthRouteDeps {
    * already granted. Absent disables the fallback everywhere.
    */
   readonly urlBoxFallbackToken?: string | undefined;
+  /** The App's URL name (`GITHUB_APP_SLUG`); the Inbox builds its Install link from it. */
+  readonly githubAppSlug?: string | undefined;
 }
 
 // A cookie session and a Bearer token resolve into the SAME principal shape,

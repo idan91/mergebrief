@@ -8,8 +8,9 @@ import {
   pickAgeAt,
   splitAtFold,
   splitTitleCode,
+  readInboxEmptiness,
 } from "./utils";
-import type { InboxItem } from "./types";
+import { InboxEmptinesses, type InboxItem } from "./types";
 
 function makeItem(overrides: Partial<InboxItem> = {}): InboxItem {
   return {
@@ -154,5 +155,24 @@ describe("splitTitleCode", () => {
     expect(splitTitleCode("odd ` tick")).toEqual([
       { kind: "text", text: "odd ` tick" },
     ]);
+  });
+});
+
+describe("readInboxEmptiness", () => {
+  it("tells no rows at all from filtered and from hidden by default", () => {
+    const repositories = [{ repoId: "1", repoSlug: "a/b" }];
+
+    expect(readInboxEmptiness({ total: 3, repositories }, 0)).toBe(
+      InboxEmptinesses.ROWS,
+    );
+    expect(readInboxEmptiness({ total: 0, repositories: [] }, 0)).toBe(
+      InboxEmptinesses.EMPTY,
+    );
+    expect(readInboxEmptiness({ total: 0, repositories }, 2)).toBe(
+      InboxEmptinesses.FILTERED,
+    );
+    expect(readInboxEmptiness({ total: 0, repositories }, 0)).toBe(
+      InboxEmptinesses.HIDDEN_BY_DEFAULT,
+    );
   });
 });

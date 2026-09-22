@@ -15,6 +15,20 @@ function renderCounts(updated: number, fresh: number) {
 }
 
 describe("PersonalLine", () => {
+  it("an empty Inbox says so in the slot instead of counting", () => {
+    render(
+      <PersonalLine
+        counts={{ new: 0, inProgress: 0, reviewed: 0, updated: 0 }}
+        empty
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Nothing to review yet" }),
+    ).toBeTruthy();
+    expect(screen.getByText(/Paste a pull request URL below/)).toBeTruthy();
+  });
+
   it("leads with what changed since the review, then what is new", () => {
     renderCounts(2, 1);
 

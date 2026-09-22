@@ -1026,10 +1026,6 @@
     "settingsHeading": "Settings",
     "briefListFailed": "Brief list failed to load",
     "briefFailed": "Brief failed to load",
-    "landingHeading": "Turn a PR into a brief",
-    "landingBullet1": "Stable taxonomy, queryable across every PR you review",
-    "landingBullet2": "Your model key, your infrastructure, nothing phones home",
-    "landingBullet3": "Plain-markdown taxonomy you can read, fork, and extend",
     "ariaLabelPrUrl": "GitHub PR URL",
     "prUrlPlaceholder": "https://github.com/owner/repo/pull/123",
     "noBriefs": "No Briefs yet. Paste a GitHub PR URL above to generate one.",
@@ -1047,8 +1043,6 @@
     "backToReview": "Back to review",
     "backToBriefs": "← Back to Briefs",
     "ariaLabelBreadcrumb": "Breadcrumb",
-    "landingEyebrow": "Open-source · self-hosted · BYOK",
-    "landingCopy": "A brief re-unitizes a pull request into Change-groups, each with a plain-language summary and Risk Surface attributes: facts worth a closer look, never a verdict.",
     "generating": "Generating…",
     "generate": "Generate",
     "cliHint": "Working from the CLI instead? Run <0/> from the repo root; outputs land here automatically.",
@@ -1197,6 +1191,31 @@
       "previous": "Previous page",
       "next": "Next page",
       "page": "Page {{page}}"
+    },
+    "empty": {
+      "heading": "Nothing to review yet",
+      "detail": "Paste a pull request URL below to get its brief. Pull requests from repositories where MergeBrief is installed show up here on their own.",
+      "filteredHeading": "No pull requests match these filters",
+      "hiddenHeading": "No open pull requests",
+      "filteredDefaultStatus": "Merged and closed pull requests are hidden by default.",
+      "clearFilters": "Clear filters",
+      "showHidden": "Show merged and closed"
+    },
+    "noInstallation": {
+      "line": "MergeBrief is installed on no repository you can reach.",
+      "install": "Install it on GitHub"
+    },
+    "failed": {
+      "heading": "Briefs could not be loaded",
+      "github": "GitHub did not answer. Your rows are untouched; try again in a moment.",
+      "server": "The server did not answer. Try again in a moment.",
+      "retry": "Try again"
+    },
+    "signedOut": {
+      "heading": "Understand a pull request before you review it",
+      "copy": "MergeBrief reads the diff and hands you a brief: the changes grouped by what they are for, the places that deserve a closer look, and a receipt of what you checked.",
+      "signIn": "Sign in with GitHub",
+      "pictureAlt": "A brief open in MergeBrief: a change-group with its risk surface on the left and the list of change-groups for the pull request on the right"
     }
   }
 }

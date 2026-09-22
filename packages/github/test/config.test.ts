@@ -24,6 +24,7 @@ const BASE_ENV = {
   GITHUB_WEBHOOK_SECRET: "webhook-secret",
   GITHUB_OAUTH_CLIENT_ID: "client-id",
   GITHUB_OAUTH_CLIENT_SECRET: "client-secret",
+  GITHUB_APP_SLUG: "mergebrief-dev",
 };
 
 function ok(result: Result<GitHubConfig, ConfigError>): GitHubConfig {
@@ -42,14 +43,35 @@ function err(result: Result<GitHubConfig, ConfigError>): ConfigError {
   return result.error;
 }
 
-describe("config — loadConfig", () => {
-  it("loads a fully valid env (inline PEM)", () => {
+describe("loadConfig", () => {
+  it("loads a fully valid env with an inline PEM", () => {
     const config = ok(loadConfig(BASE_ENV));
     expect(config.appId).toBe(123456);
     expect(config.privateKey).toBe(VALID_PEM);
     expect(config.webhookSecret).toBe("webhook-secret");
     expect(config.oauthClientId).toBe("client-id");
     expect(config.oauthClientSecret).toBe("client-secret");
+    expect(config.appSlug).toBe("mergebrief-dev");
+  });
+
+  it("loads without GITHUB_APP_SLUG, leaving the Install link unset", () => {
+    const { GITHUB_APP_SLUG: _slug, ...env } = BASE_ENV;
+
+    expect(ok(loadConfig(env)).appSlug).toBeUndefined();
+  });
+
+  it("an empty GITHUB_APP_SLUG reads as unset", () => {
+    expect(ok(loadConfig({ ...BASE_ENV, GITHUB_APP_SLUG: "" })).appSlug).toBe(
+      undefined,
+    );
+  });
+
+  it("rejects a GITHUB_APP_SLUG that is not a URL segment", () => {
+    const error = err(loadConfig({ ...BASE_ENV, GITHUB_APP_SLUG: "my app" }));
+
+    expect(error.issues).toContain(
+      "GITHUB_APP_SLUG: GITHUB_APP_SLUG must be the App's URL name",
+    );
   });
 
   it("rejects an empty env, listing every missing required field", () => {
@@ -110,7 +132,7 @@ describe("config — loadConfig", () => {
     ).toBe(true);
   });
 
-  it("does not echo secret values (private key, webhook secret, oauth secret) in error output", () => {
+  it("never echoes the private key or either secret in error output", () => {
     const secretEnv = {
       ...BASE_ENV,
       GITHUB_APP_ID: "not-a-number",
@@ -151,7 +173,7 @@ describe("config — loadConfig", () => {
       expect(config.privateKey).toBe(VALID_PEM);
     });
 
-    it("rejects a _PATH that does not exist, without leaking fs internals as a secret-shaped value", async () => {
+    it("rejects a missing key file without leaking fs internals", async () => {
       const { GITHUB_APP_PRIVATE_KEY: _unused, ...withoutKey } = BASE_ENV;
       const error = err(
         loadConfig({

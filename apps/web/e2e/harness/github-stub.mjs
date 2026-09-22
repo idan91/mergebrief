@@ -44,6 +44,43 @@ function readRequestUrl(input) {
   return input.url;
 }
 
+/** The bearer token a request carries, whatever shape `fetch` was handed. */
+function readToken(input, init) {
+  const headers = new Headers(
+    init?.headers ?? (input instanceof Request ? input.headers : undefined),
+  );
+  const value = headers.get("authorization") ?? "";
+  return value.replace(/^(?:token|bearer)\s+/i, "");
+}
+
+/** The state viewers' tokens answer their own walk; anyone else gets the fixture's. */
+function answerInstallationsWalk(input, init, pathname) {
+  const scripted = INBOX.byToken?.[readToken(input, init)];
+  if (scripted?.status !== undefined) {
+    return jsonResponse({ message: "down (e2e github stub)" }, scripted.status);
+  }
+  const installations = scripted?.installations ?? INBOX.installations;
+  if (pathname === "/user/installations") {
+    return jsonResponse({
+      total_count: installations.length,
+      installations: installations.map((installation) => ({
+        id: installation.id,
+        account: { login: installation.account },
+      })),
+    });
+  }
+  const installationRepos =
+    /^\/user\/installations\/(?<id>\d+)\/repositories$/.exec(pathname);
+  const installation = installations.find(
+    (candidate) => String(candidate.id) === installationRepos.groups.id,
+  );
+  const repos = installation?.repos ?? [];
+  return jsonResponse({
+    total_count: repos.length,
+    repositories: repos.map((repo) => ({ id: repo.id, full_name: repo.slug })),
+  });
+}
+
 /** The Inbox's live read names its query; the conversation read does not. */
 function isLiveRead(init) {
   return typeof init?.body === "string" && init.body.includes("query LiveRead");
@@ -88,29 +125,11 @@ globalThis.fetch = async (input, init) => {
     return realFetch(input, init);
   }
   const { pathname } = new URL(url);
-  if (pathname === "/user/installations") {
-    return jsonResponse({
-      total_count: INBOX.installations.length,
-      installations: INBOX.installations.map((installation) => ({
-        id: installation.id,
-        account: { login: installation.account },
-      })),
-    });
-  }
-  const installationRepos =
-    /^\/user\/installations\/(?<id>\d+)\/repositories$/.exec(pathname);
-  if (installationRepos) {
-    const installation = INBOX.installations.find(
-      (candidate) => String(candidate.id) === installationRepos.groups.id,
-    );
-    const repos = installation?.repos ?? [];
-    return jsonResponse({
-      total_count: repos.length,
-      repositories: repos.map((repo) => ({
-        id: repo.id,
-        full_name: repo.slug,
-      })),
-    });
+  const isWalk =
+    pathname === "/user/installations" ||
+    /^\/user\/installations\/\d+\/repositories$/.test(pathname);
+  if (isWalk) {
+    return answerInstallationsWalk(input, init, pathname);
   }
   if (pathname === `/repositories/${REPO_ID}`) {
     return jsonResponse({

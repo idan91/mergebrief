@@ -67,6 +67,7 @@ doesn't apply — several loaders distinguish unset from empty.
 | `GITHUB_APP_PRIVATE_KEY` / `..._PATH` | api, worker | exactly ONE of the two |
 | `GITHUB_WEBHOOK_SECRET` | api | HMAC for inbound deliveries |
 | `GITHUB_OAUTH_CLIENT_ID` / `_SECRET` | api | reviewer login |
+| `GITHUB_APP_SLUG` | api, worker | optional; the App's URL name, the last segment of `https://github.com/apps/<slug>`. Set, Home links a viewer with no reachable installation to its install page; unset, that line carries no link |
 | `SESSION_KEY_V1` | api | `openssl rand -base64 32` |
 | `PUBLIC_BASE_URL` | api + web + worker | must match the App's OAuth callback origin; the worker builds the Entry comment's deep link from it |
 | `ANTHROPIC_API_KEY` | worker | your model key (BYOK — your spend; the zero-config default) |

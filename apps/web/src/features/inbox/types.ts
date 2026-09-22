@@ -7,6 +7,8 @@ import type {
 import type { ValueOf } from "types/utils";
 import type { z } from "zod/v4";
 
+import type { ApiErrorCode } from "../../data/apiFetch";
+
 import type {
   inboxCountsSchema,
   inboxGenerationSchema,
@@ -15,11 +17,22 @@ import type {
   inboxResponseSchema,
 } from "./schemas";
 
-/** What the Inbox query answers; a 401 is the signed-out Home, never a failure. */
+/**
+ * What the Inbox query answers: a 401 is the signed-out Home and any other
+ * refusal is the failed list, so neither throws past the route.
+ */
 export const InboxStates = {
   READY: "ready",
   SIGNED_OUT: "signed-out",
+  FAILED: "failed",
 } as const;
+
+/** Which side did not answer, named from the wire code. */
+export const FailureSides = {
+  GITHUB: "github",
+  SERVER: "server",
+} as const;
+export type FailureSide = ValueOf<typeof FailureSides>;
 
 export type InboxPage = z.infer<typeof inboxResponseSchema>;
 export type InboxItem = z.infer<typeof inboxItemSchema>;
@@ -42,9 +55,22 @@ export const TitleSegmentKinds = {
 } as const;
 export type TitleSegmentKind = ValueOf<typeof TitleSegmentKinds>;
 
+/** What stands where the rows would: rows, or one of three reasons there are none. */
+export const InboxEmptinesses = {
+  ROWS: "rows",
+  /** No viewable row in any status. */
+  EMPTY: "empty",
+  /** Rows exist, the reviewer's filters match none. */
+  FILTERED: "filtered",
+  /** Rows exist, every one merged or closed, no filter set. */
+  HIDDEN_BY_DEFAULT: "hidden-by-default",
+} as const;
+export type InboxEmptiness = ValueOf<typeof InboxEmptinesses>;
+
 export type InboxState =
   | { readonly kind: typeof InboxStates.READY; readonly page: InboxPage }
-  | { readonly kind: typeof InboxStates.SIGNED_OUT };
+  | { readonly kind: typeof InboxStates.SIGNED_OUT }
+  | { readonly kind: typeof InboxStates.FAILED; readonly code: ApiErrorCode };
 
 /** The list's parameters as the route holds them; each key is one of the wire's. */
 export interface InboxQueryParams {

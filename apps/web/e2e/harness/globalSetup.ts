@@ -10,6 +10,7 @@ import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { startApiServer } from "./api-server";
 import {
+  buildStorageState,
   CONTAINER_ID_PATH,
   E2E_PG_CONTAINER,
   E2E_PG_LABEL,
@@ -124,20 +125,6 @@ export default async function globalSetup(): Promise<void> {
   mkdirSync(dirname(STORAGE_STATE_PATH), { recursive: true });
   writeFileSync(
     STORAGE_STATE_PATH,
-    JSON.stringify({
-      cookies: [
-        {
-          name: "rs_session",
-          value: E2E_SESSION_COOKIE,
-          domain: "localhost",
-          path: "/",
-          expires: Math.floor(Date.now() / 1000) + 7 * 24 * 3600,
-          httpOnly: true,
-          secure: false,
-          sameSite: "Lax",
-        },
-      ],
-      origins: [],
-    }),
+    JSON.stringify(buildStorageState(E2E_SESSION_COOKIE)),
   );
 }

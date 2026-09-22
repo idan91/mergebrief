@@ -46,6 +46,8 @@ export interface AppDeps {
    * worker; the generation reads. Absent disables the fallback.
    */
   readonly urlBoxFallbackToken?: string | undefined;
+  /** The App's URL name (`GITHUB_APP_SLUG`); the Inbox builds its Install link from it. */
+  readonly githubAppSlug?: string | undefined;
 }
 
 /** Compose the `/api` router over injected deps. */

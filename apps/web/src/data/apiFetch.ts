@@ -24,6 +24,16 @@ function isWireCode(value: string): value is ApiErrorCode {
   return Object.values(ApiErrorCodes).some((code) => code === value);
 }
 
+/** The `code` a wire body carries, when it is one of the vocabulary; a codeless body is undefined. */
+export function readWireCode(body: unknown): ApiErrorCode | undefined {
+  if (typeof body !== "object" || body === null || !("code" in body)) {
+    return undefined;
+  }
+  return typeof body.code === "string" && isWireCode(body.code)
+    ? body.code
+    : undefined;
+}
+
 /** Typed expected-failure for read-API calls; queryFns throw it (react-query idiom). */
 export class ApiError extends Error {
   readonly code: ApiErrorCode;
@@ -99,14 +109,9 @@ export async function errorFromResponse(
   let params: ApiErrorParams | undefined;
   try {
     const body: unknown = await response.json();
-    if (
-      typeof body === "object" &&
-      body !== null &&
-      "code" in body &&
-      typeof body.code === "string" &&
-      isWireCode(body.code)
-    ) {
-      code = body.code;
+    const wireCode = readWireCode(body);
+    if (wireCode !== undefined) {
+      code = wireCode;
       if (code === WebApiErrorCodes.GENERATION_CONFIG) {
         params = configParams(body);
       }

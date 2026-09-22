@@ -72,6 +72,7 @@ export const inboxResponseSchema = z.object({
   viewer: inboxViewerSchema,
   reachableInstallations: z.array(reachableInstallationSchema),
   repositories: z.array(inboxRepositorySchema),
+  installUrl: z.string().nullable(),
 });
 
 export function parseInboxResponse(

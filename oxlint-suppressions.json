@@ -1290,11 +1290,6 @@
       "count": 1
     }
   },
-  "packages/github/src/config.ts": {
-    "house/no-em-dash": {
-      "count": 5
-    }
-  },
   "packages/github/src/ids.ts": {
     "house/no-em-dash": {
       "count": 5
@@ -1331,14 +1326,6 @@
   "packages/github/test/collaborators.test.ts": {
     "house/no-em-dash": {
       "count": 6
-    },
-    "house/test-title": {
-      "count": 4
-    }
-  },
-  "packages/github/test/config.test.ts": {
-    "house/no-em-dash": {
-      "count": 1
     },
     "house/test-title": {
       "count": 4

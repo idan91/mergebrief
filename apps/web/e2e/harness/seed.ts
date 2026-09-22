@@ -37,11 +37,14 @@ import {
 } from "../fixtures/inbox";
 import {
   E2E_DATABASE_URL,
+  E2E_HIDDEN_INSTALLATION,
   E2E_OWNER_USER_ID,
   E2E_REPO_ID,
   E2E_SESSION_COOKIE,
   E2E_SESSION_KEY,
+  E2E_STATE_VIEWERS,
   FIXTURE_DIR,
+  type StateViewer,
 } from "./env";
 
 const MINUTE_MS = 60_000;
@@ -158,9 +161,70 @@ async function seedInboxRow(
   }
 }
 
+/** The hidden-state viewer's one row: merged, so the default status filter shows nothing. */
+async function seedMergedRow(
+  handle: AppDatabase,
+  seededAt: Date,
+): Promise<void> {
+  const ctx = resolveInstallationContext(E2E_HIDDEN_INSTALLATION.id);
+  const [repo] = E2E_HIDDEN_INSTALLATION.repos;
+  const written = await createTenantRepository(handle, ctx).pullRequests.upsert(
+    {
+      repoId: brandRepo(repo.id),
+      prNumber: 1,
+      repoSlug: repo.slug,
+      title: "Merged before you looked",
+      authorLogin: "mira-k",
+      draft: false,
+      githubUpdatedAt: seededAt,
+      state: PrStates.MERGED,
+      closedAt: seededAt,
+      purgeAfter: null,
+    },
+  );
+  if (!isPullRequestRowId(written.id)) throw new Error("bad pull request id");
+}
+
 function brandReviewer(value: bigint): ReviewerId {
   if (!isReviewerId(value)) throw new Error("bad owner id");
   return value;
+}
+
+/** A grant sealing the viewer's tokens plus the session row the cookie names. */
+async function seedSession(
+  handle: AppDatabase,
+  viewer: StateViewer,
+): Promise<void> {
+  const keyProvider = createEnvKeyProvider({ SESSION_KEY_V1: E2E_SESSION_KEY });
+  const sealedAccess = await encryptToken(
+    keyProvider,
+    "SESSION_KEY_V1",
+    viewer.token,
+  );
+  const sealedRefresh = await encryptToken(
+    keyProvider,
+    "SESSION_KEY_V1",
+    `ghr_${viewer.login}_refresh`,
+  );
+  if (!sealedAccess.ok || !sealedRefresh.ok) {
+    throw new Error("seed encrypt failed");
+  }
+  const reviewer = brandReviewer(viewer.userId);
+  const grant = await createGrantAuth(handle).createGrant({
+    ghTokenCiphertext: sealedAccess.value,
+    ghRefreshTokenCiphertext: sealedRefresh.value,
+    keyRef: "SESSION_KEY_V1",
+    refreshExpiresAt: new Date(Date.now() + 7 * 24 * 3_600_000),
+  });
+  await createTenantRepository(handle, {
+    ownerUserId: reviewer,
+  }).sessions.create({
+    sessionTokenHash: createHash("sha256").update(viewer.cookie).digest("hex"),
+    reviewerId: reviewer,
+    reviewerLogin: viewer.login,
+    grantId: grant.id,
+    expiresAt: new Date(Date.now() + 7 * 24 * 3_600_000),
+  });
 }
 
 async function main(): Promise<void> {
@@ -191,42 +255,19 @@ async function main(): Promise<void> {
     for (const row of INBOX_ROWS) {
       await seedInboxRow(handle, owner, row, seededAt);
     }
+    await seedMergedRow(handle, seededAt);
 
-    // The browser session: a grant with sealed throwaway tokens + the
-    // owner-world session row whose cookie the storage state carries.
-    const keyProvider = createEnvKeyProvider({
-      SESSION_KEY_V1: E2E_SESSION_KEY,
+    // The browser sessions: the owner-world one whose cookie the storage
+    // state carries, then one per Home state the seeded rows cannot show.
+    await seedSession(handle, {
+      userId: E2E_OWNER_USER_ID,
+      login: E2E_VIEWER_LOGIN,
+      cookie: E2E_SESSION_COOKIE,
+      token: "ghu_e2e_access_token",
     });
-    const sealedAccess = await encryptToken(
-      keyProvider,
-      "SESSION_KEY_V1",
-      "ghu_e2e_access_token",
-    );
-    const sealedRefresh = await encryptToken(
-      keyProvider,
-      "SESSION_KEY_V1",
-      "ghr_e2e_refresh_token",
-    );
-    if (!sealedAccess.ok || !sealedRefresh.ok) {
-      throw new Error("seed encrypt failed");
+    for (const viewer of Object.values(E2E_STATE_VIEWERS)) {
+      await seedSession(handle, viewer);
     }
-    const grant = await createGrantAuth(handle).createGrant({
-      ghTokenCiphertext: sealedAccess.value,
-      ghRefreshTokenCiphertext: sealedRefresh.value,
-      keyRef: "SESSION_KEY_V1",
-      refreshExpiresAt: new Date(Date.now() + 7 * 24 * 3_600_000),
-    });
-    await createTenantRepository(handle, {
-      ownerUserId: owner,
-    }).sessions.create({
-      sessionTokenHash: createHash("sha256")
-        .update(E2E_SESSION_COOKIE)
-        .digest("hex"),
-      reviewerId: owner,
-      reviewerLogin: E2E_VIEWER_LOGIN,
-      grantId: grant.id,
-      expiresAt: new Date(Date.now() + 7 * 24 * 3_600_000),
-    });
     process.stdout.write(
       `seeded: ${String(summary.briefs)} briefs, ${String(summary.narratives)} narratives, ${String(summary.marks)} marks\n`,
     );

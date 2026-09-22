@@ -5,17 +5,22 @@ import styles from "./PersonalLine.module.scss";
 
 export interface PersonalLineProps {
   counts: InboxCounts;
+  /** No row at all: the slot says so instead of counting. */
+  empty?: boolean;
 }
 
 /** Leads with the one fact only this product knows: what changed since the reviewer looked. */
-export function PersonalLine({ counts }: PersonalLineProps) {
+export function PersonalLine({ counts, empty = false }: PersonalLineProps) {
   const { t } = useTranslation();
   const changed = counts.updated;
   const fresh = counts.new;
 
   let heading = t("home.personalLine.caughtUp");
   let detail = t("home.personalLine.caughtUpDetail");
-  if (changed > 0) {
+  if (empty) {
+    heading = t("home.empty.heading");
+    detail = t("home.empty.detail");
+  } else if (changed > 0) {
     heading = t("home.personalLine.changed", { count: changed });
     detail =
       fresh === 0

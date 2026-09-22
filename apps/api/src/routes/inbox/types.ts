@@ -23,4 +23,6 @@ export interface ListInboxInput {
   readonly sort: InboxSort;
   /** One-based. */
   readonly page: number;
+  /** The App's URL name; absent composes no Install link. */
+  readonly githubAppSlug: string | undefined;
 }

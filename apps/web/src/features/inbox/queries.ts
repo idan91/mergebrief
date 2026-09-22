@@ -1,7 +1,9 @@
 // The Inbox's queryOptions door: one numbered page over the isomorphic
 // `apiFetch` boundary, so the Home loader prefetches it through the same
-// authz gate the browser meets. A 401 is the signed-out Home, not a failure.
-// The list never polls; a window focus re-reads it.
+// authz gate the browser meets. A 401 is the signed-out Home and any other
+// refusal is the failed list, both answers rather than throws, so the page
+// keeps its header and URL box. The list never polls; a window focus
+// re-reads it, at once after a failure.
 import { queryOptions } from "@tanstack/react-query";
 
 import {
@@ -9,7 +11,7 @@ import {
   ApiErrorCodes,
   apiFetch,
   apiJsonFromResponse,
-  errorFromResponse,
+  readWireCode,
 } from "../../data/apiFetch";
 import { INBOX_QUERY_ROOT } from "./consts";
 import { parseInboxResponse } from "./schemas";
@@ -24,11 +26,18 @@ export function buildInboxQueryOptions(params: InboxQueryParams) {
   const path = `${INBOX_PATH}${search}`;
   return queryOptions({
     queryKey: [INBOX_QUERY_ROOT, search],
-    staleTime: INBOX_STALE_MS,
+    staleTime: (query) =>
+      query.state.data?.kind === InboxStates.FAILED ? 0 : INBOX_STALE_MS,
     queryFn: async (): Promise<InboxState> => {
       const response = await apiFetch(path);
       if (response.status === 401) return { kind: InboxStates.SIGNED_OUT };
-      if (!response.ok) throw await errorFromResponse(response, path);
+      if (!response.ok) {
+        // Only a code the API wrote names a side; a codeless answer is a
+        // proxy speaking for a down server, never GitHub.
+        const body: unknown = await response.json().catch(() => undefined);
+        const code = readWireCode(body) ?? ApiErrorCodes.INTERNAL_ERROR;
+        return { kind: InboxStates.FAILED, code };
+      }
 
       const parsed = parseInboxResponse(
         await apiJsonFromResponse(response, path),

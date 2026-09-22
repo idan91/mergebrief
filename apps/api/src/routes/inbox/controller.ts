@@ -31,6 +31,14 @@ type DeleteInboxItemResult = Result<
   { readonly kind: "not-found" }
 >;
 
+const INSTALL_URL_PREFIX = "https://github.com/apps/";
+
+/** GitHub's new-installation page for the App, by its URL name. */
+function buildInstallUrl(slug: string | undefined): string | null {
+  if (slug === undefined) return null;
+  return `${INSTALL_URL_PREFIX}${encodeURIComponent(slug)}/installations/new`;
+}
+
 /** A row's world by its columns; the CHECK makes exactly one of the two set. */
 function resolveRowWorld(row: PullRequestRow): ScopeContext | undefined {
   if (row.installationId !== null) {
@@ -109,6 +117,7 @@ export default {
         repoId: String(repository.repoId),
         repoSlug: repository.repoSlug,
       })),
+      installUrl: buildInstallUrl(input.githubAppSlug),
     };
   },
 
