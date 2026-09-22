@@ -122,8 +122,8 @@
     inline-size: functions.to-rem(42px);
     min-inline-size: functions.to-rem(42px);
 
-    // The gutter carries line numbers, so it is text under WCAG 1.4.3 —
-    // `--color-text-4` measured 1.7:1 here. It is the lowest step of the
+    // The gutter carries line numbers, so it is text under WCAG 1.4.3;
+    // `--color-text-4` measures about 1.5:1 here. It is the lowest step of the
     // scale that clears AA against the chunk body (5.5:1).
     color: var(--color-text-3);
     text-align: end;

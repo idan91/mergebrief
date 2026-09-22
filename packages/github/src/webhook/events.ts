@@ -1,6 +1,6 @@
 // Parse only consumed webhook fields into Result; malformed deliveries are expected failures.
 // This boundary never decides generation/purge policy or writes tenant state.
-import { z } from "zod";
+import { z } from "zod/v4";
 import type { WebhookEventName } from "@octokit/webhooks/types";
 import type { InstallationId, RepoId, ReviewerId } from "persistence";
 import {

@@ -4,7 +4,7 @@
 // Exactly one of GITHUB_APP_PRIVATE_KEY (PEM contents) or
 // GITHUB_APP_PRIVATE_KEY_PATH (a file read to get the PEM) is required.
 import { readFileSync } from "node:fs";
-import { z } from "zod";
+import { z } from "zod/v4";
 import type { Result, ValueOf } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -52,7 +52,7 @@ const APP_SLUG_PATTERN = /^[a-z0-9-]+$/;
 const ConfigSchema = z
   .object({
     GITHUB_APP_ID: z
-      .string({ required_error: "GITHUB_APP_ID is required" })
+      .string({ error: "GITHUB_APP_ID is required" })
       .min(1, "GITHUB_APP_ID is required")
       .refine(
         (value) => /^\d+$/.test(value),
@@ -68,13 +68,13 @@ const ConfigSchema = z
       .min(1, "GITHUB_APP_PRIVATE_KEY_PATH must not be empty")
       .optional(),
     GITHUB_WEBHOOK_SECRET: z
-      .string({ required_error: "GITHUB_WEBHOOK_SECRET is required" })
+      .string({ error: "GITHUB_WEBHOOK_SECRET is required" })
       .min(1, "GITHUB_WEBHOOK_SECRET is required"),
     GITHUB_OAUTH_CLIENT_ID: z
-      .string({ required_error: "GITHUB_OAUTH_CLIENT_ID is required" })
+      .string({ error: "GITHUB_OAUTH_CLIENT_ID is required" })
       .min(1, "GITHUB_OAUTH_CLIENT_ID is required"),
     GITHUB_OAUTH_CLIENT_SECRET: z
-      .string({ required_error: "GITHUB_OAUTH_CLIENT_SECRET is required" })
+      .string({ error: "GITHUB_OAUTH_CLIENT_SECRET is required" })
       .min(1, "GITHUB_OAUTH_CLIENT_SECRET is required"),
     // Compose expands an unset `${GITHUB_APP_SLUG:-}` to an empty string; that is unset too.
     GITHUB_APP_SLUG: z.preprocess(

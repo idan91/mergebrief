@@ -2,7 +2,7 @@
 // Keep node ids inside this module; domain ids are numeric REST databaseIds.
 // Failures use mapGraphqlError.
 import type { Octokit } from "octokit";
-import { z } from "zod";
+import { z } from "zod/v4";
 import {
   GitHubApiErrorCodes,
   mapGraphqlError,

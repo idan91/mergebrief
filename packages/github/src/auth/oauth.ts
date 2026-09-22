@@ -11,7 +11,7 @@ import { Octokit } from "octokit";
 import { OAuthApp, type Options } from "@octokit/oauth-app";
 import { retryOptions } from "./retry";
 import type { InstallationId, ReviewerId } from "persistence";
-import { z } from "zod";
+import { z } from "zod/v4";
 import {
   mapRequestError,
   unexpectedResponseError,

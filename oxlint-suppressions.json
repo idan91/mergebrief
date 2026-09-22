@@ -1261,32 +1261,9 @@
       "count": 1
     }
   },
-  "packages/github/src/ids.ts": {
-    "house/no-em-dash": {
-      "count": 5
-    }
-  },
   "packages/github/src/operations/comments.ts": {
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "packages/github/src/operations/mark-ready.ts": {
-    "house/no-em-dash": {
-      "count": 4
-    }
-  },
-  "packages/github/src/operations/repo.ts": {
-    "house/no-em-dash": {
-      "count": 3
-    }
-  },
-  "packages/github/src/operations/resolve-thread.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 9
     }
   },
   "packages/github/src/webhook/verify.ts": {

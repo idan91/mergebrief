@@ -1,7 +1,8 @@
 import { useListItem } from "@floating-ui/react";
 import type { ReactNode } from "react";
 
-import { MenuItem, MenuItemRoles } from "../../MenuItem/MenuItem";
+import { MenuItem } from "../../MenuItem/MenuItem";
+import { MenuItemRoles } from "../../MenuItem/types";
 import { useMenuContext } from "../context";
 import CheckIcon from "../icons/check.svg?react";
 import styles from "./MenuRow.module.scss";

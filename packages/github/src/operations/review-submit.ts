@@ -2,7 +2,7 @@
 // ride here, after every thread has attached. Failures funnel through
 // `mapGraphqlError`.
 import type { Octokit } from "octokit";
-import { z } from "zod";
+import { z } from "zod/v4";
 import {
   mapGraphqlError,
   unexpectedResponseError,

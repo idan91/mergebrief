@@ -16,7 +16,6 @@ import {
   type Placement,
 } from "@floating-ui/react";
 import { useMemo, useRef, useState, type ReactNode } from "react";
-import type { ValueOf } from "types/utils";
 
 import { prefersReducedMotion } from "../../utils/motion";
 import { IconButton } from "../IconButton/IconButton";
@@ -27,16 +26,9 @@ import {
   MENU_VIEWPORT_PADDING_PX,
 } from "./consts";
 import { MenuContext } from "./context";
+import { MenuTriggerKinds, type MenuTriggerKind } from "./types";
 import { deriveTransformOrigin } from "./utils";
 import styles from "./Menu.module.scss";
-
-export const MenuTriggerKinds = {
-  /** A 32px icon button; `label` is its accessible name. */
-  ICON: "icon",
-  /** A text control whose own content names it, such as a filter. */
-  TEXT: "text",
-} as const;
-export type MenuTriggerKind = ValueOf<typeof MenuTriggerKinds>;
 
 export interface MenuProps {
   /** The accessible name of the menu, and of an icon trigger. */
@@ -121,7 +113,9 @@ export function Menu({
       close: () => {
         setOpen(false);
         const reference = refs.domReference.current;
-        if (reference instanceof HTMLElement) reference.focus();
+        if (reference instanceof HTMLElement) {
+          reference.focus();
+        }
       },
     }),
     [activeIndex, getItemProps, refs.domReference],

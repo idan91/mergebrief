@@ -5,7 +5,7 @@
 // theirs.
 import type { Octokit } from "octokit";
 import { RequestError } from "octokit";
-import { z } from "zod";
+import { z } from "zod/v4";
 import {
   mapGraphqlError,
   mapRequestError,

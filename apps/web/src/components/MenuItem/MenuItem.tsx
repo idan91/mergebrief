@@ -1,15 +1,8 @@
 import type { ComponentPropsWithRef, MouseEvent } from "react";
-import type { ValueOf } from "types/utils";
 import clsx from "clsx";
 
+import { MenuItemRoles, type MenuItemRole } from "./types";
 import styles from "./MenuItem.module.scss";
-
-export const MenuItemRoles = {
-  ITEM: "menuitem",
-  RADIO: "menuitemradio",
-  CHECKBOX: "menuitemcheckbox",
-} as const;
-export type MenuItemRole = ValueOf<typeof MenuItemRoles>;
 
 export type MenuItemBaseProps = {
   /** aria-disabled + interaction guard; never the native attribute. */

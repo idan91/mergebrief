@@ -1,23 +1,13 @@
-// Thread-resolution mutations: resolve / unresolve one PR review thread with
-// the VIEWER's own token — GitHub itself enforces who may flip a thread, so no
-// local role model is involved. GraphQL only: REST exposes no
-// thread-resolution surface at all.
-//
-// The mutations take a thread NODE id, and a GraphQL review thread carries no
-// `databaseId` — so the only way in from a domain id is to walk the PR's
-// `reviewThreads` connection and match the thread's FIRST comment's
-// `fullDatabaseId` against the caller's `rootCommentId`. The node id never
-// leaves this module.
-//
-// Convergence: a thread ALREADY in the requested state short-circuits the
-// mutation and reports `alreadyInTargetState: true`.
-//
-// Mutation-level races are NOT special-cased: GitHub publishes no
-// machine-readable discriminator nor verified message text for this mutation,
-// and guessing one would silently swallow real permission/validation failures.
-// A raced call returns a sanitized error; the caller's refetch reconciles.
+// Resolve or unresolve one PR review thread with the VIEWER's own token;
+// GitHub enforces who may flip a thread. GraphQL only: REST has no
+// thread-resolution endpoint. The mutation takes a thread NODE id, which the
+// walk over `reviewThreads` finds by matching the first comment's
+// `fullDatabaseId` to `rootCommentId`; the node id never leaves this module.
+// A thread already in the requested state short-circuits the mutation and
+// reports `alreadyInTargetState: true`. A raced mutation returns a sanitized
+// error, because GitHub publishes no discriminator for it; the refetch reconciles.
 import type { Octokit } from "octokit";
-import { z } from "zod";
+import { z } from "zod/v4";
 import {
   GitHubApiErrorCodes,
   mapGraphqlError,
@@ -31,7 +21,7 @@ export interface SetReviewThreadResolutionInput {
   readonly repo: string;
   readonly prNumber: number;
   /**
-   * The thread's ROOT comment id (`ConversationThread.rootCommentId`) — the
+   * The thread's ROOT comment id (`ConversationThread.rootCommentId`), the
    * thread's stable domain identity. Resolved to a GraphQL node id internally.
    */
   readonly rootCommentId: number;
@@ -50,10 +40,10 @@ export interface SetReviewThreadResolutionResult {
 const CONTEXT = "set review thread resolution";
 
 // ---------------------------------------------------------------------------
-// Wire schemas — Zod-validated at the boundary (no bare `as` off the wire).
+// Wire schemas, Zod-validated at the boundary (no bare `as` off the wire).
 // ---------------------------------------------------------------------------
 
-// Deliberately lean — this walk can burn up to 20 pages, and every extra field
+// Deliberately lean: this walk can burn up to 20 pages, and every extra field
 // multiplies GraphQL node cost against the shared rate budget.
 const wireThreadSchema = z.object({
   id: z.string(),
@@ -65,7 +55,7 @@ const wireThreadSchema = z.object({
   }),
 });
 
-// `repository` and `pullRequest` are nullable in GitHub's schema — a missing or
+// `repository` and `pullRequest` are nullable in GitHub's schema; a missing or
 // inaccessible resource can arrive as a null FIELD in a 2xx response, not only
 // as a GraphQL error. Connection `nodes` are likewise nullable lists of
 // nullable elements.
@@ -97,7 +87,7 @@ const unresolveMutationResponseSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
-// Queries — variables only; nothing caller-supplied is ever interpolated.
+// Queries take variables only; nothing caller-supplied is ever interpolated.
 // ---------------------------------------------------------------------------
 
 // `$cursor` is NULLABLE so one query serves both the first page and every
@@ -203,7 +193,7 @@ function findThreadByRootComment(
  * token identifies. Walks the PR's review threads (capped, cursor-paged) to map
  * `rootCommentId` to the thread's node id, then runs the matching mutation. A
  * thread already in the requested state converges without mutating; a
- * `rootCommentId` matching no thread — including one past the cap — is
+ * `rootCommentId` matching no thread, including one past the cap, is
  * not-found.
  */
 export async function setReviewThreadResolution(
@@ -261,7 +251,7 @@ export async function setReviewThreadResolution(
     return { ok: false, error: threadNotFoundError() };
   }
 
-  // Already in the requested state at read time — converged, no mutation.
+  // Already in the requested state at read time: converged, no mutation.
   if (thread.isResolved === input.resolved) {
     return { ok: true, value: { alreadyInTargetState: true } };
   }

@@ -1,7 +1,7 @@
 // Use GraphQL for collaborator display names and ALL affiliation for org/team grants.
 // Nodes are Users, so App-bot filtering is unnecessary; failures use mapGraphqlError.
 import type { Octokit } from "octokit";
-import { z } from "zod";
+import { z } from "zod/v4";
 import {
   GitHubApiErrorCodes,
   mapGraphqlError,

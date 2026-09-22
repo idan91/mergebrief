@@ -4,7 +4,7 @@
 // `mapRequestError`.
 import type { Octokit } from "octokit";
 import type { InstallationId, RepoId } from "persistence";
-import { z } from "zod";
+import { z } from "zod/v4";
 import {
   mapRequestError,
   unexpectedResponseError,
@@ -19,7 +19,7 @@ export interface RepositoryInfo {
   readonly private: boolean;
   /**
    * Whether the AUTHENTICATED viewer holds write (`push`) permission. Only
-   * meaningful on a user-to-server read — GitHub scopes the `permissions`
+   * meaningful on a user-to-server read; GitHub scopes the `permissions`
    * block to the requesting identity; absent parses as `false`, never as a
    * capability grant.
    */
@@ -63,7 +63,7 @@ export async function fetchRepositoryById(
   }
 }
 
-/** Page size for the installation∩user listing — GitHub's maximum. */
+/** Page size for the installation∩user listing, GitHub's maximum. */
 const INSTALLATION_REPOSITORIES_PAGE_SIZE = 100;
 
 const installationRepositoryItemSchema = z.object({
@@ -72,7 +72,7 @@ const installationRepositoryItemSchema = z.object({
 });
 
 /**
- * The repos of `installationId` the AUTHENTICATED USER can also access — the
+ * The repos of `installationId` the AUTHENTICATED USER can also access, the
  * installation∩user-access intersection, fetched with the viewer's own token
  * and paginated to EXHAUSTION: this map is the list endpoint's authorization
  * universe, so an incomplete page would silently hide valid PRs. Numeric keys

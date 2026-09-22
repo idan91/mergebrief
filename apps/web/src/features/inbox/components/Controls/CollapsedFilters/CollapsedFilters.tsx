@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 
-import { Menu, MenuTriggerKinds } from "@web/components/Menu/Menu";
+import { Menu } from "@web/components/Menu/Menu";
+import { MenuTriggerKinds } from "@web/components/Menu/types";
 import SlidersIcon from "../../icons/sliders.svg?react";
 import { FilterRows } from "../FilterRows/FilterRows";
 import filterStyles from "../trigger.module.scss";

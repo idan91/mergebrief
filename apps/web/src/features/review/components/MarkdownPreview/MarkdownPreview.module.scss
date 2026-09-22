@@ -46,7 +46,8 @@
     }
 
     code {
-      // Off-scale: inline-code fill above the surface ladder's top rung.
+      // Earned oddity: a cool inline-code fill at --color-surface-2's
+      // lightness, off the neutral ladder.
       --code-fill: #1d1d23;
 
       padding-block: functions.to-rem(1px);

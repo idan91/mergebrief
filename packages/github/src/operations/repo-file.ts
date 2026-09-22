@@ -2,7 +2,7 @@
 // Reject oversized blobs before decoding; repo-config owns semantic byte budgets.
 import type { Octokit } from "octokit";
 import { RequestError } from "octokit";
-import { z } from "zod";
+import { z } from "zod/v4";
 import {
   mapRequestError,
   notABlobError,

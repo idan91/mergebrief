@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 
-import { Menu, MenuTriggerKinds } from "@web/components/Menu/Menu";
+import { Menu } from "@web/components/Menu/Menu";
+import { MenuTriggerKinds } from "@web/components/Menu/types";
 import CaretDownIcon from "@web/components/Menu/icons/caret-down.svg?react";
 import { NAMED_UP_TO } from "../consts";
 import { FilterRows } from "../FilterRows/FilterRows";

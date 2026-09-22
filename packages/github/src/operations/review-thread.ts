@@ -3,7 +3,7 @@
 // subject_type). A rejected anchor arrives two ways and both fold: HTTP 200
 // with `thread: null`, or a thrown GraphQL error typed UNPROCESSABLE.
 import type { Octokit } from "octokit";
-import { z } from "zod";
+import { z } from "zod/v4";
 import {
   hasOnlyGraphqlErrorType,
   mapGraphqlError,

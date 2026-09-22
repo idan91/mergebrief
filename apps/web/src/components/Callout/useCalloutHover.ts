@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 
 import { CALLOUT_HOVER_DELAY_MS } from "./consts";
+import type { CalloutHover } from "./types";
 
 /**
  * The hover half of a callout: open after a pointer has rested on the
@@ -9,13 +10,15 @@ import { CALLOUT_HOVER_DELAY_MS } from "./consts";
  * when the anchor unmounts. The caller mounts `Callout` while `open` and
  * hands it `close`; the callout's own hover system decides when to leave.
  */
-export function useCalloutHover() {
+export function useCalloutHover(): CalloutHover {
   const [open, setOpen] = useState(false);
   const timer = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
   function arm(event: PointerEvent): void {
-    if (event.pointerType === "touch") return;
+    if (event.pointerType === "touch") {
+      return;
+    }
     window.clearTimeout(timer.current);
     timer.current = window.setTimeout(
       () => setOpen(true),

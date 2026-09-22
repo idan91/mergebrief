@@ -74,12 +74,12 @@ components:
     backgroundColor: "{colors.text-1}"
     textColor: "{colors.accent-ink}"
     rounded: "{rounded.m}"
-    height: "34px"
+    height: "38px"
     padding: "8px 16px"
   button-secondary:
     textColor: "{colors.text-1}"
     rounded: "{rounded.m}"
-    height: "34px"
+    height: "38px"
     padding: "8px 16px"
   url-box:
     backgroundColor: "{colors.surface-2}"
@@ -224,7 +224,7 @@ Small, consistent corners: 4px for key caps and callouts, 5px for chips, 8px for
 
 ### Buttons
 
-- **Shape:** 8px corner. The accent variant is 32px tall; the neutral variants take their height from padding, about 34px.
+- **Shape:** 8px corner. The accent variant is 32px tall; the neutral variants take their height from padding and the body line-height, about 38px.
 - **Accent:** accent fill, Accent Ink text: the Generate button. One per view.
 - **Primary:** Text 1 fill with dark text: Sign in with GitHub on the signed-out Home, where it stands 44px tall as the first screen's one target.
 - **Secondary:** transparent with a Line Strong border.

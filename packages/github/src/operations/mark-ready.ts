@@ -1,5 +1,5 @@
 // Mark-ready mutation: flip a draft PR to ready-for-review with the VIEWER's
-// own token — GitHub itself enforces that only the author or a maintainer may
+// own token; GitHub itself enforces that only the author or a maintainer may
 // do this, so no local role model is involved. The mutation takes a node ID,
 // never a number, so the PR's node id is resolved first and never leaves this
 // module. Failures funnel through `mapGraphqlError`.
@@ -8,7 +8,7 @@
 // check and the race backstop (GitHub's "Pull request is not a draft" mutation
 // error) resolve to `ok: true` with `alreadyReady: true`.
 import type { Octokit } from "octokit";
-import { z } from "zod";
+import { z } from "zod/v4";
 import {
   GitHubApiErrorCodes,
   mapGraphqlError,
@@ -25,7 +25,7 @@ export interface MarkPullRequestReadyInput {
 
 export interface MarkReadyResult {
   /**
-   * True when the PR was ALREADY out of draft — read-time or racing the
+   * True when the PR was ALREADY out of draft, at read time or racing the
    * mutation. A converged state, not a failure; surfaced only so a caller can
    * tell a no-op apart from a fresh flip.
    */
@@ -34,7 +34,7 @@ export interface MarkReadyResult {
 
 const CONTEXT = "mark pull request ready for review";
 
-// `repository` and `pullRequest` are nullable in GitHub's schema — a missing
+// `repository` and `pullRequest` are nullable in GitHub's schema; a missing
 // or inaccessible resource can arrive as a null FIELD in a 2xx response, not
 // only as a GraphQL error.
 const nodeIdResponseSchema = z.object({
@@ -131,7 +131,7 @@ export async function markPullRequestReadyForReview(
     return { ok: false, error: resourceNotFoundError() };
   }
 
-  // Already out of draft at read time — converged, no mutation needed.
+  // Already out of draft at read time: converged, no mutation needed.
   if (!pullRequest.isDraft) {
     return { ok: true, value: { alreadyReady: true } };
   }

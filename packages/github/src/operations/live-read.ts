@@ -4,7 +4,7 @@
 // as null under its alias; an alias GitHub refused for another reason (SAML,
 // a per-field outage) has no entry, and neither fails the page.
 import type { Octokit } from "octokit";
-import { z } from "zod";
+import { z } from "zod/v4";
 import {
   mapGraphqlError,
   unexpectedResponseError,
