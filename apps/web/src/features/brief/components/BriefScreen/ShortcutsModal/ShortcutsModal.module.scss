@@ -67,6 +67,33 @@
     }
   }
 
+  .marks {
+    display: grid;
+    gap: functions.to-rem(4px);
+    padding: 0;
+    list-style: none;
+  }
+
+  .mark {
+    display: flex;
+    gap: functions.to-rem(10px);
+    align-items: center;
+    padding-block: functions.to-rem(4px);
+    color: var(--text);
+    font-size: var(--font-size-lg);
+    line-height: 1.4;
+
+    svg {
+      inline-size: 14px;
+      block-size: 14px;
+      color: var(--color-accent);
+    }
+
+    &[data-mark="reviewed"] svg {
+      color: var(--color-text-2);
+    }
+  }
+
   @container (min-width: 520px) {
     .list {
       grid-template-columns: 1fr 1fr;

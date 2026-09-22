@@ -1,0 +1,83 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .actions {
+    display: flex;
+    gap: var(--space-1);
+    align-items: center;
+    pointer-events: auto;
+  }
+
+  .link,
+  .trigger {
+    display: grid;
+    place-items: center;
+    inline-size: functions.to-rem(28px);
+    block-size: functions.to-rem(28px);
+    border-radius: var(--radius-s);
+    color: var(--color-text-2);
+
+    svg {
+      inline-size: 16px;
+      block-size: 16px;
+    }
+
+    &:hover {
+      background: var(--color-surface-3);
+      color: var(--color-text-1);
+    }
+  }
+
+  .link {
+    text-decoration: none;
+
+    @include mixins.focus-visible;
+  }
+
+  .rowLabel {
+    display: inline-flex;
+    gap: var(--space-3);
+    align-items: center;
+
+    svg {
+      inline-size: 14px;
+      block-size: 14px;
+    }
+  }
+
+  .danger {
+    color: var(--color-negative);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .actions {
+      /* The row sets --row-bg per state; the cast reads the inherited value. */
+      --row-bg: inherit;
+
+      /* The actions sit over the row's right edge; the cast hides the status text under them. */
+      --actions-cast: -14px 0 10px var(--row-bg);
+
+      position: absolute;
+      inset-block-start: 50%;
+      inset-inline-end: 0;
+      padding-inline-start: var(--space-3);
+      background: var(--row-bg);
+      box-shadow: var(--actions-cast);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--motion-fast) ease;
+      translate: 0 -50%;
+    }
+
+    li:is(:hover, :focus-within, [data-cursor="true"]) .actions,
+    .actions:has([aria-expanded="true"]) {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    li[data-cursor="true"] .actions {
+      transition: none;
+    }
+  }
+}

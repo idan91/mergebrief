@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
+import type { CSSProperties, Ref } from "react";
 import { useTranslation } from "react-i18next";
-import type { CSSProperties } from "react";
 import type { InboxSort } from "types/inbox";
 
 import {
@@ -13,30 +13,47 @@ import { PullRequestSources } from "@web/features/pulls/types";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import { TitleSegmentKinds, type InboxItem } from "../../../types";
 import { needsReviewer, pickAgeAt, splitTitleCode } from "../../../utils";
-import StackIcon from "../../icons/stack.svg?react";
 import EyeSlashIcon from "../../icons/eye-slash.svg?react";
 import LinkIcon from "../../icons/link.svg?react";
+import StackIcon from "../../icons/stack.svg?react";
 import styles from "./InboxRow.module.scss";
+import { RowActions } from "./RowActions/RowActions";
 import { RowEnd } from "./RowEnd/RowEnd";
 import { RowMark } from "./RowMark/RowMark";
 import { useRowGeneration } from "./useRowGeneration";
-import { formatAgeLabel, readRowTitle } from "./utils";
+import { describeRow, formatAgeLabel, readRowTitle } from "./utils";
 
 export interface InboxRowProps {
   item: InboxItem;
-  /** Position in the page, for the first-load stagger. */
+  /** Position in the page, for the first-load stagger and the keyboard cursor. */
   index: number;
   sort: InboxSort;
   now: Date;
+  /** The keyboard cursor rests on this row. */
+  cursor: boolean;
+  /** The list holds the cursor row so it can scroll it into view. */
+  rowRef?: Ref<HTMLLIElement> | undefined;
+  onAnnounce: (message: string) => void;
+  onDeleted: () => void;
 }
 
 /**
  * Two lines, 56px. Line one: the review mark, the title with inline code,
  * the fact chips. Line two: the source icon on url rows, repository, number
  * and age. The right edge carries the generation state and the status when
- * it is not Open. The whole row is one link to the brief.
+ * it is not Open, and the actions a hover or the cursor reveals. The whole
+ * row is one link to the brief, named by its states before its title.
  */
-export function InboxRow({ item, index, sort, now }: InboxRowProps) {
+export function InboxRow({
+  item,
+  index,
+  sort,
+  now,
+  cursor,
+  rowRef,
+  onAnnounce,
+  onDeleted,
+}: InboxRowProps) {
   const { t } = useTranslation();
   const generation = useRowGeneration(item);
   const ageAt = pickAgeAt(item, sort);
@@ -46,14 +63,17 @@ export function InboxRow({ item, index, sort, now }: InboxRowProps) {
   );
   const repoLabel = item.repoSlug ?? item.repoId;
   const age = ageAt === null ? null : formatAgeLabel(t, ageAt, now);
+  const description = describeRow(t, item, generation);
   const rowStyle: CSSProperties & { "--index": number } = { "--index": index };
 
   return (
     <li
       className={styles["row"]}
+      data-cursor={cursor}
       data-needs-you={needsReviewer(item)}
       data-testid="inbox-row"
       data-unreachable={item.unreachable}
+      ref={rowRef}
       style={rowStyle}
     >
       <RowMark reviewState={item.reviewState} />
@@ -62,8 +82,9 @@ export function InboxRow({ item, index, sort, now }: InboxRowProps) {
         params={{ repoId: item.repoId, prNumber: String(item.prNumber) }}
         to="/repos/$repoId/pulls/$prNumber"
       >
+        <ScreenReaderOnly>{description}</ScreenReaderOnly>{" "}
         <span className={styles["title"]}>
-          <span className={styles["titleText"]}>
+          <span className={styles["titleText"]} data-testid="inbox-row-title">
             {titleSegments.map((segment, position) =>
               segment.kind === TitleSegmentKinds.CODE ? (
                 <code key={position}>{segment.text}</code>
@@ -107,7 +128,6 @@ export function InboxRow({ item, index, sort, now }: InboxRowProps) {
           {item.source === PullRequestSources.URL ? (
             <span className={styles["source"]}>
               <LinkIcon aria-hidden="true" />
-              <ScreenReaderOnly>{t("home.inbox.sourceUrl")}</ScreenReaderOnly>
             </span>
           ) : null}
           <span className={styles["repo"]}>{repoLabel}</span>{" "}
@@ -115,7 +135,10 @@ export function InboxRow({ item, index, sort, now }: InboxRowProps) {
           {age === null ? null : <span suppressHydrationWarning>{age}</span>}
         </span>
       </Link>
-      <RowEnd draft={item.draft} generation={generation} state={item.state} />
+      <span className={styles["end"]}>
+        <RowEnd draft={item.draft} generation={generation} state={item.state} />
+        <RowActions item={item} onAnnounce={onAnnounce} onDeleted={onDeleted} />
+      </span>
     </li>
   );
 }

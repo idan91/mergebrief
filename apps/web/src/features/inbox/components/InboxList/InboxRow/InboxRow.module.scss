@@ -2,6 +2,12 @@
 
 @layer components {
   .row {
+    --row-bg: var(--color-surface-1);
+
+    /* DESIGN.md's keyboard cursor: a 1px inset accent ring at 55%, no animation. */
+    --row-cursor-ring: inset 0 0 0 1px
+      color-mix(in srgb, var(--color-accent) 55%, transparent);
+
     position: relative;
     display: grid;
     grid-template-columns: 20px minmax(0, 1fr) auto;
@@ -16,7 +22,16 @@
     }
 
     &:hover {
-      background: var(--color-surface-2);
+      --row-bg: var(--color-surface-2);
+
+      background: var(--row-bg);
+    }
+
+    &[data-cursor="true"] {
+      --row-bg: var(--color-surface-3);
+
+      background: var(--row-bg);
+      box-shadow: var(--row-cursor-ring);
     }
 
     &[data-needs-you="true"] .title {
@@ -84,6 +99,16 @@
 
   .chip {
     flex: none;
+  }
+
+  /* Above the link's overlay for the actions only; the labels let the link take the click. */
+  .end {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    pointer-events: none;
+    gap: var(--space-5);
+    align-items: center;
   }
 
   .sub {

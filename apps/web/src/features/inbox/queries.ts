@@ -40,3 +40,13 @@ export function buildInboxQueryOptions(params: InboxQueryParams) {
     },
   });
 }
+
+/** The owner delete of one url row; true once the API confirmed it is gone. */
+export async function deleteInboxItem(
+  repoId: string,
+  prNumber: number,
+): Promise<boolean> {
+  const path = `${INBOX_PATH}/${encodeURIComponent(repoId)}/${String(prNumber)}`;
+  const response = await apiFetch(path, { method: "DELETE" });
+  return response.ok;
+}

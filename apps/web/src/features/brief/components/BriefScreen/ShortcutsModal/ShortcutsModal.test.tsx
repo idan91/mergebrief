@@ -24,7 +24,7 @@ function readSectionKeys(heading: HTMLElement): string[] {
 }
 
 describe("ShortcutsModal", () => {
-  it("groups the bindings under a general and a focus-mode heading", () => {
+  it("groups the bindings under general, focus mode and the marks", () => {
     renderOpenModal();
     const dialog = screen.getByRole("dialog", { name: "Keyboard shortcuts" });
     expect(dialog.querySelector("h2")?.textContent).toBe("Keyboard shortcuts");
@@ -32,6 +32,7 @@ describe("ShortcutsModal", () => {
     expect(headings.map((heading) => heading.textContent)).toEqual([
       "General",
       "Focus mode",
+      "Marks",
     ]);
   });
 

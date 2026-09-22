@@ -1,10 +1,27 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { IconButton } from "./IconButton";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
+
+/** A pointer resting on the control past the callout's hover delay. */
+function restPointer(button: HTMLElement): void {
+  fireEvent.pointerEnter(button);
+  act(() => {
+    vi.advanceTimersByTime(400);
+  });
+}
 
 describe("IconButton", () => {
   it("renders a ghost sm type=button with the label as aria-label", () => {
@@ -34,10 +51,11 @@ describe("IconButton", () => {
         +
       </IconButton>,
     );
+    vi.useFakeTimers();
     const button = screen.getByRole("button", {
       name: "Add a comment on src/deeply/nested/path/a.ts",
     });
-    fireEvent.pointerEnter(button);
+    restPointer(button);
     expect(screen.getByRole("tooltip").textContent).toBe("Comment on file");
   });
 
@@ -81,6 +99,7 @@ describe("IconButton", () => {
   });
 
   it("shows its label in a callout on hover and focus when asked", () => {
+    vi.useFakeTimers();
     render(
       <IconButton callout="left" label="Scroll to top">
         ↑
@@ -89,12 +108,35 @@ describe("IconButton", () => {
     const button = screen.getByRole("button", { name: "Scroll to top" });
     expect(screen.queryByRole("tooltip")).toBeNull();
 
-    fireEvent.pointerEnter(button);
+    restPointer(button);
     expect(screen.getByRole("tooltip").textContent).toBe("Scroll to top");
 
     fireEvent.focus(button);
     fireEvent.blur(button);
     expect(screen.queryByRole("tooltip")).toBeNull();
+  });
+
+  it("a pointer that leaves before the delay earns no callout", () => {
+    vi.useFakeTimers();
+    render(
+      <IconButton callout="left" label="Scroll to top">
+        ↑
+      </IconButton>,
+    );
+    const button = screen.getByRole("button", { name: "Scroll to top" });
+
+    fireEvent.pointerEnter(button);
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+    fireEvent.pointerLeave(button);
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+    expect(screen.queryByRole("tooltip")).toBeNull();
+
+    fireEvent.focus(button);
+    expect(screen.getByRole("tooltip")).toBeTruthy();
   });
 
   it("shows no callout without the prop", () => {

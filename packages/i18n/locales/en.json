@@ -307,7 +307,8 @@
       "toggleSidebar": "Toggle the sidebar",
       "sectionGeneral": "General",
       "sectionFocusMode": "Focus mode",
-      "toggleDiffView": "Switch between unified and split diff view"
+      "toggleDiffView": "Switch between unified and split diff view",
+      "sectionMarks": "Marks"
     },
     "intent": {
       "title": "Intent check",
@@ -1090,6 +1091,13 @@
       "signOut": "Sign out",
       "signOutFailed": "Sign out did not go through. Try again.",
       "signIn": "Sign in with GitHub"
+    },
+    "marks": {
+      "new": "New",
+      "inProgress": "In progress",
+      "reviewed": "Reviewed",
+      "updated": "Updated since your review",
+      "yours": "Yours"
     }
   },
   "briefError": {
@@ -1138,7 +1146,8 @@
       "status": {
         "draft": "Draft",
         "merged": "Merged",
-        "closed": "Closed"
+        "closed": "Closed",
+        "open": "Open"
       },
       "generation": {
         "queued": "Queued",
@@ -1150,14 +1159,17 @@
       "stackChipLabel": "Place in a stack: {{index}} of {{size}}",
       "unreachableChip": "Unreachable",
       "unreachableChipLabel": "GitHub no longer shows this pull request to you",
-      "sourceUrl": "Added from a URL"
-    },
-    "marks": {
-      "new": "New",
-      "inProgress": "In progress",
-      "reviewed": "Reviewed",
-      "updated": "Updated since your review",
-      "yours": "Yours"
+      "sourceUrl": "Added from a URL",
+      "actions": {
+        "openOnGithub": "Open on GitHub",
+        "more": "More actions",
+        "copyLink": "Copy link",
+        "delete": "Delete",
+        "linkCopied": "Link copied",
+        "copyFailed": "Copy failed",
+        "deleteFailed": "Delete failed; the row is still here",
+        "deleted": "Deleted"
+      }
     }
   }
 }

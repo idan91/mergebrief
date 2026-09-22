@@ -1,13 +1,33 @@
 // @vitest-environment jsdom
-import { cleanup, screen, within } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { InboxReviewStates, InboxSorts } from "types/inbox";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { renderInRouter } from "../../../../test/router";
 import type { InboxItem } from "../../types";
 import { InboxList } from "./InboxList";
 
-afterEach(cleanup);
+const fetchMock = vi.fn<typeof fetch>();
+vi.stubGlobal("fetch", fetchMock);
+
+afterEach(() => {
+  cleanup();
+  fetchMock.mockReset();
+});
+
+beforeEach(() => {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn(() => ({ matches: true, addEventListener: vi.fn() })),
+  );
+});
 
 function makeItem(overrides: Partial<InboxItem> = {}): InboxItem {
   return {
@@ -121,13 +141,144 @@ describe("InboxList", () => {
     );
 
     const row = readRows()[0]!;
-    expect(within(row).getByText("In progress")).toBeTruthy();
-    expect(within(row).getByText("Added from a URL")).toBeTruthy();
+    expect(
+      within(row).getByRole("link", {
+        name: /^In progress\. Open\. Added from a URL\./,
+      }),
+    ).toBeTruthy();
     expect(within(row).getByText("Place in a stack: 2 of 4")).toBeTruthy();
     expect(
       within(row).getByText("GitHub no longer shows this pull request to you"),
     ).toBeTruthy();
     expect(row.getAttribute("data-unreachable")).toBe("true");
+  });
+
+  it("the row link is named by its states before its title", async () => {
+    await renderInRouter(
+      <InboxList
+        items={[
+          makeItem({
+            source: "url",
+            installationId: null,
+            draft: true,
+            generation: {
+              status: "pending",
+              updatedAt: "2026-09-20T10:00:00Z",
+            },
+            title: "Retry deliveries",
+          }),
+        ]}
+        sort={InboxSorts.UPDATED}
+      />,
+    );
+
+    expect(
+      screen.getByRole("link", {
+        name: /^New\. Draft\. Queued\. Added from a URL\. Retry deliveries/,
+      }),
+    ).toBeTruthy();
+  });
+
+  it("j moves the keyboard cursor and Enter opens the row under it", async () => {
+    const { router } = await renderInRouter(
+      <InboxList
+        items={[makeItem({ prNumber: 1 }), makeItem({ prNumber: 2 })]}
+        sort={InboxSorts.UPDATED}
+      />,
+    );
+
+    fireEvent.keyDown(window, { key: "j" });
+    fireEvent.keyDown(window, { key: "j" });
+
+    const rows = readRows();
+    expect(rows[0]?.getAttribute("data-cursor")).toBe("false");
+    expect(rows[1]?.getAttribute("data-cursor")).toBe("true");
+
+    await act(async () => {
+      fireEvent.keyDown(window, { key: "Enter" });
+    });
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/repos/424242/pulls/2");
+    });
+  });
+
+  it("the cursor row scrolls into view at once, never smoothly", async () => {
+    const scrollIntoView = vi.spyOn(Element.prototype, "scrollIntoView");
+    await renderInRouter(
+      <InboxList
+        items={[makeItem({ prNumber: 1 }), makeItem({ prNumber: 2 })]}
+        sort={InboxSorts.UPDATED}
+      />,
+    );
+
+    fireEvent.keyDown(window, { key: "j" });
+
+    expect(scrollIntoView).toHaveBeenLastCalledWith({
+      block: "nearest",
+      behavior: "instant",
+    });
+    scrollIntoView.mockRestore();
+  });
+
+  it("Enter on a control inside a row leaves that control alone", async () => {
+    const { router } = await renderInRouter(
+      <InboxList
+        items={[makeItem({ prNumber: 1 })]}
+        sort={InboxSorts.UPDATED}
+      />,
+    );
+    fireEvent.keyDown(window, { key: "j" });
+    const more = screen.getByRole("button", { name: "More actions" });
+
+    fireEvent.keyDown(more, { key: "Enter" });
+
+    expect(router.state.location.pathname).toBe("/");
+  });
+
+  it("deleting a row lands focus on the heading and announces it", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    await renderInRouter(
+      <InboxList
+        items={[makeItem({ source: "url", viewerIsAuthor: true })]}
+        sort={InboxSorts.UPDATED}
+      />,
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("menuitem", { name: "Delete" }));
+    });
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(
+        screen.getByRole("heading", { level: 2 }),
+      );
+      expect(screen.getByRole("status").textContent).toBe("Deleted");
+    });
+  });
+
+  it("keys inside an open menu never move the cursor", async () => {
+    await renderInRouter(
+      <InboxList
+        items={[makeItem({ prNumber: 1 }), makeItem({ prNumber: 2 })]}
+        sort={InboxSorts.UPDATED}
+      />,
+    );
+    await act(async () => {
+      fireEvent.click(
+        screen.getAllByRole("button", { name: "More actions" })[0]!,
+      );
+    });
+    const menu = screen.getByRole("menu");
+
+    fireEvent.keyDown(menu, { key: "j" });
+    fireEvent.keyDown(menu, { key: "ArrowDown" });
+
+    expect(
+      readRows().every((row) => row.getAttribute("data-cursor") === "false"),
+    ).toBe(true);
   });
 
   it("shows the generation state while a brief is on its way or failed", async () => {

@@ -1,7 +1,10 @@
 import type { TFunction } from "i18next";
 
-import { AgeUnits } from "../../../types";
+import { ReviewMarkLabelKeys } from "@web/components/marks/consts";
+import { PullRequestSources } from "@web/features/pulls/types";
+import { AgeUnits, type InboxGeneration, type InboxItem } from "../../../types";
 import { formatAge } from "../../../utils";
+import { readGenerationSignal, readStatusSignal } from "./RowEnd/utils";
 
 const DATE_FORMAT: Intl.DateTimeFormatOptions = {
   day: "numeric",
@@ -29,4 +32,31 @@ export function formatAgeLabel(t: TFunction, at: string, now: Date): string {
     case AgeUnits.DATE:
       return new Date(at).toLocaleDateString(undefined, DATE_FORMAT);
   }
+}
+
+/**
+ * The row link's name before its title: review state, status, generation
+ * state when a brief is on its way or failed, and the source when it is a
+ * URL row. Icons are hidden, so this is what assistive technology reads.
+ */
+export function describeRow(
+  t: TFunction,
+  item: InboxItem,
+  generation: InboxGeneration | null,
+): string {
+  const status = readStatusSignal(item.state, item.draft);
+  const parts = [
+    item.reviewState === null
+      ? t("shell.marks.yours")
+      : t(ReviewMarkLabelKeys[item.reviewState]),
+    t(status?.label ?? "home.inbox.status.open"),
+  ];
+  const generationSignal = readGenerationSignal(generation);
+  if (generationSignal !== null) {
+    parts.push(t(generationSignal.label));
+  }
+  if (item.source === PullRequestSources.URL) {
+    parts.push(t("home.inbox.sourceUrl"));
+  }
+  return `${parts.join(". ")}.`;
 }

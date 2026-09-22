@@ -210,7 +210,8 @@ describe("FileCommentBand", () => {
     const control = screen.getByRole("button", {
       name: "Add a comment on src/a.ts",
     });
-    fireEvent.pointerEnter(control);
+    // Focus shows the callout at once; a pointer earns it after a rest.
+    fireEvent.focus(control);
     expect(screen.getByRole("tooltip").textContent).toBe("Comment on file");
   });
 

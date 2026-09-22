@@ -3,6 +3,11 @@ import { useTranslation } from "react-i18next";
 import { IconButton } from "@web/components/IconButton/IconButton";
 import { Modal } from "@web/components/Modal/Modal";
 import { Kbd, KbdGroup } from "../Kbd/Kbd";
+import {
+  REVIEW_MARK_ORDER,
+  ReviewMarkGlyphs,
+  ReviewMarkLabelKeys,
+} from "@web/components/marks/consts";
 import CloseIcon from "./icons/close.svg?react";
 import styles from "./ShortcutsModal.module.scss";
 
@@ -95,6 +100,19 @@ export function ShortcutsModal({ open, close }: ShortcutsModalProps) {
             </dl>
           </section>
         ))}
+        <section>
+          <h3 className={styles["sectionHeading"]}>
+            {t("brief.shortcuts.sectionMarks")}
+          </h3>
+          <ul className={styles["marks"]}>
+            {REVIEW_MARK_ORDER.map((state) => (
+              <li className={styles["mark"]} data-mark={state} key={state}>
+                {ReviewMarkGlyphs[state]}
+                {t(ReviewMarkLabelKeys[state])}
+              </li>
+            ))}
+          </ul>
+        </section>
       </div>
     </Modal>
   );

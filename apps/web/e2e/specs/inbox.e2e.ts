@@ -30,8 +30,7 @@ test("the Inbox folds, marks and prints status only when not Open", async ({
   // then the quiet line, then the reviewed row and the viewer's own.
   const rows = page.getByTestId("inbox-row");
   await expect(rows).toHaveCount(INBOX_ROWS.length + 1);
-  const titles = await rows.locator("a").allInnerTexts();
-  const order = titles.map((text) => text.split("\n")[0]);
+  const order = await rows.getByTestId("inbox-row-title").allInnerTexts();
   // The URL row was read live a moment ago, so it is the most recently updated.
   expect(order.slice(0, 4)).toEqual([
     INBOX_URL_ROW_TITLE,
@@ -42,22 +41,36 @@ test("the Inbox folds, marks and prints status only when not Open", async ({
   expect(order.slice(4)).toEqual([reviewed?.title, yours?.title]);
   await expect(page.getByText("Nothing new below")).toBeVisible();
 
-  // The marks name their state for assistive technology.
-  await expect(rows.nth(0).getByText("New", { exact: true })).toBeAttached();
-  await expect(rows.nth(1).getByText("New", { exact: true })).toBeAttached();
+  // The row link names the state before the title.
   await expect(
-    rows.nth(2).getByText("Updated since your review"),
+    rows.nth(0).getByRole("link", { name: /^New\. Open\./ }),
   ).toBeAttached();
-  await expect(rows.nth(3).getByText("In progress")).toBeAttached();
-  await expect(rows.nth(4).getByText("Reviewed")).toBeAttached();
-  await expect(rows.nth(5).getByText("Yours")).toBeAttached();
+  await expect(
+    rows.nth(1).getByRole("link", { name: /^New\. Open\./ }),
+  ).toBeAttached();
+  await expect(
+    rows
+      .nth(2)
+      .getByRole("link", { name: /^Updated since your review\. Open\./ }),
+  ).toBeAttached();
+  await expect(
+    rows.nth(3).getByRole("link", { name: /^In progress\. Open\./ }),
+  ).toBeAttached();
+  await expect(
+    rows.nth(4).getByRole("link", { name: /^Reviewed\. Draft\./ }),
+  ).toBeAttached();
+  await expect(
+    rows.nth(5).getByRole("link", { name: /^Yours\. Open\./ }),
+  ).toBeAttached();
 
   // Status only when it is not Open: the draft row prints Draft, no row
   // prints Open. The URL row carries its source and its live-read head kept
   // it current, so no unreachable chip.
-  await expect(rows.nth(4).getByText("Draft")).toBeVisible();
+  await expect(rows.nth(4).getByText("Draft", { exact: true })).toBeVisible();
   await expect(page.getByText("Open", { exact: true })).toHaveCount(0);
-  await expect(rows.nth(0).getByText("Added from a URL")).toBeAttached();
+  await expect(
+    rows.nth(0).getByRole("link", { name: /Added from a URL\./ }),
+  ).toBeAttached();
   await expect(page.getByText("Unreachable")).toHaveCount(0);
 
   // Inline code in a title renders as code.
