@@ -140,12 +140,29 @@ describe("DELETE /api/briefs/:repoId/:prNumber", () => {
     await harness.close();
   });
 
-  async function del(cookie: string): Promise<Response> {
-    return app.request(`/api/briefs/${REPO_ID_NUM}/7`, {
+  async function del(cookie: string, base = "/api/briefs"): Promise<Response> {
+    return app.request(`${base}/${REPO_ID_NUM}/7`, {
       method: "DELETE",
       headers: { Cookie: `rs_session=${cookie}` },
     });
   }
+
+  it("the Inbox route erases the same row under its own operation", async () => {
+    await seedBriefedPr(harness.handle, OWNER_CTX);
+    const cookie = await seedOwnerSession(harness.handle, kp);
+
+    const res = await del(cookie, "/api/inbox");
+    expect(res.status).toBe(200);
+
+    expect(await harness.raw("select id from pull_request")).toHaveLength(0);
+    const audits = await harness.raw(
+      "select operation, outcome from audit_log order by id",
+    );
+    expect(audits).toContainEqual({
+      operation: "delete-inbox-item",
+      outcome: "ok",
+    });
+  });
 
   it("erases the viewer's own url brief with no GitHub call", async () => {
     await seedBriefedPr(harness.handle, OWNER_CTX);

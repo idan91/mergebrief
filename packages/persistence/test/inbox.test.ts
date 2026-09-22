@@ -146,6 +146,7 @@ const DEFAULT_FILTERS: InboxFilters = {
 function makeListInput(overrides?: Partial<InboxListInput>): InboxListInput {
   return {
     installationIds: [ACME, OCTO],
+    allowedRepoIds: [REPO_A, REPO_B],
     ownerUserId: VIEWER,
     reviewerId: VIEWER,
     reviewerLogin: VIEWER_LOGIN,
@@ -438,6 +439,28 @@ describe("createInboxStore.list, fold and sort", () => {
 });
 
 describe("createInboxStore.list, visibility", () => {
+  it("hides an installation row in a repository the viewer cannot read", async () => {
+    const handle = await freshDatabase();
+    await seedRow(handle, { ctx: CTX_ACME, repoId: REPO_A, prNumber: 1 });
+    await seedRow(handle, { ctx: CTX_ACME, repoId: REPO_B, prNumber: 2 });
+    await seedRow(handle, { ctx: CTX_OWNER, repoId: REPO_B, prNumber: 2 });
+
+    const page = await createInboxStore(handle).list(
+      makeListInput({ allowedRepoIds: [REPO_A] }),
+    );
+
+    expect(
+      page.items.map((item) => [
+        item.pullRequest.prNumber,
+        item.pullRequest.source,
+      ]),
+    ).toEqual([
+      [2, "url"],
+      [1, "installation"],
+    ]);
+    expect(page.counts.new).toBe(2);
+  });
+
   it("hides a url row shadowed by a visible installation row", async () => {
     const handle = await freshDatabase();
     await seedRow(handle, { ctx: CTX_ACME, repoId: REPO_A, prNumber: 1 });

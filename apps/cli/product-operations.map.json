@@ -14,6 +14,12 @@
   "delete-draft-comment": {
     "command": "mergebrief draft delete <number>"
   },
+  "delete-inbox-item": {
+    "webOnly": {
+      "reason": "Erasing a pasted-URL row is a Home affordance; the CLI has no list to erase from",
+      "owner": "idan"
+    }
+  },
   "delete-url-brief": {
     "webOnly": {
       "reason": "Deleting an owned url-box brief is the web list's affordance; the CLI has no owner-brief surface",
@@ -29,8 +35,14 @@
   "list-collaborators": {
     "command": "mergebrief collaborators"
   },
-  "list-pulls": {
+  "list-inbox": {
     "command": "mergebrief pr"
+  },
+  "list-pulls": {
+    "webOnly": {
+      "reason": "Transitional: the session list is deleted once the web app reads the Inbox; the CLI's pr command already reads the Inbox",
+      "owner": "idan"
+    }
   },
   "list-repos": {
     "command": "mergebrief repos"

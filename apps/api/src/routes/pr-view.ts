@@ -90,7 +90,7 @@ export function deriveViewerIsAuthor(
   return Boolean(authorLogin) && authorLogin === viewerLogin;
 }
 
-function buildGenerationSummary(
+export function buildGenerationSummary(
   latestGeneration: GenerationRow | undefined,
   waitReason: WaitReason | undefined,
 ): GenerationSummaryView | null {

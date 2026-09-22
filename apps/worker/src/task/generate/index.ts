@@ -251,6 +251,15 @@ async function runGeneration(
   }
 
   const prInfo = throwOnGitHubFailure(await source.fetchPullRequest());
+  // The Inbox sorts by GitHub's updated_at; a url row learns it here and on
+  // the live read, an installation row here and from webhooks.
+  const stamped = await repo.pullRequests.advanceGithubUpdatedAt(
+    pullRequestId,
+    prInfo.updatedAt,
+  );
+  if (!stamped.ok) {
+    log.debug(`generate: updated_at stamp skipped, ${stamped.error.message}`);
+  }
   if (prInfo.headSha !== headSha) {
     await scheduleUrlBoxRegenerationIfMoved(prInfo);
     throw new SupersededSignal(

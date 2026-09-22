@@ -13,7 +13,7 @@ import {
 } from "../../../../../shared-errors/api-error";
 import type { AuthRouteDeps } from "../../../../auth/session/types";
 import type { AuthzEnv } from "../../../../authz";
-import { prNumberSchema } from "../../wire-bounds";
+import { prNumberSchema } from "../../../../wire-bounds";
 import sessionController from "../controller";
 import { spanQuerySchema } from "../schemas";
 import type { SessionWriteFailure } from "../types";

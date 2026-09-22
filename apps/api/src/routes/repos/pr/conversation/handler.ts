@@ -18,7 +18,7 @@ import { readFallbackTokenFor, type AuthzEnv } from "../../../authz";
 import type { InstallationGitHubPort } from "../../../github-port";
 import type { TtlCache } from "../../../ttl-cache";
 import { parseOwnerAndName } from "../../utils";
-import { prNumberSchema } from "../wire-bounds";
+import { prNumberSchema } from "../../../wire-bounds";
 import conversationController from "./controller";
 import type { ReadConversationResult } from "./types";
 import { CONVERSATION_CACHE_TTL_MS } from "./consts";

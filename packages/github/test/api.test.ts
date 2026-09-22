@@ -488,6 +488,7 @@ describe("fetchPullRequest / fetchDiff", () => {
         commits: 4,
         user: { login: "octocat" },
         closed_at: null,
+        updated_at: "2026-09-20T10:00:00Z",
       },
     });
     const octokit = mockOctokit({ pullsGet });
@@ -514,6 +515,7 @@ describe("fetchPullRequest / fetchDiff", () => {
       commitCount: 4,
       authorLogin: "octocat",
       closedAt: null,
+      updatedAt: new Date("2026-09-20T10:00:00Z"),
       headRepo: { owner: "contributor", repo: "fork" },
       baseRepo: { owner: "o", repo: "r" },
     });
@@ -539,6 +541,7 @@ describe("fetchPullRequest / fetchDiff", () => {
           commits: 4,
           user: { login: "octocat" },
           closed_at: null,
+          updated_at: "2026-09-20T10:00:00Z",
         },
       });
       const octokit = mockOctokit({ pullsGet });
@@ -567,6 +570,7 @@ describe("fetchPullRequest / fetchDiff", () => {
         commits: 2,
         user: { login: "octocat" },
         closed_at: "2026-08-01T00:00:00Z",
+        updated_at: "2026-09-20T10:00:00Z",
       },
     });
     const octokit = mockOctokit({ pullsGet });
@@ -595,6 +599,7 @@ describe("fetchPullRequest / fetchDiff", () => {
         commits: 1,
         user: { login: "octocat" },
         closed_at: null,
+        updated_at: "2026-09-20T10:00:00Z",
       },
     });
     const octokit = mockOctokit({ pullsGet });

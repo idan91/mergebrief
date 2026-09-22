@@ -44,6 +44,8 @@ export interface PullRequestInfo {
   readonly authorLogin: string | null;
   /** When the PR closed/merged; null while open. */
   readonly closedAt: Date | null;
+  /** GitHub's `updated_at`, the Inbox's default sort key. */
+  readonly updatedAt: Date;
   readonly headRepo?: RepoIdentity;
   readonly baseRepo?: RepoIdentity;
 }

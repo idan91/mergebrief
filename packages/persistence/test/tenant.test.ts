@@ -47,8 +47,8 @@ function upsertInput(
   return { repoId: REPO, prNumber, repoSlug: "acme/widgets", ...lifecycle };
 }
 
-describe("createTenantRepository — tenant isolation on reads", () => {
-  it("A cannot read a pull_request written under B (same repo + number)", async () => {
+describe("createTenantRepository tenant isolation on reads", () => {
+  it("A cannot read a pull_request B wrote under the same repo and number", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);
     const b = createTenantRepository(handle, CTX_B);
@@ -103,7 +103,7 @@ describe("createTenantRepository — tenant isolation on reads", () => {
   });
 });
 
-describe("createTenantRepository — cross-tenant child writes are rejected without a DB write", () => {
+describe("createTenantRepository refuses cross-tenant child writes", () => {
   it("rejects a checkpoint whose pull_request belongs to another tenant", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);
@@ -154,6 +154,27 @@ describe("createTenantRepository — cross-tenant child writes are rejected with
     );
   });
 
+  it("advanceGithubUpdatedAt keeps the newer value, refuses another tenant", async () => {
+    const handle = await freshDatabase();
+    const a = createTenantRepository(handle, CTX_A);
+    const b = createTenantRepository(handle, CTX_B);
+    const later = new Date("2026-09-20T12:00:00Z");
+    const earlier = new Date("2026-09-19T12:00:00Z");
+
+    const aPr = await a.pullRequests.upsert(upsertInput(7));
+    const advanced = await a.pullRequests.advanceGithubUpdatedAt(aPr.id, later);
+    const held = await a.pullRequests.advanceGithubUpdatedAt(aPr.id, earlier);
+    const foreign = await b.pullRequests.advanceGithubUpdatedAt(aPr.id, later);
+
+    expect(advanced.ok && advanced.value.githubUpdatedAt).toEqual(later);
+    expect(held.ok && held.value.githubUpdatedAt).toEqual(later);
+    expect(held.ok && held.value.updatedAt).toEqual(
+      advanced.ok && advanced.value.updatedAt,
+    );
+    expect(advanced.ok && advanced.value.updatedAt > aPr.updatedAt).toBe(true);
+    expect(foreign.ok).toBe(false);
+  });
+
   it("setEntryComment on a PR outside the tenant returns notFound", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);
@@ -174,7 +195,7 @@ describe("createTenantRepository — cross-tenant child writes are rejected with
   });
 });
 
-describe("createTenantRepository — entry comment rotation (delete+repost)", () => {
+describe("createTenantRepository entry comment rotation", () => {
   it("setEntryComment stores and rotates the comment id", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);
@@ -196,7 +217,7 @@ describe("createTenantRepository — entry comment rotation (delete+repost)", ()
   });
 });
 
-describe("createTenantRepository — setDraft (mark-ready flip)", () => {
+describe("createTenantRepository setDraft, the mark-ready flip", () => {
   it("flips draft=true to false in place and is idempotent", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);
@@ -217,7 +238,7 @@ describe("createTenantRepository — setDraft (mark-ready flip)", () => {
     expect(again.value.draft).toBe(false);
   });
 
-  it("setDraft on a PR outside the tenant returns notFound and touches nothing", async () => {
+  it("setDraft on a PR outside the tenant returns notFound, touches nothing", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);
     const b = createTenantRepository(handle, CTX_B);
@@ -233,7 +254,7 @@ describe("createTenantRepository — setDraft (mark-ready flip)", () => {
   });
 });
 
-describe("createTenantRepository — idempotent upserts", () => {
+describe("createTenantRepository idempotent upserts", () => {
   it("pull_request upsert is idempotent and mutates state in place", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);
@@ -313,7 +334,7 @@ describe("createTenantRepository — idempotent upserts", () => {
     expect(second.value.lastSubmittedSha).toBe("b".repeat(40));
   });
 
-  it("checkpoint upsertOnSubmit is monotonic — an older submitted_at never regresses the row", async () => {
+  it("checkpoint upsertOnSubmit never regresses to an older submitted_at", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);
     const pr = await a.pullRequests.upsert(upsertInput(7));
@@ -343,7 +364,7 @@ describe("createTenantRepository — idempotent upserts", () => {
     expect(current?.lastSubmittedSha).toBe("b".repeat(40));
   });
 
-  it("checkpoint upsertOnSubmit with an equal submitted_at re-applies (idempotent redelivery)", async () => {
+  it("checkpoint upsertOnSubmit re-applies an equal submitted_at", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);
     const pr = await a.pullRequests.upsert(upsertInput(7));
@@ -407,7 +428,7 @@ describe("createTenantRepository — idempotent upserts", () => {
   });
 });
 
-describe("parseTenantContext — boundary validation", () => {
+describe("parseTenantContext boundary validation", () => {
   it("accepts installationId as bigint, number, or numeric string", () => {
     expect(parseTenantContext({ installationId: 42n }).installationId).toBe(
       42n,
@@ -434,7 +455,7 @@ describe("parseTenantContext — boundary validation", () => {
 
 describe("compile-time containment", () => {
   it("the opaque AppDatabase exposes no queryable surface", () => {
-    // A live handle carries none of drizzle's query methods — the only thing
+    // A live handle carries none of drizzle's query methods; the only thing
     // a consumer can do with it is pass it to createTenantRepository.
     expectTypeOf<AppDatabase>().not.toHaveProperty("insert");
     expectTypeOf<AppDatabase>().not.toHaveProperty("select");
@@ -448,7 +469,7 @@ describe("compile-time containment", () => {
   });
 
   it("TenantRepository offers no path to an unscoped query", () => {
-    // No raw-handle escape hatch on the consumer-facing interface — the
+    // No raw-handle escape hatch on the consumer-facing interface; the
     // stage-4 ArtifactStore uses the in-package internal() unwrap instead.
     expectTypeOf<TenantRepository>().not.toHaveProperty("withTenant");
     // And no drizzle query surface directly on the repository either.
@@ -461,7 +482,7 @@ describe("compile-time containment", () => {
 
   it("the non-tenant userSettings seam leaks no query surface either", () => {
     // Treated like `writeAudit`/`createSessionAuth`: a NON-tenant surface that takes the
-    // opaque handle and unwraps in-package — never a raw drizzle handle. It is
+    // opaque handle and unwraps in-package, never a raw drizzle handle. It is
     // NOT reachable through TenantRepository (it is keyed by user id, not ctx).
     expectTypeOf<TenantRepository>().not.toHaveProperty("userSettings");
     expectTypeOf<UserSettingsStore>().not.toHaveProperty("insert");

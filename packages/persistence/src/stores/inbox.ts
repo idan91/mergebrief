@@ -54,6 +54,12 @@ export interface InboxFilters {
 export interface InboxListInput {
   /** The installations the viewer reaches; the installation branch. */
   readonly installationIds: readonly InstallationId[];
+  /**
+   * The repositories the viewer may read across those installations, as
+   * GitHub answered: an installation row shows only inside this set, so a
+   * private repository the viewer cannot read never lists.
+   */
+  readonly allowedRepoIds: readonly RepoId[];
   /** The viewer as url-row owner; the owner branch. */
   readonly ownerUserId: ReviewerId;
   /** The viewer as reviewer; the review state's key. */
@@ -205,12 +211,23 @@ function buildRowFacts(db: InboxDb, input: InboxListInput): RowFacts {
   return { latest, reviewState, viewerIsAuthor, behind };
 }
 
-/** The visible row set: every reachable installation plus the viewer's url rows. */
+function canReachInstallations(input: InboxListInput): boolean {
+  return input.installationIds.length > 0 && input.allowedRepoIds.length > 0;
+}
+
+/** One bind parameter however many ids: a viewer's readable repos can run to thousands. */
+function matchesAnyId(column: SQLWrapper, ids: readonly bigint[]): SQL {
+  return sql`${column} = any(${sql.param(ids.map(String))}::bigint[])`;
+}
+
+/** The visible row set: the readable repos of every reachable installation plus the viewer's url rows. */
 function buildVisibility(input: InboxListInput): SQL {
-  const installationBranch =
-    input.installationIds.length === 0
-      ? sql`false`
-      : inArray(pullRequest.installationId, [...input.installationIds]);
+  const installationBranch = canReachInstallations(input)
+    ? and(
+        matchesAnyId(pullRequest.installationId, input.installationIds),
+        matchesAnyId(pullRequest.repoId, input.allowedRepoIds),
+      )
+    : sql`false`;
   const ownerBranch = and(
     isNull(pullRequest.installationId),
     eq(pullRequest.ownerUserId, input.ownerUserId),
@@ -222,16 +239,15 @@ function buildVisibility(input: InboxListInput): SQL {
 
 /** A url row is hidden while an installation row for the same pull request is visible. */
 function buildShadowing(input: InboxListInput): SQL {
-  if (input.installationIds.length === 0) return sql`true`;
-  const ids = sql.join(
-    input.installationIds.map((id) => sql`${id}`),
-    sql`, `,
-  );
+  if (!canReachInstallations(input)) return sql`true`;
+  const shadowInstallation = sql`shadow.installation_id`;
+  const shadowRepo = sql`shadow.repo_id`;
   return sql`not (${pullRequest.source} = ${PullRequestSources.URL} and exists (
     select 1 from ${pullRequest} shadow
     where shadow.repo_id = ${pullRequest.repoId}
       and shadow.pr_number = ${pullRequest.prNumber}
-      and shadow.installation_id in (${ids})
+      and ${matchesAnyId(shadowInstallation, input.installationIds)}
+      and ${matchesAnyId(shadowRepo, input.allowedRepoIds)}
   ))`;
 }
 

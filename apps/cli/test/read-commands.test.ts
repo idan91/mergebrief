@@ -284,7 +284,7 @@ describe("read commands over the real api app", () => {
     await login();
 
     const token = await seedToken();
-    const list = await reference(token).request({ path: "/api/pulls" });
+    const list = await reference(token).request({ path: "/api/inbox" });
     const listRun = await run(["pr", "--json"]);
     expect(listRun.code).toBe(ExitCodes.OK);
     expect(listRun.out).toBe(list.bodyText);

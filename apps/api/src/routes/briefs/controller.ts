@@ -1,30 +1,13 @@
-// Hono-free. The viewer's own url-box world: list it, or erase one row
-// through the owner-scoped purge; the FK cascade takes every artifact and
-// session with it, and the purge appends its own `delete` audit entry
-// atomically.
+// Hono-free. The viewer's own url-box world listed; the erase moved to the
+// Inbox controller, which this route's delete calls until the old lists go.
 import {
   createArtifactStore,
   createGenerationProjection,
-  createPurgeRoutines,
   createTenantRepository,
   type AppDatabase,
-  type PullRequestRowId,
-  type RepoId,
   type ReviewerId,
 } from "persistence";
-import type { Result } from "types/utils";
 import { buildPrView, type PrView } from "../pr-view";
-
-interface DeleteUrlBriefInput {
-  readonly ownerUserId: ReviewerId;
-  readonly repoId: RepoId;
-  readonly prNumber: number;
-}
-
-type DeleteUrlBriefResult = Result<
-  { readonly pullRequestId: PullRequestRowId },
-  { readonly kind: "not-found" }
->;
 
 interface ListUrlBriefsInput {
   readonly ownerUserId: ReviewerId;
@@ -62,26 +45,5 @@ export default {
       ),
     );
     return { pulls };
-  },
-
-  async deleteUrlBrief(
-    deps: { readonly handle: AppDatabase },
-    input: DeleteUrlBriefInput,
-  ): Promise<DeleteUrlBriefResult> {
-    const ctx = { ownerUserId: input.ownerUserId };
-    const row = await createTenantRepository(
-      deps.handle,
-      ctx,
-    ).pullRequests.getByNumber(input.repoId, input.prNumber);
-    if (row === undefined) {
-      return { ok: false, error: { kind: "not-found" } };
-    }
-    const purged = await createPurgeRoutines(deps.handle, ctx).purgePullRequest(
-      row.id,
-    );
-    if (!purged.ok) {
-      return { ok: false, error: { kind: "not-found" } };
-    }
-    return { ok: true, value: { pullRequestId: row.id } };
   },
 };

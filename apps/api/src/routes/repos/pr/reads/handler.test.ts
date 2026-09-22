@@ -504,6 +504,7 @@ describe("live stack read", () => {
         headRef: "feature/mid",
         baseSha: "base",
         baseRef: "main",
+        updatedAt: new Date("2026-09-20T10:00:00Z"),
         state: "closed",
         draft: false,
         merged: true,

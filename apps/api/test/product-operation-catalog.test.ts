@@ -33,6 +33,12 @@ const EXPECTED_CATALOG = [
       "DELETE /api/repos/:repoId/pulls/:prNumber/session/comments/:draftId",
   },
   {
+    id: "delete-inbox-item",
+    kind: "action",
+    classification: "private-write",
+    endpoint: "DELETE /api/inbox/:repoId/:prNumber",
+  },
+  {
     id: "delete-url-brief",
     kind: "action",
     classification: "private-write",
@@ -55,6 +61,12 @@ const EXPECTED_CATALOG = [
     kind: "query",
     classification: "read",
     endpoint: "GET /api/repos/:repoId/collaborators",
+  },
+  {
+    id: "list-inbox",
+    kind: "query",
+    classification: "read",
+    endpoint: "GET /api/inbox",
   },
   {
     id: "list-pulls",

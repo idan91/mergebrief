@@ -39,7 +39,7 @@ Three of them are judgment calls instead of fixed answers: when to split support
 - Folder names are plural for peers, singular for one thing split into parts.
 - api, worker and cli follow this shape; the axis is React versus not, never app versus package. Tests stay per member.
 - Casing: kebab-case for every file and folder. The only exceptions are PascalCase component files and folders and camelCase `use*` hooks. Existing names are renamed on their own ticket.
-- Zod schemas live beside their owner, the route, operation, store or script that parses with them. A `schemas.ts` serves one owner; duplicated wire bounds share one module at the closest common owner (`apps/api`'s `routes/repos/pr/wire-bounds.ts`). `packages/brief-core/src/types.ts` is the domain contract and keeps its schemas.
+- Zod schemas live beside their owner, the route, operation, store or script that parses with them. A `schemas.ts` serves one owner; duplicated wire bounds share one module at the closest common owner (`apps/api`'s `routes/wire-bounds.ts`). `packages/brief-core/src/types.ts` is the domain contract and keeps its schemas.
 - A package entry is `src/index.ts`, a curated barrel and the `exports["."]` target. `index.tsx` feature barrels are an apps/web convention.
 - Target shape of `apps/worker/src/task`, a grouping folder whose one grown member becomes a folder:
 

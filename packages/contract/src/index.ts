@@ -25,6 +25,18 @@ export {
 } from "./errors";
 export { MAX_FILE_RANGE_LINES, type FileRangeView } from "./file-range";
 export {
+  InboxQueryKeys,
+  type InboxCountsView,
+  type InboxGenerationView,
+  type InboxItem,
+  type InboxQueryKey,
+  type InboxResponse,
+  type InboxStackView,
+  type InboxViewerView,
+  type Page,
+  type ReachableInstallationView,
+} from "./inbox";
+export {
   WaitReasons,
   type GenerationPhase,
   type WaitReason,

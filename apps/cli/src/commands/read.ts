@@ -100,9 +100,9 @@ export interface ReadIo {
   readonly json: boolean;
 }
 
-/** `pr` with no number: the session PR list, verbatim. */
+/** `pr` with no number: the first Inbox page, verbatim. */
 export async function runPrList(client: ApiClient, io: ReadIo): Promise<void> {
-  const response = await client.request({ path: "/api/pulls" });
+  const response = await client.request({ path: "/api/inbox" });
   if (io.json) {
     io.stdout(response.bodyText); // verbatim, not one byte more
     return;
@@ -365,8 +365,8 @@ function asDisplay(value: unknown): string {
 function renderPrList(bodyText: string, io: ReadIo): void {
   try {
     const parsed: unknown = JSON.parse(bodyText);
-    if (isRecord(parsed) && Array.isArray(parsed["pulls"])) {
-      for (const pull of parsed["pulls"].filter(isRecord)) {
+    if (isRecord(parsed) && Array.isArray(parsed["items"])) {
+      for (const pull of parsed["items"].filter(isRecord)) {
         const locator = `${asDisplay(pull["repoSlug"])}#${asDisplay(pull["prNumber"])}`;
         const columns = [
           locator,

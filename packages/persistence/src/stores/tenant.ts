@@ -210,6 +210,15 @@ export interface PullRequestRepository {
    * lives in the ingest routines, which every webhook write goes through.
    */
   upsert(input: PullRequestUpsertInput): Promise<PullRequestRow>;
+  /**
+   * Record GitHub's `updated_at` as the worker read it at generate time; a
+   * value older than the stored one is left alone. The one write a
+   * generation makes to the row's GitHub facts.
+   */
+  advanceGithubUpdatedAt(
+    pullRequestId: PullRequestRowId,
+    githubUpdatedAt: Date,
+  ): Promise<Result<PullRequestRow, RepositoryError>>;
   /** Tenant-scoped read by (repo, number). Absence is a normal `undefined`. */
   getByNumber(
     repoId: RepoId,
@@ -448,6 +457,30 @@ export function createTenantRepository(
         )
         .limit(1);
       return rows[0];
+    },
+
+    async advanceGithubUpdatedAt(pullRequestId, githubUpdatedAt) {
+      // A held stamp is a no-op for the row: its own updated_at, which the
+      // pulls list sorts by, moves only when the GitHub time does.
+      const advances = sql`${pullRequest.githubUpdatedAt} is null or ${pullRequest.githubUpdatedAt} < ${githubUpdatedAt}`;
+      const rows = await db
+        .update(pullRequest)
+        .set({
+          githubUpdatedAt: sql`greatest(${pullRequest.githubUpdatedAt}, ${githubUpdatedAt})`,
+          updatedAt: sql`case when ${advances} then now() else ${pullRequest.updatedAt} end`,
+        })
+        .where(
+          and(scope.matchesPullRequest(), eq(pullRequest.id, pullRequestId)),
+        )
+        .returning();
+      const row = rows[0];
+      if (row === undefined) {
+        return fail(
+          RepositoryErrorCodes.NOT_FOUND,
+          `pull_request ${pullRequestId} not found in ${scope.label}`,
+        );
+      }
+      return { ok: true, value: row };
     },
 
     async setState(pullRequestId, patch) {

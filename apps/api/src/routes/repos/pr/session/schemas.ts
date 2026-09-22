@@ -17,7 +17,7 @@ import {
   MAX_ID_LENGTH,
   MAX_INT4,
   MAX_PATH_LENGTH,
-} from "../wire-bounds";
+} from "../../../wire-bounds";
 
 const shaSchema = z.string().min(1);
 /** The span every session request names: the same pair the read takes. */

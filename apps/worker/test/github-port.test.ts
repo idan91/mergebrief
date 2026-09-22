@@ -65,6 +65,7 @@ const INFO: githubModule.PullRequestInfo = {
   commitCount: 1,
   authorLogin: "octocat",
   closedAt: null,
+  updatedAt: new Date("2026-09-20T10:00:00Z"),
 };
 
 /** Track which token each minted octokit carries. */
@@ -118,7 +119,7 @@ function missingGrantId(): GrantRowId {
   return value;
 }
 
-describe("appGitHubPort — openUrlBoxPullRequestSource", () => {
+describe("appGitHubPort openUrlBoxPullRequestSource", () => {
   it("binds the viewer's decrypted token when the probe succeeds", async () => {
     const grantId = await seedGrant("ghu_viewer");
     vi.mocked(fetchPullRequest).mockImplementation(async (octokit) => {
@@ -230,7 +231,7 @@ describe("appGitHubPort — openUrlBoxPullRequestSource", () => {
     );
   });
 
-  it("an UNAUTHORIZED probe keeps the viewer binding — a dead token must never escalate to the PAT", async () => {
+  it("an UNAUTHORIZED probe keeps the viewer binding, never the PAT", async () => {
     const grantId = await seedGrant("ghu_viewer");
     vi.mocked(fetchPullRequest).mockResolvedValue({
       ok: false,

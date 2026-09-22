@@ -118,6 +118,7 @@ function prJson(script: PrEndpointScript): unknown {
     commits: 3,
     user: { login: "octocat" },
     closed_at: script.merged === true ? "2026-08-01T00:00:00Z" : null,
+    updated_at: "2026-09-20T10:00:00Z",
   };
 }
 

@@ -15,6 +15,7 @@ import { createAccessibleInstallationsResolver } from "./auth/accessible-install
 import type { AuthDeps } from "./auth/session/types";
 import { generateRoute } from "./generate";
 import { urlBriefRoutes } from "./briefs";
+import { inboxRoutes } from "./inbox";
 import type { InstallationGitHubPort } from "./github-port";
 import { capabilitiesRoute } from "./capabilities";
 import { createInstallationResolver } from "./installation-resolver";
@@ -64,5 +65,6 @@ export function apiRoutes(deps: AppDeps): ProductRouter<RequestLogEnv> {
   // model, so the engine's viewer-token fetch is the access check.
   app.route("/generate", generateRoute(deps, deps.urlBoxFallbackToken));
   app.route("/briefs", urlBriefRoutes(deps));
+  app.route("/inbox", inboxRoutes(deps, installations, resolver));
   return app;
 }

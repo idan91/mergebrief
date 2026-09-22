@@ -72,6 +72,7 @@ export async function fetchPullRequest(
       commitCount: data.commits,
       authorLogin: data.user?.login ?? null,
       closedAt: data.closed_at === null ? null : new Date(data.closed_at),
+      updatedAt: new Date(data.updated_at),
     };
     if (typeof data.base.ref === "string" && data.base.ref !== "") {
       info.baseRef = data.base.ref;

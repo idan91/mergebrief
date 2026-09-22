@@ -15,6 +15,23 @@ deprecation note here, removal only at a major.
 
 ## dev (2026-09-20)
 
+- **Added** `GET /api/inbox` (`list-inbox`): the viewer's pull requests
+  across every installation they reach plus their own pasted-URL rows, as
+  numbered pages of 25 (`items`, `page`, `pageSize`, `total`, no `hasNext`;
+  a page past the end returns no items with the true total). Query keys
+  `page`, `sort` (`updated` | `generated`), `state` (repeatable: `open`,
+  `draft`, `merged`, `closed`; default open and draft), `repo`, `review`
+  (`new`, `in-progress`, `reviewed`, `updated`), `author` (`mine`,
+  `others`, `all`), `installation`. Each item carries `reviewState`,
+  `behind`, `unreachable`, `generation`, `latestBriefAt`, `githubUpdatedAt`
+  and `stack`; the response carries `counts`, `viewer` and
+  `reachableInstallations`. A GitHub failure on the installations check
+  fails the list with `github-unavailable`. Pasted-URL rows are read live
+  first, for up to two seconds.
+- **Added** `DELETE /api/inbox/:repoId/:prNumber` (`delete-inbox-item`),
+  the owner-delete of a pasted-URL row. `DELETE /api/briefs/:repoId/:prNumber`
+  and `GET /api/pulls` and `GET /api/briefs` stay until the web app reads
+  the Inbox, then leave; `mergebrief pr` already reads `GET /api/inbox`.
 - **Removed** `GET /api/auth/installations` and `POST /api/auth/installations`
   with their operation ids `list-installations` and `select-installation`.
   No credential holds a current installation: every gated request resolves

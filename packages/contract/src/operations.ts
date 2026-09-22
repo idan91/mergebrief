@@ -7,6 +7,7 @@ import type { ValueOf } from "types/utils";
 export const ProductQueryIds = {
   LIST_PULLS: "list-pulls",
   LIST_URL_BRIEFS: "list-url-briefs",
+  LIST_INBOX: "list-inbox",
   LIST_REPOS: "list-repos",
   LIST_TOKENS: "list-tokens",
   LIST_COLLABORATORS: "list-collaborators",
@@ -34,6 +35,7 @@ export const ProductActionIds = {
   UNRESOLVE_THREAD: "unresolve-thread",
   GENERATE_BRIEF: "generate-brief",
   DELETE_URL_BRIEF: "delete-url-brief",
+  DELETE_INBOX_ITEM: "delete-inbox-item",
   MINT_TOKEN: "mint-token",
   REVOKE_TOKEN: "revoke-token",
   // The Review Session writes. Declared here ahead of their routes because

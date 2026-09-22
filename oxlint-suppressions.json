@@ -49,11 +49,6 @@
       "count": 1
     }
   },
-  "apps/api/src/routes/repos/pr/comments/schemas.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "apps/api/src/routes/repos/pr/conversation/consts.ts": {
     "house/no-em-dash": {
       "count": 2
@@ -74,22 +69,12 @@
       "count": 1
     }
   },
-  "apps/api/src/routes/repos/pr/review/schemas.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "apps/api/src/routes/repos/pr/scope.ts": {
     "house/comment-run": {
       "count": 1
     },
     "house/no-em-dash": {
       "count": 2
-    }
-  },
-  "apps/api/src/routes/repos/pr/wire-bounds.ts": {
-    "house/no-em-dash": {
-      "count": 1
     }
   },
   "apps/api/src/routes/repos/utils.ts": {
@@ -990,14 +975,6 @@
       "count": 1
     }
   },
-  "apps/worker/test/github-port.test.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    },
-    "house/test-title": {
-      "count": 1
-    }
-  },
   "apps/worker/test/payload.test.ts": {
     "house/no-em-dash": {
       "count": 1
@@ -1728,14 +1705,6 @@
   "packages/persistence/test/session.test.ts": {
     "house/no-em-dash": {
       "count": 3
-    }
-  },
-  "packages/persistence/test/tenant.test.ts": {
-    "house/no-em-dash": {
-      "count": 10
-    },
-    "house/test-title": {
-      "count": 8
     }
   },
   "packages/persistence/test/user-settings.test.ts": {

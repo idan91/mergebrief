@@ -34,7 +34,7 @@ compatibility.
    {"profile":"default","baseUrl":"https://mergebrief.your-org.example","tokenConfigured":true,"server":{"reachable":true,"authenticated":true,"version":"0.4.0"}}
    ```
 
-4. **First read** — your visible PRs across the organization (no repo
+4. **First read** — your Inbox, every installation you reach (no repo
    targeting needed):
 
    ```sh
@@ -98,7 +98,9 @@ show a rename.
 
 ### `pr [n]`
 
-No argument: your PR list, verbatim (`{"pulls":[...]}`). With a number: the
+No argument: the first page of your Inbox, verbatim (`{"items":[...],
+"page":1,"pageSize":25,"total":n,...}`), every installation you reach plus
+the pull requests you pasted. With a number: the
 PR's metadata. Critical fields: **`baseSha`/`headSha`** — the brief span
 your `submit` must name (never auto-fetched); `briefAvailable` — generation is
 webhook-driven, poll with backoff, nothing client-side triggers it;

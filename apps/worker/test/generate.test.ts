@@ -262,6 +262,7 @@ function stubGitHub(headSha: string): StubGitHub {
       commitCount: 3,
       authorLogin: "octocat",
       closedAt: null,
+      updatedAt: new Date("2026-09-20T10:00:00Z"),
       headRepo: { owner: "acme", repo: "widget" },
       baseRepo: { owner: "acme", repo: "widget" },
     },
@@ -569,6 +570,12 @@ describe("generate task, url-box world", () => {
       operation: "generate",
       target_type: "brief",
     });
+    // The run stamps GitHub's updated_at from the read it made.
+    const stamped = await createTenantRepository(
+      harness.handle,
+      ownerCtx,
+    ).pullRequests.getById(pr.id);
+    expect(stamped?.githubUpdatedAt).toEqual(new Date("2026-09-20T10:00:00Z"));
   });
 
   it("queries the context providers main.ts injected with the PR's metadata", async () => {

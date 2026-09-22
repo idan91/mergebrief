@@ -11,7 +11,7 @@ import {
   createDraftSchema,
   readSchema,
 } from "../../src/routes/repos/pr/session/schemas";
-import { rowIdSchema } from "../../src/routes/repos/pr/wire-bounds";
+import { rowIdSchema } from "../../src/routes/wire-bounds";
 
 const ANCHOR = {
   filePath: "src/app.ts",

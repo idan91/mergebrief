@@ -1,23 +1,14 @@
 import type { Context } from "hono";
-import { isRepoId } from "persistence";
 import { NotFound, BadRequest } from "../../shared-errors/api-error";
 import { stampAuditTarget } from "../../product-operations/audit";
 import type { AuthRouteDeps } from "../auth/session/types";
 import type { AuthzEnv } from "../authz";
-import { prNumberSchema } from "../repos/pr/wire-bounds";
+import { parseRepoIdParam, prNumberSchema } from "../wire-bounds";
+import inboxController from "../inbox/controller";
 import urlBriefsController from "./controller";
 import { listQuerySchema } from "./schemas";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
-
-/** Brand the `:repoId` segment; a malformed id is a hint-free 404. */
-function parseRepoIdParam(raw: string | undefined) {
-  if (raw === undefined || !/^\d+$/.test(raw)) {
-    return undefined;
-  }
-  const value = BigInt(raw);
-  return isRepoId(value) ? value : undefined;
-}
 
 export default function createHandlers(deps: AuthRouteDeps) {
   return {
@@ -51,7 +42,7 @@ export default function createHandlers(deps: AuthRouteDeps) {
       if (!prNumber.success) {
         throw new BadRequest();
       }
-      const deleted = await urlBriefsController.deleteUrlBrief(
+      const deleted = await inboxController.deleteInboxItem(
         { handle: deps.handle },
         {
           // Ownership derives from the CREDENTIAL, never a caller value:

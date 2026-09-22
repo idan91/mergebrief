@@ -17,8 +17,7 @@ import { stampAuditTarget } from "../../../../product-operations/audit";
 import type { AuthRouteDeps } from "../../../auth/session/types";
 import { createReviewerGitHubClient } from "../../../auth/reviewer-github-client";
 import type { AuthzEnv } from "../../../authz";
-import { prNumberSchema } from "../wire-bounds";
-import { commitShaSchema } from "../wire-bounds";
+import { commitShaSchema, prNumberSchema } from "../../../wire-bounds";
 import {
   resolveSessionWrite,
   throwSessionWriteFailure,

@@ -242,13 +242,13 @@ function cliDeps(body: unknown): {
 
 describe("mergebrief capabilities through runCli", () => {
   const REAL_SHAPED_BODY = {
-    // The real committed map maps list-pulls to `mergebrief pr`.
+    // The real committed map maps list-inbox to `mergebrief pr`.
     operations: [
       {
-        id: "list-pulls",
+        id: "list-inbox",
         kind: "query",
         classification: "read",
-        endpoint: "GET /api/pulls",
+        endpoint: "GET /api/inbox",
       },
     ],
     catalogFingerprint: CLI_CATALOG_FINGERPRINT,
@@ -257,7 +257,7 @@ describe("mergebrief capabilities through runCli", () => {
   it("exit 0: emits the synthesized shape with the real map and version", async () => {
     const { deps: d, out, err } = cliDeps(REAL_SHAPED_BODY);
     const code = await runCli(
-      ["capabilities", "--json", "--require", "list-pulls"],
+      ["capabilities", "--json", "--require", "list-inbox"],
       d,
     );
     expect(code).toBe(ExitCodes.OK);
@@ -266,7 +266,7 @@ describe("mergebrief capabilities through runCli", () => {
     expect(body).toMatchObject({
       cliVersion: CLI_VERSION,
       fingerprintMatch: true,
-      operations: [{ id: "list-pulls", cli: { command: "mergebrief pr" } }],
+      operations: [{ id: "list-inbox", cli: { command: "mergebrief pr" } }],
     });
   });
 

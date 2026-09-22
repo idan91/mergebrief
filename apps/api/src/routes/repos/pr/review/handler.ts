@@ -26,7 +26,7 @@ import {
   commitShaSchema,
   prNumberSchema,
   MAX_BODY_LENGTH,
-} from "../wire-bounds";
+} from "../../../wire-bounds";
 import reviewController from "./controller";
 import { throwSubmitFailure } from "./logic/wire-failures";
 import { OutcomeToEvent } from "./consts";
