@@ -1,9 +1,8 @@
-// The DEV file surface's list: the artifacts in MERGEBRIEF_OUT_DIR, as the
-// picker showed them before the DB list replaced it. Renders nothing without
-// a session (the readers refuse; `enabled` keeps the query idle), when no
-// directory is named (the listing is empty) or when it is empty. Callers gate
-// on `import.meta.env.PROD`, a build-time constant, so this leaves a
-// production bundle entirely.
+// The DEV file surface's list: the artifacts in MERGEBRIEF_OUT_DIR. Renders
+// nothing without a session (the readers refuse; `enabled` keeps the query
+// idle), when no directory is named (the listing is empty) or when it is
+// empty. Callers gate on `import.meta.env.PROD`, a build-time constant, so
+// this leaves a production bundle entirely.
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 

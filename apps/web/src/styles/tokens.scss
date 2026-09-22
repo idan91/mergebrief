@@ -30,7 +30,7 @@
     --green-400: #7fd1a0;
     --red-400: #ec8a8a;
     --amber-400: #e8c04a;
-    --peach-400: oklch(var(--accent-l) var(--accent-c) var(--brand-hue));
+    --brand-400: oklch(var(--accent-l) var(--accent-c) var(--brand-hue));
     --blue-400: #7da7d9;
     --violet-400: #b9a0e0;
     --mono: "IBM Plex Mono", ui-monospace, menlo, monospace;
@@ -68,7 +68,7 @@
     // ── Status and accent ────────────────────────────────────────────────
     // The one accent, always light: a fill under dark text and small marks
     // on a dark page (DESIGN.md, the Light Accent Rule).
-    --color-accent: var(--peach-400);
+    --color-accent: var(--brand-400);
     --color-positive: var(--green-400);
     --color-negative: var(--red-400);
     --color-warning: var(--amber-400);
@@ -112,7 +112,7 @@
     --syn-bracket: #d1d5da;
 
     // Inside an emphasis fill the dim syntax classes step up to keep 4.5:1;
-    // the keyword lands at 5.9:1 on the add fill over the warm list panel.
+    // the keyword lands at 5.9:1 on the add fill over the list panel.
     --emphasis-comment: #a8b1ba;
     --emphasis-keyword: #ffa1ab;
 
@@ -143,14 +143,7 @@
     --violet: var(--violet-400);
     --accent: var(--color-accent);
     --muted: var(--color-text-2);
-    --danger: var(--color-negative);
-    --color-surface: var(--color-surface-1);
-    --color-surface-raised: var(--color-surface-1);
     --color-text: var(--color-text-1);
-    --color-text-muted: var(--color-text-2);
-    --color-text-faint: var(--color-text-3);
-    --color-border: var(--color-outline-1);
-    --color-border-strong: var(--color-outline-2);
 
     // ── Type scale ───────────────────────────────────────────────────────
     // Eight steps, 10/11/12/13/15/17/20/24 — deltas 1,1,1,2,2,3,4, so the
@@ -178,14 +171,9 @@
     // justification and a line-scoped stylelint disable.
 
     // ── Radius scale ─────────────────────────────────────────────────────
-    // The three corners DESIGN.md names: chips and keys, controls, and the
-    // list, the URL box and menus. Round is kept for people.
     --radius-s: 5px;
     --radius-m: 8px;
     --radius-l: 10px;
-
-    // The previous six steps, kept until the Brief page moves onto the three
-    // above: xs and sm fold into s, md is m, lg is l, pill retires.
     --radius-xs: 2px; // tiny bars, markers, inner slivers
     --radius-sm: 4px; // chips, inputs, inner corners
     --radius-md: 8px; // THE card / panel corner
@@ -229,22 +217,16 @@
     );
 
     // ── Elevation ────────────────────────────────────────────────────────
-    // Three steps plus the upward cast.
-    --shadow-elevation-sm: 0 8px 24px rgb(0 0 0 / 40%); // small popovers
+    // Two steps and what floats.
     --shadow-elevation-md: 0 12px 40px rgb(0 0 0 / 22%); // soft raised cards
     --shadow-elevation-lg: 0 16px 48px rgb(0 0 0 / 55%); // menus, drawers, modals
     --shadow-float: 0 18px 44px -10px rgb(0 0 0 / 70%); // what floats: menus, callouts
-
-    // Casts UPWARD (negative y) — bottom-anchored bars lifting off the page.
-    // Unique geometry; no step on the ladder above matches it.
-    --shadow-elevation-up: 0 -24px 80px rgb(0 0 0 / 60%);
 
     // --shadow-ring-clear is the transparent end-state of the comment-flash
     // keyframes: it must keep --shadow-ring-highlight's geometry or the
     // animation jumps.
     --shadow-ring-highlight: 0 0 0 2px var(--color-comment-highlight);
     --shadow-ring-clear: 0 0 0 2px transparent;
-    --shadow-ring-muted: 0 0 0 3px var(--color-outline-2);
     --header-pad-block: #{functions.to-rem(11px)};
     --header-line-gap: #{functions.to-rem(6px)};
 

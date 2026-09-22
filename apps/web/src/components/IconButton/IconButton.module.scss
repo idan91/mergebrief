@@ -12,9 +12,9 @@
     cursor: pointer;
     place-items: center;
     transition:
-      background 0.15s,
-      border-color 0.15s,
-      color 0.15s;
+      background var(--motion-fast),
+      border-color var(--motion-fast),
+      color var(--motion-fast);
 
     &:not([aria-disabled="true"]):hover {
       border-color: var(--line2);

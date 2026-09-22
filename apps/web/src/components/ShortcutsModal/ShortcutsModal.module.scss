@@ -32,12 +32,10 @@
 
   .sectionHeading {
     margin-block-end: functions.to-rem(8px);
-    color: var(--faint);
-    font-size: var(--font-size-sm);
+    color: var(--text);
+    font-size: var(--font-size-xl);
     font-weight: 600;
     line-height: 1.45;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
   }
 
   .list {

@@ -8,8 +8,6 @@
 
   .form {
     --url-box-edge: color-mix(in srgb, var(--color-text-1) 9%, transparent);
-
-    /* DESIGN.md's URL box shadows: a faint edge and a soft lift at rest, the accent ring and warm cast on focus. */
     --url-box-shadow-rest:
       inset 0 0 0 1px var(--url-box-edge), 0 14px 32px -16px rgb(0 0 0 / 60%);
     --url-box-shadow-focus:
