@@ -6,7 +6,9 @@ import { getServerEnv } from "../../../server/env";
 import { LocalBriefErrorCodes } from "../utils/briefErrors";
 
 // The dev file surface. A production build never serves it whatever the
-// environment says: a forgotten variable must not expose `readFile`.
+// environment says: a forgotten variable must not expose `readFile`. A
+// development build serves it only where `MERGEBRIEF_OUT_DIR` names a
+// directory; unset, Home lists rows alone.
 
 let cachedRoot: string | undefined;
 
@@ -43,12 +45,12 @@ export function localBriefsDir(): string | undefined {
   }
   const raw = getServerEnv()["MERGEBRIEF_OUT_DIR"];
   if (raw === undefined || raw === "") {
-    return join(workspaceRoot(), "tools/categorizer/out");
+    return undefined;
   }
   return isAbsolute(raw) ? raw : resolve(workspaceRoot(), raw);
 }
 
-/** The directory, or a refusal (production build) the handlers curate. */
+/** The directory, or a refusal (production build, no directory named) the handlers curate. */
 export function requireLocalBriefsDir(): string {
   const dir = localBriefsDir();
   if (dir === undefined) {

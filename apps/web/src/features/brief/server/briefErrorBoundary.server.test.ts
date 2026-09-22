@@ -5,7 +5,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { appI18n } from "../../../i18n/I18nProvider";
 
-import { readComparisonMarks, readLocalBrief } from "./brief.server";
+import { getServerLogger } from "../../../server/logger";
+import {
+  listLocalBriefs,
+  readComparisonMarks,
+  readLocalBrief,
+} from "./brief.server";
 import { requireLocalBriefsDir } from "./outDir.server";
 import {
   briefErrorCode,
@@ -112,7 +117,7 @@ describe("briefErrorCode / briefErrorDetail", () => {
   });
 });
 
-describe("a production build", () => {
+describe("the file surface off", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
   });
@@ -122,6 +127,21 @@ describe("a production build", () => {
     expect(() => requireLocalBriefsDir()).toThrow(
       LocalBriefErrorCodes.DISABLED,
     );
+  });
+
+  it("is refused too where no directory is named", () => {
+    vi.stubEnv("MERGEBRIEF_OUT_DIR", "");
+    expect(() => requireLocalBriefsDir()).toThrow(
+      LocalBriefErrorCodes.DISABLED,
+    );
+  });
+
+  it("lists nothing where no directory is named, without a warning", async () => {
+    vi.stubEnv("MERGEBRIEF_OUT_DIR", "");
+    const warn = vi.spyOn(getServerLogger(), "warn");
+
+    await expect(listLocalBriefs()).resolves.toEqual([]);
+    expect(warn).not.toHaveBeenCalled();
   });
 
   it("passes that refusal through the render gate unchanged", () => {

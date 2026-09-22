@@ -50,7 +50,7 @@ dev-only `MERGEBRIEF_OUT_DIR` from `apps/web/.env`. `PUBLIC_BASE_URL` is NOT one
 vite reads it from the ambient environment when the dev server boots, so export it in the
 shell rather than putting it in that file.
 Local briefs are served only to a signed-in session, so the tunnel does not expose
-`MERGEBRIEF_OUT_DIR` to a cookieless visitor.
+`MERGEBRIEF_OUT_DIR` to a cookieless visitor; leave it unset and Home lists rows alone.
 
 ## 3. Run the app
 

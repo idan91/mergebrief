@@ -1,14 +1,14 @@
 // The DEV file surface's list: the artifacts in MERGEBRIEF_OUT_DIR, as the
 // picker showed them before the DB list replaced it. Renders nothing without
-// a session (the readers refuse; `enabled` keeps the query idle), when the
-// directory is unset (the query refuses) or when it is empty. Callers gate on
-// `import.meta.env.PROD`, a build-time constant, so this leaves a production
-// bundle entirely.
+// a session (the readers refuse; `enabled` keeps the query idle), when no
+// directory is named (the listing is empty) or when it is empty. Callers gate
+// on `import.meta.env.PROD`, a build-time constant, so this leaves a
+// production bundle entirely.
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
 import { buildLocalBriefsQueryOptions } from "../../queries";
+import { LocalBriefRow } from "./LocalBriefRow/LocalBriefRow";
 import styles from "./LocalBriefsSection.module.scss";
 
 export interface LocalBriefsSectionProps {
@@ -27,39 +27,18 @@ export function LocalBriefsSection({ enabled }: LocalBriefsSectionProps) {
   }
 
   return (
-    <>
-      <h2 className={styles["listLabel"]}>{t("shell.localBriefs")}</h2>
-      <ul className={styles["list"]}>
+    <section
+      aria-labelledby="local-briefs-heading"
+      className={styles["section"]}
+    >
+      <h2 className={styles["heading"]} id="local-briefs-heading">
+        {t("shell.localBriefs")}
+      </h2>
+      <ol className={styles["list"]}>
         {briefs.map((brief) => (
-          <li key={brief.id}>
-            <Link
-              className={styles["link"]}
-              params={{ briefId: brief.id }}
-              to="/briefs/$briefId"
-            >
-              <span className={styles["linkTitle"]}>
-                <span
-                  className={styles["artifactPill"]}
-                  data-kind={brief.artifactKind}
-                >
-                  {brief.artifactKind === "delta"
-                    ? t("shell.artifactDelta")
-                    : t("shell.artifactBrief")}
-                </span>
-                {brief.title}
-              </span>
-              <span className={styles["meta"]}>
-                {brief.repo} #{brief.number} · {brief.id} ·{" "}
-                {brief.artifactKind === "delta" &&
-                brief.baselineSha &&
-                brief.headSha
-                  ? `${brief.baselineSha.slice(0, 7)} → ${brief.headSha.slice(0, 7)}`
-                  : brief.sha.slice(0, 7)}
-              </span>
-            </Link>
-          </li>
+          <LocalBriefRow brief={brief} key={brief.id} />
         ))}
-      </ul>
-    </>
+      </ol>
+    </section>
   );
 }

@@ -4,7 +4,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 
 // ONE artifact store: the workspace-root-anchored dir generation writes to.
-import { requireLocalBriefsDir } from "./outDir.server";
+import { localBriefsDir, requireLocalBriefsDir } from "./outDir.server";
 import type {
   AddressedReviewComment,
   Brief,
@@ -89,9 +89,12 @@ interface LocalComparisonMarksEntry extends ComparisonMarksSummary {
 }
 
 async function readLocalBriefSummaries(): Promise<LocalBriefSummary[]> {
+  // The surface off is zero local briefs, not a refusal to curate.
+  const dir = localBriefsDir();
+  if (dir === undefined) return [];
   let entries: string[];
   try {
-    entries = await readdir(requireLocalBriefsDir());
+    entries = await readdir(dir);
   } catch (error) {
     // No out dir yet, a fresh checkout/container that never ran the local
     // generator. Zero local briefs, not a 500.
