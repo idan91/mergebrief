@@ -144,6 +144,10 @@ globalThis.fetch = async (input, init) => {
       permissions: { push: false },
     });
   }
+  if (pathname === `/repos/${REPO_SLUG}/pulls`) {
+    // The Inbox reads the open list for its stacks; the fixture has none.
+    return jsonResponse([]);
+  }
   const compare = new RegExp(
     `^/repos/${REPO_SLUG}/compare/(?<basehead>.+)$`,
   ).exec(pathname);

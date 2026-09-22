@@ -13,6 +13,19 @@ The contract discipline (ADR 0029): response shapes change additively
 within a major; removals/renames ship expand/contract — new field first,
 deprecation note here, removal only at a major.
 
+## dev (2026-09-21)
+
+- **Changed** `stack` on `GET /api/inbox` items: for a pull request GitHub
+  still lists as open, the position now comes from the repository's live
+  open-PR list, read with the viewer's token and cached per session for a
+  minute, the same read `GET /api/repos/:repoId/pulls/:prNumber/stack`
+  makes. A row the list no longer holds, or whose list GitHub refused,
+  keeps the position stored with its latest brief, as before; a row the
+  list holds as a fork or on its own is `null` even when a stored position
+  said otherwise. A url row's list is read under the name its last
+  successful live read recorded after matching the repository id; a row
+  GitHub no longer shows the viewer keeps its stored position.
+
 ## dev (2026-09-20)
 
 - **Added** `viewer` on `GET /api/auth/session`: `{ login, avatarUrl }` for

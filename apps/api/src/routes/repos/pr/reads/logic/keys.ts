@@ -33,11 +33,3 @@ export function buildFileBlobCacheKey(input: {
 }): string {
   return `${input.sessionTokenHash}:${String(input.repoId)}:${input.ref}:${input.path}`;
 }
-
-/** Per-session open-PR list key: one list serves every PR of the repo. */
-export function buildOpenPullsCacheKey(input: {
-  readonly sessionTokenHash: string;
-  readonly repoId: RepoId;
-}): string {
-  return `${input.sessionTokenHash}:${String(input.repoId)}`;
-}

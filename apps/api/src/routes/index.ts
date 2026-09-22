@@ -15,6 +15,9 @@ import { createAccessibleInstallationsResolver } from "./auth/accessible-install
 import type { AuthDeps } from "./auth/session/types";
 import { generateRoute } from "./generate";
 import { inboxRoutes } from "./inbox";
+import type { OpenPullRequest } from "github";
+import { INBOX_OPEN_PULLS_CACHE_MAX_ENTRIES } from "./inbox/consts";
+import { createTtlCache } from "./ttl-cache";
 import type { InstallationGitHubPort } from "./github-port";
 import { capabilitiesRoute } from "./capabilities";
 import { createInstallationResolver } from "./installation-resolver";
@@ -56,6 +59,12 @@ export function apiRoutes(deps: AppDeps): ProductRouter<RequestLogEnv> {
   // allowed-set caches, so one GitHub walk serves them all inside the TTL.
   const installations = createAccessibleInstallationsResolver(deps);
   const resolver = createInstallationResolver(deps, installations);
+  // The Inbox's own open-PR lists, viewer token only: the Brief page's stack
+  // read may fill its cache through the operator PAT, and a list the viewer
+  // cannot see must never place their rows.
+  const inboxOpenPullsCache = createTtlCache<readonly OpenPullRequest[]>(
+    INBOX_OPEN_PULLS_CACHE_MAX_ENTRIES,
+  );
   app.route("/auth", authRoutes(deps));
   app.route("/version", versionRoute(deps, deps.serverVersion ?? "dev"));
   app.route("/capabilities", capabilitiesRoute(deps));
@@ -63,6 +72,9 @@ export function apiRoutes(deps: AppDeps): ProductRouter<RequestLogEnv> {
   // Session-gated only: the pasted URL's repo is outside the installation
   // model, so the engine's viewer-token fetch is the access check.
   app.route("/generate", generateRoute(deps, deps.urlBoxFallbackToken));
-  app.route("/inbox", inboxRoutes(deps, installations, resolver));
+  app.route(
+    "/inbox",
+    inboxRoutes(deps, installations, resolver, inboxOpenPullsCache),
+  );
   return app;
 }

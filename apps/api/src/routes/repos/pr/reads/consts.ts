@@ -16,7 +16,5 @@ export const FILE_BLOB_CACHE_TTL_MS = 60 * 1000;
  * some multiple of that. Sized to hold every file of a large review while
  * sweeping only on write. */
 export const FILE_BLOB_CACHE_MAX_ENTRIES = 64;
-/** Per-session open-PR list TTL: the stack is navigation, a minute stale is fine. */
-export const OPEN_PULLS_CACHE_TTL_MS = 60 * 1000;
 /** One entry per (session, repo); a viewer rarely has more than a few repos open. */
 export const OPEN_PULLS_CACHE_MAX_ENTRIES = 200;

@@ -77,10 +77,32 @@ interface StubCounts {
   graphql: number;
 }
 
-/** `GET /user/installations` answers the reachable set; GraphQL the live read. */
+interface OpenListEntry {
+  readonly number: number;
+  readonly head: string;
+  readonly base: string;
+}
+
+function answerOpenList(entries: readonly OpenListEntry[]): Response {
+  const repo = { name: "r", owner: { login: "o" } };
+  return jsonResponse(
+    entries.map((entry) => ({
+      number: entry.number,
+      title: `PR ${entry.number}`,
+      head: { ref: entry.head, repo },
+      base: { ref: entry.base, repo },
+    })),
+  );
+}
+
+/**
+ * `GET /user/installations` answers the reachable set; GraphQL the live
+ * read; the repo's open list the stacks, empty unless a test hands one.
+ */
 function stubGitHub(
   installationsStatus = 200,
   repositoriesStatus = 200,
+  openList: readonly OpenListEntry[] | number = [],
 ): StubCounts {
   const counts: StubCounts = { installations: 0, graphql: 0 };
   vi.stubGlobal(
@@ -105,6 +127,12 @@ function stubGitHub(
           total_count: 1,
           repositories: [{ id: REPO_A, full_name: "o/r" }],
         });
+      }
+      if (/\/repos\/[^/]+\/[^/]+\/pulls\?/.test(url)) {
+        if (typeof openList === "number") {
+          return jsonResponse({ message: "down" }, openList);
+        }
+        return answerOpenList(openList);
       }
       if (url.endsWith("/graphql")) {
         counts.graphql += 1;
@@ -274,6 +302,82 @@ describe("GET /api/inbox", () => {
 
     expect(res.status).toBe(401);
     expect(counts.installations).toBe(0);
+  });
+
+  it("a row's stack comes from the repository's live open list", async () => {
+    stubGitHub(200, 200, [
+      { number: 7, head: "feat/one", base: "main" },
+      { number: 8, head: "feat/two", base: "feat/one" },
+      { number: 9, head: "feat/three", base: "feat/two" },
+    ]);
+    const cookie = await seedSession(harness.handle, kp);
+    await seedPr(harness.handle, { ctx: TENANT, repoId: REPO_A, prNumber: 8 });
+    await seedPr(harness.handle, { ctx: TENANT, repoId: REPO_A, prNumber: 3 });
+
+    const body = await readBody(await get("/api/inbox", cookie));
+
+    const byNumber = new Map(
+      body.items.map((item) => [item["prNumber"], item["stack"]]),
+    );
+    expect(byNumber.get(8)).toEqual({ index: 2, size: 3 });
+    // A row the open list does not hold keeps its stored snapshot: none.
+    expect(byNumber.get(3)).toBeNull();
+  });
+
+  it("a refused open list keeps the stored stack snapshot", async () => {
+    stubGitHub(200, 200, 404);
+    const cookie = await seedSession(harness.handle, kp);
+    const pr = await seedPr(harness.handle, {
+      ctx: TENANT,
+      repoId: REPO_A,
+      prNumber: 8,
+    });
+    await seedBrief(
+      harness.handle,
+      TENANT,
+      pr.id,
+      JSON.stringify({
+        stack: {
+          index: 1,
+          members: [
+            { number: 8, title: "PR 8" },
+            { number: 9, title: "PR 9" },
+          ],
+        },
+      }),
+    );
+
+    const body = await readBody(await get("/api/inbox", cookie));
+
+    expect(body.items[0]?.["stack"]).toEqual({ index: 1, size: 2 });
+  });
+
+  it("a row the live list holds on its own clears its stored snapshot", async () => {
+    stubGitHub(200, 200, [{ number: 8, head: "feat/one", base: "main" }]);
+    const cookie = await seedSession(harness.handle, kp);
+    const pr = await seedPr(harness.handle, {
+      ctx: TENANT,
+      repoId: REPO_A,
+      prNumber: 8,
+    });
+    await seedBrief(
+      harness.handle,
+      TENANT,
+      pr.id,
+      JSON.stringify({
+        stack: {
+          index: 1,
+          members: [
+            { number: 8, title: "PR 8" },
+            { number: 9, title: "PR 9" },
+          ],
+        },
+      }),
+    );
+
+    const body = await readBody(await get("/api/inbox", cookie));
+
+    expect(body.items[0]?.["stack"]).toBeNull();
   });
 
   it("lists the reachable installation's rows and the viewer's url rows", async () => {

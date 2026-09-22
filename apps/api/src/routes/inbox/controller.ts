@@ -98,11 +98,18 @@ export default {
       page: input.page,
       pageSize: INBOX_PAGE_SIZE,
     });
-    const generations = await readLatestGenerations(deps, page.items);
+    const [generations, liveStacks] = await Promise.all([
+      readLatestGenerations(deps, page.items),
+      deps.readLiveStacks?.(page.items),
+    ]);
 
     return {
       items: page.items.map((row) =>
-        shapeInboxItem(row, generations.get(row.pullRequest.id)),
+        shapeInboxItem(
+          row,
+          generations.get(row.pullRequest.id),
+          liveStacks?.get(row.pullRequest.id),
+        ),
       ),
       page: page.page,
       pageSize: page.pageSize,

@@ -19,3 +19,26 @@ export async function runInBatches<Entry, Outcome>(
   }
   return outcomes;
 }
+
+/**
+ * Run `work` over `entries` with at most `width` in flight, each finishing
+ * entry freeing its slot for the next; for calls whose durations vary, a
+ * slow entry never idles the other slots. Order of completion is not kept.
+ */
+export async function runInPool<Entry>(
+  entries: readonly Entry[],
+  width: number,
+  work: (entry: Entry) => Promise<void>,
+): Promise<void> {
+  let next = 0;
+  async function drain(): Promise<void> {
+    while (next < entries.length) {
+      const entry = entries[next];
+      next += 1;
+      if (entry !== undefined) await work(entry);
+    }
+  }
+  const slots = Math.min(Math.max(1, width), entries.length);
+  const workers = Array.from({ length: slots }, () => drain());
+  await Promise.all(workers);
+}

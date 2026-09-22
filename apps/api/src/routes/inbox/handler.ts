@@ -1,4 +1,10 @@
 import { ApiErrorCodes, InboxQueryKeys } from "contract";
+import {
+  createUserOctokit,
+  listOpenPullRequests,
+  type OpenPullRequest,
+  type RepositoryRef,
+} from "github";
 import type { Context } from "hono";
 import type { InboxFilters } from "persistence";
 import type { Mutable } from "types/utils";
@@ -8,6 +14,7 @@ import {
   NotFound,
   Unauthorized,
 } from "../../shared-errors/api-error";
+import { isGitHubDenial } from "../../shared-errors/failures";
 import { stampAuditTarget } from "../../product-operations/audit";
 import type { AccessibleInstallationsResolver } from "../auth/accessible-installations";
 import type { InstallationResolver } from "../installation-resolver";
@@ -15,8 +22,11 @@ import { createReviewerGitHubClient } from "../auth/reviewer-github-client";
 import type { AuthRouteDeps } from "../auth/session/types";
 import type { AuthzEnv } from "../authz";
 import { refreshUrlPullRequests } from "../live-read";
+import type { TtlCache } from "../ttl-cache";
 import { parseRepoIdParam, prNumberSchema } from "../wire-bounds";
+import { INBOX_LIVE_BUDGET_MS } from "./consts";
 import inboxController from "./controller";
+import { readLiveStacks } from "./logic/live-stacks";
 import { inboxQuerySchema, type InboxQuery } from "./schemas";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
@@ -38,6 +48,7 @@ export default function createHandlers(
   deps: AuthRouteDeps,
   installations: AccessibleInstallationsResolver,
   repos: InstallationResolver,
+  openPullsCache: TtlCache<readonly OpenPullRequest[]>,
 ) {
   return {
     listInbox: async (c: Context<AuthzEnv>) => {
@@ -80,10 +91,17 @@ export default function createHandlers(
       // The viewer's own url rows are read live first, under the ceiling;
       // the rows are theirs, so the operator PAT may answer for a brief
       // generated through it. A failure serves the stored rows.
+      const github = createReviewerGitHubClient(deps, session, log);
+      const listOpenPulls = (target: RepositoryRef) =>
+        github.runRead(
+          (token) => listOpenPullRequests(createUserOctokit(token), target),
+          isGitHubDenial,
+        );
+      const startedAt = Date.now();
       await refreshUrlPullRequests(
         {
           handle: deps.handle,
-          github: createReviewerGitHubClient(deps, session, log),
+          github,
           fallbackToken: deps.urlBoxFallbackToken,
           log,
         },
@@ -91,7 +109,22 @@ export default function createHandlers(
       );
 
       const body = await inboxController.listInbox(
-        { handle: deps.handle },
+        {
+          handle: deps.handle,
+          readLiveStacks: (rows) =>
+            readLiveStacks(
+              { listOpenPulls, openPullsCache, log },
+              {
+                sessionTokenHash: session.sessionTokenHash,
+                rows,
+                repoNames: allowed.value.allowed,
+                budgetMs: Math.max(
+                  0,
+                  INBOX_LIVE_BUDGET_MS - (Date.now() - startedAt),
+                ),
+              },
+            ),
+        },
         {
           installations: reachable.value.installations,
           allowedRepoIds: [...allowed.value.allowed.keys()],

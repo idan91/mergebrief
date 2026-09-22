@@ -41,7 +41,6 @@ import {
 import {
   buildDiffCacheKey,
   buildFileBlobCacheKey,
-  buildOpenPullsCacheKey,
   composeBriefContextBody,
 } from "./logic/keys";
 import {
@@ -56,8 +55,11 @@ import {
   DIFF_CACHE_TTL_MS,
   FILE_BLOB_CACHE_TTL_MS,
   FILE_BLOB_MAX_BYTES,
-  OPEN_PULLS_CACHE_TTL_MS,
 } from "./consts";
+import {
+  buildOpenPullsCacheKey,
+  OPEN_PULLS_CACHE_TTL_MS,
+} from "../../../open-pulls-cache";
 import type {
   DiffFailure,
   FileRangeFailure,

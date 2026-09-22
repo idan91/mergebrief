@@ -16,8 +16,11 @@ export function shapeStack(snapshot: unknown): InboxStackView | null {
 export function shapeInboxItem(
   row: InboxRow,
   latestGeneration: GenerationRow | undefined,
+  liveStack?: InboxStackView | null,
 ): InboxItem {
   const { pullRequest, latestBrief } = row;
+  const storedStack =
+    latestBrief === undefined ? null : shapeStack(latestBrief.stack);
   return {
     repoId: String(pullRequest.repoId),
     repoSlug: pullRequest.repoSlug,
@@ -37,6 +40,6 @@ export function shapeInboxItem(
     generation: buildGenerationSummary(latestGeneration, undefined),
     latestBriefAt: latestBrief?.createdAt.toISOString() ?? null,
     githubUpdatedAt: pullRequest.githubUpdatedAt?.toISOString() ?? null,
-    stack: latestBrief === undefined ? null : shapeStack(latestBrief.stack),
+    stack: liveStack === undefined ? storedStack : liveStack,
   };
 }

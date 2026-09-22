@@ -14,15 +14,23 @@ import type { AccessibleInstallationsResolver } from "../auth/accessible-install
 import type { AuthRouteDeps } from "../auth/session/types";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "../authz";
 import type { InstallationResolver } from "../installation-resolver";
+import type { OpenPullRequest } from "github";
+import type { TtlCache } from "../ttl-cache";
 import createInboxHandlers from "./handler";
 
 export function inboxRoutes(
   deps: AuthRouteDeps,
   installations: AccessibleInstallationsResolver,
   repos: InstallationResolver,
+  openPullsCache: TtlCache<readonly OpenPullRequest[]>,
 ): ProductRouter<AuthzEnv> {
   const app = productRouter<AuthzEnv>();
-  const handlers = createInboxHandlers(deps, installations, repos);
+  const handlers = createInboxHandlers(
+    deps,
+    installations,
+    repos,
+    openPullsCache,
+  );
   app.use("*", sessionLayer(deps), accessStampLayer());
   app.query(
     {
