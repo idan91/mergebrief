@@ -30,6 +30,7 @@ import {
 } from "persistence";
 import {
   E2E_VIEWER_LOGIN,
+  INBOX_BEHIND_ROW,
   INBOX_INSTALLATIONS,
   INBOX_ROWS,
   InboxSeedStates,
@@ -40,6 +41,7 @@ import {
   E2E_HIDDEN_INSTALLATION,
   E2E_OWNER_USER_ID,
   E2E_REPO_ID,
+  E2E_REPO_SLUG,
   E2E_SESSION_COOKIE,
   E2E_SESSION_KEY,
   E2E_STATE_VIEWERS,
@@ -161,6 +163,27 @@ async function seedInboxRow(
   }
 }
 
+/** A second URL row with a brief at an older head; the stub's live read reports a newer one. */
+async function seedBehindRow(
+  handle: AppDatabase,
+  owner: ReviewerId,
+  repoId: RepoId,
+): Promise<void> {
+  const ctx: ScopeContext = { ownerUserId: owner };
+  const written = await createTenantRepository(handle, ctx).pullRequests.upsert(
+    {
+      repoId,
+      prNumber: INBOX_BEHIND_ROW.prNumber,
+      repoSlug: E2E_REPO_SLUG,
+      title: INBOX_BEHIND_ROW.title,
+      authorLogin: "mira-k",
+      state: PrStates.OPEN,
+    },
+  );
+  if (!isPullRequestRowId(written.id)) throw new Error("bad pull request id");
+  await writeBrief(handle, ctx, written.id, INBOX_BEHIND_ROW.briefHead, 1);
+}
+
 /** The hidden-state viewer's one row: merged, so the default status filter shows nothing. */
 async function seedMergedRow(
   handle: AppDatabase,
@@ -255,6 +278,7 @@ async function main(): Promise<void> {
     for (const row of INBOX_ROWS) {
       await seedInboxRow(handle, owner, row, seededAt);
     }
+    await seedBehindRow(handle, owner, repoId);
     await seedMergedRow(handle, seededAt);
 
     // The browser sessions: the owner-world one whose cookie the storage

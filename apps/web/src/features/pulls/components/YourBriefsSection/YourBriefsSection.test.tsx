@@ -41,6 +41,7 @@ function pull(overrides: Partial<PrSummary>): PrSummary {
     draft: false,
     viewerIsAuthor: false,
     viewerCanResolve: false,
+    behind: false,
     generation: {
       status: "succeeded",
       phase: null,
@@ -55,7 +56,7 @@ function pull(overrides: Partial<PrSummary>): PrSummary {
 }
 
 describe("YourBriefsSection", () => {
-  it("renders nothing while signed out — the pulls section owns the CTA", () => {
+  it("renders nothing while signed out; the pulls section owns the CTA", () => {
     renderWithClient(<YourBriefsSection session={{ kind: "logged-out" }} />);
     expect(screen.queryByRole("heading")).toBeNull();
   });
@@ -80,7 +81,7 @@ describe("YourBriefsSection", () => {
     ).toBeTruthy();
   });
 
-  it("delete fires DELETE /api/briefs/:repoId/:prNumber and disables the row's button", async () => {
+  it("delete fires the owner delete and disables the row's button", async () => {
     const fetchMock = vi.fn(
       async () => new Response(JSON.stringify({ ok: true }), { status: 200 }),
     );

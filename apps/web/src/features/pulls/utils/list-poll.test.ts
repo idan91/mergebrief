@@ -20,6 +20,7 @@ function makeRow(status: GenerationStatus | null): PrSummary {
     draft: false,
     viewerIsAuthor: false,
     viewerCanResolve: false,
+    behind: false,
     generation:
       status === null
         ? null

@@ -179,6 +179,22 @@ describe("InboxList", () => {
     ).toBeTruthy();
   });
 
+  it("a row behind GitHub carries the new-commits chip in its name", async () => {
+    await renderInRouter(
+      <InboxList
+        items={[makeItem({ behind: true })]}
+        sort={InboxSorts.UPDATED}
+      />,
+    );
+
+    expect(
+      screen.getByRole("link", {
+        name: /GitHub has commits this brief does not cover\./,
+      }),
+    ).toBeTruthy();
+    expect(screen.getByText("new commits")).toBeTruthy();
+  });
+
   it("j moves the keyboard cursor and Enter opens the row under it", async () => {
     const { router } = await renderInRouter(
       <InboxList

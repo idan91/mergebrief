@@ -49,6 +49,11 @@ function makeItem(overrides: Partial<InboxItem> = {}): InboxItem {
 
 const URL_ROW = makeItem({ source: "url", installationId: null });
 
+function readRequestBody(init: RequestInit | undefined): unknown {
+  const body = init?.body;
+  return typeof body === "string" ? JSON.parse(body) : undefined;
+}
+
 function readRequestUrl(input: string | URL | Request | undefined): string {
   if (input === undefined) return "";
   if (typeof input === "string") return input;
@@ -59,10 +64,11 @@ function readRequestUrl(input: string | URL | Request | undefined): string {
 async function renderActions(item: InboxItem) {
   const onAnnounce = vi.fn();
   const onDeleted = vi.fn();
-  await renderInRouter(
+  const { queryClient } = await renderInRouter(
     <RowActions item={item} onAnnounce={onAnnounce} onDeleted={onDeleted} />,
   );
-  return { onAnnounce, onDeleted };
+  const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+  return { onAnnounce, onDeleted, invalidate };
 }
 
 async function openMenu() {
@@ -135,6 +141,59 @@ describe("RowActions", () => {
     expect(init?.method).toBe("DELETE");
     expect(onAnnounce).toHaveBeenCalledWith("Deleted");
     expect(onDeleted).toHaveBeenCalledTimes(1);
+  });
+
+  it("a row behind GitHub regenerates through the paste path", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ repoId: "424242", prNumber: 7 }), {
+        status: 202,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const { onAnnounce, invalidate } = await renderActions(
+      makeItem({ behind: true }),
+    );
+
+    await openMenu();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("menuitem", { name: "Regenerate" }));
+    });
+
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(readRequestUrl(url)).toMatch(/\/api\/generate$/);
+    expect(init?.method).toBe("POST");
+    expect(readRequestBody(init)).toEqual({
+      url: "https://github.com/acme/payments/pull/7",
+    });
+    expect(onAnnounce).toHaveBeenCalledWith("Regenerate queued");
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["inbox"] });
+  });
+
+  it("a refused regenerate announces and keeps the row", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ code: "unauthorized" }), { status: 401 }),
+    );
+    const { onAnnounce } = await renderActions(makeItem({ behind: true }));
+
+    await openMenu();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("menuitem", { name: "Regenerate" }));
+    });
+
+    expect(onAnnounce).toHaveBeenCalledWith(
+      expect.stringContaining("sign in again"),
+    );
+  });
+
+  it("a current row, or one with no repository name, has no Regenerate", async () => {
+    await renderActions(makeItem());
+    await openMenu();
+    expect(screen.queryByRole("menuitem", { name: "Regenerate" })).toBeNull();
+    cleanup();
+
+    await renderActions(makeItem({ behind: true, repoSlug: null }));
+    await openMenu();
+    expect(screen.queryByRole("menuitem", { name: "Regenerate" })).toBeNull();
   });
 
   it("an installation row has no Delete", async () => {

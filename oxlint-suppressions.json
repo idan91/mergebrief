@@ -731,11 +731,6 @@
       "count": 1
     }
   },
-  "apps/web/src/features/pulls/components/PrBrief/PrBriefContent/DbBriefControls/DbBriefControls.tsx": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "apps/web/src/features/pulls/components/PrBrief/PrBriefContent/DbBriefControls/DbTimelineNavigator/DbTimelineNavigator.test.tsx": {
     "house/test-title": {
       "count": 4
@@ -756,14 +751,6 @@
       "count": 1
     }
   },
-  "apps/web/src/features/pulls/components/YourBriefsSection/YourBriefsSection.test.tsx": {
-    "house/no-em-dash": {
-      "count": 1
-    },
-    "house/test-title": {
-      "count": 1
-    }
-  },
   "apps/web/src/features/pulls/hooks/useMarkReady.test.tsx": {
     "house/no-em-dash": {
       "count": 1
@@ -775,14 +762,6 @@
   "apps/web/src/features/pulls/hooks/useMarkReady.ts": {
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "apps/web/src/features/pulls/hooks/usePrBriefPlans.test.tsx": {
-    "house/no-em-dash": {
-      "count": 2
-    },
-    "house/test-title": {
-      "count": 3
     }
   },
   "apps/web/src/features/pulls/transport/markReady.test.ts": {

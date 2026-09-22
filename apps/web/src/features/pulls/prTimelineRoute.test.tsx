@@ -73,6 +73,7 @@ function timelineMeta(overrides: Partial<PrSummary> = {}): PrSummary {
     draft: false,
     viewerIsAuthor: false,
     viewerCanResolve: false,
+    behind: false,
     generation: {
       status: "succeeded",
       phase: null,

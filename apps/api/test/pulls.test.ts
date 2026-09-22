@@ -18,13 +18,16 @@ import {
   type AppDatabase,
   type KeyProvider,
   type TenantContext,
+  type ScopeContext,
   type PullRequestUpsertInput,
+  type PullRequestRowId,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { WaitReasons } from "contract";
 import type { Mutable } from "types/utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
+import { resetLiveReadMemory } from "../src/routes/live-read";
 import { testLogger } from "./logging";
 import {
   INSTALLATION_ID,
@@ -62,6 +65,9 @@ const CTX: TenantContext = {
 const OTHER_CTX: TenantContext = {
   installationId: brand(isInstallationId, OTHER_INSTALLATION_ID),
 };
+const OWNER_CTX: ScopeContext = {
+  ownerUserId: brand(isReviewerId, REVIEWER_ID),
+};
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -85,6 +91,8 @@ interface StubConfig {
   readonly userInstallations?: readonly number[];
   readonly repositories?: (call: number) => Response;
   readonly token?: (call: number) => Response;
+  /** The live read of url rows; refused with 500 by default. */
+  readonly graphql?: () => Response;
 }
 interface StubCounts {
   installations: number;
@@ -119,6 +127,11 @@ function stubGitHub(cfg: StubConfig): StubCounts {
         return cfg.repositories
           ? cfg.repositories(i)
           : jsonResponse({ message: "denied" }, 404);
+      }
+      if (url.endsWith("/graphql")) {
+        return cfg.graphql
+          ? cfg.graphql()
+          : jsonResponse({ message: "refused" }, 500);
       }
       return jsonResponse({ message: "unexpected endpoint" }, 404);
     },
@@ -155,7 +168,7 @@ async function seedSession(
 }
 
 interface SeedPrInput {
-  readonly ctx?: TenantContext;
+  readonly ctx?: ScopeContext;
   readonly repoId: number;
   readonly prNumber: number;
   readonly title?: string;
@@ -163,6 +176,8 @@ interface SeedPrInput {
   readonly baseSha?: string;
   readonly draft?: boolean;
   readonly authorLogin?: string;
+  /** What GitHub last reported as the head, as a live read would stamp it. */
+  readonly liveReadHeadSha?: string;
 }
 
 async function seedPr(handle: AppDatabase, input: SeedPrInput) {
@@ -178,6 +193,9 @@ async function seedPr(handle: AppDatabase, input: SeedPrInput) {
   if (input.baseSha !== undefined) upsert.baseSha = input.baseSha;
   if (input.draft !== undefined) upsert.draft = input.draft;
   if (input.authorLogin !== undefined) upsert.authorLogin = input.authorLogin;
+  if (input.liveReadHeadSha !== undefined) {
+    upsert.liveRead = { readAt: new Date(), headSha: input.liveReadHeadSha };
+  }
 
   return createTenantRepository(handle, ctx).pullRequests.upsert(upsert);
 }
@@ -776,6 +794,93 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     };
     return { text, body };
   }
+
+  /** The gate opens the repo on the viewer's token; no installation holds it. */
+  function stubUrlWorld(graphql?: () => Response): void {
+    resetLiveReadMemory();
+    const cfg: Mutable<StubConfig> = {
+      installations: () => installationsOk([]),
+      repositories: () => repoOk(true),
+    };
+    if (graphql !== undefined) cfg.graphql = graphql;
+    stubGitHub(cfg);
+  }
+
+  function answerLiveHead(headSha: string): Response {
+    return jsonResponse({
+      data: {
+        p0: {
+          databaseId: REPO_A,
+          nameWithOwner: "octo/verified-a",
+          pullRequest: {
+            state: "OPEN",
+            isDraft: false,
+            title: "live",
+            closedAt: null,
+            updatedAt: "2026-09-20T10:00:00Z",
+            headRefOid: headSha,
+          },
+        },
+      },
+    });
+  }
+
+  async function writeOwnerBrief(
+    pullRequestId: PullRequestRowId,
+    headSha: string,
+    headIndex: number,
+  ): Promise<void> {
+    const written = await createArtifactStore(
+      harness.handle,
+      OWNER_CTX,
+    ).briefs.write({
+      pullRequestId,
+      baseSha: "base-1",
+      headSha,
+      headIndex,
+      commitCount: headIndex,
+      provider: "anthropic",
+      model: "claude",
+      effort: "high",
+      body: "{}",
+    });
+    if (!written.ok) throw new Error("brief seed failed");
+  }
+
+  async function readBehind(cookie: string): Promise<unknown> {
+    const res = await get(`/api/repos/${REPO_A}/pulls/8`, cookie);
+    expect(res.status).toBe(200);
+    return ((await res.json()) as Record<string, unknown>)["behind"];
+  }
+
+  it("meta: a url row read live is behind once GitHub passes its brief", async () => {
+    stubUrlWorld(() => answerLiveHead("head-2"));
+    const cookie = await seedSession(harness.handle, kp);
+    const pr = await seedPr(harness.handle, {
+      ctx: OWNER_CTX,
+      repoId: REPO_A,
+      prNumber: 8,
+    });
+    await writeOwnerBrief(pr.id, "head-1", 1);
+
+    expect(await readBehind(cookie)).toBe(true);
+
+    await writeOwnerBrief(pr.id, "head-2", 2);
+    expect(await readBehind(cookie)).toBe(false);
+  });
+
+  it("meta: a briefed row GitHub never answered for is not behind", async () => {
+    stubUrlWorld();
+    const cookie = await seedSession(harness.handle, kp);
+    const pr = await seedPr(harness.handle, {
+      ctx: OWNER_CTX,
+      repoId: REPO_A,
+      prNumber: 8,
+    });
+    await writeOwnerBrief(pr.id, "head-1", 1);
+
+    expect(await readBehind(cookie)).toBe(false);
+  });
 
   it("meta: names the wait debouncing while the job start is ahead", async () => {
     stubGate();

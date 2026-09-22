@@ -129,6 +129,7 @@ describe("buildPrMetaQueryOptions queryFn and the resolve capability", () => {
     draft: false,
     viewerIsAuthor: false,
     viewerCanResolve: true,
+    behind: false,
     generation: {
       status: "succeeded",
       phase: null,
@@ -145,6 +146,7 @@ describe("buildPrMetaQueryOptions queryFn and the resolve capability", () => {
     apiFetchJsonMock.mockResolvedValue(META_BODY);
     await expect(runPrMeta()).resolves.toMatchObject({
       viewerCanResolve: true,
+      behind: false,
     });
   });
 
@@ -153,6 +155,7 @@ describe("buildPrMetaQueryOptions queryFn and the resolve capability", () => {
     apiFetchJsonMock.mockResolvedValue(older);
     await expect(runPrMeta()).resolves.toMatchObject({
       viewerCanResolve: false,
+      behind: false,
     });
   });
 

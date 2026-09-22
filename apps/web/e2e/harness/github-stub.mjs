@@ -10,8 +10,9 @@ const REPO_ID = process.env.MERGEBRIEF_E2E_REPO_ID ?? "424242";
 const REPO_SLUG =
   process.env.MERGEBRIEF_E2E_REPO_SLUG ?? "mergebrief/e2e-fixture";
 const INBOX = JSON.parse(
-  process.env.MERGEBRIEF_E2E_INBOX ?? '{"installations":[],"urlRow":null}',
+  process.env.MERGEBRIEF_E2E_INBOX ?? '{"installations":[],"urlRows":[]}',
 );
+const MINUTE_MS = 60_000;
 const realFetch = globalThis.fetch;
 
 function jsonResponse(body, status = 200) {
@@ -87,9 +88,10 @@ function isLiveRead(init) {
 }
 
 /**
- * Every alias the live read asked for: the seeded URL row answers with the
- * fixture's latest head so it stays current, anything else is null (not
- * found) so the app marks it unreachable rather than guessing.
+ * Every alias the live read asked for: a seeded URL row answers with the
+ * head the fixture scripts for it (the current one, or one past its brief),
+ * anything else is null (not found) so the app marks it unreachable rather
+ * than guessing.
  */
 function answerLiveRead(init) {
   const { variables } = JSON.parse(init.body);
@@ -98,23 +100,27 @@ function answerLiveRead(init) {
     if (!name.startsWith("n")) continue;
     const index = name.slice(1);
     const slug = `${variables[`o${index}`]}/${variables[`r${index}`]}`;
-    const row = INBOX.urlRow;
-    const matches =
-      row !== null && slug === row.slug && Number(value) === row.prNumber;
-    data[`p${index}`] = matches
-      ? {
-          databaseId: row.repoId,
-          nameWithOwner: row.slug,
-          pullRequest: {
-            state: "OPEN",
-            isDraft: false,
-            title: row.title,
-            closedAt: null,
-            updatedAt: new Date().toISOString(),
-            headRefOid: row.headSha,
-          },
-        }
-      : null;
+    const row = INBOX.urlRows.find(
+      (candidate) =>
+        slug === candidate.slug && Number(value) === candidate.prNumber,
+    );
+    data[`p${index}`] =
+      row === undefined
+        ? null
+        : {
+            databaseId: row.repoId,
+            nameWithOwner: row.slug,
+            pullRequest: {
+              state: "OPEN",
+              isDraft: false,
+              title: row.title,
+              closedAt: null,
+              updatedAt: new Date(
+                Date.now() - row.updatedMinutesAgo * MINUTE_MS,
+              ).toISOString(),
+              headRefOid: row.headSha,
+            },
+          };
   }
   return data;
 }

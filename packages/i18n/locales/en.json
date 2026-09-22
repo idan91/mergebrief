@@ -222,6 +222,13 @@
       "action": "Go to newest",
       "title": "This pull request has new commits since the revision you are reading. Comments will anchor to the revision you reviewed."
     },
+    "behind": {
+      "label": "New commits",
+      "title": "GitHub has commits this brief does not cover.",
+      "regenerate": "Regenerate",
+      "queued": "Regenerate queued",
+      "arrived": "The new brief is ready."
+    },
     "yourBriefs": {
       "heading": "Your briefs",
       "empty": "Nothing here yet — paste a pull request URL above to generate your first brief.",
@@ -1153,6 +1160,8 @@
       "stackChipLabel": "Place in a stack: {{index}} of {{size}}",
       "unreachableChip": "Unreachable",
       "unreachableChipLabel": "GitHub no longer shows this pull request to you",
+      "behindChip": "new commits",
+      "behindChipLabel": "GitHub has commits this brief does not cover.",
       "sourceUrl": "Added from a URL",
       "actions": {
         "openOnGithub": "Open on GitHub",
@@ -1162,7 +1171,9 @@
         "linkCopied": "Link copied",
         "copyFailed": "Copy failed",
         "deleteFailed": "Delete failed; the row is still here",
-        "deleted": "Deleted"
+        "deleted": "Deleted",
+        "regenerate": "Regenerate",
+        "regenerateQueued": "Regenerate queued"
       }
     },
     "filters": {

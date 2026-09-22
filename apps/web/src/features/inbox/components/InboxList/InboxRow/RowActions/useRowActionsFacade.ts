@@ -2,11 +2,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { buildGithubPullUrl } from "@web/utils/github-pull-url";
+import { generateBriefViaApi } from "../../../../../brief/queries";
+import { briefErrorDetail } from "../../../../../brief/utils";
 import { INBOX_QUERY_ROOT } from "../../../../consts";
 import { deleteInboxItem } from "../../../../queries";
 import type { InboxItem } from "../../../../types";
 
-/** The two row actions with a side effect: the clipboard write and the owner delete. */
+/** The row actions with a side effect: the clipboard write, the owner delete, and the regenerate. */
 export function useRowActionsFacade(
   item: InboxItem,
   href: string,
@@ -16,6 +19,7 @@ export function useRowActionsFacade(
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [deleting, setDeleting] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
 
   async function copyLink(): Promise<void> {
     try {
@@ -44,13 +48,32 @@ export function useRowActionsFacade(
     }
   }
 
+  async function regenerate(): Promise<void> {
+    const url = buildGithubPullUrl(item.repoSlug, item.prNumber);
+    if (url === null) return;
+    setRegenerating(true);
+    try {
+      await generateBriefViaApi(url);
+      onAnnounce(t("home.inbox.actions.regenerateQueued"));
+      await queryClient.invalidateQueries({ queryKey: [INBOX_QUERY_ROOT] });
+    } catch (caught) {
+      onAnnounce(briefErrorDetail(t, caught));
+    } finally {
+      setRegenerating(false);
+    }
+  }
+
   return {
     deleting,
+    regenerating,
     copyLink: () => {
       void copyLink();
     },
     deleteRow: () => {
       void deleteRow();
+    },
+    regenerate: () => {
+      void regenerate();
     },
   };
 }

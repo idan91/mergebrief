@@ -1,0 +1,13 @@
+@layer components {
+  .notice {
+    display: inline-flex;
+    gap: var(--space-3);
+    align-items: center;
+    min-inline-size: 0;
+  }
+
+  .failed {
+    color: var(--color-negative);
+    font-size: var(--font-size-sm);
+  }
+}

@@ -76,6 +76,8 @@ export interface PrView {
   readonly viewerCanResolve: boolean;
   readonly generation: GenerationSummaryView | null;
   readonly updatedAt: string;
+  /** GitHub reports a head the latest brief does not cover. */
+  readonly behind: boolean;
 }
 
 /**
@@ -130,6 +132,10 @@ export function buildPrView(
   const briefAvailable =
     latestBrief !== undefined && latestBrief.headSha === headSha;
   const viewerIsAuthor = deriveViewerIsAuthor(viewerLogin, row.authorLogin);
+  const behind =
+    row.githubHeadSha !== null &&
+    latestBrief !== undefined &&
+    row.githubHeadSha !== latestBrief.headSha;
   return {
     repoId: String(row.repoId),
     repoSlug: verifiedSlug ?? row.repoSlug,
@@ -144,5 +150,6 @@ export function buildPrView(
     viewerCanResolve: viewerCanPush || viewerIsAuthor,
     generation: buildGenerationSummary(latestGeneration, waitReason),
     updatedAt: row.updatedAt.toISOString(),
+    behind,
   };
 }

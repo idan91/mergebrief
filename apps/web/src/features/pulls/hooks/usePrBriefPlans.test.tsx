@@ -58,6 +58,7 @@ function meta(overrides: Partial<PrSummary> = {}): PrSummary {
     draft: false,
     viewerIsAuthor: false,
     viewerCanResolve: false,
+    behind: false,
     generation: null,
     updatedAt: "2026-07-06T12:00:00.000Z",
     ...overrides,
@@ -158,7 +159,7 @@ describe("usePrBriefPlans", () => {
       },
     };
 
-    it("offers the meta comparisons at the current head (legacy path)", () => {
+    it("offers the meta comparisons at the current head on the legacy path", () => {
       const { result } = renderPlans({ meta: meta({ comparisons }) });
       expect(result.current.availability).toEqual({
         previousBrief: true,
@@ -182,7 +183,7 @@ describe("usePrBriefPlans", () => {
       });
     });
 
-    it("keeps the plan's identity across poll ticks that rebuild equal envelopes", () => {
+    it("keeps the plan's identity across poll ticks with equal envelopes", () => {
       const { result, rerender } = renderHook(
         ({ tick }: { tick: number }) =>
           usePrBriefPlans({
@@ -190,7 +191,7 @@ describe("usePrBriefPlans", () => {
             prNumber: 7,
             span: currentSpan,
             // A poll tick rebuilds the meta (and its comparisons envelope)
-            // with unchanged content — fresh identities, same values.
+            // with unchanged content: fresh identities, same values.
             meta: meta({
               comparisons: structuredClone(comparisons),
               updatedAt: `2026-07-06T12:00:0${String(tick)}.000Z`,
@@ -245,7 +246,7 @@ describe("usePrBriefPlans", () => {
       );
     });
 
-    it("refetches PR META when the capability goes stale (the 403 path)", () => {
+    it("refetches PR META when the capability goes stale on a 403", () => {
       const client = new QueryClient();
       const invalidate = vi.spyOn(client, "invalidateQueries");
       const { result } = renderHook(
@@ -268,7 +269,7 @@ describe("usePrBriefPlans", () => {
       });
     });
 
-    it("is offered on a historical revision too — threads are PR-level", () => {
+    it("is offered on a historical revision too; threads are PR-level", () => {
       const { result } = renderPlans({
         span: historicalSpan,
         meta: meta({ viewerCanResolve: true }),

@@ -37,6 +37,7 @@ import {
   buildSessionQueryOptions,
 } from "../../../queries";
 import type { PrSummary } from "../../../types";
+import { useBehindNoticeFacade } from "./DbBriefControls/BehindNotice/useBehindNoticeFacade";
 import { DbBriefControls } from "./DbBriefControls/DbBriefControls";
 import { WarmingChip } from "../WarmingChip/WarmingChip";
 import type { ConversationFilter } from "@web/features/conversation/utils";
@@ -86,6 +87,7 @@ export function PrBriefContent({
   revisionPending,
 }: PrBriefContentProps) {
   const { t } = useTranslation();
+  const behind = useBehindNoticeFacade(meta, repoId, prNumber);
   const brief = useSuspenseQuery(
     buildDbBriefQueryOptions(repoId, prNumber, span.base, span.head),
   ).data;
@@ -228,6 +230,7 @@ export function PrBriefContent({
       readOnly={(readOnly ?? sessionReadOnly) !== undefined}
       staleHead={staleHead}
       timeline={timeline}
+      behind={behind}
       {...(onGoToNewest ? { onGoToNewest } : {})}
     />
   );

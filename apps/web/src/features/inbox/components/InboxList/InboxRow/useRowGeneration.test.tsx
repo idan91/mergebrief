@@ -57,6 +57,7 @@ function answerMeta(status: string): void {
           draft: false,
           viewerIsAuthor: false,
           viewerCanResolve: false,
+          behind: false,
           generation: {
             status,
             phase: null,

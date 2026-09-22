@@ -30,6 +30,7 @@ function makeMeta(generation: Partial<GenerationSummary>): PrSummary {
     draft: false,
     viewerIsAuthor: false,
     viewerCanResolve: false,
+    behind: false,
     generation: {
       status: "pending",
       phase: null,

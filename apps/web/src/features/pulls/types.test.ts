@@ -42,6 +42,18 @@ const PENDING_GENERATION = {
   updatedAt: "2026-07-06T12:00:00.000Z",
 };
 
+describe("parsePrSummary behind", () => {
+  it("reads behind when present and treats an older server as caught up", () => {
+    const behind = parsePrSummary({ ...ROW, behind: true });
+    const absent = parsePrSummary(ROW);
+    const wrong = parsePrSummary({ ...ROW, behind: "yes" });
+
+    expect(behind.ok && behind.value.behind).toBe(true);
+    expect(absent.ok && absent.value.behind).toBe(false);
+    expect(wrong.ok).toBe(false);
+  });
+});
+
 describe("parsePrSummary", () => {
   it("parses the failure code and sanitized detail off the wire", () => {
     const parsed = parsePrSummary({

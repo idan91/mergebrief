@@ -231,7 +231,7 @@ Small, consistent corners: 5px for chips and keys, 8px for controls, 10px for th
 - **Container:** Surface 1, 1px Line edge, 10px corner, Line dividers between rows. No card per row.
 - **Row:** 56px, two lines. Line one is the mark, the title and chips. Line two is the source icon (URL pull requests only), repository, number, author and age, in Label type.
 - **Right edge:** generation state (generating, queued, failed) and the status, right-aligned and flush. Status is printed only when it is not Open.
-- **Hover:** Surface 2. Actions fade in over the right edge (opacity only, 120ms): Regenerate when behind, Open on GitHub, a menu with Copy link and Delete.
+- **Hover:** Surface 2. Actions fade in over the right edge (opacity only, 120ms): Open on GitHub, and a menu with Copy link, Delete on the viewer's own URL rows, and Regenerate leading it when the row is behind.
 - **Keyboard cursor:** Surface 3 plus a 1px inset accent ring at 55%. It appears and moves with no animation.
 - **Accessible name:** the row link reads the review state, status and source in words before the title. Icons are hidden from assistive technology.
 

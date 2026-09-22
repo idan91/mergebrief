@@ -15,6 +15,7 @@ import { TitleSegmentKinds, type InboxItem } from "../../../types";
 import { needsReviewer, pickAgeAt, splitTitleCode } from "../../../utils";
 import EyeSlashIcon from "../../icons/eye-slash.svg?react";
 import LinkIcon from "../../icons/link.svg?react";
+import ArrowUpIcon from "../../icons/arrow-up.svg?react";
 import StackIcon from "../../icons/stack.svg?react";
 import styles from "./InboxRow.module.scss";
 import { RowActions } from "./RowActions/RowActions";
@@ -120,6 +121,20 @@ export function InboxRow({
                 {t("home.inbox.unreachableChipLabel")}
               </ScreenReaderOnly>
               <span aria-hidden="true">{t("home.inbox.unreachableChip")}</span>
+            </Chip>
+          ) : null}
+          {item.behind ? (
+            <Chip
+              as={ChipElements.SPAN}
+              className={styles["chip"]}
+              tone={ChipTones.WARNING}
+              variant={ChipVariants.FACT}
+            >
+              <ArrowUpIcon aria-hidden="true" />
+              <ScreenReaderOnly>
+                {t("home.inbox.behindChipLabel")}
+              </ScreenReaderOnly>
+              <span aria-hidden="true">{t("home.inbox.behindChip")}</span>
             </Chip>
           ) : null}
         </span>

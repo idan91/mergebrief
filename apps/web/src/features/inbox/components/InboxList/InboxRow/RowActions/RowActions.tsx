@@ -6,7 +6,9 @@ import { Menu } from "@web/components/Menu/Menu";
 import { MenuRow } from "@web/components/Menu/MenuRow/MenuRow";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import { PullRequestSources } from "@web/features/pulls/types";
+import { buildGithubPullUrl } from "@web/utils/github-pull-url";
 import type { InboxItem } from "../../../../types";
+import ArrowsClockwiseIcon from "../../../icons/arrows-clockwise.svg?react";
 import CopyIcon from "../../../icons/copy.svg?react";
 import DotsIcon from "../../../icons/dots-three.svg?react";
 import GitHubIcon from "../../../icons/github-logo.svg?react";
@@ -25,8 +27,8 @@ export interface RowActionsProps {
 /**
  * The right-edge actions a hover or the keyboard cursor reveals: Open on
  * GitHub when the repository is known, and a menu with Copy link and, on
- * the viewer's own URL rows, Delete. Regenerate joins them when a row is
- * behind.
+ * the viewer's own URL rows, Delete. Regenerate leads the menu when GitHub
+ * has commits the latest brief does not cover.
  */
 export function RowActions({ item, onAnnounce, onDeleted }: RowActionsProps) {
   const { t } = useTranslation();
@@ -36,10 +38,8 @@ export function RowActions({ item, onAnnounce, onDeleted }: RowActionsProps) {
     params: { repoId: item.repoId, prNumber: String(item.prNumber) },
   }).href;
   const facade = useRowActionsFacade(item, href, onAnnounce, onDeleted);
-  const githubUrl =
-    item.repoSlug === null
-      ? null
-      : `https://github.com/${item.repoSlug}/pull/${String(item.prNumber)}`;
+  const githubUrl = buildGithubPullUrl(item.repoSlug, item.prNumber);
+  const canRegenerate = item.behind && githubUrl !== null;
 
   return (
     <div className={styles["actions"]}>
@@ -61,6 +61,14 @@ export function RowActions({ item, onAnnounce, onDeleted }: RowActionsProps) {
         trigger={<DotsIcon aria-hidden="true" />}
         triggerClassName={styles["trigger"]}
       >
+        {canRegenerate ? (
+          <MenuRow disabled={facade.regenerating} onSelect={facade.regenerate}>
+            <span className={styles["rowLabel"]}>
+              <ArrowsClockwiseIcon aria-hidden="true" />
+              {t("home.inbox.actions.regenerate")}
+            </span>
+          </MenuRow>
+        ) : null}
         <MenuRow onSelect={facade.copyLink}>
           <span className={styles["rowLabel"]}>
             <CopyIcon aria-hidden="true" />

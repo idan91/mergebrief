@@ -5,7 +5,7 @@ import { generateKeyPairSync } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { INBOX_INSTALLATIONS } from "../fixtures/inbox";
+import { INBOX_BEHIND_ROW, INBOX_INSTALLATIONS } from "../fixtures/inbox";
 import { FIXTURE_PR_TITLE, FIXTURE_REV2_HEAD } from "../fixtures/ids";
 
 function readEnvNumber(name: string, fallback: number): number {
@@ -220,13 +220,24 @@ export function buildApiServerEnv(): Record<string, string> {
     MERGEBRIEF_E2E_INBOX: JSON.stringify({
       installations: INBOX_INSTALLATIONS,
       byToken: STUB_ANSWERS_BY_TOKEN,
-      urlRow: {
-        slug: E2E_REPO_SLUG,
-        repoId: E2E_REPO_ID,
-        prNumber: 1,
-        title: FIXTURE_PR_TITLE,
-        headSha: FIXTURE_REV2_HEAD,
-      },
+      urlRows: [
+        {
+          slug: E2E_REPO_SLUG,
+          repoId: E2E_REPO_ID,
+          prNumber: 1,
+          title: FIXTURE_PR_TITLE,
+          headSha: FIXTURE_REV2_HEAD,
+          updatedMinutesAgo: 0,
+        },
+        {
+          slug: E2E_REPO_SLUG,
+          repoId: E2E_REPO_ID,
+          prNumber: INBOX_BEHIND_ROW.prNumber,
+          title: INBOX_BEHIND_ROW.title,
+          headSha: INBOX_BEHIND_ROW.githubHead,
+          updatedMinutesAgo: INBOX_BEHIND_ROW.updatedMinutesAgo,
+        },
+      ],
     }),
   };
 }

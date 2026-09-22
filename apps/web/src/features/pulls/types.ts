@@ -177,6 +177,8 @@ export interface PrSummary {
   readonly viewerCanResolve: boolean;
   readonly generation: GenerationSummary | null;
   readonly updatedAt: string;
+  /** GitHub reports a head the latest brief does not cover; a server predating the field reads false. */
+  readonly behind: boolean;
   /** Present on PR-meta responses only; absent on list rows. */
   readonly comparisons?: PrComparisons;
   /**
@@ -518,6 +520,10 @@ export function parsePrSummary(value: unknown): Result<PrSummary> {
   if (typeof value["updatedAt"] !== "string") {
     return { ok: false, error: "updatedAt must be a string" };
   }
+  const behind = value["behind"];
+  if (behind !== undefined && typeof behind !== "boolean") {
+    return { ok: false, error: "behind must be a boolean when present" };
+  }
   const comparisons = parseComparisons(value["comparisons"]);
   if (!comparisons.ok) return comparisons;
   const revisions = parseRevisions(value["revisions"]);
@@ -538,6 +544,7 @@ export function parsePrSummary(value: unknown): Result<PrSummary> {
     viewerCanResolve: viewerCanResolve ?? false,
     generation: generation.value,
     updatedAt: value["updatedAt"],
+    behind: behind ?? false,
   };
 
   if (comparisons.value !== undefined) summary.comparisons = comparisons.value;

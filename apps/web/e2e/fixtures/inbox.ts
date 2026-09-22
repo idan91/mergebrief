@@ -94,3 +94,13 @@ export const INBOX_ROWS: readonly InboxFixtureRow[] = [
 
 /** The committed fixture brief, as the viewer's own URL row: new, open, read live. */
 export const INBOX_URL_ROW_TITLE = FIXTURE_PR_TITLE;
+
+/** A second URL row whose brief GitHub has moved past: the live read reports a newer head. */
+export const INBOX_BEHIND_ROW = {
+  prNumber: 2,
+  title: "Correct the retry header on throttled responses",
+  /** Old enough to sort after every installation row that needs the reviewer. */
+  updatedMinutesAgo: 720,
+  briefHead: "3333333300001111222233334444555566667777",
+  githubHead: "6666666600001111222233334444555566667777",
+} as const;
