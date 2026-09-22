@@ -219,6 +219,9 @@
     // The one-tier Header's height; the Brief page's two tiers derive below.
     --header-h: 52px;
 
+    // An auto-width IconButton's start inset; a trigger overrides it on itself.
+    --icon-button-inset-start: #{functions.to-rem(6px)};
+
     // ── Elevation ────────────────────────────────────────────────────────
     // Three steps plus the upward cast.
     --shadow-elevation-sm: 0 8px 24px rgb(0 0 0 / 40%); // small popovers
