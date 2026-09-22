@@ -446,8 +446,16 @@ describe("reviewer auth routes", () => {
       headers: { cookie: `rs_session=${token}` },
     });
     expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      ok: true,
+      viewer: {
+        login: "octocat",
+        avatarUrl: expect.stringMatching(
+          /^https:\/\/avatars\.githubusercontent\.com\/u\/\d+$/,
+        ),
+      },
+    });
     expect(res.headers.get("cache-control")).toBe("no-store");
-    expect(await res.json()).toEqual({ ok: true });
   });
 
   it("refresh rotates both ciphertexts and returns the fresh access token", async () => {

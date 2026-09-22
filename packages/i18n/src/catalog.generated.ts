@@ -270,8 +270,8 @@ export type Catalog = typeof en & {
     pageTitle: (typeof en)["shell"]["pageTitle"] & {
       prNumber: "#{{number}}";
     };
-    localePicker: (typeof en)["shell"]["localePicker"] & {
-      ariaLabelTrigger: "Language: {{locale}}";
+    accountMenu: (typeof en)["shell"]["accountMenu"] & {
+      ariaLabelTriggerSignedIn: "Account menu for {{login}}";
     };
   };
 };

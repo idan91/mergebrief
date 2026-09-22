@@ -32,7 +32,6 @@ export {
   type InboxQueryKey,
   type InboxResponse,
   type InboxStackView,
-  type InboxViewerView,
   type Page,
   type ReachableInstallationView,
 } from "./inbox";
@@ -71,3 +70,4 @@ export {
   type RevisionComparisons,
   type RevisionView,
 } from "./revisions";
+export type { ViewerView } from "./viewer";

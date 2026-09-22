@@ -11,6 +11,7 @@ import type {
 import type { InboxReviewState } from "types/inbox";
 import type { ValueOf } from "types/utils";
 import type { GenerationPhase } from "./generation";
+import type { ViewerView } from "./viewer";
 
 /** The query keys a client sends; the values are the maps in `types/inbox`. */
 export const InboxQueryKeys = {
@@ -84,11 +85,6 @@ export interface InboxCountsView {
   readonly updated: number;
 }
 
-export interface InboxViewerView {
-  readonly login: string | null;
-  readonly avatarUrl: string;
-}
-
 export interface ReachableInstallationView {
   /** Stringified. */
   readonly installationId: string;
@@ -97,6 +93,6 @@ export interface ReachableInstallationView {
 
 export interface InboxResponse extends Page<InboxItem> {
   readonly counts: InboxCountsView;
-  readonly viewer: InboxViewerView;
+  readonly viewer: ViewerView;
   readonly reachableInstallations: readonly ReachableInstallationView[];
 }

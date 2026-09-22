@@ -323,7 +323,7 @@ The sticky top band of a screen. On the Brief page it is two tiers: the identity
 _Avoid_: top chrome, top bar (the CSS variable's name, not the concept), navbar
 
 **Account menu**:
-The person-anchored menu at the end of every **Header**, holding what is about the signed-in user and never about the PR: identity, Settings, Language, Sign in / Sign out. Trigger is the GitHub avatar when signed in and a generic person icon when not, in the same place either way. No placeholder rows for what is not built. Distinct from the PR-scoped overflow menu (about this PR) and the **Sidebar** (about reading this PR).
+The person-anchored menu at the end of every **Header**, holding what is about the signed-in user and never about the PR: identity, Settings, Language, Keyboard shortcuts, Sign out. Trigger is the GitHub avatar when signed in, a generic person icon while the viewer is unknown, and signed out the slot holds a Sign in button instead of a menu. No placeholder rows for what is not built. Distinct from the PR-scoped overflow menu (about this PR) and the **Sidebar** (about reading this PR).
 _Avoid_: user menu, profile menu, app menu, top-chrome menu (charting-era word)
 
 **Sidebar**:

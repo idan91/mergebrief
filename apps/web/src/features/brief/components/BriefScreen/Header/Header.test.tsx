@@ -14,6 +14,8 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Brief } from "../../../types";
@@ -89,7 +91,16 @@ function headerProps(ownDraft: HeaderProps["ownDraft"]): HeaderProps {
     ownDraft,
     jumpToGroup: vi.fn(),
     jumpToGroupHeading: vi.fn(),
+    toggleShortcuts: vi.fn(),
   };
+}
+
+/** The Account menu reads the viewer through react-query. */
+function withQueries(ui: ReactNode) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>;
 }
 
 // The menu's summary-preview entry is a router Link, so the harness mounts a
@@ -116,6 +127,7 @@ async function renderHeader(overrides: Partial<HeaderProps> = {}) {
     controlsSlot: <div data-testid="controls-slot" />,
     jumpToGroup: vi.fn(),
     jumpToGroupHeading: vi.fn(),
+    toggleShortcuts: vi.fn(),
     ...overrides,
   };
   const rootRoute = createRootRoute();
@@ -139,7 +151,7 @@ async function renderHeader(overrides: Partial<HeaderProps> = {}) {
     history: createMemoryHistory({ initialEntries: ["/"] }),
   });
   await router.load();
-  render(<RouterProvider router={router} />);
+  render(withQueries(<RouterProvider router={router} />));
   return { openSubmit };
 }
 
@@ -969,7 +981,9 @@ describe("Header own-draft state", () => {
 
   it("moves focus to Receipt when own-draft ends on the focused slot", async () => {
     const { rerender } = render(
-      <Header {...headerProps({ markReady: vi.fn(), pending: false })} />,
+      withQueries(
+        <Header {...headerProps({ markReady: vi.fn(), pending: false })} />,
+      ),
     );
     const cta = screen.getByRole("button", { name: "Mark ready for review" });
     cta.focus();
@@ -977,20 +991,24 @@ describe("Header own-draft state", () => {
     // The refreshed PrView flips draft=false: the CTA unmounts, Receipt
     // mounts in the terminal-action slot - focus follows the slot instead of
     // dropping to <body>.
-    rerender(<Header {...headerProps(undefined)} />);
+    rerender(withQueries(<Header {...headerProps(undefined)} />));
     expect(document.activeElement).toBe(
       screen.getByRole("button", { name: "Submit" }),
     );
   });
 
   it("keeps slot focus continuity on the flip into own-draft", async () => {
-    const { rerender } = render(<Header {...headerProps(undefined)} />);
+    const { rerender } = render(
+      withQueries(<Header {...headerProps(undefined)} />),
+    );
     screen.getByRole("button", { name: "Submit" }).focus();
 
     // The PR converts to draft under focus: Receipt unmounts, the mark-ready
     // CTA mounts in the same slot - focus follows.
     rerender(
-      <Header {...headerProps({ markReady: vi.fn(), pending: false })} />,
+      withQueries(
+        <Header {...headerProps({ markReady: vi.fn(), pending: false })} />,
+      ),
     );
     expect(document.activeElement).toBe(
       screen.getByRole("button", { name: "Mark ready for review" }),
@@ -998,12 +1016,16 @@ describe("Header own-draft state", () => {
   });
 
   it("a consumed slot-focus flag does not steal focus on a later flip", async () => {
-    const { rerender } = render(<Header {...headerProps(undefined)} />);
+    const { rerender } = render(
+      withQueries(<Header {...headerProps(undefined)} />),
+    );
     // Focus Receipt, then flip INTO own-draft (slot continuity moves focus
     // onto the CTA and consumes the flag)…
     screen.getByRole("button", { name: "Submit" }).focus();
     rerender(
-      <Header {...headerProps({ markReady: vi.fn(), pending: false })} />,
+      withQueries(
+        <Header {...headerProps({ markReady: vi.fn(), pending: false })} />,
+      ),
     );
     // …then the user moves on and works elsewhere. Any focusable header
     // control does; the details disclosure is one that does not depend on a
@@ -1013,7 +1035,7 @@ describe("Header own-draft state", () => {
 
     // A LATER external ready flip must leave the user's focus alone - a
     // stale `true` from the earlier swap would yank it onto Receipt.
-    rerender(<Header {...headerProps(undefined)} />);
+    rerender(withQueries(<Header {...headerProps(undefined)} />));
     expect(document.activeElement).toBe(
       screen.getByRole("button", { name: "Brief details" }),
     );
@@ -1021,10 +1043,12 @@ describe("Header own-draft state", () => {
 
   it("does NOT steal focus on the swap when the slot was not focused", async () => {
     const { rerender } = render(
-      <Header {...headerProps({ markReady: vi.fn(), pending: false })} />,
+      withQueries(
+        <Header {...headerProps({ markReady: vi.fn(), pending: false })} />,
+      ),
     );
     // Focus never visited the terminal slot in this session.
-    rerender(<Header {...headerProps(undefined)} />);
+    rerender(withQueries(<Header {...headerProps(undefined)} />));
     expect(document.activeElement).toBe(document.body);
   });
 

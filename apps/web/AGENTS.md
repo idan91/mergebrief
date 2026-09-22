@@ -27,7 +27,7 @@ Repo-wide conventions apply (root AGENTS.md); refinements below.
 ## Hooks and JSX
 
 - Memoize (`useMemo`, `useCallback`, `memo`) only for a measured cost or a contract-visible need such as a stable dependency a child effect keys on.
-- No spread inside JSX, except a primitive forwarding its rest props to its own DOM element.
+- No spread inside JSX, except a primitive forwarding its rest props to its own DOM element, or a floating-ui prop bundle (`getReferenceProps`, `getFloatingProps`, `getItemProps`) onto the element floating-ui positions or the primitive that forwards it: that bundle is the library's contract and has no stable member list to destructure.
 - Nothing computed inside JSX: a derived value gets a named const above the return, or moves to the facade or `utils.ts`.
 - A default prop value is a stable reference. Primitives inline; an object or array default is a module-level const, never a fresh `[]` or `{}` in the signature. A literal default is a new identity on every parent render, so every consumer of that prop re-renders and any memo keyed on it is dead.
 - No `render`-prefixed function outside test files; a `renderX` helper is a sub-component.

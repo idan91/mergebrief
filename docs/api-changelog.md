@@ -15,6 +15,9 @@ deprecation note here, removal only at a major.
 
 ## dev (2026-09-20)
 
+- **Added** `viewer` on `GET /api/auth/session`: `{ login, avatarUrl }` for
+  the signed-in reviewer, the same shape the Inbox response carries, so a
+  header can show who is signed in without listing anything.
 - **Added** `GET /api/inbox` (`list-inbox`): the viewer's pull requests
   across every installation they reach plus their own pasted-URL rows, as
   numbered pages of 25 (`items`, `page`, `pageSize`, `total`, no `hasNext`;

@@ -208,6 +208,7 @@
     --shadow-elevation-sm: 0 8px 24px rgb(0 0 0 / 40%); // small popovers
     --shadow-elevation-md: 0 12px 40px rgb(0 0 0 / 22%); // soft raised cards
     --shadow-elevation-lg: 0 16px 48px rgb(0 0 0 / 55%); // menus, drawers, modals
+    --shadow-float: 0 18px 44px -10px rgb(0 0 0 / 70%); // what floats: menus, callouts
 
     // Casts UPWARD (negative y) — bottom-anchored bars lifting off the page.
     // Unique geometry; no step on the ladder above matches it.

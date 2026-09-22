@@ -164,6 +164,7 @@ export function BriefScreen({
           <FileRowsProvider cache={fileRows}>
             <ReadingPositionProvider store={readingPosition}>
               <Header
+                toggleShortcuts={session.toggleShortcuts}
                 brief={brief}
                 livePrState={livePrState}
                 repoConfig={repoConfig}

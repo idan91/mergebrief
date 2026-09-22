@@ -5,13 +5,14 @@ import { useState, type FormEvent } from "react";
 
 import { Button } from "@web/components/Button/Button";
 import { Header } from "@web/components/Header/Header";
+import { AccountMenu } from "@web/features/account";
+import { buildViewerQueryOptions } from "../features/account/queries";
 import {
   generateBriefViaApi,
   buildLocalBriefsQueryOptions,
 } from "../features/brief/queries";
 import { briefErrorDetail } from "@web/features/brief/utils";
 import { LocalBriefsSection } from "@web/features/brief";
-import { LocalePicker } from "../i18n/LocalePicker/LocalePicker";
 import { PullsSection, YourBriefsSection } from "@web/features/pulls";
 import { getPullsRefetchInterval } from "@web/features/pulls/utils";
 import {
@@ -30,6 +31,10 @@ export const Route = createFileRoute("/")({
     const prefetches: Promise<unknown>[] = [
       context.queryClient.ensureQueryData(buildUrlBriefsQueryOptions()),
       context.queryClient.ensureQueryData(buildPullsSessionQueryOptions()),
+      // The server render fails fast; the client's own refetch keeps the retries.
+      context.queryClient
+        .ensureQueryData({ ...buildViewerQueryOptions(), retry: false })
+        .catch(() => undefined),
     ];
     // The DEV file surface, prefetched only behind a session (the readers
     // refuse without one) and never allowed to fail the page. The `if` is a
@@ -101,7 +106,7 @@ function BriefPicker() {
 
   return (
     <>
-      <Header end={<LocalePicker />} />
+      <Header end={<AccountMenu />} />
       <main className={styles["pickerMain"]} id="main-content" tabIndex={-1}>
         <section className={styles["picker"]}>
           <div className={styles["eyebrow"]}>{t("shell.landingEyebrow")}</div>

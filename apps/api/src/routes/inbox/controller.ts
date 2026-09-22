@@ -15,11 +15,10 @@ import {
   type ScopeContext,
 } from "persistence";
 import type { Result } from "types/utils";
+import { shapeViewer } from "../viewer";
 import { shapeInboxItem } from "./logic/shape-item";
 import type { InboxControllerDeps, ListInboxInput } from "./types";
 import { INBOX_PAGE_SIZE } from "../wire-bounds";
-
-const AVATAR_ORIGIN = "https://avatars.githubusercontent.com/u/";
 
 interface DeleteInboxItemInput {
   readonly ownerUserId: ReviewerId;
@@ -101,10 +100,7 @@ export default {
       pageSize: page.pageSize,
       total: page.total,
       counts: page.counts,
-      viewer: {
-        login: input.reviewerLogin,
-        avatarUrl: `${AVATAR_ORIGIN}${input.reviewerId}`,
-      },
+      viewer: shapeViewer(input.reviewerId, input.reviewerLogin),
       reachableInstallations: input.installations.map((entry) => ({
         installationId: String(entry.installationId),
         accountLogin: entry.accountLogin,

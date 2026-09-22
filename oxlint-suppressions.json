@@ -896,14 +896,6 @@
       "count": 2
     }
   },
-  "apps/web/src/i18n/LocalePicker/LocalePicker.test.tsx": {
-    "house/no-em-dash": {
-      "count": 4
-    },
-    "house/test-title": {
-      "count": 1
-    }
-  },
   "apps/web/src/i18n/locale.server.test.ts": {
     "house/test-title": {
       "count": 1

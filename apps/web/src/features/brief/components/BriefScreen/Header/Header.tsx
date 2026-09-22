@@ -1,4 +1,3 @@
-import { LocalePicker } from "../../../../../i18n/LocalePicker/LocalePicker";
 import { useTranslation } from "react-i18next";
 import { Link } from "@tanstack/react-router";
 import { CONTENT_START_ATTR } from "../utils";
@@ -28,6 +27,7 @@ import {
 } from "../../../utils/viewModel";
 import { AccessibleLink } from "@web/components/AccessibleLink/AccessibleLink";
 import { PRODUCT_NAME } from "@web/components/Header/consts";
+import { AccountMenu } from "@web/features/account";
 import { Button } from "@web/components/Button/Button";
 import { IconButton } from "@web/components/IconButton/IconButton";
 import { LocSign, LocSigns } from "@web/components/LocSign/LocSign";
@@ -74,6 +74,8 @@ export interface HeaderProps {
   revisionPending?: boolean | undefined;
   jumpToGroup: (groupId: string) => void;
   jumpToGroupHeading: (groupId: string) => void;
+  /** The Account menu's Keyboard shortcuts row opens the shortcuts modal. */
+  toggleShortcuts: () => void;
 }
 
 const SETTLE_MS = 200;
@@ -105,6 +107,7 @@ export function Header({
   revisionPending,
   jumpToGroup,
   jumpToGroupHeading,
+  toggleShortcuts,
 }: HeaderProps) {
   const { t } = useTranslation();
   const stackView = resolveStackView(brief.pr.stack, livePrState?.stack);
@@ -288,11 +291,11 @@ export function Header({
             }}
           />
         )}
-        <LocalePicker />
         <HeaderMenu
           briefId={briefId}
           hideSummaryPreview={ownDraft !== undefined}
         />
+        <AccountMenu onOpenShortcuts={toggleShortcuts} />
       </div>
       {/* Tier 2, the lens toolbar: everything that changes WHAT is on
           screen (Scope, Compare), flattened to one wrappable line, plus the

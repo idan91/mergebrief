@@ -128,6 +128,29 @@ describe("useKeyboardShortcuts click-input focus", () => {
     expect(jumpToChunk).toHaveBeenLastCalledWith("c3");
   });
 
+  it("keys pressed inside an open menu stand down", () => {
+    const jumpToChunk = vi.fn();
+    const toggleFocusMode = vi.fn();
+    renderHook(() =>
+      useKeyboardShortcuts(options({ jumpToChunk, toggleFocusMode })),
+    );
+    const menu = document.createElement("div");
+    menu.setAttribute("role", "menu");
+    const row = document.createElement("button");
+    row.setAttribute("role", "menuitem");
+    menu.append(row);
+    document.body.append(menu);
+    row.focus();
+    for (const key of ["j", "z"]) {
+      row.dispatchEvent(
+        new KeyboardEvent("keydown", { key, cancelable: true, bubbles: true }),
+      );
+    }
+    expect(jumpToChunk).not.toHaveBeenCalled();
+    expect(toggleFocusMode).not.toHaveBeenCalled();
+    menu.remove();
+  });
+
   it("keys from a text input still stand down", () => {
     const jumpToChunk = vi.fn();
     renderHook(() => useKeyboardShortcuts(options({ jumpToChunk })));

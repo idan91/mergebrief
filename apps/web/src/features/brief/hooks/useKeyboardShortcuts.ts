@@ -138,10 +138,15 @@ export function resolveShortcut(
   return null;
 }
 
+/** An open menu's panel is portaled, so only the target says a key was pressed inside it. */
+function isInsideMenu(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest('[role="menu"]') !== null;
+}
+
 /**
- * Stands down while typing or while an overlay holds focus, so it never steals
- * keys mid-edit. The listener binds once and reads options through a ref, so
- * navigation does not churn the handler.
+ * Stands down while typing, inside an open menu, or while an overlay holds
+ * focus, so it never steals keys mid-edit. The listener binds once and reads
+ * options through a ref, so navigation does not churn the handler.
  */
 export function useKeyboardShortcuts(options: KeyboardShortcutsOptions): void {
   const latest = useRef(options);
@@ -151,6 +156,7 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions): void {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
+      if (isInsideMenu(event.target)) return;
       const current = latest.current;
       const action = resolveShortcut(
         {

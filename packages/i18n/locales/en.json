@@ -1065,10 +1065,6 @@
       "localBrief": "Local brief",
       "summaryPreview": "Summary preview"
     },
-    "localePicker": {
-      "ariaLabelTrigger": "Language: {{locale}}",
-      "ariaLabelMenu": "Choose a language"
-    },
     "markdownToolbar": {
       "bold": "Bold",
       "boldTitle": "Bold (Ctrl/Cmd+B)",
@@ -1084,6 +1080,16 @@
       "insertSuggestion": "Insert suggestion",
       "insertSuggestionTitle": "Insert suggestion (Ctrl/Cmd+G)",
       "linkPlaceholder": "link text"
+    },
+    "accountMenu": {
+      "ariaLabelTrigger": "Account menu",
+      "ariaLabelTriggerSignedIn": "Account menu for {{login}}",
+      "settings": "Settings",
+      "language": "Language",
+      "shortcuts": "Keyboard shortcuts",
+      "signOut": "Sign out",
+      "signOutFailed": "Sign out did not go through. Try again.",
+      "signIn": "Sign in with GitHub"
     }
   },
   "briefError": {
