@@ -149,6 +149,19 @@ export const WriteClassifications = {
 } as const;
 export type WriteClassification = ValueOf<typeof WriteClassifications>;
 
+/**
+ * Work a webhook event names that a stored Brief for its base and head pair
+ * does not cover. In memory only: the ingest routine reads it to decide
+ * whether a covered event still queues a job.
+ */
+export const UncoveredWorks = {
+  /** A ready flip: the Entry comment may still have to be posted. */
+  ENTRY_COMMENT: "entry-comment",
+  /** A submitted review: its checkpoint delta still has to be built. */
+  REVIEW: "review",
+} as const;
+export type UncoveredWork = ValueOf<typeof UncoveredWorks>;
+
 /** `generation.kind`. */
 export const GenerationKinds = {
   BRIEF: "brief",

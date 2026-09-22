@@ -213,6 +213,7 @@ interface StubGitHub extends GitHubPort {
   /** Scripted head SHAs consumed per fetchPullRequest call; then info.headSha. */
   nextHeads: string[];
   fetchPullRequestError?: GitHubApiError;
+  fetchPullRequestFilesError?: GitHubApiError;
   /** Scripted compare-files failure; anchoring must degrade, not fail. */
   fetchCompareFilesError?: GitHubApiError;
   /** Live Entry comments by id (the delete+repost cycle's observable state). */
@@ -298,7 +299,12 @@ function stubGitHub(headSha: string): StubGitHub {
             : { ...stub.info, headSha: scripted },
         );
       },
-      fetchPullRequestFiles: async () => ok(stub.files),
+      fetchPullRequestFiles: async () => {
+        if (stub.fetchPullRequestFilesError) {
+          return { ok: false, error: stub.fetchPullRequestFilesError };
+        }
+        return ok(stub.files);
+      },
       listOpenPullRequests: async () => {
         if (stub.listOpenPullRequestsError) {
           return { ok: false, error: stub.listOpenPullRequestsError };
@@ -3779,16 +3785,235 @@ describe("generate task, daily generation cap", () => {
   const UNCAPPED = { maxGenerationsPerDay: null };
 
   /** Burn one STARTED run so the instance cap has something to count. */
-  async function burnOneRun(): Promise<void> {
-    const { payload } = await trigger(HEAD_1);
+  async function burnOneRun(): Promise<{
+    pr: PullRequestRow;
+    payload: unknown;
+  }> {
+    const triggered = await trigger(HEAD_1);
     await createGenerateTask({
       handle: harness.handle,
       publicBaseUrl: PUBLIC_URL,
       generator: stubGenerator(),
       github: stubGitHub(HEAD_1),
       spend: UNCAPPED,
-    })(payload);
+    })(triggered.payload);
+    return triggered;
   }
+
+  it("a job over a stored brief skips the gate and counts nothing", async () => {
+    const { pr, payload } = await burnOneRun();
+    const generator = stubGenerator();
+    const { logger, lines } = captureLogger();
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github: stubGitHub(HEAD_1),
+      spend: { maxGenerationsPerDay: 2 },
+      log: logger,
+    });
+
+    await task(payload);
+
+    expect(generator.calls).toEqual([]);
+    expect(lines().find((line) => line["evt"] === "spend.cap.trip")).toBe(
+      undefined,
+    );
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      target(pr, HEAD_1),
+    );
+    expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
+    // The stored-brief run made no attempt of its own.
+    expect(
+      await createGenerationProjection(harness.handle, ctx).countStartedRuns({
+        from: new Date(Date.now() - 60_000),
+        to: new Date(Date.now() + 60_000),
+      }),
+    ).toBe(1);
+  });
+
+  it("a review over a stored brief still builds its delta", async () => {
+    const first = await trigger(HEAD_1);
+    const github = stubGitHub(HEAD_1);
+    await createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator: stubGenerator(),
+      github,
+      spend: UNCAPPED,
+    })(first.payload);
+    github.info = { ...github.info, headSha: HEAD_2 };
+    const second = await trigger(HEAD_2);
+    await createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator: stubGenerator(),
+      github,
+      spend: UNCAPPED,
+    })(second.payload);
+    const written = await createTenantRepository(
+      harness.handle,
+      ctx,
+    ).checkpoints.upsertOnSubmit({
+      pullRequestId: second.pr.id,
+      reviewerId: makeReviewerId(100n),
+      lastSubmittedSha: HEAD_1,
+      submittedAt: new Date(),
+    });
+    expect(written.ok).toBe(true);
+
+    const generator = stubGenerator();
+    await createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github,
+      spend: { maxGenerationsPerDay: 3 },
+    })(second.payload);
+
+    expect(generator.calls).toEqual(["delta"]);
+    const store = createArtifactStore(harness.handle, ctx);
+    expect(await store.deltas.get(second.pr.id, HEAD_1, HEAD_2)).toBeDefined();
+    expect(
+      await createGenerationProjection(harness.handle, ctx).countStartedRuns({
+        from: new Date(Date.now() - 60_000),
+        to: new Date(Date.now() + 60_000),
+      }),
+    ).toBe(2);
+  });
+
+  it("at the cap a stored-brief run owing a delta is refused", async () => {
+    const first = await trigger(HEAD_1);
+    const github = stubGitHub(HEAD_1);
+    await createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator: stubGenerator(),
+      github,
+      spend: UNCAPPED,
+    })(first.payload);
+    const written = await createTenantRepository(
+      harness.handle,
+      ctx,
+    ).checkpoints.upsertOnSubmit({
+      pullRequestId: first.pr.id,
+      reviewerId: makeReviewerId(100n),
+      lastSubmittedSha: BASE,
+      submittedAt: new Date(),
+    });
+    expect(written.ok).toBe(true);
+    const generator = stubGenerator();
+    const { logger, lines } = captureLogger();
+
+    await createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github,
+      spend: { maxGenerationsPerDay: 1 },
+      log: logger,
+    })(first.payload);
+
+    expect(generator.calls).toEqual([]);
+    const trip = lines().find((line) => line["evt"] === "spend.cap.trip");
+    expect(trip?.["level"]).toBe("warn");
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      target(first.pr, HEAD_1),
+    );
+    expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
+  });
+
+  it("at the cap a ready flip over a stored brief still posts its Entry", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const github = stubGitHub(HEAD_1);
+    github.info = { ...github.info, draft: true };
+    const optOut = "version: 1\nentryCommentOnDrafts: false\n";
+    github.repoFiles.set(RepoConfigPaths.SETTINGS, {
+      kind: "file",
+      content: optOut,
+      blobSha: "sha-s",
+      size: optOut.length,
+    });
+    await createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator: stubGenerator(),
+      github,
+      spend: UNCAPPED,
+    })(payload);
+    expect(github.comments.size).toBe(0);
+
+    // The ready flip queues the same job again without a projection write.
+    github.info = { ...github.info, draft: false };
+    const generator = stubGenerator();
+    const { logger, lines } = captureLogger();
+    await createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github,
+      spend: { maxGenerationsPerDay: 1 },
+      log: logger,
+    })(payload);
+
+    expect(generator.calls).toEqual([]);
+    expect(lines().some((line) => line["evt"] === "spend.cap.trip")).toBe(true);
+    expect(github.comments.size).toBe(1);
+  });
+
+  it("a run over a moved base projects itself and counts", async () => {
+    const { pr, payload } = await burnOneRun();
+    const github = stubGitHub(HEAD_1);
+    github.info = { ...github.info, baseSha: "d".repeat(40) };
+    const generator = stubGenerator();
+
+    await createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github,
+      spend: UNCAPPED,
+    })(payload);
+
+    expect(generator.calls).toEqual(["brief"]);
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      target(pr, HEAD_1),
+    );
+    expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
+    expect(row?.attempts).toBe(1);
+    expect(
+      await createArtifactStore(harness.handle, ctx).briefs.get(
+        pr.id,
+        "d".repeat(40),
+        HEAD_1,
+      ),
+    ).toBeDefined();
+  });
+
+  it("a failure over a stored brief leaves the row succeeded", async () => {
+    const { pr, payload } = await burnOneRun();
+    const github = stubGitHub(HEAD_1);
+    github.fetchPullRequestFilesError = {
+      code: "not-found",
+      status: 404,
+      message: "failed to fetch files: GitHub API returned status 404",
+    };
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator: stubGenerator(),
+      github,
+      spend: UNCAPPED,
+    });
+
+    await expect(task(payload)).resolves.toBeUndefined();
+
+    const row = await createGenerationProjection(harness.handle, ctx).get(
+      target(pr, HEAD_1),
+    );
+    expect(row?.status).toBe(GenerationStatuses.SUCCEEDED);
+    expect(row?.errorCode).toBeNull();
+  });
 
   it("proceeds while the instance is under its cap", async () => {
     const { pr, payload } = await trigger(HEAD_1);

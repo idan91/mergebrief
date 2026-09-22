@@ -2,8 +2,10 @@
 // No network, model calls or real Postgres are needed at this boundary.
 import { sign } from "@octokit/webhooks-methods";
 import {
+  createArtifactStore,
   createEnvKeyProvider,
   createTenantRepository,
+  isPullRequestRowId,
   isRepoId,
   parseTenantContext,
   PrStates,
@@ -31,6 +33,7 @@ const DUMMY_AUTH: AuthDeps = {
 const REPO_ID = 186853002;
 const OTHER_REPO_ID = 186853003;
 const HEAD_SHA = "ec26c3e57ca3a959ca5aad62de7213c562f8c821";
+const BASE_SHA = "f95f852bd8fca8fcc58a9a2d6c842781e32a215e";
 
 // ---------------------------------------------------------------------------
 // Helpers.
@@ -92,14 +95,17 @@ function pullRequestPayload(input: {
   draft?: boolean;
   authorLogin?: string | null;
   headSha?: string;
+  baseSha?: string;
   /** GitHub's `pull_request.updated_at`, the late-event guard's key. */
   updatedAt?: string;
   closedAt?: string | null;
+  /** GitHub's `changes` block on an `edited` event. */
+  changes?: Record<string, unknown>;
 }): Record<string, unknown> {
   const pullRequest: Record<string, unknown> = {
     title: "Update the README with new information.",
     head: { sha: input.headSha ?? HEAD_SHA },
-    base: { sha: "f95f852bd8fca8fcc58a9a2d6c842781e32a215e" },
+    base: { sha: input.baseSha ?? BASE_SHA },
     draft: input.draft ?? false,
     user:
       input.authorLogin === null
@@ -112,13 +118,16 @@ function pullRequestPayload(input: {
     pullRequest["updated_at"] = input.updatedAt;
   if (input.closedAt !== undefined) pullRequest["closed_at"] = input.closedAt;
 
-  return {
+  const payload: Record<string, unknown> = {
     action: input.action,
     number: input.prNumber ?? 2,
     installation: { id: INSTALLATION_ID },
     repository: { id: input.repoId ?? REPO_ID, full_name: "acme/widgets" },
     pull_request: pullRequest,
   };
+  if (input.changes !== undefined) payload["changes"] = input.changes;
+
+  return payload;
 }
 
 function pullRequestReviewPayload(review?: {
@@ -990,6 +999,141 @@ describe("POST /api/webhooks/github", () => {
     expect(res.status).toBe(200);
     expect(await countRows(harness, "pull_request")).toBe(0);
     expect(await countRows(harness, "graphile_worker.jobs")).toBe(0);
+  });
+
+  describe("events a stored brief covers", () => {
+    const MOVED_BASE_SHA = "a".repeat(40);
+    const BASE_MOVED = {
+      base: { ref: { from: "main" }, sha: { from: BASE_SHA } },
+    };
+
+    /** Open the PR, store a brief for its pair and drain the job. */
+    async function openWithStoredBrief(): Promise<void> {
+      await deliver(
+        app,
+        "pull_request",
+        pullRequestPayload({ action: "opened" }),
+      );
+      const prs = await harness.raw("select id from pull_request");
+      const pullRequestId = BigInt(String(prs[0]?.["id"]));
+      if (!isPullRequestRowId(pullRequestId)) throw new Error("bad pr id");
+      const ctx = parseTenantContext({ installationId: INSTALLATION_ID });
+      const written = await createArtifactStore(
+        harness.handle,
+        ctx,
+      ).briefs.write({
+        pullRequestId,
+        baseSha: BASE_SHA,
+        headSha: HEAD_SHA,
+        headIndex: 1,
+        commitCount: 1,
+        provider: "stub",
+        model: "stub",
+        effort: "low",
+        body: "{}",
+      });
+      if (!written.ok) throw new Error(written.error.message);
+      await harness.raw("update generation set status = 'succeeded'");
+      await harness.raw("delete from graphile_worker.jobs");
+    }
+
+    /** A job for the uncovered work, or none; the projection stays as drained. */
+    async function expectQueued(queued: boolean): Promise<void> {
+      const jobs = await harness.raw("select id from graphile_worker.jobs");
+      const generations = await harness.raw(
+        "select status, attempts from generation",
+      );
+      expect(jobs).toHaveLength(queued ? 1 : 0);
+      expect(generations).toEqual([{ status: "succeeded", attempts: 0 }]);
+    }
+
+    it("an opened redelivery queues nothing", async () => {
+      await openWithStoredBrief();
+      const res = await deliver(
+        app,
+        "pull_request",
+        pullRequestPayload({ action: "opened" }),
+      );
+      expect(res.status).toBe(200);
+      await expectQueued(false);
+    });
+
+    it("a synchronize for the briefed head queues nothing", async () => {
+      await openWithStoredBrief();
+      await deliver(
+        app,
+        "pull_request",
+        pullRequestPayload({ action: "synchronize" }),
+      );
+      await expectQueued(false);
+    });
+
+    it("a reopen of the briefed pair queues nothing", async () => {
+      await openWithStoredBrief();
+      await deliver(
+        app,
+        "pull_request",
+        pullRequestPayload({ action: "reopened" }),
+      );
+      await expectQueued(false);
+    });
+
+    it("a review request queues nothing", async () => {
+      await openWithStoredBrief();
+      await deliver(
+        app,
+        "pull_request",
+        pullRequestPayload({ action: "review_requested" }),
+      );
+      await expectQueued(false);
+    });
+
+    it("a ready flip queues, entry comment or not", async () => {
+      await openWithStoredBrief();
+      await harness.raw("update pull_request set entry_comment_id = 4242");
+      await deliver(
+        app,
+        "pull_request",
+        pullRequestPayload({ action: "ready_for_review" }),
+      );
+      await expectQueued(true);
+    });
+
+    it("a submitted review queues", async () => {
+      await openWithStoredBrief();
+      await deliver(app, "pull_request_review", pullRequestReviewPayload());
+      await expectQueued(true);
+    });
+
+    it("an edit that moved the base queues", async () => {
+      await openWithStoredBrief();
+      await deliver(
+        app,
+        "pull_request",
+        pullRequestPayload({
+          action: "edited",
+          baseSha: MOVED_BASE_SHA,
+          changes: BASE_MOVED,
+        }),
+      );
+      const jobs = await harness.raw("select id from graphile_worker.jobs");
+      expect(jobs).toHaveLength(1);
+      const prs = await harness.raw("select base_sha from pull_request");
+      expect(prs[0]?.["base_sha"]).toBe(MOVED_BASE_SHA);
+    });
+
+    it("an edit that left the base alone queues nothing", async () => {
+      await openWithStoredBrief();
+      await deliver(
+        app,
+        "pull_request",
+        pullRequestPayload({
+          action: "edited",
+          changes: { title: { from: "Old title" } },
+        }),
+      );
+      await expectQueued(false);
+    });
   });
 
   describe("draft generation policy", () => {

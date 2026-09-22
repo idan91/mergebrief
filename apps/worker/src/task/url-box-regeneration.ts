@@ -76,7 +76,10 @@ export async function scheduleUrlBoxRegeneration(
     // The only expected failure is an invalid debounce; ours is constant.
     throw new Error(outcome.error.message);
   }
-  input.log.info(
-    `generate: url-box head advanced — queued ${info.headSha.slice(0, 8)}`,
-  );
+  const head = info.headSha.slice(0, 8);
+  if (outcome.value.coveredBy !== undefined) {
+    input.log.info(`generate: url-box head advanced to ${head}, brief stored`);
+    return;
+  }
+  input.log.info(`generate: url-box head advanced, queued ${head}`);
 }

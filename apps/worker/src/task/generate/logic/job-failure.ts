@@ -4,18 +4,21 @@ import type { JobFailureInputs } from "../types";
 import { emitProviderError } from "./errors";
 
 /**
- * Mark the run failed and emit its events. Returns whether the failure is
- * permanent: the caller returns normally on permanent so graphile does not
- * retry, and rethrows otherwise so graphile owns the backoff.
+ * Mark the run failed, unless the row is to be left alone, and emit its
+ * events. Returns whether the failure is permanent: the caller returns
+ * normally on permanent so graphile does not retry, and rethrows otherwise
+ * so graphile owns the backoff.
  */
 export async function reportJobFailure(
   error: unknown,
   inputs: JobFailureInputs,
 ): Promise<boolean> {
-  const { deps, projection, target, job, log } = inputs;
+  const { deps, projection, target, leaveRow, job, log } = inputs;
 
   const message = error instanceof Error ? error.message : String(error);
-  await projection.markFailed(target, classifyFailure(error));
+  if (!leaveRow) {
+    await projection.markFailed(target, classifyFailure(error));
+  }
   emitProviderError(log, deps, error);
   const permanent = error instanceof PermanentJobError;
   const attempt = job?.attempts;

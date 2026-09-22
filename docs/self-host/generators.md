@@ -148,7 +148,12 @@ not distinct pushes. A push that is re-queued (another push lands, a review is s
 spends again and counts again, so a single busy PR can consume a day's
 budget on its own. Runs that were superseded or failed DO count: they spent.
 Queued-but-not-yet-drained jobs and capped skips do not — a burst of
-webhooks must not trip the cap before a single token is spent.
+webhooks must not trip the cap before a single token is spent. Nor does a
+job that finds a brief already stored for its base and head pair (a review
+submitted after the brief, a ready flip that still needs its Entry comment):
+it produces no brief generation, so it is not counted. Such a job may still
+owe a checkpoint delta; while the instance sits at the cap that delta is
+refused, and below the cap it is paid without counting.
 
 The count is exact across slots and worker processes: the start and the
 `running` mark share one transaction under one instance-wide advisory lock,

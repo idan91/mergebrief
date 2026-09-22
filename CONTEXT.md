@@ -187,7 +187,7 @@ A per-repo opt-in (repo YAML; org default + per-repo override; off by default) t
 _Avoid_: activation (as "turning the tool on"), draft mode, draft gate
 
 **Generation**:
-One attempt to produce a **Brief** for one head of one PR; the persisted record the worker projects its progress onto. A Generation is pending, running, or finished (succeeded, failed, superseded, capped). It is a record of an attempt, never a queue and never a lock.
+One attempt to produce a **Brief** for one head of one PR; the persisted record the worker projects its progress onto. A Generation is pending, running, or finished (succeeded, failed, superseded, capped). It is a record of an attempt, never a queue and never a lock. A **Job** that runs with a stored Brief is not a Generation: it produces no Brief and adds no attempt to the record.
 _Avoid_: job (that is the **Job**), run, generation job
 
 **Job**:

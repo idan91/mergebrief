@@ -6,9 +6,12 @@
 // is a LEADING-edge debounce: the first push fixes `run_at`, later pushes only
 // replace the payload head, a locked job gets its key detached and a fresh
 // job, and a `running` head is neither reset nor re-enqueued.
-import { and, eq, sql, type SQL } from "drizzle-orm";
+import { and, eq, isNull, ne, sql, type SQL } from "drizzle-orm";
 import type { PgColumn } from "drizzle-orm/pg-core";
 import { type AppDatabase, internal } from "../db/handle";
+import { brief } from "../schema/brief";
+import { checkpoint } from "../schema/checkpoint";
+import { delta } from "../schema/delta";
 import { generation } from "../schema/generation";
 import { pullRequest } from "../schema/pull-request";
 import { getGenerateJobKey, type GenerationRow } from "./generation";
@@ -25,8 +28,11 @@ import {
   GenerationKinds,
   GenerationStatuses,
   PrStates,
+  type BriefRowId,
   type GrantRowId,
+  type PullRequestRowId,
   type Result,
+  type UncoveredWork,
   type ValueOf,
 } from "../types";
 
@@ -230,6 +236,186 @@ function buildJobPayload(
   } satisfies GenerateJobPayload;
 }
 
+/**
+ * The stored brief for the row's base and the input's head. A row without a
+ * base SHA has no pair to match.
+ */
+async function findStoredBrief(
+  executor: IngestExecutor,
+  scope: RowScope,
+  prRow: PullRequestRow,
+  headSha: string,
+): Promise<BriefRowId | undefined> {
+  if (prRow.baseSha === null) return undefined;
+
+  const pullRequestId: PullRequestRowId = prRow.id;
+  const rows = await executor
+    .select({ id: brief.id })
+    .from(brief)
+    .where(
+      and(
+        scope.matchesChild(brief.installationId, brief.pullRequestId),
+        eq(brief.pullRequestId, pullRequestId),
+        eq(brief.baseSha, prRow.baseSha),
+        eq(brief.headSha, headSha),
+      ),
+    )
+    .limit(1);
+  return rows[0]?.id;
+}
+
+/**
+ * Whether the event names work a stored brief leaves undone. The worker
+ * decides what is still owed: a ready flip may find its Entry comment
+ * current and post nothing, a review its delta already built.
+ */
+function namesUncoveredWork(input: TriggerGenerationInput): boolean {
+  return input.uncoveredWork !== undefined;
+}
+
+/**
+ * A reviewer checkpointed at another head and no delta reaches this one:
+ * a head that comes back (a revert, a reopen) is covered by its brief but
+ * still owes that reviewer the delta a fresh run would have built.
+ */
+async function owesCheckpointDelta(
+  executor: IngestExecutor,
+  scope: RowScope,
+  pullRequestId: PullRequestRowId,
+  headSha: string,
+): Promise<boolean> {
+  const rows = await executor
+    .select({ id: checkpoint.id })
+    .from(checkpoint)
+    .leftJoin(
+      delta,
+      and(
+        eq(delta.installationId, checkpoint.installationId),
+        eq(delta.pullRequestId, checkpoint.pullRequestId),
+        eq(delta.baselineSha, checkpoint.lastSubmittedSha),
+        eq(delta.headSha, headSha),
+      ),
+    )
+    .where(
+      and(
+        scope.matchesChild(checkpoint.installationId, checkpoint.pullRequestId),
+        eq(checkpoint.pullRequestId, pullRequestId),
+        ne(checkpoint.lastSubmittedSha, headSha),
+        isNull(delta.id),
+      ),
+    )
+    .limit(1);
+  return rows.length > 0;
+}
+
+type IngestTransaction = Parameters<
+  Parameters<ReturnType<typeof internal>["transaction"]>[0]
+>[0];
+
+/**
+ * Project the head's brief generation as `pending`, replicating
+ * `generation.ts#upsertPending`'s insert/onConflict inline on the tx. No
+ * parent-in-tenant check: the parent row was written by this transaction.
+ */
+async function projectPending(
+  tx: IngestTransaction,
+  scope: RowScope,
+  pullRequestId: PullRequestRowId,
+  headSha: string,
+): Promise<GenerationRow> {
+  const genRows = await tx
+    .insert(generation)
+    .values({
+      installationId: scope.installationId,
+      pullRequestId,
+      kind: GenerationKinds.BRIEF,
+      headSha,
+      baselineSha: null,
+      status: GenerationStatuses.PENDING,
+    })
+    .onConflictDoUpdate({
+      target: [
+        generation.installationId,
+        generation.pullRequestId,
+        generation.kind,
+        generation.headSha,
+        generation.baselineSha,
+      ],
+      set: {
+        status: keepWhileRunning(generation.status, GenerationStatuses.PENDING),
+        attempts: keepWhileRunning(
+          generation.attempts,
+          sql`${generation.attempts} + 1`,
+        ),
+        phase: keepWhileRunning(generation.phase, null),
+        errorCode: keepWhileRunning(generation.errorCode, null),
+        errorParams: keepWhileRunning(generation.errorParams, null),
+        // A fresh attempt re-acquires repo config; stale origin data
+        // from a prior drain must not survive the re-queue.
+        repoConfig: keepWhileRunning(generation.repoConfig, null),
+        updatedAt: new Date(),
+      },
+    })
+    .returning();
+  const genRow = genRows[0];
+  if (genRow === undefined) {
+    throw new Error("generation upsertPending returned no row");
+  }
+  return genRow;
+}
+
+/**
+ * Whether a worker holds the PR's generate job right now. A run over a
+ * stored brief never marks the projection, so the queue is the only place
+ * that shows it; a second job on a held key would run beside the live one.
+ */
+async function isGenerateJobHeld(
+  tx: IngestTransaction,
+  pullRequestId: PullRequestRowId,
+): Promise<boolean> {
+  const jobKey = getGenerateJobKey(pullRequestId);
+  const rows = await tx
+    .select({ held: sql<boolean>`job.locked_at is not null` })
+    .from(sql`graphile_worker.jobs as job`)
+    .where(sql`job.key = ${jobKey}`)
+    .limit(1);
+  return rows[0]?.held === true;
+}
+
+/**
+ * Enqueue on the SAME tx via graphile's public SQL function (named notation,
+ * so extra defaulted parameters in real graphile don't matter). Ids cross as
+ * STRINGS, since JSON cannot carry bigint; the worker re-brands them through
+ * `TenantContextSchema`.
+ */
+async function enqueueGenerateJob(
+  tx: IngestTransaction,
+  scope: RowScope,
+  input: TriggerGenerationInput,
+  pullRequestId: PullRequestRowId,
+  debounceSeconds: number,
+): Promise<void> {
+  const jobKey = getGenerateJobKey(pullRequestId);
+  const payload = buildJobPayload(
+    scope,
+    input.grantId,
+    pullRequestId,
+    input.headSha,
+  );
+  const payloadJson = JSON.stringify(payload);
+  const jobKeyMode =
+    input.refreshRunAt === true ? "replace" : "preserve_run_at";
+  await tx.execute(sql`
+    select graphile_worker.add_job(
+      ${GENERATE_TASK_IDENTIFIER},
+      payload => ${payloadJson}::json,
+      job_key => ${jobKey},
+      run_at => now() + make_interval(secs => ${debounceSeconds}),
+      job_key_mode => ${jobKeyMode}
+    )
+  `);
+}
+
 // ---------------------------------------------------------------------------
 // Surface.
 // ---------------------------------------------------------------------------
@@ -274,6 +460,13 @@ export interface TriggerGenerationInput {
    * job; the live run reads the flip itself.
    */
   readonly refreshRunAt?: boolean;
+  /**
+   * Work this event names beyond the Brief itself. A stored brief for the
+   * base and head pair covers the event and queues nothing, unless work is
+   * named here: the Entry comment on a ready flip, the checkpoint delta on a
+   * submitted review. The job runs without a projection write.
+   */
+  readonly uncoveredWork?: UncoveredWork;
 }
 
 export interface IngestOutcome {
@@ -285,11 +478,13 @@ export interface IngestOutcome {
   readonly applied: boolean;
   /**
    * Absent when the trigger landed on a PR whose terminal lifecycle was
-   * preserved or when the event was skipped: nothing is projected and no job
-   * is enqueued. Present with status `running` when the head is mid-run: the
-   * row was kept and no job added.
+   * preserved, when the event was skipped or when a stored brief covers it:
+   * nothing is projected and no job is enqueued. Present with status
+   * `running` when the head is mid-run: the row was kept and no job added.
    */
   readonly generation?: GenerationRow;
+  /** The stored brief that covers this event; no job was queued for it. */
+  readonly coveredBy?: BriefRowId;
 }
 
 export interface IngestRoutines {
@@ -384,6 +579,32 @@ export function createIngestRoutines(
           return { ok: true, value: { pullRequest: prRow, applied: true } };
         }
 
+        // 1a. A brief for the pair covers the event. Work the brief leaves
+        // undone, named by the event or owed to a checkpointed reviewer, still
+        // queues a job, with no projection write: a run over a stored brief
+        // never touches the generation row.
+        const storedBrief = await findStoredBrief(
+          tx,
+          scope,
+          prRow,
+          input.headSha,
+        );
+        if (storedBrief !== undefined) {
+          const owesWork =
+            namesUncoveredWork(input) ||
+            (await owesCheckpointDelta(tx, scope, prRow.id, input.headSha));
+          if (!owesWork) {
+            return {
+              ok: true,
+              value: {
+                pullRequest: prRow,
+                applied: true,
+                coveredBy: storedBrief,
+              },
+            };
+          }
+        }
+
         // 1b. The regeneration window applies only when a prior brief for this
         // PR SUCCEEDED, checked on THIS tx so the read and the enqueue can't
         // interleave with another trigger's projection write. Must run before
@@ -410,89 +631,38 @@ export function createIngestRoutines(
           }
         }
 
-        // 2. Project the brief generation as `pending`, replicating
-        // `generation.ts#upsertPending`'s insert/onConflict INLINE on this tx.
-        // No parent-in-tenant check: the parent row was written by THIS
-        // transaction one statement ago.
-        const genRows = await tx
-          .insert(generation)
-          .values({
-            installationId: scope.installationId,
-            pullRequestId: prRow.id,
-            kind: GenerationKinds.BRIEF,
-            headSha: input.headSha,
-            baselineSha: null,
-            status: GenerationStatuses.PENDING,
-          })
-          .onConflictDoUpdate({
-            target: [
-              generation.installationId,
-              generation.pullRequestId,
-              generation.kind,
-              generation.headSha,
-              generation.baselineSha,
-            ],
-            set: {
-              status: keepWhileRunning(
-                generation.status,
-                GenerationStatuses.PENDING,
-              ),
-              attempts: keepWhileRunning(
-                generation.attempts,
-                sql`${generation.attempts} + 1`,
-              ),
-              phase: keepWhileRunning(generation.phase, null),
-              errorCode: keepWhileRunning(generation.errorCode, null),
-              errorParams: keepWhileRunning(generation.errorParams, null),
-              // A fresh attempt re-acquires repo config; stale origin data
-              // from a prior drain must not survive the re-queue.
-              repoConfig: keepWhileRunning(generation.repoConfig, null),
-              updatedAt: new Date(),
-            },
-          })
-          .returning();
-        const genRow = genRows[0];
-        if (genRow === undefined) {
-          throw new Error("generation upsertPending returned no row");
-        }
-        // A running head is never re-enqueued, refreshRunAt included: under N
-        // slots a fresh job for the same head would run beside the live one.
-        // The live run re-reads draft state before its ready Entry instead.
-        if (genRow.status === GenerationStatuses.RUNNING) {
-          return {
-            ok: true,
-            value: { pullRequest: prRow, applied: true, generation: genRow },
-          };
-        }
-
-        // 3. Enqueue on the SAME tx via graphile's public SQL function (named
-        // notation, so extra defaulted parameters in real graphile don't
-        // matter). Ids cross as STRINGS, since JSON cannot carry bigint; the worker
-        // re-brands them through `TenantContextSchema`.
-        const jobKey = getGenerateJobKey(prRow.id);
-        const payload = buildJobPayload(
-          scope,
-          input.grantId,
-          prRow.id,
-          input.headSha,
-        );
-        const payloadJson = JSON.stringify(payload);
-        const jobKeyMode =
-          input.refreshRunAt === true ? "replace" : "preserve_run_at";
-        await tx.execute(sql`
-          select graphile_worker.add_job(
-            ${GENERATE_TASK_IDENTIFIER},
-            payload => ${payloadJson}::json,
-            job_key => ${jobKey},
-            run_at => now() + make_interval(secs => ${effectiveDebounceSeconds}),
-            job_key_mode => ${jobKeyMode}
-          )
-        `);
-
-        return {
-          ok: true,
-          value: { pullRequest: prRow, applied: true, generation: genRow },
+        // 2. Project the brief generation as `pending`. A running head is
+        // never re-enqueued, refreshRunAt included: under N slots a fresh job
+        // for the same head would run beside the live one. The live run
+        // re-reads draft state before its ready Entry instead.
+        const value: Mutable<IngestOutcome> = {
+          pullRequest: prRow,
+          applied: true,
         };
+        if (storedBrief === undefined) {
+          const genRow = await projectPending(
+            tx,
+            scope,
+            prRow.id,
+            input.headSha,
+          );
+          value.generation = genRow;
+          if (genRow.status === GenerationStatuses.RUNNING) {
+            return { ok: true, value };
+          }
+        } else if (await isGenerateJobHeld(tx, prRow.id)) {
+          return { ok: true, value };
+        }
+
+        // 3. Enqueue on the same tx.
+        await enqueueGenerateJob(
+          tx,
+          scope,
+          input,
+          prRow.id,
+          effectiveDebounceSeconds,
+        );
+        return { ok: true, value };
       });
     },
 

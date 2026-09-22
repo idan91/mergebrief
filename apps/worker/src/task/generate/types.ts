@@ -224,10 +224,21 @@ export interface EntryCommentManager {
   refresh(body: string): Promise<void>;
 }
 
+/**
+ * What the run learned that its failure handling must honour. A run over a
+ * succeeded row adds no attempt, so neither a failure nor a supersession
+ * marks that row; the fresh path clears the flag once it claims the row.
+ */
+export interface RunState {
+  leaveRow: boolean;
+}
+
 export interface JobFailureInputs {
   readonly deps: GenerateTaskDeps;
   readonly projection: GenerationProjection;
   readonly target: GenerationTarget;
+  /** Leave the generation row untouched: the run was over a stored brief. */
+  readonly leaveRow: boolean;
   /** graphile's job row slice; absent on direct test invocations. */
   readonly job: GenerateTaskHelpers["job"];
   readonly log: Logger;

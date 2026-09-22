@@ -33,6 +33,7 @@ export const PullRequestActions = {
   CONVERTED_TO_DRAFT: "converted-to-draft",
   CLOSED: "closed",
   REVIEW_REQUESTED: "review-requested",
+  EDITED: "edited",
 } as const;
 export type PullRequestAction = ValueOf<typeof PullRequestActions>;
 
@@ -60,6 +61,7 @@ const RAW_PULL_REQUEST_ACTION: Readonly<Record<string, PullRequestAction>> = {
   converted_to_draft: PullRequestActions.CONVERTED_TO_DRAFT,
   closed: PullRequestActions.CLOSED,
   review_requested: PullRequestActions.REVIEW_REQUESTED,
+  edited: PullRequestActions.EDITED,
 };
 const RAW_INSTALLATION_ACTION: Readonly<Record<string, InstallationAction>> = {
   created: InstallationActions.CREATED,
@@ -113,6 +115,8 @@ export interface ParsedPullRequestEvent {
   readonly updatedAt?: Date;
   /** GitHub's `pull_request.closed_at`; null while open. */
   readonly closedAt?: Date;
+  /** Present on `edited`: whether the edit retargeted the base branch. */
+  readonly baseChanged?: boolean;
 }
 
 export interface ParsedPullRequestReviewEvent {
@@ -204,6 +208,7 @@ const pullRequestEventSchema = z.object({
   number: z.number().int(),
   before: z.string().min(1).optional(),
   after: z.string().min(1).optional(),
+  changes: z.object({ base: z.object({}).optional() }).optional(),
   installation: installationRefSchema,
   repository: repositoryRefSchema,
   pull_request: z.object({
@@ -327,6 +332,9 @@ function parsePullRequest(
   const { updated_at: updatedAt, closed_at: closedAt } = data.pull_request;
   if (updatedAt !== undefined) event.updatedAt = updatedAt;
   if (closedAt !== undefined && closedAt !== null) event.closedAt = closedAt;
+  if (action === PullRequestActions.EDITED) {
+    event.baseChanged = data.changes?.base !== undefined;
+  }
 
   return { ok: true, value: event };
 }

@@ -8,6 +8,7 @@ import type {
   TriggerGenerationInput,
 } from "../src/stores/ingest";
 import { createIngestRoutines } from "../src/stores/ingest";
+import { createArtifactStore } from "../src/stores/artifact-store";
 import { createGenerationProjection } from "../src/stores/generation";
 import type { PullRequestUpsertInput } from "../src/stores/tenant";
 import type { Mutable } from "types/utils";
@@ -21,11 +22,14 @@ import {
   GenerationKinds,
   GenerationPhases,
   GenerationStatuses,
+  isPullRequestRowId,
   isRepoId,
   isReviewerId,
   PrStates,
+  UncoveredWorks,
   type PullRequestRowId,
   type Result,
+  type UncoveredWork,
 } from "../src/types";
 import { brandWith } from "./helpers";
 
@@ -90,6 +94,7 @@ describe("createIngestRoutines.triggerGeneration", () => {
     refreshRunAt?: boolean;
     baseSha?: string;
     headSha?: string;
+    uncoveredWork?: UncoveredWork;
   }): Promise<Result<IngestOutcome, { code: string; message: string }>> {
     const pullRequest: Mutable<PullRequestUpsertInput> = {
       repoId: REPO_ID,
@@ -116,6 +121,9 @@ describe("createIngestRoutines.triggerGeneration", () => {
     if (overrides?.reopen !== undefined) input.reopen = overrides.reopen;
     if (overrides?.refreshRunAt !== undefined) {
       input.refreshRunAt = overrides.refreshRunAt;
+    }
+    if (overrides?.uncoveredWork !== undefined) {
+      input.uncoveredWork = overrides.uncoveredWork;
     }
 
     return createIngestRoutines(harness.handle, CTX).triggerGeneration(input);
@@ -513,6 +521,224 @@ describe("createIngestRoutines.triggerGeneration", () => {
       expect(row.closedAt).not.toBeNull();
       // The non-lifecycle fields still refreshed.
       expect(row.draft).toBe(true);
+    });
+  });
+
+  describe("stored brief coverage", () => {
+    const BASE_SHA = "f95f852bd8fca8fcc58a9a2d6c842781e32a215e";
+
+    /** Store a brief for the pair and drain the job, as a finished run would. */
+    async function storeBrief(pullRequestId: bigint): Promise<bigint> {
+      const written = await createArtifactStore(
+        harness.handle,
+        CTX,
+      ).briefs.write({
+        pullRequestId: brandWith(isPullRequestRowId, pullRequestId),
+        baseSha: BASE_SHA,
+        headSha: HEAD_SHA,
+        headIndex: 1,
+        commitCount: 1,
+        provider: "stub",
+        model: "stub",
+        effort: "low",
+        body: "{}",
+      });
+      if (!written.ok) throw new Error(written.error.message);
+      await drainSucceeded();
+      return written.value.id;
+    }
+
+    async function checkpointAt(
+      pullRequestId: PullRequestRowId,
+      lastSubmittedSha: string,
+    ): Promise<void> {
+      const stored = await createTenantRepository(
+        harness.handle,
+        CTX,
+      ).checkpoints.upsertOnSubmit({
+        pullRequestId,
+        reviewerId: brandWith(isReviewerId, 555n),
+        lastSubmittedSha,
+        submittedAt: new Date(),
+      });
+      if (!stored.ok) throw new Error(stored.error.message);
+    }
+
+    async function drainSucceeded(): Promise<void> {
+      await harness.raw("update generation set status = 'succeeded'");
+      await harness.raw("delete from graphile_worker.jobs");
+    }
+
+    async function readGeneration(): Promise<Record<string, unknown>> {
+      const rows = await harness.raw("select status, attempts from generation");
+      const row = rows[0];
+      if (row === undefined) throw new Error("no generation row");
+      return row;
+    }
+
+    it("queues nothing when a brief covers the base and head pair", async () => {
+      const first = unwrap(await trigger({ baseSha: BASE_SHA }));
+      const briefId = await storeBrief(first.pullRequest.id);
+
+      const second = unwrap(await trigger({ baseSha: BASE_SHA }));
+
+      expect(second.coveredBy).toBe(briefId);
+      expect(second.generation).toBeUndefined();
+      expect(await readGeneration()).toEqual({
+        status: GenerationStatuses.SUCCEEDED,
+        attempts: 0,
+      });
+      const jobs = await harness.raw("select id from graphile_worker.jobs");
+      expect(jobs).toHaveLength(0);
+    });
+
+    it("a moved base is a new pair and queues", async () => {
+      const first = unwrap(await trigger({ baseSha: BASE_SHA }));
+      await storeBrief(first.pullRequest.id);
+
+      const moved = unwrap(await trigger({ baseSha: "a".repeat(40) }));
+
+      expect(moved.coveredBy).toBeUndefined();
+      expect(expectGeneration(moved).status).toBe(GenerationStatuses.PENDING);
+      const jobs = await harness.raw("select id from graphile_worker.jobs");
+      expect(jobs).toHaveLength(1);
+    });
+
+    it("a submitted review is work the brief does not cover", async () => {
+      const first = unwrap(await trigger({ baseSha: BASE_SHA }));
+      await storeBrief(first.pullRequest.id);
+
+      const review = unwrap(
+        await trigger({
+          baseSha: BASE_SHA,
+          uncoveredWork: UncoveredWorks.REVIEW,
+        }),
+      );
+
+      expect(review.coveredBy).toBeUndefined();
+      expect(review.generation).toBeUndefined();
+      expect(await readGeneration()).toEqual({
+        status: GenerationStatuses.SUCCEEDED,
+        attempts: 0,
+      });
+      const jobs = await harness.raw("select id from graphile_worker.jobs");
+      expect(jobs).toHaveLength(1);
+    });
+
+    it("a checkpoint at another head owes the covered head its delta", async () => {
+      const first = unwrap(await trigger({ baseSha: BASE_SHA }));
+      await storeBrief(first.pullRequest.id);
+      const pullRequestId = brandWith(isPullRequestRowId, first.pullRequest.id);
+      await checkpointAt(pullRequestId, "b".repeat(40));
+
+      const returned = unwrap(await trigger({ baseSha: BASE_SHA }));
+
+      expect(returned.coveredBy).toBeUndefined();
+      expect(returned.generation).toBeUndefined();
+      const jobs = await harness.raw("select id from graphile_worker.jobs");
+      expect(jobs).toHaveLength(1);
+    });
+
+    it("a checkpoint whose delta reaches the head keeps the pair covered", async () => {
+      const first = unwrap(await trigger({ baseSha: BASE_SHA }));
+      const briefId = await storeBrief(first.pullRequest.id);
+      const pullRequestId = brandWith(isPullRequestRowId, first.pullRequest.id);
+      const checkpointSha = "b".repeat(40);
+      await checkpointAt(pullRequestId, checkpointSha);
+      const delta = await createArtifactStore(harness.handle, CTX).deltas.write(
+        {
+          pullRequestId,
+          baselineSha: checkpointSha,
+          headSha: HEAD_SHA,
+          provider: "stub",
+          model: "stub",
+          effort: "low",
+          body: "{}",
+        },
+      );
+      if (!delta.ok) throw new Error(delta.error.message);
+
+      const returned = unwrap(await trigger({ baseSha: BASE_SHA }));
+
+      expect(returned.coveredBy).toBe(briefId);
+      const jobs = await harness.raw("select id from graphile_worker.jobs");
+      expect(jobs).toHaveLength(0);
+    });
+
+    it("a checkpoint at the head itself owes nothing", async () => {
+      const first = unwrap(await trigger({ baseSha: BASE_SHA }));
+      const briefId = await storeBrief(first.pullRequest.id);
+      await checkpointAt(
+        brandWith(isPullRequestRowId, first.pullRequest.id),
+        HEAD_SHA,
+      );
+
+      const returned = unwrap(await trigger({ baseSha: BASE_SHA }));
+
+      expect(returned.coveredBy).toBe(briefId);
+      const jobs = await harness.raw("select id from graphile_worker.jobs");
+      expect(jobs).toHaveLength(0);
+    });
+
+    it("uncovered work queues nothing while a worker holds the job", async () => {
+      const first = unwrap(await trigger({ baseSha: BASE_SHA }));
+      await storeBrief(first.pullRequest.id);
+      unwrap(
+        await trigger({
+          baseSha: BASE_SHA,
+          uncoveredWork: UncoveredWorks.REVIEW,
+        }),
+      );
+      await harness.raw("update graphile_worker.jobs set locked_at = now()");
+      const before = await harness.raw(
+        "select run_at from graphile_worker.jobs",
+      );
+      await new Promise((resolve) => setTimeout(resolve, 25));
+
+      const held = unwrap(
+        await trigger({
+          baseSha: BASE_SHA,
+          uncoveredWork: UncoveredWorks.ENTRY_COMMENT,
+          debounceSeconds: 1,
+          refreshRunAt: true,
+        }),
+      );
+
+      expect(held.generation).toBeUndefined();
+      const jobs = await harness.raw(
+        "select run_at, locked_at from graphile_worker.jobs",
+      );
+      expect(jobs).toHaveLength(1);
+      expect(jobs[0]?.["locked_at"]).not.toBeNull();
+      expect(epochMs(jobs[0]?.["run_at"])).toBe(epochMs(before[0]?.["run_at"]));
+    });
+
+    it("a ready flip queues and leaves the entry comment to the worker", async () => {
+      const first = unwrap(await trigger({ baseSha: BASE_SHA }));
+      await storeBrief(first.pullRequest.id);
+      await createTenantRepository(
+        harness.handle,
+        CTX,
+      ).pullRequests.setEntryComment(
+        brandWith(isPullRequestRowId, first.pullRequest.id),
+        4242n,
+      );
+
+      const flipped = unwrap(
+        await trigger({
+          baseSha: BASE_SHA,
+          uncoveredWork: UncoveredWorks.ENTRY_COMMENT,
+        }),
+      );
+
+      expect(flipped.coveredBy).toBeUndefined();
+      expect(flipped.generation).toBeUndefined();
+      expect(await readGeneration()).toEqual({
+        status: GenerationStatuses.SUCCEEDED,
+        attempts: 0,
+      });
+      const jobs = await harness.raw("select id from graphile_worker.jobs");
+      expect(jobs).toHaveLength(1);
     });
   });
 

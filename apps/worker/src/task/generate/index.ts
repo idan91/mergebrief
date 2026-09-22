@@ -11,7 +11,10 @@ import {
   PullRequestSources,
   createGenerationProjection,
   GenerationKinds,
+  GenerationStatuses,
   PrStates,
+  type GenerationProjection,
+  type GenerationRow,
   type GenerationTarget,
   type PullRequestRow,
 } from "persistence";
@@ -29,7 +32,7 @@ import { generateCheckpointDeltas } from "./logic/checkpoint-deltas";
 import { throwOnGitHubFailure } from "./logic/errors";
 import { reportJobFailure } from "./logic/job-failure";
 import { buildPrMetadata } from "./logic/pr-metadata";
-import { applySpendGate } from "./logic/spend-gate";
+import { applySpendGate, refuseAtCap } from "./logic/spend-gate";
 import { createTicketContextLoader } from "./logic/ticket-context";
 import {
   countPrChangedLines,
@@ -53,6 +56,7 @@ import type {
   GenerateTaskHelpers,
   Logger,
   PrefetchedSpan,
+  RunState,
 } from "./types";
 import { getBriefTarget, getPrLocator, createNoopLogger } from "./utils";
 
@@ -82,19 +86,21 @@ export function createGenerateTask(deps: GenerateTaskDeps): GenerateTask {
     });
     const projection = createGenerationProjection(deps.handle, payload.ctx);
     const target = getBriefTarget(payload);
+    const run: RunState = { leaveRow: false };
 
     try {
       await runGeneration(
         deps,
         payload,
         target,
+        run,
         helpers?.abortSignal,
         helpers?.job,
         jobLog,
       );
     } catch (error) {
       if (error instanceof SupersededSignal) {
-        await projection.markSuperseded(target);
+        if (!run.leaveRow) await projection.markSuperseded(target);
         jobLog.info(`generate: superseded (${error.message})`);
         return;
       }
@@ -110,6 +116,7 @@ export function createGenerateTask(deps: GenerateTaskDeps): GenerateTask {
         deps,
         projection,
         target,
+        leaveRow: run.leaveRow,
         job: helpers?.job,
         log: jobLog,
       });
@@ -121,10 +128,35 @@ export function createGenerateTask(deps: GenerateTaskDeps): GenerateTask {
   };
 }
 
+/**
+ * A run ingest did not project as pending projects itself. Only a succeeded
+ * row (or none) means that: a failed row is graphile retrying a transient
+ * failure, and a retry keeps its status until the gate decides.
+ */
+async function projectIfUnprojected(
+  projection: GenerationProjection,
+  target: GenerationTarget,
+  current: GenerationRow | undefined,
+): Promise<void> {
+  if (
+    current !== undefined &&
+    current.status !== GenerationStatuses.SUCCEEDED
+  ) {
+    return;
+  }
+  const projected = await projection.upsertPending(target);
+  if (!projected.ok) {
+    throw new Error(
+      `generate: could not project the run: ${projected.error.code}`,
+    );
+  }
+}
+
 async function runGeneration(
   deps: GenerateTaskDeps,
   payload: ParsedGeneratePayload,
   target: GenerationTarget,
+  run: RunState,
   shutdownSignal: AbortSignal | undefined,
   job: GenerateTaskHelpers["job"],
   log: Logger,
@@ -164,9 +196,13 @@ async function runGeneration(
   }
   // Re-bind post-guard so the narrowing survives into the inner closure.
   const prRow: PullRequestRow = pr;
-  // Bind the GitHub source before the cap so an existing Entry comment can be updated.
-  // A url-box binding may itself probe once for PAT fallback; capped jobs pay that read
-  // but make no further GitHub reads.
+  // A succeeded row is one ingest left alone for work over a stored brief:
+  // nothing before the brief lookup may mark it. The fresh path below claims
+  // it and clears the flag.
+  const projected = await projection.get(target);
+  run.leaveRow = projected?.status === GenerationStatuses.SUCCEEDED;
+  // The cap gate needs the source for an Entry comment update, and the brief
+  // lookup needs the live base, so a capped job pays one PR read and no more.
   const source =
     payload.grantId === undefined
       ? await github.openPullRequestSource(
@@ -186,20 +222,6 @@ async function runGeneration(
     publicBaseUrl: deps.publicBaseUrl,
     log,
   });
-
-  const capped = await applySpendGate(payload, {
-    deps,
-    projection,
-    target,
-    prRow,
-    repoSlug: pr.repoSlug,
-    entryCommentManager,
-    job,
-    log,
-  });
-  if (capped) {
-    return;
-  }
 
   // Installation jobs rely on the newer push webhook. Url-box jobs may have no webhook,
   // so every supersession path must schedule the observed head before standing down.
@@ -241,11 +263,92 @@ async function runGeneration(
     );
   }
 
+  // A stored brief for the pair means this run reaches no model: it skips
+  // the cap and leaves the generation row as it found it.
+  const priorBriefs = await store.briefs.listForPullRequest(pullRequestId);
+  const existingBrief = priorBriefs.find(
+    (row) => row.baseSha === prInfo.baseSha && row.headSha === headSha,
+  );
+  const prevBrief = priorBriefs
+    .toReversed()
+    .find((row) => row.headSha !== headSha);
+  const gateInputs = {
+    deps,
+    projection,
+    target,
+    prRow,
+    repoSlug: pr.repoSlug,
+    entryCommentManager,
+    job,
+    log,
+  };
   const watch = createSupersessionWatch(
     source,
     headSha,
     deps.headPollIntervalMs ?? DEFAULT_HEAD_POLL_INTERVAL_MS,
   );
+
+  /**
+   * The ready Entry, once the artifact exists. On skip reruns an identical
+   * ready body must not re-ping; only skips need the read, a fresh run still
+   * carries a generating body and always refreshes.
+   */
+  async function postReadyEntry(entryCommentAllowed: boolean): Promise<void> {
+    await watch.assertCurrent();
+    const readyEntryAllowed = await resolveReadyEntryAllowed(payload, {
+      prInfo,
+      source,
+      entryCommentAllowed,
+      log,
+    });
+    if (!readyEntryAllowed) return;
+    const readyBody = entryCommentBody(
+      entryCommentManager.buildDeepLink(prInfo.baseSha),
+    );
+    const alreadyLive =
+      existingBrief !== undefined &&
+      (await entryCommentManager.matches(readyBody));
+    if (alreadyLive) {
+      log.info(
+        "generate: entry comment already current — skipping repost (no re-ping)",
+      );
+      return;
+    }
+    await entryCommentManager.refresh(readyBody);
+  }
+
+  /** What a capped run over a stored brief still does: the Entry reaches no model. */
+  async function postOwedReadyEntry(): Promise<void> {
+    const repoConfig = prInfo.draft
+      ? await acquireRepoConfig(source, log)
+      : undefined;
+    const entryCommentAllowed = await resolveEntryCommentAllowed(payload, {
+      prInfo,
+      repoConfig,
+      entryCommentManager,
+      log,
+    });
+    await postReadyEntry(entryCommentAllowed);
+  }
+
+  if (existingBrief !== undefined) {
+    run.leaveRow = true;
+    if (await refuseAtCap(payload, gateInputs)) {
+      await postOwedReadyEntry();
+      return;
+    }
+  } else {
+    // Ingest projects a run it expects; one it classified as covered by the
+    // stored base, while the live base moved, arrives unprojected and
+    // projects itself, so the attempt counts and the wait state shows.
+    await projectIfUnprojected(projection, target, projected);
+    run.leaveRow = false;
+    const capped = await applySpendGate(payload, gateInputs);
+    if (capped) {
+      return;
+    }
+  }
+
   // The generator aborts on EITHER trigger: a superseding push (the watch) or
   // graceful shutdown (graphile's helpers.abortSignal). The two are told
   // apart in `createGenerateTask`'s catch, superseded vs back-to-queue.
@@ -288,14 +391,6 @@ async function runGeneration(
     });
 
     const coreMessageLog: CoreMessageLog = (message) => log.info(message);
-
-    const priorBriefs = await store.briefs.listForPullRequest(pullRequestId);
-    const existingBrief = priorBriefs.find(
-      (row) => row.baseSha === prInfo.baseSha && row.headSha === headSha,
-    );
-    const prevBrief = priorBriefs
-      .toReversed()
-      .find((row) => row.headSha !== headSha);
 
     // The anchoring plan needs the prevHead→head span BEFORE the model call;
     // the revision-artifact phase below reuses the same Result (unwrap stays
@@ -386,31 +481,8 @@ async function runGeneration(
       });
     }
 
-    // Once the artifact exists, delete/repost the ready Entry before slower delta work.
-    // Check supersession first. On skip reruns, an identical ready body must not re-ping.
-    // Only skips need the read: fresh runs still carry a generating body and always refresh.
-    await watch.assertCurrent();
-    const readyEntryAllowed = await resolveReadyEntryAllowed(payload, {
-      prInfo,
-      source,
-      entryCommentAllowed,
-      log,
-    });
-    if (readyEntryAllowed) {
-      const readyBody = entryCommentBody(
-        entryCommentManager.buildDeepLink(prInfo.baseSha),
-      );
-      const alreadyLive =
-        existingBrief !== undefined &&
-        (await entryCommentManager.matches(readyBody));
-      if (alreadyLive) {
-        log.info(
-          "generate: entry comment already current — skipping repost (no re-ping)",
-        );
-      } else {
-        await entryCommentManager.refresh(readyBody);
-      }
-    }
+    // The ready Entry lands before the slower delta work.
+    await postReadyEntry(entryCommentAllowed);
 
     // The prevHead...head span diff is fetched ONCE and reused by the delta
     // loop below, a checkpoint at the previous briefed head (the common

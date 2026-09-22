@@ -61,6 +61,38 @@ export async function applySpendGate(
 }
 
 /**
+ * The cap as a ceiling only, for a run over a stored brief: it produces no
+ * brief generation and adds no attempt, but it may still owe a checkpoint
+ * delta or a narrative, so at the cap it is refused before any provider
+ * call. The caller still posts the ready Entry the run owes, which reaches
+ * no model. Count only, no lock and no row transition; the row stays as found.
+ */
+export async function refuseAtCap(
+  payload: ParsedGeneratePayload,
+  inputs: SpendGateInputs,
+): Promise<boolean> {
+  const { deps, projection, repoSlug, log } = inputs;
+
+  const cap = deps.spend?.maxGenerationsPerDay ?? null;
+  if (cap === null) return false;
+  const day = utcDayBounds(new Date());
+  const started = await projection.countStartedRuns({
+    from: day.from,
+    to: day.to,
+  });
+  if (started < cap) return false;
+
+  log.warn("generate: daily generation cap reached, stored-brief run refused", {
+    evt: "spend.cap.trip",
+    repo: repoSlug,
+    cap,
+    dayUtc: day.label,
+    headSha: payload.headSha,
+  });
+  return true;
+}
+
+/**
  * Time between the job becoming runnable and this slot picking it up. The
  * projection row's created_at is the fallback for a job-less call; it counts
  * from the first push of that head, so a re-triggered head reads long.

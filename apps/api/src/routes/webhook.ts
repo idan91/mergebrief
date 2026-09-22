@@ -36,11 +36,13 @@ import {
 import type { Logger } from "logging";
 import {
   PrStates,
+  UncoveredWorks,
   createTenantRepository,
   createIngestRoutines,
   parseTenantContext,
   createPurgeRoutines,
   type AppDatabase,
+  type UncoveredWork,
   type PullRequestLifecycle,
   type PullRequestUpsertInput,
   type TenantContext,
@@ -82,9 +84,9 @@ const MAX_WEBHOOK_BODY_BYTES = 1024 * 1024;
 type RawBodyResult = Result<string, "body-too-large">;
 
 /**
- * The `pull_request` actions that (re)queue a generation. `closed` is handled
- * separately (state write, NO enqueue); anything else the parser normalizes is
- * a no-op here.
+ * The `pull_request` actions that always (re)queue a generation. `closed` is
+ * handled separately (state write, NO enqueue); `edited` queues only when it
+ * moved the base; anything else the parser normalizes is a no-op here.
  */
 const GENERATION_TRIGGER_ACTIONS: ReadonlySet<PullRequestAction> = new Set([
   PullRequestActions.OPENED,
@@ -93,6 +95,24 @@ const GENERATION_TRIGGER_ACTIONS: ReadonlySet<PullRequestAction> = new Set([
   PullRequestActions.READY_FOR_REVIEW,
   PullRequestActions.REVIEW_REQUESTED,
 ]);
+
+function isGenerationTrigger(event: ParsedPullRequestEvent): boolean {
+  if (event.action === PullRequestActions.EDITED) {
+    return event.baseChanged === true;
+  }
+  return GENERATION_TRIGGER_ACTIONS.has(event.action);
+}
+
+/** The work an event names that a stored brief for its pair leaves undone. */
+function nameUncoveredWork(
+  event: ParsedPullRequestEvent | ParsedPullRequestReviewEvent,
+): UncoveredWork | undefined {
+  if (!("action" in event)) return UncoveredWorks.REVIEW;
+  if (event.action === PullRequestActions.READY_FOR_REVIEW) {
+    return UncoveredWorks.ENTRY_COMMENT;
+  }
+  return undefined;
+}
 
 /** The row every `pull_request` handler writes; a deleted author omits the login. */
 function shapePullRequestUpsert(
@@ -158,7 +178,7 @@ async function handlePullRequest(
     if (!recorded.applied) logSkippedEvent(log, event);
     return;
   }
-  if (GENERATION_TRIGGER_ACTIONS.has(event.action)) {
+  if (isGenerationTrigger(event)) {
     if (event.draft && !policy.generate) {
       // Drafts excluded by instance policy still need lifecycle updates. A reopened draft
       // must clear terminal state now; no later event carries the reopen intent.
@@ -290,12 +310,17 @@ async function triggerGeneration(
   if ("updatedAt" in event && event.updatedAt !== undefined) {
     pullRequest.githubUpdatedAt = event.updatedAt;
   }
-  const result = await createIngestRoutines(handle, ctx).triggerGeneration({
+  const input: Mutable<TriggerGenerationInput> = {
     pullRequest,
     headSha: event.headSha,
     reopen,
     ...overrides,
-  });
+  };
+  const uncoveredWork = nameUncoveredWork(event);
+  if (uncoveredWork !== undefined) input.uncoveredWork = uncoveredWork;
+  const result = await createIngestRoutines(handle, ctx).triggerGeneration(
+    input,
+  );
   if (!result.ok) {
     // Every override above is a validated constant or a loader-validated
     // policy value, so an error here is a programmer error, surface it as
@@ -303,6 +328,13 @@ async function triggerGeneration(
     throw new Error(`ingest trigger failed: ${result.error.code}`);
   }
   if (!result.value.applied) logSkippedEvent(log, event);
+  if (result.value.coveredBy !== undefined) {
+    log.debug("webhook event covered by a stored brief, nothing queued", {
+      repoId: String(event.repoId),
+      prNumber: event.prNumber,
+      briefId: String(result.value.coveredBy),
+    });
+  }
 }
 
 async function handleInstallation(

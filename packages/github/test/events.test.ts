@@ -67,6 +67,7 @@ describe("parseWebhookEvent, pull_request", () => {
     ["pull_request.closed.json", PullRequestActions.CLOSED],
     ["pull_request.ready_for_review.json", PullRequestActions.READY_FOR_REVIEW],
     ["pull_request.review_requested.json", PullRequestActions.REVIEW_REQUESTED],
+    ["pull_request.edited.json", PullRequestActions.EDITED],
   ];
 
   for (const [fixture, action] of cases) {
@@ -138,6 +139,43 @@ describe("parseWebhookEvent, pull_request", () => {
     }
     expect(opened.before).toBeUndefined();
     expect(opened.after).toBeUndefined();
+  });
+
+  it("marks an edit that moved the base and only that edit", () => {
+    const moved = expectOk(
+      parseWebhookEvent({
+        eventName: "pull_request",
+        payload: jsonFixture("pull_request.edited.json"),
+      }),
+    );
+    if (moved.kind !== ParsedWebhookEventKinds.PULL_REQUEST) {
+      throw new Error("expected pull-request");
+    }
+    expect(moved.baseChanged).toBe(true);
+
+    const fixture = jsonFixture("pull_request.edited.json");
+    if (!isRecord(fixture)) throw new Error("fixture is not an object");
+    const titleOnly = expectOk(
+      parseWebhookEvent({
+        eventName: "pull_request",
+        payload: { ...fixture, changes: { title: { from: "Old title" } } },
+      }),
+    );
+    if (titleOnly.kind !== ParsedWebhookEventKinds.PULL_REQUEST) {
+      throw new Error("expected pull-request");
+    }
+    expect(titleOnly.baseChanged).toBe(false);
+
+    const opened = expectOk(
+      parseWebhookEvent({
+        eventName: "pull_request",
+        payload: jsonFixture("pull_request.opened.json"),
+      }),
+    );
+    if (opened.kind !== ParsedWebhookEventKinds.PULL_REQUEST) {
+      throw new Error("expected pull-request");
+    }
+    expect(opened.baseChanged).toBeUndefined();
   });
 
   it("exposes merged only on closed", () => {
