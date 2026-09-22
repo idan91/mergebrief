@@ -42,6 +42,8 @@
     }
 
     &[data-variant="accent"] {
+      align-items: center;
+      justify-content: center;
       min-block-size: functions.to-rem(32px);
       padding-block: 0;
       padding-inline: var(--space-5);

@@ -222,6 +222,12 @@
     // An auto-width IconButton's start inset; a trigger overrides it on itself.
     --icon-button-inset-start: #{functions.to-rem(6px)};
 
+    // Full-bleed readers only: 100% resolves against each reading element.
+    --page-gutter: max(
+      var(--space-6),
+      calc((100% - #{functions.to-rem(1080px)}) / 2)
+    );
+
     // ── Elevation ────────────────────────────────────────────────────────
     // Three steps plus the upward cast.
     --shadow-elevation-sm: 0 8px 24px rgb(0 0 0 / 40%); // small popovers
@@ -308,6 +314,12 @@
       // derivation above picks the rest up unchanged.
       --header-pad-block: #{functions.to-rem(9px)};
       --header-identity-min: #{functions.to-rem(46px)};
+    }
+  }
+
+  @media (width < 760px) {
+    :root {
+      --page-gutter: var(--space-5);
     }
   }
 }

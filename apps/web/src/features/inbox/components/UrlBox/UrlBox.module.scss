@@ -52,7 +52,8 @@
       }
     }
 
-    &[data-state="progress"] {
+    /* :has(.input) only for weight: the shown rule above is (0,4,0), and this must outrank it. */
+    &[data-state="progress"]:has(.input) {
       .hint,
       .submit {
         display: none;

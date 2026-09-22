@@ -3,15 +3,10 @@
 @layer components {
   // Full-bleed so the glow is the page's, with the column held by the gutter.
   .home {
-    --home-gutter: max(
-      var(--space-6),
-      calc((100% - #{functions.to-rem(1080px)}) / 2)
-    );
-
     display: grid;
     gap: var(--space-8);
     padding-block: var(--space-8) functions.to-rem(140px);
-    padding-inline: var(--home-gutter);
+    padding-inline: var(--page-gutter);
     background: radial-gradient(
         880px 420px at 40% -120px,
         color-mix(in srgb, var(--color-accent) 11%, transparent),
@@ -32,8 +27,6 @@
 
   @media (width < 760px) {
     .home {
-      --home-gutter: var(--space-5);
-
       gap: var(--space-7);
       padding-block-start: var(--space-6);
     }

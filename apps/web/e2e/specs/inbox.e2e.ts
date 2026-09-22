@@ -108,3 +108,15 @@ test("the Inbox folds, marks and prints status only when not Open", async ({
     page.getByTestId("inbox-row").first().getByText("new commits"),
   ).toHaveCount(0);
 });
+
+test("the Generate button waits for a pasted URL", async ({ page }) => {
+  await page.goto("/");
+  await page.locator('[data-first-load="false"]').waitFor();
+  const generate = page.getByRole("button", { name: "Generate brief" });
+  await expect(generate).toBeHidden();
+
+  await page
+    .getByLabel("Pull request URL")
+    .fill("https://github.com/acme/payments/pull/101");
+  await expect(generate).toBeVisible();
+});
