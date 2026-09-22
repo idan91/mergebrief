@@ -91,10 +91,14 @@ function pullRequestPayload(input: {
   merged?: boolean;
   draft?: boolean;
   authorLogin?: string | null;
+  headSha?: string;
+  /** GitHub's `pull_request.updated_at`, the late-event guard's key. */
+  updatedAt?: string;
+  closedAt?: string | null;
 }): Record<string, unknown> {
   const pullRequest: Record<string, unknown> = {
     title: "Update the README with new information.",
-    head: { sha: HEAD_SHA },
+    head: { sha: input.headSha ?? HEAD_SHA },
     base: { sha: "f95f852bd8fca8fcc58a9a2d6c842781e32a215e" },
     draft: input.draft ?? false,
     user:
@@ -104,6 +108,9 @@ function pullRequestPayload(input: {
   };
 
   if (input.merged !== undefined) pullRequest["merged"] = input.merged;
+  if (input.updatedAt !== undefined)
+    pullRequest["updated_at"] = input.updatedAt;
+  if (input.closedAt !== undefined) pullRequest["closed_at"] = input.closedAt;
 
   return {
     action: input.action,
@@ -711,6 +718,198 @@ describe("POST /api/webhooks/github", () => {
     expect(prs[0]?.["purge_after"]).toBeNull();
   });
 
+  describe("the late event guard", () => {
+    const T1 = "2026-09-20T10:00:00Z";
+    const T2 = "2026-09-20T10:05:00Z";
+
+    async function send(payload: Record<string, unknown>): Promise<void> {
+      expect((await deliver(app, "pull_request", payload)).status).toBe(200);
+    }
+
+    async function readRow(): Promise<Record<string, unknown>> {
+      const rows = await harness.raw(
+        "select state, closed_at, github_updated_at from pull_request",
+      );
+      expect(rows).toHaveLength(1);
+      const row = rows[0];
+      if (row === undefined) throw new Error("unreachable");
+      return row;
+    }
+
+    it("a late close after a reopen leaves the row open", async () => {
+      await send(pullRequestPayload({ action: "opened", updatedAt: T1 }));
+      await send(pullRequestPayload({ action: "reopened", updatedAt: T2 }));
+      await send(
+        pullRequestPayload({
+          action: "closed",
+          merged: false,
+          updatedAt: T1,
+          closedAt: T1,
+        }),
+      );
+
+      const row = await readRow();
+      expect(row["state"]).toBe("open");
+      expect(row["closed_at"]).toBeNull();
+    });
+
+    it("a late reopen after a close leaves the row closed", async () => {
+      await send(pullRequestPayload({ action: "opened", updatedAt: T1 }));
+      await send(
+        pullRequestPayload({
+          action: "closed",
+          merged: false,
+          updatedAt: T2,
+          closedAt: T2,
+        }),
+      );
+      await send(pullRequestPayload({ action: "reopened", updatedAt: T1 }));
+
+      const row = await readRow();
+      expect(row["state"]).toBe("closed");
+      expect(row["closed_at"]).not.toBeNull();
+    });
+
+    it("a late push does not replace the waiting job", async () => {
+      await send(pullRequestPayload({ action: "opened", updatedAt: T1 }));
+      await send(
+        pullRequestPayload({
+          action: "synchronize",
+          headSha: "b".repeat(40),
+          updatedAt: T2,
+        }),
+      );
+      await send(
+        pullRequestPayload({
+          action: "synchronize",
+          headSha: "c".repeat(40),
+          updatedAt: T1,
+        }),
+      );
+
+      const jobs = await harness.raw(
+        "select payload->>'head_sha' as head from graphile_worker.jobs",
+      );
+      expect(jobs).toEqual([{ head: "b".repeat(40) }]);
+      const generations = await harness.raw(
+        "select head_sha from generation order by id",
+      );
+      expect(generations.map((row) => row["head_sha"])).toEqual([
+        HEAD_SHA,
+        "b".repeat(40),
+      ]);
+    });
+
+    it("equal timestamps apply", async () => {
+      await send(pullRequestPayload({ action: "opened", updatedAt: T1 }));
+      await send(
+        pullRequestPayload({
+          action: "closed",
+          merged: false,
+          updatedAt: T1,
+          closedAt: T1,
+        }),
+      );
+
+      expect((await readRow())["state"]).toBe("closed");
+    });
+
+    it("an empty stored timestamp applies", async () => {
+      await send(pullRequestPayload({ action: "opened" }));
+      await send(
+        pullRequestPayload({
+          action: "closed",
+          merged: false,
+          updatedAt: T1,
+          closedAt: T1,
+        }),
+      );
+
+      const row = await readRow();
+      expect(row["state"]).toBe("closed");
+      expect(epochMs(row["github_updated_at"])).toBe(Date.parse(T1));
+    });
+
+    it("a merge landing on a closed row repairs it", async () => {
+      await send(pullRequestPayload({ action: "opened", updatedAt: T1 }));
+      await send(
+        pullRequestPayload({
+          action: "closed",
+          merged: false,
+          updatedAt: T1,
+          closedAt: T1,
+        }),
+      );
+      await send(
+        pullRequestPayload({
+          action: "closed",
+          merged: true,
+          updatedAt: T2,
+          closedAt: T2,
+        }),
+      );
+
+      const row = await readRow();
+      expect(row["state"]).toBe("merged");
+      expect(epochMs(row["closed_at"])).toBe(Date.parse(T2));
+    });
+
+    it("an older push after a draft conversion does not clear the draft", async () => {
+      await send(pullRequestPayload({ action: "opened", updatedAt: T1 }));
+      await send(
+        pullRequestPayload({
+          action: "converted_to_draft",
+          draft: true,
+          headSha: "c".repeat(40),
+          updatedAt: T2,
+        }),
+      );
+      await send(
+        pullRequestPayload({
+          action: "synchronize",
+          headSha: "c".repeat(40),
+          updatedAt: T1,
+        }),
+      );
+
+      const rows = await harness.raw("select draft from pull_request");
+      expect(rows).toEqual([{ draft: true }]);
+      const jobs = await harness.raw(
+        "select payload->>'head_sha' as head from graphile_worker.jobs",
+      );
+      expect(jobs).toEqual([{ head: HEAD_SHA }]);
+    });
+
+    it("a late draft conversion does not undo a ready flip", async () => {
+      await send(pullRequestPayload({ action: "opened", updatedAt: T1 }));
+      await send(
+        pullRequestPayload({ action: "ready_for_review", updatedAt: T2 }),
+      );
+      await send(
+        pullRequestPayload({
+          action: "converted_to_draft",
+          draft: true,
+          updatedAt: T1,
+        }),
+      );
+
+      const rows = await harness.raw("select draft from pull_request");
+      expect(rows).toEqual([{ draft: false }]);
+    });
+
+    it("a late review still writes its checkpoint", async () => {
+      await send(pullRequestPayload({ action: "opened", updatedAt: T2 }));
+      const res = await deliver(
+        app,
+        "pull_request_review",
+        pullRequestReviewPayload({ submittedAt: T1 }),
+      );
+
+      expect(res.status).toBe(200);
+      expect(await countRows(harness, "checkpoint")).toBe(1);
+    });
+  });
+
   it("pull_request closed with merged=true → merged state", async () => {
     await seedPullRequest(harness, BigInt(REPO_ID), 2);
     const res = await deliver(
@@ -953,6 +1152,54 @@ describe("POST /api/webhooks/github", () => {
       // Still a draft under generate: off, no generation, no job.
       expect(await countRows(harness, "generation")).toBe(0);
       expect(await countRows(harness, "graphile_worker.jobs")).toBe(0);
+    });
+
+    it("generate off: a late draft reopen after a close is skipped and logged", async () => {
+      const capture = testLogging({ LOG_LEVEL: "debug" });
+      const earlier = "2026-09-20T10:00:00Z";
+      const later = "2026-09-20T10:05:00Z";
+      const off = createApp({
+        logger: capture.logger,
+        handle: harness.handle,
+        webhookSecret: SECRET,
+        auth: DUMMY_AUTH,
+        github: unusedConversationPort,
+        draftPolicy: { generate: false, debounceSeconds: null },
+      });
+      await deliver(
+        off,
+        "pull_request",
+        pullRequestPayload({
+          action: "opened",
+          draft: true,
+          updatedAt: earlier,
+        }),
+      );
+      await deliver(
+        off,
+        "pull_request",
+        pullRequestPayload({ action: "closed", draft: true, updatedAt: later }),
+      );
+      const res = await deliver(
+        off,
+        "pull_request",
+        pullRequestPayload({
+          action: "reopened",
+          draft: true,
+          updatedAt: earlier,
+        }),
+      );
+
+      expect(res.status).toBe(200);
+      const prs = await harness.raw("select state from pull_request");
+      expect(prs).toEqual([{ state: "closed" }]);
+      const skipped = capture
+        .lines()
+        .find(
+          (line) =>
+            line["msg"] === "webhook event older than the stored row, skipped",
+        );
+      expect(skipped?.["action"]).toBe("reopened");
     });
 
     it("replaces pending draft damping with one short ready_for_review job", async () => {

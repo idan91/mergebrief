@@ -215,6 +215,7 @@ export type {
   IngestError,
   IngestErrorCode,
   IngestOutcome,
+  RecordStateOptions,
   TriggerGenerationInput,
 } from "./stores/ingest";
 

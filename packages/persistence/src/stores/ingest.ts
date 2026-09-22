@@ -90,24 +90,35 @@ export interface IngestError {
  * a transaction client, so `triggerGeneration` (inside its tx) and
  * `recordState` (single statement, atomic on its own) share ONE upsert.
  */
-type IngestExecutor = Pick<ReturnType<typeof internal>, "insert">;
+type IngestExecutor = Pick<ReturnType<typeof internal>, "insert" | "select">;
+
+interface UpsertOutcome {
+  readonly row: PullRequestRow;
+  /** False when the guard below left the stored row untouched. */
+  readonly applied: boolean;
+}
 
 /**
  * The terminal-preserving `pull_request` upsert (same values/onConflict shape
  * as `tenant.ts#pullRequests.upsert`, installation stamped from ctx).
  * With `preserveTerminal`, a `state: open` input landing on a closed/merged
- * row keeps the stored terminal lifecycle (stale redeliveries and state-only
- * events must never resurrect a terminal PR); non-lifecycle fields refresh
- * either way, with omitted optionals preserving stored values.
+ * row keeps the stored terminal lifecycle; non-lifecycle fields refresh
+ * either way, with omitted optionals preserving stored values. The row
+ * applies only when its `githubUpdatedAt` is not older than the stored one.
  */
 async function upsertPullRequestRow(
   executor: IngestExecutor,
   scope: RowScope,
   input: PullRequestUpsertInput,
   preserveTerminal: boolean,
-): Promise<PullRequestRow> {
+): Promise<UpsertOutcome> {
+  const guardAt = input.githubUpdatedAt;
   const lifecycle = buildLifecycleColumns(input);
-  const keepTerminal = buildTerminalKeeper(preserveTerminal);
+  // The keeper stops an open input resurrecting a terminal row; a terminal
+  // input (closed, then merged) always lands, ordering is the guard's job.
+  const keepTerminal = buildTerminalKeeper(
+    preserveTerminal && input.state === PrStates.OPEN,
+  );
   const set: PullRequestUpdateSet = {
     repoSlug: input.repoSlug,
     title: input.title,
@@ -127,6 +138,9 @@ async function upsertPullRequestRow(
   if (input.authorLogin !== undefined) {
     set.authorLogin = input.authorLogin;
   }
+  if (input.githubUpdatedAt !== undefined) {
+    set.githubUpdatedAt = input.githubUpdatedAt;
+  }
   const insert = executor.insert(pullRequest).values({
     installationId: scope.installationId,
     ownerUserId: scope.ownerUserId,
@@ -138,6 +152,7 @@ async function upsertPullRequestRow(
     baseSha: input.baseSha,
     draft: input.draft,
     authorLogin: input.authorLogin,
+    githubUpdatedAt: input.githubUpdatedAt,
     ...lifecycle,
     updatedAt: new Date(),
   });
@@ -153,13 +168,33 @@ async function upsertPullRequestRow(
   if (isOwnerWorld) {
     conflict.targetWhere = sql`${pullRequest.installationId} is null`;
   }
+  if (guardAt !== undefined) {
+    conflict.setWhere = sql`${pullRequest.githubUpdatedAt} is null or ${pullRequest.githubUpdatedAt} <= ${guardAt}`;
+  }
 
   const rows = await insert.onConflictDoUpdate(conflict).returning();
   const row = rows[0];
-  if (row === undefined) {
+  if (row !== undefined) {
+    return { row, applied: true };
+  }
+
+  // The guard skipped the update, so nothing returned: read the stored row.
+  const stored = await executor
+    .select()
+    .from(pullRequest)
+    .where(
+      and(
+        scope.matchesPullRequest(),
+        eq(pullRequest.repoId, input.repoId),
+        eq(pullRequest.prNumber, input.prNumber),
+      ),
+    )
+    .limit(1);
+  const storedRow = stored[0];
+  if (storedRow === undefined) {
     throw new Error("pull_request upsert returned no row");
   }
-  return row;
+  return { row: storedRow, applied: false };
 }
 
 /** The world-discriminated job payload; ids cross as STRINGS (JSON bigint). */
@@ -244,9 +279,15 @@ export interface TriggerGenerationInput {
 export interface IngestOutcome {
   readonly pullRequest: PullRequestRow;
   /**
+   * False when the event was older than the stored row's `github_updated_at`:
+   * the row, the projection and the queue were left as they were.
+   */
+  readonly applied: boolean;
+  /**
    * Absent when the trigger landed on a PR whose terminal lifecycle was
-   * preserved: nothing is projected and no job is enqueued. Present with status
-   * `running` when the head is mid-run: the row was kept and no job added.
+   * preserved or when the event was skipped: nothing is projected and no job
+   * is enqueued. Present with status `running` when the head is mid-run: the
+   * row was kept and no job added.
    */
   readonly generation?: GenerationRow;
 }
@@ -271,8 +312,12 @@ export interface IngestRoutines {
    */
   recordState(
     input: PullRequestUpsertInput,
-    options?: { readonly reopen?: boolean },
-  ): Promise<PullRequestRow>;
+    options?: RecordStateOptions,
+  ): Promise<IngestOutcome>;
+}
+
+export interface RecordStateOptions {
+  readonly reopen?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -317,12 +362,16 @@ export function createIngestRoutines(
         // read, and briefing a merged PR is that door's primary use.
         const preserveTerminal =
           scope.ownerUserId === null && input.reopen !== true;
-        const prRow = await upsertPullRequestRow(
+        const upserted = await upsertPullRequestRow(
           tx,
           scope,
           input.pullRequest,
           preserveTerminal,
         );
+        const prRow = upserted.row;
+        if (!upserted.applied) {
+          return { ok: true, value: { pullRequest: prRow, applied: false } };
+        }
 
         // Terminal preserved → the trigger was stale. Stop here: projecting a
         // `pending` generation row and scheduling the job for a closed/merged PR
@@ -332,7 +381,7 @@ export function createIngestRoutines(
           preserveTerminal &&
           (prRow.state === PrStates.CLOSED || prRow.state === PrStates.MERGED)
         ) {
-          return { ok: true, value: { pullRequest: prRow } };
+          return { ok: true, value: { pullRequest: prRow, applied: true } };
         }
 
         // 1b. The regeneration window applies only when a prior brief for this
@@ -412,7 +461,7 @@ export function createIngestRoutines(
         if (genRow.status === GenerationStatuses.RUNNING) {
           return {
             ok: true,
-            value: { pullRequest: prRow, generation: genRow },
+            value: { pullRequest: prRow, applied: true, generation: genRow },
           };
         }
 
@@ -440,14 +489,23 @@ export function createIngestRoutines(
           )
         `);
 
-        return { ok: true, value: { pullRequest: prRow, generation: genRow } };
+        return {
+          ok: true,
+          value: { pullRequest: prRow, applied: true, generation: genRow },
+        };
       });
     },
 
     async recordState(input, options) {
       // One statement, atomic on its own, no tx needed. Terminal-preserving
       // unless the caller explicitly marks a reopen (see the interface doc).
-      return upsertPullRequestRow(db, scope, input, options?.reopen !== true);
+      const upserted = await upsertPullRequestRow(
+        db,
+        scope,
+        input,
+        options?.reopen !== true,
+      );
+      return { pullRequest: upserted.row, applied: upserted.applied };
     },
   };
 }

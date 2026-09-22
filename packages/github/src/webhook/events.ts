@@ -109,6 +109,10 @@ export interface ParsedPullRequestEvent {
   readonly after?: string;
   /** Present on `closed`, whether the PR was merged vs. just closed. */
   readonly merged?: boolean;
+  /** GitHub's `pull_request.updated_at`; orders late deliveries at ingest. */
+  readonly updatedAt?: Date;
+  /** GitHub's `pull_request.closed_at`; null while open. */
+  readonly closedAt?: Date;
 }
 
 export interface ParsedPullRequestReviewEvent {
@@ -190,6 +194,10 @@ const repositoryRefSchema = z.object({
   full_name: z.string().min(1),
 });
 const shaRefSchema = z.object({ sha: z.string().min(1) });
+const githubTimestampSchema = z
+  .string()
+  .datetime({ offset: true })
+  .transform((value) => new Date(value));
 
 const pullRequestEventSchema = z.object({
   action: z.string(),
@@ -206,6 +214,8 @@ const pullRequestEventSchema = z.object({
     merged: z.boolean().optional(),
     // The author. `null` for a deleted account; absent in trimmed payloads.
     user: z.object({ login: z.string().min(1) }).nullish(),
+    updated_at: githubTimestampSchema.optional(),
+    closed_at: githubTimestampSchema.nullish(),
   }),
 });
 
@@ -220,10 +230,7 @@ const pullRequestReviewEventSchema = z.object({
   review: z.object({
     state: z.string().min(1),
     commit_id: z.string().min(1),
-    submitted_at: z
-      .string()
-      .datetime({ offset: true })
-      .transform((value) => new Date(value)),
+    submitted_at: githubTimestampSchema,
     user: z.object({
       id: reviewerIdSchema,
       login: z.string().min(1),
@@ -317,6 +324,9 @@ function parsePullRequest(
   if (action === PullRequestActions.CLOSED && merged !== undefined) {
     event.merged = merged;
   }
+  const { updated_at: updatedAt, closed_at: closedAt } = data.pull_request;
+  if (updatedAt !== undefined) event.updatedAt = updatedAt;
+  if (closedAt !== undefined && closedAt !== null) event.closedAt = closedAt;
 
   return { ok: true, value: event };
 }

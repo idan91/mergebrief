@@ -33,6 +33,7 @@ import {
   type ParsedWebhookEvent,
   type PullRequestAction,
 } from "github";
+import type { Logger } from "logging";
 import {
   PrStates,
   createTenantRepository,
@@ -109,8 +110,21 @@ function shapePullRequestUpsert(
   };
 
   if (event.authorLogin !== undefined) upsert.authorLogin = event.authorLogin;
+  if (event.updatedAt !== undefined) upsert.githubUpdatedAt = event.updatedAt;
 
   return upsert;
+}
+
+/** The late-event guard left the row alone; the delivery was older. */
+function logSkippedEvent(
+  log: Logger,
+  event: ParsedPullRequestEvent | ParsedPullRequestReviewEvent,
+): void {
+  log.debug("webhook event older than the stored row, skipped", {
+    repoId: String(event.repoId),
+    prNumber: event.prNumber,
+    action: "action" in event ? event.action : "review-submitted",
+  });
 }
 
 async function handlePullRequest(
@@ -118,25 +132,30 @@ async function handlePullRequest(
   ctx: TenantContext,
   event: ParsedPullRequestEvent,
   policy: DraftPolicy,
+  log: Logger,
 ): Promise<void> {
   if (event.action === PullRequestActions.CLOSED) {
     // Terminal state write, NO enqueue. `purgeAfter: null` = "never sweep":
     // the retention window is unconfigured, so closing arms nothing.
-    await createTenantRepository(handle, ctx).pullRequests.upsert(
+    const recorded = await createIngestRoutines(handle, ctx).recordState(
       shapePullRequestUpsert(event, {
         state: event.merged === true ? PrStates.MERGED : PrStates.CLOSED,
-        closedAt: new Date(),
+        closedAt: event.closedAt ?? new Date(),
         purgeAfter: null,
       }),
     );
+    if (!recorded.applied) logSkippedEvent(log, event);
     return;
   }
   if (event.action === PullRequestActions.CONVERTED_TO_DRAFT) {
     // Draft re-entry updates lifecycle only. Enqueueing can repost Entry comments, spend on
     // comparisons, create phantom pending state or retry a previously failed generation.
-    await createIngestRoutines(handle, ctx).recordState(
+    // It advances the guard like every state write: an older push that lands
+    // after it is skipped whole, never applied over the draft flag.
+    const recorded = await createIngestRoutines(handle, ctx).recordState(
       shapePullRequestUpsert(event, { state: PrStates.OPEN }),
     );
+    if (!recorded.applied) logSkippedEvent(log, event);
     return;
   }
   if (GENERATION_TRIGGER_ACTIONS.has(event.action)) {
@@ -144,10 +163,11 @@ async function handlePullRequest(
       // Drafts excluded by instance policy still need lifecycle updates. A reopened draft
       // must clear terminal state now; no later event carries the reopen intent.
       // The eventual ready_for_review event takes the normal first-generation path.
-      await createIngestRoutines(handle, ctx).recordState(
+      const recorded = await createIngestRoutines(handle, ctx).recordState(
         shapePullRequestUpsert(event, { state: PrStates.OPEN }),
         { reopen: event.action === PullRequestActions.REOPENED },
       );
+      if (!recorded.applied) logSkippedEvent(log, event);
       return;
     }
     await triggerGeneration(
@@ -155,6 +175,7 @@ async function handlePullRequest(
       ctx,
       event,
       windowOverrides(event, event.draft, policy),
+      log,
     );
   }
 }
@@ -185,6 +206,7 @@ async function handlePullRequestReview(
   ctx: TenantContext,
   event: ParsedPullRequestReviewEvent,
   policy: DraftPolicy,
+  log: Logger,
 ): Promise<void> {
   // Requeue submitted reviews only for known PRs; inserting here could invent an open
   // row for a closed PR. Unknown PRs wait for their pull_request delivery.
@@ -223,7 +245,7 @@ async function handlePullRequestReview(
   // No window override: damping exists for WIP push storms, and a submitted
   // review is deliberate human engagement, its gap-filler regeneration
   // takes the normal window even on a damped draft.
-  await triggerGeneration(handle, ctx, event, {});
+  await triggerGeneration(handle, ctx, event, {}, log);
 }
 
 async function triggerGeneration(
@@ -234,6 +256,7 @@ async function triggerGeneration(
     TriggerGenerationInput,
     "debounceSeconds" | "regenerationDebounceSeconds" | "refreshRunAt"
   >,
+  log: Logger,
 ): Promise<void> {
   // Only a `reopened` pull_request event may transition a terminal PR back to
   // open; a review or any other trigger merely implies the PR is open and must
@@ -264,6 +287,9 @@ async function triggerGeneration(
   if ("authorLogin" in event && event.authorLogin !== undefined) {
     pullRequest.authorLogin = event.authorLogin;
   }
+  if ("updatedAt" in event && event.updatedAt !== undefined) {
+    pullRequest.githubUpdatedAt = event.updatedAt;
+  }
   const result = await createIngestRoutines(handle, ctx).triggerGeneration({
     pullRequest,
     headSha: event.headSha,
@@ -276,6 +302,7 @@ async function triggerGeneration(
     // the route's 500, never swallow it.
     throw new Error(`ingest trigger failed: ${result.error.code}`);
   }
+  if (!result.value.applied) logSkippedEvent(log, event);
 }
 
 async function handleInstallation(
@@ -310,6 +337,7 @@ async function dispatch(
   handle: AppDatabase,
   event: ParsedWebhookEvent,
   policy: DraftPolicy,
+  log: Logger,
 ): Promise<void> {
   if (event.kind === ParsedWebhookEventKinds.IGNORED) {
     return;
@@ -319,9 +347,9 @@ async function dispatch(
   const ctx = parseTenantContext({ installationId: event.installationId });
   switch (event.kind) {
     case ParsedWebhookEventKinds.PULL_REQUEST:
-      return handlePullRequest(handle, ctx, event, policy);
+      return handlePullRequest(handle, ctx, event, policy, log);
     case ParsedWebhookEventKinds.PULL_REQUEST_REVIEW:
-      return handlePullRequestReview(handle, ctx, event, policy);
+      return handlePullRequestReview(handle, ctx, event, policy, log);
     case ParsedWebhookEventKinds.INSTALLATION:
       return handleInstallation(handle, ctx, event);
     case ParsedWebhookEventKinds.INSTALLATION_REPOSITORIES:
@@ -437,6 +465,7 @@ export function webhookRoute(deps: WebhookRouteDeps): Hono<RequestLogEnv> {
         deps.handle,
         parsed.value,
         deps.draftPolicy ?? DEFAULT_DRAFT_POLICY,
+        log,
       );
     } catch (error) {
       log.error("webhook dispatch failed", {

@@ -260,6 +260,13 @@
       "when": 1789458761085,
       "tag": "0037_generation-cap-instance-index",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1789918730861,
+      "tag": "0038_late-event-guard",
+      "breakpoints": true
     }
   ]
 }

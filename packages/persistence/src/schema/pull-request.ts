@@ -59,6 +59,12 @@ export const pullRequest = pgTable(
     state: text("state").$type<PrState>().notNull(),
     /** Nullable: the delete+repost flow self-heals a dangling id. */
     entryCommentId: bigint("entry_comment_id", { mode: "bigint" }),
+    /**
+     * GitHub's `pull_request.updated_at` from the last event applied. The
+     * ingest upsert applies an event only when its value is not older than
+     * this one, so a late delivery cannot roll the row back.
+     */
+    githubUpdatedAt: timestamp("github_updated_at", { withTimezone: true }),
     closedAt: timestamp("closed_at", { withTimezone: true }),
     /** Nullable: null while open or when retention is "never". */
     purgeAfter: timestamp("purge_after", { withTimezone: true }),

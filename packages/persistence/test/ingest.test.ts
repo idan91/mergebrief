@@ -22,6 +22,7 @@ import {
   GenerationPhases,
   GenerationStatuses,
   isRepoId,
+  isReviewerId,
   PrStates,
   type PullRequestRowId,
   type Result,
@@ -399,7 +400,10 @@ describe("createIngestRoutines.triggerGeneration", () => {
   // projection or scheduling work.
   describe("recordState", () => {
     it("upserts the PR row without a generation row or job", async () => {
-      const row = await createIngestRoutines(harness.handle, CTX).recordState({
+      const { pullRequest: row } = await createIngestRoutines(
+        harness.handle,
+        CTX,
+      ).recordState({
         repoId: REPO_ID,
         prNumber: 7,
         repoSlug: "acme/widgets",
@@ -440,11 +444,65 @@ describe("createIngestRoutines.triggerGeneration", () => {
       ).toHaveLength(1);
     });
 
+    it("skips an event older than the stored github timestamp", async () => {
+      const later = new Date("2026-09-20T10:05:00Z");
+      const earlier = new Date("2026-09-20T10:00:00Z");
+      const ingest = createIngestRoutines(harness.handle, CTX);
+      await ingest.recordState({
+        repoId: REPO_ID,
+        prNumber: 7,
+        title: "newer",
+        githubUpdatedAt: later,
+        state: PrStates.OPEN,
+      });
+
+      const skipped = await ingest.recordState({
+        repoId: REPO_ID,
+        prNumber: 7,
+        title: "older",
+        githubUpdatedAt: earlier,
+        state: PrStates.OPEN,
+      });
+
+      expect(skipped.applied).toBe(false);
+      expect(skipped.pullRequest.title).toBe("newer");
+      expect(skipped.pullRequest.githubUpdatedAt).toEqual(later);
+    });
+
+    it("skips an older event in the owner world too", async () => {
+      const later = new Date("2026-09-20T10:05:00Z");
+      const earlier = new Date("2026-09-20T10:00:00Z");
+      const ingest = createIngestRoutines(harness.handle, {
+        ownerUserId: brandWith(isReviewerId, 555n),
+      });
+      await ingest.recordState({
+        repoId: REPO_ID,
+        prNumber: 7,
+        title: "newer",
+        githubUpdatedAt: later,
+        state: PrStates.OPEN,
+      });
+
+      const skipped = await ingest.recordState({
+        repoId: REPO_ID,
+        prNumber: 7,
+        title: "older",
+        githubUpdatedAt: earlier,
+        state: PrStates.OPEN,
+      });
+
+      expect(skipped.applied).toBe(false);
+      expect(skipped.pullRequest.title).toBe("newer");
+    });
+
     it("preserves terminal lifecycle without resurrecting closed PRs", async () => {
       unwrap(await trigger());
       await closePr();
 
-      const row = await createIngestRoutines(harness.handle, CTX).recordState({
+      const { pullRequest: row } = await createIngestRoutines(
+        harness.handle,
+        CTX,
+      ).recordState({
         repoId: REPO_ID,
         prNumber: 7,
         repoSlug: "acme/widgets",

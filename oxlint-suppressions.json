@@ -1396,14 +1396,6 @@
       "count": 26
     }
   },
-  "packages/github/test/events.test.ts": {
-    "house/no-em-dash": {
-      "count": 9
-    },
-    "house/test-title": {
-      "count": 6
-    }
-  },
   "packages/github/test/fixtures/collaborators-graphql.ts": {
     "house/no-em-dash": {
       "count": 1
@@ -1705,14 +1697,6 @@
     },
     "house/no-em-dash": {
       "count": 5
-    }
-  },
-  "packages/persistence/src/stores/tenant.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 18
     }
   },
   "packages/persistence/src/stores/url-box.ts": {

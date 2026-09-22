@@ -1,19 +1,11 @@
-// The scope-bound repository — the ONLY database surface this package
-// exposes to callers. `createTenantRepository(db, ctx)` resolves its ctx
-// (installation tenant OR url-box owner — see `./scope`) once; every method
-// then filters (reads) or stamps (writes) through that one `RowScope`, so a
-// caller can never address another scope's rows per call.
-//
-// CRITICAL INVARIANT: the DB does NOT tie a child row's scope to its parent
-// `pull_request`'s. This repository is the enforcement point:
-//   (a) every per-PR child WRITE stamps the scope's world mark AND resolves
-//       the parent `pull_request` within the scope in the same transaction —
-//       a parent belonging to another scope yields a Result error, never a
-//       DB write;
-//   (b) every READ filters through the scope on the queried table's own
-//       columns (`matchesChild` adds the owner world's PR semi-join), which
-//       is safe precisely because (a) guarantees a child's world mark
-//       matches its parent's.
+// The scope-bound repository, the ONLY database surface this package
+// exposes. `createTenantRepository(db, ctx)` resolves its ctx once and every
+// method filters or stamps through that one `RowScope`. INVARIANT: the DB
+// does not tie a child row's scope to its parent `pull_request`'s, so every
+// per-PR child WRITE stamps the scope's world mark and resolves the parent
+// within the scope in the same transaction, and every READ filters on the
+// queried table's own columns (`matchesChild` adds the owner world's PR
+// semi-join), which is safe because writes guarantee the marks match.
 import { and, desc, eq, inArray, lt, sql } from "drizzle-orm";
 import type { PgUpdateSetSource } from "drizzle-orm/pg-core";
 import { type AppDatabase, internal } from "../db/handle";
@@ -56,7 +48,7 @@ export type {
 } from "./scope-context";
 
 // ---------------------------------------------------------------------------
-// Repository errors — expected failures. Programmer errors still `throw`.
+// Repository errors, expected failures. Programmer errors still `throw`.
 // ---------------------------------------------------------------------------
 
 export const RepositoryErrorCodes = {
@@ -117,13 +109,13 @@ interface BasePullRequestUpsertInput {
   readonly title?: string;
   /**
    * PR-base SHA, refreshed by `pull_request` events. Optional because
-   * `pull_request_review` payloads don't carry it — an omitted value
+   * `pull_request_review` payloads don't carry it, an omitted value
    * preserves the stored one instead of nulling it.
    */
   readonly baseSha?: string;
   /**
    * Whether the PR is a GitHub draft. Optional because `pull_request_review`
-   * payloads don't carry it — an omitted value preserves the stored one (and
+   * payloads don't carry it, an omitted value preserves the stored one (and
    * the column's `false` default on first insert) instead of forcing it false.
    */
   readonly draft?: boolean;
@@ -133,6 +125,12 @@ interface BasePullRequestUpsertInput {
    * omitted value preserves the stored one.
    */
   readonly authorLogin?: string;
+  /**
+   * GitHub's `pull_request.updated_at`. Review events and pastes carry none;
+   * with one, the ingest upsert applies only when it is not older than the
+   * stored value.
+   */
+  readonly githubUpdatedAt?: Date;
 }
 
 export type PullRequestUpsertInput = BasePullRequestUpsertInput &
@@ -148,7 +146,7 @@ export type PullRequestStatePatch = PullRequestLifecycle;
  * inside its transaction); `index.ts` never re-exports it.
  */
 /**
- * The columns an upsert's conflict branch may name — drizzle's own update
+ * The columns an upsert's conflict branch may name, drizzle's own update
  * shape, so a column may take a value or a SQL expression. Partial by design:
  * a key left off is a column drizzle does not touch, which is how an omitted
  * input field preserves the stored value.
@@ -178,7 +176,7 @@ export interface SessionCreateInput {
   readonly sessionTokenHash: string;
   readonly reviewerId: ReviewerId;
   readonly reviewerLogin?: string;
-  /** The GitHub credential pair lives on the grant row — link, never copy. */
+  /** The GitHub credential pair lives on the grant row, link, never copy. */
   readonly grantId: GrantRowId;
   readonly expiresAt: Date;
 }
@@ -188,7 +186,10 @@ export interface SessionCreateInput {
 // ---------------------------------------------------------------------------
 
 export interface PullRequestRepository {
-  /** Content-addressed upsert on the natural key; idempotent. */
+  /**
+   * Idempotent natural-key upsert. The ordering guard on `githubUpdatedAt`
+   * lives in the ingest routines, which every webhook write goes through.
+   */
   upsert(input: PullRequestUpsertInput): Promise<PullRequestRow>;
   /** Tenant-scoped read by (repo, number). Absence is a normal `undefined`. */
   getByNumber(
@@ -198,7 +199,7 @@ export interface PullRequestRepository {
   /**
    * The tenant's PRs across an ALLOWED repo set (the viewer's GitHub-derived
    * installation∩user intersection), newest `updated_at` first,
-   * capped at `limit`. An empty allowed set returns no rows (fail closed) —
+   * capped at `limit`. An empty allowed set returns no rows (fail closed) -
    * the caller must never fall back to an unfiltered tenant listing.
    */
   listForRepos(
@@ -208,7 +209,7 @@ export interface PullRequestRepository {
   /** Tenant-scoped read by row id (the worker's job-payload entry point). */
   getById(pullRequestId: PullRequestRowId): Promise<PullRequestRow | undefined>;
   /**
-   * The OWNER world's rows, newest `updated_at` first, capped at `limit` —
+   * The OWNER world's rows, newest `updated_at` first, capped at `limit` -
    * the "your briefs" home list. Owner scope only: the installation world's
    * listing is `listForRepos` over the fail-closed allowed set, and an
    * unfiltered tenant listing must not exist.
@@ -230,7 +231,7 @@ export interface PullRequestRepository {
   ): Promise<Result<PullRequestRow, RepositoryError>>;
   /**
    * Flip the local `draft` mirror after a mark-ready mutation. A NARROW,
-   * tenant-scoped update by row id — the caller already resolved the
+   * tenant-scoped update by row id, the caller already resolved the
    * row via `getByNumber`, so this never reconstructs the lifecycle (unlike
    * `recordState`, which is a full webhook upsert). Idempotent: re-running with
    * the same value is a no-op write. `notFound` if no row in ctx's tenant (a
@@ -244,7 +245,7 @@ export interface PullRequestRepository {
 
 export interface CheckpointRepository {
   /**
-   * Idempotent, monotonic upsert of a reviewer's checkpoint —
+   * Idempotent, monotonic upsert of a reviewer's checkpoint -
    * newest-submission-wins: an input whose `submittedAt` is older than the
    * stored row's leaves the row untouched and returns the CURRENT row
    * (out-of-order webhook deliveries are a success, not an error).
@@ -260,7 +261,7 @@ export interface CheckpointRepository {
     reviewerId: ReviewerId,
   ): Promise<CheckpointRow | undefined>;
   /**
-   * All checkpoints on a PR — the worker derives the DISTINCT checkpoint SHAs
+   * All checkpoints on a PR, the worker derives the DISTINCT checkpoint SHAs
    * to pre-warm delta cores for.
    */
   listForPullRequest(pullRequestId: PullRequestRowId): Promise<CheckpointRow[]>;
@@ -282,7 +283,7 @@ export interface TenantRepository {
   readonly pullRequests: PullRequestRepository;
   readonly checkpoints: CheckpointRepository;
   readonly sessions: SessionRepository;
-  /** The reviewer's Review Session work — see `stores/review-session.ts`. */
+  /** The reviewer's Review Session work, see `stores/review-session.ts`. */
   readonly reviewSessions: ReviewSessionRepository;
 }
 
@@ -306,7 +307,7 @@ export function createTenantRepository(
         ...lifecycle,
         updatedAt: new Date(),
       };
-      // Omitted (review events) preserves the stored value — drizzle skips an
+      // Omitted (review events) preserves the stored value, drizzle skips an
       // absent key, so the column is only ever named when the input carries it.
       if (input.baseSha !== undefined) {
         set.baseSha = input.baseSha;
@@ -316,6 +317,9 @@ export function createTenantRepository(
       }
       if (input.authorLogin !== undefined) {
         set.authorLogin = input.authorLogin;
+      }
+      if (input.githubUpdatedAt !== undefined) {
+        set.githubUpdatedAt = input.githubUpdatedAt;
       }
       const insert = db.insert(pullRequest).values({
         installationId: scope.installationId,
@@ -328,6 +332,7 @@ export function createTenantRepository(
         baseSha: input.baseSha,
         draft: input.draft,
         authorLogin: input.authorLogin,
+        githubUpdatedAt: input.githubUpdatedAt,
         ...lifecycle,
         updatedAt: new Date(),
       });
@@ -379,7 +384,7 @@ export function createTenantRepository(
     },
 
     async listForRepos(repoIds, limit) {
-      // `inArray` with an empty list is invalid SQL — and an empty ALLOWED set
+      // `inArray` with an empty list is invalid SQL, and an empty ALLOWED set
       // must return nothing, never "everything" (fail closed).
       if (repoIds.length === 0) {
         return [];
@@ -529,7 +534,7 @@ export function createTenantRepository(
           .returning();
         const row = rows[0];
         if (row === undefined) {
-          // The conflict update was suppressed by the monotonic guard — the
+          // The conflict update was suppressed by the monotonic guard, the
           // stored row is newer. Return the current state (a stale delivery
           // is a success, not an error).
           const current = await tx
@@ -649,7 +654,7 @@ export function createTenantRepository(
     },
 
     async deleteByReviewer(reviewerId) {
-      // Owner world: only the owner's own sessions are addressable — a
+      // Owner world: only the owner's own sessions are addressable, a
       // foreign reviewer id is a no-op, never a cross-owner delete.
       if (scope.ownerUserId !== null && reviewerId !== scope.ownerUserId) {
         return 0;

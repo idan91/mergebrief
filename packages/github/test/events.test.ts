@@ -59,7 +59,7 @@ function expectErr(
   return result.error;
 }
 
-describe("parseWebhookEvent — pull_request", () => {
+describe("parseWebhookEvent, pull_request", () => {
   const cases: ReadonlyArray<[string, PullRequestAction]> = [
     ["pull_request.opened.json", PullRequestActions.OPENED],
     ["pull_request.synchronize.json", PullRequestActions.SYNCHRONIZE],
@@ -87,17 +87,17 @@ describe("parseWebhookEvent — pull_request", () => {
       expect(event.headSha).toBe("ec26c3e57ca3a959ca5aad62de7213c562f8c821");
       expect(event.baseSha).toBe("f95f852bd8fca8fcc58a9a2d6c842781e32a215e");
       expect(event.draft).toBe(false);
-      // The PR author login rides every handled pull_request payload —
+      // The PR author login rides every handled pull_request payload -
       // persisted so `viewerIsAuthor` can be derived server-side.
       expect(event.authorLogin).toBe("Codertocat");
       expect(typeof event.installationId).toBe("bigint");
-      // The title rides every handled pull_request payload — persisted as the
+      // The title rides every handled pull_request payload, persisted as the
       // picker's display label.
       expect(event.title).toBe("Update the README with new information.");
     });
   }
 
-  it("parses pull_request.converted_to_draft.json → converted-to-draft (draft: true)", () => {
+  it("parses converted_to_draft as a draft", () => {
     // Without the ready→draft transition the row would stay draft=false
     // indefinitely on a quiet PR.
     const event = expectOk(
@@ -114,7 +114,7 @@ describe("parseWebhookEvent — pull_request", () => {
     expect(event.authorLogin).toBe("Codertocat");
   });
 
-  it("exposes before/after only on synchronize (force-push detection)", () => {
+  it("exposes before and after only on synchronize", () => {
     const sync = expectOk(
       parseWebhookEvent({
         eventName: "pull_request",
@@ -164,9 +164,9 @@ describe("parseWebhookEvent — pull_request", () => {
     expect(opened.merged).toBeUndefined();
   });
 
-  it("omits authorLogin when the PR author is absent (deleted account)", () => {
+  it("omits authorLogin when the PR author account is gone", () => {
     // GitHub sends `pull_request.user: null` for a deleted author; the parse
-    // must not throw or 400 — it omits authorLogin (preserve-stored pattern,
+    // must not throw or 400, it omits authorLogin (preserve-stored pattern,
     // mirroring how review events omit base_sha).
     const event = expectOk(
       parseWebhookEvent({
@@ -192,6 +192,35 @@ describe("parseWebhookEvent — pull_request", () => {
     expect(event.authorLogin).toBeUndefined();
   });
 
+  it("carries updated_at and closed_at when the payload sends them", () => {
+    const event = expectOk(
+      parseWebhookEvent({
+        eventName: "pull_request",
+        payload: {
+          action: "closed",
+          number: 2,
+          installation: { id: 1 },
+          repository: { id: 1, full_name: "a/b" },
+          pull_request: {
+            title: "t",
+            head: { sha: "x" },
+            base: { sha: "y" },
+            draft: false,
+            merged: false,
+            user: null,
+            updated_at: "2026-09-20T10:00:00Z",
+            closed_at: "2026-09-20T09:59:00Z",
+          },
+        },
+      }),
+    );
+    if (event.kind !== ParsedWebhookEventKinds.PULL_REQUEST) {
+      throw new Error("expected pull-request");
+    }
+    expect(event.updatedAt?.toISOString()).toBe("2026-09-20T10:00:00.000Z");
+    expect(event.closedAt?.toISOString()).toBe("2026-09-20T09:59:00.000Z");
+  });
+
   it("ignores an unhandled pull_request action", () => {
     const event = expectOk(
       parseWebhookEvent({
@@ -205,7 +234,7 @@ describe("parseWebhookEvent — pull_request", () => {
     expect(event.action).toBe("labeled");
   });
 
-  it("errors (not throws) on a malformed handled payload", () => {
+  it("returns an error on a malformed handled payload", () => {
     // action is handled (opened) but the required installation id is missing.
     const error = expectErr(
       parseWebhookEvent({
@@ -246,9 +275,9 @@ describe("parseWebhookEvent — pull_request", () => {
     expect(error.code).toBe(EventParseErrorCodes.INVALID_PAYLOAD);
   });
 
-  it("errors on an id past the safe-integer range (rounded by JSON.parse)", () => {
+  it("errors on an id past the safe-integer range", () => {
     // 2^53 is the first integer JS can no longer represent exactly, so a raw id
-    // this large is already lossy — the branded schema must reject it, not brand
+    // this large is already lossy, the branded schema must reject it, not brand
     // a silently-rounded value.
     const error = expectErr(
       parseWebhookEvent({
@@ -271,7 +300,7 @@ describe("parseWebhookEvent — pull_request", () => {
   });
 });
 
-describe("parseWebhookEvent — pull_request_review", () => {
+describe("parseWebhookEvent, pull_request_review", () => {
   it("parses a submitted review", () => {
     const event = expectOk(
       parseWebhookEvent({
@@ -360,7 +389,7 @@ describe("parseWebhookEvent — pull_request_review", () => {
   });
 });
 
-describe("parseWebhookEvent — installation", () => {
+describe("parseWebhookEvent, installation", () => {
   it("parses installation.created with repo ids", () => {
     const event = expectOk(
       parseWebhookEvent({
@@ -403,7 +432,7 @@ describe("parseWebhookEvent — installation", () => {
   });
 });
 
-describe("parseWebhookEvent — installation_repositories", () => {
+describe("parseWebhookEvent, installation_repositories", () => {
   it("parses removed", () => {
     const event = expectOk(
       parseWebhookEvent({
@@ -436,7 +465,7 @@ describe("parseWebhookEvent — installation_repositories", () => {
   });
 });
 
-describe("parseWebhookEvent — envelope handling", () => {
+describe("parseWebhookEvent, envelope handling", () => {
   it("ignores an entirely unknown event name", () => {
     const event = expectOk(
       parseWebhookEvent({ eventName: "star", payload: { action: "created" } }),
