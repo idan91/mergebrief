@@ -5,6 +5,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   exchangeWebFlowCode,
+  listAppInstallationsForUser,
   listUserInstallations,
   refreshUserToken,
   OAuthErrorCodes,
@@ -184,6 +185,69 @@ describe("listUserInstallations", () => {
       { installationId: 1000n, accountLogin: "acme" },
       { installationId: 2000n, accountLogin: "octocat" },
     ]);
+  });
+
+  it("follows Link pagination and returns every installation", async () => {
+    const firstPage = Array.from({ length: 30 }, (_, index) => ({
+      id: 1000 + index,
+      account: { login: `org-${index}` },
+    }));
+    const secondPage = [{ id: 1030, account: { login: "org-30" } }];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        const url = new URL(getRequestUrl(input));
+        expect(url.searchParams.get("per_page")).toBe("100");
+        if (url.searchParams.get("page") === "2") {
+          return jsonResponse({ total_count: 31, installations: secondPage });
+        }
+        const response = jsonResponse({
+          total_count: 31,
+          installations: firstPage,
+        });
+        response.headers.set(
+          "link",
+          `<${url.origin}${url.pathname}?per_page=100&page=2>; rel="next"`,
+        );
+        return response;
+      }),
+    );
+
+    const result = await listUserInstallations("ghu_ACCESS");
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value).toHaveLength(31);
+    expect(result.value[30]).toEqual({
+      installationId: 1030n,
+      accountLogin: "org-30",
+    });
+  });
+
+  it("keeps an installation whose account is an enterprise or gone", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse({
+          total_count: 3,
+          installations: [
+            { id: 1000, account: { login: "acme" } },
+            { id: 2000, account: { slug: "big-corp" } },
+            { id: 3000, account: null },
+          ],
+        }),
+      ),
+    );
+
+    const result = await listUserInstallations("ghu_ACCESS");
+    const ids = await listAppInstallationsForUser("ghu_ACCESS");
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value.map((entry) => entry.accountLogin)).toEqual([
+      "acme",
+      "big-corp",
+      "3000",
+    ]);
+    expect(ids.ok && ids.value).toEqual([1000n, 2000n, 3000n]);
   });
 
   it("maps a 401 to a sanitized UNAUTHORIZED for the caller's refresh", async () => {

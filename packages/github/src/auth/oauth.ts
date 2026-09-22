@@ -220,10 +220,6 @@ export async function fetchAuthenticatedUser(
   }
 }
 
-const installationsResponseSchema = z.object({
-  installations: z.array(z.object({ id: z.number().int() })),
-});
-
 /**
  * List the app installations reachable to the user, branding each numeric id.
  * Empty is a valid `ok` result; the caller decides what "no installations"
@@ -232,34 +228,11 @@ const installationsResponseSchema = z.object({
 export async function listAppInstallationsForUser(
   accessToken: string,
 ): Promise<Result<InstallationId[], GitHubApiError>> {
-  const octokit = new Octokit({ auth: accessToken });
-  try {
-    const response = await octokit.request("GET /user/installations");
-    const parsed = installationsResponseSchema.safeParse(response.data);
-    if (!parsed.success) {
-      return {
-        ok: false,
-        error: unexpectedResponseError("list user installations"),
-      };
-    }
-    const ids: InstallationId[] = [];
-    for (const installation of parsed.data.installations) {
-      const id = BigInt(installation.id);
-      if (!isInstallationId(id)) {
-        return {
-          ok: false,
-          error: unexpectedResponseError("list user installations"),
-        };
-      }
-      ids.push(id);
-    }
-    return { ok: true, value: ids };
-  } catch (error) {
-    return {
-      ok: false,
-      error: mapRequestError(error, "list user installations"),
-    };
-  }
+  const installations = await listUserInstallations(accessToken);
+  if (!installations.ok) return installations;
+
+  const ids = installations.value.map((entry) => entry.installationId);
+  return { ok: true, value: ids };
 }
 
 /**
@@ -271,15 +244,35 @@ export interface UserInstallation {
   readonly accountLogin: string;
 }
 
-const userInstallationsResponseSchema = z.object({
-  installations: z.array(
-    z.object({
-      id: z.number().int(),
-      // `account` is the org/user the app is installed on; both carry `login`.
-      account: z.object({ login: z.string().min(1) }),
-    }),
-  ),
-});
+const USER_INSTALLATIONS_PAGE_SIZE = 100;
+
+// `account` is a user or organization (`login`), an enterprise (`slug`), or
+// null once the target is gone; the id is what authorization keys on, so no
+// account shape may fail the whole walk.
+const installationAccountSchema = z
+  .union([
+    z.object({ login: z.string().min(1) }),
+    z.object({ slug: z.string().min(1) }),
+  ])
+  .nullable();
+
+// `paginate` follows the Link header to exhaustion and flattens the
+// `installations`-wrapped pages into one item array.
+const userInstallationsPageSchema = z.array(
+  z.object({
+    id: z.number().int(),
+    account: installationAccountSchema,
+  }),
+);
+
+type InstallationAccount = z.infer<typeof installationAccountSchema>;
+
+/** Display name for the installation's target; the numeric id is the fallback. */
+function deriveAccountLogin(account: InstallationAccount, id: number): string {
+  if (account === null) return String(id);
+  if ("login" in account) return account.login;
+  return account.slug;
+}
 
 /**
  * Richer sibling of `listAppInstallationsForUser`: ids plus account logins,
@@ -291,8 +284,10 @@ export async function listUserInstallations(
 ): Promise<Result<UserInstallation[], GitHubApiError>> {
   const octokit = new Octokit({ auth: accessToken });
   try {
-    const response = await octokit.request("GET /user/installations");
-    const parsed = userInstallationsResponseSchema.safeParse(response.data);
+    const items: unknown = await octokit.paginate("GET /user/installations", {
+      per_page: USER_INSTALLATIONS_PAGE_SIZE,
+    });
+    const parsed = userInstallationsPageSchema.safeParse(items);
     if (!parsed.success) {
       return {
         ok: false,
@@ -300,7 +295,7 @@ export async function listUserInstallations(
       };
     }
     const result: UserInstallation[] = [];
-    for (const installation of parsed.data.installations) {
+    for (const installation of parsed.data) {
       const id = BigInt(installation.id);
       if (!isInstallationId(id)) {
         return {
@@ -310,7 +305,7 @@ export async function listUserInstallations(
       }
       result.push({
         installationId: id,
-        accountLogin: installation.account.login,
+        accountLogin: deriveAccountLogin(installation.account, installation.id),
       });
     }
     return { ok: true, value: result };

@@ -108,7 +108,12 @@ function stubGitHub(opts: StubOptions): ReturnType<typeof vi.fn> {
         return jsonResponse(opts.user ?? { id: REVIEWER_ID, login: "octocat" });
       }
       if (url.includes("/user/installations")) {
-        const installations = opts.installations ?? [{ id: INSTALLATION_ID }];
+        const installations = (
+          opts.installations ?? [{ id: INSTALLATION_ID }]
+        ).map((installation) => ({
+          id: installation.id,
+          account: { login: `org-${installation.id}` },
+        }));
         return jsonResponse({
           total_count: installations.length,
           installations,

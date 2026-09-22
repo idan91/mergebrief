@@ -99,7 +99,7 @@ export function stubGitHub(): void {
       if (url.includes("/user/installations")) {
         return jsonResponse({
           total_count: 1,
-          installations: [{ id: INSTALLATION_ID }],
+          installations: [{ id: INSTALLATION_ID, account: { login: "octo" } }],
         });
       }
       if (url.includes("/installation/repositories")) {
