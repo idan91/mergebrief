@@ -578,7 +578,6 @@ describe("reviewer read API + authz gate", () => {
     const bearer = `mergebrief_${randomBytes(32).toString("base64url")}`;
     await createTokenAuth(harness.handle).mintToken({
       scope: WriteClassifications.EXTERNAL_WRITE,
-      installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
       userId: brandReviewerId(BigInt(REVIEWER_ID)),
       name: "cli-agent",
       tokenHash: hashSha256Hex(bearer),

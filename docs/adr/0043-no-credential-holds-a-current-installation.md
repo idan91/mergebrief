@@ -47,5 +47,10 @@ under a sign-in that changed before the save.
   scope. `packages/persistence/AGENTS.md` carries the rule.
 - The org switcher leaves the header; the Inbox installation filter does its
   visible job.
-- Audit rows keep keying on the acting credential's world until the columns
-  drop; the resolved world rides the request context.
+- Audit rows key on the world the request acted in, the `ctx` the gate
+  resolved: the installation holding the repository, or the url-box world
+  for a request that names no repository or one in no reachable
+  installation.
+- Uninstalling the App from an organization removes that installation's rows
+  only. Sessions and API tokens stay, because neither holds an installation
+  and GitHub stops confirming the access.

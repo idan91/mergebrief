@@ -252,13 +252,14 @@ a request log line join on `request_id`.
 
 Two things to know before you write a query against it:
 
-- **A row is filed under the tenant of the credential that acted**, not the
-  tenant of the thing it acted on. A reviewer signed into one installation can
-  revoke a token belonging to another, or switch between them; the row lands
-  in the acting session's installation either way.
+- **A row is filed under the installation the request acted in**, the one
+  holding the repository it named. A request that names no repository, such
+  as a token mint or revoke, and one whose repository sits in no installation
+  the reviewer reaches, both file with a null installation and
+  `source = url-box`.
 - **A refusal that never resolved a credential is not in this table.** An
-  unknown cookie, a revoked API token, an expired session — the tenant column
-  cannot be null, and there is no tenant to write. Those refusals appear as
+  unknown cookie, a revoked API token, an expired session: there is no actor
+  to write, so nothing is recorded. Those refusals appear as
   `api.access` lines with a 401, and that is where to look for them.
 
 Three knobs, all instance environment variables:

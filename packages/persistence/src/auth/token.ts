@@ -1,19 +1,9 @@
-// The API-token auth boundary. Mirrors `session.ts`: the PRE-TENANT resolver
-// for the SECOND presentation channel (CLI/agent Bearer tokens). Nothing here
-// is bound to an `installation_id` — resolution by the globally UNIQUE
-// `token_hash` (the opaque token, stored only as its SHA-256) is what PRODUCES
-// the tenant, so it precedes `createTenantRepository` scoping.
-//
-// The token row carries NO credential material — mint LINKS the minting
-// session's `github_grant` row (never copies), and rotation lives in
-// `createGrantAuth.refreshGrant`. Resolution JOINs the grant; the soft revoke keeps
-// the grant reference (a revoked token stays listable), so only the
-// installation-purge hard delete orphan-cleans.
-//
-// This surface NEVER sees token plaintext: mint takes the caller-computed
-// `tokenHash`, and no operation accepts or returns token material. Mint's
-// `installationId` arrives pre-validated against the viewer's LIVE accessible
-// set — never caller-asserted.
+// The API-token auth boundary, the PRE-TENANT resolver for the Bearer
+// channel: resolution by the globally UNIQUE `token_hash` precedes any
+// scoping. The row carries NO credential material and binds no installation;
+// mint LINKS the minting session's `github_grant` row, and the soft revoke
+// keeps that reference so a revoked token stays listable. This surface never
+// sees token plaintext: mint takes the caller-computed `tokenHash`.
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { insertAudit } from "../stores/audit";
 import { type AppDatabase, internal } from "../db/handle";
@@ -22,9 +12,9 @@ import { githubGrant } from "../schema/github-grant";
 import {
   AuditOutcomes,
   AuditActorTypes,
+  PullRequestSources,
   type ApiTokenRowId,
   type GrantRowId,
-  type InstallationId,
   type Result,
   type ReviewerId,
   type ValueOf,
@@ -32,7 +22,7 @@ import {
 } from "../types";
 import type { GithubGrantRow } from "./grant";
 
-// The issuance row this store writes INSIDE the mint transaction — a mint that
+// The issuance row this store writes INSIDE the mint transaction, a mint that
 // commits always has a ledger entry. Named apart from the `mint-token`
 // descriptor id the request path records, so neither double-counts the other.
 const AUDIT_OPERATION_MINT = "issue-api-token";
@@ -43,7 +33,7 @@ export type ApiTokenRow = typeof apiToken.$inferSelect;
  * The settings-facing projection: everything the mint/list/revoke surfaces
  * return. Deliberately excludes `tokenHash` (secret-adjacent) and
  * `grantId` (internal linkage) so a route serializing one of these rows
- * CANNOT leak credential material — only `resolveByHash` (the Bearer path,
+ * CANNOT leak credential material, only `resolveByHash` (the Bearer path,
  * which needs the grant to decrypt) sees the full row.
  */
 export type ApiTokenMetadataRow = Omit<ApiTokenRow, "tokenHash" | "grantId">;
@@ -63,7 +53,7 @@ const metadataColumns = {
 };
 
 // ---------------------------------------------------------------------------
-// Errors — expected failures. Programmer errors still `throw`. The api layer
+// Errors, expected failures. Programmer errors still `throw`. The api layer
 // collapses ALL of these to a hint-free 401 on the Bearer path.
 // ---------------------------------------------------------------------------
 
@@ -117,19 +107,18 @@ function livenessError(
 // The surface.
 // ---------------------------------------------------------------------------
 
-/** Everything a mint persists. `tokenHash` only — plaintext never enters. */
+/** Everything a mint persists. `tokenHash` only, plaintext never enters. */
 export interface TokenMintInput {
-  readonly installationId: InstallationId;
   readonly userId: ReviewerId;
   /** Purgeable display label. */
   readonly userLogin?: string;
   readonly name: string;
-  /** Immutable for the token's life — there is no re-scope operation. */
+  /** Immutable for the token's life, there is no re-scope operation. */
   readonly scope: WriteClassification;
   readonly tokenHash: string;
-  /** The minting session's grant — LINKED, never copied. */
+  /** The minting session's grant. LINKED, never copied. */
   readonly grantId: GrantRowId;
-  /** `null` = no expiry — the adopter's call for self-host CI. */
+  /** `null` = no expiry, the adopter's call for self-host CI. */
   readonly expiresAt: Date | null;
 }
 
@@ -141,9 +130,8 @@ export interface TokenWithGrant {
 
 export interface TokenAuth {
   /**
-   * Insert a minted token row (installation binding pre-validated upstream)
-   * AND its `auth` audit entry, atomically — a mint that cannot be audited
-   * must not exist.
+   * Insert a minted token row AND its `auth` audit entry, atomically, a
+   * mint that cannot be audited must not exist.
    */
   mintToken(input: TokenMintInput): Promise<ApiTokenMetadataRow>;
   /**
@@ -157,15 +145,15 @@ export interface TokenAuth {
   ): Promise<Result<TokenWithGrant, TokenAuthError>>;
   /**
    * The settings-page list: ALL of a user's tokens (a person spans
-   * installations) — revoked and expired included, newest first.
-   * Metadata rows only — credential material is structurally absent.
+   * installations), revoked and expired included, newest first.
+   * Metadata rows only, credential material is structurally absent.
    */
   listForUser(userId: ReviewerId): Promise<ApiTokenMetadataRow[]>;
   /**
    * Owner-scoped soft revoke: sets `revoked_at = now` once; idempotent (a
    * second revoke returns the row with its ORIGINAL `revoked_at`). The
    * UPDATE is gated by `(user_id, id)`, so a user can only revoke their own
-   * tokens — someone else's id is an indistinguishable `NOT_FOUND`.
+   * tokens, someone else's id is an indistinguishable `NOT_FOUND`.
    */
   revokeToken(
     userId: ReviewerId,
@@ -173,7 +161,7 @@ export interface TokenAuth {
     now: Date,
   ): Promise<Result<ApiTokenMetadataRow, TokenAuthError>>;
   /**
-   * Stamp `last_used_at` by hash (the api layer throttles — this is
+   * Stamp `last_used_at` by hash (the api layer throttles, this is
    * unconditional). Returns rows touched (0 for an unknown hash).
    */
   touchLastUsed(tokenHash: string, now: Date): Promise<number>;
@@ -196,7 +184,6 @@ export function createTokenAuth(handle: AppDatabase): TokenAuth {
         const rows = await tx
           .insert(apiToken)
           .values({
-            installationId: input.installationId,
             userId: input.userId,
             userLogin: input.userLogin,
             name: input.name,
@@ -211,7 +198,8 @@ export function createTokenAuth(handle: AppDatabase): TokenAuth {
           throw new Error("api_token insert returned no row");
         }
         await insertAudit(tx, {
-          installationId: input.installationId,
+          installationId: null,
+          source: PullRequestSources.URL_BOX,
           actorType: AuditActorTypes.REVIEWER,
           actorId: input.userId,
           operation: AUDIT_OPERATION_MINT,

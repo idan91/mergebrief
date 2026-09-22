@@ -1,38 +1,11 @@
-// Purge + retention: everything that DELETES data, in one place.
-//
-// Tenant-ctx-bound like every other DB surface in this package: built over the
-// opaque `AppDatabase`, unwrapped in-package with `internal()` (never
-// re-exported), so consumers still cannot reach a raw query handle.
-//
-// Nobody calls these from a UI: the close webhook arms retention
-// (`setRetention`), a scheduled worker job runs the sweeps, the app-uninstall
-// webhook triggers `purgeInstallation`, and an operator can purge a single
-// PR/repo directly. Forgetting is a CAPABILITY, not a mandate — retention
-// "never" (null grace) keeps everything.
-//
-// Erasure completeness is the DB's job, not ours: every per-PR child table
-// (`brief`, `delta`, `diff_snapshot`, `revision_narrative`, `comparison_marks`,
-// `hunk_span`, `checkpoint`, `generation`) FKs `pull_request.id`
-// `ON DELETE CASCADE`, so deleting a `pull_request` row — or predicate-deleting
-// a set of them — cascades every child with no forgotten table. The Review
-// Session graph — `review_session` and the six tables it owns, `disposition`
-// among them — is reached through `brief`, two hops rather than one. The only
-// non-PR tables a purge touches are `auth_session` and `api_token` (neither
-// FK'd); both are deleted explicitly on installation offboarding. `audit_log`
-// is RETAINED by every tenant-scoped purge (no FK): a purge APPENDS a `delete`
-// entry to it and never removes from it. Only `sweepAuditLog` — instance-wide,
-// off by default — deletes from that table.
-//
-// AUDIT ORDERING: every routine's deletes and its `delete` audit emit run in
-// ONE transaction, so they commit atomically. `purgePullRequest` emits BEFORE
-// the delete; the count-bearing routines emit AFTER, since the count they
-// summarize is the delete's own result. Order within the tx is immaterial to
-// survival — atomic commit is what guarantees it.
-//
-// ACTOR CHOICE: explicit, admin/webhook-triggered purges (`purgePullRequest`,
-// `purgeRepo`, `purgeInstallation`) are `app`; the automated retention sweep
-// (`sweepExpired`) is `system`. `sweepExpiredSessions` emits NO audit entry —
-// see its doc comment.
+// Purge + retention: everything that DELETES data, in one place, tenant-ctx
+// bound. Erasure completeness is the DB's job: every per-PR child table FKs
+// `pull_request.id` ON DELETE CASCADE, and the Review Session graph hangs off
+// `brief`. Sessions and API tokens bind no installation and outlive the
+// tenant; only the session TTL sweep touches `auth_session`. `audit_log` is
+// RETAINED by every tenant-scoped purge: a purge APPENDS a `delete` entry in
+// the same transaction, and only `sweepAuditLog` removes from it. Explicit
+// purges are `app`; the retention sweep is `system`.
 import {
   and,
   count as countRows,
@@ -44,7 +17,6 @@ import {
 import { deleteOrphanedGrants } from "../auth/grant";
 import { insertAudit } from "./audit";
 import { type AppDatabase, internal } from "../db/handle";
-import { apiToken } from "../schema/api-token";
 import { auditLog } from "../schema/audit-log";
 import { AUDIT_RETENTION_FLOOR_DAYS } from "../db/config";
 import { pullRequest } from "../schema/pull-request";
@@ -66,7 +38,7 @@ import {
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-// The sweeps' own `audit_log.operation` token — these routines are not
+// The sweeps' own `audit_log.operation` token, these routines are not
 // Product Operations, so they name themselves.
 const AUDIT_OPERATION_DELETE = "delete";
 
@@ -77,7 +49,7 @@ const AUDIT_TARGET_INSTALLATION = "installation";
 const AUDIT_TARGET_AUDIT_LOG = "audit_log";
 
 // ---------------------------------------------------------------------------
-// Errors — expected failures. Programmer errors still `throw`.
+// Errors, expected failures. Programmer errors still `throw`.
 // ---------------------------------------------------------------------------
 
 export const PurgeErrorCodes = {
@@ -103,8 +75,6 @@ function fail(
 /** Row counts from an installation offboarding. */
 export interface InstallationPurgeCounts {
   readonly pullRequests: number;
-  readonly sessions: number;
-  readonly apiTokens: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -115,7 +85,7 @@ export interface PurgeRoutines {
   readonly ctx: ScopeContext;
   /**
    * Erase one PR: verify it belongs to ctx, emit a `delete` audit entry, then
-   * delete the `pull_request` row (all 8 child tables die by FK cascade — the
+   * delete the `pull_request` row (all 8 child tables die by FK cascade, the
    * DB guarantees erasure completeness). `notFound` (nothing deleted) if the
    * row is not in ctx's tenant. Returns the number of `pull_request` rows
    * deleted (1 on success).
@@ -131,31 +101,27 @@ export interface PurgeRoutines {
   purgeRepo(repoId: RepoId): Promise<number>;
   /**
    * Set-based sibling of `purgeRepo` for the `installation_repositories`
-   * `removed` webhook: purge every `pull_request` for `(ctx, repoId ∈ repoIds)`
-   * in ONE transaction — a single `repo_id = ANY(...)` delete (children
-   * cascade) plus one `delete` audit entry PER repo (count grouped from the
-   * deleted rows; a repo that held none still gets a count-0 entry, matching
-   * `purgeRepo`). Deliberately one query rather than a per-repo `Promise.all`,
-   * which would open N concurrent pool connections and could exhaust the pool
-   * on a large deselection. Returns the total number of PRs purged. Empty
-   * `repoIds` → 0, no tx.
+   * `removed` webhook: one `repo_id = ANY(...)` delete plus one `delete`
+   * audit entry PER repo, a repo that held none included. One query rather
+   * than a per-repo `Promise.all`, which would open N pool connections on a
+   * large deselection. Returns the total number of PRs purged; empty
+   * `repoIds` is 0 with no tx.
    */
   purgeRepos(repoIds: readonly RepoId[]): Promise<number>;
   /**
-   * Offboard the whole tenant: predicate-delete ALL `pull_request` rows for ctx
-   * (children cascade) + explicit delete of the tenant's `auth_session`
-   * and `api_token` rows (the non-PR secret-bearing tables — installation-bound
-   * tokens must not outlive their tenant).
-   * `audit_log` is retained untouched by this routine — this
-   * APPENDS an `installation` `delete` entry. Returns all three row counts.
+   * Offboard the whole tenant: predicate-delete ALL `pull_request` rows for
+   * ctx (children cascade). Sessions and API tokens bind no installation and
+   * stay: access ends because GitHub stops confirming it. `audit_log` is
+   * retained untouched by this routine, which APPENDS an `installation`
+   * `delete` entry. Returns the row count.
    */
   purgeInstallation(): Promise<InstallationPurgeCounts>;
   /**
    * The close-time retention boundary: atomically records the terminal
    * `state` and sets `purge_after = closedAt + graceDays`, or NULL when
-   * `graceDays` is null (retention disabled / "never" — the row is never
+   * `graceDays` is null (retention disabled / "never", the row is never
    * swept). Carrying the terminal state in the signature keeps this API
-   * aligned with the `pull_request_open_retention_shape` CHECK — an open PR
+   * aligned with the `pull_request_open_retention_shape` CHECK, an open PR
    * can never be armed, by construction rather than by DB error.
    * Tenant-verified: `notFound` if the PR is not in ctx.
    */
@@ -221,7 +187,7 @@ export function createPurgeRoutines(
             `pull_request ${prRowId} not found in ${scope.label}`,
           );
         }
-        // Emit the audit BEFORE the delete lands — same tx, so it survives the
+        // Emit the audit BEFORE the delete lands, same tx, so it survives the
         // cascade it records (audit_log has no FK to pull_request).
         await insertAudit(tx, {
           installationId: scope.installationId,
@@ -264,7 +230,7 @@ export function createPurgeRoutines(
     },
 
     async purgeRepos(repoIds) {
-      // Dedupe (a payload may repeat) and skip an empty set — an empty
+      // Dedupe (a payload may repeat) and skip an empty set, an empty
       // `inArray` is a degenerate query and there is nothing to audit.
       const uniqueRepoIds = [...new Set(repoIds)];
       if (uniqueRepoIds.length === 0) {
@@ -310,23 +276,12 @@ export function createPurgeRoutines(
     async purgeInstallation() {
       const installationId = requireInstallation("purgeInstallation");
       return db.transaction(async (tx) => {
+        // Sessions and tokens stay: neither holds an installation, and access
+        // ends because GitHub stops confirming it.
         const purgedPrs = await tx
           .delete(pullRequest)
           .where(scope.matchesPullRequest())
           .returning({ id: pullRequest.id });
-        const purgedSessions = await tx
-          .delete(authSession)
-          .where(scope.matchesWorld(authSession.installationId))
-          .returning({ grantId: authSession.grantId });
-        const purgedTokens = await tx
-          .delete(apiToken)
-          .where(eq(apiToken.installationId, installationId))
-          .returning({ grantId: apiToken.grantId });
-        // Orphan-clean the grants of every deleted referent, same tx.
-        await deleteOrphanedGrants(tx, [
-          ...purgedSessions.map((row) => row.grantId),
-          ...purgedTokens.map((row) => row.grantId),
-        ]);
         await insertAudit(tx, {
           installationId: scope.installationId,
           source: scope.source,
@@ -337,11 +292,7 @@ export function createPurgeRoutines(
           targetId: installationId,
           metadata: { count: purgedPrs.length },
         });
-        return {
-          pullRequests: purgedPrs.length,
-          sessions: purgedSessions.length,
-          apiTokens: purgedTokens.length,
-        };
+        return { pullRequests: purgedPrs.length };
       });
     },
 
@@ -350,7 +301,7 @@ export function createPurgeRoutines(
         throw new Error("setRetention requires a terminal PR state");
       }
       // Guard the primitive itself: a negative/NaN grace would silently make
-      // the row instantly sweepable — a data-loss footgun no upstream
+      // the row instantly sweepable, a data-loss footgun no upstream
       // validation should be trusted to catch.
       if (
         graceDays !== null &&
@@ -441,7 +392,7 @@ export function createPurgeRoutines(
 }
 
 // ---------------------------------------------------------------------------
-// Audit retention — the one purge that is NOT tenant-scoped.
+// Audit retention, the one purge that is NOT tenant-scoped.
 // ---------------------------------------------------------------------------
 
 /**
@@ -478,7 +429,7 @@ export async function sweepAuditLog(
     // Count in the DB, not in JS: this is the one table designed to grow
     // unbounded, so `returning` every erased row would materialize a year of
     // history just to sum it. Under READ COMMITTED the delete can erase a row
-    // committed after this count, so the recorded count is a floor — and rows
+    // committed after this count, so the recorded count is a floor, and rows
     // that young cannot be past a 30-day cutoff anyway.
     const counted = await tx
       .select({

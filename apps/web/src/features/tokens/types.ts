@@ -24,7 +24,6 @@ export interface ApiTokenView {
   readonly id: string;
   readonly name: string;
   readonly scope: TokenScope;
-  readonly installationId: string;
   readonly userLogin: string | null;
   /** ISO timestamp, or null for a no-expiry token. */
   readonly expiresAt: string | null;
@@ -62,9 +61,6 @@ function parseToken(value: unknown): Result<ApiTokenView> {
   if (!isTokenScope(value["scope"])) {
     return { ok: false, error: "scope must be a known token scope" };
   }
-  if (typeof value["installationId"] !== "string") {
-    return { ok: false, error: "installationId must be a string" };
-  }
   if (!stringOrNull(value["userLogin"])) {
     return { ok: false, error: "userLogin must be a string or null" };
   }
@@ -84,7 +80,6 @@ function parseToken(value: unknown): Result<ApiTokenView> {
       id: value["id"],
       name: value["name"],
       scope: value["scope"],
-      installationId: value["installationId"],
       userLogin: value["userLogin"],
       expiresAt: value["expiresAt"],
       lastUsedAt: value["lastUsedAt"],

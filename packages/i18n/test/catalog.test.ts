@@ -85,7 +85,7 @@ describe("hard-fail catalog gates", () => {
       "brief.intent.statedButMissing_other": 1,
       "shell.cliHint": 1,
       "shell.signInPrompt": 1,
-      "tokens.disclaimer": 2,
+      "tokens.disclaimer": 1,
       "tokens.intro": 1,
     });
   });

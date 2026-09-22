@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
-// Token settings behavior: mint flow with the live installation picker, the
-// SHOWN-ONCE minted token (never re-renderable from any client state after
+// Token settings behavior: the mint flow, the SHOWN-ONCE minted token (never re-renderable from any client state after
 // dismissal), the deterministic-400 mirror, and revoke.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { I18nextProvider } from "react-i18next";
@@ -21,8 +20,6 @@ vi.mock("../../queries", async (importOriginal) => {
   return { ...actual, mintToken: vi.fn(), revokeToken: vi.fn() };
 });
 
-import { buildInstallationsQueryOptions } from "../../../installations/queries";
-import type { InstallationsView } from "../../../installations/types";
 import { buildTokensQueryOptions, mintToken, revokeToken } from "../../queries";
 import type { ApiTokenView, TokensView } from "../../types";
 import { TokenSettings } from "./TokenSettings";
@@ -30,30 +27,10 @@ import { TokenSettings } from "./TokenSettings";
 const mintMock = vi.mocked(mintToken);
 const revokeMock = vi.mocked(revokeToken);
 
-const INSTALLATIONS: InstallationsView = {
-  installations: [
-    {
-      installationId: "111",
-      accountLogin: "acme",
-      isCurrent: true,
-      isDefault: false,
-    },
-    {
-      installationId: "222",
-      accountLogin: "globex",
-      isCurrent: false,
-      isDefault: false,
-    },
-  ],
-  currentInstallationId: "111",
-  defaultInstallationId: null,
-};
-
 const LIVE_TOKEN: ApiTokenView = {
   id: "3",
   name: "ci-token",
   scope: "external-write",
-  installationId: "111",
   userLogin: "octocat",
   expiresAt: "2026-10-07T00:00:00.000Z",
   lastUsedAt: null,
@@ -65,10 +42,6 @@ function renderSettings(tokens: TokensView = { tokens: [] }) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
-  queryClient.setQueryData(
-    buildInstallationsQueryOptions().queryKey,
-    INSTALLATIONS,
-  );
   queryClient.setQueryData(buildTokensQueryOptions().queryKey, tokens);
   render(
     <I18nextProvider i18n={appI18n}>
@@ -127,15 +100,12 @@ describe("TokenSettings", () => {
     expect(row?.textContent).toMatch(/read, review, and post to github/i);
   });
 
-  it("mints with the picked installation and expiry and shows the token once", async () => {
+  it("mints with the picked expiry and shows the token once", async () => {
     mintMock.mockResolvedValue({ token: SECRET, apiToken: LIVE_TOKEN });
     renderSettings();
 
     fireEvent.change(screen.getByLabelText(/token name/i), {
       target: { value: "ci-token" },
-    });
-    fireEvent.change(screen.getByLabelText(/organization/i), {
-      target: { value: "222" },
     });
     fireEvent.change(screen.getByLabelText(/expires/i), {
       target: { value: "none" },
@@ -151,7 +121,6 @@ describe("TokenSettings", () => {
         {
           name: "ci-token",
           scope: "private-write",
-          installationId: "222",
           expiresInDays: null,
         },
         expect.anything(),
@@ -168,8 +137,6 @@ describe("TokenSettings", () => {
     expect(
       [...status.querySelectorAll("code")].map((node) => node.textContent),
     ).toContain("chmod 600");
-    // `LIVE_TOKEN` is minted against installation 111, not the picked 222.
-    expect(status.querySelector("strong")?.textContent).toBe("acme");
   });
 
   it("renders the intro's CLI name as code, not as bare text", () => {

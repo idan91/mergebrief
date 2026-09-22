@@ -604,7 +604,6 @@ describe("reviewer auth routes", () => {
     // the rotation proceeds, only the session-expiry mirror can notice.
     await createTokenAuth(harness.handle).mintToken({
       scope: WriteClassifications.EXTERNAL_WRITE,
-      installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
       userId: brandReviewerId(BigInt(REVIEWER_ID)),
       name: "shares-the-grant",
       tokenHash: hashSha256Hex(randomBytes(32).toString("base64url")),
@@ -650,7 +649,6 @@ describe("reviewer auth routes", () => {
     const bearerHash = hashSha256Hex(randomBytes(32).toString("base64url"));
     const minted = await createTokenAuth(harness.handle).mintToken({
       scope: WriteClassifications.EXTERNAL_WRITE,
-      installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
       userId: brandReviewerId(BigInt(REVIEWER_ID)),
       name: "revoked-mid-flight",
       tokenHash: bearerHash,

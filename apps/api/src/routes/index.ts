@@ -54,8 +54,8 @@ export function apiRoutes(deps: AppDeps): ProductRouter<RequestLogEnv> {
   // ONE instance of each resolver: every route shares the reachable-set and
   // allowed-set caches, so one GitHub walk serves them all inside the TTL.
   const installations = createAccessibleInstallationsResolver(deps);
-  app.route("/auth", authRoutes(deps, installations));
   const resolver = createInstallationResolver(deps, installations);
+  app.route("/auth", authRoutes(deps));
   app.route("/version", versionRoute(deps, deps.serverVersion ?? "dev"));
   app.route("/capabilities", capabilitiesRoute(deps));
   app.route("/pulls", pullsRoute(deps, resolver));

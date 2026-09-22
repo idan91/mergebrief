@@ -180,7 +180,6 @@ async function seedApiToken(
   });
   const minted = await createTokenAuth(handle).mintToken({
     scope: overrides.scope ?? WriteClassifications.EXTERNAL_WRITE,
-    installationId: CTX.installationId,
     userId: REVIEWER,
     userLogin: "octocat",
     name: "ci-token",
@@ -259,16 +258,21 @@ describe("Bearer presentation on /api/*", () => {
         userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
       installationRepos: () =>
         installationReposOk([{ id: REPO_A, full_name: "octo/hello" }]),
+      repositories: () =>
+        jsonResponse({
+          id: REPO_A,
+          full_name: "octo/hello",
+          private: true,
+          permissions: { push: true },
+        }),
     });
     await seedPr(harness.handle);
     const bearer = await seedApiToken(harness.handle, kp);
 
-    const res = await getWithBearer("/api/pulls", bearer);
+    const res = await getWithBearer(`/api/repos/${REPO_A}/pulls/7`, bearer);
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
-    const body = (await res.json()) as { pulls: Array<{ prNumber: number }> };
-    expect(body.pulls).toHaveLength(1);
-    expect(body.pulls[0]?.prNumber).toBe(7);
+    expect(await res.json()).toMatchObject({ title: "PR 7" });
   });
 
   it("reads rows in two installations with one token", async () => {
@@ -372,12 +376,8 @@ describe("Bearer presentation on /api/*", () => {
   });
 
   it("ignores Bearer tokens on browser-only /api/auth/* routes", async () => {
-    stubGitHub({
-      userInstallations: () =>
-        userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
-    });
     const bearer = await seedApiToken(harness.handle, kp);
-    const res = await app.request("/api/auth/installations", {
+    const res = await app.request("/api/auth/tokens", {
       headers: { Authorization: `Bearer ${bearer}` },
     });
     expect(res.status).toBe(401);
@@ -577,7 +577,6 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
     const res = await mint(
       {
         name: "ci-token",
-        installationId: INSTALLATION_ID,
         scope: "external-write",
       },
       cookie,
@@ -628,7 +627,6 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
     expect(listed.tokens).toHaveLength(1);
     const entry = listed.tokens[0];
     expect(entry?.["name"]).toBe("ci-token");
-    expect(entry?.["installationId"]).toBe(String(INSTALLATION_ID));
     expect(JSON.stringify(listed)).not.toContain(body.token);
     expect(JSON.stringify(listed)).not.toContain("tokenHash");
     expect(JSON.stringify(listed)).not.toContain("Ciphertext");
@@ -643,7 +641,6 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
     const res = await mint(
       {
         name: "forever",
-        installationId: INSTALLATION_ID,
         scope: "external-write",
         expiresInDays: null,
       },
@@ -653,43 +650,6 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
     const body = (await res.json()) as MintedBody;
     expect(body.apiToken.expiresAt).toBeNull();
   });
-
-  it("403s installations outside the live accessible set without minting", async () => {
-    stubGitHub({
-      userInstallations: () =>
-        userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
-    });
-    const cookie = await seedSession();
-    const res = await mint(
-      { name: "sneaky", installationId: 424242, scope: "external-write" },
-      cookie,
-    );
-    expect(res.status).toBe(403);
-    expect(
-      await harness.raw("select count(*)::int as n from api_token"),
-    ).toEqual([{ n: 0 }]);
-  });
-
-  it("returns wire errors when live installation lookup fails", async () => {
-    stubGitHub({
-      userInstallations: () => jsonResponse({ message: "forbidden" }, 403),
-    });
-    const cookie = await seedSession();
-    const res = await mint(
-      {
-        name: "blocked",
-        installationId: INSTALLATION_ID,
-        scope: "external-write",
-      },
-      cookie,
-    );
-    expect(res.status).toBe(502);
-    expect(res.headers.get("cache-control")).toBe("no-store");
-    expect(await res.json()).toEqual({
-      error: "upstream error",
-      code: "github-unavailable",
-    });
-  }, 10_000);
 
   it("is cookie-only: no cookie → 401; a Bearer token cannot mint or list", async () => {
     stubGitHub({
@@ -702,7 +662,6 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
       (
         await mint({
           name: "x",
-          installationId: INSTALLATION_ID,
           scope: "external-write",
         })
       ).status,
@@ -715,7 +674,6 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
       },
       body: JSON.stringify({
         name: "x",
-        installationId: INSTALLATION_ID,
         scope: "external-write",
       }),
     });
@@ -737,10 +695,7 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
     });
     const cookie = await seedSession();
 
-    const narrowed = await mint(
-      { name: "read-only", installationId: INSTALLATION_ID, scope: "read" },
-      cookie,
-    );
+    const narrowed = await mint({ name: "read-only", scope: "read" }, cookie);
     expect(narrowed.status).toBe(201);
     expect(await narrowed.json()).toMatchObject({
       apiToken: { scope: "read" },
@@ -749,7 +704,6 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
     const widest = await mint(
       {
         name: "full",
-        installationId: INSTALLATION_ID,
         scope: "external-write",
       },
       cookie,
@@ -760,10 +714,7 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
     });
 
     // No scope is NOT a default, the reach a token carries is always chosen.
-    const unchosen = await mint(
-      { name: "unstated", installationId: INSTALLATION_ID },
-      cookie,
-    );
+    const unchosen = await mint({ name: "unstated" }, cookie);
     expect(unchosen.status).toBe(400);
 
     // The list surface shows it too, the scope is how a reader tells the two
@@ -786,23 +737,20 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
     const cookie = await seedSession();
     for (const bad of [
       {},
-      { name: "ok", installationId: INSTALLATION_ID },
-      { name: "", installationId: INSTALLATION_ID, scope: "read" },
-      { name: "x".repeat(101), installationId: INSTALLATION_ID, scope: "read" },
-      { name: "ok", installationId: "not-a-number", scope: "read" },
+      { name: "ok" },
+      { name: "", scope: "read" },
+      { name: "x".repeat(101), scope: "read" },
       {
         name: "ok",
-        installationId: INSTALLATION_ID,
         scope: "read",
         expiresInDays: 0,
       },
       {
         name: "ok",
-        installationId: INSTALLATION_ID,
         scope: "read",
         expiresInDays: -3,
       },
-      { name: "ok", installationId: INSTALLATION_ID, scope: "admin" },
+      { name: "ok", scope: "admin" },
     ]) {
       const res = await mint(bad, cookie);
       expect(res.status).toBe(400);
@@ -822,7 +770,6 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
       await mint(
         {
           name: "doomed",
-          installationId: INSTALLATION_ID,
           scope: "external-write",
         },
         cookie,

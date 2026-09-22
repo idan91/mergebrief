@@ -1,4 +1,4 @@
-// API-token settings section. All flow state lives in `useTokenSettings` —
+// API-token settings section. All flow state lives in `useTokenSettings` -
 // this component only wires it to the DOM.
 import { Trans, useTranslation } from "react-i18next";
 import {
@@ -32,7 +32,7 @@ function formatWhen(iso: string | null, locale: string, never: string): string {
 const CLI_BINARY = "mergebrief";
 const CHMOD_COMMAND = "chmod 600";
 
-/** Catalog key per rung — the same label in the picker and in the list. */
+/** Catalog key per rung, the same label in the picker and in the list. */
 const SCOPE_LABEL_KEY = {
   [TokenScopes.READ]: "tokens.scopeRead",
   [TokenScopes.PRIVATE_WRITE]: "tokens.scopePrivateWrite",
@@ -89,21 +89,8 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
           />
         </label>
         <label className={styles["field"]}>
-          <span>{t("tokens.organizationLabel")}</span>
-          <select
-            onChange={(event) => state.setInstallationId(event.target.value)}
-            value={state.installationId}
-          >
-            {state.installations.map((installation) => (
-              <option key={installation.id} value={installation.id}>
-                {installation.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className={styles["field"]}>
           <span>{t("tokens.scopeLabel")}</span>
-          {/* No pre-selection: a token's reach is stated, never inherited —
+          {/* No pre-selection: a token's reach is stated, never inherited -
               the server refuses a mint that names none. */}
           <select
             aria-describedby="token-scope-hint"
@@ -175,14 +162,7 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
           </code>
           <p className={styles["mintedDisclaimer"]}>
             <Trans
-              components={[
-                <code key="chmod">{CHMOD_COMMAND}</code>,
-                <strong key="org">
-                  {state.installations.find(
-                    (i) => i.id === state.mintedToken?.apiToken.installationId,
-                  )?.label ?? t("tokens.itsOrganization")}
-                </strong>,
-              ]}
+              components={[<code key="chmod">{CHMOD_COMMAND}</code>]}
               i18nKey="tokens.disclaimer"
             />
           </p>

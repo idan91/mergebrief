@@ -5,7 +5,7 @@ import { MAX_EXPIRY_DAYS } from "./consts";
 /**
  * Mint body. `expiresInDays` is a whole number of days, `null` = NO expiry
  * (the adopter's call for self-host CI), omitted = the 90-day default.
- * `scope` is immutable for the token's life — narrowing later is a new token.
+ * `scope` is immutable for the token's life, narrowing later is a new token.
  */
 export const mintBodySchema = z.object({
   name: z.string().min(1).max(100),
@@ -17,10 +17,6 @@ export const mintBodySchema = z.object({
     WriteClassifications.READ,
     WriteClassifications.PRIVATE_WRITE,
     WriteClassifications.EXTERNAL_WRITE,
-  ]),
-  installationId: z.union([
-    z.string().regex(/^\d+$/),
-    z.number().int().positive(),
   ]),
   expiresInDays: z
     .number()

@@ -10,16 +10,12 @@ import {
 import { WriteClassifications } from "../../../product-operations/types";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "../../authz";
 import type { AuthRouteDeps } from "../session/types";
-import type { AccessibleInstallationsResolver } from "../accessible-installations";
 import createTokensHandlers from "./handler";
 
 /** Mount the token-management surface over the cookie session gate. */
-export function tokensRoutes(
-  deps: AuthRouteDeps,
-  installations: AccessibleInstallationsResolver,
-): ProductRouter<AuthzEnv> {
+export function tokensRoutes(deps: AuthRouteDeps): ProductRouter<AuthzEnv> {
   const app = productRouter<AuthzEnv>();
-  const handlers = createTokensHandlers(deps, installations);
+  const handlers = createTokensHandlers(deps);
   app.use("/", sessionLayer(deps), accessStampLayer());
   app.use("/:id", sessionLayer(deps), accessStampLayer());
   app.action(

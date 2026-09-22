@@ -6,28 +6,15 @@ import {
   encryptToken,
   createEnvKeyProvider,
   createGrantAuth,
-  isInstallationId,
-  isReviewerId,
   createTokenAuth,
   WriteClassifications,
   type KeyProvider,
-  type TenantContext,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp, type AuthDeps } from "../src/index";
 import { testLogger } from "./logging";
-import { KEY_REF } from "./fixtures";
-
-function brand<T extends bigint>(
-  guard: (v: bigint) => v is T,
-  value: number,
-): T {
-  const asBigInt = BigInt(value);
-  if (!guard(asBigInt)) throw new Error("bad branded id");
-  return asBigInt;
-}
-const CTX: TenantContext = { installationId: brand(isInstallationId, 987654) };
+import { KEY_REF, brandReviewerId } from "./fixtures";
 
 describe("GET /api/version", () => {
   let harness: PgliteHarness;
@@ -85,8 +72,7 @@ describe("GET /api/version", () => {
     });
     await createTokenAuth(harness.handle).mintToken({
       scope: WriteClassifications.EXTERNAL_WRITE,
-      installationId: CTX.installationId,
-      userId: brand(isReviewerId, 555),
+      userId: brandReviewerId(555n),
       name: "ci-token",
       tokenHash: createHash("sha256").update(plaintext).digest("hex"),
       grantId: grant.id,

@@ -8,7 +8,6 @@ const WIRE_TOKEN = {
   id: "3",
   name: "ci-token",
   scope: "private-write",
-  installationId: "987654",
   userLogin: "octocat",
   expiresAt: "2026-10-07T00:00:00.000Z",
   lastUsedAt: null,
@@ -52,7 +51,7 @@ describe("parseTokensView", () => {
 });
 
 describe("parseMintedToken", () => {
-  it("parses the mint response (token material + metadata)", () => {
+  it("parses the mint response with its token material and metadata", () => {
     const parsed = parseMintedToken({
       token: "mergebrief_abc123",
       apiToken: WIRE_TOKEN,

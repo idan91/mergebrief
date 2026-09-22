@@ -168,7 +168,6 @@ describe("GET /api/repos", () => {
     });
     await createTokenAuth(harness.handle).mintToken({
       scope: WriteClassifications.EXTERNAL_WRITE,
-      installationId: CTX.installationId,
       userId: REVIEWER,
       userLogin: "octocat",
       name: "ci-token",

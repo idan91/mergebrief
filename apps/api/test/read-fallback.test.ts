@@ -1,7 +1,7 @@
 // The per-repo gate's second rung. A url-box brief is generated behind a
 // two-key ladder (reviewer token, then the operator PAT), so a reader whose
 // own token GitHub refuses could hold a brief they could not open. The gate
-// runs the same ladder — but ONLY for a PR the reader owns in the url-box
+// runs the same ladder, but ONLY for a PR the reader owns in the url-box
 // world, so an App-world brief stays governed by the installation alone.
 import { createHash, randomBytes } from "node:crypto";
 import {
@@ -55,7 +55,7 @@ interface RepoCall {
 }
 
 /**
- * `GET /repositories/{id}` answers 200 for the operator PAT only — the shape
+ * `GET /repositories/{id}` answers 200 for the operator PAT only, the shape
  * of a repo the App is not installed on: the reviewer's own installation-
  * scoped token cannot see it, the operator's PAT can.
  */
@@ -209,7 +209,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
     ]);
   });
 
-  it("keeps write affordances off — the PAT's push right is not the reader's", async () => {
+  it("keeps write affordances off, the PAT's push right is not the reader's", async () => {
     stubGitHub();
     const cookie = await seedSession(harness.handle, kp);
     await seedOwnerPullRequest(harness.handle);
@@ -232,7 +232,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
     expect(res.status).toBe(404);
   });
 
-  it("never widens an App-world brief — no owned url-box row, no second rung", async () => {
+  it("never widens an App-world brief, no owned url-box row, no second rung", async () => {
     const calls = stubGitHub();
     const cookie = await seedSession(harness.handle, kp);
     await seedTenantPullRequest(harness.handle);
@@ -244,10 +244,10 @@ describe("the per-repo gate's operator-PAT rung", () => {
   });
 
   // The shape the narrowing exists for: the installation already tracks this
-  // PR (webhook-ingested), and the reader — who GitHub refuses for this repo
-  // — pasted its URL. The PAT opens the gate, but the tenant's own rows must
-  // stay out of reach: they read THEIR paste, never the installation's.
-  it("serves the reader's own url-box row, never the installation's, when both exist", async () => {
+  // PR (webhook-ingested), and the reader, whom GitHub refuses for this
+  // repo, pasted its URL. The PAT opens the gate, but the tenant's own rows
+  // must stay out of reach: they read THEIR paste, never the installation's.
+  it("serves the reader's own url-box row over the installation's", async () => {
     stubGitHub();
     const cookie = await seedSession(harness.handle, kp);
     await seedTenantPullRequest(harness.handle, "the installation's row");
@@ -261,7 +261,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
   });
 
   // Url-box rows are instance-visible to a reader who proved GitHub access to
-  // the repo. This reader proved nothing — the operator's key did — so the
+  // the repo. This reader proved nothing, the operator's key did, so the
   // widening must stop here, or the PAT becomes a read-anything key.
   it("does not open ANOTHER user's url-box row on the PAT rung", async () => {
     stubGitHub();
@@ -282,7 +282,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
   });
 
   // The positive cache stores the PAT-carried pass for 60s. A second request
-  // inside that window skips GitHub entirely — and must still land in the
+  // inside that window skips GitHub entirely, and must still land in the
   // reader's own world, or the leak returns one request later.
   it("keeps the reader pinned to their own world on a cached second read", async () => {
     const calls = stubGitHub();
@@ -304,17 +304,15 @@ describe("the per-repo gate's operator-PAT rung", () => {
     ]);
   });
 
-  // The ledger keys a row on the ACTING CREDENTIAL's scope, never the
-  // target's. Reading a url-box row does not turn an App-installation
-  // session into an owner-world one, so the fallback must not rewrite the
-  // credential's ctx to steer the row lookup.
-  it("audits the acting credential's own tenant, not the row's world", async () => {
+  // The rung proves nothing about any installation, so the ledger files the
+  // write in the owner world the gate resolved.
+  it("audits a write behind the rung under the owner world", async () => {
     stubGitHub();
     const cookie = await seedSession(harness.handle, kp);
     await seedOwnerPullRequest(harness.handle);
     const app = buildApp(FALLBACK_PAT);
 
-    // A private write behind the same gate — a read is never audited.
+    // A private write behind the same gate, a read is never audited.
     const res = await app.request(
       `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/session/chunks/c1/read?base=${"b".repeat(40)}&head=${"a".repeat(40)}`,
       {
@@ -335,8 +333,8 @@ describe("the per-repo gate's operator-PAT rung", () => {
     expect(rows).toEqual([
       {
         operation: "set-chunk-read",
-        installation_id: INSTALLATION_ID,
-        source: "app-installation",
+        installation_id: null,
+        source: "url-box",
       },
     ]);
   });
@@ -405,7 +403,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
     expect(res.status).toBe(404);
   });
 
-  // The write still cannot happen — posting under the operator's token would
+  // The write still cannot happen, posting under the operator's token would
   // put the reader's words on GitHub as the operator. What changes is the
   // refusal: the uniform 404 reads as "this pull request is gone", which
   // sends a reader hunting for something that is fine. The gate already

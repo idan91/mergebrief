@@ -1,13 +1,7 @@
-// API-token boundary tests. Exercises the `api_token` schema and the
-// PRE-TENANT,
-// hash-keyed `createTokenAuth` resolver against real migrations on PGlite,
-// mirroring `session.test.ts`. Credential rotation lives on the grant boundary —
-// see grant.test.ts.
-//
-// The hash-only-storage assertion is structural: the table's exact column set
-// is pinned so a plaintext-token (or ciphertext) column cannot be added
-// silently, and the `createTokenAuth` surface itself never accepts plaintext (mint
-// takes `tokenHash` + the session's `grantId`).
+// API-token boundary tests against real migrations on PGlite, mirroring
+// `session.test.ts`; credential rotation lives in grant.test.ts. The
+// hash-only-storage assertion is structural: the exact column set is pinned
+// so a plaintext or ciphertext column cannot be added silently.
 import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
 import { sql } from "drizzle-orm";
@@ -23,10 +17,8 @@ import {
   type TokenMintInput,
 } from "../src/auth/token";
 import {
-  isInstallationId,
   isReviewerId,
   WriteClassifications,
-  type InstallationId,
   type ReviewerId,
 } from "../src/types";
 import type { AppDatabase } from "../src/db/handle";
@@ -44,7 +36,7 @@ async function freshDb(): Promise<Db> {
   return db;
 }
 
-/** The full column inventory — hash + grant FK, NO plaintext or ciphertext. */
+/** The full column inventory, hash + grant FK, NO plaintext or ciphertext. */
 const API_TOKEN_COLUMNS = [
   "created_at",
   "expires_at",
@@ -66,7 +58,7 @@ describe("api_token schema", () => {
     db = await freshDb();
   });
 
-  it("stores ONLY the token hash — the exact column set has no credential column", async () => {
+  it("stores only the token hash, no credential column exists", async () => {
     const result = await db.execute(
       sql`select column_name from information_schema.columns where table_schema = 'public' and table_name = 'api_token' order by column_name`,
     );
@@ -76,7 +68,7 @@ describe("api_token schema", () => {
     expect(names).toEqual([...API_TOKEN_COLUMNS]);
   });
 
-  it("rejects two rows with the same token_hash (globally unique)", async () => {
+  it("rejects two rows with the same token_hash", async () => {
     const tokenHash = "a".repeat(64); // shape of a sha256 hex digest
     await db.execute(sql`
       insert into github_grant (gh_token_ciphertext, gh_refresh_token_ciphertext, key_ref, refresh_expires_at)
@@ -108,7 +100,7 @@ describe("api_token schema", () => {
     expect(found).toBe(true);
   });
 
-  it("carries exactly ONE FK — the grant reference; still none to pull_request", async () => {
+  it("carries one FK, the grant reference, and none to pull_request", async () => {
     const result = await db.execute(sql`
       select ccu.table_name as target from information_schema.table_constraints tc
       join information_schema.constraint_column_usage ccu on ccu.constraint_name = tc.constraint_name
@@ -121,11 +113,9 @@ describe("api_token schema", () => {
 });
 
 // ---------------------------------------------------------------------------
-// createTokenAuth — the PRE-TENANT, hash-keyed resolver (mirrors createSessionAuth).
+// createTokenAuth, the PRE-TENANT, hash-keyed resolver (mirrors createSessionAuth).
 // ---------------------------------------------------------------------------
 
-const INSTALLATION: InstallationId = brandWith(isInstallationId, 4242n);
-const OTHER_INSTALLATION: InstallationId = brandWith(isInstallationId, 9999n);
 const USER: ReviewerId = brandWith(isReviewerId, 777n);
 const OTHER_USER: ReviewerId = brandWith(isReviewerId, 888n);
 const HASH = "a".repeat(64); // shape of a sha256 hex digest
@@ -149,7 +139,6 @@ function mintInput(
   overrides: Partial<TokenMintInput> = {},
 ): TokenMintInput {
   return {
-    installationId: INSTALLATION,
     userId: USER,
     userLogin: "octocat",
     name: "ci-token",
@@ -172,7 +161,7 @@ describe("createTokenAuth mint / resolve / touch", () => {
   it("mints a token row linking the grant and resolves it by hash", async () => {
     const auth = createTokenAuth(handle);
     const minted = await auth.mintToken(mintInput(grant));
-    expect(String(minted.installationId)).toBe(String(INSTALLATION));
+    expect(minted.installationId).toBeNull();
     expect(minted.revokedAt).toBeNull();
     expect(minted.lastUsedAt).toBeNull();
     // Chosen at mint, and on the metadata projection the settings list reads.
@@ -183,7 +172,7 @@ describe("createTokenAuth mint / resolve / touch", () => {
     if (!resolved.ok) throw new Error("unreachable");
     expect(resolved.value.token.id).toBe(minted.id);
     expect(resolved.value.token.name).toBe("ci-token");
-    // The credential material rides on the grant half — LINKED, not copied.
+    // The credential material rides on the grant half. LINKED, not copied.
     expect(resolved.value.grant.id).toBe(grant.id);
     expect(resolved.value.grant.ghTokenCiphertext).toBe("v1.enc-access");
     expect(resolved.value.token).not.toHaveProperty("ghTokenCiphertext");
@@ -206,7 +195,7 @@ describe("createTokenAuth mint / resolve / touch", () => {
     }
   });
 
-  it("resolves a no-expiry token (expires_at null never expires)", async () => {
+  it("resolves a no-expiry token, a null expires_at never expires", async () => {
     const auth = createTokenAuth(handle);
     await auth.mintToken(mintInput(grant, { expiresAt: null }));
     const resolved = await auth.resolveByHash(
@@ -255,14 +244,13 @@ describe("createTokenAuth list / revoke", () => {
     grant = await seedGrant(handle);
   });
 
-  it("lists a user's tokens across installations, not other users'", async () => {
+  it("lists a user's tokens, not other users'", async () => {
     const auth = createTokenAuth(handle);
     await auth.mintToken(mintInput(grant));
     await auth.mintToken(
       mintInput(grant, {
         tokenHash: OTHER_HASH,
         name: "other-org",
-        installationId: OTHER_INSTALLATION,
       }),
     );
     await auth.mintToken(
@@ -281,7 +269,7 @@ describe("createTokenAuth list / revoke", () => {
     expect(await auth.listForUser(OTHER_USER)).toHaveLength(1);
   });
 
-  it("revokes an owned token; a revoked token stays listable but never resolves", async () => {
+  it("revokes an owned token that stays listable but never resolves", async () => {
     const auth = createTokenAuth(handle);
     const minted = await auth.mintToken(mintInput(grant));
 
@@ -296,14 +284,14 @@ describe("createTokenAuth list / revoke", () => {
     expect(resolved.error.code).toBe(TokenAuthErrorCodes.REVOKED);
 
     // Still listable (the settings list stays honest after revocation), and
-    // the soft revoke KEEPS the grant reference — only hard deletes
+    // the soft revoke KEEPS the grant reference, only hard deletes
     // orphan-clean.
     const listed = await auth.listForUser(USER);
     expect(listed).toHaveLength(1);
     expect(listed[0]?.revokedAt).toEqual(NOW);
   });
 
-  it("revocation is idempotent — the original revoked_at is preserved", async () => {
+  it("revocation is idempotent, the original revoked_at is preserved", async () => {
     const auth = createTokenAuth(handle);
     const minted = await auth.mintToken(mintInput(grant));
     await auth.revokeToken(USER, minted.id, PAST);
@@ -339,7 +327,8 @@ describe("createTokenAuth.mintToken audit atomicity", () => {
     expect(rows[0]?.outcome).toBe("ok");
     expect(rows[0]?.targetType).toBe("api_token");
     expect(rows[0]?.metadata).toEqual({ decision: "200", kind: "mint" });
-    expect(String(rows[0]?.installationId)).toBe(String(INSTALLATION));
+    expect(rows[0]?.installationId).toBeNull();
+    expect(rows[0]?.source).toBe("url-box");
     expect(String(rows[0]?.actorId)).toBe(String(USER));
   });
 });

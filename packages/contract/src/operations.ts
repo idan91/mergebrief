@@ -8,7 +8,6 @@ export const ProductQueryIds = {
   LIST_PULLS: "list-pulls",
   LIST_URL_BRIEFS: "list-url-briefs",
   LIST_REPOS: "list-repos",
-  LIST_INSTALLATIONS: "list-installations",
   LIST_TOKENS: "list-tokens",
   LIST_COLLABORATORS: "list-collaborators",
   READ_CONVERSATION: "read-conversation",
@@ -37,7 +36,6 @@ export const ProductActionIds = {
   DELETE_URL_BRIEF: "delete-url-brief",
   MINT_TOKEN: "mint-token",
   REVOKE_TOKEN: "revoke-token",
-  SELECT_INSTALLATION: "select-installation",
   // The Review Session writes. Declared here ahead of their routes because
   // the Attention List's `clearedBy` names them: the vocabulary is what a
   // client branches on, and an id it cannot resolve to a name is worse than

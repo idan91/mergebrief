@@ -1,4 +1,4 @@
-// `GET /api/capabilities`: the composed registry served as data — gated like
+// `GET /api/capabilities`: the composed registry served as data, gated like
 // every /api/* surface, descriptors verbatim in registry order, and a
 // fingerprint that must byte-match the committed manifest (the drift
 // tripwire in test form).
@@ -10,12 +10,9 @@ import {
   encryptToken,
   createEnvKeyProvider,
   createGrantAuth,
-  isInstallationId,
-  isReviewerId,
   createTokenAuth,
   WriteClassifications,
   type KeyProvider,
-  type TenantContext,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -23,22 +20,12 @@ import { z } from "zod";
 import { createApp, type ApiApp, type AuthDeps } from "../src/index";
 import { productOperationRegistry } from "../src/product-operations/registry";
 import { testLogger } from "./logging";
-import { KEY_REF } from "./fixtures";
+import { KEY_REF, brandReviewerId } from "./fixtures";
 
 const MANIFEST_PATH = join(
   fileURLToPath(new URL("..", import.meta.url)),
   "product-operations.manifest.json",
 );
-
-function brand<T extends bigint>(
-  guard: (v: bigint) => v is T,
-  value: number,
-): T {
-  const asBigInt = BigInt(value);
-  if (!guard(asBigInt)) throw new Error("bad branded id");
-  return asBigInt;
-}
-const CTX: TenantContext = { installationId: brand(isInstallationId, 987654) };
 
 const bodySchema = z.object({
   operations: z.array(
@@ -104,8 +91,7 @@ describe("GET /api/capabilities", () => {
     });
     await createTokenAuth(harness.handle).mintToken({
       scope: WriteClassifications.READ,
-      installationId: CTX.installationId,
-      userId: brand(isReviewerId, 555),
+      userId: brandReviewerId(555n),
       name: "ci-token",
       tokenHash: createHash("sha256").update(plaintext).digest("hex"),
       grantId: grant.id,

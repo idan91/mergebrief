@@ -10,7 +10,6 @@ import {
 } from "../features/brief/queries";
 import { briefErrorDetail } from "@web/features/brief/utils";
 import { LocalBriefsSection } from "@web/features/brief";
-import { OrgSwitcher } from "@web/features/installations";
 import { LocalePicker } from "../i18n/LocalePicker/LocalePicker";
 import { PullsSection, YourBriefsSection } from "@web/features/pulls";
 import { getPullsRefetchInterval } from "@web/features/pulls/utils";
@@ -149,7 +148,6 @@ function BriefPicker() {
             {error}
           </p>
         ) : null}
-        <OrgSwitcher enabled={session.kind === "ready"} />
         <YourBriefsSection session={yourBriefs} />
         <PullsSection session={session} />
         {import.meta.env.PROD ? null : (

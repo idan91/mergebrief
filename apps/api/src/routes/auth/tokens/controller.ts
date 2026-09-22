@@ -1,7 +1,6 @@
-// Hono-free. Mint validates its installation against the LIVE accessible set
-// (shared resolver, never the caller's word); the minted token LINKS the
-// session's grant, never copies credential material. The handler owns wire
-// posture and audit stamps.
+// Hono-free. The minted token binds no installation and LINKS the session's
+// grant, never copies credential material. The handler owns wire posture and
+// audit stamps.
 import { randomBytes } from "node:crypto";
 import {
   createTokenAuth,
@@ -15,40 +14,18 @@ import { sha256Hex } from "../session/utils";
 import { DEFAULT_EXPIRY_DAYS, MS_PER_DAY, TOKEN_BYTES } from "./consts";
 import type {
   MintInput,
+  MintedToken,
   RevokeFailure,
   TokensControllerDeps,
-  TokensFailure,
 } from "./types";
 
-type MintResult = Result<
-  { readonly token: string; readonly row: ApiTokenMetadataRow },
-  TokensFailure
->;
 type RevokeResult = Result<ApiTokenMetadataRow, RevokeFailure>;
 
 export default {
   async mintToken(
-    { deps, installations: reachable, session, log }: TokensControllerDeps,
+    { deps, session }: TokensControllerDeps,
     input: MintInput,
-  ) {
-    // Validate the requested installation against the reachable set (at most
-    // 60 s old), never the caller's word, never the session's binding alone.
-    const resolved = await reachable.resolve(session, log);
-    if (!resolved.ok) {
-      return resolved;
-    }
-    const { installations, session: currentSession } = resolved.value;
-    const target = installations.find(
-      (installation) =>
-        String(installation.installationId) === String(input.installationId),
-    );
-    if (target === undefined) {
-      return {
-        ok: false,
-        error: { kind: "target-not-accessible" },
-      } satisfies MintResult;
-    }
-
+  ): Promise<MintedToken> {
     const expiresAt =
       input.expiresInDays === null
         ? null
@@ -64,21 +41,20 @@ export default {
     // rotated through the grant's serialized CAS. The mint audit is emitted
     // by persistence INSIDE this same transaction.
     const mint: Mutable<TokenMintInput> = {
-      installationId: target.installationId,
-      userId: currentSession.reviewerId,
+      userId: session.reviewerId,
       name: input.name,
       scope: input.scope,
       tokenHash: sha256Hex(token),
-      grantId: currentSession.grantId,
+      grantId: session.grantId,
       expiresAt,
     };
 
-    if (currentSession.reviewerLogin !== null) {
-      mint.userLogin = currentSession.reviewerLogin;
+    if (session.reviewerLogin !== null) {
+      mint.userLogin = session.reviewerLogin;
     }
 
     const row = await createTokenAuth(deps.handle).mintToken(mint);
-    return { ok: true, value: { token, row } } satisfies MintResult;
+    return { token, row };
   },
 
   async listTokens({ deps, session }: TokensControllerDeps) {

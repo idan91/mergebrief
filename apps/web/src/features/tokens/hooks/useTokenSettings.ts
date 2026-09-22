@@ -1,13 +1,10 @@
 // Keep shown-once token material in this hook's mintedToken state.
 // Dismissal clears it and resets mutation.data so client state cannot redisplay it.
 // Mirror deterministic server validation to avoid submitting rejected payloads.
-import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { ApiError, ApiErrorCodes } from "../../../data/apiFetch";
-import { buildInstallationsQueryOptions } from "../../installations/queries";
 import { buildTokensQueryOptions, mintToken, revokeToken } from "../queries";
 import type { ApiTokenView, MintedToken, TokenScope } from "../types";
 
@@ -23,13 +20,6 @@ export const ExpiryChoices = {
 } as const;
 export type ExpiryChoice = (typeof ExpiryChoices)[keyof typeof ExpiryChoices];
 
-/** A 403 names the forbidden scope; every other failure reads generic. */
-function deriveMintFailureCopy(t: TFunction, error: unknown): string {
-  const forbidden =
-    error instanceof ApiError && error.code === ApiErrorCodes.FORBIDDEN;
-  return forbidden ? t("tokens.mintForbidden") : t("tokens.mintFailed");
-}
-
 /** No pre-selection: the scope a token carries is always a stated choice. */
 export const SCOPE_UNCHOSEN = "";
 export type ScopeChoice = TokenScope | typeof SCOPE_UNCHOSEN;
@@ -38,13 +28,9 @@ export interface TokenSettingsState {
   /** The viewer's tokens, newest first (server order). */
   readonly tokens: readonly ApiTokenView[] | undefined;
   readonly tokensError: boolean;
-  /** Accessible installations for the picker (live set via the switcher query). */
-  readonly installations: readonly { id: string; label: string }[];
   // Mint form.
   readonly name: string;
   readonly setName: (value: string) => void;
-  readonly installationId: string;
-  readonly setInstallationId: (value: string) => void;
   readonly expiry: ExpiryChoice;
   readonly setExpiry: (value: ExpiryChoice) => void;
   readonly scope: ScopeChoice;
@@ -69,26 +55,11 @@ export function useTokenSettings(enabled: boolean): TokenSettingsState {
   // `enabled` gates the fetches too: a disabled mount must never hit the
   // protected /api/auth/* endpoints.
   const tokensQuery = useQuery({ ...buildTokensQueryOptions(), enabled });
-  const installationsQuery = useQuery({
-    ...buildInstallationsQueryOptions(),
-    enabled,
-  });
 
   const [name, setName] = useState("");
-  const [installationId, setInstallationId] = useState("");
   const [expiry, setExpiry] = useState<ExpiryChoice>(ExpiryChoices.NINETY_DAYS);
   const [scope, setScope] = useState<ScopeChoice>(SCOPE_UNCHOSEN);
   const [mintedToken, setMintedToken] = useState<MintedToken | null>(null);
-
-  const installations = (installationsQuery.data?.installations ?? []).map(
-    (item) => ({ id: item.installationId, label: item.accountLogin }),
-  );
-  // The picker defaults to the session's current installation without
-  // syncing props into state: an empty selection falls back at submit time.
-  const currentInstallationId =
-    installationsQuery.data?.currentInstallationId ?? "";
-  const effectiveInstallationId =
-    installationId === "" ? currentInstallationId : installationId;
 
   const minting = useMutation({
     mutationFn: mintToken,
@@ -118,7 +89,6 @@ export function useTokenSettings(enabled: boolean): TokenSettingsState {
     if (trimmedName.length > TOKEN_NAME_MAX) {
       return t("tokens.nameTooLong", { max: TOKEN_NAME_MAX });
     }
-    if (effectiveInstallationId === "") return t("tokens.organizationRequired");
     if (scope === SCOPE_UNCHOSEN) return t("tokens.scopeRequired");
     return null;
   };
@@ -130,7 +100,6 @@ export function useTokenSettings(enabled: boolean): TokenSettingsState {
     minting.mutate({
       name: trimmedName,
       scope,
-      installationId: effectiveInstallationId,
       expiresInDays: expiry === ExpiryChoices.NONE ? null : Number(expiry),
     });
   };
@@ -142,18 +111,13 @@ export function useTokenSettings(enabled: boolean): TokenSettingsState {
     minting.reset();
   };
 
-  const mintError = minting.isError
-    ? deriveMintFailureCopy(t, minting.error)
-    : null;
+  const mintError = minting.isError ? t("tokens.mintFailed") : null;
 
   return {
     tokens: tokensQuery.data?.tokens,
     tokensError: tokensQuery.isError,
-    installations,
     name,
     setName,
-    installationId: effectiveInstallationId,
-    setInstallationId,
     expiry,
     setExpiry,
     scope,

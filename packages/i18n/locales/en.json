@@ -231,17 +231,6 @@
       "ariaDelete": "Delete the brief for {{repo}} #{{number}}"
     }
   },
-  "installations": {
-    "orgSwitcher": {
-      "label": "Organization",
-      "unknown": "unknown",
-      "menuLabel": "Switch organization",
-      "current": "current",
-      "default": "default",
-      "rememberDefault": "Remember my choice as default",
-      "switchFailed": "Switching failed — the organization may no longer be accessible."
-    }
-  },
   "brief": {
     "header": {
       "markingReady": "Marking ready…",
@@ -1001,7 +990,6 @@
     "heading": "API tokens",
     "nameLabel": "Token name",
     "namePlaceholder": "ci-reviewer",
-    "organizationLabel": "Organization",
     "expiresLabel": "Expires",
     "scopeLabel": "Scope",
     "scopeChoose": "Choose a scope…",
@@ -1013,15 +1001,14 @@
     "noExpiry": "No expiry",
     "ariaLabelRevoke": "Revoke {{name}}",
     "nameTooLong": "Token names are capped at {{max}} characters.",
-    "intro": "Tokens let the <0/> CLI and agents read and submit through the API as you, bound to one organization each.",
+    "intro": "Tokens let the <0/> CLI and agents read and submit through the API as you, across every organization you can reach.",
     "expiry30": "30 days",
     "expiry90": "90 days",
     "expiry365": "1 year",
     "minting": "Minting…",
     "mintToken": "Mint token",
     "mintedHeading": "Copy your token now — it is shown exactly once and cannot be retrieved again.",
-    "disclaimer": "Treat it like a password. The CLI stores it in plaintext in your home directory (<0/>) — anyone with the token can act as you in <1/>.",
-    "itsOrganization": "its organization",
+    "disclaimer": "Treat it like a password. The CLI stores it in plaintext in your home directory (<0/>) — anyone with the token can act as you in every organization you can reach.",
     "dismissMinted": "I saved it — dismiss",
     "loadFailed": "Could not load your tokens.",
     "noTokens": "No tokens yet.",
@@ -1029,10 +1016,8 @@
     "revoking": "Revoking…",
     "revoke": "Revoke",
     "nameRequired": "Name the token before minting.",
-    "organizationRequired": "Pick the organization the token is bound to.",
     "rowRevoked": "revoked {{when}}",
     "rowActive": "expires {{expires}} · last used {{lastUsed}}",
-    "mintForbidden": "That organization is no longer accessible to you.",
     "mintFailed": "Minting failed — nothing was created. Try again.",
     "revokeFailed": "Revoking failed — the token is still active. Try again."
   },

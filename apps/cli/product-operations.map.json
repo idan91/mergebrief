@@ -29,12 +29,6 @@
   "list-collaborators": {
     "command": "mergebrief collaborators"
   },
-  "list-installations": {
-    "webOnly": {
-      "reason": "Installation binding is cookie-only: /api/auth/* ignores Bearer headers, so a token can never list installations",
-      "owner": "idan"
-    }
-  },
   "list-pulls": {
     "command": "mergebrief pr"
   },
@@ -49,7 +43,7 @@
   },
   "list-url-briefs": {
     "webOnly": {
-      "reason": "The your-briefs home list is a web discovery surface; the CLI's listing is the installation-scoped pulls list",
+      "reason": "The your-briefs home list is a web discovery surface; the CLI's listing is the pulls list across every reachable installation",
       "owner": "idan"
     }
   },
@@ -122,12 +116,6 @@
   "revoke-token": {
     "webOnly": {
       "reason": "Revocation is cookie-only for the same reason as minting: a stolen token must not be able to revoke the owner's tokens",
-      "owner": "idan"
-    }
-  },
-  "select-installation": {
-    "webOnly": {
-      "reason": "Rebinding the session's installation is a browser act; a token is bound to one installation at mint",
       "owner": "idan"
     }
   },

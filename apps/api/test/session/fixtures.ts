@@ -139,7 +139,6 @@ export async function seedApiToken(
   const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
   await createTokenAuth(handle).mintToken({
     scope,
-    installationId: CTX.installationId,
     userId: REVIEWER,
     userLogin: "octocat",
     name: "ci-token",

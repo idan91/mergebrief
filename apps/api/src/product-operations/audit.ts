@@ -237,21 +237,23 @@ function readInstallationScope(value: unknown): AuditScope | undefined {
   };
 }
 
-/** The acting credential's world: its tenant, or url-box when it has none. */
-function readAuditScope(session: unknown): AuditScope | undefined {
-  if (
-    typeof session !== "object" ||
-    session === null ||
-    !("installationId" in session)
-  ) {
+/**
+ * The world the request acted in: the installation the gate resolved the
+ * repo into, or the url-box world when it resolved to none or the route
+ * carries no repo.
+ */
+function readAuditScope(ctx: unknown): AuditScope | undefined {
+  if (typeof ctx !== "object" || ctx === null) {
     return undefined;
   }
 
-  if (session.installationId === null) {
+  if ("ownerUserId" in ctx) {
     return { installationId: null, source: PullRequestSources.URL_BOX };
   }
-
-  return readInstallationScope(session.installationId);
+  if ("installationId" in ctx) {
+    return readInstallationScope(ctx.installationId);
+  }
+  return undefined;
 }
 
 /** `METHOD /full/path` → descriptor, built once off the committed registry. */
@@ -316,7 +318,7 @@ export function createAuditMiddleware(
     // `session` belongs to the auth layers, so it is read out of the variable
     // bag and narrowed here rather than declared on this module.
     const session = readVar(c.var, "session");
-    const scope = readAuditScope(session);
+    const scope = readAuditScope(readVar(c.var, "ctx"));
     const principal = readAuditPrincipal(session);
     if (scope === undefined || principal === undefined) {
       // A credential that resolves to no scope at all cannot be recorded,
@@ -328,8 +330,8 @@ export function createAuditMiddleware(
     const callerIp = config.callerIp ? getSocketAddress(c) : undefined;
     const requestId = deriveRequestId(c.get("requestId"));
     const reason = c.get("auditReason") ?? c.get("apiErrorCode");
-    // The ACTING credential's tenant, never the target's: a reviewer can
-    // revoke a token, or switch to an installation, outside this one.
+    // The world the gate resolved the request into; a route with no repo
+    // (token mint, revoke) acts in the credential's own world.
     const row: Mutable<Parameters<typeof writeAudit>[1]> = {
       installationId: scope.installationId,
       source: scope.source,

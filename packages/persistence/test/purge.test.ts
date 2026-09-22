@@ -526,46 +526,29 @@ describe("createPurgeRoutines.purgeInstallation, tenant-isolated offboarding", (
     const bPr = await insertPr(raw, { installationId: TENANT_B, prNumber: 1 });
     await seedFullGraph(raw, TENANT_A, aPr);
     await seedFullGraph(raw, TENANT_B, bPr);
-    // The second non-PR secret-bearing table: installation-bound API tokens
-    // must die with the tenant, like sessions.
-    for (const [installationId, hash] of [
-      [TENANT_A, "e".repeat(64)],
-      [TENANT_B, "f".repeat(64)],
-    ] as const) {
-      await raw.insert(apiToken).values({
-        installationId,
-        tokenHash: hash,
-        userId: REVIEWER,
-        name: "ci-token",
-        scope: WriteClassifications.EXTERNAL_WRITE,
-        grantId: await insertGrant(raw),
-        expiresAt: null,
-      });
-    }
+    // Sessions and API tokens bind no installation and outlive the tenant.
+    await raw.insert(apiToken).values({
+      tokenHash: "e".repeat(64),
+      userId: REVIEWER,
+      name: "ci-token",
+      scope: WriteClassifications.EXTERNAL_WRITE,
+      grantId: await insertGrant(raw),
+      expiresAt: null,
+    });
 
     const counts = await createPurgeRoutines(handle, CTX_A).purgeInstallation();
-    expect(counts).toEqual({ pullRequests: 1, sessions: 1, apiTokens: 1 });
+    expect(counts).toEqual({ pullRequests: 1 });
 
-    // Tenant A fully erased (PR + session + token).
     const prs = await raw.select({ id: pullRequest.id }).from(pullRequest);
     expect(prs.map((r) => r.id)).toEqual([bPr]);
-    const sessions = await raw
-      .select({
-        id: authSession.id,
-        installationId: authSession.installationId,
-      })
-      .from(authSession);
-    expect(sessions).toHaveLength(1);
-    expect(sessions[0]?.installationId).toBe(TENANT_B);
-    const tokens = await raw
-      .select({ id: apiToken.id, installationId: apiToken.installationId })
-      .from(apiToken);
+    const sessions = await raw.select({ id: authSession.id }).from(authSession);
+    expect(sessions).toHaveLength(2);
+    const tokens = await raw.select({ id: apiToken.id }).from(apiToken);
     expect(tokens).toHaveLength(1);
-    expect(tokens[0]?.installationId).toBe(TENANT_B);
-    // The purged referents' grants died with them; B's two remain.
+    // Both session grants and the token's grant remain.
     expect(
       await raw.select({ id: githubGrant.id }).from(githubGrant),
-    ).toHaveLength(2);
+    ).toHaveLength(3);
 
     // Tenant B's child graph is intact; A's Review Session graph is gone.
     expect(await countChildTables(raw, bPr)).toBe(8);

@@ -4,14 +4,13 @@ import {
   type ApiTokenRowId,
 } from "persistence";
 
-/** One list/mint entry — metadata only; bigints stringified, dates ISO. */
+/** One list/mint entry, metadata only; bigints stringified, dates ISO. */
 export function buildTokenView(
   row: ApiTokenMetadataRow,
 ): Record<string, string | null> {
   return {
     id: String(row.id),
     name: row.name,
-    installationId: String(row.installationId),
     userLogin: row.userLogin,
     scope: row.scope,
     expiresAt: row.expiresAt === null ? null : row.expiresAt.toISOString(),

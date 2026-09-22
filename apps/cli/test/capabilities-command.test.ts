@@ -6,7 +6,6 @@ import { createHash, randomBytes } from "node:crypto";
 import {
   encryptToken,
   createGrantAuth,
-  isInstallationId,
   isReviewerId,
   createTokenAuth,
   WriteClassifications,
@@ -290,8 +289,6 @@ describe("mergebrief capabilities against the real api", () => {
     const harness = world.harness;
     const kp = world.keyProvider;
     try {
-      const installationId = BigInt(987654);
-      if (!isInstallationId(installationId)) throw new Error("bad id");
       const reviewerId = BigInt(555);
       if (!isReviewerId(reviewerId)) throw new Error("bad id");
       const sealedAccess = await encryptToken(kp, "SESSION_KEY_V1", "ghu_A");
@@ -307,7 +304,6 @@ describe("mergebrief capabilities against the real api", () => {
       const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
       await createTokenAuth(harness.handle).mintToken({
         scope: WriteClassifications.READ,
-        installationId,
         userId: reviewerId,
         name: "caps-test",
         tokenHash: createHash("sha256").update(plaintext).digest("hex"),

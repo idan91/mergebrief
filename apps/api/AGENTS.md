@@ -73,7 +73,7 @@ Tests: full-URL wire suites stay in `test/` (the byte-identity proof); unit test
 - **HTTP status stays out of the row.** `outcome` plus a reason token is the vocabulary; a status would re-introduce the existence leak the collapse exists to prevent.
 - `client` is matched against this project's own CLI name — never a `product/version` SHAPE (a caller could write its own address into the ledger). Forensic: **nothing may ever branch on it**, and a derived value must stay inside persistence's `AuditClientSchema` (a store-rejected value throws inside the emit and loses the row).
 - `caller_ip` is the socket address, written only under the operator flag.
-- **A row is keyed on the acting credential's scope**, never the target's: the tenant for an installation-bound credential, or a NULL installation with `source: url-box` for an owner-world (installation-less) session. A refusal that resolved no credential at all is not recorded. Documented in `docs/self-host/operations.md`.
+- **A row is keyed on the world the request acted in**, the `ctx` the gate resolved: the installation holding the repo, or a NULL installation with `source: url-box` when the repo sits in none or the route carries no repo (token mint, revoke). A refusal that resolved no credential at all is not recorded. Documented in `docs/self-host/operations.md`.
 
 ## Product Operation catalog
 

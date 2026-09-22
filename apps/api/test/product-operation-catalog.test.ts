@@ -57,12 +57,6 @@ const EXPECTED_CATALOG = [
     endpoint: "GET /api/repos/:repoId/collaborators",
   },
   {
-    id: "list-installations",
-    kind: "query",
-    classification: "read",
-    endpoint: "GET /api/auth/installations",
-  },
-  {
     id: "list-pulls",
     kind: "query",
     classification: "read",
@@ -210,12 +204,6 @@ const EXPECTED_CATALOG = [
     kind: "action",
     classification: "private-write",
     endpoint: "DELETE /api/auth/tokens/:id",
-  },
-  {
-    id: "select-installation",
-    kind: "action",
-    classification: "private-write",
-    endpoint: "POST /api/auth/installations",
   },
   {
     id: "set-chunk-read",

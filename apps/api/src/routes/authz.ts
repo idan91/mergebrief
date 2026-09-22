@@ -259,8 +259,8 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
     const startedAt = Date.now();
 
     // Bearer is accepted on `/api/*` EXCEPT `/api/auth/*` (login, logout,
-    // token mint/list/revoke, installation binding stay cookie-only: a stolen
-    // API token must never mint tokens or rebind sessions). Where not
+    // token mint/list/revoke stay cookie-only: a stolen API token must never
+    // mint tokens). Where not
     // accepted, the header is IGNORED (falls through to the cookie path),
     // never honored.
     const authorization = c.req.header("authorization");
@@ -301,12 +301,9 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
           });
       }
 
-      if (principal.installationId === null) {
-        // API tokens are installation-bound; a NULL stamp cannot authorize.
-        stampAccess(c, "401");
-        throw new Unauthorized();
-      }
-      c.set("ctx", { installationId: principal.installationId });
+      // A token binds no installation: behind the repo gate the resolver
+      // names the world; a session-only route reads the owner world.
+      c.set("ctx", { ownerUserId: principal.reviewerId });
       c.set("session", principal);
       await next();
       return;
@@ -339,15 +336,9 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
       throw new Unauthorized();
     }
 
-    // The credential's own stamp IS the scope: an installation-bound session
-    // addresses its tenant; an installation-less one (url-box-only viewer)
-    // addresses the owner world keyed by their GitHub user id.
-    const { installationId } = resolved.session;
-    if (installationId === null) {
-      c.set("ctx", { ownerUserId: resolved.session.reviewerId });
-    } else {
-      c.set("ctx", { installationId });
-    }
+    // No credential holds an installation: a session-only route acts in the
+    // owner world; behind the repo gate the resolver names the world.
+    c.set("ctx", { ownerUserId: resolved.session.reviewerId });
     c.set("session", derivePrincipalFromSession(resolved));
     await next();
     return;

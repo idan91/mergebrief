@@ -285,8 +285,8 @@ async function handleInstallation(
 ): Promise<void> {
   if (event.action === InstallationActions.DELETED) {
     // App uninstalled → the tenant offboards: createPurgeRoutines deletes all PR
-    // aggregates (children cascade) + sessions and emits its own `delete`
-    // audit entry, in one transaction.
+    // aggregates (children cascade) and emits its own `delete` audit entry, in
+    // one transaction. Sessions and tokens stay; GitHub stops confirming access.
     await createPurgeRoutines(handle, ctx).purgeInstallation();
   }
   // `created` is a no-op: rows appear lazily when the first PR event lands.

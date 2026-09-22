@@ -5,6 +5,7 @@
 // take the installation's rows for a repo the installation never held.
 import { createHash, randomBytes } from "node:crypto";
 import {
+  createArtifactStore,
   createGrantAuth,
   createTenantRepository,
   encryptToken,
@@ -230,7 +231,7 @@ describe("the per-repo gate's repo world", () => {
     expect(body).toMatchObject({ title: "the installation's row" });
   });
 
-  it("audits a write on an outside repo under the reader's installation", async () => {
+  it("audits a write on an outside repo under the owner world", async () => {
     stubGitHub([]);
     const cookie = await seedSession(harness.handle, kp);
     await seedPullRequest(harness.handle, OWNER_CTX, "the reader's paste");
@@ -255,8 +256,8 @@ describe("the per-repo gate's repo world", () => {
     expect(rows).toEqual([
       {
         operation: "set-chunk-read",
-        installation_id: INSTALLATION_ID,
-        source: "app-installation",
+        installation_id: null,
+        source: "url-box",
       },
     ]);
   });
@@ -406,6 +407,65 @@ describe("the per-repo gate across two installations", () => {
     const res = await readOther(buildApp(), cookie);
 
     expect(res.status).toBe(404);
+  });
+
+  it("stores a write on the second installation's row under the second", async () => {
+    stubTwoInstallations([INSTALLATION_ID, OTHER_INSTALLATION_ID]);
+    const cookie = await seedSession(harness.handle, kp);
+    await seedBothRows();
+    const otherRow = await createTenantRepository(
+      harness.handle,
+      OTHER_CTX,
+    ).pullRequests.getByNumber(
+      brandRepoId(BigInt(OTHER_REPO_ID)),
+      OTHER_PR_NUMBER,
+    );
+    if (otherRow === undefined) throw new Error("seed missing");
+    const brief = await createArtifactStore(
+      harness.handle,
+      OTHER_CTX,
+    ).briefs.write({
+      pullRequestId: otherRow.id,
+      baseSha: "b".repeat(40),
+      headSha: "a".repeat(40),
+      headIndex: 1,
+      commitCount: 1,
+      provider: "anthropic",
+      model: "claude",
+      effort: "high",
+      body: JSON.stringify({ groupIds: ["c1"], flags: [], filePaths: [] }),
+      carriedChunkIds: [],
+      anchorState: "anchored",
+    });
+    if (!brief.ok) throw new Error("brief seed failed");
+
+    const res = await buildApp().request(
+      `/api/repos/${OTHER_REPO_ID}/pulls/${OTHER_PR_NUMBER}/session/chunks/c1/read?base=${"b".repeat(40)}&head=${"a".repeat(40)}`,
+      {
+        method: "PUT",
+        headers: {
+          Cookie: `rs_session=${cookie}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ read: true }),
+      },
+    );
+
+    expect(res.status).toBe(200);
+    const sessions = await harness.raw(
+      "select installation_id from review_session",
+    );
+    expect(sessions).toEqual([{ installation_id: OTHER_INSTALLATION_ID }]);
+    const audit = await harness.raw(
+      "select operation, installation_id, source from audit_log order by id",
+    );
+    expect(audit).toEqual([
+      {
+        operation: "set-chunk-read",
+        installation_id: OTHER_INSTALLATION_ID,
+        source: "app-installation",
+      },
+    ]);
   });
 
   it("refuses a revoked installation once the window has passed", async () => {

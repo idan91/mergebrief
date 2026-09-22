@@ -80,7 +80,9 @@ function installationsOk(
 }
 
 interface StubConfig {
-  readonly installations?: (call: number) => Response;
+  readonly installations?: (call: number, url: string) => Response;
+  /** `GET /user/installations`; one installation by default. */
+  readonly userInstallations?: readonly number[];
   readonly repositories?: (call: number) => Response;
   readonly token?: (call: number) => Response;
 }
@@ -102,12 +104,14 @@ function stubGitHub(cfg: StubConfig): StubCounts {
           : jsonResponse({ error: "unexpected_token" }, 500);
       }
       if (url.endsWith("/user/installations?per_page=100")) {
-        return answerUserInstallations([INSTALLATION_ID]);
+        return answerUserInstallations(
+          cfg.userInstallations ?? [INSTALLATION_ID],
+        );
       }
       if (url.includes("/user/installations/")) {
         const i = counts.installations++;
         return cfg.installations
-          ? cfg.installations(i)
+          ? cfg.installations(i, url)
           : jsonResponse({ message: "nope" }, 500);
       }
       if (url.includes("/repositories/")) {
@@ -327,6 +331,35 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
       briefAvailable: false,
       generation: null,
     });
+  });
+
+  it("list: rows from two installations on one session, newest first", async () => {
+    const OTHER_REPO = 42009;
+    stubGitHub({
+      userInstallations: [INSTALLATION_ID, OTHER_INSTALLATION_ID],
+      installations: (_call, url) =>
+        url.includes(`/user/installations/${INSTALLATION_ID}/`)
+          ? installationsOk([{ id: REPO_A, full_name: "octo/hello" }])
+          : installationsOk([{ id: OTHER_REPO, full_name: "acme/other" }]),
+    });
+    const cookie = await seedSession(harness.handle, kp);
+    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await seedPr(harness.handle, {
+      ctx: { installationId: brand(isInstallationId, OTHER_INSTALLATION_ID) },
+      repoId: OTHER_REPO,
+      prNumber: 3,
+      slug: "acme/other",
+    });
+
+    const res = await get("/api/pulls", cookie);
+    const body = (await res.json()) as { pulls: Array<{ repoSlug: string }> };
+
+    expect(res.status).toBe(200);
+    expect(body.pulls.map((row) => row.repoSlug)).toEqual([
+      "acme/other",
+      "octo/hello",
+    ]);
   });
 
   it("list: exposes draft + viewerIsAuthor per row, never the author login", async () => {

@@ -13,12 +13,18 @@ import type { AppDatabase } from "persistence";
 import type { InstallationResolver } from "../installation-resolver";
 import type { AuthzEnv } from "../authz";
 import pullsController from "./controller";
+import { runInBatches } from "../batches";
+import { LIST_INSTALLATION_CONCURRENCY } from "./consts";
+import {
+  groupAllowedByInstallation,
+  mergePullPages,
+} from "./logic/merge-installations";
 import { listQuerySchema } from "./schemas";
 import { ApiErrorCodes } from "contract";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
-/** Parse, resolve the allowed set (judging its posture), call the op. */
+/** Parse, resolve the allowed set (judging its posture), one op per installation. */
 export default function createHandlers(
   handle: AppDatabase,
   installations: InstallationResolver,
@@ -31,8 +37,6 @@ export default function createHandlers(
       if (!query.success) {
         throw new BadRequest();
       }
-      const ctx = c.get("ctx");
-
       const resolved = await installations.listAllowedRepos(
         c.get("session"),
         c.get("logger"),
@@ -44,19 +48,26 @@ export default function createHandlers(
         throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
       }
 
-      const body = await pullsController.listPulls(
-        {
-          tenant: createTenantRepository(handle, ctx),
-          artifacts: createArtifactStore(handle, ctx),
-          generations: createGenerationProjection(handle, ctx),
-        },
-        {
-          allowed: resolved.value.allowed,
-          viewerLogin: c.get("session").reviewerLogin,
-          limit: query.data.limit,
+      const viewerLogin = c.get("session").reviewerLogin;
+      const groups = groupAllowedByInstallation(resolved.value.allowed);
+      const pages = await runInBatches(
+        [...groups],
+        LIST_INSTALLATION_CONCURRENCY,
+        async ([installationId, allowed]) => {
+          const ctx = { installationId };
+          const page = await pullsController.listPulls(
+            {
+              tenant: createTenantRepository(handle, ctx),
+              artifacts: createArtifactStore(handle, ctx),
+              generations: createGenerationProjection(handle, ctx),
+            },
+            { allowed, viewerLogin, limit: query.data.limit },
+          );
+          return page.pulls;
         },
       );
-      return c.json(body, 200, NO_STORE);
+      const pulls = mergePullPages(pages, query.data.limit);
+      return c.json({ pulls }, 200, NO_STORE);
     },
   };
 }

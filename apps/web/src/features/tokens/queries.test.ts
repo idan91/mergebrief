@@ -35,7 +35,6 @@ describe("buildTokensQueryOptions queryFn", () => {
           id: "3",
           name: "ci-token",
           scope: "read",
-          installationId: "987654",
           userLogin: "octocat",
           expiresAt: "2026-10-07T00:00:00.000Z",
           lastUsedAt: null,
@@ -73,7 +72,6 @@ describe("mintToken transport", () => {
     const failure = await mintToken({
       name: "x",
       scope: "read",
-      installationId: "111",
     }).then(
       () => undefined,
       (error: unknown) => error,

@@ -9,7 +9,6 @@ import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { buildLocalBriefsQueryOptions } from "@web/features/brief/queries";
-import { buildInstallationsQueryOptions } from "@web/features/installations/queries";
 import { routeTree } from "../../routeTree.gen";
 import {
   buildPullsSessionQueryOptions,
@@ -33,18 +32,6 @@ async function loadHome() {
   queryClient.setQueryData(buildPullsSessionQueryOptions().queryKey, session);
   queryClient.setQueryData(buildUrlBriefsQueryOptions().queryKey, session);
   queryClient.setQueryData(buildLocalBriefsQueryOptions().queryKey, []);
-  queryClient.setQueryData(buildInstallationsQueryOptions().queryKey, {
-    installations: [
-      {
-        installationId: "111",
-        accountLogin: "acme",
-        isCurrent: true,
-        isDefault: true,
-      },
-    ],
-    currentInstallationId: "111",
-    defaultInstallationId: "111",
-  });
   fetchMock.mockImplementation(() =>
     Promise.resolve(Response.json({ pulls: [] })),
   );

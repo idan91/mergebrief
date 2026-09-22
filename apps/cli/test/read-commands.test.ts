@@ -195,7 +195,6 @@ describe("read commands over the real api app", () => {
     });
     await createTokenAuth(harness.handle).mintToken({
       scope: WriteClassifications.EXTERNAL_WRITE,
-      installationId: CTX.installationId,
       userId: REVIEWER,
       name: "ci-token",
       tokenHash: createHash("sha256").update(plaintext).digest("hex"),

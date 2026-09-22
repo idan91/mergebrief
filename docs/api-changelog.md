@@ -13,6 +13,19 @@ The contract discipline (ADR 0029): response shapes change additively
 within a major; removals/renames ship expand/contract — new field first,
 deprecation note here, removal only at a major.
 
+## dev (2026-09-20)
+
+- **Removed** `GET /api/auth/installations` and `POST /api/auth/installations`
+  with their operation ids `list-installations` and `select-installation`.
+  No credential holds a current installation: every gated request resolves
+  the installation from the repository it names, among the installations the
+  viewer can reach, and an API token reaches every one of them.
+- **Changed** `POST /api/auth/tokens` no longer takes `installationId`; a
+  body carrying it is accepted and the field ignored. Token views on the
+  mint and list responses no longer carry `installationId`. A pre-release
+  change with no compatibility value: a cached web bundle shows its
+  generic token-list failure until it reloads.
+
 ## dev (2026-09-18)
 
 - **Added** an optional `generation.waitReason` on

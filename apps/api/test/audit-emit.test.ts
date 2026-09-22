@@ -236,9 +236,9 @@ describe("the audit choke point", () => {
       outcome: "denied",
       reason: "no-repo-access",
       target_type: "repo",
-      // Even a denial keys on the ACTING credential's tenant, the target
-      // repo resolved to nothing, so no other tenant is available to leak.
-      installation_id: String(INSTALLATION_ID),
+      // A denial resolved no world: the repo is in no reachable installation,
+      // so the row files in the url-box world and no tenant can leak.
+      installation_id: null,
     });
   });
 
@@ -304,7 +304,7 @@ describe("the ledger's tenant", () => {
     await harness.close();
   });
 
-  it("follows the credential when the gate's ctx names another world", async () => {
+  it("follows the gate's ctx over the credential's stored world", async () => {
     const registry = createProductOperationRegistry();
     const root = productRouter<RequestLogEnv>();
     root.use(createAuditMiddleware({ handle: harness.handle, registry }));
@@ -338,9 +338,7 @@ describe("the ledger's tenant", () => {
     const rows = await harness.raw(
       "select installation_id, source from audit_log order by id",
     );
-    expect(rows).toEqual([
-      { installation_id: INSTALLATION_ID, source: "app-installation" },
-    ]);
+    expect(rows).toEqual([{ installation_id: null, source: "url-box" }]);
   });
 });
 

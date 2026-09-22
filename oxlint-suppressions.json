@@ -24,24 +24,9 @@
       "count": 3
     }
   },
-  "apps/api/src/routes/auth/installations/schemas.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "apps/api/src/routes/auth/tokens/consts.ts": {
     "house/no-em-dash": {
       "count": 2
-    }
-  },
-  "apps/api/src/routes/auth/tokens/schemas.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "apps/api/src/routes/auth/tokens/utils.ts": {
-    "house/no-em-dash": {
-      "count": 1
     }
   },
   "apps/api/src/routes/capabilities/types.ts": {
@@ -125,11 +110,6 @@
       "count": 3
     }
   },
-  "apps/api/test/capabilities.test.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "apps/api/test/compose-catalog.ts": {
     "house/no-em-dash": {
       "count": 1
@@ -170,14 +150,6 @@
     }
   },
   "apps/api/test/product-operation-manifest.test.ts": {
-    "house/test-title": {
-      "count": 1
-    }
-  },
-  "apps/api/test/read-fallback.test.ts": {
-    "house/no-em-dash": {
-      "count": 10
-    },
     "house/test-title": {
       "count": 1
     }
@@ -754,11 +726,6 @@
       "count": 6
     }
   },
-  "apps/web/src/features/installations/index.tsx": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "apps/web/src/features/pulls/components/MarkReadyModal/MarkReadyModal.test.tsx": {
     "house/no-em-dash": {
       "count": 7
@@ -906,18 +873,8 @@
       "count": 1
     }
   },
-  "apps/web/src/features/tokens/components/TokenSettings/TokenSettings.tsx": {
-    "house/no-em-dash": {
-      "count": 3
-    }
-  },
   "apps/web/src/features/tokens/index.tsx": {
     "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "apps/web/src/features/tokens/types.test.ts": {
-    "house/test-title": {
       "count": 1
     }
   },
@@ -1575,14 +1532,6 @@
       "count": 7
     }
   },
-  "packages/persistence/src/auth/token.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 14
-    }
-  },
   "packages/persistence/src/db/config.ts": {
     "house/comment-run": {
       "count": 1
@@ -1616,17 +1565,6 @@
     }
   },
   "packages/persistence/src/pglite-snapshot.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 5
-    }
-  },
-  "packages/persistence/src/schema/api-token.ts": {
-    "house/comment-density": {
-      "count": 1
-    },
     "house/comment-run": {
       "count": 1
     },
@@ -1754,14 +1692,6 @@
     },
     "house/no-em-dash": {
       "count": 12
-    }
-  },
-  "packages/persistence/src/stores/purge.ts": {
-    "house/comment-run": {
-      "count": 2
-    },
-    "house/no-em-dash": {
-      "count": 20
     }
   },
   "packages/persistence/src/stores/scope-context.ts": {
@@ -1904,17 +1834,6 @@
     },
     "house/test-title": {
       "count": 8
-    }
-  },
-  "packages/persistence/test/token.test.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 8
-    },
-    "house/test-title": {
-      "count": 5
     }
   },
   "packages/persistence/test/user-settings.test.ts": {

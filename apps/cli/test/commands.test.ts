@@ -10,13 +10,11 @@ import { join } from "node:path";
 import {
   encryptToken,
   createGrantAuth,
-  isInstallationId,
   isReviewerId,
   createTokenAuth,
   WriteClassifications,
   type KeyProvider,
   type ReviewerId,
-  type TenantContext,
 } from "persistence";
 import type { PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -27,10 +25,8 @@ import {
   startCliApiHarness,
   type CliApiHarness,
 } from "./harness/api";
-import { STUB_INSTALLATION_ID } from "./harness/github-stub";
 import { runCli, type CliDeps } from "../src/program";
 
-const INSTALLATION_ID = STUB_INSTALLATION_ID;
 const REVIEWER_ID = 555;
 const REPO_A = 42001;
 
@@ -42,9 +38,6 @@ function brand<T extends bigint>(
   if (!guard(asBigInt)) throw new Error("bad branded id");
   return asBigInt;
 }
-const CTX: TenantContext = {
-  installationId: brand(isInstallationId, INSTALLATION_ID),
-};
 const REVIEWER: ReviewerId = brand(isReviewerId, REVIEWER_ID);
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -117,7 +110,6 @@ describe("mergebrief commands over the real api", () => {
     });
     await createTokenAuth(harness.handle).mintToken({
       scope: WriteClassifications.EXTERNAL_WRITE,
-      installationId: CTX.installationId,
       userId: REVIEWER,
       userLogin: "octocat",
       name: "ci-token",
@@ -287,7 +279,6 @@ describe("auth login profile selection and verification", () => {
     });
     await createTokenAuth(harness.handle).mintToken({
       scope: WriteClassifications.EXTERNAL_WRITE,
-      installationId: CTX.installationId,
       userId: REVIEWER,
       name: "live",
       tokenHash: hash,
