@@ -1,0 +1,23 @@
+@use "functions";
+
+@layer components {
+  .errorState {
+    padding: functions.to-rem(28px);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--panel2);
+
+    h1 {
+      margin-block-end: functions.to-rem(8px);
+      font-size: var(--font-size-3xl);
+
+      // Pinned: overrides the base heading defaults.
+      font-weight: 700;
+      line-height: 1.55;
+    }
+
+    p {
+      color: var(--dim);
+    }
+  }
+}

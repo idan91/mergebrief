@@ -6,7 +6,6 @@ import { WaitReasons, type LastReviewComparisonView } from "contract";
 import type { Equals } from "types/utils";
 import {
   parsePrSummary,
-  parsePullsList,
   parsePullStack,
   type LastReviewComparison,
 } from "./types";
@@ -488,21 +487,6 @@ describe("parsePrSummary revisions on PR-meta", () => {
         revisions: [{ ...REVISION, comparisons: { lastReview: 5 } }],
       }).ok,
     ).toBe(false);
-  });
-});
-
-describe("parsePullsList", () => {
-  it("accepts { pulls: [...] } and rejects a bare array", () => {
-    const ok = parsePullsList({ pulls: [ROW] });
-    expect(ok.ok).toBe(true);
-    if (!ok.ok) throw new Error("unreachable");
-    expect(ok.value).toHaveLength(1);
-
-    expect(parsePullsList([ROW]).ok).toBe(false);
-  });
-
-  it("rejects a list containing one malformed row", () => {
-    expect(parsePullsList({ pulls: [ROW, { nope: true }] }).ok).toBe(false);
   });
 });
 

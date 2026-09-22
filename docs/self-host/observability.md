@@ -9,7 +9,7 @@ Grafana/Loki, Datadog, and CloudWatch.
 ## The log line
 
 ```json
-{"level":"info","time":1784667468255,"pid":42,"hostname":"web-1","reqId":"7f0b…","evt":"api.access","method":"GET","path":"/api/pulls","status":200,"durationMs":12,"decision":"200","msg":"request"}
+{"level":"info","time":1784667468255,"pid":42,"hostname":"web-1","reqId":"7f0b…","evt":"api.access","method":"GET","path":"/api/inbox","status":200,"durationMs":12,"decision":"200","msg":"request"}
 ```
 
 - `level` — string label: `error`, `warn`, `info`, `debug`.

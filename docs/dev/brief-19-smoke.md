@@ -82,7 +82,7 @@ ngrok's inspector at http://127.0.0.1:4040 shows every webhook delivery.
 binding; no hermetic surface can mint one.`
 
 This is the one path no probe could exercise: a real user-to-server OAuth
-token, default-installation binding, and the `/api/pulls` happy path.
+token and the `/api/inbox` happy path.
 
 1. Open `https://<sub>.ngrok-free.app/` (the ngrok URL, **not** localhost —
    the OAuth redirect returns to `PUBLIC_BASE_URL`).
@@ -96,15 +96,12 @@ Verify the plumbing directly if the UI looks off:
 
 ```sh
 # In the browser devtools console (has the cookie):
-await (await fetch("/api/auth/installations")).json()
-# expect: { installations: [{ installationId, accountLogin, isCurrent, isDefault }...],
-#           currentInstallationId, defaultInstallationId }
-await (await fetch("/api/pulls")).json()
-# expect: { pulls: [...] } — NOT 502
+await (await fetch("/api/inbox")).json()
+# expect: { items: [...], counts, repositories } — NOT 502
 ```
 
 **If it fails:** web log (`docker compose logs web | grep '"evt"'`) — a 502 on
-`/api/pulls` means the installation-repositories fetch failed; a 401 loop
+`/api/inbox` means the installation-repositories fetch failed; a 401 loop
 means the callback couldn't bind an installation (is the App actually
 installed for your user?).
 
@@ -200,36 +197,14 @@ View/Compare params that are unrecognized or unavailable on the DB-backed
    with a button that navigates to the new span — the page must never swap
    under you on its own.
 
-## 8. Org switcher
-
-`manual-forever: needs two real installations on one account.`
-
-- **Two+ installations:** picker → `Organization` dropdown → arrow keys roam
-  the orgs, the current one is marked. Tick `Remember my choice as default`
-  (it's a menu item — Space/Enter toggles), pick the other org: **expect** a
-  full page reload landing on the picker with the other org's PRs. Log out,
-  log back in: **expect** the remembered org is the one bound (default
-  binding via `user_settings`).
-- **Single installation:** just confirm the dropdown renders one entry and
-  Escape returns focus to the trigger.
-
-Switch failure path (optional): `POST /api/auth/installations` with a bogus id
-from the console → **expect** 403 and no change:
-
-```js
-await fetch("/api/auth/installations", { method: "POST",
-  headers: { "content-type": "application/json" },
-  body: JSON.stringify({ installationId: "999999" }) })   // → 403
-```
-
-## 9. Access-control spot checks
+## 8. Access-control spot checks
 
 `automated: pnpm -r test` — the 401-without-session, 404-not-403 for an
 inaccessible repo id, and the matching `auth` audit row are asserted against
 the real Hono app in `packages/api` (`reads.test.ts`, `repos.test.ts`).
 Nothing left to click here.
 
-## 10. Teardown
+## 9. Teardown
 
 `manual-forever: tears down the real compose stack this pass stood up.`
 
@@ -244,8 +219,7 @@ docker compose down          # keep volumes; `down -v` only if you want a clean 
 Fix-forward on `main` (small PR, or direct push for one-liners per the
 docs-on-main convention). Likely-trouble ranking, with first-look locations:
 
-1. **OAuth/binding** (step 3) — web log `evt` lines + `/api/auth/installations`
-   response; `user_settings` table contents.
+1. **OAuth** (step 3) — web log `evt` lines; the `auth_session` row.
 2. **Poll → render transition** (step 5) — Network tab for the 4s PR-meta
    cadence; `briefAvailable` flag in the PR-meta JSON vs the worker log.
 3. **Comparison client fetch** (step 7) — marks/narrative response bodies vs

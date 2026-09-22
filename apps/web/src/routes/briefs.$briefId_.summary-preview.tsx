@@ -9,8 +9,10 @@ import {
 import { useMemo } from "react";
 
 import { buildLocalBriefQueryOptions } from "../features/brief/queries";
-import { buildPullsSessionQueryOptions } from "../features/pulls/queries";
+import { buildViewerQueryOptions } from "../features/account/queries";
+import { ViewerStates } from "../features/account/types";
 import type { Brief } from "../features/brief/types";
+import { BriefError } from "@web/features/brief";
 import { buildBriefViewModel } from "@web/features/brief/utils";
 import { SummaryPreview } from "@web/features/review";
 import type { Disposition, SessionSnapshot } from "../features/review/session";
@@ -24,10 +26,11 @@ export const Route = createFileRoute("/briefs/$briefId_/summary-preview")({
     if (import.meta.env.PROD) {
       throw notFound();
     }
-    const session = await context.queryClient.ensureQueryData(
-      buildPullsSessionQueryOptions(),
-    );
-    if (session.kind !== "ready") {
+    const viewer = await context.queryClient.ensureQueryData({
+      ...buildViewerQueryOptions(),
+      retry: false,
+    });
+    if (viewer.kind !== ViewerStates.SIGNED_IN) {
       throw redirect({ to: "/" });
     }
   },
@@ -41,6 +44,7 @@ export const Route = createFileRoute("/briefs/$briefId_/summary-preview")({
     return { meta: [{ title: buildPageTitle(appI18n.t, [pageName]) }] };
   },
   component: SummaryPreviewRoute,
+  errorComponent: BriefError,
 });
 
 function SummaryPreviewRoute() {

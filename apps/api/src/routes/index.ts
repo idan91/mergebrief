@@ -14,12 +14,10 @@ import { authRoutes } from "./auth";
 import { createAccessibleInstallationsResolver } from "./auth/accessible-installations";
 import type { AuthDeps } from "./auth/session/types";
 import { generateRoute } from "./generate";
-import { urlBriefRoutes } from "./briefs";
 import { inboxRoutes } from "./inbox";
 import type { InstallationGitHubPort } from "./github-port";
 import { capabilitiesRoute } from "./capabilities";
 import { createInstallationResolver } from "./installation-resolver";
-import { pullsRoute } from "./pulls";
 import { reposRoutes } from "./repos";
 import { versionRoute } from "./version";
 import { webhookRoute } from "./webhook";
@@ -61,12 +59,10 @@ export function apiRoutes(deps: AppDeps): ProductRouter<RequestLogEnv> {
   app.route("/auth", authRoutes(deps));
   app.route("/version", versionRoute(deps, deps.serverVersion ?? "dev"));
   app.route("/capabilities", capabilitiesRoute(deps));
-  app.route("/pulls", pullsRoute(deps, resolver));
   app.route("/repos", reposRoutes(deps, resolver));
   // Session-gated only: the pasted URL's repo is outside the installation
   // model, so the engine's viewer-token fetch is the access check.
   app.route("/generate", generateRoute(deps, deps.urlBoxFallbackToken));
-  app.route("/briefs", urlBriefRoutes(deps));
   app.route("/inbox", inboxRoutes(deps, installations, resolver));
   return app;
 }

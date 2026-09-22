@@ -17,10 +17,10 @@ describe("product operation registry", () => {
   it("enumerates registered descriptors sorted by id", () => {
     const registry = createProductOperationRegistry();
     registry.register({
-      id: "list-pulls",
+      id: "list-inbox",
       kind: OperationKinds.QUERY,
       classification: WriteClassifications.READ,
-      endpoint: "GET /api/pulls",
+      endpoint: "GET /api/inbox",
     });
     registry.register({
       id: "generate-brief",
@@ -30,7 +30,7 @@ describe("product operation registry", () => {
     });
     expect(registry.list().map((d) => d.id)).toEqual([
       "generate-brief",
-      "list-pulls",
+      "list-inbox",
     ]);
   });
 
@@ -55,10 +55,10 @@ describe("product operation registry", () => {
   it("re-registering an identical descriptor is a no-op", () => {
     const registry = createProductOperationRegistry();
     const descriptor = {
-      id: "list-pulls",
+      id: "list-inbox",
       kind: OperationKinds.QUERY,
       classification: WriteClassifications.READ,
-      endpoint: "GET /api/pulls",
+      endpoint: "GET /api/inbox",
     } as const;
     registry.register(descriptor);
     registry.register(descriptor);
@@ -68,22 +68,22 @@ describe("product operation registry", () => {
   it("throws when the same id re-registers with a different descriptor", () => {
     const registry = createProductOperationRegistry();
     const descriptor = {
-      id: "list-pulls",
+      id: "list-inbox",
       kind: OperationKinds.QUERY,
       classification: WriteClassifications.READ,
-      endpoint: "GET /api/pulls",
+      endpoint: "GET /api/inbox",
     } as const;
     registry.register(descriptor);
     expect(() =>
       registry.register({ ...descriptor, endpoint: "GET /api/other" }),
-    ).toThrowError(/list-pulls/);
+    ).toThrowError(/list-inbox/);
     expect(() =>
       registry.register({
         ...descriptor,
         kind: OperationKinds.ACTION,
         classification: WriteClassifications.PRIVATE_WRITE,
       }),
-    ).toThrowError(/list-pulls/);
+    ).toThrowError(/list-inbox/);
   });
 
   it.each(["ListPulls", "list_pulls", "list pulls", "", "-lead", "trail-"])(
@@ -121,7 +121,7 @@ describe("product operation registry", () => {
 });
 
 const QUERY = {
-  id: ProductQueryIds.LIST_PULLS,
+  id: ProductQueryIds.LIST_INBOX,
   classification: WriteClassifications.READ,
 } as const;
 const ACTION = {
@@ -244,7 +244,7 @@ describe("product router", () => {
     first.commit(registry);
     const second = productRouter();
     second.query(QUERY, "/pulls-v2", (c) => c.body(null, 204));
-    expect(() => second.commit(registry)).toThrowError(/list-pulls/);
+    expect(() => second.commit(registry)).toThrowError(/list-inbox/);
   });
 
   it("rejects wrong classifications at compile time and at runtime", () => {
@@ -252,14 +252,14 @@ describe("product router", () => {
     expect(() =>
       router.query(
         {
-          id: ProductQueryIds.LIST_PULLS,
+          id: ProductQueryIds.LIST_INBOX,
           // @ts-expect-error, a query must declare READ, not a write classification
           classification: WriteClassifications.EXTERNAL_WRITE,
         },
-        "/pulls",
+        "/inbox",
         (c) => c.body(null, 204),
       ),
-    ).toThrowError(/list-pulls/);
+    ).toThrowError(/list-inbox/);
     expect(() =>
       router.action(
         {
@@ -289,7 +289,7 @@ describe("product router", () => {
     router.action(
       {
         // @ts-expect-error, an action id must come from ProductActionIds
-        id: ProductQueryIds.LIST_PULLS,
+        id: ProductQueryIds.LIST_INBOX,
         classification: WriteClassifications.PRIVATE_WRITE,
       },
       "post",

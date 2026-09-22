@@ -5,4 +5,3 @@ export {
   type Span,
 } from "./briefRouteState";
 export { resolveDbTimeline, type DbTimelinePoint } from "./dbTimeline";
-export { getPullsRefetchInterval } from "./list-poll";

@@ -1,6 +1,6 @@
 // `GET /api/repos`, the CLI's owner/name to repoId resolution. The contract:
-// the installation and user-access intersection from the pulls.ts allowed-set
-// machinery and its shared 60s cache, stringified repoIds, flat, unpaginated,
+// the installation and user-access intersection from installation-resolver's
+// allowed-set machinery and its shared 60s cache, stringified repoIds, flat, unpaginated,
 // no-store, and a GitHub failure answering 401 or 502, never a DB-only fallback.
 import { randomBytes } from "node:crypto";
 import {
@@ -224,7 +224,7 @@ describe("GET /api/repos", () => {
     const cookie = await seedSession();
     expect(
       (
-        await app.request("/api/pulls", {
+        await app.request("/api/inbox", {
           headers: { Cookie: `rs_session=${cookie}` },
         })
       ).status,

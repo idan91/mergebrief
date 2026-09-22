@@ -335,7 +335,7 @@ describe("Bearer presentation on /api/*", () => {
     });
 
     // The same credential reads fine…
-    expect((await getWithBearer("/api/pulls", readOnly)).status).toBe(200);
+    expect((await getWithBearer("/api/inbox", readOnly)).status).toBe(200);
     // …and is refused at the private-write rung, before the handler runs.
     const res = await app.request("/api/generate", {
       method: "POST",
@@ -366,7 +366,7 @@ describe("Bearer presentation on /api/*", () => {
       expired,
       revoked,
     ]) {
-      const res = await getWithBearer("/api/pulls", bearer);
+      const res = await getWithBearer("/api/inbox", bearer);
       expect(res.status).toBe(401);
       expect(await res.json()).toEqual({
         error: "unauthorized",
@@ -402,7 +402,7 @@ describe("Bearer presentation on /api/*", () => {
       "select expires_at from api_token limit 1",
     );
 
-    const res = await getWithBearer("/api/pulls", bearer);
+    const res = await getWithBearer("/api/inbox", bearer);
     expect(res.status).toBe(200);
     expect(counts.token).toBe(1);
     expect(counts.installationRepos).toBe(2);
@@ -452,7 +452,7 @@ describe("Bearer presentation on /api/*", () => {
     });
     const bearer = await seedApiToken(harness.handle, kp);
 
-    const res = await captureApp.request("/api/pulls", {
+    const res = await captureApp.request("/api/inbox", {
       headers: { Authorization: `Bearer ${bearer}` },
     });
     expect(res.status).toBe(401);
@@ -477,7 +477,7 @@ describe("Bearer presentation on /api/*", () => {
     await seedPr(harness.handle);
     const bearer = await seedApiToken(harness.handle, kp);
 
-    expect((await getWithBearer("/api/pulls", bearer)).status).toBe(200);
+    expect((await getWithBearer("/api/inbox", bearer)).status).toBe(200);
     // The touch is fire-and-forget (never awaited on the request path), poll.
     await vi.waitFor(async () => {
       const touched = await harness.raw(
@@ -489,7 +489,7 @@ describe("Bearer presentation on /api/*", () => {
     // Clear the stamp out-of-band: a second request inside the throttle window
     // must NOT re-touch (the throttle, not the DB write, is under test).
     await harness.raw("update api_token set last_used_at = null");
-    expect((await getWithBearer("/api/pulls", bearer)).status).toBe(200);
+    expect((await getWithBearer("/api/inbox", bearer)).status).toBe(200);
     const throttled = await harness.raw(
       "select last_used_at from api_token limit 1",
     );
@@ -611,7 +611,7 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
     expect(days).toBeLessThan(91);
 
     // The minted token authenticates on /api/* immediately.
-    const read = await app.request("/api/pulls", {
+    const read = await app.request("/api/inbox", {
       headers: { Authorization: `Bearer ${body.token}` },
     });
     expect(read.status).toBe(200);
@@ -779,7 +779,7 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
     // Works before revocation.
     expect(
       (
-        await app.request("/api/pulls", {
+        await app.request("/api/inbox", {
           headers: { Authorization: `Bearer ${minted.token}` },
         })
       ).status,
@@ -794,7 +794,7 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
     // Bearer is dead immediately (liveness is checked per request, uncached).
     expect(
       (
-        await app.request("/api/pulls", {
+        await app.request("/api/inbox", {
           headers: { Authorization: `Bearer ${minted.token}` },
         })
       ).status,

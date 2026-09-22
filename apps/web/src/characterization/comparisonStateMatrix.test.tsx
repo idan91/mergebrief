@@ -22,8 +22,8 @@ import {
   buildLocalRevisionChangesQueryOptions,
   buildLocalRevisionNarrativeQueryOptions,
 } from "../features/brief/queries";
-import { buildPullsSessionQueryOptions } from "../features/pulls/queries";
-import type { PullsSession } from "../features/pulls/types";
+import { buildViewerQueryOptions } from "../features/account/queries";
+import { ViewerStates, type ViewerState } from "../features/account/types";
 import type {
   Brief,
   BriefChunk,
@@ -32,7 +32,11 @@ import type {
 } from "../features/brief/types";
 import { routeTree } from "../routeTree.gen";
 
-const READY_SESSION: PullsSession = { kind: "ready", pulls: [] };
+const SIGNED_IN_VIEWER: ViewerState = {
+  kind: ViewerStates.SIGNED_IN,
+  login: "octocat",
+  avatarUrl: "https://avatars.example/octocat.png",
+};
 
 const PR = {
   repo: "acme/widgets",
@@ -265,8 +269,8 @@ function buildQueryClient() {
     defaultOptions: { queries: { retry: false } },
   });
   queryClient.setQueryData(
-    buildPullsSessionQueryOptions().queryKey,
-    READY_SESSION,
+    buildViewerQueryOptions().queryKey,
+    SIGNED_IN_VIEWER,
   );
   queryClient.setQueryData(
     buildLocalBriefsQueryOptions().queryKey,

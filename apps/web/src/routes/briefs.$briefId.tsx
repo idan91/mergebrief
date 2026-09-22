@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import { useCallback } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
@@ -8,7 +7,11 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 
-import { BriefPage, type ScopeExitOptions } from "@web/features/brief";
+import {
+  BriefError,
+  BriefPage,
+  type ScopeExitOptions,
+} from "@web/features/brief";
 import {
   buildBriefSearchParams,
   parseCompareParam,
@@ -16,20 +19,17 @@ import {
   parseViewParam,
   type BriefSearchParams,
 } from "@web/features/brief/comparison";
-import {
-  briefErrorDetail,
-  resolveLegacyDeltaRedirect,
-} from "@web/features/brief/utils";
+import { resolveLegacyDeltaRedirect } from "@web/features/brief/utils";
 import {
   buildLocalBriefDiffsQueryOptions,
   buildLocalBriefQueryOptions,
   buildLocalBriefsQueryOptions,
   buildLocalRevisionChangesQueryOptions,
 } from "../features/brief/queries";
-import { buildPullsSessionQueryOptions } from "../features/pulls/queries";
+import { buildViewerQueryOptions } from "../features/account/queries";
+import { ViewerStates } from "../features/account/types";
 import { appI18n } from "../i18n/I18nProvider";
 import { buildPageTitle } from "@web/utils/pageTitle";
-import styles from "./routeShared.module.scss";
 import { useUnsavedComposerBlocker } from "@web/hooks/useUnsavedComposerGuard";
 
 /** Exactly a brief page (`/briefs/<id>`), never a subpath of one. */
@@ -55,10 +55,11 @@ export const Route = createFileRoute("/briefs/$briefId")({
     }
     // The readers refuse without a session; redirecting first keeps a
     // logged-out visit an ordinary navigation instead of a 500.
-    const session = await context.queryClient.ensureQueryData(
-      buildPullsSessionQueryOptions(),
-    );
-    if (session.kind !== "ready") {
+    const viewer = await context.queryClient.ensureQueryData({
+      ...buildViewerQueryOptions(),
+      retry: false,
+    });
+    if (viewer.kind !== ViewerStates.SIGNED_IN) {
       throw redirect({ to: "/" });
     }
     const artifacts = await context.queryClient.ensureQueryData(
@@ -137,19 +138,5 @@ function BriefRoute() {
       clearDiffParam={clearDiffParam}
       revisionPending={revisionPending}
     />
-  );
-}
-
-function BriefError({ error }: { error: Error }) {
-  const { t } = useTranslation();
-  return (
-    <main className="main" id="main-content" tabIndex={-1}>
-      <section className={styles["errorState"]}>
-        <h1>{t("shell.briefFailed")}</h1>
-        {/* Curated copy only: a raw server message here would print the
-            deployment's filesystem paths into the page. */}
-        <p>{briefErrorDetail(t, error)}</p>
-      </section>
-    </main>
   );
 }

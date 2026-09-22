@@ -36,9 +36,11 @@ deprecation note here, removal only at a major.
   fails the list with `github-unavailable`. Pasted-URL rows are read live
   first, for up to two seconds.
 - **Added** `DELETE /api/inbox/:repoId/:prNumber` (`delete-inbox-item`),
-  the owner-delete of a pasted-URL row. `DELETE /api/briefs/:repoId/:prNumber`
-  and `GET /api/pulls` and `GET /api/briefs` stay until the web app reads
-  the Inbox, then leave; `mergebrief pr` already reads `GET /api/inbox`.
+  the owner-delete of a pasted-URL row.
+- **Removed** `GET /api/pulls` (`list-pulls`), `GET /api/briefs`
+  (`list-url-briefs`) and `DELETE /api/briefs/:repoId/:prNumber`
+  (`delete-url-brief`): the Inbox and its delete replace all three, and
+  `mergebrief pr` already reads `GET /api/inbox`.
 - **Removed** `GET /api/auth/installations` and `POST /api/auth/installations`
   with their operation ids `list-installations` and `select-installation`.
   No credential holds a current installation: every gated request resolves

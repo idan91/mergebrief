@@ -29,7 +29,13 @@ const run = promisify(execFile);
 
 const PACKAGE_ROOT = fileURLToPath(new URL("..", import.meta.url));
 const REAL_MANIFEST = join(PACKAGE_ROOT, "product-operations.manifest.json");
-const REAL_ROUTE_SOURCE = join(PACKAGE_ROOT, "src", "routes", "pulls.ts");
+const REAL_ROUTE_SOURCE = join(
+  PACKAGE_ROOT,
+  "src",
+  "routes",
+  "inbox",
+  "index.ts",
+);
 const GENERATOR = join(PACKAGE_ROOT, "scripts", "generate-manifest.ts");
 const TSX = join(PACKAGE_ROOT, "node_modules", ".bin", "tsx");
 
@@ -72,8 +78,8 @@ afterEach(async () => {
   );
 });
 
-describe("runManifest — write mode", () => {
-  it("skips composition entirely when the manifest is newer than every source", async () => {
+describe("runManifest write mode", () => {
+  it("skips composition when the manifest is newer than every source", async () => {
     const root = await makeTempRoot();
     const source = join(root, "app.ts");
     const manifestPath = join(root, "manifest.json");
@@ -153,7 +159,7 @@ describe("runManifest — write mode", () => {
   });
 });
 
-describe("runManifest — check mode", () => {
+describe("runManifest check mode", () => {
   it("composes even when the manifest is newer, and fails on wrong content", async () => {
     const root = await makeTempRoot();
     const source = join(root, "app.ts");

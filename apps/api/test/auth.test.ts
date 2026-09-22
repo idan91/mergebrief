@@ -219,11 +219,11 @@ describe("reviewer auth routes", () => {
       expiresAt: new Date("2027-01-01T00:00:00Z"),
     });
 
-    const res = await app.request("/api/pulls", {
+    const res = await app.request("/api/inbox", {
       headers: { cookie: `rs_session=${token}` },
     });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ pulls: [] });
+    expect(await res.json()).toMatchObject({ items: [] });
     const urls = fetchFn.mock.calls.map((call) => String(call[0]));
     expect(urls.filter((url) => url.includes("/repositories"))).toEqual([]);
   });

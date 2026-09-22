@@ -9,12 +9,11 @@ import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { buildLocalBriefsQueryOptions } from "@web/features/brief/queries";
+import { buildViewerQueryOptions } from "../account/queries";
+import { ViewerStates, type ViewerState } from "../account/types";
+import { buildInboxQueryOptions } from "../inbox/queries";
+import { InboxStates, type InboxState } from "../inbox/types";
 import { routeTree } from "../../routeTree.gen";
-import {
-  buildPullsSessionQueryOptions,
-  buildUrlBriefsQueryOptions,
-} from "./queries";
-import type { PullsSession } from "./types";
 
 const fetchMock = vi.fn<typeof fetch>();
 vi.stubGlobal("fetch", fetchMock);
@@ -25,15 +24,33 @@ afterEach(() => {
 });
 
 async function loadHome() {
-  const session: PullsSession = { kind: "ready", pulls: [] };
+  const viewer: ViewerState = {
+    kind: ViewerStates.SIGNED_IN,
+    login: "octocat",
+    avatarUrl: "https://avatars.example/octocat.png",
+  };
+  const inbox: InboxState = {
+    kind: InboxStates.READY,
+    page: {
+      items: [],
+      page: 1,
+      pageSize: 25,
+      total: 0,
+      counts: { new: 0, inProgress: 0, reviewed: 0, updated: 0 },
+      viewer: { login: "octocat", avatarUrl: "https://avatars.example/o.png" },
+      reachableInstallations: [],
+      repositories: [],
+      installUrl: null,
+    },
+  };
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  queryClient.setQueryData(buildPullsSessionQueryOptions().queryKey, session);
-  queryClient.setQueryData(buildUrlBriefsQueryOptions().queryKey, session);
+  queryClient.setQueryData(buildViewerQueryOptions().queryKey, viewer);
+  queryClient.setQueryData(buildInboxQueryOptions({}).queryKey, inbox);
   queryClient.setQueryData(buildLocalBriefsQueryOptions().queryKey, []);
   fetchMock.mockImplementation(() =>
-    Promise.resolve(Response.json({ pulls: [] })),
+    Promise.resolve(Response.json({ items: [] })),
   );
 
   const router = createRouter({

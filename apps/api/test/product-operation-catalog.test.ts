@@ -39,12 +39,6 @@ const EXPECTED_CATALOG = [
     endpoint: "DELETE /api/inbox/:repoId/:prNumber",
   },
   {
-    id: "delete-url-brief",
-    kind: "action",
-    classification: "private-write",
-    endpoint: "DELETE /api/briefs/:repoId/:prNumber",
-  },
-  {
     id: "dismiss-risk",
     kind: "action",
     classification: "private-write",
@@ -69,12 +63,6 @@ const EXPECTED_CATALOG = [
     endpoint: "GET /api/inbox",
   },
   {
-    id: "list-pulls",
-    kind: "query",
-    classification: "read",
-    endpoint: "GET /api/pulls",
-  },
-  {
     id: "list-repos",
     kind: "query",
     classification: "read",
@@ -87,12 +75,6 @@ const EXPECTED_CATALOG = [
     endpoint: "GET /api/auth/tokens",
   },
 
-  {
-    id: "list-url-briefs",
-    kind: "query",
-    classification: "read",
-    endpoint: "GET /api/briefs",
-  },
   {
     id: "mark-ready",
     kind: "action",

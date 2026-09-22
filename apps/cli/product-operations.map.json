@@ -20,12 +20,6 @@
       "owner": "idan"
     }
   },
-  "delete-url-brief": {
-    "webOnly": {
-      "reason": "Deleting an owned url-box brief is the web list's affordance; the CLI has no owner-brief surface",
-      "owner": "idan"
-    }
-  },
   "dismiss-risk": {
     "command": "mergebrief risk dismiss <number>"
   },
@@ -38,24 +32,12 @@
   "list-inbox": {
     "command": "mergebrief pr"
   },
-  "list-pulls": {
-    "webOnly": {
-      "reason": "Transitional: the session list is deleted once the web app reads the Inbox; the CLI's pr command already reads the Inbox",
-      "owner": "idan"
-    }
-  },
   "list-repos": {
     "command": "mergebrief repos"
   },
   "list-tokens": {
     "webOnly": {
       "reason": "Token management is cookie-only: /api/auth/* ignores Bearer headers, so a token can never list tokens",
-      "owner": "idan"
-    }
-  },
-  "list-url-briefs": {
-    "webOnly": {
-      "reason": "The your-briefs home list is a web discovery surface; the CLI's listing is the pulls list across every reachable installation",
       "owner": "idan"
     }
   },

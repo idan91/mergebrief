@@ -1,5 +1,5 @@
-// The viewer-token GitHub response determines allowed repos. If it fails, fail the list
-// with 401/502 rather than leaking rows through a DB-only fallback.
+// GET /api/repos/:repoId/pulls/:prNumber over PGlite: the gate on the
+// viewer's token, the revision timeline, the generation summary and behind.
 import { randomBytes } from "node:crypto";
 import {
   createArtifactStore,
@@ -42,13 +42,10 @@ import {
 
 const OTHER_INSTALLATION_ID = 111222;
 const REPO_A = 424242;
-const REPO_B = 535353;
 const WAIT_DEBOUNCE_SECONDS = 60;
 
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
 const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
-const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
-const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 
 function brand<T extends bigint>(
   guard: (v: bigint) => v is T,
@@ -200,15 +197,6 @@ async function seedPr(handle: AppDatabase, input: SeedPrInput) {
   return createTenantRepository(handle, ctx).pullRequests.upsert(upsert);
 }
 
-const TOKEN_SUCCESS = {
-  access_token: ROTATED_ACCESS,
-  refresh_token: ROTATED_REFRESH,
-  expires_in: 28_800,
-  refresh_token_expires_in: 15_897_600,
-  token_type: "bearer",
-  scope: "",
-};
-
 // PR-meta `revisions[]` wire shape + runtime guards, the test boundary
 // parses, never casts.
 interface RevisionEntry {
@@ -269,7 +257,7 @@ const unusedConversationPort = {
   },
 };
 
-describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
+describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
   let harness: PgliteHarness;
   let app: ApiApp;
   let kp: KeyProvider;
@@ -299,366 +287,6 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
         : { headers: { Cookie: `rs_session=${cookie}` } },
     );
   }
-
-  // ------------------------------------------------------------------ list
-
-  it("list: 401s absent sessions without calling GitHub", async () => {
-    const counts = stubGitHub({ installations: () => installationsOk([]) });
-    const res = await get("/api/pulls");
-    expect(res.status).toBe(401);
-    expect(counts.installations).toBe(0);
-  });
-
-  it("list: returns allowed tenant rows newest-first with verified names", async () => {
-    stubGitHub({
-      installations: () =>
-        installationsOk([{ id: REPO_A, full_name: "octo/verified-a" }]),
-    });
-    const cookie = await seedSession(harness.handle, kp);
-    await seedPr(harness.handle, {
-      repoId: REPO_A,
-      prNumber: 1,
-      title: "first",
-    });
-    await new Promise((r) => setTimeout(r, 5));
-    await seedPr(harness.handle, {
-      repoId: REPO_A,
-      prNumber: 2,
-      title: "second",
-    });
-    // Same tenant, repo NOT in the allowed set → filtered out.
-    await seedPr(harness.handle, { repoId: REPO_B, prNumber: 3 });
-    // Another tenant, SAME repo id → never visible.
-    await seedPr(harness.handle, {
-      ctx: OTHER_CTX,
-      repoId: REPO_A,
-      prNumber: 9,
-    });
-
-    const res = await get("/api/pulls", cookie);
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as {
-      pulls: Array<Record<string, unknown>>;
-    };
-    expect(body.pulls.map((p) => p["prNumber"])).toEqual([2, 1]);
-    expect(body.pulls[0]).toMatchObject({
-      repoId: String(REPO_A),
-      repoSlug: "octo/verified-a", // GitHub-verified, not the stored slug
-      title: "second",
-      state: "open",
-      briefAvailable: false,
-      generation: null,
-    });
-  });
-
-  it("list: rows from two installations on one session, newest first", async () => {
-    const OTHER_REPO = 42009;
-    stubGitHub({
-      userInstallations: [INSTALLATION_ID, OTHER_INSTALLATION_ID],
-      installations: (_call, url) =>
-        url.includes(`/user/installations/${INSTALLATION_ID}/`)
-          ? installationsOk([{ id: REPO_A, full_name: "octo/hello" }])
-          : installationsOk([{ id: OTHER_REPO, full_name: "acme/other" }]),
-    });
-    const cookie = await seedSession(harness.handle, kp);
-    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
-    await new Promise((resolve) => setTimeout(resolve, 5));
-    await seedPr(harness.handle, {
-      ctx: { installationId: brand(isInstallationId, OTHER_INSTALLATION_ID) },
-      repoId: OTHER_REPO,
-      prNumber: 3,
-      slug: "acme/other",
-    });
-
-    const res = await get("/api/pulls", cookie);
-    const body = (await res.json()) as { pulls: Array<{ repoSlug: string }> };
-
-    expect(res.status).toBe(200);
-    expect(body.pulls.map((row) => row.repoSlug)).toEqual([
-      "acme/other",
-      "octo/hello",
-    ]);
-  });
-
-  it("list: exposes draft + viewerIsAuthor per row, never the author login", async () => {
-    stubGitHub({
-      installations: () =>
-        installationsOk([{ id: REPO_A, full_name: "octo/verified-a" }]),
-    });
-    // The seeded session's reviewer login is "octocat".
-    const cookie = await seedSession(harness.handle, kp);
-    await seedPr(harness.handle, {
-      repoId: REPO_A,
-      prNumber: 1,
-      draft: true,
-      authorLogin: "octocat",
-    });
-    await new Promise((r) => setTimeout(r, 5));
-    await seedPr(harness.handle, {
-      repoId: REPO_A,
-      prNumber: 2,
-      draft: true,
-      authorLogin: "not-octocat",
-    });
-    await new Promise((r) => setTimeout(r, 5));
-    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 3 }); // no author, not draft
-
-    const res = await get("/api/pulls", cookie);
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as {
-      pulls: Array<Record<string, unknown>>;
-    };
-    expect(body.pulls.map((p) => p["prNumber"])).toEqual([3, 2, 1]);
-    // Own draft → true; someone else's draft → false; null author → false.
-    expect(body.pulls[2]).toMatchObject({ draft: true, viewerIsAuthor: true });
-    expect(body.pulls[1]).toMatchObject({ draft: true, viewerIsAuthor: false });
-    expect(body.pulls[0]).toMatchObject({
-      draft: false,
-      viewerIsAuthor: false,
-    });
-    // The author login must never cross to the FE, in any casing/shape.
-    const raw = JSON.stringify(body);
-    expect(raw).not.toContain("author_login");
-    expect(raw).not.toContain("authorLogin");
-    expect(raw).not.toContain("not-octocat");
-  });
-
-  it("list: derives viewerCanResolve solely from authorship", async () => {
-    // The list endpoint's allowed-set intersection carries no permissions
-    // block, so push capability is unknown there. Fail closed: the field is
-    // authorship-only on list rows; the brief page reads the real capability
-    // from PR meta (per-repo gate path).
-    stubGitHub({
-      installations: () =>
-        installationsOk([{ id: REPO_A, full_name: "octo/verified-a" }]),
-    });
-    const cookie = await seedSession(harness.handle, kp);
-    await seedPr(harness.handle, {
-      repoId: REPO_A,
-      prNumber: 1,
-      authorLogin: "octocat",
-    });
-    await new Promise((r) => setTimeout(r, 5));
-    await seedPr(harness.handle, {
-      repoId: REPO_A,
-      prNumber: 2,
-      authorLogin: "not-octocat",
-    });
-
-    const res = await get("/api/pulls", cookie);
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as {
-      pulls: Array<Record<string, unknown>>;
-    };
-    expect(body.pulls[1]).toMatchObject({
-      viewerIsAuthor: true,
-      viewerCanResolve: true,
-    });
-    expect(body.pulls[0]).toMatchObject({
-      viewerIsAuthor: false,
-      viewerCanResolve: false,
-    });
-  });
-
-  it("list: enriches rows with current generation and brief availability", async () => {
-    stubGitHub({
-      installations: () =>
-        installationsOk([{ id: REPO_A, full_name: "octo/a" }]),
-    });
-    const cookie = await seedSession(harness.handle, kp);
-    const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 1 });
-    const gen = createGenerationProjection(harness.handle, CTX);
-    const store = createArtifactStore(harness.handle, CTX);
-
-    // Brief generated for head-1, then a new push enqueued head-2 → the CURRENT
-    // span has no brief yet: briefAvailable=false, headSha=head-2, base=null.
-    await gen.upsertPending({
-      pullRequestId: pr.id,
-      kind: GenerationKinds.BRIEF,
-      headSha: "head-1",
-      baselineSha: null,
-    });
-    await store.briefs.write({
-      pullRequestId: pr.id,
-      baseSha: "base-1",
-      headSha: "head-1",
-      headIndex: 1,
-      commitCount: 1,
-      provider: "anthropic",
-      model: "claude",
-      effort: "high",
-      body: "{}",
-    });
-    await gen.markSucceeded({
-      pullRequestId: pr.id,
-      kind: GenerationKinds.BRIEF,
-      headSha: "head-1",
-      baselineSha: null,
-    });
-    await new Promise((r) => setTimeout(r, 5));
-    await gen.upsertPending({
-      pullRequestId: pr.id,
-      kind: GenerationKinds.BRIEF,
-      headSha: "head-2",
-      baselineSha: null,
-    });
-
-    const waiting = await get("/api/pulls", cookie);
-    const waitingBody = (await waiting.json()) as {
-      pulls: Array<Record<string, unknown>>;
-    };
-    expect(waitingBody.pulls[0]).toMatchObject({
-      headSha: "head-2",
-      baseSha: null,
-      briefAvailable: false,
-      generation: {
-        status: GenerationStatuses.PENDING,
-        phase: null,
-        attempts: 0,
-        errorCode: null,
-        errorParams: null,
-      },
-    });
-
-    // A failed row must serialize its CODE and params, not a composed line.
-    const failedRow = await gen.markFailed(
-      {
-        pullRequestId: pr.id,
-        kind: GenerationKinds.BRIEF,
-        headSha: "head-2",
-        baselineSha: null,
-      },
-      {
-        code: GenerationFailureCodes.GENERATION_CONFIG,
-        params: { detail: "missing ANTHROPIC_API_KEY" },
-      },
-    );
-    if (!failedRow.ok) throw new Error("markFailed failed");
-    const failedList = await get("/api/pulls", cookie);
-    const failedBody = (await failedList.json()) as {
-      pulls: Array<Record<string, unknown>>;
-    };
-    expect(failedBody.pulls[0]).toMatchObject({
-      generation: {
-        status: GenerationStatuses.FAILED,
-        errorCode: "generation-config",
-        errorParams: { detail: "missing ANTHROPIC_API_KEY" },
-      },
-    });
-
-    // The brief for head-2 lands → available, span filled from the brief row.
-    await store.briefs.write({
-      pullRequestId: pr.id,
-      baseSha: "base-2",
-      headSha: "head-2",
-      headIndex: 2,
-      commitCount: 2,
-      provider: "anthropic",
-      model: "claude",
-      effort: "high",
-      body: "{}",
-    });
-    const ready = await get("/api/pulls", cookie);
-    const readyBody = (await ready.json()) as {
-      pulls: Array<Record<string, unknown>>;
-    };
-    expect(readyBody.pulls[0]).toMatchObject({
-      headSha: "head-2",
-      baseSha: "base-2",
-      briefAvailable: true,
-    });
-  });
-
-  it("list: allowed-set cache, two calls, one installations fetch", async () => {
-    const counts = stubGitHub({
-      installations: () =>
-        installationsOk([{ id: REPO_A, full_name: "octo/a" }]),
-    });
-    const cookie = await seedSession(harness.handle, kp);
-    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 1 });
-
-    expect((await get("/api/pulls", cookie)).status).toBe(200);
-    expect((await get("/api/pulls", cookie)).status).toBe(200);
-    expect(counts.installations).toBe(1);
-  });
-
-  it("list: limit caps rows; an out-of-range or malformed limit is a 400", async () => {
-    stubGitHub({
-      installations: () =>
-        installationsOk([{ id: REPO_A, full_name: "octo/a" }]),
-    });
-    const cookie = await seedSession(harness.handle, kp);
-    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 1 });
-    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 2 });
-
-    const limited = await get("/api/pulls?limit=1", cookie);
-    const body = (await limited.json()) as { pulls: unknown[] };
-    expect(body.pulls).toHaveLength(1);
-
-    const capped = await get("/api/pulls?limit=101", cookie);
-    expect(capped.status).toBe(400);
-    expect(((await capped.json()) as { code?: string }).code).toBe(
-      "invalid-request",
-    );
-    expect((await get("/api/pulls?limit=abc", cookie)).status).toBe(400);
-  });
-
-  // Long timeout: octokit's retry plugin retries the 500 with backoff before
-  // the sanitized error surfaces (same as reads.test.ts's 406 case).
-  it(
-    "list: GitHub failure → 502, NEVER a DB-only listing",
-    { timeout: 20_000 },
-    async () => {
-      stubGitHub({
-        installations: () => jsonResponse({ message: "boom" }, 500),
-      });
-      const cookie = await seedSession(harness.handle, kp);
-      await seedPr(harness.handle, { repoId: REPO_A, prNumber: 1 });
-
-      const res = await get("/api/pulls", cookie);
-      expect(res.status).toBe(502);
-      const text = await res.text();
-      expect(text).toContain('"code":"github-unavailable"');
-      expect(text).not.toContain("prNumber"); // no rows leak on failure
-    },
-  );
-
-  it("list: 401 from GitHub → refresh → retry succeeds", async () => {
-    const counts = stubGitHub({
-      installations: (call) =>
-        call === 0
-          ? jsonResponse({ message: "expired" }, 401)
-          : installationsOk([{ id: REPO_A, full_name: "octo/a" }]),
-      token: () => jsonResponse(TOKEN_SUCCESS),
-    });
-    const cookie = await seedSession(harness.handle, kp);
-    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 1 });
-
-    const res = await get("/api/pulls", cookie);
-    expect(res.status).toBe(200);
-    expect(counts.token).toBe(1);
-    expect(counts.installations).toBe(2);
-  });
-
-  it("list: 401s refresh failure and deletes the session", async () => {
-    stubGitHub({
-      installations: () => jsonResponse({ message: "expired" }, 401),
-      token: () =>
-        jsonResponse({
-          error: "bad_refresh_token",
-          error_description: "expired",
-          error_uri: "https://docs.github.com/",
-        }),
-    });
-    const cookie = await seedSession(harness.handle, kp);
-
-    const res = await get("/api/pulls", cookie);
-    expect(res.status).toBe(401);
-    const rows = await harness.raw(
-      "select count(*)::int as n from auth_session",
-    );
-    expect(rows[0]?.["n"]).toBe(0);
-  });
 
   // --------------------------------------------------------------- PR meta
 
@@ -790,7 +418,6 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     const text = await res.text();
     const body = JSON.parse(text) as {
       generation?: Record<string, unknown>;
-      pulls?: Array<{ generation: Record<string, unknown> }>;
     };
     return { text, body };
   }
@@ -929,19 +556,6 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
       status: GenerationStatuses.RUNNING,
     });
     expect(body.generation).not.toHaveProperty("waitReason");
-  });
-
-  it("list: never carries a wait reason on a pending row", async () => {
-    stubGate();
-    const cookie = await seedSession(harness.handle, kp);
-    await triggerPendingBrief(WAIT_DEBOUNCE_SECONDS);
-
-    const { body } = await readGenerationSummary("/api/pulls", cookie);
-
-    expect(body.pulls?.[0]?.generation).toMatchObject({
-      status: GenerationStatuses.PENDING,
-    });
-    expect(body.pulls?.[0]?.generation).not.toHaveProperty("waitReason");
   });
 
   it("meta: exposes draft status and viewer authorship for an own draft", async () => {

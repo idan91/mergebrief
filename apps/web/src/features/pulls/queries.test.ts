@@ -13,55 +13,18 @@ vi.mock("../../data/apiFetch", async (importOriginal) => {
 // own branch logic is covered in `data/ssrWarnSink*.test.ts`.
 vi.mock("../../data/ssrWarnSink", () => ({ getSsrWarnSink: vi.fn() }));
 
-import { apiFetch, apiFetchJson, ApiError } from "../../data/apiFetch";
+import { apiFetchJson, ApiError } from "../../data/apiFetch";
 import { getSsrWarnSink } from "../../data/ssrWarnSink";
 import {
   buildDbBriefQueryOptions,
   buildDbComparisonMarksQueryOptions,
   buildDbDeltaQueryOptions,
   buildPrMetaQueryOptions,
-  buildPullsSessionQueryOptions,
   buildSessionQueryOptions,
 } from "./queries";
 
-const apiFetchMock = vi.mocked(apiFetch);
 const apiFetchJsonMock = vi.mocked(apiFetchJson);
 const getSsrWarnSinkMock = vi.mocked(getSsrWarnSink);
-
-function run(): Promise<unknown> {
-  const options = buildPullsSessionQueryOptions();
-  const queryFn = options.queryFn;
-  if (typeof queryFn !== "function") throw new Error("expected a queryFn");
-  // The queryFn ignores its context for this endpoint.
-  return (queryFn as () => Promise<unknown>)();
-}
-
-describe("buildPullsSessionQueryOptions queryFn", () => {
-  it("maps a 401 to the logged-out state instead of throwing", async () => {
-    apiFetchMock.mockResolvedValue(new Response("{}", { status: 401 }));
-    await expect(run()).resolves.toEqual({ kind: "logged-out" });
-  });
-
-  it("parses a 200 into the ready list", async () => {
-    apiFetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ pulls: [] }), { status: 200 }),
-    );
-    await expect(run()).resolves.toEqual({ kind: "ready", pulls: [] });
-  });
-
-  it("throws a typed malformed error on a 200 with a bad shape", async () => {
-    apiFetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ nope: true }), { status: 200 }),
-    );
-    await expect(run()).rejects.toBeInstanceOf(ApiError);
-    await expect(run()).rejects.toMatchObject({ code: "malformed" });
-  });
-
-  it("maps a 502 to the unavailable state instead of throwing", async () => {
-    apiFetchMock.mockResolvedValue(new Response("{}", { status: 502 }));
-    await expect(run()).resolves.toEqual({ kind: "unavailable" });
-  });
-});
 
 function runMarks(): Promise<unknown> {
   const options = buildDbComparisonMarksQueryOptions(

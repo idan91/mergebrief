@@ -9,11 +9,8 @@ import { queryOptions, type QueryKey } from "@tanstack/react-query";
 import {
   ApiError,
   ApiErrorCodes,
-  apiFetch,
   apiFetchJson,
   apiFetchText,
-  apiJsonFromResponse,
-  errorFromResponse,
 } from "../../data/apiFetch";
 import { getSsrWarnSink } from "../../data/ssrWarnSink";
 import {
@@ -35,13 +32,7 @@ import type {
   PrStack,
   RevisionNarrativeArtifact,
 } from "../brief/types";
-import {
-  parsePrSummary,
-  parsePullsList,
-  parsePullStack,
-  type PrSummary,
-  type PullsSession,
-} from "./types";
+import { parsePrSummary, parsePullStack, type PrSummary } from "./types";
 
 function spanQuery(base: string, head: string): string {
   return `base=${encodeURIComponent(base)}&head=${encodeURIComponent(head)}`;
@@ -49,76 +40,6 @@ function spanQuery(base: string, head: string): string {
 
 function prPath(repoId: string, prNumber: number): string {
   return `/api/repos/${encodeURIComponent(repoId)}/pulls/${String(prNumber)}`;
-}
-
-/**
- * The picker's list. A 401 (logged out) and a 502/503 (backend/GitHub down)
- * are EXPECTED states the picker renders inline, they must not blow away the
- * whole route (the local-briefs section still works). Only contract
- * violations (malformed 200) throw.
- */
-export function buildPullsSessionQueryOptions() {
-  return queryOptions({
-    queryKey: ["pulls", "session-list"],
-    queryFn: async (): Promise<PullsSession> => {
-      const path = "/api/pulls";
-      const response = await apiFetch(path);
-      if (response.status === 401) {
-        return { kind: "logged-out" };
-      }
-      if (response.status === 502 || response.status === 503) {
-        return { kind: "unavailable" };
-      }
-      const body = await apiJsonFromResponse(response, path);
-      const parsed = parsePullsList(body);
-      if (!parsed.ok) {
-        throw new ApiError(ApiErrorCodes.MALFORMED, response.status, path);
-      }
-      return { kind: "ready", pulls: parsed.value };
-    },
-    staleTime: 15_000,
-    retry: false,
-  });
-}
-
-/**
- * The viewer's own url-box briefs, the "your briefs" home list. Same
- * expected-state envelope as the pulls list; rows are the same wire shape.
- */
-export function buildUrlBriefsQueryOptions() {
-  return queryOptions({
-    queryKey: ["briefs", "url-box"],
-    queryFn: async (): Promise<PullsSession> => {
-      const path = "/api/briefs";
-      const response = await apiFetch(path);
-      if (response.status === 401) {
-        return { kind: "logged-out" };
-      }
-      if (response.status === 502 || response.status === 503) {
-        return { kind: "unavailable" };
-      }
-      const body = await apiJsonFromResponse(response, path);
-      const parsed = parsePullsList(body);
-      if (!parsed.ok) {
-        throw new ApiError(ApiErrorCodes.MALFORMED, response.status, path);
-      }
-      return { kind: "ready", pulls: parsed.value };
-    },
-    staleTime: 15_000,
-    retry: false,
-  });
-}
-
-/** DELETE = owner-scoped erase; mutations use a plain client-only fetch. */
-export async function deleteUrlBrief(
-  repoId: string,
-  prNumber: number,
-): Promise<void> {
-  const path = `/api/briefs/${encodeURIComponent(repoId)}/${String(prNumber)}`;
-  const response = await fetch(path, { method: "DELETE" });
-  if (!response.ok) {
-    throw await errorFromResponse(response, path);
-  }
 }
 
 /** PR meta, the single generation-status poll target. */

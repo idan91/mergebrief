@@ -1,4 +1,4 @@
-// DELETE /api/briefs/:repoId/:prNumber, the owner-delete. Full wire over
+// DELETE /api/inbox/:repoId/:prNumber, the owner-delete. Full wire over
 // PGlite. Session-gated only (no GitHub call at all): ownership under the
 // viewer's owner scope is the wall, and the erase cascades every artifact.
 import { randomBytes, createHash } from "node:crypto";
@@ -116,7 +116,7 @@ function stubNoGitHub(): void {
   );
 }
 
-describe("DELETE /api/briefs/:repoId/:prNumber", () => {
+describe("DELETE /api/inbox/:repoId/:prNumber", () => {
   let harness: PgliteHarness;
   let kp: KeyProvider;
   let app: ApiApp;
@@ -140,31 +140,14 @@ describe("DELETE /api/briefs/:repoId/:prNumber", () => {
     await harness.close();
   });
 
-  async function del(cookie: string, base = "/api/briefs"): Promise<Response> {
-    return app.request(`${base}/${REPO_ID_NUM}/7`, {
+  async function del(cookie: string): Promise<Response> {
+    return app.request(`/api/inbox/${REPO_ID_NUM}/7`, {
       method: "DELETE",
       headers: { Cookie: `rs_session=${cookie}` },
     });
   }
 
-  it("the Inbox route erases the same row under its own operation", async () => {
-    await seedBriefedPr(harness.handle, OWNER_CTX);
-    const cookie = await seedOwnerSession(harness.handle, kp);
-
-    const res = await del(cookie, "/api/inbox");
-    expect(res.status).toBe(200);
-
-    expect(await harness.raw("select id from pull_request")).toHaveLength(0);
-    const audits = await harness.raw(
-      "select operation, outcome from audit_log order by id",
-    );
-    expect(audits).toContainEqual({
-      operation: "delete-inbox-item",
-      outcome: "ok",
-    });
-  });
-
-  it("erases the viewer's own url brief with no GitHub call", async () => {
+  it("erases the viewer's own row with no GitHub call", async () => {
     await seedBriefedPr(harness.handle, OWNER_CTX);
     const cookie = await seedOwnerSession(harness.handle, kp);
 
@@ -189,36 +172,9 @@ describe("DELETE /api/briefs/:repoId/:prNumber", () => {
     expect(audits).toContainEqual({
       installation_id: null,
       source: "url",
-      operation: "delete-url-brief",
+      operation: "delete-inbox-item",
       outcome: "ok",
     });
-  });
-
-  it("GET /api/briefs lists only the viewer's own rows, newest first", async () => {
-    await seedBriefedPr(harness.handle, OWNER_CTX);
-    await seedBriefedPr(harness.handle, TENANT_CTX);
-    const cookie = await seedOwnerSession(harness.handle, kp);
-
-    const res = await app.request("/api/briefs", {
-      headers: { Cookie: `rs_session=${cookie}` },
-    });
-    expect(res.status).toBe(200);
-    const body: unknown = await res.json();
-    expect(body).toMatchObject({
-      pulls: [
-        {
-          repoId: String(REPO_ID_NUM),
-          prNumber: 7,
-          repoSlug: "o/r",
-          briefAvailable: true,
-        },
-      ],
-    });
-  });
-
-  it("GET /api/briefs answers 401 to a signed-out viewer", async () => {
-    const res = await app.request("/api/briefs");
-    expect(res.status).toBe(401);
   });
 
   it("a tenant-world row at the same coordinates is an indistinguishable 404", async () => {

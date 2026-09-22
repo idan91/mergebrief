@@ -92,7 +92,7 @@ Row counts for sessions/tokens must match step 1 exactly.
 
 **Step 3 — functional pass** (app running): login → PR list → open a brief → settings:
 mint a token → CLI call with it (`mergebrief` or curl `Authorization: Bearer mergebrief_…`
-against `/api/pulls`) → token list shows `last_used_at` moving → switch installation →
+against `/api/inbox`) → token list shows `last_used_at` moving → switch installation →
 logout → re-login. Everything should feel identical to before.
 
 **Step 4 — the BRIEF-40 scenario, forced.** Simulate an expired access token by sealing a

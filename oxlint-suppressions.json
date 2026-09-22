@@ -100,14 +100,6 @@
       "count": 1
     }
   },
-  "apps/api/test/generate-manifest.test.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    },
-    "house/test-title": {
-      "count": 1
-    }
-  },
   "apps/api/test/logging.ts": {
     "house/no-em-dash": {
       "count": 1

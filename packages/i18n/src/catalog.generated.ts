@@ -10,9 +10,6 @@ export type Catalog = typeof en & {
     unknown: "Generation failed: {{detail}}";
   };
   pulls: (typeof en)["pulls"] & {
-    list: (typeof en)["pulls"]["list"] & {
-      fallbackTitle: "PR #{{number}}";
-    };
     capped: (typeof en)["pulls"]["capped"] & {
       resumes: "Daily generation cap reached — resumes {{resetsAt, datetime(dateStyle: medium; timeStyle: short)}}";
     };
@@ -46,9 +43,6 @@ export type Catalog = typeof en & {
       damped: "Draft mode — the brief can take up to {{window}} to refresh after the last push.";
       windowMinutes_one: "about {{count}} minute";
       windowMinutes_other: "about {{count}} minutes";
-    };
-    yourBriefs: (typeof en)["pulls"]["yourBriefs"] & {
-      ariaDelete: "Delete the brief for {{repo}} #{{number}}";
     };
   };
   brief: (typeof en)["brief"] & {

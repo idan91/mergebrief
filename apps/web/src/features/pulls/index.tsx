@@ -10,11 +10,3 @@ export {
   PrBriefError,
   type PrBriefErrorProps,
 } from "./components/PrBrief/PrBriefError/PrBriefError";
-export {
-  PullsSection,
-  type PullsSectionProps,
-} from "./components/PullsSection/PullsSection";
-export {
-  YourBriefsSection,
-  type YourBriefsSectionProps,
-} from "./components/YourBriefsSection/YourBriefsSection";

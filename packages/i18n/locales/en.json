@@ -46,28 +46,8 @@
     "unknown": "Generation failed: {{detail}}"
   },
   "pulls": {
-    "list": {
-      "heading": "Pull requests",
-      "signInPrompt": "Sign in with GitHub to read Briefs for the repositories where the App is installed.",
-      "signIn": "Sign in with GitHub",
-      "unavailable": "The PR list is unavailable right now (GitHub or the backend could not be reached) — try again shortly.",
-      "empty": "No pull requests yet. Push to a pull request in a repository where the App is installed and its Brief generates automatically.",
-      "fallbackTitle": "PR #{{number}}"
-    },
     "status": {
-      "ready": "brief ready",
-      "none": "no brief yet",
-      "pending": "pending",
-      "running": "generating…",
-      "failed": "failed",
-      "superseded": "newer push on the way",
-      "capped": "daily cap reached",
       "warmingChip": "comparisons warming…"
-    },
-    "state": {
-      "open": "open",
-      "closed": "closed",
-      "merged": "merged"
     },
     "wait": {
       "pending": "Pending: the brief will start generating shortly.",
@@ -228,14 +208,6 @@
       "regenerate": "Regenerate",
       "queued": "Regenerate queued",
       "arrived": "The new brief is ready."
-    },
-    "yourBriefs": {
-      "heading": "Your briefs",
-      "empty": "Nothing here yet — paste a pull request URL above to generate your first brief.",
-      "delete": "Delete",
-      "deleting": "Deleting…",
-      "deleteFailed": "Deleting the brief failed. Try again.",
-      "ariaDelete": "Delete the brief for {{repo}} #{{number}}"
     }
   },
   "brief": {
@@ -1033,9 +1005,6 @@
     "settingsHeading": "Settings",
     "briefListFailed": "Brief list failed to load",
     "briefFailed": "Brief failed to load",
-    "ariaLabelPrUrl": "GitHub PR URL",
-    "prUrlPlaceholder": "https://github.com/owner/repo/pull/123",
-    "noBriefs": "No Briefs yet. Paste a GitHub PR URL above to generate one.",
     "ariaLabelMarkdownEditor": "Markdown editor",
     "ariaLabelEditorMode": "Editor mode",
     "ariaLabelFormatting": "Formatting",
@@ -1054,7 +1023,8 @@
     "generate": "Generate",
     "cliHint": "Working from the CLI instead? Run <0/> from the repo root; outputs land here automatically.",
     "localBriefs": "Local Briefs",
-    "serverUnavailable": "The server is unavailable right now — your tokens are untouched. Refresh to retry.",
+    "settingsUnavailable": "Settings could not be loaded",
+    "serverUnavailable": "The server did not answer. Your tokens are untouched.",
     "signInWithGithub": "Sign in with GitHub",
     "signInPrompt": "<0/> to manage API tokens.",
     "artifactDelta": "delta",

@@ -21,8 +21,8 @@ import {
   buildLocalBriefsQueryOptions,
   buildLocalRevisionChangesQueryOptions,
 } from "../features/brief/queries";
-import { buildPullsSessionQueryOptions } from "../features/pulls/queries";
-import type { PullsSession } from "../features/pulls/types";
+import { buildViewerQueryOptions } from "../features/account/queries";
+import { ViewerStates, type ViewerState } from "../features/account/types";
 import {
   briefFixture,
   briefSummaryFixture,
@@ -32,7 +32,11 @@ import { BriefView } from "../features/brief";
 import { emptySessionPayload } from "../features/review/session";
 import { I18nProvider } from "../i18n/I18nProvider";
 
-const READY_SESSION: PullsSession = { kind: "ready", pulls: [] };
+const SIGNED_IN_VIEWER: ViewerState = {
+  kind: ViewerStates.SIGNED_IN,
+  login: "octocat",
+  avatarUrl: "https://avatars.example/octocat.png",
+};
 
 const BRIEF_ID = briefSummaryFixture.id;
 
@@ -85,8 +89,8 @@ async function renderBriefScreen(
     defaultOptions: { queries: { retry: false } },
   });
   queryClient.setQueryData(
-    buildPullsSessionQueryOptions().queryKey,
-    READY_SESSION,
+    buildViewerQueryOptions().queryKey,
+    SIGNED_IN_VIEWER,
   );
   queryClient.setQueryData(
     buildLocalBriefQueryOptions(BRIEF_ID).queryKey,

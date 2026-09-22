@@ -194,16 +194,6 @@ export interface PrSummary {
   readonly revisions?: readonly RevisionSummary[];
 }
 
-/**
- * The picker's view of `GET /api/pulls`. Logged-out (401) and
- * backend-unavailable (502/503, GitHub or composition down) are both
- * EXPECTED states the picker renders inline; only contract violations throw.
- */
-export type PullsSession =
-  | { readonly kind: "logged-out" }
-  | { readonly kind: "ready"; readonly pulls: PrSummary[] }
-  | { readonly kind: "unavailable" };
-
 // ---------------------------------------------------------------------------
 // Guards.
 // ---------------------------------------------------------------------------
@@ -552,19 +542,6 @@ export function parsePrSummary(value: unknown): Result<PrSummary> {
   if (draftPolicy.value !== undefined) summary.draftPolicy = draftPolicy.value;
 
   return { ok: true, value: summary };
-}
-
-export function parsePullsList(value: unknown): Result<PrSummary[]> {
-  if (!isRecord(value) || !Array.isArray(value["pulls"])) {
-    return { ok: false, error: "list response must be { pulls: [...] }" };
-  }
-  const pulls: PrSummary[] = [];
-  for (const item of value["pulls"]) {
-    const parsed = parsePrSummary(item);
-    if (!parsed.ok) return parsed;
-    pulls.push(parsed.value);
-  }
-  return { ok: true, value: pulls };
 }
 
 function parseStackMember(value: unknown): Result<PrStackMember> {
