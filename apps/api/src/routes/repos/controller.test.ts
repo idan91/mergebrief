@@ -1,5 +1,6 @@
-import { isRepoId, type RepoId } from "persistence";
+import { isInstallationId, isRepoId, type RepoId } from "persistence";
 import { describe, expect, it } from "vitest";
+import type { AllowedRepo } from "../installation-resolver";
 import reposController from "./controller";
 
 function brandRepoId(value: bigint): RepoId {
@@ -11,9 +12,11 @@ function brandRepoId(value: bigint): RepoId {
 
 describe("reposController.listRepos", () => {
   it("stringifies ids and sorts by fullName ascending", () => {
-    const allowed = new Map<RepoId, string>([
-      [brandRepoId(2n), "acme/zeta"],
-      [brandRepoId(1n), "acme/alpha"],
+    const installationId = 10n;
+    if (!isInstallationId(installationId)) throw new Error("unbrandable id");
+    const allowed = new Map<RepoId, AllowedRepo>([
+      [brandRepoId(2n), { installationId, fullName: "acme/zeta" }],
+      [brandRepoId(1n), { installationId, fullName: "acme/alpha" }],
     ]);
     expect(reposController.listRepos(allowed)).toEqual({
       repos: [

@@ -33,6 +33,7 @@ import {
   SECRET,
   buildAuthDeps,
   createKeyProvider,
+  answerUserInstallations,
   getRequestUrl,
 } from "./fixtures";
 
@@ -99,6 +100,9 @@ function stubGitHub(cfg: StubConfig): StubCounts {
         return cfg.token
           ? cfg.token(i)
           : jsonResponse({ error: "unexpected_token" }, 500);
+      }
+      if (url.endsWith("/user/installations?per_page=100")) {
+        return answerUserInstallations([INSTALLATION_ID]);
       }
       if (url.includes("/user/installations/")) {
         const i = counts.installations++;

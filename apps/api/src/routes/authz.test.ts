@@ -28,8 +28,12 @@ import {
   it,
   vi,
 } from "vitest";
-import type { AllowedRepoResolver } from "./allowed-repos";
-import { repoAuthzLayer, type AuthzEnv } from "./authz";
+import type {
+  AllowedRepo,
+  InstallationResolver,
+  RepoWorld,
+} from "./installation-resolver";
+import { AUTHZ_CACHE_TTL_MS, repoAuthzLayer, type AuthzEnv } from "./authz";
 import { createErrorHandler } from "../shared-errors/on-error";
 import type * as refreshModule from "./auth/session/logic/refresh";
 import {
@@ -86,29 +90,48 @@ interface GateAppOptions {
   /** `null` builds the installation-less, url-box-only viewer. */
   readonly installationId?: InstallationId | null;
   readonly channel?: ViewerPrincipal["channel"];
-  readonly allowedRepos?: AllowedRepoResolver;
+  readonly installations?: InstallationResolver;
   readonly urlBoxFallbackToken?: string;
 }
 
+const INSTALLATION_ID = brand(10n, isInstallationId);
+
 /** The installation holds exactly one repo; every other id is outside it. */
-function stubAllowedRepos(): AllowedRepoResolver {
-  const allowed = new Map<RepoId, string>([
-    [brand(REPO_IN_INSTALLATION, isRepoId), "acme/inside"],
+function stubInstallations(): InstallationResolver {
+  const allowed = new Map<RepoId, AllowedRepo>([
+    [
+      brand(REPO_IN_INSTALLATION, isRepoId),
+      { installationId: INSTALLATION_ID, fullName: "acme/inside" },
+    ],
   ]);
   return {
-    resolve: vi.fn<AllowedRepoResolver["resolve"]>(async (session) => ({
-      ok: true,
-      value: { allowed, session },
-    })),
+    listAllowedRepos: vi.fn<InstallationResolver["listAllowedRepos"]>(
+      async (session) => ({
+        ok: true,
+        value: { allowed, session, expiresAt: Date.now() + AUTHZ_CACHE_TTL_MS },
+      }),
+    ),
+    resolveInstallationForRepo: vi.fn<
+      InstallationResolver["resolveInstallationForRepo"]
+    >(async (session, repoId) => {
+      const entry = allowed.get(repoId);
+      const world: RepoWorld =
+        entry === undefined
+          ? { kind: "owner" }
+          : { kind: "installation", installationId: entry.installationId };
+      return {
+        ok: true,
+        value: { world, session, expiresAt: Date.now() + AUTHZ_CACHE_TTL_MS },
+      };
+    }),
   };
 }
 
-function stubFailingAllowedRepos(status: 401 | 502): AllowedRepoResolver {
+function stubFailingInstallations(status: 401 | 502): InstallationResolver {
+  const failure = { ok: false, error: { status } } as const;
   return {
-    resolve: vi.fn<AllowedRepoResolver["resolve"]>(async () => ({
-      ok: false,
-      error: { status },
-    })),
+    listAllowedRepos: vi.fn(async () => failure),
+    resolveInstallationForRepo: vi.fn(async () => failure),
   };
 }
 
@@ -117,9 +140,9 @@ async function buildGateApp(
 ): Promise<Hono<AuthzEnv>> {
   const installationId =
     options.installationId === undefined
-      ? brand(10n, isInstallationId)
+      ? INSTALLATION_ID
       : options.installationId;
-  const allowedRepos = options.allowedRepos ?? stubAllowedRepos();
+  const installations = options.installations ?? stubInstallations();
   const sealed = await encryptToken(keyProvider, KEY_REF, "stale-token");
   if (!sealed.ok) {
     throw new Error("fixture seal failed");
@@ -166,7 +189,7 @@ async function buildGateApp(
   });
   // One layer instance, mounted where each probe's params are in scope: the
   // rung reads `:prNumber`, which a `/:repoId/*` mount never sees.
-  const gate = repoAuthzLayer(deps, allowedRepos);
+  const gate = repoAuthzLayer(deps, installations);
   app.use("/:repoId/probe", gate);
   app.use("/:repoId/pulls/:prNumber/*", gate);
   const reportWorld: Handler<AuthzEnv> = (c) => {
@@ -265,17 +288,17 @@ describe("repoAuthzLayer repo world", () => {
     expect(await res.json()).toEqual({ ok: true, world: "owner" });
   });
 
-  it("never asks about membership for an installation-less session", async () => {
-    const allowedRepos = stubAllowedRepos();
-    const app = await buildGateApp({ installationId: null, allowedRepos });
+  it("resolves the installation for a session that stores none", async () => {
+    const installations = stubInstallations();
+    const app = await buildGateApp({ installationId: null, installations });
     vi.mocked(fetchRepositoryById).mockResolvedValue(
-      stubGrantedRepo("other/public"),
+      stubGrantedRepo("acme/inside"),
     );
 
-    const res = await app.request("/7777/probe");
+    const res = await app.request(`/${REPO_IN_INSTALLATION}/probe`);
 
-    expect(await res.json()).toEqual({ ok: true, world: "owner" });
-    expect(allowedRepos.resolve).not.toHaveBeenCalled();
+    expect(await res.json()).toEqual({ ok: true, world: "installation" });
+    expect(installations.resolveInstallationForRepo).toHaveBeenCalledTimes(1);
   });
 
   it("treats a Bearer principal outside its installation the same", async () => {
@@ -290,8 +313,8 @@ describe("repoAuthzLayer repo world", () => {
   });
 
   it("replays the owner world from the cache without asking again", async () => {
-    const allowedRepos = stubAllowedRepos();
-    const app = await buildGateApp({ allowedRepos });
+    const installations = stubInstallations();
+    const app = await buildGateApp({ installations });
     vi.mocked(fetchRepositoryById).mockResolvedValue(
       stubGrantedRepo("other/public"),
     );
@@ -301,12 +324,12 @@ describe("repoAuthzLayer repo world", () => {
 
     expect(await res.json()).toEqual({ ok: true, world: "owner" });
     expect(fetchRepositoryById).toHaveBeenCalledTimes(1);
-    expect(allowedRepos.resolve).toHaveBeenCalledTimes(1);
+    expect(installations.resolveInstallationForRepo).toHaveBeenCalledTimes(1);
   });
 
   it("answers 401 when the membership lookup finds the auth dead", async () => {
     const app = await buildGateApp({
-      allowedRepos: stubFailingAllowedRepos(401),
+      installations: stubFailingInstallations(401),
     });
     vi.mocked(fetchRepositoryById).mockResolvedValue(
       stubGrantedRepo("acme/inside"),
@@ -318,8 +341,8 @@ describe("repoAuthzLayer repo world", () => {
   });
 
   it("answers 502 on a membership outage and caches nothing", async () => {
-    const allowedRepos = stubFailingAllowedRepos(502);
-    const app = await buildGateApp({ allowedRepos });
+    const installations = stubFailingInstallations(502);
+    const app = await buildGateApp({ installations });
     vi.mocked(fetchRepositoryById).mockResolvedValue(
       stubGrantedRepo("acme/inside"),
     );
@@ -330,13 +353,13 @@ describe("repoAuthzLayer repo world", () => {
     expect(first.status).toBe(502);
     expect(await first.json()).toMatchObject({ code: "github-unavailable" });
     expect(second.status).toBe(502);
-    expect(allowedRepos.resolve).toHaveBeenCalledTimes(2);
+    expect(installations.resolveInstallationForRepo).toHaveBeenCalledTimes(2);
   });
 
-  it("leaves the operator-token rung alone", async () => {
-    const allowedRepos = stubAllowedRepos();
+  it("passes the operator-token rung in the owner world without asking", async () => {
+    const installations = stubInstallations();
     const app = await buildGateApp({
-      allowedRepos,
+      installations,
       urlBoxFallbackToken: "operator-pat",
     });
     await createTenantRepository(harness.handle, {
@@ -354,7 +377,7 @@ describe("repoAuthzLayer repo world", () => {
     const res = await app.request("/8888/pulls/5/probe");
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, world: "installation" });
-    expect(allowedRepos.resolve).not.toHaveBeenCalled();
+    expect(await res.json()).toEqual({ ok: true, world: "owner" });
+    expect(installations.resolveInstallationForRepo).not.toHaveBeenCalled();
   });
 });

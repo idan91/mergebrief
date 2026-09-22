@@ -29,6 +29,7 @@ import {
   buildAuthDeps,
   createKeyProvider,
   hashSha256Hex,
+  answerUserInstallations,
   getRequestUrl,
 } from "./fixtures";
 
@@ -80,6 +81,9 @@ function stubGitHub(cfg: StubConfig): StubCounts {
   const fetchFn = vi.fn(
     async (input: string | URL | Request): Promise<Response> => {
       const url = getRequestUrl(input);
+      if (url.endsWith("/user/installations?per_page=100")) {
+        return answerUserInstallations([INSTALLATION_ID]);
+      }
       if (
         url.includes("/user/installations/") &&
         url.includes("/repositories")

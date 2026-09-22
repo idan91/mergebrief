@@ -11,8 +11,11 @@
 //                      to the repo by its NUMERIC id (`GET /repositories/{id}`
 //                      with the viewer's own token, rename-proof); any non-2xx
 //                      collapses to 404 (no existence leak) and names the
-//                      denial for the audit choke point; on success shapes the request
-//                      context (`repoId`, `repoFullName`, `accessToken`).
+//                      denial for the audit choke point; on success resolves
+//                      the installation holding the repo among those the
+//                      viewer reaches (else the owner world) and shapes the
+//                      request context (`ctx`, `repoId`, `repoFullName`,
+//                      `accessToken`).
 // `createAuthzMiddleware` = the composition of both, the per-repo gate in
 // front of every read under `/api/repos/:repoId/*`.
 //
@@ -61,8 +64,6 @@ import {
   type ReviewerId,
   type ScopeContext,
 } from "persistence";
-import type { Logger } from "logging";
-import type { Result } from "types/utils";
 import type { AuthRouteDeps, ViewerPrincipal } from "./auth/session/types";
 import { SESSION_COOKIE } from "./auth/session/consts";
 import { sha256Hex } from "./auth/session/utils";
@@ -80,7 +81,7 @@ import { createTtlCache } from "./ttl-cache";
 import { BadGateway, NotFound, Unauthorized } from "../shared-errors/api-error";
 import { isGitHubDenial } from "../shared-errors/failures";
 import { createReviewerGitHubClient } from "./auth/reviewer-github-client";
-import type { AllowedRepoResolver } from "./allowed-repos";
+import type { InstallationResolver, RepoWorld } from "./installation-resolver";
 
 // ---------------------------------------------------------------------------
 // Typed Hono context vars. Handlers read these safely (no `any`): `ctx`/
@@ -92,9 +93,9 @@ import type { AllowedRepoResolver } from "./allowed-repos";
 
 export interface AuthzVariables extends RequestLogVariables {
   /**
-   * Behind `sessionLayer` alone, the credential's world. Behind the repo gate,
-   * the world the REPO belongs to: a visible repo outside the session's
-   * installation arrives as the owner world.
+   * Behind `sessionLayer` alone, the credential's stored world. Behind the
+   * repo gate, the world the REPO resolved into: the installation that holds
+   * it among those the viewer reaches, else the viewer's owner world.
    */
   readonly ctx: ScopeContext;
   /**
@@ -153,17 +154,22 @@ const TOKEN_TOUCH_THROTTLE_MS = 60 * 1000;
 const TOUCH_THROTTLE_MAX_ENTRIES = 50_000;
 
 /**
- * Keyed by session AND installation: an org switch rebinds the session row's
- * installation without rotating the cookie, so the hash alone would let a
- * pre-switch grant (or its verified name) be reused under the new tenant for
- * up to the TTL.
+ * Keyed by credential and repo. The entry carries the world the repo was
+ * resolved into, so a grant replays under the installation it was proven
+ * for and never under another.
  */
-function positiveCacheKey(
-  sessionTokenHash: string,
-  installationId: InstallationId | null,
-  repoId: RepoId,
-): string {
-  return `${sessionTokenHash}:${String(installationId)}:${String(repoId)}`;
+function positiveCacheKey(sessionTokenHash: string, repoId: RepoId): string {
+  return `${sessionTokenHash}:${String(repoId)}`;
+}
+
+/** The request context a resolved world addresses. */
+function deriveScopeContext(
+  world: RepoWorld,
+  reviewerId: ReviewerId,
+): ScopeContext {
+  return world.kind === "installation"
+    ? { installationId: world.installationId }
+    : { ownerUserId: reviewerId };
 }
 
 /**
@@ -195,42 +201,6 @@ function resolvePrNumberParam(raw: string | undefined): number | undefined {
   }
   const value = Number(raw);
   return Number.isSafeInteger(value) && value > 0 ? value : undefined;
-}
-
-interface InstallationMembership {
-  readonly outsideInstallation: boolean;
-  readonly session: ViewerPrincipal;
-}
-
-type InstallationMembershipResult = Result<
-  InstallationMembership,
-  { status: 401 | 502 }
->;
-
-/**
- * Whether a repo the viewer can read sits outside their installation. An
- * installation-less session has no installation to be outside of.
- */
-async function resolveInstallationMembership(
-  allowedRepos: AllowedRepoResolver,
-  session: ViewerPrincipal,
-  repoId: RepoId,
-  log: Logger,
-): Promise<InstallationMembershipResult> {
-  if (session.installationId === null) {
-    return { ok: true, value: { outsideInstallation: false, session } };
-  }
-
-  const resolved = await allowedRepos.resolve(session, log);
-  if (!resolved.ok) {
-    return resolved;
-  }
-
-  const outsideInstallation = !resolved.value.allowed.has(repoId);
-  return {
-    ok: true,
-    value: { outsideInstallation, session: resolved.value.session },
-  };
 }
 
 /**
@@ -392,7 +362,7 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
  */
 export function repoAuthzLayer(
   deps: AuthRouteDeps,
-  allowedRepos: AllowedRepoResolver,
+  installations: InstallationResolver,
 ): MiddlewareHandler<AuthzEnv> {
   // key `${sessionTokenHash}:${repoId}` → the GitHub-verified `owner/name` +
   // the viewer's push capability, until expiry. Positive only. Storing the
@@ -409,15 +379,15 @@ export function repoAuthzLayer(
      * the repo until the TTL expired.
      */
     readonly ownerPinnedPr: number | undefined;
-    /** The repo sits outside the session's installation; replayed on a hit. */
-    readonly outsideInstallation: boolean;
+    /** The world the repo resolved into; replayed on a hit. */
+    readonly world: RepoWorld;
   }>(POSITIVE_CACHE_MAX_ENTRIES);
 
   return async (c, next) => {
     const session = c.get("session");
 
-    // Tenant is the session's installation; parse+brand the repo id. An
-    // ill-shaped id is a 404 (never 400, no shape leak either).
+    // Parse+brand the repo id. An ill-shaped id is a 404 (never 400, no
+    // shape leak either).
     const repoId = parseRepoId(c.req.param("repoId"));
     if (repoId === undefined) {
       stampAccess(c, "404", { reviewerId: session.reviewerId });
@@ -428,11 +398,7 @@ export function repoAuthzLayer(
     // entirely. The diff route decrypts the session token lazily if it needs
     // it, so no access token is set here. The cached value IS the verified
     // full name from the check that populated the entry (≤60s old).
-    const cacheKey = positiveCacheKey(
-      session.sessionTokenHash,
-      session.installationId,
-      repoId,
-    );
+    const cacheKey = positiveCacheKey(session.sessionTokenHash, repoId);
     const cached = positiveCache.get(cacheKey);
     // A PAT-carried entry serves ONLY the PR it was granted for; any other
     // PR under the repo re-runs the whole ladder.
@@ -445,9 +411,7 @@ export function repoAuthzLayer(
       if (cachedEntry.ownerPinnedPr !== undefined) {
         c.set("urlBoxOnly", true);
       }
-      if (cachedEntry.outsideInstallation) {
-        c.set("ctx", { ownerUserId: session.reviewerId });
-      }
+      c.set("ctx", deriveScopeContext(cachedEntry.world, session.reviewerId));
       c.set("repoId", repoId);
       c.set("repoFullName", cachedEntry.fullName);
       c.set("viewerCanPush", cachedEntry.viewerCanPush);
@@ -498,15 +462,17 @@ export function repoAuthzLayer(
       );
       if (fallbackRepo !== undefined) {
         // The PAT's push right is not the reader's: no write affordance.
+        const world: RepoWorld = { kind: "owner" };
         const entry = {
           fullName: fallbackRepo.fullName,
           viewerCanPush: false,
           ownerPinnedPr: fallbackRepo.prNumber,
-          outsideInstallation: false,
+          world,
         };
         positiveCache.set(cacheKey, entry, Date.now() + AUTHZ_CACHE_TTL_MS);
         const fallbackSession = client.session();
         c.set("session", fallbackSession);
+        c.set("ctx", deriveScopeContext(world, fallbackSession.reviewerId));
         c.set("urlBoxOnly", true);
         c.set("repoId", repoId);
         c.set("repoFullName", entry.fullName);
@@ -533,16 +499,15 @@ export function repoAuthzLayer(
       throw new NotFound();
     }
 
-    // 2xx → the viewer can read the repo. Which world it belongs to is a
+    // 2xx → the viewer can read the repo. Which installation holds it is a
     // second question; a failure answering it is never cached.
-    const membership = await resolveInstallationMembership(
-      allowedRepos,
+    const resolved = await installations.resolveInstallationForRepo(
       client.session(),
       repoId,
       c.get("logger"),
     );
-    if (!membership.ok) {
-      const { status } = membership.error;
+    if (!resolved.ok) {
+      const { status } = resolved.error;
       stampAccess(c, String(status), {
         repoId,
         reviewerId: client.session().reviewerId,
@@ -553,20 +518,19 @@ export function repoAuthzLayer(
       throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
     }
 
-    const { outsideInstallation, session: currentSession } = membership.value;
+    const { world, session: currentSession, expiresAt } = resolved.value;
+    // Capped to the world's own expiry, so the three caches never stack.
     positiveCache.set(
       cacheKey,
       {
         fullName: repo.value.fullName,
         viewerCanPush: repo.value.viewerCanPush,
         ownerPinnedPr: undefined,
-        outsideInstallation,
+        world,
       },
-      Date.now() + AUTHZ_CACHE_TTL_MS,
+      Math.min(Date.now() + AUTHZ_CACHE_TTL_MS, expiresAt),
     );
-    if (outsideInstallation) {
-      c.set("ctx", { ownerUserId: currentSession.reviewerId });
-    }
+    c.set("ctx", deriveScopeContext(world, currentSession.reviewerId));
     c.set("session", currentSession);
     c.set("repoId", repoId);
     c.set("repoFullName", repo.value.fullName);
@@ -584,9 +548,9 @@ export function repoAuthzLayer(
  */
 export function createAuthzMiddleware(
   deps: AuthRouteDeps,
-  allowedRepos: AllowedRepoResolver,
+  installations: InstallationResolver,
 ): MiddlewareHandler<AuthzEnv> {
-  return every(sessionLayer(deps), repoAuthzLayer(deps, allowedRepos));
+  return every(sessionLayer(deps), repoAuthzLayer(deps, installations));
 }
 
 /**

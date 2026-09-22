@@ -1,8 +1,7 @@
-// Hono-free. The accessible set is ALWAYS re-derived live (the shared
-// resolver); a switch target is honoured ONLY if it is in that set, with NO
+// Hono-free. The reachable set comes from the shared resolver, at most 60 s
+// old; a switch target is honoured ONLY if it is in that set, with NO
 // session/settings mutation otherwise; the handler owns the wire posture.
 import type { Result } from "types/utils";
-import { resolveAccessibleInstallations } from "../accessible-installations";
 import type {
   InstallationsControllerDeps,
   InstallationsFailure,
@@ -17,12 +16,12 @@ type SelectResult = Result<SelectInstallationBody, InstallationsFailure>;
 export default {
   /** The accessible set annotated with current (session) + default (settings). */
   async listInstallations({
-    deps,
+    installations: reachable,
     session,
     log,
     settings: settingsStore,
   }: InstallationsControllerDeps) {
-    const resolved = await resolveAccessibleInstallations(deps, session, log);
+    const resolved = await reachable.resolve(session, log);
     if (!resolved.ok) {
       return resolved;
     }
@@ -47,19 +46,25 @@ export default {
     } satisfies ListResult;
   },
 
-  /** Rebind the session to a different installation (validated live). */
+  /** Rebind the session to a different installation in the reachable set. */
   async selectInstallation(
-    { deps, session, log, sessions, settings }: InstallationsControllerDeps,
+    {
+      installations: reachable,
+      session,
+      log,
+      sessions,
+      settings,
+    }: InstallationsControllerDeps,
     input: SelectInstallationInput,
   ) {
-    const resolved = await resolveAccessibleInstallations(deps, session, log);
+    const resolved = await reachable.resolve(session, log);
     if (!resolved.ok) {
       return resolved;
     }
     const { installations, session: currentSession } = resolved.value;
 
-    // Validate against the LIVE set; never trust the caller's id. A target
-    // the viewer can no longer reach mutates NOTHING.
+    // Validate against the reachable set; never trust the caller's id. A
+    // target the viewer can no longer reach mutates NOTHING.
     const targetIsAccessible = installations.some(
       (installation) => installation.installationId === input.target,
     );

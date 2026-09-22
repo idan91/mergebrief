@@ -34,6 +34,8 @@ import {
 } from "./fixtures";
 
 const REPO_A = 42001;
+const REPO_B = 42002;
+const OTHER_INSTALLATION_ID = 111222;
 
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
 const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
@@ -51,6 +53,9 @@ function brand<T extends bigint>(
 
 const CTX: TenantContext = {
   installationId: brand(isInstallationId, INSTALLATION_ID),
+};
+const OTHER_CTX: TenantContext = {
+  installationId: brand(isInstallationId, OTHER_INSTALLATION_ID),
 };
 const REVIEWER: ReviewerId = brand(isReviewerId, REVIEWER_ID);
 
@@ -95,15 +100,18 @@ const TOKEN_SUCCESS = {
 
 interface StubConfig {
   /** `GET /user/installations/{id}/repositories` responses per call. */
-  readonly installationRepos?: (call: number) => Response;
+  readonly installationRepos?: (call: number, url: string) => Response;
   /** `GET /user/installations` responses per call. */
   readonly userInstallations?: (call: number) => Response;
+  /** `GET /repositories/{id}`, the gate's access check, per call. */
+  readonly repositories?: (call: number, url: string) => Response;
   /** OAuth token endpoint (refresh) responses per call. */
   readonly token?: (call: number) => Response;
 }
 interface StubCounts {
   installationRepos: number;
   userInstallations: number;
+  repositories: number;
   token: number;
 }
 
@@ -111,6 +119,7 @@ function stubGitHub(cfg: StubConfig): StubCounts {
   const counts: StubCounts = {
     installationRepos: 0,
     userInstallations: 0,
+    repositories: 0,
     token: 0,
   };
   const fetchFn = vi.fn(
@@ -128,7 +137,7 @@ function stubGitHub(cfg: StubConfig): StubCounts {
       ) {
         const i = counts.installationRepos++;
         return cfg.installationRepos
-          ? cfg.installationRepos(i)
+          ? cfg.installationRepos(i, url)
           : jsonResponse({ message: "nope" }, 500);
       }
       if (url.includes("/user/installations")) {
@@ -136,6 +145,10 @@ function stubGitHub(cfg: StubConfig): StubCounts {
         return cfg.userInstallations
           ? cfg.userInstallations(i)
           : jsonResponse({ message: "nope" }, 500);
+      }
+      if (cfg.repositories !== undefined && url.includes("/repositories/")) {
+        const i = counts.repositories++;
+        return cfg.repositories(i, url);
       }
       return jsonResponse({ message: "unexpected endpoint" }, 404);
     },
@@ -242,6 +255,8 @@ describe("Bearer presentation on /api/*", () => {
 
   it("authenticates a valid token through the full gate to a real read", async () => {
     stubGitHub({
+      userInstallations: () =>
+        userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
       installationRepos: () =>
         installationReposOk([{ id: REPO_A, full_name: "octo/hello" }]),
     });
@@ -256,8 +271,57 @@ describe("Bearer presentation on /api/*", () => {
     expect(body.pulls[0]?.prNumber).toBe(7);
   });
 
+  it("reads rows in two installations with one token", async () => {
+    stubGitHub({
+      userInstallations: () =>
+        userInstallationsOk([
+          { id: INSTALLATION_ID, login: "octo" },
+          { id: OTHER_INSTALLATION_ID, login: "acme" },
+        ]),
+      installationRepos: (_call, url) =>
+        url.includes(`/user/installations/${INSTALLATION_ID}/`)
+          ? installationReposOk([{ id: REPO_A, full_name: "octo/hello" }])
+          : installationReposOk([{ id: REPO_B, full_name: "acme/other" }]),
+      repositories: (_call, url) =>
+        url.endsWith(`/repositories/${REPO_B}`)
+          ? jsonResponse({
+              id: REPO_B,
+              full_name: "acme/other",
+              private: true,
+              permissions: { push: true },
+            })
+          : jsonResponse({
+              id: REPO_A,
+              full_name: "octo/hello",
+              private: true,
+              permissions: { push: true },
+            }),
+    });
+    await seedPr(harness.handle);
+    await createTenantRepository(harness.handle, OTHER_CTX).pullRequests.upsert(
+      {
+        repoId: brand(isRepoId, REPO_B),
+        prNumber: 3,
+        repoSlug: "acme/other",
+        title: "PR 3",
+        state: PrStates.OPEN,
+      },
+    );
+    const bearer = await seedApiToken(harness.handle, kp);
+
+    const first = await getWithBearer(`/api/repos/${REPO_A}/pulls/7`, bearer);
+    const other = await getWithBearer(`/api/repos/${REPO_B}/pulls/3`, bearer);
+
+    expect(first.status).toBe(200);
+    expect(await first.json()).toMatchObject({ title: "PR 7" });
+    expect(other.status).toBe(200);
+    expect(await other.json()).toMatchObject({ title: "PR 3" });
+  });
+
   it("denies writes when the Bearer token carries read scope", async () => {
     stubGitHub({
+      userInstallations: () =>
+        userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
       installationRepos: () =>
         installationReposOk([{ id: REPO_A, full_name: "octo/hello" }]),
     });
@@ -321,6 +385,8 @@ describe("Bearer presentation on /api/*", () => {
 
   it("refreshes GitHub access once without extending token expiry", async () => {
     const counts = stubGitHub({
+      userInstallations: () =>
+        userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
       installationRepos: (call) =>
         call === 0
           ? jsonResponse({ message: "Bad credentials" }, 401)
@@ -362,6 +428,8 @@ describe("Bearer presentation on /api/*", () => {
 
   it("emits token.refresh.fail for rejected Bearer-channel rotations", async () => {
     stubGitHub({
+      userInstallations: () =>
+        userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
       // Every data call 401s (expired access token) and the rotation itself
       // is rejected, the refresh orchestrator's bearer-channel hard failure.
       installationRepos: () =>
@@ -401,6 +469,8 @@ describe("Bearer presentation on /api/*", () => {
 
   it("touches last_used_at on use, throttled within the window", async () => {
     stubGitHub({
+      userInstallations: () =>
+        userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
       installationRepos: () =>
         installationReposOk([{ id: REPO_A, full_name: "octo/hello" }]),
     });

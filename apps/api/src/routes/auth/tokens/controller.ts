@@ -11,7 +11,6 @@ import {
   type TokenMintInput,
 } from "persistence";
 import type { Mutable, Result } from "types/utils";
-import { resolveAccessibleInstallations } from "../accessible-installations";
 import { sha256Hex } from "../session/utils";
 import { DEFAULT_EXPIRY_DAYS, MS_PER_DAY, TOKEN_BYTES } from "./consts";
 import type {
@@ -29,12 +28,12 @@ type RevokeResult = Result<ApiTokenMetadataRow, RevokeFailure>;
 
 export default {
   async mintToken(
-    { deps, session, log }: TokensControllerDeps,
+    { deps, installations: reachable, session, log }: TokensControllerDeps,
     input: MintInput,
   ) {
-    // Validate the requested installation against the LIVE accessible set,
-    // never the caller's word, never the session's current binding alone.
-    const resolved = await resolveAccessibleInstallations(deps, session, log);
+    // Validate the requested installation against the reachable set (at most
+    // 60 s old), never the caller's word, never the session's binding alone.
+    const resolved = await reachable.resolve(session, log);
     if (!resolved.ok) {
       return resolved;
     }

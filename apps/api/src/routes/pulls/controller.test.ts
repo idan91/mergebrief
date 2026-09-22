@@ -10,6 +10,7 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { AllowedRepo } from "../installation-resolver";
 import pullsController from "./controller";
 import type { PullsControllerDeps } from "./types";
 
@@ -50,7 +51,12 @@ describe("pullsController.listPulls", () => {
       artifacts: createArtifactStore(harness.handle, ctx),
       generations: createGenerationProjection(harness.handle, ctx),
     };
-    const allowed = new Map<RepoId, string>([[repoId, "acme/app-current"]]);
+    const allowed = new Map<RepoId, AllowedRepo>([
+      [
+        repoId,
+        { installationId: ctx.installationId, fullName: "acme/app-current" },
+      ],
+    ]);
 
     const body = await pullsController.listPulls(deps, {
       allowed,
@@ -72,7 +78,7 @@ describe("pullsController.listPulls", () => {
 
     // A repo outside the allowed set never surfaces.
     const empty = await pullsController.listPulls(deps, {
-      allowed: new Map<RepoId, string>(),
+      allowed: new Map<RepoId, AllowedRepo>(),
       viewerLogin: null,
       limit: 50,
     });

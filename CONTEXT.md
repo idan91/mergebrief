@@ -170,6 +170,10 @@ _Avoid_: UI layer, frontend, workflow (informal)
 The private (per reviewer × PR) workspace where the reviewer thinks, drafts, asks the agent questions, dismisses flags, and refines comments — without that work being visible on the PR thread. It is one reviewer's work on one PR, pinned to one **Session baseline** and stored on our own server: draft **Comments** and replies, per-**Chunk** read marks, **Change-group** reclassifications, **Dispositions**, and the chosen outcome. A new **Brief** starts a new Review Session and prior work is carried onto it; the previous session becomes read-only.
 _Avoid_: Mind-Map Space (retired 2026-08-17), workspace, scratchpad, draft space
 
+**Installation**:
+One install of the MergeBrief GitHub App on one GitHub organization or user account. A repository belongs to exactly one Installation. A **Reviewer** can reach several; every request finds its Installation from the repository it names, and no credential holds a current one.
+_Avoid_: tenant (the API's storage noun), org (GitHub's word; an Installation can sit on a user account), workspace
+
 **Trigger**:
 What causes a **Brief** to compute: eager-on-push, debounced (~60s from the first push, which fixes the start time; later pushes only swap the head), on PR-open (first push) and every subsequent push — including while the PR is a draft. No lazy "compute-on-first-click" gate; spend is bounded by debounce + **Triage** + skipping trivial/instantly-closed PRs, not by withholding compute. **Delta Briefs** are per-reviewer (from each reviewer's **Checkpoint**), not a push-triggered recompute.
 _Avoid_: activation (as "what fires compute"), cost gate, click-to-activate

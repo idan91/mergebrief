@@ -31,9 +31,10 @@ import {
   startCliApiHarness,
   type CliApiHarness,
 } from "./harness/api";
+import { STUB_INSTALLATION_ID } from "./harness/github-stub";
 import { runCli, type CliDeps } from "../src/program";
 
-const INSTALLATION_ID = 987654;
+const INSTALLATION_ID = STUB_INSTALLATION_ID;
 const REVIEWER_ID = 555;
 const REPO_A = 42001;
 const COMMIT = "c".repeat(40);

@@ -10,14 +10,16 @@ import {
 import { WriteClassifications } from "../../../product-operations/types";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "../../authz";
 import type { AuthRouteDeps } from "../session/types";
+import type { AccessibleInstallationsResolver } from "../accessible-installations";
 import createInstallationsHandlers from "./handler";
 
 /** Mount over the session gate (no `:repoId`, same composition as the PR list). */
 export function installationsRoutes(
   deps: AuthRouteDeps,
+  installations: AccessibleInstallationsResolver,
 ): ProductRouter<AuthzEnv> {
   const app = productRouter<AuthzEnv>();
-  const handlers = createInstallationsHandlers(deps);
+  const handlers = createInstallationsHandlers(deps, installations);
   app.use("/", sessionLayer(deps), accessStampLayer());
   app.query(
     {

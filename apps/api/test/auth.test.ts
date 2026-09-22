@@ -192,7 +192,11 @@ describe("reviewer auth routes", () => {
     await harness.close();
   });
 
-  it("resolves the owner scope to an empty list without an installation", async () => {
+  it("lists nothing for a session that reaches no installation", async () => {
+    const fetchFn = stubGitHub({
+      token: tokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN),
+      installations: [],
+    });
     const token = randomBytes(32).toString("base64url");
     const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
     const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
@@ -218,10 +222,10 @@ describe("reviewer auth routes", () => {
     const res = await app.request("/api/pulls", {
       headers: { cookie: `rs_session=${token}` },
     });
-    // The owner scope holds no installation∩viewer repos: an empty list,
-    // with no GitHub call and no 500.
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ pulls: [] });
+    const urls = fetchFn.mock.calls.map((call) => String(call[0]));
+    expect(urls.filter((url) => url.includes("/repositories"))).toEqual([]);
   });
 
   it("GET /api/auth/github → 302 to GitHub with an HttpOnly state cookie", async () => {

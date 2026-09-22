@@ -9,6 +9,7 @@ import {
 import { stampAuditTarget } from "../../../product-operations/audit";
 import type { AuthzEnv } from "../../authz";
 import type { AuthRouteDeps } from "../session/types";
+import type { AccessibleInstallationsResolver } from "../accessible-installations";
 import installationsController from "./controller";
 import { switchBodySchema } from "./schemas";
 import type { InstallationsFailure } from "./types";
@@ -29,10 +30,14 @@ function throwInstallationsFailure(failure: InstallationsFailure): never {
   throw new Unauthorized();
 }
 
-export default function createHandlers(deps: AuthRouteDeps) {
+export default function createHandlers(
+  deps: AuthRouteDeps,
+  installations: AccessibleInstallationsResolver,
+) {
   const listInstallations = async (c: Context<AuthzEnv>) => {
     const result = await installationsController.listInstallations({
       deps,
+      installations,
       session: c.get("session"),
       log: c.get("logger"),
       sessions: createSessionAuth(deps.handle),
@@ -61,6 +66,7 @@ export default function createHandlers(deps: AuthRouteDeps) {
     const result = await installationsController.selectInstallation(
       {
         deps,
+        installations,
         session: c.get("session"),
         log: c.get("logger"),
         sessions: createSessionAuth(deps.handle),

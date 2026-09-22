@@ -10,13 +10,14 @@ import {
   productRouter,
   type ProductRouter,
 } from "../product-operations/product-router";
-import { createAllowedRepoResolver } from "./allowed-repos";
 import { authRoutes } from "./auth";
+import { createAccessibleInstallationsResolver } from "./auth/accessible-installations";
 import type { AuthDeps } from "./auth/session/types";
 import { generateRoute } from "./generate";
 import { urlBriefRoutes } from "./briefs";
 import type { InstallationGitHubPort } from "./github-port";
 import { capabilitiesRoute } from "./capabilities";
+import { createInstallationResolver } from "./installation-resolver";
 import { pullsRoute } from "./pulls";
 import { reposRoutes } from "./repos";
 import { versionRoute } from "./version";
@@ -50,14 +51,15 @@ export interface AppDeps {
 export function apiRoutes(deps: AppDeps): ProductRouter<RequestLogEnv> {
   const app = productRouter<RequestLogEnv>();
   app.route("/webhooks", webhookRoute(deps));
-  app.route("/auth", authRoutes(deps));
-  // ONE resolver instance: /pulls and /repos share the allowed-set cache, so
-  // one GitHub fetch serves both inside the TTL.
-  const allowedRepos = createAllowedRepoResolver(deps);
+  // ONE instance of each resolver: every route shares the reachable-set and
+  // allowed-set caches, so one GitHub walk serves them all inside the TTL.
+  const installations = createAccessibleInstallationsResolver(deps);
+  app.route("/auth", authRoutes(deps, installations));
+  const resolver = createInstallationResolver(deps, installations);
   app.route("/version", versionRoute(deps, deps.serverVersion ?? "dev"));
   app.route("/capabilities", capabilitiesRoute(deps));
-  app.route("/pulls", pullsRoute(deps, allowedRepos));
-  app.route("/repos", reposRoutes(deps, allowedRepos));
+  app.route("/pulls", pullsRoute(deps, resolver));
+  app.route("/repos", reposRoutes(deps, resolver));
   // Session-gated only: the pasted URL's repo is outside the installation
   // model, so the engine's viewer-token fetch is the access check.
   app.route("/generate", generateRoute(deps, deps.urlBoxFallbackToken));

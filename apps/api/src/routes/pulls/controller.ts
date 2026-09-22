@@ -16,13 +16,13 @@ export default {
     ]);
     const pulls = rows.map((row) =>
       // List path: the allowed-set intersection proves access but carries no
-      // permissions block, so push capability is UNKNOWN here — fail closed
-      // (authorship-only viewerCanResolve; the brief page reads PR meta).
+      // permissions block, so push capability is UNKNOWN here and fails
+      // closed (authorship-only viewerCanResolve; the brief page reads PR meta).
       buildPrView(
         row,
         latestBriefs.get(row.id),
         latestGenerations.get(row.id),
-        input.allowed.get(row.repoId),
+        input.allowed.get(row.repoId)?.fullName,
         input.viewerLogin,
         false,
       ),

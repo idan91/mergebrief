@@ -16,6 +16,30 @@ export interface GitHubStub {
   close(): Promise<void>;
 }
 
+/** The one installation every suite's rows live in. */
+export const STUB_INSTALLATION_ID = 987654;
+
+/**
+ * `GET /user/installations` opens every gated request (the API resolves the
+ * installation from the repo among the ones the viewer reaches), so the stub
+ * answers it for every suite with the one installation the suites seed.
+ */
+function answerReachableSet(url: string): Response | undefined {
+  if (new URL(url).pathname !== "/user/installations") {
+    return undefined;
+  }
+  return new Response(
+    JSON.stringify({
+      total_count: 1,
+      installations: [{ id: STUB_INSTALLATION_ID, account: { login: "octo" } }],
+    }),
+    {
+      status: 200,
+      headers: { "content-type": "application/json; charset=utf-8" },
+    },
+  );
+}
+
 function unexpected(url: string): Response {
   return new Response(
     JSON.stringify({ message: `unexpected github endpoint: ${url}` }),
@@ -38,7 +62,7 @@ export async function startGitHubStub(): Promise<GitHubStub> {
     void (async () => {
       const url = `https://api.github.com${request.url ?? ""}`;
       requested.push(request.url ?? "");
-      const answer = await handler(url);
+      const answer = answerReachableSet(url) ?? (await handler(url));
       const headers: Record<string, string> = {};
       for (const [name, value] of answer.headers) headers[name] = value;
       response.writeHead(answer.status, headers);

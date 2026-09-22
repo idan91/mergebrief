@@ -4,8 +4,9 @@ import type {
   RepoId,
   TenantRepository,
 } from "persistence";
+import type { AllowedRepo } from "../installation-resolver";
 
-/** Narrow slices only — never full `AppDeps`. */
+/** Narrow slices only, never full `AppDeps`. */
 export interface PullsControllerDeps {
   readonly tenant: TenantRepository;
   readonly artifacts: ArtifactStore;
@@ -13,8 +14,8 @@ export interface PullsControllerDeps {
 }
 
 export interface ListPullsInput {
-  /** repoId → GitHub-verified `owner/name`, from the shared allowed-set resolver. */
-  readonly allowed: ReadonlyMap<RepoId, string>;
+  /** repoId → its installation and GitHub-verified `owner/name`. */
+  readonly allowed: ReadonlyMap<RepoId, AllowedRepo>;
   readonly viewerLogin: string | null;
   readonly limit: number;
 }

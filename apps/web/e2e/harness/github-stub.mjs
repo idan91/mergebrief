@@ -47,6 +47,10 @@ globalThis.fetch = async (input, init) => {
     return realFetch(input, init);
   }
   const { pathname } = new URL(url);
+  if (pathname === "/user/installations") {
+    // The seeded viewer reaches no installation: every row is a URL row.
+    return jsonResponse({ total_count: 0, installations: [] });
+  }
   if (pathname === `/repositories/${REPO_ID}`) {
     return jsonResponse({
       full_name: REPO_SLUG,

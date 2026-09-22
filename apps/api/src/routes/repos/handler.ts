@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import { BadGateway, Unauthorized } from "../../shared-errors/api-error";
-import type { AllowedRepoResolver } from "../allowed-repos";
+import type { InstallationResolver } from "../installation-resolver";
 import type { AuthzEnv } from "../authz";
 import reposController from "./controller";
 import { ApiErrorCodes } from "contract";
@@ -8,10 +8,10 @@ import { ApiErrorCodes } from "contract";
 const NO_STORE = { "cache-control": "no-store" } as const;
 
 /** Resolve the allowed set (judging its posture) and render the flat list. */
-export default function createHandlers(allowedRepos: AllowedRepoResolver) {
+export default function createHandlers(installations: InstallationResolver) {
   return {
     listRepos: async (c: Context<AuthzEnv>) => {
-      const resolved = await allowedRepos.resolve(
+      const resolved = await installations.listAllowedRepos(
         c.get("session"),
         c.get("logger"),
       );

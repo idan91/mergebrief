@@ -67,24 +67,46 @@ export function getRequestUrl(input: string | URL | Request): string {
 }
 
 /**
- * The gate's membership listing, `GET /user/installations/{id}/repositories`:
- * the installation holds `repoIds`. `undefined` for every other URL, so a
- * suite's own stub keeps answering the rest.
+ * The gate's membership listings: `GET /user/installations` answers one
+ * reachable installation (`INSTALLATION_ID`), and `GET
+ * /user/installations/{id}/repositories` says it holds `repoIds`.
+ * `undefined` for every other URL, so a suite's own stub keeps answering
+ * the rest.
  */
 export function answerInstallationRepositories(
   url: string,
   repoIds: readonly number[],
 ): Response | undefined {
-  const isListing =
+  const isRepositories =
     url.includes("/user/installations/") && url.includes("/repositories");
-  if (!isListing) {
-    return undefined;
-  }
-  return new Response(
-    JSON.stringify({
+  if (isRepositories) {
+    return jsonBody({
       total_count: repoIds.length,
       repositories: repoIds.map((id) => ({ id, full_name: REPO_SLUG })),
-    }),
-    { status: 200, headers: { "content-type": "application/json" } },
-  );
+    });
+  }
+  if (url.includes("/user/installations")) {
+    return answerUserInstallations([INSTALLATION_ID]);
+  }
+  return undefined;
+}
+
+/** `GET /user/installations`: the reachable set is `installationIds`. */
+export function answerUserInstallations(
+  installationIds: readonly number[],
+): Response {
+  return jsonBody({
+    total_count: installationIds.length,
+    installations: installationIds.map((id) => ({
+      id,
+      account: { login: `org-${id}` },
+    })),
+  });
+}
+
+function jsonBody(body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
 }

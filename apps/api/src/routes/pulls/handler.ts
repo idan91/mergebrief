@@ -10,7 +10,7 @@ import {
   Unauthorized,
 } from "../../shared-errors/api-error";
 import type { AppDatabase } from "persistence";
-import type { AllowedRepoResolver } from "../allowed-repos";
+import type { InstallationResolver } from "../installation-resolver";
 import type { AuthzEnv } from "../authz";
 import pullsController from "./controller";
 import { listQuerySchema } from "./schemas";
@@ -21,7 +21,7 @@ const NO_STORE = { "cache-control": "no-store" } as const;
 /** Parse, resolve the allowed set (judging its posture), call the op. */
 export default function createHandlers(
   handle: AppDatabase,
-  allowedRepos: AllowedRepoResolver,
+  installations: InstallationResolver,
 ) {
   return {
     listPulls: async (c: Context<AuthzEnv>) => {
@@ -33,7 +33,7 @@ export default function createHandlers(
       }
       const ctx = c.get("ctx");
 
-      const resolved = await allowedRepos.resolve(
+      const resolved = await installations.listAllowedRepos(
         c.get("session"),
         c.get("logger"),
       );

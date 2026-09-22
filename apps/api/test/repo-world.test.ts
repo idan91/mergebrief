@@ -15,6 +15,7 @@ import {
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp } from "../src/index";
+import { AUTHZ_CACHE_TTL_MS } from "../src/routes/authz";
 import { testLogger } from "./logging";
 import {
   INSTALLATION_ID,
@@ -24,6 +25,7 @@ import {
   REVIEWER_ID,
   SECRET,
   answerInstallationRepositories,
+  answerUserInstallations,
   brandInstallationId,
   brandRepoId,
   brandReviewerId,
@@ -73,7 +75,9 @@ function stubGitHub(held: readonly number[]): GitHubCalls {
       );
       const membership = answerInstallationRepositories(url, held);
       if (membership !== undefined) {
-        calls.listings += 1;
+        if (url.includes("/repositories")) {
+          calls.listings += 1;
+        }
         return membership;
       }
       if (url.includes("/repositories/")) {
@@ -255,5 +259,170 @@ describe("the per-repo gate's repo world", () => {
         source: "app-installation",
       },
     ]);
+  });
+});
+
+const OTHER_INSTALLATION_ID = 111222;
+const OTHER_REPO_ID = 535353;
+const OTHER_PR_NUMBER = 9;
+const OTHER_CTX = {
+  installationId: brandInstallationId(BigInt(OTHER_INSTALLATION_ID)),
+};
+
+interface TwoInstallationStub {
+  /** Which installations `GET /user/installations` lists, swappable mid-test. */
+  reachable: number[];
+}
+
+/** Two installations, one repo each; the viewer's token reads both repos. */
+function stubTwoInstallations(reachable: number[]): TwoInstallationStub {
+  const stub: TwoInstallationStub = { reachable };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: unknown): Promise<Response> => {
+      const url = getRequestUrl(
+        input instanceof Request ? input : String(input),
+      );
+      if (url.includes(`/user/installations/${INSTALLATION_ID}/repositories`)) {
+        return (
+          answerInstallationRepositories(url, [REPO_ID]) ??
+          jsonResponse({}, 500)
+        );
+      }
+      if (
+        url.includes(
+          `/user/installations/${OTHER_INSTALLATION_ID}/repositories`,
+        )
+      ) {
+        return (
+          answerInstallationRepositories(url, [OTHER_REPO_ID]) ??
+          jsonResponse({}, 500)
+        );
+      }
+      if (url.includes("/user/installations")) {
+        return answerUserInstallations(stub.reachable);
+      }
+      if (url.includes(`/repositories/${OTHER_REPO_ID}`)) {
+        return jsonResponse({
+          id: OTHER_REPO_ID,
+          full_name: "other/repo",
+          private: false,
+          permissions: { push: true },
+        });
+      }
+      if (url.includes("/repositories/")) {
+        return jsonResponse({
+          id: REPO_ID,
+          full_name: REPO_SLUG,
+          private: false,
+          permissions: { push: true },
+        });
+      }
+      return jsonResponse({ message: "unexpected endpoint" }, 404);
+    }),
+  );
+  return stub;
+}
+
+describe("the per-repo gate across two installations", () => {
+  let harness: PgliteHarness;
+  let kp: KeyProvider;
+
+  beforeEach(async () => {
+    harness = await createPgliteHarness();
+    kp = createKeyProvider();
+  });
+
+  afterEach(async () => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    await harness.close();
+  });
+
+  function buildApp(): ApiApp {
+    return createApp({
+      logger: testLogger(),
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: buildAuthDeps(kp),
+      github: {
+        fetchPullRequestConversation: async () => {
+          throw new Error("conversation port must not be called");
+        },
+        listRepoCollaborators: async () => {
+          throw new Error("collaborators port must not be called");
+        },
+      },
+    });
+  }
+
+  async function seedBothRows(): Promise<void> {
+    await seedPullRequest(harness.handle, TENANT_CTX, "the first org's row");
+    await createTenantRepository(harness.handle, OTHER_CTX).pullRequests.upsert(
+      {
+        repoId: brandRepoId(BigInt(OTHER_REPO_ID)),
+        prNumber: OTHER_PR_NUMBER,
+        repoSlug: "other/repo",
+        state: PrStates.OPEN,
+        title: "the second org's row",
+      },
+    );
+  }
+
+  async function readOther(app: ApiApp, cookie: string): Promise<Response> {
+    return app.request(`/api/repos/${OTHER_REPO_ID}/pulls/${OTHER_PR_NUMBER}`, {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
+  }
+
+  async function readFirst(app: ApiApp, cookie: string): Promise<Response> {
+    return app.request(`/api/repos/${REPO_ID}/pulls/${PR_NUMBER}`, {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
+  }
+
+  it("reads rows from two installations on one session with no switch", async () => {
+    stubTwoInstallations([INSTALLATION_ID, OTHER_INSTALLATION_ID]);
+    const cookie = await seedSession(harness.handle, kp);
+    await seedBothRows();
+    const app = buildApp();
+
+    const [first, other] = await Promise.all([
+      readFirst(app, cookie),
+      readOther(app, cookie),
+    ]);
+
+    expect(first.status).toBe(200);
+    expect(await first.json()).toMatchObject({ title: "the first org's row" });
+    expect(other.status).toBe(200);
+    expect(await other.json()).toMatchObject({ title: "the second org's row" });
+  });
+
+  it("answers 404 for a row held by an installation out of reach", async () => {
+    stubTwoInstallations([INSTALLATION_ID]);
+    const cookie = await seedSession(harness.handle, kp);
+    await seedBothRows();
+
+    const res = await readOther(buildApp(), cookie);
+
+    expect(res.status).toBe(404);
+  });
+
+  it("refuses a revoked installation once the window has passed", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const stub = stubTwoInstallations([INSTALLATION_ID, OTHER_INSTALLATION_ID]);
+    const cookie = await seedSession(harness.handle, kp);
+    await seedBothRows();
+    const app = buildApp();
+
+    const granted = await readOther(app, cookie);
+    stub.reachable = [INSTALLATION_ID];
+    const insideWindow = await readOther(app, cookie);
+    vi.advanceTimersByTime(AUTHZ_CACHE_TTL_MS + 1);
+    const afterWindow = await readOther(app, cookie);
+
+    expect(granted.status).toBe(200);
+    expect(insideWindow.status).toBe(200);
+    expect(afterWindow.status).toBe(404);
   });
 });
