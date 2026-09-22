@@ -1430,14 +1430,6 @@
       "count": 1
     }
   },
-  "packages/persistence/src/auth/session.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 7
-    }
-  },
   "packages/persistence/src/db/config.ts": {
     "house/comment-run": {
       "count": 1
@@ -1478,22 +1470,9 @@
       "count": 5
     }
   },
-  "packages/persistence/src/schema/auth-session.ts": {
-    "house/no-em-dash": {
-      "count": 3
-    }
-  },
   "packages/persistence/src/schema/checkpoint.ts": {
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "packages/persistence/src/schema/columns.ts": {
-    "house/comment-density": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 3
     }
   },
   "packages/persistence/src/schema/comparison-marks.ts": {
@@ -1552,17 +1531,6 @@
       "count": 3
     }
   },
-  "packages/persistence/src/schema/user-settings.ts": {
-    "house/comment-density": {
-      "count": 1
-    },
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 4
-    }
-  },
   "packages/persistence/src/stores/artifact-store.ts": {
     "house/comment-run": {
       "count": 2
@@ -1579,14 +1547,6 @@
   "packages/persistence/src/stores/url-box.ts": {
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "packages/persistence/src/stores/user-settings.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 2
     }
   },
   "packages/persistence/test/artifact-store.test.ts": {
@@ -1645,19 +1605,6 @@
   "packages/persistence/test/ping.test.ts": {
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "packages/persistence/test/session.test.ts": {
-    "house/no-em-dash": {
-      "count": 3
-    }
-  },
-  "packages/persistence/test/user-settings.test.ts": {
-    "house/no-em-dash": {
-      "count": 4
-    },
-    "house/test-title": {
-      "count": 4
     }
   },
   "packages/repo-config/src/index.ts": {

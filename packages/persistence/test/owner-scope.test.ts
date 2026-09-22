@@ -489,7 +489,7 @@ describe("owner-scoped review sessions", () => {
 });
 
 describe("owner-scoped sessions", () => {
-  it("creates a NULL-installation session an installation tenant cannot see", async () => {
+  it("creates a session only its owner's scope can delete", async () => {
     const handle = await freshDatabase();
     const { createGrantAuth } = await import("../src/index");
     const grant = await createGrantAuth(handle).createGrant({
@@ -507,9 +507,10 @@ describe("owner-scoped sessions", () => {
       grantId: grant.id,
       expiresAt: new Date(Date.now() + 3_600_000),
     });
-    expect(row.installationId).toBeNull();
+    expect(row.reviewerId).toBe(OWNER_A);
     expect(await a.sessions.getByTokenHash("hash-owner")).toBeDefined();
-    expect(await t.sessions.getByTokenHash("hash-owner")).toBeUndefined();
+    // A session holds no installation, so a tenant scope reads it too.
+    expect(await t.sessions.getByTokenHash("hash-owner")).toBeDefined();
 
     // Another owner's scope cannot delete it: by foreign reviewer id or by
     // its own sweep.

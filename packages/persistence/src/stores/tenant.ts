@@ -295,14 +295,19 @@ export interface CheckpointRepository {
   listForPullRequest(pullRequestId: PullRequestRowId): Promise<CheckpointRow[]>;
 }
 
+/**
+ * A session holds no installation: it belongs to its reviewer. The owner
+ * world narrows every method to the owner's own sessions; an installation
+ * scope has nothing to narrow by and addresses them all.
+ */
 export interface SessionRepository {
-  /** Stamp the tenant and insert. `auth_session` has no PR parent. */
+  /** Insert. `auth_session` has no PR parent and no tenant stamp. */
   create(input: SessionCreateInput): Promise<AuthSessionRow>;
-  /** Scoped read by token hash; absence is a normal `undefined`. */
+  /** Read by token hash; absence is a normal `undefined`. */
   getByTokenHash(sessionTokenHash: string): Promise<AuthSessionRow | undefined>;
-  /** TTL sweep within the tenant; returns the number deleted. */
+  /** TTL sweep; returns the number deleted. */
   deleteExpired(now: Date): Promise<number>;
-  /** Logout / reviewer offboarding within the tenant; returns number deleted. */
+  /** Logout / reviewer offboarding; returns number deleted. */
   deleteByReviewer(reviewerId: ReviewerId): Promise<number>;
 }
 
@@ -657,7 +662,6 @@ export function createTenantRepository(
       const rows = await db
         .insert(authSession)
         .values({
-          installationId: scope.installationId,
           sessionTokenHash: input.sessionTokenHash,
           reviewerId: input.reviewerId,
           reviewerLogin: input.reviewerLogin,
@@ -673,27 +677,21 @@ export function createTenantRepository(
     },
 
     async getByTokenHash(sessionTokenHash) {
+      const conditions = [eq(authSession.sessionTokenHash, sessionTokenHash)];
+      if (scope.ownerUserId !== null) {
+        conditions.push(eq(authSession.reviewerId, scope.ownerUserId));
+      }
       const rows = await db
         .select()
         .from(authSession)
-        .where(
-          and(
-            scope.matchesWorld(authSession.installationId),
-            eq(authSession.sessionTokenHash, sessionTokenHash),
-          ),
-        )
+        .where(and(...conditions))
         .limit(1);
       return rows[0];
     },
 
     async deleteExpired(now) {
-      // Orphan-clean the grants of the deleted sessions, same tx. The world
-      // mark alone cannot separate owners, so the owner world narrows to the
-      // owner's own sessions.
-      const conditions = [
-        scope.matchesWorld(authSession.installationId),
-        lt(authSession.expiresAt, now),
-      ];
+      // Orphan-clean the grants of the deleted sessions, same tx.
+      const conditions = [lt(authSession.expiresAt, now)];
       if (scope.ownerUserId !== null) {
         conditions.push(eq(authSession.reviewerId, scope.ownerUserId));
       }
@@ -720,12 +718,7 @@ export function createTenantRepository(
       return db.transaction(async (tx) => {
         const rows = await tx
           .delete(authSession)
-          .where(
-            and(
-              scope.matchesWorld(authSession.installationId),
-              eq(authSession.reviewerId, reviewerId),
-            ),
-          )
+          .where(eq(authSession.reviewerId, reviewerId))
           .returning({ grantId: authSession.grantId });
         await deleteOrphanedGrants(
           tx,

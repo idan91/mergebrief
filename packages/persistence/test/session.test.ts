@@ -3,7 +3,7 @@
 // on PGlite: the grant-JOINed find, delete-by-hash with same-transaction
 // grant orphan-clean (shared grants survive, last-referent grants die), and
 // the `setExpiresAt` mirror the cookie channel writes after a rotation.
-// Rotation itself lives on the grant boundary — see grant.test.ts. Rows are
+// Rotation itself lives on the grant boundary, see grant.test.ts. Rows are
 // seeded through the tenant repository so the boundary is tested exactly as
 // production writes them.
 import { sql } from "drizzle-orm";
@@ -69,9 +69,6 @@ describe("createSessionAuth.findSession", () => {
     const resolved = await createSessionAuth(handle).findSession(HASH);
     expect(resolved).toBeDefined();
     expect(resolved?.session.sessionTokenHash).toBe(HASH);
-    expect(String(resolved?.session.installationId)).toBe(
-      String(INSTALLATION_ID),
-    );
     expect(String(resolved?.session.reviewerId)).toBe(String(REVIEWER_ID));
     // The credential material rides on the grant half only.
     expect(resolved?.grant.id).toBe(grant.id);
@@ -86,7 +83,7 @@ describe("createSessionAuth.findSession", () => {
   });
 });
 
-describe("createSessionAuth.deleteSession — last-referent lifecycle", () => {
+describe("createSessionAuth.deleteSession, last-referent lifecycle", () => {
   let handle: AppDatabase;
   beforeEach(async () => {
     handle = await freshDatabase();
@@ -133,7 +130,7 @@ describe("createSessionAuth.setExpiresAt", () => {
   });
 });
 
-describe("auth_session schema — no credential columns", () => {
+describe("auth_session schema, no credential columns", () => {
   it("the session table carries a grant FK and NO ciphertext columns", async () => {
     const { PGlite } = await import("@electric-sql/pglite");
     const { drizzle } = await import("drizzle-orm/pglite");
@@ -154,7 +151,6 @@ describe("auth_session schema — no credential columns", () => {
       "expires_at",
       "grant_id",
       "id",
-      "installation_id",
       "reviewer_id",
       "reviewer_login",
       "session_token_hash",

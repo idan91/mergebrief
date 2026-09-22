@@ -42,7 +42,6 @@ const API_TOKEN_COLUMNS = [
   "expires_at",
   "grant_id",
   "id",
-  "installation_id",
   "last_used_at",
   "name",
   "revoked_at",
@@ -75,14 +74,14 @@ describe("api_token schema", () => {
       values ('ct', 'rct', 'K', now() + interval '6 months')
     `);
     await db.execute(sql`
-      insert into api_token (installation_id, token_hash, user_id, name, scope, grant_id)
-      values (4242, ${tokenHash}, 777, 'ci-token', 'external-write', (select id from github_grant limit 1))
+      insert into api_token (token_hash, user_id, name, scope, grant_id)
+      values (${tokenHash}, 777, 'ci-token', 'external-write', (select id from github_grant limit 1))
     `);
     let thrown: unknown;
     try {
       await db.execute(sql`
-        insert into api_token (installation_id, token_hash, user_id, name, scope, grant_id)
-        values (9999, ${tokenHash}, 888, 'other', 'external-write', (select id from github_grant limit 1))
+        insert into api_token (token_hash, user_id, name, scope, grant_id)
+        values (${tokenHash}, 888, 'other', 'external-write', (select id from github_grant limit 1))
       `);
     } catch (error) {
       thrown = error;
@@ -161,7 +160,6 @@ describe("createTokenAuth mint / resolve / touch", () => {
   it("mints a token row linking the grant and resolves it by hash", async () => {
     const auth = createTokenAuth(handle);
     const minted = await auth.mintToken(mintInput(grant));
-    expect(minted.installationId).toBeNull();
     expect(minted.revokedAt).toBeNull();
     expect(minted.lastUsedAt).toBeNull();
     // Chosen at mint, and on the metadata projection the settings list reads.

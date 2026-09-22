@@ -1,7 +1,7 @@
 // GitHub user-to-server OAuth login. The entry sets a CSRF nonce cookie and
 // redirects to GitHub; the callback verifies state, exchanges the code and
-// sets the session cookie. The tenant derives from GitHub itself, never from
-// a caller-supplied value.
+// sets the session cookie. The session names the reviewer and nothing else:
+// every request resolves the tenant from its repository against GitHub.
 //
 // SECURITY DISCIPLINE, mirroring the webhook route: Zod parses every query,
 // expected failures throw ApiError subclasses, and NO token or secret is ever
@@ -15,15 +15,12 @@ import {
   createOAuthApp,
   exchangeWebFlowCode,
   fetchAuthenticatedUser,
-  listAppInstallationsForUser,
   type GitHubOAuthApp,
 } from "github";
 import {
   encryptToken,
   createTenantRepository,
-  type ScopeContext,
   createGrantAuth,
-  createUserSettingsStore,
 } from "persistence";
 import { z } from "zod";
 import { ApiErrorCodes } from "contract";
@@ -74,8 +71,8 @@ export function oauthRoute(deps: AuthRouteDeps): Hono {
     return c.redirect(url, 302);
   });
 
-  // Callback: verify the CSRF state, exchange the code, resolve the reviewer +
-  // tenant, seal both tokens, create the session, and set the session cookie.
+  // Callback: verify the CSRF state, exchange the code, resolve the reviewer,
+  // seal both tokens, create the session, and set the session cookie.
   app.get("/callback", async (c) => {
     const stateCookie = getCookie(c, STATE_COOKIE);
     // The state nonce is single-use: clear it regardless of the outcome.
@@ -101,40 +98,10 @@ export function oauthRoute(deps: AuthRouteDeps): Hono {
       throw new BadRequest(ApiErrorCodes.SIGN_IN_FAILED);
     }
 
-    // Independent of each other (both need only the access token) → run
-    // concurrently to shave one GitHub round-trip off the login critical path.
-    const [user, installations] = await Promise.all([
-      fetchAuthenticatedUser(tokens.value.accessToken),
-      listAppInstallationsForUser(tokens.value.accessToken),
-    ]);
+    const user = await fetchAuthenticatedUser(tokens.value.accessToken);
     if (!user.ok) {
       throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
     }
-    if (!installations.ok) {
-      throw new BadGateway(ApiErrorCodes.GITHUB_UNAVAILABLE);
-    }
-    const accessible = installations.value;
-    const firstAccessible = accessible[0];
-    // Bind the session to the user's DEFAULT installation when it is still in
-    // their LIVE accessible set, else the first accessible one. The default is
-    // NEVER trusted as an id on its own, a dangling default degrades to the
-    // first accessible installation rather than binding to something GitHub no
-    // longer grants. No accessible installation at all is a LEGAL login since
-    // the url-box world: the session binds to the owner scope (their GitHub
-    // user id) instead of a tenant.
-    const settings = await createUserSettingsStore(deps.handle).get(
-      user.value.reviewerId,
-    );
-    const preferredDefault = settings?.defaultInstallationId ?? undefined;
-    const installationId =
-      preferredDefault !== undefined &&
-      accessible.some((id) => id === preferredDefault)
-        ? preferredDefault
-        : firstAccessible;
-    const sessionCtx: ScopeContext =
-      installationId === undefined
-        ? { ownerUserId: user.value.reviewerId }
-        : { installationId };
 
     const sessionToken = randomBytes(SESSION_TOKEN_BYTES).toString("base64url");
     const sessionTokenHash = sha256Hex(sessionToken);
@@ -164,7 +131,9 @@ export function oauthRoute(deps: AuthRouteDeps): Hono {
       refreshExpiresAt: tokens.value.refreshTokenExpiresAt,
     });
     try {
-      await createTenantRepository(deps.handle, sessionCtx).sessions.create({
+      await createTenantRepository(deps.handle, {
+        ownerUserId: user.value.reviewerId,
+      }).sessions.create({
         sessionTokenHash,
         reviewerId: user.value.reviewerId,
         reviewerLogin: user.value.reviewerLogin,

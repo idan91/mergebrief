@@ -1,26 +1,25 @@
-// Shared column groups so every table is uniform. Each helper returns FRESH
-// builders — Drizzle column builders are stateful and must not be shared
-// across tables.
-//
-// Naming: noun factories, not verb-first, on purpose — they sit in Drizzle's
-// DSL register and read as column groups at the spread site.
+// Shared column groups. Each helper returns FRESH builders: Drizzle column
+// builders are stateful and must not be shared across tables. Noun names on
+// purpose; they read as column groups at the spread site.
 import { bigint, integer, text, timestamp } from "drizzle-orm/pg-core";
 import type { InstallationId } from "../types";
 
+/** The surrogate identity PK; `TId` brands it where the id is critical. */
+export function idColumn<TId extends bigint = bigint>() {
+  return bigint("id", { mode: "bigint" })
+    .$type<TId>()
+    .generatedAlwaysAsIdentity()
+    .primaryKey();
+}
+
 /**
- * Tenant group: surrogate `bigint generated always as identity` PK + the
- * `installation_id` tenant scope. NULLABLE since the url-box world:
- * a NULL marks a row in the owner-scoped world, whose scope anchor is
- * `pull_request.owner_user_id` (children reach it through their PR parent).
- * `TId` brands the PK for tables whose surrogate id is critical
- * (e.g. `PullRequestRowId`).
+ * The PK plus the `installation_id` tenant scope, NULL for the owner-scoped
+ * world anchored on `pull_request.owner_user_id`. Credential rows take
+ * `idColumn` alone: no credential holds an installation.
  */
 export function tenantColumns<TId extends bigint = bigint>() {
   return {
-    id: bigint("id", { mode: "bigint" })
-      .$type<TId>()
-      .generatedAlwaysAsIdentity()
-      .primaryKey(),
+    id: idColumn<TId>(),
     installationId: bigint("installation_id", {
       mode: "bigint",
     }).$type<InstallationId>(),
@@ -35,11 +34,7 @@ export function stampColumns() {
   };
 }
 
-/**
- * Artifact trio: inline `body TEXT` (passthrough, TOASTed) + `byte_size` +
- * `created_at`. No shared blob table — erasure stays a single FK cascade off
- * `pull_request`.
- */
+/** Inline `body` plus `byte_size` and `created_at`; erasure stays one FK cascade. */
 export function artifactColumns() {
   return {
     body: text("body").notNull(),

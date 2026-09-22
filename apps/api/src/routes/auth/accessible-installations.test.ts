@@ -67,7 +67,6 @@ async function stubPrincipal(): Promise<ViewerPrincipal> {
   if (!sealed.ok) throw new Error("fixture seal failed");
   return {
     id: 1n,
-    installationId: null,
     sessionTokenHash: `hash-installations-${randomBytes(4).toString("hex")}`,
     reviewerId: brand(42n, isReviewerId),
     reviewerLogin: "octocat",

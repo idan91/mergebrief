@@ -17,7 +17,6 @@ import {
   type PullRequestUpsertInput,
   type TenantContext,
   type TenantRepository,
-  type UserSettingsStore,
 } from "../src/index";
 import {
   isInstallationId,
@@ -388,7 +387,7 @@ describe("createTenantRepository idempotent upserts", () => {
     expect(redelivery.value.lastSubmittedSha).toBe("a".repeat(40));
   });
 
-  it("sessions honour tenant scope on lookup and delete", async () => {
+  it("sessions carry no tenant and delete with their grant", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);
     const b = createTenantRepository(handle, CTX_B);
@@ -406,20 +405,16 @@ describe("createTenantRepository idempotent upserts", () => {
       expiresAt: new Date(Date.now() + 3_600_000),
     });
 
-    // B cannot see A's session even by its token hash.
-    expect(await b.sessions.getByTokenHash("hash-a")).toBeUndefined();
+    // The hash is the key; a session holds no installation to hide behind.
     const aRow = await a.sessions.getByTokenHash("hash-a");
     expect(aRow).toBeDefined();
+    expect(await b.sessions.getByTokenHash("hash-a")).toBeDefined();
     // The grant reference round-trips through create → select.
     expect(aRow?.grantId).toBe(grant.id);
 
-    // B's delete-by-reviewer does not touch A's row.
-    expect(await b.sessions.deleteByReviewer(REVIEWER)).toBe(0);
-    expect(await a.sessions.getByTokenHash("hash-a")).toBeDefined();
-
-    // A's delete-by-reviewer removes the row AND orphan-cleans its grant
-    // in the same transaction (last-referent lifecycle).
-    expect(await a.sessions.deleteByReviewer(REVIEWER)).toBe(1);
+    // Any installation scope addresses the reviewer's sessions; the delete
+    // also orphan-cleans the grant in the same transaction.
+    expect(await b.sessions.deleteByReviewer(REVIEWER)).toBe(1);
     expect(await createGrantAuth(handle).deleteIfOrphaned(grant.id)).toBe(0); // already gone
     const grantRows = await internal(handle)
       .select({ id: githubGrant.id })
@@ -478,17 +473,5 @@ describe("compile-time containment", () => {
     expectTypeOf<TenantRepository>().not.toHaveProperty("update");
     expectTypeOf<TenantRepository>().not.toHaveProperty("delete");
     expectTypeOf<TenantRepository>().not.toHaveProperty("transaction");
-  });
-
-  it("the non-tenant userSettings seam leaks no query surface either", () => {
-    // Treated like `writeAudit`/`createSessionAuth`: a NON-tenant surface that takes the
-    // opaque handle and unwraps in-package, never a raw drizzle handle. It is
-    // NOT reachable through TenantRepository (it is keyed by user id, not ctx).
-    expectTypeOf<TenantRepository>().not.toHaveProperty("userSettings");
-    expectTypeOf<UserSettingsStore>().not.toHaveProperty("insert");
-    expectTypeOf<UserSettingsStore>().not.toHaveProperty("select");
-    expectTypeOf<UserSettingsStore>().not.toHaveProperty("update");
-    expectTypeOf<UserSettingsStore>().not.toHaveProperty("delete");
-    expectTypeOf<UserSettingsStore>().not.toHaveProperty("transaction");
   });
 });

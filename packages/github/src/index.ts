@@ -31,7 +31,6 @@ export {
   exchangeWebFlowCode,
   refreshUserToken,
   fetchAuthenticatedUser,
-  listAppInstallationsForUser,
   listUserInstallations,
   createUserOctokit,
   OAuthErrorCodes,

@@ -6,7 +6,6 @@ import {
   createEnvKeyProvider,
   encryptToken,
   isGrantRowId,
-  isInstallationId,
   isRepoId,
   isReviewerId,
   WriteClassifications,
@@ -73,7 +72,6 @@ async function buildClient(ciphertextOverride?: string) {
   }
   const session: ViewerPrincipal = {
     id: 1n,
-    installationId: brand(10n, isInstallationId),
     sessionTokenHash: "hash-fresh-target-unit",
     reviewerId: brand(42n, isReviewerId),
     reviewerLogin: "octocat",

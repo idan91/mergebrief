@@ -11,7 +11,6 @@ import {
   createSessionAuth,
   createTokenAuth,
   WriteClassifications,
-  createUserSettingsStore,
   type AppDatabase,
   type KeyProvider,
 } from "persistence";
@@ -41,8 +40,6 @@ import {
 // ---------------------------------------------------------------------------
 // Fixtures + deps.
 // ---------------------------------------------------------------------------
-
-const OTHER_INSTALLATION_ID = 111222;
 
 // GitHub token plaintexts the stub hands back, asserted ABSENT from responses.
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
@@ -208,7 +205,6 @@ describe("reviewer auth routes", () => {
       keyRef: KEY_REF,
       refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
     });
-    // Owner-world (url-box) session: installation_id NULL by construction.
     await createTenantRepository(harness.handle, {
       ownerUserId: brandReviewerId(BigInt(REVIEWER_ID)),
     }).sessions.create({
@@ -284,7 +280,6 @@ describe("reviewer auth routes", () => {
     const rows = await harness.raw("select * from auth_session");
     expect(rows).toHaveLength(1);
     const row = rows[0];
-    expect(String(row?.["installation_id"])).toBe(String(INSTALLATION_ID));
     expect(String(row?.["reviewer_id"])).toBe(String(REVIEWER_ID));
     // The credential pair lands on the linked grant row, sealed.
     const grantRows = await harness.raw("select * from github_grant");
@@ -303,79 +298,25 @@ describe("reviewer auth routes", () => {
     expect(expiresAt - before).toBeGreaterThan(15_000_000_000);
   });
 
-  it("callback with no accessible installation binds an OWNER-world session", async () => {
-    stubGitHub({
+  it("callback stores a session that names the reviewer and no installation", async () => {
+    const fetchFn = stubGitHub({
       token: tokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN),
-      installations: [],
+      installations: [{ id: INSTALLATION_ID }],
     });
-    const state = "state-no-install";
+    const state = "state-reviewer-only";
     const res = await app.request(
       `/api/auth/github/callback?code=c&state=${state}`,
       {
         headers: { Cookie: `rs_oauth_state=${state}` },
       },
     );
-    // The url-box world: sign-in no longer requires an installation.
     expect(res.status).toBe(302);
-    const rows = await harness.raw(
-      "select installation_id, reviewer_id from auth_session",
-    );
-    expect(rows).toEqual([{ installation_id: null, reviewer_id: REVIEWER_ID }]);
-  });
-
-  // Default-binding fallback matrix: the callback binds the session to the
-  // user's default installation ONLY when it is in the live accessible set,
-  // otherwise the first accessible one. `user_settings` is seeded before login.
-  async function runCallbackAndReadInstallation(): Promise<string> {
-    const state = "matching-state-nonce";
-    const res = await app.request(
-      `/api/auth/github/callback?code=thecode&state=${state}`,
-      {
-        headers: { Cookie: `rs_oauth_state=${state}` },
-      },
-    );
-    expect(res.status).toBe(302);
-    const rows = await harness.raw(
-      "select installation_id from auth_session limit 1",
-    );
-    return String(rows[0]?.["installation_id"]);
-  }
-
-  it("binds the default installation when it is in the accessible set", async () => {
-    stubGitHub({
-      token: tokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN),
-      installations: [{ id: INSTALLATION_ID }, { id: OTHER_INSTALLATION_ID }],
-    });
-    await createUserSettingsStore(harness.handle).setDefaultInstallation(
-      brandReviewerId(BigInt(REVIEWER_ID)),
-      brandInstallationId(BigInt(OTHER_INSTALLATION_ID)),
-    );
-    expect(await runCallbackAndReadInstallation()).toBe(
-      String(OTHER_INSTALLATION_ID),
-    );
-  });
-
-  it("falls back to the first accessible installation", async () => {
-    stubGitHub({
-      token: tokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN),
-      installations: [{ id: INSTALLATION_ID }], // OTHER not in the live set
-    });
-    await createUserSettingsStore(harness.handle).setDefaultInstallation(
-      brandReviewerId(BigInt(REVIEWER_ID)),
-      brandInstallationId(BigInt(OTHER_INSTALLATION_ID)),
-    );
-    expect(await runCallbackAndReadInstallation()).toBe(
-      String(INSTALLATION_ID),
-    );
-  });
-
-  it("binds the first accessible installation when no default is set", async () => {
-    stubGitHub({
-      token: tokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN),
-      installations: [{ id: OTHER_INSTALLATION_ID }, { id: INSTALLATION_ID }],
-    });
-    expect(await runCallbackAndReadInstallation()).toBe(
-      String(OTHER_INSTALLATION_ID),
+    const rows = await harness.raw("select reviewer_id from auth_session");
+    expect(rows).toEqual([{ reviewer_id: REVIEWER_ID }]);
+    // Sign-in reads the user only; the installations are each request's.
+    const urls = fetchFn.mock.calls.map((call) => String(call[0]));
+    expect(urls.filter((url) => url.includes("/user/installations"))).toEqual(
+      [],
     );
   });
 
@@ -392,7 +333,7 @@ describe("reviewer auth routes", () => {
       refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
     });
     await createTenantRepository(harness.handle, {
-      installationId: brandInstallationId(BigInt(INSTALLATION_ID)),
+      ownerUserId: brandReviewerId(BigInt(REVIEWER_ID)),
     }).sessions.create({
       sessionTokenHash: hash,
       reviewerId: brandReviewerId(BigInt(REVIEWER_ID)),

@@ -84,7 +84,6 @@ function buildApp(
 ): Hono<AuthzEnv> {
   const session: ViewerPrincipal = {
     id: 1n,
-    installationId: brand(INSTALLATION_ID, isInstallationId),
     sessionTokenHash: "hash-conversation-unit",
     reviewerId: brand(42n, isReviewerId),
     reviewerLogin: "octocat",
@@ -255,7 +254,6 @@ describe("readConversation with an owner viewer token", () => {
     }
     const session: ViewerPrincipal = {
       id: 1n,
-      installationId: null,
       sessionTokenHash: "hash-owner-conversation",
       reviewerId: ownerId,
       reviewerLogin: "octocat",

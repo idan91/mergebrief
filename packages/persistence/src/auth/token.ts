@@ -41,7 +41,6 @@ export type ApiTokenMetadataRow = Omit<ApiTokenRow, "tokenHash" | "grantId">;
 /** The `.select()`/`.returning()` column set backing `ApiTokenMetadataRow`. */
 const metadataColumns = {
   id: apiToken.id,
-  installationId: apiToken.installationId,
   userId: apiToken.userId,
   userLogin: apiToken.userLogin,
   name: apiToken.name,

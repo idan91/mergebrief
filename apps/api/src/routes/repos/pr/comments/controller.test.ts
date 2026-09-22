@@ -10,7 +10,6 @@ import {
   createEnvKeyProvider,
   encryptToken,
   isGrantRowId,
-  isInstallationId,
   isReviewerId,
   WriteClassifications,
 } from "persistence";
@@ -77,7 +76,6 @@ async function buildClient(ciphertextOverride?: string) {
   }
   const session: ViewerPrincipal = {
     id: 1n,
-    installationId: parseFixtureBrand(10n, isInstallationId),
     sessionTokenHash: "hash-comments-unit",
     reviewerId: parseFixtureBrand(42n, isReviewerId),
     reviewerLogin: "octocat",

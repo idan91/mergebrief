@@ -244,7 +244,6 @@ async function seedFullGraph(
   const grant = grants[0];
   if (grant === undefined) throw new Error("grant insert returned no row");
   await db.insert(authSession).values({
-    installationId: INSTALLATION,
     sessionTokenHash: "sha256:deadbeef",
     reviewerId: REVIEWER,
     reviewerLogin: "octocat",
@@ -401,6 +400,16 @@ describe("M1 schema migrations", () => {
     });
     expect(await db.select({ id: auditLog.id }).from(auditLog)).toHaveLength(1);
   });
+  it("no credential row carries an installation column", async () => {
+    const db = await freshDb();
+    const rows = await db.execute(sql`
+      select table_name from information_schema.columns
+      where table_schema = 'public'
+        and table_name in ('auth_session', 'api_token', 'user_settings')
+        and column_name in ('installation_id', 'default_installation_id')
+    `);
+    expect(rows.rows).toEqual([]);
+  });
 });
 
 describe("closed-vocabulary + shape CHECK constraints", () => {
@@ -542,7 +551,7 @@ describe("schema additions from migration 0003", () => {
     const db = await freshDb();
     await expectCheckViolation(
       db.execute(
-        sql`insert into auth_session (installation_id, session_token_hash, reviewer_id, expires_at) values (1000, 'h', 31337, now())`,
+        sql`insert into auth_session (session_token_hash, reviewer_id, expires_at) values ('h', 31337, now())`,
       ),
       "grant_id",
     );

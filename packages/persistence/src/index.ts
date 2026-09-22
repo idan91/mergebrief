@@ -250,15 +250,6 @@ export type {
   InstallationPurgeCounts,
 } from "./stores/purge";
 
-// The per-user settings boundary: the second non-tenant surface after
-// `writeAudit`. Keyed by GitHub user id (a person spans installations), so it is
-// NOT ctx-bound and NOT reachable through `createTenantRepository`.
-export { createUserSettingsStore } from "./stores/user-settings";
-export type {
-  UserSettingsStore,
-  UserSettingsRow,
-} from "./stores/user-settings";
-
 // --- auth/: the PRE-tenant resolvers (they PRODUCE the tenant) --------------
 
 // The grant boundary: ONE `github_grant` row per GitHub authorization holds
@@ -276,15 +267,10 @@ export type {
 } from "./auth/grant";
 
 // The `auth_session` boundary: the PRE-TENANT, token-hash-keyed
-// session resolver (find / delete / expiry mirror). NOT ctx-bound: it PRODUCES
-// the tenant, so it precedes `createTenantRepository` scoping.
-export { createSessionAuth, SessionAuthErrorCodes } from "./auth/session";
-export type {
-  SessionAuth,
-  SessionAuthError,
-  SessionAuthErrorCode,
-  SessionWithGrant,
-} from "./auth/session";
+// session resolver (find / delete / expiry mirror). NOT ctx-bound: it names
+// the reviewer, and the request's repository names the tenant.
+export { createSessionAuth } from "./auth/session";
+export type { SessionAuth, SessionWithGrant } from "./auth/session";
 
 // The API-token auth boundary: the second presentation channel's PRE-TENANT,
 // hash-keyed resolver. Like `createSessionAuth` it PRODUCES the tenant, so it

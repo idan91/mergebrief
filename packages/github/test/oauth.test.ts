@@ -5,7 +5,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   exchangeWebFlowCode,
-  listAppInstallationsForUser,
   listUserInstallations,
   refreshUserToken,
   OAuthErrorCodes,
@@ -239,7 +238,6 @@ describe("listUserInstallations", () => {
     );
 
     const result = await listUserInstallations("ghu_ACCESS");
-    const ids = await listAppInstallationsForUser("ghu_ACCESS");
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value.map((entry) => entry.accountLogin)).toEqual([
@@ -247,7 +245,6 @@ describe("listUserInstallations", () => {
       "big-corp",
       "3000",
     ]);
-    expect(ids.ok && ids.value).toEqual([1000n, 2000n, 3000n]);
   });
 
   it("maps a 401 to a sanitized UNAUTHORIZED for the caller's refresh", async () => {

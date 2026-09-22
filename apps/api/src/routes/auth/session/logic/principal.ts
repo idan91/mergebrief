@@ -34,7 +34,6 @@ export function derivePrincipalFromApiToken({
 }: TokenWithGrant): ViewerPrincipal {
   return {
     id: token.id,
-    installationId: token.installationId,
     sessionTokenHash: token.tokenHash,
     reviewerId: token.userId,
     reviewerLogin: token.userLogin,

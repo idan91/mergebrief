@@ -3,7 +3,6 @@ import {
   createEnvKeyProvider,
   encryptToken,
   isGrantRowId,
-  isInstallationId,
   isReviewerId,
   WriteClassifications,
 } from "persistence";
@@ -73,7 +72,6 @@ interface Setup {
 async function setup(token = "gh-token-1"): Promise<Setup> {
   const session: ViewerPrincipal = {
     id: 1n,
-    installationId: brand(10n, isInstallationId),
     sessionTokenHash: "hash-1",
     reviewerId: brand(42n, isReviewerId),
     reviewerLogin: "octocat",

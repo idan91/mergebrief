@@ -45,6 +45,11 @@ Decisions D1–D11 below cover all six ADR 0008 entities plus the tenant scoping
 
 ### D2b — Tenancy enforcement
 
+> **Amended 2026-09-21** ([ADR 0043](./0043-no-credential-holds-a-current-installation.md)):
+> three tables carry no `installation_id`: `audit_log` (D9), `user_settings` (D14), and the
+> credential rows `auth_session` and `api_token`, whose columns migration 0042 dropped. A
+> credential names its reviewer; every request resolves the installation from its repository.
+
 - `installation_id` on every row and in every query — the trust boundary (ADR 0016 #6) and the redesign-avoider, carried though M1 is single-tenant (`instance = tenant`).
 - Enforced at the **application layer**: a tenant-scoped repository (`forTenant(ctx)`) is the only DB surface — raw handle not exported (compile-time), context asserted (runtime). Tenant context comes from the authz middleware (web path) or the job payload (worker path).
 - **RLS deferred** to the hosted offering. It protects against a second tenant not present in an M1 instance, and costs policy + a second DB role + per-transaction `SET LOCAL` plumbing that fights connection pooling. It is **additive later** — the context-threading built now is exactly the input RLS consumes (`SET LOCAL app.installation_id`), so deferring wastes nothing and requires no schema change.
@@ -329,6 +334,12 @@ comparison_marks
 
 ### D14 — `user_settings` (added 2026-07-06, from BRIEF-19 grill)
 
+> **Amended 2026-09-21** ([ADR 0043](./0043-no-credential-holds-a-current-installation.md)):
+> `default_installation_id` is dropped by migration 0042, with `auth_session.installation_id`
+> and `api_token.installation_id`. The table keeps its key and stamps and holds no setting;
+> the next one is a typed column plus a migration and its own store. The "dangling defaults"
+> bullet below describes the retired login binding.
+
 Per-GitHub-user settings that must survive across sessions and installations. First (and so
 far only) column: `default_installation_id` — the installation a multi-org reviewer's login
 binds to when it is still in their accessible set (BRIEF-19; ADR 0016 #4 as amended).
@@ -336,7 +347,7 @@ binds to when it is still in their accessible set (BRIEF-19; ADR 0016 #4 as amen
 ```
 user_settings
   gh_user_id              bigint  PK      -- GitHub's numeric user id (same id sessions carry)
-  default_installation_id bigint  null
+  default_installation_id bigint  null    -- dropped 2026-09-21 (ADR 0043)
   created_at / updated_at timestamptz
 ```
 
@@ -441,16 +452,16 @@ product term.
 
 **Other consequences:**
 - Two migration systems coexist: Drizzle (our schema) + graphile-worker (its own schema).
-- `installation_id` on every row from day one (the redesign-avoider); RLS is an additive hosted hardening, not a schema change (D2b).
+- `installation_id` on every tenant row from day one (the redesign-avoider); credential rows carry none since 2026-09-21 (D2b as amended); RLS is an additive hosted hardening, not a schema change (D2b).
 - All blob access goes through one code-level `ArtifactStore`; the object-storage migration is localized there (D6).
-- Erasure (purge by PR / repo / installation) is mostly an FK cascade off `pull_request` + a small explicit routine for the non-PR tables (`reviewer_session`); `audit_log` is retained, numeric-only (D5/D9).
+- Erasure (purge by PR / repo / installation) is mostly an FK cascade off `pull_request`; sessions and tokens hold no installation and stay through offboarding (ADR 0043), swept only by expiry; `audit_log` is retained, numeric-only (D5/D9).
 
 ## Implementation notes (for workstream 1 — not yet built)
 
 High-level reminders so the Drizzle build doesn't re-derive these; no schema written yet.
 
 - **Drizzle expresses the tables; a few things drop to raw SQL in the migration:** the **partial** index `WHERE purge_after IS NOT NULL` (D5 sweep); the **`REVOKE UPDATE/DELETE` on `audit_log`** that enforces append-only (D9 — convention in M1, REVOKE is the hosted hardening); and `INSERT … ON CONFLICT (natural_key) DO UPDATE` for content-addressed artifact writes (idempotency, D6) and `generation` status transitions (D10).
-- **Column conventions:** surrogate PK via `.generatedAlwaysAsIdentity()`; SHAs as `text` (D2); timestamps `withTimezone`. Factor shared `tenant` (`id` + `installation_id`) and `stamps` (`created_at`) column groups to keep every table uniform.
+- **Column conventions:** surrogate PK via `.generatedAlwaysAsIdentity()`; SHAs as `text` (D2); timestamps `withTimezone`. Factor shared `tenant` (`id` + `installation_id`), `id` alone for the credential rows, and `stamps` (`created_at`) column groups to keep every table uniform.
 - **Two migration systems, kept apart:** graphile-worker runs its own migrations into the `graphile_worker` schema; scope Drizzle (and especially `drizzle-kit push`) to the app schema only so it never tries to manage graphile's tables (D10).
 - **Tenant repo is the only DB surface:** `forTenant(ctx)` injects `installation_id`; do not export the raw handle (D2b). Worker builds its context from the job payload; web from the authz middleware.
 - **Auth library (D11):** lean Arctic (+ own sessions) or Better Auth behind the identity-provider boundary; verify the chosen lib's maintenance status at build time (Lucia is winding down).

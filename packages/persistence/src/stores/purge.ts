@@ -151,8 +151,11 @@ export interface PurgeRoutines {
 
 /**
  * Build the tenant-scoped purge + retention routines over the opaque handle.
- * `ctx` is the one place an `installation_id` enters; every routine filters or
- * stamps that same id, so a caller can never erase another tenant's rows.
+ * `ctx` is the one place an `installation_id` enters; every routine that
+ * touches a tenant row filters or stamps that same id, so a caller can never
+ * erase another tenant's rows. The one exception is `sweepExpiredSessions`:
+ * a session holds no installation, so under an installation scope the sweep
+ * is instance-wide, and only the owner world narrows it.
  */
 export function createPurgeRoutines(
   handle: AppDatabase,
@@ -363,16 +366,13 @@ export function createPurgeRoutines(
 
     async sweepExpiredSessions(now) {
       // NO audit emit: reviewer sessions are short-lived churn, so a per-sweep
-      // `delete` entry would flood the never-purged ledger with high-frequency,
-      // low-signal noise. Session erasure of record happens at installation
-      // offboarding (`purgeInstallation`), which IS audited.
+      // `delete` entry would flood the ledger with low-signal noise. Sessions
+      // outlive installation offboarding by design, as they hold no
+      // installation; access ends when GitHub stops confirming it.
       return db.transaction(async (tx) => {
-        // The world mark alone cannot separate owners; the owner world
-        // narrows to the owner's own sessions.
-        const conditions = [
-          scope.matchesWorld(authSession.installationId),
-          lt(authSession.expiresAt, now),
-        ];
+        // A session holds no installation; the owner world narrows to the
+        // owner's own sessions.
+        const conditions = [lt(authSession.expiresAt, now)];
         if (scope.ownerUserId !== null) {
           conditions.push(eq(authSession.reviewerId, scope.ownerUserId));
         }

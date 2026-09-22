@@ -288,6 +288,13 @@
       "when": 1789925852703,
       "tag": "0041_inbox-indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1789946805953,
+      "tag": "0042_drop-installation-columns",
+      "breakpoints": true
     }
   ]
 }

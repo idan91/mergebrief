@@ -1,7 +1,8 @@
 // TRUST SHAPE: a session cookie carries a high-entropy RANDOM token; the DB
 // stores only its SHA-256 (globally unique). Session resolution PRECEDES
-// tenant scoping, so it is what tells us the installation. No token, code or
-// secret is ever logged or placed in a response beyond the opaque cookie.
+// tenant scoping: it names the reviewer, and the request's repository names
+// the installation. No token, code or secret is ever logged or placed in a
+// response beyond the opaque cookie.
 import { createHash } from "node:crypto";
 
 /**

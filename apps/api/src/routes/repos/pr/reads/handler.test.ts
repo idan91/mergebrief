@@ -124,7 +124,6 @@ async function buildApp(
   lastSessionTokenHash = `hash-${randomBytes(4).toString("hex")}`;
   const session: ViewerPrincipal = {
     id: 1n,
-    installationId: brand(INSTALLATION_ID, isInstallationId),
     sessionTokenHash: lastSessionTokenHash,
     reviewerId: brand(42n, isReviewerId),
     reviewerLogin: "octocat",

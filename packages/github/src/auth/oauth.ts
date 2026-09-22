@@ -221,21 +221,6 @@ export async function fetchAuthenticatedUser(
 }
 
 /**
- * List the app installations reachable to the user, branding each numeric id.
- * Empty is a valid `ok` result; the caller decides what "no installations"
- * means.
- */
-export async function listAppInstallationsForUser(
-  accessToken: string,
-): Promise<Result<InstallationId[], GitHubApiError>> {
-  const installations = await listUserInstallations(accessToken);
-  if (!installations.ok) return installations;
-
-  const ids = installations.value.map((entry) => entry.installationId);
-  return { ok: true, value: ids };
-}
-
-/**
  * One app installation reachable to the authenticated user. The numeric id is
  * rename-proof; the account login serves display only.
  */
@@ -275,9 +260,8 @@ function deriveAccountLogin(account: InstallationAccount, id: number): string {
 }
 
 /**
- * Richer sibling of `listAppInstallationsForUser`: ids plus account logins,
- * read with the VIEWER token. Callers re-derive this live accessible set to
- * validate an org-switch target, never trusting the caller's id.
+ * The installations reachable to the VIEWER token, ids plus account logins.
+ * The Inbox walks this set on every list; nothing stores it.
  */
 export async function listUserInstallations(
   accessToken: string,

@@ -149,7 +149,6 @@ async function buildGateApp(
   }
   const session: ViewerPrincipal = {
     id: 1n,
-    installationId,
     sessionTokenHash: `hash-authz-unit-${randomBytes(4).toString("hex")}`,
     reviewerId: brand(42n, isReviewerId),
     reviewerLogin: "octocat",

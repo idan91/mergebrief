@@ -278,7 +278,6 @@ async function seedFullGraph(
   });
   // The one non-PR table, must survive a PR-scoped purge.
   await db.insert(authSession).values({
-    installationId,
     sessionTokenHash: `sha256:${installationId}:${pullRequestId}`,
     reviewerId: REVIEWER,
     reviewerLogin: "octocat",
@@ -711,45 +710,38 @@ describe("createPurgeRoutines.setRetention, purge_after semantics", () => {
 });
 
 describe("createPurgeRoutines.sweepExpiredSessions, TTL sweep", () => {
-  it("removes only in-tenant expired sessions and emits no audit entry", async () => {
+  it("removes every expired session and emits no audit entry", async () => {
     const { raw, handle } = await freshPair();
     const now = new Date("2026-07-04T00:00:00Z");
     const expired = new Date("2026-07-01T00:00:00Z");
     const live = new Date("2026-07-10T00:00:00Z");
 
-    async function session(
-      installationId: InstallationId,
-      token: string,
-      expiresAt: Date,
-    ): Promise<void> {
+    async function session(token: string, expiresAt: Date): Promise<void> {
       await raw.insert(authSession).values({
-        installationId,
         sessionTokenHash: token,
         reviewerId: REVIEWER,
         grantId: await insertGrant(raw),
         expiresAt,
       });
     }
-    await session(TENANT_A, "a-expired", expired);
-    await session(TENANT_A, "a-live", live);
-    await session(TENANT_B, "b-expired", expired);
+    await session("a-expired", expired);
+    await session("a-live", live);
+    await session("b-expired", expired);
 
     const deleted = await createPurgeRoutines(
       handle,
       CTX_A,
     ).sweepExpiredSessions(now);
-    expect(deleted).toBe(1);
+    expect(deleted).toBe(2);
 
     const remaining = await raw
       .select({ token: authSession.sessionTokenHash })
       .from(authSession);
-    expect(
-      remaining.map((r) => r.token).toSorted((a, b) => a.localeCompare(b)),
-    ).toEqual(["a-live", "b-expired"]);
-    // The swept session's grant died with it; the live rows keep theirs.
+    expect(remaining.map((r) => r.token)).toEqual(["a-live"]);
+    // The swept sessions' grants died with them; the live row keeps its own.
     expect(
       await raw.select({ id: githubGrant.id }).from(githubGrant),
-    ).toHaveLength(2);
+    ).toHaveLength(1);
 
     // No artifact-level audit for short-lived session churn (stated choice).
     expect(await deleteAudits(raw, TENANT_A)).toHaveLength(0);

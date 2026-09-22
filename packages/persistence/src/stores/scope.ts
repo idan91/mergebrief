@@ -39,8 +39,7 @@ export interface RowScope {
     pullRequestIdColumn: AnyPgColumn,
   ): SQL;
   /**
-   * World-mark-only predicate, for tables that carry no `pull_request_id`
-   * (`auth_session`) or whose rows were already resolved through an in-scope
+   * World-mark-only predicate, for rows already resolved through an in-scope
    * anchor (the Review Session graph). Isolation within the owner world rides
    * that anchor.
    */
