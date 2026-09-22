@@ -16,6 +16,7 @@ import {
   type Placement,
 } from "@floating-ui/react";
 import { useMemo, useRef, useState, type ReactNode } from "react";
+import type { ValueOf } from "types/utils";
 
 import { prefersReducedMotion } from "../../utils/motion";
 import { IconButton } from "../IconButton/IconButton";
@@ -29,12 +30,25 @@ import { MenuContext } from "./context";
 import { deriveTransformOrigin } from "./utils";
 import styles from "./Menu.module.scss";
 
+export const MenuTriggerKinds = {
+  /** A 32px icon button; `label` is its accessible name. */
+  ICON: "icon",
+  /** A text control whose own content names it, such as a filter. */
+  TEXT: "text",
+} as const;
+export type MenuTriggerKind = ValueOf<typeof MenuTriggerKinds>;
+
 export interface MenuProps {
-  /** The accessible name of the trigger and of the menu. */
+  /** The accessible name of the menu, and of an icon trigger. */
   label: string;
-  /** What the trigger shows: an icon, an avatar. */
+  /** What the trigger shows: an icon, an avatar, or a text control's content. */
   trigger: ReactNode;
+  triggerKind?: MenuTriggerKind;
+  /** A text trigger's accessible name when its content alone would mislead, such as a bare count. */
+  triggerLabel?: string | undefined;
   triggerClassName?: string | undefined;
+  /** Rides on the trigger as `data-state` for the caller's stylesheet. */
+  triggerState?: string | undefined;
   placement?: Placement;
   /** `MenuRow`s, and any static row such as an identity line. */
   children: ReactNode;
@@ -49,7 +63,10 @@ export interface MenuProps {
 export function Menu({
   label,
   trigger,
+  triggerKind = MenuTriggerKinds.ICON,
+  triggerLabel,
   triggerClassName,
+  triggerState,
   placement = "bottom-end",
   children,
 }: MenuProps) {
@@ -110,16 +127,31 @@ export function Menu({
   return (
     <>
       {/* The interaction props are floating-ui's contract with the trigger. */}
-      <IconButton
-        {...getReferenceProps()}
-        className={triggerClassName}
-        label={label}
-        ref={refs.setReference}
-        size="md"
-        variant="ghost"
-      >
-        {trigger}
-      </IconButton>
+      {triggerKind === MenuTriggerKinds.TEXT ? (
+        // oxlint-disable-next-line house/no-raw-button -- the caller's own control shape (a filter) names itself by its content; no shared primitive has that shape
+        <button
+          {...getReferenceProps()}
+          aria-label={triggerLabel}
+          className={triggerClassName}
+          data-state={triggerState}
+          ref={refs.setReference}
+          type="button"
+        >
+          {trigger}
+        </button>
+      ) : (
+        <IconButton
+          {...getReferenceProps()}
+          className={triggerClassName}
+          data-state={triggerState}
+          label={label}
+          ref={refs.setReference}
+          size="md"
+          variant="ghost"
+        >
+          {trigger}
+        </IconButton>
+      )}
       {isMounted ? (
         <FloatingPortal>
           <FloatingFocusManager context={context} modal={false}>

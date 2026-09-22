@@ -624,6 +624,37 @@ describe("createInboxStore.list, filters", () => {
       updated: 0,
     });
   });
+
+  it("names every viewable repository once, whatever the filters", async () => {
+    const handle = await freshDatabase();
+    await seedFilterFixture(handle);
+
+    const page = await createInboxStore(handle).list(
+      makeListInput({ filters: { ...DEFAULT_FILTERS, repoIds: [REPO_A] } }),
+    );
+
+    expect(page.repositories).toEqual([
+      { repoId: REPO_A, repoSlug: `org/repo-${REPO_A}` },
+      { repoId: REPO_B, repoSlug: `org/repo-${REPO_B}` },
+    ]);
+  });
+
+  it("a repository named by one row and not another keeps its name", async () => {
+    const handle = await freshDatabase();
+    await seedFilterFixture(handle);
+    await createTenantRepository(handle, CTX_ACME).pullRequests.upsert({
+      repoId: REPO_A,
+      prNumber: 99,
+      title: "PR 99",
+      state: PrStates.OPEN,
+    });
+
+    const page = await createInboxStore(handle).list(makeListInput());
+
+    expect(
+      page.repositories.find((repository) => repository.repoId === REPO_A),
+    ).toEqual({ repoId: REPO_A, repoSlug: `org/repo-${REPO_A}` });
+  });
 });
 
 describe("createInboxStore.list, pages", () => {

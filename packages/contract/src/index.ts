@@ -25,11 +25,13 @@ export {
 } from "./errors";
 export { MAX_FILE_RANGE_LINES, type FileRangeView } from "./file-range";
 export {
+  InboxQueryBounds,
   InboxQueryKeys,
   type InboxCountsView,
   type InboxGenerationView,
   type InboxItem,
   type InboxQueryKey,
+  type InboxRepositoryView,
   type InboxResponse,
   type InboxStackView,
   type Page,

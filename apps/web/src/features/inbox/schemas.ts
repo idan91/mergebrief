@@ -58,6 +58,11 @@ const reachableInstallationSchema = z.object({
   accountLogin: z.string(),
 });
 
+export const inboxRepositorySchema = z.object({
+  repoId: z.string().min(1),
+  repoSlug: z.string().nullable(),
+});
+
 export const inboxResponseSchema = z.object({
   items: z.array(inboxItemSchema),
   page: z.number().int().min(1),
@@ -66,6 +71,7 @@ export const inboxResponseSchema = z.object({
   counts: inboxCountsSchema,
   viewer: inboxViewerSchema,
   reachableInstallations: z.array(reachableInstallationSchema),
+  repositories: z.array(inboxRepositorySchema),
 });
 
 export function parseInboxResponse(

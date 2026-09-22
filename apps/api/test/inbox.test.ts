@@ -223,6 +223,7 @@ interface InboxBody {
   counts: Record<string, number>;
   viewer: Record<string, unknown>;
   reachableInstallations: Array<Record<string, unknown>>;
+  repositories: Array<Record<string, unknown>>;
 }
 
 describe("GET /api/inbox", () => {
@@ -357,6 +358,14 @@ describe("GET /api/inbox", () => {
         },
       ],
     });
+    expect(
+      body.repositories.toSorted((first, second) =>
+        String(first["repoId"]).localeCompare(String(second["repoId"])),
+      ),
+    ).toEqual([
+      { repoId: String(REPO_A), repoSlug: "o/r" },
+      { repoId: String(REPO_URL), repoSlug: expect.any(String) },
+    ]);
   });
 
   it("a page past the end carries no items and the true total", async () => {
@@ -395,6 +404,32 @@ describe("GET /api/inbox", () => {
     expect((await readBody(mine)).items.map((i) => i["prNumber"])).toEqual([1]);
     expect(bad.status).toBe(400);
     expect(badPage.status).toBe(400);
+  });
+
+  it("no state key on the wire reads as open and draft", async () => {
+    stubGitHub();
+    const cookie = await seedSession(harness.handle, kp);
+    await seedPr(harness.handle, { ctx: TENANT, repoId: REPO_A, prNumber: 1 });
+    const merged = await seedPr(harness.handle, {
+      ctx: TENANT,
+      repoId: REPO_A,
+      prNumber: 2,
+    });
+    await createTenantRepository(harness.handle, TENANT).pullRequests.setState(
+      merged.id,
+      { state: PrStates.MERGED, closedAt: new Date(), purgeAfter: null },
+    );
+
+    const opening = await get("/api/inbox", cookie);
+    const every = await get(
+      "/api/inbox?state=open&state=draft&state=merged&state=closed",
+      cookie,
+    );
+
+    expect((await readBody(opening)).items.map((i) => i["prNumber"])).toEqual([
+      1,
+    ]);
+    expect((await readBody(every)).items).toHaveLength(2);
   });
 
   it("a repository the viewer cannot read stays off the list", async () => {

@@ -105,6 +105,10 @@ export default {
         installationId: String(entry.installationId),
         accountLogin: entry.accountLogin,
       })),
+      repositories: page.repositories.map((repository) => ({
+        repoId: String(repository.repoId),
+        repoSlug: repository.repoSlug,
+      })),
     };
   },
 

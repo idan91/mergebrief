@@ -1,0 +1,141 @@
+import { useTranslation } from "react-i18next";
+import { InboxAuthorFilters, InboxSorts, InboxStatuses } from "types/inbox";
+
+import {
+  REVIEW_MARK_ORDER,
+  ReviewMarkGlyphs,
+  ReviewMarkLabelKeys,
+} from "@web/components/marks/consts";
+import {
+  listRepoOptions,
+  readKnown,
+  toggleListValue,
+  toggleStateValue,
+  type InboxChoices,
+} from "../../search";
+import type { InboxPage, InboxSearch } from "../../types";
+import type { InboxSearchWrite } from "../../hooks/useInboxSearchState";
+import { STATUS_NAMED_UP_TO } from "./consts";
+import type { FilterView } from "./types";
+
+/** The filters and the sort as the controls draw them, from the URL's choices and the page. */
+export function useControlsFacade(
+  page: InboxPage,
+  search: InboxSearch,
+  choices: InboxChoices,
+  write: (next: InboxSearchWrite) => void,
+) {
+  const { t } = useTranslation();
+
+  const filters: FilterView[] = [
+    {
+      id: "state",
+      name: t("home.filters.status"),
+      options: [
+        { value: InboxStatuses.OPEN, label: t("home.inbox.status.open") },
+        { value: InboxStatuses.DRAFT, label: t("home.inbox.status.draft") },
+        { value: InboxStatuses.MERGED, label: t("home.inbox.status.merged") },
+        { value: InboxStatuses.CLOSED, label: t("home.inbox.status.closed") },
+      ],
+      chosen: choices.states,
+      multiple: true,
+      changed: search.state !== undefined,
+      namedUpTo: STATUS_NAMED_UP_TO,
+      onChoose: (value) => {
+        const status = readKnown(value, InboxStatuses);
+        if (status === undefined) return;
+        write((live) => ({ state: toggleStateValue(live.states, status) }));
+      },
+    },
+    {
+      id: "repo",
+      name: t("home.filters.repository"),
+      options: listRepoOptions(page.repositories),
+      chosen: choices.repos,
+      multiple: true,
+      changed: search.repo !== undefined,
+      onChoose: (value) => {
+        write((live) => ({ repo: toggleListValue(live.repos, value) }));
+      },
+    },
+    {
+      id: "review",
+      name: t("home.filters.review"),
+      options: REVIEW_MARK_ORDER.map((state) => ({
+        value: state,
+        label: t(ReviewMarkLabelKeys[state]),
+      })),
+      chosen: choices.reviews,
+      multiple: true,
+      changed: search.review !== undefined,
+      glyphs: ReviewMarkGlyphs,
+      onChoose: (value) => {
+        write((live) => ({ review: toggleListValue(live.reviews, value) }));
+      },
+    },
+    {
+      id: "author",
+      name: t("home.filters.author"),
+      options: [
+        {
+          value: InboxAuthorFilters.ALL,
+          label: t("home.filters.authorEveryone"),
+        },
+        { value: InboxAuthorFilters.MINE, label: t("home.filters.authorMine") },
+        {
+          value: InboxAuthorFilters.OTHERS,
+          label: t("home.filters.authorOthers"),
+        },
+      ],
+      chosen: [choices.author],
+      multiple: false,
+      changed: search.author !== undefined,
+      onChoose: (value) => {
+        const author = readKnown(value, InboxAuthorFilters);
+        write({
+          author: author === InboxAuthorFilters.ALL ? undefined : author,
+        });
+      },
+    },
+  ];
+
+  if (page.reachableInstallations.length > 1) {
+    filters.push({
+      id: "installation",
+      name: t("home.filters.installation"),
+      options: page.reachableInstallations.map((installation) => ({
+        value: installation.installationId,
+        label: installation.accountLogin,
+      })),
+      chosen: choices.installations,
+      multiple: true,
+      changed: search.installation !== undefined,
+      onChoose: (value) => {
+        write((live) => ({
+          installation: toggleListValue(live.installations, value),
+        }));
+      },
+    });
+  }
+
+  const sort: FilterView = {
+    id: "sort",
+    name: t("home.filters.sort"),
+    options: [
+      { value: InboxSorts.UPDATED, label: t("home.filters.sortUpdated") },
+      { value: InboxSorts.GENERATED, label: t("home.filters.sortGenerated") },
+    ],
+    chosen: [choices.sort],
+    multiple: false,
+    changed: search.sort !== undefined,
+    alwaysNamed: true,
+    onChoose: (value) => {
+      const chosenSort = readKnown(value, InboxSorts);
+      write({
+        sort: chosenSort === InboxSorts.UPDATED ? undefined : chosenSort,
+      });
+    },
+  };
+
+  return { filters, sort };
+}

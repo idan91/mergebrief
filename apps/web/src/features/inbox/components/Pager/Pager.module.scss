@@ -1,0 +1,77 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .pager {
+    display: flex;
+    gap: var(--space-5);
+    align-items: center;
+    justify-content: space-between;
+    color: var(--color-text-2);
+    font-size: var(--font-size-lg);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .range {
+    white-space: nowrap;
+  }
+
+  .pages {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+  }
+
+  .page {
+    display: grid;
+    place-items: center;
+    min-inline-size: functions.to-rem(30px);
+    block-size: functions.to-rem(30px);
+    padding-inline: var(--space-2);
+    border: 1px solid var(--color-outline-2);
+    border-radius: var(--radius-m);
+    background: transparent;
+    color: var(--color-text-2);
+    cursor: pointer;
+    font: inherit;
+
+    svg {
+      inline-size: 14px;
+      block-size: 14px;
+    }
+
+    &:hover:not([aria-disabled="true"]) {
+      background: var(--color-surface-2);
+      color: var(--color-text-1);
+    }
+
+    &[aria-current="page"] {
+      border-color: color-mix(in srgb, var(--color-accent) 45%, transparent);
+      background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+      color: var(--color-accent);
+    }
+
+    &[aria-disabled="true"] {
+      cursor: default;
+      opacity: 0.4;
+    }
+
+    @include mixins.focus-visible;
+  }
+
+  .gap {
+    inline-size: functions.to-rem(24px);
+    text-align: center;
+  }
+
+  @media (width < 760px) {
+    .pager {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .pages {
+      justify-content: space-between;
+    }
+  }
+}

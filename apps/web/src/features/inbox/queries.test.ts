@@ -40,6 +40,7 @@ const WIRE_PAGE = {
   counts: { new: 1, inProgress: 0, reviewed: 0, updated: 0 },
   viewer: { login: "octocat", avatarUrl: "https://a/1" },
   reachableInstallations: [{ installationId: "10", accountLogin: "acme" }],
+  repositories: [{ repoId: "424242", repoSlug: "o/r" }],
 };
 
 function answerWith(status: number, body: unknown): void {

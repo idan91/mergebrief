@@ -2,6 +2,7 @@
 // any of these, Postgres or GitHub fails mid-operation instead of the route
 // refusing up front. The Inbox page size lives here too, a server fact the
 // client never sends.
+import { InboxQueryBounds } from "contract";
 import { isRepoId, type RepoId } from "persistence";
 import { z } from "zod";
 
@@ -30,11 +31,13 @@ export const commitShaSchema = z
 export const prNumberSchema = z.coerce.number().int().positive().max(MAX_INT4);
 
 /** Rows per Inbox page; the client asks for a page number, never a size. */
-export const INBOX_PAGE_SIZE = 25;
-/** Values one multi-select Inbox filter may carry. */
-export const MAX_INBOX_FILTER_VALUES = 100;
-/** The last page whose offset still fits `int4`. */
-export const MAX_INBOX_PAGE = Math.floor(MAX_INT4 / INBOX_PAGE_SIZE);
+export const INBOX_PAGE_SIZE = InboxQueryBounds.PAGE_SIZE;
+export const MAX_INBOX_FILTER_VALUES = InboxQueryBounds.MAX_FILTER_VALUES;
+/** The contract's number is the `int4` offset ceiling; this holds it to that. */
+export const MAX_INBOX_PAGE: number = Math.min(
+  InboxQueryBounds.MAX_PAGE,
+  Math.floor(MAX_INT4 / INBOX_PAGE_SIZE),
+);
 
 /** Brand a `:repoId` path segment; a malformed or oversized id is `undefined`. */
 export function parseRepoIdParam(raw: string | undefined): RepoId | undefined {

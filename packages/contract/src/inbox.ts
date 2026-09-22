@@ -25,6 +25,15 @@ export const InboxQueryKeys = {
 } as const;
 export type InboxQueryKey = ValueOf<typeof InboxQueryKeys>;
 
+/** The bounds both sides hold, so the client drops what the API would refuse. */
+export const InboxQueryBounds = {
+  PAGE_SIZE: 25,
+  /** Values one multi-valued filter may carry. */
+  MAX_FILTER_VALUES: 100,
+  /** The last page whose offset still fits Postgres's int4 at PAGE_SIZE rows. */
+  MAX_PAGE: 85_899_345,
+} as const;
+
 /** One numbered page. A page past the end carries no items and the true total. */
 export interface Page<Item> {
   readonly items: readonly Item[];
@@ -91,8 +100,17 @@ export interface ReachableInstallationView {
   readonly accountLogin: string;
 }
 
+/** One repository the viewer's rows name; the Repository filter lists these, unfiltered. */
+export interface InboxRepositoryView {
+  /** Stringified. */
+  readonly repoId: string;
+  readonly repoSlug: string | null;
+}
+
 export interface InboxResponse extends Page<InboxItem> {
   readonly counts: InboxCountsView;
   readonly viewer: ViewerView;
   readonly reachableInstallations: readonly ReachableInstallationView[];
+  /** Sorted by slug, each once, capped by the store; the Repository filter's whole vocabulary. */
+  readonly repositories: readonly InboxRepositoryView[];
 }

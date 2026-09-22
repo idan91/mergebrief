@@ -87,6 +87,11 @@
     gap: var(--space-5);
   }
 
+  .inbox {
+    display: grid;
+    gap: var(--space-4);
+  }
+
   @media (width < 760px) {
     .home {
       --home-gutter: var(--space-5);

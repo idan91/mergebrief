@@ -291,5 +291,15 @@ export type Catalog = typeof en & {
       stackChip: "{{index}} of {{size}}";
       stackChipLabel: "Place in a stack: {{index}} of {{size}}";
     };
+    filters: (typeof en)["home"]["filters"] & {
+      changed_one: "{{count}} changed";
+      changed_other: "{{count}} changed";
+      chosen_one: "{{count}} chosen";
+      chosen_other: "{{count}} chosen";
+    };
+    pager: (typeof en)["home"]["pager"] & {
+      range: "{{first}} to {{last}} of {{total}}";
+      page: "Page {{page}}";
+    };
   };
 };

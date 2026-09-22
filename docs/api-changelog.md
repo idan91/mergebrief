@@ -27,8 +27,10 @@ deprecation note here, removal only at a major.
   (`new`, `in-progress`, `reviewed`, `updated`), `author` (`mine`,
   `others`, `all`), `installation`. Each item carries `reviewState`,
   `behind`, `unreachable`, `generation`, `latestBriefAt`, `githubUpdatedAt`
-  and `stack`; the response carries `counts`, `viewer` and
-  `reachableInstallations`. A GitHub failure on the installations check
+  and `stack`; the response carries `counts`, `viewer`,
+  `reachableInstallations` and `repositories` (every repository the
+  viewer's rows name, unfiltered, sorted by slug, at most 100: the
+  Repository filter's vocabulary). A GitHub failure on the installations check
   fails the list with `github-unavailable`. Pasted-URL rows are read live
   first, for up to two seconds.
 - **Added** `DELETE /api/inbox/:repoId/:prNumber` (`delete-inbox-item`),

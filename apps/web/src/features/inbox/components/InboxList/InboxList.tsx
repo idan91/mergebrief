@@ -1,5 +1,11 @@
 import { useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useAnnouncer } from "@web/hooks/useAnnouncer";
 import { useTranslation } from "react-i18next";
 import type { InboxSort } from "types/inbox";
@@ -14,6 +20,8 @@ import { useInboxCursor } from "./useInboxCursor";
 export interface InboxListProps {
   items: readonly InboxItem[];
   sort: InboxSort;
+  /** The filters and the sort, on the heading's line. */
+  controls?: ReactNode;
 }
 
 /**
@@ -24,7 +32,7 @@ export interface InboxListProps {
  * nothing. The keyboard cursor counts rows straight through both sides,
  * and one live region below the list announces what a row action did.
  */
-export function InboxList({ items, sort }: InboxListProps) {
+export function InboxList({ items, sort, controls }: InboxListProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const firstLoad = useFirstLoad();
@@ -62,14 +70,17 @@ export function InboxList({ items, sort }: InboxListProps) {
 
   return (
     <section aria-labelledby="inbox-heading" className={styles["inbox"]}>
-      <h2
-        className={styles["heading"]}
-        id="inbox-heading"
-        ref={headingRef}
-        tabIndex={-1}
-      >
-        {t("home.inbox.heading")}
-      </h2>
+      <div className={styles["head"]}>
+        <h2
+          className={styles["heading"]}
+          id="inbox-heading"
+          ref={headingRef}
+          tabIndex={-1}
+        >
+          {t("home.inbox.heading")}
+        </h2>
+        {controls}
+      </div>
       <div className={styles["list"]} data-first-load={firstLoad}>
         {above.length === 0 ? null : (
           <ol className={styles["rows"]}>

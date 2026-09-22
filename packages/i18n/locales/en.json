@@ -1170,6 +1170,33 @@
         "deleteFailed": "Delete failed; the row is still here",
         "deleted": "Deleted"
       }
+    },
+    "filters": {
+      "filters": "Filters",
+      "changed_one": "{{count}} changed",
+      "changed_other": "{{count}} changed",
+      "chosen_one": "{{count}} chosen",
+      "chosen_other": "{{count}} chosen",
+      "clear": "Clear",
+      "status": "Status",
+      "repository": "Repository",
+      "review": "Review",
+      "author": "Author",
+      "installation": "Installation",
+      "sort": "Sort",
+      "authorEveryone": "Everyone",
+      "authorMine": "Mine",
+      "authorOthers": "Others",
+      "sortUpdated": "Recently updated",
+      "sortGenerated": "Recently generated",
+      "ariaLabelControls": "Filters and sort"
+    },
+    "pager": {
+      "ariaLabel": "Pages",
+      "range": "{{first}} to {{last}} of {{total}}",
+      "previous": "Previous page",
+      "next": "Next page",
+      "page": "Page {{page}}"
     }
   }
 }

@@ -1,7 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { InboxSorts } from "types/inbox";
 
 import { Button } from "@web/components/Button/Button";
 import { Header } from "@web/components/Header/Header";
@@ -10,25 +9,45 @@ import { buildViewerQueryOptions } from "../features/account/queries";
 import { LocalBriefsSection } from "@web/features/brief";
 import { buildLocalBriefsQueryOptions } from "../features/brief/queries";
 import { briefErrorDetail } from "@web/features/brief/utils";
-import { InboxList, PersonalLine, UrlBox } from "@web/features/inbox";
+import {
+  Controls,
+  InboxList,
+  Pager,
+  PersonalLine,
+  UrlBox,
+  useControlsFacade,
+  useInboxSearchState,
+} from "@web/features/inbox";
 import { buildInboxQueryOptions } from "../features/inbox/queries";
-import { InboxStates } from "../features/inbox/types";
+import {
+  countChangedFilters,
+  parseInboxSearch,
+  readInboxParams,
+} from "../features/inbox/search";
+import {
+  InboxStates,
+  type InboxPage,
+  type InboxSearch,
+} from "../features/inbox/types";
 import { appI18n } from "../i18n/I18nProvider";
 import { buildPageTitle } from "@web/utils/pageTitle";
 import styles from "./index.module.scss";
 import sharedStyles from "./routeShared.module.scss";
 
 const SIGN_IN_PATH = "/api/auth/github";
-const INBOX_PARAMS = {};
 
 export const Route = createFileRoute("/")({
+  // The list's state is the URL: unknown values drop, defaults are omitted.
+  validateSearch: (search: Record<string, unknown>): InboxSearch =>
+    parseInboxSearch(search),
+  loaderDeps: ({ search }) => readInboxParams(search),
   // The Inbox and the viewer prefetch in parallel through the in-process
   // apiFetch interface, the same authz gate the browser meets.
-  loader: async ({ context }) => {
+  loader: async ({ context, deps }) => {
     // The server render fails fast; the client's own refetch keeps the retries.
     const prefetches: Promise<unknown>[] = [
       context.queryClient.ensureQueryData({
-        ...buildInboxQueryOptions(INBOX_PARAMS),
+        ...buildInboxQueryOptions(deps),
         retry: false,
       }),
       context.queryClient
@@ -41,7 +60,7 @@ export const Route = createFileRoute("/")({
     if (!import.meta.env.PROD) {
       prefetches.push(
         context.queryClient
-          .ensureQueryData(buildInboxQueryOptions(INBOX_PARAMS))
+          .ensureQueryData(buildInboxQueryOptions(deps))
           .then((inbox) =>
             inbox.kind === InboxStates.READY
               ? context.queryClient.ensureQueryData(
@@ -64,19 +83,62 @@ export const Route = createFileRoute("/")({
 });
 
 function Home() {
-  const inbox = useSuspenseQuery(buildInboxQueryOptions(INBOX_PARAMS)).data;
+  const search = Route.useSearch();
+  const inbox = useSuspenseQuery(
+    buildInboxQueryOptions(readInboxParams(search)),
+  ).data;
 
   if (inbox.kind === InboxStates.SIGNED_OUT) return <SignedOutHome />;
+
+  return <SignedInHome page={inbox.page} search={search} />;
+}
+
+function SignedInHome({
+  page,
+  search,
+}: {
+  page: InboxPage;
+  search: InboxSearch;
+}) {
+  const state = useInboxSearchState(search, page.total, page.pageSize);
+  const controls = useControlsFacade(page, search, state.choices, state.write);
+  const changedCount = countChangedFilters(search);
+  const showControls = page.total > 0 || changedCount > 0;
 
   return (
     <>
       <Header end={<AccountMenu />} />
       <main className={styles["home"]} id="main-content" tabIndex={-1}>
         <div className={styles["lead"]}>
-          <PersonalLine counts={inbox.page.counts} />
+          <PersonalLine counts={page.counts} />
           <UrlBox />
         </div>
-        <InboxList items={inbox.page.items} sort={InboxSorts.UPDATED} />
+        <div className={styles["inbox"]}>
+          <InboxList
+            controls={
+              showControls ? (
+                <Controls
+                  changedCount={changedCount}
+                  filters={controls.filters}
+                  sort={controls.sort}
+                  onClear={state.clear}
+                />
+              ) : undefined
+            }
+            items={page.items}
+            sort={state.choices.sort}
+          />
+          <Pager
+            page={state.choices.page}
+            pageSize={page.pageSize}
+            total={page.total}
+            onPage={(next) =>
+              state.write((live) => ({
+                page: typeof next === "number" ? next : next(live.page),
+              }))
+            }
+          />
+        </div>
         {import.meta.env.PROD ? null : <LocalBriefsSection enabled />}
       </main>
     </>

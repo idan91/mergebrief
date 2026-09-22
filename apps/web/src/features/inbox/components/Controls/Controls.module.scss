@@ -1,0 +1,40 @@
+@layer components {
+  .controls {
+    display: flex;
+    flex: 1;
+    gap: var(--space-3);
+    align-items: center;
+    justify-content: space-between;
+    min-inline-size: 0;
+  }
+
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    align-items: center;
+  }
+
+  .end {
+    display: flex;
+    flex: none;
+    gap: var(--space-3);
+    align-items: center;
+  }
+
+  .clear {
+    font-size: var(--font-size-lg);
+  }
+
+  @media (width < 760px) {
+    .controls {
+      flex-basis: 100%;
+      flex-wrap: wrap;
+    }
+
+    .end {
+      flex-basis: 100%;
+      justify-content: flex-end;
+    }
+  }
+}

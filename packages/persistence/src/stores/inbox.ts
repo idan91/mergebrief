@@ -40,6 +40,9 @@ import {
   type ReviewerId,
 } from "../types";
 
+/** The Repository filter's vocabulary stops here; the URL may carry no more values anyway. */
+export const MAX_INBOX_REPOSITORIES = 100;
+
 export interface InboxFilters {
   /** Empty means every status. */
   readonly statuses: readonly InboxStatus[];
@@ -100,6 +103,12 @@ export interface InboxCounts {
   readonly updated: number;
 }
 
+/** One repository a viewable row names; the Repository filter's vocabulary. */
+export interface InboxRepository {
+  readonly repoId: RepoId;
+  readonly repoSlug: string | null;
+}
+
 export interface InboxPage {
   readonly items: readonly InboxRow[];
   readonly page: number;
@@ -108,30 +117,67 @@ export interface InboxPage {
   readonly total: number;
   /** The four review-state totals over every viewable row, unfiltered. */
   readonly counts: InboxCounts;
+  /** The repositories the viewable rows name, unfiltered, each once, sorted by slug, at most MAX_INBOX_REPOSITORIES. */
+  readonly repositories: readonly InboxRepository[];
 }
 
 export interface InboxStore {
   list(input: InboxListInput): Promise<InboxPage>;
 }
 
-interface StateGroup {
+/** One pass over the viewable rows, grouped by state and repository. */
+interface ViewableGroup {
   readonly state: string | null;
+  readonly repoId: RepoId;
+  readonly repoSlug: string | null;
   readonly rows: number;
+  readonly matching: number;
 }
 
-/** The four totals from one row per state; the viewer's own rows carry none. */
-function shapeCounts(groups: readonly StateGroup[]): InboxCounts {
+/** The four totals summed over the groups; the viewer's own rows carry none. */
+function shapeCounts(groups: readonly ViewableGroup[]): InboxCounts {
   const counts = { new: 0, inProgress: 0, reviewed: 0, updated: 0 };
   for (const group of groups) {
-    if (group.state === InboxReviewStates.NEW) counts.new = group.rows;
+    if (group.state === InboxReviewStates.NEW) counts.new += group.rows;
     if (group.state === InboxReviewStates.IN_PROGRESS) {
-      counts.inProgress = group.rows;
+      counts.inProgress += group.rows;
     }
-    if (group.state === InboxReviewStates.REVIEWED)
-      counts.reviewed = group.rows;
-    if (group.state === InboxReviewStates.UPDATED) counts.updated = group.rows;
+    if (group.state === InboxReviewStates.REVIEWED) {
+      counts.reviewed += group.rows;
+    }
+    if (group.state === InboxReviewStates.UPDATED) {
+      counts.updated += group.rows;
+    }
   }
   return counts;
+}
+
+/** Each repository once, a named slug winning over none, sorted by slug and capped. */
+function shapeRepositories(
+  groups: readonly ViewableGroup[],
+): readonly InboxRepository[] {
+  const byId = new Map<RepoId, InboxRepository>();
+  for (const group of groups) {
+    const known = byId.get(group.repoId);
+    if (
+      known === undefined ||
+      (known.repoSlug === null && group.repoSlug !== null)
+    ) {
+      byId.set(group.repoId, {
+        repoId: group.repoId,
+        repoSlug: group.repoSlug,
+      });
+    }
+  }
+  return [...byId.values()]
+    .toSorted((first, second) =>
+      readRepositoryLabel(first).localeCompare(readRepositoryLabel(second)),
+    )
+    .slice(0, MAX_INBOX_REPOSITORIES);
+}
+
+function readRepositoryLabel(repository: InboxRepository): string {
+  return repository.repoSlug ?? String(repository.repoId);
 }
 
 function isInboxReviewState(value: string): value is InboxReviewState {
@@ -457,23 +503,26 @@ export function createInboxStore(handle: AppDatabase): InboxStore {
       const page = buildViewable(db, input, facts, rowFilters, true);
       const listQuery = buildListQuery(db, input, page);
 
-      // One pass over every viewable row answers the four state counts and
-      // the filtered total together, whatever page was asked for.
+      // One pass over every viewable row answers the four state counts, the
+      // filtered total and the repository vocabulary together, whatever
+      // page was asked for.
       const viewable = buildViewable(db, input, facts, rowFilters, false);
       const matches = and(
         viewable.matchesRows,
         buildStateFilter(input, viewable.reviewState),
       );
-      const countsQuery = db
+      const groupsQuery = db
         .select({
           state: viewable.reviewState,
+          repoId: viewable.repoId,
+          repoSlug: sql<string | null>`max(${viewable.repoSlug})`,
           rows: sql<number>`count(*)::int`,
           matching: sql<number>`count(*) filter (where ${matches})::int`,
         })
         .from(viewable)
-        .groupBy(viewable.reviewState);
+        .groupBy(viewable.reviewState, viewable.repoId);
 
-      const [rows, grouped] = await Promise.all([listQuery, countsQuery]);
+      const [rows, grouped] = await Promise.all([listQuery, groupsQuery]);
       const stacks = await readStacks(db, rows);
 
       return {
@@ -482,6 +531,7 @@ export function createInboxStore(handle: AppDatabase): InboxStore {
         pageSize: input.pageSize,
         total: grouped.reduce((sum, group) => sum + group.matching, 0),
         counts: shapeCounts(grouped),
+        repositories: shapeRepositories(grouped),
       };
     },
   };
