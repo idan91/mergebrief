@@ -18,6 +18,7 @@ import {
   createReviewSessionRepository,
 } from "./review-session";
 import { resolveScope } from "./scope";
+import type { LiveReadStamp } from "./live-read";
 import type { ScopeContext } from "./scope-context";
 import {
   type GrantRowId,
@@ -131,6 +132,11 @@ interface BasePullRequestUpsertInput {
    * stored value.
    */
   readonly githubUpdatedAt?: Date;
+  /**
+   * A paste is a live read: stamp when GitHub answered and the head it
+   * reported, and clear any unreachable mark. Webhook events carry none.
+   */
+  readonly liveRead?: LiveReadStamp;
 }
 
 export type PullRequestUpsertInput = BasePullRequestUpsertInput &
@@ -152,6 +158,19 @@ export type PullRequestStatePatch = PullRequestLifecycle;
  * input field preserves the stored value.
  */
 export type PullRequestUpdateSet = PgUpdateSetSource<typeof pullRequest>;
+
+/** The three live-read columns a stamp writes; the unreachable mark clears. */
+export function buildLiveReadColumns(stamp: LiveReadStamp): {
+  githubReadAt: Date;
+  githubHeadSha: string;
+  githubUnreachableAt: null;
+} {
+  return {
+    githubReadAt: stamp.readAt,
+    githubHeadSha: stamp.headSha,
+    githubUnreachableAt: null,
+  };
+}
 
 export function buildLifecycleColumns(lc: PullRequestLifecycle): {
   state: PrState;
@@ -321,6 +340,9 @@ export function createTenantRepository(
       if (input.githubUpdatedAt !== undefined) {
         set.githubUpdatedAt = input.githubUpdatedAt;
       }
+      if (input.liveRead !== undefined) {
+        Object.assign(set, buildLiveReadColumns(input.liveRead));
+      }
       const insert = db.insert(pullRequest).values({
         installationId: scope.installationId,
         ownerUserId: scope.ownerUserId,
@@ -333,6 +355,8 @@ export function createTenantRepository(
         draft: input.draft,
         authorLogin: input.authorLogin,
         githubUpdatedAt: input.githubUpdatedAt,
+        githubReadAt: input.liveRead?.readAt,
+        githubHeadSha: input.liveRead?.headSha,
         ...lifecycle,
         updatedAt: new Date(),
       });

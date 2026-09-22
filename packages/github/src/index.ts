@@ -130,6 +130,12 @@ export type {
   CompareDiffRef,
   CommitRef,
 } from "./operations/pull-request";
+export {
+  getLiveReadKey,
+  LIVE_READ_PAGE_SIZE,
+  readPullRequestFacts,
+} from "./operations/live-read";
+export type { LiveReadPage, PullRequestFacts } from "./operations/live-read";
 export { fetchIssue } from "./operations/issue";
 export type { IssueInfo, IssueRef } from "./operations/issue";
 

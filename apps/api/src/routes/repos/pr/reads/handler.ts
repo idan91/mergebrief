@@ -4,6 +4,7 @@ import {
   createArtifactStore,
   createGenerationProjection,
   createTenantRepository,
+  isOwnerContext,
 } from "persistence";
 import type { AppDatabase } from "persistence";
 import { DEFAULT_DRAFT_POLICY } from "../../../../draft-policy";
@@ -17,6 +18,7 @@ import {
 import { createReviewerGitHubClient } from "../../../auth/reviewer-github-client";
 import type { AuthRouteDeps } from "../../../auth/session/types";
 import { readFallbackTokenFor, type AuthzEnv } from "../../../authz";
+import { refreshUrlPullRequest } from "../../../live-read";
 import type { OpenPullRequest } from "github";
 import type { TtlCache } from "../../../ttl-cache";
 import readsController from "./controller";
@@ -145,6 +147,26 @@ export default function createHandlers(
   const readPull = async (c: Context<AuthzEnv>) => {
     const prNumber = parsePrNumber(c);
     const ctx = await resolvePrScopeFrom(c, deps.handle, prNumber);
+    // A url row is read live before it is served, under the same window as
+    // the Inbox, so a reader arriving from a bookmark sees the same facts.
+    if (isOwnerContext(ctx)) {
+      await refreshUrlPullRequest(
+        {
+          handle: deps.handle,
+          github: createReviewerGitHubClient(
+            deps,
+            c.get("session"),
+            c.get("logger"),
+          ),
+          fallbackToken: readFallbackTokenFor(c, deps),
+          log: c.get("logger"),
+        },
+        ctx.ownerUserId,
+        c.get("repoId"),
+        prNumber,
+        c.get("repoFullName"),
+      );
+    }
     const body = await readsController.readPullMeta(
       {
         tenant: createTenantRepository(deps.handle, ctx),

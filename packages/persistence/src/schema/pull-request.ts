@@ -65,6 +65,16 @@ export const pullRequest = pgTable(
      * this one, so a late delivery cannot roll the row back.
      */
     githubUpdatedAt: timestamp("github_updated_at", { withTimezone: true }),
+    /**
+     * The live read, for url rows only: when GitHub last answered for this
+     * row, the head it reported, and when it first stopped showing the row
+     * to the owner. All null for installation rows and before the first read.
+     */
+    githubReadAt: timestamp("github_read_at", { withTimezone: true }),
+    githubHeadSha: text("github_head_sha"),
+    githubUnreachableAt: timestamp("github_unreachable_at", {
+      withTimezone: true,
+    }),
     closedAt: timestamp("closed_at", { withTimezone: true }),
     /** Nullable: null while open or when retention is "never". */
     purgeAfter: timestamp("purge_after", { withTimezone: true }),

@@ -61,6 +61,7 @@ export async function scheduleUrlBoxRegeneration(
     title: info.title,
     baseSha: info.baseSha,
     draft: info.draft,
+    liveRead: { readAt: new Date(), headSha: info.headSha },
     ...buildLifecycle(info),
   };
   if (info.authorLogin !== null) {

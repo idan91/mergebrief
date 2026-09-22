@@ -87,6 +87,13 @@ export type {
 // coordinates (instance visibility). Returns an owner to bind a ctx to,
 // never a row.
 export { resolveUrlBoxOwner } from "./stores/url-box";
+export { createLiveReadStore } from "./stores/live-read";
+export type {
+  LiveReadDueInput,
+  LiveReadFacts,
+  LiveReadStamp,
+  LiveReadStore,
+} from "./stores/live-read";
 
 // The Review Session surface. The factory itself is NOT exported; it is
 // reachable only as `createTenantRepository(...).reviewSessions`, so a caller cannot hold

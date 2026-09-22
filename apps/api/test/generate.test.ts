@@ -32,6 +32,7 @@ const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
 const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 const PR_URL = "https://github.com/o/r/pull/7";
 const HEAD = "a".repeat(40);
+const LIVE_HEAD = "c".repeat(40);
 const BASE = "b".repeat(40);
 const REPO_ID = 424242;
 
@@ -97,6 +98,8 @@ interface PrEndpointScript {
 
 interface FetchCounts {
   prCallTokens: string[];
+  /** GraphQL reads, the live read's calls. */
+  graphqlCalls: number;
 }
 
 function prJson(script: PrEndpointScript): unknown {
@@ -119,7 +122,7 @@ function prJson(script: PrEndpointScript): unknown {
 }
 
 function stubGitHub(script: PrEndpointScript = {}): FetchCounts {
-  const counts: FetchCounts = { prCallTokens: [] };
+  const counts: FetchCounts = { prCallTokens: [], graphqlCalls: 0 };
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: unknown, init?: RequestInit) => {
@@ -152,6 +155,34 @@ function stubGitHub(script: PrEndpointScript = {}): FetchCounts {
       const membership = answerInstallationRepositories(url, [REPO_ID]);
       if (membership !== undefined) {
         return membership;
+      }
+      if (url.endsWith("/graphql")) {
+        counts.graphqlCalls += 1;
+        return new Response(
+          JSON.stringify({
+            data: {
+              p0: {
+                databaseId: REPO_ID,
+                nameWithOwner: "o/r",
+                pullRequest: {
+                  state: "OPEN",
+                  isDraft: false,
+                  title: "Live title",
+                  closedAt: null,
+                  updatedAt: "2026-09-20T10:00:00Z",
+                  headRefOid: LIVE_HEAD,
+                },
+              },
+            },
+          }),
+          {
+            status: 200,
+            headers: {
+              "content-type": "application/json; charset=utf-8",
+              date: new Date().toUTCString(),
+            },
+          },
+        );
       }
       if (url.includes("/repositories/")) {
         return new Response(
@@ -281,6 +312,11 @@ describe("POST /api/generate: the url-box door", () => {
       "select status, head_sha from generation",
     );
     expect(generations).toEqual([{ status: "pending", head_sha: HEAD }]);
+    // The paste is the row's first live read.
+    const stamps = await harness.raw(
+      "select github_head_sha, github_read_at is not null as read from pull_request",
+    );
+    expect(stamps).toEqual([{ github_head_sha: HEAD, read: true }]);
 
     const jobs = await harness.raw(
       "select payload, run_at from graphile_worker.jobs where task_identifier = 'generate'",
@@ -364,6 +400,32 @@ describe("POST /api/generate: the url-box door", () => {
       briefAvailable: false,
       generation: { status: "pending" },
     });
+  });
+
+  it("opening a url brief reads GitHub live once the row is stale", async () => {
+    const counts = stubGitHub();
+    const cookie = await seedSession(harness.handle, kp);
+    const app = buildApp();
+    expect((await post(app, cookie, PR_URL)).status).toBe(200);
+
+    const fresh = await app.request(`/api/repos/${REPO_ID}/pulls/7`, {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
+    expect(fresh.status).toBe(200);
+    expect(counts.graphqlCalls).toBe(0);
+
+    await harness.raw(
+      "update pull_request set github_read_at = now() - interval '10 minutes'",
+    );
+    const stale = await app.request(`/api/repos/${REPO_ID}/pulls/7`, {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
+    expect(stale.status).toBe(200);
+    expect(counts.graphqlCalls).toBe(1);
+    const rows = await harness.raw(
+      "select title, github_head_sha from pull_request",
+    );
+    expect(rows).toEqual([{ title: "Live title", github_head_sha: LIVE_HEAD }]);
   });
 
   it("when BOTH worlds hold the row, the tenant world wins the read-back", async () => {

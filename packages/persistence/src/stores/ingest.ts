@@ -17,6 +17,7 @@ import { pullRequest } from "../schema/pull-request";
 import { getGenerateJobKey, type GenerationRow } from "./generation";
 import {
   buildLifecycleColumns,
+  buildLiveReadColumns,
   type PullRequestRow,
   type PullRequestUpdateSet,
   type PullRequestUpsertInput,
@@ -147,6 +148,9 @@ async function upsertPullRequestRow(
   if (input.githubUpdatedAt !== undefined) {
     set.githubUpdatedAt = input.githubUpdatedAt;
   }
+  if (input.liveRead !== undefined) {
+    Object.assign(set, buildLiveReadColumns(input.liveRead));
+  }
   const insert = executor.insert(pullRequest).values({
     installationId: scope.installationId,
     ownerUserId: scope.ownerUserId,
@@ -159,6 +163,8 @@ async function upsertPullRequestRow(
     draft: input.draft,
     authorLogin: input.authorLogin,
     githubUpdatedAt: input.githubUpdatedAt,
+    githubReadAt: input.liveRead?.readAt,
+    githubHeadSha: input.liveRead?.headSha,
     ...lifecycle,
     updatedAt: new Date(),
   });

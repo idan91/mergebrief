@@ -171,8 +171,24 @@ The private (per reviewer × PR) workspace where the reviewer thinks, drafts, as
 _Avoid_: Mind-Map Space (retired 2026-08-17), workspace, scratchpad, draft space
 
 **Installation**:
-One install of the MergeBrief GitHub App on one GitHub organization or user account. A repository belongs to exactly one Installation. A **Reviewer** can reach several; every request finds its Installation from the repository it names, and no credential holds a current one.
+One install of the MergeBrief GitHub App on one GitHub organization or user account. A repository belongs to exactly one Installation. A **Reviewer** can reach several; every request finds its Installation from the repository it names, and no credential holds a current one. As a **Source** value (stored `installation`, key `INSTALLATION`): a pull request reported by the App's webhooks, belonging to an Installation.
 _Avoid_: tenant (the API's storage noun), org (GitHub's word; an Installation can sit on a user account), workspace
+
+**Source**:
+Which way a pull request entered MergeBrief: **Installation** or **URL**. Column `source`, map `PullRequestSources`.
+_Avoid_: world, door, origin (collides with **Generation origin**)
+
+**URL**:
+A **Source** value (stored `url`, key `URL`): a pull request one **Reviewer** added by pasting its URL. It belongs to that reviewer and no webhook reports on it. "Box" names a spot on the screen, not a concept; the input on Home gets no term.
+_Avoid_: pasted-URL, url-box, twin
+
+**Live read**:
+Reading a **URL** pull request's facts from GitHub at request time: at paste, on Inbox load, on Brief open. A row read within the last five minutes is not read again; a merged one never is.
+_Avoid_: refresh (means token refresh), sync (GitHub's push action), status check (GitHub's CI term)
+
+**Unreachable**:
+A **URL** pull request GitHub no longer shows to this reviewer. The row and its **Brief** stay, its facts stop updating, and Delete stays available.
+_Avoid_: stale (means newer commits exist)
 
 **Trigger**:
 What causes a **Brief** to compute: eager-on-push, debounced (~60s from the first push, which fixes the start time; later pushes only swap the head), on PR-open (first push) and every subsequent push — including while the PR is a draft. No lazy "compute-on-first-click" gate; spend is bounded by debounce + **Triage** + skipping trivial/instantly-closed PRs, not by withholding compute. **Delta Briefs** are per-reviewer (from each reviewer's **Checkpoint**), not a push-triggered recompute.

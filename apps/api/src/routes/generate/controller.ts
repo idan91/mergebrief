@@ -9,15 +9,11 @@ import {
   type GitHubApiError,
   type PullRequestInfo,
 } from "github";
-import {
-  createIngestRoutines,
-  PrStates,
-  type PullRequestLifecycle,
-  type ReviewerId,
-} from "persistence";
+import { createIngestRoutines, type ReviewerId } from "persistence";
 import type { Result } from "types/utils";
 import { isGitHubDenial } from "../../shared-errors/failures";
 import type { ReviewerTokenFailure } from "../auth/reviewer-github-client";
+import { deriveLifecycle } from "../live-read/logic/lifecycle";
 import type {
   GenerateControllerDeps,
   GenerateFailure,
@@ -34,29 +30,6 @@ type GenerateBriefResult = Result<GenerateOutcome, GenerateFailure>;
 
 interface GenerateBriefInput {
   readonly locator: PrLocator;
-}
-
-/**
- * The PR lifecycle as the live GitHub read reports it. Unlike the webhook
- * door, terminal states are first-class here; briefing a merged PR is the
- * url-box's primary use.
- */
-function buildLifecycle(info: PullRequestInfo): PullRequestLifecycle {
-  if (info.merged) {
-    return {
-      state: PrStates.MERGED,
-      closedAt: info.closedAt ?? new Date(),
-      purgeAfter: null,
-    };
-  }
-  if (info.state === "closed") {
-    return {
-      state: PrStates.CLOSED,
-      closedAt: info.closedAt ?? new Date(),
-      purgeAfter: null,
-    };
-  }
-  return { state: PrStates.OPEN };
 }
 
 /**
@@ -125,6 +98,9 @@ export default {
     // the binding the worker cannot verify is minted here, nowhere else.
     const principal = deps.github.session();
     const ownerUserId: ReviewerId = principal.reviewerId;
+    // The paste is a live read: the row carries when GitHub answered and
+    // the head it reported, so the Inbox needs no read of its own for it.
+    const readAt = new Date();
     const prFields = {
       repoId: info.repoId,
       prNumber: input.locator.number,
@@ -132,15 +108,13 @@ export default {
       title: info.title,
       baseSha: info.baseSha,
       draft: info.draft,
+      liveRead: { readAt, headSha: info.headSha },
     };
+    const lifecycle = deriveLifecycle(info, readAt);
     const pullRequestInput =
       info.authorLogin === null
-        ? { ...prFields, ...buildLifecycle(info) }
-        : {
-            ...prFields,
-            authorLogin: info.authorLogin,
-            ...buildLifecycle(info),
-          };
+        ? { ...prFields, ...lifecycle }
+        : { ...prFields, authorLogin: info.authorLogin, ...lifecycle };
     const outcome = await createIngestRoutines(deps.handle, {
       ownerUserId,
     }).triggerGeneration({
