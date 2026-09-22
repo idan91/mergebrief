@@ -1,18 +1,21 @@
 @use "functions";
 
 @layer components {
-  // Full-bleed so the glow is the page's, with the column held by the gutter.
+  .page {
+    flex: 1;
+    background: radial-gradient(
+        880px 420px at 32% -60px,
+        color-mix(in srgb, var(--color-accent) 11%, transparent),
+        transparent 70%
+      )
+      no-repeat;
+  }
+
   .home {
     display: grid;
     gap: var(--space-8);
     padding-block: var(--space-8) functions.to-rem(140px);
     padding-inline: var(--page-gutter);
-    background: radial-gradient(
-        880px 420px at 40% -120px,
-        color-mix(in srgb, var(--color-accent) 11%, transparent),
-        transparent 70%
-      )
-      no-repeat;
   }
 
   .lead {

@@ -157,7 +157,7 @@ export interface HomeShellProps {
 /** The one-tier Header over the full-bleed Home column, whatever the state. */
 function HomeShell({ children, shortcuts }: HomeShellProps) {
   return (
-    <>
+    <div className={styles["page"]}>
       <Header end={<AccountMenu onOpenShortcuts={shortcuts?.open} />} />
       <main className={styles["home"]} id="main-content" tabIndex={-1}>
         {children}
@@ -169,7 +169,7 @@ function HomeShell({ children, shortcuts }: HomeShellProps) {
           sections={HOME_SHORTCUTS}
         />
       )}
-    </>
+    </div>
   );
 }
 
