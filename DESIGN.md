@@ -4,16 +4,16 @@ description: A warm, dark reading surface for understanding a pull request befor
 colors:
   accent: "#fadcba"
   accent-ink: "#24180a"
-  ground: "#120f0d"
-  surface-1: "#171513"
-  surface-2: "#1f1c19"
+  ground: "#120f0c"
+  surface-1: "#181512"
+  surface-2: "#1f1c18"
   surface-3: "#292522"
   text-1: "#efeae5"
-  text-read: "#cfc9c4"
-  text-2: "#a6a09a"
-  text-3: "#9c968f"
+  text-read: "#cecac5"
+  text-2: "#a5a19c"
+  text-3: "#9a9692"
   line: "#221f1b"
-  line-strong: "#34302b"
+  line-strong: "#33302c"
   state-open: "#7fd1a0"
   state-merged: "#b9a0e0"
   state-closed: "#ec8a8a"
@@ -110,7 +110,7 @@ components:
 
 # Design System: MergeBrief
 
-Status: chosen on a throwaway prototype of Home, not yet built. Home leads this language and the Brief page follows it. The hue of the accent and of the warm greys is provisional until brand colours are picked; everything else here is decided. The hex values above are what the hue renders today; the source of truth is three numbers in `apps/web/src/styles/tokens.scss`.
+Status: chosen on a throwaway prototype of Home, not yet built. Home leads this language and the Brief page follows it. The hue of the accent and of the warm greys is provisional until brand colours are picked; everything else here is decided. The hex values above are what the hue renders today; the source of truth is four numbers in `apps/web/src/styles/tokens.scss`.
 
 ## Overview
 
@@ -140,13 +140,13 @@ Warm, low-chroma greys under one light peach accent. State colours keep a fixed 
 
 ### Neutral
 
-- **Ground** (#120f0d): the page.
-- **Surface 1, 2, 3** (#171513, #1f1c19, #292522): the list, then hover and the URL box, then menus, the keyboard cursor row and the focused URL box.
+- **Ground** (#120f0c): the page.
+- **Surface 1, 2, 3** (#181512, #1f1c18, #292522): the list, then hover and the URL box, then menus, the keyboard cursor row and the focused URL box.
 - **Text 1** (#efeae5): titles that need the reviewer, headings.
-- **Text Read** (#cfc9c4): titles already reviewed, chip text.
-- **Text 2** (#a6a09a): the second line of a row, labels, quiet icons.
-- **Text 3** (#9c968f): placeholder text and unreachable rows. The floor for readable text.
-- **Line, Line Strong** (#221f1b, #34302b): row dividers and the list edge, then control borders.
+- **Text Read** (#cecac5): titles already reviewed, chip text.
+- **Text 2** (#a5a19c): the second line of a row, labels, quiet icons.
+- **Text 3** (#9a9692): placeholder text and unreachable rows. The floor for readable text.
+- **Line, Line Strong** (#221f1b, #33302c): row dividers and the list edge, then control borders.
 
 ### State (fixed meaning, hue may be tuned)
 
@@ -156,11 +156,11 @@ Warm, low-chroma greys under one light peach accent. State colours keep a fixed 
 
 **The Light Accent Rule.** The accent is always light: it is used as a fill under dark text and as small marks on a dark page. It reads as a light, not a paint: high lightness and low chroma, a warm white with a hue rather than a saturated colour. A dark or heavily saturated brand colour needs a lighter partner for the interface.
 
-**The One Hue Rule.** The theme is three numbers in `tokens.scss`: `--brand-hue`, and the accent's `--accent-l` and `--accent-c`. The accent and every grey derive from the hue in OKLCH at fixed lightness steps, so changing the hue moves the whole palette together and every contrast holds. Nothing else in the app states the hue.
+**The One Hue Rule.** The theme is four numbers in `tokens.scss`: `--brand-hue`, the accent's `--accent-l` and `--accent-c`, and the greys' `--gray-c`. The accent and every grey derive from the hue in OKLCH at fixed lightness steps, so changing the hue moves the whole palette together and every contrast holds. Nothing else in the app states the hue.
 
 **The Four Lanes Rule.** Green, violet, red and amber belong to states. A brand hue inside one of them reads as a state. The free lanes are blue to cyan, pink to magenta, and orange to peach.
 
-**The Tinted Grey Rule.** Greys carry the accent's hue at very low chroma. When the brand hue changes, the greys move with it, at the same lightness, so contrast holds. In OKLCH: ground 0.172, surfaces 0.198, 0.228 and 0.268, lines 0.24 and 0.31, the ghost separator 0.329, text 0.94, 0.84, 0.71 and 0.675, accent 0.91 at chroma 0.055.
+**The Tinted Grey Rule.** Greys carry the accent's hue at one very low chroma, `--gray-c` (0.008; the ghost separator doubles it). When the brand hue changes, the greys move with it, at the same lightness, so contrast holds; a hue whose tint reads too strong on the greys turns `--gray-c` down, and 0 makes every grey neutral without touching the accent. In OKLCH: ground 0.172, surfaces 0.198, 0.228 and 0.268, lines 0.24 and 0.31, the ghost separator 0.329, text 0.94, 0.84, 0.71 and 0.675, accent 0.91 at chroma 0.055.
 
 **Contrast.** Text is 5:1 or better on every surface it sits on, and 5.5:1 or better on the page and the list; icons and state marks 3:1 or better. One deliberate exception: the URL box edge at rest is about 1.4:1, and the link icon, the placeholder and the slash key mark the field instead. Focus always shows a 2px accent ring.
 
