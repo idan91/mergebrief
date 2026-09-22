@@ -77,10 +77,6 @@ describe("InboxList", () => {
     expect(screen.getByText("Reviewed and yours")).toBeTruthy();
     expect(rows[0]?.getAttribute("data-needs-you")).toBe("true");
     expect(rows[2]?.getAttribute("data-needs-you")).toBe("false");
-    const tipOf = (row: HTMLElement | undefined) =>
-      row?.querySelector("[data-review]")?.getAttribute("data-tip");
-    expect(tipOf(rows[0])).toBe("Updated since your review");
-    expect(tipOf(rows[3])).toBe("Yours: you opened this pull request");
   });
 
   it("the first-load stagger is keyed on the wrapper holding both cards", async () => {

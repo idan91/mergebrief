@@ -8,6 +8,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { CALLOUT_HOVER_DELAY_MS } from "../Callout/consts";
 import { IconButton } from "./IconButton";
 
 afterEach(() => {
@@ -19,7 +20,7 @@ afterEach(() => {
 function restPointer(button: HTMLElement): void {
   fireEvent.pointerEnter(button);
   act(() => {
-    vi.advanceTimersByTime(400);
+    vi.advanceTimersByTime(CALLOUT_HOVER_DELAY_MS);
   });
 }
 
@@ -127,11 +128,11 @@ describe("IconButton", () => {
 
     fireEvent.pointerEnter(button);
     act(() => {
-      vi.advanceTimersByTime(200);
+      vi.advanceTimersByTime(CALLOUT_HOVER_DELAY_MS / 2);
     });
     fireEvent.pointerLeave(button);
     act(() => {
-      vi.advanceTimersByTime(400);
+      vi.advanceTimersByTime(CALLOUT_HOVER_DELAY_MS);
     });
     expect(screen.queryByRole("tooltip")).toBeNull();
 

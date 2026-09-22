@@ -1,11 +1,12 @@
 import type { Placement } from "@floating-ui/react";
 import type { ComponentPropsWithRef, MouseEvent } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import type { ValueOf } from "types/utils";
 import clsx from "clsx";
 
 import { useMergedRef } from "@web/hooks/useMergedRef";
 import { Callout } from "../Callout/Callout";
+import { useCalloutHover } from "../Callout/useCalloutHover";
 import styles from "./IconButton.module.scss";
 
 export const IconButtonVariants = {
@@ -20,9 +21,6 @@ export const IconButtonSizes = {
   LG: "lg",
 } as const;
 export type IconButtonSize = ValueOf<typeof IconButtonSizes>;
-
-/** A pointer resting on the control this long earns the callout; focus shows it at once. */
-const CALLOUT_HOVER_DELAY_MS = 350;
 
 export type IconButtonBaseProps = {
   /**
@@ -65,9 +63,7 @@ export function IconButton(props: IconButtonProps) {
     ...rest
   } = props;
   const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
-  const [calloutOpen, setCalloutOpen] = useState(false);
-  const hoverTimer = useRef<number | undefined>(undefined);
-  useEffect(() => () => window.clearTimeout(hoverTimer.current), []);
+  const hover = useCalloutHover();
   const attachRef = useMergedRef(
     callout !== undefined ? setAnchor : undefined,
     ref,
@@ -95,39 +91,33 @@ export function IconButton(props: IconButtonProps) {
         type={type}
         onBlur={(event) => {
           if (callout !== undefined) {
-            setCalloutOpen(false);
+            hover.close();
           }
           onBlur?.(event);
         }}
         onClick={handleClick}
         onFocus={(event) => {
           if (callout !== undefined) {
-            setCalloutOpen(true);
+            hover.show();
           }
           onFocus?.(event);
         }}
         onPointerEnter={(event) => {
-          if (callout !== undefined) {
-            window.clearTimeout(hoverTimer.current);
-            hoverTimer.current = window.setTimeout(
-              () => setCalloutOpen(true),
-              CALLOUT_HOVER_DELAY_MS,
-            );
-          }
+          if (callout !== undefined) hover.arm(event);
           onPointerEnter?.(event);
         }}
         onPointerLeave={(event) => {
-          window.clearTimeout(hoverTimer.current);
+          hover.disarm();
           onPointerLeave?.(event);
         }}
       />
-      {callout !== undefined && calloutOpen && anchor ? (
+      {callout !== undefined && hover.open && anchor ? (
         <Callout
           anchor={anchor}
           compact
           fit
           placement={callout}
-          onClose={() => setCalloutOpen(false)}
+          onClose={hover.close}
         >
           <Callout.Title>{label}</Callout.Title>
         </Callout>

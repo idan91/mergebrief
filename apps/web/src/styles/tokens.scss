@@ -195,9 +195,8 @@
     --space-9: #{functions.to-rem(64px)};
 
     // ── Motion ───────────────────────────────────────────────────────────
-    // Durations, one delay and two curves; keyboard movement never animates.
+    // Three durations and two curves; keyboard movement never animates.
     --motion-fast: 120ms;
-    --callout-delay: 350ms; // a callout waits this long before it fades in
     --motion-base: 180ms;
     --motion-slow: 320ms;
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);

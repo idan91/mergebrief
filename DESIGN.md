@@ -259,11 +259,11 @@ Small, consistent corners: 4px for key caps and callouts, 5px for chips, 8px for
 ### Menus and callouts
 
 - **Menu:** Surface 3, Line Strong border, 10px corner. Opens from its trigger: opacity and scale from 0.97 over 180ms, ease-out. A menu that stays open while its content changes does not replay its entrance.
-- **Callout:** hover only, after 350ms, opacity only. It takes no space when hidden.
+- **Callout:** opens after a 350ms pointer rest, or at once on focus where the anchor is focusable; a touch never opens it by hover. The shared Callout enters with opacity and a 4px slide over 140ms and takes no space when hidden; the SegmentedControl's own instant tip on the Brief page has not moved onto it yet.
 
 ### Motion
 
-Durations 120, 180 and 320ms, and a 350ms delay before a callout. Easing `cubic-bezier(0.23, 1, 0.32, 1)` for entrances and `cubic-bezier(0.77, 0, 0.175, 1)` for on-screen movement. On first load rows fade up 6px with a 30ms stagger, capped at twelve rows. Page change, sort, filter and keyboard movement never animate. Reduced motion keeps opacity changes only.
+Durations 120, 180 and 320ms, the shared Callout's 140ms entrance, and a 350ms rest before a callout. Easing `cubic-bezier(0.23, 1, 0.32, 1)` for entrances and `cubic-bezier(0.77, 0, 0.175, 1)` for on-screen movement. On first load rows fade up 6px with a 30ms stagger, capped at twelve rows. Page change, sort, filter and keyboard movement never animate. Reduced motion keeps opacity changes only.
 
 ## Do's and Don'ts
 
