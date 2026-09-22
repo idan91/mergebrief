@@ -334,7 +334,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
       {
         operation: "set-chunk-read",
         installation_id: null,
-        source: "url-box",
+        source: "url",
       },
     ]);
   });

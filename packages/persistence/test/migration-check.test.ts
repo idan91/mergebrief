@@ -1,13 +1,13 @@
 // Check-only ledger comparison (`MERGEBRIEF_AUTO_MIGRATE=false`).
 // The check reads `drizzle.__drizzle_migrations` and compares against the
-// checked-in `drizzle/meta/_journal.json` — read-only, for deployments whose
+// checked-in `drizzle/meta/_journal.json`, read-only, for deployments whose
 // runtime role has no DDL. Matrix: current / behind / ahead-of-journal /
 // virgin database (no ledger table at all).
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { PGlite } from "@electric-sql/pglite";
-import { describe, expect, it, onTestFinished } from "vitest";
+import type { PGlite } from "@electric-sql/pglite";
+import { describe, expect, it } from "vitest";
 import {
   checkAppSchemaWith,
   ensureAppSchema,
@@ -15,9 +15,9 @@ import {
   type SchemaCheckError,
   type SchemaQueryExecutor,
 } from "../src/db/migrate";
-import { freshPglite } from "./helpers";
+import { freshPglite, virginPglite } from "./helpers";
 
-/** Journal entry count read straight from the checked-in file — the
+/** Journal entry count read straight from the checked-in file, the
  * independent source of truth the virgin-database case is judged against. */
 function journalEntryCount(): number {
   const journalPath = join(
@@ -40,23 +40,14 @@ function executorFor(client: PGlite): SchemaQueryExecutor {
   return async (sql) => (await client.query<Record<string, unknown>>(sql)).rows;
 }
 
-/** A virgin PGlite — NO migrations applied, no drizzle ledger. */
-async function virginPglite(): Promise<PGlite> {
-  const client = new PGlite();
-  onTestFinished(async () => {
-    if (!client.closed) await client.close();
-  });
-  return client;
-}
-
-describe("migration check — checkAppSchemaWith", () => {
-  it("passes on a fully migrated database (current)", async () => {
+describe("migration check checkAppSchemaWith", () => {
+  it("passes on a fully migrated database", async () => {
     const client = await freshPglite();
     const result = await checkAppSchemaWith(executorFor(client));
     expect(result.ok).toBe(true);
   });
 
-  it("refuses a behind database with the pending count and the manual command", async () => {
+  it("refuses a behind database with the pending count and the command", async () => {
     const client = await freshPglite();
     // Rewind the ledger by two: the two newest checked-in migrations become
     // pending from the checker's point of view.
@@ -79,7 +70,7 @@ describe("migration check — checkAppSchemaWith", () => {
     expect(result.error.message).toContain("MERGEBRIEF_AUTO_MIGRATE");
   });
 
-  it("treats a virgin database (no ledger table) as fully behind", async () => {
+  it("treats a virgin database with no ledger table as fully behind", async () => {
     const client = await virginPglite();
     const result = await checkAppSchemaWith(executorFor(client));
     expect(result.ok).toBe(false);
@@ -87,7 +78,7 @@ describe("migration check — checkAppSchemaWith", () => {
     expect(result.error.pendingCount).toBe(journalEntryCount());
   });
 
-  it("passes a database ahead of the checked-in journal (newer code migrated it)", async () => {
+  it("passes a database ahead of the checked-in journal", async () => {
     const client = await freshPglite();
     await client.query(
       `insert into drizzle.__drizzle_migrations (hash, created_at)
@@ -108,7 +99,7 @@ describe("migration check — checkAppSchemaWith", () => {
 
 // The startup dispatch boundary itself: apply-vs-check selection and refusal
 // propagation, pinned via the injectable deps.
-describe("migration check — ensureAppSchema dispatch", () => {
+describe("migration check ensureAppSchema dispatch", () => {
   const URL = "postgres://user:pass@localhost:5432/app";
   const REFUSAL: SchemaCheckError = {
     code: SchemaCheckErrorCodes.PENDING_MIGRATIONS,

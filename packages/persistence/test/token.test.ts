@@ -328,7 +328,7 @@ describe("createTokenAuth.mintToken audit atomicity", () => {
     expect(rows[0]?.targetType).toBe("api_token");
     expect(rows[0]?.metadata).toEqual({ decision: "200", kind: "mint" });
     expect(rows[0]?.installationId).toBeNull();
-    expect(rows[0]?.source).toBe("url-box");
+    expect(rows[0]?.source).toBe("url");
     expect(String(rows[0]?.actorId)).toBe(String(USER));
   });
 });

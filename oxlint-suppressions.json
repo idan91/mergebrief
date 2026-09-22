@@ -115,14 +115,6 @@
       "count": 1
     }
   },
-  "apps/api/test/delete-url-brief.test.ts": {
-    "house/no-em-dash": {
-      "count": 4
-    },
-    "house/test-title": {
-      "count": 3
-    }
-  },
   "apps/api/test/generate-manifest.test.ts": {
     "house/no-em-dash": {
       "count": 2
@@ -1564,14 +1556,6 @@
       "count": 5
     }
   },
-  "packages/persistence/src/schema/audit-log.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 6
-    }
-  },
   "packages/persistence/src/schema/auth-session.ts": {
     "house/no-em-dash": {
       "count": 3
@@ -1678,25 +1662,9 @@
       "count": 37
     }
   },
-  "packages/persistence/src/stores/audit.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 12
-    }
-  },
   "packages/persistence/src/stores/scope-context.ts": {
     "house/no-em-dash": {
       "count": 3
-    }
-  },
-  "packages/persistence/src/stores/scope.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 5
     }
   },
   "packages/persistence/src/stores/url-box.ts": {
@@ -1758,43 +1726,6 @@
     },
     "house/test-title": {
       "count": 6
-    }
-  },
-  "packages/persistence/test/migration-0013.test.ts": {
-    "house/comment-run": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 4
-    },
-    "house/test-title": {
-      "count": 1
-    }
-  },
-  "packages/persistence/test/migration-0017.test.ts": {
-    "house/no-em-dash": {
-      "count": 2
-    },
-    "house/test-title": {
-      "count": 1
-    }
-  },
-  "packages/persistence/test/migration-0024.test.ts": {
-    "house/no-em-dash": {
-      "count": 3
-    }
-  },
-  "packages/persistence/test/migration-0025.test.ts": {
-    "house/no-em-dash": {
-      "count": 4
-    }
-  },
-  "packages/persistence/test/migration-check.test.ts": {
-    "house/no-em-dash": {
-      "count": 5
-    },
-    "house/test-title": {
-      "count": 5
     }
   },
   "packages/persistence/test/pglite-snapshot.test.ts": {
@@ -2143,14 +2074,6 @@
   "tools/ingest-briefs/test/cli.test.ts": {
     "house/no-em-dash": {
       "count": 1
-    }
-  },
-  "tools/ingest-briefs/test/ingest.test.ts": {
-    "house/no-em-dash": {
-      "count": 4
-    },
-    "house/test-title": {
-      "count": 3
     }
   },
   "vitest.shared.ts": {

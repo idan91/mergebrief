@@ -1,57 +1,19 @@
-// Migration 0025 backfill test — same posture as migration-0024.test.ts: the
+// Migration 0025 backfill test, same posture as migration-0024.test.ts: the
 // transform must run against PRE-migration rows, which the shared harness (all
 // migrations upfront, empty DB) cannot express. Applies 0000-0024 raw, seeds
 // rows that only carry `action`, applies 0025, and asserts the history reads
-// the same afterwards — a denial must not backfill as a success.
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { PGlite } from "@electric-sql/pglite";
+// the same afterwards; a denial must not backfill as a success.
 import { describe, expect, it } from "vitest";
 import {
   AuditChannels,
   AuditOutcomes,
   WriteClassifications,
 } from "../src/types";
+import { applyMigrationFile, pgliteBefore, readCheckValues } from "./helpers";
 
-const MIGRATIONS_DIR = fileURLToPath(new URL("../drizzle", import.meta.url));
-
-function migrationFiles(): string[] {
-  return readdirSync(MIGRATIONS_DIR)
-    .filter((name) => name.endsWith(".sql"))
-    .toSorted((a, b) => a.localeCompare(b));
-}
-
-async function applyFile(client: PGlite, name: string): Promise<void> {
-  await client.exec(readFileSync(join(MIGRATIONS_DIR, name), "utf8"));
-}
-
-/** The literals a CHECK constraint accepts. */
-async function checkValues(
-  client: PGlite,
-  constraintName: string,
-): Promise<string[]> {
-  const result = await client.query<{ def: string }>(
-    "select pg_get_constraintdef(oid) as def from pg_constraint where conname = $1",
-    [constraintName],
-  );
-  const def = result.rows[0]?.def;
-  if (def === undefined) {
-    throw new Error(`constraint ${constraintName} not found`);
-  }
-  return [...def.matchAll(/'([^']*)'/g)].map((match) => match[1] ?? "");
-}
-
-describe("migration 0025 — audit_log operation/outcome", () => {
+describe("migration 0025 audit_log operation and outcome", () => {
   it("carries `action` over and reads denials off the decision metadata", async () => {
-    const client = new PGlite();
-    const files = migrationFiles();
-    const target = files.find((name) => name.startsWith("0025_"));
-    if (target === undefined) throw new Error("0025 migration file not found");
-    for (const name of files) {
-      if (name === target) break;
-      await applyFile(client, name);
-    }
+    const { client, target } = await pgliteBefore("0025_");
 
     await client.exec(`
       insert into audit_log (installation_id, actor_type, action, target_type, metadata) values
@@ -62,7 +24,7 @@ describe("migration 0025 — audit_log operation/outcome", () => {
         (4242, 'app', 'delete', 'pull_request', '{"count":3}');
     `);
 
-    await applyFile(client, target);
+    await applyMigrationFile(client, target);
 
     const rows = await client.query<{
       operation: string;
@@ -87,15 +49,17 @@ describe("migration 0025 — audit_log operation/outcome", () => {
     // CHECK and `as const` map in lockstep, same shape as every other
     // DB-stored vocabulary.
     expect(
-      (await checkValues(client, "audit_log_outcome_check")).toSorted(),
+      (await readCheckValues(client, "audit_log_outcome_check")).toSorted(),
     ).toEqual(Object.values(AuditOutcomes).toSorted());
     expect(
-      (await checkValues(client, "audit_log_channel_check")).toSorted(),
+      (await readCheckValues(client, "audit_log_channel_check")).toSorted(),
     ).toEqual(Object.values(AuditChannels).toSorted());
-    // `classification` narrows the shared scope vocabulary — reads are never
+    // `classification` narrows the shared scope vocabulary; reads are never
     // audited, so `read` must NOT be accepted here.
     expect(
-      (await checkValues(client, "audit_log_classification_check")).toSorted(),
+      (
+        await readCheckValues(client, "audit_log_classification_check")
+      ).toSorted(),
     ).toEqual(
       Object.values(WriteClassifications)
         .filter((value) => value !== WriteClassifications.READ)

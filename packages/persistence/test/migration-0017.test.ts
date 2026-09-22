@@ -1,36 +1,14 @@
-// Migration 0017 backfill test — same posture as migration-0013.test.ts: the
+// Migration 0017 backfill test, same posture as migration-0013.test.ts: the
 // data transform must run against PRE-migration rows, which the shared
 // harness (all migrations upfront, empty DB) cannot express. Applies
 // 0000–0016 raw, seeds old-shape `generation` rows (free-text `error`),
 // applies 0017, and asserts the migrate-not-wipe semantics.
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { PGlite } from "@electric-sql/pglite";
 import { describe, expect, it } from "vitest";
+import { applyMigrationFile, pgliteBefore } from "./helpers";
 
-const MIGRATIONS_DIR = fileURLToPath(new URL("../drizzle", import.meta.url));
-
-function migrationFiles(): string[] {
-  return readdirSync(MIGRATIONS_DIR)
-    .filter((name) => name.endsWith(".sql"))
-    .toSorted((a, b) => a.localeCompare(b));
-}
-
-async function applyFile(client: PGlite, name: string): Promise<void> {
-  await client.exec(readFileSync(join(MIGRATIONS_DIR, name), "utf8"));
-}
-
-describe("migration 0017 — generation failure codes", () => {
-  it("backfills failure text as unknown{detail}, leaves clean rows null, drops the column", async () => {
-    const client = new PGlite();
-    const files = migrationFiles();
-    const target = files.find((name) => name.startsWith("0017_"));
-    if (target === undefined) throw new Error("0017 migration file not found");
-    for (const name of files) {
-      if (name === target) break;
-      await applyFile(client, name);
-    }
+describe("migration 0017 generation failure codes", () => {
+  it("backfills failure text as unknown detail and drops the column", async () => {
+    const { client, target } = await pgliteBefore("0017_");
 
     await client.exec(`
       insert into pull_request (installation_id, repo_id, pr_number, repo_slug, state)
@@ -43,7 +21,7 @@ describe("migration 0017 — generation failure codes", () => {
       from pull_request where pr_number = 7;
     `);
 
-    await applyFile(client, target);
+    await applyMigrationFile(client, target);
 
     const rows = await client.query<{
       head_sha: string;

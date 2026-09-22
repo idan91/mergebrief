@@ -233,7 +233,7 @@ function readInstallationScope(value: unknown): AuditScope | undefined {
 
   return {
     installationId: value,
-    source: PullRequestSources.APP_INSTALLATION,
+    source: PullRequestSources.INSTALLATION,
   };
 }
 
@@ -248,7 +248,7 @@ function readAuditScope(ctx: unknown): AuditScope | undefined {
   }
 
   if ("ownerUserId" in ctx) {
-    return { installationId: null, source: PullRequestSources.URL_BOX };
+    return { installationId: null, source: PullRequestSources.URL };
   }
   if ("installationId" in ctx) {
     return readInstallationScope(ctx.installationId);

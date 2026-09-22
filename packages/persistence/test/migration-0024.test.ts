@@ -1,37 +1,15 @@
-// Migration 0024 backfill test — same posture as migration-0017.test.ts: the
+// Migration 0024 backfill test, same posture as migration-0017.test.ts: the
 // transform must run against PRE-migration rows, which the shared harness (all
 // migrations upfront, empty DB) cannot express. Applies 0000–0023 raw, seeds
 // scope-less tokens, applies 0024, and asserts every existing credential keeps
 // the reach it had rather than being narrowed on deploy day.
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { PGlite } from "@electric-sql/pglite";
 import { describe, expect, it } from "vitest";
 import { WriteClassifications } from "../src/types";
+import { applyMigrationFile, pgliteBefore } from "./helpers";
 
-const MIGRATIONS_DIR = fileURLToPath(new URL("../drizzle", import.meta.url));
-
-function migrationFiles(): string[] {
-  return readdirSync(MIGRATIONS_DIR)
-    .filter((name) => name.endsWith(".sql"))
-    .toSorted((a, b) => a.localeCompare(b));
-}
-
-async function applyFile(client: PGlite, name: string): Promise<void> {
-  await client.exec(readFileSync(join(MIGRATIONS_DIR, name), "utf8"));
-}
-
-describe("migration 0024 — api_token.scope", () => {
+describe("migration 0024 api_token.scope", () => {
   it("backfills existing tokens to external-write and pins the vocabulary", async () => {
-    const client = new PGlite();
-    const files = migrationFiles();
-    const target = files.find((name) => name.startsWith("0024_"));
-    if (target === undefined) throw new Error("0024 migration file not found");
-    for (const name of files) {
-      if (name === target) break;
-      await applyFile(client, name);
-    }
+    const { client, target } = await pgliteBefore("0024_");
 
     await client.exec(`
       insert into github_grant
@@ -45,7 +23,7 @@ describe("migration 0024 — api_token.scope", () => {
       select 4242, 'hash-revoked', 99, 'old-token', id, now() from github_grant;
     `);
 
-    await applyFile(client, target);
+    await applyMigrationFile(client, target);
 
     // A read-only backfill would 403 every running CLI, revoked rows included
     // (they stay listable, so their scope must still read honestly).
@@ -60,7 +38,7 @@ describe("migration 0024 — api_token.scope", () => {
       },
     ]);
 
-    // The DEFAULT was scaffolding for the backfill — a later mint must choose.
+    // The DEFAULT was scaffolding for the backfill; a later mint must choose.
     const defaults = await client.query<{ column_default: string | null }>(`
       select column_default from information_schema.columns
       where table_schema = 'public'

@@ -1,4 +1,4 @@
-// The ingest mapping over the committed e2e fixture set — the same files the
+// The ingest mapping over the committed e2e fixture set, the same files the
 // browser suite serves, so the mapping and the seeding stay one behavior.
 import { mkdtemp, writeFile, cp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -53,7 +53,7 @@ afterEach(async () => {
 });
 
 describe("ingestBriefDirectory", () => {
-  it("maps the fixture set: PR row, verbatim briefs, anchored narrative, projected marks", async () => {
+  it("maps the fixture set to PR row, briefs, narrative and marks", async () => {
     const summary = await ingestBriefDirectory(harness.handle, {
       dir: FIXTURES,
       ctx: OWNER_CTX,
@@ -64,7 +64,7 @@ describe("ingestBriefDirectory", () => {
     expect(summary.marks).toBe(1);
     expect(summary.deltas).toBe(0);
     expect(summary.unmapped).toEqual([]);
-    // .comments.json / .diffs.json have no database home — reported.
+    // .comments.json / .diffs.json have no database home; reported.
     expect(
       summary.skipped.filter((n) => n.endsWith(".comments.json")),
     ).toHaveLength(2);
@@ -119,7 +119,7 @@ describe("ingestBriefDirectory", () => {
     ]);
   });
 
-  it("is idempotent — a re-run rewrites the same rows in place", async () => {
+  it("is idempotent: a re-run rewrites the same rows in place", async () => {
     const options = {
       dir: FIXTURES,
       ctx: OWNER_CTX,
@@ -152,12 +152,12 @@ describe("ingestBriefDirectory", () => {
       {
         owner_user_id: null,
         installation_id: Number(installationId),
-        source: "app-installation",
+        source: "installation",
       },
     ]);
   });
 
-  it("maps the legacy revchanges alias, checkpoint comparisons, deltas, and reports unmapped briefs", async () => {
+  it("maps the revchanges alias, comparisons and deltas, reports unmapped", async () => {
     const dir = await mkdtemp(join(tmpdir(), "ingest-"));
     await cp(FIXTURES, dir, { recursive: true });
     const head = "22222222eeee3333ffff4444aaaa5555bbbb6666";
@@ -227,7 +227,7 @@ describe("ingestBriefDirectory", () => {
     expect(await harness.raw("select id from delta")).toHaveLength(1);
   });
 
-  it("anchors a narrative to the brief at its own index, not the first at that head", async () => {
+  it("anchors a narrative to the brief at its own index, not the first", async () => {
     // A base retarget leaves two briefs at ONE head with different indexes.
     // The narrative's group ids belong to exactly one of them.
     const dir = await mkdtemp(join(tmpdir(), "ingest-index-"));
@@ -271,7 +271,7 @@ describe("ingestBriefDirectory", () => {
   it("carries a pre-index brief when the resolution supplies its base", async () => {
     // Two real briefs in the migration set predate indexes: one brief per PR,
     // head under `pr.sha`, no commit range. They must land, not be reported
-    // lost — the next PR deletes the only other reader.
+    // lost; the next PR deletes the only other reader.
     const dir = await mkdtemp(join(tmpdir(), "ingest-legacy-"));
     const head = "22222222eeee3333ffff4444aaaa5555bbbb6666";
     const base = "11111111ccccddddeeee1111222233334444aaaa";

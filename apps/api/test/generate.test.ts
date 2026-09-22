@@ -269,7 +269,7 @@ describe("POST /api/generate: the url-box door", () => {
       {
         installation_id: null,
         owner_user_id: Number(REVIEWER),
-        source: "url-box",
+        source: "url",
         // A merged PR is a first-class url-box target, and still enqueues.
         state: "merged",
         repo_slug: "o/r",
@@ -307,7 +307,7 @@ describe("POST /api/generate: the url-box door", () => {
     );
     expect(audits).toContainEqual({
       installation_id: null,
-      source: "url-box",
+      source: "url",
       operation: "generate-brief",
       outcome: "ok",
     });

@@ -450,8 +450,8 @@ export async function sweepAuditLog(
         installationId,
         source:
           installationId === null
-            ? PullRequestSources.URL_BOX
-            : PullRequestSources.APP_INSTALLATION,
+            ? PullRequestSources.URL
+            : PullRequestSources.INSTALLATION,
         actorType: AuditActorTypes.SYSTEM,
         operation: AUDIT_OPERATION_DELETE,
         outcome: AuditOutcomes.OK,

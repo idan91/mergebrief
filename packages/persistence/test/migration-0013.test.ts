@@ -1,46 +1,17 @@
-// Migration 0013 backfill test (0017 has the same posture — see
-// migration-0017.test.ts): a data transform must be exercised against
-// PRE-migration data,
-// which the shared `freshDatabase` harness (all migrations upfront) cannot
-// express. So this suite applies 0000–0012 raw, seeds old-shape rows
-// (ciphertext columns still on `reviewer_session`/`api_token`), applies 0013,
-// and asserts the dedup semantics:
-//   - a not-yet-diverged token (byte-identical ciphertext triple — mint
-//     copied verbatim) joins its source session's grant;
-//   - a diverged token (its own pair) gets its own grant;
-//   - `refresh_expires_at` comes from the session arm's `expires_at`, with
-//     the ~6-month fallback for a triple no session carries;
-//   - the old columns are gone afterwards.
-// The `--> statement-breakpoint` markers are SQL comments, so each file
-// executes wholesale.
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { PGlite } from "@electric-sql/pglite";
+// Migration 0013 backfill test: the data transform runs against
+// PRE-migration rows, which the shared harness (all migrations upfront)
+// cannot express. Applies 0000 to 0012 raw, seeds old-shape rows with the
+// ciphertext columns still on `reviewer_session` and `api_token`, applies
+// 0013, and asserts the dedup semantics: an undiverged token (byte-identical
+// triple) joins its source session's grant, a diverged one gets its own,
+// `refresh_expires_at` comes from the session arm with the six-month
+// fallback, and the old columns are gone.
 import { describe, expect, it } from "vitest";
+import { applyMigrationFile, pgliteBefore } from "./helpers";
 
-const MIGRATIONS_DIR = fileURLToPath(new URL("../drizzle", import.meta.url));
-
-function migrationFiles(): string[] {
-  return readdirSync(MIGRATIONS_DIR)
-    .filter((name) => name.endsWith(".sql"))
-    .toSorted((a, b) => a.localeCompare(b));
-}
-
-async function applyFile(client: PGlite, name: string): Promise<void> {
-  await client.exec(readFileSync(join(MIGRATIONS_DIR, name), "utf8"));
-}
-
-describe("migration 0013 — grant backfill", () => {
-  it("dedups shared pairs into one grant, isolates diverged ones, drops the old columns", async () => {
-    const client = new PGlite();
-    const files = migrationFiles();
-    const target = files.find((name) => name.startsWith("0013_"));
-    if (target === undefined) throw new Error("0013 migration file not found");
-    for (const name of files) {
-      if (name === target) break;
-      await applyFile(client, name);
-    }
+describe("migration 0013 grant backfill", () => {
+  it("dedups shared pairs, isolates diverged ones, drops the old columns", async () => {
+    const { client, target } = await pgliteBefore("0013_");
 
     // Old-shape seed. S1 + T1 share pair P1 byte-for-byte (the verbatim mint
     // copy); T2 holds diverged pair P2; S2 holds its own pair P3.
@@ -55,7 +26,7 @@ describe("migration 0013 — grant backfill", () => {
         (4242, 'hash-t2', 777, 'diverged-pair', 'P2.access', 'P2.refresh', 'K1', '2026-10-01T00:00:00Z');
     `);
 
-    await applyFile(client, target);
+    await applyMigrationFile(client, target);
 
     // Three distinct triples → exactly three grants.
     const grants = await client.query<{
@@ -88,7 +59,7 @@ describe("migration 0013 — grant backfill", () => {
     expect(byHash.get("hash-s2")).toBe(grantByPair.get("P3.access"));
 
     // refresh_expires_at: session-carried for P1/P3; ~6mo fallback for P2
-    // (token-only triple — its mint expiry must NOT leak into the grant).
+    // (token-only triple; its mint expiry must NOT leak into the grant).
     const expiryByPair = new Map(
       grants.rows.map((row) => [
         row.gh_token_ciphertext,

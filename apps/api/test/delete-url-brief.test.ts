@@ -1,4 +1,4 @@
-// DELETE /api/briefs/:repoId/:prNumber — the owner-delete. Full wire over
+// DELETE /api/briefs/:repoId/:prNumber, the owner-delete. Full wire over
 // PGlite. Session-gated only (no GitHub call at all): ownership under the
 // viewer's owner scope is the wall, and the erase cascades every artifact.
 import { randomBytes, createHash } from "node:crypto";
@@ -102,7 +102,7 @@ const unusedConversationPort = {
   },
 };
 
-/** No GitHub call belongs on this path — any fetch is a test failure. */
+/** No GitHub call belongs on this path; any fetch is a test failure. */
 function stubNoGitHub(): void {
   vi.stubGlobal(
     "fetch",
@@ -147,7 +147,7 @@ describe("DELETE /api/briefs/:repoId/:prNumber", () => {
     });
   }
 
-  it("erases the viewer's own url-box brief with NO GitHub call — lost repo access can't block erasure", async () => {
+  it("erases the viewer's own url brief with no GitHub call", async () => {
     await seedBriefedPr(harness.handle, OWNER_CTX);
     const cookie = await seedOwnerSession(harness.handle, kp);
 
@@ -162,22 +162,22 @@ describe("DELETE /api/briefs/:repoId/:prNumber", () => {
       "select installation_id, source, operation, outcome from audit_log order by id",
     );
     // Two rows: persistence's own purge `delete` entry + the Product
-    // Operation descriptor row — both owner-world.
+    // Operation descriptor row, both owner-world.
     expect(audits).toContainEqual({
       installation_id: null,
-      source: "url-box",
+      source: "url",
       operation: "delete",
       outcome: "ok",
     });
     expect(audits).toContainEqual({
       installation_id: null,
-      source: "url-box",
+      source: "url",
       operation: "delete-url-brief",
       outcome: "ok",
     });
   });
 
-  it("GET /api/briefs lists the viewer's own rows, newest first, and nothing foreign", async () => {
+  it("GET /api/briefs lists only the viewer's own rows, newest first", async () => {
     await seedBriefedPr(harness.handle, OWNER_CTX);
     await seedBriefedPr(harness.handle, TENANT_CTX);
     const cookie = await seedOwnerSession(harness.handle, kp);
@@ -199,7 +199,7 @@ describe("DELETE /api/briefs/:repoId/:prNumber", () => {
     });
   });
 
-  it("GET /api/briefs is empty for a signed-out viewer's world (401)", async () => {
+  it("GET /api/briefs answers 401 to a signed-out viewer", async () => {
     const res = await app.request("/api/briefs");
     expect(res.status).toBe(401);
   });

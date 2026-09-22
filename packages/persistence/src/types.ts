@@ -68,12 +68,12 @@ export function isReviewSessionId(value: bigint): value is ReviewSessionId {
 /**
  * `pull_request.source`: which door created the row: the App-installation
  * webhook world or the signed-in URL box. Paired with the owner-shape CHECK:
- * `app-installation` rows carry `installation_id`, `url-box` rows carry
+ * `installation` rows carry `installation_id`, `url` rows carry
  * `owner_user_id`. Audit entries carry the same vocabulary.
  */
 export const PullRequestSources = {
-  APP_INSTALLATION: "app-installation",
-  URL_BOX: "url-box",
+  INSTALLATION: "installation",
+  URL: "url",
 } as const;
 export type PullRequestSource = ValueOf<typeof PullRequestSources>;
 

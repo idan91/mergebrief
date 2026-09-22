@@ -565,7 +565,7 @@ describe("generate task, url-box world", () => {
     );
     expect(audits).toContainEqual({
       installation_id: null,
-      source: "url-box",
+      source: "url",
       operation: "generate",
       target_type: "brief",
     });

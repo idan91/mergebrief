@@ -338,7 +338,7 @@ describe("the ledger's tenant", () => {
     const rows = await harness.raw(
       "select installation_id, source from audit_log order by id",
     );
-    expect(rows).toEqual([{ installation_id: null, source: "url-box" }]);
+    expect(rows).toEqual([{ installation_id: null, source: "url" }]);
   });
 });
 

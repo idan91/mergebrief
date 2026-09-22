@@ -199,7 +199,7 @@ export function createTokenAuth(handle: AppDatabase): TokenAuth {
         }
         await insertAudit(tx, {
           installationId: null,
-          source: PullRequestSources.URL_BOX,
+          source: PullRequestSources.URL,
           actorType: AuditActorTypes.REVIEWER,
           actorId: input.userId,
           operation: AUDIT_OPERATION_MINT,

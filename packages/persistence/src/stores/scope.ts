@@ -1,15 +1,11 @@
-// The scope QUERY seam: which ROWS a bound identity sees. Two worlds exist —
+// The scope QUERY seam: which ROWS a bound identity sees. Two worlds exist,
 // the App-installation tenant (`installation_id`) and the url-box owner
 // (`pull_request.owner_user_id`, children marked by a NULL `installation_id`).
 // Every ctx-bound factory resolves its ctx into a `RowScope` ONCE and routes
 // every read filter, write stamp, and parent check through it, so a query can
-// never mix worlds.
-//
-// The identity itself — the context shapes and the Zod boundary that
-// validates untrusted input into them — lives in `scope-context.ts`.
-//
-// NOT exported from `index.ts`: a caller outside this package cannot hold a
-// `RowScope`, only a context to be resolved into one.
+// never mix worlds. The context shapes live in `scope-context.ts`. NOT
+// exported from `index.ts`: a caller outside this package holds a context,
+// never a `RowScope`.
 import { and, eq, isNull, sql, type SQL } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { pullRequest } from "../schema/pull-request";
@@ -35,7 +31,7 @@ export interface RowScope {
   matchesPullRequest(): SQL;
   /**
    * Predicate for a child table's rows: the world mark on the child's own
-   * `installation_id` column, plus — owner world — a `pull_request`
+   * `installation_id` column, plus, in the owner world, a `pull_request`
    * semi-join on the child's `pull_request_id` for owner isolation.
    */
   matchesChild(
@@ -60,7 +56,7 @@ function definedSql(condition: SQL | undefined): SQL {
 
 /**
  * The url-box world: rows the owner pasted. Owner-world child rows carry no
- * owner column of their own — a NULL `installation_id` marks the world, and
+ * owner column of their own: a NULL `installation_id` marks the world, and
  * owner ISOLATION rides the `pull_request` parent through the `matchesChild`
  * semi-join, mirroring the defense-in-depth the installation world gets from
  * the child's own tenant column.
@@ -70,7 +66,7 @@ function resolveOwnerScope(ownerUserId: ReviewerId): RowScope {
     ctx: { ownerUserId },
     installationId: null,
     ownerUserId,
-    source: PullRequestSources.URL_BOX,
+    source: PullRequestSources.URL,
     label: `owner ${ownerUserId}`,
     matchesPullRequest() {
       return definedSql(
@@ -107,7 +103,7 @@ function resolveTenantScope(installationId: InstallationId): RowScope {
     ctx: { installationId },
     installationId,
     ownerUserId: null,
-    source: PullRequestSources.APP_INSTALLATION,
+    source: PullRequestSources.INSTALLATION,
     label: `tenant ${installationId}`,
     matchesPullRequest() {
       return eq(pullRequest.installationId, installationId);

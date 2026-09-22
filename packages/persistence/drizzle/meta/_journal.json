@@ -267,6 +267,13 @@
       "when": 1789918730861,
       "tag": "0038_late-event-guard",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1789921851435,
+      "tag": "0039_source-values",
+      "breakpoints": true
     }
   ]
 }

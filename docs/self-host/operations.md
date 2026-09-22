@@ -256,7 +256,7 @@ Two things to know before you write a query against it:
   holding the repository it named. A request that names no repository, such
   as a token mint or revoke, and one whose repository sits in no installation
   the reviewer reaches, both file with a null installation and
-  `source = url-box`.
+  `source = url`.
 - **A refusal that never resolved a credential is not in this table.** An
   unknown cookie, a revoked API token, an expired session: there is no actor
   to write, so nothing is recorded. Those refusals appear as

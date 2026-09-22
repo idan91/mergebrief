@@ -30,7 +30,13 @@ import {
 import { internal } from "../src/db/handle";
 import { auditLog } from "../src/schema/audit-log";
 import { pullRequest } from "../src/schema/pull-request";
-import { brandWith, expectCheckViolation, freshDatabase } from "./helpers";
+import {
+  brandWith,
+  expectCheckViolation,
+  freshDatabase,
+  freshPglite,
+  readCheckValues,
+} from "./helpers";
 
 const TENANT: InstallationId = brandWith(isInstallationId, 1000n);
 const OWNER_A: ReviewerId = brandWith(isReviewerId, 501n);
@@ -50,24 +56,24 @@ function upsertInput(prNumber: number) {
 const ORIGIN = { provider: "anthropic", model: "m", effort: "high" } as const;
 
 describe("owner-scoped pull_request rows", () => {
-  it("stamps owner_user_id, source url-box, and a NULL installation_id", async () => {
+  it("stamps owner_user_id, source url, and a NULL installation_id", async () => {
     const handle = await freshDatabase();
     const a = createTenantRepository(handle, CTX_A);
 
     const row = await a.pullRequests.upsert(upsertInput(7));
     expect(row.installationId).toBeNull();
     expect(row.ownerUserId).toBe(OWNER_A);
-    expect(row.source).toBe(PullRequestSources.URL_BOX);
+    expect(row.source).toBe(PullRequestSources.URL);
   });
 
-  it("installation upserts stamp source app-installation and no owner", async () => {
+  it("installation upserts stamp source installation and no owner", async () => {
     const handle = await freshDatabase();
     const t = createTenantRepository(handle, TENANT_CTX);
 
     const row = await t.pullRequests.upsert(upsertInput(7));
     expect(row.installationId).toBe(TENANT);
     expect(row.ownerUserId).toBeNull();
-    expect(row.source).toBe(PullRequestSources.APP_INSTALLATION);
+    expect(row.source).toBe(PullRequestSources.INSTALLATION);
   });
 
   it("owner upsert is idempotent: one row per owner, repo and number", async () => {
@@ -330,7 +336,7 @@ describe("owner-scoped purge, the owner-delete operation's backing", () => {
       .where(sql`${auditLog.operation} = 'delete'`);
     expect(entries).toHaveLength(1);
     expect(entries[0]?.installationId).toBeNull();
-    expect(entries[0]?.source).toBe(PullRequestSources.URL_BOX);
+    expect(entries[0]?.source).toBe(PullRequestSources.URL);
   });
 
   it("cannot purge another owner's PR", async () => {
@@ -356,13 +362,23 @@ describe("owner-scoped purge, the owner-delete operation's backing", () => {
 });
 
 describe("pull_request owner-shape CHECK", () => {
+  it.each(["pull_request_owner_shape", "audit_log_source_shape"])(
+    "%s accepts exactly the source map",
+    async (name) => {
+      const client = await freshPglite();
+      expect((await readCheckValues(client, name)).toSorted()).toEqual(
+        Object.values(PullRequestSources).toSorted(),
+      );
+    },
+  );
+
   it("rejects a row claiming both worlds", async () => {
     const handle = await freshDatabase();
     await expectCheckViolation(
       internal(handle).insert(pullRequest).values({
         installationId: TENANT,
         ownerUserId: OWNER_A,
-        source: PullRequestSources.URL_BOX,
+        source: PullRequestSources.URL,
         repoId: REPO,
         prNumber: 1,
         state: PrStates.OPEN,
@@ -390,7 +406,7 @@ describe("pull_request owner-shape CHECK", () => {
     await expectCheckViolation(
       internal(handle).insert(pullRequest).values({
         installationId: TENANT,
-        source: PullRequestSources.URL_BOX,
+        source: PullRequestSources.URL,
         repoId: REPO,
         prNumber: 1,
         state: PrStates.OPEN,

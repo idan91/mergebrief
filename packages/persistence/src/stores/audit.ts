@@ -1,15 +1,10 @@
 // The `writeAudit(...)` emit: one immutable, tenant-scoped append per boundary.
-// There are no update/delete helpers — this table is append-only, and only the
-// instance-wide retention sweep removes from it.
-//
-// IDS, TOKENS AND NUMBERS: an entry says what was DONE; a body is what was
-// SAID, and every body already lives in the row the entry points at. The only
+// No update/delete helpers exist; only the instance-wide retention sweep
+// removes rows. IDS, TOKENS AND NUMBERS: an entry says what was DONE, and
+// every body already lives in the row the entry points at. The only
 // identifying field is `caller_ip`, written solely under the operator PII
-// flag.
-//
-// `metadata` takes ANY key and CLOSED values — a token, a finite number, or a
-// boolean. The value rules are the enforcement; the key list they replaced only
-// made every new emit a code change in this package.
+// flag. `metadata` takes ANY key and CLOSED values: a token, a finite number,
+// or a boolean. The value rules are the enforcement.
 import { z } from "zod";
 import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
 import { auditLog } from "../schema/audit-log";
@@ -27,7 +22,7 @@ import {
 export type AuditLogRow = typeof auditLog.$inferSelect;
 
 /**
- * Conventional metadata key names. Naming only — keys are open; the value
+ * Conventional metadata key names. Naming only: keys are open; the value
  * rules below are what protects the ledger.
  */
 export const AuditMetadataKeys = {
@@ -45,7 +40,7 @@ const metadataKeySchema = z
   .regex(/^[a-z][a-z0-9_]*$/, "metadata keys must be snake_case tokens");
 
 /**
- * String values are enum TOKENS — lowercase kebab-case, never free text: a
+ * String values are enum TOKENS, lowercase kebab-case, never free text: a
  * token cannot carry a name, a route, an address or a body into a ledger an
  * operator may keep forever.
  */
@@ -60,7 +55,7 @@ const metadataNumberSchema = z.number().finite();
 
 /**
  * Small, queryable, non-PII detail (e.g. `{"decision":"403"}`): open keys,
- * closed values — token, finite number, or boolean. Nothing else, so no
+ * closed values: token, finite number, or boolean. Nothing else, so no
  * nested object or array can smuggle identifying transport detail in.
  */
 export const AuditMetadataSchema = z.record(
@@ -71,7 +66,7 @@ export const AuditMetadataSchema = z.record(
 /**
  * `targetType` is deliberately open-ended (`pull_request | brief | …`), but
  * "open-ended" means open CLASS of target, not open TEXT: a class token is
- * lowercase snake_case, ≤64 chars — never a route, slug, email, or any other
+ * lowercase snake_case, ≤64 chars, never a route, slug, email, or any other
  * identifying string. Shape-validated here and CHECK-backstopped in the DB so
  * caller discipline isn't the enforcement.
  */
@@ -116,19 +111,19 @@ const AuditCallerIpSchema = z
   .string()
   .regex(/^[0-9a-fA-F.:]{1,45}$/, "callerIp must be an IP address");
 
-/** Open keys, closed value types — the schema is the runtime enforcement. */
+/** Open keys, closed value types; the schema is the runtime enforcement. */
 export type AuditMetadata = Readonly<Record<string, string | number | boolean>>;
 
 /**
- * An audit entry. Every string field is a bounded token — `operation`,
+ * An audit entry. Every string field is a bounded token: `operation`,
  * `targetType` and the metadata values are shape-checked here and again by a
  * DB CHECK. `installationId` is the numeric tenant scope (a plain column, NOT
  * an FK); the caller passes `ctx.installationId`.
  */
 export interface AuditEntry {
-  /** NULL for owner-world (url-box) entries — `source` marks the world. */
+  /** NULL for owner-world entries; `source` marks the world. */
   readonly installationId: InstallationId | null;
-  /** Which world the entry belongs to; defaults to `app-installation`. */
+  /** Which world the entry belongs to; defaults to `installation`. */
   readonly source?: PullRequestSource;
   readonly actorType: AuditActorType;
   /** GitHub user id for a reviewer; omit for app/system. Loose numeric ref. */
@@ -147,13 +142,13 @@ export interface AuditEntry {
   readonly credentialId?: bigint;
   /** Joins the `api.access` transport line. */
   readonly requestId?: string;
-  /** User-agent-derived, forensic only — never branch on it. */
+  /** User-agent-derived, forensic only; never branch on it. */
   readonly client?: string;
   /** Socket address; supplied only under the operator PII flag. */
   readonly callerIp?: string;
   /** Open-ended target class, e.g. `pull_request` | `brief` | `installation`. */
   readonly targetType?: string;
-  /** Loose numeric ref to the target row — deliberately not an FK. */
+  /** Loose numeric ref to the target row, deliberately not an FK. */
   readonly targetId?: bigint;
   readonly metadata?: AuditMetadata;
 }
@@ -167,12 +162,10 @@ function parseOptional(
 
 /**
  * Emit one append-only audit row on the given drizzle executor. In-package
- * interface (NOT re-exported from `index.ts`): a transaction `tx` is assignable
- * to `AppDrizzle`, so a purge routine can append its `delete` entry in the SAME
- * transaction as the deletes it records — the ledger survives because
- * `audit_log` has no FK, and the emit commits atomically with the cascade.
- * Validates `metadata` against the non-PII scalar schema — malformed metadata
- * is a programmer error and throws.
+ * only: a transaction `tx` is assignable to `AppDrizzle`, so a purge routine
+ * appends its `delete` entry in the SAME transaction as the deletes it
+ * records, and the ledger survives because `audit_log` has no FK. Malformed
+ * `metadata` is a programmer error and throws.
  */
 export async function insertAudit(
   executor: AppDrizzle,
@@ -190,7 +183,7 @@ export async function insertAudit(
     .insert(auditLog)
     .values({
       installationId: entry.installationId,
-      source: entry.source ?? PullRequestSources.APP_INSTALLATION,
+      source: entry.source ?? PullRequestSources.INSTALLATION,
       actorType: entry.actorType,
       actorId: entry.actorId,
       operation: AuditOperationSchema.parse(entry.operation),

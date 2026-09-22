@@ -167,10 +167,10 @@ async function runGeneration(
   const projection = createGenerationProjection(handle, ctx);
   const store = createArtifactStore(handle, ctx);
   const auditScope = isOwnerContext(ctx)
-    ? { installationId: null, source: PullRequestSources.URL_BOX }
+    ? { installationId: null, source: PullRequestSources.URL }
     : {
         installationId: ctx.installationId,
-        source: PullRequestSources.APP_INSTALLATION,
+        source: PullRequestSources.INSTALLATION,
       };
 
   const pr = await repo.pullRequests.getById(pullRequestId);

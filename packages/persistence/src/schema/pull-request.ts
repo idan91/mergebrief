@@ -37,7 +37,7 @@ export const pullRequest = pgTable(
     source: text("source")
       .$type<PullRequestSource>()
       .notNull()
-      .default(PullRequestSources.APP_INSTALLATION),
+      .default(PullRequestSources.INSTALLATION),
     repoId: bigint("repo_id", { mode: "bigint" }).$type<RepoId>().notNull(),
     prNumber: integer("pr_number").notNull(),
     /** Purgeable display label, refreshed on webhook. */

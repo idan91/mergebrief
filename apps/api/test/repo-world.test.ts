@@ -257,7 +257,7 @@ describe("the per-repo gate's repo world", () => {
       {
         operation: "set-chunk-read",
         installation_id: null,
-        source: "url-box",
+        source: "url",
       },
     ]);
   });
@@ -463,7 +463,7 @@ describe("the per-repo gate across two installations", () => {
       {
         operation: "set-chunk-read",
         installation_id: OTHER_INSTALLATION_ID,
-        source: "app-installation",
+        source: "installation",
       },
     ]);
   });
