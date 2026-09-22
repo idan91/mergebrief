@@ -14,3 +14,13 @@ export type {
   InstallationGenerateJobPayload,
   UrlBoxGenerateJobPayload,
 } from "./jobs";
+export {
+  InboxAuthorFilters,
+  InboxReviewStates,
+  InboxSorts,
+  InboxStatuses,
+  type InboxAuthorFilter,
+  type InboxReviewState,
+  type InboxSort,
+  type InboxStatus,
+} from "./inbox";

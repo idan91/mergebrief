@@ -110,7 +110,7 @@ worker only, no `postgres` service, no `depends_on`. It reads
 shell you run compose from (shell wins). The bundled `postgres` service and
 its `POSTGRES_*` derivation do not apply here.
 
-**Supported Postgres: 15 or newer.** The bundled `postgres:17-alpine` image
+**Supported Postgres: 16 or newer.** The bundled `postgres:17-alpine` image
 is the reference; anything a current managed provider offers is in range.
 Older versions may work but are unsupported. One caveat on test coverage:
 the automated suites run against PGlite (an embedded Postgres build), so

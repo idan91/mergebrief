@@ -13,6 +13,7 @@ What the layout can't show:
 - `schema/` is one drizzle file per table.
 - `stores/ingest.ts` is the transactional webhook→upsert→enqueue boundary.
 - `stores/url-box.ts` holds `resolveUrlBoxOwner`, the ONE unscoped read.
+- `stores/inbox.ts` holds the ONE multi-scope read, the Inbox list; `test/scope-containment.test.ts` refuses a second store source that spells an installation set (`inArray` over `installationId`, or a raw `in (`). Its second statement reads the page's brief bodies by id with no scope predicate, licensed because the list just authorized those ids.
 - `auth/` holds the PRE-tenant resolvers (they PRODUCE the tenant) plus AES-256-GCM token crypto behind the key-provider interface. `createEnvKeyProvider(env)` takes the env map explicitly; the composition roots that call it read `process.env`, this package never does.
 - Generated SQL under `drizzle/` is append-only.
 

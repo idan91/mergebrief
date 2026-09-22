@@ -8,6 +8,7 @@
     ".": "./src/index.ts",
     "./comments": "./src/comments.ts",
     "./drafts": "./src/drafts.ts",
+    "./inbox": "./src/inbox.ts",
     "./jobs": "./src/jobs.ts",
     "./trackers": "./src/trackers.ts",
     "./utils": "./src/utils.ts"

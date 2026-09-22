@@ -87,6 +87,16 @@ export type {
 // coordinates (instance visibility). Returns an owner to bind a ctx to,
 // never a row.
 export { resolveUrlBoxOwner } from "./stores/url-box";
+export { createInboxStore } from "./stores/inbox";
+export type {
+  InboxBriefRef,
+  InboxCounts,
+  InboxFilters,
+  InboxListInput,
+  InboxPage,
+  InboxRow,
+  InboxStore,
+} from "./stores/inbox";
 export { createLiveReadStore } from "./stores/live-read";
 export type {
   LiveReadDueInput,

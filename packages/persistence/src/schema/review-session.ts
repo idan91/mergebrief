@@ -1,4 +1,4 @@
-// `review_session` — one reviewer's private work on one Brief. The Brief is
+// `review_session`: one reviewer's private work on one Brief. The Brief is
 // the key, so a new Brief (push or retarget) is a new session; there is no
 // `pull_request_id` column because the Brief already carries it and the
 // erasure cascade reaches `pull_request` through it.
@@ -7,6 +7,7 @@
 // (a human and their agent share this row; scope lives on the credential).
 import {
   bigint,
+  index,
   integer,
   pgTable,
   text,
@@ -56,5 +57,10 @@ export const reviewSession = pgTable(
     unique("review_session_natural_key")
       .on(table.installationId, table.briefId, table.reviewerId)
       .nullsNotDistinct(),
+    // The Inbox's per-viewer review state, one probe per brief.
+    index("review_session_reviewer_brief_idx").on(
+      table.reviewerId,
+      table.briefId,
+    ),
   ],
 );

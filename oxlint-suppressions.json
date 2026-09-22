@@ -1561,14 +1561,6 @@
       "count": 3
     }
   },
-  "packages/persistence/src/schema/brief.ts": {
-    "house/comment-density": {
-      "count": 1
-    },
-    "house/no-em-dash": {
-      "count": 8
-    }
-  },
   "packages/persistence/src/schema/checkpoint.ts": {
     "house/no-em-dash": {
       "count": 1
@@ -1624,11 +1616,6 @@
     }
   },
   "packages/persistence/src/schema/review-read-mark.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "packages/persistence/src/schema/review-session.ts": {
     "house/no-em-dash": {
       "count": 1
     }

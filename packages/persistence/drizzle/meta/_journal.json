@@ -281,6 +281,13 @@
       "when": 1789922496623,
       "tag": "0040_live-read",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1789925852703,
+      "tag": "0041_inbox-indexes",
+      "breakpoints": true
     }
   ]
 }

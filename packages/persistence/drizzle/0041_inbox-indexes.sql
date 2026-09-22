@@ -1,0 +1,2 @@
+CREATE INDEX "brief_pull_request_created_idx" ON "brief" USING btree ("pull_request_id","created_at" DESC NULLS LAST);--> statement-breakpoint
+CREATE INDEX "review_session_reviewer_brief_idx" ON "review_session" USING btree ("reviewer_id","brief_id");
