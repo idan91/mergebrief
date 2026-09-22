@@ -46,7 +46,6 @@
 
     &[data-needs-you="true"] .title {
       color: var(--color-text-1);
-      font-weight: 500;
     }
 
     &[data-unreachable="true"] .titleText,
@@ -91,6 +90,7 @@
     min-inline-size: 0;
     color: var(--color-text-read);
     font-size: var(--font-size-xl);
+    font-weight: 500;
     line-height: functions.to-rem(20px);
   }
 

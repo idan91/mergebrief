@@ -69,12 +69,9 @@ export function splitAtFold(items: readonly InboxItem[]): FoldSplit {
   return { above, below };
 }
 
-/** A row the reviewer has not read in its current form: the title takes Text 1. */
+/** A row above the fold, so the title takes Text 1. */
 export function needsReviewer(item: InboxItem): boolean {
-  return (
-    item.reviewState === InboxReviewStates.NEW ||
-    item.reviewState === InboxReviewStates.UPDATED
-  );
+  return ABOVE_FOLD.has(item.reviewState);
 }
 
 /** The timestamp the age reads, by sort; a missing one falls back to the other. */

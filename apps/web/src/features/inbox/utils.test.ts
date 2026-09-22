@@ -73,13 +73,16 @@ describe("splitAtFold", () => {
     expect(split.below.map((item) => item.prNumber)).toEqual([4, 5]);
   });
 
-  it("needsReviewer is true only for new and updated", () => {
+  it("needsReviewer is true for every row above the fold", () => {
     expect(needsReviewer(makeItem())).toBe(true);
     expect(
       needsReviewer(makeItem({ reviewState: InboxReviewStates.UPDATED })),
     ).toBe(true);
     expect(
       needsReviewer(makeItem({ reviewState: InboxReviewStates.IN_PROGRESS })),
+    ).toBe(true);
+    expect(
+      needsReviewer(makeItem({ reviewState: InboxReviewStates.REVIEWED })),
     ).toBe(false);
     expect(needsReviewer(makeItem({ reviewState: null }))).toBe(false);
   });

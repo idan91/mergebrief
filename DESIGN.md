@@ -175,7 +175,7 @@ Warm, low-chroma greys under one light peach accent. State colours keep a fixed 
 
 - **Display** (600, 1.875rem, 1.1, -0.02em): the personal line on Home. One per screen.
 - **Title** (600, 0.9375rem, 1.2): section headings such as the list heading.
-- **Row title** (500 when it needs the reviewer, 400 otherwise, 0.9375rem, 20px line): one line, cut with an ellipsis.
+- **Row title** (500, Text 1 above the fold and Text Read below it, 0.9375rem, 20px line): one line, cut with an ellipsis.
 - **Body** (400, 0.9375rem, 1.5): running text, 65 to 75 characters wide at most.
 - **Small** (400, 0.84375rem): controls, menus, the pager.
 - **Label** (400, 0.78125rem, 18px line, tabular numerals): the second line of a row, chips, indicators.
