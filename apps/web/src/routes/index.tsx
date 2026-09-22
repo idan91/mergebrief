@@ -4,6 +4,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 
 import { Button } from "@web/components/Button/Button";
+import { Header } from "@web/components/Header/Header";
 import {
   generateBriefViaApi,
   buildLocalBriefsQueryOptions,
@@ -58,10 +59,6 @@ export const Route = createFileRoute("/")({
   errorComponent: BriefPickerError,
 });
 
-// The product name, an identifier, never translated.
-const PRODUCT_NAME = "MergeBrief";
-const PRODUCT_SUFFIX = " / review";
-
 function BriefPicker() {
   const { t } = useTranslation();
   const yourBriefs = useSuspenseQuery({
@@ -103,58 +100,54 @@ function BriefPicker() {
   }
 
   return (
-    <main className={styles["pickerMain"]} id="main-content" tabIndex={-1}>
-      <section className={styles["picker"]}>
-        <div className={styles["topBar"]}>
-          <div className={styles["wordmark"]}>
-            {PRODUCT_NAME}
-            <span>{PRODUCT_SUFFIX}</span>
-          </div>
-          <LocalePicker />
-        </div>
-        <div className={styles["eyebrow"]}>{t("shell.landingEyebrow")}</div>
-        <h1>{t("shell.landingHeading")}</h1>
-        <p className={styles["copy"]}>{t("shell.landingCopy")}</p>
-        <ul className={styles["pillars"]}>
-          <li>{t("shell.landingBullet1")}</li>
-          <li>{t("shell.landingBullet2")}</li>
-          <li>{t("shell.landingBullet3")}</li>
-        </ul>
-        {/* The url-box is a signed-in door: the worker generates with the
+    <>
+      <Header end={<LocalePicker />} />
+      <main className={styles["pickerMain"]} id="main-content" tabIndex={-1}>
+        <section className={styles["picker"]}>
+          <div className={styles["eyebrow"]}>{t("shell.landingEyebrow")}</div>
+          <h1>{t("shell.landingHeading")}</h1>
+          <p className={styles["copy"]}>{t("shell.landingCopy")}</p>
+          <ul className={styles["pillars"]}>
+            <li>{t("shell.landingBullet1")}</li>
+            <li>{t("shell.landingBullet2")}</li>
+            <li>{t("shell.landingBullet3")}</li>
+          </ul>
+          {/* The url-box is a signed-in door: the worker generates with the
             viewer's grant, so a signed-out visitor gets the sign-in button
             below instead of a dead form. */}
-        {session.kind === "ready" ? (
-          <form className={styles["form"]} onSubmit={handleGenerate}>
-            <input
-              aria-label={t("shell.ariaLabelPrUrl")}
-              disabled={pending}
-              placeholder={t("shell.prUrlPlaceholder")}
-              type="url"
-              value={url}
-              onChange={(event) => setUrl(event.target.value)}
-            />
-            <Button
-              disabled={pending}
-              loading={pending}
-              type="submit"
-              variant="primary"
-            >
-              {pending ? t("shell.generating") : t("shell.generate")}
-            </Button>
-          </form>
-        ) : null}
-        {error ? (
-          <p className={styles["error"]} role="alert">
-            {error}
-          </p>
-        ) : null}
-        <YourBriefsSection session={yourBriefs} />
-        <PullsSection session={session} />
-        {import.meta.env.PROD ? null : (
-          <LocalBriefsSection enabled={session.kind === "ready"} />
-        )}
-      </section>
-    </main>
+          {session.kind === "ready" ? (
+            <form className={styles["form"]} onSubmit={handleGenerate}>
+              <input
+                aria-label={t("shell.ariaLabelPrUrl")}
+                disabled={pending}
+                placeholder={t("shell.prUrlPlaceholder")}
+                type="url"
+                value={url}
+                onChange={(event) => setUrl(event.target.value)}
+              />
+              <Button
+                disabled={pending}
+                loading={pending}
+                type="submit"
+                variant="primary"
+              >
+                {pending ? t("shell.generating") : t("shell.generate")}
+              </Button>
+            </form>
+          ) : null}
+          {error ? (
+            <p className={styles["error"]} role="alert">
+              {error}
+            </p>
+          ) : null}
+          <YourBriefsSection session={yourBriefs} />
+          <PullsSection session={session} />
+          {import.meta.env.PROD ? null : (
+            <LocalBriefsSection enabled={session.kind === "ready"} />
+          )}
+        </section>
+      </main>
+    </>
   );
 }
 

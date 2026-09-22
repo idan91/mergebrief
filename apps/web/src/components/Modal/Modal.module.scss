@@ -18,11 +18,11 @@
   }
 
   .box {
-    // Off-scale: the dialog fill sits between --color-surface-1 and
-    // --color-surface-2 so a modal reads as its own plane, not a panel. The
-    // textarea's focus border is a one-off lift above --color-outline-2,
-    // scoped to the focused state.
-    --box-fill: #131316;
+    // Off-scale: the dialog fill sits between --color-surface-1 (#171411)
+    // and --color-surface-2 (#1e1a16) so a modal reads as its own plane, not
+    // a panel. The textarea's focus border is a one-off lift above
+    // --color-outline-2, scoped to the focused state.
+    --box-fill: #1a1713;
     --textarea-focus-border: #45454f;
 
     inline-size: functions.to-rem(460px);

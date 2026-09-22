@@ -83,11 +83,12 @@
       color: var(--dim);
     }
 
-    /* The comment postdates the viewed brief. Accent, not amber — origin must
-       not read as the open-thread state. */
+    /* The comment postdates the viewed brief. The info lane, not amber and
+       not the accent: origin must read as neither the open-thread state nor
+       a selection. */
     &[data-state="after-brief"] {
-      border-color: var(--color-accent);
-      color: var(--color-accent);
+      border-color: var(--color-info);
+      color: var(--color-info);
     }
 
     &[data-state="approved"],

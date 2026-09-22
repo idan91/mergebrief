@@ -7,8 +7,8 @@
   }
 
   .comment {
-    // Off-scale: one blue step off --color-surface (#111114).
-    --comment-fill: #111115;
+    // Off-scale: one warm step off --color-surface-1 (#171411).
+    --comment-fill: #181512;
 
     border: 1px solid var(--line);
     border-radius: var(--radius-md);

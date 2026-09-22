@@ -146,7 +146,8 @@ async function renderHeader(overrides: Partial<HeaderProps> = {}) {
 describe("Header identity row", () => {
   it("renders wordmark, title, repo and PR link on one line", async () => {
     await renderHeader();
-    expect(screen.getByText("MergeBrief").textContent).toBe("MergeBrief");
+    const wordmark = screen.getByRole("link", { name: "MergeBrief" });
+    expect(wordmark.getAttribute("href")).toBe("/");
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
       "Tighten the cross-param leak",
     );

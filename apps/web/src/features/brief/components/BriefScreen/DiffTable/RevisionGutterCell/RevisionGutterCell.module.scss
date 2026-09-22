@@ -29,9 +29,8 @@
   }
 
   .rail {
-    // Off-scale: the rail's hover/focus lift, a lighter blue than
-    // --color-accent (#7da7d9).
-    --rail-active-fill: #9dc0e8;
+    // The rail's hover lift: the accent lightened, so a hover never changes hue.
+    --rail-active-fill: color-mix(in srgb, var(--color-accent) 70%, white);
 
     position: absolute;
     inset-block: 0;

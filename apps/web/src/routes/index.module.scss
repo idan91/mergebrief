@@ -4,7 +4,7 @@
 @layer components {
   .pickerMain {
     min-block-size: 100vh;
-    padding-block: functions.to-rem(96px);
+    padding-block: functions.to-rem(64px) functions.to-rem(96px);
     padding-inline: functions.to-rem(22px);
   }
 
@@ -22,20 +22,6 @@
       font-weight: 700;
       letter-spacing: 0;
       line-height: 1.55;
-    }
-  }
-
-  .wordmark {
-    margin-block-end: functions.to-rem(44px);
-    color: var(--text);
-    font-size: var(--font-size-xl);
-    font-weight: 700;
-    letter-spacing: 0;
-    white-space: nowrap;
-
-    span {
-      color: var(--faint);
-      font-weight: 400;
     }
   }
 
@@ -72,7 +58,7 @@
       &::before {
         position: absolute;
         inset-inline-start: 0;
-        color: var(--blue);
+        color: var(--color-text-3);
         content: "›";
       }
     }
@@ -196,8 +182,8 @@
     text-transform: uppercase;
 
     &[data-kind="delta"] {
-      border-color: color-mix(in srgb, var(--blue) 35%, transparent);
-      color: var(--blue);
+      border-color: color-mix(in srgb, var(--color-info) 35%, transparent);
+      color: var(--color-info);
     }
   }
 
@@ -207,16 +193,5 @@
     font-family: var(--mono);
     font-size: var(--font-size-md);
     line-height: 1.5;
-  }
-}
-
-@layer components {
-  // The landing page's header row: the wordmark owns the start, the language
-  // picker the end — the same corner it occupies on the brief screen.
-  .topBar {
-    display: flex;
-    gap: functions.to-rem(12px);
-    align-items: center;
-    justify-content: space-between;
   }
 }

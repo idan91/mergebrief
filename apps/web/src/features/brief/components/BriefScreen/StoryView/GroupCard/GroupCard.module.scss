@@ -4,10 +4,10 @@
 @layer components {
   .card {
     // Earned oddities: the card's vertical gradient stops. They bracket
-    // --color-surface (#111114) rather than sitting on the surface ladder,
-    // so they stay local; faithful to the pre-sweep values.
-    --card-gradient-from: #121216;
-    --card-gradient-to: #0e0e11;
+    // --color-surface-1 (#171411) one warm step either side rather than
+    // sitting on the surface ladder, so they stay local.
+    --card-gradient-from: #1b1814;
+    --card-gradient-to: #141210;
 
     margin-block-end: functions.to-rem(40px);
     border: 1px solid var(--line);

@@ -39,8 +39,8 @@
     }
 
     &[data-state="active"] {
-      // Off-scale: the active pick sits one blue step off --line (#1f1f24).
-      --active-fill: #1f1f25;
+      // Off-scale: the active pick sits one warm step off --line (#25201a).
+      --active-fill: #26211b;
 
       background: var(--active-fill);
       color: var(--text);

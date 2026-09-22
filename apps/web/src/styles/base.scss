@@ -23,11 +23,6 @@ $story-gap-rem: functions.to-rem(layout.$story-group-gap);
     flex-direction: column;
     min-block-size: 100vh;
     background: var(--bg);
-    background-image: radial-gradient(
-      1200px 500px at 50% -200px,
-      color-mix(in srgb, var(--panel) 70%, var(--blue)) 0%,
-      var(--bg) 70%
-    );
     color: var(--text);
     font-family: var(--sans);
     font-size: var(--font-size-root);

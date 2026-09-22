@@ -9,17 +9,20 @@
 @layer tokens {
   :root {
     // ── Primitives ───────────────────────────────────────────────────────
-    --gray-950: #0a0a0c;
-    --gray-900: #111114;
-    --gray-800: #1f1f24;
-    --gray-700: #2b2b32;
-    --gray-400: #9a9aa3;
-    --gray-100: #ececee;
-    --green-400: #5fc88f;
-    --red-400: #e06c6c;
-    --amber-400: #d9a45c;
+    // Warm greys: the accent's hue at very low chroma, so the greys move
+    // with it at the same lightness (DESIGN.md, the Tinted Grey Rule).
+    --gray-950: #12100e;
+    --gray-900: #171411;
+    --gray-800: #25201a;
+    --gray-700: #362f27;
+    --gray-400: #a89f94;
+    --gray-100: #f0eae2;
+    --green-400: #7fd1a0;
+    --red-400: #ec8a8a;
+    --amber-400: #e8c04a;
+    --peach-400: #ffc799;
     --blue-400: #7da7d9;
-    --violet-400: #a98fd1;
+    --violet-400: #b9a0e0;
     --mono: "IBM Plex Mono", ui-monospace, menlo, monospace;
     --sans: "Instrument Sans", -apple-system, "Helvetica Neue", sans-serif;
 
@@ -28,28 +31,34 @@
     // sunken wells sit at page level rather than earning a fifth tier.
     --color-background: var(--gray-950); // page bg AND sunken wells
     --color-surface-1: var(--gray-900); // base panel / nested fill
-    --color-surface-2: #15151a; // raised: hovers, popovers, toolbars
-    --color-surface-3: #1c1c22; // top: toasts, chips, highest hovers
+    --color-surface-2: #1e1a16; // raised: hovers, popovers, toolbars
+    --color-surface-3: #27221c; // top: toasts, chips, highest hovers
 
     // ── Text ─────────────────────────────────────────────────────────────
     --color-text-1: var(--gray-100); // primary
     --color-text-2: var(--gray-400); // muted / secondary
 
-    // Faint floor for readable text: ~5.8:1 on the page background, with
-    // margin to survive the top radial glow (WCAG AA).
-    --color-text-3: #8a8a93;
+    // Text already read: titles a reviewer has reviewed, chip text. Between
+    // text-1 and text-2 on purpose; the step from text-1 is the signal.
+    --color-text-read: #d2cabf;
+
+    // Faint floor for readable text: 6.0:1 on the page background, 5.0:1 on
+    // surface-3 (WCAG AA).
+    --color-text-3: #9a9083;
 
     // Ghost: decorative separators only (e.g. slim row separators).
-    // Deliberately below contrast — NEVER for text a reader must parse;
+    // Deliberately below contrast, NEVER for text a reader must parse;
     // line numbers count as text (WCAG 1.4.3) and use text-3.
-    --color-text-4: #3b3b43;
+    --color-text-4: #3a342c;
 
     // ── Outline / border ─────────────────────────────────────────────────
     --color-outline-1: var(--gray-800); // hairline dividers, default borders
     --color-outline-2: var(--gray-700); // strong borders, frames, halos
 
     // ── Status and accent ────────────────────────────────────────────────
-    --color-accent: var(--blue-400);
+    // The one accent, always light: a fill under dark text and small marks
+    // on a dark page (DESIGN.md, the Light Accent Rule).
+    --color-accent: var(--peach-400);
     --color-positive: var(--green-400);
     --color-negative: var(--red-400);
     --color-warning: var(--amber-400);
@@ -58,8 +67,13 @@
     // this product's vocabulary, not a decoration.
     --color-merged: var(--violet-400);
 
+    // The free blue lane (DESIGN.md, the Four Lanes Rule): a mark that is
+    // neither a state nor the accent, such as a comment's origin, the test
+    // concern and the blue badge. Never selection, never focus.
+    --color-info: var(--blue-400);
+
     // ── Other semantic colors ────────────────────────────────────────────
-    --color-on-primary: var(--gray-950);
+    --color-on-primary: #2a1a0c;
 
     // The light-mode half of the two light-dark() pairs in base.scss. The app
     // ships dark-only today; the pair is kept so a light scheme stays possible.
@@ -149,14 +163,45 @@
     // justification and a line-scoped stylelint disable.
 
     // ── Radius scale ─────────────────────────────────────────────────────
-    // Six steps. `md` is the one card/panel corner; `xs` earns its own step
-    // because 2→4px visibly balls the 3–4px markers it is used on.
+    // The three corners DESIGN.md names: chips and keys, controls, and the
+    // list, the URL box and menus. Round is kept for people.
+    --radius-s: 5px;
+    --radius-m: 8px;
+    --radius-l: 10px;
+
+    // The previous six steps, kept until the Brief page moves onto the three
+    // above: xs and sm fold into s, md is m, lg is l, pill retires.
     --radius-xs: 2px; // tiny bars, markers, inner slivers
     --radius-sm: 4px; // chips, inputs, inner corners
     --radius-md: 8px; // THE card / panel corner
     --radius-lg: 12px; // modals, sheets, outer group frames
     --radius-pill: 999px; // pills
     --radius-circle: 50%; // avatars, dots, round icon buttons
+
+    // ── Spacing scale ────────────────────────────────────────────────────
+    // One scale for gaps, margins and padding; rem so rhythm follows the
+    // reader's font size. Blocks are grouped, not evenly spaced.
+    --space-1: #{functions.to-rem(2px)};
+    --space-2: #{functions.to-rem(4px)};
+    --space-3: #{functions.to-rem(8px)};
+    --space-4: #{functions.to-rem(12px)};
+    --space-5: #{functions.to-rem(16px)};
+    --space-6: #{functions.to-rem(24px)};
+    --space-7: #{functions.to-rem(32px)};
+    --space-8: #{functions.to-rem(48px)};
+    --space-9: #{functions.to-rem(64px)};
+
+    // ── Motion ───────────────────────────────────────────────────────────
+    // Three durations and two curves; keyboard movement never animates.
+    --motion-fast: 120ms;
+    --motion-base: 180ms;
+    --motion-slow: 320ms;
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+
+    // ── Layout ───────────────────────────────────────────────────────────
+    // The one-tier Header's height; the Brief page's two tiers derive below.
+    --header-h: 52px;
 
     // ── Elevation ────────────────────────────────────────────────────────
     // Three steps plus the upward cast.

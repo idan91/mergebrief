@@ -89,8 +89,8 @@
     text-transform: uppercase;
 
     &[data-status="ready"] {
-      border-color: color-mix(in srgb, var(--blue) 35%, transparent);
-      color: var(--blue);
+      border-color: color-mix(in srgb, var(--color-positive) 35%, transparent);
+      color: var(--color-positive);
     }
 
     &[data-status="failed"] {

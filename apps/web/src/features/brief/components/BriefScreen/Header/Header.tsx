@@ -27,6 +27,7 @@ import {
   type UnattributedRemainderGroupView,
 } from "../../../utils/viewModel";
 import { AccessibleLink } from "@web/components/AccessibleLink/AccessibleLink";
+import { PRODUCT_NAME } from "@web/components/Header/consts";
 import { Button } from "@web/components/Button/Button";
 import { IconButton } from "@web/components/IconButton/IconButton";
 import { LocSign, LocSigns } from "@web/components/LocSign/LocSign";
@@ -74,9 +75,6 @@ export interface HeaderProps {
   jumpToGroup: (groupId: string) => void;
   jumpToGroupHeading: (groupId: string) => void;
 }
-
-// The product name, an identifier, never translated.
-const PRODUCT_NAME = "MergeBrief";
 
 const SETTLE_MS = 200;
 
@@ -198,7 +196,9 @@ export function Header({
             line); at ≤880px it becomes the grid's content row, with the CTA +
             overflow column beside it. */}
         <div className={styles["lead"]}>
-          <div className={styles["wordmark"]}>{PRODUCT_NAME}</div>
+          <AccessibleLink className={styles["wordmark"]} href="/">
+            {PRODUCT_NAME}
+          </AccessibleLink>
           <div className={styles["titleBlock"]}>
             <div className={styles["titleLine"]}>
               <h1 className={styles["title"]}>{brief.pr.title}</h1>

@@ -310,8 +310,16 @@ _Avoid_: using the two words interchangeably; Error-suffixed types on the Result
 The two GitHub identities the API acts under. The installation port is the app's own channel — an installation token injected once at startup, one rate budget shared across viewers. The reviewer GitHub client is the signed-in reviewer's channel — their OAuth token, bound per request; it runs a call with the current token and, on a token-expired failure, refreshes at most once per request and re-runs. Which identity a call runs under decides whose permissions and whose rate budget apply.
 _Avoid_: viewer token (say reviewer), refresh budget (say refreshed at most once per request)
 
+**Home**:
+The page at `/`. Signed in: the one-tier **Header**, a personal line that leads with a fact only this product knows, the URL input and the **Inbox** under the on-screen label "Briefs". Signed out: the pitch, one picture of a brief and Sign in with GitHub, no URL input. "Landing page" now means only the marketing page built later, which is not a screen of the app.
+_Avoid_: landing page, picker, front door, dashboard
+
+**Inbox**:
+The list on **Home**: every pull request the **Reviewer** reaches, across every **Installation** plus the ones they pasted, each row carrying their review state, folded so the rows that still need them come first, with filters, a sort and numbered pages. Inbox is the term in code and here; the label on screen is "Briefs".
+_Avoid_: briefs list, your briefs, queue (collides with the job queue), docket
+
 **Header**:
-The sticky top band of a screen. On the Brief page it is two tiers: the identity row (wordmark, PR title and state, meta chips, the terminal action, the PR-scoped overflow menu, and the **Account menu** last) and the lens row (revision navigator and stats). Spans the full width above the **Sidebar** column; compacts on scroll but never loses its controls. The landing page carries a one-tier Header.
+The sticky top band of a screen. On the Brief page it is two tiers: the identity row (wordmark, PR title and state, meta chips, the terminal action, the PR-scoped overflow menu, and the **Account menu** last) and the lens row (revision navigator and stats). Spans the full width above the **Sidebar** column; compacts on scroll but never loses its controls. **Home** carries a one-tier Header of 52px with a hairline under it; on every screen the wordmark is a link to Home.
 _Avoid_: top chrome, top bar (the CSS variable's name, not the concept), navbar
 
 **Account menu**:

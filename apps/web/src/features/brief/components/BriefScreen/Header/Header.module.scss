@@ -46,13 +46,25 @@
 
   // line-height: 1 — inherited line boxes drift the visible baselines ~2px.
   .wordmark {
+    display: inline-flex;
     flex: none;
+    align-items: center;
+    min-block-size: functions.to-rem(24px);
     color: var(--text);
     font-size: var(--font-size-xl);
     font-weight: 700;
     letter-spacing: 0;
     line-height: 1;
+    text-decoration: none;
     white-space: nowrap;
+
+    &:hover {
+      color: var(--color-accent);
+    }
+
+    &:focus-visible {
+      @include mixins.focus-ring;
+    }
   }
 
   .titleBlock {
