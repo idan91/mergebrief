@@ -22,6 +22,16 @@ deprecation note here, removal only at a major.
 
 ## dev (2026-09-21)
 
+- **Changed** `counts` on `GET /api/inbox`: the four review-state totals now
+  cover only the open, non-draft rows the viewer can see. A merged, closed
+  or draft pull request no longer counts as new or changed, whatever the
+  status filter shows. The viewer's own rows carried no state before and
+  still carry none.
+- **Fixed** `viewerIsAuthor` and `reviewState` on `GET /api/inbox` items and
+  `viewerIsAuthor` on `GET /api/repos/:repoId/pulls/:prNumber` for a url row
+  ingested before its author was recorded: the live read now writes the
+  author GitHub names, so the viewer's own row stops reading as new to them
+  once it is read again.
 - **Changed** `stack` on `GET /api/inbox` items: for a pull request GitHub
   still lists as open, the position now comes from the repository's live
   open-PR list, read with the viewer's token and cached per session for a

@@ -172,6 +172,7 @@ function stubGitHub(script: PrEndpointScript = {}): FetchCounts {
                   closedAt: null,
                   updatedAt: "2026-09-20T10:00:00Z",
                   headRefOid: LIVE_HEAD,
+                  author: { login: "octocat" },
                 },
               },
             },

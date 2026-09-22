@@ -450,6 +450,39 @@ describe("createInboxStore.list, fold and sort", () => {
       2, 4, 3, 1,
     ]);
   });
+
+  it("a draft or a merged row sits below the fold whatever its state", async () => {
+    const handle = await freshDatabase();
+    await seedFoldFixture(handle);
+    await seedRow(handle, {
+      ctx: CTX_ACME,
+      repoId: REPO_A,
+      prNumber: 5,
+      draft: true,
+      updatedAt: new Date("2026-09-20T00:00:00Z"),
+    });
+    await seedRow(handle, {
+      ctx: CTX_ACME,
+      repoId: REPO_A,
+      prNumber: 6,
+      lifecycle: {
+        state: PrStates.MERGED,
+        closedAt: new Date("2026-09-20T00:00:00Z"),
+        purgeAfter: null,
+      },
+      updatedAt: new Date("2026-09-20T00:00:00Z"),
+    });
+    const everyStatus = Object.values(InboxStatuses);
+
+    const page = await createInboxStore(handle).list(
+      makeListInput({ filters: { ...DEFAULT_FILTERS, statuses: everyStatus } }),
+    );
+
+    expect(page.items.map((item) => item.pullRequest.prNumber)).toEqual([
+      4, 3, 2, 6, 5, 1,
+    ]);
+    expect(page.counts.new).toBe(2);
+  });
 });
 
 describe("createInboxStore.list, visibility", () => {
@@ -588,8 +621,8 @@ describe("createInboxStore.list, filters", () => {
     const handle = await freshDatabase();
     await seedFilterFixture(handle);
 
-    // The two new rows lead; the reviewed one and the viewer's own sink.
-    expect(await listNumbers(handle)).toEqual([2, 1, 6, 5]);
+    // The open new row leads; the reviewed one, the viewer's own and the draft sink.
+    expect(await listNumbers(handle)).toEqual([1, 6, 5, 2]);
     expect(
       await listNumbers(handle, {
         filters: {
@@ -611,18 +644,18 @@ describe("createInboxStore.list, filters", () => {
     const filtered = (filters: Partial<InboxFilters>) =>
       listNumbers(handle, { filters: { ...DEFAULT_FILTERS, ...filters } });
 
-    expect(await filtered({ repoIds: [REPO_A] })).toEqual([2, 1]);
+    expect(await filtered({ repoIds: [REPO_A] })).toEqual([1, 2]);
     expect(
       await filtered({ reviewStates: [InboxReviewStates.REVIEWED] }),
     ).toEqual([6]);
     expect(await filtered({ author: InboxAuthorFilters.MINE })).toEqual([5]);
     expect(await filtered({ author: InboxAuthorFilters.OTHERS })).toEqual([
-      2, 1, 6,
+      1, 6, 2,
     ]);
     expect(await filtered({ installationIds: [OCTO] })).toEqual([6, 5]);
   });
 
-  it("counts every viewable row while total follows the filters", async () => {
+  it("counts open rows that are not drafts, whatever the filters", async () => {
     const handle = await freshDatabase();
     await seedFilterFixture(handle);
 
@@ -632,7 +665,7 @@ describe("createInboxStore.list, filters", () => {
 
     expect(page.total).toBe(2);
     expect(page.counts).toEqual({
-      new: 4,
+      new: 1,
       inProgress: 0,
       reviewed: 1,
       updated: 0,

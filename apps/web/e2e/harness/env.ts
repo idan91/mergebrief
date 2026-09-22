@@ -5,7 +5,11 @@ import { generateKeyPairSync } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { INBOX_BEHIND_ROW, INBOX_INSTALLATIONS } from "../fixtures/inbox";
+import {
+  E2E_OTHER_LOGIN,
+  INBOX_BEHIND_ROW,
+  INBOX_INSTALLATIONS,
+} from "../fixtures/inbox";
 import { FIXTURE_PR_TITLE, FIXTURE_REV2_HEAD } from "../fixtures/ids";
 
 function readEnvNumber(name: string, fallback: number): number {
@@ -227,6 +231,7 @@ export function buildApiServerEnv(): Record<string, string> {
           prNumber: 1,
           title: FIXTURE_PR_TITLE,
           headSha: FIXTURE_REV2_HEAD,
+          author: E2E_OTHER_LOGIN,
           updatedMinutesAgo: 0,
         },
         {
@@ -235,6 +240,7 @@ export function buildApiServerEnv(): Record<string, string> {
           prNumber: INBOX_BEHIND_ROW.prNumber,
           title: INBOX_BEHIND_ROW.title,
           headSha: INBOX_BEHIND_ROW.githubHead,
+          author: E2E_OTHER_LOGIN,
           updatedMinutesAgo: INBOX_BEHIND_ROW.updatedMinutesAgo,
         },
       ],

@@ -88,6 +88,7 @@ function stubFacts(overrides?: Partial<PullRequestFacts>): PullRequestFacts {
     closedAt: null,
     updatedAt: NOW,
     headSha: HEAD,
+    authorLogin: "octocat",
     ...overrides,
   };
 }
@@ -235,6 +236,7 @@ describe("refreshUrlPullRequests", () => {
     expect(updated.draft).toBe(true);
     expect(updated.githubHeadSha).toBe(HEAD);
     expect(updated.githubReadAt).toEqual(NOW);
+    expect(updated.authorLogin).toBe("octocat");
   });
 
   it("reads in chunks of the page size and defers past the chunk cap", async () => {

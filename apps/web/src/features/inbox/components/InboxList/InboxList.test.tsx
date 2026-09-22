@@ -74,7 +74,7 @@ describe("InboxList", () => {
     expect(rows.map((row) => within(row).getByText(/#\d/).textContent)).toEqual(
       ["#2", "#4", "#1", "#3"],
     );
-    expect(screen.getByText("Reviewed and yours")).toBeTruthy();
+    expect(screen.getByText("Not waiting on you")).toBeTruthy();
     expect(rows[0]?.getAttribute("data-needs-you")).toBe("true");
     expect(rows[2]?.getAttribute("data-needs-you")).toBe("false");
   });
@@ -112,7 +112,7 @@ describe("InboxList", () => {
     expect(rows.map((row) => within(row).getByText(/#\d/).textContent)).toEqual(
       ["#1", "#2", "#3"],
     );
-    expect(screen.queryByText("Reviewed and yours")).toBeNull();
+    expect(screen.queryByText("Not waiting on you")).toBeNull();
     expect(screen.getAllByRole("list")).toHaveLength(1);
   });
 
@@ -125,7 +125,7 @@ describe("InboxList", () => {
       />,
     );
 
-    expect(screen.queryByText("Reviewed and yours")).toBeNull();
+    expect(screen.queryByText("Not waiting on you")).toBeNull();
   });
 
   it("each row is one link to the brief, named by its title", async () => {

@@ -18,12 +18,13 @@
   }
 
   .box {
-    // Off-scale: the dialog fill sits between --color-surface-1 (#171411)
-    // and --color-surface-2 (#1e1a16) so a modal reads as its own plane, not
-    // a panel. The textarea's focus border is a one-off lift above
-    // --color-outline-2, scoped to the focused state.
-    --box-fill: #1a1713;
-    --textarea-focus-border: #45454f;
+    // Off-scale: the dialog fill sits between --color-surface-1 (19.8%) and
+    // --color-surface-2 (22.8%) in lightness so a modal reads as its own
+    // plane, not a panel; the textarea's focus border is a one-off lift above
+    // --color-outline-2 (31%), scoped to the focused state. Both derive from
+    // the theme's hue and grey chroma like every other grey.
+    --box-fill: oklch(21.3% var(--gray-c) var(--brand-hue));
+    --textarea-focus-border: oklch(39% var(--gray-c) var(--brand-hue));
 
     inline-size: functions.to-rem(460px);
     max-inline-size: 92vw;

@@ -2,8 +2,8 @@
 name: MergeBrief
 description: A calm, dark reading surface for understanding a pull request before reviewing it.
 colors:
-  accent: "#c9e4ff"
-  accent-ink: "#111b28"
+  accent: "#e1e1e1"
+  accent-ink: "#1a1a1a"
   ground: "#101010"
   surface-1: "#161616"
   surface-2: "#1c1c1c"
@@ -120,7 +120,7 @@ components:
 
 # Design System: MergeBrief
 
-Status: built on Home, which leads this language; the Brief page follows it. The theme is hue 255 with neutral greys; the hex values above are what that renders today, and the source of truth is four numbers in `apps/web/src/styles/tokens.scss`. One known conflict is open: the accent shares its hue with the info blue (`--color-info`), which the Four Lanes Rule reserved as a free lane; either the info colour moves or the accent does.
+Status: built on Home, which leads this language; the Brief page follows it. The theme is achromatic: hue 255 is kept in the tokens, but the accent and the greys both sit at chroma 0, so the accent is a plain light and nothing on screen carries the hue. The hex values above are what that renders today, and the source of truth is four numbers in `apps/web/src/styles/tokens.scss`. One known conflict waits for the day the accent takes a chroma again: it would share its hue with the info blue (`--color-info`), which the Four Lanes Rule reserved as a free lane; either the info colour moves or the accent does.
 
 ## Overview
 
@@ -146,7 +146,7 @@ Neutral greys under one light accent. State colours keep a fixed meaning across 
 
 ### Primary
 
-- **Lamp** (#c9e4ff, the `--brand-400` primitive): review marks for rows that need the reviewer, the Generate button, focus rings, the value of a changed filter, the current page. Dark text on it uses **Accent Ink** (#111b28).
+- **Lamp** (#e1e1e1, the `--brand-400` primitive): review marks for rows that need the reviewer, the Generate button, focus rings, the value of a changed filter, the current page. Dark text on it uses **Accent Ink** (#1a1a1a).
 
 ### Neutral
 
@@ -164,13 +164,13 @@ Neutral greys under one light accent. State colours keep a fixed meaning across 
 
 ### Named Rules
 
-**The Light Accent Rule.** The accent is always light: it is used as a fill under dark text and as small marks on a dark page. It reads as a light, not a paint: high lightness and low chroma, a white with a hue rather than a saturated colour. A dark or heavily saturated brand colour needs a lighter partner for the interface. At hue 255 the accent sits just outside sRGB and renders at about 0.047 chroma.
+**The Light Accent Rule.** The accent is always light: it is used as a fill under dark text and as small marks on a dark page. It reads as a light, not a paint: high lightness and low chroma, a white with a hue rather than a saturated colour. A dark or heavily saturated brand colour needs a lighter partner for the interface. Today the chroma is 0: the accent is a white at 91% lightness and carries its meaning by lightness alone.
 
 **The One Hue Rule.** The theme is four numbers in `tokens.scss`: `--brand-hue`, the accent's `--accent-l` and `--accent-c`, and the greys' `--gray-c`. The accent and every grey derive from the hue in OKLCH at fixed lightness steps, so changing the hue moves the whole palette together and every contrast holds. Nothing else in the app states the hue.
 
 **The Four Lanes Rule.** Green, violet, red and amber belong to states. A brand hue inside one of them reads as a state. The free lanes are blue to cyan, pink to magenta, and orange to peach.
 
-**The Tinted Grey Rule.** Greys carry the accent's hue at one very low chroma, `--gray-c` (currently 0, so every grey is neutral; the ghost separator doubles it). When the brand hue changes, the greys move with it, at the same lightness, so contrast holds; a hue whose tint reads too strong on the greys turns `--gray-c` down, and 0 makes every grey neutral without touching the accent. In OKLCH: ground 0.172, surfaces 0.198, 0.228 and 0.268, lines 0.24 and 0.31, the ghost separator 0.329, text 0.94, 0.84, 0.71 and 0.675, accent 0.91 at chroma 0.055.
+**The Tinted Grey Rule.** Greys carry the accent's hue at one very low chroma, `--gray-c` (currently 0, so every grey is neutral; the ghost separator doubles it). When the brand hue changes, the greys move with it, at the same lightness, so contrast holds; a hue whose tint reads too strong on the greys turns `--gray-c` down, and 0 makes every grey neutral without touching the accent. In OKLCH: ground 0.172, surfaces 0.198, 0.228 and 0.268, lines 0.24 and 0.31, the ghost separator 0.329, text 0.94, 0.84, 0.71 and 0.675, accent 0.91 at chroma 0.
 
 **Contrast.** Text is 5:1 or better on every surface it sits on, and 5.5:1 or better on the page and the list; icons and state marks 3:1 or better. One deliberate exception: the URL box edge at rest is about 1.4:1, and the link icon, the placeholder and the slash key mark the field instead. Focus always shows a 2px accent ring.
 
@@ -201,7 +201,7 @@ One centred column, 1080px wide at most, with a 24px gutter that becomes 16px un
 
 Spacing uses one scale: 2, 4, 8, 12, 16, 24, 32, 48, 64. Blocks are grouped, not evenly spaced: the personal line and the URL box sit 16px apart as one group; the list begins 48px below them; a heading sits 12px above its list. There is always more space above a heading than below it.
 
-The list splits at a fold. Rows that need the reviewer (new, updated since your review, in progress) come first; a quiet line reading "Reviewed and yours" follows; reviewed rows and the viewer's own come last. Each group keeps the chosen sort. A View control beside Sort offers the other layout, "Mixed": one list in the sort's order with no fold. The choice rides the URL and is not a filter, so Clear leaves it.
+The list splits at a fold. Rows that need the reviewer (open, not a draft, and new, updated since your review or in progress) come first; a quiet line reading "Not waiting on you" follows; reviewed rows, drafts, merged or closed rows and the viewer's own come last. The personal line above counts the rows the fold lifts ("5 pull requests need your attention") and lists their states, what changed since your review first; with nothing waiting it reads "You are all caught up". Each group keeps the chosen sort. A View control beside Sort offers the other layout, "Mixed": one list in the sort's order with no fold. The choice rides the URL and is not a filter, so Clear leaves it.
 
 Under 760px the filters collapse behind one button and the controls take their own line; under 400px View and Sort may wrap under the Filters button. Status labels become icons with hidden text. The page never scrolls sideways down to 320px.
 

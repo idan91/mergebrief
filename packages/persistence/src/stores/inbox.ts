@@ -17,6 +17,7 @@ import {
 } from "drizzle-orm";
 import {
   InboxAuthorFilters,
+  InboxFoldStates,
   InboxReviewStates,
   InboxSorts,
   InboxStatuses,
@@ -119,7 +120,7 @@ export interface InboxPage {
   readonly pageSize: number;
   /** Rows matching the filters, across every page. */
   readonly total: number;
-  /** The four review-state totals over every viewable row, unfiltered. */
+  /** The four review-state totals over the open, non-draft viewable rows, whatever the filters. */
   readonly counts: InboxCounts;
   /** The repositories the viewable rows name, unfiltered, each once, sorted by slug, at most MAX_INBOX_REPOSITORIES. */
   readonly repositories: readonly InboxRepository[];
@@ -134,23 +135,24 @@ interface ViewableGroup {
   readonly state: string | null;
   readonly repoId: RepoId;
   readonly repoSlug: string | null;
-  readonly rows: number;
+  /** Open and not a draft. */
+  readonly open: number;
   readonly matching: number;
 }
 
-/** The four totals summed over the groups; the viewer's own rows carry none. */
+/** The four totals summed over the open, non-draft rows of each group; the viewer's own rows carry none. */
 function shapeCounts(groups: readonly ViewableGroup[]): InboxCounts {
   const counts = { new: 0, inProgress: 0, reviewed: 0, updated: 0 };
   for (const group of groups) {
-    if (group.state === InboxReviewStates.NEW) counts.new += group.rows;
+    if (group.state === InboxReviewStates.NEW) counts.new += group.open;
     if (group.state === InboxReviewStates.IN_PROGRESS) {
-      counts.inProgress += group.rows;
+      counts.inProgress += group.open;
     }
     if (group.state === InboxReviewStates.REVIEWED) {
-      counts.reviewed += group.rows;
+      counts.reviewed += group.open;
     }
     if (group.state === InboxReviewStates.UPDATED) {
-      counts.updated += group.rows;
+      counts.updated += group.open;
     }
   }
   return counts;
@@ -301,10 +303,15 @@ function buildShadowing(input: InboxListInput): SQL {
   ))`;
 }
 
+/** Open and not a draft: the one row shape a review can still be owed on. */
+function buildOpenPredicate(state: SQLWrapper, draft: SQLWrapper): SQL {
+  return sql`${state} = ${PrStates.OPEN} and not ${draft}`;
+}
+
 function buildStatusPredicate(status: InboxStatus): SQL {
   switch (status) {
     case InboxStatuses.OPEN:
-      return sql`${pullRequest.state} = ${PrStates.OPEN} and not ${pullRequest.draft}`;
+      return buildOpenPredicate(pullRequest.state, pullRequest.draft);
     case InboxStatuses.DRAFT:
       return sql`${pullRequest.state} = ${PrStates.OPEN} and ${pullRequest.draft}`;
     case InboxStatuses.MERGED:
@@ -389,19 +396,14 @@ function buildViewable(
 }
 type Viewable = ReturnType<typeof buildViewable>;
 
-/** The fold: rows the reviewer still owes work lead; reviewed and own rows follow. */
-const FOLD_STATES = [
-  InboxReviewStates.NEW,
-  InboxReviewStates.UPDATED,
-  InboxReviewStates.IN_PROGRESS,
-];
-
+/** The fold: open, non-draft rows in a fold state lead; the rest follow. */
 function buildListQuery(db: InboxDb, input: InboxListInput, page: Viewable) {
   const foldStates = sql.join(
-    FOLD_STATES.map((state) => sql`${state}`),
+    Object.values(InboxFoldStates).map((state) => sql`${state}`),
     sql`, `,
   );
-  const needsViewer = sql<boolean>`coalesce(${page.reviewState} in (${foldStates}), false)`;
+  const open = buildOpenPredicate(page.state, page.draft);
+  const needsViewer = sql<boolean>`coalesce(${page.reviewState} in (${foldStates}) and ${open}, false)`;
   const sortColumn =
     input.sort === InboxSorts.GENERATED
       ? page.latestCreatedAt
@@ -513,12 +515,13 @@ export function createInboxStore(handle: AppDatabase): InboxStore {
         viewable.matchesRows,
         buildStateFilter(input, viewable.reviewState),
       );
+      const open = buildOpenPredicate(viewable.state, viewable.draft);
       const groupsQuery = db
         .select({
           state: viewable.reviewState,
           repoId: viewable.repoId,
           repoSlug: sql<string | null>`max(${viewable.repoSlug})`,
-          rows: sql<number>`count(*)::int`,
+          open: sql<number>`count(*) filter (where ${open})::int`,
           matching: sql<number>`count(*) filter (where ${matches})::int`,
         })
         .from(viewable)

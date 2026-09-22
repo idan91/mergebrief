@@ -271,12 +271,15 @@ export type Catalog = typeof en & {
   };
   home: (typeof en)["home"] & {
     personalLine: (typeof en)["home"]["personalLine"] & {
-      changed_one: "{{count}} pull request changed since you reviewed it";
-      changed_other: "{{count}} pull requests changed since you reviewed them";
-      changedDetailNew_one: "{{count}} more is new to you.";
-      changedDetailNew_other: "{{count}} more are new to you.";
-      new_one: "{{count}} pull request is new to you";
-      new_other: "{{count}} pull requests are new to you";
+      attention_one: "{{count}} pull request needs your attention";
+      attention_other: "{{count}} pull requests need your attention";
+      detail: "{{parts}}.";
+      partChanged_one: "{{count}} changed since you reviewed it";
+      partChanged_other: "{{count}} changed since you reviewed them";
+      partNew_one: "{{count}} is new";
+      partNew_other: "{{count}} are new";
+      partInProgress_one: "{{count}} in progress";
+      partInProgress_other: "{{count}} in progress";
     };
     inbox: (typeof en)["home"]["inbox"] & {
       number: "#{{number}}";

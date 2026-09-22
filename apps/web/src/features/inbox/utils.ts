@@ -1,7 +1,8 @@
 import { InboxQueryKeys } from "contract";
-import { InboxReviewStates, InboxSorts, type InboxSort } from "types/inbox";
+import { InboxFoldStates, InboxSorts, type InboxSort } from "types/inbox";
 
 import { ApiErrorCodes, type ApiErrorCode } from "../../data/apiFetch";
+import { PrStates } from "../pulls/types";
 import {
   AgeUnits,
   FailureSides,
@@ -54,11 +55,9 @@ function appendEach(
   for (const value of values ?? []) search.append(key, value);
 }
 
-const ABOVE_FOLD = new Set<InboxItem["reviewState"]>([
-  InboxReviewStates.NEW,
-  InboxReviewStates.UPDATED,
-  InboxReviewStates.IN_PROGRESS,
-]);
+const ABOVE_FOLD = new Set<InboxItem["reviewState"]>(
+  Object.values(InboxFoldStates),
+);
 
 export interface FoldSplit {
   readonly above: readonly InboxItem[];
@@ -67,14 +66,15 @@ export interface FoldSplit {
 
 /** Rows that need the reviewer first, then the rest; each side keeps the server order. */
 export function splitAtFold(items: readonly InboxItem[]): FoldSplit {
-  const above = items.filter((item) => ABOVE_FOLD.has(item.reviewState));
-  const below = items.filter((item) => !ABOVE_FOLD.has(item.reviewState));
+  const above = items.filter((item) => needsReviewer(item));
+  const below = items.filter((item) => !needsReviewer(item));
   return { above, below };
 }
 
-/** A row above the fold, so the title takes Text 1. */
+/** A row above the fold, so the title takes Text 1: open, not a draft, in a state that needs the reviewer. */
 export function needsReviewer(item: InboxItem): boolean {
-  return ABOVE_FOLD.has(item.reviewState);
+  const open = item.state === PrStates.OPEN && !item.draft;
+  return open && ABOVE_FOLD.has(item.reviewState);
 }
 
 /** The timestamp the age reads, by sort; a missing one falls back to the other. */

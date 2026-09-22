@@ -11,6 +11,7 @@ import {
   RepositoryErrorCodes,
   type PullRequestLifecycle,
   type PullRequestRow,
+  type PullRequestUpdateSet,
   type RepositoryError,
 } from "./tenant";
 import { PrStates, type PullRequestRowId, type Result } from "../types";
@@ -30,6 +31,8 @@ export interface LiveReadFacts extends LiveReadStamp {
   readonly githubUpdatedAt: Date;
   /** Applied as read: a live open beats a stored closed. */
   readonly lifecycle: PullRequestLifecycle;
+  /** Absent when the account is gone; the stored login then stays. */
+  readonly authorLogin?: string;
 }
 
 export interface LiveReadDueInput {
@@ -116,19 +119,21 @@ export function createLiveReadStore(
     },
 
     async record(pullRequestId, facts) {
+      const set: PullRequestUpdateSet = {
+        repoSlug: facts.repoSlug,
+        title: facts.title,
+        draft: facts.draft,
+        githubUpdatedAt: facts.githubUpdatedAt,
+        githubHeadSha: facts.headSha,
+        githubReadAt: facts.readAt,
+        githubUnreachableAt: null,
+        ...buildLifecycleColumns(facts.lifecycle),
+        updatedAt: new Date(),
+      };
+      if (facts.authorLogin !== undefined) set.authorLogin = facts.authorLogin;
       const rows = await db
         .update(pullRequest)
-        .set({
-          repoSlug: facts.repoSlug,
-          title: facts.title,
-          draft: facts.draft,
-          githubUpdatedAt: facts.githubUpdatedAt,
-          githubHeadSha: facts.headSha,
-          githubReadAt: facts.readAt,
-          githubUnreachableAt: null,
-          ...buildLifecycleColumns(facts.lifecycle),
-          updatedAt: new Date(),
-        })
+        .set(set)
         .where(
           and(scope.matchesPullRequest(), eq(pullRequest.id, pullRequestId)),
         )

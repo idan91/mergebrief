@@ -29,6 +29,7 @@ import {
   type ScopeContext,
 } from "persistence";
 import {
+  E2E_OTHER_LOGIN,
   E2E_VIEWER_LOGIN,
   INBOX_BEHIND_ROW,
   INBOX_INSTALLATIONS,
@@ -139,7 +140,9 @@ async function seedInboxRow(
       repoSlug: repo.slug,
       title: row.title,
       authorLogin:
-        row.state === InboxSeedStates.YOURS ? E2E_VIEWER_LOGIN : "mira-k",
+        row.state === InboxSeedStates.YOURS
+          ? E2E_VIEWER_LOGIN
+          : E2E_OTHER_LOGIN,
       draft: row.draft ?? false,
       githubUpdatedAt: updatedAt,
       ...lifecycle,
@@ -176,7 +179,7 @@ async function seedBehindRow(
       prNumber: INBOX_BEHIND_ROW.prNumber,
       repoSlug: E2E_REPO_SLUG,
       title: INBOX_BEHIND_ROW.title,
-      authorLogin: "mira-k",
+      authorLogin: E2E_OTHER_LOGIN,
       state: PrStates.OPEN,
     },
   );

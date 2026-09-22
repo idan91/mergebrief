@@ -184,6 +184,20 @@ describe("createLiveReadStore.record", () => {
     expect(row.githubUnreachableAt).toBeNull();
   });
 
+  it("writes the author GitHub names and keeps it when the account is gone", async () => {
+    const handle = await freshDatabase();
+    const store = createLiveReadStore(handle, CTX_A);
+    const id = await seedOpen(handle, CTX_A, 1);
+
+    const named = unwrap(
+      await store.record(id, stubFacts({ authorLogin: "octocat" })),
+    );
+    const gone = unwrap(await store.record(id, stubFacts()));
+
+    expect(named.authorLogin).toBe("octocat");
+    expect(gone.authorLogin).toBe("octocat");
+  });
+
   it("refuses another owner's row", async () => {
     const handle = await freshDatabase();
     const id = await seedOpen(handle, CTX_A, 1);

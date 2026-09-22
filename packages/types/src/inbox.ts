@@ -9,6 +9,14 @@ export const InboxReviewStates = {
 } as const;
 export type InboxReviewState = ValueOf<typeof InboxReviewStates>;
 
+/** The review states the fold lifts: the reviewer still owes the row work. */
+export const InboxFoldStates = {
+  NEW: InboxReviewStates.NEW,
+  UPDATED: InboxReviewStates.UPDATED,
+  IN_PROGRESS: InboxReviewStates.IN_PROGRESS,
+} as const;
+export type InboxFoldState = ValueOf<typeof InboxFoldStates>;
+
 /** The status filter's values: a draft is an open pull request marked draft. */
 export const InboxStatuses = {
   OPEN: "open",

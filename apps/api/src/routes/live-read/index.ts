@@ -12,6 +12,7 @@ import {
 import {
   createLiveReadStore,
   createTenantRepository,
+  type LiveReadFacts,
   type LiveReadStore,
   type RepoId,
   type ReviewerId,
@@ -30,6 +31,7 @@ import {
   type ReadPlan,
   type ReadTarget,
 } from "./logic/due";
+import type { Mutable } from "types/utils";
 import { runInBatches } from "../batches";
 import { parseOwnerAndName } from "../repos/utils";
 import { deriveLifecycle } from "./logic/lifecycle";
@@ -353,8 +355,8 @@ async function retryUnderFallback(
   };
 }
 
-function shapeFacts(facts: PullRequestFacts, now: Date) {
-  return {
+function shapeFacts(facts: PullRequestFacts, now: Date): LiveReadFacts {
+  const shaped: Mutable<LiveReadFacts> = {
     readAt: now,
     headSha: facts.headSha,
     repoSlug: facts.repoFullName,
@@ -363,4 +365,6 @@ function shapeFacts(facts: PullRequestFacts, now: Date) {
     githubUpdatedAt: facts.updatedAt,
     lifecycle: deriveLifecycle(facts, now),
   };
+  if (facts.authorLogin !== null) shaped.authorLogin = facts.authorLogin;
+  return shaped;
 }

@@ -446,6 +446,7 @@ describe("GET /api/repos/:repoId/pulls/:prNumber", () => {
             closedAt: null,
             updatedAt: "2026-09-20T10:00:00Z",
             headRefOid: headSha,
+            author: { login: "octocat" },
           },
         },
       },

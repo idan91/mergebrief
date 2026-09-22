@@ -119,6 +119,7 @@ function answerLiveRead(init) {
                 Date.now() - row.updatedMinutesAgo * MINUTE_MS,
               ).toISOString(),
               headRefOid: row.headSha,
+              author: { login: row.author },
             },
           };
   }

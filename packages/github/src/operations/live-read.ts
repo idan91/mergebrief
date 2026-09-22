@@ -38,6 +38,8 @@ export interface PullRequestFacts {
   readonly closedAt: Date | null;
   readonly updatedAt: Date;
   readonly headSha: string;
+  /** Null when the account is gone. */
+  readonly authorLogin: string | null;
 }
 
 /**
@@ -61,6 +63,7 @@ const wirePullRequestSchema = z.object({
   closedAt: z.string().nullable(),
   updatedAt: z.string(),
   headRefOid: z.string().min(1),
+  author: z.object({ login: z.string() }).nullable(),
 });
 
 const wireRepositorySchema = z
@@ -97,7 +100,7 @@ function buildQuery(count: number): string {
       `$o${index}: String!, $r${index}: String!, $n${index}: Int!`,
     );
     selections.push(
-      `p${index}: repository(owner: $o${index}, name: $r${index}) { databaseId nameWithOwner pullRequest(number: $n${index}) { state isDraft title closedAt updatedAt headRefOid } }`,
+      `p${index}: repository(owner: $o${index}, name: $r${index}) { databaseId nameWithOwner pullRequest(number: $n${index}) { state isDraft title closedAt updatedAt headRefOid author { login } } }`,
     );
   }
   return `query LiveRead(${declarations.join(", ")}) { ${selections.join(" ")} }`;
@@ -129,6 +132,7 @@ function mapFacts(
     closedAt: wire.closedAt === null ? null : new Date(wire.closedAt),
     updatedAt: new Date(wire.updatedAt),
     headSha: wire.headRefOid,
+    authorLogin: wire.author?.login ?? null,
   };
 }
 

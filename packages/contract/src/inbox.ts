@@ -87,7 +87,7 @@ export interface InboxItem {
   readonly stack: InboxStackView | null;
 }
 
-/** The four review-state totals over every viewable row, unfiltered. */
+/** The four review-state totals over the open, non-draft rows the viewer can see, whatever the filters. */
 export interface InboxCountsView {
   readonly new: number;
   readonly inProgress: number;

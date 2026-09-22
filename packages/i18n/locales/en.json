@@ -1088,16 +1088,21 @@
   },
   "home": {
     "personalLine": {
-      "changed_one": "{{count}} pull request changed since you reviewed it",
-      "changed_other": "{{count}} pull requests changed since you reviewed them",
-      "changedDetailNone": "Nothing else is new.",
-      "changedDetailNew_one": "{{count}} more is new to you.",
-      "changedDetailNew_other": "{{count}} more are new to you.",
-      "new_one": "{{count}} pull request is new to you",
-      "new_other": "{{count}} pull requests are new to you",
-      "newDetail": "Nothing changed since your last review.",
+      "attention_one": "{{count}} pull request needs your attention",
+      "attention_other": "{{count}} pull requests need your attention",
+      "detail": "{{parts}}.",
+      "detailSeparator": ", ",
+      "partChanged_one": "{{count}} changed since you reviewed it",
+      "partChanged_other": "{{count}} changed since you reviewed them",
+      "partNew_one": "{{count}} is new",
+      "partNew_other": "{{count}} are new",
+      "partInProgress_one": "{{count}} in progress",
+      "partInProgress_other": "{{count}} in progress",
+      "oneChanged": "It changed since you reviewed it.",
+      "oneNew": "It is new to you.",
+      "oneInProgress": "You have started reviewing it.",
       "caughtUp": "You are all caught up",
-      "caughtUpDetail": "Nothing is new since your last review."
+      "caughtUpDetail": "Nothing is waiting on you."
     },
     "urlBox": {
       "ariaLabel": "Pull request URL",
@@ -1107,7 +1112,7 @@
     },
     "inbox": {
       "heading": "Briefs",
-      "fold": "Reviewed and yours",
+      "fold": "Not waiting on you",
       "number": "#{{number}}",
       "ageMinutes": "{{count}}m ago",
       "ageHours": "{{count}}h ago",

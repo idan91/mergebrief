@@ -26,6 +26,7 @@ const OPEN_PR = {
     closedAt: null,
     updatedAt: "2026-09-20T10:00:00Z",
     headRefOid: "a".repeat(40),
+    author: { login: "octocat" },
   },
 };
 const MERGED_PR = {
@@ -38,6 +39,7 @@ const MERGED_PR = {
     closedAt: "2026-09-19T10:00:00Z",
     updatedAt: "2026-09-19T10:00:00Z",
     headRefOid: "b".repeat(40),
+    author: null,
   },
 };
 const REFS = [
@@ -71,12 +73,14 @@ describe("readPullRequestFacts", () => {
       closedAt: null,
       updatedAt: new Date("2026-09-20T10:00:00Z"),
       headSha: "a".repeat(40),
+      authorLogin: "octocat",
     });
     expect(result.value.get("o/r#8")).toMatchObject({
       state: "closed",
       merged: true,
       draft: true,
       closedAt: new Date("2026-09-19T10:00:00Z"),
+      authorLogin: null,
     });
     expect(result.value.get(getLiveReadKey(REFS[2]))).toBeNull();
     const [query, variables] = graphql.mock.calls[0] ?? [];

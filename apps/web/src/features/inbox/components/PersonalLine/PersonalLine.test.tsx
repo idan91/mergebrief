@@ -6,11 +6,9 @@ import { PersonalLine } from "./PersonalLine";
 
 afterEach(cleanup);
 
-function renderCounts(updated: number, fresh: number) {
+function renderCounts(updated: number, fresh: number, inProgress = 0) {
   render(
-    <PersonalLine
-      counts={{ new: fresh, inProgress: 0, reviewed: 0, updated }}
-    />,
+    <PersonalLine counts={{ new: fresh, inProgress, reviewed: 0, updated }} />,
   );
 }
 
@@ -29,45 +27,59 @@ describe("PersonalLine", () => {
     expect(screen.getByText(/Paste a pull request URL below/)).toBeTruthy();
   });
 
-  it("leads with what changed since the review, then what is new", () => {
-    renderCounts(2, 1);
+  it("counts every waiting row and lists the states, changed first", () => {
+    renderCounts(2, 1, 1);
 
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: "2 pull requests changed since you reviewed them",
+        name: "4 pull requests need your attention",
       }),
     ).toBeTruthy();
-    expect(screen.getByText("1 more is new to you.")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "2 changed since you reviewed them, 1 is new, 1 in progress.",
+      ),
+    ).toBeTruthy();
   });
 
-  it("one changed row reads in the singular with nothing else new", () => {
+  it("leaves a zero state out of the detail", () => {
+    renderCounts(0, 3);
+
+    expect(
+      screen.getByRole("heading", {
+        name: "3 pull requests need your attention",
+      }),
+    ).toBeTruthy();
+    expect(screen.getByText("3 are new.")).toBeTruthy();
+  });
+
+  it("one waiting row reads in the singular and names its state", () => {
     renderCounts(1, 0);
 
     expect(
       screen.getByRole("heading", {
-        name: "1 pull request changed since you reviewed it",
+        name: "1 pull request needs your attention",
       }),
     ).toBeTruthy();
-    expect(screen.getByText("Nothing else is new.")).toBeTruthy();
+    expect(screen.getByText("It changed since you reviewed it.")).toBeTruthy();
   });
 
-  it("with nothing changed, the new rows lead", () => {
-    renderCounts(0, 3);
+  it("one new row and one in progress each name their state", () => {
+    renderCounts(0, 1);
+    expect(screen.getByText("It is new to you.")).toBeTruthy();
+    cleanup();
 
-    expect(
-      screen.getByRole("heading", { name: "3 pull requests are new to you" }),
-    ).toBeTruthy();
-    expect(
-      screen.getByText("Nothing changed since your last review."),
-    ).toBeTruthy();
+    renderCounts(0, 0, 1);
+    expect(screen.getByText("You have started reviewing it.")).toBeTruthy();
   });
 
-  it("with nothing new either, the reviewer is caught up", () => {
+  it("with nothing waiting, the reviewer is caught up", () => {
     renderCounts(0, 0);
 
     expect(
       screen.getByRole("heading", { name: "You are all caught up" }),
     ).toBeTruthy();
+    expect(screen.getByText("Nothing is waiting on you.")).toBeTruthy();
   });
 });

@@ -6,6 +6,8 @@
 import { FIXTURE_PR_TITLE } from "./ids";
 
 export const E2E_VIEWER_LOGIN = "e2e-viewer";
+/** Every seeded row that is not the viewer's belongs to this login. */
+export const E2E_OTHER_LOGIN = "mira-k";
 
 export interface InboxFixtureInstallation {
   readonly id: number;

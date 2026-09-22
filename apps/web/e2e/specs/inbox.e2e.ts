@@ -21,14 +21,18 @@ test("the Inbox folds, marks and prints status only when not Open", async ({
   const response = await page.goto("/");
   expect(response?.status()).toBe(200);
 
-  // The personal line leads with the one changed row, then the two new ones.
+  // The personal line counts every row above the fold and names their states.
   await expect(
     page.getByRole("heading", {
       level: 1,
-      name: "1 pull request changed since you reviewed it",
+      name: "5 pull requests need your attention",
     }),
   ).toBeVisible();
-  await expect(page.getByText("3 more are new to you.")).toBeVisible();
+  await expect(
+    page.getByText(
+      "1 changed since you reviewed it, 3 are new, 1 in progress.",
+    ),
+  ).toBeVisible();
 
   // Rows above the fold in the server's order (most recently updated first),
   // then the quiet line, then the reviewed row and the viewer's own.
@@ -48,7 +52,7 @@ test("the Inbox folds, marks and prints status only when not Open", async ({
     reviewed?.title,
     yours?.title,
   ]);
-  await expect(page.getByText("Reviewed and yours")).toBeVisible();
+  await expect(page.getByText("Not waiting on you")).toBeVisible();
 
   // The row link names the state before the title.
   await expect(
@@ -124,13 +128,13 @@ test("the Generate button waits for a pasted URL", async ({ page }) => {
 test("the View control unfolds the list into one", async ({ page }) => {
   await page.goto("/");
   await page.locator('[data-first-load="false"]').waitFor();
-  await expect(page.getByText("Reviewed and yours")).toBeVisible();
+  await expect(page.getByText("Not waiting on you")).toBeVisible();
 
   await page.getByRole("button", { name: "View", exact: true }).click();
   await page.getByRole("menuitemradio", { name: "Mixed" }).click();
 
   await expect(page).toHaveURL(/layout=mixed/);
-  await expect(page.getByText("Reviewed and yours")).toBeHidden();
+  await expect(page.getByText("Not waiting on you")).toBeHidden();
   await expect(page.getByRole("button", { name: "View Mixed" })).toBeVisible();
 });
 

@@ -148,6 +148,7 @@ function stubGitHub(
                 closedAt: null,
                 updatedAt: "2026-09-20T10:00:00Z",
                 headRefOid: HEAD,
+                author: { login: "octocat" },
               },
             },
           },

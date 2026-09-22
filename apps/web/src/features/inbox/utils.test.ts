@@ -86,6 +86,12 @@ describe("splitAtFold", () => {
     ).toBe(false);
     expect(needsReviewer(makeItem({ reviewState: null }))).toBe(false);
   });
+
+  it("a draft or a merged row sits below the fold whatever its state", () => {
+    expect(needsReviewer(makeItem({ draft: true }))).toBe(false);
+    expect(needsReviewer(makeItem({ state: "merged" }))).toBe(false);
+    expect(needsReviewer(makeItem({ state: "closed" }))).toBe(false);
+  });
 });
 
 describe("pickAgeAt", () => {
