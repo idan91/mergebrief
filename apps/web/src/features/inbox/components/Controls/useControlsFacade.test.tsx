@@ -66,6 +66,43 @@ describe("useControlsFacade", () => {
     });
   });
 
+  it("every list filter leads with an All row that clears it", () => {
+    const { facade, write } = renderFacade(makePage(), { repo: "424242" });
+    const repo = facade.filters.find((filter) => filter.id === "repo");
+    const review = facade.filters.find((filter) => filter.id === "review");
+
+    expect(repo?.all).toMatchObject({
+      label: "All repositories",
+      triggerLabel: "All",
+      checked: false,
+    });
+    expect(review?.all).toMatchObject({
+      label: "All review states",
+      checked: true,
+    });
+
+    repo?.all?.onChoose();
+    review?.all?.onChoose();
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(write).toHaveBeenCalledWith({ repo: undefined });
+  });
+
+  it("the Status All row ticks every status and reads as ticked then", () => {
+    const opening = renderFacade(makePage());
+    const every = renderFacade(makePage(), {
+      state: "open,draft,merged,closed",
+    });
+    const status = opening.facade.filters[0];
+
+    expect(status?.all?.checked).toBe(false);
+    expect(every.facade.filters[0]?.all?.checked).toBe(true);
+
+    status?.all?.onChoose();
+    expect(opening.write).toHaveBeenCalledWith({
+      state: "open,draft,merged,closed",
+    });
+  });
+
   it("a tick writes from the choices the URL holds when it lands", () => {
     const { facade, write } = renderFacade(makePage());
     const review = facade.filters.find((filter) => filter.id === "review");

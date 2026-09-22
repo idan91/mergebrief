@@ -1,8 +1,8 @@
 import { useTranslation } from "react-i18next";
 
 import { Menu, MenuTriggerKinds } from "@web/components/Menu/Menu";
-import { MenuRow } from "@web/components/Menu/MenuRow/MenuRow";
 import SlidersIcon from "../../icons/sliders.svg?react";
+import { FilterRows } from "../FilterRows/FilterRows";
 import filterStyles from "../trigger.module.scss";
 import { FilterStates, type FilterState, type FilterView } from "../types";
 import styles from "./CollapsedFilters.module.scss";
@@ -58,17 +58,7 @@ export function CollapsedFilters({
           >
             {filter.name}
           </span>
-          {filter.options.map((option) => (
-            <MenuRow
-              checked={filter.chosen.includes(option.value)}
-              glyph={filter.glyphs?.[option.value]}
-              key={option.value}
-              multiple={filter.multiple}
-              onSelect={() => filter.onChoose(option.value)}
-            >
-              {option.label}
-            </MenuRow>
-          ))}
+          <FilterRows filter={filter} />
         </div>
       ))}
     </Menu>

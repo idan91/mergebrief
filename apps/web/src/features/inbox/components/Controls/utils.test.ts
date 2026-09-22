@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { FilterView } from "./types";
-import { describeFilterValue } from "./utils";
+import { buildAllRow, describeFilterValue } from "./utils";
 
 function makeFilter(overrides: Partial<FilterView> = {}): FilterView {
   return {
@@ -41,9 +41,34 @@ describe("describeFilterValue", () => {
     );
   });
 
+  it("prints the All row's trigger word while it is ticked", () => {
+    const all = {
+      label: "All review states",
+      triggerLabel: "All",
+      checked: true,
+      onChoose: () => undefined,
+    };
+
+    expect(describeFilterValue(makeFilter({ changed: true, all }))).toBe("All");
+    expect(describeFilterValue(makeFilter({ all }))).toBeUndefined();
+  });
+
   it("falls back to the raw value for a choice the options do not name", () => {
     expect(
       describeFilterValue(makeFilter({ changed: true, chosen: ["424242"] })),
     ).toBe("424242");
+  });
+});
+
+describe("buildAllRow", () => {
+  it("chooses only while unticked, so a ticked row moves nothing", () => {
+    const choose = vi.fn();
+    const labels = { label: "All repositories", triggerLabel: "All" };
+
+    buildAllRow(labels, true, choose).onChoose();
+    expect(choose).not.toHaveBeenCalled();
+
+    buildAllRow(labels, false, choose).onChoose();
+    expect(choose).toHaveBeenCalledOnce();
   });
 });

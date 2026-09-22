@@ -1,9 +1,9 @@
 import { useTranslation } from "react-i18next";
 
 import { Menu, MenuTriggerKinds } from "@web/components/Menu/Menu";
-import { MenuRow } from "@web/components/Menu/MenuRow/MenuRow";
 import CaretDownIcon from "@web/components/Menu/icons/caret-down.svg?react";
 import { NAMED_UP_TO } from "../consts";
+import { FilterRows } from "../FilterRows/FilterRows";
 import styles from "../trigger.module.scss";
 import { FilterStates, type FilterState, type FilterView } from "../types";
 import { describeFilterValue } from "../utils";
@@ -21,7 +21,9 @@ export interface FilterProps {
 export function Filter({ filter }: FilterProps) {
   const { t } = useTranslation();
   const value = describeFilterValue(filter);
-  const counting = filter.chosen.length > (filter.namedUpTo ?? NAMED_UP_TO);
+  const allChecked = filter.all?.checked === true;
+  const counting =
+    !allChecked && filter.chosen.length > (filter.namedUpTo ?? NAMED_UP_TO);
   const triggerLabel =
     value !== undefined && counting
       ? `${filter.name}, ${t("home.filters.chosen", { count: filter.chosen.length })}`
@@ -51,17 +53,7 @@ export function Filter({ filter }: FilterProps) {
       triggerLabel={triggerLabel}
       triggerState={state}
     >
-      {filter.options.map((option) => (
-        <MenuRow
-          checked={filter.chosen.includes(option.value)}
-          glyph={filter.glyphs?.[option.value]}
-          key={option.value}
-          multiple={filter.multiple}
-          onSelect={() => filter.onChoose(option.value)}
-        >
-          {option.label}
-        </MenuRow>
-      ))}
+      <FilterRows filter={filter} />
     </Menu>
   );
 }

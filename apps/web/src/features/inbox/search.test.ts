@@ -5,7 +5,9 @@ import { describe, expect, it } from "vitest";
 import {
   clearInboxFilters,
   countChangedFilters,
+  EVERY_STATUS_PARAM,
   hasDefaultStatus,
+  hasEveryStatus,
   listRepoOptions,
   parseInboxSearch,
   readInboxChoices,
@@ -102,6 +104,14 @@ describe("readInboxParams and readInboxChoices", () => {
       author: InboxAuthorFilters.ALL,
       installations: [],
     });
+  });
+});
+
+describe("hasEveryStatus", () => {
+  it("is true only once every status the wire knows is ticked", () => {
+    expect(hasEveryStatus(["open", "draft", "merged", "closed"])).toBe(true);
+    expect(hasEveryStatus(["open", "draft"])).toBe(false);
+    expect(EVERY_STATUS_PARAM).toBe("open,draft,merged,closed");
   });
 });
 

@@ -42,7 +42,14 @@ describe("CollapsedFilters", () => {
       <CollapsedFilters
         changedCount={2}
         filters={[
-          makeFilter(),
+          makeFilter({
+            all: {
+              label: "All review states",
+              triggerLabel: "All",
+              checked: false,
+              onChoose: vi.fn(),
+            },
+          }),
           makeFilter({ id: "author", name: "Author", multiple: false }),
         ]}
       />,
@@ -63,6 +70,11 @@ describe("CollapsedFilters", () => {
         .getByRole("menuitemcheckbox", { name: "New" })
         .getAttribute("aria-checked"),
     ).toBe("true");
+    expect(
+      screen
+        .getByRole("menuitemcheckbox", { name: "All review states" })
+        .getAttribute("aria-checked"),
+    ).toBe("false");
     expect(screen.getAllByRole("menuitemradio")).toHaveLength(2);
   });
 

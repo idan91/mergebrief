@@ -10,6 +10,18 @@ export const FilterStates = {
 } as const;
 export type FilterState = ValueOf<typeof FilterStates>;
 
+/**
+ * A filter's first row: every option at once. Ticked while the filter holds
+ * nothing narrower, and inert then, since there is no narrower state to
+ * leave it for; the trigger prints `triggerLabel` in its place.
+ */
+export interface FilterAllRow {
+  readonly label: string;
+  readonly triggerLabel: string;
+  readonly checked: boolean;
+  readonly onChoose: () => void;
+}
+
 /** One filter as the controls draw it: its name, its options and what is chosen. */
 export interface FilterView<Value extends string = string> {
   readonly id: string;
@@ -25,5 +37,6 @@ export interface FilterView<Value extends string = string> {
   /** How many choices print by name before the control prints a count. */
   readonly namedUpTo?: number;
   readonly glyphs?: Readonly<Record<string, ReactNode>>;
+  readonly all?: FilterAllRow;
   readonly onChoose: (value: Value) => void;
 }

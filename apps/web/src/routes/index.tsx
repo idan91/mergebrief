@@ -2,7 +2,6 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { InboxStatuses } from "types/inbox";
 
 import { Header } from "@web/components/Header/Header";
 import {
@@ -31,6 +30,7 @@ import {
 import { buildInboxQueryOptions } from "../features/inbox/queries";
 import {
   countChangedFilters,
+  EVERY_STATUS_PARAM,
   hasDefaultStatus,
   parseInboxSearch,
   readInboxParams,
@@ -46,9 +46,6 @@ import { appI18n } from "../i18n/I18nProvider";
 import { buildPageTitle } from "@web/utils/pageTitle";
 import styles from "./index.module.scss";
 import sharedStyles from "./routeShared.module.scss";
-
-/** Every status the wire knows, for the one button that lifts the default. */
-const EVERY_STATUS = Object.values(InboxStatuses).join(",");
 
 export const Route = createFileRoute("/")({
   // The list's state is the URL: unknown values drop, defaults are omitted.
@@ -189,7 +186,7 @@ function SignedInHome({ page, search }: SignedInHomeProps) {
   const noInstallation = page.reachableInstallations.length === 0;
 
   function showHidden(): void {
-    state.write({ state: EVERY_STATUS });
+    state.write({ state: EVERY_STATUS_PARAM });
   }
 
   let list: ReactNode = null;

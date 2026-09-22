@@ -7,6 +7,8 @@ import {
   ReviewMarkLabelKeys,
 } from "@web/components/marks/consts";
 import {
+  EVERY_STATUS_PARAM,
+  hasEveryStatus,
   listRepoOptions,
   readKnown,
   toggleListValue,
@@ -17,6 +19,7 @@ import type { InboxPage, InboxSearch } from "../../types";
 import type { InboxSearchWrite } from "../../hooks/useInboxSearchState";
 import { STATUS_NAMED_UP_TO } from "./consts";
 import type { FilterView } from "./types";
+import { buildAllRow } from "./utils";
 
 /** The filters and the sort as the controls draw them, from the URL's choices and the page. */
 export function useControlsFacade(
@@ -26,6 +29,8 @@ export function useControlsFacade(
   write: (next: InboxSearchWrite) => void,
 ) {
   const { t } = useTranslation();
+
+  const triggerLabel = t("home.filters.all");
 
   const filters: FilterView[] = [
     {
@@ -41,6 +46,11 @@ export function useControlsFacade(
       multiple: true,
       changed: search.state !== undefined,
       namedUpTo: STATUS_NAMED_UP_TO,
+      all: buildAllRow(
+        { label: t("home.filters.allStatuses"), triggerLabel },
+        hasEveryStatus(choices.states),
+        () => write({ state: EVERY_STATUS_PARAM }),
+      ),
       onChoose: (value) => {
         const status = readKnown(value, InboxStatuses);
         if (status === undefined) return;
@@ -54,6 +64,11 @@ export function useControlsFacade(
       chosen: choices.repos,
       multiple: true,
       changed: search.repo !== undefined,
+      all: buildAllRow(
+        { label: t("home.filters.allRepositories"), triggerLabel },
+        choices.repos.length === 0,
+        () => write({ repo: undefined }),
+      ),
       onChoose: (value) => {
         write((live) => ({ repo: toggleListValue(live.repos, value) }));
       },
@@ -69,6 +84,11 @@ export function useControlsFacade(
       multiple: true,
       changed: search.review !== undefined,
       glyphs: ReviewMarkGlyphs,
+      all: buildAllRow(
+        { label: t("home.filters.allReviewStates"), triggerLabel },
+        choices.reviews.length === 0,
+        () => write({ review: undefined }),
+      ),
       onChoose: (value) => {
         write((live) => ({ review: toggleListValue(live.reviews, value) }));
       },
@@ -110,6 +130,11 @@ export function useControlsFacade(
       chosen: choices.installations,
       multiple: true,
       changed: search.installation !== undefined,
+      all: buildAllRow(
+        { label: t("home.filters.allInstallations"), triggerLabel },
+        choices.installations.length === 0,
+        () => write({ installation: undefined }),
+      ),
       onChoose: (value) => {
         write((live) => ({
           installation: toggleListValue(live.installations, value),

@@ -30,6 +30,10 @@ export const DEFAULT_STATES: readonly InboxStatus[] = [
   InboxStatuses.DRAFT,
 ];
 
+/** Every status the wire knows, as the address spells it. */
+export const EVERY_STATUS_PARAM: string =
+  Object.values(InboxStatuses).join(LIST_SEPARATOR);
+
 /**
  * A list in the address: comma-joined as the app writes it, or repeated
  * keys as the wire spells it, which the router hands over as an array. The
@@ -176,6 +180,13 @@ export function readInboxChoices(search: InboxSearch): InboxChoices {
 /** Whether the Status filter is at its opening pair, the one filter with a hidden default. */
 export function hasDefaultStatus(search: InboxSearch): boolean {
   return search.state === undefined;
+}
+
+/** Whether the Status filter has every status ticked. */
+export function hasEveryStatus(states: readonly InboxStatus[]): boolean {
+  return Object.values(InboxStatuses).every((status) =>
+    states.includes(status),
+  );
 }
 
 /** How many filters sit off their default; the sort and the page are not filters. */
