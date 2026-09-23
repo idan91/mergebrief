@@ -280,6 +280,33 @@
     color-scheme: dark light;
   }
 
+  // Palette hold, both surfaces. The Home build moved the shared tokens
+  // (neutral greys on a lighter ladder, four new state colours, a white
+  // accent) and the Brief page took them unreviewed; the values below are the
+  // tokens as they were before the move, held on every page until the two
+  // pages converge on purpose. Later declarations win, so this block
+  // overrides the primitives above without editing them.
+  :root {
+    --brand-hue: 286;
+    --gray-c: 0.01;
+    --gray-950: #0a0a0c;
+    --gray-900: #111114;
+    --gray-850: #15151a;
+    --gray-800: #1f1f24;
+    --gray-750: #1c1c22;
+    --gray-700: #2b2b32;
+    --gray-650: #3b3b43;
+    --gray-400: #9a9aa3;
+    --gray-100: #ececee;
+    --green-400: #5fc88f;
+    --red-400: #e06c6c;
+    --amber-400: #d9a45c;
+    --violet-400: #a98fd1;
+    --color-text-3: #8a8a93;
+    --color-accent: var(--blue-400);
+    --color-on-primary: var(--gray-950);
+  }
+
   @media (width <= 880px) {
     :root {
       // Matches what renders here. Does NOT make the fallback correct at

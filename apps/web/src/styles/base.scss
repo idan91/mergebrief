@@ -30,6 +30,15 @@ $story-gap-rem: functions.to-rem(layout.$story-group-gap);
     -webkit-font-smoothing: antialiased;
   }
 
+  // The Brief page's light before the Home build, kept with its palette.
+  :root[data-surface="brief"] body {
+    background-image: radial-gradient(
+      1200px 500px at 50% -200px,
+      color-mix(in srgb, var(--panel) 70%, var(--blue)) 0%,
+      var(--bg) 70%
+    );
+  }
+
   button,
   textarea {
     font: inherit;

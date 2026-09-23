@@ -2,22 +2,22 @@
 name: MergeBrief
 description: A calm, dark reading surface for understanding a pull request before reviewing it.
 colors:
-  accent: "#e1e1e1"
-  accent-ink: "#1a1a1a"
-  ground: "#101010"
-  surface-1: "#161616"
-  surface-2: "#1c1c1c"
-  surface-3: "#262626"
-  text-1: "#ebebeb"
-  text-read: "#cacaca"
-  text-2: "#a1a1a1"
-  text-3: "#979797"
-  line: "#1f1f1f"
-  line-strong: "#303030"
-  state-open: "#7fd1a0"
-  state-merged: "#b9a0e0"
-  state-closed: "#ec8a8a"
-  state-warning: "#e8c04a"
+  accent: "#7da7d9"
+  accent-ink: "#0a0a0c"
+  ground: "#0a0a0c"
+  surface-1: "#111114"
+  surface-2: "#15151a"
+  surface-3: "#1c1c22"
+  text-1: "#ececee"
+  text-read: "#cacad1"
+  text-2: "#9a9aa3"
+  text-3: "#8a8a93"
+  line: "#1f1f24"
+  line-strong: "#2b2b32"
+  state-open: "#5fc88f"
+  state-merged: "#a98fd1"
+  state-closed: "#e06c6c"
+  state-warning: "#d9a45c"
 typography:
   display:
     fontFamily: "Instrument Sans, -apple-system, Helvetica Neue, sans-serif"
@@ -120,7 +120,7 @@ components:
 
 # Design System: MergeBrief
 
-Status: built on Home, which leads this language; the Brief page follows it. The theme is achromatic: hue 255 is kept in the tokens, but the accent and the greys both sit at chroma 0, so the accent is a plain light and nothing on screen carries the hue. The hex values above are what that renders today, and the source of truth is four numbers in `apps/web/src/styles/tokens.scss`. One known conflict waits for the day the accent takes a chroma again: it would share its hue with the info blue (`--color-info`), which the Four Lanes Rule reserved as a free lane; either the info colour moves or the accent does.
+Status: built on Home, which leads this language; the Brief page follows it. Palette hold: the hex values above are the palette from before the Home build, held on both pages by the last block of `tokens.scss` until the two pages converge; the paragraph that follows describes the tokens the hold covers. The theme is achromatic: hue 255 is kept in the tokens, but the accent and the greys both sit at chroma 0, so the accent is a plain light and nothing on screen carries the hue. The hex values above are what that renders today, and the source of truth is four numbers in `apps/web/src/styles/tokens.scss`. One known conflict waits for the day the accent takes a chroma again: it would share its hue with the info blue (`--color-info`), which the Four Lanes Rule reserved as a free lane; either the info colour moves or the accent does.
 
 ## Overview
 
@@ -146,21 +146,21 @@ Neutral greys under one light accent. State colours keep a fixed meaning across 
 
 ### Primary
 
-- **Lamp** (#e1e1e1, the `--brand-400` primitive): review marks for rows that need the reviewer, the Generate button, focus rings, the value of a changed filter, the current page. Dark text on it uses **Accent Ink** (#1a1a1a).
+- **Lamp** (#7da7d9, the `--brand-400` primitive): review marks for rows that need the reviewer, the Generate button, focus rings, the value of a changed filter, the current page. Dark text on it uses **Accent Ink** (#0a0a0c).
 
 ### Neutral
 
-- **Ground** (#101010): the page.
-- **Surface 1, 2, 3** (#161616, #1c1c1c, #262626): the list, then hover and the URL box, then menus, the keyboard cursor row and the focused URL box.
-- **Text 1** (#ebebeb): titles that need the reviewer (new, updated since your review, in progress), headings.
-- **Text Read** (#cacaca): titles that do not (reviewed, or the viewer's own), chip text.
-- **Text 2** (#a1a1a1): the second line of a row, labels, quiet icons.
-- **Text 3** (#979797): placeholder text and unreachable rows. The floor for readable text.
-- **Line, Line Strong** (#1f1f1f, #303030): row dividers and the list edge, then control borders.
+- **Ground** (#0a0a0c): the page.
+- **Surface 1, 2, 3** (#111114, #15151a, #1c1c22): the list, then hover and the URL box, then menus, the keyboard cursor row and the focused URL box.
+- **Text 1** (#ececee): titles that need the reviewer (new, updated since your review, in progress), headings.
+- **Text Read** (#cacad1): titles that do not (reviewed, or the viewer's own), chip text.
+- **Text 2** (#9a9aa3): the second line of a row, labels, quiet icons.
+- **Text 3** (#8a8a93): placeholder text and unreachable rows. The floor for readable text.
+- **Line, Line Strong** (#1f1f24, #2b2b32): row dividers and the list edge, then control borders.
 
 ### State (fixed meaning, hue may be tuned)
 
-- **Open** (#7fd1a0), **Merged** (#b9a0e0), **Closed and failed** (#ec8a8a), **Warning** (#e8c04a). Draft is Text 2 with its own icon shape.
+- **Open** (#5fc88f), **Merged** (#a98fd1), **Closed and failed** (#e06c6c), **Warning** (#d9a45c). Draft is Text 2 with its own icon shape.
 
 ### Named Rules
 
