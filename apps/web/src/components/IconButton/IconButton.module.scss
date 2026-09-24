@@ -13,13 +13,18 @@
     place-items: center;
     transition:
       background var(--motion-fast),
-      border-color var(--motion-fast),
-      color var(--motion-fast);
+      color var(--motion-fast),
+      transform var(--motion-fast) var(--ease-out);
 
     &:not([aria-disabled="true"]):hover {
-      border-color: var(--color-outline-2);
-      background: var(--color-surface-1);
+      background: var(--color-surface-3);
       color: var(--color-text-1);
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      &:not([aria-disabled="true"]):active {
+        transform: scale(0.97);
+      }
     }
 
     &[data-size="sm"] {
@@ -44,21 +49,6 @@
       padding-inline: var(--icon-button-inset-start) functions.to-rem(6px);
       column-gap: functions.to-rem(4px);
       grid-auto-flow: column;
-    }
-
-    &[data-variant="outlined"] {
-      border-color: var(--color-outline-2);
-      background: var(--color-surface-1);
-
-      &:not([aria-disabled="true"]):hover {
-        border-color: color-mix(
-          in srgb,
-          var(--color-outline-2) 60%,
-          var(--color-text-1)
-        );
-        background: var(--color-surface-1);
-        color: var(--color-text-1);
-      }
     }
 
     /* aria-disabled, never `disabled` — that drops focus at e.g. stepper

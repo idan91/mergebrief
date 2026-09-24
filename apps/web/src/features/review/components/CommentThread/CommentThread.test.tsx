@@ -153,7 +153,7 @@ describe("CommentThread", () => {
     expect(post).toHaveBeenCalledWith(draft);
   });
 
-  it("renders Post as a primary CTA anchored in the draft card footer", () => {
+  it("renders Post as the accent CTA anchored in the draft card footer", () => {
     // Asserted via the footer container + data attribute, never hashed
     // class names.
     const post = vi.fn();
@@ -168,7 +168,7 @@ describe("CommentThread", () => {
     );
     const button = screen.getByRole("button", { name: "Post" });
     // Primary-styled and tagged as the post CTA.
-    expect(button.getAttribute("data-variant")).toBe("primary");
+    expect(button.getAttribute("data-variant")).toBe("accent");
     expect(button.hasAttribute("data-post-cta")).toBe(true);
     // Lives inside the thread footer (the CTA slot), not loose in the DOM.
     const footer = button.closest("[data-thread-footer]");

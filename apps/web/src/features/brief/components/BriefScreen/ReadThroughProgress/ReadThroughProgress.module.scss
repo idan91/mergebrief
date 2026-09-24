@@ -48,7 +48,7 @@
     inset-inline-start: 0;
     display: block;
     background: var(--color-outline-2);
-    transition: inline-size 0.15s ease;
+    transition: inline-size var(--motion-fast) ease;
   }
 
   .segment[data-past] .fill {

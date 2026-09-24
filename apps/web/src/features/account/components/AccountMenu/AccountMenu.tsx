@@ -21,13 +21,17 @@ const LANGUAGE_GROUP_LABEL_ID = "account-menu-language";
 /**
  * The person-anchored menu at the end of a Header: who is signed in,
  * Settings, Language, Keyboard shortcuts, Sign out. Signed out, the slot
- * holds a Sign in button instead.
+ * holds a Sign in button instead; while the viewer loads it holds nothing,
+ * and a failed read keeps the menu behind a generic trigger.
  */
 export function AccountMenu({ onOpenShortcuts }: AccountMenuProps) {
   const { t } = useTranslation();
   const facade = useAccountMenuFacade();
   const { viewer } = facade;
 
+  if (viewer.kind === ViewerStates.UNKNOWN && facade.viewerPending) {
+    return null;
+  }
   if (viewer.kind === ViewerStates.SIGNED_OUT) {
     return (
       <Button as="a" href={SIGN_IN_PATH} size="sm" variant="secondary">

@@ -7,16 +7,13 @@ export interface RoleBadgeProps {
 }
 
 /**
- * Core reads loud (bright neutral, filled), supporting reads quiet (muted
- * outline) — weight, not hue, so it doesn't collide with the concern-dot
- * palette.
+ * Core reads loud (Text 1), supporting reads quiet (Text 2): lightness, not
+ * hue, so it doesn't collide with the concern-dot palette.
  */
 export function RoleBadge({ role }: RoleBadgeProps) {
   const { t } = useTranslation();
   return role === Roles.CORE ? (
-    <Badge color={BadgeColors.TEXT} fill>
-      {t("brief.chunk.roleCore")}
-    </Badge>
+    <Badge color={BadgeColors.TEXT}>{t("brief.chunk.roleCore")}</Badge>
   ) : (
     <Badge color={BadgeColors.NEUTRAL}>{t("brief.chunk.roleSupporting")}</Badge>
   );

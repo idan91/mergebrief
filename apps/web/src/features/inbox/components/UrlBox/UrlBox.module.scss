@@ -128,9 +128,13 @@
     line-height: 1;
   }
 
-  .submit {
+  .form .submit {
     display: none;
     flex: none;
+    min-block-size: functions.to-rem(32px);
+    padding-block: 0;
+    padding-inline: var(--space-5);
+    font-size: var(--font-size-md);
   }
 
   .error {

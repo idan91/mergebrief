@@ -8,52 +8,37 @@
     min-block-size: functions.to-rem(24px);
     padding-block: functions.to-rem(4px);
     padding-inline: functions.to-rem(11px);
-    border: 1px solid var(--color-outline-1);
-
-    /* Concentric with the toolbar: inner (sm 4) + inset (4) = outer (md 8). */
-    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-outline-2);
+    border-radius: var(--radius-md);
     background: none;
-    color: var(--color-text-2);
+    color: var(--color-text-1);
     cursor: pointer;
     font: inherit;
     font-size: var(--font-size-md);
     white-space: nowrap;
+    transition:
+      background var(--motion-fast),
+      border-color var(--motion-fast),
+      color var(--motion-fast);
 
-    &:hover {
-      border-color: var(--color-outline-2);
-      color: var(--color-text-1);
-    }
-
+    &:hover,
     &[aria-expanded="true"] {
-      border-color: var(--color-outline-2);
-      background: var(--color-surface-1);
-      color: var(--color-text-1);
+      background: var(--color-surface-2);
     }
 
-    /* Pressed/active = accent-tinted fill; a neutral --color-surface-1 fill on the
-       --color-background bar is near-invisible. The luminance shift survives greyscale,
-       so the cue is not colour-alone. */
     &[aria-pressed="true"],
     &[data-state="active"] {
-      border-color: color-mix(
-        in srgb,
-        var(--color-accent) 55%,
-        var(--color-outline-1)
-      );
-      background: color-mix(in srgb, var(--color-accent) 16%, transparent);
-      color: var(--color-text-1);
+      border-color: var(--color-changed-edge);
+      background: var(--color-changed-fill);
+      color: var(--color-accent);
     }
 
-    /* Mixed: dashed border carries the state without colour. */
+    /* Mixed: the dashed edge carries the half state without colour. */
     &[aria-pressed="mixed"] {
-      border-color: color-mix(
-        in srgb,
-        var(--color-accent) 55%,
-        var(--color-outline-1)
-      );
+      border-color: var(--color-changed-edge);
       border-style: dashed;
-      background: color-mix(in srgb, var(--color-accent) 8%, transparent);
-      color: var(--color-text-1);
+      background: var(--color-changed-fill);
+      color: var(--color-accent);
     }
   }
 }

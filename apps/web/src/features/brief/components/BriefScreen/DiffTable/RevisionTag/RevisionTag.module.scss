@@ -9,7 +9,7 @@
     // stylelint-disable-next-line property-no-vendor-prefix
     -webkit-user-select: none;
     user-select: none;
-    border: 1px solid color-mix(in srgb, var(--color-accent) 45%, transparent);
+    border: 1px solid var(--color-changed-edge);
     border-radius: var(--radius-pill);
     margin-inline-start: functions.to-rem(10px);
     color: var(--color-accent);

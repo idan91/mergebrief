@@ -17,17 +17,17 @@ describe("Button", () => {
 
   it("lets the caller override type, variant, and size", () => {
     render(
-      <Button size="sm" type="submit" variant="primary">
+      <Button size="sm" type="submit" variant="accent">
         Go
       </Button>,
     );
     const button = screen.getByRole("button", { name: "Go" });
     expect(button.getAttribute("type")).toBe("submit");
-    expect(button.getAttribute("data-variant")).toBe("primary");
+    expect(button.getAttribute("data-variant")).toBe("accent");
     expect(button.getAttribute("data-size")).toBe("sm");
   });
 
-  it("disabled renders aria-disabled, never the native attribute, and guards clicks", () => {
+  it("disabled sets aria-disabled, not the attribute, and guards clicks", () => {
     const onClick = vi.fn();
     render(
       <Button disabled onClick={onClick}>
@@ -55,7 +55,7 @@ describe("Button", () => {
     expect(onClick).not.toHaveBeenCalled();
   });
 
-  it("caller-passed aria-disabled without the disabled prop keeps clicks live", () => {
+  it("a caller aria-disabled without the disabled prop keeps clicks live", () => {
     // The announce-on-click contract: the call site owns the reason
     // announcement, so the guard must not key off the rendered attribute.
     const onClick = vi.fn();
@@ -122,7 +122,7 @@ describe("Button", () => {
 
   it("as=a renders an anchor with the href and no type attribute", () => {
     render(
-      <Button as="a" href="/somewhere" variant="primary">
+      <Button as="a" href="/somewhere" variant="accent">
         Go
       </Button>,
     );

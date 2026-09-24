@@ -2,7 +2,7 @@
 // review submit.
 //
 // Contract: lists ALL risk flags on the current head's Brief (no
-// read-tracking filter — the author confronts the full surface, not the
+// read-tracking filter: the author confronts the full surface, not the
 // unread remainder); the unposted-drafts reminder line rides the modal only
 // (N>0), with a jump link and NO auto-post; "Mark ready anyway" is one click
 // and records nothing. The zero-flag bypass lives in the caller: the modal
@@ -17,7 +17,7 @@ import styles from "@web/components/Modal/Modal.module.scss";
 
 export interface MarkReadyModalProps {
   open: boolean;
-  /** ALL risk flags on the current head's Brief — never pre-filtered. */
+  /** ALL risk flags on the current head's Brief, never pre-filtered. */
   flags: RiskFlag[];
   unpostedDraftCount: number;
   close: () => void;
@@ -44,13 +44,13 @@ export interface MarkReadyModalProps {
   busyLabel?: string | undefined;
   /**
    * The count of precise stated-but-missing intent asks. Rendered as ONE
-   * count-only secondary line when > 0 — never gap-first, and never part of
+   * count-only secondary line when > 0, never gap-first, and never part of
    * the gate's OPEN condition (gaps alone never open the modal). Absent/zero
    * → no line (absence, not a green verdict).
    */
   intentGapCount?: number;
   /**
-   * The count of precise intent TENSIONS — unacknowledged deviations plus
+   * The count of precise intent TENSIONS: unacknowledged deviations plus
    * claimed-but-unachieved. A second count-only line on the same terms as the
    * gap line, sharing its jump target. Acknowledged deviations are excluded
    * by the caller.
@@ -91,7 +91,7 @@ export function MarkReadyModal({
       labelledBy="mark-ready-modal-heading"
     >
       <h2 id="mark-ready-modal-heading">{t("pulls.markReadyModal.heading")}</h2>
-      {/* Zero flags: the gate can open for unposted drafts alone — no
+      {/* Zero flags: the gate can open for unposted drafts alone; no
           risk-flag copy over an empty list; the advisory line focuses on the
           drafts instead. */}
       {flags.length > 0 ? (
@@ -200,7 +200,7 @@ export function MarkReadyModal({
         <Button
           disabled={busy}
           loading={busy}
-          variant="primary"
+          variant="accent"
           onClick={markReadyAnyway}
         >
           {busyLabel ?? t("pulls.markReadyModal.markReadyAnyway")}

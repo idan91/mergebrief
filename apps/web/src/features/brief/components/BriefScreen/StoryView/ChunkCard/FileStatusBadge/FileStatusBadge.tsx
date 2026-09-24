@@ -20,7 +20,7 @@ export function FileStatusBadge({ status }: FileStatusBadgeProps) {
     status === FileStatuses.NEW ? BadgeColors.POSITIVE : BadgeColors.NEGATIVE;
 
   return (
-    <Badge color={color} dataset={{ status }} fill>
+    <Badge color={color} dataset={{ status }}>
       {t(LABEL_KEYS[status])}
     </Badge>
   );

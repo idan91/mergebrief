@@ -131,7 +131,7 @@ export function VerdictView({
           aria-describedby={submit.describedBy}
           disabled={submit.disabled}
           loading={submit.pending}
-          variant="primary"
+          variant="accent"
           onClick={submit.attempt}
         >
           {submit.pending

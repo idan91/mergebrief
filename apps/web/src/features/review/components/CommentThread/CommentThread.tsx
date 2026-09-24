@@ -156,7 +156,7 @@ export function CommentThread({
             onSubmit={saveEdit}
           />
           <div className={styles["actions"]}>
-            <Button disabled={posting} variant="primary" onClick={saveEdit}>
+            <Button disabled={posting} variant="accent" onClick={saveEdit}>
               {t("review.comment.save")}
             </Button>
             <Button onClick={cancelEdit}>{t("review.comment.cancel")}</Button>
@@ -240,7 +240,7 @@ export function CommentThread({
               data-post-cta=""
               disabled={posting || postBlocked !== undefined}
               loading={posting}
-              variant="primary"
+              variant="accent"
               onClick={() => post(comment)}
             >
               {posting ? t("review.comment.posting") : t("review.comment.post")}

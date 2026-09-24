@@ -36,9 +36,9 @@ $line-active: 5px;
       background: var(--color-text-3);
       opacity: 0.05;
       transition:
-        background-color 0.15s ease,
-        opacity 0.15s ease,
-        inline-size 0.15s ease;
+        background-color var(--motion-fast) ease,
+        opacity var(--motion-fast) ease,
+        inline-size var(--motion-fast) ease;
     }
 
     &:hover::before,

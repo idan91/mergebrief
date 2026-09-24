@@ -104,7 +104,7 @@ export function CommentComposer({
         <Button
           aria-busy={saving || undefined}
           aria-disabled={saving || undefined}
-          variant="primary"
+          variant="accent"
           onClick={composer.submit}
         >
           {saving

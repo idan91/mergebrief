@@ -2,6 +2,9 @@
 
 @layer components {
   .button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     padding-block: functions.to-rem(8px);
     padding-inline: functions.to-rem(16px);
     border: 1px solid var(--color-outline-2);
@@ -15,8 +18,15 @@
     transition:
       background var(--motion-fast),
       border-color var(--motion-fast),
-      color var(--motion-fast);
+      color var(--motion-fast),
+      transform var(--motion-fast) var(--ease-out);
     white-space: nowrap;
+
+    @media (prefers-reduced-motion: no-preference) {
+      &:not([aria-disabled="true"]):active {
+        transform: scale(0.97);
+      }
+    }
 
     &:hover {
       border-color: color-mix(
@@ -31,62 +41,22 @@
       );
     }
 
-    &[data-variant="primary"] {
-      border-color: var(--color-text-1);
-      background: var(--color-text-1);
-      color: var(--color-on-primary);
-
-      // Mixed from the fill itself so both colour schemes step the same way;
-      // a swap to the page colour left the label unreadable on hover.
-      &:hover {
-        border-color: color-mix(
-          in srgb,
-          var(--color-text-1) 84%,
-          var(--color-background)
-        );
-        background: color-mix(
-          in srgb,
-          var(--color-text-1) 84%,
-          var(--color-background)
-        );
-      }
-
-      &:active {
-        border-color: color-mix(
-          in srgb,
-          var(--color-text-1) 74%,
-          var(--color-background)
-        );
-        background: color-mix(
-          in srgb,
-          var(--color-text-1) 74%,
-          var(--color-background)
-        );
-      }
-    }
-
     &[data-variant="accent"] {
-      align-items: center;
-      justify-content: center;
-      min-block-size: functions.to-rem(32px);
-      padding-block: 0;
-      padding-inline: var(--space-5);
       border-color: var(--color-accent);
       background: var(--color-accent);
       color: var(--color-on-primary);
-      font-size: var(--font-size-md);
       font-weight: 600;
 
       &:hover {
         border-color: color-mix(
           in srgb,
           var(--color-accent) 90%,
-          var(--color-text-1)
+          var(--color-background)
         );
         background: color-mix(
           in srgb,
           var(--color-accent) 90%,
-          var(--color-text-1)
+          var(--color-background)
         );
       }
 
@@ -94,12 +64,12 @@
         border-color: color-mix(
           in srgb,
           var(--color-accent) 82%,
-          var(--color-text-1)
+          var(--color-background)
         );
         background: color-mix(
           in srgb,
           var(--color-accent) 82%,
-          var(--color-text-1)
+          var(--color-background)
         );
       }
     }
@@ -107,8 +77,6 @@
     /* The row mini-action grammar (ghost bordered, 24px floor) — distinct
        from RowButton, which is whole-row-as-target. */
     &[data-variant="quiet"] {
-      display: inline-flex;
-      align-items: center;
       min-height: functions.to-rem(24px);
       padding-block: functions.to-rem(4px);
       padding-inline: functions.to-rem(10px);

@@ -1,7 +1,7 @@
 export const ViewerStates = {
   SIGNED_IN: "signed-in",
   SIGNED_OUT: "signed-out",
-  /** Not read yet, or the read failed: the slot shows the generic trigger. */
+  /** Not read yet, so the slot is empty; or the read failed and the slot shows the generic trigger. */
   UNKNOWN: "unknown",
 } as const;
 

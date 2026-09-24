@@ -35,7 +35,8 @@ export function useAccountMenuFacade() {
   const { i18n } = useTranslation();
   const [signingOut, setSigningOut] = useState(false);
   const [signOutFailed, setSignOutFailed] = useState(false);
-  const viewer: ViewerState = useQuery(buildViewerQueryOptions()).data ?? {
+  const viewerQuery = useQuery(buildViewerQueryOptions());
+  const viewer: ViewerState = viewerQuery.data ?? {
     kind: ViewerStates.UNKNOWN,
   };
   const localeOptions = isLanguageSelectionEnabled() ? listLocaleOptions() : [];
@@ -60,6 +61,7 @@ export function useAccountMenuFacade() {
 
   return {
     viewer,
+    viewerPending: viewerQuery.isPending,
     signingOut,
     signOutFailed,
     localeOptions,

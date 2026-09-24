@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode, type RefObject } from "react";
 import clsx from "clsx";
 
 import { useFocusTrap } from "../../hooks/useFocusTrap";
@@ -9,13 +9,18 @@ export interface ModalProps {
   boxClassName?: string | undefined;
   /**
    * @description id of the element that names this dialog (its heading),
-   * wired to `aria-labelledby` — without it the dialog announces nameless.
+   * wired to `aria-labelledby`; without it the dialog announces nameless.
    */
   labelledBy: string;
   /**
    * @description Dismiss handler. When provided, Escape closes the modal.
    */
   close?: (() => void) | undefined;
+  /**
+   * @description The one control focus lands on when the dialog opens: a
+   * dialog with one obvious first field names it, any other lands on the box.
+   */
+  initialFocus?: RefObject<HTMLElement | null> | undefined;
   children: ReactNode;
 }
 
@@ -24,10 +29,18 @@ export function Modal({
   boxClassName,
   labelledBy,
   close,
+  initialFocus,
   children,
 }: ModalProps) {
   const boxRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
+  const latestInitialFocus = useRef(initialFocus);
+
+  // Read through a ref so a caller handing a fresh ref object mid-dialog
+  // never re-runs the focus effect and re-captures a stale trigger.
+  useEffect(() => {
+    latestInitialFocus.current = initialFocus;
+  });
 
   // Move focus into the dialog on open; return it to the trigger on close.
   // The return is a deferred FALLBACK: it runs a microtask after this commit's
@@ -40,7 +53,7 @@ export function Modal({
       document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null;
-    boxRef.current?.focus();
+    (latestInitialFocus.current?.current ?? boxRef.current)?.focus();
     return () => {
       const trigger = triggerRef.current;
       triggerRef.current = null;

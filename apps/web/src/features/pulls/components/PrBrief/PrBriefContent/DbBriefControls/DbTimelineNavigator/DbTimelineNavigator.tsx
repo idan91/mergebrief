@@ -86,7 +86,6 @@ export function DbTimelineNavigator({
         aria-disabled={previous === undefined || undefined}
         className={styles["arrow"]}
         size="md"
-        variant="outlined"
         onClick={() => previous && onSelect(previous)}
       >
         <Icon
@@ -131,7 +130,6 @@ export function DbTimelineNavigator({
         aria-disabled={next === undefined || undefined}
         className={styles["arrow"]}
         size="md"
-        variant="outlined"
         onClick={() => next && onSelect(next)}
       >
         <Icon

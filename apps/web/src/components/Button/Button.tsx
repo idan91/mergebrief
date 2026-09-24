@@ -13,8 +13,7 @@ export const ButtonElements = {
 export type ButtonElement = ValueOf<typeof ButtonElements>;
 
 export const ButtonVariants = {
-  PRIMARY: "primary",
-  /** The accent fill: the one call to action a screen makes. */
+  /** The accent fill under Accent Ink: the primary action of a view. */
   ACCENT: "accent",
   SECONDARY: "secondary",
   QUIET: "quiet",

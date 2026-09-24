@@ -47,7 +47,7 @@ export function AdvisoryView({
       <p className={styles["hint"]}>{t("review.submit.jumpClosesDialog")}</p>
       <div className={clsx(modalStyles["actions"], styles["actionsRow"])}>
         <Button onClick={close}>{t("review.submit.keepReviewing")}</Button>
-        <Button variant="primary" onClick={continueToVerdict}>
+        <Button variant="accent" onClick={continueToVerdict}>
           {t("review.submit.continueAction")}
         </Button>
       </div>

@@ -7,7 +7,6 @@ import {
   useState,
 } from "react";
 
-import { AccessibleLink } from "@web/components/AccessibleLink/AccessibleLink";
 import { Badge } from "@web/components/Badge/Badge";
 import { Chip } from "@web/components/Chip/Chip";
 import { IconButton } from "@web/components/IconButton/IconButton";
@@ -74,24 +73,12 @@ function IntentSourceBadge({
   const { t } = useTranslation();
 
   if (linked) {
-    return (
-      <Badge className={styles["sourceBadge"]}>
-        <AccessibleLink
-          className={styles["source"]}
-          href={item.sourceUrl}
-          target="_blank"
-        >
-          {sourceLabel}
-        </AccessibleLink>
-      </Badge>
-    );
+    return <Badge href={item.sourceUrl}>{sourceLabel}</Badge>;
   }
   if (item.sourceUrl === "" && item.quote !== "") {
     return (
-      <Badge className={styles["sourceBadge"]}>
-        <span className={styles["source"]}>
-          {t("brief.intent.prDescription")}
-        </span>
+      <Badge>
+        <span>{t("brief.intent.prDescription")}</span>
       </Badge>
     );
   }
@@ -153,7 +140,6 @@ function IntentItemRow({
                 label={label}
                 onClick={() => jumpToGroup(groupId)}
                 title={label}
-                variant="outlined"
               >
                 ↳
                 {multiGroup ? (

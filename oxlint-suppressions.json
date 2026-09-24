@@ -275,11 +275,6 @@
       "count": 1
     }
   },
-  "apps/web/src/components/Button/Button.test.tsx": {
-    "house/test-title": {
-      "count": 2
-    }
-  },
   "apps/web/src/components/Checkbox/Checkbox.test.tsx": {
     "house/no-em-dash": {
       "count": 2
@@ -320,11 +315,6 @@
   },
   "apps/web/src/components/MenuItem/MenuItem.test.tsx": {
     "house/test-title": {
-      "count": 1
-    }
-  },
-  "apps/web/src/components/Modal/Modal.tsx": {
-    "house/no-em-dash": {
       "count": 1
     }
   },
@@ -432,11 +422,6 @@
     }
   },
   "apps/web/src/features/brief/components/BriefScreen/RiskFlagModals/RiskFlagModals.tsx": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "apps/web/src/features/brief/components/BriefScreen/StoryView/ChunkCard/RoleBadge/RoleBadge.tsx": {
     "house/no-em-dash": {
       "count": 1
     }
@@ -655,11 +640,6 @@
     },
     "house/test-title": {
       "count": 11
-    }
-  },
-  "apps/web/src/features/pulls/components/MarkReadyModal/MarkReadyModal.tsx": {
-    "house/no-em-dash": {
-      "count": 5
     }
   },
   "apps/web/src/features/pulls/components/PrBrief/CappedCard/utils.ts": {

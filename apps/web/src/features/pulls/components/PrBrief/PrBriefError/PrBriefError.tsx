@@ -14,7 +14,7 @@ export function PrBriefError({ error }: PrBriefErrorProps) {
   // message embeds the request path.
   const detail = prBriefErrorDetail(t, error);
   const action = prBriefErrorNeedsSignIn(error) ? (
-    <Button as="a" href="/api/auth/github" variant="primary">
+    <Button as="a" href="/api/auth/github" variant="accent">
       {t("pulls.errorBoundary.signIn")}
     </Button>
   ) : undefined;

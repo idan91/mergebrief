@@ -40,6 +40,17 @@ function renderWithViewer(viewer: ViewerState, onOpenShortcuts?: () => void) {
   );
 }
 
+function renderWithoutViewer(): void {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  render(
+    <QueryClientProvider client={queryClient}>
+      <AccountMenu />
+    </QueryClientProvider>,
+  );
+}
+
 const SIGNED_IN: ViewerState = {
   kind: ViewerStates.SIGNED_IN,
   login: "octocat",
@@ -47,6 +58,26 @@ const SIGNED_IN: ViewerState = {
 };
 
 describe("AccountMenu", () => {
+  it("renders nothing while the viewer loads", () => {
+    fetchMock.mockReturnValue(new Promise(() => undefined));
+    renderWithoutViewer();
+
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+
+  it("a failed viewer read keeps the menu behind the generic trigger", async () => {
+    fetchMock.mockRejectedValue(new Error("offline"));
+    renderWithoutViewer();
+
+    const trigger = await screen.findByRole("button", { name: "Account menu" });
+    fireEvent.click(trigger);
+    expect(
+      await screen.findByRole("menuitem", { name: "Settings" }),
+    ).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: "Sign out" })).toBeTruthy();
+  });
+
   it("signed out, the slot holds a Sign in link", () => {
     renderWithViewer({ kind: ViewerStates.SIGNED_OUT });
 

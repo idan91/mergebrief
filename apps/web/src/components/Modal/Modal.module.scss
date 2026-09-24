@@ -18,12 +18,9 @@
   }
 
   .box {
-    // Off-scale: the dialog fill sits between --color-surface-1 (19.8%) and
-    // --color-surface-2 (22.8%) in lightness so a modal reads as its own
-    // plane, not a panel; the textarea's focus border is a one-off lift above
-    // --color-outline-2 (31%), scoped to the focused state. Both derive from
-    // the theme's hue and grey chroma like every other grey.
-    --box-fill: oklch(21.3% var(--gray-c) var(--brand-hue));
+    // The textarea's focus border is a one-off lift above --color-outline-2,
+    // scoped to the focused state; it derives from the hue and grey chroma
+    // like every other grey.
     --textarea-focus-border: oklch(39% var(--gray-c) var(--brand-hue));
 
     inline-size: functions.to-rem(460px);
@@ -32,7 +29,8 @@
     padding-inline: functions.to-rem(28px);
     border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-lg);
-    background: var(--box-fill);
+    background: var(--color-surface-3);
+    outline: none;
 
     // The dialog's heading at whatever level the outline gives it.
     :where(h1, h2, h3, h4, h5, h6) {

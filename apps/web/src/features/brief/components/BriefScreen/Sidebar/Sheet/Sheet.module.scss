@@ -27,7 +27,7 @@
     background: var(--color-surface-1);
     box-shadow: var(--shadow-elevation-lg);
     touch-action: pinch-zoom;
-    transition: block-size 0.2s ease;
+    transition: block-size var(--motion-base) var(--ease-in-out);
 
     &[data-height="full"] {
       block-size: calc(100dvh - var(--sticky-stack-h) - var(--sidebar-bar-h));

@@ -54,7 +54,7 @@
     }
 
     &[data-current] {
-      background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+      background: var(--color-changed-fill);
       color: var(--color-text-1);
 
       .ordinal {

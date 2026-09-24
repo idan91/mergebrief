@@ -140,7 +140,7 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
           disabled={state.mintPending || state.mintBlockedReason !== null}
           loading={state.mintPending}
           type="submit"
-          variant="primary"
+          variant="accent"
         >
           {state.mintPending ? t("tokens.minting") : t("tokens.mintToken")}
         </Button>

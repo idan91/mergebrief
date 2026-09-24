@@ -28,7 +28,6 @@ function deriveRepoPolicyTitle(
 }
 
 /**
- * Keep taxonomy tokens lowercase despite the Badge role-tag default.
  * Children let the +N overflow share the same chip anatomy.
  * Repo-defined attributes vary data-source, not the chip structure.
  */

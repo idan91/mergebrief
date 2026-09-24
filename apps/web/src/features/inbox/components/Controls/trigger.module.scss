@@ -26,8 +26,8 @@
     }
 
     &[data-state="changed"] {
-      border-color: color-mix(in srgb, var(--color-accent) 45%, transparent);
-      background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+      border-color: var(--color-changed-edge);
+      background: var(--color-changed-fill);
 
       .value {
         color: var(--color-accent);

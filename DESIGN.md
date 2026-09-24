@@ -236,13 +236,15 @@ One family, Phosphor, copied icon by icon into `apps/web/src/components/icons/<p
 
 ## Components
 
+One skin on both pages: corner, edge, fill and the hover, pressed and selected tints are shared; each page keeps its own sizes, padding and type.
+
 ### Buttons
 
-- **Shape:** 8px corner. The accent variant is 32px tall; the neutral variants take their height from padding and the body line-height, about 38px.
-- **Accent:** accent fill, Accent Ink text: the Generate button. One per view.
-- **Primary:** Text 1 fill with dark text: Sign in with GitHub on the signed-out Home, where it stands 44px tall as the first screen's one target.
+- **Shape:** 8px corner. Every variant takes its height from padding and the body line-height, about 38px, so a confirm and its Cancel sit level; the URL box sizes its own Generate at 32px inside the field.
+- **Accent:** accent fill, Accent Ink text: the primary action of a view, Generate on Home, Submit and the dialogs' confirm on the Brief page. One per view. Hover mixes 10% of the page ground into the fill, press 18%: the accent is a light, so its pressed state is a shade darker.
 - **Secondary:** transparent with a Line Strong border.
-- **Press:** a filter trigger scales to 0.97 over 120ms. No hover movement anywhere.
+- **Icon buttons:** borderless, Text 2, Surface 3 under the pointer with Text 1. The triggers that need a visible edge (the account trigger's pill, the details trigger's ring) draw their own.
+- **Press:** a Button or icon button scales to 0.97 over 120ms on the entrance curve; a toolbar button never scales, it can be a full-width heading. No hover movement anywhere.
 
 ### URL box
 
@@ -261,23 +263,27 @@ One family, Phosphor, copied icon by icon into `apps/web/src/components/icons/<p
 
 ### Chips
 
-- **Style:** 20px tall, 5px corner, soft tint (Text 1 at 7%), no border, Text Read at 500. A chip states a fact about a row: place in a stack, new commits (in Warning), unreachable.
+- **Style:** 5px corner, soft tint (Text 1 at 7%), no border, the sans at 500 in Text Read. A fact chip is 20px tall and states one thing about a row: place in a stack, new commits (in Warning), unreachable. A filter chip keeps the Brief page's 26px and its check glyph.
+- **States:** a pressed chip takes the changed tint, accent at 8% behind a 45% accent edge, with accent text; a warning chip sits on a 12% warning tint in Warning.
+- **Badge:** the chip corner on a 12% tint of its colour, weight 500, no border, and the words in their own case. A risk badge from repo policy alone draws a dashed edge in its colour, and a de-emphasized one a dotted edge.
 
 ### Filters, sort and pager
 
-- **Filter:** 28px, 8px corner, Line Strong border. It shows its name only; a value appears when it is set, and several values show as a count. A changed filter takes an accent tint and an accent value. Every multi-select filter opens with an "All …" row, ticked while nothing narrower is chosen; Status's ticks all four statuses. Clear sits beside View and Sort.
+- **Filter:** 28px, 8px corner, Line Strong border, Text 1, Surface 2 under the pointer. It shows its name only; a value appears when it is set, and several values show as a count. A changed filter takes the changed tint and an accent value. Every multi-select filter opens with an "All …" row, ticked while nothing narrower is chosen; Status's ticks all four statuses. Clear sits beside View and Sort.
+- **Toolbar buttons and the segmented control** on the Brief page wear the filter's skin: the same edge and corner, the changed tint when pressed or active; the active segment adds a 1px inset accent edge. A mixed state keeps a dashed edge so it never rests on colour alone.
 - **Review filter:** lists each review mark beside its name and doubles as the legend.
 - **View:** Needs you first (the fold) or Mixed (one list). Named like a filter: its value shows once changed.
 - **Pager:** numbered, 30px bordered squares; the current page takes the accent tint. The range reads "1 to 25 of 290".
 
 ### Menus and callouts
 
-- **Menu:** Surface 3, Line Strong border, 10px corner. Opens from its trigger: opacity and scale from 0.97 over 180ms, ease-out. A menu that stays open while its content changes does not replay its entrance.
-- **Callout:** opens after a 350ms pointer rest, or at once on focus where the anchor is focusable; a touch never opens it by hover. The shared Callout enters with opacity and a 4px slide over 140ms and takes no space when hidden; the SegmentedControl's own instant tip on the Brief page has not moved onto it yet.
+- **Menu:** Surface 3, Line Strong border, 10px corner, the float shadow. Opens from its trigger's corner: opacity and scale from 0.97 over 180ms, ease-out. Items are Text 1 with Line Strong at 40% under the pointer. A menu that stays open while its content changes does not replay its entrance.
+- **Callout:** the menu's surface, edge, corner and shadow. Opens after a 350ms pointer rest, or at once on focus where the anchor is focusable; a touch never opens it by hover. It enters with opacity and a 4px slide over 140ms and takes no space when hidden; the SegmentedControl's own instant tip on the Brief page has not moved onto it yet.
+- **Dialog:** Surface 3 behind a Line Strong edge, 12px corner. The box itself never shows a focus ring; a dialog with one obvious first control (the dismiss reason field) focuses it on open, any other lands on the box.
 
 ### Motion
 
-Durations 120, 180 and 320ms, the shared Callout's 140ms entrance, and a 350ms rest before a callout. Easing `cubic-bezier(0.23, 1, 0.32, 1)` for entrances and `cubic-bezier(0.77, 0, 0.175, 1)` for on-screen movement. On first load rows fade up 6px with a 30ms stagger, capped at twelve rows. Page change, sort, filter and keyboard movement never animate. Reduced motion keeps opacity changes only.
+Durations 120, 180 and 320ms, the shared Callout's 140ms entrance, and a 350ms rest before a callout. Easing `cubic-bezier(0.23, 1, 0.32, 1)` for entrances and `cubic-bezier(0.77, 0, 0.175, 1)` for on-screen movement; a plain colour or opacity change may keep the `ease` keyword. Both pages read the same three tokens and two curves; nothing states a duration of its own except the spinners. On first load rows fade up 6px with a 30ms stagger, capped at twelve rows. Page change, sort, filter and keyboard movement never animate. Reduced motion keeps opacity changes only.
 
 ## Do's and Don'ts
 

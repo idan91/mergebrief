@@ -143,7 +143,7 @@
     flex-direction: column;
     padding-block: functions.to-rem(14px);
     padding-inline: functions.to-rem(14px);
-    animation: rail-swap 0.25s ease;
+    animation: rail-swap var(--motion-base) var(--ease-out);
     border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-md);
     background: var(--scroller-bg);

@@ -6,9 +6,9 @@
   width: functions.to-rem(320px);
   padding: functions.to-rem(12px) functions.to-rem(14px);
   border: 1px solid var(--color-outline-2);
-  border-radius: var(--radius-md);
-  background: var(--color-surface-2);
-  box-shadow: var(--shadow-elevation-lg);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface-3);
+  box-shadow: var(--shadow-float);
   white-space: normal;
   font-family: var(--sans);
 
@@ -29,7 +29,7 @@
 // floating-ui arrow (SVG): same surface as the callout; hairline via the
 // component's stroke prop.
 .arrow {
-  fill: var(--color-surface-2);
+  fill: var(--color-surface-3);
 }
 
 .eyebrow {

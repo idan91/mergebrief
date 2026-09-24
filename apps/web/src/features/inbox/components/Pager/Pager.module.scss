@@ -41,7 +41,7 @@
     }
 
     &[aria-current="page"] {
-      border-color: color-mix(in srgb, var(--color-accent) 45%, transparent);
+      border-color: var(--color-changed-edge);
       background: color-mix(in srgb, var(--color-accent) 12%, transparent);
       color: var(--color-accent);
     }

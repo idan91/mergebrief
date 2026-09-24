@@ -173,18 +173,18 @@ $story-gap-rem: functions.to-rem(layout.$story-group-gap);
     padding-inline: var(--main-gutter)
       calc(var(--main-gutter) + var(--sidebar-w));
     margin-inline: auto;
-    transition: opacity 0.15s ease;
+    transition: opacity var(--motion-fast) ease;
 
     &[data-sidebar-motion] {
       transition:
-        opacity 0.15s ease,
-        padding-inline-end 0.2s ease,
-        max-inline-size 0.2s ease;
+        opacity var(--motion-fast) ease,
+        padding-inline-end var(--motion-base) var(--ease-in-out),
+        max-inline-size var(--motion-base) var(--ease-in-out);
     }
 
     @media (prefers-reduced-motion: reduce) {
       &[data-sidebar-motion] {
-        transition: opacity 0.15s ease;
+        transition: opacity var(--motion-fast) ease;
       }
     }
 
@@ -196,7 +196,7 @@ $story-gap-rem: functions.to-rem(layout.$story-group-gap);
   }
 
   .reveal {
-    animation: rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+    animation: rise var(--motion-slow) var(--ease-out) backwards;
   }
 
   .story-group {
@@ -324,7 +324,7 @@ $story-gap-rem: functions.to-rem(layout.$story-group-gap);
     gap: functions.to-rem(14px);
     max-inline-size: 1188px;
     margin-inline: auto;
-    transition: grid-template-columns 0.25s ease;
+    transition: grid-template-columns var(--motion-base) var(--ease-in-out);
   }
 
   [data-zen="on"] .story-group[data-focus-rail="collapsed"] {

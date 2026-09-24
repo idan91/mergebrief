@@ -272,9 +272,9 @@ describe("IntentBar", () => {
     render(<IntentBar intentCheck={mixedSources} jumpToGroup={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
     const [linked] = screen.getAllByRole("link", {
-      name: /^ticket ?\(opens in a new tab\)$/,
+      name: /^Ticket ?\(opens in a new tab\)$/,
     });
-    expect(linked?.closest('[data-color="neutral"]')).not.toBeNull();
+    expect(linked?.getAttribute("data-color")).toBe("neutral");
     expect(
       screen.getByText("PR description").closest('[data-color="neutral"]'),
     ).not.toBeNull();
@@ -371,11 +371,11 @@ describe("IntentBar", () => {
     render(<IntentBar intentCheck={withLinkedPage} jumpToGroup={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
     const link = screen.getAllByRole("link", {
-      name: /^ticket ?\(opens in a new tab\)$/,
+      name: /^Ticket ?\(opens in a new tab\)$/,
     })[0];
     expect(link?.getAttribute("href")).toBe("https://tracker.example/T-1");
     const page = screen.getByRole("link", {
-      name: /^source ?\(opens in a new tab\)$/,
+      name: /^Source ?\(opens in a new tab\)$/,
     });
     expect(page.getAttribute("href")).toBe("https://docs.example/spec");
     expect(link?.getAttribute("rel")).toContain("noreferrer");
@@ -403,7 +403,7 @@ describe("IntentBar", () => {
     render(<IntentBar intentCheck={uncited} jumpToGroup={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /intent check/i }));
     const link = screen.getByRole("link", {
-      name: /^source ?\(opens in a new tab\)$/,
+      name: /^Source ?\(opens in a new tab\)$/,
     });
     expect(link.getAttribute("href")).toBe("https://tracker.example/T-9");
   });

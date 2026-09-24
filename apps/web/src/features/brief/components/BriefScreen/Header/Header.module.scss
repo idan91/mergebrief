@@ -339,7 +339,7 @@
     background: var(--color-fill-bright);
     transform: scaleX(var(--progress-scale));
     transform-origin: 0 50%;
-    transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+    transition: transform var(--motion-slow) var(--ease-in-out);
   }
 
   /* The own-draft state label: non-dismissible, informational. */
@@ -427,8 +427,8 @@
     pointer-events: none;
     transform: translateY(-4px);
     transition:
-      opacity 0.16s ease,
-      transform 0.16s ease;
+      opacity var(--motion-fast) ease,
+      transform var(--motion-fast) var(--ease-out);
     white-space: normal;
 
     /* WCAG 1.4.13 hover bridge: an invisible strip spanning the 8px offset,

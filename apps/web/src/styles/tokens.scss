@@ -203,6 +203,19 @@
     // animation jumps.
     --shadow-ring-accent: 0 0 0 2px var(--color-accent);
     --shadow-ring-clear: 0 0 0 2px transparent;
+
+    // The changed tint: a pressed filter, an active segment, a revision mark.
+    --color-changed-fill: color-mix(
+      in srgb,
+      var(--color-accent) 8%,
+      transparent
+    );
+    --color-changed-edge: color-mix(
+      in srgb,
+      var(--color-accent) 45%,
+      transparent
+    );
+    --shadow-inset-changed: inset 0 0 0 1px var(--color-changed-edge);
     --header-pad-block: #{functions.to-rem(11px)};
     --header-line-gap: #{functions.to-rem(6px)};
 

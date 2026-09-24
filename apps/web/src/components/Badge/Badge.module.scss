@@ -1,4 +1,5 @@
 @use "functions" as functions;
+@use "mixins";
 
 @layer components {
   .badge {
@@ -6,17 +7,29 @@
     align-items: center;
     padding-inline: functions.to-rem(6px);
     padding-block: functions.to-rem(1px);
-    border: 1px solid currentcolor;
-    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    border-radius: var(--radius-chip);
+    background: color-mix(in srgb, var(--badge-color) 12%, transparent);
     font-size: var(--font-size-xs);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    font-weight: 500;
     white-space: nowrap;
     color: var(--badge-color);
   }
 
+  a.badge {
+    text-decoration: none;
+
+    &:hover {
+      background: color-mix(in srgb, var(--badge-color) 20%, transparent);
+    }
+
+    &:focus-visible {
+      @include mixins.focus-ring;
+    }
+  }
+
   .badge[data-color="neutral"] {
-    --badge-color: var(--color-text-3);
+    --badge-color: var(--color-text-2);
   }
 
   .badge[data-color="text"] {
@@ -41,10 +54,5 @@
 
   .badge[data-color="negative"] {
     --badge-color: var(--color-negative);
-  }
-
-  .badge[data-fill] {
-    background: color-mix(in srgb, var(--badge-color) 14%, transparent);
-    border-color: color-mix(in srgb, var(--badge-color) 30%, transparent);
   }
 }

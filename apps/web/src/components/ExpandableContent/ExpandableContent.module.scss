@@ -19,7 +19,7 @@
 
   .body {
     overflow: hidden;
-    transition: max-block-size 180ms ease-out;
+    transition: max-block-size var(--motion-base) var(--ease-out);
   }
 
   .content > :last-child {

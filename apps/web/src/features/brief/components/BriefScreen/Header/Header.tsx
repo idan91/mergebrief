@@ -268,7 +268,7 @@ export function Header({
             aria-disabled={ownDraft.pending || ownDraft.unavailable === true}
             data-terminal-slot=""
             ref={terminalSlotRef}
-            variant="primary"
+            variant="accent"
             onBlur={() => {
               terminalSlotFocused.current = false;
             }}
@@ -508,7 +508,6 @@ function HeaderMenu({ briefId, hideSummaryPreview }: HeaderMenuProps) {
         label={t("brief.header.ariaLabelMoreActions")}
         ref={triggerRef}
         size="lg"
-        variant="outlined"
         // Close via the refocus helper: WebKit/Firefox-macOS don't focus a
         // clicked button, so a plain toggle would unmount the focused
         // menuitem and drop focus to <body>.

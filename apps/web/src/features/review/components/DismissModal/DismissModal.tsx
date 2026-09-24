@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@web/components/Button/Button";
 import { Modal } from "@web/components/Modal/Modal";
@@ -22,15 +23,19 @@ export function DismissModal({
   setReason,
 }: DismissModalProps) {
   const { t } = useTranslation();
+  const reasonRef = useRef<HTMLTextAreaElement | null>(null);
+
   return (
     <Modal
       open={Boolean(target)}
       close={cancel}
+      initialFocus={reasonRef}
       labelledBy="dismiss-modal-heading"
     >
       <h2 id="dismiss-modal-heading">{t("review.dismiss.heading")}</h2>
       <div className={styles["target"]}>{target?.label}</div>
       <textarea
+        ref={reasonRef}
         aria-label={t("review.dismiss.reasonLabel")}
         suppressHydrationWarning
         value={reason}
@@ -46,7 +51,7 @@ export function DismissModal({
       ) : null}
       <div className={styles["actions"]}>
         <Button onClick={cancel}>{t("review.dismiss.cancel")}</Button>
-        <Button variant="primary" onClick={confirm}>
+        <Button variant="accent" onClick={confirm}>
           {warned
             ? t("review.dismiss.dismissAnyway")
             : t("review.dismiss.dismissWithReason")}

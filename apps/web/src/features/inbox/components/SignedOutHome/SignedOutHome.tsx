@@ -23,7 +23,7 @@ export function SignedOutHome() {
           as="a"
           className={styles["signIn"]}
           href={SIGN_IN_PATH}
-          variant="primary"
+          variant="accent"
         >
           <Icon name={IconNames.GITHUB_LOGO} />
           {t("home.signedOut.signIn")}

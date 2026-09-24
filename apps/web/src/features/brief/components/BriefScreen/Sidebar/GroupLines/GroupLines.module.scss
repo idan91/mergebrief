@@ -37,9 +37,9 @@
       content: "";
       transform: translate(-50%, -50%);
       transition:
-        inline-size 80ms ease,
-        opacity 80ms ease,
-        background-color 80ms ease;
+        inline-size var(--motion-fast) ease,
+        opacity var(--motion-fast) ease,
+        background-color var(--motion-fast) ease;
     }
 
     &:hover::before {

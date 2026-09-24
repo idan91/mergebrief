@@ -31,7 +31,7 @@ export function SubmitReviewCta({
       className={styles["cta"]}
       data-terminal-slot=""
       ref={slotRef}
-      variant="primary"
+      variant="accent"
       onBlur={onBlur}
       onClick={onClick}
       onFocus={onFocus}

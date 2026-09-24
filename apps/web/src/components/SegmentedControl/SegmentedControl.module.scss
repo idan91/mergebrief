@@ -57,10 +57,19 @@
     white-space: nowrap;
     text-align: center;
     cursor: pointer;
+    transition:
+      background var(--motion-fast),
+      color var(--motion-fast);
+
+    &:hover:not([data-unavailable]) {
+      background: var(--color-surface-2);
+      color: var(--color-text-1);
+    }
 
     &[data-state="active"] {
-      background: color-mix(in srgb, var(--color-accent) 8%, transparent);
-      color: var(--color-text-1);
+      background: var(--color-changed-fill);
+      box-shadow: var(--shadow-inset-changed);
+      color: var(--color-accent);
     }
 
     &[data-unavailable] {
