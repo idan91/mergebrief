@@ -12,18 +12,18 @@
   }
 
   .resolvedState {
-    color: var(--faint);
+    color: var(--color-text-3);
     font-family: var(--mono);
     font-size: var(--font-size-xs);
   }
 
   .reopen {
-    color: var(--dim);
+    color: var(--color-text-2);
     font-size: var(--font-size-sm);
     text-decoration: none;
 
     &:hover {
-      color: var(--text);
+      color: var(--color-text-1);
       text-decoration: underline;
       text-underline-offset: functions.to-rem(3px);
     }

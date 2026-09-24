@@ -17,20 +17,20 @@
     padding-block: functions.to-rem(6px);
     padding-inline: functions.to-rem(12px);
     border-radius: var(--radius-md);
-    background: var(--panel2);
+    background: var(--color-surface-1);
     font-size: var(--font-size-lg);
     font-weight: 500;
     white-space: normal;
 
     &:hover {
-      background: var(--panel2);
+      background: var(--color-surface-1);
     }
 
     &[aria-pressed="true"],
     &[aria-pressed="true"]:hover {
-      border-color: var(--accent);
-      background: var(--panel2);
-      color: var(--text);
+      border-color: var(--color-accent);
+      background: var(--color-surface-1);
+      color: var(--color-text-1);
     }
   }
 
@@ -40,9 +40,9 @@
   }
 
   .file {
-    border: 1px solid var(--line);
+    border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-md);
-    background: var(--panel2);
+    background: var(--color-surface-1);
     overflow: hidden;
   }
 
@@ -55,7 +55,7 @@
   }
 
   .meta {
-    color: var(--faint);
+    color: var(--color-text-3);
     font-size: var(--font-size-lg);
   }
 }

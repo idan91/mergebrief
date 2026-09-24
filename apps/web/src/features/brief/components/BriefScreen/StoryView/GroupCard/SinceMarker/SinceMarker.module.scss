@@ -2,7 +2,7 @@
 
 @layer components {
   .marker {
-    color: var(--faint);
+    color: var(--color-text-3);
     font-size: var(--font-size-sm);
 
     &[data-state="changed"] {
@@ -11,7 +11,7 @@
       // string is the longer one and stays wrappable: the eyebrow's
       // ancestor clips on overflow-x rather than scrolling.
       flex: none;
-      color: var(--amber);
+      color: var(--color-warning);
       white-space: nowrap;
     }
   }
@@ -19,7 +19,7 @@
   /* LinkButton's grammar; only the hover token differs. */
   .deltaLink {
     &:hover {
-      color: var(--color-text);
+      color: var(--color-text-1);
     }
   }
 }

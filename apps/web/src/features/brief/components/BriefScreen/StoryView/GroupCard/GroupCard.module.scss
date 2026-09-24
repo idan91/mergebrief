@@ -11,7 +11,7 @@
     --card-gradient-to: oklch(16.5% var(--gray-c) var(--brand-hue));
 
     margin-block-end: functions.to-rem(40px);
-    border: 1px solid var(--line);
+    border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-lg);
     background: linear-gradient(
       180deg,
@@ -28,7 +28,7 @@
     flex: 0 1 auto;
     padding-block: functions.to-rem(26px) functions.to-rem(24px);
     padding-inline: functions.to-rem(30px);
-    border-block-end: 1px solid var(--line);
+    border-block-end: 1px solid var(--color-outline-1);
     overflow: hidden auto;
   }
 
@@ -44,7 +44,7 @@
 
   .number {
     flex: none;
-    color: var(--faint);
+    color: var(--color-text-3);
     font-size: var(--font-size-md);
     white-space: nowrap;
   }
@@ -59,7 +59,7 @@
   }
 
   .loc {
-    color: var(--faint);
+    color: var(--color-text-3);
     font-family: var(--mono);
     font-size: var(--font-size-sm);
   }
@@ -67,7 +67,7 @@
   .title {
     max-inline-size: 38em;
     margin-block: 0 functions.to-rem(8px);
-    color: var(--text);
+    color: var(--color-text-1);
     font-size: var(--font-size-3xl);
     font-weight: 600;
     letter-spacing: 0;
@@ -78,7 +78,7 @@
 
   .summary {
     max-inline-size: 46em;
-    color: var(--dim);
+    color: var(--color-text-2);
     font-size: var(--font-size-lg);
     line-height: 1.6;
   }
@@ -89,7 +89,7 @@
   .readingOrder {
     max-inline-size: 46em;
     margin-block-start: functions.to-rem(6px);
-    color: var(--faint);
+    color: var(--color-text-3);
     font-size: var(--font-size-md);
     font-style: italic;
     line-height: 1.5;
@@ -109,25 +109,25 @@
     gap: functions.to-rem(7px);
     padding-block: functions.to-rem(4px);
     padding-inline: functions.to-rem(12px);
-    border: 1px solid var(--line2);
+    border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-pill);
-    color: var(--dim);
+    color: var(--color-text-2);
     font-size: var(--font-size-lg);
     font-weight: 500;
 
     &[data-kind="dominant"] {
-      border-color: var(--line2);
+      border-color: var(--color-outline-2);
       background: var(--color-surface-3);
-      color: var(--text);
+      color: var(--color-text-1);
     }
 
     &[data-kind="uncertain"] {
-      border-color: color-mix(in srgb, var(--amber) 35%, transparent);
-      color: var(--amber);
+      border-color: color-mix(in srgb, var(--color-warning) 35%, transparent);
+      color: var(--color-warning);
     }
 
     em {
-      color: var(--faint);
+      color: var(--color-text-3);
       font-style: normal;
       font-weight: 400;
     }
@@ -140,13 +140,13 @@
     gap: functions.to-rem(14px);
     padding-block: functions.to-rem(14px);
     padding-inline: functions.to-rem(18px);
-    border: 1px solid var(--line);
+    border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-md);
     margin-block-start: functions.to-rem(16px);
     background: var(--color-surface-1);
 
     b {
-      color: var(--text);
+      color: var(--color-text-1);
       font-weight: 600;
     }
   }
@@ -154,7 +154,7 @@
   .question {
     flex: 1;
     min-inline-size: functions.to-rem(260px);
-    color: var(--dim);
+    color: var(--color-text-2);
     font-size: var(--font-size-lg);
     line-height: 1.6;
   }
@@ -165,7 +165,7 @@
   }
 
   .reclassNote {
-    color: var(--faint);
+    color: var(--color-text-3);
     font-size: var(--font-size-lg);
   }
 

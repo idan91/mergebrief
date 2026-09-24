@@ -3,19 +3,19 @@
 @layer components {
   .row {
     padding: functions.to-rem(8px) functions.to-rem(14px);
-    border: 1px solid var(--line);
-    border-inline-start: 2px solid var(--accent);
+    border: 1px solid var(--color-outline-1);
+    border-inline-start: 2px solid var(--color-accent);
     border-radius: var(--radius-md);
     margin-block-end: functions.to-rem(16px);
-    background: var(--panel2);
+    background: var(--color-surface-1);
 
     &[data-state="pending"] {
-      border-inline-start-color: var(--amber);
+      border-inline-start-color: var(--color-warning);
     }
   }
 
   .summary {
     margin: 0;
-    color: var(--dim);
+    color: var(--color-text-2);
   }
 }

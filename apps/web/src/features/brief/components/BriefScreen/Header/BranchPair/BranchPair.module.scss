@@ -8,13 +8,13 @@
     align-items: center;
     gap: functions.to-rem(4px);
     block-size: var(--header-meta-control-h);
-    color: var(--dim);
+    color: var(--color-text-2);
     font-size: var(--header-meta-font);
     white-space: nowrap;
   }
 
   .arrow {
     flex: none;
-    color: var(--dim);
+    color: var(--color-text-2);
   }
 }

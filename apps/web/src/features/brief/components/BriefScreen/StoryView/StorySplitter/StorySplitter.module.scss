@@ -33,7 +33,7 @@ $line-active: 5px;
       inline-size: $line-rest;
       block-size: min(100%, calc(100vh - var(--sticky-stack-h) - 24px));
       border-radius: var(--radius-sm);
-      background: var(--faint);
+      background: var(--color-text-3);
       opacity: 0.05;
       transition:
         background-color 0.15s ease,
@@ -45,7 +45,7 @@ $line-active: 5px;
     &:focus-visible::before,
     &[data-state="dragging"]::before {
       inline-size: $line-active;
-      background: var(--muted);
+      background: var(--color-text-2);
       opacity: 1;
     }
 
@@ -58,7 +58,7 @@ $line-active: 5px;
     &:focus-visible::before {
       @include mixins.focus-ring;
 
-      outline-color: var(--muted);
+      outline-color: var(--color-text-2);
       border-radius: var(--radius-sm);
     }
   }

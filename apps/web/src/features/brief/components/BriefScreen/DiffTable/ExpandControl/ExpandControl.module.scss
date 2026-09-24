@@ -11,7 +11,7 @@
 
   .cell {
     background: var(--color-surface-2);
-    color: var(--faint);
+    color: var(--color-text-3);
     font-size: var(--font-size-sm);
   }
 
@@ -40,17 +40,17 @@
     flex: none;
     padding-block: 0;
     padding-inline: functions.to-rem(8px);
-    border: 1px solid var(--line);
+    border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-pill);
     background: transparent;
-    color: var(--dim);
+    color: var(--color-text-2);
     font: inherit;
     line-height: functions.to-rem(22px);
     cursor: pointer;
 
     &:hover {
-      color: var(--text);
-      border-color: var(--dim);
+      color: var(--color-text-1);
+      border-color: var(--color-text-2);
     }
   }
 
@@ -59,14 +59,14 @@
   .note {
     margin-block: 0 functions.to-rem(6px);
     padding-inline-start: functions.to-rem(8px);
-    border-inline-start: 2px solid var(--dim);
-    color: var(--dim);
+    border-inline-start: 2px solid var(--color-text-2);
+    color: var(--color-text-2);
     font-size: var(--font-size-sm);
     line-height: functions.to-rem(20px);
   }
 
   .plain {
     flex: none;
-    color: var(--dim);
+    color: var(--color-text-2);
   }
 }

@@ -36,7 +36,7 @@
     flex-direction: column;
     gap: functions.to-rem(4px);
     padding-block-start: functions.to-rem(8px);
-    border-block-start: 1px solid var(--line);
+    border-block-start: 1px solid var(--color-outline-1);
   }
 
   .changed {
@@ -44,7 +44,7 @@
   }
 
   .leadIn {
-    color: var(--faint);
+    color: var(--color-text-3);
     font-size: var(--font-size-xs);
   }
 }

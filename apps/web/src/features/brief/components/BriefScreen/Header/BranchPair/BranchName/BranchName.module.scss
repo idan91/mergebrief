@@ -16,10 +16,10 @@
   }
 
   .branchName[data-variant="base"] {
-    color: var(--faint);
+    color: var(--color-text-3);
   }
 
   .branchName[data-variant="head"] {
-    color: var(--accent);
+    color: var(--color-accent);
   }
 }

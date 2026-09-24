@@ -3,7 +3,7 @@
 @layer components {
   .leadIn {
     padding-block: functions.to-rem(2px) functions.to-rem(4px);
-    color: var(--faint);
+    color: var(--color-text-3);
     font-size: var(--font-size-xs);
   }
 }

@@ -5,7 +5,7 @@
   .chunk {
     overflow: clip;
     margin-block-end: functions.to-rem(layout.$chunk-card-gap);
-    border: 1px solid var(--line);
+    border: 1px solid var(--color-outline-1);
 
     // The sticky head OWNS the box's top edge, so it keeps that edge while
     // stuck instead of leaving the card looking sliced off. The card still
@@ -13,7 +13,7 @@
     // cannot simply overlap the card's own border.
     border-block-start-color: transparent;
     border-radius: var(--radius-md);
-    background: var(--panel2);
+    background: var(--color-surface-1);
 
     &[data-current] {
       // Earned oddity: the current-chunk border doubles as a 1px halo, a
@@ -44,7 +44,7 @@
     }
 
     &[data-state="open"] .head {
-      border-block-end: 1px solid var(--line);
+      border-block-end: 1px solid var(--color-outline-1);
     }
 
     &[data-state="open"] .twist {
@@ -56,7 +56,7 @@
     position: sticky;
 
     // The card's top edge, carried by the element that stays put.
-    border-block-start: 1px solid var(--line);
+    border-block-start: 1px solid var(--color-outline-1);
 
     // Pins to the bottom edge of everything above it instead of sliding
     // behind it. --sticky-stack-h is that whole stack as one value.
@@ -68,7 +68,7 @@
     gap: functions.to-rem(16px);
     padding-block: functions.to-rem(11px);
     padding-inline: functions.to-rem(16px);
-    background: color-mix(in srgb, var(--panel) 92%, transparent);
+    background: color-mix(in srgb, var(--color-surface-1) 92%, transparent);
     backdrop-filter: blur(10px);
   }
 
@@ -98,7 +98,7 @@
     // stylelint-disable-next-line property-no-vendor-prefix
     -webkit-user-select: none;
     user-select: none;
-    color: var(--faint);
+    color: var(--color-text-3);
     font-size: var(--font-size-xs);
     transition: transform 0.2s;
   }
@@ -110,7 +110,7 @@
 
   .file {
     overflow: hidden;
-    color: var(--text);
+    color: var(--color-text-1);
     font-family: var(--mono);
     font-size: var(--font-size-md);
     text-overflow: ellipsis;
@@ -151,7 +151,7 @@
     display: inline-flex;
     align-items: center;
     gap: functions.to-rem(6px);
-    color: var(--faint);
+    color: var(--color-text-3);
     white-space: nowrap;
   }
 
@@ -164,7 +164,7 @@
     inline-size: 5px;
     block-size: 5px;
     border-radius: var(--radius-circle);
-    background: var(--faint);
+    background: var(--color-text-3);
   }
 
   .chip[data-concern="implementation"] .dot {
@@ -176,7 +176,7 @@
   }
 
   .chip[data-concern="doc"] .dot {
-    background: var(--violet);
+    background: var(--color-merged);
   }
 
   .reviewToggle {
@@ -184,7 +184,7 @@
     flex: none;
     align-items: center;
     gap: functions.to-rem(6px);
-    color: var(--faint);
+    color: var(--color-text-3);
     cursor: pointer;
     font-size: var(--font-size-md);
     font-weight: 500;
@@ -196,12 +196,12 @@
     }
 
     &:hover {
-      color: var(--text);
+      color: var(--color-text-1);
     }
   }
 
   .fileCommentControl {
-    color: var(--faint);
+    color: var(--color-text-3);
   }
 
   .body {
@@ -214,13 +214,13 @@
     gap: functions.to-rem(6px);
     padding-block: functions.to-rem(12px);
     padding-inline: functions.to-rem(16px);
-    border-block-end: 1px solid var(--line);
+    border-block-end: 1px solid var(--color-outline-1);
     background: var(--color-surface-1);
-    color: var(--dim);
+    color: var(--color-text-2);
     font-size: var(--font-size-lg);
 
     p {
-      color: var(--text);
+      color: var(--color-text-1);
     }
 
     span {

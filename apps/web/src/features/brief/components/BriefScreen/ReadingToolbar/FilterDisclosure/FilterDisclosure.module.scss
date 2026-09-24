@@ -17,11 +17,11 @@
   }
 
   .sep {
-    color: var(--line2);
+    color: var(--color-outline-2);
   }
 
   .count {
-    color: var(--text);
+    color: var(--color-text-1);
     font-variant-numeric: tabular-nums;
     font-weight: 650;
   }
@@ -34,9 +34,9 @@
     min-inline-size: functions.to-rem(320px);
     max-inline-size: min(functions.to-rem(540px), 85vw);
     padding: functions.to-rem(12px);
-    border: 1px solid var(--line2);
+    border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-md);
-    background: var(--panel);
+    background: var(--color-surface-1);
     box-shadow: var(--shadow-elevation-md);
   }
 }

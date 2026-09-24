@@ -55,7 +55,7 @@
 
   .twist {
     align-self: center;
-    color: var(--dim);
+    color: var(--color-text-2);
     font-size: var(--font-size-xs);
     transition: transform 0.15s ease;
 
@@ -138,25 +138,25 @@
   .splitHead {
     font-size: var(--font-size-sm);
     font-weight: 600;
-    color: var(--faint);
+    color: var(--color-text-3);
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    border-block-end: 1px solid var(--line);
+    border-block-end: 1px solid var(--color-outline-1);
     margin: 0;
     padding-block-end: functions.to-rem(4px);
   }
 
   .splitEmpty {
-    color: var(--dim);
+    color: var(--color-text-2);
     font-size: var(--font-size-lg);
     font-style: italic;
     margin: 0;
   }
 
   .bucket {
-    border: 1px solid var(--line);
+    border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-md);
-    background: var(--panel);
+    background: var(--color-surface-1);
     padding: functions.to-rem(14px) functions.to-rem(16px);
   }
 
@@ -190,7 +190,7 @@
     flex-direction: column;
 
     > li + li {
-      border-block-start: 1px solid var(--line);
+      border-block-start: 1px solid var(--color-outline-1);
       margin-block-start: functions.to-rem(10px);
       padding-block-start: functions.to-rem(10px);
     }
@@ -204,7 +204,7 @@
   }
 
   .marker {
-    color: var(--faint);
+    color: var(--color-text-3);
     font-size: var(--font-size-xs);
     justify-self: center;
   }
@@ -231,7 +231,7 @@
   }
 
   .quote {
-    color: var(--dim);
+    color: var(--color-text-2);
     font-size: var(--font-size-lg);
   }
 
@@ -240,26 +240,30 @@
   }
 
   .source {
-    color: var(--faint);
+    color: var(--color-text-3);
   }
 
   .showAll {
     margin-block-start: functions.to-rem(10px);
     min-block-size: functions.to-rem(24px);
     padding: functions.to-rem(2px) functions.to-rem(8px);
-    border: 1px solid var(--line2);
+    border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-sm);
     background: none;
-    color: var(--dim);
+    color: var(--color-text-2);
     font: inherit;
     font-size: var(--font-size-md);
     letter-spacing: normal;
 
     /* :is(button) matches Chip's hover specificity so the quiet tint wins. */
     &:is(button):hover {
-      border-color: color-mix(in srgb, var(--line2) 60%, var(--text));
+      border-color: color-mix(
+        in srgb,
+        var(--color-outline-2) 60%,
+        var(--color-text-1)
+      );
       background: none;
-      color: var(--text);
+      color: var(--color-text-1);
     }
 
     &:focus-visible {

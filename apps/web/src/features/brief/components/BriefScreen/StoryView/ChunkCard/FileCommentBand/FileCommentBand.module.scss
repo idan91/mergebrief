@@ -6,7 +6,7 @@
     gap: functions.to-rem(8px);
     padding-block: functions.to-rem(12px);
     padding-inline: functions.to-rem(16px);
-    border-block-end: 1px solid var(--line);
+    border-block-end: 1px solid var(--color-outline-1);
     background: var(--color-surface-1);
   }
 
@@ -18,7 +18,7 @@
 
   .twist {
     flex: none;
-    color: var(--faint);
+    color: var(--color-text-3);
     font-size: var(--font-size-xs);
     transition: transform 0.2s;
 
@@ -32,7 +32,7 @@
   }
 
   .title {
-    color: var(--dim);
+    color: var(--color-text-2);
     font-size: var(--font-size-md);
     font-weight: 500;
   }

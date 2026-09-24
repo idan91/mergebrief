@@ -10,8 +10,8 @@
     justify-content: flex-end;
     inline-size: var(--sidebar-w-collapsed);
     overflow: hidden;
-    border-inline-start: 1px solid var(--line);
-    background: var(--bg);
+    border-inline-start: 1px solid var(--color-outline-1);
+    background: var(--color-background);
 
     &[data-state="expanded"] {
       inline-size: var(--sidebar-w-expanded);
@@ -79,7 +79,7 @@
     flex-direction: column;
     order: 1;
     inline-size: calc(var(--sidebar-w-expanded) - var(--sidebar-w-collapsed));
-    border-inline-end: 1px solid var(--line);
+    border-inline-end: 1px solid var(--color-outline-1);
 
     &[hidden] {
       display: none;

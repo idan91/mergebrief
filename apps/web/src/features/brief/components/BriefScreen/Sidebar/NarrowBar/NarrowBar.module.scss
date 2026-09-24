@@ -8,8 +8,8 @@
     block-size: var(--sidebar-bar-h);
     padding-block-end: env(safe-area-inset-bottom);
     padding-inline: functions.to-rem(8px);
-    border-block-start: 1px solid var(--line);
-    background: var(--bg);
+    border-block-start: 1px solid var(--color-outline-1);
+    background: var(--color-background);
   }
 
   .chevron svg {
@@ -43,7 +43,7 @@
     inline-size: 3px;
     block-size: 12px;
     border-radius: var(--radius-xs);
-    background: var(--faint);
+    background: var(--color-text-3);
     opacity: 0.45;
 
     &[data-current] {
@@ -54,7 +54,7 @@
 
   .name {
     overflow: hidden;
-    color: var(--dim);
+    color: var(--color-text-2);
     font-size: var(--font-size-md);
     text-overflow: ellipsis;
     white-space: nowrap;

@@ -7,7 +7,7 @@
   }
 
   .eyebrow {
-    color: var(--faint);
+    color: var(--color-text-3);
     font-size: var(--font-size-md);
     font-weight: 500;
     letter-spacing: 0.02em;
@@ -15,13 +15,13 @@
   }
 
   .generationWarnings {
-    color: var(--amber);
+    color: var(--color-warning);
     font-size: var(--font-size-sm);
     line-height: 1.5;
   }
 
   .overview {
-    color: var(--dim);
+    color: var(--color-text-2);
     font-size: var(--font-size-xl);
     line-height: 1.65;
   }
@@ -29,9 +29,9 @@
   .group {
     padding-block: functions.to-rem(16px);
     padding-inline: functions.to-rem(18px);
-    border: 1px solid var(--line);
+    border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-md);
-    background: var(--panel2);
+    background: var(--color-surface-1);
   }
 
   .groupHead {
@@ -55,8 +55,8 @@
     padding-block: functions.to-rem(2px);
     padding-inline: functions.to-rem(8px);
     border-radius: var(--radius-pill);
-    background: var(--panel);
-    color: var(--dim);
+    background: var(--color-surface-1);
+    color: var(--color-text-2);
     font-size: var(--font-size-sm);
   }
 
@@ -64,7 +64,7 @@
     display: grid;
     gap: functions.to-rem(8px);
     padding-block: functions.to-rem(12px);
-    border-block-start: 1px solid var(--line2);
+    border-block-start: 1px solid var(--color-outline-2);
 
     &:first-of-type {
       border-block-start: 0;
@@ -73,7 +73,7 @@
   }
 
   .chunkFile {
-    color: var(--dim);
+    color: var(--color-text-2);
     font-family: var(--mono);
     font-size: var(--font-size-md);
   }
@@ -87,9 +87,9 @@
   .diff {
     margin: 0;
     overflow-x: auto;
-    border: 1px solid var(--line2);
+    border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-md);
-    background: var(--panel);
+    background: var(--color-surface-1);
   }
 
   .diffTable {
@@ -101,19 +101,19 @@
     inline-size: functions.to-rem(44px);
     min-inline-size: functions.to-rem(44px);
     padding-inline-end: functions.to-rem(8px);
-    color: var(--faint);
+    color: var(--color-text-3);
     text-align: end;
     user-select: none;
   }
 
   .removedNote {
-    color: var(--faint);
+    color: var(--color-text-3);
     font-size: var(--font-size-md);
   }
 
   .restartNote {
     margin: 0;
-    color: var(--faint);
+    color: var(--color-text-3);
     font-size: var(--font-size-sm);
     line-height: 1.4;
   }
@@ -121,15 +121,15 @@
   .empty {
     padding-block: functions.to-rem(20px);
     padding-inline: functions.to-rem(18px);
-    border: 1px dashed var(--line2);
+    border: 1px dashed var(--color-outline-2);
     border-radius: var(--radius-md);
-    background: var(--panel2);
-    color: var(--dim);
+    background: var(--color-surface-1);
+    color: var(--color-text-2);
     font-size: var(--font-size-xl);
     line-height: 1.6;
 
     b {
-      color: var(--text);
+      color: var(--color-text-1);
     }
   }
 }

@@ -23,7 +23,7 @@
     input {
       inline-size: 14px;
       block-size: 14px;
-      accent-color: var(--amber);
+      accent-color: var(--color-warning);
       cursor: pointer;
 
       &:disabled {
@@ -50,7 +50,7 @@
     overflow: visible;
     border: 0;
     background: transparent;
-    color: var(--faint);
+    color: var(--color-text-3);
     cursor: pointer;
 
     &::before {
@@ -62,7 +62,7 @@
 
     &:hover,
     &[aria-expanded="true"] {
-      color: var(--dim);
+      color: var(--color-text-2);
     }
 
     &:focus-visible {
@@ -102,7 +102,7 @@
     max-inline-size: 100%;
     min-inline-size: 0;
     overflow: hidden;
-    color: var(--faint);
+    color: var(--color-text-3);
     direction: rtl;
     font-family: var(--mono);
     font-size: var(--font-size-sm);
@@ -112,7 +112,7 @@
     white-space: nowrap;
 
     &:hover {
-      color: var(--dim);
+      color: var(--color-text-2);
       text-decoration: underline;
       text-underline-offset: functions.to-rem(3px);
     }
@@ -152,25 +152,25 @@
     padding: 0;
     padding-inline-start: calc(var(--twist-col) + var(--identity-gap));
     list-style: none;
-    color: var(--dim);
+    color: var(--color-text-2);
     font-size: var(--font-size-md);
     line-height: 1.45;
   }
 
   .noteAttr {
     display: block;
-    color: var(--amber);
+    color: var(--color-warning);
     font-family: var(--mono);
     font-size: var(--font-size-sm);
   }
 
   .reopen {
-    color: var(--dim);
+    color: var(--color-text-2);
     font-size: var(--font-size-sm);
     text-decoration: none;
 
     &:hover {
-      color: var(--text);
+      color: var(--color-text-1);
       text-decoration: underline;
       text-underline-offset: functions.to-rem(3px);
     }

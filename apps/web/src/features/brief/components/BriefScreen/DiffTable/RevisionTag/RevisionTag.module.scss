@@ -19,8 +19,8 @@
     vertical-align: 1px;
 
     &[data-kind="removed"] {
-      border-color: color-mix(in srgb, var(--red) 50%, transparent);
-      color: var(--red);
+      border-color: color-mix(in srgb, var(--color-negative) 50%, transparent);
+      color: var(--color-negative);
     }
   }
 }

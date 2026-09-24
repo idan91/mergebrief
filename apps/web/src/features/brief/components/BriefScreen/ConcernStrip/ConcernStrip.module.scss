@@ -6,15 +6,15 @@
     flex-wrap: wrap;
     align-items: center;
     padding: functions.to-rem(6px) functions.to-rem(14px);
-    border: 1px solid var(--line);
+    border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-md);
     margin-block-end: functions.to-rem(16px);
-    background: var(--panel);
+    background: var(--color-surface-1);
     gap: functions.to-rem(4px) functions.to-rem(20px);
   }
 
   .lead {
-    color: var(--faint);
+    color: var(--color-text-3);
     font-size: var(--font-size-sm);
   }
 
@@ -29,11 +29,11 @@
     inline-size: 6px;
     block-size: 6px;
     border-radius: var(--radius-circle);
-    background: var(--faint);
+    background: var(--color-text-3);
   }
 
   .name {
-    color: var(--dim);
+    color: var(--color-text-2);
     font-size: var(--font-size-md);
   }
 
@@ -43,7 +43,7 @@
     inline-size: 48px;
     block-size: 4px;
     border-radius: var(--radius-xs);
-    background: var(--line2);
+    background: var(--color-outline-2);
 
     i {
       display: block;
@@ -51,7 +51,7 @@
       // Floor keeps a small share visible as a tick.
       min-inline-size: 2px;
       block-size: 100%;
-      background: var(--faint);
+      background: var(--color-text-3);
     }
   }
 
@@ -83,7 +83,7 @@
   .segment[data-concern="doc"] {
     .dot,
     .bar i {
-      background: var(--violet);
+      background: var(--color-merged);
     }
   }
 }

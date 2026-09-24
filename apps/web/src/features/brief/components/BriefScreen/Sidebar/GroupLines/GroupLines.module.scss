@@ -32,7 +32,7 @@
       inline-size: 16px;
       block-size: 4px;
       border-radius: var(--radius-xs);
-      background: var(--faint);
+      background: var(--color-text-3);
       opacity: 0.45;
       content: "";
       transform: translate(-50%, -50%);
@@ -44,7 +44,7 @@
 
     &:hover::before {
       inline-size: 24px;
-      background: var(--text);
+      background: var(--color-text-1);
       opacity: 1;
     }
 

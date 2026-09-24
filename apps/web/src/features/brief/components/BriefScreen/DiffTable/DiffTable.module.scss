@@ -4,14 +4,14 @@
   .metadataDiff {
     padding-block: functions.to-rem(14px);
     padding-inline: functions.to-rem(16px);
-    border-block-start: 1px solid var(--line);
-    color: var(--dim);
+    border-block-start: 1px solid var(--color-outline-1);
+    color: var(--color-text-2);
     font-size: var(--font-size-lg);
 
     span {
       display: block;
       margin-block-end: functions.to-rem(6px);
-      color: var(--text);
+      color: var(--color-text-1);
       font-family: var(--mono);
       font-size: var(--font-size-md);
     }
@@ -33,8 +33,8 @@
     margin: 0;
     padding-block: functions.to-rem(8px);
     padding-inline: functions.to-rem(16px);
-    border-block-start: 1px solid var(--line);
-    color: var(--dim);
+    border-block-start: 1px solid var(--color-outline-1);
+    color: var(--color-text-2);
     font-size: var(--font-size-md);
   }
 
@@ -59,8 +59,8 @@
     // Earned: the sibling span frame's edge, the same inset the spanned
     // gutter cells paint, and its rule, a step below; the spanned comment
     // rows read both from here.
-    --span-edge-bar: inset 1px 0 0 var(--dim);
-    --span-rule: color-mix(in srgb, var(--dim) 45%, transparent);
+    --span-edge-bar: inset 1px 0 0 var(--color-text-2);
+    --span-rule: color-mix(in srgb, var(--color-text-2) 45%, transparent);
 
     // Earned: a quarter step below the card, so the code sits in a shallow
     // well and the span header, on the well itself, still reads deeper.

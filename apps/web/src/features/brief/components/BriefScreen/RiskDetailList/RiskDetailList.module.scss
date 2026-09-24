@@ -19,6 +19,6 @@
     // (ChunkCard's chip lane sets --font-size-md; the rails inherit the root
     // size), so any single px step would be wrong in one of them.
     font-size: 0.8em; /* stylelint-disable-line declaration-property-value-allowed-list -- earned parent-relative exception, justified above */
-    color: var(--dim, inherit);
+    color: var(--color-text-2);
   }
 }

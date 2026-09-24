@@ -4,7 +4,7 @@
   .fold {
     margin-block-start: functions.to-rem(16px);
     padding-block-start: functions.to-rem(12px);
-    border-block-start: 1px solid var(--line);
+    border-block-start: 1px solid var(--color-outline-1);
   }
 
   .resolvedList {
@@ -33,7 +33,7 @@
     max-inline-size: 100%;
     min-inline-size: 0;
     overflow: hidden;
-    color: var(--faint);
+    color: var(--color-text-3);
     direction: rtl;
     font-family: var(--mono);
     font-size: var(--font-size-sm);
@@ -43,7 +43,7 @@
     white-space: nowrap;
 
     &:hover {
-      color: var(--dim);
+      color: var(--color-text-2);
       text-decoration: underline;
       text-underline-offset: functions.to-rem(3px);
     }

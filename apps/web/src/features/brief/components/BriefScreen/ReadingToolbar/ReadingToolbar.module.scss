@@ -23,9 +23,9 @@
     // inset (8) = outer radius (lg 12). An asymmetric inset reads cramped at
     // the edges.
     padding: functions.to-rem(8px);
-    border: 1px solid var(--line);
+    border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-lg);
-    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    background: color-mix(in srgb, var(--color-background) 88%, transparent);
     backdrop-filter: blur(10px);
   }
 
@@ -64,14 +64,14 @@
 
   .count {
     margin-inline-end: functions.to-rem(4px);
-    color: var(--dim);
+    color: var(--color-text-2);
     font-size: var(--font-size-md);
     font-variant-numeric: tabular-nums;
   }
 
   // Visible resting border + tighter radius on IconButton's ghost-sm chrome.
   .stepBtn {
-    border-color: var(--line);
+    border-color: var(--color-outline-1);
     border-radius: var(--radius-sm);
     font-size: var(--font-size-sm);
   }

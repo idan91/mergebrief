@@ -17,20 +17,28 @@
     block-size: 6px;
     padding: 0;
     overflow: hidden;
-    border: 1px solid var(--line2);
+    border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-sm);
-    background: color-mix(in srgb, var(--panel) 60%, var(--bg));
+    background: color-mix(
+      in srgb,
+      var(--color-surface-1) 60%,
+      var(--color-background)
+    );
     cursor: pointer;
 
     &:hover {
-      border-color: color-mix(in srgb, var(--line2) 60%, var(--text));
+      border-color: color-mix(
+        in srgb,
+        var(--color-outline-2) 60%,
+        var(--color-text-1)
+      );
     }
 
     // Current segment: not color-only — also taller, so it reads distinctly
     // under color-blindness / monochrome rendering.
     &[data-current] {
       block-size: 9px;
-      border-color: var(--text);
+      border-color: var(--color-text-1);
     }
   }
 
@@ -39,21 +47,21 @@
     inset-block: 0;
     inset-inline-start: 0;
     display: block;
-    background: var(--line2);
+    background: var(--color-outline-2);
     transition: inline-size 0.15s ease;
   }
 
   .segment[data-past] .fill {
-    background: var(--dim);
+    background: var(--color-text-2);
   }
 
   .segment[data-current] .fill {
-    background: var(--text);
+    background: var(--color-text-1);
   }
 
   // Subtle, optional "read-through complete" cue: no color implying
   // good/bad, just a slightly brighter, evenly-filled bar.
   .progress[data-complete] .segment {
-    border-color: var(--text);
+    border-color: var(--color-text-1);
   }
 }

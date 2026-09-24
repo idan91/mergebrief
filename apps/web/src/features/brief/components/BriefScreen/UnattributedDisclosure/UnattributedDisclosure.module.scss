@@ -18,7 +18,7 @@
     inline-size: 6px;
     block-size: 6px;
     border-radius: var(--radius-circle);
-    background: var(--amber);
+    background: var(--color-warning);
   }
 
   .panel {
@@ -36,7 +36,7 @@
   }
 
   .note {
-    color: var(--faint);
+    color: var(--color-text-3);
     font-size: var(--font-size-md);
     line-height: 1.5;
   }
