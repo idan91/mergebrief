@@ -13,6 +13,8 @@ import { resolveSurface } from "@web/utils/surface";
 import { I18nProvider } from "../i18n/I18nProvider";
 import type { RouterContext } from "../router";
 import appStyles from "../styles/app.scss?url";
+import monoBodyFont from "@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2?url";
+import sansBodyFont from "@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2?url";
 
 export const Route = createRootRouteWithContext<RouterContext>()({
   head: () => ({
@@ -42,15 +44,19 @@ export const Route = createRootRouteWithContext<RouterContext>()({
     ],
     links: [
       { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
       {
-        rel: "preconnect",
-        href: "https://fonts.gstatic.com",
+        rel: "preload",
+        as: "font",
+        type: "font/woff2",
+        href: sansBodyFont,
         crossOrigin: "anonymous",
       },
       {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap",
+        rel: "preload",
+        as: "font",
+        type: "font/woff2",
+        href: monoBodyFont,
+        crossOrigin: "anonymous",
       },
       { rel: "stylesheet", href: appStyles },
     ],

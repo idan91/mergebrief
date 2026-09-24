@@ -20,23 +20,23 @@ colors:
   state-warning: "#d9a45c"
 typography:
   display:
-    fontFamily: "Instrument Sans, -apple-system, Helvetica Neue, sans-serif"
+    fontFamily: "IBM Plex Sans, -apple-system, Helvetica Neue, sans-serif"
     fontSize: "1.875rem"
     fontWeight: 600
     lineHeight: 1.1
     letterSpacing: "-0.02em"
   title:
-    fontFamily: "Instrument Sans, -apple-system, Helvetica Neue, sans-serif"
+    fontFamily: "IBM Plex Sans, -apple-system, Helvetica Neue, sans-serif"
     fontSize: "0.9375rem"
     fontWeight: 600
     lineHeight: 1.2
   body:
-    fontFamily: "Instrument Sans, -apple-system, Helvetica Neue, sans-serif"
+    fontFamily: "IBM Plex Sans, -apple-system, Helvetica Neue, sans-serif"
     fontSize: "1.0625rem"
     fontWeight: 400
     lineHeight: 1.5
   label:
-    fontFamily: "Instrument Sans, -apple-system, Helvetica Neue, sans-serif"
+    fontFamily: "IBM Plex Sans, -apple-system, Helvetica Neue, sans-serif"
     fontSize: "0.8125rem"
     fontWeight: 400
     lineHeight: 1.4
@@ -176,8 +176,10 @@ Neutral greys under one light accent. State colours keep a fixed meaning across 
 
 ## Typography
 
-**Display and Body Font:** Instrument Sans (with -apple-system, Helvetica Neue, sans-serif)
+**Display and Body Font:** IBM Plex Sans (with -apple-system, Helvetica Neue, sans-serif)
 **Code Font:** IBM Plex Mono, for code and commit hashes only
+
+Both are self-hosted through `@fontsource`, every subset behind its `unicode-range` so a Latin page downloads Latin alone and a Cyrillic line still sets in Plex (Plex Mono ships no Greek); sans at 400, 500, 600 and 700 and mono at 400, 500 and 600. The two body files (sans 400, mono 400) are preloaded from the root route so the fallback never flashes; no font loads from a third-party origin.
 
 **Character:** One family at every size. Hierarchy comes from size, weight and the step from Text 1 to Text 2, not from a second typeface. The scale is 10, 11, 12, 13, 15, 17, 20, 24 and 30px.
 
