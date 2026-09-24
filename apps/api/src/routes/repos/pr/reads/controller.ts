@@ -21,6 +21,7 @@ import {
   type ReviewerId,
 } from "persistence";
 import type { DraftPolicy, Result } from "types";
+import type { Logger } from "logging";
 import { NotFound } from "../../../../shared-errors/api-error";
 import { isGitHubDenial } from "../../../../shared-errors/failures";
 import type { ReviewerGitHubClient } from "../../../auth/reviewer-github-client";
@@ -49,6 +50,12 @@ import {
   splitFileLines,
 } from "./logic/file-range";
 import { buildRevisionView } from "./logic/revision-views";
+import {
+  recordResolvedStack,
+  shapeFetchedSelf,
+  shapeRecordedStack,
+  shapeStoredStack,
+} from "./logic/last-stack";
 import { deriveWaitReason } from "./logic/wait-reason";
 import {
   DIFF_CACHE_MAX_ENTRY_BYTES,
@@ -127,6 +134,37 @@ async function readWithViewer<T>(
       kind: "github-denied",
       error: result.error,
       retried: attempts > 1,
+    },
+  };
+}
+
+interface StackSelfRead {
+  readonly self: PrStackSelf;
+  /** GitHub's answer, not the row's state: a lost webhook leaves a row open. */
+  readonly open: boolean;
+}
+
+/** The PR's own refs: from the open list, else one fetch for a closed PR. */
+async function resolveStackSelf(
+  github: ReviewerGitHubClient,
+  target: { readonly owner: string; readonly repo: string },
+  prNumber: number,
+  open: readonly OpenPullRequest[],
+): Promise<Result<StackSelfRead, StackFailure>> {
+  const listed = open.find((item) => item.number === prNumber);
+  if (listed !== undefined) {
+    return { ok: true, value: { self: listed, open: true } };
+  }
+
+  const fetched = await readWithViewer(github, (octokit) =>
+    fetchPullRequest(octokit, { ...target, prNumber }),
+  );
+  if (!fetched.ok) return fetched;
+  return {
+    ok: true,
+    value: {
+      self: shapeFetchedSelf(prNumber, fetched.value),
+      open: fetched.value.state === "open",
     },
   };
 }
@@ -409,11 +447,15 @@ export default {
    * with the viewer's token and held per session (~60s) so walking a stack
    * costs one list, not one per PR. A PR missing from the list (closed or
    * merged) is fetched once for its refs so its open neighbours still resolve.
+   * A resolve is folded into the row's record. An open PR serves the live
+   * resolve; a closed one serves the record, which still holds the
+   * ancestors that merged before it.
    */
   async readStack(
     deps: ReadsControllerDeps & {
       readonly github: ReviewerGitHubClient;
       readonly openPullsCache: TtlCache<readonly OpenPullRequest[]>;
+      readonly log: Logger;
     },
     input: SpanInput & {
       readonly owner: string;
@@ -449,32 +491,23 @@ export default {
       );
     }
 
-    const listedSelf = open.find((item) => item.number === input.prNumber);
-    let self: PrStackSelf;
-    if (listedSelf !== undefined) {
-      self = listedSelf;
-    } else {
-      const fetched = await readWithViewer(deps.github, (octokit) =>
-        fetchPullRequest(octokit, { ...target, prNumber: input.prNumber }),
-      );
-      if (!fetched.ok) return fetched;
-      self = {
-        number: input.prNumber,
-        title: fetched.value.title,
-        headRef: fetched.value.headRef,
-      };
-      if (fetched.value.baseRef !== undefined) {
-        self.baseRef = fetched.value.baseRef;
-      }
-      if (fetched.value.headRepo !== undefined) {
-        self.headRepo = fetched.value.headRepo;
-      }
-      if (fetched.value.baseRepo !== undefined) {
-        self.baseRepo = fetched.value.baseRepo;
-      }
+    const selfRead = await resolveStackSelf(
+      deps.github,
+      target,
+      input.prNumber,
+      open,
+    );
+    if (!selfRead.ok) return selfRead;
+
+    const stack = resolvePrStack(selfRead.value.self, open);
+    if (stack === undefined) {
+      return { ok: true, value: shapeStoredStack(pr, selfRead.value.open) };
     }
-    const stack = resolvePrStack(self, open);
-    return { ok: true, value: { stack: stack ?? null } };
+    const record = await recordResolvedStack(deps, pr, stack, new Date(now));
+    if (selfRead.value.open) {
+      return { ok: true, value: { stack } };
+    }
+    return { ok: true, value: shapeRecordedStack(record) };
   },
   /**
    * One file's line window at `ref`, read with the viewer's token. The

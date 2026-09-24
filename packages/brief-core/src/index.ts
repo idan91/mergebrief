@@ -182,6 +182,8 @@ export { renderAnchorView, type AnchorViewInput } from "./generation/prompt";
 export {
   attachPrStack,
   isLinearPrStack,
+  isSamePrStack,
+  mergeStackHistory,
   resolvePrStack,
   PrStackSchema,
   type ForkPrStack,
@@ -191,6 +193,7 @@ export {
   type PrStack,
   type PrStackMember,
   type PrStackSelf,
+  type StoredPrStack,
 } from "./pr-stack";
 export { generateAndWrite, type Range } from "./cli/categorize";
 // Anchored generation: the pure plan + stitch helpers the worker's generate

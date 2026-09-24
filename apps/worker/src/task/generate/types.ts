@@ -266,6 +266,15 @@ export interface PrMetadataInputs {
   readonly log: Logger;
 }
 
+/** The stack write after the metadata build: the row, what was attached, when. */
+export interface RecordStackInputs {
+  readonly repo: TenantRepository;
+  readonly prRow: PullRequestRow;
+  readonly meta: PrMetadata;
+  readonly log: Logger;
+  readonly now: Date;
+}
+
 /** The ticket context, loaded on first use so a rerun that spends nothing fetches nothing. */
 export type TicketContextLoader = () => Promise<ContextFetch>;
 

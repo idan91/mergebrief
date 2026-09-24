@@ -1168,24 +1168,84 @@ describe("generate task", () => {
       BASE,
       HEAD_1,
     );
+    const stack = {
+      index: 2,
+      members: [
+        { number: 6, title: "Parent" },
+        { number: 7, title: "stub PR" },
+        { number: 8, title: "Child" },
+      ],
+    };
     expect(JSON.parse(brief?.body ?? "{}")).toMatchObject({
-      pr: {
-        headRef: "feature/stub",
-        baseRef: "feature/a",
-        stack: {
-          index: 2,
-          members: [
-            { number: 6, title: "Parent" },
-            { number: 7, title: "stub PR" },
-            { number: 8, title: "Child" },
-          ],
-        },
-      },
+      pr: { headRef: "feature/stub", baseRef: "feature/a", stack },
     });
+    const row = await createTenantRepository(
+      harness.handle,
+      ctx,
+    ).pullRequests.getById(pr.id);
+    expect(row?.stack).toEqual(stack);
+    expect(row?.stackReadAt).toBeInstanceOf(Date);
+  });
+
+  it("keeps the recorded ancestors a generation no longer sees", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const recorded = {
+      members: [
+        { number: 6, title: "Parent" },
+        { number: 7, title: "stub PR" },
+        { number: 8, title: "Child" },
+      ],
+      index: 2,
+    };
+    const recordedAt = new Date("2026-09-01T00:00:00Z");
+    await createTenantRepository(harness.handle, ctx).pullRequests.recordStack(
+      pr.id,
+      { stack: recorded, readAt: recordedAt },
+    );
+    const github = stubGitHub(HEAD_1);
+    github.openPullRequests = [
+      {
+        number: 7,
+        title: "stub PR",
+        headRef: "feature/stub",
+        baseRef: "main",
+        headRepo: { owner: "acme", repo: "widget" },
+        baseRepo: { owner: "acme", repo: "widget" },
+      },
+      {
+        number: 8,
+        title: "Child",
+        headRef: "feature/c",
+        baseRef: "feature/stub",
+        headRepo: { owner: "acme", repo: "widget" },
+        baseRepo: { owner: "acme", repo: "widget" },
+      },
+    ];
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator: stubGenerator(),
+      github,
+    });
+
+    await task(payload);
+
+    const row = await createTenantRepository(
+      harness.handle,
+      ctx,
+    ).pullRequests.getById(pr.id);
+    expect(row?.stack).toEqual(recorded);
+    expect(row?.stackReadAt).toEqual(recordedAt);
   });
 
   it("omits stack and still stamps refs when the open list fails", async () => {
     const { pr, payload } = await trigger(HEAD_1);
+    const priorStack = { members: [{ number: 7, title: "stub PR" }], index: 1 };
+    const priorReadAt = new Date("2026-09-01T00:00:00Z");
+    await createTenantRepository(harness.handle, ctx).pullRequests.recordStack(
+      pr.id,
+      { stack: priorStack, readAt: priorReadAt },
+    );
     const github = stubGitHub(HEAD_1);
     github.listOpenPullRequestsError = {
       code: GitHubApiErrorCodes.FORBIDDEN,
@@ -1220,6 +1280,12 @@ describe("generate task", () => {
         (line) => line["msg"] === "generate: open pull request list failed",
       ),
     ).toBe(true);
+    const row = await createTenantRepository(
+      harness.handle,
+      ctx,
+    ).pullRequests.getById(pr.id);
+    expect(row?.stack).toEqual(priorStack);
+    expect(row?.stackReadAt).toEqual(priorReadAt);
   });
 
   it("threads the instance-config effort into the stored brief's origin", async () => {

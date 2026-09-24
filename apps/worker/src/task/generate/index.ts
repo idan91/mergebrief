@@ -31,7 +31,7 @@ import { createEntryCommentManager } from "./logic/entry-comment-manager";
 import { generateCheckpointDeltas } from "./logic/checkpoint-deltas";
 import { throwOnGitHubFailure } from "./logic/errors";
 import { reportJobFailure } from "./logic/job-failure";
-import { buildPrMetadata } from "./logic/pr-metadata";
+import { buildPrMetadata, recordResolvedStack } from "./logic/pr-metadata";
 import { applySpendGate, refuseAtCap } from "./logic/spend-gate";
 import { createTicketContextLoader } from "./logic/ticket-context";
 import {
@@ -398,6 +398,7 @@ async function runGeneration(
       openPullRequests,
       log,
     });
+    await recordResolvedStack({ repo, prRow, meta, log, now: new Date() });
 
     const coreMessageLog: CoreMessageLog = (message) => log.info(message);
 

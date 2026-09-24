@@ -15,6 +15,16 @@ deprecation note here, removal only at a major.
 
 ## dev (2026-09-24)
 
+- **Added** `asOf` on `GET /api/repos/:repoId/pulls/:prNumber/stack`: for a
+  merged or closed pull request the live open list no longer resolves a
+  stack for, `stack` is the last one recorded on the row and `asOf` is the
+  ISO time it was recorded. An open pull request without live neighbours
+  still answers `stack: null` and no `asOf`; open or closed is GitHub's
+  answer on the read, not the stored row state. Every live resolve is
+  folded into the row's record, and the worker folds in the stack it sees at
+  generation too: a chain that lost merged ancestors gets them grafted back,
+  so a closed pull request answers the full chain it was part of, and
+  `asOf` is when the record last changed, not the last read.
 - **Changed** the stored fallback for `stack` on `GET /api/inbox` items: a
   merged or closed row the live open list no longer holds now keeps the
   last stack recorded on the pull request row rather than the snapshot

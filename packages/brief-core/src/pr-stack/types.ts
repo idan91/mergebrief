@@ -15,6 +15,11 @@ export interface ForkPrStack {
 
 export type PrStack = LinearPrStack | ForkPrStack;
 
+/** A stack as parsed back from storage: the fork's parent may be an explicit undefined. */
+export type StoredPrStack =
+  | LinearPrStack
+  | { parent?: PrStackMember | undefined; children: PrStackMember[] };
+
 export interface RepoIdentity {
   owner: string;
   repo: string;

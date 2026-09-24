@@ -268,6 +268,7 @@ export default function createHandlers(
           readFallbackTokenFor(c, deps),
         ),
         openPullsCache,
+        log: c.get("logger"),
       },
       {
         repoId: c.get("repoId"),

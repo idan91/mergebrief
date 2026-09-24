@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   isLinearPrStack,
+  isSamePrStack,
+  mergeStackHistory,
   resolvePrStack,
   attachPrStack,
   type OpenPullRequest,
@@ -161,5 +163,113 @@ describe("attachPrStack", () => {
     const meta = { title: "Solo", headRef: "feature/solo", baseRef: "main" };
     attachPrStack(meta, 7, []);
     expect("stack" in meta).toBe(false);
+  });
+});
+
+describe("mergeStackHistory", () => {
+  const three = {
+    members: [
+      { number: 12, title: "Bottom" },
+      { number: 13, title: "Middle" },
+      { number: 14, title: "Tip" },
+    ],
+    index: 2,
+  };
+
+  it("grafts the stored ancestors back onto a resolve that lost them", () => {
+    const shrunk = { members: three.members.slice(1), index: 1 };
+    expect(mergeStackHistory(three, shrunk)).toEqual(three);
+    expect(mergeStackHistory(three, three)).toEqual(three);
+  });
+
+  it("keeps the ancestors when the shrunk chain also grew at the tip", () => {
+    const grown = {
+      members: [...three.members.slice(1), { number: 15, title: "Newer" }],
+      index: 1,
+    };
+    expect(mergeStackHistory(three, grown)).toEqual({
+      members: [...three.members, { number: 15, title: "Newer" }],
+      index: 2,
+    });
+  });
+
+  it("takes the resolve's titles for the members it still holds", () => {
+    const renamed = {
+      members: [
+        { number: 13, title: "Middle, renamed" },
+        { number: 14, title: "Tip" },
+      ],
+      index: 1,
+    };
+    expect(mergeStackHistory(three, renamed)).toEqual({
+      members: [
+        { number: 12, title: "Bottom" },
+        { number: 13, title: "Middle, renamed" },
+        { number: 14, title: "Tip" },
+      ],
+      index: 2,
+    });
+  });
+
+  it("takes the resolve as is when it lost its tip, reordered or gapped", () => {
+    const lostTip = { members: three.members.slice(0, 2), index: 2 };
+    expect(mergeStackHistory(three, lostTip)).toEqual(lostTip);
+    const swapped = {
+      members: [three.members[1], three.members[0], three.members[2]],
+      index: 1,
+    };
+    expect(mergeStackHistory(three, swapped)).toEqual(swapped);
+    const gapped = { members: [three.members[0], three.members[2]], index: 1 };
+    expect(mergeStackHistory(three, gapped)).toEqual(gapped);
+    const other = {
+      members: [
+        { number: 20, title: "x" },
+        { number: 21, title: "y" },
+      ],
+      index: 1,
+    };
+    expect(mergeStackHistory(three, other)).toEqual(other);
+  });
+
+  it("keeps a fork's stored parent when the resolve lost it", () => {
+    const parent = { number: 12, title: "Bottom" };
+    const children = [
+      { number: 14, title: "Tip" },
+      { number: 15, title: "Sibling" },
+    ];
+    expect(mergeStackHistory({ parent, children }, { children })).toEqual({
+      parent,
+      children,
+    });
+    const newParent = { number: 11, title: "Other" };
+    expect(
+      mergeStackHistory({ parent, children }, { parent: newParent, children }),
+    ).toEqual({ parent: newParent, children });
+    expect(mergeStackHistory(three, { children })).toEqual({ children });
+    expect(mergeStackHistory({ children }, three)).toEqual(three);
+  });
+});
+
+describe("isSamePrStack", () => {
+  it("compares numbers, titles and place", () => {
+    const chain = {
+      members: [
+        { number: 1, title: "a" },
+        { number: 2, title: "b" },
+      ],
+      index: 1,
+    };
+    expect(isSamePrStack(chain, { ...chain })).toBe(true);
+    expect(isSamePrStack(chain, { ...chain, index: 2 })).toBe(false);
+    expect(
+      isSamePrStack(chain, {
+        ...chain,
+        members: [
+          { number: 1, title: "A" },
+          { number: 2, title: "b" },
+        ],
+      }),
+    ).toBe(false);
+    expect(isSamePrStack(chain, { children: chain.members })).toBe(false);
   });
 });

@@ -43,7 +43,7 @@ import {
 } from "../../../auth/session/types";
 import { refreshSessionToken } from "../../../auth/session/logic/refresh";
 import type { AuthzEnv } from "../../../authz";
-import type { OpenPullRequest } from "github";
+import type { OpenPullRequest, PullRequestInfo } from "github";
 import { createTtlCache, type TtlCache } from "../../../ttl-cache";
 import { FILE_BLOB_CACHE_MAX_ENTRIES } from "./consts";
 import { buildFileBlobCacheKey } from "./logic/keys";
@@ -89,7 +89,15 @@ let harness: PgliteHarness;
 let lastSessionTokenHash = "";
 let repoId: RepoId;
 const PR_NUMBER = 7;
+const MERGED_PR_NUMBER = 9;
+const BARE_MERGED_PR_NUMBER = 11;
+const FRESH_PR_NUMBER = 21;
+const LAGGING_PR_NUMBER = 13;
+const STILL_PARENT_PR_NUMBER = 15;
+const FETCHED_PR_NUMBER = 17;
 const INSTALLATION_ID = 606n;
+const MERGED_AT = new Date("2026-09-20T09:00:00Z");
+const RECORDED_AT = new Date("2026-09-19T12:00:00Z");
 
 beforeAll(async () => {
   harness = await createPgliteHarness();
@@ -107,7 +115,75 @@ beforeAll(async () => {
     title: "Add thing",
     state: PrStates.OPEN,
   });
+  await createTenantRepository(
+    harness.handle,
+    parseTenantContext({
+      installationId,
+    }),
+  ).pullRequests.upsert({
+    repoId,
+    prNumber: MERGED_PR_NUMBER,
+    repoSlug: "acme/app",
+    title: "Merged thing",
+    state: PrStates.MERGED,
+    closedAt: MERGED_AT,
+    purgeAfter: null,
+  });
+  await getTenantPullRequests().upsert({
+    repoId,
+    prNumber: BARE_MERGED_PR_NUMBER,
+    repoSlug: "acme/app",
+    title: "Merged bare",
+    state: PrStates.MERGED,
+    closedAt: MERGED_AT,
+    purgeAfter: null,
+  });
+  await getTenantPullRequests().upsert({
+    repoId,
+    prNumber: LAGGING_PR_NUMBER,
+    repoSlug: "acme/app",
+    title: "Row still open",
+    state: PrStates.OPEN,
+  });
+  await getTenantPullRequests().upsert({
+    repoId,
+    prNumber: STILL_PARENT_PR_NUMBER,
+    repoSlug: "acme/app",
+    title: "Merged parent",
+    state: PrStates.MERGED,
+    closedAt: MERGED_AT,
+    purgeAfter: null,
+  });
+  await getTenantPullRequests().upsert({
+    repoId,
+    prNumber: FETCHED_PR_NUMBER,
+    repoSlug: "acme/app",
+    title: "Fetched",
+    state: PrStates.OPEN,
+  });
+  await getTenantPullRequests().upsert({
+    repoId,
+    prNumber: FRESH_PR_NUMBER,
+    repoSlug: "acme/app",
+    title: "Fresh",
+    state: PrStates.OPEN,
+  });
 });
+
+function getTenantPullRequests() {
+  return createTenantRepository(
+    harness.handle,
+    parseTenantContext({
+      installationId: brand(INSTALLATION_ID, isInstallationId),
+    }),
+  ).pullRequests;
+}
+
+async function readRow(prNumber: number) {
+  const row = await getTenantPullRequests().getByNumber(repoId, prNumber);
+  if (row === undefined) throw new Error("fixture row missing");
+  return row;
+}
 afterAll(async () => {
   await harness.close();
 });
@@ -450,6 +526,35 @@ function stubOpenPull(
   };
 }
 
+function stubFetchedPull(
+  number: number,
+  state: "open" | "closed",
+): Result<PullRequestInfo, githubModule.GitHubApiError> {
+  return {
+    ok: true,
+    value: {
+      repoId,
+      repoFullName: "acme/app",
+      headSha: "head",
+      headRef: `feature/${String(number)}`,
+      baseSha: "base",
+      baseRef: "main",
+      updatedAt: MERGED_AT,
+      state,
+      draft: false,
+      merged: state === "closed",
+      title: `PR ${String(number)}`,
+      body: "",
+      htmlUrl: `https://github.com/acme/app/pull/${String(number)}`,
+      commitCount: 1,
+      authorLogin: "octocat",
+      closedAt: MERGED_AT,
+      headRepo: REPO,
+      baseRepo: REPO,
+    },
+  };
+}
+
 function stubOpenList(
   pulls: readonly OpenPullRequest[],
 ): Result<OpenPullRequest[], githubModule.GitHubApiError> {
@@ -491,41 +596,25 @@ describe("live stack read", () => {
 
   it("fetches a PR missing from the open list for its refs", async () => {
     vi.mocked(listOpenPullRequests).mockResolvedValue(
-      stubOpenList([stubOpenPull(8, "feature/tip", "feature/mid")]),
+      stubOpenList([
+        stubOpenPull(18, "feature/18", `feature/${FETCHED_PR_NUMBER}`),
+      ]),
     );
-    vi.mocked(fetchPullRequest).mockResolvedValue({
-      ok: true,
-      value: {
-        repoId,
-        repoFullName: "acme/app",
-        headSha: "head",
-        headRef: "feature/mid",
-        baseSha: "base",
-        baseRef: "main",
-        updatedAt: new Date("2026-09-20T10:00:00Z"),
-        state: "closed",
-        draft: false,
-        merged: true,
-        title: "Add thing",
-        body: "",
-        htmlUrl: "https://github.com/acme/app/pull/7",
-        commitCount: 1,
-        authorLogin: "octocat",
-        closedAt: new Date(),
-        headRepo: REPO,
-        baseRepo: REPO,
-      },
-    });
-    const res = await (await buildApp()).request(STACK_PATH);
+    vi.mocked(fetchPullRequest).mockResolvedValue(
+      stubFetchedPull(FETCHED_PR_NUMBER, "closed"),
+    );
+    const res = await (await buildApp()).request(`/${FETCHED_PR_NUMBER}/stack`);
     expect(res.status).toBe(200);
+    // A closed PR serves its record, which the resolve just became.
     expect(await res.json()).toEqual({
       stack: {
         members: [
-          { number: PR_NUMBER, title: "Add thing" },
-          { number: 8, title: "PR 8" },
+          { number: FETCHED_PR_NUMBER, title: `PR ${FETCHED_PR_NUMBER}` },
+          { number: 18, title: "PR 18" },
         ],
         index: 1,
       },
+      asOf: expect.any(String),
     });
     expect(fetchPullRequest).toHaveBeenCalledTimes(1);
   });
@@ -541,6 +630,222 @@ describe("live stack read", () => {
     expect((await app.request(STACK_PATH)).status).toBe(200);
     expect((await app.request(STACK_PATH)).status).toBe(200);
     expect(listOpenPullRequests).toHaveBeenCalledTimes(1);
+  });
+
+  it("records a resolved stack on the pull request row", async () => {
+    vi.mocked(listOpenPullRequests).mockResolvedValue(
+      stubOpenList([
+        stubOpenPull(FRESH_PR_NUMBER, "feature/fresh", "main"),
+        stubOpenPull(22, "feature/tip", "feature/fresh"),
+      ]),
+    );
+    const before = Date.now();
+
+    const res = await (await buildApp()).request(`/${FRESH_PR_NUMBER}/stack`);
+
+    expect(res.status).toBe(200);
+    const row = await readRow(FRESH_PR_NUMBER);
+    expect(row.stack).toEqual({
+      members: [
+        { number: FRESH_PR_NUMBER, title: `PR ${FRESH_PR_NUMBER}` },
+        { number: 22, title: "PR 22" },
+      ],
+      index: 1,
+    });
+    expect(row.stackReadAt?.getTime()).toBeGreaterThanOrEqual(before);
+  });
+
+  it("a null resolve on an open PR keeps the recorded stack and serves null", async () => {
+    const recorded = { members: [{ number: PR_NUMBER, title: "x" }], index: 1 };
+    await getTenantPullRequests().recordStack((await readRow(PR_NUMBER)).id, {
+      stack: recorded,
+      readAt: RECORDED_AT,
+    });
+    vi.mocked(listOpenPullRequests).mockResolvedValue(
+      stubOpenList([stubOpenPull(PR_NUMBER, "feature/solo", "main")]),
+    );
+
+    const res = await (await buildApp()).request(STACK_PATH);
+
+    expect(await res.json()).toEqual({ stack: null });
+    const row = await readRow(PR_NUMBER);
+    expect(row.stack).toEqual(recorded);
+    expect(row.stackReadAt).toEqual(RECORDED_AT);
+  });
+
+  it("serves the recorded stack with its read time for a merged PR", async () => {
+    const recorded = {
+      members: [
+        { number: MERGED_PR_NUMBER, title: "Merged thing" },
+        { number: 10, title: "PR 10" },
+      ],
+      index: 1,
+    };
+    await getTenantPullRequests().recordStack(
+      (await readRow(MERGED_PR_NUMBER)).id,
+      { stack: recorded, readAt: RECORDED_AT },
+    );
+    vi.mocked(listOpenPullRequests).mockResolvedValue(stubOpenList([]));
+    vi.mocked(fetchPullRequest).mockResolvedValue({
+      ok: true,
+      value: {
+        repoId,
+        repoFullName: "acme/app",
+        headSha: "head",
+        headRef: "feature/merged",
+        baseSha: "base",
+        baseRef: "main",
+        updatedAt: MERGED_AT,
+        state: "closed",
+        draft: false,
+        merged: true,
+        title: "Merged thing",
+        body: "",
+        htmlUrl: "https://github.com/acme/app/pull/9",
+        commitCount: 1,
+        authorLogin: "octocat",
+        closedAt: MERGED_AT,
+        headRepo: REPO,
+        baseRepo: REPO,
+      },
+    });
+
+    const res = await (await buildApp()).request(`/${MERGED_PR_NUMBER}/stack`);
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      stack: recorded,
+      asOf: RECORDED_AT.toISOString(),
+    });
+  });
+
+  it("keeps a recorded chain the resolve only shrank by merged ancestors", async () => {
+    const recorded = {
+      members: [
+        { number: 6, title: "PR 6" },
+        { number: PR_NUMBER, title: `PR ${PR_NUMBER}` },
+        { number: 8, title: "PR 8" },
+      ],
+      index: 2,
+    };
+    await getTenantPullRequests().recordStack((await readRow(PR_NUMBER)).id, {
+      stack: recorded,
+      readAt: RECORDED_AT,
+    });
+    vi.mocked(listOpenPullRequests).mockResolvedValue(
+      stubOpenList([
+        stubOpenPull(PR_NUMBER, "feature/mid", "main"),
+        stubOpenPull(8, "feature/tip", "feature/mid"),
+      ]),
+    );
+
+    const res = await (await buildApp()).request(STACK_PATH);
+
+    expect(await res.json()).toEqual({
+      stack: {
+        members: [
+          { number: PR_NUMBER, title: `PR ${PR_NUMBER}` },
+          { number: 8, title: "PR 8" },
+        ],
+        index: 1,
+      },
+    });
+    const row = await readRow(PR_NUMBER);
+    expect(row.stack).toEqual(recorded);
+    expect(row.stackReadAt).toEqual(RECORDED_AT);
+  });
+
+  it("a merged PR a child still points at serves the record, not the chain", async () => {
+    const recorded = {
+      members: [
+        { number: 6, title: "PR 6" },
+        {
+          number: STILL_PARENT_PR_NUMBER,
+          title: `PR ${STILL_PARENT_PR_NUMBER}`,
+        },
+        { number: 16, title: "PR 16" },
+      ],
+      index: 2,
+    };
+    await getTenantPullRequests().recordStack(
+      (await readRow(STILL_PARENT_PR_NUMBER)).id,
+      { stack: recorded, readAt: RECORDED_AT },
+    );
+    vi.mocked(listOpenPullRequests).mockResolvedValue(
+      stubOpenList([
+        stubOpenPull(16, "feature/16", `feature/${STILL_PARENT_PR_NUMBER}`),
+      ]),
+    );
+    vi.mocked(fetchPullRequest).mockResolvedValue(
+      stubFetchedPull(STILL_PARENT_PR_NUMBER, "closed"),
+    );
+
+    const res = await (
+      await buildApp()
+    ).request(`/${STILL_PARENT_PR_NUMBER}/stack`);
+
+    expect(await res.json()).toEqual({
+      stack: recorded,
+      asOf: RECORDED_AT.toISOString(),
+    });
+    expect((await readRow(STILL_PARENT_PR_NUMBER)).stackReadAt).toEqual(
+      RECORDED_AT,
+    );
+  });
+
+  it("a merged PR without a record answers null", async () => {
+    vi.mocked(listOpenPullRequests).mockResolvedValue(stubOpenList([]));
+    vi.mocked(fetchPullRequest).mockResolvedValue(
+      stubFetchedPull(BARE_MERGED_PR_NUMBER, "closed"),
+    );
+
+    const res = await (
+      await buildApp()
+    ).request(`/${BARE_MERGED_PR_NUMBER}/stack`);
+
+    expect(await res.json()).toEqual({ stack: null });
+  });
+
+  it("a record the schema rejects answers null", async () => {
+    await getTenantPullRequests().recordStack(
+      (await readRow(BARE_MERGED_PR_NUMBER)).id,
+      { stack: { members: "nope" }, readAt: RECORDED_AT },
+    );
+    vi.mocked(listOpenPullRequests).mockResolvedValue(stubOpenList([]));
+    vi.mocked(fetchPullRequest).mockResolvedValue(
+      stubFetchedPull(BARE_MERGED_PR_NUMBER, "closed"),
+    );
+
+    const res = await (
+      await buildApp()
+    ).request(`/${BARE_MERGED_PR_NUMBER}/stack`);
+
+    expect(await res.json()).toEqual({ stack: null });
+  });
+
+  it("serves the record when GitHub says merged but the row lags open", async () => {
+    const recorded = {
+      members: [
+        { number: LAGGING_PR_NUMBER, title: "Row still open" },
+        { number: 14, title: "PR 14" },
+      ],
+      index: 1,
+    };
+    await getTenantPullRequests().recordStack(
+      (await readRow(LAGGING_PR_NUMBER)).id,
+      { stack: recorded, readAt: RECORDED_AT },
+    );
+    vi.mocked(listOpenPullRequests).mockResolvedValue(stubOpenList([]));
+    vi.mocked(fetchPullRequest).mockResolvedValue(
+      stubFetchedPull(LAGGING_PR_NUMBER, "closed"),
+    );
+
+    const res = await (await buildApp()).request(`/${LAGGING_PR_NUMBER}/stack`);
+
+    expect(await res.json()).toEqual({
+      stack: recorded,
+      asOf: RECORDED_AT.toISOString(),
+    });
   });
 
   it("keeps the 404 collapse when the list is denied", async () => {

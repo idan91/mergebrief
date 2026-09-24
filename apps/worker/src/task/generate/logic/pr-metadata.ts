@@ -1,5 +1,12 @@
-import { attachPrStack, toPrLifecycleState, type PrMetadata } from "brief-core";
-import type { PrMetadataInputs } from "../types";
+import {
+  attachPrStack,
+  isSamePrStack,
+  mergeStackHistory,
+  PrStackSchema,
+  toPrLifecycleState,
+  type PrMetadata,
+} from "brief-core";
+import type { PrMetadataInputs, RecordStackInputs } from "../types";
 
 /** The PR metadata every core reads, with the stack attached when the open list came back. */
 export function buildPrMetadata(inputs: PrMetadataInputs): PrMetadata {
@@ -33,4 +40,33 @@ export function buildPrMetadata(inputs: PrMetadataInputs): PrMetadata {
   }
 
   return meta;
+}
+
+/**
+ * Fold the attached stack into the row's record so the brief keeps it after
+ * every neighbour merges. No stack means nothing to record: a null would
+ * erase the last one. A failed write never fails the run.
+ */
+export async function recordResolvedStack(
+  inputs: RecordStackInputs,
+): Promise<void> {
+  const { repo, prRow, meta, log, now } = inputs;
+  if (meta.stack === undefined) {
+    return;
+  }
+  const stored = PrStackSchema.safeParse(prRow.stack);
+  const merged = stored.success
+    ? mergeStackHistory(stored.data, meta.stack)
+    : meta.stack;
+  if (stored.success && isSamePrStack(stored.data, merged)) {
+    return;
+  }
+
+  const recorded = await repo.pullRequests.recordStack(prRow.id, {
+    stack: merged,
+    readAt: now,
+  });
+  if (!recorded.ok) {
+    log.warn("generate: stack record failed", { code: recorded.error.code });
+  }
 }
