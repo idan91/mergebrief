@@ -764,7 +764,6 @@
       "staleAck": "Submit against the reviewed revision anyway",
       "previewReceipt": "Preview receipt",
       "keepReviewing": "Keep reviewing",
-      "note": "Scoped to mechanical claims. The approve / request-changes verdict is yours alone.",
       "beforeYouSubmit": "Before you submit",
       "advisoryIntro": "This is advisory. You can continue, but the summary will show unresolved items exactly as they are.",
       "jumpClosesDialog": "Jumping to an item closes this dialog.",

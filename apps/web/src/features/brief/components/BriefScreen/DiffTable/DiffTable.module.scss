@@ -59,20 +59,12 @@
     // Earned: the sibling span frame's edge, the same inset the spanned
     // gutter cells paint, and its rule, a step below; the spanned comment
     // rows read both from here.
-    --span-edge-bar: inset 1px 0 0 var(--color-text-2);
-    --span-rule: color-mix(in srgb, var(--color-text-2) 45%, transparent);
-
-    // Earned: a quarter step below the card, so the code sits in a shallow
-    // well and the span header, on the well itself, still reads deeper.
-    --diff-well: color-mix(
-      in srgb,
-      var(--color-background) 25%,
-      var(--color-surface-1)
-    );
+    --span-edge-bar: inset 1px 0 0 var(--color-text-3);
+    --span-rule: var(--color-outline-1);
 
     inline-size: 100%;
     border-collapse: collapse;
-    background: var(--diff-well);
+    background: var(--color-well);
     font-family: var(--mono);
     font-size: var(--font-size-lg);
     line-height: 1.7;

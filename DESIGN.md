@@ -152,6 +152,7 @@ Neutral greys under one light accent. State colours keep a fixed meaning across 
 
 - **Ground** (#0a0a0c): the page.
 - **Surface 1, 2, 3** (#111114, #15151a, #1c1c22): the list, then hover and the URL box, then menus, the keyboard cursor row and the focused URL box.
+- **Well** (Ground 25% into Surface 1): the diff's code and a chunk's head, the one surface a step below the card it sits in.
 - **Text 1** (#ececee): titles that need the reviewer (new, updated since your review, in progress), headings.
 - **Text Read** (#cacad1): titles that do not (reviewed, or the viewer's own), chip text.
 - **Text 2** (#9a9aa3): the second line of a row, labels, quiet icons.
@@ -258,7 +259,7 @@ One skin on both pages: corner, edge, fill and the hover, pressed and selected t
 - **Row:** 56px, two lines. Line one is the mark, the title and chips. Line two is the source icon (URL pull requests only), repository, number and age, in Label type.
 - **Right edge:** generation state (generating, queued, failed) and the status, right-aligned and flush. Status is printed only when it is not Open.
 - **Hover:** Surface 2. Actions fade in over the right edge (opacity only, 120ms): Open on GitHub, and a menu with Copy link, Delete on the viewer's own URL rows, and Regenerate leading it when the row is behind.
-- **Keyboard cursor:** Surface 3 plus a 1px inset accent ring at 55%. It appears and moves with no animation.
+- **Keyboard cursor:** Surface 3 plus a 1px inset accent ring at 55%. It appears and moves with no animation. On the Brief page the current chunk wears the same ring on its own edge, over Surface 1.
 - **Accessible name:** the row link reads the review state, status, generation state and source in words before the title. The mark sits inside the link with a hover callout naming its state; icons are hidden from assistive technology.
 
 ### Chips

@@ -145,7 +145,7 @@
     padding-inline: functions.to-rem(14px);
     animation: rail-swap var(--motion-base) var(--ease-out);
     border: 1px solid var(--color-outline-1);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-panel);
     background: var(--scroller-bg);
     box-shadow: var(--shadow-elevation-md);
   }
@@ -277,10 +277,7 @@
   }
 
   .railChunkButton {
-    // Earned oddity: hover fill for the rail's chunk buttons, a half-step
-    // below --color-surface-2 (#15151a) so the rail's hover stays quieter
-    // than a panel hover. Fold candidate if that distinction is dropped.
-    --chunk-hover-fill: #16161b;
+    --chunk-hover-fill: var(--color-surface-2);
 
     display: grid;
     gap: functions.to-rem(3px);

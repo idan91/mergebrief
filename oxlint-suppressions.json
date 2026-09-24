@@ -292,14 +292,6 @@
       "count": 1
     }
   },
-  "apps/web/src/components/MarkdownTextarea/MarkdownTextarea.test.tsx": {
-    "house/no-em-dash": {
-      "count": 3
-    },
-    "house/test-title": {
-      "count": 1
-    }
-  },
   "apps/web/src/components/MarkdownTextarea/useMentionAutocomplete.ts": {
     "house/no-em-dash": {
       "count": 6

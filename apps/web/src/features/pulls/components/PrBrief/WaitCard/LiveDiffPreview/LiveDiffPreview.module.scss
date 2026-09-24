@@ -14,11 +14,10 @@
   }
 
   .diffFile {
-    // DiffRows keeps code on one line, so the table has to scroll inside the
-    // card instead of widening it past the viewport.
+    // An unbroken path or token scrolls inside the card, never widens the page.
     overflow-x: auto;
     border: 1px solid var(--color-outline-1);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-panel);
     background: var(--color-surface-1);
 
     summary {

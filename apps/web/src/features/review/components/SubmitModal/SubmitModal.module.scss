@@ -57,13 +57,6 @@
     flex-wrap: wrap;
   }
 
-  .commentLabel {
-    display: block;
-    margin-block-end: functions.to-rem(6px);
-    color: var(--color-text-2);
-    font-size: var(--font-size-md);
-  }
-
   .hint {
     margin-block: functions.to-rem(6px) functions.to-rem(4px);
     color: var(--color-text-3);
@@ -91,14 +84,6 @@
     gap: functions.to-rem(8px);
     margin-block-start: functions.to-rem(10px);
     cursor: pointer;
-  }
-
-  .note {
-    margin-block-start: functions.to-rem(12px);
-    color: var(--color-text-3);
-    font-size: var(--font-size-md);
-    line-height: 1.5;
-    text-align: end;
   }
 
   .submitStatus {

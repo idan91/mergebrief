@@ -3,21 +3,10 @@
 
 @layer components {
   .card {
-    // Earned oddities: the card's vertical gradient stops. They bracket
-    // --color-background (17.2%) in lightness rather than sitting on the
-    // surface ladder, so they stay local; they derive from the theme's hue
-    // and grey chroma like every other grey (DESIGN.md, the One Hue Rule).
-    --card-gradient-from: oklch(18.4% var(--gray-c) var(--brand-hue));
-    --card-gradient-to: oklch(16.5% var(--gray-c) var(--brand-hue));
-
     margin-block-end: functions.to-rem(40px);
     border: 1px solid var(--color-outline-1);
-    border-radius: var(--radius-lg);
-    background: linear-gradient(
-      180deg,
-      var(--card-gradient-from) 0%,
-      var(--card-gradient-to) 100%
-    );
+    border-radius: var(--radius-panel);
+    background: var(--color-surface-1);
   }
 
   // Normally content-sized and fixed; on very short viewports it shrinks
@@ -141,7 +130,7 @@
     padding-block: functions.to-rem(14px);
     padding-inline: functions.to-rem(18px);
     border: 1px solid var(--color-outline-1);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-panel);
     margin-block-start: functions.to-rem(16px);
     background: var(--color-surface-1);
 
@@ -181,7 +170,7 @@
     // so the scroll region can't collapse to zero height.
     min-block-size: functions.to-rem(96px);
     flex: 0 999 auto;
-    border-end-end-radius: var(--radius-lg);
-    border-end-start-radius: var(--radius-lg);
+    border-end-end-radius: var(--radius-panel);
+    border-end-start-radius: var(--radius-panel);
   }
 }

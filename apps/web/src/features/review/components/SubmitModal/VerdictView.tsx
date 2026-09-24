@@ -4,6 +4,7 @@ import clsx from "clsx";
 
 import { Button } from "@web/components/Button/Button";
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea/MarkdownTextarea";
+import { MarkdownTextareaFrames } from "@web/components/MarkdownTextarea/types";
 import modalStyles from "@web/components/Modal/Modal.module.scss";
 import { reviewOutcomeLabel, type ReviewOutcome } from "../../utils/state";
 import styles from "./SubmitModal.module.scss";
@@ -90,11 +91,11 @@ export function VerdictView({
         ))}
       </fieldset>
       <MarkdownTextarea
+        frame={MarkdownTextareaFrames.CARD}
         value={reviewComment}
         onChange={setReviewComment}
         label={t("review.submit.commentLabel")}
         labelVisible
-        labelClassName={styles["commentLabel"]}
         placeholder={t("review.submit.commentPlaceholder")}
         describedBy="submit-modal-comment-hint"
         onSubmit={submit.attempt}
@@ -139,7 +140,6 @@ export function VerdictView({
             : t("review.submit.submitReview")}
         </Button>
       </div>
-      <p className={styles["note"]}>{t("review.submit.note")}</p>
       {status.blockedReason !== undefined ? (
         <p className={styles["submitStatus"]} id="submit-modal-blocked">
           {status.blockedReason}

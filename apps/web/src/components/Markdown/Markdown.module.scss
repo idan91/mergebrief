@@ -50,9 +50,7 @@
     }
 
     code {
-      // Off-scale: above --color-surface-3 in hue but below it in luminance,
-      // so inline code reads as its own tier rather than a panel.
-      --code-fill: #1a1a1f;
+      --code-fill: var(--color-surface-2);
 
       padding-block: functions.to-rem(1px);
       padding-inline: functions.to-rem(6px);

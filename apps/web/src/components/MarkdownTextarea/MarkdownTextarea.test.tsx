@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { MarkdownTextarea } from "./MarkdownTextarea";
+import { MarkdownTextareaFrames } from "./types";
 import type { MentionCandidate } from "./useMentionAutocomplete";
 
 afterEach(cleanup);
@@ -67,7 +68,7 @@ describe("MarkdownTextarea", () => {
       screen.getByRole("tab", { name: "Preview", selected: true }),
     ).toBeTruthy();
     expect(screen.getByText("bold move").tagName).toBe("STRONG");
-    // The write panel (and its textarea) is hidden — one visible panel.
+    // The write panel and its textarea are hidden: one visible panel.
     expect(screen.getAllByRole("tabpanel").length).toBe(1);
   });
 
@@ -278,7 +279,7 @@ describe("MarkdownTextarea", () => {
       expect(avatar?.getAttribute("src")).toBe(
         "https://avatars.example/alice.png",
       );
-      // Decorative — the option text already carries the identity.
+      // Decorative; the option text already carries the identity.
       expect(avatar?.getAttribute("alt")).toBe("");
       expect(alice.textContent).toBe("@aliceAlice Example");
       // Login-only candidate: no img, no name, still a valid option.
@@ -329,12 +330,12 @@ describe("MarkdownTextarea", () => {
       expect(onEscape).toHaveBeenCalledTimes(1);
     });
 
-    it("modified Enter belongs to the editor: Cmd+Enter submits what the user sees", () => {
+    it("Cmd+Enter belongs to the editor and submits what the user sees", () => {
       const onSubmit = vi.fn();
       render(<Harness mentionCandidates={CANDIDATES} onSubmit={onSubmit} />);
       const input = typeMention("hi @al");
       fireEvent.keyDown(input, { key: "Enter", metaKey: true });
-      // No insertion — the submit captures the body exactly as displayed.
+      // No insertion: the submit captures the body exactly as displayed.
       expect(input.value).toBe("hi @al");
       expect(onSubmit).toHaveBeenCalledTimes(1);
     });
@@ -403,5 +404,28 @@ describe("MarkdownTextarea", () => {
     render(<Harness suggestionSeed="const a = 1;" />);
     fireEvent.click(screen.getByRole("button", { name: "Insert suggestion" }));
     expect(textarea().value).toBe("```suggestion\nconst a = 1;\n```");
+  });
+});
+
+describe("MarkdownTextarea frame", () => {
+  it("wears no variant by default", () => {
+    render(<Harness />);
+    expect(
+      screen.getByTestId("markdown-textarea").hasAttribute("data-variant"),
+    ).toBe(false);
+  });
+
+  it("names the card frame on its root", () => {
+    render(
+      <MarkdownTextarea
+        frame={MarkdownTextareaFrames.CARD}
+        label="Comment"
+        value=""
+        onChange={() => undefined}
+      />,
+    );
+    expect(
+      screen.getByTestId("markdown-textarea").getAttribute("data-variant"),
+    ).toBe("card");
   });
 });

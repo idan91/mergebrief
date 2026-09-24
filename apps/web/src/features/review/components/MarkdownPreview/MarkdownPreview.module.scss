@@ -46,9 +46,7 @@
     }
 
     code {
-      // Earned oddity: a cool inline-code fill at --color-surface-2's
-      // lightness, off the neutral ladder.
-      --code-fill: #1d1d23;
+      --code-fill: var(--color-surface-2);
 
       padding-block: functions.to-rem(1px);
       padding-inline: functions.to-rem(5px);

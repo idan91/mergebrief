@@ -57,7 +57,7 @@
   .card {
     padding: functions.to-rem(20px);
     border: 1px solid var(--color-outline-1);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-panel);
     margin-block-end: functions.to-rem(16px);
     background: var(--color-surface-1);
 
@@ -93,7 +93,7 @@
     padding-block: functions.to-rem(12px);
     padding-inline: functions.to-rem(14px);
     border: 1px solid var(--color-outline-2);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-panel);
     margin-block-start: functions.to-rem(14px);
     background: var(--color-background);
     color: var(--color-text-2);
@@ -126,7 +126,7 @@
     div {
       padding: functions.to-rem(10px);
       border: 1px solid var(--color-outline-1);
-      border-radius: var(--radius-md);
+      border-radius: var(--radius-panel);
     }
 
     dt {

@@ -49,11 +49,14 @@
     min-block-size: functions.to-rem(118px);
     max-block-size: functions.to-rem(400px);
     padding: functions.to-rem(12px);
-    border: 1px solid var(--color-outline-2);
-    border-radius: var(--radius-md);
+    border: 1px solid var(--color-field-edge);
+    border-radius: var(--radius-panel);
     margin: functions.to-rem(10px);
-    background: var(--color-background);
+    background: var(--color-surface-2);
     color: var(--color-text-1);
+    transition:
+      background var(--motion-base) ease,
+      box-shadow var(--motion-base) ease;
 
     // Comments are text-first: the body composes in the UI sans; code stays
     // mono inside fences and the suggestion diff card.
@@ -68,7 +71,46 @@
     overflow-y: auto;
     resize: vertical;
 
-    @include mixins.focus-visible;
+    // Transparent, not none: forced colours paint a transparent outline and
+    // drop the shadow that draws the ring.
+    &:focus-visible {
+      outline: 2px solid transparent;
+      background: var(--color-surface-3);
+      box-shadow: var(--shadow-field-focus);
+    }
+  }
+
+  .markdownTextarea[data-variant="card"] {
+    overflow: hidden;
+    border: 1px solid var(--color-outline-1);
+    border-radius: var(--radius-panel);
+    background: var(--color-surface-1);
+
+    > label {
+      display: block;
+      padding-block: functions.to-rem(10px);
+      padding-inline: functions.to-rem(12px);
+      border-block-end: 1px solid var(--color-outline-1);
+      color: var(--color-text-1);
+      font-size: var(--font-size-lg);
+      font-weight: 500;
+    }
+
+    // Modal's textarea rule reaches in here; the width, the edge and the
+    // ring are restated so the card keeps its own.
+    .textarea {
+      inline-size: calc(100% - functions.to-rem(20px));
+      border: 1px solid var(--color-field-edge);
+      background: var(--color-background);
+
+      &:focus-visible {
+        border-color: var(--color-field-edge);
+        outline: 2px solid transparent;
+        outline-offset: 0;
+        background: var(--color-background);
+        box-shadow: var(--shadow-field-focus);
+      }
+    }
   }
 
   .mentionPopup {

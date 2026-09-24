@@ -20,7 +20,12 @@ import { Markdown } from "../Markdown/Markdown";
 import { ScreenReaderOnly } from "../ScreenReaderOnly/ScreenReaderOnly";
 import { ToolbarIcons } from "./icons";
 import { useMarkdownTextareaFacade } from "./useMarkdownTextareaFacade";
-import { MarkdownTextareaModes, type MarkdownTextareaMode } from "./types";
+import {
+  MarkdownTextareaModes,
+  type MarkdownTextareaMode,
+  MarkdownTextareaFrames,
+  type MarkdownTextareaFrame,
+} from "./types";
 import {
   useMentionAutocomplete,
   type MentionCandidate,
@@ -30,6 +35,7 @@ import styles from "./MarkdownTextarea.module.scss";
 export interface MarkdownTextareaProps {
   value: string;
   onChange: (value: string) => void;
+  frame?: MarkdownTextareaFrame;
   /** Accessible name for the textarea; rendered as a real `<label>`. */
   label: string;
   /** Show the label visually (default: screen-reader only). */
@@ -117,8 +123,11 @@ export function MarkdownTextarea({
   mentionCandidates,
   renderPreview,
   exposeTextarea,
+  frame = MarkdownTextareaFrames.PLAIN,
 }: MarkdownTextareaProps) {
   const { t } = useTranslation();
+  const frameVariant =
+    frame === MarkdownTextareaFrames.PLAIN ? undefined : frame;
   const facade = useMarkdownTextareaFacade({
     value,
     onChange,
@@ -237,6 +246,7 @@ export function MarkdownTextarea({
       // composite-widget shortcut scope, not a keyboard-only interaction.
       aria-label={t("shell.ariaLabelMarkdownEditor")}
       className={styles["markdownTextarea"]}
+      data-variant={frameVariant}
       data-testid="markdown-textarea"
       role="group"
       onKeyDown={onRootKeyDown}

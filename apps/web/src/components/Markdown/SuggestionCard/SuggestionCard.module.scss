@@ -25,9 +25,7 @@
   }
 
   .suggestionDiff {
-    // Off-scale: one step below --color-background so the diff reads as
-    // sunken inside the card — the only surface darker than the page.
-    --diff-fill: #0b0b0e;
+    --diff-fill: var(--color-background);
 
     inline-size: 100%;
     border-collapse: collapse;

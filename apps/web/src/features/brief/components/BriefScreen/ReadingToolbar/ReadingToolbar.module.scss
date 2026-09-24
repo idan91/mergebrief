@@ -18,13 +18,9 @@
     align-items: center;
     gap: functions.to-rem(8px);
     margin-block-end: functions.to-rem(14px);
-
-    // Concentric corners with a UNIFORM inset: inner radius (sm 4) +
-    // inset (8) = outer radius (lg 12). An asymmetric inset reads cramped at
-    // the edges.
     padding: functions.to-rem(8px);
     border: 1px solid var(--color-outline-1);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-panel);
     background: color-mix(in srgb, var(--color-background) 88%, transparent);
     backdrop-filter: blur(10px);
   }
@@ -71,8 +67,10 @@
 
   // Visible resting border + tighter radius on IconButton's ghost-sm chrome.
   .stepBtn {
-    border-color: var(--color-outline-1);
-    border-radius: var(--radius-sm);
-    font-size: var(--font-size-sm);
+    border-color: var(--color-outline-2);
+
+    &:not([aria-disabled="true"]):hover {
+      background: var(--color-surface-2);
+    }
   }
 }
