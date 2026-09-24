@@ -4,13 +4,8 @@
 // the composer. The case lives on the DB path because that is where a
 // composer exists at all, a file-backed Brief has no session to write into.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderInRouter } from "../../../../test/router";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { I18nProvider } from "../../../../i18n/I18nProvider";
@@ -23,11 +18,11 @@ import { briefFixture } from "@web/features/brief/fixtures";
 
 afterEach(cleanup);
 
-function renderScreen(session: ReviewSessionPayload) {
+async function renderScreen(session: ReviewSessionPayload) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(
+  return await renderInRouter(
     <I18nProvider>
       <QueryClientProvider client={queryClient}>
         <BriefView
@@ -44,7 +39,7 @@ function renderScreen(session: ReviewSessionPayload) {
 
 it("keeps J/K/Z working after leaving a comment composer via Escape", async () => {
   vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
-  renderScreen(emptySessionPayload());
+  await renderScreen(emptySessionPayload());
 
   // Composer entry is gutter-only, the code column is reserved for text
   // selection.

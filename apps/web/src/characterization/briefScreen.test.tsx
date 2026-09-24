@@ -6,6 +6,7 @@ import {
   RouterProvider,
 } from "@tanstack/react-router";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -31,6 +32,7 @@ import { routeTree } from "../routeTree.gen";
 import { BriefView } from "../features/brief";
 import { emptySessionPayload } from "../features/review/session";
 import { I18nProvider } from "../i18n/I18nProvider";
+import { renderInRouter } from "../test/router";
 
 const SIGNED_IN_VIEWER: ViewerState = {
   kind: ViewerStates.SIGNED_IN,
@@ -46,7 +48,7 @@ const BRIEF_ID = briefSummaryFixture.id;
  * paths need a harness that has one.
  */
 async function renderWritableScreen() {
-  render(
+  await renderInRouter(
     <I18nProvider>
       <QueryClientProvider
         client={
@@ -320,13 +322,19 @@ describe("brief screen characterization", () => {
     expect(screen.queryByText("Dismiss…")).toBeNull();
   });
 
-  it("links Summary preview from the header menu on the local path", async () => {
-    await renderBriefScreen();
-    // The local path renders the cross-route LINK variant.
-    fireEvent.click(screen.getByRole("button", { name: /more actions/i }));
+  it("opens Summary preview from the header menu on the local path", async () => {
+    const { router } = await renderBriefScreen();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /more actions/i }));
+    });
     const item = screen.getByRole("menuitem", { name: /^summary preview$/i });
-    expect(item.getAttribute("href")).toContain(
-      `/briefs/${BRIEF_ID}/summary-preview`,
+    await act(async () => {
+      fireEvent.click(item);
+    });
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe(
+        `/briefs/${BRIEF_ID}/summary-preview`,
+      ),
     );
   });
 

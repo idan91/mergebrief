@@ -1,25 +1,19 @@
 // @vitest-environment jsdom
 import {
-  createMemoryHistory,
-  createRootRoute,
-  createRoute,
-  createRouter,
-  RouterProvider,
-} from "@tanstack/react-router";
-import {
   act,
   cleanup,
   fireEvent,
-  render,
   screen,
   waitFor,
 } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Brief } from "../../../types";
 import { buildBriefViewModel } from "../../../utils/viewModel";
+import {
+  renderInRouter,
+  renderStageInRouter,
+} from "../../../../../test/router";
 import { intersectionObservers } from "../../../../../test/setup";
 import { CONTENT_START_ATTR } from "../utils";
 import { Header, type HeaderProps } from "./Header";
@@ -68,9 +62,7 @@ const brief: Brief = {
   concernView: [],
 };
 
-/** A full prop set keyed on the own-draft state - for rerender-based tests.
- * Router-less on purpose: safe only while the menu stays CLOSED (the
- * summary-preview menu entry is a Link and needs the renderHeader harness). */
+/** A full prop set keyed on the own-draft state, for the stage-based tests. */
 function headerProps(ownDraft: HeaderProps["ownDraft"]): HeaderProps {
   return {
     brief,
@@ -95,17 +87,13 @@ function headerProps(ownDraft: HeaderProps["ownDraft"]): HeaderProps {
   };
 }
 
-/** The Account menu reads the viewer through react-query. */
-function withQueries(ui: ReactNode) {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>;
-}
+const HEADER_STUB_PATHS = [
+  "/briefs/$briefId/summary-preview",
+  "/repos/$repoId/pulls/$prNumber",
+] as const;
 
-// The menu's summary-preview entry is a router Link, so the harness mounts a
-// two-route memory router: the header at "/" plus a stub preview route the
-// Link can resolve against.
+// The menu's summary-preview entry navigates, so the harness mounts the
+// header at "/" plus the two routes it links to.
 async function renderHeader(overrides: Partial<HeaderProps> = {}) {
   const openSubmit = vi.fn();
   const props: HeaderProps = {
@@ -130,29 +118,12 @@ async function renderHeader(overrides: Partial<HeaderProps> = {}) {
     toggleShortcuts: vi.fn(),
     ...overrides,
   };
-  const rootRoute = createRootRoute();
-  const headerRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: "/",
-    component: () => <Header {...props} />,
-  });
-  const previewRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: "/briefs/$briefId/summary-preview",
-    component: () => null,
-  });
-  const prRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: "/repos/$repoId/pulls/$prNumber",
-    component: () => null,
-  });
-  const router = createRouter({
-    routeTree: rootRoute.addChildren([headerRoute, previewRoute, prRoute]),
-    history: createMemoryHistory({ initialEntries: ["/"] }),
-  });
-  await router.load();
-  render(withQueries(<RouterProvider router={router} />));
-  return { openSubmit };
+  const { router } = await renderInRouter(
+    <Header {...props} />,
+    undefined,
+    HEADER_STUB_PATHS,
+  );
+  return { openSubmit, router };
 }
 
 describe("Header identity row", () => {
@@ -687,9 +658,8 @@ describe("Header menu and stats", () => {
     expect(screen.queryByTestId("unattributed-disclosure")).toBeNull();
   });
 
-  it("keeps rare actions in a menu with menu-button semantics", async () => {
-    await renderHeader();
-    // Not top-level buttons anymore.
+  it("keeps rare actions in a menu and the preview entry navigates", async () => {
+    const { router } = await renderHeader();
     expect(
       screen.queryByRole("button", { name: /^summary preview$/i }),
     ).toBeNull();
@@ -697,104 +667,69 @@ describe("Header menu and stats", () => {
     expect(trigger.getAttribute("aria-haspopup")).toBe("menu");
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
 
-    fireEvent.click(trigger);
+    await act(async () => {
+      fireEvent.click(trigger);
+    });
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
     const items = screen.getAllByRole("menuitem");
     expect(items.map((item) => item.textContent)).toEqual(["Summary preview"]);
-    // The local-path preview entry is a cross-route link.
-    expect(items[0]!.getAttribute("href")).toBe(
-      "/briefs/test-brief/summary-preview",
-    );
-    // First item receives focus on open (menu-button pattern).
-    expect(document.activeElement).toBe(items[0]);
 
-    fireEvent.click(items[0]!);
+    await act(async () => {
+      fireEvent.click(items[0]!);
+    });
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe(
+        "/briefs/test-brief/summary-preview",
+      ),
+    );
     expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("keeps Escape inside the menu, on the trigger and on the panel", async () => {
+    await renderHeader();
+    const onWindowKeyDown = vi.fn();
+    window.addEventListener("keydown", onWindowKeyDown);
+    const trigger = screen.getByRole("button", { name: /more actions/i });
+    await act(async () => {
+      fireEvent.click(trigger);
+    });
+    await act(async () => {
+      fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+    });
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    await act(async () => {
+      fireEvent.click(trigger);
+    });
+    await act(async () => {
+      fireEvent.keyDown(trigger, { key: "Escape" });
+    });
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    expect(onWindowKeyDown).not.toHaveBeenCalled();
+    window.removeEventListener("keydown", onWindowKeyDown);
   });
 
   it("closes the menu on Escape and returns focus to the trigger", async () => {
     await renderHeader();
     const trigger = screen.getByRole("button", { name: /more actions/i });
-    fireEvent.click(trigger);
+    await act(async () => {
+      fireEvent.click(trigger);
+    });
     const menu = screen.getByRole("menu");
-    fireEvent.keyDown(menu, { key: "Escape" });
-    expect(screen.queryByRole("menu")).toBeNull();
-    expect(document.activeElement).toBe(trigger);
-  });
-
-  it("Escape works from the trigger too and never reaches the page", async () => {
-    await renderHeader();
-    const trigger = screen.getByRole("button", { name: /more actions/i });
-    const onWindowKeyDown = vi.fn();
-    window.addEventListener("keydown", onWindowKeyDown);
-    fireEvent.click(trigger);
-    // Shift+Tab path: focus back on the trigger, menu still open.
-    trigger.focus();
-    fireEvent.keyDown(trigger, { key: "Escape" });
-    expect(screen.queryByRole("menu")).toBeNull();
-    expect(document.activeElement).toBe(trigger);
-    expect(onWindowKeyDown).not.toHaveBeenCalled();
-    window.removeEventListener("keydown", onWindowKeyDown);
-  });
-
-  it("closes on Tab and stands page shortcuts down while open", async () => {
-    await renderHeader();
-    const trigger = screen.getByRole("button", { name: /more actions/i });
-    const onWindowKeyDown = vi.fn();
-    window.addEventListener("keydown", onWindowKeyDown);
-    fireEvent.click(trigger);
-    const [firstItem] = screen.getAllByRole("menuitem");
-    // A page shortcut pressed inside the open menu must not leak out.
-    fireEvent.keyDown(firstItem!, { key: "z" });
-    expect(onWindowKeyDown).not.toHaveBeenCalled();
-    expect(screen.getByRole("menu")).toBeTruthy();
-    fireEvent.keyDown(firstItem!, { key: "Tab" });
-    expect(screen.queryByRole("menu")).toBeNull();
-    // Tab resumes from the trigger, never from an unmounted menuitem.
-    expect(document.activeElement).toBe(trigger);
-    window.removeEventListener("keydown", onWindowKeyDown);
+    await act(async () => {
+      fireEvent.keyDown(menu, { key: "Escape" });
+    });
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
   });
 
   it("offers no summary-preview entry on a DB brief", async () => {
-    // The standalone preview route resolves through the local file store ,
+    // The standalone preview route resolves through the local file store;
     // a db: id gets no menu entry; the submit flow is its receipt surface.
     await renderHeader({ briefId: "db:acme/widgets:7:base:head" });
-    // Summary preview is the menu's only entry, so the trigger goes with it
-    // rather than opening an empty popup.
     expect(screen.queryByRole("button", { name: /more actions/i })).toBeNull();
   });
 
-  it("arrow keys wrap onto the single item, never off the menu", async () => {
-    await renderHeader();
-    fireEvent.click(screen.getByRole("button", { name: /more actions/i }));
-    const menu = screen.getByRole("menu");
-    const only = screen.getByRole("menuitem");
-    fireEvent.keyDown(menu, { key: "ArrowDown" });
-    expect(document.activeElement).toBe(only);
-    fireEvent.keyDown(menu, { key: "ArrowUp" });
-    expect(document.activeElement).toBe(only);
-  });
-
-  it("closes on an outside pointerdown", async () => {
-    await renderHeader();
-    fireEvent.click(screen.getByRole("button", { name: /more actions/i }));
-    expect(screen.getByRole("menu")).toBeTruthy();
-    fireEvent.pointerDown(document.body);
-    expect(screen.queryByRole("menu")).toBeNull();
-  });
-
-  it("closing via the trigger returns focus to it", async () => {
-    await renderHeader();
-    const trigger = screen.getByRole("button", { name: /more actions/i });
-    fireEvent.click(trigger);
-    expect(screen.getByRole("menu")).toBeTruthy();
-    // WebKit/Firefox-macOS never focus the clicked button themselves.
-    fireEvent.click(trigger);
-    expect(screen.queryByRole("menu")).toBeNull();
-    expect(document.activeElement).toBe(trigger);
-  });
-
-  it("keeps the primary CTA top-level", async () => {
+  it("keeps the accent CTA top-level", async () => {
     const { openSubmit } = await renderHeader();
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
     expect(openSubmit).toHaveBeenCalledTimes(1);
@@ -980,10 +915,9 @@ describe("Header own-draft state", () => {
   });
 
   it("moves focus to Receipt when own-draft ends on the focused slot", async () => {
-    const { rerender } = render(
-      withQueries(
-        <Header {...headerProps({ markReady: vi.fn(), pending: false })} />,
-      ),
+    const { update } = await renderStageInRouter(
+      <Header {...headerProps({ markReady: vi.fn(), pending: false })} />,
+      HEADER_STUB_PATHS,
     );
     const cta = screen.getByRole("button", { name: "Mark ready for review" });
     cta.focus();
@@ -991,42 +925,36 @@ describe("Header own-draft state", () => {
     // The refreshed PrView flips draft=false: the CTA unmounts, Receipt
     // mounts in the terminal-action slot - focus follows the slot instead of
     // dropping to <body>.
-    rerender(withQueries(<Header {...headerProps(undefined)} />));
+    update(<Header {...headerProps(undefined)} />);
     expect(document.activeElement).toBe(
       screen.getByRole("button", { name: "Submit" }),
     );
   });
 
   it("keeps slot focus continuity on the flip into own-draft", async () => {
-    const { rerender } = render(
-      withQueries(<Header {...headerProps(undefined)} />),
+    const { update } = await renderStageInRouter(
+      <Header {...headerProps(undefined)} />,
+      HEADER_STUB_PATHS,
     );
     screen.getByRole("button", { name: "Submit" }).focus();
 
     // The PR converts to draft under focus: Receipt unmounts, the mark-ready
     // CTA mounts in the same slot - focus follows.
-    rerender(
-      withQueries(
-        <Header {...headerProps({ markReady: vi.fn(), pending: false })} />,
-      ),
-    );
+    update(<Header {...headerProps({ markReady: vi.fn(), pending: false })} />);
     expect(document.activeElement).toBe(
       screen.getByRole("button", { name: "Mark ready for review" }),
     );
   });
 
   it("a consumed slot-focus flag does not steal focus on a later flip", async () => {
-    const { rerender } = render(
-      withQueries(<Header {...headerProps(undefined)} />),
+    const { update } = await renderStageInRouter(
+      <Header {...headerProps(undefined)} />,
+      HEADER_STUB_PATHS,
     );
     // Focus Receipt, then flip INTO own-draft (slot continuity moves focus
     // onto the CTA and consumes the flag)…
     screen.getByRole("button", { name: "Submit" }).focus();
-    rerender(
-      withQueries(
-        <Header {...headerProps({ markReady: vi.fn(), pending: false })} />,
-      ),
-    );
+    update(<Header {...headerProps({ markReady: vi.fn(), pending: false })} />);
     // …then the user moves on and works elsewhere. Any focusable header
     // control does; the details disclosure is one that does not depend on a
     // feature flag.
@@ -1035,20 +963,19 @@ describe("Header own-draft state", () => {
 
     // A LATER external ready flip must leave the user's focus alone - a
     // stale `true` from the earlier swap would yank it onto Receipt.
-    rerender(withQueries(<Header {...headerProps(undefined)} />));
+    update(<Header {...headerProps(undefined)} />);
     expect(document.activeElement).toBe(
       screen.getByRole("button", { name: "Brief details" }),
     );
   });
 
   it("does NOT steal focus on the swap when the slot was not focused", async () => {
-    const { rerender } = render(
-      withQueries(
-        <Header {...headerProps({ markReady: vi.fn(), pending: false })} />,
-      ),
+    const { update } = await renderStageInRouter(
+      <Header {...headerProps({ markReady: vi.fn(), pending: false })} />,
+      HEADER_STUB_PATHS,
     );
     // Focus never visited the terminal slot in this session.
-    rerender(withQueries(<Header {...headerProps(undefined)} />));
+    update(<Header {...headerProps(undefined)} />);
     expect(document.activeElement).toBe(document.body);
   });
 

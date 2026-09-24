@@ -27,7 +27,7 @@
       min-block-size: functions.to-rem(32px);
       border: 1px solid var(--color-outline-2);
       border-radius: var(--radius-md);
-      background: var(--color-surface-1);
+      background: transparent;
       color: var(--color-text-2);
       font-family: var(--mono);
       font-size: var(--font-size-sm);
@@ -36,6 +36,7 @@
     select {
       max-inline-size: functions.to-rem(230px);
       padding-inline: functions.to-rem(8px);
+      background: var(--color-surface-1);
       color: var(--color-text-1);
     }
   }
@@ -43,13 +44,22 @@
   .arrow {
     display: grid;
     inline-size: functions.to-rem(32px);
-    color: var(--color-text-1);
     place-items: center;
     text-decoration: none;
+    transition:
+      background var(--motion-fast),
+      color var(--motion-fast);
+
+    &:is(a):hover {
+      background: var(--color-surface-2);
+      color: var(--color-text-1);
+    }
 
     &[data-state="disabled"] {
-      opacity: 0.35;
+      opacity: 0.4;
     }
+
+    @include mixins.focus-visible;
   }
 
   // Segmented lens groups, shared with DbCompareBar: bordered wrapper,

@@ -22,11 +22,17 @@
       font-size: var(--font-size-sm);
     }
 
-    // Mono glyph styling on IconButton's outlined-md chrome.
     .arrow {
-      color: var(--color-text-1);
-      font-family: var(--mono);
-      font-size: var(--font-size-sm);
+      border-color: var(--color-outline-2);
+      color: var(--color-text-2);
+
+      &:not([aria-disabled="true"]):hover {
+        background: var(--color-surface-2);
+      }
+
+      &[aria-disabled="true"]:not(:focus-visible) {
+        opacity: 0.4;
+      }
     }
   }
 

@@ -262,14 +262,6 @@
       "count": 2
     }
   },
-  "apps/web/src/characterization/readThrough.test.tsx": {
-    "house/no-em-dash": {
-      "count": 5
-    },
-    "house/test-title": {
-      "count": 5
-    }
-  },
   "apps/web/src/components/AccessibleLink/AccessibleLink.tsx": {
     "house/no-em-dash": {
       "count": 1

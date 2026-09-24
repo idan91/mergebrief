@@ -11,10 +11,10 @@ import {
   act,
   cleanup,
   fireEvent,
-  render,
   screen,
   waitFor,
 } from "@testing-library/react";
+import { renderStageInRouter } from "../../../../test/router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type {
@@ -113,7 +113,7 @@ const flaglessBrief: Brief = {
   chunks: briefFixture.chunks.map((chunk) => ({ ...chunk, riskSurface: [] })),
 };
 
-function renderBriefView(
+async function renderBriefView(
   ownDraft: OwnDraftPlan | undefined,
   brief: Brief = briefFixture,
   staleHead = false,
@@ -136,16 +136,17 @@ function renderBriefView(
       </QueryClientProvider>
     </I18nProvider>
   );
-  const utils = render(view(ownDraft));
+  const stage = await renderStageInRouter(view(ownDraft), [
+    "/briefs/$briefId/summary-preview",
+  ]);
   return {
-    rerenderWith: (plan: OwnDraftPlan | undefined) =>
-      utils.rerender(view(plan)),
+    rerenderWith: (plan: OwnDraftPlan | undefined) => stage.update(view(plan)),
   };
 }
 
 describe("own-draft Brief view", () => {
-  it("labels the state with the chip and swaps the terminal-action slot", () => {
-    renderBriefView({ markReady: vi.fn() });
+  it("labels the state with the chip and swaps the terminal-action slot", async () => {
+    await renderBriefView({ markReady: vi.fn() });
     expect(screen.getByText(CHIP_COPY)).toBeTruthy();
     expect(
       screen.getByRole("button", { name: "Mark ready for review" }),
@@ -153,8 +154,8 @@ describe("own-draft Brief view", () => {
     expect(screen.queryByRole("button", { name: "Submit" })).toBeNull();
   });
 
-  it("renders no own-draft affordances on a plain reviewer view", () => {
-    renderBriefView(undefined);
+  it("renders no own-draft affordances on a plain reviewer view", async () => {
+    await renderBriefView(undefined);
     expect(screen.queryByText(CHIP_COPY)).toBeNull();
     expect(
       screen.queryByRole("button", { name: "Mark ready for review" }),
@@ -162,26 +163,26 @@ describe("own-draft Brief view", () => {
     expect(screen.getByRole("button", { name: "Submit" })).toBeTruthy();
   });
 
-  it("keeps the composer read-only on a stale own-draft view", () => {
+  it("keeps the composer read-only on a stale own-draft view", async () => {
     // Post-now exists only at the current head, so a stale-staged draft would
     // have no exit, the composer blocks with a reachable reason. A stale
     // REVIEWER view stays writable (its exit is Submit behind the receipt ack).
     // `{}` mirrors real plumbing: off the current head the plan carries no
     // actions (usePrBriefPlans withholds markReady/postComment).
-    renderBriefView({}, briefFixture, true);
+    await renderBriefView({}, briefFixture, true);
     expect(
       screen.getAllByText(appI18n.t(OWN_DRAFT_STALE_COMPOSER_REASON_KEY))
         .length,
     ).toBeGreaterThan(0);
     cleanup();
-    renderBriefView(undefined, briefFixture, true);
+    await renderBriefView(undefined, briefFixture, true);
     expect(
       screen.queryByText(appI18n.t(OWN_DRAFT_STALE_COMPOSER_REASON_KEY)),
     ).toBeNull();
   });
 
-  it("hides the submit machinery and the receipt entirely", () => {
-    renderBriefView({ markReady: vi.fn() });
+  it("hides the submit machinery and the receipt entirely", async () => {
+    await renderBriefView({ markReady: vi.fn() });
     // The submit modal and its Submit button are not in the DOM at all.
     expect(
       screen.queryByRole("button", { name: /^submit review$/i }),
@@ -194,8 +195,8 @@ describe("own-draft Brief view", () => {
     expect(screen.queryByRole("button", { name: /more actions/i })).toBeNull();
   });
 
-  it("renders risk flags as a read-only mirror, no disposition controls", () => {
-    renderBriefView({ markReady: vi.fn() });
+  it("renders risk flags as a read-only mirror, no disposition controls", async () => {
+    await renderBriefView({ markReady: vi.fn() });
     // The flags stay fully visible (the mirror)…
     expect(screen.getAllByText("no-tests").length).toBeGreaterThan(0);
     // …but every disposition control is gone.
@@ -209,13 +210,13 @@ describe("own-draft Brief view", () => {
     ).toBeNull();
   });
 
-  it("keeps chunk tracking available since session state is role-free", () => {
-    renderBriefView({ markReady: vi.fn() });
+  it("keeps chunk tracking available since session state is role-free", async () => {
+    await renderBriefView({ markReady: vi.fn() });
     expect(screen.getAllByText("Viewed").length).toBeGreaterThan(0);
   });
 
-  it("progress reaches 100% from chunk read-through alone", () => {
-    renderBriefView({ markReady: vi.fn() });
+  it("progress reaches 100% from chunk read-through alone", async () => {
+    await renderBriefView({ markReady: vi.fn() });
     // View every chunk, with dispositions unreachable, chunks are the whole
     // denominator; counting flags would cap this below 100% forever.
     for (const viewed of screen.getAllByText("Viewed")) {
@@ -227,9 +228,9 @@ describe("own-draft Brief view", () => {
     expect(bar?.getAttribute("style")).toContain("--progress-scale: 1");
   });
 
-  it("soft gate: flags on the Brief open the modal, nothing posted", () => {
+  it("soft gate: flags on the Brief open the modal, nothing posted", async () => {
     const markReady = vi.fn();
-    renderBriefView({ markReady });
+    await renderBriefView({ markReady });
     fireEvent.click(
       screen.getByRole("button", { name: "Mark ready for review" }),
     );
@@ -240,13 +241,13 @@ describe("own-draft Brief view", () => {
     expect(markReady).toHaveBeenCalledTimes(1);
   });
 
-  it("soft gate: zero flags and zero drafts skip the modal entirely", () => {
+  it("soft gate: zero flags and zero drafts skip the modal entirely", async () => {
     // The direct bypass survives the owner amendment only when there is
     // nothing to gate on at all, no flags and no unposted drafts.
     const markReady = vi.fn(() =>
       Promise.resolve<MarkReadyResult>({ kind: "ready" }),
     );
-    renderBriefView({ markReady }, flaglessBrief);
+    await renderBriefView({ markReady }, flaglessBrief);
     fireEvent.click(
       screen.getByRole("button", { name: "Mark ready for review" }),
     );
@@ -254,7 +255,7 @@ describe("own-draft Brief view", () => {
     expect(markReady).toHaveBeenCalledTimes(1);
   });
 
-  it("soft gate: intent gaps or tensions alone never open the modal", () => {
+  it("soft gate: intent gaps or tensions alone never open the modal", async () => {
     // A flagless, draft-free Brief that DOES carry precise stated-but-missing
     // asks AND a precise unacknowledged deviation. The intent check is the
     // AI's fallible read; both kinds of finding surface as secondary lines
@@ -295,7 +296,7 @@ describe("own-draft Brief view", () => {
     const markReady = vi.fn(() =>
       Promise.resolve<MarkReadyResult>({ kind: "ready" }),
     );
-    renderBriefView({ markReady }, intentGapBrief);
+    await renderBriefView({ markReady }, intentGapBrief);
     fireEvent.click(
       screen.getByRole("button", { name: "Mark ready for review" }),
     );
@@ -303,7 +304,7 @@ describe("own-draft Brief view", () => {
     expect(markReady).toHaveBeenCalledTimes(1);
   });
 
-  it("soft gate: clicking the intent line closes the gate and expands it", () => {
+  it("soft gate: clicking the intent line closes the gate and expands it", async () => {
     // The gate opens because of the flags (briefFixture carries them); the
     // intent line rides inside, proving the caller's computed intentGapCount
     // flows through. Clicking it dismisses the gate and, after
@@ -335,7 +336,7 @@ describe("own-draft Brief view", () => {
         claimedButUnachieved: [],
       },
     };
-    renderBriefView({ markReady: vi.fn() }, briefWithGaps);
+    await renderBriefView({ markReady: vi.fn() }, briefWithGaps);
     fireEvent.click(
       screen.getByRole("button", { name: "Mark ready for review" }),
     );
@@ -360,7 +361,7 @@ describe("own-draft Brief view", () => {
     vi.useRealTimers();
   });
 
-  it("soft gate: the tension line excludes acknowledged deviations", () => {
+  it("soft gate: the tension line excludes acknowledged deviations", async () => {
     // The caller derives the count, so this pins the derivation itself, not
     // just the modal's rendering. An acknowledged deviation is a
     // reversal the PR description already owns, nudging the author about
@@ -402,7 +403,7 @@ describe("own-draft Brief view", () => {
         ],
       },
     };
-    renderBriefView({ markReady: vi.fn() }, briefWithTensions);
+    await renderBriefView({ markReady: vi.fn() }, briefWithTensions);
     fireEvent.click(
       screen.getByRole("button", { name: "Mark ready for review" }),
     );
@@ -413,7 +414,7 @@ describe("own-draft Brief view", () => {
     expect(screen.queryByText(/stated ask.* not found/)).toBeNull();
   });
 
-  it("soft gate: a broad source set contributes no tension count", () => {
+  it("soft gate: a broad source set contributes no tension count", async () => {
     const briefBroad: Brief = {
       ...briefFixture,
       intentCheck: {
@@ -438,7 +439,7 @@ describe("own-draft Brief view", () => {
         claimedButUnachieved: [],
       },
     };
-    renderBriefView({ markReady: vi.fn() }, briefBroad);
+    await renderBriefView({ markReady: vi.fn() }, briefBroad);
     fireEvent.click(
       screen.getByRole("button", { name: "Mark ready for review" }),
     );
@@ -459,7 +460,7 @@ describe("own-draft Brief view", () => {
     const postComment = vi.fn((_draftId: string) =>
       Promise.resolve<PostCommentResult>({ kind: "posted", commentId: 1 }),
     );
-    renderBriefView({ markReady, postComment }, flaglessBrief);
+    await renderBriefView({ markReady, postComment }, flaglessBrief);
     fireEvent.click(
       screen.getByRole("button", { name: "Mark ready for review" }),
     );
@@ -485,7 +486,7 @@ describe("own-draft Brief view", () => {
     const markReady = vi.fn(() =>
       Promise.resolve<MarkReadyResult>({ kind: "upstream" }),
     );
-    renderBriefView({ markReady }, flaglessBrief);
+    await renderBriefView({ markReady }, flaglessBrief);
     fireEvent.click(
       screen.getByRole("button", { name: "Mark ready for review" }),
     );
@@ -502,7 +503,7 @@ describe("own-draft Brief view", () => {
   it("soft gate: pending mutation → the CTA does NOT reopen the gate", async () => {
     // A mutation that never settles: pending holds while we click again.
     const markReady = vi.fn(() => new Promise<MarkReadyResult>(() => {}));
-    renderBriefView({ markReady });
+    await renderBriefView({ markReady });
     // Through the gate once: flags exist, so the CTA opens the modal and
     // "Mark ready anyway" starts the mutation.
     fireEvent.click(markReadyCta());
@@ -528,7 +529,7 @@ describe("own-draft Brief view", () => {
       comment("c2", "chunk-a", "draft"),
       comment("c3", "chunk-a", "submitted"),
     ]);
-    renderBriefView({ markReady: vi.fn() });
+    await renderBriefView({ markReady: vi.fn() });
     fireEvent.click(
       screen.getByRole("button", { name: "Mark ready for review" }),
     );
@@ -560,7 +561,7 @@ describe("own-draft Brief view", () => {
     const postComment = vi.fn((_draftId: string) =>
       Promise.resolve<PostCommentResult>({ kind: "posted", commentId: 1 }),
     );
-    renderBriefView({ markReady, postComment });
+    await renderBriefView({ markReady, postComment });
     fireEvent.click(
       screen.getByRole("button", { name: "Mark ready for review" }),
     );
@@ -594,7 +595,7 @@ describe("own-draft Brief view", () => {
         call === 2 ? { kind: "upstream" } : { kind: "posted", commentId: call },
       );
     });
-    renderBriefView({ markReady, postComment });
+    await renderBriefView({ markReady, postComment });
     fireEvent.click(
       screen.getByRole("button", { name: "Mark ready for review" }),
     );
@@ -645,7 +646,7 @@ describe("own-draft Brief view", () => {
         call === 2 ? { kind: "invalid" } : { kind: "posted", commentId: call },
       );
     });
-    renderBriefView({ markReady, postComment });
+    await renderBriefView({ markReady, postComment });
     fireEvent.click(
       screen.getByRole("button", { name: "Mark ready for review" }),
     );
@@ -681,7 +682,7 @@ describe("own-draft Brief view", () => {
     const postComment = vi.fn((_draftId: string) =>
       Promise.resolve<PostCommentResult>({ kind: "posted", commentId: 1 }),
     );
-    renderBriefView({ markReady, postComment });
+    await renderBriefView({ markReady, postComment });
     fireEvent.click(
       screen.getByRole("button", { name: "Mark ready for review" }),
     );
@@ -734,7 +735,7 @@ describe("own-draft Brief view", () => {
       const postComment = vi.fn((_draftId: string) =>
         Promise.resolve<PostCommentResult>({ kind }),
       );
-      renderBriefView({ markReady, postComment });
+      await renderBriefView({ markReady, postComment });
       fireEvent.click(
         screen.getByRole("button", { name: "Mark ready for review" }),
       );
@@ -773,7 +774,7 @@ describe("own-draft Brief view", () => {
     const postComment = vi.fn((_draftId: string) =>
       Promise.resolve<PostCommentResult>({ kind: "upstream" }),
     );
-    renderBriefView({ markReady, postComment });
+    await renderBriefView({ markReady, postComment });
     fireEvent.click(
       screen.getByRole("button", { name: "Mark ready for review" }),
     );
@@ -813,7 +814,7 @@ describe("own-draft Brief view", () => {
     const postComment = vi.fn(
       (_draftId: string) => new Promise<PostCommentResult>(() => {}),
     );
-    renderBriefView({ markReady, postComment });
+    await renderBriefView({ markReady, postComment });
     fireEvent.click(
       screen.getByRole("button", { name: "Mark ready for review" }),
     );
@@ -849,7 +850,7 @@ describe("own-draft Brief view", () => {
     const postComment = vi.fn((_draftId: string) =>
       Promise.resolve<PostCommentResult>({ kind: "posted", commentId: 1 }),
     );
-    renderBriefView({ markReady, postComment });
+    await renderBriefView({ markReady, postComment });
     fireEvent.click(
       screen.getByRole("button", { name: "Mark ready for review" }),
     );
@@ -865,7 +866,7 @@ describe("own-draft Brief view", () => {
   it("a plan with no action reads disabled and never mounts the gate", async () => {
     // A plan with no `markReady`, the route withholds the action while a
     // historical revision is in view.
-    renderBriefView({});
+    await renderBriefView({});
     const cta = markReadyCta();
     expect(cta.getAttribute("aria-disabled")).toBe("true");
     // Flags exist on this Brief, but the gate is not the viewed revision's
@@ -879,7 +880,7 @@ describe("own-draft Brief view", () => {
   });
 
   it("head advancing under an open gate unmounts it and rescues focus", async () => {
-    const { rerenderWith } = renderBriefView({ markReady: vi.fn() });
+    const { rerenderWith } = await renderBriefView({ markReady: vi.fn() });
     fireEvent.click(markReadyCta());
     expect(overlayState("Before marking ready")).toBe("open");
 
@@ -900,7 +901,7 @@ describe("own-draft Brief view", () => {
   });
 
   it("ready elsewhere under an open gate unmounts it without resurrection", async () => {
-    const { rerenderWith } = renderBriefView({ markReady: vi.fn() });
+    const { rerenderWith } = await renderBriefView({ markReady: vi.fn() });
     fireEvent.click(
       screen.getByRole("button", { name: "Mark ready for review" }),
     );
@@ -930,8 +931,8 @@ describe("own-draft Brief view", () => {
     expect(overlayState("Before marking ready")).toBe("closed");
   });
 
-  it("vanishes the affordances when draft flips under a live session", () => {
-    const { rerenderWith } = renderBriefView({ markReady: vi.fn() });
+  it("vanishes the affordances when draft flips under a live session", async () => {
+    const { rerenderWith } = await renderBriefView({ markReady: vi.fn() });
     expect(screen.getByText(CHIP_COPY)).toBeTruthy();
     // The refreshed PrView (draft=false) turns the plan undefined, the same
     // view swaps to reviewer affordances without remounting anything else.
@@ -944,7 +945,7 @@ describe("own-draft Brief view", () => {
   });
 
   it("rescues focus from an unmounting overlay onto the CTA and announces", async () => {
-    const { rerenderWith } = renderBriefView(undefined);
+    const { rerenderWith } = await renderBriefView(undefined);
     // Open the submit modal: the Modal claims focus on open.
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
     expect(document.activeElement === document.body).toBe(false);
@@ -962,8 +963,8 @@ describe("own-draft Brief view", () => {
     );
   });
 
-  it("flipping into own-draft under an open overlay clears the state", () => {
-    const { rerenderWith } = renderBriefView(undefined);
+  it("flipping into own-draft under an open overlay clears the state", async () => {
+    const { rerenderWith } = await renderBriefView(undefined);
     // Open the submit modal on the reviewer view (Submit CTA), the fixture
     // has open flags, so it lands on the advisory view.
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
@@ -996,7 +997,7 @@ describe("own-draft Brief view", () => {
           settle = resolve;
         }),
     );
-    renderBriefView({ markReady: vi.fn(), postComment });
+    await renderBriefView({ markReady: vi.fn(), postComment });
     const post = (
       await screen.findAllByRole("button", { name: /^post$/i })
     )[0]!;
@@ -1038,7 +1039,7 @@ describe("own-draft Brief view", () => {
           settle = resolve;
         }),
     );
-    renderBriefView({ markReady: vi.fn(), postComment });
+    await renderBriefView({ markReady: vi.fn(), postComment });
     const post = (
       await screen.findAllByRole("button", { name: /^post$/i })
     )[0]!;

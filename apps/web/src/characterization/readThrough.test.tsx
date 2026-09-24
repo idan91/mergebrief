@@ -1,12 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -19,11 +13,12 @@ import {
 import { BriefView } from "../features/brief";
 import { emptySessionPayload } from "../features/review/session";
 import { I18nProvider } from "../i18n/I18nProvider";
+import { renderInRouter } from "../test/router";
 
 const emptySession = emptySessionPayload();
 
 /**
- * Two groups of two chunks each — the minimal shape that exercises
+ * Two groups of two chunks each, the minimal shape that exercises
  * within-group advance, cross-group-boundary advance, and end-of-sequence
  * stop, none of which the single-group `briefFixture` can cover.
  */
@@ -131,7 +126,7 @@ async function renderReadThroughScreen() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  render(
+  await renderInRouter(
     <I18nProvider>
       <QueryClientProvider client={queryClient}>
         <BriefView
@@ -167,7 +162,7 @@ function viewedCheckboxFor(chunkId: string): HTMLInputElement {
 describe("Read-through progress + auto-advance", () => {
   afterEach(cleanup);
 
-  it("renders one progress segment per group, current segment marked with aria-current", async () => {
+  it("renders one progress segment per group and marks the current one", async () => {
     await renderReadThroughScreen();
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
 
@@ -204,7 +199,7 @@ describe("Read-through progress + auto-advance", () => {
     await waitFor(() => expect(activeChunkId()).toBe("chunk-3"));
   });
 
-  it("auto-advances to the strict next chunk when marking viewed in read-through", async () => {
+  it("advances to the strict next chunk when marking viewed in read-through", async () => {
     await renderReadThroughScreen();
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
 
@@ -215,11 +210,11 @@ describe("Read-through progress + auto-advance", () => {
     await waitFor(() => expect(activeChunkId()).toBe("chunk-2"));
   });
 
-  it("un-checks an already-viewed chunk in place — a correction, never an advance", async () => {
+  it("un-checks an already-viewed chunk in place as a correction", async () => {
     await renderReadThroughScreen();
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
 
-    // Mark the last chunk of group 1 viewed in normal mode first — this is
+    // Mark the last chunk of group 1 viewed in normal mode first; this is
     // how a chunk viewed earlier in the session (snapshots persist) looks.
     fireEvent.click(viewedCheckboxFor("chunk-2"));
     await waitFor(() =>
@@ -310,7 +305,7 @@ describe("Read-through progress + auto-advance", () => {
     expect(activeChunkId()).toBe("chunk-4");
 
     fireEvent.click(viewedCheckboxFor("chunk-4"));
-    // No next chunk exists — stays put rather than wrapping to chunk-1.
+    // No next chunk exists: stays put rather than wrapping to chunk-1.
     await waitFor(() => expect(activeChunkId()).toBe("chunk-4"));
   });
 
@@ -359,7 +354,7 @@ describe("Read-through progress + auto-advance", () => {
     expect(viewedCheckboxFor("chunk-2").checked).toBe(false);
   });
 
-  it("exiting focus mode restores normal viewed toggling (no advance, uncheck works)", async () => {
+  it("exiting focus mode restores normal viewed toggling with no advance", async () => {
     await renderReadThroughScreen();
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
 
@@ -377,7 +372,7 @@ describe("Read-through progress + auto-advance", () => {
       ).toBeNull(),
     );
 
-    // Outside focus mode, clicking a viewed chunk's checkbox un-checks it —
+    // Outside focus mode, clicking a viewed chunk's checkbox un-checks it,
     // the confirm-and-advance semantics apply to focus mode only.
     fireEvent.click(viewedCheckboxFor("chunk-1"));
     await waitFor(() =>

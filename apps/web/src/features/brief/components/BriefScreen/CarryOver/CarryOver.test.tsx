@@ -3,7 +3,8 @@
 // attention list's clearing affordances, driven through the real screen,
 // because the list is what replaces the row and both are one region.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, screen } from "@testing-library/react";
+import { renderInRouter } from "../../../../../test/router";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { I18nProvider } from "../../../../../i18n/I18nProvider";
@@ -107,11 +108,11 @@ function buildCarriedDisposition(
   });
 }
 
-function renderScreen(session: ReviewSessionPayload | undefined) {
+async function renderScreen(session: ReviewSessionPayload | undefined) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(
+  return await renderInRouter(
     <I18nProvider>
       <QueryClientProvider client={queryClient}>
         <BriefView
@@ -136,13 +137,13 @@ function getRowText(): string {
 }
 
 describe("carry-over row", () => {
-  it("renders no row at all on a first-ever session", () => {
-    renderScreen(buildPayload({ carriedFrom: null }));
+  it("renders no row at all on a first-ever session", async () => {
+    await renderScreen(buildPayload({ carriedFrom: null }));
     expect(screen.queryByTestId("carry-over-row")).toBeNull();
   });
 
-  it("renders no row when a previous session carried nothing", () => {
-    renderScreen(
+  it("renders no row when a previous session carried nothing", async () => {
+    await renderScreen(
       buildPayload({
         carriedFrom: {
           sessionId: "9",
@@ -155,16 +156,16 @@ describe("carry-over row", () => {
     expect(screen.queryByTestId("carry-over-row")).toBeNull();
   });
 
-  it("states the receipt work, count, span, and nothing to re-look at", () => {
-    renderScreen(buildPayload({}));
+  it("states the receipt work, count, span, and nothing to re-look at", async () => {
+    await renderScreen(buildPayload({}));
     expect(getRowText()).toContain("Your review carried forward · 4 items");
     expect(getRowText()).toContain("a84c1de → abcdef1");
     expect(getRowText()).toContain("nothing needs a re-look");
     expect(screen.queryByTestId("attention-item")).toBeNull();
   });
 
-  it("counts the revisions when more than one push happened", () => {
-    renderScreen(
+  it("counts the revisions when more than one push happened", async () => {
+    await renderScreen(
       buildPayload({
         carriedFrom: {
           sessionId: "9",
@@ -177,8 +178,8 @@ describe("carry-over row", () => {
     expect(getRowText()).toContain("a84c1de → abcdef1 · 3 revisions");
   });
 
-  it("suppresses the count when both span ends are the same SHA", () => {
-    renderScreen(
+  it("suppresses the count when both span ends are the same SHA", async () => {
+    await renderScreen(
       buildPayload({
         carriedFrom: {
           sessionId: "9",
@@ -192,8 +193,8 @@ describe("carry-over row", () => {
     expect(getRowText()).not.toContain("revisions");
   });
 
-  it("replaces the receipt verdict with pending items and keeps the span", () => {
-    renderScreen(buildOrphanedDraft());
+  it("replaces the receipt verdict with pending items and keeps the span", async () => {
+    await renderScreen(buildOrphanedDraft());
     expect(getRowText()).toContain("1 item needs a re-look");
     expect(getRowText()).toContain("a84c1de → abcdef1");
     expect(screen.getAllByTestId("attention-item")).toHaveLength(1);
@@ -202,8 +203,8 @@ describe("carry-over row", () => {
     expect(screen.queryByRole("button", { name: /dismiss$/i })).toBeNull();
   });
 
-  it("returns to the receipt when the last item clears, never to nothing", () => {
-    renderScreen(buildOrphanedDraft());
+  it("returns to the receipt when the last item clears, never to nothing", async () => {
+    await renderScreen(buildOrphanedDraft());
     fireEvent.click(
       screen.getByTestId("attention-action-delete-draft-comment"),
     );
@@ -211,8 +212,8 @@ describe("carry-over row", () => {
     expect(getRowText()).toContain("nothing needs a re-look");
   });
 
-  it("arms placement for the re-anchor operation the item names", () => {
-    renderScreen(buildOrphanedDraft());
+  it("arms placement for the re-anchor operation the item names", async () => {
+    await renderScreen(buildOrphanedDraft());
     fireEvent.click(getReanchorControl());
     // The next picked row places it; until then the item stands.
     expect(screen.getAllByTestId("attention-item")).toHaveLength(1);
@@ -227,8 +228,8 @@ describe("carry-over row", () => {
     expect(screen.queryByTestId("attention-item")).toBeNull();
   });
 
-  it("disarms placement when the re-anchor control is pressed again", () => {
-    renderScreen(buildOrphanedDraft());
+  it("disarms placement when the re-anchor control is pressed again", async () => {
+    await renderScreen(buildOrphanedDraft());
     fireEvent.click(getReanchorControl());
     expect(getReanchorControl().getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(getReanchorControl());
@@ -242,16 +243,16 @@ describe("carry-over row", () => {
     expect(screen.getByPlaceholderText("Leave a comment")).toBeTruthy();
   });
 
-  it("offers both clearing operations for a reopened disposition", () => {
-    renderScreen(buildCarriedDisposition("reopened-disposition"));
+  it("offers both clearing operations for a reopened disposition", async () => {
+    await renderScreen(buildCarriedDisposition("reopened-disposition"));
     expect(screen.getByText("Flagged region changed again")).toBeTruthy();
     expect(screen.getByTestId("attention-action-address-risk")).toBeTruthy();
     fireEvent.click(screen.getByTestId("attention-action-dismiss-risk"));
     expect(screen.getByText("Dismiss flag")).toBeTruthy();
   });
 
-  it("offers both clearing operations for carried evidence that is gone", () => {
-    renderScreen(buildCarriedDisposition("missing-evidence"));
+  it("offers both clearing operations for carried evidence that is gone", async () => {
+    await renderScreen(buildCarriedDisposition("missing-evidence"));
     expect(screen.getByText("Evidence for this decision is gone")).toBeTruthy();
     expect(screen.getByTestId("attention-action-dismiss-risk")).toBeTruthy();
     fireEvent.click(screen.getByTestId("attention-action-address-risk"));

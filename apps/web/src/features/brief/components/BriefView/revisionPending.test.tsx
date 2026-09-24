@@ -6,13 +6,8 @@
 // can keep stepping; a small decorative spinner rides beside the controls.
 // Fast loads (shorter than the appearance delay) must show nothing at all.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  act,
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { act, cleanup, fireEvent, screen } from "@testing-library/react";
+import { renderStageInRouter } from "../../../../test/router";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { vi } from "vitest";
 
@@ -29,7 +24,7 @@ afterEach(() => {
   window.sessionStorage.clear();
 });
 
-function renderWithPending(revisionPending: boolean) {
+async function renderWithPending(revisionPending: boolean) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -46,9 +41,11 @@ function renderWithPending(revisionPending: boolean) {
       </QueryClientProvider>
     </I18nProvider>
   );
-  const utils = render(view(revisionPending));
+  const stage = await renderStageInRouter(view(revisionPending), [
+    "/briefs/$briefId/summary-preview",
+  ]);
   return {
-    rerenderWith: (pending: boolean) => utils.rerender(view(pending)),
+    rerenderWith: (pending: boolean) => stage.update(view(pending)),
   };
 }
 
@@ -68,15 +65,15 @@ describe("revision-pending treatment", () => {
     vi.useRealTimers();
   });
 
-  it("keeps the content fully live when nothing is pending", () => {
-    renderWithPending(false);
+  it("keeps the content fully live when nothing is pending", async () => {
+    await renderWithPending(false);
     expect(main().hasAttribute("inert")).toBe(false);
     expect(main().hasAttribute("data-pending")).toBe(false);
     expect(main().getAttribute("aria-busy")).toBeNull();
   });
 
-  it("shows nothing for a load faster than the appearance delay", () => {
-    const { rerenderWith } = renderWithPending(true);
+  it("shows nothing for a load faster than the appearance delay", async () => {
+    const { rerenderWith } = await renderWithPending(true);
     act(() => {
       vi.advanceTimersByTime(PENDING_APPEAR_MS - 1);
     });
@@ -88,8 +85,8 @@ describe("revision-pending treatment", () => {
     expect(main().hasAttribute("data-pending")).toBe(false);
   });
 
-  it("dims and inerts ONLY the content region after the delay", () => {
-    renderWithPending(true);
+  it("dims and inerts ONLY the content region after the delay", async () => {
+    await renderWithPending(true);
     act(() => {
       vi.advanceTimersByTime(PENDING_APPEAR_MS);
     });
@@ -103,10 +100,10 @@ describe("revision-pending treatment", () => {
     expect(submit.closest("[inert]")).toBeNull();
   });
 
-  it("stands the window-level keyboard shortcuts down while pending", () => {
+  it("stands the window-level keyboard shortcuts down while pending", async () => {
     // `inert` does not stop a window keydown listener, the shortcut layer
     // must disable itself, or `?`/j/k would act on the stale brief.
-    renderWithPending(true);
+    await renderWithPending(true);
     act(() => {
       vi.advanceTimersByTime(PENDING_APPEAR_MS);
     });
@@ -116,16 +113,16 @@ describe("revision-pending treatment", () => {
     ).toMatchObject({ dataset: { state: "closed" } });
   });
 
-  it("keeps the shortcuts live when nothing is pending", () => {
-    renderWithPending(false);
+  it("keeps the shortcuts live when nothing is pending", async () => {
+    await renderWithPending(false);
     fireEvent.keyDown(window, { key: "?" });
     expect(
       screen.getByText("Keyboard shortcuts").closest("[data-state]"),
     ).toMatchObject({ dataset: { state: "open" } });
   });
 
-  it("holds the treatment for the minimum once shown, then releases", () => {
-    const { rerenderWith } = renderWithPending(true);
+  it("holds the treatment for the minimum once shown, then releases", async () => {
+    const { rerenderWith } = await renderWithPending(true);
     act(() => {
       vi.advanceTimersByTime(PENDING_APPEAR_MS);
     });

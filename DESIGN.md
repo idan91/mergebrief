@@ -265,7 +265,7 @@ One skin on both pages: corner, edge, fill and the hover, pressed and selected t
 
 - **Style:** 5px corner, soft tint (Text 1 at 7%), no border, the sans at 500 in Text Read. A fact chip is 20px tall and states one thing about a row: place in a stack, new commits (in Warning), unreachable. A filter chip keeps the Brief page's 26px and its check glyph.
 - **States:** a pressed chip takes the changed tint, accent at 8% behind a 45% accent edge, with accent text; a warning chip sits on a 12% warning tint in Warning.
-- **Badge:** the chip corner on a 12% tint of its colour, weight 500, no border, and the words in their own case. A risk badge from repo policy alone draws a dashed edge in its colour, and a de-emphasized one a dotted edge.
+- **Badge:** the chip corner on a 12% tint of its colour, weight 500, no border, and the words in their own case. The Brief header is the exception: its status and stack chips sit on the page ground with no list around them, so each keeps an edge, the status chip in its own colour at 35% and the neutral stack chip in Line Strong. A risk badge from repo policy alone draws a dashed edge in its colour, and a de-emphasized one a dotted edge.
 
 ### Filters, sort and pager
 

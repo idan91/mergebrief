@@ -12,6 +12,7 @@
       block-size: var(--header-meta-control-h);
       padding-block: 0;
       padding-inline: functions.to-rem(8px);
+      border-color: var(--color-outline-2);
       font-size: var(--header-meta-font);
     }
   }

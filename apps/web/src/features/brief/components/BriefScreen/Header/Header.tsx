@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { CONTENT_START_ATTR } from "../utils";
 import {
   useEffect,
@@ -7,7 +7,6 @@ import {
   useRef,
   useState,
   type CSSProperties,
-  type KeyboardEvent,
   type ReactNode,
 } from "react";
 
@@ -29,7 +28,8 @@ import { AccessibleLink } from "@web/components/AccessibleLink/AccessibleLink";
 import { PRODUCT_NAME } from "@web/components/Header/consts";
 import { AccountMenu } from "@web/features/account";
 import { Button } from "@web/components/Button/Button";
-import { IconButton } from "@web/components/IconButton/IconButton";
+import { Menu } from "@web/components/Menu/Menu";
+import { MenuRow } from "@web/components/Menu/MenuRow/MenuRow";
 import { LocSign, LocSigns } from "@web/components/LocSign/LocSign";
 import { CoreLinesDisclosure } from "../CoreLinesDisclosure/CoreLinesDisclosure";
 import { UnattributedDisclosure } from "../UnattributedDisclosure/UnattributedDisclosure";
@@ -201,9 +201,9 @@ export function Header({
             line); at ≤880px it becomes the grid's content row, with the CTA +
             overflow column beside it. */}
         <div className={styles["lead"]}>
-          <AccessibleLink className={styles["wordmark"]} href="/">
+          <Link className={styles["wordmark"]} to="/">
             {PRODUCT_NAME}
-          </AccessibleLink>
+          </Link>
           <div className={styles["titleBlock"]}>
             <div className={styles["titleLine"]}>
               <h1 className={styles["title"]}>{brief.pr.title}</h1>
@@ -434,113 +434,28 @@ interface HeaderMenuProps {
 
 function HeaderMenu({ briefId, hideSummaryPreview }: HeaderMenuProps) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const menuId = useId();
-
-  useEffect(() => {
-    if (!open) return;
-    wrapRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
-    const onPointerDown = (event: PointerEvent) => {
-      if (
-        event.target instanceof Node &&
-        !wrapRef.current?.contains(event.target)
-      ) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    return () => document.removeEventListener("pointerdown", onPointerDown);
-  }, [open]);
-
-  const closeAndRefocus = () => {
-    setOpen(false);
-    triggerRef.current?.focus();
-  };
+  const navigate = useNavigate();
 
   if (hideSummaryPreview || isDbBriefId(briefId)) return null;
 
-  // On the wrapper, not the popup: Escape must also work when focus sits on
-  // the trigger with the menu open, and it must never leak to the page-level
-  // shortcut listener (which binds Escape to exiting focus mode).
-  const onWrapKeyDown = (event: KeyboardEvent) => {
-    if (!open) return;
-    event.stopPropagation();
-    if (event.key === "Escape") {
-      closeAndRefocus();
-      return;
-    }
-    if (event.key === "Tab") {
-      triggerRef.current?.focus();
-      setOpen(false);
-      return;
-    }
-    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
-    event.preventDefault();
-    const items = Array.from(
-      wrapRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [],
-    );
-    if (items.length === 0) return;
-    const active = document.activeElement;
-    const current = active instanceof HTMLElement ? items.indexOf(active) : -1;
-    const delta = event.key === "ArrowDown" ? 1 : -1;
-    const next = (current + delta + items.length) % items.length;
-    items[next]?.focus();
+  const openSummaryPreview = () => {
+    void navigate({
+      to: "/briefs/$briefId/summary-preview",
+      params: { briefId },
+    });
   };
 
-  // No blur-based closer: Safari/Firefox-macOS don't focus buttons on
-  // mousedown, so a click on a menuitem blurs the focused item first, a
-  // blur handler would unmount the menu before the click lands. The
-  // pointerdown-outside listener, Tab, and Escape cover every close path.
-
   return (
-    // Coordination wrapper, not an interactive element itself: the handler
-    // only closes/steers the menu; the interactive semantics live on the
-    // trigger and the menuitems inside.
-    // oxlint-disable-next-line jsx-a11y/no-static-element-interactions
-    <div className={styles["menuWrap"]} ref={wrapRef} onKeyDown={onWrapKeyDown}>
-      <IconButton
-        aria-controls={open ? menuId : undefined}
-        aria-expanded={open}
-        aria-haspopup="menu"
-        className={styles["menuTrigger"]}
+    <div className={styles["menuWrap"]}>
+      <Menu
         label={t("brief.header.ariaLabelMoreActions")}
-        ref={triggerRef}
-        size="lg"
-        // Close via the refocus helper: WebKit/Firefox-macOS don't focus a
-        // clicked button, so a plain toggle would unmount the focused
-        // menuitem and drop focus to <body>.
-        onClick={() => (open ? closeAndRefocus() : setOpen(true))}
+        placement="bottom-end"
+        trigger={<Icon name={IconNames.DOTS_THREE} size={IconSizes.MD} />}
       >
-        <Icon name={IconNames.DOTS_THREE} size={IconSizes.MD} />
-      </IconButton>
-      {open ? (
-        <div
-          className={styles["menu"]}
-          id={menuId}
-          role="menu"
-          aria-label={t("brief.header.ariaLabelMoreActions")}
-          tabIndex={-1}
-        >
-          <Link
-            className={styles["menuItem"]}
-            params={{ briefId }}
-            role="menuitem"
-            tabIndex={0}
-            to="/briefs/$briefId/summary-preview"
-            onClick={() => setOpen(false)}
-            onKeyDown={(event) => {
-              if (event.key === " ") {
-                event.preventDefault();
-                event.currentTarget.click();
-              }
-            }}
-          >
-            {t("brief.header.summaryPreview")}
-          </Link>
-        </div>
-      ) : null}
+        <MenuRow onSelect={openSummaryPreview}>
+          {t("brief.header.summaryPreview")}
+        </MenuRow>
+      </Menu>
     </div>
   );
 }

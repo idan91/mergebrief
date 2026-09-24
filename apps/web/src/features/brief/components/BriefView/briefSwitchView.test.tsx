@@ -5,7 +5,8 @@
 // mark surviving into the next brief is exactly the class of bug the old
 // remount masked. Ids collide across briefs on purpose (positional c1..cN).
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, screen } from "@testing-library/react";
+import { renderStageInRouter } from "../../../../test/router";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { I18nProvider } from "../../../../i18n/I18nProvider";
@@ -26,7 +27,7 @@ const briefB: Brief = {
   summary: "A different revision's summary.",
 };
 
-function renderView(briefId: string, brief: Brief) {
+async function renderView(briefId: string, brief: Brief) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -42,15 +43,17 @@ function renderView(briefId: string, brief: Brief) {
       </QueryClientProvider>
     </I18nProvider>
   );
-  const utils = render(view(briefId, brief));
+  const stage = await renderStageInRouter(view(briefId, brief), [
+    "/briefs/$briefId/summary-preview",
+  ]);
   return {
-    switchTo: (id: string, value: Brief) => utils.rerender(view(id, value)),
+    switchTo: (id: string, value: Brief) => stage.update(view(id, value)),
   };
 }
 
 describe("in-place brief switch through the screen", () => {
-  it("clears Viewed marks for the same chunk ids in a different brief", () => {
-    const { switchTo } = renderView("brief-a", briefFixture);
+  it("clears Viewed marks for the same chunk ids in a different brief", async () => {
+    const { switchTo } = await renderView("brief-a", briefFixture);
     const viewed = screen.getAllByRole("checkbox", { name: /^Viewed/ })[0];
     if (!viewed) throw new Error("no Viewed checkbox rendered");
     fireEvent.click(viewed);
@@ -61,8 +64,8 @@ describe("in-place brief switch through the screen", () => {
     expect((after as HTMLInputElement).checked).toBe(false);
   });
 
-  it("drops focus mode and the shortcuts overlay on a brief switch", () => {
-    const { switchTo } = renderView("brief-a", briefFixture);
+  it("drops focus mode and the shortcuts overlay on a brief switch", async () => {
+    const { switchTo } = await renderView("brief-a", briefFixture);
     fireEvent.keyDown(window, { key: "?" });
     const shortcuts = document.querySelector(
       '[aria-labelledby="shortcuts-modal-heading"]',
@@ -77,8 +80,8 @@ describe("in-place brief switch through the screen", () => {
     });
   });
 
-  it("closes the submit surface when the brief changes under it", () => {
-    const { switchTo } = renderView("brief-a", briefFixture);
+  it("closes the submit surface when the brief changes under it", async () => {
+    const { switchTo } = await renderView("brief-a", briefFixture);
     const modal = () =>
       document.querySelector('[aria-labelledby="submit-modal-heading"]');
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
@@ -115,7 +118,7 @@ const artifactSummaries: LocalBriefSummary[] = [
 ];
 
 describe("kept-warm scope panes", () => {
-  function renderScoped(searchParams: BriefSearchParams) {
+  async function renderScoped(searchParams: BriefSearchParams) {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
@@ -131,10 +134,13 @@ describe("kept-warm scope panes", () => {
         </QueryClientProvider>
       </I18nProvider>
     );
-    const utils = render(view("brief-a", briefFixture, searchParams));
+    const stage = await renderStageInRouter(
+      view("brief-a", briefFixture, searchParams),
+      ["/briefs/$briefId/summary-preview"],
+    );
     return {
       rerenderWith: (id: string, value: Brief, params: BriefSearchParams) =>
-        utils.rerender(view(id, value, params)),
+        stage.update(view(id, value, params)),
     };
   }
 
@@ -148,8 +154,8 @@ describe("kept-warm scope panes", () => {
     return lead ?? null;
   };
 
-  it("keeps the changes pane hidden after leaving scope, drops it on switch", () => {
-    const { rerenderWith } = renderScoped({
+  it("keeps the changes pane hidden after leaving scope, drops it on switch", async () => {
+    const { rerenderWith } = await renderScoped({
       view: "changes",
       compare: "previous-brief",
     });

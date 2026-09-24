@@ -12,12 +12,6 @@
     background: color-mix(in srgb, var(--color-background) 85%, transparent);
     backdrop-filter: blur(12px);
     container: header / inline-size;
-
-    // Above the FocusBanner (90) only while a menu is open; 50 lets the
-    // drawer scrim dim the header.
-    &:has([role="menu"]) {
-      z-index: 91;
-    }
   }
 
   .identityRow {
@@ -52,15 +46,11 @@
     min-block-size: functions.to-rem(24px);
     color: var(--color-text-1);
     font-size: var(--font-size-xl);
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0;
     line-height: 1;
     text-decoration: none;
     white-space: nowrap;
-
-    &:hover {
-      color: var(--color-accent);
-    }
 
     &:focus-visible {
       @include mixins.focus-ring;
@@ -126,7 +116,7 @@
   @media (width > 880px) {
     .header[data-collapsed] {
       --header-line-gap: #{functions.to-rem(6px)};
-      --header-pad-block: #{functions.to-rem(4px)};
+      --header-pad-block: #{functions.to-rem(8px)};
       --header-meta-font: var(--font-size-sm);
       --header-meta-font-sm: var(--font-size-xs);
 
@@ -267,65 +257,6 @@
     flex: none;
   }
 
-  .menuTrigger {
-    font-size: var(--font-size-2xl);
-    line-height: 1;
-
-    &[aria-expanded="true"] {
-      border-color: color-mix(
-        in srgb,
-        var(--color-outline-2) 60%,
-        var(--color-text-1)
-      );
-      color: var(--color-text-1);
-    }
-  }
-
-  .menu {
-    position: absolute;
-    inset-block-start: calc(100% + functions.to-rem(8px));
-    inset-inline-end: 0;
-    z-index: 60;
-    min-inline-size: functions.to-rem(190px);
-    padding: functions.to-rem(4px);
-    border: 1px solid var(--color-outline-2);
-    border-radius: var(--radius-md);
-    background: var(--color-surface-1);
-    box-shadow: var(--shadow-elevation-lg);
-    animation: menu-in 0.15s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  .menuItem {
-    display: block;
-    inline-size: 100%;
-    padding-block: functions.to-rem(8px);
-    padding-inline: functions.to-rem(12px);
-    border: 0;
-    border-radius: var(--radius-md);
-    background: transparent;
-    color: var(--color-text-2);
-    cursor: pointer;
-    font-size: var(--font-size-lg);
-    text-align: start;
-    text-decoration: none;
-    white-space: nowrap;
-
-    &:hover {
-      background: color-mix(
-        in srgb,
-        var(--color-surface-1) 88%,
-        var(--color-text-1)
-      );
-      color: var(--color-text-1);
-    }
-
-    &:focus-visible {
-      @include mixins.focus-ring;
-
-      color: var(--color-text-1);
-    }
-  }
-
   // scaleX, not inline-size: a percentage re-fires the transition every
   // resize frame. `0 50%` = inline-start; transform-origin has no logical
   // keywords yet.
@@ -444,10 +375,6 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .menu {
-      animation: none;
-    }
-
     .progressBar {
       transition: none;
     }
@@ -514,18 +441,6 @@
     .detailsRegion {
       margin-inline-start: 0;
     }
-  }
-}
-
-@keyframes menu-in {
-  0% {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-
-  100% {
-    opacity: 1;
-    transform: none;
   }
 }
 

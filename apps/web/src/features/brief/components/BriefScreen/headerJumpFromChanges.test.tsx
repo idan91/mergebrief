@@ -1,16 +1,11 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { I18nProvider } from "../../../../i18n/I18nProvider";
+import { renderInRouter } from "../../../../test/router";
 import type { BriefSearchParams } from "../../comparison/compareState";
 import type { ComparisonMarks } from "../../types";
 import { briefFixture } from "@web/features/brief/fixtures";
@@ -49,7 +44,7 @@ describe("Chunk deep link from Changes scope", () => {
       defaultOptions: { queries: { retry: false } },
     });
 
-    render(
+    await renderInRouter(
       <I18nProvider>
         <QueryClientProvider client={queryClient}>
           <BriefView
@@ -118,7 +113,7 @@ describe("Header Jump from Changes scope", () => {
       );
     }
 
-    render(<Harness />);
+    await renderInRouter(<Harness />);
     await waitFor(() =>
       expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
     );

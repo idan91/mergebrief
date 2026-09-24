@@ -11,6 +11,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import { renderInRouter } from "../../../../test/router";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { ComparisonMarks, LocalBriefSummary } from "../../types";
@@ -56,11 +57,11 @@ function planWith(marks: ComparisonMarks): BriefComparisonPlan {
   };
 }
 
-function renderBriefView(comparisonPlan?: BriefComparisonPlan) {
+async function renderBriefView(comparisonPlan?: BriefComparisonPlan) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  render(
+  await renderInRouter(
     <QueryClientProvider client={queryClient}>
       <BriefView
         artifacts={[]}
@@ -77,7 +78,7 @@ function renderBriefView(comparisonPlan?: BriefComparisonPlan) {
 
 describe("per-group changed-since marker", () => {
   it("shows the changed-file count and checkpoint shortsha with Compare OFF", async () => {
-    renderBriefView(planWith(checkpointMarks()));
+    await renderBriefView(planWith(checkpointMarks()));
     // src/leak.ts changed, src/leak.test.ts did not → 1 distinct file.
     expect(
       await screen.findByText(/1 file changed since chk1234/i),
@@ -85,14 +86,14 @@ describe("per-group changed-since marker", () => {
   });
 
   it("says unchanged when no member file moved since the checkpoint", async () => {
-    renderBriefView(planWith(checkpointMarks([])));
+    await renderBriefView(planWith(checkpointMarks([])));
     expect(
       await screen.findByText(/unchanged since your last review/i),
     ).toBeTruthy();
   });
 
-  it("renders no marker without a checkpoint", () => {
-    renderBriefView(undefined);
+  it("renders no marker without a checkpoint", async () => {
+    await renderBriefView(undefined);
     expect(screen.queryByText(/changed since/i)).toBeNull();
     expect(screen.queryByText(/unchanged since your last review/i)).toBeNull();
   });
@@ -150,7 +151,7 @@ describe("per-group changed-since marker", () => {
     expect(result.current.activeCompare).toBe("off");
   });
 
-  it("renders plain text, never a button, without a navigation callback", () => {
+  it("renders plain text, never a button, without a navigation callback", async () => {
     // The local demo path passes no openDeltaLens, unlinked by design.
     render(<SinceMarker baselineShortSha="chk1234" changedFileCount={2} />);
     expect(screen.getByText(/2 files changed since chk1234/i)).toBeTruthy();

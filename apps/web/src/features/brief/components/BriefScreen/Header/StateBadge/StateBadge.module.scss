@@ -1,8 +1,6 @@
 @use "functions";
 
 @layer components {
-  // Tinted, never solid fill. The fixed height + middle alignment stop the
-  // pill inflating the identity row's line box.
   .badge {
     --badge-color: var(--color-text-2);
 
@@ -11,10 +9,10 @@
     gap: functions.to-rem(4px);
     align-items: center;
     block-size: functions.to-rem(20px);
-    padding-inline: functions.to-rem(9px);
-    border: 1px solid color-mix(in srgb, var(--badge-color) 40%, transparent);
-    border-radius: var(--radius-pill);
-    background: color-mix(in srgb, var(--badge-color) 8%, transparent);
+    padding-inline: functions.to-rem(6px);
+    border: 1px solid color-mix(in srgb, var(--badge-color) 35%, transparent);
+    border-radius: var(--radius-chip);
+    background: color-mix(in srgb, var(--badge-color) 12%, transparent);
     color: var(--badge-color);
     font-size: var(--font-size-md);
     font-weight: 500;

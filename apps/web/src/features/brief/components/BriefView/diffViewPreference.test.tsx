@@ -1,12 +1,7 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderInRouter } from "../../../../test/router";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { DiffViews, type DiffView } from "@web/components/DiffRows/types";
@@ -42,11 +37,11 @@ const artifactSummaries: LocalBriefSummary[] = [
   },
 ];
 
-function renderBrief(searchParams: BriefSearchParams): void {
+async function renderBrief(searchParams: BriefSearchParams): Promise<void> {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  render(
+  await renderInRouter(
     <I18nProvider>
       <QueryClientProvider client={queryClient}>
         <BriefView
@@ -87,35 +82,35 @@ function seedStored(view: DiffView): void {
 }
 
 describe("the remembered diff view", () => {
-  it("renders unified when nothing is stored and no param is set", () => {
-    renderBrief({});
+  it("renders unified when nothing is stored and no param is set", async () => {
+    await renderBrief({});
     expect(readStampedView()).toBe(DiffViews.UNIFIED);
   });
 
-  it("picks up the stored view when no param is set", () => {
+  it("picks up the stored view when no param is set", async () => {
     seedStored(DiffViews.SPLIT);
-    renderBrief({});
+    await renderBrief({});
     expect(readStampedView()).toBe(DiffViews.SPLIT);
   });
 
-  it("keeps a group with nothing deleted unified under the split view", () => {
+  it("keeps a group with nothing deleted unified under the split view", async () => {
     seedStored(DiffViews.SPLIT);
-    renderBrief({});
+    await renderBrief({});
     expect(readStampedView()).toBe(DiffViews.SPLIT);
     expect(readGroupViews().length).toBeGreaterThan(0);
     expect(new Set(readGroupViews())).toEqual(new Set([DiffViews.UNIFIED]));
   });
 
-  it("lets the deep link override the stored view", () => {
+  it("lets the deep link override the stored view", async () => {
     seedStored(DiffViews.SPLIT);
-    renderBrief({ diff: DiffViews.UNIFIED });
+    await renderBrief({ diff: DiffViews.UNIFIED });
     expect(readStampedView()).toBe(DiffViews.UNIFIED);
   });
 });
 
 describe("announcing the diff view", () => {
   it("names the split view in the live region after D", async () => {
-    renderBrief({});
+    await renderBrief({});
 
     fireEvent(window, new KeyboardEvent("keydown", { key: "d" }));
 
@@ -124,7 +119,7 @@ describe("announcing the diff view", () => {
   });
 
   it("names the split view in the live region after a click", async () => {
-    renderBrief({});
+    await renderBrief({});
 
     fireEvent.click(screen.getByTestId("sidebar-diff-view"));
 
@@ -134,7 +129,7 @@ describe("announcing the diff view", () => {
 
   it("names the unified view on the way back", async () => {
     seedStored(DiffViews.SPLIT);
-    renderBrief({});
+    await renderBrief({});
 
     fireEvent.click(screen.getByTestId("sidebar-diff-view"));
 
@@ -149,13 +144,13 @@ describe("the diff view toggle in the Changes lens", () => {
     compare: "previous-brief",
   };
 
-  it("keeps the control out of the sidebar", () => {
-    renderBrief(changesScope);
+  it("keeps the control out of the sidebar", async () => {
+    await renderBrief(changesScope);
     expect(screen.queryByTestId("sidebar-diff-view")).toBeNull();
   });
 
-  it("leaves D to the browser and announces nothing", () => {
-    renderBrief(changesScope);
+  it("leaves D to the browser and announces nothing", async () => {
+    await renderBrief(changesScope);
 
     const event = pressD();
 
