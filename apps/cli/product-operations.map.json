@@ -107,6 +107,12 @@
   "resolve-thread": {
     "command": "mergebrief thread resolve <number>"
   },
+  "revoke-sessions": {
+    "webOnly": {
+      "reason": "Signing out everywhere is cookie-only like minting: /api/auth/* ignores Bearer headers so a stolen token cannot sign its owner out",
+      "owner": "idan"
+    }
+  },
   "revoke-token": {
     "webOnly": {
       "reason": "Revocation is cookie-only for the same reason as minting: a stolen token must not be able to revoke the owner's tokens",

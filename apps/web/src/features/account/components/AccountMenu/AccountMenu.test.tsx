@@ -98,10 +98,10 @@ describe("AccountMenu", () => {
 
     expect(screen.getByText("Signed in as octocat")).toBeTruthy();
     const names = screen.getAllByRole("menuitem").map((row) => row.textContent);
-    expect(names).toEqual(["Settings", "Sign out"]);
+    expect(names).toEqual(["Settings", "Sign out", "Sign out everywhere"]);
   });
 
-  it("signed in with a modal, the menu is the note and three rows with icons", async () => {
+  it("signed in with a modal, the menu is the note and four rows with icons", async () => {
     const onOpenShortcuts = vi.fn();
     renderWithViewer(SIGNED_IN, onOpenShortcuts);
 
@@ -117,6 +117,7 @@ describe("AccountMenu", () => {
       "Settings",
       "Keyboard shortcuts",
       "Sign out",
+      "Sign out everywhere",
     ]);
     expect(rows.every((row) => row.querySelector("svg") !== null)).toBe(true);
     await act(async () => {
@@ -215,6 +216,51 @@ describe("AccountMenu", () => {
       expect.objectContaining({ method: "POST" }),
     );
     expect(assign).toHaveBeenCalledWith("/");
+  });
+
+  it("Sign out everywhere deletes every session and leaves the page", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ ok: true, revoked: 2 }), { status: 200 }),
+    );
+    const assign = vi.fn();
+    vi.stubGlobal("location", { assign, href: "/", hash: "", search: "" });
+    renderWithViewer(SIGNED_IN);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Account menu/ }));
+    });
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("menuitem", { name: "Sign out everywhere" }),
+      );
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/auth/sessions",
+      expect.objectContaining({ method: "DELETE" }),
+    );
+    expect(assign).toHaveBeenCalledWith("/");
+  });
+
+  it("a refused sign out everywhere keeps the page and says so", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 503 }));
+    const assign = vi.fn();
+    vi.stubGlobal("location", { assign, href: "/", hash: "", search: "" });
+    renderWithViewer(SIGNED_IN);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Account menu/ }));
+    });
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("menuitem", { name: "Sign out everywhere" }),
+      );
+    });
+
+    expect(assign).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert").textContent).toBe(
+      "Sign out everywhere did not go through. Try again.",
+    );
   });
 
   it("a refused sign out keeps the page and says so", async () => {

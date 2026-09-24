@@ -29,6 +29,11 @@ deprecation note here, removal only at a major.
   script driving the API with a session cookie sets one of them. Bearer
   requests are exempt. `PUBLIC_BASE_URL` must now parse as an absolute
   `http(s)` URL, checked at boot.
+- **Added** `DELETE /api/auth/sessions` (`revoke-sessions`, private-write):
+  revokes every session of the signed-in reviewer, the caller's own
+  included, clears the cookie and answers `{ ok: true, revoked }`.
+  Cookie-only like the token surface, so a Bearer token cannot sign its
+  owner out; a token minted off one of the revoked sessions keeps working.
 
 ## dev (2026-09-22)
 

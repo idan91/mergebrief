@@ -194,6 +194,12 @@ const EXPECTED_CATALOG = [
       "POST /api/repos/:repoId/pulls/:prNumber/comments/:commentId/resolve",
   },
   {
+    id: "revoke-sessions",
+    kind: "action",
+    classification: "private-write",
+    endpoint: "DELETE /api/auth/sessions",
+  },
+  {
     id: "revoke-token",
     kind: "action",
     classification: "private-write",

@@ -1058,6 +1058,8 @@
       "shortcuts": "Keyboard shortcuts",
       "signOut": "Sign out",
       "signOutFailed": "Sign out did not go through. Try again.",
+      "signOutEverywhere": "Sign out everywhere",
+      "signOutEverywhereFailed": "Sign out everywhere did not go through. Try again.",
       "signIn": "Sign in with GitHub"
     },
     "marks": {

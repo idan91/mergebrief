@@ -20,7 +20,8 @@ const LANGUAGE_GROUP_LABEL_ID = "account-menu-language";
 
 /**
  * The person-anchored menu at the end of a Header: who is signed in,
- * Settings, Language, Keyboard shortcuts, Sign out. Signed out, the slot
+ * Settings, Language, Keyboard shortcuts, Sign out, Sign out everywhere.
+ * Signed out, the slot
  * holds a Sign in button instead; while the viewer loads it holds nothing,
  * and a failed read keeps the menu behind a generic trigger.
  */
@@ -138,6 +139,27 @@ export function AccountMenu({ onOpenShortcuts }: AccountMenuProps) {
       {facade.signOutFailed ? (
         <p className={styles["error"]} role="alert">
           {t("shell.accountMenu.signOutFailed")}
+        </p>
+      ) : null}
+      <MenuRow
+        disabled={facade.signingOutEverywhere}
+        glyph={
+          <Icon
+            className={styles["icon"]}
+            name={IconNames.SIGN_OUT}
+            size={IconSizes.MD}
+          />
+        }
+        keepOpen
+        onSelect={() => {
+          void facade.signOutEverywhere();
+        }}
+      >
+        {t("shell.accountMenu.signOutEverywhere")}
+      </MenuRow>
+      {facade.signOutEverywhereFailed ? (
+        <p className={styles["error"]} role="alert">
+          {t("shell.accountMenu.signOutEverywhereFailed")}
         </p>
       ) : null}
     </Menu>

@@ -305,10 +305,10 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
     const startedAt = Date.now();
 
     // Bearer is accepted on `/api/*` EXCEPT `/api/auth/*` (login, logout,
-    // token mint/list/revoke stay cookie-only: a stolen API token must never
-    // mint tokens). Where not
-    // accepted, the header is IGNORED (falls through to the cookie path),
-    // never honored.
+    // the session probe, revoke-all and token mint/list/revoke stay
+    // cookie-only: a stolen API token must never mint tokens or sign its
+    // owner out). Where not accepted, the header is IGNORED (falls through
+    // to the cookie path), never honored.
     const authorization = c.req.header("authorization");
     if (
       authorization !== undefined &&

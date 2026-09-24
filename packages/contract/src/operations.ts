@@ -35,6 +35,7 @@ export const ProductActionIds = {
   DELETE_INBOX_ITEM: "delete-inbox-item",
   MINT_TOKEN: "mint-token",
   REVOKE_TOKEN: "revoke-token",
+  REVOKE_SESSIONS: "revoke-sessions",
   // The Review Session writes. Declared here ahead of their routes because
   // the Attention List's `clearedBy` names them: the vocabulary is what a
   // client branches on, and an id it cannot resolve to a name is worse than
