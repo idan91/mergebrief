@@ -103,7 +103,7 @@
       animation: none;
       background-color: color-mix(
         in srgb,
-        var(--color-comment-highlight) 24%,
+        var(--color-accent) 24%,
         transparent
       );
     }
@@ -112,11 +112,7 @@
 
 @keyframes conversation-cell-flash {
   0% {
-    background-color: color-mix(
-      in srgb,
-      var(--color-comment-highlight) 40%,
-      transparent
-    );
+    background-color: color-mix(in srgb, var(--color-accent) 40%, transparent);
   }
 
   100% {

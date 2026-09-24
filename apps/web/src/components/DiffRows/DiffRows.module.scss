@@ -99,11 +99,11 @@
     // otherwise a drag's newest row reads as unselected until mouseup.
     &[data-selected],
     &[data-selected]:hover {
-      background: color-mix(in srgb, var(--blue) 12%, transparent);
+      background: color-mix(in srgb, var(--color-accent) 10%, transparent);
 
       // An INSET leading-edge bar, not a drop shadow — no counterpart on the
       // elevation scale.
-      --selected-edge-bar: inset 3px 0 0 var(--blue);
+      --selected-edge-bar: inset 3px 0 0 var(--color-accent);
 
       box-shadow: var(--selected-edge-bar);
     }
@@ -111,9 +111,15 @@
     &[data-rev="added"] .code {
       background: linear-gradient(
         90deg,
-        color-mix(in srgb, var(--blue) 10%, transparent),
-        color-mix(in srgb, var(--blue) 1.5%, transparent) 60%
+        color-mix(in srgb, var(--color-accent) 10%, transparent),
+        color-mix(in srgb, var(--color-accent) 1.5%, transparent) 60%
       );
+    }
+
+    // The two washes never stack: a selected row shows the selection alone,
+    // so the gutter keeps the contrast the palette test holds.
+    &[data-selected][data-rev="added"] .code {
+      background: none;
     }
   }
 

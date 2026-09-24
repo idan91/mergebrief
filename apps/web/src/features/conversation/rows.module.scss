@@ -69,13 +69,10 @@
     font-size: var(--font-size-xs);
     letter-spacing: 0.02em;
 
+    // An open thread needs the reviewer, so it wears the accent.
     &[data-state="open"] {
-      // Earned oddity: the open-thread chip's border is the comment-highlight
-      // amber darkened for a 1px edge.
-      --chip-open-border: #8a6d3b;
-
-      border-color: var(--chip-open-border);
-      color: var(--color-comment-highlight);
+      border-color: color-mix(in srgb, var(--color-accent) 45%, transparent);
+      color: var(--color-accent);
     }
 
     &[data-state="resolved"],

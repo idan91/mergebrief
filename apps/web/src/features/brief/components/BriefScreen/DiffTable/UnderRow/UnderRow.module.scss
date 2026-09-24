@@ -51,14 +51,14 @@
   @media (prefers-reduced-motion: reduce) {
     .row[data-conversation-flash] > td > * {
       animation: none;
-      box-shadow: var(--shadow-ring-highlight);
+      box-shadow: var(--shadow-ring-accent);
     }
   }
 }
 
 @keyframes conversation-row-flash {
   0% {
-    box-shadow: var(--shadow-ring-highlight);
+    box-shadow: var(--shadow-ring-accent);
   }
 
   100% {

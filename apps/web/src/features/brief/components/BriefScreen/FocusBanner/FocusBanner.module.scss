@@ -25,9 +25,9 @@
     margin-inline: auto;
     padding-block: functions.to-rem(12px);
     padding-inline: functions.to-rem(18px);
-    border: 1px solid color-mix(in srgb, var(--blue) 40%, var(--line2));
+    border: 1px solid color-mix(in srgb, var(--color-accent) 40%, var(--line2));
     border-radius: var(--radius-md);
-    background: color-mix(in srgb, var(--blue) 10%, var(--panel2));
+    background: color-mix(in srgb, var(--color-accent) 10%, var(--panel2));
     color: var(--dim);
     font-size: var(--font-size-lg);
 

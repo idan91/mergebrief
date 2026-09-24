@@ -2,8 +2,8 @@
 name: MergeBrief
 description: A calm, dark reading surface for understanding a pull request before reviewing it.
 colors:
-  accent: "#7da7d9"
-  accent-ink: "#0a0a0c"
+  accent: "#e1e1e1"
+  accent-ink: "#1b1b1b"
   ground: "#0a0a0c"
   surface-1: "#111114"
   surface-2: "#15151a"
@@ -11,7 +11,7 @@ colors:
   text-1: "#ececee"
   text-read: "#cacad1"
   text-2: "#9a9aa3"
-  text-3: "#8a8a93"
+  text-3: "#8d8d94"
   line: "#1f1f24"
   line-strong: "#2b2b32"
   state-open: "#5fc88f"
@@ -120,19 +120,19 @@ components:
 
 # Design System: MergeBrief
 
-Status: built on Home, which leads this language; the Brief page follows it. Palette hold: the hex values above are the palette from before the Home build, held on both pages by the last block of `tokens.scss` until the two pages converge; the paragraph that follows describes the tokens the hold covers. The theme is achromatic: hue 255 is kept in the tokens, but the accent and the greys both sit at chroma 0, so the accent is a plain light and nothing on screen carries the hue. The hex values above are what that renders today, and the source of truth is four numbers in `apps/web/src/styles/tokens.scss`. One known conflict waits for the day the accent takes a chroma again: it would share its hue with the info blue (`--color-info`), which the Four Lanes Rule reserved as a free lane; either the info colour moves or the accent does.
+Status: built on Home, which leads this language; the Brief page follows it. The palette is the one the Brief page was designed on, expressed as tokens: hue 286, the greys at chroma 0.01 and the accent a white at chroma 0. The hex values above are what that renders today, and the source of truth is four numbers in `apps/web/src/styles/tokens.scss`. Nothing on screen carries the hue but the greys; the info blue (`--color-info`) keeps its lane.
 
 ## Overview
 
-**Creative North Star: "The reading lamp"**
+**Creative North Star: "The reading room"**
 
-The product takes a pull request that is hard to read and makes it easy to read. The interface is the room you read it in at night: a dark page, one soft light near the top, text that is calm and large enough, and nothing blinking for attention. The three words it aims for are calm, mine, ready.
+The product takes a pull request that is hard to read and makes it easy to read. The interface is the room you read it in at night: a dark page, text that is calm and large enough, and nothing blinking for attention. The room is lit by nothing but the type. The three words it aims for are calm, mine, ready.
 
 Calm comes from neutral greys and one pale accent. Structure comes from hairlines, not from raised cards. Impressive means exact alignment, generous type and instant response, never decoration.
 
 **Key Characteristics:**
 
-- Dark only. A neutral near-black page with a single faint glow behind the top of the page, header included.
+- Dark only. A near-black page, flat from edge to edge; no glow and no gradient on either page.
 - Hairline borders and row dividers. No card per row.
 - One accent. It marks what needs the reviewer, the primary action, and focus.
 - Two-line rows of 56px. Titles at 15px; the smallest text is 11px.
@@ -146,7 +146,7 @@ Neutral greys under one light accent. State colours keep a fixed meaning across 
 
 ### Primary
 
-- **Lamp** (#7da7d9, the `--brand-400` primitive): review marks for rows that need the reviewer, the Generate button, focus rings, the value of a changed filter, the current page. Dark text on it uses **Accent Ink** (#0a0a0c).
+- **Accent** (#e1e1e1, the `--brand-400` primitive, a white at 91% lightness and chroma 0): review marks for rows that need the reviewer, the Generate button, focus rings, the selected diff rows, the revision marks, the value of a changed filter, the current page. Dark text on it uses **Accent Ink** (#1b1b1b, derived at 22% lightness).
 
 ### Neutral
 
@@ -155,7 +155,7 @@ Neutral greys under one light accent. State colours keep a fixed meaning across 
 - **Text 1** (#ececee): titles that need the reviewer (new, updated since your review, in progress), headings.
 - **Text Read** (#cacad1): titles that do not (reviewed, or the viewer's own), chip text.
 - **Text 2** (#9a9aa3): the second line of a row, labels, quiet icons.
-- **Text 3** (#8a8a93): placeholder text and unreachable rows. The floor for readable text.
+- **Text 3** (#8d8d94): placeholder text and unreachable rows. The floor for readable text, lifted from the hold's #8a8a93 so it clears 5:1 on Surface 3.
 - **Line, Line Strong** (#1f1f24, #2b2b32): row dividers and the list edge, then control borders.
 
 ### State (fixed meaning, hue may be tuned)
@@ -170,9 +170,9 @@ Neutral greys under one light accent. State colours keep a fixed meaning across 
 
 **The Four Lanes Rule.** Green, violet, red and amber belong to states. A brand hue inside one of them reads as a state. The free lanes are blue to cyan, pink to magenta, and orange to peach.
 
-**The Tinted Grey Rule.** Greys carry the accent's hue at one very low chroma, `--gray-c` (currently 0, so every grey is neutral; the ghost separator doubles it). When the brand hue changes, the greys move with it, at the same lightness, so contrast holds; a hue whose tint reads too strong on the greys turns `--gray-c` down, and 0 makes every grey neutral without touching the accent. In OKLCH: ground 0.172, surfaces 0.198, 0.228 and 0.268, lines 0.24 and 0.31, the ghost separator 0.329, text 0.94, 0.84, 0.71 and 0.675, accent 0.91 at chroma 0.
+**The Tinted Grey Rule.** Greys carry the hue at one very low chroma, `--gray-c`, 0.01 at hue 286; the ghost separator doubles it and Text 1 takes a third, so the brightest grey stays within two steps of neutral on every channel. When the brand hue changes, the greys move with it, at the same lightness, so contrast holds; a hue whose tint reads too strong on the greys turns `--gray-c` down, and 0 makes every grey neutral without touching the accent. In OKLCH lightness: ground 0.146, surfaces 0.179, 0.198 and 0.229, lines 0.241 and 0.292, the ghost separator 0.355, text 0.944, 0.84, 0.689 and 0.645, accent 0.91 at chroma 0. Surface 3 sits below Line on purpose: a menu's fill is darker than the hairline that edges it.
 
-**Contrast.** Text is 5:1 or better on every surface it sits on, and 5.5:1 or better on the page and the list; icons and state marks 3:1 or better. One deliberate exception: the URL box edge at rest is about 1.4:1, and the link icon, the placeholder and the slash key mark the field instead. Focus always shows a 2px accent ring.
+**Contrast.** Text is 5:1 or better on every surface it sits on, and 5.5:1 or better on the page and the list; icons and state marks 3:1 or better. The palette contrast test in `apps/web/src/styles` holds those lines against the tokens; a pair below its line fails the test suite. On the Brief page words may be 12px. Two deliberate exceptions: the URL box edge at rest is about 1.4:1, and the link icon, the placeholder and the slash key mark the field instead; a selected diff row lifts the well by a tenth of the accent, and its gutter numbers read against that at the AA line, 4.5:1 or better, which the same test holds. Focus always shows a 2px accent ring.
 
 ## Typography
 
@@ -199,7 +199,7 @@ Both are self-hosted through `@fontsource`, every subset behind its `unicode-ran
 
 ## Layout
 
-One centred column, 1080px wide at most, with a 24px gutter that becomes 16px under 760px; the header shares the gutter, so its wordmark and account trigger line up with the column. The Header is one 52px tier, transparent, with a translucent hairline under it (Text 1 at 6%) so the page glow behind it tints the line. Its right end is the account trigger: a pill holding the avatar, concentric in the pill's cap, and a caret; its menu offers Settings, Keyboard shortcuts and Sign out.
+One centred column, 1080px wide at most, with a 24px gutter that becomes 16px under 760px; the header shares the gutter, so its wordmark and account trigger line up with the column. The Header is one 52px tier, transparent, with a Line hairline under it. Its right end is the account trigger: a pill holding the avatar, concentric in the pill's cap, and a caret; its menu offers Settings, Keyboard shortcuts and Sign out.
 
 Spacing uses one scale: 2, 4, 8, 12, 16, 24, 32, 48, 64. Blocks are grouped, not evenly spaced: the personal line and the URL box sit 16px apart as one group; the list begins 48px below them; a heading sits 12px above its list. There is always more space above a heading than below it.
 
@@ -216,7 +216,6 @@ Flat, with tonal layering. Surfaces step up in brightness; hairlines draw the ed
 - **URL box at rest** (`inset 0 0 0 1px` of Text 1 at 9%, plus `0 14px 32px -16px rgb(0 0 0 / 60%)`): a faint edge and a soft lift.
 - **URL box focused** (the same edge, plus `0 0 0 2px` of the accent at 50% and `0 18px 40px -16px` of the accent at 16%).
 - **Menus and callouts** (`0 18px 44px -10px rgb(0 0 0 / 70%)`).
-- **Page glow** (one radial gradient of the accent at 11%, 880 by 420px, centred left of the middle above the top edge, painted on the page behind the header): the lamp. It is the only decorative gradient; the URL box's submit sweep is a signal, not decoration.
 
 ## Shapes
 
@@ -271,7 +270,7 @@ Durations 120, 180 and 320ms, the shared Callout's 140ms entrance, and a 350ms r
 
 - Do lead the personal line with a fact only this product knows. Don't greet.
 - Do let a repeated value disappear (status Open). Don't print a column that says one word.
-- Do keep the glow as it is: a light to read by. Don't turn light into a signal or add a second gradient.
+- Do keep the page flat: no page light on either page. Don't add a gradient; the URL box's submit sweep is a signal, not decoration.
 - Do use the accent for what needs the reviewer. Don't use it for decoration or for state.
 - Do give every new token a plan: where the Brief page adopts it and what it replaces.
 - Don't add a card per row, a stat tile, an all-caps label, or monospace outside code and key caps.

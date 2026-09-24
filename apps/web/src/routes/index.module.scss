@@ -3,12 +3,6 @@
 @layer components {
   .page {
     flex: 1;
-    background: radial-gradient(
-        880px 420px at 32% -60px,
-        color-mix(in srgb, var(--color-accent) 11%, transparent),
-        transparent 70%
-      )
-      no-repeat;
   }
 
   .home {

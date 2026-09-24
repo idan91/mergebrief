@@ -192,7 +192,7 @@
 
     input {
       cursor: pointer;
-      accent-color: var(--blue);
+      accent-color: var(--color-accent);
     }
 
     &:hover {
@@ -224,7 +224,7 @@
     }
 
     span {
-      color: var(--blue);
+      color: var(--color-accent);
       font-family: var(--mono);
       font-size: var(--font-size-sm);
     }
@@ -255,7 +255,7 @@
 
 @keyframes conversation-flash {
   0% {
-    box-shadow: var(--shadow-ring-highlight);
+    box-shadow: var(--shadow-ring-accent);
   }
 
   100% {
@@ -266,6 +266,6 @@
 @media (prefers-reduced-motion: reduce) {
   .chunk[data-conversation-flash] {
     animation: none;
-    box-shadow: var(--shadow-ring-highlight);
+    box-shadow: var(--shadow-ring-accent);
   }
 }

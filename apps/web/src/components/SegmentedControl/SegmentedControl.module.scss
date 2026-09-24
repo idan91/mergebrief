@@ -59,7 +59,7 @@
     cursor: pointer;
 
     &[data-state="active"] {
-      background: color-mix(in srgb, var(--blue) 16%, transparent);
+      background: color-mix(in srgb, var(--color-accent) 8%, transparent);
       color: var(--text);
     }
 

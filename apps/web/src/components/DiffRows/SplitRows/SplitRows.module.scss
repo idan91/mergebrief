@@ -5,7 +5,7 @@
   .pair {
     --row-hue: var(--text);
     --row-hover-tint: 6%;
-    --selected-edge-bar: inset 3px 0 0 var(--blue);
+    --selected-edge-bar: inset 3px 0 0 var(--color-accent);
 
     background: transparent;
 
@@ -62,7 +62,7 @@
     }
 
     > td[data-selected] {
-      background: color-mix(in srgb, var(--blue) 12%, transparent);
+      background: color-mix(in srgb, var(--color-accent) 10%, transparent);
     }
 
     > td[data-selected][class*="code"] {
@@ -77,9 +77,14 @@
     > td[data-rev="added"] {
       background: linear-gradient(
         90deg,
-        color-mix(in srgb, var(--blue) 10%, transparent),
-        color-mix(in srgb, var(--blue) 1.5%, transparent) 60%
+        color-mix(in srgb, var(--color-accent) 10%, transparent),
+        color-mix(in srgb, var(--color-accent) 1.5%, transparent) 60%
       );
+    }
+
+    // The two washes never stack: a selected cell shows the selection alone.
+    > td[data-selected][data-rev="added"] {
+      background: color-mix(in srgb, var(--color-accent) 10%, transparent);
     }
   }
 

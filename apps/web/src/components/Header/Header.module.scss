@@ -3,11 +3,8 @@
 
 @layer components {
   .header {
-    /* Translucent, not --color-outline-1: the page glow behind the header tints the line. */
-    --header-line: color-mix(in srgb, var(--color-text-1) 6%, transparent);
-
     inline-size: 100%;
-    border-block-end: 1px solid var(--header-line);
+    border-block-end: 1px solid var(--color-outline-1);
   }
 
   .inner {

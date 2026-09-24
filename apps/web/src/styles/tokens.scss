@@ -9,36 +9,38 @@
 @layer tokens {
   :root {
     // ── Primitives ───────────────────────────────────────────────────────
-    // The theme's hue is one number: the accent and every grey derive from
-    // it in OKLCH, and the lightness steps below keep every contrast for any
-    // hue (DESIGN.md, the Tinted Grey Rule). The accent reads as a light:
-    // high lightness, low chroma. With both chromas at 0 the hue is held for
-    // the day a brand colour lands and changes nothing on screen.
-    --brand-hue: 255;
+    // The theme is four numbers: the hue, the accent's lightness and chroma,
+    // and the greys' chroma. Every grey derives from them in OKLCH at a fixed
+    // lightness step, so the palette moves together and every contrast holds
+    // (DESIGN.md, the One Hue and Tinted Grey rules). The accent is a white:
+    // chroma 0 at 91%, so nothing on screen carries the hue but the greys.
+    --brand-hue: 286;
     --accent-l: 91%;
     --accent-c: 0;
-    --gray-c: 0;
-    --gray-950: oklch(17.2% var(--gray-c) var(--brand-hue));
-    --gray-900: oklch(19.8% var(--gray-c) var(--brand-hue));
-    --gray-800: oklch(24% var(--gray-c) var(--brand-hue));
-    --gray-700: oklch(31% var(--gray-c) var(--brand-hue));
-    --gray-400: oklch(71% var(--gray-c) var(--brand-hue));
-    --gray-100: oklch(94% var(--gray-c) var(--brand-hue));
-    --gray-850: oklch(22.8% var(--gray-c) var(--brand-hue));
-    --gray-750: oklch(26.8% var(--gray-c) var(--brand-hue));
-    --gray-650: oklch(32.9% calc(var(--gray-c) * 2) var(--brand-hue));
-    --green-400: #7fd1a0;
-    --red-400: #ec8a8a;
-    --amber-400: #e8c04a;
+    --gray-c: 0.01;
+    --gray-950: oklch(14.6% var(--gray-c) var(--brand-hue));
+    --gray-900: oklch(17.9% var(--gray-c) var(--brand-hue));
+    --gray-850: oklch(19.8% var(--gray-c) var(--brand-hue));
+    --gray-800: oklch(24.1% var(--gray-c) var(--brand-hue));
+    --gray-750: oklch(22.9% var(--gray-c) var(--brand-hue));
+    --gray-700: oklch(29.2% var(--gray-c) var(--brand-hue));
+    --gray-650: oklch(35.5% calc(var(--gray-c) * 2) var(--brand-hue));
+    --gray-400: oklch(68.9% var(--gray-c) var(--brand-hue));
+    --gray-100: oklch(94.4% calc(var(--gray-c) / 3) var(--brand-hue));
+    --green-400: #5fc88f;
+    --red-400: #e06c6c;
+    --amber-400: #d9a45c;
     --brand-400: oklch(var(--accent-l) var(--accent-c) var(--brand-hue));
     --blue-400: #7da7d9;
-    --violet-400: #b9a0e0;
+    --violet-400: #a98fd1;
     --mono: "IBM Plex Mono", ui-monospace, menlo, monospace;
     --sans: "IBM Plex Sans", -apple-system, "Helvetica Neue", sans-serif;
 
     // ── Surfaces ─────────────────────────────────────────────────────────
     // Four tiers: ≤4/255 per channel is not a perceivable distinction, so
     // sunken wells sit at page level rather than earning a fifth tier.
+    // surface-3 sits below outline-1 on purpose: a menu's fill is darker
+    // than the hairline that edges it.
     --color-background: var(--gray-950); // page bg AND sunken wells
     --color-surface-1: var(--gray-900); // base panel / nested fill
     --color-surface-2: var(--gray-850); // raised: hovers, popovers, toolbars
@@ -52,9 +54,9 @@
     // text-1 and text-2 on purpose; the step from text-1 is the signal.
     --color-text-read: oklch(84% var(--gray-c) var(--brand-hue));
 
-    // Faint floor for readable text: 6.5:1 on the page background, 5.2:1 on
-    // surface-3 (WCAG AA).
-    --color-text-3: oklch(67.5% var(--gray-c) var(--brand-hue));
+    // Faint floor for readable text: 6:1 on the page background, 5.1:1 on
+    // surface-3; the contrast test holds both lines.
+    --color-text-3: oklch(64.5% var(--gray-c) var(--brand-hue));
 
     // Ghost: decorative separators only (e.g. slim row separators).
     // Deliberately below contrast, NEVER for text a reader must parse;
@@ -119,10 +121,6 @@
     // Near-white fill for solid indicators (progress bar, concern dot).
     // Earned: folding into --color-text-1 (Δ~20) would visibly brighten both.
     --color-fill-bright: #d8d8de;
-
-    // The comment-highlight amber: the flash ring on a chunk/row jumped to
-    // from a conversation, the TOC marker, and the open-thread chip text.
-    --color-comment-highlight: #d9b36c;
     --focus-ring: var(--color-accent);
 
     // ── Legacy aliases ───────────────────────────────────────────────────
@@ -221,10 +219,10 @@
     --shadow-elevation-lg: 0 16px 48px rgb(0 0 0 / 55%); // menus, drawers, modals
     --shadow-float: 0 18px 44px -10px rgb(0 0 0 / 70%); // what floats: menus, callouts
 
-    // --shadow-ring-clear is the transparent end-state of the comment-flash
-    // keyframes: it must keep --shadow-ring-highlight's geometry or the
+    // --shadow-ring-clear is the transparent end-state of the jump-to flash
+    // keyframes: it must keep --shadow-ring-accent's geometry or the
     // animation jumps.
-    --shadow-ring-highlight: 0 0 0 2px var(--color-comment-highlight);
+    --shadow-ring-accent: 0 0 0 2px var(--color-accent);
     --shadow-ring-clear: 0 0 0 2px transparent;
     --header-pad-block: #{functions.to-rem(11px)};
     --header-line-gap: #{functions.to-rem(6px)};
@@ -278,33 +276,6 @@
     --sidebar-reserve-bottom: 0px;
 
     color-scheme: dark light;
-  }
-
-  // Palette hold, both surfaces. The Home build moved the shared tokens
-  // (neutral greys on a lighter ladder, four new state colours, a white
-  // accent) and the Brief page took them unreviewed; the values below are the
-  // tokens as they were before the move, held on every page until the two
-  // pages converge on purpose. Later declarations win, so this block
-  // overrides the primitives above without editing them.
-  :root {
-    --brand-hue: 286;
-    --gray-c: 0.01;
-    --gray-950: #0a0a0c;
-    --gray-900: #111114;
-    --gray-850: #15151a;
-    --gray-800: #1f1f24;
-    --gray-750: #1c1c22;
-    --gray-700: #2b2b32;
-    --gray-650: #3b3b43;
-    --gray-400: #9a9aa3;
-    --gray-100: #ececee;
-    --green-400: #5fc88f;
-    --red-400: #e06c6c;
-    --amber-400: #d9a45c;
-    --violet-400: #a98fd1;
-    --color-text-3: #8a8a93;
-    --color-accent: var(--blue-400);
-    --color-on-primary: var(--gray-950);
   }
 
   @media (width <= 880px) {
