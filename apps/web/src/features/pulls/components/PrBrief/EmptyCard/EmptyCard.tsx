@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import cardStyles from "../stateCard.module.scss";
+import { EmptyBlock } from "@web/components/EmptyBlock/EmptyBlock";
 
 export interface EmptyCardProps {
   /** Drafts-off notice (own-draft only); replaces the copy. */
@@ -8,17 +8,16 @@ export interface EmptyCardProps {
 
 export function EmptyCard({ copyOverride }: EmptyCardProps) {
   const { t } = useTranslation();
+  // The drafts-off notice replaces the default copy wholesale: the default
+  // promises generation "on the next push", wrong under that policy.
+  const detail = copyOverride ?? t("pulls.empty.copy");
+
   return (
-    <section aria-labelledby="empty-heading" className={cardStyles["card"]}>
-      <h1 className={cardStyles["heading"]} id="empty-heading">
-        {t("pulls.empty.heading")}
-      </h1>
-      {/* The drafts-off notice replaces the default copy wholesale — the
-          default promises generation "on the next push", wrong under that
-          policy. */}
-      <p className={cardStyles["copy"]}>
-        {copyOverride ?? t("pulls.empty.copy")}
-      </p>
+    <section aria-labelledby="empty-heading">
+      <EmptyBlock
+        detail={detail}
+        heading={<h1 id="empty-heading">{t("pulls.empty.heading")}</h1>}
+      />
     </section>
   );
 }

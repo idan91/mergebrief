@@ -3,8 +3,8 @@
 import { WaitReasons, type WaitReason } from "contract";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
+import { EmptyBlock } from "@web/components/EmptyBlock/EmptyBlock";
 import type { Span } from "../../../utils/briefRouteState";
-import cardStyles from "../stateCard.module.scss";
 import { PHASE_KEYS, WAIT_REASON_KEYS } from "./consts";
 import { LiveDiffPreview } from "./LiveDiffPreview/LiveDiffPreview";
 
@@ -75,20 +75,22 @@ export function WaitCard({
 }: WaitCardProps) {
   const { t } = useTranslation();
   const heading = waitLabel(t, { status, phase, waitReason, pendingNotice });
+  const detail =
+    span === undefined
+      ? t("pulls.wait.diffPending")
+      : t("pulls.wait.diffReady");
+
   return (
-    <section aria-labelledby="wait-heading" className={cardStyles["card"]}>
-      <h1 className={cardStyles["heading"]} id="wait-heading">
-        {heading}
-      </h1>
-      <span aria-hidden="true" className={cardStyles["spinner"]} />
-      <p className={cardStyles["copy"]}>
-        {span === undefined
-          ? t("pulls.wait.diffPending")
-          : t("pulls.wait.diffReady")}
-      </p>
-      {span === undefined ? null : (
-        <LiveDiffPreview prNumber={prNumber} repoId={repoId} span={span} />
-      )}
+    <section aria-labelledby="wait-heading">
+      <EmptyBlock
+        busy
+        detail={detail}
+        heading={<h1 id="wait-heading">{heading}</h1>}
+      >
+        {span === undefined ? undefined : (
+          <LiveDiffPreview prNumber={prNumber} repoId={repoId} span={span} />
+        )}
+      </EmptyBlock>
     </section>
   );
 }

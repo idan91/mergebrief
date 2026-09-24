@@ -22,7 +22,6 @@ import {
 } from "@web/features/brief/utils";
 import type { Span } from "../../../../utils/briefRouteState";
 import { buildPrDiffQueryOptions } from "../../../../queries";
-import cardStyles from "../../stateCard.module.scss";
 import styles from "./LiveDiffPreview.module.scss";
 
 export interface LiveDiffPreviewProps {
@@ -63,12 +62,10 @@ export function LiveDiffPreview({
   }, []);
 
   if (diff.isPending) {
-    return <p className={cardStyles["meta"]}>{t("pulls.wait.diffLoading")}</p>;
+    return <p className={styles["note"]}>{t("pulls.wait.diffLoading")}</p>;
   }
   if (diff.isError || files.length === 0) {
-    return (
-      <p className={cardStyles["meta"]}>{t("pulls.wait.diffUnavailable")}</p>
-    );
+    return <p className={styles["note"]}>{t("pulls.wait.diffUnavailable")}</p>;
   }
   return (
     <TokenPlanProvider briefKey={previewKey} chunkSizes={chunkSizes}>

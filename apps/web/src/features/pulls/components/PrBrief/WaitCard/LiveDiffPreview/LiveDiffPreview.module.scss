@@ -2,6 +2,11 @@
 @use "mixins";
 
 @layer components {
+  .note {
+    color: var(--color-text-3);
+    font-size: var(--font-size-md);
+  }
+
   .diff {
     display: grid;
     gap: functions.to-rem(8px);

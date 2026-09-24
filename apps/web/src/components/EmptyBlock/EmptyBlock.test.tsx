@@ -29,4 +29,42 @@ describe("EmptyBlock", () => {
 
     expect(screen.getByTestId("empty-block").childElementCount).toBe(1);
   });
+
+  it("draws a hidden spinner ahead of the detail while busy", () => {
+    render(<EmptyBlock busy detail="Soon." heading={<h1>Generating</h1>} />);
+    const spinner = screen.getByTestId("empty-block-spinner");
+    expect(spinner.getAttribute("aria-hidden")).toBe("true");
+    expect(spinner.parentElement?.textContent).toBe("Soon.");
+
+    cleanup();
+    render(<EmptyBlock heading={<h1>Done</h1>} />);
+    expect(screen.queryByTestId("empty-block-spinner")).toBeNull();
+  });
+
+  it("prints the note after the detail", () => {
+    render(
+      <EmptyBlock
+        detail="It stopped."
+        heading={<h1>Failed</h1>}
+        note="3 attempts so far."
+      />,
+    );
+
+    const block = screen.getByTestId("empty-block");
+    const lines = [...block.querySelectorAll("p")].map((p) => p.textContent);
+    expect(lines).toEqual(["It stopped.", "3 attempts so far."]);
+  });
+
+  it("renders its children under the block", () => {
+    render(
+      <EmptyBlock heading={<h1>Waiting</h1>}>
+        <table data-testid="preview" />
+      </EmptyBlock>,
+    );
+
+    const block = screen.getByTestId("empty-block");
+    expect(
+      block.lastElementChild?.contains(screen.getByTestId("preview")),
+    ).toBe(true);
+  });
 });

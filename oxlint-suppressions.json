@@ -698,17 +698,7 @@
       "count": 5
     }
   },
-  "apps/web/src/features/pulls/components/PrBrief/CappedCard/CappedCard.tsx": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
   "apps/web/src/features/pulls/components/PrBrief/CappedCard/utils.ts": {
-    "house/no-em-dash": {
-      "count": 1
-    }
-  },
-  "apps/web/src/features/pulls/components/PrBrief/EmptyCard/EmptyCard.tsx": {
     "house/no-em-dash": {
       "count": 1
     }
@@ -726,11 +716,6 @@
   "apps/web/src/features/pulls/components/PrBrief/PrBriefError/PrBriefError.test.tsx": {
     "house/no-em-dash": {
       "count": 2
-    }
-  },
-  "apps/web/src/features/pulls/components/PrBrief/PrBriefError/PrBriefError.tsx": {
-    "house/no-em-dash": {
-      "count": 1
     }
   },
   "apps/web/src/features/pulls/components/PrBrief/PrBriefError/utils.ts": {

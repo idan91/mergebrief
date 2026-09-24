@@ -334,6 +334,10 @@ _Avoid_: rail (that is the **Jump-rail**), panel, drawer, shell (charting-era wo
 One surface housed in the expanded **Sidebar**, shown one at a time via a tabs row that lists only the tabs that exist. "This PR" — the group list — is the first; Activity and Repo chat are candidates, each earning its place through its own ticket. Conversation is not a tab: it stays in the reading flow.
 _Avoid_: tenant, inhabitant, view (that is the URL scope param), pane
 
+**Not-ready screen**:
+What the Brief page shows in place of a **Brief** while there is none to read: waiting, generating, failed, capped, empty, superseded, or an error. One concept with seven states.
+_Avoid_: state card, error card, placeholder
+
 **Focus mode**:
 The reading mode that strips the Brief page to the story flow alone — summary, toolbar, conversation, group TOC and **Sidebar** all hidden — with a single exit control. A mode of the page, not a filter of its content.
 _Avoid_: zen mode (code-internal only), distraction-free, reading mode (every mode is for reading)

@@ -1,18 +1,17 @@
 import { useTranslation } from "react-i18next";
-import cardStyles from "../stateCard.module.scss";
+import { EmptyBlock } from "@web/components/EmptyBlock/EmptyBlock";
 
 export function SupersededCard() {
   const { t } = useTranslation();
   return (
-    <section
-      aria-labelledby="superseded-heading"
-      className={cardStyles["card"]}
-    >
-      <h1 className={cardStyles["heading"]} id="superseded-heading">
-        {t("pulls.superseded.heading")}
-      </h1>
-      <span aria-hidden="true" className={cardStyles["spinner"]} />
-      <p className={cardStyles["copy"]}>{t("pulls.superseded.copy")}</p>
+    <section aria-labelledby="superseded-heading">
+      <EmptyBlock
+        busy
+        detail={t("pulls.superseded.copy")}
+        heading={
+          <h1 id="superseded-heading">{t("pulls.superseded.heading")}</h1>
+        }
+      />
     </section>
   );
 }

@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
+import { EmptyBlock } from "@web/components/EmptyBlock/EmptyBlock";
 import type { GenerationFailureCode } from "../../../types";
 import { failureLine } from "./utils";
-import cardStyles from "../stateCard.module.scss";
 
 export interface FailedCardProps {
   /** Null when the code is absent or one this bundle doesn't know. */
@@ -17,19 +17,16 @@ export function FailedCard({
   attempts,
 }: FailedCardProps) {
   const { t } = useTranslation();
+  const attemptsLine = t("pulls.failed.attempts", { count: attempts + 1 });
+  const note = `${attemptsLine} ${t("pulls.failed.requeueNote")}`;
+
   return (
-    <section aria-labelledby="failed-heading" className={cardStyles["card"]}>
-      <h1 className={cardStyles["heading"]} id="failed-heading">
-        {t("pulls.failed.heading")}
-      </h1>
-      <p className={cardStyles["copy"]}>
-        {/* Sanitized at write time (first line, URLs redacted, capped). */}
-        {failureLine(t, errorCode, errorDetail)}
-      </p>
-      <p className={cardStyles["meta"]}>
-        {t("pulls.failed.attempts", { count: attempts + 1 })}{" "}
-        {t("pulls.failed.requeueNote")}
-      </p>
+    <section aria-labelledby="failed-heading">
+      <EmptyBlock
+        detail={failureLine(t, errorCode, errorDetail)}
+        heading={<h1 id="failed-heading">{t("pulls.failed.heading")}</h1>}
+        note={note}
+      />
     </section>
   );
 }
