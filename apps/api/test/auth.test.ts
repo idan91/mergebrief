@@ -24,6 +24,7 @@ import {
   type ApiApp,
 } from "../src/index";
 import { testLogger, testLogging } from "./logging";
+import { seedSession as seedBrowserSession } from "./session/fixtures";
 import {
   INSTALLATION_ID,
   KEY_REF,
@@ -35,6 +36,7 @@ import {
   createKeyProvider,
   hashSha256Hex,
   getRequestUrl,
+  SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 
 // ---------------------------------------------------------------------------
@@ -360,7 +362,10 @@ describe("reviewer auth routes", () => {
 
     const res = await app.request("/api/auth/logout", {
       method: "POST",
-      headers: { Cookie: `__Host-mergebrief_session=${token}` },
+      headers: {
+        ...SAME_ORIGIN_HEADERS,
+        Cookie: `__Host-mergebrief_session=${token}`,
+      },
     });
     expect(res.status).toBe(200);
     expect(await countRows(harness, "auth_session")).toBe(0);
@@ -370,6 +375,74 @@ describe("reviewer auth routes", () => {
     expect(setCookie.startsWith("__Host-mergebrief_session=")).toBe(true);
     expect(setCookie).toContain("Secure");
     expect(setCookie).toMatch(/Max-Age=0/i);
+  });
+
+  it("logout from a foreign origin answers 403 and keeps the session", async () => {
+    const cookie = await seedBrowserSession(harness.handle, kp);
+    const capture = testLogging();
+    const loggedApp = createApp({
+      logger: capture.logger,
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: buildAuthDeps(kp),
+      github: unusedConversationPort,
+    });
+
+    // A foreign Origin rides along so the last assertion can catch it.
+    const res = await loggedApp.request("/api/auth/logout", {
+      method: "POST",
+      headers: {
+        Cookie: `__Host-mergebrief_session=${cookie}`,
+        "sec-fetch-site": "cross-site",
+        origin: "https://evil.example.test",
+      },
+    });
+
+    expect(res.status).toBe(403);
+    expect(((await res.json()) as { code?: string }).code).toBe("forbidden");
+    expect(res.headers.get("set-cookie")).toBeNull();
+    expect(await countRows(harness, "auth_session")).toBe(1);
+    // The refusal is as visible as the layer's: the access decision and one
+    // warn line, never the Origin value itself.
+    const lines = capture.lines();
+    const access = lines.find((line) => line["evt"] === "api.access");
+    expect(access?.["decision"]).toBe("403-cross-origin");
+    const warned = lines.find((line) => line["level"] === "warn");
+    expect(warned?.["msg"]).toBe(
+      "cookie mutation refused: origin is not this instance",
+    );
+    expect(JSON.stringify(lines)).not.toContain("evil.example.test");
+  });
+
+  it("logout from a sibling subdomain answers 403", async () => {
+    const cookie = await seedBrowserSession(harness.handle, kp);
+
+    const res = await app.request("/api/auth/logout", {
+      method: "POST",
+      headers: {
+        Cookie: `__Host-mergebrief_session=${cookie}`,
+        "sec-fetch-site": "same-site",
+        origin: "https://evil.example.test",
+      },
+    });
+
+    expect(res.status).toBe(403);
+    expect(await countRows(harness, "auth_session")).toBe(1);
+  });
+
+  it("logout with the instance's own Origin goes through", async () => {
+    const cookie = await seedBrowserSession(harness.handle, kp);
+
+    const res = await app.request("/api/auth/logout", {
+      method: "POST",
+      headers: {
+        Cookie: `__Host-mergebrief_session=${cookie}`,
+        origin: "https://app.example.test",
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(await countRows(harness, "auth_session")).toBe(0);
   });
 
   it("GET /api/auth/session without a cookie answers 401", async () => {

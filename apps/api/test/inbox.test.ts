@@ -33,6 +33,7 @@ import {
   buildAuthDeps,
   createKeyProvider,
   getRequestUrl,
+  SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
@@ -656,7 +657,10 @@ describe("GET /api/inbox", () => {
     const page = await get("/api/inbox?page=1e21", cookie);
     const gone = await app.request("/api/inbox/99999999999999999999/7", {
       method: "DELETE",
-      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
+      headers: {
+        ...SAME_ORIGIN_HEADERS,
+        Cookie: `__Host-mergebrief_session=${cookie}`,
+      },
     });
 
     expect(repo.status).toBe(400);

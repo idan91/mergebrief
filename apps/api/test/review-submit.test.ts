@@ -37,6 +37,7 @@ import {
   hashSha256Hex,
   getRequestUrl,
   answerInstallationRepositories,
+  SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 
 // Nothing in this file reaches GitHub, so octokit's one-mutation-per-second
@@ -483,6 +484,7 @@ async function postSubmit(
   path = SUBMIT_PATH,
 ): Promise<Response> {
   const headers: Record<string, string> = {
+    ...SAME_ORIGIN_HEADERS,
     "content-type": "application/json",
   };
 
@@ -596,6 +598,7 @@ async function reanchorDraft(
   return await app.request(makeSessionPath(`/comments/${draftId}/anchor`), {
     method: "PUT",
     headers: {
+      ...SAME_ORIGIN_HEADERS,
       "content-type": "application/json",
       cookie: `__Host-mergebrief_session=${cookie}`,
     },
@@ -615,7 +618,10 @@ async function deleteDraft(
 ): Promise<Response> {
   return await app.request(makeSessionPath(`/comments/${draftId}`), {
     method: "DELETE",
-    headers: { cookie: `__Host-mergebrief_session=${cookie}` },
+    headers: {
+      ...SAME_ORIGIN_HEADERS,
+      cookie: `__Host-mergebrief_session=${cookie}`,
+    },
   });
 }
 

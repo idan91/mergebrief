@@ -21,7 +21,13 @@ import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp, type AppDeps } from "../src/index";
 import { testLogger } from "./logging";
-import { KEY_REF, SECRET, buildAuthDeps, createKeyProvider } from "./fixtures";
+import {
+  KEY_REF,
+  SECRET,
+  buildAuthDeps,
+  createKeyProvider,
+  SAME_ORIGIN_HEADERS,
+} from "./fixtures";
 
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
 const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
@@ -143,7 +149,10 @@ describe("DELETE /api/inbox/:repoId/:prNumber", () => {
   async function del(cookie: string): Promise<Response> {
     return app.request(`/api/inbox/${REPO_ID_NUM}/7`, {
       method: "DELETE",
-      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
+      headers: {
+        ...SAME_ORIGIN_HEADERS,
+        Cookie: `__Host-mergebrief_session=${cookie}`,
+      },
     });
   }
 

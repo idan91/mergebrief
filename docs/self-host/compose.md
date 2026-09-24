@@ -285,7 +285,10 @@ sudo caddy run --config ./Caddyfile     # or: caddy start / systemd unit
 
 Then set `PUBLIC_BASE_URL=https://brief.example.com` in `.env` and restart
 both services (`docker compose up -d`). It must match the value you register
-as the GitHub App's OAuth callback origin and webhook URL.
+as the GitHub App's OAuth callback origin and webhook URL. It is also the
+one origin a signed-in browser may send state-changing requests from: a
+POST that arrives with another `Origin` is refused with a 403, so the value
+has to be the origin reviewers actually browse, scheme and port included.
 
 Two things follow from terminating TLS elsewhere:
 

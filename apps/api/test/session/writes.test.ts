@@ -34,6 +34,7 @@ import {
   SECRET,
   buildAuthDeps,
   createKeyProvider,
+  SAME_ORIGIN_HEADERS,
 } from "../fixtures";
 
 function pathFor(suffix: string, head: string): string {
@@ -143,6 +144,7 @@ describe("the Review Session writes", () => {
     const init: RequestInit = {
       method,
       headers: {
+        ...SAME_ORIGIN_HEADERS,
         Cookie: `__Host-mergebrief_session=${cookie}`,
         "content-type": "application/json",
       },
@@ -660,6 +662,7 @@ describe("the Review Session writes", () => {
       {
         method: "PUT",
         headers: {
+          ...SAME_ORIGIN_HEADERS,
           Cookie: `__Host-mergebrief_session=${cookie}`,
           "content-type": "application/json",
         },
@@ -1023,7 +1026,7 @@ describe("the Review Session writes", () => {
     await seedBrief(harness.handle, 1);
     const res = await app.request(pathFor("/chunks/c1/read", "head-1"), {
       method: "PUT",
-      headers: { "content-type": "application/json" },
+      headers: { ...SAME_ORIGIN_HEADERS, "content-type": "application/json" },
       body: JSON.stringify({ read: true }),
     });
     expect(res.status).toBe(401);

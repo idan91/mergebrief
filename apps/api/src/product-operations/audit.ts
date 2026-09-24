@@ -51,6 +51,8 @@ declare module "hono" {
 
 /** Denial reason for the per-repo gate's uniform 404. */
 export const AUDIT_REASON_NO_REPO_ACCESS = "no-repo-access";
+/** Denial reason for a cookie mutation that proved no same-origin. */
+export const AUDIT_REASON_CROSS_ORIGIN = "cross-origin";
 
 /** Which audit rows this instance writes. Both knobs are instance config. */
 export interface AuditEmitConfig {

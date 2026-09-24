@@ -33,6 +33,7 @@ import {
   buildAuthDeps,
   createKeyProvider,
   getRequestUrl,
+  SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 
 const REPO_ID = 424242;
@@ -241,6 +242,7 @@ describe("the per-repo gate's repo world", () => {
       {
         method: "PUT",
         headers: {
+          ...SAME_ORIGIN_HEADERS,
           Cookie: `__Host-mergebrief_session=${cookie}`,
           "content-type": "application/json",
         },
@@ -444,6 +446,7 @@ describe("the per-repo gate across two installations", () => {
       {
         method: "PUT",
         headers: {
+          ...SAME_ORIGIN_HEADERS,
           Cookie: `__Host-mergebrief_session=${cookie}`,
           "content-type": "application/json",
         },

@@ -28,6 +28,7 @@ import {
   brandReviewerId,
   buildAuthDeps,
   createKeyProvider,
+  SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 
 const REPO_ID = 424242;
@@ -318,6 +319,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
       {
         method: "PUT",
         headers: {
+          ...SAME_ORIGIN_HEADERS,
           Cookie: `__Host-mergebrief_session=${cookie}`,
           "content-type": "application/json",
         },
@@ -418,6 +420,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
       {
         method: "POST",
         headers: {
+          ...SAME_ORIGIN_HEADERS,
           Cookie: `__Host-mergebrief_session=${cookie}`,
           "content-type": "application/json",
         },
@@ -439,6 +442,7 @@ describe("the per-repo gate's operator-PAT rung", () => {
       {
         method: "POST",
         headers: {
+          ...SAME_ORIGIN_HEADERS,
           Cookie: `__Host-mergebrief_session=${cookie}`,
           "content-type": "application/json",
         },

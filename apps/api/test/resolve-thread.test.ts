@@ -36,6 +36,7 @@ import {
   hashSha256Hex,
   getRequestUrl,
   answerInstallationRepositories,
+  SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 
 // Every case drives a full request over the PGlite harness; the slowest
@@ -260,7 +261,10 @@ async function post(
     headers:
       cookie === undefined
         ? {}
-        : { cookie: `__Host-mergebrief_session=${cookie}` },
+        : {
+            ...SAME_ORIGIN_HEADERS,
+            cookie: `__Host-mergebrief_session=${cookie}`,
+          },
   });
 }
 

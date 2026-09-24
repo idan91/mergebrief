@@ -15,14 +15,20 @@ deprecation note here, removal only at a major.
 
 ## dev (2026-09-24)
 
-- **Changed** the reviewer session cookie is `__Host-mergebrief_session`
-  (was `rs_session`) and the OAuth state cookie
-  `__Host-mergebrief_oauth_state` (was `rs_oauth_state`). Both are `Secure`
-  unconditionally, and the prefix forbids a `Domain` attribute, so a
-  sibling subdomain on the same apex can no longer shadow them; the old
-  `rs` prefix meant nothing and is gone. Every signed-in reviewer signs in
-  again once after upgrading; the old session rows fall to the expiry
-  sweep. Bearer clients are unaffected.
+- **Changed** the reviewer session cookie is `__Host-mergebrief_session` (was
+  `rs_session`) and the OAuth state cookie `__Host-mergebrief_oauth_state`. Both are
+  `Secure` unconditionally, and the prefix forbids a `Domain` attribute, so a
+  sibling subdomain on the same apex can no longer shadow them. Every
+  signed-in reviewer signs in again once after upgrading; the old session
+  rows fall to the expiry sweep. Bearer clients are unaffected.
+- **Changed** a cookie-authenticated `POST`, `PUT`, `PATCH` or `DELETE`
+  (`POST /api/auth/logout` included) now needs `Sec-Fetch-Site:
+  same-origin` or an `Origin` equal to `PUBLIC_BASE_URL`'s origin, and
+  answers 403 `forbidden` otherwise. Browsers send one of the two on every
+  such request, so a page served from `PUBLIC_BASE_URL` is unaffected; a
+  script driving the API with a session cookie sets one of them. Bearer
+  requests are exempt. `PUBLIC_BASE_URL` must now parse as an absolute
+  `http(s)` URL, checked at boot.
 
 ## dev (2026-09-22)
 

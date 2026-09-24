@@ -40,12 +40,22 @@ const PortSchema = z
     "MERGEBRIEF_API_PORT must be a port",
   );
 
+/** Parses, and carries a scheme a browser puts in an `Origin` header. */
+function isHttpUrl(value: string): boolean {
+  if (!URL.canParse(value)) {
+    return false;
+  }
+  const { protocol } = new URL(value);
+  return protocol === "http:" || protocol === "https:";
+}
+
 const ConfigSchema = z.object({
   MERGEBRIEF_API_HOST: z.string().min(1).optional(),
   MERGEBRIEF_API_PORT: PortSchema.optional(),
   PUBLIC_BASE_URL: z
     .string({ required_error: "PUBLIC_BASE_URL is required for reviewer auth" })
-    .min(1, "PUBLIC_BASE_URL is required for reviewer auth"),
+    .min(1, "PUBLIC_BASE_URL is required for reviewer auth")
+    .refine(isHttpUrl, "PUBLIC_BASE_URL must be an absolute http(s) URL"),
   SERVER_VERSION: z.string().min(1).optional(),
   MERGEBRIEF_URL_BOX_TOKEN: z.string().min(1).optional(),
 });

@@ -29,6 +29,7 @@ import {
   hashSha256Hex,
   getRequestUrl,
   answerInstallationRepositories,
+  SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 
 // Some cases make several full requests over the PGlite harness (double-POST,
@@ -247,6 +248,7 @@ async function markReady(
   path = READY_PATH,
 ): Promise<Response> {
   const headers: Record<string, string> = {
+    ...SAME_ORIGIN_HEADERS,
     "content-type": "application/json",
   };
 

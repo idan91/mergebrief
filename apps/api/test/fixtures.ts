@@ -17,6 +17,8 @@ import {
 import type { AuthDeps } from "../src/index";
 
 export const SECRET = "test-webhook-secret";
+/** What a same-origin browser fetch carries; every cookie mutation sends it. */
+export const SAME_ORIGIN_HEADERS = { "sec-fetch-site": "same-origin" } as const;
 export const KEY_REF = "SESSION_KEY_V1";
 export const INSTALLATION_ID = 987654;
 export const REVIEWER_ID = 555;

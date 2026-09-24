@@ -36,6 +36,7 @@ import {
   hashSha256Hex,
   getRequestUrl,
   answerInstallationRepositories,
+  SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 
 // Nothing in this file reaches GitHub, so octokit's one-mutation-per-second
@@ -415,6 +416,7 @@ async function postReply(
   path = replyPath(),
 ): Promise<Response> {
   const headers: Record<string, string> = {
+    ...SAME_ORIGIN_HEADERS,
     "content-type": "application/json",
   };
 
@@ -957,6 +959,7 @@ describe("conversation surface", () => {
         {
           method: "POST",
           headers: {
+            ...SAME_ORIGIN_HEADERS,
             "content-type": "application/json",
             cookie: `__Host-mergebrief_session=${cookie}`,
           },

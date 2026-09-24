@@ -23,6 +23,7 @@ import {
   buildAuthDeps,
   createKeyProvider,
   answerInstallationRepositories,
+  SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
@@ -233,6 +234,7 @@ async function post(
   url: string,
 ): Promise<Response> {
   const headers: Record<string, string> = {
+    ...SAME_ORIGIN_HEADERS,
     "content-type": "application/json",
   };
   if (cookie !== undefined) {

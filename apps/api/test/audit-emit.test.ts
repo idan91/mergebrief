@@ -40,6 +40,7 @@ import {
   buildAuthDeps,
   createKeyProvider,
   getRequestUrl,
+  SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 
 vi.setConfig({ testTimeout: 20_000 });
@@ -107,7 +108,11 @@ async function readMark(
     `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/session/chunks/c1/read?base=base&head=head-1`,
     {
       method: "PUT",
-      headers: { "content-type": "application/json", ...headers },
+      headers: {
+        "content-type": "application/json",
+        ...SAME_ORIGIN_HEADERS,
+        ...headers,
+      },
       body: JSON.stringify({ read: true }),
     },
   );
@@ -241,6 +246,25 @@ describe("the audit choke point", () => {
       // A denial resolved no world: the repo is in no reachable installation,
       // so the row files in the url-box world and no tenant can leak.
       installation_id: null,
+    });
+  });
+
+  it("records a cross-origin cookie mutation as a denial", async () => {
+    // A sibling subdomain is same-site, never same-origin; the ledger names
+    // the refusal while the wire stays a plain 403.
+    const res = await readMark(appWith(), {
+      Cookie: `__Host-mergebrief_session=${cookie}`,
+      "sec-fetch-site": "same-site",
+      origin: "https://evil.example.test",
+    });
+
+    expect(res.status).toBe(403);
+    const rows = await auditRows(harness);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      operation: "set-chunk-read",
+      outcome: "denied",
+      reason: "cross-origin",
     });
   });
 

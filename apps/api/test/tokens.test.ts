@@ -31,6 +31,7 @@ import {
   createKeyProvider,
   hashSha256Hex,
   getRequestUrl,
+  SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 
 const REPO_A = 42001;
@@ -544,6 +545,7 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
 
   async function mint(body: unknown, cookie?: string): Promise<Response> {
     const headers: Record<string, string> = {
+      ...SAME_ORIGIN_HEADERS,
       "content-type": "application/json",
     };
 
@@ -733,6 +735,62 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
     ).toEqual(["external-write", "read"]);
   });
 
+  it("refuses a cookie mint that proves no origin", async () => {
+    stubGitHub({});
+    const cookie = await seedSession();
+
+    const res = await app.request("/api/auth/tokens", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        Cookie: `__Host-mergebrief_session=${cookie}`,
+      },
+      body: JSON.stringify({ name: "ci", scope: WriteClassifications.READ }),
+    });
+
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ error: "forbidden", code: "forbidden" });
+    const list = await app.request("/api/auth/tokens", {
+      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
+    });
+    expect(((await list.json()) as { tokens: unknown[] }).tokens).toEqual([]);
+  });
+
+  it("refuses a cookie mint from a sibling subdomain", async () => {
+    stubGitHub({});
+    const cookie = await seedSession();
+
+    const res = await app.request("/api/auth/tokens", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        Cookie: `__Host-mergebrief_session=${cookie}`,
+        "sec-fetch-site": "same-site",
+        origin: "https://evil.example.test",
+      },
+      body: JSON.stringify({ name: "ci", scope: WriteClassifications.READ }),
+    });
+
+    expect(res.status).toBe(403);
+  });
+
+  it("accepts a cookie mint whose Origin is the instance's own", async () => {
+    stubGitHub({});
+    const cookie = await seedSession();
+
+    const res = await app.request("/api/auth/tokens", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        Cookie: `__Host-mergebrief_session=${cookie}`,
+        origin: "https://app.example.test",
+      },
+      body: JSON.stringify({ name: "ci", scope: WriteClassifications.READ }),
+    });
+
+    expect(res.status).toBe(201);
+  });
+
   it("rejects malformed bodies deterministically", async () => {
     stubGitHub({});
     const cookie = await seedSession();
@@ -788,7 +846,10 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
 
     const revoke = await app.request(`/api/auth/tokens/${minted.apiToken.id}`, {
       method: "DELETE",
-      headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
+      headers: {
+        ...SAME_ORIGIN_HEADERS,
+        Cookie: `__Host-mergebrief_session=${cookie}`,
+      },
     });
     expect(revoke.status).toBe(200);
 
@@ -814,7 +875,10 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
       (
         await app.request(`/api/auth/tokens/${minted.apiToken.id}`, {
           method: "DELETE",
-          headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
+          headers: {
+            ...SAME_ORIGIN_HEADERS,
+            Cookie: `__Host-mergebrief_session=${cookie}`,
+          },
         })
       ).status,
     ).toBe(200);
@@ -822,7 +886,10 @@ describe("cookie-only /api/auth/tokens mint, list and revoke", () => {
       (
         await app.request("/api/auth/tokens/999999", {
           method: "DELETE",
-          headers: { Cookie: `__Host-mergebrief_session=${cookie}` },
+          headers: {
+            ...SAME_ORIGIN_HEADERS,
+            Cookie: `__Host-mergebrief_session=${cookie}`,
+          },
         })
       ).status,
     ).toBe(404);

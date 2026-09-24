@@ -72,13 +72,25 @@ import {
   derivePrincipalFromSession,
 } from "./auth/session/logic/principal";
 import {
+  AUDIT_REASON_CROSS_ORIGIN,
   AUDIT_REASON_NO_REPO_ACCESS,
   stampAuditReason,
   stampAuditTarget,
 } from "../product-operations/audit";
+import {
+  isSafeMethod,
+  isSameOriginRequest,
+  readOriginHeaders,
+  resolveAllowedOrigin,
+} from "./auth/session/logic/same-origin";
 import { stampAccess, type RequestLogVariables } from "../request-logging";
 import { createTtlCache } from "./ttl-cache";
-import { BadGateway, NotFound, Unauthorized } from "../shared-errors/api-error";
+import {
+  BadGateway,
+  Forbidden,
+  NotFound,
+  Unauthorized,
+} from "../shared-errors/api-error";
 import { isGitHubDenial } from "../shared-errors/failures";
 import { createReviewerGitHubClient } from "./auth/reviewer-github-client";
 import type { InstallationResolver, RepoWorld } from "./installation-resolver";
@@ -246,6 +258,39 @@ async function resolveRepoUnderFallback(
 // `status`/`durationMs` reflect what the handler actually returned.
 
 /**
+ * A cookie rides on every request the browser sends, whoever built it, so a
+ * cookie principal on a state-changing method must prove the request came
+ * from this instance's own origin. Bearer never rides ambient and needs no
+ * such proof. The layer calls it after the principal is set, so the ledger
+ * records who the request was aimed at; logout, outside the layer, calls it
+ * with no principal. The wire stays a plain 403 either way.
+ */
+export function requireSameOrigin(
+  c: Context<AuthzEnv>,
+  allowedOrigin: string,
+  reviewerId?: ReviewerId,
+): void {
+  if (isSafeMethod(c.req.method)) {
+    return;
+  }
+  const headers = readOriginHeaders(c.req);
+  if (isSameOriginRequest(headers, allowedOrigin)) {
+    return;
+  }
+  const fields: { reviewerId?: ReviewerId } = {};
+  if (reviewerId !== undefined) {
+    fields.reviewerId = reviewerId;
+  }
+  stampAuditReason(c, AUDIT_REASON_CROSS_ORIGIN);
+  stampAccess(c, "403-cross-origin", fields);
+  c.get("logger").warn("cookie mutation refused: origin is not this instance", {
+    secFetchSite: headers.secFetchSite,
+    originPresent: headers.origin !== undefined,
+  });
+  throw new Forbidden();
+}
+
+/**
  * Layer 1: resolve the reviewer session and tenant ctx from the opaque
  * cookie. Denies with 401 (stamping its own access decision); on success
  * sets `ctx`/`session` and defers the stamp to the composition's last layer.
@@ -254,6 +299,7 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
   // Throttle for the Bearer `last_used_at` touch: at most one UPDATE per token
   // per window, app-instance-scoped like the positive cache.
   const touchThrottle = createTtlCache<true>(TOUCH_THROTTLE_MAX_ENTRIES);
+  const allowedOrigin = resolveAllowedOrigin(deps.auth.publicBaseUrl);
 
   return async (c, next) => {
     const startedAt = Date.now();
@@ -340,6 +386,7 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
     // owner world; behind the repo gate the resolver names the world.
     c.set("ctx", { ownerUserId: resolved.session.reviewerId });
     c.set("session", derivePrincipalFromSession(resolved));
+    requireSameOrigin(c, allowedOrigin, resolved.session.reviewerId);
     await next();
     return;
   };

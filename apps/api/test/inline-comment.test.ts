@@ -38,6 +38,7 @@ import {
   hashSha256Hex,
   getRequestUrl,
   answerInstallationRepositories,
+  SAME_ORIGIN_HEADERS,
 } from "./fixtures";
 
 // Not the harness: POST .../comments is on octokit's `triggersNotification`
@@ -357,6 +358,7 @@ async function post(
   path = PATH,
 ): Promise<Response> {
   const headers: Record<string, string> = {
+    ...SAME_ORIGIN_HEADERS,
     "content-type": "application/json",
   };
 
