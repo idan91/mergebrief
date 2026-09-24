@@ -1,7 +1,8 @@
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@web/components/Button/Button";
-import LinkIcon from "../icons/link.svg?react";
+import { Icon } from "@web/components/Icon/Icon";
+import { IconNames } from "@web/components/Icon/types";
 import styles from "./UrlBox.module.scss";
 import { UrlBoxStates } from "./types";
 import { useUrlBoxFacade } from "./useUrlBoxFacade";
@@ -26,7 +27,7 @@ export function UrlBox() {
           void facade.submit(event);
         }}
       >
-        <LinkIcon aria-hidden="true" className={styles["icon"]} />
+        <Icon className={styles["icon"]} name={IconNames.LINK} />
         <input
           aria-busy={facade.submitting}
           aria-label={t("home.urlBox.ariaLabel")}

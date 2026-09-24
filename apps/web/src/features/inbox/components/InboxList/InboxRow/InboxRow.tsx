@@ -13,10 +13,8 @@ import { PullRequestSources } from "@web/features/pulls/types";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import { TitleSegmentKinds, type InboxItem } from "../../../types";
 import { needsReviewer, pickAgeAt, splitTitleCode } from "../../../utils";
-import EyeSlashIcon from "../../icons/eye-slash.svg?react";
-import LinkIcon from "../../icons/link.svg?react";
-import ArrowUpIcon from "../../icons/arrow-up.svg?react";
-import StackIcon from "../../icons/stack.svg?react";
+import { Icon } from "@web/components/Icon/Icon";
+import { IconNames, IconSizes } from "@web/components/Icon/types";
 import styles from "./InboxRow.module.scss";
 import { RowActions } from "./RowActions/RowActions";
 import { RowEnd } from "./RowEnd/RowEnd";
@@ -102,7 +100,7 @@ export function InboxRow({
               className={styles["chip"]}
               variant={ChipVariants.FACT}
             >
-              <StackIcon aria-hidden="true" />
+              <Icon name={IconNames.STACK} size={IconSizes.SM} />
               <ScreenReaderOnly>
                 {t("home.inbox.stackChipLabel", item.stack)}
               </ScreenReaderOnly>
@@ -118,7 +116,7 @@ export function InboxRow({
               tone={ChipTones.MUTED}
               variant={ChipVariants.FACT}
             >
-              <EyeSlashIcon aria-hidden="true" />
+              <Icon name={IconNames.EYE_SLASH} size={IconSizes.SM} />
               <ScreenReaderOnly>
                 {t("home.inbox.unreachableChipLabel")}
               </ScreenReaderOnly>
@@ -132,7 +130,7 @@ export function InboxRow({
               tone={ChipTones.WARNING}
               variant={ChipVariants.FACT}
             >
-              <ArrowUpIcon aria-hidden="true" />
+              <Icon name={IconNames.ARROW_UP} size={IconSizes.SM} />
               <ScreenReaderOnly>
                 {t("home.inbox.behindChipLabel")}
               </ScreenReaderOnly>
@@ -144,7 +142,7 @@ export function InboxRow({
           {" "}
           {item.source === PullRequestSources.URL ? (
             <span className={styles["source"]}>
-              <LinkIcon aria-hidden="true" />
+              <Icon name={IconNames.LINK} size={IconSizes.SM} />
             </span>
           ) : null}
           <span className={styles["repo"]}>{repoLabel}</span>{" "}

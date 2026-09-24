@@ -2,6 +2,8 @@ import type { ComponentPropsWithRef, MouseEvent } from "react";
 import type { ValueOf } from "types/utils";
 import clsx from "clsx";
 
+import { Icon } from "../Icon/Icon";
+import { IconNames, IconSizes } from "../Icon/types";
 import styles from "./Chip.module.scss";
 
 export const ChipElements = {
@@ -73,6 +75,7 @@ export function Chip(props: ChipProps) {
     disabled = false,
     "aria-disabled": ariaDisabled,
     className,
+    children,
     onClick,
     type = "button",
     ...rest
@@ -95,6 +98,9 @@ export function Chip(props: ChipProps) {
       data-variant={variant}
       type={type}
       onClick={handleClick}
-    />
+    >
+      {pressed ? <Icon name={IconNames.CHECK} size={IconSizes.SM} /> : null}
+      {children}
+    </Tag>
   );
 }

@@ -36,4 +36,16 @@ describe("Pager", () => {
     expect(step(1)).toBe(2);
     expect(step(3)).toBe(4);
   });
+
+  it("points the step carets back and forward", () => {
+    render(<Pager page={2} pageSize={25} total={290} onPage={vi.fn()} />);
+
+    const previous = screen.getByRole("button", { name: "Previous page" });
+    const next = screen.getByRole("button", { name: "Next page" });
+    const previousCaret = previous.querySelector('[data-icon="caret-down"]');
+    const nextCaret = next.querySelector('[data-icon="caret-down"]');
+
+    expect(previousCaret?.getAttribute("data-rotation")).toBe("90");
+    expect(nextCaret?.getAttribute("data-rotation")).toBe("270");
+  });
 });

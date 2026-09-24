@@ -2,7 +2,8 @@ import { useTranslation } from "react-i18next";
 
 import { Menu } from "@web/components/Menu/Menu";
 import { MenuTriggerKinds } from "@web/components/Menu/types";
-import SlidersIcon from "../../icons/sliders.svg?react";
+import { Icon } from "@web/components/Icon/Icon";
+import { IconNames, IconSizes } from "@web/components/Icon/types";
 import { FilterRows } from "../FilterRows/FilterRows";
 import filterStyles from "../trigger.module.scss";
 import { FilterStates, type FilterState, type FilterView } from "../types";
@@ -28,7 +29,11 @@ export function CollapsedFilters({
       placement="bottom-start"
       trigger={
         <>
-          <SlidersIcon aria-hidden="true" className={filterStyles["caret"]} />
+          <Icon
+            className={filterStyles["caret"]}
+            name={IconNames.SLIDERS_HORIZONTAL}
+            size={IconSizes.MD}
+          />
           <span className={filterStyles["name"]}>
             {t("home.filters.filters")}
           </span>

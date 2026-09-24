@@ -2,11 +2,8 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { InboxGeneration, InboxItem } from "../../../../types";
-import CircleDashedIcon from "../../../icons/circle-dashed.svg?react";
-import ClockIcon from "../../../icons/clock.svg?react";
-import GitMergeIcon from "../../../icons/git-merge.svg?react";
-import WarningIcon from "../../../icons/warning.svg?react";
-import XCircleIcon from "../../../icons/x-circle.svg?react";
+import { Icon } from "@web/components/Icon/Icon";
+import { IconNames } from "@web/components/Icon/types";
 import styles from "./RowEnd.module.scss";
 import { RowSignalKinds, type RowSignalKind } from "./types";
 import { readGenerationSignal, readStatusSignal } from "./utils";
@@ -18,13 +15,13 @@ export interface RowEndProps {
 }
 
 const ICONS: Readonly<Record<RowSignalKind, ReactNode>> = {
-  [RowSignalKinds.QUEUED]: <ClockIcon />,
+  [RowSignalKinds.QUEUED]: <Icon name={IconNames.CLOCK} />,
   [RowSignalKinds.RUNNING]: <span className={styles["spinner"]} />,
-  [RowSignalKinds.FAILED]: <WarningIcon />,
-  [RowSignalKinds.CAPPED]: <ClockIcon />,
-  [RowSignalKinds.DRAFT]: <CircleDashedIcon />,
-  [RowSignalKinds.MERGED]: <GitMergeIcon />,
-  [RowSignalKinds.CLOSED]: <XCircleIcon />,
+  [RowSignalKinds.FAILED]: <Icon name={IconNames.WARNING} />,
+  [RowSignalKinds.CAPPED]: <Icon name={IconNames.CLOCK} />,
+  [RowSignalKinds.DRAFT]: <Icon name={IconNames.CIRCLE_DASHED} />,
+  [RowSignalKinds.MERGED]: <Icon name={IconNames.GIT_MERGE} />,
+  [RowSignalKinds.CLOSED]: <Icon name={IconNames.X_CIRCLE} />,
 };
 
 /**

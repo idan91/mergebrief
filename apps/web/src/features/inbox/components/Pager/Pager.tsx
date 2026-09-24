@@ -1,7 +1,11 @@
 import { useTranslation } from "react-i18next";
 
-import CaretLeftIcon from "../icons/caret-left.svg?react";
-import CaretRightIcon from "../icons/caret-right.svg?react";
+import { Icon } from "@web/components/Icon/Icon";
+import {
+  IconNames,
+  IconRotations,
+  IconSizes,
+} from "@web/components/Icon/types";
 import styles from "./Pager.module.scss";
 import { PAGE_GAP, listPageSteps } from "./utils";
 
@@ -49,7 +53,11 @@ export function Pager({ page, pageSize, total, onPage }: PagerProps) {
           type="button"
           onClick={stepBack}
         >
-          <CaretLeftIcon aria-hidden="true" />
+          <Icon
+            name={IconNames.CARET_DOWN}
+            rotation={IconRotations.QUARTER}
+            size={IconSizes.MD}
+          />
         </button>
         {steps.map((step, position) =>
           step === PAGE_GAP ? (
@@ -82,7 +90,11 @@ export function Pager({ page, pageSize, total, onPage }: PagerProps) {
           type="button"
           onClick={stepForward}
         >
-          <CaretRightIcon aria-hidden="true" />
+          <Icon
+            name={IconNames.CARET_DOWN}
+            rotation={IconRotations.THREE_QUARTERS}
+            size={IconSizes.MD}
+          />
         </button>
       </div>
     </nav>

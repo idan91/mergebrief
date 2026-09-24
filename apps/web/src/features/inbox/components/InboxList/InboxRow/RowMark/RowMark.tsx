@@ -4,11 +4,10 @@ import type { InboxReviewState } from "types/inbox";
 
 import { Callout } from "@web/components/Callout/Callout";
 import { useCalloutHover } from "@web/components/Callout/useCalloutHover";
-import PersonIcon from "@web/components/icons/person.svg?react";
-import {
-  ReviewMarkGlyphs,
-  ReviewMarkLabelKeys,
-} from "@web/components/marks/consts";
+import { Icon } from "@web/components/Icon/Icon";
+import { IconNames, IconSizes } from "@web/components/Icon/types";
+import { ReviewMarkLabelKeys } from "@web/components/ReviewMark/consts";
+import { ReviewMark } from "@web/components/ReviewMark/ReviewMark";
 import styles from "./RowMark.module.scss";
 
 export interface RowMarkProps {
@@ -17,8 +16,8 @@ export interface RowMarkProps {
 }
 
 /**
- * The review mark on the 14px grid; the viewer's own rows carry the person
- * icon instead. The mark itself is hidden from assistive technology, since
+ * The review mark at row size; the viewer's own rows carry the person icon
+ * instead. The mark itself is hidden from assistive technology, since
  * the row link names the state in words; a pointer that rests on it gets
  * the same words as a callout.
  */
@@ -42,7 +41,11 @@ export function RowMark({ reviewState }: RowMarkProps) {
         onPointerLeave={hover.disarm}
         ref={setAnchor}
       >
-        {reviewState === null ? <PersonIcon /> : ReviewMarkGlyphs[reviewState]}
+        {reviewState === null ? (
+          <Icon name={IconNames.USER} />
+        ) : (
+          <ReviewMark size={IconSizes.LG} state={reviewState} />
+        )}
       </span>
       {hover.open && anchor !== null ? (
         <Callout anchor={anchor} compact fit onClose={hover.close}>

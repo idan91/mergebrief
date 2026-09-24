@@ -1,6 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 
+import { Icon } from "../Icon/Icon";
+import { IconNames, IconSizes } from "../Icon/types";
 import { IconButton } from "../IconButton/IconButton";
 import styles from "./CopyButton.module.scss";
 
@@ -67,24 +69,10 @@ export function CopyButton({
       title={title ?? text}
       onClick={() => void copy()}
     >
-      <svg
-        aria-hidden="true"
-        fill="none"
-        height="12"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        viewBox="0 0 14 14"
-        width="12"
-      >
-        {state === "copied" ? (
-          <path d="M2.5 7.5 6 11l5.5-8" />
-        ) : (
-          <>
-            <rect height="8" rx="1.5" width="8" x="4.5" y="4.5" />
-            <path d="M9.5 2.5h-6a1.5 1.5 0 0 0-1.5 1.5v6" />
-          </>
-        )}
-      </svg>
+      <Icon
+        name={state === "copied" ? IconNames.CHECK : IconNames.COPY}
+        size={IconSizes.SM}
+      />
       {/* Announce the outcome without moving focus. */}
       <span aria-live="polite" className="sr-only">
         {announcement}

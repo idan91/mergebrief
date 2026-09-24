@@ -18,12 +18,6 @@
     gap: functions.to-rem(6px);
     align-items: center;
     white-space: nowrap;
-
-    svg {
-      flex: none;
-      inline-size: 16px;
-      block-size: 16px;
-    }
   }
 
   .status[data-status="merged"] svg {

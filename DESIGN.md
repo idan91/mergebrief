@@ -219,7 +219,20 @@ Flat, with tonal layering. Surfaces step up in brightness; hairlines draw the ed
 
 ## Shapes
 
-Small, consistent corners: 4px for key caps and callouts, 5px for chips, 8px for controls, 10px for the list, the URL box and menus, 12px for the shortcuts dialog. Six tokens carry them: `--radius-xs` (2px, a sliver for bars and markers), `--radius-sm` (4px), `--radius-chip` (5px), `--radius-md` (8px), `--radius-panel` (10px) and `--radius-lg` (12px). Four are named by size and two by the role that wears the odd value, so a chip and a panel never borrow a neighbour's step. Round is kept for people: the avatar is a circle and the account trigger a pill. Borders are 1px. Chips are filled with a soft tint and have no border. Review marks are authored glyphs on a 14px grid with a 1.5px stroke: a filled dot (new), a half disc (in progress), a ringed dot (updated since your review), a ringed check (reviewed).
+Small, consistent corners: 4px for key caps and callouts, 5px for chips, 8px for controls, 10px for the list, the URL box and menus, 12px for the shortcuts dialog. Six tokens carry them: `--radius-xs` (2px, a sliver for bars and markers), `--radius-sm` (4px), `--radius-chip` (5px), `--radius-md` (8px), `--radius-panel` (10px) and `--radius-lg` (12px). Four are named by size and two by the role that wears the odd value, so a chip and a panel never borrow a neighbour's step. Round is kept for people: the avatar is a circle and the account trigger a pill. Borders are 1px. Chips are filled with a soft tint and have no border. Review marks are drawings from the icon set on its 16px grid: a filled circle (new), a filled half circle (in progress), a ringed dot (updated since your review), a ringed check (reviewed).
+
+## Icons
+
+One family, Phosphor, copied icon by icon into `apps/web/src/components/icons/<phosphor-name>.svg`; no dependency, and no second folder. The file name is Phosphor's name; the meaning lives at the site, not in the file.
+
+- **Grid and weight.** A 16px grid at the Bold weight, which is a 1.5px stroke at 16px; the stroke scales with the box, about 1.3px at 14 and 1.1px at 12.
+- **Three sizes.** 12 inside a chip, 14 inside a control (icon button, toolbar, pager, menu row), 16 in a row or a state. Nothing else without a stated reason.
+- **Colour.** `currentColor`, set by the site's token.
+- **Fill.** Stroke by default. Fill is the "on" form of the same icon (selected, active, checked), plus the icons whose meaning is the fill: the four review marks.
+- **Direction by rotation.** One `caret-down` for every caret and disclosure, one `arrow-up` for every arrow, turned in quarter steps by CSS. No mirrored files.
+- **The `Icon` component** owns the contract: `name` from the set, `size` (12, 14, 16), `color`, `rotation`, `className` and an optional `label`. Without a label it is decorative, `aria-hidden` with `focusable="false"`, and the control or row around it carries the meaning; with one it takes `role="img"`. An override is a visible prop, never a second file.
+- **Brand glyphs** (GitHub, the provider marks) ride the same component and props; their own viewBox and fill are the only difference. A full logo, and the product's own mark, sit outside the set.
+- **Text glyphs** are typography, not icons: `↳`, `▪`, `×` and `·` stay text, and the spinner stays CSS. Every other glyph is an svg from the set.
 
 ## Components
 

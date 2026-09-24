@@ -7,6 +7,8 @@ import {
   useState,
 } from "react";
 
+import { Icon } from "../Icon/Icon";
+import { IconNames, IconRotations, IconSizes } from "../Icon/types";
 import { LinkButton } from "../LinkButton/LinkButton";
 import styles from "./ExpandableContent.module.scss";
 import { exceedsCap, parseCapPx } from "./utils";
@@ -151,7 +153,11 @@ export function ExpandableContent({
         }}
       >
         {expanded ? collapseLabel : expandLabel}
-        <span aria-hidden="true">{expanded ? "↑" : "↓"}</span>
+        <Icon
+          name={IconNames.ARROW_UP}
+          rotation={expanded ? IconRotations.NONE : IconRotations.HALF}
+          size={IconSizes.SM}
+        />
       </LinkButton>
     </div>
   );

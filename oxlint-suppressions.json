@@ -290,16 +290,6 @@
       "count": 1
     }
   },
-  "apps/web/src/components/Chip/Chip.test.tsx": {
-    "house/test-title": {
-      "count": 1
-    }
-  },
-  "apps/web/src/components/ExpandableContent/ExpandableContent.test.tsx": {
-    "house/test-title": {
-      "count": 1
-    }
-  },
   "apps/web/src/components/LinkButton/LinkButton.test.tsx": {
     "house/test-title": {
       "count": 1
@@ -320,11 +310,6 @@
       "count": 3
     },
     "house/test-title": {
-      "count": 1
-    }
-  },
-  "apps/web/src/components/MarkdownTextarea/icons.tsx": {
-    "house/no-em-dash": {
       "count": 1
     }
   },

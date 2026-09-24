@@ -11,19 +11,9 @@
     block-size: 20px;
     color: var(--color-accent);
 
-    svg {
-      inline-size: 14px;
-      block-size: 14px;
-    }
-
     &[data-review="reviewed"],
     &[data-review="yours"] {
       color: var(--color-text-2);
-    }
-
-    &[data-review="yours"] svg {
-      inline-size: 15px;
-      block-size: 15px;
     }
   }
 }

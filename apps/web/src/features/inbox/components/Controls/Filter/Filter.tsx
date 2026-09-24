@@ -2,7 +2,8 @@ import { useTranslation } from "react-i18next";
 
 import { Menu } from "@web/components/Menu/Menu";
 import { MenuTriggerKinds } from "@web/components/Menu/types";
-import CaretDownIcon from "@web/components/Menu/icons/caret-down.svg?react";
+import { Icon } from "@web/components/Icon/Icon";
+import { IconNames, IconSizes } from "@web/components/Icon/types";
 import { NAMED_UP_TO } from "../consts";
 import { FilterRows } from "../FilterRows/FilterRows";
 import styles from "../trigger.module.scss";
@@ -46,7 +47,11 @@ export function Filter({ filter }: FilterProps) {
               <span className={styles["value"]}>{value}</span>
             </>
           )}
-          <CaretDownIcon aria-hidden="true" className={styles["caret"]} />
+          <Icon
+            className={styles["caret"]}
+            name={IconNames.CARET_DOWN}
+            size={IconSizes.SM}
+          />
         </>
       }
       triggerClassName={styles["filter"]}

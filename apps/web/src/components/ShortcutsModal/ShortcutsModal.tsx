@@ -2,13 +2,11 @@ import type { TranslationKey } from "i18n";
 import { useTranslation } from "react-i18next";
 import { IconButton } from "../IconButton/IconButton";
 import { Kbd, KbdGroup } from "../Kbd/Kbd";
-import {
-  REVIEW_MARK_ORDER,
-  ReviewMarkGlyphs,
-  ReviewMarkLabelKeys,
-} from "../marks/consts";
+import { REVIEW_MARK_ORDER, ReviewMarkLabelKeys } from "../ReviewMark/consts";
+import { ReviewMarkGlyphs } from "../ReviewMark/ReviewMark";
 import { Modal } from "../Modal/Modal";
-import CloseIcon from "./icons/close.svg?react";
+import { Icon } from "../Icon/Icon";
+import { IconNames, IconSizes } from "../Icon/types";
 import styles from "./ShortcutsModal.module.scss";
 
 export interface ShortcutsModalProps {
@@ -46,7 +44,7 @@ export function ShortcutsModal({ open, close, sections }: ShortcutsModalProps) {
           size="md"
           onClick={close}
         >
-          <CloseIcon aria-hidden="true" />
+          <Icon name={IconNames.X} size={IconSizes.MD} />
         </IconButton>
       </div>
       <div className={styles["sections"]}>

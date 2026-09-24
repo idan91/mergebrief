@@ -4,13 +4,10 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@web/components/Button/Button";
 import { Menu } from "@web/components/Menu/Menu";
 import { MenuRow } from "@web/components/Menu/MenuRow/MenuRow";
-import CaretDownIcon from "@web/components/Menu/icons/caret-down.svg?react";
-import PersonIcon from "@web/components/icons/person.svg?react";
+import { Icon } from "@web/components/Icon/Icon";
+import { IconNames, IconSizes } from "@web/components/Icon/types";
 import { ViewerStates } from "../../types";
 import styles from "./AccountMenu.module.scss";
-import GearIcon from "./icons/gear.svg?react";
-import KeyboardIcon from "./icons/keyboard.svg?react";
-import SignOutIcon from "./icons/sign-out.svg?react";
 import { useAccountMenuFacade } from "./useAccountMenuFacade";
 
 export interface AccountMenuProps {
@@ -49,9 +46,13 @@ export function AccountMenu({ onOpenShortcuts }: AccountMenuProps) {
       {signedIn ? (
         <img alt="" className={styles["avatar"]} src={viewer.avatarUrl} />
       ) : (
-        <PersonIcon aria-hidden="true" className={styles["person"]} />
+        <Icon className={styles["person"]} name={IconNames.USER} />
       )}
-      <CaretDownIcon aria-hidden="true" className={styles["caret"]} />
+      <Icon
+        className={styles["caret"]}
+        name={IconNames.CARET_DOWN}
+        size={IconSizes.SM}
+      />
     </>
   );
 
@@ -68,7 +69,13 @@ export function AccountMenu({ onOpenShortcuts }: AccountMenuProps) {
         </p>
       ) : null}
       <MenuRow
-        glyph={<GearIcon aria-hidden="true" className={styles["icon"]} />}
+        glyph={
+          <Icon
+            className={styles["icon"]}
+            name={IconNames.GEAR}
+            size={IconSizes.MD}
+          />
+        }
         onSelect={facade.openSettings}
       >
         {t("shell.accountMenu.settings")}
@@ -96,7 +103,13 @@ export function AccountMenu({ onOpenShortcuts }: AccountMenuProps) {
       ) : null}
       {onOpenShortcuts === undefined ? null : (
         <MenuRow
-          glyph={<KeyboardIcon aria-hidden="true" className={styles["icon"]} />}
+          glyph={
+            <Icon
+              className={styles["icon"]}
+              name={IconNames.KEYBOARD}
+              size={IconSizes.MD}
+            />
+          }
           onSelect={onOpenShortcuts}
         >
           {t("shell.accountMenu.shortcuts")}
@@ -104,7 +117,13 @@ export function AccountMenu({ onOpenShortcuts }: AccountMenuProps) {
       )}
       <MenuRow
         disabled={facade.signingOut}
-        glyph={<SignOutIcon aria-hidden="true" className={styles["icon"]} />}
+        glyph={
+          <Icon
+            className={styles["icon"]}
+            name={IconNames.SIGN_OUT}
+            size={IconSizes.MD}
+          />
+        }
         keepOpen
         onSelect={() => {
           void facade.signOut();

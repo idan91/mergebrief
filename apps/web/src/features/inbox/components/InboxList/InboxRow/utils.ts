@@ -1,6 +1,6 @@
 import type { TFunction } from "i18next";
 
-import { ReviewMarkLabelKeys } from "@web/components/marks/consts";
+import { ReviewMarkLabelKeys } from "@web/components/ReviewMark/consts";
 import { PullRequestSources } from "@web/features/pulls/types";
 import { AgeUnits, type InboxGeneration, type InboxItem } from "../../../types";
 import { formatAge } from "../../../utils";

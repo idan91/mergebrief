@@ -24,6 +24,15 @@ describe("Chip", () => {
     ).toBe("true");
   });
 
+  it("draws the check mark only while pressed", () => {
+    const { rerender } = render(<Chip>filter</Chip>);
+    const chip = screen.getByRole("button", { name: "filter" });
+    expect(chip.querySelector('[data-icon="check"]')).toBeNull();
+
+    rerender(<Chip pressed>filter</Chip>);
+    expect(chip.querySelector('[data-icon="check"]')).not.toBeNull();
+  });
+
   it("the span branch renders static content without button semantics", () => {
     render(
       <Chip as="span" data-testid="static" tone="warning">
@@ -36,7 +45,7 @@ describe("Chip", () => {
     expect(screen.queryByRole("button")).toBeNull();
   });
 
-  it("disabled renders aria-disabled, never the native attribute, and guards clicks", () => {
+  it("disabled renders aria-disabled, no native attribute, and guards clicks", () => {
     const onClick = vi.fn();
     render(
       <Chip disabled onClick={onClick}>

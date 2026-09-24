@@ -4,7 +4,8 @@ import type { ReactNode } from "react";
 import { MenuItem } from "../../MenuItem/MenuItem";
 import { MenuItemRoles } from "../../MenuItem/types";
 import { useMenuContext } from "../context";
-import CheckIcon from "../icons/check.svg?react";
+import { Icon } from "../../Icon/Icon";
+import { IconNames, IconSizes } from "../../Icon/types";
 import styles from "./MenuRow.module.scss";
 
 export interface MenuRowProps {
@@ -56,7 +57,7 @@ export function MenuRow({
     <span className={styles["content"]}>
       {checked === undefined ? null : (
         <span aria-hidden="true" className={styles["check"]}>
-          {checked ? <CheckIcon /> : null}
+          {checked ? <Icon name={IconNames.CHECK} size={IconSizes.MD} /> : null}
         </span>
       )}
       {glyph === undefined ? null : (

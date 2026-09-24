@@ -8,9 +8,9 @@ import {
 
 import {
   REVIEW_MARK_ORDER,
-  ReviewMarkGlyphs,
   ReviewMarkLabelKeys,
-} from "@web/components/marks/consts";
+} from "@web/components/ReviewMark/consts";
+import { ReviewMarkGlyphs } from "@web/components/ReviewMark/ReviewMark";
 import {
   EVERY_STATUS_PARAM,
   hasEveryStatus,

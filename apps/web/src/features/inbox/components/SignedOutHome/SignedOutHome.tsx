@@ -2,7 +2,8 @@ import { useTranslation } from "react-i18next";
 
 import { Button } from "@web/components/Button/Button";
 import briefPage from "../../assets/brief-page.png";
-import GithubLogoIcon from "../icons/github-logo.svg?react";
+import { Icon } from "@web/components/Icon/Icon";
+import { IconNames } from "@web/components/Icon/types";
 import styles from "./SignedOutHome.module.scss";
 
 const SIGN_IN_PATH = "/api/auth/github";
@@ -24,7 +25,7 @@ export function SignedOutHome() {
           href={SIGN_IN_PATH}
           variant="primary"
         >
-          <GithubLogoIcon aria-hidden="true" className={styles["logo"]} />
+          <Icon name={IconNames.GITHUB_LOGO} />
           {t("home.signedOut.signIn")}
         </Button>
       </div>

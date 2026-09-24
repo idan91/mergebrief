@@ -8,11 +8,8 @@ import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderO
 import { PullRequestSources } from "@web/features/pulls/types";
 import { buildGithubPullUrl } from "@web/utils/github-pull-url";
 import type { InboxItem } from "../../../../types";
-import ArrowsClockwiseIcon from "../../../icons/arrows-clockwise.svg?react";
-import CopyIcon from "../../../icons/copy.svg?react";
-import DotsIcon from "../../../icons/dots-three.svg?react";
-import GitHubIcon from "../../../icons/github-logo.svg?react";
-import TrashIcon from "../../../icons/trash.svg?react";
+import { Icon } from "@web/components/Icon/Icon";
+import { IconNames, IconSizes } from "@web/components/Icon/types";
 import styles from "./RowActions.module.scss";
 import { useRowActionsFacade } from "./useRowActionsFacade";
 
@@ -49,7 +46,7 @@ export function RowActions({ item, onAnnounce, onDeleted }: RowActionsProps) {
           href={githubUrl}
           target="_blank"
         >
-          <GitHubIcon aria-hidden="true" />
+          <Icon name={IconNames.GITHUB_LOGO} size={IconSizes.MD} />
           <ScreenReaderOnly>
             {t("home.inbox.actions.openOnGithub")}
           </ScreenReaderOnly>
@@ -58,20 +55,20 @@ export function RowActions({ item, onAnnounce, onDeleted }: RowActionsProps) {
       <Menu
         label={t("home.inbox.actions.more")}
         placement="bottom-end"
-        trigger={<DotsIcon aria-hidden="true" />}
+        trigger={<Icon name={IconNames.DOTS_THREE} size={IconSizes.MD} />}
         triggerClassName={styles["trigger"]}
       >
         {canRegenerate ? (
           <MenuRow disabled={facade.regenerating} onSelect={facade.regenerate}>
             <span className={styles["rowLabel"]}>
-              <ArrowsClockwiseIcon aria-hidden="true" />
+              <Icon name={IconNames.ARROWS_CLOCKWISE} size={IconSizes.MD} />
               {t("home.inbox.actions.regenerate")}
             </span>
           </MenuRow>
         ) : null}
         <MenuRow onSelect={facade.copyLink}>
           <span className={styles["rowLabel"]}>
-            <CopyIcon aria-hidden="true" />
+            <Icon name={IconNames.COPY} size={IconSizes.MD} />
             {t("home.inbox.actions.copyLink")}
           </span>
         </MenuRow>
@@ -82,7 +79,7 @@ export function RowActions({ item, onAnnounce, onDeleted }: RowActionsProps) {
             onSelect={facade.deleteRow}
           >
             <span className={styles["rowLabel"]}>
-              <TrashIcon aria-hidden="true" />
+              <Icon name={IconNames.TRASH} size={IconSizes.MD} />
               {t("home.inbox.actions.delete")}
             </span>
           </MenuRow>

@@ -18,11 +18,6 @@
     border-radius: var(--radius-chip);
     color: var(--color-text-2);
 
-    svg {
-      inline-size: 16px;
-      block-size: 16px;
-    }
-
     &:hover {
       background: var(--color-surface-3);
       color: var(--color-text-1);
@@ -39,11 +34,6 @@
     display: inline-flex;
     gap: var(--space-3);
     align-items: center;
-
-    svg {
-      inline-size: 14px;
-      block-size: 14px;
-    }
   }
 
   .danger {

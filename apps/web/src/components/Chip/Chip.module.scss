@@ -37,8 +37,7 @@
       );
       color: var(--color-text-1);
 
-      &::before {
-        content: "✓ ";
+      svg {
         color: var(--color-accent);
       }
     }
@@ -76,11 +75,6 @@
       font-variant-numeric: tabular-nums;
       letter-spacing: 0;
       white-space: nowrap;
-
-      svg {
-        inline-size: 12px;
-        block-size: 12px;
-      }
 
       &[data-tone="warning"] {
         background: color-mix(in srgb, var(--color-warning) 12%, transparent);

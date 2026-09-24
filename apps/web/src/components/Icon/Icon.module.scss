@@ -1,0 +1,19 @@
+@layer components {
+  .icon {
+    flex: none;
+
+    &[data-rotation="90"] {
+      transform: rotate(90deg);
+    }
+
+    &[data-rotation="180"] {
+      transform: rotate(180deg);
+    }
+
+    // Drawn as a quarter turn back, so a twist between 270 and rest turns
+    // 90 degrees, not 270.
+    &[data-rotation="270"] {
+      transform: rotate(-90deg);
+    }
+  }
+}

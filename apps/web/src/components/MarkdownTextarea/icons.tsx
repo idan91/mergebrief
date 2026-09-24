@@ -1,26 +1,17 @@
-// Each glyph is its own .svg under ./icons/, imported as a component via
-// vite-plugin-svgr so currentColor inherits. All decorative — every toolbar
-// button carries its own aria-label.
-import BoldIcon from "./icons/bold.svg?react";
-import BulletedListIcon from "./icons/bulleted-list.svg?react";
-import CodeIcon from "./icons/code.svg?react";
-import ItalicIcon from "./icons/italic.svg?react";
-import LinkIcon from "./icons/link.svg?react";
-import NumberedListIcon from "./icons/numbered-list.svg?react";
-import QuoteIcon from "./icons/quote.svg?react";
-import SuggestionIcon from "./icons/suggestion.svg?react";
-import TaskListIcon from "./icons/task-list.svg?react";
+import { Icon } from "../Icon/Icon";
+import { IconNames, IconSizes } from "../Icon/types";
 
+/** Every toolbar glyph is decorative: the IconButton names the action. */
 export const ToolbarIcons = {
-  bold: <BoldIcon aria-hidden="true" />,
-  italic: <ItalicIcon aria-hidden="true" />,
-  code: <CodeIcon aria-hidden="true" />,
-  quote: <QuoteIcon aria-hidden="true" />,
-  bulletedList: <BulletedListIcon aria-hidden="true" />,
-  numberedList: <NumberedListIcon aria-hidden="true" />,
-  taskList: <TaskListIcon aria-hidden="true" />,
-  link: <LinkIcon aria-hidden="true" />,
-  suggestion: <SuggestionIcon aria-hidden="true" />,
-} as const;
+  bold: <Icon name={IconNames.TEXT_B} size={IconSizes.MD} />,
+  italic: <Icon name={IconNames.TEXT_ITALIC} size={IconSizes.MD} />,
+  code: <Icon name={IconNames.CODE} size={IconSizes.MD} />,
+  quote: <Icon name={IconNames.QUOTES} size={IconSizes.MD} />,
+  bulletedList: <Icon name={IconNames.LIST_BULLETS} size={IconSizes.MD} />,
+  numberedList: <Icon name={IconNames.LIST_NUMBERS} size={IconSizes.MD} />,
+  taskList: <Icon name={IconNames.LIST_CHECKS} size={IconSizes.MD} />,
+  link: <Icon name={IconNames.LINK} size={IconSizes.MD} />,
+  suggestion: <Icon name={IconNames.PENCIL_SIMPLE_LINE} size={IconSizes.MD} />,
+};
 
 export type ToolbarIconKey = keyof typeof ToolbarIcons;

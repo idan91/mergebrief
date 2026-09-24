@@ -112,6 +112,21 @@ describe("ExpandableContent", () => {
     ).toBe("true");
   });
 
+  it("turns the arrow down while collapsed and up once expanded", () => {
+    contentHeight = CAP_FALLBACK_PX + 400;
+    renderText();
+
+    const toggle = screen.getByRole("button", { name: "Show full summary" });
+    const arrow = toggle.querySelector('[data-icon="arrow-up"]');
+    expect(arrow?.getAttribute("data-rotation")).toBe("180");
+
+    fireEvent.click(toggle);
+
+    const collapse = screen.getByRole("button", { name: "Collapse summary" });
+    const arrowUp = collapse.querySelector('[data-icon="arrow-up"]');
+    expect(arrowUp?.hasAttribute("data-rotation")).toBe(false);
+  });
+
   it("collapses again on a second toggle", () => {
     contentHeight = CAP_FALLBACK_PX + 400;
     renderText();
@@ -122,7 +137,7 @@ describe("ExpandableContent", () => {
     expect(state()).toBe("collapsed");
   });
 
-  it("expands when focus lands inside the clipped body (WCAG 2.4.11)", () => {
+  it("expands when focus lands inside the clipped body, per WCAG 2.4.11", () => {
     contentHeight = CAP_FALLBACK_PX + 400;
     render(
       <ExpandableContent>

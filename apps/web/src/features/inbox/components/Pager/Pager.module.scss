@@ -35,11 +35,6 @@
     cursor: pointer;
     font: inherit;
 
-    svg {
-      inline-size: 14px;
-      block-size: 14px;
-    }
-
     &:hover:not([aria-disabled="true"]) {
       background: var(--color-surface-2);
       color: var(--color-text-1);
