@@ -3,7 +3,7 @@
 @layer components {
   // The pair stays transparent; each side's cells carry the kind and hue.
   .pair {
-    --row-hue: var(--text);
+    --row-hue: var(--color-text-1);
     --row-hover-tint: 6%;
     --selected-edge-bar: inset 3px 0 0 var(--color-accent);
 
@@ -12,19 +12,19 @@
     // Earned: the same 2px edge DiffRows paints, declared on the cell so
     // it resolves against the cell's hue, not the row's text colour.
     > td[data-line-kind="add"] {
-      --row-hue: var(--green);
+      --row-hue: var(--color-positive);
       --row-hover-tint: 13%;
       --change-edge-bar: inset 2px 0 0 var(--row-hue);
 
-      background: color-mix(in srgb, var(--green) 5%, transparent);
+      background: color-mix(in srgb, var(--color-positive) 5%, transparent);
     }
 
     > td[data-line-kind="del"] {
-      --row-hue: var(--red);
+      --row-hue: var(--color-negative);
       --row-hover-tint: 13%;
       --change-edge-bar: inset 2px 0 0 var(--row-hue);
 
-      background: color-mix(in srgb, var(--red) 5%, transparent);
+      background: color-mix(in srgb, var(--color-negative) 5%, transparent);
     }
 
     > td[data-line-kind="add"][class*="code"] {
@@ -38,11 +38,11 @@
     }
 
     > td[data-line-kind="add"][data-line-number] {
-      color: color-mix(in srgb, var(--green) 75%, transparent);
+      color: color-mix(in srgb, var(--color-positive) 75%, transparent);
     }
 
     > td[data-line-kind="del"][data-line-number] {
-      color: var(--red);
+      color: var(--color-negative);
     }
 
     > td[data-commentable] {

@@ -30,7 +30,7 @@
     max-inline-size: 92vw;
     padding-block: functions.to-rem(26px);
     padding-inline: functions.to-rem(28px);
-    border: 1px solid var(--line2);
+    border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-lg);
     background: var(--box-fill);
 
@@ -49,11 +49,11 @@
       min-block-size: functions.to-rem(84px);
       padding-block: functions.to-rem(11px);
       padding-inline: functions.to-rem(13px);
-      border: 1px solid var(--line2);
+      border: 1px solid var(--color-outline-2);
       border-radius: var(--radius-md);
       outline: none;
-      background: var(--bg);
-      color: var(--text);
+      background: var(--color-background);
+      color: var(--color-text-1);
       font-size: var(--font-size-lg);
       line-height: 1.55;
       resize: vertical;
@@ -72,7 +72,7 @@
 @layer components {
   .copy {
     margin-block: functions.to-rem(10px) functions.to-rem(14px);
-    color: var(--faint);
+    color: var(--color-text-3);
     font-size: var(--font-size-lg);
     line-height: 1.5;
   }
@@ -97,7 +97,7 @@
       display: flex;
       align-items: center;
       gap: functions.to-rem(8px);
-      color: var(--dim);
+      color: var(--color-text-2);
       font-size: var(--font-size-lg);
     }
   }
@@ -106,15 +106,15 @@
     inline-size: 100%;
     padding-block: functions.to-rem(10px);
     padding-inline: functions.to-rem(12px);
-    border: 1px solid var(--line2);
+    border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-md);
-    background: var(--bg);
-    color: var(--text);
+    background: var(--color-background);
+    color: var(--color-text-1);
   }
 
   .target {
     margin-block-end: functions.to-rem(16px);
-    color: var(--amber);
+    color: var(--color-warning);
     font-family: var(--mono);
     font-size: var(--font-size-md);
   }
@@ -124,10 +124,10 @@
     margin-block-start: functions.to-rem(12px);
     padding-block: functions.to-rem(11px);
     padding-inline: functions.to-rem(14px);
-    border: 1px solid color-mix(in srgb, var(--amber) 30%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-warning) 30%, transparent);
     border-radius: var(--radius-md);
-    background: color-mix(in srgb, var(--amber) 5%, transparent);
-    color: var(--amber);
+    background: color-mix(in srgb, var(--color-warning) 5%, transparent);
+    color: var(--color-warning);
     font-size: var(--font-size-lg);
     line-height: 1.55;
 
@@ -148,7 +148,7 @@
     align-items: center;
     gap: functions.to-rem(8px);
     margin-block: functions.to-rem(2px) functions.to-rem(6px);
-    color: var(--dim);
+    color: var(--color-text-2);
     font-size: var(--font-size-lg);
     cursor: pointer;
 

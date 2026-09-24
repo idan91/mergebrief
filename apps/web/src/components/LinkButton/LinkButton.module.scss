@@ -16,11 +16,11 @@
     text-underline-offset: functions.to-rem(3px);
 
     &:hover {
-      color: var(--text);
+      color: var(--color-text-1);
     }
 
     &[aria-disabled="true"] {
-      color: var(--dim);
+      color: var(--color-text-2);
       cursor: default;
       text-decoration: none;
     }

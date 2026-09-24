@@ -47,9 +47,9 @@ typography:
 rounded:
   xs: "2px"
   sm: "4px"
-  s: "5px"
-  m: "8px"
-  l: "10px"
+  chip: "5px"
+  md: "8px"
+  panel: "10px"
   lg: "12px"
   pill: "999px"
   round: "50%"
@@ -67,30 +67,30 @@ components:
   button-accent:
     backgroundColor: "{colors.accent}"
     textColor: "{colors.accent-ink}"
-    rounded: "{rounded.m}"
+    rounded: "{rounded.md}"
     height: "32px"
     padding: "0 16px"
   button-primary:
     backgroundColor: "{colors.text-1}"
     textColor: "{colors.accent-ink}"
-    rounded: "{rounded.m}"
+    rounded: "{rounded.md}"
     height: "38px"
     padding: "8px 16px"
   button-secondary:
     textColor: "{colors.text-1}"
-    rounded: "{rounded.m}"
+    rounded: "{rounded.md}"
     height: "38px"
     padding: "8px 16px"
   url-box:
     backgroundColor: "{colors.surface-2}"
     textColor: "{colors.text-1}"
-    rounded: "{rounded.l}"
+    rounded: "{rounded.panel}"
     height: "44px"
   url-box-focus:
     backgroundColor: "{colors.surface-3}"
   list:
     backgroundColor: "{colors.surface-1}"
-    rounded: "{rounded.l}"
+    rounded: "{rounded.panel}"
   list-row:
     height: "56px"
     padding: "9px 16px"
@@ -100,17 +100,17 @@ components:
     backgroundColor: "{colors.surface-3}"
   chip:
     textColor: "{colors.text-read}"
-    rounded: "{rounded.s}"
+    rounded: "{rounded.chip}"
     height: "20px"
     padding: "0 7px"
   filter:
-    rounded: "{rounded.m}"
+    rounded: "{rounded.md}"
     height: "28px"
   filter-changed:
     textColor: "{colors.accent}"
   menu:
     backgroundColor: "{colors.surface-3}"
-    rounded: "{rounded.l}"
+    rounded: "{rounded.panel}"
   avatar:
     backgroundColor: "{colors.accent}"
     textColor: "{colors.accent-ink}"
@@ -219,7 +219,7 @@ Flat, with tonal layering. Surfaces step up in brightness; hairlines draw the ed
 
 ## Shapes
 
-Small, consistent corners: 4px for key caps and callouts, 5px for chips, 8px for controls, 10px for the list, the URL box and menus, 12px for the shortcuts dialog. The tokens are named by these values, `--radius-sm` for 4px through `--radius-lg` for 12px, and `--radius-xs` is a 2px sliver for bars and markers. Round is kept for people: the avatar is a circle and the account trigger a pill. Borders are 1px. Chips are filled with a soft tint and have no border. Review marks are authored glyphs on a 14px grid with a 1.5px stroke: a filled dot (new), a half disc (in progress), a ringed dot (updated since your review), a ringed check (reviewed).
+Small, consistent corners: 4px for key caps and callouts, 5px for chips, 8px for controls, 10px for the list, the URL box and menus, 12px for the shortcuts dialog. Six tokens carry them: `--radius-xs` (2px, a sliver for bars and markers), `--radius-sm` (4px), `--radius-chip` (5px), `--radius-md` (8px), `--radius-panel` (10px) and `--radius-lg` (12px). Four are named by size and two by the role that wears the odd value, so a chip and a panel never borrow a neighbour's step. Round is kept for people: the avatar is a circle and the account trigger a pill. Borders are 1px. Chips are filled with a soft tint and have no border. Review marks are authored glyphs on a 14px grid with a 1.5px stroke: a filled dot (new), a half disc (in progress), a ringed dot (updated since your review), a ringed check (reviewed).
 
 ## Components
 

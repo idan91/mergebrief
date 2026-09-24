@@ -6,7 +6,7 @@
     display: inline-flex;
     align-items: center;
     gap: functions.to-rem(7px);
-    color: var(--dim);
+    color: var(--color-text-2);
     font-size: var(--font-size-md);
     cursor: pointer;
     user-select: none;
@@ -16,11 +16,11 @@
     }
 
     &:hover .label {
-      color: var(--text);
+      color: var(--color-text-1);
     }
 
     &[data-disabled] {
-      color: var(--faint);
+      color: var(--color-text-3);
       cursor: default;
     }
   }
@@ -44,7 +44,7 @@
     flex-shrink: 0;
     width: 14px;
     height: 14px;
-    border: 1px solid var(--line2);
+    border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-xs);
     background: var(--color-surface-2);
     transition:
@@ -92,7 +92,7 @@
   }
 
   .input:disabled + .box {
-    border-color: var(--line);
+    border-color: var(--color-outline-1);
     background: var(--color-surface-1);
   }
 

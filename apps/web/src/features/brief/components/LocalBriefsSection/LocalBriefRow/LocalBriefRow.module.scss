@@ -14,13 +14,13 @@
     }
 
     &:first-child {
-      border-start-start-radius: var(--radius-l);
-      border-start-end-radius: var(--radius-l);
+      border-start-start-radius: var(--radius-panel);
+      border-start-end-radius: var(--radius-panel);
     }
 
     &:last-child {
-      border-end-start-radius: var(--radius-l);
-      border-end-end-radius: var(--radius-l);
+      border-end-start-radius: var(--radius-panel);
+      border-end-end-radius: var(--radius-panel);
     }
 
     &:hover {

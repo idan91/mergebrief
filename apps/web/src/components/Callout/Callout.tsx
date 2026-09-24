@@ -35,7 +35,7 @@ export interface CalloutProps {
   interactive?: boolean;
   /**
    * Called when the hover system (anchor + callout, joined by safePolygon)
-   * is left — the parent unmounts the callout in response. The pointer can
+   * is left; the parent unmounts the callout in response. The pointer can
    * travel into the callout and rest there (select, copy) without closing.
    */
   onClose: () => void;
@@ -109,7 +109,7 @@ function CalloutRoot({
         className={styles["arrow"]}
         context={context}
         ref={arrowRef}
-        // Hairline to match the callout border (--line2; SVG presentation
+        // Hairline to match the callout border (--color-outline-2; SVG presentation
         // attributes cannot resolve CSS custom properties).
         stroke="#2b2b32"
         strokeWidth={1}
@@ -143,7 +143,7 @@ function CalloutEyebrow({ children }: { children: ReactNode }) {
 export interface CalloutTitleProps {
   children: ReactNode;
   /**
-   * Max lines before the title clamps with an ellipsis — a display-side
+   * Max lines before the title clamps with an ellipsis, a display-side
    * guard for model-authored text; the data stays intact. Unset = no clamp.
    */
   clamp?: number | undefined;

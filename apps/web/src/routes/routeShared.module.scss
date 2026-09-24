@@ -3,9 +3,9 @@
 @layer components {
   .errorState {
     padding: functions.to-rem(28px);
-    border: 1px solid var(--line);
+    border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-lg);
-    background: var(--panel2);
+    background: var(--color-surface-1);
 
     h1 {
       margin-block-end: functions.to-rem(8px);
@@ -17,7 +17,7 @@
     }
 
     p {
-      color: var(--dim);
+      color: var(--color-text-2);
     }
   }
 
@@ -28,10 +28,10 @@
     z-index: 80;
     padding-block: functions.to-rem(10px);
     padding-inline: functions.to-rem(14px);
-    border: 1px solid var(--line2);
+    border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-md);
     background: var(--color-surface-3);
-    color: var(--text);
+    color: var(--color-text-1);
     font-size: var(--font-size-lg);
     text-decoration: none;
   }

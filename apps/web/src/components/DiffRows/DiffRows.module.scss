@@ -24,17 +24,17 @@
     }
 
     // Hover deepens the row's OWN hue — grey over green/red is invisible.
-    --row-hue: var(--text);
+    --row-hue: var(--color-text-1);
 
     // Earned: a 2px edge in the row's own hue, so a changed block reads as one.
     --change-edge-bar: inset 2px 0 0 var(--row-hue);
     --row-hover-tint: 6%;
 
     &[data-line-kind="add"] {
-      --row-hue: var(--green);
+      --row-hue: var(--color-positive);
       --row-hover-tint: 13%;
 
-      background: color-mix(in srgb, var(--green) 5%, transparent);
+      background: color-mix(in srgb, var(--color-positive) 5%, transparent);
 
       .code {
         color: var(--color-diff-add-text);
@@ -44,15 +44,15 @@
       // 45% measured 2.7:1 against the added-row tint — a WCAG 1.4.3 failure.
       // 75% lands at 5.3:1 and keeps the gutter tinted.
       .lineNumber {
-        color: color-mix(in srgb, var(--green) 75%, transparent);
+        color: color-mix(in srgb, var(--color-positive) 75%, transparent);
       }
     }
 
     &[data-line-kind="del"] {
-      --row-hue: var(--red);
+      --row-hue: var(--color-negative);
       --row-hover-tint: 13%;
 
-      background: color-mix(in srgb, var(--red) 5%, transparent);
+      background: color-mix(in srgb, var(--color-negative) 5%, transparent);
 
       .code {
         color: var(--color-diff-del-text);
@@ -62,7 +62,7 @@
       // Same measurement as the added-row gutter above: 40% read at 2.1:1,
       // full strength at 5.6:1.
       .lineNumber {
-        color: var(--red);
+        color: var(--color-negative);
       }
     }
 
@@ -70,14 +70,14 @@
       padding-block: functions.to-rem(6px);
       padding-inline: functions.to-rem(14px);
       background: var(--color-surface-2);
-      color: var(--faint);
+      color: var(--color-text-3);
       font-size: var(--font-size-sm);
     }
 
     &[data-line-kind="note"] td {
       padding-block: functions.to-rem(7px);
       padding-inline: functions.to-rem(14px);
-      color: var(--faint);
+      color: var(--color-text-3);
       font-size: var(--font-size-sm);
       font-style: italic;
     }

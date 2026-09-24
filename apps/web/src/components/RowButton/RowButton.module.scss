@@ -15,20 +15,20 @@
     min-height: functions.to-rem(44px);
     padding-block: functions.to-rem(8px);
     padding-inline: functions.to-rem(10px);
-    border: 1px solid var(--line);
+    border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-md);
     background: var(--color-surface-2);
-    color: var(--text);
+    color: var(--color-text-1);
     cursor: pointer;
     font-size: var(--font-size-lg);
     text-align: start;
 
     &[aria-expanded="true"] {
-      border-color: var(--dim);
+      border-color: var(--color-text-2);
     }
 
     &[aria-disabled="true"] {
-      color: var(--dim);
+      color: var(--color-text-2);
       cursor: default;
     }
   }
@@ -78,13 +78,13 @@
     min-height: 0;
     padding-block: functions.to-rem(10px);
     padding-inline: functions.to-rem(12px);
-    background: var(--bg);
+    background: var(--color-background);
 
     /* The old card set no size — uncovered content took the root size. */
     font-size: var(--font-size-root);
 
     span {
-      color: var(--faint);
+      color: var(--color-text-3);
       font-size: var(--font-size-sm);
     }
 

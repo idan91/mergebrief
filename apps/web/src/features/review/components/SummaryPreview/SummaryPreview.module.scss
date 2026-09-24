@@ -5,7 +5,7 @@
     min-block-size: 100vh;
     padding-block: functions.to-rem(40px) functions.to-rem(72px);
     padding-inline: functions.to-rem(24px);
-    background: var(--bg);
+    background: var(--color-background);
   }
 
   .shell {
@@ -15,7 +15,7 @@
 
   .kicker {
     margin-block-end: functions.to-rem(10px);
-    color: var(--faint);
+    color: var(--color-text-3);
     font-family: var(--mono);
     font-size: var(--font-size-sm);
   }
@@ -38,7 +38,7 @@
     }
 
     p {
-      color: var(--dim);
+      color: var(--color-text-2);
       font-size: var(--font-size-lg);
     }
   }
@@ -47,19 +47,19 @@
     flex: none;
     padding-block: functions.to-rem(5px);
     padding-inline: functions.to-rem(10px);
-    border: 1px solid color-mix(in srgb, var(--amber) 35%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-warning) 35%, transparent);
     border-radius: var(--radius-pill);
-    color: var(--amber);
+    color: var(--color-warning);
     font-size: var(--font-size-sm);
     font-weight: 600;
   }
 
   .card {
     padding: functions.to-rem(20px);
-    border: 1px solid var(--line);
+    border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-md);
     margin-block-end: functions.to-rem(16px);
-    background: var(--panel2);
+    background: var(--color-surface-1);
 
     h2 {
       margin-block-end: functions.to-rem(14px);
@@ -72,7 +72,7 @@
 
     h3 {
       margin-block: functions.to-rem(16px) functions.to-rem(8px);
-      color: var(--dim);
+      color: var(--color-text-2);
       font-size: var(--font-size-md);
 
       // Same pin as the h2 above.
@@ -92,11 +92,11 @@
   .signature {
     padding-block: functions.to-rem(12px);
     padding-inline: functions.to-rem(14px);
-    border: 1px solid var(--line2);
+    border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-md);
     margin-block-start: functions.to-rem(14px);
-    background: var(--bg);
-    color: var(--dim);
+    background: var(--color-background);
+    color: var(--color-text-2);
     font-family: var(--mono);
     font-size: var(--font-size-md);
     line-height: 1.5;
@@ -105,9 +105,9 @@
   .outcomeValue {
     padding-block: functions.to-rem(6px);
     padding-inline: functions.to-rem(10px);
-    border: 1px solid var(--line2);
+    border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-md);
-    color: var(--text);
+    color: var(--color-text-1);
     font-family: var(--mono);
     font-size: var(--font-size-md);
   }
@@ -125,18 +125,18 @@
 
     div {
       padding: functions.to-rem(10px);
-      border: 1px solid var(--line);
+      border: 1px solid var(--color-outline-1);
       border-radius: var(--radius-md);
     }
 
     dt {
-      color: var(--faint);
+      color: var(--color-text-3);
       font-size: var(--font-size-sm);
     }
 
     dd {
       margin-block-start: functions.to-rem(4px);
-      color: var(--text);
+      color: var(--color-text-1);
       font-family: var(--mono);
     }
   }
@@ -144,10 +144,10 @@
   .comment,
   .risk {
     padding-block: functions.to-rem(10px);
-    border-block-start: 1px solid var(--line);
+    border-block-start: 1px solid var(--color-outline-1);
 
     span {
-      color: var(--dim);
+      color: var(--color-text-2);
       font-family: var(--mono);
       font-size: var(--font-size-sm);
     }
@@ -156,14 +156,14 @@
     small {
       display: block;
       margin-block-start: functions.to-rem(5px);
-      color: var(--faint);
+      color: var(--color-text-3);
       font-size: var(--font-size-md);
       line-height: 1.45;
     }
   }
 
   .empty {
-    color: var(--faint);
+    color: var(--color-text-3);
     font-size: var(--font-size-md);
   }
 
@@ -175,9 +175,9 @@
     span {
       padding-block: functions.to-rem(4px);
       padding-inline: functions.to-rem(9px);
-      border: 1px solid var(--line2);
+      border: 1px solid var(--color-outline-2);
       border-radius: var(--radius-pill);
-      color: var(--dim);
+      color: var(--color-text-2);
       font-size: var(--font-size-md);
     }
   }

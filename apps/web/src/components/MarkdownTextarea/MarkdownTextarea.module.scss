@@ -19,15 +19,15 @@
       border-block-end: 0;
       border-radius: var(--radius-md) var(--radius-md) 0 0;
       background: transparent;
-      color: var(--faint);
+      color: var(--color-text-3);
       cursor: pointer;
       font-size: var(--font-size-md);
       font-weight: 600;
 
       &[data-state="active"] {
-        border-color: var(--line2);
+        border-color: var(--color-outline-2);
         background: var(--color-surface-2);
-        color: var(--text);
+        color: var(--color-text-1);
       }
 
       @include mixins.focus-visible;
@@ -39,7 +39,7 @@
     flex-wrap: wrap;
     gap: functions.to-rem(4px);
     padding: functions.to-rem(10px);
-    border-block-start: 1px solid var(--line);
+    border-block-start: 1px solid var(--color-outline-1);
     background: var(--color-surface-2);
   }
 
@@ -49,11 +49,11 @@
     min-block-size: functions.to-rem(118px);
     max-block-size: functions.to-rem(400px);
     padding: functions.to-rem(12px);
-    border: 1px solid var(--line2);
+    border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-md);
     margin: functions.to-rem(10px);
     background: var(--color-background);
-    color: var(--text);
+    color: var(--color-text-1);
 
     // Comments are text-first: the body composes in the UI sans; code stays
     // mono inside fences and the suggestion diff card.
@@ -75,7 +75,7 @@
     margin-block: 0 functions.to-rem(8px);
     margin-inline: functions.to-rem(10px);
     padding: functions.to-rem(4px);
-    border: 1px solid var(--line2);
+    border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-md);
     background: var(--color-surface-1);
     box-shadow: var(--shadow-elevation-md);
@@ -89,13 +89,13 @@
     padding-block: functions.to-rem(5px);
     padding-inline: functions.to-rem(8px);
     border-radius: var(--radius-sm);
-    color: var(--dim);
+    color: var(--color-text-2);
     cursor: pointer;
     font-size: var(--font-size-md);
 
     &[data-state="active"] {
       background: var(--color-surface-2);
-      color: var(--text);
+      color: var(--color-text-1);
     }
   }
 
@@ -120,7 +120,7 @@
 
   .mentionName {
     overflow: hidden;
-    color: var(--faint);
+    color: var(--color-text-3);
     font-size: var(--font-size-sm);
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -129,7 +129,7 @@
   .hint {
     padding-block: 0 functions.to-rem(8px);
     padding-inline: functions.to-rem(12px);
-    color: var(--faint);
+    color: var(--color-text-3);
     font-size: var(--font-size-sm);
   }
 
@@ -141,7 +141,7 @@
 
   .empty {
     padding: functions.to-rem(12px);
-    color: var(--faint);
+    color: var(--color-text-3);
     font-size: var(--font-size-md);
   }
 }

@@ -7,14 +7,14 @@
 
     gap: functions.to-rem(6px);
     padding: functions.to-rem(10px);
-    border: 1px solid var(--line);
+    border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-md);
     background: var(--color-surface-1);
   }
 
   .label {
     margin: 0;
-    color: var(--dim);
+    color: var(--color-text-2);
     font-family: var(--mono);
     font-size: var(--font-size-sm);
     font-weight: 500;
@@ -42,16 +42,16 @@
 
   .botTag {
     padding-inline: functions.to-rem(5px);
-    border: 1px solid var(--line);
+    border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-sm);
-    color: var(--dim);
+    color: var(--color-text-2);
     font-family: var(--mono);
     font-size: var(--font-size-xs);
     font-weight: 400;
   }
 
   .botSummary {
-    color: var(--dim);
+    color: var(--color-text-2);
     font-weight: 400;
   }
 }

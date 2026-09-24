@@ -16,11 +16,11 @@
   }
 
   .badge[data-color="neutral"] {
-    --badge-color: var(--faint);
+    --badge-color: var(--color-text-3);
   }
 
   .badge[data-color="text"] {
-    --badge-color: var(--text);
+    --badge-color: var(--color-text-1);
   }
 
   .badge[data-color="blue"] {
@@ -28,19 +28,19 @@
   }
 
   .badge[data-color="violet"] {
-    --badge-color: var(--violet);
+    --badge-color: var(--color-merged);
   }
 
   .badge[data-color="amber"] {
-    --badge-color: var(--amber);
+    --badge-color: var(--color-warning);
   }
 
   .badge[data-color="positive"] {
-    --badge-color: var(--green);
+    --badge-color: var(--color-positive);
   }
 
   .badge[data-color="negative"] {
-    --badge-color: var(--red);
+    --badge-color: var(--color-negative);
   }
 
   .badge[data-fill] {

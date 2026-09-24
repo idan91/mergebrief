@@ -73,7 +73,7 @@
   background-attachment: local, local, scroll, scroll;
   background-color: var(--scroller-bg);
   background-repeat: no-repeat;
-  scrollbar-color: var(--line2) transparent;
+  scrollbar-color: var(--color-outline-2) transparent;
   scrollbar-width: thin;
 
   &::-webkit-scrollbar {
@@ -86,7 +86,7 @@
 
   &::-webkit-scrollbar-thumb {
     border-radius: var(--radius-pill);
-    background: var(--line2);
+    background: var(--color-outline-2);
   }
 }
 
@@ -95,7 +95,7 @@
 // Headings arrive demoted (h1 to h3, h2 to h4), and a demoted h1 cannot be
 // told from an authored h3, so each level carries one style serving both.
 @mixin markdown-type {
-  color: var(--dim);
+  color: var(--color-text-2);
   font-size: var(--font-size-xl);
   line-height: 1.65;
 
@@ -104,7 +104,7 @@
   h5,
   h6 {
     margin-block: functions.to-rem(18px) functions.to-rem(8px);
-    color: var(--text);
+    color: var(--color-text-1);
     font-weight: 600;
     line-height: 1.65;
   }
@@ -143,12 +143,12 @@
     text-underline-offset: functions.to-rem(3px);
 
     &:hover {
-      color: var(--text);
+      color: var(--color-text-1);
     }
   }
 
   strong {
-    // Off-scale: bold text sits just under --color-text.
+    // Off-scale: bold text sits just under --color-text-1.
     --strong-text: #d7d7dc;
 
     color: var(--strong-text);

@@ -4,7 +4,7 @@
   .suggestionCard {
     overflow: hidden;
     margin-block-start: functions.to-rem(12px);
-    border: 1px solid var(--line2);
+    border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-md);
     background: var(--color-surface-1);
   }
@@ -12,8 +12,8 @@
   .suggestionTitle {
     padding-block: functions.to-rem(9px);
     padding-inline: functions.to-rem(10px);
-    border-block-end: 1px solid var(--line);
-    color: var(--text);
+    border-block-end: 1px solid var(--color-outline-1);
+    color: var(--color-text-1);
     font-size: var(--font-size-md);
     font-weight: 650;
   }

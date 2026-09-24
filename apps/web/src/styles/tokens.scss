@@ -2,10 +2,8 @@
 
 // Global design tokens (CSS custom properties — runtime cascade, not module-scoped).
 // Loaded once at the root; component styles reference var(--token) with no import.
-// Three layers, in order: primitives (raw palette, barred from .module.scss by
-// stylelint), the canonical semantic families (what components consume), and
-// legacy aliases that point at canon and carry no values of their own
-// (consumers retire onto --color-* file-by-file).
+// Two layers, in order: primitives (raw palette, barred from .module.scss by
+// stylelint) and the semantic families components consume.
 @layer tokens {
   :root {
     // ── Primitives ───────────────────────────────────────────────────────
@@ -123,26 +121,6 @@
     --color-fill-bright: #d8d8de;
     --focus-ring: var(--color-accent);
 
-    // ── Legacy aliases ───────────────────────────────────────────────────
-    // Value-less pointers at canon, retiring file-by-file as sweeps touch
-    // each module. Never give one a value of its own.
-    --bg: var(--color-background);
-    --panel: var(--color-surface-1);
-    --panel2: var(--color-surface-1);
-    --line: var(--color-outline-1);
-    --line2: var(--color-outline-2);
-    --text: var(--color-text-1);
-    --dim: var(--color-text-2);
-    --faint: var(--color-text-3);
-    --blue: var(--color-accent);
-    --green: var(--color-positive);
-    --red: var(--color-negative);
-    --amber: var(--color-warning);
-    --violet: var(--violet-400);
-    --accent: var(--color-accent);
-    --muted: var(--color-text-2);
-    --color-text: var(--color-text-1);
-
     // ── Type scale ───────────────────────────────────────────────────────
     // Nine steps, 10/11/12/13/15/17/20/24/30, deltas 1,1,1,2,2,3,4,6, so the
     // scale widens as it climbs. `md` is the body anchor; roles never earn
@@ -169,12 +147,13 @@
     // justification and a line-scoped stylelint disable.
 
     // ── Radius scale ─────────────────────────────────────────────────────
-    --radius-s: 5px;
-    --radius-m: 8px;
-    --radius-l: 10px;
+    // Corners by role: two named by the thing that wears them, the rest
+    // by size; the chip and the panel take the odd values on purpose.
     --radius-xs: 2px; // tiny bars, markers, inner slivers
-    --radius-sm: 4px; // chips, inputs, inner corners
-    --radius-md: 8px; // THE card / panel corner
+    --radius-sm: 4px; // key caps, callouts, inner corners
+    --radius-chip: 5px; // chips, row actions, the URL box's key hint
+    --radius-md: 8px; // controls, cards
+    --radius-panel: 10px; // the list, the URL box, menus, panels
     --radius-lg: 12px; // modals, sheets, outer group frames
     --radius-pill: 999px; // pills
     --radius-circle: 50%; // avatars, dots, round icon buttons

@@ -11,7 +11,7 @@
        against the group list. */
     margin-block: functions.to-rem(20px) functions.to-rem(24px);
     padding: functions.to-rem(16px);
-    border: 1px solid var(--line);
+    border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-md);
     background: var(--color-surface-1);
   }
@@ -39,7 +39,7 @@
     align-items: baseline;
     gap: functions.to-rem(8px);
     min-height: functions.to-rem(24px);
-    color: var(--text);
+    color: var(--color-text-1);
     text-decoration: none;
 
     /* The C-shortcut scroll must clear the sticky app header — same offset
@@ -50,7 +50,7 @@
   }
 
   .twist {
-    color: var(--dim);
+    color: var(--color-text-2);
     font-size: var(--font-size-xs);
     transition: transform 0.15s ease;
 
@@ -66,7 +66,7 @@
   }
 
   .headSummary {
-    color: var(--dim);
+    color: var(--color-text-2);
     font-size: var(--font-size-md);
     font-weight: 400;
   }
@@ -75,7 +75,7 @@
      collapsed too, which is when it matters. */
   .afterBriefNote {
     margin: 0;
-    color: var(--dim);
+    color: var(--color-text-2);
     font-size: var(--font-size-md);
   }
 

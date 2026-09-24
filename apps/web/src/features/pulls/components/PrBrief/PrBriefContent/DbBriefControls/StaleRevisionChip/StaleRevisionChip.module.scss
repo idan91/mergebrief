@@ -6,7 +6,7 @@
   // amber tint measured 4.6:1 at 11px, which is legible only on paper.
   .dot {
     flex: none;
-    color: var(--amber);
+    color: var(--color-warning);
     inline-size: 6px;
     block-size: 6px;
     border-radius: var(--radius-circle);
@@ -29,7 +29,7 @@
     padding-inline-start: functions.to-rem(8px);
     margin-inline-start: functions.to-rem(2px);
     border-inline-start: 1px solid
-      color-mix(in srgb, var(--amber) 40%, transparent);
-    color: var(--text);
+      color-mix(in srgb, var(--color-warning) 40%, transparent);
+    color: var(--color-text-1);
   }
 }

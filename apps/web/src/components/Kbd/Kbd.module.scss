@@ -16,11 +16,11 @@
     min-block-size: functions.to-rem(24px);
     padding-block: functions.to-rem(2px);
     padding-inline: functions.to-rem(6px);
-    border: 1px solid var(--line2);
+    border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-sm);
     background: var(--color-surface-3);
     box-shadow: var(--kbd-lip), var(--kbd-shade), var(--kbd-drop);
-    color: var(--dim);
+    color: var(--color-text-2);
     font-family: var(--mono);
     font-size: var(--font-size-md);
     font-weight: 600;
@@ -36,7 +36,7 @@
     padding-block: functions.to-rem(1px);
     padding-inline: functions.to-rem(5px);
     background: var(--color-surface-2);
-    color: var(--dim);
+    color: var(--color-text-2);
     font-size: var(--font-size-sm);
   }
 
@@ -48,7 +48,7 @@
   }
 
   .join {
-    color: var(--faint);
+    color: var(--color-text-3);
     font-size: var(--font-size-sm);
     font-weight: 500;
     line-height: 1;

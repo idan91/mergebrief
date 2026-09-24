@@ -280,11 +280,6 @@
       "count": 2
     }
   },
-  "apps/web/src/components/Callout/Callout.tsx": {
-    "house/no-em-dash": {
-      "count": 2
-    }
-  },
   "apps/web/src/components/Checkbox/Checkbox.test.tsx": {
     "house/no-em-dash": {
       "count": 2

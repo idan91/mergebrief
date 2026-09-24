@@ -8,7 +8,7 @@
     border: 1px solid transparent;
     border-radius: var(--radius-md);
     background: transparent;
-    color: var(--dim);
+    color: var(--color-text-2);
     cursor: pointer;
     place-items: center;
     transition:
@@ -17,9 +17,9 @@
       color var(--motion-fast);
 
     &:not([aria-disabled="true"]):hover {
-      border-color: var(--line2);
+      border-color: var(--color-outline-2);
       background: var(--color-surface-1);
-      color: var(--text);
+      color: var(--color-text-1);
     }
 
     &[data-size="sm"] {
@@ -47,13 +47,17 @@
     }
 
     &[data-variant="outlined"] {
-      border-color: var(--line2);
-      background: var(--panel2);
+      border-color: var(--color-outline-2);
+      background: var(--color-surface-1);
 
       &:not([aria-disabled="true"]):hover {
-        border-color: color-mix(in srgb, var(--line2) 60%, var(--text));
-        background: var(--panel2);
-        color: var(--text);
+        border-color: color-mix(
+          in srgb,
+          var(--color-outline-2) 60%,
+          var(--color-text-1)
+        );
+        background: var(--color-surface-1);
+        color: var(--color-text-1);
       }
     }
 

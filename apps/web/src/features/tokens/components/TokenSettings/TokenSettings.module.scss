@@ -19,7 +19,7 @@
 
   .copy {
     margin: 0;
-    color: var(--muted);
+    color: var(--color-text-2);
     font-size: var(--font-size-lg);
   }
 
@@ -36,7 +36,7 @@
     font-size: var(--font-size-lg);
 
     span {
-      color: var(--faint);
+      color: var(--color-text-3);
       font-size: var(--font-size-sm);
       text-transform: uppercase;
       letter-spacing: 0.02em;
@@ -46,10 +46,10 @@
     select {
       padding-block: functions.to-rem(6px);
       padding-inline: functions.to-rem(10px);
-      border: 1px solid var(--line2);
+      border: 1px solid var(--color-outline-2);
       border-radius: var(--radius-md);
-      background: var(--panel2);
-      color: var(--text);
+      background: var(--color-surface-1);
+      color: var(--color-text-1);
       font-size: var(--font-size-lg);
 
       @include mixins.focus-visible;
@@ -59,7 +59,7 @@
   .hint {
     flex-basis: 100%;
     margin: 0;
-    color: var(--faint);
+    color: var(--color-text-3);
     font-size: var(--font-size-md);
   }
 
@@ -74,9 +74,9 @@
     display: grid;
     gap: functions.to-rem(10px);
     padding: functions.to-rem(14px);
-    border: 1px solid var(--line2);
+    border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-md);
-    background: var(--panel2);
+    background: var(--color-surface-1);
   }
 
   .mintedHeading {
@@ -87,7 +87,7 @@
 
   .mintedValue {
     padding: functions.to-rem(8px) functions.to-rem(10px);
-    border: 1px dashed var(--line2);
+    border: 1px dashed var(--color-outline-2);
     border-radius: var(--radius-md);
     font-size: var(--font-size-lg);
     overflow-wrap: anywhere;
@@ -96,7 +96,7 @@
 
   .mintedDisclaimer {
     margin: 0;
-    color: var(--muted);
+    color: var(--color-text-2);
     font-size: var(--font-size-md);
   }
 
@@ -107,7 +107,7 @@
 
   .empty {
     margin: 0;
-    color: var(--faint);
+    color: var(--color-text-3);
     font-size: var(--font-size-lg);
   }
 
@@ -117,7 +117,7 @@
     align-items: baseline;
     padding-block: functions.to-rem(8px);
     padding-inline: functions.to-rem(12px);
-    border: 1px solid var(--line2);
+    border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-md);
 
     &[data-revoked="true"] {
@@ -131,14 +131,14 @@
   }
 
   .rowScope {
-    color: var(--faint);
+    color: var(--color-text-3);
     font-size: var(--font-size-md);
     font-weight: 600;
   }
 
   .rowMeta {
     flex: 1;
-    color: var(--faint);
+    color: var(--color-text-3);
     font-size: var(--font-size-md);
   }
 }

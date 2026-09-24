@@ -5,9 +5,9 @@
   // must not import route styles.
   .errorState {
     padding: functions.to-rem(28px);
-    border: 1px solid var(--line);
+    border: 1px solid var(--color-outline-1);
     border-radius: var(--radius-lg);
-    background: var(--panel2);
+    background: var(--color-surface-1);
 
     h1 {
       margin-block-end: functions.to-rem(8px);
@@ -19,7 +19,7 @@
     }
 
     p {
-      color: var(--dim);
+      color: var(--color-text-2);
     }
   }
 }

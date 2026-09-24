@@ -1,20 +1,20 @@
 @layer components {
   // State recolors on top of IconButton's ghost chrome; the resting color
-  // stays fainter than the shared --dim so it recedes inside dense headers.
+  // stays fainter than the shared --color-text-2 so it recedes inside dense headers.
   .copyButton {
-    color: var(--faint);
+    color: var(--color-text-3);
 
     /* :hover doubled in: the pointer sits on the button for the whole
        feedback window, and IconButton's ghost hover outweighs a bare
        attribute selector. */
     &[data-state="copied"],
     &[data-state="copied"]:hover {
-      color: var(--green);
+      color: var(--color-positive);
     }
 
     &[data-state="failed"],
     &[data-state="failed"]:hover {
-      color: var(--red);
+      color: var(--color-negative);
     }
   }
 }

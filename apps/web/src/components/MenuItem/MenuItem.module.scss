@@ -12,13 +12,13 @@
     border: 0;
     border-radius: var(--radius-md);
     background: none;
-    color: var(--text);
+    color: var(--color-text-1);
     cursor: pointer;
     font-size: var(--font-size-lg);
     text-align: start;
 
     &:hover {
-      background: color-mix(in srgb, var(--line2) 40%, transparent);
+      background: color-mix(in srgb, var(--color-outline-2) 40%, transparent);
     }
 
     &[aria-disabled="true"] {

@@ -8,7 +8,7 @@
     border: 0;
     border-block-end: 2px solid transparent;
     background: transparent;
-    color: var(--dim);
+    color: var(--color-text-2);
     font-family: var(--sans);
     font-size: var(--font-size-lg);
     font-weight: 500;
@@ -18,7 +18,7 @@
       border-color 0.15s;
 
     &:hover {
-      color: var(--text);
+      color: var(--color-text-1);
     }
 
     @include mixins.focus-visible {
@@ -27,7 +27,7 @@
 
     &[aria-selected="true"] {
       border-block-end-color: var(--color-accent);
-      color: var(--text);
+      color: var(--color-text-1);
     }
   }
 }

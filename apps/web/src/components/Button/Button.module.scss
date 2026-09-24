@@ -4,10 +4,10 @@
   .button {
     padding-block: functions.to-rem(8px);
     padding-inline: functions.to-rem(16px);
-    border: 1px solid var(--line2);
+    border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-md);
     background: transparent;
-    color: var(--text);
+    color: var(--color-text-1);
     cursor: pointer;
     font-size: var(--font-size-lg);
     font-weight: 600;
@@ -19,25 +19,49 @@
     white-space: nowrap;
 
     &:hover {
-      border-color: color-mix(in srgb, var(--line2) 60%, var(--text));
-      background: color-mix(in srgb, var(--panel) 88%, var(--text));
+      border-color: color-mix(
+        in srgb,
+        var(--color-outline-2) 60%,
+        var(--color-text-1)
+      );
+      background: color-mix(
+        in srgb,
+        var(--color-surface-1) 88%,
+        var(--color-text-1)
+      );
     }
 
     &[data-variant="primary"] {
-      border-color: var(--text);
-      background: var(--text);
+      border-color: var(--color-text-1);
+      background: var(--color-text-1);
       color: var(--color-on-primary);
 
       // Mixed from the fill itself so both colour schemes step the same way;
       // a swap to the page colour left the label unreadable on hover.
       &:hover {
-        border-color: color-mix(in srgb, var(--text) 84%, var(--bg));
-        background: color-mix(in srgb, var(--text) 84%, var(--bg));
+        border-color: color-mix(
+          in srgb,
+          var(--color-text-1) 84%,
+          var(--color-background)
+        );
+        background: color-mix(
+          in srgb,
+          var(--color-text-1) 84%,
+          var(--color-background)
+        );
       }
 
       &:active {
-        border-color: color-mix(in srgb, var(--text) 74%, var(--bg));
-        background: color-mix(in srgb, var(--text) 74%, var(--bg));
+        border-color: color-mix(
+          in srgb,
+          var(--color-text-1) 74%,
+          var(--color-background)
+        );
+        background: color-mix(
+          in srgb,
+          var(--color-text-1) 74%,
+          var(--color-background)
+        );
       }
     }
 
@@ -54,13 +78,29 @@
       font-weight: 600;
 
       &:hover {
-        border-color: color-mix(in srgb, var(--color-accent) 90%, var(--text));
-        background: color-mix(in srgb, var(--color-accent) 90%, var(--text));
+        border-color: color-mix(
+          in srgb,
+          var(--color-accent) 90%,
+          var(--color-text-1)
+        );
+        background: color-mix(
+          in srgb,
+          var(--color-accent) 90%,
+          var(--color-text-1)
+        );
       }
 
       &:active {
-        border-color: color-mix(in srgb, var(--color-accent) 82%, var(--text));
-        background: color-mix(in srgb, var(--color-accent) 82%, var(--text));
+        border-color: color-mix(
+          in srgb,
+          var(--color-accent) 82%,
+          var(--color-text-1)
+        );
+        background: color-mix(
+          in srgb,
+          var(--color-accent) 82%,
+          var(--color-text-1)
+        );
       }
     }
 
@@ -72,7 +112,7 @@
       min-height: functions.to-rem(24px);
       padding-block: functions.to-rem(4px);
       padding-inline: functions.to-rem(10px);
-      border-color: var(--line);
+      border-color: var(--color-outline-1);
       font-size: var(--font-size-md);
       font-weight: 400;
       text-decoration: none;
@@ -81,7 +121,7 @@
       white-space: normal;
 
       &:hover {
-        border-color: var(--line);
+        border-color: var(--color-outline-1);
         background: none;
       }
     }
@@ -98,12 +138,12 @@
 
     /* Last so it beats the variant blocks on the shared specificity tier. */
     &[aria-disabled="true"] {
-      border-color: var(--line);
-      color: var(--dim);
+      border-color: var(--color-outline-1);
+      color: var(--color-text-2);
       cursor: default;
 
       &:hover {
-        border-color: var(--line);
+        border-color: var(--color-outline-1);
         background: transparent;
       }
     }
